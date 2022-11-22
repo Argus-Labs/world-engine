@@ -17,6 +17,7 @@ cd proto
 proto_dirs=$(find ./gaia -path -prune -o -name '*.proto' -print0 | xargs -0 -n1 dirname | sort | uniq)
 for dir in $proto_dirs; do
   for file in $(find "${dir}" -maxdepth 2 -name '*.proto'); do
+      echo "generating $file"
       buf generate --template buf.gen.gogo.yaml $file
   done
 done
@@ -24,5 +25,5 @@ done
 cd ..
 
 # move the generated proto files (*.pb.go / *.pb.gw.go) to x/gaia/<module-name>/types/ directory
-cp -r github.com/cosmos/gaia/* ./
+cp -r github.com/argus-labs/argus/* ./
 rm -rf github.com

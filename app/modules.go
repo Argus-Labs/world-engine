@@ -53,10 +53,9 @@ import (
 	"github.com/strangelove-ventures/packet-forward-middleware/v5/router"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 
-	gaiaappparams "github.com/cosmos/gaia/v8/app/params"
-	"github.com/cosmos/gaia/v8/x/globalfee"
-	"github.com/cosmos/gaia/v8/x/icamauth"
-	icamauthtypes "github.com/cosmos/gaia/v8/x/icamauth/types"
+	gaiaappparams "github.com/argus-labs/argus/app/params"
+	"github.com/argus-labs/argus/x/icamauth"
+	icamauthtypes "github.com/argus-labs/argus/x/icamauth/types"
 )
 
 var maccPerms = map[string][]string{
@@ -107,7 +106,6 @@ var ModuleBasics = module.NewBasicManager(
 	router.AppModuleBasic{},
 	ica.AppModuleBasic{},
 	icamauth.AppModuleBasic{},
-	globalfee.AppModule{},
 )
 
 func appModules(
@@ -142,7 +140,6 @@ func appModules(
 		ibc.NewAppModule(app.IBCKeeper),
 		params.NewAppModule(app.ParamsKeeper),
 		liquidity.NewAppModule(appCodec, app.LiquidityKeeper, app.AccountKeeper, app.BankKeeper, app.DistrKeeper),
-		globalfee.NewAppModule(app.GetSubspace(globalfee.ModuleName)),
 		app.TransferModule,
 		app.ICAModule,
 		app.ICAMauthModule,
@@ -208,7 +205,6 @@ func orderBeginBlockers() []string {
 		vestingtypes.ModuleName,
 		icatypes.ModuleName,
 		icamauthtypes.ModuleName,
-		globalfee.ModuleName,
 	}
 }
 
@@ -238,7 +234,6 @@ func orderEndBlockers() []string {
 		vestingtypes.ModuleName,
 		icatypes.ModuleName,
 		icamauthtypes.ModuleName,
-		globalfee.ModuleName,
 	}
 }
 
@@ -268,6 +263,5 @@ func orderInitBlockers() []string {
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,
 		vestingtypes.ModuleName,
-		globalfee.ModuleName,
 	}
 }

@@ -24,7 +24,7 @@ import (
 	liquiditytypes "github.com/gravity-devs/liquidity/v2/x/liquidity/types"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 
-	icamauthtypes "github.com/cosmos/gaia/v8/x/icamauth/types"
+	icamauthtypes "github.com/argus-labs/argus/x/icamauth/types"
 )
 
 func (appKeepers *AppKeepers) GenerateKeys() {

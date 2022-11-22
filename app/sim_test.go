@@ -16,9 +16,9 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 
-	gaia "github.com/cosmos/gaia/v8/app"
-	"github.com/cosmos/gaia/v8/app/helpers"
-	"github.com/cosmos/gaia/v8/app/params"
+	gaia "github.com/argus-labs/argus/app"
+	"github.com/argus-labs/argus/app/helpers"
+	"github.com/argus-labs/argus/app/params"
 )
 
 func init() {

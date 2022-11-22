@@ -67,10 +67,9 @@ import (
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 	tmos "github.com/tendermint/tendermint/libs/os"
 
-	"github.com/cosmos/gaia/v8/x/globalfee"
-	"github.com/cosmos/gaia/v8/x/icamauth"
-	icamauthkeeper "github.com/cosmos/gaia/v8/x/icamauth/keeper"
-	icamauthtypes "github.com/cosmos/gaia/v8/x/icamauth/types"
+	"github.com/argus-labs/argus/x/icamauth"
+	icamauthkeeper "github.com/argus-labs/argus/x/icamauth/keeper"
+	icamauthtypes "github.com/argus-labs/argus/x/icamauth/types"
 
 	// unnamed import of statik for swagger UI support
 	_ "github.com/cosmos/cosmos-sdk/client/docs/statik"
@@ -415,7 +414,6 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(routertypes.ModuleName).WithKeyTable(routertypes.ParamKeyTable())
 	paramsKeeper.Subspace(icacontrollertypes.SubModuleName)
 	paramsKeeper.Subspace(icahosttypes.SubModuleName)
-	paramsKeeper.Subspace(globalfee.ModuleName)
 
 	return paramsKeeper
 }

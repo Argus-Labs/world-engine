@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package gaia.adapter.v1;
+
+option go_package = "github.com/argus-labs/argus/x/adapter/types";
+
+service Msg {
+  // ClaimQuestReward claims a quest reward.
+  rpc ClaimQuestReward(MsgClaimQuestReward) returns (MsgClaimQuestRewardResponse);
+}
+
+// MsgClaimQuestReward is the Msg/ClaimQuestReward request type.
+message MsgClaimQuestReward {
+  // user_id is the game client user_id.
+  string user_id = 1;
+
+  // quest_id is the id of the quest that was completed.
+  string quest_id = 2;
+}
+
+// MsgClaimQuestRewardResponse is the Msg/ClaimQuestReward response type.
+message MsgClaimQuestRewardResponse {
+  // reward_id is the ID of the reward claimed.
+  string reward_id = 1;
+}

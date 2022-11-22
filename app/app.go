@@ -17,7 +17,6 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/simapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -38,13 +37,10 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
-	gaiaante "github.com/cosmos/gaia/v8/ante"
-	"github.com/cosmos/gaia/v8/app/keepers"
-	gaiaappparams "github.com/cosmos/gaia/v8/app/params"
-	"github.com/cosmos/gaia/v8/app/upgrades"
-	v8 "github.com/cosmos/gaia/v8/app/upgrades/v8"
-	"github.com/cosmos/gaia/v8/x/globalfee"
-	gaiafeeante "github.com/cosmos/gaia/v8/x/globalfee/ante"
+	gaiaante "github.com/argus-labs/argus/ante"
+	"github.com/argus-labs/argus/app/keepers"
+	gaiaappparams "github.com/argus-labs/argus/app/params"
+	"github.com/argus-labs/argus/app/upgrades"
 
 	// unnamed import of statik for swagger UI support
 	_ "github.com/cosmos/cosmos-sdk/client/docs/statik"
@@ -54,7 +50,7 @@ var (
 	// DefaultNodeHome default home directories for the application daemon
 	DefaultNodeHome string
 
-	Upgrades = []upgrades.Upgrade{v8.Upgrade}
+	Upgrades []upgrades.Upgrade
 )
 
 var (
@@ -195,22 +191,9 @@ func NewGaiaApp(
 				FeegrantKeeper:  app.FeeGrantKeeper,
 				SignModeHandler: encodingConfig.TxConfig.SignModeHandler(),
 				SigGasConsumer:  ante.DefaultSigVerificationGasConsumer,
-				// TxFeeChecker is not the default fee check, it will not check if the fee meets min_gas_price, this is checked in NewFeeWithBypassDecorator already.
-				TxFeeChecker: func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
-					feeTx, ok := tx.(sdk.FeeTx)
-					if !ok {
-						return nil, 0, sdkerrors.Wrap(sdkerrors.ErrTxDecode, "Tx must be a FeeTx")
-					}
-
-					feeCoins := feeTx.GetFee()
-					priority := gaiafeeante.GetTxPriority(feeCoins)
-
-					return feeCoins, priority, nil
-				},
 			},
 			IBCkeeper:            app.IBCKeeper,
 			BypassMinFeeMsgTypes: bypassMinFeeMsgTypes,
-			GlobalFeeSubspace:    app.GetSubspace(globalfee.ModuleName),
 			StakingSubspace:      app.GetSubspace(stakingtypes.ModuleName),
 		},
 	)

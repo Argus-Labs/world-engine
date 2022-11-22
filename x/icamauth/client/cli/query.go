@@ -1,9 +1,9 @@
 package cli
 
 import (
+	"github.com/argus-labs/argus/x/icamauth/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/gaia/v8/x/icamauth/types"
 	"github.com/spf13/cobra"
 )
 

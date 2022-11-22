@@ -14,9 +14,9 @@ import (
 	"github.com/spf13/cobra"
 	abci "github.com/tendermint/tendermint/abci/types"
 
-	"github.com/cosmos/gaia/v8/x/icamauth/client/cli"
-	"github.com/cosmos/gaia/v8/x/icamauth/keeper"
-	"github.com/cosmos/gaia/v8/x/icamauth/types"
+	"github.com/argus-labs/argus/x/icamauth/client/cli"
+	"github.com/argus-labs/argus/x/icamauth/keeper"
+	"github.com/argus-labs/argus/x/icamauth/types"
 )
 
 var (

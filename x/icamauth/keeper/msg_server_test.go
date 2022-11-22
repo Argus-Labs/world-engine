@@ -7,8 +7,8 @@ import (
 	channeltypes "github.com/cosmos/ibc-go/v5/modules/core/04-channel/types"
 	ibctesting "github.com/cosmos/ibc-go/v5/testing"
 
-	"github.com/cosmos/gaia/v8/x/icamauth/keeper"
-	"github.com/cosmos/gaia/v8/x/icamauth/types"
+	"github.com/argus-labs/argus/x/icamauth/keeper"
+	"github.com/argus-labs/argus/x/icamauth/types"
 )
 
 func (suite *KeeperTestSuite) TestRegisterInterchainAccount() {

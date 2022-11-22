@@ -1,5 +1,19 @@
 #!/usr/bin/make -f
 
+containerProtoVer=v0.7
+containerProtoImage=tendermintdev/sdk-proto-gen:$(containerProtoVer)
+containerProtoGen=regen-ledger-proto-gen-$(containerProtoVer)
+containerProtoFmt=regen-ledger-proto-fmt-$(containerProtoVer)
+containerProtoGenSwagger=regen-ledger-proto-gen-swagger-$(containerProtoVer)
+
+
+
+gen:
+	@echo "Generating Protobuf files"
+	@if docker ps -a --format '{{.Names}}' | grep -Eq "^${containerProtoGen}$$"; then docker start -a $(containerProtoGen); else docker run --name $(containerProtoGen) -v $(CURDIR):/workspace --workdir /workspace $(containerProtoImage) \
+		sh ./proto/scripts/protocgen.sh; fi
+.PHONY: gen
+
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 COMMIT := $(shell git log -1 --format='%H')
 
@@ -254,9 +268,6 @@ test-docker-push: test-docker
 ###############################################################################
 ###                                Protobuf                                 ###
 ###############################################################################
-proto-gen:
-	@echo "Generating Protobuf files"
-	@sh ./proto/scripts/protocgen.sh
 
 proto-doc:
 	@echo "Generating Protoc docs"
@@ -266,4 +277,4 @@ proto-swagger-gen:
 	@echo "Generating Protobuf Swagger"
 	@sh ./proto/scripts/protoc-swagger-gen.sh
 
-.PHONY: proto-gen proto-doc proto-swagger-gen
+.PHONY: proto-doc proto-swagger-gen

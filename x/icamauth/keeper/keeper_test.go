@@ -11,8 +11,8 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 
-	gaiaapp "github.com/cosmos/gaia/v8/app"
-	"github.com/cosmos/gaia/v8/app/helpers"
+	gaiaapp "github.com/argus-labs/argus/app"
+	"github.com/argus-labs/argus/app/helpers"
 )
 
 var (

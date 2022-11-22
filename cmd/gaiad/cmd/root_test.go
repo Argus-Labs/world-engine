@@ -6,8 +6,8 @@ import (
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	"github.com/stretchr/testify/require"
 
-	app "github.com/cosmos/gaia/v8/app"
-	"github.com/cosmos/gaia/v8/cmd/gaiad/cmd"
+	app "github.com/argus-labs/argus/app"
+	"github.com/argus-labs/argus/cmd/gaiad/cmd"
 )
 
 func TestRootCmdConfig(t *testing.T) {
