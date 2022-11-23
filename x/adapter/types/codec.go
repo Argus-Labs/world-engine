@@ -5,6 +5,8 @@ import (
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
+
+	"github.com/argus-labs/argus/x/adapter/types/v1"
 )
 
 var (
@@ -13,13 +15,13 @@ var (
 )
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
-	cdc.RegisterConcrete(MsgClaimQuestReward{}, "adapter/MsgClaimQuestReward", nil)
+	cdc.RegisterConcrete(v1.MsgClaimQuestReward{}, "adapter/MsgClaimQuestReward", nil)
 }
 
 func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {
-	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
+	msgservice.RegisterMsgServiceDesc(registry, &v1._Msg_serviceDesc)
 	registry.RegisterImplementations(
 		(*sdk.Msg)(nil),
-		&MsgClaimQuestReward{},
+		&v1.MsgClaimQuestReward{},
 	)
 }
