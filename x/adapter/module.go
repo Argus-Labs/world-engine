@@ -13,7 +13,6 @@ import (
 	abci "github.com/tendermint/tendermint/abci/types"
 
 	adapterkeeper "github.com/argus-labs/argus/x/adapter/keeper"
-	adapter "github.com/argus-labs/argus/x/adapter/types"
 	"github.com/argus-labs/argus/x/adapter/types/v1"
 )
 
@@ -86,11 +85,11 @@ func (a AppModuleBasic) Name() string {
 }
 
 func (a AppModuleBasic) RegisterLegacyAminoCodec(amino *codec.LegacyAmino) {
-	adapter.RegisterCodec(amino)
+	v1.RegisterCodec(amino)
 }
 
 func (a AppModuleBasic) RegisterInterfaces(registry types.InterfaceRegistry) {
-	adapter.RegisterInterfaces(registry)
+	v1.RegisterInterfaces(registry)
 }
 
 func (a AppModuleBasic) DefaultGenesis(jsonCodec codec.JSONCodec) json.RawMessage {
