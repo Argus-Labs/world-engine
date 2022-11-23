@@ -231,7 +231,7 @@ func (ac appCreator) newApp(
 		cast.ToUint32(appOpts.Get(server.FlagStateSyncSnapshotKeepRecent)),
 	)
 
-	return gaia.NewGaiaApp(
+	return gaia.NewArgusApp(
 		logger, db, traceStore, true, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
@@ -270,7 +270,7 @@ func (ac appCreator) appExport(
 		loadLatest = true
 	}
 
-	gaiaApp := gaia.NewGaiaApp(
+	gaiaApp := gaia.NewArgusApp(
 		logger,
 		db,
 		traceStore,

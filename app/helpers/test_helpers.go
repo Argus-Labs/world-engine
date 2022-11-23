@@ -30,7 +30,7 @@ const (
 )
 
 // DefaultConsensusParams defines the default Tendermint consensus params used
-// in GaiaApp testing.
+// in ArgusApp testing.
 var DefaultConsensusParams = &abci.ConsensusParams{
 	Block: &abci.BlockParams{
 		MaxBytes: 200000,
@@ -52,7 +52,7 @@ type EmptyAppOptions struct{}
 
 func (EmptyAppOptions) Get(o string) interface{} { return nil }
 
-func Setup(t *testing.T) *gaiaapp.GaiaApp {
+func Setup(t *testing.T) *gaiaapp.ArgusApp {
 	t.Helper()
 
 	privVal := mock.NewPV()
@@ -74,11 +74,11 @@ func Setup(t *testing.T) *gaiaapp.GaiaApp {
 	return app
 }
 
-// SetupWithGenesisValSet initializes a new GaiaApp with a validator set and genesis accounts
+// SetupWithGenesisValSet initializes a new ArgusApp with a validator set and genesis accounts
 // that also act as delegators. For simplicity, each validator is bonded with a delegation
-// of one consensus engine unit in the default token of the GaiaApp from first genesis
-// account. A Nop logger is set in GaiaApp.
-func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *gaiaapp.GaiaApp {
+// of one consensus engine unit in the default token of the ArgusApp from first genesis
+// account. A Nop logger is set in ArgusApp.
+func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *gaiaapp.ArgusApp {
 	t.Helper()
 
 	gaiaApp, genesisState := setup(true, 5)
@@ -108,10 +108,10 @@ func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs 
 	return gaiaApp
 }
 
-func setup(withGenesis bool, invCheckPeriod uint) (*gaiaapp.GaiaApp, gaiaapp.GenesisState) {
+func setup(withGenesis bool, invCheckPeriod uint) (*gaiaapp.ArgusApp, gaiaapp.GenesisState) {
 	db := dbm.NewMemDB()
 	encCdc := gaiaapp.MakeTestEncodingConfig()
-	gaiaApp := gaiaapp.NewGaiaApp(
+	gaiaApp := gaiaapp.NewArgusApp(
 		log.NewNopLogger(),
 		db,
 		nil,
@@ -130,7 +130,7 @@ func setup(withGenesis bool, invCheckPeriod uint) (*gaiaapp.GaiaApp, gaiaapp.Gen
 }
 
 func genesisStateWithValSet(t *testing.T,
-	app *gaiaapp.GaiaApp, genesisState gaiaapp.GenesisState,
+	app *gaiaapp.ArgusApp, genesisState gaiaapp.GenesisState,
 	valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount,
 	balances ...banktypes.Balance,
 ) gaiaapp.GenesisState {

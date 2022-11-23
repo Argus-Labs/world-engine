@@ -1,4 +1,4 @@
-package gaia_test
+package argus_test
 
 import (
 	"testing"
@@ -20,7 +20,7 @@ func (ao EmptyAppOptions) Get(o string) interface{} {
 }
 
 func TestGaiaApp_BlockedModuleAccountAddrs(t *testing.T) {
-	app := gaia.NewGaiaApp(
+	app := gaia.NewArgusApp(
 		log.NewNopLogger(),
 		db.NewMemDB(),
 		nil,

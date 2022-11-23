@@ -43,7 +43,7 @@ func init() {
 func SetupICATestingApp() (ibctesting.TestingApp, map[string]json.RawMessage) {
 	db := dbm.NewMemDB()
 	encCdc := gaiaapp.MakeTestEncodingConfig()
-	app := gaiaapp.NewGaiaApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, gaiaapp.DefaultNodeHome, 5, encCdc, helpers.EmptyAppOptions{})
+	app := gaiaapp.NewArgusApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, gaiaapp.DefaultNodeHome, 5, encCdc, helpers.EmptyAppOptions{})
 	return app, gaiaapp.NewDefaultGenesisState()
 }
 
@@ -103,8 +103,8 @@ func SetupICAPath(path *ibctesting.Path, owner string) error {
 	return nil
 }
 
-func GetICAApp(chain *ibctesting.TestChain) *gaiaapp.GaiaApp {
-	app, ok := chain.App.(*gaiaapp.GaiaApp)
+func GetICAApp(chain *ibctesting.TestChain) *gaiaapp.ArgusApp {
+	app, ok := chain.App.(*gaiaapp.ArgusApp)
 	if !ok {
 		panic("not ica app")
 	}

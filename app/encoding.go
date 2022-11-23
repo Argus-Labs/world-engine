@@ -1,4 +1,4 @@
-package gaia
+package argus
 
 import (
 	"github.com/cosmos/cosmos-sdk/std"

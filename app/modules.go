@@ -1,4 +1,4 @@
-package gaia
+package argus
 
 import (
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -54,6 +54,7 @@ import (
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 
 	gaiaappparams "github.com/argus-labs/argus/app/params"
+	adaptertypes "github.com/argus-labs/argus/x/adapter"
 	"github.com/argus-labs/argus/x/icamauth"
 	icamauthtypes "github.com/argus-labs/argus/x/icamauth/types"
 )
@@ -106,10 +107,11 @@ var ModuleBasics = module.NewBasicManager(
 	router.AppModuleBasic{},
 	ica.AppModuleBasic{},
 	icamauth.AppModuleBasic{},
+	adaptertypes.AppModuleBasic{},
 )
 
 func appModules(
-	app *GaiaApp,
+	app *ArgusApp,
 	encodingConfig gaiaappparams.EncodingConfig,
 	skipGenesisInvariants bool,
 ) []module.AppModule {
@@ -144,13 +146,14 @@ func appModules(
 		app.ICAModule,
 		app.ICAMauthModule,
 		app.RouterModule,
+		app.AdapterModule,
 	}
 }
 
 // simulationModules returns modules for simulation manager
 // define the order of the modules for deterministic simulations
 func simulationModules(
-	app *GaiaApp,
+	app *ArgusApp,
 	encodingConfig gaiaappparams.EncodingConfig,
 	_ bool,
 ) []module.AppModuleSimulation {
@@ -205,6 +208,7 @@ func orderBeginBlockers() []string {
 		vestingtypes.ModuleName,
 		icatypes.ModuleName,
 		icamauthtypes.ModuleName,
+		adaptertypes.Name,
 	}
 }
 
@@ -234,6 +238,7 @@ func orderEndBlockers() []string {
 		vestingtypes.ModuleName,
 		icatypes.ModuleName,
 		icamauthtypes.ModuleName,
+		adaptertypes.Name,
 	}
 }
 
@@ -263,5 +268,6 @@ func orderInitBlockers() []string {
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,
 		vestingtypes.ModuleName,
+		adaptertypes.Name,
 	}
 }

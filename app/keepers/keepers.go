@@ -67,6 +67,8 @@ import (
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 	tmos "github.com/tendermint/tendermint/libs/os"
 
+	"github.com/argus-labs/argus/x/adapter"
+	adapterkeeper "github.com/argus-labs/argus/x/adapter/keeper"
 	"github.com/argus-labs/argus/x/icamauth"
 	icamauthkeeper "github.com/argus-labs/argus/x/icamauth/keeper"
 	icamauthtypes "github.com/argus-labs/argus/x/icamauth/types"
@@ -105,6 +107,7 @@ type AppKeepers struct {
 	GroupKeeper         groupkeeper.Keeper
 	AuthzKeeper         authzkeeper.Keeper
 	LiquidityKeeper     liquiditykeeper.Keeper
+	AdapterKeeper       adapterkeeper.Keeper
 
 	RouterKeeper routerkeeper.Keeper
 
@@ -113,6 +116,7 @@ type AppKeepers struct {
 	ICAMauthModule icamauth.AppModule
 	TransferModule transfer.AppModule
 	RouterModule   router.AppModule
+	AdapterModule  adapter.AppModule
 
 	// make scoped keepers public for test purposes
 	ScopedIBCKeeper           capabilitykeeper.ScopedKeeper
@@ -385,6 +389,9 @@ func NewAppKeeper(
 		&appKeepers.StakingKeeper,
 		appKeepers.SlashingKeeper,
 	)
+
+	appKeepers.AdapterKeeper = adapterkeeper.NewKeeper(appCodec, appKeepers.GetKey(adapter.StoreKey))
+	appKeepers.AdapterModule = adapter.NewAppModule(appCodec, appKeepers.AdapterKeeper)
 
 	return appKeepers
 }

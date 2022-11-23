@@ -1,5 +1,5 @@
-package gaia
+package argus
 
 const (
-	appName = "GaiaApp"
+	appName = "ArgusApp"
 )
