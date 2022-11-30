@@ -215,6 +215,7 @@ func NewArgusApp(
 		}
 	}
 
+	app.StartSidecar()
 	return app
 }
 

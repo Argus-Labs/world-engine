@@ -278,3 +278,13 @@ proto-swagger-gen:
 	@sh ./proto/scripts/protoc-swagger-gen.sh
 
 .PHONY: proto-doc proto-swagger-gen
+
+###############################################################################
+###                                Start                                 	###
+###############################################################################
+
+start-services:
+	@echo "Starting services"
+	@docker-compose down -v --remove-orphans
+	@docker-compose build
+	@docker-compose up --abort-on-container-exit --exit-code-from postgres nakama node
