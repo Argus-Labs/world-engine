@@ -4,7 +4,7 @@
 // 	protoc        (unknown)
 // source: sidecar/v1/query.proto
 
-package main
+package v1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"

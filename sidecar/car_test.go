@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/tendermint/tendermint/libs/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -14,16 +12,12 @@ import (
 )
 
 func TestSidecar(t *testing.T) {
-	err := StartSidecar(&baseapp.MsgServiceRouter{}, &baseapp.GRPCQueryRouter{}, log.TestingLogger())
-	if err != nil {
-		panic(err)
-	}
 	c, err := grpc.Dial("localhost:5050", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
 	}
 	cc := v1.NewSidecarClient(c)
-	res, err := cc.Ping(context.Background(), &v1.MsgPing{Id: "foobar"})
+	res, err := cc.MintCoins(context.Background(), &v1.MsgMintCoins{Amount: 40, Denom: "uregen"})
 	if err != nil {
 		panic(err)
 	}

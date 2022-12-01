@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
@@ -62,10 +63,10 @@ func RpcHealthCheck(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 		logger.Error("cannot marshal response: %w", err)
 		return "", runtime.NewError("cannot marshal response", 13)
 	}
-	res, err := sidecar.Ping(ctx, &MsgPing{Id: "foobar"})
+	res, err := sidecar.MintCoins(ctx, &MsgMintCoins{Amount: 10, Denom: "NAKAMA"})
 	if err != nil {
-		return "", runtime.NewError("couldn't ping grpc server", 10)
+		return "", runtime.NewError(fmt.Sprintf("call to sidecar failed: %s", err.Error()), 1)
 	}
-	logger.Info("ping response: %s", res.String())
+	logger.Info("mint coins response: %s", res.String())
 	return string(out), nil
 }

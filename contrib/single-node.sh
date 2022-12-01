@@ -3,6 +3,7 @@
 set -o errexit -o nounset
 
 rm -rf root/.argus/config/
+rm -rf ~/.argus/
 
 CHAINID=foobar
 

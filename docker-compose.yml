@@ -19,6 +19,8 @@ services:
 
   nakama:
     container_name: nakama_container
+    environment:
+      - SIDECAR_TARGET=node:5050
     build:
       context: nakama
       dockerfile: Dockerfile
@@ -55,6 +57,8 @@ services:
       context: .
       dockerfile: argus.Dockerfile
     restart: unless-stopped
+    expose:
+      - "5050"
     networks:
       - default
 

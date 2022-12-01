@@ -41,6 +41,7 @@ import (
 	"github.com/argus-labs/argus/app/keepers"
 	argusappparams "github.com/argus-labs/argus/app/params"
 	"github.com/argus-labs/argus/app/upgrades"
+	"github.com/argus-labs/argus/sidecar"
 
 	// unnamed import of statik for swagger UI support
 	_ "github.com/cosmos/cosmos-sdk/client/docs/statik"
@@ -215,7 +216,11 @@ func NewArgusApp(
 		}
 	}
 
-	app.StartSidecar()
+	err = sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger())
+	if err != nil {
+		panic(fmt.Errorf("failed to start sidecar process: %w", err))
+	}
+
 	return app
 }
 
