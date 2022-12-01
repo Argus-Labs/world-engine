@@ -14,7 +14,7 @@ protoc_gen_gocosmos() {
 protoc_gen_gocosmos
 
 cd proto
-proto_dirs=$(find ./gaia -path -prune -o -name '*.proto' -print0 | xargs -0 -n1 dirname | sort | uniq)
+proto_dirs=$(find ./argus -path -prune -o -name '*.proto' -print0 | xargs -0 -n1 dirname | sort | uniq)
 for dir in $proto_dirs; do
   for file in $(find "${dir}" -maxdepth 2 -name '*.proto'); do
       echo "generating $file"

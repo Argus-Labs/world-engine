@@ -4,9 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"os"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+)
+
+var (
+	sidecar SidecarClient = nil
 )
 
 // InitializerFunction contains the function signature (minus function name, which MUST be InitModule) that the nakama runtime expects.
@@ -28,6 +35,13 @@ var moduleInit InitializerFunction = func(ctx context.Context, logger runtime.Lo
 // "InitModule" with the same signature as below. Do not edit any of the params/return type, or add any additional params/return types.
 // Doing so will break the Nakama runtime from initializing our SO file.
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, module runtime.NakamaModule, initializer runtime.Initializer) error {
+	target := os.Getenv("SIDECAR_TARGET")
+	clientConn, err := grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		panic(err)
+	}
+	sidecar = NewSidecarClient(clientConn)
+
 	return moduleInit(ctx, logger, db, module, initializer)
 }
 
@@ -48,5 +62,10 @@ func RpcHealthCheck(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 		logger.Error("cannot marshal response: %w", err)
 		return "", runtime.NewError("cannot marshal response", 13)
 	}
+	res, err := sidecar.Ping(ctx, &MsgPing{Id: "foobar"})
+	if err != nil {
+		return "", runtime.NewError("couldn't ping grpc server", 10)
+	}
+	logger.Info("ping response: %s", res.String())
 	return string(out), nil
 }

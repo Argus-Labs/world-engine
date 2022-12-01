@@ -14,6 +14,9 @@ services:
       - "8080:8080"
     volumes:
       - data:/var/lib/postgresql/data
+    networks:
+      - default
+
   nakama:
     container_name: nakama_container
     build:
@@ -43,6 +46,8 @@ services:
       - "7350:7350"
       - "7351:7351"
     restart: unless-stopped
+    networks:
+      - default
 
   node:
     container_name: argus_node
@@ -50,6 +55,12 @@ services:
       context: .
       dockerfile: argus.Dockerfile
     restart: unless-stopped
+    networks:
+      - default
 
 volumes:
   data:
+
+networks:
+  default:
+    driver: bridge

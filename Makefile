@@ -14,6 +14,14 @@ gen:
 		sh ./proto/scripts/protocgen.sh; fi
 .PHONY: gen
 
+bufgen:
+	@echo "Generating Buf files"
+	@if docker ps -a --format '{{.Names}}' | grep -Eq "^${containerProtoGen}$$"; then docker start -a $(containerProtoGen); else docker run --name $(containerProtoGen) -v $(CURDIR):/workspace --workdir /workspace $(containerProtoImage) \
+		sh ./proto/scripts/bufgen.sh.sh; fi
+.PHONY: gen
+
+.PHONY: bufgen
+
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 COMMIT := $(shell git log -1 --format='%H')
 

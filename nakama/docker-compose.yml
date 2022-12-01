@@ -17,6 +17,8 @@ services:
       - data:/var/lib/postgresql/data
 
   nakama:
+    environment:
+      - SIDECAR_TARGET=localhost:5050
     build: .
     depends_on:
       - postgres

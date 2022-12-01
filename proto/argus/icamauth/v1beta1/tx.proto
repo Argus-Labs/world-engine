@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package gaia.icamauth.v1beta1;
+package argus.icamauth.v1beta1;
 
 option go_package = "github.com/argus-labs/argus/x/icamauth/types";
 

@@ -3,9 +3,6 @@ dc:
 .PHONY: dc
 
 
-reset:
-	rm -rf vendor/
-	go mod tidy
-	go mod vendor
-	docker compose up --build
+start:
+	./start.sh
 .PHONY: reset
