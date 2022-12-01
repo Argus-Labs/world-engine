@@ -3,7 +3,7 @@ module github.com/argus-labs/argus
 go 1.18
 
 require (
-	cosmossdk.io/math v1.0.0-beta.3
+	cosmossdk.io/math v1.0.0-beta.4
 	github.com/cosmos/cosmos-sdk v0.46.6
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/ibc-go/v5 v5.1.0
@@ -28,6 +28,7 @@ require (
 )
 
 require (
+	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221201211842-2c4f3fe5f941.4
 	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221201211842-2c4f3fe5f941.4
 	github.com/JeremyLoy/config v1.5.0
 	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8
@@ -35,7 +36,6 @@ require (
 
 require (
 	4d63.com/gochecknoglobals v0.1.0 // indirect
-	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221201211842-2c4f3fe5f941.4 // indirect
 	cloud.google.com/go v0.104.0 // indirect
 	cloud.google.com/go/compute v1.12.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.1 // indirect
