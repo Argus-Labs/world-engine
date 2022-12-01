@@ -12,7 +12,9 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"google.golang.org/grpc"
 
-	v1 "github.com/argus-labs/argus/sidecar/v1"
+	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
+
+	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
 )
 
 const (
@@ -36,7 +38,7 @@ func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, b
 		return err
 	}
 	grpcServer := grpc.NewServer()
-	v1.RegisterSidecarServer(grpcServer, sc)
+	g1.RegisterSidecarServer(grpcServer, sc)
 	go func() {
 		err := grpcServer.Serve(lis)
 		if err != nil {
@@ -50,7 +52,7 @@ func (s Sidecar) getSDKCtx() types.Context {
 	return types.NewContext(s.cms, tmproto.Header{}, false, s.logger)
 }
 
-var _ v1.SidecarServer = Sidecar{}
+var _ g1.SidecarServer = Sidecar{}
 
 func (s Sidecar) Ping(ctx context.Context, ping *v1.MsgPing) (*v1.MsgPingResponse, error) {
 	return &v1.MsgPingResponse{Id: "pong!"}, nil

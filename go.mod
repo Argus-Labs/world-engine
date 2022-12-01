@@ -28,7 +28,14 @@ require (
 )
 
 require (
+	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221201211842-2c4f3fe5f941.4
+	github.com/JeremyLoy/config v1.5.0
+	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8
+)
+
+require (
 	4d63.com/gochecknoglobals v0.1.0 // indirect
+	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221201211842-2c4f3fe5f941.4 // indirect
 	cloud.google.com/go v0.104.0 // indirect
 	cloud.google.com/go/compute v1.12.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.1 // indirect
@@ -45,7 +52,6 @@ require (
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20200405005733-88cbf1b4c40d // indirect
 	github.com/Djarvur/go-err113 v0.0.0-20210108212216-aea10b59be24 // indirect
 	github.com/GaijinEntertainment/go-exhaustruct/v2 v2.3.0 // indirect
-	github.com/JeremyLoy/config v1.5.0 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/OpenPeeDeeP/depguard v1.1.1 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
@@ -281,7 +287,6 @@ require (
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.102.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

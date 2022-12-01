@@ -11,10 +11,14 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
+
+	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
 )
 
 var (
-	sidecar SidecarClient = nil
+	sidecar g1.SidecarClient = nil
 )
 
 // InitializerFunction contains the function signature (minus function name, which MUST be InitModule) that the nakama runtime expects.
@@ -41,7 +45,7 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, module r
 	if err != nil {
 		panic(err)
 	}
-	sidecar = NewSidecarClient(clientConn)
+	sidecar = g1.NewSidecarClient(clientConn)
 
 	return moduleInit(ctx, logger, db, module, initializer)
 }
@@ -63,7 +67,7 @@ func RpcHealthCheck(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 		logger.Error("cannot marshal response: %w", err)
 		return "", runtime.NewError("cannot marshal response", 13)
 	}
-	res, err := sidecar.MintCoins(ctx, &MsgMintCoins{Amount: 10, Denom: "NAKAMA"})
+	res, err := sidecar.MintCoins(ctx, &v1.MsgMintCoins{Amount: 10, Denom: "NAKAMA"})
 	if err != nil {
 		return "", runtime.NewError(fmt.Sprintf("call to sidecar failed: %s", err.Error()), 1)
 	}
