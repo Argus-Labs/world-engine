@@ -60,12 +60,21 @@ import (
 	ibchost "github.com/cosmos/ibc-go/v5/modules/core/24-host"
 	ibckeeper "github.com/cosmos/ibc-go/v5/modules/core/keeper"
 	ibctestingtypes "github.com/cosmos/ibc-go/v5/testing/types"
+	"github.com/evmos/ethermint/server/flags"
 	liquiditykeeper "github.com/gravity-devs/liquidity/v2/x/liquidity/keeper"
 	liquiditytypes "github.com/gravity-devs/liquidity/v2/x/liquidity/types"
+	"github.com/spf13/cast"
 	"github.com/strangelove-ventures/packet-forward-middleware/v5/router"
 	routerkeeper "github.com/strangelove-ventures/packet-forward-middleware/v5/router/keeper"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 	tmos "github.com/tendermint/tendermint/libs/os"
+
+	evmtypes "github.com/argus-labs/argus/x/evm/types"
+	feemarketkeeper "github.com/argus-labs/argus/x/feemarket/keeper"
+	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
+
+	evmkeeper "github.com/argus-labs/argus/x/evm/keeper"
+	"github.com/argus-labs/argus/x/evm/vm/geth"
 
 	"github.com/argus-labs/argus/x/adapter"
 	adapterkeeper "github.com/argus-labs/argus/x/adapter/keeper"
@@ -124,6 +133,10 @@ type AppKeepers struct {
 	ScopedICAControllerKeeper capabilitykeeper.ScopedKeeper
 	ScopedICAHostKeeper       capabilitykeeper.ScopedKeeper
 	ScopedICAMauthKeeper      capabilitykeeper.ScopedKeeper
+
+	// Ethermint Modules
+	EvmKeeper       *evmkeeper.Keeper
+	FeeMarketKeeper feemarketkeeper.Keeper
 }
 
 func NewAppKeeper(
@@ -393,6 +406,17 @@ func NewAppKeeper(
 	appKeepers.AdapterKeeper = adapterkeeper.NewKeeper(appCodec, appKeepers.GetKey(adapter.StoreKey))
 	appKeepers.AdapterModule = adapter.NewAppModule(appCodec, appKeepers.AdapterKeeper)
 
+	appKeepers.FeeMarketKeeper = feemarketkeeper.NewKeeper(
+		appCodec, appKeepers.GetSubspace(feemarkettypes.ModuleName), appKeepers.GetKey(feemarkettypes.StoreKey), appKeepers.GetTKey(feemarkettypes.TransientKey),
+	)
+
+	tracer := cast.ToString(appOpts.Get(flags.EVMTracer))
+	appKeepers.EvmKeeper = evmkeeper.NewKeeper(
+		appCodec, appKeepers.GetKey(evmtypes.StoreKey), appKeepers.GetTKey(evmtypes.TransientKey), appKeepers.GetSubspace(evmtypes.ModuleName),
+		appKeepers.AccountKeeper, appKeepers.BankKeeper, appKeepers.StakingKeeper, appKeepers.FeeMarketKeeper,
+		nil, geth.NewEVM, tracer,
+	)
+
 	return appKeepers
 }
 
@@ -421,6 +445,10 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(routertypes.ModuleName).WithKeyTable(routertypes.ParamKeyTable())
 	paramsKeeper.Subspace(icacontrollertypes.SubModuleName)
 	paramsKeeper.Subspace(icahosttypes.SubModuleName)
+
+	// Ethermint Modules
+	paramsKeeper.Subspace(evmtypes.ModuleName)
+	paramsKeeper.Subspace(feemarkettypes.ModuleName)
 
 	return paramsKeeper
 }

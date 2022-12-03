@@ -53,7 +53,14 @@ import (
 	"github.com/strangelove-ventures/packet-forward-middleware/v5/router"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 
-	gaiaappparams "github.com/argus-labs/argus/app/params"
+	evmtypes "github.com/argus-labs/argus/x/evm/types"
+	"github.com/argus-labs/argus/x/feemarket"
+	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
+
+	"github.com/argus-labs/argus/x/evm"
+
+	argusSimParams "github.com/argus-labs/argus/app/simulation_params"
+	"github.com/argus-labs/argus/sidecar"
 	adaptertypes "github.com/argus-labs/argus/x/adapter"
 	"github.com/argus-labs/argus/x/icamauth"
 	icamauthtypes "github.com/argus-labs/argus/x/icamauth/types"
@@ -69,7 +76,8 @@ var maccPerms = map[string][]string{
 	govtypes.ModuleName:            {authtypes.Burner},
 	liquiditytypes.ModuleName:      {authtypes.Minter, authtypes.Burner},
 	ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
-	"sidecar":                      {authtypes.Minter},
+	sidecar.ModuleName:             {authtypes.Minter, authtypes.Burner},
+	evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
 }
 
 // ModuleBasics defines the module BasicManager is in charge of setting up basic,
@@ -107,13 +115,19 @@ var ModuleBasics = module.NewBasicManager(
 	liquidity.AppModuleBasic{},
 	router.AppModuleBasic{},
 	ica.AppModuleBasic{},
+
+	// argus modules
 	icamauth.AppModuleBasic{},
 	adaptertypes.AppModuleBasic{},
+
+	// ethermint modules
+	evm.AppModuleBasic{},
+	feemarket.AppModuleBasic{},
 )
 
 func appModules(
 	app *ArgusApp,
-	encodingConfig gaiaappparams.EncodingConfig,
+	encodingConfig argusSimParams.EncodingConfig,
 	skipGenesisInvariants bool,
 ) []module.AppModule {
 	appCodec := encodingConfig.Codec
@@ -148,6 +162,10 @@ func appModules(
 		app.ICAMauthModule,
 		app.RouterModule,
 		app.AdapterModule,
+
+		// Ethermint Modules
+		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
+		feemarket.NewAppModule(app.FeeMarketKeeper),
 	}
 }
 
@@ -155,7 +173,7 @@ func appModules(
 // define the order of the modules for deterministic simulations
 func simulationModules(
 	app *ArgusApp,
-	encodingConfig gaiaappparams.EncodingConfig,
+	encodingConfig argusSimParams.EncodingConfig,
 	_ bool,
 ) []module.AppModuleSimulation {
 	appCodec := encodingConfig.Codec
@@ -187,6 +205,8 @@ func orderBeginBlockers() []string {
 		// upgrades should be run first
 		upgradetypes.ModuleName,
 		capabilitytypes.ModuleName,
+		feemarkettypes.ModuleName,
+		evmtypes.ModuleName,
 		minttypes.ModuleName,
 		distrtypes.ModuleName,
 		slashingtypes.ModuleName,
@@ -221,6 +241,8 @@ func orderEndBlockers() []string {
 		liquiditytypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		ibchost.ModuleName,
+		evmtypes.ModuleName,
+		feemarkettypes.ModuleName,
 		icatypes.ModuleName,
 		routertypes.ModuleName,
 		capabilitytypes.ModuleName,
@@ -254,6 +276,11 @@ func orderInitBlockers() []string {
 		govtypes.ModuleName,
 		minttypes.ModuleName,
 		crisistypes.ModuleName,
+		// evm module denomination is used by the feemarket module, in AnteHandle
+		evmtypes.ModuleName,
+		// NOTE: feemarket need to be initialized before genutil module:
+		// gentx transactions use MinGasPriceDecorator.AnteHandle
+		feemarkettypes.ModuleName,
 		genutiltypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		ibchost.ModuleName,

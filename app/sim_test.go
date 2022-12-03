@@ -18,7 +18,7 @@ import (
 
 	gaia "github.com/argus-labs/argus/app"
 	"github.com/argus-labs/argus/app/helpers"
-	"github.com/argus-labs/argus/app/params"
+	"github.com/argus-labs/argus/app/simulation_params"
 )
 
 func init() {
@@ -41,7 +41,7 @@ func BenchmarkFullAppSimulation(b *testing.B) {
 		}
 	}()
 
-	app := gaia.NewArgusApp(logger, db, nil, true, map[int64]bool{}, gaia.DefaultNodeHome, simapp.FlagPeriodValue, params.MakeTestEncodingConfig(), simapp.EmptyAppOptions{}, interBlockCacheOpt())
+	app := gaia.NewArgusApp(logger, db, nil, true, map[int64]bool{}, gaia.DefaultNodeHome, simapp.FlagPeriodValue, simulation_params.MakeTestEncodingConfig(), simapp.EmptyAppOptions{}, interBlockCacheOpt())
 
 	// Run randomized simulation:w
 	_, simParams, simErr := simulation.SimulateFromSeed(

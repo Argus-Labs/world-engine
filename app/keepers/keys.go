@@ -24,6 +24,8 @@ import (
 	liquiditytypes "github.com/gravity-devs/liquidity/v2/x/liquidity/types"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 
+	evmtypes "github.com/argus-labs/argus/x/evm/types"
+
 	"github.com/argus-labs/argus/x/adapter"
 	icamauthtypes "github.com/argus-labs/argus/x/icamauth/types"
 )
@@ -38,7 +40,7 @@ func (appKeepers *AppKeepers) GenerateKeys() {
 		evidencetypes.StoreKey, liquiditytypes.StoreKey, ibctransfertypes.StoreKey,
 		capabilitytypes.StoreKey, feegrant.StoreKey, authzkeeper.StoreKey, routertypes.StoreKey,
 		icacontrollertypes.StoreKey, icahosttypes.StoreKey, icamauthtypes.StoreKey, group.StoreKey,
-		adapter.StoreKey,
+		adapter.StoreKey, evmtypes.StoreKey,
 	)
 
 	// Define transient store keys

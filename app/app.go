@@ -19,12 +19,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
-	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
 	ibcchanneltypes "github.com/cosmos/ibc-go/v5/modules/core/04-channel/types"
@@ -37,9 +35,8 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
-	argusante "github.com/argus-labs/argus/ante"
 	"github.com/argus-labs/argus/app/keepers"
-	argusappparams "github.com/argus-labs/argus/app/params"
+	argusappparams "github.com/argus-labs/argus/app/simulation_params"
 	"github.com/argus-labs/argus/app/upgrades"
 	"github.com/argus-labs/argus/sidecar"
 
@@ -184,25 +181,22 @@ func NewArgusApp(
 		bypassMinFeeMsgTypes = GetDefaultBypassFeeMessages()
 	}
 
-	anteHandler, err := argusante.NewAnteHandler(
-		argusante.HandlerOptions{
-			HandlerOptions: ante.HandlerOptions{
-				AccountKeeper:   app.AccountKeeper,
-				BankKeeper:      app.BankKeeper,
-				FeegrantKeeper:  app.FeeGrantKeeper,
-				SignModeHandler: encodingConfig.TxConfig.SignModeHandler(),
-				SigGasConsumer:  ante.DefaultSigVerificationGasConsumer,
-			},
-			IBCkeeper:            app.IBCKeeper,
-			BypassMinFeeMsgTypes: bypassMinFeeMsgTypes,
-			StakingSubspace:      app.GetSubspace(stakingtypes.ModuleName),
-		},
-	)
-	if err != nil {
-		panic(fmt.Errorf("failed to create AnteHandler: %s", err))
-	}
-
-	app.SetAnteHandler(anteHandler)
+	//etherMintAnteHandler, err := ethermintAnte.NewAnteHandler(ethermintAnte.HandlerOptions{
+	//	AccountKeeper:   app.AccountKeeper,
+	//	BankKeeper:      app.BankKeeper,
+	//	IBCKeeper:       app.IBCKeeper,
+	//	FeeMarketKeeper: nil, // TODO(Tyler): fix this once feemarket is wired up!
+	//	EvmKeeper:       app.EvmKeeper,
+	//	FeegrantKeeper:  app.FeeGrantKeeper,
+	//	SignModeHandler: app.GetTxConfig().SignModeHandler(),
+	//	SigGasConsumer:  ethermintAnte.DefaultSigVerificationGasConsumer,
+	//	MaxTxGasWanted:  cast.ToUint64(appOpts.Get(flags.EVMMaxTxGasWanted)),
+	//})
+	//if err != nil {
+	//	panic(fmt.Errorf("failed to create AnteHandler: %s", err))
+	//}
+	// TODO(Tyler): copy pasta their ante handler..
+	app.SetAnteHandler(nil)
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
@@ -216,7 +210,7 @@ func NewArgusApp(
 		}
 	}
 
-	err = sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger())
+	err := sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger())
 	if err != nil {
 		panic(fmt.Errorf("failed to start sidecar process: %w", err))
 	}

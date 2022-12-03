@@ -151,7 +151,7 @@ go.sum: go.mod
 draw-deps:
 	@# requires brew install graphviz or apt-get install graphviz
 	go install github.com/RobotsAndPencils/goviz
-	@goviz -i ./cmd/gaiad -d 2 | dot -Tpng -o dependency-graph.png
+	@goviz -i ./cmd/argusd -d 2 | dot -Tpng -o dependency-graph.png
 
 clean:
 	rm -rf $(BUILDDIR)/ artifacts/
@@ -215,7 +215,7 @@ endif
 .PHONY: run-tests $(TEST_TARGETS)
 
 docker-build-debug:
-	@docker build -t cosmos/gaiad-e2e -f e2e.Dockerfile .
+	@docker build -t argus/argusd-e2e -f e2e.Dockerfile .
 
 # TODO: Push this to the Cosmos Dockerhub so we don't have to keep building it
 # in CI.
