@@ -28,7 +28,7 @@ type InitializerFunction func(context.Context, runtime.Logger, *sql.DB, runtime.
 var moduleInit InitializerFunction = func(ctx context.Context, logger runtime.Logger, db *sql.DB, module runtime.NakamaModule, initializer runtime.Initializer) error {
 	initStart := time.Now()
 
-	if err := initializer.RegisterRpc("health", RpcHealthCheck); err != nil {
+	if err := initializer.RegisterRpc("mint-coins", RpcMintCoins); err != nil {
 		return err
 	}
 
@@ -54,23 +54,24 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, module r
 	custom rpc stuff
 */
 
-type HealthCheckResponse struct {
+type MintCoinsResponse struct {
 	Success  bool   `json:"success"`
 	Response string `json:"response"`
 }
 
-func RpcHealthCheck(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-	logger.Debug("Healthcheck RPC called")
-	response := &HealthCheckResponse{Success: true}
-	out, err := json.Marshal(response)
-	if err != nil {
-		logger.Error("cannot marshal response: %w", err)
-		return "", runtime.NewError("cannot marshal response", 13)
-	}
+func RpcMintCoins(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+	logger.Debug("MintCoins RPC called")
+	response := &MintCoinsResponse{Success: true}
 	res, err := sidecar.MintCoins(ctx, &v1.MsgMintCoins{Amount: 10, Denom: "NAKAMA"})
 	if err != nil {
 		return "", runtime.NewError(fmt.Sprintf("call to sidecar failed: %s", err.Error()), 1)
 	}
 	logger.Info("mint coins response: %s", res.String())
+	response.Response = res.String()
+	out, err := json.Marshal(response)
+	if err != nil {
+		logger.Error("cannot marshal response: %w", err)
+		return "", runtime.NewError("cannot marshal response", 13)
+	}
 	return string(out), nil
 }
