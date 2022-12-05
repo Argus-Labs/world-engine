@@ -38,7 +38,6 @@ require (
 	github.com/holiman/uint256 v1.2.1
 	github.com/onsi/ginkgo/v2 v2.5.1
 	github.com/onsi/gomega v1.24.1
-	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969
 	github.com/strangelove-ventures/packet-forward-middleware/v5 v5.0.0
 	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8
 )
@@ -271,6 +270,7 @@ require (
 	github.com/spf13/afero v1.9.2 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/ssgreg/nlreturn/v2 v2.2.1 // indirect
+	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969 // indirect
 	github.com/stbenjam/no-sprintf-host-port v0.1.1 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/subosito/gotenv v1.4.1 // indirect
