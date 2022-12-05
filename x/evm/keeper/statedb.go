@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	sdkmath "cosmossdk.io/math"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/store/prefix"
@@ -190,7 +191,7 @@ func (k *Keeper) DeleteAccount(ctx sdk.Context, addr common.Address) error {
 	// NOTE: only Ethereum accounts (contracts) can be selfdestructed
 	_, ok := acct.(ethermint.EthAccountI)
 	if !ok {
-		return errorsmod.Wrapf(types.ErrInvalidAccount, "type %T, address %s", acct, addr)
+		return errorsmod.Wrapf(evmtypes.ErrInvalidAccount, "type %T, address %s", acct, addr)
 	}
 
 	// clear balance

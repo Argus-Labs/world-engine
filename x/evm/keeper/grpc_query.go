@@ -28,6 +28,8 @@ import (
 
 	"github.com/argus-labs/argus/x/evm/statedb"
 	"github.com/argus-labs/argus/x/evm/types"
+
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 )
 
 var _ types.QueryServer = Keeper{}
@@ -129,11 +131,10 @@ func (k Keeper) Balance(c context.Context, req *types.QueryBalanceRequest) (*typ
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "empty request")
 	}
-
 	if err := ethermint.ValidateAddress(req.Address); err != nil {
 		return nil, status.Error(
 			codes.InvalidArgument,
-			types.ErrZeroAddress.Error(),
+			evmtypes.ErrZeroAddress.Error(),
 		)
 	}
 
@@ -155,7 +156,7 @@ func (k Keeper) Storage(c context.Context, req *types.QueryStorageRequest) (*typ
 	if err := ethermint.ValidateAddress(req.Address); err != nil {
 		return nil, status.Error(
 			codes.InvalidArgument,
-			types.ErrZeroAddress.Error(),
+			evmtypes.ErrZeroAddress.Error(),
 		)
 	}
 
@@ -181,7 +182,7 @@ func (k Keeper) Code(c context.Context, req *types.QueryCodeRequest) (*types.Que
 	if err := ethermint.ValidateAddress(req.Address); err != nil {
 		return nil, status.Error(
 			codes.InvalidArgument,
-			types.ErrZeroAddress.Error(),
+			evmtypes.ErrZeroAddress.Error(),
 		)
 	}
 
@@ -365,7 +366,7 @@ func (k Keeper) EstimateGas(c context.Context, req *types.EthCallRequest) (*type
 		if failed {
 			if result != nil && result.VmError != vm.ErrOutOfGas.Error() {
 				if result.VmError == vm.ErrExecutionReverted.Error() {
-					return nil, types.NewExecErrorWithReason(result.Ret)
+					return nil, evmtypes.NewExecErrorWithReason(result.Ret)
 				}
 				return nil, errors.New(result.VmError)
 			}

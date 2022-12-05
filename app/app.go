@@ -19,6 +19,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
+	ante2 "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
@@ -26,6 +27,8 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
 	ibcchanneltypes "github.com/cosmos/ibc-go/v5/modules/core/04-channel/types"
+	"github.com/evmos/ethermint/server/flags"
+	types2 "github.com/evmos/ethermint/types"
 	"github.com/gorilla/mux"
 	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cast"
@@ -35,6 +38,7 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
+	"github.com/argus-labs/argus/ante"
 	"github.com/argus-labs/argus/app/keepers"
 	argusappparams "github.com/argus-labs/argus/app/simulation_params"
 	"github.com/argus-labs/argus/app/upgrades"
@@ -196,7 +200,23 @@ func NewArgusApp(
 	//	panic(fmt.Errorf("failed to create AnteHandler: %s", err))
 	//}
 	// TODO(Tyler): copy pasta their ante handler..
-	app.SetAnteHandler(nil)
+	ah, err := ante.NewEthermintAnteHandler(ante.EthermintHandlerOptions{
+		AccountKeeper:          app.AccountKeeper,
+		BankKeeper:             app.BankKeeper,
+		IBCKeeper:              app.IBCKeeper,
+		FeeMarketKeeper:        app.FeeMarketKeeper,
+		EvmKeeper:              app.EvmKeeper,
+		FeegrantKeeper:         app.FeeGrantKeeper,
+		SignModeHandler:        app.GetTxConfig().SignModeHandler(),
+		SigGasConsumer:         ante2.DefaultSigVerificationGasConsumer,
+		MaxTxGasWanted:         cast.ToUint64(appOpts.Get(flags.EVMMaxTxGasWanted)),
+		ExtensionOptionChecker: types2.HasDynamicFeeExtensionOption,
+		TxFeeChecker:           ante.NewDynamicFeeChecker(app.EvmKeeper),
+	})
+	if err != nil {
+		panic(err)
+	}
+	app.SetAnteHandler(ah)
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
@@ -210,7 +230,7 @@ func NewArgusApp(
 		}
 	}
 
-	err := sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger())
+	err = sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger())
 	if err != nil {
 		panic(fmt.Errorf("failed to start sidecar process: %w", err))
 	}

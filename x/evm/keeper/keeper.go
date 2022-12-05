@@ -14,6 +14,7 @@ import (
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 	"github.com/tendermint/tendermint/libs/log"
 
 	ethermint "github.com/evmos/ethermint/types"
@@ -365,7 +366,7 @@ func (k Keeper) SetTransientGasUsed(ctx sdk.Context, gasUsed uint64) {
 func (k Keeper) AddTransientGasUsed(ctx sdk.Context, gasUsed uint64) (uint64, error) {
 	result := k.GetTransientGasUsed(ctx) + gasUsed
 	if result < gasUsed {
-		return 0, errorsmod.Wrap(types.ErrGasOverflow, "transient gas used")
+		return 0, errorsmod.Wrap(evmtypes.ErrGasOverflow, "transient gas used")
 	}
 	k.SetTransientGasUsed(ctx, result)
 	return result, nil

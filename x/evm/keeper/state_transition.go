@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	sdkmath "cosmossdk.io/math"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	tmtypes "github.com/tendermint/tendermint/types"
 
@@ -271,7 +272,7 @@ func (k *Keeper) ApplyTransaction(ctx sdk.Context, tx *ethtypes.Transaction) (*t
 		// Only call hooks if tx executed successfully.
 		if err = k.PostTxProcessing(tmpCtx, msg, receipt); err != nil {
 			// If hooks return error, revert the whole tx.
-			res.VmError = types.ErrPostTxProcessing.Error()
+			res.VmError = evmtypes.ErrPostTxProcessing.Error()
 			k.Logger(ctx).Error("tx post processing failed", "error", err)
 
 			// If the tx failed in post processing hooks, we should clear the logs
@@ -360,9 +361,9 @@ func (k *Keeper) ApplyMessageWithConfig(ctx sdk.Context,
 
 	// return error if contract creation or call are disabled through governance
 	if !cfg.Params.EnableCreate && msg.To() == nil {
-		return nil, errorsmod.Wrap(types.ErrCreateDisabled, "failed to create new contract")
+		return nil, errorsmod.Wrap(evmtypes.ErrCreateDisabled, "failed to create new contract")
 	} else if !cfg.Params.EnableCall && msg.To() != nil {
-		return nil, errorsmod.Wrap(types.ErrCallDisabled, "failed to call contract")
+		return nil, errorsmod.Wrap(evmtypes.ErrCallDisabled, "failed to call contract")
 	}
 
 	stateDB := statedb.New(ctx, k, txConfig)
@@ -422,7 +423,7 @@ func (k *Keeper) ApplyMessageWithConfig(ctx sdk.Context,
 
 	// calculate gas refund
 	if msg.Gas() < leftoverGas {
-		return nil, errorsmod.Wrap(types.ErrGasOverflow, "apply message")
+		return nil, errorsmod.Wrap(evmtypes.ErrGasOverflow, "apply message")
 	}
 	// refund gas
 	temporaryGasUsed := msg.Gas() - leftoverGas
@@ -449,7 +450,7 @@ func (k *Keeper) ApplyMessageWithConfig(ctx sdk.Context,
 	minimumGasUsed := gasLimit.Mul(minGasMultiplier)
 
 	if msg.Gas() < leftoverGas {
-		return nil, errorsmod.Wrapf(types.ErrGasOverflow, "message gas limit < leftover gas (%d < %d)", msg.Gas(), leftoverGas)
+		return nil, errorsmod.Wrapf(evmtypes.ErrGasOverflow, "message gas limit < leftover gas (%d < %d)", msg.Gas(), leftoverGas)
 	}
 
 	gasUsed := sdk.MaxDec(minimumGasUsed, sdk.NewDec(int64(temporaryGasUsed))).TruncateInt().Uint64()
@@ -495,7 +496,7 @@ func (k *Keeper) RefundGas(ctx sdk.Context, msg core.Message, leftoverGas uint64
 	switch remaining.Sign() {
 	case -1:
 		// negative refund errors
-		return errorsmod.Wrapf(types.ErrInvalidRefund, "refunded amount value cannot be negative %d", remaining.Int64())
+		return errorsmod.Wrapf(evmtypes.ErrInvalidRefund, "refunded amount value cannot be negative %d", remaining.Int64())
 	case 1:
 		// positive amount refund
 		refundedCoins := sdk.Coins{sdk.NewCoin(denom, sdkmath.NewIntFromBigInt(remaining))}

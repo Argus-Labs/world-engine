@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	sdkmath "cosmossdk.io/math"
+	evmtypes "github.com/evmos/ethermint/x/evm/types"
 
 	errorsmod "cosmossdk.io/errors"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -182,7 +183,7 @@ func (msg MsgEthereumTx) ValidateBasic() error {
 
 	// prevent txs with 0 gas to fill up the mempool
 	if txData.GetGas() == 0 {
-		return errorsmod.Wrap(ErrInvalidGasLimit, "gas limit must not be zero")
+		return errorsmod.Wrap(evmtypes.ErrInvalidGasLimit, "gas limit must not be zero")
 	}
 
 	if err := txData.Validate(); err != nil {
