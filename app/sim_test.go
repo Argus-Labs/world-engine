@@ -16,7 +16,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 
-	gaia "github.com/argus-labs/argus/app"
+	argus "github.com/argus-labs/argus/app"
 	"github.com/argus-labs/argus/app/helpers"
 	"github.com/argus-labs/argus/app/simulation_params"
 )
@@ -41,7 +41,7 @@ func BenchmarkFullAppSimulation(b *testing.B) {
 		}
 	}()
 
-	app := gaia.NewArgusApp(logger, db, nil, true, map[int64]bool{}, gaia.DefaultNodeHome, simapp.FlagPeriodValue, simulation_params.MakeTestEncodingConfig(), simapp.EmptyAppOptions{}, interBlockCacheOpt())
+	app := argus.NewArgusApp(logger, db, nil, true, map[int64]bool{}, argus.DefaultNodeHome, simapp.FlagPeriodValue, simulation_params.MakeTestEncodingConfig(), simapp.EmptyAppOptions{}, interBlockCacheOpt())
 
 	// Run randomized simulation:w
 	_, simParams, simErr := simulation.SimulateFromSeed(
@@ -106,7 +106,7 @@ func TestAppStateDeterminism(t *testing.T) {
 			}
 
 			db := dbm.NewMemDB()
-			app := gaia.NewArgusApp(logger, db, nil, true, map[int64]bool{}, gaia.DefaultNodeHome, simapp.FlagPeriodValue, gaia.MakeTestEncodingConfig(), EmptyAppOptions{}, interBlockCacheOpt())
+			app := argus.NewArgusApp(logger, db, nil, true, map[int64]bool{}, argus.DefaultNodeHome, simapp.FlagPeriodValue, argus.MakeTestEncodingConfig(), EmptyAppOptions{}, interBlockCacheOpt())
 
 			fmt.Printf(
 				"running non-determinism simulation; seed %d: %d/%d, attempt: %d/%d\n",

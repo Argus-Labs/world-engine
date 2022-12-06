@@ -23,6 +23,7 @@ import (
 	ante2 "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
@@ -186,21 +187,6 @@ func NewArgusApp(
 		bypassMinFeeMsgTypes = GetDefaultBypassFeeMessages()
 	}
 
-	//etherMintAnteHandler, err := ethermintAnte.NewAnteHandler(ethermintAnte.HandlerOptions{
-	//	AccountKeeper:   app.AccountKeeper,
-	//	BankKeeper:      app.BankKeeper,
-	//	IBCKeeper:       app.IBCKeeper,
-	//	FeeMarketKeeper: nil, // TODO(Tyler): fix this once feemarket is wired up!
-	//	EvmKeeper:       app.EvmKeeper,
-	//	FeegrantKeeper:  app.FeeGrantKeeper,
-	//	SignModeHandler: app.GetTxConfig().SignModeHandler(),
-	//	SigGasConsumer:  ethermintAnte.DefaultSigVerificationGasConsumer,
-	//	MaxTxGasWanted:  cast.ToUint64(appOpts.Get(flags.EVMMaxTxGasWanted)),
-	//})
-	//if err != nil {
-	//	panic(fmt.Errorf("failed to create AnteHandler: %s", err))
-	//}
-	// TODO(Tyler): copy pasta their ante handler..
 	ah, err := ante.NewEthermintAnteHandler(ante.EthermintHandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
@@ -231,8 +217,15 @@ func NewArgusApp(
 		}
 	}
 
+	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger())
+
+	return app
+}
+
+func startSideCarIfFlagSet(msgRouter *baseapp.MsgServiceRouter, grpcRouter *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms sdk.CommitMultiStore, lg log.Logger) {
 	sidecarFlag := os.Getenv("USE_SIDECAR")
 	var useSidecar bool
+	var err error
 	if sidecarFlag != "" {
 		useSidecar, err = strconv.ParseBool(sidecarFlag)
 		if err != nil {
@@ -240,13 +233,11 @@ func NewArgusApp(
 		}
 	}
 	if useSidecar {
-		err = sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger())
+		err = sidecar.StartSidecar(msgRouter, grpcRouter, bk, cms, lg)
 		if err != nil {
 			panic(fmt.Errorf("failed to start sidecar process: %w", err))
 		}
 	}
-
-	return app
 }
 
 func GetDefaultBypassFeeMessages() []string {
