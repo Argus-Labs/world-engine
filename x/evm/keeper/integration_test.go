@@ -6,6 +6,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"gotest.tools/assert"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -26,7 +27,10 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 
+	argus "github.com/argus-labs/argus/app"
+	"github.com/argus-labs/argus/app/simulation_params"
 	evmtypes "github.com/argus-labs/argus/x/evm/types"
+	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
 )
 
 var _ = Describe("Feemarket", func() {
@@ -129,10 +133,10 @@ var _ = Describe("Feemarket", func() {
 })
 
 // setupTestWithContext sets up a test chain with an example Cosmos send msg,
-// given a local (validator config) and a gloabl (feemarket param) minGasPrice
+// given a local (validator config) and a global (feemarket param) minGasPrice
 func setupTestWithContext(valMinGasPrice string, minGasPrice sdk.Dec, baseFee sdk.Int) (*ethsecp256k1.PrivKey, banktypes.MsgSend) {
 	privKey, msg := setupTest(valMinGasPrice + s.denom)
-	params := types.DefaultParams()
+	params := feemarkettypes.DefaultParams()
 	params.MinGasPrice = minGasPrice
 	s.app.FeeMarketKeeper.SetParams(s.ctx, params)
 	s.app.FeeMarketKeeper.SetBaseFee(s.ctx, baseFee.BigInt())
@@ -151,7 +155,8 @@ func setupTest(localMinGasPrices string) (*ethsecp256k1.PrivKey, banktypes.MsgSe
 		Denom:  s.denom,
 		Amount: amount,
 	}}
-	testutil.FundAccount(s.app.BankKeeper, s.ctx, address, initBalance)
+	err := testutil.FundAccount(s.app.BankKeeper, s.ctx, address, initBalance)
+	assert.NilError(s.T(), err)
 
 	msg := banktypes.MsgSend{
 		FromAddress: address.String(),
@@ -169,7 +174,7 @@ func setupChain(localMinGasPricesStr string) {
 	// Initialize the app, so we can use SetMinGasPrices to set the
 	// validator-specific min-gas-prices setting
 	db := dbm.NewMemDB()
-	newapp := app.NewEthermintApp(
+	newapp := argus.NewArgusApp(
 		log.NewNopLogger(),
 		db,
 		nil,
@@ -177,7 +182,7 @@ func setupChain(localMinGasPricesStr string) {
 		map[int64]bool{},
 		app.DefaultNodeHome,
 		5,
-		encoding.MakeConfig(app.ModuleBasics),
+		simulation_params.EncodingConfig(encoding.MakeConfig(app.ModuleBasics)),
 		simapp.EmptyAppOptions{},
 		baseapp.SetMinGasPrices(localMinGasPricesStr),
 	)

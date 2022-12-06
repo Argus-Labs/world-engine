@@ -8,6 +8,7 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/gogo/protobuf/proto"
+	"github.com/gravity-devs/liquidity/v2/app"
 
 	abci "github.com/tendermint/tendermint/abci/types"
 	tmjson "github.com/tendermint/tendermint/libs/json"
@@ -15,7 +16,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/simapp"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	feemarkettypes "github.com/evmos/ethermint/x/feemarket/types"
+
+	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
 
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -30,7 +32,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/evmos/ethermint/app"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
 	"github.com/evmos/ethermint/tests"
 	ethermint "github.com/evmos/ethermint/types"
@@ -90,7 +91,7 @@ func (suite *EvmTestSuite) DoSetupTest(t require.TestingT) {
 	})
 
 	coins := sdk.NewCoins(sdk.NewCoin(types.DefaultEVMDenom, sdkmath.NewInt(100000000000000)))
-	genesisState := app.NewTestGenesisState(suite.app.AppCodec())
+	genesisState := argus.NewTestGenesisState(suite.app.AppCodec())
 	b32address := sdk.MustBech32ifyAddressBytes(sdk.GetConfig().GetBech32AccountAddrPrefix(), priv.PubKey().Address().Bytes())
 	balances := []banktypes.Balance{
 		{
@@ -115,7 +116,7 @@ func (suite *EvmTestSuite) DoSetupTest(t require.TestingT) {
 	// Initialize the chain
 	suite.app.InitChain(
 		abci.RequestInitChain{
-			ChainId:         "ethermint_9000-1",
+			ChainId:         "argus_9000-1",
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: app.DefaultConsensusParams,
 			AppStateBytes:   stateBytes,
@@ -124,7 +125,7 @@ func (suite *EvmTestSuite) DoSetupTest(t require.TestingT) {
 
 	suite.ctx = suite.app.BaseApp.NewContext(checkTx, tmproto.Header{
 		Height:          1,
-		ChainID:         "ethermint_9000-1",
+		ChainID:         "argus_9000-1",
 		Time:            time.Now().UTC(),
 		ProposerAddress: consAddress.Bytes(),
 		Version: tmversion.Consensus{
@@ -150,7 +151,7 @@ func (suite *EvmTestSuite) DoSetupTest(t require.TestingT) {
 	types.RegisterQueryServer(queryHelper, suite.app.EvmKeeper)
 
 	acc := &ethermint.EthAccount{
-		BaseAccount: authtypes.NewBaseAccount(sdk.AccAddress(address.Bytes()), nil, 0, 0),
+		BaseAccount: authtypes.NewBaseAccount(address.Bytes(), nil, 0, 0),
 		CodeHash:    common.BytesToHash(crypto.Keccak256(nil)).String(),
 	}
 

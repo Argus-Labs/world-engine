@@ -6,7 +6,6 @@ require (
 	cosmossdk.io/math v1.0.0-beta.4
 	github.com/cosmos/cosmos-sdk v0.46.6
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
-	github.com/cosmos/ibc-go/v5 v5.1.0
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
 	github.com/golangci/golangci-lint v1.50.1
@@ -17,8 +16,8 @@ require (
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.1
-	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.14.0
+	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/viper v1.14.0 // indirect
 	github.com/stretchr/testify v1.8.1
 	github.com/tendermint/tendermint v0.34.23
 	github.com/tendermint/tm-db v0.6.7
@@ -33,13 +32,14 @@ require (
 	github.com/JeremyLoy/config v1.5.0
 	github.com/armon/go-metrics v0.4.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.1
+	github.com/cosmos/ibc-go/v5 v5.1.0
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/evmos/ethermint v0.20.0-rc3
 	github.com/holiman/uint256 v1.2.1
 	github.com/onsi/ginkgo/v2 v2.5.1
 	github.com/onsi/gomega v1.24.1
 	github.com/strangelove-ventures/packet-forward-middleware/v5 v5.0.0
-	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8
+	gotest.tools v2.2.0+incompatible
 )
 
 require (
@@ -315,6 +315,7 @@ require (
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.102.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

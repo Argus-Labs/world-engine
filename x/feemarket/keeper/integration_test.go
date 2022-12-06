@@ -24,6 +24,8 @@ import (
 	"github.com/evmos/ethermint/tests"
 	"github.com/evmos/ethermint/testutil"
 
+	argus "github.com/argus-labs/argus/app"
+	"github.com/argus-labs/argus/app/simulation_params"
 	"github.com/argus-labs/argus/x/feemarket/types"
 
 	"github.com/cosmos/cosmos-sdk/simapp"
@@ -485,7 +487,7 @@ func setupChain(localMinGasPricesStr string) {
 	// Initialize the app, so we can use SetMinGasPrices to set the
 	// validator-specific min-gas-prices setting
 	db := dbm.NewMemDB()
-	newapp := app.NewEthermintApp(
+	newapp := argus.NewArgusApp(
 		log.NewNopLogger(),
 		db,
 		nil,
@@ -493,7 +495,7 @@ func setupChain(localMinGasPricesStr string) {
 		map[int64]bool{},
 		app.DefaultNodeHome,
 		5,
-		encoding.MakeConfig(app.ModuleBasics),
+		simulation_params.EncodingConfig(encoding.MakeConfig(app.ModuleBasics)),
 		simapp.EmptyAppOptions{},
 		baseapp.SetMinGasPrices(localMinGasPricesStr),
 	)

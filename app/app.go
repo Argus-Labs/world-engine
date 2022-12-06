@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -230,9 +231,19 @@ func NewArgusApp(
 		}
 	}
 
-	err = sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger())
-	if err != nil {
-		panic(fmt.Errorf("failed to start sidecar process: %w", err))
+	sidecarFlag := os.Getenv("USE_SIDECAR")
+	var useSidecar bool
+	if sidecarFlag != "" {
+		useSidecar, err = strconv.ParseBool(sidecarFlag)
+		if err != nil {
+			panic(err)
+		}
+	}
+	if useSidecar {
+		err = sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger())
+		if err != nil {
+			panic(fmt.Errorf("failed to start sidecar process: %w", err))
+		}
 	}
 
 	return app

@@ -41,8 +41,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradeclient "github.com/cosmos/cosmos-sdk/x/upgrade/client"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
-	ica "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts"
-	icatypes "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/types"
 	"github.com/cosmos/ibc-go/v5/modules/apps/transfer"
 	ibctransfertypes "github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
 	ibc "github.com/cosmos/ibc-go/v5/modules/core"
@@ -62,14 +60,11 @@ import (
 	argusSimParams "github.com/argus-labs/argus/app/simulation_params"
 	"github.com/argus-labs/argus/sidecar"
 	adaptertypes "github.com/argus-labs/argus/x/adapter"
-	"github.com/argus-labs/argus/x/icamauth"
-	icamauthtypes "github.com/argus-labs/argus/x/icamauth/types"
 )
 
 var maccPerms = map[string][]string{
 	authtypes.FeeCollectorName:     nil,
 	distrtypes.ModuleName:          nil,
-	icatypes.ModuleName:            nil,
 	minttypes.ModuleName:           {authtypes.Minter},
 	stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
 	stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
@@ -114,10 +109,8 @@ var ModuleBasics = module.NewBasicManager(
 	vesting.AppModuleBasic{},
 	liquidity.AppModuleBasic{},
 	router.AppModuleBasic{},
-	ica.AppModuleBasic{},
 
 	// argus modules
-	icamauth.AppModuleBasic{},
 	adaptertypes.AppModuleBasic{},
 
 	// ethermint modules
@@ -158,8 +151,6 @@ func appModules(
 		params.NewAppModule(app.ParamsKeeper),
 		liquidity.NewAppModule(appCodec, app.LiquidityKeeper, app.AccountKeeper, app.BankKeeper, app.DistrKeeper),
 		app.TransferModule,
-		app.ICAModule,
-		app.ICAMauthModule,
 		app.RouterModule,
 		app.AdapterModule,
 
@@ -219,7 +210,6 @@ func orderBeginBlockers() []string {
 		liquiditytypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		ibchost.ModuleName,
-		icatypes.ModuleName,
 		routertypes.ModuleName,
 		genutiltypes.ModuleName,
 		authz.ModuleName,
@@ -227,8 +217,6 @@ func orderBeginBlockers() []string {
 		group.ModuleName,
 		paramstypes.ModuleName,
 		vestingtypes.ModuleName,
-		icatypes.ModuleName,
-		icamauthtypes.ModuleName,
 		adaptertypes.Name,
 	}
 }
@@ -243,7 +231,6 @@ func orderEndBlockers() []string {
 		ibchost.ModuleName,
 		evmtypes.ModuleName,
 		feemarkettypes.ModuleName,
-		icatypes.ModuleName,
 		routertypes.ModuleName,
 		capabilitytypes.ModuleName,
 		authtypes.ModuleName,
@@ -259,8 +246,6 @@ func orderEndBlockers() []string {
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,
 		vestingtypes.ModuleName,
-		icatypes.ModuleName,
-		icamauthtypes.ModuleName,
 		adaptertypes.Name,
 	}
 }
@@ -284,15 +269,12 @@ func orderInitBlockers() []string {
 		genutiltypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		ibchost.ModuleName,
-		icatypes.ModuleName,
 		evidencetypes.ModuleName,
 		liquiditytypes.ModuleName,
 		authz.ModuleName,
 		feegrant.ModuleName,
 		group.ModuleName,
 		routertypes.ModuleName,
-		icatypes.ModuleName,
-		icamauthtypes.ModuleName,
 		paramstypes.ModuleName,
 		upgradetypes.ModuleName,
 		vestingtypes.ModuleName,

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package gaia.adapter.v1;
+package argus.adapter.v1;
 
 option go_package = "github.com/argus-labs/argus/x/adapter/types/v1";
 

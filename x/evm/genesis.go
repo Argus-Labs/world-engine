@@ -21,18 +21,18 @@ func InitGenesis(
 	ctx sdk.Context,
 	k *keeper.Keeper,
 	accountKeeper types.AccountKeeper,
-	data types.GenesisState,
+	genesisState types.GenesisState,
 ) []abci.ValidatorUpdate {
 	k.WithChainID(ctx)
 
-	k.SetParams(ctx, data.Params)
+	k.SetParams(ctx, genesisState.Params)
 
 	// ensure evm module account is set
 	if addr := accountKeeper.GetModuleAddress(types.ModuleName); addr == nil {
 		panic("the EVM module account has not been set")
 	}
 
-	for _, account := range data.Accounts {
+	for _, account := range genesisState.Accounts {
 		address := common.HexToAddress(account.Address)
 		accAddress := sdk.AccAddress(address.Bytes())
 		// check that the EVM balance the matches the account balance

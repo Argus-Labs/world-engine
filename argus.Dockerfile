@@ -1,7 +1,7 @@
 ARG IMG_TAG=latest
 
 # Compile the gaiad binary
-FROM golang:1.18-alpine AS gaiad-builder
+FROM golang:1.19-alpine AS go-builder
 WORKDIR /src/app/
 COPY go.mod go.sum* ./
 RUN go mod download
@@ -11,9 +11,8 @@ RUN apk add --no-cache $PACKAGES
 RUN CGO_ENABLED=0 make install
 
 
-# Add to a distroless container
-FROM ubuntu:18.04
-COPY --from=gaiad-builder /go/bin/gaiad /usr/local/bin/
+FROM alpine:3.12
+COPY --from=go-builder /go/bin/gaiad /usr/local/bin/
 EXPOSE 26656 26657 1317 9090
 USER 0
 

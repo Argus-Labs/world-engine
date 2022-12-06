@@ -27,6 +27,7 @@ import (
 	"github.com/evmos/ethermint/tests"
 	ethermint "github.com/evmos/ethermint/types"
 
+	argus "github.com/argus-labs/argus/app"
 	evmtypes "github.com/argus-labs/argus/x/evm/types"
 
 	"github.com/argus-labs/argus/x/feemarket/types"
@@ -46,7 +47,7 @@ type KeeperTestSuite struct {
 	suite.Suite
 
 	ctx         sdk.Context
-	app         *app.EthermintApp
+	app         *argus.ArgusApp
 	queryClient types.QueryClient
 	address     common.Address
 	consAddress sdk.ConsAddress
@@ -74,7 +75,7 @@ func TestKeeperTestSuite(t *testing.T) {
 // SetupTest setup test environment, it uses`require.TestingT` to support both `testing.T` and `testing.B`.
 func (suite *KeeperTestSuite) SetupTest() {
 	checkTx := false
-	suite.app = app.Setup(checkTx, nil)
+	suite.app = argus.Setup(checkTx, nil)
 	suite.SetupApp(checkTx)
 }
 
@@ -93,7 +94,7 @@ func (suite *KeeperTestSuite) SetupApp(checkTx bool) {
 
 	suite.ctx = suite.app.BaseApp.NewContext(checkTx, tmproto.Header{
 		Height:          1,
-		ChainID:         "ethermint_9000-1",
+		ChainID:         "argus_9000-1",
 		Time:            time.Now().UTC(),
 		ProposerAddress: suite.consAddress.Bytes(),
 		Version: tmversion.Consensus{
