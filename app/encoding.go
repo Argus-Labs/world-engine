@@ -1,7 +1,7 @@
 package argus
 
 import (
-	"github.com/cosmos/cosmos-sdk/std"
+	evmosCodec "github.com/evmos/ethermint/encoding/codec"
 
 	"github.com/argus-labs/argus/app/simulation_params"
 )
@@ -12,9 +12,11 @@ import (
 // [DEPRECATED]
 func MakeTestEncodingConfig() simulation_params.EncodingConfig {
 	encodingConfig := simulation_params.MakeTestEncodingConfig()
-	std.RegisterLegacyAminoCodec(encodingConfig.Amino)
-	std.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 	ModuleBasics.RegisterLegacyAminoCodec(encodingConfig.Amino)
 	ModuleBasics.RegisterInterfaces(encodingConfig.InterfaceRegistry)
+
+	// Register ethermint types -(THIS ALSO REGISTERS STANDARD COSMOS INTERFACES AND CONCRETE TYPES.)
+	evmosCodec.RegisterLegacyAminoCodec(encodingConfig.Amino)
+	evmosCodec.RegisterInterfaces(encodingConfig.InterfaceRegistry)
 	return encodingConfig
 }
