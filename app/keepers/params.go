@@ -16,7 +16,6 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
 	ibchost "github.com/cosmos/ibc-go/v5/modules/core/24-host"
-	liquiditytypes "github.com/gravity-devs/liquidity/v2/x/liquidity/types"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 
 	evmtypes "github.com/argus-labs/argus/x/evm/types"
@@ -35,7 +34,6 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(slashingtypes.ModuleName)
 	paramsKeeper.Subspace(govtypes.ModuleName).WithKeyTable(govv1.ParamKeyTable())
 	paramsKeeper.Subspace(crisistypes.ModuleName)
-	paramsKeeper.Subspace(liquiditytypes.ModuleName)
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(routertypes.ModuleName).WithKeyTable(routertypes.ParamKeyTable())
 	paramsKeeper.Subspace(ibchost.ModuleName)

@@ -19,7 +19,6 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	ibctransfertypes "github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
 	ibchost "github.com/cosmos/ibc-go/v5/modules/core/24-host"
-	liquiditytypes "github.com/gravity-devs/liquidity/v2/x/liquidity/types"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 
 	evmtypes "github.com/argus-labs/argus/x/evm/types"
@@ -35,9 +34,9 @@ func (appKeepers *AppKeepers) GenerateKeys() {
 		authtypes.StoreKey, banktypes.StoreKey, stakingtypes.StoreKey,
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, ibchost.StoreKey, upgradetypes.StoreKey,
-		evidencetypes.StoreKey, liquiditytypes.StoreKey, ibctransfertypes.StoreKey,
-		capabilitytypes.StoreKey, feegrant.StoreKey, authzkeeper.StoreKey, routertypes.StoreKey,
-		group.StoreKey, adapter.StoreKey, evmtypes.StoreKey, feemarkettypes.StoreKey,
+		evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey, feegrant.StoreKey,
+		authzkeeper.StoreKey, routertypes.StoreKey, group.StoreKey, adapter.StoreKey, evmtypes.StoreKey,
+		feemarkettypes.StoreKey,
 	)
 
 	// Define transient store keys

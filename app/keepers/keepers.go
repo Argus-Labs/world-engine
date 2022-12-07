@@ -54,8 +54,6 @@ import (
 	ibctestingtypes "github.com/cosmos/ibc-go/v5/testing/types"
 	"github.com/evmos/ethermint/server/flags"
 	etherminttypes "github.com/evmos/ethermint/types"
-	liquiditykeeper "github.com/gravity-devs/liquidity/v2/x/liquidity/keeper"
-	liquiditytypes "github.com/gravity-devs/liquidity/v2/x/liquidity/types"
 	"github.com/spf13/cast"
 	"github.com/strangelove-ventures/packet-forward-middleware/v5/router"
 	routerkeeper "github.com/strangelove-ventures/packet-forward-middleware/v5/router/keeper"
@@ -95,15 +93,14 @@ type AppKeepers struct {
 	UpgradeKeeper    upgradekeeper.Keeper
 	ParamsKeeper     paramskeeper.Keeper
 	// IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
-	IBCKeeper       *ibckeeper.Keeper
-	IBCFeeKeeper    ibcfeekeeper.Keeper
-	EvidenceKeeper  evidencekeeper.Keeper
-	TransferKeeper  ibctransferkeeper.Keeper
-	FeeGrantKeeper  feegrantkeeper.Keeper
-	GroupKeeper     groupkeeper.Keeper
-	AuthzKeeper     authzkeeper.Keeper
-	LiquidityKeeper liquiditykeeper.Keeper
-	AdapterKeeper   adapterkeeper.Keeper
+	IBCKeeper      *ibckeeper.Keeper
+	IBCFeeKeeper   ibcfeekeeper.Keeper
+	EvidenceKeeper evidencekeeper.Keeper
+	TransferKeeper ibctransferkeeper.Keeper
+	FeeGrantKeeper feegrantkeeper.Keeper
+	GroupKeeper    groupkeeper.Keeper
+	AuthzKeeper    authzkeeper.Keeper
+	AdapterKeeper  adapterkeeper.Keeper
 
 	RouterKeeper routerkeeper.Keeper
 
@@ -238,14 +235,6 @@ func NewAppKeeper(
 		appKeepers.keys[slashingtypes.StoreKey],
 		&stakingKeeper,
 		appKeepers.GetSubspace(slashingtypes.ModuleName),
-	)
-	appKeepers.LiquidityKeeper = liquiditykeeper.NewKeeper(
-		appCodec,
-		appKeepers.keys[liquiditytypes.StoreKey],
-		appKeepers.GetSubspace(liquiditytypes.ModuleName),
-		appKeepers.BankKeeper,
-		appKeepers.AccountKeeper,
-		appKeepers.DistrKeeper,
 	)
 
 	// register the staking hooks

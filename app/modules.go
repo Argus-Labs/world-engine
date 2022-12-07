@@ -46,8 +46,6 @@ import (
 	ibc "github.com/cosmos/ibc-go/v5/modules/core"
 	ibcclientclient "github.com/cosmos/ibc-go/v5/modules/core/02-client/client"
 	ibchost "github.com/cosmos/ibc-go/v5/modules/core/24-host"
-	"github.com/gravity-devs/liquidity/v2/x/liquidity"
-	liquiditytypes "github.com/gravity-devs/liquidity/v2/x/liquidity/types"
 	"github.com/strangelove-ventures/packet-forward-middleware/v5/router"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 
@@ -69,7 +67,6 @@ var maccPerms = map[string][]string{
 	stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
 	stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
 	govtypes.ModuleName:            {authtypes.Burner},
-	liquiditytypes.ModuleName:      {authtypes.Minter, authtypes.Burner},
 	ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 	sidecar.ModuleName:             {authtypes.Minter, authtypes.Burner},
 	evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
@@ -107,7 +104,6 @@ var ModuleBasics = module.NewBasicManager(
 	evidence.AppModuleBasic{},
 	transfer.AppModuleBasic{},
 	vesting.AppModuleBasic{},
-	liquidity.AppModuleBasic{},
 	router.AppModuleBasic{},
 
 	// argus modules
@@ -149,7 +145,6 @@ func appModules(
 		groupmodule.NewAppModule(appCodec, app.GroupKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 		ibc.NewAppModule(app.IBCKeeper),
 		params.NewAppModule(app.ParamsKeeper),
-		liquidity.NewAppModule(appCodec, app.LiquidityKeeper, app.AccountKeeper, app.BankKeeper, app.DistrKeeper),
 		app.TransferModule,
 		app.RouterModule,
 		app.AdapterModule,
@@ -183,7 +178,6 @@ func simulationModules(
 		evidence.NewAppModule(app.EvidenceKeeper),
 		authzmodule.NewAppModule(appCodec, app.AuthzKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 		groupmodule.NewAppModule(appCodec, app.GroupKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
-		liquidity.NewAppModule(appCodec, app.LiquidityKeeper, app.AccountKeeper, app.BankKeeper, app.DistrKeeper),
 		ibc.NewAppModule(app.IBCKeeper),
 		app.TransferModule,
 	}
@@ -207,7 +201,6 @@ func orderBeginBlockers() []string {
 		banktypes.ModuleName,
 		govtypes.ModuleName,
 		crisistypes.ModuleName,
-		liquiditytypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		ibchost.ModuleName,
 		routertypes.ModuleName,
@@ -226,7 +219,6 @@ func orderEndBlockers() []string {
 		crisistypes.ModuleName,
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,
-		liquiditytypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		ibchost.ModuleName,
 		evmtypes.ModuleName,
@@ -270,7 +262,6 @@ func orderInitBlockers() []string {
 		ibctransfertypes.ModuleName,
 		ibchost.ModuleName,
 		evidencetypes.ModuleName,
-		liquiditytypes.ModuleName,
 		authz.ModuleName,
 		feegrant.ModuleName,
 		group.ModuleName,
