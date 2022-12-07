@@ -29,9 +29,9 @@ func (m MsgClaimQuestReward) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{accAddr}
 }
 
-func NewMsgClaimQuestReward(userId, questId string) MsgClaimQuestReward {
+func NewMsgClaimQuestReward(userID, questID string) MsgClaimQuestReward {
 	return MsgClaimQuestReward{
-		UserId:  userId,
-		QuestId: questId,
+		UserId:  userID,
+		QuestId: questID,
 	}
 }

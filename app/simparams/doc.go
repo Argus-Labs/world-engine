@@ -1,5 +1,5 @@
 /*
-Package simulation_params defines the simulation parameters in the gaia.
+Package simparams defines the simulation parameters in the gaia.
 
 It contains the default weights used for each transaction used on the module's
 simulation. These weights define the chance for a transaction to be simulated at
@@ -16,4 +16,4 @@ file with the weights defined for each of the transaction operations:
 In the example above, the `MsgSend` has 60% chance to be simulated, while the
 `MsgDelegate` will always be simulated.
 */
-package simulation_params
+package simparams

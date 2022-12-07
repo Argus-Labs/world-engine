@@ -1,4 +1,4 @@
-package simulation_params
+package simparams
 
 // Simulation parameter constants
 const (

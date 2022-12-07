@@ -25,7 +25,7 @@ type EVM interface {
 
 	Reset(txCtx vm.TxContext, statedb vm.StateDB)
 	Cancel()
-	Cancelled() bool //nolint
+	Cancelled() bool
 	Interpreter() *vm.EVMInterpreter
 	Call(caller vm.ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error)
 	CallCode(caller vm.ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error)

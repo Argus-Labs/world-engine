@@ -21,7 +21,7 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
-	"github.com/argus-labs/argus/app/simulation_params"
+	"github.com/argus-labs/argus/app/simparams"
 )
 
 // NewTestGenesisState generate genesis state with single validator
@@ -127,7 +127,7 @@ func SetupWithDB(isCheckTx bool, patchGenesis func(*ArgusApp, simapp.GenesisStat
 		map[int64]bool{},
 		DefaultNodeHome,
 		5,
-		simulation_params.EncodingConfig(encoding.MakeConfig(ModuleBasics)),
+		simparams.EncodingConfig(encoding.MakeConfig(ModuleBasics)),
 		simapp.EmptyAppOptions{})
 	if !isCheckTx {
 		// init chain must be called to stop deliverState from being nil

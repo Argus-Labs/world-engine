@@ -1,4 +1,4 @@
-package simulation_params
+package simparams
 
 import (
 	"github.com/cosmos/cosmos-sdk/codec"

@@ -18,7 +18,7 @@ import (
 
 	argus "github.com/argus-labs/argus/app"
 	"github.com/argus-labs/argus/app/helpers"
-	"github.com/argus-labs/argus/app/simulation_params"
+	"github.com/argus-labs/argus/app/simparams"
 )
 
 func init() {
@@ -41,7 +41,7 @@ func BenchmarkFullAppSimulation(b *testing.B) {
 		}
 	}()
 
-	app := argus.NewArgusApp(logger, db, nil, true, map[int64]bool{}, argus.DefaultNodeHome, simapp.FlagPeriodValue, simulation_params.MakeTestEncodingConfig(), simapp.EmptyAppOptions{}, interBlockCacheOpt())
+	app := argus.NewArgusApp(logger, db, nil, true, map[int64]bool{}, argus.DefaultNodeHome, simapp.FlagPeriodValue, simparams.MakeTestEncodingConfig(), simapp.EmptyAppOptions{}, interBlockCacheOpt())
 
 	// Run randomized simulation:w
 	_, simParams, simErr := simulation.SimulateFromSeed(

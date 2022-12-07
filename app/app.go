@@ -41,7 +41,7 @@ import (
 
 	"github.com/argus-labs/argus/ante"
 	"github.com/argus-labs/argus/app/keepers"
-	argusappparams "github.com/argus-labs/argus/app/simulation_params"
+	argusappparams "github.com/argus-labs/argus/app/simparams"
 	"github.com/argus-labs/argus/app/upgrades"
 	"github.com/argus-labs/argus/sidecar"
 

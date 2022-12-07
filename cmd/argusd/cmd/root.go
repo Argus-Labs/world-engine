@@ -33,12 +33,12 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	argus "github.com/argus-labs/argus/app"
-	"github.com/argus-labs/argus/app/simulation_params"
+	"github.com/argus-labs/argus/app/simparams"
 )
 
 // NewRootCmd creates a new root command for simd. It is called once in the
 // main function.
-func NewRootCmd() (*cobra.Command, simulation_params.EncodingConfig) {
+func NewRootCmd() (*cobra.Command, simparams.EncodingConfig) {
 	encodingConfig := argus.MakeTestEncodingConfig()
 	initClientCtx := client.Context{}.
 		WithCodec(encodingConfig.Codec).
@@ -96,13 +96,13 @@ func initAppConfig() (string, interface{}) {
 	srvCfg.StateSync.SnapshotInterval = 1000
 	srvCfg.StateSync.SnapshotKeepRecent = 10
 
-	return simulation_params.CustomConfigTemplate(), simulation_params.CustomAppConfig{
+	return simparams.CustomConfigTemplate(), simparams.CustomAppConfig{
 		Config:               *srvCfg,
 		BypassMinFeeMsgTypes: argus.GetDefaultBypassFeeMessages(),
 	}
 }
 
-func initRootCmd(rootCmd *cobra.Command, encodingConfig simulation_params.EncodingConfig) {
+func initRootCmd(rootCmd *cobra.Command, encodingConfig simparams.EncodingConfig) {
 	cfg := sdk.GetConfig()
 
 	cfg.Seal()
@@ -192,7 +192,7 @@ func txCommand() *cobra.Command {
 }
 
 type appCreator struct {
-	encCfg simulation_params.EncodingConfig
+	encCfg simparams.EncodingConfig
 }
 
 func (ac appCreator) newApp(

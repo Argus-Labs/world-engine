@@ -55,7 +55,7 @@ import (
 
 	"github.com/argus-labs/argus/x/evm"
 
-	argusSimParams "github.com/argus-labs/argus/app/simulation_params"
+	argusSimParams "github.com/argus-labs/argus/app/simparams"
 	"github.com/argus-labs/argus/sidecar"
 	adaptertypes "github.com/argus-labs/argus/x/adapter"
 )

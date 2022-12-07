@@ -1,4 +1,4 @@
-package simulation_params
+package simparams
 
 // Default simulation operation weights for messages and gov proposals
 const (

@@ -1,7 +1,7 @@
 //go:build test_amino
 // +build test_amino
 
-package simulation_params
+package simparams
 
 import (
 	"github.com/cosmos/cosmos-sdk/codec"
