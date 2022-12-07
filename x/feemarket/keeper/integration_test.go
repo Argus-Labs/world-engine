@@ -18,14 +18,12 @@ import (
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/evmos/ethermint/app"
+
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
-	"github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/tests"
 	"github.com/evmos/ethermint/testutil"
 
 	argus "github.com/argus-labs/argus/app"
-	"github.com/argus-labs/argus/app/simulation_params"
 	"github.com/argus-labs/argus/x/feemarket/types"
 
 	"github.com/cosmos/cosmos-sdk/simapp"
@@ -469,7 +467,8 @@ func setupTest(localMinGasPrices string) (*ethsecp256k1.PrivKey, banktypes.MsgSe
 		Denom:  s.denom,
 		Amount: amount,
 	}}
-	testutil.FundAccount(s.app.BankKeeper, s.ctx, address, initBalance)
+	err := testutil.FundAccount(s.app.BankKeeper, s.ctx, address, initBalance)
+	s.Require().NoError(err)
 
 	msg := banktypes.MsgSend{
 		FromAddress: address.String(),
@@ -493,14 +492,14 @@ func setupChain(localMinGasPricesStr string) {
 		nil,
 		true,
 		map[int64]bool{},
-		app.DefaultNodeHome,
+		argus.DefaultNodeHome,
 		5,
-		simulation_params.EncodingConfig(encoding.MakeConfig(app.ModuleBasics)),
+		argus.MakeTestEncodingConfig(),
 		simapp.EmptyAppOptions{},
 		baseapp.SetMinGasPrices(localMinGasPricesStr),
 	)
 
-	genesisState := app.NewTestGenesisState(newapp.AppCodec())
+	genesisState := argus.NewTestGenesisState(newapp.AppCodec())
 	genesisState[types.ModuleName] = newapp.AppCodec().MustMarshalJSON(types.DefaultGenesisState())
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", "  ")
@@ -512,7 +511,7 @@ func setupChain(localMinGasPricesStr string) {
 			ChainId:         "ethermint_9000-1",
 			Validators:      []abci.ValidatorUpdate{},
 			AppStateBytes:   stateBytes,
-			ConsensusParams: app.DefaultConsensusParams,
+			ConsensusParams: argus.DefaultConsensusParams,
 		},
 	)
 
@@ -562,7 +561,7 @@ func buildEthTx(
 }
 
 func prepareEthTx(priv *ethsecp256k1.PrivKey, msgEthereumTx *evmtypes.MsgEthereumTx) []byte {
-	encodingConfig := encoding.MakeConfig(app.ModuleBasics)
+	encodingConfig := argus.MakeTestEncodingConfig()
 	option, err := codectypes.NewAnyWithValue(&evmtypes.ExtensionOptionsEthereumTx{})
 	s.Require().NoError(err)
 
@@ -608,7 +607,7 @@ func deliverEthTx(priv *ethsecp256k1.PrivKey, msgEthereumTx *evmtypes.MsgEthereu
 }
 
 func prepareCosmosTx(priv *ethsecp256k1.PrivKey, gasPrice *sdkmath.Int, msgs ...sdk.Msg) []byte {
-	encodingConfig := encoding.MakeConfig(app.ModuleBasics)
+	encodingConfig := argus.MakeTestEncodingConfig()
 	accountAddress := sdk.AccAddress(priv.PubKey().Address().Bytes())
 
 	txBuilder := encodingConfig.TxConfig.NewTxBuilder()

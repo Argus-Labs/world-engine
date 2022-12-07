@@ -20,7 +20,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
-	ante2 "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
@@ -195,7 +194,7 @@ func NewArgusApp(
 		EvmKeeper:              app.EvmKeeper,
 		FeegrantKeeper:         app.FeeGrantKeeper,
 		SignModeHandler:        app.GetTxConfig().SignModeHandler(),
-		SigGasConsumer:         ante2.DefaultSigVerificationGasConsumer,
+		SigGasConsumer:         ante.EthermintSigVerificationGasConsumer,
 		MaxTxGasWanted:         cast.ToUint64(appOpts.Get(flags.EVMMaxTxGasWanted)),
 		ExtensionOptionChecker: types2.HasDynamicFeeExtensionOption,
 		TxFeeChecker:           ante.NewDynamicFeeChecker(app.EvmKeeper),

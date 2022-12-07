@@ -14,12 +14,11 @@ import (
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"github.com/ethereum/go-ethereum/common"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/evmos/ethermint/app"
 	"github.com/evmos/ethermint/crypto/ethsecp256k1"
-	"github.com/evmos/ethermint/encoding"
 	"github.com/evmos/ethermint/tests"
 	"github.com/evmos/ethermint/testutil"
-	"github.com/evmos/ethermint/x/feemarket/types"
+
+	"github.com/argus-labs/argus/app"
 
 	"github.com/cosmos/cosmos-sdk/simapp"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -27,9 +26,8 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 
-	argus "github.com/argus-labs/argus/app"
-	"github.com/argus-labs/argus/app/simulation_params"
 	evmtypes "github.com/argus-labs/argus/x/evm/types"
+	"github.com/argus-labs/argus/x/feemarket/types"
 	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
 )
 
@@ -180,14 +178,14 @@ func setupChain(localMinGasPricesStr string) {
 		nil,
 		true,
 		map[int64]bool{},
-		app.DefaultNodeHome,
+		argus.DefaultNodeHome,
 		5,
-		simulation_params.EncodingConfig(encoding.MakeConfig(app.ModuleBasics)),
+		argus.MakeTestEncodingConfig(),
 		simapp.EmptyAppOptions{},
 		baseapp.SetMinGasPrices(localMinGasPricesStr),
 	)
 
-	genesisState := app.NewTestGenesisState(newapp.AppCodec())
+	genesisState := argus.NewTestGenesisState(newapp.AppCodec())
 	genesisState[types.ModuleName] = newapp.AppCodec().MustMarshalJSON(types.DefaultGenesisState())
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", "  ")
@@ -199,7 +197,7 @@ func setupChain(localMinGasPricesStr string) {
 			ChainId:         "ethermint_9000-1",
 			Validators:      []abci.ValidatorUpdate{},
 			AppStateBytes:   stateBytes,
-			ConsensusParams: app.DefaultConsensusParams,
+			ConsensusParams: argus.DefaultConsensusParams,
 		},
 	)
 
@@ -249,7 +247,7 @@ func buildEthTx(
 }
 
 func prepareEthTx(priv *ethsecp256k1.PrivKey, msgEthereumTx *evmtypes.MsgEthereumTx) []byte {
-	encodingConfig := encoding.MakeConfig(app.ModuleBasics)
+	encodingConfig := argus.MakeTestEncodingConfig()
 	option, err := codectypes.NewAnyWithValue(&evmtypes.ExtensionOptionsEthereumTx{})
 	s.Require().NoError(err)
 
