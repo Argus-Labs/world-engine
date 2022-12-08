@@ -1,8 +1,8 @@
 build:
-  binary: "gaiad"
-  main: "./cmd/gaiad"
+  binary: "argusd"
+  main: "./cmd/argusd"
 genesis:
-  chain_id: "gaia-local-testnet"
+  chain_id: "argus-local-testnet"
   app_state:
     staking:
       params:

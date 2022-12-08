@@ -2,14 +2,13 @@
 
 - name: Copy binary
   copy:
-    src: "{{GAIACLI_BINARY}}"
-    dest: /usr/bin/gaiacli
+    src: "{{ARGUSCLI_BINARY}}"
+    dest: /usr/bin/arguscli
     mode: 0755
-  notify: restart gaiacli
+  notify: restart arguscli
 
 - name: Copy service
   template:
-    src: gaiacli.service.j2
-    dest: /etc/systemd/system/gaiacli.service
+    src: arguscli.service.j2
+    dest: /etc/systemd/system/arguscli.service
   notify: systemctl
-

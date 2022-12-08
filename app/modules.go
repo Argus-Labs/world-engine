@@ -53,7 +53,7 @@ import (
 	"github.com/strangelove-ventures/packet-forward-middleware/v5/router"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 
-	gaiaappparams "github.com/argus-labs/argus/app/params"
+	appparams "github.com/argus-labs/argus/app/params"
 	adaptertypes "github.com/argus-labs/argus/x/adapter"
 	"github.com/argus-labs/argus/x/icamauth"
 	icamauthtypes "github.com/argus-labs/argus/x/icamauth/types"
@@ -113,7 +113,7 @@ var ModuleBasics = module.NewBasicManager(
 
 func appModules(
 	app *ArgusApp,
-	encodingConfig gaiaappparams.EncodingConfig,
+	encodingConfig appparams.EncodingConfig,
 	skipGenesisInvariants bool,
 ) []module.AppModule {
 	appCodec := encodingConfig.Codec
@@ -155,7 +155,7 @@ func appModules(
 // define the order of the modules for deterministic simulations
 func simulationModules(
 	app *ArgusApp,
-	encodingConfig gaiaappparams.EncodingConfig,
+	encodingConfig appparams.EncodingConfig,
 	_ bool,
 ) []module.AppModuleSimulation {
 	appCodec := encodingConfig.Codec

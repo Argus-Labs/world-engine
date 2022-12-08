@@ -21,12 +21,12 @@ import (
 	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
 
-	gaiaapp "github.com/argus-labs/argus/app"
+	argus "github.com/argus-labs/argus/app"
 )
 
 // SimAppChainID hardcoded chainID for simulation
 const (
-	SimAppChainID = "gaia-app"
+	SimAppChainID = "argus_90000-1"
 )
 
 // DefaultConsensusParams defines the default Tendermint consensus params used
@@ -52,7 +52,7 @@ type EmptyAppOptions struct{}
 
 func (EmptyAppOptions) Get(o string) interface{} { return nil }
 
-func Setup(t *testing.T) *gaiaapp.ArgusApp {
+func Setup(t *testing.T) *argus.ArgusApp {
 	t.Helper()
 
 	privVal := mock.NewPV()
@@ -78,17 +78,17 @@ func Setup(t *testing.T) *gaiaapp.ArgusApp {
 // that also act as delegators. For simplicity, each validator is bonded with a delegation
 // of one consensus engine unit in the default token of the ArgusApp from first genesis
 // account. A Nop logger is set in ArgusApp.
-func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *gaiaapp.ArgusApp {
+func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *argus.ArgusApp {
 	t.Helper()
 
-	gaiaApp, genesisState := setup(true, 5)
-	genesisState = genesisStateWithValSet(t, gaiaApp, genesisState, valSet, genAccs, balances...)
+	argusApp, genesisState := setup(true, 5)
+	genesisState = genesisStateWithValSet(t, argusApp, genesisState, valSet, genAccs, balances...)
 
 	stateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
 
 	// init chain will set the validator set and initialize the genesis accounts
-	gaiaApp.InitChain(
+	argusApp.InitChain(
 		abci.RequestInitChain{
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: DefaultConsensusParams,
@@ -97,43 +97,43 @@ func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs 
 	)
 
 	// commit genesis changes
-	gaiaApp.Commit()
-	gaiaApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
-		Height:             gaiaApp.LastBlockHeight() + 1,
-		AppHash:            gaiaApp.LastCommitID().Hash,
+	argusApp.Commit()
+	argusApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		Height:             argusApp.LastBlockHeight() + 1,
+		AppHash:            argusApp.LastCommitID().Hash,
 		ValidatorsHash:     valSet.Hash(),
 		NextValidatorsHash: valSet.Hash(),
 	}})
 
-	return gaiaApp
+	return argusApp
 }
 
-func setup(withGenesis bool, invCheckPeriod uint) (*gaiaapp.ArgusApp, gaiaapp.GenesisState) {
+func setup(withGenesis bool, invCheckPeriod uint) (*argus.ArgusApp, argus.GenesisState) {
 	db := dbm.NewMemDB()
-	encCdc := gaiaapp.MakeTestEncodingConfig()
-	gaiaApp := gaiaapp.NewArgusApp(
+	encCdc := argus.MakeTestEncodingConfig()
+	argusApp := argus.NewArgusApp(
 		log.NewNopLogger(),
 		db,
 		nil,
 		true,
 		map[int64]bool{},
-		gaiaapp.DefaultNodeHome,
+		argus.DefaultNodeHome,
 		invCheckPeriod,
 		encCdc,
 		EmptyAppOptions{},
 	)
 	if withGenesis {
-		return gaiaApp, gaiaapp.NewDefaultGenesisState()
+		return argusApp, argus.NewDefaultGenesisState()
 	}
 
-	return gaiaApp, gaiaapp.GenesisState{}
+	return argusApp, argus.GenesisState{}
 }
 
 func genesisStateWithValSet(t *testing.T,
-	app *gaiaapp.ArgusApp, genesisState gaiaapp.GenesisState,
+	app *argus.ArgusApp, genesisState argus.GenesisState,
 	valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount,
 	balances ...banktypes.Balance,
-) gaiaapp.GenesisState {
+) argus.GenesisState {
 	// set genesis accounts
 	authGenesis := authtypes.NewGenesisState(authtypes.DefaultParams(), genAccs)
 	genesisState[authtypes.ModuleName] = app.AppCodec().MustMarshalJSON(authGenesis)

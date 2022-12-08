@@ -8,7 +8,7 @@ if [ $# -ne 4 ]; then
 fi
 set -eux
 
-if [ -z "`file ../build/gaiad | grep 'ELF 64-bit'`" ]; then
+if [ -z "`file ../build/argusd | grep 'ELF 64-bit'`" ]; then
   # Build the linux binary we're going to ship to the nodes
   make -C .. build-linux
 fi
@@ -27,4 +27,3 @@ make validators-start extract-config
 SEEDFOLDER="${TESTNET_NAME}-${CLUSTER_NAME}-seedwords"
 mkdir -p "${SEEDFOLDER}"
 test ! -f "${SEEDFOLDER}/node0" && mv remote/ansible/keys/* "${SEEDFOLDER}"
-

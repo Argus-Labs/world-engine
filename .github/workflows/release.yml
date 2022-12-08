@@ -49,8 +49,8 @@ jobs:
                     GITHUB_TOKEN: ${{ github.token }}
                 with:
                     upload_url: ${{ steps.create_release.outputs.upload_url }}
-                    asset_path: ./artifacts/gaiad-${{ env.VERSION }}-darwin-amd64
-                    asset_name: gaiad-${{ env.VERSION }}-darwin-amd64
+                    asset_path: ./artifacts/argusd-${{ env.VERSION }}-darwin-amd64
+                    asset_name: argusd-${{ env.VERSION }}-darwin-amd64
                     asset_content_type: application/binary
             -   name: Upload darwin-arm64 artifact
                 uses: actions/upload-release-asset@v1
@@ -58,8 +58,8 @@ jobs:
                     GITHUB_TOKEN: ${{ github.token }}
                 with:
                     upload_url: ${{ steps.create_release.outputs.upload_url }}
-                    asset_path: ./artifacts/gaiad-${{ env.VERSION }}-darwin-arm64
-                    asset_name: gaiad-${{ env.VERSION }}-darwin-arm64
+                    asset_path: ./artifacts/argusd-${{ env.VERSION }}-darwin-arm64
+                    asset_name: argusd-${{ env.VERSION }}-darwin-arm64
                     asset_content_type: application/binary
             -   name: Upload linux-amd64 artifact
                 uses: actions/upload-release-asset@v1
@@ -67,8 +67,8 @@ jobs:
                     GITHUB_TOKEN: ${{ github.token }}
                 with:
                     upload_url: ${{ steps.create_release.outputs.upload_url }}
-                    asset_path: ./artifacts/gaiad-${{ env.VERSION }}-linux-amd64
-                    asset_name: gaiad-${{ env.VERSION }}-linux-amd64
+                    asset_path: ./artifacts/argusd-${{ env.VERSION }}-linux-amd64
+                    asset_name: argusd-${{ env.VERSION }}-linux-amd64
                     asset_content_type: application/binary
             -   name: Upload linux-arm64 artifact
                 uses: actions/upload-release-asset@v1
@@ -76,8 +76,8 @@ jobs:
                     GITHUB_TOKEN: ${{ github.token }}
                 with:
                     upload_url: ${{ steps.create_release.outputs.upload_url }}
-                    asset_path: ./artifacts/gaiad-${{ env.VERSION }}-linux-arm64
-                    asset_name: gaiad-${{ env.VERSION }}-linux-arm64
+                    asset_path: ./artifacts/argusd-${{ env.VERSION }}-linux-arm64
+                    asset_name: argusd-${{ env.VERSION }}-linux-arm64
                     asset_content_type: application/binary
             -   name: Upload windows-amd64 artifact
                 uses: actions/upload-release-asset@v1
@@ -85,8 +85,8 @@ jobs:
                     GITHUB_TOKEN: ${{ github.token }}
                 with:
                     upload_url: ${{ steps.create_release.outputs.upload_url }}
-                    asset_path: ./artifacts/gaiad-${{ env.VERSION }}-windows-amd64.exe
-                    asset_name: gaiad-${{ env.VERSION }}-windows-amd64.exe
+                    asset_path: ./artifacts/argusd-${{ env.VERSION }}-windows-amd64.exe
+                    asset_name: argusd-${{ env.VERSION }}-windows-amd64.exe
                     asset_content_type: application/binary
             -   name: Upload compression
                 uses: actions/upload-release-asset@v1
@@ -94,6 +94,6 @@ jobs:
                     GITHUB_TOKEN: ${{ github.token }}
                 with:
                     upload_url: ${{ steps.create_release.outputs.upload_url }}
-                    asset_path: ./artifacts/gaiad-${{ env.VERSION }}.tar.gz
-                    asset_name: gaiad-${{ env.RELEASE_VERSION }}.tar.gz
+                    asset_path: ./artifacts/argusd-${{ env.VERSION }}.tar.gz
+                    asset_name: argusd-${{ env.RELEASE_VERSION }}.tar.gz
                     asset_content_type: application/gzip

@@ -2,38 +2,38 @@
 
 set -o errexit -o nounset
 
-NODE_HOME=$(realpath ./build/.gaia)
+NODE_HOME=$(realpath ./build/.argus)
 echo "NODE_HOME = ${NODE_HOME}"
-BINARY=$NODE_HOME/cosmovisor/genesis/bin/gaiad
+BINARY=$NODE_HOME/cosmovisor/genesis/bin/argusd
 echo "BINARY = ${BINARY}"
 CHAINID=cosmoshub-4
 
 USER_MNEMONIC="abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art"
 
-if ! test -f "./build/gaiad7"; then
-  echo "gaiad v7 does not exist"
+if ! test -f "./build/argusd7"; then
+  echo "argusd v7 does not exist"
   exit
 fi
 
 
-rm -rf ./build/.gaia
+rm -rf ./build/.argus
 
 mkdir -p "$NODE_HOME"/cosmovisor/genesis/bin
-cp ./build/gaiad7 "$NODE_HOME"/cosmovisor/genesis/bin/gaiad
+cp ./build/argusd7 "$NODE_HOME"/cosmovisor/genesis/bin/argusd
 $BINARY init upgrader --chain-id $CHAINID --home "$NODE_HOME"
 
 
-if ! test -f "./build/gaiad8"; then
-  echo "gaiad v8 does not exist"
+if ! test -f "./build/argusd8"; then
+  echo "argusd v8 does not exist"
   exit
 fi
 
 mkdir -p "$NODE_HOME"/cosmovisor/upgrades/v8-Rho/bin
-cp ./build/gaiad8 "$NODE_HOME"/cosmovisor/upgrades/v8-Rho/bin/gaiad
+cp ./build/argusd8 "$NODE_HOME"/cosmovisor/upgrades/v8-Rho/bin/argusd
 
 GOPATH=$(go env GOPATH)
 
-export DAEMON_NAME=gaiad
+export DAEMON_NAME=argusd
 export DAEMON_HOME=$NODE_HOME
 COSMOVISOR=$GOPATH/bin/cosmovisor
 
@@ -68,4 +68,3 @@ enable = false/# Enable defines if the API server should be enabled.
 enable = true/g' $NODE_HOME/config/app.toml
 
 $COSMOVISOR start --home $NODE_HOME --x-crisis-skip-assert-invariants
-

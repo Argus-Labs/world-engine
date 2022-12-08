@@ -97,7 +97,7 @@ jobs:
             **/**.go
             go.mod
             go.sum
-      - name: Install Gaia
+      - name: Install Argus
         run: |
           make build
         if: env.GIT_DIFF
@@ -126,25 +126,25 @@ jobs:
             **/**.go
             go.mod
             go.sum
-      - name: Install GaiaV7
+      - name: Install ArgusV7
         run: |
           git checkout v7.1.0
           make build
-          cp ./build/gaiad ./build/gaiad7
+          cp ./build/argusd ./build/argusd7
         if: env.GIT_DIFF
-      - name: Install GaiaV8
+      - name: Install ArgusV8
         run: |
           git checkout -
           make build
-          cp ./build/gaiad ./build/gaiad8
+          cp ./build/argusd ./build/argusd8
         if: env.GIT_DIFF
       - name: Install Cosmovisor
         run: |
           go install github.com/cosmos/cosmos-sdk/cosmovisor/cmd/cosmovisor@v1.0.0
         if: env.GIT_DIFF
-      - name: Start GaiaV7
+      - name: Start ArgusV7
         run: |
-          ./contrib/scripts/run-gaia-v7.sh > v7.out 2>&1 &
+          ./contrib/scripts/run-argus-v7.sh > v7.out 2>&1 &
         if: env.GIT_DIFF
       - name: Submit Upgrade Commands
         run: |

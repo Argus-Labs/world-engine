@@ -4,7 +4,7 @@ set -eo pipefail
 
 protoc_gen_gocosmos() {
   if ! grep "github.com/gogo/protobuf => github.com/regen-network/protobuf" go.mod &>/dev/null ; then
-    echo -e "\tPlease run this command from somewhere inside the gaia folder."
+    echo -e "\tPlease run this command from somewhere inside the argus folder."
     return 1
   fi
 
@@ -24,6 +24,6 @@ done
 
 cd ..
 
-# move the generated proto files (*.pb.go / *.pb.gw.go) to x/gaia/<module-name>/types/ directory
+# move the generated proto files (*.pb.go / *.pb.gw.go) to x/<module-name>/types/ directory
 cp -r github.com/argus-labs/argus/* ./
 rm -rf github.com

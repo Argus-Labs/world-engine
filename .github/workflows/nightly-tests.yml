@@ -8,9 +8,7 @@ on:
 jobs:
 
   run-tests:
-    uses: cosmos/gaia/.github/workflows/test.yml@main
+    uses: argus-labs/argus/.github/workflows/test.yml@main
 
   run-simulations:
-    uses: cosmos/gaia/.github/workflows/sims.yml@main
-
-    
+    uses: argus-labs/argus/.github/workflows/sims.yml@main
