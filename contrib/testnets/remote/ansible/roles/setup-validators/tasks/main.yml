@@ -6,8 +6,8 @@
   run_once: true
   become: no
 
-- name: Create gaiad user
-  user: name=gaiad home=/home/gaiad shell=/bin/bash
+- name: Create argusd user
+  user: name=argusd home=/home/argusd shell=/bin/bash
 
 - name: Copy binary
   copy:
@@ -16,7 +16,7 @@
     mode: 0755
 
 - name: Copy service file
-  copy: src=gaiad.service dest=/etc/systemd/system/gaiad.service mode=0755
+  copy: src=argusd.service dest=/etc/systemd/system/argusd.service mode=0755
   notify: reload systemd
 
 - name: Get node ID
@@ -25,12 +25,12 @@
   register: nodeid
 
 - name: Create initial transaction
-  command: "/usr/bin/gaiad init gen-tx --name=node{{nodeid.stdout_lines[0]}} --ip={{inventory_hostname}}"
+  command: "/usr/bin/argusd init gen-tx --name=node{{nodeid.stdout_lines[0]}} --ip={{inventory_hostname}}"
   register: gentxresult
   become: yes
-  become_user: gaiad
+  become_user: argusd
   args:
-    creates: /home/gaiad/.gaia/config/gentx
+    creates: /home/argusd/.argus/config/gentx
 
 - name: Get wallet word seed from result of initial transaction locally
   when: gentxresult["changed"]
@@ -46,7 +46,7 @@
   connection: local
 
 - name: Find gentx file
-  command: "ls /home/gaiad/.gaia/config/gentx"
+  command: "ls /home/argusd/.argus/config/gentx"
   changed_when: false
   register: gentxfile
 
@@ -58,7 +58,7 @@
 - name: Get gen-tx file
   fetch:
     dest: files/
-    src: "/home/gaiad/.gaia/config/gentx/{{gentxfile.stdout_lines[0]}}"
+    src: "/home/argusd/.argus/config/gentx/{{gentxfile.stdout_lines[0]}}"
     flat: yes
 
 - name: Compress gathered gen-tx files locally
@@ -67,12 +67,11 @@
   connection: local
 
 - name: Unpack gen-tx archive
-  unarchive: src=files/gen-tx.tgz dest=/home/gaiad/.gaia/config/gentx owner=gaiad
+  unarchive: src=files/gen-tx.tgz dest=/home/argusd/.argus/config/gentx owner=argusd
 
 - name: Generate genesis.json
-  command: "/usr/bin/gaiad init --with-txs --name=node{{nodeid.stdout_lines[0]}} --chain-id={{TESTNET_NAME}}"
+  command: "/usr/bin/argusd init --with-txs --name=node{{nodeid.stdout_lines[0]}} --chain-id={{TESTNET_NAME}}"
   become: yes
-  become_user: gaiad
+  become_user: argusd
   args:
-    creates: /home/gaiad/.gaia/config/genesis.json
-
+    creates: /home/argusd/.argus/config/genesis.json

@@ -9,8 +9,8 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	db "github.com/tendermint/tm-db"
 
-	gaia "github.com/argus-labs/argus/app"
-	gaiahelpers "github.com/argus-labs/argus/app/helpers"
+	argus "github.com/argus-labs/argus/app"
+	argushelpers "github.com/argus-labs/argus/app/helpers"
 )
 
 type EmptyAppOptions struct{}
@@ -19,16 +19,16 @@ func (ao EmptyAppOptions) Get(o string) interface{} {
 	return nil
 }
 
-func TestGaiaApp_BlockedModuleAccountAddrs(t *testing.T) {
-	app := gaia.NewArgusApp(
+func TestArgusApp_BlockedModuleAccountAddrs(t *testing.T) {
+	app := argus.NewArgusApp(
 		log.NewNopLogger(),
 		db.NewMemDB(),
 		nil,
 		true,
 		map[int64]bool{},
-		gaia.DefaultNodeHome,
+		argus.DefaultNodeHome,
 		0,
-		gaia.MakeTestEncodingConfig(),
+		argus.MakeTestEncodingConfig(),
 		EmptyAppOptions{},
 	)
 	blockedAddrs := app.BlockedModuleAccountAddrs()
@@ -36,8 +36,8 @@ func TestGaiaApp_BlockedModuleAccountAddrs(t *testing.T) {
 	require.NotContains(t, blockedAddrs, authtypes.NewModuleAddress(govtypes.ModuleName).String())
 }
 
-func TestGaiaApp_Export(t *testing.T) {
-	app := gaiahelpers.Setup(t)
+func TestArgusApp_Export(t *testing.T) {
+	app := argushelpers.Setup(t)
 
 	_, err := app.ExportAppStateAndValidators(true, []string{})
 	require.NoError(t, err, "ExportAppStateAndValidators should not have an error")

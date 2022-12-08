@@ -1,5 +1,5 @@
 /*
-Package params defines the simulation parameters in the gaia.
+Package params defines the simulation parameters in argus.
 
 It contains the default weights used for each transaction used on the module's
 simulation. These weights define the chance for a transaction to be simulated at

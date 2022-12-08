@@ -1,14 +1,14 @@
 # Simple usage with a mounted data directory:
-# > docker build -t gaia .
-# > docker run -it -p 46657:46657 -p 46656:46656 -v ~/.gaia:/root/.gaia gaia gaiad init
-# > docker run -it -p 46657:46657 -p 46656:46656 -v ~/.gaia:/root/.gaia gaia gaiad start
+# > docker build -t argus .
+# > docker run -it -p 46657:46657 -p 46656:46656 -v ~/.argus:/root/.argus argus argusd init
+# > docker run -it -p 46657:46657 -p 46656:46656 -v ~/.argus:/root/.argus argus argusd start
 FROM golang:1.18-alpine AS build-env
 
 # Set up dependencies
 ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3
 
 # Set working directory for the build
-WORKDIR /go/src/github.com/cosmos/gaia
+WORKDIR /go/src/github.com/argus-labs/argus
 
 # Add source files
 COPY . .
@@ -25,7 +25,7 @@ RUN apk add --update ca-certificates
 WORKDIR /root
 
 # Copy over binaries from the build-env
-COPY --from=build-env /go/bin/gaiad /usr/bin/gaiad
+COPY --from=build-env /go/bin/argusd /usr/bin/argusd
 
 COPY ./contrib/single-node.sh .
 

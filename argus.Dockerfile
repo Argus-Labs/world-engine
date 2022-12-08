@@ -1,7 +1,7 @@
 ARG IMG_TAG=latest
 
-# Compile the gaiad binary
-FROM golang:1.18-alpine AS gaiad-builder
+# Compile the argus binary
+FROM golang:1.18-alpine AS argusd-builder
 WORKDIR /src/app/
 COPY go.mod go.sum* ./
 RUN go mod download
@@ -13,7 +13,7 @@ RUN CGO_ENABLED=0 make install
 
 # Add to a distroless container
 FROM ubuntu:18.04
-COPY --from=gaiad-builder /go/bin/gaiad /usr/local/bin/
+COPY --from=argusd-builder /go/bin/argusd /usr/local/bin/
 EXPOSE 26656 26657 1317 9090
 USER 0
 

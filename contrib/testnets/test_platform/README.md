@@ -1,14 +1,14 @@
-# Gaiad Testnet Tool
+# argusd Testnet Tool
 
-This python tool starts multiple gaiad instances on the same machine without virtualization, i.e., non-conflicting ports are used.
+This python tool starts multiple argusd instances on the same machine without virtualization, i.e., non-conflicting ports are used.
 
 This tool aims to simplify testing of key Cosmos Hub operations, such as module deployments and upgrades.
 
 ## Features
 
 1. All ports automatically incremented by 10
-1. Gaiad nodes peer with all other nodes
-1. Gaiad nodes all started on one machine without conflict
+1. argusd nodes peer with all other nodes
+1. argusd nodes all started on one machine without conflict
 1. All nodes generate, propose, and vote on blocks
 1. Stopping app stops all instances
 1. Support specifying a pre-existing genesis file
@@ -31,7 +31,7 @@ This tool aims to simplify testing of key Cosmos Hub operations, such as module 
       1. Otherwise, set `replacement_genesis_make_safe` value to blank to create `num_of_nodes_to_apply` nodes, e.g., `replacement_genesis_make_safe=`. 
          Important: if the `replacement_genesis_make_safe` is not set, then the validator keys in the genesis file aren't replaced and so the network may not produce new blocks.
    1. Optionally, set `LOG_LEVEL` to one of _(trace | debug | info | warn | error | fatal | panic)_; default _info_
-1. Start  `gaiad_config_manager.py`
+1. Start  `argusd_config_manager.py`
 
 Notes for `template/replacement_defaults.txt`: 
 - only the last occurrence of a key and it's value are used, i.e., earlier occurrences are overwritten.

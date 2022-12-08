@@ -21,10 +21,10 @@ ______
 
 For contributor use:
 
-- [ ] Targeted PR against correct branch (see [CONTRIBUTING.md](https://github.com/cosmos/gaia/blob/main/CONTRIBUTING.md#pr-targeting))
+- [ ] Targeted PR against correct branch (see [CONTRIBUTING.md](https://github.com/argus-labs/argus/blob/main/CONTRIBUTING.md#pr-targeting))
 - [ ] Linked to Github issue with discussion and accepted design OR link to spec that describes this work.
 - [ ] Code follows the [module structure standards](https://github.com/cosmos/cosmos-sdk/blob/main/docs/building-modules/structure.md).
-- [ ] Wrote unit and integration [tests](https://github.com/cosmos/gaia/blob/main/CONTRIBUTING.md#testing)
+- [ ] Wrote unit and integration [tests](https://github.com/argus-labs/argus/blob/main/CONTRIBUTING.md#testing)
 - [ ] Updated relevant documentation (`docs/`) or specification (`x/<module>/spec/`)
 - [ ] Added  relevant `godoc` [comments](https://blog.golang.org/godoc-documenting-go-code).
 - [ ] Added a relevant changelog entry to the `Unreleased` section in `CHANGELOG.md`

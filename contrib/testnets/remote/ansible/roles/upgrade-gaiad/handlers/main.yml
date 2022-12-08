@@ -1,5 +1,4 @@
 ---
 
-- name: restart gaiad
-  service: name=gaiad state=restarted
-
+- name: restart argusd
+  service: name=argusd state=restarted

@@ -11,12 +11,11 @@
     src: 91-nofiles.conf
     dest: /etc/security/limits.d
 
-- name: Set gaia filehandle Limits
+- name: Set argus filehandle Limits
   copy:
     src: limits.conf
     dest: "/lib/systemd/system/{{item}}.service.d"
   notify: reload systemctl
   with_items:
-    - gaiad
-    - gaiacli
-
+    - argusd
+    - arguscli

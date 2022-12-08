@@ -1,3 +1,3 @@
 # Protobufs
 
-This is the public protocol buffers API for the [Cosmoshub](https://github.com/cosmos/gaia).
+This is the public protocol buffers API for the [Argus Chain](https://github.com/argus-labs/argus).

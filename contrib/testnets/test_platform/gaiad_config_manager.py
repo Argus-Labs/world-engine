@@ -11,7 +11,7 @@ template_input = working_directory + 'templates/replacement_defaults.txt'
 template_file_config = working_directory + 'templates/config.toml'
 template_file_app = working_directory + 'templates/app.toml'
 
-target_dir = working_directory + 'mytestnet/node0/gaiad/config/'
+target_dir = working_directory + 'mytestnet/node0/argusd/config/'
 
 target_files = []
 target_configs = []
@@ -73,15 +73,15 @@ local_sequence = 0
 
 
 def get_validator_pubkey(target_dir):
-    val_pub_key = subprocess.check_output(['gaiad', 'tendermint', 'show-validator', '--home', target_dir.rstrip('/config')])
+    val_pub_key = subprocess.check_output(['argusd', 'tendermint', 'show-validator', '--home', target_dir.rstrip('/config')])
     val_pub_key = val_pub_key.decode("utf-8").rstrip('\n')
     return val_pub_key
 
 
 def get_validator_id(target_dir):
     global local_sequence
-    # subprocess.call(['gaiad', 'init', '--home', target_dir])
-    nodeid = subprocess.check_output(['gaiad', 'tendermint', 'show-node-id', '--home', str(target_dir).rstrip("config/")])
+    # subprocess.call(['argusd', 'init', '--home', target_dir])
+    nodeid = subprocess.check_output(['argusd', 'tendermint', 'show-node-id', '--home', str(target_dir).rstrip("config/")])
     peer_id = str(nodeid.decode("utf-8").rstrip('\n') + '@' + template_replacements['P2P_PEERID_IP'] + ':' + str(int(template_replacements['P2P_LADDR_PORT']) + int(local_sequence)))
     local_sequence += 10
     return peer_id
@@ -126,17 +126,17 @@ if len(template_replacements['replacement_genesis']) > 0:
     print("liveness index:" + str(safe_index))
 
     if len(template_replacements['replacement_genesis_make_safe']) > 0:
-        # gaiad testnet --keyring-backend test --v 4
+        # argusd testnet --keyring-backend test --v 4
         print("Creating testnet subdirectories")
         subprocess.call(['rm', '-rf', working_directory + 'mytestnet'])
-        subprocess.call(['gaiad', 'testnet', '--keyring-backend', 'test', '--v', str(safe_index)])
+        subprocess.call(['argusd', 'testnet', '--keyring-backend', 'test', '--v', str(safe_index)])
 
     # specify the output
     for node_num in range(safe_index):
         target_file = target_dir.replace("node0", "node" + str(node_num))
         target_files.append(target_file)
-        # subprocess.call("gaiad init node" + str(node_num) + " -o --home "+target_file.rstrip('/config'), shell=True)
-        subprocess.call('gaiad unsafe-reset-all --home ' + target_file.rstrip('/config'), shell=True)
+        # subprocess.call("argusd init node" + str(node_num) + " -o --home "+target_file.rstrip('/config'), shell=True)
+        subprocess.call('argusd unsafe-reset-all --home ' + target_file.rstrip('/config'), shell=True)
 
     print("target_files:"+str(target_files))
 
@@ -156,9 +156,9 @@ if len(template_replacements['replacement_genesis']) > 0:
     with open(working_directory + 'templates/validator_replacement_output.json', 'w') as f:
         f.write(str(json.dumps(output_els)))
 
-    # gaiad migrate cosmoshub_3_genesis_export.json --chain-id=cosmoshub-4 --initial-height [last_cosmoshub-3_block+1] > genesis.json
+    # argusd migrate cosmoshub_3_genesis_export.json --chain-id=cosmoshub-4 --initial-height [last_cosmoshub-3_block+1] > genesis.json
     print("migration genesis:" + str(common_genesis))
-    cmd_string = 'gaiad migrate ' + common_genesis + ' --chain-id cosmoshub-4 --initial-height 0  --replacement-cons-keys ' + working_directory + 'templates/validator_replacement_output.json > ' + working_directory + 'templates/genesis_replaced.json'
+    cmd_string = 'argusd migrate ' + common_genesis + ' --chain-id cosmoshub-4 --initial-height 0  --replacement-cons-keys ' + working_directory + 'templates/validator_replacement_output.json > ' + working_directory + 'templates/genesis_replaced.json'
     print("cmd_string:" + cmd_string)
     subprocess.call([cmd_string], shell=True)
 
@@ -173,7 +173,7 @@ if len(template_replacements['replacement_genesis']) > 0:
         print("common_genesis:" + common_genesis)
         shutil.copy2(common_genesis, target_file + 'genesis.json')
 else:
-    # gaiad testnet --keyring-backend test --v 4
+    # argusd testnet --keyring-backend test --v 4
     print("Creating testnet subdirectories")
     subprocess.call(['rm', '-rf', working_directory + 'mytestnet'])
 
@@ -184,7 +184,7 @@ else:
     for node_num in range(num_of_nodes_to_apply):
         target_files.append(target_dir.replace("node0", "node" + str(node_num)))
 
-    subprocess.call(['gaiad', 'testnet', '--keyring-backend', 'test', '--v', str(num_of_nodes_to_apply)])
+    subprocess.call(['argusd', 'testnet', '--keyring-backend', 'test', '--v', str(num_of_nodes_to_apply)])
 
 peer_ids = [get_validator_id(t) for t in target_files]
 peers = ",".join(peer_ids)
@@ -198,7 +198,7 @@ print('testnet validator pubkeys:' + str(testnet_validator_pubkeys))
 
 # give the node some time to start if this is a genesis file with a lot of state, Cosmos Hub 4 mainnet requires at least 10 minutes
 # time.sleep(60 * 10)
-# tendermint_validator_set = subprocess.check_output(['gaiad', 'query', 'tendermint-validator-set']).decode("utf-8").rstrip('\n')
+# tendermint_validator_set = subprocess.check_output(['argusd', 'query', 'tendermint-validator-set']).decode("utf-8").rstrip('\n')
 # print("tendermint_validator_set:" + tendermint_validator_set)
 
 for target_file in target_files:
@@ -226,8 +226,8 @@ for target_file in target_files:
     with open(target_file + 'app.toml', 'w') as f:
         f.write(current_template_app)
 
-    proc = subprocess.Popen(['gaiad', 'start', '--home', target_file.rstrip('/config'), '--x-crisis-skip-assert-invariants'])
+    proc = subprocess.Popen(['argusd', 'start', '--home', target_file.rstrip('/config'), '--x-crisis-skip-assert-invariants'])
 
-    # automatically terminate program (and thus all gaiad instances) after some time
+    # automatically terminate program (and thus all argusd instances) after some time
 
 time.sleep(300)

@@ -4,7 +4,6 @@
   any_errors_fatal: true
   gather_facts: no
   vars:
-    - service: gaiad
+    - service: argusd
   roles:
     - start
-

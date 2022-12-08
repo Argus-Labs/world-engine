@@ -1,17 +1,16 @@
 [Unit]
-Description=gaiacli
+Description=arguscli
 Requires=network-online.target
 After=network-online.target
 
 [Service]
 Restart=on-failure
-User=gaiad
-Group=gaiad
+User=argusd
+Group=argusd
 PermissionsStartOnly=true
-ExecStart=/usr/bin/gaiacli rest-server --laddr {{GAIACLI_ADDRESS}}
+ExecStart=/usr/bin/arguscli rest-server --laddr {{ARGUSCLI_ADDRESS}}
 ExecReload=/bin/kill -HUP $MAINPID
 KillSignal=SIGTERM
 
 [Install]
 WantedBy=multi-user.target
-

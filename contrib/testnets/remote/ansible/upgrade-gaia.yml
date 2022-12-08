@@ -4,6 +4,5 @@
   any_errors_fatal: true
   gather_facts: no
   roles:
-    - upgrade-gaiad
+    - upgrade-argusd
     - add-lcd
-

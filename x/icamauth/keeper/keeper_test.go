@@ -11,7 +11,7 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	dbm "github.com/tendermint/tm-db"
 
-	gaiaapp "github.com/argus-labs/argus/app"
+	argusApp "github.com/argus-labs/argus/app"
 	"github.com/argus-labs/argus/app/helpers"
 )
 
@@ -42,9 +42,9 @@ func init() {
 
 func SetupICATestingApp() (ibctesting.TestingApp, map[string]json.RawMessage) {
 	db := dbm.NewMemDB()
-	encCdc := gaiaapp.MakeTestEncodingConfig()
-	app := gaiaapp.NewArgusApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, gaiaapp.DefaultNodeHome, 5, encCdc, helpers.EmptyAppOptions{})
-	return app, gaiaapp.NewDefaultGenesisState()
+	encCdc := argusApp.MakeTestEncodingConfig()
+	app := argusApp.NewArgusApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, argusApp.DefaultNodeHome, 5, encCdc, helpers.EmptyAppOptions{})
+	return app, argusApp.NewDefaultGenesisState()
 }
 
 // KeeperTestSuite is a testing suite to test keeper functions
@@ -103,8 +103,8 @@ func SetupICAPath(path *ibctesting.Path, owner string) error {
 	return nil
 }
 
-func GetICAApp(chain *ibctesting.TestChain) *gaiaapp.ArgusApp {
-	app, ok := chain.App.(*gaiaapp.ArgusApp)
+func GetICAApp(chain *ibctesting.TestChain) *argusApp.ArgusApp {
+	app, ok := chain.App.(*argusApp.ArgusApp)
 	if !ok {
 		panic("not ica app")
 	}

@@ -15,9 +15,9 @@ SERVERS?=1
 # Number of regions to use in AWS. One region usually contains 2-3 availability zones.
 REGION_LIMIT?=1
 
-# Path to gaiad for deployment. Must be a Linux binary.
-BINARY?=$(CURDIR)/../build/gaiad
-GAIACLI_BINARY?=$(CURDIR)/../build/gaiacli
+# Path to argusd for deployment. Must be a Linux binary.
+BINARY?=$(CURDIR)/../build/argusd
+ARGUSCLI_BINARY?=$(CURDIR)/../build/arguscli
 
 # Path to the genesis.json and config.toml files to deploy on full nodes.
 GENESISFILE?=$(CURDIR)/../build/genesis.json
@@ -94,19 +94,19 @@ fullnodes-status: disclaimer
 ########################################
 ### Other calls
 
-upgrade-gaiad: disclaimer
+upgrade-argusd: disclaimer
 	#Make sure you have AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY or your IAM roles set for AWS API access.
 	@if ! [ -f $(HOME)/.ssh/id_rsa.pub ]; then ssh-keygen ; fi
 	@if [ -z "`file $(BINARY) | grep 'ELF 64-bit'`" ]; then echo "Please build a linux binary using 'make build-linux'." ; false ; fi
-	cd remote/ansible && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/ec2.py -l "tag_Environment_$(CLUSTER_NAME)" -u centos -b -e BINARY=$(BINARY) upgrade-gaiad.yml
+	cd remote/ansible && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/ec2.py -l "tag_Environment_$(CLUSTER_NAME)" -u centos -b -e BINARY=$(BINARY) upgrade-argusd.yml
 
 UNSAFE_RESET_ALL?=no
 upgrade-seeds: disclaimer
 	#Make sure you have AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY or your IAM roles set for AWS API access.
 	@if ! [ -f $(HOME)/.ssh/id_rsa.pub ]; then ssh-keygen ; fi
 	@if [ -z "`file $(BINARY) | grep 'ELF 64-bit'`" ]; then echo "Please build a linux binary using 'make build-linux'." ; false ; fi
-	@if [ -z "`file $(GAIACLI_BINARY) | grep 'ELF 64-bit'`" ]; then echo "Please build a linux binary using 'make build-linux'." ; false ; fi
-	cd remote/ansible && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/ec2.py -l "tag_Environment_$(CLUSTER_NAME)" -u centos -b -e BINARY=$(BINARY) -e GAIACLI_BINARY=$(GAIACLI_BINARY) -e UNSAFE_RESET_ALL=$(UNSAFE_RESET_ALL) upgrade-gaia.yml
+	@if [ -z "`file $(ARGUSCLI_BINARY) | grep 'ELF 64-bit'`" ]; then echo "Please build a linux binary using 'make build-linux'." ; false ; fi
+	cd remote/ansible && ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/ec2.py -l "tag_Environment_$(CLUSTER_NAME)" -u centos -b -e BINARY=$(BINARY) -e ARGUSCLI_BINARY=$(ARGUSCLI_BINARY) -e UNSAFE_RESET_ALL=$(UNSAFE_RESET_ALL) upgrade-argus.yml
 
 
 list:
@@ -140,4 +140,4 @@ app-stop: disclaimer
 # To avoid unintended conflicts with file names, always add to .PHONY
 # unless there is a reason not to.
 # https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html
-.PHONY: all extract-config validators-start validators-stop validators-status fullnodes-start fullnodes-stop fullnodes-status upgrade-gaiad list install-datadog remove-datadog app-start app-stop
+.PHONY: all extract-config validators-start validators-stop validators-status fullnodes-start fullnodes-stop fullnodes-status upgrade-argusd list install-datadog remove-datadog app-start app-stop
