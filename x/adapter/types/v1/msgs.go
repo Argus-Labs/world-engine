@@ -5,9 +5,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-var (
-	_ sdk.Msg = &MsgClaimQuestReward{}
-)
+var _ sdk.Msg = &MsgClaimQuestReward{}
 
 func (m MsgClaimQuestReward) ValidateBasic() error {
 	if m.User_ID == "" {
@@ -29,9 +27,9 @@ func (m MsgClaimQuestReward) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{accAddr}
 }
 
-func NewMsgClaimQuestReward(userId, questId string) MsgClaimQuestReward {
+func NewMsgClaimQuestReward(userID, questID string) MsgClaimQuestReward {
 	return MsgClaimQuestReward{
-		User_ID:  userId,
-		Quest_ID: questId,
+		User_ID:  userID,
+		Quest_ID: questID,
 	}
 }
