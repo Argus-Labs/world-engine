@@ -21,7 +21,7 @@ func (m MsgClaimQuestReward) ValidateBasic() error {
 
 // GetSigners implements sdk.Msg
 func (m MsgClaimQuestReward) GetSigners() []sdk.AccAddress {
-	accAddr, err := sdk.AccAddressFromBech32(m.UserId)
+	accAddr, err := sdk.AccAddressFromBech32(m.User_ID)
 	if err != nil {
 		panic(err)
 	}
