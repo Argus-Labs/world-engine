@@ -31,7 +31,6 @@ require (
 	github.com/cosmos/ibc-go/v5 v5.1.0
 	github.com/gravity-devs/liquidity/v2 v2.0.1
 	github.com/strangelove-ventures/packet-forward-middleware/v5 v5.0.0
-	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8
 	gotest.tools v2.2.0+incompatible
 )
 
@@ -289,6 +288,7 @@ require (
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/api v0.103.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
+	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
