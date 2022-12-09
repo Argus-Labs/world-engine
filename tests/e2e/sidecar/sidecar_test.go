@@ -17,8 +17,9 @@ import (
 // See the docker-compose file in the root directory. The "test" container's `environment` field
 // sets the values that get loaded here.
 type TestingConfig struct {
-	SidecarURL   string `config:"SIDECAR_URL"`
-	ArgusNodeURL string `config:"ARGUS_NODE_URL"`
+	EnableDockerTests bool   `config:"ENABLE_DOCKER_TESTS"`
+	SidecarURL        string `config:"SIDECAR_URL"`
+	ArgusNodeURL      string `config:"ARGUS_NODE_URL"`
 }
 
 // LoadConfig loads the config from env variables.
@@ -33,6 +34,9 @@ func LoadConfig() TestingConfig {
 
 func TestSideCarE2E(t *testing.T) {
 	cfg := LoadConfig()
+	if !cfg.EnableDockerTests {
+		t.Skip("skipping test. this test only runs in docker")
+	}
 	ctx := context.Background()
 
 	client := GetSidecarClient(t, cfg.SidecarURL)

@@ -70,6 +70,7 @@ services:
     environment:
       - SIDECAR_URL=node:5050
       - ARGUS_NODE_URL=node:9090
+      - ENABLE_DOCKER_TESTS=true
     build:
       context: .
       dockerfile: tester.Dockerfile
