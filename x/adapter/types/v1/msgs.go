@@ -10,10 +10,10 @@ var (
 )
 
 func (m MsgClaimQuestReward) ValidateBasic() error {
-	if m.UserId == "" {
+	if m.User_ID == "" {
 		return sdkerrors.ErrInvalidRequest.Wrap("user_id cannot be empty")
 	}
-	if m.QuestId == "" {
+	if m.Quest_ID == "" {
 		return sdkerrors.ErrInvalidRequest.Wrap("quest_id cannot be empty")
 	}
 	return nil
@@ -31,7 +31,7 @@ func (m MsgClaimQuestReward) GetSigners() []sdk.AccAddress {
 
 func NewMsgClaimQuestReward(userId, questId string) MsgClaimQuestReward {
 	return MsgClaimQuestReward{
-		UserId:  userId,
-		QuestId: questId,
+		User_ID:  userId,
+		Quest_ID: questId,
 	}
 }
