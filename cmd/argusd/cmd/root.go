@@ -51,7 +51,7 @@ func NewRootCmd() (*cobra.Command, simparams.EncodingConfig) {
 		WithViper("")
 
 	rootCmd := &cobra.Command{
-		Use:   "gaiad",
+		Use:   "argusd",
 		Short: "Stargate Cosmos Hub App",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			initClientCtx, err := client.ReadPersistentCommandFlags(initClientCtx, cmd.Flags())
@@ -68,9 +68,9 @@ func NewRootCmd() (*cobra.Command, simparams.EncodingConfig) {
 				return err
 			}
 
-			customTemplate, customGaiaConfig := initAppConfig()
+			customTemplate, customArgusConfig := initAppConfig()
 			customTMConfig := initTendermintConfig()
-			return server.InterceptConfigsPreRunHandler(cmd, customTemplate, customGaiaConfig, customTMConfig)
+			return server.InterceptConfigsPreRunHandler(cmd, customTemplate, customArgusConfig, customTMConfig)
 		},
 	}
 
@@ -270,7 +270,7 @@ func (ac appCreator) appExport(
 		loadLatest = true
 	}
 
-	gaiaApp := argus.NewArgusApp(
+	app := argus.NewArgusApp(
 		logger,
 		db,
 		traceStore,
@@ -283,10 +283,10 @@ func (ac appCreator) appExport(
 	)
 
 	if height != -1 {
-		if err := gaiaApp.LoadHeight(height); err != nil {
+		if err := app.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	}
 
-	return gaiaApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs)
+	return app.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs)
 }

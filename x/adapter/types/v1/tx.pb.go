@@ -29,10 +29,10 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // MsgClaimQuestReward is the Msg/ClaimQuestReward request type.
 type MsgClaimQuestReward struct {
-	// user_id is the game client user_id.
-	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// quest_id is the id of the quest that was completed.
-	QuestId string `protobuf:"bytes,2,opt,name=quest_id,json=questId,proto3" json:"quest_id,omitempty"`
+	// user_ID is the game client user_ID.
+	User_ID string `protobuf:"bytes,1,opt,name=user_ID,json=userID,proto3" json:"user_ID,omitempty"`
+	// quest_ID is the ID of the quest that was completed.
+	Quest_ID string `protobuf:"bytes,2,opt,name=quest_ID,json=questID,proto3" json:"quest_ID,omitempty"`
 }
 
 func (m *MsgClaimQuestReward) Reset()         { *m = MsgClaimQuestReward{} }
@@ -68,24 +68,24 @@ func (m *MsgClaimQuestReward) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgClaimQuestReward proto.InternalMessageInfo
 
-func (m *MsgClaimQuestReward) GetUserId() string {
+func (m *MsgClaimQuestReward) GetUser_ID() string {
 	if m != nil {
-		return m.UserId
+		return m.User_ID
 	}
 	return ""
 }
 
-func (m *MsgClaimQuestReward) GetQuestId() string {
+func (m *MsgClaimQuestReward) GetQuest_ID() string {
 	if m != nil {
-		return m.QuestId
+		return m.Quest_ID
 	}
 	return ""
 }
 
 // MsgClaimQuestRewardResponse is the Msg/ClaimQuestReward response type.
 type MsgClaimQuestRewardResponse struct {
-	// reward_id is the ID of the reward claimed.
-	RewardId string `protobuf:"bytes,1,opt,name=reward_id,json=rewardId,proto3" json:"reward_id,omitempty"`
+	// reward_ID is the ID of the reward claimed.
+	Reward_ID string `protobuf:"bytes,1,opt,name=reward_ID,json=rewardID,proto3" json:"reward_ID,omitempty"`
 }
 
 func (m *MsgClaimQuestRewardResponse) Reset()         { *m = MsgClaimQuestRewardResponse{} }
@@ -121,9 +121,9 @@ func (m *MsgClaimQuestRewardResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgClaimQuestRewardResponse proto.InternalMessageInfo
 
-func (m *MsgClaimQuestRewardResponse) GetRewardId() string {
+func (m *MsgClaimQuestRewardResponse) GetReward_ID() string {
 	if m != nil {
-		return m.RewardId
+		return m.Reward_ID
 	}
 	return ""
 }
@@ -141,18 +141,18 @@ var fileDescriptor_664ac58aa66c04f8 = []byte{
 	0x2d, 0xd6, 0x4f, 0x4c, 0x49, 0x2c, 0x28, 0x49, 0x2d, 0xd2, 0x2f, 0x33, 0xd4, 0x2f, 0xa9, 0xd0,
 	0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0x00, 0x4b, 0xe9, 0x41, 0xa5, 0xf4, 0xca, 0x0c, 0x95,
 	0x3c, 0xb9, 0x84, 0x7d, 0x8b, 0xd3, 0x9d, 0x73, 0x12, 0x33, 0x73, 0x03, 0x4b, 0x53, 0x8b, 0x4b,
-	0x82, 0x52, 0xcb, 0x13, 0x8b, 0x52, 0x84, 0xc4, 0xb9, 0xd8, 0x4b, 0x8b, 0x53, 0x8b, 0xe2, 0x33,
-	0x53, 0x24, 0x18, 0x15, 0x18, 0x35, 0x38, 0x83, 0xd8, 0x40, 0x5c, 0xcf, 0x14, 0x21, 0x49, 0x2e,
-	0x8e, 0x42, 0x90, 0x3a, 0x90, 0x0c, 0x13, 0x58, 0x86, 0x1d, 0xcc, 0xf7, 0x4c, 0x51, 0xb2, 0xe2,
+	0x82, 0x52, 0xcb, 0x13, 0x8b, 0x52, 0x84, 0xc4, 0xb9, 0xd8, 0x4b, 0x8b, 0x53, 0x8b, 0xe2, 0x3d,
+	0x5d, 0x24, 0x18, 0x15, 0x18, 0x35, 0x38, 0x83, 0xd8, 0x40, 0x5c, 0x4f, 0x17, 0x21, 0x49, 0x2e,
+	0x8e, 0x42, 0x90, 0x3a, 0x90, 0x0c, 0x13, 0x58, 0x86, 0x1d, 0xcc, 0xf7, 0x74, 0x51, 0xb2, 0xe2,
 	0x92, 0xc6, 0x62, 0x54, 0x50, 0x6a, 0x71, 0x41, 0x7e, 0x5e, 0x71, 0xaa, 0x90, 0x34, 0x17, 0x67,
-	0x11, 0x58, 0x04, 0x61, 0x28, 0x07, 0x44, 0xc0, 0x33, 0xc5, 0x28, 0x9f, 0x8b, 0xd9, 0xb7, 0x38,
+	0x11, 0x58, 0x04, 0x61, 0x28, 0x07, 0x44, 0xc0, 0xd3, 0xc5, 0x28, 0x9f, 0x8b, 0xd9, 0xb7, 0x38,
 	0x5d, 0x28, 0x83, 0x4b, 0x00, 0xc3, 0x29, 0xaa, 0x7a, 0xe8, 0x8e, 0xd6, 0xc3, 0x62, 0x8d, 0x94,
 	0x2e, 0x51, 0xca, 0x60, 0xae, 0x71, 0xf2, 0x38, 0xf1, 0x48, 0x8e, 0xf1, 0xc2, 0x23, 0x39, 0xc6,
 	0x07, 0x8f, 0xe4, 0x18, 0x27, 0x3c, 0x96, 0x63, 0xb8, 0xf0, 0x58, 0x8e, 0xe1, 0xc6, 0x63, 0x39,
 	0x86, 0x28, 0xbd, 0xf4, 0xcc, 0x92, 0x8c, 0xd2, 0x24, 0xbd, 0xe4, 0xfc, 0x5c, 0x7d, 0xb0, 0x91,
 	0xba, 0x39, 0x89, 0x49, 0xc5, 0x10, 0xa6, 0x7e, 0x05, 0x3c, 0x58, 0x4b, 0x2a, 0x0b, 0x52, 0x8b,
-	0xf5, 0xcb, 0x0c, 0x93, 0xd8, 0xc0, 0x41, 0x6b, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0xfd, 0xde,
-	0xb4, 0x36, 0x77, 0x01, 0x00, 0x00,
+	0xf5, 0xcb, 0x0c, 0x93, 0xd8, 0xc0, 0x41, 0x6b, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0x54, 0x86,
+	0xb4, 0xb4, 0x77, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -257,17 +257,17 @@ func (m *MsgClaimQuestReward) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.QuestId) > 0 {
-		i -= len(m.QuestId)
-		copy(dAtA[i:], m.QuestId)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.QuestId)))
+	if len(m.Quest_ID) > 0 {
+		i -= len(m.Quest_ID)
+		copy(dAtA[i:], m.Quest_ID)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Quest_ID)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if len(m.UserId) > 0 {
-		i -= len(m.UserId)
-		copy(dAtA[i:], m.UserId)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.UserId)))
+	if len(m.User_ID) > 0 {
+		i -= len(m.User_ID)
+		copy(dAtA[i:], m.User_ID)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.User_ID)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -294,10 +294,10 @@ func (m *MsgClaimQuestRewardResponse) MarshalToSizedBuffer(dAtA []byte) (int, er
 	_ = i
 	var l int
 	_ = l
-	if len(m.RewardId) > 0 {
-		i -= len(m.RewardId)
-		copy(dAtA[i:], m.RewardId)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.RewardId)))
+	if len(m.Reward_ID) > 0 {
+		i -= len(m.Reward_ID)
+		copy(dAtA[i:], m.Reward_ID)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Reward_ID)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -321,11 +321,11 @@ func (m *MsgClaimQuestReward) Size() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.UserId)
+	l = len(m.User_ID)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	l = len(m.QuestId)
+	l = len(m.Quest_ID)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
@@ -338,7 +338,7 @@ func (m *MsgClaimQuestRewardResponse) Size() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.RewardId)
+	l = len(m.Reward_ID)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
@@ -382,7 +382,7 @@ func (m *MsgClaimQuestReward) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field UserId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field User_ID", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -410,11 +410,11 @@ func (m *MsgClaimQuestReward) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.UserId = string(dAtA[iNdEx:postIndex])
+			m.User_ID = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field QuestId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Quest_ID", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -442,7 +442,7 @@ func (m *MsgClaimQuestReward) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.QuestId = string(dAtA[iNdEx:postIndex])
+			m.Quest_ID = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -496,7 +496,7 @@ func (m *MsgClaimQuestRewardResponse) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RewardId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Reward_ID", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -524,7 +524,7 @@ func (m *MsgClaimQuestRewardResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.RewardId = string(dAtA[iNdEx:postIndex])
+			m.Reward_ID = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

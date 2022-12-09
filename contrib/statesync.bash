@@ -6,7 +6,7 @@ set -uxe
 export GOPATH=~/go
 export PATH=$PATH:~/go/bin
 
-# Install Gaia.
+# Install Argus.
 make install
 
 # NOTE: ABOVE YOU CAN USE ALTERNATIVE DATABASES, HERE ARE THE EXACT COMMANDS
@@ -18,10 +18,10 @@ make install
 
 
 # Initialize chain.
-gaiad init test --chain-id cosmoshub-4
+argusd init test --chain-id cosmoshub-4
 
 # Set minimum gas price.
-sed -i'' 's/minimum-gas-prices = ""/minimum-gas-prices = "0.0025uatom"/' $HOME/.gaia/config/app.toml
+sed -i'' 's/minimum-gas-prices = ""/minimum-gas-prices = "0.0025uatom"/' $HOME/.argus/config/app.toml
 
 # Get "trust_hash" and "trust_height".
 INTERVAL=1000
@@ -34,14 +34,14 @@ echo "trust_height: $BLOCK_HEIGHT"
 echo "trust_hash: $TRUST_HASH"
 
 # Export state sync variables.
-export GAIAD_STATESYNC_ENABLE=true
-export GAIAD_P2P_MAX_NUM_OUTBOUND_PEERS=200
-export GAIAD_STATESYNC_RPC_SERVERS="https://rpc.cosmos.network:443,https://rpc.cosmos.network:443"
-export GAIAD_STATESYNC_TRUST_HEIGHT=$BLOCK_HEIGHT
-export GAIAD_STATESYNC_TRUST_HASH=$TRUST_HASH
+export ARGUSD_STATESYNC_ENABLE=true
+export ARGUSD_P2P_MAX_NUM_OUTBOUND_PEERS=200
+export ARGUSD_STATESYNC_RPC_SERVERS="https://rpc.cosmos.network:443,https://rpc.cosmos.network:443"
+export ARGUSD_STATESYNC_TRUST_HEIGHT=$BLOCK_HEIGHT
+export ARGUSD_STATESYNC_TRUST_HASH=$TRUST_HASH
 
 # Fetch and set list of seeds from chain registry.
-export GAIAD_P2P_SEEDS=$(curl -s https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/chain.json | jq -r '[foreach .peers.seeds[] as $item (""; "\($item.id)@\($item.address)")] | join(",")')
+export ARGUSD_P2P_SEEDS=$(curl -s https://raw.githubusercontent.com/cosmos/chain-registry/master/cosmoshub/chain.json | jq -r '[foreach .peers.seeds[] as $item (""; "\($item.id)@\($item.address)")] | join(",")')
 
 # Start chain.
-gaiad start --x-crisis-skip-assert-invariants
+argusd start --x-crisis-skip-assert-invariants

@@ -25,5 +25,5 @@ func NewKeeper(cdc codec.Codec, sk storetypes.StoreKey) Keeper {
 func (k Keeper) ClaimQuestReward(ctx context.Context, msg *v1.MsgClaimQuestReward) (*v1.MsgClaimQuestRewardResponse, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	sdkCtx.Logger().Info("ClaimQuestReward Called: %v", msg)
-	return &v1.MsgClaimQuestRewardResponse{RewardId: "foobar"}, nil
+	return &v1.MsgClaimQuestRewardResponse{Reward_ID: "foobar"}, nil
 }

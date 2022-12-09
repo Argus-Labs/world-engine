@@ -6,8 +6,8 @@
   run_once: true
   become: no
 
-- name: Create gaiad user
-  user: name=gaiad home=/home/gaiad shell=/bin/bash
+- name: Create argusd user
+  user: name=argusd home=/home/argusd shell=/bin/bash
 
 - name: Copy binary
   copy:
@@ -16,7 +16,7 @@
     mode: 0755
 
 - name: Copy service file
-  copy: src=gaiad.service dest=/etc/systemd/system/gaiad.service mode=0755
+  copy: src=argusd.service dest=/etc/systemd/system/argusd.service mode=0755
   notify: reload systemd
 
 - name: Get node ID
@@ -24,13 +24,13 @@
   changed_when: false
   register: nodeid
 
-- name: gaiad init
-  command: "/usr/bin/gaiad init --chain-id={{TESTNET_NAME}} --name=fullnode{{nodeid.stdout_lines[0]}}"
+- name: argusd init
+  command: "/usr/bin/argusd init --chain-id={{TESTNET_NAME}} --name=fullnode{{nodeid.stdout_lines[0]}}"
   become: yes
-  become_user: gaiad
+  become_user: argusd
   register: initresult
   args:
-    creates: /home/gaiad/.gaia/config
+    creates: /home/argusd/.argus/config
 
 - name: Get wallet word seed from result of initial transaction locally
   when: initresult["changed"]
@@ -48,14 +48,13 @@
 - name: Copy genesis file
   copy:
     src: "{{GENESISFILE}}"
-    dest: /home/gaiad/.gaia/config/genesis.json
+    dest: /home/argusd/.argus/config/genesis.json
   become: yes
-  become_user: gaiad
+  become_user: argusd
 
 - name: Copy config.toml file
   copy:
     src: "{{CONFIGFILE}}"
-    dest: /home/gaiad/.gaia/config/config.toml
+    dest: /home/argusd/.argus/config/config.toml
   become: yes
-  become_user: gaiad
-
+  become_user: argusd

@@ -1,6 +1,6 @@
 # Releasing
 
-This document outlines the release process for https://github.com/cosmos/gaia. We use [Long-Lived Version Branch Approach](x) on a `main` branch and a `release` branch.
+This document outlines the release process for https://github.com/argus-labs/argus. We use [Long-Lived Version Branch Approach](x) on a `main` branch and a `release` branch.
 
 We follow [Semver](https://semver.org/) in that any patch releases are non-breaking changes. It's important to note, that breaking changes in a Blockchain context include non-determinism. So if a code change is backwards compatible, it may still impact the amount of gas needed to execute an action, which means the change is in fact breaking as it results in a different apphash after the code is executed. It's important for non-breaking changes to be possible to be used on the live network prior to the release.
 
@@ -8,7 +8,7 @@ Each major release will have a release branch and patch releases will be tagged 
 
 ## Long-Lived Version Branch Approach
 
-In the Gaia repo, there are two categories of long-lived branches:
+In the Argus repo, there are two categories of long-lived branches:
 
 ### Branch: `main`
 The `main` branch should be targeted for PRs that contain a bug-fix/feature/improvement that will be included for the next release. 
@@ -75,7 +75,7 @@ Before tagging the version, please test the building releasing artifacts by
 make distclean build-reproducible
 ```
 The above command will generate a directory 
-`gaia/artifacts` with different os and architecture binaries. If the above command runs sucessfully, delete the directory `rm -r gaia/artifacts`.
+`argus/artifacts` with different os and architecture binaries. If the above command runs sucessfully, delete the directory `rm -r argus/artifacts`.
 
 ### Tagging
 
@@ -112,33 +112,33 @@ This runs the docker image [tendermintdev/rbuilder](https://hub.docker.com/r/ten
 Then use the following release text template:
 
 ```markdown
-# Gaia v4.0.0 Release Notes
+# Argus v4.0.0 Release Notes
 
 Note, that this specific release will be updated with a newer changelog, and the below hashes and binaries will also be updated.
 
 This release includes bug fixes for prop29, as well as additional support for IBC and Ledger signing.
 
-As there is a breaking change from Gaia v3, the Gaia module has been incremented to v4.
+As there is a breaking change from Argus v3, the Argus module has been incremented to v4.
 
 See the [Cosmos SDK v0.41.0 Release](https://github.com/cosmos/cosmos-sdk/releases/tag/v0.41.0) for details.
 
 ```bash
 $ make distclean build-reproducible
-App: gaiad
+App: argusd
 Version: 4.0.0
 Commit: 2bb04266266586468271c4ab322367acbf41188f
 Files:
- 2e801c7424ef67e6d9fc092c2b75c2d3  gaiad-4.0.0-darwin-amd64
- dc21eb861480e0f55af876f271b512fe  gaiad-4.0.0-linux-amd64
- bda165f91bc065afb8a445e72be9a868  gaiad-4.0.0-linux-arm64
- c7203d53bd596679b39b6a94d1dbe0dc  gaiad-4.0.0-windows-amd64.exe
- 81299b602e1760078e03c97813edda60  gaiad-4.0.0.tar.gz
+ 2e801c7424ef67e6d9fc092c2b75c2d3  argusd-4.0.0-darwin-amd64
+ dc21eb861480e0f55af876f271b512fe  argusd-4.0.0-linux-amd64
+ bda165f91bc065afb8a445e72be9a868  argusd-4.0.0-linux-arm64
+ c7203d53bd596679b39b6a94d1dbe0dc  argusd-4.0.0-windows-amd64.exe
+ 81299b602e1760078e03c97813edda60  argusd-4.0.0.tar.gz
 Checksums-Sha256:
- de764e52acc31dd98fa49d8d0eef851f3b7b53e4f1d4fbfda2c07b1a8b115b91  gaiad-4.0.0-darwin-amd64
- e5244ccd98a05479cc35753da1bb5b6bd873f6d8ebe6f8c5d112cf4d9e2761b4  gaiad-4.0.0-linux-amd64
- 7b7c4ea3e2de5f228436dcbb177455906239603b11eca1fb1015f33973d7b567  gaiad-4.0.0-linux-arm64
- b418c5f296ee6f946f44da8497af594c6ad0ece2b1da09a93a45d7d1b1457f27  gaiad-4.0.0-windows-amd64.exe
- 3895518436b74be8b042d7d0b868a60d03e1656e2556b12132be0f25bcb061ef  gaiad-4.0.0.tar.gz
+ de764e52acc31dd98fa49d8d0eef851f3b7b53e4f1d4fbfda2c07b1a8b115b91  argusd-4.0.0-darwin-amd64
+ e5244ccd98a05479cc35753da1bb5b6bd873f6d8ebe6f8c5d112cf4d9e2761b4  argusd-4.0.0-linux-amd64
+ 7b7c4ea3e2de5f228436dcbb177455906239603b11eca1fb1015f33973d7b567  argusd-4.0.0-linux-arm64
+ b418c5f296ee6f946f44da8497af594c6ad0ece2b1da09a93a45d7d1b1457f27  argusd-4.0.0-windows-amd64.exe
+ 3895518436b74be8b042d7d0b868a60d03e1656e2556b12132be0f25bcb061ef  argusd-4.0.0.tar.gz
 ```
 
 # Major Release Maintenance

@@ -1,5 +1,5 @@
 ---
-project_name: gaia
+project_name: argus
 
 env:
   - GO111MODULE=on
@@ -9,9 +9,9 @@ before:
     - go mod tidy -compat=1.18
 
 builds:
-  - main: ./cmd/gaiad
-    id: "gaiad"
-    binary: gaiad
+  - main: ./cmd/argusd
+    id: "argusd"
+    binary: argusd
     mod_timestamp: "{{ .CommitTimestamp }}"
     flags:
       - -tags=netgo ledger
@@ -19,7 +19,7 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -s -w -X main.commit={{.Commit}} -X main.date={{ .CommitDate }} -X github.com/cosmos/cosmos-sdk/version.Name=gaia -X github.com/cosmos/cosmos-sdk/version.AppName=gaiad -X github.com/cosmos/cosmos-sdk/version.Version={{ .Version }} -X github.com/cosmos/cosmos-sdk/version.Commit={{ .Commit }} -X github.com/cosmos/cosmos-sdk/version.BuildTags=netgo,ledger -X github.com/tendermint/tendermint/version.TMCoreSemVer={{ .Env.TM_VERSION }}
+      - -s -w -X main.commit={{.Commit}} -X main.date={{ .CommitDate }} -X github.com/cosmos/cosmos-sdk/version.Name=argus -X github.com/cosmos/cosmos-sdk/version.AppName=argusd -X github.com/cosmos/cosmos-sdk/version.Version={{ .Version }} -X github.com/cosmos/cosmos-sdk/version.Commit={{ .Commit }} -X github.com/cosmos/cosmos-sdk/version.BuildTags=netgo,ledger -X github.com/tendermint/tendermint/version.TMCoreSemVer={{ .Env.TM_VERSION }}
     goos:
       - darwin
       - linux
@@ -41,8 +41,8 @@ archives:
 
 release:
   github:
-    owner: cosmos
-    name: gaia
+    owner: argus-labs
+    name: argus
   name_template: "v{{.Version}}"
 
 checksum:

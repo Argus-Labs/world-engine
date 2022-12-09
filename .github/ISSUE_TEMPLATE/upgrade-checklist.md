@@ -18,7 +18,7 @@ Check mark each item if it has been completed and ready for the upgrade. If not 
   - [ ]  Communication prep
   - [ ]  Docs:
     - [ ]  https://github.com/cosmos/testnets
-    - [ ]  `gaia/docs/hub-tutorials/join-testnet.md`
+    - [ ]  `argus/docs/hub-tutorials/join-testnet.md`
   - [ ]  Release candidate
   - [ ]  Create testnet proposal
   - [ ]  Run testnet for one week
@@ -26,9 +26,9 @@ Check mark each item if it has been completed and ready for the upgrade. If not 
 
 - [ ]  Docs:
   - [ ]  Prepare upgrade-docs branch to merge post upgrade
-  - [ ]  https://github.com/cosmos/gaia
-    - [ ]  `gaia/docs/hub-tutorials/join-mainnet.md`
-    - [ ]  `gaia/docs/getting-started/quickstart.md`
+  - [ ]  https://github.com/argus-labs/argus
+    - [ ]  `argus/docs/hub-tutorials/join-mainnet.md`
+    - [ ]  `argus/docs/getting-started/quickstart.md`
     - [ ]  `README.md`
     - [ ]  `changelog.md`
       - [ ]  Breaking REST api changes

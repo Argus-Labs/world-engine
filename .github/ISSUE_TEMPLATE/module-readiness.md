@@ -8,7 +8,7 @@ about: Create a checklist for a feature proposal
 
 # <Feature Name>
 
-- [ ] Copy Gaia ADR for this feature
+- [ ] Copy Argus ADR for this feature
 
 Hub Module Readiness Checklist:
 
@@ -27,7 +27,7 @@ Continuity
   - [ ] Support and training requirements:
 
 Integrations
-  - [ ] Gaia integration
+  - [ ] Argus integration
   - [ ] Integration partner:
   - [ ] [IBC Readiness](https://github.com/cosmos/stargate-launch/blob/master/ibc_readiness_matrix.md)
   - [ ] Downstream user impact report

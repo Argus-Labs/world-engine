@@ -49,13 +49,14 @@ import (
 	"github.com/strangelove-ventures/packet-forward-middleware/v5/router"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 
+	appparams "github.com/argus-labs/argus/app/simparams"
+
 	evmtypes "github.com/argus-labs/argus/x/evm/types"
 	"github.com/argus-labs/argus/x/feemarket"
 	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
 
 	"github.com/argus-labs/argus/x/evm"
 
-	argusSimParams "github.com/argus-labs/argus/app/simparams"
 	"github.com/argus-labs/argus/sidecar"
 	adaptertypes "github.com/argus-labs/argus/x/adapter"
 )
@@ -116,7 +117,7 @@ var ModuleBasics = module.NewBasicManager(
 
 func appModules(
 	app *ArgusApp,
-	encodingConfig argusSimParams.EncodingConfig,
+	encodingConfig appparams.EncodingConfig,
 	skipGenesisInvariants bool,
 ) []module.AppModule {
 	appCodec := encodingConfig.Codec
@@ -159,7 +160,7 @@ func appModules(
 // define the order of the modules for deterministic simulations
 func simulationModules(
 	app *ArgusApp,
-	encodingConfig argusSimParams.EncodingConfig,
+	encodingConfig appparams.EncodingConfig,
 	_ bool,
 ) []module.AppModuleSimulation {
 	appCodec := encodingConfig.Codec

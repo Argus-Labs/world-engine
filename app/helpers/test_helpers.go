@@ -26,7 +26,7 @@ import (
 
 // SimAppChainID hardcoded chainID for simulation
 const (
-	SimAppChainID = "argus_9000-1"
+	SimAppChainID = "argus_90000-1"
 )
 
 // DefaultConsensusParams defines the default Tendermint consensus params used

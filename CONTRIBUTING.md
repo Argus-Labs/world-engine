@@ -14,15 +14,15 @@
     - [Release Procedure](#release-procedure)
     - [Point Release Procedure](#point-release-procedure)
 
-Thank you for considering making contributions to Gaia and related
+Thank you for considering making contributions to Argus and related
 repositories!
 
 Contributing to this repo can mean many things such as participating in
 discussion or proposing code changes. To ensure a smooth workflow for all
 contributors, a general procedure for contributing has been established:
 
-1. Either [open](https://github.com/cosmos/gaia/issues/new/choose) or
-   [find](https://github.com/cosmos/gaia/issues) an issue you'd like to help with
+1. Either [open](https://github.com/argus-labs/argus/issues/new/choose) or
+   [find](https://github.com/argus-labs/argus/issues) an issue you'd like to help with
 2. Participate in thoughtful discussion on that issue
 3. If you would like to contribute:
    1. If the issue is a proposal, ensure that the proposal has been accepted
@@ -33,7 +33,7 @@ contributors, a general procedure for contributing has been established:
       to begin work
    4. Follow standard Github best practices: fork the repo, branch from the
       HEAD of `main`, make some commits, and submit a PR to `main`
-      - For core developers working within the Gaia repo, to ensure a clear
+      - For core developers working within the Argus repo, to ensure a clear
       ownership of branches, branches must be named with the convention
       `{moniker}/{issue#}-branch-name`
    5. Be sure to submit the PR in `Draft` mode. Submit your PR early, even if
@@ -55,9 +55,9 @@ tools` for installing the linting tools.
 Other notes:
 
 - Looking for a good place to start contributing? How about checking out some
-  [good first issues](https://github.com/cosmos/gaia/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
+  [good first issues](https://github.com/argus-labs/argus/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22)
 - Please make sure to run `make format` before every commit - the easiest way
-  to do this is have your editor run it for you upon saving a file. Additionally
+  to do this is have your editor run it for you upon saving a file. Additionally,
   please ensure that your code is lint compliant by running `golangci-lint run`.
   A convenience git `pre-commit` hook that runs the formatters automatically
   before each commit is available in the `contrib/githooks/` directory.
@@ -79,7 +79,7 @@ and a checklist of changes and tasks to be done.
 
 The issue can then be used to develop multiple well-scoped PRs that are easy to review.
 
-The following PR structuring checklist can be used when submitting changes to the Gaia repository for review:
+The following PR structuring checklist can be used when submitting changes to the Argus repository for review:
 - [ ] Proto files: PR updating proto files. As a suggested next step, don't regenerate updated protobuf 
    implementations using `protgen`, since this will break existing code.   
 - [ ] Broken code: If `protogen` is run, a PR disabling broken code
@@ -108,28 +108,28 @@ All PRs require at least one review before merge (except docs changes, or variab
 
 ### Updating Documentation
 
-If you open a PR in Gaia, it is mandatory to update the relevant documentation in /docs.
+If you open a PR in Argus, it is mandatory to update the relevant documentation in /docs.
 
-- If your changes relate specifically to the gaia application, please modify the docs/ folder.
+- If your changes relate specifically to the Argus application, please modify the docs/ folder.
 
 ## Forking
 
 Please note that Go requires code to live under absolute paths, which complicates forking.
-While my fork lives at `https://github.com/rigeyrigerige/gaia`,
-the code should never exist at  `$GOPATH/src/github.com/rigeyrigerige/gaia`.
+While a fork might live at `https://github.com/username/argus`,
+the code should never exist at  `$GOPATH/src/github.com/username/argus`.
 Instead, we use `git remote` to add the fork as a new remote for the original repo,
-`$GOPATH/src/github.com/cosmos/gaia`, and do all the work there.
+`$GOPATH/src/github.com/argus-labs/argus`, and do all the work there.
 
 For instance, to create a fork and work on a branch of it, I would:
 
 - Create the fork on github, using the fork button.
-- Go to the original repo checked out locally (i.e. `$GOPATH/src/github.com/cosmos/gaia`)
+- Go to the original repo checked out locally (i.e. `$GOPATH/src/github.com/argus-labs/argus`)
 - `git remote rename origin upstream`
-- `git remote add origin git@github.com:rigeyrigerige/gaia.git`
+- `git remote add origin git@github.com:username/argus.git`
 
-Now `origin` refers to my fork and `upstream` refers to the Gaia version.
-So I can `git push -u origin main` to update my fork, and make pull requests to Gaia from there.
-Of course, replace `rigeyrigerige` with your git handle.
+Now `origin` refers to my fork and `upstream` refers to the Argus version.
+So I can `git push -u origin main` to update my fork, and make pull requests to Argus from there.
+Of course, replace `username` with your git handle.
 
 To pull in updates from the origin repo, run
 
@@ -147,7 +147,7 @@ The main branch of every Cosmos repository should just build with `go get`,
 which means they should be kept up-to-date with their dependencies so we can
 get away with telling people they can just `go get` our software.
 
-When dependencies in Gaia's `go.mod` are changed, it is generally accepted practice
+When dependencies in Argus's `go.mod` are changed, it is generally accepted practice
 to delete `go.sum` and then run `go mod tidy`.
 
 Since some dependencies are not under our control, a third party may break our
@@ -191,7 +191,7 @@ User-facing repos should adhere to the [trunk based development branching model]
 
 Libraries need not follow the model strictly, but would be wise to.
 
-Gaia utilizes [semantic versioning](https://semver.org/).
+Argus utilizes [semantic versioning](https://semver.org/).
 
 ### PR Targeting
 
@@ -207,7 +207,7 @@ only pull requests targeted directly against main.
 - `main` must never fail `make test` or `make test_cli`
 - `main` should not fail `make lint`
 - no `--force` onto `main` (except when reverting a broken commit, which should seldom happen)
-- create a development branch either on `https://github.com/cosmos/gaia`, or your fork (using `git remote add origin`)
+- create a development branch either on `https://github.com/argus-labs/argus`, or your fork (using `git remote add origin`)
 - before submitting a pull request, begin `git rebase` on top of `main`
 
 ### Pull Merge Procedure

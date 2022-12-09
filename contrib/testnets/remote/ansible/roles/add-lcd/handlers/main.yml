@@ -1,9 +1,7 @@
 ---
 
 - name: systemctl
-  systemd: name=gaiacli enabled=yes daemon_reload=yes
+  systemd: name=arguscli enabled=yes daemon_reload=yes
 
-- name: restart gaiacli
-  service: name=gaiacli state=restarted
-
-
+- name: restart arguscli
+  service: name=arguscli state=restarted

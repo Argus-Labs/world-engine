@@ -53,17 +53,37 @@ services:
 
   node:
     container_name: argus_node
+    environment:
+      - USE_SIDECAR=true
     build:
       context: .
       dockerfile: argus.Dockerfile
     restart: unless-stopped
     expose:
       - "5050"
+      - "9090"
     networks:
       - default
 
+  tester:
+    container_name: tester_container
+    environment:
+      - SIDECAR_URL=node:5050
+      - ARGUS_NODE_URL=node:9090
+      - ENABLE_DOCKER_TESTS=true
+    build:
+      context: .
+      dockerfile: tester.Dockerfile
+    networks:
+      - default
+    depends_on:
+      - node
+    restart: on-failure
+
 volumes:
   data:
+  shared:
+  logs:
 
 networks:
   default:

@@ -11,15 +11,15 @@ service Msg {
 
 // MsgClaimQuestReward is the Msg/ClaimQuestReward request type.
 message MsgClaimQuestReward {
-  // user_id is the game client user_id.
-  string user_id = 1;
+  // user_ID is the game client user_ID.
+  string user_ID = 1;
 
-  // quest_id is the id of the quest that was completed.
-  string quest_id = 2;
+  // quest_ID is the ID of the quest that was completed.
+  string quest_ID = 2;
 }
 
 // MsgClaimQuestRewardResponse is the Msg/ClaimQuestReward response type.
 message MsgClaimQuestRewardResponse {
-  // reward_id is the ID of the reward claimed.
-  string reward_id = 1;
+  // reward_ID is the ID of the reward claimed.
+  string reward_ID = 1;
 }

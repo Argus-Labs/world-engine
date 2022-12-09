@@ -16,7 +16,7 @@ v    Please also ensure that this is not a duplicate issue :)
 
 ## Version
 
-<!-- git commit hash, output of `gaiacli version`, output of `gaiad version` -->
+<!-- git commit hash, output of `arguscli version`, output of `argusd version` -->
 
 ## Steps to Reproduce
 
@@ -31,4 +31,3 @@ ____
 - [ ] Appropriate contributors tagged
 - [ ] Contributor assigned/self-assigned
 - [ ] Is a spike necessary to map out how the issue should be approached?
-
