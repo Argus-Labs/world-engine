@@ -1,5 +1,5 @@
-# Maintaining Cosmoshub Proto Files
-All Cosmoshub proto files are defined here.
+# Maintaining Argus Proto Files
+All Argus proto files are defined here.
 
 Updating the dependencies of third_party proto:
 ```bash

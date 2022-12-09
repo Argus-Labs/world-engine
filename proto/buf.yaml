@@ -1,5 +1,5 @@
 version: v1
-name: buf.build/cosmos/cosmoshub
+name: buf.build/argus-labs/argus
 deps:
   - buf.build/cosmos/cosmos-sdk:8cb30a2c4de74dc9bd8d260b1e75e176
   - buf.build/cosmos/cosmos-proto:1935555c206d4afb9e94615dfd0fad31
