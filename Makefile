@@ -16,7 +16,7 @@ gen:
 
 bufgen:
 	@echo "Generating Buf files"
-	@sh ./proto/scripts/bufgen.sh
+	@sh ./sidecarproto/scripts/bufgen.sh
 .PHONY: gen
 
 .PHONY: bufgen
