@@ -7,9 +7,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/msgservice"
 )
 
-var (
-	ModuleCdc = codec.NewProtoCodec(cdctypes.NewInterfaceRegistry())
-)
+var ModuleCdc = codec.NewProtoCodec(cdctypes.NewInterfaceRegistry())
 
 func RegisterCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(MsgClaimQuestReward{}, "adapter/MsgClaimQuestReward", nil)

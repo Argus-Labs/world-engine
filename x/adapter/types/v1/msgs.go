@@ -3,9 +3,13 @@ package v1
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"github.com/cosmos/cosmos-sdk/x/auth/migrations/legacytx"
 )
 
-var _ sdk.Msg = &MsgClaimQuestReward{}
+var (
+	_ sdk.Msg            = &MsgClaimQuestReward{}
+	_ legacytx.LegacyMsg = &MsgClaimQuestReward{}
+)
 
 func (m MsgClaimQuestReward) ValidateBasic() error {
 	if m.User_ID == "" {
@@ -25,6 +29,18 @@ func (m MsgClaimQuestReward) GetSigners() []sdk.AccAddress {
 	}
 
 	return []sdk.AccAddress{accAddr}
+}
+
+func (m MsgClaimQuestReward) GetSignBytes() []byte {
+	return sdk.MustSortJSON(ModuleCdc.MustMarshalJSON(&m))
+}
+
+func (m MsgClaimQuestReward) Route() string {
+	return sdk.MsgTypeURL(&m)
+}
+
+func (m MsgClaimQuestReward) Type() string {
+	return sdk.MsgTypeURL(&m)
 }
 
 func NewMsgClaimQuestReward(userID, questID string) MsgClaimQuestReward {
