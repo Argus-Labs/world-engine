@@ -39,7 +39,7 @@ func TestSideCarE2E(t *testing.T) {
 
 	denom := "TESTCOIN"
 	amount := int64(10)
-	_, err = client.MintCoins(ctx, &sidecar.MsgMintCoins{
+	_, err := client.MintCoins(ctx, &sidecar.MsgMintCoins{
 		Amount: amount,
 		Denom:  denom,
 	})
