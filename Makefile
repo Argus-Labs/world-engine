@@ -224,6 +224,14 @@ docker-build-hermes:
 
 docker-build-all: docker-build-debug docker-build-hermes
 
+
+test-sidecar:
+	@docker-compose down -v --remove-orphans
+	@docker-compose build tester node
+	@docker-compose up --abort-on-container-exit --exit-code-from tester node tester
+.PHONY: test-sidecar
+
+
 ###############################################################################
 ###                                Linting                                  ###
 ###############################################################################

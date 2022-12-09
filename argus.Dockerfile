@@ -20,4 +20,6 @@ USER 0
 COPY contrib/single-node.sh single-node.sh
 RUN chmod +x single-node.sh
 
+HEALTHCHECK --interval=5s --timeout=80s CMD curl --fail http://localhost:26657 || exit 1
+
 ENTRYPOINT ["./single-node.sh"]
