@@ -16,8 +16,7 @@ gen:
 
 bufgen:
 	@echo "Generating Buf files"
-	@if docker ps -a --format '{{.Names}}' | grep -Eq "^${containerProtoGen}$$"; then docker start -a $(containerProtoGen); else docker run --name $(containerProtoGen) -v $(CURDIR):/workspace --workdir /workspace $(containerProtoImage) \
-		sh ./proto/scripts/bufgen.sh.sh; fi
+	@sh ./proto/scripts/bufgen.sh
 .PHONY: gen
 
 .PHONY: bufgen
@@ -223,6 +222,14 @@ docker-build-hermes:
 	@cd tests/e2e/docker; docker build -t cosmos/hermes-e2e:latest -f hermes.Dockerfile .
 
 docker-build-all: docker-build-debug docker-build-hermes
+
+
+test-sidecar:
+	@docker-compose down -v --remove-orphans
+	@docker-compose build tester node
+	@docker-compose up --abort-on-container-exit --exit-code-from tester node tester
+.PHONY: test-sidecar
+
 
 ###############################################################################
 ###                                Linting                                  ###

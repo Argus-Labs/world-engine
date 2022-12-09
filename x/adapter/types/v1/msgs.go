@@ -5,15 +5,13 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-var (
-	_ sdk.Msg = &MsgClaimQuestReward{}
-)
+var _ sdk.Msg = &MsgClaimQuestReward{}
 
 func (m MsgClaimQuestReward) ValidateBasic() error {
-	if m.UserId == "" {
+	if m.User_ID == "" {
 		return sdkerrors.ErrInvalidRequest.Wrap("user_id cannot be empty")
 	}
-	if m.QuestId == "" {
+	if m.Quest_ID == "" {
 		return sdkerrors.ErrInvalidRequest.Wrap("quest_id cannot be empty")
 	}
 	return nil
@@ -21,7 +19,7 @@ func (m MsgClaimQuestReward) ValidateBasic() error {
 
 // GetSigners implements sdk.Msg
 func (m MsgClaimQuestReward) GetSigners() []sdk.AccAddress {
-	accAddr, err := sdk.AccAddressFromBech32(m.UserId)
+	accAddr, err := sdk.AccAddressFromBech32(m.User_ID)
 	if err != nil {
 		panic(err)
 	}
@@ -29,9 +27,9 @@ func (m MsgClaimQuestReward) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{accAddr}
 }
 
-func NewMsgClaimQuestReward(userId, questId string) MsgClaimQuestReward {
+func NewMsgClaimQuestReward(userID, questID string) MsgClaimQuestReward {
 	return MsgClaimQuestReward{
-		UserId:  userId,
-		QuestId: questId,
+		User_ID:  userID,
+		Quest_ID: questID,
 	}
 }
