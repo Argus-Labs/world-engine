@@ -6,8 +6,6 @@ import (
 	"time"
 
 	jlconfig "github.com/JeremyLoy/config"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"gotest.tools/assert"
 
 	sidecar "github.com/argus-labs/argus/sidecar/v1"
@@ -15,11 +13,15 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
+// TestingConfig is a testing configuration. These values are typically set via docker.
+// See the docker-compose file in the root directory. The "test" container's `environment` field
+// sets the values that get loaded here.
 type TestingConfig struct {
 	SidecarURL   string `config:"SIDECAR_URL"`
 	ArgusNodeURL string `config:"ARGUS_NODE_URL"`
 }
 
+// LoadConfig loads the config from env variables.
 func LoadConfig() TestingConfig {
 	var cfg TestingConfig
 	err := jlconfig.FromEnv().To(&cfg)
@@ -33,24 +35,20 @@ func TestSideCarE2E(t *testing.T) {
 	cfg := LoadConfig()
 	ctx := context.Background()
 
-	t.Logf("got config: %+v", cfg)
-	conn, err := grpc.Dial(cfg.SidecarURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	assert.NilError(t, err)
+	client := GetSidecarClient(t, cfg.SidecarURL)
 
 	denom := "TESTCOIN"
 	amount := int64(10)
-	client := sidecar.NewSidecarClient(conn)
 	_, err = client.MintCoins(ctx, &sidecar.MsgMintCoins{
 		Amount: amount,
 		Denom:  denom,
 	})
 	assert.NilError(t, err)
 
-	cosmosConn, err := grpc.Dial(cfg.ArgusNodeURL, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	assert.NilError(t, err)
-	cosmosQuerier := banktypes.NewQueryClient(cosmosConn)
+	cosmosQuerier := GetBankClient(t, cfg.ArgusNodeURL)
 
 	time.Sleep(5 * time.Second) // wait for block inclusion
+
 	qres, err := cosmosQuerier.SupplyOf(ctx, &banktypes.QuerySupplyOfRequest{Denom: denom})
 	assert.NilError(t, err)
 
