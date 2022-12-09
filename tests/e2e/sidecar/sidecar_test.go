@@ -8,7 +8,7 @@ import (
 	jlconfig "github.com/JeremyLoy/config"
 	"gotest.tools/assert"
 
-	sidecar "github.com/argus-labs/argus/sidecar/v1"
+	sidecar "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
 
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
