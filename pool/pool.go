@@ -48,8 +48,6 @@ func NewMsgPool(initialBufferSize int) *MsgPool {
 	mp := &MsgPool{
 		queue: make([]sdk.Msg, 0, initialBufferSize),
 		lock:  sync.RWMutex{},
-		//receiver:  make(chan<- sdk.Msg),
-		//responder: make(<-chan Response),
 	}
 	return mp
 }
