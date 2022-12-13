@@ -64,25 +64,6 @@ jobs:
           file: ./coverage.txt
           fail_ci_if_error: true
 
-  test-e2e:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/setup-go@v3.0.0
-        with:
-          go-version: 1.18
-      - uses: actions/checkout@v3.1.0
-      - uses: technote-space/get-diff-action@v6.0.1
-        with:
-          PATTERNS: |
-            **/**.go
-            go.mod
-            go.sum
-      - name: Build Docker Image
-        run: make docker-build-debug
-      - name: Test E2E
-        run: make test-e2e
-
   liveness-test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -109,3 +90,20 @@ jobs:
         run: |
           ./contrib/scripts/test_localnet_liveness.sh 100 5 50 localhost
         if: env.GIT_DIFF
+
+  test-sidecar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/setup-go@v3.0.0
+        with:
+          go-version: 1.18
+      - uses: actions/checkout@v3.1.0
+      - uses: technote-space/get-diff-action@v6.0.1
+        with:
+          PATTERNS: |
+            **/**.go
+            go.mod
+            go.sum
+      - name: Test Sidecar E2E
+        run: make test-sidecar

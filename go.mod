@@ -25,8 +25,8 @@ require (
 )
 
 require (
-	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221201211842-2c4f3fe5f941.4
-	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221201211842-2c4f3fe5f941.4
+	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221213002105-a0e53370fe5e.4
+	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221213002105-a0e53370fe5e.4
 	cosmossdk.io/errors v1.0.0-beta.7
 	github.com/JeremyLoy/config v1.5.0
 	github.com/armon/go-metrics v0.4.1

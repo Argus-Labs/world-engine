@@ -44,6 +44,7 @@ import (
 	"github.com/argus-labs/argus/ante"
 	"github.com/argus-labs/argus/app/keepers"
 	"github.com/argus-labs/argus/app/upgrades"
+	"github.com/argus-labs/argus/pool"
 	"github.com/argus-labs/argus/sidecar"
 
 	// unnamed import of statik for swagger UI support
@@ -83,6 +84,10 @@ type ArgusApp struct { //nolint: revive
 	// simulation manager
 	sm           *module.SimulationManager
 	configurator module.Configurator
+
+	// msgFunnel is a funnel that services can pass messages into for safely transitioning the state.
+	// this is mostly used by Sidecar.
+	msgPool *pool.MsgPool
 }
 
 func init() {
@@ -186,11 +191,6 @@ func NewArgusApp(
 	app.MountTransientStores(app.GetTransientStoreKey())
 	app.MountMemoryStores(app.GetMemoryStoreKey())
 
-	bypassMinFeeMsgTypes := cast.ToStringSlice(appOpts.Get(argusappparams.BypassMinFeeMsgTypesKey))
-	if bypassMinFeeMsgTypes == nil {
-		bypassMinFeeMsgTypes = GetDefaultBypassFeeMessages()
-	}
-
 	ah, err := ante.NewEthermintAnteHandler(ante.EthermintHandlerOptions{
 		AccountKeeper:          app.AccountKeeper,
 		BankKeeper:             app.BankKeeper,
@@ -221,12 +221,14 @@ func NewArgusApp(
 		}
 	}
 
-	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger())
+	app.msgPool = pool.NewMsgPool(10)
+
+	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger(), app.msgPool)
 
 	return app
 }
 
-func startSideCarIfFlagSet(msgRouter *baseapp.MsgServiceRouter, grpcRouter *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms sdk.CommitMultiStore, lg log.Logger) {
+func startSideCarIfFlagSet(msgRouter *baseapp.MsgServiceRouter, grpcRouter *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms sdk.CommitMultiStore, lg log.Logger, sender pool.MsgPoolSender) {
 	sidecarFlag := os.Getenv("USE_SIDECAR")
 	var useSidecar bool
 	var err error
@@ -236,8 +238,9 @@ func startSideCarIfFlagSet(msgRouter *baseapp.MsgServiceRouter, grpcRouter *base
 			panic(err)
 		}
 	}
+
 	if useSidecar {
-		err = sidecar.StartSidecar(msgRouter, grpcRouter, bk, cms, lg)
+		err = sidecar.StartSidecar(msgRouter, grpcRouter, bk, cms, lg, sender)
 		if err != nil {
 			panic(fmt.Errorf("failed to start sidecar process: %w", err))
 		}
@@ -262,7 +265,24 @@ func (app *ArgusApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) a
 
 // EndBlocker application updates every end block
 func (app *ArgusApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return app.mm.EndBlock(ctx, req)
+	cachedCheckTx := ctx.IsCheckTx()
+	msgs := app.msgPool.Drain()
+	if len(msgs) != 0 {
+		rtr := app.MsgServiceRouter()
+		ctx = ctx.WithIsCheckTx(false)
+		for _, msg := range msgs {
+			h := rtr.Handler(msg)
+			if h != nil {
+				res, err := h(ctx, msg)
+				if err != nil {
+					app.Logger().Error("msg from MsgPool failed", "error", err.Error())
+				}
+				app.Logger().Info("handler returned without error", "result", res.String())
+			}
+		}
+	}
+	res := app.mm.EndBlock(ctx.WithIsCheckTx(cachedCheckTx), req)
+	return res
 }
 
 // InitChainer application update at chain initialization

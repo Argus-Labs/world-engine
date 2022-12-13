@@ -8,6 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	types2 "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"google.golang.org/grpc"
@@ -15,6 +16,8 @@ import (
 	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
 
 	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
+
+	"github.com/argus-labs/argus/pool"
 )
 
 const (
@@ -24,14 +27,15 @@ const (
 type Sidecar struct {
 	rtr    *baseapp.MsgServiceRouter
 	qry    *baseapp.GRPCQueryRouter
+	pool   pool.MsgPoolSender
 	cms    types.CommitMultiStore
 	bk     bankkeeper.Keeper
 	logger log.Logger
 }
 
 // StartSidecar opens the gRPC server.
-func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms types.CommitMultiStore, logger log.Logger) error {
-	sc := Sidecar{rtr: rtr, qry: qry, bk: bk, cms: cms, logger: logger}
+func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms types.CommitMultiStore, logger log.Logger, pool pool.MsgPoolSender) error {
+	sc := Sidecar{rtr: rtr, qry: qry, bk: bk, cms: cms, logger: logger, pool: pool}
 	port := 5050
 	lis, err := net.Listen("tcp", fmt.Sprintf("node:%d", port))
 	if err != nil {
@@ -65,4 +69,14 @@ func (s Sidecar) MintCoins(ctx context.Context, msg *v1.MsgMintCoins) (*v1.MsgMi
 		return nil, err
 	}
 	return &v1.MsgMintCoinsResponse{}, nil
+}
+
+func (s Sidecar) SendCoins(ctx context.Context, msg *v1.MsgSendCoins) (*v1.MsgSendCoinsResponse, error) {
+	msgSend := types2.MsgSend{
+		FromAddress: msg.Sender,
+		ToAddress:   msg.Recipient,
+		Amount:      types.Coins{types.NewInt64Coin(msg.Denom, int64(msg.Amount))},
+	}
+	s.pool.Send(&msgSend)
+	return &v1.MsgSendCoinsResponse{}, nil
 }
