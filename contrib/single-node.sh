@@ -5,15 +5,16 @@ set -o errexit -o nounset
 rm -rf root/.argus/config/
 rm -rf ~/.argus/
 
-CHAINID=foobar
+CHAINID=argus_9000-1
 
+MNEMONIC="document reveal rug gorilla office card impulse virus intact legend suspect warfare cheap ribbon express barrel throw keep rapid direct order annual town gold"
 
 
 # Build genesis file incl account for passed address
 coins="10000000000stake,100000000000samoleans"
 argusd init --chain-id $CHAINID $CHAINID
-argusd keys add validator --keyring-backend="test"
-argusd add-genesis-account "$(argusd keys show validator -a --keyring-backend="test")" $coins
+echo $MNEMONIC | argusd keys add validator --recover --keyring-backend="test"
+argusd add-genesis-account $(argusd keys show validator -a --keyring-backend="test") $coins
 argusd gentx validator 5000000000stake --keyring-backend="test" --chain-id $CHAINID
 argusd collect-gentxs
 

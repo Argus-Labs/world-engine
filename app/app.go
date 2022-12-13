@@ -42,6 +42,7 @@ import (
 	"github.com/argus-labs/argus/app/keepers"
 	argusappparams "github.com/argus-labs/argus/app/params"
 	"github.com/argus-labs/argus/app/upgrades"
+	"github.com/argus-labs/argus/pool"
 	"github.com/argus-labs/argus/sidecar"
 
 	// unnamed import of statik for swagger UI support
@@ -77,6 +78,10 @@ type ArgusApp struct { //nolint: revive
 	// simulation manager
 	sm           *module.SimulationManager
 	configurator module.Configurator
+
+	// msgFunnel is a funnel that services can pass messages into for safely transitioning the state.
+	// this is mostly used by Sidecar.
+	msgPool *pool.MsgPool
 }
 
 func init() {
@@ -226,8 +231,9 @@ func NewArgusApp(
 		}
 	}
 
+	app.msgPool = pool.NewMsgPool(10)
 	if useSidecar {
-		err = sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger())
+		err = sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger(), app.msgPool)
 		if err != nil {
 			panic(fmt.Errorf("failed to start sidecar process: %w", err))
 		}
@@ -254,7 +260,24 @@ func (app *ArgusApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) a
 
 // EndBlocker application updates every end block
 func (app *ArgusApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return app.mm.EndBlock(ctx, req)
+	cachedCheckTx := ctx.IsCheckTx()
+	msgs := app.msgPool.Drain()
+	if len(msgs) != 0 {
+		rtr := app.MsgServiceRouter()
+		ctx = ctx.WithIsCheckTx(false)
+		for _, msg := range msgs {
+			h := rtr.Handler(msg)
+			if h != nil {
+				res, err := h(ctx, msg)
+				if err != nil {
+					app.Logger().Error("msg from MsgPool failed", "error", err.Error())
+				}
+				app.Logger().Info("handler returned without error", "result", res.String())
+			}
+		}
+	}
+	res := app.mm.EndBlock(ctx.WithIsCheckTx(cachedCheckTx), req)
+	return res
 }
 
 // InitChainer application update at chain initialization
