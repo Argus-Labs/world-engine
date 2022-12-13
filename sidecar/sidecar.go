@@ -8,6 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	types2 "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"google.golang.org/grpc"
@@ -68,4 +69,14 @@ func (s Sidecar) MintCoins(ctx context.Context, msg *v1.MsgMintCoins) (*v1.MsgMi
 		return nil, err
 	}
 	return &v1.MsgMintCoinsResponse{}, nil
+}
+
+func (s Sidecar) SendCoins(ctx context.Context, msg *v1.MsgSendCoins) (*v1.MsgSendCoinsResponse, error) {
+	msgSend := types2.MsgSend{
+		FromAddress: msg.Sender,
+		ToAddress:   msg.Recipient,
+		Amount:      types.Coins{types.NewInt64Coin(msg.Denom, int64(msg.Amount))},
+	}
+	s.pool.Send(&msgSend)
+	return &v1.MsgSendCoinsResponse{}, nil
 }

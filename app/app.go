@@ -231,14 +231,13 @@ func NewArgusApp(
 		}
 	}
 
+	app.msgPool = pool.NewMsgPool(10)
 	if useSidecar {
 		err = sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger(), app.msgPool)
 		if err != nil {
 			panic(fmt.Errorf("failed to start sidecar process: %w", err))
 		}
 	}
-
-	app.msgPool = pool.NewMsgPool(10)
 
 	return app
 }

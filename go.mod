@@ -25,8 +25,8 @@ require (
 )
 
 require (
-	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221201211842-2c4f3fe5f941.4
-	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221201211842-2c4f3fe5f941.4
+	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221213002105-a0e53370fe5e.4
+	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221213002105-a0e53370fe5e.4
 	github.com/JeremyLoy/config v1.5.0
 	github.com/cosmos/ibc-go/v5 v5.1.0
 	github.com/gravity-devs/liquidity/v2 v2.0.1

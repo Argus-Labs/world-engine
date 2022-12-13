@@ -7,6 +7,7 @@ option go_package = "github.com/argus-labs/argus/sidecar/v1";
 service Sidecar {
   rpc Ping(MsgPing) returns (MsgPingResponse);
   rpc MintCoins(MsgMintCoins) returns (MsgMintCoinsResponse);
+  rpc SendCoins(MsgSendCoins) returns (MsgSendCoinsResponse);
 }
 
 message MsgPing {
@@ -23,3 +24,12 @@ message MsgMintCoins {
 }
 
 message MsgMintCoinsResponse{}
+
+message MsgSendCoins {
+  string sender = 1;
+  string recipient = 2;
+  string denom = 3;
+  uint64 amount = 4;
+}
+
+message MsgSendCoinsResponse{}
