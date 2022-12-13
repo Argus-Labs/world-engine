@@ -27,14 +27,14 @@ const (
 type Sidecar struct {
 	rtr    *baseapp.MsgServiceRouter
 	qry    *baseapp.GRPCQueryRouter
-	pool   *pool.MsgPool
+	pool   pool.MsgPoolSender
 	cms    types.CommitMultiStore
 	bk     bankkeeper.Keeper
 	logger log.Logger
 }
 
 // StartSidecar opens the gRPC server.
-func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms types.CommitMultiStore, logger log.Logger, pool *pool.MsgPool) error {
+func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms types.CommitMultiStore, logger log.Logger, pool pool.MsgPoolSender) error {
 	sc := Sidecar{rtr: rtr, qry: qry, bk: bk, cms: cms, logger: logger, pool: pool}
 	port := 5050
 	lis, err := net.Listen("tcp", fmt.Sprintf("node:%d", port))
