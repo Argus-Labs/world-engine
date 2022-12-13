@@ -39,14 +39,19 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
+	argusappparams "github.com/argus-labs/argus/app/simparams"
+
 	"github.com/argus-labs/argus/ante"
 	"github.com/argus-labs/argus/app/keepers"
-	argusappparams "github.com/argus-labs/argus/app/simparams"
 	"github.com/argus-labs/argus/app/upgrades"
 	"github.com/argus-labs/argus/sidecar"
 
 	// unnamed import of statik for swagger UI support
 	_ "github.com/cosmos/cosmos-sdk/client/docs/statik"
+
+	// Force-load the tracer engines to trigger registration due to Go-Ethereum v1.10.15 changes
+	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
+	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 )
 
 var (
