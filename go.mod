@@ -32,8 +32,8 @@ require (
 	github.com/armon/go-metrics v0.4.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.1
 	github.com/cosmos/ibc-go/v5 v5.1.0
-	github.com/ethereum/go-ethereum v1.10.25
-	github.com/evmos/ethermint v0.20.0-rc3
+	github.com/ethereum/go-ethereum v1.10.26
+	github.com/evmos/ethermint v0.20.0-rc4
 	github.com/gravity-devs/liquidity/v2 v2.0.1
 	github.com/holiman/uint256 v1.2.1
 	github.com/onsi/ginkgo/v2 v2.5.1
@@ -305,7 +305,7 @@ require (
 	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e // indirect
 	golang.org/x/exp/typeparams v0.0.0-20220827204233-334a2380cb91 // indirect
 	golang.org/x/mod v0.7.0 // indirect
-	golang.org/x/net v0.3.0 // indirect
+	golang.org/x/net v0.4.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
 	golang.org/x/sync v0.1.0 // indirect
 	golang.org/x/sys v0.3.0 // indirect
