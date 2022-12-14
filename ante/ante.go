@@ -83,7 +83,7 @@ func NewEthermintAnteHandler(options EthermintHandlerOptions) (sdk.AnteHandler, 
 	) (newCtx sdk.Context, err error) {
 		var anteHandler sdk.AnteHandler
 
-		defer Recover(ctx.Logger(), err)
+		defer Recover(ctx.Logger(), &err)
 
 		txWithExtensions, ok := tx.(ante.HasExtensionOptionsTx)
 		if ok {
@@ -157,9 +157,9 @@ func (options EthermintHandlerOptions) validate() error {
 	return nil
 }
 
-func Recover(logger log.Logger, err error) {
+func Recover(logger log.Logger, err *error) {
 	if r := recover(); r != nil {
-		err = sdkerrors.Wrapf(sdkerrors.ErrPanic, "%v", r)
+		*err = sdkerrors.Wrapf(sdkerrors.ErrPanic, "%v", r)
 
 		if e, ok := r.(error); ok {
 			logger.Error(
