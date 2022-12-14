@@ -34,13 +34,10 @@ require (
 	github.com/cosmos/ibc-go/v5 v5.1.0
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/evmos/ethermint v0.20.0-rc3
+	github.com/gravity-devs/liquidity/v2 v2.0.1
 	github.com/holiman/uint256 v1.2.1
 	github.com/onsi/ginkgo/v2 v2.5.1
 	github.com/onsi/gomega v1.24.1
-	github.com/strangelove-ventures/packet-forward-middleware/v5 v5.0.0
-	gotest.tools v2.2.0+incompatible
-	github.com/cosmos/ibc-go/v5 v5.1.0
-	github.com/gravity-devs/liquidity/v2 v2.0.1
 	github.com/strangelove-ventures/packet-forward-middleware/v5 v5.0.0
 	gotest.tools v2.2.0+incompatible
 )
