@@ -90,6 +90,7 @@ func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs 
 	// init chain will set the validator set and initialize the genesis accounts
 	argusApp.InitChain(
 		abci.RequestInitChain{
+			ChainId:         SimAppChainID,
 			Validators:      []abci.ValidatorUpdate{},
 			ConsensusParams: DefaultConsensusParams,
 			AppStateBytes:   stateBytes,
@@ -99,6 +100,7 @@ func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs 
 	// commit genesis changes
 	argusApp.Commit()
 	argusApp.BeginBlock(abci.RequestBeginBlock{Header: tmproto.Header{
+		ChainID:            SimAppChainID,
 		Height:             argusApp.LastBlockHeight() + 1,
 		AppHash:            argusApp.LastCommitID().Hash,
 		ValidatorsHash:     valSet.Hash(),

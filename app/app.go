@@ -20,15 +20,16 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
-	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
 	ibcchanneltypes "github.com/cosmos/ibc-go/v5/modules/core/04-channel/types"
+	"github.com/evmos/ethermint/server/flags"
+	types2 "github.com/evmos/ethermint/types"
 	"github.com/gorilla/mux"
 	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cast"
@@ -38,15 +39,20 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
-	argusante "github.com/argus-labs/argus/ante"
+	argusappparams "github.com/argus-labs/argus/app/simparams"
+
+	"github.com/argus-labs/argus/ante"
 	"github.com/argus-labs/argus/app/keepers"
-	argusappparams "github.com/argus-labs/argus/app/params"
 	"github.com/argus-labs/argus/app/upgrades"
 	"github.com/argus-labs/argus/pool"
 	"github.com/argus-labs/argus/sidecar"
 
 	// unnamed import of statik for swagger UI support
 	_ "github.com/cosmos/cosmos-sdk/client/docs/statik"
+
+	// Force-load the tracer engines to trigger registration due to Go-Ethereum v1.10.15 changes
+	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
+	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 )
 
 var (
@@ -185,30 +191,23 @@ func NewArgusApp(
 	app.MountTransientStores(app.GetTransientStoreKey())
 	app.MountMemoryStores(app.GetMemoryStoreKey())
 
-	bypassMinFeeMsgTypes := cast.ToStringSlice(appOpts.Get(argusappparams.BypassMinFeeMsgTypesKey))
-	if bypassMinFeeMsgTypes == nil {
-		bypassMinFeeMsgTypes = GetDefaultBypassFeeMessages()
-	}
-
-	anteHandler, err := argusante.NewAnteHandler(
-		argusante.HandlerOptions{
-			HandlerOptions: ante.HandlerOptions{
-				AccountKeeper:   app.AccountKeeper,
-				BankKeeper:      app.BankKeeper,
-				FeegrantKeeper:  app.FeeGrantKeeper,
-				SignModeHandler: encodingConfig.TxConfig.SignModeHandler(),
-				SigGasConsumer:  ante.DefaultSigVerificationGasConsumer,
-			},
-			IBCkeeper:            app.IBCKeeper,
-			BypassMinFeeMsgTypes: bypassMinFeeMsgTypes,
-			StakingSubspace:      app.GetSubspace(stakingtypes.ModuleName),
-		},
-	)
+	ah, err := ante.NewEthermintAnteHandler(ante.EthermintHandlerOptions{
+		AccountKeeper:          app.AccountKeeper,
+		BankKeeper:             app.BankKeeper,
+		IBCKeeper:              app.IBCKeeper,
+		FeeMarketKeeper:        app.FeeMarketKeeper,
+		EvmKeeper:              app.EvmKeeper,
+		FeegrantKeeper:         app.FeeGrantKeeper,
+		SignModeHandler:        app.GetTxConfig().SignModeHandler(),
+		SigGasConsumer:         ante.EthermintSigVerificationGasConsumer,
+		MaxTxGasWanted:         cast.ToUint64(appOpts.Get(flags.EVMMaxTxGasWanted)),
+		ExtensionOptionChecker: types2.HasDynamicFeeExtensionOption,
+		TxFeeChecker:           ante.NewDynamicFeeChecker(app.EvmKeeper),
+	})
 	if err != nil {
-		panic(fmt.Errorf("failed to create AnteHandler: %s", err))
+		panic(err)
 	}
-
-	app.SetAnteHandler(anteHandler)
+	app.SetAnteHandler(ah)
 	app.SetInitChainer(app.InitChainer)
 	app.SetBeginBlocker(app.BeginBlocker)
 	app.SetEndBlocker(app.EndBlocker)
@@ -222,24 +221,30 @@ func NewArgusApp(
 		}
 	}
 
+	app.msgPool = pool.NewMsgPool(10)
+
+	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger(), app.msgPool)
+
+	return app
+}
+
+func startSideCarIfFlagSet(msgRouter *baseapp.MsgServiceRouter, grpcRouter *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms sdk.CommitMultiStore, lg log.Logger, sender pool.MsgPoolSender) {
+	sidecarFlag := os.Getenv("USE_SIDECAR")
 	var useSidecar bool
-	sideCarFlag := os.Getenv("USE_SIDECAR")
-	if sideCarFlag != "" {
-		useSidecar, err = strconv.ParseBool(sideCarFlag)
+	var err error
+	if sidecarFlag != "" {
+		useSidecar, err = strconv.ParseBool(sidecarFlag)
 		if err != nil {
 			panic(err)
 		}
 	}
 
-	app.msgPool = pool.NewMsgPool(10)
 	if useSidecar {
-		err = sidecar.StartSidecar(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger(), app.msgPool)
+		err = sidecar.StartSidecar(msgRouter, grpcRouter, bk, cms, lg, sender)
 		if err != nil {
 			panic(fmt.Errorf("failed to start sidecar process: %w", err))
 		}
 	}
-
-	return app
 }
 
 func GetDefaultBypassFeeMessages() []string {

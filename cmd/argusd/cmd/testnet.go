@@ -33,7 +33,7 @@ import (
 	// ibcclienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
 	// ibcchanneltypes "github.com/cosmos/ibc-go/v5/modules/core/04-channel/types"
 
-	"github.com/argus-labs/argus/app/params"
+	"github.com/argus-labs/argus/app/simparams"
 )
 
 var (
@@ -148,7 +148,7 @@ func InitTestnet(
 	nodeIDs := make([]string, numValidators)
 	valPubKeys := make([]cryptotypes.PubKey, numValidators)
 
-	simappConfig := params.CustomAppConfig{
+	simappConfig := simparams.CustomAppConfig{
 		Config: *srvconfig.DefaultConfig(),
 	}
 	simappConfig.MinGasPrices = minGasPrices

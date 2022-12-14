@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	moduleName = "sidecar"
+	ModuleName = "sidecar"
 )
 
 type Sidecar struct {
@@ -64,7 +64,7 @@ func (s Sidecar) Ping(ctx context.Context, ping *v1.MsgPing) (*v1.MsgPingRespons
 
 func (s Sidecar) MintCoins(ctx context.Context, msg *v1.MsgMintCoins) (*v1.MsgMintCoinsResponse, error) {
 	sdkCtx := s.getSDKCtx().WithContext(ctx)
-	err := s.bk.MintCoins(sdkCtx, moduleName, types.Coins{types.NewInt64Coin(msg.Denom, msg.Amount)})
+	err := s.bk.MintCoins(sdkCtx, ModuleName, types.Coins{types.NewInt64Coin(msg.Denom, msg.Amount)})
 	if err != nil {
 		return nil, err
 	}

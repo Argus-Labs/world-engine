@@ -25,7 +25,6 @@ import (
 	feegrantkeeper "github.com/cosmos/cosmos-sdk/x/feegrant/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
-	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	govv1beta1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1beta1"
 	"github.com/cosmos/cosmos-sdk/x/group"
 	groupkeeper "github.com/cosmos/cosmos-sdk/x/group/keeper"
@@ -42,13 +41,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/upgrade"
 	upgradekeeper "github.com/cosmos/cosmos-sdk/x/upgrade/keeper"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
-	ica "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts"
-	icacontroller "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/controller"
-	icacontrollerkeeper "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/controller/keeper"
-	icacontrollertypes "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/controller/types"
-	icahost "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/host"
-	icahostkeeper "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/host/keeper"
-	icahosttypes "github.com/cosmos/ibc-go/v5/modules/apps/27-interchain-accounts/host/types"
 	ibcfeekeeper "github.com/cosmos/ibc-go/v5/modules/apps/29-fee/keeper"
 	ibcfeetypes "github.com/cosmos/ibc-go/v5/modules/apps/29-fee/types"
 	"github.com/cosmos/ibc-go/v5/modules/apps/transfer"
@@ -60,18 +52,23 @@ import (
 	ibchost "github.com/cosmos/ibc-go/v5/modules/core/24-host"
 	ibckeeper "github.com/cosmos/ibc-go/v5/modules/core/keeper"
 	ibctestingtypes "github.com/cosmos/ibc-go/v5/testing/types"
-	liquiditykeeper "github.com/gravity-devs/liquidity/v2/x/liquidity/keeper"
-	liquiditytypes "github.com/gravity-devs/liquidity/v2/x/liquidity/types"
+	"github.com/evmos/ethermint/server/flags"
+	etherminttypes "github.com/evmos/ethermint/types"
+	"github.com/spf13/cast"
 	"github.com/strangelove-ventures/packet-forward-middleware/v5/router"
 	routerkeeper "github.com/strangelove-ventures/packet-forward-middleware/v5/router/keeper"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 	tmos "github.com/tendermint/tendermint/libs/os"
 
+	evmtypes "github.com/argus-labs/argus/x/evm/types"
+	feemarketkeeper "github.com/argus-labs/argus/x/feemarket/keeper"
+	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
+
+	evmkeeper "github.com/argus-labs/argus/x/evm/keeper"
+	"github.com/argus-labs/argus/x/evm/vm/geth"
+
 	"github.com/argus-labs/argus/x/adapter"
 	adapterkeeper "github.com/argus-labs/argus/x/adapter/keeper"
-	"github.com/argus-labs/argus/x/icamauth"
-	icamauthkeeper "github.com/argus-labs/argus/x/icamauth/keeper"
-	icamauthtypes "github.com/argus-labs/argus/x/icamauth/types"
 
 	// unnamed import of statik for swagger UI support
 	_ "github.com/cosmos/cosmos-sdk/client/docs/statik"
@@ -96,34 +93,29 @@ type AppKeepers struct {
 	UpgradeKeeper    upgradekeeper.Keeper
 	ParamsKeeper     paramskeeper.Keeper
 	// IBC Keeper must be a pointer in the app, so we can SetRouter on it correctly
-	IBCKeeper           *ibckeeper.Keeper
-	IBCFeeKeeper        ibcfeekeeper.Keeper
-	ICAControllerKeeper icacontrollerkeeper.Keeper
-	ICAHostKeeper       icahostkeeper.Keeper
-	ICAMauthKeeper      icamauthkeeper.Keeper
-	EvidenceKeeper      evidencekeeper.Keeper
-	TransferKeeper      ibctransferkeeper.Keeper
-	FeeGrantKeeper      feegrantkeeper.Keeper
-	GroupKeeper         groupkeeper.Keeper
-	AuthzKeeper         authzkeeper.Keeper
-	LiquidityKeeper     liquiditykeeper.Keeper
-	AdapterKeeper       adapterkeeper.Keeper
+	IBCKeeper      *ibckeeper.Keeper
+	IBCFeeKeeper   ibcfeekeeper.Keeper
+	EvidenceKeeper evidencekeeper.Keeper
+	TransferKeeper ibctransferkeeper.Keeper
+	FeeGrantKeeper feegrantkeeper.Keeper
+	GroupKeeper    groupkeeper.Keeper
+	AuthzKeeper    authzkeeper.Keeper
+	AdapterKeeper  adapterkeeper.Keeper
 
 	RouterKeeper routerkeeper.Keeper
 
 	// Modules
-	ICAModule      ica.AppModule
-	ICAMauthModule icamauth.AppModule
 	TransferModule transfer.AppModule
 	RouterModule   router.AppModule
 	AdapterModule  adapter.AppModule
 
 	// make scoped keepers public for test purposes
-	ScopedIBCKeeper           capabilitykeeper.ScopedKeeper
-	ScopedTransferKeeper      capabilitykeeper.ScopedKeeper
-	ScopedICAControllerKeeper capabilitykeeper.ScopedKeeper
-	ScopedICAHostKeeper       capabilitykeeper.ScopedKeeper
-	ScopedICAMauthKeeper      capabilitykeeper.ScopedKeeper
+	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
+	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
+
+	// Ethermint Modules
+	EvmKeeper       *evmkeeper.Keeper
+	FeeMarketKeeper feemarketkeeper.Keeper
 }
 
 func NewAppKeeper(
@@ -162,9 +154,6 @@ func NewAppKeeper(
 	appKeepers.CapabilityKeeper = capabilitykeeper.NewKeeper(appCodec, appKeepers.keys[capabilitytypes.StoreKey], appKeepers.memKeys[capabilitytypes.MemStoreKey])
 	appKeepers.ScopedIBCKeeper = appKeepers.CapabilityKeeper.ScopeToModule(ibchost.ModuleName)
 	appKeepers.ScopedTransferKeeper = appKeepers.CapabilityKeeper.ScopeToModule(ibctransfertypes.ModuleName)
-	appKeepers.ScopedICAMauthKeeper = appKeepers.CapabilityKeeper.ScopeToModule(icamauthtypes.ModuleName)
-	appKeepers.ScopedICAControllerKeeper = appKeepers.CapabilityKeeper.ScopeToModule(icacontrollertypes.SubModuleName)
-	appKeepers.ScopedICAHostKeeper = appKeepers.CapabilityKeeper.ScopeToModule(icahosttypes.SubModuleName)
 
 	appKeepers.CapabilityKeeper.Seal()
 
@@ -180,9 +169,9 @@ func NewAppKeeper(
 		appCodec,
 		appKeepers.keys[authtypes.StoreKey],
 		appKeepers.GetSubspace(authtypes.ModuleName),
-		authtypes.ProtoBaseAccount,
+		etherminttypes.ProtoAccount,
 		maccPerms,
-		sdk.Bech32MainPrefix,
+		sdk.GetConfig().GetBech32AccountAddrPrefix(),
 	)
 	appKeepers.BankKeeper = bankkeeper.NewBaseKeeper(
 		appCodec,
@@ -246,14 +235,6 @@ func NewAppKeeper(
 		appKeepers.keys[slashingtypes.StoreKey],
 		&stakingKeeper,
 		appKeepers.GetSubspace(slashingtypes.ModuleName),
-	)
-	appKeepers.LiquidityKeeper = liquiditykeeper.NewKeeper(
-		appCodec,
-		appKeepers.keys[liquiditytypes.StoreKey],
-		appKeepers.GetSubspace(liquiditytypes.ModuleName),
-		appKeepers.BankKeeper,
-		appKeepers.AccountKeeper,
-		appKeepers.DistrKeeper,
 	)
 
 	// register the staking hooks
@@ -328,38 +309,6 @@ func NewAppKeeper(
 	appKeepers.TransferModule = transfer.NewAppModule(appKeepers.TransferKeeper)
 	transferIBCModule := transfer.NewIBCModule(appKeepers.TransferKeeper)
 
-	appKeepers.ICAControllerKeeper = icacontrollerkeeper.NewKeeper(
-		appCodec, appKeepers.keys[icacontrollertypes.StoreKey], appKeepers.GetSubspace(icacontrollertypes.SubModuleName),
-		appKeepers.IBCKeeper.ChannelKeeper, // may be replaced with middleware such as ics29 fee
-		appKeepers.IBCKeeper.ChannelKeeper, &appKeepers.IBCKeeper.PortKeeper,
-		appKeepers.ScopedICAControllerKeeper, bApp.MsgServiceRouter(),
-	)
-
-	appKeepers.ICAHostKeeper = icahostkeeper.NewKeeper(
-		appCodec, appKeepers.keys[icahosttypes.StoreKey],
-		appKeepers.GetSubspace(icahosttypes.SubModuleName),
-		appKeepers.IBCFeeKeeper,
-		appKeepers.IBCKeeper.ChannelKeeper,
-		&appKeepers.IBCKeeper.PortKeeper,
-		appKeepers.AccountKeeper,
-		appKeepers.ScopedICAHostKeeper,
-		bApp.MsgServiceRouter(),
-	)
-
-	appKeepers.ICAModule = ica.NewAppModule(&appKeepers.ICAControllerKeeper, &appKeepers.ICAHostKeeper)
-
-	appKeepers.ICAMauthKeeper = icamauthkeeper.NewKeeper(
-		appCodec,
-		appKeepers.keys[icamauthtypes.StoreKey],
-		appKeepers.ICAControllerKeeper,
-		appKeepers.ScopedICAMauthKeeper,
-	)
-	appKeepers.ICAMauthModule = icamauth.NewAppModule(appCodec, appKeepers.ICAMauthKeeper)
-	icaMauthIBCModule := icamauth.NewIBCModule(appKeepers.ICAMauthKeeper)
-
-	icaControllerIBCModule := icacontroller.NewIBCMiddleware(icaMauthIBCModule, appKeepers.ICAControllerKeeper)
-	icaHostIBCModule := icahost.NewIBCModule(appKeepers.ICAHostKeeper)
-
 	appKeepers.RouterKeeper = routerkeeper.NewKeeper(
 		appCodec, appKeepers.keys[routertypes.StoreKey],
 		appKeepers.GetSubspace(routertypes.ModuleName),
@@ -376,10 +325,7 @@ func NewAppKeeper(
 
 	// create static IBC router, add transfer route, then set and seal it
 	ibcRouter := porttypes.NewRouter()
-	ibcRouter.AddRoute(icacontrollertypes.SubModuleName, icaControllerIBCModule).
-		AddRoute(icahosttypes.SubModuleName, icaHostIBCModule).
-		AddRoute(ibctransfertypes.ModuleName, appKeepers.RouterModule).
-		AddRoute(icamauthtypes.ModuleName, icaControllerIBCModule)
+	ibcRouter.AddRoute(ibctransfertypes.ModuleName, appKeepers.RouterModule)
 
 	appKeepers.IBCKeeper.SetRouter(ibcRouter)
 
@@ -393,36 +339,18 @@ func NewAppKeeper(
 	appKeepers.AdapterKeeper = adapterkeeper.NewKeeper(appCodec, appKeepers.GetKey(adapter.StoreKey))
 	appKeepers.AdapterModule = adapter.NewAppModule(appCodec, appKeepers.AdapterKeeper)
 
+	appKeepers.FeeMarketKeeper = feemarketkeeper.NewKeeper(
+		appCodec, appKeepers.GetSubspace(feemarkettypes.ModuleName), appKeepers.GetKey(feemarkettypes.StoreKey), appKeepers.GetTKey(feemarkettypes.TransientKey),
+	)
+
+	tracer := cast.ToString(appOpts.Get(flags.EVMTracer))
+	appKeepers.EvmKeeper = evmkeeper.NewKeeper(
+		appCodec, appKeepers.GetKey(evmtypes.StoreKey), appKeepers.GetTKey(evmtypes.TransientKey), appKeepers.GetSubspace(evmtypes.ModuleName),
+		appKeepers.AccountKeeper, appKeepers.BankKeeper, appKeepers.StakingKeeper, appKeepers.FeeMarketKeeper,
+		nil, geth.NewEVM, tracer,
+	)
+
 	return appKeepers
-}
-
-// GetSubspace returns a param subspace for a given module name.
-func (appKeepers *AppKeepers) GetSubspace(moduleName string) paramstypes.Subspace {
-	subspace, _ := appKeepers.ParamsKeeper.GetSubspace(moduleName)
-	return subspace
-}
-
-// initParamsKeeper init params keeper and its subspaces
-func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey storetypes.StoreKey) paramskeeper.Keeper {
-	paramsKeeper := paramskeeper.NewKeeper(appCodec, legacyAmino, key, tkey)
-
-	paramsKeeper.Subspace(authtypes.ModuleName)
-	paramsKeeper.Subspace(banktypes.ModuleName)
-	paramsKeeper.Subspace(stakingtypes.ModuleName)
-	paramsKeeper.Subspace(minttypes.ModuleName)
-	paramsKeeper.Subspace(distrtypes.ModuleName)
-	paramsKeeper.Subspace(slashingtypes.ModuleName)
-	paramsKeeper.Subspace(govtypes.ModuleName).WithKeyTable(govv1.ParamKeyTable())
-	paramsKeeper.Subspace(crisistypes.ModuleName)
-	paramsKeeper.Subspace(liquiditytypes.ModuleName)
-	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
-	paramsKeeper.Subspace(ibchost.ModuleName)
-
-	paramsKeeper.Subspace(routertypes.ModuleName).WithKeyTable(routertypes.ParamKeyTable())
-	paramsKeeper.Subspace(icacontrollertypes.SubModuleName)
-	paramsKeeper.Subspace(icahosttypes.SubModuleName)
-
-	return paramsKeeper
 }
 
 // GetStakingKeeper implements the TestingApp interface.
