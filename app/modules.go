@@ -181,6 +181,7 @@ func simulationModules(
 		groupmodule.NewAppModule(appCodec, app.GroupKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 		ibc.NewAppModule(app.IBCKeeper),
 		app.TransferModule,
+		feemarket.NewAppModule(app.FeeMarketKeeper),
 	}
 }
 
