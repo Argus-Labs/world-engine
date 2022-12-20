@@ -14,7 +14,7 @@ MNEMONIC="document reveal rug gorilla office card impulse virus intact legend su
 coins="10000000000stake,100000000000samoleans"
 argusd init --chain-id $CHAINID $CHAINID
 echo $MNEMONIC | argusd keys add validator --recover --keyring-backend="test"
-argusd add-genesis-account $(argusd keys show validator -a --keyring-backend="test") $coins
+argusd add-genesis-account "$(argusd keys show validator -a --keyring-backend="test")" $coins
 argusd gentx validator 5000000000stake --keyring-backend="test" --chain-id $CHAINID
 argusd collect-gentxs
 

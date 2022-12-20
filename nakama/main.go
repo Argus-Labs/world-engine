@@ -47,6 +47,11 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, module r
 	}
 	sidecar = g1.NewSidecarClient(clientConn)
 
+	cr := NewCosmosReceiver(db, logger, module, 7140)
+	if err = cr.Start(); err != nil {
+		panic(err)
+	}
+
 	return moduleInit(ctx, logger, db, module, initializer)
 }
 

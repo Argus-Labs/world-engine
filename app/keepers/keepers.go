@@ -1,6 +1,8 @@
 package keepers
 
 import (
+	"os"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -349,6 +351,11 @@ func NewAppKeeper(
 		appKeepers.AccountKeeper, appKeepers.BankKeeper, appKeepers.StakingKeeper, appKeepers.FeeMarketKeeper,
 		nil, geth.NewEVM, tracer,
 	)
+	eh, err := NewNakamaEVMHook(os.Getenv("NAKAMA_TARGET"))
+	if err != nil {
+		panic(err)
+	}
+	appKeepers.EvmKeeper.SetHooks(eh)
 
 	return appKeepers
 }

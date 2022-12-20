@@ -3,15 +3,15 @@ package keeper_test
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"math"
 	"math/big"
 	"testing"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	sdkmath "cosmossdk.io/math"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -239,6 +239,133 @@ func (suite *KeeperTestSuite) Commit() {
 
 func (suite *KeeperTestSuite) StateDB() *statedb.StateDB {
 	return statedb.New(suite.ctx, suite.app.EvmKeeper, statedb.NewEmptyTxConfig(common.BytesToHash(suite.ctx.HeaderHash().Bytes())))
+}
+
+func (suite *KeeperTestSuite) DeployQuestContract(t require.TestingT) common.Address {
+	ctx := sdk.WrapSDKContext(suite.ctx)
+	chainID := suite.app.EvmKeeper.ChainID()
+
+	ctorArgs, err := types.QuestContract.ABI.Pack("")
+	require.NoError(t, err)
+
+	nonce := suite.app.EvmKeeper.GetNonce(suite.ctx, suite.address)
+
+	data := append(types.QuestContract.Bin, ctorArgs...)
+	args, err := json.Marshal(&types.TransactionArgs{
+		From: &suite.address,
+		Data: (*hexutil.Bytes)(&data),
+	})
+	require.NoError(t, err)
+	res, err := suite.queryClient.EstimateGas(ctx, &types.EthCallRequest{
+		Args:            args,
+		GasCap:          uint64(config.DefaultGasCap),
+		ProposerAddress: suite.ctx.BlockHeader().ProposerAddress,
+	})
+	require.NoError(t, err)
+
+	var questDeployTx *types.MsgEthereumTx
+	if suite.enableFeemarket {
+		questDeployTx = types.NewTxContract(
+			chainID,
+			nonce,
+			nil,     // amount
+			res.Gas, // gasLimit
+			nil,     // gasPrice
+			suite.app.FeeMarketKeeper.GetBaseFee(suite.ctx),
+			big.NewInt(1),
+			data,                   // input
+			&ethtypes.AccessList{}, // accesses
+		)
+	} else {
+		questDeployTx = types.NewTxContract(
+			chainID,
+			nonce,
+			nil,     // amount
+			res.Gas, // gasLimit
+			nil,     // gasPrice
+			nil,
+			nil,
+			data, // input
+			nil,  // accesses
+		)
+	}
+
+	questDeployTx.From = suite.address.Hex()
+	err = questDeployTx.Sign(ethtypes.LatestSignerForChainID(chainID), suite.signer)
+	require.NoError(t, err)
+	rsp, err := suite.app.EvmKeeper.EthereumTx(ctx, questDeployTx)
+	require.NoError(t, err)
+	require.Empty(t, rsp.VmError)
+	return crypto.CreateAddress(suite.address, nonce)
+}
+
+func (suite *KeeperTestSuite) TestDeployQuest() {
+	ctx := sdk.WrapSDKContext(suite.ctx)
+	contractAddr := suite.DeployQuestContract(suite.T())
+	chainID := suite.app.EvmKeeper.ChainID()
+
+	completeQuestData, err := types.QuestContract.ABI.Pack("completeQuest", suite.address)
+	require.NoError(suite.T(), err)
+	args, err := json.Marshal(&types.TransactionArgs{To: &contractAddr, From: &suite.address, Data: (*hexutil.Bytes)(&completeQuestData)})
+	require.NoError(suite.T(), err)
+
+	res, err := suite.queryClient.EstimateGas(ctx, &types.EthCallRequest{
+		Args:            args,
+		GasCap:          25_000_000,
+		ProposerAddress: suite.ctx.BlockHeader().ProposerAddress,
+	})
+	require.NoError(suite.T(), err)
+
+	nonce := suite.app.EvmKeeper.GetNonce(suite.ctx, suite.address)
+
+	var completeQuestTx *types.MsgEthereumTx
+	if suite.enableFeemarket {
+		completeQuestTx = types.NewTx(
+			chainID,
+			nonce,
+			&contractAddr,
+			nil,
+			res.Gas,
+			nil,
+			suite.app.FeeMarketKeeper.GetBaseFee(suite.ctx),
+			big.NewInt(1),
+			completeQuestData,
+			&ethtypes.AccessList{}, // accesses
+		)
+	} else {
+		completeQuestTx = types.NewTx(
+			chainID,
+			nonce,
+			&contractAddr,
+			nil,
+			res.Gas,
+			nil,
+			nil, nil,
+			completeQuestData,
+			nil,
+		)
+	}
+
+	// questAbi := types.QuestContract.ABI
+	events := types.QuestContract.ABI.Events
+	fmt.Println("printing ABI events -----------")
+	for k, v := range events {
+		fmt.Println("Key: ", k)
+		fmt.Println("Value: ", v)
+	}
+	fmt.Println("end printing ABI events -----------")
+	completeQuestTx.From = suite.address.Hex()
+	err = completeQuestTx.Sign(ethtypes.LatestSignerForChainID(chainID), suite.signer)
+	require.NoError(suite.T(), err)
+	rsp, err := suite.app.EvmKeeper.EthereumTx(ctx, completeQuestTx)
+	require.NoError(suite.T(), err)
+	require.Empty(suite.T(), rsp.VmError)
+	require.Len(suite.T(), rsp.Logs, 1)
+	event := rsp.Logs[0]
+	fmt.Println(event.Data)
+	iface, err := types.QuestContract.ABI.Unpack("QuestComplete", event.Data)
+	require.NoError(suite.T(), err)
+	fmt.Println(iface)
 }
 
 // DeployTestContract deploy a test erc20 contract and returns the contract address

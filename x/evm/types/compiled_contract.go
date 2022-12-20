@@ -85,6 +85,12 @@ var (
 
 	// TestMessageCall is the compiled message call benchmark contract
 	TestMessageCall CompiledContract
+
+	//go:embed QuestFixed.json
+	questJSON []byte
+
+	// QuestContract is the compiled test quest contract
+	QuestContract CompiledContract
 )
 
 func init() {
@@ -113,5 +119,14 @@ func init() {
 
 	if len(TestMessageCall.Bin) == 0 {
 		panic("load contract failed")
+	}
+
+	err = json.Unmarshal(questJSON, &QuestContract)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(QuestContract.Bin) == 0 {
+		panic("QuestContract load failed")
 	}
 }

@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package nakama.v1;
+
+option go_package = "github.com/argus-labs/argus/nakama/v1";
+
+service Nakama {
+  rpc CompleteQuest(MsgCompleteQuest) returns (MsgCompleteQuestResponse);
+}
+
+message MsgCompleteQuest {
+  string addr = 1;
+  string quest_id = 2;
+}
+
+message MsgCompleteQuestResponse {
+  bool success = 1;
+}

@@ -1,4 +1,4 @@
-package argus
+package keepers
 
 import (
 	_ "embed"
@@ -11,11 +11,14 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	v1 "github.com/argus-labs/argus/cosmos_receiver/v1"
 	"github.com/argus-labs/argus/x/evm/types"
+
+	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
+
+	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
 )
 
-var _ types.EvmHooks = NakamaHook{}
+var _ types.EvmHooks = &NakamaHook{}
 
 var (
 	GameContract *Quest
@@ -32,19 +35,31 @@ func init() {
 }
 
 type NakamaHook struct {
-	client v1.NakamaClient
+	client       g1.NakamaClient
+	nakamaTarget string
 }
 
 func NewNakamaEVMHook(nakamaTarget string) (types.EvmHooks, error) {
-	conn, err := grpc.Dial(nakamaTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, err
-	}
-	nkc := v1.NewNakamaClient(conn)
-	return &NakamaHook{nkc}, nil
+
+	return &NakamaHook{nil, nakamaTarget}, nil
 }
 
-func (n NakamaHook) PostTxProcessing(ctx sdk.Context, msg core.Message, receipt *ethtypes.Receipt) error {
+func (n *NakamaHook) Connect() error {
+	conn, err := grpc.Dial(n.nakamaTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	nkc := g1.NewNakamaClient(conn)
+	n.client = nkc
+	return nil
+}
+
+func (n *NakamaHook) PostTxProcessing(ctx sdk.Context, msg core.Message, receipt *ethtypes.Receipt) error {
+	if n.client == nil {
+		if err := n.Connect(); err != nil {
+			return err
+		}
+	}
 
 	for _, ethLog := range receipt.Logs {
 

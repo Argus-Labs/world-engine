@@ -3,42 +3,36 @@ module github.com/argus-labs/argus
 go 1.18
 
 require (
+	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220192328-987d6645007f.4
+	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220192328-987d6645007f.4
+	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-beta.4
+	github.com/JeremyLoy/config v1.5.0
+	github.com/armon/go-metrics v0.4.1
+	github.com/cosmos/cosmos-proto v1.0.0-beta.1
 	github.com/cosmos/cosmos-sdk v0.46.6
-	github.com/cosmos/go-bip39 v1.0.0 // indirect
+	github.com/cosmos/ibc-go/v5 v5.1.0
+	github.com/ethereum/go-ethereum v1.10.26
+	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
 	github.com/gogo/protobuf v1.3.3
 	github.com/golang/protobuf v1.5.2
 	github.com/golangci/golangci-lint v1.50.1
 	github.com/gorilla/mux v1.8.0
+	github.com/gravity-devs/liquidity/v2 v2.0.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
+	github.com/holiman/uint256 v1.2.1
+	github.com/onsi/ginkgo/v2 v2.5.1
+	github.com/onsi/gomega v1.24.1
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.1
-	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/spf13/viper v1.14.0 // indirect
+	github.com/strangelove-ventures/packet-forward-middleware/v5 v5.0.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tendermint/tendermint v0.34.23
 	github.com/tendermint/tm-db v0.6.7
 	google.golang.org/genproto v0.0.0-20221207170731-23e4bf6bdc37
 	google.golang.org/grpc v1.51.0
-)
-
-require (
-	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221213002105-a0e53370fe5e.4
-	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221213002105-a0e53370fe5e.4
-	cosmossdk.io/errors v1.0.0-beta.7
-	github.com/JeremyLoy/config v1.5.0
-	github.com/armon/go-metrics v0.4.1
-	github.com/cosmos/cosmos-proto v1.0.0-beta.1
-	github.com/cosmos/ibc-go/v5 v5.1.0
-	github.com/ethereum/go-ethereum v1.10.26
-	github.com/evmos/ethermint v0.20.0-rc4
-	github.com/gravity-devs/liquidity/v2 v2.0.1
-	github.com/holiman/uint256 v1.2.1
-	github.com/onsi/ginkgo/v2 v2.5.1
-	github.com/onsi/gomega v1.24.1
-	github.com/strangelove-ventures/packet-forward-middleware/v5 v5.0.0
 	gotest.tools v2.2.0+incompatible
 )
 
@@ -91,6 +85,7 @@ require (
 	github.com/coinbase/rosetta-sdk-go v0.7.9 // indirect
 	github.com/confio/ics23/go v0.7.0 // indirect
 	github.com/cosmos/btcutil v1.0.4 // indirect
+	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogoproto v1.4.3 // indirect
 	github.com/cosmos/gorocksdb v1.2.0 // indirect
 	github.com/cosmos/iavl v0.19.4 // indirect
@@ -269,6 +264,8 @@ require (
 	github.com/sourcegraph/go-diff v0.6.1 // indirect
 	github.com/spf13/afero v1.9.2 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/spf13/viper v1.14.0 // indirect
 	github.com/ssgreg/nlreturn/v2 v2.2.1 // indirect
 	github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969 // indirect
 	github.com/stbenjam/no-sprintf-host-port v0.1.1 // indirect
@@ -330,6 +327,8 @@ require (
 )
 
 replace (
+	github.com/cosmos/ibc-go/v5 => github.com/cosmos/ibc-go/v5 v5.1.0
+	github.com/evmos/ethermint => github.com/evmos/ethermint v0.20.0-rc4
 	// github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk-rollmint v0.46.3-rollmint-v0.4.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/zondax/hid => github.com/zondax/hid v0.9.0
