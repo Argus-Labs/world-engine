@@ -3,8 +3,8 @@ module github.com/argus-labs/argus
 go 1.18
 
 require (
-	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220192328-987d6645007f.4
-	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220192328-987d6645007f.4
+	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220205637-74c1b18192c5.4
+	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220205637-74c1b18192c5.4
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-beta.4
 	github.com/JeremyLoy/config v1.5.0
@@ -327,7 +327,6 @@ require (
 )
 
 replace (
-	github.com/cosmos/ibc-go/v5 => github.com/cosmos/ibc-go/v5 v5.1.0
 	github.com/evmos/ethermint => github.com/evmos/ethermint v0.20.0-rc4
 	// github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk-rollmint v0.46.3-rollmint-v0.4.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1

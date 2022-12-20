@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net"
 
+	"buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
+	sidecarv1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"google.golang.org/grpc"
-
-	v1 "github.com/argus-labs/argus/nakama/v1"
 )
 
-var _ v1.NakamaServer = &CosmosReceiver{}
+var _ sidecarv1grpc.NakamaServer = &CosmosReceiver{}
 
 type CosmosReceiver struct {
 	db     *sql.DB
@@ -31,7 +31,7 @@ func (c *CosmosReceiver) Start() error {
 		return err
 	}
 	grpcServer := grpc.NewServer()
-	v1.RegisterNakamaServer(grpcServer, c)
+	sidecarv1grpc.RegisterNakamaServer(grpcServer, c)
 	go func() {
 		err := grpcServer.Serve(lis)
 		if err != nil {
@@ -41,7 +41,7 @@ func (c *CosmosReceiver) Start() error {
 	return nil
 }
 
-func (c CosmosReceiver) CompleteQuest(ctx context.Context, quest *v1.MsgCompleteQuest) (*v1.MsgCompleteQuestResponse, error) {
+func (c CosmosReceiver) CompleteQuest(ctx context.Context, quest *sidecarv1.MsgCompleteQuest) (*sidecarv1.MsgCompleteQuestResponse, error) {
 	c.logger.Info("QUEST COMPLETE!")
-	return &v1.MsgCompleteQuestResponse{Success: true}, nil
+	return &sidecarv1.MsgCompleteQuestResponse{Success: true}, nil
 }

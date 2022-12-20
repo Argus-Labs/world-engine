@@ -19,7 +19,7 @@ type TestSuite struct {
 	suite.Suite
 	cfg           TestingConfig
 	sidecarClient sidecarv1grpc.SidecarClient
-	addr          string
+	addr          string // this addr is derived from the mnemonic in ../../contrib/single-node.sh
 }
 
 func (suite *TestSuite) SetupTest() {
@@ -74,7 +74,7 @@ func (suite *TestSuite) TestSideCarE2E() {
 
 func (suite *TestSuite) TestMessagePool() {
 	ctx := context.Background()
-	recip := "cosmos15m3xll76c40cavsf4qvdx237f02qpyjp3yyv3s"
+	recip := "cosmos15m3xll76c40cavsf4qvdx237f02qpyjp3yyv3s" // random cosmos address for testing purposes
 	denom := "stake"
 	amount := int64(5)
 	_, err := suite.sidecarClient.SendCoins(ctx, &sidecar.MsgSendCoins{
@@ -93,6 +93,10 @@ func (suite *TestSuite) TestMessagePool() {
 	})
 	assert.NilError(suite.T(), err)
 	assert.Equal(suite.T(), res.Balance.Amount.Int64(), amount)
+}
+
+func (suite *TestSuite) TestEVMHook() {
+
 }
 
 func TestKeeperTestSuite(t *testing.T) {

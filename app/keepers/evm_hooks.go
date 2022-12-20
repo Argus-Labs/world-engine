@@ -2,7 +2,6 @@ package keepers
 
 import (
 	_ "embed"
-	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -31,7 +30,6 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("init ran")
 }
 
 type NakamaHook struct {

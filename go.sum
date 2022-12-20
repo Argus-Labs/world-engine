@@ -1,9 +1,9 @@
 4d63.com/gochecknoglobals v0.1.0 h1:zeZSRqj5yCg28tCkIV/z/lWbwvNm5qnKVS15PI8nhD0=
 4d63.com/gochecknoglobals v0.1.0/go.mod h1:wfdC5ZjKSPr7CybKEcgJhUOgeAQW1+7WcyK8OvUilfo=
-buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220192328-987d6645007f.4 h1:TLfQ+pYgeEVZJa466lBMAUc8FCykJGBki0reS+PkWOc=
-buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220192328-987d6645007f.4/go.mod h1:xFPSwIwXLo25Fot1DXvaHNKY3C04d8sErJswfpsz24s=
-buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220192328-987d6645007f.4 h1:1Asqu2eiDn0WiTfxBk7bYOrEZwmyKDWnM+7ukZzlkrw=
-buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220192328-987d6645007f.4/go.mod h1:xOaTLy2mgY5vFDZbUeHwoP3sHwm9TGfhPBsn8hoLLHE=
+buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220205637-74c1b18192c5.4 h1:zDxL2R60v+5EG39q3qEMj/HVc1V+q+NcLG/gZHd0sGY=
+buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220205637-74c1b18192c5.4/go.mod h1:RaVK+/4U11jpoKNAUAFYnohThQ6hAkZWpjIzLhqW0PA=
+buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220205637-74c1b18192c5.4 h1:h2rzWe86SF5B0rzQIswg+gcDUBP+Xl6ACL2lgYKnuas=
+buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220205637-74c1b18192c5.4/go.mod h1:xOaTLy2mgY5vFDZbUeHwoP3sHwm9TGfhPBsn8hoLLHE=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=
