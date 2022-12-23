@@ -1,7 +1,6 @@
 package keepers
 
 import (
-	_ "embed"
 	"fmt"
 
 	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
