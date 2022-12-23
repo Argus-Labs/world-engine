@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -46,6 +47,16 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, module r
 		panic(err)
 	}
 	sidecar = g1.NewSidecarClient(clientConn)
+
+	receiverPort := os.Getenv("RECEIVER_PORT")
+	port, err := strconv.Atoi(receiverPort)
+	if err != nil {
+		panic(fmt.Errorf("bad port: %w", err))
+	}
+	cr := NewCosmosReceiver(db, logger, module, uint64(port))
+	if err = cr.Start(); err != nil {
+		panic(err)
+	}
 
 	return moduleInit(ctx, logger, db, module, initializer)
 }

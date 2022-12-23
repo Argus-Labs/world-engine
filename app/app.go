@@ -29,7 +29,7 @@ import (
 	ibcclienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
 	ibcchanneltypes "github.com/cosmos/ibc-go/v5/modules/core/04-channel/types"
 	"github.com/evmos/ethermint/server/flags"
-	types2 "github.com/evmos/ethermint/types"
+	etherminttypes "github.com/evmos/ethermint/types"
 	"github.com/gorilla/mux"
 	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cast"
@@ -201,7 +201,7 @@ func NewArgusApp(
 		SignModeHandler:        app.GetTxConfig().SignModeHandler(),
 		SigGasConsumer:         ante.EthermintSigVerificationGasConsumer,
 		MaxTxGasWanted:         cast.ToUint64(appOpts.Get(flags.EVMMaxTxGasWanted)),
-		ExtensionOptionChecker: types2.HasDynamicFeeExtensionOption,
+		ExtensionOptionChecker: etherminttypes.HasDynamicFeeExtensionOption,
 		TxFeeChecker:           ante.NewDynamicFeeChecker(app.EvmKeeper),
 	})
 	if err != nil {

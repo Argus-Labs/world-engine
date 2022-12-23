@@ -44,7 +44,7 @@ func (suite *KeeperTestSuite) TestEvmHooks() {
 			},
 			func(hook types.EvmHooks, result error) {
 				suite.Require().NoError(result)
-				suite.Require().Equal(1, len((hook.(*LogRecordHook).Logs)))
+				suite.Require().Equal(1, len(hook.(*LogRecordHook).Logs))
 			},
 		},
 		{

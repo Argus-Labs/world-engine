@@ -2,6 +2,7 @@ package evm_test
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -377,10 +378,10 @@ func (suite *EvmTestSuite) TestDeployAndCallContract() {
 	tx = types.NewTx(suite.chainID, 2, &receiver, big.NewInt(0), gasLimit, gasPrice, nil, nil, bytecode, nil)
 	suite.SignTx(tx)
 
-	_, err = suite.handler(suite.ctx, tx)
+	txRes, err := suite.handler(suite.ctx, tx)
 	suite.Require().NoError(err, "failed to handle eth tx msg")
 
-	err = proto.Unmarshal(result.Data, &res)
+	err = proto.Unmarshal(txRes.Data, &res)
 	suite.Require().NoError(err, "failed to decode result data")
 	suite.Require().Equal(res.VmError, "", "failed to handle eth tx msg")
 
@@ -389,10 +390,10 @@ func (suite *EvmTestSuite) TestDeployAndCallContract() {
 	tx = types.NewTx(suite.chainID, 2, &receiver, big.NewInt(0), gasLimit, gasPrice, nil, nil, bytecode, nil)
 	suite.SignTx(tx)
 
-	_, err = suite.handler(suite.ctx, tx)
+	queryResult, err := suite.handler(suite.ctx, tx)
 	suite.Require().NoError(err, "failed to handle eth tx msg")
 
-	err = proto.Unmarshal(result.Data, &res)
+	err = proto.Unmarshal(queryResult.Data, &res)
 	suite.Require().NoError(err, "failed to decode result data")
 	suite.Require().Equal(res.VmError, "", "failed to handle eth tx msg")
 
@@ -686,10 +687,91 @@ func (suite *EvmTestSuite) TestContractDeploymentRevert() {
 	}
 }
 
+func (suite *EvmTestSuite) TestQuest() {
+	intrinsicGas := uint64(134180)
+	testCases := []struct {
+		msg      string
+		gasLimit uint64
+		hooks    types.EvmHooks
+	}{
+		{
+			"success hooks",
+			intrinsicGas,
+			&DummyHook{},
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.msg, func() {
+			suite.SetupTest()
+			k := suite.app.EvmKeeper
+
+			// test with different hooks scenarios
+			k.SetHooks(tc.hooks)
+
+			nonce := k.GetNonce(suite.ctx, suite.from)
+			questABI := types.QuestContract.ABI
+			_ = questABI
+			ctorArgs, err := types.QuestContract.ABI.Pack("")
+			suite.Require().NoError(err)
+
+			tx := types.NewTx(
+				nil,
+				nonce,
+				nil, // to
+				nil, // amount
+				tc.gasLimit,
+				nil, nil, nil,
+				append(types.QuestContract.Bin, ctorArgs...),
+				nil,
+			)
+			suite.SignTx(tx)
+
+			// simulate nonce increment in ante handler
+			db := suite.StateDB()
+			db.SetNonce(suite.from, nonce+1)
+			suite.Require().NoError(db.Commit())
+
+			rsp, err := k.EthereumTx(sdk.WrapSDKContext(suite.ctx), tx)
+
+			suite.Require().NoError(err)
+			suite.Require().False(rsp.Failed())
+
+			// nonce don't change
+			nonce2 := k.GetNonce(suite.ctx, suite.from)
+			suite.Require().Equal(nonce+1, nonce2)
+
+			args, err := questABI.Pack("completeQuest", suite.from)
+			suite.Require().NoError(err)
+			tx = types.NewTx(
+				nil,
+				nonce2,
+				&suite.from, // to
+				nil,         // amount
+				tc.gasLimit,
+				nil, nil, nil,
+				append(types.QuestContract.Bin, args...),
+				nil,
+			)
+			suite.SignTx(tx)
+
+			db.SetNonce(suite.from, nonce2+1)
+			suite.Require().NoError(db.Commit())
+
+			rsp, err = k.EthereumTx(sdk.WrapSDKContext(suite.ctx), tx)
+			suite.Require().NoError(err)
+			suite.Require().False(rsp.Failed())
+			fmt.Println("LOGS: ", rsp.Logs)
+		})
+	}
+}
+
 // DummyHook implements EvmHooks interface
 type DummyHook struct{}
 
 func (dh *DummyHook) PostTxProcessing(ctx sdk.Context, msg core.Message, receipt *ethtypes.Receipt) error {
+	fmt.Println("HOOK CALLED")
+	fmt.Println("DATA: ", string(msg.Data()))
 	return nil
 }
 

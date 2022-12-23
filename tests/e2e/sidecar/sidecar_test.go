@@ -6,29 +6,32 @@ import (
 	"time"
 
 	"buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
-	jlconfig "github.com/JeremyLoy/config"
+	sidecarv1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
 	"gotest.tools/assert"
 
-	sidecar "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
-
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	argus "github.com/argus-labs/argus/app"
+	"github.com/argus-labs/argus/app/simparams"
+	"github.com/argus-labs/argus/tests"
 )
 
-type TestSuite struct {
+type SideCarSuite struct {
 	suite.Suite
 	cfg           TestingConfig
 	sidecarClient sidecarv1grpc.SidecarClient
-	addr          string
+	addr          string // this addr is derived from the mnemonic in ../../contrib/single-node.sh
+	encCfg        simparams.EncodingConfig
 }
 
-func (suite *TestSuite) SetupTest() {
-	suite.cfg = LoadConfig()
+func (suite *SideCarSuite) SetupTest() {
+	suite.cfg = tests.LoadConfig[TestingConfig]()
 	if !suite.cfg.EnableDockerTests {
 		suite.T().Skip("skipping test suite. these tests only runs in docker")
 	}
 	suite.addr = "cosmos1tk7sluasye598msnjlujrp9hd67fl4gylx7z0z" // this addr is derived from the mnemonic in contrib/single-node.sh
 	suite.sidecarClient = GetSidecarClient(suite.T(), suite.cfg.SidecarURL)
+	suite.encCfg = argus.MakeTestEncodingConfig()
 }
 
 // TestingConfig is a testing configuration. These values are typically set via docker.
@@ -38,24 +41,15 @@ type TestingConfig struct {
 	EnableDockerTests bool   `config:"ENABLE_DOCKER_TESTS"`
 	SidecarURL        string `config:"SIDECAR_URL"`
 	ArgusNodeURL      string `config:"ARGUS_NODE_URL"`
+	NakamaURL         string `config:"NAKAMA_URL"`
 }
 
-// LoadConfig loads the config from env variables.
-func LoadConfig() TestingConfig {
-	var cfg TestingConfig
-	err := jlconfig.FromEnv().To(&cfg)
-	if err != nil {
-		panic(err)
-	}
-	return cfg
-}
-
-func (suite *TestSuite) TestSideCarE2E() {
+func (suite *SideCarSuite) TestSideCarE2E() {
 	ctx := context.Background()
 
 	denom := "TESTCOIN"
 	amount := int64(10)
-	_, err := suite.sidecarClient.MintCoins(ctx, &sidecar.MsgMintCoins{
+	_, err := suite.sidecarClient.MintCoins(ctx, &sidecarv1.MsgMintCoins{
 		Amount: amount,
 		Denom:  denom,
 	})
@@ -72,12 +66,12 @@ func (suite *TestSuite) TestSideCarE2E() {
 	assert.Equal(suite.T(), denom, qres.Amount.Denom)
 }
 
-func (suite *TestSuite) TestMessagePool() {
+func (suite *SideCarSuite) TestMessagePool() {
 	ctx := context.Background()
-	recip := "cosmos15m3xll76c40cavsf4qvdx237f02qpyjp3yyv3s"
+	recip := "cosmos15m3xll76c40cavsf4qvdx237f02qpyjp3yyv3s" // random cosmos address for testing purposes
 	denom := "stake"
 	amount := int64(5)
-	_, err := suite.sidecarClient.SendCoins(ctx, &sidecar.MsgSendCoins{
+	_, err := suite.sidecarClient.SendCoins(ctx, &sidecarv1.MsgSendCoins{
 		Sender:    suite.addr,
 		Recipient: recip,
 		Denom:     denom,
@@ -95,6 +89,6 @@ func (suite *TestSuite) TestMessagePool() {
 	assert.Equal(suite.T(), res.Balance.Amount.Int64(), amount)
 }
 
-func TestKeeperTestSuite(t *testing.T) {
-	suite.Run(t, new(TestSuite))
+func TestRunSuite(t *testing.T) {
+	suite.Run(t, new(SideCarSuite))
 }
