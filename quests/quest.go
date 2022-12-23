@@ -1,7 +1,7 @@
 // Code generated - DO NOT EDIT.
 // This file is a generated binding and any manual changes will be lost.
 
-package keepers
+package quests
 
 import (
 	"errors"
@@ -31,11 +31,33 @@ var (
 // QuestMetaData contains all meta data concerning the Quest contract.
 var QuestMetaData = &bind.MetaData{
 	ABI: "[{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"name\":\"QuestComplete\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"a\",\"type\":\"address\"}],\"name\":\"completeQuest\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	Bin: "0x608060405234801561001057600080fd5b506101cd806100206000396000f3fe608060405234801561001057600080fd5b506004361061002b5760003560e01c806377b37fe714610030575b600080fd5b61004a60048036038101906100459190610140565b61004c565b005b60016000808373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060006101000a81548160ff0219169083151502179055507fadf42909b380f9140633e3b84d758a4ffd81c45e18e5647f7636a8674012e9ed816040516100d2919061017c565b60405180910390a150565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b600061010d826100e2565b9050919050565b61011d81610102565b811461012857600080fd5b50565b60008135905061013a81610114565b92915050565b600060208284031215610156576101556100dd565b5b60006101648482850161012b565b91505092915050565b61017681610102565b82525050565b6000602082019050610191600083018461016d565b9291505056fea26469706673582212208d75fc3d7144f44d3f492e85b036947a35328b992c6cc74aa10817a71015457764736f6c63430008110033",
 }
 
 // QuestABI is the input ABI used to generate the binding from.
 // Deprecated: Use QuestMetaData.ABI instead.
 var QuestABI = QuestMetaData.ABI
+
+// QuestBin is the compiled bytecode used for deploying new contracts.
+// Deprecated: Use QuestMetaData.Bin instead.
+var QuestBin = QuestMetaData.Bin
+
+// DeployQuest deploys a new Ethereum contract, binding an instance of Quest to it.
+func DeployQuest(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *Quest, error) {
+	parsed, err := QuestMetaData.GetAbi()
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	if parsed == nil {
+		return common.Address{}, nil, nil, errors.New("GetABI returned nil")
+	}
+
+	address, tx, contract, err := bind.DeployContract(auth, *parsed, common.FromHex(QuestBin), backend)
+	if err != nil {
+		return common.Address{}, nil, nil, err
+	}
+	return address, tx, &Quest{QuestCaller: QuestCaller{contract: contract}, QuestTransactor: QuestTransactor{contract: contract}, QuestFilterer: QuestFilterer{contract: contract}}, nil
+}
 
 // Quest is an auto generated Go binding around an Ethereum contract.
 type Quest struct {

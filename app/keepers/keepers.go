@@ -351,10 +351,7 @@ func NewAppKeeper(
 		appKeepers.AccountKeeper, appKeepers.BankKeeper, appKeepers.StakingKeeper, appKeepers.FeeMarketKeeper,
 		nil, geth.NewEVM, tracer,
 	)
-	eh, err := NewNakamaEVMHook(os.Getenv("NAKAMA_TARGET"))
-	if err != nil {
-		panic(err)
-	}
+	eh := NewQuestHook(os.Getenv("NAKAMA_TARGET"))
 	appKeepers.EvmKeeper.SetHooks(eh)
 
 	return appKeepers

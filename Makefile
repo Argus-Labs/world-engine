@@ -230,6 +230,12 @@ test-sidecar:
 	@docker-compose up --abort-on-container-exit --exit-code-from tester node tester
 .PHONY: test-sidecar
 
+test-nakama:
+	@docker-compose down -v --remove-orphans
+	@docker-compose build tester postgres nakama
+	@docker-compose up  --abort-on-container-exit --exit-code-from tester postgres nakama tester
+.POHNY: test-nakama
+
 
 ###############################################################################
 ###                                Linting                                  ###

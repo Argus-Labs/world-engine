@@ -11,7 +11,7 @@ MNEMONIC="document reveal rug gorilla office card impulse virus intact legend su
 
 
 # Build genesis file incl account for passed address
-coins="10000000000stake,100000000000samoleans"
+coins="10000000000stake,100000000000samoleans,1000000000000000000aphoton"
 argusd init --chain-id $CHAINID $CHAINID
 echo $MNEMONIC | argusd keys add validator --recover --keyring-backend="test"
 echo  $(argusd keys show validator -a --keyring-backend="test") $coins

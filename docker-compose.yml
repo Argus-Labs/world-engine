@@ -21,6 +21,7 @@ services:
     container_name: nakama_container
     environment:
       - SIDECAR_TARGET=node:5050
+      - RECEIVER_PORT=6732
     build:
       context: nakama
       dockerfile: Dockerfile
@@ -48,6 +49,7 @@ services:
       - "7349:7349"
       - "7350:7350"
       - "7351:7351"
+      - "6732:6732"
     restart: unless-stopped
     networks:
       - default
@@ -73,6 +75,7 @@ services:
       - SIDECAR_URL=node:5050
       - ARGUS_NODE_URL=node:9090
       - ENABLE_DOCKER_TESTS=true
+      - NAKAMA_URL=nakama:6732
     build:
       context: .
       dockerfile: tester.Dockerfile

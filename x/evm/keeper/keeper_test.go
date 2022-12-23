@@ -347,13 +347,6 @@ func (suite *KeeperTestSuite) TestDeployQuest() {
 	}
 
 	// questAbi := types.QuestContract.ABI
-	events := types.QuestContract.ABI.Events
-	fmt.Println("printing ABI events -----------")
-	for k, v := range events {
-		fmt.Println("Key: ", k)
-		fmt.Println("Value: ", v)
-	}
-	fmt.Println("end printing ABI events -----------")
 	completeQuestTx.From = suite.address.Hex()
 	err = completeQuestTx.Sign(ethtypes.LatestSignerForChainID(chainID), suite.signer)
 	require.NoError(suite.T(), err)
@@ -363,9 +356,8 @@ func (suite *KeeperTestSuite) TestDeployQuest() {
 	require.Len(suite.T(), rsp.Logs, 1)
 	event := rsp.Logs[0]
 	fmt.Println(event.Data)
-	iface, err := types.QuestContract.ABI.Unpack("QuestComplete", event.Data)
+	_, err = types.QuestContract.ABI.Unpack("QuestComplete", event.Data)
 	require.NoError(suite.T(), err)
-	fmt.Println(iface)
 }
 
 // DeployTestContract deploy a test erc20 contract and returns the contract address
