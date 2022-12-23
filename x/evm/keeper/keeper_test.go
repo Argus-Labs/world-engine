@@ -3,7 +3,6 @@ package keeper_test
 import (
 	_ "embed"
 	"encoding/json"
-	"fmt"
 	"math"
 	"math/big"
 	"testing"
@@ -355,7 +354,6 @@ func (suite *KeeperTestSuite) TestDeployQuest() {
 	require.Empty(suite.T(), rsp.VmError)
 	require.Len(suite.T(), rsp.Logs, 1)
 	event := rsp.Logs[0]
-	fmt.Println(event.Data)
 	_, err = types.QuestContract.ABI.Unpack("QuestComplete", event.Data)
 	require.NoError(suite.T(), err)
 }

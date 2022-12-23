@@ -1,8 +1,6 @@
 package keepers
 
 import (
-	"fmt"
-
 	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
@@ -63,7 +61,6 @@ func (n *QuestHook) Connect() error {
 func (n *QuestHook) PostTxProcessing(ctx sdk.Context, msg core.Message, receipt *ethtypes.Receipt) error {
 	if n.client == nil {
 		if err := n.Connect(); err != nil {
-			fmt.Println("error occurred here...")
 			return err
 		}
 	}

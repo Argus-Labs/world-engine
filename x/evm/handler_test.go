@@ -2,7 +2,6 @@ package evm_test
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -761,7 +760,6 @@ func (suite *EvmTestSuite) TestQuest() {
 			rsp, err = k.EthereumTx(sdk.WrapSDKContext(suite.ctx), tx)
 			suite.Require().NoError(err)
 			suite.Require().False(rsp.Failed())
-			fmt.Println("LOGS: ", rsp.Logs)
 		})
 	}
 }
@@ -770,8 +768,6 @@ func (suite *EvmTestSuite) TestQuest() {
 type DummyHook struct{}
 
 func (dh *DummyHook) PostTxProcessing(ctx sdk.Context, msg core.Message, receipt *ethtypes.Receipt) error {
-	fmt.Println("HOOK CALLED")
-	fmt.Println("DATA: ", string(msg.Data()))
 	return nil
 }
 
