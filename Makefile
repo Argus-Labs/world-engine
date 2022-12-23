@@ -223,16 +223,19 @@ docker-build-hermes:
 
 docker-build-all: docker-build-debug docker-build-hermes
 
+###############################################################################
+###                              E2E Tests                                  ###
+###############################################################################
 
 test-sidecar:
 	@docker-compose down -v --remove-orphans
-	@docker-compose build tester node
+	@docker-compose build --build-arg TEST_PACKAGE=./...tests/e2e/sidecar tester node
 	@docker-compose up --abort-on-container-exit --exit-code-from tester node tester
 .PHONY: test-sidecar
 
 test-nakama:
 	@docker-compose down -v --remove-orphans
-	@docker-compose build tester postgres nakama
+	@docker-compose build --build-arg TEST_PACKAGE=./...tests/e2e/nakama tester postgres nakama
 	@docker-compose up  --abort-on-container-exit --exit-code-from tester postgres nakama tester
 .POHNY: test-nakama
 
