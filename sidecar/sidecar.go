@@ -2,7 +2,6 @@ package sidecar
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"net"
 
