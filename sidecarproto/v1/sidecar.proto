@@ -11,6 +11,7 @@ service Sidecar {
   rpc MintCoins(MsgMintCoins) returns (MsgMintCoinsResponse);
   rpc SendCoins(MsgSendCoins) returns (MsgSendCoinsResponse);
   rpc EthTx(MsgEthTx) returns (MsgEthTxResponse);
+  rpc UpdateGameState(MsgUpdateGameState) returns (MsgUpdateGameStateResponse);
 }
 
 message MsgPing {
@@ -102,3 +103,9 @@ message Log {
   // through a filter query.
   bool removed = 9;
 }
+
+message MsgUpdateGameState {
+  int64 numPlanets = 1;
+}
+
+message MsgUpdateGameStateResponse {}

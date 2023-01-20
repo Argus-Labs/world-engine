@@ -2,6 +2,7 @@ package sidecar
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"net"
 
@@ -18,6 +19,7 @@ import (
 	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
 
 	"github.com/argus-labs/argus/pool"
+	adaptertypesv1 "github.com/argus-labs/argus/x/adapter/types/v1"
 )
 
 const (
@@ -25,16 +27,23 @@ const (
 )
 
 type Sidecar struct {
-	rtr    *baseapp.MsgServiceRouter
-	qry    *baseapp.GRPCQueryRouter
-	pool   pool.MsgPoolSender
-	cms    types.CommitMultiStore
-	bk     bankkeeper.Keeper
-	logger log.Logger
+	rtr               *baseapp.MsgServiceRouter
+	qry               *baseapp.GRPCQueryRouter
+	pool              pool.MsgPoolSender
+	cms               types.CommitMultiStore
+	bk                bankkeeper.Keeper
+	adapterModuleAddr string
+	logger            log.Logger
+}
+
+func (s Sidecar) UpdateGameState(ctx context.Context, state *v1.MsgUpdateGameState) (*v1.MsgUpdateGameStateResponse, error) {
+	msg := &adaptertypesv1.MsgUpdateGameState{Sender: s.adapterModuleAddr, NumPlanets: state.NumPlanets}
+	s.pool.Send(msg)
+	return &v1.MsgUpdateGameStateResponse{}, nil
 }
 
 func (s Sidecar) EthTx(ctx context.Context, tx *v1.MsgEthTx) (*v1.MsgEthTxResponse, error) {
-	//msg := types3.MsgEthereumTx{
+	//msg := evmTypes.MsgEthereumTx{
 	//	Data:  tx.Data,
 	//	Size_: 0,
 	//	Hash:  "",
@@ -44,8 +53,8 @@ func (s Sidecar) EthTx(ctx context.Context, tx *v1.MsgEthTx) (*v1.MsgEthTxRespon
 }
 
 // StartSidecar opens the gRPC server.
-func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms types.CommitMultiStore, logger log.Logger, pool pool.MsgPoolSender) error {
-	sc := Sidecar{rtr: rtr, qry: qry, bk: bk, cms: cms, logger: logger, pool: pool}
+func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms types.CommitMultiStore, logger log.Logger, pool pool.MsgPoolSender, adapterModuleAddr string) error {
+	sc := Sidecar{rtr: rtr, qry: qry, bk: bk, cms: cms, logger: logger, pool: pool, adapterModuleAddr: adapterModuleAddr}
 	port := 5050
 	lis, err := net.Listen("tcp", fmt.Sprintf("node:%d", port))
 	if err != nil {

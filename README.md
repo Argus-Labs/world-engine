@@ -36,6 +36,14 @@ The default Cosmos endpoints are available to be interacted with:
 - REST: `localhost:26657` // currently broken, looking into fixing.. 
 
 
+## Making Embeddable Contracts
+
+To write contracts and utilize bindings provided by ethermint, we must generate a few specific files. 
+
+NOTE: you must have solc installed.
+
+To generate an ABI, first write your smart contract. Then, run `solc --abi --bin YourContract.sol -o build`.
+This will output an `abi` file and a `bin` file in the `build` directory.
 
 
 # Dependencies

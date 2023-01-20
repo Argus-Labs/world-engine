@@ -128,31 +128,132 @@ func (m *MsgClaimQuestRewardResponse) GetReward_ID() string {
 	return ""
 }
 
+// MsgUpdateGameState is a collection of state items from the ECS that are required
+// to be stored in DA in order to rebuild the state of the game in the event of a
+// system shutdown.
+type MsgUpdateGameState struct {
+	// sender is the address of the sender
+	Sender string `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
+	// numPlanets is the number of planets.
+	NumPlanets int64 `protobuf:"varint,2,opt,name=numPlanets,proto3" json:"numPlanets,omitempty"`
+}
+
+func (m *MsgUpdateGameState) Reset()         { *m = MsgUpdateGameState{} }
+func (m *MsgUpdateGameState) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateGameState) ProtoMessage()    {}
+func (*MsgUpdateGameState) Descriptor() ([]byte, []int) {
+	return fileDescriptor_664ac58aa66c04f8, []int{2}
+}
+func (m *MsgUpdateGameState) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateGameState) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateGameState.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateGameState) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateGameState.Merge(m, src)
+}
+func (m *MsgUpdateGameState) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateGameState) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateGameState.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateGameState proto.InternalMessageInfo
+
+func (m *MsgUpdateGameState) GetSender() string {
+	if m != nil {
+		return m.Sender
+	}
+	return ""
+}
+
+func (m *MsgUpdateGameState) GetNumPlanets() int64 {
+	if m != nil {
+		return m.NumPlanets
+	}
+	return 0
+}
+
+// MsgUpdateGameStateResponse is the response type.
+type MsgUpdateGameStateResponse struct {
+}
+
+func (m *MsgUpdateGameStateResponse) Reset()         { *m = MsgUpdateGameStateResponse{} }
+func (m *MsgUpdateGameStateResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgUpdateGameStateResponse) ProtoMessage()    {}
+func (*MsgUpdateGameStateResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_664ac58aa66c04f8, []int{3}
+}
+func (m *MsgUpdateGameStateResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *MsgUpdateGameStateResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_MsgUpdateGameStateResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *MsgUpdateGameStateResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_MsgUpdateGameStateResponse.Merge(m, src)
+}
+func (m *MsgUpdateGameStateResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *MsgUpdateGameStateResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_MsgUpdateGameStateResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_MsgUpdateGameStateResponse proto.InternalMessageInfo
+
 func init() {
 	proto.RegisterType((*MsgClaimQuestReward)(nil), "argus.adapter.v1.MsgClaimQuestReward")
 	proto.RegisterType((*MsgClaimQuestRewardResponse)(nil), "argus.adapter.v1.MsgClaimQuestRewardResponse")
+	proto.RegisterType((*MsgUpdateGameState)(nil), "argus.adapter.v1.MsgUpdateGameState")
+	proto.RegisterType((*MsgUpdateGameStateResponse)(nil), "argus.adapter.v1.MsgUpdateGameStateResponse")
 }
 
 func init() { proto.RegisterFile("argus/adapter/v1/tx.proto", fileDescriptor_664ac58aa66c04f8) }
 
 var fileDescriptor_664ac58aa66c04f8 = []byte{
-	// 246 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0x4c, 0x2c, 0x4a, 0x2f,
-	0x2d, 0xd6, 0x4f, 0x4c, 0x49, 0x2c, 0x28, 0x49, 0x2d, 0xd2, 0x2f, 0x33, 0xd4, 0x2f, 0xa9, 0xd0,
-	0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0x00, 0x4b, 0xe9, 0x41, 0xa5, 0xf4, 0xca, 0x0c, 0x95,
-	0x3c, 0xb9, 0x84, 0x7d, 0x8b, 0xd3, 0x9d, 0x73, 0x12, 0x33, 0x73, 0x03, 0x4b, 0x53, 0x8b, 0x4b,
-	0x82, 0x52, 0xcb, 0x13, 0x8b, 0x52, 0x84, 0xc4, 0xb9, 0xd8, 0x4b, 0x8b, 0x53, 0x8b, 0xe2, 0x3d,
-	0x5d, 0x24, 0x18, 0x15, 0x18, 0x35, 0x38, 0x83, 0xd8, 0x40, 0x5c, 0x4f, 0x17, 0x21, 0x49, 0x2e,
-	0x8e, 0x42, 0x90, 0x3a, 0x90, 0x0c, 0x13, 0x58, 0x86, 0x1d, 0xcc, 0xf7, 0x74, 0x51, 0xb2, 0xe2,
-	0x92, 0xc6, 0x62, 0x54, 0x50, 0x6a, 0x71, 0x41, 0x7e, 0x5e, 0x71, 0xaa, 0x90, 0x34, 0x17, 0x67,
-	0x11, 0x58, 0x04, 0x61, 0x28, 0x07, 0x44, 0xc0, 0xd3, 0xc5, 0x28, 0x9f, 0x8b, 0xd9, 0xb7, 0x38,
-	0x5d, 0x28, 0x83, 0x4b, 0x00, 0xc3, 0x29, 0xaa, 0x7a, 0xe8, 0x8e, 0xd6, 0xc3, 0x62, 0x8d, 0x94,
-	0x2e, 0x51, 0xca, 0x60, 0xae, 0x71, 0xf2, 0x38, 0xf1, 0x48, 0x8e, 0xf1, 0xc2, 0x23, 0x39, 0xc6,
-	0x07, 0x8f, 0xe4, 0x18, 0x27, 0x3c, 0x96, 0x63, 0xb8, 0xf0, 0x58, 0x8e, 0xe1, 0xc6, 0x63, 0x39,
-	0x86, 0x28, 0xbd, 0xf4, 0xcc, 0x92, 0x8c, 0xd2, 0x24, 0xbd, 0xe4, 0xfc, 0x5c, 0x7d, 0xb0, 0x91,
-	0xba, 0x39, 0x89, 0x49, 0xc5, 0x10, 0xa6, 0x7e, 0x05, 0x3c, 0x58, 0x4b, 0x2a, 0x0b, 0x52, 0x8b,
-	0xf5, 0xcb, 0x0c, 0x93, 0xd8, 0xc0, 0x41, 0x6b, 0x0c, 0x08, 0x00, 0x00, 0xff, 0xff, 0x54, 0x86,
-	0xb4, 0xb4, 0x77, 0x01, 0x00, 0x00,
+	// 326 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x52, 0xcd, 0x4a, 0xf3, 0x40,
+	0x14, 0x6d, 0xbe, 0x42, 0x7f, 0xee, 0xe6, 0x2b, 0x23, 0xa8, 0x6d, 0x65, 0x90, 0xa0, 0xe0, 0xc2,
+	0x4e, 0xa8, 0xee, 0x5c, 0x6a, 0x40, 0x03, 0x16, 0x34, 0xe2, 0xc6, 0x8d, 0x4c, 0xcd, 0x25, 0x2d,
+	0x34, 0x3f, 0xce, 0x9d, 0xd4, 0xfa, 0x16, 0x3e, 0x96, 0xcb, 0xae, 0xc4, 0xa5, 0xb4, 0x2f, 0x22,
+	0x9d, 0xda, 0x2a, 0x6d, 0x16, 0xdd, 0xe5, 0xfc, 0x70, 0x72, 0xce, 0x70, 0xa1, 0x2e, 0x55, 0x98,
+	0x91, 0x23, 0x03, 0x99, 0x6a, 0x54, 0xce, 0xb0, 0xed, 0xe8, 0x91, 0x48, 0x55, 0xa2, 0x13, 0x56,
+	0x33, 0x92, 0xf8, 0x91, 0xc4, 0xb0, 0x6d, 0x7b, 0xb0, 0xd5, 0xa1, 0xf0, 0x62, 0x20, 0xfb, 0xd1,
+	0x6d, 0x86, 0xa4, 0x7d, 0x7c, 0x91, 0x2a, 0x60, 0x3b, 0x50, 0xce, 0x08, 0xd5, 0xa3, 0xe7, 0xee,
+	0x5a, 0xfb, 0xd6, 0x51, 0xd5, 0x2f, 0xcd, 0xa0, 0xe7, 0xb2, 0x3a, 0x54, 0x9e, 0x67, 0xbe, 0x99,
+	0xf2, 0xcf, 0x28, 0x65, 0x83, 0x3d, 0xd7, 0x3e, 0x83, 0x66, 0x4e, 0x94, 0x8f, 0x94, 0x26, 0x31,
+	0x21, 0x6b, 0x42, 0x55, 0x19, 0xe6, 0x37, 0xb4, 0x32, 0x27, 0x3c, 0xd7, 0xbe, 0x06, 0xd6, 0xa1,
+	0xf0, 0x3e, 0x0d, 0xa4, 0xc6, 0x4b, 0x19, 0xe1, 0x9d, 0x96, 0x1a, 0xd9, 0x36, 0x94, 0x08, 0xe3,
+	0x00, 0xd5, 0xa2, 0xc4, 0x1c, 0x31, 0x0e, 0x10, 0x67, 0xd1, 0xcd, 0x40, 0xc6, 0xa8, 0xc9, 0xd4,
+	0x28, 0xfa, 0x7f, 0x18, 0x7b, 0x0f, 0x1a, 0xeb, 0x69, 0x8b, 0x22, 0x27, 0x1f, 0x16, 0x14, 0x3b,
+	0x14, 0xb2, 0x1e, 0xd4, 0xd6, 0x76, 0x1f, 0x8a, 0xd5, 0x17, 0x12, 0x39, 0x9b, 0x1a, 0xad, 0x8d,
+	0x6c, 0xcb, 0xe9, 0x08, 0xff, 0x57, 0xa7, 0x1d, 0xe4, 0x26, 0xac, 0xb8, 0x1a, 0xc7, 0x9b, 0xb8,
+	0x16, 0xbf, 0x39, 0xbf, 0x7a, 0x9f, 0x70, 0x6b, 0x3c, 0xe1, 0xd6, 0xd7, 0x84, 0x5b, 0x6f, 0x53,
+	0x5e, 0x18, 0x4f, 0x79, 0xe1, 0x73, 0xca, 0x0b, 0x0f, 0x22, 0xec, 0xeb, 0x5e, 0xd6, 0x15, 0x4f,
+	0x49, 0xe4, 0x98, 0xc4, 0xd6, 0x40, 0x76, 0x69, 0xfe, 0xe9, 0x8c, 0x96, 0xa7, 0xa2, 0x5f, 0x53,
+	0x24, 0x67, 0xd8, 0xee, 0x96, 0xcc, 0xb9, 0x9c, 0x7e, 0x07, 0x00, 0x00, 0xff, 0xff, 0xee, 0xe4,
+	0xfb, 0x48, 0x4b, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -169,6 +270,8 @@ const _ = grpc.SupportPackageIsVersion4
 type MsgClient interface {
 	// ClaimQuestReward claims a quest reward.
 	ClaimQuestReward(ctx context.Context, in *MsgClaimQuestReward, opts ...grpc.CallOption) (*MsgClaimQuestRewardResponse, error)
+	// UpdateGameState updates the state of the game to the DA layer.
+	UpdateGameState(ctx context.Context, in *MsgUpdateGameState, opts ...grpc.CallOption) (*MsgUpdateGameStateResponse, error)
 }
 
 type msgClient struct {
@@ -188,10 +291,21 @@ func (c *msgClient) ClaimQuestReward(ctx context.Context, in *MsgClaimQuestRewar
 	return out, nil
 }
 
+func (c *msgClient) UpdateGameState(ctx context.Context, in *MsgUpdateGameState, opts ...grpc.CallOption) (*MsgUpdateGameStateResponse, error) {
+	out := new(MsgUpdateGameStateResponse)
+	err := c.cc.Invoke(ctx, "/argus.adapter.v1.Msg/UpdateGameState", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
 	// ClaimQuestReward claims a quest reward.
 	ClaimQuestReward(context.Context, *MsgClaimQuestReward) (*MsgClaimQuestRewardResponse, error)
+	// UpdateGameState updates the state of the game to the DA layer.
+	UpdateGameState(context.Context, *MsgUpdateGameState) (*MsgUpdateGameStateResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
@@ -200,6 +314,9 @@ type UnimplementedMsgServer struct {
 
 func (*UnimplementedMsgServer) ClaimQuestReward(ctx context.Context, req *MsgClaimQuestReward) (*MsgClaimQuestRewardResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ClaimQuestReward not implemented")
+}
+func (*UnimplementedMsgServer) UpdateGameState(ctx context.Context, req *MsgUpdateGameState) (*MsgUpdateGameStateResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateGameState not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
@@ -224,6 +341,24 @@ func _Msg_ClaimQuestReward_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Msg_UpdateGameState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MsgUpdateGameState)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MsgServer).UpdateGameState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/argus.adapter.v1.Msg/UpdateGameState",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).UpdateGameState(ctx, req.(*MsgUpdateGameState))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Msg_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "argus.adapter.v1.Msg",
 	HandlerType: (*MsgServer)(nil),
@@ -231,6 +366,10 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ClaimQuestReward",
 			Handler:    _Msg_ClaimQuestReward_Handler,
+		},
+		{
+			MethodName: "UpdateGameState",
+			Handler:    _Msg_UpdateGameState_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -304,6 +443,64 @@ func (m *MsgClaimQuestRewardResponse) MarshalToSizedBuffer(dAtA []byte) (int, er
 	return len(dAtA) - i, nil
 }
 
+func (m *MsgUpdateGameState) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateGameState) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateGameState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.NumPlanets != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.NumPlanets))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.Sender) > 0 {
+		i -= len(m.Sender)
+		copy(dAtA[i:], m.Sender)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Sender)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *MsgUpdateGameStateResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *MsgUpdateGameStateResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *MsgUpdateGameStateResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	offset -= sovTx(v)
 	base := offset
@@ -342,6 +539,31 @@ func (m *MsgClaimQuestRewardResponse) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
+	return n
+}
+
+func (m *MsgUpdateGameState) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Sender)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.NumPlanets != 0 {
+		n += 1 + sovTx(uint64(m.NumPlanets))
+	}
+	return n
+}
+
+func (m *MsgUpdateGameStateResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
 	return n
 }
 
@@ -526,6 +748,157 @@ func (m *MsgClaimQuestRewardResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.Reward_ID = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateGameState) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateGameState: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateGameState: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Sender", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Sender = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field NumPlanets", wireType)
+			}
+			m.NumPlanets = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.NumPlanets |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *MsgUpdateGameStateResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: MsgUpdateGameStateResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: MsgUpdateGameStateResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])

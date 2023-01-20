@@ -7,6 +7,8 @@ option go_package = "github.com/argus-labs/argus/x/adapter/types/v1";
 service Msg {
   // ClaimQuestReward claims a quest reward.
   rpc ClaimQuestReward(MsgClaimQuestReward) returns (MsgClaimQuestRewardResponse);
+  // UpdateGameState updates the state of the game to the DA layer.
+  rpc UpdateGameState(MsgUpdateGameState) returns (MsgUpdateGameStateResponse);
 }
 
 // MsgClaimQuestReward is the Msg/ClaimQuestReward request type.
@@ -23,3 +25,18 @@ message MsgClaimQuestRewardResponse {
   // reward_ID is the ID of the reward claimed.
   string reward_ID = 1;
 }
+
+
+// MsgUpdateGameState is a collection of state items from the ECS that are required
+// to be stored in DA in order to rebuild the state of the game in the event of a
+// system shutdown.
+message MsgUpdateGameState {
+  // sender is the address of the sender
+  string sender = 1;
+
+  // numPlanets is the number of planets.
+  int64 numPlanets = 2;
+}
+
+// MsgUpdateGameStateResponse is the response type.
+message MsgUpdateGameStateResponse {}

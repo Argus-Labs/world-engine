@@ -223,12 +223,12 @@ func NewArgusApp(
 
 	app.msgPool = pool.NewMsgPool(10)
 
-	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger(), app.msgPool)
+	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger(), app.msgPool, app.AdapterKeeper.ModuleAddr)
 
 	return app
 }
 
-func startSideCarIfFlagSet(msgRouter *baseapp.MsgServiceRouter, grpcRouter *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms sdk.CommitMultiStore, lg log.Logger, sender pool.MsgPoolSender) {
+func startSideCarIfFlagSet(msgRouter *baseapp.MsgServiceRouter, grpcRouter *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms sdk.CommitMultiStore, lg log.Logger, sender pool.MsgPoolSender, adapterModuleAddr string) {
 	sidecarFlag := os.Getenv("USE_SIDECAR")
 	var useSidecar bool
 	var err error
@@ -240,7 +240,7 @@ func startSideCarIfFlagSet(msgRouter *baseapp.MsgServiceRouter, grpcRouter *base
 	}
 
 	if useSidecar {
-		err = sidecar.StartSidecar(msgRouter, grpcRouter, bk, cms, lg, sender)
+		err = sidecar.StartSidecar(msgRouter, grpcRouter, bk, cms, lg, sender, adapterModuleAddr)
 		if err != nil {
 			panic(fmt.Errorf("failed to start sidecar process: %w", err))
 		}

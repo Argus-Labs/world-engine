@@ -9,6 +9,8 @@ import (
 var (
 	_ sdk.Msg            = &MsgClaimQuestReward{}
 	_ legacytx.LegacyMsg = &MsgClaimQuestReward{}
+
+	_ sdk.Msg = &MsgUpdateGameState{}
 )
 
 func (m MsgClaimQuestReward) ValidateBasic() error {
@@ -48,4 +50,17 @@ func NewMsgClaimQuestReward(userID, questID string) MsgClaimQuestReward {
 		User_ID:  userID,
 		Quest_ID: questID,
 	}
+}
+
+func (m *MsgUpdateGameState) ValidateBasic() error {
+	_, err := sdk.AccAddressFromBech32(m.Sender)
+	if err != nil {
+		return sdkerrors.ErrInvalidAddress
+	}
+	return nil
+}
+
+func (m *MsgUpdateGameState) GetSigners() []sdk.AccAddress {
+	addr, _ := sdk.AccAddressFromBech32(m.Sender)
+	return []sdk.AccAddress{addr}
 }

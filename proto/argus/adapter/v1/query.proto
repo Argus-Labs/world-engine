@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package argus.adapter.v1;
+
+option go_package = "github.com/argus-labs/argus/x/adapter/types/v1";
+
+
+service Query {
+  rpc GameState(QueryGameStateRequest) returns (QueryGameStateResponse);
+}
+
+message QueryGameStateRequest {}
+
+message QueryGameStateResponse{
+  int64 numPlanets = 1;
+}
