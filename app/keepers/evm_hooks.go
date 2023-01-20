@@ -15,10 +15,8 @@ import (
 	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
 )
 
-var (
-	// QuestContract is a simple contract that defines the Events (codenamed "Quests") to send to the game server.
-	QuestContract *quest.Quest
-)
+// QuestContract is a simple contract that defines the Events (codenamed "Quests") to send to the game server.
+var QuestContract *quest.Quest
 
 func init() {
 	addr := common.HexToAddress("0x12345")

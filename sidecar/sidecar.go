@@ -42,12 +42,12 @@ func (s Sidecar) UpdateGameState(ctx context.Context, state *v1.MsgUpdateGameSta
 }
 
 func (s Sidecar) EthTx(ctx context.Context, tx *v1.MsgEthTx) (*v1.MsgEthTxResponse, error) {
-	//msg := evmTypes.MsgEthereumTx{
+	// msg := evmTypes.MsgEthereumTx{
 	//	Data:  tx.Data,
 	//	Size_: 0,
 	//	Hash:  "",
 	//	From:  "",
-	//}
+	// }
 	return nil, nil
 }
 

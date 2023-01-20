@@ -11,8 +11,10 @@ import (
 	"github.com/argus-labs/argus/x/adapter/types/v1"
 )
 
-var _ v1.MsgServer = Keeper{}
-var _ v1.QueryServer = Keeper{}
+var (
+	_ v1.MsgServer   = Keeper{}
+	_ v1.QueryServer = Keeper{}
+)
 
 type Keeper struct {
 	cdc        codec.Codec
