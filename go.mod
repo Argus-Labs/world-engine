@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220205637-74c1b18192c5.4
-	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220205637-74c1b18192c5.4
+	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20230119225609-4aaa6e6a53f3.4
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-beta.4
 	github.com/JeremyLoy/config v1.5.0
