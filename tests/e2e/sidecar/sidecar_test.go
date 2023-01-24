@@ -7,6 +7,7 @@ import (
 
 	"buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
 	sidecarv1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
 	"gotest.tools/assert"
 
@@ -45,48 +46,48 @@ type TestingConfig struct {
 }
 
 func (suite *SideCarSuite) TestSideCarE2E() {
-	//ctx := context.Background()
-	//
-	//denom := "TESTCOIN"
-	//amount := int64(10)
-	//_, err := suite.sidecarClient.MintCoins(ctx, &sidecarv1.MsgMintCoins{
-	//	Amount: amount,
-	//	Denom:  denom,
-	//})
-	//assert.NilError(suite.T(), err)
-	//
-	//cosmosQuerier := GetBankClient(suite.T(), suite.cfg.ArgusNodeURL)
-	//
-	//time.Sleep(5 * time.Second) // wait for block inclusion
-	//
-	//qres, err := cosmosQuerier.SupplyOf(ctx, &banktypes.QuerySupplyOfRequest{Denom: denom})
-	//assert.NilError(suite.T(), err)
-	//
-	//assert.Equal(suite.T(), amount, qres.Amount.Amount.Int64())
-	//assert.Equal(suite.T(), denom, qres.Amount.Denom)
+	ctx := context.Background()
+
+	denom := "TESTCOIN"
+	amount := int64(10)
+	_, err := suite.sidecarClient.MintCoins(ctx, &sidecarv1.MsgMintCoins{
+		Amount: amount,
+		Denom:  denom,
+	})
+	assert.NilError(suite.T(), err)
+
+	cosmosQuerier := GetBankClient(suite.T(), suite.cfg.ArgusNodeURL)
+
+	time.Sleep(5 * time.Second) // wait for block inclusion
+
+	qres, err := cosmosQuerier.SupplyOf(ctx, &banktypes.QuerySupplyOfRequest{Denom: denom})
+	assert.NilError(suite.T(), err)
+
+	assert.Equal(suite.T(), amount, qres.Amount.Amount.Int64())
+	assert.Equal(suite.T(), denom, qres.Amount.Denom)
 }
 
 func (suite *SideCarSuite) TestMessagePool() {
-	//ctx := context.Background()
-	//recip := "cosmos15m3xll76c40cavsf4qvdx237f02qpyjp3yyv3s" // random cosmos address for testing purposes
-	//denom := "stake"
-	//amount := int64(5)
-	//_, err := suite.sidecarClient.SendCoins(ctx, &sidecarv1.MsgSendCoins{
-	//	Sender:    suite.addr,
-	//	Recipient: recip,
-	//	Denom:     denom,
-	//	Amount:    uint64(amount),
-	//})
-	//assert.NilError(suite.T(), err)
-	//
-	//time.Sleep(6 * time.Second)
-	//cosmosQuerier := GetBankClient(suite.T(), suite.cfg.ArgusNodeURL)
-	//res, err := cosmosQuerier.Balance(ctx, &banktypes.QueryBalanceRequest{
-	//	Address: recip,
-	//	Denom:   denom,
-	//})
-	//assert.NilError(suite.T(), err)
-	//assert.Equal(suite.T(), res.Balance.Amount.Int64(), amount)
+	ctx := context.Background()
+	recip := "cosmos15m3xll76c40cavsf4qvdx237f02qpyjp3yyv3s" // random cosmos address for testing purposes
+	denom := "stake"
+	amount := int64(5)
+	_, err := suite.sidecarClient.SendCoins(ctx, &sidecarv1.MsgSendCoins{
+		Sender:    suite.addr,
+		Recipient: recip,
+		Denom:     denom,
+		Amount:    uint64(amount),
+	})
+	assert.NilError(suite.T(), err)
+
+	time.Sleep(6 * time.Second)
+	cosmosQuerier := GetBankClient(suite.T(), suite.cfg.ArgusNodeURL)
+	res, err := cosmosQuerier.Balance(ctx, &banktypes.QueryBalanceRequest{
+		Address: recip,
+		Denom:   denom,
+	})
+	assert.NilError(suite.T(), err)
+	assert.Equal(suite.T(), res.Balance.Amount.Int64(), amount)
 }
 
 func (suite *SideCarSuite) TestGameStateStream() {
