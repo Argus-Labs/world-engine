@@ -349,7 +349,9 @@ func NewAppKeeper(
 	appKeepers.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec, appKeepers.GetKey(evmtypes.StoreKey), appKeepers.GetTKey(evmtypes.TransientKey), appKeepers.GetSubspace(evmtypes.ModuleName),
 		appKeepers.AccountKeeper, appKeepers.BankKeeper, appKeepers.StakingKeeper, appKeepers.FeeMarketKeeper,
-		nil, geth.NewEVM, tracer,
+		nil, geth.NewEVM, tracer, func(k *evmkeeper.Keeper) {
+			k.WithContractCreationOption(nil) // TODO(Tyler): implement
+		},
 	)
 	eh := NewQuestHook(os.Getenv("NAKAMA_TARGET"))
 	appKeepers.EvmKeeper.SetHooks(eh)

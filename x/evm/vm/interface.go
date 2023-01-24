@@ -63,4 +63,5 @@ type Constructor func(
 	chainConfig *params.ChainConfig,
 	config vm.Config,
 	customPrecompiles PrecompiledContracts,
+	createContractAllowlist *ContractAllowlistOption,
 ) EVM

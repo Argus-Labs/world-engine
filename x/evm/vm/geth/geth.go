@@ -1,11 +1,13 @@
 package geth
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 
 	evm "github.com/argus-labs/argus/x/evm/vm"
 )
@@ -18,6 +20,7 @@ var (
 // EVM is the wrapper for the go-ethereum EVM.
 type EVM struct {
 	*vm.EVM
+	*evm.ContractAllowlistOption
 }
 
 // NewEVM defines the constructor function for the go-ethereum (geth) EVM. It uses
@@ -30,9 +33,11 @@ func NewEVM(
 	chainConfig *params.ChainConfig,
 	config vm.Config,
 	_ evm.PrecompiledContracts, // unused
+	allowlistOpt *evm.ContractAllowlistOption,
 ) evm.EVM {
 	return &EVM{
-		EVM: vm.NewEVM(blockCtx, txCtx, stateDB, chainConfig, config),
+		EVM:                     vm.NewEVM(blockCtx, txCtx, stateDB, chainConfig, config),
+		ContractAllowlistOption: allowlistOpt,
 	}
 }
 
@@ -76,4 +81,35 @@ func (EVM) RunPrecompiledContract(
 	_ *big.Int, // 	value arg is unused
 ) (ret []byte, remainingGas uint64, err error) {
 	return vm.RunPrecompiledContract(p, input, suppliedGas)
+}
+
+// Create creates a new contract using code as deployment code.
+func (e *EVM) Create(caller vm.ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	if err := e.BeforeCreate(caller.Address().String()); err != nil {
+		return nil, caller.Address(), gas, err
+	}
+	return e.EVM.Create(caller, code, gas, value)
+}
+
+// Create2 creates a new contract using code as deployment code.
+//
+// The different between Create2 with Create is Create2 uses keccak256(0xff ++ msg.sender ++ salt ++ keccak256(init_code))[12:]
+// instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
+func (e *EVM) Create2(caller vm.ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	if err := e.BeforeCreate(caller.Address().String()); err != nil {
+		return nil, caller.Address(), gas, err
+	}
+	return e.EVM.Create2(caller, code, gas, endowment, salt)
+}
+
+// BeforeCreate runs any logic needed before contract creation begins.
+func (e *EVM) BeforeCreate(caller string) error {
+	// first check if the option is enabled
+	if e.ContractAllowlistOption != nil {
+		// check the allowlist contains the caller
+		if !e.CanCreate(caller) {
+			return fmt.Errorf("%s is not allowed to create contracts", caller)
+		}
+	}
+	return nil
 }

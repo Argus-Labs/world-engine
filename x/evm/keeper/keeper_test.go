@@ -3,6 +3,7 @@ package keeper_test
 import (
 	_ "embed"
 	"encoding/json"
+	"fmt"
 	"math"
 	"math/big"
 	"testing"
@@ -34,6 +35,7 @@ import (
 	"github.com/argus-labs/argus/x/evm/statedb"
 	"github.com/argus-labs/argus/x/evm/types"
 	evmtypes "github.com/argus-labs/argus/x/evm/types"
+	"github.com/argus-labs/argus/x/evm/vm"
 	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -296,6 +298,47 @@ func (suite *KeeperTestSuite) DeployQuestContract(t require.TestingT) common.Add
 	require.NoError(t, err)
 	require.Empty(t, rsp.VmError)
 	return crypto.CreateAddress(suite.address, nonce)
+}
+
+func (suite *KeeperTestSuite) TestDeployOption() {
+	t := suite.T()
+
+	// set the option to always reject contract creation
+	opt := vm.NewContractAllowlistOption(func(addr string) bool {
+		return false
+	})
+	suite.app.EvmKeeper.WithContractCreationOption(&opt)
+	ctx := sdk.WrapSDKContext(suite.ctx)
+
+	ctorArgs, err := types.ERC20Contract.ABI.Pack("", suite.address, big.NewInt(1000))
+	require.NoError(t, err)
+
+	data := append(types.ERC20Contract.Bin, ctorArgs...)
+	args, err := json.Marshal(&types.TransactionArgs{
+		From: &suite.address,
+		Data: (*hexutil.Bytes)(&data),
+	})
+	require.NoError(t, err)
+	_, err = suite.queryClient.EstimateGas(ctx, &types.EthCallRequest{
+		Args:            args,
+		GasCap:          uint64(config.DefaultGasCap),
+		ProposerAddress: suite.ctx.BlockHeader().ProposerAddress,
+	})
+	// should fail because we always reject contract creation in the option
+	require.ErrorContains(t, err, fmt.Sprintf("%s is not allowed to create contracts", suite.address.String()))
+
+	// set the option to always accept contract creation
+	opt = vm.NewContractAllowlistOption(func(addr string) bool {
+		return true
+	})
+	suite.app.EvmKeeper.WithContractCreationOption(&opt)
+	_, err = suite.queryClient.EstimateGas(ctx, &types.EthCallRequest{
+		Args:            args,
+		GasCap:          uint64(config.DefaultGasCap),
+		ProposerAddress: suite.ctx.BlockHeader().ProposerAddress,
+	})
+	// should pass because we always accept contract creation in the option
+	require.NoError(t, err)
 }
 
 func (suite *KeeperTestSuite) TestDeployQuest() {

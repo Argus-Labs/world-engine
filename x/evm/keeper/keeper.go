@@ -63,6 +63,8 @@ type Keeper struct {
 
 	// evm constructor function
 	evmConstructor evm.Constructor
+
+	contractCreationAllowlistOption *evm.ContractAllowlistOption
 }
 
 // NewKeeper generates new evm module keeper
@@ -77,6 +79,8 @@ func NewKeeper(
 	customPrecompiles evm.PrecompiledContracts,
 	evmConstructor evm.Constructor,
 	tracer string,
+	opts ...func(k *Keeper),
+// contractCreationOption *evm.ContractAllowlistOption,
 ) *Keeper {
 	// ensure evm module account is set
 	if addr := ak.GetModuleAddress(types.ModuleName); addr == nil {
@@ -89,7 +93,7 @@ func NewKeeper(
 	}
 
 	// NOTE: we pass in the parameter space to the CommitStateDB in order to use custom denominations for the EVM operations
-	return &Keeper{
+	k := &Keeper{
 		cdc:               cdc,
 		paramSpace:        paramSpace,
 		accountKeeper:     ak,
@@ -102,6 +106,14 @@ func NewKeeper(
 		evmConstructor:    evmConstructor,
 		tracer:            tracer,
 	}
+	for _, opt := range opts {
+		opt(k)
+	}
+	return k
+}
+
+func (k *Keeper) WithContractCreationOption(c *evm.ContractAllowlistOption) {
+	k.contractCreationAllowlistOption = c
 }
 
 // Logger returns a module-specific logger.
