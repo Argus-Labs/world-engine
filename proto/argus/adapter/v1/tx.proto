@@ -7,6 +7,9 @@ option go_package = "github.com/argus-labs/argus/x/adapter/types/v1";
 service Msg {
   // ClaimQuestReward claims a quest reward.
   rpc ClaimQuestReward(MsgClaimQuestReward) returns (MsgClaimQuestRewardResponse);
+
+  // AllowContractCreation adds an address to the contract creator allow list.
+  rpc AllowContractCreation(MsgAllowContractCreation) returns (MsgAllowContractCreationResponse);
 }
 
 // MsgClaimQuestReward is the Msg/ClaimQuestReward request type.
@@ -23,3 +26,14 @@ message MsgClaimQuestRewardResponse {
   // reward_ID is the ID of the reward claimed.
   string reward_ID = 1;
 }
+
+// MsgAllowContractCreation is the Msg/AllowContractCreation request type.
+message MsgAllowContractCreation {
+  // sender is the sender address, normally the adapter module address.
+  string sender = 1;
+  // addr is the address to add to the allow list.
+  string addr = 2;
+}
+
+// MsgAllowContractCreationResponse is the Msg/AllowContractCreation response type.
+message MsgAllowContractCreationResponse {}

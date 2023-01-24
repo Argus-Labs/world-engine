@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package argus.adapter.v1;
+
+option go_package = "github.com/argus-labs/argus/x/adapter/types/v1";
+
+// Query defines the gRPC querier service.
+service Query {
+  rpc AllowedContractCreator(QueryAllowedContractCreator) returns (QueryAllowedContractCreatorResponse);
+}
+
+message QueryAllowedContractCreator {
+  string addr = 1;
+}
+
+message QueryAllowedContractCreatorResponse {
+  bool allowed = 1;
+}
