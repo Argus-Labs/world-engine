@@ -302,6 +302,14 @@ func (app *ArgusApp) LoadHeight(height int64) error {
 	return app.LoadVersion(height)
 }
 
+func (app *ArgusApp) ModuleAccountAddr(moduleName string) (string, error) {
+	if _, ok := maccPerms[moduleName]; !ok {
+		return "", fmt.Errorf("%s does not have a module address", moduleName)
+	}
+	addr := authtypes.NewModuleAddress(moduleName).String()
+	return addr, nil
+}
+
 // ModuleAccountAddrs returns all the app's module account addresses.
 func (app *ArgusApp) ModuleAccountAddrs() map[string]bool {
 	modAccAddrs := make(map[string]bool)

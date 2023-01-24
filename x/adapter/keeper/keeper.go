@@ -6,6 +6,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	"github.com/argus-labs/argus/x/adapter/types/v1"
 )
@@ -19,14 +20,16 @@ type Keeper struct {
 	cdc codec.Codec
 
 	storeKey storetypes.StoreKey
+
+	moduleAddr string
 }
 
 var (
 	AllowContractCreationPrefix = []byte{0x1}
 )
 
-func NewKeeper(cdc codec.Codec, sk storetypes.StoreKey) Keeper {
-	return Keeper{cdc, sk}
+func NewKeeper(cdc codec.Codec, sk storetypes.StoreKey, moduleAddr string) Keeper {
+	return Keeper{cdc, sk, moduleAddr}
 }
 
 // TX SERVICE
@@ -38,6 +41,9 @@ func (k Keeper) ClaimQuestReward(ctx context.Context, msg *v1.MsgClaimQuestRewar
 }
 
 func (k Keeper) AllowContractCreation(ctx context.Context, msg *v1.MsgAllowContractCreation) (*v1.MsgAllowContractCreationResponse, error) {
+	if msg.Sender != k.moduleAddr {
+		return nil, sdkerrors.ErrUnauthorized
+	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	store := sdkCtx.KVStore(k.storeKey)
 	key := k.makeContractCreatorStoreKey(msg.Addr)
@@ -54,6 +60,8 @@ func (k Keeper) AllowedContractCreator(ctx context.Context, query *v1.QueryAllow
 	v := store.Get(key)
 	return &v1.QueryAllowedContractCreatorResponse{Allowed: v != nil}, nil
 }
+
+// UTILITIES
 
 func (k Keeper) makeContractCreatorStoreKey(addr string) []byte {
 	return append(AllowContractCreationPrefix, []byte(addr)...)

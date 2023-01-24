@@ -338,7 +338,7 @@ func NewAppKeeper(
 		appKeepers.SlashingKeeper,
 	)
 
-	appKeepers.AdapterKeeper = adapterkeeper.NewKeeper(appCodec, appKeepers.GetKey(adapter.StoreKey))
+	appKeepers.AdapterKeeper = adapterkeeper.NewKeeper(appCodec, appKeepers.GetKey(adapter.StoreKey), authtypes.NewModuleAddress(adapter.Name).String())
 	appKeepers.AdapterModule = adapter.NewAppModule(appCodec, appKeepers.AdapterKeeper)
 
 	appKeepers.FeeMarketKeeper = feemarketkeeper.NewKeeper(

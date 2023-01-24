@@ -26,6 +26,7 @@ import (
 	"github.com/tendermint/tendermint/version"
 
 	app "github.com/argus-labs/argus/app"
+	adaptertypes "github.com/argus-labs/argus/x/adapter"
 	v1 "github.com/argus-labs/argus/x/adapter/types/v1"
 	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
 )
@@ -45,6 +46,8 @@ type KeeperTestSuite struct {
 
 	appCodec codec.Codec
 	signer   keyring.Signer
+
+	adapterModuleAddr string
 }
 
 func TestKeeperTestSuite(t *testing.T) {
@@ -52,10 +55,10 @@ func TestKeeperTestSuite(t *testing.T) {
 	suite.Run(t, s)
 }
 
-func (suite *KeeperTestSuite) TestThing() {
+func (suite *KeeperTestSuite) TestContractAllowlist() {
 	addr := sdk.AccAddress(suite.address.Bytes())
 	msg := v1.MsgAllowContractCreation{
-		Sender: addr.String(),
+		Sender: suite.adapterModuleAddr,
 		Addr:   addr.String(),
 	}
 	_, err := suite.app.AdapterKeeper.AllowContractCreation(suite.ctx, &msg)
@@ -69,7 +72,7 @@ func (suite *KeeperTestSuite) TestThing() {
 	require.NoError(suite.T(), err)
 	addr3 := sdk.AccAddress(priv.PubKey().Address().Bytes())
 	_, err = suite.app.AdapterKeeper.AllowContractCreation(suite.ctx, &v1.MsgAllowContractCreation{
-		Sender: addr2.String(),
+		Sender: suite.adapterModuleAddr,
 		Addr:   addr2.String(),
 	})
 
@@ -169,4 +172,7 @@ func (suite *KeeperTestSuite) SetupApp(checkTx bool) {
 	suite.clientCtx = client.Context{}.WithTxConfig(encodingConfig.TxConfig)
 	suite.ethSigner = ethtypes.LatestSignerForChainID(suite.app.EvmKeeper.ChainID())
 	suite.appCodec = encodingConfig.Codec
+	addr, err := suite.app.ModuleAccountAddr(adaptertypes.Name)
+	require.NoError(suite.T(), err)
+	suite.adapterModuleAddr = addr
 }
