@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
@@ -21,12 +22,14 @@ var (
 type EVM struct {
 	*vm.EVM
 	*evm.ContractAllowlistOption
+	sdkCtx sdk.Context
 }
 
 // NewEVM defines the constructor function for the go-ethereum (geth) EVM. It uses
 // the default precompiled contracts and the EVM concrete implementation from
 // geth.
 func NewEVM(
+	sdkCtx sdk.Context,
 	blockCtx vm.BlockContext,
 	txCtx vm.TxContext,
 	stateDB vm.StateDB,
@@ -38,6 +41,7 @@ func NewEVM(
 	return &EVM{
 		EVM:                     vm.NewEVM(blockCtx, txCtx, stateDB, chainConfig, config),
 		ContractAllowlistOption: allowlistOpt,
+		sdkCtx:                  sdkCtx,
 	}
 }
 
@@ -86,7 +90,7 @@ func (EVM) RunPrecompiledContract(
 // Create creates a new contract using code as deployment code.
 func (e *EVM) Create(caller vm.ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	if err := e.BeforeCreate(caller.Address().String()); err != nil {
-		return nil, caller.Address(), gas, err
+		return nil, common.Address{}, gas, err
 	}
 	return e.EVM.Create(caller, code, gas, value)
 }
@@ -97,7 +101,7 @@ func (e *EVM) Create(caller vm.ContractRef, code []byte, gas uint64, value *big.
 // instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
 func (e *EVM) Create2(caller vm.ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	if err := e.BeforeCreate(caller.Address().String()); err != nil {
-		return nil, caller.Address(), gas, err
+		return nil, common.Address{}, gas, err
 	}
 	return e.EVM.Create2(caller, code, gas, endowment, salt)
 }
@@ -107,7 +111,7 @@ func (e *EVM) BeforeCreate(caller string) error {
 	// first check if the option is enabled
 	if e.ContractAllowlistOption != nil {
 		// check the allowlist contains the caller
-		if !e.CanCreate(caller) {
+		if !e.CanCreate(e.sdkCtx, caller) {
 			return fmt.Errorf("%s is not allowed to create contracts", caller)
 		}
 	}

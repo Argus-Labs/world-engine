@@ -3,6 +3,7 @@ package vm
 import (
 	"math/big"
 
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/params"
@@ -57,6 +58,7 @@ type EVM interface {
 // Constructor defines the function used to instantiate the EVM on
 // each state transition.
 type Constructor func(
+	sdkCtx sdk.Context,
 	blockCtx vm.BlockContext,
 	txCtx vm.TxContext,
 	stateDB vm.StateDB,

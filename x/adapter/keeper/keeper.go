@@ -49,14 +49,17 @@ func (k Keeper) AllowContractCreation(ctx context.Context, msg *v1.MsgAllowContr
 	return &v1.MsgAllowContractCreationResponse{}, nil
 }
 
+func (k Keeper) CheckAddr(sdkCtx sdk.Context, addr string) bool {
+	store := sdkCtx.KVStore(k.storeKey)
+	key := k.makeContractCreatorStoreKey(addr)
+	v := store.Get(key)
+	return v != nil
+}
+
 // QUERY SERVICE
 
 func (k Keeper) AllowedContractCreator(ctx context.Context, query *v1.QueryAllowedContractCreator) (*v1.QueryAllowedContractCreatorResponse, error) {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	store := sdkCtx.KVStore(k.storeKey)
-	key := k.makeContractCreatorStoreKey(query.Addr)
-	v := store.Get(key)
-	return &v1.QueryAllowedContractCreatorResponse{Allowed: v != nil}, nil
+	return &v1.QueryAllowedContractCreatorResponse{Allowed: k.CheckAddr(sdk.UnwrapSDKContext(ctx), query.Addr)}, nil
 }
 
 // UTILITIES

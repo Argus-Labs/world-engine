@@ -1,6 +1,9 @@
 package keepers
 
 import (
+	"os"
+	"strconv"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -61,6 +64,7 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 
 	evmtypes "github.com/argus-labs/argus/x/evm/types"
+	"github.com/argus-labs/argus/x/evm/vm"
 	feemarketkeeper "github.com/argus-labs/argus/x/feemarket/keeper"
 	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
 
@@ -343,12 +347,24 @@ func NewAppKeeper(
 		appCodec, appKeepers.GetSubspace(feemarkettypes.ModuleName), appKeepers.GetKey(feemarkettypes.StoreKey), appKeepers.GetTKey(feemarkettypes.TransientKey),
 	)
 
+	enableFlag := os.Getenv("contract_allowlist")
+	allowlistEnabled, err := strconv.ParseBool(enableFlag)
+	if err != nil {
+		panic(err)
+	}
+	var evmOpt *vm.ContractAllowlistOption
+	if allowlistEnabled {
+		opt := vm.NewContractAllowlistOption(appKeepers.AdapterKeeper.CheckAddr)
+		evmOpt = &opt
+	} else {
+		evmOpt = nil
+	}
 	tracer := cast.ToString(appOpts.Get(flags.EVMTracer))
 	appKeepers.EvmKeeper = evmkeeper.NewKeeper(
 		appCodec, appKeepers.GetKey(evmtypes.StoreKey), appKeepers.GetTKey(evmtypes.TransientKey), appKeepers.GetSubspace(evmtypes.ModuleName),
 		appKeepers.AccountKeeper, appKeepers.BankKeeper, appKeepers.StakingKeeper, appKeepers.FeeMarketKeeper,
 		nil, geth.NewEVM, tracer, func(k *evmkeeper.Keeper) {
-			k.WithContractCreationOption(nil) // TODO(Tyler): implement
+			k.WithContractCreationOption(evmOpt)
 		},
 	)
 
