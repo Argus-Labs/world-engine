@@ -40,6 +40,7 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	argusappparams "github.com/argus-labs/argus/app/simparams"
+	adaptertypes "github.com/argus-labs/argus/x/adapter"
 
 	"github.com/argus-labs/argus/ante"
 	"github.com/argus-labs/argus/app/keepers"
@@ -240,7 +241,7 @@ func startSideCarIfFlagSet(msgRouter *baseapp.MsgServiceRouter, grpcRouter *base
 	}
 
 	if useSidecar {
-		err = sidecar.StartSidecar(msgRouter, grpcRouter, bk, cms, lg, sender)
+		err = sidecar.StartSidecar(msgRouter, grpcRouter, bk, cms, lg, sender, authtypes.NewModuleAddress(adaptertypes.Name).String())
 		if err != nil {
 			panic(fmt.Errorf("failed to start sidecar process: %w", err))
 		}

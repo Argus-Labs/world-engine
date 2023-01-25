@@ -18,6 +18,7 @@ import (
 	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
 
 	"github.com/argus-labs/argus/pool"
+	v12 "github.com/argus-labs/argus/x/adapter/types/v1"
 )
 
 const (
@@ -25,12 +26,21 @@ const (
 )
 
 type Sidecar struct {
-	rtr    *baseapp.MsgServiceRouter
-	qry    *baseapp.GRPCQueryRouter
-	pool   pool.MsgPoolSender
-	cms    types.CommitMultiStore
-	bk     bankkeeper.Keeper
-	logger log.Logger
+	rtr               *baseapp.MsgServiceRouter
+	qry               *baseapp.GRPCQueryRouter
+	pool              pool.MsgPoolSender
+	cms               types.CommitMultiStore
+	bk                bankkeeper.Keeper
+	logger            log.Logger
+	adapterModuleAddr string
+}
+
+func (s Sidecar) AllowContractCreator(ctx context.Context, msg *v1.MsgAllowContractCreator) (*v1.MsgAllowContractCreatorResponse, error) {
+	s.pool.Send(&v12.MsgAllowContractCreation{
+		Sender: s.adapterModuleAddr,
+		Addr:   msg.Creator,
+	})
+	return &v1.MsgAllowContractCreatorResponse{}, nil
 }
 
 func (s Sidecar) EthTx(ctx context.Context, tx *v1.MsgEthTx) (*v1.MsgEthTxResponse, error) {
@@ -44,8 +54,8 @@ func (s Sidecar) EthTx(ctx context.Context, tx *v1.MsgEthTx) (*v1.MsgEthTxRespon
 }
 
 // StartSidecar opens the gRPC server.
-func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms types.CommitMultiStore, logger log.Logger, pool pool.MsgPoolSender) error {
-	sc := Sidecar{rtr: rtr, qry: qry, bk: bk, cms: cms, logger: logger, pool: pool}
+func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms types.CommitMultiStore, logger log.Logger, pool pool.MsgPoolSender, adapterModuleAddr string) error {
+	sc := Sidecar{rtr: rtr, qry: qry, bk: bk, cms: cms, logger: logger, pool: pool, adapterModuleAddr: adapterModuleAddr}
 	port := 5050
 	lis, err := net.Listen("tcp", fmt.Sprintf("node:%d", port))
 	if err != nil {
