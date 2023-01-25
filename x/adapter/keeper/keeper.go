@@ -24,9 +24,7 @@ type Keeper struct {
 	moduleAddr string
 }
 
-var (
-	AllowContractCreationPrefix = []byte{0x1}
-)
+var AllowContractCreationPrefix = []byte{0x1}
 
 func NewKeeper(cdc codec.Codec, sk storetypes.StoreKey, moduleAddr string) Keeper {
 	return Keeper{cdc, sk, moduleAddr}

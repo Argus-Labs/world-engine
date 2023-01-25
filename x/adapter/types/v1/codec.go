@@ -12,7 +12,6 @@ var ModuleCdc = codec.NewProtoCodec(cdctypes.NewInterfaceRegistry())
 func RegisterCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(MsgClaimQuestReward{}, "adapter/MsgClaimQuestReward", nil)
 	cdc.RegisterConcrete(MsgAllowContractCreation{}, "adapter/MsgAllowContractCreation", nil)
-
 }
 
 func RegisterInterfaces(registry cdctypes.InterfaceRegistry) {

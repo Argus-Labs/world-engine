@@ -14,7 +14,7 @@ type sidecarPrecompile struct {
 }
 
 func (s sidecarPrecompile) RequiredGas(input []byte) uint64 {
-	//TODO(Tyler): decide values? should be a param?
+	// TODO(Tyler): decide values? should be a param?
 	return 3000
 }
 

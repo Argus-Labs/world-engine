@@ -44,12 +44,6 @@ func (s Sidecar) AllowContractCreator(ctx context.Context, msg *v1.MsgAllowContr
 }
 
 func (s Sidecar) EthTx(ctx context.Context, tx *v1.MsgEthTx) (*v1.MsgEthTxResponse, error) {
-	//msg := types3.MsgEthereumTx{
-	//	Data:  tx.Data,
-	//	Size_: 0,
-	//	Hash:  "",
-	//	From:  "",
-	//}
 	return nil, nil
 }
 

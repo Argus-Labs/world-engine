@@ -80,7 +80,6 @@ func NewKeeper(
 	evmConstructor evm.Constructor,
 	tracer string,
 	opts ...func(k *Keeper),
-// contractCreationOption *evm.ContractAllowlistOption,
 ) *Keeper {
 	// ensure evm module account is set
 	if addr := ak.GetModuleAddress(types.ModuleName); addr == nil {
