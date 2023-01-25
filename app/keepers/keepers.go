@@ -1,8 +1,6 @@
 package keepers
 
 import (
-	"os"
-
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -353,8 +351,6 @@ func NewAppKeeper(
 			k.WithContractCreationOption(nil) // TODO(Tyler): implement
 		},
 	)
-	eh := NewQuestHook(os.Getenv("NAKAMA_TARGET"))
-	appKeepers.EvmKeeper.SetHooks(eh)
 
 	return appKeepers
 }
