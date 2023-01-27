@@ -2,8 +2,9 @@
 4d63.com/gochecknoglobals v0.1.0/go.mod h1:wfdC5ZjKSPr7CybKEcgJhUOgeAQW1+7WcyK8OvUilfo=
 buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220205637-74c1b18192c5.4 h1:zDxL2R60v+5EG39q3qEMj/HVc1V+q+NcLG/gZHd0sGY=
 buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220205637-74c1b18192c5.4/go.mod h1:RaVK+/4U11jpoKNAUAFYnohThQ6hAkZWpjIzLhqW0PA=
-buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220205637-74c1b18192c5.4 h1:h2rzWe86SF5B0rzQIswg+gcDUBP+Xl6ACL2lgYKnuas=
 buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220205637-74c1b18192c5.4/go.mod h1:xOaTLy2mgY5vFDZbUeHwoP3sHwm9TGfhPBsn8hoLLHE=
+buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20230124213702-1ecc2b9707dd.4 h1:aBiziy3WM8ec7M/8nsZI1hiMUvCn1Due5uetQVWmFOU=
+buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20230124213702-1ecc2b9707dd.4/go.mod h1:xOaTLy2mgY5vFDZbUeHwoP3sHwm9TGfhPBsn8hoLLHE=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.38.0/go.mod h1:990N+gfupTy94rShfmMCWGDn0LpTmnzTp2qbd1dvSRU=
@@ -1182,8 +1183,8 @@ github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969 h1:Oo2KZNP70K
 github.com/status-im/keycard-go v0.0.0-20200402102358-957c09536969/go.mod h1:RZLeN1LMWmRsyYjvAu+I6Dm9QmlDaIIt+Y+4Kd7Tp+Q=
 github.com/stbenjam/no-sprintf-host-port v0.1.1 h1:tYugd/yrm1O0dV+ThCbaKZh195Dfm07ysF0U6JQXczc=
 github.com/stbenjam/no-sprintf-host-port v0.1.1/go.mod h1:TLhvtIvONRzdmkFiio4O8LHsN9N74I+PhRquPsxpL0I=
-github.com/strangelove-ventures/packet-forward-middleware/v5 v5.0.0 h1:LF8ax0dsXABmG5QCE5OkA35dVFbJHuFf5NPxCHtyOUU=
-github.com/strangelove-ventures/packet-forward-middleware/v5 v5.0.0/go.mod h1:c0vbnItjuz9FBxlRI24oqtEoWXoNhKAY16IUgxTwhSY=
+github.com/strangelove-ventures/packet-forward-middleware/v5 v5.1.0 h1:aPKcArtkQ9EXDh3wTg2ktmJnW/egtn9sFYaIisggB9M=
+github.com/strangelove-ventures/packet-forward-middleware/v5 v5.1.0/go.mod h1:c0vbnItjuz9FBxlRI24oqtEoWXoNhKAY16IUgxTwhSY=
 github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/handy v0.0.0-20190108123426-d5acb3125c2a/go.mod h1:qNTQ5P5JnDBl6z3cMAg/SywNDC5ABu5ApDIw6lUbRmI=
