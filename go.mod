@@ -27,12 +27,12 @@ require (
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.1
-	github.com/strangelove-ventures/packet-forward-middleware/v5 v5.0.0
+	github.com/strangelove-ventures/packet-forward-middleware/v5 v5.1.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tendermint/tendermint v0.34.23
 	github.com/tendermint/tm-db v0.6.7
 	google.golang.org/genproto v0.0.0-20221207170731-23e4bf6bdc37
-	google.golang.org/grpc v1.51.0
+	google.golang.org/grpc v1.52.3
 	gotest.tools v2.2.0+incompatible
 )
 
