@@ -3,8 +3,8 @@ module github.com/argus-labs/argus
 go 1.18
 
 require (
-	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220205637-74c1b18192c5.4
-	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220205637-74c1b18192c5.4
+	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20230124213702-1ecc2b9707dd.4
+	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20230124213702-1ecc2b9707dd.4
 	cosmossdk.io/errors v1.0.0-beta.7
 	cosmossdk.io/math v1.0.0-beta.4
 	github.com/JeremyLoy/config v1.5.0
@@ -27,7 +27,7 @@ require (
 	github.com/rakyll/statik v0.1.7
 	github.com/spf13/cast v1.5.0
 	github.com/spf13/cobra v1.6.1
-	github.com/strangelove-ventures/packet-forward-middleware/v5 v5.0.0
+	github.com/strangelove-ventures/packet-forward-middleware/v5 v5.1.0
 	github.com/stretchr/testify v1.8.1
 	github.com/tendermint/tendermint v0.34.23
 	github.com/tendermint/tm-db v0.6.7
