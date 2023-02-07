@@ -66,29 +66,6 @@ func (suite *SideCarSuite) TestSideCarE2E() {
 	assert.Equal(suite.T(), denom, qres.Amount.Denom)
 }
 
-func (suite *SideCarSuite) TestMessagePool() {
-	ctx := context.Background()
-	recip := "cosmos15m3xll76c40cavsf4qvdx237f02qpyjp3yyv3s" // random cosmos address for testing purposes
-	denom := "stake"
-	amount := int64(5)
-	_, err := suite.sidecarClient.SendCoins(ctx, &sidecarv1.MsgSendCoins{
-		Sender:    suite.addr,
-		Recipient: recip,
-		Denom:     denom,
-		Amount:    uint64(amount),
-	})
-	assert.NilError(suite.T(), err)
-
-	time.Sleep(6 * time.Second)
-	cosmosQuerier := GetBankClient(suite.T(), suite.cfg.ArgusNodeURL)
-	res, err := cosmosQuerier.Balance(ctx, &banktypes.QueryBalanceRequest{
-		Address: recip,
-		Denom:   denom,
-	})
-	assert.NilError(suite.T(), err)
-	assert.Equal(suite.T(), res.Balance.Amount.Int64(), amount)
-}
-
 func TestRunSuite(t *testing.T) {
 	suite.Run(t, new(SideCarSuite))
 }

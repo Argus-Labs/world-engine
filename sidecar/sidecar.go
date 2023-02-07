@@ -8,7 +8,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
-	types2 "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	"google.golang.org/grpc"
@@ -31,16 +30,6 @@ type Sidecar struct {
 	cms    types.CacheMultiStore
 	bk     bankkeeper.Keeper
 	logger log.Logger
-}
-
-func (s Sidecar) EthTx(ctx context.Context, tx *v1.MsgEthTx) (*v1.MsgEthTxResponse, error) {
-	//msg := types3.MsgEthereumTx{
-	//	Data:  tx.Data,
-	//	Size_: 0,
-	//	Hash:  "",
-	//	From:  "",
-	//}
-	return nil, nil
 }
 
 // StartSidecar opens the gRPC server.
@@ -68,10 +57,6 @@ func (s Sidecar) getSDKCtx() types.Context {
 
 var _ g1.SidecarServer = Sidecar{}
 
-func (s Sidecar) Ping(ctx context.Context, ping *v1.MsgPing) (*v1.MsgPingResponse, error) {
-	return &v1.MsgPingResponse{Id: "pong!"}, nil
-}
-
 func (s Sidecar) MintCoins(ctx context.Context, msg *v1.MsgMintCoins) (*v1.MsgMintCoinsResponse, error) {
 	sdkCtx := s.getSDKCtx().WithContext(ctx)
 	err := s.bk.MintCoins(sdkCtx, ModuleName, types.Coins{types.NewInt64Coin(msg.Denom, msg.Amount)})
@@ -83,11 +68,20 @@ func (s Sidecar) MintCoins(ctx context.Context, msg *v1.MsgMintCoins) (*v1.MsgMi
 }
 
 func (s Sidecar) SendCoins(ctx context.Context, msg *v1.MsgSendCoins) (*v1.MsgSendCoinsResponse, error) {
-	msgSend := types2.MsgSend{
-		FromAddress: msg.Sender,
-		ToAddress:   msg.Recipient,
-		Amount:      types.Coins{types.NewInt64Coin(msg.Denom, int64(msg.Amount))},
+	coins := types.Coins{types.NewInt64Coin(msg.Denom, int64(msg.Amount))}
+	sender, err := types.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		return nil, err
 	}
-	s.pool.Send(&msgSend)
+	recip, err := types.AccAddressFromBech32(msg.Recipient)
+	if err != nil {
+		return nil, err
+	}
+	sdkCtx := s.getSDKCtx().WithContext(ctx)
+	err = s.bk.SendCoins(sdkCtx, sender, recip, coins)
+	if err != nil {
+		return nil, err
+	}
+	s.cms.Write()
 	return &v1.MsgSendCoinsResponse{}, nil
 }
