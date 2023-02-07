@@ -223,12 +223,12 @@ func NewArgusApp(
 
 	app.msgPool = pool.NewMsgPool(10)
 
-	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore(), app.Logger(), app.msgPool)
+	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore().CacheMultiStore(), app.Logger(), app.msgPool)
 
 	return app
 }
 
-func startSideCarIfFlagSet(msgRouter *baseapp.MsgServiceRouter, grpcRouter *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms sdk.CommitMultiStore, lg log.Logger, sender pool.MsgPoolSender) {
+func startSideCarIfFlagSet(msgRouter *baseapp.MsgServiceRouter, grpcRouter *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms sdk.CacheMultiStore, lg log.Logger, sender pool.MsgPoolSender) {
 	sidecarFlag := os.Getenv("USE_SIDECAR")
 	var useSidecar bool
 	var err error

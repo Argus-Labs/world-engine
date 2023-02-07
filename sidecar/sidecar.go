@@ -28,7 +28,7 @@ type Sidecar struct {
 	rtr    *baseapp.MsgServiceRouter
 	qry    *baseapp.GRPCQueryRouter
 	pool   pool.MsgPoolSender
-	cms    types.CommitMultiStore
+	cms    types.CacheMultiStore
 	bk     bankkeeper.Keeper
 	logger log.Logger
 }
@@ -44,7 +44,7 @@ func (s Sidecar) EthTx(ctx context.Context, tx *v1.MsgEthTx) (*v1.MsgEthTxRespon
 }
 
 // StartSidecar opens the gRPC server.
-func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms types.CommitMultiStore, logger log.Logger, pool pool.MsgPoolSender) error {
+func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms types.CacheMultiStore, logger log.Logger, pool pool.MsgPoolSender) error {
 	sc := Sidecar{rtr: rtr, qry: qry, bk: bk, cms: cms, logger: logger, pool: pool}
 	port := 5050
 	lis, err := net.Listen("tcp", fmt.Sprintf("node:%d", port))
@@ -78,6 +78,7 @@ func (s Sidecar) MintCoins(ctx context.Context, msg *v1.MsgMintCoins) (*v1.MsgMi
 	if err != nil {
 		return nil, err
 	}
+	s.cms.Write()
 	return &v1.MsgMintCoinsResponse{}, nil
 }
 
