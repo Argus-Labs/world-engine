@@ -309,6 +309,7 @@ proto-swagger-gen:
 
 start-services:
 	@echo "Starting services"
+	$(shell ./nakama/setup.sh)
 	@docker-compose down -v --remove-orphans
 	@docker-compose build
 	@docker-compose up --abort-on-container-exit --exit-code-from postgres nakama node
