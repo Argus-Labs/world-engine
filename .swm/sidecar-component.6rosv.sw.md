@@ -9,6 +9,8 @@ app_version: 1.1.5
 
 This doc gives a high level overview of the Sidecar Component. It is located under `📄 sidecar`.
 
+<br/>
+
 ## How Sidecar Works
 
 Sidecar is a separate go routine that gets spun up from the cosmos application in `📄 app/app.go`.
@@ -33,8 +35,6 @@ At its core, Sidecar is a gRPC service that handles requests from the Argus ECS 
 > To get a quick overview of what Sidecar can do, take a look at the protobuf definitions in `📄 sidecarproto/v1/sidecar.proto`
 > 
 > The implementations for the protobuf service can be found in `📄 sidecar/sidecar.go`.
-
-<br/>
 
 Sidecar can execute and route both queries and transactions. It does so with the `GRPCQueryRouter`<swm-token data-swm-token=":app/app.go:226:12:12:`	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore().CacheMultiStore(), app.Logger(), app.msgPool)`"/>, and `MsgServiceRouter`<swm-token data-swm-token=":app/app.go:226:5:5:`	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore().CacheMultiStore(), app.Logger(), app.msgPool)`"/>. In order to utilize these routers, the message must be constructed in the Sidecar gRPC server implementation. The handler for the message can be obtained by calling `Handler(msg)` on the router. This returns the function associated with the message. Once the function is called, you MUST call `Write` on the cache multi store. For example:
 
@@ -90,11 +90,11 @@ Sidecar interface guard against the gRPC server interface.
 
 The error message will give you the function you need to implement. Copy and paste the function and implement the desired behavior.
 
-<br/>
-
 ## Testing Sidecar
 
 End-to-end tests for Sidecar can be found in `📄 tests/e2e/sidecar`. This test suite spins up an in memory blockchain node to run transactions and queries against. You can directly call the Sidecar client functions and then check if the desired behavior was applied by querying the node.
+
+<br/>
 
 <br/>
 
