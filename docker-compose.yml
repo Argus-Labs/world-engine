@@ -74,6 +74,8 @@ services:
       - "26657:26657"
     networks:
       - default
+    depends_on:
+      - celestia
 
   tester:
     container_name: tester_container
@@ -90,6 +92,19 @@ services:
     depends_on:
       - node
     restart: on-failure
+
+  celestia:
+    container_name: celestia_container
+    build:
+      context: celestia-client
+      dockerfile: celestia.Dockerfile
+    networks:
+      - default
+    restart: on-failure
+    ports:
+      - "26657"
+      - "26659"
+      - "9090"
 
 volumes:
   data:
