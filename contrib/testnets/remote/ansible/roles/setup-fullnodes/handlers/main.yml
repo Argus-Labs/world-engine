@@ -1,4 +1,0 @@
----
-
-- name: reload systemd
-  systemd: name=argusd enabled=yes daemon_reload=yes

@@ -10,7 +10,7 @@ require (
 	github.com/JeremyLoy/config v1.5.0
 	github.com/armon/go-metrics v0.4.1
 	github.com/cosmos/cosmos-proto v1.0.0-beta.1
-	github.com/cosmos/cosmos-sdk v0.46.6
+	github.com/cosmos/cosmos-sdk v0.46.7
 	github.com/cosmos/ibc-go/v5 v5.1.0
 	github.com/ethereum/go-ethereum v1.10.26
 	github.com/evmos/ethermint v0.0.0-00010101000000-000000000000
@@ -401,12 +401,9 @@ require (
 )
 
 replace (
+	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.7-rollkit-v0.6.0-no-fraud-proofs
 	github.com/evmos/ethermint => github.com/evmos/ethermint v0.20.0-rc4
-	// github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk-rollmint v0.46.3-rollmint-v0.4.0
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+	github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d
 	github.com/zondax/hid => github.com/zondax/hid v0.9.0
 )
-
-replace github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.7-rollkit-v0.6.0-no-fraud-proofs
-
-replace github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d

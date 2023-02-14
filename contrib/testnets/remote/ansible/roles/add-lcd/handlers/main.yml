@@ -1,7 +1,0 @@
----
-
-- name: systemctl
-  systemd: name=arguscli enabled=yes daemon_reload=yes
-
-- name: restart arguscli
-  service: name=arguscli state=restarted

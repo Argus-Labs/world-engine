@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package argus.adapter.v1;
+
+option go_package = "github.com/argus-labs/argus/x/adapter/types/v1";
+
+service Msg {
+  // ClaimQuestReward claims a quest reward.
+  rpc ClaimQuestReward(MsgClaimQuestReward) returns (MsgClaimQuestRewardResponse);
+}
+
+// MsgClaimQuestReward is the Msg/ClaimQuestReward request type.
+message MsgClaimQuestReward {
+  // user_ID is the game client user_ID.
+  string user_ID = 1;
+
+  // quest_ID is the ID of the quest that was completed.
+  string quest_ID = 2;
+}
+
+// MsgClaimQuestRewardResponse is the Msg/ClaimQuestReward response type.
+message MsgClaimQuestRewardResponse {
+  // reward_ID is the ID of the reward claimed.
+  string reward_ID = 1;
+}
