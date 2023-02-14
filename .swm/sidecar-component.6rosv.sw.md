@@ -1,15 +1,13 @@
 ---
 id: 6rosv
 title: Sidecar Component
-file_version: 1.1.1
-app_version: 1.1.5
+file_version: 1.1.2
+app_version: 1.2.2
 ---
 
 ## Introduction
 
 This doc gives a high level overview of the Sidecar Component. It is located under `📄 sidecar`.
-
-<br/>
 
 ## How Sidecar Works
 
@@ -32,7 +30,7 @@ At its core, Sidecar is a gRPC service that handles requests from the Argus ECS 
 
 > Tip:
 > 
-> To get a quick overview of what Sidecar can do, take a look at the protobuf definitions in `📄 sidecarproto/v1/sidecar.proto`
+> To get a quick overview of what Sidecar can do, take a look at the protobuf definitions in `📄 proto/sidecar/v1/sidecar.proto`
 > 
 > The implementations for the protobuf service can be found in `📄 sidecar/sidecar.go`.
 
@@ -65,11 +63,11 @@ Calling s.cms.Write() before ending the function ensures all state transitions a
 
 #### Adding a new RPC Endpoint
 
-If you need to add new functionality to Sidecar, start by updating the proto file in `📄 sidecarproto/v1/sidecar.proto`. You will need to write a new RPC endpoint and both a new message request type and message return type. NOTE: is it a protobuf best practice to define unique request and return types and to avoid reusing types across different RPC endpoints.
+If you need to add new functionality to Sidecar, start by updating the proto file in `📄 proto/sidecar/v1/sidecar.proto`. You will need to write a new RPC endpoint and both a new message request type and message return type. NOTE: is it a protobuf best practice to define unique request and return types and to avoid reusing types across different RPC endpoints.
 
 #### Pushing to Buf
 
-Once you've added your new rpc and message types, push your code to [https://buf.build/](https://buf.build/). To do this, change directory into `📄 sidecarproto` and enter `buf push`. This will trigger a code regeneration on buf. You will then need to `go get` the new assets with the associated with the commit hash for both `grpc/go` and `protocolbuffers/go`.
+Once you've added your new rpc and message types, push your code to [https://buf.build/](https://buf.build/). To do this, change directory into `📄 proto/sidecar` and enter `buf push`. This will trigger a code regeneration on buf. You will then need to `go get` the new assets with the associated with the commit hash for both `grpc/go` and `protocolbuffers/go`.
 
 #### Implementing the RPC Endpoint
 
@@ -93,8 +91,6 @@ The error message will give you the function you need to implement. Copy and pas
 ## Testing Sidecar
 
 End-to-end tests for Sidecar can be found in `📄 tests/e2e/sidecar`. This test suite spins up an in memory blockchain node to run transactions and queries against. You can directly call the Sidecar client functions and then check if the desired behavior was applied by querying the node.
-
-<br/>
 
 <br/>
 
