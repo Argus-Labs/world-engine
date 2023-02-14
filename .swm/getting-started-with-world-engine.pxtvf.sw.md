@@ -20,20 +20,18 @@ The World Engine comprises of two main components:
 
 These components communicate over a secure gRPC channel to share data and execute transactions. For example, the ECS server could have logic that when a player destroys a game object, a transaction is sent to the rollup to delete that asset from the chain.
 
-<br/>
-
 ## Running the Stack (Docker)
 
 The World Engine comes with a few preconfigured `Dockerfile`s to quickly get the entire system running in Docker. There are three `Dockerfiles` needed to run the system:
 
 *   `📄 celestia-client/celestia.Dockerfile` - the DA layer
     
-*   `📄 argus.Dockerfile` - the rollup
+*   `📄 rollup.Dockerfile` - the rollup
     
 *   `📄 nakama/Dockerfile` - the preconfigured ECS Server
     
 
-All components can be ran with a simple script inside the `📄 Makefile`. By entering `make` `start-services`<swm-token data-swm-token=":Makefile:310:0:2:`start-services:`"/> in the root of the project, you can run all required services on your local machine.
+All components can be ran with a simple script inside the `📄 Makefile`. By entering `make` `start-services`<swm-token data-swm-token=":Makefile:306:0:2:`start-services:`"/> in the root of the project, you can run all required services on your local machine.
 
 <br/>
 
@@ -43,28 +41,29 @@ All components can be ran with a simple script inside the `📄 Makefile`. By en
 <!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
 ### 📄 Makefile
 ```
-310    start-services:
-311    	@echo "Starting services"
-312    	@docker-compose down -v --remove-orphans
-313    	@docker-compose build
-314    	@docker-compose up --abort-on-container-exit --exit-code-from postgres nakama celestia node
+306    start-services:
+307    	@echo "Starting services"
+308    	$(shell ./nakama/setup.sh)
+309    	@docker-compose down -v --remove-orphans
+310    	@docker-compose build
+311    	@docker-compose up --abort-on-container-exit --exit-code-from postgres nakama node
 ```
 
 <br/>
 
 ## Interacting with the Services
 
-Interacting with the rollup is easiest via gRPC. The `📄 argus.Dockerfile` exposes the gRPC port to the localhost on port `9090`. The simplest way to interact with the rollup is by building the binary and using the World Engine CLI. This makes it easy to query the blockchain and send transactions. The rollup binary can be built from the following command in the `📄 Makefile`:
+Interacting with the rollup is easiest via gRPC. The `📄 rollup.Dockerfile` exposes the gRPC port to the localhost on port `9090`. The simplest way to interact with the rollup is by building the binary and using the World Engine CLI. This makes it easy to query the blockchain and send transactions. The rollup binary can be built from the following command in the `📄 Makefile`:
 
 <br/>
 
 <br/>
 
-Simply enter `make` `build`<swm-token data-swm-token=":Makefile:120:0:0:`build: BUILD_ARGS=-o $(BUILDDIR)/`"/> from the root of the project. This will create a binary in the `build` directory called `argusd`.
+Simply enter `make` `build`<swm-token data-swm-token=":Makefile:118:0:0:`build: BUILD_ARGS=-o $(BUILDDIR)/`"/> from the root of the project. This will create a binary in the `build` directory called `argusd`.
 <!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
 ### 📄 Makefile
 ```
-120    build: BUILD_ARGS=-o $(BUILDDIR)/
+118    build: BUILD_ARGS=-o $(BUILDDIR)/
 ```
 
 <br/>
