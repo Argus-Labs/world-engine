@@ -61,7 +61,7 @@ services:
       - NAKAMA_TARGET=nakama:6732
     build:
       context: .
-      dockerfile: argus.Dockerfile
+      dockerfile: rollup.Dockerfile
     restart: unless-stopped
     expose:
       - "5050"
