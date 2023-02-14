@@ -1,4 +1,0 @@
----
-
-- name: restart argusd
-  service: name=argusd state=restarted
