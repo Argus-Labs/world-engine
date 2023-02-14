@@ -13,7 +13,7 @@ protoc_gen_gocosmos() {
 
 protoc_gen_gocosmos
 
-cd proto
+cd proto/cosmos
 proto_dirs=$(find ./argus -path -prune -o -name '*.proto' -print0 | xargs -0 -n1 dirname | sort | uniq)
 for dir in $proto_dirs; do
   for file in $(find "${dir}" -maxdepth 2 -name '*.proto'); do
@@ -25,5 +25,5 @@ done
 cd ..
 
 # move the generated proto files (*.pb.go / *.pb.gw.go) to x/<module-name>/types/ directory
-cp -r github.com/argus-labs/argus/* ./
+cp -r github.com/argus-labs/argus/* ../
 rm -rf github.com

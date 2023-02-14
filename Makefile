@@ -11,12 +11,12 @@ containerProtoGenSwagger=regen-ledger-proto-gen-swagger-$(containerProtoVer)
 gen:
 	@echo "Generating Protobuf files"
 	@if docker ps -a --format '{{.Names}}' | grep -Eq "^${containerProtoGen}$$"; then docker start -a $(containerProtoGen); else docker run --name $(containerProtoGen) -v $(CURDIR):/workspace --workdir /workspace $(containerProtoImage) \
-		sh ./proto/scripts/protocgen.sh; fi
+		sh ./proto/cosmos/scripts/protocgen.sh; fi
 .PHONY: gen
 
 bufgen:
 	@echo "Generating Buf files"
-	@sh ./sidecarproto/scripts/bufgen.sh
+	@sh ./proto/sidecar/scripts/bufgen.sh
 .PHONY: gen
 
 .PHONY: bufgen
@@ -106,8 +106,6 @@ endif
 
 #$(info $$BUILD_FLAGS is [$(BUILD_FLAGS)])
 
-# The below include contains the tools target.
-include contrib/devtools/Makefile
 
 ###############################################################################
 ###                              Documentation                              ###
@@ -184,8 +182,6 @@ sync-docs:
 ###############################################################################
 ###                           Tests & Simulation                            ###
 ###############################################################################
-
-include sims.mk
 
 PACKAGES_UNIT=$(shell go list ./... | grep -v -e '/tests/e2e')
 PACKAGES_E2E=$(shell cd tests/e2e && go list ./... | grep '/e2e')
@@ -295,11 +291,11 @@ test-docker-push: test-docker
 
 proto-doc:
 	@echo "Generating Protoc docs"
-	@sh ./proto/scripts/protoc-doc-gen.sh
+	@sh ./proto/cosmos/scripts/protoc-doc-gen.sh
 
 proto-swagger-gen:
 	@echo "Generating Protobuf Swagger"
-	@sh ./proto/scripts/protoc-swagger-gen.sh
+	@sh ./proto/cosmos/scripts/protoc-swagger-gen.sh
 
 .PHONY: proto-doc proto-swagger-gen
 
