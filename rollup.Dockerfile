@@ -14,7 +14,7 @@ COPY --from=argusd-builder /go/bin/argusd /usr/local/bin/
 EXPOSE 26656 26657 1317 9090
 USER 0
 
-COPY contrib/start-rollup.sh start-rollup.sh
+COPY scripts/start-rollup.sh start-rollup.sh
 RUN chmod +x start-rollup.sh
 
 HEALTHCHECK --interval=5s --timeout=80s CMD curl --fail http://localhost:26657 || exit 1

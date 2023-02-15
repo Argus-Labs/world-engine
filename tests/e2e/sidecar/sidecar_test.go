@@ -20,7 +20,7 @@ type SideCarSuite struct {
 	suite.Suite
 	cfg           TestingConfig
 	sidecarClient sidecarv1grpc.SidecarClient
-	addr          string // this addr is derived from the mnemonic in ../../contrib/single-node.sh
+	addr          string // this addr is derived from the mnemonic in ../../scripts/single-node.sh
 	encCfg        simparams.EncodingConfig
 }
 
@@ -29,7 +29,7 @@ func (suite *SideCarSuite) SetupTest() {
 	if !suite.cfg.EnableDockerTests {
 		suite.T().Skip("skipping test suite. these tests only runs in docker")
 	}
-	suite.addr = "cosmos1tk7sluasye598msnjlujrp9hd67fl4gylx7z0z" // this addr is derived from the mnemonic in contrib/single-node.sh
+	suite.addr = "cosmos1tk7sluasye598msnjlujrp9hd67fl4gylx7z0z" // this addr is derived from the mnemonic in scripts/single-node.sh
 	suite.sidecarClient = GetSidecarClient(suite.T(), suite.cfg.SidecarURL)
 	suite.encCfg = argus.MakeTestEncodingConfig()
 }

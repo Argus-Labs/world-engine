@@ -32,7 +32,7 @@ func (suite *NakamaSuite) SetupTest() {
 }
 
 func (suite *NakamaSuite) TestNakamaFromEVM() {
-	qh := keepers.NewQuestHook(suite.cfg.NakamaURL)
+	qh := keepers.NewNakamaHook(suite.cfg.NakamaURL)
 	ctx := sdk.Context{}.WithContext(context.Background())
 	addr := common.HexToAddress("0x3A220f351252089D385b29beca14e27F204c296A")
 	msg := types.NewMessage(addr, nil, 0, nil, 30, nil, nil, nil, nil, nil, false)
