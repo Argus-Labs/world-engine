@@ -1,7 +1,7 @@
 ---
 id: eugny
 title: Building Modules
-file_version: 1.1.1
+file_version: 1.1.2
 app_version: 1.1.5
 ---
 
@@ -15,7 +15,7 @@ Cosmos modules generally have 6 parts to them: protobuf definitions, codec, Mess
 
 ### Generating Protobuf Files
 
-If you’ve made edits or built new protobuf modules, you can generate the protobuf stubs by running the `gen` script in the `📄 Makefile`. (i.e. `make gen`).
+If you’ve made edits or built new protobuf modules, you can generate the protobuf stubs by running the `gen` script in the `📄 chain/Makefile`. (i.e. `make gen`).
 
 ### Defining New Protobuf Modules
 
@@ -157,7 +157,7 @@ Protobuf definitions are the outer skeleton of what your module will look like. 
 
 Your generated types and services must be registered for use in the Cosmos SDK codec.
 
-First, lets define our global module codec. This will be used in some of our module’s `AppModule`<swm-token data-swm-token=":x/adapter/module.go:38:2:2:`type AppModule struct {`"/> implementations.
+First, lets define our global module codec. This will be used in some of our module’s `AppModule`<swm-token data-swm-token=":chain/x/adapter/module.go:38:2:2:`type AppModule struct {`"/> implementations.
 
 ```
 import (
@@ -490,11 +490,11 @@ The following will guide you on how to wire up a new module into the Argus appli
 
 Start by defining the items needed by your module in `app/keppers`. If your module needs to access the store, head to `keys.go` and add your module’s StoreKey to the `NewKVStoreKeys`call. If your module needs access to the Transient store, do the same with the `NewTransientStoreKeys` call.
 
-Similarly, if your module needs access to the param module, head to `📄 app/keepers/params.go` and add a subspace in the `initParamsKeeper`<swm-token data-swm-token=":app/keepers/params.go:26:2:2:`func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey storetypes.StoreKey) paramskeeper.Keeper {`"/> function using your module’s name.
+Similarly, if your module needs access to the param module, head to `📄 chain/app/keepers/params.go` and add a subspace in the `initParamsKeeper`<swm-token data-swm-token=":chain/app/keepers/params.go:26:2:2:`func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey storetypes.StoreKey) paramskeeper.Keeper {`"/> function using your module’s name.
 
-Now head to `📄 app/keepers/keepers.go`. Add your Keeper to the `AppKeepers`<swm-token data-swm-token=":app/keepers/keepers.go:79:2:2:`type AppKeepers struct {`"/> struct.
+Now head to `📄 chain/app/keepers/keepers.go`. Add your Keeper to the `AppKeepers`<swm-token data-swm-token=":chain/app/keepers/keepers.go:79:2:2:`type AppKeepers struct {`"/> struct.
 
-Then initialize and set the keeper to the struct in the `NewAppKeeper`<swm-token data-swm-token=":app/keepers/keepers.go:123:2:2:`func NewAppKeeper(`"/> function. Keep in mind the order of when the keepers are initialized. If your keeper relies on, for example, the bank keeper, you will need to initialize your keeper _after_ the bank keeper has been initialized.
+Then initialize and set the keeper to the struct in the `NewAppKeeper`<swm-token data-swm-token=":chain/app/keepers/keepers.go:123:2:2:`func NewAppKeeper(`"/> function. Keep in mind the order of when the keepers are initialized. If your keeper relies on, for example, the bank keeper, you will need to initialize your keeper _after_ the bank keeper has been initialized.
 
 ```
 appKeepers.MyCustomKeeper = mycustomkeeper.NewKeeper(
@@ -505,7 +505,7 @@ appKeepers.MyCustomKeeper = mycustomkeeper.NewKeeper(
 
 ## Module App Wiring
 
-Now head to `📄 app/modules.go`. At the top of this file will be the module permissions. If your module mints, burns, or stakes coins, you will need to add permissions in this variable.
+Now head to `📄 chain/app/modules.go`. At the top of this file will be the module permissions. If your module mints, burns, or stakes coins, you will need to add permissions in this variable.
 
 ```
 var maccPerms = map[string][]string{
@@ -523,7 +523,7 @@ var ModuleBasics = module.NewBasicManager(
 )
 ```
 
-Then we return our AppModule in the `appModules`<swm-token data-swm-token=":app/modules.go:118:2:2:`func appModules(`"/> function.
+Then we return our AppModule in the `appModules`<swm-token data-swm-token=":chain/app/modules.go:118:2:2:`func appModules(`"/> function.
 
 ```
 func appModules(
@@ -538,9 +538,9 @@ func appModules(
 }
 ```
 
-And finally, add your module name to the `orderInitBlockers`<swm-token data-swm-token=":app/modules.go:247:2:2:`func orderInitBlockers() []string {`"/> function, and the begin/end block functions if applicable. These are crucial if any of your genesis and or begin/end block functions are dependent on some other data that runs as part of other module’s functions.
+And finally, add your module name to the `orderInitBlockers`<swm-token data-swm-token=":chain/app/modules.go:247:2:2:`func orderInitBlockers() []string {`"/> function, and the begin/end block functions if applicable. These are crucial if any of your genesis and or begin/end block functions are dependent on some other data that runs as part of other module’s functions.
 
-For example, if you need to do some sort of logic before staking rewards are allocated at the end of each block (handled by the Cosmos SDK’s `Distribution` module, you would need to place your module name _before_ `Distribution` in the `orderEndBlockers`<swm-token data-swm-token=":app/modules.go:219:2:2:`func orderEndBlockers() []string {`"/> function.
+For example, if you need to do some sort of logic before staking rewards are allocated at the end of each block (handled by the Cosmos SDK’s `Distribution` module, you would need to place your module name _before_ `Distribution` in the `orderEndBlockers`<swm-token data-swm-token=":chain/app/modules.go:219:2:2:`func orderEndBlockers() []string {`"/> function.
 
 <br/>
 
