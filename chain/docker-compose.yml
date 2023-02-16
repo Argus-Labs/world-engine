@@ -23,7 +23,7 @@ services:
       - SIDECAR_TARGET=node:5050
       - RECEIVER_PORT=6732
     build:
-      context: nakama
+      context: ../game/nakama
       dockerfile: Dockerfile
     depends_on:
       - postgres

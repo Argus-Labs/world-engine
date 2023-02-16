@@ -1,25 +1,25 @@
 ---
 id: 6rosv
 title: Sidecar Component
-file_version: 1.1.1
+file_version: 1.1.2
 app_version: 1.1.5
 ---
 
 ## Introduction
 
-This doc gives a high level overview of the Sidecar Component. It is located under `📄 sidecar`.
+This doc gives a high level overview of the Sidecar Component. It is located under `📄 chain/sidecar`.
 
 <br/>
 
 ## How Sidecar Works
 
-Sidecar is a separate go routine that gets spun up from the cosmos application in `📄 app/app.go`.
+Sidecar is a separate go routine that gets spun up from the cosmos application in `📄 chain/app/app.go`.
 
 <br/>
 
 starts the sidecar service if `USE_SIDECAR` flag is set to `true` in the host's environment variables.
 <!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
-### 📄 app/app.go
+### 📄 chain/app/app.go
 ```go
 226    	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore().CacheMultiStore(), app.Logger(), app.msgPool)
 ```
@@ -32,11 +32,11 @@ At its core, Sidecar is a gRPC service that handles requests from the Argus ECS 
 
 > Tip:
 > 
-> To get a quick overview of what Sidecar can do, take a look at the protobuf definitions in `📄 sidecarproto/v1/sidecar.proto`
+> To get a quick overview of what Sidecar can do, take a look at the protobuf definitions in `📄 chain/proto/sidecar/v1/sidecar.proto`
 > 
-> The implementations for the protobuf service can be found in `📄 sidecar/sidecar.go`.
+> The implementations for the protobuf service can be found in `📄 chain/sidecar/sidecar.go`.
 
-Sidecar can execute and route both queries and transactions. It does so with the `GRPCQueryRouter`<swm-token data-swm-token=":app/app.go:226:12:12:`	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore().CacheMultiStore(), app.Logger(), app.msgPool)`"/>, and `MsgServiceRouter`<swm-token data-swm-token=":app/app.go:226:5:5:`	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore().CacheMultiStore(), app.Logger(), app.msgPool)`"/>. In order to utilize these routers, the message must be constructed in the Sidecar gRPC server implementation. The handler for the message can be obtained by calling `Handler(msg)` on the router. This returns the function associated with the message. Once the function is called, you MUST call `Write` on the cache multi store. For example:
+Sidecar can execute and route both queries and transactions. It does so with the `GRPCQueryRouter`<swm-token data-swm-token=":chain/app/app.go:226:12:12:`	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore().CacheMultiStore(), app.Logger(), app.msgPool)`"/>, and `MsgServiceRouter`<swm-token data-swm-token=":chain/app/app.go:226:5:5:`	startSideCarIfFlagSet(app.MsgServiceRouter(), app.GRPCQueryRouter(), app.BankKeeper, app.GetBaseApp().CommitMultiStore().CacheMultiStore(), app.Logger(), app.msgPool)`"/>. In order to utilize these routers, the message must be constructed in the Sidecar gRPC server implementation. The handler for the message can be obtained by calling `Handler(msg)` on the router. This returns the function associated with the message. Once the function is called, you MUST call `Write` on the cache multi store. For example:
 
 <br/>
 
@@ -44,7 +44,7 @@ Sidecar can execute and route both queries and transactions. It does so with the
 
 Calling s.cms.Write() before ending the function ensures all state transitions are recorded and will be committed.
 <!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
-### 📄 sidecar/sidecar.go
+### 📄 chain/sidecar/sidecar.go
 ```go
 60     func (s Sidecar) MintCoins(ctx context.Context, msg *v1.MsgMintCoins) (*v1.MsgMintCoinsResponse, error) {
 61     	sdkCtx := s.getSDKCtx().WithContext(ctx)
@@ -65,15 +65,15 @@ Calling s.cms.Write() before ending the function ensures all state transitions a
 
 #### Adding a new RPC Endpoint
 
-If you need to add new functionality to Sidecar, start by updating the proto file in `📄 sidecarproto/v1/sidecar.proto`. You will need to write a new RPC endpoint and both a new message request type and message return type. NOTE: is it a protobuf best practice to define unique request and return types and to avoid reusing types across different RPC endpoints.
+If you need to add new functionality to Sidecar, start by updating the proto file in `📄 chain/proto/sidecar/v1/sidecar.proto`. You will need to write a new RPC endpoint and both a new message request type and message return type. NOTE: is it a protobuf best practice to define unique request and return types and to avoid reusing types across different RPC endpoints.
 
 #### Pushing to Buf
 
-Once you've added your new rpc and message types, push your code to [https://buf.build/](https://buf.build/). To do this, change directory into `📄 sidecarproto` and enter `buf push`. This will trigger a code regeneration on buf. You will then need to `go get` the new assets with the associated with the commit hash for both `grpc/go` and `protocolbuffers/go`.
+Once you've added your new rpc and message types, push your code to [https://buf.build/](https://buf.build/). To do this, change directory into `📄 chain/proto/sidecar` and enter `buf push`. This will trigger a code regeneration on buf. You will then need to `go get` the new assets with the associated with the commit hash for both `grpc/go` and `protocolbuffers/go`.
 
 #### Implementing the RPC Endpoint
 
-Now that the code has been updated with the new buf code, you should see an error in `📄 sidecar/sidecar.go` on the interface guard shown below:
+Now that the code has been updated with the new buf code, you should see an error in `📄 chain/sidecar/sidecar.go` on the interface guard shown below:
 
 <br/>
 
@@ -81,7 +81,7 @@ Now that the code has been updated with the new buf code, you should see an erro
 
 Sidecar interface guard against the gRPC server interface.
 <!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
-### 📄 sidecar/sidecar.go
+### 📄 chain/sidecar/sidecar.go
 ```go
 58     var _ g1.SidecarServer = Sidecar{}
 ```
@@ -92,9 +92,7 @@ The error message will give you the function you need to implement. Copy and pas
 
 ## Testing Sidecar
 
-End-to-end tests for Sidecar can be found in `📄 tests/e2e/sidecar`. This test suite spins up an in memory blockchain node to run transactions and queries against. You can directly call the Sidecar client functions and then check if the desired behavior was applied by querying the node.
-
-<br/>
+End-to-end tests for Sidecar can be found in `📄 chain/tests/e2e/sidecar`. This test suite spins up an in memory blockchain node to run transactions and queries against. You can directly call the Sidecar client functions and then check if the desired behavior was applied by querying the node.
 
 <br/>
 

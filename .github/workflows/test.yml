@@ -106,4 +106,6 @@ jobs:
             go.mod
             go.sum
       - name: Test Sidecar E2E
-        run: make test-sidecar
+        run: |
+        cd chain
+        make test-sidecar
