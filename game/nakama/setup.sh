@@ -2,9 +2,13 @@
 
 set -o errexit -o nounset
 
-cd nakama
+original_PWD=$PWD
+
+cd "$(dirname "$0")"
 
 go mod tidy
+
 go mod vendor
 
-cd ..
+
+cd "$original_PWD"
