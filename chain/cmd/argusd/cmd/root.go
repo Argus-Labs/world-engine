@@ -52,7 +52,7 @@ func NewRootCmd() (*cobra.Command, simparams.EncodingConfig) {
 
 	rootCmd := &cobra.Command{
 		Use:   "argusd",
-		Short: "Stargate Cosmos Hub App",
+		Short: "Argus World Engine App",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			initClientCtx, err := client.ReadPersistentCommandFlags(initClientCtx, cmd.Flags())
 			if err != nil {
