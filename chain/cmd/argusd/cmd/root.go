@@ -13,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
+	types2 "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -119,10 +120,10 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig simparams.EncodingConfig
 		config.Cmd(),
 	)
 
-	ac := appCreator{
-		encCfg: encodingConfig,
+	ac := AppCreator{
+		EncCfg: encodingConfig,
 	}
-	server.AddCommands(rootCmd, argus.DefaultNodeHome, ac.newApp, ac.appExport, addModuleInitFlags)
+	server.AddCommands(rootCmd, argus.DefaultNodeHome, ac.NewApp, ac.appExport, addModuleInitFlags)
 
 	// add keybase, auxiliary RPC, query, and tx child commands
 	rootCmd.AddCommand(
@@ -191,11 +192,11 @@ func txCommand() *cobra.Command {
 	return cmd
 }
 
-type appCreator struct {
-	encCfg simparams.EncodingConfig
+type AppCreator struct {
+	EncCfg simparams.EncodingConfig
 }
 
-func (ac appCreator) newApp(
+func (ac AppCreator) NewApp(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
@@ -212,10 +213,10 @@ func (ac appCreator) newApp(
 		skipUpgradeHeights[int64(h)] = true
 	}
 
-	pruningOpts, err := server.GetPruningOptionsFromFlags(appOpts)
-	if err != nil {
-		panic(err)
-	}
+	//pruningOpts, err := server.GetPruningOptionsFromFlags(appOpts)
+	//if err != nil {
+	//	panic(err)
+	//}
 
 	snapshotDir := filepath.Join(cast.ToString(appOpts.Get(flags.FlagHome)), "data", "snapshots")
 	snapshotDB, err := dbm.NewDB("metadata", server.GetAppDBBackend(appOpts), snapshotDir)
@@ -235,9 +236,9 @@ func (ac appCreator) newApp(
 		logger, db, traceStore, true, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
-		ac.encCfg,
+		ac.EncCfg,
 		appOpts,
-		baseapp.SetPruning(pruningOpts),
+		baseapp.SetPruning(types2.NewPruningOptionsFromString(types2.PruningOptionNothing)),
 		baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(server.FlagMinGasPrices))),
 		baseapp.SetHaltHeight(cast.ToUint64(appOpts.Get(server.FlagHaltHeight))),
 		baseapp.SetHaltTime(cast.ToUint64(appOpts.Get(server.FlagHaltTime))),
@@ -251,7 +252,7 @@ func (ac appCreator) newApp(
 	)
 }
 
-func (ac appCreator) appExport(
+func (ac AppCreator) appExport(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
@@ -278,7 +279,7 @@ func (ac appCreator) appExport(
 		map[int64]bool{},
 		homePath,
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
-		ac.encCfg,
+		ac.EncCfg,
 		appOpts,
 	)
 
