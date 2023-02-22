@@ -13,12 +13,11 @@ import (
 
 	codecTypes "github.com/cosmos/cosmos-sdk/codec/types"
 	grpc2 "github.com/cosmos/cosmos-sdk/server/grpc"
+	crgserver "github.com/cosmos/cosmos-sdk/server/rosetta/lib/server"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 	abciclient "github.com/tendermint/tendermint/abci/client"
-	"github.com/tendermint/tendermint/types"
-
-	crgserver "github.com/cosmos/cosmos-sdk/server/rosetta/lib/server"
+	"github.com/tendermint/tendermint/node"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -162,7 +161,7 @@ const (
 )
 
 // Start starts the rollup in process.
-func Start(ctx *sdkServer.Context, clientCtx client.Context, appCreator servertypes.AppCreator) error {
+func Start(ctx *sdkServer.Context, clientCtx client.Context, serverCfg *serverconfig.Config, appCreator servertypes.AppCreator) error {
 	cfg := ctx.Config
 	home := cfg.RootDir
 	var cpuProfileCleanup func()
@@ -198,30 +197,18 @@ func Start(ctx *sdkServer.Context, clientCtx client.Context, appCreator serverty
 		return err
 	}
 
-	config, err := serverconfig.GetConfig(ctx.Viper)
-	if err != nil {
+	config := serverCfg
+
+	if err := config.ValidateBasic(); err != nil {
 		return err
 	}
 
-	//config.MinGasPrices = "100stake"
-	//
-	//if err := config.ValidateBasic(); err != nil {
-	//	return err
-	//}
-
 	app := appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
 
-	//genDocProvider := node.DefaultGenesisDocProviderFunc(cfg)
-	//genDoc, err := genDocProvider()
-	//if err != nil {
-	//	return err
-	//}
-
-	genDoc := &types.GenesisDoc{
-		GenesisTime:     time.Now(),
-		InitialHeight:   0,
-		ChainID:         "argus_9000-1",
-		ConsensusParams: types.DefaultConsensusParams(),
+	genDocProvider := node.DefaultGenesisDocProviderFunc(cfg)
+	genDoc, err := genDocProvider()
+	if err != nil {
+		return err
 	}
 
 	var (
@@ -302,7 +289,7 @@ func Start(ctx *sdkServer.Context, clientCtx client.Context, appCreator serverty
 		}
 	}
 
-	metrics, err := startTelemetry(config)
+	metrics, err := startTelemetry(*config)
 	if err != nil {
 		return err
 	}
@@ -356,7 +343,7 @@ func Start(ctx *sdkServer.Context, clientCtx client.Context, appCreator serverty
 		errCh := make(chan error)
 
 		go func() {
-			if err := apiSrv.Start(config); err != nil {
+			if err := apiSrv.Start(*config); err != nil {
 				errCh <- err
 			}
 		}()
@@ -389,7 +376,7 @@ func Start(ctx *sdkServer.Context, clientCtx client.Context, appCreator serverty
 		}
 		defer grpcSrv.Stop()
 		if config.GRPCWeb.Enable {
-			grpcWebSrv, err = grpc2.StartGRPCWeb(grpcSrv, config)
+			grpcWebSrv, err = grpc2.StartGRPCWeb(grpcSrv, *config)
 			if err != nil {
 				ctx.Logger.Error("failed to start grpc-web http server: ", err)
 				return err

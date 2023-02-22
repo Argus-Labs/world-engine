@@ -3,6 +3,7 @@ package rollup
 import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
+	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 
 	argus "github.com/argus-labs/argus/app"
 	"github.com/argus-labs/argus/cmd/argusd/cmd"
@@ -25,8 +26,10 @@ type app struct {
 func (a app) Start() error {
 	encodingConfig := argus.MakeTestEncodingConfig()
 	ac := cmd.AppCreator{EncCfg: encodingConfig}
-	_ = ac
 	serverCtx := server.NewDefaultContext()
+	serverCtx.Config.Genesis = "someGenesis.json"
 	clientCtx := client.Context{}
-	return argus.Start(serverCtx, clientCtx, ac.NewApp)
+	serverCfg := serverconfig.DefaultConfig()
+	serverCfg.MinGasPrices = "100stake"
+	return argus.Start(serverCtx, clientCtx, serverCfg, ac.NewApp)
 }
