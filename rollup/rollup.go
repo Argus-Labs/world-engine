@@ -7,25 +7,29 @@ import (
 
 	argus "github.com/argus-labs/argus/app"
 	"github.com/argus-labs/argus/cmd/argusd/cmd"
+	"github.com/argus-labs/argus/x/evm/types"
 )
 
 var _ Application = app{}
 
-func NewApplication() Application {
-	return app{}
+func NewApplication(opts ...AppOption) Application {
+	a := &app{}
+	for _, opt := range opts {
+		opt(a)
+	}
+	return a
 }
 
 type app struct {
-	evmHooks []EVMNakamaHook
-	chain    argus.ArgusApp
+	hooks types.EvmHooks
 }
 
 // Start does starting things
 //
-// TODO(technicallyty): implement
+// TODO(technicallyty): this is scrapped together, need a better configuration and setup stuff!
 func (a app) Start() error {
 	encodingConfig := argus.MakeTestEncodingConfig()
-	ac := cmd.AppCreator{EncCfg: encodingConfig}
+	ac := cmd.AppCreator{EncCfg: encodingConfig, EvmHooks: a.hooks}
 	serverCtx := server.NewDefaultContext()
 	serverCtx.Config.Genesis = "someGenesis.json"
 	clientCtx := client.Context{}

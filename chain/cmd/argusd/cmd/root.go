@@ -13,7 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
-	types2 "github.com/cosmos/cosmos-sdk/pruning/types"
+	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -35,6 +35,7 @@ import (
 
 	argus "github.com/argus-labs/argus/app"
 	"github.com/argus-labs/argus/app/simparams"
+	evmtypes "github.com/argus-labs/argus/x/evm/types"
 )
 
 // NewRootCmd creates a new root command for simd. It is called once in the
@@ -193,7 +194,8 @@ func txCommand() *cobra.Command {
 }
 
 type AppCreator struct {
-	EncCfg simparams.EncodingConfig
+	EncCfg   simparams.EncodingConfig
+	EvmHooks evmtypes.EvmHooks
 }
 
 func (ac AppCreator) NewApp(
@@ -232,13 +234,13 @@ func (ac AppCreator) NewApp(
 		cast.ToUint32(appOpts.Get(server.FlagStateSyncSnapshotKeepRecent)),
 	)
 
-	return argus.NewArgusApp(
+	argusApp := argus.NewArgusApp(
 		logger, db, traceStore, true, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
 		ac.EncCfg,
 		appOpts,
-		baseapp.SetPruning(types2.NewPruningOptionsFromString(types2.PruningOptionNothing)),
+		baseapp.SetPruning(pruningtypes.NewPruningOptionsFromString(pruningtypes.PruningOptionNothing)),
 		baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(server.FlagMinGasPrices))),
 		baseapp.SetHaltHeight(cast.ToUint64(appOpts.Get(server.FlagHaltHeight))),
 		baseapp.SetHaltTime(cast.ToUint64(appOpts.Get(server.FlagHaltTime))),
@@ -250,6 +252,11 @@ func (ac AppCreator) NewApp(
 		baseapp.SetIAVLCacheSize(cast.ToInt(appOpts.Get(server.FlagIAVLCacheSize))),
 		baseapp.SetIAVLDisableFastNode(cast.ToBool(appOpts.Get(server.FlagDisableIAVLFastNode))),
 	)
+
+	// TODO(technicallyty): fix here, we need some sort of hook system
+	argusApp.SetEVMHooks(ac.evmHooks)
+
+	return argusApp
 }
 
 func (ac AppCreator) appExport(

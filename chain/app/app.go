@@ -40,6 +40,7 @@ import (
 	dbm "github.com/tendermint/tm-db"
 
 	argusappparams "github.com/argus-labs/argus/app/simparams"
+	evmtypes "github.com/argus-labs/argus/x/evm/types"
 
 	"github.com/argus-labs/argus/ante"
 	"github.com/argus-labs/argus/app/keepers"
@@ -443,6 +444,10 @@ func (app *ArgusApp) GetBaseApp() *baseapp.BaseApp {
 // GetTxConfig implements the TestingApp interface.
 func (app *ArgusApp) GetTxConfig() client.TxConfig {
 	return MakeTestEncodingConfig().TxConfig
+}
+
+func (app *ArgusApp) SetEVMHooks(h evmtypes.EvmHooks) {
+	app.EvmKeeper.SetHooks(h)
 }
 
 // EmptyAppOptions is a stub implementing AppOptions
