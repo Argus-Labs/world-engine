@@ -254,7 +254,7 @@ func (ac AppCreator) NewApp(
 	)
 
 	// TODO(technicallyty): fix here, we need some sort of hook system
-	argusApp.SetEVMHooks(ac.evmHooks)
+	argusApp.SetEVMHooks(ac.EvmHooks)
 
 	return argusApp
 }

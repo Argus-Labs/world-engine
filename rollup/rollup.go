@@ -31,9 +31,9 @@ func (a app) Start() error {
 	encodingConfig := argus.MakeTestEncodingConfig()
 	ac := cmd.AppCreator{EncCfg: encodingConfig, EvmHooks: a.hooks}
 	serverCtx := server.NewDefaultContext()
-	serverCtx.Config.Genesis = "someGenesis.json"
+	serverCtx.Config.Genesis = "someGenesis.json" // TODO(technicallyty): this should come after config refactor WORLD-75
 	clientCtx := client.Context{}
 	serverCfg := serverconfig.DefaultConfig()
-	serverCfg.MinGasPrices = "100stake"
+	serverCfg.MinGasPrices = "100stake" // TODO(technicallyty): this should come after config refactor WORLD-75
 	return argus.Start(serverCtx, clientCtx, serverCfg, ac.NewApp)
 }
