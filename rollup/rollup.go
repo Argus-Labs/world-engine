@@ -26,7 +26,7 @@ type app struct {
 
 // Start does starting things
 //
-// TODO(technicallyty): this is scrapped together, need a better configuration and setup stuff!
+// TODO(technicallyty): this is scrapped together, need a better configuration and setup stuff! WORLD-75
 func (a app) Start() error {
 	encodingConfig := argus.MakeTestEncodingConfig()
 	ac := cmd.AppCreator{EncCfg: encodingConfig, EvmHooks: a.hooks}
