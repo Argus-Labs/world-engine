@@ -19,29 +19,20 @@ import (
 	abciclient "github.com/tendermint/tendermint/abci/client"
 	"github.com/tendermint/tendermint/node"
 
-	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdkServer "github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/server/rosetta"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/snapshots"
-	snapshottypes "github.com/cosmos/cosmos-sdk/snapshots/types"
-	"github.com/cosmos/cosmos-sdk/store"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/spf13/cast"
-	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
 	dbm "github.com/tendermint/tm-db"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-
-	"github.com/argus-labs/argus/app/simparams"
 
 	tmservice "github.com/tendermint/tendermint/libs/service"
 
@@ -50,69 +41,6 @@ import (
 	rollnode "github.com/rollkit/rollkit/node"
 	rollrpc "github.com/rollkit/rollkit/rpc"
 )
-
-type AppCreator struct {
-	// TODO(technicallyty): here we should add fields for hooks and stuff that can be injected in NewApp.
-	EncCfg simparams.EncodingConfig
-}
-
-func (ac AppCreator) NewApp(
-	logger log.Logger,
-	db dbm.DB,
-	traceStore io.Writer,
-	appOpts servertypes.AppOptions,
-) servertypes.Application {
-	var cache sdk.MultiStorePersistentCache
-
-	if cast.ToBool(appOpts.Get(sdkServer.FlagInterBlockCache)) {
-		cache = store.NewCommitKVStoreCacheManager()
-	}
-
-	skipUpgradeHeights := make(map[int64]bool)
-	for _, h := range cast.ToIntSlice(appOpts.Get(sdkServer.FlagUnsafeSkipUpgrades)) {
-		skipUpgradeHeights[int64(h)] = true
-	}
-
-	pruningOpts, err := sdkServer.GetPruningOptionsFromFlags(appOpts)
-	if err != nil {
-		panic(err)
-	}
-
-	snapshotDir := filepath.Join(cast.ToString(appOpts.Get(flags.FlagHome)), "data", "snapshots")
-	snapshotDB, err := dbm.NewDB("metadata", sdkServer.GetAppDBBackend(appOpts), snapshotDir)
-	if err != nil {
-		panic(err)
-	}
-	snapshotStore, err := snapshots.NewStore(snapshotDB, snapshotDir)
-	if err != nil {
-		panic(err)
-	}
-	snapshotOptions := snapshottypes.NewSnapshotOptions(
-		cast.ToUint64(appOpts.Get(sdkServer.FlagStateSyncSnapshotInterval)),
-		cast.ToUint32(appOpts.Get(sdkServer.FlagStateSyncSnapshotKeepRecent)),
-	)
-
-	app := NewArgusApp(
-		logger, db, traceStore, true, skipUpgradeHeights,
-		cast.ToString(appOpts.Get(flags.FlagHome)),
-		cast.ToUint(appOpts.Get(sdkServer.FlagInvCheckPeriod)),
-		ac.EncCfg,
-		appOpts,
-		baseapp.SetPruning(pruningOpts),
-		baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(sdkServer.FlagMinGasPrices))),
-		baseapp.SetHaltHeight(cast.ToUint64(appOpts.Get(sdkServer.FlagHaltHeight))),
-		baseapp.SetHaltTime(cast.ToUint64(appOpts.Get(sdkServer.FlagHaltTime))),
-		baseapp.SetMinRetainBlocks(cast.ToUint64(appOpts.Get(sdkServer.FlagMinRetainBlocks))),
-		baseapp.SetInterBlockCache(cache),
-		baseapp.SetTrace(cast.ToBool(appOpts.Get(sdkServer.FlagTrace))),
-		baseapp.SetIndexEvents(cast.ToStringSlice(appOpts.Get(sdkServer.FlagIndexEvents))),
-		baseapp.SetSnapshot(snapshotStore, snapshotOptions),
-		baseapp.SetIAVLCacheSize(cast.ToInt(appOpts.Get(sdkServer.FlagIAVLCacheSize))),
-		baseapp.SetIAVLDisableFastNode(cast.ToBool(appOpts.Get(sdkServer.FlagDisableIAVLFastNode))),
-	)
-	// TODO(technicallyty): alter app here with the constructor struct. we want to inject hooks and stuff into the app.
-	return app
-}
 
 // Flags for application
 const (
@@ -161,12 +89,13 @@ const (
 )
 
 // Start starts the rollup in process.
-func Start(ctx *sdkServer.Context, clientCtx client.Context, serverCfg *serverconfig.Config, appCreator servertypes.AppCreator) error {
+func Start(appCfg AppConfig, ctx *sdkServer.Context, clientCtx client.Context, serverCfg *serverconfig.Config, nodeConfig rollconf.NodeConfig, appCreator servertypes.AppCreator) error {
 	cfg := ctx.Config
 	home := cfg.RootDir
 	var cpuProfileCleanup func()
 
-	if cpuProfile := ctx.Viper.GetString(flagCPUProfile); cpuProfile != "" {
+	if appCfg.CPUProfile != "" {
+		cpuProfile := appCfg.CPUProfile
 		f, err := os.Create(cpuProfile)
 		if err != nil {
 			return err
@@ -186,12 +115,18 @@ func Start(ctx *sdkServer.Context, clientCtx client.Context, serverCfg *serverco
 		}
 	}
 
-	db, err := openDB(home, sdkServer.GetAppDBBackend(ctx.Viper))
+	var backendT dbm.BackendType
+	if appCfg.DbBackend == "" {
+		backendT = dbm.GoLevelDBBackend
+	} else {
+		backendT = dbm.BackendType(appCfg.DbBackend)
+	}
+	db, err := openDB(home, backendT)
 	if err != nil {
 		return err
 	}
 
-	traceWriterFile := ctx.Viper.GetString(flagTraceStore)
+	traceWriterFile := appCfg.TraceStore
 	traceWriter, err := openTraceWriter(traceWriterFile)
 	if err != nil {
 		return err
@@ -203,7 +138,7 @@ func Start(ctx *sdkServer.Context, clientCtx client.Context, serverCfg *serverco
 		return err
 	}
 
-	app := appCreator(ctx.Logger, db, traceWriter, ctx.Viper)
+	app := appCreator(ctx.Logger, db, traceWriter, appCfg)
 
 	genDocProvider := node.DefaultGenesisDocProviderFunc(cfg)
 	genDoc, err := genDocProvider()
@@ -214,7 +149,7 @@ func Start(ctx *sdkServer.Context, clientCtx client.Context, serverCfg *serverco
 	var (
 		tmNode   tmservice.Service
 		server   *rollrpc.Server
-		gRPCOnly = ctx.Viper.GetBool(flagGRPCOnly)
+		gRPCOnly = appCfg.GrpcOnly
 	)
 
 	if gRPCOnly {
@@ -238,18 +173,13 @@ func Start(ctx *sdkServer.Context, clientCtx client.Context, serverCfg *serverco
 			return err
 		}
 
-		nodeConfig := rollconf.NodeConfig{}
-		err = nodeConfig.GetViperConfig(ctx.Viper)
-		if err != nil {
-			return err
-		}
 		rollconv.GetNodeConfig(&nodeConfig, cfg)
 		err = rollconv.TranslateAddresses(&nodeConfig)
 		if err != nil {
 			return err
 		}
-		nodeConfig.DALayer = "mock"
-		tmNode, err := rollnode.NewNode(
+
+		rollupNode, err := rollnode.NewNode(
 			context.Background(),
 			nodeConfig,
 			p2pKey,
@@ -262,13 +192,13 @@ func Start(ctx *sdkServer.Context, clientCtx client.Context, serverCfg *serverco
 			return err
 		}
 
-		server := rollrpc.NewServer(tmNode, cfg.RPC, ctx.Logger)
+		server := rollrpc.NewServer(rollupNode, cfg.RPC, ctx.Logger)
 		err = server.Start()
 		if err != nil {
 			return err
 		}
 
-		if err := tmNode.Start(); err != nil {
+		if err := rollupNode.Start(); err != nil {
 			return err
 		}
 	}

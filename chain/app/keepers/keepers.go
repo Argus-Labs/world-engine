@@ -4,7 +4,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	"github.com/cosmos/cosmos-sdk/store/streaming"
 	storetypes "github.com/cosmos/cosmos-sdk/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
@@ -58,7 +57,6 @@ import (
 	"github.com/strangelove-ventures/packet-forward-middleware/v5/router"
 	routerkeeper "github.com/strangelove-ventures/packet-forward-middleware/v5/router/keeper"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
-	tmos "github.com/tendermint/tendermint/libs/os"
 
 	evmtypes "github.com/argus-labs/argus/x/evm/types"
 	feemarketkeeper "github.com/argus-labs/argus/x/feemarket/keeper"
@@ -134,11 +132,13 @@ func NewAppKeeper(
 	// Set keys KVStoreKey, TransientStoreKey, MemoryStoreKey
 	appKeepers.GenerateKeys()
 
+	// TODO(technicallyty): do we want to support this?
+	//
 	// configure state listening capabilities using AppOptions
 	// we are doing nothing with the returned streamingServices and waitGroup in this case
-	if _, _, err := streaming.LoadStreamingServices(bApp, appOpts, appCodec, appKeepers.keys); err != nil {
-		tmos.Exit(err.Error())
-	}
+	//if _, _, err := streaming.LoadStreamingServices(bApp, appOpts, appCodec, appKeepers.keys); err != nil {
+	//	tmos.Exit(err.Error())
+	//}
 
 	appKeepers.ParamsKeeper = initParamsKeeper(
 		appCodec,
@@ -349,7 +349,6 @@ func NewAppKeeper(
 		appKeepers.AccountKeeper, appKeepers.BankKeeper, appKeepers.StakingKeeper, appKeepers.FeeMarketKeeper,
 		nil, geth.NewEVM, tracer,
 	)
-	appKeepers.EvmKeeper.SetHooks(eh)
 
 	return appKeepers
 }
