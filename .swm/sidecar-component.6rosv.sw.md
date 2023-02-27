@@ -2,14 +2,12 @@
 id: 6rosv
 title: Sidecar Component
 file_version: 1.1.2
-app_version: 1.1.5
+app_version: 1.3.0
 ---
 
 ## Introduction
 
 This doc gives a high level overview of the Sidecar Component. It is located under `📄 chain/sidecar`.
-
-<br/>
 
 ## How Sidecar Works
 

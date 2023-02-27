@@ -2,7 +2,7 @@
 id: pxtvf
 title: Getting Started with World Engine
 file_version: 1.1.2
-app_version: 1.2.2
+app_version: 1.3.0
 ---
 
 ## Components
@@ -32,6 +32,10 @@ The World Engine comes with a few preconfigured `Dockerfile`s to quickly get the
     
 
 All components can be ran with a simple script inside the `📄 chain/Makefile`. By entering `make` `start-services`<swm-token data-swm-token=":chain/Makefile:306:0:2:`start-services:`"/> in the root of the project, you can run all required services on your local machine.
+
+<br/>
+
+⚠️NOTE⚠️ You will see some errors in the rollup container while the Celestia DA node boots up. This will occur for a few seconds until the rollup connects to the DA layer.
 
 <br/>
 
@@ -129,8 +133,8 @@ public class NakamaConn : MonoBehaviour
 ```mermaid
 flowchart LR
 2("Cosmos Rollup") --- 3("Celestia DA")
-1("Nakama") -\-\-\> |"gRPC connection"|2("Cosmos Rollup")
-2("Cosmos Rollup") -\-\-\> |"gRPC connection"|1("Nakama")
+1("Nakama") ---> |"gRPC connection"|2("Cosmos Rollup")
+2("Cosmos Rollup") ---> |"gRPC connection"|1("Nakama")
 ```
 <!--MCONTENT {content: "flowchart LR<br/>\n2(\"Cosmos Rollup\") --- 3(\"Celestia DA\")<br/>\n1(\"Nakama\") -\\-\\-\\> |\"gRPC connection\"|2(\"Cosmos Rollup\")<br/>\n2(\"Cosmos Rollup\") -\\-\\-\\> |\"gRPC connection\"|1(\"Nakama\")"} --->
 
