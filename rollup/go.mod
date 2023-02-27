@@ -277,7 +277,6 @@ require (
 
 replace (
 	github.com/argus-labs/argus => ../chain
-	github.com/argus-labs/world-engine/hooks => ../hooks
 	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.7-rollkit-v0.6.0-no-fraud-proofs
 	// use Evmos geth fork
 	github.com/ethereum/go-ethereum => github.com/evmos/go-ethereum v1.10.26

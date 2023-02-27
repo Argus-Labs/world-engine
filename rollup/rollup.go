@@ -21,9 +21,7 @@ type app struct {
 	hooks types.EvmHooks
 }
 
-// Start does start things
-//
-// TODO(technicallyty): this is scrapped together, need a better configuration and setup stuff! WORLD-75
+// Start starts the rollup.
 func (a app) Start() error {
 	cfg := a.cfg
 	encodingConfig := argus.MakeTestEncodingConfig()

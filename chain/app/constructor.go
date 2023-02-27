@@ -91,6 +91,11 @@ const (
 
 // Start starts the rollup in process.
 func Start(appCfg AppConfig, ctx *sdkServer.Context, clientCtx client.Context, serverCfg *serverconfig.Config, nodeConfig rollconf.NodeConfig, appCreator servertypes.AppCreator) error {
+	if _, err := os.Stat("config"); os.IsNotExist(err) {
+		if err := os.Mkdir("config", os.ModePerm); err != nil {
+			return fmt.Errorf("failed to create config directory: %w", err)
+		}
+	}
 	cfg := ctx.Config
 	home := cfg.RootDir
 	var cpuProfileCleanup func()
