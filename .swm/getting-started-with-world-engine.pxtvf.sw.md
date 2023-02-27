@@ -31,9 +31,13 @@ The World Engine comes with a few preconfigured `Dockerfile`s to quickly get the
 *   `📄 game/nakama/Dockerfile` - the preconfigured ECS Server
     
 
-All components can be ran with a simple script inside the `📄 chain/Makefile`. By entering `make` `start-services`<swm-token data-swm-token=":chain/Makefile:306:0:2:`start-services:`"/> in the root of the project, you can run all required services on your local machine.
+All components can be ran with a simple script inside the `📄 chain/Makefile`.
 
-<br/>
+Enter the following command in the `📄 chain` directory to start the services:
+
+```
+make start-services
+```
 
 ⚠️NOTE⚠️ You will see some errors in the rollup container while the Celestia DA node boots up. This will occur for a few seconds until the rollup connects to the DA layer.
 
