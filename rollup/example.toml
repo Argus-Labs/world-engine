@@ -1,6 +1,7 @@
 # example of values needed to setup the rollup application
 
-[app_options]
+[app_cfg]
+genesis="example_genesis.json"
 cpu-profile=""
 app-db-backend=""
 db-backend=""
@@ -24,15 +25,18 @@ evm-tracer=""
 state-sync.snapshot-interval=30
 state-sync.snapshot-keep-recent=40
 
-[node_config]
-aggregator=false
-DA-layer=""
-DA-config=""
-light=false
+[server_cfg]
+minimum-gas-prices="1stake"
+pruning="nothing"
+inter-block-cache=false
 
-[node_config.block_manager_config]
-DA-start-height=0
-DA-block-time=1979-05-27T07:32:00Z
-block-time="10s"
-namespace-id=""
-fraud-proofs=true
+[rollup_cfg]
+aggregator=false
+da_layer="mock"
+da_config=""
+light=false
+da_start_height=15
+da_block_time="6s"
+block_time="10s"
+namespace_id=3210
+fraud_proofs=true

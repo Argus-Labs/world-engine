@@ -7,8 +7,9 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 
+	"github.com/argus-labs/argus/hooks/evm"
+
 	"github.com/argus-labs/argus/x/evm/types"
-	"github.com/argus-labs/world-engine/hooks/evm"
 )
 
 var _ types.EvmHooks = NakamaHooks{}

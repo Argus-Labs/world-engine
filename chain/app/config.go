@@ -9,27 +9,28 @@ import (
 )
 
 type AppConfig struct {
-	CPUProfile                  string        `toml:"cpu-profile"`
-	DbBackend                   string        `toml:"db-backend"`
-	TraceStore                  string        `toml:"trace-store"`
-	GrpcOnly                    bool          `toml:"grpc-only"`
-	InterBlockCache             bool          `toml:"inter-block-cache"`
-	UnsafeSkipUpgrades          int           `toml:"unsafe-skip-upgrades"`
-	Home                        string        `toml:"home"`
-	InvCheckPeriod              int           `toml:"inv-check-period"`
-	MinGasPrices                string        `toml:"min-gas-prices"`
-	HaltHeight                  int           `toml:"halt-height"`
-	HaltTime                    time.Time     `toml:"halt-time"`
-	MinRetainBlocks             int           `toml:"min-retain-blocks"`
-	Trace                       bool          `toml:"trace"`
-	IndexEvents                 []interface{} `toml:"index-events"`
-	IAVLCacheSize               int           `toml:"IAVL-cache-size"`
-	DisableIVALFastNode         bool          `toml:"disable-IVAL-fast-node"`
-	XCrisisSkipAssertInvariants bool          `toml:"x-crisis-skip-assert-invariants"`
-	EvmMaxTxGasWanted           int           `toml:"evm-max-tx-gas-wanted"`
-	EvmTracer                   string        `toml:"evm-tracer"`
-	SnapshotInterval            int           `toml:"state-sync.snapshot-interval"`
-	SnapshotKeepRecent          int           `toml:"state-sync.snapshot-keep-recent"`
+	Genesis                     string        `mapstructure:"genesis"`
+	CPUProfile                  string        `mapstructure:"cpu-profile"`
+	DbBackend                   string        `mapstructure:"db-backend"`
+	TraceStore                  string        `mapstructure:"trace-store"`
+	GrpcOnly                    bool          `mapstructure:"grpc-only"`
+	InterBlockCache             bool          `mapstructure:"inter-block-cache"`
+	UnsafeSkipUpgrades          int           `mapstructure:"unsafe-skip-upgrades"`
+	Home                        string        `mapstructure:"home"`
+	InvCheckPeriod              int           `mapstructure:"inv-check-period"`
+	MinGasPrices                string        `mapstructure:"min-gas-prices"`
+	HaltHeight                  int           `mapstructure:"halt-height"`
+	HaltTime                    time.Time     `mapstructure:"halt-time"`
+	MinRetainBlocks             int           `mapstructure:"min-retain-blocks"`
+	Trace                       bool          `mapstructure:"trace"`
+	IndexEvents                 []interface{} `mapstructure:"index-events"`
+	IAVLCacheSize               int           `mapstructure:"IAVL-cache-size"`
+	DisableIVALFastNode         bool          `mapstructure:"disable-IVAL-fast-node"`
+	XCrisisSkipAssertInvariants bool          `mapstructure:"x-crisis-skip-assert-invariants"`
+	EvmMaxTxGasWanted           int           `mapstructure:"evm-max-tx-gas-wanted"`
+	EvmTracer                   string        `mapstructure:"evm-tracer"`
+	SnapshotInterval            int           `mapstructure:"state-sync.snapshot-interval"`
+	SnapshotKeepRecent          int           `mapstructure:"state-sync.snapshot-keep-recent"`
 }
 
 func (a AppConfig) Get(s string) interface{} {

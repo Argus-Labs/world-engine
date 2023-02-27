@@ -28,5 +28,5 @@ func (a app) Start() error {
 	cfg := a.cfg
 	encodingConfig := argus.MakeTestEncodingConfig()
 	ac := cmd.AppCreator{EncCfg: encodingConfig, EvmHooks: a.hooks}
-	return argus.Start(cfg.appCfg, &cfg.sCtx, cfg.cCtx, &cfg.sCfg, cfg.rollCfg, ac.NewApp)
+	return argus.Start(cfg.AppCfg, &cfg.ServerCtx, cfg.ClientCtx, &cfg.ServerCfg, cfg.Rollup, ac.NewApp)
 }

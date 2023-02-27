@@ -1,9 +1,12 @@
 package rollup
 
 import (
+	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverConfig "github.com/cosmos/cosmos-sdk/server/config"
+	"github.com/spf13/viper"
 
 	rollconf "github.com/rollkit/rollkit/config"
 
@@ -11,18 +14,32 @@ import (
 )
 
 type Config struct {
-	appCfg  argus.AppConfig
-	sCfg    serverConfig.Config
-	sCtx    server.Context
-	cCtx    client.Context
-	rollCfg rollconf.NodeConfig
+	AppCfg    argus.AppConfig     `mapstructure:"app_cfg"`
+	ServerCfg serverConfig.Config `mapstructure:"server_cfg"`
+	ServerCtx server.Context      `mapstructure:"server_ctx"`
+	ClientCtx client.Context      `mapstructure:"client_ctx"`
+	Rollup    rollconf.NodeConfig `mapstructure:"rollup_cfg"`
+}
+
+func LoadConfig(configName string) (*Config, error) {
+	v := viper.New()
+	v.SetConfigName(configName)
+	v.AddConfigPath(".")
+	if err := v.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("couldn't load config: %s", err)
+	}
+	var c Config = DefaultConfig()
+	if err := v.Unmarshal(&c); err != nil {
+		return nil, fmt.Errorf("couldn't read config: %s", err)
+	}
+	return &c, nil
 }
 
 func DefaultConfig() Config {
 	/*
 		the values that worked...
 			serverCtx := server.NewDefaultContext()
-			serverCtx.Config.Genesis = "someGenesis.json" // TODO(technicallyty): this should come after config refactor WORLD-75
+			serverCtx.Config.Genesis = "example_genesis.json" // TODO(technicallyty): this should come after config refactor WORLD-75
 			clientCtx := client.Context{}
 			serverCfg := serverconfig.DefaultConfig()
 			serverCfg.MinGasPrices = "100stake" // TODO(technicallyty): this should come after config refactor WORLD-75
@@ -33,11 +50,11 @@ func DefaultConfig() Config {
 	sCfg := serverConfig.DefaultConfig()
 	rCfg := rollconf.NodeConfig{}
 	cfg := Config{
-		appCfg:  argus.AppConfig{},
-		sCfg:    *sCfg,
-		sCtx:    *sCtx,
-		cCtx:    cCtx,
-		rollCfg: rCfg,
+		AppCfg:    argus.AppConfig{},
+		ServerCfg: *sCfg,
+		ServerCtx: *sCtx,
+		ClientCtx: cCtx,
+		Rollup:    rCfg,
 	}
 	return cfg
 }
