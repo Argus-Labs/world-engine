@@ -1,15 +1,15 @@
 package main
 
 import (
-	sdk "github.com/argus-labs/we-sdk"
+	"github.com/argus-labs/we-sdk/kit"
 )
 
 func main() {
-	cfg, err := sdk.LoadConfig("example")
+	cfg, err := kit.LoadConfig("example")
 	if err != nil {
 		panic(err)
 	}
-	app := sdk.NewApplication(cfg)
+	app := kit.NewApplication(cfg)
 	err = app.Start()
 	if err != nil {
 		panic(err)

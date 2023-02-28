@@ -1,4 +1,4 @@
-package rollup
+package kit
 
 import (
 	"testing"

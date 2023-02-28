@@ -15,7 +15,7 @@ inter-block-cache=false
 [rollup_cfg]
 aggregator=false
 da_layer="celestia"
-da_config='{"base_url":"http://localhost:54000","timeout":60000000000,"fee":6000,"gas_limit":6000000}'
+da_config='{"base_url":"http://localhost:54000","timeout":60000000000,"fee":6000,"gas_limit":6000000}' # probablybetter off set in env vars
 light=false
 da_block_time="6s"
 block_time="10s"

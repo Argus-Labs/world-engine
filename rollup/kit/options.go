@@ -1,4 +1,4 @@
-package rollup
+package kit
 
 import "github.com/argus-labs/argus/x/evm/types"
 

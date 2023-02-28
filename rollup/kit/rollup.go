@@ -1,4 +1,4 @@
-package rollup
+package kit
 
 import (
 	argus "github.com/argus-labs/argus/app"

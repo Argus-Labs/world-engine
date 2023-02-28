@@ -1,7 +1,8 @@
-package rollup
+package kit
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -31,6 +32,13 @@ func LoadConfig(configName string) (*Config, error) {
 	var c Config = DefaultConfig()
 	if err := v.Unmarshal(&c); err != nil {
 		return nil, fmt.Errorf("couldn't read config: %s", err)
+	}
+	daCfg := os.Getenv("da_config")
+	if daCfg != "" {
+		fmt.Println("setting da config")
+		c.Rollup.DAConfig = daCfg
+	} else {
+		fmt.Println("da config did not update")
 	}
 	return &c, nil
 }

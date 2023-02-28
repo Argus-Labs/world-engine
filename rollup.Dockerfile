@@ -1,12 +1,25 @@
 FROM golang:1.19 as builder
 
+WORKDIR /src/chain
+
+COPY chain/go.mod .
+COPY chain/go.sum .
+
+RUN go mod download
+
+COPY chain/ .
+
 WORKDIR /src/rollup
 
-COPY rollup/cmd/test .
-RUN go install
+COPY rollup/ .
 
-FROM scratch
+RUN go mod download
 
-COPY --from=builder /src/rollup .
+COPY rollup/cmd/test /cmd/test
 
-RUN
+WORKDIR /src/rollup/cmd/test
+
+RUN go build
+
+
+CMD ["./start.sh"]
