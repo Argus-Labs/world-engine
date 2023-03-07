@@ -105,6 +105,25 @@ services:
       - "26657"
       - "26659"
       - "9090"
+  rollup:
+    container_name: rollup
+    build:
+      context: ../
+      dockerfile: rollup.Dockerfile
+    networks:
+      - default
+    restart: on-failure
+    expose:
+      - "5050"
+      - "9090"
+      - "1317"
+      - "26657"
+    ports:
+      - "9090:9090"
+      - "1317:1317"
+      - "26657:26657"
+    environment:
+      - da_config={"base_url":"http://celestia:26659","timeout":60000000000,"fee":6000,"gas_limit":6000000}
 
 volumes:
   data:

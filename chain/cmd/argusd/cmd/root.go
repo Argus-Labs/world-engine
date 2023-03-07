@@ -13,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/client/rpc"
+	pruningtypes "github.com/cosmos/cosmos-sdk/pruning/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -34,6 +35,7 @@ import (
 
 	argus "github.com/argus-labs/argus/app"
 	"github.com/argus-labs/argus/app/simparams"
+	evmtypes "github.com/argus-labs/argus/x/evm/types"
 )
 
 // NewRootCmd creates a new root command for simd. It is called once in the
@@ -52,7 +54,7 @@ func NewRootCmd() (*cobra.Command, simparams.EncodingConfig) {
 
 	rootCmd := &cobra.Command{
 		Use:   "argusd",
-		Short: "Stargate Cosmos Hub App",
+		Short: "Argus World Engine App",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			initClientCtx, err := client.ReadPersistentCommandFlags(initClientCtx, cmd.Flags())
 			if err != nil {
@@ -119,10 +121,10 @@ func initRootCmd(rootCmd *cobra.Command, encodingConfig simparams.EncodingConfig
 		config.Cmd(),
 	)
 
-	ac := appCreator{
-		encCfg: encodingConfig,
+	ac := AppCreator{
+		EncCfg: encodingConfig,
 	}
-	server.AddCommands(rootCmd, argus.DefaultNodeHome, ac.newApp, ac.appExport, addModuleInitFlags)
+	server.AddCommands(rootCmd, argus.DefaultNodeHome, ac.NewApp, ac.appExport, addModuleInitFlags)
 
 	// add keybase, auxiliary RPC, query, and tx child commands
 	rootCmd.AddCommand(
@@ -191,11 +193,12 @@ func txCommand() *cobra.Command {
 	return cmd
 }
 
-type appCreator struct {
-	encCfg simparams.EncodingConfig
+type AppCreator struct {
+	EncCfg   simparams.EncodingConfig
+	EvmHooks evmtypes.EvmHooks
 }
 
-func (ac appCreator) newApp(
+func (ac AppCreator) NewApp(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
@@ -212,10 +215,10 @@ func (ac appCreator) newApp(
 		skipUpgradeHeights[int64(h)] = true
 	}
 
-	pruningOpts, err := server.GetPruningOptionsFromFlags(appOpts)
-	if err != nil {
-		panic(err)
-	}
+	//pruningOpts, err := server.GetPruningOptionsFromFlags(appOpts)
+	//if err != nil {
+	//	panic(err)
+	//}
 
 	snapshotDir := filepath.Join(cast.ToString(appOpts.Get(flags.FlagHome)), "data", "snapshots")
 	snapshotDB, err := dbm.NewDB("metadata", server.GetAppDBBackend(appOpts), snapshotDir)
@@ -231,13 +234,13 @@ func (ac appCreator) newApp(
 		cast.ToUint32(appOpts.Get(server.FlagStateSyncSnapshotKeepRecent)),
 	)
 
-	return argus.NewArgusApp(
+	argusApp := argus.NewArgusApp(
 		logger, db, traceStore, true, skipUpgradeHeights,
 		cast.ToString(appOpts.Get(flags.FlagHome)),
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
-		ac.encCfg,
+		ac.EncCfg,
 		appOpts,
-		baseapp.SetPruning(pruningOpts),
+		baseapp.SetPruning(pruningtypes.NewPruningOptionsFromString(pruningtypes.PruningOptionNothing)),
 		baseapp.SetMinGasPrices(cast.ToString(appOpts.Get(server.FlagMinGasPrices))),
 		baseapp.SetHaltHeight(cast.ToUint64(appOpts.Get(server.FlagHaltHeight))),
 		baseapp.SetHaltTime(cast.ToUint64(appOpts.Get(server.FlagHaltTime))),
@@ -249,9 +252,14 @@ func (ac appCreator) newApp(
 		baseapp.SetIAVLCacheSize(cast.ToInt(appOpts.Get(server.FlagIAVLCacheSize))),
 		baseapp.SetIAVLDisableFastNode(cast.ToBool(appOpts.Get(server.FlagDisableIAVLFastNode))),
 	)
+
+	// TODO(technicallyty): fix here, we need some sort of hook system
+	argusApp.SetEVMHooks(ac.EvmHooks)
+
+	return argusApp
 }
 
-func (ac appCreator) appExport(
+func (ac AppCreator) appExport(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
@@ -278,7 +286,7 @@ func (ac appCreator) appExport(
 		map[int64]bool{},
 		homePath,
 		cast.ToUint(appOpts.Get(server.FlagInvCheckPeriod)),
-		ac.encCfg,
+		ac.EncCfg,
 		appOpts,
 	)
 
