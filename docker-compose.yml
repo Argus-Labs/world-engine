@@ -23,7 +23,7 @@ services:
       - SIDECAR_TARGET=node:5050
       - RECEIVER_PORT=6732
     build:
-      context: ../game/nakama
+      context: game/nakama
       dockerfile: Dockerfile
     depends_on:
       - postgres
@@ -60,7 +60,7 @@ services:
       - USE_SIDECAR=true
       - NAKAMA_TARGET=nakama:6732
     build:
-      context: .
+      context: chain
       dockerfile: rollup.Dockerfile
     restart: unless-stopped
     expose:
@@ -85,7 +85,7 @@ services:
       - ENABLE_DOCKER_TESTS=true
       - NAKAMA_URL=nakama:6732
     build:
-      context: .
+      context: chain
       dockerfile: tester.Dockerfile
     networks:
       - default
@@ -96,7 +96,7 @@ services:
   celestia:
     container_name: celestia_container
     build:
-      context: celestia-client
+      context: chain/celestia-client
       dockerfile: celestia.Dockerfile
     networks:
       - default
@@ -108,7 +108,7 @@ services:
   rollup:
     container_name: rollup
     build:
-      context: ../
+      context: .
       dockerfile: rollup.Dockerfile
     networks:
       - default
