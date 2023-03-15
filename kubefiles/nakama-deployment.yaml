@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f docker-compose.yml
+    kompose.version: 1.28.0 (HEAD)
+  creationTimestamp: null
+  labels:
+    io.kompose.service: nakama
+  name: nakama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: nakama
+  strategy: {}
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f docker-compose.yml
+        kompose.version: 1.28.0 (HEAD)
+      creationTimestamp: null
+      labels:
+        io.kompose.network/nakama-default: "true"
+        io.kompose.service: nakama
+    spec:
+      containers:
+        - command:
+            - /bin/sh
+            - -ecx
+            - |
+              /nakama/nakama migrate up --database.address postgres:localdb@postgres:5432/nakama && exec /nakama/nakama --config /nakama/data/local.yml --database.address postgres:localdb@postgres:5432/nakama
+          env:
+            - name: SIDECAR_TARGET
+              value: "rollup:5050"
+            - name: USE_RECEIVER
+              value: "true"
+            - name: RECEIVER_PORT
+              value: "6732"
+          image: gcr.io/world-engine-test/argus_nakama@sha256:8db6d5712da92c801512d414072db3dc6771f2a62fa28bcf7f02d2be970be2ed
+          livenessProbe:
+            exec:
+              command:
+                - curl
+                - -f
+                - http://localhost:7350/
+            failureThreshold: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          name: nakama
+          ports:
+            - containerPort: 7349
+            - containerPort: 7350
+            - containerPort: 7351
+          resources: {}
+      restartPolicy: Always
+status: {}

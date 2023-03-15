@@ -8,7 +8,8 @@ RUN apk update && apk --no-cache add curl jq libc6-compat
 
 COPY entrypoint.sh /
 
-RUN chmod +x /entrypoint.sh 
+RUN chmod +x /entrypoint.sh
+
 
 EXPOSE 26657 26659 9090
 

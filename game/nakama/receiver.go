@@ -26,7 +26,7 @@ func NewCosmosReceiver(db *sql.DB, logger runtime.Logger, nm runtime.NakamaModul
 }
 
 func (c *CosmosReceiver) Start() error {
-	lis, err := net.Listen("tcp", fmt.Sprintf("nakama:%d", c.port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", c.port))
 	if err != nil {
 		return err
 	}

@@ -21,5 +21,7 @@ WORKDIR /src/rollup/cmd/test
 
 RUN go build
 
+RUN chmod +x start.sh
+
 
 CMD ["./start.sh"]

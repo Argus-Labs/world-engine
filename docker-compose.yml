@@ -20,7 +20,7 @@ services:
   nakama:
     container_name: nakama_container
     environment:
-      - SIDECAR_TARGET=node:5050
+      - SIDECAR_TARGET=rollup:5050
       - RECEIVER_PORT=6732
     build:
       context: game/nakama
