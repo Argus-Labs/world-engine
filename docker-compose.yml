@@ -101,6 +101,8 @@ services:
       dockerfile: celestia.Dockerfile
     networks:
       - default
+    logging:
+      driver: none
     restart: on-failure
     ports:
       - "26657"

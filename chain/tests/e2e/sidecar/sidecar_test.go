@@ -57,7 +57,7 @@ func (suite *SideCarSuite) TestSideCarE2E() {
 
 	cosmosQuerier := GetBankClient(suite.T(), suite.cfg.ArgusNodeURL)
 
-	time.Sleep(30 * time.Second) // wait for block inclusion
+	time.Sleep(15 * time.Second) // wait for block inclusion
 
 	qres, err := cosmosQuerier.SupplyOf(ctx, &banktypes.QuerySupplyOfRequest{Denom: denom})
 	assert.NilError(suite.T(), err)
