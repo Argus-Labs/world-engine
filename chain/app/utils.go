@@ -14,14 +14,11 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/evmos/ethermint/encoding"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmtypes "github.com/tendermint/tendermint/types"
 	dbm "github.com/tendermint/tm-db"
-
-	"github.com/argus-labs/argus/app/simparams"
 )
 
 // NewTestGenesisState generate genesis state with single validator
@@ -127,7 +124,7 @@ func SetupWithDB(isCheckTx bool, patchGenesis func(*ArgusApp, simapp.GenesisStat
 		map[int64]bool{},
 		DefaultNodeHome,
 		5,
-		simparams.EncodingConfig(encoding.MakeConfig(ModuleBasics)),
+		MakeTestEncodingConfig(),
 		simapp.EmptyAppOptions{})
 	if !isCheckTx {
 		// init chain must be called to stop deliverState from being nil

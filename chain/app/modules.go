@@ -51,12 +51,6 @@ import (
 
 	appparams "github.com/argus-labs/argus/app/simparams"
 
-	evmtypes "github.com/argus-labs/argus/x/evm/types"
-	"github.com/argus-labs/argus/x/feemarket"
-	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
-
-	"github.com/argus-labs/argus/x/evm"
-
 	"github.com/argus-labs/argus/sidecar"
 	adaptertypes "github.com/argus-labs/argus/x/adapter"
 )
@@ -70,7 +64,6 @@ var maccPerms = map[string][]string{
 	govtypes.ModuleName:            {authtypes.Burner},
 	ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
 	sidecar.ModuleName:             {authtypes.Minter, authtypes.Burner},
-	evmtypes.ModuleName:            {authtypes.Minter, authtypes.Burner}, // used for secure addition and subtraction of balance using module account
 }
 
 // ModuleBasics defines the module BasicManager is in charge of setting up basic,
@@ -109,10 +102,6 @@ var ModuleBasics = module.NewBasicManager(
 
 	// argus modules
 	adaptertypes.AppModuleBasic{},
-
-	// ethermint modules
-	evm.AppModuleBasic{},
-	feemarket.AppModuleBasic{},
 )
 
 func appModules(
@@ -149,10 +138,6 @@ func appModules(
 		app.TransferModule,
 		app.RouterModule,
 		app.AdapterModule,
-
-		// Ethermint Modules
-		evm.NewAppModule(app.EvmKeeper, app.AccountKeeper),
-		feemarket.NewAppModule(app.FeeMarketKeeper),
 	}
 }
 
@@ -181,7 +166,6 @@ func simulationModules(
 		groupmodule.NewAppModule(appCodec, app.GroupKeeper, app.AccountKeeper, app.BankKeeper, app.interfaceRegistry),
 		ibc.NewAppModule(app.IBCKeeper),
 		app.TransferModule,
-		feemarket.NewAppModule(app.FeeMarketKeeper),
 	}
 }
 
@@ -192,8 +176,6 @@ func orderBeginBlockers() []string {
 		// upgrades should be run first
 		upgradetypes.ModuleName,
 		capabilitytypes.ModuleName,
-		feemarkettypes.ModuleName,
-		evmtypes.ModuleName,
 		minttypes.ModuleName,
 		distrtypes.ModuleName,
 		slashingtypes.ModuleName,
@@ -223,8 +205,6 @@ func orderEndBlockers() []string {
 		stakingtypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		ibchost.ModuleName,
-		evmtypes.ModuleName,
-		feemarkettypes.ModuleName,
 		routertypes.ModuleName,
 		capabilitytypes.ModuleName,
 		authtypes.ModuleName,
@@ -255,11 +235,6 @@ func orderInitBlockers() []string {
 		govtypes.ModuleName,
 		minttypes.ModuleName,
 		crisistypes.ModuleName,
-		// evm module denomination is used by the feemarket module, in AnteHandle
-		evmtypes.ModuleName,
-		// NOTE: feemarket need to be initialized before genutil module:
-		// gentx transactions use MinGasPriceDecorator.AnteHandle
-		feemarkettypes.ModuleName,
 		genutiltypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		ibchost.ModuleName,

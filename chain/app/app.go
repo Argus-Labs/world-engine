@@ -20,16 +20,16 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
+	ante3 "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 	ibcclienttypes "github.com/cosmos/ibc-go/v5/modules/core/02-client/types"
 	ibcchanneltypes "github.com/cosmos/ibc-go/v5/modules/core/04-channel/types"
-	"github.com/evmos/ethermint/server/flags"
-	etherminttypes "github.com/evmos/ethermint/types"
 	"github.com/gorilla/mux"
 	"github.com/rakyll/statik/fs"
 	"github.com/spf13/cast"
@@ -39,10 +39,9 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
+	ante2 "github.com/argus-labs/argus/ante"
 	argusappparams "github.com/argus-labs/argus/app/simparams"
-	evmtypes "github.com/argus-labs/argus/x/evm/types"
 
-	"github.com/argus-labs/argus/ante"
 	"github.com/argus-labs/argus/app/keepers"
 	"github.com/argus-labs/argus/app/upgrades"
 	"github.com/argus-labs/argus/pool"
@@ -192,18 +191,18 @@ func NewArgusApp(
 	app.MountTransientStores(app.GetTransientStoreKey())
 	app.MountMemoryStores(app.GetMemoryStoreKey())
 
-	ah, err := ante.NewEthermintAnteHandler(ante.EthermintHandlerOptions{
-		AccountKeeper:          app.AccountKeeper,
-		BankKeeper:             app.BankKeeper,
-		IBCKeeper:              app.IBCKeeper,
-		FeeMarketKeeper:        app.FeeMarketKeeper,
-		EvmKeeper:              app.EvmKeeper,
-		FeegrantKeeper:         app.FeeGrantKeeper,
-		SignModeHandler:        app.GetTxConfig().SignModeHandler(),
-		SigGasConsumer:         ante.EthermintSigVerificationGasConsumer,
-		MaxTxGasWanted:         cast.ToUint64(appOpts.Get(flags.EVMMaxTxGasWanted)),
-		ExtensionOptionChecker: etherminttypes.HasDynamicFeeExtensionOption,
-		TxFeeChecker:           ante.NewDynamicFeeChecker(app.EvmKeeper),
+	// TODO(technicallyty): might need to fix this?
+	ah, err := ante2.NewAnteHandler(ante2.HandlerOptions{
+		HandlerOptions: ante3.HandlerOptions{
+			AccountKeeper:   app.AccountKeeper,
+			BankKeeper:      app.BankKeeper,
+			FeegrantKeeper:  app.FeeGrantKeeper,
+			SignModeHandler: encodingConfig.TxConfig.SignModeHandler(),
+			SigGasConsumer:  ante3.DefaultSigVerificationGasConsumer,
+		},
+		Codec:           appCodec,
+		GovKeeper:       &app.GovKeeper,
+		StakingSubspace: app.GetSubspace(stakingtypes.ModuleName),
 	})
 	if err != nil {
 		panic(err)
@@ -446,8 +445,8 @@ func (app *ArgusApp) GetTxConfig() client.TxConfig {
 	return MakeTestEncodingConfig().TxConfig
 }
 
-func (app *ArgusApp) SetEVMHooks(h evmtypes.EvmHooks) {
-	app.EvmKeeper.SetHooks(h)
+func (app *ArgusApp) SetEVMHooks() {
+	//	app.EvmKeeper.SetHooks(h)
 }
 
 // EmptyAppOptions is a stub implementing AppOptions

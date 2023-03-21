@@ -17,9 +17,6 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/v5/modules/apps/transfer/types"
 	ibchost "github.com/cosmos/ibc-go/v5/modules/core/24-host"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
-
-	evmtypes "github.com/argus-labs/argus/x/evm/types"
-	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
 )
 
 // initParamsKeeper init params keeper and its subspaces
@@ -37,10 +34,6 @@ func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino
 	paramsKeeper.Subspace(ibctransfertypes.ModuleName)
 	paramsKeeper.Subspace(routertypes.ModuleName).WithKeyTable(routertypes.ParamKeyTable())
 	paramsKeeper.Subspace(ibchost.ModuleName)
-
-	// Ethermint Modules
-	paramsKeeper.Subspace(evmtypes.ModuleName)
-	paramsKeeper.Subspace(feemarkettypes.ModuleName)
 
 	return paramsKeeper
 }

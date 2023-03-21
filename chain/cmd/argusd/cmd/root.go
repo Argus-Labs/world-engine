@@ -35,7 +35,6 @@ import (
 
 	argus "github.com/argus-labs/argus/app"
 	"github.com/argus-labs/argus/app/simparams"
-	evmtypes "github.com/argus-labs/argus/x/evm/types"
 )
 
 // NewRootCmd creates a new root command for simd. It is called once in the
@@ -194,8 +193,7 @@ func txCommand() *cobra.Command {
 }
 
 type AppCreator struct {
-	EncCfg   simparams.EncodingConfig
-	EvmHooks evmtypes.EvmHooks
+	EncCfg simparams.EncodingConfig
 }
 
 func (ac AppCreator) NewApp(
@@ -254,7 +252,6 @@ func (ac AppCreator) NewApp(
 	)
 
 	// TODO(technicallyty): fix here, we need some sort of hook system
-	argusApp.SetEVMHooks(ac.EvmHooks)
 
 	return argusApp
 }
