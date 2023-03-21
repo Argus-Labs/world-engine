@@ -1,4 +1,4 @@
-package kit
+package pkg
 
 import "github.com/argus-labs/argus/x/evm/types"
 

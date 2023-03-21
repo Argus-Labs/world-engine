@@ -1,4 +1,4 @@
-package kit
+package pkg
 
 import (
 	argus "github.com/argus-labs/argus/app"
