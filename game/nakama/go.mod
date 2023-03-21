@@ -5,6 +5,7 @@ go 1.19
 require (
 	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20221220205637-74c1b18192c5.4
 	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20221220205637-74c1b18192c5.4
+	github.com/JeremyLoy/config v1.5.0
 	github.com/heroiclabs/nakama-common v1.25.0
 	google.golang.org/grpc v1.50.0
 )

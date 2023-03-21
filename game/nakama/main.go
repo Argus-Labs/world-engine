@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -41,25 +39,16 @@ var moduleInit InitializerFunction = func(ctx context.Context, logger runtime.Lo
 // "InitModule" with the same signature as below. Do not edit any of the params/return type, or add any additional params/return types.
 // Doing so will break the Nakama runtime from initializing our SO file.
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, module runtime.NakamaModule, initializer runtime.Initializer) error {
-	target := os.Getenv("SIDECAR_TARGET")
-	clientConn, err := grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	cfg := LoadConfig()
+	clientConn, err := grpc.Dial(cfg.SidecarTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		panic(err)
 	}
 	sidecar = g1.NewSidecarClient(clientConn)
 
-	useReceiver := os.Getenv("USE_RECEIVER")
-	use, err := strconv.ParseBool(useReceiver)
-	if err != nil {
-		panic(err)
-	}
-	if use {
-		receiverPort := os.Getenv("RECEIVER_PORT")
-		port, err := strconv.Atoi(receiverPort)
-		if err != nil {
-			panic(fmt.Errorf("bad port: %w", err))
-		}
-		cr := NewCosmosReceiver(db, logger, module, uint64(port))
+	if cfg.UseReceiver {
+		port := cfg.ReceiverPort
+		cr := NewCosmosReceiver(db, logger, module, port)
 		if err = cr.Start(); err != nil {
 			panic(err)
 		}
