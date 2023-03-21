@@ -15,7 +15,7 @@ DA_BLOCK_HEIGHT=10
 argusd tendermint unsafe-reset-all
 argusd init $VALIDATOR_NAME --chain-id $CHAIN_ID
 
-argusd keys add $KEY_NAME --keyring-backend test
+printf "enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll\n\n" | argusd keys add $KEY_NAME --keyring-backend="test" -i
 argusd add-genesis-account $KEY_NAME $TOKEN_AMOUNT --keyring-backend test
 argusd gentx $KEY_NAME $STAKING_AMOUNT --chain-id $CHAIN_ID --keyring-backend test
 argusd collect-gentxs

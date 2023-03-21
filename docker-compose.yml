@@ -20,8 +20,9 @@ services:
   nakama:
     container_name: nakama_container
     environment:
-      - SIDECAR_TARGET=rollup:5050
+      - SIDECAR_TARGET=node:5050
       - RECEIVER_PORT=6732
+      - USE_RECEIVER=true
     build:
       context: game/nakama
       dockerfile: Dockerfile

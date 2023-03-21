@@ -225,8 +225,8 @@ docker-build-all: docker-build-debug docker-build-hermes
 
 test-sidecar:
 	@docker-compose down -v --remove-orphans
-	@docker-compose build --build-arg TEST_PACKAGE=./...tests/e2e/sidecar tester node
-	@docker-compose up --abort-on-container-exit --exit-code-from tester node tester
+	@docker-compose build --build-arg TEST_PACKAGE=./...tests/e2e/sidecar  tester node celestia
+	@docker-compose up --abort-on-container-exit --exit-code-from  tester node celestia tester
 .PHONY: test-sidecar
 
 test-nakama:
