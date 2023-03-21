@@ -1,5 +1,7 @@
 package main
 
+import "github.com/argus-labs/we-sdk/pkg"
+
 func main() {
 	cfg, err := pkg.LoadConfig("example")
 	if err != nil {
