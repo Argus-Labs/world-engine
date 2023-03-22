@@ -28,7 +28,7 @@ func TestArgusApp_BlockedModuleAccountAddrs(t *testing.T) {
 		map[int64]bool{},
 		argus.DefaultNodeHome,
 		0,
-		argus.MakeTestEncodingConfig(),
+		argus.MakeEncodingConfig(argus.ModuleBasics),
 		EmptyAppOptions{},
 	)
 	blockedAddrs := app.BlockedModuleAccountAddrs()

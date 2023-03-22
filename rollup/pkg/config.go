@@ -29,7 +29,7 @@ func LoadConfig(configName string) (*Config, error) {
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("couldn't load config: %s", err)
 	}
-	var c Config = DefaultConfig()
+	c := DefaultConfig()
 	if err := v.Unmarshal(&c); err != nil {
 		return nil, fmt.Errorf("couldn't read config: %s", err)
 	}

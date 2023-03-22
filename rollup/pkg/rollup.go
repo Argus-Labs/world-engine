@@ -3,7 +3,6 @@ package pkg
 import (
 	argus "github.com/argus-labs/argus/app"
 	"github.com/argus-labs/argus/cmd/argusd/cmd"
-	"github.com/argus-labs/argus/x/evm/types"
 )
 
 var _ Application = app{}
@@ -17,14 +16,13 @@ func NewApplication(cfg *Config, opts ...AppOption) Application {
 }
 
 type app struct {
-	cfg   *Config
-	hooks types.EvmHooks
+	cfg *Config
 }
 
 // Start starts the rollup.
 func (a app) Start() error {
 	cfg := a.cfg
-	encodingConfig := argus.MakeTestEncodingConfig()
-	ac := cmd.AppCreator{EncCfg: encodingConfig, EvmHooks: a.hooks}
+	encodingConfig := argus.MakeEncodingConfig(argus.ModuleBasics)
+	ac := cmd.AppCreator{EncCfg: encodingConfig}
 	return argus.Start(cfg.AppCfg, &cfg.ServerCtx, cfg.ClientCtx, &cfg.ServerCfg, cfg.Rollup, ac.NewApp)
 }

@@ -51,19 +51,9 @@ import (
 	ibchost "github.com/cosmos/ibc-go/v5/modules/core/24-host"
 	ibckeeper "github.com/cosmos/ibc-go/v5/modules/core/keeper"
 	ibctestingtypes "github.com/cosmos/ibc-go/v5/testing/types"
-	"github.com/evmos/ethermint/server/flags"
-	etherminttypes "github.com/evmos/ethermint/types"
-	"github.com/spf13/cast"
 	"github.com/strangelove-ventures/packet-forward-middleware/v5/router"
 	routerkeeper "github.com/strangelove-ventures/packet-forward-middleware/v5/router/keeper"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
-
-	evmtypes "github.com/argus-labs/argus/x/evm/types"
-	feemarketkeeper "github.com/argus-labs/argus/x/feemarket/keeper"
-	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
-
-	evmkeeper "github.com/argus-labs/argus/x/evm/keeper"
-	"github.com/argus-labs/argus/x/evm/vm/geth"
 
 	"github.com/argus-labs/argus/x/adapter"
 	adapterkeeper "github.com/argus-labs/argus/x/adapter/keeper"
@@ -110,10 +100,6 @@ type AppKeepers struct {
 	// make scoped keepers public for test purposes
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper
-
-	// Ethermint Modules
-	EvmKeeper       *evmkeeper.Keeper
-	FeeMarketKeeper feemarketkeeper.Keeper
 }
 
 func NewAppKeeper(
@@ -169,7 +155,7 @@ func NewAppKeeper(
 		appCodec,
 		appKeepers.keys[authtypes.StoreKey],
 		appKeepers.GetSubspace(authtypes.ModuleName),
-		etherminttypes.ProtoAccount,
+		authtypes.ProtoBaseAccount,
 		maccPerms,
 		sdk.GetConfig().GetBech32AccountAddrPrefix(),
 	)
@@ -338,17 +324,6 @@ func NewAppKeeper(
 
 	appKeepers.AdapterKeeper = adapterkeeper.NewKeeper(appCodec, appKeepers.GetKey(adapter.StoreKey))
 	appKeepers.AdapterModule = adapter.NewAppModule(appCodec, appKeepers.AdapterKeeper)
-
-	appKeepers.FeeMarketKeeper = feemarketkeeper.NewKeeper(
-		appCodec, appKeepers.GetSubspace(feemarkettypes.ModuleName), appKeepers.GetKey(feemarkettypes.StoreKey), appKeepers.GetTKey(feemarkettypes.TransientKey),
-	)
-
-	tracer := cast.ToString(appOpts.Get(flags.EVMTracer))
-	appKeepers.EvmKeeper = evmkeeper.NewKeeper(
-		appCodec, appKeepers.GetKey(evmtypes.StoreKey), appKeepers.GetTKey(evmtypes.TransientKey), appKeepers.GetSubspace(evmtypes.ModuleName),
-		appKeepers.AccountKeeper, appKeepers.BankKeeper, appKeepers.StakingKeeper, appKeepers.FeeMarketKeeper,
-		nil, geth.NewEVM, tracer,
-	)
 
 	return appKeepers
 }

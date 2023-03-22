@@ -21,9 +21,6 @@ import (
 	ibchost "github.com/cosmos/ibc-go/v5/modules/core/24-host"
 	routertypes "github.com/strangelove-ventures/packet-forward-middleware/v5/router/types"
 
-	evmtypes "github.com/argus-labs/argus/x/evm/types"
-	feemarkettypes "github.com/argus-labs/argus/x/feemarket/types"
-
 	"github.com/argus-labs/argus/x/adapter"
 )
 
@@ -35,15 +32,14 @@ func (appKeepers *AppKeepers) GenerateKeys() {
 		minttypes.StoreKey, distrtypes.StoreKey, slashingtypes.StoreKey,
 		govtypes.StoreKey, paramstypes.StoreKey, ibchost.StoreKey, upgradetypes.StoreKey,
 		evidencetypes.StoreKey, ibctransfertypes.StoreKey, capabilitytypes.StoreKey, feegrant.StoreKey,
-		authzkeeper.StoreKey, routertypes.StoreKey, group.StoreKey, adapter.StoreKey, evmtypes.StoreKey,
-		feemarkettypes.StoreKey,
+		authzkeeper.StoreKey, routertypes.StoreKey, group.StoreKey, adapter.StoreKey,
 	)
-
-	// Define transient store keys
-	appKeepers.tkeys = sdk.NewTransientStoreKeys(paramstypes.TStoreKey, evmtypes.TransientKey, feemarkettypes.TransientKey)
 
 	// MemKeys are for information that is stored only in RAM.
 	appKeepers.memKeys = sdk.NewMemoryStoreKeys(capabilitytypes.MemStoreKey)
+
+	// Define transient store keys
+	appKeepers.tkeys = sdk.NewTransientStoreKeys(paramstypes.TStoreKey)
 }
 
 func (appKeepers *AppKeepers) GetKVStoreKey() map[string]*storetypes.KVStoreKey {

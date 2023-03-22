@@ -2,11 +2,13 @@ package sidecar
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
 	sidecarv1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
+	"github.com/avast/retry-go"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/suite"
 	"gotest.tools/assert"
@@ -31,7 +33,7 @@ func (suite *SideCarSuite) SetupTest() {
 	}
 	suite.addr = "cosmos1tk7sluasye598msnjlujrp9hd67fl4gylx7z0z" // this addr is derived from the mnemonic in scripts/single-node.sh
 	suite.sidecarClient = GetSidecarClient(suite.T(), suite.cfg.SidecarURL)
-	suite.encCfg = argus.MakeTestEncodingConfig()
+	suite.encCfg = argus.MakeEncodingConfig(argus.ModuleBasics)
 }
 
 // TestingConfig is a testing configuration. These values are typically set via docker.
@@ -57,13 +59,23 @@ func (suite *SideCarSuite) TestSideCarE2E() {
 
 	cosmosQuerier := GetBankClient(suite.T(), suite.cfg.ArgusNodeURL)
 
-	time.Sleep(15 * time.Second) // wait for block inclusion
+	var qres *banktypes.QuerySupplyOfResponse
+	err = retry.Do(func() error {
+		var innerErr error
+		qres, innerErr = cosmosQuerier.SupplyOf(ctx, &banktypes.QuerySupplyOfRequest{Denom: denom})
+		if innerErr != nil {
+			return innerErr
+		}
+		if amount != qres.Amount.Amount.Int64() {
+			return fmt.Errorf("got amount %d, wanted %d", qres.Amount.Amount.Int64(), amount)
+		}
+		if denom != qres.Amount.Denom {
+			return fmt.Errorf("got denom %s, wanted %s", qres.Amount.Denom, denom)
+		}
+		return nil
+	}, retry.Delay(3*time.Second), retry.Attempts(20)) // at most will take 1 minute
 
-	qres, err := cosmosQuerier.SupplyOf(ctx, &banktypes.QuerySupplyOfRequest{Denom: denom})
 	assert.NilError(suite.T(), err)
-
-	assert.Equal(suite.T(), amount, qres.Amount.Amount.Int64())
-	assert.Equal(suite.T(), denom, qres.Amount.Denom)
 }
 
 func TestRunSuite(t *testing.T) {
