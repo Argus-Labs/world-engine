@@ -39,7 +39,7 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
-	argusante "github.com/argus-labs/argus/ante"
+	argusante "github.com/argus-labs/argus/app/ante"
 	argusappparams "github.com/argus-labs/argus/app/simparams"
 
 	"github.com/argus-labs/argus/app/keepers"
