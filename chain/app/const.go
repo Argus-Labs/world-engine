@@ -1,5 +1,5 @@
 package argus
 
 const (
-	appName = "ArgusApp"
+	appName = "App"
 )

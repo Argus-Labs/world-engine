@@ -63,14 +63,14 @@ var (
 )
 
 var (
-	_ simapp.App              = (*ArgusApp)(nil)
-	_ servertypes.Application = (*ArgusApp)(nil)
+	_ simapp.App              = (*App)(nil)
+	_ servertypes.Application = (*App)(nil)
 )
 
-// ArgusApp extends an ABCI application, but with most of its parameters exported.
+// App extends an ABCI application, but with most of its parameters exported.
 // They are exported for convenience in creating helper functions, as object
 // capabilities aren't needed for testing.
-type ArgusApp struct { //nolint: revive
+type App struct { //nolint: revive
 	*baseapp.BaseApp
 	keepers.AppKeepers
 
@@ -110,7 +110,7 @@ func NewArgusApp(
 	encodingConfig argusappparams.EncodingConfig,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
-) *ArgusApp {
+) *App {
 	appCodec := encodingConfig.Codec
 	legacyAmino := encodingConfig.Amino
 	interfaceRegistry := encodingConfig.InterfaceRegistry
@@ -125,7 +125,7 @@ func NewArgusApp(
 	bApp.SetVersion(version.Version)
 	bApp.SetInterfaceRegistry(interfaceRegistry)
 
-	app := &ArgusApp{
+	app := &App{
 		BaseApp:           bApp,
 		legacyAmino:       legacyAmino,
 		appCodec:          appCodec,
@@ -256,15 +256,15 @@ func GetDefaultBypassFeeMessages() []string {
 }
 
 // Name returns the name of the App
-func (app *ArgusApp) Name() string { return app.BaseApp.Name() }
+func (app *App) Name() string { return app.BaseApp.Name() }
 
 // BeginBlocker application updates every begin block
-func (app *ArgusApp) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
+func (app *App) BeginBlocker(ctx sdk.Context, req abci.RequestBeginBlock) abci.ResponseBeginBlock {
 	return app.mm.BeginBlock(ctx, req)
 }
 
 // EndBlocker application updates every end block
-func (app *ArgusApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+func (app *App) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 	cachedCheckTx := ctx.IsCheckTx()
 	msgs := app.msgPool.Drain()
 	if len(msgs) != 0 {
@@ -286,7 +286,7 @@ func (app *ArgusApp) EndBlocker(ctx sdk.Context, req abci.RequestEndBlock) abci.
 }
 
 // InitChainer application update at chain initialization
-func (app *ArgusApp) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+func (app *App) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 	var genesisState GenesisState
 	if err := tmjson.Unmarshal(req.AppStateBytes, &genesisState); err != nil {
 		panic(err)
@@ -298,12 +298,12 @@ func (app *ArgusApp) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abc
 }
 
 // LoadHeight loads a particular height
-func (app *ArgusApp) LoadHeight(height int64) error {
+func (app *App) LoadHeight(height int64) error {
 	return app.LoadVersion(height)
 }
 
 // ModuleAccountAddrs returns all the app's module account addresses.
-func (app *ArgusApp) ModuleAccountAddrs() map[string]bool {
+func (app *App) ModuleAccountAddrs() map[string]bool {
 	modAccAddrs := make(map[string]bool)
 	for acc := range maccPerms {
 		modAccAddrs[authtypes.NewModuleAddress(acc).String()] = true
@@ -314,7 +314,7 @@ func (app *ArgusApp) ModuleAccountAddrs() map[string]bool {
 
 // BlockedModuleAccountAddrs returns all the app's blocked module account
 // addresses.
-func (app *ArgusApp) BlockedModuleAccountAddrs() map[string]bool {
+func (app *App) BlockedModuleAccountAddrs() map[string]bool {
 	modAccAddrs := app.ModuleAccountAddrs()
 
 	// remove module accounts that are ALLOWED to received funds
@@ -326,11 +326,11 @@ func (app *ArgusApp) BlockedModuleAccountAddrs() map[string]bool {
 	return modAccAddrs
 }
 
-// LegacyAmino returns ArgusApp's amino codec.
+// LegacyAmino returns App's amino codec.
 //
 // NOTE: This is solely to be used for testing purposes as it may be desirable
 // for modules to register their own custom testing types.
-func (app *ArgusApp) LegacyAmino() *codec.LegacyAmino {
+func (app *App) LegacyAmino() *codec.LegacyAmino {
 	return app.legacyAmino
 }
 
@@ -338,23 +338,23 @@ func (app *ArgusApp) LegacyAmino() *codec.LegacyAmino {
 //
 // NOTE: This is solely to be used for testing purposes as it may be desirable
 // for modules to register their own custom testing types.
-func (app *ArgusApp) AppCodec() codec.Codec {
+func (app *App) AppCodec() codec.Codec {
 	return app.appCodec
 }
 
 // InterfaceRegistry returns Argus's InterfaceRegistry
-func (app *ArgusApp) InterfaceRegistry() types.InterfaceRegistry {
+func (app *App) InterfaceRegistry() types.InterfaceRegistry {
 	return app.interfaceRegistry
 }
 
 // SimulationManager implements the SimulationApp interface
-func (app *ArgusApp) SimulationManager() *module.SimulationManager {
+func (app *App) SimulationManager() *module.SimulationManager {
 	return app.sm
 }
 
 // RegisterAPIRoutes registers all application module routes with the provided
 // API server.
-func (app *ArgusApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
+func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	clientCtx := apiSvr.ClientCtx
 	// Register new tx routes from grpc-gateway.
 	authtx.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
@@ -371,12 +371,12 @@ func (app *ArgusApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIC
 }
 
 // RegisterTxService implements the Application.RegisterTxService method.
-func (app *ArgusApp) RegisterTxService(clientCtx client.Context) {
+func (app *App) RegisterTxService(clientCtx client.Context) {
 	authtx.RegisterTxService(app.BaseApp.GRPCQueryRouter(), clientCtx, app.BaseApp.Simulate, app.interfaceRegistry)
 }
 
 // RegisterTendermintService implements the Application.RegisterTendermintService method.
-func (app *ArgusApp) RegisterTendermintService(clientCtx client.Context) {
+func (app *App) RegisterTendermintService(clientCtx client.Context) {
 	tmservice.RegisterTendermintService(
 		clientCtx,
 		app.BaseApp.GRPCQueryRouter(),
@@ -386,7 +386,7 @@ func (app *ArgusApp) RegisterTendermintService(clientCtx client.Context) {
 }
 
 // configure store loader that checks if version == upgradeHeight and applies store upgrades
-func (app *ArgusApp) setupUpgradeStoreLoaders() {
+func (app *App) setupUpgradeStoreLoaders() {
 	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
 	if err != nil {
 		panic(fmt.Sprintf("failed to read upgrade info from disk %s", err))
@@ -403,7 +403,7 @@ func (app *ArgusApp) setupUpgradeStoreLoaders() {
 	}
 }
 
-func (app *ArgusApp) setupUpgradeHandlers() {
+func (app *App) setupUpgradeHandlers() {
 	for _, upgrade := range Upgrades {
 		app.UpgradeKeeper.SetUpgradeHandler(
 			upgrade.UpgradeName,
@@ -427,25 +427,25 @@ func RegisterSwaggerAPI(rtr *mux.Router) {
 	rtr.PathPrefix("/swagger/").Handler(http.StripPrefix("/swagger/", staticServer))
 }
 
-func (app *ArgusApp) OnTxSucceeded(ctx sdk.Context, sourcePort, sourceChannel string, txHash []byte, txBytes []byte) {
+func (app *App) OnTxSucceeded(ctx sdk.Context, sourcePort, sourceChannel string, txHash []byte, txBytes []byte) {
 }
 
-func (app *ArgusApp) OnTxFailed(ctx sdk.Context, sourcePort, sourceChannel string, txHash []byte, txBytes []byte) {
+func (app *App) OnTxFailed(ctx sdk.Context, sourcePort, sourceChannel string, txHash []byte, txBytes []byte) {
 }
 
 // TestingApp functions
 
 // GetBaseApp implements the TestingApp interface.
-func (app *ArgusApp) GetBaseApp() *baseapp.BaseApp {
+func (app *App) GetBaseApp() *baseapp.BaseApp {
 	return app.BaseApp
 }
 
 // GetTxConfig implements the TestingApp interface.
-func (app *ArgusApp) GetTxConfig() client.TxConfig {
+func (app *App) GetTxConfig() client.TxConfig {
 	return MakeEncodingConfig(ModuleBasics).TxConfig
 }
 
-func (app *ArgusApp) SetEVMHooks() {
+func (app *App) SetEVMHooks() {
 	//	app.EvmKeeper.SetHooks(h)
 }
 

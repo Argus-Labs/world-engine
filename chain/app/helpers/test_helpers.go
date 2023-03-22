@@ -30,7 +30,7 @@ const (
 )
 
 // DefaultConsensusParams defines the default Tendermint consensus params used
-// in ArgusApp testing.
+// in App testing.
 var DefaultConsensusParams = &abci.ConsensusParams{
 	Block: &abci.BlockParams{
 		MaxBytes: 200000,
@@ -52,7 +52,7 @@ type EmptyAppOptions struct{}
 
 func (EmptyAppOptions) Get(o string) interface{} { return nil }
 
-func Setup(t *testing.T) *argus.ArgusApp {
+func Setup(t *testing.T) *argus.App {
 	t.Helper()
 
 	privVal := mock.NewPV()
@@ -74,11 +74,11 @@ func Setup(t *testing.T) *argus.ArgusApp {
 	return app
 }
 
-// SetupWithGenesisValSet initializes a new ArgusApp with a validator set and genesis accounts
+// SetupWithGenesisValSet initializes a new App with a validator set and genesis accounts
 // that also act as delegators. For simplicity, each validator is bonded with a delegation
-// of one consensus engine unit in the default token of the ArgusApp from first genesis
-// account. A Nop logger is set in ArgusApp.
-func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *argus.ArgusApp {
+// of one consensus engine unit in the default token of the App from first genesis
+// account. A Nop logger is set in App.
+func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, balances ...banktypes.Balance) *argus.App {
 	t.Helper()
 
 	argusApp, genesisState := setup(true, 5)
@@ -110,7 +110,7 @@ func SetupWithGenesisValSet(t *testing.T, valSet *tmtypes.ValidatorSet, genAccs 
 	return argusApp
 }
 
-func setup(withGenesis bool, invCheckPeriod uint) (*argus.ArgusApp, argus.GenesisState) {
+func setup(withGenesis bool, invCheckPeriod uint) (*argus.App, argus.GenesisState) {
 	db := dbm.NewMemDB()
 	encCdc := argus.MakeEncodingConfig(argus.ModuleBasics)
 	argusApp := argus.NewArgusApp(
@@ -132,7 +132,7 @@ func setup(withGenesis bool, invCheckPeriod uint) (*argus.ArgusApp, argus.Genesi
 }
 
 func genesisStateWithValSet(t *testing.T,
-	app *argus.ArgusApp, genesisState argus.GenesisState,
+	app *argus.App, genesisState argus.GenesisState,
 	valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount,
 	balances ...banktypes.Balance,
 ) argus.GenesisState {

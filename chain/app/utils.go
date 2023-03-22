@@ -110,13 +110,13 @@ func genesisStateWithValSet(codec codec.Codec, genesisState simapp.GenesisState,
 	return genesisState
 }
 
-// Setup initializes a new ArgusApp. A Nop logger is set in ArgusApp.
-func Setup(isCheckTx bool, patchGenesis func(*ArgusApp, simapp.GenesisState) simapp.GenesisState) *ArgusApp {
+// Setup initializes a new App. A Nop logger is set in App.
+func Setup(isCheckTx bool, patchGenesis func(*App, simapp.GenesisState) simapp.GenesisState) *App {
 	return SetupWithDB(isCheckTx, patchGenesis, dbm.NewMemDB())
 }
 
-// SetupWithDB initializes a new ArgusApp. A Nop logger is set in ArgusApp.
-func SetupWithDB(isCheckTx bool, patchGenesis func(*ArgusApp, simapp.GenesisState) simapp.GenesisState, db dbm.DB) *ArgusApp {
+// SetupWithDB initializes a new App. A Nop logger is set in App.
+func SetupWithDB(isCheckTx bool, patchGenesis func(*App, simapp.GenesisState) simapp.GenesisState, db dbm.DB) *App {
 	app := NewArgusApp(log.NewNopLogger(),
 		db,
 		nil,
@@ -153,7 +153,7 @@ func SetupWithDB(isCheckTx bool, patchGenesis func(*ArgusApp, simapp.GenesisStat
 }
 
 // DefaultConsensusParams defines the default Tendermint consensus params used
-// in ArgusApp testing.
+// in App testing.
 var DefaultConsensusParams = &abci.ConsensusParams{
 	Block: &abci.BlockParams{
 		MaxBytes: 200000,
