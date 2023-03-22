@@ -20,7 +20,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/version"
-	ante3 "github.com/cosmos/cosmos-sdk/x/auth/ante"
+	authante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
@@ -39,7 +39,7 @@ import (
 	tmos "github.com/tendermint/tendermint/libs/os"
 	dbm "github.com/tendermint/tm-db"
 
-	ante2 "github.com/argus-labs/argus/ante"
+	argusante "github.com/argus-labs/argus/ante"
 	argusappparams "github.com/argus-labs/argus/app/simparams"
 
 	"github.com/argus-labs/argus/app/keepers"
@@ -192,13 +192,13 @@ func NewArgusApp(
 	app.MountMemoryStores(app.GetMemoryStoreKey())
 
 	// TODO(technicallyty): might need to fix this?
-	ah, err := ante2.NewAnteHandler(ante2.HandlerOptions{
-		HandlerOptions: ante3.HandlerOptions{
+	ah, err := argusante.NewAnteHandler(argusante.HandlerOptions{
+		HandlerOptions: authante.HandlerOptions{
 			AccountKeeper:   app.AccountKeeper,
 			BankKeeper:      app.BankKeeper,
 			FeegrantKeeper:  app.FeeGrantKeeper,
 			SignModeHandler: encodingConfig.TxConfig.SignModeHandler(),
-			SigGasConsumer:  ante3.DefaultSigVerificationGasConsumer,
+			SigGasConsumer:  authante.DefaultSigVerificationGasConsumer,
 		},
 		Codec:           appCodec,
 		GovKeeper:       &app.GovKeeper,
