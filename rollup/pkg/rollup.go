@@ -22,7 +22,7 @@ type app struct {
 // Start starts the rollup.
 func (a app) Start() error {
 	cfg := a.cfg
-	encodingConfig := argus.MakeTestEncodingConfig()
+	encodingConfig := argus.MakeEncodingConfig(argus.ModuleBasics)
 	ac := cmd.AppCreator{EncCfg: encodingConfig}
 	return argus.Start(cfg.AppCfg, &cfg.ServerCtx, cfg.ClientCtx, &cfg.ServerCfg, cfg.Rollup, ac.NewApp)
 }

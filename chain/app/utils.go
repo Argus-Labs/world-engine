@@ -124,7 +124,7 @@ func SetupWithDB(isCheckTx bool, patchGenesis func(*ArgusApp, simapp.GenesisStat
 		map[int64]bool{},
 		DefaultNodeHome,
 		5,
-		MakeTestEncodingConfig(),
+		MakeEncodingConfig(ModuleBasics),
 		simapp.EmptyAppOptions{})
 	if !isCheckTx {
 		// init chain must be called to stop deliverState from being nil

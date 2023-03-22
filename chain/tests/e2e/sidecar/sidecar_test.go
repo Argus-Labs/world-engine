@@ -31,7 +31,7 @@ func (suite *SideCarSuite) SetupTest() {
 	}
 	suite.addr = "cosmos1tk7sluasye598msnjlujrp9hd67fl4gylx7z0z" // this addr is derived from the mnemonic in scripts/single-node.sh
 	suite.sidecarClient = GetSidecarClient(suite.T(), suite.cfg.SidecarURL)
-	suite.encCfg = argus.MakeTestEncodingConfig()
+	suite.encCfg = argus.MakeEncodingConfig(argus.ModuleBasics)
 }
 
 // TestingConfig is a testing configuration. These values are typically set via docker.

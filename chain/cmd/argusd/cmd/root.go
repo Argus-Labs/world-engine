@@ -40,7 +40,7 @@ import (
 // NewRootCmd creates a new root command for simd. It is called once in the
 // main function.
 func NewRootCmd() (*cobra.Command, simparams.EncodingConfig) {
-	encodingConfig := argus.MakeTestEncodingConfig()
+	encodingConfig := argus.MakeEncodingConfig(argus.ModuleBasics)
 	initClientCtx := client.Context{}.
 		WithCodec(encodingConfig.Codec).
 		WithInterfaceRegistry(encodingConfig.InterfaceRegistry).

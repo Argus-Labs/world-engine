@@ -2,7 +2,6 @@ module github.com/argus-labs/argus
 
 go 1.18
 
-
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.7-rollkit-v0.7.0-no-fraud-proofs
 	// use Evmos geth fork

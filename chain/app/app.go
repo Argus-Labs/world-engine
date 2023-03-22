@@ -442,7 +442,7 @@ func (app *ArgusApp) GetBaseApp() *baseapp.BaseApp {
 
 // GetTxConfig implements the TestingApp interface.
 func (app *ArgusApp) GetTxConfig() client.TxConfig {
-	return MakeTestEncodingConfig().TxConfig
+	return MakeEncodingConfig(ModuleBasics).TxConfig
 }
 
 func (app *ArgusApp) SetEVMHooks() {

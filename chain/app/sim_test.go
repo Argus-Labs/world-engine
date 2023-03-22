@@ -106,7 +106,7 @@ func TestAppStateDeterminism(t *testing.T) {
 			}
 
 			db := dbm.NewMemDB()
-			app := argus.NewArgusApp(logger, db, nil, true, map[int64]bool{}, argus.DefaultNodeHome, simapp.FlagPeriodValue, argus.MakeTestEncodingConfig(), EmptyAppOptions{}, interBlockCacheOpt())
+			app := argus.NewArgusApp(logger, db, nil, true, map[int64]bool{}, argus.DefaultNodeHome, simapp.FlagPeriodValue, argus.MakeEncodingConfig(argus.ModuleBasics), EmptyAppOptions{}, interBlockCacheOpt())
 
 			fmt.Printf(
 				"running non-determinism simulation; seed %d: %d/%d, attempt: %d/%d\n",
