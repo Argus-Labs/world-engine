@@ -2,6 +2,15 @@ module github.com/argus-labs/argus
 
 go 1.18
 
+
+replace (
+	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.7-rollkit-v0.7.0-no-fraud-proofs
+	// use Evmos geth fork
+	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+	github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d
+	github.com/zondax/hid => github.com/zondax/hid v0.9.0
+)
+
 require (
 	buf.build/gen/go/argus-labs/argus/grpc/go v1.2.0-20230207212811-ad6150871d00.4
 	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.28.1-20230207212811-ad6150871d00.4
@@ -398,12 +407,4 @@ require (
 	mvdan.cc/unparam v0.0.0-20220706161116-678bad134442 // indirect
 	nhooyr.io/websocket v1.8.6 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
-)
-
-replace (
-	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.7-rollkit-v0.7.0-no-fraud-proofs
-	// use Evmos geth fork
-	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-	github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d
-	github.com/zondax/hid => github.com/zondax/hid v0.9.0
 )
