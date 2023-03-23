@@ -297,7 +297,7 @@ func Start(appCfg AppConfig, ctx *sdkServer.Context, clientCtx client.Context, s
 		grpcWebSrv *http.Server
 	)
 
-	argusApp := app.(*ArgusApp)
+	argusApp := app.(*App)
 	pCdc := protoCodec{
 		Codec: argusApp.appCodec,
 		ir:    argusApp.interfaceRegistry,

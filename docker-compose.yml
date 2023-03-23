@@ -97,7 +97,7 @@ services:
   celestia:
     container_name: celestia_container
     build:
-      context: chain/celestia-client
+      context: fixtures/celestia-client
       dockerfile: celestia.Dockerfile
     networks:
       - default

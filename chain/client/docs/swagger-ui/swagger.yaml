@@ -1,6 +1,0 @@
-swagger: '2.0'
-paths: {}
-info:
-  title: Argus - gRPC Gateway docs
-  description: A REST interface for state queries
-  version: 1.0.0

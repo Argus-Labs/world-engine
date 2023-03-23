@@ -105,7 +105,7 @@ var ModuleBasics = module.NewBasicManager(
 )
 
 func appModules(
-	app *ArgusApp,
+	app *App,
 	encodingConfig appparams.EncodingConfig,
 	skipGenesisInvariants bool,
 ) []module.AppModule {
@@ -144,7 +144,7 @@ func appModules(
 // simulationModules returns modules for simulation manager
 // define the order of the modules for deterministic simulations
 func simulationModules(
-	app *ArgusApp,
+	app *App,
 	encodingConfig appparams.EncodingConfig,
 	_ bool,
 ) []module.AppModuleSimulation {
