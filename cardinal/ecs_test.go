@@ -9,8 +9,8 @@ import (
 )
 
 type EnergyComponent struct {
-	amt int64
-	cap int64
+	Amt int64
+	Cap int64
 }
 
 type OwnableComponent struct {
@@ -20,7 +20,7 @@ type OwnableComponent struct {
 func UpdateEnergySystem(w World) {
 	Energy.Each(w, func(entry *Entry) {
 		energyPlanet := Energy.Get(entry)
-		energyPlanet.amt += 10 // bs whatever
+		energyPlanet.Amt += 10 // bs whatever
 
 	})
 }
@@ -44,7 +44,7 @@ func Test_ECS(t *testing.T) {
 
 	Energy.Each(world, func(entry *Entry) {
 		energyPlanet := Energy.Get(entry)
-		assert.Equal(t, int64(10), energyPlanet.amt)
+		assert.Equal(t, int64(10), energyPlanet.Amt)
 	})
 
 	q := NewQuery(filter.Or(filter.Contains(Energy), filter.Contains(Ownable)))
