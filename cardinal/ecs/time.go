@@ -32,7 +32,7 @@ func (t *Time) Update() {
 		t.prevTime = now
 	}
 
-	t.deltaTime = (now.Sub(t.prevTime))
+	t.deltaTime = now.Sub(t.prevTime)
 
 	if t.timeScale != 1 {
 		ms := float64(t.deltaTime.Milliseconds())

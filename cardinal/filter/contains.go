@@ -6,7 +6,7 @@ type contains struct {
 	components []component.IComponentType
 }
 
-// Contains matches layouts that contains all the components specified.
+// Contains matches layouts that contain all the components specified.
 func Contains(components ...component.IComponentType) LayoutFilter {
 	return &contains{components: components}
 }

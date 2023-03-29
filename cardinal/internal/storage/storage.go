@@ -7,7 +7,7 @@ import (
 )
 
 // Storage is a structure that stores the pointer to data of each component.
-// It stores the pointers in the two dimensional slice.
+// It stores the pointers in the two-dimensional slice.
 // First dimension is the archetype index.
 // Second dimension is the component index.
 // The component index is used to access the component data in the archetype.
@@ -44,16 +44,16 @@ func (cs *Storage) SetComponent(archetypeIndex ArchetypeIndex, componentIndex Co
 
 // MoveComponent moves the pointer to data of the component in the archetype.
 func (cs *Storage) MoveComponent(source ArchetypeIndex, index ComponentIndex, dst ArchetypeIndex) {
-	src_slice := cs.storages[source]
-	dst_slice := cs.storages[dst]
+	srcSlice := cs.storages[source]
+	dstSlice := cs.storages[dst]
 
-	value := src_slice[index]
-	src_slice[index] = src_slice[len(src_slice)-1]
-	src_slice = src_slice[:len(src_slice)-1]
-	cs.storages[source] = src_slice
+	value := srcSlice[index]
+	srcSlice[index] = srcSlice[len(srcSlice)-1]
+	srcSlice = srcSlice[:len(srcSlice)-1]
+	cs.storages[source] = srcSlice
 
-	dst_slice = append(dst_slice, value)
-	cs.storages[dst] = dst_slice
+	dstSlice = append(dstSlice, value)
+	cs.storages[dst] = dstSlice
 }
 
 // SwapRemove removes the pointer to data of the component in the archetype.

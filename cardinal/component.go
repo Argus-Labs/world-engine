@@ -25,10 +25,10 @@ func NewComponentType[T any](opts ...interface{}) *ComponentType[T] {
 	return newComponentType(t, opts[0])
 }
 
-// CompnentType represents a type of component. It is used to identify
+// ComponentType represents a type of component. It is used to identify
 // a component when getting or setting components of an entity.
 type ComponentType[T any] struct {
-	id         component.ComponentTypeId
+	id         component.TypeID
 	typ        reflect.Type
 	name       string
 	defaultVal interface{}
@@ -88,7 +88,7 @@ func (c *ComponentType[T]) Name() string {
 }
 
 // Id returns the component type id.
-func (c *ComponentType[T]) Id() component.ComponentTypeId {
+func (c *ComponentType[T]) ID() component.TypeID {
 	return c.id
 }
 
@@ -114,7 +114,7 @@ func (c *ComponentType[T]) validateDefaultVal() {
 	}
 }
 
-var nextComponentTypeId component.ComponentTypeId = 1
+var nextComponentTypeId component.TypeID = 1
 
 // NewComponentType creates a new component type.
 // The argument is a struct that represents a data of the component.

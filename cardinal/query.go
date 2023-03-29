@@ -80,7 +80,7 @@ func (q *Query) First(w World) (entry *Entry, ok bool) {
 }
 
 func (q *Query) evaluateQuery(world World, accessor *StorageAccessor) []storage.ArchetypeIndex {
-	w := world.Id()
+	w := world.ID()
 	if _, ok := q.layoutMatches[w]; !ok {
 		q.layoutMatches[w] = &cache{
 			archetypes: make([]storage.ArchetypeIndex, 0),

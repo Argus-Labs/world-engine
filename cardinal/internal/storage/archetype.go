@@ -35,9 +35,9 @@ func (archetype *Archetype) Entities() []entity.Entity {
 }
 
 // SwapRemove removes an entity from the archetype and returns it.
-func (archetype *Archetype) SwapRemove(entity_index int) entity.Entity {
-	removed := archetype.entities[entity_index]
-	archetype.entities[entity_index] = archetype.entities[len(archetype.entities)-1]
+func (archetype *Archetype) SwapRemove(entityIndex int) entity.Entity {
+	removed := archetype.entities[entityIndex]
+	archetype.entities[entityIndex] = archetype.entities[len(archetype.entities)-1]
 	archetype.entities = archetype.entities[:len(archetype.entities)-1]
 	return removed
 }

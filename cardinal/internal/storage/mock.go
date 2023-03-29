@@ -9,11 +9,11 @@ import (
 )
 
 var (
-	nextMockComponentTypeId component.ComponentTypeId = 1
+	nextMockComponentTypeId component.TypeID = 1
 )
 
 type MockComponentType[T any] struct {
-	id         component.ComponentTypeId
+	id         component.TypeID
 	typ        reflect.Type
 	defaultVal interface{}
 }
@@ -28,7 +28,7 @@ func NewMockComponentType[T any](t T, defaultVal interface{}) *MockComponentType
 	return m
 }
 
-func (m *MockComponentType[T]) Id() component.ComponentTypeId {
+func (m *MockComponentType[T]) ID() component.TypeID {
 	return m.id
 }
 

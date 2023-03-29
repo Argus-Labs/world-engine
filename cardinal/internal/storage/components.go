@@ -2,7 +2,7 @@ package storage
 
 import "github.com/argus-labs/cardinal/component"
 
-// ComponentIndex represents the index of component in a archetype.
+// ComponentIndex represents the index of component in an archetype.
 type ComponentIndex int
 
 // Components is a structure that stores data of components.
@@ -23,10 +23,10 @@ func NewComponents() *Components {
 // PushComponents stores the new data of the component in the archetype.
 func (cs *Components) PushComponents(components []component.IComponentType, archetypeIndex ArchetypeIndex) ComponentIndex {
 	for _, componentType := range components {
-		if v := cs.storages[componentType.Id()]; v == nil {
-			cs.storages[componentType.Id()] = NewStorage()
+		if v := cs.storages[componentType.ID()]; v == nil {
+			cs.storages[componentType.ID()] = NewStorage()
 		}
-		cs.storages[componentType.Id()].PushComponent(componentType, archetypeIndex)
+		cs.storages[componentType.ID()].PushComponent(componentType, archetypeIndex)
 	}
 	if _, ok := cs.componentIndices[archetypeIndex]; !ok {
 		cs.componentIndices[archetypeIndex] = 0
@@ -44,11 +44,11 @@ func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) {
 
 // Storage returns the pointer to data of the component in the archetype.
 func (cs *Components) Storage(c component.IComponentType) *Storage {
-	if storage := cs.storages[c.Id()]; storage != nil {
+	if storage := cs.storages[c.ID()]; storage != nil {
 		return storage
 	}
-	cs.storages[c.Id()] = NewStorage()
-	return cs.storages[c.Id()]
+	cs.storages[c.ID()] = NewStorage()
+	return cs.storages[c.ID()]
 }
 
 // Remove removes the component from the storage.

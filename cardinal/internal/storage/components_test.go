@@ -55,7 +55,7 @@ func TestComponents(t *testing.T) {
 	target := tests[0]
 	storage := components.Storage(ca)
 
-	var srcArchIdx ArchetypeIndex = target.archIdx
+	srcArchIdx := target.archIdx
 	var dstArchIdx ArchetypeIndex = 1
 
 	storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx)

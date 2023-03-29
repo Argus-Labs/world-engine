@@ -50,15 +50,15 @@ func TestStorage(t *testing.T) {
 	tests2 := []struct {
 		archIdx    ArchetypeIndex
 		cmpIdx     ComponentIndex
-		epxectedID string
+		expectedID string
 	}{
-		{archIdx: 0, cmpIdx: 0, epxectedID: "a"},
-		{archIdx: 0, cmpIdx: 1, epxectedID: "c"},
+		{archIdx: 0, cmpIdx: 0, expectedID: "a"},
+		{archIdx: 0, cmpIdx: 1, expectedID: "c"},
 	}
 
 	for _, tt := range tests2 {
-		if c := (*Component)(st.Component(tt.archIdx, tt.cmpIdx)); c.ID != tt.epxectedID {
-			t.Errorf("component should have ID %s but got %s", tt.epxectedID, c.ID)
+		if c := (*Component)(st.Component(tt.archIdx, tt.cmpIdx)); c.ID != tt.expectedID {
+			t.Errorf("component should have ID %s but got %s", tt.expectedID, c.ID)
 		}
 		compIdx++
 	}

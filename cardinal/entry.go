@@ -14,7 +14,7 @@ import (
 type Entry struct {
 	World *world
 
-	id     entity.EntityId
+	id     entity.ID
 	entity Entity
 	loc    *storage.Location
 }
@@ -54,7 +54,7 @@ func Valid(e *Entry) bool {
 }
 
 // Id returns the entity id.
-func (e *Entry) Id() entity.EntityId {
+func (e *Entry) Id() entity.ID {
 	return e.id
 }
 

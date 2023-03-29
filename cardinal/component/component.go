@@ -5,11 +5,11 @@ import (
 )
 
 type (
-	ComponentTypeId int
-)
+	TypeID int
 
-type IComponentType interface {
-	Id() ComponentTypeId
-	New() unsafe.Pointer
-	Name() string
-}
+	IComponentType interface {
+		ID() TypeID
+		New() unsafe.Pointer
+		Name() string
+	}
+)

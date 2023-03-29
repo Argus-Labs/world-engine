@@ -17,9 +17,9 @@ func TestMatchesLayout(t *testing.T) {
 		cb = NewMockComponentType(componentB{}, nil)
 	)
 
-	cmps := []component.IComponentType{ca, cb}
-	archetype := NewArchetype(0, NewLayout(cmps))
-	if !archetype.LayoutMatches(cmps) {
+	components := []component.IComponentType{ca, cb}
+	archetype := NewArchetype(0, NewLayout(components))
+	if !archetype.LayoutMatches(components) {
 		t.Errorf("archetype should match the layout")
 	}
 }
@@ -30,8 +30,8 @@ func TestPushEntity(t *testing.T) {
 		cb = NewMockComponentType(struct{}{}, nil)
 	)
 
-	cmps := []component.IComponentType{ca, cb}
-	archetype := NewArchetype(0, NewLayout(cmps))
+	components := []component.IComponentType{ca, cb}
+	archetype := NewArchetype(0, NewLayout(components))
 
 	archetype.PushEntity(0)
 	archetype.PushEntity(1)

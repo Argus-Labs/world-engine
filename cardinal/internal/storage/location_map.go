@@ -19,19 +19,19 @@ func NewLocationMap() *LocationMap {
 }
 
 // Contains returns true if the storage contains the given entity id.
-func (lm *LocationMap) Contains(id entity.EntityId) bool {
+func (lm *LocationMap) Contains(id entity.ID) bool {
 	val := lm.LocationMap[id]
 	return val != nil && val.Valid
 }
 
 // Remove removes the given entity id from the storage.
-func (lm *LocationMap) Remove(id entity.EntityId) {
+func (lm *LocationMap) Remove(id entity.ID) {
 	lm.LocationMap[id].Valid = false
 	lm.Len--
 }
 
 // Insert inserts the given entity id and archetype index to the storage.
-func (lm *LocationMap) Insert(id entity.EntityId, archetype ArchetypeIndex, component ComponentIndex) {
+func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component ComponentIndex) {
 	if int(id) == len(lm.LocationMap) {
 		loc := NewLocation(archetype, component)
 		lm.LocationMap = append(lm.LocationMap, loc)
@@ -48,21 +48,21 @@ func (lm *LocationMap) Insert(id entity.EntityId, archetype ArchetypeIndex, comp
 }
 
 // Set sets the given entity id and archetype index to the storage.
-func (lm *LocationMap) Set(id entity.EntityId, loc *Location) {
+func (lm *LocationMap) Set(id entity.ID, loc *Location) {
 	lm.Insert(id, loc.Archetype, loc.Component)
 }
 
 // Location returns the location of the given entity id.
-func (lm *LocationMap) Location(id entity.EntityId) *Location {
+func (lm *LocationMap) Location(id entity.ID) *Location {
 	return lm.LocationMap[id]
 }
 
 // Archetype returns the archetype of the given entity id.
-func (lm *LocationMap) Archetype(id entity.EntityId) ArchetypeIndex {
+func (lm *LocationMap) Archetype(id entity.ID) ArchetypeIndex {
 	return lm.LocationMap[id].Archetype
 }
 
 // Component returns the component of the given entity id.
-func (lm *LocationMap) Component(id entity.EntityId) ComponentIndex {
+func (lm *LocationMap) Component(id entity.ID) ComponentIndex {
 	return lm.LocationMap[id].Component
 }

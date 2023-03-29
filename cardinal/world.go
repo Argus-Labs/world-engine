@@ -14,8 +14,8 @@ type WorldId int
 
 // World is a collection of entities and components.
 type World interface {
-	// Id returns the unique identifier for the world.
-	Id() WorldId
+	// ID returns the unique identifier for the world.
+	ID() WorldId
 	// Create creates a new entity with the specified components.
 	Create(components ...component.IComponentType) Entity
 	// CreateMany creates a new entity with the specified components.
@@ -31,7 +31,7 @@ type World interface {
 	// StorageAccessor returns an accessor for the world's storage.
 	// It is used to access components and archetypes by queries.
 	StorageAccessor() StorageAccessor
-	// ArcheTypes returns the archetypes in the world.
+	// Archetypes returns the archetypes in the world.
 	Archetypes() []*storage.Archetype
 	// Update loops through and executes all the systems in the world
 	Update()
@@ -59,7 +59,7 @@ type world struct {
 	archetypes   []*storage.Archetype
 	destroyed    []Entity
 	entries      []*Entry
-	nextEntityId entity.EntityId
+	nextEntityId entity.ID
 	systems      []System
 }
 
@@ -103,7 +103,7 @@ func NewWorld() World {
 	return w
 }
 
-func (w *world) Id() WorldId {
+func (w *world) ID() WorldId {
 	return w.id
 }
 
@@ -122,17 +122,17 @@ func (w *world) Create(components ...component.IComponentType) Entity {
 }
 
 func (w *world) createEntity(archetypeIndex storage.ArchetypeIndex) Entity {
-	entity := w.nextEntity()
+	nextEntity := w.nextEntity()
 	archetype := w.archetypes[archetypeIndex]
 	componentIndex := w.components.PushComponents(archetype.Layout().Components(), archetypeIndex)
-	w.entities.Insert(entity.Id(), archetypeIndex, componentIndex)
-	archetype.PushEntity(entity)
-	w.createEntry(entity)
-	return entity
+	w.entities.Insert(nextEntity.ID(), archetypeIndex, componentIndex)
+	archetype.PushEntity(nextEntity)
+	w.createEntry(nextEntity)
+	return nextEntity
 }
 
 func (w *world) createEntry(e Entity) {
-	id := e.Id()
+	id := e.ID()
 	if int(id) >= len(w.entries) {
 		w.entries = append(w.entries, nil)
 	}
@@ -150,10 +150,10 @@ func (w *world) Valid(e Entity) bool {
 	if e == Null {
 		return false
 	}
-	if !w.entities.Contains(e.Id()) {
+	if !w.entities.Contains(e.ID()) {
 		return false
 	}
-	loc := w.entities.LocationMap[e.Id()]
+	loc := w.entities.LocationMap[e.ID()]
 	a := loc.Archetype
 	c := loc.Component
 	// If the version of the entity is not the same as the version of the archetype,
@@ -162,7 +162,7 @@ func (w *world) Valid(e Entity) bool {
 }
 
 func (w *world) Entry(entity Entity) *Entry {
-	id := entity.Id()
+	id := entity.ID()
 	entry := w.entries[id]
 	entry.entity = entity
 	entry.loc = w.entities.LocationMap[id]
@@ -175,21 +175,21 @@ func (w *world) Len() int {
 
 func (w *world) Remove(ent Entity) {
 	if w.Valid(ent) {
-		loc := w.entities.LocationMap[ent.Id()]
-		w.entities.Remove(ent.Id())
+		loc := w.entities.LocationMap[ent.ID()]
+		w.entities.Remove(ent.ID())
 		w.removeAtLocation(ent, loc)
 	}
 }
 
 func (w *world) removeAtLocation(ent Entity, loc *storage.Location) {
-	arch_index := loc.Archetype
-	component_index := loc.Component
-	archetype := w.archetypes[arch_index]
-	archetype.SwapRemove(int(component_index))
-	w.components.Remove(archetype, component_index)
-	if int(component_index) < len(archetype.Entities()) {
-		swapped := archetype.Entities()[component_index]
-		w.entities.Set(swapped.Id(), loc)
+	archIndex := loc.Archetype
+	componentIndex := loc.Component
+	archetype := w.archetypes[archIndex]
+	archetype.SwapRemove(int(componentIndex))
+	w.components.Remove(archetype, componentIndex)
+	if int(componentIndex) < len(archetype.Entities()) {
+		swapped := archetype.Entities()[componentIndex]
+		w.entities.Set(swapped.ID(), loc)
 	}
 	w.destroyed = append(w.destroyed, ent.IncVersion())
 }
@@ -198,41 +198,41 @@ func (w *world) TransferArchetype(from, to storage.ArchetypeIndex, idx storage.C
 	if from == to {
 		return idx
 	}
-	from_arch := w.archetypes[from]
-	to_arch := w.archetypes[to]
+	fromArch := w.archetypes[from]
+	toArch := w.archetypes[to]
 
 	// move entity id
-	ent := from_arch.SwapRemove(int(idx))
-	to_arch.PushEntity(ent)
-	w.entities.Insert(ent.Id(), to, storage.ComponentIndex(len(to_arch.Entities())-1))
+	ent := fromArch.SwapRemove(int(idx))
+	toArch.PushEntity(ent)
+	w.entities.Insert(ent.ID(), to, storage.ComponentIndex(len(toArch.Entities())-1))
 
-	if len(from_arch.Entities()) > int(idx) {
-		moved := from_arch.Entities()[idx]
-		w.entities.Insert(moved.Id(), from, storage.ComponentIndex(idx))
+	if len(fromArch.Entities()) > int(idx) {
+		moved := fromArch.Entities()[idx]
+		w.entities.Insert(moved.ID(), from, idx)
 	}
 
 	// creates component if not exists in new layout
-	from_layout := from_arch.Layout()
-	to_layout := to_arch.Layout()
-	for _, component_type := range to_layout.Components() {
-		if !from_layout.HasComponent(component_type) {
-			storage := w.components.Storage(component_type)
-			storage.PushComponent(component_type, to)
+	fromLayout := fromArch.Layout()
+	toLayout := toArch.Layout()
+	for _, componentType := range toLayout.Components() {
+		if !fromLayout.HasComponent(componentType) {
+			store := w.components.Storage(componentType)
+			store.PushComponent(componentType, to)
 		}
 	}
 
 	// move components
-	for _, component_type := range from_layout.Components() {
-		storage := w.components.Storage(component_type)
-		if to_layout.HasComponent(component_type) {
-			storage.MoveComponent(from, idx, to)
+	for _, componentType := range fromLayout.Components() {
+		store := w.components.Storage(componentType)
+		if toLayout.HasComponent(componentType) {
+			store.MoveComponent(from, idx, to)
 		} else {
-			storage.SwapRemove(from, idx)
+			store.SwapRemove(from, idx)
 		}
 	}
 	w.components.Move(from, to)
 
-	return storage.ComponentIndex(len(to_arch.Entities()) - 1)
+	return storage.ComponentIndex(len(toArch.Entities()) - 1)
 }
 
 func (w *world) StorageAccessor() StorageAccessor {
@@ -253,17 +253,17 @@ func (w *world) nextEntity() Entity {
 		w.nextEntityId++
 		return entity.NewEntity(id)
 	}
-	entity := w.destroyed[len(w.destroyed)-1]
+	newEntity := w.destroyed[len(w.destroyed)-1]
 	w.destroyed = w.destroyed[:len(w.destroyed)-1]
-	return entity
+	return newEntity
 }
 
-func (w *world) insertArcheType(layout *storage.Layout) storage.ArchetypeIndex {
+func (w *world) insertArchetype(layout *storage.Layout) storage.ArchetypeIndex {
 	w.index.Push(layout)
-	arch_index := storage.ArchetypeIndex(len(w.archetypes))
-	w.archetypes = append(w.archetypes, storage.NewArchetype(arch_index, layout))
+	archIndex := storage.ArchetypeIndex(len(w.archetypes))
+	w.archetypes = append(w.archetypes, storage.NewArchetype(archIndex, layout))
 
-	return arch_index
+	return archIndex
 }
 
 func (w *world) getArchetypeForComponents(components []component.IComponentType) storage.ArchetypeIndex {
@@ -276,11 +276,11 @@ func (w *world) getArchetypeForComponents(components []component.IComponentType)
 	if !w.noDuplicates(components) {
 		panic(fmt.Sprintf("duplicate component types: %v", components))
 	}
-	return w.insertArcheType(storage.NewLayout(components))
+	return w.insertArchetype(storage.NewLayout(components))
 }
 
 func (w *world) noDuplicates(components []component.IComponentType) bool {
-	// check if there're duplicate values inside components slice
+	// check if there are duplicate values inside components slice
 	for i := 0; i < len(components); i++ {
 		for j := i + 1; j < len(components); j++ {
 			if components[i] == components[j] {
