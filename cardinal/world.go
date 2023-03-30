@@ -17,9 +17,9 @@ type World interface {
 	// ID returns the unique identifier for the world.
 	ID() WorldId
 	// Create creates a new entity with the specified components.
-	Create(components ...component.IComponentType) Entity
+	Create(components ...component.IComponentType) (Entity, error)
 	// CreateMany creates a new entity with the specified components.
-	CreateMany(n int, components ...component.IComponentType) []Entity
+	CreateMany(n int, components ...component.IComponentType) ([]Entity, error)
 	// Entry returns an entry for the specified entity.
 	Entry(entity Entity) *Entry
 	// Remove removes the specified entity.
@@ -107,28 +107,36 @@ func (w *world) ID() WorldId {
 	return w.id
 }
 
-func (w *world) CreateMany(num int, components ...component.IComponentType) []Entity {
+func (w *world) CreateMany(num int, components ...component.IComponentType) ([]Entity, error) {
 	archetypeIndex := w.getArchetypeForComponents(components)
 	entities := make([]Entity, 0, num)
 	for i := 0; i < num; i++ {
-		entities = append(entities, w.createEntity(archetypeIndex))
+		e, err := w.createEntity(archetypeIndex)
+		if err != nil {
+			return nil, err
+		}
+
+		entities = append(entities, e)
 	}
-	return entities
+	return entities, nil
 }
 
-func (w *world) Create(components ...component.IComponentType) Entity {
+func (w *world) Create(components ...component.IComponentType) (Entity, error) {
 	archetypeIndex := w.getArchetypeForComponents(components)
 	return w.createEntity(archetypeIndex)
 }
 
-func (w *world) createEntity(archetypeIndex storage.ArchetypeIndex) Entity {
+func (w *world) createEntity(archetypeIndex storage.ArchetypeIndex) (Entity, error) {
 	nextEntity := w.nextEntity()
 	archetype := w.archetypes[archetypeIndex]
-	componentIndex := w.components.PushComponents(archetype.Layout().Components(), archetypeIndex)
+	componentIndex, err := w.components.PushComponents(archetype.Layout().Components(), archetypeIndex)
+	if err != nil {
+		return 0, err
+	}
 	w.entities.Insert(nextEntity.ID(), archetypeIndex, componentIndex)
 	archetype.PushEntity(nextEntity)
 	w.createEntry(nextEntity)
-	return nextEntity
+	return nextEntity, nil
 }
 
 func (w *world) createEntry(e Entity) {

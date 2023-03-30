@@ -7,7 +7,7 @@ type ComponentIndex int
 
 // Components is a structure that stores data of components.
 type Components struct {
-	storages []*Storage
+	storages []*SliceStorage
 	// TODO: optimize to use slice instead of map for performance
 	componentIndices map[ArchetypeIndex]ComponentIndex
 }
@@ -15,25 +15,28 @@ type Components struct {
 // NewComponents creates a new empty structure that stores data of components.
 func NewComponents() *Components {
 	return &Components{
-		storages:         make([]*Storage, 512), // TODO: expand as the number of component types increases
+		storages:         make([]*SliceStorage, 512), // TODO: expand as the number of component types increases
 		componentIndices: make(map[ArchetypeIndex]ComponentIndex),
 	}
 }
 
 // PushComponents stores the new data of the component in the archetype.
-func (cs *Components) PushComponents(components []component.IComponentType, archetypeIndex ArchetypeIndex) ComponentIndex {
+func (cs *Components) PushComponents(components []component.IComponentType, archetypeIndex ArchetypeIndex) (ComponentIndex, error) {
 	for _, componentType := range components {
 		if v := cs.storages[componentType.ID()]; v == nil {
-			cs.storages[componentType.ID()] = NewStorage()
+			cs.storages[componentType.ID()] = NewSliceStorage()
 		}
-		cs.storages[componentType.ID()].PushComponent(componentType, archetypeIndex)
+		err := cs.storages[componentType.ID()].PushComponent(componentType, archetypeIndex)
+		if err != nil {
+			return 0, err
+		}
 	}
 	if _, ok := cs.componentIndices[archetypeIndex]; !ok {
 		cs.componentIndices[archetypeIndex] = 0
 	} else {
 		cs.componentIndices[archetypeIndex]++
 	}
-	return cs.componentIndices[archetypeIndex]
+	return cs.componentIndices[archetypeIndex], nil
 }
 
 // Move moves the bytes of data of the component in the archetype.
@@ -42,12 +45,12 @@ func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) {
 	cs.componentIndices[dst]++
 }
 
-// Storage returns the pointer to data of the component in the archetype.
-func (cs *Components) Storage(c component.IComponentType) *Storage {
+// SliceStorage returns the pointer to data of the component in the archetype.
+func (cs *Components) Storage(c component.IComponentType) *SliceStorage {
 	if storage := cs.storages[c.ID()]; storage != nil {
 		return storage
 	}
-	cs.storages[c.ID()] = NewStorage()
+	cs.storages[c.ID()] = NewSliceStorage()
 	return cs.storages[c.ID()]
 }
 

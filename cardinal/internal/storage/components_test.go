@@ -3,6 +3,8 @@ package storage
 import (
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/argus-labs/cardinal/component"
 )
 
@@ -38,7 +40,9 @@ func TestComponents(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt.compIdx = components.PushComponents(tt.layout.Components(), tt.archIdx)
+		var err error
+		tt.compIdx, err = components.PushComponents(tt.layout.Components(), tt.archIdx)
+		assert.NilError(t, err)
 	}
 
 	for _, tt := range tests {

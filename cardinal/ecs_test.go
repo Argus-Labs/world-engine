@@ -14,7 +14,7 @@ type EnergyComponent struct {
 }
 
 type OwnableComponent struct {
-	owner string
+	Owner string
 }
 
 func UpdateEnergySystem(w World) {
@@ -41,9 +41,11 @@ func Test_ECS(t *testing.T) {
 	world := NewWorld()
 
 	// create a bunch of planets!
-	world.CreateMany(100, Energy, Ownable)
+	_, err := world.CreateMany(100, Energy, Ownable)
+	assert.NilError(t, err)
 
-	world.CreateMany(10, Energy)
+	_, err = world.CreateMany(10, Energy)
+	assert.NilError(t, err)
 
 	world.AddSystem(UpdateEnergySystem)
 	world.Update()
