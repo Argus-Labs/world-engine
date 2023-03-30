@@ -1,6 +1,6 @@
 module github.com/argus-labs/cardinal
 
-go 1.20
+go 1.19
 
 require (
 	github.com/alicebob/miniredis/v2 v2.30.1

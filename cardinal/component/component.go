@@ -1,9 +1,5 @@
 package component
 
-import (
-	"unsafe"
-)
-
 type (
 	TypeID int
 
@@ -13,7 +9,7 @@ type (
 		ID() TypeID
 		// New creates a new pointer to the component struct. It will set the struct being pointed to with the default
 		//value if the component was created with one. Otherwise, the struct being pointed to will be empty.
-		New() unsafe.Pointer
+		New() ([]byte, error)
 		// Name returns the name of the component.
 		Name() string
 	}

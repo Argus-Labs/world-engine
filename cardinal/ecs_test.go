@@ -19,9 +19,15 @@ type OwnableComponent struct {
 
 func UpdateEnergySystem(w World) {
 	Energy.Each(w, func(entry *Entry) {
-		energyPlanet := Energy.Get(entry)
+		energyPlanet, err := Energy.Get(entry)
+		if err != nil {
+			panic(err)
+		}
 		energyPlanet.Amt += 10 // bs whatever
-
+		err = Energy.Set(entry, &energyPlanet)
+		if err != nil {
+			panic(err)
+		}
 	})
 }
 
@@ -43,7 +49,8 @@ func Test_ECS(t *testing.T) {
 	world.Update()
 
 	Energy.Each(world, func(entry *Entry) {
-		energyPlanet := Energy.Get(entry)
+		energyPlanet, err := Energy.Get(entry)
+		assert.NilError(t, err)
 		assert.Equal(t, int64(10), energyPlanet.Amt)
 	})
 

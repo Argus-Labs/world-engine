@@ -36,7 +36,7 @@ func (cs *Components) PushComponents(components []component.IComponentType, arch
 	return cs.componentIndices[archetypeIndex]
 }
 
-// Move moves the pointer to data of the component in the archetype.
+// Move moves the bytes of data of the component in the archetype.
 func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) {
 	cs.componentIndices[src]--
 	cs.componentIndices[dst]++
