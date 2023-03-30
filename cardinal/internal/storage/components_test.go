@@ -11,8 +11,8 @@ func TestComponents(t *testing.T) {
 		ID string
 	}
 	var (
-		ca = NewMockComponentType(ComponentData{}, nil)
-		cb = NewMockComponentType(ComponentData{}, nil)
+		ca = NewMockComponentType(ComponentData{}, ComponentData{ID: "foo"})
+		cb = NewMockComponentType(ComponentData{}, ComponentData{ID: "bar"})
 	)
 
 	components := NewComponents()
@@ -47,8 +47,10 @@ func TestComponents(t *testing.T) {
 			if !st.Contains(tt.archIdx, tt.compIdx) {
 				t.Errorf("storage should contain the component at %d, %d", tt.archIdx, tt.compIdx)
 			}
-			dat := (*ComponentData)(st.Component(tt.archIdx, tt.compIdx))
+			bz := st.Component(tt.archIdx, tt.compIdx)
+			dat := decodeComponent[ComponentData](t, bz)
 			dat.ID = tt.ID
+			st.SetComponent(tt.archIdx, tt.compIdx, encodeComponent[ComponentData](t, dat))
 		}
 	}
 
@@ -73,8 +75,9 @@ func TestComponents(t *testing.T) {
 		t.Errorf("storage should contain the component at %d, %d", dstArchIdx, target.compIdx)
 	}
 
-	dat := (*ComponentData)(storage.Component(dstArchIdx, newCompIdx))
+	bz := storage.Component(dstArchIdx, newCompIdx)
+	dat := decodeComponent[ComponentData](t, bz)
 	if dat.ID != target.ID {
-		t.Errorf("component should have ID %s", target.ID)
+		t.Errorf("component should have ID '%s', got ID '%s'", target.ID, dat.ID)
 	}
 }

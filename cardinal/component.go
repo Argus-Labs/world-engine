@@ -1,6 +1,8 @@
 package cardinal
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"reflect"
 	"unsafe"
@@ -35,14 +37,37 @@ type ComponentType[T any] struct {
 	query      *Query
 }
 
+func decodeComponent[T any](bz []byte) (T, error) {
+	var buf bytes.Buffer
+	buf.Write(bz)
+	dec := gob.NewDecoder(&buf)
+	comp := new(T)
+	err := dec.Decode(comp)
+	return *comp, err
+}
+
+func encodeComponent[T any](comp T) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(comp)
+	return buf.Bytes(), err
+}
+
 // Get returns component data from the entry.
-func (c *ComponentType[T]) Get(entry *Entry) *T {
-	return (*T)(entry.Component(c))
+func (c *ComponentType[T]) Get(entry *Entry) (T, error) {
+	bz := entry.Component(c)
+	comp, err := decodeComponent[T](bz)
+	return comp, err
 }
 
 // Set sets component data to the entry.
-func (c *ComponentType[T]) Set(entry *Entry, component *T) {
-	entry.SetComponent(c, unsafe.Pointer(component))
+func (c *ComponentType[T]) Set(entry *Entry, component *T) error {
+	bz, err := encodeComponent[T](*component)
+	if err != nil {
+		return err
+	}
+	entry.SetComponent(c, bz)
+	return nil
 }
 
 // Each iterates over the entities that have the component.
@@ -66,9 +91,12 @@ func (c *ComponentType[T]) MustFirst(w World) *Entry {
 }
 
 // SetValue sets the value of the component.
-func (c *ComponentType[T]) SetValue(entry *Entry, value T) {
-	comp := c.Get(entry)
-	*comp = value
+func (c *ComponentType[T]) SetValue(entry *Entry, value T) error {
+	_, err := c.Get(entry)
+	if err != nil {
+		return err
+	}
+	return c.Set(entry, &value)
 }
 
 // String returns the component type name.
@@ -87,19 +115,20 @@ func (c *ComponentType[T]) Name() string {
 	return c.name
 }
 
-// Id returns the component type id.
+// ID returns the component type id.
 func (c *ComponentType[T]) ID() component.TypeID {
 	return c.id
 }
 
-func (c *ComponentType[T]) New() unsafe.Pointer {
-	val := reflect.New(c.typ)
-	v := reflect.Indirect(val)
-	ptr := unsafe.Pointer(v.UnsafeAddr())
+func (c *ComponentType[T]) New() ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	var comp T
 	if c.defaultVal != nil {
-		c.setDefaultVal(ptr)
+		comp = c.defaultVal.(T)
 	}
-	return ptr
+	err := enc.Encode(comp)
+	return buf.Bytes(), err
 }
 
 func (c *ComponentType[T]) setDefaultVal(ptr unsafe.Pointer) {

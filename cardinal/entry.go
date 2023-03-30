@@ -2,8 +2,8 @@ package cardinal
 
 import (
 	"bytes"
+	"encoding/gob"
 	"fmt"
-	"unsafe"
 
 	"github.com/argus-labs/cardinal/component"
 	"github.com/argus-labs/cardinal/internal/entity"
@@ -20,24 +20,51 @@ type Entry struct {
 }
 
 // Get returns the component from the entry
-func Get[T any](e *Entry, ctype component.IComponentType) *T {
-	return (*T)(e.Component(ctype))
+func Get[T any](e *Entry, cType component.IComponentType) (*T, error) {
+	var comp *T
+	compBz := e.Component(cType)
+	var buf bytes.Buffer
+	buf.Write(compBz)
+	dec := gob.NewDecoder(&buf)
+	err := dec.Decode(comp)
+	return comp, err
+}
+
+func MarshalComponent[T any](comp *T) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(*comp)
+	return buf.Bytes(), err
 }
 
 // Add adds the component to the entry.
-func Add[T any](e *Entry, ctype component.IComponentType, component *T) {
-	e.AddComponent(ctype, unsafe.Pointer(component))
+func Add[T any](e *Entry, cType component.IComponentType, component *T) error {
+	bz, err := MarshalComponent[T](component)
+	if err != nil {
+		return err
+	}
+	e.AddComponent(cType, bz)
+	return nil
 }
 
-// Set sets the comopnent of the entry.
-func Set[T any](e *Entry, ctype component.IComponentType, component *T) {
-	e.SetComponent(ctype, unsafe.Pointer(component))
+// Set sets the component of the entry.
+func Set[T any](e *Entry, ctype component.IComponentType, component *T) error {
+	bz, err := MarshalComponent[T](component)
+	if err != nil {
+		return err
+	}
+	e.SetComponent(ctype, bz)
+	return nil
 }
 
 // SetValue sets the value of the component.
-func SetValue[T any](e *Entry, ctype component.IComponentType, value T) {
-	c := Get[T](e, ctype)
+func SetValue[T any](e *Entry, ctype component.IComponentType, value T) error {
+	c, err := Get[T](e, ctype)
+	if err != nil {
+		return err
+	}
 	*c = value
+	return nil
 }
 
 // Remove removes the component from the entry.
@@ -64,59 +91,59 @@ func (e *Entry) Entity() Entity {
 }
 
 // Component returns the component.
-func (e *Entry) Component(ctype component.IComponentType) unsafe.Pointer {
+func (e *Entry) Component(cType component.IComponentType) []byte {
 	c := e.loc.Component
 	a := e.loc.Archetype
-	return e.World.components.Storage(ctype).Component(a, c)
+	return e.World.components.Storage(cType).Component(a, c)
 }
 
 // SetComponent sets the component.
-func (e *Entry) SetComponent(ctype component.IComponentType, component unsafe.Pointer) {
+func (e *Entry) SetComponent(cType component.IComponentType, component []byte) {
 	c := e.loc.Component
 	a := e.loc.Archetype
-	e.World.components.Storage(ctype).SetComponent(a, c, component)
+	e.World.components.Storage(cType).SetComponent(a, c, component)
 }
 
 // AddComponent adds the component to the entity.
-func (e *Entry) AddComponent(ctype component.IComponentType, components ...unsafe.Pointer) {
+func (e *Entry) AddComponent(cType component.IComponentType, components ...[]byte) {
 	if len(components) > 1 {
 		panic("AddComponent: component argument must be a single value")
 	}
-	if !e.HasComponent(ctype) {
+	if !e.HasComponent(cType) {
 		c := e.loc.Component
 		a := e.loc.Archetype
 
-		base_layout := e.World.archetypes[a].Layout().Components()
-		target_arc := e.World.getArchetypeForComponents(append(base_layout, ctype))
-		e.World.TransferArchetype(a, target_arc, c)
+		baseLayout := e.World.archetypes[a].Layout().Components()
+		targetArc := e.World.getArchetypeForComponents(append(baseLayout, cType))
+		e.World.TransferArchetype(a, targetArc, c)
 
 		e.loc = e.World.Entry(e.entity).loc
 	}
 	if len(components) == 1 {
-		e.SetComponent(ctype, components[0])
+		e.SetComponent(cType, components[0])
 	}
 }
 
 // RemoveComponent removes the component from the entity.
-func (e *Entry) RemoveComponent(ctype component.IComponentType) {
-	if !e.Archetype().Layout().HasComponent(ctype) {
+func (e *Entry) RemoveComponent(cType component.IComponentType) {
+	if !e.Archetype().Layout().HasComponent(cType) {
 		return
 	}
 
 	c := e.loc.Component
 	a := e.loc.Archetype
 
-	base_layout := e.World.archetypes[a].Layout().Components()
-	target_layout := make([]component.IComponentType, 0, len(base_layout)-1)
-	for _, c2 := range base_layout {
-		if c2 == ctype {
+	baseLayout := e.World.archetypes[a].Layout().Components()
+	targetLayout := make([]component.IComponentType, 0, len(baseLayout)-1)
+	for _, c2 := range baseLayout {
+		if c2 == cType {
 			continue
 		}
-		target_layout = append(target_layout, c2)
+		targetLayout = append(targetLayout, c2)
 	}
 
-	target_arc := e.World.getArchetypeForComponents(target_layout)
-	e.World.TransferArchetype(e.loc.Archetype, target_arc, c)
+	targetArc := e.World.getArchetypeForComponents(targetLayout)
+	e.World.TransferArchetype(e.loc.Archetype, targetArc, c)
 
 	e.loc = e.World.Entry(e.entity).loc
 }
