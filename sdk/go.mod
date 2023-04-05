@@ -1,4 +1,4 @@
-module github.com/argus-labs/we-sdk
+module github.com/argus-labs/world-engine/rollup
 
 go 1.19
 
@@ -287,5 +287,4 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d
 	github.com/zondax/hid => github.com/zondax/hid v0.9.0
-
 )
