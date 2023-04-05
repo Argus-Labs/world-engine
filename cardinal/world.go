@@ -54,7 +54,7 @@ type initializer func(w World)
 type world struct {
 	id           WorldId
 	index        *storage.Index
-	entities     *storage.LocationMap
+	entities     storage.EntityLocationStorage
 	components   *storage.Components
 	archetypes   []*storage.Archetype
 	destroyed    []Entity
@@ -162,7 +162,7 @@ func (w *world) Valid(e Entity) bool {
 	if !w.entities.Contains(e.ID()) {
 		return false
 	}
-	loc := w.entities.LocationMap[e.ID()]
+	loc := w.entities.Location(e.ID())
 	a := loc.Archetype
 	c := loc.Component
 	// If the version of the entity is not the same as the version of the archetype,
@@ -174,17 +174,17 @@ func (w *world) Entry(entity Entity) *Entry {
 	id := entity.ID()
 	entry := w.entries[id]
 	entry.entity = entity
-	entry.loc = w.entities.LocationMap[id]
+	entry.loc = w.entities.Location(id)
 	return entry
 }
 
 func (w *world) Len() int {
-	return w.entities.Len
+	return w.entities.Len()
 }
 
 func (w *world) Remove(ent Entity) {
 	if w.Valid(ent) {
-		loc := w.entities.LocationMap[ent.ID()]
+		loc := w.entities.Location(ent.ID())
 		w.entities.Remove(ent.ID())
 		w.removeAtLocation(ent, loc)
 	}

@@ -34,4 +34,5 @@ type EntityLocationStorage interface {
 	Location(id entity.ID) *Location
 	ArchetypeIndex(id entity.ID) ArchetypeIndex
 	ComponentIndex(id entity.ID) ComponentIndex
+	Len() int
 }

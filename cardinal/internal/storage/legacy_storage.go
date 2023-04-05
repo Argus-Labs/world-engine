@@ -2,6 +2,8 @@ package storage
 
 import (
 	"github.com/argus-labs/cardinal/component"
+
+	"github.com/argus-labs/cardinal/internal/entity"
 )
 
 var _ Storage = &ComponentsSliceStorage{}
@@ -130,4 +132,71 @@ func (c *ComponentIndexMap) IncrementIndex(index ArchetypeIndex) {
 
 func (c *ComponentIndexMap) DecrementIndex(index ArchetypeIndex) {
 	c.idxs[index]--
+}
+
+// LocationMap is a storage of entity locations.
+type LocationMap struct {
+	locations []*Location
+	len       int
+}
+
+func (lm *LocationMap) Len() int {
+	return lm.len
+}
+
+// NewLocationMap creates an empty storage.
+func NewLocationMap() EntityLocationStorage {
+	return &LocationMap{
+		locations: make([]*Location, 1, 256),
+		len:       0,
+	}
+}
+
+// Contains returns true if the storage contains the given entity id.
+func (lm *LocationMap) Contains(id entity.ID) bool {
+	val := lm.locations[id]
+	return val != nil && val.Valid
+}
+
+// Remove removes the given entity id from the storage.
+func (lm *LocationMap) Remove(id entity.ID) {
+	lm.locations[id].Valid = false
+	lm.len--
+}
+
+// Insert inserts the given entity id and archetype index to the storage.
+func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component ComponentIndex) {
+	if int(id) == len(lm.locations) {
+		loc := NewLocation(archetype, component)
+		lm.locations = append(lm.locations, loc)
+		lm.len++
+	} else {
+		loc := lm.locations[id]
+		loc.Archetype = archetype
+		loc.Component = component
+		if !loc.Valid {
+			lm.len++
+			loc.Valid = true
+		}
+	}
+}
+
+// Set sets the given entity id and archetype index to the storage.
+func (lm *LocationMap) Set(id entity.ID, loc *Location) {
+	lm.Insert(id, loc.Archetype, loc.Component)
+}
+
+// Location returns the location of the given entity id.
+func (lm *LocationMap) Location(id entity.ID) *Location {
+	return lm.locations[id]
+}
+
+// ArchetypeIndex returns the archetype of the given entity id.
+func (lm *LocationMap) ArchetypeIndex(id entity.ID) ArchetypeIndex {
+	return lm.locations[id].Archetype
+}
+
+// ComponentIndex returns the component of the given entity id.
+func (lm *LocationMap) ComponentIndex(id entity.ID) ComponentIndex {
+	return lm.locations[id].Component
 }
