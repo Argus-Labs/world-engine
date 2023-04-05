@@ -57,7 +57,7 @@ type Cosmos mg.Namespace
 
 // directory returns the directory name for the Cosmos SDK chain.
 func (Cosmos) directory() string {
-	return "cosmos"
+	return "chain-new"
 }
 
 // ===========================================================================
