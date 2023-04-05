@@ -29,8 +29,8 @@ import (
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	"github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
+	simapp "github.com/argus-labs/world-engine/chain/runtime"
 	"pkg.berachain.dev/polaris/cosmos/cmd/polard/cmd"
-	simapp "pkg.berachain.dev/polaris/cosmos/runtime"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

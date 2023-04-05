@@ -57,8 +57,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
+	"github.com/argus-labs/world-engine/chain/runtime"
 	"pkg.berachain.dev/polaris/cosmos/crypto/keyring"
-	"pkg.berachain.dev/polaris/cosmos/runtime"
 	evmante "pkg.berachain.dev/polaris/cosmos/x/evm/ante"
 )
 

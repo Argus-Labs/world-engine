@@ -26,9 +26,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 
+	simapp "github.com/argus-labs/world-engine/chain/runtime"
+	"github.com/argus-labs/world-engine/chain/runtime/config"
 	"pkg.berachain.dev/polaris/cosmos/cmd/polard/cmd"
-	simapp "pkg.berachain.dev/polaris/cosmos/runtime"
-	"pkg.berachain.dev/polaris/cosmos/runtime/config"
 )
 
 func main() {
