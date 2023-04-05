@@ -48,7 +48,7 @@ var _ MageModule = (*Contracts)(nil)
 type Contracts mg.Namespace
 
 func (Contracts) directory() string {
-	return "contracts"
+	return "./chain/contracts"
 }
 
 // ===========================================================================
@@ -112,7 +112,7 @@ func (Contracts) TestIntegration() error {
 
 // Wraps forge commands with the proper directory change.
 func forgeWrapper(forgeFunc func(args ...string) error) error {
-	if err := ExecuteInDirectory("./contracts", forgeFunc, false); err != nil {
+	if err := ExecuteInDirectory("./chain/contracts", forgeFunc, false); err != nil {
 		return err
 	}
 	return nil
