@@ -324,4 +324,4 @@ require (
 
 replace github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d
 
-replace pkg.berachain.dev/polaris/contracts => ../contracts
+replace pkg.berachain.dev/polaris/contracts => ./contracts
