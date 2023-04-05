@@ -163,8 +163,8 @@ func (w *world) Valid(e Entity) bool {
 		return false
 	}
 	loc := w.entities.Location(e.ID())
-	a := loc.Archetype
-	c := loc.Component
+	a := loc.ArchIndex
+	c := loc.CompIndex
 	// If the version of the entity is not the same as the version of the archetype,
 	// the entity is invalid (it means the entity is already destroyed).
 	return loc.Valid && e == w.archetypes.Archetype(a).Entities()[c]
@@ -191,8 +191,8 @@ func (w *world) Remove(ent Entity) {
 }
 
 func (w *world) removeAtLocation(ent Entity, loc *storage.Location) {
-	archIndex := loc.Archetype
-	componentIndex := loc.Component
+	archIndex := loc.ArchIndex
+	componentIndex := loc.CompIndex
 	archetype := w.archetypes.Archetype(archIndex)
 	archetype.SwapRemove(int(componentIndex))
 	w.components.Remove(archIndex, archetype.Layout().Components(), componentIndex)

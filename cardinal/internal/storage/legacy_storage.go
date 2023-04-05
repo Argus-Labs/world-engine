@@ -173,8 +173,8 @@ func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component 
 		lm.len++
 	} else {
 		loc := lm.locations[id]
-		loc.Archetype = archetype
-		loc.Component = component
+		loc.ArchIndex = archetype
+		loc.CompIndex = component
 		if !loc.Valid {
 			lm.len++
 			loc.Valid = true
@@ -184,7 +184,7 @@ func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component 
 
 // Set sets the given entity id and archetype index to the storage.
 func (lm *LocationMap) Set(id entity.ID, loc *Location) {
-	lm.Insert(id, loc.Archetype, loc.Component)
+	lm.Insert(id, loc.ArchIndex, loc.CompIndex)
 }
 
 // Location returns the location of the given entity id.
@@ -194,12 +194,12 @@ func (lm *LocationMap) Location(id entity.ID) *Location {
 
 // ArchetypeIndex returns the archetype of the given entity id.
 func (lm *LocationMap) ArchetypeIndex(id entity.ID) ArchetypeIndex {
-	return lm.locations[id].Archetype
+	return lm.locations[id].ArchIndex
 }
 
 // ComponentIndex returns the component of the given entity id.
 func (lm *LocationMap) ComponentIndex(id entity.ID) ComponentIndex {
-	return lm.locations[id].Component
+	return lm.locations[id].CompIndex
 }
 
 // Index is a structure that indexes archetypes by their component types.

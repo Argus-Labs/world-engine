@@ -92,15 +92,15 @@ func (e *Entry) Entity() Entity {
 
 // Component returns the component.
 func (e *Entry) Component(cType component.IComponentType) []byte {
-	c := e.loc.Component
-	a := e.loc.Archetype
+	c := e.loc.CompIndex
+	a := e.loc.ArchIndex
 	return e.World.components.Storage(cType).Component(a, c)
 }
 
 // SetComponent sets the component.
 func (e *Entry) SetComponent(cType component.IComponentType, component []byte) {
-	c := e.loc.Component
-	a := e.loc.Archetype
+	c := e.loc.CompIndex
+	a := e.loc.ArchIndex
 	e.World.components.Storage(cType).SetComponent(a, c, component)
 }
 
@@ -110,8 +110,8 @@ func (e *Entry) AddComponent(cType component.IComponentType, components ...[]byt
 		panic("AddComponent: component argument must be a single value")
 	}
 	if !e.HasComponent(cType) {
-		c := e.loc.Component
-		a := e.loc.Archetype
+		c := e.loc.CompIndex
+		a := e.loc.ArchIndex
 
 		baseLayout := e.World.archetypes.Archetype(a).Layout().Components()
 		targetArc := e.World.getArchetypeForComponents(append(baseLayout, cType))
@@ -131,8 +131,8 @@ func (e *Entry) RemoveComponent(cType component.IComponentType) {
 		return
 	}
 
-	c := e.loc.Component
-	a := e.loc.Archetype
+	c := e.loc.CompIndex
+	a := e.loc.ArchIndex
 
 	baseLayout := e.World.archetypes.Archetype(a).Layout().Components()
 	targetLayout := make([]component.IComponentType, 0, len(baseLayout)-1)
@@ -144,7 +144,7 @@ func (e *Entry) RemoveComponent(cType component.IComponentType) {
 	}
 
 	targetArc := e.World.getArchetypeForComponents(targetLayout)
-	e.World.TransferArchetype(e.loc.Archetype, targetArc, c)
+	e.World.TransferArchetype(e.loc.ArchIndex, targetArc, c)
 
 	e.loc = e.World.Entry(e.entity).loc
 }
@@ -161,7 +161,7 @@ func (e *Entry) Valid() bool {
 
 // Archetype returns the archetype.
 func (e *Entry) Archetype() storage.ArchetypeStorage {
-	a := e.loc.Archetype
+	a := e.loc.ArchIndex
 	return e.World.archetypes.Archetype(a)
 }
 
