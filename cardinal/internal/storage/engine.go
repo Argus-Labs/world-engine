@@ -2,6 +2,7 @@ package storage
 
 import (
 	"github.com/argus-labs/cardinal/component"
+	"github.com/argus-labs/cardinal/filter"
 	"github.com/argus-labs/cardinal/internal/entity"
 )
 
@@ -35,4 +36,26 @@ type EntityLocationStorage interface {
 	ArchetypeIndex(id entity.ID) ArchetypeIndex
 	ComponentIndex(id entity.ID) ComponentIndex
 	Len() int
+}
+
+type ArchetypeComponentIndex interface {
+	Push(layout *Layout)
+	SearchFrom(filter filter.LayoutFilter, start int) *ArchetypeIterator
+	Search(layoutFilter filter.LayoutFilter) *ArchetypeIterator
+}
+
+type ArchetypeAccessor interface {
+	Archetypes() []*Archetype
+	PushArchetype(index ArchetypeIndex, layout *Layout)
+	Archetype(index ArchetypeIndex) ArchetypeStorage
+	Count() int
+}
+
+type ArchetypeStorage interface {
+	Layout() *Layout
+	Entities() []entity.Entity
+	SwapRemove(entityIndex int) entity.Entity
+	LayoutMatches(components []component.IComponentType) bool
+	PushEntity(entity entity.Entity)
+	Count() int
 }

@@ -5,12 +5,8 @@ import "github.com/argus-labs/cardinal/component"
 // ComponentIndex represents the index of component in an archetype.
 type ComponentIndex int
 
-// Components is a structure that stores data of components.
+// Components is a structure that facilitates the storage and retrieval of component data.
 type Components struct {
-	// storages is a slice of component storages. each storage in the slice represents all storages for a given component type.
-	// storages are fetched via component type ID.
-	//
-	// example: if component Foo has ID 1, then storages[1] contains the storage for all components of type Foo.
 	store            Storage
 	componentIndices ComponentIndexStorage
 }
@@ -60,11 +56,11 @@ func (cs *Components) Storage(c component.IComponentType) ComponentStorage {
 }
 
 // Remove removes the component from the storage.
-func (cs *Components) Remove(a *Archetype, ci ComponentIndex) {
-	for _, ct := range a.Layout().Components() {
-		cs.remove(ct, a.index, ci)
+func (cs *Components) Remove(ai ArchetypeIndex, comps []component.IComponentType, ci ComponentIndex) {
+	for _, ct := range comps {
+		cs.remove(ct, ai, ci)
 	}
-	cs.componentIndices.DecrementIndex(a.index)
+	cs.componentIndices.DecrementIndex(ai)
 }
 
 func (cs *Components) remove(ct component.IComponentType, ai ArchetypeIndex, ci ComponentIndex) {

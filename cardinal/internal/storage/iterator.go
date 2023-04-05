@@ -4,17 +4,17 @@ import "github.com/argus-labs/cardinal/internal/entity"
 
 // EntityIterator is an iterator for entity lists in archetypes.
 type EntityIterator struct {
-	current    int
-	archetypes []*Archetype
-	indices    []ArchetypeIndex
+	current      int
+	archAccessor ArchetypeAccessor
+	indices      []ArchetypeIndex
 }
 
 // NewEntityIterator returns an iterator for entities.
-func NewEntityIterator(current int, archetypes []*Archetype, indices []ArchetypeIndex) EntityIterator {
+func NewEntityIterator(current int, archAccessor ArchetypeAccessor, indices []ArchetypeIndex) EntityIterator {
 	return EntityIterator{
-		current:    current,
-		archetypes: archetypes,
-		indices:    indices,
+		current:      current,
+		archAccessor: archAccessor,
+		indices:      indices,
 	}
 }
 
@@ -27,5 +27,5 @@ func (it *EntityIterator) HasNext() bool {
 func (it *EntityIterator) Next() []entity.Entity {
 	archetypeIndex := it.indices[it.current]
 	it.current++
-	return it.archetypes[archetypeIndex].Entities()
+	return it.archAccessor.Archetype(archetypeIndex).Entities()
 }

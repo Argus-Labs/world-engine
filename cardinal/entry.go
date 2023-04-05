@@ -113,7 +113,7 @@ func (e *Entry) AddComponent(cType component.IComponentType, components ...[]byt
 		c := e.loc.Component
 		a := e.loc.Archetype
 
-		baseLayout := e.World.archetypes[a].Layout().Components()
+		baseLayout := e.World.archetypes.Archetype(a).Layout().Components()
 		targetArc := e.World.getArchetypeForComponents(append(baseLayout, cType))
 		e.World.TransferArchetype(a, targetArc, c)
 
@@ -134,7 +134,7 @@ func (e *Entry) RemoveComponent(cType component.IComponentType) {
 	c := e.loc.Component
 	a := e.loc.Archetype
 
-	baseLayout := e.World.archetypes[a].Layout().Components()
+	baseLayout := e.World.archetypes.Archetype(a).Layout().Components()
 	targetLayout := make([]component.IComponentType, 0, len(baseLayout)-1)
 	for _, c2 := range baseLayout {
 		if c2 == cType {
@@ -160,9 +160,9 @@ func (e *Entry) Valid() bool {
 }
 
 // Archetype returns the archetype.
-func (e *Entry) Archetype() *storage.Archetype {
+func (e *Entry) Archetype() storage.ArchetypeStorage {
 	a := e.loc.Archetype
-	return e.World.archetypes[a]
+	return e.World.archetypes.Archetype(a)
 }
 
 // HasComponent returns true if the entity has the given component type.

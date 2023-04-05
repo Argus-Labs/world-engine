@@ -42,21 +42,21 @@ type World interface {
 // StorageAccessor is an accessor for the world's storage.
 type StorageAccessor struct {
 	// Index is the search index for the world.
-	Index *storage.Index
+	Index storage.ArchetypeComponentIndex
 	// Components is the component storage for the world.
 	Components *storage.Components
 	// Archetypes is the archetype storage for the world.
-	Archetypes []*storage.Archetype
+	Archetypes storage.ArchetypeAccessor
 }
 
 type initializer func(w World)
 
 type world struct {
 	id           WorldId
-	index        *storage.Index
+	index        storage.ArchetypeComponentIndex
 	entities     storage.EntityLocationStorage
 	components   *storage.Components
-	archetypes   []*storage.Archetype
+	archetypes   storage.ArchetypeAccessor
 	destroyed    []Entity
 	entries      []*Entry
 	nextEntityId entity.ID
@@ -92,7 +92,7 @@ func NewWorld() World {
 		entities: storage.NewLocationMap(),
 		// TODO(technicallyty): update to use dep injection as arguments to NewWorld.
 		components:   storage.NewComponents(storage.NewComponentsSliceStorage(), storage.NewComponentIndexMap()),
-		archetypes:   make([]*storage.Archetype, 0),
+		archetypes:   storage.NewArchetypeAccessor(),
 		destroyed:    make([]Entity, 0, 256),
 		entries:      make([]*Entry, 1, 256),
 		systems:      make([]System, 0, 256),
@@ -129,7 +129,7 @@ func (w *world) Create(components ...component.IComponentType) (Entity, error) {
 
 func (w *world) createEntity(archetypeIndex storage.ArchetypeIndex) (Entity, error) {
 	nextEntity := w.nextEntity()
-	archetype := w.archetypes[archetypeIndex]
+	archetype := w.archetypes.Archetype(archetypeIndex)
 	componentIndex, err := w.components.PushComponents(archetype.Layout().Components(), archetypeIndex)
 	if err != nil {
 		return 0, err
@@ -167,7 +167,7 @@ func (w *world) Valid(e Entity) bool {
 	c := loc.Component
 	// If the version of the entity is not the same as the version of the archetype,
 	// the entity is invalid (it means the entity is already destroyed).
-	return loc.Valid && e == w.archetypes[a].Entities()[c]
+	return loc.Valid && e == w.archetypes.Archetype(a).Entities()[c]
 }
 
 func (w *world) Entry(entity Entity) *Entry {
@@ -193,9 +193,9 @@ func (w *world) Remove(ent Entity) {
 func (w *world) removeAtLocation(ent Entity, loc *storage.Location) {
 	archIndex := loc.Archetype
 	componentIndex := loc.Component
-	archetype := w.archetypes[archIndex]
+	archetype := w.archetypes.Archetype(archIndex)
 	archetype.SwapRemove(int(componentIndex))
-	w.components.Remove(archetype, componentIndex)
+	w.components.Remove(archIndex, archetype.Layout().Components(), componentIndex)
 	if int(componentIndex) < len(archetype.Entities()) {
 		swapped := archetype.Entities()[componentIndex]
 		w.entities.Set(swapped.ID(), loc)
@@ -207,8 +207,8 @@ func (w *world) TransferArchetype(from, to storage.ArchetypeIndex, idx storage.C
 	if from == to {
 		return idx
 	}
-	fromArch := w.archetypes[from]
-	toArch := w.archetypes[to]
+	fromArch := w.archetypes.Archetype(from)
+	toArch := w.archetypes.Archetype(to)
 
 	// move entity id
 	ent := fromArch.SwapRemove(int(idx))
@@ -253,7 +253,7 @@ func (w *world) StorageAccessor() StorageAccessor {
 }
 
 func (w *world) Archetypes() []*storage.Archetype {
-	return w.archetypes
+	return w.archetypes.Archetypes()
 }
 
 func (w *world) nextEntity() Entity {
@@ -269,9 +269,9 @@ func (w *world) nextEntity() Entity {
 
 func (w *world) insertArchetype(layout *storage.Layout) storage.ArchetypeIndex {
 	w.index.Push(layout)
-	archIndex := storage.ArchetypeIndex(len(w.archetypes))
-	w.archetypes = append(w.archetypes, storage.NewArchetype(archIndex, layout))
+	archIndex := storage.ArchetypeIndex(w.archetypes.Count())
 
+	w.archetypes.PushArchetype(archIndex, layout)
 	return archIndex
 }
 

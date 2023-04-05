@@ -91,6 +91,6 @@ func (q *Query) evaluateQuery(world World, accessor *StorageAccessor) []storage.
 	for it := accessor.Index.SearchFrom(q.filter, cache.seen); it.HasNext(); {
 		cache.archetypes = append(cache.archetypes, it.Next())
 	}
-	cache.seen = len(accessor.Archetypes)
+	cache.seen = accessor.Archetypes.Count()
 	return cache.archetypes
 }
