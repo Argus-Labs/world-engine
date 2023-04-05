@@ -87,10 +87,11 @@ func NewWorld() World {
 	worldId := nextWorldId
 	nextWorldId++
 	w := &world{
-		id:           worldId,
-		index:        storage.NewIndex(),
-		entities:     storage.NewLocationMap(),
-		components:   storage.NewComponents(),
+		id:       worldId,
+		index:    storage.NewIndex(),
+		entities: storage.NewLocationMap(),
+		// TODO(technicallyty): update to use dep injection as arguments to NewWorld.
+		components:   storage.NewComponents(storage.NewComponentsSliceStorage(), storage.NewComponentIndexMap()),
 		archetypes:   make([]*storage.Archetype, 0),
 		destroyed:    make([]Entity, 0, 256),
 		entries:      make([]*Entry, 1, 256),

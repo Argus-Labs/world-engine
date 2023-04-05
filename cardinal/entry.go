@@ -126,6 +126,7 @@ func (e *Entry) AddComponent(cType component.IComponentType, components ...[]byt
 
 // RemoveComponent removes the component from the entity.
 func (e *Entry) RemoveComponent(cType component.IComponentType) {
+	// if the entry doesn't even have this component, we can just return.
 	if !e.Archetype().Layout().HasComponent(cType) {
 		return
 	}

@@ -1,12 +1,37 @@
 package storage
 
-import "github.com/argus-labs/cardinal/component"
+import (
+	"github.com/argus-labs/cardinal/component"
+	"github.com/argus-labs/cardinal/internal/entity"
+)
 
-type Engine interface {
+type ComponentStorage interface {
 	PushComponent(component component.IComponentType, index ArchetypeIndex) error
 	Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) []byte
 	SetComponent(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex, compBz []byte)
 	MoveComponent(source ArchetypeIndex, index ComponentIndex, dst ArchetypeIndex)
 	SwapRemove(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) []byte
 	Contains(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) bool
+}
+
+type Storage interface {
+	GetComponentStorage(cid component.TypeID) ComponentStorage
+	InitializeComponentStorage(cid component.TypeID)
+}
+
+type ComponentIndexStorage interface {
+	ComponentIndex(ai ArchetypeIndex) (ComponentIndex, bool)
+	SetIndex(ArchetypeIndex, ComponentIndex)
+	IncrementIndex(ArchetypeIndex)
+	DecrementIndex(ArchetypeIndex)
+}
+
+type EntityLocationStorage interface {
+	Contains(id entity.ID) bool
+	Remove(id entity.ID)
+	Insert(id entity.ID, index ArchetypeIndex, componentIndex ComponentIndex)
+	Set(id entity.ID, location *Location)
+	Location(id entity.ID) *Location
+	ArchetypeIndex(id entity.ID) ArchetypeIndex
+	ComponentIndex(id entity.ID) ComponentIndex
 }

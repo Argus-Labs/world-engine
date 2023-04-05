@@ -7,51 +7,56 @@ type ComponentIndex int
 
 // Components is a structure that stores data of components.
 type Components struct {
-	storages []*SliceStorage
-	// TODO: optimize to use slice instead of map for performance
-	componentIndices map[ArchetypeIndex]ComponentIndex
+	// storages is a slice of component storages. each storage in the slice represents all storages for a given component type.
+	// storages are fetched via component type ID.
+	//
+	// example: if component Foo has ID 1, then storages[1] contains the storage for all components of type Foo.
+	store            Storage
+	componentIndices ComponentIndexStorage
 }
 
 // NewComponents creates a new empty structure that stores data of components.
-func NewComponents() *Components {
+func NewComponents(store Storage, idxStore ComponentIndexStorage) *Components {
 	return &Components{
-		storages:         make([]*SliceStorage, 512), // TODO: expand as the number of component types increases
-		componentIndices: make(map[ArchetypeIndex]ComponentIndex),
+		store:            store,
+		componentIndices: idxStore,
 	}
 }
 
 // PushComponents stores the new data of the component in the archetype.
 func (cs *Components) PushComponents(components []component.IComponentType, archetypeIndex ArchetypeIndex) (ComponentIndex, error) {
 	for _, componentType := range components {
-		if v := cs.storages[componentType.ID()]; v == nil {
-			cs.storages[componentType.ID()] = NewSliceStorage()
+		v := cs.store.GetComponentStorage(componentType.ID())
+		if v == nil {
+			cs.store.InitializeComponentStorage(componentType.ID())
 		}
-		err := cs.storages[componentType.ID()].PushComponent(componentType, archetypeIndex)
+		err := cs.store.GetComponentStorage(componentType.ID()).PushComponent(componentType, archetypeIndex)
 		if err != nil {
 			return 0, err
 		}
 	}
-	if _, ok := cs.componentIndices[archetypeIndex]; !ok {
-		cs.componentIndices[archetypeIndex] = 0
+	if _, ok := cs.componentIndices.ComponentIndex(archetypeIndex); !ok {
+		cs.componentIndices.SetIndex(archetypeIndex, 0)
 	} else {
-		cs.componentIndices[archetypeIndex]++
+		cs.componentIndices.IncrementIndex(archetypeIndex)
 	}
-	return cs.componentIndices[archetypeIndex], nil
+	idx, _ := cs.componentIndices.ComponentIndex(archetypeIndex)
+	return idx, nil
 }
 
 // Move moves the bytes of data of the component in the archetype.
 func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) {
-	cs.componentIndices[src]--
-	cs.componentIndices[dst]++
+	cs.componentIndices.DecrementIndex(src)
+	cs.componentIndices.IncrementIndex(dst)
 }
 
-// SliceStorage returns the pointer to data of the component in the archetype.
-func (cs *Components) Storage(c component.IComponentType) *SliceStorage {
-	if storage := cs.storages[c.ID()]; storage != nil {
+// Storage returns the pointer to data of the component in the archetype.
+func (cs *Components) Storage(c component.IComponentType) ComponentStorage {
+	if storage := cs.store.GetComponentStorage(c.ID()); storage != nil {
 		return storage
 	}
-	cs.storages[c.ID()] = NewSliceStorage()
-	return cs.storages[c.ID()]
+	cs.store.InitializeComponentStorage(c.ID())
+	return cs.store.GetComponentStorage(c.ID())
 }
 
 // Remove removes the component from the storage.
@@ -59,7 +64,7 @@ func (cs *Components) Remove(a *Archetype, ci ComponentIndex) {
 	for _, ct := range a.Layout().Components() {
 		cs.remove(ct, a.index, ci)
 	}
-	cs.componentIndices[a.index]--
+	cs.componentIndices.DecrementIndex(a.index)
 }
 
 func (cs *Components) remove(ct component.IComponentType, ai ArchetypeIndex, ci ComponentIndex) {
