@@ -29,8 +29,8 @@ import (
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	"github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
+	"github.com/argus-labs/world-engine/chain/cmd/world/cmd"
 	simapp "github.com/argus-labs/world-engine/chain/runtime"
-	"pkg.berachain.dev/polaris/cosmos/cmd/polard/cmd"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -38,7 +38,7 @@ import (
 
 func TestCmd(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "cosmos/cmd/polard/cmd:integration")
+	RunSpecs(t, "chain/cmd/world/cmd:integration")
 }
 
 var _ = Describe("Init command", func() {

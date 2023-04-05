@@ -95,7 +95,7 @@ RUN apk add --no-cache jq
 
 WORKDIR /polaris
 
-COPY --from=builder /polaris/bin/polard /bin/
+COPY --from=builder /polaris/bin/world /bin/
 COPY --from=builder /polaris/init.sh /polaris/
 
 ENV HOME /polaris

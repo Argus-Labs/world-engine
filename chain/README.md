@@ -61,7 +61,7 @@ go run magefiles/setup/setup.go
 
 **Step 3: Build the Node Software**
 
-Run the following command to install `polard` to your `GOPATH` and build the node. `polard` is the node daemon and CLI for interacting with a polaris node.
+Run the following command to install `world` to your `GOPATH` and build the node. `world` is the node daemon and CLI for interacting with a polaris node.
 
 ```bash
 mage install
@@ -72,14 +72,14 @@ mage install
 Verify your installation with the following command:
 
 ```bash
-polard version --long
+world version --long
 ```
 
 A successful installation will return the following:
 
 ```bash
-name: berachain
-server_name: polard
+name: world-engine
+server_name: world
 version: <x.x.x>
 commit: <Commit hash>
 build_tags: netgo,ledger
@@ -89,6 +89,7 @@ go: go version go1.20.4 darwin/amd64
 ## Running a Local Network
 
 After ensuring dependecies are installed correctly, run the following command to start a local development network.
+
 ```bash
 mage start
 ```

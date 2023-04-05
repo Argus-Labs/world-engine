@@ -72,7 +72,7 @@ func Start() error {
 // Builds the Cosmos SDK chain.
 func (Cosmos) Build() error {
 	LogGreen("Building the Cosmos SDK chain...")
-	cmd := "polard"
+	cmd := "world"
 	args := []string{
 		generateBuildTags(),
 		generateLinkerFlags(production, statically),
@@ -131,7 +131,7 @@ func (Cosmos) Install() error {
 	args := []string{
 		generateBuildTags(),
 		generateLinkerFlags(production, statically),
-		"./cmd/polard",
+		"./cmd/world",
 	}
 
 	return goInstall(args...)

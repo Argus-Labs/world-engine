@@ -105,6 +105,7 @@ import (
 	"pkg.berachain.dev/polaris/lib/utils"
 
 	_ "embed"
+
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side-effects
 )
 
@@ -194,7 +195,7 @@ func init() {
 		panic(err)
 	}
 
-	DefaultNodeHome = filepath.Join(userHomeDir, ".polard")
+	DefaultNodeHome = filepath.Join(userHomeDir, ".world")
 }
 
 // NewPolarisApp returns a reference to an initialized PolarisApp.

@@ -31,8 +31,8 @@ MONIKER="localtestnet"
 KEYRING="test"
 KEYALGO="eth_secp256k1"
 LOGLEVEL="info"
-# Set dedicated home directory for the ./bin/polard instance
-HOMEDIR="./.tmp/polard"
+# Set dedicated home directory for the ./bin/world instance
+HOMEDIR="./.tmp/world"
 # to trace evm
 #TRACE="--trace"
 TRACE=""

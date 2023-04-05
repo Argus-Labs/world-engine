@@ -5,7 +5,7 @@
 Set this value in the `Deploy.s.sol` solidity forge script.
 
 ```sh
-./bin/polard query staking validators
+./bin/world query staking validators
 ```
 
 **Step 2: Run the Script To Deploy**
