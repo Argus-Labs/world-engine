@@ -1,4 +1,4 @@
-module pkg.berachain.dev/polaris/contracts
+module github.com/argus-labs/world-engine/contracts
 
 go 1.20
 

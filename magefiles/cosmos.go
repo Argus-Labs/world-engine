@@ -77,7 +77,7 @@ func (Cosmos) Build() error {
 		generateBuildTags(),
 		generateLinkerFlags(production, statically),
 		"-o", generateOutDirectory(cmd),
-		"./cosmos/cmd/" + cmd,
+		"./chain-new/cmd/" + cmd,
 	}
 	return goBuild(args...)
 }

@@ -52,9 +52,7 @@ func All() {
 		Format,
 		Lint,
 		Cosmos{}.Build,
-		Playground{}.Build,
 		Contracts{}.Test,
 		Cosmos{}.Test,
-		Playground{}.Test,
 	)
 }
