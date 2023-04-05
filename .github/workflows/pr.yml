@@ -18,31 +18,25 @@
 # MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND
 # TITLE.
 
-coverage:
-  status:
-    project:
-      default:
-        threshold: 2%
-        # target: 50%
-        # flags:
-        #   - unit
-        #   - integration
+name: "pr"
 
-    patch: off
+on:
+  pull_request_target:
+    types:
+      - opened
+      - edited
+      - synchronize
 
-comment:
-  layout: "reach, diff, flags, files"
-  behavior: default
-  require_changes: false
-  show_carryforward_flags: true
+permissions:
+  contents: read
 
-ignore:
-  - "**/*.pb.go"
-  - "**/*.pb.gw.go"
-  - "**/*.pulsar.go"
-  - "**/*.abigen.go"
-  - "**/*.rlpgen.go"
-  - "**/*.mock.go"
-  - "**/proto"
-  - "build/"
-  - "cmd/"
+jobs:
+  lint:
+    permissions:
+      pull-requests: read # for amannn/action-semantic-pull-request to analyze PRs
+      statuses: write # for amannn/action-semantic-pull-request to mark status of analyzed PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
