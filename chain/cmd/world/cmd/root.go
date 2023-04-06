@@ -26,6 +26,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/argus-labs/world-engine/chain/runtime"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -57,7 +58,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/crisis"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
-	"github.com/argus-labs/world-engine/chain/runtime"
 	"pkg.berachain.dev/polaris/cosmos/crypto/keyring"
 	evmante "pkg.berachain.dev/polaris/cosmos/x/evm/ante"
 )

@@ -25,12 +25,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/argus-labs/world-engine/chain/cmd/world/cmd"
+	simapp "github.com/argus-labs/world-engine/chain/runtime"
+
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	"github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
-
-	"github.com/argus-labs/world-engine/chain/cmd/world/cmd"
-	simapp "github.com/argus-labs/world-engine/chain/runtime"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

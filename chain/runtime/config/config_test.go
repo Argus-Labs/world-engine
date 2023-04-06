@@ -23,10 +23,11 @@ package config_test
 import (
 	"testing"
 
+	sgconfig "github.com/argus-labs/world-engine/chain/runtime/config"
+
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	sgconfig "github.com/argus-labs/world-engine/chain/runtime/config"
 	"pkg.berachain.dev/polaris/eth/accounts"
 
 	. "github.com/onsi/ginkgo/v2"

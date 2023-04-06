@@ -23,12 +23,12 @@ package main
 import (
 	"os"
 
-	"github.com/cosmos/cosmos-sdk/server"
-	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
-
 	"github.com/argus-labs/world-engine/chain/cmd/world/cmd"
 	simapp "github.com/argus-labs/world-engine/chain/runtime"
 	"github.com/argus-labs/world-engine/chain/runtime/config"
+
+	"github.com/cosmos/cosmos-sdk/server"
+	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 )
 
 func main() {
