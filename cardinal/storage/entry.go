@@ -24,11 +24,11 @@ func (e entryStorageImpl) Length() int {
 	return len(e.entries)
 }
 
-func (e entryStorageImpl) Push(entry *Entry) {
+func (e *entryStorageImpl) Push(entry *Entry) {
 	e.entries = append(e.entries, entry)
 }
 
-func (e entryStorageImpl) Set(id entity.ID, entry *Entry) {
+func (e *entryStorageImpl) Set(id entity.ID, entry *Entry) {
 	e.entries[id] = entry
 }
 
