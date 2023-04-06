@@ -2,7 +2,7 @@ package storage
 
 import (
 	"github.com/argus-labs/cardinal/component"
-	"github.com/argus-labs/cardinal/internal/entity"
+	"github.com/argus-labs/cardinal/entity"
 )
 
 type ArchetypeIndex int

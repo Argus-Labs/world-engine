@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"unsafe"
 
-	"github.com/argus-labs/cardinal/filter"
-
 	"github.com/argus-labs/cardinal/component"
+	"github.com/argus-labs/cardinal/filter"
+	"github.com/argus-labs/cardinal/storage"
 )
 
 // IComponentType is an interface for component types.
@@ -28,7 +28,7 @@ func NewComponentType[T any](opts ...interface{}) *ComponentType[T] {
 }
 
 // ComponentType represents a type of component. It is used to identify
-// a component when getting or setting components of an entity.
+// a component when getting or setting componentStore of an entity.
 type ComponentType[T any] struct {
 	id         component.TypeID
 	typ        reflect.Type
@@ -54,14 +54,14 @@ func encodeComponent[T any](comp T) ([]byte, error) {
 }
 
 // Get returns component data from the entry.
-func (c *ComponentType[T]) Get(entry *Entry) (T, error) {
+func (c *ComponentType[T]) Get(entry *storage.Entry) (T, error) {
 	bz := entry.Component(c)
 	comp, err := decodeComponent[T](bz)
 	return comp, err
 }
 
 // Set sets component data to the entry.
-func (c *ComponentType[T]) Set(entry *Entry, component *T) error {
+func (c *ComponentType[T]) Set(entry *storage.Entry, component *T) error {
 	bz, err := encodeComponent[T](*component)
 	if err != nil {
 		return err
@@ -70,18 +70,18 @@ func (c *ComponentType[T]) Set(entry *Entry, component *T) error {
 	return nil
 }
 
-// Each iterates over the entities that have the component.
-func (c *ComponentType[T]) Each(w World, callback func(*Entry)) {
+// Each iterates over the entityLocationStore that have the component.
+func (c *ComponentType[T]) Each(w World, callback func(*storage.Entry)) {
 	c.query.Each(w, callback)
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w World) (*Entry, bool) {
+func (c *ComponentType[T]) First(w World) (*storage.Entry, bool) {
 	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w World) *Entry {
+func (c *ComponentType[T]) MustFirst(w World) *storage.Entry {
 	e, ok := c.query.First(w)
 	if !ok {
 		panic(fmt.Sprintf("no entity has the component %s", c.name))
@@ -91,7 +91,7 @@ func (c *ComponentType[T]) MustFirst(w World) *Entry {
 }
 
 // SetValue sets the value of the component.
-func (c *ComponentType[T]) SetValue(entry *Entry, value T) error {
+func (c *ComponentType[T]) SetValue(entry *storage.Entry, value T) error {
 	_, err := c.Get(entry)
 	if err != nil {
 		return err

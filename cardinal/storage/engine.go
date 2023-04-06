@@ -2,8 +2,8 @@ package storage
 
 import (
 	"github.com/argus-labs/cardinal/component"
+	"github.com/argus-labs/cardinal/entity"
 	"github.com/argus-labs/cardinal/filter"
-	"github.com/argus-labs/cardinal/internal/entity"
 )
 
 type ComponentStorage interface {

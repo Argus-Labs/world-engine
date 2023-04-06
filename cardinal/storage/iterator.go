@@ -1,6 +1,8 @@
 package storage
 
-import "github.com/argus-labs/cardinal/internal/entity"
+import (
+	"github.com/argus-labs/cardinal/entity"
+)
 
 // EntityIterator is an iterator for entity lists in archetypes.
 type EntityIterator struct {

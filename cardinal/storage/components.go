@@ -1,6 +1,11 @@
 package storage
 
-import "github.com/argus-labs/cardinal/component"
+import (
+	"bytes"
+	"encoding/gob"
+
+	"github.com/argus-labs/cardinal/component"
+)
 
 // ComponentIndex represents the index of component in an archetype.
 type ComponentIndex int
@@ -66,4 +71,11 @@ func (cs *Components) Remove(ai ArchetypeIndex, comps []component.IComponentType
 func (cs *Components) remove(ct component.IComponentType, ai ArchetypeIndex, ci ComponentIndex) {
 	storage := cs.Storage(ct)
 	storage.SwapRemove(ai, ci)
+}
+
+func MarshalComponent[T any](comp *T) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(*comp)
+	return buf.Bytes(), err
 }

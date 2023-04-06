@@ -6,6 +6,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/argus-labs/cardinal/filter"
+	"github.com/argus-labs/cardinal/storage"
 )
 
 type EnergyComponent struct {
@@ -18,7 +19,7 @@ type OwnableComponent struct {
 }
 
 func UpdateEnergySystem(w World) {
-	Energy.Each(w, func(entry *Entry) {
+	Energy.Each(w, func(entry *storage.Entry) {
 		energyPlanet, err := Energy.Get(entry)
 		if err != nil {
 			panic(err)
@@ -50,7 +51,7 @@ func Test_ECS(t *testing.T) {
 	world.AddSystem(UpdateEnergySystem)
 	world.Update()
 
-	Energy.Each(world, func(entry *Entry) {
+	Energy.Each(world, func(entry *storage.Entry) {
 		energyPlanet, err := Energy.Get(entry)
 		assert.NilError(t, err)
 		assert.Equal(t, int64(10), energyPlanet.Amt)

@@ -1,30 +1,29 @@
 package cardinal
 
 import (
+	"github.com/argus-labs/cardinal/entity"
 	"github.com/argus-labs/cardinal/filter"
-
-	"github.com/argus-labs/cardinal/internal/entity"
-	"github.com/argus-labs/cardinal/internal/storage"
+	storage2 "github.com/argus-labs/cardinal/storage"
 )
 
 type cache struct {
-	archetypes []storage.ArchetypeIndex
+	archetypes []storage2.ArchetypeIndex
 	seen       int
 }
 
-// Query represents a query for entities.
-// It is used to filter entities based on their components.
-// It receives arbitrary filters that are used to filter entities.
+// Query represents a query for entityLocationStore.
+// It is used to filter entityLocationStore based on their componentStore.
+// It receives arbitrary filters that are used to filter entityLocationStore.
 // It contains a cache that is used to avoid re-evaluating the query.
 // So it is not recommended to create a new query every time you want
-// to filter entities with the same query.
+// to filter entityLocationStore with the same query.
 type Query struct {
 	layoutMatches map[WorldId]*cache
 	filter        filter.LayoutFilter
 }
 
 // NewQuery creates a new query.
-// It receives arbitrary filters that are used to filter entities.
+// It receives arbitrary filters that are used to filter entityLocationStore.
 func NewQuery(filter filter.LayoutFilter) *Query {
 	return &Query{
 		layoutMatches: make(map[WorldId]*cache),
@@ -32,11 +31,11 @@ func NewQuery(filter filter.LayoutFilter) *Query {
 	}
 }
 
-// Each iterates over all entities that match the query.
-func (q *Query) Each(w World, callback func(*Entry)) {
+// Each iterates over all entityLocationStore that match the query.
+func (q *Query) Each(w World, callback func(*storage2.Entry)) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
-	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
+	iter := storage2.NewEntityIterator(0, accessor.Archetypes, result)
 	f := func(entity entity.Entity) {
 		entry := w.Entry(entity)
 		callback(entry)
@@ -49,11 +48,11 @@ func (q *Query) Each(w World, callback func(*Entry)) {
 	}
 }
 
-// Count returns the number of entities that match the query.
+// Count returns the number of entityLocationStore that match the query.
 func (q *Query) Count(w World) int {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
-	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
+	iter := storage2.NewEntityIterator(0, accessor.Archetypes, result)
 	ret := 0
 	for iter.HasNext() {
 		entities := iter.Next()
@@ -63,10 +62,10 @@ func (q *Query) Count(w World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w World) (entry *Entry, ok bool) {
+func (q *Query) First(w World) (entry *storage2.Entry, ok bool) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
-	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
+	iter := storage2.NewEntityIterator(0, accessor.Archetypes, result)
 	if !iter.HasNext() {
 		return nil, false
 	}
@@ -79,11 +78,11 @@ func (q *Query) First(w World) (entry *Entry, ok bool) {
 	return nil, false
 }
 
-func (q *Query) evaluateQuery(world World, accessor *StorageAccessor) []storage.ArchetypeIndex {
+func (q *Query) evaluateQuery(world World, accessor *StorageAccessor) []storage2.ArchetypeIndex {
 	w := world.ID()
 	if _, ok := q.layoutMatches[w]; !ok {
 		q.layoutMatches[w] = &cache{
-			archetypes: make([]storage.ArchetypeIndex, 0),
+			archetypes: make([]storage2.ArchetypeIndex, 0),
 			seen:       0,
 		}
 	}
