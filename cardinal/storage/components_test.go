@@ -3,6 +3,8 @@ package storage
 import (
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/argus-labs/cardinal/component"
 )
 
@@ -15,7 +17,7 @@ func TestComponents(t *testing.T) {
 		cb = NewMockComponentType(ComponentData{}, ComponentData{ID: "bar"})
 	)
 
-	components := NewComponents()
+	components := NewComponents(NewComponentsSliceStorage(), NewComponentIndexMap())
 
 	tests := []*struct {
 		layout  *Layout
@@ -38,7 +40,9 @@ func TestComponents(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt.compIdx = components.PushComponents(tt.layout.Components(), tt.archIdx)
+		var err error
+		tt.compIdx, err = components.PushComponents(tt.layout.Components(), tt.archIdx)
+		assert.NilError(t, err)
 	}
 
 	for _, tt := range tests {
@@ -66,11 +70,11 @@ func TestComponents(t *testing.T) {
 	if storage.Contains(srcArchIdx, target.compIdx) {
 		t.Errorf("storage should not contain the component at %d, %d", target.archIdx, target.compIdx)
 	}
-	if components.componentIndices[srcArchIdx] != -1 {
-		t.Errorf("component index should be -1 at %d but %d", srcArchIdx, components.componentIndices[srcArchIdx])
+	if idx, _ := components.componentIndices.ComponentIndex(srcArchIdx); idx != -1 {
+		t.Errorf("component index should be -1 at %d but %d", srcArchIdx, idx)
 	}
 
-	newCompIdx := components.componentIndices[dstArchIdx]
+	newCompIdx, _ := components.componentIndices.ComponentIndex(dstArchIdx)
 	if !storage.Contains(dstArchIdx, newCompIdx) {
 		t.Errorf("storage should contain the component at %d, %d", dstArchIdx, target.compIdx)
 	}

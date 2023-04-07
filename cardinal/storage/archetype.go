@@ -2,10 +2,40 @@ package storage
 
 import (
 	"github.com/argus-labs/cardinal/component"
-	"github.com/argus-labs/cardinal/internal/entity"
+	"github.com/argus-labs/cardinal/entity"
 )
 
 type ArchetypeIndex int
+
+var _ ArchetypeAccessor = &archetypeStorageImpl{}
+
+func NewArchetypeAccessor() ArchetypeAccessor {
+	return &archetypeStorageImpl{archs: make([]*Archetype, 0)}
+}
+
+type archetypeStorageImpl struct {
+	archs []*Archetype
+}
+
+func (a *archetypeStorageImpl) Archetypes() []*Archetype {
+	return a.archs
+}
+
+func (a *archetypeStorageImpl) PushArchetype(index ArchetypeIndex, layout *Layout) {
+	a.archs = append(a.archs, &Archetype{
+		index:    index,
+		entities: make([]entity.Entity, 0, 256),
+		layout:   layout,
+	})
+}
+
+func (a archetypeStorageImpl) Count() int {
+	return len(a.archs)
+}
+
+func (a archetypeStorageImpl) Archetype(index ArchetypeIndex) ArchetypeStorage {
+	return a.archs[index]
+}
 
 // Archetype is a collection of entities for a specific layout of components.
 // This structure allows to quickly find entities based on their components.

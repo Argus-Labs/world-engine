@@ -15,7 +15,7 @@ func TestStorage_Bytes(t *testing.T) {
 		componentType = NewMockComponentType[any](Component{}, Component{ID: "foo"})
 	)
 
-	store := NewStorage()
+	store := NewSliceStorage()
 
 	tests := []struct {
 		ID       string
