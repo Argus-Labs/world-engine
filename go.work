@@ -4,4 +4,5 @@ use (
 	./chain-new
 	./contracts
 	./magefiles
+	./cardinal
 )
