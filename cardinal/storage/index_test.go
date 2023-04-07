@@ -14,7 +14,7 @@ func TestIndex(t *testing.T) {
 		cc = NewMockComponentType(struct{}{}, nil)
 	)
 
-	index := NewIndex()
+	index := NewArchetypeComponentIndex()
 
 	layoutA := NewLayout([]component.IComponentType{ca})
 	layoutB := NewLayout([]component.IComponentType{ca, cb})

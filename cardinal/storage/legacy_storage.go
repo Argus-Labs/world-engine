@@ -6,13 +6,24 @@ import (
 	"github.com/argus-labs/cardinal/filter"
 )
 
-var _ Storage = &ComponentsSliceStorage{}
+func NewLegacyStorage() WorldStorage {
+	componentsStore := NewComponents(NewComponentsSliceStorage(), NewComponentIndexMap())
+	eloStore := NewLocationMap()
+	archIdxStore := NewArchetypeComponentIndex()
+	archAcc := NewArchetypeAccessor()
+	entryStore := NewEntryStorage()
+	entityMgr := NewEntityManager()
+
+	return NewWorldStorage(componentsStore, eloStore, archIdxStore, archAcc, entryStore, entityMgr)
+}
+
+var _ ComponentStorageManager = &ComponentsSliceStorage{}
 
 type ComponentsSliceStorage struct {
 	componentStorages []*ComponentSliceStorage
 }
 
-func NewComponentsSliceStorage() Storage {
+func NewComponentsSliceStorage() ComponentStorageManager {
 	return &ComponentsSliceStorage{componentStorages: make([]*ComponentSliceStorage, 512)}
 }
 
@@ -207,8 +218,8 @@ type Index struct {
 	iterator *ArchetypeIterator
 }
 
-// NewIndex creates a new search index.
-func NewIndex() ArchetypeComponentIndex {
+// NewArchetypeComponentIndex creates a new search index.
+func NewArchetypeComponentIndex() ArchetypeComponentIndex {
 	return &Index{
 		layouts: [][]component.IComponentType{},
 		iterator: &ArchetypeIterator{

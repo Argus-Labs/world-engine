@@ -15,7 +15,7 @@ type ComponentStorage interface {
 	Contains(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) bool
 }
 
-type Storage interface {
+type ComponentStorageManager interface {
 	GetComponentStorage(cid component.TypeID) ComponentStorage
 	InitializeComponentStorage(cid component.TypeID)
 }

@@ -38,8 +38,7 @@ var (
 )
 
 func Test_ECS(t *testing.T) {
-
-	world := NewWorld()
+	world := NewWorld(storage.NewLegacyStorage())
 
 	// create a bunch of planets!
 	_, err := world.CreateMany(100, Energy, Ownable)

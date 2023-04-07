@@ -20,6 +20,10 @@ type entryStorageImpl struct {
 	entries []*Entry
 }
 
+func NewEntryStorage() EntryStorage {
+	return &entryStorageImpl{entries: make([]*Entry, 1, 256)}
+}
+
 func (e entryStorageImpl) Length() int {
 	return len(e.entries)
 }
@@ -34,10 +38,6 @@ func (e *entryStorageImpl) Set(id entity.ID, entry *Entry) {
 
 func (e entryStorageImpl) Get(id entity.ID) *Entry {
 	return e.entries[id]
-}
-
-func NewEntryStorage() EntryStorage {
-	return &entryStorageImpl{entries: make([]*Entry, 1, 256)}
 }
 
 // Entry is a struct that contains an entity and a location in an archetype.

@@ -11,9 +11,9 @@ package storage
 //	c *redis.Client
 //}
 //
-//var _ Storage = redisStorage{}
+//var _ ComponentStorageManager = redisStorage{}
 //
-//func NewRedisStorage(c *redis.Client) Storage {
+//func NewRedisStorage(c *redis.Client) ComponentStorageManager {
 //	return &redisStorage{c: c}
 //}
 //
