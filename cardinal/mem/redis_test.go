@@ -30,12 +30,7 @@ func (f Foo) MarshalBinary() (data []byte, err error) {
 func TestRedis(t *testing.T) {
 	ctx := context.Background()
 
-	s := miniredis.RunT(t)
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     s.Addr(),
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
+	rdb := getRedisClient(t)
 
 	foo := &Foo{
 		X: 35,
@@ -75,13 +70,7 @@ func TestList(t *testing.T) {
 		Foo int
 	}
 	ctx := context.Background()
-	_ = ctx
-	s := miniredis.RunT(t)
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     s.Addr(),
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
+	rdb := getRedisClient(t)
 	worldId := "1"
 	store := storage.NewRedisStorage(rdb, worldId)
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
@@ -107,4 +96,50 @@ func TestList(t *testing.T) {
 
 	contains := compStore.Contains(1, 0)
 	assert.Equal(t, contains, true)
+}
+
+func TestRedis_CompIndex(t *testing.T) {
+	type SomeComp struct {
+		Foo int
+	}
+	ctx := context.Background()
+	_ = ctx
+	rdb := getRedisClient(t)
+	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
+	worldId := "1"
+	store := storage.NewRedisStorage(rdb, worldId)
+
+	idxStore := store.CompStore.GetComponentIndexStorage(x)
+	archIdx, compIdx := storage.ArchetypeIndex(0), storage.ComponentIndex(1)
+	idxStore.SetIndex(archIdx, compIdx)
+	gotIdx, ok := idxStore.ComponentIndex(archIdx)
+	assert.Check(t, ok == true)
+	assert.Check(t, gotIdx == compIdx)
+	idxStore.IncrementIndex(archIdx)
+
+	gotIdx, ok = idxStore.ComponentIndex(archIdx)
+	assert.Check(t, ok == true)
+	assert.Check(t, gotIdx == compIdx+1)
+
+	idxStore.DecrementIndex(archIdx)
+
+	gotIdx, ok = idxStore.ComponentIndex(archIdx)
+	assert.Check(t, ok == true)
+	assert.Check(t, gotIdx == compIdx)
+
+	compIdx = storage.ComponentIndex(25)
+	idxStore.SetIndex(archIdx, compIdx)
+	gotIdx, ok = idxStore.ComponentIndex(archIdx)
+	assert.Check(t, ok == true)
+	assert.Check(t, gotIdx == compIdx)
+}
+
+func getRedisClient(t *testing.T) *redis.Client {
+	s := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     s.Addr(),
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+	return rdb
 }

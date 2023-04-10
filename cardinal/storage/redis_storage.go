@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/redis/go-redis/v9"
@@ -18,24 +17,64 @@ type redisStorage struct {
 	log                    zerolog.Logger
 }
 
+var _ ComponentIndexStorage = &redisStorage{}
+
+func (r *redisStorage) GetComponentIndexStorage(cid component.TypeID) ComponentIndexStorage {
+	r.componentStoragePrefix = cid
+	return r
+}
+
 func (r *redisStorage) ComponentIndex(ai ArchetypeIndex) (ComponentIndex, bool) {
-	//TODO implement me
-	panic("implement me")
+	ctx := context.Background()
+	key := r.componentIndexKey(ai)
+	res := r.c.Get(ctx, key)
+	if err := res.Err(); err != nil {
+		r.log.Err(err) // TODO(technicallyty): handle this
+	}
+	result, err := res.Result()
+	if err != nil {
+		r.log.Err(err)
+		// TODO(technicallyty): handle this
+	}
+	if len(result) == 0 {
+		return 0, false
+	}
+	ret, err := res.Int()
+	if err != nil {
+		// TODO(technicallyty): handle this
+	}
+	return ComponentIndex(ret), true
 }
 
 func (r *redisStorage) SetIndex(index ArchetypeIndex, index2 ComponentIndex) {
-	//TODO implement me
-	panic("implement me")
+	ctx := context.Background()
+	key := r.componentIndexKey(index)
+	res := r.c.Set(ctx, key, int64(index2), 0)
+	if err := res.Err(); err != nil {
+		// TODO(technicallyty): handle this
+	}
 }
 
 func (r *redisStorage) IncrementIndex(index ArchetypeIndex) {
-	//TODO implement me
-	panic("implement me")
+	ctx := context.Background()
+	idx, ok := r.ComponentIndex(index)
+	if !ok {
+		// TODO(technicallyty): handle this
+	}
+	key := r.componentIndexKey(index)
+	newIdx := idx + 1
+	r.c.Set(ctx, key, int64(newIdx), 0)
 }
 
 func (r *redisStorage) DecrementIndex(index ArchetypeIndex) {
-	//TODO implement me
-	panic("implement me")
+	ctx := context.Background()
+	idx, ok := r.ComponentIndex(index)
+	if !ok {
+		// TODO(technicallyty): handle this
+	}
+	key := r.componentIndexKey(index)
+	newIdx := idx - 1
+	r.c.Set(ctx, key, int64(newIdx), 0)
 }
 
 var _ = redisStorage{}
@@ -166,8 +205,4 @@ func (r *redisStorage) Contains(archetypeIndex ArchetypeIndex, componentIndex Co
 		r.log.Err(err)
 	}
 	return len(result) > 0
-}
-
-func (r *redisStorage) componentDataKey(index ArchetypeIndex) string {
-	return fmt.Sprintf("WORLD-%s:CID-%d:A-%d", r.worldID, r.componentStoragePrefix, index)
 }

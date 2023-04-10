@@ -28,6 +28,11 @@ type ComponentsSliceStorage struct {
 	componentStorages []*ComponentSliceStorage
 }
 
+func (c ComponentsSliceStorage) GetComponentIndexStorage(cid component.TypeID) ComponentIndexStorage {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewComponentsSliceStorage() ComponentStorageManager {
 	return &ComponentsSliceStorage{componentStorages: make([]*ComponentSliceStorage, 512)}
 }

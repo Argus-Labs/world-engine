@@ -11,6 +11,7 @@ import (
 type ComponentIndex int
 
 // Components is a structure that facilitates the storage and retrieval of component data.
+// TODO(technicallyty): this kinda sucks.. should probs refactor this.
 type Components struct {
 	store            ComponentStorageManager
 	componentIndices ComponentIndexStorage
@@ -51,13 +52,17 @@ func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) {
 	cs.componentIndices.IncrementIndex(dst)
 }
 
-// ComponentStorageManager returns the pointer to data of the component in the archetype.
+// Storage returns the component data storage accessor.
 func (cs *Components) Storage(c component.IComponentType) ComponentStorage {
 	if storage := cs.store.GetComponentStorage(c.ID()); storage != nil {
 		return storage
 	}
 	cs.store.InitializeComponentStorage(c.ID())
 	return cs.store.GetComponentStorage(c.ID())
+}
+
+func (cs *Components) GetComponentIndexStorage(c component.IComponentType) ComponentIndexStorage {
+	return cs.store.GetComponentIndexStorage(c.ID())
 }
 
 // Remove removes the component from the storage.
