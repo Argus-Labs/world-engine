@@ -52,9 +52,12 @@ func TestComponents(t *testing.T) {
 				t.Errorf("storage should contain the component at %d, %d", tt.archIdx, tt.compIdx)
 			}
 			bz := st.Component(tt.archIdx, tt.compIdx)
-			dat := decodeComponent[ComponentData](t, bz)
+			dat, err := DecodeComponent[ComponentData](bz)
+			assert.NilError(t, err)
 			dat.ID = tt.ID
-			st.SetComponent(tt.archIdx, tt.compIdx, encodeComponent[ComponentData](t, dat))
+			compBz, err := EncodeComponent[ComponentData](dat)
+			assert.NilError(t, err)
+			st.SetComponent(tt.archIdx, tt.compIdx, compBz)
 		}
 	}
 
@@ -80,7 +83,8 @@ func TestComponents(t *testing.T) {
 	}
 
 	bz := storage.Component(dstArchIdx, newCompIdx)
-	dat := decodeComponent[ComponentData](t, bz)
+	dat, err := DecodeComponent[ComponentData](bz)
+	assert.NilError(t, err)
 	if dat.ID != target.ID {
 		t.Errorf("component should have ID '%s', got ID '%s'", target.ID, dat.ID)
 	}

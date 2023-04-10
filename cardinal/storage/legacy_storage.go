@@ -1,6 +1,9 @@
 package storage
 
 import (
+	"bytes"
+	"encoding/gob"
+
 	"github.com/argus-labs/cardinal/component"
 	"github.com/argus-labs/cardinal/entity"
 	"github.com/argus-labs/cardinal/filter"
@@ -19,6 +22,8 @@ func NewLegacyStorage() WorldStorage {
 
 var _ ComponentStorageManager = &ComponentsSliceStorage{}
 
+// ComponentsSliceStorage is a structure that contains component data in slices.
+// Component data is indexed by component type ID, archetype index, and finally component index.
 type ComponentsSliceStorage struct {
 	componentStorages []*ComponentSliceStorage
 }
@@ -63,9 +68,6 @@ func NewSliceStorage() *ComponentSliceStorage {
 
 // PushComponent stores the new data of the component in the archetype.
 func (cs *ComponentSliceStorage) PushComponent(component component.IComponentType, archetypeIndex ArchetypeIndex) error {
-	if v := cs.storages[archetypeIndex]; v == nil {
-		cs.storages[archetypeIndex] = nil
-	}
 	// TODO: optimize to avoid allocation
 	compBz, err := component.New()
 	if err != nil {
@@ -248,4 +250,26 @@ func (idx *Index) SearchFrom(f filter.LayoutFilter, start int) *ArchetypeIterato
 // Search searches for archetypes that match the given filter.
 func (idx *Index) Search(filter filter.LayoutFilter) *ArchetypeIterator {
 	return idx.SearchFrom(filter, 0)
+}
+
+func DecodeComponent[T any](bz []byte) (T, error) {
+	var buf bytes.Buffer
+	buf.Write(bz)
+	dec := gob.NewDecoder(&buf)
+	comp := new(T)
+	err := dec.Decode(comp)
+	var t T
+	if err != nil {
+		return t, err
+	}
+	return *comp, nil
+}
+func EncodeComponent[T any](comp T) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(comp)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }

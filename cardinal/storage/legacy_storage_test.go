@@ -31,7 +31,8 @@ func TestStorage_Bytes(t *testing.T) {
 	for _, test := range tests {
 		err := store.PushComponent(componentType, archIdx)
 		assert.NilError(t, err)
-		bz := encodeComponent(t, Component{ID: test.ID})
+		bz, err := EncodeComponent(Component{ID: test.ID})
+		assert.NilError(t, err)
 		fmt.Println(string(bz))
 		store.SetComponent(archIdx, compIdx, bz)
 		compIdx++
@@ -52,7 +53,8 @@ func TestStorage_Bytes(t *testing.T) {
 
 	removed := store.SwapRemove(archIdx, 1)
 	assert.Assert(t, removed != nil, "removed component should not be nil")
-	comp := decodeComponent[Component](t, removed)
+	comp, err := DecodeComponent[Component](removed)
+	assert.NilError(t, err)
 	assert.Equal(t, comp.ID, "b", "removed component should have ID 'b'")
 
 	tests2 := []struct {
@@ -66,26 +68,9 @@ func TestStorage_Bytes(t *testing.T) {
 
 	for _, test := range tests2 {
 		compBz := store.Component(test.archIdx, test.cmpIdx)
-		comp := decodeComponent[Component](t, compBz)
+		comp, err := DecodeComponent[Component](compBz)
+		assert.NilError(t, err)
 		assert.Equal(t, comp.ID, test.expectedID)
 		compIdx++
 	}
-}
-
-func decodeComponent[T any](t *testing.T, bz []byte) T {
-	var buf bytes.Buffer
-	buf.Write(bz)
-	dec := gob.NewDecoder(&buf)
-	comp := new(T)
-	err := dec.Decode(comp)
-	assert.NilError(t, err)
-	return *comp
-}
-
-func encodeComponent[T any](t *testing.T, comp T) []byte {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(comp)
-	assert.NilError(t, err)
-	return buf.Bytes()
 }
