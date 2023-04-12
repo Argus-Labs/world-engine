@@ -7,7 +7,7 @@ import (
 	"github.com/argus-labs/cardinal/component"
 )
 
-// ComponentIndex represents the index of component in an archetype.
+// ComponentIndex represents the Index of component in an archetype.
 type ComponentIndex int
 
 // Components is a structure that facilitates the storage and retrieval of component data.

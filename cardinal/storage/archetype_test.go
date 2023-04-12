@@ -20,7 +20,7 @@ func TestMatchesLayout(t *testing.T) {
 	components := []component.IComponentType{ca, cb}
 	archetype := NewArchetype(0, NewLayout(components))
 	if !archetype.LayoutMatches(components) {
-		t.Errorf("archetype should match the layout")
+		t.Errorf("archetype should match the ArchLayout")
 	}
 }
 
@@ -38,12 +38,12 @@ func TestPushEntity(t *testing.T) {
 	archetype.PushEntity(2)
 
 	if len(archetype.Entities()) != 3 {
-		t.Errorf("archetype should have 3 entities")
+		t.Errorf("archetype should have 3 Entitys")
 	}
 
 	archetype.SwapRemove(1)
 	if len(archetype.Entities()) != 2 {
-		t.Errorf("archetype should have 2 entities")
+		t.Errorf("archetype should have 2 Entitys")
 	}
 
 	expected := []int{0, 2}

@@ -12,6 +12,6 @@ func TestLayout(t *testing.T) {
 	layout := NewLayout(components)
 
 	if layout.HasComponent(compType) == false {
-		t.Errorf("layout should have the component type")
+		t.Errorf("ArchLayout should have the component type")
 	}
 }

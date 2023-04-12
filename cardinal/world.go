@@ -31,8 +31,6 @@ type World interface {
 	// StorageAccessor returns an accessor for the world's storage.
 	// It is used to access componentStore and archetypeStore by queries.
 	StorageAccessor() StorageAccessor
-	// Archetypes returns the archetypeStore in the world.
-	Archetypes() []*storage.Archetype
 	// Update loops through and executes all the systems in the world
 	Update()
 	// AddSystem adds a system to the world.
@@ -162,7 +160,7 @@ func (w *world) Valid(e storage.Entity) bool {
 	if e == storage.Null {
 		return false
 	}
-	if !w.store.EntityLocStore.Contains(e.ID()) {
+	if !w.store.EntityLocStore.ContainsEntity(e.ID()) {
 		return false
 	}
 	loc := w.store.EntityLocStore.Location(e.ID())
@@ -229,6 +227,7 @@ func (w *world) TransferArchetype(from, to storage.ArchetypeIndex, idx storage.C
 	for _, componentType := range toLayout.Components() {
 		if !fromLayout.HasComponent(componentType) {
 			store := w.store.CompStore.Storage(componentType)
+			// TODO(technicallyty): handle error
 			store.PushComponent(componentType, to)
 		}
 	}
@@ -253,10 +252,6 @@ func (w *world) StorageAccessor() StorageAccessor {
 		&w.store.CompStore,
 		w.store.ArchAccessor,
 	}
-}
-
-func (w *world) Archetypes() []*storage.Archetype {
-	return w.store.ArchAccessor.Archetypes()
 }
 
 func (w *world) nextEntity() storage.Entity {

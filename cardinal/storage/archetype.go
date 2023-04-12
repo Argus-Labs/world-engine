@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"encoding/json"
+
 	"github.com/argus-labs/cardinal/component"
 	"github.com/argus-labs/cardinal/entity"
 )
@@ -17,15 +19,11 @@ type archetypeStorageImpl struct {
 	archs []*Archetype
 }
 
-func (a *archetypeStorageImpl) Archetypes() []*Archetype {
-	return a.archs
-}
-
 func (a *archetypeStorageImpl) PushArchetype(index ArchetypeIndex, layout *Layout) {
 	a.archs = append(a.archs, &Archetype{
-		index:    index,
-		entities: make([]entity.Entity, 0, 256),
-		layout:   layout,
+		Index:      index,
+		Entitys:    make([]entity.Entity, 0, 256),
+		ArchLayout: layout,
 	})
 }
 
@@ -37,48 +35,58 @@ func (a archetypeStorageImpl) Archetype(index ArchetypeIndex) ArchetypeStorage {
 	return a.archs[index]
 }
 
-// Archetype is a collection of entities for a specific layout of components.
-// This structure allows to quickly find entities based on their components.
+// Archetype is a collection of Entities for a specific archetype of components.
+// This structure allows to quickly find Entities based on their components.
 type Archetype struct {
-	index    ArchetypeIndex
-	entities []entity.Entity
-	layout   *Layout
+	Index      ArchetypeIndex
+	Entitys    []entity.Entity
+	ArchLayout *Layout
+}
+
+func (archetype *Archetype) MarshalBinary() (data []byte, err error) {
+	return json.Marshal(archetype)
+}
+
+func UnmarshalArchetype(data []byte) (*Archetype, error) {
+	a := new(Archetype)
+	err := json.Unmarshal(data, a)
+	return a, err
 }
 
 // NewArchetype creates a new archetype.
 func NewArchetype(index ArchetypeIndex, layout *Layout) *Archetype {
 	return &Archetype{
-		index:    index,
-		entities: make([]entity.Entity, 0, 256),
-		layout:   layout,
+		Index:      index,
+		Entitys:    make([]entity.Entity, 0, 256),
+		ArchLayout: layout,
 	}
 }
 
-// Layout is a collection of archetypes for a specific layout of components.
+// Layout is a collection of archetypes for a specific ArchLayout of components.
 func (archetype *Archetype) Layout() *Layout {
-	return archetype.layout
+	return archetype.ArchLayout
 }
 
-// Entities returns all entities in this archetype.
+// Entities returns all Entities in this archetype.
 func (archetype *Archetype) Entities() []entity.Entity {
-	return archetype.entities
+	return archetype.Entitys
 }
 
 // SwapRemove removes an entity from the archetype and returns it.
 func (archetype *Archetype) SwapRemove(entityIndex int) entity.Entity {
-	removed := archetype.entities[entityIndex]
-	archetype.entities[entityIndex] = archetype.entities[len(archetype.entities)-1]
-	archetype.entities = archetype.entities[:len(archetype.entities)-1]
+	removed := archetype.Entitys[entityIndex]
+	archetype.Entitys[entityIndex] = archetype.Entitys[len(archetype.Entitys)-1]
+	archetype.Entitys = archetype.Entitys[:len(archetype.Entitys)-1]
 	return removed
 }
 
-// LayoutMatches returns true if the given layout matches this archetype.
+// LayoutMatches returns true if the given ArchLayout matches this archetype.
 func (archetype *Archetype) LayoutMatches(components []component.IComponentType) bool {
-	if len(archetype.layout.Components()) != len(components) {
+	if len(archetype.ArchLayout.Components()) != len(components) {
 		return false
 	}
 	for _, componentType := range components {
-		if !archetype.layout.HasComponent(componentType) {
+		if !archetype.ArchLayout.HasComponent(componentType) {
 			return false
 		}
 	}
@@ -87,10 +95,10 @@ func (archetype *Archetype) LayoutMatches(components []component.IComponentType)
 
 // PushEntity adds an entity to the archetype.
 func (archetype *Archetype) PushEntity(entity entity.Entity) {
-	archetype.entities = append(archetype.entities, entity)
+	archetype.Entitys = append(archetype.Entitys, entity)
 }
 
-// Count returns the number of entities in the archetype.
+// Count returns the number of Entitys in the archetype.
 func (archetype *Archetype) Count() int {
-	return len(archetype.entities)
+	return len(archetype.Entitys)
 }

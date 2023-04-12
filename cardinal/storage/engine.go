@@ -29,13 +29,14 @@ type ComponentIndexStorage interface {
 }
 
 type EntityLocationStorage interface {
-	Contains(id entity.ID) bool
+	ContainsEntity(id entity.ID) bool
 	Remove(id entity.ID)
 	Insert(id entity.ID, index ArchetypeIndex, componentIndex ComponentIndex)
 	Set(id entity.ID, location *Location)
 	Location(id entity.ID) *Location
 	ArchetypeIndex(id entity.ID) ArchetypeIndex
-	ComponentIndex(id entity.ID) ComponentIndex
+	ComponentIndexForEntity(id entity.ID) ComponentIndex
+	// TODO(technicallyty): do we really need this?? len??
 	Len() int
 }
 
@@ -46,7 +47,6 @@ type ArchetypeComponentIndex interface {
 }
 
 type ArchetypeAccessor interface {
-	Archetypes() []*Archetype
 	PushArchetype(index ArchetypeIndex, layout *Layout)
 	Archetype(index ArchetypeIndex) ArchetypeStorage
 	Count() int

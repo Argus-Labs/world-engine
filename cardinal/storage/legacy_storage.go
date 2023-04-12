@@ -23,7 +23,7 @@ func NewLegacyStorage() WorldStorage {
 var _ ComponentStorageManager = &ComponentsSliceStorage{}
 
 // ComponentsSliceStorage is a structure that contains component data in slices.
-// Component data is indexed by component type ID, archetype index, and finally component index.
+// Component data is indexed by component type ID, archetype Index, and finally component Index.
 type ComponentsSliceStorage struct {
 	componentStorages []*ComponentSliceStorage
 }
@@ -57,9 +57,9 @@ var _ ComponentStorage = &ComponentSliceStorage{}
 
 // ComponentSliceStorage is a structure that stores the bytes of data of each component.
 // It stores the bytes in the two-dimensional slice.
-// First dimension is the archetype index.
-// Second dimension is the component index.
-// The component index is used to access the component data in the archetype.
+// First dimension is the archetype Index.
+// Second dimension is the component Index.
+// The component Index is used to access the component data in the archetype.
 type ComponentSliceStorage struct {
 	storages [][][]byte
 }
@@ -171,7 +171,7 @@ func NewLocationMap() EntityLocationStorage {
 }
 
 // Contains returns true if the storage contains the given entity id.
-func (lm *LocationMap) Contains(id entity.ID) bool {
+func (lm *LocationMap) ContainsEntity(id entity.ID) bool {
 	val := lm.locations[id]
 	return val != nil && val.Valid
 }
@@ -182,7 +182,7 @@ func (lm *LocationMap) Remove(id entity.ID) {
 	lm.len--
 }
 
-// Insert inserts the given entity id and archetype index to the storage.
+// Insert inserts the given entity id and archetype Index to the storage.
 func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component ComponentIndex) {
 	if int(id) == len(lm.locations) {
 		loc := NewLocation(archetype, component)
@@ -199,7 +199,7 @@ func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component 
 	}
 }
 
-// Set sets the given entity id and archetype index to the storage.
+// Set sets the given entity id and archetype Index to the storage.
 func (lm *LocationMap) Set(id entity.ID, loc *Location) {
 	lm.Insert(id, loc.ArchIndex, loc.CompIndex)
 }
@@ -215,7 +215,7 @@ func (lm *LocationMap) ArchetypeIndex(id entity.ID) ArchetypeIndex {
 }
 
 // ComponentIndex returns the component of the given entity id.
-func (lm *LocationMap) ComponentIndex(id entity.ID) ComponentIndex {
+func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) ComponentIndex {
 	return lm.locations[id].CompIndex
 }
 
@@ -225,7 +225,7 @@ type Index struct {
 	iterator *ArchetypeIterator
 }
 
-// NewArchetypeComponentIndex creates a new search index.
+// NewArchetypeComponentIndex creates a new search Index.
 func NewArchetypeComponentIndex() ArchetypeComponentIndex {
 	return &Index{
 		layouts: [][]component.IComponentType{},
@@ -235,12 +235,12 @@ func NewArchetypeComponentIndex() ArchetypeComponentIndex {
 	}
 }
 
-// Push adds an archetype to the search index.
+// Push adds an archetype to the search Index.
 func (idx *Index) Push(layout *Layout) {
 	idx.layouts = append(idx.layouts, layout.Components())
 }
 
-// SearchFrom searches for archetypes that match the given filter from the given index.
+// SearchFrom searches for archetypes that match the given filter from the given Index.
 func (idx *Index) SearchFrom(f filter.LayoutFilter, start int) *ArchetypeIterator {
 	idx.iterator.current = 0
 	idx.iterator.values = []ArchetypeIndex{}
@@ -257,7 +257,7 @@ func (idx *Index) Search(filter filter.LayoutFilter) *ArchetypeIterator {
 	return idx.SearchFrom(filter, 0)
 }
 
-func DecodeComponent[T any](bz []byte) (T, error) {
+func Decode[T any](bz []byte) (T, error) {
 	var buf bytes.Buffer
 	buf.Write(bz)
 	dec := gob.NewDecoder(&buf)
@@ -269,7 +269,8 @@ func DecodeComponent[T any](bz []byte) (T, error) {
 	}
 	return *comp, nil
 }
-func EncodeComponent[T any](comp T) ([]byte, error) {
+
+func Encode[T any](comp T) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	err := enc.Encode(comp)

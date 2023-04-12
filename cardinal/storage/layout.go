@@ -7,15 +7,15 @@ import (
 	"github.com/argus-labs/cardinal/component"
 )
 
-// Layout represents a layout of components.
+// Layout represents a ArchLayout of components.
 type Layout struct {
-	componentTypes []component.IComponentType
+	ComponentTypes []component.IComponentType
 }
 
-// NewLayout creates a new entity layout.
+// NewLayout creates a new entity ArchLayout.
 func NewLayout(components []component.IComponentType) *Layout {
 	layout := &Layout{
-		componentTypes: []component.IComponentType{},
+		ComponentTypes: []component.IComponentType{},
 	}
 
 	for _, ct := range components {
@@ -25,19 +25,19 @@ func NewLayout(components []component.IComponentType) *Layout {
 	return layout
 }
 
-// Components returns the components of the layout.
+// Components returns the components of the ArchLayout.
 func (l *Layout) Components() []component.IComponentType {
-	return l.componentTypes
+	return l.ComponentTypes
 }
 
-// AddComponent registers a component type to the layout.
+// AddComponent registers a component type to the ArchLayout.
 func (l *Layout) AddComponent(componentType component.IComponentType) {
-	l.componentTypes = append(l.componentTypes, componentType)
+	l.ComponentTypes = append(l.ComponentTypes, componentType)
 }
 
-// HasComponent returns true if the layout has the given component type.
+// HasComponent returns true if the ArchLayout has the given component type.
 func (l *Layout) HasComponent(componentType component.IComponentType) bool {
-	for _, ct := range l.componentTypes {
+	for _, ct := range l.ComponentTypes {
 		if ct == componentType {
 			return true
 		}
@@ -48,7 +48,7 @@ func (l *Layout) HasComponent(componentType component.IComponentType) bool {
 func (l *Layout) String() string {
 	var out bytes.Buffer
 	out.WriteString("Layout: {")
-	for i, ct := range l.componentTypes {
+	for i, ct := range l.ComponentTypes {
 		if i != 0 {
 			out.WriteString(", ")
 		}

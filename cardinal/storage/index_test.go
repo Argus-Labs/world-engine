@@ -46,13 +46,13 @@ func TestIndex(t *testing.T) {
 	for _, tt := range tests {
 		it := index.Search(tt.filter)
 		if len(it.values) != tt.expected {
-			t.Errorf("index should have %d archetypes", tt.expected)
+			t.Errorf("Index should have %d archetypes", tt.expected)
 		}
 		if it.current != 0 && it.HasNext() {
-			t.Errorf("index should have 0 as current")
+			t.Errorf("Index should have 0 as current")
 		}
 		if tt.expected == 0 && it.HasNext() {
-			t.Errorf("index should not have next")
+			t.Errorf("Index should not have next")
 		}
 	}
 }
