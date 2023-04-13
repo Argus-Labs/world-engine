@@ -29,10 +29,7 @@ func NewComponents(store ComponentStorageManager, idxStore ComponentIndexStorage
 func (cs *Components) PushComponents(components []component.IComponentType, archetypeIndex ArchetypeIndex) (ComponentIndex, error) {
 	for _, componentType := range components {
 		v := cs.store.GetComponentStorage(componentType.ID())
-		if v == nil {
-			cs.store.InitializeComponentStorage(componentType.ID())
-		}
-		err := cs.store.GetComponentStorage(componentType.ID()).PushComponent(componentType, archetypeIndex)
+		err := v.PushComponent(componentType, archetypeIndex)
 		if err != nil {
 			return 0, err
 		}
@@ -54,10 +51,6 @@ func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) {
 
 // Storage returns the component data storage accessor.
 func (cs *Components) Storage(c component.IComponentType) ComponentStorage {
-	if storage := cs.store.GetComponentStorage(c.ID()); storage != nil {
-		return storage
-	}
-	cs.store.InitializeComponentStorage(c.ID())
 	return cs.store.GetComponentStorage(c.ID())
 }
 

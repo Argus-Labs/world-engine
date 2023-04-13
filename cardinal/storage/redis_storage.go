@@ -113,10 +113,6 @@ func (r *redisStorage) GetComponentStorage(cid component.TypeID) ComponentStorag
 	return r
 }
 
-func (r redisStorage) InitializeComponentStorage(cid component.TypeID) {
-	// initialize a new list within redis... is this even necessary? we shall see..
-}
-
 // ---------------------------------------------------------------------------
 // 							COMPONENT STORAGE
 // ---------------------------------------------------------------------------

@@ -44,13 +44,10 @@ func (c ComponentsSliceStorage) GetComponentStorage(cid component.TypeID) Compon
 	// which can make life difficult for consumers of this function
 	// when checking if the returned interface is nil.
 	if s == nil {
-		return nil
+		c.componentStorages[cid] = NewSliceStorage()
+		s = c.componentStorages[cid]
 	}
 	return s
-}
-
-func (c *ComponentsSliceStorage) InitializeComponentStorage(cid component.TypeID) {
-	c.componentStorages[cid] = NewSliceStorage()
 }
 
 var _ ComponentStorage = &ComponentSliceStorage{}

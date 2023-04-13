@@ -18,7 +18,6 @@ type ComponentStorage interface {
 type ComponentStorageManager interface {
 	GetComponentStorage(cid component.TypeID) ComponentStorage
 	GetComponentIndexStorage(cid component.TypeID) ComponentIndexStorage
-	InitializeComponentStorage(cid component.TypeID)
 }
 
 type ComponentIndexStorage interface {
