@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/argus-labs/cardinal/component"
-	"github.com/argus-labs/cardinal/entity"
 	"github.com/argus-labs/cardinal/filter"
 	"github.com/argus-labs/cardinal/storage"
 )
@@ -148,12 +147,9 @@ func (w *world) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.Ent
 
 func (w *world) createEntry(e storage.Entity) {
 	id := e.ID()
-	if int(id) >= w.store.EntryStore.Length() {
-		w.store.EntryStore.Push(nil)
-	}
 	loc := w.store.EntityLocStore.Location(id)
 	entry := storage.NewEntry(id, e, loc, w)
-	w.store.EntryStore.Set(id, entry)
+	w.store.EntryStore.SetEntry(id, entry)
 }
 
 func (w *world) Valid(e storage.Entity) bool {
@@ -167,13 +163,15 @@ func (w *world) Valid(e storage.Entity) bool {
 	a := loc.ArchIndex
 	c := loc.CompIndex
 	// If the version of the entity is not the same as the version of the archetype,
-	// the entity is invalid (it means the entity is already entityTrashCan).
+	// the entity is invalid (it means the entity is already destroyed).
 	return loc.Valid && e == w.store.ArchAccessor.Archetype(a).Entities()[c]
 }
 
+// TODO(technicallyty): we need to update these methods here to not just
+// update the struct itself, but update the backend too.
 func (w *world) Entry(entity storage.Entity) *storage.Entry {
 	id := entity.ID()
-	entry := w.store.EntryStore.Get(id)
+	entry := w.store.EntryStore.GetEntry(id)
 	entry.SetEntity(entity)
 	entry.SetLocation(w.store.EntityLocStore.Location(id))
 	return entry
@@ -255,15 +253,7 @@ func (w *world) StorageAccessor() StorageAccessor {
 }
 
 func (w *world) nextEntity() storage.Entity {
-	// if the trash is empty, we get the next entity ID, increment, and create a new entity.
-	if w.store.EntityMgr.Length() == 0 {
-		id := w.store.EntityMgr.GetNextEntityID()
-		return entity.NewEntity(id)
-	}
-	// entity trash isn't empty, so we can reuse.
-	newEntity := w.store.EntityMgr.Get(w.store.EntityMgr.Length() - 1)
-	w.store.EntityMgr.Shrink()
-	return newEntity
+	return w.store.EntityMgr.NewEntity()
 }
 
 func (w *world) insertArchetype(layout *storage.Layout) storage.ArchetypeIndex {

@@ -1,8 +1,6 @@
 package storage
 
 import (
-	"encoding/json"
-
 	"github.com/argus-labs/cardinal/component"
 	"github.com/argus-labs/cardinal/entity"
 )
@@ -41,16 +39,6 @@ type Archetype struct {
 	Index      ArchetypeIndex
 	Entitys    []entity.Entity
 	ArchLayout *Layout
-}
-
-func (archetype *Archetype) MarshalBinary() (data []byte, err error) {
-	return json.Marshal(archetype)
-}
-
-func UnmarshalArchetype(data []byte) (*Archetype, error) {
-	a := new(Archetype)
-	err := json.Unmarshal(data, a)
-	return a, err
 }
 
 // NewArchetype creates a new archetype.

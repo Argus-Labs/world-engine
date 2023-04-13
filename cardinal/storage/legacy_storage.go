@@ -1,9 +1,6 @@
 package storage
 
 import (
-	"bytes"
-	"encoding/gob"
-
 	"github.com/argus-labs/cardinal/component"
 	"github.com/argus-labs/cardinal/entity"
 	"github.com/argus-labs/cardinal/filter"
@@ -252,27 +249,4 @@ func (idx *Index) SearchFrom(f filter.LayoutFilter, start int) *ArchetypeIterato
 // Search searches for archetypes that match the given filter.
 func (idx *Index) Search(filter filter.LayoutFilter) *ArchetypeIterator {
 	return idx.SearchFrom(filter, 0)
-}
-
-func Decode[T any](bz []byte) (T, error) {
-	var buf bytes.Buffer
-	buf.Write(bz)
-	dec := gob.NewDecoder(&buf)
-	comp := new(T)
-	err := dec.Decode(comp)
-	var t T
-	if err != nil {
-		return t, err
-	}
-	return *comp, nil
-}
-
-func Encode[T any](comp T) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(comp)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }

@@ -55,7 +55,7 @@ func TestComponents(t *testing.T) {
 			dat, err := Decode[ComponentData](bz)
 			assert.NilError(t, err)
 			dat.ID = tt.ID
-			compBz, err := Encode[ComponentData](dat)
+			compBz, err := Encode(dat)
 			assert.NilError(t, err)
 			st.SetComponent(tt.archIdx, tt.compIdx, compBz)
 		}

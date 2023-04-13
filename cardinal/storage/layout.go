@@ -19,7 +19,7 @@ func NewLayout(components []component.IComponentType) *Layout {
 	}
 
 	for _, ct := range components {
-		layout.AddComponent(ct)
+		layout.ComponentTypes = append(layout.ComponentTypes, ct)
 	}
 
 	return layout
@@ -28,11 +28,6 @@ func NewLayout(components []component.IComponentType) *Layout {
 // Components returns the components of the ArchLayout.
 func (l *Layout) Components() []component.IComponentType {
 	return l.ComponentTypes
-}
-
-// AddComponent registers a component type to the ArchLayout.
-func (l *Layout) AddComponent(componentType component.IComponentType) {
-	l.ComponentTypes = append(l.ComponentTypes, componentType)
 }
 
 // HasComponent returns true if the ArchLayout has the given component type.

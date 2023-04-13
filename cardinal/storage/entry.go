@@ -9,49 +9,45 @@ import (
 	"github.com/argus-labs/cardinal/entity"
 )
 
-type EntryStorage interface {
-	Length() int
-	Push(*Entry)
-	Set(entity.ID, *Entry)
-	Get(entity.ID) *Entry
-}
-
 type entryStorageImpl struct {
 	entries []*Entry
 }
+
+var _ EntryStorage = &entryStorageImpl{}
 
 func NewEntryStorage() EntryStorage {
 	return &entryStorageImpl{entries: make([]*Entry, 1, 256)}
 }
 
-func (e entryStorageImpl) Length() int {
-	return len(e.entries)
-}
-
-func (e *entryStorageImpl) Push(entry *Entry) {
-	e.entries = append(e.entries, entry)
-}
-
-func (e *entryStorageImpl) Set(id entity.ID, entry *Entry) {
+func (e *entryStorageImpl) SetEntry(id entity.ID, entry *Entry) {
+	if int(id) >= len(e.entries) {
+		e.entries = append(e.entries, nil)
+	}
 	e.entries[id] = entry
 }
 
-func (e entryStorageImpl) Get(id entity.ID) *Entry {
+func (e entryStorageImpl) GetEntry(id entity.ID) *Entry {
 	return e.entries[id]
+}
+
+type EntryNew struct {
+	id     entity.ID
+	entity Entity
+	loc    Location
 }
 
 // Entry is a struct that contains an entity and a location in an archetype.
 type Entry struct {
-	w WorldAccessor // TODO(technicallyty): fix, replace with iface probably..
+	w WorldAccessor
 
 	id     entity.ID
 	entity Entity
-	loc    *Location
+	loc    *Location // TODO(technicallyty): this definitely doesnt need to be a pointer...
 }
 
 func NewEntry(id entity.ID, e entity.Entity, loc *Location, w WorldAccessor) *Entry {
 	return &Entry{
-		w:      w, // TODO(technicallyty): todo, fix
+		w:      w,
 		id:     id,
 		entity: e,
 		loc:    loc,

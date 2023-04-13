@@ -12,6 +12,26 @@ import (
 	"github.com/argus-labs/cardinal/filter"
 )
 
+// TODO(technicallyty): Archetypes can just be stored in program memory. It just a structure that allows us to quickly
+// decipher combinations of components. There is no point in storing such information in a backend.
+// at the very least, we may want to store the list of entities that an archetype has.
+//
+// Archetype -> group of entities for specific set of components. makes it easy to find entities based on comps.
+// example:
+//
+//
+//
+// Normal Planet Archetype(1): EnergyComponent, OwnableComponent
+// Entities (0235u25), (09235u3), (235235x3)....
+//
+// In Go memory -> []Archetypes {arch1 (maps to above)}
+//
+// We need to consider if this needs to be stored in a backend at all. We _should_ be able to build archetypes from
+// system restarts as they don't really contain any information about the location of anything stored in a backend.
+//
+// Something to consider -> we should do something i.e. RegisterComponents, and have it deterministically assign TypeID's to components.
+// We could end up with some issues (needs to be determined).
+
 type redisStorage struct {
 	worldID                string
 	componentStoragePrefix component.TypeID
@@ -343,7 +363,7 @@ func (r *redisStorage) PushArchetype(index ArchetypeIndex, layout *Layout) {
 	//ctx := context.Background()
 	//key := r.archetypeStorageKey(index)
 	//arch := NewArchetype(index, layout)
-	//r.c.Set(ctx, key)
+	//r.c.SetEntry(ctx, key)
 }
 
 func (r *redisStorage) Archetype(index ArchetypeIndex) ArchetypeStorage {
@@ -352,6 +372,59 @@ func (r *redisStorage) Archetype(index ArchetypeIndex) ArchetypeStorage {
 }
 
 func (r *redisStorage) Count() int {
+	//TODO implement me
+	panic("implement me")
+}
+
+// ---------------------------------------------------------------------------
+// 							ENTRY STORAGE
+// ---------------------------------------------------------------------------
+
+//var _ EntryStorage = &redisStorage{}
+
+func (r *redisStorage) SetEntry(id entity.ID, entry *EntryNew) {
+	ctx := context.Background()
+	key := r.entryStorageKey(id)
+	bz, err := Encode(entry)
+	if err != nil {
+		// TODO(technicallyty): handle this pls
+	}
+	res := r.c.Set(ctx, key, bz, 0)
+	if err := res.Err(); err != nil {
+		// TODO(technicallyty): handle this pls
+	}
+}
+
+func (r *redisStorage) GetEntry(id entity.ID) *EntryNew {
+	ctx := context.Background()
+	key := r.entryStorageKey(id)
+	res := r.c.Get(ctx, key)
+	if err := res.Err(); err != nil {
+		// TODO(technicallyty): handle this pls
+	}
+	bz, err := res.Bytes()
+	if err != nil {
+		// TODO(technicallyty): handle this pls
+	}
+	decodedEntry, err := Decode[EntryNew](bz)
+	if err != nil {
+		// TODO(technicallyty): handle this pls
+	}
+	return &decodedEntry
+}
+
+// ---------------------------------------------------------------------------
+// 							Entity Manager
+// ---------------------------------------------------------------------------
+
+var _ EntityManager = &redisStorage{}
+
+func (r *redisStorage) Destroy(e Entity) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r *redisStorage) NewEntity() Entity {
 	//TODO implement me
 	panic("implement me")
 }

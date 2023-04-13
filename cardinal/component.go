@@ -143,6 +143,7 @@ func (c *ComponentType[T]) validateDefaultVal() {
 	}
 }
 
+// TODO(technicallyty): this should be handled by storage.
 var nextComponentTypeId component.TypeID = 1
 
 // NewComponentType creates a new component type.

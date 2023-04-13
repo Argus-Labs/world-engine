@@ -172,41 +172,6 @@ func TestRedis_Location(t *testing.T) {
 	assert.Equal(t, has, false)
 }
 
-func TestThingy(t *testing.T) {
-	ctx := context.Background()
-	c := getRedisClient(t)
-	type FooComp struct {
-		X int
-	}
-	foo := storage.NewMockComponentType(FooComp{}, FooComp{X: 20})
-	//worldId := "1"
-	//store := storage.NewRedisStorage(c, worldId)
-
-	archIdx := storage.ArchetypeIndex(1)
-	val := storage.Archetype{
-		Index:   archIdx,
-		Entitys: []entity.Entity{0, 1, 2},
-		ArchLayout: &storage.Layout{
-			ComponentTypes: []component.IComponentType{foo},
-		},
-	}
-	bz, err := val.MarshalBinary()
-	assert.NilError(t, err)
-	fmt.Println(string(bz))
-	key := "foo"
-	res := c.Set(ctx, key, bz, 0)
-	assert.NilError(t, res.Err())
-
-	res2 := c.Get(ctx, key)
-	assert.NilError(t, res2.Err())
-
-	bz, err = res2.Bytes()
-	assert.NilError(t, err)
-	a, err := storage.UnmarshalArchetype(bz)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, *a, val)
-}
-
 func getRedisClient(t *testing.T) *redis.Client {
 	s := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{

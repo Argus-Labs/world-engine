@@ -50,7 +50,7 @@ func (ir registry) UnpackAny(any *Any, iface interface{}) error {
 	cachedValue := any.cachedValue
 	if cachedValue != nil {
 		if reflect.TypeOf(cachedValue).AssignableTo(rt) {
-			rv.Elem().Set(reflect.ValueOf(cachedValue))
+			rv.Elem().SetEntry(reflect.ValueOf(cachedValue))
 			return nil
 		}
 	}

@@ -26,10 +26,7 @@ type WorldAccessor interface {
 
 type EntityManager interface {
 	Destroy(Entity)
-	Length() int
-	Get(int) Entity
-	Shrink()
-	GetNextEntityID() entity.ID
+	NewEntity() Entity
 }
 
 var _ EntityManager = &entityMgrImpl{}
@@ -52,9 +49,14 @@ func (e *entityMgrImpl) Shrink() {
 	e.destroyed = e.destroyed[:len(e.destroyed)-1]
 }
 
-// TODO(technicallyty): unsafe asf
-func (e entityMgrImpl) Get(i int) Entity {
-	return e.destroyed[i]
+func (e *entityMgrImpl) NewEntity() Entity {
+	if len(e.destroyed) == 0 {
+		id := e.GetNextEntityID()
+		return entity.NewEntity(id)
+	}
+	newEntity := e.destroyed[(len(e.destroyed) - 1)]
+	e.Shrink()
+	return newEntity
 }
 
 func (e entityMgrImpl) Length() int {

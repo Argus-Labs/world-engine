@@ -15,26 +15,30 @@ define keys for redis storage
 - 	ENTITY LOCATION: 	LOC:WORLD-1:E-1 		-> Location
 - 	ENTITY LOCATION LEN LOCL:WORLD-1			-> Int
 - 	ARCH COMP INDEX:    ACI:WORLD-1
-- 	ARCH STORAGE:		ARCH:WORLD-1:A-1		-> Archetype{Index, []Entity, *Layout}
+- 	ENTRY STORAGE:      ENTRY:WORLD-1:ID  		-> entry struct bytes
 
 */
 
-func (r *redisStorage) componentDataKey(index ArchetypeIndex) string {
+func (r redisStorage) componentDataKey(index ArchetypeIndex) string {
 	return fmt.Sprintf("COMPD:WORLD-%s:CID-%d:A-%d", r.worldID, r.componentStoragePrefix, index)
 }
 
-func (r *redisStorage) componentIndexKey(index ArchetypeIndex) string {
+func (r redisStorage) componentIndexKey(index ArchetypeIndex) string {
 	return fmt.Sprintf("CIDX:WORLD-%s:CID-%d:A-%d", r.worldID, r.componentStoragePrefix, index)
 }
 
-func (r *redisStorage) entityLocationKey(e entity.ID) string {
+func (r redisStorage) entityLocationKey(e entity.ID) string {
 	return fmt.Sprintf("LOC:WORLD-%s:E-%d", r.worldID, e)
 }
 
-func (r *redisStorage) entityLocationLenKey() string {
+func (r redisStorage) entityLocationLenKey() string {
 	return fmt.Sprintf("LOCL:WORLD-%s", r.worldID)
 }
 
-func (r *redisStorage) archetypeStorageKey(ai ArchetypeIndex) string {
+func (r redisStorage) archetypeStorageKey(ai ArchetypeIndex) string {
 	return fmt.Sprintf("ARCH:WORLD-%s:A-%d", r.worldID, ai)
+}
+
+func (r redisStorage) entryStorageKey(id entity.ID) string {
+	return fmt.Sprintf("ENTRY:WORLD-%s:%d", r.worldID, id)
 }

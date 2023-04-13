@@ -59,3 +59,8 @@ type ArchetypeStorage interface {
 	PushEntity(entity entity.Entity)
 	Count() int
 }
+
+type EntryStorage interface {
+	SetEntry(entity.ID, *Entry)
+	GetEntry(entity.ID) *Entry
+}
