@@ -12,7 +12,7 @@ import (
 	"github.com/argus-labs/cardinal/filter"
 )
 
-// TODO(technicallyty): Archetypes can just be stored in program memory. It just a structure that allows us to quickly
+// Archetypes can just be stored in program memory. It just a structure that allows us to quickly
 // decipher combinations of components. There is no point in storing such information in a backend.
 // at the very least, we may want to store the list of entities that an archetype has.
 //
@@ -22,7 +22,7 @@ import (
 //
 //
 // Normal Planet Archetype(1): EnergyComponent, OwnableComponent
-// Entities (0235u25), (09235u3), (235235x3)....
+// Entities (1), (2), (3)....
 //
 // In Go memory -> []Archetypes {arch1 (maps to above)}
 //
@@ -278,7 +278,11 @@ func (r *redisStorage) Insert(id entity.ID, index ArchetypeIndex, componentIndex
 	if err := res.Err(); err != nil {
 		// TODO(technicallyty): handle this
 	}
-	r.c.Incr(ctx, key)
+	key = r.entityLocationLenKey()
+	incRes := r.c.Incr(ctx, key)
+	if err := incRes.Err(); err != nil {
+		// TODO(technicallyty): handle this
+	}
 }
 
 func (r *redisStorage) Set(id entity.ID, location *Location) {
