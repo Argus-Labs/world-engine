@@ -41,6 +41,8 @@ type Archetype struct {
 	ArchLayout *Layout
 }
 
+var _ ArchetypeStorage = &Archetype{}
+
 // NewArchetype creates a new archetype.
 func NewArchetype(index ArchetypeIndex, layout *Layout) *Archetype {
 	return &Archetype{
@@ -60,7 +62,7 @@ func (archetype *Archetype) Entities() []entity.Entity {
 	return archetype.Entitys
 }
 
-// SwapRemove removes an entity from the archetype and returns it.
+// SwapRemove removes an Ent from the archetype and returns it.
 func (archetype *Archetype) SwapRemove(entityIndex int) entity.Entity {
 	removed := archetype.Entitys[entityIndex]
 	archetype.Entitys[entityIndex] = archetype.Entitys[len(archetype.Entitys)-1]
@@ -81,7 +83,7 @@ func (archetype *Archetype) LayoutMatches(components []component.IComponentType)
 	return true
 }
 
-// PushEntity adds an entity to the archetype.
+// PushEntity adds an Ent to the archetype.
 func (archetype *Archetype) PushEntity(entity entity.Entity) {
 	archetype.Entitys = append(archetype.Entitys, entity)
 }

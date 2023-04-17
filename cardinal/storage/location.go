@@ -1,6 +1,6 @@
 package storage
 
-// Location is a location of an entity in the storage.
+// Location is a location of an Ent in the storage.
 type Location struct {
 	ArchIndex ArchetypeIndex
 	CompIndex ComponentIndex

@@ -16,7 +16,7 @@ define keys for redis storage
 - 	ENTITY LOCATION LEN LOCL:WORLD-1			-> Int
 - 	ARCH COMP INDEX:    ACI:WORLD-1
 - 	ENTRY STORAGE:      ENTRY:WORLD-1:ID  		-> entry struct bytes
-
+- 	ENTITY MGR: 		ENTITY:WORLD-1:NEXTID 	-> uint64 id
 */
 
 func (r redisStorage) componentDataKey(index ArchetypeIndex) string {
@@ -41,4 +41,8 @@ func (r redisStorage) archetypeStorageKey(ai ArchetypeIndex) string {
 
 func (r redisStorage) entryStorageKey(id entity.ID) string {
 	return fmt.Sprintf("ENTRY:WORLD-%s:%d", r.worldID, id)
+}
+
+func (r redisStorage) nextEntityIDKey() string {
+	return fmt.Sprintf("ENTITY:WORLD-%s:NEXTID", r.worldID)
 }

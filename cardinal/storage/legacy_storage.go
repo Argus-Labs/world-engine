@@ -146,7 +146,7 @@ func (c *ComponentIndexMap) DecrementIndex(index ArchetypeIndex) {
 	c.idxs[index]--
 }
 
-// LocationMap is a storage of entity locations.
+// LocationMap is a storage of Ent locations.
 type LocationMap struct {
 	locations []*Location
 	len       int
@@ -164,19 +164,19 @@ func NewLocationMap() EntityLocationStorage {
 	}
 }
 
-// Contains returns true if the storage contains the given entity id.
+// ContainsEntity returns true if the storage contains the given Ent ID.
 func (lm *LocationMap) ContainsEntity(id entity.ID) bool {
 	val := lm.locations[id]
 	return val != nil && val.Valid
 }
 
-// Remove removes the given entity id from the storage.
+// Remove removes the given Ent ID from the storage.
 func (lm *LocationMap) Remove(id entity.ID) {
 	lm.locations[id].Valid = false
 	lm.len--
 }
 
-// Insert inserts the given entity id and archetype Index to the storage.
+// Insert inserts the given Ent ID and archetype Index to the storage.
 func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component ComponentIndex) {
 	if int(id) == len(lm.locations) {
 		loc := NewLocation(archetype, component)
@@ -193,22 +193,22 @@ func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component 
 	}
 }
 
-// Set sets the given entity id and archetype Index to the storage.
+// Set sets the given Ent ID and archetype Index to the storage.
 func (lm *LocationMap) Set(id entity.ID, loc *Location) {
 	lm.Insert(id, loc.ArchIndex, loc.CompIndex)
 }
 
-// Location returns the location of the given entity id.
+// Location returns the location of the given Ent ID.
 func (lm *LocationMap) Location(id entity.ID) *Location {
 	return lm.locations[id]
 }
 
-// ArchetypeIndex returns the archetype of the given entity id.
+// ArchetypeIndex returns the archetype of the given Ent ID.
 func (lm *LocationMap) ArchetypeIndex(id entity.ID) ArchetypeIndex {
 	return lm.locations[id].ArchIndex
 }
 
-// ComponentIndex returns the component of the given entity id.
+// ComponentIndex returns the component of the given Ent ID.
 func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) ComponentIndex {
 	return lm.locations[id].CompIndex
 }
@@ -249,4 +249,33 @@ func (idx *Index) SearchFrom(f filter.LayoutFilter, start int) *ArchetypeIterato
 // Search searches for archetypes that match the given filter.
 func (idx *Index) Search(filter filter.LayoutFilter) *ArchetypeIterator {
 	return idx.SearchFrom(filter, 0)
+}
+
+type entryStorageImpl struct {
+	entries []*Entry
+}
+
+func (e *entryStorageImpl) SetEntity(id entity.ID, e2 Entity) {
+	e.entries[id].Ent = e2
+}
+
+func (e *entryStorageImpl) SetLocation(id entity.ID, location Location) {
+	e.entries[id].Loc = &location
+}
+
+var _ EntryStorage = &entryStorageImpl{}
+
+func NewEntryStorage() EntryStorage {
+	return &entryStorageImpl{entries: make([]*Entry, 1, 256)}
+}
+
+func (e *entryStorageImpl) SetEntry(id entity.ID, entry *Entry) {
+	if int(id) >= len(e.entries) {
+		e.entries = append(e.entries, nil)
+	}
+	e.entries[id] = entry
+}
+
+func (e entryStorageImpl) GetEntry(id entity.ID) *Entry {
+	return e.entries[id]
 }

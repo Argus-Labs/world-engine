@@ -26,7 +26,7 @@ var Null = Entity(0)
 
 // ID returns the entity id.
 func (e Entity) ID() ID {
-	return ID(e >> 32)
+	return ID(e)
 }
 
 // Version returns the entity version.

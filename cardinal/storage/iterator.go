@@ -4,7 +4,7 @@ import (
 	"github.com/argus-labs/cardinal/entity"
 )
 
-// EntityIterator is an iterator for entity lists in archetypes.
+// EntityIterator is an iterator for Ent lists in archetypes.
 type EntityIterator struct {
 	current      int
 	archAccessor ArchetypeAccessor
@@ -20,12 +20,12 @@ func NewEntityIterator(current int, archAccessor ArchetypeAccessor, indices []Ar
 	}
 }
 
-// HasNext returns true if there are more entity list to iterate over.
+// HasNext returns true if there are more Ent list to iterate over.
 func (it *EntityIterator) HasNext() bool {
 	return it.current < len(it.indices)
 }
 
-// Next returns the next entity list.
+// Next returns the next Ent list.
 func (it *EntityIterator) Next() []entity.Entity {
 	archetypeIndex := it.indices[it.current]
 	it.current++

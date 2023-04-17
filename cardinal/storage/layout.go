@@ -12,7 +12,7 @@ type Layout struct {
 	ComponentTypes []component.IComponentType
 }
 
-// NewLayout creates a new entity ArchLayout.
+// NewLayout creates a new Ent ArchLayout.
 func NewLayout(components []component.IComponentType) *Layout {
 	layout := &Layout{
 		ComponentTypes: []component.IComponentType{},

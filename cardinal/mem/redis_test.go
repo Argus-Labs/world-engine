@@ -172,6 +172,41 @@ func TestRedis_Location(t *testing.T) {
 	assert.Equal(t, has, false)
 }
 
+func TestRedis_EntryStorage(t *testing.T) {
+	ctx := context.Background()
+	_ = ctx
+	rdb := getRedisClient(t)
+	worldId := "1"
+	store := storage.NewRedisStorage(rdb, worldId)
+
+	eid := entity.ID(12)
+	loc := &storage.Location{
+		ArchIndex: 15,
+		CompIndex: 12,
+		Valid:     true,
+	}
+	e := storage.NewEntry(eid, entity.NewEntity(eid), loc)
+	store.EntryStore.SetEntry(eid, e)
+
+	gotEntry := store.EntryStore.GetEntry(eid)
+	assert.DeepEqual(t, e, gotEntry)
+
+	newLoc := storage.Location{
+		ArchIndex: 39,
+		CompIndex: 82,
+		Valid:     false,
+	}
+	store.EntryStore.SetLocation(eid, newLoc)
+
+	gotEntry = store.EntryStore.GetEntry(eid)
+	assert.DeepEqual(t, *gotEntry.Loc, newLoc)
+
+	newEnt := entity.NewEntity(400)
+	store.EntryStore.SetEntity(eid, newEnt)
+	gotEntry = store.EntryStore.GetEntry(eid)
+	assert.DeepEqual(t, gotEntry.Ent, newEnt)
+}
+
 func getRedisClient(t *testing.T) *redis.Client {
 	s := miniredis.RunT(t)
 	rdb := redis.NewClient(&redis.Options{

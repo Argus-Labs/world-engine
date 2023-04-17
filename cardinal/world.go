@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/argus-labs/cardinal/component"
+	"github.com/argus-labs/cardinal/entity"
 	"github.com/argus-labs/cardinal/filter"
 	"github.com/argus-labs/cardinal/storage"
 )
@@ -25,7 +26,7 @@ type World interface {
 	Remove(entity storage.Entity)
 	// Valid returns true if the specified entity is valid.
 	Valid(e storage.Entity) bool
-	// Len returns the number of entityLocationStore in the world.
+	// Len returns the number of entities in the world.
 	Len() int
 	// StorageAccessor returns an accessor for the world's storage.
 	// It is used to access componentStore and archetypeStore by queries.
@@ -34,6 +35,8 @@ type World interface {
 	Update()
 	// AddSystem adds a system to the world.
 	AddSystem(System)
+	// RegisterComponents registers the components in the world.
+	RegisterComponents(...IComponentType)
 }
 
 // StorageAccessor is an accessor for the world's storage.
@@ -48,10 +51,16 @@ type StorageAccessor struct {
 
 type initializer func(w World)
 
+var _ World = &world{}
+
 type world struct {
 	id      WorldId
 	store   storage.WorldStorage
 	systems []System
+}
+
+func (w *world) SetEntryLocation(id entity.ID, location storage.Location) {
+	w.store.EntryStore.SetLocation(id, location)
 }
 
 func (w *world) Component(componentType component.IComponentType, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) []byte {
@@ -81,6 +90,19 @@ func (w *world) AddSystem(s System) {
 func (w *world) Update() {
 	for _, sys := range w.systems {
 		sys(w)
+	}
+}
+
+func (w *world) RegisterComponents(ct ...IComponentType) {
+	type Initializer interface {
+		Initialize(storage.WorldAccessor)
+	}
+	for _, c := range ct {
+		compInitializer, ok := c.(Initializer)
+		if !ok {
+			panic("cannot initialize component.")
+		}
+		compInitializer.Initialize(w)
 	}
 }
 
@@ -148,7 +170,7 @@ func (w *world) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.Ent
 func (w *world) createEntry(e storage.Entity) {
 	id := e.ID()
 	loc := w.store.EntityLocStore.Location(id)
-	entry := storage.NewEntry(id, e, loc, w)
+	entry := storage.NewEntry(id, e, loc)
 	w.store.EntryStore.SetEntry(id, entry)
 }
 
@@ -172,8 +194,8 @@ func (w *world) Valid(e storage.Entity) bool {
 func (w *world) Entry(entity storage.Entity) *storage.Entry {
 	id := entity.ID()
 	entry := w.store.EntryStore.GetEntry(id)
-	entry.SetEntity(entity)
-	entry.SetLocation(w.store.EntityLocStore.Location(id))
+	w.store.EntryStore.SetEntity(id, entity)
+	w.store.EntryStore.SetLocation(id, *w.store.EntityLocStore.Location(id))
 	return entry
 }
 

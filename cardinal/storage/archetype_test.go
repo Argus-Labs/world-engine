@@ -49,7 +49,7 @@ func TestPushEntity(t *testing.T) {
 	expected := []int{0, 2}
 	for i, entity := range archetype.Entities() {
 		if int(entity) != expected[i] {
-			t.Errorf("archetype should have entity %d", expected[i])
+			t.Errorf("archetype should have Ent %d", expected[i])
 		}
 	}
 }

@@ -30,11 +30,16 @@ func NewComponentType[T any](opts ...interface{}) *ComponentType[T] {
 // ComponentType represents a type of component. It is used to identify
 // a component when getting or setting componentStore of an entity.
 type ComponentType[T any] struct {
+	w          storage.WorldAccessor
 	id         component.TypeID
 	typ        reflect.Type
 	name       string
 	defaultVal interface{}
 	query      *Query
+}
+
+func (c *ComponentType[T]) Initialize(w storage.WorldAccessor) {
+	c.w = w
 }
 
 func decodeComponent[T any](bz []byte) (T, error) {
@@ -55,7 +60,7 @@ func encodeComponent[T any](comp T) ([]byte, error) {
 
 // Get returns component data from the entry.
 func (c *ComponentType[T]) Get(entry *storage.Entry) (T, error) {
-	bz := entry.Component(c)
+	bz := entry.Component(c.w, c)
 	comp, err := decodeComponent[T](bz)
 	return comp, err
 }
@@ -66,7 +71,7 @@ func (c *ComponentType[T]) Set(entry *storage.Entry, component *T) error {
 	if err != nil {
 		return err
 	}
-	entry.SetComponent(c, bz)
+	c.w.SetComponent(c, bz, entry.Loc.ArchIndex, entry.Loc.CompIndex)
 	return nil
 }
 

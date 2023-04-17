@@ -5,11 +5,11 @@ import (
 	"github.com/argus-labs/cardinal/entity"
 )
 
-// Entity is identifier of an entity.
+// Entity is identifier of an Ent.
 // Entity is just a wrapper of uint64.
 type Entity = entity.Entity
 
-// Null represents an invalid entity which is zero.
+// Null represents an invalid Ent which is zero.
 var Null = entity.Null
 
 type WorldAccessor interface {
@@ -22,11 +22,7 @@ type WorldAccessor interface {
 	Remove(entity.Entity)
 	Valid(entity.Entity) bool
 	Archetype(ArchetypeIndex) ArchetypeStorage
-}
-
-type EntityManager interface {
-	Destroy(Entity)
-	NewEntity() Entity
+	SetEntryLocation(id entity.ID, location Location)
 }
 
 var _ EntityManager = &entityMgrImpl{}
@@ -45,7 +41,7 @@ func (e *entityMgrImpl) GetNextEntityID() entity.ID {
 	return e.nextID
 }
 
-func (e *entityMgrImpl) Shrink() {
+func (e *entityMgrImpl) shrink() {
 	e.destroyed = e.destroyed[:len(e.destroyed)-1]
 }
 
@@ -55,12 +51,8 @@ func (e *entityMgrImpl) NewEntity() Entity {
 		return entity.NewEntity(id)
 	}
 	newEntity := e.destroyed[(len(e.destroyed) - 1)]
-	e.Shrink()
+	e.shrink()
 	return newEntity
-}
-
-func (e entityMgrImpl) Length() int {
-	return len(e.destroyed)
 }
 
 func (e *entityMgrImpl) Destroy(et Entity) {

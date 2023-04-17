@@ -63,4 +63,11 @@ type ArchetypeStorage interface {
 type EntryStorage interface {
 	SetEntry(entity.ID, *Entry)
 	GetEntry(entity.ID) *Entry
+	SetEntity(entity.ID, Entity)
+	SetLocation(entity.ID, Location)
+}
+
+type EntityManager interface {
+	Destroy(Entity)
+	NewEntity() Entity
 }

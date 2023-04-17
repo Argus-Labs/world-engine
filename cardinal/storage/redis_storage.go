@@ -37,6 +37,7 @@ type redisStorage struct {
 	componentStoragePrefix component.TypeID
 	c                      *redis.Client
 	log                    zerolog.Logger
+	archetypeCache         ArchetypeAccessor
 }
 
 var _ = redisStorage{}
@@ -53,8 +54,11 @@ func NewRedisStorage(c *redis.Client, worldID string) WorldStorage {
 			store:            &redisStorage,
 			componentIndices: &redisStorage,
 		},
-		EntityLocStore: &redisStorage,
-		ArchAccessor:   &redisStorage,
+		EntityLocStore:   &redisStorage,
+		ArchAccessor:     NewArchetypeAccessor(),
+		ArchCompIdxStore: NewArchetypeComponentIndex(),
+		EntryStore:       &redisStorage,
+		EntityMgr:        &redisStorage,
 	}
 }
 
@@ -380,9 +384,9 @@ func (r *redisStorage) Count() int {
 // 							ENTRY STORAGE
 // ---------------------------------------------------------------------------
 
-//var _ EntryStorage = &redisStorage{}
+var _ EntryStorage = &redisStorage{}
 
-func (r *redisStorage) SetEntry(id entity.ID, entry *EntryNew) {
+func (r *redisStorage) SetEntry(id entity.ID, entry *Entry) {
 	ctx := context.Background()
 	key := r.entryStorageKey(id)
 	bz, err := Encode(entry)
@@ -395,7 +399,7 @@ func (r *redisStorage) SetEntry(id entity.ID, entry *EntryNew) {
 	}
 }
 
-func (r *redisStorage) GetEntry(id entity.ID) *EntryNew {
+func (r *redisStorage) GetEntry(id entity.ID) *Entry {
 	ctx := context.Background()
 	key := r.entryStorageKey(id)
 	res := r.c.Get(ctx, key)
@@ -406,11 +410,23 @@ func (r *redisStorage) GetEntry(id entity.ID) *EntryNew {
 	if err != nil {
 		// TODO(technicallyty): handle this pls
 	}
-	decodedEntry, err := Decode[EntryNew](bz)
+	decodedEntry, err := Decode[Entry](bz)
 	if err != nil {
 		// TODO(technicallyty): handle this pls
 	}
 	return &decodedEntry
+}
+
+func (r *redisStorage) SetEntity(id entity.ID, e Entity) {
+	entry := r.GetEntry(id)
+	entry.Ent = e
+	r.SetEntry(id, entry)
+}
+
+func (r *redisStorage) SetLocation(id entity.ID, location Location) {
+	entry := r.GetEntry(id)
+	entry.Loc = &location
+	r.SetEntry(id, entry)
 }
 
 // ---------------------------------------------------------------------------
@@ -420,11 +436,26 @@ func (r *redisStorage) GetEntry(id entity.ID) *EntryNew {
 var _ EntityManager = &redisStorage{}
 
 func (r *redisStorage) Destroy(e Entity) {
-	//TODO implement me
-	panic("implement me")
+	// this is just a no-op, not really needed for redis
+	// since we're a bit more space efficient here
 }
 
 func (r *redisStorage) NewEntity() Entity {
-	//TODO implement me
-	panic("implement me")
+	ctx := context.Background()
+	key := r.nextEntityIDKey()
+	res := r.c.Get(ctx, key)
+	if err := res.Err(); err != nil {
+		// TODO(technicallyty): handle this pls
+	}
+	eid, err := res.Uint64()
+	if err != nil {
+		// TODO(technicallyty): handle this pls
+	}
+	ent := Entity(eid)
+	ent.ID()
+	incRes := r.c.Incr(ctx, key)
+	if err := incRes.Err(); err != nil {
+		// TODO(technicallyty): handle this pls
+	}
+	return ent
 }

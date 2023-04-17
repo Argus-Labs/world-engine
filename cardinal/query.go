@@ -3,11 +3,11 @@ package cardinal
 import (
 	"github.com/argus-labs/cardinal/entity"
 	"github.com/argus-labs/cardinal/filter"
-	storage2 "github.com/argus-labs/cardinal/storage"
+	"github.com/argus-labs/cardinal/storage"
 )
 
 type cache struct {
-	archetypes []storage2.ArchetypeIndex
+	archetypes []storage.ArchetypeIndex
 	seen       int
 }
 
@@ -32,10 +32,10 @@ func NewQuery(filter filter.LayoutFilter) *Query {
 }
 
 // Each iterates over all entityLocationStore that match the query.
-func (q *Query) Each(w World, callback func(*storage2.Entry)) {
+func (q *Query) Each(w World, callback func(*storage.Entry)) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
-	iter := storage2.NewEntityIterator(0, accessor.Archetypes, result)
+	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
 	f := func(entity entity.Entity) {
 		entry := w.Entry(entity)
 		callback(entry)
@@ -52,7 +52,7 @@ func (q *Query) Each(w World, callback func(*storage2.Entry)) {
 func (q *Query) Count(w World) int {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
-	iter := storage2.NewEntityIterator(0, accessor.Archetypes, result)
+	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
 	ret := 0
 	for iter.HasNext() {
 		entities := iter.Next()
@@ -62,10 +62,10 @@ func (q *Query) Count(w World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w World) (entry *storage2.Entry, ok bool) {
+func (q *Query) First(w World) (entry *storage.Entry, ok bool) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
-	iter := storage2.NewEntityIterator(0, accessor.Archetypes, result)
+	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
 	if !iter.HasNext() {
 		return nil, false
 	}
@@ -78,11 +78,11 @@ func (q *Query) First(w World) (entry *storage2.Entry, ok bool) {
 	return nil, false
 }
 
-func (q *Query) evaluateQuery(world World, accessor *StorageAccessor) []storage2.ArchetypeIndex {
+func (q *Query) evaluateQuery(world World, accessor *StorageAccessor) []storage.ArchetypeIndex {
 	w := world.ID()
 	if _, ok := q.layoutMatches[w]; !ok {
 		q.layoutMatches[w] = &cache{
-			archetypes: make([]storage2.ArchetypeIndex, 0),
+			archetypes: make([]storage.ArchetypeIndex, 0),
 			seen:       0,
 		}
 	}
