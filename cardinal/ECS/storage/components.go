@@ -8,7 +8,7 @@ import (
 type ComponentIndex int
 
 // Components is a structure that facilitates the storage and retrieval of component data.
-// TODO(technicallyty): this kinda sucks.. should probs refactor this.
+// TODO: this kinda sucks.. could prob refactor this and make it prettier for devs.
 type Components struct {
 	store            ComponentStorageManager
 	componentIndices ComponentIndexStorage
@@ -31,12 +31,12 @@ func (cs *Components) PushComponents(components []component.IComponentType, arch
 			return 0, err
 		}
 	}
-	if _, ok := cs.componentIndices.ComponentIndex(archetypeIndex); !ok {
+	if _, ok, _ := cs.componentIndices.ComponentIndex(archetypeIndex); !ok {
 		cs.componentIndices.SetIndex(archetypeIndex, 0)
 	} else {
 		cs.componentIndices.IncrementIndex(archetypeIndex)
 	}
-	idx, _ := cs.componentIndices.ComponentIndex(archetypeIndex)
+	idx, _, _ := cs.componentIndices.ComponentIndex(archetypeIndex)
 	return idx, nil
 }
 

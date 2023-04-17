@@ -8,11 +8,11 @@ import (
 
 type ComponentStorage interface {
 	PushComponent(component component.IComponentType, index ArchetypeIndex) error
-	Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) []byte
-	SetComponent(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex, compBz []byte)
-	MoveComponent(source ArchetypeIndex, index ComponentIndex, dst ArchetypeIndex)
-	SwapRemove(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) []byte
-	Contains(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) bool
+	Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error)
+	SetComponent(ArchetypeIndex, ComponentIndex, []byte) error
+	MoveComponent(ArchetypeIndex, ComponentIndex, ArchetypeIndex) error
+	SwapRemove(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error)
+	Contains(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) (bool, error)
 }
 
 type ComponentStorageManager interface {
@@ -21,22 +21,21 @@ type ComponentStorageManager interface {
 }
 
 type ComponentIndexStorage interface {
-	ComponentIndex(ai ArchetypeIndex) (ComponentIndex, bool)
-	SetIndex(ArchetypeIndex, ComponentIndex)
-	IncrementIndex(ArchetypeIndex)
-	DecrementIndex(ArchetypeIndex)
+	ComponentIndex(ArchetypeIndex) (ComponentIndex, bool, error)
+	SetIndex(ArchetypeIndex, ComponentIndex) error
+	IncrementIndex(ArchetypeIndex) error
+	DecrementIndex(ArchetypeIndex) error
 }
 
 type EntityLocationStorage interface {
-	ContainsEntity(id entity.ID) bool
-	Remove(id entity.ID)
-	Insert(id entity.ID, index ArchetypeIndex, componentIndex ComponentIndex)
-	Set(id entity.ID, location *Location)
-	Location(id entity.ID) *Location
+	ContainsEntity(entity.ID) (bool, error)
+	Remove(entity.ID) error
+	Insert(entity.ID, ArchetypeIndex, ComponentIndex) error
+	Set(entity.ID, *Location) error
+	Location(entity.ID) (*Location, error)
 	ArchetypeIndex(id entity.ID) ArchetypeIndex
 	ComponentIndexForEntity(id entity.ID) ComponentIndex
-	// TODO(technicallyty): do we really need this?? len??
-	Len() int
+	Len() (int, error)
 }
 
 type ArchetypeComponentIndex interface {
@@ -61,13 +60,13 @@ type ArchetypeStorage interface {
 }
 
 type EntryStorage interface {
-	SetEntry(entity.ID, *Entry)
-	GetEntry(entity.ID) *Entry
+	SetEntry(entity.ID, *Entry) error
+	GetEntry(entity.ID) (*Entry, error)
 	SetEntity(entity.ID, Entity)
 	SetLocation(entity.ID, Location)
 }
 
 type EntityManager interface {
 	Destroy(Entity)
-	NewEntity() Entity
+	NewEntity() (Entity, error)
 }

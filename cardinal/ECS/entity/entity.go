@@ -2,6 +2,8 @@ package entity
 
 import "fmt"
 
+// TODO: not sure if all this version business is really needed..
+
 // Entity is identifier of an entity.
 // The first 32 bits are the entity id.
 // The last 32 bits are the version.

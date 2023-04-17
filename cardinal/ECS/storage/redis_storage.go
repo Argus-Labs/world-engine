@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/redis/go-redis/v9"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/argus-labs/cardinal/ECS/component"
 	"github.com/argus-labs/cardinal/ECS/entity"
-	"github.com/argus-labs/cardinal/ECS/filter"
 )
 
 // Archetypes can just be stored in program memory. It just a structure that allows us to quickly
@@ -73,57 +73,62 @@ func (r *redisStorage) GetComponentIndexStorage(cid component.TypeID) ComponentI
 	return r
 }
 
-func (r *redisStorage) ComponentIndex(ai ArchetypeIndex) (ComponentIndex, bool) {
+func (r *redisStorage) ComponentIndex(ai ArchetypeIndex) (ComponentIndex, bool, error) {
 	ctx := context.Background()
 	key := r.componentIndexKey(ai)
 	res := r.c.Get(ctx, key)
 	if err := res.Err(); err != nil {
-		r.log.Err(err) // TODO(technicallyty): handle this
+		return 0, false, err
 	}
 	result, err := res.Result()
 	if err != nil {
-		r.log.Err(err)
-		// TODO(technicallyty): handle this
+		return 0, false, err
 	}
 	if len(result) == 0 {
-		return 0, false
+		return 0, false, nil
 	}
 	ret, err := res.Int()
 	if err != nil {
-		// TODO(technicallyty): handle this
+		return 0, false, err
 	}
-	return ComponentIndex(ret), true
+	return ComponentIndex(ret), true, nil
 }
 
-func (r *redisStorage) SetIndex(index ArchetypeIndex, index2 ComponentIndex) {
+func (r *redisStorage) SetIndex(index ArchetypeIndex, index2 ComponentIndex) error {
 	ctx := context.Background()
 	key := r.componentIndexKey(index)
 	res := r.c.Set(ctx, key, int64(index2), 0)
-	if err := res.Err(); err != nil {
-		// TODO(technicallyty): handle this
-	}
+	return res.Err()
 }
 
-func (r *redisStorage) IncrementIndex(index ArchetypeIndex) {
+func (r *redisStorage) IncrementIndex(index ArchetypeIndex) error {
 	ctx := context.Background()
-	idx, ok := r.ComponentIndex(index)
+	idx, ok, err := r.ComponentIndex(index)
+	if err != nil {
+		return err
+	}
 	if !ok {
-		// TODO(technicallyty): handle this
+		return fmt.Errorf("component index not found at archetype index %d", index)
 	}
 	key := r.componentIndexKey(index)
 	newIdx := idx + 1
-	r.c.Set(ctx, key, int64(newIdx), 0)
+	res := r.c.Set(ctx, key, int64(newIdx), 0)
+	return res.Err()
 }
 
-func (r *redisStorage) DecrementIndex(index ArchetypeIndex) {
+func (r *redisStorage) DecrementIndex(index ArchetypeIndex) error {
 	ctx := context.Background()
-	idx, ok := r.ComponentIndex(index)
+	idx, ok, err := r.ComponentIndex(index)
+	if err != nil {
+		return err
+	}
 	if !ok {
-		// TODO(technicallyty): handle this
+		return fmt.Errorf("component index not found at archetype index %d", index)
 	}
 	key := r.componentIndexKey(index)
 	newIdx := idx - 1
-	r.c.Set(ctx, key, int64(newIdx), 0)
+	res := r.c.Set(ctx, key, int64(newIdx), 0)
+	return res.Err()
 }
 
 // ---------------------------------------------------------------------------
@@ -148,93 +153,88 @@ func (r *redisStorage) PushComponent(component component.IComponentType, index A
 	if err != nil {
 		return err
 	}
-	r.c.LPush(ctx, key, componentBz)
-	return nil
+	res := r.c.LPush(ctx, key, componentBz)
+	return res.Err()
 }
 
-func (r *redisStorage) Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) []byte {
+func (r *redisStorage) Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error) {
 	ctx := context.Background()
 	key := r.componentDataKey(archetypeIndex)
 	res := r.c.LIndex(ctx, key, int64(componentIndex))
 	if err := res.Err(); err != nil {
-		r.log.Err(err)
-		return nil
+		return nil, err
 	}
 	bz, err := res.Bytes()
 	if err != nil {
-		r.log.Err(err)
+		return nil, err
 	}
-	return bz
+	return bz, nil
 }
 
-func (r *redisStorage) SetComponent(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex, compBz []byte) {
+func (r *redisStorage) SetComponent(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex, compBz []byte) error {
 	ctx := context.Background()
 	key := r.componentDataKey(archetypeIndex)
 	res := r.c.LSet(ctx, key, int64(componentIndex), compBz)
-	if err := res.Err(); err != nil {
-		r.log.Err(err)
-		// TODO(technicallyty): refactor to return error from this interface method.
-	}
+	return res.Err()
 }
 
-func (r *redisStorage) MoveComponent(source ArchetypeIndex, index ComponentIndex, dst ArchetypeIndex) {
+func (r *redisStorage) MoveComponent(source ArchetypeIndex, index ComponentIndex, dst ArchetypeIndex) error {
 	ctx := context.Background()
 	sKey := r.componentDataKey(source)
 	dKey := r.componentDataKey(dst)
 	res := r.c.LIndex(ctx, sKey, int64(index))
 	if err := res.Err(); err != nil {
-		r.log.Err(err)
-		// TODO(technicallyty): refactor to return error from this interface method.
+		return err
 	}
 	// Redis doesn't provide a good way to delete as specific indexes
 	// so we use this hack of setting the value to DELETE, and then deleting by that value.
 	statusRes := r.c.LSet(ctx, sKey, int64(index), "DELETE")
 	if err := statusRes.Err(); err != nil {
-		r.log.Err(err)
+		return err
 	}
 	componentBz, err := res.Bytes()
 	if err != nil {
-		r.log.Err(err)
-		// TODO(technicallyty): refactor to return error from this interface method.
+		return err
 	}
-	r.c.LPush(ctx, dKey, componentBz)
+	pushRes := r.c.LPush(ctx, dKey, componentBz)
+	if err := pushRes.Err(); err != nil {
+		return err
+	}
 	cmd := r.c.LRem(ctx, sKey, 1, "DELETE")
-	if err := cmd.Err(); err != nil {
-		r.log.Err(err)
-		// TODO(technicallyty): refactor to return error from this interface method.
-	}
+	return cmd.Err()
 }
 
-func (r *redisStorage) SwapRemove(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) []byte {
+func (r *redisStorage) SwapRemove(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error) {
 	ctx := context.Background()
-	r.delete(ctx, archetypeIndex, componentIndex)
-	return nil
+	err := r.delete(ctx, archetypeIndex, componentIndex)
+	return nil, err
 }
 
-func (r *redisStorage) delete(ctx context.Context, index ArchetypeIndex, componentIndex ComponentIndex) {
+func (r *redisStorage) delete(ctx context.Context, index ArchetypeIndex, componentIndex ComponentIndex) error {
 	sKey := r.componentDataKey(index)
 	statusRes := r.c.LSet(ctx, sKey, int64(componentIndex), "DELETE")
 	if err := statusRes.Err(); err != nil {
-		r.log.Err(err)
+		return err
 	}
 	cmd := r.c.LRem(ctx, sKey, 1, "DELETE")
 	if err := cmd.Err(); err != nil {
-		r.log.Err(err)
+		return err
 	}
+	return nil
 }
 
-func (r *redisStorage) Contains(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) bool {
+func (r *redisStorage) Contains(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) (bool, error) {
 	ctx := context.Background()
 	key := r.componentDataKey(archetypeIndex)
 	res := r.c.LIndex(ctx, key, int64(componentIndex))
 	if err := res.Err(); err != nil {
-		r.log.Err(err)
+		return false, err
 	}
 	result, err := res.Result()
 	if err != nil {
-		r.log.Err(err)
+		return false, err
 	}
-	return len(result) > 0
+	return len(result) > 0, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -243,145 +243,101 @@ func (r *redisStorage) Contains(archetypeIndex ArchetypeIndex, componentIndex Co
 
 var _ EntityLocationStorage = &redisStorage{}
 
-func (r *redisStorage) ContainsEntity(id entity.ID) bool {
+func (r *redisStorage) ContainsEntity(id entity.ID) (bool, error) {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	res := r.c.Get(ctx, key)
 	if err := res.Err(); err != nil {
-		// TODO(technicallyty): handle this
+		return false, err
 	}
 	locBz, err := res.Bytes()
 	if err != nil {
-		// TODO(technicallyty): handle this
+		return false, err
 	}
-	return locBz != nil
+	return locBz != nil, nil
 }
 
-func (r *redisStorage) Remove(id entity.ID) {
+func (r *redisStorage) Remove(id entity.ID) error {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	res := r.c.Del(ctx, key)
-	if err := res.Err(); err != nil {
-		// TODO(technicallyty): handle this
-	}
+	return res.Err()
 }
 
-func (r *redisStorage) Insert(id entity.ID, index ArchetypeIndex, componentIndex ComponentIndex) {
+func (r *redisStorage) Insert(id entity.ID, index ArchetypeIndex, componentIndex ComponentIndex) error {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	loc := NewLocation(index, componentIndex)
 	bz, err := Encode(loc)
 	if err != nil {
-		// TODO(technicallyty): handle this
+		return err
 	}
 	res := r.c.Set(ctx, key, bz, 0)
 	if err := res.Err(); err != nil {
-		// TODO(technicallyty): handle this
+		return err
 	}
 	key = r.entityLocationLenKey()
 	incRes := r.c.Incr(ctx, key)
 	if err := incRes.Err(); err != nil {
-		// TODO(technicallyty): handle this
+		return err
 	}
+	return nil
 }
 
-func (r *redisStorage) Set(id entity.ID, location *Location) {
+func (r *redisStorage) Set(id entity.ID, location *Location) error {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	bz, err := Encode(*location)
 	if err != nil {
-		// TODO(technicallyty): handle this
+		return err
 	}
 	res := r.c.Set(ctx, key, bz, 0)
 	if err := res.Err(); err != nil {
-		// TODO(technicallyty): handle this
+		return err
 	}
+	return nil
 }
 
-func (r *redisStorage) Location(id entity.ID) *Location {
+func (r *redisStorage) Location(id entity.ID) (*Location, error) {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	res := r.c.Get(ctx, key)
 	if err := res.Err(); err != nil {
-		// TODO(technicallyty): handle this
+		return nil, err
 	}
 	bz, err := res.Bytes()
 	if err != nil {
-		// TODO(technicallyty): handle this
+		return nil, err
 	}
 	loc, err := Decode[Location](bz)
 	if err != nil {
-		// TODO(technicallyty): handle this
+		return nil, err
 	}
-	return &loc
+	return &loc, nil
 }
 
 func (r *redisStorage) ArchetypeIndex(id entity.ID) ArchetypeIndex {
-	loc := r.Location(id)
+	loc, _ := r.Location(id)
 	return loc.ArchIndex
 }
 
 func (r *redisStorage) ComponentIndexForEntity(id entity.ID) ComponentIndex {
-	loc := r.Location(id)
+	loc, _ := r.Location(id)
 	return loc.CompIndex
 }
 
-func (r *redisStorage) Len() int {
+func (r *redisStorage) Len() (int, error) {
 	ctx := context.Background()
 	key := r.entityLocationLenKey()
 	res := r.c.Get(ctx, key)
 	if err := res.Err(); err != nil {
-		// TODO(technicallyty): handle this
+		return 0, err
 	}
 	length, err := res.Int()
 	if err != nil {
-		// TODO(technicallyty): handle this
+		return 0, err
 	}
-	return length
-}
-
-// ---------------------------------------------------------------------------
-// 						ARCHETYPE COMPONENT INDEX STORAGE
-// ---------------------------------------------------------------------------
-
-var _ ArchetypeComponentIndex = &redisStorage{}
-
-func (r *redisStorage) Push(layout *Layout) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (r *redisStorage) SearchFrom(filter filter.LayoutFilter, start int) *ArchetypeIterator {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (r *redisStorage) Search(layoutFilter filter.LayoutFilter) *ArchetypeIterator {
-	//TODO implement me
-	panic("implement me")
-}
-
-// ---------------------------------------------------------------------------
-// 							ARCHETYPE ACCESSOR
-// ---------------------------------------------------------------------------
-
-var _ ArchetypeAccessor = &redisStorage{}
-
-func (r *redisStorage) PushArchetype(index ArchetypeIndex, layout *Layout) {
-	//ctx := context.Background()
-	//key := r.archetypeStorageKey(index)
-	//arch := NewArchetype(index, layout)
-	//r.c.SetEntry(ctx, key)
-}
-
-func (r *redisStorage) Archetype(index ArchetypeIndex) ArchetypeStorage {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (r *redisStorage) Count() int {
-	//TODO implement me
-	panic("implement me")
+	return length, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -390,45 +346,46 @@ func (r *redisStorage) Count() int {
 
 var _ EntryStorage = &redisStorage{}
 
-func (r *redisStorage) SetEntry(id entity.ID, entry *Entry) {
+func (r *redisStorage) SetEntry(id entity.ID, entry *Entry) error {
 	ctx := context.Background()
 	key := r.entryStorageKey(id)
 	bz, err := Encode(entry)
 	if err != nil {
-		// TODO(technicallyty): handle this pls
+		return err
 	}
 	res := r.c.Set(ctx, key, bz, 0)
 	if err := res.Err(); err != nil {
-		// TODO(technicallyty): handle this pls
+		return err
 	}
+	return nil
 }
 
-func (r *redisStorage) GetEntry(id entity.ID) *Entry {
+func (r *redisStorage) GetEntry(id entity.ID) (*Entry, error) {
 	ctx := context.Background()
 	key := r.entryStorageKey(id)
 	res := r.c.Get(ctx, key)
 	if err := res.Err(); err != nil {
-		// TODO(technicallyty): handle this pls
+		return nil, err
 	}
 	bz, err := res.Bytes()
 	if err != nil {
-		// TODO(technicallyty): handle this pls
+		return nil, err
 	}
 	decodedEntry, err := Decode[Entry](bz)
 	if err != nil {
-		// TODO(technicallyty): handle this pls
+		return nil, err
 	}
-	return &decodedEntry
+	return &decodedEntry, nil
 }
 
 func (r *redisStorage) SetEntity(id entity.ID, e Entity) {
-	entry := r.GetEntry(id)
+	entry, _ := r.GetEntry(id)
 	entry.Ent = e
 	r.SetEntry(id, entry)
 }
 
 func (r *redisStorage) SetLocation(id entity.ID, location Location) {
-	entry := r.GetEntry(id)
+	entry, _ := r.GetEntry(id)
 	entry.Loc = &location
 	r.SetEntry(id, entry)
 }
@@ -444,22 +401,28 @@ func (r *redisStorage) Destroy(e Entity) {
 	// since we're a bit more space efficient here
 }
 
-func (r *redisStorage) NewEntity() Entity {
+func (r *redisStorage) NewEntity() (Entity, error) {
 	ctx := context.Background()
 	key := r.nextEntityIDKey()
 	res := r.c.Get(ctx, key)
+	var nextID uint64
 	if err := res.Err(); err != nil {
-		// TODO(technicallyty): handle this pls
+		if res.Err() == redis.Nil {
+			nextID = 0
+		} else {
+			return 0, err
+		}
+	} else {
+		nextID, err = res.Uint64()
+		if err != nil {
+			return 0, err
+		}
 	}
-	eid, err := res.Uint64()
-	if err != nil {
-		// TODO(technicallyty): handle this pls
-	}
-	ent := Entity(eid)
-	ent.ID()
+
+	ent := Entity(nextID)
 	incRes := r.c.Incr(ctx, key)
 	if err := incRes.Err(); err != nil {
-		// TODO(technicallyty): handle this pls
+		return 0, err
 	}
-	return ent
+	return ent, nil
 }

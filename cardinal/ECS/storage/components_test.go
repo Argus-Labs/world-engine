@@ -51,7 +51,7 @@ func TestComponents(t *testing.T) {
 			if !st.Contains(tt.archIdx, tt.compIdx) {
 				t.Errorf("storage should contain the component at %d, %d", tt.archIdx, tt.compIdx)
 			}
-			bz := st.Component(tt.archIdx, tt.compIdx)
+			bz, _ := st.Component(tt.archIdx, tt.compIdx)
 			dat, err := Decode[ComponentData](bz)
 			assert.NilError(t, err)
 			dat.ID = tt.ID
@@ -73,16 +73,16 @@ func TestComponents(t *testing.T) {
 	if storage.Contains(srcArchIdx, target.compIdx) {
 		t.Errorf("storage should not contain the component at %d, %d", target.archIdx, target.compIdx)
 	}
-	if idx, _ := components.componentIndices.ComponentIndex(srcArchIdx); idx != -1 {
+	if idx, _, _ := components.componentIndices.ComponentIndex(srcArchIdx); idx != -1 {
 		t.Errorf("component Index should be -1 at %d but %d", srcArchIdx, idx)
 	}
 
-	newCompIdx, _ := components.componentIndices.ComponentIndex(dstArchIdx)
+	newCompIdx, _, _ := components.componentIndices.ComponentIndex(dstArchIdx)
 	if !storage.Contains(dstArchIdx, newCompIdx) {
 		t.Errorf("storage should contain the component at %d, %d", dstArchIdx, target.compIdx)
 	}
 
-	bz := storage.Component(dstArchIdx, newCompIdx)
+	bz, _ := storage.Component(dstArchIdx, newCompIdx)
 	dat, err := Decode[ComponentData](bz)
 	assert.NilError(t, err)
 	if dat.ID != target.ID {

@@ -60,7 +60,7 @@ func encodeComponent[T any](comp T) ([]byte, error) {
 
 // Get returns component data from the entry.
 func (c *ComponentType[T]) Get(entry *storage.Entry) (T, error) {
-	bz := entry.Component(c.w, c)
+	bz, _ := entry.Component(c.w, c)
 	comp, err := decodeComponent[T](bz)
 	return comp, err
 }
@@ -81,13 +81,13 @@ func (c *ComponentType[T]) Each(w World, callback func(*storage.Entry)) {
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w World) (*storage.Entry, bool) {
+func (c *ComponentType[T]) First(w World) (*storage.Entry, bool, error) {
 	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
 func (c *ComponentType[T]) MustFirst(w World) *storage.Entry {
-	e, ok := c.query.First(w)
+	e, ok, _ := c.query.First(w)
 	if !ok {
 		panic(fmt.Sprintf("no entity has the component %s", c.name))
 	}
@@ -148,7 +148,7 @@ func (c *ComponentType[T]) validateDefaultVal() {
 	}
 }
 
-// TODO(technicallyty): this should be handled by storage.
+// TODO: this should be handled by storage.
 var nextComponentTypeId component.TypeID = 1
 
 // NewComponentType creates a new component type.

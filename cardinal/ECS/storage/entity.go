@@ -13,14 +13,14 @@ type Entity = entity.Entity
 var Null = entity.Null
 
 type WorldAccessor interface {
-	Component(componentType component.IComponentType, index ArchetypeIndex, componentIndex ComponentIndex) []byte
-	SetComponent(cType component.IComponentType, component []byte, index ArchetypeIndex, componentIndex ComponentIndex)
+	Component(componentType component.IComponentType, index ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error)
+	SetComponent(component.IComponentType, []byte, ArchetypeIndex, ComponentIndex) error
 	GetLayout(index ArchetypeIndex) []component.IComponentType
 	GetArchetypeForComponents([]component.IComponentType) ArchetypeIndex
-	TransferArchetype(i1, i2 ArchetypeIndex, index ComponentIndex) ComponentIndex
-	Entry(entity.Entity) *Entry
-	Remove(entity.Entity)
-	Valid(entity.Entity) bool
+	TransferArchetype(ArchetypeIndex, ArchetypeIndex, ComponentIndex) (ComponentIndex, error)
+	Entry(entity.Entity) (*Entry, error)
+	Remove(entity.Entity) error
+	Valid(entity.Entity) (bool, error)
 	Archetype(ArchetypeIndex) ArchetypeStorage
 	SetEntryLocation(id entity.ID, location Location)
 }
@@ -45,14 +45,14 @@ func (e *entityMgrImpl) shrink() {
 	e.destroyed = e.destroyed[:len(e.destroyed)-1]
 }
 
-func (e *entityMgrImpl) NewEntity() Entity {
+func (e *entityMgrImpl) NewEntity() (Entity, error) {
 	if len(e.destroyed) == 0 {
 		id := e.GetNextEntityID()
-		return entity.NewEntity(id)
+		return entity.NewEntity(id), nil
 	}
 	newEntity := e.destroyed[(len(e.destroyed) - 1)]
 	e.shrink()
-	return newEntity
+	return newEntity, nil
 }
 
 func (e *entityMgrImpl) Destroy(et Entity) {

@@ -40,7 +40,7 @@ func TestStorage_Bytes(t *testing.T) {
 
 	compIdx = 0
 	for _, test := range tests {
-		bz := store.Component(archIdx, compIdx)
+		bz, _ := store.Component(archIdx, compIdx)
 		var buf bytes.Buffer
 		buf.Write(bz)
 		dec := gob.NewDecoder(&buf)
@@ -51,7 +51,7 @@ func TestStorage_Bytes(t *testing.T) {
 		compIdx++
 	}
 
-	removed := store.SwapRemove(archIdx, 1)
+	removed, _ := store.SwapRemove(archIdx, 1)
 	assert.Assert(t, removed != nil, "removed component should not be nil")
 	comp, err := Decode[Component](removed)
 	assert.NilError(t, err)
@@ -67,7 +67,7 @@ func TestStorage_Bytes(t *testing.T) {
 	}
 
 	for _, test := range tests2 {
-		compBz := store.Component(test.archIdx, test.cmpIdx)
+		compBz, _ := store.Component(test.archIdx, test.cmpIdx)
 		comp, err := Decode[Component](compBz)
 		assert.NilError(t, err)
 		assert.Equal(t, comp.ID, test.expectedID)

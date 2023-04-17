@@ -77,17 +77,18 @@ func (cs *ComponentSliceStorage) PushComponent(component component.IComponentTyp
 }
 
 // Component returns the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) []byte {
-	return cs.storages[archetypeIndex][componentIndex]
+func (cs *ComponentSliceStorage) Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error) {
+	return cs.storages[archetypeIndex][componentIndex], nil
 }
 
 // SetComponent sets the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) SetComponent(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex, compBz []byte) {
+func (cs *ComponentSliceStorage) SetComponent(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex, compBz []byte) error {
 	cs.storages[archetypeIndex][componentIndex] = compBz
+	return nil
 }
 
 // MoveComponent moves the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) MoveComponent(source ArchetypeIndex, index ComponentIndex, dst ArchetypeIndex) {
+func (cs *ComponentSliceStorage) MoveComponent(source ArchetypeIndex, index ComponentIndex, dst ArchetypeIndex) error {
 	srcSlice := cs.storages[source]
 	dstSlice := cs.storages[dst]
 
@@ -98,25 +99,26 @@ func (cs *ComponentSliceStorage) MoveComponent(source ArchetypeIndex, index Comp
 
 	dstSlice = append(dstSlice, value)
 	cs.storages[dst] = dstSlice
+	return nil
 }
 
 // SwapRemove removes the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) SwapRemove(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) []byte {
+func (cs *ComponentSliceStorage) SwapRemove(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error) {
 	componentValue := cs.storages[archetypeIndex][componentIndex]
 	cs.storages[archetypeIndex][componentIndex] = cs.storages[archetypeIndex][len(cs.storages[archetypeIndex])-1]
 	cs.storages[archetypeIndex] = cs.storages[archetypeIndex][:len(cs.storages[archetypeIndex])-1]
-	return componentValue
+	return componentValue, nil
 }
 
 // Contains returns true if the storage contains the component.
-func (cs *ComponentSliceStorage) Contains(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) bool {
+func (cs *ComponentSliceStorage) Contains(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) (bool, error) {
 	if cs.storages[archetypeIndex] == nil {
-		return false
+		return false, nil
 	}
 	if len(cs.storages[archetypeIndex]) <= int(componentIndex) {
-		return false
+		return false, nil
 	}
-	return cs.storages[archetypeIndex][componentIndex] != nil
+	return cs.storages[archetypeIndex][componentIndex] != nil, nil
 }
 
 var _ ComponentIndexStorage = &ComponentIndexMap{}
@@ -129,21 +131,24 @@ func NewComponentIndexMap() ComponentIndexStorage {
 	return &ComponentIndexMap{idxs: make(map[ArchetypeIndex]ComponentIndex)}
 }
 
-func (c ComponentIndexMap) ComponentIndex(ai ArchetypeIndex) (ComponentIndex, bool) {
+func (c ComponentIndexMap) ComponentIndex(ai ArchetypeIndex) (ComponentIndex, bool, error) {
 	idx, ok := c.idxs[ai]
-	return idx, ok
+	return idx, ok, nil
 }
 
-func (c *ComponentIndexMap) SetIndex(index ArchetypeIndex, index2 ComponentIndex) {
+func (c *ComponentIndexMap) SetIndex(index ArchetypeIndex, index2 ComponentIndex) error {
 	c.idxs[index] = index2
+	return nil
 }
 
-func (c *ComponentIndexMap) IncrementIndex(index ArchetypeIndex) {
+func (c *ComponentIndexMap) IncrementIndex(index ArchetypeIndex) error {
 	c.idxs[index]++
+	return nil
 }
 
-func (c *ComponentIndexMap) DecrementIndex(index ArchetypeIndex) {
+func (c *ComponentIndexMap) DecrementIndex(index ArchetypeIndex) error {
 	c.idxs[index]--
+	return nil
 }
 
 // LocationMap is a storage of Ent locations.
@@ -152,8 +157,8 @@ type LocationMap struct {
 	len       int
 }
 
-func (lm *LocationMap) Len() int {
-	return lm.len
+func (lm *LocationMap) Len() (int, error) {
+	return lm.len, nil
 }
 
 // NewLocationMap creates an empty storage.
@@ -165,19 +170,20 @@ func NewLocationMap() EntityLocationStorage {
 }
 
 // ContainsEntity returns true if the storage contains the given Ent ID.
-func (lm *LocationMap) ContainsEntity(id entity.ID) bool {
+func (lm *LocationMap) ContainsEntity(id entity.ID) (bool, error) {
 	val := lm.locations[id]
-	return val != nil && val.Valid
+	return val != nil && val.Valid, nil
 }
 
 // Remove removes the given Ent ID from the storage.
-func (lm *LocationMap) Remove(id entity.ID) {
+func (lm *LocationMap) Remove(id entity.ID) error {
 	lm.locations[id].Valid = false
 	lm.len--
+	return nil
 }
 
 // Insert inserts the given Ent ID and archetype Index to the storage.
-func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component ComponentIndex) {
+func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component ComponentIndex) error {
 	if int(id) == len(lm.locations) {
 		loc := NewLocation(archetype, component)
 		lm.locations = append(lm.locations, loc)
@@ -191,16 +197,18 @@ func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component 
 			loc.Valid = true
 		}
 	}
+	return nil
 }
 
 // Set sets the given Ent ID and archetype Index to the storage.
-func (lm *LocationMap) Set(id entity.ID, loc *Location) {
+func (lm *LocationMap) Set(id entity.ID, loc *Location) error {
 	lm.Insert(id, loc.ArchIndex, loc.CompIndex)
+	return nil
 }
 
 // Location returns the location of the given Ent ID.
-func (lm *LocationMap) Location(id entity.ID) *Location {
-	return lm.locations[id]
+func (lm *LocationMap) Location(id entity.ID) (*Location, error) {
+	return lm.locations[id], nil
 }
 
 // ArchetypeIndex returns the archetype of the given Ent ID.
@@ -269,13 +277,14 @@ func NewEntryStorage() EntryStorage {
 	return &entryStorageImpl{entries: make([]*Entry, 1, 256)}
 }
 
-func (e *entryStorageImpl) SetEntry(id entity.ID, entry *Entry) {
+func (e *entryStorageImpl) SetEntry(id entity.ID, entry *Entry) error {
 	if int(id) >= len(e.entries) {
 		e.entries = append(e.entries, nil)
 	}
 	e.entries[id] = entry
+	return nil
 }
 
-func (e entryStorageImpl) GetEntry(id entity.ID) *Entry {
-	return e.entries[id]
+func (e entryStorageImpl) GetEntry(id entity.ID) (*Entry, error) {
+	return e.entries[id], nil
 }

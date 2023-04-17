@@ -13,7 +13,7 @@ import (
 type Entry struct {
 	ID  entity.ID
 	Ent Entity
-	Loc *Location // TODO(technicallyty): this definitely doesnt need to be a pointer...
+	Loc *Location // TODO: this definitely doesnt need to be a pointer...
 }
 
 func NewEntry(id entity.ID, e entity.Entity, loc *Location) *Entry {
@@ -27,7 +27,7 @@ func NewEntry(id entity.ID, e entity.Entity, loc *Location) *Entry {
 // Get returns the component from the entry
 func Get[T any](w WorldAccessor, e *Entry, cType component.IComponentType) (*T, error) {
 	var comp *T
-	compBz := e.Component(w, cType)
+	compBz, _ := e.Component(w, cType)
 	var buf bytes.Buffer
 	buf.Write(compBz)
 	dec := gob.NewDecoder(&buf)
@@ -71,14 +71,15 @@ func Remove[T any](w WorldAccessor, e *Entry, ctype component.IComponentType) {
 }
 
 // Valid returns true if the entry is valid.
-func Valid(w WorldAccessor, e *Entry) bool {
+func Valid(w WorldAccessor, e *Entry) (bool, error) {
 	if e == nil {
-		return false
+		return false, nil
 	}
-	return e.Valid(w)
+	ok, err := e.Valid(w)
+	return ok, err
 }
 
-// Id returns the Ent ID.
+// Id returns the entity ID.
 func (e *Entry) Id() entity.ID {
 	return e.ID
 }
@@ -89,21 +90,21 @@ func (e *Entry) Entity() Entity {
 }
 
 // Component returns the component.
-func (e *Entry) Component(w WorldAccessor, cType component.IComponentType) []byte {
+func (e *Entry) Component(w WorldAccessor, cType component.IComponentType) ([]byte, error) {
 	c := e.Loc.CompIndex
 	a := e.Loc.ArchIndex
 	return w.Component(cType, a, c)
 }
 
 // SetComponent sets the component.
-func (e *Entry) SetComponent(w WorldAccessor, cType component.IComponentType, component []byte) {
+func (e *Entry) SetComponent(w WorldAccessor, cType component.IComponentType, component []byte) error {
 	c := e.Loc.CompIndex
 	a := e.Loc.ArchIndex
-	w.SetComponent(cType, component, a, c)
+	return w.SetComponent(cType, component, a, c)
 }
 
 // AddComponent adds the component to the Ent.
-func (e *Entry) AddComponent(w WorldAccessor, cType component.IComponentType, components ...[]byte) {
+func (e *Entry) AddComponent(w WorldAccessor, cType component.IComponentType, components ...[]byte) error {
 	if len(components) > 1 {
 		panic("AddComponent: component argument must be a single value")
 	}
@@ -113,21 +114,27 @@ func (e *Entry) AddComponent(w WorldAccessor, cType component.IComponentType, co
 
 		baseLayout := w.GetLayout(a)
 		targetArc := w.GetArchetypeForComponents(append(baseLayout, cType))
-		w.TransferArchetype(a, targetArc, c)
+		if _, err := w.TransferArchetype(a, targetArc, c); err != nil {
+			return err
+		}
 
-		w.SetEntryLocation(e.ID, *w.Entry(e.Ent).Loc)
-		//e.SetLocation(w.Entry(e.Ent).Loc)
+		ent, err := w.Entry(e.Ent)
+		if err != nil {
+			return err
+		}
+		w.SetEntryLocation(e.ID, *ent.Loc)
 	}
 	if len(components) == 1 {
 		e.SetComponent(w, cType, components[0])
 	}
+	return nil
 }
 
 // RemoveComponent removes the component from the Ent.
-func (e *Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType) {
+func (e *Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType) error {
 	// if the entry doesn't even have this component, we can just return.
 	if !e.Archetype(w).Layout().HasComponent(cType) {
-		return
+		return nil
 	}
 
 	c := e.Loc.CompIndex
@@ -143,20 +150,28 @@ func (e *Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType)
 	}
 
 	targetArc := w.GetArchetypeForComponents(targetLayout)
-	w.TransferArchetype(e.Loc.ArchIndex, targetArc, c)
+	if _, err := w.TransferArchetype(e.Loc.ArchIndex, targetArc, c); err != nil {
+		return err
+	}
 
-	w.SetEntryLocation(e.ID, *w.Entry(e.Ent).Loc)
+	ent, err := w.Entry(e.Ent)
+	if err != nil {
+		return err
+	}
+	w.SetEntryLocation(e.ID, *ent.Loc)
 	// e.SetLocation(w.Entry(e.Ent).Loc)
+	return nil
 }
 
-// Remove removes the Ent from the world.
-func (e *Entry) Remove(w WorldAccessor) {
-	w.Remove(e.Ent)
+// Remove removes the entity from the world.
+func (e *Entry) Remove(w WorldAccessor) error {
+	return w.Remove(e.Ent)
 }
 
 // Valid returns true if the entry is valid.
-func (e *Entry) Valid(w WorldAccessor) bool {
-	return w.Valid(e.Ent)
+func (e *Entry) Valid(w WorldAccessor) (bool, error) {
+	ok, err := w.Valid(e.Ent)
+	return ok, err
 }
 
 // Archetype returns the archetype.
@@ -177,7 +192,8 @@ func (e *Entry) String(w WorldAccessor) string {
 	out.WriteString(", ")
 	out.WriteString(e.Archetype(w).Layout().String())
 	out.WriteString(", Valid: ")
-	out.WriteString(fmt.Sprintf("%v", e.Valid(w)))
+	ok, _ := e.Valid(w)
+	out.WriteString(fmt.Sprintf("%v", ok))
 	out.WriteString("}")
 	return out.String()
 }

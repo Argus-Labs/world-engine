@@ -37,7 +37,7 @@ func (q *Query) Each(w World, callback func(*storage.Entry)) {
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
 	f := func(entity entity.Entity) {
-		entry := w.Entry(entity)
+		entry, _ := w.Entry(entity)
 		callback(entry)
 	}
 	for iter.HasNext() {
@@ -62,20 +62,24 @@ func (q *Query) Count(w World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w World) (entry *storage.Entry, ok bool) {
+func (q *Query) First(w World) (entry *storage.Entry, ok bool, err error) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
 	if !iter.HasNext() {
-		return nil, false
+		return nil, false, err
 	}
 	for iter.HasNext() {
 		entities := iter.Next()
 		if len(entities) > 0 {
-			return w.Entry(entities[0]), true
+			ent, err := w.Entry(entities[0])
+			if err != nil {
+				return nil, false, err
+			}
+			return ent, true, err
 		}
 	}
-	return nil, false
+	return nil, false, err
 }
 
 func (q *Query) evaluateQuery(world World, accessor *StorageAccessor) []storage.ArchetypeIndex {

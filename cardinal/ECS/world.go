@@ -21,13 +21,13 @@ type World interface {
 	// CreateMany creates a new entity with the specified componentStore.
 	CreateMany(n int, components ...component.IComponentType) ([]storage.Entity, error)
 	// Entry returns an entry for the specified entity.
-	Entry(entity storage.Entity) *storage.Entry
+	Entry(storage.Entity) (*storage.Entry, error)
 	// Remove removes the specified entity.
-	Remove(entity storage.Entity)
+	Remove(storage.Entity) error
 	// Valid returns true if the specified entity is valid.
-	Valid(e storage.Entity) bool
+	Valid(storage.Entity) (bool, error)
 	// Len returns the number of entities in the world.
-	Len() int
+	Len() (int, error)
 	// StorageAccessor returns an accessor for the world's storage.
 	// It is used to access componentStore and archetypeStore by queries.
 	StorageAccessor() StorageAccessor
@@ -63,12 +63,12 @@ func (w *world) SetEntryLocation(id entity.ID, location storage.Location) {
 	w.store.EntryStore.SetLocation(id, location)
 }
 
-func (w *world) Component(componentType component.IComponentType, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) []byte {
+func (w *world) Component(componentType component.IComponentType, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) ([]byte, error) {
 	return w.store.CompStore.Storage(componentType).Component(index, componentIndex)
 }
 
-func (w *world) SetComponent(cType component.IComponentType, component []byte, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) {
-	w.store.CompStore.Storage(cType).SetComponent(index, componentIndex, component)
+func (w *world) SetComponent(cType component.IComponentType, component []byte, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) error {
+	return w.store.CompStore.Storage(cType).SetComponent(index, componentIndex, component)
 }
 
 func (w *world) GetLayout(index storage.ArchetypeIndex) []component.IComponentType {
@@ -117,7 +117,7 @@ func RegisterInitializer(initializer initializer) {
 
 // NewWorld creates a new world.
 func NewWorld(s storage.WorldStorage) World {
-	// TODO(technicallyty): this could prob be handled by redis as well...
+	// TODO: this should prob be handled by redis as well...
 	worldId := nextWorldId
 	nextWorldId++
 	w := &world{
@@ -155,63 +155,88 @@ func (w *world) Create(components ...component.IComponentType) (storage.Entity, 
 }
 
 func (w *world) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.Entity, error) {
-	nextEntity := w.nextEntity()
+	nextEntity, err := w.nextEntity()
+	if err != nil {
+		return 0, err
+	}
 	archetype := w.store.ArchAccessor.Archetype(archetypeIndex)
 	componentIndex, err := w.store.CompStore.PushComponents(archetype.Layout().Components(), archetypeIndex)
 	if err != nil {
 		return 0, err
 	}
-	w.store.EntityLocStore.Insert(nextEntity.ID(), archetypeIndex, componentIndex)
+	err = w.store.EntityLocStore.Insert(nextEntity.ID(), archetypeIndex, componentIndex)
+	if err != nil {
+		return 0, err
+	}
 	archetype.PushEntity(nextEntity)
-	w.createEntry(nextEntity)
-	return nextEntity, nil
+	err = w.createEntry(nextEntity)
+	return nextEntity, err
 }
 
-func (w *world) createEntry(e storage.Entity) {
+func (w *world) createEntry(e storage.Entity) error {
 	id := e.ID()
-	loc := w.store.EntityLocStore.Location(id)
+	loc, _ := w.store.EntityLocStore.Location(id)
 	entry := storage.NewEntry(id, e, loc)
-	w.store.EntryStore.SetEntry(id, entry)
+	return w.store.EntryStore.SetEntry(id, entry)
 }
 
-func (w *world) Valid(e storage.Entity) bool {
+func (w *world) Valid(e storage.Entity) (bool, error) {
 	if e == storage.Null {
-		return false
+		return false, nil
 	}
-	if !w.store.EntityLocStore.ContainsEntity(e.ID()) {
-		return false
+	ok, err := w.store.EntityLocStore.ContainsEntity(e.ID())
+	if err != nil {
+		return false, err
 	}
-	loc := w.store.EntityLocStore.Location(e.ID())
+	if !ok {
+		return false, nil
+	}
+	loc, _ := w.store.EntityLocStore.Location(e.ID())
 	a := loc.ArchIndex
 	c := loc.CompIndex
 	// If the version of the entity is not the same as the version of the archetype,
 	// the entity is invalid (it means the entity is already destroyed).
-	return loc.Valid && e == w.store.ArchAccessor.Archetype(a).Entities()[c]
+	return loc.Valid && e == w.store.ArchAccessor.Archetype(a).Entities()[c], nil
 }
 
-// TODO(technicallyty): we need to update these methods here to not just
-// update the struct itself, but update the backend too.
-func (w *world) Entry(entity storage.Entity) *storage.Entry {
+func (w *world) Entry(entity storage.Entity) (*storage.Entry, error) {
 	id := entity.ID()
-	entry := w.store.EntryStore.GetEntry(id)
+	entry, _ := w.store.EntryStore.GetEntry(id)
 	w.store.EntryStore.SetEntity(id, entity)
-	w.store.EntryStore.SetLocation(id, *w.store.EntityLocStore.Location(id))
-	return entry
-}
-
-func (w *world) Len() int {
-	return w.store.EntityLocStore.Len()
-}
-
-func (w *world) Remove(ent storage.Entity) {
-	if w.Valid(ent) {
-		loc := w.store.EntityLocStore.Location(ent.ID())
-		w.store.EntityLocStore.Remove(ent.ID())
-		w.removeAtLocation(ent, loc)
+	loc, err := w.store.EntityLocStore.Location(id)
+	if err != nil {
+		return nil, err
 	}
+	w.store.EntryStore.SetLocation(id, *loc)
+	return entry, nil
 }
 
-func (w *world) removeAtLocation(ent storage.Entity, loc *storage.Location) {
+func (w *world) Len() (int, error) {
+	l, err := w.store.EntityLocStore.Len()
+	if err != nil {
+		return 0, err
+	}
+	return l, nil
+}
+
+func (w *world) Remove(ent storage.Entity) error {
+	ok, err := w.Valid(ent)
+	if err != nil {
+		return err
+	}
+	if ok {
+		loc, _ := w.store.EntityLocStore.Location(ent.ID())
+		if err := w.store.EntityLocStore.Remove(ent.ID()); err != nil {
+			return err
+		}
+		if err := w.removeAtLocation(ent, loc); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (w *world) removeAtLocation(ent storage.Entity, loc *storage.Location) error {
 	archIndex := loc.ArchIndex
 	componentIndex := loc.CompIndex
 	archetype := w.store.ArchAccessor.Archetype(archIndex)
@@ -219,14 +244,17 @@ func (w *world) removeAtLocation(ent storage.Entity, loc *storage.Location) {
 	w.store.CompStore.Remove(archIndex, archetype.Layout().Components(), componentIndex)
 	if int(componentIndex) < len(archetype.Entities()) {
 		swapped := archetype.Entities()[componentIndex]
-		w.store.EntityLocStore.Set(swapped.ID(), loc)
+		if err := w.store.EntityLocStore.Set(swapped.ID(), loc); err != nil {
+			return err
+		}
 	}
 	w.store.EntityMgr.Destroy(ent.IncVersion())
+	return nil
 }
 
-func (w *world) TransferArchetype(from, to storage.ArchetypeIndex, idx storage.ComponentIndex) storage.ComponentIndex {
+func (w *world) TransferArchetype(from storage.ArchetypeIndex, to storage.ArchetypeIndex, idx storage.ComponentIndex) (storage.ComponentIndex, error) {
 	if from == to {
-		return idx
+		return idx, nil
 	}
 	fromArch := w.store.ArchAccessor.Archetype(from)
 	toArch := w.store.ArchAccessor.Archetype(to)
@@ -234,11 +262,17 @@ func (w *world) TransferArchetype(from, to storage.ArchetypeIndex, idx storage.C
 	// move entity id
 	ent := fromArch.SwapRemove(int(idx))
 	toArch.PushEntity(ent)
-	w.store.EntityLocStore.Insert(ent.ID(), to, storage.ComponentIndex(len(toArch.Entities())-1))
+	err := w.store.EntityLocStore.Insert(ent.ID(), to, storage.ComponentIndex(len(toArch.Entities())-1))
+	if err != nil {
+		return 0, err
+	}
 
 	if len(fromArch.Entities()) > int(idx) {
 		moved := fromArch.Entities()[idx]
-		w.store.EntityLocStore.Insert(moved.ID(), from, idx)
+		err := w.store.EntityLocStore.Insert(moved.ID(), from, idx)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	// creates component if not exists in new layout
@@ -247,8 +281,9 @@ func (w *world) TransferArchetype(from, to storage.ArchetypeIndex, idx storage.C
 	for _, componentType := range toLayout.Components() {
 		if !fromLayout.HasComponent(componentType) {
 			store := w.store.CompStore.Storage(componentType)
-			// TODO(technicallyty): handle error
-			store.PushComponent(componentType, to)
+			if err := store.PushComponent(componentType, to); err != nil {
+				return 0, err
+			}
 		}
 	}
 
@@ -256,14 +291,16 @@ func (w *world) TransferArchetype(from, to storage.ArchetypeIndex, idx storage.C
 	for _, componentType := range fromLayout.Components() {
 		store := w.store.CompStore.Storage(componentType)
 		if toLayout.HasComponent(componentType) {
-			store.MoveComponent(from, idx, to)
+			if err := store.MoveComponent(from, idx, to); err != nil {
+				return 0, err
+			}
 		} else {
 			store.SwapRemove(from, idx)
 		}
 	}
 	w.store.CompStore.Move(from, to)
 
-	return storage.ComponentIndex(len(toArch.Entities()) - 1)
+	return storage.ComponentIndex(len(toArch.Entities()) - 1), nil
 }
 
 func (w *world) StorageAccessor() StorageAccessor {
@@ -274,7 +311,7 @@ func (w *world) StorageAccessor() StorageAccessor {
 	}
 }
 
-func (w *world) nextEntity() storage.Entity {
+func (w *world) nextEntity() (storage.Entity, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 

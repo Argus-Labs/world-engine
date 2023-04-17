@@ -83,7 +83,7 @@ func TestList(t *testing.T) {
 
 	compStore.MoveComponent(0, 0, 1)
 
-	bz := compStore.Component(1, 1)
+	bz, _ := compStore.Component(1, 1)
 	foo, err := Decode[SomeComp](bz)
 	assert.NilError(t, err)
 	assert.Equal(t, foo.Foo, 20)
@@ -94,7 +94,7 @@ func TestList(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, len(result) == 0)
 
-	contains := compStore.Contains(1, 0)
+	contains, _ := compStore.Contains(1, 0)
 	assert.Equal(t, contains, true)
 }
 
@@ -112,24 +112,28 @@ func TestRedis_CompIndex(t *testing.T) {
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
 	archIdx, compIdx := ArchetypeIndex(0), ComponentIndex(1)
 	idxStore.SetIndex(archIdx, compIdx)
-	gotIdx, ok := idxStore.ComponentIndex(archIdx)
+	gotIdx, ok, err := idxStore.ComponentIndex(archIdx)
+	assert.NilError(t, err)
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx)
 	idxStore.IncrementIndex(archIdx)
 
-	gotIdx, ok = idxStore.ComponentIndex(archIdx)
+	gotIdx, ok, err = idxStore.ComponentIndex(archIdx)
+	assert.NilError(t, err)
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx+1)
 
 	idxStore.DecrementIndex(archIdx)
 
-	gotIdx, ok = idxStore.ComponentIndex(archIdx)
+	gotIdx, ok, err = idxStore.ComponentIndex(archIdx)
+	assert.NilError(t, err)
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx)
 
 	compIdx = ComponentIndex(25)
 	idxStore.SetIndex(archIdx, compIdx)
-	gotIdx, ok = idxStore.ComponentIndex(archIdx)
+	gotIdx, ok, err = idxStore.ComponentIndex(archIdx)
+	assert.NilError(t, err)
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx)
 }
@@ -142,16 +146,16 @@ func TestRedis_Location(t *testing.T) {
 	loc := NewLocation(0, 1)
 	eid := entity.ID(3)
 	store.EntityLocStore.Set(eid, loc)
-	gotLoc := store.EntityLocStore.Location(eid)
+	gotLoc, _ := store.EntityLocStore.Location(eid)
 	assert.Equal(t, *loc, *gotLoc)
 
 	aid := store.EntityLocStore.ArchetypeIndex(eid)
 	assert.Equal(t, loc.ArchIndex, aid)
 
-	contains := store.EntityLocStore.ContainsEntity(eid)
+	contains, _ := store.EntityLocStore.ContainsEntity(eid)
 	assert.Equal(t, contains, true)
 
-	notContains := store.EntityLocStore.ContainsEntity(entity.ID(420))
+	notContains, _ := store.EntityLocStore.ContainsEntity(entity.ID(420))
 	assert.Equal(t, notContains, false)
 
 	compIdx := store.EntityLocStore.ComponentIndexForEntity(eid)
@@ -161,13 +165,13 @@ func TestRedis_Location(t *testing.T) {
 	archIdx2, compIdx2 := ArchetypeIndex(10), ComponentIndex(15)
 	store.EntityLocStore.Insert(newEID, archIdx2, compIdx2)
 
-	newLoc := store.EntityLocStore.Location(newEID)
+	newLoc, _ := store.EntityLocStore.Location(newEID)
 	assert.Equal(t, newLoc.ArchIndex, archIdx2)
 	assert.Equal(t, newLoc.CompIndex, compIdx2)
 
 	store.EntityLocStore.Remove(newEID)
 
-	has := store.EntityLocStore.ContainsEntity(newEID)
+	has, _ := store.EntityLocStore.ContainsEntity(newEID)
 	assert.Equal(t, has, false)
 }
 
@@ -185,9 +189,10 @@ func TestRedis_EntryStorage(t *testing.T) {
 		Valid:     true,
 	}
 	e := NewEntry(eid, entity.NewEntity(eid), loc)
-	store.EntryStore.SetEntry(eid, e)
+	err := store.EntryStore.SetEntry(eid, e)
+	assert.NilError(t, err)
 
-	gotEntry := store.EntryStore.GetEntry(eid)
+	gotEntry, _ := store.EntryStore.GetEntry(eid)
 	assert.DeepEqual(t, e, gotEntry)
 
 	newLoc := Location{
@@ -197,12 +202,12 @@ func TestRedis_EntryStorage(t *testing.T) {
 	}
 	store.EntryStore.SetLocation(eid, newLoc)
 
-	gotEntry = store.EntryStore.GetEntry(eid)
+	gotEntry, _ = store.EntryStore.GetEntry(eid)
 	assert.DeepEqual(t, *gotEntry.Loc, newLoc)
 
 	newEnt := entity.NewEntity(400)
 	store.EntryStore.SetEntity(eid, newEnt)
-	gotEntry = store.EntryStore.GetEntry(eid)
+	gotEntry, _ = store.EntryStore.GetEntry(eid)
 	assert.DeepEqual(t, gotEntry.Ent, newEnt)
 }
 
