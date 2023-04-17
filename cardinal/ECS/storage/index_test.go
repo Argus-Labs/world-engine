@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/argus-labs/cardinal/ECS/component"
-	filter2 "github.com/argus-labs/cardinal/ECS/filter"
+	"github.com/argus-labs/cardinal/ECS/filter"
 )
 
 func TestIndex(t *testing.T) {
@@ -23,22 +23,22 @@ func TestIndex(t *testing.T) {
 	index.Push(layoutB)
 
 	tests := []struct {
-		filter   filter2.LayoutFilter
+		filter   filter.LayoutFilter
 		expected int
 	}{
 		{
 
-			filter:   filter2.Contains(ca),
+			filter:   filter.Contains(ca),
 			expected: 2,
 		},
 		{
 
-			filter:   filter2.Contains(cb),
+			filter:   filter.Contains(cb),
 			expected: 1,
 		},
 		{
 
-			filter:   filter2.Contains(cc),
+			filter:   filter.Contains(cc),
 			expected: 0,
 		},
 	}

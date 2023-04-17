@@ -1,4 +1,4 @@
-package mem
+package storage
 
 import (
 	"context"
@@ -14,7 +14,6 @@ import (
 
 	"github.com/argus-labs/cardinal/ECS/component"
 	"github.com/argus-labs/cardinal/ECS/entity"
-	storage2 "github.com/argus-labs/cardinal/ECS/storage"
 )
 
 var _ encoding.BinaryMarshaler = Foo{}
@@ -73,8 +72,8 @@ func TestList(t *testing.T) {
 	ctx := context.Background()
 	rdb := getRedisClient(t)
 	worldId := "1"
-	store := storage2.NewRedisStorage(rdb, worldId)
-	x := storage2.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
+	store := NewRedisStorage(rdb, worldId)
+	x := NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 	compStore := store.CompStore.Storage(x)
 
 	err := compStore.PushComponent(x, 0)
@@ -85,7 +84,7 @@ func TestList(t *testing.T) {
 	compStore.MoveComponent(0, 0, 1)
 
 	bz := compStore.Component(1, 1)
-	foo, err := storage2.Decode[SomeComp](bz)
+	foo, err := Decode[SomeComp](bz)
 	assert.NilError(t, err)
 	assert.Equal(t, foo.Foo, 20)
 
@@ -106,12 +105,12 @@ func TestRedis_CompIndex(t *testing.T) {
 	ctx := context.Background()
 	_ = ctx
 	rdb := getRedisClient(t)
-	x := storage2.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
+	x := NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 	worldId := "1"
-	store := storage2.NewRedisStorage(rdb, worldId)
+	store := NewRedisStorage(rdb, worldId)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
-	archIdx, compIdx := storage2.ArchetypeIndex(0), storage2.ComponentIndex(1)
+	archIdx, compIdx := ArchetypeIndex(0), ComponentIndex(1)
 	idxStore.SetIndex(archIdx, compIdx)
 	gotIdx, ok := idxStore.ComponentIndex(archIdx)
 	assert.Check(t, ok == true)
@@ -128,7 +127,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx)
 
-	compIdx = storage2.ComponentIndex(25)
+	compIdx = ComponentIndex(25)
 	idxStore.SetIndex(archIdx, compIdx)
 	gotIdx, ok = idxStore.ComponentIndex(archIdx)
 	assert.Check(t, ok == true)
@@ -139,8 +138,8 @@ func TestRedis_Location(t *testing.T) {
 	//ctx := context.Background()
 	rdb := getRedisClient(t)
 	worldId := "1"
-	store := storage2.NewRedisStorage(rdb, worldId)
-	loc := storage2.NewLocation(0, 1)
+	store := NewRedisStorage(rdb, worldId)
+	loc := NewLocation(0, 1)
 	eid := entity.ID(3)
 	store.EntityLocStore.Set(eid, loc)
 	gotLoc := store.EntityLocStore.Location(eid)
@@ -159,7 +158,7 @@ func TestRedis_Location(t *testing.T) {
 	assert.Equal(t, loc.CompIndex, compIdx)
 
 	newEID := entity.ID(40)
-	archIdx2, compIdx2 := storage2.ArchetypeIndex(10), storage2.ComponentIndex(15)
+	archIdx2, compIdx2 := ArchetypeIndex(10), ComponentIndex(15)
 	store.EntityLocStore.Insert(newEID, archIdx2, compIdx2)
 
 	newLoc := store.EntityLocStore.Location(newEID)
@@ -177,21 +176,21 @@ func TestRedis_EntryStorage(t *testing.T) {
 	_ = ctx
 	rdb := getRedisClient(t)
 	worldId := "1"
-	store := storage2.NewRedisStorage(rdb, worldId)
+	store := NewRedisStorage(rdb, worldId)
 
 	eid := entity.ID(12)
-	loc := &storage2.Location{
+	loc := &Location{
 		ArchIndex: 15,
 		CompIndex: 12,
 		Valid:     true,
 	}
-	e := storage2.NewEntry(eid, entity.NewEntity(eid), loc)
+	e := NewEntry(eid, entity.NewEntity(eid), loc)
 	store.EntryStore.SetEntry(eid, e)
 
 	gotEntry := store.EntryStore.GetEntry(eid)
 	assert.DeepEqual(t, e, gotEntry)
 
-	newLoc := storage2.Location{
+	newLoc := Location{
 		ArchIndex: 39,
 		CompIndex: 82,
 		Valid:     false,

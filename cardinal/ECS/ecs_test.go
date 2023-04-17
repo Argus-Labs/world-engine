@@ -7,8 +7,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gotest.tools/v3/assert"
 
-	filter2 "github.com/argus-labs/cardinal/ECS/filter"
-	storage2 "github.com/argus-labs/cardinal/ECS/storage"
+	"github.com/argus-labs/cardinal/ECS/filter"
+	"github.com/argus-labs/cardinal/ECS/storage"
 )
 
 type EnergyComponent struct {
@@ -21,7 +21,7 @@ type OwnableComponent struct {
 }
 
 func UpdateEnergySystem(w World) {
-	Energy.Each(w, func(entry *storage2.Entry) {
+	Energy.Each(w, func(entry *storage.Entry) {
 		energyPlanet, err := Energy.Get(entry)
 		if err != nil {
 			panic(err)
@@ -52,7 +52,7 @@ func getRedisClient(t *testing.T) *redis.Client {
 func Test_ECS(t *testing.T) {
 
 	redisClient := getRedisClient(t)
-	world := NewWorld(storage2.NewRedisStorage(redisClient, "0"))
+	world := NewWorld(storage.NewRedisStorage(redisClient, "0"))
 
 	world.RegisterComponents(Energy, Ownable)
 
@@ -68,13 +68,13 @@ func Test_ECS(t *testing.T) {
 	world.AddSystem(UpdateEnergySystem)
 	world.Update()
 
-	Energy.Each(world, func(entry *storage2.Entry) {
+	Energy.Each(world, func(entry *storage.Entry) {
 		energyPlanet, err := Energy.Get(entry)
 		assert.NilError(t, err)
 		assert.Equal(t, int64(10), energyPlanet.Amt)
 	})
 
-	q := NewQuery(filter2.Or(filter2.Contains(Energy), filter2.Contains(Ownable)))
+	q := NewQuery(filter.Or(filter.Contains(Energy), filter.Contains(Ownable)))
 	amt := q.Count(world)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
 }
