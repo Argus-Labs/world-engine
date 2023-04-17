@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package argus.ecs.v1;
+
+option go_package = "github.com/argus-labs/cardinal/net/proto/gen/go/ecs/v1";
+
+service Game {
+  rpc StartGameLoop(MsgStartGameLoop) returns (MsgStartGameLoopResponse);
+}
+
+message MsgStartGameLoop {
+}
+
+message MsgStartGameLoopResponse {
+  string game_id = 1;
+}
