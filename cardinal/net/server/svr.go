@@ -23,7 +23,7 @@ type gameServer struct {
 
 func (i gameServer) StartGameLoop(ctx context.Context, loop *v1.MsgStartGameLoop) (*v1.MsgStartGameLoopResponse, error) {
 	worldID := 0 // TODO: figure this out
-	store := storage.NewRedisStorage(i.backend, string(rune(worldID)))
+	store := storage.NewRedisStorage(i.backend, worldID)
 	world := ECS.NewWorld(store, worldID)
 	i.world = world
 	// from here.. we need to initialize the world in the ECS system. loading components, making entities, etc etc..
