@@ -22,6 +22,7 @@
 package runtime
 
 import (
+	_ "embed"
 	"io"
 	"os"
 	"path/filepath"
@@ -104,8 +105,9 @@ import (
 	"pkg.berachain.dev/polaris/eth/core/vm"
 	"pkg.berachain.dev/polaris/lib/utils"
 
-	_ "embed"
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side-effects
+
+	"github.com/argus-labs/world-engine/chain/sidecar"
 )
 
 var (
@@ -197,8 +199,8 @@ func init() {
 	DefaultNodeHome = filepath.Join(userHomeDir, ".polard")
 }
 
-// NewPolarisApp returns a reference to an initialized PolarisApp.
-func NewPolarisApp( //nolint: funlen // from sdk.
+// NewArgusApp returns a reference to an initialized PolarisApp.
+func NewArgusApp( //nolint: funlen // from sdk.
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
@@ -381,6 +383,14 @@ func NewPolarisApp( //nolint: funlen // from sdk.
 	}
 
 	return app
+}
+
+func (app *PolarisApp) startSidecar() error {
+	err := sidecar.StartSidecar(app.BaseApp.MsgServiceRouter(), app.BaseApp.GRPCQueryRouter(), app.BankKeeper, app.BaseApp.CommitMultiStore().CacheMultiStore(), app.Logger())
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Name returns the name of the App.

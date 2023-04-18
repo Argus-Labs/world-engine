@@ -58,8 +58,9 @@ import (
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
 	"pkg.berachain.dev/polaris/cosmos/crypto/keyring"
-	"pkg.berachain.dev/polaris/cosmos/runtime"
 	evmante "pkg.berachain.dev/polaris/cosmos/x/evm/ante"
+
+	"github.com/argus-labs/world-engine/chain/runtime"
 )
 
 // encodingConfig := encoding.MakeConfig(app.ModuleBasics)
@@ -81,7 +82,7 @@ func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// note, this is not necessary when using app wiring, as depinject can be directly used.
 	// for consistency between app-v1 and app-v2, we do it the same way via methods on simapp
-	tempApp := runtime.NewPolarisApp(log.NewNopLogger(), dbm.NewMemDB(), nil, true, simtestutil.NewAppOptionsWithFlagHome(tempDir()))
+	tempApp := runtime.NewArgusApp(log.NewNopLogger(), dbm.NewMemDB(), nil, true, simtestutil.NewAppOptionsWithFlagHome(tempDir()))
 	encodingConfig := params.EncodingConfig{
 		InterfaceRegistry: tempApp.InterfaceRegistry(),
 		Codec:             tempApp.AppCodec(),
@@ -283,7 +284,7 @@ func newApp(
 ) servertypes.Application {
 	baseappOptions := server.DefaultBaseappOptions(appOpts)
 
-	return runtime.NewPolarisApp(
+	return runtime.NewArgusApp(
 		logger, db, traceStore, true,
 		appOpts,
 		baseappOptions...,
@@ -320,13 +321,13 @@ func appExport(
 	appOpts = viperAppOpts
 
 	if height != -1 {
-		polarisApp = runtime.NewPolarisApp(logger, db, traceStore, false, appOpts)
+		polarisApp = runtime.NewArgusApp(logger, db, traceStore, false, appOpts)
 
 		if err := polarisApp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		polarisApp = runtime.NewPolarisApp(logger, db, traceStore, true, appOpts)
+		polarisApp = runtime.NewArgusApp(logger, db, traceStore, true, appOpts)
 	}
 
 	return polarisApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)

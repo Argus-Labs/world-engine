@@ -1,6 +1,6 @@
 module github.com/argus-labs/world-engine/chain
 
-go 1.20
+go 1.19
 
 replace (
 	cosmossdk.io/x/evidence => cosmossdk.io/x/evidence v0.0.0-20230305125317-672b052f323b
@@ -16,6 +16,8 @@ replace (
 )
 
 require (
+	buf.build/gen/go/argus-labs/argus/grpc/go v1.3.0-20230207212811-ad6150871d00.1
+	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.30.0-20230207212811-ad6150871d00.1
 	cosmossdk.io/api v0.3.1
 	cosmossdk.io/client/v2 v2.0.0-20230220152935-67f04e629623
 	cosmossdk.io/core v0.6.0
@@ -28,6 +30,7 @@ require (
 	cosmossdk.io/x/evidence v0.1.0
 	cosmossdk.io/x/feegrant v0.0.0-20230305125317-672b052f323b
 	cosmossdk.io/x/upgrade v0.0.0-20230305125317-672b052f323b
+	github.com/JeremyLoy/config v1.5.0
 	github.com/cometbft/cometbft v0.37.0
 	github.com/cosmos/cosmos-db v1.0.0-rc.1
 	github.com/cosmos/cosmos-sdk v0.48.0
