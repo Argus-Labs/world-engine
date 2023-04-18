@@ -94,6 +94,31 @@ services:
       - node
     restart: on-failure
 
+
+  newrollup:
+    container_name: polar_node
+    environment:
+      - USE_SIDECAR=true
+      - NAKAMA_TARGET=nakama:6732
+    build:
+      context: .
+      dockerfile: app.Dockerfile
+    restart: unless-stopped
+    expose:
+      - "5050"
+      - "9090"
+      - "1317"
+      - "26657"
+    ports:
+      - "9090:9090"
+      - "1317:1317"
+      - "26657:26657"
+    networks:
+      - default
+    depends_on:
+      - celestia
+
+
   celestia:
     container_name: celestia_container
     build:
