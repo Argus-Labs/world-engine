@@ -73,8 +73,8 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
     go build \
     -mod=readonly \
     -tags "netgo,ledger,muslc" \
-    -ldflags "-X github.com/cosmos/cosmos-sdk/version.Name="berachain" \
-    -X github.com/cosmos/cosmos-sdk/version.AppName="berad" \
+    -ldflags "-X github.com/cosmos/cosmos-sdk/version.Name="argus" \
+    -X github.com/cosmos/cosmos-sdk/version.AppName="argusd" \
     -X github.com/cosmos/cosmos-sdk/version.Version=$VERSION \
     -X github.com/cosmos/cosmos-sdk/version.Commit=$COMMIT \
     -X github.com/cosmos/cosmos-sdk/version.BuildTags='netgo,ledger,muslc' \

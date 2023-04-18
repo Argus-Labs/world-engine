@@ -76,7 +76,7 @@ import (
 // 	WithKeyringOptions(hd.EthSecp256k1Option()).
 // 	WithViper(EnvPrefix)
 
-// NewRootCmd creates a new root command for polard. It is called once in the
+// NewRootCmd creates a new root command for argusd. It is called once in the
 // main function.
 func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
@@ -101,7 +101,7 @@ func NewRootCmd() *cobra.Command {
 		WithViper("") // In simapp, we don't use any prefix for env variables.
 
 	rootCmd := &cobra.Command{
-		Use:   "polard",
+		Use:   "argusd",
 		Short: "simulation app",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			// set the default command outputs
@@ -216,7 +216,7 @@ func addModuleInitFlags(startCmd *cobra.Command) {
 	crisis.AddModuleInitFlags(startCmd)
 }
 
-// genesisCommand builds genesis-related `polard genesis` command. Users may provide application specific commands as a parameter.
+// genesisCommand builds genesis-related `argusd genesis` command. Users may provide application specific commands as a parameter.
 func genesisCommand(encodingConfig params.EncodingConfig, cmds ...*cobra.Command) *cobra.Command {
 	cmd := genutilcli.GenesisCoreCommand(encodingConfig.TxConfig, runtime.ModuleBasics, runtime.DefaultNodeHome)
 

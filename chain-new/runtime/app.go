@@ -196,7 +196,7 @@ func init() {
 		panic(err)
 	}
 
-	DefaultNodeHome = filepath.Join(userHomeDir, ".polard")
+	DefaultNodeHome = filepath.Join(userHomeDir, ".argusd")
 }
 
 // NewApp returns a reference to an initialized App.
