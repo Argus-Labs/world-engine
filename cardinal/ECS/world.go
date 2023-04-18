@@ -106,8 +106,6 @@ func (w *world) RegisterComponents(ct ...IComponentType) {
 	}
 }
 
-var nextWorldId WorldId = 0
-
 var registeredInitializers []initializer
 
 // RegisterInitializer registers an initializer for a world.
@@ -116,12 +114,9 @@ func RegisterInitializer(initializer initializer) {
 }
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage) World {
-	// TODO: this should prob be handled by redis as well...
-	worldId := nextWorldId
-	nextWorldId++
+func NewWorld(s storage.WorldStorage, worldID int) World {
 	w := &world{
-		id:      worldId,
+		id:      WorldId(worldID),
 		store:   s,
 		systems: make([]System, 0, 256), // this can just stay in memory.
 	}

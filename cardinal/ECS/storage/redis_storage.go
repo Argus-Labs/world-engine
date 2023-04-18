@@ -33,7 +33,7 @@ import (
 // We could end up with some issues (needs to be determined).
 
 type redisStorage struct {
-	worldID                string
+	worldID                int
 	componentStoragePrefix component.TypeID
 	c                      *redis.Client
 	log                    zerolog.Logger
@@ -42,7 +42,7 @@ type redisStorage struct {
 
 var _ = redisStorage{}
 
-func NewRedisStorage(c *redis.Client, worldID string) WorldStorage {
+func NewRedisStorage(c *redis.Client, worldID int) WorldStorage {
 
 	redisStorage := redisStorage{
 		worldID: worldID,

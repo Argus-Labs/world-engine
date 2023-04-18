@@ -52,7 +52,8 @@ func getRedisClient(t *testing.T) *redis.Client {
 func Test_ECS(t *testing.T) {
 
 	redisClient := getRedisClient(t)
-	world := NewWorld(storage.NewRedisStorage(redisClient, "0"))
+	worldID := 0
+	world := NewWorld(storage.NewRedisStorage(redisClient, worldID), worldID)
 
 	world.RegisterComponents(Energy, Ownable)
 
