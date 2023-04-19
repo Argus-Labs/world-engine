@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"net"
 
-	"cosmossdk.io/log"
-	"cosmossdk.io/store"
-
-	"github.com/cosmos/cosmos-sdk/baseapp"
-	"github.com/cosmos/cosmos-sdk/types"
-	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
-
 	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
 	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
 	"google.golang.org/grpc"
 
+	"cosmossdk.io/log"
+	"cosmossdk.io/store"
+
 	cometTypes "github.com/cometbft/cometbft/proto/tendermint/types"
+
+	"github.com/cosmos/cosmos-sdk/baseapp"
+	"github.com/cosmos/cosmos-sdk/types"
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 )
 
 const (
@@ -32,7 +32,8 @@ type Sidecar struct {
 }
 
 // StartSidecar opens the gRPC server.
-func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, bk bankkeeper.Keeper, cms store.CacheMultiStore, logger log.Logger) error {
+func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter,
+	bk bankkeeper.Keeper, cms store.CacheMultiStore, logger log.Logger) error {
 	sc := Sidecar{rtr: rtr, qry: qry, bk: bk, cms: cms, logger: logger}
 	port := 5050
 	lis, err := net.Listen("tcp", fmt.Sprintf("node:%d", port))
@@ -42,9 +43,9 @@ func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter, b
 	grpcServer := grpc.NewServer()
 	g1.RegisterSidecarServer(grpcServer, sc)
 	go func() {
-		err := grpcServer.Serve(lis)
+		localErr := grpcServer.Serve(lis)
 		if err != nil {
-			logger.Error("grpc server error", "error", err.Error())
+			logger.Error("grpc server error", "error", localErr.Error())
 		}
 	}()
 	return nil

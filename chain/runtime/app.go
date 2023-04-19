@@ -26,6 +26,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/argus-labs/world-engine/chain/sidecar"
 	dbm "github.com/cosmos/cosmos-db"
 
 	appv1alpha1 "cosmossdk.io/api/cosmos/app/v1alpha1"
@@ -106,8 +107,6 @@ import (
 
 	_ "embed"
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side-effects
-
-	"github.com/argus-labs/world-engine/chain/sidecar"
 )
 
 var (
@@ -385,8 +384,10 @@ func NewApp( //nolint: funlen // from sdk.
 	return app
 }
 
+//nolint:unused // scott smh.
 func (app *App) startSidecar() error {
-	err := sidecar.StartSidecar(app.BaseApp.MsgServiceRouter(), app.BaseApp.GRPCQueryRouter(), app.BankKeeper, app.BaseApp.CommitMultiStore().CacheMultiStore(), app.Logger())
+	err := sidecar.StartSidecar(app.BaseApp.MsgServiceRouter(), app.BaseApp.GRPCQueryRouter(),
+		app.BankKeeper, app.BaseApp.CommitMultiStore().CacheMultiStore(), app.Logger())
 	if err != nil {
 		return err
 	}

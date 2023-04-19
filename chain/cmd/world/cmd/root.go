@@ -26,11 +26,10 @@ import (
 	"io"
 	"os"
 
+	"github.com/argus-labs/world-engine/chain/runtime"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-
-	"github.com/argus-labs/world-engine/chain/runtime"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/simapp/params"
@@ -76,7 +75,7 @@ import (
 // 	WithKeyringOptions(hd.EthSecp256k1Option()).
 // 	WithViper(EnvPrefix)
 
-// NewRootCmd creates a new root command for world. It is called once in the
+// NewRootCmd creates a new root command for world. It is called once in the.
 func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// note, this is not necessary when using app wiring, as depinject can be directly used.
