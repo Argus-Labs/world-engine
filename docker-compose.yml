@@ -97,8 +97,8 @@ services:
   celestia:
     container_name: celestia_container
     build:
-      context: fixtures/celestia-client
-      dockerfile: celestia.Dockerfile
+      context: dev/local-celestia-devnet
+      dockerfile: Dockerfile
     networks:
       - default
     logging:
