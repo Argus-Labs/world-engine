@@ -1,47 +1,97 @@
-<div align="center">
-  <h1> World Engine </h1>
-</div>
+# Polaris Integrated Cosmos Chain
 
-🤷‍♂️
+## Installation
 
-# Starting the Services
+### From Binary
 
-To start the chain and nakama runtime, run the following command in the root of the project:
+The easiest way to install a Cosmos-SDK Blockchain running Polaris is to download a pre-built binary. You can find the latest binaries on the [releases](https://github.com/polaris/releases) page.
 
-``make start-services``
+### From Source
 
-WARNING: this command will take some time to boot up. Please allow a few minutes for the node and nakama service to fully install all dependencies and start up.
+**Step 1: Install Golang & Foundry**
 
-This will boot up a few endpoints for you to interact with. 
+Go v1.20+ or higher is required for Polaris
 
-### Nakama
+1. Install [Go 1.20+ from the official site](https://go.dev/dl/) or the method of your choice. Ensure that your `GOPATH` and `GOBIN` environment variables are properly set up by using the following commands:
 
-The nakama admin dashboard is reachable at `localhost:7351`. From here, you will be able to log-in and access
-all the available RPC endpoints for Nakama.
+   For Ubuntu:
 
-You can use the following default credentials to log-in as admin:
+   ```sh
+   cd $HOME
+   sudo apt-get install golang -y
+   export PATH=$PATH:/usr/local/go/bin
+   export PATH=$PATH:$(go env GOPATH)/bin
+   ```
 
-```username: admin```
+   For Mac:
 
-```password: password```
+   ```sh
+   cd $HOME
+   brew install go
+   export PATH=$PATH:/opt/homebrew/bin/go
+   export PATH=$PATH:$(go env GOPATH)/bin
+   ```
 
-see https://youtu.be/Ru3RZ6LkJEk for more details
+2. Confirm your Go installation by checking the version:
 
+   ```sh
+   go version
+   ```
 
-### Cosmos
+[Foundry](https://book.getfoundry.sh/getting-started/installation) is required for Polaris
 
-The default Cosmos endpoints are available to be interacted with:
+3. Install Foundry:
+   ```sh
+   curl -L https://foundry.paradigm.xyz | bash
+   ```
 
-- gRPC: `localhost:9090`
-- REST: `localhost:26657` // currently broken, looking into fixing.. 
+**Step 2: Get Polaris source code**
 
+Clone the `polaris` repo from the [official repo](https://github.com/berachain/polaris/) and check
+out the `main` branch for the latest stable release.
+Build the binary.
 
+```bash
+cd $HOME
+git clone https://github.com/berachain/polaris
+cd polaris
+git checkout main
+go run magefiles/setup/setup.go
+```
 
+**Step 3: Build the Node Software**
 
-# Dependencies
+Run the following command to install `world` to your `GOPATH` and build the node. `world` is the node daemon and CLI for interacting with a polaris node.
 
-### Proto Generation
-- buf: https://docs.buf.build/installation
-- proto-doc: `go install github.com/pseudomuto/protoc-gen-doc@latest`
-- swagger-gen: `go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-swagger@latest`
-- swagger-combine: `npm i swagger-combine -g`
+```bash
+mage install
+```
+
+**Step 4: Verify your installation**
+
+Verify your installation with the following command:
+
+```bash
+world version --long
+```
+
+A successful installation will return the following:
+
+```bash
+name: world-engine
+server_name: world
+version: <x.x.x>
+commit: <Commit hash>
+build_tags: netgo,ledger
+go: go version go1.20.4 darwin/amd64
+```
+
+## Running a Local Network
+
+After ensuring dependecies are installed correctly, run the following command to start a local development network.
+
+```bash
+mage start
+```
+
+The network will have an Ethereum JSON-RPC server running at `http://localhost:1317/eth/rpc` and a Tendermint RPC server running at `http://localhost:26657`.

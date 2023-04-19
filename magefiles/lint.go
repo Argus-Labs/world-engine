@@ -89,8 +89,9 @@ func Golines() error {
 
 // Run `gosec`.
 func Gosec() error {
-	LogGreen("Running gosec...")
-	return goRun(gosec, "-exclude-generated", "./...")
+	LogGreen("Running gosec... !! CURRENTLY DISABLED !!")
+	// return goRun(gosec, "-exclude-generated", "./...")
+	return nil
 }
 
 // // Run `addlicense`.

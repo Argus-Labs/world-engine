@@ -1,4 +1,4 @@
-module pkg.berachain.dev/polaris/magefiles
+module github.com/argus-labs/world-engine/magefiles
 
 go 1.20
 

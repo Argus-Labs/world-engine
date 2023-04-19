@@ -39,7 +39,7 @@ var (
 	dockerBuild = RunCmdV("docker", "build", "--rm=false")
 
 	// Variables.
-	baseDockerPath  = "./chain-new/"
+	baseDockerPath  = "./chain/"
 	beradDockerPath = baseDockerPath + "Dockerfile"
 	imageName       = "polaris-cosmos"
 	// testImageVersion       = "e2e-test-dev".
@@ -57,7 +57,7 @@ type Cosmos mg.Namespace
 
 // directory returns the directory name for the Cosmos SDK chain.
 func (Cosmos) directory() string {
-	return "chain-new"
+	return "chain"
 }
 
 // ===========================================================================
@@ -66,18 +66,18 @@ func (Cosmos) directory() string {
 
 // Starts a local development net and builds it if necessary.
 func Start() error {
-	return sh.RunV("./chain-new/runtime/init.sh")
+	return sh.RunV("./chain/runtime/init.sh")
 }
 
 // Builds the Cosmos SDK chain.
 func (Cosmos) Build() error {
 	LogGreen("Building the Cosmos SDK chain...")
-	cmd := "polard"
+	cmd := "world"
 	args := []string{
 		generateBuildTags(),
 		generateLinkerFlags(production, statically),
 		"-o", generateOutDirectory(cmd),
-		"./chain-new/cmd/" + cmd,
+		"./chain/cmd/" + cmd,
 	}
 	return goBuild(args...)
 }
@@ -131,7 +131,7 @@ func (Cosmos) Install() error {
 	args := []string{
 		generateBuildTags(),
 		generateLinkerFlags(production, statically),
-		"./cmd/polard",
+		"./cmd/world",
 	}
 
 	return goInstall(args...)
