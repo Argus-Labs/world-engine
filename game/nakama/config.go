@@ -3,9 +3,8 @@ package main
 import "github.com/JeremyLoy/config"
 
 type Config struct {
-	SidecarTarget string `config:"SIDECAR_TARGET"`
-	UseReceiver   bool   `config:"USE_RECEIVER"`
-	ReceiverPort  uint64 `config:"RECEIVER_PORT"`
+	SidecarTarget  string `config:"SIDECAR_TARGET"`
+	CardinalTarget string `config:"CARDINAl_TARGET"`
 }
 
 func LoadConfig() Config {

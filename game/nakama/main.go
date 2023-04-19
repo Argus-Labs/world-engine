@@ -11,13 +11,17 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	// SIDECAR
 	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
-
 	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
+
+	// CARDINAL
+	"buf.build/gen/go/argus-labs/cardinal/grpc/go/ecs/ecsv1grpc"
 )
 
 var (
-	sidecar g1.SidecarClient = nil
+	sidecar  g1.SidecarClient     = nil
+	cardinal ecsv1grpc.GameClient = nil
 )
 
 // InitializerFunction contains the function signature (minus function name, which MUST be InitModule) that the nakama runtime expects.
@@ -40,21 +44,26 @@ var moduleInit InitializerFunction = func(ctx context.Context, logger runtime.Lo
 // Doing so will break the Nakama runtime from initializing our SO file.
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, module runtime.NakamaModule, initializer runtime.Initializer) error {
 	cfg := LoadConfig()
-	clientConn, err := grpc.Dial(cfg.SidecarTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	var err error
+	sidecar, err = getClient[g1.SidecarClient](cfg.SidecarTarget, g1.NewSidecarClient)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	sidecar = g1.NewSidecarClient(clientConn)
-
-	if cfg.UseReceiver {
-		port := cfg.ReceiverPort
-		cr := NewCosmosReceiver(db, logger, module, port)
-		if err = cr.Start(); err != nil {
-			panic(err)
-		}
+	cardinal, err = getClient[ecsv1grpc.GameClient](cfg.CardinalTarget, ecsv1grpc.NewGameClient)
+	if err != nil {
+		return err
 	}
 
 	return moduleInit(ctx, logger, db, module, initializer)
+}
+
+func getClient[client any](target string, getter func(grpc.ClientConnInterface) client) (client, error) {
+	clientConn, err := grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
+	}
+	grpcClient := getter(clientConn)
+	return grpcClient, nil
 }
 
 /*
