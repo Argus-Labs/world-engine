@@ -8,16 +8,16 @@ import (
 
 	"buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
 	sidecarv1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
-	"github.com/avast/retry-go"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stretchr/testify/suite"
-	"gotest.tools/assert"
-
 	"github.com/argus-labs/world-engine/chain/runtime"
 	argus "github.com/argus-labs/world-engine/chain/runtime/config"
 	"github.com/argus-labs/world-engine/chain/utils"
+	"github.com/avast/retry-go"
+	"github.com/stretchr/testify/suite"
+	"gotest.tools/assert"
 
 	"cosmossdk.io/simapp/params"
+
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 type SideCarSuite struct {
@@ -35,7 +35,8 @@ func (suite *SideCarSuite) SetupTest() {
 	if !suite.cfg.EnableDockerTests {
 		suite.T().Skip("skipping test suite. these tests only runs in docker")
 	}
-	suite.addr = "cosmos1tk7sluasye598msnjlujrp9hd67fl4gylx7z0z" // this addr is derived from the mnemonic in scripts/single-node.sh
+	// this addr is derived from the mnemonic in scripts/single-node.sh
+	suite.addr = "cosmos1tk7sluasye598msnjlujrp9hd67fl4gylx7z0z"
 	suite.sidecarClient = GetSidecarClient(suite.T(), suite.cfg.SidecarURL)
 	suite.encCfg = argus.MakeEncodingConfig(runtime.ModuleBasics)
 }
