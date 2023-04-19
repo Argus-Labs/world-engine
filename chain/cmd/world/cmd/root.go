@@ -26,10 +26,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/argus-labs/world-engine/chain/runtime"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/argus-labs/world-engine/chain/runtime"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/simapp/params"
@@ -60,8 +61,6 @@ import (
 
 	"pkg.berachain.dev/polaris/cosmos/crypto/keyring"
 	evmante "pkg.berachain.dev/polaris/cosmos/x/evm/ante"
-
-	"github.com/argus-labs/world-engine/chain/runtime"
 )
 
 // encodingConfig := encoding.MakeConfig(app.ModuleBasics)
@@ -77,12 +76,7 @@ import (
 // 	WithKeyringOptions(hd.EthSecp256k1Option()).
 // 	WithViper(EnvPrefix)
 
-<<<<<<<< HEAD:chain/cmd/world/cmd/root.go
 // NewRootCmd creates a new root command for world. It is called once in the
-========
-// NewRootCmd creates a new root command for argusd. It is called once in the
->>>>>>>> main:chain/cmd/argusd/cmd/root.go
-// main function.
 func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// note, this is not necessary when using app wiring, as depinject can be directly used.
@@ -106,11 +100,7 @@ func NewRootCmd() *cobra.Command {
 		WithViper("") // In simapp, we don't use any prefix for env variables.
 
 	rootCmd := &cobra.Command{
-<<<<<<<< HEAD:chain/cmd/world/cmd/root.go
 		Use:   "world",
-========
-		Use:   "argusd",
->>>>>>>> main:chain/cmd/argusd/cmd/root.go
 		Short: "simulation app",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			// set the default command outputs
@@ -225,11 +215,7 @@ func addModuleInitFlags(startCmd *cobra.Command) {
 	crisis.AddModuleInitFlags(startCmd)
 }
 
-<<<<<<<< HEAD:chain/cmd/world/cmd/root.go
 // genesisCommand builds genesis-related `world genesis` command. Users may provide application specific commands as a parameter.
-========
-// genesisCommand builds genesis-related `argusd genesis` command. Users may provide application specific commands as a parameter.
->>>>>>>> main:chain/cmd/argusd/cmd/root.go
 func genesisCommand(encodingConfig params.EncodingConfig, cmds ...*cobra.Command) *cobra.Command {
 	cmd := genutilcli.GenesisCoreCommand(encodingConfig.TxConfig, runtime.ModuleBasics, runtime.DefaultNodeHome)
 
