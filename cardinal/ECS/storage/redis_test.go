@@ -60,8 +60,8 @@ func TestRedis(t *testing.T) {
 	}
 }
 
-var componentDataKey = func(worldId string, compId component.TypeID, archIdx int) string {
-	return fmt.Sprintf("WORLD-%s:CID-%d:A-%d", worldId, compId, archIdx)
+var componentDataKey = func(worldId int, compId component.TypeID, archIdx int) string {
+	return fmt.Sprintf("WORLD-%d:CID-%d:A-%d", worldId, compId, archIdx)
 }
 
 func TestList(t *testing.T) {
@@ -71,7 +71,7 @@ func TestList(t *testing.T) {
 	}
 	ctx := context.Background()
 	rdb := getRedisClient(t)
-	worldId := "1"
+	worldId := 0
 	store := NewRedisStorage(rdb, worldId)
 	x := NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 	compStore := store.CompStore.Storage(x)
@@ -81,9 +81,11 @@ func TestList(t *testing.T) {
 	err = compStore.PushComponent(x, 1)
 	assert.NilError(t, err)
 
-	compStore.MoveComponent(0, 0, 1)
+	err = compStore.MoveComponent(0, 0, 1)
+	assert.NilError(t, err)
 
-	bz, _ := compStore.Component(1, 1)
+	bz, err := compStore.Component(1, 1)
+	assert.NilError(t, err)
 	foo, err := Decode[SomeComp](bz)
 	assert.NilError(t, err)
 	assert.Equal(t, foo.Foo, 20)
@@ -94,7 +96,8 @@ func TestList(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, len(result) == 0)
 
-	contains, _ := compStore.Contains(1, 0)
+	contains, err := compStore.Contains(1, 0)
+	assert.NilError(t, err)
 	assert.Equal(t, contains, true)
 }
 
@@ -106,24 +109,27 @@ func TestRedis_CompIndex(t *testing.T) {
 	_ = ctx
 	rdb := getRedisClient(t)
 	x := NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
-	worldId := "1"
+	worldId := 0
 	store := NewRedisStorage(rdb, worldId)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
 	archIdx, compIdx := ArchetypeIndex(0), ComponentIndex(1)
-	idxStore.SetIndex(archIdx, compIdx)
+	err := idxStore.SetIndex(archIdx, compIdx)
+	assert.NilError(t, err)
 	gotIdx, ok, err := idxStore.ComponentIndex(archIdx)
 	assert.NilError(t, err)
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx)
-	idxStore.IncrementIndex(archIdx)
+	err = idxStore.IncrementIndex(archIdx)
+	assert.NilError(t, err)
 
 	gotIdx, ok, err = idxStore.ComponentIndex(archIdx)
 	assert.NilError(t, err)
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx+1)
 
-	idxStore.DecrementIndex(archIdx)
+	err = idxStore.DecrementIndex(archIdx)
+	assert.NilError(t, err)
 
 	gotIdx, ok, err = idxStore.ComponentIndex(archIdx)
 	assert.NilError(t, err)
@@ -131,7 +137,8 @@ func TestRedis_CompIndex(t *testing.T) {
 	assert.Check(t, gotIdx == compIdx)
 
 	compIdx = ComponentIndex(25)
-	idxStore.SetIndex(archIdx, compIdx)
+	err = idxStore.SetIndex(archIdx, compIdx)
+	assert.NilError(t, err)
 	gotIdx, ok, err = idxStore.ComponentIndex(archIdx)
 	assert.NilError(t, err)
 	assert.Check(t, ok == true)
@@ -141,21 +148,25 @@ func TestRedis_CompIndex(t *testing.T) {
 func TestRedis_Location(t *testing.T) {
 	//ctx := context.Background()
 	rdb := getRedisClient(t)
-	worldId := "1"
+	worldId := 0
 	store := NewRedisStorage(rdb, worldId)
 	loc := NewLocation(0, 1)
 	eid := entity.ID(3)
-	store.EntityLocStore.Set(eid, loc)
-	gotLoc, _ := store.EntityLocStore.Location(eid)
+	err := store.EntityLocStore.Set(eid, loc)
+	assert.NilError(t, err)
+	gotLoc, err := store.EntityLocStore.Location(eid)
+	assert.NilError(t, err)
 	assert.Equal(t, *loc, *gotLoc)
 
 	aid := store.EntityLocStore.ArchetypeIndex(eid)
 	assert.Equal(t, loc.ArchIndex, aid)
 
-	contains, _ := store.EntityLocStore.ContainsEntity(eid)
+	contains, err := store.EntityLocStore.ContainsEntity(eid)
+	assert.NilError(t, err)
 	assert.Equal(t, contains, true)
 
-	notContains, _ := store.EntityLocStore.ContainsEntity(entity.ID(420))
+	notContains, err := store.EntityLocStore.ContainsEntity(entity.ID(420))
+	assert.Error(t, err, "redis: nil")
 	assert.Equal(t, notContains, false)
 
 	compIdx := store.EntityLocStore.ComponentIndexForEntity(eid)
@@ -163,15 +174,19 @@ func TestRedis_Location(t *testing.T) {
 
 	newEID := entity.ID(40)
 	archIdx2, compIdx2 := ArchetypeIndex(10), ComponentIndex(15)
-	store.EntityLocStore.Insert(newEID, archIdx2, compIdx2)
+	err = store.EntityLocStore.Insert(newEID, archIdx2, compIdx2)
+	assert.NilError(t, err)
 
-	newLoc, _ := store.EntityLocStore.Location(newEID)
+	newLoc, err := store.EntityLocStore.Location(newEID)
+	assert.NilError(t, err)
 	assert.Equal(t, newLoc.ArchIndex, archIdx2)
 	assert.Equal(t, newLoc.CompIndex, compIdx2)
 
-	store.EntityLocStore.Remove(newEID)
+	err = store.EntityLocStore.Remove(newEID)
+	assert.NilError(t, err)
 
-	has, _ := store.EntityLocStore.ContainsEntity(newEID)
+	has, err := store.EntityLocStore.ContainsEntity(newEID)
+	assert.Error(t, err, "redis: nil")
 	assert.Equal(t, has, false)
 }
 
@@ -179,7 +194,7 @@ func TestRedis_EntryStorage(t *testing.T) {
 	ctx := context.Background()
 	_ = ctx
 	rdb := getRedisClient(t)
-	worldId := "1"
+	worldId := 0
 	store := NewRedisStorage(rdb, worldId)
 
 	eid := entity.ID(12)
@@ -192,7 +207,8 @@ func TestRedis_EntryStorage(t *testing.T) {
 	err := store.EntryStore.SetEntry(eid, e)
 	assert.NilError(t, err)
 
-	gotEntry, _ := store.EntryStore.GetEntry(eid)
+	gotEntry, err := store.EntryStore.GetEntry(eid)
+	assert.NilError(t, err)
 	assert.DeepEqual(t, e, gotEntry)
 
 	newLoc := Location{

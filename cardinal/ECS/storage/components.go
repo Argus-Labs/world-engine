@@ -32,18 +32,27 @@ func (cs *Components) PushComponents(components []component.IComponentType, arch
 		}
 	}
 	if _, ok, _ := cs.componentIndices.ComponentIndex(archetypeIndex); !ok {
-		cs.componentIndices.SetIndex(archetypeIndex, 0)
+		if err := cs.componentIndices.SetIndex(archetypeIndex, 0); err != nil {
+			return 0, err
+		}
 	} else {
-		cs.componentIndices.IncrementIndex(archetypeIndex)
+		if err := cs.componentIndices.IncrementIndex(archetypeIndex); err != nil {
+			return 0, err
+		}
 	}
 	idx, _, _ := cs.componentIndices.ComponentIndex(archetypeIndex)
 	return idx, nil
 }
 
 // Move moves the bytes of data of the component in the archetype.
-func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) {
-	cs.componentIndices.DecrementIndex(src)
-	cs.componentIndices.IncrementIndex(dst)
+func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) error {
+	if err := cs.componentIndices.DecrementIndex(src); err != nil {
+		return err
+	}
+	if err := cs.componentIndices.IncrementIndex(dst); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Storage returns the component data storage accessor.
@@ -56,14 +65,17 @@ func (cs *Components) GetComponentIndexStorage(c component.IComponentType) Compo
 }
 
 // Remove removes the component from the storage.
-func (cs *Components) Remove(ai ArchetypeIndex, comps []component.IComponentType, ci ComponentIndex) {
+func (cs *Components) Remove(ai ArchetypeIndex, comps []component.IComponentType, ci ComponentIndex) error {
 	for _, ct := range comps {
-		cs.remove(ct, ai, ci)
+		if err := cs.remove(ct, ai, ci); err != nil {
+			return err
+		}
 	}
-	cs.componentIndices.DecrementIndex(ai)
+	return cs.componentIndices.DecrementIndex(ai)
 }
 
-func (cs *Components) remove(ct component.IComponentType, ai ArchetypeIndex, ci ComponentIndex) {
+func (cs *Components) remove(ct component.IComponentType, ai ArchetypeIndex, ci ComponentIndex) error {
 	storage := cs.Storage(ct)
-	storage.SwapRemove(ai, ci)
+	_, err := storage.SwapRemove(ai, ci)
+	return err
 }

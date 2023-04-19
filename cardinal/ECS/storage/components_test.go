@@ -48,7 +48,9 @@ func TestComponents(t *testing.T) {
 	for _, tt := range tests {
 		for _, comp := range tt.layout.Components() {
 			st := components.Storage(comp)
-			if !st.Contains(tt.archIdx, tt.compIdx) {
+			ok, err := st.Contains(tt.archIdx, tt.compIdx)
+			assert.NilError(t, err)
+			if !ok {
 				t.Errorf("storage should contain the component at %d, %d", tt.archIdx, tt.compIdx)
 			}
 			bz, _ := st.Component(tt.archIdx, tt.compIdx)
@@ -57,7 +59,8 @@ func TestComponents(t *testing.T) {
 			dat.ID = tt.ID
 			compBz, err := Encode(dat)
 			assert.NilError(t, err)
-			st.SetComponent(tt.archIdx, tt.compIdx, compBz)
+			err = st.SetComponent(tt.archIdx, tt.compIdx, compBz)
+			assert.NilError(t, err)
 		}
 	}
 
@@ -67,10 +70,14 @@ func TestComponents(t *testing.T) {
 	srcArchIdx := target.archIdx
 	var dstArchIdx ArchetypeIndex = 1
 
-	storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx)
-	components.Move(srcArchIdx, dstArchIdx)
+	err := storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx)
+	assert.NilError(t, err)
+	err = components.Move(srcArchIdx, dstArchIdx)
+	assert.NilError(t, err)
 
-	if storage.Contains(srcArchIdx, target.compIdx) {
+	ok, err := storage.Contains(srcArchIdx, target.compIdx)
+	assert.NilError(t, err)
+	if ok {
 		t.Errorf("storage should not contain the component at %d, %d", target.archIdx, target.compIdx)
 	}
 	if idx, _, _ := components.componentIndices.ComponentIndex(srcArchIdx); idx != -1 {
@@ -78,7 +85,9 @@ func TestComponents(t *testing.T) {
 	}
 
 	newCompIdx, _, _ := components.componentIndices.ComponentIndex(dstArchIdx)
-	if !storage.Contains(dstArchIdx, newCompIdx) {
+	ok, err = storage.Contains(dstArchIdx, newCompIdx)
+	assert.NilError(t, err)
+	if !ok {
 		t.Errorf("storage should contain the component at %d, %d", dstArchIdx, target.compIdx)
 	}
 
