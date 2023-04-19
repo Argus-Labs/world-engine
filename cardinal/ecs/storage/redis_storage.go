@@ -52,7 +52,7 @@ func NewRedisStorage(c *redis.Client, worldID string) WorldStorage {
 	return WorldStorage{
 		CompStore: Components{
 			store:            &redisStorage,
-			componentIndices: &redisStorage,
+			ComponentIndices: &redisStorage,
 		},
 		EntityLocStore:   &redisStorage,
 		ArchAccessor:     NewArchetypeAccessor(),

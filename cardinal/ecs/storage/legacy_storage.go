@@ -232,7 +232,7 @@ func NewArchetypeComponentIndex() ArchetypeComponentIndex {
 	return &Index{
 		layouts: [][]component.IComponentType{},
 		iterator: &ArchetypeIterator{
-			current: 0,
+			Current: 0,
 		},
 	}
 }
@@ -244,11 +244,11 @@ func (idx *Index) Push(layout *Layout) {
 
 // SearchFrom searches for archetypes that match the given filter from the given Index.
 func (idx *Index) SearchFrom(f filter.LayoutFilter, start int) *ArchetypeIterator {
-	idx.iterator.current = 0
-	idx.iterator.values = []ArchetypeIndex{}
+	idx.iterator.Current = 0
+	idx.iterator.Values = []ArchetypeIndex{}
 	for i := start; i < len(idx.layouts); i++ {
 		if f.MatchesLayout(idx.layouts[i]) {
-			idx.iterator.values = append(idx.iterator.values, ArchetypeIndex(i))
+			idx.iterator.Values = append(idx.iterator.Values, ArchetypeIndex(i))
 		}
 	}
 	return idx.iterator

@@ -1,6 +1,7 @@
-package storage
+package tests
 
 import (
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"testing"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
@@ -13,12 +14,12 @@ type (
 
 func TestMatchesLayout(t *testing.T) {
 	var (
-		ca = NewMockComponentType(componentA{}, nil)
-		cb = NewMockComponentType(componentB{}, nil)
+		ca = storage.NewMockComponentType(componentA{}, nil)
+		cb = storage.NewMockComponentType(componentB{}, nil)
 	)
 
 	components := []component.IComponentType{ca, cb}
-	archetype := NewArchetype(0, NewLayout(components))
+	archetype := storage.NewArchetype(0, storage.NewLayout(components))
 	if !archetype.LayoutMatches(components) {
 		t.Errorf("archetype should match the ArchLayout")
 	}
@@ -26,12 +27,12 @@ func TestMatchesLayout(t *testing.T) {
 
 func TestPushEntity(t *testing.T) {
 	var (
-		ca = NewMockComponentType(struct{}{}, nil)
-		cb = NewMockComponentType(struct{}{}, nil)
+		ca = storage.NewMockComponentType(struct{}{}, nil)
+		cb = storage.NewMockComponentType(struct{}{}, nil)
 	)
 
 	components := []component.IComponentType{ca, cb}
-	archetype := NewArchetype(0, NewLayout(components))
+	archetype := storage.NewArchetype(0, storage.NewLayout(components))
 
 	archetype.PushEntity(0)
 	archetype.PushEntity(1)

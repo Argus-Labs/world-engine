@@ -11,14 +11,14 @@ type ComponentIndex int
 // TODO: this kinda sucks.. could prob refactor this and make it prettier for devs.
 type Components struct {
 	store            ComponentStorageManager
-	componentIndices ComponentIndexStorage
+	ComponentIndices ComponentIndexStorage
 }
 
 // NewComponents creates a new empty structure that stores data of components.
 func NewComponents(store ComponentStorageManager, idxStore ComponentIndexStorage) Components {
 	return Components{
 		store:            store,
-		componentIndices: idxStore,
+		ComponentIndices: idxStore,
 	}
 }
 
@@ -31,19 +31,19 @@ func (cs *Components) PushComponents(components []component.IComponentType, arch
 			return 0, err
 		}
 	}
-	if _, ok, _ := cs.componentIndices.ComponentIndex(archetypeIndex); !ok {
-		cs.componentIndices.SetIndex(archetypeIndex, 0)
+	if _, ok, _ := cs.ComponentIndices.ComponentIndex(archetypeIndex); !ok {
+		cs.ComponentIndices.SetIndex(archetypeIndex, 0)
 	} else {
-		cs.componentIndices.IncrementIndex(archetypeIndex)
+		cs.ComponentIndices.IncrementIndex(archetypeIndex)
 	}
-	idx, _, _ := cs.componentIndices.ComponentIndex(archetypeIndex)
+	idx, _, _ := cs.ComponentIndices.ComponentIndex(archetypeIndex)
 	return idx, nil
 }
 
 // Move moves the bytes of data of the component in the archetype.
 func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) {
-	cs.componentIndices.DecrementIndex(src)
-	cs.componentIndices.IncrementIndex(dst)
+	cs.ComponentIndices.DecrementIndex(src)
+	cs.ComponentIndices.IncrementIndex(dst)
 }
 
 // Storage returns the component data storage accessor.
@@ -60,7 +60,7 @@ func (cs *Components) Remove(ai ArchetypeIndex, comps []component.IComponentType
 	for _, ct := range comps {
 		cs.remove(ct, ai, ci)
 	}
-	cs.componentIndices.DecrementIndex(ai)
+	cs.ComponentIndices.DecrementIndex(ai)
 }
 
 func (cs *Components) remove(ct component.IComponentType, ai ArchetypeIndex, ci ComponentIndex) {

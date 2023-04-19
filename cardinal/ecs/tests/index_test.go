@@ -1,6 +1,7 @@
-package storage
+package tests
 
 import (
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"testing"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
@@ -9,15 +10,15 @@ import (
 
 func TestIndex(t *testing.T) {
 	var (
-		ca = NewMockComponentType(struct{}{}, nil)
-		cb = NewMockComponentType(struct{}{}, nil)
-		cc = NewMockComponentType(struct{}{}, nil)
+		ca = storage.NewMockComponentType(struct{}{}, nil)
+		cb = storage.NewMockComponentType(struct{}{}, nil)
+		cc = storage.NewMockComponentType(struct{}{}, nil)
 	)
 
-	index := NewArchetypeComponentIndex()
+	index := storage.NewArchetypeComponentIndex()
 
-	layoutA := NewLayout([]component.IComponentType{ca})
-	layoutB := NewLayout([]component.IComponentType{ca, cb})
+	layoutA := storage.NewLayout([]component.IComponentType{ca})
+	layoutB := storage.NewLayout([]component.IComponentType{ca, cb})
 
 	index.Push(layoutA)
 	index.Push(layoutB)
@@ -45,10 +46,10 @@ func TestIndex(t *testing.T) {
 
 	for _, tt := range tests {
 		it := index.Search(tt.filter)
-		if len(it.values) != tt.expected {
+		if len(it.Values) != tt.expected {
 			t.Errorf("Index should have %d archetypes", tt.expected)
 		}
-		if it.current != 0 && it.HasNext() {
+		if it.Current != 0 && it.HasNext() {
 			t.Errorf("Index should have 0 as current")
 		}
 		if tt.expected == 0 && it.HasNext() {

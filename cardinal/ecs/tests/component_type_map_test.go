@@ -1,6 +1,7 @@
-package storage
+package tests
 
 import (
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -12,9 +13,9 @@ type barFoo struct{}
 
 func TestComponentTypeMap(t *testing.T) {
 
-	fb := NewMockComponentType(fooBar{}, fooBar{})
-	bf := NewMockComponentType(barFoo{}, barFoo{})
-	ctm := NewComponentTypeMap()
+	fb := storage.NewMockComponentType(fooBar{}, fooBar{})
+	bf := storage.NewMockComponentType(barFoo{}, barFoo{})
+	ctm := storage.NewComponentTypeMap()
 
 	ctm.Register(fb)
 	ctm.Register(bf)
