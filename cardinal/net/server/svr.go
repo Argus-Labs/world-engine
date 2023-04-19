@@ -5,9 +5,9 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"github.com/argus-labs/cardinal/ECS"
-	"github.com/argus-labs/cardinal/ECS/storage"
-	v1 "github.com/argus-labs/cardinal/net/proto/gen/go/ecs/v1"
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	v1 "github.com/argus-labs/world-engine/cardinal/net/proto/gen/go/ecs/v1"
 )
 
 var _ v1.GameServer = gameServer{}
@@ -17,14 +17,14 @@ func NewGameServer(backend *redis.Client) v1.GameServer {
 }
 
 type gameServer struct {
-	world   ECS.World
+	world   ecs.World
 	backend *redis.Client
 }
 
 func (i gameServer) StartGameLoop(ctx context.Context, loop *v1.MsgStartGameLoop) (*v1.MsgStartGameLoopResponse, error) {
 	worldID := 0 // TODO: figure this out
 	store := storage.NewRedisStorage(i.backend, worldID)
-	world := ECS.NewWorld(store, worldID)
+	world := ecs.NewWorld(store, worldID)
 	i.world = world
 	// from here.. we need to initialize the world in the ECS system. loading components, making entities, etc etc..
 	// how will that look?
