@@ -3,7 +3,7 @@ package storage
 import (
 	"fmt"
 
-	"github.com/argus-labs/cardinal/ECS/entity"
+	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 )
 
 /*

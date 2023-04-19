@@ -5,7 +5,7 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/argus-labs/cardinal/ECS/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
 func TestComponents(t *testing.T) {

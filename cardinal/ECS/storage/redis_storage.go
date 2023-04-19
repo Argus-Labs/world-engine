@@ -8,8 +8,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 
-	"github.com/argus-labs/cardinal/ECS/component"
-	"github.com/argus-labs/cardinal/ECS/entity"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 )
 
 // Archetypes can just be stored in program memory. It just a structure that allows us to quickly

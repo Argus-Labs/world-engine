@@ -12,8 +12,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gotest.tools/v3/assert"
 
-	"github.com/argus-labs/cardinal/ECS/component"
-	"github.com/argus-labs/cardinal/ECS/entity"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 )
 
 var _ encoding.BinaryMarshaler = Foo{}

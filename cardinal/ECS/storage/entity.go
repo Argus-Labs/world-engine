@@ -1,8 +1,8 @@
 package storage
 
 import (
-	"github.com/argus-labs/cardinal/ECS/component"
-	"github.com/argus-labs/cardinal/ECS/entity"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 )
 
 // Entity is identifier of an Ent.

@@ -5,8 +5,8 @@ import (
 	"encoding/gob"
 	"fmt"
 
-	"github.com/argus-labs/cardinal/ECS/component"
-	"github.com/argus-labs/cardinal/ECS/entity"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 )
 
 // Entry is a struct that contains an Ent and a location in an archetype.

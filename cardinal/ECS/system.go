@@ -1,3 +1,3 @@
-package ECS
+package ecs
 
 type System func(w World)

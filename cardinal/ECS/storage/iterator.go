@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/argus-labs/cardinal/ECS/entity"
+	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 )
 
 // EntityIterator is an iterator for Ent lists in archetypes.

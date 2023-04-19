@@ -1,12 +1,12 @@
-package ECS
+package ecs
 
 import (
 	"fmt"
 
-	"github.com/argus-labs/cardinal/ECS/component"
-	"github.com/argus-labs/cardinal/ECS/entity"
-	"github.com/argus-labs/cardinal/ECS/filter"
-	"github.com/argus-labs/cardinal/ECS/storage"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
+	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 )
 
 // WorldId is a unique identifier for a world.

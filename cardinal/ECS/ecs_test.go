@@ -1,4 +1,4 @@
-package ECS
+package ecs
 
 import (
 	"testing"
@@ -7,8 +7,8 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gotest.tools/v3/assert"
 
-	"github.com/argus-labs/cardinal/ECS/filter"
-	"github.com/argus-labs/cardinal/ECS/storage"
+	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 )
 
 type EnergyComponent struct {

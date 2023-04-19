@@ -1,7 +1,7 @@
 package filter
 
 import (
-	"github.com/argus-labs/cardinal/ECS/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
 type contains struct {

@@ -1,7 +1,7 @@
 package filter
 
 import (
-	"github.com/argus-labs/cardinal/ECS/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
 func containsComponent(components []component.IComponentType, c component.IComponentType) bool {

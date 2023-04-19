@@ -1,9 +1,9 @@
 package storage
 
 import (
-	"github.com/argus-labs/cardinal/ECS/component"
-	"github.com/argus-labs/cardinal/ECS/entity"
-	"github.com/argus-labs/cardinal/ECS/filter"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
+	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 )
 
 func NewLegacyStorage() WorldStorage {
