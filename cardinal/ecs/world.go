@@ -236,7 +236,9 @@ func (w *world) removeAtLocation(ent storage.Entity, loc *storage.Location) erro
 	componentIndex := loc.CompIndex
 	archetype := w.store.ArchAccessor.Archetype(archIndex)
 	archetype.SwapRemove(int(componentIndex))
-	w.store.CompStore.Remove(archIndex, archetype.Layout().Components(), componentIndex)
+	if err := w.store.CompStore.Remove(archIndex, archetype.Layout().Components(), componentIndex); err != nil {
+		return err
+	}
 	if int(componentIndex) < len(archetype.Entities()) {
 		swapped := archetype.Entities()[componentIndex]
 		if err := w.store.EntityLocStore.Set(swapped.ID(), loc); err != nil {
@@ -290,10 +292,14 @@ func (w *world) TransferArchetype(from storage.ArchetypeIndex, to storage.Archet
 				return 0, err
 			}
 		} else {
-			store.SwapRemove(from, idx)
+			if _, err := store.SwapRemove(from, idx); err != nil {
+				return 0, nil
+			}
 		}
 	}
-	w.store.CompStore.Move(from, to)
+	if err := w.store.CompStore.Move(from, to); err != nil {
+		return 0, err
+	}
 
 	return storage.ComponentIndex(len(toArch.Entities()) - 1), nil
 }

@@ -71,8 +71,7 @@ func (c *ComponentType[T]) Set(entry *storage.Entry, component *T) error {
 	if err != nil {
 		return err
 	}
-	c.w.SetComponent(c, bz, entry.Loc.ArchIndex, entry.Loc.CompIndex)
-	return nil
+	return c.w.SetComponent(c, bz, entry.Loc.ArchIndex, entry.Loc.CompIndex)
 }
 
 // Each iterates over the entityLocationStore that have the component.
