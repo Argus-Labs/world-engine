@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -13,8 +11,6 @@ import (
 
 	// SIDECAR
 	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
-	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
-
 	// CARDINAL
 	"buf.build/gen/go/argus-labs/cardinal/grpc/go/ecs/ecsv1grpc"
 )
@@ -22,6 +18,8 @@ import (
 var (
 	sidecar  g1.SidecarClient     = nil
 	cardinal ecsv1grpc.GameClient = nil
+
+	CustomRPCs = []CustomRPC{StartGameRPC, MintCoinsRPC}
 )
 
 // InitializerFunction contains the function signature (minus function name, which MUST be InitModule) that the nakama runtime expects.
@@ -31,8 +29,10 @@ type InitializerFunction func(context.Context, runtime.Logger, *sql.DB, runtime.
 var moduleInit InitializerFunction = func(ctx context.Context, logger runtime.Logger, db *sql.DB, module runtime.NakamaModule, initializer runtime.Initializer) error {
 	initStart := time.Now()
 
-	if err := initializer.RegisterRpc("mint-coins", RpcMintCoins); err != nil {
-		return err
+	for _, c := range CustomRPCs {
+		if err := initializer.RegisterRpc(c.name, c.f); err != nil {
+			return err
+		}
 	}
 
 	logger.Info("module loaded in %vms", time.Since(initStart).Milliseconds())
@@ -69,25 +69,3 @@ func getClient[client any](target string, getter func(grpc.ClientConnInterface) 
 /*
 	custom rpc stuff
 */
-
-type MintCoinsResponse struct {
-	Success  bool   `json:"success"`
-	Response string `json:"response"`
-}
-
-func RpcMintCoins(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-	logger.Debug("MintCoins RPC called")
-	response := &MintCoinsResponse{Success: true}
-	res, err := sidecar.MintCoins(ctx, &v1.MsgMintCoins{Amount: 10, Denom: "NAKAMA"})
-	if err != nil {
-		return "", runtime.NewError(fmt.Sprintf("call to sidecar failed: %s", err.Error()), 1)
-	}
-	logger.Info("mint coins response: %s", res.String())
-	response.Response = res.String()
-	out, err := json.Marshal(response)
-	if err != nil {
-		logger.Error("cannot marshal response: %w", err)
-		return "", runtime.NewError("cannot marshal response", 13)
-	}
-	return string(out), nil
-}

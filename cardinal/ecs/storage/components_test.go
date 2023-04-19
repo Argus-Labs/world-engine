@@ -53,7 +53,8 @@ func TestComponents(t *testing.T) {
 			if !ok {
 				t.Errorf("storage should contain the component at %d, %d", tt.archIdx, tt.compIdx)
 			}
-			bz, _ := st.Component(tt.archIdx, tt.compIdx)
+			bz, err := st.Component(tt.archIdx, tt.compIdx)
+			assert.NilError(t, err)
 			dat, err := Decode[ComponentData](bz)
 			assert.NilError(t, err)
 			dat.ID = tt.ID
