@@ -2,7 +2,7 @@
 id: eugny
 title: Building Modules
 file_version: 1.1.2
-app_version: 1.1.5
+app_version: 1.6.3
 ---
 
 # Structure of Cosmos Modules
@@ -15,68 +15,66 @@ Cosmos modules generally have 6 parts to them: protobuf definitions, codec, Mess
 
 ### Generating Protobuf Files
 
-If you’ve made edits or built new protobuf modules, you can generate the protobuf stubs by running the `gen` script in the `📄 chain/Makefile`. (i.e. `make gen`).
+If you’ve made edits or built new protobuf modules, you can generate the protobuf stubs using [Mage](https://magefile.org/). Run `mage proto:all` in the root directory to generate, format, and lint all protobuf files.
 
 ### Defining New Protobuf Modules
 
 Protobuf definitions are the outer skeleton of what your module will look like. This is generally the first place cosmos devs look to see how your module will work. Modules will commonly define 3 protobuf files:
 
 *   Msg service (transactions/state transitions) `tx.proto`
-    
+
     *   this defines the RPC endpoints for the transactions, and their corresponding request and return types.
-        
+
         Example:
-        
-    
+
     ```
     syntax = "proto3";
-    
+
     package argus.adapter.v1;
-    
+
     option go_package = "github.com/argus-labs/argus/x/adapter/types/v1";
-    
+
     service Msg {
       // ClaimQuestReward claims a quest reward.
       rpc ClaimQuestReward(MsgClaimQuestReward) returns (MsgClaimQuestRewardResponse);
     }
-    
+
     // MsgClaimQuestReward is the Msg/ClaimQuestReward request type.
     message MsgClaimQuestReward {
       // user_id is the game client user_id.
       string user_id = 1;
-    
+
       // quest_id is the id of the quest that was completed.
       string quest_id = 2;
     }
-    
+
     // MsgClaimQuestRewardResponse is the Msg/ClaimQuestReward response type.
     message MsgClaimQuestRewardResponse {
       // reward_id is the ID of the reward claimed.
       string reward_id = 1;
     }
     ```
-    
+
     <br/>
-    
+
 *   Query service (state queries) `query.proto`
-    
+
     *   this defines the query RPC endpoints that can read from the blockchain state.
-        
+
     *   query message request types should be prefixed by `Query` and post-fixed by `Request`
-        
+
     *   query message return types should be prefixed by `Query` post-fixed by `Response`
-        
-    
+
     Example:
-    
+
     ```
     syntax = "proto3";
     package ethermint.evm.v1;
     option go_package = "github.com/evmos/ethermint/x/evm/types";
-    
+
     import "gogoproto/gogo.proto";
     import "google/api/annotations.proto";
-    
+
     // Query defines the gRPC querier service.
     service Query {
       // Account queries an Ethereum account.
@@ -84,16 +82,16 @@ Protobuf definitions are the outer skeleton of what your module will look like. 
         option (google.api.http).get = "/ethermint/evm/v1/account/{address}";
       }
     }
-    
+
     // QueryAccountRequest is the request type for the Query/Account RPC method.
     message QueryAccountRequest {
       option (gogoproto.equal) = false;
       option (gogoproto.goproto_getters) = false;
-    
+
       // address is the ethereum hex address to query the account for.
       string address = 1;
     }
-    
+
     // QueryAccountResponse is the response type for the Query/Account RPC method.
     message QueryAccountResponse {
       // balance is the balance of the EVM denomination.
@@ -104,24 +102,19 @@ Protobuf definitions are the outer skeleton of what your module will look like. 
       uint64 nonce = 3;
     }
     ```
-    
-
-<br/>
-
 *   Genesis `genesis.proto`
-    
+
     *   This file defines the state needed to boot the module up with an initial state. For example, in the EVM module, some accounts need already be instantiated (i.e. for airdrops). Here is an example of such a file:
-        
-    
+
     ```
     syntax = "proto3";
     package ethermint.evm.v1;
-    
+
     import "ethermint/evm/v1/evm.proto";
     import "gogoproto/gogo.proto";
-    
+
     option go_package = "github.com/evmos/ethermint/x/evm/types";
-    
+
     // GenesisState defines the evm module's genesis state.
     message GenesisState {
       // accounts is an array containing the ethereum genesis accounts.
@@ -129,7 +122,7 @@ Protobuf definitions are the outer skeleton of what your module will look like. 
       // params defines all the parameters of the module.
       Params params = 2 [(gogoproto.nullable) = false];
     }
-    
+
     // GenesisAccount defines an account to be initialized in the genesis state.
     // Its main difference between with Geth's GenesisAccount is that it uses a
     // custom storage type and that it doesn't contain the private key field.
@@ -142,22 +135,20 @@ Protobuf definitions are the outer skeleton of what your module will look like. 
       repeated State storage = 3 [(gogoproto.nullable) = false, (gogoproto.castrepeated) = "Storage"];
     }
     ```
-    
+
     *   GenesisState is the main object that will contain all the initial state needed for the module. Repeated nested messages will be iterated over and injected into the module state.
-        
-    
+
     Note: Your `go_package` option in the proto file should always point to the `types/<version>/` directory of your module.
-    
+
     ### Caveats
-    
+
     When creating messages or editing existing ones, there is one caveat with regard to protobuf types. While most types are okay for use in Cosmos SDK apps, the `map` type should be strictly avoided at all costs. `Map` iteration in Go is **NOT** deterministic, a property we must adhere to in blockchains. if you need a multi object container type, please use `repeated`.
-    
 
 # Codec
 
 Your generated types and services must be registered for use in the Cosmos SDK codec.
 
-First, lets define our global module codec. This will be used in some of our module’s `AppModule`<swm-token data-swm-token=":chain/x/adapter/module.go:38:2:2:`type AppModule struct {`"/> implementations.
+First, lets define our global module codec. This will be used in some of our module’s `AppModule`<swm-token data-swm-token=":.archive.chain/x/adapter/module.go:38:2:2:`type AppModule struct {`"/> implementations.
 
 ```
 import (
@@ -262,9 +253,8 @@ Start by importing the module package that contains the necessary interfaces:
 The following interfaces are **required** to be implemented to be plugged into Cosmos SDK:
 
 *   AppModuleBasic
-    
+
 *   AppModule
-    
 
 In order to ensure you fully implement these interfaces, place interface guards at the top of your file:
 
@@ -289,11 +279,10 @@ Some of the function implementations may be no-ops, or simply return nil, if the
 AppModule implementation files can be quite long, so if you need examples for how certain functions should be implemented, you can take a look at these repositories:
 
 *   [https://github.com/osmosis-labs/osmosis/blob/7374795e0de22f3a291ca59c5faffa7851acf3bd/x/superfluid/module.go](https://github.com/osmosis-labs/osmosis/blob/7374795e0de22f3a291ca59c5faffa7851acf3bd/x/superfluid/module.go)
-    
+
 *   [https://github.com/regen-network/regen-ledger/blob/release/v5.0.x/x/ecocredit/module/module.go](https://github.com/regen-network/regen-ledger/blob/release/v5.0.x/x/ecocredit/module/module.go)
-    
+
 *   [https://github.com/cosmos/cosmos-sdk/blob/release/v0.46.x/x/bank/module.go](https://github.com/cosmos/cosmos-sdk/blob/release/v0.46.x/x/bank/module.go)
-    
 
 # Keeper Implementations
 
@@ -390,11 +379,10 @@ import (
 Keeper implementations will vary based on use case, but most modules will be structured similarly. You can refer to the below repos to see examples:
 
 *   [https://github.com/cosmos/cosmos-sdk/blob/release/v0.46.x/x/authz/keeper/keeper.go](https://github.com/cosmos/cosmos-sdk/blob/release/v0.46.x/x/authz/keeper/keeper.go)
-    
+
 *   [https://github.com/evmos/ethermint/blob/main/x/evm/keeper/msg\_server.go](https://github.com/evmos/ethermint/blob/main/x/evm/keeper/msg_server.go)
-    
+
 *   [https://github.com/osmosis-labs/osmosis/blob/main/x/gamm/keeper/msg\_server.go](https://github.com/osmosis-labs/osmosis/blob/main/x/gamm/keeper/msg_server.go)
-    
 
 # Command Line Functionality
 
@@ -490,11 +478,11 @@ The following will guide you on how to wire up a new module into the Argus appli
 
 Start by defining the items needed by your module in `app/keppers`. If your module needs to access the store, head to `keys.go` and add your module’s StoreKey to the `NewKVStoreKeys`call. If your module needs access to the Transient store, do the same with the `NewTransientStoreKeys` call.
 
-Similarly, if your module needs access to the param module, head to `📄 chain/app/keepers/params.go` and add a subspace in the `initParamsKeeper`<swm-token data-swm-token=":chain/app/keepers/params.go:26:2:2:`func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey storetypes.StoreKey) paramskeeper.Keeper {`"/> function using your module’s name.
+Similarly, if your module needs access to the param module, head to `📄 .archive.chain/app/keepers/params.go` and add a subspace in the `initParamsKeeper`<swm-token data-swm-token=":.archive.chain/app/keepers/params.go:23:2:2:`func initParamsKeeper(appCodec codec.BinaryCodec, legacyAmino *codec.LegacyAmino, key, tkey storetypes.StoreKey) paramskeeper.Keeper {`"/> function using your module’s name.
 
-Now head to `📄 chain/app/keepers/keepers.go`. Add your Keeper to the `AppKeepers`<swm-token data-swm-token=":chain/app/keepers/keepers.go:79:2:2:`type AppKeepers struct {`"/> struct.
+Now head to `📄 .archive.chain/app/keepers/keepers.go`. Add your Keeper to the `AppKeepers`<swm-token data-swm-token=":.archive.chain/app/keepers/keepers.go:65:2:2:`type AppKeepers struct {`"/> struct.
 
-Then initialize and set the keeper to the struct in the `NewAppKeeper`<swm-token data-swm-token=":chain/app/keepers/keepers.go:123:2:2:`func NewAppKeeper(`"/> function. Keep in mind the order of when the keepers are initialized. If your keeper relies on, for example, the bank keeper, you will need to initialize your keeper _after_ the bank keeper has been initialized.
+Then initialize and set the keeper to the struct in the `NewAppKeeper`<swm-token data-swm-token=":.archive.chain/app/keepers/keepers.go:105:2:2:`func NewAppKeeper(`"/> function. Keep in mind the order of when the keepers are initialized. If your keeper relies on, for example, the bank keeper, you will need to initialize your keeper _after_ the bank keeper has been initialized.
 
 ```
 appKeepers.MyCustomKeeper = mycustomkeeper.NewKeeper(
@@ -505,7 +493,7 @@ appKeepers.MyCustomKeeper = mycustomkeeper.NewKeeper(
 
 ## Module App Wiring
 
-Now head to `📄 chain/app/modules.go`. At the top of this file will be the module permissions. If your module mints, burns, or stakes coins, you will need to add permissions in this variable.
+Now head to `📄 .archive.chain/app/modules.go`. At the top of this file will be the module permissions. If your module mints, burns, or stakes coins, you will need to add permissions in this variable.
 
 ```
 var maccPerms = map[string][]string{
@@ -523,7 +511,7 @@ var ModuleBasics = module.NewBasicManager(
 )
 ```
 
-Then we return our AppModule in the `appModules`<swm-token data-swm-token=":chain/app/modules.go:118:2:2:`func appModules(`"/> function.
+Then we return our AppModule in the `appModules`<swm-token data-swm-token=":.archive.chain/app/modules.go:107:2:2:`func appModules(`"/> function.
 
 ```
 func appModules(
@@ -538,9 +526,9 @@ func appModules(
 }
 ```
 
-And finally, add your module name to the `orderInitBlockers`<swm-token data-swm-token=":chain/app/modules.go:247:2:2:`func orderInitBlockers() []string {`"/> function, and the begin/end block functions if applicable. These are crucial if any of your genesis and or begin/end block functions are dependent on some other data that runs as part of other module’s functions.
+And finally, add your module name to the `orderInitBlockers`<swm-token data-swm-token=":.archive.chain/app/modules.go:227:2:2:`func orderInitBlockers() []string {`"/> function, and the begin/end block functions if applicable. These are crucial if any of your genesis and or begin/end block functions are dependent on some other data that runs as part of other module’s functions.
 
-For example, if you need to do some sort of logic before staking rewards are allocated at the end of each block (handled by the Cosmos SDK’s `Distribution` module, you would need to place your module name _before_ `Distribution` in the `orderEndBlockers`<swm-token data-swm-token=":chain/app/modules.go:219:2:2:`func orderEndBlockers() []string {`"/> function.
+For example, if you need to do some sort of logic before staking rewards are allocated at the end of each block (handled by the Cosmos SDK’s `Distribution` module, you would need to place your module name _before_ `Distribution` in the `orderEndBlockers`<swm-token data-swm-token=":.archive.chain/app/modules.go:201:2:2:`func orderEndBlockers() []string {`"/> function.
 
 <br/>
 

@@ -13,9 +13,11 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gotest.tools/assert"
 
-	argus "github.com/argus-labs/argus/app"
-	"github.com/argus-labs/argus/app/simparams"
-	"github.com/argus-labs/argus/tests"
+	"github.com/argus-labs/world-engine/chain/runtime"
+	argus "github.com/argus-labs/world-engine/chain/runtime/config"
+	"github.com/argus-labs/world-engine/chain/utils"
+
+	"cosmossdk.io/simapp/params"
 )
 
 type SideCarSuite struct {
@@ -23,17 +25,19 @@ type SideCarSuite struct {
 	cfg           TestingConfig
 	sidecarClient sidecarv1grpc.SidecarClient
 	addr          string // this addr is derived from the mnemonic in ../../scripts/single-node.sh
-	encCfg        simparams.EncodingConfig
+	encCfg        params.EncodingConfig
 }
 
 func (suite *SideCarSuite) SetupTest() {
-	suite.cfg = tests.LoadConfig[TestingConfig]()
+	var err error
+	suite.cfg, err = utils.LoadConfig[TestingConfig]()
+	assert.NilError(suite.T(), err)
 	if !suite.cfg.EnableDockerTests {
 		suite.T().Skip("skipping test suite. these tests only runs in docker")
 	}
 	suite.addr = "cosmos1tk7sluasye598msnjlujrp9hd67fl4gylx7z0z" // this addr is derived from the mnemonic in scripts/single-node.sh
 	suite.sidecarClient = GetSidecarClient(suite.T(), suite.cfg.SidecarURL)
-	suite.encCfg = argus.MakeEncodingConfig(argus.ModuleBasics)
+	suite.encCfg = argus.MakeEncodingConfig(runtime.ModuleBasics)
 }
 
 // TestingConfig is a testing configuration. These values are typically set via docker.
