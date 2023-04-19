@@ -60,6 +60,8 @@ import (
 
 	"pkg.berachain.dev/polaris/cosmos/crypto/keyring"
 	evmante "pkg.berachain.dev/polaris/cosmos/x/evm/ante"
+
+	"github.com/argus-labs/world-engine/chain/runtime"
 )
 
 // encodingConfig := encoding.MakeConfig(app.ModuleBasics)
@@ -75,13 +77,17 @@ import (
 // 	WithKeyringOptions(hd.EthSecp256k1Option()).
 // 	WithViper(EnvPrefix)
 
+<<<<<<<< HEAD:chain/cmd/world/cmd/root.go
 // NewRootCmd creates a new root command for world. It is called once in the
+========
+// NewRootCmd creates a new root command for argusd. It is called once in the
+>>>>>>>> main:chain/cmd/argusd/cmd/root.go
 // main function.
 func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// note, this is not necessary when using app wiring, as depinject can be directly used.
 	// for consistency between app-v1 and app-v2, we do it the same way via methods on simapp
-	tempApp := runtime.NewPolarisApp(log.NewNopLogger(), dbm.NewMemDB(), nil, true, simtestutil.NewAppOptionsWithFlagHome(tempDir()))
+	tempApp := runtime.NewApp(log.NewNopLogger(), dbm.NewMemDB(), nil, true, simtestutil.NewAppOptionsWithFlagHome(tempDir()))
 	encodingConfig := params.EncodingConfig{
 		InterfaceRegistry: tempApp.InterfaceRegistry(),
 		Codec:             tempApp.AppCodec(),
@@ -100,7 +106,11 @@ func NewRootCmd() *cobra.Command {
 		WithViper("") // In simapp, we don't use any prefix for env variables.
 
 	rootCmd := &cobra.Command{
+<<<<<<<< HEAD:chain/cmd/world/cmd/root.go
 		Use:   "world",
+========
+		Use:   "argusd",
+>>>>>>>> main:chain/cmd/argusd/cmd/root.go
 		Short: "simulation app",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			// set the default command outputs
@@ -215,7 +225,11 @@ func addModuleInitFlags(startCmd *cobra.Command) {
 	crisis.AddModuleInitFlags(startCmd)
 }
 
+<<<<<<<< HEAD:chain/cmd/world/cmd/root.go
 // genesisCommand builds genesis-related `world genesis` command. Users may provide application specific commands as a parameter.
+========
+// genesisCommand builds genesis-related `argusd genesis` command. Users may provide application specific commands as a parameter.
+>>>>>>>> main:chain/cmd/argusd/cmd/root.go
 func genesisCommand(encodingConfig params.EncodingConfig, cmds ...*cobra.Command) *cobra.Command {
 	cmd := genutilcli.GenesisCoreCommand(encodingConfig.TxConfig, runtime.ModuleBasics, runtime.DefaultNodeHome)
 
@@ -283,7 +297,7 @@ func newApp(
 ) servertypes.Application {
 	baseappOptions := server.DefaultBaseappOptions(appOpts)
 
-	return runtime.NewPolarisApp(
+	return runtime.NewApp(
 		logger, db, traceStore, true,
 		appOpts,
 		baseappOptions...,
@@ -301,7 +315,7 @@ func appExport(
 	appOpts servertypes.AppOptions,
 	modulesToExport []string,
 ) (servertypes.ExportedApp, error) {
-	var polarisApp *runtime.PolarisApp
+	var application *runtime.App
 
 	// this check is necessary as we use the flag in x/upgrade.
 	// we can exit more gracefully by checking the flag here.
@@ -320,20 +334,20 @@ func appExport(
 	appOpts = viperAppOpts
 
 	if height != -1 {
-		polarisApp = runtime.NewPolarisApp(logger, db, traceStore, false, appOpts)
+		application = runtime.NewApp(logger, db, traceStore, false, appOpts)
 
-		if err := polarisApp.LoadHeight(height); err != nil {
+		if err := application.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		polarisApp = runtime.NewPolarisApp(logger, db, traceStore, true, appOpts)
+		application = runtime.NewApp(logger, db, traceStore, true, appOpts)
 	}
 
-	return polarisApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)
+	return application.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)
 }
 
 var tempDir = func() string {
-	dir, err := os.MkdirTemp("", "polarisApp")
+	dir, err := os.MkdirTemp("", "worldEngineApp")
 	if err != nil {
 		dir = runtime.DefaultNodeHome
 	}
