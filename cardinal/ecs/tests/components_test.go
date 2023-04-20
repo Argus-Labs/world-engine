@@ -49,13 +49,9 @@ func TestComponents(t *testing.T) {
 	for _, tt := range tests {
 		for _, comp := range tt.layout.Components() {
 			st := components.Storage(comp)
-<<<<<<< main:cardinal/ecs/storage/components_test.go
-			if has, err := st.Contains(tt.archIdx, tt.compIdx); !has || err != nil {
-=======
 			ok, err := st.Contains(tt.archIdx, tt.compIdx)
 			assert.NilError(t, err)
 			if !ok {
->>>>>>> refactor(cardinal): reorg test files:cardinal/ecs/tests/components_test.go
 				t.Errorf("storage should contain the component at %d, %d", tt.archIdx, tt.compIdx)
 			}
 			bz, _ := st.Component(tt.archIdx, tt.compIdx)
@@ -80,27 +76,18 @@ func TestComponents(t *testing.T) {
 	storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx)
 	components.Move(srcArchIdx, dstArchIdx)
 
-<<<<<<< main:cardinal/ecs/storage/components_test.go
-	if has, err := storage.Contains(srcArchIdx, target.compIdx); err == nil && has {
-=======
 	ok, err := storage.Contains(srcArchIdx, target.compIdx)
 	if ok {
->>>>>>> refactor(cardinal): reorg test files:cardinal/ecs/tests/components_test.go
 		t.Errorf("storage should not contain the component at %d, %d", target.archIdx, target.compIdx)
 	}
 	if idx, _, _ := components.ComponentIndices.ComponentIndex(srcArchIdx); idx != -1 {
 		t.Errorf("component Index should be -1 at %d but %d", srcArchIdx, idx)
 	}
 
-<<<<<<< main:cardinal/ecs/storage/components_test.go
-	newCompIdx, _, _ := components.componentIndices.ComponentIndex(dstArchIdx)
-	if has, err := storage.Contains(dstArchIdx, newCompIdx); !has || err != nil {
-=======
 	newCompIdx, _, _ := components.ComponentIndices.ComponentIndex(dstArchIdx)
 
 	ok, err = storage.Contains(dstArchIdx, newCompIdx)
 	if !ok {
->>>>>>> refactor(cardinal): reorg test files:cardinal/ecs/tests/components_test.go
 		t.Errorf("storage should contain the component at %d, %d", dstArchIdx, target.compIdx)
 	}
 
