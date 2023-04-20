@@ -1,10 +1,9 @@
-package ecs
+package tests
 
 import (
+	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
 	"gotest.tools/v3/assert"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
@@ -20,7 +19,7 @@ type OwnableComponent struct {
 	Owner string
 }
 
-func UpdateEnergySystem(w World) {
+func UpdateEnergySystem(w ecs.World) {
 	Energy.Each(w, func(entry *storage.Entry) {
 		energyPlanet, err := Energy.Get(entry)
 		if err != nil {
@@ -35,24 +34,14 @@ func UpdateEnergySystem(w World) {
 }
 
 var (
-	Energy  = NewComponentType[EnergyComponent]()
-	Ownable = NewComponentType[OwnableComponent]()
+	Energy  = ecs.NewComponentType[EnergyComponent]()
+	Ownable = ecs.NewComponentType[OwnableComponent]()
 )
-
-func getRedisClient(t *testing.T) *redis.Client {
-	s := miniredis.RunT(t)
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     s.Addr(),
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	})
-	return rdb
-}
 
 func Test_ECS(t *testing.T) {
 
 	redisClient := getRedisClient(t)
-	world := NewWorld(storage.NewRedisStorage(redisClient, "0"))
+	world := ecs.NewWorld(storage.NewRedisStorage(redisClient, "0"))
 
 	world.RegisterComponents(Energy, Ownable)
 
@@ -74,7 +63,7 @@ func Test_ECS(t *testing.T) {
 		assert.Equal(t, int64(10), energyPlanet.Amt)
 	})
 
-	q := NewQuery(filter.Or(filter.Contains(Energy), filter.Contains(Ownable)))
+	q := ecs.NewQuery(filter.Or(filter.Contains(Energy), filter.Contains(Ownable)))
 	amt := q.Count(world)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
 }

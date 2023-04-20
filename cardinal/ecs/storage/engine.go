@@ -62,8 +62,8 @@ type ArchetypeStorage interface {
 type EntryStorage interface {
 	SetEntry(entity.ID, *Entry) error
 	GetEntry(entity.ID) (*Entry, error)
-	SetEntity(entity.ID, Entity)
-	SetLocation(entity.ID, Location)
+	SetEntity(entity.ID, Entity) error
+	SetLocation(entity.ID, Location) error
 }
 
 type EntityManager interface {
