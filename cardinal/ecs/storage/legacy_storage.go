@@ -263,11 +263,11 @@ type entryStorageImpl struct {
 	entries []*Entry
 }
 
-func (e *entryStorageImpl) SetEntity(id entity.ID, e2 Entity) {
+func (e *entryStorageImpl) SetEntity(id entity.ID, e2 Entity) error {
 	e.entries[id].Ent = e2
 }
 
-func (e *entryStorageImpl) SetLocation(id entity.ID, location Location) {
+func (e *entryStorageImpl) SetLocation(id entity.ID, location Location) error {
 	e.entries[id].Loc = &location
 }
 
