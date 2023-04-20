@@ -265,10 +265,14 @@ type entryStorageImpl struct {
 
 func (e *entryStorageImpl) SetEntity(id entity.ID, e2 Entity) error {
 	e.entries[id].Ent = e2
+
+	return nil
 }
 
 func (e *entryStorageImpl) SetLocation(id entity.ID, location Location) error {
 	e.entries[id].Loc = &location
+
+	return nil
 }
 
 var _ EntryStorage = &entryStorageImpl{}
