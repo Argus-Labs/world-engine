@@ -4,10 +4,11 @@ import (
 	"testing"
 
 	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"gotest.tools/assert"
+
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 )
 
 func GetBankClient(t *testing.T, url string) banktypes.QueryClient {

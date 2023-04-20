@@ -1,9 +1,10 @@
-package storage
+package tests
 
 import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -12,10 +13,10 @@ import (
 func TestStorage_Bytes(t *testing.T) {
 	type Component struct{ ID string }
 	var (
-		componentType = NewMockComponentType[any](Component{}, Component{ID: "foo"})
+		componentType = storage.NewMockComponentType[any](Component{}, Component{ID: "foo"})
 	)
 
-	store := NewSliceStorage()
+	store := storage.NewSliceStorage()
 
 	tests := []struct {
 		ID       string
@@ -26,12 +27,12 @@ func TestStorage_Bytes(t *testing.T) {
 		{ID: "c", expected: "c"},
 	}
 
-	var archIdx ArchetypeIndex = 0
-	var compIdx ComponentIndex = 0
+	var archIdx storage.ArchetypeIndex = 0
+	var compIdx storage.ComponentIndex = 0
 	for _, test := range tests {
 		err := store.PushComponent(componentType, archIdx)
 		assert.NilError(t, err)
-		bz, err := Encode(Component{ID: test.ID})
+		bz, err := storage.Encode(Component{ID: test.ID})
 		assert.NilError(t, err)
 		fmt.Println(string(bz))
 		store.SetComponent(archIdx, compIdx, bz)
@@ -53,13 +54,13 @@ func TestStorage_Bytes(t *testing.T) {
 
 	removed, _ := store.SwapRemove(archIdx, 1)
 	assert.Assert(t, removed != nil, "removed component should not be nil")
-	comp, err := Decode[Component](removed)
+	comp, err := storage.Decode[Component](removed)
 	assert.NilError(t, err)
 	assert.Equal(t, comp.ID, "b", "removed component should have ID 'b'")
 
 	tests2 := []struct {
-		archIdx    ArchetypeIndex
-		cmpIdx     ComponentIndex
+		archIdx    storage.ArchetypeIndex
+		cmpIdx     storage.ComponentIndex
 		expectedID string
 	}{
 		{archIdx: 0, cmpIdx: 0, expectedID: "a"},
@@ -68,7 +69,7 @@ func TestStorage_Bytes(t *testing.T) {
 
 	for _, test := range tests2 {
 		compBz, _ := store.Component(test.archIdx, test.cmpIdx)
-		comp, err := Decode[Component](compBz)
+		comp, err := storage.Decode[Component](compBz)
 		assert.NilError(t, err)
 		assert.Equal(t, comp.ID, test.expectedID)
 		compIdx++

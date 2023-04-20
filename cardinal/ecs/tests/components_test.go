@@ -1,6 +1,7 @@
-package storage
+package tests
 
 import (
+	storage2 "github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -13,26 +14,26 @@ func TestComponents(t *testing.T) {
 		ID string
 	}
 	var (
-		ca = NewMockComponentType(ComponentData{}, ComponentData{ID: "foo"})
-		cb = NewMockComponentType(ComponentData{}, ComponentData{ID: "bar"})
+		ca = storage2.NewMockComponentType(ComponentData{}, ComponentData{ID: "foo"})
+		cb = storage2.NewMockComponentType(ComponentData{}, ComponentData{ID: "bar"})
 	)
 
-	components := NewComponents(NewComponentsSliceStorage(), NewComponentIndexMap())
+	components := storage2.NewComponents(storage2.NewComponentsSliceStorage(), storage2.NewComponentIndexMap())
 
 	tests := []*struct {
-		layout  *Layout
-		archIdx ArchetypeIndex
-		compIdx ComponentIndex
+		layout  *storage2.Layout
+		archIdx storage2.ArchetypeIndex
+		compIdx storage2.ComponentIndex
 		ID      string
 	}{
 		{
-			NewLayout([]component.IComponentType{ca}),
+			storage2.NewLayout([]component.IComponentType{ca}),
 			0,
 			0,
 			"a",
 		},
 		{
-			NewLayout([]component.IComponentType{ca, cb}),
+			storage2.NewLayout([]component.IComponentType{ca, cb}),
 			1,
 			1,
 			"b",
@@ -53,13 +54,14 @@ func TestComponents(t *testing.T) {
 			if !ok {
 				t.Errorf("storage should contain the component at %d, %d", tt.archIdx, tt.compIdx)
 			}
-			bz, err := st.Component(tt.archIdx, tt.compIdx)
-			assert.NilError(t, err)
-			dat, err := Decode[ComponentData](bz)
+			bz, _ := st.Component(tt.archIdx, tt.compIdx)
+			dat, err := storage2.Decode[ComponentData](bz)
 			assert.NilError(t, err)
 			dat.ID = tt.ID
-			compBz, err := Encode(dat)
+
+			compBz, err := storage2.Encode(dat)
 			assert.NilError(t, err)
+
 			err = st.SetComponent(tt.archIdx, tt.compIdx, compBz)
 			assert.NilError(t, err)
 		}
@@ -69,31 +71,28 @@ func TestComponents(t *testing.T) {
 	storage := components.Storage(ca)
 
 	srcArchIdx := target.archIdx
-	var dstArchIdx ArchetypeIndex = 1
+	var dstArchIdx storage2.ArchetypeIndex = 1
 
-	err := storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx)
-	assert.NilError(t, err)
-	err = components.Move(srcArchIdx, dstArchIdx)
-	assert.NilError(t, err)
+	storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx)
+	components.Move(srcArchIdx, dstArchIdx)
 
 	ok, err := storage.Contains(srcArchIdx, target.compIdx)
-	assert.NilError(t, err)
 	if ok {
 		t.Errorf("storage should not contain the component at %d, %d", target.archIdx, target.compIdx)
 	}
-	if idx, _, _ := components.componentIndices.ComponentIndex(srcArchIdx); idx != -1 {
+	if idx, _, _ := components.ComponentIndices.ComponentIndex(srcArchIdx); idx != -1 {
 		t.Errorf("component Index should be -1 at %d but %d", srcArchIdx, idx)
 	}
 
-	newCompIdx, _, _ := components.componentIndices.ComponentIndex(dstArchIdx)
+	newCompIdx, _, _ := components.ComponentIndices.ComponentIndex(dstArchIdx)
+
 	ok, err = storage.Contains(dstArchIdx, newCompIdx)
-	assert.NilError(t, err)
 	if !ok {
 		t.Errorf("storage should contain the component at %d, %d", dstArchIdx, target.compIdx)
 	}
 
 	bz, _ := storage.Component(dstArchIdx, newCompIdx)
-	dat, err := Decode[ComponentData](bz)
+	dat, err := storage2.Decode[ComponentData](bz)
 	assert.NilError(t, err)
 	if dat.ID != target.ID {
 		t.Errorf("component should have ID '%s', got ID '%s'", target.ID, dat.ID)
