@@ -400,16 +400,26 @@ func (r *RedisStorage) GetEntry(id entity.ID) (*Entry, error) {
 	return &decodedEntry, nil
 }
 
-func (r *RedisStorage) SetEntity(id entity.ID, e Entity) {
+func (r *RedisStorage) SetEntity(id entity.ID, e Entity) error {
 	entry, _ := r.GetEntry(id)
 	entry.Ent = e
-	r.SetEntry(id, entry)
+	err := r.SetEntry(id, entry)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (r *RedisStorage) SetLocation(id entity.ID, location Location) {
+func (r *RedisStorage) SetLocation(id entity.ID, location Location) error {
 	entry, _ := r.GetEntry(id)
 	entry.Loc = &location
-	r.SetEntry(id, entry)
+	err := r.SetEntry(id, entry)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ---------------------------------------------------------------------------
