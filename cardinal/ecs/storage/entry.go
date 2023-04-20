@@ -27,11 +27,14 @@ func NewEntry(id entity.ID, e entity.Entity, loc *Location) *Entry {
 // Get returns the component from the entry
 func Get[T any](w WorldAccessor, e *Entry, cType component.IComponentType) (*T, error) {
 	var comp *T
-	compBz, _ := e.Component(w, cType)
+	compBz, err := e.Component(w, cType)
+	if err != nil {
+		return nil, err
+	}
 	var buf bytes.Buffer
 	buf.Write(compBz)
 	dec := gob.NewDecoder(&buf)
-	err := dec.Decode(comp)
+	err = dec.Decode(comp)
 	return comp, err
 }
 

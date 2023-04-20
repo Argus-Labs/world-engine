@@ -3,9 +3,10 @@ package storage
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
-	"os"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
@@ -327,14 +328,14 @@ func (r *RedisStorage) Location(id entity.ID) (*Location, error) {
 	return &loc, nil
 }
 
-func (r *RedisStorage) ArchetypeIndex(id entity.ID) ArchetypeIndex {
-	loc, _ := r.Location(id)
-	return loc.ArchIndex
+func (r *RedisStorage) ArchetypeIndex(id entity.ID) (ArchetypeIndex, error) {
+	loc, err := r.Location(id)
+	return loc.ArchIndex, err
 }
 
-func (r *RedisStorage) ComponentIndexForEntity(id entity.ID) ComponentIndex {
-	loc, _ := r.Location(id)
-	return loc.CompIndex
+func (r *RedisStorage) ComponentIndexForEntity(id entity.ID) (ComponentIndex, error) {
+	loc, err := r.Location(id)
+	return loc.CompIndex, err
 }
 
 func (r *RedisStorage) Len() (int, error) {
@@ -390,9 +391,12 @@ func (r *RedisStorage) GetEntry(id entity.ID) (*Entry, error) {
 }
 
 func (r *RedisStorage) SetEntity(id entity.ID, e Entity) error {
-	entry, _ := r.GetEntry(id)
+	entry, err := r.GetEntry(id)
+	if err != nil {
+		return err
+	}
 	entry.Ent = e
-	err := r.SetEntry(id, entry)
+	err = r.SetEntry(id, entry)
 	if err != nil {
 		return err
 	}
@@ -401,9 +405,12 @@ func (r *RedisStorage) SetEntity(id entity.ID, e Entity) error {
 }
 
 func (r *RedisStorage) SetLocation(id entity.ID, location Location) error {
-	entry, _ := r.GetEntry(id)
+	entry, err := r.GetEntry(id)
+	if err != nil {
+		return err
+	}
 	entry.Loc = &location
-	err := r.SetEntry(id, entry)
+	err = r.SetEntry(id, entry)
 	if err != nil {
 		return err
 	}

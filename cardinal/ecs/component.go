@@ -60,8 +60,12 @@ func encodeComponent[T any](comp T) ([]byte, error) {
 
 // Get returns component data from the entry.
 func (c *ComponentType[T]) Get(entry *storage.Entry) (T, error) {
-	bz, _ := entry.Component(c.w, c)
-	comp, err := decodeComponent[T](bz)
+	var comp T
+	bz, err := entry.Component(c.w, c)
+	if err != nil {
+		return comp, err
+	}
+	comp, err = decodeComponent[T](bz)
 	return comp, err
 }
 
@@ -71,7 +75,10 @@ func (c *ComponentType[T]) Set(entry *storage.Entry, component *T) error {
 	if err != nil {
 		return err
 	}
-	c.w.SetComponent(c, bz, entry.Loc.ArchIndex, entry.Loc.CompIndex)
+	err = c.w.SetComponent(c, bz, entry.Loc.ArchIndex, entry.Loc.CompIndex)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -86,13 +93,16 @@ func (c *ComponentType[T]) First(w World) (*storage.Entry, bool, error) {
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w World) *storage.Entry {
-	e, ok, _ := c.query.First(w)
+func (c *ComponentType[T]) MustFirst(w World) (*storage.Entry, error) {
+	e, ok, err := c.query.First(w)
+	if err != nil {
+		return nil, err
+	}
 	if !ok {
 		panic(fmt.Sprintf("no entity has the component %s", c.name))
 	}
 
-	return e
+	return e, nil
 }
 
 // SetValue sets the value of the component.

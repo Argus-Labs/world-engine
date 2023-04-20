@@ -169,20 +169,20 @@ func NewLocationMap() EntityLocationStorage {
 	}
 }
 
-// ContainsEntity returns true if the storage contains the given Ent ID.
+// ContainsEntity returns true if the storage contains the given entity ID.
 func (lm *LocationMap) ContainsEntity(id entity.ID) (bool, error) {
 	val := lm.locations[id]
 	return val != nil && val.Valid, nil
 }
 
-// Remove removes the given Ent ID from the storage.
+// Remove removes the given entity ID from the storage.
 func (lm *LocationMap) Remove(id entity.ID) error {
 	lm.locations[id].Valid = false
 	lm.len--
 	return nil
 }
 
-// Insert inserts the given Ent ID and archetype Index to the storage.
+// Insert inserts the given entity ID and archetype Index to the storage.
 func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component ComponentIndex) error {
 	if int(id) == len(lm.locations) {
 		loc := NewLocation(archetype, component)
@@ -200,25 +200,25 @@ func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component 
 	return nil
 }
 
-// Set sets the given Ent ID and archetype Index to the storage.
+// Set sets the given entity ID and archetype Index to the storage.
 func (lm *LocationMap) Set(id entity.ID, loc *Location) error {
 	lm.Insert(id, loc.ArchIndex, loc.CompIndex)
 	return nil
 }
 
-// Location returns the location of the given Ent ID.
+// Location returns the location of the given entity ID.
 func (lm *LocationMap) Location(id entity.ID) (*Location, error) {
 	return lm.locations[id], nil
 }
 
-// ArchetypeIndex returns the archetype of the given Ent ID.
-func (lm *LocationMap) ArchetypeIndex(id entity.ID) ArchetypeIndex {
-	return lm.locations[id].ArchIndex
+// ArchetypeIndex returns the archetype of the given entity ID.
+func (lm *LocationMap) ArchetypeIndex(id entity.ID) (ArchetypeIndex, error) {
+	return lm.locations[id].ArchIndex, nil
 }
 
-// ComponentIndex returns the component of the given Ent ID.
-func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) ComponentIndex {
-	return lm.locations[id].CompIndex
+// ComponentIndexForEntity returns the component of the given entity ID.
+func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) (ComponentIndex, error) {
+	return lm.locations[id].CompIndex, nil
 }
 
 // Index is a structure that indexes archetypes by their component types.

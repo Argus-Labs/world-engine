@@ -59,8 +59,12 @@ type world struct {
 	systems []System
 }
 
-func (w *world) SetEntryLocation(id entity.ID, location storage.Location) {
-	w.store.EntryStore.SetLocation(id, location)
+func (w *world) SetEntryLocation(id entity.ID, location storage.Location) error {
+	err := w.store.EntryStore.SetLocation(id, location)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (w *world) Component(componentType component.IComponentType, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) ([]byte, error) {
@@ -175,7 +179,10 @@ func (w *world) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.Ent
 
 func (w *world) createEntry(e storage.Entity) error {
 	id := e.ID()
-	loc, _ := w.store.EntityLocStore.Location(id)
+	loc, err := w.store.EntityLocStore.Location(id)
+	if err != nil {
+		return err
+	}
 	entry := storage.NewEntry(id, e, loc)
 	return w.store.EntryStore.SetEntry(id, entry)
 }
@@ -191,7 +198,10 @@ func (w *world) Valid(e storage.Entity) (bool, error) {
 	if !ok {
 		return false, nil
 	}
-	loc, _ := w.store.EntityLocStore.Location(e.ID())
+	loc, err := w.store.EntityLocStore.Location(e.ID())
+	if err != nil {
+		return false, err
+	}
 	a := loc.ArchIndex
 	c := loc.CompIndex
 	// If the version of the entity is not the same as the version of the archetype,
@@ -201,13 +211,22 @@ func (w *world) Valid(e storage.Entity) (bool, error) {
 
 func (w *world) Entry(entity storage.Entity) (*storage.Entry, error) {
 	id := entity.ID()
-	entry, _ := w.store.EntryStore.GetEntry(id)
-	w.store.EntryStore.SetEntity(id, entity)
+	entry, err := w.store.EntryStore.GetEntry(id)
+	if err != nil {
+		return nil, err
+	}
+	err = w.store.EntryStore.SetEntity(id, entity)
+	if err != nil {
+		return nil, err
+	}
 	loc, err := w.store.EntityLocStore.Location(id)
 	if err != nil {
 		return nil, err
 	}
-	w.store.EntryStore.SetLocation(id, *loc)
+	err = w.store.EntryStore.SetLocation(id, *loc)
+	if err != nil {
+		return nil, err
+	}
 	return entry, nil
 }
 
@@ -225,7 +244,10 @@ func (w *world) Remove(ent storage.Entity) error {
 		return err
 	}
 	if ok {
-		loc, _ := w.store.EntityLocStore.Location(ent.ID())
+		loc, err := w.store.EntityLocStore.Location(ent.ID())
+		if err != nil {
+			return err
+		}
 		if err := w.store.EntityLocStore.Remove(ent.ID()); err != nil {
 			return err
 		}
@@ -241,7 +263,10 @@ func (w *world) removeAtLocation(ent storage.Entity, loc *storage.Location) erro
 	componentIndex := loc.CompIndex
 	archetype := w.store.ArchAccessor.Archetype(archIndex)
 	archetype.SwapRemove(int(componentIndex))
-	w.store.CompStore.Remove(archIndex, archetype.Layout().Components(), componentIndex)
+	err := w.store.CompStore.Remove(archIndex, archetype.Layout().Components(), componentIndex)
+	if err != nil {
+		return err
+	}
 	if int(componentIndex) < len(archetype.Entities()) {
 		swapped := archetype.Entities()[componentIndex]
 		if err := w.store.EntityLocStore.Set(swapped.ID(), loc); err != nil {
@@ -295,10 +320,16 @@ func (w *world) TransferArchetype(from storage.ArchetypeIndex, to storage.Archet
 				return 0, err
 			}
 		} else {
-			store.SwapRemove(from, idx)
+			_, err := store.SwapRemove(from, idx)
+			if err != nil {
+				return 0, err
+			}
 		}
 	}
-	w.store.CompStore.Move(from, to)
+	err = w.store.CompStore.Move(from, to)
+	if err != nil {
+		return 0, err
+	}
 
 	return storage.ComponentIndex(len(toArch.Entities()) - 1), nil
 }

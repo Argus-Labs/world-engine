@@ -22,7 +22,7 @@ type WorldAccessor interface {
 	Remove(entity.Entity) error
 	Valid(entity.Entity) (bool, error)
 	Archetype(ArchetypeIndex) ArchetypeStorage
-	SetEntryLocation(id entity.ID, location Location)
+	SetEntryLocation(id entity.ID, location Location) error
 }
 
 var _ EntityManager = &entityMgrImpl{}

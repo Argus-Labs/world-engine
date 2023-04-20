@@ -33,8 +33,8 @@ type EntityLocationStorage interface {
 	Insert(entity.ID, ArchetypeIndex, ComponentIndex) error
 	Set(entity.ID, *Location) error
 	Location(entity.ID) (*Location, error)
-	ArchetypeIndex(id entity.ID) ArchetypeIndex
-	ComponentIndexForEntity(id entity.ID) ComponentIndex
+	ArchetypeIndex(id entity.ID) (ArchetypeIndex, error)
+	ComponentIndexForEntity(entity.ID) (ComponentIndex, error)
 	Len() (int, error)
 }
 
