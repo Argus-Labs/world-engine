@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"github.com/redis/go-redis/v9"
+
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
@@ -31,19 +33,36 @@ func (cs *Components) PushComponents(components []component.IComponentType, arch
 			return 0, err
 		}
 	}
-	if _, ok, _ := cs.ComponentIndices.ComponentIndex(archetypeIndex); !ok {
-		cs.ComponentIndices.SetIndex(archetypeIndex, 0)
-	} else {
-		cs.ComponentIndices.IncrementIndex(archetypeIndex)
+	_, ok, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
+	if err != nil && err != redis.Nil {
+		return 0, err
 	}
-	idx, _, _ := cs.ComponentIndices.ComponentIndex(archetypeIndex)
-	return idx, nil
+	if !ok {
+		err := cs.ComponentIndices.SetIndex(archetypeIndex, 0)
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		err := cs.ComponentIndices.IncrementIndex(archetypeIndex)
+		if err != nil {
+			return 0, err
+		}
+	}
+	idx, _, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
+	return idx, err
 }
 
 // Move moves the bytes of data of the component in the archetype.
-func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) {
-	cs.ComponentIndices.DecrementIndex(src)
-	cs.ComponentIndices.IncrementIndex(dst)
+func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) error {
+	err := cs.ComponentIndices.DecrementIndex(src)
+	if err != nil {
+		return err
+	}
+	err = cs.ComponentIndices.IncrementIndex(dst)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Storage returns the component data storage accessor.
@@ -56,14 +75,18 @@ func (cs *Components) GetComponentIndexStorage(c component.IComponentType) Compo
 }
 
 // Remove removes the component from the storage.
-func (cs *Components) Remove(ai ArchetypeIndex, comps []component.IComponentType, ci ComponentIndex) {
+func (cs *Components) Remove(ai ArchetypeIndex, comps []component.IComponentType, ci ComponentIndex) error {
 	for _, ct := range comps {
-		cs.remove(ct, ai, ci)
+		err := cs.remove(ct, ai, ci)
+		if err != nil {
+			return err
+		}
 	}
-	cs.ComponentIndices.DecrementIndex(ai)
+	return cs.ComponentIndices.DecrementIndex(ai)
 }
 
-func (cs *Components) remove(ct component.IComponentType, ai ArchetypeIndex, ci ComponentIndex) {
+func (cs *Components) remove(ct component.IComponentType, ai ArchetypeIndex, ci ComponentIndex) error {
 	storage := cs.Storage(ct)
-	storage.SwapRemove(ai, ci)
+	_, err := storage.SwapRemove(ai, ci)
+	return err
 }

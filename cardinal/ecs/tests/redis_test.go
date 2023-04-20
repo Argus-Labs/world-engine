@@ -5,10 +5,12 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
-	"github.com/alicebob/miniredis/v2"
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
-	"gotest.tools/v3/assert"
 	"testing"
+
+	"github.com/alicebob/miniredis/v2"
+	"gotest.tools/v3/assert"
+
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
@@ -16,7 +18,7 @@ import (
 
 var _ encoding.BinaryMarshaler = Foo{}
 
-const WORLD_ID string = "1"
+const WorldId string = "1"
 
 type Foo struct {
 	X int `json:"X"`
@@ -58,7 +60,7 @@ func TestList(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, foo.Foo, 20)
 
-	key := componentDataKey(WORLD_ID, x.ID(), 0)
+	key := componentDataKey(WorldId, x.ID(), 0)
 	res := rs.Client.LRange(ctx, key, 0, -1)
 	result, err := res.Result()
 	assert.NilError(t, err)
@@ -125,7 +127,7 @@ func TestRedis_Location(t *testing.T) {
 	gotLoc, _ := store.EntityLocStore.Location(eid)
 	assert.Equal(t, *loc, *gotLoc)
 
-	aid := store.EntityLocStore.ArchetypeIndex(eid)
+	aid, _ := store.EntityLocStore.ArchetypeIndex(eid)
 	assert.Equal(t, loc.ArchIndex, aid)
 
 	contains, _ := store.EntityLocStore.ContainsEntity(eid)
@@ -134,7 +136,7 @@ func TestRedis_Location(t *testing.T) {
 	notContains, _ := store.EntityLocStore.ContainsEntity(entity.ID(420))
 	assert.Equal(t, notContains, false)
 
-	compIdx := store.EntityLocStore.ComponentIndexForEntity(eid)
+	compIdx, _ := store.EntityLocStore.ComponentIndexForEntity(eid)
 	assert.Equal(t, loc.CompIndex, compIdx)
 
 	newEID := entity.ID(40)
@@ -195,5 +197,5 @@ func GetRedisStorage(t *testing.T) storage.RedisStorage {
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
-	}, WORLD_ID)
+	}, WorldId)
 }
