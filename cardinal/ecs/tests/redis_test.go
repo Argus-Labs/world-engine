@@ -5,19 +5,18 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
-	"testing"
-	"time"
-
 	"github.com/alicebob/miniredis/v2"
-	"github.com/redis/go-redis/v9"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"gotest.tools/v3/assert"
+	"testing"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 )
 
 var _ encoding.BinaryMarshaler = Foo{}
+
+const WORLD_ID string = "1"
 
 type Foo struct {
 	X int `json:"X"`
@@ -26,39 +25,6 @@ type Foo struct {
 
 func (f Foo) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(f)
-}
-
-func TestRedis(t *testing.T) {
-	ctx := context.Background()
-
-	rdb := getRedisClient(t)
-
-	foo := &Foo{
-		X: 35,
-		Y: 40,
-	}
-	key := "foo"
-	err := rdb.Set(ctx, key, foo, time.Duration(0)).Err()
-	assert.NilError(t, err)
-
-	cmd := rdb.Get(ctx, key)
-	if err := cmd.Err(); err != nil {
-		t.Fatal(err)
-	}
-
-	bz, err := cmd.Bytes()
-	assert.NilError(t, err)
-
-	var f Foo
-	err = json.Unmarshal(bz, &f)
-	assert.NilError(t, err)
-	assert.Equal(t, f.X, foo.X)
-	assert.Equal(t, f.Y, foo.Y)
-
-	ss := rdb.Get(ctx, "fooiasjdflkasdjf")
-	if ss.Err() != nil {
-		fmt.Println("error!")
-	}
 }
 
 var componentDataKey = func(worldId string, compId component.TypeID, archIdx int) string {
@@ -71,9 +37,12 @@ func TestList(t *testing.T) {
 		Foo int
 	}
 	ctx := context.Background()
-	rdb := getRedisClient(t)
-	worldId := "1"
-	store := storage.NewRedisStorage(rdb, worldId)
+
+	rs := GetRedisStorage(t)
+	store := storage.NewWorldStorage(storage.Components{
+		Store:            &rs,
+		ComponentIndices: &rs,
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 	compStore := store.CompStore.Storage(x)
 
@@ -89,8 +58,8 @@ func TestList(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, foo.Foo, 20)
 
-	key := componentDataKey(worldId, x.ID(), 0)
-	res := rdb.LRange(ctx, key, 0, -1)
+	key := componentDataKey(WORLD_ID, x.ID(), 0)
+	res := rs.Client.LRange(ctx, key, 0, -1)
 	result, err := res.Result()
 	assert.NilError(t, err)
 	assert.Check(t, len(result) == 0)
@@ -105,10 +74,13 @@ func TestRedis_CompIndex(t *testing.T) {
 	}
 	ctx := context.Background()
 	_ = ctx
-	rdb := getRedisClient(t)
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
-	worldId := "1"
-	store := storage.NewRedisStorage(rdb, worldId)
+
+	rs := GetRedisStorage(t)
+	store := storage.NewWorldStorage(storage.Components{
+		Store:            &rs,
+		ComponentIndices: &rs,
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
 	archIdx, compIdx := storage.ArchetypeIndex(0), storage.ComponentIndex(1)
@@ -141,9 +113,12 @@ func TestRedis_CompIndex(t *testing.T) {
 
 func TestRedis_Location(t *testing.T) {
 	//ctx := context.Background()
-	rdb := getRedisClient(t)
-	worldId := "1"
-	store := storage.NewRedisStorage(rdb, worldId)
+	rs := GetRedisStorage(t)
+	store := storage.NewWorldStorage(storage.Components{
+		Store:            &rs,
+		ComponentIndices: &rs,
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+
 	loc := storage.NewLocation(0, 1)
 	eid := entity.ID(3)
 	store.EntityLocStore.Set(eid, loc)
@@ -179,9 +154,11 @@ func TestRedis_Location(t *testing.T) {
 func TestRedis_EntryStorage(t *testing.T) {
 	ctx := context.Background()
 	_ = ctx
-	rdb := getRedisClient(t)
-	worldId := "1"
-	store := storage.NewRedisStorage(rdb, worldId)
+	rs := GetRedisStorage(t)
+	store := storage.NewWorldStorage(storage.Components{
+		Store:            &rs,
+		ComponentIndices: &rs,
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
 
 	eid := entity.ID(12)
 	loc := &storage.Location{
@@ -212,12 +189,11 @@ func TestRedis_EntryStorage(t *testing.T) {
 	assert.DeepEqual(t, gotEntry.Ent, newEnt)
 }
 
-func getRedisClient(t *testing.T) *redis.Client {
+func GetRedisStorage(t *testing.T) storage.RedisStorage {
 	s := miniredis.RunT(t)
-	rdb := redis.NewClient(&redis.Options{
+	return storage.NewRedisStorage(storage.RedisStorageOptions{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
-	})
-	return rdb
+	}, WORLD_ID)
 }

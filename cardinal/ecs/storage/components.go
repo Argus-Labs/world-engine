@@ -10,14 +10,14 @@ type ComponentIndex int
 // Components is a structure that facilitates the storage and retrieval of component data.
 // TODO: this kinda sucks.. could prob refactor this and make it prettier for devs.
 type Components struct {
-	store            ComponentStorageManager
+	Store            ComponentStorageManager
 	ComponentIndices ComponentIndexStorage
 }
 
 // NewComponents creates a new empty structure that stores data of components.
 func NewComponents(store ComponentStorageManager, idxStore ComponentIndexStorage) Components {
 	return Components{
-		store:            store,
+		Store:            store,
 		ComponentIndices: idxStore,
 	}
 }
@@ -25,7 +25,7 @@ func NewComponents(store ComponentStorageManager, idxStore ComponentIndexStorage
 // PushComponents stores the new data of the component in the archetype.
 func (cs *Components) PushComponents(components []component.IComponentType, archetypeIndex ArchetypeIndex) (ComponentIndex, error) {
 	for _, componentType := range components {
-		v := cs.store.GetComponentStorage(componentType.ID())
+		v := cs.Store.GetComponentStorage(componentType.ID())
 		err := v.PushComponent(componentType, archetypeIndex)
 		if err != nil {
 			return 0, err
@@ -48,11 +48,11 @@ func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) {
 
 // Storage returns the component data storage accessor.
 func (cs *Components) Storage(c component.IComponentType) ComponentStorage {
-	return cs.store.GetComponentStorage(c.ID())
+	return cs.Store.GetComponentStorage(c.ID())
 }
 
 func (cs *Components) GetComponentIndexStorage(c component.IComponentType) ComponentIndexStorage {
-	return cs.store.GetComponentIndexStorage(c.ID())
+	return cs.Store.GetComponentIndexStorage(c.ID())
 }
 
 // Remove removes the component from the storage.
