@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"github.com/alicebob/miniredis/v2"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"testing"
 
@@ -39,9 +40,18 @@ var (
 )
 
 func Test_ECS(t *testing.T) {
+	s := miniredis.RunT(t)
+	rs := storage.NewRedisStorage(storage.RedisStorageOptions{
+		Addr:     s.Addr(),
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}, "0")
+	worldStorage := storage.NewWorldStorage(storage.Components{
+		Store:            &rs,
+		ComponentIndices: &rs,
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
 
-	redisClient := getRedisClient(t)
-	world := ecs.NewWorld(storage.NewRedisStorage(redisClient, "0"))
+	world := ecs.NewWorld(worldStorage)
 
 	world.RegisterComponents(Energy, Ownable)
 
