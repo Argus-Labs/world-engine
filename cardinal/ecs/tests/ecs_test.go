@@ -1,9 +1,11 @@
 package tests
 
 import (
-	"github.com/alicebob/miniredis/v2"
-	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"testing"
+
+	"github.com/alicebob/miniredis/v2"
+
+	"github.com/argus-labs/world-engine/cardinal/ecs"
 
 	"gotest.tools/v3/assert"
 
@@ -46,10 +48,8 @@ func Test_ECS(t *testing.T) {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, "0")
-	worldStorage := storage.NewWorldStorage(storage.Components{
-		Store:            &rs,
-		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	worldStorage := storage.NewWorldStorage(
+		storage.Components{Store: &rs, ComponentIndices: &rs}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
 
 	world := ecs.NewWorld(worldStorage)
 

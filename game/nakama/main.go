@@ -3,21 +3,23 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	// SIDECAR
 	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
-
-	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
+	// CARDINAL
+	"buf.build/gen/go/argus-labs/cardinal/grpc/go/ecs/ecsv1grpc"
 )
 
 var (
-	sidecar g1.SidecarClient = nil
+	sidecar  g1.SidecarClient     = nil
+	cardinal ecsv1grpc.GameClient = nil
+
+	CustomRPCs = []CustomRPC{StartGameRPC, MintCoinsRPC}
 )
 
 // InitializerFunction contains the function signature (minus function name, which MUST be InitModule) that the nakama runtime expects.
@@ -27,8 +29,10 @@ type InitializerFunction func(context.Context, runtime.Logger, *sql.DB, runtime.
 var moduleInit InitializerFunction = func(ctx context.Context, logger runtime.Logger, db *sql.DB, module runtime.NakamaModule, initializer runtime.Initializer) error {
 	initStart := time.Now()
 
-	if err := initializer.RegisterRpc("mint-coins", RpcMintCoins); err != nil {
-		return err
+	for _, c := range CustomRPCs {
+		if err := initializer.RegisterRpc(c.name, c.f); err != nil {
+			return err
+		}
 	}
 
 	logger.Info("module loaded in %vms", time.Since(initStart).Milliseconds())
@@ -40,45 +44,29 @@ var moduleInit InitializerFunction = func(ctx context.Context, logger runtime.Lo
 // Doing so will break the Nakama runtime from initializing our SO file.
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, module runtime.NakamaModule, initializer runtime.Initializer) error {
 	cfg := LoadConfig()
-	clientConn, err := grpc.Dial(cfg.SidecarTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	var err error
+	sidecar, err = getClient[g1.SidecarClient](cfg.SidecarTarget, g1.NewSidecarClient)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	sidecar = g1.NewSidecarClient(clientConn)
-
-	if cfg.UseReceiver {
-		port := cfg.ReceiverPort
-		cr := NewCosmosReceiver(db, logger, module, port)
-		if err = cr.Start(); err != nil {
-			panic(err)
-		}
+	cardinal, err = getClient[ecsv1grpc.GameClient](cfg.CardinalTarget, ecsv1grpc.NewGameClient)
+	if err != nil {
+		return err
 	}
 
 	return moduleInit(ctx, logger, db, module, initializer)
 }
 
+func getClient[client any](target string, getter func(grpc.ClientConnInterface) client) (client, error) {
+	var c client
+	clientConn, err := grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return c, err
+	}
+	c = getter(clientConn)
+	return c, nil
+}
+
 /*
 	custom rpc stuff
 */
-
-type MintCoinsResponse struct {
-	Success  bool   `json:"success"`
-	Response string `json:"response"`
-}
-
-func RpcMintCoins(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-	logger.Debug("MintCoins RPC called")
-	response := &MintCoinsResponse{Success: true}
-	res, err := sidecar.MintCoins(ctx, &v1.MsgMintCoins{Amount: 10, Denom: "NAKAMA"})
-	if err != nil {
-		return "", runtime.NewError(fmt.Sprintf("call to sidecar failed: %s", err.Error()), 1)
-	}
-	logger.Info("mint coins response: %s", res.String())
-	response.Response = res.String()
-	out, err := json.Marshal(response)
-	if err != nil {
-		logger.Error("cannot marshal response: %w", err)
-		return "", runtime.NewError("cannot marshal response", 13)
-	}
-	return string(out), nil
-}

@@ -21,6 +21,7 @@ services:
     container_name: nakama_container
     environment:
       - SIDECAR_TARGET=node:5050
+      - CARDINAL_TARGET=cardinal:7812
       - RECEIVER_PORT=6732
       - USE_RECEIVER=true
     build:
@@ -108,6 +109,7 @@ services:
       - "26657"
       - "26659"
       - "9090"
+
   rollup:
     container_name: rollup
     build:
@@ -127,6 +129,35 @@ services:
       - "26657:26657"
     environment:
       - da_config={"base_url":"http://celestia:26659","timeout":60000000000,"fee":6000,"gas_limit":6000000}
+
+  redis:
+    container_name: "redis"
+    image: "redis:alpine"
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - default
+    ports:
+      - "6379:6379"
+    volumes:
+      - $PWD/configs/redis.conf:/usr/local/etc/redis/redis.conf
+
+  cardinal:
+    container_name: cardinal
+    build:
+      context: cardinal
+      dockerfile: Dockerfile
+    networks:
+      - default
+    ports:
+      - "7812:7812"
+    expose:
+      - "7812"
+    restart: on-failure
+    environment:
+      - grpc_addr=cardinal:7812
+      - redis_addr=redis:6379
+    depends_on:
+      - redis
 
 volumes:
   data:
