@@ -21,6 +21,7 @@ services:
     container_name: nakama_container
     environment:
       - SIDECAR_TARGET=node:5050
+      - CARDINAL_TARGET=cardinal:7812
       - RECEIVER_PORT=6732
       - USE_RECEIVER=true
     build:
