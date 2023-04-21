@@ -4,5 +4,4 @@ use (
 	./chain
 	./magefiles
 	./cardinal
-	./game/nakama
 )
