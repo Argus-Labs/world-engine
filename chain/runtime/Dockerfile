@@ -41,7 +41,7 @@ FROM golang:${GO_VERSION}-alpine as builder
 
 # Copy our source code into the container
 WORKDIR /polaris
-COPY runtime .
+COPY . .
 
 # Setup some alpine stuff that nobody really knows why we need other
 # than docker geeks cause let's be real, everyone else just googles this stuff
@@ -59,8 +59,8 @@ ARG PRECOMPILE_CONTRACTS_DIR
 # COPY --from=foundry /polaris/${PRECOMPILE_CONTRACTS_DIR}/out /polaris//${PRECOMPILE_CONTRACTS_DIR}/out
 
 # Copy the go mod and sum files
-COPY ../go.mod ./
-COPY ../go.sum ./
+COPY go.mod ./
+COPY go.sum ./
 
 
 # Build berad binary
