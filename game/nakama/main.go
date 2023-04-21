@@ -58,12 +58,13 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, module r
 }
 
 func getClient[client any](target string, getter func(grpc.ClientConnInterface) client) (client, error) {
+	var c client
 	clientConn, err := grpc.Dial(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return nil, err
+		return c, err
 	}
-	grpcClient := getter(clientConn)
-	return grpcClient, nil
+	c = getter(clientConn)
+	return c, nil
 }
 
 /*
