@@ -3,28 +3,26 @@ package server
 import (
 	"context"
 
-	"github.com/redis/go-redis/v9"
+	v1 "buf.build/gen/go/argus-labs/cardinal/grpc/go/ecs/ecsv1grpc"
+	ecsv1 "buf.build/gen/go/argus-labs/cardinal/protocolbuffers/go/ecs"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
-	v1 "github.com/argus-labs/world-engine/cardinal/net/proto/gen/go/ecs/v1"
 )
 
-var _ v1.GameServer = gameServer{}
+var _ v1.GameServer = &gameServer{}
 
-func NewGameServer(backend *redis.Client) v1.GameServer {
-	return gameServer{}
+func NewGameServer(backend storage.WorldStorage) v1.GameServer {
+	return &gameServer{}
 }
 
 type gameServer struct {
 	world   ecs.World
-	backend *redis.Client
+	backend storage.WorldStorage
 }
 
-func (i gameServer) StartGameLoop(ctx context.Context, loop *v1.MsgStartGameLoop) (*v1.MsgStartGameLoopResponse, error) {
-	worldID := 0 // TODO: figure this out
-	store := storage.NewRedisStorage(i.backend, worldID)
-	world := ecs.NewWorld(store, worldID)
+func (i *gameServer) StartGameLoop(ctx context.Context, loop *ecsv1.MsgStartGameLoop) (*ecsv1.MsgStartGameLoopResponse, error) {
+	world := ecs.NewWorld(i.backend)
 	i.world = world
 	// from here.. we need to initialize the world in the ECS system. loading components, making entities, etc etc..
 	// how will that look?
@@ -37,5 +35,5 @@ func (i gameServer) StartGameLoop(ctx context.Context, loop *v1.MsgStartGameLoop
 	// i.world.CreateMany(amount, whatever components) <--- creating multiple of some entity
 	//
 	// i assume here we would sent entity ID's back to client, so they can assign them to planets??
-	return &v1.MsgStartGameLoopResponse{}, nil
+	return &ecsv1.MsgStartGameLoopResponse{}, nil
 }

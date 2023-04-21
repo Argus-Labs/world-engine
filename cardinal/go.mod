@@ -3,6 +3,8 @@ module github.com/argus-labs/world-engine/cardinal
 go 1.20
 
 require (
+	buf.build/gen/go/argus-labs/cardinal/grpc/go v1.3.0-20230419204405-6273c6504412.1
+	buf.build/gen/go/argus-labs/cardinal/protocolbuffers/go v1.30.0-20230419204405-6273c6504412.1
 	github.com/alicebob/miniredis/v2 v2.30.1
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/rs/zerolog v1.29.1
