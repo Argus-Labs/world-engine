@@ -40,37 +40,13 @@ type RedisStorage struct {
 	ArchetypeCache         ArchetypeAccessor
 }
 
-// RedisStorageOptions makes DevEx cleaner by proxying the actual redis options struct
-// With this, the developer doesn't need to import Redis libraries on their game logic implementation.
-type RedisStorageOptions struct {
-	// host:port address.
-	Addr string
+type Options = redis.Options
 
-	// Use the specified Username to authenticate the current connection
-	// with one of the connections defined in the ACL list when connecting
-	// to a Redis 6.0 instance, or greater, that is using the Redis ACL system.
-	Username string
-
-	// Optional password. Must match the password specified in the
-	// requirepass server configuration option (if connecting to a Redis 5.0 instance, or lower),
-	// or the User Password when connecting to a Redis 6.0 instance, or greater,
-	// that is using the Redis ACL system.
-	Password string
-
-	// Database to be selected after connecting to the server.
-	DB int
-}
-
-func NewRedisStorage(options RedisStorageOptions, worldID string) RedisStorage {
+func NewRedisStorage(options Options, worldID string) RedisStorage {
 	return RedisStorage{
 		WorldID: worldID,
-		Client: redis.NewClient(&redis.Options{
-			Addr:     options.Addr,
-			Username: options.Username,
-			Password: options.Password,
-			DB:       options.DB,
-		}),
-		Log: zerolog.New(os.Stdout),
+		Client:  redis.NewClient(&options),
+		Log:     zerolog.New(os.Stdout),
 	}
 }
 

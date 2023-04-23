@@ -193,7 +193,7 @@ func TestRedis_EntryStorage(t *testing.T) {
 
 func GetRedisStorage(t *testing.T) storage.RedisStorage {
 	s := miniredis.RunT(t)
-	return storage.NewRedisStorage(storage.RedisStorageOptions{
+	return storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB

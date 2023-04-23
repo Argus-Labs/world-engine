@@ -25,7 +25,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("listener established")
-	rs := storage.NewRedisStorage(storage.RedisStorageOptions{
+	rs := storage.NewRedisStorage(storage.Options{
 		Addr: os.Getenv("redis_addr"),
 	}, "0")
 	ctx := context.Background()
