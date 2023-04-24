@@ -43,7 +43,7 @@ var (
 
 func Test_ECS(t *testing.T) {
 	s := miniredis.RunT(t)
-	rs := storage.NewRedisStorage(storage.RedisStorageOptions{
+	rs := storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
