@@ -1,4 +1,4 @@
-package storage
+package redis
 
 import (
 	"context"
@@ -7,9 +7,13 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	types "github.com/argus-labs/world-engine/cardinal/ecs/storage/types/v1"
 )
 
 // Archetypes can just be stored in program memory. It just a structure that allows us to quickly
@@ -32,17 +36,16 @@ import (
 // Something to consider -> we should do something i.e. RegisterComponents, and have it deterministically assign TypeID's to components.
 // We could end up with some issues (needs to be determined).
 
-type RedisStorage struct {
+type Storage struct {
 	WorldID                string
 	ComponentStoragePrefix component.TypeID
 	Client                 *redis.Client
 	Log                    zerolog.Logger
-	ArchetypeCache         ArchetypeAccessor
 }
 
-// RedisStorageOptions makes DevEx cleaner by proxying the actual redis options struct
+// Options makes DevEx cleaner by proxying the actual redis options struct
 // With this, the developer doesn't need to import Redis libraries on their game logic implementation.
-type RedisStorageOptions struct {
+type Options struct {
 	// host:port address.
 	Addr string
 
@@ -61,8 +64,8 @@ type RedisStorageOptions struct {
 	DB int
 }
 
-func NewRedisStorage(options RedisStorageOptions, worldID string) RedisStorage {
-	return RedisStorage{
+func NewStorage(options Options, worldID string) Storage {
+	return Storage{
 		WorldID: worldID,
 		Client: redis.NewClient(&redis.Options{
 			Addr:     options.Addr,
@@ -78,14 +81,14 @@ func NewRedisStorage(options RedisStorageOptions, worldID string) RedisStorage {
 // 							COMPONENT INDEX STORAGE
 // ---------------------------------------------------------------------------
 
-var _ ComponentIndexStorage = &RedisStorage{}
+var _ storage.ComponentIndexStorage = &Storage{}
 
-func (r *RedisStorage) GetComponentIndexStorage(cid component.TypeID) ComponentIndexStorage {
+func (r *Storage) GetComponentIndexStorage(cid component.TypeID) storage.ComponentIndexStorage {
 	r.ComponentStoragePrefix = cid
 	return r
 }
 
-func (r *RedisStorage) ComponentIndex(ai ArchetypeIndex) (ComponentIndex, bool, error) {
+func (r *Storage) ComponentIndex(ai storage.ArchetypeIndex) (storage.ComponentIndex, bool, error) {
 	ctx := context.Background()
 	key := r.componentIndexKey(ai)
 	res := r.Client.Get(ctx, key)
@@ -103,17 +106,17 @@ func (r *RedisStorage) ComponentIndex(ai ArchetypeIndex) (ComponentIndex, bool, 
 	if err != nil {
 		return 0, false, err
 	}
-	return ComponentIndex(ret), true, nil
+	return storage.ComponentIndex(ret), true, nil
 }
 
-func (r *RedisStorage) SetIndex(index ArchetypeIndex, index2 ComponentIndex) error {
+func (r *Storage) SetIndex(index storage.ArchetypeIndex, index2 storage.ComponentIndex) error {
 	ctx := context.Background()
 	key := r.componentIndexKey(index)
 	res := r.Client.Set(ctx, key, int64(index2), 0)
 	return res.Err()
 }
 
-func (r *RedisStorage) IncrementIndex(index ArchetypeIndex) error {
+func (r *Storage) IncrementIndex(index storage.ArchetypeIndex) error {
 	ctx := context.Background()
 	idx, ok, err := r.ComponentIndex(index)
 	if err != nil {
@@ -128,7 +131,7 @@ func (r *RedisStorage) IncrementIndex(index ArchetypeIndex) error {
 	return res.Err()
 }
 
-func (r *RedisStorage) DecrementIndex(index ArchetypeIndex) error {
+func (r *Storage) DecrementIndex(index storage.ArchetypeIndex) error {
 	ctx := context.Background()
 	idx, ok, err := r.ComponentIndex(index)
 	if err != nil {
@@ -147,9 +150,9 @@ func (r *RedisStorage) DecrementIndex(index ArchetypeIndex) error {
 // 							COMPONENT STORAGE MANAGER
 // ---------------------------------------------------------------------------
 
-var _ ComponentStorageManager = &RedisStorage{}
+var _ storage.ComponentStorageManager = &Storage{}
 
-func (r *RedisStorage) GetComponentStorage(cid component.TypeID) ComponentStorage {
+func (r *Storage) GetComponentStorage(cid component.TypeID) storage.ComponentStorage {
 	r.ComponentStoragePrefix = cid
 	return r
 }
@@ -158,7 +161,7 @@ func (r *RedisStorage) GetComponentStorage(cid component.TypeID) ComponentStorag
 // 							COMPONENT STORAGE
 // ---------------------------------------------------------------------------
 
-func (r *RedisStorage) PushComponent(component component.IComponentType, index ArchetypeIndex) error {
+func (r *Storage) PushComponent(component component.IComponentType, index storage.ArchetypeIndex) error {
 	ctx := context.Background()
 	key := r.componentDataKey(index)
 	componentBz, err := component.New()
@@ -169,7 +172,7 @@ func (r *RedisStorage) PushComponent(component component.IComponentType, index A
 	return res.Err()
 }
 
-func (r *RedisStorage) Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error) {
+func (r *Storage) Component(archetypeIndex storage.ArchetypeIndex, componentIndex storage.ComponentIndex) ([]byte, error) {
 	ctx := context.Background()
 	key := r.componentDataKey(archetypeIndex)
 	res := r.Client.LIndex(ctx, key, int64(componentIndex))
@@ -183,14 +186,14 @@ func (r *RedisStorage) Component(archetypeIndex ArchetypeIndex, componentIndex C
 	return bz, nil
 }
 
-func (r *RedisStorage) SetComponent(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex, compBz []byte) error {
+func (r *Storage) SetComponent(archetypeIndex storage.ArchetypeIndex, componentIndex storage.ComponentIndex, compBz []byte) error {
 	ctx := context.Background()
 	key := r.componentDataKey(archetypeIndex)
 	res := r.Client.LSet(ctx, key, int64(componentIndex), compBz)
 	return res.Err()
 }
 
-func (r *RedisStorage) MoveComponent(source ArchetypeIndex, index ComponentIndex, dst ArchetypeIndex) error {
+func (r *Storage) MoveComponent(source storage.ArchetypeIndex, index storage.ComponentIndex, dst storage.ArchetypeIndex) error {
 	ctx := context.Background()
 	sKey := r.componentDataKey(source)
 	dKey := r.componentDataKey(dst)
@@ -216,13 +219,13 @@ func (r *RedisStorage) MoveComponent(source ArchetypeIndex, index ComponentIndex
 	return cmd.Err()
 }
 
-func (r *RedisStorage) SwapRemove(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error) {
+func (r *Storage) SwapRemove(archetypeIndex storage.ArchetypeIndex, componentIndex storage.ComponentIndex) ([]byte, error) {
 	ctx := context.Background()
 	err := r.delete(ctx, archetypeIndex, componentIndex)
 	return nil, err
 }
 
-func (r *RedisStorage) delete(ctx context.Context, index ArchetypeIndex, componentIndex ComponentIndex) error {
+func (r *Storage) delete(ctx context.Context, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) error {
 	sKey := r.componentDataKey(index)
 	statusRes := r.Client.LSet(ctx, sKey, int64(componentIndex), "DELETE")
 	if err := statusRes.Err(); err != nil {
@@ -235,7 +238,7 @@ func (r *RedisStorage) delete(ctx context.Context, index ArchetypeIndex, compone
 	return nil
 }
 
-func (r *RedisStorage) Contains(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) (bool, error) {
+func (r *Storage) Contains(archetypeIndex storage.ArchetypeIndex, componentIndex storage.ComponentIndex) (bool, error) {
 	ctx := context.Background()
 	key := r.componentDataKey(archetypeIndex)
 	res := r.Client.LIndex(ctx, key, int64(componentIndex))
@@ -250,12 +253,98 @@ func (r *RedisStorage) Contains(archetypeIndex ArchetypeIndex, componentIndex Co
 }
 
 // ---------------------------------------------------------------------------
+// 							ARCHETYPE STORAGE
+// ---------------------------------------------------------------------------
+
+var _ storage.ArchetypeStorage = &Storage{}
+
+func (r *Storage) PushArchetype(index storage.ArchetypeIndex, layout []component.IComponentType) {
+	ctx := context.Background()
+	a := &types.Archetype{
+		ArchetypeIndex: uint64(index),
+		EntityIds:      nil,
+		Components:     []*anypb.Any{},
+	}
+	err := r.setArchetype(ctx, a)
+	if err != nil {
+		// TODO(technicallyty): handle
+	}
+}
+
+func (r *Storage) Archetype(index storage.ArchetypeIndex) *types.Archetype {
+	ctx := context.Background()
+	key := r.archetypeStorageKey(index)
+	res := r.Client.Get(ctx, key)
+	// TODO(technicallyty): handle error
+	if res.Err() != nil {
+
+	}
+	bz, err := res.Bytes()
+	if err != nil {
+
+	}
+	a := new(types.Archetype)
+	err = proto.Unmarshal(bz, a)
+	if err != nil {
+
+	}
+	return a
+}
+
+func (r *Storage) RemoveEntity(index storage.ArchetypeIndex, entityIndex int) entity.Entity {
+	arch := r.Archetype(index)
+	removed := arch.EntityIds[entityIndex]
+	length := len(arch.EntityIds)
+	arch.EntityIds[entityIndex] = arch.EntityIds[length-1]
+	arch.EntityIds = arch.EntityIds[:length-1]
+	return entity.Entity(removed)
+}
+
+func (r *Storage) PushEntity(index storage.ArchetypeIndex, e entity.Entity) {
+	ctx := context.Background()
+	arch := r.Archetype(index)
+	arch.EntityIds = append(arch.EntityIds, uint64(e.ID()))
+	err := r.setArchetype(ctx, arch)
+	if err != nil {
+		// TODO(technicallyty): handle
+	}
+}
+
+func (r *Storage) setArchetype(ctx context.Context, a *types.Archetype) error {
+	key := r.archetypeStorageKey(storage.ArchetypeIndex(a.ArchetypeIndex))
+	bz, err := proto.Marshal(a)
+	if err != nil {
+		return err
+	}
+	res := r.Client.Set(ctx, key, bz, 0)
+	return res.Err()
+}
+
+func (r *Storage) GetNextArchetypeIndex() (uint64, error) {
+	ctx := context.Background()
+	key := r.archetypeIndexKey()
+	res := r.Client.Get(ctx, key)
+	if res.Err() != nil {
+		return 0, res.Err()
+	}
+	idx, err := res.Uint64()
+	if err != nil {
+		return 0, err
+	}
+	setRes := r.Client.Set(ctx, key, idx+1, 0)
+	if setRes.Err() != nil {
+		return 0, setRes.Err()
+	}
+	return idx, nil
+}
+
+// ---------------------------------------------------------------------------
 // 							ENTITY LOCATION STORAGE
 // ---------------------------------------------------------------------------
 
-var _ EntityLocationStorage = &RedisStorage{}
+var _ storage.EntityLocationStorage = &Storage{}
 
-func (r *RedisStorage) ContainsEntity(id entity.ID) (bool, error) {
+func (r *Storage) ContainsEntity(id entity.ID) (bool, error) {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	res := r.Client.Get(ctx, key)
@@ -269,18 +358,18 @@ func (r *RedisStorage) ContainsEntity(id entity.ID) (bool, error) {
 	return locBz != nil, nil
 }
 
-func (r *RedisStorage) Remove(id entity.ID) error {
+func (r *Storage) Remove(id entity.ID) error {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	res := r.Client.Del(ctx, key)
 	return res.Err()
 }
 
-func (r *RedisStorage) Insert(id entity.ID, index ArchetypeIndex, componentIndex ComponentIndex) error {
+func (r *Storage) Insert(id entity.ID, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) error {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
-	loc := NewLocation(index, componentIndex)
-	bz, err := Encode(loc)
+	loc := storage.NewLocation(index, componentIndex)
+	bz, err := storage.Encode(loc)
 	if err != nil {
 		return err
 	}
@@ -296,10 +385,10 @@ func (r *RedisStorage) Insert(id entity.ID, index ArchetypeIndex, componentIndex
 	return nil
 }
 
-func (r *RedisStorage) Set(id entity.ID, location *Location) error {
+func (r *Storage) Set(id entity.ID, location *storage.Location) error {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
-	bz, err := Encode(*location)
+	bz, err := storage.Encode(*location)
 	if err != nil {
 		return err
 	}
@@ -310,7 +399,7 @@ func (r *RedisStorage) Set(id entity.ID, location *Location) error {
 	return nil
 }
 
-func (r *RedisStorage) Location(id entity.ID) (*Location, error) {
+func (r *Storage) Location(id entity.ID) (*storage.Location, error) {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	res := r.Client.Get(ctx, key)
@@ -321,24 +410,24 @@ func (r *RedisStorage) Location(id entity.ID) (*Location, error) {
 	if err != nil {
 		return nil, err
 	}
-	loc, err := Decode[Location](bz)
+	loc, err := storage.Decode[storage.Location](bz)
 	if err != nil {
 		return nil, err
 	}
 	return &loc, nil
 }
 
-func (r *RedisStorage) ArchetypeIndex(id entity.ID) (ArchetypeIndex, error) {
+func (r *Storage) ArchetypeIndex(id entity.ID) (storage.ArchetypeIndex, error) {
 	loc, err := r.Location(id)
 	return loc.ArchIndex, err
 }
 
-func (r *RedisStorage) ComponentIndexForEntity(id entity.ID) (ComponentIndex, error) {
+func (r *Storage) ComponentIndexForEntity(id entity.ID) (storage.ComponentIndex, error) {
 	loc, err := r.Location(id)
 	return loc.CompIndex, err
 }
 
-func (r *RedisStorage) Len() (int, error) {
+func (r *Storage) Len() (int, error) {
 	ctx := context.Background()
 	key := r.entityLocationLenKey()
 	res := r.Client.Get(ctx, key)
@@ -356,12 +445,12 @@ func (r *RedisStorage) Len() (int, error) {
 // 							ENTRY STORAGE
 // ---------------------------------------------------------------------------
 
-var _ EntryStorage = &RedisStorage{}
+var _ storage.EntryStorage = &Storage{}
 
-func (r *RedisStorage) SetEntry(id entity.ID, entry *Entry) error {
+func (r *Storage) SetEntry(id entity.ID, entry *types.Entry) error {
 	ctx := context.Background()
 	key := r.entryStorageKey(id)
-	bz, err := Encode(entry)
+	bz, err := storage.Encode(entry)
 	if err != nil {
 		return err
 	}
@@ -372,7 +461,7 @@ func (r *RedisStorage) SetEntry(id entity.ID, entry *Entry) error {
 	return nil
 }
 
-func (r *RedisStorage) GetEntry(id entity.ID) (*Entry, error) {
+func (r *Storage) GetEntry(id entity.ID) (*types.Entry, error) {
 	ctx := context.Background()
 	key := r.entryStorageKey(id)
 	res := r.Client.Get(ctx, key)
@@ -383,19 +472,19 @@ func (r *RedisStorage) GetEntry(id entity.ID) (*Entry, error) {
 	if err != nil {
 		return nil, err
 	}
-	decodedEntry, err := Decode[Entry](bz)
+	decodedEntry, err := storage.Decode[types.Entry](bz)
 	if err != nil {
 		return nil, err
 	}
 	return &decodedEntry, nil
 }
 
-func (r *RedisStorage) SetEntity(id entity.ID, e Entity) error {
+func (r *Storage) SetEntity(id entity.ID, e storage.Entity) error {
 	entry, err := r.GetEntry(id)
 	if err != nil {
 		return err
 	}
-	entry.Ent = e
+	entry.ID = uint64(e.ID())
 	err = r.SetEntry(id, entry)
 	if err != nil {
 		return err
@@ -404,12 +493,12 @@ func (r *RedisStorage) SetEntity(id entity.ID, e Entity) error {
 	return nil
 }
 
-func (r *RedisStorage) SetLocation(id entity.ID, location Location) error {
+func (r *Storage) SetLocation(id entity.ID, location *types.Location) error {
 	entry, err := r.GetEntry(id)
 	if err != nil {
 		return err
 	}
-	entry.Loc = &location
+	entry.Location = location
 	err = r.SetEntry(id, entry)
 	if err != nil {
 		return err
@@ -422,14 +511,14 @@ func (r *RedisStorage) SetLocation(id entity.ID, location Location) error {
 // 							Entity Manager
 // ---------------------------------------------------------------------------
 
-var _ EntityManager = &RedisStorage{}
+var _ storage.EntityManager = &Storage{}
 
-func (r *RedisStorage) Destroy(e Entity) {
+func (r *Storage) Destroy(e storage.Entity) {
 	// this is just a no-op, not really needed for redis
 	// since we're a bit more space efficient here
 }
 
-func (r *RedisStorage) NewEntity() (Entity, error) {
+func (r *Storage) NewEntity() (storage.Entity, error) {
 	ctx := context.Background()
 	key := r.nextEntityIDKey()
 	res := r.Client.Get(ctx, key)
@@ -447,7 +536,7 @@ func (r *RedisStorage) NewEntity() (Entity, error) {
 		}
 	}
 
-	ent := Entity(nextID)
+	ent := storage.Entity(nextID)
 	incRes := r.Client.Incr(ctx, key)
 	if err := incRes.Err(); err != nil {
 		return 0, err

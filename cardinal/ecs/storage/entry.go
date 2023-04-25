@@ -1,96 +1,74 @@
 package storage
 
 import (
-	"bytes"
-	"encoding/gob"
-	"fmt"
-
-	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
+
+	types "github.com/argus-labs/world-engine/cardinal/ecs/storage/types/v1"
 )
 
-// Entry is a struct that contains an Ent and a location in an archetype.
-type Entry struct {
-	ID  entity.ID
-	Ent Entity
-	Loc *Location // TODO: this definitely doesnt need to be a pointer...
-}
-
-func NewEntry(id entity.ID, e entity.Entity, loc *Location) *Entry {
-	return &Entry{
-		ID:  id,
-		Ent: e,
-		Loc: loc,
+func NewEntry(id entity.ID, loc *types.Location) *types.Entry {
+	return &types.Entry{
+		ID:       uint64(id),
+		Location: loc,
 	}
 }
 
 // Get returns the component from the entry
-func Get[T any](w WorldAccessor, e *Entry, cType component.IComponentType) (*T, error) {
-	var comp *T
-	compBz, err := e.Component(w, cType)
-	if err != nil {
-		return nil, err
-	}
-	var buf bytes.Buffer
-	buf.Write(compBz)
-	dec := gob.NewDecoder(&buf)
-	err = dec.Decode(comp)
-	return comp, err
-}
+//func Get[T any](w WorldAccessor, e *types.Entry, cType component.IComponentType) (*T, error) {
+//	compBz, err := e.Component(w, cType)
+//	if err != nil {
+//		return nil, err
+//	}
+//	decodedComponent, err := Decode[T](compBz)
+//	return &decodedComponent, err
+//}
+//
+//// Add adds the component to the entry.
+//func Add[T any](w WorldAccessor, e *types.Entry, cType component.IComponentType, component *T) error {
+//	bz, err := Encode(component)
+//	if err != nil {
+//		return err
+//	}
+//	e.AddComponent(w, cType, bz)
+//	return nil
+//}
+//
+//// Set sets the component of the entry.
+//func Set[T any](w WorldAccessor, e *types.Entry, ctype component.IComponentType, component *T) error {
+//	bz, err := Encode(component)
+//	if err != nil {
+//		return err
+//	}
+//	e.SetComponent(w, ctype, bz)
+//	return nil
+//}
+//
+//// SetValue sets the value of the component.
+//func SetValue[T any](w WorldAccessor, e *types.Entry, ctype component.IComponentType, value T) error {
+//	c, err := Get[T](w, e, ctype)
+//	if err != nil {
+//		return err
+//	}
+//	*c = value
+//	return nil
+//}
+//
+//// RemoveEntity removes the component from the entry.
+//func RemoveEntity[T any](w WorldAccessor, e *types.Entry, ctype component.IComponentType) {
+//	e.RemoveComponent(w, ctype)
+//}
+//
+//// Valid returns true if the entry is valid.
+//func Valid(w WorldAccessor, e *types.Entry) (bool, error) {
+//	if e == nil {
+//		return false, nil
+//	}
+//	ok, err := e.Valid(w)
+//	return ok, err
+//}
 
-// Add adds the component to the entry.
-func Add[T any](w WorldAccessor, e *Entry, cType component.IComponentType, component *T) error {
-	bz, err := Encode(component)
-	if err != nil {
-		return err
-	}
-	e.AddComponent(w, cType, bz)
-	return nil
-}
-
-// Set sets the component of the entry.
-func Set[T any](w WorldAccessor, e *Entry, ctype component.IComponentType, component *T) error {
-	bz, err := Encode(component)
-	if err != nil {
-		return err
-	}
-	e.SetComponent(w, ctype, bz)
-	return nil
-}
-
-// SetValue sets the value of the component.
-func SetValue[T any](w WorldAccessor, e *Entry, ctype component.IComponentType, value T) error {
-	c, err := Get[T](w, e, ctype)
-	if err != nil {
-		return err
-	}
-	*c = value
-	return nil
-}
-
-// Remove removes the component from the entry.
-func Remove[T any](w WorldAccessor, e *Entry, ctype component.IComponentType) {
-	e.RemoveComponent(w, ctype)
-}
-
-// Valid returns true if the entry is valid.
-func Valid(w WorldAccessor, e *Entry) (bool, error) {
-	if e == nil {
-		return false, nil
-	}
-	ok, err := e.Valid(w)
-	return ok, err
-}
-
-// Id returns the entity ID.
-func (e *Entry) Id() entity.ID {
-	return e.ID
-}
-
-// Entity returns the Entity.
-func (e *Entry) Entity() Entity {
-	return e.Ent
-}
+// TODO(technicallyty): bury the code
+/*
 
 // Component returns the component.
 func (e *Entry) Component(w WorldAccessor, cType component.IComponentType) ([]byte, error) {
@@ -166,9 +144,9 @@ func (e *Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType)
 	return nil
 }
 
-// Remove removes the entity from the world.
-func (e *Entry) Remove(w WorldAccessor) error {
-	return w.Remove(e.Ent)
+// RemoveEntity removes the entity from the world.
+func (e *Entry) RemoveEntity(w WorldAccessor) error {
+	return w.RemoveEntity(e.Ent)
 }
 
 // Valid returns true if the entry is valid.
@@ -200,3 +178,4 @@ func (e *Entry) String(w WorldAccessor) string {
 	out.WriteString("}")
 	return out.String()
 }
+*/

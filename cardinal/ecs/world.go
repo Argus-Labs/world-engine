@@ -183,7 +183,7 @@ func (w *world) createEntry(e storage.Entity) error {
 	if err != nil {
 		return err
 	}
-	entry := storage.NewEntry(id, e, loc)
+	entry := storage.NewEntry(id, loc)
 	return w.store.EntryStore.SetEntry(id, entry)
 }
 

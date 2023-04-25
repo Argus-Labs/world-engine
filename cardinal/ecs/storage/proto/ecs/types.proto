@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package ecs.types.v1;
+
+import "google/protobuf/any.proto";
+
+option go_package = "github.com/argus-labs/world-engine/cardinal/ecs/storage/types/v1";
+
+message Entry {
+  uint64 ID = 1;
+  Location location = 2;
+}
+
+message Location {
+  uint64 ArchetypeIndex = 1;
+  uint64 ComponentIndex = 2;
+  bool Valid = 3;
+}
+
+message Archetype {
+  uint64 ArchetypeIndex = 1;
+  repeated uint64 entity_ids = 2;
+  repeated google.protobuf.Any components = 3;
+}

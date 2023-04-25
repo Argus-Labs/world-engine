@@ -4,6 +4,7 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
+	types "github.com/argus-labs/world-engine/cardinal/ecs/storage/types/v1"
 )
 
 type ComponentStorage interface {
@@ -44,26 +45,22 @@ type ArchetypeComponentIndex interface {
 	Search(layoutFilter filter.LayoutFilter) *ArchetypeIterator
 }
 
-type ArchetypeAccessor interface {
-	PushArchetype(index ArchetypeIndex, layout *Layout)
-	Archetype(index ArchetypeIndex) ArchetypeStorage
-	Count() int
+type ArchetypeStorage interface {
+	PushArchetype(index ArchetypeIndex, layout []component.IComponentType)
+	Archetype(index ArchetypeIndex) *types.Archetype
+	RemoveEntity(index ArchetypeIndex, entityIndex int) entity.Entity
+	PushEntity(ArchetypeIndex, entity.Entity)
+	GetNextArchetypeIndex() (uint64, error)
 }
 
-type ArchetypeStorage interface {
-	Layout() *Layout
-	Entities() []entity.Entity
-	SwapRemove(entityIndex int) entity.Entity
-	LayoutMatches(components []component.IComponentType) bool
-	PushEntity(entity entity.Entity)
-	Count() int
-}
+// TODO(technicallyty): the below.
+// LayoutMatches(components []component.IComponentType) bool <--- NEEDS TO BE ITS OWN FUNCTION.
 
 type EntryStorage interface {
-	SetEntry(entity.ID, *Entry) error
-	GetEntry(entity.ID) (*Entry, error)
+	SetEntry(entity.ID, *types.Entry) error
+	GetEntry(entity.ID) (*types.Entry, error)
 	SetEntity(entity.ID, Entity) error
-	SetLocation(entity.ID, Location) error
+	SetLocation(entity.ID, *types.Location) error
 }
 
 type EntityManager interface {

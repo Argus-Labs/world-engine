@@ -11,6 +11,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage/redis"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
@@ -168,7 +169,7 @@ func TestRedis_EntryStorage(t *testing.T) {
 		CompIndex: 12,
 		Valid:     true,
 	}
-	e := storage.NewEntry(eid, entity.NewEntity(eid), loc)
+	e := storage.NewEntry(eid, loc)
 	err := store.EntryStore.SetEntry(eid, e)
 	assert.NilError(t, err)
 
@@ -191,9 +192,9 @@ func TestRedis_EntryStorage(t *testing.T) {
 	assert.DeepEqual(t, gotEntry.Ent, newEnt)
 }
 
-func GetRedisStorage(t *testing.T) storage.RedisStorage {
+func GetRedisStorage(t *testing.T) redis.Storage {
 	s := miniredis.RunT(t)
-	return storage.NewRedisStorage(storage.RedisStorageOptions{
+	return redis.NewStorage(redis.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB

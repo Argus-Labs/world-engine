@@ -3,6 +3,7 @@ package storage
 import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
+	types "github.com/argus-labs/world-engine/cardinal/ecs/storage/types/v1"
 )
 
 // Entity is identifier of an Ent.
@@ -18,7 +19,7 @@ type WorldAccessor interface {
 	GetLayout(index ArchetypeIndex) []component.IComponentType
 	GetArchetypeForComponents([]component.IComponentType) ArchetypeIndex
 	TransferArchetype(ArchetypeIndex, ArchetypeIndex, ComponentIndex) (ComponentIndex, error)
-	Entry(entity.Entity) (*Entry, error)
+	Entry(entity.Entity) (*types.Entry, error)
 	Remove(entity.Entity) error
 	Valid(entity.Entity) (bool, error)
 	Archetype(ArchetypeIndex) ArchetypeStorage

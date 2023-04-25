@@ -94,17 +94,17 @@ func Sync() error {
 
 // Cleans the project.
 func Clean() error {
-	// Remove golang build artifacts.
+	// RemoveEntity golang build artifacts.
 	if err := sh.Rm("bin"); err != nil {
 		return err
 	}
 
-	// Remove solidity build artifacts.
+	// RemoveEntity solidity build artifacts.
 	if err := (Contracts{}).Clean(); err != nil {
 		return err
 	}
 
-	// Remove test cache.
+	// RemoveEntity test cache.
 	if err := sh.RunV("go", "clean", "-testcache"); err != nil {
 		return err
 	}

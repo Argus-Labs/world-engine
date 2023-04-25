@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage/redis"
 	"github.com/argus-labs/world-engine/cardinal/net/server"
 )
 
@@ -25,7 +26,7 @@ func main() {
 		panic(err)
 	}
 	fmt.Println("listener established")
-	rs := storage.NewRedisStorage(storage.RedisStorageOptions{
+	rs := redis.NewStorage(redis.Options{
 		Addr: os.Getenv("redis_addr"),
 	}, "0")
 	ctx := context.Background()

@@ -1,9 +1,10 @@
-package storage
+package redis
 
 import (
 	"fmt"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 )
 
 /*
@@ -15,34 +16,40 @@ define keys for redis storage
 - 	ENTITY LOCATION: 	LOC:WORLD-1:E-1 		-> Location
 - 	ENTITY LOCATION LEN LOCL:WORLD-1			-> Int
 - 	ARCH COMP INDEX:    ACI:WORLD-1
+- 	ARCHETYPE STORAGE:  ARCH:WORLD-1:A-0 		-> archetype struct bytes
+- 	ARCHETYPE IDX:		ARCH:WORLD-1:IDX		-> uint64
 - 	ENTRY STORAGE:      ENTRY:WORLD-1:ID  		-> entry struct bytes
 - 	ENTITY MGR: 		ENTITY:WORLD-1:NEXTID 	-> uint64 id
 */
 
-func (r *RedisStorage) componentDataKey(index ArchetypeIndex) string {
+func (r *Storage) componentDataKey(index storage.ArchetypeIndex) string {
 	return fmt.Sprintf("COMPD:WORLD-%s:CID-%d:A-%d", r.WorldID, r.ComponentStoragePrefix, index)
 }
 
-func (r *RedisStorage) componentIndexKey(index ArchetypeIndex) string {
+func (r *Storage) componentIndexKey(index storage.ArchetypeIndex) string {
 	return fmt.Sprintf("CIDX:WORLD-%s:CID-%d:A-%d", r.WorldID, r.ComponentStoragePrefix, index)
 }
 
-func (r *RedisStorage) entityLocationKey(e entity.ID) string {
+func (r *Storage) entityLocationKey(e entity.ID) string {
 	return fmt.Sprintf("LOC:WORLD-%s:E-%d", r.WorldID, e)
 }
 
-func (r *RedisStorage) entityLocationLenKey() string {
+func (r *Storage) entityLocationLenKey() string {
 	return fmt.Sprintf("LOCL:WORLD-%s", r.WorldID)
 }
 
-func (r *RedisStorage) archetypeStorageKey(ai ArchetypeIndex) string {
+func (r *Storage) archetypeStorageKey(ai storage.ArchetypeIndex) string {
 	return fmt.Sprintf("ARCH:WORLD-%s:A-%d", r.WorldID, ai)
 }
 
-func (r *RedisStorage) entryStorageKey(id entity.ID) string {
+func (r *Storage) archetypeIndexKey() string {
+	return fmt.Sprintf("ARCH:WORLD-%s:IDX", r.WorldID)
+}
+
+func (r *Storage) entryStorageKey(id entity.ID) string {
 	return fmt.Sprintf("ENTRY:WORLD-%s:%d", r.WorldID, id)
 }
 
-func (r *RedisStorage) nextEntityIDKey() string {
+func (r *Storage) nextEntityIDKey() string {
 	return fmt.Sprintf("ENTITY:WORLD-%s:NEXTID", r.WorldID)
 }

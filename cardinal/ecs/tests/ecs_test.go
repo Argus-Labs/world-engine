@@ -6,6 +6,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage/redis"
 
 	"gotest.tools/v3/assert"
 
@@ -43,7 +44,7 @@ var (
 
 func Test_ECS(t *testing.T) {
 	s := miniredis.RunT(t)
-	rs := storage.NewRedisStorage(storage.RedisStorageOptions{
+	rs := redis.NewStorage(redis.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
