@@ -8,10 +8,13 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/testing/protocmp"
 	"gotest.tools/v3/assert"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage/redis"
+	types "github.com/argus-labs/world-engine/cardinal/ecs/storage/types/v1"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
@@ -41,11 +44,8 @@ func TestList(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	rs := GetRedisStorage(t)
-	store := storage.NewWorldStorage(storage.Components{
-		Store:            &rs,
-		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	rs := getRedisStorage(t)
+	store := getWorldStorage(rs)
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 	compStore := store.CompStore.Storage(x)
 
@@ -54,9 +54,11 @@ func TestList(t *testing.T) {
 	err = compStore.PushComponent(x, 1)
 	assert.NilError(t, err)
 
-	compStore.MoveComponent(0, 0, 1)
+	err = compStore.MoveComponent(0, 0, 1)
+	assert.NilError(t, err)
 
-	bz, _ := compStore.Component(1, 1)
+	bz, err := compStore.Component(1, 1)
+	assert.NilError(t, err)
 	foo, err := storage.Decode[SomeComp](bz)
 	assert.NilError(t, err)
 	assert.Equal(t, foo.Foo, 20)
@@ -67,7 +69,8 @@ func TestList(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, len(result) == 0)
 
-	contains, _ := compStore.Contains(1, 0)
+	contains, err := compStore.Contains(1, 0)
+	assert.NilError(t, err)
 	assert.Equal(t, contains, true)
 }
 
@@ -75,31 +78,29 @@ func TestRedis_CompIndex(t *testing.T) {
 	type SomeComp struct {
 		Foo int
 	}
-	ctx := context.Background()
-	_ = ctx
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 
-	rs := GetRedisStorage(t)
-	store := storage.NewWorldStorage(storage.Components{
-		Store:            &rs,
-		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	rs := getRedisStorage(t)
+	store := getWorldStorage(rs)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
 	archIdx, compIdx := storage.ArchetypeIndex(0), storage.ComponentIndex(1)
-	idxStore.SetIndex(archIdx, compIdx)
+	err := idxStore.SetIndex(archIdx, compIdx)
+	assert.NilError(t, err)
 	gotIdx, ok, err := idxStore.ComponentIndex(archIdx)
 	assert.NilError(t, err)
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx)
-	idxStore.IncrementIndex(archIdx)
+	err = idxStore.IncrementIndex(archIdx)
+	assert.NilError(t, err)
 
 	gotIdx, ok, err = idxStore.ComponentIndex(archIdx)
 	assert.NilError(t, err)
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx+1)
 
-	idxStore.DecrementIndex(archIdx)
+	err = idxStore.DecrementIndex(archIdx)
+	assert.NilError(t, err)
 
 	gotIdx, ok, err = idxStore.ComponentIndex(archIdx)
 	assert.NilError(t, err)
@@ -107,7 +108,8 @@ func TestRedis_CompIndex(t *testing.T) {
 	assert.Check(t, gotIdx == compIdx)
 
 	compIdx = storage.ComponentIndex(25)
-	idxStore.SetIndex(archIdx, compIdx)
+	err = idxStore.SetIndex(archIdx, compIdx)
+	assert.NilError(t, err)
 	gotIdx, ok, err = idxStore.ComponentIndex(archIdx)
 	assert.NilError(t, err)
 	assert.Check(t, ok == true)
@@ -115,88 +117,112 @@ func TestRedis_CompIndex(t *testing.T) {
 }
 
 func TestRedis_Location(t *testing.T) {
-	//ctx := context.Background()
-	rs := GetRedisStorage(t)
-	store := storage.NewWorldStorage(storage.Components{
-		Store:            &rs,
-		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	rs := getRedisStorage(t)
+	store := getWorldStorage(rs)
 
 	loc := storage.NewLocation(0, 1)
 	eid := entity.ID(3)
-	store.EntityLocStore.Set(eid, loc)
-	gotLoc, _ := store.EntityLocStore.Location(eid)
-	assert.Equal(t, *loc, *gotLoc)
+	err := store.EntityLocStore.Set(eid, loc)
+	assert.NilError(t, err)
 
-	aid, _ := store.EntityLocStore.ArchetypeIndex(eid)
-	assert.Equal(t, loc.ArchIndex, aid)
+	gotLoc, err := store.EntityLocStore.Location(eid)
+	assert.NilError(t, err)
+	diff := cmp.Diff(loc, gotLoc, protocmp.Transform())
+	assert.Equal(t, len(diff), 0, diff)
 
-	contains, _ := store.EntityLocStore.ContainsEntity(eid)
+	aid, err := store.EntityLocStore.ArchetypeIndex(eid)
+	assert.NilError(t, err)
+	assert.Equal(t, loc.ArchetypeIndex, aid)
+
+	contains, err := store.EntityLocStore.ContainsEntity(eid)
+	assert.NilError(t, err)
 	assert.Equal(t, contains, true)
 
-	notContains, _ := store.EntityLocStore.ContainsEntity(entity.ID(420))
+	notContains, err := store.EntityLocStore.ContainsEntity(entity.ID(420))
+	assert.NilError(t, err)
 	assert.Equal(t, notContains, false)
 
-	compIdx, _ := store.EntityLocStore.ComponentIndexForEntity(eid)
-	assert.Equal(t, loc.CompIndex, compIdx)
+	compIdx, err := store.EntityLocStore.ComponentIndexForEntity(eid)
+	assert.NilError(t, err)
+	assert.Equal(t, loc.ComponentIndex, compIdx)
 
 	newEID := entity.ID(40)
 	archIdx2, compIdx2 := storage.ArchetypeIndex(10), storage.ComponentIndex(15)
-	store.EntityLocStore.Insert(newEID, archIdx2, compIdx2)
+	err = store.EntityLocStore.Insert(newEID, archIdx2, compIdx2)
+	assert.NilError(t, err)
 
-	newLoc, _ := store.EntityLocStore.Location(newEID)
-	assert.Equal(t, newLoc.ArchIndex, archIdx2)
-	assert.Equal(t, newLoc.CompIndex, compIdx2)
+	newLoc, err := store.EntityLocStore.Location(newEID)
+	assert.NilError(t, err)
+	assert.Equal(t, newLoc.ArchetypeIndex, archIdx2)
+	assert.Equal(t, newLoc.ComponentIndex, compIdx2)
 
-	store.EntityLocStore.Remove(newEID)
+	err = store.EntityLocStore.Remove(newEID)
+	assert.NilError(t, err)
 
-	has, _ := store.EntityLocStore.ContainsEntity(newEID)
+	has, err := store.EntityLocStore.ContainsEntity(newEID)
+	assert.NilError(t, err)
 	assert.Equal(t, has, false)
 }
 
 func TestRedis_EntryStorage(t *testing.T) {
-	ctx := context.Background()
-	_ = ctx
-	rs := GetRedisStorage(t)
-	store := storage.NewWorldStorage(storage.Components{
-		Store:            &rs,
-		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	rs := getRedisStorage(t)
+	store := getWorldStorage(rs)
 
 	eid := entity.ID(12)
-	loc := &storage.Location{
-		ArchIndex: 15,
-		CompIndex: 12,
-		Valid:     true,
+	loc := &types.Location{
+		ArchetypeIndex: 15,
+		ComponentIndex: 12,
+		Valid:          true,
 	}
 	e := storage.NewEntry(eid, loc)
 	err := store.EntryStore.SetEntry(eid, e)
 	assert.NilError(t, err)
 
-	gotEntry, _ := store.EntryStore.GetEntry(eid)
-	assert.DeepEqual(t, e, gotEntry)
+	gotEntry, err := store.EntryStore.GetEntry(eid)
+	assert.NilError(t, err)
+	diff := cmp.Diff(e, gotEntry, protocmp.Transform())
+	assert.Equal(t, len(diff), 0, diff)
 
-	newLoc := storage.Location{
-		ArchIndex: 39,
-		CompIndex: 82,
-		Valid:     false,
+	newLoc := &types.Location{
+		ArchetypeIndex: 39,
+		ComponentIndex: 82,
+		Valid:          false,
 	}
-	store.EntryStore.SetLocation(eid, newLoc)
+	err = store.EntryStore.SetLocation(eid, newLoc)
+	assert.NilError(t, err)
 
-	gotEntry, _ = store.EntryStore.GetEntry(eid)
-	assert.DeepEqual(t, *gotEntry.Loc, newLoc)
+	gotEntry, err = store.EntryStore.GetEntry(eid)
+	assert.NilError(t, err)
+
+	diff = cmp.Diff(gotEntry.Location, newLoc, protocmp.Transform())
+	assert.Equal(t, len(diff), 0, diff)
 
 	newEnt := entity.NewEntity(400)
-	store.EntryStore.SetEntity(eid, newEnt)
-	gotEntry, _ = store.EntryStore.GetEntry(eid)
-	assert.DeepEqual(t, gotEntry.Ent, newEnt)
+	err = store.EntryStore.SetEntity(eid, newEnt)
+	assert.NilError(t, err)
+	gotEntry, err = store.EntryStore.GetEntry(eid)
+	assert.NilError(t, err)
+	assert.Equal(t, gotEntry.ID, uint64(newEnt.ID()))
 }
 
-func GetRedisStorage(t *testing.T) redis.Storage {
+func getRedisStorage(t *testing.T) *redis.Storage {
 	s := miniredis.RunT(t)
-	return redis.NewStorage(redis.Options{
+	rs := redis.NewStorage(redis.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, WorldId)
+
+	return &rs
+}
+
+func getWorldStorage(r *redis.Storage) *storage.WorldStorage {
+	return &storage.WorldStorage{
+		CompStore:        storage.Components{Store: r, ComponentIndices: r},
+		EntityLocStore:   r,
+		ArchCompIdxStore: r,
+		ArchAccessor:     r,
+		EntryStore:       r,
+		EntityMgr:        r,
+	}
 }

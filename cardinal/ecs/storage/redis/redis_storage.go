@@ -12,33 +12,14 @@ import (
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
+	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	types "github.com/argus-labs/world-engine/cardinal/ecs/storage/types/v1"
 )
 
-// Archetypes can just be stored in program memory. It just a structure that allows us to quickly
-// decipher combinations of components. There is no point in storing such information in a backend.
-// at the very least, we may want to store the list of entities that an archetype has.
-//
-// Archetype -> group of entities for specific set of components. makes it easy to find entities based on comps.
-// example:
-//
-//
-//
-// Normal Planet Archetype(1): EnergyComponent, OwnableComponent
-// Entities (1), (2), (3)....
-//
-// In Go memory -> []Archetypes {arch1 (maps to above)}
-//
-// We need to consider if this needs to be stored in a backend at all. We _should_ be able to build archetypes from
-// system restarts as they don't really contain any information about the location of anything stored in a backend.
-//
-// Something to consider -> we should do something i.e. RegisterComponents, and have it deterministically assign TypeID's to components.
-// We could end up with some issues (needs to be determined).
-
 type Storage struct {
-	WorldID                string
-	ComponentStoragePrefix component.TypeID
+	worldID                string
+	componentStoragePrefix component.TypeID
 	Client                 *redis.Client
 	Log                    zerolog.Logger
 }
@@ -66,7 +47,7 @@ type Options struct {
 
 func NewStorage(options Options, worldID string) Storage {
 	return Storage{
-		WorldID: worldID,
+		worldID: worldID,
 		Client: redis.NewClient(&redis.Options{
 			Addr:     options.Addr,
 			Username: options.Username,
@@ -84,7 +65,7 @@ func NewStorage(options Options, worldID string) Storage {
 var _ storage.ComponentIndexStorage = &Storage{}
 
 func (r *Storage) GetComponentIndexStorage(cid component.TypeID) storage.ComponentIndexStorage {
-	r.ComponentStoragePrefix = cid
+	r.componentStoragePrefix = cid
 	return r
 }
 
@@ -153,7 +134,7 @@ func (r *Storage) DecrementIndex(index storage.ArchetypeIndex) error {
 var _ storage.ComponentStorageManager = &Storage{}
 
 func (r *Storage) GetComponentStorage(cid component.TypeID) storage.ComponentStorage {
-	r.ComponentStoragePrefix = cid
+	r.componentStoragePrefix = cid
 	return r
 }
 
@@ -385,7 +366,7 @@ func (r *Storage) Insert(id entity.ID, index storage.ArchetypeIndex, componentIn
 	return nil
 }
 
-func (r *Storage) Set(id entity.ID, location *storage.Location) error {
+func (r *Storage) Set(id entity.ID, location *types.Location) error {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	bz, err := storage.Encode(*location)
@@ -399,7 +380,7 @@ func (r *Storage) Set(id entity.ID, location *storage.Location) error {
 	return nil
 }
 
-func (r *Storage) Location(id entity.ID) (*storage.Location, error) {
+func (r *Storage) Location(id entity.ID) (*types.Location, error) {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	res := r.Client.Get(ctx, key)
@@ -410,7 +391,7 @@ func (r *Storage) Location(id entity.ID) (*storage.Location, error) {
 	if err != nil {
 		return nil, err
 	}
-	loc, err := storage.Decode[storage.Location](bz)
+	loc, err := storage.Decode[types.Location](bz)
 	if err != nil {
 		return nil, err
 	}
@@ -419,12 +400,12 @@ func (r *Storage) Location(id entity.ID) (*storage.Location, error) {
 
 func (r *Storage) ArchetypeIndex(id entity.ID) (storage.ArchetypeIndex, error) {
 	loc, err := r.Location(id)
-	return loc.ArchIndex, err
+	return storage.ArchetypeIndex(loc.ArchetypeIndex), err
 }
 
 func (r *Storage) ComponentIndexForEntity(id entity.ID) (storage.ComponentIndex, error) {
 	loc, err := r.Location(id)
-	return loc.CompIndex, err
+	return storage.ComponentIndex(loc.ComponentIndex), err
 }
 
 func (r *Storage) Len() (int, error) {
@@ -542,4 +523,27 @@ func (r *Storage) NewEntity() (storage.Entity, error) {
 		return 0, err
 	}
 	return ent, nil
+}
+
+// ---------------------------------------------------------------------------
+// 						Archetype Component Index
+// ---------------------------------------------------------------------------
+
+// TODO(technicallyty): impl
+
+var _ storage.ArchetypeComponentIndex = &Storage{}
+
+func (r *Storage) Push(layout *storage.Layout) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r *Storage) SearchFrom(filter filter.LayoutFilter, start int) *storage.ArchetypeIterator {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r *Storage) Search(layoutFilter filter.LayoutFilter) *storage.ArchetypeIterator {
+	//TODO implement me
+	panic("implement me")
 }

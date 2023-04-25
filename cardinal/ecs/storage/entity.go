@@ -22,40 +22,6 @@ type WorldAccessor interface {
 	Entry(entity.Entity) (*types.Entry, error)
 	Remove(entity.Entity) error
 	Valid(entity.Entity) (bool, error)
-	Archetype(ArchetypeIndex) ArchetypeStorage
-	SetEntryLocation(id entity.ID, location Location) error
-}
-
-var _ EntityManager = &entityMgrImpl{}
-
-func NewEntityManager() EntityManager {
-	return &entityMgrImpl{destroyed: make([]Entity, 0, 256), nextID: 0}
-}
-
-type entityMgrImpl struct {
-	destroyed []Entity
-	nextID    entity.ID
-}
-
-func (e *entityMgrImpl) GetNextEntityID() entity.ID {
-	e.nextID++
-	return e.nextID
-}
-
-func (e *entityMgrImpl) shrink() {
-	e.destroyed = e.destroyed[:len(e.destroyed)-1]
-}
-
-func (e *entityMgrImpl) NewEntity() (Entity, error) {
-	if len(e.destroyed) == 0 {
-		id := e.GetNextEntityID()
-		return entity.NewEntity(id), nil
-	}
-	newEntity := e.destroyed[(len(e.destroyed) - 1)]
-	e.shrink()
-	return newEntity, nil
-}
-
-func (e *entityMgrImpl) Destroy(et Entity) {
-	e.destroyed = append(e.destroyed, et)
+	Archetype(ArchetypeIndex) *types.Archetype
+	SetEntryLocation(id entity.ID, location *types.Location) error
 }

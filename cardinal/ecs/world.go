@@ -7,6 +7,7 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	types "github.com/argus-labs/world-engine/cardinal/ecs/storage/types/v1"
 )
 
 // WorldId is a unique identifier for a world.
@@ -21,7 +22,7 @@ type World interface {
 	// CreateMany creates a new entity with the specified componentStore.
 	CreateMany(n int, components ...component.IComponentType) ([]storage.Entity, error)
 	// Entry returns an entry for the specified entity.
-	Entry(storage.Entity) (*storage.Entry, error)
+	Entry(storage.Entity) (*types.Entry, error)
 	// Remove removes the specified entity.
 	Remove(storage.Entity) error
 	// Valid returns true if the specified entity is valid.
@@ -46,7 +47,7 @@ type StorageAccessor struct {
 	// Components is the component storage for the world.
 	Components *storage.Components
 	// Archetypes is the archetype storage for the world.
-	Archetypes storage.ArchetypeAccessor
+	Archetypes storage.ArchetypeStorage
 }
 
 type initializer func(w World)
@@ -59,7 +60,7 @@ type world struct {
 	systems []System
 }
 
-func (w *world) SetEntryLocation(id entity.ID, location storage.Location) error {
+func (w *world) SetEntryLocation(id entity.ID, location *types.Location) error {
 	err := w.store.EntryStore.SetLocation(id, location)
 	if err != nil {
 		return err
@@ -76,14 +77,17 @@ func (w *world) SetComponent(cType component.IComponentType, component []byte, i
 }
 
 func (w *world) GetLayout(index storage.ArchetypeIndex) []component.IComponentType {
-	return w.store.ArchAccessor.Archetype(index).Layout().Components()
+	componentBzs := w.store.ArchAccessor.Archetype(index).GetComponents()
+	_ = componentBzs
+	// TODO(technicallyty): decode the any's into their components, or maybe we can just return the anys..
+	return []component.IComponentType{}
 }
 
 func (w *world) GetArchetypeForComponents(componentTypes []component.IComponentType) storage.ArchetypeIndex {
 	return w.getArchetypeForComponents(componentTypes)
 }
 
-func (w *world) Archetype(index storage.ArchetypeIndex) storage.ArchetypeStorage {
+func (w *world) Archetype(index storage.ArchetypeIndex) *types.Archetype {
 	return w.store.ArchAccessor.Archetype(index)
 }
 

@@ -10,7 +10,7 @@ import (
 /*
 	KEYS:
 define keys for redis storage
-	return fmt.Sprintf("WORLD-%s:CID-%d:A-%d", r.WorldID, r.ComponentStoragePrefix, Index)
+	return fmt.Sprintf("WORLD-%s:CID-%d:A-%d", r.worldID, r.componentStoragePrefix, Index)
 - 	COMPONENT DATA: 	COMPD:WORLD-1:CID-0:A-5 -> component struct bytes
 -	COMPONENT INDEX: 	CIDX:WORLD-1:CID-0:A-4 	-> Component Index
 - 	ENTITY LOCATION: 	LOC:WORLD-1:E-1 		-> Location
@@ -23,33 +23,33 @@ define keys for redis storage
 */
 
 func (r *Storage) componentDataKey(index storage.ArchetypeIndex) string {
-	return fmt.Sprintf("COMPD:WORLD-%s:CID-%d:A-%d", r.WorldID, r.ComponentStoragePrefix, index)
+	return fmt.Sprintf("COMPD:WORLD-%s:CID-%d:A-%d", r.worldID, r.componentStoragePrefix, index)
 }
 
 func (r *Storage) componentIndexKey(index storage.ArchetypeIndex) string {
-	return fmt.Sprintf("CIDX:WORLD-%s:CID-%d:A-%d", r.WorldID, r.ComponentStoragePrefix, index)
+	return fmt.Sprintf("CIDX:WORLD-%s:CID-%d:A-%d", r.worldID, r.componentStoragePrefix, index)
 }
 
 func (r *Storage) entityLocationKey(e entity.ID) string {
-	return fmt.Sprintf("LOC:WORLD-%s:E-%d", r.WorldID, e)
+	return fmt.Sprintf("LOC:WORLD-%s:E-%d", r.worldID, e)
 }
 
 func (r *Storage) entityLocationLenKey() string {
-	return fmt.Sprintf("LOCL:WORLD-%s", r.WorldID)
+	return fmt.Sprintf("LOCL:WORLD-%s", r.worldID)
 }
 
 func (r *Storage) archetypeStorageKey(ai storage.ArchetypeIndex) string {
-	return fmt.Sprintf("ARCH:WORLD-%s:A-%d", r.WorldID, ai)
+	return fmt.Sprintf("ARCH:WORLD-%s:A-%d", r.worldID, ai)
 }
 
 func (r *Storage) archetypeIndexKey() string {
-	return fmt.Sprintf("ARCH:WORLD-%s:IDX", r.WorldID)
+	return fmt.Sprintf("ARCH:WORLD-%s:IDX", r.worldID)
 }
 
 func (r *Storage) entryStorageKey(id entity.ID) string {
-	return fmt.Sprintf("ENTRY:WORLD-%s:%d", r.WorldID, id)
+	return fmt.Sprintf("ENTRY:WORLD-%s:%d", r.worldID, id)
 }
 
 func (r *Storage) nextEntityIDKey() string {
-	return fmt.Sprintf("ENTITY:WORLD-%s:NEXTID", r.WorldID)
+	return fmt.Sprintf("ENTITY:WORLD-%s:NEXTID", r.worldID)
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	types "github.com/argus-labs/world-engine/cardinal/ecs/storage/types/v1"
 )
 
 type cache struct {
@@ -32,7 +33,7 @@ func NewQuery(filter filter.LayoutFilter) *Query {
 }
 
 // Each iterates over all entityLocationStore that match the query.
-func (q *Query) Each(w World, callback func(*storage.Entry)) {
+func (q *Query) Each(w World, callback func(*types.Entry)) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
@@ -62,7 +63,7 @@ func (q *Query) Count(w World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w World) (entry *storage.Entry, ok bool, err error) {
+func (q *Query) First(w World) (entry *types.Entry, ok bool, err error) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
@@ -94,6 +95,7 @@ func (q *Query) evaluateQuery(world World, accessor *StorageAccessor) []storage.
 	for it := accessor.Index.SearchFrom(q.filter, cache.seen); it.HasNext(); {
 		cache.archetypes = append(cache.archetypes, it.Next())
 	}
+	// TODO(technicallyty): deal with this
 	cache.seen = accessor.Archetypes.Count()
 	return cache.archetypes
 }
