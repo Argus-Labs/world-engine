@@ -2,22 +2,28 @@
 id: pxtvf
 title: Getting Started with World Engine
 file_version: 1.1.2
-app_version: 1.6.3
+app_version: 1.7.1
 ---
 
 ## Components
 
 The World Engine comprises of two main components:
 
-*   ECS Game Backend
+*   Cardinal
 
-    *   A server that handles real time game logic
+    *   Game Server designed to run on-chain games.
+
+    *   A Go server with a custom ECS implementaiton, Redis, and a blockchain connector.
 
 *   Cosmos Rollkit Rollup
 
     *   A rollup blockchain that handles assets, EVM scripting, accounts, etc.
 
-These components communicate over a secure gRPC channel to share data and execute transactions. For example, the ECS server could have logic that when a player destroys a game object, a transaction is sent to the rollup to delete that asset from the chain.
+*   Nakama
+
+    *   Server that handles client connections and data relay to Cardinal.
+
+These components communicate over a secure gRPC channel to share data and execute transactions.
 
 ## Running the Stack (Docker)
 
@@ -27,7 +33,9 @@ The World Engine comes with a few preconfigured `Dockerfile`s to quickly get the
 
 *   `📄 .archive.chain/rollup.Dockerfile` - the rollup
 
-*   `📄 game/nakama/Dockerfile` - the preconfigured ECS Server
+*   `📄 game/nakama/Dockerfile` - the preconfigured relay server
+
+*   `📄 cardinal/Dockerfile` - Game server/ECS
 
 All components can be ran with a simple script inside the `📄 .archive.chain/Makefile`.
 
@@ -135,10 +143,14 @@ public class NakamaConn : MonoBehaviour
 ```mermaid
 flowchart LR
 2("Cosmos Rollup") --- 3("Celestia DA")
-1("Nakama") ---> |"gRPC connection"|2("Cosmos Rollup")
-2("Cosmos Rollup") ---> |"gRPC connection"|1("Nakama")
+
+4("Cardinal") --- |"gRPC connection"|1("Nakama")
+4("Cardinal") ---> |"gRPC connection"|2("Cosmos Rollup")
+2("Cosmos Rollup") ---> |"gRPC connection"|4("Cardinal")
+
+5("game client") ---> |"JSON RPC/HTTPs"| 1("Nakama")
 ```
-<!--MCONTENT {content: "flowchart LR<br/>\n2(\"Cosmos Rollup\") --- 3(\"Celestia DA\")<br/>\n1(\"Nakama\") -\\-\\-\\> |\"gRPC connection\"|2(\"Cosmos Rollup\")<br/>\n2(\"Cosmos Rollup\") -\\-\\-\\> |\"gRPC connection\"|1(\"Nakama\")"} --->
+<!--MCONTENT {content: "flowchart LR<br/>\n2(\"Cosmos Rollup\") --- 3(\"Celestia DA\")\n\n4(\"Cardinal\") --- |\"gRPC connection\"|1(\"Nakama\")<br/>\n4(\"Cardinal\") -\\-\\-\\> |\"gRPC connection\"|2(\"Cosmos Rollup\")<br/>\n2(\"Cosmos Rollup\") -\\-\\-\\> |\"gRPC connection\"|4(\"Cardinal\")\n\n5(\"game client\") -\\-\\-\\> |\"JSON RPC/HTTPs\"| 1(\"Nakama\")"} --->
 
 <br/>
 
