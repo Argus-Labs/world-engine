@@ -297,7 +297,7 @@ func (w *world) Remove(ent storage.Entity) error {
 func (w *world) removeAtLocation(ent storage.Entity, loc *types.Location) error {
 	archIndex := loc.ArchetypeIndex
 	componentIndex := loc.ComponentIndex
-	w.store.ArchAccessor.RemoveEntity(storage.ArchetypeIndex(archIndex), int(componentIndex))
+	w.store.ArchAccessor.RemoveEntityAt(storage.ArchetypeIndex(archIndex), int(componentIndex))
 	archetype, _ := w.store.ArchAccessor.Archetype(storage.ArchetypeIndex(archIndex))
 	err := w.store.CompStore.Remove(storage.ArchetypeIndex(archIndex), archetype.Components, storage.ComponentIndex(componentIndex))
 	if err != nil {
@@ -321,7 +321,7 @@ func (w *world) TransferArchetype(from storage.ArchetypeIndex, to storage.Archet
 	toArch, _ := w.store.ArchAccessor.Archetype(to)
 
 	// move entity id
-	ent, _ := w.store.ArchAccessor.RemoveEntity(from, int(idx))
+	ent, _ := w.store.ArchAccessor.RemoveEntityAt(from, int(idx))
 	w.store.ArchAccessor.PushEntity(to, ent)
 	err := w.store.EntityLocStore.Insert(ent.ID(), to, storage.ComponentIndex(len(toArch.EntityIds)-1))
 	if err != nil {

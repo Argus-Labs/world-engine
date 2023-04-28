@@ -39,6 +39,9 @@ type Options struct {
 
 	// Database to be selected after connecting to the server.
 	DB int
+
+	// Registry facilitates the marshaling/unmarshalling of anypb.Any types into their protobuf structs.
+	Registry storage.TypeRegistry
 }
 
 func NewStorage(options Options, worldID string) Storage {
@@ -69,8 +72,7 @@ func unmarshalProto(bz []byte, msg proto.Message) error {
 
 // encode encodes the component type to anypb.Any, then proto marshals it to []byte.
 func (r *Storage) encode(c component.IComponentType) ([]byte, error) {
-	comp := c.ProtoReflect().New()
-	a, err := anypb.New(comp.Interface())
+	a, err := anypb.New(c)
 	if err != nil {
 		return nil, err
 	}

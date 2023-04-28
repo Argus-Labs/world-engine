@@ -51,7 +51,8 @@ type ArchetypeComponentIndex interface {
 type ArchetypeStorage interface {
 	PushArchetype(index ArchetypeIndex, layout []component.IComponentType) error
 	Archetype(index ArchetypeIndex) (*types.Archetype, error)
-	RemoveEntity(index ArchetypeIndex, entityIndex int) (entity.Entity, error)
+	RemoveEntityAt(index ArchetypeIndex, entityIndex int) (entity.Entity, error)
+	RemoveEntity(ArchetypeIndex, entity.Entity) error
 	PushEntity(ArchetypeIndex, entity.Entity) error
 	GetNextArchetypeIndex() (uint64, error)
 }

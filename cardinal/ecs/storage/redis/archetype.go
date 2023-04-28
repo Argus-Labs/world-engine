@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
@@ -58,7 +59,28 @@ func (r *Storage) Archetype(index storage.ArchetypeIndex) (*types.Archetype, err
 	return a, nil
 }
 
-func (r *Storage) RemoveEntity(index storage.ArchetypeIndex, entityIndex int) (entity.Entity, error) {
+func (r *Storage) RemoveEntity(index storage.ArchetypeIndex, ent entity.Entity) error {
+	ctx := context.Background()
+	arch, err := r.Archetype(index)
+	if err != nil {
+		return err
+	}
+
+	entUint := uint64(ent)
+	for i, e := range arch.EntityIds {
+		if entUint == e {
+			length := len(arch.EntityIds)
+			arch.EntityIds[i] = arch.EntityIds[length-1]
+			arch.EntityIds = arch.EntityIds[:length-1]
+			err = r.setArchetype(ctx, arch)
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *Storage) RemoveEntityAt(index storage.ArchetypeIndex, entityIndex int) (entity.Entity, error) {
+	ctx := context.Background()
 	arch, err := r.Archetype(index)
 	if err != nil {
 		return 0, err
@@ -67,6 +89,10 @@ func (r *Storage) RemoveEntity(index storage.ArchetypeIndex, entityIndex int) (e
 	length := len(arch.EntityIds)
 	arch.EntityIds[entityIndex] = arch.EntityIds[length-1]
 	arch.EntityIds = arch.EntityIds[:length-1]
+	err = r.setArchetype(ctx, arch)
+	if err != nil {
+		return 0, err
+	}
 	return entity.Entity(removed), nil
 }
 
@@ -98,13 +124,21 @@ func (r *Storage) GetNextArchetypeIndex() (uint64, error) {
 	ctx := context.Background()
 	key := r.archetypeIndexKey()
 	res := r.Client.Get(ctx, key)
-	if res.Err() != nil {
-		return 0, res.Err()
-	}
-	idx, err := res.Uint64()
+	err := res.Err()
+	var idx uint64
 	if err != nil {
-		return 0, err
+		if err == redis.Nil {
+			idx = 0
+		} else {
+			return 0, err
+		}
+	} else {
+		idx, err = res.Uint64()
+		if err != nil {
+			return 0, err
+		}
 	}
+
 	setRes := r.Client.Set(ctx, key, idx+1, 0)
 	if setRes.Err() != nil {
 		return 0, setRes.Err()
