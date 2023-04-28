@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package ecs.types.v1;
+
+import "google/protobuf/any.proto";
+
+option go_package = "github.com/argus-labs/world-engine/cardinal/ecs/storage/testtypes/v1";
+
+message EnergyComponent {
+  uint64 amount = 1;
+  uint64 cap = 2;
+}
+
+message OwnableComponent {
+  string owner = 1;
+}
+
+message SilverComponent {
+  uint64 amount =1;
+  uint64  cap = 2
+}

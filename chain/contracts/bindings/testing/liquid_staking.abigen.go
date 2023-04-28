@@ -64,7 +64,7 @@ func DeployLiquidStaking(auth *bind.TransactOpts, backend bind.ContractBackend, 
 type LiquidStaking struct {
 	LiquidStakingCaller     // Read-only binding to the contract
 	LiquidStakingTransactor // Write-only binding to the contract
-	LiquidStakingFilterer   // Log filterer for contract events
+	LiquidStakingFilterer   // log filterer for contract events
 }
 
 // LiquidStakingCaller is an auto generated read-only Go binding around an Ethereum contract.
@@ -728,7 +728,7 @@ type LiquidStakingApprovalIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -882,7 +882,7 @@ type LiquidStakingDataIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -1016,7 +1016,7 @@ type LiquidStakingSuccessIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -1160,7 +1160,7 @@ type LiquidStakingTransferIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration

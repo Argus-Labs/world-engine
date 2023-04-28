@@ -42,7 +42,7 @@ var AuthModuleABI = AuthModuleMetaData.ABI
 type AuthModule struct {
 	AuthModuleCaller     // Read-only binding to the contract
 	AuthModuleTransactor // Write-only binding to the contract
-	AuthModuleFilterer   // Log filterer for contract events
+	AuthModuleFilterer   // log filterer for contract events
 }
 
 // AuthModuleCaller is an auto generated read-only Go binding around an Ethereum contract.

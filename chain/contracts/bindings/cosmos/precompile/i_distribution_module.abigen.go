@@ -42,7 +42,7 @@ var DistributionModuleABI = DistributionModuleMetaData.ABI
 type DistributionModule struct {
 	DistributionModuleCaller     // Read-only binding to the contract
 	DistributionModuleTransactor // Write-only binding to the contract
-	DistributionModuleFilterer   // Log filterer for contract events
+	DistributionModuleFilterer   // log filterer for contract events
 }
 
 // DistributionModuleCaller is an auto generated read-only Go binding around an Ethereum contract.
@@ -187,7 +187,7 @@ type DistributionModuleWithdrawRewardsIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration

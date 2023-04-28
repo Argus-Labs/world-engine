@@ -64,7 +64,7 @@ func DeploySolmateERC20(auth *bind.TransactOpts, backend bind.ContractBackend) (
 type SolmateERC20 struct {
 	SolmateERC20Caller     // Read-only binding to the contract
 	SolmateERC20Transactor // Write-only binding to the contract
-	SolmateERC20Filterer   // Log filterer for contract events
+	SolmateERC20Filterer   // log filterer for contract events
 }
 
 // SolmateERC20Caller is an auto generated read-only Go binding around an Ethereum contract.
@@ -562,7 +562,7 @@ type SolmateERC20ApprovalIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -716,7 +716,7 @@ type SolmateERC20MintIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration
@@ -861,7 +861,7 @@ type SolmateERC20TransferIterator struct {
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
 
-	logs chan types.Log        // Log channel receiving the found contract events
+	logs chan types.Log        // log channel receiving the found contract events
 	sub  ethereum.Subscription // Subscription for errors, completion and termination
 	done bool                  // Whether the subscription completed delivering logs
 	fail error                 // Occurred error to stop iteration

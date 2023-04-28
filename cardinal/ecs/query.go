@@ -1,5 +1,6 @@
 package ecs
 
+/*
 import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
@@ -12,19 +13,19 @@ type cache struct {
 	seen       int
 }
 
-// Query represents a query for entityLocationStore.
-// It is used to filter entityLocationStore based on their componentStore.
-// It receives arbitrary filters that are used to filter entityLocationStore.
+// Query represents a query for entities and components.
+// It is used to filter entities based on their components.
+// It receives arbitrary filters that are used to filter entities.
 // It contains a cache that is used to avoid re-evaluating the query.
 // So it is not recommended to create a new query every time you want
-// to filter entityLocationStore with the same query.
+// to filter entities with the same query.
 type Query struct {
 	layoutMatches map[WorldId]*cache
 	filter        filter.LayoutFilter
 }
 
 // NewQuery creates a new query.
-// It receives arbitrary filters that are used to filter entityLocationStore.
+// It receives arbitrary filters that are used to filter entities.
 func NewQuery(filter filter.LayoutFilter) *Query {
 	return &Query{
 		layoutMatches: make(map[WorldId]*cache),
@@ -32,7 +33,7 @@ func NewQuery(filter filter.LayoutFilter) *Query {
 	}
 }
 
-// Each iterates over all entityLocationStore that match the query.
+// Each iterates over all entities that match the query.
 func (q *Query) Each(w World, callback func(*types.Entry)) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
@@ -49,7 +50,7 @@ func (q *Query) Each(w World, callback func(*types.Entry)) {
 	}
 }
 
-// Count returns the number of entityLocationStore that match the query.
+// Count returns the number of entities that match the query.
 func (q *Query) Count(w World) int {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
@@ -73,7 +74,7 @@ func (q *Query) First(w World) (entry *types.Entry, ok bool, err error) {
 	for iter.HasNext() {
 		entities := iter.Next()
 		if len(entities) > 0 {
-			ent, err := w.Entry(entities[0])
+			ent, err := w.Entry(storage.Entity(entities[0]))
 			if err != nil {
 				return nil, false, err
 			}
@@ -96,6 +97,7 @@ func (q *Query) evaluateQuery(world World, accessor *StorageAccessor) []storage.
 		cache.archetypes = append(cache.archetypes, it.Next())
 	}
 	// TODO(technicallyty): deal with this
-	cache.seen = accessor.Archetypes.Count()
+	// cache.seen = accessor.Archetypes.Count()
 	return cache.archetypes
 }
+*/

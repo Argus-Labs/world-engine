@@ -2,6 +2,7 @@ package storage
 
 import (
 	"github.com/redis/go-redis/v9"
+	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
@@ -24,10 +25,37 @@ func NewComponents(store ComponentStorageManager, idxStore ComponentIndexStorage
 	}
 }
 
+func (cs *Components) PushRawComponents(comps []*anypb.Any, archetypeIndex ArchetypeIndex) (ComponentIndex, error) {
+	for _, c := range comps {
+		v := cs.Store.GetComponentStorage(component.ID(c))
+		err := v.PushRawComponent(c, archetypeIndex)
+		if err != nil {
+			return 0, err
+		}
+	}
+	_, ok, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
+	if err != nil && err != redis.Nil {
+		return 0, err
+	}
+	if !ok {
+		err := cs.ComponentIndices.SetIndex(archetypeIndex, 0)
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		err := cs.ComponentIndices.IncrementIndex(archetypeIndex)
+		if err != nil {
+			return 0, err
+		}
+	}
+	idx, _, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
+	return idx, err
+}
+
 // PushComponents stores the new data of the component in the archetype.
 func (cs *Components) PushComponents(components []component.IComponentType, archetypeIndex ArchetypeIndex) (ComponentIndex, error) {
 	for _, componentType := range components {
-		v := cs.Store.GetComponentStorage(componentType.ID())
+		v := cs.Store.GetComponentStorage(component.ID(componentType))
 		err := v.PushComponent(componentType, archetypeIndex)
 		if err != nil {
 			return 0, err
@@ -67,15 +95,23 @@ func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) error {
 
 // Storage returns the component data storage accessor.
 func (cs *Components) Storage(c component.IComponentType) ComponentStorage {
-	return cs.Store.GetComponentStorage(c.ID())
+	return cs.Store.GetComponentStorage(component.ID(c))
+}
+
+func (cs *Components) StorageFromAny(anyComp *anypb.Any) ComponentStorage {
+	return cs.Store.GetComponentStorage(component.ID(anyComp))
+}
+
+func (cs *Components) StorageFromID(id string) ComponentStorage {
+	return cs.Store.GetComponentStorage(id)
 }
 
 func (cs *Components) GetComponentIndexStorage(c component.IComponentType) ComponentIndexStorage {
-	return cs.Store.GetComponentIndexStorage(c.ID())
+	return cs.Store.GetComponentIndexStorage(c)
 }
 
 // Remove removes the component from the storage.
-func (cs *Components) Remove(ai ArchetypeIndex, comps []component.IComponentType, ci ComponentIndex) error {
+func (cs *Components) Remove(ai ArchetypeIndex, comps []*anypb.Any, ci ComponentIndex) error {
 	for _, ct := range comps {
 		err := cs.remove(ct, ai, ci)
 		if err != nil {
@@ -85,8 +121,8 @@ func (cs *Components) Remove(ai ArchetypeIndex, comps []component.IComponentType
 	return cs.ComponentIndices.DecrementIndex(ai)
 }
 
-func (cs *Components) remove(ct component.IComponentType, ai ArchetypeIndex, ci ComponentIndex) error {
-	storage := cs.Storage(ct)
+func (cs *Components) remove(ct *anypb.Any, ai ArchetypeIndex, ci ComponentIndex) error {
+	storage := cs.StorageFromAny(ct)
 	_, err := storage.SwapRemove(ai, ci)
 	return err
 }

@@ -79,7 +79,7 @@ var GovernanceModuleABI = GovernanceModuleMetaData.ABI
 type GovernanceModule struct {
 	GovernanceModuleCaller     // Read-only binding to the contract
 	GovernanceModuleTransactor // Write-only binding to the contract
-	GovernanceModuleFilterer   // Log filterer for contract events
+	GovernanceModuleFilterer   // log filterer for contract events
 }
 
 // GovernanceModuleCaller is an auto generated read-only Go binding around an Ethereum contract.

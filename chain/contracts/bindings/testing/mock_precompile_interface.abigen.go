@@ -48,7 +48,7 @@ var MockPrecompileABI = MockPrecompileMetaData.ABI
 type MockPrecompile struct {
 	MockPrecompileCaller     // Read-only binding to the contract
 	MockPrecompileTransactor // Write-only binding to the contract
-	MockPrecompileFilterer   // Log filterer for contract events
+	MockPrecompileFilterer   // log filterer for contract events
 }
 
 // MockPrecompileCaller is an auto generated read-only Go binding around an Ethereum contract.

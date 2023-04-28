@@ -64,7 +64,7 @@ func DeployNonRevertableTx(auth *bind.TransactOpts, backend bind.ContractBackend
 type NonRevertableTx struct {
 	NonRevertableTxCaller     // Read-only binding to the contract
 	NonRevertableTxTransactor // Write-only binding to the contract
-	NonRevertableTxFilterer   // Log filterer for contract events
+	NonRevertableTxFilterer   // log filterer for contract events
 }
 
 // NonRevertableTxCaller is an auto generated read-only Go binding around an Ethereum contract.
