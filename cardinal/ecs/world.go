@@ -218,7 +218,7 @@ func (w *world) createEntry(e storage.Entity) error {
 		return err
 	}
 	entry := storage.NewEntry(id, loc)
-	return w.store.EntryStore.SetEntry(id, entry)
+	return w.store.EntryStore.SetEntry(entry)
 }
 
 func (w *world) Valid(e storage.Entity) (bool, error) {
@@ -317,13 +317,22 @@ func (w *world) TransferArchetype(from storage.ArchetypeIndex, to storage.Archet
 	if from == to {
 		return idx, nil
 	}
-	fromArch, _ := w.store.ArchAccessor.Archetype(from)
-	toArch, _ := w.store.ArchAccessor.Archetype(to)
+	fromArch, err := w.store.ArchAccessor.Archetype(from)
+	if err != nil {
+		return 0, err
+	}
+	toArch, err := w.store.ArchAccessor.Archetype(to)
+	if err != nil {
+		return 0, err
+	}
 
 	// move entity id
 	ent, _ := w.store.ArchAccessor.RemoveEntityAt(from, int(idx))
-	w.store.ArchAccessor.PushEntity(to, ent)
-	err := w.store.EntityLocStore.Insert(ent.ID(), to, storage.ComponentIndex(len(toArch.EntityIds)-1))
+	err = w.store.ArchAccessor.PushEntity(to, ent)
+	if err != nil {
+		return 0, err
+	}
+	err = w.store.EntityLocStore.Insert(ent.ID(), to, storage.ComponentIndex(len(toArch.EntityIds)-1))
 	if err != nil {
 		return 0, err
 	}
@@ -350,7 +359,7 @@ func (w *world) TransferArchetype(from storage.ArchetypeIndex, to storage.Archet
 		}
 	}
 
-	// move componentStore
+	// move component
 	for _, anyComp := range fromLayout {
 		store := w.store.CompStore.StorageFromAny(anyComp)
 		if Contains[*anypb.Any](toLayout, anyComp, func(x, y *anypb.Any) bool {
@@ -360,7 +369,7 @@ func (w *world) TransferArchetype(from storage.ArchetypeIndex, to storage.Archet
 				return 0, err
 			}
 		} else {
-			_, err := store.SwapRemove(from, idx)
+			err := store.RemoveComponent(from, idx)
 			if err != nil {
 				return 0, err
 			}

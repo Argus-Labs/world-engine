@@ -10,13 +10,14 @@ import (
 )
 
 type ComponentStorage interface {
-	PushComponent(component component.IComponentType, index ArchetypeIndex) error
+	PushComponent(component.IComponentType, ArchetypeIndex) (ComponentIndex, error)
 	PushRawComponent(*anypb.Any, ArchetypeIndex) error
 	Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) (component.IComponentType, error)
 	SetComponent(ArchetypeIndex, ComponentIndex, component.IComponentType) error
+	// MoveComponent moves the component from one Arch-Component to another.
 	MoveComponent(ArchetypeIndex, ComponentIndex, ArchetypeIndex) error
-	SwapRemove(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error)
-	Contains(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) (bool, error)
+	RemoveComponent(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) error
+	Contains(ArchetypeIndex, ComponentIndex) (bool, error)
 }
 
 type ComponentStorageManager interface {
@@ -58,7 +59,7 @@ type ArchetypeStorage interface {
 }
 
 type EntryStorage interface {
-	SetEntry(entity.ID, *types.Entry) error
+	SetEntry(*types.Entry) error
 	GetEntry(entity.ID) (*types.Entry, error)
 	SetEntity(entity.ID, Entity) error
 	SetLocation(entity.ID, *types.Location) error

@@ -14,9 +14,9 @@ import (
 
 var _ storage.EntryStorage = &Storage{}
 
-func (r *Storage) SetEntry(id entity.ID, entry *types.Entry) error {
+func (r *Storage) SetEntry(entry *types.Entry) error {
 	ctx := context.Background()
-	key := r.entryStorageKey(id)
+	key := r.entryStorageKey(entity.ID(entry.ID))
 	bz, err := marshalProto(entry)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func (r *Storage) SetEntity(id entity.ID, e storage.Entity) error {
 		return err
 	}
 	entry.ID = uint64(e.ID())
-	err = r.SetEntry(id, entry)
+	err = r.SetEntry(entry)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func (r *Storage) SetLocation(id entity.ID, location *types.Location) error {
 		return err
 	}
 	entry.Location = location
-	err = r.SetEntry(id, entry)
+	err = r.SetEntry(entry)
 	if err != nil {
 		return err
 	}

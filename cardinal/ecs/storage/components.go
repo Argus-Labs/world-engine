@@ -56,7 +56,7 @@ func (cs *Components) PushRawComponents(comps []*anypb.Any, archetypeIndex Arche
 func (cs *Components) PushComponents(components []component.IComponentType, archetypeIndex ArchetypeIndex) (ComponentIndex, error) {
 	for _, componentType := range components {
 		v := cs.Store.GetComponentStorage(component.ID(componentType))
-		err := v.PushComponent(componentType, archetypeIndex)
+		_, err := v.PushComponent(componentType, archetypeIndex)
 		if err != nil {
 			return 0, err
 		}
@@ -123,6 +123,6 @@ func (cs *Components) Remove(ai ArchetypeIndex, comps []*anypb.Any, ci Component
 
 func (cs *Components) remove(ct *anypb.Any, ai ArchetypeIndex, ci ComponentIndex) error {
 	storage := cs.StorageFromAny(ct)
-	_, err := storage.SwapRemove(ai, ci)
+	err := storage.RemoveComponent(ai, ci)
 	return err
 }

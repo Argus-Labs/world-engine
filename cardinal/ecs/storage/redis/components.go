@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
@@ -37,10 +38,10 @@ func (r *Storage) ComponentIndex(ai storage.ArchetypeIndex) (storage.ComponentIn
 	return storage.ComponentIndex(ret), true, nil
 }
 
-func (r *Storage) SetIndex(index storage.ArchetypeIndex, index2 storage.ComponentIndex) error {
+func (r *Storage) SetIndex(ai storage.ArchetypeIndex, ci storage.ComponentIndex) error {
 	ctx := context.Background()
-	key := r.componentIndexKey(index)
-	res := r.Client.Set(ctx, key, int64(index2), 0)
+	key := r.componentIndexKey(ai)
+	res := r.Client.Set(ctx, key, int64(ci), 0)
 	return res.Err()
 }
 
@@ -94,21 +95,52 @@ func (r *Storage) GetComponentIndexStorage(ct component.IComponentType) storage.
 // 							COMPONENT STORAGE
 // ---------------------------------------------------------------------------
 
-func (r *Storage) PushComponent(comp component.IComponentType, index storage.ArchetypeIndex) error {
-	ctx := context.Background()
-	key := r.componentDataKey(index)
-	bz, err := r.encode(comp)
-	if err != nil {
-		return err
+func (r *Storage) getComponentIndex(ctx context.Context, ai storage.ArchetypeIndex) (storage.ComponentIndex, error) {
+	key := r.componentIndexKey(ai)
+	res := r.Client.Get(ctx, key)
+	var idx uint64
+	if err := res.Err(); err != nil {
+		if err == redis.Nil {
+			idx = 0
+		} else {
+			return 0, err
+		}
+	} else {
+		idx, err = res.Uint64()
+		if err != nil {
+			return 0, err
+		}
 	}
-	res := r.Client.LPush(ctx, key, bz)
-	return res.Err()
+	setRes := r.Client.Set(ctx, key, idx+1, 0)
+	if err := setRes.Err(); err != nil {
+		return 0, err
+	}
+
+	return storage.ComponentIndex(idx), nil
 }
 
-func (r *Storage) Component(archetypeIndex storage.ArchetypeIndex, componentIndex storage.ComponentIndex) (component.IComponentType, error) {
+func (r *Storage) PushComponent(comp component.IComponentType, archIdx storage.ArchetypeIndex) (storage.ComponentIndex, error) {
 	ctx := context.Background()
-	key := r.componentDataKey(archetypeIndex)
-	res := r.Client.LIndex(ctx, key, int64(componentIndex))
+	compIdx, err := r.getComponentIndex(ctx, archIdx)
+	if err != nil {
+		return 0, err
+	}
+	key := r.componentDataKey(archIdx, compIdx)
+	bz, err := r.encodeComponent(comp)
+	if err != nil {
+		return 0, err
+	}
+	res := r.Client.Set(ctx, key, bz, 0)
+	if res.Err() != nil {
+		return 0, res.Err()
+	}
+	return compIdx, err
+}
+
+func (r *Storage) Component(archIdx storage.ArchetypeIndex, compIdx storage.ComponentIndex) (component.IComponentType, error) {
+	ctx := context.Background()
+	key := r.componentDataKey(archIdx, compIdx)
+	res := r.Client.Get(ctx, key)
 	if err := res.Err(); err != nil {
 		return nil, err
 	}
@@ -116,60 +148,58 @@ func (r *Storage) Component(archetypeIndex storage.ArchetypeIndex, componentInde
 	if err != nil {
 		return nil, err
 	}
-	msg, err := r.decode(bz)
+	msg, err := r.decodeComponent(bz)
 	return msg, err
 }
 
-func (r *Storage) SetComponent(archetypeIndex storage.ArchetypeIndex, componentIndex storage.ComponentIndex, comp component.IComponentType) error {
+func (r *Storage) SetComponent(archIdx storage.ArchetypeIndex, compIdx storage.ComponentIndex, comp component.IComponentType) error {
 	ctx := context.Background()
-	key := r.componentDataKey(archetypeIndex)
-	bz, err := r.encode(comp)
+	key := r.componentDataKey(archIdx, compIdx)
+	bz, err := r.encodeComponent(comp)
 	if err != nil {
 		return err
 	}
-	res := r.Client.LSet(ctx, key, int64(componentIndex), bz)
+	res := r.Client.Set(ctx, key, bz, 0)
 	return res.Err()
 }
 
-func (r *Storage) MoveComponent(source storage.ArchetypeIndex, index storage.ComponentIndex, dst storage.ArchetypeIndex) error {
+func (r *Storage) MoveComponent(srcArchIdx storage.ArchetypeIndex, compIdx storage.ComponentIndex, dstArchIdx storage.ArchetypeIndex) error {
 	ctx := context.Background()
-	sKey := r.componentDataKey(source)
-	dKey := r.componentDataKey(dst)
-	res := r.Client.LIndex(ctx, sKey, int64(index))
+	sKey := r.componentDataKey(srcArchIdx, compIdx)
+	dKey := r.componentDataKey(dstArchIdx, compIdx)
+
+	// get the source component
+	res := r.Client.Get(ctx, sKey)
 	if err := res.Err(); err != nil {
 		return err
 	}
-	// Redis doesn't provide a good way to delete as specific indexes
-	// so we use this hack of setting the value to DELETE, and then deleting by that value.
-	statusRes := r.Client.LSet(ctx, sKey, int64(index), "DELETE")
-	if err := statusRes.Err(); err != nil {
+
+	err := r.delete(ctx, srcArchIdx, compIdx)
+	if err != nil {
 		return err
 	}
+
 	componentBz, err := res.Bytes()
 	if err != nil {
 		return err
 	}
-	pushRes := r.Client.LPush(ctx, dKey, componentBz)
-	if err := pushRes.Err(); err != nil {
+	setRes := r.Client.Set(ctx, dKey, componentBz, 0)
+	if err := setRes.Err(); err != nil {
 		return err
 	}
-	cmd := r.Client.LRem(ctx, sKey, 1, "DELETE")
-	return cmd.Err()
+
+	return nil
 }
 
-func (r *Storage) SwapRemove(archetypeIndex storage.ArchetypeIndex, componentIndex storage.ComponentIndex) ([]byte, error) {
+func (r *Storage) RemoveComponent(archetypeIndex storage.ArchetypeIndex, componentIndex storage.ComponentIndex) error {
 	ctx := context.Background()
 	err := r.delete(ctx, archetypeIndex, componentIndex)
-	return nil, err
+	return err
 }
 
 func (r *Storage) delete(ctx context.Context, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) error {
-	sKey := r.componentDataKey(index)
-	statusRes := r.Client.LSet(ctx, sKey, int64(componentIndex), "DELETE")
-	if err := statusRes.Err(); err != nil {
-		return err
-	}
-	cmd := r.Client.LRem(ctx, sKey, 1, "DELETE")
+	sKey := r.componentDataKey(index, componentIndex)
+	cmd := r.Client.Del(ctx, sKey)
 	if err := cmd.Err(); err != nil {
 		return err
 	}
@@ -178,25 +208,28 @@ func (r *Storage) delete(ctx context.Context, index storage.ArchetypeIndex, comp
 
 func (r *Storage) Contains(archetypeIndex storage.ArchetypeIndex, componentIndex storage.ComponentIndex) (bool, error) {
 	ctx := context.Background()
-	key := r.componentDataKey(archetypeIndex)
-	res := r.Client.LIndex(ctx, key, int64(componentIndex))
-	if err := res.Err(); err != nil {
-		return false, err
+	key := r.componentDataKey(archetypeIndex, componentIndex)
+	res := r.Client.Get(ctx, key)
+	if res.Err() != nil {
+		if res.Err() == redis.Nil {
+			return false, nil
+		}
+		return false, res.Err()
 	}
-	result, err := res.Result()
-	if err != nil {
-		return false, err
-	}
-	return len(result) > 0, nil
+	return true, nil
 }
 
 func (r *Storage) PushRawComponent(a *anypb.Any, idx storage.ArchetypeIndex) error {
 	ctx := context.Background()
-	key := r.componentDataKey(idx)
+	compIdx, err := r.getComponentIndex(ctx, idx)
+	if err != nil {
+		return err
+	}
+	key := r.componentDataKey(idx, compIdx)
 	bz, err := marshalProto(a)
 	if err != nil {
 		return err
 	}
-	res := r.Client.LPush(ctx, key, bz)
+	res := r.Client.Set(ctx, key, bz, 0)
 	return res.Err()
 }

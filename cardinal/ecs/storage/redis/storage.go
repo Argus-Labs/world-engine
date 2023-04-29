@@ -70,8 +70,8 @@ func unmarshalProto(bz []byte, msg proto.Message) error {
 	return proto.Unmarshal(bz, msg)
 }
 
-// encode encodes the component type to anypb.Any, then proto marshals it to []byte.
-func (r *Storage) encode(c component.IComponentType) ([]byte, error) {
+// encodeComponent encodes the component type to anypb.Any, then proto marshals it to []byte.
+func (r *Storage) encodeComponent(c component.IComponentType) ([]byte, error) {
 	a, err := anypb.New(c)
 	if err != nil {
 		return nil, err
@@ -80,8 +80,8 @@ func (r *Storage) encode(c component.IComponentType) ([]byte, error) {
 	return bz, err
 }
 
-// decode decodes the bytes into anypb.Any, then will unmarshal the anypb.Any into the underlying component type.
-func (r *Storage) decode(bz []byte) (component.IComponentType, error) {
+// decodeComponent decodes the bytes into anypb.Any, then will unmarshal the anypb.Any into the underlying component type.
+func (r *Storage) decodeComponent(bz []byte) (component.IComponentType, error) {
 	a := new(anypb.Any)
 	err := proto.Unmarshal(bz, a)
 	if err != nil {
