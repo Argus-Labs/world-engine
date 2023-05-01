@@ -10,6 +10,7 @@ import (
 )
 
 type ComponentStorage interface {
+	// PushComponent pushes a new component and returns the index.
 	PushComponent(component.IComponentType, ArchetypeIndex) (ComponentIndex, error)
 	PushRawComponent(*anypb.Any, ArchetypeIndex) error
 	Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) (component.IComponentType, error)

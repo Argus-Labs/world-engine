@@ -33,7 +33,7 @@ func (cs *Components) PushRawComponents(comps []*anypb.Any, archetypeIndex Arche
 			return 0, err
 		}
 	}
-	_, ok, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
+	idx, ok, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
 	if err != nil && err != redis.Nil {
 		return 0, err
 	}
@@ -42,13 +42,14 @@ func (cs *Components) PushRawComponents(comps []*anypb.Any, archetypeIndex Arche
 		if err != nil {
 			return 0, err
 		}
+		idx = 0
 	} else {
 		err := cs.ComponentIndices.IncrementIndex(archetypeIndex)
 		if err != nil {
 			return 0, err
 		}
+		idx += 1
 	}
-	idx, _, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
 	return idx, err
 }
 
@@ -61,7 +62,7 @@ func (cs *Components) PushComponents(components []component.IComponentType, arch
 			return 0, err
 		}
 	}
-	_, ok, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
+	idx, ok, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
 	if err != nil && err != redis.Nil {
 		return 0, err
 	}
@@ -70,13 +71,14 @@ func (cs *Components) PushComponents(components []component.IComponentType, arch
 		if err != nil {
 			return 0, err
 		}
+		idx = 0
 	} else {
 		err := cs.ComponentIndices.IncrementIndex(archetypeIndex)
 		if err != nil {
 			return 0, err
 		}
+		idx += 1
 	}
-	idx, _, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
 	return idx, err
 }
 

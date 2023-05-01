@@ -22,16 +22,13 @@ func (r *Storage) ComponentIndex(ai storage.ArchetypeIndex) (storage.ComponentIn
 	key := r.componentIndexKey(ai)
 	res := r.Client.Get(ctx, key)
 	if err := res.Err(); err != nil {
-		return 0, false, err
+		if err == redis.Nil {
+			return 0, false, nil
+		} else {
+			return 0, false, err
+		}
 	}
-	result, err := res.Result()
-	if err != nil {
-		return 0, false, err
-	}
-	if len(result) == 0 {
-		return 0, false, nil
-	}
-	ret, err := res.Int()
+	ret, err := res.Uint64()
 	if err != nil {
 		return 0, false, err
 	}
@@ -41,7 +38,7 @@ func (r *Storage) ComponentIndex(ai storage.ArchetypeIndex) (storage.ComponentIn
 func (r *Storage) SetIndex(ai storage.ArchetypeIndex, ci storage.ComponentIndex) error {
 	ctx := context.Background()
 	key := r.componentIndexKey(ai)
-	res := r.Client.Set(ctx, key, int64(ci), 0)
+	res := r.Client.Set(ctx, key, uint64(ci), 0)
 	return res.Err()
 }
 
@@ -95,33 +92,9 @@ func (r *Storage) GetComponentIndexStorage(ct component.IComponentType) storage.
 // 							COMPONENT STORAGE
 // ---------------------------------------------------------------------------
 
-func (r *Storage) getComponentIndex(ctx context.Context, ai storage.ArchetypeIndex) (storage.ComponentIndex, error) {
-	key := r.componentIndexKey(ai)
-	res := r.Client.Get(ctx, key)
-	var idx uint64
-	if err := res.Err(); err != nil {
-		if err == redis.Nil {
-			idx = 0
-		} else {
-			return 0, err
-		}
-	} else {
-		idx, err = res.Uint64()
-		if err != nil {
-			return 0, err
-		}
-	}
-	setRes := r.Client.Set(ctx, key, idx+1, 0)
-	if err := setRes.Err(); err != nil {
-		return 0, err
-	}
-
-	return storage.ComponentIndex(idx), nil
-}
-
 func (r *Storage) PushComponent(comp component.IComponentType, archIdx storage.ArchetypeIndex) (storage.ComponentIndex, error) {
 	ctx := context.Background()
-	compIdx, err := r.getComponentIndex(ctx, archIdx)
+	compIdx, _, err := r.ComponentIndex(archIdx)
 	if err != nil {
 		return 0, err
 	}
@@ -221,7 +194,7 @@ func (r *Storage) Contains(archetypeIndex storage.ArchetypeIndex, componentIndex
 
 func (r *Storage) PushRawComponent(a *anypb.Any, idx storage.ArchetypeIndex) error {
 	ctx := context.Background()
-	compIdx, err := r.getComponentIndex(ctx, idx)
+	compIdx, _, err := r.ComponentIndex(idx)
 	if err != nil {
 		return err
 	}

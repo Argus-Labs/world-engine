@@ -193,22 +193,28 @@ func (w *world) Create(components ...component.IComponentType) (storage.Entity, 
 }
 
 func (w *world) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.Entity, error) {
-	nextEntity, err := w.nextEntity()
+	newEntity, err := w.nextEntity()
 	if err != nil {
 		return 0, err
 	}
-	archetype, _ := w.store.ArchAccessor.Archetype(archetypeIndex)
+	archetype, err := w.store.ArchAccessor.Archetype(archetypeIndex)
+	if err != nil {
+		return 0, err
+	}
 	componentIndex, err := w.store.CompStore.PushRawComponents(archetype.Components, archetypeIndex)
 	if err != nil {
 		return 0, err
 	}
-	err = w.store.EntityLocStore.Insert(nextEntity.ID(), archetypeIndex, componentIndex)
+	err = w.store.EntityLocStore.Insert(newEntity.ID(), archetypeIndex, componentIndex)
 	if err != nil {
 		return 0, err
 	}
-	w.store.ArchAccessor.PushEntity(storage.ArchetypeIndex(archetype.ArchetypeIndex), nextEntity)
-	err = w.createEntry(nextEntity)
-	return nextEntity, err
+	err = w.store.ArchAccessor.PushEntity(storage.ArchetypeIndex(archetype.ArchetypeIndex), newEntity)
+	if err != nil {
+		return 0, err
+	}
+	err = w.createEntry(newEntity)
+	return newEntity, err
 }
 
 func (w *world) createEntry(e storage.Entity) error {
@@ -297,9 +303,12 @@ func (w *world) Remove(ent storage.Entity) error {
 func (w *world) removeAtLocation(ent storage.Entity, loc *types.Location) error {
 	archIndex := loc.ArchetypeIndex
 	componentIndex := loc.ComponentIndex
-	w.store.ArchAccessor.RemoveEntityAt(storage.ArchetypeIndex(archIndex), int(componentIndex))
+	_, err := w.store.ArchAccessor.RemoveEntityAt(storage.ArchetypeIndex(archIndex), int(componentIndex))
+	if err != nil {
+		return err
+	}
 	archetype, _ := w.store.ArchAccessor.Archetype(storage.ArchetypeIndex(archIndex))
-	err := w.store.CompStore.Remove(storage.ArchetypeIndex(archIndex), archetype.Components, storage.ComponentIndex(componentIndex))
+	err = w.store.CompStore.Remove(storage.ArchetypeIndex(archIndex), archetype.Components, storage.ComponentIndex(componentIndex))
 	if err != nil {
 		return err
 	}
