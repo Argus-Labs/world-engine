@@ -3,8 +3,6 @@ package ecs
 import (
 	"fmt"
 
-	"google.golang.org/protobuf/types/known/anypb"
-
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
@@ -15,7 +13,7 @@ import (
 // WorldId is a unique identifier for a world.
 type WorldId int
 
-type comp interface {
+type Components interface {
 	// GetComponent gets the component from the entry.
 	GetComponent(*types.Entry, string) (component.IComponentType, error)
 	// SetComponent updates the component data for the entry.
@@ -24,7 +22,7 @@ type comp interface {
 
 // World is a collection of entities and components.
 type World interface {
-	comp
+	Components
 	// ID returns the unique identifier for the world.
 	ID() WorldId
 	// Create creates a new entity with the specified componentStore.
@@ -39,9 +37,6 @@ type World interface {
 	Valid(storage.Entity) (bool, error)
 	// Len returns the number of entities in the world.
 	Len() (int, error)
-	// StorageAccessor returns an accessor for the world's storage.
-	// It is used to access componentStore and archetypeStore by queries.
-	StorageAccessor() StorageAccessor
 	// Update loops through and executes all the systems in the world
 	Update()
 	// AddSystem adds a system to the world.
@@ -50,8 +45,6 @@ type World interface {
 	RegisterComponents(...component.IComponentType)
 }
 
-type initializer func(w World)
-
 var _ World = &world{}
 
 type world struct {
@@ -59,6 +52,20 @@ type world struct {
 	store   storage.WorldStorage
 	systems []System
 	tr      storage.TypeRegistry
+}
+
+// NewWorld creates a new world.
+func NewWorld(s storage.WorldStorage) World {
+	// TODO: this should prob be handled by redis as well...
+	worldId := nextWorldId
+	nextWorldId++
+	w := &world{
+		id:      worldId,
+		store:   s,
+		tr:      storage.NewTypeRegistry(),
+		systems: make([]System, 0, 256), // this can just stay in memory.
+	}
+	return w
 }
 
 func (w *world) GetComponent(entry *types.Entry, componentID string) (component.IComponentType, error) {
@@ -76,58 +83,6 @@ func (w *world) SetComponent(entry *types.Entry, componentType component.ICompon
 	return err
 }
 
-// NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage) World {
-	// TODO: this should prob be handled by redis as well...
-	worldId := nextWorldId
-	nextWorldId++
-	w := &world{
-		id:      worldId,
-		store:   s,
-		tr:      storage.NewTypeRegistry(),
-		systems: make([]System, 0, 256), // this can just stay in memory.
-	}
-	for _, initializer := range registeredInitializers {
-		initializer(w)
-	}
-	return w
-}
-
-func (w *world) SetEntryLocation(id entity.ID, location *types.Location) error {
-	err := w.store.EntryStore.SetLocation(id, location)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (w *world) Component(componentType component.IComponentType, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) (component.IComponentType, error) {
-	comp, err := w.store.CompStore.Storage(componentType).Component(index, componentIndex)
-	return comp, err
-
-}
-
-func (w *world) GetLayout(index storage.ArchetypeIndex) ([]component.IComponentType, error) {
-	arch, err := w.store.ArchAccessor.Archetype(index)
-	if err != nil {
-		return nil, err
-	}
-	anys := arch.GetComponents()
-	// TODO(technicallyty): unmarshal any? why do we even need this function..
-	_ = anys
-	return nil, nil
-}
-
-func (w *world) GetArchetypeForComponents(componentTypes []component.IComponentType) (storage.ArchetypeIndex, error) {
-	ai, err := w.getArchetypeForComponents(componentTypes)
-	return ai, err
-}
-
-func (w *world) Archetype(index storage.ArchetypeIndex) (*types.Archetype, error) {
-	arch, err := w.store.ArchAccessor.Archetype(index)
-	return arch, err
-}
-
 func (w *world) AddSystem(s System) {
 	w.systems = append(w.systems, s)
 }
@@ -139,29 +94,12 @@ func (w *world) Update() {
 }
 
 func (w *world) RegisterComponents(ct ...component.IComponentType) {
-	//type Initializer interface {
-	//	Initialize(storage.WorldAccessor)
-	//}
-	//for _, c := range ct {
-	//	compInitializer, ok := c.(Initializer)
-	//	if !ok {
-	//		panic("cannot initialize component.")
-	//	}
-	//	compInitializer.Initialize(w)
-	//}
 	for _, c := range ct {
 		w.tr.Register(c)
 	}
 }
 
 var nextWorldId WorldId = 0
-
-var registeredInitializers []initializer
-
-// RegisterInitializer registers an initializer for a world.
-func RegisterInitializer(initializer initializer) {
-	registeredInitializers = append(registeredInitializers, initializer)
-}
 
 func (w *world) ID() WorldId {
 	return w.id
@@ -320,84 +258,6 @@ func (w *world) removeAtLocation(ent storage.Entity, loc *types.Location) error 
 	}
 	w.store.EntityMgr.Destroy(ent.IncVersion())
 	return nil
-}
-
-func (w *world) TransferArchetype(from storage.ArchetypeIndex, to storage.ArchetypeIndex, idx storage.ComponentIndex) (storage.ComponentIndex, error) {
-	if from == to {
-		return idx, nil
-	}
-	fromArch, err := w.store.ArchAccessor.Archetype(from)
-	if err != nil {
-		return 0, err
-	}
-	toArch, err := w.store.ArchAccessor.Archetype(to)
-	if err != nil {
-		return 0, err
-	}
-
-	// move entity id
-	ent, _ := w.store.ArchAccessor.RemoveEntityAt(from, int(idx))
-	err = w.store.ArchAccessor.PushEntity(to, ent)
-	if err != nil {
-		return 0, err
-	}
-	err = w.store.EntityLocStore.Insert(ent.ID(), to, storage.ComponentIndex(len(toArch.EntityIds)-1))
-	if err != nil {
-		return 0, err
-	}
-
-	if len(fromArch.EntityIds) > int(idx) {
-		moved := fromArch.EntityIds[idx]
-		err := w.store.EntityLocStore.Insert(entity.ID(moved), from, idx)
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	// creates component if not exists in new layout
-	fromLayout := fromArch.Components
-	toLayout := toArch.Components
-	for _, anyComp := range toLayout {
-		if !Contains[*anypb.Any](fromLayout, anyComp, func(x, y *anypb.Any) bool {
-			return x.TypeUrl == y.TypeUrl
-		}) {
-			store := w.store.CompStore.StorageFromAny(anyComp)
-			if err := store.PushRawComponent(anyComp, to); err != nil {
-				return 0, err
-			}
-		}
-	}
-
-	// move component
-	for _, anyComp := range fromLayout {
-		store := w.store.CompStore.StorageFromAny(anyComp)
-		if Contains[*anypb.Any](toLayout, anyComp, func(x, y *anypb.Any) bool {
-			return x.TypeUrl == y.TypeUrl
-		}) {
-			if err := store.MoveComponent(from, idx, to); err != nil {
-				return 0, err
-			}
-		} else {
-			err := store.RemoveComponent(from, idx)
-			if err != nil {
-				return 0, err
-			}
-		}
-	}
-	err = w.store.CompStore.Move(from, to)
-	if err != nil {
-		return 0, err
-	}
-
-	return storage.ComponentIndex(len(toArch.EntityIds) - 1), nil
-}
-
-func (w *world) StorageAccessor() StorageAccessor {
-	return StorageAccessor{
-		w.store.ArchCompIdxStore,
-		&w.store.CompStore,
-		w.store.ArchAccessor,
-	}
 }
 
 func (w *world) nextEntity() (storage.Entity, error) {

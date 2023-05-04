@@ -7,7 +7,7 @@ app_version: 1.6.3
 
 # Structure of Cosmos Modules
 
-Cosmos modules generally have 6 parts to them: protobuf definitions, codec, Message implmentations, Module definition, Keeper implementation, CLI functionality, and app wiring.
+Cosmos modules generally have 6 parts to them: protobuf definitions, codec, Message implementations, Module definition, Keeper implementation, CLI functionality, and app wiring.
 
 # Protobuf Definitions
 
@@ -102,6 +102,7 @@ Protobuf definitions are the outer skeleton of what your module will look like. 
       uint64 nonce = 3;
     }
     ```
+
 *   Genesis `genesis.proto`
 
     *   This file defines the state needed to boot the module up with an initial state. For example, in the EVM module, some accounts need already be instantiated (i.e. for airdrops). Here is an example of such a file:
