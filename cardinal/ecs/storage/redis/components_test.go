@@ -1,6 +1,8 @@
 package redis
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -90,4 +92,21 @@ func TestRemoveComponent(t *testing.T) {
 
 	_, err = store.Component(ai, compIdx)
 	assert.Error(t, err, redis.Nil.Error())
+}
+
+func TestIdx(t *testing.T) {
+	ctx := context.Background()
+	store := getTestStorage(t)
+	ai := storage.ArchetypeIndex(15)
+	key := store.componentIndexKey(ai)
+
+	gg := store.Client.Get(ctx, key)
+	num, err := gg.Uint64()
+	fmt.Println(err)
+	fmt.Println(num)
+
+	res := store.Client.Incr(ctx, key)
+	fmt.Println(res.Err())
+	gg = store.Client.Get(ctx, key)
+	fmt.Println(gg.Uint64())
 }

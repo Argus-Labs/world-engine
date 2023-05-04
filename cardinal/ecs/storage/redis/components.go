@@ -2,7 +2,6 @@ package redis
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -10,67 +9,6 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 )
-
-// ---------------------------------------------------------------------------
-// 							COMPONENT INDEX STORAGE
-// ---------------------------------------------------------------------------
-
-var _ storage.ComponentIndexStorage = &Storage{}
-
-func (r *Storage) ComponentIndex(ai storage.ArchetypeIndex) (storage.ComponentIndex, bool, error) {
-	ctx := context.Background()
-	key := r.componentIndexKey(ai)
-	res := r.Client.Get(ctx, key)
-	if err := res.Err(); err != nil {
-		if err == redis.Nil {
-			return 0, false, nil
-		} else {
-			return 0, false, err
-		}
-	}
-	ret, err := res.Uint64()
-	if err != nil {
-		return 0, false, err
-	}
-	return storage.ComponentIndex(ret), true, nil
-}
-
-func (r *Storage) SetIndex(ai storage.ArchetypeIndex, ci storage.ComponentIndex) error {
-	ctx := context.Background()
-	key := r.componentIndexKey(ai)
-	res := r.Client.Set(ctx, key, uint64(ci), 0)
-	return res.Err()
-}
-
-func (r *Storage) IncrementIndex(index storage.ArchetypeIndex) error {
-	ctx := context.Background()
-	idx, ok, err := r.ComponentIndex(index)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return fmt.Errorf("component index not found at archetype index %d", index)
-	}
-	key := r.componentIndexKey(index)
-	newIdx := idx + 1
-	res := r.Client.Set(ctx, key, int64(newIdx), 0)
-	return res.Err()
-}
-
-func (r *Storage) DecrementIndex(index storage.ArchetypeIndex) error {
-	ctx := context.Background()
-	idx, ok, err := r.ComponentIndex(index)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return fmt.Errorf("component index not found at archetype index %d", index)
-	}
-	key := r.componentIndexKey(index)
-	newIdx := idx - 1
-	res := r.Client.Set(ctx, key, int64(newIdx), 0)
-	return res.Err()
-}
 
 // ---------------------------------------------------------------------------
 // 							COMPONENT STORAGE MANAGER
@@ -83,9 +21,8 @@ func (r *Storage) GetComponentStorage(cid string) storage.ComponentStorage {
 	return r
 }
 
-func (r *Storage) GetComponentIndexStorage(ct component.IComponentType) storage.ComponentIndexStorage {
-	r.componentStoragePrefix = string(ct.ProtoReflect().Descriptor().FullName())
-	return r
+func (r *Storage) ComponentIndex(a storage.ArchetypeIndex) (storage.ComponentIndex, bool, error) {
+	return 0, false, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -192,17 +129,32 @@ func (r *Storage) Contains(archetypeIndex storage.ArchetypeIndex, componentIndex
 	return true, nil
 }
 
-func (r *Storage) PushRawComponent(a *anypb.Any, idx storage.ArchetypeIndex) error {
+func (r *Storage) PushRawComponent(a *anypb.Any, archIdx storage.ArchetypeIndex) error {
 	ctx := context.Background()
-	compIdx, _, err := r.ComponentIndex(idx)
+	var err error = nil
+	compIdx, err := r.getNextComponentIndex(ctx, archIdx)
 	if err != nil {
 		return err
 	}
-	key := r.componentDataKey(idx, compIdx)
+	key := r.componentDataKey(archIdx, compIdx)
 	bz, err := marshalProto(a)
 	if err != nil {
 		return err
 	}
 	res := r.Client.Set(ctx, key, bz, 0)
 	return res.Err()
+}
+
+func (r *Storage) getNextComponentIndex(ctx context.Context, idx storage.ArchetypeIndex) (storage.ComponentIndex, error) {
+	key := r.componentIndexKey(idx)
+	res := r.Client.Get(ctx, key)
+	compIdx, err := res.Uint64()
+	if err != nil && err != redis.Nil {
+		return 0, err
+	}
+	res2 := r.Client.Incr(ctx, key)
+	if res.Err() != nil {
+		return 0, res2.Err()
+	}
+	return storage.ComponentIndex(compIdx), nil
 }

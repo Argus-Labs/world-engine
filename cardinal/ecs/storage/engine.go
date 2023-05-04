@@ -23,14 +23,6 @@ type ComponentStorage interface {
 
 type ComponentStorageManager interface {
 	GetComponentStorage(string) ComponentStorage
-	GetComponentIndexStorage(component.IComponentType) ComponentIndexStorage
-}
-
-type ComponentIndexStorage interface {
-	ComponentIndex(ArchetypeIndex) (ComponentIndex, bool, error)
-	SetIndex(ArchetypeIndex, ComponentIndex) error
-	IncrementIndex(ArchetypeIndex) error
-	DecrementIndex(ArchetypeIndex) error
 }
 
 type EntityLocationStorage interface {
