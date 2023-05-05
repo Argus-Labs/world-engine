@@ -26,10 +26,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/argus-labs/world-engine/chain/runtime"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/argus-labs/world-engine/chain/runtime"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/simapp/params"
@@ -62,20 +63,8 @@ import (
 	evmante "pkg.berachain.dev/polaris/cosmos/x/evm/ante"
 )
 
-// encodingConfig := encoding.MakeConfig(app.ModuleBasics)
-// initClientCtx := client.Context{}.
-// 	WithCodec(encodingConfig.Codec).
-// 	WithInterfaceRegistry(encodingConfig.InterfaceRegistry).
-// 	WithTxConfig(encodingConfig.TxConfig).
-// 	WithLegacyAmino(encodingConfig.Amino).
-// 	WithInput(os.Stdin).
-// 	WithAccountRetriever(types.AccountRetriever{}).
-// 	WithBroadcastMode(flags.BroadcastBlock).
-// 	WithHomeDir(app.DefaultNodeHome).
-// 	WithKeyringOptions(hd.EthSecp256k1Option()).
-// 	WithViper(EnvPrefix)
-
-// NewRootCmd creates a new root command for world. It is called once in the.
+// NewRootCmd creates a new root command for the CLI application. It is called once in the
+// main function.
 func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// note, this is not necessary when using app wiring, as depinject can be directly used.
@@ -100,7 +89,7 @@ func NewRootCmd() *cobra.Command {
 
 	rootCmd := &cobra.Command{
 		Use:   "world",
-		Short: "simulation app",
+		Short: "world engine application",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			// set the default command outputs
 			cmd.SetOut(cmd.OutOrStdout())
