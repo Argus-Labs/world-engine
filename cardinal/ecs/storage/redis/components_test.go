@@ -1,12 +1,11 @@
 package redis
 
 import (
-	"context"
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/redis/go-redis/v9"
+	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
@@ -25,35 +24,42 @@ func TestComponents_PushGet(t *testing.T) {
 		Cap:    30_000,
 	}
 	ai := storage.ArchetypeIndex(0)
-	compIdx1, err := store.PushComponent(energy1, ai)
+	compIdx := storage.ComponentIndex(0)
+	setStorePrefix(store, energy1)
+	err := store.PushComponent(energy1, ai, compIdx)
 	assert.NilError(t, err)
-	assert.Equal(t, compIdx1, storage.ComponentIndex(0))
 
-	energy2 := &testtypes.EnergyComponent{
-		Amount: 350,
-		Cap:    40_000,
+	ownable := &testtypes.OwnableComponent{
+		Owner: "steve",
 	}
-	compIdx2, err := store.PushComponent(energy2, ai)
+	setStorePrefix(store, ownable)
+	err = store.PushComponent(ownable, ai, compIdx)
 	assert.NilError(t, err)
-	assert.Equal(t, compIdx2, storage.ComponentIndex(1))
 
-	gotComp1, err := store.Component(ai, compIdx1)
+	setStorePrefix(store, energy1)
+	gotComp1, err := store.Component(ai, compIdx)
 	assert.NilError(t, err)
 	gotEnergy1 := gotComp1.(*testtypes.EnergyComponent)
 	assert.DeepEqual(t, gotEnergy1, energy1, compareOpt)
 
-	gotComp2, err := store.Component(ai, compIdx2)
+	setStorePrefix(store, ownable)
+	gotComp2, err := store.Component(ai, compIdx)
 	assert.NilError(t, err)
-	gotEnergy2 := gotComp2.(*testtypes.EnergyComponent)
-	assert.DeepEqual(t, gotEnergy2, energy2, compareOpt)
+	gotOwnable := gotComp2.(*testtypes.OwnableComponent)
+	assert.DeepEqual(t, gotOwnable, ownable, compareOpt)
 }
 
 func TestComponents_Set(t *testing.T) {
 	store := getTestStorage(t)
 	ai := storage.ArchetypeIndex(0)
+	ci := storage.ComponentIndex(0)
 	energy := &testtypes.EnergyComponent{Amount: 40, Cap: 400}
-	ci, err := store.PushComponent(energy, ai)
+	setStorePrefix(store, energy)
+	err := store.PushComponent(energy, ai, ci)
 	assert.NilError(t, err)
+
+	energy.Amount = 500
+	store.SetComponent(ai, ci, energy)
 
 	comp, err := store.Component(ai, ci)
 	assert.NilError(t, err)
@@ -64,9 +70,11 @@ func TestComponents_Set(t *testing.T) {
 func TestComponent_Move(t *testing.T) {
 	store := getTestStorage(t)
 	src, dst := storage.ArchetypeIndex(0), storage.ArchetypeIndex(1)
+	compIdx := storage.ComponentIndex(0)
 
 	energy := &testtypes.EnergyComponent{Amount: 150, Cap: 40000}
-	compIdx, err := store.PushComponent(energy, src)
+	setStorePrefix(store, energy)
+	err := store.PushComponent(energy, src, compIdx)
 	assert.NilError(t, err)
 
 	err = store.MoveComponent(src, compIdx, dst)
@@ -82,31 +90,19 @@ func TestComponent_Move(t *testing.T) {
 func TestRemoveComponent(t *testing.T) {
 	store := getTestStorage(t)
 	ai := storage.ArchetypeIndex(0)
+	ci := storage.ComponentIndex(0)
 	energy := &testtypes.EnergyComponent{Amount: 40, Cap: 400}
 
-	compIdx, err := store.PushComponent(energy, ai)
+	err := store.PushComponent(energy, ai, ci)
 	assert.NilError(t, err)
 
-	err = store.RemoveComponent(ai, compIdx)
+	err = store.RemoveComponent(ai, ci)
 	assert.NilError(t, err)
 
-	_, err = store.Component(ai, compIdx)
+	_, err = store.Component(ai, ci)
 	assert.Error(t, err, redis.Nil.Error())
 }
 
-func TestIdx(t *testing.T) {
-	ctx := context.Background()
-	store := getTestStorage(t)
-	ai := storage.ArchetypeIndex(15)
-	key := store.componentIndexKey(ai)
-
-	gg := store.Client.Get(ctx, key)
-	num, err := gg.Uint64()
-	fmt.Println(err)
-	fmt.Println(num)
-
-	res := store.Client.Incr(ctx, key)
-	fmt.Println(res.Err())
-	gg = store.Client.Get(ctx, key)
-	fmt.Println(gg.Uint64())
+func setStorePrefix(store *Storage, msg proto.Message) {
+	store.componentStoragePrefix = string(msg.ProtoReflect().Descriptor().FullName())
 }

@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"context"
+
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
@@ -25,27 +27,18 @@ func NewComponents(store ComponentStorageManager) Components {
 // PushRawComponents pushes components to storage, and returns the component index.
 func (cs *Components) PushRawComponents(comps []*anypb.Any, archetypeIndex ArchetypeIndex) (ComponentIndex, error) {
 	// TODO(technicallyty): get index!!
+	ctx := context.Background()
+	idx, err := cs.Store.GetNextIndex(ctx, archetypeIndex)
+	if err != nil {
+		return 0, err
+	}
 	for _, c := range comps {
 		v := cs.Store.GetComponentStorage(component.ID(c))
-		err := v.PushRawComponent(c, archetypeIndex)
+		err := v.PushRawComponent(c, archetypeIndex, idx)
 		if err != nil {
 			return 0, err
 		}
 	}
-	return 0, nil
-}
-
-// PushComponents stores the new data of the component in the archetype.
-func (cs *Components) PushComponents(components []component.IComponentType, archetypeIndex ArchetypeIndex) (ComponentIndex, error) {
-	for _, componentType := range components {
-		v := cs.Store.GetComponentStorage(component.ID(componentType))
-		_, err := v.PushComponent(componentType, archetypeIndex)
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	// TODO(technicallyty): FIX!!! we need to return a component index!!!
 	return 0, nil
 }
 
@@ -53,11 +46,6 @@ func (cs *Components) PushComponents(components []component.IComponentType, arch
 func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) error {
 	// TODO(technicallyty): do we need this???
 	return nil
-}
-
-// Storage returns the component data storage accessor.
-func (cs *Components) Storage(c component.IComponentType) ComponentStorage {
-	return cs.Store.GetComponentStorage(component.ID(c))
 }
 
 func (cs *Components) StorageFromAny(anyComp *anypb.Any) ComponentStorage {

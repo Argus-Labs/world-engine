@@ -88,11 +88,12 @@ func TestArchetypeStorage_GetNextArchetypeIndex(t *testing.T) {
 	assert.Equal(t, idx, uint64(1))
 }
 
-func getTestStorage(t *testing.T) Storage {
+func getTestStorage(t *testing.T) *Storage {
 	s := miniredis.RunT(t)
-	return NewStorage(Options{
+	store := NewStorage(Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, "1")
+	return &store
 }

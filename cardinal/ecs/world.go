@@ -35,8 +35,8 @@ type World interface {
 	Remove(storage.Entity) error
 	// Valid returns true if the specified entity is valid.
 	Valid(storage.Entity) (bool, error)
-	// Len returns the number of entities in the world.
-	Len() (int, error)
+	// NumEntities returns the number of entities in the world.
+	NumEntities() (int, error)
 	// Update loops through and executes all the systems in the world
 	Update()
 	// AddSystem adds a system to the world.
@@ -78,7 +78,7 @@ func (w *world) SetComponent(entry *types.Entry, componentType component.ICompon
 	ai, ci := entry.Location.ArchetypeIndex, entry.Location.ComponentIndex
 	comp := componentType.ProtoReflect().New().(component.IComponentType)
 	err := w.store.CompStore.
-		Storage(componentType).
+		StorageFromID(component.ID(componentType)).
 		SetComponent(storage.ArchetypeIndex(ai), storage.ComponentIndex(ci), comp)
 	return err
 }
@@ -210,7 +210,7 @@ func (w *world) Entry(entity storage.Entity) (*types.Entry, error) {
 	return entry, nil
 }
 
-func (w *world) Len() (int, error) {
+func (w *world) NumEntities() (int, error) {
 	l, err := w.store.EntityLocStore.Len()
 	if err != nil {
 		return 0, err

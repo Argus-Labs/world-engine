@@ -21,31 +21,13 @@ func (r *Storage) GetComponentStorage(cid string) storage.ComponentStorage {
 	return r
 }
 
-func (r *Storage) ComponentIndex(a storage.ArchetypeIndex) (storage.ComponentIndex, bool, error) {
-	return 0, false, nil
+func (r *Storage) GetNextIndex(ctx context.Context, index storage.ArchetypeIndex) (storage.ComponentIndex, error) {
+	return r.getNextComponentIndex(ctx, index)
 }
 
 // ---------------------------------------------------------------------------
 // 							COMPONENT STORAGE
 // ---------------------------------------------------------------------------
-
-func (r *Storage) PushComponent(comp component.IComponentType, archIdx storage.ArchetypeIndex) (storage.ComponentIndex, error) {
-	ctx := context.Background()
-	compIdx, _, err := r.ComponentIndex(archIdx)
-	if err != nil {
-		return 0, err
-	}
-	key := r.componentDataKey(archIdx, compIdx)
-	bz, err := r.encodeComponent(comp)
-	if err != nil {
-		return 0, err
-	}
-	res := r.Client.Set(ctx, key, bz, 0)
-	if res.Err() != nil {
-		return 0, res.Err()
-	}
-	return compIdx, err
-}
 
 func (r *Storage) Component(archIdx storage.ArchetypeIndex, compIdx storage.ComponentIndex) (component.IComponentType, error) {
 	ctx := context.Background()
@@ -129,13 +111,16 @@ func (r *Storage) Contains(archetypeIndex storage.ArchetypeIndex, componentIndex
 	return true, nil
 }
 
-func (r *Storage) PushRawComponent(a *anypb.Any, archIdx storage.ArchetypeIndex) error {
-	ctx := context.Background()
-	var err error = nil
-	compIdx, err := r.getNextComponentIndex(ctx, archIdx)
+func (r *Storage) PushComponent(comp component.IComponentType, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) error {
+	anyComp, err := anypb.New(comp)
 	if err != nil {
 		return err
 	}
+	return r.PushRawComponent(anyComp, index, componentIndex)
+}
+
+func (r *Storage) PushRawComponent(a *anypb.Any, archIdx storage.ArchetypeIndex, compIdx storage.ComponentIndex) error {
+	ctx := context.Background()
 	key := r.componentDataKey(archIdx, compIdx)
 	bz, err := marshalProto(a)
 	if err != nil {

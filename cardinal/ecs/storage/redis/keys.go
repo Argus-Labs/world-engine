@@ -26,7 +26,7 @@ func (r *Storage) componentDataKey(ai storage.ArchetypeIndex, ci storage.Compone
 }
 
 func (r *Storage) componentIndexKey(index storage.ArchetypeIndex) string {
-	return fmt.Sprintf("CIDX:WORLD-%s:CID-%s:A-%d", r.worldID, r.componentStoragePrefix, index)
+	return fmt.Sprintf("CIDX:WORLD-%s:A-%d", r.worldID, index)
 }
 
 func (r *Storage) entityLocationKey(e entity.ID) string {

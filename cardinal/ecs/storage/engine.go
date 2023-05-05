@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"context"
+
 	"google.golang.org/protobuf/types/known/anypb"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
@@ -10,9 +12,7 @@ import (
 )
 
 type ComponentStorage interface {
-	// PushComponent pushes a new component and returns the index.
-	PushComponent(component.IComponentType, ArchetypeIndex) (ComponentIndex, error)
-	PushRawComponent(*anypb.Any, ArchetypeIndex) error
+	PushRawComponent(*anypb.Any, ArchetypeIndex, ComponentIndex) error
 	Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) (component.IComponentType, error)
 	SetComponent(ArchetypeIndex, ComponentIndex, component.IComponentType) error
 	// MoveComponent moves the component from one Arch-Component to another.
@@ -23,6 +23,7 @@ type ComponentStorage interface {
 
 type ComponentStorageManager interface {
 	GetComponentStorage(string) ComponentStorage
+	GetNextIndex(ctx context.Context, index ArchetypeIndex) (ComponentIndex, error)
 }
 
 type EntityLocationStorage interface {
