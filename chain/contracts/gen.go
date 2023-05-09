@@ -31,6 +31,7 @@ package contracts
 //go:generate abigen --pkg precompile --abi ./out/distribution.sol/IDistributionModule.abi.json --bin ./out/distribution.sol/IDistributionModule.bin --out ./bindings/cosmos/precompile/i_distribution_module.abigen.go --type DistributionModule
 //go:generate abigen --pkg precompile --abi ./out/governance.sol/IGovernanceModule.abi.json --bin ./out/governance.sol/IGovernanceModule.bin --out ./bindings/cosmos/precompile/i_governance_module.abigen.go --type GovernanceModule
 //go:generate abigen --pkg precompile --abi ./out/DarkForest.sol/DarkForest.abi.json --bin ./out/DarkForest.sol/DarkForest.bin --out ./bindings/cosmos/precompile/DarkForest.abigen.go --type DarkForest
+//go:generate abigen --pkg precompile --abi ./out/router.sol/IRouter.abi.json --bin ./out/router.sol/IRouter.bin --out ./bindings/cosmos/precompile/IRouter.abigen.go --type router
 
 //go:generate abigen --pkg testing --abi ./out/SolmateERC20.sol/SolmateERC20.abi.json --bin ./out/SolmateERC20.sol/SolmateERC20.bin --out ./bindings/testing/solmate_erc20.abigen.go --type SolmateERC20
 //go:generate abigen --pkg testing --abi ./out/MockPrecompileInterface.sol/MockPrecompileInterface.abi.json --out ./bindings/testing/mock_precompile_interface.abigen.go --type MockPrecompile
