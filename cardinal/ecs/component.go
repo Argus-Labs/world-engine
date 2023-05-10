@@ -17,14 +17,13 @@ type IComponentType = component.IComponentType
 
 // NewComponentType creates a new component type.
 // The function is used to create a new component of the type.
-// It receives a function that returns a pointer to a new component.
-// The first argument is a default value of the component.
-func NewComponentType[T any](opts ...interface{}) *ComponentType[T] {
+func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T] {
 	var t T
-	if len(opts) == 0 {
-		return newComponentType(t, nil)
+	comp := newComponentType(t, nil)
+	for _, opt := range opts {
+		opt(comp)
 	}
-	return newComponentType(t, opts[0])
+	return comp
 }
 
 // ComponentType represents a type of component. It is used to identify
@@ -176,4 +175,16 @@ func newComponentType[T any](s T, defaultVal interface{}) *ComponentType[T] {
 	}
 	nextComponentTypeId++
 	return componentType
+}
+
+// ComponentOption is a type that can be passed to NewComponentType to augment the creation
+// of the component type
+type ComponentOption[T any] func(c *ComponentType[T])
+
+// WithDefault updated the created ComponentType with a default value
+func WithDefault[T any](defaultVal T) ComponentOption[T] {
+	return func(c *ComponentType[T]) {
+		c.defaultVal = defaultVal
+		c.validateDefaultVal()
+	}
 }

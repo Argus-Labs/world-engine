@@ -35,8 +35,6 @@ type World interface {
 	Update()
 	// AddSystem adds a system to the world.
 	AddSystem(System)
-	// RegisterComponents registers the components in the world.
-	RegisterComponents(...IComponentType)
 }
 
 // StorageAccessor is an accessor for the world's storage.
@@ -97,7 +95,9 @@ func (w *world) Update() {
 	}
 }
 
-func (w *world) RegisterComponents(ct ...IComponentType) {
+// registerComponents attempts to initialize the given slice of components with a WorldAccessor.
+// This will give components the ability to access their own data.
+func (w *world) registerComponents(ct []IComponentType) {
 	type Initializer interface {
 		Initialize(storage.WorldAccessor)
 	}
@@ -140,6 +140,7 @@ func (w *world) ID() WorldId {
 }
 
 func (w *world) CreateMany(num int, components ...component.IComponentType) ([]storage.Entity, error) {
+	w.registerComponents(components)
 	archetypeIndex := w.getArchetypeForComponents(components)
 	entities := make([]storage.Entity, 0, num)
 	for i := 0; i < num; i++ {
@@ -154,8 +155,11 @@ func (w *world) CreateMany(num int, components ...component.IComponentType) ([]s
 }
 
 func (w *world) Create(components ...component.IComponentType) (storage.Entity, error) {
-	archetypeIndex := w.getArchetypeForComponents(components)
-	return w.createEntity(archetypeIndex)
+	entities, err := w.CreateMany(1, components...)
+	if err != nil {
+		return entity.Null, err
+	}
+	return entities[0], nil
 }
 
 func (w *world) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.Entity, error) {
@@ -270,6 +274,9 @@ func (w *world) removeAtLocation(ent storage.Entity, loc *storage.Location) erro
 	if int(componentIndex) < len(archetype.Entities()) {
 		swapped := archetype.Entities()[componentIndex]
 		if err := w.store.EntityLocStore.Set(swapped.ID(), loc); err != nil {
+			return err
+		}
+		if err := w.store.EntryStore.SetLocation(swapped.ID(), *loc); err != nil {
 			return err
 		}
 	}
