@@ -10,32 +10,18 @@ import (
 	"pkg.berachain.dev/polaris/lib/utils"
 
 	"github.com/argus-labs/world-engine/chain/precompile"
+	"github.com/argus-labs/world-engine/chain/router"
 	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile"
 )
 
-const (
-	CodeSuccess = iota
-	CodeFailed
-	CodeTimedOut
-)
-
-type Result struct {
-	Code    uint64
-	Message string
-}
-
-type Rtr interface {
-	Send(namespace string, sender string, msg []byte) (Result, error)
-}
-
 type Contract struct {
 	precompile.BaseContract
-	r Rtr
+	r router.Router
 }
 
 // NewPrecompileContract
 // TODO(technicallyty): decide address
-func NewPrecompileContract(r Rtr) ethprecompile.StatefulImpl {
+func NewPrecompileContract(r router.Router) ethprecompile.StatefulImpl {
 	return &Contract{
 		BaseContract: precompile.NewBaseContract(generated.RouterMetaData.ABI, common.Address{}),
 		r:            r,
@@ -55,8 +41,8 @@ func (c *Contract) Send(
 	ctx context.Context,
 	_ ethprecompile.EVM,
 	caller common.Address,
-	value *big.Int,
-	readonly bool,
+	_ *big.Int,
+	_ bool,
 	args ...any,
 ) ([]any, error) {
 	if len(args) != 2 {
@@ -71,7 +57,7 @@ func (c *Contract) Send(
 		return nil, precompile.ErrInvalidString
 	}
 
-	result, err := c.r.Send(namespace, caller.String(), payload)
+	result, err := c.r.Send(ctx, namespace, caller.String(), payload)
 	if err != nil {
 		return nil, err
 	}

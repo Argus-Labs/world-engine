@@ -5,12 +5,17 @@ import (
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	cosmlib "pkg.berachain.dev/polaris/cosmos/lib"
 	"pkg.berachain.dev/polaris/cosmos/precompile"
 	testutil "pkg.berachain.dev/polaris/cosmos/testing/utils"
 	"pkg.berachain.dev/polaris/lib/utils"
+
+	"github.com/argus-labs/world-engine/chain/router"
+	"github.com/argus-labs/world-engine/chain/router/mocks"
+	precompile2 "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile"
 )
 
 func TestRouterPrecompile(t *testing.T) {
@@ -20,16 +25,20 @@ func TestRouterPrecompile(t *testing.T) {
 
 var _ = Describe("Router precompile", func() {
 	var (
-		ctx    sdk.Context
-		caller sdk.AccAddress
-		//mockCtrl *gomock.Controller
+		ctx      sdk.Context
+		caller   sdk.AccAddress
+		mockCtrl *gomock.Controller
 		contract *Contract
+		rtr      *mocks.MockRouter
 	)
 
 	BeforeEach(func() {
+		mockCtrl = gomock.NewController(GinkgoT())
+		rtr = mocks.NewMockRouter(mockCtrl)
 		ctx = testutil.NewContext()
 		caller = sdk.AccAddress([]byte("bobert"))
-		contract = utils.MustGetAs[*Contract](NewPrecompileContract(nil)) // TODO(technicallyty): put in router mock
+		contract = utils.MustGetAs[*Contract](NewPrecompileContract(rtr)) // TODO(technicallyty): put in router mock
+
 	})
 
 	When("Sending a message", func() {
@@ -58,6 +67,7 @@ var _ = Describe("Router precompile", func() {
 			Expect(res).To(BeNil())
 		})
 		It("should fail if the second arg is the wrong type", func() {
+
 			res, err := contract.Send(
 				ctx,
 				nil,
@@ -68,6 +78,30 @@ var _ = Describe("Router precompile", func() {
 			)
 			Expect(err).To(MatchError(precompile.ErrInvalidString))
 			Expect(res).To(BeNil())
+		})
+		It("should succeed", func() {
+			msg := []byte("foo")
+			namespace := "cardinal"
+			sender := cosmlib.AccAddressToEthAddress(caller)
+			result := router.Result{
+				Code:    0,
+				Message: "good job!",
+			}
+			rtr.EXPECT().Send(ctx, namespace, sender.String(), msg).Times(1).Return(result, nil)
+			res, err := contract.Send(
+				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
+				msg, namespace,
+			)
+			Expect(err).To(BeNil())
+			gotResult, _ := utils.GetAs[precompile2.IRouterResponse](res[0])
+			Expect(gotResult).To(Equal(precompile2.IRouterResponse{
+				Code:    big.NewInt(int64(result.Code)),
+				Message: result.Message,
+			}))
 		})
 	})
 })
