@@ -44,15 +44,14 @@ Calling s.cms.Write() before ending the function ensures all state transitions a
 <!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
 ### 📄 chain/sidecar/sidecar.go
 ```go
-59     func (s Sidecar) MintCoins(ctx context.Context, msg *v1.MsgMintCoins) (*v1.MsgMintCoinsResponse, error) {
-60     	sdkCtx := s.getSDKCtx().WithContext(ctx)
-61     	err := s.bk.MintCoins(sdkCtx, ModuleName, types.Coins{types.NewInt64Coin(msg.Denom, msg.Amount)})
-62     	if err != nil {
-63     		return nil, err
-64     	}
-65     	s.cms.Write()
-66     	return &v1.MsgMintCoinsResponse{}, nil
-67     }
+61     //func (s Sidecar) MintCoins(ctx context.Context, msg *v1.MsgMintCoins) (*v1.MsgMintCoinsResponse, error) {
+62     //	sdkCtx := s.getSDKCtx().WithContext(ctx)
+63     //	err := s.bk.MintCoins(sdkCtx, ModuleName, types.Coins{types.NewInt64Coin(msg.Denom, msg.Amount)})
+64     //	if err != nil {
+65     //		return nil, err
+66     //	}
+67     //	s.cms.Write()
+68     //	return &v1.MsgMintCoinsResponse{}, nil
 ```
 
 <br/>
@@ -81,7 +80,7 @@ Sidecar interface guard against the gRPC server interface.
 <!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
 ### 📄 chain/sidecar/sidecar.go
 ```go
-57     var _ g1.SidecarServer = Sidecar{}
+59     //var _ g1.SidecarServer = Sidecar{}
 ```
 
 <br/>
