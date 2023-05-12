@@ -22,11 +22,11 @@
 package runtime
 
 import (
+	_ "embed"
 	"io"
 	"os"
 	"path/filepath"
 
-	"github.com/argus-labs/world-engine/chain/sidecar"
 	dbm "github.com/cosmos/cosmos-db"
 
 	appv1alpha1 "cosmossdk.io/api/cosmos/app/v1alpha1"
@@ -105,7 +105,6 @@ import (
 	"pkg.berachain.dev/polaris/eth/core/vm"
 	"pkg.berachain.dev/polaris/lib/utils"
 
-	_ "embed"
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side-effects
 )
 
@@ -385,14 +384,14 @@ func NewApp( //nolint: funlen // from sdk.
 }
 
 //nolint:unused // scott smh.
-func (app *App) startSidecar() error {
-	err := sidecar.StartSidecar(app.BaseApp.MsgServiceRouter(), app.BaseApp.GRPCQueryRouter(),
-		app.BankKeeper, app.BaseApp.CommitMultiStore().CacheMultiStore(), app.Logger())
-	if err != nil {
-		return err
-	}
-	return nil
-}
+//func (app *App) startSidecar() error {
+//	err := sidecar.StartSidecar(app.BaseApp.MsgServiceRouter(), app.BaseApp.GRPCQueryRouter(),
+//		app.BankKeeper, app.BaseApp.CommitMultiStore().CacheMultiStore(), app.Logger())
+//	if err != nil {
+//		return err
+//	}
+//	return nil
+//}
 
 // Name returns the name of the App.
 func (app *App) Name() string { return app.BaseApp.Name() }
