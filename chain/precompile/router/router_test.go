@@ -36,9 +36,8 @@ var _ = Describe("Router precompile", func() {
 		mockCtrl = gomock.NewController(GinkgoT())
 		rtr = mocks.NewMockRouter(mockCtrl)
 		ctx = testutil.NewContext()
-		caller = sdk.AccAddress([]byte("bobert"))
-		contract = utils.MustGetAs[*Contract](NewPrecompileContract(rtr)) // TODO(technicallyty): put in router mock
-
+		caller = sdk.AccAddress("bob")
+		contract = utils.MustGetAs[*Contract](NewPrecompileContract(rtr))
 	})
 
 	When("Sending a message", func() {
@@ -85,7 +84,7 @@ var _ = Describe("Router precompile", func() {
 			sender := cosmlib.AccAddressToEthAddress(caller)
 			result := router.Result{
 				Code:    0,
-				Message: "good job!",
+				Message: []byte("foobar"),
 			}
 			rtr.EXPECT().Send(ctx, namespace, sender.String(), msg).Times(1).Return(result, nil)
 			res, err := contract.Send(

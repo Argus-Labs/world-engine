@@ -27,6 +27,10 @@ type router struct {
 	namespaces map[string]routerv1grpc.MsgClient
 }
 
+func NewRouter() Router {
+
+}
+
 func (r *router) Send(ctx context.Context, namespace, sender string, msg []byte) (Result, error) {
 	srv, ok := r.namespaces[namespace]
 	if !ok {
@@ -40,7 +44,7 @@ func (r *router) Send(ctx context.Context, namespace, sender string, msg []byte)
 	if err != nil {
 		return Result{
 			Code:    errors.Failed,
-			Message: []byte(err.Error()), // TODO(technicallyty): need more thinking on this..
+			Message: []byte(err.Error()),
 		}, err
 	}
 	// put bytes into proto message and send to server

@@ -5,6 +5,6 @@ interface IRouter {
 
     struct Response {
         uint    Code;
-        string  Message;
+        bytes  Message;
     }
 }
