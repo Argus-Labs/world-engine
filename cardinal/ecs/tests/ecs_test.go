@@ -20,7 +20,7 @@ type OwnableComponent struct {
 }
 
 func UpdateEnergySystem(w *ecs.World) {
-	Energy.Each(w, func(entry *storage.Entry) {
+	Energy.Each(w, func(entry storage.Entry) {
 		energyPlanet, err := Energy.Get(entry)
 		if err != nil {
 			panic(err)
@@ -67,7 +67,7 @@ func TestECS(t *testing.T) {
 	world.AddSystem(UpdateEnergySystem)
 	world.Update()
 
-	Energy.Each(world, func(entry *storage.Entry) {
+	Energy.Each(world, func(entry storage.Entry) {
 		energyPlanet, err := Energy.Get(entry)
 		assert.NilError(t, err)
 		assert.Equal(t, int64(10), energyPlanet.Amt)
@@ -98,7 +98,7 @@ func TestVelocitySimulation(t *testing.T) {
 	Velocity.Set(shipEntry, &Vel{3, 4})
 	wantPos := Pos{4, 6}
 
-	Velocity.Each(world, func(e *storage.Entry) {
+	Velocity.Each(world, func(e storage.Entry) {
 		vel, err := Velocity.Get(e)
 		assert.NilError(t, err)
 		pos, err := Position.Get(e)
@@ -152,7 +152,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Make sure we find exactly 2 entries
 	count := 0
-	tuple.Each(world, func(entry *storage.Entry) {
+	tuple.Each(world, func(entry storage.Entry) {
 		_, err := tuple.Get(entry)
 		assert.NilError(t, err)
 		count++
@@ -164,7 +164,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Now we should only find 1 entry
 	count = 0
-	tuple.Each(world, func(entry *storage.Entry) {
+	tuple.Each(world, func(entry storage.Entry) {
 		_, err := tuple.Get(entry)
 		assert.NilError(t, err)
 		count++
@@ -179,7 +179,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	err = world.Remove(entities[1])
 	assert.NilError(t, err)
 	count = 0
-	tuple.Each(world, func(entry *storage.Entry) {
+	tuple.Each(world, func(entry storage.Entry) {
 		_, err := tuple.Get(entry)
 		assert.NilError(t, err)
 		count++
@@ -204,9 +204,9 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 
 	// Remove the even entries
 	itr := 0
-	Count.Each(world, func(entry *storage.Entry) {
+	Count.Each(world, func(entry storage.Entry) {
 		if itr%2 == 0 {
-			assert.NilError(t, world.Remove(entry.Ent))
+			assert.NilError(t, world.Remove(entry.ID))
 		} else {
 			assert.NilError(t, Count.Set(entry, &CountComponent{itr}))
 		}
@@ -216,7 +216,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	assert.Equal(t, 10, itr)
 
 	seen := map[int]int{}
-	Count.Each(world, func(entry *storage.Entry) {
+	Count.Each(world, func(entry storage.Entry) {
 		c, err := Count.Get(entry)
 		assert.NilError(t, err)
 		seen[c.Val]++
@@ -285,15 +285,15 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	gamma := ecs.NewComponentType[Label](ecs.WithDefault(Label{"gamma"}))
 	world.RegisterComponents(alpha, beta, gamma)
 
-	ents, err := world.CreateMany(3, alpha, beta)
+	entIDs, err := world.CreateMany(3, alpha, beta)
 	assert.NilError(t, err)
 
 	// count and countAgain are helpers that simplify the counting of how many
 	// entities have a particular component.
 	var count int
-	countAgain := func() func(entry *storage.Entry) {
+	countAgain := func() func(entry storage.Entry) {
 		count = 0
-		return func(entry *storage.Entry) {
+		return func(entry storage.Entry) {
 			count++
 		}
 	}
@@ -305,20 +305,20 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	gamma.Each(world, countAgain())
 	assert.Equal(t, 0, count)
 
-	assert.NilError(t, alpha.RemoveFrom(ents[0]))
+	assert.NilError(t, alpha.RemoveFrom(entIDs[0]))
 
 	// alpha has been removed from entity[0], so only 2 entities should now have alpha
 	alpha.Each(world, countAgain())
 	assert.Equal(t, 2, count)
 
 	// Add gamma to an entity. Now 1 entity should have gamma.
-	assert.NilError(t, gamma.AddTo(ents[1]))
+	assert.NilError(t, gamma.AddTo(entIDs[1]))
 	gamma.Each(world, countAgain())
 	assert.Equal(t, 1, count)
 
-	// Make sure the one entry that has gamma is ents[1]
-	gamma.Each(world, func(entry *storage.Entry) {
-		assert.Equal(t, entry.ID, ents[1].ID())
+	// Make sure the one entry that has gamma is entIDs[1]
+	gamma.Each(world, func(entry storage.Entry) {
+		assert.Equal(t, entry.ID, entIDs[1])
 	})
 }
 
@@ -353,14 +353,14 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 
 	// Only one entity has the components a and b
 	abFilter := filter.Contains(a, b)
-	ecs.NewQuery(abFilter).Each(world, func(entry *storage.Entry) {
-		assert.Equal(t, entry.ID, ab.ID())
+	ecs.NewQuery(abFilter).Each(world, func(entry storage.Entry) {
+		assert.Equal(t, entry.ID, ab)
 	})
 	assert.Equal(t, ecs.NewQuery(abFilter).Count(world), 1)
 
 	cdFilter := filter.Contains(c, d)
-	ecs.NewQuery(cdFilter).Each(world, func(entry *storage.Entry) {
-		assert.Equal(t, entry.ID, cd.ID())
+	ecs.NewQuery(cdFilter).Each(world, func(entry storage.Entry) {
+		assert.Equal(t, entry.ID, cd)
 	})
 	assert.Equal(t, ecs.NewQuery(abFilter).Count(world), 1)
 

@@ -1,7 +1,6 @@
 package ecs
 
 import (
-	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 )
@@ -32,11 +31,11 @@ func NewQuery(filter filter.LayoutFilter) *Query {
 }
 
 // Each iterates over all entityLocationStore that match the query.
-func (q *Query) Each(w *World, callback func(*storage.Entry)) {
+func (q *Query) Each(w *World, callback func(storage.Entry)) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
-	f := func(entity entity.Entity) {
+	f := func(entity storage.EntityID) {
 		entry, _ := w.Entry(entity)
 		callback(entry)
 	}
@@ -62,24 +61,24 @@ func (q *Query) Count(w *World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w *World) (entry *storage.Entry, ok bool, err error) {
+func (q *Query) First(w *World) (entry storage.Entry, ok bool, err error) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
 	if !iter.HasNext() {
-		return nil, false, err
+		return storage.NullEntry, false, err
 	}
 	for iter.HasNext() {
 		entities := iter.Next()
 		if len(entities) > 0 {
 			ent, err := w.Entry(entities[0])
 			if err != nil {
-				return nil, false, err
+				return storage.NullEntry, false, err
 			}
 			return ent, true, err
 		}
 	}
-	return nil, false, err
+	return storage.NullEntry, false, err
 }
 
 func (q *Query) evaluateQuery(world *World, accessor *StorageAccessor) []storage.ArchetypeIndex {

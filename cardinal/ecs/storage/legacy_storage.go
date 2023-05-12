@@ -2,7 +2,6 @@ package storage
 
 import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
-	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 )
 
@@ -157,9 +156,14 @@ func (c *ComponentIndexMap) DecrementIndex(index ArchetypeIndex) error {
 	return nil
 }
 
+type locationValid struct {
+	loc   Location
+	valid bool
+}
+
 // LocationMap is a storage of Ent locations.
 type LocationMap struct {
-	locations []*Location
+	locations []*locationValid
 	len       int
 }
 
@@ -170,61 +174,61 @@ func (lm *LocationMap) Len() (int, error) {
 // NewLocationMap creates an empty storage.
 func NewLocationMap() EntityLocationStorage {
 	return &LocationMap{
-		locations: make([]*Location, 1, 256),
+		locations: make([]*locationValid, 1, 256),
 		len:       0,
 	}
 }
 
 // ContainsEntity returns true if the storage contains the given entity ID.
-func (lm *LocationMap) ContainsEntity(id entity.ID) (bool, error) {
+func (lm *LocationMap) ContainsEntity(id EntityID) (bool, error) {
 	val := lm.locations[id]
-	return val != nil && val.Valid, nil
+	return val != nil && val.valid, nil
 }
 
 // Remove removes the given entity ID from the storage.
-func (lm *LocationMap) Remove(id entity.ID) error {
-	lm.locations[id].Valid = false
+func (lm *LocationMap) Remove(id EntityID) error {
+	lm.locations[id].valid = false
 	lm.len--
 	return nil
 }
 
 // Insert inserts the given entity ID and archetype Index to the storage.
-func (lm *LocationMap) Insert(id entity.ID, archetype ArchetypeIndex, component ComponentIndex) error {
+func (lm *LocationMap) Insert(id EntityID, archetype ArchetypeIndex, component ComponentIndex) error {
 	if int(id) == len(lm.locations) {
 		loc := NewLocation(archetype, component)
-		lm.locations = append(lm.locations, loc)
+		lm.locations = append(lm.locations, &locationValid{loc, true})
 		lm.len++
 	} else {
-		loc := lm.locations[id]
-		loc.ArchIndex = archetype
-		loc.CompIndex = component
-		if !loc.Valid {
+		val := lm.locations[id]
+		val.loc.ArchIndex = archetype
+		val.loc.CompIndex = component
+		if !val.valid {
 			lm.len++
-			loc.Valid = true
+			val.valid = true
 		}
 	}
 	return nil
 }
 
 // Set sets the given entity ID and archetype Index to the storage.
-func (lm *LocationMap) Set(id entity.ID, loc *Location) error {
+func (lm *LocationMap) Set(id EntityID, loc Location) error {
 	lm.Insert(id, loc.ArchIndex, loc.CompIndex)
 	return nil
 }
 
 // Location returns the location of the given entity ID.
-func (lm *LocationMap) Location(id entity.ID) (*Location, error) {
-	return lm.locations[id], nil
+func (lm *LocationMap) Location(id EntityID) (Location, error) {
+	return lm.locations[id].loc, nil
 }
 
 // ArchetypeIndex returns the archetype of the given entity ID.
-func (lm *LocationMap) ArchetypeIndex(id entity.ID) (ArchetypeIndex, error) {
-	return lm.locations[id].ArchIndex, nil
+func (lm *LocationMap) ArchetypeIndex(id EntityID) (ArchetypeIndex, error) {
+	return lm.locations[id].loc.ArchIndex, nil
 }
 
 // ComponentIndexForEntity returns the component of the given entity ID.
-func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) (ComponentIndex, error) {
-	return lm.locations[id].CompIndex, nil
+func (lm *LocationMap) ComponentIndexForEntity(id EntityID) (ComponentIndex, error) {
+	return lm.locations[id].loc.CompIndex, nil
 }
 
 // Index is a structure that indexes archetypes by their component types.
@@ -266,17 +270,11 @@ func (idx *Index) Search(filter filter.LayoutFilter) *ArchetypeIterator {
 }
 
 type entryStorageImpl struct {
-	entries []*Entry
+	entries []Entry
 }
 
-func (e *entryStorageImpl) SetEntity(id entity.ID, e2 Entity) error {
-	e.entries[id].Ent = e2
-
-	return nil
-}
-
-func (e *entryStorageImpl) SetLocation(id entity.ID, location Location) error {
-	e.entries[id].Loc = &location
+func (e *entryStorageImpl) SetLocation(id EntityID, location Location) error {
+	e.entries[id].Loc = location
 
 	return nil
 }
@@ -284,17 +282,17 @@ func (e *entryStorageImpl) SetLocation(id entity.ID, location Location) error {
 var _ EntryStorage = &entryStorageImpl{}
 
 func NewEntryStorage() EntryStorage {
-	return &entryStorageImpl{entries: make([]*Entry, 1, 256)}
+	return &entryStorageImpl{entries: make([]Entry, 1, 256)}
 }
 
-func (e *entryStorageImpl) SetEntry(id entity.ID, entry *Entry) error {
+func (e *entryStorageImpl) SetEntry(id EntityID, entry Entry) error {
 	if int(id) >= len(e.entries) {
-		e.entries = append(e.entries, nil)
+		e.entries = append(e.entries, Entry{})
 	}
 	e.entries[id] = entry
 	return nil
 }
 
-func (e entryStorageImpl) GetEntry(id entity.ID) (*Entry, error) {
+func (e entryStorageImpl) GetEntry(id EntityID) (Entry, error) {
 	return e.entries[id], nil
 }

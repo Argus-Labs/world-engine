@@ -63,7 +63,7 @@ func encodeComponent[T any](comp T) ([]byte, error) {
 }
 
 // Get returns component data from the entry.
-func (c *ComponentType[T]) Get(entry *storage.Entry) (T, error) {
+func (c *ComponentType[T]) Get(entry storage.Entry) (T, error) {
 	var comp T
 	bz, err := entry.Component(c.w, c)
 	if err != nil {
@@ -74,7 +74,7 @@ func (c *ComponentType[T]) Get(entry *storage.Entry) (T, error) {
 }
 
 // Set sets component data to the entry.
-func (c *ComponentType[T]) Set(entry *storage.Entry, component *T) error {
+func (c *ComponentType[T]) Set(entry storage.Entry, component *T) error {
 	bz, err := encodeComponent[T](*component)
 	if err != nil {
 		return err
@@ -87,20 +87,20 @@ func (c *ComponentType[T]) Set(entry *storage.Entry, component *T) error {
 }
 
 // Each iterates over the entityLocationStore that have the component.
-func (c *ComponentType[T]) Each(w *World, callback func(*storage.Entry)) {
+func (c *ComponentType[T]) Each(w *World, callback func(storage.Entry)) {
 	c.query.Each(w, callback)
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w *World) (*storage.Entry, bool, error) {
+func (c *ComponentType[T]) First(w *World) (storage.Entry, bool, error) {
 	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w *World) (*storage.Entry, error) {
+func (c *ComponentType[T]) MustFirst(w *World) (storage.Entry, error) {
 	e, ok, err := c.query.First(w)
 	if err != nil {
-		return nil, err
+		return storage.NullEntry, err
 	}
 	if !ok {
 		panic(fmt.Sprintf("no entity has the component %s", c.name))
@@ -109,10 +109,9 @@ func (c *ComponentType[T]) MustFirst(w *World) (*storage.Entry, error) {
 	return e, nil
 }
 
-
 // RemoveFrom removes this component form the given entity.
-func (c *ComponentType[T]) RemoveFrom(entity storage.Entity) error {
-	e, err := c.w.Entry(entity)
+func (c *ComponentType[T]) RemoveFrom(id storage.EntityID) error {
+	e, err := c.w.Entry(id)
 	if err != nil {
 		return err
 	}
@@ -120,8 +119,8 @@ func (c *ComponentType[T]) RemoveFrom(entity storage.Entity) error {
 }
 
 // AddTo adds this component to the given entity.
-func (c *ComponentType[T]) AddTo(entity storage.Entity) error {
-	e, err := c.w.Entry(entity)
+func (c *ComponentType[T]) AddTo(id storage.EntityID) error {
+	e, err := c.w.Entry(id)
 	if err != nil {
 		return err
 	}
@@ -129,7 +128,7 @@ func (c *ComponentType[T]) AddTo(entity storage.Entity) error {
 }
 
 // SetValue sets the value of the component.
-func (c *ComponentType[T]) SetValue(entry *storage.Entry, value T) error {
+func (c *ComponentType[T]) SetValue(entry storage.Entry, value T) error {
 	_, err := c.Get(entry)
 	if err != nil {
 		return err

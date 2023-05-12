@@ -5,28 +5,33 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
-	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 )
+
+type EntityID uint64
 
 // Entry is a struct that contains an Ent and a location in an archetype.
 type Entry struct {
-	ID  entity.ID
-	Ent Entity
-	Loc *Location // TODO: this definitely doesnt need to be a pointer...
+	ID  EntityID
+	Loc Location
 }
 
-func NewEntry(id entity.ID, e entity.Entity, loc *Location) *Entry {
-	return &Entry{
+func NewEntry(id EntityID, loc Location) Entry {
+	return Entry{
 		ID:  id,
-		Ent: e,
 		Loc: loc,
 	}
 }
 
+var (
+	NullID    EntityID = math.MaxUint64
+	NullEntry Entry    = Entry{NullID, Location{}}
+)
+
 // Get returns the component from the entry
-func Get[T any](w WorldAccessor, e *Entry, cType component.IComponentType) (*T, error) {
+func Get[T any](w WorldAccessor, e Entry, cType component.IComponentType) (*T, error) {
 	var comp *T
 	compBz, err := e.Component(w, cType)
 	if err != nil {
@@ -40,7 +45,7 @@ func Get[T any](w WorldAccessor, e *Entry, cType component.IComponentType) (*T, 
 }
 
 // Add adds the component to the entry.
-func Add[T any](w WorldAccessor, e *Entry, cType component.IComponentType, component *T) error {
+func Add[T any](w WorldAccessor, e Entry, cType component.IComponentType, component *T) error {
 	bz, err := Encode(component)
 	if err != nil {
 		return err
@@ -50,7 +55,7 @@ func Add[T any](w WorldAccessor, e *Entry, cType component.IComponentType, compo
 }
 
 // Set sets the component of the entry.
-func Set[T any](w WorldAccessor, e *Entry, ctype component.IComponentType, component *T) error {
+func Set[T any](w WorldAccessor, e Entry, ctype component.IComponentType, component *T) error {
 	bz, err := Encode(component)
 	if err != nil {
 		return err
@@ -60,7 +65,7 @@ func Set[T any](w WorldAccessor, e *Entry, ctype component.IComponentType, compo
 }
 
 // SetValue sets the value of the component.
-func SetValue[T any](w WorldAccessor, e *Entry, ctype component.IComponentType, value T) error {
+func SetValue[T any](w WorldAccessor, e Entry, ctype component.IComponentType, value T) error {
 	c, err := Get[T](w, e, ctype)
 	if err != nil {
 		return err
@@ -70,38 +75,33 @@ func SetValue[T any](w WorldAccessor, e *Entry, ctype component.IComponentType, 
 }
 
 // Remove removes the component from the entry.
-func Remove[T any](w WorldAccessor, e *Entry, ctype component.IComponentType) {
+func Remove[T any](w WorldAccessor, e Entry, ctype component.IComponentType) {
 	e.RemoveComponent(w, ctype)
 }
 
 // Valid returns true if the entry is valid.
-func Valid(w WorldAccessor, e *Entry) (bool, error) {
-	if e == nil {
+func Valid(w WorldAccessor, e Entry) (bool, error) {
+	if e == NullEntry {
 		return false, nil
 	}
 	ok, err := e.Valid(w)
 	return ok, err
 }
 
-// Id returns the entity ID.
-func (e *Entry) Id() entity.ID {
+// EntityID returns the Entity.
+func (e Entry) EntityID() EntityID {
 	return e.ID
 }
 
-// Entity returns the Entity.
-func (e *Entry) Entity() Entity {
-	return e.Ent
-}
-
 // Component returns the component.
-func (e *Entry) Component(w WorldAccessor, cType component.IComponentType) ([]byte, error) {
+func (e Entry) Component(w WorldAccessor, cType component.IComponentType) ([]byte, error) {
 	c := e.Loc.CompIndex
 	a := e.Loc.ArchIndex
 	return w.Component(cType, a, c)
 }
 
 // SetComponent sets the component.
-func (e *Entry) SetComponent(w WorldAccessor, cType component.IComponentType, component []byte) error {
+func (e Entry) SetComponent(w WorldAccessor, cType component.IComponentType, component []byte) error {
 	c := e.Loc.CompIndex
 	a := e.Loc.ArchIndex
 	return w.SetComponent(cType, component, a, c)
@@ -113,7 +113,7 @@ var (
 )
 
 // AddComponent adds the component to the Ent.
-func (e *Entry) AddComponent(w WorldAccessor, cType component.IComponentType, components ...[]byte) error {
+func (e Entry) AddComponent(w WorldAccessor, cType component.IComponentType, components ...[]byte) error {
 	if len(components) > 1 {
 		panic("AddComponent: component argument must be a single value")
 	}
@@ -130,11 +130,11 @@ func (e *Entry) AddComponent(w WorldAccessor, cType component.IComponentType, co
 		return err
 	}
 
-	ent, err := w.Entry(e.Ent)
+	ent, err := w.Entry(e.ID)
 	if err != nil {
 		return err
 	}
-	w.SetEntryLocation(e.ID, *ent.Loc)
+	w.SetEntryLocation(e.ID, ent.Loc)
 
 	if len(components) == 1 {
 		e.SetComponent(w, cType, components[0])
@@ -143,7 +143,7 @@ func (e *Entry) AddComponent(w WorldAccessor, cType component.IComponentType, co
 }
 
 // RemoveComponent removes the component from the Ent.
-func (e *Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType) error {
+func (e Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType) error {
 	// if the entry doesn't even have this component, we can just return.
 	if !e.Archetype(w).Layout().HasComponent(cType) {
 		return ErrorComponentNotOnEntity
@@ -167,42 +167,42 @@ func (e *Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType)
 		return err
 	}
 
-	ent, err := w.Entry(e.Ent)
+	ent, err := w.Entry(e.ID)
 	if err != nil {
 		return err
 	}
 	ent.Loc.ArchIndex = targetArc
 	ent.Loc.CompIndex = compIndex
-	w.SetEntryLocation(e.ID, *ent.Loc)
+	w.SetEntryLocation(e.ID, ent.Loc)
 	return nil
 }
 
 // Remove removes the entity from the world.
-func (e *Entry) Remove(w WorldAccessor) error {
-	return w.Remove(e.Ent)
+func (e Entry) Remove(w WorldAccessor) error {
+	return w.Remove(e.ID)
 }
 
 // Valid returns true if the entry is valid.
-func (e *Entry) Valid(w WorldAccessor) (bool, error) {
-	ok, err := w.Valid(e.Ent)
+func (e Entry) Valid(w WorldAccessor) (bool, error) {
+	ok, err := w.Valid(e.ID)
 	return ok, err
 }
 
 // Archetype returns the archetype.
-func (e *Entry) Archetype(w WorldAccessor) ArchetypeStorage {
+func (e Entry) Archetype(w WorldAccessor) ArchetypeStorage {
 	a := e.Loc.ArchIndex
 	return w.Archetype(a)
 }
 
 // HasComponent returns true if the Ent has the given component type.
-func (e *Entry) HasComponent(w WorldAccessor, componentType component.IComponentType) bool {
+func (e Entry) HasComponent(w WorldAccessor, componentType component.IComponentType) bool {
 	return e.Archetype(w).Layout().HasComponent(componentType)
 }
 
-func (e *Entry) String(w WorldAccessor) string {
+func (e Entry) StringXY(w WorldAccessor) string {
 	var out bytes.Buffer
 	out.WriteString("Entry: {")
-	out.WriteString(e.Entity().String())
+	out.WriteString(e.StringXX())
 	out.WriteString(", ")
 	out.WriteString(e.Archetype(w).Layout().String())
 	out.WriteString(", Valid: ")
@@ -210,4 +210,9 @@ func (e *Entry) String(w WorldAccessor) string {
 	out.WriteString(fmt.Sprintf("%v", ok))
 	out.WriteString("}")
 	return out.String()
+}
+
+func (e Entry) StringXX() string {
+	return fmt.Sprintf("ID: %d, Loc: %+v", e.ID, e.Loc)
+
 }
