@@ -21,17 +21,10 @@
 package distribution_test
 
 import (
-	"fmt"
-	"math/big"
-	"reflect"
 	"testing"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"gotest.tools/v3/assert"
-
 	"pkg.berachain.dev/polaris/cosmos/precompile/distribution"
 	"pkg.berachain.dev/polaris/cosmos/x/evm/plugins/precompile/log"
 	"pkg.berachain.dev/polaris/eth/core/vm"
@@ -40,60 +33,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
-
-/*
-solidity struct:
-   struct MsgSendEnergy {
-       uint to;
-       uint from;
-       uint amount;
-   }
-*/
-
-type MsgSendEnergy struct {
-	To     *big.Int `json:"to"`
-	From   *big.Int `json:"from"`
-	Amount *big.Int `json:"amount"`
-}
-
-func TestDecoding(t *testing.T) {
-
-	// bytes from abi.encoding the following solidity struct:
-	//    struct MsgSendEnergy {
-	//        uint to;
-	//        uint from;
-	//        uint amount;
-	//    }
-	bzStr := "0x0000000000000000000000000000000000000000000000000000000000000cdd00000000000000000000000000000000000000000000000000000000000009510000000000000000000000000000000000000000000000000000000000005bd5"
-	bz, err := hexutil.Decode(bzStr)
-	assert.NilError(t, err)
-
-	// make MsgSendEnergy abi type.
-	msgSendEnergyType, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
-		{Name: "to", Type: "uint256"},
-		{Name: "from", Type: "uint256"},
-		{Name: "amount", Type: "uint256"},
-	})
-	assert.NilError(t, err)
-	msgSendEnergyType.TupleType = reflect.TypeOf(MsgSendEnergy{})
-
-	args := abi.Arguments{{Type: msgSendEnergyType}}
-	unpacked, err := args.Unpack(bz)
-	assert.NilError(t, err)
-
-	goodMsg, ok := unpacked[0].(MsgSendEnergy)
-	assert.Check(t, ok == true)
-	assert.Check(t, goodMsg.From.Int64() > 0 && goodMsg.To.Int64() > 0 && goodMsg.Amount.Int64() > 0)
-
-	bz, err = args.Pack(goodMsg)
-	assert.NilError(t, err)
-
-	unpacked, err = args.Unpack(bz)
-	assert.NilError(t, err)
-	goodMsg, ok = unpacked[0].(MsgSendEnergy)
-	assert.Check(t, ok == true)
-	fmt.Println(goodMsg)
-}
 
 func TestDistributionPrecompile(t *testing.T) {
 	RegisterFailHandler(Fail)
