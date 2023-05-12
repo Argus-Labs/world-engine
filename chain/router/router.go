@@ -2,7 +2,6 @@ package router
 
 import (
 	"context"
-	"fmt"
 
 	"buf.build/gen/go/argus-labs/argus/grpc/go/v1/routerv1grpc"
 	routerv1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
@@ -31,9 +30,8 @@ type router struct {
 func (r *router) Send(ctx context.Context, namespace string, sender string, msg []byte) (Result, error) {
 	srv, ok := r.namespaces[namespace]
 	if !ok {
-		return Result{}, fmt.Errorf("namespace %s not found", namespace)
+		return Result{}, errors.ErrNamespaceNotFound(namespace)
 	}
-	// connect to client given addr
 	msgSend := &routerv1.MsgSend{
 		Sender:  sender,
 		Message: msg,
