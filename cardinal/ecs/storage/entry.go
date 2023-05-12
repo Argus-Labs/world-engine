@@ -153,7 +153,8 @@ func (e *Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType)
 	}
 
 	targetArc := w.GetArchetypeForComponents(targetLayout)
-	if _, err := w.TransferArchetype(e.Loc.ArchIndex, targetArc, c); err != nil {
+	compIndex, err := w.TransferArchetype(e.Loc.ArchIndex, targetArc, c)
+	if err != nil {
 		return err
 	}
 
@@ -161,8 +162,9 @@ func (e *Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType)
 	if err != nil {
 		return err
 	}
+	ent.Loc.ArchIndex = targetArc
+	ent.Loc.CompIndex = compIndex
 	w.SetEntryLocation(e.ID, *ent.Loc)
-	// e.SetLocation(w.Entry(e.Ent).Loc)
 	return nil
 }
 
