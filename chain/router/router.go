@@ -17,8 +17,8 @@ type Result struct {
 
 //go:generate mockgen -source=router.go -package mocks -destination mocks/router.go
 type Router interface {
-	Send(ctx context.Context, namespace string, sender string, msg []byte) (Result, error)
-	RegisterNamespace(namespace string, serverAddr string) error
+	Send(ctx context.Context, namespace, sender string, msg []byte) (Result, error)
+	RegisterNamespace(namespace, serverAddr string) error
 }
 
 var _ Router = &router{}
@@ -27,7 +27,7 @@ type router struct {
 	namespaces map[string]routerv1grpc.MsgClient
 }
 
-func (r *router) Send(ctx context.Context, namespace string, sender string, msg []byte) (Result, error) {
+func (r *router) Send(ctx context.Context, namespace, sender string, msg []byte) (Result, error) {
 	srv, ok := r.namespaces[namespace]
 	if !ok {
 		return Result{}, errors.ErrNamespaceNotFound(namespace)
