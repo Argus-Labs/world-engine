@@ -50,7 +50,7 @@ func (r *router) Send(ctx context.Context, namespace string, sender string, msg 
 	}, nil
 }
 
-func (r *router) RegisterNamespace(namespace string, serverAddr string) error {
+func (r *router) RegisterNamespace(namespace, serverAddr string) error {
 	cc, err := grpc.Dial(serverAddr)
 	if err != nil {
 		return err
