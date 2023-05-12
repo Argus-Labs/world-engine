@@ -100,10 +100,10 @@ linters-settings:
       - default # Default section: contains all imports that could not be matched to another section type.
       - Prefix(github.com/cometbft)
       - Prefix(cosmossdk.io)
-      - Prefix(github.com/cosmos/cosmos-sdk
-      - Prefix(github.com/ethereum/go-ethereum
-      - Prefix(pkg.berachain.dev
-      - Prefix(pkg.berachain.dev/polaris
+      - Prefix(github.com/cosmos/cosmos-sdk)
+      - Prefix(github.com/ethereum/go-ethereum)
+      - Prefix(pkg.berachain.dev)
+      - Prefix(pkg.berachain.dev/polaris)
       - blank
       - dot
     skip-generated: true
