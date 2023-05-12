@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package sidecar.v1;
+
+option go_package = "github.com/argus-labs/world-engine/chain/sidecar/v1";
+
+service Nakama {
+  rpc CompleteQuest(MsgCompleteQuest) returns (MsgCompleteQuestResponse);
+}
+
+message MsgCompleteQuest {
+  string addr = 1;
+  string quest_id = 2;
+}
+
+message MsgCompleteQuestResponse {
+  bool success = 1;
+}
