@@ -15,6 +15,8 @@ type Result struct {
 	Message []byte
 }
 
+type NamespaceClients map[string]routerv1grpc.MsgClient
+
 //go:generate mockgen -source=router.go -package mocks -destination mocks/router.go
 type Router interface {
 	Send(ctx context.Context, namespace, sender string, msg []byte) (Result, error)
@@ -24,11 +26,18 @@ type Router interface {
 var _ Router = &router{}
 
 type router struct {
-	namespaces map[string]routerv1grpc.MsgClient
+	namespaces NamespaceClients
 }
 
-func NewRouter() Router {
-
+func NewRouter(opts ...Option) Router {
+	r := &router{}
+	for _, opt := range opts {
+		opt(r)
+	}
+	if r.namespaces == nil {
+		r.namespaces = make(NamespaceClients)
+	}
+	return r
 }
 
 func (r *router) Send(ctx context.Context, namespace, sender string, msg []byte) (Result, error) {
