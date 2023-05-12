@@ -60,8 +60,8 @@ func (r *RedisStorage) GetComponentIndexStorage(cid component.TypeID) ComponentI
 	return r
 }
 
-// ComponentIndex returns the current component index for this archetype. This index has NOT yet been assigned
-// to an entity. If this archetype is missing, 0, false, nil will be returned. If you plan on using this index
+// ComponentIndex returns the current component index for this archetype. 
+// If this archetype is missing, 0, false, nil will be returned. If you plan on using this index
 // call IncrementIndex instead and use the returned index.
 func (r *RedisStorage) ComponentIndex(ai ArchetypeIndex) (ComponentIndex, bool, error) {
 	ctx := context.Background()
