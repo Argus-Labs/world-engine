@@ -32,7 +32,7 @@ func NewQuery(filter filter.LayoutFilter) *Query {
 }
 
 // Each iterates over all entityLocationStore that match the query.
-func (q *Query) Each(w World, callback func(*storage.Entry)) {
+func (q *Query) Each(w *World, callback func(*storage.Entry)) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
@@ -49,7 +49,7 @@ func (q *Query) Each(w World, callback func(*storage.Entry)) {
 }
 
 // Count returns the number of entityLocationStore that match the query.
-func (q *Query) Count(w World) int {
+func (q *Query) Count(w *World) int {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
@@ -62,7 +62,7 @@ func (q *Query) Count(w World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w World) (entry *storage.Entry, ok bool, err error) {
+func (q *Query) First(w *World) (entry *storage.Entry, ok bool, err error) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
@@ -82,7 +82,7 @@ func (q *Query) First(w World) (entry *storage.Entry, ok bool, err error) {
 	return nil, false, err
 }
 
-func (q *Query) evaluateQuery(world World, accessor *StorageAccessor) []storage.ArchetypeIndex {
+func (q *Query) evaluateQuery(world *World, accessor *StorageAccessor) []storage.ArchetypeIndex {
 	w := world.ID()
 	if _, ok := q.layoutMatches[w]; !ok {
 		q.layoutMatches[w] = &cache{

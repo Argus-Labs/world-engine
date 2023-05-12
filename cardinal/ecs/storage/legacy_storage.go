@@ -141,9 +141,15 @@ func (c *ComponentIndexMap) SetIndex(index ArchetypeIndex, index2 ComponentIndex
 	return nil
 }
 
-func (c *ComponentIndexMap) IncrementIndex(index ArchetypeIndex) error {
-	c.idxs[index]++
-	return nil
+// IncrementIndex increments the index for this archetype by 1. If the index doesn't
+// currently exist, it is initialized to 0 and 0 is returned.
+func (c *ComponentIndexMap) IncrementIndex(index ArchetypeIndex) (ComponentIndex, error) {
+	if _, ok := c.idxs[index]; !ok {
+		c.idxs[index] = 0
+	} else {
+		c.idxs[index]++
+	}
+	return c.idxs[index], nil
 }
 
 func (c *ComponentIndexMap) DecrementIndex(index ArchetypeIndex) error {
