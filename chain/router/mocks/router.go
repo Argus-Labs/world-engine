@@ -35,6 +35,20 @@ func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 	return m.recorder
 }
 
+// RegisterNamespace mocks base method.
+func (m *MockRouter) RegisterNamespace(namespace, serverAddr string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterNamespace", namespace, serverAddr)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RegisterNamespace indicates an expected call of RegisterNamespace.
+func (mr *MockRouterMockRecorder) RegisterNamespace(namespace, serverAddr interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterNamespace", reflect.TypeOf((*MockRouter)(nil).RegisterNamespace), namespace, serverAddr)
+}
+
 // Send mocks base method.
 func (m *MockRouter) Send(ctx context.Context, namespace, sender string, msg []byte) (router.Result, error) {
 	m.ctrl.T.Helper()
