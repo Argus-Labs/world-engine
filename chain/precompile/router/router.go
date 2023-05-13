@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	name = "argus_router"
+	name = "world_engine_router"
 )
 
 type Contract struct {
