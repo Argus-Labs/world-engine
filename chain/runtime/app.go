@@ -383,7 +383,6 @@ func NewApp( //nolint: funlen // from sdk.
 	return app
 }
 
-//nolint:unused // scott smh.
 //	func (app *App) startSidecar() error {
 //		err := sidecar.StartSidecar(app.BaseApp.MsgServiceRouter(), app.BaseApp.GRPCQueryRouter(),
 //			app.BankKeeper, app.BaseApp.CommitMultiStore().CacheMultiStore(), app.Logger())

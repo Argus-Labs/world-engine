@@ -51,7 +51,8 @@ func (c *Contract) Send(
 	_ bool,
 	args ...any,
 ) ([]any, error) {
-	if len(args) != 2 {
+	maxArgs := 2
+	if len(args) != maxArgs {
 		return nil, fmt.Errorf("expected 2 args, got %d", len(args))
 	}
 	payload, ok := utils.GetAs[[]byte](args[0])
