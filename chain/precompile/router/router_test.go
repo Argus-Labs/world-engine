@@ -95,7 +95,7 @@ var _ = Describe("Router precompile", func() {
 				false,
 				msg, namespace,
 			)
-			Expect(err).To(BeNil())
+			Expect(err).ToNot(HaveOccurred())
 			gotResult, _ := utils.GetAs[precompile2.IRouterResponse](res[0])
 			Expect(gotResult).To(Equal(precompile2.IRouterResponse{
 				Code:    big.NewInt(int64(result.Code)),
