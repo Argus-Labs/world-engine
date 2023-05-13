@@ -384,14 +384,14 @@ func NewApp( //nolint: funlen // from sdk.
 }
 
 //nolint:unused // scott smh.
-//func (app *App) startSidecar() error {
-//	err := sidecar.StartSidecar(app.BaseApp.MsgServiceRouter(), app.BaseApp.GRPCQueryRouter(),
-//		app.BankKeeper, app.BaseApp.CommitMultiStore().CacheMultiStore(), app.Logger())
-//	if err != nil {
-//		return err
+//	func (app *App) startSidecar() error {
+//		err := sidecar.StartSidecar(app.BaseApp.MsgServiceRouter(), app.BaseApp.GRPCQueryRouter(),
+//			app.BankKeeper, app.BaseApp.CommitMultiStore().CacheMultiStore(), app.Logger())
+//		if err != nil {
+//			return err
+//		}
+//		return nil
 //	}
-//	return nil
-//}
 
 // Name returns the name of the App.
 func (app *App) Name() string { return app.BaseApp.Name() }
