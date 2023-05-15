@@ -229,17 +229,17 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	}
 }
 
-func TestAddingAComponentThatAlreadyExistsIsFine(t *testing.T) {
+func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 	world := newWorldForTest(t)
 	energy := ecs.NewComponentType[EnergyComponent]()
 	world.RegisterComponents(energy)
 
 	ent, err := world.Create(energy)
 	assert.NilError(t, err)
-	assert.NilError(t, energy.AddTo(ent))
+	assert.ErrorIs(t, energy.AddTo(ent), storage.ErrorComponentAlreadyOnEntity)
 }
 
-func TestRemovingAMissingComponentIsFine(t *testing.T) {
+func TestRemovingAMissingComponentIsError(t *testing.T) {
 	world := newWorldForTest(t)
 	reactorEnergy := ecs.NewComponentType[EnergyComponent]()
 	weaponsEnergy := ecs.NewComponentType[EnergyComponent]()
@@ -247,7 +247,7 @@ func TestRemovingAMissingComponentIsFine(t *testing.T) {
 	ent, err := world.Create(reactorEnergy)
 	assert.NilError(t, err)
 
-	assert.NilError(t, weaponsEnergy.RemoveFrom(ent))
+	assert.ErrorIs(t, weaponsEnergy.RemoveFrom(ent), storage.ErrorComponentNotOnEntity)
 }
 
 func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
