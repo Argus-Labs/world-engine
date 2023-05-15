@@ -2,7 +2,6 @@ package router
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -52,16 +51,16 @@ func (c *Contract) Send(
 	args ...any,
 ) ([]any, error) {
 	maxArgs := 2
-	if len(args) != maxArgs {
-		return nil, fmt.Errorf("expected 2 args, got %d", len(args))
+	if err := precompile.MatchArgs(maxArgs, len(args)); err != nil {
+		return nil, err
 	}
 	payload, ok := utils.GetAs[[]byte](args[0])
 	if !ok {
-		return nil, fmt.Errorf("expected bytes for arg[0]")
+		return nil, precompile.ErrInvalidArgType("[]byte", args[0], 0)
 	}
 	namespace, ok := utils.GetAs[string](args[1])
 	if !ok {
-		return nil, precompile.ErrInvalidString
+		return nil, precompile.ErrInvalidArgType("string", args[0], 1)
 	}
 
 	result, err := c.r.Send(ctx, namespace, caller.String(), payload)

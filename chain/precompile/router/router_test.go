@@ -9,13 +9,13 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	cosmlib "pkg.berachain.dev/polaris/cosmos/lib"
-	"pkg.berachain.dev/polaris/cosmos/precompile"
 	testutil "pkg.berachain.dev/polaris/cosmos/testing/utils"
 	"pkg.berachain.dev/polaris/lib/utils"
 
+	"github.com/argus-labs/world-engine/chain/precompile"
 	"github.com/argus-labs/world-engine/chain/router"
 	"github.com/argus-labs/world-engine/chain/router/mocks"
-	precompile2 "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile"
+	bindings "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile"
 )
 
 func TestRouterPrecompile(t *testing.T) {
@@ -50,7 +50,7 @@ var _ = Describe("Router precompile", func() {
 				false,
 				"invalid",
 			)
-			Expect(err.Error()).To(Equal("expected 2 args, got 1"))
+			Expect(err).To(MatchError(precompile.ErrInvalidArgumentAmount(2, 1)))
 			Expect(res).To(BeNil())
 		})
 		It("should fail if the first arg is the wrong type", func() {
@@ -62,7 +62,7 @@ var _ = Describe("Router precompile", func() {
 				false,
 				"foo", "bar",
 			)
-			Expect(err.Error()).To(Equal("expected bytes for arg[0]"))
+			Expect(err).To(MatchError(precompile.ErrInvalidArgType("[]byte", "foo", 0)))
 			Expect(res).To(BeNil())
 		})
 		It("should fail if the second arg is the wrong type", func() {
@@ -75,7 +75,7 @@ var _ = Describe("Router precompile", func() {
 				false,
 				[]byte("foo"), 15,
 			)
-			Expect(err).To(MatchError(precompile.ErrInvalidString))
+			Expect(err).To(MatchError(precompile.ErrInvalidArgType("string", []uint8{}, 1)))
 			Expect(res).To(BeNil())
 		})
 		It("should succeed", func() {
@@ -96,8 +96,8 @@ var _ = Describe("Router precompile", func() {
 				msg, namespace,
 			)
 			Expect(err).ToNot(HaveOccurred())
-			gotResult, _ := utils.GetAs[precompile2.IRouterResponse](res[0])
-			Expect(gotResult).To(Equal(precompile2.IRouterResponse{
+			gotResult, _ := utils.GetAs[bindings.IRouterResponse](res[0])
+			Expect(gotResult).To(Equal(bindings.IRouterResponse{
 				Code:    big.NewInt(int64(result.Code)),
 				Message: result.Message,
 			}))
