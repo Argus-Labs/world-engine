@@ -25,7 +25,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
-
 	"pkg.berachain.dev/polaris/cosmos/precompile/distribution"
 	"pkg.berachain.dev/polaris/cosmos/x/evm/plugins/precompile/log"
 	"pkg.berachain.dev/polaris/eth/core/vm"

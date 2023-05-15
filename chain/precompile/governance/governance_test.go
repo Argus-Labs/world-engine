@@ -36,12 +36,13 @@ import (
 	governancekeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 
-	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile"
 	cosmlib "pkg.berachain.dev/polaris/cosmos/lib"
 	"pkg.berachain.dev/polaris/cosmos/precompile"
 	testutil "pkg.berachain.dev/polaris/cosmos/testing/utils"
 	"pkg.berachain.dev/polaris/eth/common"
 	"pkg.berachain.dev/polaris/lib/utils"
+
+	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

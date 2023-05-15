@@ -20,7 +20,10 @@
 
 package precompile
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	ErrInvalidBech32Address = errors.New("invalid bech32 address")
@@ -34,4 +37,18 @@ var (
 	ErrInvalidBool          = errors.New("invalid bool")
 	ErrInvalidInt32         = errors.New("invalid int32")
 	ErrInvalidOptions       = errors.New("invalid options")
+
+	ErrInvalidArgumentAmount = func(expected, got int) error {
+		return fmt.Errorf("expected %d arguments, got %d", expected, got)
+	}
+	ErrInvalidArgType = func(expected string, got any, position int) error {
+		return fmt.Errorf("expected %s for arg[%d], got %T", expected, position, got)
+	}
 )
+
+func MatchArgs(expected, got int) error {
+	if expected != got {
+		return ErrInvalidArgumentAmount(expected, got)
+	}
+	return nil
+}

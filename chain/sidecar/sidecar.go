@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net"
 
-	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
-	v1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
+	"buf.build/gen/go/argus-labs/world-engine/grpc/go/sidecar/v1/sidecarv1grpc"
+	sidecarv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/sidecar/v1"
 	"google.golang.org/grpc"
 
 	"cosmossdk.io/log"
@@ -41,7 +41,7 @@ func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter,
 		return err
 	}
 	grpcServer := grpc.NewServer()
-	g1.RegisterSidecarServer(grpcServer, sc)
+	sidecarv1grpc.RegisterSidecarServer(grpcServer, sc)
 	go func() {
 		localErr := grpcServer.Serve(lis)
 		if err != nil {
@@ -55,19 +55,19 @@ func (s Sidecar) getSDKCtx() types.Context {
 	return types.NewContext(s.cms, cometTypes.Header{}, false, s.logger)
 }
 
-var _ g1.SidecarServer = Sidecar{}
+var _ sidecarv1grpc.SidecarServer = Sidecar{}
 
-func (s Sidecar) MintCoins(ctx context.Context, msg *v1.MsgMintCoins) (*v1.MsgMintCoinsResponse, error) {
+func (s Sidecar) MintCoins(ctx context.Context, msg *sidecarv1.MsgMintCoins) (*sidecarv1.MsgMintCoinsResponse, error) {
 	sdkCtx := s.getSDKCtx().WithContext(ctx)
 	err := s.bk.MintCoins(sdkCtx, ModuleName, types.Coins{types.NewInt64Coin(msg.Denom, msg.Amount)})
 	if err != nil {
 		return nil, err
 	}
 	s.cms.Write()
-	return &v1.MsgMintCoinsResponse{}, nil
+	return &sidecarv1.MsgMintCoinsResponse{}, nil
 }
 
-func (s Sidecar) SendCoins(ctx context.Context, msg *v1.MsgSendCoins) (*v1.MsgSendCoinsResponse, error) {
+func (s Sidecar) SendCoins(ctx context.Context, msg *sidecarv1.MsgSendCoins) (*sidecarv1.MsgSendCoinsResponse, error) {
 	coins := types.Coins{types.NewInt64Coin(msg.Denom, int64(msg.Amount))}
 	sender, err := types.AccAddressFromBech32(msg.Sender)
 	if err != nil {
@@ -83,5 +83,5 @@ func (s Sidecar) SendCoins(ctx context.Context, msg *v1.MsgSendCoins) (*v1.MsgSe
 		return nil, err
 	}
 	s.cms.Write()
-	return &v1.MsgSendCoinsResponse{}, nil
+	return &sidecarv1.MsgSendCoinsResponse{}, nil
 }

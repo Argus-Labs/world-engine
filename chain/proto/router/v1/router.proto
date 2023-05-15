@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package world.engine.router.v1;
+
+option go_package = "github.com/argus-labs/world-engine/router/v1";
+
+service Msg {
+  rpc SendMsg(MsgSend) returns (MsgSendResponse);
+}
+
+message MsgSend {
+  // sender is the identifier of the message sender.
+  string sender = 1;
+  // message contains the underlying bytes of the message. typically, this is an abi encoded solidity struct.
+  bytes message = 2;
+}
+
+message MsgSendResponse {
+  // code is an arbitrary integer that denotes the result of some message execution.
+  uint64 code = 1;
+  // message is an encoded message that should be able to be unpacked into a solidity struct.
+  bytes message = 2;
+}

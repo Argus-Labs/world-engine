@@ -22,11 +22,12 @@
 package runtime
 
 import (
+	_ "embed"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 
-	"github.com/argus-labs/world-engine/chain/sidecar"
 	dbm "github.com/cosmos/cosmos-db"
 
 	appv1alpha1 "cosmossdk.io/api/cosmos/app/v1alpha1"
@@ -105,8 +106,9 @@ import (
 	"pkg.berachain.dev/polaris/eth/core/vm"
 	"pkg.berachain.dev/polaris/lib/utils"
 
-	_ "embed"
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side-effects
+
+	"github.com/argus-labs/world-engine/chain/sidecar"
 )
 
 var (
@@ -381,10 +383,18 @@ func NewApp( //nolint: funlen // from sdk.
 		panic(err)
 	}
 
+	sidecarFlag := os.Getenv("USE_SIDECAR")
+	if start, _ := strconv.ParseBool(sidecarFlag); start {
+		err := app.startSidecar()
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return app
 }
 
-//nolint:unused // scott smh.
+// startSidecar starts the sidecar process, allowing external services to inject transactions to the cosmos runtime.
 func (app *App) startSidecar() error {
 	err := sidecar.StartSidecar(app.BaseApp.MsgServiceRouter(), app.BaseApp.GRPCQueryRouter(),
 		app.BankKeeper, app.BaseApp.CommitMultiStore().CacheMultiStore(), app.Logger())
