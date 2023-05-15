@@ -42,7 +42,7 @@ var (
 		return fmt.Errorf("expected %d arguments, got %d", expected, got)
 	}
 	ErrInvalidArgType = func(expected string, got any, position int) error {
-		return fmt.Errorf("expected %T for arg[%d], got %T", expected, position, got)
+		return fmt.Errorf("expected %s for arg[%d], got %T", expected, position, got)
 	}
 )
 
