@@ -28,8 +28,11 @@ type Contract struct {
 // TODO(technicallyty): decide address
 func NewPrecompileContract(r router.Router) ethprecompile.StatefulImpl {
 	return &Contract{
-		BaseContract: precompile.NewBaseContract(generated.RouterMetaData.ABI, cosmlib.AccAddressToEthAddress(authtypes.NewModuleAddress(name))),
-		r:            r,
+		BaseContract: precompile.NewBaseContract(
+			generated.RouterMetaData.ABI,
+			cosmlib.AccAddressToEthAddress(authtypes.NewModuleAddress(name)),
+		),
+		r: r,
 	}
 }
 
