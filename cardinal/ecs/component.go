@@ -3,6 +3,7 @@ package ecs
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"reflect"
 	"unsafe"
@@ -17,14 +18,13 @@ type IComponentType = component.IComponentType
 
 // NewComponentType creates a new component type.
 // The function is used to create a new component of the type.
-// It receives a function that returns a pointer to a new component.
-// The first argument is a default value of the component.
-func NewComponentType[T any](opts ...interface{}) *ComponentType[T] {
+func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T] {
 	var t T
-	if len(opts) == 0 {
-		return newComponentType(t, nil)
+	comp := newComponentType(t, nil)
+	for _, opt := range opts {
+		opt(comp)
 	}
-	return newComponentType(t, opts[0])
+	return comp
 }
 
 // ComponentType represents a type of component. It is used to identify
@@ -38,8 +38,12 @@ type ComponentType[T any] struct {
 	query      *Query
 }
 
-func (c *ComponentType[T]) Initialize(w storage.WorldAccessor) {
+func (c *ComponentType[T]) Initialize(w storage.WorldAccessor) error {
+	if c.w != nil {
+		return errors.New("cannot initialize more than once")
+	}
 	c.w = w
+	return nil
 }
 
 func decodeComponent[T any](bz []byte) (T, error) {
@@ -83,17 +87,17 @@ func (c *ComponentType[T]) Set(entry *storage.Entry, component *T) error {
 }
 
 // Each iterates over the entityLocationStore that have the component.
-func (c *ComponentType[T]) Each(w World, callback func(*storage.Entry)) {
+func (c *ComponentType[T]) Each(w *World, callback func(*storage.Entry)) {
 	c.query.Each(w, callback)
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w World) (*storage.Entry, bool, error) {
+func (c *ComponentType[T]) First(w *World) (*storage.Entry, bool, error) {
 	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w World) (*storage.Entry, error) {
+func (c *ComponentType[T]) MustFirst(w *World) (*storage.Entry, error) {
 	e, ok, err := c.query.First(w)
 	if err != nil {
 		return nil, err
@@ -103,6 +107,25 @@ func (c *ComponentType[T]) MustFirst(w World) (*storage.Entry, error) {
 	}
 
 	return e, nil
+}
+
+
+// RemoveFrom removes this component form the given entity.
+func (c *ComponentType[T]) RemoveFrom(entity storage.Entity) error {
+	e, err := c.w.Entry(entity)
+	if err != nil {
+		return err
+	}
+	return e.RemoveComponent(c.w, c)
+}
+
+// AddTo adds this component to the given entity.
+func (c *ComponentType[T]) AddTo(entity storage.Entity) error {
+	e, err := c.w.Entry(entity)
+	if err != nil {
+		return err
+	}
+	return e.AddComponent(c.w, c)
 }
 
 // SetValue sets the value of the component.
@@ -176,4 +199,16 @@ func newComponentType[T any](s T, defaultVal interface{}) *ComponentType[T] {
 	}
 	nextComponentTypeId++
 	return componentType
+}
+
+// ComponentOption is a type that can be passed to NewComponentType to augment the creation
+// of the component type
+type ComponentOption[T any] func(c *ComponentType[T])
+
+// WithDefault updated the created ComponentType with a default value
+func WithDefault[T any](defaultVal T) ComponentOption[T] {
+	return func(c *ComponentType[T]) {
+		c.defaultVal = defaultVal
+		c.validateDefaultVal()
+	}
 }

@@ -1,6 +1,9 @@
 package entity
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // TODO: not sure if all this version business is really needed..
 
@@ -23,8 +26,8 @@ func NewEntity(id ID) Entity {
 	return Entity(uint64(id)<<32) & idMask
 }
 
-// Null represents a invalid entity.
-var Null = Entity(0)
+// Null represents an invalid entity. Avoid making more than 18.4 quintillion entities
+var Null = Entity(math.MaxUint64)
 
 // ID returns the entity id.
 func (e Entity) ID() ID {

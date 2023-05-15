@@ -1,12 +1,11 @@
 package tests
 
 import (
-	storage2 "github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"testing"
 
-	"gotest.tools/v3/assert"
-
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	storage2 "github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	"gotest.tools/v3/assert"
 )
 
 func TestComponents(t *testing.T) {
@@ -73,8 +72,8 @@ func TestComponents(t *testing.T) {
 	srcArchIdx := target.archIdx
 	var dstArchIdx storage2.ArchetypeIndex = 1
 
-	storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx)
-	components.Move(srcArchIdx, dstArchIdx)
+	assert.NilError(t, storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx))
+	assert.NilError(t, components.Move(srcArchIdx, dstArchIdx))
 
 	ok, err := storage.Contains(srcArchIdx, target.compIdx)
 	if ok {
