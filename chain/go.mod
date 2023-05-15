@@ -13,11 +13,12 @@ replace (
 	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20230321213944-019945fbf8fc
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d
+	pkg.berachain.dev/polaris/contracts => ./contracts
+	pkg.berachain.dev/polaris/precompile => ./precompile
 )
 
 require (
-	buf.build/gen/go/argus-labs/argus/grpc/go v1.3.0-20230512192408-abe1b924a9f2.1
-	buf.build/gen/go/argus-labs/argus/protocolbuffers/go v1.30.0-20230512192408-abe1b924a9f2.1
 	cosmossdk.io/api v0.3.1
 	cosmossdk.io/client/v2 v2.0.0-20230220152935-67f04e629623
 	cosmossdk.io/core v0.6.0
@@ -56,6 +57,8 @@ require (
 )
 
 require (
+	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230515165800-753a5df316de.1 // indirect
+	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.28.1-20230515165800-753a5df316de.4 // indirect
 	cloud.google.com/go v0.110.0 // indirect
 	cloud.google.com/go/compute v1.18.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
@@ -326,9 +329,3 @@ require (
 	pgregory.net/rapid v0.5.5 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
-
-replace github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d
-
-replace pkg.berachain.dev/polaris/contracts => ./contracts
-
-replace pkg.berachain.dev/polaris/precompile => ./precompile

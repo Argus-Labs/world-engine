@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package router.v1;
+package world.engine.router.v1;
 
-option go_package = "github.com/argus-labs/world-engine/chain/router/v1";
+option go_package = "github.com/argus-labs/world-engine/router/v1";
 
 service Msg {
   rpc SendMsg(MsgSend) returns (MsgSendResponse);

@@ -3,8 +3,8 @@ package router
 import (
 	"context"
 
-	"buf.build/gen/go/argus-labs/argus/grpc/go/v1/routerv1grpc"
-	routerv1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
+	"buf.build/gen/go/argus-labs/world-engine/grpc/go/router/v1/routerv1grpc"
+	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"google.golang.org/grpc"
 
 	"github.com/argus-labs/world-engine/chain/router/errors"

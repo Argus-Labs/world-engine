@@ -12,7 +12,8 @@ func TestWithMap(t *testing.T) {
 
 	r := NewRouter(WithNamespaces(m))
 
-	ru := r.(*router)
+	ru, canCast := r.(*router)
+	assert.Check(t, canCast == true)
 
 	_, ok := ru.namespaces["foo"]
 	assert.Equal(t, ok, true)

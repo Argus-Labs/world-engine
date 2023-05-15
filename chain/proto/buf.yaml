@@ -1,5 +1,5 @@
 version: v1
-name: buf.build/argus-labs/argus
+name: buf.build/argus-labs/world-engine
 breaking:
   use:
     - FILE
