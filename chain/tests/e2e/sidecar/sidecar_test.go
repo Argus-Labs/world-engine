@@ -6,14 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
-	sidecarv1 "buf.build/gen/go/argus-labs/argus/protocolbuffers/go/v1"
-	"github.com/argus-labs/world-engine/chain/runtime"
-	argus "github.com/argus-labs/world-engine/chain/runtime/config"
-	"github.com/argus-labs/world-engine/chain/utils"
+	"buf.build/gen/go/argus-labs/world-engine/grpc/go/sidecar/v1/sidecarv1grpc"
+	sidecarv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/sidecar/v1"
 	"github.com/avast/retry-go"
 	"github.com/stretchr/testify/suite"
 	"gotest.tools/assert"
+
+	"github.com/argus-labs/world-engine/chain/runtime"
+	argus "github.com/argus-labs/world-engine/chain/runtime/config"
+	"github.com/argus-labs/world-engine/chain/utils"
 
 	"cosmossdk.io/simapp/params"
 
@@ -54,7 +55,7 @@ type TestingConfig struct {
 func (suite *SideCarSuite) TestSideCarE2E() {
 	ctx := context.Background()
 
-	denom := "TESTCOIN"
+	denom := "TEST"
 	amount := int64(10)
 	_, err := suite.sidecarClient.MintCoins(ctx, &sidecarv1.MsgMintCoins{
 		Amount: amount,

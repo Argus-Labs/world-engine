@@ -3,7 +3,7 @@ package sidecar
 import (
 	"testing"
 
-	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
+	"buf.build/gen/go/argus-labs/world-engine/grpc/go/sidecar/v1/sidecarv1grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"gotest.tools/assert"
@@ -17,8 +17,8 @@ func GetBankClient(t *testing.T, url string) banktypes.QueryClient {
 	return banktypes.NewQueryClient(conn)
 }
 
-func GetSidecarClient(t *testing.T, url string) g1.SidecarClient {
+func GetSidecarClient(t *testing.T, url string) sidecarv1grpc.SidecarClient {
 	conn, err := grpc.Dial(url, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NilError(t, err)
-	return g1.NewSidecarClient(conn)
+	return sidecarv1grpc.NewSidecarClient(conn)
 }

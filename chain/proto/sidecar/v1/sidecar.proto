@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package world.engine.sidecar.v1;
+
+option go_package = "github.com/argus-labs/world-engine/sidecar/v1";
+
+service Sidecar {
+  rpc MintCoins(MsgMintCoins) returns (MsgMintCoinsResponse);
+  rpc SendCoins(MsgSendCoins) returns (MsgSendCoinsResponse);
+}
+
+message MsgMintCoins {
+  int64 amount = 1;
+  string denom = 2;
+}
+
+message MsgMintCoinsResponse{}
+
+message MsgSendCoins {
+  string sender = 1;
+  string recipient = 2;
+  string denom = 3;
+  uint64 amount = 4;
+}
+
+message MsgSendCoinsResponse{}

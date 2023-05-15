@@ -94,20 +94,6 @@ linters-settings:
     # Default: 40
     statements: 50
 
-  gci:
-    sections:
-      - standard # Standard section: captures all standard packages.
-      - default # Default section: contains all imports that could not be matched to another section type.
-      - Prefix(github.com/cometbft)
-      - Prefix(cosmossdk.io)
-      - Prefix(github.com/cosmos/cosmos-sdk)
-      - Prefix(github.com/ethereum/go-ethereum)
-      - Prefix(pkg.berachain.dev)
-      - Prefix(pkg.berachain.dev/polaris)
-      - blank
-      - dot
-    skip-generated: true
-
   gocognit:
     # Minimal code complexity to report
     # Default: 30 (but we recommend 10-20)
@@ -238,7 +224,6 @@ linters:
     - exportloopref # checks for pointers to enclosing loop variables
     - forbidigo # forbids identifiers
     - funlen # tool for detection of long functions
-    - gci # controls golang package import order and makes it always deterministic
     - ginkgolinter # [if you use ginkgo/gomega] enforces standards of using ginkgo and gomega
     - gochecknoinits # checks that no init functions are present in Go code
     - gocognit # computes and checks the cognitive complexity of functions
@@ -286,7 +271,6 @@ linters:
     ## you may want to enable
     #- decorder # checks declaration order and count of types, constants, variables and functions
     #- exhaustruct # checks if all structure fields are initialized
-    #- gci # controls golang package import order and makes it always deterministic
     #- godox # detects FIXME, TODO and other comment keywords
     #- goheader # checks is file header matches to pattern
     #- interfacebloat # checks the number of methods inside an interface
