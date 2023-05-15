@@ -1,16 +1,14 @@
 package storage
 
 import (
+	"bytes"
+	"encoding/gob"
+	"errors"
+	"fmt"
+	"math"
+
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
-	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 )
-
-// Entity is identifier of an Ent.
-// Entity is just a wrapper of uint64.
-type Entity = entity.Entity
-
-// Null represents an invalid Ent which is zero.
-var Null = entity.Null
 
 type WorldAccessor interface {
 	Component(componentType component.IComponentType, index ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error)
@@ -18,25 +16,25 @@ type WorldAccessor interface {
 	GetLayout(index ArchetypeIndex) []component.IComponentType
 	GetArchetypeForComponents([]component.IComponentType) ArchetypeIndex
 	TransferArchetype(ArchetypeIndex, ArchetypeIndex, ComponentIndex) (ComponentIndex, error)
-	Entry(entity.Entity) (*Entry, error)
-	Remove(entity.Entity) error
-	Valid(entity.Entity) (bool, error)
+	Entity(id EntityID) (Entity, error)
+	Remove(id EntityID) error
+	Valid(id EntityID) (bool, error)
 	Archetype(ArchetypeIndex) ArchetypeStorage
-	SetEntryLocation(id entity.ID, location Location) error
+	SetEntityLocation(id EntityID, location Location) error
 }
 
 var _ EntityManager = &entityMgrImpl{}
 
 func NewEntityManager() EntityManager {
-	return &entityMgrImpl{destroyed: make([]Entity, 0, 256), nextID: 0}
+	return &entityMgrImpl{destroyed: make([]EntityID, 0, 256), nextID: 0}
 }
 
 type entityMgrImpl struct {
-	destroyed []Entity
-	nextID    entity.ID
+	destroyed []EntityID
+	nextID    EntityID
 }
 
-func (e *entityMgrImpl) GetNextEntityID() entity.ID {
+func (e *entityMgrImpl) GetNextEntityID() EntityID {
 	e.nextID++
 	return e.nextID
 }
@@ -45,16 +43,223 @@ func (e *entityMgrImpl) shrink() {
 	e.destroyed = e.destroyed[:len(e.destroyed)-1]
 }
 
-func (e *entityMgrImpl) NewEntity() (Entity, error) {
+func (e *entityMgrImpl) NewEntity() (EntityID, error) {
 	if len(e.destroyed) == 0 {
 		id := e.GetNextEntityID()
-		return entity.NewEntity(id), nil
+		return id, nil
 	}
 	newEntity := e.destroyed[(len(e.destroyed) - 1)]
 	e.shrink()
 	return newEntity, nil
 }
 
-func (e *entityMgrImpl) Destroy(et Entity) {
-	e.destroyed = append(e.destroyed, et)
+func (e *entityMgrImpl) Destroy(id EntityID) {
+	e.destroyed = append(e.destroyed, id)
+}
+
+type EntityID uint64
+
+// Entity is a struct that contains an EntityID and a location in an archetype.
+type Entity struct {
+	ID  EntityID
+	Loc Location
+}
+
+func NewEntity(id EntityID, loc Location) Entity {
+	return Entity{
+		ID:  id,
+		Loc: loc,
+	}
+}
+
+var (
+	BadID     EntityID = math.MaxUint64
+	BadEntity Entity   = Entity{BadID, Location{}}
+)
+
+// Get returns the component from the entity
+func Get[T any](w WorldAccessor, e Entity, cType component.IComponentType) (*T, error) {
+	var comp *T
+	compBz, err := e.Component(w, cType)
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	buf.Write(compBz)
+	dec := gob.NewDecoder(&buf)
+	err = dec.Decode(comp)
+	return comp, err
+}
+
+// Add adds the component to the entity.
+func Add[T any](w WorldAccessor, e Entity, cType component.IComponentType, component *T) error {
+	bz, err := Encode(component)
+	if err != nil {
+		return err
+	}
+	e.AddComponent(w, cType, bz)
+	return nil
+}
+
+// Set sets the component of the entity.
+func Set[T any](w WorldAccessor, e Entity, ctype component.IComponentType, component *T) error {
+	bz, err := Encode(component)
+	if err != nil {
+		return err
+	}
+	e.SetComponent(w, ctype, bz)
+	return nil
+}
+
+// SetValue sets the value of the component.
+func SetValue[T any](w WorldAccessor, e Entity, ctype component.IComponentType, value T) error {
+	c, err := Get[T](w, e, ctype)
+	if err != nil {
+		return err
+	}
+	*c = value
+	return nil
+}
+
+// Remove removes the component from the entity.
+func Remove[T any](w WorldAccessor, e Entity, ctype component.IComponentType) {
+	e.RemoveComponent(w, ctype)
+}
+
+// Valid returns true if the entity is valid.
+func Valid(w WorldAccessor, e Entity) (bool, error) {
+	if e == BadEntity {
+		return false, nil
+	}
+	ok, err := e.Valid(w)
+	return ok, err
+}
+
+// EntityID returns the Entity.
+func (e Entity) EntityID() EntityID {
+	return e.ID
+}
+
+// Component returns the component.
+func (e Entity) Component(w WorldAccessor, cType component.IComponentType) ([]byte, error) {
+	c := e.Loc.CompIndex
+	a := e.Loc.ArchIndex
+	return w.Component(cType, a, c)
+}
+
+// SetComponent sets the component.
+func (e Entity) SetComponent(w WorldAccessor, cType component.IComponentType, component []byte) error {
+	c := e.Loc.CompIndex
+	a := e.Loc.ArchIndex
+	return w.SetComponent(cType, component, a, c)
+}
+
+var (
+	ErrorComponentAlreadyOnEntity = errors.New("component already on entity")
+	ErrorComponentNotOnEntity     = errors.New("component not on entity")
+)
+
+// AddComponent adds the component to the Ent.
+func (e Entity) AddComponent(w WorldAccessor, cType component.IComponentType, components ...[]byte) error {
+	if len(components) > 1 {
+		panic("AddComponent: component argument must be a single value")
+	}
+	if e.HasComponent(w, cType) {
+		return ErrorComponentAlreadyOnEntity
+	}
+
+	c := e.Loc.CompIndex
+	a := e.Loc.ArchIndex
+
+	baseLayout := w.GetLayout(a)
+	targetArc := w.GetArchetypeForComponents(append(baseLayout, cType))
+	if _, err := w.TransferArchetype(a, targetArc, c); err != nil {
+		return err
+	}
+
+	ent, err := w.Entity(e.ID)
+	if err != nil {
+		return err
+	}
+	w.SetEntityLocation(e.ID, ent.Loc)
+
+	if len(components) == 1 {
+		e.SetComponent(w, cType, components[0])
+	}
+	return nil
+}
+
+// RemoveComponent removes the component from the Ent.
+func (e Entity) RemoveComponent(w WorldAccessor, cType component.IComponentType) error {
+	// if the entity doesn't even have this component, we can just return.
+	if !e.Archetype(w).Layout().HasComponent(cType) {
+		return ErrorComponentNotOnEntity
+	}
+
+	c := e.Loc.CompIndex
+	a := e.Loc.ArchIndex
+
+	baseLayout := w.GetLayout(a)
+	targetLayout := make([]component.IComponentType, 0, len(baseLayout)-1)
+	for _, c2 := range baseLayout {
+		if c2 == cType {
+			continue
+		}
+		targetLayout = append(targetLayout, c2)
+	}
+
+	targetArc := w.GetArchetypeForComponents(targetLayout)
+	compIndex, err := w.TransferArchetype(e.Loc.ArchIndex, targetArc, c)
+	if err != nil {
+		return err
+	}
+
+	ent, err := w.Entity(e.ID)
+	if err != nil {
+		return err
+	}
+	ent.Loc.ArchIndex = targetArc
+	ent.Loc.CompIndex = compIndex
+	w.SetEntityLocation(e.ID, ent.Loc)
+	return nil
+}
+
+// Remove removes the entity from the world.
+func (e Entity) Remove(w WorldAccessor) error {
+	return w.Remove(e.ID)
+}
+
+// Valid returns true if the entity is valid.
+func (e Entity) Valid(w WorldAccessor) (bool, error) {
+	ok, err := w.Valid(e.ID)
+	return ok, err
+}
+
+// Archetype returns the archetype.
+func (e Entity) Archetype(w WorldAccessor) ArchetypeStorage {
+	a := e.Loc.ArchIndex
+	return w.Archetype(a)
+}
+
+// HasComponent returns true if the Ent has the given component type.
+func (e Entity) HasComponent(w WorldAccessor, componentType component.IComponentType) bool {
+	return e.Archetype(w).Layout().HasComponent(componentType)
+}
+
+func (e Entity) StringXY(w WorldAccessor) string {
+	var out bytes.Buffer
+	out.WriteString("Entity: {")
+	out.WriteString(e.StringXX())
+	out.WriteString(", ")
+	out.WriteString(e.Archetype(w).Layout().String())
+	out.WriteString(", Valid: ")
+	ok, _ := e.Valid(w)
+	out.WriteString(fmt.Sprintf("%v", ok))
+	out.WriteString("}")
+	return out.String()
+}
+
+func (e Entity) StringXX() string {
+	return fmt.Sprintf("ID: %d, Loc: %+v", e.ID, e.Loc)
+
 }

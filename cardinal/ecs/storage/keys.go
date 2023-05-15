@@ -2,8 +2,6 @@ package storage
 
 import (
 	"fmt"
-
-	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 )
 
 /*
@@ -15,7 +13,7 @@ define keys for redis storage
 - 	ENTITY LOCATION: 	LOC:WORLD-1:E-1 		-> Location
 - 	ENTITY LOCATION LEN LOCL:WORLD-1			-> Int
 - 	ARCH COMP INDEX:    ACI:WORLD-1
-- 	ENTRY STORAGE:      ENTRY:WORLD-1:ID  		-> entry struct bytes
+- 	ENTITY STORAGE:     ENTITY:WORLD-1:ID  		-> entity struct bytes
 - 	ENTITY MGR: 		ENTITY:WORLD-1:NEXTID 	-> uint64 id
 */
 
@@ -27,8 +25,8 @@ func (r *RedisStorage) componentIndexKey(index ArchetypeIndex) string {
 	return fmt.Sprintf("CIDX:WORLD-%s:CID-%d:A-%d", r.WorldID, r.ComponentStoragePrefix, index)
 }
 
-func (r *RedisStorage) entityLocationKey(e entity.ID) string {
-	return fmt.Sprintf("LOC:WORLD-%s:E-%d", r.WorldID, e)
+func (r *RedisStorage) entityLocationKey(id EntityID) string {
+	return fmt.Sprintf("LOC:WORLD-%s:E-%d", r.WorldID, id)
 }
 
 func (r *RedisStorage) entityLocationLenKey() string {
@@ -39,8 +37,8 @@ func (r *RedisStorage) archetypeStorageKey(ai ArchetypeIndex) string {
 	return fmt.Sprintf("ARCH:WORLD-%s:A-%d", r.WorldID, ai)
 }
 
-func (r *RedisStorage) entryStorageKey(id entity.ID) string {
-	return fmt.Sprintf("ENTRY:WORLD-%s:%d", r.WorldID, id)
+func (r *RedisStorage) entityStorageKey(id EntityID) string {
+	return fmt.Sprintf("ENTITY:WORLD-%s:%d", r.WorldID, id)
 }
 
 func (r *RedisStorage) nextEntityIDKey() string {

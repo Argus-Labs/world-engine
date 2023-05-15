@@ -1,9 +1,5 @@
 package storage
 
-import (
-	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
-)
-
 // EntityIterator is an iterator for Ent lists in archetypes.
 type EntityIterator struct {
 	current      int
@@ -26,7 +22,7 @@ func (it *EntityIterator) HasNext() bool {
 }
 
 // Next returns the next Ent list.
-func (it *EntityIterator) Next() []entity.Entity {
+func (it *EntityIterator) Next() []EntityID {
 	archetypeIndex := it.indices[it.current]
 	it.current++
 	return it.archAccessor.Archetype(archetypeIndex).Entities()

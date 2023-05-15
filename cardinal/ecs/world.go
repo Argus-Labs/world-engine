@@ -3,7 +3,6 @@ package ecs
 import (
 	"fmt"
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
-	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 )
@@ -29,8 +28,8 @@ type World struct {
 	systems []System
 }
 
-func (w *World) SetEntryLocation(id entity.ID, location storage.Location) error {
-	err := w.store.EntryStore.SetLocation(id, location)
+func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
+	err := w.store.EntityStore.SetLocation(id, location)
 	if err != nil {
 		return err
 	}
@@ -110,9 +109,9 @@ func (w *World) ID() WorldId {
 	return w.id
 }
 
-func (w *World) CreateMany(num int, components ...component.IComponentType) ([]storage.Entity, error) {
+func (w *World) CreateMany(num int, components ...component.IComponentType) ([]storage.EntityID, error) {
 	archetypeIndex := w.getArchetypeForComponents(components)
-	entities := make([]storage.Entity, 0, num)
+	entities := make([]storage.EntityID, 0, num)
 	for i := 0; i < num; i++ {
 		e, err := w.createEntity(archetypeIndex)
 		if err != nil {
@@ -124,16 +123,16 @@ func (w *World) CreateMany(num int, components ...component.IComponentType) ([]s
 	return entities, nil
 }
 
-func (w *World) Create(components ...component.IComponentType) (storage.Entity, error) {
+func (w *World) Create(components ...component.IComponentType) (storage.EntityID, error) {
 	entities, err := w.CreateMany(1, components...)
 	if err != nil {
-		return entity.Null, err
+		return 0, err
 	}
 	return entities[0], nil
 }
 
-func (w *World) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.Entity, error) {
-	nextEntity, err := w.nextEntity()
+func (w *World) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.EntityID, error) {
+	nextEntityID, err := w.nextEntity()
 	if err != nil {
 		return 0, err
 	}
@@ -142,37 +141,36 @@ func (w *World) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.Ent
 	if err != nil {
 		return 0, err
 	}
-	err = w.store.EntityLocStore.Insert(nextEntity.ID(), archetypeIndex, componentIndex)
+	err = w.store.EntityLocStore.Insert(nextEntityID, archetypeIndex, componentIndex)
 	if err != nil {
 		return 0, err
 	}
-	archetype.PushEntity(nextEntity)
-	err = w.createEntry(nextEntity)
-	return nextEntity, err
-}
+	archetype.PushEntity(nextEntityID)
 
-func (w *World) createEntry(e storage.Entity) error {
-	id := e.ID()
-	loc, err := w.store.EntityLocStore.Location(id)
+	loc, err := w.store.EntityLocStore.Location(nextEntityID)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	entry := storage.NewEntry(id, e, loc)
-	return w.store.EntryStore.SetEntry(id, entry)
+	entity := storage.NewEntity(nextEntityID, loc)
+	if err := w.store.EntityStore.SetEntity(nextEntityID, entity); err != nil {
+		return 0, err
+	}
+
+	return nextEntityID, err
 }
 
-func (w *World) Valid(e storage.Entity) (bool, error) {
-	if e == storage.Null {
+func (w *World) Valid(id storage.EntityID) (bool, error) {
+	if id == storage.BadID {
 		return false, nil
 	}
-	ok, err := w.store.EntityLocStore.ContainsEntity(e.ID())
+	ok, err := w.store.EntityLocStore.ContainsEntity(id)
 	if err != nil {
 		return false, err
 	}
 	if !ok {
 		return false, nil
 	}
-	loc, err := w.store.EntityLocStore.Location(e.ID())
+	loc, err := w.store.EntityLocStore.Location(id)
 	if err != nil {
 		return false, err
 	}
@@ -180,30 +178,25 @@ func (w *World) Valid(e storage.Entity) (bool, error) {
 	c := loc.CompIndex
 	// If the version of the entity is not the same as the version of the archetype,
 	// the entity is invalid (it means the entity is already destroyed).
-	return loc.Valid && e == w.store.ArchAccessor.Archetype(a).Entities()[c], nil
+	return id == w.store.ArchAccessor.Archetype(a).Entities()[c], nil
 }
 
-// Entry converts an Entry to an Entry. An Entry has storage specific details
-// about where data for this entry is located
-func (w *World) Entry(entity storage.Entity) (*storage.Entry, error) {
-	id := entity.ID()
-	entry, err := w.store.EntryStore.GetEntry(id)
+// Entity converts an EntityID to an Entity. An Entity has storage specific details
+// about where data for this entity is located
+func (w *World) Entity(id storage.EntityID) (storage.Entity, error) {
+	entity, err := w.store.EntityStore.GetEntity(id)
 	if err != nil {
-		return nil, err
-	}
-	err = w.store.EntryStore.SetEntity(id, entity)
-	if err != nil {
-		return nil, err
+		return storage.BadEntity, err
 	}
 	loc, err := w.store.EntityLocStore.Location(id)
 	if err != nil {
-		return nil, err
+		return storage.BadEntity, err
 	}
-	err = w.store.EntryStore.SetLocation(id, *loc)
+	err = w.store.EntityStore.SetLocation(id, loc)
 	if err != nil {
-		return nil, err
+		return storage.BadEntity, err
 	}
-	return entry, nil
+	return entity, nil
 }
 
 // Len return the number of entities in this world
@@ -216,45 +209,45 @@ func (w *World) Len() (int, error) {
 }
 
 // Remove removes the given Entity from the world
-func (w *World) Remove(ent storage.Entity) error {
-	ok, err := w.Valid(ent)
+func (w *World) Remove(id storage.EntityID) error {
+	ok, err := w.Valid(id)
 	if err != nil {
 		return err
 	}
 	if ok {
-		loc, err := w.store.EntityLocStore.Location(ent.ID())
+		loc, err := w.store.EntityLocStore.Location(id)
 		if err != nil {
 			return err
 		}
-		if err := w.store.EntityLocStore.Remove(ent.ID()); err != nil {
+		if err := w.store.EntityLocStore.Remove(id); err != nil {
 			return err
 		}
-		if err := w.removeAtLocation(ent, loc); err != nil {
+		if err := w.removeAtLocation(id, loc); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (w *World) removeAtLocation(ent storage.Entity, loc *storage.Location) error {
+func (w *World) removeAtLocation(id storage.EntityID, loc storage.Location) error {
 	archIndex := loc.ArchIndex
 	componentIndex := loc.CompIndex
 	archetype := w.store.ArchAccessor.Archetype(archIndex)
-	archetype.SwapRemove(int(componentIndex))
+	archetype.SwapRemove(componentIndex)
 	err := w.store.CompStore.Remove(archIndex, archetype.Layout().Components(), componentIndex)
 	if err != nil {
 		return err
 	}
 	if int(componentIndex) < len(archetype.Entities()) {
-		swapped := archetype.Entities()[componentIndex]
-		if err := w.store.EntityLocStore.Set(swapped.ID(), loc); err != nil {
+		swappedID := archetype.Entities()[componentIndex]
+		if err := w.store.EntityLocStore.Set(swappedID, loc); err != nil {
 			return err
 		}
-		if err := w.store.EntryStore.SetLocation(swapped.ID(), *loc); err != nil {
+		if err := w.store.EntityStore.SetLocation(swappedID, loc); err != nil {
 			return err
 		}
 	}
-	w.store.EntityMgr.Destroy(ent.IncVersion())
+	w.store.EntityMgr.Destroy(id)
 	return nil
 }
 
@@ -266,16 +259,16 @@ func (w *World) TransferArchetype(from storage.ArchetypeIndex, to storage.Archet
 	toArch := w.store.ArchAccessor.Archetype(to)
 
 	// move entity id
-	ent := fromArch.SwapRemove(int(idx))
-	toArch.PushEntity(ent)
-	err := w.store.EntityLocStore.Insert(ent.ID(), to, storage.ComponentIndex(len(toArch.Entities())-1))
+	id := fromArch.SwapRemove(idx)
+	toArch.PushEntity(id)
+	err := w.store.EntityLocStore.Insert(id, to, storage.ComponentIndex(len(toArch.Entities())-1))
 	if err != nil {
 		return 0, err
 	}
 
 	if len(fromArch.Entities()) > int(idx) {
-		moved := fromArch.Entities()[idx]
-		err := w.store.EntityLocStore.Insert(moved.ID(), from, idx)
+		movedID := fromArch.Entities()[idx]
+		err := w.store.EntityLocStore.Insert(movedID, from, idx)
 		if err != nil {
 			return 0, err
 		}
@@ -323,7 +316,7 @@ func (w *World) StorageAccessor() StorageAccessor {
 	}
 }
 
-func (w *World) nextEntity() (storage.Entity, error) {
+func (w *World) nextEntity() (storage.EntityID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 

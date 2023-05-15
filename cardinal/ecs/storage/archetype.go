@@ -2,7 +2,6 @@ package storage
 
 import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
-	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
 )
 
 type ArchetypeIndex int
@@ -20,7 +19,7 @@ type archetypeStorageImpl struct {
 func (a *archetypeStorageImpl) PushArchetype(index ArchetypeIndex, layout *Layout) {
 	a.archs = append(a.archs, &Archetype{
 		Index:      index,
-		Entitys:    make([]entity.Entity, 0, 256),
+		Entitys:    make([]EntityID, 0, 256),
 		ArchLayout: layout,
 	})
 }
@@ -37,7 +36,7 @@ func (a archetypeStorageImpl) Archetype(index ArchetypeIndex) ArchetypeStorage {
 // This structure allows to quickly find Entities based on their components.
 type Archetype struct {
 	Index      ArchetypeIndex
-	Entitys    []entity.Entity
+	Entitys    []EntityID
 	ArchLayout *Layout
 }
 
@@ -47,7 +46,7 @@ var _ ArchetypeStorage = &Archetype{}
 func NewArchetype(index ArchetypeIndex, layout *Layout) *Archetype {
 	return &Archetype{
 		Index:      index,
-		Entitys:    make([]entity.Entity, 0, 256),
+		Entitys:    make([]EntityID, 0, 256),
 		ArchLayout: layout,
 	}
 }
@@ -58,12 +57,12 @@ func (archetype *Archetype) Layout() *Layout {
 }
 
 // Entities returns all Entities in this archetype.
-func (archetype *Archetype) Entities() []entity.Entity {
+func (archetype *Archetype) Entities() []EntityID {
 	return archetype.Entitys
 }
 
 // SwapRemove removes an Ent from the archetype and returns it.
-func (archetype *Archetype) SwapRemove(entityIndex int) entity.Entity {
+func (archetype *Archetype) SwapRemove(entityIndex ComponentIndex) EntityID {
 	removed := archetype.Entitys[entityIndex]
 	archetype.Entitys[entityIndex] = archetype.Entitys[len(archetype.Entitys)-1]
 	archetype.Entitys = archetype.Entitys[:len(archetype.Entitys)-1]
@@ -84,8 +83,8 @@ func (archetype *Archetype) LayoutMatches(components []component.IComponentType)
 }
 
 // PushEntity adds an Ent to the archetype.
-func (archetype *Archetype) PushEntity(entity entity.Entity) {
-	archetype.Entitys = append(archetype.Entitys, entity)
+func (archetype *Archetype) PushEntity(id EntityID) {
+	archetype.Entitys = append(archetype.Entitys, id)
 }
 
 // Count returns the number of Entitys in the archetype.
