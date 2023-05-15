@@ -3,6 +3,7 @@ package ecs
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"reflect"
 	"unsafe"
@@ -37,8 +38,12 @@ type ComponentType[T any] struct {
 	query      *Query
 }
 
-func (c *ComponentType[T]) Initialize(w storage.WorldAccessor) {
+func (c *ComponentType[T]) Initialize(w storage.WorldAccessor) error {
+	if c.w != nil {
+		return errors.New("cannot initialize more than once")
+	}
 	c.w = w
+	return nil
 }
 
 func decodeComponent[T any](bz []byte) (T, error) {
@@ -82,17 +87,17 @@ func (c *ComponentType[T]) Set(entry *storage.Entry, component *T) error {
 }
 
 // Each iterates over the entityLocationStore that have the component.
-func (c *ComponentType[T]) Each(w World, callback func(*storage.Entry)) {
+func (c *ComponentType[T]) Each(w *World, callback func(*storage.Entry)) {
 	c.query.Each(w, callback)
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w World) (*storage.Entry, bool, error) {
+func (c *ComponentType[T]) First(w *World) (*storage.Entry, bool, error) {
 	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w World) (*storage.Entry, error) {
+func (c *ComponentType[T]) MustFirst(w *World) (*storage.Entry, error) {
 	e, ok, err := c.query.First(w)
 	if err != nil {
 		return nil, err
@@ -102,6 +107,25 @@ func (c *ComponentType[T]) MustFirst(w World) (*storage.Entry, error) {
 	}
 
 	return e, nil
+}
+
+
+// RemoveFrom removes this component form the given entity.
+func (c *ComponentType[T]) RemoveFrom(entity storage.Entity) error {
+	e, err := c.w.Entry(entity)
+	if err != nil {
+		return err
+	}
+	return e.RemoveComponent(c.w, c)
+}
+
+// AddTo adds this component to the given entity.
+func (c *ComponentType[T]) AddTo(entity storage.Entity) error {
+	e, err := c.w.Entry(entity)
+	if err != nil {
+		return err
+	}
+	return e.AddComponent(c.w, c)
 }
 
 // SetValue sets the value of the component.

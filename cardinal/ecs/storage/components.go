@@ -1,8 +1,6 @@
 package storage
 
 import (
-	"github.com/redis/go-redis/v9"
-
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
@@ -33,22 +31,10 @@ func (cs *Components) PushComponents(components []component.IComponentType, arch
 			return 0, err
 		}
 	}
-	_, ok, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
-	if err != nil && err != redis.Nil {
+	idx, err := cs.ComponentIndices.IncrementIndex(archetypeIndex)
+	if err != nil {
 		return 0, err
 	}
-	if !ok {
-		err := cs.ComponentIndices.SetIndex(archetypeIndex, 0)
-		if err != nil {
-			return 0, err
-		}
-	} else {
-		err := cs.ComponentIndices.IncrementIndex(archetypeIndex)
-		if err != nil {
-			return 0, err
-		}
-	}
-	idx, _, err := cs.ComponentIndices.ComponentIndex(archetypeIndex)
 	return idx, err
 }
 
@@ -58,7 +44,7 @@ func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) error {
 	if err != nil {
 		return err
 	}
-	err = cs.ComponentIndices.IncrementIndex(dst)
+	_, err = cs.ComponentIndices.IncrementIndex(dst)
 	if err != nil {
 		return err
 	}

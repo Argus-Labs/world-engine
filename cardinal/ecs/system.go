@@ -1,3 +1,3 @@
 package ecs
 
-type System func(w World)
+type System func(w *World)

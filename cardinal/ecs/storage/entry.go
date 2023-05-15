@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"encoding/gob"
+	"errors"
 	"fmt"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
@@ -106,27 +107,35 @@ func (e *Entry) SetComponent(w WorldAccessor, cType component.IComponentType, co
 	return w.SetComponent(cType, component, a, c)
 }
 
+var (
+	ErrorComponentAlreadyOnEntity = errors.New("component already on entity")
+	ErrorComponentNotOnEntity     = errors.New("component not on entity")
+)
+
 // AddComponent adds the component to the Ent.
 func (e *Entry) AddComponent(w WorldAccessor, cType component.IComponentType, components ...[]byte) error {
 	if len(components) > 1 {
 		panic("AddComponent: component argument must be a single value")
 	}
-	if !e.HasComponent(w, cType) {
-		c := e.Loc.CompIndex
-		a := e.Loc.ArchIndex
-
-		baseLayout := w.GetLayout(a)
-		targetArc := w.GetArchetypeForComponents(append(baseLayout, cType))
-		if _, err := w.TransferArchetype(a, targetArc, c); err != nil {
-			return err
-		}
-
-		ent, err := w.Entry(e.Ent)
-		if err != nil {
-			return err
-		}
-		w.SetEntryLocation(e.ID, *ent.Loc)
+	if e.HasComponent(w, cType) {
+		return ErrorComponentAlreadyOnEntity
 	}
+
+	c := e.Loc.CompIndex
+	a := e.Loc.ArchIndex
+
+	baseLayout := w.GetLayout(a)
+	targetArc := w.GetArchetypeForComponents(append(baseLayout, cType))
+	if _, err := w.TransferArchetype(a, targetArc, c); err != nil {
+		return err
+	}
+
+	ent, err := w.Entry(e.Ent)
+	if err != nil {
+		return err
+	}
+	w.SetEntryLocation(e.ID, *ent.Loc)
+
 	if len(components) == 1 {
 		e.SetComponent(w, cType, components[0])
 	}
@@ -137,7 +146,7 @@ func (e *Entry) AddComponent(w WorldAccessor, cType component.IComponentType, co
 func (e *Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType) error {
 	// if the entry doesn't even have this component, we can just return.
 	if !e.Archetype(w).Layout().HasComponent(cType) {
-		return nil
+		return ErrorComponentNotOnEntity
 	}
 
 	c := e.Loc.CompIndex
@@ -153,7 +162,8 @@ func (e *Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType)
 	}
 
 	targetArc := w.GetArchetypeForComponents(targetLayout)
-	if _, err := w.TransferArchetype(e.Loc.ArchIndex, targetArc, c); err != nil {
+	compIndex, err := w.TransferArchetype(e.Loc.ArchIndex, targetArc, c)
+	if err != nil {
 		return err
 	}
 
@@ -161,8 +171,9 @@ func (e *Entry) RemoveComponent(w WorldAccessor, cType component.IComponentType)
 	if err != nil {
 		return err
 	}
+	ent.Loc.ArchIndex = targetArc
+	ent.Loc.CompIndex = compIndex
 	w.SetEntryLocation(e.ID, *ent.Loc)
-	// e.SetLocation(w.Entry(e.Ent).Loc)
 	return nil
 }
 

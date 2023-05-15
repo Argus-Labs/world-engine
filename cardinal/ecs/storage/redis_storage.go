@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/redis/go-redis/v9"
-	"github.com/rs/zerolog"
-
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/entity"
+	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog"
 )
 
 // Archetypes can just be stored in program memory. It just a structure that allows us to quickly
@@ -61,11 +60,16 @@ func (r *RedisStorage) GetComponentIndexStorage(cid component.TypeID) ComponentI
 	return r
 }
 
+// ComponentIndex returns the current component index for this archetype. 
+// If this archetype is missing, 0, false, nil will be returned. If you plan on using this index
+// call IncrementIndex instead and use the returned index.
 func (r *RedisStorage) ComponentIndex(ai ArchetypeIndex) (ComponentIndex, bool, error) {
 	ctx := context.Background()
 	key := r.componentIndexKey(ai)
 	res := r.Client.Get(ctx, key)
-	if err := res.Err(); err != nil {
+	if err := res.Err(); err == redis.Nil {
+		return 0, false, nil
+	} else if err != nil {
 		return 0, false, err
 	}
 	result, err := res.Result()
@@ -89,21 +93,24 @@ func (r *RedisStorage) SetIndex(index ArchetypeIndex, index2 ComponentIndex) err
 	return res.Err()
 }
 
-func (r *RedisStorage) IncrementIndex(index ArchetypeIndex) error {
+// IncrementIndex adds 1 to this archetype and returns the NEW value of the index. If this archetype
+// doesn't exist, this index is initialized and 0 is returned.
+func (r *RedisStorage) IncrementIndex(index ArchetypeIndex) (ComponentIndex, error) {
 	ctx := context.Background()
 	idx, ok, err := r.ComponentIndex(index)
 	if err != nil {
-		return err
-	}
-	if !ok {
-		return fmt.Errorf("component index not found at archetype index %d", index)
+		return 0, err
+	} else if !ok {
+		idx = 0
+	} else {
+		idx++
 	}
 	key := r.componentIndexKey(index)
-	newIdx := idx + 1
-	res := r.Client.Set(ctx, key, int64(newIdx), 0)
-	return res.Err()
+	res := r.Client.Set(ctx, key, int64(idx), 0)
+	return idx, res.Err()
 }
 
+// DecrementIndex decreases the component index for this archetype by 1.
 func (r *RedisStorage) DecrementIndex(index ArchetypeIndex) error {
 	ctx := context.Background()
 	idx, ok, err := r.ComponentIndex(index)

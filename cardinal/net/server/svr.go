@@ -17,7 +17,7 @@ func NewGameServer(backend storage.WorldStorage) v1.GameServer {
 }
 
 type gameServer struct {
-	world   ecs.World
+	world   *ecs.World
 	backend storage.WorldStorage
 }
 

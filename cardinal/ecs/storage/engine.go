@@ -21,9 +21,16 @@ type ComponentStorageManager interface {
 }
 
 type ComponentIndexStorage interface {
+	// ComponentIndex returns the current index for this ArchetypeIndex. If the index doesn't currently
+	// exist then "0, false, nil" is returned
 	ComponentIndex(ArchetypeIndex) (ComponentIndex, bool, error)
+	// SetIndex sets the index to the given calue.
 	SetIndex(ArchetypeIndex, ComponentIndex) error
-	IncrementIndex(ArchetypeIndex) error
+	// IncrementIndex increments an index for this archetype and returns the new value. If the index
+	// does not yet exist, set the index to 0 and return 0.
+	IncrementIndex(ArchetypeIndex) (ComponentIndex, error)
+	// DecrementIndex decrements an index for this archetype by 1. The index is allowed to go into
+	// negative numbers.
 	DecrementIndex(ArchetypeIndex) error
 }
 
