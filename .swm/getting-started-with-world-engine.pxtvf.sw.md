@@ -2,7 +2,7 @@
 id: pxtvf
 title: Getting Started with World Engine
 file_version: 1.1.2
-app_version: 1.7.1
+app_version: 1.8.5
 ---
 
 ## Components
@@ -31,13 +31,13 @@ The World Engine comes with a few preconfigured `Dockerfile`s to quickly get the
 
 *   Celestia - the DA layer
 
-*   `📄 .archive.chain/rollup.Dockerfile` - the rollup
+*   `📄 chain/runtime/Dockerfile` - the rollup
 
 *   `📄 game/nakama/Dockerfile` - the preconfigured relay server
 
 *   `📄 cardinal/Dockerfile` - Game server/ECS
 
-All components can be ran with a simple script inside the `📄 .archive.chain/Makefile`.
+All components can be ran with a simple script inside the TODO(insert token script that runs all services)
 
 Enter the following command in the `📄 chain` directory to start the services:
 
@@ -47,40 +47,11 @@ make start-services
 
 ⚠️NOTE⚠️ You will see some errors in the rollup container while the Celestia DA node boots up. This will occur for a few seconds until the rollup connects to the DA layer.
 
-<br/>
-
-<br/>
-
-`📄 .archive.chain/Makefile` command that runs all required services in a single docker container.
-<!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
-### 📄 .archive.chain/Makefile
-```chain/makefile
-330    start-services:
-331    	@echo "Starting services"
-332    	$(shell ../game/nakama/setup.sh)
-333    	@docker-compose down -v --remove-orphans
-334    	@docker-compose build
-335    	@docker-compose up --abort-on-container-exit --exit-code-from postgres nakama celestia node
-```
-
-<br/>
-
 ## Interacting with the Services
 
-Interacting with the rollup is easiest via gRPC. The `📄 .archive.chain/rollup.Dockerfile` exposes the gRPC port to the localhost on port `9090`. The simplest way to interact with the rollup is by building the binary and using the World Engine CLI. This makes it easy to query the blockchain and send transactions. The rollup binary can be built from the following command in the `📄 .archive.chain/Makefile`:
+Interacting with the rollup is easiest via gRPC. The rollup exposes the gRPC port to the localhost on port `9090`. The simplest way to interact with the rollup is by building the binary and using the World Engine CLI. This makes it easy to query the blockchain and send transactions. The rollup binary can be built from the following command:
 
-<br/>
-
-<br/>
-
-Simply enter `make` `build`<swm-token data-swm-token=":.archive.chain/Makefile:142:0:0:`build: BUILD_ARGS=-o $(BUILDDIR)/`"/> from the root of the project. This will create a binary in the `build` directory called `argusd`.
-<!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
-### 📄 .archive.chain/Makefile
-```chain/makefile
-142    build: BUILD_ARGS=-o $(BUILDDIR)/
-```
-
-<br/>
+TODO: update command and insert token here
 
 Interacting with the preconfigured Nakama ECS Game server can be done either over gRPC or using the web interface. Follow the instructions below to access the web interface:
 
@@ -143,14 +114,12 @@ public class NakamaConn : MonoBehaviour
 ```mermaid
 flowchart LR
 2("Cosmos Rollup") --- 3("Celestia DA")
-
 4("Cardinal") --- |"gRPC connection"|1("Nakama")
 4("Cardinal") ---> |"gRPC connection"|2("Cosmos Rollup")
 2("Cosmos Rollup") ---> |"gRPC connection"|4("Cardinal")
-
 5("game client") ---> |"JSON RPC/HTTPs"| 1("Nakama")
 ```
-<!--MCONTENT {content: "flowchart LR<br/>\n2(\"Cosmos Rollup\") --- 3(\"Celestia DA\")\n\n4(\"Cardinal\") --- |\"gRPC connection\"|1(\"Nakama\")<br/>\n4(\"Cardinal\") -\\-\\-\\> |\"gRPC connection\"|2(\"Cosmos Rollup\")<br/>\n2(\"Cosmos Rollup\") -\\-\\-\\> |\"gRPC connection\"|4(\"Cardinal\")\n\n5(\"game client\") -\\-\\-\\> |\"JSON RPC/HTTPs\"| 1(\"Nakama\")"} --->
+<!--MCONTENT {content: "flowchart LR<br/>\n2(\"Cosmos Rollup\") --- 3(\"Celestia DA\")<br/>\n4(\"Cardinal\") --- |\"gRPC connection\"|1(\"Nakama\")<br/>\n4(\"Cardinal\") -\\-\\-\\> |\"gRPC connection\"|2(\"Cosmos Rollup\")<br/>\n2(\"Cosmos Rollup\") -\\-\\-\\> |\"gRPC connection\"|4(\"Cardinal\")<br/>\n5(\"game client\") -\\-\\-\\> |\"JSON RPC/HTTPs\"| 1(\"Nakama\")"} --->
 
 <br/>
 
