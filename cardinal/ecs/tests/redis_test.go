@@ -152,7 +152,7 @@ func TestRedis_Location(t *testing.T) {
 	assert.Equal(t, has, false)
 }
 
-func TestRedis_EntryStorage(t *testing.T) {
+func TestRedis_EntityStorage(t *testing.T) {
 	rs := GetRedisStorage(t)
 	store := storage.NewWorldStorage(storage.Components{
 		Store:            &rs,
@@ -164,22 +164,22 @@ func TestRedis_EntryStorage(t *testing.T) {
 		ArchIndex: 15,
 		CompIndex: 12,
 	}
-	e := storage.NewEntry(eid, loc)
-	err := store.EntryStore.SetEntry(eid, e)
+	e := storage.NewEntity(eid, loc)
+	err := store.EntityStore.SetEntity(eid, e)
 	assert.NilError(t, err)
 
-	gotEntry, err := store.EntryStore.GetEntry(eid)
+	gotEntity, err := store.EntityStore.GetEntity(eid)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, e, gotEntry)
+	assert.DeepEqual(t, e, gotEntity)
 
 	newLoc := storage.Location{
 		ArchIndex: 39,
 		CompIndex: 82,
 	}
-	store.EntryStore.SetLocation(eid, newLoc)
+	store.EntityStore.SetLocation(eid, newLoc)
 
-	gotEntry, _ = store.EntryStore.GetEntry(eid)
-	assert.DeepEqual(t, gotEntry.Loc, newLoc)
+	gotEntity, _ = store.EntityStore.GetEntity(eid)
+	assert.DeepEqual(t, gotEntity.Loc, newLoc)
 }
 
 func GetRedisStorage(t *testing.T) storage.RedisStorage {

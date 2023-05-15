@@ -335,15 +335,15 @@ func (r *RedisStorage) Len() (int, error) {
 }
 
 // ---------------------------------------------------------------------------
-// 							ENTRY STORAGE
+// 							ENTITY STORAGE
 // ---------------------------------------------------------------------------
 
-var _ EntryStorage = &RedisStorage{}
+var _ EntityStorage = &RedisStorage{}
 
-func (r *RedisStorage) SetEntry(id EntityID, entry Entry) error {
+func (r *RedisStorage) SetEntity(id EntityID, entity Entity) error {
 	ctx := context.Background()
-	key := r.entryStorageKey(id)
-	bz, err := Encode(entry)
+	key := r.entityStorageKey(id)
+	bz, err := Encode(entity)
 	if err != nil {
 		return err
 	}
@@ -354,31 +354,31 @@ func (r *RedisStorage) SetEntry(id EntityID, entry Entry) error {
 	return nil
 }
 
-func (r *RedisStorage) GetEntry(id EntityID) (Entry, error) {
+func (r *RedisStorage) GetEntity(id EntityID) (Entity, error) {
 	ctx := context.Background()
-	key := r.entryStorageKey(id)
+	key := r.entityStorageKey(id)
 	res := r.Client.Get(ctx, key)
 	if err := res.Err(); err != nil {
-		return NullEntry, err
+		return BadEntity, err
 	}
 	bz, err := res.Bytes()
 	if err != nil {
-		return NullEntry, err
+		return BadEntity, err
 	}
-	decodedEntry, err := Decode[Entry](bz)
+	decodedEntity, err := Decode[Entity](bz)
 	if err != nil {
-		return NullEntry, err
+		return BadEntity, err
 	}
-	return decodedEntry, nil
+	return decodedEntity, nil
 }
 
 func (r *RedisStorage) SetLocation(id EntityID, location Location) error {
-	entry, err := r.GetEntry(id)
+	entity, err := r.GetEntity(id)
 	if err != nil {
 		return err
 	}
-	entry.Loc = location
-	err = r.SetEntry(id, entry)
+	entity.Loc = location
+	err = r.SetEntity(id, entity)
 	if err != nil {
 		return err
 	}

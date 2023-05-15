@@ -10,10 +10,10 @@ func NewLegacyStorage() WorldStorage {
 	eloStore := NewLocationMap()
 	archIdxStore := NewArchetypeComponentIndex()
 	archAcc := NewArchetypeAccessor()
-	entryStore := NewEntryStorage()
+	entityStore := NewEntityStorage()
 	entityMgr := NewEntityManager()
 
-	return NewWorldStorage(componentsStore, eloStore, archIdxStore, archAcc, entryStore, entityMgr)
+	return NewWorldStorage(componentsStore, eloStore, archIdxStore, archAcc, entityStore, entityMgr)
 }
 
 var _ ComponentStorageManager = &ComponentsSliceStorage{}
@@ -269,30 +269,30 @@ func (idx *Index) Search(filter filter.LayoutFilter) *ArchetypeIterator {
 	return idx.SearchFrom(filter, 0)
 }
 
-type entryStorageImpl struct {
-	entries []Entry
+type entityStorageImpl struct {
+	entries []Entity
 }
 
-func (e *entryStorageImpl) SetLocation(id EntityID, location Location) error {
+func (e *entityStorageImpl) SetLocation(id EntityID, location Location) error {
 	e.entries[id].Loc = location
 
 	return nil
 }
 
-var _ EntryStorage = &entryStorageImpl{}
+var _ EntityStorage = &entityStorageImpl{}
 
-func NewEntryStorage() EntryStorage {
-	return &entryStorageImpl{entries: make([]Entry, 1, 256)}
+func NewEntityStorage() EntityStorage {
+	return &entityStorageImpl{entries: make([]Entity, 1, 256)}
 }
 
-func (e *entryStorageImpl) SetEntry(id EntityID, entry Entry) error {
+func (e *entityStorageImpl) SetEntity(id EntityID, entity Entity) error {
 	if int(id) >= len(e.entries) {
-		e.entries = append(e.entries, Entry{})
+		e.entries = append(e.entries, Entity{})
 	}
-	e.entries[id] = entry
+	e.entries[id] = entity
 	return nil
 }
 
-func (e entryStorageImpl) GetEntry(id EntityID) (Entry, error) {
+func (e entityStorageImpl) GetEntity(id EntityID) (Entity, error) {
 	return e.entries[id], nil
 }

@@ -62,10 +62,10 @@ func encodeComponent[T any](comp T) ([]byte, error) {
 	return buf.Bytes(), err
 }
 
-// Get returns component data from the entry.
-func (c *ComponentType[T]) Get(entry storage.Entry) (T, error) {
+// Get returns component data from the entity.
+func (c *ComponentType[T]) Get(entity storage.Entity) (T, error) {
 	var comp T
-	bz, err := entry.Component(c.w, c)
+	bz, err := entity.Component(c.w, c)
 	if err != nil {
 		return comp, err
 	}
@@ -73,13 +73,13 @@ func (c *ComponentType[T]) Get(entry storage.Entry) (T, error) {
 	return comp, err
 }
 
-// Set sets component data to the entry.
-func (c *ComponentType[T]) Set(entry storage.Entry, component *T) error {
+// Set sets component data to the entity.
+func (c *ComponentType[T]) Set(entity storage.Entity, component *T) error {
 	bz, err := encodeComponent[T](*component)
 	if err != nil {
 		return err
 	}
-	err = c.w.SetComponent(c, bz, entry.Loc.ArchIndex, entry.Loc.CompIndex)
+	err = c.w.SetComponent(c, bz, entity.Loc.ArchIndex, entity.Loc.CompIndex)
 	if err != nil {
 		return err
 	}
@@ -87,20 +87,20 @@ func (c *ComponentType[T]) Set(entry storage.Entry, component *T) error {
 }
 
 // Each iterates over the entityLocationStore that have the component.
-func (c *ComponentType[T]) Each(w *World, callback func(storage.Entry)) {
+func (c *ComponentType[T]) Each(w *World, callback func(storage.Entity)) {
 	c.query.Each(w, callback)
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w *World) (storage.Entry, bool, error) {
+func (c *ComponentType[T]) First(w *World) (storage.Entity, bool, error) {
 	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w *World) (storage.Entry, error) {
+func (c *ComponentType[T]) MustFirst(w *World) (storage.Entity, error) {
 	e, ok, err := c.query.First(w)
 	if err != nil {
-		return storage.NullEntry, err
+		return storage.BadEntity, err
 	}
 	if !ok {
 		panic(fmt.Sprintf("no entity has the component %s", c.name))
@@ -111,7 +111,7 @@ func (c *ComponentType[T]) MustFirst(w *World) (storage.Entry, error) {
 
 // RemoveFrom removes this component form the given entity.
 func (c *ComponentType[T]) RemoveFrom(id storage.EntityID) error {
-	e, err := c.w.Entry(id)
+	e, err := c.w.Entity(id)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (c *ComponentType[T]) RemoveFrom(id storage.EntityID) error {
 
 // AddTo adds this component to the given entity.
 func (c *ComponentType[T]) AddTo(id storage.EntityID) error {
-	e, err := c.w.Entry(id)
+	e, err := c.w.Entity(id)
 	if err != nil {
 		return err
 	}
@@ -128,12 +128,12 @@ func (c *ComponentType[T]) AddTo(id storage.EntityID) error {
 }
 
 // SetValue sets the value of the component.
-func (c *ComponentType[T]) SetValue(entry storage.Entry, value T) error {
-	_, err := c.Get(entry)
+func (c *ComponentType[T]) SetValue(entity storage.Entity, value T) error {
+	_, err := c.Get(entity)
 	if err != nil {
 		return err
 	}
-	return c.Set(entry, &value)
+	return c.Set(entity, &value)
 }
 
 // String returns the component type name.

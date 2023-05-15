@@ -28,8 +28,8 @@ type World struct {
 	systems []System
 }
 
-func (w *World) SetEntryLocation(id storage.EntityID, location storage.Location) error {
-	err := w.store.EntryStore.SetLocation(id, location)
+func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
+	err := w.store.EntityStore.SetLocation(id, location)
 	if err != nil {
 		return err
 	}
@@ -146,21 +146,21 @@ func (w *World) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.Ent
 		return 0, err
 	}
 	archetype.PushEntity(nextEntityID)
-	err = w.createEntry(nextEntityID)
+
+	loc, err := w.store.EntityLocStore.Location(nextEntityID)
+	if err != nil {
+		return 0, err
+	}
+	entity := storage.NewEntity(nextEntityID, loc)
+	if err := w.store.EntityStore.SetEntity(nextEntityID, entity); err != nil {
+		return 0, err
+	}
+
 	return nextEntityID, err
 }
 
-func (w *World) createEntry(id storage.EntityID) error {
-	loc, err := w.store.EntityLocStore.Location(id)
-	if err != nil {
-		return err
-	}
-	entry := storage.NewEntry(id, loc)
-	return w.store.EntryStore.SetEntry(id, entry)
-}
-
 func (w *World) Valid(id storage.EntityID) (bool, error) {
-	if id == storage.NullID {
+	if id == storage.BadID {
 		return false, nil
 	}
 	ok, err := w.store.EntityLocStore.ContainsEntity(id)
@@ -181,22 +181,22 @@ func (w *World) Valid(id storage.EntityID) (bool, error) {
 	return id == w.store.ArchAccessor.Archetype(a).Entities()[c], nil
 }
 
-// Entry converts an EntityID to an Entry. An Entry has storage specific details
-// about where data for this entry is located
-func (w *World) Entry(id storage.EntityID) (storage.Entry, error) {
-	entry, err := w.store.EntryStore.GetEntry(id)
+// Entity converts an EntityID to an Entity. An Entity has storage specific details
+// about where data for this entity is located
+func (w *World) Entity(id storage.EntityID) (storage.Entity, error) {
+	entity, err := w.store.EntityStore.GetEntity(id)
 	if err != nil {
-		return storage.NullEntry, err
+		return storage.BadEntity, err
 	}
 	loc, err := w.store.EntityLocStore.Location(id)
 	if err != nil {
-		return storage.NullEntry, err
+		return storage.BadEntity, err
 	}
-	err = w.store.EntryStore.SetLocation(id, loc)
+	err = w.store.EntityStore.SetLocation(id, loc)
 	if err != nil {
-		return storage.NullEntry, err
+		return storage.BadEntity, err
 	}
-	return entry, nil
+	return entity, nil
 }
 
 // Len return the number of entities in this world
@@ -243,7 +243,7 @@ func (w *World) removeAtLocation(id storage.EntityID, loc storage.Location) erro
 		if err := w.store.EntityLocStore.Set(swappedID, loc); err != nil {
 			return err
 		}
-		if err := w.store.EntryStore.SetLocation(swappedID, loc); err != nil {
+		if err := w.store.EntityStore.SetLocation(swappedID, loc); err != nil {
 			return err
 		}
 	}

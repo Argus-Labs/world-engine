@@ -65,9 +65,9 @@ type ArchetypeStorage interface {
 	Count() int
 }
 
-type EntryStorage interface {
-	SetEntry(EntityID, Entry) error
-	GetEntry(EntityID) (Entry, error)
+type EntityStorage interface {
+	SetEntity(EntityID, Entity) error
+	GetEntity(EntityID) (Entity, error)
 	SetLocation(EntityID, Location) error
 }
 
