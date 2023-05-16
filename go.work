@@ -4,4 +4,6 @@ use (
 	./chain
 	./magefiles
 	./cardinal
+	./game/tic-tac-toe
+	./game/tic-tac-toe/server
 )
