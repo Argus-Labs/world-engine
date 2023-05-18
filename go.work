@@ -4,4 +4,6 @@ use (
 	./chain
 	./magefiles
 	./cardinal
+	./game/sample_game_server/nakama
+	./game/sample_game_server/server
 )
