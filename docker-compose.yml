@@ -56,6 +56,29 @@ services:
     networks:
       - default
 
+  new-node:
+    container_name: world-engine-base
+    build:
+      context: .
+      args:
+        FOUNDRY_DIR: chain/contracts/
+      dockerfile: chain/base.Dockerfile
+    restart: unless-stopped
+    expose:
+      - "5050"
+      - "9090"
+      - "1317"
+      - "26657"
+      - "8545"
+    ports:
+      - "9090:9090"
+      - "1317:1317"
+      - "26657:26657"
+      - "8545:8545"
+    networks:
+      - default
+    entrypoint: ["./chain/scripts/start-rollup.sh"]
+
   node:
     container_name: argus_node
     environment:

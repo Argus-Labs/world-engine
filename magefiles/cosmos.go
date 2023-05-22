@@ -36,17 +36,22 @@ var (
 	statically = false
 
 	// Commands.
-	dockerBuild = RunCmdV("docker", "build", "--rm=false")
+	// Commands.
+	dockerBuild  = RunCmdV("docker", "build", "--rm=false")
+	dockerBuildX = RunCmdV("docker", "buildx", "build", "--rm=false")
+	dockerRun    = RunCmdV("docker", "run")
 
 	// Variables.
-	baseDockerPath  = "./chain/runtime/"
+	baseDockerPath  = "./chain/"
 	beradDockerPath = baseDockerPath + "Dockerfile"
-	imageName       = "polaris-cosmos"
+	imageName       = "world-engine"
+	execDockerPath  = baseDockerPath + "base.Dockerfile"
+
 	// testImageVersion       = "e2e-test-dev".
 	goVersion              = "1.20.2"
 	debianStaticImage      = "gcr.io/distroless/static-debian11"
 	golangAlpine           = "golang:1.20-alpine3.17"
-	precompileContractsDir = "./cosmos/precompile/contracts/solidity"
+	precompileContractsDir = "./chain/contracts"
 )
 
 // Compile-time assertion that we implement the interface correctly.
@@ -94,10 +99,34 @@ func (c Cosmos) BuildRelease() error {
 // Docker
 // ===========================================================================
 
-// Builds a release version of the Cosmos SDK chain.
-func (c Cosmos) BuildDocker() error {
+// Docker builds the docker image of the chain.
+func (c Cosmos) Docker(node string) error {
 	LogGreen("Build a release docker image for the Cosmos SDK chain...")
-	return c.dockerBuildBeradWith(goVersion, debianStaticImage, version)
+	var path string
+	if node == "base" {
+		path = execDockerPath
+	} else {
+		path = baseDockerPath + node + "/Dockerfile"
+	}
+	return c.dockerBuildNode("world-engine-"+node, path, goVersion, version)
+}
+
+// Build a docker image for berad with the supplied arguments.
+func (c Cosmos) dockerBuildNode(name, dockerFilePath, goVersion, imageVersion string) error {
+	return dockerBuildFn(false)(
+		"--build-arg", "GO_VERSION="+goVersion,
+		"--build-arg", "FOUNDRY_DIR="+precompileContractsDir,
+		"-f", dockerFilePath,
+		"-t", name+":"+imageVersion, //TODO: do not hardcode, have ability to pass as arg
+		".",
+	)
+}
+
+func dockerBuildFn(useX bool) func(args ...string) error {
+	if useX {
+		return dockerBuildX
+	}
+	return dockerBuild
 }
 
 // Builds a release version of the Cosmos SDK chain.
