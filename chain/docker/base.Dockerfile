@@ -57,7 +57,7 @@ RUN set -eux; \
 
 # Copy our source code into the container
 WORKDIR /workdir
-COPY . .
+COPY .. .
 
 # Copy the forge output
 ARG FOUNDRY_DIR

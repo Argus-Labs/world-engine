@@ -62,7 +62,7 @@ services:
       context: .
       args:
         FOUNDRY_DIR: chain/contracts/
-      dockerfile: chain/base.Dockerfile
+      dockerfile: chain/docker/base.Dockerfile
     restart: unless-stopped
     expose:
       - "5050"
@@ -77,7 +77,7 @@ services:
       - "8545:8545"
     networks:
       - default
-    entrypoint: ["./chain/scripts/start-rollup.sh"]
+    entrypoint: ["tail", "-f", "/dev/null"]
 
   node:
     container_name: argus_node

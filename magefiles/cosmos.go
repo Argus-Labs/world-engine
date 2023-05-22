@@ -42,7 +42,7 @@ var (
 	dockerRun    = RunCmdV("docker", "run")
 
 	// Variables.
-	baseDockerPath  = "./chain/"
+	baseDockerPath  = "./chain/docker/"
 	beradDockerPath = baseDockerPath + "Dockerfile"
 	imageName       = "world-engine"
 	execDockerPath  = baseDockerPath + "base.Dockerfile"
@@ -109,6 +109,10 @@ func (c Cosmos) Docker(node string) error {
 		path = baseDockerPath + node + "/Dockerfile"
 	}
 	return c.dockerBuildNode("world-engine-"+node, path, goVersion, version)
+}
+
+func (c Cosmos) RunDockerLocal() error {
+	return dockerRun("-p", "8545:8545", "world-engine-local:v0.0.0")
 }
 
 // Build a docker image for berad with the supplied arguments.
