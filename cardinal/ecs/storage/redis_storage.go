@@ -155,7 +155,9 @@ func (r *RedisStorage) Component(archetypeIndex ArchetypeIndex, componentIndex C
 	ctx := context.Background()
 	key := r.componentDataKey(archetypeIndex)
 	res := r.Client.LIndex(ctx, key, int64(componentIndex))
-	if err := res.Err(); err != nil {
+	if err := res.Err(); err == redis.Nil {
+		return nil, ErrorComponentNotOnEntity
+	} else if err != nil {
 		return nil, err
 	}
 	bz, err := res.Bytes()

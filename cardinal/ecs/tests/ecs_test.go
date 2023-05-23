@@ -38,7 +38,7 @@ var (
 	Ownable = ecs.NewComponentType[OwnableComponent]()
 )
 
-func newWorldForTest(t *testing.T) *ecs.World {
+func newWorldForTest(t testing.TB) *ecs.World {
 	s := miniredis.RunT(t)
 	rs := storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
