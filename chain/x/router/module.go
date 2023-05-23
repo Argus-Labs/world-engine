@@ -1,6 +1,12 @@
 package router
 
 import (
+	"encoding/json"
+
+	abci "github.com/cometbft/cometbft/abci/types"
+
+	"cosmossdk.io/core/genesis"
+	"cosmossdk.io/orm/model/ormdb"
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -11,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argus-labs/world-engine/chain/x/router/keeper"
+	"github.com/argus-labs/world-engine/chain/x/router/storage"
 	routertypes "github.com/argus-labs/world-engine/chain/x/router/types"
 )
 
@@ -20,8 +27,9 @@ const (
 )
 
 var (
-	_ module.HasServices    = AppModule{}
-	_ module.AppModuleBasic = AppModuleBasic{}
+	_ module.HasServices      = AppModule{}
+	_ module.AppModuleBasic   = AppModuleBasic{}
+	_ module.AppModuleGenesis = AppModule{}
 )
 
 // ==============================================================================
@@ -74,6 +82,51 @@ type AppModule struct {
 	keeper *keeper.Keeper
 }
 
+func (am AppModule) DefaultGenesis(jsonCodec codec.JSONCodec) json.RawMessage {
+	db, err := ormdb.NewModuleDB(&storage.ModuleSchema, ormdb.ModuleDBOptions{})
+	if err != nil {
+		panic(err)
+	}
+	target := genesis.RawJSONTarget{}
+	err = db.GenesisHandler().DefaultGenesis(target.Target())
+	if err != nil {
+		panic(err)
+	}
+	bz, err := target.JSON()
+	if err != nil {
+		panic(err)
+	}
+	return bz
+}
+
+func (am AppModule) ValidateGenesis(jsonCodec codec.JSONCodec, config client.TxEncodingConfig, message json.RawMessage) error {
+	db, err := ormdb.NewModuleDB(&storage.ModuleSchema, ormdb.ModuleDBOptions{})
+	if err != nil {
+		return err
+	}
+	jzSrc, err := genesis.SourceFromRawJSON(message)
+	if err != nil {
+		return err
+	}
+	return db.GenesisHandler().ValidateGenesis(jzSrc)
+}
+
+func (am AppModule) InitGenesis(ctx sdk.Context, jsonCodec codec.JSONCodec, message json.RawMessage) []abci.ValidatorUpdate {
+	up, err := am.keeper.InitGenesis(ctx, jsonCodec, message)
+	if err != nil {
+		panic(err)
+	}
+	return up
+}
+
+func (am AppModule) ExportGenesis(context sdk.Context, jsonCodec codec.JSONCodec) json.RawMessage {
+	bz, err := am.keeper.ExportGenesis(context, jsonCodec)
+	if err != nil {
+		panic(err)
+	}
+	return bz
+}
+
 // NewAppModule creates a new AppModule object.
 func NewAppModule(
 	keeper *keeper.Keeper,
@@ -96,11 +149,8 @@ func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 // RegisterServices registers a gRPC query service to respond to the
 // module-specific gRPC queries.
 func (am AppModule) RegisterServices(cfg module.Configurator) {
-	// TODO: register the services
 	routertypes.RegisterMsgServiceServer(cfg.MsgServer(), am.keeper)
 	routertypes.RegisterQueryServiceServer(cfg.QueryServer(), am.keeper)
-	// types.RegisterMsgServiceServer(cfg.MsgServer(), am.keeper)
-	// types.RegisterQueryServer(cfg.QueryServer(), am.keeper)
 }
 
 // ConsensusVersion implements AppModule/ConsensusVersion.

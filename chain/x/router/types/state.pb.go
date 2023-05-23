@@ -4,7 +4,7 @@
 package types
 
 import (
-	_ "cosmos/orm/v1"
+	_ "cosmossdk.io/orm"
 	fmt "fmt"
 	proto "github.com/cosmos/gogoproto/proto"
 	io "io"
