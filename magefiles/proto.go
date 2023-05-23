@@ -35,7 +35,7 @@ import (
 var (
 	protoImageName    = "ghcr.io/cosmos/proto-builder"
 	protoImageVersion = "0.13.0"
-	protoDir          = "chain/proto"
+	protoDir          = "chain/proto/cosmos"
 
 	bufCommand = sh.RunCmd("buf")
 )

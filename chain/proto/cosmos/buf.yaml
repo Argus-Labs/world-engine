@@ -19,7 +19,7 @@
 # TITLE.
 
 version: v1
-name: github.com/argus-labs/world-engine/chain
+name: github.com/argus-labs/world-engine
 deps:
   - buf.build/cosmos/cosmos-sdk
   - buf.build/cosmos/cosmos-proto

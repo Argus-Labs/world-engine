@@ -1,9 +1,10 @@
 syntax = "proto3";
 
-package world_engine.router.v1;
+package router.v1;
 
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
+import "router/v1/state.proto";
 
 option go_package = "github.com/argus-labs/world-engine/chain/x/router/types";
 
@@ -12,11 +13,6 @@ service QueryService {
   rpc Namespaces(NamespacesRequest) returns (NamespacesResponse) {
     option (google.api.http).get = "/world_engine/router/v1/namespaces";
   }
-}
-
-message Namespace {
-  string shard_name = 1;
-  string shard_address = 2;
 }
 
 message NamespacesRequest {}
