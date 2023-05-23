@@ -1,11 +1,13 @@
 package tests
 
 import (
+	"fmt"
+	"testing"
+
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"gotest.tools/v3/assert"
-	"testing"
 )
 
 func TestCanFilterByArchetype(t *testing.T) {
@@ -111,28 +113,45 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 
 }
 
-func BenchmarkFilterByArchetype(b *testing.B) {
+func BenchmarkEntityCreation(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		world := newWorldForTest(b)
+		alpha := ecs.NewComponentType[string]()
+		world.RegisterComponents(alpha)
+		_, err := world.CreateMany(100000, alpha)
+		assert.NilError(b, err)
+	}
+}
+
+// BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount verifies that the time it takes to filter
+// by a specific archetype depends on the number of entities that have that archetype and NOT the 
+// total number of entities that have been created.
+func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
+	relevantCount := 100
+	for i := 10; i <= 10000; i *= 10 {
+		ignoreCount := i
+		b.Run(fmt.Sprintf("IgnoreCount:%d", ignoreCount), func(b *testing.B) {
+			helperArchetypeFilter(b, relevantCount, ignoreCount)
+		})
+	}
+}
+
+func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StopTimer()
 	world := newWorldForTest(b)
 	alpha := ecs.NewComponentType[string]()
 	beta := ecs.NewComponentType[string]()
 	world.RegisterComponents(alpha, beta)
-	wantCount := 100
-	ignoreCount := 10000
-	_, err := world.CreateMany(wantCount, alpha, beta)
+	_, err := world.CreateMany(relevantCount, alpha, beta)
 	assert.NilError(b, err)
 	_, err = world.CreateMany(ignoreCount, alpha)
 	assert.NilError(b, err)
-	f := filter.Exact(alpha)
-	q := ecs.NewQuery(f)
-
 	b.StartTimer()
-	for n := 0; n < b.N; n++ {
+	for i := 0; i < b.N; i++ {
 		count := 0
-		q.Each(world, func(id storage.EntityID) {
+		ecs.NewQuery(filter.Exact(alpha, beta)).Each(world, func(id storage.EntityID) {
 			count++
 		})
-		//		assert.Equal(b, count, wantCount)
-		assert.Equal(b, count, ignoreCount)
+		assert.Equal(b, count, relevantCount)
 	}
 }
