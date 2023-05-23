@@ -78,8 +78,12 @@ var (
 )
 
 // Get returns the component from the entity
-func Get[T any](w WorldAccessor, e Entity, cType component.IComponentType) (*T, error) {
+func Get[T any](w WorldAccessor, id EntityID, cType component.IComponentType) (*T, error) {
 	var comp *T
+	e, err := w.Entity(id)
+	if err != nil {
+		return nil, err
+	}
 	compBz, err := e.Component(w, cType)
 	if err != nil {
 		return nil, err
@@ -92,7 +96,11 @@ func Get[T any](w WorldAccessor, e Entity, cType component.IComponentType) (*T, 
 }
 
 // Add adds the component to the entity.
-func Add[T any](w WorldAccessor, e Entity, cType component.IComponentType, component *T) error {
+func Add[T any](w WorldAccessor, id EntityID, cType component.IComponentType, component *T) error {
+	e, err := w.Entity(id)
+	if err != nil {
+		return err
+	}
 	bz, err := Encode(component)
 	if err != nil {
 		return err
@@ -102,7 +110,11 @@ func Add[T any](w WorldAccessor, e Entity, cType component.IComponentType, compo
 }
 
 // Set sets the component of the entity.
-func Set[T any](w WorldAccessor, e Entity, ctype component.IComponentType, component *T) error {
+func Set[T any](w WorldAccessor, id EntityID, ctype component.IComponentType, component *T) error {
+	e, err := w.Entity(id)
+	if err != nil {
+		return err
+	}
 	bz, err := Encode(component)
 	if err != nil {
 		return err
@@ -112,8 +124,8 @@ func Set[T any](w WorldAccessor, e Entity, ctype component.IComponentType, compo
 }
 
 // SetValue sets the value of the component.
-func SetValue[T any](w WorldAccessor, e Entity, ctype component.IComponentType, value T) error {
-	c, err := Get[T](w, e, ctype)
+func SetValue[T any](w WorldAccessor, id EntityID, ctype component.IComponentType, value T) error {
+	c, err := Get[T](w, id, ctype)
 	if err != nil {
 		return err
 	}
@@ -122,14 +134,22 @@ func SetValue[T any](w WorldAccessor, e Entity, ctype component.IComponentType, 
 }
 
 // Remove removes the component from the entity.
-func Remove[T any](w WorldAccessor, e Entity, ctype component.IComponentType) {
-	e.RemoveComponent(w, ctype)
+func Remove[T any](w WorldAccessor, id EntityID, ctype component.IComponentType) error {
+	e, err := w.Entity(id)
+	if err != nil {
+		return err
+	}
+	return e.RemoveComponent(w, ctype)
 }
 
 // Valid returns true if the entity is valid.
-func Valid(w WorldAccessor, e Entity) (bool, error) {
-	if e == BadEntity {
+func Valid(w WorldAccessor, id EntityID) (bool, error) {
+	if id == BadID {
 		return false, nil
+	}
+	e, err := w.Entity(id)
+	if err != nil {
+		return false, err
 	}
 	ok, err := e.Valid(w)
 	return ok, err

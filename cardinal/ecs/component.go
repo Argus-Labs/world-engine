@@ -63,8 +63,11 @@ func encodeComponent[T any](comp T) ([]byte, error) {
 }
 
 // Get returns component data from the entity.
-func (c *ComponentType[T]) Get(entity storage.Entity) (T, error) {
-	var comp T
+func (c *ComponentType[T]) Get(id storage.EntityID) (comp T, err error) {
+	entity, err := c.w.Entity(id)
+	if err != nil {
+		return comp, err
+	}
 	bz, err := entity.Component(c.w, c)
 	if err != nil {
 		return comp, err
@@ -74,7 +77,11 @@ func (c *ComponentType[T]) Get(entity storage.Entity) (T, error) {
 }
 
 // Set sets component data to the entity.
-func (c *ComponentType[T]) Set(entity storage.Entity, component *T) error {
+func (c *ComponentType[T]) Set(id storage.EntityID, component *T) error {
+	entity, err := c.w.Entity(id)
+	if err != nil {
+		return err
+	}
 	bz, err := encodeComponent[T](*component)
 	if err != nil {
 		return err
@@ -87,26 +94,26 @@ func (c *ComponentType[T]) Set(entity storage.Entity, component *T) error {
 }
 
 // Each iterates over the entityLocationStore that have the component.
-func (c *ComponentType[T]) Each(w *World, callback func(storage.Entity)) {
+func (c *ComponentType[T]) Each(w *World, callback func(storage.EntityID)) {
 	c.query.Each(w, callback)
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w *World) (storage.Entity, bool, error) {
+func (c *ComponentType[T]) First(w *World) (storage.EntityID, bool, error) {
 	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w *World) (storage.Entity, error) {
-	e, ok, err := c.query.First(w)
+func (c *ComponentType[T]) MustFirst(w *World) (storage.EntityID, error) {
+	id, ok, err := c.query.First(w)
 	if err != nil {
-		return storage.BadEntity, err
+		return storage.BadID, err
 	}
 	if !ok {
 		panic(fmt.Sprintf("no entity has the component %s", c.name))
 	}
 
-	return e, nil
+	return id, nil
 }
 
 // RemoveFrom removes this component form the given entity.
@@ -128,12 +135,12 @@ func (c *ComponentType[T]) AddTo(id storage.EntityID) error {
 }
 
 // SetValue sets the value of the component.
-func (c *ComponentType[T]) SetValue(entity storage.Entity, value T) error {
-	_, err := c.Get(entity)
+func (c *ComponentType[T]) SetValue(id storage.EntityID, value T) error {
+	_, err := c.Get(id)
 	if err != nil {
 		return err
 	}
-	return c.Set(entity, &value)
+	return c.Set(id, &value)
 }
 
 // String returns the component type name.

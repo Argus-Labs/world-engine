@@ -31,18 +31,14 @@ func NewQuery(filter filter.LayoutFilter) *Query {
 }
 
 // Each iterates over all entityLocationStore that match the query.
-func (q *Query) Each(w *World, callback func(storage.Entity)) {
+func (q *Query) Each(w *World, callback func(storage.EntityID)) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
-	f := func(id storage.EntityID) {
-		entity, _ := w.Entity(id)
-		callback(entity)
-	}
 	for iter.HasNext() {
 		entities := iter.Next()
-		for _, e := range entities {
-			f(e)
+		for _, id := range entities {
+			callback(id)
 		}
 	}
 }
@@ -61,24 +57,20 @@ func (q *Query) Count(w *World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w *World) (entity storage.Entity, ok bool, err error) {
+func (q *Query) First(w *World) (id storage.EntityID, ok bool, err error) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
 	if !iter.HasNext() {
-		return storage.BadEntity, false, err
+		return storage.BadID, false, err
 	}
 	for iter.HasNext() {
 		entities := iter.Next()
 		if len(entities) > 0 {
-			ent, err := w.Entity(entities[0])
-			if err != nil {
-				return storage.BadEntity, false, err
-			}
-			return ent, true, err
+			return entities[0], true, nil
 		}
 	}
-	return storage.BadEntity, false, err
+	return storage.BadID, false, err
 }
 
 func (q *Query) evaluateQuery(world *World, accessor *StorageAccessor) []storage.ArchetypeIndex {
