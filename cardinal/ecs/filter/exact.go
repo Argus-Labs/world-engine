@@ -9,7 +9,7 @@ type exact struct {
 }
 
 // Exact matches layouts that contain exactly the same components specified.
-func Exact(components []component.IComponentType) LayoutFilter {
+func Exact(components ...component.IComponentType) LayoutFilter {
 	return exact{
 		components: components,
 	}

@@ -316,6 +316,14 @@ func (w *World) StorageAccessor() StorageAccessor {
 	}
 }
 
+func (w *World) GetComponentsOnEntity(id storage.EntityID) ([]IComponentType, error) {
+	ent, err := w.Entity(id)
+	if err != nil {
+		return nil, err
+	}
+	return w.GetLayout(ent.Loc.ArchIndex), nil
+}
+
 func (w *World) nextEntity() (storage.EntityID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
@@ -332,7 +340,7 @@ func (w *World) getArchetypeForComponents(components []component.IComponentType)
 	if len(components) == 0 {
 		panic("entity must have at least one component")
 	}
-	if ii := w.store.ArchCompIdxStore.Search(filter.Exact(components)); ii.HasNext() {
+	if ii := w.store.ArchCompIdxStore.Search(filter.Exact(components...)); ii.HasNext() {
 		return ii.Next()
 	}
 	if !w.noDuplicates(components) {

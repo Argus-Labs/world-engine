@@ -3,6 +3,7 @@ package tests
 import (
 	"testing"
 
+	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	storage2 "github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"gotest.tools/v3/assert"
@@ -96,4 +97,16 @@ func TestComponents(t *testing.T) {
 	if dat.ID != target.ID {
 		t.Errorf("component should have ID '%s', got ID '%s'", target.ID, dat.ID)
 	}
+}
+
+func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
+	world := newWorldForTest(t)
+	foundComp := ecs.NewComponentType[string]()
+	notFoundComp := ecs.NewComponentType[string]()
+	world.RegisterComponents(foundComp, notFoundComp)
+
+	id, err := world.Create(foundComp)
+	assert.NilError(t, err)
+	_, err = notFoundComp.Get(id)
+	assert.ErrorIs(t, err, storage2.ErrorComponentNotOnEntity)
 }
