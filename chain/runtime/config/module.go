@@ -67,6 +67,10 @@ import (
 
 	evmmodulev1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/module/v1alpha1"
 	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
+
+	"github.com/argus-labs/world-engine/chain/x/router"
+
+	routermodulev1 "github.com/argus-labs/world-engine/chain/api/router/module/v1"
 )
 
 var (
@@ -185,6 +189,10 @@ var (
 		{
 			Name:   evmtypes.ModuleName,
 			Config: appconfig.WrapAny(&evmmodulev1alpha1.Module{}),
+		},
+		{
+			Name:   router.Name,
+			Config: appconfig.WrapAny(&routermodulev1.Module{Authority: "someaddress"}), // TODO: put a multisig addr here
 		},
 	}
 )

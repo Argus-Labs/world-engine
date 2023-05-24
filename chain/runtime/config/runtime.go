@@ -42,11 +42,13 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
+
+	"github.com/argus-labs/world-engine/chain/x/router"
 )
 
 // DefaultRuntime represents a standard default runtime configuration.
 var DefaultRuntime = &runtimev1alpha1.Module{
-	AppName: "PolarisApp",
+	AppName: "WorldEngineApp",
 	// During begin block slashing happens after distr.BeginBlocker so that
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
@@ -103,6 +105,7 @@ var DefaultRuntime = &runtimev1alpha1.Module{
 		upgradetypes.ModuleName,
 		vestingtypes.ModuleName,
 		consensustypes.ModuleName,
+		router.Name,
 	},
 	// When ExportGenesis is not specified, the export genesis module order
 	// is equal to the init genesis order

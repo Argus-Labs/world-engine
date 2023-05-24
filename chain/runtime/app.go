@@ -103,6 +103,8 @@ import (
 	"pkg.berachain.dev/polaris/lib/utils"
 
 	simappconfig "github.com/argus-labs/world-engine/chain/runtime/config"
+	"github.com/argus-labs/world-engine/chain/x/router"
+	routerkeeper "github.com/argus-labs/world-engine/chain/x/router/keeper"
 
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side-effects
 
@@ -139,6 +141,7 @@ var (
 		vesting.AppModuleBasic{},
 		consensus.AppModuleBasic{},
 		evm.AppModuleBasic{},
+		router.AppModuleBasic{},
 	)
 	// application configuration (used by depinject).
 	AppConfig = appconfig.Compose(&appv1alpha1.Config{
@@ -181,6 +184,9 @@ type App struct {
 
 	// polaris keepers
 	EVMKeeper *evmkeeper.Keeper
+
+	// world engine keepers
+	RouterKeeper *routerkeeper.Keeper
 
 	// simulation manager
 	sm *module.SimulationManager
@@ -290,12 +296,13 @@ func NewApp( //nolint: funlen // from sdk.
 		&app.GroupKeeper,
 		&app.ConsensusParamsKeeper,
 		&app.EVMKeeper,
+		&app.RouterKeeper,
 	); err != nil {
 		panic(err)
 	}
 
 	// Build app
-	app.App = appBuilder.Build(logger, db, traceStore, PolarisAppOptions(
+	app.App = appBuilder.Build(logger, db, traceStore, WorldEngineAppOptions(
 		app.interfaceRegistry, append(baseAppOptions, mempoolOpt)...)...,
 	)
 

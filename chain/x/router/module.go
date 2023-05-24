@@ -36,15 +36,15 @@ var (
 // AppModuleBasic
 // ==============================================================================
 
-// AppModuleBasic defines the basic application module used by the evm module.
+// AppModuleBasic defines the basic application module used by the router module.
 type AppModuleBasic struct{}
 
-// Name returns the evm module's name.
+// Name returns the router module's name.
 func (AppModuleBasic) Name() string {
 	return Name
 }
 
-// RegisterLegacyAminoCodec registers the evm module's types on the given LegacyAmino codec.
+// RegisterLegacyAminoCodec registers the router module's types on the given LegacyAmino codec.
 func (AppModuleBasic) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	// types.RegisterLegacyAminoCodec(cdc)
 }
@@ -54,7 +54,7 @@ func (b AppModuleBasic) RegisterInterfaces(r types2.InterfaceRegistry) {
 	routertypes.RegisterInterfaces(r)
 }
 
-// RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the evm module.
+// RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the router module.
 func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *gwruntime.ServeMux) {
 	// if err := types.RegisterQueryServiceHandlerClient(context.Background(), mux,
 	// types.NewQueryClient(clientCtx)); err != nil {
@@ -62,12 +62,12 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *g
 	// }
 }
 
-// GetTxCmd returns no root tx command for the evm module.
+// GetTxCmd returns no root tx command for the router module.
 func (AppModuleBasic) GetTxCmd() *cobra.Command {
 	return nil
 }
 
-// GetQueryCmd returns the root query command for the evm module.
+// GetQueryCmd returns the root query command for the router module.
 func (AppModuleBasic) GetQueryCmd() *cobra.Command {
 	return nil
 }
@@ -76,7 +76,7 @@ func (AppModuleBasic) GetQueryCmd() *cobra.Command {
 // AppModule
 // ==============================================================================
 
-// AppModule implements an application module for the evm module.
+// AppModule implements an application module for the router module.
 type AppModule struct {
 	AppModuleBasic
 	keeper *keeper.Keeper
@@ -143,7 +143,7 @@ func (am AppModule) IsOnePerModuleType() {}
 // IsAppModule implements the appmodule.AppModule interface.
 func (am AppModule) IsAppModule() {}
 
-// RegisterInvariants registers the evm module invariants.
+// RegisterInvariants registers the router module invariants.
 func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 
 // RegisterServices registers a gRPC query service to respond to the
