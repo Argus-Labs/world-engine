@@ -27,6 +27,7 @@ import (
 	"os"
 
 	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -53,7 +54,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"github.com/cosmos/cosmos-sdk/x/auth/tx"
+
 	txmodule "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/cosmos/cosmos-sdk/x/crisis"
@@ -76,6 +77,7 @@ func NewRootCmd() *cobra.Command {
 		TxConfig:          tempApp.TxConfig(),
 		Amino:             tempApp.LegacyAmino(),
 	}
+	sdktx
 
 	initClientCtx := client.Context{}.
 		WithCodec(encodingConfig.Codec).
@@ -111,7 +113,6 @@ func NewRootCmd() *cobra.Command {
 			// TODO Currently, the TxConfig below doesn't include Textual, so
 			// an error will arise when using the --textual flag.
 			// ref: https://github.com/cosmos/cosmos-sdk/issues/11970
-
 			txConfigWithTextual := tx.NewTxConfigWithTextual(
 				codec.NewProtoCodec(encodingConfig.InterfaceRegistry),
 				tx.DefaultSignModes,
