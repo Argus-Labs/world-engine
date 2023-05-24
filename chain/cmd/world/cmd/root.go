@@ -77,7 +77,6 @@ func NewRootCmd() *cobra.Command {
 		TxConfig:          tempApp.TxConfig(),
 		Amino:             tempApp.LegacyAmino(),
 	}
-	sdktx
 
 	initClientCtx := client.Context{}.
 		WithCodec(encodingConfig.Codec).
