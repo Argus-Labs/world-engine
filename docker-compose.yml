@@ -57,13 +57,13 @@ services:
       - default
 
   node:
-    container_name: argus_node
+    container_name: world_engine_rollup
     environment:
       - USE_SIDECAR=true
       - NAKAMA_TARGET=nakama:6732
     build:
       context: chain
-      dockerfile: rollup.Dockerfile
+      dockerfile: Dockerfile
     restart: unless-stopped
     expose:
       - "5050"
@@ -76,8 +76,8 @@ services:
       - "26657:26657"
     networks:
       - default
-    depends_on:
-      - celestia
+#    depends_on:
+#      - celestia
 
   tester:
     container_name: tester_container
