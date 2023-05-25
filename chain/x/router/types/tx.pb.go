@@ -34,7 +34,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type UpdateNamespaceRequest struct {
 	// authority is the address that controls the module (defaults to x/gov unless overwritten).
 	Authority string `protobuf:"bytes,1,opt,name=authority,proto3" json:"authority,omitempty"`
-	// namespace is the name of the namespace (i.e. dark-forest-1)
+	// shard_name is the name of the shard (i.e. dark-forest-1)
 	ShardName string `protobuf:"bytes,2,opt,name=shard_name,json=shardName,proto3" json:"shard_name,omitempty"`
 	// shard_address is the gRPC address the shard runs at (i.e. 127.0.0.1:51835)
 	ShardAddress string `protobuf:"bytes,3,opt,name=shard_address,json=shardAddress,proto3" json:"shard_address,omitempty"`
