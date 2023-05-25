@@ -23,9 +23,9 @@ func TestNamespaces(t *testing.T) {
 
 	res, err := suite.k.Namespaces(suite.ctx, &types.NamespacesRequest{})
 	assert.NilError(t, err)
-	assert.Check(t, len(res.Namespaces) == 1)
-	assert.Check(t, res.Namespaces[0].ShardName == msg.ShardName)
-	assert.Check(t, res.Namespaces[0].ShardAddress == msg.ShardAddress)
+	assert.Equal(t, len(res.Namespaces), 1)
+	assert.Equal(t, res.Namespaces[0].ShardName, msg.ShardName)
+	assert.Equal(t, res.Namespaces[0].ShardAddress, msg.ShardAddress)
 
 	// bad authority shouldn't pass
 	msg.Authority = "oops"
