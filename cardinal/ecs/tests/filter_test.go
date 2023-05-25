@@ -6,12 +6,13 @@ import (
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
+	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"gotest.tools/v3/assert"
 )
 
 func TestCanFilterByArchetype(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 
 	alpha := ecs.NewComponentType[string]()
 	beta := ecs.NewComponentType[string]()
@@ -43,7 +44,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 // TestExactVsContains ensures the Exact filter will return a subset of a Contains filter when called
 // with the same parameters.
 func TestExactVsContains(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	alpha := ecs.NewComponentType[string]()
 	beta := ecs.NewComponentType[string]()
 	alphaCount := 75
@@ -89,7 +90,7 @@ func TestExactVsContains(t *testing.T) {
 }
 
 func TestCanGetArchetypeFromEntity(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	alpha := ecs.NewComponentType[string]()
 	beta := ecs.NewComponentType[string]()
 	world.RegisterComponents(alpha, beta)
@@ -115,7 +116,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 
 func BenchmarkEntityCreation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		world := newWorldForTest(b)
+		world := inmem.NewECSWorldForTest(b)
 		alpha := ecs.NewComponentType[string]()
 		world.RegisterComponents(alpha)
 		_, err := world.CreateMany(100000, alpha)
@@ -124,7 +125,7 @@ func BenchmarkEntityCreation(b *testing.B) {
 }
 
 // BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount verifies that the time it takes to filter
-// by a specific archetype depends on the number of entities that have that archetype and NOT the 
+// by a specific archetype depends on the number of entities that have that archetype and NOT the
 // total number of entities that have been created.
 func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 	relevantCount := 100
@@ -138,7 +139,7 @@ func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 
 func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StopTimer()
-	world := newWorldForTest(b)
+	world := inmem.NewECSWorldForTest(b)
 	alpha := ecs.NewComponentType[string]()
 	beta := ecs.NewComponentType[string]()
 	world.RegisterComponents(alpha, beta)
