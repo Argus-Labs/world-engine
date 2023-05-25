@@ -2,13 +2,11 @@ module github.com/argus-labs/world-engine/game/sample_game_server/server
 
 go 1.20
 
-require (
-	github.com/alicebob/miniredis/v2 v2.30.2
-	github.com/argus-labs/world-engine/cardinal v0.0.0-20230515223758-87080d50943b
-)
+require github.com/argus-labs/world-engine/cardinal v0.0.0-20230525212614-007160ff59f4
 
 require (
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
+	github.com/alicebob/miniredis/v2 v2.30.2 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
