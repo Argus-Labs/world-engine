@@ -3,35 +3,16 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/alicebob/miniredis/v2"
-	"github.com/argus-labs/world-engine/cardinal/ecs"
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 )
 
 const EnvGameServerPort = "GAME_SERVER_PORT"
-
-func newWorld() *ecs.World {
-	s, err := miniredis.Run()
-	if err != nil {
-		panic(fmt.Sprintf("Unable to start miniredis: %v", err))
-	}
-	rs := storage.NewRedisStorage(storage.Options{
-		Addr:     s.Addr(),
-		Password: "",
-		DB:       0,
-	}, "main-world")
-	worldStorage := storage.NewWorldStorage(
-		storage.Components{Store: &rs, ComponentIndices: &rs},
-		&rs,
-		storage.NewArchetypeComponentIndex(),
-		storage.NewArchetypeAccessor(),
-		&rs,
-		&rs)
-	return ecs.NewWorld(worldStorage)
-}
 
 type BoardComponent struct {
 	Xs, Os int
@@ -42,7 +23,7 @@ type PlayerComponent struct {
 }
 
 var (
-	world    = newWorld()
+	world    = inmem.NewECSWorld()
 	Board    = ecs.NewComponentType[BoardComponent]()
 	Host     = ecs.NewComponentType[PlayerComponent]()
 	Opponent = ecs.NewComponentType[PlayerComponent]()
@@ -132,13 +113,9 @@ func handleCreateGame(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeError(w, "game creation failed", err)
 	}
-	gameEnt, err := world.Entity(gameID)
-	if err != nil {
-		writeError(w, "game to entity failed", err)
-	}
 
-	Host.Set(gameEnt, &PlayerComponent{gameParams.Host})
-	Opponent.Set(gameEnt, &PlayerComponent{gameParams.Opponent})
+	Host.Set(gameID, &PlayerComponent{gameParams.Host})
+	Opponent.Set(gameID, &PlayerComponent{gameParams.Opponent})
 	w.WriteHeader(200)
 	writeResult(w, "success")
 }
@@ -149,8 +126,8 @@ func handleMakeMove(w http.ResponseWriter, r *http.Request) {
 
 func handleGames(w http.ResponseWriter, r *http.Request) {
 	ids := []storage.EntityID{}
-	Host.Each(world, func(entity storage.Entity) {
-		ids = append(ids, entity.ID)
+	Host.Each(world, func(id storage.EntityID) {
+		ids = append(ids, id)
 	})
 
 	writeResult(w, ids)
