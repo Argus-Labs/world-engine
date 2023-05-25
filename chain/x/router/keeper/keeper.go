@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 
 	abci "github.com/cometbft/cometbft/abci/types"
-	
+
 	"cosmossdk.io/orm/model/ormdb"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	api "github.com/argus-labs/world-engine/chain/api/router/v1"
+	"github.com/argus-labs/world-engine/chain/x/router/storage"
 
 	"cosmossdk.io/core/genesis"
 )
@@ -24,8 +25,13 @@ type Keeper struct {
 }
 
 func NewKeeper(ss api.StateStore, auth string) *Keeper {
+	db, err := ormdb.NewModuleDB(&storage.ModuleSchema, ormdb.ModuleDBOptions{})
+	if err != nil {
+		panic(err)
+	}
 	return &Keeper{
 		store:     ss,
+		db:        db,
 		authority: auth,
 	}
 }
