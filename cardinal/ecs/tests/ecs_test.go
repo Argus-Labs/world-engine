@@ -1,9 +1,9 @@
 package tests
 
 import (
+	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
@@ -38,21 +38,8 @@ var (
 	Ownable = ecs.NewComponentType[OwnableComponent]()
 )
 
-func newWorldForTest(t testing.TB) *ecs.World {
-	s := miniredis.RunT(t)
-	rs := storage.NewRedisStorage(storage.Options{
-		Addr:     s.Addr(),
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	}, "0")
-	worldStorage := storage.NewWorldStorage(
-		storage.Components{Store: &rs, ComponentIndices: &rs}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
-
-	return ecs.NewWorld(worldStorage)
-}
-
 func TestECS(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	world.RegisterComponents(Energy, Ownable)
 
 	// create a bunch of planets!
@@ -79,7 +66,7 @@ func TestECS(t *testing.T) {
 }
 
 func TestVelocitySimulation(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	type Pos struct {
 		X, Y float64
 	}
@@ -111,7 +98,7 @@ func TestVelocitySimulation(t *testing.T) {
 }
 
 func TestCanSetDefaultValue(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	type Owner struct {
 		Name string
 	}
@@ -134,7 +121,7 @@ func TestCanSetDefaultValue(t *testing.T) {
 }
 
 func TestCanRemoveEntity(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	type Tuple struct {
 		A, B int
 	}
@@ -187,7 +174,7 @@ func TestCanRemoveEntity(t *testing.T) {
 }
 
 func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	type CountComponent struct {
 		Val int
 	}
@@ -225,7 +212,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 }
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	energy := ecs.NewComponentType[EnergyComponent]()
 	world.RegisterComponents(energy)
 
@@ -235,7 +222,7 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 }
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	reactorEnergy := ecs.NewComponentType[EnergyComponent]()
 	weaponsEnergy := ecs.NewComponentType[EnergyComponent]()
 	world.RegisterComponents(reactorEnergy, weaponsEnergy)
@@ -246,7 +233,7 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 }
 
 func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	type Foo struct{}
 	type Bar struct{}
 	a, b := ecs.NewComponentType[Foo](), ecs.NewComponentType[Bar]()
@@ -271,7 +258,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 }
 
 func TestEntriesCanChangeTheirArchetype(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	type Label struct {
 		Name string
 	}
@@ -318,7 +305,7 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 }
 
 func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 
 	alpha := ecs.NewComponentType[EnergyComponent]()
 	beta := ecs.NewComponentType[EnergyComponent]()
@@ -332,7 +319,7 @@ func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 }
 
 func TestQueriesAndFiltersWorks(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	a, b, c, d := ecs.NewComponentType[int](), ecs.NewComponentType[int](), ecs.NewComponentType[int](), ecs.NewComponentType[int]()
 	world.RegisterComponents(a, b, c, d)
 

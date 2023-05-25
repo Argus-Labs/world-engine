@@ -5,6 +5,7 @@ import (
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	storage2 "github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"gotest.tools/v3/assert"
 )
@@ -100,7 +101,7 @@ func TestComponents(t *testing.T) {
 }
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
-	world := newWorldForTest(t)
+	world := inmem.NewECSWorldForTest(t)
 	foundComp := ecs.NewComponentType[string]()
 	notFoundComp := ecs.NewComponentType[string]()
 	world.RegisterComponents(foundComp, notFoundComp)
