@@ -24,9 +24,9 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type Namespace struct {
-	// shard_name is the name of the shard
+	// shard_name is the name of the shard (i.e. darkforest1)
 	ShardName string `protobuf:"bytes,1,opt,name=shard_name,json=shardName,proto3" json:"shard_name,omitempty"`
-	// shard_address is the address of the shard
+	// shard_address is the gRPC address the shard runs at (i.e. 127.0.0.1:51835)
 	ShardAddress string `protobuf:"bytes,2,opt,name=shard_address,json=shardAddress,proto3" json:"shard_address,omitempty"`
 }
 
