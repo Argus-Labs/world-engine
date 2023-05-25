@@ -35,7 +35,7 @@ type Sidecar struct {
 func StartSidecar(rtr *baseapp.MsgServiceRouter, qry *baseapp.GRPCQueryRouter,
 	bk bankkeeper.Keeper, cms store.CacheMultiStore, logger log.Logger) error {
 	sc := Sidecar{rtr: rtr, qry: qry, bk: bk, cms: cms, logger: logger}
-	port := 5050
+	port := 42091
 	lis, err := net.Listen("tcp", fmt.Sprintf("node:%d", port))
 	if err != nil {
 		return err
