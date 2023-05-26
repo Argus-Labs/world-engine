@@ -4,6 +4,7 @@ VALIDATOR_NAME=validator1
 CHAIN_ID=argus_90000-1
 KEY_NAME=argus-key
 CHAINFLAG="--chain-id ${CHAIN_ID}"
+AlGO="eth_secp256k1"
 TOKEN_AMOUNT="10000000000000000000000000stake"
 STAKING_AMOUNT="1000000000stake"
 
@@ -19,7 +20,7 @@ world init $VALIDATOR_NAME --chain-id $CHAIN_ID
 
 
 
-printf "enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll\n\n" | world keys add $KEY_NAME --keyring-backend="test" -i
+printf "enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll\n\n" | world keys add $KEY_NAME --keyring-backend="test" --algo="eth_secp256k1" -i
 world genesis add-genesis-account $KEY_NAME $TOKEN_AMOUNT --keyring-backend test
 world genesis gentx $KEY_NAME $STAKING_AMOUNT --chain-id $CHAIN_ID --keyring-backend test
 world genesis collect-gentxs
