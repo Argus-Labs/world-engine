@@ -10,7 +10,6 @@ STAKING_AMOUNT="1000000000stake"
 
 NAMESPACE_ID="9934923059384634"
 echo $NAMESPACE_ID
-# DA_BLOCK_HEIGHT=$(curl https://rpc-mocha.pops.one/block | jq -r '.result.block.header.height')
 DA_BLOCK_HEIGHT=10
 
 world comet unsafe-reset-all
