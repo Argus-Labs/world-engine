@@ -8,7 +8,7 @@ AlGO="eth_secp256k1"
 TOKEN_AMOUNT="10000000000000000000000000stake"
 STAKING_AMOUNT="1000000000stake"
 
-NAMESPACE_ID=$(echo $RANDOM | md5sum | head -c 16; echo;)
+NAMESPACE_ID="9934923059384634"
 echo $NAMESPACE_ID
 # DA_BLOCK_HEIGHT=$(curl https://rpc-mocha.pops.one/block | jq -r '.result.block.header.height')
 DA_BLOCK_HEIGHT=10
