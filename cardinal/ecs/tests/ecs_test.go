@@ -1,8 +1,9 @@
 package tests
 
 import (
-	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"testing"
+
+	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
@@ -19,8 +20,8 @@ type OwnableComponent struct {
 	Owner string
 }
 
-func UpdateEnergySystem(w *ecs.World) {
-	Energy.Each(w, func(ent storage.EntityID) {
+func UpdateEnergySystem(*ecs.TransactionQueue) {
+	Energy.Each(func(ent storage.EntityID) {
 		energyPlanet, err := Energy.Get(ent)
 		if err != nil {
 			panic(err)
@@ -52,9 +53,9 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, err)
 
 	world.AddSystem(UpdateEnergySystem)
-	world.Update()
+	world.Tick()
 
-	Energy.Each(world, func(id storage.EntityID) {
+	Energy.Each(func(id storage.EntityID) {
 		energyPlanet, err := Energy.Get(id)
 		assert.NilError(t, err)
 		assert.Equal(t, int64(10), energyPlanet.Amt)
@@ -83,7 +84,7 @@ func TestVelocitySimulation(t *testing.T) {
 	Velocity.Set(shipID, &Vel{3, 4})
 	wantPos := Pos{4, 6}
 
-	Velocity.Each(world, func(id storage.EntityID) {
+	Velocity.Each(func(id storage.EntityID) {
 		vel, err := Velocity.Get(id)
 		assert.NilError(t, err)
 		pos, err := Position.Get(id)
@@ -134,7 +135,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Make sure we find exactly 2 entries
 	count := 0
-	tuple.Each(world, func(id storage.EntityID) {
+	tuple.Each(func(id storage.EntityID) {
 		_, err := tuple.Get(id)
 		assert.NilError(t, err)
 		count++
@@ -146,7 +147,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Now we should only find 1 entity
 	count = 0
-	tuple.Each(world, func(id storage.EntityID) {
+	tuple.Each(func(id storage.EntityID) {
 		_, err := tuple.Get(id)
 		assert.NilError(t, err)
 		count++
@@ -161,7 +162,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	err = world.Remove(entities[1])
 	assert.NilError(t, err)
 	count = 0
-	tuple.Each(world, func(id storage.EntityID) {
+	tuple.Each(func(id storage.EntityID) {
 		_, err := tuple.Get(id)
 		assert.NilError(t, err)
 		count++
@@ -186,7 +187,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 
 	// Remove the even entries
 	itr := 0
-	Count.Each(world, func(id storage.EntityID) {
+	Count.Each(func(id storage.EntityID) {
 		if itr%2 == 0 {
 			assert.NilError(t, world.Remove(id))
 		} else {
@@ -198,7 +199,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	assert.Equal(t, 10, itr)
 
 	seen := map[int]int{}
-	Count.Each(world, func(id storage.EntityID) {
+	Count.Each(func(id storage.EntityID) {
 		c, err := Count.Get(id)
 		assert.NilError(t, err)
 		seen[c.Val]++
@@ -280,26 +281,26 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 		}
 	}
 	// 3 entities have alpha
-	alpha.Each(world, countAgain())
+	alpha.Each(countAgain())
 	assert.Equal(t, 3, count)
 
 	// 0 entities have gamma
-	gamma.Each(world, countAgain())
+	gamma.Each(countAgain())
 	assert.Equal(t, 0, count)
 
 	assert.NilError(t, alpha.RemoveFrom(entIDs[0]))
 
 	// alpha has been removed from entity[0], so only 2 entities should now have alpha
-	alpha.Each(world, countAgain())
+	alpha.Each(countAgain())
 	assert.Equal(t, 2, count)
 
 	// Add gamma to an entity. Now 1 entity should have gamma.
 	assert.NilError(t, gamma.AddTo(entIDs[1]))
-	gamma.Each(world, countAgain())
+	gamma.Each(countAgain())
 	assert.Equal(t, 1, count)
 
 	// Make sure the one ent that has gamma is entIDs[1]
-	gamma.Each(world, func(id storage.EntityID) {
+	gamma.Each(func(id storage.EntityID) {
 		assert.Equal(t, id, entIDs[1])
 	})
 }

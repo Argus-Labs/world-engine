@@ -2,6 +2,8 @@ package ecs
 
 import (
 	"fmt"
+	"sync"
+
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
@@ -20,12 +22,25 @@ type StorageAccessor struct {
 	Archetypes storage.ArchetypeAccessor
 }
 
-type initializer func(w *World)
-
 type World struct {
 	id      WorldId
 	store   storage.WorldStorage
 	systems []System
+	// txNames contains the set of transaction names that have been registered for this world. It is an error
+	// to attempt to register the same transaction name more than once.
+	txNames map[string]bool
+	// txQueues contains a map of transaction names to the relevant transactions data
+	txQueues map[string][]interface{}
+	// txLock ensures txQueue is not modified in the middle of a tick.
+	txLock sync.Mutex
+}
+
+func (w *World) AddTxName(name string) (ok bool) {
+	if w.txNames[name] {
+		return false
+	}
+	w.txNames[name] = true
+	return true
 }
 
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
@@ -60,14 +75,8 @@ func (w *World) AddSystem(s System) {
 	w.systems = append(w.systems, s)
 }
 
-func (w *World) Update() {
-	for _, sys := range w.systems {
-		sys(w)
-	}
-}
-
 type Initializer interface {
-	Initialize(storage.WorldAccessor) error
+	Initialize(world *World) error
 }
 
 // RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
@@ -82,25 +91,17 @@ func (w *World) RegisterComponents(inits ...Initializer) {
 
 var nextWorldId WorldId = 0
 
-var registeredInitializers []initializer
-
-// RegisterInitializer registers an initializer for a world.
-func RegisterInitializer(initializer initializer) {
-	registeredInitializers = append(registeredInitializers, initializer)
-}
-
 // NewWorld creates a new world.
 func NewWorld(s storage.WorldStorage) *World {
 	// TODO: this should prob be handled by redis as well...
 	worldId := nextWorldId
 	nextWorldId++
 	w := &World{
-		id:      worldId,
-		store:   s,
-		systems: make([]System, 0, 256), // this can just stay in memory.
-	}
-	for _, initializer := range registeredInitializers {
-		initializer(w)
+		id:       worldId,
+		store:    s,
+		systems:  make([]System, 0, 256), // this can just stay in memory.
+		txNames:  map[string]bool{},
+		txQueues: map[string][]interface{}{},
 	}
 	return w
 }
@@ -313,6 +314,39 @@ func (w *World) StorageAccessor() StorageAccessor {
 		w.store.ArchCompIdxStore,
 		&w.store.CompStore,
 		w.store.ArchAccessor,
+	}
+}
+
+// copyTransactions makes a copy of the world txQueue, then zeroes out the txQueue.
+func (w *World) copyTransactions() map[string][]interface{} {
+	w.txLock.Lock()
+	defer w.txLock.Unlock()
+	txsMap := make(map[string][]interface{}, len(w.txQueues))
+	for name, txs := range w.txQueues {
+		txsMap[name] = make([]interface{}, len(txs))
+		copy(txsMap[name], txs)
+		w.txQueues[name] = w.txQueues[name][:0]
+	}
+	return txsMap
+}
+
+// AddTransaction adds a transaction to the transaction queue. This should not be used directly.
+// Instead, use a TransactionType.AddToQueue to ensure type consistency.
+func (w *World) AddTransaction(name string, v any) {
+	w.txLock.Lock()
+	defer w.txLock.Unlock()
+	w.txQueues[name] = append(w.txQueues[name], v)
+}
+
+// Tick performs one game tick.
+func (w *World) Tick() {
+	txs := w.copyTransactions()
+	txQueue := &TransactionQueue{
+		queue: txs,
+	}
+
+	for _, sys := range w.systems {
+		sys(txQueue)
 	}
 }
 
