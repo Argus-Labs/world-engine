@@ -3,7 +3,6 @@ package main
 import "github.com/JeremyLoy/config"
 
 type Config struct {
-	SidecarTarget  string `config:"SIDECAR_TARGET"`
 	CardinalTarget string `config:"CARDINAl_TARGET"`
 }
 
