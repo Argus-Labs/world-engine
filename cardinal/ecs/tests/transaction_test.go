@@ -145,13 +145,11 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
-	// "modify_score" will block forever. This will give us a never-ending game tick that we can use
-	// to verify the addition of more user transactions don't block.
 	modScore := ecs.NewTransactionType[ModifyScoreTx](world, "modifyScore")
 
 	inSystemCh := make(chan struct{})
 	// This system will block forever. This will give us a never-ending game tick that we can use
-	// to verify the addition of more transactions doesn't block.
+	// to verify that the addition of more transactions doesn't block.
 	world.AddSystem(func(*ecs.TransactionQueue) {
 		<-inSystemCh
 		select {}
@@ -202,20 +200,22 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	modScoreTx.AddToQueue(&ModifyScoreTx{})
 
-	// Star the game tick. It will be blocked until we read from modScoreCountCh two times
+	// Start the game tick. It will be blocked until we read from modScoreCountCh two times
 	go world.Tick()
 
 	// In the first system, we should see 1 modify score transaction
 	count := <-modScoreCountCh
 	assert.Equal(t, 1, count)
 
+	// Add a transaction mid-tick.
 	modScoreTx.AddToQueue(&ModifyScoreTx{})
 
 	// The tick is still not over, so we should still only see 1 modify score transaction
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)
 
-	// The tick is over. Tick again, we should see 1 tick for both systems again
+	// The tick is over. Tick again, we should see 1 tick for both systems again. This transaction
+	// was added in the middle of the last tick.
 	go world.Tick()
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)

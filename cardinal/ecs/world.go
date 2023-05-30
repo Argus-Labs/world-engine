@@ -29,12 +29,14 @@ type World struct {
 	// txNames contains the set of transaction names that have been registered for this world. It is an error
 	// to attempt to register the same transaction name more than once.
 	txNames map[string]bool
-	// txQueues contains a map of transaction names to the relevant transactions data
+	// txQueues is a map of transaction names to the relevant list of transactions data
 	txQueues map[string][]interface{}
-	// txLock ensures txQueue is not modified in the middle of a tick.
+	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
 }
 
+// AddTxName adds the given transaction name to the set of all transaction names seen so far. If the transaction
+// name has already been added, false is returned.
 func (w *World) AddTxName(name string) (ok bool) {
 	if w.txNames[name] {
 		return false
@@ -338,7 +340,8 @@ func (w *World) AddTransaction(name string, v any) {
 	w.txQueues[name] = append(w.txQueues[name], v)
 }
 
-// Tick performs one game tick.
+// Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
+// each System in turn with the snapshot of transactions.
 func (w *World) Tick() {
 	txs := w.copyTransactions()
 	txQueue := &TransactionQueue{

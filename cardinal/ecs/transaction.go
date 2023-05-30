@@ -30,7 +30,7 @@ func (t *TransactionType[T]) AddToQueue(data *T) {
 	t.world.AddTransaction(t.Name(), data)
 }
 
-// In extracts all the transactions from the transaction queue that match this TransactionType's type.
+// In extracts all the transactions from the transaction queue that match this TransactionType's name.
 func (t *TransactionType[T]) In(tq *TransactionQueue) []*T {
 	var txs []*T
 	for _, tx := range tq.queue[t.Name()] {
