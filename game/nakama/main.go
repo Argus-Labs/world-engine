@@ -9,17 +9,14 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	// SIDECAR
-	g1 "buf.build/gen/go/argus-labs/argus/grpc/go/v1/sidecarv1grpc"
 	// CARDINAL
 	"buf.build/gen/go/argus-labs/cardinal/grpc/go/ecs/ecsv1grpc"
 )
 
 var (
-	sidecar  g1.SidecarClient     = nil
 	cardinal ecsv1grpc.GameClient = nil
 
-	CustomRPCs = []CustomRPC{StartGameRPC, MintCoinsRPC}
+	CustomRPCs = []CustomRPC{StartGameRPC}
 )
 
 // InitializerFunction contains the function signature (minus function name, which MUST be InitModule) that the nakama runtime expects.
@@ -45,10 +42,6 @@ var moduleInit InitializerFunction = func(ctx context.Context, logger runtime.Lo
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, module runtime.NakamaModule, initializer runtime.Initializer) error {
 	cfg := LoadConfig()
 	var err error
-	sidecar, err = getClient[g1.SidecarClient](cfg.SidecarTarget, g1.NewSidecarClient)
-	if err != nil {
-		return err
-	}
 	cardinal, err = getClient[ecsv1grpc.GameClient](cfg.CardinalTarget, ecsv1grpc.NewGameClient)
 	if err != nil {
 		return err
