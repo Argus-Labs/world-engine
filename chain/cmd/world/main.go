@@ -41,7 +41,7 @@ func main() {
 	runtimeconfig.SetupCosmosConfig(worldEngineCfg)
 
 	rootCmd := cmd.NewRootCmd()
-	if err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
+	if err = svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
 		//nolint: errorlint // uhh fix?
 		switch e := err.(type) {
 		case server.ErrorCode:

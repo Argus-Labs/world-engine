@@ -26,10 +26,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/argus-labs/world-engine/chain/runtime"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/argus-labs/world-engine/chain/runtime"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/simapp/params"

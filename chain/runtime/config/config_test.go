@@ -23,6 +23,7 @@ package config_test
 import (
 	"testing"
 
+	"github.com/argus-labs/world-engine/chain/config"
 	sgconfig "github.com/argus-labs/world-engine/chain/runtime/config"
 
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -32,6 +33,15 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+)
+
+var (
+	weCfg = config.WorldEngineConfig{
+		DisplayDenom:    "dark",
+		BaseDenom:       "adark",
+		Bech32Prefix:    "darkforest",
+		RouterAuthority: "",
+	}
 )
 
 func TestConfig(t *testing.T) {
@@ -50,14 +60,14 @@ var _ = Describe("Configuration", func() {
 		Expect(config.GetBech32ConsensusAddrPrefix()).To(Equal(sdk.Bech32PrefixConsAddr))
 		Expect(config.GetBech32ConsensusPubPrefix()).To(Equal(sdk.Bech32PrefixConsPub))
 
-		sgconfig.SetBech32Prefixes(config)
+		sgconfig.SetBech32Prefixes(config, weCfg)
 
-		Expect(config.GetBech32AccountAddrPrefix()).To(Equal(sgconfig.Bech32PrefixAccAddr))
-		Expect(config.GetBech32AccountPubPrefix()).To(Equal(sgconfig.Bech32PrefixAccPub))
-		Expect(config.GetBech32ValidatorAddrPrefix()).To(Equal(sgconfig.Bech32PrefixValAddr))
-		Expect(config.GetBech32ValidatorPubPrefix()).To(Equal(sgconfig.Bech32PrefixValPub))
-		Expect(config.GetBech32ConsensusAddrPrefix()).To(Equal(sgconfig.Bech32PrefixConsAddr))
-		Expect(config.GetBech32ConsensusPubPrefix()).To(Equal(sgconfig.Bech32PrefixConsPub))
+		Expect(config.GetBech32AccountAddrPrefix()).To(Equal(sgconfig.Bech32PrefixAccAddr(weCfg.Bech32Prefix)))
+		Expect(config.GetBech32AccountPubPrefix()).To(Equal(sgconfig.Bech32PrefixAccPub(weCfg.Bech32Prefix)))
+		Expect(config.GetBech32ValidatorAddrPrefix()).To(Equal(sgconfig.Bech32PrefixValAddr(weCfg.Bech32Prefix)))
+		Expect(config.GetBech32ValidatorPubPrefix()).To(Equal(sgconfig.Bech32PrefixValPub(weCfg.Bech32Prefix)))
+		Expect(config.GetBech32ConsensusAddrPrefix()).To(Equal(sgconfig.Bech32PrefixConsAddr(weCfg.Bech32Prefix)))
+		Expect(config.GetBech32ConsensusPubPrefix()).To(Equal(sgconfig.Bech32PrefixConsPub(weCfg.Bech32Prefix)))
 
 		Expect(config.GetBech32AccountAddrPrefix()).To(Equal(sdk.GetConfig().GetBech32AccountAddrPrefix()))
 		Expect(config.GetBech32AccountPubPrefix()).To(Equal(sdk.GetConfig().GetBech32AccountPubPrefix()))
@@ -91,11 +101,11 @@ var _ = Describe("Configuration", func() {
 
 var _ = Describe("RegisterDenoms", func() {
 	It("should register the base and display denominations", func() {
-		sgconfig.RegisterDenoms()
+		sgconfig.RegisterDenoms(weCfg)
 
 		// Check if the base denomination was registered correctly
 		baseDenom, err := sdk.GetBaseDenom()
-		Expect(baseDenom).To(Equal("abera"))
+		Expect(baseDenom).To(Equal(weCfg.BaseDenom))
 		Expect(err).ToNot(HaveOccurred())
 
 		denomUnit, found := sdk.GetDenomUnit(baseDenom)
