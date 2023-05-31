@@ -13,7 +13,7 @@ ifeq (,$(VERSION))
   endif
 endif
 
-TM_VERSION := $(shell go list -m github.com/tendermint/tendermint | sed 's:.* ::') # grab everything after the space in "github.com/tendermint/tendermint v0.34.7"
+CMTVERSION := $(shell go list -m github.com/cometbft/cometbft | sed 's:.* ::')
 BUILDDIR ?= $(CURDIR)/build
 ARGUS_CMD := $(CURDIR)/cmd/world
 
@@ -36,12 +36,12 @@ build_tags_comma_sep := $(subst $(whitespace),$(comma),$(build_tags))
 
 # process linker flags
 
-ldflags = -X github.com/cosmos/cosmos-sdk/version.Name=world \
-		  -X github.com/cosmos/cosmos-sdk/version.AppName=world \
-		  -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-		  -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
-		  -X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)" \
-			-X github.com/tendermint/tendermint/version.TMCoreSemVer=$(TM_VERSION)
+ldflags = 	-X github.com/cosmos/cosmos-sdk/version.Name=world \
+		  	-X github.com/cosmos/cosmos-sdk/version.AppName=world \
+		  	-X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
+		  	-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) \
+		  	-X "github.com/cosmos/cosmos-sdk/version.BuildTags=$(build_tags_comma_sep)" \
+			-X github.com/cometbft/cometbft/version.TMCoreSemVer=$(CMTVERSION)
 
 ifeq (cleveldb,$(findstring cleveldb,$(ARGUS_BUILD_OPTIONS)))
   ldflags += -X github.com/cosmos/cosmos-sdk/types.DBBackend=cleveldb
