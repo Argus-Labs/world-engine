@@ -24,15 +24,21 @@ import (
 	"os"
 
 	"github.com/argus-labs/world-engine/chain/cmd/world/cmd"
+	config2 "github.com/argus-labs/world-engine/chain/config"
 	simapp "github.com/argus-labs/world-engine/chain/runtime"
 	"github.com/argus-labs/world-engine/chain/runtime/config"
+	"github.com/argus-labs/world-engine/chain/utils"
 
 	"github.com/cosmos/cosmos-sdk/server"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 )
 
 func main() {
-	config.SetupCosmosConfig()
+	worldEngineCfg, err := utils.LoadConfig[config2.WorldEngineConfig]()
+	if err != nil {
+		panic(err)
+	}
+	config.SetupCosmosConfig(worldEngineCfg)
 	rootCmd := cmd.NewRootCmd()
 	if err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
 		//nolint: errorlint // uhh fix?

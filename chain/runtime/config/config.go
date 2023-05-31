@@ -24,40 +24,41 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"pkg.berachain.dev/polaris/eth/accounts"
+
+	"github.com/argus-labs/world-engine/chain/config"
 )
 
-const (
-	// Bech32Prefix defines the Bech32 prefix used for EthAccounts.
-	Bech32Prefix = "polar"
+var (
 	// Bech32PrefixAccAddr defines the Bech32 prefix of an account's address.
-	Bech32PrefixAccAddr = Bech32Prefix
+	Bech32PrefixAccAddr = func(p string) string { return p }
 	// Bech32PrefixAccPub defines the Bech32 prefix of an account's public key.
-	Bech32PrefixAccPub = Bech32Prefix + sdk.PrefixPublic
+	Bech32PrefixAccPub = func(p string) string { return p + sdk.PrefixPublic }
 	// Bech32PrefixValAddr defines the Bech32 prefix of a validator's operator address.
-	Bech32PrefixValAddr = Bech32Prefix + sdk.PrefixValidator + sdk.PrefixOperator
+	Bech32PrefixValAddr = func(p string) string { return p + sdk.PrefixValidator + sdk.PrefixOperator }
 	// Bech32PrefixValPub defines the Bech32 prefix of a validator's operator public key.
-	Bech32PrefixValPub = Bech32Prefix + sdk.PrefixValidator + sdk.PrefixOperator + sdk.PrefixPublic
+	Bech32PrefixValPub = func(p string) string { return p + sdk.PrefixValidator + sdk.PrefixOperator + sdk.PrefixPublic }
 	// Bech32PrefixConsAddr defines the Bech32 prefix of a consensus node address.
-	Bech32PrefixConsAddr = Bech32Prefix + sdk.PrefixValidator + sdk.PrefixConsensus
+	Bech32PrefixConsAddr = func(p string) string { return p + sdk.PrefixValidator + sdk.PrefixConsensus }
 	// Bech32PrefixConsPub defines the Bech32 prefix of a consensus node public key.
-	Bech32PrefixConsPub = Bech32Prefix + sdk.PrefixValidator + sdk.PrefixConsensus + sdk.PrefixPublic
+	Bech32PrefixConsPub = func(p string) string { return p + sdk.PrefixValidator + sdk.PrefixConsensus + sdk.PrefixPublic }
 )
 
 // SetupCosmosConfig sets up the Cosmos SDK configuration to be compatible with the semantics of etheruem.
-func SetupCosmosConfig() {
+func SetupCosmosConfig(wCfg config.WorldEngineConfig) {
 	// set the address prefixes
-	config := sdk.GetConfig()
-	SetBech32Prefixes(config)
-	SetBip44CoinType(config)
-	RegisterDenoms()
-	config.Seal()
+	cfg := sdk.GetConfig()
+	SetBech32Prefixes(cfg, wCfg)
+	SetBip44CoinType(cfg)
+	RegisterDenoms(wCfg)
+	cfg.Seal()
 }
 
 // SetBech32Prefixes sets the global prefixes to be used when serializing addresses and public keys to Bech32 strings.
-func SetBech32Prefixes(config *sdk.Config) {
-	config.SetBech32PrefixForAccount(Bech32PrefixAccAddr, Bech32PrefixAccPub)
-	config.SetBech32PrefixForValidator(Bech32PrefixValAddr, Bech32PrefixValPub)
-	config.SetBech32PrefixForConsensusNode(Bech32PrefixConsAddr, Bech32PrefixConsPub)
+func SetBech32Prefixes(config *sdk.Config, engineConfig config.WorldEngineConfig) {
+	p := engineConfig.Bech32Prefix
+	config.SetBech32PrefixForAccount(p, Bech32PrefixAccPub(p))
+	config.SetBech32PrefixForValidator(Bech32PrefixValAddr(p), Bech32PrefixValPub(p))
+	config.SetBech32PrefixForConsensusNode(Bech32PrefixConsAddr(p), Bech32PrefixConsPub(p))
 }
 
 // SetBip44CoinType sets the global coin type to be used in hierarchical deterministic wallets.
@@ -67,12 +68,12 @@ func SetBip44CoinType(config *sdk.Config) {
 }
 
 // RegisterDenoms registers the base and display denominations to the SDK.
-func RegisterDenoms() {
-	if err := sdk.RegisterDenom("bera", sdk.OneDec()); err != nil {
+func RegisterDenoms(engineConfig config.WorldEngineConfig) {
+	if err := sdk.RegisterDenom(engineConfig.DisplayDenom, sdk.NewDecWithPrec(1, engineConfig.BaseDecimals)); err != nil {
 		panic(err)
 	}
 
-	if err := sdk.RegisterDenom("abera", sdk.NewDecWithPrec(1, accounts.EtherDecimals)); err != nil {
+	if err := sdk.RegisterDenom(engineConfig.BaseDenom, sdk.NewDecWithPrec(1, engineConfig.BaseDecimals)); err != nil {
 		panic(err)
 	}
 }
