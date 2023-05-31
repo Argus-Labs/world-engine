@@ -20,10 +20,7 @@ services:
   nakama:
     container_name: nakama_container
     environment:
-      - SIDECAR_TARGET=node:5050
       - CARDINAL_TARGET=cardinal:7812
-      - RECEIVER_PORT=6732
-      - USE_RECEIVER=true
     build:
       context: game/nakama
       dockerfile: Dockerfile
@@ -81,8 +78,7 @@ services:
   tester:
     container_name: tester_container
     environment:
-      - SIDECAR_URL=node:5050
-      - ARGUS_NODE_URL=node:9090
+      - ARGUS_NODE_URL=chain:9090
       - ENABLE_DOCKER_TESTS=true
       - NAKAMA_URL=nakama:6732
     build:
