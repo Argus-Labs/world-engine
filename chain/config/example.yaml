@@ -1,0 +1,4 @@
+displayDenom: "dark"
+baseDenom: "adark"
+bech32Prefix: "darkforest"
+routerAuthority: ""

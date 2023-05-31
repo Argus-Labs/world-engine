@@ -43,9 +43,8 @@ var (
 	Bech32PrefixConsPub = func(p string) string { return p + sdk.PrefixValidator + sdk.PrefixConsensus + sdk.PrefixPublic }
 )
 
-// SetupCosmosConfig sets up the Cosmos SDK configuration to be compatible with the semantics of etheruem.
+// SetupCosmosConfig sets up the Cosmos SDK configuration to be compatible with the semantics of ethereum.
 func SetupCosmosConfig(wCfg config.WorldEngineConfig) {
-	// set the address prefixes
 	cfg := sdk.GetConfig()
 	SetBech32Prefixes(cfg, wCfg)
 	SetBip44CoinType(cfg)
@@ -68,12 +67,13 @@ func SetBip44CoinType(config *sdk.Config) {
 }
 
 // RegisterDenoms registers the base and display denominations to the SDK.
-func RegisterDenoms(engineConfig config.WorldEngineConfig) {
-	if err := sdk.RegisterDenom(engineConfig.DisplayDenom, sdk.NewDecWithPrec(1, engineConfig.BaseDecimals)); err != nil {
+func RegisterDenoms(cfg config.WorldEngineConfig) {
+
+	if err := sdk.RegisterDenom(cfg.DisplayDenom, sdk.OneDec()); err != nil {
 		panic(err)
 	}
 
-	if err := sdk.RegisterDenom(engineConfig.BaseDenom, sdk.NewDecWithPrec(1, engineConfig.BaseDecimals)); err != nil {
+	if err := sdk.RegisterDenom(cfg.BaseDenom, sdk.NewDecWithPrec(1, accounts.EtherDecimals)); err != nil {
 		panic(err)
 	}
 }
