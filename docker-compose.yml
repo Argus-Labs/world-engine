@@ -54,7 +54,7 @@ services:
       - default
 
   chain:
-    container_name: world_engine_rollup
+    container_name: evm_base_shard
     environment:
       - da_config={"base_url":"http://celestia:26659","timeout":60000000000,"fee":6000,"gas_limit":6000000}
     build:
