@@ -56,16 +56,17 @@ func main() {
 // getWorldEngineConfig loads the world engine configuration. It requires that a path and filename be in
 // the environment variables, so that viper can target the file and load it.
 func getWorldEngineConfig() (config.WorldEngineConfig, error) {
+	v := viper.New()
 	path := os.Getenv("WORLD_ENGINE_CONFIG_PATH")
 	name := os.Getenv("WORLD_ENGINE_CONFIG_NAME")
-	viper.AddConfigPath(path)
-	viper.SetConfigName(name)
-	err := viper.ReadInConfig()
+	v.AddConfigPath(path)
+	v.SetConfigName(name)
+	err := v.ReadInConfig()
 	if err != nil {
 		return config.WorldEngineConfig{}, err
 	}
 	worldEngineCfg := config.WorldEngineConfig{}
-	err = viper.Unmarshal(&worldEngineCfg)
+	err = v.Unmarshal(&worldEngineCfg)
 	if err != nil {
 		return config.WorldEngineConfig{}, err
 	}
