@@ -30,7 +30,7 @@ func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T] {
 // ComponentType represents a type of component. It is used to identify
 // a component when getting or setting componentStore of an entity.
 type ComponentType[T any] struct {
-	w          storage.WorldAccessor
+	w          *World
 	id         component.TypeID
 	typ        reflect.Type
 	name       string
@@ -38,7 +38,7 @@ type ComponentType[T any] struct {
 	query      *Query
 }
 
-func (c *ComponentType[T]) Initialize(w storage.WorldAccessor) error {
+func (c *ComponentType[T]) Initialize(w *World) error {
 	if c.w != nil {
 		return errors.New("cannot initialize more than once")
 	}
@@ -76,6 +76,17 @@ func (c *ComponentType[T]) Get(id storage.EntityID) (comp T, err error) {
 	return comp, err
 }
 
+// Update is a helper that combines a Get followed by a Set to modify a component's value. Pass in a function
+// fn that will modify a component. Update will hide the calls to Get and Set
+func (c *ComponentType[T]) Update(id storage.EntityID, fn func(*T)) error {
+	val, err := c.Get(id)
+	if err != nil {
+		return err
+	}
+	fn(&val)
+	return c.Set(id, &val)
+}
+
 // Set sets component data to the entity.
 func (c *ComponentType[T]) Set(id storage.EntityID, component *T) error {
 	entity, err := c.w.Entity(id)
@@ -94,18 +105,18 @@ func (c *ComponentType[T]) Set(id storage.EntityID, component *T) error {
 }
 
 // Each iterates over the entityLocationStore that have the component.
-func (c *ComponentType[T]) Each(w *World, callback func(storage.EntityID)) {
-	c.query.Each(w, callback)
+func (c *ComponentType[T]) Each(callback func(storage.EntityID)) {
+	c.query.Each(c.w, callback)
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w *World) (storage.EntityID, bool, error) {
-	return c.query.First(w)
+func (c *ComponentType[T]) First() (storage.EntityID, bool, error) {
+	return c.query.First(c.w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w *World) (storage.EntityID, error) {
-	id, ok, err := c.query.First(w)
+func (c *ComponentType[T]) MustFirst() (storage.EntityID, error) {
+	id, ok, err := c.query.First(c.w)
 	if err != nil {
 		return storage.BadID, err
 	}
