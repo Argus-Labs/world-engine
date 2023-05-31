@@ -102,9 +102,8 @@ func TestComponents(t *testing.T) {
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	foundComp := ecs.NewComponentType[string]()
-	notFoundComp := ecs.NewComponentType[string]()
-	world.RegisterComponents(foundComp, notFoundComp)
+	foundComp := ecs.NewComponentType[string](world)
+	notFoundComp := ecs.NewComponentType[string](world)
 
 	id, err := world.Create(foundComp)
 	assert.NilError(t, err)

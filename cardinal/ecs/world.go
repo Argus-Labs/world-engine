@@ -77,20 +77,6 @@ func (w *World) AddSystem(s System) {
 	w.systems = append(w.systems, s)
 }
 
-type Initializer interface {
-	Initialize(world *World) error
-}
-
-// RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
-// This will give components the ability to access their own data.
-func (w *World) RegisterComponents(inits ...Initializer) {
-	for _, in := range inits {
-		if err := in.Initialize(w); err != nil {
-			panic(fmt.Sprintf("cannot initialize component: %v", err))
-		}
-	}
-}
-
 var nextWorldId WorldId = 0
 
 // NewWorld creates a new world.

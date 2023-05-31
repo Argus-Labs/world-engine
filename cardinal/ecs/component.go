@@ -3,7 +3,6 @@ package ecs
 import (
 	"bytes"
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"reflect"
 	"unsafe"
@@ -18,9 +17,9 @@ type IComponentType = component.IComponentType
 
 // NewComponentType creates a new component type.
 // The function is used to create a new component of the type.
-func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T] {
+func NewComponentType[T any](world *World, opts ...ComponentOption[T]) *ComponentType[T] {
 	var t T
-	comp := newComponentType(t, nil)
+	comp := newComponentType(t, world, nil)
 	for _, opt := range opts {
 		opt(comp)
 	}
@@ -36,14 +35,6 @@ type ComponentType[T any] struct {
 	name       string
 	defaultVal interface{}
 	query      *Query
-}
-
-func (c *ComponentType[T]) Initialize(w *World) error {
-	if c.w != nil {
-		return errors.New("cannot initialize more than once")
-	}
-	c.w = w
-	return nil
 }
 
 func decodeComponent[T any](bz []byte) (T, error) {
@@ -201,14 +192,15 @@ func (c *ComponentType[T]) validateDefaultVal() {
 // TODO: this should be handled by storage.
 var nextComponentTypeId component.TypeID = 1
 
-// NewComponentType creates a new component type.
+// newComponentType creates a new component type.
 // The argument is a struct that represents a data of the component.
-func newComponentType[T any](s T, defaultVal interface{}) *ComponentType[T] {
+func newComponentType[T any](s T, world *World, defaultVal interface{}) *ComponentType[T] {
 	componentType := &ComponentType[T]{
 		id:         nextComponentTypeId,
 		typ:        reflect.TypeOf(s),
 		name:       reflect.TypeOf(s).Name(),
 		defaultVal: defaultVal,
+		w:          world,
 	}
 	componentType.query = NewQuery(filter.Contains(componentType))
 	if defaultVal != nil {

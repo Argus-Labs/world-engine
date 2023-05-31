@@ -20,28 +20,10 @@ type OwnableComponent struct {
 	Owner string
 }
 
-func UpdateEnergySystem(*ecs.TransactionQueue) {
-	Energy.Each(func(ent storage.EntityID) {
-		energyPlanet, err := Energy.Get(ent)
-		if err != nil {
-			panic(err)
-		}
-		energyPlanet.Amt += 10 // bs whatever
-		err = Energy.Set(ent, &energyPlanet)
-		if err != nil {
-			panic(err)
-		}
-	})
-}
-
-var (
-	Energy  = ecs.NewComponentType[EnergyComponent]()
-	Ownable = ecs.NewComponentType[OwnableComponent]()
-)
-
 func TestECS(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	world.RegisterComponents(Energy, Ownable)
+	Energy := ecs.NewComponentType[EnergyComponent](world)
+	Ownable := ecs.NewComponentType[OwnableComponent](world)
 
 	// create a bunch of planets!
 	numPlanets := 5
@@ -52,7 +34,15 @@ func TestECS(t *testing.T) {
 	_, err = world.CreateMany(numEnergyOnly, Energy)
 	assert.NilError(t, err)
 
-	world.AddSystem(UpdateEnergySystem)
+	world.AddSystem(func(*ecs.TransactionQueue) {
+		Energy.Each(func(ent storage.EntityID) {
+			energyPlanet, err := Energy.Get(ent)
+			assert.NilError(t, err)
+			energyPlanet.Amt += 10 // bs whatever
+			err = Energy.Set(ent, &energyPlanet)
+			assert.NilError(t, err)
+		})
+	})
 	world.Tick()
 
 	Energy.Each(func(id storage.EntityID) {
@@ -74,9 +64,8 @@ func TestVelocitySimulation(t *testing.T) {
 	type Vel struct {
 		DX, DY float64
 	}
-	Position := ecs.NewComponentType[Pos]()
-	Velocity := ecs.NewComponentType[Vel]()
-	world.RegisterComponents(Position, Velocity)
+	Position := ecs.NewComponentType[Pos](world)
+	Velocity := ecs.NewComponentType[Vel](world)
 
 	shipID, err := world.Create(Position, Velocity)
 	assert.NilError(t, err)
@@ -104,8 +93,7 @@ func TestCanSetDefaultValue(t *testing.T) {
 		Name string
 	}
 	wantOwner := Owner{"Jeff"}
-	owner := ecs.NewComponentType[Owner](ecs.WithDefault(wantOwner))
-	world.RegisterComponents(owner)
+	owner := ecs.NewComponentType[Owner](world, ecs.WithDefault(wantOwner))
 
 	alpha, err := world.Create(owner)
 	assert.NilError(t, err)
@@ -127,8 +115,7 @@ func TestCanRemoveEntity(t *testing.T) {
 		A, B int
 	}
 
-	tuple := ecs.NewComponentType[Tuple]()
-	world.RegisterComponents(tuple)
+	tuple := ecs.NewComponentType[Tuple](world)
 
 	entities, err := world.CreateMany(2, tuple)
 	assert.NilError(t, err)
@@ -179,8 +166,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	type CountComponent struct {
 		Val int
 	}
-	Count := ecs.NewComponentType[CountComponent]()
-	world.RegisterComponents(Count)
+	Count := ecs.NewComponentType[CountComponent](world)
 
 	_, err := world.CreateMany(10, Count)
 	assert.NilError(t, err)
@@ -214,8 +200,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	energy := ecs.NewComponentType[EnergyComponent]()
-	world.RegisterComponents(energy)
+	energy := ecs.NewComponentType[EnergyComponent](world)
 
 	ent, err := world.Create(energy)
 	assert.NilError(t, err)
@@ -224,9 +209,8 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	reactorEnergy := ecs.NewComponentType[EnergyComponent]()
-	weaponsEnergy := ecs.NewComponentType[EnergyComponent]()
-	world.RegisterComponents(reactorEnergy, weaponsEnergy)
+	reactorEnergy := ecs.NewComponentType[EnergyComponent](world)
+	weaponsEnergy := ecs.NewComponentType[EnergyComponent](world)
 	ent, err := world.Create(reactorEnergy)
 	assert.NilError(t, err)
 
@@ -237,8 +221,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	type Foo struct{}
 	type Bar struct{}
-	a, b := ecs.NewComponentType[Foo](), ecs.NewComponentType[Bar]()
-	world.RegisterComponents(a, b)
+	a, b := ecs.NewComponentType[Foo](world), ecs.NewComponentType[Bar](world)
 
 	entity, err := world.Create(a, b)
 	assert.NilError(t, err)
@@ -263,10 +246,9 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	type Label struct {
 		Name string
 	}
-	alpha := ecs.NewComponentType[Label](ecs.WithDefault(Label{"alpha"}))
-	beta := ecs.NewComponentType[Label](ecs.WithDefault(Label{"beta"}))
-	gamma := ecs.NewComponentType[Label](ecs.WithDefault(Label{"gamma"}))
-	world.RegisterComponents(alpha, beta, gamma)
+	alpha := ecs.NewComponentType[Label](world, ecs.WithDefault(Label{"alpha"}))
+	beta := ecs.NewComponentType[Label](world, ecs.WithDefault(Label{"beta"}))
+	gamma := ecs.NewComponentType[Label](world, ecs.WithDefault(Label{"gamma"}))
 
 	entIDs, err := world.CreateMany(3, alpha, beta)
 	assert.NilError(t, err)
@@ -308,9 +290,8 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
-	alpha := ecs.NewComponentType[EnergyComponent]()
-	beta := ecs.NewComponentType[EnergyComponent]()
-	world.RegisterComponents(alpha, beta)
+	alpha := ecs.NewComponentType[EnergyComponent](world)
+	beta := ecs.NewComponentType[EnergyComponent](world)
 
 	id, err := world.Create(alpha)
 	assert.NilError(t, err)
@@ -321,8 +302,10 @@ func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 
 func TestQueriesAndFiltersWorks(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	a, b, c, d := ecs.NewComponentType[int](), ecs.NewComponentType[int](), ecs.NewComponentType[int](), ecs.NewComponentType[int]()
-	world.RegisterComponents(a, b, c, d)
+	a := ecs.NewComponentType[int](world)
+	b := ecs.NewComponentType[int](world)
+	c := ecs.NewComponentType[int](world)
+	d := ecs.NewComponentType[int](world)
 
 	ab, err := world.Create(a, b)
 	assert.NilError(t, err)

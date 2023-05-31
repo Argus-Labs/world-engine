@@ -14,11 +14,9 @@ import (
 func TestCanFilterByArchetype(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
-	alpha := ecs.NewComponentType[string]()
-	beta := ecs.NewComponentType[string]()
-	gamma := ecs.NewComponentType[string]()
-
-	world.RegisterComponents(alpha, beta, gamma)
+	alpha := ecs.NewComponentType[string](world)
+	beta := ecs.NewComponentType[string](world)
+	gamma := ecs.NewComponentType[string](world)
 
 	subsetCount := 50
 	// Make some entities that only have the alpha and beta components
@@ -45,8 +43,8 @@ func TestCanFilterByArchetype(t *testing.T) {
 // with the same parameters.
 func TestExactVsContains(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	alpha := ecs.NewComponentType[string]()
-	beta := ecs.NewComponentType[string]()
+	alpha := ecs.NewComponentType[string](world)
+	beta := ecs.NewComponentType[string](world)
 	alphaCount := 75
 	_, err := world.CreateMany(alphaCount, alpha)
 	assert.NilError(t, err)
@@ -91,9 +89,8 @@ func TestExactVsContains(t *testing.T) {
 
 func TestCanGetArchetypeFromEntity(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	alpha := ecs.NewComponentType[string]()
-	beta := ecs.NewComponentType[string]()
-	world.RegisterComponents(alpha, beta)
+	alpha := ecs.NewComponentType[string](world)
+	beta := ecs.NewComponentType[string](world)
 
 	wantCount := 50
 	ids, err := world.CreateMany(wantCount, alpha, beta)
@@ -117,8 +114,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 func BenchmarkEntityCreation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		world := inmem.NewECSWorldForTest(b)
-		alpha := ecs.NewComponentType[string]()
-		world.RegisterComponents(alpha)
+		alpha := ecs.NewComponentType[string](world)
 		_, err := world.CreateMany(100000, alpha)
 		assert.NilError(b, err)
 	}
@@ -140,9 +136,8 @@ func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StopTimer()
 	world := inmem.NewECSWorldForTest(b)
-	alpha := ecs.NewComponentType[string]()
-	beta := ecs.NewComponentType[string]()
-	world.RegisterComponents(alpha, beta)
+	alpha := ecs.NewComponentType[string](world)
+	beta := ecs.NewComponentType[string](world)
 	_, err := world.CreateMany(relevantCount, alpha, beta)
 	assert.NilError(b, err)
 	_, err = world.CreateMany(ignoreCount, alpha)
