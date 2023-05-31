@@ -68,7 +68,6 @@ func SetBip44CoinType(config *sdk.Config) {
 
 // RegisterDenoms registers the base and display denominations to the SDK.
 func RegisterDenoms(cfg config.WorldEngineConfig) {
-
 	if err := sdk.RegisterDenom(cfg.DisplayDenom, sdk.OneDec()); err != nil {
 		panic(err)
 	}

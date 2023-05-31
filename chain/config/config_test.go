@@ -14,13 +14,14 @@ func TestConfigFromToml(t *testing.T) {
 		Bech32Prefix:    "darkforest",
 		RouterAuthority: "",
 	}
-	viper.AddConfigPath(".")
-	viper.SetConfigName("example")
-	err := viper.ReadInConfig()
+	v := viper.New()
+	v.AddConfigPath(".")
+	v.SetConfigName("example")
+	err := v.ReadInConfig()
 	assert.NilError(t, err)
 
 	cfg := WorldEngineConfig{}
-	err = viper.Unmarshal(&cfg)
+	err = v.Unmarshal(&cfg)
 	assert.NilError(t, err)
 
 	assert.Equal(t, expectedCfg, cfg)
