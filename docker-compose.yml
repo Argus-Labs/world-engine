@@ -117,7 +117,7 @@ services:
       - $PWD/configs/redis.conf:/usr/local/etc/redis/redis.conf
 
   cardinal:
-    container_name: cardinal
+    container_name: game_shard
     build:
       context: cardinal
       dockerfile: Dockerfile
