@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -23,9 +24,10 @@ type StorageAccessor struct {
 }
 
 type World struct {
-	id      WorldId
-	store   storage.WorldStorage
-	systems []System
+	id                     WorldId
+	store                  storage.WorldStorage
+	systems                []System
+	isComponentsRegistered bool
 	// txNames contains the set of transaction names that have been registered for this world. It is an error
 	// to attempt to register the same transaction name more than once.
 	txNames map[string]bool
@@ -77,24 +79,34 @@ func (w *World) AddSystem(s System) {
 	w.systems = append(w.systems, s)
 }
 
-type Initializer interface {
-	Initialize(world *World) error
-}
+var (
+	ErrorComponentRegistrationMustHappenOnce = errors.New("component registration must happen exactly 1 time")
+)
 
 // RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
 // This will give components the ability to access their own data.
-func (w *World) RegisterComponents(inits ...Initializer) {
-	for _, in := range inits {
-		if err := in.Initialize(w); err != nil {
-			panic(fmt.Sprintf("cannot initialize component: %v", err))
+func (w *World) RegisterComponents(components ...component.IComponentType) error {
+	if w.isComponentsRegistered {
+		return ErrorComponentRegistrationMustHappenOnce
+	}
+	w.isComponentsRegistered = true
+
+	for i, c := range components {
+		id := component.TypeID(i + 1)
+		if err := c.SetID(id); err != nil {
+			return err
 		}
 	}
+	if err := w.loadGameState(components); err != nil {
+		return err
+	}
+	return nil
 }
 
 var nextWorldId WorldId = 0
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage) *World {
+func NewWorld(s storage.WorldStorage) (*World, error) {
 	// TODO: this should prob be handled by redis as well...
 	worldId := nextWorldId
 	nextWorldId++
@@ -105,7 +117,7 @@ func NewWorld(s storage.WorldStorage) *World {
 		txNames:  map[string]bool{},
 		txQueues: map[string][]interface{}{},
 	}
-	return w
+	return w, nil
 }
 
 func (w *World) ID() WorldId {
@@ -349,8 +361,52 @@ func (w *World) Tick() {
 	}
 
 	for _, sys := range w.systems {
-		sys(txQueue)
+		sys(w, txQueue)
 	}
+}
+
+const (
+	storeArchetypeCompIdxKey  = "arch_component_index"
+	storeArchetypeAccessorKey = "arch_accessor"
+)
+
+func (w *World) SaveGameState() error {
+	if err := w.saveToKey(storeArchetypeAccessorKey, w.store.ArchAccessor); err != nil {
+		return err
+	}
+	if err := w.saveToKey(storeArchetypeCompIdxKey, w.store.ArchCompIdxStore); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *World) saveToKey(key string, cm storage.ComponentMarshaler) error {
+	buf, err := cm.Marshal()
+	if err != nil {
+		return err
+	}
+	return w.store.StateStore.Save(key, buf)
+}
+
+func (w *World) loadGameState(components []component.IComponentType) error {
+	if err := w.loadFromKey(storeArchetypeAccessorKey, w.store.ArchAccessor, components); err != nil {
+		return err
+	}
+	if err := w.loadFromKey(storeArchetypeCompIdxKey, w.store.ArchCompIdxStore, components); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []IComponentType) error {
+	buf, ok, err := w.store.StateStore.Load(key)
+	if !ok {
+		// There is no saved data for this key
+		return nil
+	} else if err != nil {
+		return err
+	}
+	return cm.UnmarshalWithComps(buf, comps)
 }
 
 func (w *World) GetComponentsOnEntity(id storage.EntityID) ([]IComponentType, error) {

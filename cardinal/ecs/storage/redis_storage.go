@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -422,4 +423,39 @@ func (r *RedisStorage) NewEntity() (EntityID, error) {
 		return 0, err
 	}
 	return ent, nil
+}
+
+const (
+	// Reids values are limited to 512 mb (https://redis.io/docs/data-types/tutorial).
+	// The size of the values in this arbitrary key/value store is limited. If we find
+	// that we want to save more data than this limit, we'll have to distribute the
+	// data across multiple keys OR save it in a different way
+	maxRedisValueSize = 5 * 1024 * 1025
+)
+
+var ErrorBufferTooLargeForRedisValue = errors.New("buffer is too large for redis value")
+
+func (r *RedisStorage) Save(key string, buf []byte) error {
+	if len(buf) > maxRedisValueSize {
+		return ErrorBufferTooLargeForRedisValue
+	}
+
+	ctx := context.Background()
+	redisKey := r.stateStorageKey(key)
+	cmd := r.Client.Set(ctx, redisKey, buf, 0)
+	if err := cmd.Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *RedisStorage) Load(key string) (data []byte, ok bool, err error) {
+	ctx := context.Background()
+	redisKey := r.stateStorageKey(key)
+	cmd := r.Client.Get(ctx, redisKey)
+	buf, err := cmd.Bytes()
+	if err != nil {
+		return nil, false, err
+	}
+	return buf, true, nil
 }

@@ -5,6 +5,7 @@
 package inmem
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -20,17 +21,26 @@ func NewECSWorld() *ecs.World {
 	if err != nil {
 		panic("Unable to initialize in-memory redis")
 	}
-	return newInMemoryWorld(s)
+	w, err := newInMemoryWorld(s)
+	if err != nil {
+		panic(fmt.Sprintf("Unable to initialize world: %v", err))
+	}
+
+	return w
 }
 
 // NewECSWorldForTest creates an ecs.World suitable for running in tests. Relevant resources
 // are automatically cleaned up at the completion of each test.
 func NewECSWorldForTest(t testing.TB) *ecs.World {
 	s := miniredis.RunT(t)
-	return newInMemoryWorld(s)
+	w, err := newInMemoryWorld(s)
+	if err != nil {
+		t.Fatalf("Unable to initialize world: %v", err)
+	}
+	return w
 }
 
-func newInMemoryWorld(s *miniredis.Miniredis) *ecs.World {
+func newInMemoryWorld(s *miniredis.Miniredis) (*ecs.World, error) {
 	rs := storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
@@ -41,6 +51,7 @@ func newInMemoryWorld(s *miniredis.Miniredis) *ecs.World {
 		&rs,
 		storage.NewArchetypeComponentIndex(),
 		storage.NewArchetypeAccessor(),
+		&rs,
 		&rs,
 		&rs)
 

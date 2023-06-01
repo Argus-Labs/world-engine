@@ -15,6 +15,7 @@ define keys for redis storage
 - 	ARCH COMP INDEX:    ACI:WORLD-1
 - 	ENTITY STORAGE:     ENTITY:WORLD-1:ID  		-> entity struct bytes
 - 	ENTITY MGR: 		ENTITY:WORLD-1:NEXTID 	-> uint64 id
+-	STATE STORAGE:      STATE:WORLD-1:<sub-key> -> arbitrary bytes to save world state
 */
 
 func (r *RedisStorage) componentDataKey(index ArchetypeIndex) string {
@@ -43,4 +44,8 @@ func (r *RedisStorage) entityStorageKey(id EntityID) string {
 
 func (r *RedisStorage) nextEntityIDKey() string {
 	return fmt.Sprintf("ENTITY:WORLD-%s:NEXTID", r.WorldID)
+}
+
+func (r *RedisStorage) stateStorageKey(subKey string) string {
+	return fmt.Sprintf("STATE:WORLD-%s:%s", r.WorldID, subKey)
 }

@@ -3,7 +3,6 @@ package ecs
 import (
 	"bytes"
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"reflect"
 	"unsafe"
@@ -30,7 +29,7 @@ func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T] {
 // ComponentType represents a type of component. It is used to identify
 // a component when getting or setting componentStore of an entity.
 type ComponentType[T any] struct {
-	w          *World
+	isIDSet    bool
 	id         component.TypeID
 	typ        reflect.Type
 	name       string
@@ -38,11 +37,13 @@ type ComponentType[T any] struct {
 	query      *Query
 }
 
-func (c *ComponentType[T]) Initialize(w *World) error {
-	if c.w != nil {
-		return errors.New("cannot initialize more than once")
+// SetID set's this component's ID. It must be unique across the world object.
+func (c *ComponentType[T]) SetID(id component.TypeID) error {
+	if c.isIDSet {
+		return fmt.Errorf("id on %v is already set to %v, cannot change to %v", c, c.id, id)
 	}
-	c.w = w
+	c.id = id
+	c.isIDSet = true
 	return nil
 }
 
@@ -63,12 +64,12 @@ func encodeComponent[T any](comp T) ([]byte, error) {
 }
 
 // Get returns component data from the entity.
-func (c *ComponentType[T]) Get(id storage.EntityID) (comp T, err error) {
-	entity, err := c.w.Entity(id)
+func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error) {
+	entity, err := w.Entity(id)
 	if err != nil {
 		return comp, err
 	}
-	bz, err := entity.Component(c.w, c)
+	bz, err := entity.Component(w, c)
 	if err != nil {
 		return comp, err
 	}
@@ -78,18 +79,18 @@ func (c *ComponentType[T]) Get(id storage.EntityID) (comp T, err error) {
 
 // Update is a helper that combines a Get followed by a Set to modify a component's value. Pass in a function
 // fn that will modify a component. Update will hide the calls to Get and Set
-func (c *ComponentType[T]) Update(id storage.EntityID, fn func(*T)) error {
-	val, err := c.Get(id)
+func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(*T)) error {
+	val, err := c.Get(w, id)
 	if err != nil {
 		return err
 	}
 	fn(&val)
-	return c.Set(id, &val)
+	return c.Set(w, id, &val)
 }
 
 // Set sets component data to the entity.
-func (c *ComponentType[T]) Set(id storage.EntityID, component *T) error {
-	entity, err := c.w.Entity(id)
+func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component *T) error {
+	entity, err := w.Entity(id)
 	if err != nil {
 		return err
 	}
@@ -97,7 +98,7 @@ func (c *ComponentType[T]) Set(id storage.EntityID, component *T) error {
 	if err != nil {
 		return err
 	}
-	err = c.w.SetComponent(c, bz, entity.Loc.ArchIndex, entity.Loc.CompIndex)
+	err = w.SetComponent(c, bz, entity.Loc.ArchIndex, entity.Loc.CompIndex)
 	if err != nil {
 		return err
 	}
@@ -105,18 +106,18 @@ func (c *ComponentType[T]) Set(id storage.EntityID, component *T) error {
 }
 
 // Each iterates over the entityLocationStore that have the component.
-func (c *ComponentType[T]) Each(callback func(storage.EntityID)) {
-	c.query.Each(c.w, callback)
+func (c *ComponentType[T]) Each(w *World, callback func(storage.EntityID)) {
+	c.query.Each(w, callback)
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First() (storage.EntityID, bool, error) {
-	return c.query.First(c.w)
+func (c *ComponentType[T]) First(w *World) (storage.EntityID, bool, error) {
+	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst() (storage.EntityID, error) {
-	id, ok, err := c.query.First(c.w)
+func (c *ComponentType[T]) MustFirst(w *World) (storage.EntityID, error) {
+	id, ok, err := c.query.First(w)
 	if err != nil {
 		return storage.BadID, err
 	}
@@ -128,30 +129,30 @@ func (c *ComponentType[T]) MustFirst() (storage.EntityID, error) {
 }
 
 // RemoveFrom removes this component form the given entity.
-func (c *ComponentType[T]) RemoveFrom(id storage.EntityID) error {
-	e, err := c.w.Entity(id)
+func (c *ComponentType[T]) RemoveFrom(w *World, id storage.EntityID) error {
+	e, err := w.Entity(id)
 	if err != nil {
 		return err
 	}
-	return e.RemoveComponent(c.w, c)
+	return e.RemoveComponent(w, c)
 }
 
 // AddTo adds this component to the given entity.
-func (c *ComponentType[T]) AddTo(id storage.EntityID) error {
-	e, err := c.w.Entity(id)
+func (c *ComponentType[T]) AddTo(w *World, id storage.EntityID) error {
+	e, err := w.Entity(id)
 	if err != nil {
 		return err
 	}
-	return e.AddComponent(c.w, c)
+	return e.AddComponent(w, c)
 }
 
 // SetValue sets the value of the component.
-func (c *ComponentType[T]) SetValue(id storage.EntityID, value T) error {
-	_, err := c.Get(id)
+func (c *ComponentType[T]) SetValue(w *World, id storage.EntityID, value T) error {
+	_, err := c.Get(w, id)
 	if err != nil {
 		return err
 	}
-	return c.Set(id, &value)
+	return c.Set(w, id, &value)
 }
 
 // String returns the component type name.
@@ -198,14 +199,10 @@ func (c *ComponentType[T]) validateDefaultVal() {
 	}
 }
 
-// TODO: this should be handled by storage.
-var nextComponentTypeId component.TypeID = 1
-
-// NewComponentType creates a new component type.
+// newComponentType creates a new component type.
 // The argument is a struct that represents a data of the component.
 func newComponentType[T any](s T, defaultVal interface{}) *ComponentType[T] {
 	componentType := &ComponentType[T]{
-		id:         nextComponentTypeId,
 		typ:        reflect.TypeOf(s),
 		name:       reflect.TypeOf(s).Name(),
 		defaultVal: defaultVal,
@@ -214,7 +211,6 @@ func newComponentType[T any](s T, defaultVal interface{}) *ComponentType[T] {
 	if defaultVal != nil {
 		componentType.validateDefaultVal()
 	}
-	nextComponentTypeId++
 	return componentType
 }
 

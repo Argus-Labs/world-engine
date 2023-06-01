@@ -108,6 +108,6 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 
 	id, err := world.Create(foundComp)
 	assert.NilError(t, err)
-	_, err = notFoundComp.Get(id)
+	_, err = notFoundComp.Get(world, id)
 	assert.ErrorIs(t, err, storage2.ErrorComponentNotOnEntity)
 }

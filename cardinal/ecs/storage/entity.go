@@ -281,5 +281,26 @@ func (e Entity) StringXY(w WorldAccessor) string {
 
 func (e Entity) StringXX() string {
 	return fmt.Sprintf("ID: %d, Loc: %+v", e.ID, e.Loc)
+}
 
+var _ StateStorage = &stateStorageImpl{}
+
+func NewStateStorage() StateStorage {
+	return &stateStorageImpl{
+		data: map[string][]byte{},
+	}
+}
+
+type stateStorageImpl struct {
+	data map[string][]byte
+}
+
+func (s stateStorageImpl) Save(key string, data []byte) error {
+	s.data[key] = data
+	return nil
+}
+
+func (s stateStorageImpl) Load(key string) (data []byte, ok bool, err error) {
+	buf, ok := s.data[key]
+	return buf, ok, nil
 }

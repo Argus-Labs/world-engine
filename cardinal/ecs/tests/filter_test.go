@@ -34,7 +34,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 	ecs.NewQuery(filter.Exact(alpha, beta)).Each(world, func(id storage.EntityID) {
 		count++
 		// Make sure the gamma component is not on this entity
-		_, err := gamma.Get(id)
+		_, err := gamma.Get(world, id)
 		assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
 	})
 

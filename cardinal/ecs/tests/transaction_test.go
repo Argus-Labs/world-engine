@@ -31,10 +31,10 @@ func TestCanQueueTransactions(t *testing.T) {
 	modifyScoreTx := ecs.NewTransactionType[ModifyScoreTx](world, "modifyScore")
 
 	// Set up a system that allows for the modification of a player's score
-	world.AddSystem(func(queue *ecs.TransactionQueue) {
+	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) {
 		modifyScore := modifyScoreTx.In(queue)
 		for _, ms := range modifyScore {
-			err := score.Update(ms.PlayerID, func(s *ScoreComponent) {
+			err := score.Update(w, ms.PlayerID, func(s *ScoreComponent) {
 				s.Score += ms.Amount
 			})
 			assert.Check(t, err == nil)
@@ -44,7 +44,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	modifyScoreTx.AddToQueue(&ModifyScoreTx{id, 100})
 
 	// Verify the score is 0
-	s, err := score.Get(id)
+	s, err := score.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 0, s.Score)
 
@@ -52,7 +52,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	world.Tick()
 
 	// Verify the score was updated
-	s, err = score.Get(id)
+	s, err = score.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, s.Score)
 
@@ -60,7 +60,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	world.Tick()
 
 	// Verify the score hasn't changed
-	s, err = score.Get(id)
+	s, err = score.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, s.Score)
 }
@@ -75,8 +75,8 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 
 	id, err := world.Create(count)
 	assert.NilError(t, err)
-	world.AddSystem(func(*ecs.TransactionQueue) {
-		count.Update(id, func(c *CounterComponent) {
+	world.AddSystem(func(w *ecs.World, _ *ecs.TransactionQueue) {
+		count.Update(w, id, func(c *CounterComponent) {
 			c.Count++
 		})
 	})
@@ -85,7 +85,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 		world.Tick()
 	}
 
-	c, err := count.Get(id)
+	c, err := count.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 10, c.Count)
 }
@@ -97,10 +97,10 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 
 	modifyScoreTx := ecs.NewTransactionType[ModifyScoreTx](world, "modifyScore")
 
-	world.AddSystem(func(queue *ecs.TransactionQueue) {
+	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) {
 		modifyScores := modifyScoreTx.In(queue)
 		for _, ms := range modifyScores {
-			err := alphaScore.Update(ms.PlayerID, func(s *ScoreComponent) {
+			err := alphaScore.Update(w, ms.PlayerID, func(s *ScoreComponent) {
 				s.Score += ms.Amount
 			})
 			assert.Check(t, err == nil)
@@ -134,7 +134,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		} else if i == 50 {
 			wantScore = 150
 		}
-		s, err := alphaScore.Get(id)
+		s, err := alphaScore.Get(world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, wantScore, s.Score)
 	}
@@ -150,7 +150,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	inSystemCh := make(chan struct{})
 	// This system will block forever. This will give us a never-ending game tick that we can use
 	// to verify that the addition of more transactions doesn't block.
-	world.AddSystem(func(*ecs.TransactionQueue) {
+	world.AddSystem(func(*ecs.World, *ecs.TransactionQueue) {
 		<-inSystemCh
 		select {}
 	})
@@ -188,12 +188,12 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	// Create two system that report how many instances of the ModifyScoreTx exist in the
 	// transaction queue. These counts should be the same for each tick.
-	world.AddSystem(func(queue *ecs.TransactionQueue) {
+	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue) {
 		modScores := modScoreTx.In(queue)
 		modScoreCountCh <- len(modScores)
 	})
 
-	world.AddSystem(func(queue *ecs.TransactionQueue) {
+	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue) {
 		modScores := modScoreTx.In(queue)
 		modScoreCountCh <- len(modScores)
 	})
@@ -244,7 +244,7 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 	alpha.AddToQueue(&NewOwner{"alpha"})
 	beta.AddToQueue(&NewOwner{"beta"})
 
-	world.AddSystem(func(queue *ecs.TransactionQueue) {
+	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue) {
 		newNames := alpha.In(queue)
 		assert.Check(t, 1 == len(newNames), "expected 1 transaction, not %d", len(newNames))
 		assert.Check(t, "alpha" == newNames[0].Name)

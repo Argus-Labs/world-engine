@@ -30,6 +30,11 @@ func NewMockComponentType[T any](t T, defaultVal interface{}) *MockComponentType
 	return m
 }
 
+func (m *MockComponentType[T]) SetID(id component.TypeID) error {
+	m.id = id
+	return nil
+}
+
 func (m *MockComponentType[T]) ID() component.TypeID {
 	return m.id
 }
