@@ -2,7 +2,7 @@
 id: pxtvf
 title: Getting Started with World Engine
 file_version: 1.1.2
-app_version: 1.8.5
+app_version: 1.9.10
 ---
 
 ## Components
@@ -31,7 +31,7 @@ The World Engine comes with a few preconfigured `Dockerfile`s to quickly get the
 
 *   Celestia - the DA layer
 
-*   `📄 chain/runtime/Dockerfile` - the rollup
+*   `📄 chain/Dockerfile` - the rollup
 
 *   `📄 game/nakama/Dockerfile` - the preconfigured relay server
 

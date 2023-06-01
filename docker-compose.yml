@@ -20,10 +20,7 @@ services:
   nakama:
     container_name: nakama_container
     environment:
-      - SIDECAR_TARGET=node:5050
       - CARDINAL_TARGET=cardinal:7812
-      - RECEIVER_PORT=6732
-      - USE_RECEIVER=true
     build:
       context: game/nakama
       dockerfile: Dockerfile
@@ -56,14 +53,13 @@ services:
     networks:
       - default
 
-  node:
-    container_name: argus_node
+  chain:
+    container_name: evm_base_shard
     environment:
-      - USE_SIDECAR=true
-      - NAKAMA_TARGET=nakama:6732
+      - da_config={"base_url":"http://celestia:26659","timeout":60000000000,"fee":6000,"gas_limit":6000000}
     build:
       context: chain
-      dockerfile: rollup.Dockerfile
+      dockerfile: Dockerfile
     restart: unless-stopped
     expose:
       - "5050"
@@ -82,8 +78,7 @@ services:
   tester:
     container_name: tester_container
     environment:
-      - SIDECAR_URL=node:5050
-      - ARGUS_NODE_URL=node:9090
+      - ARGUS_NODE_URL=chain:9090
       - ENABLE_DOCKER_TESTS=true
       - NAKAMA_URL=nakama:6732
     build:
@@ -92,7 +87,7 @@ services:
     networks:
       - default
     depends_on:
-      - node
+      - chain
     restart: on-failure
 
   celestia:
@@ -110,26 +105,6 @@ services:
       - "26659"
       - "9090"
 
-  rollup:
-    container_name: rollup
-    build:
-      context: .
-      dockerfile: rollup.Dockerfile
-    networks:
-      - default
-    restart: on-failure
-    expose:
-      - "5050"
-      - "9090"
-      - "1317"
-      - "26657"
-    ports:
-      - "9090:9090"
-      - "1317:1317"
-      - "26657:26657"
-    environment:
-      - da_config={"base_url":"http://celestia:26659","timeout":60000000000,"fee":6000,"gas_limit":6000000}
-
   redis:
     container_name: "redis"
     image: "redis:alpine"
@@ -142,7 +117,7 @@ services:
       - $PWD/configs/redis.conf:/usr/local/etc/redis/redis.conf
 
   cardinal:
-    container_name: cardinal
+    container_name: game_shard
     build:
       context: cardinal
       dockerfile: Dockerfile
