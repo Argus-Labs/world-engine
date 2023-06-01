@@ -9,9 +9,9 @@ import (
 
 func TestConfigFromToml(t *testing.T) {
 	expectedCfg := WorldEngineConfig{
-		DisplayDenom:    "dark",
-		BaseDenom:       "adark",
-		Bech32Prefix:    "darkforest",
+		DisplayDenom:    "world",
+		BaseDenom:       "aworld",
+		Bech32Prefix:    "world",
 		RouterAuthority: "",
 	}
 	v := viper.New()

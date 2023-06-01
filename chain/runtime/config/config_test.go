@@ -37,9 +37,9 @@ import (
 
 var (
 	weCfg = config.WorldEngineConfig{
-		DisplayDenom:    "dark",
-		BaseDenom:       "adark",
-		Bech32Prefix:    "darkforest",
+		DisplayDenom:    "world",
+		BaseDenom:       "aworld",
+		Bech32Prefix:    "world",
 		RouterAuthority: "",
 	}
 )

@@ -1,4 +1,4 @@
-displayDenom: "dark"
-baseDenom: "adark"
-bech32Prefix: "darkforest"
+displayDenom: "world"
+baseDenom: "aworld"
+bech32Prefix: "world"
 routerAuthority: ""
