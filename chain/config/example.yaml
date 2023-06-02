@@ -1,0 +1,4 @@
+displayDenom: "world"
+baseDenom: "aworld"
+bech32Prefix: "world"
+routerAuthority: ""

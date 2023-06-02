@@ -23,18 +23,25 @@ package main
 import (
 	"os"
 
-	"github.com/argus-labs/world-engine/chain/cmd/world/cmd"
-	simapp "github.com/argus-labs/world-engine/chain/runtime"
-	"github.com/argus-labs/world-engine/chain/runtime/config"
-
 	"github.com/cosmos/cosmos-sdk/server"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
+	"github.com/spf13/viper"
+
+	"github.com/argus-labs/world-engine/chain/cmd/world/cmd"
+	"github.com/argus-labs/world-engine/chain/config"
+	simapp "github.com/argus-labs/world-engine/chain/runtime"
+	runtimeconfig "github.com/argus-labs/world-engine/chain/runtime/config"
 )
 
 func main() {
-	config.SetupCosmosConfig()
+	worldEngineCfg, err := getWorldEngineConfig()
+	if err != nil {
+		panic(err)
+	}
+	runtimeconfig.SetupCosmosConfig(worldEngineCfg)
+
 	rootCmd := cmd.NewRootCmd()
-	if err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
+	if err = svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
 		//nolint: errorlint // uhh fix?
 		switch e := err.(type) {
 		case server.ErrorCode:
@@ -44,4 +51,24 @@ func main() {
 			os.Exit(1)
 		}
 	}
+}
+
+// getWorldEngineConfig loads the world engine configuration. It requires that a path and filename be in
+// the environment variables, so that viper can target the file and load it.
+func getWorldEngineConfig() (config.WorldEngineConfig, error) {
+	v := viper.New()
+	path := os.Getenv("WORLD_ENGINE_CONFIG_PATH")
+	name := os.Getenv("WORLD_ENGINE_CONFIG_NAME")
+	v.AddConfigPath(path)
+	v.SetConfigName(name)
+	err := v.ReadInConfig()
+	if err != nil {
+		return config.WorldEngineConfig{}, err
+	}
+	worldEngineCfg := config.WorldEngineConfig{}
+	err = v.Unmarshal(&worldEngineCfg)
+	if err != nil {
+		return config.WorldEngineConfig{}, err
+	}
+	return worldEngineCfg, nil
 }
