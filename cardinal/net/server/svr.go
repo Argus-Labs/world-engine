@@ -22,7 +22,10 @@ type gameServer struct {
 }
 
 func (i *gameServer) StartGameLoop(ctx context.Context, loop *ecsv1.MsgStartGameLoop) (*ecsv1.MsgStartGameLoopResponse, error) {
-	world := ecs.NewWorld(i.backend)
+	world, err := ecs.NewWorld(i.backend)
+	if err != nil {
+		return nil, err
+	}
 	i.world = world
 	// from here.. we need to initialize the world in the ECS system. loading components, making entities, etc etc..
 	// how will that look?

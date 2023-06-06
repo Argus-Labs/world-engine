@@ -1,8 +1,10 @@
 package tests
 
 import (
+	"bytes"
 	"context"
 	"encoding"
+	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -43,7 +45,7 @@ func TestList(t *testing.T) {
 	store := storage.NewWorldStorage(storage.Components{
 		Store:            &rs,
 		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs, &rs)
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 	compStore := store.CompStore.Storage(x)
 
@@ -81,7 +83,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	store := storage.NewWorldStorage(storage.Components{
 		Store:            &rs,
 		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs, &rs)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
 	archIdx, compIdx := storage.ArchetypeIndex(0), storage.ComponentIndex(1)
@@ -118,7 +120,7 @@ func TestRedis_Location(t *testing.T) {
 	store := storage.NewWorldStorage(storage.Components{
 		Store:            &rs,
 		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs, &rs)
 
 	loc := storage.NewLocation(0, 1)
 	eid := storage.EntityID(3)
@@ -157,7 +159,7 @@ func TestRedis_EntityStorage(t *testing.T) {
 	store := storage.NewWorldStorage(storage.Components{
 		Store:            &rs,
 		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs, &rs)
 
 	eid := storage.EntityID(12)
 	loc := storage.Location{
@@ -180,6 +182,50 @@ func TestRedis_EntityStorage(t *testing.T) {
 
 	gotEntity, _ = store.EntityStore.GetEntity(eid)
 	assert.DeepEqual(t, gotEntity.Loc, newLoc)
+}
+
+func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
+	rs := GetRedisStorage(t)
+	type SomeData struct {
+		One   string
+		Two   int
+		Three float64
+		Map   map[string]int
+	}
+
+	wantData := &SomeData{
+		One:   "hello",
+		Two:   100,
+		Three: 3.1415,
+		Map: map[string]int{
+			"alpha": 100,
+			"beta":  200,
+			"gamma": 300,
+		},
+	}
+	buf := &bytes.Buffer{}
+	enc := gob.NewEncoder(buf)
+	assert.NilError(t, enc.Encode(wantData))
+
+	const key = "foobar"
+	rs.Save(key, buf.Bytes())
+
+	gotBytes, ok, err := rs.Load(key)
+	assert.Equal(t, true, ok)
+	assert.NilError(t, err)
+
+	dec := gob.NewDecoder(bytes.NewReader(gotBytes))
+	gotData := &SomeData{}
+	assert.NilError(t, dec.Decode(gotData))
+	assert.DeepEqual(t, gotData, wantData)
+}
+
+func TestLargeArbitraryDataProducesError(t *testing.T) {
+	rs := GetRedisStorage(t)
+	// Make a 6 Mb slice. This should not fit in a redis bucket
+	largePayload := make([]byte, 6*1024*1024)
+	err := rs.Save("foobar", largePayload)
+	assert.ErrorIs(t, err, storage.ErrorBufferTooLargeForRedisValue)
 }
 
 func GetRedisStorage(t *testing.T) storage.RedisStorage {

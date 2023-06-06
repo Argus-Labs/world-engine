@@ -7,6 +7,7 @@ type WorldStorage struct {
 	ArchAccessor     ArchetypeAccessor
 	EntityStore      EntityStorage
 	EntityMgr        EntityManager
+	StateStore       StateStorage
 }
 
 func NewWorldStorage(
@@ -15,7 +16,9 @@ func NewWorldStorage(
 	acis ArchetypeComponentIndex,
 	aa ArchetypeAccessor,
 	es EntityStorage,
-	em EntityManager) WorldStorage {
+	em EntityManager,
+	ss StateStorage,
+) WorldStorage {
 	return WorldStorage{
 		CompStore:        cs,
 		EntityLocStore:   els,
@@ -23,5 +26,6 @@ func NewWorldStorage(
 		ArchAccessor:     aa,
 		EntityStore:      es,
 		EntityMgr:        em,
+		StateStore:       ss,
 	}
 }

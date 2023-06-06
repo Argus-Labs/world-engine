@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"fmt"
+
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 )
@@ -12,8 +14,9 @@ func NewLegacyStorage() WorldStorage {
 	archAcc := NewArchetypeAccessor()
 	entityStore := NewEntityStorage()
 	entityMgr := NewEntityManager()
+	stateStore := NewStateStorage()
 
-	return NewWorldStorage(componentsStore, eloStore, archIdxStore, archAcc, entityStore, entityMgr)
+	return NewWorldStorage(componentsStore, eloStore, archIdxStore, archAcc, entityStore, entityMgr, stateStore)
 }
 
 var _ ComponentStorageManager = &ComponentsSliceStorage{}
@@ -295,4 +298,33 @@ func (e *entityStorageImpl) SetEntity(id EntityID, entity Entity) error {
 
 func (e entityStorageImpl) GetEntity(id EntityID) (Entity, error) {
 	return e.entries[id], nil
+}
+
+func (idx *Index) Marshal() ([]byte, error) {
+	layouts := [][]component.TypeID{}
+	for _, layout := range idx.layouts {
+		currIDs := []component.TypeID{}
+		for _, component := range layout {
+			currIDs = append(currIDs, component.ID())
+		}
+		layouts = append(layouts, currIDs)
+	}
+	return Encode(layouts)
+}
+
+func (idx *Index) UnmarshalWithComps(bytes []byte, comps []component.IComponentType) error {
+	layouts, err := Decode[[][]component.TypeID](bytes)
+	if err != nil {
+		return err
+	}
+	idsToComps := newIDsToComponents(comps)
+
+	for _, layout := range layouts {
+		currComps, err := idsToComps.convert(layout)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrorComponentMismatchWithSavedState, err)
+		}
+		idx.layouts = append(idx.layouts, currComps)
+	}
+	return nil
 }

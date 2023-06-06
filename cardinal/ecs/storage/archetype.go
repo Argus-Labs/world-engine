@@ -1,6 +1,9 @@
 package storage
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
@@ -24,12 +27,89 @@ func (a *archetypeStorageImpl) PushArchetype(index ArchetypeIndex, layout *Layou
 	})
 }
 
-func (a archetypeStorageImpl) Count() int {
+func (a *archetypeStorageImpl) Count() int {
 	return len(a.archs)
 }
 
-func (a archetypeStorageImpl) Archetype(index ArchetypeIndex) ArchetypeStorage {
+func (a *archetypeStorageImpl) Archetype(index ArchetypeIndex) ArchetypeStorage {
 	return a.archs[index]
+}
+
+// archForStorage is a helper struct that is used to serialize/deserialize the archetypeStorageImpl
+// struct to bytes. The IComponentType interfaces do not serialize to bytes easily, so instead
+// we just extract the TypeIDs and serialize the ids to bytes. On deserilization we need a
+// slice of IComponentTypes with the correct TypeIDs so that we can recover the original
+// archetypeStorageImpl.
+type archForStorage struct {
+	Index        ArchetypeIndex
+	Entities     []EntityID
+	ComponentIDs []component.TypeID
+}
+
+// Marshal converts the archetypeStorageImpl to bytes. Only the IDs from the IComponentTypes
+// are serialized.
+func (a *archetypeStorageImpl) Marshal() ([]byte, error) {
+	archs := make([]archForStorage, len(a.archs))
+	for i := range archs {
+		archs[i].Index = a.archs[i].Index
+		archs[i].Entities = a.archs[i].Entitys
+		for _, c := range a.archs[i].Layout().Components() {
+			archs[i].ComponentIDs = append(archs[i].ComponentIDs, c.ID())
+		}
+	}
+	return Encode(archs)
+}
+
+var (
+	// ErrorComponentMismatchWithSavedState is an error that is returned when a TypeID from
+	// the saved state is not found in the passed in list of components.
+	ErrorComponentMismatchWithSavedState = errors.New("registered components do not match with the saved state")
+)
+
+// idsToComponents converts slices of TypeIDs to the corresponding IComponentTypes
+type idsToComponents struct {
+	m map[component.TypeID]component.IComponentType
+}
+
+func newIDsToComponents(components []component.IComponentType) idsToComponents {
+	m := map[component.TypeID]component.IComponentType{}
+	for i, comp := range components {
+		m[comp.ID()] = components[i]
+	}
+	return idsToComponents{m: m}
+}
+
+func (c idsToComponents) convert(ids []component.TypeID) (comps []component.IComponentType, ok error) {
+	comps = []component.IComponentType{}
+	for _, id := range ids {
+		comp, ok := c.m[id]
+		if !ok {
+			return nil, fmt.Errorf("id %d not found in %v", id, c.m)
+		}
+		comps = append(comps, comp)
+	}
+	return comps, nil
+}
+
+// UnmarshalWithComps converts some bytes (generated with Marshal) and a list of components into
+// an archetypeStorageImpl. The slice of components is required because the interfaces were not
+// actually serialized to bytes, just their IDs.
+func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []component.IComponentType) error {
+	archetypesFromStorage, err := Decode[[]archForStorage](bytes)
+	if err != nil {
+		return err
+	}
+	idsToComps := newIDsToComponents(components)
+
+	for _, arch := range archetypesFromStorage {
+		currComps, err := idsToComps.convert(arch.ComponentIDs)
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrorComponentMismatchWithSavedState, err)
+		}
+		a.PushArchetype(arch.Index, NewLayout(currComps))
+		a.archs[len(a.archs)-1].Entitys = arch.Entities
+	}
+	return nil
 }
 
 // Archetype is a collection of Entities for a specific archetype of components.

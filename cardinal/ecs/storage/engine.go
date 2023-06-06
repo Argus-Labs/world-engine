@@ -44,13 +44,23 @@ type EntityLocationStorage interface {
 	Len() (int, error)
 }
 
+// ComponentMarshaler is an interface that can marshal and unmarshal itself to bytes. Since
+// IComponentType are interfaces (and not easily serilizable) a list of instantiated 
+// components is required to unmarshal the data.
+type ComponentMarshaler interface {
+	Marshal() ([]byte, error)
+	UnmarshalWithComps([]byte, []component.IComponentType) error
+}
+
 type ArchetypeComponentIndex interface {
+	ComponentMarshaler
 	Push(layout *Layout)
 	SearchFrom(filter filter.LayoutFilter, start int) *ArchetypeIterator
 	Search(layoutFilter filter.LayoutFilter) *ArchetypeIterator
 }
 
 type ArchetypeAccessor interface {
+	ComponentMarshaler
 	PushArchetype(index ArchetypeIndex, layout *Layout)
 	Archetype(index ArchetypeIndex) ArchetypeStorage
 	Count() int
@@ -74,4 +84,9 @@ type EntityStorage interface {
 type EntityManager interface {
 	Destroy(EntityID)
 	NewEntity() (EntityID, error)
+}
+
+type StateStorage interface {
+	Save(key string, data []byte) error
+	Load(key string) (data []byte, ok bool, err error)
 }
