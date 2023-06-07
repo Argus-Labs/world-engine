@@ -48,7 +48,7 @@ func (w *World) AddTxName(name string) (ok bool) {
 }
 
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
-	err := w.store.EntityStore.SetLocation(id, location)
+	err := w.store.EntityLocStore.SetLocation(id, location)
 	if err != nil {
 		return err
 	}
@@ -162,15 +162,6 @@ func (w *World) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.Ent
 	}
 	archetype.PushEntity(nextEntityID)
 
-	loc, err := w.store.EntityLocStore.Location(nextEntityID)
-	if err != nil {
-		return 0, err
-	}
-	entity := storage.NewEntity(nextEntityID, loc)
-	if err := w.store.EntityStore.SetEntity(nextEntityID, entity); err != nil {
-		return 0, err
-	}
-
 	return nextEntityID, err
 }
 
@@ -185,7 +176,7 @@ func (w *World) Valid(id storage.EntityID) (bool, error) {
 	if !ok {
 		return false, nil
 	}
-	loc, err := w.store.EntityLocStore.Location(id)
+	loc, err := w.store.EntityLocStore.GetLocation(id)
 	if err != nil {
 		return false, err
 	}
@@ -199,19 +190,11 @@ func (w *World) Valid(id storage.EntityID) (bool, error) {
 // Entity converts an EntityID to an Entity. An Entity has storage specific details
 // about where data for this entity is located
 func (w *World) Entity(id storage.EntityID) (storage.Entity, error) {
-	entity, err := w.store.EntityStore.GetEntity(id)
+	loc, err := w.store.EntityLocStore.GetLocation(id)
 	if err != nil {
 		return storage.BadEntity, err
 	}
-	loc, err := w.store.EntityLocStore.Location(id)
-	if err != nil {
-		return storage.BadEntity, err
-	}
-	err = w.store.EntityStore.SetLocation(id, loc)
-	if err != nil {
-		return storage.BadEntity, err
-	}
-	return entity, nil
+	return storage.NewEntity(id, loc), nil
 }
 
 // Len return the number of entities in this world
@@ -230,7 +213,7 @@ func (w *World) Remove(id storage.EntityID) error {
 		return err
 	}
 	if ok {
-		loc, err := w.store.EntityLocStore.Location(id)
+		loc, err := w.store.EntityLocStore.GetLocation(id)
 		if err != nil {
 			return err
 		}
@@ -255,10 +238,7 @@ func (w *World) removeAtLocation(id storage.EntityID, loc storage.Location) erro
 	}
 	if int(componentIndex) < len(archetype.Entities()) {
 		swappedID := archetype.Entities()[componentIndex]
-		if err := w.store.EntityLocStore.Set(swappedID, loc); err != nil {
-			return err
-		}
-		if err := w.store.EntityStore.SetLocation(swappedID, loc); err != nil {
+		if err := w.store.EntityLocStore.SetLocation(swappedID, loc); err != nil {
 			return err
 		}
 	}

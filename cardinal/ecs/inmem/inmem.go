@@ -52,7 +52,6 @@ func newInMemoryWorld(s *miniredis.Miniredis) (*ecs.World, error) {
 		storage.NewArchetypeComponentIndex(),
 		storage.NewArchetypeAccessor(),
 		&rs,
-		&rs,
 		&rs)
 
 	return ecs.NewWorld(worldStorage)
