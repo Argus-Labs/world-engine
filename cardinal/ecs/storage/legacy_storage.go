@@ -12,11 +12,10 @@ func NewLegacyStorage() WorldStorage {
 	eloStore := NewLocationMap()
 	archIdxStore := NewArchetypeComponentIndex()
 	archAcc := NewArchetypeAccessor()
-	entityStore := NewEntityStorage()
 	entityMgr := NewEntityManager()
 	stateStore := NewStateStorage()
 
-	return NewWorldStorage(componentsStore, eloStore, archIdxStore, archAcc, entityStore, entityMgr, stateStore)
+	return NewWorldStorage(componentsStore, eloStore, archIdxStore, archAcc, entityMgr, stateStore)
 }
 
 var _ ComponentStorageManager = &ComponentsSliceStorage{}
@@ -214,13 +213,13 @@ func (lm *LocationMap) Insert(id EntityID, archetype ArchetypeIndex, component C
 }
 
 // Set sets the given entity ID and archetype Index to the storage.
-func (lm *LocationMap) Set(id EntityID, loc Location) error {
+func (lm *LocationMap) SetLocation(id EntityID, loc Location) error {
 	lm.Insert(id, loc.ArchIndex, loc.CompIndex)
 	return nil
 }
 
 // Location returns the location of the given entity ID.
-func (lm *LocationMap) Location(id EntityID) (Location, error) {
+func (lm *LocationMap) GetLocation(id EntityID) (Location, error) {
 	return lm.locations[id].loc, nil
 }
 
@@ -270,34 +269,6 @@ func (idx *Index) SearchFrom(f filter.LayoutFilter, start int) *ArchetypeIterato
 // Search searches for archetypes that match the given filter.
 func (idx *Index) Search(filter filter.LayoutFilter) *ArchetypeIterator {
 	return idx.SearchFrom(filter, 0)
-}
-
-type entityStorageImpl struct {
-	entries []Entity
-}
-
-func (e *entityStorageImpl) SetLocation(id EntityID, location Location) error {
-	e.entries[id].Loc = location
-
-	return nil
-}
-
-var _ EntityStorage = &entityStorageImpl{}
-
-func NewEntityStorage() EntityStorage {
-	return &entityStorageImpl{entries: make([]Entity, 1, 256)}
-}
-
-func (e *entityStorageImpl) SetEntity(id EntityID, entity Entity) error {
-	if int(id) >= len(e.entries) {
-		e.entries = append(e.entries, Entity{})
-	}
-	e.entries[id] = entity
-	return nil
-}
-
-func (e entityStorageImpl) GetEntity(id EntityID) (Entity, error) {
-	return e.entries[id], nil
 }
 
 func (idx *Index) Marshal() ([]byte, error) {

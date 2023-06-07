@@ -23,7 +23,8 @@ type ComponentIndexStorage interface {
 	// ComponentIndex returns the current index for this ArchetypeIndex. If the index doesn't currently
 	// exist then "0, false, nil" is returned
 	ComponentIndex(ArchetypeIndex) (ComponentIndex, bool, error)
-	// SetIndex sets the index to the given calue.
+	// SetIndex sets the index of the given archerype index. This is the next index that will be assigned to a new
+	// entity in this archetype.
 	SetIndex(ArchetypeIndex, ComponentIndex) error
 	// IncrementIndex increments an index for this archetype and returns the new value. If the index
 	// does not yet exist, set the index to 0 and return 0.
@@ -37,15 +38,15 @@ type EntityLocationStorage interface {
 	ContainsEntity(EntityID) (bool, error)
 	Remove(EntityID) error
 	Insert(EntityID, ArchetypeIndex, ComponentIndex) error
-	Set(EntityID, Location) error
-	Location(EntityID) (Location, error)
+	SetLocation(EntityID, Location) error
+	GetLocation(EntityID) (Location, error)
 	ArchetypeIndex(id EntityID) (ArchetypeIndex, error)
 	ComponentIndexForEntity(EntityID) (ComponentIndex, error)
 	Len() (int, error)
 }
 
 // ComponentMarshaler is an interface that can marshal and unmarshal itself to bytes. Since
-// IComponentType are interfaces (and not easily serilizable) a list of instantiated 
+// IComponentType are interfaces (and not easily serilizable) a list of instantiated
 // components is required to unmarshal the data.
 type ComponentMarshaler interface {
 	Marshal() ([]byte, error)
@@ -73,12 +74,6 @@ type ArchetypeStorage interface {
 	LayoutMatches(components []component.IComponentType) bool
 	PushEntity(entity EntityID)
 	Count() int
-}
-
-type EntityStorage interface {
-	SetEntity(EntityID, Entity) error
-	GetEntity(EntityID) (Entity, error)
-	SetLocation(EntityID, Location) error
 }
 
 type EntityManager interface {

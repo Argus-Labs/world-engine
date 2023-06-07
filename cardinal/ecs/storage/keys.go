@@ -2,28 +2,43 @@ package storage
 
 import (
 	"fmt"
+
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
 /*
 	KEYS:
 define keys for redis storage
 	return fmt.Sprintf("WORLD-%s:CID-%d:A-%d", r.WorldID, r.ComponentStoragePrefix, Index)
-- 	COMPONENT DATA: 	COMPD:WORLD-1:CID-0:A-5 -> component struct bytes
--	COMPONENT INDEX: 	CIDX:WORLD-1:CID-0:A-4 	-> Component Index
-- 	ENTITY LOCATION: 	LOC:WORLD-1:E-1 		-> Location
+- 	COMPONENT DATA: 	COMPD:WORLD-1:CID-<comp-id>:A-<arch-index>
+	List of []bytes: Each item in this list deserializes to a specific component.TypeID. This component data is tied
+	to a specific entity. An entity's Location information tells what index into this list belongs to the entity.
+
+-	ARCHETYPE INDEX: 	ARCHIDX:WORLD-1:A-4
+	Integer: The next available index for this archetype that can be assigned to an entity.
+
+- 	ENTITY LOCATION: 	LOC:WORLD-1:E-<entity-id>		-> Location
+	[]bytes: Deserializes to a storage.Location. The Location tells what archetype this entity belongs to and what index
+	into that archetype contains this entity's component data.
+
 - 	ENTITY LOCATION LEN LOCL:WORLD-1			-> Int
-- 	ARCH COMP INDEX:    ACI:WORLD-1
-- 	ENTITY STORAGE:     ENTITY:WORLD-1:ID  		-> entity struct bytes
+	Integer: The number of entities that exist in this world.
+
 - 	ENTITY MGR: 		ENTITY:WORLD-1:NEXTID 	-> uint64 id
+	Integer: The entity ID that should be given to the next created entity. This is unique across
+	the world.
+
 -	STATE STORAGE:      STATE:WORLD-1:<sub-key> -> arbitrary bytes to save world state
+	[]bytes: Arbitrary slice of bytes used for saving and loading state. Currently being used for
+	saving the set of component.TypeIDs that belong to each Archetype.
 */
 
-func (r *RedisStorage) componentDataKey(index ArchetypeIndex) string {
-	return fmt.Sprintf("COMPD:WORLD-%s:CID-%d:A-%d", r.WorldID, r.ComponentStoragePrefix, index)
+func (r *RedisStorage) componentDataKey(index ArchetypeIndex, compID component.TypeID) string {
+	return fmt.Sprintf("COMPD:WORLD-%s:CID-%d:A-%d", r.WorldID, compID, index)
 }
 
-func (r *RedisStorage) componentIndexKey(index ArchetypeIndex) string {
-	return fmt.Sprintf("CIDX:WORLD-%s:CID-%d:A-%d", r.WorldID, r.ComponentStoragePrefix, index)
+func (r *RedisStorage) archetypeIndexKey(index ArchetypeIndex) string {
+	return fmt.Sprintf("ARCHIDX:WORLD-%s:A-%d", r.WorldID, index)
 }
 
 func (r *RedisStorage) entityLocationKey(id EntityID) string {
@@ -32,14 +47,6 @@ func (r *RedisStorage) entityLocationKey(id EntityID) string {
 
 func (r *RedisStorage) entityLocationLenKey() string {
 	return fmt.Sprintf("LOCL:WORLD-%s", r.WorldID)
-}
-
-func (r *RedisStorage) archetypeStorageKey(ai ArchetypeIndex) string {
-	return fmt.Sprintf("ARCH:WORLD-%s:A-%d", r.WorldID, ai)
-}
-
-func (r *RedisStorage) entityStorageKey(id EntityID) string {
-	return fmt.Sprintf("ENTITY:WORLD-%s:%d", r.WorldID, id)
 }
 
 func (r *RedisStorage) nextEntityIDKey() string {

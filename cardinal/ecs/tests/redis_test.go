@@ -45,7 +45,7 @@ func TestList(t *testing.T) {
 	store := storage.NewWorldStorage(storage.Components{
 		Store:            &rs,
 		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs, &rs)
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 	compStore := store.CompStore.Storage(x)
 
@@ -83,7 +83,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	store := storage.NewWorldStorage(storage.Components{
 		Store:            &rs,
 		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs, &rs)
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
 	archIdx, compIdx := storage.ArchetypeIndex(0), storage.ComponentIndex(1)
@@ -120,12 +120,12 @@ func TestRedis_Location(t *testing.T) {
 	store := storage.NewWorldStorage(storage.Components{
 		Store:            &rs,
 		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs, &rs)
+	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
 
 	loc := storage.NewLocation(0, 1)
 	eid := storage.EntityID(3)
-	store.EntityLocStore.Set(eid, loc)
-	gotLoc, _ := store.EntityLocStore.Location(eid)
+	store.EntityLocStore.SetLocation(eid, loc)
+	gotLoc, _ := store.EntityLocStore.GetLocation(eid)
 	assert.Equal(t, loc, gotLoc)
 
 	aid, _ := store.EntityLocStore.ArchetypeIndex(eid)
@@ -144,7 +144,7 @@ func TestRedis_Location(t *testing.T) {
 	archIdx2, compIdx2 := storage.ArchetypeIndex(10), storage.ComponentIndex(15)
 	store.EntityLocStore.Insert(newEID, archIdx2, compIdx2)
 
-	newLoc, _ := store.EntityLocStore.Location(newEID)
+	newLoc, _ := store.EntityLocStore.GetLocation(newEID)
 	assert.Equal(t, newLoc.ArchIndex, archIdx2)
 	assert.Equal(t, newLoc.CompIndex, compIdx2)
 
@@ -152,36 +152,6 @@ func TestRedis_Location(t *testing.T) {
 
 	has, _ := store.EntityLocStore.ContainsEntity(newEID)
 	assert.Equal(t, has, false)
-}
-
-func TestRedis_EntityStorage(t *testing.T) {
-	rs := GetRedisStorage(t)
-	store := storage.NewWorldStorage(storage.Components{
-		Store:            &rs,
-		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs, &rs)
-
-	eid := storage.EntityID(12)
-	loc := storage.Location{
-		ArchIndex: 15,
-		CompIndex: 12,
-	}
-	e := storage.NewEntity(eid, loc)
-	err := store.EntityStore.SetEntity(eid, e)
-	assert.NilError(t, err)
-
-	gotEntity, err := store.EntityStore.GetEntity(eid)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, e, gotEntity)
-
-	newLoc := storage.Location{
-		ArchIndex: 39,
-		CompIndex: 82,
-	}
-	store.EntityStore.SetLocation(eid, newLoc)
-
-	gotEntity, _ = store.EntityStore.GetEntity(eid)
-	assert.DeepEqual(t, gotEntity.Loc, newLoc)
 }
 
 func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
@@ -235,4 +205,29 @@ func GetRedisStorage(t *testing.T) storage.RedisStorage {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, WorldId)
+}
+
+func TestGettingIndexStorageShouldNotImpactIncrement(t *testing.T) {
+	rs := GetRedisStorage(t)
+
+	archIndex := storage.ArchetypeIndex(99)
+
+	err := rs.SetIndex(archIndex, 0)
+	assert.NilError(t, err)
+
+	compIndex, err := rs.IncrementIndex(archIndex)
+	assert.NilError(t, err)
+	assert.Equal(t, storage.ComponentIndex(1), compIndex)
+
+	compIndex, err = rs.IncrementIndex(archIndex)
+	assert.NilError(t, err)
+	assert.Equal(t, storage.ComponentIndex(2), compIndex)
+
+	// Get the component index storage for some random component type.
+	// This should have no impact on incrementing the index of archIndex
+	_ = rs.GetComponentIndexStorage(component.TypeID(100))
+
+	compIndex, err = rs.IncrementIndex(archIndex)
+	assert.NilError(t, err)
+	assert.Equal(t, storage.ComponentIndex(3), compIndex)
 }

@@ -25,7 +25,6 @@ func initWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
 		storage.NewArchetypeComponentIndex(),
 		storage.NewArchetypeAccessor(),
 		&rs,
-		&rs,
 		&rs)
 	w, err := ecs.NewWorld(worldStorage)
 	assert.NilError(t, err)
