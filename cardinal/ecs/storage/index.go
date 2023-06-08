@@ -2,14 +2,14 @@ package storage
 
 type ArchetypeIterator struct {
 	Current int
-	Values  []ArchetypeIndex
+	Values  []ArchetypeID
 }
 
 func (it *ArchetypeIterator) HasNext() bool {
 	return it.Current < len(it.Values)
 }
 
-func (it *ArchetypeIterator) Next() ArchetypeIndex {
+func (it *ArchetypeIterator) Next() ArchetypeID {
 	val := it.Values[it.Current]
 	it.Current++
 	return val

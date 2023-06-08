@@ -6,12 +6,12 @@ import (
 )
 
 type ComponentStorage interface {
-	PushComponent(component component.IComponentType, index ArchetypeIndex) error
-	Component(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error)
-	SetComponent(ArchetypeIndex, ComponentIndex, []byte) error
-	MoveComponent(ArchetypeIndex, ComponentIndex, ArchetypeIndex) error
-	SwapRemove(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error)
-	Contains(archetypeIndex ArchetypeIndex, componentIndex ComponentIndex) (bool, error)
+	PushComponent(component component.IComponentType, archID ArchetypeID) error
+	Component(archetypeID ArchetypeID, componentIndex ComponentIndex) ([]byte, error)
+	SetComponent(ArchetypeID, ComponentIndex, []byte) error
+	MoveComponent(ArchetypeID, ComponentIndex, ArchetypeID) error
+	SwapRemove(archetypeID ArchetypeID, componentIndex ComponentIndex) ([]byte, error)
+	Contains(archetypeID ArchetypeID, componentIndex ComponentIndex) (bool, error)
 }
 
 type ComponentStorageManager interface {
@@ -20,27 +20,27 @@ type ComponentStorageManager interface {
 }
 
 type ComponentIndexStorage interface {
-	// ComponentIndex returns the current index for this ArchetypeIndex. If the index doesn't currently
+	// ComponentIndex returns the current index for this ArchetypeID. If the index doesn't currently
 	// exist then "0, false, nil" is returned
-	ComponentIndex(ArchetypeIndex) (ComponentIndex, bool, error)
+	ComponentIndex(ArchetypeID) (ComponentIndex, bool, error)
 	// SetIndex sets the index of the given archerype index. This is the next index that will be assigned to a new
 	// entity in this archetype.
-	SetIndex(ArchetypeIndex, ComponentIndex) error
+	SetIndex(ArchetypeID, ComponentIndex) error
 	// IncrementIndex increments an index for this archetype and returns the new value. If the index
 	// does not yet exist, set the index to 0 and return 0.
-	IncrementIndex(ArchetypeIndex) (ComponentIndex, error)
+	IncrementIndex(ArchetypeID) (ComponentIndex, error)
 	// DecrementIndex decrements an index for this archetype by 1. The index is allowed to go into
 	// negative numbers.
-	DecrementIndex(ArchetypeIndex) error
+	DecrementIndex(ArchetypeID) error
 }
 
 type EntityLocationStorage interface {
 	ContainsEntity(EntityID) (bool, error)
 	Remove(EntityID) error
-	Insert(EntityID, ArchetypeIndex, ComponentIndex) error
+	Insert(EntityID, ArchetypeID, ComponentIndex) error
 	SetLocation(EntityID, Location) error
 	GetLocation(EntityID) (Location, error)
-	ArchetypeIndex(id EntityID) (ArchetypeIndex, error)
+	ArchetypeID(id EntityID) (ArchetypeID, error)
 	ComponentIndexForEntity(EntityID) (ComponentIndex, error)
 	Len() (int, error)
 }
@@ -62,8 +62,8 @@ type ArchetypeComponentIndex interface {
 
 type ArchetypeAccessor interface {
 	ComponentMarshaler
-	PushArchetype(index ArchetypeIndex, layout *Layout)
-	Archetype(index ArchetypeIndex) ArchetypeStorage
+	PushArchetype(archID ArchetypeID, layout *Layout)
+	Archetype(archID ArchetypeID) ArchetypeStorage
 	Count() int
 }
 

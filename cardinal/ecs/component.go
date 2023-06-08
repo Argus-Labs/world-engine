@@ -98,7 +98,7 @@ func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component *T) erro
 	if err != nil {
 		return err
 	}
-	err = w.SetComponent(c, bz, entity.Loc.ArchIndex, entity.Loc.CompIndex)
+	err = w.SetComponent(c, bz, entity.Loc.ArchID, entity.Loc.CompIndex)
 	if err != nil {
 		return err
 	}

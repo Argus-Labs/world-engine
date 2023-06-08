@@ -9,12 +9,12 @@ import (
 /*
 	KEYS:
 define keys for redis storage
-	return fmt.Sprintf("WORLD-%s:CID-%d:A-%d", r.WorldID, r.ComponentStoragePrefix, Index)
-- 	COMPONENT DATA: 	COMPD:WORLD-1:CID-<comp-id>:A-<arch-index>
+	return fmt.Sprintf("WORLD-%s:CID-%d:A-%d", r.WorldID, r.ComponentStoragePrefix, id)
+- 	COMPONENT DATA: 	COMPD:WORLD-1:CID-<comp-id>:A-<arch-id>
 	List of []bytes: Each item in this list deserializes to a specific component.TypeID. This component data is tied
 	to a specific entity. An entity's Location information tells what index into this list belongs to the entity.
 
--	ARCHETYPE INDEX: 	ARCHIDX:WORLD-1:A-4
+-	ARCHETYPE INDEX: 	ARCHIDX:WORLD-1:A-<arch-id>
 	Integer: The next available index for this archetype that can be assigned to an entity.
 
 - 	ENTITY LOCATION: 	LOC:WORLD-1:E-<entity-id>		-> Location
@@ -33,12 +33,12 @@ define keys for redis storage
 	saving the set of component.TypeIDs that belong to each Archetype.
 */
 
-func (r *RedisStorage) componentDataKey(index ArchetypeIndex, compID component.TypeID) string {
-	return fmt.Sprintf("COMPD:WORLD-%s:CID-%d:A-%d", r.WorldID, compID, index)
+func (r *RedisStorage) componentDataKey(archID ArchetypeID, compID component.TypeID) string {
+	return fmt.Sprintf("COMPD:WORLD-%s:CID-%d:A-%d", r.WorldID, compID, archID)
 }
 
-func (r *RedisStorage) archetypeIndexKey(index ArchetypeIndex) string {
-	return fmt.Sprintf("ARCHIDX:WORLD-%s:A-%d", r.WorldID, index)
+func (r *RedisStorage) archetypeIndexKey(id ArchetypeID) string {
+	return fmt.Sprintf("ARCHIDX:WORLD-%s:A-%d", r.WorldID, id)
 }
 
 func (r *RedisStorage) entityLocationKey(id EntityID) string {

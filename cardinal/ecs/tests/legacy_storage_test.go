@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"testing"
 
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"gotest.tools/v3/assert"
 )
 
@@ -27,7 +27,7 @@ func TestStorage_Bytes(t *testing.T) {
 		{ID: "c", expected: "c"},
 	}
 
-	var archIdx storage.ArchetypeIndex = 0
+	var archIdx storage.ArchetypeID = 0
 	var compIdx storage.ComponentIndex = 0
 	for _, test := range tests {
 		err := store.PushComponent(componentType, archIdx)
@@ -59,7 +59,7 @@ func TestStorage_Bytes(t *testing.T) {
 	assert.Equal(t, comp.ID, "b", "removed component should have ID 'b'")
 
 	tests2 := []struct {
-		archIdx    storage.ArchetypeIndex
+		archIdx    storage.ArchetypeID
 		cmpIdx     storage.ComponentIndex
 		expectedID string
 	}{

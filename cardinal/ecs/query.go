@@ -6,7 +6,7 @@ import (
 )
 
 type cache struct {
-	archetypes []storage.ArchetypeIndex
+	archetypes []storage.ArchetypeID
 	seen       int
 }
 
@@ -73,11 +73,11 @@ func (q *Query) First(w *World) (id storage.EntityID, ok bool, err error) {
 	return storage.BadID, false, err
 }
 
-func (q *Query) evaluateQuery(world *World, accessor *StorageAccessor) []storage.ArchetypeIndex {
+func (q *Query) evaluateQuery(world *World, accessor *StorageAccessor) []storage.ArchetypeID {
 	w := world.ID()
 	if _, ok := q.layoutMatches[w]; !ok {
 		q.layoutMatches[w] = &cache{
-			archetypes: make([]storage.ArchetypeIndex, 0),
+			archetypes: make([]storage.ArchetypeID, 0),
 			seen:       0,
 		}
 	}

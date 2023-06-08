@@ -80,7 +80,7 @@ func TestErrorWhenSavedStateDoesNotMatchComponentTypes(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-func TestArchetypeIndexIsConsistentAfterSaveAndLoad(t *testing.T) {
+func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	redisStore := miniredis.RunT(t)
 	oneWorld := initWorldWithRedis(t, redisStore)
 	oneNum := ecs.NewComponentType[NumberComponent]()
@@ -89,8 +89,8 @@ func TestArchetypeIndexIsConsistentAfterSaveAndLoad(t *testing.T) {
 	_, err := oneWorld.Create(oneNum)
 	assert.NilError(t, err)
 
-	wantIndex := oneWorld.GetArchetypeForComponents(comps(oneNum))
-	wantLayout := oneWorld.Archetype(wantIndex).Layout()
+	wantID := oneWorld.GetArchetypeForComponents(comps(oneNum))
+	wantLayout := oneWorld.Archetype(wantID).Layout()
 	assert.Equal(t, 1, len(wantLayout.Components()))
 	assert.Check(t, wantLayout.HasComponent(oneNum))
 
@@ -101,13 +101,13 @@ func TestArchetypeIndexIsConsistentAfterSaveAndLoad(t *testing.T) {
 	twoNum := ecs.NewComponentType[NumberComponent]()
 	twoWorld.RegisterComponents(twoNum)
 
-	gotIndex := twoWorld.GetArchetypeForComponents(comps(twoNum))
-	gotLayout := twoWorld.Archetype(gotIndex).Layout()
+	gotID := twoWorld.GetArchetypeForComponents(comps(twoNum))
+	gotLayout := twoWorld.Archetype(gotID).Layout()
 	assert.Equal(t, 1, len(gotLayout.Components()))
 	assert.Check(t, gotLayout.HasComponent(twoNum))
 
 	// Archetype indices should be the same across save/load cycles
-	assert.Equal(t, wantIndex, gotIndex)
+	assert.Equal(t, wantID, gotID)
 }
 
 func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
@@ -127,9 +127,9 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	// oneAlphaNum
 	// oneBetaNum
 	// oneAlphaNum, oneBetaNum
-	oneJustAlphaArchIndex := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
-	oneJustBetaArchIndex := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
-	oneBothArchIndex := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum, oneBetaNum))
+	oneJustAlphaArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
+	oneJustBetaArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
+	oneBothArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum, oneBetaNum))
 	// These archetype indices should be preserved between a state save/load
 
 	assert.NilError(t, oneWorld.SaveGameState())
@@ -146,12 +146,12 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 	// The order that we FETCH archetypes shouldn't matter, so this order is intentionally
 	// different from the setup step
-	twoBothArchIndex := oneWorld.GetArchetypeForComponents(comps(oneBetaNum, oneAlphaNum))
-	assert.Equal(t, oneBothArchIndex, twoBothArchIndex)
-	twoJustAlphaArchIndex := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
-	assert.Equal(t, oneJustAlphaArchIndex, twoJustAlphaArchIndex)
-	twoJustBetaArchIndex := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
-	assert.Equal(t, oneJustBetaArchIndex, twoJustBetaArchIndex)
+	twoBothArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum, oneAlphaNum))
+	assert.Equal(t, oneBothArchID, twoBothArchID)
+	twoJustAlphaArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
+	assert.Equal(t, oneJustAlphaArchID, twoJustAlphaArchID)
+	twoJustBetaArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
+	assert.Equal(t, oneJustBetaArchID, twoJustBetaArchID)
 
 	// Save and load again to make sure the "two" world correctly saves its state even though
 	// it never created any entities
@@ -164,12 +164,12 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	threeWorld.RegisterComponents(threeAlphaNum, threeBetaNum)
 
 	// And again, the loading of archetypes is intentionally different from the above two steps
-	threeJustBetaArchIndex := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
-	assert.Equal(t, oneJustBetaArchIndex, threeJustBetaArchIndex)
-	threeBothArchIndex := oneWorld.GetArchetypeForComponents(comps(oneBetaNum, oneAlphaNum))
-	assert.Equal(t, oneBothArchIndex, threeBothArchIndex)
-	threeJustAlphaArchIndex := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
-	assert.Equal(t, oneJustAlphaArchIndex, threeJustAlphaArchIndex)
+	threeJustBetaArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
+	assert.Equal(t, oneJustBetaArchID, threeJustBetaArchID)
+	threeBothArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum, oneAlphaNum))
+	assert.Equal(t, oneBothArchID, threeBothArchID)
+	threeJustAlphaArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
+	assert.Equal(t, oneJustAlphaArchID, threeJustAlphaArchID)
 }
 
 func TestCanReloadState(t *testing.T) {

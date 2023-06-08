@@ -4,11 +4,11 @@ package storage
 type EntityIterator struct {
 	current      int
 	archAccessor ArchetypeAccessor
-	indices      []ArchetypeIndex
+	indices      []ArchetypeID
 }
 
 // NewEntityIterator returns an iterator for Entitys.
-func NewEntityIterator(current int, archAccessor ArchetypeAccessor, indices []ArchetypeIndex) EntityIterator {
+func NewEntityIterator(current int, archAccessor ArchetypeAccessor, indices []ArchetypeID) EntityIterator {
 	return EntityIterator{
 		current:      current,
 		archAccessor: archAccessor,
@@ -23,7 +23,7 @@ func (it *EntityIterator) HasNext() bool {
 
 // Next returns the next Ent list.
 func (it *EntityIterator) Next() []EntityID {
-	archetypeIndex := it.indices[it.current]
+	archetypeID := it.indices[it.current]
 	it.current++
-	return it.archAccessor.Archetype(archetypeIndex).Entities()
+	return it.archAccessor.Archetype(archetypeID).Entities()
 }
