@@ -55,24 +55,24 @@ func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location
 	return nil
 }
 
-func (w *World) Component(componentType component.IComponentType, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) ([]byte, error) {
-	return w.store.CompStore.Storage(componentType).Component(index, componentIndex)
+func (w *World) Component(componentType component.IComponentType, archID storage.ArchetypeID, componentIndex storage.ComponentIndex) ([]byte, error) {
+	return w.store.CompStore.Storage(componentType).Component(archID, componentIndex)
 }
 
-func (w *World) SetComponent(cType component.IComponentType, component []byte, index storage.ArchetypeIndex, componentIndex storage.ComponentIndex) error {
-	return w.store.CompStore.Storage(cType).SetComponent(index, componentIndex, component)
+func (w *World) SetComponent(cType component.IComponentType, component []byte, archID storage.ArchetypeID, componentIndex storage.ComponentIndex) error {
+	return w.store.CompStore.Storage(cType).SetComponent(archID, componentIndex, component)
 }
 
-func (w *World) GetLayout(index storage.ArchetypeIndex) []component.IComponentType {
-	return w.store.ArchAccessor.Archetype(index).Layout().Components()
+func (w *World) GetLayout(archID storage.ArchetypeID) []component.IComponentType {
+	return w.store.ArchAccessor.Archetype(archID).Layout().Components()
 }
 
-func (w *World) GetArchetypeForComponents(componentTypes []component.IComponentType) storage.ArchetypeIndex {
+func (w *World) GetArchetypeForComponents(componentTypes []component.IComponentType) storage.ArchetypeID {
 	return w.getArchetypeForComponents(componentTypes)
 }
 
-func (w *World) Archetype(index storage.ArchetypeIndex) storage.ArchetypeStorage {
-	return w.store.ArchAccessor.Archetype(index)
+func (w *World) Archetype(archID storage.ArchetypeID) storage.ArchetypeStorage {
+	return w.store.ArchAccessor.Archetype(archID)
 }
 
 func (w *World) AddSystem(s System) {
@@ -125,10 +125,10 @@ func (w *World) ID() WorldId {
 }
 
 func (w *World) CreateMany(num int, components ...component.IComponentType) ([]storage.EntityID, error) {
-	archetypeIndex := w.getArchetypeForComponents(components)
+	archetypeID := w.getArchetypeForComponents(components)
 	entities := make([]storage.EntityID, 0, num)
 	for i := 0; i < num; i++ {
-		e, err := w.createEntity(archetypeIndex)
+		e, err := w.createEntity(archetypeID)
 		if err != nil {
 			return nil, err
 		}
@@ -146,17 +146,17 @@ func (w *World) Create(components ...component.IComponentType) (storage.EntityID
 	return entities[0], nil
 }
 
-func (w *World) createEntity(archetypeIndex storage.ArchetypeIndex) (storage.EntityID, error) {
+func (w *World) createEntity(archetypeID storage.ArchetypeID) (storage.EntityID, error) {
 	nextEntityID, err := w.nextEntity()
 	if err != nil {
 		return 0, err
 	}
-	archetype := w.store.ArchAccessor.Archetype(archetypeIndex)
-	componentIndex, err := w.store.CompStore.PushComponents(archetype.Layout().Components(), archetypeIndex)
+	archetype := w.store.ArchAccessor.Archetype(archetypeID)
+	componentIndex, err := w.store.CompStore.PushComponents(archetype.Layout().Components(), archetypeID)
 	if err != nil {
 		return 0, err
 	}
-	err = w.store.EntityLocStore.Insert(nextEntityID, archetypeIndex, componentIndex)
+	err = w.store.EntityLocStore.Insert(nextEntityID, archetypeID, componentIndex)
 	if err != nil {
 		return 0, err
 	}
@@ -180,7 +180,7 @@ func (w *World) Valid(id storage.EntityID) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	a := loc.ArchIndex
+	a := loc.ArchID
 	c := loc.CompIndex
 	// If the version of the entity is not the same as the version of the archetype,
 	// the entity is invalid (it means the entity is already destroyed).
@@ -228,11 +228,11 @@ func (w *World) Remove(id storage.EntityID) error {
 }
 
 func (w *World) removeAtLocation(id storage.EntityID, loc storage.Location) error {
-	archIndex := loc.ArchIndex
+	archID := loc.ArchID
 	componentIndex := loc.CompIndex
-	archetype := w.store.ArchAccessor.Archetype(archIndex)
+	archetype := w.store.ArchAccessor.Archetype(archID)
 	archetype.SwapRemove(componentIndex)
-	err := w.store.CompStore.Remove(archIndex, archetype.Layout().Components(), componentIndex)
+	err := w.store.CompStore.Remove(archID, archetype.Layout().Components(), componentIndex)
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func (w *World) removeAtLocation(id storage.EntityID, loc storage.Location) erro
 	return nil
 }
 
-func (w *World) TransferArchetype(from storage.ArchetypeIndex, to storage.ArchetypeIndex, idx storage.ComponentIndex) (storage.ComponentIndex, error) {
+func (w *World) TransferArchetype(from storage.ArchetypeID, to storage.ArchetypeID, idx storage.ComponentIndex) (storage.ComponentIndex, error) {
 	if from == to {
 		return idx, nil
 	}
@@ -394,22 +394,22 @@ func (w *World) GetComponentsOnEntity(id storage.EntityID) ([]IComponentType, er
 	if err != nil {
 		return nil, err
 	}
-	return w.GetLayout(ent.Loc.ArchIndex), nil
+	return w.GetLayout(ent.Loc.ArchID), nil
 }
 
 func (w *World) nextEntity() (storage.EntityID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 
-func (w *World) insertArchetype(layout *storage.Layout) storage.ArchetypeIndex {
+func (w *World) insertArchetype(layout *storage.Layout) storage.ArchetypeID {
 	w.store.ArchCompIdxStore.Push(layout)
-	archIndex := storage.ArchetypeIndex(w.store.ArchAccessor.Count())
+	archID := storage.ArchetypeID(w.store.ArchAccessor.Count())
 
-	w.store.ArchAccessor.PushArchetype(archIndex, layout)
-	return archIndex
+	w.store.ArchAccessor.PushArchetype(archID, layout)
+	return archID
 }
 
-func (w *World) getArchetypeForComponents(components []component.IComponentType) storage.ArchetypeIndex {
+func (w *World) getArchetypeForComponents(components []component.IComponentType) storage.ArchetypeID {
 	if len(components) == 0 {
 		panic("entity must have at least one component")
 	}

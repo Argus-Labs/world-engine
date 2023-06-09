@@ -7,7 +7,7 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
-type ArchetypeIndex int
+type ArchetypeID int
 
 var _ ArchetypeAccessor = &archetypeStorageImpl{}
 
@@ -19,9 +19,9 @@ type archetypeStorageImpl struct {
 	archs []*Archetype
 }
 
-func (a *archetypeStorageImpl) PushArchetype(index ArchetypeIndex, layout *Layout) {
+func (a *archetypeStorageImpl) PushArchetype(archID ArchetypeID, layout *Layout) {
 	a.archs = append(a.archs, &Archetype{
-		Index:      index,
+		ID:         archID,
 		Entitys:    make([]EntityID, 0, 256),
 		ArchLayout: layout,
 	})
@@ -31,8 +31,8 @@ func (a *archetypeStorageImpl) Count() int {
 	return len(a.archs)
 }
 
-func (a *archetypeStorageImpl) Archetype(index ArchetypeIndex) ArchetypeStorage {
-	return a.archs[index]
+func (a *archetypeStorageImpl) Archetype(archID ArchetypeID) ArchetypeStorage {
+	return a.archs[archID]
 }
 
 // archForStorage is a helper struct that is used to serialize/deserialize the archetypeStorageImpl
@@ -41,7 +41,7 @@ func (a *archetypeStorageImpl) Archetype(index ArchetypeIndex) ArchetypeStorage 
 // slice of IComponentTypes with the correct TypeIDs so that we can recover the original
 // archetypeStorageImpl.
 type archForStorage struct {
-	Index        ArchetypeIndex
+	ID           ArchetypeID
 	Entities     []EntityID
 	ComponentIDs []component.TypeID
 }
@@ -51,7 +51,7 @@ type archForStorage struct {
 func (a *archetypeStorageImpl) Marshal() ([]byte, error) {
 	archs := make([]archForStorage, len(a.archs))
 	for i := range archs {
-		archs[i].Index = a.archs[i].Index
+		archs[i].ID = a.archs[i].ID
 		archs[i].Entities = a.archs[i].Entitys
 		for _, c := range a.archs[i].Layout().Components() {
 			archs[i].ComponentIDs = append(archs[i].ComponentIDs, c.ID())
@@ -106,7 +106,7 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []com
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrorComponentMismatchWithSavedState, err)
 		}
-		a.PushArchetype(arch.Index, NewLayout(currComps))
+		a.PushArchetype(arch.ID, NewLayout(currComps))
 		a.archs[len(a.archs)-1].Entitys = arch.Entities
 	}
 	return nil
@@ -115,7 +115,7 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []com
 // Archetype is a collection of Entities for a specific archetype of components.
 // This structure allows to quickly find Entities based on their components.
 type Archetype struct {
-	Index      ArchetypeIndex
+	ID         ArchetypeID
 	Entitys    []EntityID
 	ArchLayout *Layout
 }
@@ -123,9 +123,9 @@ type Archetype struct {
 var _ ArchetypeStorage = &Archetype{}
 
 // NewArchetype creates a new archetype.
-func NewArchetype(index ArchetypeIndex, layout *Layout) *Archetype {
+func NewArchetype(archID ArchetypeID, layout *Layout) *Archetype {
 	return &Archetype{
-		Index:      index,
+		ID:         archID,
 		Entitys:    make([]EntityID, 0, 256),
 		ArchLayout: layout,
 	}

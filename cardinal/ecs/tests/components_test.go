@@ -23,7 +23,7 @@ func TestComponents(t *testing.T) {
 
 	tests := []*struct {
 		layout  *storage2.Layout
-		archIdx storage2.ArchetypeIndex
+		archID  storage2.ArchetypeID
 		compIdx storage2.ComponentIndex
 		ID      string
 	}{
@@ -43,19 +43,19 @@ func TestComponents(t *testing.T) {
 
 	for _, tt := range tests {
 		var err error
-		tt.compIdx, err = components.PushComponents(tt.layout.Components(), tt.archIdx)
+		tt.compIdx, err = components.PushComponents(tt.layout.Components(), tt.archID)
 		assert.NilError(t, err)
 	}
 
 	for _, tt := range tests {
 		for _, comp := range tt.layout.Components() {
 			st := components.Storage(comp)
-			ok, err := st.Contains(tt.archIdx, tt.compIdx)
+			ok, err := st.Contains(tt.archID, tt.compIdx)
 			assert.NilError(t, err)
 			if !ok {
-				t.Errorf("storage should contain the component at %d, %d", tt.archIdx, tt.compIdx)
+				t.Errorf("storage should contain the component at %d, %d", tt.archID, tt.compIdx)
 			}
-			bz, _ := st.Component(tt.archIdx, tt.compIdx)
+			bz, _ := st.Component(tt.archID, tt.compIdx)
 			dat, err := storage2.Decode[ComponentData](bz)
 			assert.NilError(t, err)
 			dat.ID = tt.ID
@@ -63,7 +63,7 @@ func TestComponents(t *testing.T) {
 			compBz, err := storage2.Encode(dat)
 			assert.NilError(t, err)
 
-			err = st.SetComponent(tt.archIdx, tt.compIdx, compBz)
+			err = st.SetComponent(tt.archID, tt.compIdx, compBz)
 			assert.NilError(t, err)
 		}
 	}
@@ -71,15 +71,15 @@ func TestComponents(t *testing.T) {
 	target := tests[0]
 	storage := components.Storage(ca)
 
-	srcArchIdx := target.archIdx
-	var dstArchIdx storage2.ArchetypeIndex = 1
+	srcArchIdx := target.archID
+	var dstArchIdx storage2.ArchetypeID = 1
 
 	assert.NilError(t, storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx))
 	assert.NilError(t, components.Move(srcArchIdx, dstArchIdx))
 
 	ok, err := storage.Contains(srcArchIdx, target.compIdx)
 	if ok {
-		t.Errorf("storage should not contain the component at %d, %d", target.archIdx, target.compIdx)
+		t.Errorf("storage should not contain the component at %d, %d", target.archID, target.compIdx)
 	}
 	if idx, _, _ := components.ComponentIndices.ComponentIndex(srcArchIdx); idx != -1 {
 		t.Errorf("component Index should be -1 at %d but %d", srcArchIdx, idx)
@@ -104,7 +104,7 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	foundComp := ecs.NewComponentType[string]()
 	notFoundComp := ecs.NewComponentType[string]()
-	world.RegisterComponents(foundComp, notFoundComp)
+	assert.NilError(t, world.RegisterComponents(foundComp, notFoundComp))
 
 	id, err := world.Create(foundComp)
 	assert.NilError(t, err)

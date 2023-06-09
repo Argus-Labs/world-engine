@@ -2,14 +2,14 @@ package storage
 
 // Location is a location of an Ent in the storage.
 type Location struct {
-	ArchIndex ArchetypeIndex
+	ArchID    ArchetypeID
 	CompIndex ComponentIndex
 }
 
 // NewLocation creates a new EntityLocation.
-func NewLocation(archetype ArchetypeIndex, component ComponentIndex) Location {
+func NewLocation(archetype ArchetypeID, component ComponentIndex) Location {
 	return Location{
-		ArchIndex: archetype,
+		ArchID:    archetype,
 		CompIndex: component,
 	}
 }

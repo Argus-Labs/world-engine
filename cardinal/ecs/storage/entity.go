@@ -11,15 +11,15 @@ import (
 )
 
 type WorldAccessor interface {
-	Component(componentType component.IComponentType, index ArchetypeIndex, componentIndex ComponentIndex) ([]byte, error)
-	SetComponent(component.IComponentType, []byte, ArchetypeIndex, ComponentIndex) error
-	GetLayout(index ArchetypeIndex) []component.IComponentType
-	GetArchetypeForComponents([]component.IComponentType) ArchetypeIndex
-	TransferArchetype(ArchetypeIndex, ArchetypeIndex, ComponentIndex) (ComponentIndex, error)
+	Component(componentType component.IComponentType, archID ArchetypeID, componentIndex ComponentIndex) ([]byte, error)
+	SetComponent(component.IComponentType, []byte, ArchetypeID, ComponentIndex) error
+	GetLayout(archID ArchetypeID) []component.IComponentType
+	GetArchetypeForComponents([]component.IComponentType) ArchetypeID
+	TransferArchetype(ArchetypeID, ArchetypeID, ComponentIndex) (ComponentIndex, error)
 	Entity(id EntityID) (Entity, error)
 	Remove(id EntityID) error
 	Valid(id EntityID) (bool, error)
-	Archetype(ArchetypeIndex) ArchetypeStorage
+	Archetype(ArchetypeID) ArchetypeStorage
 	SetEntityLocation(id EntityID, location Location) error
 }
 
@@ -163,14 +163,14 @@ func (e Entity) EntityID() EntityID {
 // Component returns the component.
 func (e Entity) Component(w WorldAccessor, cType component.IComponentType) ([]byte, error) {
 	c := e.Loc.CompIndex
-	a := e.Loc.ArchIndex
+	a := e.Loc.ArchID
 	return w.Component(cType, a, c)
 }
 
 // SetComponent sets the component.
 func (e Entity) SetComponent(w WorldAccessor, cType component.IComponentType, component []byte) error {
 	c := e.Loc.CompIndex
-	a := e.Loc.ArchIndex
+	a := e.Loc.ArchID
 	return w.SetComponent(cType, component, a, c)
 }
 
@@ -189,7 +189,7 @@ func (e Entity) AddComponent(w WorldAccessor, cType component.IComponentType, co
 	}
 
 	c := e.Loc.CompIndex
-	a := e.Loc.ArchIndex
+	a := e.Loc.ArchID
 
 	baseLayout := w.GetLayout(a)
 	targetArc := w.GetArchetypeForComponents(append(baseLayout, cType))
@@ -217,7 +217,7 @@ func (e Entity) RemoveComponent(w WorldAccessor, cType component.IComponentType)
 	}
 
 	c := e.Loc.CompIndex
-	a := e.Loc.ArchIndex
+	a := e.Loc.ArchID
 
 	baseLayout := w.GetLayout(a)
 	targetLayout := make([]component.IComponentType, 0, len(baseLayout)-1)
@@ -229,7 +229,7 @@ func (e Entity) RemoveComponent(w WorldAccessor, cType component.IComponentType)
 	}
 
 	targetArc := w.GetArchetypeForComponents(targetLayout)
-	compIndex, err := w.TransferArchetype(e.Loc.ArchIndex, targetArc, c)
+	compIndex, err := w.TransferArchetype(e.Loc.ArchID, targetArc, c)
 	if err != nil {
 		return err
 	}
@@ -238,7 +238,7 @@ func (e Entity) RemoveComponent(w WorldAccessor, cType component.IComponentType)
 	if err != nil {
 		return err
 	}
-	ent.Loc.ArchIndex = targetArc
+	ent.Loc.ArchID = targetArc
 	ent.Loc.CompIndex = compIndex
 	w.SetEntityLocation(e.ID, ent.Loc)
 	return nil
@@ -257,7 +257,7 @@ func (e Entity) Valid(w WorldAccessor) (bool, error) {
 
 // Archetype returns the archetype.
 func (e Entity) Archetype(w WorldAccessor) ArchetypeStorage {
-	a := e.Loc.ArchIndex
+	a := e.Loc.ArchID
 	return w.Archetype(a)
 }
 

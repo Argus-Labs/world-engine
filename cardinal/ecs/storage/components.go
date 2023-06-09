@@ -23,15 +23,15 @@ func NewComponents(store ComponentStorageManager, idxStore ComponentIndexStorage
 }
 
 // PushComponents stores the new data of the component in the archetype.
-func (cs *Components) PushComponents(components []component.IComponentType, archetypeIndex ArchetypeIndex) (ComponentIndex, error) {
+func (cs *Components) PushComponents(components []component.IComponentType, archetypeID ArchetypeID) (ComponentIndex, error) {
 	for _, componentType := range components {
 		v := cs.Store.GetComponentStorage(componentType.ID())
-		err := v.PushComponent(componentType, archetypeIndex)
+		err := v.PushComponent(componentType, archetypeID)
 		if err != nil {
 			return 0, err
 		}
 	}
-	idx, err := cs.ComponentIndices.IncrementIndex(archetypeIndex)
+	idx, err := cs.ComponentIndices.IncrementIndex(archetypeID)
 	if err != nil {
 		return 0, err
 	}
@@ -39,7 +39,7 @@ func (cs *Components) PushComponents(components []component.IComponentType, arch
 }
 
 // Move moves the bytes of data of the component in the archetype.
-func (cs *Components) Move(src ArchetypeIndex, dst ArchetypeIndex) error {
+func (cs *Components) Move(src ArchetypeID, dst ArchetypeID) error {
 	err := cs.ComponentIndices.DecrementIndex(src)
 	if err != nil {
 		return err
@@ -61,7 +61,7 @@ func (cs *Components) GetComponentIndexStorage(c component.IComponentType) Compo
 }
 
 // Remove removes the component from the storage.
-func (cs *Components) Remove(ai ArchetypeIndex, comps []component.IComponentType, ci ComponentIndex) error {
+func (cs *Components) Remove(ai ArchetypeID, comps []component.IComponentType, ci ComponentIndex) error {
 	for _, ct := range comps {
 		err := cs.remove(ct, ai, ci)
 		if err != nil {
@@ -71,7 +71,7 @@ func (cs *Components) Remove(ai ArchetypeIndex, comps []component.IComponentType
 	return cs.ComponentIndices.DecrementIndex(ai)
 }
 
-func (cs *Components) remove(ct component.IComponentType, ai ArchetypeIndex, ci ComponentIndex) error {
+func (cs *Components) remove(ct component.IComponentType, ai ArchetypeID, ci ComponentIndex) error {
 	storage := cs.Storage(ct)
 	_, err := storage.SwapRemove(ai, ci)
 	return err

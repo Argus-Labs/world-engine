@@ -246,7 +246,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	ent, err := world.Entity(entity)
 	assert.NilError(t, err)
 
-	archIndexBefore := ent.Loc.ArchIndex
+	archIDBefore := ent.Loc.ArchID
 
 	// The entity should now be in a different archetype
 	assert.NilError(t, a.RemoveFrom(world, entity))
@@ -254,8 +254,8 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	ent, err = world.Entity(entity)
 	assert.NilError(t, err)
 
-	archIndexAfter := ent.Loc.ArchIndex
-	assert.Check(t, archIndexBefore != archIndexAfter)
+	archIDAfter := ent.Loc.ArchID
+	assert.Check(t, archIDBefore != archIDAfter)
 }
 
 func TestEntriesCanChangeTheirArchetype(t *testing.T) {
