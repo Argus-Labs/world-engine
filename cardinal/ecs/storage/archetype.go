@@ -41,7 +41,7 @@ func (a *archetypeStorageImpl) Archetype(archID ArchetypeID) ArchetypeStorage {
 // slice of IComponentTypes with the correct TypeIDs so that we can recover the original
 // archetypeStorageImpl.
 type archForStorage struct {
-	Index        ArchetypeID
+	ID           ArchetypeID
 	Entities     []EntityID
 	ComponentIDs []component.TypeID
 }
@@ -51,7 +51,7 @@ type archForStorage struct {
 func (a *archetypeStorageImpl) Marshal() ([]byte, error) {
 	archs := make([]archForStorage, len(a.archs))
 	for i := range archs {
-		archs[i].Index = a.archs[i].ID
+		archs[i].ID = a.archs[i].ID
 		archs[i].Entities = a.archs[i].Entitys
 		for _, c := range a.archs[i].Layout().Components() {
 			archs[i].ComponentIDs = append(archs[i].ComponentIDs, c.ID())
@@ -106,7 +106,7 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []com
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrorComponentMismatchWithSavedState, err)
 		}
-		a.PushArchetype(arch.Index, NewLayout(currComps))
+		a.PushArchetype(arch.ID, NewLayout(currComps))
 		a.archs[len(a.archs)-1].Entitys = arch.Entities
 	}
 	return nil
