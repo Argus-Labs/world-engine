@@ -433,7 +433,6 @@ func (r *RedisStorage) getTickDetails() (tickDetails, error) {
 		return zero, r.setTickDetails(zero)
 	} else if err != nil {
 		return tickDetails{}, err
-
 	}
 
 	details, err := Decode[tickDetails](buf)
