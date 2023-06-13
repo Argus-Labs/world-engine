@@ -6,4 +6,4 @@ type TransactionQueue struct {
 	queue map[string][]any
 }
 
-type System func(*World, *TransactionQueue)
+type System func(*World, *TransactionQueue) error

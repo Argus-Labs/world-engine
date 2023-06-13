@@ -35,12 +35,12 @@ func TestErrorWhenLoadingProblematicState(t *testing.T) {
 
 	bomb := 10
 	errorSystem := errors.New("some system error")
-	oneWorld.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) {
+	oneWorld.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		bomb--
 		if bomb == 0 {
-			world.LogError(errorSystem)
-			return
+			return errorSystem
 		}
+		return nil
 	})
 
 	for i := 0; i < 20; i++ {

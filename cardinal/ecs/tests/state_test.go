@@ -174,11 +174,12 @@ func TestCanReloadState(t *testing.T) {
 
 	_, err := alphaWorld.CreateMany(10, oneAlphaNum)
 	assert.NilError(t, err)
-	alphaWorld.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) {
+	alphaWorld.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
 		oneAlphaNum.Each(w, func(id storage.EntityID) {
 			err := oneAlphaNum.Set(w, id, &NumberComponent{int(id)})
 			assert.Check(t, err == nil)
 		})
+		return nil
 	})
 
 	// Start a tick with executes the above system which initializes the number components.
