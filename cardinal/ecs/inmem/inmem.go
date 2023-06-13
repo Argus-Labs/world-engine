@@ -46,13 +46,7 @@ func newInMemoryWorld(s *miniredis.Miniredis) (*ecs.World, error) {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, "in-memory-world")
-	worldStorage := storage.NewWorldStorage(
-		storage.Components{Store: &rs, ComponentIndices: &rs},
-		&rs,
-		storage.NewArchetypeComponentIndex(),
-		storage.NewArchetypeAccessor(),
-		&rs,
-		&rs)
+	worldStorage := storage.NewWorldStorage(&rs)
 
 	return ecs.NewWorld(worldStorage)
 }

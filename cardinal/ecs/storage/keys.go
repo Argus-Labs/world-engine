@@ -56,3 +56,7 @@ func (r *RedisStorage) nextEntityIDKey() string {
 func (r *RedisStorage) stateStorageKey(subKey string) string {
 	return fmt.Sprintf("STATE:WORLD-%s:%s", r.WorldID, subKey)
 }
+
+func (r *RedisStorage) tickKey() string {
+	return fmt.Sprintf("TICK")
+}

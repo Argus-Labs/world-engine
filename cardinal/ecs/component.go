@@ -1,8 +1,6 @@
 package ecs
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"reflect"
 	"unsafe"
@@ -47,22 +45,6 @@ func (c *ComponentType[T]) SetID(id component.TypeID) error {
 	return nil
 }
 
-func decodeComponent[T any](bz []byte) (T, error) {
-	var buf bytes.Buffer
-	buf.Write(bz)
-	dec := gob.NewDecoder(&buf)
-	comp := new(T)
-	err := dec.Decode(comp)
-	return *comp, err
-}
-
-func encodeComponent[T any](comp T) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(comp)
-	return buf.Bytes(), err
-}
-
 // Get returns component data from the entity.
 func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error) {
 	entity, err := w.Entity(id)
@@ -73,7 +55,7 @@ func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error
 	if err != nil {
 		return comp, err
 	}
-	comp, err = decodeComponent[T](bz)
+	comp, err = storage.Decode[T](bz)
 	return comp, err
 }
 
@@ -94,7 +76,7 @@ func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component *T) erro
 	if err != nil {
 		return err
 	}
-	bz, err := encodeComponent[T](*component)
+	bz, err := storage.Encode(*component)
 	if err != nil {
 		return err
 	}
@@ -177,14 +159,11 @@ func (c *ComponentType[T]) ID() component.TypeID {
 }
 
 func (c *ComponentType[T]) New() ([]byte, error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
 	var comp T
 	if c.defaultVal != nil {
 		comp = c.defaultVal.(T)
 	}
-	err := enc.Encode(comp)
-	return buf.Bytes(), err
+	return storage.Encode(comp)
 }
 
 func (c *ComponentType[T]) setDefaultVal(ptr unsafe.Pointer) {

@@ -49,7 +49,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.Equal(t, 0, s.Score)
 
 	// Process a game tick
-	world.Tick()
+	assert.NilError(t, world.Tick())
 
 	// Verify the score was updated
 	s, err = score.Get(world, id)
@@ -57,7 +57,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.Equal(t, 100, s.Score)
 
 	// Tick again, but no new modifyScoreTx was added to the queue
-	world.Tick()
+	assert.NilError(t, world.Tick())
 
 	// Verify the score hasn't changed
 	s, err = score.Get(world, id)
@@ -82,7 +82,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	})
 
 	for i := 0; i < 10; i++ {
-		world.Tick()
+		assert.NilError(t, world.Tick())
 	}
 
 	c, err := count.Get(world, id)
@@ -123,7 +123,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		Amount:   150,
 	})
 
-	world.Tick()
+	assert.NilError(t, world.Tick())
 
 	for i, id := range ids {
 		wantScore := 0
@@ -158,7 +158,9 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	modScore.AddToQueue(&ModifyScoreTx{})
 
 	// Start a tick in the background.
-	go world.Tick()
+	go func() {
+		assert.Check(t, nil == world.Tick())
+	}()
 	// Make sure we're actually in the System. It will now block forever.
 	inSystemCh <- struct{}{}
 
@@ -201,7 +203,9 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	modScoreTx.AddToQueue(&ModifyScoreTx{})
 
 	// Start the game tick. It will be blocked until we read from modScoreCountCh two times
-	go world.Tick()
+	go func() {
+		assert.Check(t, nil == world.Tick())
+	}()
 
 	// In the first system, we should see 1 modify score transaction
 	count := <-modScoreCountCh
@@ -216,14 +220,18 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	// The tick is over. Tick again, we should see 1 tick for both systems again. This transaction
 	// was added in the middle of the last tick.
-	go world.Tick()
+	go func() {
+		assert.Check(t, nil == world.Tick())
+	}()
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)
 
 	// In this final tick, we should see no modify score transactions
-	go world.Tick()
+	go func() {
+		assert.Check(t, nil == world.Tick())
+	}()
 	count = <-modScoreCountCh
 	assert.Equal(t, 0, count)
 	count = <-modScoreCountCh
@@ -254,7 +262,7 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 		assert.Check(t, "beta" == newNames[0].Name)
 	})
 
-	world.Tick()
+	assert.NilError(t, world.Tick())
 }
 
 func TestCannotCreateMultipleTransactionTypesWithTheSameName(t *testing.T) {

@@ -1,8 +1,6 @@
 package storage
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"reflect"
 	"unsafe"
@@ -40,14 +38,11 @@ func (m *MockComponentType[T]) ID() component.TypeID {
 }
 
 func (m *MockComponentType[T]) New() ([]byte, error) {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
 	var comp T
 	if m.defaultVal != nil {
 		comp = m.defaultVal.(T)
 	}
-	err := enc.Encode(comp)
-	return buf.Bytes(), err
+	return Encode(comp)
 }
 
 func (m *MockComponentType[T]) setDefaultVal(ptr unsafe.Pointer) {

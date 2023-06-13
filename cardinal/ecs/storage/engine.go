@@ -85,3 +85,9 @@ type StateStorage interface {
 	Save(key string, data []byte) error
 	Load(key string) (data []byte, ok bool, err error)
 }
+
+type TickStorage interface {
+	GetTickNumbers() (start, end int, err error)
+	StartNextTick() error
+	FinalizeTick() error
+}

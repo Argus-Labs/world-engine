@@ -1,10 +1,8 @@
 package tests
 
 import (
-	"bytes"
 	"context"
 	"encoding"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"testing"
@@ -35,17 +33,13 @@ var componentDataKey = func(worldId string, compId component.TypeID, archID int)
 }
 
 func TestList(t *testing.T) {
-
 	type SomeComp struct {
 		Foo int
 	}
 	ctx := context.Background()
 
 	rs := GetRedisStorage(t)
-	store := storage.NewWorldStorage(storage.Components{
-		Store:            &rs,
-		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	store := storage.NewWorldStorage(&rs)
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 	compStore := store.CompStore.Storage(x)
 
@@ -81,10 +75,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 
 	rs := GetRedisStorage(t)
-	store := storage.NewWorldStorage(storage.Components{
-		Store:            &rs,
-		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	store := storage.NewWorldStorage(&rs)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
 	archID, compIdx := storage.ArchetypeID(0), storage.ComponentIndex(1)
@@ -119,10 +110,7 @@ func TestRedis_CompIndex(t *testing.T) {
 func TestRedis_Location(t *testing.T) {
 	//ctx := context.Background()
 	rs := GetRedisStorage(t)
-	store := storage.NewWorldStorage(storage.Components{
-		Store:            &rs,
-		ComponentIndices: &rs,
-	}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	store := storage.NewWorldStorage(&rs)
 
 	loc := storage.NewLocation(0, 1)
 	eid := storage.EntityID(3)
@@ -175,21 +163,19 @@ func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
 			"gamma": 300,
 		},
 	}
-	buf := &bytes.Buffer{}
-	enc := gob.NewEncoder(buf)
-	assert.NilError(t, enc.Encode(wantData))
+	buf, err := storage.Encode(wantData)
+	assert.NilError(t, err)
 
 	const key = "foobar"
-	err := rs.Save(key, buf.Bytes())
+	err = rs.Save(key, buf)
 	assert.NilError(t, err)
 
 	gotBytes, ok, err := rs.Load(key)
 	assert.Equal(t, true, ok)
 	assert.NilError(t, err)
 
-	dec := gob.NewDecoder(bytes.NewReader(gotBytes))
-	gotData := &SomeData{}
-	assert.NilError(t, dec.Decode(gotData))
+	gotData, err := storage.Decode[*SomeData](gotBytes)
+	assert.NilError(t, err)
 	assert.DeepEqual(t, gotData, wantData)
 }
 

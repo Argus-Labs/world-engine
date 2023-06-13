@@ -53,7 +53,7 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, err)
 
 	world.AddSystem(UpdateEnergySystem)
-	world.Tick()
+	assert.NilError(t, world.Tick())
 
 	Energy.Each(world, func(id storage.EntityID) {
 		energyPlanet, err := Energy.Get(world, id)
