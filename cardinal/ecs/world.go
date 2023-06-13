@@ -8,6 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 )
 
 // WorldId is a unique identifier for a world.
@@ -24,16 +25,14 @@ type StorageAccessor struct {
 }
 
 type World struct {
-	id                     WorldId
-	store                  storage.WorldStorage
-	systems                []System
-	tick                   int
-	isComponentsRegistered bool
-	// txNames contains the set of transaction names that have been registered for this world. It is an error
-	// to attempt to register the same transaction name more than once.
-	txNames map[string]bool
+	id                       WorldId
+	store                    storage.WorldStorage
+	systems                  []System
+	tick                     int
+	isComponentsRegistered   bool
+	isTransactionsRegistered bool
 	// txQueues is a map of transaction names to the relevant list of transactions data
-	txQueues map[string][]interface{}
+	txQueues map[transaction.TypeID][]any
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
 
@@ -41,19 +40,10 @@ type World struct {
 }
 
 var (
-	ErrorComponentRegistrationMustHappenOnce = errors.New("component registration must happen exactly 1 time")
-	ErrorStoreStateInvalid                   = errors.New("saved world state is not valid")
+	ErrorComponentRegistrationMustHappenOnce   = errors.New("component registration must happen exactly 1 time")
+	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
+	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
 )
-
-// AddTxName adds the given transaction name to the set of all transaction names seen so far. If the transaction
-// name has already been added, false is returned.
-func (w *World) AddTxName(name string) (ok bool) {
-	if w.txNames[name] {
-		return false
-	}
-	w.txNames[name] = true
-	return true
-}
 
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
 	err := w.store.EntityLocStore.SetLocation(id, location)
@@ -107,6 +97,20 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 	return nil
 }
 
+func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
+	if w.isTransactionsRegistered {
+		return ErrorTransactionRegistrationMustHappenOnce
+	}
+	w.isTransactionsRegistered = true
+	for i, t := range txs {
+		id := transaction.TypeID(i + 1)
+		if err := t.SetID(id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 var nextWorldId WorldId = 0
 
 // NewWorld creates a new world.
@@ -119,8 +123,7 @@ func NewWorld(s storage.WorldStorage) (*World, error) {
 		store:    s,
 		tick:     0,
 		systems:  make([]System, 0, 256), // this can just stay in memory.
-		txNames:  map[string]bool{},
-		txQueues: map[string][]interface{}{},
+		txQueues: map[transaction.TypeID][]any{},
 	}
 	return w, nil
 }
@@ -321,24 +324,24 @@ func (w *World) StorageAccessor() StorageAccessor {
 }
 
 // copyTransactions makes a copy of the world txQueue, then zeroes out the txQueue.
-func (w *World) copyTransactions() map[string][]interface{} {
+func (w *World) copyTransactions() map[transaction.TypeID][]any {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
-	txsMap := make(map[string][]interface{}, len(w.txQueues))
-	for name, txs := range w.txQueues {
-		txsMap[name] = make([]interface{}, len(txs))
-		copy(txsMap[name], txs)
-		w.txQueues[name] = w.txQueues[name][:0]
+	txsMap := make(map[transaction.TypeID][]any, len(w.txQueues))
+	for id, txs := range w.txQueues {
+		txsMap[id] = make([]interface{}, len(txs))
+		copy(txsMap[id], txs)
+		w.txQueues[id] = w.txQueues[id][:0]
 	}
 	return txsMap
 }
 
-// AddTransaction adds a transaction to the transaction queue. This should not be used directly.
+// addTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency.
-func (w *World) AddTransaction(name string, v any) {
+func (w *World) addTransaction(id transaction.TypeID, v any) {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
-	w.txQueues[name] = append(w.txQueues[name], v)
+	w.txQueues[id] = append(w.txQueues[id], v)
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling

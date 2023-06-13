@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -26,9 +25,11 @@ func TestCanQueueTransactions(t *testing.T) {
 	// Create an entity with a score component
 	score := ecs.NewComponentType[ScoreComponent]()
 	world.RegisterComponents(score)
+	modifyScoreTx := ecs.NewTransactionType[ModifyScoreTx]()
+	world.RegisterTransactions(modifyScoreTx)
+
 	id, err := world.Create(score)
 	assert.NilError(t, err)
-	modifyScoreTx := ecs.NewTransactionType[ModifyScoreTx](world, "modifyScore")
 
 	// Set up a system that allows for the modification of a player's score
 	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
@@ -44,7 +45,7 @@ func TestCanQueueTransactions(t *testing.T) {
 		return nil
 	})
 
-	modifyScoreTx.AddToQueue(&ModifyScoreTx{id, 100})
+	modifyScoreTx.AddToQueue(world, &ModifyScoreTx{id, 100})
 
 	// Verify the score is 0
 	s, err := score.Get(world, id)
@@ -98,7 +99,8 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	alphaScore := ecs.NewComponentType[ScoreComponent]()
 	world.RegisterComponents(alphaScore)
 
-	modifyScoreTx := ecs.NewTransactionType[ModifyScoreTx](world, "modifyScore")
+	modifyScoreTx := ecs.NewTransactionType[ModifyScoreTx]()
+	world.RegisterTransactions(modifyScoreTx)
 
 	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
 		modifyScores := modifyScoreTx.In(queue)
@@ -114,15 +116,15 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	ids, err := world.CreateMany(100, alphaScore)
 	assert.NilError(t, err)
 	// Entities at index 5, 10 and 50 will be updated with some values
-	modifyScoreTx.AddToQueue(&ModifyScoreTx{
+	modifyScoreTx.AddToQueue(world, &ModifyScoreTx{
 		PlayerID: ids[5],
 		Amount:   105,
 	})
-	modifyScoreTx.AddToQueue(&ModifyScoreTx{
+	modifyScoreTx.AddToQueue(world, &ModifyScoreTx{
 		PlayerID: ids[10],
 		Amount:   110,
 	})
-	modifyScoreTx.AddToQueue(&ModifyScoreTx{
+	modifyScoreTx.AddToQueue(world, &ModifyScoreTx{
 		PlayerID: ids[50],
 		Amount:   150,
 	})
@@ -149,7 +151,8 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
-	modScore := ecs.NewTransactionType[ModifyScoreTx](world, "modifyScore")
+	modScore := ecs.NewTransactionType[ModifyScoreTx]()
+	world.RegisterTransactions(modScore)
 
 	inSystemCh := make(chan struct{})
 	// This system will block forever. This will give us a never-ending game tick that we can use
@@ -160,7 +163,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 		return nil
 	})
 
-	modScore.AddToQueue(&ModifyScoreTx{})
+	modScore.AddToQueue(world, &ModifyScoreTx{})
 
 	// Start a tick in the background.
 	go func() {
@@ -173,7 +176,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	timeout := time.After(500 * time.Millisecond)
 	doneWithAddToQueue := make(chan struct{})
 	go func() {
-		modScore.AddToQueue(&ModifyScoreTx{})
+		modScore.AddToQueue(world, &ModifyScoreTx{})
 		doneWithAddToQueue <- struct{}{}
 	}()
 
@@ -189,7 +192,8 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 // are added to some queue that is not processed until the NEXT tick.
 func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	modScoreTx := ecs.NewTransactionType[ModifyScoreTx](world, "modifyScore")
+	modScoreTx := ecs.NewTransactionType[ModifyScoreTx]()
+	world.RegisterTransactions(modScoreTx)
 
 	modScoreCountCh := make(chan int)
 
@@ -207,7 +211,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 		return nil
 	})
 
-	modScoreTx.AddToQueue(&ModifyScoreTx{})
+	modScoreTx.AddToQueue(world, &ModifyScoreTx{})
 
 	// Start the game tick. It will be blocked until we read from modScoreCountCh two times
 	go func() {
@@ -219,7 +223,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	assert.Equal(t, 1, count)
 
 	// Add a transaction mid-tick.
-	modScoreTx.AddToQueue(&ModifyScoreTx{})
+	modScoreTx.AddToQueue(world, &ModifyScoreTx{})
 
 	// The tick is still not over, so we should still only see 1 modify score transaction
 	count = <-modScoreCountCh
@@ -253,11 +257,12 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 		Name string
 	}
 
-	alpha := ecs.NewTransactionType[NewOwner](world, "alpha")
-	beta := ecs.NewTransactionType[NewOwner](world, "beta")
+	alpha := ecs.NewTransactionType[NewOwner]()
+	beta := ecs.NewTransactionType[NewOwner]()
+	world.RegisterTransactions(alpha, beta)
 
-	alpha.AddToQueue(&NewOwner{"alpha"})
-	beta.AddToQueue(&NewOwner{"beta"})
+	alpha.AddToQueue(world, &NewOwner{"alpha"})
+	beta.AddToQueue(world, &NewOwner{"beta"})
 
 	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue) error {
 		newNames := alpha.In(queue)
@@ -273,12 +278,15 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 	assert.NilError(t, world.Tick())
 }
 
-func TestCannotCreateMultipleTransactionTypesWithTheSameName(t *testing.T) {
-	defer func() {
-		err := recover().(string)
-		assert.Check(t, strings.Contains(err, "Multiple definitions of transaction"))
-	}()
+func TestCannotRegisterDuplicateTransaction(t *testing.T) {
+	tx := ecs.NewTransactionType[ModifyScoreTx]()
 	world := inmem.NewECSWorldForTest(t)
-	ecs.NewTransactionType[ModifyScoreTx](world, "same_name")
-	ecs.NewTransactionType[ModifyScoreTx](world, "same_name")
+	assert.Check(t, nil != world.RegisterTransactions(tx, tx))
+}
+
+func TestCannotCallRegisterTransactionsMultipleTimes(t *testing.T) {
+	tx := ecs.NewTransactionType[ModifyScoreTx]()
+	world := inmem.NewECSWorldForTest(t)
+	assert.NilError(t, world.RegisterTransactions(tx))
+	assert.Check(t, nil != world.RegisterTransactions(tx))
 }

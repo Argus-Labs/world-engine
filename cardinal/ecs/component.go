@@ -38,7 +38,7 @@ type ComponentType[T any] struct {
 // SetID set's this component's ID. It must be unique across the world object.
 func (c *ComponentType[T]) SetID(id component.TypeID) error {
 	if c.isIDSet {
-		return fmt.Errorf("id on %v is already set to %v, cannot change to %v", c, c.id, id)
+		return fmt.Errorf("id for component %v is already set to %v, cannot change to %v", c, c.id, id)
 	}
 	c.id = id
 	c.isIDSet = true
