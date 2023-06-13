@@ -7,17 +7,6 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 )
 
-func NewLegacyStorage() WorldStorage {
-	componentsStore := NewComponents(NewComponentsSliceStorage(), NewComponentIndexMap())
-	eloStore := NewLocationMap()
-	archIdxStore := NewArchetypeComponentIndex()
-	archAcc := NewArchetypeAccessor()
-	entityMgr := NewEntityManager()
-	stateStore := NewStateStorage()
-
-	return NewWorldStorage(componentsStore, eloStore, archIdxStore, archAcc, entityMgr, stateStore)
-}
-
 var _ ComponentStorageManager = &ComponentsSliceStorage{}
 
 // ComponentsSliceStorage is a structure that contains component data in slices.

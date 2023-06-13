@@ -408,3 +408,72 @@ func (r *RedisStorage) Load(key string) (data []byte, ok bool, err error) {
 	}
 	return buf, true, nil
 }
+
+// ---------------------------------------------------------------------------
+// 							Tick Manager
+// ---------------------------------------------------------------------------
+
+// TickDetails contains a breakdown of what tick we're currently on. If all 3 numbers are equal, that is the current
+// tick. If Start is one ahead of Transaction, it means the tick has started, but we haven't uploaded the list
+// of transactions for this tick. If Transaction is one ahead of End, it means the transactions have been uploaded
+// but at least one System failed to run to completion.
+type tickDetails struct {
+	Start int
+	End   int
+}
+
+var _ TickStorage = &RedisStorage{}
+
+func (r *RedisStorage) getTickDetails() (tickDetails, error) {
+	ctx := context.Background()
+	key := r.tickKey()
+	buf, err := r.Client.Get(ctx, key).Bytes()
+	if err != nil && err == redis.Nil {
+		zero := tickDetails{}
+		return zero, r.setTickDetails(zero)
+	} else if err != nil {
+		return tickDetails{}, err
+	}
+
+	details, err := Decode[tickDetails](buf)
+	if err != nil {
+		return tickDetails{}, err
+	}
+	return details, nil
+}
+
+func (r *RedisStorage) setTickDetails(details tickDetails) error {
+	ctx := context.Background()
+	buf, err := Encode(details)
+	if err != nil {
+		return err
+	}
+	key := r.tickKey()
+	return r.Client.Set(ctx, key, buf, 0).Err()
+}
+
+func (r *RedisStorage) GetTickNumbers() (start, end int, err error) {
+	details, err := r.getTickDetails()
+	if err != nil {
+		return 0, 0, err
+	}
+	return details.Start, details.End, nil
+}
+
+func (r *RedisStorage) StartNextTick() error {
+	details, err := r.getTickDetails()
+	if err != nil {
+		return err
+	}
+	details.Start++
+	return r.setTickDetails(details)
+}
+
+func (r *RedisStorage) FinalizeTick() error {
+	details, err := r.getTickDetails()
+	if err != nil {
+		return err
+	}
+	details.End++
+	return r.setTickDetails(details)
+}

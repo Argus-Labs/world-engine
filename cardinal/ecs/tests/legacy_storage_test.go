@@ -1,8 +1,6 @@
 package tests
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
 	"testing"
 
@@ -42,11 +40,7 @@ func TestStorage_Bytes(t *testing.T) {
 	compIdx = 0
 	for _, test := range tests {
 		bz, _ := store.Component(archIdx, compIdx)
-		var buf bytes.Buffer
-		buf.Write(bz)
-		dec := gob.NewDecoder(&buf)
-		c := &Component{}
-		err := dec.Decode(c)
+		c, err := storage.Decode[*Component](bz)
 		assert.NilError(t, err)
 		assert.Equal(t, c.ID, test.expected)
 		compIdx++

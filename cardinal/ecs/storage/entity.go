@@ -2,7 +2,6 @@ package storage
 
 import (
 	"bytes"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"math"
@@ -79,7 +78,6 @@ var (
 
 // Get returns the component from the entity
 func Get[T any](w WorldAccessor, id EntityID, cType component.IComponentType) (*T, error) {
-	var comp *T
 	e, err := w.Entity(id)
 	if err != nil {
 		return nil, err
@@ -88,11 +86,7 @@ func Get[T any](w WorldAccessor, id EntityID, cType component.IComponentType) (*
 	if err != nil {
 		return nil, err
 	}
-	var buf bytes.Buffer
-	buf.Write(compBz)
-	dec := gob.NewDecoder(&buf)
-	err = dec.Decode(comp)
-	return comp, err
+	return Decode[*T](compBz)
 }
 
 // Add adds the component to the entity.

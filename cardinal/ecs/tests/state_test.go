@@ -19,13 +19,7 @@ func initWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, "in-memory-world")
-	worldStorage := storage.NewWorldStorage(
-		storage.Components{Store: &rs, ComponentIndices: &rs},
-		&rs,
-		storage.NewArchetypeComponentIndex(),
-		storage.NewArchetypeAccessor(),
-		&rs,
-		&rs)
+	worldStorage := storage.NewWorldStorage(&rs)
 	w, err := ecs.NewWorld(worldStorage)
 	assert.NilError(t, err)
 	return w
@@ -48,7 +42,7 @@ func TestComponentsCanOnlyBeRegisteredOnce(t *testing.T) {
 	assert.ErrorIs(t, world.RegisterComponents(), ecs.ErrorComponentRegistrationMustHappenOnce)
 }
 
-func TestErrorWhenSavedStateDoesNotMatchComponentTypes(t *testing.T) {
+func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	// This redisStore will be used to create multiple worlds to ensure state is consistent across the worlds.
 	redisStore := miniredis.RunT(t)
 
@@ -59,7 +53,7 @@ func TestErrorWhenSavedStateDoesNotMatchComponentTypes(t *testing.T) {
 	_, err := oneWorld.Create(oneAlphaNum)
 	assert.NilError(t, err)
 
-	assert.NilError(t, oneWorld.SaveGameState())
+	assert.NilError(t, oneWorld.Tick())
 
 	// Too few components registered
 	twoWorld := initWorldWithRedis(t, redisStore)
@@ -94,7 +88,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.Equal(t, 1, len(wantLayout.Components()))
 	assert.Check(t, wantLayout.HasComponent(oneNum))
 
-	assert.NilError(t, oneWorld.SaveGameState())
+	assert.NilError(t, oneWorld.Tick())
 
 	// Make a second instance of the world using the same storage.
 	twoWorld := initWorldWithRedis(t, redisStore)
@@ -132,7 +126,7 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	oneBothArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum, oneBetaNum))
 	// These archetype indices should be preserved between a state save/load
 
-	assert.NilError(t, oneWorld.SaveGameState())
+	assert.NilError(t, oneWorld.Tick())
 
 	// Create a brand new world, but use the original redis store. We should be able to load
 	// the game state from the redis store (including archetype indices).
@@ -155,7 +149,7 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 	// Save and load again to make sure the "two" world correctly saves its state even though
 	// it never created any entities
-	assert.NilError(t, twoWorld.SaveGameState())
+	assert.NilError(t, twoWorld.Tick())
 
 	threeWorld := initWorldWithRedis(t, redisStore)
 	threeAlphaNum := ecs.NewComponentType[NumberComponent]()
@@ -188,8 +182,7 @@ func TestCanReloadState(t *testing.T) {
 	})
 
 	// Start a tick with executes the above system which initializes the number components.
-	alphaWorld.Tick()
-	assert.NilError(t, alphaWorld.SaveGameState())
+	assert.NilError(t, alphaWorld.Tick())
 
 	// Make a new world, using the original redis DB that (hopefully) has our data
 	betaWorld := initWorldWithRedis(t, redisStore)

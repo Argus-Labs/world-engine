@@ -7,22 +7,26 @@ type WorldStorage struct {
 	ArchAccessor     ArchetypeAccessor
 	EntityMgr        EntityManager
 	StateStore       StateStorage
+	TickStore        TickStorage
 }
 
-func NewWorldStorage(
-	cs Components,
-	els EntityLocationStorage,
-	acis ArchetypeComponentIndex,
-	aa ArchetypeAccessor,
-	em EntityManager,
-	ss StateStorage,
-) WorldStorage {
+type OmniStorage interface {
+	ComponentStorageManager
+	ComponentIndexStorage
+	EntityLocationStorage
+	EntityManager
+	StateStorage
+	TickStorage
+}
+
+func NewWorldStorage(omni OmniStorage) WorldStorage {
 	return WorldStorage{
-		CompStore:        cs,
-		EntityLocStore:   els,
-		ArchCompIdxStore: acis,
-		ArchAccessor:     aa,
-		EntityMgr:        em,
-		StateStore:       ss,
+		CompStore:        NewComponents(omni, omni),
+		EntityLocStore:   omni,
+		ArchCompIdxStore: NewArchetypeComponentIndex(),
+		ArchAccessor:     NewArchetypeAccessor(),
+		EntityMgr:        omni,
+		StateStore:       omni,
+		TickStore:        omni,
 	}
 }
