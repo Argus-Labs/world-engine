@@ -1,12 +1,12 @@
 package tests
 
 import (
+	"errors"
 	"testing"
-
-	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
+	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"gotest.tools/v3/assert"
 )
@@ -20,18 +20,24 @@ type OwnableComponent struct {
 	Owner string
 }
 
-func UpdateEnergySystem(w *ecs.World, tq *ecs.TransactionQueue) {
+func UpdateEnergySystem(w *ecs.World, tq *ecs.TransactionQueue) error {
+	errs := []error{}
+
 	Energy.Each(w, func(ent storage.EntityID) {
 		energyPlanet, err := Energy.Get(w, ent)
 		if err != nil {
-			panic(err)
+			errs = append(errs, err)
 		}
 		energyPlanet.Amt += 10 // bs whatever
 		err = Energy.Set(w, ent, &energyPlanet)
 		if err != nil {
-			panic(err)
+			errs = append(errs, err)
 		}
 	})
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
 }
 
 var (

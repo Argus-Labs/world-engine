@@ -354,17 +354,13 @@ func (w *World) Tick() error {
 	}
 
 	for _, sys := range w.systems {
-		sys(w, txQueue)
+		if err := sys(w, txQueue); err != nil {
+			return err
+		}
 	}
 
 	if err := w.saveArchetypeData(); err != nil {
 		return err
-	}
-
-	if len(w.errs) > 0 {
-		allErrors := errors.Join(w.errs...)
-		w.errs = nil
-		return allErrors
 	}
 
 	if err := w.store.TickStore.FinalizeTick(); err != nil {
