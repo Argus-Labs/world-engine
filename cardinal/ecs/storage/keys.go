@@ -58,5 +58,5 @@ func (r *RedisStorage) stateStorageKey(subKey string) string {
 }
 
 func (r *RedisStorage) tickKey() string {
-	return fmt.Sprintf("TICK")
+	return "TICK"
 }
