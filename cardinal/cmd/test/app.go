@@ -35,8 +35,7 @@ func main() {
 	} else {
 		fmt.Println("connection to redis established")
 	}
-	worldStorage := storage.NewWorldStorage(
-		storage.Components{Store: &rs, ComponentIndices: &rs}, &rs, storage.NewArchetypeComponentIndex(), storage.NewArchetypeAccessor(), &rs, &rs)
+	worldStorage := storage.NewWorldStorage(&rs)
 	gs := server.NewGameServer(worldStorage)
 	grpcServer := grpc.NewServer()
 	ecsv1grpc.RegisterGameServer(grpcServer, gs)
