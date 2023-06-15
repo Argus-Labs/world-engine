@@ -23,10 +23,10 @@ func TestCanQueueTransactions(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
 	// Create an entity with a score component
-	score := ecs.NewComponentType[ScoreComponent]()
-	world.RegisterComponents(score)
-	modifyScoreTx := ecs.NewTransactionType[ModifyScoreTx]()
-	world.RegisterTransactions(modifyScoreTx)
+	score := ecs.NewComponentType[*ScoreComponent]()
+	assert.NilError(t, world.RegisterComponents(score))
+	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx]()
+	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
 
 	id, err := world.Create(score)
 	assert.NilError(t, err)
@@ -35,8 +35,9 @@ func TestCanQueueTransactions(t *testing.T) {
 	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
 		modifyScore := modifyScoreTx.In(queue)
 		for _, ms := range modifyScore {
-			err := score.Update(w, ms.PlayerID, func(s *ScoreComponent) {
+			err := score.Update(w, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 				s.Score += ms.Amount
+				return s
 			})
 			if err != nil {
 				return err
@@ -44,8 +45,11 @@ func TestCanQueueTransactions(t *testing.T) {
 		}
 		return nil
 	})
+	assert.NilError(t, world.LoadGameState())
 
 	modifyScoreTx.AddToQueue(world, &ModifyScoreTx{id, 100})
+
+	assert.NilError(t, score.Set(world, id, &ScoreComponent{}))
 
 	// Verify the score is 0
 	s, err := score.Get(world, id)
@@ -75,15 +79,17 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 		Count int
 	}
 	count := ecs.NewComponentType[CounterComponent]()
-	world.RegisterComponents(count)
+	assert.NilError(t, world.RegisterComponents(count))
 
 	id, err := world.Create(count)
 	assert.NilError(t, err)
 	world.AddSystem(func(w *ecs.World, _ *ecs.TransactionQueue) error {
-		return count.Update(w, id, func(c *CounterComponent) {
+		return count.Update(w, id, func(c CounterComponent) CounterComponent {
 			c.Count++
+			return c
 		})
 	})
+	assert.NilError(t, world.LoadGameState())
 
 	for i := 0; i < 10; i++ {
 		assert.NilError(t, world.Tick())
@@ -97,21 +103,23 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	alphaScore := ecs.NewComponentType[ScoreComponent]()
-	world.RegisterComponents(alphaScore)
+	assert.NilError(t, world.RegisterComponents(alphaScore))
 
-	modifyScoreTx := ecs.NewTransactionType[ModifyScoreTx]()
-	world.RegisterTransactions(modifyScoreTx)
+	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx]()
+	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
 
 	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
 		modifyScores := modifyScoreTx.In(queue)
 		for _, ms := range modifyScores {
-			err := alphaScore.Update(w, ms.PlayerID, func(s *ScoreComponent) {
+			err := alphaScore.Update(w, ms.PlayerID, func(s ScoreComponent) ScoreComponent {
 				s.Score += ms.Amount
+				return s
 			})
 			assert.Check(t, err == nil)
 		}
 		return nil
 	})
+	assert.NilError(t, world.LoadGameState())
 
 	ids, err := world.CreateMany(100, alphaScore)
 	assert.NilError(t, err)
@@ -151,8 +159,8 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
-	modScore := ecs.NewTransactionType[ModifyScoreTx]()
-	world.RegisterTransactions(modScore)
+	modScore := ecs.NewTransactionType[*ModifyScoreTx]()
+	assert.NilError(t, world.RegisterTransactions(modScore))
 
 	inSystemCh := make(chan struct{})
 	// This system will block forever. This will give us a never-ending game tick that we can use
@@ -162,6 +170,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 		select {}
 		return nil
 	})
+	assert.NilError(t, world.LoadGameState())
 
 	modScore.AddToQueue(world, &ModifyScoreTx{})
 
@@ -192,8 +201,8 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 // are added to some queue that is not processed until the NEXT tick.
 func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	modScoreTx := ecs.NewTransactionType[ModifyScoreTx]()
-	world.RegisterTransactions(modScoreTx)
+	modScoreTx := ecs.NewTransactionType[*ModifyScoreTx]()
+	assert.NilError(t, world.RegisterTransactions(modScoreTx))
 
 	modScoreCountCh := make(chan int)
 
@@ -210,6 +219,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 		modScoreCountCh <- len(modScores)
 		return nil
 	})
+	assert.NilError(t, world.LoadGameState())
 
 	modScoreTx.AddToQueue(world, &ModifyScoreTx{})
 
@@ -259,10 +269,10 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 
 	alpha := ecs.NewTransactionType[NewOwner]()
 	beta := ecs.NewTransactionType[NewOwner]()
-	world.RegisterTransactions(alpha, beta)
+	assert.NilError(t, world.RegisterTransactions(alpha, beta))
 
-	alpha.AddToQueue(world, &NewOwner{"alpha"})
-	beta.AddToQueue(world, &NewOwner{"beta"})
+	alpha.AddToQueue(world, NewOwner{"alpha"})
+	beta.AddToQueue(world, NewOwner{"beta"})
 
 	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue) error {
 		newNames := alpha.In(queue)
@@ -274,6 +284,7 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 		assert.Check(t, "beta" == newNames[0].Name)
 		return nil
 	})
+	assert.NilError(t, world.LoadGameState())
 
 	assert.NilError(t, world.Tick())
 }

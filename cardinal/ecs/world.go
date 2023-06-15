@@ -29,8 +29,11 @@ type World struct {
 	store                    storage.WorldStorage
 	systems                  []System
 	tick                     int
+	registeredComponents     []IComponentType
+	registeredTransactions   []transaction.ITransaction
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
+	stateIsLoaded            bool
 	// txQueues is a map of transaction names to the relevant list of transactions data
 	txQueues map[transaction.TypeID][]any
 	// txLock ensures txQueues is not modified in the middle of a tick.
@@ -74,16 +77,23 @@ func (w *World) Archetype(archID storage.ArchetypeID) storage.ArchetypeStorage {
 }
 
 func (w *World) AddSystem(s System) {
+	if w.stateIsLoaded {
+		panic("cannot register systems after loading game state")
+	}
 	w.systems = append(w.systems, s)
 }
 
 // RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
 // This will give components the ability to access their own data.
 func (w *World) RegisterComponents(components ...component.IComponentType) error {
+	if w.stateIsLoaded {
+		panic("cannot register components after loading game state")
+	}
 	if w.isComponentsRegistered {
 		return ErrorComponentRegistrationMustHappenOnce
 	}
 	w.isComponentsRegistered = true
+	w.registeredComponents = components
 
 	for i, c := range components {
 		id := component.TypeID(i + 1)
@@ -91,17 +101,19 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 			return err
 		}
 	}
-	if err := w.loadGameState(components); err != nil {
-		return err
-	}
 	return nil
 }
 
 func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
+	if w.stateIsLoaded {
+		panic("cannot register transactions after loading game state")
+	}
 	if w.isTransactionsRegistered {
 		return ErrorTransactionRegistrationMustHappenOnce
 	}
 	w.isTransactionsRegistered = true
+	w.registeredTransactions = txs
+
 	for i, t := range txs {
 		id := transaction.TypeID(i + 1)
 		if err := t.SetID(id); err != nil {
@@ -347,11 +359,15 @@ func (w *World) addTransaction(id transaction.TypeID, v any) {
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick() error {
-	if err := w.store.TickStore.StartNextTick(); err != nil {
+	if !w.stateIsLoaded {
+		return errors.New("must load state before first tick")
+	}
+	txs := w.copyTransactions()
+
+	if err := w.store.TickStore.StartNextTick(w.registeredTransactions, txs); err != nil {
 		return err
 	}
 
-	txs := w.copyTransactions()
 	txQueue := &TransactionQueue{
 		queue: txs,
 	}
@@ -396,23 +412,49 @@ func (w *World) saveToKey(key string, cm storage.ComponentMarshaler) error {
 	return w.store.StateStore.Save(key, buf)
 }
 
-func (w *World) loadGameState(components []component.IComponentType) error {
-
+func (w *World) recoverGameState() (recoveryTickRequired bool, err error) {
 	start, end, err := w.store.TickStore.GetTickNumbers()
+	if err != nil {
+		return false, err
+	}
+	w.tick = end
+	// We successfully completed the last tick. Everything is fine
+	if start == end {
+		return false, nil
+	}
+	if err := w.store.TickStore.Recover(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (w *World) LoadGameState() error {
+	if w.stateIsLoaded {
+		return errors.New("cannot load game state multiple times")
+	}
+	w.stateIsLoaded = true
+	recoveryTickRequired, err := w.recoverGameState()
 	if err != nil {
 		return err
 	}
-	if start != end {
-		return ErrorStoreStateInvalid
-	}
-	w.tick = start
 
-	if err := w.loadFromKey(storeArchetypeAccessorKey, w.store.ArchAccessor, components); err != nil {
+	if err := w.loadFromKey(storeArchetypeAccessorKey, w.store.ArchAccessor, w.registeredComponents); err != nil {
 		return err
 	}
-	if err := w.loadFromKey(storeArchetypeCompIdxKey, w.store.ArchCompIdxStore, components); err != nil {
+	if err := w.loadFromKey(storeArchetypeCompIdxKey, w.store.ArchCompIdxStore, w.registeredComponents); err != nil {
 		return err
 	}
+
+	if recoveryTickRequired {
+		w.txQueues, err = w.store.TickStore.PendingTransactions(w.registeredTransactions)
+		if err != nil {
+			return err
+		}
+		if err := w.Tick(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

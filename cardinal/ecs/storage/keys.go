@@ -60,3 +60,7 @@ func (r *RedisStorage) stateStorageKey(subKey string) string {
 func (r *RedisStorage) tickKey() string {
 	return "TICK"
 }
+
+func (r *RedisStorage) pendingTransactionsKey() string {
+	return "PENDING:TRANSACTIONS"
+}
