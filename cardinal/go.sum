@@ -3,6 +3,8 @@ buf.build/gen/go/argus-labs/cardinal/grpc/go v1.3.0-20230419204405-6273c6504412.
 buf.build/gen/go/argus-labs/cardinal/protocolbuffers/go v1.28.1-20230419204405-6273c6504412.4/go.mod h1:opf/KQnBxCMuWHWSbTyXxL7jSChrU1wD3OAhbVGwlHM=
 buf.build/gen/go/argus-labs/cardinal/protocolbuffers/go v1.30.0-20230419204405-6273c6504412.1 h1:LJjAMOyRt0/BIpSbTKOh86rnPybaDXbtQMFJE/kQLN4=
 buf.build/gen/go/argus-labs/cardinal/protocolbuffers/go v1.30.0-20230419204405-6273c6504412.1/go.mod h1:JgsKjqFuGNrq3aHo8+kVsAAvbeB+jtz+FKYBu2hN3z0=
+buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.30.0-20230613205315-4b5b36814d57.1 h1:EWtTcsZVL6q6w3jIAvV88+uqYSYdLHpC0SArw/O4+fc=
+buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.30.0-20230613205315-4b5b36814d57.1/go.mod h1:H6MnOQAXNoRtPa5PTIRYiEETM/rYto0jFF4lhI9mOJg=
 buf.build/gen/go/cosmos/cosmos-proto/grpc/go v1.3.0-20211202220400-1935555c206d.1/go.mod h1:AS+jUupCTrSz+T88+ZsW4cOQwkYftIjjMzqXoK0hp3k=
 buf.build/gen/go/cosmos/cosmos-proto/protocolbuffers/go v1.28.1-20211202220400-1935555c206d.4/go.mod h1:eLpHyQeVRAtShjbHVpIla0w/42RZAdaaTpBErMv/6sc=
 buf.build/gen/go/cosmos/cosmos-proto/protocolbuffers/go v1.30.0-20211202220400-1935555c206d.1/go.mod h1:N/DcqRdhzhH/PL5cHkLvCioS6fFxuHkYSIYHXlPF6Uw=
