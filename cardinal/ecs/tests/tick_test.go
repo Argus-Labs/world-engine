@@ -88,7 +88,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 3, p.Power)
 
-	// Just for func, tick one last time to make sure power is still being incremented.
+	// Just for fun, tick one last time to make sure power is still being incremented.
 	assert.NilError(t, twoWorld.Tick())
 	p, err = onePower.Get(twoWorld, id)
 	assert.NilError(t, err)
@@ -194,9 +194,13 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			assert.ErrorIs(t, errorToggleComponent, world.Tick())
 		} else {
 			// At this second iteration, the errorToggleComponent bug has been fixed. static.Val should be 5
-			// and it should have just been added to the entity.
+			// and toggle should have just been added to the entity.
 			_, err := toggle.Get(world, id)
 			assert.NilError(t, err)
+
+			s, err := static.Get(world, id)
+			assert.NilError(t, err)
+			assert.Equal(t, 5, s.Val)
 		}
 	}
 }
