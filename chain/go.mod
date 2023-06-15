@@ -6,17 +6,17 @@ replace (
 	cosmossdk.io/x/evidence => cosmossdk.io/x/evidence v0.0.0-20230305125317-672b052f323b
 	cosmossdk.io/x/feegrant => cosmossdk.io/x/feegrant v0.0.0-20230305125317-672b052f323b
 	// Rollkit required replaces
-	github.com/cometbft/cometbft => github.com/rollkit/cometbft v0.0.0-20230324162212-3c10e22c8839
-	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.0-beta2.0.20230328142123-a888966af1fb
+	github.com/cometbft/cometbft => github.com/rollkit/cometbft v0.0.0-20230614163111-d6a8d2c98cc0
+	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk 9b9e319d1abc
 	github.com/docker/docker => github.com/docker/docker v20.10.3-0.20221013203545-33ab36d6b304+incompatible // 22.06 branch
 	// Required for stateful precompiles and supporting the Ethereum JSON-RPC API.
 	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20230321213944-019945fbf8fc
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.2-alpha.regen.4
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	github.com/tendermint/tendermint => github.com/celestiaorg/tendermint v0.34.22-0.20221202214355-3605c597500d
 	pkg.berachain.dev/polaris/contracts => ./contracts
 	pkg.berachain.dev/polaris/precompile => ./precompile
 )
+
 
 require (
 	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230515165800-753a5df316de.1
