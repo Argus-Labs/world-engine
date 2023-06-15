@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 )
@@ -198,6 +200,7 @@ func (r *RedisStorage) MoveComponent(source ArchetypeID, index ComponentIndex, d
 		return err
 	}
 	cmd := r.Client.LRem(ctx, sKey, 1, "DELETE")
+
 	return cmd.Err()
 }
 
@@ -460,7 +463,10 @@ func (r *RedisStorage) GetTickNumbers() (start, end int, err error) {
 	return details.Start, details.End, nil
 }
 
-func (r *RedisStorage) StartNextTick() error {
+func (r *RedisStorage) StartNextTick(txs []transaction.ITransaction, queues map[transaction.TypeID][]any) error {
+	if err := r.makeSnapshot(); err != nil {
+		return err
+	}
 	details, err := r.getTickDetails()
 	if err != nil {
 		return err
@@ -476,4 +482,97 @@ func (r *RedisStorage) FinalizeTick() error {
 	}
 	details.End++
 	return r.setTickDetails(details)
+}
+
+const snapshotPrefix = "SNAP:"
+
+// partitionKeys splits all keys in the DB into a list that has the snapshotPrefix and a list that does not
+// contain the snapshotPrefix
+func (r *RedisStorage) partitionKeys(ctx context.Context) (stateKeys, snapshotKeys []string, err error) {
+	keys, err := r.Client.Keys(ctx, "*").Result()
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, key := range keys {
+		if strings.HasPrefix(key, snapshotPrefix) {
+			snapshotKeys = append(snapshotKeys, key)
+		} else {
+			stateKeys = append(stateKeys, key)
+		}
+	}
+	return stateKeys, snapshotKeys, nil
+}
+
+// copyKey copies the contents of the src key to the dst key. Ideally, this could be replaced
+// the redis command r.Client.Copy(...), however miniredis (used for unit testing) has a bug
+// where this copy command for lists doesn't work as expected.
+// See https://linear.app/arguslabs/issue/WORLD-210/update-miniredis-version for more details.
+func (r *RedisStorage) copyKey(ctx context.Context, src, dst string) error {
+	keyType, err := r.Client.Type(ctx, src).Result()
+	if err != nil {
+		return err
+	}
+	if keyType != "list" {
+		return r.Client.Copy(ctx, src, dst, 0, true).Err()
+	}
+	if err := r.Client.Del(ctx, dst).Err(); err != nil {
+		return err
+	}
+	vals, err := r.Client.LRange(ctx, src, 0, -1).Result()
+	if err != nil {
+		return err
+	}
+	ivals := make([]interface{}, len(vals))
+	for i, v := range vals {
+		ivals[i] = v
+	}
+
+	return r.Client.RPush(ctx, dst, ivals...).Err()
+}
+
+func (r *RedisStorage) makeSnapshot() error {
+	ctx := context.Background()
+	toCopy, toDelete, err := r.partitionKeys(ctx)
+	if err != nil {
+		return err
+	}
+	if len(toDelete) > 0 {
+		// Unlink is like Del, but the actual reclamation of memory happens in an asynchronous thread
+		if err := r.Client.Unlink(ctx, toDelete...).Err(); err != nil {
+			return err
+		}
+	}
+
+	for _, sourceKey := range toCopy {
+		destKey := snapshotPrefix + sourceKey
+		if err := r.copyKey(ctx, sourceKey, destKey); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *RedisStorage) Recover() error {
+	ctx := context.Background()
+	stateKeys, snapshotKeys, err := r.partitionKeys(ctx)
+	if err != nil {
+		return err
+	}
+	if len(stateKeys) > 0 {
+		// We are recovering from a snapshot, so the existing state keys are obsolete
+		if _, err := r.Client.Unlink(ctx, stateKeys...).Result(); err != nil {
+			return err
+		}
+	}
+	for _, sourceKey := range snapshotKeys {
+		destKey := strings.TrimPrefix(sourceKey, snapshotPrefix)
+		if err := r.copyKey(ctx, sourceKey, destKey); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *RedisStorage) PendingTransactions(txs []transaction.ITransaction) (map[transaction.TypeID][]any, error) {
+	return nil, nil
 }

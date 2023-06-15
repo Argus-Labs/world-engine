@@ -47,7 +47,7 @@ var (
 
 func TestECS(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	world.RegisterComponents(Energy, Ownable)
+	assert.NilError(t, world.RegisterComponents(Energy, Ownable))
 
 	// create a bunch of planets!
 	numPlanets := 5
@@ -59,6 +59,8 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, err)
 
 	world.AddSystem(UpdateEnergySystem)
+	assert.NilError(t, world.LoadGameState())
+
 	assert.NilError(t, world.Tick())
 
 	Energy.Each(world, func(id storage.EntityID) {
@@ -82,7 +84,8 @@ func TestVelocitySimulation(t *testing.T) {
 	}
 	Position := ecs.NewComponentType[Pos]()
 	Velocity := ecs.NewComponentType[Vel]()
-	world.RegisterComponents(Position, Velocity)
+	assert.NilError(t, world.RegisterComponents(Position, Velocity))
+	assert.NilError(t, world.LoadGameState())
 
 	shipID, err := world.Create(Position, Velocity)
 	assert.NilError(t, err)
@@ -111,7 +114,8 @@ func TestCanSetDefaultValue(t *testing.T) {
 	}
 	wantOwner := Owner{"Jeff"}
 	owner := ecs.NewComponentType[Owner](ecs.WithDefault(wantOwner))
-	world.RegisterComponents(owner)
+	assert.NilError(t, world.RegisterComponents(owner))
+	assert.NilError(t, world.LoadGameState())
 
 	alpha, err := world.Create(owner)
 	assert.NilError(t, err)
@@ -134,7 +138,8 @@ func TestCanRemoveEntity(t *testing.T) {
 	}
 
 	tuple := ecs.NewComponentType[Tuple]()
-	world.RegisterComponents(tuple)
+	assert.NilError(t, world.RegisterComponents(tuple))
+	assert.NilError(t, world.LoadGameState())
 
 	entities, err := world.CreateMany(2, tuple)
 	assert.NilError(t, err)
@@ -186,7 +191,8 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 		Val int
 	}
 	Count := ecs.NewComponentType[CountComponent]()
-	world.RegisterComponents(Count)
+	assert.NilError(t, world.RegisterComponents(Count))
+	assert.NilError(t, world.LoadGameState())
 
 	_, err := world.CreateMany(10, Count)
 	assert.NilError(t, err)
@@ -221,7 +227,8 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	energy := ecs.NewComponentType[EnergyComponent]()
-	world.RegisterComponents(energy)
+	assert.NilError(t, world.RegisterComponents(energy))
+	assert.NilError(t, world.LoadGameState())
 
 	ent, err := world.Create(energy)
 	assert.NilError(t, err)
@@ -232,7 +239,8 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	reactorEnergy := ecs.NewComponentType[EnergyComponent]()
 	weaponsEnergy := ecs.NewComponentType[EnergyComponent]()
-	world.RegisterComponents(reactorEnergy, weaponsEnergy)
+	assert.NilError(t, world.RegisterComponents(reactorEnergy, weaponsEnergy))
+	assert.NilError(t, world.LoadGameState())
 	ent, err := world.Create(reactorEnergy)
 	assert.NilError(t, err)
 
@@ -244,7 +252,8 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	type Foo struct{}
 	type Bar struct{}
 	a, b := ecs.NewComponentType[Foo](), ecs.NewComponentType[Bar]()
-	world.RegisterComponents(a, b)
+	assert.NilError(t, world.RegisterComponents(a, b))
+	assert.NilError(t, world.LoadGameState())
 
 	entity, err := world.Create(a, b)
 	assert.NilError(t, err)
@@ -272,7 +281,8 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	alpha := ecs.NewComponentType[Label](ecs.WithDefault(Label{"alpha"}))
 	beta := ecs.NewComponentType[Label](ecs.WithDefault(Label{"beta"}))
 	gamma := ecs.NewComponentType[Label](ecs.WithDefault(Label{"gamma"}))
-	world.RegisterComponents(alpha, beta, gamma)
+	assert.NilError(t, world.RegisterComponents(alpha, beta, gamma))
+	assert.NilError(t, world.LoadGameState())
 
 	entIDs, err := world.CreateMany(3, alpha, beta)
 	assert.NilError(t, err)
@@ -316,7 +326,8 @@ func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 
 	alpha := ecs.NewComponentType[EnergyComponent]()
 	beta := ecs.NewComponentType[EnergyComponent]()
-	world.RegisterComponents(alpha, beta)
+	assert.NilError(t, world.RegisterComponents(alpha, beta))
+	assert.NilError(t, world.LoadGameState())
 
 	id, err := world.Create(alpha)
 	assert.NilError(t, err)
@@ -328,7 +339,8 @@ func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 func TestQueriesAndFiltersWorks(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	a, b, c, d := ecs.NewComponentType[int](), ecs.NewComponentType[int](), ecs.NewComponentType[int](), ecs.NewComponentType[int]()
-	world.RegisterComponents(a, b, c, d)
+	assert.NilError(t, world.RegisterComponents(a, b, c, d))
+	assert.NilError(t, world.LoadGameState())
 
 	ab, err := world.Create(a, b)
 	assert.NilError(t, err)
