@@ -24,7 +24,7 @@ import (
 	"math/big"
 	"testing"
 
-	"cosmossdk.io/math"
+	sdkmath "cosmossdk.io/math"
 
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
@@ -33,13 +33,14 @@ import (
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile"
 	cosmlib "pkg.berachain.dev/polaris/cosmos/lib"
 	"pkg.berachain.dev/polaris/cosmos/precompile"
 	testutil "pkg.berachain.dev/polaris/cosmos/testing/utils"
 	"pkg.berachain.dev/polaris/eth/accounts/abi"
 	"pkg.berachain.dev/polaris/eth/common"
 	"pkg.berachain.dev/polaris/lib/utils"
+
+	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/staking"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -134,12 +135,12 @@ var _ = Describe("Staking", func() {
 			Expect(err).ToNot(HaveOccurred())
 			otherValidator, err := NewValidator(otherVal, PKs[1])
 			Expect(err).ToNot(HaveOccurred())
-			validator, _ = validator.AddTokensFromDel(sdk.NewIntFromBigInt(amount))
-			otherValidator, _ = otherValidator.AddTokensFromDel(sdk.NewIntFromBigInt(amount))
+			validator, _ = validator.AddTokensFromDel(sdkmath.NewIntFromBigInt(amount))
+			otherValidator, _ = otherValidator.AddTokensFromDel(sdkmath.NewIntFromBigInt(amount))
 			validator = stakingkeeper.TestingUpdateValidator(&sk, ctx, validator, true)
 			stakingkeeper.TestingUpdateValidator(&sk, ctx, otherValidator, true)
 
-			delegation := stakingtypes.NewDelegation(del, val, math.LegacyNewDec(9))
+			delegation := stakingtypes.NewDelegation(del, val, sdkmath.LegacyNewDec(9))
 			sk.SetDelegation(ctx, delegation)
 
 			// Check that the delegation was created.
@@ -193,7 +194,7 @@ var _ = Describe("Staking", func() {
 					sdk.NewCoins(
 						sdk.NewCoin(
 							"stake",
-							sdk.NewIntFromBigInt(amountToDelegate),
+							sdkmath.NewIntFromBigInt(amountToDelegate),
 						),
 					),
 				)
@@ -256,7 +257,7 @@ var _ = Describe("Staking", func() {
 					sdk.NewCoins(
 						sdk.NewCoin(
 							"stake",
-							sdk.NewIntFromBigInt(amountToDelegate),
+							sdkmath.NewIntFromBigInt(amountToDelegate),
 						),
 					),
 				)

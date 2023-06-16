@@ -23,33 +23,27 @@ package main
 import (
 	"os"
 
-	"github.com/cosmos/cosmos-sdk/server"
-	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
+	"cosmossdk.io/log"
 	"github.com/spf13/viper"
 
+	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
+
+	simapp "github.com/argus-labs/world-engine/chain/app"
 	"github.com/argus-labs/world-engine/chain/cmd/world/cmd"
 	"github.com/argus-labs/world-engine/chain/config"
-	simapp "github.com/argus-labs/world-engine/chain/runtime"
-	runtimeconfig "github.com/argus-labs/world-engine/chain/runtime/config"
+	"github.com/argus-labs/world-engine/chain/types"
 )
 
 func main() {
-	worldEngineCfg, err := getWorldEngineConfig()
+	cfg, err := getWorldEngineConfig()
 	if err != nil {
 		panic(err)
 	}
-	runtimeconfig.SetupCosmosConfig(worldEngineCfg)
-
+	types.SetupCosmosConfig(cfg)
 	rootCmd := cmd.NewRootCmd()
-	if err = svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
-		//nolint: errorlint // uhh fix?
-		switch e := err.(type) {
-		case server.ErrorCode:
-			os.Exit(e.Code)
-
-		default:
-			os.Exit(1)
-		}
+	if err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
+		log.NewLogger(rootCmd.OutOrStderr()).Error("failure when running app", "err", err)
+		os.Exit(1)
 	}
 }
 
