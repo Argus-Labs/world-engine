@@ -35,15 +35,26 @@ import (
 )
 
 func main() {
-	cfg, err := getWorldEngineConfig()
+	var err error
+	var cfg config.WorldEngineConfig
+	cfg, err = getWorldEngineConfig()
 	if err != nil {
-		panic(err)
+		cfg = getDefaultConfig()
 	}
 	types.SetupCosmosConfig(cfg)
 	rootCmd := cmd.NewRootCmd()
 	if err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
 		log.NewLogger(rootCmd.OutOrStderr()).Error("failure when running app", "err", err)
 		os.Exit(1)
+	}
+}
+
+func getDefaultConfig() config.WorldEngineConfig {
+	return config.WorldEngineConfig{
+		DisplayDenom:    "stake",
+		BaseDenom:       "ustake",
+		Bech32Prefix:    "world",
+		RouterAuthority: "",
 	}
 }
 
