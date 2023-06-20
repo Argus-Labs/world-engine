@@ -24,7 +24,7 @@ const (
 
 type Contract struct {
 	ethprecompile.BaseContract
-	r router.Router
+	rtr router.Router
 }
 
 // NewPrecompileContract
@@ -35,7 +35,7 @@ func NewPrecompileContract(r router.Router) ethprecompile.StatefulImpl {
 			generated.RouterMetaData.ABI,
 			cosmlib.AccAddressToEthAddress(authtypes.NewModuleAddress(name)),
 		),
-		r: r,
+		rtr: r,
 	}
 }
 
@@ -68,7 +68,7 @@ func (c *Contract) Send(
 		return nil, precompile.ErrInvalidString
 	}
 
-	result, err := c.r.Send(ctx, namespace, caller.String(), payload)
+	result, err := c.rtr.Send(ctx, namespace, caller.String(), payload)
 	if err != nil {
 		return nil, err
 	}
