@@ -22,7 +22,7 @@ func NewRouter() Router {
 	return &router{}
 }
 
-func (r *router) Send(ctx context.Context, namespace, sender string, msg []byte) (Result, error) {
+func (r *router) Send(_ context.Context, _, _ string, _ []byte) (Result, error) {
 	// TODO: impl
 	return Result{}, nil
 }

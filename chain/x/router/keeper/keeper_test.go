@@ -25,7 +25,6 @@ type testSuite struct {
 	db    ormdb.ModuleDB
 	store api.StateStore
 	k     *Keeper
-	auth  string
 	ctx   sdk.Context
 }
 
@@ -40,9 +39,9 @@ func setupBase(t *testing.T, auth string) *testSuite {
 
 	ts.k = NewKeeper(ts.store, auth)
 
-	memDb := dbm.NewMemDB()
-	cms := store.NewCommitMultiStore(memDb, log.NewNopLogger(), metrics.NewMetrics([][]string{}))
-	cms.MountStoreWithDB(storetypes.NewKVStoreKey("test"), storetypes.StoreTypeIAVL, memDb)
+	memDB := dbm.NewMemDB()
+	cms := store.NewCommitMultiStore(memDB, log.NewNopLogger(), metrics.NewMetrics([][]string{}))
+	cms.MountStoreWithDB(storetypes.NewKVStoreKey("test"), storetypes.StoreTypeIAVL, memDB)
 	assert.NilError(t, cms.LoadLatestVersion())
 
 	ormCtx := ormtable.WrapContextDefault(ormtest.NewMemoryBackend())

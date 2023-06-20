@@ -9,8 +9,8 @@ import (
 
 var _ types.QueryServiceServer = &Keeper{}
 
-func (k *Keeper) Namespaces(ctx context.Context, request *types.NamespacesRequest) (*types.NamespacesResponse, error) {
-	nameSpaces := make([]*types.Namespace, 0, 5)
+func (k *Keeper) Namespaces(ctx context.Context, _ *types.NamespacesRequest) (*types.NamespacesResponse, error) {
+	nameSpaces := make([]*types.Namespace, 0)
 	it, err := k.store.NamespaceTable().List(ctx, routerv1.NamespaceShardNameIndexKey{})
 	if err != nil {
 		return nil, err

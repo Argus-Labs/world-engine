@@ -48,6 +48,9 @@ func (k *Keeper) InitGenesis(ctx sdk.Context, _ codec.JSONCodec, data json.RawMe
 	}
 
 	err = k.db.GenesisHandler().InitGenesis(ctx, source)
+	if err != nil {
+		return nil, err
+	}
 
 	return []abci.ValidatorUpdate{}, nil
 }

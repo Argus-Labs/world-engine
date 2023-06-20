@@ -46,7 +46,7 @@ func (AppModuleBasic) Name() string {
 }
 
 // RegisterLegacyAminoCodec registers the router module's types on the given LegacyAmino codec.
-func (AppModuleBasic) RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
+func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {
 	// types.RegisterLegacyAminoCodec(cdc)
 }
 
@@ -56,7 +56,7 @@ func (b AppModuleBasic) RegisterInterfaces(r types2.InterfaceRegistry) {
 }
 
 // RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the router module.
-func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *gwruntime.ServeMux) {
+func (AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *gwruntime.ServeMux) {
 	// if err := types.RegisterQueryServiceHandlerClient(context.Background(), mux,
 	// types.NewQueryClient(clientCtx)); err != nil {
 	// 	panic(err)
@@ -83,7 +83,7 @@ type AppModule struct {
 	keeper *keeper.Keeper
 }
 
-func (am AppModule) DefaultGenesis(jsonCodec codec.JSONCodec) json.RawMessage {
+func (am AppModule) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
 	db, err := ormdb.NewModuleDB(&storage.ModuleSchema, ormdb.ModuleDBOptions{})
 	if err != nil {
 		panic(err)
@@ -100,7 +100,7 @@ func (am AppModule) DefaultGenesis(jsonCodec codec.JSONCodec) json.RawMessage {
 	return bz
 }
 
-func (am AppModule) ValidateGenesis(jsonCodec codec.JSONCodec, config client.TxEncodingConfig, message json.RawMessage) error {
+func (am AppModule) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig, message json.RawMessage) error {
 	db, err := ormdb.NewModuleDB(&storage.ModuleSchema, ormdb.ModuleDBOptions{})
 	if err != nil {
 		return err
