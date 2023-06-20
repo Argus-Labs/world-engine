@@ -111,3 +111,27 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	_, err = notFoundComp.Get(world, id)
 	assert.ErrorIs(t, err, storage2.ErrorComponentNotOnEntity)
 }
+
+func TestMultipleCallsToCreateSupported(t *testing.T) {
+	type ValueComponent struct {
+		Val int
+	}
+	world := inmem.NewECSWorldForTest(t)
+	valComp := ecs.NewComponentType[ValueComponent]()
+	assert.NilError(t, world.RegisterComponents(valComp))
+
+	id, err := world.Create(valComp)
+	assert.NilError(t, err)
+
+	assert.NilError(t, valComp.Set(world, id, ValueComponent{99}))
+
+	val, err := valComp.Get(world, id)
+	assert.NilError(t, err)
+	assert.Equal(t, 99, val.Val)
+
+	_, err = world.Create(valComp)
+
+	val, err = valComp.Get(world, id)
+	assert.NilError(t, err)
+	assert.Equal(t, 99, val.Val)
+}

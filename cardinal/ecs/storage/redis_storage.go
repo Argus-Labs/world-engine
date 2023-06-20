@@ -150,7 +150,7 @@ func (r *RedisStorage) PushComponent(component component.IComponentType, archID 
 	if err != nil {
 		return err
 	}
-	res := r.Client.LPush(ctx, key, componentBz)
+	res := r.Client.RPush(ctx, key, componentBz)
 	return res.Err()
 }
 
