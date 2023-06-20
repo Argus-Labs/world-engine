@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package router.v1;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "router/v1/state.proto";
+
+option go_package = "github.com/argus-labs/world-engine/chain/x/router/types";
+
+// `QueryService` provides defines the gRPC querier service.
+service QueryService {
+  rpc Namespaces(NamespacesRequest) returns (NamespacesResponse) {
+    option (google.api.http).get = "/world_engine/router/v1/namespaces";
+  }
+}
+
+message NamespacesRequest {}
+
+message NamespacesResponse {
+  repeated Namespace namespaces = 1;
+}
