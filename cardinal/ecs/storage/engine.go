@@ -91,6 +91,5 @@ type TickStorage interface {
 	GetTickNumbers() (start, end int, err error)
 	StartNextTick(txs []transaction.ITransaction, queues map[transaction.TypeID][]any) error
 	FinalizeTick() error
-	Recover() error
-	PendingTransactions(txs []transaction.ITransaction) (map[transaction.TypeID][]any, error)
+	Recover(txs []transaction.ITransaction) (map[transaction.TypeID][]any, error)
 }

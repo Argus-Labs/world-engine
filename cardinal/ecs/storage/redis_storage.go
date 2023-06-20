@@ -427,13 +427,12 @@ type tickDetails struct {
 
 var _ TickStorage = &RedisStorage{}
 
-func (r *RedisStorage) getTickDetails() (tickDetails, error) {
-	ctx := context.Background()
+func (r *RedisStorage) getTickDetails(ctx context.Context) (tickDetails, error) {
 	key := r.tickKey()
 	buf, err := r.Client.Get(ctx, key).Bytes()
 	if err != nil && err == redis.Nil {
 		zero := tickDetails{}
-		return zero, r.setTickDetails(zero)
+		return zero, r.setTickDetails(ctx, zero)
 	} else if err != nil {
 		return tickDetails{}, err
 	}
@@ -445,8 +444,7 @@ func (r *RedisStorage) getTickDetails() (tickDetails, error) {
 	return details, nil
 }
 
-func (r *RedisStorage) setTickDetails(details tickDetails) error {
-	ctx := context.Background()
+func (r *RedisStorage) setTickDetails(ctx context.Context, details tickDetails) error {
 	buf, err := Encode(details)
 	if err != nil {
 		return err
@@ -456,7 +454,8 @@ func (r *RedisStorage) setTickDetails(details tickDetails) error {
 }
 
 func (r *RedisStorage) GetTickNumbers() (start, end int, err error) {
-	details, err := r.getTickDetails()
+	ctx := context.Background()
+	details, err := r.getTickDetails(ctx)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -468,7 +467,7 @@ type pendingTransaction struct {
 	Data []byte
 }
 
-func (r *RedisStorage) storeTransactions(txs []transaction.ITransaction, queues map[transaction.TypeID][]any) error {
+func (r *RedisStorage) storeTransactions(ctx context.Context, txs []transaction.ITransaction, queues map[transaction.TypeID][]any) error {
 	pending := []pendingTransaction{}
 	for _, tx := range txs {
 		currList := queues[tx.ID()]
@@ -484,11 +483,10 @@ func (r *RedisStorage) storeTransactions(txs []transaction.ITransaction, queues 
 			pending = append(pending, currItem)
 		}
 	}
-	return r.storePendingTransactionsInRedis(pending)
+	return r.storePendingTransactionsInRedis(ctx, pending)
 }
 
-func (r *RedisStorage) storePendingTransactionsInRedis(pending []pendingTransaction) error {
-	ctx := context.Background()
+func (r *RedisStorage) storePendingTransactionsInRedis(ctx context.Context, pending []pendingTransaction) error {
 	buf, err := Encode(pending)
 	if err != nil {
 		return err
@@ -497,8 +495,7 @@ func (r *RedisStorage) storePendingTransactionsInRedis(pending []pendingTransact
 	return r.Client.Set(ctx, key, buf, 0).Err()
 }
 
-func (r *RedisStorage) getPendingTransactionsFromRedis() ([]pendingTransaction, error) {
-	ctx := context.Background()
+func (r *RedisStorage) getPendingTransactionsFromRedis(ctx context.Context) ([]pendingTransaction, error) {
 	key := r.pendingTransactionsKey()
 	buf, err := r.Client.Get(ctx, key).Bytes()
 	if err != nil {
@@ -508,27 +505,29 @@ func (r *RedisStorage) getPendingTransactionsFromRedis() ([]pendingTransaction, 
 }
 
 func (r *RedisStorage) StartNextTick(txs []transaction.ITransaction, queues map[transaction.TypeID][]any) error {
-	if err := r.storeTransactions(txs, queues); err != nil {
+	ctx := context.Background()
+	if err := r.storeTransactions(ctx, txs, queues); err != nil {
 		return err
 	}
-	if err := r.makeSnapshot(); err != nil {
+	if err := r.makeSnapshot(ctx); err != nil {
 		return err
 	}
-	details, err := r.getTickDetails()
+	details, err := r.getTickDetails(ctx)
 	if err != nil {
 		return err
 	}
 	details.Start++
-	return r.setTickDetails(details)
+	return r.setTickDetails(ctx, details)
 }
 
 func (r *RedisStorage) FinalizeTick() error {
-	details, err := r.getTickDetails()
+	ctx := context.Background()
+	details, err := r.getTickDetails(ctx)
 	if err != nil {
 		return err
 	}
 	details.End++
-	return r.setTickDetails(details)
+	return r.setTickDetails(ctx, details)
 }
 
 const snapshotPrefix = "SNAP:"
@@ -577,8 +576,7 @@ func (r *RedisStorage) copyKey(ctx context.Context, src, dst string) error {
 	return r.Client.RPush(ctx, dst, ivals...).Err()
 }
 
-func (r *RedisStorage) makeSnapshot() error {
-	ctx := context.Background()
+func (r *RedisStorage) makeSnapshot(ctx context.Context) error {
 	toCopy, toDelete, err := r.partitionKeys(ctx)
 	if err != nil {
 		return err
@@ -599,8 +597,7 @@ func (r *RedisStorage) makeSnapshot() error {
 	return nil
 }
 
-func (r *RedisStorage) Recover() error {
-	ctx := context.Background()
+func (r *RedisStorage) recoverSnapshot(ctx context.Context) error {
 	stateKeys, snapshotKeys, err := r.partitionKeys(ctx)
 	if err != nil {
 		return err
@@ -620,10 +617,14 @@ func (r *RedisStorage) Recover() error {
 	return nil
 }
 
-// PendingTransactions recovers the transactions that have been saved to the DB, but not yet
-// applied to a game tick.
-func (r *RedisStorage) PendingTransactions(txs []transaction.ITransaction) (map[transaction.TypeID][]any, error) {
-	pending, err := r.getPendingTransactionsFromRedis()
+// Recover recovers the game state from the last game tick and any pending transactions that have been saved to the DB,
+// but not yet applied to a game tick.
+func (r *RedisStorage) Recover(txs []transaction.ITransaction) (map[transaction.TypeID][]any, error) {
+	ctx := context.Background()
+	if err := r.recoverSnapshot(ctx); err != nil {
+		return nil, err
+	}
+	pending, err := r.getPendingTransactionsFromRedis(ctx)
 	if err != nil {
 		return nil, err
 	}

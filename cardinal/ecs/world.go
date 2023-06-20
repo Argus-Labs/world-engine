@@ -412,20 +412,21 @@ func (w *World) saveToKey(key string, cm storage.ComponentMarshaler) error {
 	return w.store.StateStore.Save(key, buf)
 }
 
-func (w *World) recoverGameState() (recoveryTickRequired bool, err error) {
+// recoverGameState checks the status of the last game tick. If the tick was incomplete (indicating
+// a problem when running one of the Systems), the snapshotted state is recovered and the pending
+// transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
+// transactions that need to be processed because the last tick was successful.
+func (w *World) recoverGameState() (recoveredTxs map[transaction.TypeID][]any, err error) {
 	start, end, err := w.store.TickStore.GetTickNumbers()
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	w.tick = end
 	// We successfully completed the last tick. Everything is fine
 	if start == end {
-		return false, nil
+		return nil, nil
 	}
-	if err := w.store.TickStore.Recover(); err != nil {
-		return false, err
-	}
-	return true, nil
+	return w.store.TickStore.Recover(w.registeredTransactions)
 }
 
 func (w *World) LoadGameState() error {
@@ -433,7 +434,7 @@ func (w *World) LoadGameState() error {
 		return errors.New("cannot load game state multiple times")
 	}
 	w.stateIsLoaded = true
-	recoveryTickRequired, err := w.recoverGameState()
+	recoveredTxs, err := w.recoverGameState()
 	if err != nil {
 		return err
 	}
@@ -445,11 +446,8 @@ func (w *World) LoadGameState() error {
 		return err
 	}
 
-	if recoveryTickRequired {
-		w.txQueues, err = w.store.TickStore.PendingTransactions(w.registeredTransactions)
-		if err != nil {
-			return err
-		}
+	if recoveredTxs != nil {
+		w.txQueues = recoveredTxs
 		if err := w.Tick(); err != nil {
 			return err
 		}
