@@ -16,7 +16,8 @@ func (k *Keeper) Namespaces(ctx context.Context, _ *types.NamespacesRequest) (*t
 		return nil, err
 	}
 	for it.Next() {
-		ns, err := it.Value()
+		var ns *routerv1.Namespace
+		ns, err = it.Value()
 		if err != nil {
 			return nil, err
 		}
