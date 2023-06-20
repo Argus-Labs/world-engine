@@ -112,7 +112,8 @@ func (am AppModule) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig
 	return db.GenesisHandler().ValidateGenesis(jzSrc)
 }
 
-func (am AppModule) InitGenesis(ctx sdk.Context, jsonCodec codec.JSONCodec, message json.RawMessage) []abci.ValidatorUpdate {
+func (am AppModule) InitGenesis(ctx sdk.Context, jsonCodec codec.JSONCodec,
+	message json.RawMessage) []abci.ValidatorUpdate {
 	up, err := am.keeper.InitGenesis(ctx, jsonCodec, message)
 	if err != nil {
 		panic(err)
