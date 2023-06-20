@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -12,15 +13,17 @@ import (
 
 	"github.com/argus-labs/world-engine/chain/precompile"
 	"github.com/argus-labs/world-engine/chain/router"
-	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile"
+	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/router"
 )
 
 const (
 	name = "world_engine_router"
+
+	maxArgs = 2
 )
 
 type Contract struct {
-	precompile.BaseContract
+	ethprecompile.BaseContract
 	r router.Router
 }
 
@@ -28,7 +31,7 @@ type Contract struct {
 // TODO(technicallyty): decide address
 func NewPrecompileContract(r router.Router) ethprecompile.StatefulImpl {
 	return &Contract{
-		BaseContract: precompile.NewBaseContract(
+		BaseContract: ethprecompile.NewBaseContract(
 			generated.RouterMetaData.ABI,
 			cosmlib.AccAddressToEthAddress(authtypes.NewModuleAddress(name)),
 		),
@@ -53,17 +56,16 @@ func (c *Contract) Send(
 	_ bool,
 	args ...any,
 ) ([]any, error) {
-	maxArgs := 2
-	if err := precompile.MatchArgs(maxArgs, len(args)); err != nil {
+	if err := matchArgs(maxArgs, len(args)); err != nil {
 		return nil, err
 	}
 	payload, ok := utils.GetAs[[]byte](args[0])
 	if !ok {
-		return nil, precompile.ErrInvalidArgType("[]byte", args[0], 0)
+		return nil, precompile.ErrInvalidBytes
 	}
 	namespace, ok := utils.GetAs[string](args[1])
 	if !ok {
-		return nil, precompile.ErrInvalidArgType("string", args[0], 1)
+		return nil, precompile.ErrInvalidString
 	}
 
 	result, err := c.r.Send(ctx, namespace, caller.String(), payload)
@@ -75,4 +77,11 @@ func (c *Contract) Send(
 		Message: result.Message,
 	}
 	return []any{res}, nil
+}
+
+func matchArgs(max, actual int) error {
+	if max != actual {
+		return fmt.Errorf("wanted %d args, got %d", max, actual)
+	}
+	return nil
 }

@@ -21,28 +21,31 @@
 package governance
 
 import (
+	"context"
 	"math/big"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
 
-	"cosmossdk.io/math"
+	sdkmath "cosmossdk.io/math"
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	governancekeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
+	governancetypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 
+	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/governance"
 	cosmlib "pkg.berachain.dev/polaris/cosmos/lib"
 	"pkg.berachain.dev/polaris/cosmos/precompile"
+	precomtest "pkg.berachain.dev/polaris/cosmos/precompile/test"
 	testutil "pkg.berachain.dev/polaris/cosmos/testing/utils"
+	"pkg.berachain.dev/polaris/cosmos/types"
 	"pkg.berachain.dev/polaris/eth/common"
 	"pkg.berachain.dev/polaris/lib/utils"
-
-	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -64,19 +67,62 @@ var _ = Describe("Governance Precompile", func() {
 	)
 
 	BeforeEach(func() {
-		t := GinkgoTestReporter{}
+		t := precomtest.GinkgoTestReporter{}
 		mockCtrl = gomock.NewController(t)
+		types.SetupCosmosConfig()
 		caller = cosmlib.AddressToAccAddress(testutil.Alice)
-		ctx, bk, gk = setup(mockCtrl, caller)
-		contract = utils.MustGetAs[*Contract](NewPrecompileContract(gk))
+		ctx, bk, gk = precomtest.Setup(mockCtrl, caller)
+		contract = utils.MustGetAs[*Contract](NewPrecompileContract(
+			governancekeeper.NewMsgServerImpl(gk),
+			governancekeeper.NewQueryServer(gk),
+		))
+		types.SetupCosmosConfig()
 	})
 
 	AfterEach(func() {
 		mockCtrl.Finish()
 	})
 
+	It("Should have precompile tests and custom value decoders", func() {
+		Expect(contract.PrecompileMethods()).To(HaveLen(6))
+		Expect(contract.CustomValueDecoders()).ToNot(BeNil())
+	})
+
+	When("Unmarshal message and return any", func() {
+		var msg banktypes.MsgSend
+		BeforeEach(func() {
+			msg = banktypes.MsgSend{
+				FromAddress: caller.String(),
+				ToAddress:   testutil.Bob.String(),
+				Amount:      sdk.NewCoins(sdk.NewInt64Coin("abera", 100)),
+			}
+		})
+
+		It("should fail if the message is wrong type", func() {
+			bz := []byte("invalid")
+			_, err := unmarshalMsgAndReturnAny(bz)
+			Expect(err).To(HaveOccurred())
+		})
+		It("should succeed if the message is correct types", func() {
+			bz, err := msg.Marshal()
+			Expect(err).ToNot(HaveOccurred())
+			a, err := unmarshalMsgAndReturnAny(bz)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(a).ToNot(BeNil())
+		})
+	})
+
+	When("submitting proposal handler", func() {
+		It("should fail if the proposal cant be unmarshalled", func() {
+			_, err := contract.submitProposalHelper(
+				context.TODO(), []byte("invalid"), nil,
+			)
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
 	When("Submitting a proposal", func() {
-		It("should fail if the message is not of type", func() {
+		It("Should fail if proposal is of wrong type", func() {
 			res, err := contract.SubmitProposal(
 				ctx,
 				nil,
@@ -85,118 +131,60 @@ var _ = Describe("Governance Precompile", func() {
 				false,
 				"invalid",
 			)
-			Expect(err).To(MatchError(precompile.ErrInvalidAny))
+			Expect(err).To(MatchError(precompile.ErrInvalidBytes))
 			Expect(res).To(BeNil())
 		})
-		It("should fail if the initial deposit is wrong type", func() {
+		It("Should fail if the message is of wrong type", func() {
 			res, err := contract.SubmitProposal(
 				ctx,
 				nil,
 				cosmlib.AccAddressToEthAddress(caller),
 				big.NewInt(0),
 				false,
-				[]*codectypes.Any{},
+				[]byte{},
 				"invalid",
 			)
-			Expect(err).To(MatchError(precompile.ErrInvalidCoin))
-			Expect(res).To(BeNil())
-		})
-		It("should fail if metadata is of wrong type", func() {
-			res, err := contract.SubmitProposal(
-				ctx,
-				nil,
-				cosmlib.AccAddressToEthAddress(caller),
-				big.NewInt(0),
-				false,
-				[]*codectypes.Any{},
-				[]generated.IGovernanceModuleCoin{},
-				123,
-			)
-			Expect(err).To(MatchError(precompile.ErrInvalidString))
-			Expect(res).To(BeNil())
-		})
-		It("should fail if title is of wrong type", func() {
-			res, err := contract.SubmitProposal(
-				ctx,
-				nil,
-				cosmlib.AccAddressToEthAddress(caller),
-				big.NewInt(0),
-				false,
-				[]*codectypes.Any{},
-				[]generated.IGovernanceModuleCoin{},
-				"metadata",
-				123,
-			)
-			Expect(err).To(MatchError(precompile.ErrInvalidString))
-			Expect(res).To(BeNil())
-		})
-		It("should fail if summary is of wrong type", func() {
-			res, err := contract.SubmitProposal(
-				ctx,
-				nil,
-				cosmlib.AccAddressToEthAddress(caller),
-				big.NewInt(0),
-				false,
-				[]*codectypes.Any{},
-				[]generated.IGovernanceModuleCoin{},
-				"metadata",
-				"title",
-				123,
-			)
-			Expect(err).To(MatchError(precompile.ErrInvalidString))
-			Expect(res).To(BeNil())
-		})
-		It("should fail if expedited is of wrong type", func() {
-			res, err := contract.SubmitProposal(
-				ctx,
-				nil,
-				cosmlib.AccAddressToEthAddress(caller),
-				big.NewInt(0),
-				false,
-				[]*codectypes.Any{},
-				[]generated.IGovernanceModuleCoin{},
-				"metadata",
-				"title",
-				"summary",
-				123,
-			)
-			Expect(err).To(MatchError(precompile.ErrInvalidBool))
+			Expect(err).To(MatchError(precompile.ErrInvalidBytes))
 			Expect(res).To(BeNil())
 		})
 		It("should succeed", func() {
-			initDeposit := sdk.NewCoins(sdk.NewInt64Coin("usdc", 100))
+			initDeposit := sdk.NewCoins(sdk.NewInt64Coin("abera", 100))
 			govAcct := gk.GetGovernanceAccount(ctx).GetAddress()
-			fundAccount(ctx, bk, govAcct, initDeposit)
+			err := cosmlib.MintCoinsToAddress(
+				ctx, bk, governancetypes.ModuleName,
+				cosmlib.AccAddressToEthAddress(govAcct), "abera", big.NewInt(100),
+			)
+			Expect(err).ToNot(HaveOccurred())
 			message := &banktypes.MsgSend{
 				FromAddress: govAcct.String(),
 				ToAddress:   caller.String(),
 				Amount:      initDeposit,
 			}
-
 			metadata := "metadata"
 			title := "title"
-			summary := "summary"
-
-			msg, err := codectypes.NewAnyWithValue(message)
+			summary := "summary "
+			msgBz, err := message.Marshal()
 			Expect(err).ToNot(HaveOccurred())
-
+			// Create and marshal the proposal.
+			proposal := v1.MsgSubmitProposal{
+				InitialDeposit: initDeposit,
+				Proposer:       caller.String(),
+				Metadata:       metadata,
+				Title:          title,
+				Summary:        summary,
+				Expedited:      false,
+			}
+			proposalBz, err := proposal.Marshal()
+			Expect(err).ToNot(HaveOccurred())
+			// Submit the proposal.
 			res, err := contract.SubmitProposal(
 				ctx,
 				nil,
 				cosmlib.AccAddressToEthAddress(caller),
 				big.NewInt(0),
 				false,
-				[]*codectypes.Any{msg},
-				[]generated.IGovernanceModuleCoin{
-					{
-						Amount: 100,
-						Denom:  "usdc",
-					},
-				},
-				metadata,
-				title,
-				summary,
-				false,
+				proposalBz,
+				msgBz,
 			)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(res).ToNot(BeNil())
@@ -229,12 +217,13 @@ var _ = Describe("Governance Precompile", func() {
 			Expect(res).To(BeNil())
 		})
 		It("should succeed", func() {
-			gk.SetProposal(ctx, v1.Proposal{
+			err := gk.SetProposal(ctx, v1.Proposal{
 				Id:       1,
 				Proposer: caller.String(),
 				Messages: []*codectypes.Any{},
 				Status:   v1.StatusVotingPeriod,
 			})
+			Expect(err).ToNot(HaveOccurred())
 			res, err := contract.CancelProposal(
 				ctx,
 				nil,
@@ -251,12 +240,13 @@ var _ = Describe("Governance Precompile", func() {
 
 	When("Voting on a proposal", func() {
 		BeforeEach(func() {
-			gk.SetProposal(ctx, v1.Proposal{
+			err := gk.SetProposal(ctx, v1.Proposal{
 				Id:       1,
 				Proposer: caller.String(),
 				Messages: []*codectypes.Any{},
 				Status:   v1.StatusVotingPeriod,
 			})
+			Expect(err).ToNot(HaveOccurred())
 		})
 		It("should fail if the proposal ID is of invalid type", func() {
 			res, err := contract.Vote(
@@ -312,7 +302,7 @@ var _ = Describe("Governance Precompile", func() {
 				"metadata",
 			)
 			Expect(err).To(HaveOccurred())
-			Expect(res).To(BeNil())
+			Expect(res).To(HaveLen(1))
 		})
 		It("should succeed", func() {
 			res, err := contract.Vote(
@@ -384,10 +374,10 @@ var _ = Describe("Governance Precompile", func() {
 					"metadata",
 				)
 				Expect(err).To(HaveOccurred())
-				Expect(res).To(BeNil())
+				Expect(res).To(HaveLen(1))
 			})
 			It("should succeed", func() {
-				weight, err := math.LegacyNewDecFromStr("0.4")
+				weight, err := sdkmath.LegacyNewDecFromStr("1")
 				Expect(err).ToNot(HaveOccurred())
 				options := []generated.IGovernanceModuleWeightedVoteOption{
 					{
@@ -412,7 +402,7 @@ var _ = Describe("Governance Precompile", func() {
 
 		When("Reading Methods", func() {
 			BeforeEach(func() {
-				gk.SetProposal(ctx, v1.Proposal{
+				err := gk.SetProposal(ctx, v1.Proposal{
 					Id:               2,
 					Proposer:         caller.String(),
 					Messages:         []*codectypes.Any{},
@@ -420,7 +410,7 @@ var _ = Describe("Governance Precompile", func() {
 					FinalTallyResult: &v1.TallyResult{},
 					SubmitTime:       &time.Time{},
 					DepositEndTime:   &time.Time{},
-					TotalDeposit:     sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(100))),
+					TotalDeposit:     sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100))),
 					VotingStartTime:  &time.Time{},
 					VotingEndTime:    &time.Time{},
 					Metadata:         "metadata",
@@ -428,7 +418,8 @@ var _ = Describe("Governance Precompile", func() {
 					Summary:          "summary",
 					Expedited:        false,
 				})
-				gk.SetProposal(ctx, v1.Proposal{
+				Expect(err).ToNot(HaveOccurred())
+				err = gk.SetProposal(ctx, v1.Proposal{
 					Id:               3,
 					Proposer:         caller.String(),
 					Messages:         []*codectypes.Any{},
@@ -436,7 +427,7 @@ var _ = Describe("Governance Precompile", func() {
 					FinalTallyResult: &v1.TallyResult{},
 					SubmitTime:       &time.Time{},
 					DepositEndTime:   &time.Time{},
-					TotalDeposit:     sdk.NewCoins(sdk.NewCoin("stake", sdk.NewInt(100))),
+					TotalDeposit:     sdk.NewCoins(sdk.NewCoin("stake", sdkmath.NewInt(100))),
 					VotingStartTime:  &time.Time{},
 					VotingEndTime:    &time.Time{},
 					Metadata:         "metadata",
@@ -444,6 +435,7 @@ var _ = Describe("Governance Precompile", func() {
 					Summary:          "summary",
 					Expedited:        false,
 				})
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			When("GetProposal", func() {

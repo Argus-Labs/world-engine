@@ -25,8 +25,8 @@ import (
 	"os"
 	"testing"
 
+	simapp "github.com/argus-labs/world-engine/chain/app"
 	"github.com/argus-labs/world-engine/chain/cmd/world/cmd"
-	simapp "github.com/argus-labs/world-engine/chain/runtime"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"

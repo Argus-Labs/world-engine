@@ -27,6 +27,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	sdkmath "cosmossdk.io/math"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
@@ -75,7 +77,7 @@ func (c *Contract) getUnbondingDelegationHelper(
 		return nil, err
 	}
 
-	return []any{res.GetUnbond().Entries}, nil
+	return []any{cosmlib.SdkUDEToStakingUDE(res.GetUnbond().Entries)}, nil
 }
 
 // getRedelegationsHelper is the helper function for `getRedelegations.
@@ -116,7 +118,7 @@ func (c *Contract) getRedelegationsHelper(
 		redelegationEntries = append(redelegationEntries, entryRsp.GetRedelegationEntry())
 	}
 
-	return []any{redelegationEntries}, err
+	return []any{cosmlib.SdkREToStakingRE(redelegationEntries)}, err
 }
 
 // delegateHelper is the helper function for `delegate`.
@@ -134,7 +136,7 @@ func (c *Contract) delegateHelper(
 	_, err = c.msgServer.Delegate(ctx, stakingtypes.NewMsgDelegate(
 		cosmlib.AddressToAccAddress(caller),
 		validatorAddress,
-		sdk.NewCoin(denom, sdk.NewIntFromBigInt(amount)),
+		sdk.NewCoin(denom, sdkmath.NewIntFromBigInt(amount)),
 	))
 	return []any{err == nil}, err
 }
@@ -154,7 +156,7 @@ func (c *Contract) undelegateHelper(
 	_, err = c.msgServer.Undelegate(ctx, stakingtypes.NewMsgUndelegate(
 		cosmlib.AddressToAccAddress(caller),
 		val,
-		sdk.NewCoin(denom, sdk.NewIntFromBigInt(amount)),
+		sdk.NewCoin(denom, sdkmath.NewIntFromBigInt(amount)),
 	))
 	return []any{err == nil}, err
 }
@@ -177,7 +179,7 @@ func (c *Contract) beginRedelegateHelper(
 			cosmlib.AddressToAccAddress(caller),
 			srcVal,
 			dstVal,
-			sdk.NewCoin(bondDenom, sdk.NewIntFromBigInt(amount)),
+			sdk.NewCoin(bondDenom, sdkmath.NewIntFromBigInt(amount)),
 		),
 	)
 	return []any{err == nil}, err
@@ -202,7 +204,7 @@ func (c *Contract) cancelUnbondingDelegationHelper(
 			cosmlib.AddressToAccAddress(caller),
 			val,
 			creationHeight,
-			sdk.NewCoin(bondDenom, sdk.NewIntFromBigInt(amount)),
+			sdk.NewCoin(bondDenom, sdkmath.NewIntFromBigInt(amount)),
 		),
 	)
 	return []any{err != nil}, err
@@ -227,6 +229,57 @@ func (c *Contract) activeValidatorsHelper(ctx context.Context) ([]any, error) {
 		addrs = append(addrs, cosmlib.ValAddressToEthAddress(valAddr))
 	}
 	return []any{addrs}, nil
+}
+
+func (c *Contract) validatorsHelper(ctx context.Context) ([]any, error) {
+	res, err := c.querier.Validators(ctx, &stakingtypes.QueryValidatorsRequest{
+		Status: stakingtypes.BondStatusBonded,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	vals, err := cosmlib.SdkValidatorsToStakingValidators(res.GetValidators())
+	if err != nil {
+		return nil, err
+	}
+
+	return []any{vals}, nil
+}
+
+// valAddr must be the bech32 address of the validator.
+func (c *Contract) validatorHelper(ctx context.Context, valAddr string) ([]any, error) {
+	res, err := c.querier.Validator(ctx, &stakingtypes.QueryValidatorRequest{
+		ValidatorAddr: valAddr,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	val, err := cosmlib.SdkValidatorsToStakingValidators([]stakingtypes.Validator{res.GetValidator()})
+	if err != nil {
+		return nil, err
+	}
+
+	// guaranteed not to panic because val is guaranteed to have length 1.
+	return []any{val[0]}, nil
+}
+
+// accAddr must be the bech32 address of the delegator.
+func (c *Contract) delegatorValidatorsHelper(ctx context.Context, accAddr string) ([]any, error) {
+	res, err := c.querier.DelegatorValidators(ctx, &stakingtypes.QueryDelegatorValidatorsRequest{
+		DelegatorAddr: accAddr,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	vals, err := cosmlib.SdkValidatorsToStakingValidators(res.GetValidators())
+	if err != nil {
+		return nil, err
+	}
+
+	return []any{vals}, nil
 }
 
 // bondDenom returns the bond denom from the staking module.

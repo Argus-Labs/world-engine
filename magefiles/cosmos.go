@@ -39,14 +39,14 @@ var (
 	dockerBuild = RunCmdV("docker", "build", "--rm=false")
 
 	// Variables.
-	baseDockerPath  = "./chain/runtime/"
+	baseDockerPath  = "./chain/"
 	beradDockerPath = baseDockerPath + "Dockerfile"
-	imageName       = "polaris-cosmos"
+	imageName       = "world-engine"
 	// testImageVersion       = "e2e-test-dev".
 	goVersion              = "1.20.2"
 	debianStaticImage      = "gcr.io/distroless/static-debian11"
 	golangAlpine           = "golang:1.20-alpine3.17"
-	precompileContractsDir = "./cosmos/precompile/contracts/solidity"
+	precompileContractsDir = "./chain/contracts"
 )
 
 // Compile-time assertion that we implement the interface correctly.
@@ -64,12 +64,13 @@ func (Cosmos) directory() string {
 // Build
 // ===========================================================================
 
-// Starts a local development net and builds it if necessary.
+// Start starts a local development net and builds it if necessary.
+// TODO: fix this?
 func Start() error {
 	return sh.RunV("./chain/runtime/init.sh")
 }
 
-// Builds the Cosmos SDK chain.
+// Build builds the Cosmos SDK chain.
 func (Cosmos) Build() error {
 	LogGreen("Building the Cosmos SDK chain...")
 	cmd := "world"
@@ -147,10 +148,7 @@ func (c Cosmos) Test() error {
 		return err
 	}
 
-	if err := TestIntegration(); err != nil {
-		return err
-	}
-	return nil
+	return TestIntegration()
 }
 
 // Runs all unit tests for the Cosmos SDK chain.

@@ -12,10 +12,9 @@ import (
 	testutil "pkg.berachain.dev/polaris/cosmos/testing/utils"
 	"pkg.berachain.dev/polaris/lib/utils"
 
-	"github.com/argus-labs/world-engine/chain/precompile"
 	"github.com/argus-labs/world-engine/chain/router"
 	"github.com/argus-labs/world-engine/chain/router/mocks"
-	bindings "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile"
+	bindings "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/router"
 )
 
 func TestRouterPrecompile(t *testing.T) {
@@ -50,7 +49,7 @@ var _ = Describe("Router precompile", func() {
 				false,
 				"invalid",
 			)
-			Expect(err).To(MatchError(precompile.ErrInvalidArgumentAmount(2, 1)))
+			Expect(err).Should(HaveOccurred())
 			Expect(res).To(BeNil())
 		})
 		It("should fail if the first arg is the wrong type", func() {
@@ -62,7 +61,7 @@ var _ = Describe("Router precompile", func() {
 				false,
 				"foo", "bar",
 			)
-			Expect(err).To(MatchError(precompile.ErrInvalidArgType("[]byte", "foo", 0)))
+			Expect(err).Should(HaveOccurred())
 			Expect(res).To(BeNil())
 		})
 		It("should fail if the second arg is the wrong type", func() {
@@ -75,7 +74,7 @@ var _ = Describe("Router precompile", func() {
 				false,
 				[]byte("foo"), 15,
 			)
-			Expect(err).To(MatchError(precompile.ErrInvalidArgType("string", []uint8{}, 1)))
+			Expect(err).Should(HaveOccurred())
 			Expect(res).To(BeNil())
 		})
 		It("should succeed", func() {

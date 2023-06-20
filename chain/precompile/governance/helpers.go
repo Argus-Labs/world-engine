@@ -22,43 +22,33 @@ package governance
 
 import (
 	"context"
+	"fmt"
 
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	v1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 
-	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile"
+	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/governance"
 )
 
 // submitProposalHelper is a helper function for the `SubmitProposal` method of the governance precompile contract.
 func (c *Contract) submitProposalHelper(
 	ctx context.Context,
-	messages []*codectypes.Any,
-	initialDeposit []generated.IGovernanceModuleCoin,
-	proposer sdk.AccAddress,
-	metadata, title, summary string,
-	expedited bool,
+	proposalBz []byte,
+	message []*codectypes.Any,
 ) ([]any, error) {
-	coins := []sdk.Coin{}
-
-	// Convert the initial deposit to sdk.Coin.
-	for _, coin := range initialDeposit {
-		coins = append(coins, sdk.NewCoin(coin.Denom, sdk.NewIntFromUint64(coin.Amount)))
+	// Decode the proposal.
+	var proposal v1.MsgSubmitProposal
+	if err := proposal.Unmarshal(proposalBz); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal proposal: %w", err)
 	}
+	proposal.Messages = message
 
-	res, err := c.msgServer.SubmitProposal(ctx, &v1.MsgSubmitProposal{
-		Messages:       messages,
-		InitialDeposit: coins,
-		Proposer:       proposer.String(),
-		Metadata:       metadata,
-		Title:          title,
-		Summary:        summary,
-		Expedited:      expedited,
-	})
+	// Submit the message.
+	res, err := c.msgServer.SubmitProposal(ctx, &proposal)
 	if err != nil {
 		return nil, err
 	}
-
 	return []any{res.ProposalId}, nil
 }
 
@@ -93,11 +83,7 @@ func (c *Contract) voteHelper(
 		Option:     v1.VoteOption(option),
 		Metadata:   metadata,
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return []any{}, nil
+	return []any{err == nil}, err
 }
 
 // voteWeighted is a helper function for the `VoteWeighted` method of the governance precompile contract.
@@ -125,11 +111,7 @@ func (c *Contract) voteWeightedHelper(
 			Metadata:   metadata,
 		},
 	)
-	if err != nil {
-		return nil, err
-	}
-
-	return []any{}, nil
+	return []any{err == nil}, err
 }
 
 // getProposalHelper is a helper function for the `GetProposal` method of the governance precompile contract.
@@ -171,11 +153,11 @@ func transformProposalToABIProposal(proposal v1.Proposal) generated.IGovernanceM
 		message = append(message, msg.Value...)
 	}
 
-	totalDeposit := make([]generated.IGovernanceModuleCoin, 0)
+	totalDeposit := make([]generated.CosmosCoin, 0)
 	for _, coin := range proposal.TotalDeposit {
-		totalDeposit = append(totalDeposit, generated.IGovernanceModuleCoin{
+		totalDeposit = append(totalDeposit, generated.CosmosCoin{
 			Denom:  coin.Denom,
-			Amount: coin.Amount.Uint64(),
+			Amount: coin.Amount.BigInt(),
 		})
 	}
 
@@ -189,14 +171,12 @@ func transformProposalToABIProposal(proposal v1.Proposal) generated.IGovernanceM
 			NoCount:         proposal.FinalTallyResult.NoCount,
 			NoWithVetoCount: proposal.FinalTallyResult.NoWithVetoCount,
 		},
-		SubmitTime:      uint64(proposal.SubmitTime.Unix()),
-		DepositEndTime:  uint64(proposal.DepositEndTime.Unix()),
-		TotalDeposit:    totalDeposit,
-		VotingStartTime: uint64(proposal.VotingStartTime.Unix()),
-		VotingEndTime:   uint64(proposal.VotingEndTime.Unix()),
-		Metadata:        proposal.Metadata,
-		Title:           proposal.Title,
-		Summary:         proposal.Summary,
-		Proposer:        proposal.Proposer,
+		SubmitTime:     uint64(proposal.SubmitTime.Unix()),
+		DepositEndTime: uint64(proposal.DepositEndTime.Unix()),
+		TotalDeposit:   totalDeposit,
+		Metadata:       proposal.Metadata,
+		Title:          proposal.Title,
+		Summary:        proposal.Summary,
+		Proposer:       proposal.Proposer,
 	}
 }

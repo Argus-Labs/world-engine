@@ -1,5 +1,5 @@
 # Compile the argus binary
-FROM golang:1.19-bullseye AS argusd-builder
+FROM golang:1.20-bullseye AS argusd-builder
 WORKDIR /src/app/
 COPY go.mod go.sum* ./
 COPY . .
