@@ -243,7 +243,7 @@ func NewApp(
 	if !ok || homePath == "" {
 		homePath = DefaultNodeHome
 	}
-	// setup evm routerkeeper and all of its plugins.
+	// setup evm keeper and all of its plugins.
 	app.EVMKeeper.Setup(
 		nil,
 		app.CreateQueryContext,
