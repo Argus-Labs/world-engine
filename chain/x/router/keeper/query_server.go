@@ -7,6 +7,8 @@ import (
 	"github.com/argus-labs/world-engine/chain/x/router/types"
 )
 
+var _ types.QueryServiceServer = &Keeper{}
+
 func (k *Keeper) Namespaces(ctx context.Context, request *types.NamespacesRequest) (*types.NamespacesResponse, error) {
 	nameSpaces := make([]*types.Namespace, 0, 5)
 	it, err := k.store.NamespaceTable().List(ctx, routerv1.NamespaceShardNameIndexKey{})
@@ -25,4 +27,12 @@ func (k *Keeper) Namespaces(ctx context.Context, request *types.NamespacesReques
 	}
 
 	return &types.NamespacesResponse{Namespaces: nameSpaces}, nil
+}
+
+func (k *Keeper) Address(ctx context.Context, request *types.AddressRequest) (*types.AddressResponse, error) {
+	ns, err := k.store.NamespaceTable().Get(ctx, request.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	return &types.AddressResponse{Address: ns.ShardAddress}, nil
 }

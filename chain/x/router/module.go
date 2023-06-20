@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	Name             = "Router"
+	Name             = "router"
 	ConsensusVersion = 1
 )
 

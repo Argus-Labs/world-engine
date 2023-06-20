@@ -33,6 +33,8 @@ import (
 	govprecompile "pkg.berachain.dev/polaris/cosmos/precompile/governance"
 	stakingprecompile "pkg.berachain.dev/polaris/cosmos/precompile/staking"
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
+
+	"github.com/argus-labs/world-engine/chain/precompile/router"
 )
 
 // PrecompilesToInject returns a function that provides the initialization of the standard
@@ -60,6 +62,7 @@ func PrecompilesToInject(app *App, customPcs ...ethprecompile.Registrable) func(
 				govkeeper.NewQueryServer(app.GovKeeper),
 			),
 			stakingprecompile.NewPrecompileContract(app.StakingKeeper),
+			router.NewPrecompileContract(app.Router),
 		}...)
 
 		// Add the custom precompiles to the injector.

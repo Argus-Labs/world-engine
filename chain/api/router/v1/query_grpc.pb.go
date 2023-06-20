@@ -20,13 +20,17 @@ const _ = grpc.SupportPackageIsVersion7
 
 const (
 	QueryService_Namespaces_FullMethodName = "/router.v1.QueryService/Namespaces"
+	QueryService_Address_FullMethodName    = "/router.v1.QueryService/Address"
 )
 
 // QueryServiceClient is the client API for QueryService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type QueryServiceClient interface {
+	// Namespaces returns all the namespace:address pairs.
 	Namespaces(ctx context.Context, in *NamespacesRequest, opts ...grpc.CallOption) (*NamespacesResponse, error)
+	// Address returns the address for a given namespace.
+	Address(ctx context.Context, in *AddressRequest, opts ...grpc.CallOption) (*AddressResponse, error)
 }
 
 type queryServiceClient struct {
@@ -46,11 +50,23 @@ func (c *queryServiceClient) Namespaces(ctx context.Context, in *NamespacesReque
 	return out, nil
 }
 
+func (c *queryServiceClient) Address(ctx context.Context, in *AddressRequest, opts ...grpc.CallOption) (*AddressResponse, error) {
+	out := new(AddressResponse)
+	err := c.cc.Invoke(ctx, QueryService_Address_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServiceServer is the server API for QueryService service.
 // All implementations must embed UnimplementedQueryServiceServer
 // for forward compatibility
 type QueryServiceServer interface {
+	// Namespaces returns all the namespace:address pairs.
 	Namespaces(context.Context, *NamespacesRequest) (*NamespacesResponse, error)
+	// Address returns the address for a given namespace.
+	Address(context.Context, *AddressRequest) (*AddressResponse, error)
 	mustEmbedUnimplementedQueryServiceServer()
 }
 
@@ -60,6 +76,9 @@ type UnimplementedQueryServiceServer struct {
 
 func (UnimplementedQueryServiceServer) Namespaces(context.Context, *NamespacesRequest) (*NamespacesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Namespaces not implemented")
+}
+func (UnimplementedQueryServiceServer) Address(context.Context, *AddressRequest) (*AddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Address not implemented")
 }
 func (UnimplementedQueryServiceServer) mustEmbedUnimplementedQueryServiceServer() {}
 
@@ -92,6 +111,24 @@ func _QueryService_Namespaces_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _QueryService_Address_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddressRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServiceServer).Address(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: QueryService_Address_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServiceServer).Address(ctx, req.(*AddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // QueryService_ServiceDesc is the grpc.ServiceDesc for QueryService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -102,6 +139,10 @@ var QueryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Namespaces",
 			Handler:    _QueryService_Namespaces_Handler,
+		},
+		{
+			MethodName: "Address",
+			Handler:    _QueryService_Address_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

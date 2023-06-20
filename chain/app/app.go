@@ -67,6 +67,9 @@ import (
 	evmante "pkg.berachain.dev/polaris/cosmos/x/evm/ante"
 	evmkeeper "pkg.berachain.dev/polaris/cosmos/x/evm/keeper"
 	evmmempool "pkg.berachain.dev/polaris/cosmos/x/evm/plugins/txpool/mempool"
+
+	"github.com/argus-labs/world-engine/chain/router"
+	routerkeeper "github.com/argus-labs/world-engine/chain/x/router/keeper"
 )
 
 // DefaultNodeHome default home directories for the application daemon.
@@ -105,6 +108,12 @@ type App struct {
 	// polaris keepers
 	EVMKeeper   *evmkeeper.Keeper
 	ERC20Keeper *erc20keeper.Keeper
+
+	// world engine keepers
+	RouterKeeper *routerkeeper.Keeper
+
+	// plugins
+	Router router.Router
 
 	// simulation manager
 	sm *module.SimulationManager
@@ -192,6 +201,7 @@ func NewApp(
 		&app.ConsensusParamsKeeper,
 		&app.EVMKeeper,
 		&app.ERC20Keeper,
+		&app.RouterKeeper,
 	); err != nil {
 		panic(err)
 	}
@@ -233,7 +243,7 @@ func NewApp(
 	if !ok || homePath == "" {
 		homePath = DefaultNodeHome
 	}
-	// setup evm keeper and all of its plugins.
+	// setup evm routerkeeper and all of its plugins.
 	app.EVMKeeper.Setup(
 		nil,
 		app.CreateQueryContext,

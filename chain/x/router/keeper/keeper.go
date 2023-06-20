@@ -9,9 +9,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/argus-labs/world-engine/chain/x/router/storage"
-
 	api "github.com/argus-labs/world-engine/chain/api/router/v1"
+	"github.com/argus-labs/world-engine/chain/x/router/storage"
 
 	"cosmossdk.io/core/genesis"
 )

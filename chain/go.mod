@@ -12,9 +12,6 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/tendermint/tendermint => github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121
 
-	// Rollkit required replaces
-	// github.com/docker/docker => github.com/docker/docker v20.10.3-0.20221013203545-33ab36d6b304+incompatible // 22.06 branch
-	// Required for stateful precompiles and supporting the Ethereum JSON-RPC API.
 	pkg.berachain.dev/polaris/contracts => ./contracts
 	pkg.berachain.dev/polaris/precompile => ./precompile
 )

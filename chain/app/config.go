@@ -84,6 +84,9 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/staking"        // import for side-effects
 	_ "pkg.berachain.dev/polaris/cosmos/x/erc20"      // import for side-effects
 	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side-effects
+
+	routermodule "github.com/argus-labs/world-engine/chain/api/router/module/v1"
+	"github.com/argus-labs/world-engine/chain/x/router"
 )
 
 var (
@@ -166,6 +169,7 @@ var (
 						consensustypes.ModuleName,
 						evmtypes.ModuleName,
 						erc20types.ModuleName,
+						router.Name,
 					},
 					// When ExportGenesis is not specified, the export genesis module order
 					// is equal to the init genesis order
@@ -253,6 +257,10 @@ var (
 			{
 				Name:   erc20types.ModuleName,
 				Config: appconfig.WrapAny(&erc20modulev1alpha1.Module{}),
+			},
+			{
+				Name:   router.Name,
+				Config: appconfig.WrapAny(&routermodule.Module{}),
 			},
 		},
 	}),
