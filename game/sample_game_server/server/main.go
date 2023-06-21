@@ -57,7 +57,7 @@ func main() {
 	http.HandleFunc("/list", func(w http.ResponseWriter, r *http.Request) {
 		enc := json.NewEncoder(w)
 		if err := enc.Encode(paths); err != nil {
-			writeError(w, "can't marshal list", err)
+			writeError(w, "cant marshal list", err)
 		}
 	})
 
