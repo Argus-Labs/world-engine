@@ -19,23 +19,28 @@ func TestUpdateNamespaceRequest(t *testing.T) {
 		{
 			name: "valid",
 			msg: UpdateNamespaceRequest{
-				Authority:    validAddr,
-				ShardName:    "foo",
-				ShardAddress: "127.0.0.0:3000",
+				Authority: validAddr,
+				Namespace: &Namespace{
+					ShardName:    "foo",
+					ShardAddress: "127.0.0.0:3000",
+				},
 			},
 		},
 		{
 			name: "valid TLD",
 			msg: UpdateNamespaceRequest{
-				Authority:    validAddr,
-				ShardName:    "foo",
-				ShardAddress: "cosmos.sdk.io:3000",
+				Authority: validAddr,
+				Namespace: &Namespace{
+					ShardName:    "foo",
+					ShardAddress: "cosmos.sdk.io:3000",
+				},
 			},
 		},
 		{
 			name: "invalid addr",
 			msg: UpdateNamespaceRequest{
 				Authority: "blah",
+				Namespace: &Namespace{},
 			},
 			expErr: bech32.ErrInvalidLength(4),
 		},
@@ -43,14 +48,17 @@ func TestUpdateNamespaceRequest(t *testing.T) {
 			name: "empty shard name",
 			msg: UpdateNamespaceRequest{
 				Authority: validAddr,
+				Namespace: &Namespace{},
 			},
 			expErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
-			name: "cant use non-alphanumeric in shardnames",
+			name: "cant use non-alphanumeric in shard names",
 			msg: UpdateNamespaceRequest{
 				Authority: validAddr,
-				ShardName: "foo.bar-4",
+				Namespace: &Namespace{
+					ShardName: "foo.bar-4",
+				},
 			},
 			expErr: sdkerrors.ErrInvalidRequest,
 		},
@@ -58,16 +66,20 @@ func TestUpdateNamespaceRequest(t *testing.T) {
 			name: "empty shard address",
 			msg: UpdateNamespaceRequest{
 				Authority: validAddr,
-				ShardName: "foo",
+				Namespace: &Namespace{
+					ShardName: "foo",
+				},
 			},
 			expErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
 			name: "invalid shard addr",
 			msg: UpdateNamespaceRequest{
-				Authority:    validAddr,
-				ShardName:    "foo",
-				ShardAddress: "blah",
+				Authority: validAddr,
+				Namespace: &Namespace{
+					ShardName:    "foo",
+					ShardAddress: "blah",
+				},
 			},
 			expErr: &net.AddrError{Addr: "blah", Err: "missing port in address"},
 		},

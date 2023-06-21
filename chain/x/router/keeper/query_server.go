@@ -3,37 +3,23 @@ package keeper
 import (
 	"context"
 
-	routerv1 "github.com/argus-labs/world-engine/chain/api/router/v1"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/argus-labs/world-engine/chain/x/router/types"
 )
 
 var _ types.QueryServiceServer = &Keeper{}
 
 func (k *Keeper) Namespaces(ctx context.Context, _ *types.NamespacesRequest) (*types.NamespacesResponse, error) {
-	nameSpaces := make([]*types.Namespace, 0)
-	it, err := k.store.NamespaceTable().List(ctx, routerv1.NamespaceShardNameIndexKey{})
-	if err != nil {
-		return nil, err
-	}
-	for it.Next() {
-		var ns *routerv1.Namespace
-		ns, err = it.Value()
-		if err != nil {
-			return nil, err
-		}
-		nameSpaces = append(nameSpaces, &types.Namespace{
-			ShardName:    ns.ShardName,
-			ShardAddress: ns.ShardAddress,
-		})
-	}
+	namespaces := k.getAllNamespaces(sdk.UnwrapSDKContext(ctx))
 
-	return &types.NamespacesResponse{Namespaces: nameSpaces}, nil
+	return &types.NamespacesResponse{Namespaces: namespaces}, nil
 }
 
 func (k *Keeper) Address(ctx context.Context, request *types.AddressRequest) (*types.AddressResponse, error) {
-	ns, err := k.store.NamespaceTable().Get(ctx, request.Namespace)
+	addr, err := k.getAddressForNamespace(sdk.UnwrapSDKContext(ctx), request.Namespace)
 	if err != nil {
 		return nil, err
 	}
-	return &types.AddressResponse{Address: ns.ShardAddress}, nil
+	return &types.AddressResponse{Address: addr}, nil
 }

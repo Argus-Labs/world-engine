@@ -16,18 +16,16 @@ import (
 )
 
 var (
-	md_UpdateNamespaceRequest               protoreflect.MessageDescriptor
-	fd_UpdateNamespaceRequest_authority     protoreflect.FieldDescriptor
-	fd_UpdateNamespaceRequest_shard_name    protoreflect.FieldDescriptor
-	fd_UpdateNamespaceRequest_shard_address protoreflect.FieldDescriptor
+	md_UpdateNamespaceRequest           protoreflect.MessageDescriptor
+	fd_UpdateNamespaceRequest_authority protoreflect.FieldDescriptor
+	fd_UpdateNamespaceRequest_namespace protoreflect.FieldDescriptor
 )
 
 func init() {
 	file_router_v1_tx_proto_init()
 	md_UpdateNamespaceRequest = File_router_v1_tx_proto.Messages().ByName("UpdateNamespaceRequest")
 	fd_UpdateNamespaceRequest_authority = md_UpdateNamespaceRequest.Fields().ByName("authority")
-	fd_UpdateNamespaceRequest_shard_name = md_UpdateNamespaceRequest.Fields().ByName("shard_name")
-	fd_UpdateNamespaceRequest_shard_address = md_UpdateNamespaceRequest.Fields().ByName("shard_address")
+	fd_UpdateNamespaceRequest_namespace = md_UpdateNamespaceRequest.Fields().ByName("namespace")
 }
 
 var _ protoreflect.Message = (*fastReflection_UpdateNamespaceRequest)(nil)
@@ -101,15 +99,9 @@ func (x *fastReflection_UpdateNamespaceRequest) Range(f func(protoreflect.FieldD
 			return
 		}
 	}
-	if x.ShardName != "" {
-		value := protoreflect.ValueOfString(x.ShardName)
-		if !f(fd_UpdateNamespaceRequest_shard_name, value) {
-			return
-		}
-	}
-	if x.ShardAddress != "" {
-		value := protoreflect.ValueOfString(x.ShardAddress)
-		if !f(fd_UpdateNamespaceRequest_shard_address, value) {
+	if x.Namespace != nil {
+		value := protoreflect.ValueOfMessage(x.Namespace.ProtoReflect())
+		if !f(fd_UpdateNamespaceRequest_namespace, value) {
 			return
 		}
 	}
@@ -130,10 +122,8 @@ func (x *fastReflection_UpdateNamespaceRequest) Has(fd protoreflect.FieldDescrip
 	switch fd.FullName() {
 	case "router.v1.UpdateNamespaceRequest.authority":
 		return x.Authority != ""
-	case "router.v1.UpdateNamespaceRequest.shard_name":
-		return x.ShardName != ""
-	case "router.v1.UpdateNamespaceRequest.shard_address":
-		return x.ShardAddress != ""
+	case "router.v1.UpdateNamespaceRequest.namespace":
+		return x.Namespace != nil
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: router.v1.UpdateNamespaceRequest"))
@@ -152,10 +142,8 @@ func (x *fastReflection_UpdateNamespaceRequest) Clear(fd protoreflect.FieldDescr
 	switch fd.FullName() {
 	case "router.v1.UpdateNamespaceRequest.authority":
 		x.Authority = ""
-	case "router.v1.UpdateNamespaceRequest.shard_name":
-		x.ShardName = ""
-	case "router.v1.UpdateNamespaceRequest.shard_address":
-		x.ShardAddress = ""
+	case "router.v1.UpdateNamespaceRequest.namespace":
+		x.Namespace = nil
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: router.v1.UpdateNamespaceRequest"))
@@ -175,12 +163,9 @@ func (x *fastReflection_UpdateNamespaceRequest) Get(descriptor protoreflect.Fiel
 	case "router.v1.UpdateNamespaceRequest.authority":
 		value := x.Authority
 		return protoreflect.ValueOfString(value)
-	case "router.v1.UpdateNamespaceRequest.shard_name":
-		value := x.ShardName
-		return protoreflect.ValueOfString(value)
-	case "router.v1.UpdateNamespaceRequest.shard_address":
-		value := x.ShardAddress
-		return protoreflect.ValueOfString(value)
+	case "router.v1.UpdateNamespaceRequest.namespace":
+		value := x.Namespace
+		return protoreflect.ValueOfMessage(value.ProtoReflect())
 	default:
 		if descriptor.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: router.v1.UpdateNamespaceRequest"))
@@ -203,10 +188,8 @@ func (x *fastReflection_UpdateNamespaceRequest) Set(fd protoreflect.FieldDescrip
 	switch fd.FullName() {
 	case "router.v1.UpdateNamespaceRequest.authority":
 		x.Authority = value.Interface().(string)
-	case "router.v1.UpdateNamespaceRequest.shard_name":
-		x.ShardName = value.Interface().(string)
-	case "router.v1.UpdateNamespaceRequest.shard_address":
-		x.ShardAddress = value.Interface().(string)
+	case "router.v1.UpdateNamespaceRequest.namespace":
+		x.Namespace = value.Message().Interface().(*Namespace)
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: router.v1.UpdateNamespaceRequest"))
@@ -227,12 +210,13 @@ func (x *fastReflection_UpdateNamespaceRequest) Set(fd protoreflect.FieldDescrip
 // Mutable is a mutating operation and unsafe for concurrent use.
 func (x *fastReflection_UpdateNamespaceRequest) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
+	case "router.v1.UpdateNamespaceRequest.namespace":
+		if x.Namespace == nil {
+			x.Namespace = new(Namespace)
+		}
+		return protoreflect.ValueOfMessage(x.Namespace.ProtoReflect())
 	case "router.v1.UpdateNamespaceRequest.authority":
 		panic(fmt.Errorf("field authority of message router.v1.UpdateNamespaceRequest is not mutable"))
-	case "router.v1.UpdateNamespaceRequest.shard_name":
-		panic(fmt.Errorf("field shard_name of message router.v1.UpdateNamespaceRequest is not mutable"))
-	case "router.v1.UpdateNamespaceRequest.shard_address":
-		panic(fmt.Errorf("field shard_address of message router.v1.UpdateNamespaceRequest is not mutable"))
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: router.v1.UpdateNamespaceRequest"))
@@ -248,10 +232,9 @@ func (x *fastReflection_UpdateNamespaceRequest) NewField(fd protoreflect.FieldDe
 	switch fd.FullName() {
 	case "router.v1.UpdateNamespaceRequest.authority":
 		return protoreflect.ValueOfString("")
-	case "router.v1.UpdateNamespaceRequest.shard_name":
-		return protoreflect.ValueOfString("")
-	case "router.v1.UpdateNamespaceRequest.shard_address":
-		return protoreflect.ValueOfString("")
+	case "router.v1.UpdateNamespaceRequest.namespace":
+		m := new(Namespace)
+		return protoreflect.ValueOfMessage(m.ProtoReflect())
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: router.v1.UpdateNamespaceRequest"))
@@ -325,12 +308,8 @@ func (x *fastReflection_UpdateNamespaceRequest) ProtoMethods() *protoiface.Metho
 		if l > 0 {
 			n += 1 + l + runtime.Sov(uint64(l))
 		}
-		l = len(x.ShardName)
-		if l > 0 {
-			n += 1 + l + runtime.Sov(uint64(l))
-		}
-		l = len(x.ShardAddress)
-		if l > 0 {
+		if x.Namespace != nil {
+			l = options.Size(x.Namespace)
 			n += 1 + l + runtime.Sov(uint64(l))
 		}
 		if x.unknownFields != nil {
@@ -362,17 +341,17 @@ func (x *fastReflection_UpdateNamespaceRequest) ProtoMethods() *protoiface.Metho
 			i -= len(x.unknownFields)
 			copy(dAtA[i:], x.unknownFields)
 		}
-		if len(x.ShardAddress) > 0 {
-			i -= len(x.ShardAddress)
-			copy(dAtA[i:], x.ShardAddress)
-			i = runtime.EncodeVarint(dAtA, i, uint64(len(x.ShardAddress)))
-			i--
-			dAtA[i] = 0x1a
-		}
-		if len(x.ShardName) > 0 {
-			i -= len(x.ShardName)
-			copy(dAtA[i:], x.ShardName)
-			i = runtime.EncodeVarint(dAtA, i, uint64(len(x.ShardName)))
+		if x.Namespace != nil {
+			encoded, err := options.Marshal(x.Namespace)
+			if err != nil {
+				return protoiface.MarshalOutput{
+					NoUnkeyedLiterals: input.NoUnkeyedLiterals,
+					Buf:               input.Buf,
+				}, err
+			}
+			i -= len(encoded)
+			copy(dAtA[i:], encoded)
+			i = runtime.EncodeVarint(dAtA, i, uint64(len(encoded)))
 			i--
 			dAtA[i] = 0x12
 		}
@@ -466,9 +445,9 @@ func (x *fastReflection_UpdateNamespaceRequest) ProtoMethods() *protoiface.Metho
 				iNdEx = postIndex
 			case 2:
 				if wireType != 2 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field ShardName", wireType)
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
 				}
-				var stringLen uint64
+				var msglen int
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
 						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
@@ -478,55 +457,27 @@ func (x *fastReflection_UpdateNamespaceRequest) ProtoMethods() *protoiface.Metho
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					stringLen |= uint64(b&0x7F) << shift
+					msglen |= int(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
 				}
-				intStringLen := int(stringLen)
-				if intStringLen < 0 {
+				if msglen < 0 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
 				}
-				postIndex := iNdEx + intStringLen
+				postIndex := iNdEx + msglen
 				if postIndex < 0 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
 				}
 				if postIndex > l {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
 				}
-				x.ShardName = string(dAtA[iNdEx:postIndex])
-				iNdEx = postIndex
-			case 3:
-				if wireType != 2 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field ShardAddress", wireType)
+				if x.Namespace == nil {
+					x.Namespace = &Namespace{}
 				}
-				var stringLen uint64
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
-					}
-					if iNdEx >= l {
-						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					stringLen |= uint64(b&0x7F) << shift
-					if b < 0x80 {
-						break
-					}
+				if err := options.Unmarshal(dAtA[iNdEx:postIndex], x.Namespace); err != nil {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, err
 				}
-				intStringLen := int(stringLen)
-				if intStringLen < 0 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
-				}
-				postIndex := iNdEx + intStringLen
-				if postIndex < 0 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
-				}
-				if postIndex > l {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
-				}
-				x.ShardAddress = string(dAtA[iNdEx:postIndex])
 				iNdEx = postIndex
 			default:
 				iNdEx = preIndex
@@ -939,11 +890,8 @@ type UpdateNamespaceRequest struct {
 	unknownFields protoimpl.UnknownFields
 
 	// authority is the address that controls the module (defaults to x/gov unless overwritten).
-	Authority string `protobuf:"bytes,1,opt,name=authority,proto3" json:"authority,omitempty"`
-	// shard_name is the name of the shard (i.e. darkforest1)
-	ShardName string `protobuf:"bytes,2,opt,name=shard_name,json=shardName,proto3" json:"shard_name,omitempty"`
-	// shard_address is the gRPC address the shard runs at (i.e. 127.0.0.1:51835)
-	ShardAddress string `protobuf:"bytes,3,opt,name=shard_address,json=shardAddress,proto3" json:"shard_address,omitempty"`
+	Authority string     `protobuf:"bytes,1,opt,name=authority,proto3" json:"authority,omitempty"`
+	Namespace *Namespace `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
 }
 
 func (x *UpdateNamespaceRequest) Reset() {
@@ -973,18 +921,11 @@ func (x *UpdateNamespaceRequest) GetAuthority() string {
 	return ""
 }
 
-func (x *UpdateNamespaceRequest) GetShardName() string {
+func (x *UpdateNamespaceRequest) GetNamespace() *Namespace {
 	if x != nil {
-		return x.ShardName
+		return x.Namespace
 	}
-	return ""
-}
-
-func (x *UpdateNamespaceRequest) GetShardAddress() string {
-	if x != nil {
-		return x.ShardAddress
-	}
-	return ""
+	return nil
 }
 
 // `UpdateNamespaceResponse` defines the response structure for executing a UpdateNamespaceResponse message.
@@ -1023,34 +964,35 @@ var file_router_v1_tx_proto_rawDesc = []byte{
 	0x73, 0x67, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x19, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73,
 	0x5f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2e, 0x70, 0x72,
 	0x6f, 0x74, 0x6f, 0x1a, 0x14, 0x67, 0x6f, 0x67, 0x6f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67,
-	0x6f, 0x67, 0x6f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0xa4, 0x01, 0x0a, 0x16, 0x55, 0x70,
-	0x64, 0x61, 0x74, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x12, 0x36, 0x0a, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74,
-	0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x42, 0x18, 0xd2, 0xb4, 0x2d, 0x14, 0x63, 0x6f, 0x73,
-	0x6d, 0x6f, 0x73, 0x2e, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x53, 0x74, 0x72, 0x69, 0x6e,
-	0x67, 0x52, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74, 0x79, 0x12, 0x1d, 0x0a, 0x0a,
-	0x73, 0x68, 0x61, 0x72, 0x64, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09,
-	0x52, 0x09, 0x73, 0x68, 0x61, 0x72, 0x64, 0x4e, 0x61, 0x6d, 0x65, 0x12, 0x23, 0x0a, 0x0d, 0x73,
-	0x68, 0x61, 0x72, 0x64, 0x5f, 0x61, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x18, 0x03, 0x20, 0x01,
-	0x28, 0x09, 0x52, 0x0c, 0x73, 0x68, 0x61, 0x72, 0x64, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73,
-	0x3a, 0x0e, 0x82, 0xe7, 0xb0, 0x2a, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74, 0x79,
-	0x22, 0x19, 0x0a, 0x17, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70,
-	0x61, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x66, 0x0a, 0x0a, 0x4d,
-	0x73, 0x67, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x58, 0x0a, 0x0f, 0x55, 0x70, 0x64,
-	0x61, 0x74, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x12, 0x21, 0x2e, 0x72,
-	0x6f, 0x75, 0x74, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x4e,
-	0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a,
-	0x22, 0x2e, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e, 0x55, 0x70, 0x64, 0x61,
-	0x74, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x42, 0x82, 0x01, 0x0a, 0x0d, 0x63, 0x6f, 0x6d, 0x2e, 0x72, 0x6f, 0x75, 0x74,
-	0x65, 0x72, 0x2e, 0x76, 0x31, 0x42, 0x07, 0x54, 0x78, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01,
-	0x5a, 0x23, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61,
-	0x70, 0x69, 0x2f, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x72, 0x2f, 0x76, 0x31, 0x3b, 0x72, 0x6f, 0x75,
-	0x74, 0x65, 0x72, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x52, 0x58, 0x58, 0xaa, 0x02, 0x09, 0x52, 0x6f,
-	0x75, 0x74, 0x65, 0x72, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x09, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x72,
-	0x5c, 0x56, 0x31, 0xe2, 0x02, 0x15, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x72, 0x5c, 0x56, 0x31, 0x5c,
-	0x47, 0x50, 0x42, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x0a, 0x52, 0x6f,
-	0x75, 0x74, 0x65, 0x72, 0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x67, 0x6f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x15, 0x72, 0x6f, 0x75, 0x74, 0x65,
+	0x72, 0x2f, 0x76, 0x31, 0x2f, 0x71, 0x75, 0x65, 0x72, 0x79, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x22, 0x94, 0x01, 0x0a, 0x16, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73,
+	0x70, 0x61, 0x63, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x36, 0x0a, 0x09, 0x61,
+	0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x42, 0x18,
+	0xd2, 0xb4, 0x2d, 0x14, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2e, 0x41, 0x64, 0x64, 0x72, 0x65,
+	0x73, 0x73, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x52, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72,
+	0x69, 0x74, 0x79, 0x12, 0x32, 0x0a, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x14, 0x2e, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x72, 0x2e,
+	0x76, 0x31, 0x2e, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x52, 0x09, 0x6e, 0x61,
+	0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x3a, 0x0e, 0x82, 0xe7, 0xb0, 0x2a, 0x09, 0x61, 0x75,
+	0x74, 0x68, 0x6f, 0x72, 0x69, 0x74, 0x79, 0x22, 0x19, 0x0a, 0x17, 0x55, 0x70, 0x64, 0x61, 0x74,
+	0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
+	0x73, 0x65, 0x32, 0x66, 0x0a, 0x0a, 0x4d, 0x73, 0x67, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65,
+	0x12, 0x58, 0x0a, 0x0f, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70,
+	0x61, 0x63, 0x65, 0x12, 0x21, 0x2e, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x2e,
+	0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x72, 0x2e,
+	0x76, 0x31, 0x2e, 0x55, 0x70, 0x64, 0x61, 0x74, 0x65, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61,
+	0x63, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x42, 0x82, 0x01, 0x0a, 0x0d, 0x63,
+	0x6f, 0x6d, 0x2e, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x72, 0x2e, 0x76, 0x31, 0x42, 0x07, 0x54, 0x78,
+	0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x23, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73,
+	0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x72,
+	0x2f, 0x76, 0x31, 0x3b, 0x72, 0x6f, 0x75, 0x74, 0x65, 0x72, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x52,
+	0x58, 0x58, 0xaa, 0x02, 0x09, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x72, 0x2e, 0x56, 0x31, 0xca, 0x02,
+	0x09, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x72, 0x5c, 0x56, 0x31, 0xe2, 0x02, 0x15, 0x52, 0x6f, 0x75,
+	0x74, 0x65, 0x72, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61,
+	0x74, 0x61, 0xea, 0x02, 0x0a, 0x52, 0x6f, 0x75, 0x74, 0x65, 0x72, 0x3a, 0x3a, 0x56, 0x31, 0x62,
+	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1069,15 +1011,17 @@ var file_router_v1_tx_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_router_v1_tx_proto_goTypes = []interface{}{
 	(*UpdateNamespaceRequest)(nil),  // 0: router.v1.UpdateNamespaceRequest
 	(*UpdateNamespaceResponse)(nil), // 1: router.v1.UpdateNamespaceResponse
+	(*Namespace)(nil),               // 2: router.v1.Namespace
 }
 var file_router_v1_tx_proto_depIdxs = []int32{
-	0, // 0: router.v1.MsgService.UpdateNamespace:input_type -> router.v1.UpdateNamespaceRequest
-	1, // 1: router.v1.MsgService.UpdateNamespace:output_type -> router.v1.UpdateNamespaceResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: router.v1.UpdateNamespaceRequest.namespace:type_name -> router.v1.Namespace
+	0, // 1: router.v1.MsgService.UpdateNamespace:input_type -> router.v1.UpdateNamespaceRequest
+	1, // 2: router.v1.MsgService.UpdateNamespace:output_type -> router.v1.UpdateNamespaceResponse
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_router_v1_tx_proto_init() }
@@ -1085,6 +1029,7 @@ func file_router_v1_tx_proto_init() {
 	if File_router_v1_tx_proto != nil {
 		return
 	}
+	file_router_v1_query_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_router_v1_tx_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*UpdateNamespaceRequest); i {

@@ -1,12 +1,12 @@
 package router
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 
 	abci "github.com/cometbft/cometbft/abci/types"
 
-	"cosmossdk.io/core/genesis"
-	"cosmossdk.io/orm/model/ormdb"
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -15,8 +15,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/spf13/cobra"
-
-	"github.com/argus-labs/world-engine/chain/x/router/storage"
 
 	"github.com/argus-labs/world-engine/chain/x/router/keeper"
 	routertypes "github.com/argus-labs/world-engine/chain/x/router/types"
@@ -56,11 +54,15 @@ func (b AppModuleBasic) RegisterInterfaces(r types2.InterfaceRegistry) {
 }
 
 // RegisterGRPCGatewayRoutes registers the gRPC Gateway routes for the router module.
-func (AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *gwruntime.ServeMux) {
-	// if err := types.RegisterQueryServiceHandlerClient(context.Background(), mux,
-	// types.NewQueryClient(clientCtx)); err != nil {
-	// 	panic(err)
-	// }
+func (AppModuleBasic) RegisterGRPCGatewayRoutes(ctx client.Context, mux *gwruntime.ServeMux) {
+	err := routertypes.RegisterQueryServiceHandlerClient(
+		context.Background(),
+		mux,
+		routertypes.NewQueryServiceClient(ctx),
+	)
+	if err != nil {
+		panic(err)
+	}
 }
 
 // GetTxCmd returns no root tx command for the router module.
@@ -83,50 +85,32 @@ type AppModule struct {
 	keeper *keeper.Keeper
 }
 
-func (am AppModule) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
-	db, err := ormdb.NewModuleDB(&storage.ModuleSchema, ormdb.ModuleDBOptions{})
-	if err != nil {
-		panic(err)
-	}
-	target := genesis.RawJSONTarget{}
-	err = db.GenesisHandler().DefaultGenesis(target.Target())
-	if err != nil {
-		panic(err)
-	}
-	bz, err := target.JSON()
-	if err != nil {
-		panic(err)
-	}
-	return bz
+func (am AppModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
+	return cdc.MustMarshalJSON(routertypes.DefaultGenesis())
 }
 
-func (am AppModule) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig, message json.RawMessage) error {
-	db, err := ormdb.NewModuleDB(&storage.ModuleSchema, ormdb.ModuleDBOptions{})
-	if err != nil {
-		return err
+func (am AppModule) ValidateGenesis(cdc codec.JSONCodec, _ client.TxEncodingConfig, bz json.RawMessage) error {
+	var g routertypes.Genesis
+	if err := cdc.UnmarshalJSON(bz, &g); err != nil {
+		return fmt.Errorf("failed to unmarshal %s genesis state: %w", Name, err)
 	}
-	jzSrc, err := genesis.SourceFromRawJSON(message)
-	if err != nil {
-		return err
-	}
-	return db.GenesisHandler().ValidateGenesis(jzSrc)
+	return g.Validate()
 }
 
-func (am AppModule) InitGenesis(ctx sdk.Context, jsonCodec codec.JSONCodec,
-	message json.RawMessage) []abci.ValidatorUpdate {
-	up, err := am.keeper.InitGenesis(ctx, jsonCodec, message)
-	if err != nil {
-		panic(err)
-	}
-	return up
+func (am AppModule) InitGenesis(
+	ctx sdk.Context,
+	cdc codec.JSONCodec,
+	bz json.RawMessage,
+) []abci.ValidatorUpdate {
+	var g routertypes.Genesis
+	cdc.MustUnmarshalJSON(bz, &g)
+	am.keeper.InitGenesis(ctx, &g)
+	return []abci.ValidatorUpdate{}
 }
 
-func (am AppModule) ExportGenesis(context sdk.Context, jsonCodec codec.JSONCodec) json.RawMessage {
-	bz, err := am.keeper.ExportGenesis(context, jsonCodec)
-	if err != nil {
-		panic(err)
-	}
-	return bz
+func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.RawMessage {
+	g := am.keeper.ExportGenesis(ctx)
+	return cdc.MustMarshalJSON(g)
 }
 
 // NewAppModule creates a new AppModule object.

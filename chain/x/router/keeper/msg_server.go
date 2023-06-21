@@ -3,7 +3,8 @@ package keeper
 import (
 	"context"
 
-	routerv1 "github.com/argus-labs/world-engine/chain/api/router/v1"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
 	"github.com/argus-labs/world-engine/chain/x/router/types"
 
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -18,11 +19,9 @@ func (k *Keeper) UpdateNamespace(ctx context.Context, request *types.UpdateNames
 		return nil, sdkerrors.ErrUnauthorized.
 			Wrapf("%s is not allowed to update namespaces, expected %s", request.Authority, k.authority)
 	}
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	err := k.store.NamespaceTable().Save(ctx, &routerv1.Namespace{
-		ShardName:    request.ShardName,
-		ShardAddress: request.ShardAddress,
-	})
+	k.setNamespace(sdkCtx, request.Namespace)
 
-	return &types.UpdateNamespaceResponse{}, err
+	return &types.UpdateNamespaceResponse{}, nil
 }

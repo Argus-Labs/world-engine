@@ -5,6 +5,7 @@ package router.v1;
 import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
+import "router/v1/query.proto";
 
 option go_package = "github.com/argus-labs/world-engine/chain/x/router/types";
 
@@ -19,11 +20,7 @@ message UpdateNamespaceRequest {
   // authority is the address that controls the module (defaults to x/gov unless overwritten).
   string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 
-  // shard_name is the name of the shard (i.e. darkforest1)
-  string shard_name = 2;
-
-  // shard_address is the gRPC address the shard runs at (i.e. 127.0.0.1:51835)
-  string shard_address = 3;
+  Namespace namespace = 2;
 }
 
 // `UpdateNamespaceResponse` defines the response structure for executing a UpdateNamespaceResponse message.

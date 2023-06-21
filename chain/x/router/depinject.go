@@ -3,13 +3,11 @@ package router
 import (
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/depinject"
-	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	storetypes "cosmossdk.io/store/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 
 	v1 "github.com/argus-labs/world-engine/chain/api/router/module/v1"
-	api "github.com/argus-labs/world-engine/chain/api/router/v1"
-
 	"github.com/argus-labs/world-engine/chain/x/router/keeper"
 )
 
@@ -24,8 +22,7 @@ type DepInjectInput struct {
 
 	ModuleKey depinject.OwnModuleKey
 	Config    *v1.Module
-	Store     api.StateStore
-	AppOpts   servertypes.AppOptions
+	StoreKey  *storetypes.KVStoreKey
 }
 
 // DepInjectOutput is the output for the dep inject framework.
@@ -45,7 +42,7 @@ func ProvideModule(in DepInjectInput) DepInjectOutput {
 	}
 
 	k := keeper.NewKeeper(
-		in.Store,
+		in.StoreKey,
 		authority.String(),
 	)
 

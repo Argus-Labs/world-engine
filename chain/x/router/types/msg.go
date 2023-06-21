@@ -22,26 +22,33 @@ func (m *UpdateNamespaceRequest) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
 		return err
 	}
-	if m.ShardName == "" {
-		return sdkerrors.ErrInvalidRequest.Wrap("shard name cannot be empty")
+	if m.Namespace == nil {
+		return sdkerrors.ErrInvalidRequest.Wrap("namespace cannot be empty")
 	}
-	if !isAlphaNumeric(m.ShardName) {
-		return sdkerrors.ErrInvalidRequest.Wrap("shard name must only contain alphanumeric characters")
-	}
-	if m.ShardAddress == "" {
-		return sdkerrors.ErrInvalidRequest.Wrap("shard address cannot be empty")
-	}
-	host, port, err := net.SplitHostPort(m.ShardAddress)
-	if err != nil {
-		return err
-	}
-	if host == "" || port == "" {
-		return sdkerrors.ErrInvalidRequest.Wrapf("%s is not a valid address", m.ShardAddress)
-	}
-	return nil
+	return m.Namespace.Validate()
 }
 
 func (m *UpdateNamespaceRequest) GetSigners() []sdk.AccAddress {
 	addr := sdk.MustAccAddressFromBech32(m.Authority)
 	return []sdk.AccAddress{addr}
+}
+
+func (ns *Namespace) Validate() error {
+	if ns.ShardName == "" {
+		return sdkerrors.ErrInvalidRequest.Wrap("shard name cannot be empty")
+	}
+	if !isAlphaNumeric(ns.ShardName) {
+		return sdkerrors.ErrInvalidRequest.Wrap("shard name must only contain alphanumeric characters")
+	}
+	if ns.ShardAddress == "" {
+		return sdkerrors.ErrInvalidRequest.Wrap("shard address cannot be empty")
+	}
+	host, port, err := net.SplitHostPort(ns.ShardAddress)
+	if err != nil {
+		return err
+	}
+	if host == "" || port == "" {
+		return sdkerrors.ErrInvalidRequest.Wrapf("%s is not a valid address", ns.ShardAddress)
+	}
+	return nil
 }
