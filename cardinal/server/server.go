@@ -27,6 +27,8 @@ func NewTransactionHandler(w *ecs.World) *TransactionHandler {
 	return &TransactionHandler{w: w}
 }
 
+// fixes a path to contain a leading slash.
+// if the path already contains a leading slash, it is simply returned as is.
 func conformPath(p string) string {
 	if p[0] != '/' {
 		p = "/" + p
