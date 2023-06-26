@@ -18,7 +18,8 @@ func TestCanFilterByArchetype(t *testing.T) {
 	beta := ecs.NewComponentType[string]()
 	gamma := ecs.NewComponentType[string]()
 
-	world.RegisterComponents(alpha, beta, gamma)
+	assert.NilError(t, world.RegisterComponents(alpha, beta, gamma))
+	assert.NilError(t, world.LoadGameState())
 
 	subsetCount := 50
 	// Make some entities that only have the alpha and beta components
@@ -93,7 +94,8 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	alpha := ecs.NewComponentType[string]()
 	beta := ecs.NewComponentType[string]()
-	world.RegisterComponents(alpha, beta)
+	assert.NilError(t, world.RegisterComponents(alpha, beta))
+	assert.NilError(t, world.LoadGameState())
 
 	wantCount := 50
 	ids, err := world.CreateMany(wantCount, alpha, beta)
@@ -118,7 +120,8 @@ func BenchmarkEntityCreation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		world := inmem.NewECSWorldForTest(b)
 		alpha := ecs.NewComponentType[string]()
-		world.RegisterComponents(alpha)
+		assert.NilError(b, world.RegisterComponents(alpha))
+		assert.NilError(b, world.LoadGameState())
 		_, err := world.CreateMany(100000, alpha)
 		assert.NilError(b, err)
 	}
@@ -142,7 +145,8 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	world := inmem.NewECSWorldForTest(b)
 	alpha := ecs.NewComponentType[string]()
 	beta := ecs.NewComponentType[string]()
-	world.RegisterComponents(alpha, beta)
+	assert.NilError(b, world.RegisterComponents(alpha, beta))
+	assert.NilError(b, world.LoadGameState())
 	_, err := world.CreateMany(relevantCount, alpha, beta)
 	assert.NilError(b, err)
 	_, err = world.CreateMany(ignoreCount, alpha)

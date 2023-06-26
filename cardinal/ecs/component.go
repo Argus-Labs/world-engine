@@ -38,7 +38,7 @@ type ComponentType[T any] struct {
 // SetID set's this component's ID. It must be unique across the world object.
 func (c *ComponentType[T]) SetID(id component.TypeID) error {
 	if c.isIDSet {
-		return fmt.Errorf("id on %v is already set to %v, cannot change to %v", c, c.id, id)
+		return fmt.Errorf("id for component %v is already set to %v, cannot change to %v", c, c.id, id)
 	}
 	c.id = id
 	c.isIDSet = true
@@ -55,28 +55,27 @@ func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error
 	if err != nil {
 		return comp, err
 	}
-	comp, err = storage.Decode[T](bz)
-	return comp, err
+	return storage.Decode[T](bz)
 }
 
 // Update is a helper that combines a Get followed by a Set to modify a component's value. Pass in a function
-// fn that will modify a component. Update will hide the calls to Get and Set
-func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(*T)) error {
+// fn that will return a modified component. Update will hide the calls to Get and Set
+func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(T) T) error {
 	val, err := c.Get(w, id)
 	if err != nil {
 		return err
 	}
-	fn(&val)
-	return c.Set(w, id, &val)
+	val = fn(val)
+	return c.Set(w, id, val)
 }
 
 // Set sets component data to the entity.
-func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component *T) error {
+func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error {
 	entity, err := w.Entity(id)
 	if err != nil {
 		return err
 	}
-	bz, err := storage.Encode(*component)
+	bz, err := storage.Encode(component)
 	if err != nil {
 		return err
 	}
@@ -134,7 +133,7 @@ func (c *ComponentType[T]) SetValue(w *World, id storage.EntityID, value T) erro
 	if err != nil {
 		return err
 	}
-	return c.Set(w, id, &value)
+	return c.Set(w, id, value)
 }
 
 // String returns the component type name.

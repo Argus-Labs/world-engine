@@ -3,6 +3,7 @@ package storage
 import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 )
 
 type ComponentStorage interface {
@@ -88,6 +89,7 @@ type StateStorage interface {
 
 type TickStorage interface {
 	GetTickNumbers() (start, end int, err error)
-	StartNextTick() error
+	StartNextTick(txs []transaction.ITransaction, queues map[transaction.TypeID][]any) error
 	FinalizeTick() error
+	Recover(txs []transaction.ITransaction) (map[transaction.TypeID][]any, error)
 }

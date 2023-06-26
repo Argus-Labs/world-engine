@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
@@ -16,8 +15,6 @@ import (
 )
 
 var _ encoding.BinaryMarshaler = Foo{}
-
-const WorldId string = "1"
 
 type Foo struct {
 	X int `json:"X"`
@@ -38,7 +35,7 @@ func TestList(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	rs := GetRedisStorage(t)
+	rs := getRedisStorage(t)
 	store := storage.NewWorldStorage(&rs)
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 	compStore := store.CompStore.Storage(x)
@@ -74,7 +71,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	_ = ctx
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 
-	rs := GetRedisStorage(t)
+	rs := getRedisStorage(t)
 	store := storage.NewWorldStorage(&rs)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
@@ -109,7 +106,7 @@ func TestRedis_CompIndex(t *testing.T) {
 
 func TestRedis_Location(t *testing.T) {
 	//ctx := context.Background()
-	rs := GetRedisStorage(t)
+	rs := getRedisStorage(t)
 	store := storage.NewWorldStorage(&rs)
 
 	loc := storage.NewLocation(0, 1)
@@ -145,7 +142,7 @@ func TestRedis_Location(t *testing.T) {
 }
 
 func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
-	rs := GetRedisStorage(t)
+	rs := getRedisStorage(t)
 	type SomeData struct {
 		One   string
 		Two   int
@@ -180,24 +177,15 @@ func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
 }
 
 func TestLargeArbitraryDataProducesError(t *testing.T) {
-	rs := GetRedisStorage(t)
+	rs := getRedisStorage(t)
 	// Make a 6 Mb slice. This should not fit in a redis bucket
 	largePayload := make([]byte, 6*1024*1024)
 	err := rs.Save("foobar", largePayload)
 	assert.ErrorIs(t, err, storage.ErrorBufferTooLargeForRedisValue)
 }
 
-func GetRedisStorage(t *testing.T) storage.RedisStorage {
-	s := miniredis.RunT(t)
-	return storage.NewRedisStorage(storage.Options{
-		Addr:     s.Addr(),
-		Password: "", // no password set
-		DB:       0,  // use default DB
-	}, WorldId)
-}
-
 func TestGettingIndexStorageShouldNotImpactIncrement(t *testing.T) {
-	rs := GetRedisStorage(t)
+	rs := getRedisStorage(t)
 
 	archID := storage.ArchetypeID(99)
 

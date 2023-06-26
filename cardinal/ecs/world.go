@@ -8,6 +8,7 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 )
 
 // WorldId is a unique identifier for a world.
@@ -24,16 +25,17 @@ type StorageAccessor struct {
 }
 
 type World struct {
-	id                     WorldId
-	store                  storage.WorldStorage
-	systems                []System
-	tick                   int
-	isComponentsRegistered bool
-	// txNames contains the set of transaction names that have been registered for this world. It is an error
-	// to attempt to register the same transaction name more than once.
-	txNames map[string]bool
+	id                       WorldId
+	store                    storage.WorldStorage
+	systems                  []System
+	tick                     int
+	registeredComponents     []IComponentType
+	registeredTransactions   []transaction.ITransaction
+	isComponentsRegistered   bool
+	isTransactionsRegistered bool
+	stateIsLoaded            bool
 	// txQueues is a map of transaction names to the relevant list of transactions data
-	txQueues map[string][]interface{}
+	txQueues map[transaction.TypeID][]any
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
 
@@ -41,19 +43,10 @@ type World struct {
 }
 
 var (
-	ErrorComponentRegistrationMustHappenOnce = errors.New("component registration must happen exactly 1 time")
-	ErrorStoreStateInvalid                   = errors.New("saved world state is not valid")
+	ErrorComponentRegistrationMustHappenOnce   = errors.New("component registration must happen exactly 1 time")
+	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
+	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
 )
-
-// AddTxName adds the given transaction name to the set of all transaction names seen so far. If the transaction
-// name has already been added, false is returned.
-func (w *World) AddTxName(name string) (ok bool) {
-	if w.txNames[name] {
-		return false
-	}
-	w.txNames[name] = true
-	return true
-}
 
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
 	err := w.store.EntityLocStore.SetLocation(id, location)
@@ -84,16 +77,23 @@ func (w *World) Archetype(archID storage.ArchetypeID) storage.ArchetypeStorage {
 }
 
 func (w *World) AddSystem(s System) {
+	if w.stateIsLoaded {
+		panic("cannot register systems after loading game state")
+	}
 	w.systems = append(w.systems, s)
 }
 
 // RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
 // This will give components the ability to access their own data.
 func (w *World) RegisterComponents(components ...component.IComponentType) error {
+	if w.stateIsLoaded {
+		panic("cannot register components after loading game state")
+	}
 	if w.isComponentsRegistered {
 		return ErrorComponentRegistrationMustHappenOnce
 	}
 	w.isComponentsRegistered = true
+	w.registeredComponents = components
 
 	for i, c := range components {
 		id := component.TypeID(i + 1)
@@ -101,8 +101,24 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 			return err
 		}
 	}
-	if err := w.loadGameState(components); err != nil {
-		return err
+	return nil
+}
+
+func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
+	if w.stateIsLoaded {
+		panic("cannot register transactions after loading game state")
+	}
+	if w.isTransactionsRegistered {
+		return ErrorTransactionRegistrationMustHappenOnce
+	}
+	w.isTransactionsRegistered = true
+	w.registeredTransactions = txs
+
+	for i, t := range txs {
+		id := transaction.TypeID(i + 1)
+		if err := t.SetID(id); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -119,8 +135,7 @@ func NewWorld(s storage.WorldStorage) (*World, error) {
 		store:    s,
 		tick:     0,
 		systems:  make([]System, 0, 256), // this can just stay in memory.
-		txNames:  map[string]bool{},
-		txQueues: map[string][]interface{}{},
+		txQueues: map[transaction.TypeID][]any{},
 	}
 	return w, nil
 }
@@ -321,34 +336,38 @@ func (w *World) StorageAccessor() StorageAccessor {
 }
 
 // copyTransactions makes a copy of the world txQueue, then zeroes out the txQueue.
-func (w *World) copyTransactions() map[string][]interface{} {
+func (w *World) copyTransactions() map[transaction.TypeID][]any {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
-	txsMap := make(map[string][]interface{}, len(w.txQueues))
-	for name, txs := range w.txQueues {
-		txsMap[name] = make([]interface{}, len(txs))
-		copy(txsMap[name], txs)
-		w.txQueues[name] = w.txQueues[name][:0]
+	txsMap := make(map[transaction.TypeID][]any, len(w.txQueues))
+	for id, txs := range w.txQueues {
+		txsMap[id] = make([]interface{}, len(txs))
+		copy(txsMap[id], txs)
+		w.txQueues[id] = w.txQueues[id][:0]
 	}
 	return txsMap
 }
 
-// AddTransaction adds a transaction to the transaction queue. This should not be used directly.
+// addTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency.
-func (w *World) AddTransaction(name string, v any) {
+func (w *World) addTransaction(id transaction.TypeID, v any) {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
-	w.txQueues[name] = append(w.txQueues[name], v)
+	w.txQueues[id] = append(w.txQueues[id], v)
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick() error {
-	if err := w.store.TickStore.StartNextTick(); err != nil {
+	if !w.stateIsLoaded {
+		return errors.New("must load state before first tick")
+	}
+	txs := w.copyTransactions()
+
+	if err := w.store.TickStore.StartNextTick(w.registeredTransactions, txs); err != nil {
 		return err
 	}
 
-	txs := w.copyTransactions()
 	txQueue := &TransactionQueue{
 		queue: txs,
 	}
@@ -393,23 +412,47 @@ func (w *World) saveToKey(key string, cm storage.ComponentMarshaler) error {
 	return w.store.StateStore.Save(key, buf)
 }
 
-func (w *World) loadGameState(components []component.IComponentType) error {
-
+// recoverGameState checks the status of the last game tick. If the tick was incomplete (indicating
+// a problem when running one of the Systems), the snapshotted state is recovered and the pending
+// transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
+// transactions that need to be processed because the last tick was successful.
+func (w *World) recoverGameState() (recoveredTxs map[transaction.TypeID][]any, err error) {
 	start, end, err := w.store.TickStore.GetTickNumbers()
+	if err != nil {
+		return nil, err
+	}
+	w.tick = end
+	// We successfully completed the last tick. Everything is fine
+	if start == end {
+		return nil, nil
+	}
+	return w.store.TickStore.Recover(w.registeredTransactions)
+}
+
+func (w *World) LoadGameState() error {
+	if w.stateIsLoaded {
+		return errors.New("cannot load game state multiple times")
+	}
+	w.stateIsLoaded = true
+	recoveredTxs, err := w.recoverGameState()
 	if err != nil {
 		return err
 	}
-	if start != end {
-		return ErrorStoreStateInvalid
-	}
-	w.tick = start
 
-	if err := w.loadFromKey(storeArchetypeAccessorKey, w.store.ArchAccessor, components); err != nil {
+	if err := w.loadFromKey(storeArchetypeAccessorKey, w.store.ArchAccessor, w.registeredComponents); err != nil {
 		return err
 	}
-	if err := w.loadFromKey(storeArchetypeCompIdxKey, w.store.ArchCompIdxStore, components); err != nil {
+	if err := w.loadFromKey(storeArchetypeCompIdxKey, w.store.ArchCompIdxStore, w.registeredComponents); err != nil {
 		return err
 	}
+
+	if recoveredTxs != nil {
+		w.txQueues = recoveredTxs
+		if err := w.Tick(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
