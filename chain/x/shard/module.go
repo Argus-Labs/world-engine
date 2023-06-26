@@ -45,7 +45,7 @@ func NewAppModule(k *keeper.Keeper) AppModule {
 	}
 }
 
-func (a AppModule) RegisterGRPCGatewayRoutes(context client.Context, mux *runtime.ServeMux) {}
+func (a AppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
 
 func (a AppModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	return cdc.MustMarshalJSON(types.DefaultGenesis())
@@ -81,13 +81,13 @@ func (a AppModuleBasic) Name() string {
 	return ModuleName
 }
 
-func (a AppModuleBasic) RegisterLegacyAminoCodec(amino *codec.LegacyAmino) {}
+func (a AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 
 func (a AppModuleBasic) RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	types.RegisterInterface(registry)
 }
 
-func (a AppModuleBasic) RegisterGRPCGatewayRoutes(context client.Context, mux *runtime.ServeMux) {
+func (a AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {
 }
 
 func (a AppModuleBasic) GetTxCmd() *cobra.Command {

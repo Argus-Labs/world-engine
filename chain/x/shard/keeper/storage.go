@@ -51,17 +51,6 @@ func (k *Keeper) getNextBatchIndexBytes(ctx sdk.Context) []byte {
 	return bz
 }
 
-func (k *Keeper) getNextBatchIndex(ctx sdk.Context) uint64 {
-	store := k.getBatchIndexStore(ctx)
-	bz := store.Get(nil)
-	idx := k.indexFromBytes(bz)
-
-	nextIdx := idx + 1
-	store.Set(nil, k.bytesFromIndex(nextIdx))
-
-	return idx
-}
-
 func (k *Keeper) saveIndex(ctx sdk.Context, idx uint64) {
 	store := k.getBatchIndexStore(ctx)
 	store.Set(nil, k.bytesFromIndex(idx))

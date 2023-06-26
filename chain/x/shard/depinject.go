@@ -9,6 +9,7 @@ import (
 	"github.com/argus-labs/world-engine/chain/x/shard/keeper"
 )
 
+//nolint:gochecknoinits // GRRRR fix later.
 func init() {
 	appmodule.Register(&modulev1.Module{}, appmodule.Provide())
 }
