@@ -391,3 +391,28 @@ func TestUpdateWithPointerType(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 100, hp.HP)
 }
+
+func TestCanRemoveFirstEntity(t *testing.T) {
+	type ValueComponent struct {
+		Val int
+	}
+	world := inmem.NewECSWorldForTest(t)
+	valComp := ecs.NewComponentType[ValueComponent]()
+	assert.NilError(t, world.RegisterComponents(valComp))
+
+	ids, err := world.CreateMany(3, valComp)
+	assert.NilError(t, err)
+	assert.NilError(t, valComp.Set(world, ids[0], ValueComponent{99}))
+	assert.NilError(t, valComp.Set(world, ids[1], ValueComponent{100}))
+	assert.NilError(t, valComp.Set(world, ids[2], ValueComponent{101}))
+
+	assert.NilError(t, world.Remove(ids[0]))
+
+	val, err := valComp.Get(world, ids[1])
+	assert.NilError(t, err)
+	assert.Equal(t, 100, val.Val)
+
+	val, err = valComp.Get(world, ids[2])
+	assert.NilError(t, err)
+	assert.Equal(t, 101, val.Val)
+}
