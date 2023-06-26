@@ -9,7 +9,8 @@ import (
 )
 
 var (
-	_ sdk.Msg = &UpdateNamespaceRequest{}
+	_ sdk.Msg              = &UpdateNamespaceRequest{}
+	_ sdk.HasValidateBasic = &UpdateNamespaceRequest{}
 )
 
 var alphanumeric = regexp.MustCompile("^[a-zA-Z0-9_]*$")
@@ -26,11 +27,6 @@ func (m *UpdateNamespaceRequest) ValidateBasic() error {
 		return sdkerrors.ErrInvalidRequest.Wrap("namespace cannot be empty")
 	}
 	return m.Namespace.Validate()
-}
-
-func (m *UpdateNamespaceRequest) GetSigners() []sdk.AccAddress {
-	addr := sdk.MustAccAddressFromBech32(m.Authority)
-	return []sdk.AccAddress{addr}
 }
 
 func (ns *Namespace) Validate() error {

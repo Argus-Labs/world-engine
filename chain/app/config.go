@@ -43,6 +43,7 @@ import (
 	"cosmossdk.io/depinject"
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+	"github.com/argus-labs/world-engine/chain/x/shard"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -119,7 +120,7 @@ var (
 			{
 				Name: runtime.ModuleName,
 				Config: appconfig.WrapAny(&runtimev1alpha1.Module{
-					AppName: "SimApp",
+					AppName: "WorldEngine",
 					// During begin block slashing happens after distr.BeginBlocker so that
 					// there is nothing left over in the validator fee pool, so as to keep the
 					// CanWithdrawInvariant invariant.
@@ -169,7 +170,8 @@ var (
 						consensustypes.ModuleName,
 						evmtypes.ModuleName,
 						erc20types.ModuleName,
-						router.Name,
+						router.ModuleName,
+						shard.ModuleName,
 					},
 					// When ExportGenesis is not specified, the export genesis module order
 					// is equal to the init genesis order
@@ -259,7 +261,11 @@ var (
 				Config: appconfig.WrapAny(&erc20modulev1alpha1.Module{}),
 			},
 			{
-				Name:   router.Name,
+				Name:   router.ModuleName,
+				Config: appconfig.WrapAny(&routermodule.Module{}),
+			},
+			{
+				Name:   shard.ModuleName,
 				Config: appconfig.WrapAny(&routermodule.Module{}),
 			},
 		},
