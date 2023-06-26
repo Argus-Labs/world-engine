@@ -114,8 +114,8 @@ func handleCreateGame(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "game creation failed", err)
 	}
 
-	Host.Set(gameID, &PlayerComponent{gameParams.Host})
-	Opponent.Set(gameID, &PlayerComponent{gameParams.Opponent})
+	Host.Set(world, gameID, PlayerComponent{gameParams.Host})
+	Opponent.Set(world, gameID, PlayerComponent{gameParams.Opponent})
 	w.WriteHeader(200)
 	writeResult(w, "success")
 }
@@ -125,7 +125,7 @@ func handleMakeMove(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGames(w http.ResponseWriter, r *http.Request) {
-	ids := []storage.EntityID{}
+	var ids []storage.EntityID
 	Host.Each(world, func(id storage.EntityID) {
 		ids = append(ids, id)
 	})

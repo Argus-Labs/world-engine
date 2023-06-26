@@ -2,7 +2,7 @@ module github.com/argus-labs/world-engine/game/sample_game_server/server
 
 go 1.20
 
-require github.com/argus-labs/world-engine/cardinal v0.0.0-20230525212614-007160ff59f4
+require github.com/argus-labs/world-engine/cardinal v0.1.3-alpha
 
 require (
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
