@@ -110,10 +110,10 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 
 	wantScalar := ScalarComponent{99}
 
-	alpha.Set(world, wantID, wantScalar)
+	assert.NilError(t, alpha.Set(world, wantID, wantScalar))
 
 	verifyCanFindEntity := func() {
-		// Make sure we can find the entityj
+		// Make sure we can find the entity
 		gotID, ok, err := alpha.First(world)
 		assert.NilError(t, err)
 		assert.Check(t, ok)

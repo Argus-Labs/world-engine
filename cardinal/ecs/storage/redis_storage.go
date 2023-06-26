@@ -468,7 +468,7 @@ type pendingTransaction struct {
 }
 
 func (r *RedisStorage) storeTransactions(ctx context.Context, txs []transaction.ITransaction, queues map[transaction.TypeID][]any) error {
-	pending := []pendingTransaction{}
+	var pending []pendingTransaction
 	for _, tx := range txs {
 		currList := queues[tx.ID()]
 		for _, iface := range currList {
@@ -597,6 +597,8 @@ func (r *RedisStorage) makeSnapshot(ctx context.Context) error {
 	return nil
 }
 
+// recoverSnapshot copies all the keys in the redis DB that are prefixed with snapshotPrefix to a new key with the
+// prefix removed. The keys that are prefixed with snapshotPrefix represent the last good state of the DB.
 func (r *RedisStorage) recoverSnapshot(ctx context.Context) error {
 	stateKeys, snapshotKeys, err := r.partitionKeys(ctx)
 	if err != nil {

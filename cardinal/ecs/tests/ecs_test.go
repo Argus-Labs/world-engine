@@ -90,8 +90,8 @@ func TestVelocitySimulation(t *testing.T) {
 
 	shipID, err := world.Create(Position, Velocity)
 	assert.NilError(t, err)
-	Position.Set(world, shipID, Pos{1, 2})
-	Velocity.Set(world, shipID, &Vel{3, 4})
+	assert.NilError(t, Position.Set(world, shipID, Pos{1, 2}))
+	assert.NilError(t, Velocity.Set(world, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
 	Velocity.Each(world, func(id storage.EntityID) {
@@ -100,7 +100,7 @@ func TestVelocitySimulation(t *testing.T) {
 		pos, err := Position.Get(world, id)
 		assert.NilError(t, err)
 		newPos := Pos{pos.X + vel.DX, pos.Y + vel.DY}
-		Position.Set(world, id, newPos)
+		assert.NilError(t, Position.Set(world, id, newPos))
 	})
 
 	finalPos, err := Position.Get(world, shipID)
@@ -126,7 +126,7 @@ func TestCanSetDefaultValue(t *testing.T) {
 	assert.Equal(t, alphaOwner, wantOwner)
 
 	alphaOwner.Name = "Bob"
-	owner.Set(world, alpha, alphaOwner)
+	assert.NilError(t, owner.Set(world, alpha, alphaOwner))
 
 	newOwner, err := owner.Get(world, alpha)
 	assert.Equal(t, newOwner.Name, "Bob")
