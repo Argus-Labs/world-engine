@@ -1,2 +1,8 @@
 # Default reviewers. The users below will be requested to review every pull request.
 * @technicallyty
+
+# Cardinal Code Owners
+/cardinal/ @jerargus
+
+# Game Code Owners
+/game/ @jerargus
