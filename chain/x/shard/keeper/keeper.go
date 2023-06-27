@@ -1,7 +1,7 @@
 package keeper
 
 import (
-	shardTypes "github.com/argus-labs/world-engine/chain/x/shard/types"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"cosmossdk.io/core/store"
@@ -17,21 +17,21 @@ func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
 	return k
 }
 
-func (k *Keeper) InitGenesis(ctx sdk.Context, genesis *shardTypes.GenesisState) {
+func (k *Keeper) InitGenesis(ctx sdk.Context, genesis *types.GenesisState) {
 	for _, batch := range genesis.Batches {
 		k.saveBatch(ctx, batch)
 	}
 	k.saveIndex(ctx, genesis.Index)
 }
 
-func (k *Keeper) ExportGenesis(ctx sdk.Context) *shardTypes.GenesisState {
+func (k *Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	batches := make([][]byte, 0)
 	k.iterateBatches(ctx, func(batch []byte) bool {
 		batches = append(batches, batch)
 		return true
 	})
 	idx := k.getCurrentIndex(ctx)
-	return &shardTypes.GenesisState{
+	return &types.GenesisState{
 		Batches: batches,
 		Index:   idx,
 	}
