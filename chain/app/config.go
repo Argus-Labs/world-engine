@@ -43,7 +43,7 @@ import (
 	"cosmossdk.io/depinject"
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	module2 "github.com/argus-labs/world-engine/chain/x/shard/module"
+	shardModule "github.com/argus-labs/world-engine/chain/x/shard/module"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -171,7 +171,7 @@ var (
 						evmtypes.ModuleName,
 						erc20types.ModuleName,
 						router.ModuleName,
-						module2.ModuleName,
+						shardModule.ModuleName,
 					},
 					// When ExportGenesis is not specified, the export genesis module order
 					// is equal to the init genesis order
@@ -265,7 +265,7 @@ var (
 				Config: appconfig.WrapAny(&routermodule.Module{}),
 			},
 			{
-				Name:   module2.ModuleName,
+				Name:   shardModule.ModuleName,
 				Config: appconfig.WrapAny(&routermodule.Module{}),
 			},
 		},
