@@ -8,6 +8,10 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+const (
+	uint64Size = 8
+)
+
 var (
 	batchStoragePrefix      = []byte("batch")
 	batchStorageIndexPrefix = []byte("idx")
@@ -50,7 +54,7 @@ func (k *Keeper) getNextBatchIndexBytes(ctx sdk.Context) []byte {
 	bz := store.Get(idxKey)
 	// the bytes can be nil if this is the first time we are accessing this value from the store.
 	if bz == nil {
-		bz = make([]byte, 8)
+		bz = make([]byte, uint64Size)
 		binary.BigEndian.PutUint64(bz, 0)
 	}
 	idx := k.indexFromBytes(bz)
@@ -77,7 +81,7 @@ func (k *Keeper) indexFromBytes(bz []byte) uint64 {
 }
 
 func (k *Keeper) bytesFromIndex(idx uint64) []byte {
-	buf := make([]byte, 8)
+	buf := make([]byte, uint64Size)
 	binary.BigEndian.PutUint64(buf, idx)
 	return buf
 }
