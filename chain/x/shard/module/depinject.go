@@ -1,10 +1,9 @@
-package shard
+package module
 
 import (
 	"cosmossdk.io/core/appmodule"
+	"cosmossdk.io/core/store"
 	"cosmossdk.io/depinject"
-	storetypes "cosmossdk.io/store/types"
-
 	modulev1 "github.com/argus-labs/world-engine/chain/api/router/module/v1"
 	"github.com/argus-labs/world-engine/chain/x/shard/keeper"
 )
@@ -18,9 +17,8 @@ func init() {
 type DepInjectInput struct {
 	depinject.In
 
-	ModuleKey depinject.OwnModuleKey
-	Config    *modulev1.Module
-	StoreKey  *storetypes.KVStoreKey
+	Config       *modulev1.Module
+	StoreService store.KVStoreService
 }
 
 // DepInjectOutput is the output for the dep inject framework.
@@ -32,7 +30,7 @@ type DepInjectOutput struct {
 }
 
 func ProvideModule(in DepInjectInput) DepInjectOutput {
-	k := keeper.NewKeeper(in.StoreKey, in.Config.Authority)
+	k := keeper.NewKeeper(in.StoreService, in.Config.Authority)
 	m := NewAppModule(k)
 	return DepInjectOutput{
 		Keeper: k,

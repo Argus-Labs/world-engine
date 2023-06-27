@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"encoding/binary"
+	"github.com/cosmos/cosmos-sdk/runtime"
 
 	"cosmossdk.io/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -9,7 +10,9 @@ import (
 
 var (
 	batchStoragePrefix      = []byte("batch")
-	batchStorageIndexPrefix = []byte("batch_idx")
+	batchStorageIndexPrefix = []byte("idx")
+
+	idxKey = []byte("i")
 )
 
 // iterateBatches iterates over all batches, calling fn for each batch in the store.
@@ -33,32 +36,39 @@ func (k *Keeper) saveBatch(ctx sdk.Context, batch []byte) {
 }
 
 func (k *Keeper) getBatchStore(ctx sdk.Context) prefix.Store {
-	return prefix.NewStore(ctx.KVStore(k.storeKey), batchStoragePrefix)
+	store := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
+	return prefix.NewStore(store, batchStoragePrefix)
 }
 
 func (k *Keeper) getBatchIndexStore(ctx sdk.Context) prefix.Store {
-	return prefix.NewStore(ctx.KVStore(k.storeKey), batchStorageIndexPrefix)
+	store := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
+	return prefix.NewStore(store, batchStorageIndexPrefix)
 }
 
 func (k *Keeper) getNextBatchIndexBytes(ctx sdk.Context) []byte {
 	store := k.getBatchIndexStore(ctx)
-	bz := store.Get(nil)
+	bz := store.Get(idxKey)
+	// the bytes can be nil if this is the first time we are accessing this value from the store.
+	if bz == nil {
+		bz = make([]byte, 8)
+		binary.BigEndian.PutUint64(bz, 0)
+	}
 	idx := k.indexFromBytes(bz)
 
 	nextIdx := idx + 1
-	store.Set(nil, k.bytesFromIndex(nextIdx))
+	store.Set(idxKey, k.bytesFromIndex(nextIdx))
 
 	return bz
 }
 
 func (k *Keeper) saveIndex(ctx sdk.Context, idx uint64) {
 	store := k.getBatchIndexStore(ctx)
-	store.Set(nil, k.bytesFromIndex(idx))
+	store.Set(idxKey, k.bytesFromIndex(idx))
 }
 
 func (k *Keeper) getCurrentIndex(ctx sdk.Context) uint64 {
 	store := k.getBatchIndexStore(ctx)
-	bz := store.Get(nil)
+	bz := store.Get(idxKey)
 	return k.indexFromBytes(bz)
 }
 

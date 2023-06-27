@@ -1,18 +1,19 @@
 package keeper
 
 import (
-	"cosmossdk.io/store/types"
 	shardTypes "github.com/argus-labs/world-engine/chain/x/shard/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"cosmossdk.io/core/store"
 )
 
 type Keeper struct {
-	storeKey *types.KVStoreKey
-	auth     string
+	storeService store.KVStoreService
+	auth         string
 }
 
-func NewKeeper(sk *types.KVStoreKey, auth string) *Keeper {
-	k := &Keeper{storeKey: sk, auth: auth}
+func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
+	k := &Keeper{storeService: ss, auth: auth}
 	return k
 }
 

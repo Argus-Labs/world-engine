@@ -1,4 +1,4 @@
-package shard
+package module
 
 import (
 	"encoding/json"
