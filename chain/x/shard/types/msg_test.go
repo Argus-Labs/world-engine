@@ -36,6 +36,14 @@ func TestSubmitBatchMsg(t *testing.T) {
 			},
 			expErr: sdkerrors.ErrInvalidRequest,
 		},
+		{
+			name: "empty batch",
+			msg: SubmitBatchRequest{
+				Sender: validAddr,
+				Batch:  []byte{},
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
 	}
 
 	for _, tc := range testCases {

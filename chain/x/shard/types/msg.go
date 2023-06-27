@@ -14,7 +14,7 @@ func (m *SubmitBatchRequest) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Sender); err != nil {
 		return sdkerrors.ErrInvalidAddress.Wrap(err.Error())
 	}
-	if m.Batch == nil {
+	if m.Batch == nil || len(m.Batch) == 0 {
 		return sdkerrors.ErrInvalidRequest.Wrap("batch cannot be empty")
 	}
 	return nil
