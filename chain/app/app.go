@@ -70,6 +70,7 @@ import (
 
 	"github.com/argus-labs/world-engine/chain/router"
 	routerkeeper "github.com/argus-labs/world-engine/chain/x/router/keeper"
+	shardkeeper "github.com/argus-labs/world-engine/chain/x/shard/keeper"
 )
 
 // DefaultNodeHome default home directories for the application daemon.
@@ -111,6 +112,7 @@ type App struct {
 
 	// world engine keepers
 	RouterKeeper *routerkeeper.Keeper
+	ShardKeeper  *shardkeeper.Keeper
 
 	// plugins
 	Router router.Router
@@ -202,6 +204,7 @@ func NewApp(
 		&app.EVMKeeper,
 		&app.ERC20Keeper,
 		&app.RouterKeeper,
+		&app.ShardKeeper,
 	); err != nil {
 		panic(err)
 	}
