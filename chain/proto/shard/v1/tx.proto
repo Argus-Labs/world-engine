@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package shard.v1;
+
+import "cosmos_proto/cosmos.proto";
+import "cosmos/msg/v1/msg.proto";
+
+option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
+
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc SubmitBatch(SubmitBatchRequest) returns (SubmitBatchResponse);
+}
+
+message SubmitBatchRequest {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+  // batch is a blob of transaction data.
+  bytes batch = 2;
+}
+
+message SubmitBatchResponse {}
