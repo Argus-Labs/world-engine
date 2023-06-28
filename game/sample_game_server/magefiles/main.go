@@ -8,10 +8,12 @@ import (
 	"github.com/magefile/mage/sh"
 )
 
+// Stop stops Nakama and the game server.
 func Stop() error {
 	return sh.Run("docker", "compose", "stop")
 }
 
+// Restart restarts ONLY the game server.
 func Restart() error {
 	if err := sh.Run("docker", "compose", "stop", "server"); err != nil {
 		return err
@@ -22,6 +24,7 @@ func Restart() error {
 	return nil
 }
 
+// Start starts Nakama and the game server
 func Start() error {
 	if err := prepareDir("server"); err != nil {
 		return err
@@ -39,7 +42,7 @@ func prepareDir(dir string) error {
 	if err := os.Chdir(dir); err != nil {
 		return err
 	}
-	if err := sh.Run("rm", "-rf", "vendor/"); err != nil {
+	if err := os.RemoveAll("./vendor"); err != nil {
 		return err
 	}
 	if err := sh.Run("go", "mod", "tidy"); err != nil {
