@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package world.engine.shard.v1;
+
+option go_package = "github.com/argus-labs/world-engine/shard/v1";
+
+// service ShardHandler deals with transactions coming from game shards.
+service ShardHandler {
+  // SubmitCardinalBatch handles receiving batches of transactions from a game shard and persisting them to the chain.
+  rpc SubmitShardBatch(SubmitShardBatchRequest) returns (SubmitShardBatchResponse);
+}
+
+message SubmitShardBatchRequest {
+  // batch is the underlying bytes of the Cardinal transaction batch.
+  bytes batch = 1;
+}
+
+message SubmitShardBatchResponse {}

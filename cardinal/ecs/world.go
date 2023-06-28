@@ -1,8 +1,11 @@
 package ecs
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argus-labs/world-engine/cardinal/chain"
+	"sort"
 	"sync"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
@@ -38,6 +41,9 @@ type World struct {
 	txQueues map[transaction.TypeID][]any
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
+
+	// blockchain fields
+	chain chain.Adapter
 
 	errs []error
 }
@@ -387,6 +393,35 @@ func (w *World) Tick() error {
 	}
 	w.tick++
 	return nil
+}
+
+type txBatch struct {
+	TxID transaction.TypeID `json:"tx_id,omitempty"`
+	Txs  []any              `json:"txs,omitempty"`
+}
+
+func (w *World) submitToChain(txq TransactionQueue) error {
+	// convert transaction queue map into slice
+	txb := make([]txBatch, 0, len(txq.queue))
+	for id, tx := range txq.queue {
+		txb = append(txb, txBatch{
+			TxID: id,
+			Txs:  tx,
+		})
+	}
+	// sort based on transaction id to keep determinism.
+	sort.Slice(txb, func(i, j int) bool {
+		return txb[i].TxID < txb[j].TxID
+	})
+
+	// turn the slice into bytes
+	bz, err := json.Marshal(txb)
+	if err != nil {
+		return err
+	}
+	// submit to chain
+	err = w.chain.Submit(bz)
+	return err
 }
 
 const (
