@@ -5,8 +5,14 @@ package main
 import (
 	"os"
 
+	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 )
+
+// Check verifies that various prerequisites are installed or configured on your machine
+func Check() error {
+	return checkPrereq(true)
+}
 
 // Stop stops Nakama and the game server.
 func Stop() error {
@@ -26,6 +32,8 @@ func Restart() error {
 
 // Start starts Nakama and the game server
 func Start() error {
+	mg.Deps(mg.F(checkPrereq, mg.Verbose()))
+
 	if err := prepareDir("server"); err != nil {
 		return err
 	}
@@ -42,7 +50,7 @@ func prepareDir(dir string) error {
 	if err := os.Chdir(dir); err != nil {
 		return err
 	}
-	if err := os.RemoveAll("./vendor"); err != nil {
+	if err := sh.Rm("./vendor"); err != nil {
 		return err
 	}
 	if err := sh.Run("go", "mod", "tidy"); err != nil {
