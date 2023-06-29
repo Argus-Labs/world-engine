@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/magefile/mage/sh"
@@ -51,8 +50,10 @@ func checkPrereq(verbose bool) error {
 	}
 
 	check(goprivateEnv, func() error {
-		env := os.Getenv(goprivateEnv)
-		if !strings.Contains(env, goprivateURLArgusLabs) {
+		out, err := allOutput("go", "env", goprivateEnv)
+		if err != nil {
+			return fmt.Errorf("problem getting env variable %q", goprivateEnv)
+		} else if !strings.Contains(out, goprivateURLArgusLabs) {
 			return fmt.Errorf("the env variable %q should contain %q or %q", goprivateEnv, goprivateURLArgusLabs, goprivateURLWorldEngine)
 		}
 		return nil
