@@ -9,11 +9,13 @@ require (
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/rs/zerolog v1.29.1
 	google.golang.org/grpc v1.54.0
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.4.0
 )
 
 require (
+	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230628204710-4d5314547f74.1 // indirect
+	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230628204710-4d5314547f74.1 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect

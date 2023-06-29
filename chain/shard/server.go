@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"google.golang.org/grpc"
+	"log"
+	"net"
 	"sync"
 )
 
@@ -28,6 +31,21 @@ func NewShardServer(accAddr sdk.AccAddress) *Server {
 	}
 }
 
+// Serve serves the application
+func (s *Server) Serve(listenAddr string) {
+	grpcServer := grpc.NewServer()
+	shardgrpc.RegisterShardHandlerServer(grpcServer, s)
+	listener, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = grpcServer.Serve(listener)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// FlushMessages first copies the transactions in the queue, then clears the queue and returns the copy.
 func (s *Server) FlushMessages() []types.SubmitBatchRequest {
 	// no-op if we have nothing
 	if len(s.msgQueue) == 0 {
@@ -44,6 +62,7 @@ func (s *Server) FlushMessages() []types.SubmitBatchRequest {
 	return msgs
 }
 
+// SubmitShardBatch appends the shard tx submissions to the queue IFF they pass validation.
 func (s *Server) SubmitShardBatch(ctx context.Context, request *shard.SubmitShardBatchRequest) (*shard.SubmitShardBatchResponse, error) {
 	var sbr types.SubmitBatchRequest
 	sbr.Batch = request.Batch
