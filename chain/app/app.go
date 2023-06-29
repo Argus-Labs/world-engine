@@ -21,12 +21,14 @@
 package app
 
 import (
-	"github.com/argus-labs/world-engine/chain/shard"
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"io"
 	"os"
 	"path/filepath"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/argus-labs/world-engine/chain/shard"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 
 	dbm "github.com/cosmos/cosmos-db"
 
@@ -342,12 +344,12 @@ func (app *App) TxConfig() client.TxConfig {
 }
 
 func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
-	// TODO(technicallyty): submit shard transactions here
 	txns := app.ShardHandler.FlushMessages()
 	if txns != nil {
 		handler := app.MsgServiceRouter().Handler(&types.SubmitBatchRequest{})
 		for _, tx := range txns {
-			result, err := handler(ctx, &tx)
+			// TODO: handle error/result here. we currently don't have a callback mechanism to deal with these values.
+			handler(ctx, &tx)
 		}
 
 	}
