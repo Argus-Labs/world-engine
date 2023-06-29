@@ -198,13 +198,18 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	_, err := world.CreateMany(10, Count)
 	assert.NilError(t, err)
 
+	// Pre-populate all the entities with their own IDs. This will help
+	// us keep track of which component belongs to which entity in the case
+	// of a problem
+	Count.Each(world, func(id storage.EntityID) {
+		assert.NilError(t, Count.Set(world, id, CountComponent{int(id)}))
+	})
+
 	// Remove the even entries
 	itr := 0
 	Count.Each(world, func(id storage.EntityID) {
 		if itr%2 == 0 {
 			assert.NilError(t, world.Remove(id))
-		} else {
-			assert.NilError(t, Count.Set(world, id, CountComponent{itr}))
 		}
 		itr++
 	})
@@ -390,4 +395,58 @@ func TestUpdateWithPointerType(t *testing.T) {
 	hp, err := hpComp.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, hp.HP)
+}
+
+func TestCanRemoveFirstEntity(t *testing.T) {
+	type ValueComponent struct {
+		Val int
+	}
+	world := inmem.NewECSWorldForTest(t)
+	valComp := ecs.NewComponentType[ValueComponent]()
+	assert.NilError(t, world.RegisterComponents(valComp))
+
+	ids, err := world.CreateMany(3, valComp)
+	assert.NilError(t, err)
+	assert.NilError(t, valComp.Set(world, ids[0], ValueComponent{99}))
+	assert.NilError(t, valComp.Set(world, ids[1], ValueComponent{100}))
+	assert.NilError(t, valComp.Set(world, ids[2], ValueComponent{101}))
+
+	assert.NilError(t, world.Remove(ids[0]))
+
+	val, err := valComp.Get(world, ids[1])
+	assert.NilError(t, err)
+	assert.Equal(t, 100, val.Val)
+
+	val, err = valComp.Get(world, ids[2])
+	assert.NilError(t, err)
+	assert.Equal(t, 101, val.Val)
+}
+
+func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
+	type ValueComponent struct {
+		Val int
+	}
+	type OtherComponent struct {
+		Val int
+	}
+	world := inmem.NewECSWorldForTest(t)
+	valComp := ecs.NewComponentType[ValueComponent]()
+	otherComp := ecs.NewComponentType[OtherComponent]()
+	assert.NilError(t, world.RegisterComponents(valComp, otherComp))
+
+	ids, err := world.CreateMany(3, valComp)
+	assert.NilError(t, err)
+	assert.NilError(t, valComp.Set(world, ids[0], ValueComponent{99}))
+	assert.NilError(t, valComp.Set(world, ids[1], ValueComponent{100}))
+	assert.NilError(t, valComp.Set(world, ids[2], ValueComponent{101}))
+
+	assert.NilError(t, otherComp.AddTo(world, ids[0]))
+
+	val, err := valComp.Get(world, ids[1])
+	assert.NilError(t, err)
+	assert.Equal(t, 100, val.Val)
+
+	val, err = valComp.Get(world, ids[2])
+	assert.NilError(t, err)
+	assert.Equal(t, 101, val.Val)
 }
