@@ -5,7 +5,6 @@ package main
 import (
 	"os"
 
-	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 )
 
@@ -32,8 +31,6 @@ func Restart() error {
 
 // Start starts Nakama and the game server
 func Start() error {
-	mg.Deps(mg.F(checkPrereq, mg.Verbose()))
-
 	if err := prepareDir("server"); err != nil {
 		return err
 	}

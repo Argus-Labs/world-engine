@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -12,12 +13,27 @@ import (
 )
 
 const (
-	goprivateEnv = "GOPRIVATE"
-	goprivateURL = "github.com/argus-labs/world-engine"
+	goprivateEnv            = "GOPRIVATE"
+	goprivateURLArgusLabs   = "github.com/argus-labs"
+	goprivateURLWorldEngine = goprivateURLArgusLabs + "/world-engine"
 )
 
+// allOutput runs the command and returns the stdout and stderr. Nothing is printed to stdout and stderr.
+func allOutput(cmd string, args ...string) (out string, err error) {
+	outWriter, errWriter := &bytes.Buffer{}, &bytes.Buffer{}
+
+	_, err = sh.Exec(nil, outWriter, errWriter, cmd, args...)
+	if err != nil {
+		return "", err
+	}
+	if errWriter.Len() > 0 {
+		err = errors.New(errWriter.String())
+	}
+	return outWriter.String(), err
+}
+
 func checkPrereq(verbose bool) error {
-	var errs []error
+	var errCount int
 
 	// check runs the given verification function, and only prints success information
 	// if the verbose flag is set to true.
@@ -26,7 +42,9 @@ func checkPrereq(verbose bool) error {
 			fmt.Printf("%-30s", "Checking "+msg+"...")
 		}
 		if err := fn(); err != nil {
-			errs = append(errs, err)
+			errCount++
+			fmt.Println("FAILURE")
+			fmt.Println("  ", err.Error())
 		} else if verbose {
 			fmt.Println("success")
 		}
@@ -34,39 +52,42 @@ func checkPrereq(verbose bool) error {
 
 	check(goprivateEnv, func() error {
 		env := os.Getenv(goprivateEnv)
-		if !strings.Contains(env, goprivateURL) {
-			return fmt.Errorf("the env variable %q should contain %q", goprivateEnv, goprivateURL)
+		if !strings.Contains(env, goprivateURLArgusLabs) {
+			return fmt.Errorf("the env variable %q should contain %q or %q", goprivateEnv, goprivateURLArgusLabs, goprivateURLWorldEngine)
 		}
 		return nil
 	})
 
 	check("Docker", func() error {
-		if _, err := sh.Output("docker", "-v"); err != nil {
+		if _, err := allOutput("docker", "-v"); err != nil {
 			return fmt.Errorf("docker is not installed: %v", err)
 		}
 		return nil
 	})
 
 	check("Docker compose", func() error {
-		if _, err := sh.Output("docker", "compose", "version"); err != nil {
+		if _, err := allOutput("docker", "compose", "version"); err != nil {
 			return fmt.Errorf("docker compose is not installed: %v", err)
 		}
 		return nil
 	})
 
 	check("Docker daemon", func() error {
-		if _, err := sh.Output("docker", "info"); err != nil {
+		if _, err := allOutput("docker", "info"); err != nil {
 			return fmt.Errorf("docker daemon is not running: %v", err)
 		}
 		return nil
 	})
 
 	check("Git", func() error {
-		if _, err := sh.Output("git", "version"); err != nil {
+		if _, err := allOutput("git", "version"); err != nil {
 			return fmt.Errorf("git is not installed: %v", err)
 		}
 		return nil
 	})
 
-	return errors.Join(errs...)
+	if errCount > 0 {
+		return fmt.Errorf("encountered %d errors when checking prerequisites", errCount)
+	}
+	return nil
 }

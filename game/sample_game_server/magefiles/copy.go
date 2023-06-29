@@ -11,7 +11,7 @@ import (
 	"github.com/magefile/mage/sh"
 )
 
-// Copy copies this sample game server to a target path and initializes the newly creates game server with go mod.
+// Copy copies this sample project to the <target> directory and initializes it with 'go mod init <modulePath>'.
 // The module path parameter should be set to your code's repository. See https://golang.org/ref/mod#go-mod-init
 // for more info about go mod.
 func Copy(target, modulePath string) error {
