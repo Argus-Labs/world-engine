@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -33,30 +34,16 @@ func (m *MockAdapter) EXPECT() *MockAdapterMockRecorder {
 	return m.recorder
 }
 
-// ReadAll mocks base method.
-func (m *MockAdapter) ReadAll() []byte {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadAll")
-	ret0, _ := ret[0].([]byte)
-	return ret0
-}
-
-// ReadAll indicates an expected call of ReadAll.
-func (mr *MockAdapterMockRecorder) ReadAll() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadAll", reflect.TypeOf((*MockAdapter)(nil).ReadAll))
-}
-
 // Submit mocks base method.
-func (m *MockAdapter) Submit(bz []byte) error {
+func (m *MockAdapter) Submit(ctx context.Context, bz []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Submit", bz)
+	ret := m.ctrl.Call(m, "Submit", ctx, bz)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Submit indicates an expected call of Submit.
-func (mr *MockAdapterMockRecorder) Submit(bz interface{}) *gomock.Call {
+func (mr *MockAdapterMockRecorder) Submit(ctx, bz interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Submit", reflect.TypeOf((*MockAdapter)(nil).Submit), bz)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Submit", reflect.TypeOf((*MockAdapter)(nil).Submit), ctx, bz)
 }

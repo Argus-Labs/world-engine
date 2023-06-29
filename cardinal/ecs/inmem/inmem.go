@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 )
@@ -16,12 +17,12 @@ import (
 // NewECSWorld creates an ecs.World that uses an in-memory redis DB as the storage
 // layer. This is only suitable for local development. If you are creating an ecs.World for
 // unit tests, use NewECSWorldForTest.
-func NewECSWorld() *ecs.World {
+func NewECSWorld(opts ...ecs.Option) *ecs.World {
 	s, err := miniredis.Run()
 	if err != nil {
 		panic("Unable to initialize in-memory redis")
 	}
-	w, err := newInMemoryWorld(s)
+	w, err := newInMemoryWorld(s, opts...)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to initialize world: %v", err))
 	}
@@ -31,16 +32,16 @@ func NewECSWorld() *ecs.World {
 
 // NewECSWorldForTest creates an ecs.World suitable for running in tests. Relevant resources
 // are automatically cleaned up at the completion of each test.
-func NewECSWorldForTest(t testing.TB) *ecs.World {
+func NewECSWorldForTest(t testing.TB, opts ...ecs.Option) *ecs.World {
 	s := miniredis.RunT(t)
-	w, err := newInMemoryWorld(s)
+	w, err := newInMemoryWorld(s, opts...)
 	if err != nil {
 		t.Fatalf("Unable to initialize world: %v", err)
 	}
 	return w
 }
 
-func newInMemoryWorld(s *miniredis.Miniredis) (*ecs.World, error) {
+func newInMemoryWorld(s *miniredis.Miniredis, opts ...ecs.Option) (*ecs.World, error) {
 	rs := storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
@@ -48,5 +49,5 @@ func newInMemoryWorld(s *miniredis.Miniredis) (*ecs.World, error) {
 	}, "in-memory-world")
 	worldStorage := storage.NewWorldStorage(&rs)
 
-	return ecs.NewWorld(worldStorage)
+	return ecs.NewWorld(worldStorage, opts...)
 }

@@ -1,12 +1,14 @@
 package ecs
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argus-labs/world-engine/cardinal/chain"
 	"sort"
 	"sync"
+
+	"github.com/argus-labs/world-engine/cardinal/chain"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
@@ -43,7 +45,8 @@ type World struct {
 	txLock sync.Mutex
 
 	// blockchain fields
-	chain chain.Adapter
+	useChainStorage bool
+	chain           chain.Adapter
 
 	errs []error
 }
@@ -132,16 +135,20 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 var nextWorldId WorldId = 0
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage) (*World, error) {
+func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	// TODO: this should prob be handled by redis as well...
 	worldId := nextWorldId
 	nextWorldId++
+
 	w := &World{
 		id:       worldId,
 		store:    s,
 		tick:     0,
 		systems:  make([]System, 0, 256), // this can just stay in memory.
 		txQueues: map[transaction.TypeID][]any{},
+	}
+	for _, opt := range opts {
+		opt(w)
 	}
 	return w, nil
 }
@@ -392,21 +399,24 @@ func (w *World) Tick() error {
 		return err
 	}
 	w.tick++
+	if w.useChainStorage {
+		go w.submitToChain(context.Background(), *txQueue)
+	}
 	return nil
 }
 
-type txBatch struct {
+type TxBatch struct {
 	TxID transaction.TypeID `json:"tx_id,omitempty"`
 	Txs  []any              `json:"txs,omitempty"`
 }
 
-func (w *World) submitToChain(txq TransactionQueue) error {
+func (w *World) submitToChain(ctx context.Context, txq TransactionQueue) error {
 	// convert transaction queue map into slice
-	txb := make([]txBatch, 0, len(txq.queue))
-	for id, tx := range txq.queue {
-		txb = append(txb, txBatch{
+	txb := make([]TxBatch, 0, len(txq.queue))
+	for id, txs := range txq.queue {
+		txb = append(txb, TxBatch{
 			TxID: id,
-			Txs:  tx,
+			Txs:  txs,
 		})
 	}
 	// sort based on transaction id to keep determinism.
@@ -419,8 +429,10 @@ func (w *World) submitToChain(txq TransactionQueue) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("printing actual submission")
+	fmt.Println(string(bz))
 	// submit to chain
-	err = w.chain.Submit(bz)
+	err = w.chain.Submit(ctx, bz)
 	return err
 }
 
