@@ -64,9 +64,10 @@ func (s *Server) FlushMessages() []types.SubmitBatchRequest {
 
 // SubmitShardBatch appends the shard tx submissions to the queue IFF they pass validation.
 func (s *Server) SubmitShardBatch(ctx context.Context, request *shard.SubmitShardBatchRequest) (*shard.SubmitShardBatchResponse, error) {
-	var sbr types.SubmitBatchRequest
-	sbr.Batch = request.Batch
-	sbr.Sender = s.moduleAddr.String()
+	sbr := types.SubmitBatchRequest{
+		Sender: s.moduleAddr.String(),
+		Batch:  request.Batch,
+	}
 	if err := sbr.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("cannot submit batch to blockchain. invalid submission: %w", err)
 	}

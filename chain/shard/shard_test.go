@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestShard(t *testing.T) {
+func TestShard_Flush(t *testing.T) {
 	addr, err := sdk.AccAddressFromBech32("cosmos1jv94sqypjg9x0gwcl2mvy7ffwemnpwdqu0lxtk")
 	assert.NilError(t, err)
 	sh := NewShardServer(addr)
@@ -23,5 +23,10 @@ func TestShard(t *testing.T) {
 	for i, msg := range flushed {
 		assert.DeepEqual(t, msg.Batch, msgs[i])
 	}
+	// msg queue should be empty after flushing.
+	assert.Equal(t, len(sh.msgQueue), 0)
+}
+
+func TestShard_Serve(t *testing.T) {
 
 }
