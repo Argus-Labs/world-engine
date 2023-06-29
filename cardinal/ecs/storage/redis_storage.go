@@ -177,50 +177,43 @@ func (r *RedisStorage) SetComponent(archetypeID ArchetypeID, componentIndex Comp
 	return res.Err()
 }
 
+// MoveComponent moves the given component from the source archetype to the target archetype. SwapRemove
+// is used to remove the component from the source archetype.
 func (r *RedisStorage) MoveComponent(source ArchetypeID, index ComponentIndex, dst ArchetypeID) error {
 	ctx := context.Background()
-	sKey := r.componentDataKey(source, r.ComponentStoragePrefix)
 	dKey := r.componentDataKey(dst, r.ComponentStoragePrefix)
-	res := r.Client.LIndex(ctx, sKey, int64(index))
-	if err := res.Err(); err != nil {
-		return err
-	}
-	// Redis doesn't provide a good way to delete as specific indexes
-	// so we use this hack of setting the value to DELETE, and then deleting by that value.
-	statusRes := r.Client.LSet(ctx, sKey, int64(index), "DELETE")
-	if err := statusRes.Err(); err != nil {
-		return err
-	}
-	componentBz, err := res.Bytes()
+	data, err := r.SwapRemove(source, index)
 	if err != nil {
 		return err
 	}
-	pushRes := r.Client.LPush(ctx, dKey, componentBz)
-	if err := pushRes.Err(); err != nil {
+	if err := r.Client.RPush(ctx, dKey, data).Err(); err != nil {
 		return err
 	}
-	cmd := r.Client.LRem(ctx, sKey, 1, "DELETE")
-
-	return cmd.Err()
+	return err
 }
 
+// SwapRemove removes the given componentIndex from the archetypeID, and swaps the last item
+// in the archetypeID into the newly vacant position. The removed component data is returned.
+// if the removed item happens to be the last item in the list, no swapping will take place.
 func (r *RedisStorage) SwapRemove(archetypeID ArchetypeID, componentIndex ComponentIndex) ([]byte, error) {
 	ctx := context.Background()
-	err := r.delete(ctx, archetypeID, componentIndex)
-	return nil, err
-}
-
-func (r *RedisStorage) delete(ctx context.Context, archID ArchetypeID, componentIndex ComponentIndex) error {
-	sKey := r.componentDataKey(archID, r.ComponentStoragePrefix)
-	statusRes := r.Client.LSet(ctx, sKey, int64(componentIndex), "DELETE")
-	if err := statusRes.Err(); err != nil {
-		return err
+	key := r.componentDataKey(archetypeID, r.ComponentStoragePrefix)
+	data, err := r.Client.RPop(ctx, key).Bytes()
+	if err != nil {
+		return nil, err
 	}
-	cmd := r.Client.LRem(ctx, sKey, 1, "DELETE")
-	if err := cmd.Err(); err != nil {
-		return err
+	count, err := r.Client.LLen(ctx, key).Result()
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	// The component marked for removal was at the end of the list, so there's no need to 'swap' it back in.
+	if count == int64(componentIndex) {
+		return data, nil
+	}
+	if err := r.Client.LSet(ctx, key, int64(componentIndex), data).Err(); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 func (r *RedisStorage) Contains(archetypeID ArchetypeID, componentIndex ComponentIndex) (bool, error) {
