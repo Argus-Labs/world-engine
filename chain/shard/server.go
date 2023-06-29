@@ -54,5 +54,5 @@ func (s *Server) SubmitShardBatch(ctx context.Context, request *shard.SubmitShar
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.msgQueue = append(s.msgQueue, sbr)
-	return nil, nil
+	return &shard.SubmitShardBatchResponse{}, nil
 }
