@@ -2,8 +2,8 @@ package server
 
 import (
 	"encoding/json"
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"net/http"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -20,16 +20,19 @@ func TestTransactionHandler(t *testing.T) {
 	}
 	count := 0
 	w := inmem.NewECSWorldForTest(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx](w, reflect.TypeOf(SendEnergyTx{}).Name())
+	txId := 1
+	sendTx := ecs.NewTransactionType[SendEnergyTx]()
+	err := sendTx.SetID(transaction.TypeID(txId))
+	assert.NilError(t, err)
 	txh := NewTransactionHandler(w)
 	endpoint := "move"
-	err := txh.NewHandler(endpoint, func(w *ecs.World) http.HandlerFunc {
+	err = txh.NewHandler(endpoint, func(w *ecs.World) http.HandlerFunc {
 		return func(writer http.ResponseWriter, request *http.Request) {
 			tx := new(SendEnergyTx)
 			if err := decode(request, tx); err != nil {
 				panic(err)
 			}
-			sendTx.AddToQueue(tx)
+			sendTx.AddToQueue(w, *tx)
 			count++
 		}
 	})
@@ -38,12 +41,12 @@ func TestTransactionHandler(t *testing.T) {
 	fullUrl := "http://localhost:" + port
 	go txh.Serve("", "4040")
 
-	transaction := SendEnergyTx{
+	tx := SendEnergyTx{
 		From:   "me",
 		To:     "you",
 		Amount: 420,
 	}
-	bz, err := json.Marshal(&transaction)
+	bz, err := json.Marshal(&tx)
 	assert.NilError(t, err)
 	req, err := http.NewRequest("GET", fullUrl+"/"+endpoint, strings.NewReader(string(bz)))
 	assert.NilError(t, err)
