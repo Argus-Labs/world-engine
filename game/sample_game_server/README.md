@@ -6,6 +6,14 @@ For a more detailed readme, see [Getting Started with Cardinal](https://coda.io/
 
 # Prerequisites
 
+## Mage Check
+
+A mage target exists that will check for some common preqrequisites. Run the check with:
+
+```bash
+mage check
+```
+
 ## Github Access
 
 The gameplay server (under the `server` directory) makes use of Cardinal, which is a library in the private [world-engine](https://github.com/Argus-Labs/world-engine) repo.
@@ -70,3 +78,16 @@ Visit `localhost:7351` in a web browser to access Nakama. For local development,
 The Account tab on the left will give you access to a valid account ID.
 
 The API Explorer tab on the left will allow you to make requests to the gameplay server.
+
+# Copy the Sample Game Server
+
+You can make a fully copy of nakama, the cardinal server, and the mage build targets with:
+
+```bash
+mage copy <target-directory> <module-path>
+```
+
+The <target-directory> is where you want your code to live on your local machine and the <module-path> parameter is the repo location of your new game.
+
+See the [go mod init](https://golang.org/ref/mod#go-mod-init) documentation for more details about the module path parameter.
+
