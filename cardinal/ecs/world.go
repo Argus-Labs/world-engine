@@ -429,8 +429,7 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("printing actual submission")
-	fmt.Println(string(bz))
+
 	// submit to chain
 	err = w.chain.Submit(ctx, bz)
 	return err
