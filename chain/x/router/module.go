@@ -11,7 +11,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
-	types2 "github.com/cosmos/cosmos-sdk/codec/types"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/spf13/cobra"
@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	Name             = "router"
+	ModuleName       = "router"
 	ConsensusVersion = 1
 )
 
@@ -40,7 +40,7 @@ type AppModuleBasic struct{}
 
 // Name returns the router module's name.
 func (AppModuleBasic) Name() string {
-	return Name
+	return ModuleName
 }
 
 // RegisterLegacyAminoCodec registers the router module's types on the given LegacyAmino codec.
@@ -49,7 +49,7 @@ func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {
 }
 
 // RegisterInterfaces registers the module's interface types.
-func (b AppModuleBasic) RegisterInterfaces(r types2.InterfaceRegistry) {
+func (b AppModuleBasic) RegisterInterfaces(r codectypes.InterfaceRegistry) {
 	routertypes.RegisterInterfaces(r)
 }
 
@@ -92,7 +92,7 @@ func (am AppModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 func (am AppModule) ValidateGenesis(cdc codec.JSONCodec, _ client.TxEncodingConfig, bz json.RawMessage) error {
 	var g routertypes.Genesis
 	if err := cdc.UnmarshalJSON(bz, &g); err != nil {
-		return fmt.Errorf("failed to unmarshal %s genesis state: %w", Name, err)
+		return fmt.Errorf("failed to unmarshal %s genesis state: %w", ModuleName, err)
 	}
 	return g.Validate()
 }
