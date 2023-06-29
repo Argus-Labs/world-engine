@@ -21,6 +21,9 @@
 package app
 
 import (
+	"github.com/argus-labs/world-engine/chain/shard"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"io"
 	"os"
 	"path/filepath"
@@ -115,7 +118,8 @@ type App struct {
 	ShardKeeper  *shardkeeper.Keeper
 
 	// plugins
-	Router router.Router
+	Router       router.Router
+	ShardHandler *shard.Server
 
 	// simulation manager
 	sm *module.SimulationManager
@@ -299,6 +303,8 @@ func NewApp(
 
 	app.sm.RegisterStoreDecoders()
 
+	app.App.SetEndBlocker(app.EndBlock)
+
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
@@ -333,6 +339,19 @@ func (app *App) InterfaceRegistry() codectypes.InterfaceRegistry {
 // TxConfig returns App's TxConfig.
 func (app *App) TxConfig() client.TxConfig {
 	return app.txConfig
+}
+
+func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
+	// TODO(technicallyty): submit shard transactions here
+	txns := app.ShardHandler.FlushMessages()
+	if txns != nil {
+		handler := app.MsgServiceRouter().Handler(&types.SubmitBatchRequest{})
+		for _, tx := range txns {
+			result, err := handler(ctx, &tx)
+		}
+
+	}
+	return app.ModuleManager.EndBlock(ctx)
 }
 
 // GetKey returns the KVStoreKey for the provided store key.
