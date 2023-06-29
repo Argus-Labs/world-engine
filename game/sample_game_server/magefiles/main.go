@@ -8,6 +8,11 @@ import (
 	"github.com/magefile/mage/sh"
 )
 
+// Check verifies that various prerequisites are installed or configured on your machine
+func Check() error {
+	return checkPrereq(true)
+}
+
 // Stop stops Nakama and the game server.
 func Stop() error {
 	return sh.Run("docker", "compose", "stop")
@@ -42,7 +47,7 @@ func prepareDir(dir string) error {
 	if err := os.Chdir(dir); err != nil {
 		return err
 	}
-	if err := os.RemoveAll("./vendor"); err != nil {
+	if err := sh.Rm("./vendor"); err != nil {
 		return err
 	}
 	if err := sh.Run("go", "mod", "tidy"); err != nil {
