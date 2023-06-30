@@ -201,7 +201,7 @@ func NewApp(
 		app.ShardHandler.Serve(os.Getenv("SHARD_HANDLER_LISTEN_ADDR"))
 	}
 
-	if err := depinject.Inject(appConfig,
+	if err = depinject.Inject(appConfig,
 		&appBuilder,
 		&app.appCodec,
 		&app.legacyAmino,
@@ -292,7 +292,7 @@ func NewApp(
 	// ----- END EVM SETUP -------------------------------------------------
 
 	// register streaming services
-	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
+	if err = app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
 	}
 
@@ -320,7 +320,7 @@ func NewApp(
 
 	app.App.SetEndBlocker(app.EndBlock)
 
-	if err := app.Load(loadLatest); err != nil {
+	if err = app.Load(loadLatest); err != nil {
 		panic(err)
 	}
 
@@ -362,7 +362,7 @@ func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
 		handler := app.MsgServiceRouter().Handler(&types.SubmitBatchRequest{})
 		for _, tx := range txns {
 			// TODO: handle error/result here. we currently don't have a callback mechanism to deal with these values.
-			handler(ctx, &tx)
+			_, _ = handler(ctx, &tx)
 		}
 
 	}
