@@ -362,7 +362,10 @@ func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
 		handler := app.MsgServiceRouter().Handler(&types.SubmitBatchRequest{})
 		for _, tx := range txns {
 			// TODO: handle error/result here. we currently don't have a callback mechanism to deal with these values.
-			_, _ = handler(ctx, &tx)
+			_, err := handler(ctx, &tx)
+			if err != nil {
+				return sdk.EndBlock{}, err
+			}
 		}
 
 	}
