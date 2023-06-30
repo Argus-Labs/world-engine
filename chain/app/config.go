@@ -43,6 +43,8 @@ import (
 	"cosmossdk.io/depinject"
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+
+	"github.com/argus-labs/world-engine/chain/shard"
 	shardModule "github.com/argus-labs/world-engine/chain/x/shard/module"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -101,6 +103,7 @@ var (
 		{Account: govtypes.ModuleName, Permissions: []string{authtypes.Burner}},
 		{Account: evmtypes.ModuleName, Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		{Account: erc20types.ModuleName, Permissions: []string{authtypes.Minter, authtypes.Burner}},
+		{Account: shard.Name},
 	}
 
 	// blocked account addresses.

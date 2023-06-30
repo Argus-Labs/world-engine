@@ -1,20 +1,24 @@
 package shard
 
 import (
-	shardgrpc "buf.build/gen/go/argus-labs/world-engine/grpc/go/shard/v1/shardv1grpc"
-	shard "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
 	"fmt"
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"google.golang.org/grpc"
 	"log"
 	"net"
 	"sync"
+
+	shardgrpc "buf.build/gen/go/argus-labs/world-engine/grpc/go/shard/v1/shardv1grpc"
+	shard "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"google.golang.org/grpc"
+
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 )
 
 var (
-	_ shardgrpc.ShardHandlerServer = &Server{}
+	Name                              = "shard_handler_server"
+	_    shardgrpc.ShardHandlerServer = &Server{}
 )
 
 type Server struct {
@@ -23,9 +27,10 @@ type Server struct {
 	msgQueue   []types.SubmitBatchRequest
 }
 
-func NewShardServer(accAddr sdk.AccAddress) *Server {
+func NewShardServer() *Server {
+	addr := authtypes.NewModuleAddress(Name)
 	return &Server{
-		moduleAddr: accAddr,
+		moduleAddr: addr,
 		lock:       sync.Mutex{},
 		msgQueue:   nil,
 	}
