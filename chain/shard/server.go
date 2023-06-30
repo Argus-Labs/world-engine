@@ -36,7 +36,7 @@ func NewShardServer() *Server {
 	}
 }
 
-// Serve serves the application
+// Serve serves the application in a new go routine. The routine panics if serve fails.
 func (s *Server) Serve(listenAddr string) {
 	grpcServer := grpc.NewServer()
 	shardgrpc.RegisterShardHandlerServer(grpcServer, s)
@@ -44,10 +44,12 @@ func (s *Server) Serve(listenAddr string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = grpcServer.Serve(listener)
-	if err != nil {
-		log.Fatal(err)
-	}
+	go func() {
+		err := grpcServer.Serve(listener)
+		if err != nil {
+			panic(err)
+		}
+	}()
 }
 
 // FlushMessages first copies the transactions in the queue, then clears the queue and returns the copy.

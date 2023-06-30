@@ -24,6 +24,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -187,6 +188,18 @@ func NewApp(
 			),
 		)
 	)
+
+	// setup the game shard listener.
+	// TODO: clean this up
+	useShardListenerStr := os.Getenv("USE_SHARD_LISTENER")
+	useShardListener, err := strconv.ParseBool(useShardListenerStr)
+	if err != nil {
+		panic(err)
+	}
+	if useShardListener {
+		app.ShardHandler = shard.NewShardServer()
+		app.ShardHandler.Serve(os.Getenv("SHARD_HANDLER_LISTEN_ADDR"))
+	}
 
 	if err := depinject.Inject(appConfig,
 		&appBuilder,
