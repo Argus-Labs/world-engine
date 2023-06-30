@@ -360,9 +360,9 @@ func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
 	txns := app.ShardHandler.FlushMessages()
 	if txns != nil {
 		handler := app.MsgServiceRouter().Handler(&types.SubmitBatchRequest{})
-		for _, tx := range txns {
-			// TODO: handle error/result here. we currently don't have a callback mechanism to deal with these values.
-			_, err := handler(ctx, &tx)
+		for i := range txns {
+			// TODO: if this errors, we need a way to tell cardinal the transaction batch didn't work.
+			_, err := handler(ctx, &txns[i])
 			if err != nil {
 				return sdk.EndBlock{}, err
 			}
