@@ -8,6 +8,8 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+// TestShard_Flush tests that after submitting transactions to the shard server, they can be flushed out, and the
+// queue is cleared.
 func TestShard_Flush(t *testing.T) {
 	sh := NewShardServer()
 	msgs := [][]byte{[]byte("hello world"), []byte("goodbye world")}
