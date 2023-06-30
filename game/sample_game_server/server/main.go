@@ -1,4 +1,24 @@
+/*
+This sample game server exposes 4 endpoints:
+
+list_players: 
+	returns a list contains each player's id, health, and position
+
+create_player:
+	create a player. A body of `{"X": 10, "Y": 20}` will create a player at position 10, 20
+
+create_fire
+	create a fire. A body of `{"X": 99, "Y": 200}` will create a fire at position 99, 200
+
+move_player
+	move a player. A body of `{"ID": 5, "XDelta": 10, "YDelta": 20}` will move player 5 10 units
+	in the X direction and 20 units in the Y direction.
+
+For every tick that a player is standing on a fire, they will lose 10 health.
+
+*/
 package main
+
 
 import (
 	"encoding/json"

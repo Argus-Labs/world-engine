@@ -6,7 +6,7 @@ import (
 )
 
 type MoveTransaction struct {
-	PlayerID       storage.EntityID
+	ID storage.EntityID
 	XDelta, YDelta int
 }
 

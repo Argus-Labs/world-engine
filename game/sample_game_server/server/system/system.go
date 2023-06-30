@@ -54,13 +54,13 @@ func CreateFire(world *ecs.World, tq *ecs.TransactionQueue) error {
 
 func Move(world *ecs.World, tq *ecs.TransactionQueue) error {
 	for _, move := range tx.Move.In(tq) {
-		pos, err := comp.Position.Get(world, move.PlayerID)
+		pos, err := comp.Position.Get(world, move.ID)
 		if err != nil {
 			return err
 		}
 		pos.X += move.XDelta
 		pos.Y += move.YDelta
-		if err = comp.Position.Set(world, move.PlayerID, pos); err != nil {
+		if err = comp.Position.Set(world, move.ID, pos); err != nil {
 			return err
 		}
 	}
