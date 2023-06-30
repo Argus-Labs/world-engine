@@ -100,7 +100,7 @@ func (h *httpHandler) listPlayers(w http.ResponseWriter, _ *http.Request) {
 func (h *httpHandler) createFire(w http.ResponseWriter, r *http.Request) {
 	createFire, err := decode[transaction.CreateFireTransaction](r)
 	if err != nil {
-		writeError(w, "unable to decode create player tx", err)
+		writeError(w, "unable to decode create fire tx", err)
 	}
 	transaction.CreateFire.AddToQueue(h.world, createFire)
 	writeResult(w, "ok")
