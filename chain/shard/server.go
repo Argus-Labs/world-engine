@@ -70,7 +70,8 @@ func (s *Server) FlushMessages() []types.SubmitBatchRequest {
 }
 
 // SubmitShardBatch appends the shard tx submissions to the queue IFF they pass validation.
-func (s *Server) SubmitShardBatch(ctx context.Context, request *shard.SubmitShardBatchRequest) (*shard.SubmitShardBatchResponse, error) {
+func (s *Server) SubmitShardBatch(_ context.Context, request *shard.SubmitShardBatchRequest) (
+	*shard.SubmitShardBatchResponse, error) {
 	sbr := types.SubmitBatchRequest{
 		Sender: s.moduleAddr.String(),
 		Batch:  request.Batch,
