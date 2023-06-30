@@ -367,7 +367,6 @@ func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
 				return sdk.EndBlock{}, err
 			}
 		}
-
 	}
 	return app.ModuleManager.EndBlock(ctx)
 }
