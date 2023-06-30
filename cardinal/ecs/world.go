@@ -400,7 +400,12 @@ func (w *World) Tick() error {
 	}
 	w.tick++
 	if w.useChainStorage {
-		go w.submitToChain(context.Background(), *txQueue)
+		go func() {
+			err := w.submitToChain(context.Background(), *txQueue)
+			if err != nil {
+				w.LogError(fmt.Errorf("error submitting transactions to rollup: %w", err))
+			}
+		}()
 	}
 	return nil
 }
