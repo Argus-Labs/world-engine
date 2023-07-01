@@ -2,8 +2,8 @@ package system
 
 import (
 	"github.com/argus-labs/world-engine/cardinal/ecs"
-	comp "github.com/argus-labs/world-engine/game/sample_game_server/server/component"
-	tx "github.com/argus-labs/world-engine/game/sample_game_server/server/transaction"
+	comp "github.com/argus-labs/world-engine/game/sample_game/server/component"
+	tx "github.com/argus-labs/world-engine/game/sample_game/server/transaction"
 )
 
 func FireSpawnerSystem(world *ecs.World, tq *ecs.TransactionQueue) error {

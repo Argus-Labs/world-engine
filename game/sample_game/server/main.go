@@ -1,5 +1,5 @@
 /*
-This sample game server exposes 4 endpoints:
+This sample game server shard built using Cardinal exposes 4 endpoints:
 
 list_players:
 
@@ -31,9 +31,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/argus-labs/world-engine/game/sample_game_server/server/component"
-	"github.com/argus-labs/world-engine/game/sample_game_server/server/system"
-	"github.com/argus-labs/world-engine/game/sample_game_server/server/transaction"
+	"github.com/argus-labs/world-engine/game/sample_game/server/component"
+	"github.com/argus-labs/world-engine/game/sample_game/server/system"
+	"github.com/argus-labs/world-engine/game/sample_game/server/transaction"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"

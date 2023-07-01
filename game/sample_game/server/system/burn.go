@@ -6,7 +6,7 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
-	comp "github.com/argus-labs/world-engine/game/sample_game_server/server/component"
+	comp "github.com/argus-labs/world-engine/game/sample_game/server/component"
 )
 
 func BurnSystem(world *ecs.World, tq *ecs.TransactionQueue) error {
