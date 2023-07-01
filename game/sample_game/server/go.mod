@@ -1,4 +1,4 @@
-module github.com/argus-labs/world-engine/game/sample_game_server/server
+module github.com/argus-labs/world-engine/game/sample_game/server
 
 go 1.20
 

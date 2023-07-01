@@ -1,4 +1,4 @@
-module github.com/argus-labs/world-engine/game/sample_game_server/nakama
+module github.com/argus-labs/world-engine/game/sample_game/nakama
 
 go 1.20
 

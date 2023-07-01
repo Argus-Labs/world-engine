@@ -1,13 +1,13 @@
 version: '3'
 services:
   server:
-    build: ./server
+    build: server
     expose:
       - "3333"
     ports:
       - "3333:3333"
     environment:
-      - GAME_SERVER_PORT=3333
+      - CARDINAL_PORT=3333
 
   postgres:
     command: postgres -c shared_preload_libraries=pg_stat_statements -c pg_stat_statements.track=all
@@ -30,7 +30,7 @@ services:
       - postgres
       - server
     environment:
-      - GAME_SERVER_ADDR=http://server:3333
+      - CARDINAL_ADDR=http://server:3333
     entrypoint:
       - "/bin/sh"
       - "-ecx"
