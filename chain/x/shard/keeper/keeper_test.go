@@ -1,10 +1,9 @@
 package keeper_test
 
 import (
+	"testing"
+
 	storetypes "cosmossdk.io/store/types"
-	"github.com/argus-labs/world-engine/chain/x/shard/keeper"
-	"github.com/argus-labs/world-engine/chain/x/shard/module"
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	cmttime "github.com/cometbft/cometbft/types/time"
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -14,7 +13,10 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/suite"
-	"testing"
+
+	"github.com/argus-labs/world-engine/chain/x/shard/keeper"
+	"github.com/argus-labs/world-engine/chain/x/shard/module"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 )
 
 type TestSuite struct {
@@ -40,31 +42,42 @@ func (s *TestSuite) SetupTest() {
 }
 
 func (s *TestSuite) TestSubmitBatch() {
-	batch := []byte("hello world")
+	batch := &types.TransactionBatch{
+		Namespace: "cardinal1",
+		Tick:      420,
+		Batch:     []byte("data"),
+	}
 	res, err := s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
-		Sender: s.auth,
-		Batch:  batch,
+		Sender:           s.auth,
+		TransactionBatch: batch,
 	})
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
-	newBatch := []byte("goodbye world")
+	newBatch := &types.TransactionBatch{
+		Namespace: "cardinal2",
+		Tick:      320,
+		Batch:     []byte("data2"),
+	}
 	res, err = s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
-		Sender: s.auth,
-		Batch:  newBatch,
+		Sender:           s.auth,
+		TransactionBatch: newBatch,
 	})
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 	genesis := s.keeper.ExportGenesis(s.ctx)
 	s.Require().Len(genesis.Batches, 2)
-	s.Require().Equal(genesis.Batches[0], batch)
-	s.Require().Equal(genesis.Batches[1], newBatch)
-	s.Require().Equal(genesis.Index, uint64(2))
+	s.Require().Equal(*genesis.Batches[0], *batch)
+	s.Require().Equal(*genesis.Batches[1], *newBatch)
 }
 
 func (s *TestSuite) TestSubmitBatch_Unauthorized() {
 	_, err := s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
 		Sender: s.addrs[1].String(),
-		Batch:  []byte("foo"),
+		TransactionBatch: &types.TransactionBatch{
+			Namespace: "cardinal",
+			Tick:      420,
+			Batch:     []byte("some data"),
+		},
 	})
 	s.Require().ErrorIs(err, sdkerrors.ErrUnauthorized)
 }

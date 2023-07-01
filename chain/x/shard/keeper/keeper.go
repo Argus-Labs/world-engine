@@ -1,8 +1,9 @@
 package keeper
 
 import (
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 
 	"cosmossdk.io/core/store"
 )
@@ -18,21 +19,23 @@ func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
 }
 
 func (k *Keeper) InitGenesis(ctx sdk.Context, genesis *types.GenesisState) {
-	for _, batch := range genesis.Batches {
-		k.saveBatch(ctx, batch)
+	for _, b := range genesis.Batches {
+		k.saveBatch(ctx, b)
 	}
-	k.saveIndex(ctx, genesis.Index)
 }
 
 func (k *Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
-	batches := make([][]byte, 0)
-	k.iterateBatches(ctx, func(batch []byte) bool {
-		batches = append(batches, batch)
+	batches := make([]*types.TransactionBatch, 0)
+	k.iterateNamespaces(ctx, func(ns string) bool {
+		k.iterateBatches(ctx, ns, func(tick uint64, batch []byte) bool {
+			batches = append(batches, &types.TransactionBatch{
+				Namespace: ns,
+				Tick:      tick,
+				Batch:     batch,
+			})
+			return true
+		})
 		return true
 	})
-	idx := k.getCurrentIndex(ctx)
-	return &types.GenesisState{
-		Batches: batches,
-		Index:   idx,
-	}
+	return &types.GenesisState{Batches: batches}
 }

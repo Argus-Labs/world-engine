@@ -17,8 +17,10 @@ func TestSubmitBatchMsg(t *testing.T) {
 		{
 			name: "valid",
 			msg: SubmitBatchRequest{
-				Sender: validAddr,
-				Batch:  []byte("batch"),
+				Sender:    validAddr,
+				Batch:     []byte("batch"),
+				Namespace: "darkforest1",
+				Tick:      1,
 			},
 		},
 		{
@@ -41,6 +43,26 @@ func TestSubmitBatchMsg(t *testing.T) {
 			msg: SubmitBatchRequest{
 				Sender: validAddr,
 				Batch:  []byte{},
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "empty namespace",
+			msg: SubmitBatchRequest{
+				Sender:    validAddr,
+				Namespace: "",
+				Tick:      0,
+				Batch:     []byte("foo"),
+			},
+			expErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "invalid namespace",
+			msg: SubmitBatchRequest{
+				Sender:    validAddr,
+				Namespace: ">:)",
+				Tick:      44,
+				Batch:     []byte("hello"),
 			},
 			expErr: sdkerrors.ErrInvalidRequest,
 		},

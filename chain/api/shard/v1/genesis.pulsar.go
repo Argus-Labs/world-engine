@@ -15,7 +15,7 @@ import (
 var _ protoreflect.List = (*_GenesisState_1_list)(nil)
 
 type _GenesisState_1_list struct {
-	list *[][]byte
+	list *[]*TransactionBatch
 }
 
 func (x *_GenesisState_1_list) Len() int {
@@ -26,32 +26,37 @@ func (x *_GenesisState_1_list) Len() int {
 }
 
 func (x *_GenesisState_1_list) Get(i int) protoreflect.Value {
-	return protoreflect.ValueOfBytes((*x.list)[i])
+	return protoreflect.ValueOfMessage((*x.list)[i].ProtoReflect())
 }
 
 func (x *_GenesisState_1_list) Set(i int, value protoreflect.Value) {
-	valueUnwrapped := value.Bytes()
-	concreteValue := valueUnwrapped
+	valueUnwrapped := value.Message()
+	concreteValue := valueUnwrapped.Interface().(*TransactionBatch)
 	(*x.list)[i] = concreteValue
 }
 
 func (x *_GenesisState_1_list) Append(value protoreflect.Value) {
-	valueUnwrapped := value.Bytes()
-	concreteValue := valueUnwrapped
+	valueUnwrapped := value.Message()
+	concreteValue := valueUnwrapped.Interface().(*TransactionBatch)
 	*x.list = append(*x.list, concreteValue)
 }
 
 func (x *_GenesisState_1_list) AppendMutable() protoreflect.Value {
-	panic(fmt.Errorf("AppendMutable can not be called on message GenesisState at list field Batches as it is not of Message kind"))
+	v := new(TransactionBatch)
+	*x.list = append(*x.list, v)
+	return protoreflect.ValueOfMessage(v.ProtoReflect())
 }
 
 func (x *_GenesisState_1_list) Truncate(n int) {
+	for i := n; i < len(*x.list); i++ {
+		(*x.list)[i] = nil
+	}
 	*x.list = (*x.list)[:n]
 }
 
 func (x *_GenesisState_1_list) NewElement() protoreflect.Value {
-	var v []byte
-	return protoreflect.ValueOfBytes(v)
+	v := new(TransactionBatch)
+	return protoreflect.ValueOfMessage(v.ProtoReflect())
 }
 
 func (x *_GenesisState_1_list) IsValid() bool {
@@ -61,14 +66,12 @@ func (x *_GenesisState_1_list) IsValid() bool {
 var (
 	md_GenesisState         protoreflect.MessageDescriptor
 	fd_GenesisState_batches protoreflect.FieldDescriptor
-	fd_GenesisState_index   protoreflect.FieldDescriptor
 )
 
 func init() {
 	file_shard_v1_genesis_proto_init()
 	md_GenesisState = File_shard_v1_genesis_proto.Messages().ByName("GenesisState")
 	fd_GenesisState_batches = md_GenesisState.Fields().ByName("batches")
-	fd_GenesisState_index = md_GenesisState.Fields().ByName("index")
 }
 
 var _ protoreflect.Message = (*fastReflection_GenesisState)(nil)
@@ -142,12 +145,6 @@ func (x *fastReflection_GenesisState) Range(f func(protoreflect.FieldDescriptor,
 			return
 		}
 	}
-	if x.Index != uint64(0) {
-		value := protoreflect.ValueOfUint64(x.Index)
-		if !f(fd_GenesisState_index, value) {
-			return
-		}
-	}
 }
 
 // Has reports whether a field is populated.
@@ -165,8 +162,6 @@ func (x *fastReflection_GenesisState) Has(fd protoreflect.FieldDescriptor) bool 
 	switch fd.FullName() {
 	case "shard.v1.GenesisState.batches":
 		return len(x.Batches) != 0
-	case "shard.v1.GenesisState.index":
-		return x.Index != uint64(0)
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.GenesisState"))
@@ -185,8 +180,6 @@ func (x *fastReflection_GenesisState) Clear(fd protoreflect.FieldDescriptor) {
 	switch fd.FullName() {
 	case "shard.v1.GenesisState.batches":
 		x.Batches = nil
-	case "shard.v1.GenesisState.index":
-		x.Index = uint64(0)
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.GenesisState"))
@@ -209,9 +202,6 @@ func (x *fastReflection_GenesisState) Get(descriptor protoreflect.FieldDescripto
 		}
 		listValue := &_GenesisState_1_list{list: &x.Batches}
 		return protoreflect.ValueOfList(listValue)
-	case "shard.v1.GenesisState.index":
-		value := x.Index
-		return protoreflect.ValueOfUint64(value)
 	default:
 		if descriptor.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.GenesisState"))
@@ -236,8 +226,6 @@ func (x *fastReflection_GenesisState) Set(fd protoreflect.FieldDescriptor, value
 		lv := value.List()
 		clv := lv.(*_GenesisState_1_list)
 		x.Batches = *clv.list
-	case "shard.v1.GenesisState.index":
-		x.Index = value.Uint()
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.GenesisState"))
@@ -260,12 +248,10 @@ func (x *fastReflection_GenesisState) Mutable(fd protoreflect.FieldDescriptor) p
 	switch fd.FullName() {
 	case "shard.v1.GenesisState.batches":
 		if x.Batches == nil {
-			x.Batches = [][]byte{}
+			x.Batches = []*TransactionBatch{}
 		}
 		value := &_GenesisState_1_list{list: &x.Batches}
 		return protoreflect.ValueOfList(value)
-	case "shard.v1.GenesisState.index":
-		panic(fmt.Errorf("field index of message shard.v1.GenesisState is not mutable"))
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.GenesisState"))
@@ -280,10 +266,8 @@ func (x *fastReflection_GenesisState) Mutable(fd protoreflect.FieldDescriptor) p
 func (x *fastReflection_GenesisState) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
 	case "shard.v1.GenesisState.batches":
-		list := [][]byte{}
+		list := []*TransactionBatch{}
 		return protoreflect.ValueOfList(&_GenesisState_1_list{list: &list})
-	case "shard.v1.GenesisState.index":
-		return protoreflect.ValueOfUint64(uint64(0))
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.GenesisState"))
@@ -354,13 +338,10 @@ func (x *fastReflection_GenesisState) ProtoMethods() *protoiface.Methods {
 		var l int
 		_ = l
 		if len(x.Batches) > 0 {
-			for _, b := range x.Batches {
-				l = len(b)
+			for _, e := range x.Batches {
+				l = options.Size(e)
 				n += 1 + l + runtime.Sov(uint64(l))
 			}
-		}
-		if x.Index != 0 {
-			n += 1 + runtime.Sov(uint64(x.Index))
 		}
 		if x.unknownFields != nil {
 			n += len(x.unknownFields)
@@ -391,16 +372,18 @@ func (x *fastReflection_GenesisState) ProtoMethods() *protoiface.Methods {
 			i -= len(x.unknownFields)
 			copy(dAtA[i:], x.unknownFields)
 		}
-		if x.Index != 0 {
-			i = runtime.EncodeVarint(dAtA, i, uint64(x.Index))
-			i--
-			dAtA[i] = 0x10
-		}
 		if len(x.Batches) > 0 {
 			for iNdEx := len(x.Batches) - 1; iNdEx >= 0; iNdEx-- {
-				i -= len(x.Batches[iNdEx])
-				copy(dAtA[i:], x.Batches[iNdEx])
-				i = runtime.EncodeVarint(dAtA, i, uint64(len(x.Batches[iNdEx])))
+				encoded, err := options.Marshal(x.Batches[iNdEx])
+				if err != nil {
+					return protoiface.MarshalOutput{
+						NoUnkeyedLiterals: input.NoUnkeyedLiterals,
+						Buf:               input.Buf,
+					}, err
+				}
+				i -= len(encoded)
+				copy(dAtA[i:], encoded)
+				i = runtime.EncodeVarint(dAtA, i, uint64(len(encoded)))
 				i--
 				dAtA[i] = 0xa
 			}
@@ -458,7 +441,7 @@ func (x *fastReflection_GenesisState) ProtoMethods() *protoiface.Methods {
 				if wireType != 2 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Batches", wireType)
 				}
-				var byteLen int
+				var msglen int
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
 						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
@@ -468,43 +451,26 @@ func (x *fastReflection_GenesisState) ProtoMethods() *protoiface.Methods {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					byteLen |= int(b&0x7F) << shift
+					msglen |= int(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
 				}
-				if byteLen < 0 {
+				if msglen < 0 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
 				}
-				postIndex := iNdEx + byteLen
+				postIndex := iNdEx + msglen
 				if postIndex < 0 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
 				}
 				if postIndex > l {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
 				}
-				x.Batches = append(x.Batches, make([]byte, postIndex-iNdEx))
-				copy(x.Batches[len(x.Batches)-1], dAtA[iNdEx:postIndex])
+				x.Batches = append(x.Batches, &TransactionBatch{})
+				if err := options.Unmarshal(dAtA[iNdEx:postIndex], x.Batches[len(x.Batches)-1]); err != nil {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, err
+				}
 				iNdEx = postIndex
-			case 2:
-				if wireType != 0 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Index", wireType)
-				}
-				x.Index = 0
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
-					}
-					if iNdEx >= l {
-						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					x.Index |= uint64(b&0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
 			default:
 				iNdEx = preIndex
 				skippy, err := runtime.Skip(dAtA[iNdEx:])
@@ -559,10 +525,7 @@ type GenesisState struct {
 	unknownFields protoimpl.UnknownFields
 
 	// batches contains all the transaction batches.
-	Batches [][]byte `protobuf:"bytes,1,rep,name=batches,proto3" json:"batches,omitempty"`
-	// index is the index of the latest batch. Stored batches are prefixed with a unique integer.
-	// i.e. batch-1-blob, batch-2-blob, batch-3-blob...
-	Index uint64 `protobuf:"varint,2,opt,name=index,proto3" json:"index,omitempty"`
+	Batches []*TransactionBatch `protobuf:"bytes,1,rep,name=batches,proto3" json:"batches,omitempty"`
 }
 
 func (x *GenesisState) Reset() {
@@ -585,18 +548,11 @@ func (*GenesisState) Descriptor() ([]byte, []int) {
 	return file_shard_v1_genesis_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GenesisState) GetBatches() [][]byte {
+func (x *GenesisState) GetBatches() []*TransactionBatch {
 	if x != nil {
 		return x.Batches
 	}
 	return nil
-}
-
-func (x *GenesisState) GetIndex() uint64 {
-	if x != nil {
-		return x.Index
-	}
-	return 0
 }
 
 var File_shard_v1_genesis_proto protoreflect.FileDescriptor
@@ -604,19 +560,21 @@ var File_shard_v1_genesis_proto protoreflect.FileDescriptor
 var file_shard_v1_genesis_proto_rawDesc = []byte{
 	0x0a, 0x16, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x2f, 0x67, 0x65, 0x6e, 0x65, 0x73,
 	0x69, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x08, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e,
-	0x76, 0x31, 0x22, 0x3e, 0x0a, 0x0c, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x53, 0x74, 0x61,
-	0x74, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x62, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x18, 0x01, 0x20,
-	0x03, 0x28, 0x0c, 0x52, 0x07, 0x62, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x12, 0x14, 0x0a, 0x05,
-	0x69, 0x6e, 0x64, 0x65, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x05, 0x69, 0x6e, 0x64,
-	0x65, 0x78, 0x42, 0x80, 0x01, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64,
-	0x2e, 0x76, 0x31, 0x42, 0x0c, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x50, 0x72, 0x6f, 0x74,
-	0x6f, 0x50, 0x01, 0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69,
-	0x6f, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73,
-	0x68, 0x61, 0x72, 0x64, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53,
-	0x68, 0x61, 0x72, 0x64, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c,
-	0x56, 0x31, 0xe2, 0x02, 0x14, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50,
-	0x42, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72,
-	0x64, 0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x76, 0x31, 0x1a, 0x14, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x2f, 0x74, 0x79, 0x70,
+	0x65, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x44, 0x0a, 0x0c, 0x47, 0x65, 0x6e, 0x65,
+	0x73, 0x69, 0x73, 0x53, 0x74, 0x61, 0x74, 0x65, 0x12, 0x34, 0x0a, 0x07, 0x62, 0x61, 0x74, 0x63,
+	0x68, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x73, 0x68, 0x61, 0x72,
+	0x64, 0x2e, 0x76, 0x31, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e,
+	0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x07, 0x62, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x42, 0x80,
+	0x01, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x42,
+	0x0c, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a,
+	0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61, 0x70,
+	0x69, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68, 0x61, 0x72, 0x64,
+	0x76, 0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64,
+	0x2e, 0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0xe2, 0x02,
+	0x14, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65, 0x74,
+	0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64, 0x3a, 0x3a, 0x56,
+	0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -633,14 +591,16 @@ func file_shard_v1_genesis_proto_rawDescGZIP() []byte {
 
 var file_shard_v1_genesis_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_shard_v1_genesis_proto_goTypes = []interface{}{
-	(*GenesisState)(nil), // 0: shard.v1.GenesisState
+	(*GenesisState)(nil),     // 0: shard.v1.GenesisState
+	(*TransactionBatch)(nil), // 1: shard.v1.TransactionBatch
 }
 var file_shard_v1_genesis_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	1, // 0: shard.v1.GenesisState.batches:type_name -> shard.v1.TransactionBatch
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_shard_v1_genesis_proto_init() }
@@ -648,6 +608,7 @@ func file_shard_v1_genesis_proto_init() {
 	if File_shard_v1_genesis_proto != nil {
 		return
 	}
+	file_shard_v1_types_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_shard_v1_genesis_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*GenesisState); i {
