@@ -1,24 +1,26 @@
 /*
 This sample game server exposes 4 endpoints:
 
-list_players: 
+list_players:
+
 	returns a list contains each player's id, health, and position
 
 create_player:
+
 	create a player. A body of `{"X": 10, "Y": 20}` will create a player at position 10, 20
 
 create_fire
+
 	create a fire. A body of `{"X": 99, "Y": 200}` will create a fire at position 99, 200
 
 move_player
+
 	move a player. A body of `{"ID": 5, "XDelta": 10, "YDelta": 20}` will move player 5 10 units
 	in the X direction and 20 units in the Y direction.
 
 For every tick that a player is standing on a fire, they will lose 10 health.
-
 */
 package main
-
 
 import (
 	"encoding/json"
@@ -40,23 +42,32 @@ import (
 )
 
 func mustSetupWorld(world *ecs.World) {
-	component.MustInitialize(world)
-	transaction.MustInitialize(world)
-	system.MustInitialize(world)
-	if err := world.LoadGameState(); err != nil {
-		panic(err)
-	}
+	must(world.RegisterComponents(
+		component.Health,
+		component.Position,
+	))
+	must(world.RegisterTransactions(
+		transaction.Move,
+		transaction.CreateFire,
+		transaction.CreatePlayer,
+	))
+	world.AddSystem(system.PlayerSpawnerSystem)
+	world.AddSystem(system.FireSpawnerSystem)
+	world.AddSystem(system.MoveSystem)
+	world.AddSystem(system.BurnSystem)
+
+	must(world.LoadGameState())
 }
 
-const EnvGameServerPort = "GAME_SERVER_PORT"
+const EnvCardinalPort = "CARDINAL_PORT"
 
 func main() {
 	world := inmem.NewECSWorld()
 	mustSetupWorld(world)
 
-	port := os.Getenv(EnvGameServerPort)
+	port := os.Getenv(EnvCardinalPort)
 	if port == "" {
-		log.Fatalf("Must specify a port via %s", EnvGameServerPort)
+		log.Fatalf("Must specify a port via %s", EnvCardinalPort)
 	}
 	h := &httpHandler{world: world}
 
@@ -85,7 +96,7 @@ func main() {
 
 	go gameLoop(world)
 
-	log.Printf("Starting server on port %s\n", port)
+	log.Printf("Starting cardinal server on port %s\n", port)
 	http.ListenAndServe(":"+port, nil)
 }
 
@@ -197,5 +208,11 @@ func writeResult(w http.ResponseWriter, v any) {
 	if err := enc.Encode(v); err != nil {
 		writeError(w, "can't encode", err)
 		return
+	}
+}
+
+func must(err error) {
+	if err != nil {
+		log.Fatal(err)
 	}
 }
