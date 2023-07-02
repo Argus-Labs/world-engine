@@ -70,11 +70,15 @@ func (s *Server) FlushMessages() []types.SubmitBatchRequest {
 }
 
 // SubmitShardBatch appends the shard tx submissions to the queue IFF they pass validation.
-func (s *Server) SubmitShardBatch(_ context.Context, request *shard.SubmitShardBatchRequest) (
+func (s *Server) SubmitShardBatch(_ context.Context, req *shard.SubmitShardBatchRequest) (
 	*shard.SubmitShardBatchResponse, error) {
 	sbr := types.SubmitBatchRequest{
 		Sender: s.moduleAddr.String(),
-		Batch:  request.Batch,
+		TransactionBatch: &types.TransactionBatch{
+			Namespace: req.Namespace,
+			Tick:      req.TickId,
+			Batch:     req.Batch,
+		},
 	}
 	if err := sbr.ValidateBasic(); err != nil {
 		return nil, fmt.Errorf("cannot submit batch to blockchain. invalid submission: %w", err)
