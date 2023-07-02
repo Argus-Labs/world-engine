@@ -6,7 +6,6 @@ type Option func(w *World)
 
 func WithAdapter(adapter chain.Adapter) Option {
 	return func(w *World) {
-		w.useChainStorage = true
 		w.chain = adapter
 	}
 }

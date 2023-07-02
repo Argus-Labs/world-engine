@@ -28,7 +28,7 @@ type MockAdapter struct {
 
 var sg sync.WaitGroup
 
-func (m *MockAdapter) Submit(ctx context.Context, bz []byte) error {
+func (m *MockAdapter) Submit(ctx context.Context, ns string, tick uint64, bz []byte) error {
 	m.lastSubmittedValue = bz
 	m.timesCalled++
 	sg.Done()
