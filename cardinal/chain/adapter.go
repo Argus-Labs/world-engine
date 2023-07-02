@@ -8,11 +8,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-//go:generate mockgen -source=adapter.go -package mocks -destination mocks/adapter.go
-
 // Adapter is a type that helps facilitate communication with a blockchain.
 type Adapter interface {
-	Submit(ctx context.Context, bz []byte) error
+	Submit(ctx context.Context, namespace string, tick uint64, txs []byte) error
 }
 
 type Config struct {
@@ -37,8 +35,9 @@ func NewAdapter(cfg Config) (Adapter, error) {
 	return a, nil
 }
 
-func (a adapterImpl) Submit(ctx context.Context, bz []byte) error {
-	req := &shardv1.SubmitShardBatchRequest{Batch: bz}
+// Submit submits the transaction bytes to the connected blockchain.
+func (a adapterImpl) Submit(ctx context.Context, namespace string, tick uint64, txs []byte) error {
+	req := &shardv1.SubmitShardBatchRequest{Namespace: namespace, TickId: tick, Batch: txs}
 	_, err := a.ShardReceiver.SubmitShardBatch(ctx, req)
 	return err
 }
