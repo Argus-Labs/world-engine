@@ -45,8 +45,7 @@ type World struct {
 	txLock sync.Mutex
 
 	// blockchain fields
-	useChainStorage bool
-	chain           chain.Adapter
+	chain chain.Adapter
 
 	errs []error
 }
@@ -398,14 +397,10 @@ func (w *World) Tick() error {
 	if err := w.store.TickStore.FinalizeTick(); err != nil {
 		return err
 	}
+	prevTick := w.tick
 	w.tick++
-	if w.useChainStorage {
-		go func() {
-			err := w.submitToChain(context.Background(), *txQueue)
-			if err != nil {
-				w.LogError(fmt.Errorf("error submitting transactions to rollup: %w", err))
-			}
-		}()
+	if w.chain != nil && len(txs) > 0 {
+		w.submitToChain(context.Background(), *txQueue, uint64(prevTick))
 	}
 	return nil
 }
@@ -415,29 +410,34 @@ type TxBatch struct {
 	Txs  []any              `json:"txs,omitempty"`
 }
 
-func (w *World) submitToChain(ctx context.Context, txq TransactionQueue) error {
-	// convert transaction queue map into slice
-	txb := make([]TxBatch, 0, len(txq.queue))
-	for id, txs := range txq.queue {
-		txb = append(txb, TxBatch{
-			TxID: id,
-			Txs:  txs,
+// submitToChain spins up a new go routine that will submit the transactions to the blockchain.
+func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick uint64) {
+	go func() {
+		// convert transaction queue map into slice
+		txb := make([]TxBatch, 0, len(txq.queue))
+		for id, txs := range txq.queue {
+			txb = append(txb, TxBatch{
+				TxID: id,
+				Txs:  txs,
+			})
+		}
+		// sort based on transaction id to keep determinism.
+		sort.Slice(txb, func(i, j int) bool {
+			return txb[i].TxID < txb[j].TxID
 		})
-	}
-	// sort based on transaction id to keep determinism.
-	sort.Slice(txb, func(i, j int) bool {
-		return txb[i].TxID < txb[j].TxID
-	})
 
-	// turn the slice into bytes
-	bz, err := json.Marshal(txb)
-	if err != nil {
-		return err
-	}
+		// turn the slice into bytes
+		bz, err := json.Marshal(txb)
+		if err != nil {
+			w.LogError(err)
+		}
 
-	// submit to chain
-	err = w.chain.Submit(ctx, bz)
-	return err
+		// submit to chain
+		err = w.chain.Submit(ctx, string(rune(w.id)), tick, bz)
+		if err != nil {
+			w.LogError(err)
+		}
+	}()
 }
 
 const (

@@ -363,14 +363,17 @@ func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
 	if txns != nil {
 		handler := app.MsgServiceRouter().Handler(&types.SubmitBatchRequest{})
 		for i := range txns {
-			// TODO: if this errors, we need a way to tell cardinal the transaction batch didn't work.
 			_, err := handler(ctx, &txns[i])
 			if err != nil {
 				return sdk.EndBlock{}, err
 			}
 		}
 	}
-	return app.ModuleManager.EndBlock(ctx)
+	eb, err := app.ModuleManager.EndBlock(ctx)
+	if err != nil {
+		return sdk.EndBlock{}, err
+	}
+	return eb, nil
 }
 
 // GetKey returns the KVStoreKey for the provided store key.
