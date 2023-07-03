@@ -19,10 +19,8 @@ import (
 // unit tests, use NewECSWorldForTest.
 func NewECSWorld() *ecs.World {
 	// We manually set the start address to make the port deterministic
-	m := miniredis.NewMiniRedis()
-	err := m.StartAddr(":12345")
-
-	s, err := miniredis.Run()
+	s := miniredis.NewMiniRedis()
+	err := s.StartAddr(":12345")
 	if err != nil {
 		panic("Unable to initialize in-memory redis")
 	}
