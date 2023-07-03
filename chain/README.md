@@ -95,3 +95,10 @@ mage start
 ```
 
 The network will have an Ethereum JSON-RPC server running at `http://localhost:1317/eth/rpc` and a Tendermint RPC server running at `http://localhost:26657`.
+
+## Environment Variables
+The following env variables must be set for the following features.
+
+### Game Shard Tx Storage
+USE_SHARD_LISTENER=true
+SHARD_HANDLER_LISTEN_ADDR=<the address you want this server to listen on (i.e. 10.209.21:3090)
