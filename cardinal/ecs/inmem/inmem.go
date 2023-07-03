@@ -6,6 +6,7 @@ package inmem
 
 import (
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -18,10 +19,14 @@ import (
 // layer. This is only suitable for local development. If you are creating an ecs.World for
 // unit tests, use NewECSWorldForTest.
 func NewECSWorld(opts ...ecs.Option) *ecs.World {
-	s, err := miniredis.Run()
+	// We manually set the start address to make the port deterministic
+	s := miniredis.NewMiniRedis()
+	err := s.StartAddr(":12345")
 	if err != nil {
 		panic("Unable to initialize in-memory redis")
 	}
+	log.Printf("Miniredis started at %s", s.Addr())
+
 	w, err := newInMemoryWorld(s, opts...)
 	if err != nil {
 		panic(fmt.Sprintf("Unable to initialize world: %v", err))

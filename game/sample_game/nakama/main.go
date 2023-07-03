@@ -35,19 +35,19 @@ const (
 )
 
 const (
-	EnvGameServer = "GAME_SERVER_ADDR"
+	EnvCardinalAddr = "CARDINAL_ADDR"
 )
 
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, initializer runtime.Initializer) error {
-	gameServerAddr := os.Getenv(EnvGameServer)
-	if gameServerAddr == "" {
-		msg := fmt.Sprintf("Must specify a game server via %s", EnvGameServer)
+	cardinalAddr := os.Getenv(EnvCardinalAddr)
+	if cardinalAddr == "" {
+		msg := fmt.Sprintf("Must specify a cardinal server via %s", EnvCardinalAddr)
 		logger.Error(msg)
 		return errors.New(msg)
 	}
 
 	makeURL := func(resource string) string {
-		return fmt.Sprintf("%s/%s", gameServerAddr, resource)
+		return fmt.Sprintf("%s/%s", cardinalAddr, resource)
 	}
 
 	// Get the list of available endpoints from the backend server

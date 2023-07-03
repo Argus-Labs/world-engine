@@ -4,7 +4,9 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 
+	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 )
 
@@ -20,6 +22,7 @@ func Stop() error {
 
 // Restart restarts ONLY the game server.
 func Restart() error {
+	mg.Deps(exitMagefilesDir)
 	if err := sh.Run("docker", "compose", "stop", "server"); err != nil {
 		return err
 	}
@@ -31,6 +34,7 @@ func Restart() error {
 
 // Start starts Nakama and the game server
 func Start() error {
+	mg.Deps(exitMagefilesDir)
 	if err := prepareDir("server"); err != nil {
 		return err
 	}
@@ -58,6 +62,21 @@ func prepareDir(dir string) error {
 	}
 	if err := os.Chdir(".."); err != nil {
 		return err
+	}
+	return nil
+}
+
+func exitMagefilesDir() error {
+	curr, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	curr = filepath.Base(curr)
+	if curr == "magefiles" {
+		if err := os.Chdir(".."); err != nil {
+			return err
+		}
+
 	}
 	return nil
 }
