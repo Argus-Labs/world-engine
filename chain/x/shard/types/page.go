@@ -19,7 +19,7 @@ func DefaultPageRequest() *PageRequest {
 	}
 }
 
-func ExtractPageRequest(pr *PageRequest) (key []byte, limit uint32) {
+func ExtractPageRequest(pr *PageRequest) ([]byte, uint32) {
 	if !IsEmptyOrDefault(pr) {
 		if pr.Limit == 0 {
 			pr.Limit = DefaultPageRequestLimit

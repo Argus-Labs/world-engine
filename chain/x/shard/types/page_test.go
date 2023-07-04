@@ -61,7 +61,7 @@ func TestIsEmptyOrDefault(t *testing.T) {
 	}
 }
 
-// TestExtractPageRequest checks the edge case where a key is supplied, but limit is 0 (results in nothing being sent)
+// TestExtractPageRequest checks the edge case where a key is supplied, but limit is 0 (results in nothing being sent).
 func TestExtractPageRequest(t *testing.T) {
 	pr := &PageRequest{
 		Key:   []byte("hello"),
