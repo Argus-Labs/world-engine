@@ -2,8 +2,6 @@ package tests
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -46,8 +44,8 @@ type ClaimPlanetTransaction struct {
 	PlanetID uint64
 }
 
-// TestWorld_RecoverFromChain tests that after querying the transactions from the chain,
-// we can unmarshal them, and re-run them in ticks, and eventually rebuild the state of the game.
+// TestWorld_RecoverFromChain tests that after submitting transactions to the chain, they can be queried, re-ran,
+// and end up with the same game state as before.
 func TestWorld_RecoverFromChain(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
@@ -120,7 +118,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	}
 
 	// now we can recover, which will run the same transactions we submitted before, as they are now stored in
-	// the dummy adapter, and will be ran again.
+	// the dummy adapter, and will be run again.
 	err = w.RecoverFromChain(ctx)
 	assert.NilError(t, err)
 	select {
@@ -130,44 +128,4 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// ensure the systems ran twice. once for the tick above, and then again for the recovery.
 	assert.Equal(t, sendEnergyTimesRan, 2)
 	assert.Equal(t, claimPlanetTimesRan, 2)
-}
-
-func TestEncoding(t *testing.T) {
-	send1 := SendEnergyTransaction{
-		To:     "foo",
-		From:   "bar",
-		Amount: 42,
-	}
-	send2 := SendEnergyTransaction{
-		To:     "nar",
-		From:   "foo",
-		Amount: 22,
-	}
-
-	batches := []*ecs.TxBatch{
-		{
-			TxID: 1,
-			Txs:  []any{send1, send2},
-		},
-	}
-
-	bz, err := json.Marshal(batches)
-	assert.NilError(t, err)
-	fmt.Println(string(bz))
-
-	var newTxBatches []*ecs.TxBatch
-	err = json.Unmarshal(bz, &newTxBatches)
-	assert.NilError(t, err)
-
-	for _, batch := range newTxBatches {
-		for _, tx := range batch.Txs {
-			bz, err := json.Marshal(tx)
-			assert.NilError(t, err)
-			var sendTx SendEnergyTransaction
-			err = json.Unmarshal(bz, &sendTx)
-			assert.NilError(t, err)
-			fmt.Printf("%+v", sendTx)
-		}
-		fmt.Println("TxID: ", batch.TxID)
-	}
 }
