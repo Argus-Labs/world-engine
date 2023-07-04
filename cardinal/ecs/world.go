@@ -46,7 +46,9 @@ type World struct {
 	txLock sync.Mutex
 
 	// blockchain fields
-	chain        chain.Adapter
+	chain chain.Adapter
+	// isRecovering indicates that the world is recovering from the blockchain.
+	// this is used to prevent ticks from submitting duplicate transactions to the rollup.
 	isRecovering bool
 
 	errs []error
