@@ -38,8 +38,13 @@ func NewAdapter(cfg Config) (Adapter, error) {
 	if err != nil {
 		return nil, err
 	}
-	client := shardgrpc.NewShardHandlerClient(conn)
-	a.ShardReceiver = client
+	a.ShardReceiver = shardgrpc.NewShardHandlerClient(conn)
+
+	conn2, err := grpc.Dial(cfg.BaseShardAddr)
+	if err != nil {
+		return nil, err
+	}
+	a.ShardQuerier = shardtypes.NewQueryClient(conn2)
 	return a, nil
 }
 

@@ -413,7 +413,7 @@ type TxBatch struct {
 
 // submitToChain spins up a new go routine that will submit the transactions to the blockchain.
 func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick uint64) {
-	go func(ctx2 context.Context) {
+	go func(ctx context.Context) {
 		// convert transaction queue map into slice
 		txb := make([]TxBatch, 0, len(txq.queue))
 		for id, txs := range txq.queue {
@@ -438,11 +438,14 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		if err != nil {
 			w.LogError(err)
 		}
-		done := ctx2.Value("done")
+		done := ctx.Value("done")
 		if done == nil {
 			return
 		} else {
-			doneSignal := done.(chan struct{})
+			doneSignal, ok := done.(chan struct{})
+			if !ok {
+				return
+			}
 			doneSignal <- struct{}{}
 		}
 	}(ctx)
