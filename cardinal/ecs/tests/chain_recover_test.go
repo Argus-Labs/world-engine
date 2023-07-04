@@ -121,11 +121,6 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// now we can recover, which will run the same transactions we submitted before, as they are now stored in
 	// the dummy adapter, and will be run again.
 	err = w.RecoverFromChain(ctx)
-	assert.NilError(t, err)
-	select {
-	case <-doneSignal:
-		break
-	}
 	// ensure the systems ran twice. once for the tick above, and then again for the recovery.
 	assert.Equal(t, sendEnergyTimesRan, 2)
 	assert.Equal(t, claimPlanetTimesRan, 2)

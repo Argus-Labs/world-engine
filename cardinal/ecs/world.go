@@ -46,7 +46,8 @@ type World struct {
 	txLock sync.Mutex
 
 	// blockchain fields
-	chain chain.Adapter
+	chain        chain.Adapter
+	isRecovering bool
 
 	errs []error
 }
@@ -400,7 +401,7 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 	prevTick := w.tick
 	w.tick++
-	if w.chain != nil && len(txs) > 0 {
+	if !w.isRecovering && (w.chain != nil && len(txs) > 0) {
 		w.submitToChain(ctx, *txQueue, uint64(prevTick))
 	}
 	return nil
@@ -579,6 +580,10 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		return fmt.Errorf("chain adapter was not nil. " +
 			"be sure to use the WithAdapter function when creating the world")
 	}
+	w.isRecovering = true
+	defer func() {
+		w.isRecovering = false
+	}()
 	namespace := w.getNamespace()
 	var nextKey []byte
 	for {
