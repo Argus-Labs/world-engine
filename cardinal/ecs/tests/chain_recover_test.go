@@ -57,24 +57,20 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	err := w.RegisterTransactions(SendEnergyTx, ClaimPlanetTx)
 	assert.NilError(t, err)
 
-	timesSendEnergySystemRan := 0
-	timesClaimPlanetSystemRan := 0
+	sendEnergyTransactionsSeen := 0
+	claimPlanetTransactionsSeen := 0
 
 	// SendEnergySystem
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		txs := SendEnergyTx.In(queue)
-		if len(txs) > 0 {
-			timesSendEnergySystemRan++
-		}
+		sendEnergyTransactionsSeen = len(txs)
 		return nil
 	})
 
 	// ClaimPlanetSystem
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		txs := ClaimPlanetTx.In(queue)
-		if len(txs) > 0 {
-			timesClaimPlanetSystemRan++
-		}
+		claimPlanetTransactionsSeen = len(txs)
 		return nil
 	})
 
@@ -98,52 +94,11 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 
 	err = w.Tick()
 	assert.NilError(t, err)
-	time.Sleep(3 * time.Second)
-	//send1Bz, err := SendEnergyTx.Encode(SendEnergyTransaction{
-	//	To:     "player1",
-	//	From:   "player2",
-	//	Amount: 40000,
-	//})
-	//assert.NilError(t, err)
-	//
-	//send2Bz, err := SendEnergyTx.Encode(SendEnergyTransaction{
-	//	To:     "dark_mage1",
-	//	From:   "light_mage2",
-	//	Amount: 300,
-	//})
-	//assert.NilError(t, err)
-	//
-	//claimPlanetBz, err := ClaimPlanetTx.Encode(ClaimPlanetTransaction{
-	//	Claimant: "mage1",
-	//	PlanetID: 92359235,
-	//})
-	//assert.NilError(t, err)
-	//
-	//batch1 := []*ecs.TxBatch{
-	//	{
-	//		TxID: SendEnergyTx.ID(),
-	//		Txs:  []any{send1Bz, send2Bz},
-	//	},
-	//}
-	//batch1Bz, err := json.Marshal(batch1)
-	//assert.NilError(t, err)
-	//
-	//batch2 := []ecs.TxBatch{
-	//	{
-	//		TxID: ClaimPlanetTx.ID(),
-	//		Txs:  []any{claimPlanetBz},
-	//	},
-	//}
-	//batch2Bz, err := json.Marshal(batch2)
-	//assert.NilError(t, err)
-	//
-	//assert.NilError(t, adapter.Submit(ctx, namespace, 10, batch1Bz))
-	//assert.NilError(t, adapter.Submit(ctx, namespace, 11, batch2Bz))
+	time.Sleep(1 * time.Second)
 
 	err = w.RecoverFromChain(ctx)
-	assert.NilError(t, err)
-	fmt.Println(timesSendEnergySystemRan)
-	fmt.Println(timesClaimPlanetSystemRan)
+	fmt.Println(sendEnergyTransactionsSeen)
+	fmt.Println(claimPlanetTransactionsSeen)
 }
 
 func TestEncoding(t *testing.T) {
@@ -173,5 +128,15 @@ func TestEncoding(t *testing.T) {
 	err = json.Unmarshal(bz, &newTxBatches)
 	assert.NilError(t, err)
 
-	fmt.Println(newTxBatches[0].Txs)
+	for _, batch := range newTxBatches {
+		for _, tx := range batch.Txs {
+			bz, err := json.Marshal(tx)
+			assert.NilError(t, err)
+			var sendTx SendEnergyTransaction
+			err = json.Unmarshal(bz, &sendTx)
+			assert.NilError(t, err)
+			fmt.Printf("%+v", sendTx)
+		}
+		fmt.Println("TxID: ", batch.TxID)
+	}
 }

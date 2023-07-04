@@ -588,7 +588,6 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				return err
 			}
 			for _, tx := range txb {
-				// at this point, each tx is still just map[string]interface{}...
 				w.txQueues[tx.TxID] = tx.Txs
 			}
 			err = w.Tick()
@@ -599,9 +598,13 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 
 		// if a page response was in the reply, that means there is more data to read.
 		if res.Page != nil {
+			// case where the next key is empty or nil, we don't want to continue the queries.
+			if res.Page.Key == nil || len(res.Page.Key) == 0 {
+				break
+			}
 			nextKey = res.Page.Key
 		} else {
-			// if its nil, that means the query has reached the end, and we can break.
+			// if the entire page reply is nil, then we are definitely done.
 			break
 		}
 	}
@@ -613,9 +616,34 @@ func (w *World) encodeBatch(txb []TxBatch) ([]byte, error) {
 }
 
 func (w *World) decodeBatch(bz []byte) ([]TxBatch, error) {
-	var txb []TxBatch
-	err := json.Unmarshal(bz, &txb)
-	return txb, err
+	var batches []TxBatch
+	err := json.Unmarshal(bz, &batches)
+	for _, batch := range batches {
+		transactionType := w.getITx(batch.TxID)
+		for i, tx := range batch.Txs {
+			txBytes, err := json.Marshal(tx)
+			if err != nil {
+				return nil, err
+			}
+			underlyingTx, err := transactionType.Decode(txBytes)
+			if err != nil {
+				return nil, err
+			}
+			batch.Txs[i] = underlyingTx
+		}
+	}
+	return batches, err
+}
+
+func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
+	var itx transaction.ITransaction
+	for _, tx := range w.registeredTransactions {
+		if id == tx.ID() {
+			itx = tx
+			break
+		}
+	}
+	return itx
 }
 
 func (w *World) getNamespace() string {
