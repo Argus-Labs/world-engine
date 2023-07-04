@@ -600,7 +600,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			for _, tx := range txb {
 				w.txQueues[tx.TxID] = tx.Txs
 			}
-			err = w.Tick(context.Background())
+			err = w.Tick(ctx)
 			if err != nil {
 				return err
 			}

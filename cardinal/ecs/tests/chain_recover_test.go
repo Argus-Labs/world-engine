@@ -46,9 +46,11 @@ type ClaimPlanetTransaction struct {
 	PlanetID uint64
 }
 
+// TestWorld_RecoverFromChain tests that after querying the transactions from the chain,
+// we can unmarshal them, and re-run them in ticks, and eventually rebuild the state of the game.
 func TestWorld_RecoverFromChain(t *testing.T) {
+	// setup world and transactions
 	ctx := context.Background()
-	// namespace := "dark_forest1"
 	adapter := &DummyAdapter{batches: make([]*types.TransactionBatch, 0)}
 	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(adapter))
 	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction]()
@@ -56,6 +58,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	err := w.RegisterTransactions(SendEnergyTx, ClaimPlanetTx)
 	assert.NilError(t, err)
 
+	// setup the transactions we will "recover" from the chain (dummy adapter).
 	sendEnergyTxs := []SendEnergyTransaction{
 		{
 			"rogue4",
@@ -72,8 +75,11 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		{"mage1", 32509235},
 	}
 
-	// SendEnergySystem
+	sendEnergyTimesRan := 0
+	claimPlanetTimesRan := 0
+	// SendEnergySystem simply checks that the transactions received in the queue match the ones we submit above.
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+		sendEnergyTimesRan++
 		txs := SendEnergyTx.In(queue)
 		for i, tx := range txs {
 			assert.DeepEqual(t, tx, sendEnergyTxs[i])
@@ -82,8 +88,9 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		return nil
 	})
 
-	// ClaimPlanetSystem
+	// ClaimPlanetSystem simply checks that the transactions received in the queue match the ones we submit above.
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+		claimPlanetTimesRan++
 		txs := ClaimPlanetTx.In(queue)
 		for i, tx := range txs {
 			assert.DeepEqual(t, tx, claimPlanetTxs[i])
@@ -91,9 +98,9 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		assert.Equal(t, len(txs), len(claimPlanetTxs))
 		return nil
 	})
-
 	assert.NilError(t, w.LoadGameState())
 
+	// add the transactions to the world queue.
 	for _, tx := range sendEnergyTxs {
 		SendEnergyTx.AddToQueue(w, tx)
 	}
@@ -101,6 +108,8 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		ClaimPlanetTx.AddToQueue(w, tx)
 	}
 
+	// we want to run a tick, so that the transactions go through the submission process, and end up stored in our
+	// dummy adapter above.
 	doneSignal := make(chan struct{})
 	ctx = context.WithValue(ctx, "done", doneSignal)
 	err = w.Tick(ctx)
@@ -109,8 +118,18 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	case <-doneSignal:
 		break
 	}
+
+	// now we can recover, which will run the same transactions we submitted before, as they are now stored in
+	// the dummy adapter, and will be ran again.
 	err = w.RecoverFromChain(ctx)
 	assert.NilError(t, err)
+	select {
+	case <-doneSignal:
+		break
+	}
+	// ensure the systems ran twice. once for the tick above, and then again for the recovery.
+	assert.Equal(t, sendEnergyTimesRan, 2)
+	assert.Equal(t, claimPlanetTimesRan, 2)
 }
 
 func TestEncoding(t *testing.T) {
