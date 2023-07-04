@@ -15,13 +15,14 @@ import (
 var _ chain.Adapter = &DummyAdapter{}
 
 type DummyAdapter struct {
+	tick    uint64
 	batches []*types.TransactionBatch
 }
 
 func (d *DummyAdapter) Submit(ctx context.Context, namespace string, tick uint64, txs []byte) error {
 	d.batches = append(d.batches, &types.TransactionBatch{
 		Namespace: namespace,
-		Tick:      tick,
+		Tick:      d.tick,
 		Batch:     txs,
 	})
 	return nil
@@ -49,7 +50,7 @@ type ClaimPlanetTransaction struct {
 func TestWorld_RecoverFromChain(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
-	adapter := &DummyAdapter{batches: make([]*types.TransactionBatch, 0)}
+	adapter := &DummyAdapter{batches: make([]*types.TransactionBatch, 0), tick: 30}
 	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(adapter))
 	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction]()
 	ClaimPlanetTx := ecs.NewTransactionType[ClaimPlanetTransaction]()
@@ -128,4 +129,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// ensure the systems ran twice. once for the tick above, and then again for the recovery.
 	assert.Equal(t, sendEnergyTimesRan, 2)
 	assert.Equal(t, claimPlanetTimesRan, 2)
+
+	// ensure that the tick was updated from the stored transaction batch.
+	assert.Equal(t, adapter.tick+1, uint64(w.CurrentTick()))
 }

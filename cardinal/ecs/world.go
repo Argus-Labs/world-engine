@@ -600,6 +600,8 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			for _, tx := range txb {
 				w.txQueues[tx.TxID] = tx.Txs
 			}
+			// force the tick to the stored tick.
+			w.tick = int(batch.Tick)
 			err = w.Tick(ctx)
 			if err != nil {
 				return err
