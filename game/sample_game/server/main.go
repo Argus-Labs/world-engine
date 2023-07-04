@@ -101,8 +101,9 @@ func main() {
 }
 
 func gameLoop(world *ecs.World) {
-	for range time.Tick(time.Second) {
-		if err := world.Tick(); err != nil {
+	for range time.Tick(context.Background()
+	time.Second) {
+		if err := world.Tick(context.Background()); err != nil {
 			panic(err)
 		}
 	}

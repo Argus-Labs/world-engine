@@ -69,7 +69,7 @@ func TestWorld_WithChain(t *testing.T) {
 
 	sendEnergyTx.AddToQueue(w, txToSend)
 	sg.Add(1)
-	err = w.Tick()
+	err = w.Tick(context.Background())
 	assert.NilError(t, err)
 
 	sg.Wait()

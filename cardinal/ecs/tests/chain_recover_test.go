@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
-	"time"
 
 	"gotest.tools/v3/assert"
 
@@ -57,48 +56,61 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	err := w.RegisterTransactions(SendEnergyTx, ClaimPlanetTx)
 	assert.NilError(t, err)
 
-	sendEnergyTransactionsSeen := 0
-	claimPlanetTransactionsSeen := 0
+	sendEnergyTxs := []SendEnergyTransaction{
+		{
+			"rogue4",
+			"warrior3",
+			920,
+		},
+		{
+			"mage1",
+			"ranger3",
+			40,
+		},
+	}
+	claimPlanetTxs := []ClaimPlanetTransaction{
+		{"mage1", 32509235},
+	}
 
 	// SendEnergySystem
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		txs := SendEnergyTx.In(queue)
-		sendEnergyTransactionsSeen = len(txs)
+		for i, tx := range txs {
+			assert.DeepEqual(t, tx, sendEnergyTxs[i])
+		}
+		assert.Equal(t, len(txs), len(sendEnergyTxs))
 		return nil
 	})
 
 	// ClaimPlanetSystem
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		txs := ClaimPlanetTx.In(queue)
-		claimPlanetTransactionsSeen = len(txs)
+		for i, tx := range txs {
+			assert.DeepEqual(t, tx, claimPlanetTxs[i])
+		}
+		assert.Equal(t, len(txs), len(claimPlanetTxs))
 		return nil
 	})
 
 	assert.NilError(t, w.LoadGameState())
 
-	SendEnergyTx.AddToQueue(w, SendEnergyTransaction{
-		To:     "player1",
-		From:   "player2",
-		Amount: 40000,
-	})
-	SendEnergyTx.AddToQueue(w, SendEnergyTransaction{
-		To:     "mage1",
-		From:   "ranger3",
-		Amount: 9910,
-	})
+	for _, tx := range sendEnergyTxs {
+		SendEnergyTx.AddToQueue(w, tx)
+	}
+	for _, tx := range claimPlanetTxs {
+		ClaimPlanetTx.AddToQueue(w, tx)
+	}
 
-	ClaimPlanetTx.AddToQueue(w, ClaimPlanetTransaction{
-		Claimant: "mage1",
-		PlanetID: 93202352,
-	})
-
-	err = w.Tick()
+	doneSignal := make(chan struct{})
+	ctx = context.WithValue(ctx, "done", doneSignal)
+	err = w.Tick(ctx)
 	assert.NilError(t, err)
-	time.Sleep(1 * time.Second)
-
+	select {
+	case <-doneSignal:
+		break
+	}
 	err = w.RecoverFromChain(ctx)
-	fmt.Println(sendEnergyTransactionsSeen)
-	fmt.Println(claimPlanetTransactionsSeen)
+	assert.NilError(t, err)
 }
 
 func TestEncoding(t *testing.T) {

@@ -371,7 +371,7 @@ func (w *World) addTransaction(id transaction.TypeID, v any) {
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
-func (w *World) Tick() error {
+func (w *World) Tick(ctx context.Context) error {
 	if !w.stateIsLoaded {
 		return errors.New("must load state before first tick")
 	}
@@ -401,7 +401,7 @@ func (w *World) Tick() error {
 	prevTick := w.tick
 	w.tick++
 	if w.chain != nil && len(txs) > 0 {
-		w.submitToChain(context.Background(), *txQueue, uint64(prevTick))
+		w.submitToChain(ctx, *txQueue, uint64(prevTick))
 	}
 	return nil
 }
@@ -413,7 +413,7 @@ type TxBatch struct {
 
 // submitToChain spins up a new go routine that will submit the transactions to the blockchain.
 func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick uint64) {
-	go func() {
+	go func(ctx2 context.Context) {
 		// convert transaction queue map into slice
 		txb := make([]TxBatch, 0, len(txq.queue))
 		for id, txs := range txq.queue {
@@ -438,7 +438,14 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		if err != nil {
 			w.LogError(err)
 		}
-	}()
+		done := ctx2.Value("done")
+		if done == nil {
+			return
+		} else {
+			doneSignal := done.(chan struct{})
+			doneSignal <- struct{}{}
+		}
+	}(ctx)
 }
 
 const (
@@ -500,7 +507,7 @@ func (w *World) LoadGameState() error {
 
 	if recoveredTxs != nil {
 		w.txQueues = recoveredTxs
-		if err := w.Tick(); err != nil {
+		if err := w.Tick(context.Background()); err != nil {
 			return err
 		}
 	}
@@ -590,7 +597,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			for _, tx := range txb {
 				w.txQueues[tx.TxID] = tx.Txs
 			}
-			err = w.Tick()
+			err = w.Tick(context.Background())
 			if err != nil {
 				return err
 			}
