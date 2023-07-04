@@ -11,6 +11,7 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 )
 
 type SendEnergy struct {
@@ -24,6 +25,10 @@ type MockAdapter struct {
 	lastSubmittedValue []byte
 	timesCalled        int
 	done               chan int
+}
+
+func (m *MockAdapter) QueryBatch(ctx context.Context, req *types.QueryBatchesRequest) (*types.QueryBatchesResponse, error) {
+	panic("not implemented")
 }
 
 var sg sync.WaitGroup

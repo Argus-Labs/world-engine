@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/argus-labs/world-engine/cardinal/chain"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
@@ -427,13 +428,13 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		})
 
 		// turn the slice into bytes
-		bz, err := json.Marshal(txb)
+		bz, err := w.encodeBatch(txb)
 		if err != nil {
 			w.LogError(err)
 		}
 
 		// submit to chain
-		err = w.chain.Submit(ctx, string(rune(w.id)), tick, bz)
+		err = w.chain.Submit(ctx, w.getNamespace(), tick, bz)
 		if err != nil {
 			w.LogError(err)
 		}
@@ -561,6 +562,64 @@ func (w *World) noDuplicates(components []component.IComponentType) bool {
 		}
 	}
 	return true
+}
+
+func (w *World) RecoverFromChain(ctx context.Context) error {
+	if w.chain == nil {
+		return fmt.Errorf("chain adapter was not nil. " +
+			"be sure to use the WithAdapter function when creating the world")
+	}
+	namespace := w.getNamespace()
+	var nextKey []byte
+	for {
+		res, err := w.chain.QueryBatch(ctx, &types.QueryBatchesRequest{
+			Namespace: namespace,
+			Page: &types.PageRequest{
+				Key:   nextKey,
+				Limit: 10,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		for _, batch := range res.Batches {
+			txb, err := w.decodeBatch(batch.Batch)
+			if err != nil {
+				return err
+			}
+			for _, tx := range txb {
+				// at this point, each tx is still just map[string]interface{}...
+				w.txQueues[tx.TxID] = tx.Txs
+			}
+			err = w.Tick()
+			if err != nil {
+				return err
+			}
+		}
+
+		// if a page response was in the reply, that means there is more data to read.
+		if res.Page != nil {
+			nextKey = res.Page.Key
+		} else {
+			// if its nil, that means the query has reached the end, and we can break.
+			break
+		}
+	}
+	return nil
+}
+
+func (w *World) encodeBatch(txb []TxBatch) ([]byte, error) {
+	return json.Marshal(txb)
+}
+
+func (w *World) decodeBatch(bz []byte) ([]TxBatch, error) {
+	var txb []TxBatch
+	err := json.Unmarshal(bz, &txb)
+	return txb, err
+}
+
+func (w *World) getNamespace() string {
+	return string(rune(w.id))
 }
 
 func (w *World) LogError(err error) {

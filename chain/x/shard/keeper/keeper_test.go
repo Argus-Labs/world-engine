@@ -82,6 +82,73 @@ func (s *TestSuite) TestSubmitBatch_Unauthorized() {
 	s.Require().ErrorIs(err, sdkerrors.ErrUnauthorized)
 }
 
+func (s *TestSuite) TestQueryBatches() {
+	ns := "cardinal1"
+	batches := []*types.TransactionBatch{
+		{
+			Namespace: ns,
+			Tick:      42,
+			Batch:     []byte("x"),
+		},
+		{
+			Namespace: ns,
+			Tick:      43,
+			Batch:     []byte("y"),
+		},
+		{
+			Namespace: ns,
+			Tick:      44,
+			Batch:     []byte("z"),
+		},
+	}
+	for _, batch := range batches {
+		_, err := s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
+			Sender:           s.auth,
+			TransactionBatch: batch,
+		})
+		s.Require().NoError(err)
+	}
+
+	// submit one not relevant to our namespace.
+	_, err := s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
+		Sender: s.auth,
+		TransactionBatch: &types.TransactionBatch{
+			Namespace: "notcardinal",
+			Tick:      32,
+			Batch:     []byte("foo"),
+		},
+	})
+	s.Require().NoError(err)
+
+	res, err := s.keeper.Batches(s.ctx, &types.QueryBatchesRequest{
+		Namespace: ns,
+		Page:      nil,
+	})
+	s.Require().NoError(err)
+	s.Require().Len(res.Batches, len(batches))
+
+	// limit the request to only 2.
+	limit := uint32(2)
+	res, err = s.keeper.Batches(s.ctx, &types.QueryBatchesRequest{
+		Namespace: ns,
+		Page: &types.PageRequest{
+			Key:   nil,
+			Limit: limit,
+		},
+	})
+	s.Require().NoError(err)
+	s.Require().Len(res.Batches, int(limit))
+
+	res, err = s.keeper.Batches(s.ctx, &types.QueryBatchesRequest{
+		Namespace: ns,
+		Page: &types.PageRequest{
+			Key: res.Page.Key,
+		},
+	})
+	s.Require().NoError(err)
+	s.Require().Len(res.Batches, len(batches)-int(limit))
+}
+
 func TestTestSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }
