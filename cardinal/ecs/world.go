@@ -598,7 +598,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	namespace := w.getNamespace()
 	var nextKey []byte
 	for {
-		res, err := w.chain.QueryBatch(ctx, &types.QueryBatchesRequest{
+		res, err := w.chain.QueryBatches(ctx, &types.QueryBatchesRequest{
 			Namespace: namespace,
 			Page: &types.PageRequest{
 				Key: nextKey,

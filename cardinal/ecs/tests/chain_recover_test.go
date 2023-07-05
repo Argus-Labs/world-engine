@@ -28,7 +28,7 @@ func (d *DummyAdapter) Submit(ctx context.Context, namespace string, tick uint64
 	return nil
 }
 
-func (d *DummyAdapter) QueryBatch(ctx context.Context, req *types.QueryBatchesRequest) (*types.QueryBatchesResponse, error) {
+func (d *DummyAdapter) QueryBatches(ctx context.Context, req *types.QueryBatchesRequest) (*types.QueryBatchesResponse, error) {
 	return &types.QueryBatchesResponse{
 		Batches: d.batches,
 		Page:    nil,

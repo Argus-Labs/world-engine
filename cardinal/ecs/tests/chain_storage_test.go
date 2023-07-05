@@ -28,10 +28,9 @@ type MockAdapter struct {
 	done               chan int
 }
 
-func (m *MockAdapter) QueryBatch(ctx context.Context, req *types.QueryBatchesRequest) (*types.QueryBatchesResponse, error) {
+func (m *MockAdapter) QueryBatches(ctx context.Context, req *types.QueryBatchesRequest) (*types.QueryBatchesResponse, error) {
 	panic("not implemented")
 }
-
 
 func (m *MockAdapter) Submit(ctx context.Context, ns string, tick uint64, bz []byte) error {
 	m.lastSubmittedValue = bz

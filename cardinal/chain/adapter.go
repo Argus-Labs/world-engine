@@ -13,7 +13,7 @@ import (
 // Adapter is a type that helps facilitate communication with the EVM base shard.
 type Adapter interface {
 	Submit(ctx context.Context, namespace string, tick uint64, txs []byte) error
-	QueryBatch(ctx context.Context, req *shardtypes.QueryBatchesRequest) (*shardtypes.QueryBatchesResponse, error)
+	QueryBatches(ctx context.Context, req *shardtypes.QueryBatchesRequest) (*shardtypes.QueryBatchesResponse, error)
 }
 
 type Config struct {
@@ -55,6 +55,6 @@ func (a adapterImpl) Submit(ctx context.Context, namespace string, tick uint64, 
 	return err
 }
 
-func (a adapterImpl) QueryBatch(ctx context.Context, req *shardtypes.QueryBatchesRequest) (*shardtypes.QueryBatchesResponse, error) {
+func (a adapterImpl) QueryBatches(ctx context.Context, req *shardtypes.QueryBatchesRequest) (*shardtypes.QueryBatchesResponse, error) {
 	return a.ShardQuerier.Batches(ctx, req)
 }
