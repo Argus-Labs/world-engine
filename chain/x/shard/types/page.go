@@ -6,7 +6,7 @@ const (
 
 // IsEmptyOrDefault returns true if the page request is nil, or if it only contains default values.
 func IsEmptyOrDefault(pr *PageRequest) bool {
-	if pr == nil || ((pr.Key == nil || len(pr.Key) == 0) && pr.Limit == 0) {
+	if pr == nil || (len(pr.Key) == 0 && pr.Limit == 0) {
 		return true
 	}
 	return false
