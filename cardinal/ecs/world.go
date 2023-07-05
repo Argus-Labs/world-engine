@@ -45,10 +45,9 @@ type World struct {
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
 
-	// blockchain fields
 	chain chain.Adapter
-	// isRecovering indicates that the world is recovering from the blockchain.
-	// this is used to prevent ticks from submitting duplicate transactions to the rollup.
+	// isRecovering indicates that the world is recovering from the DA layer.
+	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
 
 	errs []error
@@ -402,6 +401,9 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 	prevTick := w.tick
 	w.tick++
+
+	// if we're not recovering these transactions, and we have an EVM base shard connection + transactions to process,
+	// submit them to the EVM base shard.
 	if !w.isRecovering && (w.chain != nil && len(txs) > 0) {
 		w.submitToChain(ctx, *txQueue, uint64(prevTick))
 	}
@@ -413,7 +415,7 @@ type TxBatch struct {
 	Txs  []any              `json:"txs,omitempty"`
 }
 
-// submitToChain spins up a new go routine that will submit the transactions to the blockchain.
+// submitToChain spins up a new go routine that will submit the transactions to the EVM base shard.
 func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick uint64) {
 	go func(ctx context.Context) {
 		// convert transaction queue map into slice
@@ -443,16 +445,21 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		if err != nil {
 			w.LogError(err)
 		}
+
+		// check if context contains a done channel.
 		done := ctx.Value("done")
+		// if there is none, we just return.
 		if done == nil {
 			return
-		} else {
-			doneSignal, ok := done.(chan struct{})
-			if !ok {
-				return
-			}
-			doneSignal <- struct{}{}
 		}
+		// done signal found. if it's the right type, send signal through channel that we are done
+		// processing the transactions.
+		doneSignal, ok := done.(chan struct{})
+		if !ok {
+			return
+		}
+		doneSignal <- struct{}{}
+
 	}(ctx)
 }
 
@@ -581,8 +588,8 @@ func (w *World) noDuplicates(components []component.IComponentType) bool {
 
 func (w *World) RecoverFromChain(ctx context.Context) error {
 	if w.chain == nil {
-		return fmt.Errorf("chain adapter was not nil. " +
-			"be sure to use the WithAdapter function when creating the world")
+		return fmt.Errorf("chain adapter was nil. " +
+			"be sure to use the `WithAdapter` option when creating the world")
 	}
 	w.isRecovering = true
 	defer func() {
@@ -594,8 +601,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		res, err := w.chain.QueryBatch(ctx, &types.QueryBatchesRequest{
 			Namespace: namespace,
 			Page: &types.PageRequest{
-				Key:   nextKey,
-				Limit: 10,
+				Key: nextKey,
 			},
 		})
 		if err != nil {
@@ -639,8 +645,15 @@ func (w *World) encodeBatch(txb []TxBatch) ([]byte, error) {
 func (w *World) decodeBatch(bz []byte) ([]TxBatch, error) {
 	var batches []TxBatch
 	err := json.Unmarshal(bz, &batches)
+	if err != nil {
+		return nil, err
+	}
 	for _, batch := range batches {
 		transactionType := w.getITx(batch.TxID)
+		if transactionType == nil {
+			return nil, fmt.Errorf("attempted to decode transaction with ID %d, "+
+				"but no such transaction with that ID was registered", batch.TxID)
+		}
 		for i, tx := range batch.Txs {
 			txBytes, err := json.Marshal(tx)
 			if err != nil {
@@ -653,7 +666,7 @@ func (w *World) decodeBatch(bz []byte) ([]TxBatch, error) {
 			batch.Txs[i] = underlyingTx
 		}
 	}
-	return batches, err
+	return batches, nil
 }
 
 func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {

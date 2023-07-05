@@ -137,8 +137,10 @@ func (s *TestSuite) TestQueryBatches() {
 		},
 	})
 	s.Require().NoError(err)
+	// should only have received 2.
 	s.Require().Len(res.Batches, int(limit))
 
+	// query again with the key in page response should give us the remaining batch.
 	res, err = s.keeper.Batches(s.ctx, &types.QueryBatchesRequest{
 		Namespace: ns,
 		Page: &types.PageRequest{

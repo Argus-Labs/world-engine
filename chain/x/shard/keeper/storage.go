@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"encoding/binary"
-
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -41,6 +40,8 @@ func (k *Keeper) nameSpaceStore(ctx sdk.Context) prefix.Store {
 
 // iterateBatches iterates over all batches, calling fn for each batch in the store.
 // if fn returns false, the iteration stops. if fn returns true, the iteration continues.
+// start and end indicate the range of the iteration. Leaving both as nil will iterate over ALL batches.
+// supplying only a start value will iterate from that point til the end.
 func (k *Keeper) iterateBatches(
 	ctx sdk.Context,
 	start, end []byte,
