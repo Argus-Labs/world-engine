@@ -39,7 +39,11 @@ func (k *Keeper) nameSpaceStore(ctx sdk.Context) prefix.Store {
 
 // iterateBatches iterates over all batches, calling fn for each batch in the store.
 // if fn returns false, the iteration stops. if fn returns true, the iteration continues.
-func (k *Keeper) iterateBatches(ctx sdk.Context, start, end []byte, ns string, cb func(tick uint64, batch []byte) bool) {
+func (k *Keeper) iterateBatches(
+	ctx sdk.Context,
+	start, end []byte,
+	ns string,
+	cb func(tick uint64, batch []byte) bool) {
 	store := k.batchStore(ctx, ns)
 	it := store.Iterator(start, end)
 	for ; it.Valid(); it.Next() {
