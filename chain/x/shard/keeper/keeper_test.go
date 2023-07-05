@@ -102,12 +102,7 @@ func (s *TestSuite) TestSubmitBatch_DuplicateTick() {
 		Sender:           s.auth,
 		TransactionBatch: batch,
 	})
-	s.Require().NoError(err)
-
-	// there should only be one batch, as the data for tick 4 should be overwritten.
-	gen := s.keeper.ExportGenesis(s.ctx)
-	s.Require().Len(gen.Batches, 1)
-	s.Require().Equal(gen.Batches[0].Batch, batch.Batch)
+	s.Require().ErrorContains(err, "already submitted")
 }
 
 func TestTestSuite(t *testing.T) {
