@@ -2,86 +2,98 @@ package keeper
 
 import (
 	"encoding/binary"
+	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/runtime"
 
 	"cosmossdk.io/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 )
+
+/*
+Storage Layout:
+		Namespaces : <namespace> -> {}
+		Batches    : <namespace>-<tick> -> <batch_bytes>
+*/
 
 const (
 	uint64Size = 8
 )
 
 var (
-	batchStoragePrefix      = []byte("batch")
-	batchStorageIndexPrefix = []byte("idx")
-
-	idxKey = []byte("i")
+	namespaceStorePrefix = []byte("nss")
 )
+
+// batchStore retrieves the store for storing batches within a given namespace.
+func (k *Keeper) batchStore(ctx sdk.Context, ns string) prefix.Store {
+	store := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
+	return prefix.NewStore(store, []byte(ns))
+}
+
+// nameSpaceStore retrieves the store for storing namespaces.
+func (k *Keeper) nameSpaceStore(ctx sdk.Context) prefix.Store {
+	store := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
+	return prefix.NewStore(store, namespaceStorePrefix)
+}
 
 // iterateBatches iterates over all batches, calling fn for each batch in the store.
 // if fn returns false, the iteration stops. if fn returns true, the iteration continues.
-func (k *Keeper) iterateBatches(ctx sdk.Context, fn func(batch []byte) bool) {
-	store := k.getBatchStore(ctx)
+func (k *Keeper) iterateBatches(ctx sdk.Context, ns string, cb func(tick uint64, batch []byte) bool) {
+	store := k.batchStore(ctx, ns)
 	it := store.Iterator(nil, nil)
 	for ; it.Valid(); it.Next() {
+		tick := k.uint64ForBytes(it.Key())
 		batch := it.Value()
-		keepGoing := fn(batch)
-		if !keepGoing {
+		if keepGoing := cb(tick, batch); !keepGoing {
 			break
 		}
 	}
 }
 
-func (k *Keeper) saveBatch(ctx sdk.Context, batch []byte) {
-	store := k.getBatchStore(ctx)
-	key := k.getNextBatchIndexBytes(ctx)
-	store.Set(key, batch)
-}
-
-func (k *Keeper) getBatchStore(ctx sdk.Context) prefix.Store {
-	store := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
-	return prefix.NewStore(store, batchStoragePrefix)
-}
-
-func (k *Keeper) getBatchIndexStore(ctx sdk.Context) prefix.Store {
-	store := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
-	return prefix.NewStore(store, batchStorageIndexPrefix)
-}
-
-func (k *Keeper) getNextBatchIndexBytes(ctx sdk.Context) []byte {
-	store := k.getBatchIndexStore(ctx)
-	bz := store.Get(idxKey)
-	// the bytes can be nil if this is the first time we are accessing this value from the store.
-	if bz == nil {
-		bz = make([]byte, uint64Size)
-		binary.BigEndian.PutUint64(bz, 0)
+// iterateNamespaces iterates over all namespaces, calling fn for each batch in the store.
+// if fn returns false, the iteration stops. if fn returns true, the iteration continues.
+func (k *Keeper) iterateNamespaces(ctx sdk.Context, cb func(ns string) bool) {
+	store := k.nameSpaceStore(ctx)
+	it := store.Iterator(nil, nil)
+	for ; it.Valid(); it.Next() {
+		if keepGoing := cb(string(it.Key())); !keepGoing {
+			break
+		}
 	}
-	idx := k.indexFromBytes(bz)
+}
 
-	nextIdx := idx + 1
-	store.Set(idxKey, k.bytesFromIndex(nextIdx))
+// saveBatch saves a batch of transaction data.
+func (k *Keeper) saveBatch(ctx sdk.Context, req *types.TransactionBatch) error {
+	k.saveNamespace(ctx, req.Namespace)
+	store := k.batchStore(ctx, req.Namespace)
+	key := k.bytesForUint(req.Tick)
+	has := store.Has(key)
+	if has {
+		return fmt.Errorf("tx batch for tick %d in namespace %s already submitted", req.Tick, req.Namespace)
+	}
+	store.Set(key, req.Batch)
+	return nil
+}
 
+// saveNamespace saves a namespace to the store.
+func (k *Keeper) saveNamespace(ctx sdk.Context, ns string) {
+	store := k.nameSpaceStore(ctx)
+	if store.Has([]byte(ns)) {
+		return
+	}
+	store.Set([]byte(ns), []byte{})
+}
+
+// bytesForUint converts uint to big endian encoded bytes.
+func (k *Keeper) bytesForUint(u uint64) []byte {
+	bz := make([]byte, uint64Size)
+	binary.BigEndian.PutUint64(bz, u)
 	return bz
 }
 
-func (k *Keeper) saveIndex(ctx sdk.Context, idx uint64) {
-	store := k.getBatchIndexStore(ctx)
-	store.Set(idxKey, k.bytesFromIndex(idx))
-}
-
-func (k *Keeper) getCurrentIndex(ctx sdk.Context) uint64 {
-	store := k.getBatchIndexStore(ctx)
-	bz := store.Get(idxKey)
-	return k.indexFromBytes(bz)
-}
-
-func (k *Keeper) indexFromBytes(bz []byte) uint64 {
+// uint64ForBytes converts big endian encoded bytes to uint64.
+func (k *Keeper) uint64ForBytes(bz []byte) uint64 {
 	return binary.BigEndian.Uint64(bz)
-}
-
-func (k *Keeper) bytesFromIndex(idx uint64) []byte {
-	buf := make([]byte, uint64Size)
-	binary.BigEndian.PutUint64(buf, idx)
-	return buf
 }

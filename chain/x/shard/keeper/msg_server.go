@@ -17,6 +17,9 @@ func (k *Keeper) SubmitBatch(ctx context.Context, msg *types.SubmitBatchRequest)
 			"initialized internally")
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	k.saveBatch(sdkCtx, msg.Batch)
+	err := k.saveBatch(sdkCtx, msg.TransactionBatch)
+	if err != nil {
+		return nil, err
+	}
 	return &types.SubmitBatchResponse{}, nil
 }

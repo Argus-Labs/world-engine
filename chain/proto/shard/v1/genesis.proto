@@ -4,10 +4,10 @@ package shard.v1;
 
 option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
 
+import "shard/v1/types.proto";
+
+
 message GenesisState {
   // batches contains all the transaction batches.
-  repeated bytes batches = 1;
-  // index is the index of the latest batch. Stored batches are prefixed with a unique integer.
-  // i.e. batch-1-blob, batch-2-blob, batch-3-blob...
-  uint64 index = 2;
+  repeated TransactionBatch batches = 1;
 }

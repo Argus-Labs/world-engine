@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package shard.v1;
+
+option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
+
+
+message TransactionBatch {
+  // namespace is the namespace of the shard that sent the batch.
+  string namespace = 2;
+
+  // tick is the tick number the tx data originates from.
+  uint64 tick = 3;
+
+  // batch is a blob of transaction data.
+  bytes batch = 4;
+}

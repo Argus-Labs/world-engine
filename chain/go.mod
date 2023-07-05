@@ -17,8 +17,8 @@ replace (
 )
 
 require (
-	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230515165800-753a5df316de.1
-	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.28.1-20230515165800-753a5df316de.4
+	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230630185430-418a485c00b0.1
+	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230630185430-418a485c00b0.1
 	cosmossdk.io/api v0.4.3-0.20230608151552-9b9e319d1abc
 	cosmossdk.io/client/v2 v2.0.0-20230608151552-9b9e319d1abc
 	cosmossdk.io/core v0.8.1-0.20230608151552-9b9e319d1abc
@@ -48,7 +48,7 @@ require (
 	github.com/spf13/viper v1.16.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20230525234020-1aefcd67740a
 	google.golang.org/grpc v1.55.0
-	google.golang.org/protobuf v1.30.0
+	google.golang.org/protobuf v1.31.0
 	gotest.tools v2.2.0+incompatible
 	gotest.tools/v3 v3.4.0
 	pkg.berachain.dev/polaris/contracts v0.0.0-20230615165413-16e346196318

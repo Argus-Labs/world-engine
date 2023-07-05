@@ -1,9 +1,14 @@
 package ecs
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
+
+	"github.com/argus-labs/world-engine/cardinal/chain"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
@@ -38,6 +43,9 @@ type World struct {
 	txQueues map[transaction.TypeID][]any
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
+
+	// blockchain fields
+	chain chain.Adapter
 
 	errs []error
 }
@@ -126,16 +134,20 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 var nextWorldId WorldId = 0
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage) (*World, error) {
+func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	// TODO: this should prob be handled by redis as well...
 	worldId := nextWorldId
 	nextWorldId++
+
 	w := &World{
 		id:       worldId,
 		store:    s,
 		tick:     0,
 		systems:  make([]System, 0, 256), // this can just stay in memory.
 		txQueues: map[transaction.TypeID][]any{},
+	}
+	for _, opt := range opts {
+		opt(w)
 	}
 	return w, nil
 }
@@ -385,8 +397,50 @@ func (w *World) Tick() error {
 	if err := w.store.TickStore.FinalizeTick(); err != nil {
 		return err
 	}
+	prevTick := w.tick
 	w.tick++
+	if w.chain != nil && len(txs) > 0 {
+		w.submitToChain(context.Background(), *txQueue, uint64(prevTick))
+	}
 	return nil
+}
+
+type TxBatch struct {
+	TxID transaction.TypeID `json:"tx_id,omitempty"`
+	Txs  []any              `json:"txs,omitempty"`
+}
+
+// submitToChain spins up a new go routine that will submit the transactions to the blockchain.
+func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick uint64) {
+	go func() {
+		// convert transaction queue map into slice
+		txb := make([]TxBatch, 0, len(txq.queue))
+		for id, txs := range txq.queue {
+			txb = append(txb, TxBatch{
+				TxID: id,
+				Txs:  txs,
+			})
+		}
+		// sort based on transaction id to keep determinism.
+		sort.Slice(txb, func(i, j int) bool {
+			return txb[i].TxID < txb[j].TxID
+		})
+
+		// turn the slice into bytes
+		bz, err := json.Marshal(txb)
+		if err != nil {
+			// TODO: https://linear.app/arguslabs/issue/CAR-92/keep-track-of-ackd-transaction-bundles
+			// we need to signal this didn't work.
+			w.LogError(err)
+			return
+		}
+
+		// submit to chain
+		err = w.chain.Submit(ctx, string(rune(w.id)), tick, bz)
+		if err != nil {
+			w.LogError(err)
+		}
+	}()
 }
 
 const (

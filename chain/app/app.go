@@ -24,6 +24,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	"github.com/argus-labs/world-engine/chain/shard"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 
 	dbm "github.com/cosmos/cosmos-db"
 
@@ -115,7 +121,8 @@ type App struct {
 	ShardKeeper  *shardkeeper.Keeper
 
 	// plugins
-	Router router.Router
+	Router       router.Router
+	ShardHandler *shard.Server
 
 	// simulation manager
 	sm *module.SimulationManager
@@ -182,7 +189,19 @@ func NewApp(
 		)
 	)
 
-	if err := depinject.Inject(appConfig,
+	// setup the game shard listener.
+	// TODO: clean this up
+	useShardListenerStr := os.Getenv("USE_SHARD_LISTENER")
+	useShardListener, err := strconv.ParseBool(useShardListenerStr)
+	if err != nil {
+		panic(err)
+	}
+	if useShardListener {
+		app.ShardHandler = shard.NewShardServer()
+		app.ShardHandler.Serve(os.Getenv("SHARD_HANDLER_LISTEN_ADDR"))
+	}
+
+	if err = depinject.Inject(appConfig,
 		&appBuilder,
 		&app.appCodec,
 		&app.legacyAmino,
@@ -273,7 +292,7 @@ func NewApp(
 	// ----- END EVM SETUP -------------------------------------------------
 
 	// register streaming services
-	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
+	if err = app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
 	}
 
@@ -299,7 +318,9 @@ func NewApp(
 
 	app.sm.RegisterStoreDecoders()
 
-	if err := app.Load(loadLatest); err != nil {
+	app.App.SetEndBlocker(app.EndBlock)
+
+	if err = app.Load(loadLatest); err != nil {
 		panic(err)
 	}
 
@@ -333,6 +354,26 @@ func (app *App) InterfaceRegistry() codectypes.InterfaceRegistry {
 // TxConfig returns App's TxConfig.
 func (app *App) TxConfig() client.TxConfig {
 	return app.txConfig
+}
+
+// EndBlock implements abci.EndBlocker. In addition to running each module's EndBlock function,
+// it flushes messages received from game shards and passes them to the shard handler, storing them on chain.
+func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
+	txns := app.ShardHandler.FlushMessages()
+	if txns != nil {
+		handler := app.MsgServiceRouter().Handler(&types.SubmitBatchRequest{})
+		for i := range txns {
+			_, err := handler(ctx, &txns[i])
+			if err != nil {
+				return sdk.EndBlock{}, err
+			}
+		}
+	}
+	eb, err := app.ModuleManager.EndBlock(ctx)
+	if err != nil {
+		return sdk.EndBlock{}, err
+	}
+	return eb, nil
 }
 
 // GetKey returns the KVStoreKey for the provided store key.

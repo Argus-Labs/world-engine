@@ -2,22 +2,17 @@ package types
 
 import (
 	"net"
-	"regexp"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+
+	"github.com/argus-labs/world-engine/chain/utils"
 )
 
 var (
 	_ sdk.Msg              = &UpdateNamespaceRequest{}
 	_ sdk.HasValidateBasic = &UpdateNamespaceRequest{}
 )
-
-var alphanumeric = regexp.MustCompile("^[a-zA-Z0-9_]*$")
-
-func isAlphaNumeric(s string) bool {
-	return alphanumeric.MatchString(s)
-}
 
 func (m *UpdateNamespaceRequest) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
@@ -33,7 +28,7 @@ func (ns *Namespace) Validate() error {
 	if ns.ShardName == "" {
 		return sdkerrors.ErrInvalidRequest.Wrap("shard name cannot be empty")
 	}
-	if !isAlphaNumeric(ns.ShardName) {
+	if !utils.IsAlphaNumeric(ns.ShardName) {
 		return sdkerrors.ErrInvalidRequest.Wrap("shard name must only contain alphanumeric characters")
 	}
 	if ns.ShardAddress == "" {
