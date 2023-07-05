@@ -20,7 +20,9 @@ func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
 
 func (k *Keeper) InitGenesis(ctx sdk.Context, genesis *types.GenesisState) {
 	for _, b := range genesis.Batches {
-		k.saveBatch(ctx, b)
+		if err := k.saveBatch(ctx, b); err != nil {
+			panic(err)
+		}
 	}
 }
 

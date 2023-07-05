@@ -149,6 +149,29 @@ func (s *TestSuite) TestQueryBatches() {
 	s.Require().Len(res.Batches, len(batches)-int(limit))
 }
 
+// TestSubmitBatch_DuplicateTick tests that when duplicate ticks are submitted, the data is overwritten.
+func (s *TestSuite) TestSubmitBatch_DuplicateTick() {
+	batch := &types.TransactionBatch{
+		Namespace: "cardinal",
+		Tick:      4,
+		Batch:     []byte("data"),
+	}
+
+	_, err := s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
+		Sender:           s.auth,
+		TransactionBatch: batch,
+	})
+	s.Require().NoError(err)
+
+	// change the data
+	batch.Batch = []byte("different data")
+	_, err = s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
+		Sender:           s.auth,
+		TransactionBatch: batch,
+	})
+	s.Require().ErrorContains(err, "already submitted")
+}
+
 func TestTestSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }

@@ -22,6 +22,7 @@ type SendEnergy struct {
 var _ chain.Adapter = &MockAdapter{}
 
 type MockAdapter struct {
+	sg                 sync.WaitGroup
 	lastSubmittedValue []byte
 	timesCalled        int
 	done               chan int
@@ -31,18 +32,16 @@ func (m *MockAdapter) QueryBatch(ctx context.Context, req *types.QueryBatchesReq
 	panic("not implemented")
 }
 
-var sg sync.WaitGroup
 
 func (m *MockAdapter) Submit(ctx context.Context, ns string, tick uint64, bz []byte) error {
 	m.lastSubmittedValue = bz
 	m.timesCalled++
-	sg.Done()
+	m.sg.Done()
 	return nil
 }
 
 func TestWorld_WithChain(t *testing.T) {
-	sg = sync.WaitGroup{}
-	mockAdapter := &MockAdapter{}
+	mockAdapter := &MockAdapter{sg: sync.WaitGroup{}}
 	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(mockAdapter))
 
 	sendEnergyTx := ecs.NewTransactionType[SendEnergy]()
@@ -68,11 +67,11 @@ func TestWorld_WithChain(t *testing.T) {
 	assert.NilError(t, err)
 
 	sendEnergyTx.AddToQueue(w, txToSend)
-	sg.Add(1)
+	mockAdapter.sg.Add(1)
 	err = w.Tick(context.Background())
 	assert.NilError(t, err)
 
-	sg.Wait()
+	mockAdapter.sg.Wait()
 	assert.Equal(t, mockAdapter.timesCalled, 1)
 	assert.DeepEqual(t, mockAdapter.lastSubmittedValue, bz)
 

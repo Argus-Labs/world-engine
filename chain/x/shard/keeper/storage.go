@@ -3,6 +3,8 @@ package keeper
 import (
 	"encoding/binary"
 
+	"fmt"
+
 	"github.com/cosmos/cosmos-sdk/runtime"
 
 	"cosmossdk.io/store/prefix"
@@ -68,11 +70,16 @@ func (k *Keeper) iterateNamespaces(ctx sdk.Context, cb func(ns string) bool) {
 }
 
 // saveBatch saves a batch of transaction data.
-func (k *Keeper) saveBatch(ctx sdk.Context, req *types.TransactionBatch) {
+func (k *Keeper) saveBatch(ctx sdk.Context, req *types.TransactionBatch) error {
 	k.saveNamespace(ctx, req.Namespace)
 	store := k.batchStore(ctx, req.Namespace)
 	key := k.bytesForUint(req.Tick)
+	has := store.Has(key)
+	if has {
+		return fmt.Errorf("tx batch for tick %d in namespace %s already submitted", req.Tick, req.Namespace)
+	}
 	store.Set(key, req.Batch)
+	return nil
 }
 
 // saveNamespace saves a namespace to the store.

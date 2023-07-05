@@ -11,6 +11,8 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 
+	"github.com/argus-labs/world-engine/cardinal/chain"
+
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
@@ -142,7 +144,6 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	// TODO: this should prob be handled by redis as well...
 	worldId := nextWorldId
 	nextWorldId++
-
 	w := &World{
 		id:       worldId,
 		store:    s,
@@ -433,7 +434,10 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		// turn the slice into bytes
 		bz, err := w.encodeBatch(txb)
 		if err != nil {
+			// TODO: https://linear.app/arguslabs/issue/CAR-92/keep-track-of-ackd-transaction-bundles
+			// we need to signal this didn't work.
 			w.LogError(err)
+			return
 		}
 
 		// submit to chain
