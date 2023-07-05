@@ -8,9 +8,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 
+	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
