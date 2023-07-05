@@ -20,8 +20,8 @@ type Config struct {
 	// ShardReceiverAddr is the address to communicate with the secure shard submission channel.
 	ShardReceiverAddr string `json:"shard_receiver_addr,omitempty"`
 
-	// BaseShardAddr is the rollup' base address to submit transactions and query directly with the rollup.
-	BaseShardAddr string `json:"base_shard_addr"`
+	// EVMBaseShardAddr is the address to submit transactions and query directly with the EVM base shard.
+	EVMBaseShardAddr string `json:"evm_base_shard_addr"`
 }
 
 var _ Adapter = &adapterImpl{}
@@ -40,7 +40,7 @@ func NewAdapter(cfg Config) (Adapter, error) {
 	}
 	a.ShardReceiver = shardgrpc.NewShardHandlerClient(conn)
 
-	conn2, err := grpc.Dial(cfg.BaseShardAddr)
+	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr)
 	if err != nil {
 		return nil, err
 	}

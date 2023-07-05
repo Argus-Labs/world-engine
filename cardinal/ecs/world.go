@@ -586,6 +586,9 @@ func (w *World) noDuplicates(components []component.IComponentType) bool {
 	return true
 }
 
+// RecoverFromChain will attempt to recover the state of the world based on historical transaction data.
+// The function puts the world in a recovery state, and then queries all transaction batches under the world's
+// namespace. The function will continuously ask the EVM base shard for batches, and run ticks for each batch returned.
 func (w *World) RecoverFromChain(ctx context.Context) error {
 	if w.chain == nil {
 		return fmt.Errorf("chain adapter was nil. " +
