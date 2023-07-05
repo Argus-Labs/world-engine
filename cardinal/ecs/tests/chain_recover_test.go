@@ -125,3 +125,15 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// ensure that the tick was updated from the stored transaction batch.
 	assert.Equal(t, adapter.tick+1, uint64(w.CurrentTick()))
 }
+
+func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
+	// setup world and transactions
+	ctx := context.Background()
+	adapter := &DummyAdapter{batches: make([]*types.TransactionBatch, 0), tick: 30}
+	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(adapter))
+	assert.NilError(t, w.LoadGameState())
+	assert.NilError(t, w.Tick(ctx))
+
+	err := w.RecoverFromChain(ctx)
+	assert.ErrorContains(t, err, "world recovery should not occur in a world with existing state")
+}

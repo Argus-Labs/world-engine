@@ -594,6 +594,11 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		return fmt.Errorf("chain adapter was nil. " +
 			"be sure to use the `WithAdapter` option when creating the world")
 	}
+	if w.tick > 0 {
+		return fmt.Errorf("world recovery should not occur in a world with existing state. please verify all " +
+			"state has been cleared before running recovery")
+	}
+
 	w.isRecovering = true
 	defer func() {
 		w.isRecovering = false
