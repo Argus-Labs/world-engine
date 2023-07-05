@@ -429,7 +429,10 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		// turn the slice into bytes
 		bz, err := json.Marshal(txb)
 		if err != nil {
+			// TODO: https://linear.app/arguslabs/issue/CAR-92/keep-track-of-ackd-transaction-bundles
+			// we need to signal this didn't work.
 			w.LogError(err)
+			return
 		}
 
 		// submit to chain
