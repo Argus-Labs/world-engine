@@ -647,31 +647,43 @@ func (w *World) encodeBatch(txb []TxBatch) ([]byte, error) {
 
 func (w *World) decodeBatch(bz []byte) ([]TxBatch, error) {
 	var batches []TxBatch
+
+	// first we simply unmarshal the data into the slice of transaction batches.
 	err := json.Unmarshal(bz, &batches)
 	if err != nil {
 		return nil, err
 	}
+
+	// since txs are stored as `any`s, we need to do some extra work in order to unmarshal them into
+	// their concrete types. at this point, they're just unmarshalled as map[string]interface{}
 	for _, batch := range batches {
+		// first we get the ITransaction for this batch of txs.
 		transactionType := w.getITx(batch.TxID)
+		// catch the edge case where somehow the batch was stored with a tx TypeID that isn't registered in the world.
 		if transactionType == nil {
 			return nil, fmt.Errorf("attempted to decode transaction with ID %d, "+
 				"but no such transaction with that ID was registered", batch.TxID)
 		}
+
 		for i, tx := range batch.Txs {
+			// for each tx, we need to first JSON marshal, as they are currently map[string]interface{}.
 			txBytes, err := json.Marshal(tx)
 			if err != nil {
 				return nil, err
 			}
+			// now we can decode the JSON using the ITransaction, to get the concrete tx struct.
 			underlyingTx, err := transactionType.Decode(txBytes)
 			if err != nil {
 				return nil, err
 			}
+			// put the concrete tx back into the txs slice.
 			batch.Txs[i] = underlyingTx
 		}
 	}
 	return batches, nil
 }
 
+// getITx iterates over the registered transactions and returns the ITransaction associated with the TypeID.
 func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 	var itx transaction.ITransaction
 	for _, tx := range w.registeredTransactions {
