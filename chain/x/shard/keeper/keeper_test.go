@@ -82,6 +82,34 @@ func (s *TestSuite) TestSubmitBatch_Unauthorized() {
 	s.Require().ErrorIs(err, sdkerrors.ErrUnauthorized)
 }
 
+// TestSubmitBatch_DuplicateTick tests that when duplicate ticks are submitted, the data is overwritten.
+func (s *TestSuite) TestSubmitBatch_DuplicateTick() {
+	batch := &types.TransactionBatch{
+		Namespace: "cardinal",
+		Tick:      4,
+		Batch:     []byte("data"),
+	}
+
+	_, err := s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
+		Sender:           s.auth,
+		TransactionBatch: batch,
+	})
+	s.Require().NoError(err)
+
+	// change the data
+	batch.Batch = []byte("different data")
+	_, err = s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
+		Sender:           s.auth,
+		TransactionBatch: batch,
+	})
+	s.Require().NoError(err)
+
+	// there should only be one batch, as the data for tick 4 should be overwritten.
+	gen := s.keeper.ExportGenesis(s.ctx)
+	s.Require().Len(gen.Batches, 1)
+	s.Require().Equal(gen.Batches[0].Batch, batch.Batch)
+}
+
 func TestTestSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }
