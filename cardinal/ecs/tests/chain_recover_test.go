@@ -113,10 +113,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	ctx = context.WithValue(ctx, "done", doneSignal)
 	err = w.Tick(ctx)
 	assert.NilError(t, err)
-	select {
-	case <-doneSignal:
-		break
-	}
+	<-doneSignal
 
 	// now we can recover, which will run the same transactions we submitted before, as they are now stored in
 	// the dummy adapter, and will be run again.
