@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// Adapter is a type that helps facilitate communication with a blockchain.
+// Adapter is a type that helps facilitate communication with the EVM base shard.
 type Adapter interface {
 	Submit(ctx context.Context, namespace string, tick uint64, txs []byte) error
 }
@@ -35,7 +35,7 @@ func NewAdapter(cfg Config) (Adapter, error) {
 	return a, nil
 }
 
-// Submit submits the transaction bytes to the connected blockchain.
+// Submit submits the transaction bytes to the EVM base shard.
 func (a adapterImpl) Submit(ctx context.Context, namespace string, tick uint64, txs []byte) error {
 	req := &shardv1.SubmitShardBatchRequest{Namespace: namespace, TickId: tick, Batch: txs}
 	_, err := a.ShardReceiver.SubmitShardBatch(ctx, req)
