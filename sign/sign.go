@@ -16,10 +16,10 @@ var (
 )
 
 type SignedPayload struct {
-	Tag       string
-	Nonce     uint64
-	Signature []byte
-	Body      []byte
+	PersonaTag string
+	Nonce      uint64
+	Signature  []byte
+	Body       []byte
 }
 
 // Unmarshal attempts to unmarshal the given buf into a SignedPayload. SignedPayload.Verify must still
@@ -35,9 +35,9 @@ func Unmarshal(buf []byte) (*SignedPayload, error) {
 // NewSignedPayload signs a given body, tag, and nonce with the given private key.
 func NewSignedPayload(body []byte, tag string, nonce uint64, pk *ecdsa.PrivateKey) (*SignedPayload, error) {
 	sp := &SignedPayload{
-		Tag:   tag,
-		Nonce: nonce,
-		Body:  body,
+		PersonaTag: tag,
+		Nonce:      nonce,
+		Body:       body,
 	}
 	hash, err := sp.hash()
 	if err != nil {
@@ -70,7 +70,7 @@ func (s *SignedPayload) Verify(key ecdsa.PublicKey) error {
 
 func (s *SignedPayload) hash() ([]byte, error) {
 	hash := fnv.New128()
-	if _, err := hash.Write([]byte(s.Tag)); err != nil {
+	if _, err := hash.Write([]byte(s.PersonaTag)); err != nil {
 		return nil, err
 	}
 	if _, err := hash.Write([]byte(fmt.Sprintf("%d", s.Nonce))); err != nil {
