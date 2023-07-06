@@ -43,9 +43,9 @@ import (
 	"cosmossdk.io/depinject"
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-
+	shardmodulev1 "github.com/argus-labs/world-engine/chain/api/shard/module/v1"
 	"github.com/argus-labs/world-engine/chain/shard"
-	shardModule "github.com/argus-labs/world-engine/chain/x/shard/module"
+	shardmodule "github.com/argus-labs/world-engine/chain/x/shard"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -174,7 +174,7 @@ var (
 						evmtypes.ModuleName,
 						erc20types.ModuleName,
 						router.ModuleName,
-						shardModule.ModuleName,
+						shardmodule.ModuleName,
 					},
 					// When ExportGenesis is not specified, the export genesis module order
 					// is equal to the init genesis order
@@ -186,7 +186,7 @@ var (
 			{
 				Name: authtypes.ModuleName,
 				Config: appconfig.WrapAny(&authmodulev1.Module{
-					Bech32Prefix:             "world",
+					Bech32Prefix:             "polar",
 					ModuleAccountPermissions: moduleAccPerms,
 					// By default modules authority is the governance module. This is configurable with the following:
 					// Authority: "group", // A custom module authority can be set using a module name
@@ -268,8 +268,8 @@ var (
 				Config: appconfig.WrapAny(&routermodule.Module{}),
 			},
 			{
-				Name:   shardModule.ModuleName,
-				Config: appconfig.WrapAny(&routermodule.Module{}),
+				Name:   shardmodule.ModuleName,
+				Config: appconfig.WrapAny(&shardmodulev1.Module{}),
 			},
 		},
 	}),

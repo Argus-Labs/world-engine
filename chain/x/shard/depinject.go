@@ -1,22 +1,23 @@
-package module
+package shard
 
 import (
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/depinject"
-	modulev1 "github.com/argus-labs/world-engine/chain/api/router/module/v1"
+	modulev1 "github.com/argus-labs/world-engine/chain/api/shard/module/v1"
 	"github.com/argus-labs/world-engine/chain/x/shard/keeper"
 )
 
 //nolint:gochecknoinits // GRRRR fix later.
 func init() {
-	appmodule.Register(&modulev1.Module{}, appmodule.Provide())
+	appmodule.Register(&modulev1.Module{}, appmodule.Provide(ProvideModule))
 }
 
 // DepInjectInput is the input for the dep inject framework.
 type DepInjectInput struct {
 	depinject.In
 
+	ModuleKey    depinject.OwnModuleKey
 	Config       *modulev1.Module
 	StoreService store.KVStoreService
 }

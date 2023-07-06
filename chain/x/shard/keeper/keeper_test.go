@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"github.com/argus-labs/world-engine/chain/x/shard"
 	"testing"
 
 	storetypes "cosmossdk.io/store/types"
@@ -15,7 +16,6 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/keeper"
-	"github.com/argus-labs/world-engine/chain/x/shard/module"
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 )
 
@@ -31,8 +31,8 @@ type TestSuite struct {
 func (s *TestSuite) SetupTest() {
 	s.addrs = simtestutil.CreateIncrementalAccounts(3)
 	s.auth = s.addrs[0].String()
-	s.encCfg = moduletestutil.MakeTestEncodingConfig(module.AppModuleBasic{})
-	key := storetypes.NewKVStoreKey(module.ModuleName)
+	s.encCfg = moduletestutil.MakeTestEncodingConfig(shard.AppModuleBasic{})
+	key := storetypes.NewKVStoreKey(shard.ModuleName)
 	storeService := runtime.NewKVStoreService(key)
 	testCtx := testutil.DefaultContextWithDB(s.T(), key, storetypes.NewTransientStoreKey("transient_test"))
 	ctx := testCtx.Ctx.WithBlockHeader(cmtproto.Header{Time: cmttime.Now()})

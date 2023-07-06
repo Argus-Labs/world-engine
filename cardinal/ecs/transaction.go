@@ -3,6 +3,8 @@ package ecs
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/accounts/abi"
+
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 )
@@ -14,6 +16,7 @@ var _ transaction.ITransaction = NewTransactionType[struct{}]()
 type TransactionType[T any] struct {
 	id      transaction.TypeID
 	isIDSet bool
+	evmType abi.Type
 }
 
 // TransactionQueue is a list of transactions that were queued since the start of the
