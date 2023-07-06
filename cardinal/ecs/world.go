@@ -360,9 +360,9 @@ func (w *World) copyTransactions() map[transaction.TypeID][]any {
 	return txsMap
 }
 
-// addTransaction adds a transaction to the transaction queue. This should not be used directly.
+// AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency.
-func (w *World) addTransaction(id transaction.TypeID, v any) {
+func (w *World) AddTransaction(id transaction.TypeID, v any) {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
 	w.txQueues[id] = append(w.txQueues[id], v)

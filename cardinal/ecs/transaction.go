@@ -58,7 +58,7 @@ func (t *TransactionType[T]) ID() transaction.TypeID {
 // AddToQueue adds a transaction with the given data to the world object. The transaction will be executed
 // at the next game tick.
 func (t *TransactionType[T]) AddToQueue(world *World, data T) {
-	world.addTransaction(t.ID(), data)
+	world.AddTransaction(t.ID(), data)
 }
 
 func (t *TransactionType[T]) SetID(id transaction.TypeID) error {
