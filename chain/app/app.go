@@ -21,12 +21,10 @@
 package app
 
 import (
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/argus-labs/world-engine/chain/shard"
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
@@ -149,8 +147,9 @@ func NewApp(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
+	app := &App{}
+	app.setPlugins()
 	var (
-		app          = &App{}
 		appBuilder   *runtime.AppBuilder
 		ethTxMempool = evmmempool.NewPolarisEthereumTxPool()
 		// merge the Config and other configuration in one config
@@ -189,18 +188,7 @@ func NewApp(
 		)
 	)
 
-	// setup the game shard listener.
-	// TODO: clean this up
-	useShardListenerStr := os.Getenv("USE_SHARD_LISTENER")
-	useShardListener, err := strconv.ParseBool(useShardListenerStr)
-	if err != nil {
-		panic(err)
-	}
-	if useShardListener {
-		app.ShardHandler = shard.NewShardServer()
-		app.ShardHandler.Serve(os.Getenv("SHARD_HANDLER_LISTEN_ADDR"))
-	}
-
+	var err error
 	if err = depinject.Inject(appConfig,
 		&appBuilder,
 		&app.appCodec,

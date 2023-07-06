@@ -53,7 +53,7 @@ func getDefaultConfig() config.WorldEngineConfig {
 	return config.WorldEngineConfig{
 		DisplayDenom:    "stake",
 		BaseDenom:       "ustake",
-		Bech32Prefix:    "world",
+		Bech32Prefix:    "polar",
 		RouterAuthority: "",
 	}
 }

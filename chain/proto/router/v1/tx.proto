@@ -10,6 +10,8 @@ import "router/v1/query.proto";
 option go_package = "github.com/argus-labs/world-engine/chain/x/router/types";
 
 service MsgService {
+  option (cosmos.msg.v1.service) = true;
+
   rpc UpdateNamespace(UpdateNamespaceRequest) returns (UpdateNamespaceResponse);
 }
 
