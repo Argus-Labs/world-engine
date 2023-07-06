@@ -10,7 +10,7 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
-var _ types.MsgServiceServer = &Keeper{}
+var _ types.MsgServer = &Keeper{}
 
 func (k *Keeper) UpdateNamespace(ctx context.Context, request *types.UpdateNamespaceRequest) (
 	*types.UpdateNamespaceResponse, error,

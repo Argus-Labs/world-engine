@@ -13,5 +13,5 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&UpdateNamespaceRequest{},
 	)
 
-	msgservice.RegisterMsgServiceDesc(registry, &_MsgService_serviceDesc)
+	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }

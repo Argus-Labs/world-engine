@@ -84,7 +84,7 @@ func (a AppModuleBasic) Name() string {
 func (a AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 
 func (a AppModuleBasic) RegisterInterfaces(registry codectypes.InterfaceRegistry) {
-	types.RegisterInterface(registry)
+	types.RegisterInterfaces(registry)
 }
 
 func (a AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {

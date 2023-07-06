@@ -26,8 +26,9 @@ type DepInjectInput struct {
 type DepInjectOutput struct {
 	depinject.Out
 
-	Keeper *keeper.Keeper
-	Module appmodule.AppModule
+	ModuleKey depinject.OwnModuleKey
+	Keeper    *keeper.Keeper
+	Module    appmodule.AppModule
 }
 
 func ProvideModule(in DepInjectInput) DepInjectOutput {

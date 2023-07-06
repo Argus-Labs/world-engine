@@ -21,11 +21,10 @@
 package app
 
 import (
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"io"
 	"os"
 	"path/filepath"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/argus-labs/world-engine/chain/shard"
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
@@ -188,7 +187,9 @@ func NewApp(
 			),
 		)
 	)
-	if err := depinject.Inject(appConfig,
+
+	var err error
+	if err = depinject.Inject(appConfig,
 		&appBuilder,
 		&app.appCodec,
 		&app.legacyAmino,

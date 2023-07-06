@@ -17,10 +17,7 @@ func (app *App) setPlugins() {
 
 	cardinalShardAddr := os.Getenv("CARDINAL_EVM_LISTENER_ADDR")
 	if cardinalShardAddr != "" {
-		rtr, err := router.NewRouter(cardinalShardAddr)
-		if err != nil {
-			panic(err)
-		}
+		rtr := router.NewRouter()
 		app.Router = rtr
 	}
 }

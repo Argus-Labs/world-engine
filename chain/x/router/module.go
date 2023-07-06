@@ -135,7 +135,7 @@ func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 // RegisterServices registers a gRPC query service to respond to the
 // module-specific gRPC queries.
 func (am AppModule) RegisterServices(cfg module.Configurator) {
-	routertypes.RegisterMsgServiceServer(cfg.MsgServer(), am.keeper)
+	routertypes.RegisterMsgServer(cfg.MsgServer(), am.keeper)
 	routertypes.RegisterQueryServiceServer(cfg.QueryServer(), am.keeper)
 }
 
