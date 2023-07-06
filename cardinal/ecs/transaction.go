@@ -29,6 +29,25 @@ func NewTransactionType[T any]() *TransactionType[T] {
 	return &TransactionType[T]{}
 }
 
+// DecodeEVMBytes decodes abi encoded solidity structs into Go structs of the same structure.
+func (t *TransactionType[T]) DecodeEVMBytes(bz []byte) (any, error) {
+	args := abi.Arguments{{Type: t.evmType}}
+	unpacked, err := args.Unpack(bz)
+	if err != nil {
+		return nil, err
+	}
+
+	underlying, ok := unpacked[0].(T)
+	if !ok {
+		return nil, fmt.Errorf("error decoding EVM bytes: cannot cast %T to %T", unpacked[0], new(T))
+	}
+	return underlying, nil
+}
+
+func (t *TransactionType[T]) SetEVMType(at abi.Type) {
+	t.evmType = at
+}
+
 func (t *TransactionType[T]) ID() transaction.TypeID {
 	if !t.isIDSet {
 		panic(fmt.Sprintf("id on %v is not set", t))
