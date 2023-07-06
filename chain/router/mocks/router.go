@@ -35,31 +35,17 @@ func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 	return m.recorder
 }
 
-// RegisterNamespace mocks base method.
-func (m *MockRouter) RegisterNamespace(namespace, serverAddr string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegisterNamespace", namespace, serverAddr)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// RegisterNamespace indicates an expected call of RegisterNamespace.
-func (mr *MockRouterMockRecorder) RegisterNamespace(namespace, serverAddr interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterNamespace", reflect.TypeOf((*MockRouter)(nil).RegisterNamespace), namespace, serverAddr)
-}
-
 // Send mocks base method.
-func (m *MockRouter) Send(ctx context.Context, namespace, sender string, msg []byte) (router.Result, error) {
+func (m *MockRouter) Send(ctx context.Context, namespace, sender, msgID string, msg []byte) (*router.Result, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Send", ctx, namespace, sender, msg)
-	ret0, _ := ret[0].(router.Result)
+	ret := m.ctrl.Call(m, "Send", ctx, namespace, sender, msgID, msg)
+	ret0, _ := ret[0].(*router.Result)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Send indicates an expected call of Send.
-func (mr *MockRouterMockRecorder) Send(ctx, namespace, sender, msg interface{}) *gomock.Call {
+func (mr *MockRouterMockRecorder) Send(ctx, namespace, sender, msgID, msg interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockRouter)(nil).Send), ctx, namespace, sender, msg)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockRouter)(nil).Send), ctx, namespace, sender, msgID, msg)
 }

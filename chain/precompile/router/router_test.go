@@ -12,9 +12,7 @@ import (
 	testutil "pkg.berachain.dev/polaris/cosmos/testing/utils"
 	"pkg.berachain.dev/polaris/lib/utils"
 
-	"github.com/argus-labs/world-engine/chain/router"
 	"github.com/argus-labs/world-engine/chain/router/mocks"
-	bindings "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/router"
 )
 
 func TestRouterPrecompile(t *testing.T) {
@@ -80,26 +78,18 @@ var _ = Describe("Router precompile", func() {
 		It("should succeed", func() {
 			msg := []byte("foo")
 			namespace := "cardinal"
+			msgId := "foo"
 			sender := cosmlib.AccAddressToEthAddress(caller)
-			result := router.Result{
-				Code:    0,
-				Message: []byte("foobar"),
-			}
-			rtr.EXPECT().Send(ctx, namespace, sender.String(), msg).Times(1).Return(result, nil)
-			res, err := contract.Send(
+			rtr.EXPECT().Send(ctx, namespace, sender.String(), msgId, msg).Times(1)
+			_, err := contract.Send(
 				ctx,
 				nil,
 				cosmlib.AccAddressToEthAddress(caller),
 				big.NewInt(0),
 				false,
-				msg, namespace,
+				msg, msgId, namespace,
 			)
 			Expect(err).ToNot(HaveOccurred())
-			gotResult, _ := utils.GetAs[bindings.IRouterResponse](res[0])
-			Expect(gotResult).To(Equal(bindings.IRouterResponse{
-				Code:    big.NewInt(int64(result.Code)),
-				Message: result.Message,
-			}))
 		})
 	})
 })

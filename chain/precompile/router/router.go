@@ -19,7 +19,7 @@ import (
 const (
 	name = "world_engine_router"
 
-	maxArgs = 2
+	maxArgs = 3
 )
 
 type Contract struct {
@@ -27,8 +27,7 @@ type Contract struct {
 	rtr router.Router
 }
 
-// NewPrecompileContract
-// TODO(technicallyty): decide address
+// NewPrecompileContract returns a new instance of the Router precompile.
 func NewPrecompileContract(r router.Router) ethprecompile.StatefulImpl {
 	return &Contract{
 		BaseContract: ethprecompile.NewBaseContract(
@@ -42,12 +41,14 @@ func NewPrecompileContract(r router.Router) ethprecompile.StatefulImpl {
 func (c *Contract) PrecompileMethods() ethprecompile.Methods {
 	return ethprecompile.Methods{
 		{
-			AbiSig:  "Send(bytes,string)",
+			AbiSig:  "Send(bytes,string,string)",
 			Execute: c.Send,
 		},
 	}
 }
 
+// Send implements the Send precompile function in router.sol.
+// function Send(bytes calldata message, string calldata messageID, string calldata namespace) external returns (Response memory);
 func (c *Contract) Send(
 	ctx context.Context,
 	_ ethprecompile.EVM,
@@ -63,20 +64,19 @@ func (c *Contract) Send(
 	if !ok {
 		return nil, precompile.ErrInvalidBytes
 	}
-	namespace, ok := utils.GetAs[string](args[1])
+	msgID, ok := utils.GetAs[string](args[1])
+	if !ok {
+		return nil, precompile.ErrInvalidString
+	}
+	namespace, ok := utils.GetAs[string](args[2])
 	if !ok {
 		return nil, precompile.ErrInvalidString
 	}
 
-	result, err := c.rtr.Send(ctx, namespace, caller.String(), payload)
-	if err != nil {
-		return nil, err
-	}
-	res := generated.IRouterResponse{
-		Code:    big.NewInt(int64(result.Code)),
-		Message: result.Message,
-	}
-	return []any{res}, nil
+	// TODO(technicallyty): its async. do we return anything?
+	_, err := c.rtr.Send(ctx, namespace, caller.String(), msgID, payload)
+
+	return []any{}, err
 }
 
 func matchArgs(max, actual int) error {

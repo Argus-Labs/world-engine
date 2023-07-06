@@ -37,7 +37,7 @@ type IRouterResponse struct {
 
 // RouterMetaData contains all meta data concerning the Router contract.
 var RouterMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"message\",\"type\":\"bytes\"},{\"internalType\":\"string\",\"name\":\"namespace\",\"type\":\"string\"}],\"name\":\"Send\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"Code\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"Message\",\"type\":\"bytes\"}],\"internalType\":\"structIRouter.Response\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"message\",\"type\":\"bytes\"},{\"internalType\":\"string\",\"name\":\"messageID\",\"type\":\"string\"},{\"internalType\":\"string\",\"name\":\"namespace\",\"type\":\"string\"}],\"name\":\"Send\",\"outputs\":[{\"components\":[{\"internalType\":\"uint256\",\"name\":\"Code\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"Message\",\"type\":\"bytes\"}],\"internalType\":\"structIRouter.Response\",\"name\":\"\",\"type\":\"tuple\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // RouterABI is the input ABI used to generate the binding from.
@@ -186,23 +186,23 @@ func (_Router *RouterTransactorRaw) Transact(opts *bind.TransactOpts, method str
 	return _Router.Contract.contract.Transact(opts, method, params...)
 }
 
-// Send is a paid mutator transaction binding the contract method 0x9a894595.
+// Send is a paid mutator transaction binding the contract method 0xdd743083.
 //
-// Solidity: function Send(bytes message, string namespace) returns((uint256,bytes))
-func (_Router *RouterTransactor) Send(opts *bind.TransactOpts, message []byte, namespace string) (*types.Transaction, error) {
-	return _Router.contract.Transact(opts, "Send", message, namespace)
+// Solidity: function Send(bytes message, string messageID, string namespace) returns((uint256,bytes))
+func (_Router *RouterTransactor) Send(opts *bind.TransactOpts, message []byte, messageID string, namespace string) (*types.Transaction, error) {
+	return _Router.contract.Transact(opts, "Send", message, messageID, namespace)
 }
 
-// Send is a paid mutator transaction binding the contract method 0x9a894595.
+// Send is a paid mutator transaction binding the contract method 0xdd743083.
 //
-// Solidity: function Send(bytes message, string namespace) returns((uint256,bytes))
-func (_Router *RouterSession) Send(message []byte, namespace string) (*types.Transaction, error) {
-	return _Router.Contract.Send(&_Router.TransactOpts, message, namespace)
+// Solidity: function Send(bytes message, string messageID, string namespace) returns((uint256,bytes))
+func (_Router *RouterSession) Send(message []byte, messageID string, namespace string) (*types.Transaction, error) {
+	return _Router.Contract.Send(&_Router.TransactOpts, message, messageID, namespace)
 }
 
-// Send is a paid mutator transaction binding the contract method 0x9a894595.
+// Send is a paid mutator transaction binding the contract method 0xdd743083.
 //
-// Solidity: function Send(bytes message, string namespace) returns((uint256,bytes))
-func (_Router *RouterTransactorSession) Send(message []byte, namespace string) (*types.Transaction, error) {
-	return _Router.Contract.Send(&_Router.TransactOpts, message, namespace)
+// Solidity: function Send(bytes message, string messageID, string namespace) returns((uint256,bytes))
+func (_Router *RouterTransactorSession) Send(message []byte, messageID string, namespace string) (*types.Transaction, error) {
+	return _Router.Contract.Send(&_Router.TransactOpts, message, messageID, namespace)
 }

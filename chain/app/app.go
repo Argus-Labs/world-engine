@@ -24,7 +24,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -149,8 +148,9 @@ func NewApp(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
+	app := &App{}
+	app.setPlugins()
 	var (
-		app          = &App{}
 		appBuilder   *runtime.AppBuilder
 		ethTxMempool = evmmempool.NewPolarisEthereumTxPool()
 		// merge the Config and other configuration in one config
@@ -188,20 +188,7 @@ func NewApp(
 			),
 		)
 	)
-
-	// setup the game shard listener.
-	// TODO: clean this up
-	useShardListenerStr := os.Getenv("USE_SHARD_LISTENER")
-	useShardListener, err := strconv.ParseBool(useShardListenerStr)
-	if err != nil {
-		panic(err)
-	}
-	if useShardListener {
-		app.ShardHandler = shard.NewShardServer()
-		app.ShardHandler.Serve(os.Getenv("SHARD_HANDLER_LISTEN_ADDR"))
-	}
-
-	if err = depinject.Inject(appConfig,
+	if err := depinject.Inject(appConfig,
 		&appBuilder,
 		&app.appCodec,
 		&app.legacyAmino,
@@ -292,7 +279,7 @@ func NewApp(
 	// ----- END EVM SETUP -------------------------------------------------
 
 	// register streaming services
-	if err = app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
+	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
 	}
 
@@ -320,7 +307,7 @@ func NewApp(
 
 	app.App.SetEndBlocker(app.EndBlock)
 
-	if err = app.Load(loadLatest); err != nil {
+	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
 
