@@ -19,89 +19,89 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	MsgService_UpdateNamespace_FullMethodName = "/router.v1.MsgService/UpdateNamespace"
+	Msg_UpdateNamespace_FullMethodName = "/router.v1.Msg/UpdateNamespace"
 )
 
-// MsgServiceClient is the client API for MsgService service.
+// MsgClient is the client API for Msg service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type MsgServiceClient interface {
+type MsgClient interface {
 	UpdateNamespace(ctx context.Context, in *UpdateNamespaceRequest, opts ...grpc.CallOption) (*UpdateNamespaceResponse, error)
 }
 
-type msgServiceClient struct {
+type msgClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewMsgServiceClient(cc grpc.ClientConnInterface) MsgServiceClient {
-	return &msgServiceClient{cc}
+func NewMsgClient(cc grpc.ClientConnInterface) MsgClient {
+	return &msgClient{cc}
 }
 
-func (c *msgServiceClient) UpdateNamespace(ctx context.Context, in *UpdateNamespaceRequest, opts ...grpc.CallOption) (*UpdateNamespaceResponse, error) {
+func (c *msgClient) UpdateNamespace(ctx context.Context, in *UpdateNamespaceRequest, opts ...grpc.CallOption) (*UpdateNamespaceResponse, error) {
 	out := new(UpdateNamespaceResponse)
-	err := c.cc.Invoke(ctx, MsgService_UpdateNamespace_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, Msg_UpdateNamespace_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// MsgServiceServer is the server API for MsgService service.
-// All implementations must embed UnimplementedMsgServiceServer
+// MsgServer is the server API for Msg service.
+// All implementations must embed UnimplementedMsgServer
 // for forward compatibility
-type MsgServiceServer interface {
+type MsgServer interface {
 	UpdateNamespace(context.Context, *UpdateNamespaceRequest) (*UpdateNamespaceResponse, error)
-	mustEmbedUnimplementedMsgServiceServer()
+	mustEmbedUnimplementedMsgServer()
 }
 
-// UnimplementedMsgServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedMsgServiceServer struct {
+// UnimplementedMsgServer must be embedded to have forward compatible implementations.
+type UnimplementedMsgServer struct {
 }
 
-func (UnimplementedMsgServiceServer) UpdateNamespace(context.Context, *UpdateNamespaceRequest) (*UpdateNamespaceResponse, error) {
+func (UnimplementedMsgServer) UpdateNamespace(context.Context, *UpdateNamespaceRequest) (*UpdateNamespaceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateNamespace not implemented")
 }
-func (UnimplementedMsgServiceServer) mustEmbedUnimplementedMsgServiceServer() {}
+func (UnimplementedMsgServer) mustEmbedUnimplementedMsgServer() {}
 
-// UnsafeMsgServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to MsgServiceServer will
+// UnsafeMsgServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to MsgServer will
 // result in compilation errors.
-type UnsafeMsgServiceServer interface {
-	mustEmbedUnimplementedMsgServiceServer()
+type UnsafeMsgServer interface {
+	mustEmbedUnimplementedMsgServer()
 }
 
-func RegisterMsgServiceServer(s grpc.ServiceRegistrar, srv MsgServiceServer) {
-	s.RegisterService(&MsgService_ServiceDesc, srv)
+func RegisterMsgServer(s grpc.ServiceRegistrar, srv MsgServer) {
+	s.RegisterService(&Msg_ServiceDesc, srv)
 }
 
-func _MsgService_UpdateNamespace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Msg_UpdateNamespace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateNamespaceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServiceServer).UpdateNamespace(ctx, in)
+		return srv.(MsgServer).UpdateNamespace(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: MsgService_UpdateNamespace_FullMethodName,
+		FullMethod: Msg_UpdateNamespace_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServiceServer).UpdateNamespace(ctx, req.(*UpdateNamespaceRequest))
+		return srv.(MsgServer).UpdateNamespace(ctx, req.(*UpdateNamespaceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// MsgService_ServiceDesc is the grpc.ServiceDesc for MsgService service.
+// Msg_ServiceDesc is the grpc.ServiceDesc for Msg service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var MsgService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "router.v1.MsgService",
-	HandlerType: (*MsgServiceServer)(nil),
+var Msg_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "router.v1.Msg",
+	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "UpdateNamespace",
-			Handler:    _MsgService_UpdateNamespace_Handler,
+			Handler:    _Msg_UpdateNamespace_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
