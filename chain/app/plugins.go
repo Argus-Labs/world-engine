@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"github.com/argus-labs/world-engine/chain/router"
 	"github.com/argus-labs/world-engine/chain/shard"
 	"os"
@@ -10,9 +9,7 @@ import (
 func (app *App) setPlugins() {
 	// TODO: clean this up. maybe a config?
 	shardHandlerListener := os.Getenv("SHARD_HANDLER_LISTEN_ADDR")
-	shardHandlerListener = "localhost:9329"
 	if shardHandlerListener != "" {
-		fmt.Println("starting shard listener...")
 		app.ShardHandler = shard.NewShardServer()
 		app.ShardHandler.Serve(shardHandlerListener)
 	}

@@ -48,7 +48,6 @@ func (c *Contract) PrecompileMethods() ethprecompile.Methods {
 }
 
 // Send implements the Send precompile function in router.sol.
-// function Send(bytes calldata message, uint64 messageID, string calldata namespace) external returns (Response memory);
 func (c *Contract) Send(
 	ctx context.Context,
 	_ ethprecompile.EVM,

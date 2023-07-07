@@ -32,7 +32,6 @@ var (
 type router struct {
 	cardinalAddr string
 	credential   credentials.TransportCredentials
-	rtr          routerv1grpc.MsgClient
 }
 
 func loadClientCredentials() (credentials.TransportCredentials, error) {

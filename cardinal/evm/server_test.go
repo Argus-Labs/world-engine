@@ -13,10 +13,12 @@ import (
 
 type FooTransaction struct {
 	X uint64
+	Y string
 }
 
 type BarTransaction struct {
 	Y uint64
+	Z bool
 }
 
 // TestServer_SendMsg tests that when sending messages through to the EVM receiver server, they get passed along to
@@ -28,11 +30,13 @@ func TestServer_SendMsg(t *testing.T) {
 	// build the dynamic ABI types for evm compat
 	FooEvmTX, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
 		{Name: "X", Type: "uint64"},
+		{Name: "Y", Type: "string"},
 	})
 	assert.NilError(t, err)
 	FooEvmTX.TupleType = reflect.TypeOf(FooTransaction{})
 	BarEvmTx, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
 		{Name: "Y", Type: "uint64"},
+		{Name: "Z", Type: "bool"},
 	})
 	assert.NilError(t, err)
 	BarEvmTx.TupleType = reflect.TypeOf(BarTransaction{})
@@ -47,13 +51,15 @@ func TestServer_SendMsg(t *testing.T) {
 	assert.NilError(t, w.RegisterTransactions(FooTx, BarTx))
 
 	// create some txs to submit
-	fooTx1 := FooTransaction{X: 420}
+
 	fooTxs := []FooTransaction{
-		fooTx1,
+		{X: 420, Y: "world"},
+		{X: 3290, Y: "earth"},
+		{X: 411, Y: "universe"},
 	}
-	barTx1 := BarTransaction{Y: 290}
 	barTxs := []BarTransaction{
-		barTx1,
+		{Y: 290, Z: true},
+		{Y: 400, Z: false},
 	}
 
 	// add a system that checks that they are submitted properly to the world.

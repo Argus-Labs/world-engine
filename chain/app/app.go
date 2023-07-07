@@ -280,7 +280,7 @@ func NewApp(
 	// ----- END EVM SETUP -------------------------------------------------
 
 	// register streaming services
-	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
+	if err = app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
 	}
 
@@ -308,7 +308,7 @@ func NewApp(
 
 	app.App.SetEndBlocker(app.EndBlock)
 
-	if err := app.Load(loadLatest); err != nil {
+	if err = app.Load(loadLatest); err != nil {
 		panic(err)
 	}
 

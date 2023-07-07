@@ -78,16 +78,16 @@ var _ = Describe("Router precompile", func() {
 		It("should succeed", func() {
 			msg := []byte("foo")
 			namespace := "cardinal"
-			msgId := uint64(4)
+			msgID := uint64(4)
 			sender := cosmlib.AccAddressToEthAddress(caller)
-			rtr.EXPECT().Send(ctx, namespace, sender.String(), msgId, msg).Times(1)
+			rtr.EXPECT().Send(ctx, namespace, sender.String(), msgID, msg).Times(1)
 			_, err := contract.Send(
 				ctx,
 				nil,
 				cosmlib.AccAddressToEthAddress(caller),
 				big.NewInt(0),
 				false,
-				msg, msgId, namespace,
+				msg, msgID, namespace,
 			)
 			Expect(err).ToNot(HaveOccurred())
 		})
