@@ -131,6 +131,13 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 	return nil
 }
 
+func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
+	if !w.isTransactionsRegistered {
+		return nil, errors.New("cannot list transactions until transaction registration occurs")
+	}
+	return w.registeredTransactions, nil
+}
+
 var nextWorldId WorldId = 0
 
 // NewWorld creates a new world.

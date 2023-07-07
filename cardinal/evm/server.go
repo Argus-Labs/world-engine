@@ -23,19 +23,27 @@ var (
 // ITransactionTypes is a map that maps transaction type ID's to transaction types.
 type ITransactionTypes map[transaction.TypeID]transaction.ITransaction
 
-// TxQueuer is a type that provides the function found in ecs.World which adds transactions to the tx queue.
-// this is needed, so that we do not need to have a full reference to the world object here.
-type TxQueuer interface {
+// TxHandler is a type that gives access to transaction data in the ecs.World, as well as access to queue transactions.
+type TxHandler interface {
 	AddTransaction(transaction.TypeID, any)
+	ListTransactions() ([]transaction.ITransaction, error)
 }
 
 type srv struct {
 	it  ITransactionTypes
-	txq TxQueuer
+	txh TxHandler
 }
 
-func NewServer(it ITransactionTypes, txq TxQueuer) routerv1grpc.MsgServer {
-	return &srv{it, txq}
+func NewServer(txh TxHandler) (routerv1grpc.MsgServer, error) {
+	txs, err := txh.ListTransactions()
+	if err != nil {
+		return nil, err
+	}
+	it := make(ITransactionTypes, len(txs))
+	for _, tx := range txs {
+		it[tx.ID()] = tx
+	}
+	return &srv{it: it, txh: txh}, nil
 }
 
 func loadCredentials() (credentials.TransportCredentials, error) {
@@ -95,6 +103,6 @@ func (s *srv) SendMsg(ctx context.Context, msg *routerv1.MsgSend) (*routerv1.Msg
 		return nil, err
 	}
 	// add transaction to the world queue
-	s.txq.AddTransaction(itx.ID(), tx)
+	s.txh.AddTransaction(itx.ID(), tx)
 	return &routerv1.MsgSendResponse{}, nil
 }

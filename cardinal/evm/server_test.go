@@ -78,12 +78,8 @@ func TestServer_SendMsg(t *testing.T) {
 	})
 	assert.NilError(t, w.LoadGameState())
 
-	// build the type map that is used by the EVM receiver server.
-	txTypes := ITransactionTypes{
-		FooTx.ID(): FooTx,
-		BarTx.ID(): BarTx,
-	}
-	server := NewServer(txTypes, w)
+	server, err := NewServer(w)
+	assert.NilError(t, err)
 
 	// marshal out the bytes to send from each list of transactions.
 	for _, tx := range fooTxs {
