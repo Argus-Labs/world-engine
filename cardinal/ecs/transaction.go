@@ -40,7 +40,9 @@ func (t *TransactionType[T]) DecodeEVMBytes(bz []byte) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	if len(unpacked) < 1 {
+		return nil, fmt.Errorf("error decoding EVM bytes: no values could be unpacked into the abi type")
+	}
 	underlying, ok := unpacked[0].(T)
 	if !ok {
 		return nil, fmt.Errorf("error decoding EVM bytes: cannot cast %T to %T", unpacked[0], new(T))
