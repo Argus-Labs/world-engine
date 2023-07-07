@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -16,7 +17,7 @@ var _ transaction.ITransaction = NewTransactionType[struct{}]()
 type TransactionType[T any] struct {
 	id      transaction.TypeID
 	isIDSet bool
-	evmType abi.Type
+	evmType *abi.Type
 }
 
 // TransactionQueue is a list of transactions that were queued since the start of the
@@ -31,7 +32,10 @@ func NewTransactionType[T any]() *TransactionType[T] {
 
 // DecodeEVMBytes decodes abi encoded solidity structs into Go structs of the same structure.
 func (t *TransactionType[T]) DecodeEVMBytes(bz []byte) (any, error) {
-	args := abi.Arguments{{Type: t.evmType}}
+	if t.evmType == nil {
+		return nil, errors.New("cannot call DecodeEVMBytes without setting via SetEVMType first")
+	}
+	args := abi.Arguments{{Type: *t.evmType}}
 	unpacked, err := args.Unpack(bz)
 	if err != nil {
 		return nil, err
@@ -44,7 +48,7 @@ func (t *TransactionType[T]) DecodeEVMBytes(bz []byte) (any, error) {
 	return underlying, nil
 }
 
-func (t *TransactionType[T]) SetEVMType(at abi.Type) {
+func (t *TransactionType[T]) SetEVMType(at *abi.Type) {
 	t.evmType = at
 }
 

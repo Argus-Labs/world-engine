@@ -42,8 +42,8 @@ func TestServer_SendMsg(t *testing.T) {
 	BarTx := ecs.NewTransactionType[BarTransaction]()
 
 	// bind them to EVM types
-	FooTx.SetEVMType(FooEvmTX)
-	BarTx.SetEVMType(BarEvmTx)
+	FooTx.SetEVMType(&FooEvmTX)
+	BarTx.SetEVMType(&BarEvmTx)
 	assert.NilError(t, w.RegisterTransactions(FooTx, BarTx))
 
 	// create some txs to submit
