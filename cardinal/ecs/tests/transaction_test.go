@@ -1,13 +1,15 @@
 package tests
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	"gotest.tools/v3/assert"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
-	"gotest.tools/v3/assert"
 )
 
 type ScoreComponent struct {
@@ -57,7 +59,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.Equal(t, 0, s.Score)
 
 	// Process a game tick
-	assert.NilError(t, world.Tick())
+	assert.NilError(t, world.Tick(context.Background()))
 
 	// Verify the score was updated
 	s, err = score.Get(world, id)
@@ -65,7 +67,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.Equal(t, 100, s.Score)
 
 	// Tick again, but no new modifyScoreTx was added to the queue
-	assert.NilError(t, world.Tick())
+	assert.NilError(t, world.Tick(context.Background()))
 
 	// Verify the score hasn't changed
 	s, err = score.Get(world, id)
@@ -92,7 +94,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	for i := 0; i < 10; i++ {
-		assert.NilError(t, world.Tick())
+		assert.NilError(t, world.Tick(context.Background()))
 	}
 
 	c, err := count.Get(world, id)
@@ -137,7 +139,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		Amount:   150,
 	})
 
-	assert.NilError(t, world.Tick())
+	assert.NilError(t, world.Tick(context.Background()))
 
 	for i, id := range ids {
 		wantScore := 0
@@ -176,7 +178,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 
 	// Start a tick in the background.
 	go func() {
-		assert.Check(t, nil == world.Tick())
+		assert.Check(t, nil == world.Tick(context.Background()))
 	}()
 	// Make sure we're actually in the System. It will now block forever.
 	inSystemCh <- struct{}{}
@@ -225,7 +227,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	// Start the game tick. It will be blocked until we read from modScoreCountCh two times
 	go func() {
-		assert.Check(t, nil == world.Tick())
+		assert.Check(t, nil == world.Tick(context.Background()))
 	}()
 
 	// In the first system, we should see 1 modify score transaction
@@ -242,7 +244,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	// The tick is over. Tick again, we should see 1 tick for both systems again. This transaction
 	// was added in the middle of the last tick.
 	go func() {
-		assert.Check(t, nil == world.Tick())
+		assert.Check(t, nil == world.Tick(context.Background()))
 	}()
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)
@@ -251,7 +253,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	// In this final tick, we should see no modify score transactions
 	go func() {
-		assert.Check(t, nil == world.Tick())
+		assert.Check(t, nil == world.Tick(context.Background()))
 	}()
 	count = <-modScoreCountCh
 	assert.Equal(t, 0, count)
@@ -286,7 +288,7 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 	})
 	assert.NilError(t, world.LoadGameState())
 
-	assert.NilError(t, world.Tick())
+	assert.NilError(t, world.Tick(context.Background()))
 }
 
 func TestCannotRegisterDuplicateTransaction(t *testing.T) {

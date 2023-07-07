@@ -29,7 +29,7 @@ func (k *Keeper) InitGenesis(ctx sdk.Context, genesis *types.GenesisState) {
 func (k *Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	batches := make([]*types.TransactionBatch, 0)
 	k.iterateNamespaces(ctx, func(ns string) bool {
-		k.iterateBatches(ctx, ns, func(tick uint64, batch []byte) bool {
+		k.iterateBatches(ctx, nil, nil, ns, func(tick uint64, batch []byte) bool {
 			batches = append(batches, &types.TransactionBatch{
 				Namespace: ns,
 				Tick:      tick,

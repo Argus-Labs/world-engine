@@ -1,14 +1,16 @@
 package tests
 
 import (
+	"context"
 	"errors"
 	"testing"
+
+	"gotest.tools/v3/assert"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
-	"gotest.tools/v3/assert"
 )
 
 type EnergyComponent struct {
@@ -61,7 +63,7 @@ func TestECS(t *testing.T) {
 	world.AddSystem(UpdateEnergySystem)
 	assert.NilError(t, world.LoadGameState())
 
-	assert.NilError(t, world.Tick())
+	assert.NilError(t, world.Tick(context.Background()))
 
 	Energy.Each(world, func(id storage.EntityID) {
 		energyPlanet, err := Energy.Get(world, id)

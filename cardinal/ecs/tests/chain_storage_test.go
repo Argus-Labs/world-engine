@@ -11,6 +11,7 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 )
 
 type SendEnergy struct {
@@ -25,6 +26,10 @@ type MockAdapter struct {
 	lastSubmittedValue []byte
 	timesCalled        int
 	done               chan int
+}
+
+func (m *MockAdapter) QueryBatches(ctx context.Context, req *types.QueryBatchesRequest) (*types.QueryBatchesResponse, error) {
+	panic("not implemented")
 }
 
 func (m *MockAdapter) Submit(ctx context.Context, ns string, tick uint64, bz []byte) error {
@@ -62,7 +67,7 @@ func TestWorld_WithChain(t *testing.T) {
 
 	sendEnergyTx.AddToQueue(w, txToSend)
 	mockAdapter.sg.Add(1)
-	err = w.Tick()
+	err = w.Tick(context.Background())
 	assert.NilError(t, err)
 
 	mockAdapter.sg.Wait()

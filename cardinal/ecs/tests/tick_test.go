@@ -1,14 +1,16 @@
 package tests
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"gotest.tools/v3/assert"
+
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
-	"gotest.tools/v3/assert"
 )
 
 func TestTickHappyPath(t *testing.T) {
@@ -19,7 +21,7 @@ func TestTickHappyPath(t *testing.T) {
 	assert.NilError(t, oneWorld.LoadGameState())
 
 	for i := 0; i < 10; i++ {
-		assert.NilError(t, oneWorld.Tick())
+		assert.NilError(t, oneWorld.Tick(context.Background()))
 	}
 
 	assert.Equal(t, 10, oneWorld.CurrentTick())
@@ -61,11 +63,11 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.NilError(t, oneWorld.LoadGameState())
 
 	// Power is set to 1
-	assert.NilError(t, oneWorld.Tick())
+	assert.NilError(t, oneWorld.Tick(context.Background()))
 	// Power is set to 2
-	assert.NilError(t, oneWorld.Tick())
+	assert.NilError(t, oneWorld.Tick(context.Background()))
 	// Power is set to 3, then the System fails
-	assert.ErrorIs(t, errorSystem, oneWorld.Tick())
+	assert.ErrorIs(t, errorSystem, oneWorld.Tick(context.Background()))
 
 	// Set up a new world using the same storage layer
 	twoWorld := initWorldWithRedis(t, rs)
@@ -89,7 +91,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.Equal(t, 3, p.Power)
 
 	// Just for fun, tick one last time to make sure power is still being incremented.
-	assert.NilError(t, twoWorld.Tick())
+	assert.NilError(t, twoWorld.Tick(context.Background()))
 	p, err = onePower.Get(twoWorld, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 4, p.Power)
@@ -184,14 +186,14 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 
 		if firstWorldIteration {
 			for i := 0; i < 4; i++ {
-				assert.NilError(t, world.Tick())
+				assert.NilError(t, world.Tick(context.Background()))
 			}
 			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
 			_, err := toggle.Get(world, id)
 			assert.ErrorIs(t, storage.ErrorComponentNotOnEntity, err)
 
 			// Ticking again should result in an error
-			assert.ErrorIs(t, errorToggleComponent, world.Tick())
+			assert.ErrorIs(t, errorToggleComponent, world.Tick(context.Background()))
 		} else {
 			// At this second iteration, the errorToggleComponent bug has been fixed. static.Val should be 5
 			// and toggle should have just been added to the entity.
@@ -256,24 +258,24 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		if isBuggyIteration {
 			// perform a few ticks that will not result in an error
 			powerTx.AddToQueue(world, FloatValue{1000})
-			assert.NilError(t, world.Tick())
+			assert.NilError(t, world.Tick(context.Background()))
 			powerTx.AddToQueue(world, FloatValue{1000})
-			assert.NilError(t, world.Tick())
+			assert.NilError(t, world.Tick(context.Background()))
 			powerTx.AddToQueue(world, FloatValue{1000})
-			assert.NilError(t, world.Tick())
+			assert.NilError(t, world.Tick(context.Background()))
 
 			assert.Equal(t, float64(3000), fetchPower())
 
 			// In this "buggy" iteration, the above system cannot handle a power of 666.
 			powerTx.AddToQueue(world, FloatValue{666})
-			assert.ErrorIs(t, errorBadPowerChange, world.Tick())
+			assert.ErrorIs(t, errorBadPowerChange, world.Tick(context.Background()))
 		} else {
 			// Loading the game state above should successfully re-process that final 666 transactions.
 			assert.Equal(t, float64(3666), fetchPower())
 
 			// One more tick for good measure
 			powerTx.AddToQueue(world, FloatValue{1000})
-			assert.NilError(t, world.Tick())
+			assert.NilError(t, world.Tick(context.Background()))
 
 			assert.Equal(t, float64(4666), fetchPower())
 		}
