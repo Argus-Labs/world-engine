@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package shard.v1;
+
+import "cosmos_proto/cosmos.proto";
+import "cosmos/msg/v1/msg.proto";
+import "shard/v1/types.proto";
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+
+option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
+
+service Query {
+  rpc Batches(QueryBatchesRequest) returns (QueryBatchesResponse);
+}
+
+message QueryBatchesRequest {
+  string namespace = 1;
+  PageRequest page = 2;
+}
+
+message QueryBatchesResponse {
+    repeated TransactionBatch batches = 1;
+    PageResponse page = 2;
+}
+
+message PageRequest {
+  bytes key = 1;
+  uint32  limit = 2;
+}
+
+message PageResponse {
+  bytes key = 1;
+}

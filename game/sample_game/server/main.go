@@ -23,6 +23,7 @@ For every tick that a player is standing on a fire, they will lose 10 health.
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -102,7 +103,7 @@ func main() {
 
 func gameLoop(world *ecs.World) {
 	for range time.Tick(time.Second) {
-		if err := world.Tick(); err != nil {
+		if err := world.Tick(context.Background()); err != nil {
 			panic(err)
 		}
 	}

@@ -8,8 +8,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/argus-labs/world-engine/cardinal/chain"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 
+	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
@@ -44,8 +45,10 @@ type World struct {
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
 
-	// blockchain fields
 	chain chain.Adapter
+	// isRecovering indicates that the world is recovering from the DA layer.
+	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
+	isRecovering bool
 
 	errs []error
 }
@@ -145,7 +148,6 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	// TODO: this should prob be handled by redis as well...
 	worldId := nextWorldId
 	nextWorldId++
-
 	w := &World{
 		id:       worldId,
 		store:    s,
@@ -377,7 +379,7 @@ func (w *World) AddTransaction(id transaction.TypeID, v any) {
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
-func (w *World) Tick() error {
+func (w *World) Tick(ctx context.Context) error {
 	if !w.stateIsLoaded {
 		return errors.New("must load state before first tick")
 	}
@@ -406,8 +408,11 @@ func (w *World) Tick() error {
 	}
 	prevTick := w.tick
 	w.tick++
-	if w.chain != nil && len(txs) > 0 {
-		w.submitToChain(context.Background(), *txQueue, uint64(prevTick))
+
+	// if we're not recovering these transactions, and we have an EVM base shard connection + transactions to process,
+	// submit them to the EVM base shard.
+	if !w.isRecovering && (w.chain != nil && len(txs) > 0) {
+		w.submitToChain(ctx, *txQueue, uint64(prevTick))
 	}
 	return nil
 }
@@ -417,9 +422,9 @@ type TxBatch struct {
 	Txs  []any              `json:"txs,omitempty"`
 }
 
-// submitToChain spins up a new go routine that will submit the transactions to the blockchain.
+// submitToChain spins up a new go routine that will submit the transactions to the EVM base shard.
 func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick uint64) {
-	go func() {
+	go func(ctx context.Context) {
 		// convert transaction queue map into slice
 		txb := make([]TxBatch, 0, len(txq.queue))
 		for id, txs := range txq.queue {
@@ -434,7 +439,7 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		})
 
 		// turn the slice into bytes
-		bz, err := json.Marshal(txb)
+		bz, err := w.encodeBatch(txb)
 		if err != nil {
 			// TODO: https://linear.app/arguslabs/issue/CAR-92/keep-track-of-ackd-transaction-bundles
 			// we need to signal this didn't work.
@@ -443,11 +448,26 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		}
 
 		// submit to chain
-		err = w.chain.Submit(ctx, string(rune(w.id)), tick, bz)
+		err = w.chain.Submit(ctx, w.getNamespace(), tick, bz)
 		if err != nil {
 			w.LogError(err)
 		}
-	}()
+
+		// check if context contains a done channel.
+		done := ctx.Value("done")
+		// if there is none, we just return.
+		if done == nil {
+			return
+		}
+		// done signal found. if it's the right type, send signal through channel that we are done
+		// processing the transactions.
+		doneSignal, ok := done.(chan struct{})
+		if !ok {
+			return
+		}
+		doneSignal <- struct{}{}
+
+	}(ctx)
 }
 
 const (
@@ -509,7 +529,7 @@ func (w *World) LoadGameState() error {
 
 	if recoveredTxs != nil {
 		w.txQueues = recoveredTxs
-		if err := w.Tick(); err != nil {
+		if err := w.Tick(context.Background()); err != nil {
 			return err
 		}
 	}
@@ -571,6 +591,124 @@ func (w *World) noDuplicates(components []component.IComponentType) bool {
 		}
 	}
 	return true
+}
+
+// RecoverFromChain will attempt to recover the state of the world based on historical transaction data.
+// The function puts the world in a recovery state, and then queries all transaction batches under the world's
+// namespace. The function will continuously ask the EVM base shard for batches, and run ticks for each batch returned.
+func (w *World) RecoverFromChain(ctx context.Context) error {
+	if w.chain == nil {
+		return fmt.Errorf("chain adapter was nil. " +
+			"be sure to use the `WithAdapter` option when creating the world")
+	}
+	if w.tick > 0 {
+		return fmt.Errorf("world recovery should not occur in a world with existing state. please verify all " +
+			"state has been cleared before running recovery")
+	}
+
+	w.isRecovering = true
+	defer func() {
+		w.isRecovering = false
+	}()
+	namespace := w.getNamespace()
+	var nextKey []byte
+	for {
+		res, err := w.chain.QueryBatches(ctx, &types.QueryBatchesRequest{
+			Namespace: namespace,
+			Page: &types.PageRequest{
+				Key: nextKey,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		for _, batch := range res.Batches {
+			txb, err := w.decodeBatch(batch.Batch)
+			if err != nil {
+				return err
+			}
+			for _, tx := range txb {
+				w.txQueues[tx.TxID] = tx.Txs
+			}
+			// force the tick to the stored tick.
+			w.tick = int(batch.Tick)
+			err = w.Tick(ctx)
+			if err != nil {
+				return err
+			}
+		}
+
+		// if a page response was in the reply, that means there is more data to read.
+		if res.Page != nil {
+			// case where the next key is empty or nil, we don't want to continue the queries.
+			if res.Page.Key == nil || len(res.Page.Key) == 0 {
+				break
+			}
+			nextKey = res.Page.Key
+		} else {
+			// if the entire page reply is nil, then we are definitely done.
+			break
+		}
+	}
+	return nil
+}
+
+func (w *World) encodeBatch(txb []TxBatch) ([]byte, error) {
+	return json.Marshal(txb)
+}
+
+func (w *World) decodeBatch(bz []byte) ([]TxBatch, error) {
+	var batches []TxBatch
+
+	// first we simply unmarshal the data into the slice of transaction batches.
+	err := json.Unmarshal(bz, &batches)
+	if err != nil {
+		return nil, err
+	}
+
+	// since txs are stored as `any`s, we need to do some extra work in order to unmarshal them into
+	// their concrete types. at this point, they're just unmarshalled as map[string]interface{}
+	for _, batch := range batches {
+		// first we get the ITransaction for this batch of txs.
+		transactionType := w.getITx(batch.TxID)
+		// catch the edge case where somehow the batch was stored with a tx TypeID that isn't registered in the world.
+		if transactionType == nil {
+			return nil, fmt.Errorf("attempted to decode transaction with ID %d, "+
+				"but no such transaction with that ID was registered", batch.TxID)
+		}
+
+		for i, tx := range batch.Txs {
+			// for each tx, we need to first JSON marshal, as they are currently map[string]interface{}.
+			txBytes, err := json.Marshal(tx)
+			if err != nil {
+				return nil, err
+			}
+			// now we can decode the JSON using the ITransaction, to get the concrete tx struct.
+			underlyingTx, err := transactionType.Decode(txBytes)
+			if err != nil {
+				return nil, err
+			}
+			// put the concrete tx back into the txs slice.
+			batch.Txs[i] = underlyingTx
+		}
+	}
+	return batches, nil
+}
+
+// getITx iterates over the registered transactions and returns the ITransaction associated with the TypeID.
+func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
+	var itx transaction.ITransaction
+	for _, tx := range w.registeredTransactions {
+		if id == tx.ID() {
+			itx = tx
+			break
+		}
+	}
+	return itx
+}
+
+func (w *World) getNamespace() string {
+	return string(rune(w.id))
 }
 
 func (w *World) LogError(err error) {
