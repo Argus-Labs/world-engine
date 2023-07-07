@@ -36,7 +36,7 @@ func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 }
 
 // Send mocks base method.
-func (m *MockRouter) Send(ctx context.Context, namespace, sender, msgID string, msg []byte) (*router.Result, error) {
+func (m *MockRouter) Send(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*router.Result, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Send", ctx, namespace, sender, msgID, msg)
 	ret0, _ := ret[0].(*router.Result)

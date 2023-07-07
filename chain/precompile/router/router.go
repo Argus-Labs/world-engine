@@ -64,9 +64,9 @@ func (c *Contract) Send(
 	if !ok {
 		return nil, precompile.ErrInvalidBytes
 	}
-	msgID, ok := utils.GetAs[string](args[1])
+	msgID, ok := utils.GetAs[uint64](args[1])
 	if !ok {
-		return nil, precompile.ErrInvalidString
+		return nil, precompile.ErrInvalidUint64
 	}
 	namespace, ok := utils.GetAs[string](args[2])
 	if !ok {

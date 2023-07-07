@@ -16,7 +16,7 @@ type Result struct {
 //go:generate mockgen -source=router.go -package mocks -destination mocks/router.go
 type Router interface {
 	// Send sends the msg payload to the game shard indicated by the namespace, if such namespace exists on chain.
-	Send(ctx context.Context, namespace, sender, msgID string, msg []byte) (*Result, error)
+	Send(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error)
 }
 
 var _ Router = &router{}
@@ -37,7 +37,7 @@ func NewRouter(cardinalAddr string) (Router, error) {
 	return &router{rtr: routerv1grpc.NewMsgClient(conn)}, nil
 }
 
-func (r *router) Send(ctx context.Context, _, sender, msgID string, msg []byte) (*Result, error) {
+func (r *router) Send(ctx context.Context, _, sender string, msgID uint64, msg []byte) (*Result, error) {
 	req := &v1.MsgSend{
 		Sender:    sender,
 		MessageId: msgID,
