@@ -41,7 +41,7 @@ func NewPrecompileContract(r router.Router) ethprecompile.StatefulImpl {
 func (c *Contract) PrecompileMethods() ethprecompile.Methods {
 	return ethprecompile.Methods{
 		{
-			AbiSig:  "Send(bytes,string,string)",
+			AbiSig:  "Send(bytes,uint64,string)",
 			Execute: c.Send,
 		},
 	}
