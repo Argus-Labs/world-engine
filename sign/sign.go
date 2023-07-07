@@ -59,6 +59,7 @@ func (s *SignedPayload) Marshal() ([]byte, error) {
 }
 
 // Verify verifies this SignedPayload has a valid signature. If nil is returned, the signature is valid.
+// TODO: Review this signature verification, and compare it to geth's sig verification
 func (s *SignedPayload) Verify(key ecdsa.PublicKey) error {
 	hash, err := s.hash()
 	if err != nil {
