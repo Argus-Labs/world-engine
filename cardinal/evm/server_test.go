@@ -1,4 +1,4 @@
-package base_shard
+package evm
 
 import (
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
