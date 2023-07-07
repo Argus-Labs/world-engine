@@ -48,7 +48,7 @@ func (c *Contract) PrecompileMethods() ethprecompile.Methods {
 }
 
 // Send implements the Send precompile function in router.sol.
-// function Send(bytes calldata message, string calldata messageID, string calldata namespace) external returns (Response memory);
+// function Send(bytes calldata message, uint64 messageID, string calldata namespace) external returns (Response memory);
 func (c *Contract) Send(
 	ctx context.Context,
 	_ ethprecompile.EVM,
@@ -73,7 +73,6 @@ func (c *Contract) Send(
 		return nil, precompile.ErrInvalidString
 	}
 
-	// TODO(technicallyty): its async. do we return anything?
 	_, err := c.rtr.Send(ctx, namespace, caller.String(), msgID, payload)
 
 	return []any{}, err
