@@ -16,9 +16,10 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	assert.NilError(t, err)
 	wantBody := "this is a request body"
 	wantPersonaTag := "my-tag"
+	wantNamespace := "my-namespace"
 	wantNonce := uint64(100)
 
-	sp, err := NewSignedPayload([]byte(wantBody), wantPersonaTag, wantNonce, goodKey)
+	sp, err := NewSignedPayload([]byte(wantBody), wantPersonaTag, wantNamespace, wantNonce, goodKey)
 	assert.NilError(t, err)
 
 	buf, err := sp.Marshal()
@@ -28,6 +29,7 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Equal(t, toBeVerified.PersonaTag, wantPersonaTag)
+	assert.Equal(t, toBeVerified.Namespace, wantNamespace)
 	assert.Equal(t, toBeVerified.Nonce, wantNonce)
 	assert.NilError(t, toBeVerified.Verify(goodKey.PublicKey))
 	assert.Check(t, nil != toBeVerified.Verify(badKey.PublicKey))

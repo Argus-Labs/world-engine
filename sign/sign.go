@@ -17,6 +17,7 @@ var (
 
 type SignedPayload struct {
 	PersonaTag string
+	Namespace  string
 	Nonce      uint64
 	Signature  []byte
 	Body       []byte
@@ -33,9 +34,10 @@ func Unmarshal(buf []byte) (*SignedPayload, error) {
 }
 
 // NewSignedPayload signs a given body, tag, and nonce with the given private key.
-func NewSignedPayload(body []byte, tag string, nonce uint64, pk *ecdsa.PrivateKey) (*SignedPayload, error) {
+func NewSignedPayload(body []byte, personaTag, namespace string, nonce uint64, pk *ecdsa.PrivateKey) (*SignedPayload, error) {
 	sp := &SignedPayload{
-		PersonaTag: tag,
+		PersonaTag: personaTag,
+		Namespace:  namespace,
 		Nonce:      nonce,
 		Body:       body,
 	}
@@ -71,6 +73,9 @@ func (s *SignedPayload) Verify(key ecdsa.PublicKey) error {
 func (s *SignedPayload) hash() ([]byte, error) {
 	hash := fnv.New128()
 	if _, err := hash.Write([]byte(s.PersonaTag)); err != nil {
+		return nil, err
+	}
+	if _, err := hash.Write([]byte(s.Namespace)); err != nil {
 		return nil, err
 	}
 	if _, err := hash.Write([]byte(fmt.Sprintf("%d", s.Nonce))); err != nil {
