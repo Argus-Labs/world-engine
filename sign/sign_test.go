@@ -32,5 +32,5 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	assert.Equal(t, toBeVerified.Namespace, wantNamespace)
 	assert.Equal(t, toBeVerified.Nonce, wantNonce)
 	assert.NilError(t, toBeVerified.Verify(goodKey.PublicKey))
-	assert.Check(t, nil != toBeVerified.Verify(badKey.PublicKey))
+	assert.Error(t, toBeVerified.Verify(badKey.PublicKey), ErrorSignatureValidationFailed.Error())
 }
