@@ -27,3 +27,5 @@ require (
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 )
+
+replace github.com/argus-labs/world-engine/sign => ../sign

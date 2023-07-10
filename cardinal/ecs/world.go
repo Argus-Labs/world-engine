@@ -57,6 +57,7 @@ var (
 	ErrorComponentRegistrationMustHappenOnce   = errors.New("component registration must happen exactly 1 time")
 	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
 	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
+	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
 )
 
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
@@ -125,13 +126,27 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 	w.isTransactionsRegistered = true
 	w.registeredTransactions = txs
 
+	seenTxNames := map[string]bool{}
 	for i, t := range txs {
+		name := t.Name()
+		if seenTxNames[name] {
+			return fmt.Errorf("duplicate tx %q: %w", ErrorDuplicateTransactionName)
+		}
+		seenTxNames[name] = true
+
 		id := transaction.TypeID(i + 1)
 		if err := t.SetID(id); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
+	if !w.isTransactionsRegistered {
+		return nil, errors.New("cannot list transactions until transaction registration occurs")
+	}
+	return w.registeredTransactions, nil
 }
 
 var nextWorldId WorldId = 0
@@ -362,9 +377,9 @@ func (w *World) copyTransactions() map[transaction.TypeID][]any {
 	return txsMap
 }
 
-// addTransaction adds a transaction to the transaction queue. This should not be used directly.
+// AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency.
-func (w *World) addTransaction(id transaction.TypeID, v any) {
+func (w *World) AddTransaction(id transaction.TypeID, v any) {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
 	w.txQueues[id] = append(w.txQueues[id], v)

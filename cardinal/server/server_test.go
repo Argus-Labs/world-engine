@@ -1,10 +1,11 @@
 package server
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
-	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
+	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -13,30 +14,96 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 )
 
-func TestTransactionHandler(t *testing.T) {
+func TestCanListTransactionEndpoints(t *testing.T) {
+	type SendEnergyTx struct {
+		From, To string
+		Amount   uint64
+	}
+	w := inmem.NewECSWorldForTest(t)
+	alphaTx := ecs.NewTransactionType[SendEnergyTx]("alpha")
+	betaTx := ecs.NewTransactionType[SendEnergyTx]("beta")
+	gammaTx := ecs.NewTransactionType[SendEnergyTx]("gamma")
+	assert.NilError(t, w.RegisterTransactions(alphaTx, betaTx, gammaTx))
+	txh, err := NewTransactionHandler(w, DisableSignatureVerification())
+
+	port := "4040"
+	fullUrl := "http://localhost:" + port
+	go txh.Serve("", "4040")
+
+	req, err := http.NewRequest("GET", fullUrl+"/cardinal/list_endpoints", nil)
+	assert.NilError(t, err)
+	resp, err := http.DefaultClient.Do(req)
+	assert.NilError(t, err)
+	assert.Equal(t, resp.StatusCode, 200)
+	bz, err := io.ReadAll(resp.Body)
+	assert.NilError(t, err)
+	gotEndpoints := []string{}
+	assert.NilError(t, json.Unmarshal(bz, &gotEndpoints))
+	wantEndpoints := []string{
+		"/tx_alpha",
+		"/tx_beta",
+		"/tx_gamma",
+	}
+	assert.DeepEqual(t, wantEndpoints, gotEndpoints)
+}
+
+func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	type SendEnergyTx struct {
 		From, To string
 		Amount   uint64
 	}
 	count := 0
 	w := inmem.NewECSWorldForTest(t)
-	txId := 1
-	sendTx := ecs.NewTransactionType[SendEnergyTx]()
-	err := sendTx.SetID(transaction.TypeID(txId))
-	assert.NilError(t, err)
-	txh := NewTransactionHandler(w)
 	endpoint := "move"
-	err = txh.NewHandler(endpoint, func(w *ecs.World) http.HandlerFunc {
-		return func(writer http.ResponseWriter, request *http.Request) {
-			tx := new(SendEnergyTx)
-			if err := decode(request, tx); err != nil {
-				panic(err)
-			}
-			sendTx.AddToQueue(w, *tx)
-			count++
-		}
+	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint)
+	assert.NilError(t, w.RegisterTransactions(sendTx))
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+		txs := sendTx.In(queue)
+		assert.Equal(t, 1, len(txs))
+		tx := txs[0]
+		assert.Equal(t, tx.From, "me")
+		assert.Equal(t, tx.To, "you")
+		assert.Equal(t, tx.Amount, uint64(420))
+		count++
+		return nil
 	})
+	txh, err := NewTransactionHandler(w, DisableSignatureVerification())
+	port := "4040"
+	fullUrl := "http://localhost:" + port
+	go txh.Serve("", "4040")
+
+	req, err := http.NewRequest("GET", fullUrl+"/tx_"+endpoint, nil)
 	assert.NilError(t, err)
+	_, err = http.DefaultClient.Do(req)
+	assert.NilError(t, err)
+
+	assert.NilError(t, w.LoadGameState())
+	assert.NilError(t, w.Tick(context.Background()))
+	assert.Equal(t, 1, count)
+}
+
+func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
+	type SendEnergyTx struct {
+		From, To string
+		Amount   uint64
+	}
+	count := 0
+	endpoint := "move"
+	w := inmem.NewECSWorldForTest(t)
+	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint)
+	assert.NilError(t, w.RegisterTransactions(sendTx))
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+		txs := sendTx.In(queue)
+		assert.Equal(t, 1, len(txs))
+		tx := txs[0]
+		assert.Equal(t, tx.From, "me")
+		assert.Equal(t, tx.To, "you")
+		assert.Equal(t, tx.Amount, uint64(420))
+		count++
+		return nil
+	})
+
+	txh, err := NewTransactionHandler(w, DisableSignatureVerification())
 	port := "4040"
 	fullUrl := "http://localhost:" + port
 	go txh.Serve("", "4040")
@@ -46,19 +113,23 @@ func TestTransactionHandler(t *testing.T) {
 		To:     "you",
 		Amount: 420,
 	}
-	bz, err := json.Marshal(&tx)
+	bz, err := json.Marshal(tx)
 	assert.NilError(t, err)
-	req, err := http.NewRequest("GET", fullUrl+"/"+endpoint, strings.NewReader(string(bz)))
+	signedTx := SignedPayload{
+		PersonaTag:    "some_persona",
+		SignerAddress: "some_address",
+		Signature:     []byte{1, 2, 3, 4},
+		Payload:       bz,
+	}
+
+	bz, err = json.Marshal(&signedTx)
+	assert.NilError(t, err)
+	req, err := http.NewRequest("GET", fullUrl+"/tx_"+endpoint, bytes.NewReader(bz))
 	assert.NilError(t, err)
 	_, err = http.DefaultClient.Do(req)
 	assert.NilError(t, err)
-	assert.Equal(t, 1, count)
-}
 
-func decode(r *http.Request, v any) error {
-	dec := json.NewDecoder(r.Body)
-	if err := dec.Decode(v); err != nil {
-		return err
-	}
-	return nil
+	assert.NilError(t, w.LoadGameState())
+	assert.NilError(t, w.Tick(context.Background()))
+	assert.Equal(t, 1, count)
 }

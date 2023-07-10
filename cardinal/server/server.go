@@ -1,33 +1,94 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 )
-
-const (
-	// listEndpoint is a reserved endpoint used to inform consumers of the TransactionHandler's endpoints.
-	listEndpoint = "/list"
-)
-
-type handler struct {
-	fn   http.HandlerFunc
-	path string
-}
 
 // TransactionHandler is a type that contains endpoints for transactions in a given ecs world.
 type TransactionHandler struct {
-	w        *ecs.World
-	handlers []handler
+	w                      *ecs.World
+	disableSigVerificaiton bool
 }
 
 // NewTransactionHandler returns a new TransactionHandler
-func NewTransactionHandler(w *ecs.World) *TransactionHandler {
-	return &TransactionHandler{w: w}
+func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, error) {
+	th := &TransactionHandler{w: w}
+	for _, opt := range opts {
+		opt(th)
+	}
+
+	txs, err := w.ListTransactions()
+	if err != nil {
+		return nil, err
+	}
+	var endpoints []string
+	for _, tx := range txs {
+		path := "tx_" + tx.Name()
+		endpoint := conformPath(path)
+		http.HandleFunc(endpoint, th.makeTxHandler(tx))
+		endpoints = append(endpoints, endpoint)
+	}
+
+	http.HandleFunc("/cardinal/list_endpoints", func(writer http.ResponseWriter, request *http.Request) {
+		writeResult(writer, endpoints)
+	})
+
+	return th, nil
+}
+
+type SignedPayload struct {
+	PersonaTag    string
+	SignerAddress string
+	Signature     []byte
+	Payload       []byte
+}
+
+func (th *TransactionHandler) verifySignature(request *http.Request) (payload []byte, err error) {
+	buf, err := io.ReadAll(request.Body)
+	if err != nil {
+		return nil, errors.New("unable to read body")
+	}
+	sp, err := decode[SignedPayload](buf)
+	if err != nil {
+		return nil, err
+	}
+
+	if !th.disableSigVerificaiton {
+		// Actually verify the signature
+		panic("signature verification not implemented")
+	}
+	// For testing, it would be nice to be able to bypass signature verification and just
+	// pass in the raw transaction data. If it looks like the signed payload is empty,
+	// just return the original request body.
+	if len(sp.Payload) == 0 {
+		return buf, nil
+	}
+	return sp.Payload, nil
+}
+
+func (th *TransactionHandler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		payload, err := th.verifySignature(request)
+		if err != nil {
+			writeError(writer, "unable to verify signature", err)
+			return
+		}
+		txVal, err := tx.Decode(payload)
+		if err != nil {
+			writeError(writer, "unable to decode transaction", err)
+			return
+		}
+		th.w.AddTransaction(tx.ID(), txVal)
+		writeResult(writer, "ok")
+	}
 }
 
 // fixes a path to contain a leading slash.
@@ -39,37 +100,10 @@ func conformPath(p string) string {
 	return p
 }
 
-// NewHandler builds a new http handler. path is the endpoint used to trigger the http handler function.
-// path example: "move", "send_energy", "claim_planet".
-// fn is the underlying function that handles the transaction. It should handle unmarshalling the JSON blob into
-// the proper transaction type, as well as queuing it in the world.
-func (t *TransactionHandler) NewHandler(path string, fn func(w *ecs.World) http.HandlerFunc) error {
-	path = conformPath(path)
-	if path == listEndpoint {
-		return errors.New("endpoint 'list' is reserved by the cardinal system")
-	}
-	t.handlers = append(t.handlers, handler{
-		fn:   fn(t.w),
-		path: path,
-	})
-	return nil
-}
-
 // Serve sets up the endpoints passed in by the user, as well as a special "/list" endpoint, that informs consumers
 // what endpoints the user set up in the TransactionHandler. Then, it serves the application, blocking the main thread.
 // Please us `go txh.Serve(host,port)` if you do not want to block execution after calling this function.
 func (t *TransactionHandler) Serve(host, port string) {
-	paths := make([]string, len(t.handlers))
-	for i, th := range t.handlers {
-		paths[i] = th.path
-		http.HandleFunc(th.path, th.fn)
-	}
-	http.HandleFunc(listEndpoint, func(w http.ResponseWriter, r *http.Request) {
-		enc := json.NewEncoder(w)
-		if err := enc.Encode(paths); err != nil {
-			writeError(w, "cannot marshal list", err)
-		}
-	})
 	err := http.ListenAndServe(fmt.Sprintf("%s:%s", host, port), nil)
 	if err != nil {
 		panic(err)
@@ -79,4 +113,33 @@ func (t *TransactionHandler) Serve(host, port string) {
 func writeError(w http.ResponseWriter, msg string, err error) {
 	w.WriteHeader(500)
 	fmt.Fprintf(w, "%s: %v", msg, err)
+}
+
+func writeResult(w http.ResponseWriter, v any) {
+	if s, ok := v.(string); ok {
+		v = struct{ Msg string }{Msg: s}
+	}
+	enc := json.NewEncoder(w)
+	if err := enc.Encode(v); err != nil {
+		writeError(w, "can't encode", err)
+		return
+	}
+}
+
+func decode[T any](buf []byte) (T, error) {
+	var val T
+	r := bytes.NewReader(buf)
+	dec := json.NewDecoder(r)
+	if err := dec.Decode(&val); err != nil {
+		return val, err
+	}
+	return val, nil
+}
+
+type Option func(th *TransactionHandler)
+
+func DisableSignatureVerification() Option {
+	return func(th *TransactionHandler) {
+		th.disableSigVerificaiton = true
+	}
 }
