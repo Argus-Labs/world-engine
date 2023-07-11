@@ -1,25 +1,23 @@
 package sign
 
 import (
-	"crypto/ecdsa"
-	"crypto/rand"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
+	"github.com/ethereum/go-ethereum/crypto"
 	"gotest.tools/v3/assert"
 )
 
 func TestCanSignAndVerifyPayload(t *testing.T) {
-	goodKey, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
+	goodKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
-	badKey, err := ecdsa.GenerateKey(secp256k1.S256(), rand.Reader)
+	badKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	wantBody := "this is a request body"
 	wantPersonaTag := "my-tag"
 	wantNamespace := "my-namespace"
 	wantNonce := uint64(100)
 
-	sp, err := NewSignedPayload([]byte(wantBody), wantPersonaTag, wantNamespace, wantNonce, goodKey)
+	sp, err := NewSignedPayload(goodKey, wantPersonaTag, wantNamespace, wantNonce, wantBody)
 	assert.NilError(t, err)
 
 	buf, err := sp.Marshal()
@@ -28,9 +26,12 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	toBeVerified, err := Unmarshal(buf)
 	assert.NilError(t, err)
 
+	goodAddressHex := crypto.PubkeyToAddress(goodKey.PublicKey).Hex()
+	badAddressHex := crypto.PubkeyToAddress(badKey.PublicKey).Hex()
+
 	assert.Equal(t, toBeVerified.PersonaTag, wantPersonaTag)
 	assert.Equal(t, toBeVerified.Namespace, wantNamespace)
 	assert.Equal(t, toBeVerified.Nonce, wantNonce)
-	assert.NilError(t, toBeVerified.Verify(goodKey.PublicKey))
-	assert.Error(t, toBeVerified.Verify(badKey.PublicKey), ErrorSignatureValidationFailed.Error())
+	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
+	assert.Error(t, toBeVerified.Verify(badAddressHex), ErrorSignatureValidationFailed.Error())
 }

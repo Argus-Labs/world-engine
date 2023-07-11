@@ -6,21 +6,28 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
+	"github.com/argus-labs/world-engine/sign"
 )
 
 // TransactionHandler is a type that contains endpoints for transactions in a given ecs world.
 type TransactionHandler struct {
 	w                      *ecs.World
-	disableSigVerificaiton bool
+	mux                    *http.ServeMux
+	server                 *http.Server
+	disableSigVerification bool
 }
 
 // NewTransactionHandler returns a new TransactionHandler
 func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, error) {
-	th := &TransactionHandler{w: w}
+	th := &TransactionHandler{
+		w:   w,
+		mux: http.NewServeMux(),
+	}
 	for _, opt := range opts {
 		opt(th)
 	}
@@ -31,52 +38,125 @@ func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, e
 	}
 	var endpoints []string
 	for _, tx := range txs {
-		path := "tx_" + tx.Name()
-		endpoint := conformPath(path)
-		http.HandleFunc(endpoint, th.makeTxHandler(tx))
+		endpoint := conformPath("tx_" + tx.Name())
+		if tx.Name() == ecs.CreatePersonaTx.Name() {
+			th.mux.HandleFunc(endpoint, th.makeCreatePersonaHandler(tx))
+		} else {
+			th.mux.HandleFunc(endpoint, th.makeTxHandler(tx))
+		}
 		endpoints = append(endpoints, endpoint)
 	}
 
-	http.HandleFunc("/cardinal/list_endpoints", func(writer http.ResponseWriter, request *http.Request) {
+	th.mux.HandleFunc("/cardinal/list_endpoints", func(writer http.ResponseWriter, request *http.Request) {
 		writeResult(writer, endpoints)
 	})
 
+	th.mux.HandleFunc("/query_persona_signer", th.handleQueryPersonaSigner)
 	return th, nil
 }
 
-type SignedPayload struct {
-	PersonaTag    string
-	SignerAddress string
-	Signature     []byte
-	Payload       []byte
+type CreatePersonaResponse struct {
+	Tick   int
+	Status string
 }
 
-func (th *TransactionHandler) verifySignature(request *http.Request) (payload []byte, err error) {
+type QueryPersonaSignerRequest struct {
+	PersonaTag string
+	Tick       int
+}
+
+type QueryPersonaSignerResponse struct {
+	Status        string
+	SignerAddress string
+}
+
+func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
+	createPersonaTx, err := decode[ecs.CreatePersonaTransaction](sp.Body)
+	if err != nil {
+		return "", err
+	}
+	return createPersonaTx.SignerAddress, nil
+}
+
+func getSignerAddressFromWorld(world *ecs.World, personaTag string) (string, error) {
+	addr, err := world.GetSignerForPersonaTag(personaTag, -1)
+	if err != nil {
+		return "", err
+	}
+	return addr, nil
+}
+
+func (t *TransactionHandler) verifySignature(request *http.Request, getSignedAddressFromWorld bool) (payload []byte, err error) {
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, errors.New("unable to read body")
 	}
-	sp, err := decode[SignedPayload](buf)
+	sp, err := decode[sign.SignedPayload](buf)
 	if err != nil {
 		return nil, err
 	}
 
-	if !th.disableSigVerificaiton {
-		// Actually verify the signature
-		panic("signature verification not implemented")
+	if !t.disableSigVerification {
+		var signerAddress string
+		var err error
+		if getSignedAddressFromWorld {
+			signerAddress, err = getSignerAddressFromWorld(t.w, sp.PersonaTag)
+		} else {
+			signerAddress, err = getSignerAddressFromPayload(sp)
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		if err := sp.Verify(signerAddress); err != nil {
+			return nil, err
+
+		}
+		// The signature is valid. Drop out of this branch to return the payload.
 	}
 	// For testing, it would be nice to be able to bypass signature verification and just
 	// pass in the raw transaction data. If it looks like the signed payload is empty,
 	// just return the original request body.
-	if len(sp.Payload) == 0 {
+	if len(sp.Body) == 0 {
 		return buf, nil
 	}
-	return sp.Payload, nil
+	return sp.Body, nil
 }
 
-func (th *TransactionHandler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
+func (t *TransactionHandler) handleQueryPersonaSigner(w http.ResponseWriter, r *http.Request) {
+	buf, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeError(w, "unable to read body", err)
+		return
+	}
+
+	req, err := decode[QueryPersonaSignerRequest](buf)
+	if err != nil {
+		writeError(w, "unable to decode body", err)
+		return
+	}
+
+	var status string
+	addr, err := t.w.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
+	if err == ecs.ErrorPersonaTagHasNoSigner {
+		status = "available"
+	} else if err == ecs.ErrorCreatePersonaTxsNotProcessed {
+		status = "unknown"
+	} else if err != nil {
+		writeError(w, "query persona signer error", err)
+		return
+	} else {
+		status = "assigned"
+	}
+	writeResult(w, QueryPersonaSignerResponse{
+		Status:        status,
+		SignerAddress: addr,
+	})
+}
+
+func (t *TransactionHandler) makeCreatePersonaHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		payload, err := th.verifySignature(request)
+		payload, err := t.verifySignature(request, false)
 		if err != nil {
 			writeError(writer, "unable to verify signature", err)
 			return
@@ -86,7 +166,27 @@ func (th *TransactionHandler) makeTxHandler(tx transaction.ITransaction) http.Ha
 			writeError(writer, "unable to decode transaction", err)
 			return
 		}
-		th.w.AddTransaction(tx.ID(), txVal)
+		t.w.AddTransaction(tx.ID(), txVal)
+		writeResult(writer, CreatePersonaResponse{
+			Tick:   t.w.CurrentTick(),
+			Status: "ok",
+		})
+	}
+}
+
+func (t *TransactionHandler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		payload, err := t.verifySignature(request, true)
+		if err != nil {
+			writeError(writer, "unable to verify signature", err)
+			return
+		}
+		txVal, err := tx.Decode(payload)
+		if err != nil {
+			writeError(writer, "unable to decode transaction", err)
+			return
+		}
+		t.w.AddTransaction(tx.ID(), txVal)
 		writeResult(writer, "ok")
 	}
 }
@@ -104,10 +204,21 @@ func conformPath(p string) string {
 // what endpoints the user set up in the TransactionHandler. Then, it serves the application, blocking the main thread.
 // Please us `go txh.Serve(host,port)` if you do not want to block execution after calling this function.
 func (t *TransactionHandler) Serve(host, port string) {
-	err := http.ListenAndServe(fmt.Sprintf("%s:%s", host, port), nil)
-	if err != nil {
-		panic(err)
+	t.server = &http.Server{
+		Addr:    fmt.Sprintf("%s:%s", host, port),
+		Handler: t.mux,
 	}
+	err := t.server.ListenAndServe()
+	if err != nil {
+		log.Print(err)
+	}
+}
+
+func (t *TransactionHandler) Close() error {
+	if err := t.server.Close(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func writeError(w http.ResponseWriter, msg string, err error) {
@@ -140,6 +251,6 @@ type Option func(th *TransactionHandler)
 
 func DisableSignatureVerification() Option {
 	return func(th *TransactionHandler) {
-		th.disableSigVerificaiton = true
+		th.disableSigVerification = true
 	}
 }

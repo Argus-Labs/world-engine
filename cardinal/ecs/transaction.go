@@ -47,7 +47,7 @@ func (t *TransactionType[T]) AddToQueue(world *World, data T) {
 }
 
 func (t *TransactionType[T]) SetID(id transaction.TypeID) error {
-	if t.isIDSet {
+	if t.isIDSet && id != t.id {
 		return fmt.Errorf("id on transaction %v is already set to %v and cannot change to %d", t, t.id, id)
 	}
 	t.id = id

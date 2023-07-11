@@ -105,9 +105,10 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 		return ErrorComponentRegistrationMustHappenOnce
 	}
 	w.isComponentsRegistered = true
-	w.registeredComponents = components
+	w.registeredComponents = append(w.registeredComponents, SignerComp)
+	w.registeredComponents = append(w.registeredComponents, components...)
 
-	for i, c := range components {
+	for i, c := range w.registeredComponents {
 		id := component.TypeID(i + 1)
 		if err := c.SetID(id); err != nil {
 			return err
@@ -124,10 +125,11 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 		return ErrorTransactionRegistrationMustHappenOnce
 	}
 	w.isTransactionsRegistered = true
-	w.registeredTransactions = txs
+	w.registeredTransactions = append(w.registeredTransactions, CreatePersonaTx)
+	w.registeredTransactions = append(w.registeredTransactions, txs...)
 
 	seenTxNames := map[string]bool{}
-	for i, t := range txs {
+	for i, t := range w.registeredTransactions {
 		name := t.Name()
 		if seenTxNames[name] {
 			return fmt.Errorf("duplicate tx %q: %w", ErrorDuplicateTransactionName)
@@ -163,6 +165,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		systems:  make([]System, 0, 256), // this can just stay in memory.
 		txQueues: map[transaction.TypeID][]any{},
 	}
+	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
 		opt(w)
 	}
