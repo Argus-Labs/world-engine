@@ -22,6 +22,10 @@ type TransactionHandler struct {
 	disableSigVerification bool
 }
 
+var (
+	ErrorInvalidSignature = errors.New("invalid signature")
+)
+
 // NewTransactionHandler returns a new TransactionHandler
 func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, error) {
 	th := &TransactionHandler{
@@ -78,7 +82,7 @@ func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
 	return createPersonaTx.SignerAddress, nil
 }
 
-func getSignerAddressFromWorld(world *ecs.World, personaTag string) (string, error) {
+func getSignerAddressFromWorld(world *ecs.World, personaTag string) (signerAddress string, err error) {
 	addr, err := world.GetSignerForPersonaTag(personaTag, -1)
 	if err != nil {
 		return "", err
@@ -95,28 +99,42 @@ func (t *TransactionHandler) verifySignature(request *http.Request, getSignedAdd
 	if err != nil {
 		return nil, err
 	}
-
-	if !t.disableSigVerification {
-		var signerAddress string
-		var err error
-		if getSignedAddressFromWorld {
-			signerAddress, err = getSignerAddressFromWorld(t.w, sp.PersonaTag)
-		} else {
-			signerAddress, err = getSignerAddressFromPayload(sp)
+	if t.disableSigVerification {
+		if len(sp.Body) == 0 {
+			return buf, nil
 		}
-		if err != nil {
-			return nil, err
-		}
-
-		if err := sp.Verify(signerAddress); err != nil {
-			return nil, err
-
-		}
-		// The signature is valid. Drop out of this branch to return the payload.
+		return sp.Body, nil
 	}
-	// For testing, it would be nice to be able to bypass signature verification and just
-	// pass in the raw transaction data. If it looks like the signed payload is empty,
-	// just return the original request body.
+
+	if sp.Namespace != t.w.GetNamespace() {
+		return nil, fmt.Errorf("%w: namespace must be %q", ErrorInvalidSignature, t.w.GetNamespace())
+	}
+
+	var signerAddress string
+	if getSignedAddressFromWorld {
+		signerAddress, err = getSignerAddressFromWorld(t.w, sp.PersonaTag)
+	} else {
+		signerAddress, err = getSignerAddressFromPayload(sp)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	nonce, err := t.w.GetNonce(signerAddress)
+	if err != nil {
+		return nil, err
+	}
+	if sp.Nonce <= nonce {
+		return nil, fmt.Errorf("invalid nonce: %w", ErrorInvalidSignature)
+	}
+
+	if err := sp.Verify(signerAddress); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrorInvalidSignature, err)
+	}
+	if err := t.w.SetNonce(signerAddress, sp.Nonce); err != nil {
+		return nil, err
+	}
+
 	if len(sp.Body) == 0 {
 		return buf, nil
 	}
@@ -158,9 +176,14 @@ func (t *TransactionHandler) makeCreatePersonaHandler(tx transaction.ITransactio
 	return func(writer http.ResponseWriter, request *http.Request) {
 		payload, err := t.verifySignature(request, false)
 		if err != nil {
+			if errors.Is(err, ErrorInvalidSignature) {
+				writeUnauthorized(writer, err)
+				return
+			}
 			writeError(writer, "unable to verify signature", err)
 			return
 		}
+
 		txVal, err := tx.Decode(payload)
 		if err != nil {
 			writeError(writer, "unable to decode transaction", err)
@@ -219,6 +242,11 @@ func (t *TransactionHandler) Close() error {
 		return err
 	}
 	return nil
+}
+
+func writeUnauthorized(w http.ResponseWriter, err error) {
+	w.WriteHeader(401)
+	fmt.Fprintf(w, "unauthorized: %v", err)
 }
 
 func writeError(w http.ResponseWriter, msg string, err error) {

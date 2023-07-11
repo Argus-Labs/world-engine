@@ -14,9 +14,7 @@ import (
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	assert.NilError(t, world.RegisterTransactions())
-	assert.NilError(t, world.RegisterComponents())
-	world.LoadGameState()
+	assert.NilError(t, world.LoadGameState())
 
 	wantTag := "CoolMage"
 	wantAddress := "123-456"
@@ -46,8 +44,6 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 
 func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	assert.NilError(t, world.RegisterTransactions())
-	assert.NilError(t, world.RegisterComponents())
 	assert.NilError(t, world.LoadGameState())
 	ctx := context.Background()
 
@@ -75,8 +71,6 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 
 func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	assert.NilError(t, world.RegisterTransactions())
-	assert.NilError(t, world.RegisterComponents())
 	assert.NilError(t, world.LoadGameState())
 
 	personaTag := "jeff"

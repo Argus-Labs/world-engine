@@ -132,7 +132,7 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 	for i, t := range w.registeredTransactions {
 		name := t.Name()
 		if seenTxNames[name] {
-			return fmt.Errorf("duplicate tx %q: %w", ErrorDuplicateTransactionName)
+			return fmt.Errorf("duplicate tx %q: %w", name, ErrorDuplicateTransactionName)
 		}
 		seenTxNames[name] = true
 
@@ -459,7 +459,7 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		}
 
 		// submit to chain
-		err = w.chain.Submit(ctx, w.getNamespace(), tick, bz)
+		err = w.chain.Submit(ctx, w.GetNamespace(), tick, bz)
 		if err != nil {
 			w.LogError(err)
 		}
@@ -524,6 +524,16 @@ func (w *World) recoverGameState() (recoveredTxs map[transaction.TypeID][]any, e
 func (w *World) LoadGameState() error {
 	if w.stateIsLoaded {
 		return errors.New("cannot load game state multiple times")
+	}
+	if !w.isTransactionsRegistered {
+		if err := w.RegisterTransactions(); err != nil {
+			return err
+		}
+	}
+	if !w.isComponentsRegistered {
+		if err := w.RegisterComponents(); err != nil {
+			return err
+		}
 	}
 	w.stateIsLoaded = true
 	recoveredTxs, err := w.recoverGameState()
@@ -621,7 +631,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	defer func() {
 		w.isRecovering = false
 	}()
-	namespace := w.getNamespace()
+	namespace := w.GetNamespace()
 	var nextKey []byte
 	for {
 		res, err := w.chain.QueryBatches(ctx, &types.QueryBatchesRequest{
@@ -718,10 +728,18 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 	return itx
 }
 
-func (w *World) getNamespace() string {
+func (w *World) GetNamespace() string {
 	return string(rune(w.id))
 }
 
 func (w *World) LogError(err error) {
 	w.errs = append(w.errs, err)
+}
+
+func (w *World) GetNonce(signerAddress string) (uint64, error) {
+	return 0, fmt.Errorf("unimplemented")
+}
+
+func (w *World) SetNonce(signerAddress string, nonce uint64) error {
+	return fmt.Errorf("unimplemented")
 }

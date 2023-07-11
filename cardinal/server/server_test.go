@@ -21,20 +21,42 @@ type SendEnergyTx struct {
 	Amount   uint64
 }
 
+type testTransactionHandler struct {
+	*TransactionHandler
+	t         *testing.T
+	urlPrefix string
+}
+
+func (t *testTransactionHandler) makeURL(path string) string {
+	return t.urlPrefix + path
+}
+
+func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) *testTransactionHandler {
+	txh, err := NewTransactionHandler(world, opts...)
+	assert.NilError(t, err)
+	t.Cleanup(func() {
+		assert.NilError(t, txh.Close())
+	})
+	port := "4040"
+	go txh.Serve("", port)
+	urlPrefix := "http://localhost:" + port
+
+	return &testTransactionHandler{
+		TransactionHandler: txh,
+		t:                  t,
+		urlPrefix:          urlPrefix,
+	}
+}
+
 func TestCanListTransactionEndpoints(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	alphaTx := ecs.NewTransactionType[SendEnergyTx]("alpha")
 	betaTx := ecs.NewTransactionType[SendEnergyTx]("beta")
 	gammaTx := ecs.NewTransactionType[SendEnergyTx]("gamma")
 	assert.NilError(t, w.RegisterTransactions(alphaTx, betaTx, gammaTx))
-	txh, err := NewTransactionHandler(w, DisableSignatureVerification())
+	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
-	port := "4040"
-	fullUrl := "http://localhost:" + port
-	t.Cleanup(func() { assert.NilError(t, txh.Close()) })
-	go txh.Serve("", port)
-
-	resp, err := http.Get(fullUrl + "/cardinal/list_endpoints")
+	resp, err := http.Get(txh.makeURL("/cardinal/list_endpoints"))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 	gotEndpoints := []string{}
@@ -91,13 +113,9 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	bz, err := json.Marshal(tx)
 	assert.NilError(t, err)
 
-	txh, err := NewTransactionHandler(w, DisableSignatureVerification())
-	port := "4040"
-	fullUrl := "http://localhost:" + port
-	t.Cleanup(func() { assert.NilError(t, txh.Close()) })
-	go txh.Serve("", port)
+	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
-	resp, err := http.Post(fullUrl+"/tx_"+endpoint, "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("/tx_"+endpoint), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %v", mustReadBody(t, resp))
 
@@ -122,11 +140,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 		return nil
 	})
 
-	txh, err := NewTransactionHandler(w, DisableSignatureVerification())
-	port := "4040"
-	fullUrl := "http://localhost:" + port
-	t.Cleanup(func() { assert.NilError(t, txh.Close()) })
-	go txh.Serve("", "4040")
+	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
 	tx := SendEnergyTx{
 		From:   "me",
@@ -145,7 +159,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 
 	bz, err = json.Marshal(&signedTx)
 	assert.NilError(t, err)
-	_, err = http.Post(fullUrl+"/tx_"+endpoint, "application/json", bytes.NewReader(bz))
+	_, err = http.Post(txh.makeURL("/tx_"+endpoint), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 
 	assert.NilError(t, w.LoadGameState())
@@ -159,12 +173,9 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	world.RegisterTransactions(tx)
 	assert.NilError(t, world.LoadGameState())
 
-	txh, err := NewTransactionHandler(world)
-	t.Cleanup(func() { assert.NilError(t, txh.Close()) })
-	go txh.Serve("", "4040")
+	txh := makeTestTransactionHandler(t, world)
 
 	personaTag := "CoolMage"
-
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -174,13 +185,13 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 		SignerAddress: signerAddr,
 	}
 
-	signedPayload, err := sign.NewSignedPayload(privateKey, personaTag, "world-1", 100, createPersonaTx)
+	signedPayload, err := sign.NewSignedPayload(privateKey, personaTag, world.GetNamespace(), 100, createPersonaTx)
 	assert.NilError(t, err)
 
 	bz, err := signedPayload.Marshal()
 	assert.NilError(t, err)
 
-	resp, err := http.Post("http://localhost:4040/tx_create_persona", "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	body := mustReadBody(t, resp)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %s", body)
@@ -197,7 +208,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 			Tick:       tick,
 		})
 		assert.NilError(t, err)
-		resp, err = http.Post("http://localhost:4040/query_persona_signer", "application/json", bytes.NewReader(bz))
+		resp, err = http.Post(txh.makeURL("/query_persona_signer"), "application/json", bytes.NewReader(bz))
 		assert.NilError(t, err)
 		assert.Equal(t, resp.StatusCode, 200)
 		var queryPersonaSignerResponse QueryPersonaSignerResponse
@@ -220,4 +231,83 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	personaSignerResp = postQueryPersonaSigner(personaTag, tick)
 	assert.Equal(t, personaSignerResp.Status, "assigned")
 	assert.Equal(t, personaSignerResp.SignerAddress, signerAddr)
+}
+
+func TestSigVerificationChecksNamespace(t *testing.T) {
+	world := inmem.NewECSWorldForTest(t)
+	assert.NilError(t, world.LoadGameState())
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+
+	txh := makeTestTransactionHandler(t, world)
+
+	personaTag := "some_dude"
+	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+
+	createPersonaTx := ecs.CreatePersonaTransaction{
+		PersonaTag:    personaTag,
+		SignerAddress: signerAddr,
+	}
+	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, "bad_namespace", 100, createPersonaTx)
+	assert.NilError(t, err)
+
+	bz, err := sigPayload.Marshal()
+	assert.NilError(t, err)
+	resp, err := http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	// This should fail because the namespace does not match the world's namespace
+	assert.Check(t, resp.StatusCode != 200)
+
+	// The namespace now matches the world
+	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, world.GetNamespace(), 100, createPersonaTx)
+	assert.NilError(t, err)
+	bz, err = sigPayload.Marshal()
+	assert.NilError(t, err)
+	resp, err = http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	assert.Equal(t, resp.StatusCode, 200)
+}
+
+func TestSigVerificationChecksNonce(t *testing.T) {
+	world := inmem.NewECSWorldForTest(t)
+	assert.NilError(t, world.LoadGameState())
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+
+	txh := makeTestTransactionHandler(t, world)
+
+	personaTag := "some_dude"
+	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+	namespace := world.GetNamespace()
+
+	createPersonaTx := ecs.CreatePersonaTransaction{
+		PersonaTag:    personaTag,
+		SignerAddress: signerAddr,
+	}
+	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, namespace, 100, createPersonaTx)
+	assert.NilError(t, err)
+	bz, err := sigPayload.Marshal()
+	assert.NilError(t, err)
+
+	// Register a persona. This should succeed
+	resp, err := http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	assert.Equal(t, resp.StatusCode, 200)
+
+	// Repeat the request. Since the nonce is the same, this should fail
+	resp, err = http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	assert.Equal(t, resp.StatusCode, 401)
+
+	// Using an old nonce should fail
+	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, 50, createPersonaTx)
+	assert.NilError(t, err)
+	bz, err = sigPayload.Marshal()
+	assert.NilError(t, err)
+	resp, err = http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	assert.Equal(t, resp.StatusCode, 401)
+
+	// But increasing the nonce should work
+	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, 101, createPersonaTx)
+	assert.NilError(t, err)
+	bz, err = sigPayload.Marshal()
+	assert.NilError(t, err)
+	resp, err = http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	assert.Equal(t, resp.StatusCode, 200)
 }
