@@ -526,13 +526,20 @@ func (r *RedisStorage) FinalizeTick() error {
 const snapshotPrefix = "SNAP:"
 
 // partitionKeys splits all keys in the DB into a list that has the snapshotPrefix and a list that does not
-// contain the snapshotPrefix
+// contain the snapshotPrefix. Nonce keys are excluded from both sets of keys.
 func (r *RedisStorage) partitionKeys(ctx context.Context) (stateKeys, snapshotKeys []string, err error) {
 	keys, err := r.Client.Keys(ctx, "*").Result()
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, key := range keys {
+		// Nonce values (used for signature verification) are updated outside of the game Tick. Since they are not managed
+		// by a normal ECS System, exclude them from snapshots and snapshot recovery.
+		// There's currently no mechanism to recover these nonce values when recovering from the DA layer.
+		// TODO: https://linear.app/arguslabs/issue/CAR-97/recover-nonce-values-when-recovering-from-the-da-layer
+		if strings.HasPrefix(key, noncePrefix) {
+			continue
+		}
 		if strings.HasPrefix(key, snapshotPrefix) {
 			snapshotKeys = append(snapshotKeys, key)
 		} else {
@@ -638,4 +645,30 @@ func (r *RedisStorage) Recover(txs []transaction.ITransaction) (map[transaction.
 		allQueues[tx.ID()] = append(allQueues[tx.ID()], iface)
 	}
 	return allQueues, nil
+}
+
+// ---------------------------------------------------------------------------
+//
+//	Nonce Storage
+//
+// ---------------------------------------------------------------------------
+var _ NonceStorage = &RedisStorage{}
+
+func (r *RedisStorage) GetNonce(signerAddress string) (uint64, error) {
+	ctx := context.Background()
+	key := r.nonceKey(signerAddress)
+	n, err := r.Client.Get(ctx, key).Uint64()
+	if err == redis.Nil {
+		return 0, nil
+	} else if err != nil {
+		return 0, err
+	}
+	return n, nil
+
+}
+
+func (r *RedisStorage) SetNonce(signerAddress string, nonce uint64) error {
+	ctx := context.Background()
+	key := r.nonceKey(signerAddress)
+	return r.Client.Set(ctx, key, nonce, 0).Err()
 }

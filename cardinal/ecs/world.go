@@ -737,9 +737,9 @@ func (w *World) LogError(err error) {
 }
 
 func (w *World) GetNonce(signerAddress string) (uint64, error) {
-	return 0, fmt.Errorf("unimplemented")
+	return w.store.NonceStore.GetNonce(signerAddress)
 }
 
 func (w *World) SetNonce(signerAddress string, nonce uint64) error {
-	return fmt.Errorf("unimplemented")
+	return w.store.NonceStore.SetNonce(signerAddress, nonce)
 }
