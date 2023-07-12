@@ -537,7 +537,7 @@ func (r *RedisStorage) partitionKeys(ctx context.Context) (stateKeys, snapshotKe
 		// by a normal ECS System, exclude them from snapshots and snapshot recovery.
 		// There's currently no mechanism to recover these nonce values when recovering from the DA layer.
 		// TODO: https://linear.app/arguslabs/issue/CAR-97/recover-nonce-values-when-recovering-from-the-da-layer
-		if strings.HasPrefix(key, noncePrefix) {
+		if key == r.nonceKey() {
 			continue
 		}
 		if strings.HasPrefix(key, snapshotPrefix) {
@@ -648,16 +648,14 @@ func (r *RedisStorage) Recover(txs []transaction.ITransaction) (map[transaction.
 }
 
 // ---------------------------------------------------------------------------
-//
-//	Nonce Storage
-//
+//							Nonce Storage
 // ---------------------------------------------------------------------------
+
 var _ NonceStorage = &RedisStorage{}
 
 func (r *RedisStorage) GetNonce(signerAddress string) (uint64, error) {
 	ctx := context.Background()
-	key := r.nonceKey(signerAddress)
-	n, err := r.Client.Get(ctx, key).Uint64()
+	n, err := r.Client.HGet(ctx, r.nonceKey(), signerAddress).Uint64()
 	if err == redis.Nil {
 		return 0, nil
 	} else if err != nil {
@@ -669,6 +667,5 @@ func (r *RedisStorage) GetNonce(signerAddress string) (uint64, error) {
 
 func (r *RedisStorage) SetNonce(signerAddress string, nonce uint64) error {
 	ctx := context.Background()
-	key := r.nonceKey(signerAddress)
-	return r.Client.Set(ctx, key, nonce, 0).Err()
+	return r.Client.HSet(ctx, r.nonceKey(), signerAddress, nonce).Err()
 }
