@@ -653,6 +653,9 @@ func (r *RedisStorage) Recover(txs []transaction.ITransaction) (map[transaction.
 
 var _ NonceStorage = &RedisStorage{}
 
+// GetNonce returns the saved nonce for the given signer address. While signer address will generally be a
+// go-ethereum/common.Address, no verification happens at the redis storage level. Any string can be used for the
+// signerAddress.
 func (r *RedisStorage) GetNonce(signerAddress string) (uint64, error) {
 	ctx := context.Background()
 	n, err := r.Client.HGet(ctx, r.nonceKey(), signerAddress).Uint64()
@@ -665,6 +668,8 @@ func (r *RedisStorage) GetNonce(signerAddress string) (uint64, error) {
 
 }
 
+// SetNonce saves the given nonce value with the given signer address. Any string can be used for the signer address,
+// and no nonce verification takes place.
 func (r *RedisStorage) SetNonce(signerAddress string, nonce uint64) error {
 	ctx := context.Background()
 	return r.Client.HSet(ctx, r.nonceKey(), signerAddress, nonce).Err()

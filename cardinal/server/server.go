@@ -23,10 +23,13 @@ type TransactionHandler struct {
 }
 
 var (
+	// ErrorInvalidSignature is returned when a signature is incorrect in some way (e.g. namespace mismatch, nonce invalid,
+	// the actual Verify fails). Other failures (e.g. Redis is down) should not wrap this error.
 	ErrorInvalidSignature = errors.New("invalid signature")
 )
 
-// NewTransactionHandler returns a new TransactionHandler
+// NewTransactionHandler returns a new TransactionHandler that can handle HTTP requests. An HTTP endpoint for each
+// transaction registered with the given world is automatically created.
 func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, error) {
 	th := &TransactionHandler{
 		w:   w,
@@ -44,6 +47,8 @@ func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, e
 	for _, tx := range txs {
 		endpoint := conformPath("tx_" + tx.Name())
 		if tx.Name() == ecs.CreatePersonaTx.Name() {
+			// The CreatePersonaTx is different from normal transactions because it doesn't look up a signer
+			// address from the world to verify the transaction.
 			th.mux.HandleFunc(endpoint, th.makeCreatePersonaHandler(tx))
 		} else {
 			th.mux.HandleFunc(endpoint, th.makeTxHandler(tx))
@@ -59,16 +64,23 @@ func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, e
 	return th, nil
 }
 
+// CreatePersonaResponse is returned from a tx_create_persona request. It contains the current tick of the game
+// (needed to call the query_persona_signer endpoint).
 type CreatePersonaResponse struct {
 	Tick   int
 	Status string
 }
 
+// QueryPersonaSignerRequest is the desired request body for the query_persona_signer endpoint.
 type QueryPersonaSignerRequest struct {
 	PersonaTag string
 	Tick       int
 }
 
+// QueryPersonaSignerResponse is used as the response body for the query_persona_signer endpoint. Status can be:
+// "assigned": The requested persona tag has been assigned the returned SignerAddress
+// "unknown": The game tick has not advanced far enough to know what the signer address. SignerAddress will be empty.
+// "available": The game tick has advanced, and no signer address has been assigned. SignerAddress will be empty.
 type QueryPersonaSignerResponse struct {
 	Status        string
 	SignerAddress string
@@ -82,14 +94,6 @@ func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
 	return createPersonaTx.SignerAddress, nil
 }
 
-func getSignerAddressFromWorld(world *ecs.World, personaTag string) (signerAddress string, err error) {
-	addr, err := world.GetSignerForPersonaTag(personaTag, -1)
-	if err != nil {
-		return "", err
-	}
-	return addr, nil
-}
-
 func (t *TransactionHandler) verifySignature(request *http.Request, getSignedAddressFromWorld bool) (payload []byte, err error) {
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
@@ -100,6 +104,8 @@ func (t *TransactionHandler) verifySignature(request *http.Request, getSignedAdd
 		return nil, err
 	}
 	if t.disableSigVerification {
+		// During testing (with signature verification disabled), a request body can either be wrapped in a signed payload,
+		// or the request body can be sent as is.
 		if len(sp.Body) == 0 {
 			return buf, nil
 		}
@@ -112,7 +118,9 @@ func (t *TransactionHandler) verifySignature(request *http.Request, getSignedAdd
 
 	var signerAddress string
 	if getSignedAddressFromWorld {
-		signerAddress, err = getSignerAddressFromWorld(t.w, sp.PersonaTag)
+		// Use -1 as the tick. We don't care about any pending CreatePersonaTxs, we just want to know the
+		// current signer address for the given persona. Any error will fail this request.
+		signerAddress, err = t.w.GetSignerForPersonaTag(sp.PersonaTag, -1)
 	} else {
 		signerAddress, err = getSignerAddressFromPayload(sp)
 	}
@@ -200,7 +208,10 @@ func (t *TransactionHandler) makeCreatePersonaHandler(tx transaction.ITransactio
 func (t *TransactionHandler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		payload, err := t.verifySignature(request, true)
-		if err != nil {
+		if errors.Is(err, ErrorInvalidSignature) {
+			writeUnauthorized(writer, err)
+			return
+		} else if err != nil {
 			writeError(writer, "unable to verify signature", err)
 			return
 		}

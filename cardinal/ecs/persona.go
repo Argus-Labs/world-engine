@@ -7,11 +7,13 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 )
 
+// CreatePersonaTransaction allows for the associating of a persona tag with a signer address.
 type CreatePersonaTransaction struct {
 	PersonaTag    string
 	SignerAddress string
 }
 
+// CreatePersonaTx is a concrete ECS transaction.
 var CreatePersonaTx = NewTransactionType[CreatePersonaTransaction]("create_persona")
 
 type SignerComponent struct {
@@ -19,8 +21,11 @@ type SignerComponent struct {
 	SignerAddress string
 }
 
+// SignerComp is the concrete ECS component that pairs a persona tag to a signer address.
 var SignerComp = NewComponentType[SignerComponent]()
 
+// RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
+// may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
 func RegisterPersonaSystem(world *World, queue *TransactionQueue) error {
 	createTxs := CreatePersonaTx.In(queue)
 	if len(createTxs) == 0 {
@@ -65,6 +70,9 @@ var (
 	ErrorCreatePersonaTxsNotProcessed = errors.New("create persona txs have not been processed for the given tick")
 )
 
+// GetSignerForPersonaTag returns the signer address that has been registered for the given persona tag after the
+// given tick. If the world's tick is less than or equal to the given tick, ErrorCreatePersonaTXsNotProcessed is returned.
+// If the given personaTag has no signer address, ErrorPersonaTagHasNoSigner is returned.
 func (w *World) GetSignerForPersonaTag(personaTag string, tick int) (addr string, err error) {
 	if tick >= w.tick {
 		return "", ErrorCreatePersonaTxsNotProcessed
@@ -82,6 +90,10 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick int) (addr string
 			addr = sc.SignerAddress
 		}
 	})
+	if len(errs) > 0 {
+		return "", errors.Join(errs...)
+	}
+
 	if addr == "" {
 		return "", ErrorPersonaTagHasNoSigner
 	}

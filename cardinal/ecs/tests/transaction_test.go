@@ -314,5 +314,5 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	alphaTx := ecs.NewTransactionType[SomeTx]("name_match")
 	betaTx := ecs.NewTransactionType[OtherTx]("name_match")
-	assert.ErrorContains(t, world.RegisterTransactions(alphaTx, betaTx), ecs.ErrorDuplicateTransactionName.Error())
+	assert.ErrorIs(t, world.RegisterTransactions(alphaTx, betaTx), ecs.ErrorDuplicateTransactionName)
 }

@@ -21,6 +21,7 @@ type SendEnergyTx struct {
 	Amount   uint64
 }
 
+// testTransactionHandler is a helper struct that can start an HTTP server on port 4040 with the given world.
 type testTransactionHandler struct {
 	*TransactionHandler
 	t         *testing.T
@@ -59,11 +60,10 @@ func TestCanListTransactionEndpoints(t *testing.T) {
 	resp, err := http.Get(txh.makeURL("/cardinal/list_endpoints"))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
-	gotEndpoints := []string{}
+	var gotEndpoints []string
 	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&gotEndpoints))
 
-	// Make sure the gotEndpoints contains alpha, beta and gamma. It's ok
-	// to have extra endpoints
+	// Make sure the gotEndpoints contains alpha, beta and gamma. It's ok to have extra endpoints
 	foundEndpoints := map[string]bool{
 		"/tx_alpha": false,
 		"/tx_beta":  false,
@@ -88,11 +88,11 @@ func mustReadBody(t *testing.T, resp *http.Response) string {
 }
 
 func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
-	count := 0
 	w := inmem.NewECSWorldForTest(t)
 	endpoint := "move"
 	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
+	count := 0
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
@@ -153,8 +153,9 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 		PersonaTag: "some_persona",
 		Namespace:  "some_namespace",
 		Nonce:      100,
-		Signature:  []byte{1, 2, 3, 4},
-		Body:       bz,
+		// this bogus signature is OK because DisableSignatureVerification was used
+		Signature: []byte{1, 2, 3, 4},
+		Body:      bz,
 	}
 
 	bz, err = json.Marshal(&signedTx)
@@ -170,7 +171,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	tx := ecs.NewTransactionType[SendEnergyTx]("some_tx")
-	world.RegisterTransactions(tx)
+	assert.NilError(t, world.RegisterTransactions(tx))
 	assert.NilError(t, world.LoadGameState())
 
 	txh := makeTestTransactionHandler(t, world)
@@ -216,7 +217,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 		return queryPersonaSignerResponse
 	}
 
-	// Check some random person tag against a tick far in the past. This should be unassigned.
+	// Check some random person tag against a tick far in the past. This should be available.
 	personaSignerResp := postQueryPersonaSigner("some_other_persona_tag", -100)
 	assert.Equal(t, personaSignerResp.Status, "available")
 
@@ -255,7 +256,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	assert.NilError(t, err)
 	resp, err := http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
 	// This should fail because the namespace does not match the world's namespace
-	assert.Check(t, resp.StatusCode != 200)
+	assert.Equal(t, resp.StatusCode, 401)
 
 	// The namespace now matches the world
 	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, world.GetNamespace(), 100, createPersonaTx)
