@@ -60,7 +60,9 @@ func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, e
 		writeResult(writer, endpoints)
 	})
 
-	th.mux.HandleFunc("/query_persona_signer", th.handleQueryPersonaSigner)
+	queryPersonaSignerEndpoint := conformPath("query_persona_signer")
+	th.mux.HandleFunc(queryPersonaSignerEndpoint, th.handleQueryPersonaSigner)
+	endpoints = append(endpoints, queryPersonaSignerEndpoint)
 	return th, nil
 }
 
