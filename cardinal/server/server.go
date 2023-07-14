@@ -28,6 +28,12 @@ var (
 	ErrorInvalidSignature = errors.New("invalid signature")
 )
 
+const (
+	getSignerForPersonaStatusUnknown   = "unknown"
+	getSignerForPersonaStatusAvailable = "available"
+	getSignerForPersonaStatusAssigned  = "assigned"
+)
+
 // NewTransactionHandler returns a new TransactionHandler that can handle HTTP requests. An HTTP endpoint for each
 // transaction registered with the given world is automatically created.
 func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, error) {
@@ -167,14 +173,14 @@ func (t *TransactionHandler) handleQueryPersonaSigner(w http.ResponseWriter, r *
 	var status string
 	addr, err := t.w.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
 	if err == ecs.ErrorPersonaTagHasNoSigner {
-		status = "available"
+		status = getSignerForPersonaStatusAvailable
 	} else if err == ecs.ErrorCreatePersonaTxsNotProcessed {
-		status = "unknown"
+		status = getSignerForPersonaStatusUnknown
 	} else if err != nil {
 		writeError(w, "query persona signer error", err)
 		return
 	} else {
-		status = "assigned"
+		status = getSignerForPersonaStatusAssigned
 	}
 	writeResult(w, QueryPersonaSignerResponse{
 		Status:        status,

@@ -47,7 +47,13 @@ func (t *TransactionType[T]) AddToQueue(world *World, data T) {
 }
 
 func (t *TransactionType[T]) SetID(id transaction.TypeID) error {
-	if t.isIDSet && id != t.id {
+	if t.isIDSet {
+		// In games implemented with Cardinal, transactions will only be initialized one time (on startup).
+		// In tests, it's often useful to use the same transaction in multiple worlds. This check will allow for the
+		// re-initialization of transactions, as long as the ID doesn't change.
+		if id == t.id {
+			return nil
+		}
 		return fmt.Errorf("id on transaction %v is already set to %v and cannot change to %d", t, t.id, id)
 	}
 	t.id = id

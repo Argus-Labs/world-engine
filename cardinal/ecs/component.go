@@ -37,7 +37,13 @@ type ComponentType[T any] struct {
 
 // SetID set's this component's ID. It must be unique across the world object.
 func (c *ComponentType[T]) SetID(id component.TypeID) error {
-	if c.isIDSet && id != c.id {
+	if c.isIDSet {
+		// In games implemented with Cardinal, components will only be initialized one time (on startup).
+		// In tests, it's often useful to use the same component in multiple worlds. This check will allow for the
+		// re-initialization of components, as long as the ID doesn't change.
+		if id == c.id {
+			return nil
+		}
 		return fmt.Errorf("id for component %v is already set to %v, cannot change to %v", c, c.id, id)
 	}
 	c.id = id
