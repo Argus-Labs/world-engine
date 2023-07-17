@@ -50,7 +50,7 @@ type ClaimPlanetTransaction struct {
 func TestWorld_RecoverFromChain(t *testing.T) {
 	// CAR-96: This test is currently broken. See:
 	// https://linear.app/arguslabs/issue/CAR-96/testworld-recoverfromchain-fail-on-main
-	t.Skip()
+	//t.Skip()
 
 	// setup world and transactions
 	ctx := context.Background()
@@ -80,8 +80,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 
 	sendEnergyTimesRan := 0
 	claimPlanetTimesRan := 0
-	// SendEnergySystem simply checks that the transactions received in the queue match the ones we submit above.
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	sendEnergySys := func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		sendEnergyTimesRan++
 		txs := SendEnergyTx.In(queue)
 		for i, tx := range txs {
@@ -89,10 +88,11 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		}
 		assert.Equal(t, len(txs), len(sendEnergyTxs))
 		return nil
-	})
+	}
+	// SendEnergySystem simply checks that the transactions received in the queue match the ones we submit above.
+	w.AddSystem(sendEnergySys)
 
-	// ClaimPlanetSystem simply checks that the transactions received in the queue match the ones we submit above.
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	claimPlanetSys := func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		claimPlanetTimesRan++
 		txs := ClaimPlanetTx.In(queue)
 		for i, tx := range txs {
@@ -100,7 +100,9 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		}
 		assert.Equal(t, len(txs), len(claimPlanetTxs))
 		return nil
-	})
+	}
+	// ClaimPlanetSystem simply checks that the transactions received in the queue match the ones we submit above.
+	w.AddSystem(claimPlanetSys)
 	assert.NilError(t, w.LoadGameState())
 
 	// add the transactions to the world queue.
@@ -119,15 +121,21 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	assert.NilError(t, err)
 	<-doneSignal
 
+	w2 := inmem.NewECSWorldForTest(t, ecs.WithAdapter(adapter))
+	assert.NilError(t, w2.RegisterTransactions(SendEnergyTx, ClaimPlanetTx))
+	w2.AddSystem(sendEnergySys)
+	w2.AddSystem(claimPlanetSys)
+	assert.NilError(t, w2.LoadGameState())
+
 	// now we can recover, which will run the same transactions we submitted before, as they are now stored in
 	// the dummy adapter, and will be run again.
-	err = w.RecoverFromChain(ctx)
+	err = w2.RecoverFromChain(ctx)
 	// ensure the systems ran twice. once for the tick above, and then again for the recovery.
 	assert.Equal(t, sendEnergyTimesRan, 2)
 	assert.Equal(t, claimPlanetTimesRan, 2)
 
 	// ensure that the tick was updated from the stored transaction batch.
-	assert.Equal(t, adapter.tick+1, uint64(w.CurrentTick()))
+	assert.Equal(t, adapter.tick+1, uint64(w2.CurrentTick()))
 }
 
 func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
