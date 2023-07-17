@@ -43,7 +43,7 @@ func TestWorld_WithChain(t *testing.T) {
 	mockAdapter := &MockAdapter{sg: sync.WaitGroup{}}
 	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(mockAdapter))
 
-	sendEnergyTx := ecs.NewTransactionType[SendEnergy]()
+	sendEnergyTx := ecs.NewTransactionType[SendEnergy]("send_energy")
 	err := w.RegisterTransactions(sendEnergyTx)
 	assert.NilError(t, err)
 

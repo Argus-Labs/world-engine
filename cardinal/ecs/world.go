@@ -57,6 +57,7 @@ var (
 	ErrorComponentRegistrationMustHappenOnce   = errors.New("component registration must happen exactly 1 time")
 	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
 	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
+	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
 )
 
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
@@ -104,9 +105,10 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 		return ErrorComponentRegistrationMustHappenOnce
 	}
 	w.isComponentsRegistered = true
-	w.registeredComponents = components
+	w.registeredComponents = append(w.registeredComponents, SignerComp)
+	w.registeredComponents = append(w.registeredComponents, components...)
 
-	for i, c := range components {
+	for i, c := range w.registeredComponents {
 		id := component.TypeID(i + 1)
 		if err := c.SetID(id); err != nil {
 			return err
@@ -123,9 +125,17 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 		return ErrorTransactionRegistrationMustHappenOnce
 	}
 	w.isTransactionsRegistered = true
-	w.registeredTransactions = txs
+	w.registeredTransactions = append(w.registeredTransactions, CreatePersonaTx)
+	w.registeredTransactions = append(w.registeredTransactions, txs...)
 
-	for i, t := range txs {
+	seenTxNames := map[string]bool{}
+	for i, t := range w.registeredTransactions {
+		name := t.Name()
+		if seenTxNames[name] {
+			return fmt.Errorf("duplicate tx %q: %w", name, ErrorDuplicateTransactionName)
+		}
+		seenTxNames[name] = true
+
 		id := transaction.TypeID(i + 1)
 		if err := t.SetID(id); err != nil {
 			return err
@@ -155,6 +165,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		systems:  make([]System, 0, 256), // this can just stay in memory.
 		txQueues: map[transaction.TypeID][]any{},
 	}
+	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
 		opt(w)
 	}
@@ -448,7 +459,7 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		}
 
 		// submit to chain
-		err = w.chain.Submit(ctx, w.getNamespace(), tick, bz)
+		err = w.chain.Submit(ctx, w.GetNamespace(), tick, bz)
 		if err != nil {
 			w.LogError(err)
 		}
@@ -513,6 +524,16 @@ func (w *World) recoverGameState() (recoveredTxs map[transaction.TypeID][]any, e
 func (w *World) LoadGameState() error {
 	if w.stateIsLoaded {
 		return errors.New("cannot load game state multiple times")
+	}
+	if !w.isTransactionsRegistered {
+		if err := w.RegisterTransactions(); err != nil {
+			return err
+		}
+	}
+	if !w.isComponentsRegistered {
+		if err := w.RegisterComponents(); err != nil {
+			return err
+		}
 	}
 	w.stateIsLoaded = true
 	recoveredTxs, err := w.recoverGameState()
@@ -610,7 +631,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	defer func() {
 		w.isRecovering = false
 	}()
-	namespace := w.getNamespace()
+	namespace := w.GetNamespace()
 	var nextKey []byte
 	for {
 		res, err := w.chain.QueryBatches(ctx, &types.QueryBatchesRequest{
@@ -707,10 +728,18 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 	return itx
 }
 
-func (w *World) getNamespace() string {
+func (w *World) GetNamespace() string {
 	return string(rune(w.id))
 }
 
 func (w *World) LogError(err error) {
 	w.errs = append(w.errs, err)
+}
+
+func (w *World) GetNonce(signerAddress string) (uint64, error) {
+	return w.store.NonceStore.GetNonce(signerAddress)
+}
+
+func (w *World) SetNonce(signerAddress string, nonce uint64) error {
+	return w.store.NonceStore.SetNonce(signerAddress, nonce)
 }

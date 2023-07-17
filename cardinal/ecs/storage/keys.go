@@ -31,6 +31,9 @@ define keys for redis storage
 -	STATE STORAGE:      STATE:WORLD-1:<sub-key> -> arbitrary bytes to save world state
 	[]bytes: Arbitrary slice of bytes used for saving and loading state. Currently being used for
 	saving the set of component.TypeIDs that belong to each Archetype.
+
+	NONCE STORAGE:      ADDRESS_TO_NONCE -> Nonce used for verifying signatures.
+	Hash set of signature address to uint64 nonce
 */
 
 func (r *RedisStorage) componentDataKey(archID ArchetypeID, compID component.TypeID) string {
@@ -63,4 +66,8 @@ func (r *RedisStorage) tickKey() string {
 
 func (r *RedisStorage) pendingTransactionsKey() string {
 	return "PENDING:TRANSACTIONS"
+}
+
+func (r *RedisStorage) nonceKey() string {
+	return "ADDRESS_TO_NONCE"
 }

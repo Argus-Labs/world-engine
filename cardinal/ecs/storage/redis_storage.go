@@ -526,13 +526,20 @@ func (r *RedisStorage) FinalizeTick() error {
 const snapshotPrefix = "SNAP:"
 
 // partitionKeys splits all keys in the DB into a list that has the snapshotPrefix and a list that does not
-// contain the snapshotPrefix
+// contain the snapshotPrefix. Nonce keys are excluded from both sets of keys.
 func (r *RedisStorage) partitionKeys(ctx context.Context) (stateKeys, snapshotKeys []string, err error) {
 	keys, err := r.Client.Keys(ctx, "*").Result()
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, key := range keys {
+		// Nonce values (used for signature verification) are updated outside of the game Tick. Since they are not managed
+		// by a normal ECS System, exclude them from snapshots and snapshot recovery.
+		// There's currently no mechanism to recover these nonce values when recovering from the DA layer.
+		// TODO: https://linear.app/arguslabs/issue/CAR-97/recover-nonce-values-when-recovering-from-the-da-layer
+		if key == r.nonceKey() {
+			continue
+		}
 		if strings.HasPrefix(key, snapshotPrefix) {
 			snapshotKeys = append(snapshotKeys, key)
 		} else {
@@ -638,4 +645,32 @@ func (r *RedisStorage) Recover(txs []transaction.ITransaction) (map[transaction.
 		allQueues[tx.ID()] = append(allQueues[tx.ID()], iface)
 	}
 	return allQueues, nil
+}
+
+// ---------------------------------------------------------------------------
+//							Nonce Storage
+// ---------------------------------------------------------------------------
+
+var _ NonceStorage = &RedisStorage{}
+
+// GetNonce returns the saved nonce for the given signer address. While signer address will generally be a
+// go-ethereum/common.Address, no verification happens at the redis storage level. Any string can be used for the
+// signerAddress.
+func (r *RedisStorage) GetNonce(signerAddress string) (uint64, error) {
+	ctx := context.Background()
+	n, err := r.Client.HGet(ctx, r.nonceKey(), signerAddress).Uint64()
+	if err == redis.Nil {
+		return 0, nil
+	} else if err != nil {
+		return 0, err
+	}
+	return n, nil
+
+}
+
+// SetNonce saves the given nonce value with the given signer address. Any string can be used for the signer address,
+// and no nonce verification takes place.
+func (r *RedisStorage) SetNonce(signerAddress string, nonce uint64) error {
+	ctx := context.Background()
+	return r.Client.HSet(ctx, r.nonceKey(), signerAddress, nonce).Err()
 }

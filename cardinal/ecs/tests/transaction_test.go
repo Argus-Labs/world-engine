@@ -29,7 +29,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	// Create an entity with a score component
 	score := ecs.NewComponentType[*ScoreComponent]()
 	assert.NilError(t, world.RegisterComponents(score))
-	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx]()
+	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
 
 	id, err := world.Create(score)
@@ -109,7 +109,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	alphaScore := ecs.NewComponentType[ScoreComponent]()
 	assert.NilError(t, world.RegisterComponents(alphaScore))
 
-	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx]()
+	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
 
 	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
@@ -163,7 +163,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
-	modScore := ecs.NewTransactionType[*ModifyScoreTx]()
+	modScore := ecs.NewTransactionType[*ModifyScoreTx]("modify_Score")
 	assert.NilError(t, world.RegisterTransactions(modScore))
 
 	inSystemCh := make(chan struct{})
@@ -205,7 +205,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 // are added to some queue that is not processed until the NEXT tick.
 func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	modScoreTx := ecs.NewTransactionType[*ModifyScoreTx]()
+	modScoreTx := ecs.NewTransactionType[*ModifyScoreTx]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modScoreTx))
 
 	modScoreCountCh := make(chan int)
@@ -271,8 +271,8 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 		Name string
 	}
 
-	alpha := ecs.NewTransactionType[NewOwner]()
-	beta := ecs.NewTransactionType[NewOwner]()
+	alpha := ecs.NewTransactionType[NewOwner]("alpha_tx")
+	beta := ecs.NewTransactionType[NewOwner]("beta_tx")
 	assert.NilError(t, world.RegisterTransactions(alpha, beta))
 
 	alpha.AddToQueue(world, NewOwner{"alpha"})
@@ -294,13 +294,13 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 }
 
 func TestCannotRegisterDuplicateTransaction(t *testing.T) {
-	tx := ecs.NewTransactionType[ModifyScoreTx]()
+	tx := ecs.NewTransactionType[ModifyScoreTx]("modify_score")
 	world := inmem.NewECSWorldForTest(t)
 	assert.Check(t, nil != world.RegisterTransactions(tx, tx))
 }
 
 func TestCannotCallRegisterTransactionsMultipleTimes(t *testing.T) {
-	tx := ecs.NewTransactionType[ModifyScoreTx]()
+	tx := ecs.NewTransactionType[ModifyScoreTx]("modify_score")
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.RegisterTransactions(tx))
 	assert.Check(t, nil != world.RegisterTransactions(tx))
@@ -348,4 +348,17 @@ func TestCannotDecodeEVMBeforeSetEVM(t *testing.T) {
 	tx := ecs.NewTransactionType[foo]()
 	_, err := tx.DecodeEVMBytes([]byte{})
 	assert.ErrorContains(t, err, "cannot call DecodeEVMBytes without setting via SetEVMType first")
+}
+
+func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
+	type SomeTx struct {
+		X, Y, Z int
+	}
+	type OtherTx struct {
+		Alpha, Beta string
+	}
+	world := inmem.NewECSWorldForTest(t)
+	alphaTx := ecs.NewTransactionType[SomeTx]("name_match")
+	betaTx := ecs.NewTransactionType[OtherTx]("name_match")
+	assert.ErrorIs(t, world.RegisterTransactions(alphaTx, betaTx), ecs.ErrorDuplicateTransactionName)
 }
