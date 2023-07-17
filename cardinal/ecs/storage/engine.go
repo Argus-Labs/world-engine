@@ -93,3 +93,8 @@ type TickStorage interface {
 	FinalizeTick() error
 	Recover(txs []transaction.ITransaction) (map[transaction.TypeID][]any, error)
 }
+
+type NonceStorage interface {
+	GetNonce(key string) (uint64, error)
+	SetNonce(key string, nonce uint64) error
+}

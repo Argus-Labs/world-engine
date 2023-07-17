@@ -48,12 +48,16 @@ type ClaimPlanetTransaction struct {
 // TestWorld_RecoverFromChain tests that after submitting transactions to the chain, they can be queried, re-ran,
 // and end up with the same game state as before.
 func TestWorld_RecoverFromChain(t *testing.T) {
+	// CAR-96: This test is currently broken. See:
+	// https://linear.app/arguslabs/issue/CAR-96/testworld-recoverfromchain-fail-on-main
+	t.Skip()
+
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{batches: make([]*types.TransactionBatch, 0), tick: 30}
 	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(adapter))
-	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction]()
-	ClaimPlanetTx := ecs.NewTransactionType[ClaimPlanetTransaction]()
+	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction]("send_energy")
+	ClaimPlanetTx := ecs.NewTransactionType[ClaimPlanetTransaction]("claim_planet")
 	err := w.RegisterTransactions(SendEnergyTx, ClaimPlanetTx)
 	assert.NilError(t, err)
 

@@ -7,13 +7,14 @@ import (
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 )
 
-var _ transaction.ITransaction = NewTransactionType[struct{}]()
+var _ transaction.ITransaction = NewTransactionType[struct{}]("")
 
 // TransactionType helps manage adding transactions (aka events) to the world transaction queue. It also assists
 // in the using of transactions inside of System functions.
 type TransactionType[T any] struct {
 	id      transaction.TypeID
 	isIDSet bool
+	name    string
 }
 
 // TransactionQueue is a list of transactions that were queued since the start of the
@@ -22,8 +23,14 @@ type TransactionQueue struct {
 	queue map[transaction.TypeID][]any
 }
 
-func NewTransactionType[T any]() *TransactionType[T] {
-	return &TransactionType[T]{}
+func NewTransactionType[T any](name string) *TransactionType[T] {
+	return &TransactionType[T]{
+		name: name,
+	}
+}
+
+func (t *TransactionType[T]) Name() string {
+	return t.name
 }
 
 func (t *TransactionType[T]) ID() transaction.TypeID {
@@ -36,11 +43,17 @@ func (t *TransactionType[T]) ID() transaction.TypeID {
 // AddToQueue adds a transaction with the given data to the world object. The transaction will be executed
 // at the next game tick.
 func (t *TransactionType[T]) AddToQueue(world *World, data T) {
-	world.addTransaction(t.ID(), data)
+	world.AddTransaction(t.ID(), data)
 }
 
 func (t *TransactionType[T]) SetID(id transaction.TypeID) error {
 	if t.isIDSet {
+		// In games implemented with Cardinal, transactions will only be initialized one time (on startup).
+		// In tests, it's often useful to use the same transaction in multiple worlds. This check will allow for the
+		// re-initialization of transactions, as long as the ID doesn't change.
+		if id == t.id {
+			return nil
+		}
 		return fmt.Errorf("id on transaction %v is already set to %v and cannot change to %d", t, t.id, id)
 	}
 	t.id = id

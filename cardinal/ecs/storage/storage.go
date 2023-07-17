@@ -8,6 +8,7 @@ type WorldStorage struct {
 	EntityMgr        EntityManager
 	StateStore       StateStorage
 	TickStore        TickStorage
+	NonceStore       NonceStorage
 }
 
 type OmniStorage interface {
@@ -17,6 +18,7 @@ type OmniStorage interface {
 	EntityManager
 	StateStorage
 	TickStorage
+	NonceStorage
 }
 
 func NewWorldStorage(omni OmniStorage) WorldStorage {
@@ -28,5 +30,6 @@ func NewWorldStorage(omni OmniStorage) WorldStorage {
 		EntityMgr:        omni,
 		StateStore:       omni,
 		TickStore:        omni,
+		NonceStore:       omni,
 	}
 }

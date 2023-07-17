@@ -3,11 +3,12 @@ package sign
 
 import (
 	"crypto/ecdsa"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hash/fnv"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var (
@@ -34,18 +35,23 @@ func Unmarshal(buf []byte) (*SignedPayload, error) {
 }
 
 // NewSignedPayload signs a given body, tag, and nonce with the given private key.
-func NewSignedPayload(body []byte, personaTag, namespace string, nonce uint64, pk *ecdsa.PrivateKey) (*SignedPayload, error) {
+func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
+	bz, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
 	sp := &SignedPayload{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Nonce:      nonce,
-		Body:       body,
+		Body:       bz,
 	}
 	hash, err := sp.hash()
 	if err != nil {
 		return nil, err
 	}
-	buf, err := ecdsa.SignASN1(rand.Reader, pk, hash)
+	buf, err := crypto.Sign(hash, pk)
 	if err != nil {
 		return nil, err
 	}
@@ -59,20 +65,29 @@ func (s *SignedPayload) Marshal() ([]byte, error) {
 }
 
 // Verify verifies this SignedPayload has a valid signature. If nil is returned, the signature is valid.
+// Signature verification follows the pattern in crypto.TestSign:
+// https://github.com/ethereum/go-ethereum/blob/master/crypto/crypto_test.go#L94
 // TODO: Review this signature verification, and compare it to geth's sig verification
-func (s *SignedPayload) Verify(key ecdsa.PublicKey) error {
+func (s *SignedPayload) Verify(hexAddress string) error {
+	addr := common.HexToAddress(hexAddress)
+
 	hash, err := s.hash()
 	if err != nil {
 		return err
 	}
-	if !ecdsa.VerifyASN1(&key, hash, s.Signature) {
+	signerPubKey, err := crypto.SigToPub(hash, s.Signature)
+	if err != nil {
+		return err
+	}
+	signerAddr := crypto.PubkeyToAddress(*signerPubKey)
+	if signerAddr != addr {
 		return ErrorSignatureValidationFailed
 	}
 	return nil
 }
 
 func (s *SignedPayload) hash() ([]byte, error) {
-	hash := fnv.New128()
+	hash := crypto.NewKeccakState()
 	if _, err := hash.Write([]byte(s.PersonaTag)); err != nil {
 		return nil, err
 	}

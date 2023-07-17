@@ -219,7 +219,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		powerComp := ecs.NewComponentType[FloatValue]()
 		assert.NilError(t, world.RegisterComponents(powerComp))
 
-		powerTx := ecs.NewTransactionType[FloatValue]()
+		powerTx := ecs.NewTransactionType[FloatValue]("change_power")
 		assert.NilError(t, world.RegisterTransactions(powerTx))
 
 		world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
