@@ -330,7 +330,7 @@ func TestCanDecodeEVMTransactions(t *testing.T) {
 	assert.NilError(t, err)
 
 	// set up the ITransaction.
-	itx := ecs.NewTransactionType[FooTx]()
+	itx := ecs.NewTransactionType[FooTx]("FooTx")
 	itx.SetEVMType(&FooEvmTx)
 
 	// decode the evm bytes
@@ -345,7 +345,7 @@ func TestCanDecodeEVMTransactions(t *testing.T) {
 
 func TestCannotDecodeEVMBeforeSetEVM(t *testing.T) {
 	type foo struct{}
-	tx := ecs.NewTransactionType[foo]()
+	tx := ecs.NewTransactionType[foo]("foo")
 	_, err := tx.DecodeEVMBytes([]byte{})
 	assert.ErrorContains(t, err, "cannot call DecodeEVMBytes without setting via SetEVMType first")
 }
