@@ -3,11 +3,11 @@ package shard
 import (
 	"context"
 	"crypto/tls"
-	"embed"
 	"fmt"
 	"google.golang.org/grpc/credentials"
 	"log"
 	"net"
+	"os"
 	"sync"
 
 	shardgrpc "buf.build/gen/go/argus-labs/world-engine/grpc/go/shard/v1/shardv1grpc"
@@ -20,8 +20,6 @@ import (
 )
 
 var (
-	//go:embed cert
-	f    embed.FS
 	Name                              = "shard_handler_server"
 	_    shardgrpc.ShardHandlerServer = &Server{}
 )
@@ -30,24 +28,29 @@ type Server struct {
 	moduleAddr sdk.AccAddress
 	lock       sync.Mutex
 	msgQueue   []types.SubmitBatchRequest
+	creds      credentials.TransportCredentials
 }
 
-func NewShardServer() *Server {
+func NewShardServer(opts ...Option) *Server {
 	addr := authtypes.NewModuleAddress(Name)
-	return &Server{
+	s := &Server{
 		moduleAddr: addr,
 		lock:       sync.Mutex{},
 		msgQueue:   nil,
 	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
-func loadCredentials() (credentials.TransportCredentials, error) {
+func loadCredentials(certPath, keyPath string) (credentials.TransportCredentials, error) {
 	// Load server's certificate and private key
-	sc, err := f.ReadFile("cert/server-cert.pem")
+	sc, err := os.ReadFile(certPath)
 	if err != nil {
 		return nil, err
 	}
-	sk, err := f.ReadFile("cert/server-key.pem")
+	sk, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -67,11 +70,7 @@ func loadCredentials() (credentials.TransportCredentials, error) {
 
 // Serve serves the application in a new go routine. The routine panics if serve fails.
 func (s *Server) Serve(listenAddr string) {
-	creds, err := loadCredentials()
-	if err != nil {
-		panic(err)
-	}
-	grpcServer := grpc.NewServer(grpc.Creds(creds))
+	grpcServer := grpc.NewServer(grpc.Creds(s.creds))
 	shardgrpc.RegisterShardHandlerServer(grpcServer, s)
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {

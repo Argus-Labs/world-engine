@@ -6,10 +6,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"embed"
 	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"os"
 )
 
 type Result struct {
@@ -24,8 +24,6 @@ type Router interface {
 }
 
 var (
-	//go:embed cert
-	f embed.FS
 	_ Router = &router{}
 )
 
@@ -34,9 +32,9 @@ type router struct {
 	credential   credentials.TransportCredentials
 }
 
-func loadClientCredentials() (credentials.TransportCredentials, error) {
+func loadClientCredentials(path string) (credentials.TransportCredentials, error) {
 	// Load certificate of the CA who signed server's certificate
-	pemServerCA, err := f.ReadFile("cert/ca-cert.pem")
+	pemServerCA, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -57,12 +55,12 @@ func loadClientCredentials() (credentials.TransportCredentials, error) {
 // NewRouter returns a new router instance with a connection to a single cardinal shard instance.
 // TODO(technicallyty): its a bit unclear how im going to query the state machine here, so router is just going to
 // take the cardinal address directly for now...
-func NewRouter(cardinalAddr string) (Router, error) {
-	creds, err := loadClientCredentials()
-	if err != nil {
-		return nil, err
+func NewRouter(cardinalAddr string, opts ...Option) Router {
+	r := &router{cardinalAddr: cardinalAddr}
+	for _, opt := range opts {
+		opt(r)
 	}
-	return &router{cardinalAddr: cardinalAddr, credential: creds}, nil
+	return r
 }
 
 func (r *router) Send(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error) {

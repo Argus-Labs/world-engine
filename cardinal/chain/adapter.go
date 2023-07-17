@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"embed"
 	"fmt"
 	"google.golang.org/grpc/credentials"
+	"os"
 
 	shardgrpc "buf.build/gen/go/argus-labs/world-engine/grpc/go/shard/v1/shardv1grpc"
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
@@ -30,20 +30,19 @@ type Config struct {
 }
 
 var (
-	//go:embed cert
-	f embed.FS
 	_ Adapter = &adapterImpl{}
 )
 
 type adapterImpl struct {
 	cfg           Config
+	creds         credentials.TransportCredentials
 	ShardReceiver shardgrpc.ShardHandlerClient
 	ShardQuerier  shardtypes.QueryClient
 }
 
-func loadClientCredentials() (credentials.TransportCredentials, error) {
+func loadClientCredentials(path string) (credentials.TransportCredentials, error) {
 	// Load certificate of the CA who signed server's certificate
-	pemServerCA, err := f.ReadFile("cert/ca-cert.pem")
+	pemServerCA, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -61,13 +60,12 @@ func loadClientCredentials() (credentials.TransportCredentials, error) {
 	return credentials.NewTLS(config), nil
 }
 
-func NewAdapter(cfg Config) (Adapter, error) {
-	creds, err := loadClientCredentials()
-	if err != nil {
-		return nil, err
-	}
+func NewAdapter(cfg Config, opts ...Option) (Adapter, error) {
 	a := &adapterImpl{cfg: cfg}
-	conn, err := grpc.Dial(cfg.ShardReceiverAddr, grpc.WithTransportCredentials(creds))
+	for _, opt := range opts {
+		opt(a)
+	}
+	conn, err := grpc.Dial(cfg.ShardReceiverAddr, grpc.WithTransportCredentials(a.creds))
 	if err != nil {
 		return nil, err
 	}

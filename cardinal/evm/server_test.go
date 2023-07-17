@@ -42,8 +42,8 @@ func TestServer_SendMsg(t *testing.T) {
 	BarEvmTx.TupleType = reflect.TypeOf(BarTransaction{})
 
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction]()
-	BarTx := ecs.NewTransactionType[BarTransaction]()
+	FooTx := ecs.NewTransactionType[FooTransaction]("footx")
+	BarTx := ecs.NewTransactionType[BarTransaction]("bartx")
 
 	// bind them to EVM types
 	FooTx.SetEVMType(&FooEvmTX)
@@ -106,7 +106,7 @@ func TestServer_SendMsg(t *testing.T) {
 	// we already sent the transactions through to the server, which should pipe them into the transaction queue.
 	// all we need to do now is tick so the system can run, which will check that we got the transactions we just
 	// piped through above.
-	err = w.Tick()
+	err = w.Tick(context.Background())
 	assert.NilError(t, err)
 
 }

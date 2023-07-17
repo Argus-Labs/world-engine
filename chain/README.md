@@ -100,5 +100,12 @@ The network will have an Ethereum JSON-RPC server running at `http://localhost:1
 The following env variables must be set for the following features.
 
 ### Game Shard Tx Storage
-USE_SHARD_LISTENER=true
-SHARD_HANDLER_LISTEN_ADDR=<the address you want this server to listen on (i.e. 10.209.21:3090)
+- USE_SHARD_LISTENER=true 
+- SHARD_HANDLER_LISTEN_ADDR=<the address you want this server to listen on (i.e. 10.209.21:3090)
+
+### Secure gRPC Connections
+For production environments, you'll likely want to setup secure connections between gRPC servers handling system transactions.
+To make use of these, set the following environment variables to the path of your SSL certification files:
+- SERVER_CERT_PATH=<path/to/server/cert>
+- SERVER_KEY_PATH=<path/to/server/key>
+- CLIENT_CERT_PATH=<path/to/client/cert>

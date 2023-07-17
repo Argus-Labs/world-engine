@@ -3,20 +3,18 @@ package evm
 import (
 	"context"
 	"crypto/tls"
-	"embed"
 	"fmt"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"net"
+	"os"
 
 	"buf.build/gen/go/argus-labs/world-engine/grpc/go/router/v1/routerv1grpc"
 	"buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 )
 
 var (
-	//go:embed cert
-	f embed.FS
 	_ routerv1grpc.MsgServer = &srv{}
 )
 
@@ -30,11 +28,12 @@ type TxHandler interface {
 }
 
 type srv struct {
-	it  ITransactionTypes
-	txh TxHandler
+	it    ITransactionTypes
+	txh   TxHandler
+	creds credentials.TransportCredentials
 }
 
-func NewServer(txh TxHandler) (routerv1grpc.MsgServer, error) {
+func NewServer(txh TxHandler, opts ...Option) (routerv1grpc.MsgServer, error) {
 	txs, err := txh.ListTransactions()
 	if err != nil {
 		return nil, err
@@ -43,16 +42,20 @@ func NewServer(txh TxHandler) (routerv1grpc.MsgServer, error) {
 	for _, tx := range txs {
 		it[tx.ID()] = tx
 	}
-	return &srv{it: it, txh: txh}, nil
+	s := &srv{it: it, txh: txh}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s, nil
 }
 
-func loadCredentials() (credentials.TransportCredentials, error) {
+func loadCredentials(serverCertPath, serverKeyPath string) (credentials.TransportCredentials, error) {
 	// Load server's certificate and private key
-	sc, err := f.ReadFile("cert/server-cert.pem")
+	sc, err := os.ReadFile(serverCertPath)
 	if err != nil {
 		return nil, err
 	}
-	sk, err := f.ReadFile("cert/server-key.pem")
+	sk, err := os.ReadFile(serverKeyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -72,11 +75,7 @@ func loadCredentials() (credentials.TransportCredentials, error) {
 
 // Serve serves the application in a new go routine.
 func (s *srv) Serve(addr string) error {
-	creds, err := loadCredentials()
-	if err != nil {
-		return err
-	}
-	server := grpc.NewServer(grpc.Creds(creds))
+	server := grpc.NewServer(grpc.Creds(s.creds))
 	routerv1grpc.RegisterMsgServer(server, s)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
