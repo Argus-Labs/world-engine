@@ -1,7 +1,10 @@
 package ecs
 
 import (
+	"errors"
 	"fmt"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
@@ -15,6 +18,7 @@ type TransactionType[T any] struct {
 	id      transaction.TypeID
 	isIDSet bool
 	name    string
+	evmType *abi.Type
 }
 
 // TransactionQueue is a list of transactions that were queued since the start of the
@@ -31,6 +35,30 @@ func NewTransactionType[T any](name string) *TransactionType[T] {
 
 func (t *TransactionType[T]) Name() string {
 	return t.name
+}
+
+// DecodeEVMBytes decodes abi encoded solidity structs into Go structs of the same structure.
+func (t *TransactionType[T]) DecodeEVMBytes(bz []byte) (any, error) {
+	if t.evmType == nil {
+		return nil, errors.New("cannot call DecodeEVMBytes without setting via SetEVMType first")
+	}
+	args := abi.Arguments{{Type: *t.evmType}}
+	unpacked, err := args.Unpack(bz)
+	if err != nil {
+		return nil, err
+	}
+	if len(unpacked) < 1 {
+		return nil, fmt.Errorf("error decoding EVM bytes: no values could be unpacked into the abi type")
+	}
+	underlying, ok := unpacked[0].(T)
+	if !ok {
+		return nil, fmt.Errorf("error decoding EVM bytes: cannot cast %T to %T", unpacked[0], new(T))
+	}
+	return underlying, nil
+}
+
+func (t *TransactionType[T]) SetEVMType(at *abi.Type) {
+	t.evmType = at
 }
 
 func (t *TransactionType[T]) ID() transaction.TypeID {

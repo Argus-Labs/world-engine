@@ -11,14 +11,16 @@ replace (
 )
 
 require (
-	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230630185430-418a485c00b0.1
-	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230630185430-418a485c00b0.1
+	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230706220147-5852f366165d.1
+	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230706220147-5852f366165d.1
 	github.com/alicebob/miniredis/v2 v2.30.1
 	github.com/argus-labs/world-engine/chain v0.0.0-20230707202412-c8445f1731f0
+	github.com/argus-labs/world-engine/sign v0.0.0-20230717124149-1431a28b6942
+	github.com/ethereum/go-ethereum v1.12.0
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/rs/zerolog v1.29.1
 	google.golang.org/grpc v1.55.0
-	gotest.tools/v3 v3.4.0
+	gotest.tools/v3 v3.5.0
 )
 
 require (
@@ -71,6 +73,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.5-0.20210104140557-80c98217689d // indirect
+	github.com/holiman/uint256 v1.2.2 // indirect
 	github.com/iancoleman/strcase v0.2.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jmhodges/levigo v1.0.0 // indirect

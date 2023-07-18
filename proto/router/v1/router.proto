@@ -13,6 +13,10 @@ message MsgSend {
   string sender = 1;
   // message contains the underlying bytes of the message. typically, this is an abi encoded solidity struct.
   bytes message = 2;
+
+  // message_id is the id of the message. this is needed to indicate to the server which concrete type to deserialize
+  // the message bytes into.
+  uint64 message_id = 3;
 }
 
 message MsgSendResponse {

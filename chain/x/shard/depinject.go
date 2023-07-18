@@ -17,6 +17,7 @@ func init() {
 type DepInjectInput struct {
 	depinject.In
 
+	ModuleKey    depinject.OwnModuleKey
 	Config       *modulev1.Module
 	StoreService store.KVStoreService
 }
