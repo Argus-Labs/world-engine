@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
+	"github.com/argus-labs/world-engine/sign"
 
 	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
@@ -42,7 +43,8 @@ type World struct {
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
 	// txQueues is a map of transaction names to the relevant list of transactions data
-	txQueues map[transaction.TypeID][]any
+	txQueues     map[transaction.TypeID][]any
+	txSignatures map[transaction.TypeID][]*sign.SignedPayload
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
 
@@ -181,11 +183,12 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	worldId := nextWorldId
 	nextWorldId++
 	w := &World{
-		id:       worldId,
-		store:    s,
-		tick:     0,
-		systems:  make([]System, 0, 256), // this can just stay in memory.
-		txQueues: map[transaction.TypeID][]any{},
+		id:           worldId,
+		store:        s,
+		tick:         0,
+		systems:      make([]System, 0, 256), // this can just stay in memory.
+		txQueues:     map[transaction.TypeID][]any{},
+		txSignatures: map[transaction.TypeID][]*sign.SignedPayload{},
 	}
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
@@ -404,10 +407,11 @@ func (w *World) copyTransactions() map[transaction.TypeID][]any {
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency.
-func (w *World) AddTransaction(id transaction.TypeID, v any) {
+func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
 	w.txQueues[id] = append(w.txQueues[id], v)
+	w.txSignatures[id] = append(w.txSignatures[id], sig)
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling

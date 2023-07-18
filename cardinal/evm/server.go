@@ -4,11 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"net"
 	"os"
+
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
+	"github.com/argus-labs/world-engine/sign"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	"buf.build/gen/go/argus-labs/world-engine/grpc/go/router/v1/routerv1grpc"
 	"buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
@@ -23,7 +25,7 @@ type ITransactionTypes map[transaction.TypeID]transaction.ITransaction
 
 // TxHandler is a type that gives access to transaction data in the ecs.World, as well as access to queue transactions.
 type TxHandler interface {
-	AddTransaction(transaction.TypeID, any)
+	AddTransaction(transaction.TypeID, any, *sign.SignedPayload)
 	ListTransactions() ([]transaction.ITransaction, error)
 }
 
@@ -102,6 +104,6 @@ func (s *srv) SendMsg(ctx context.Context, msg *routerv1.MsgSend) (*routerv1.Msg
 		return nil, err
 	}
 	// add transaction to the world queue
-	s.txh.AddTransaction(itx.ID(), tx)
+	s.txh.AddTransaction(itx.ID(), tx, nil)
 	return &routerv1.MsgSendResponse{}, nil
 }
