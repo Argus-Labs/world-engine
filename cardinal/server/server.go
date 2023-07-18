@@ -28,8 +28,8 @@ var (
 )
 
 const (
-	listTxEndpoint   = "/cardinal/list-tx-endpoints"
-	listReadEndpoint = "/cardinal/list-read-endpoints"
+	listTxEndpoint   = "/list-tx-endpoints"
+	listReadEndpoint = "/list-read-endpoints"
 
 	readPrefix = "read-"
 	txPrefix   = "tx-"

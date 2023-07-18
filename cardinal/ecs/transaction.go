@@ -106,7 +106,7 @@ func (t *TransactionType[T]) In(tq *TransactionQueue) []T {
 	return txs
 }
 
-// TxAndSigsIn extracts all the transactions and their related signatures in the transaction queue 
+// TxsAndSigsIn extracts all the transactions and their related signatures in the transaction queue
 // that match this TransactionType's ID.
 func (t *TransactionType[T]) TxsAndSigsIn(tq *TransactionQueue) ([]T, []*sign.SignedPayload) {
 	var txs []T
