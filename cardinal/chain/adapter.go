@@ -35,7 +35,7 @@ var (
 
 type adapterImpl struct {
 	cfg           Config
-	creds         credentials.TransportCredentials
+	grpcOpts      []grpc.DialOption
 	ShardReceiver shardgrpc.ShardHandlerClient
 	ShardQuerier  shardtypes.QueryClient
 }
@@ -65,7 +65,7 @@ func NewAdapter(cfg Config, opts ...Option) (Adapter, error) {
 	for _, opt := range opts {
 		opt(a)
 	}
-	conn, err := grpc.Dial(cfg.ShardReceiverAddr, grpc.WithTransportCredentials(a.creds))
+	conn, err := grpc.Dial(cfg.ShardReceiverAddr, a.grpcOpts...)
 	if err != nil {
 		return nil, err
 	}

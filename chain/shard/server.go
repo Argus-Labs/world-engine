@@ -28,7 +28,7 @@ type Server struct {
 	moduleAddr sdk.AccAddress
 	lock       sync.Mutex
 	msgQueue   []types.SubmitBatchRequest
-	creds      credentials.TransportCredentials
+	serverOpts []grpc.ServerOption
 }
 
 func NewShardServer(opts ...Option) *Server {
@@ -70,7 +70,7 @@ func loadCredentials(certPath, keyPath string) (credentials.TransportCredentials
 
 // Serve serves the application in a new go routine. The routine panics if serve fails.
 func (s *Server) Serve(listenAddr string) {
-	grpcServer := grpc.NewServer(grpc.Creds(s.creds))
+	grpcServer := grpc.NewServer(s.serverOpts...)
 	shardgrpc.RegisterShardHandlerServer(grpcServer, s)
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {

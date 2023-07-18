@@ -1,5 +1,7 @@
 package router
 
+import "google.golang.org/grpc"
+
 type Option func(r *router)
 
 func WithCredentials(credPath string) Option {
@@ -8,6 +10,6 @@ func WithCredentials(credPath string) Option {
 		if err != nil {
 			panic(err)
 		}
-		r.credential = c
+		r.clientOpts = append(r.clientOpts, grpc.WithTransportCredentials(c))
 	}
 }

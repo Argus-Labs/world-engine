@@ -28,9 +28,9 @@ type TxHandler interface {
 }
 
 type srv struct {
-	it    ITransactionTypes
-	txh   TxHandler
-	creds credentials.TransportCredentials
+	it         ITransactionTypes
+	txh        TxHandler
+	serverOpts []grpc.ServerOption
 }
 
 func NewServer(txh TxHandler, opts ...Option) (routerv1grpc.MsgServer, error) {
@@ -75,7 +75,7 @@ func loadCredentials(serverCertPath, serverKeyPath string) (credentials.Transpor
 
 // Serve serves the application in a new go routine.
 func (s *srv) Serve(addr string) error {
-	server := grpc.NewServer(grpc.Creds(s.creds))
+	server := grpc.NewServer(s.serverOpts...)
 	routerv1grpc.RegisterMsgServer(server, s)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {

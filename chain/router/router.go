@@ -29,7 +29,7 @@ var (
 
 type router struct {
 	cardinalAddr string
-	credential   credentials.TransportCredentials
+	clientOpts   []grpc.DialOption
 }
 
 func loadClientCredentials(path string) (credentials.TransportCredentials, error) {
@@ -86,7 +86,7 @@ func (r *router) Send(ctx context.Context, namespace, sender string, msgID uint6
 func (r *router) getConnectionForNamespace(ns string) (routerv1grpc.MsgClient, error) {
 	conn, err := grpc.Dial(
 		r.cardinalAddr,
-		grpc.WithTransportCredentials(r.credential),
+		r.clientOpts...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to %s address for namespace %s", r.cardinalAddr, ns)

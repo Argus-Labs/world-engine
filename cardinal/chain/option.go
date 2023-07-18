@@ -1,5 +1,7 @@
 package chain
 
+import "google.golang.org/grpc"
+
 type Option func(adapter *adapterImpl)
 
 func WithCredentials(credPath string) Option {
@@ -11,6 +13,6 @@ func WithCredentials(credPath string) Option {
 		if err != nil {
 			panic(err)
 		}
-		a.creds = creds
+		a.grpcOpts = append(a.grpcOpts, grpc.WithTransportCredentials(creds))
 	}
 }

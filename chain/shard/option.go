@@ -1,5 +1,7 @@
 package shard
 
+import "google.golang.org/grpc"
+
 type Option func(*Server)
 
 func WithCredentials(certPath, keyPath string) Option {
@@ -8,6 +10,6 @@ func WithCredentials(certPath, keyPath string) Option {
 		if err != nil {
 			panic(err)
 		}
-		server.creds = creds
+		server.serverOpts = append(server.serverOpts, grpc.Creds(creds))
 	}
 }
