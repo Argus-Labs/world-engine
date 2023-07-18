@@ -37,6 +37,7 @@ type World struct {
 	tick                     int
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
+	registeredQueries        []IQuery
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
@@ -58,6 +59,7 @@ var (
 	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
 	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
 	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
+	ErrorDuplicateQueryName                    = errors.New("query names must be unique")
 )
 
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
@@ -117,6 +119,22 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 	return nil
 }
 
+func (w *World) RegisterQueries(queries ...IQuery) error {
+	if w.stateIsLoaded {
+		panic("cannot register transactions after loading game state")
+	}
+	w.registeredQueries = append(w.registeredQueries, queries...)
+	seenQueryNames := map[string]struct{}{}
+	for _, t := range w.registeredQueries {
+		name := t.Name()
+		if _, ok := seenQueryNames[name]; ok {
+			return fmt.Errorf("duplicate query %q: %w", name, ErrorDuplicateQueryName)
+		}
+		seenQueryNames[name] = struct{}{}
+	}
+	return nil
+}
+
 func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 	if w.stateIsLoaded {
 		panic("cannot register transactions after loading game state")
@@ -142,6 +160,10 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 		}
 	}
 	return nil
+}
+
+func (w *World) ListQueries() []IQuery {
+	return w.registeredQueries
 }
 
 func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
