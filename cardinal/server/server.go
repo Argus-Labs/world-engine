@@ -29,8 +29,11 @@ var (
 )
 
 const (
-	listTxEndpoint    = "/cardinal/list-tx-endpoints"
-	listQueryEndpoint = "/cardinal/list-query-endpoints"
+	listTxEndpoint   = "/cardinal/list-tx-endpoints"
+	listReadEndpoint = "/cardinal/list-read-endpoints"
+
+	readPrefix = "read-"
+	txPrefix   = "tx-"
 
 	getSignerForPersonaStatusUnknown   = "unknown"
 	getSignerForPersonaStatusAvailable = "available"
@@ -38,7 +41,7 @@ const (
 )
 
 // NewHandler returns a new Handler that can handle HTTP requests. An HTTP endpoint for each
-// transaction and query registered with the given world is automatically created.
+// transaction and read registered with the given world is automatically created.
 func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	th := &Handler{
 		w:   w,
@@ -55,7 +58,7 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	}
 	txEndpoints := make([]string, 0, len(txs))
 	for _, tx := range txs {
-		endpoint := conformPath("tx-" + tx.Name())
+		endpoint := conformPath(txPrefix + tx.Name())
 		if tx.Name() == ecs.CreatePersonaTx.Name() {
 			// The CreatePersonaTx is different from normal transactions because it doesn't look up a signer
 			// address from the world to verify the transaction.
@@ -69,42 +72,42 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 		writeResult(writer, txEndpoints)
 	})
 
-	// make the query endpoints
-	queries := w.ListQueries()
-	queryEndpoints := make([]string, 0, len(queries))
-	for _, q := range queries {
-		endpoint := conformPath("query-" + q.Name())
-		th.mux.HandleFunc(endpoint, th.makeQueryHandler(q))
-		queryEndpoints = append(queryEndpoints, endpoint)
+	// make the read endpoints
+	reads := w.ListReads()
+	readEndpoints := make([]string, 0, len(reads))
+	for _, q := range reads {
+		endpoint := conformPath(readPrefix + q.Name())
+		th.mux.HandleFunc(endpoint, th.makeReadHandler(q))
+		readEndpoints = append(readEndpoints, endpoint)
 	}
-	th.mux.HandleFunc(listQueryEndpoint, func(writer http.ResponseWriter, request *http.Request) {
-		writeResult(writer, queryEndpoints)
+	th.mux.HandleFunc(listReadEndpoint, func(writer http.ResponseWriter, request *http.Request) {
+		writeResult(writer, readEndpoints)
 	})
 
-	queryPersonaSignerEndpoint := conformPath("query-persona-signer")
-	th.mux.HandleFunc(queryPersonaSignerEndpoint, th.handleQueryPersonaSigner)
-	txEndpoints = append(txEndpoints, queryPersonaSignerEndpoint)
+	readPersonaSignerEndpoint := conformPath(readPrefix + "persona-signer")
+	th.mux.HandleFunc(readPersonaSignerEndpoint, th.handleReadPersonaSigner)
+	txEndpoints = append(txEndpoints, readPersonaSignerEndpoint)
 	return th, nil
 }
 
 // CreatePersonaResponse is returned from a tx-create-persona request. It contains the current tick of the game
-// (needed to call the query-persona-signer endpoint).
+// (needed to call the read-persona-signer endpoint).
 type CreatePersonaResponse struct {
 	Tick   int
 	Status string
 }
 
-// QueryPersonaSignerRequest is the desired request body for the query-persona-signer endpoint.
-type QueryPersonaSignerRequest struct {
+// ReadPersonaSignerRequest is the desired request body for the read-persona-signer endpoint.
+type ReadPersonaSignerRequest struct {
 	PersonaTag string
 	Tick       int
 }
 
-// QueryPersonaSignerResponse is used as the response body for the query-persona-signer endpoint. Status can be:
+// ReadPersonaSignerResponse is used as the response body for the read-persona-signer endpoint. Status can be:
 // "assigned": The requested persona tag has been assigned the returned SignerAddress
 // "unknown": The game tick has not advanced far enough to know what the signer address. SignerAddress will be empty.
 // "available": The game tick has advanced, and no signer address has been assigned. SignerAddress will be empty.
-type QueryPersonaSignerResponse struct {
+type ReadPersonaSignerResponse struct {
 	Status        string
 	SignerAddress string
 }
@@ -172,14 +175,14 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	return sp.Body, &sp, nil
 }
 
-func (t *Handler) handleQueryPersonaSigner(w http.ResponseWriter, r *http.Request) {
+func (t *Handler) handleReadPersonaSigner(w http.ResponseWriter, r *http.Request) {
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeError(w, "unable to read body", err)
 		return
 	}
 
-	req, err := decode[QueryPersonaSignerRequest](buf)
+	req, err := decode[ReadPersonaSignerRequest](buf)
 	if err != nil {
 		writeError(w, "unable to decode body", err)
 		return
@@ -192,12 +195,12 @@ func (t *Handler) handleQueryPersonaSigner(w http.ResponseWriter, r *http.Reques
 	} else if err == ecs.ErrorCreatePersonaTxsNotProcessed {
 		status = getSignerForPersonaStatusUnknown
 	} else if err != nil {
-		writeError(w, "query persona signer error", err)
+		writeError(w, "read persona signer error", err)
 		return
 	} else {
 		status = getSignerForPersonaStatusAssigned
 	}
-	writeResult(w, QueryPersonaSignerResponse{
+	writeResult(w, ReadPersonaSignerResponse{
 		Status:        status,
 		SignerAddress: addr,
 	})
@@ -248,16 +251,16 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 	}
 }
 
-func (t *Handler) makeQueryHandler(q ecs.IQuery) http.HandlerFunc {
+func (t *Handler) makeReadHandler(q ecs.IRead) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		buf, err := io.ReadAll(request.Body)
 		if err != nil {
 			writeError(writer, "unable to read request body", err)
 			return
 		}
-		res, err := q.HandleQuery(t.w, buf)
+		res, err := q.HandleRead(t.w, buf)
 		if err != nil {
-			writeError(writer, "error handling query", err)
+			writeError(writer, "error handling read", err)
 			return
 		}
 		writer.Write(res)

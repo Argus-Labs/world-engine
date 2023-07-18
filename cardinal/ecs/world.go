@@ -38,7 +38,7 @@ type World struct {
 	tick                     int
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
-	registeredQueries        []IQuery
+	registeredReads          []IRead
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
@@ -61,7 +61,7 @@ var (
 	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
 	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
 	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
-	ErrorDuplicateQueryName                    = errors.New("query names must be unique")
+	ErrorDuplicateReadName                     = errors.New("read names must be unique")
 )
 
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
@@ -121,18 +121,18 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 	return nil
 }
 
-func (w *World) RegisterQueries(queries ...IQuery) error {
+func (w *World) RegisterReads(reads ...IRead) error {
 	if w.stateIsLoaded {
-		panic("cannot register transactions after loading game state")
+		panic("cannot register reads after loading game state")
 	}
-	w.registeredQueries = append(w.registeredQueries, queries...)
-	seenQueryNames := map[string]struct{}{}
-	for _, t := range w.registeredQueries {
+	w.registeredReads = append(w.registeredReads, reads...)
+	seenReadNames := map[string]struct{}{}
+	for _, t := range w.registeredReads {
 		name := t.Name()
-		if _, ok := seenQueryNames[name]; ok {
-			return fmt.Errorf("duplicate query %q: %w", name, ErrorDuplicateQueryName)
+		if _, ok := seenReadNames[name]; ok {
+			return fmt.Errorf("duplicate read %q: %w", name, ErrorDuplicateReadName)
 		}
-		seenQueryNames[name] = struct{}{}
+		seenReadNames[name] = struct{}{}
 	}
 	return nil
 }
@@ -164,8 +164,8 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 	return nil
 }
 
-func (w *World) ListQueries() []IQuery {
-	return w.registeredQueries
+func (w *World) ListReads() []IRead {
+	return w.registeredReads
 }
 
 func (w *World) ListTransactions() ([]transaction.ITransaction, error) {

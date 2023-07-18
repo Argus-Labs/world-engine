@@ -202,34 +202,34 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	assert.Equal(t, createPersonaResponse.Status, "ok")
 	tick := createPersonaResponse.Tick
 
-	// postQueryPersonaSigner is a helper that makes a request to the query_persona_signer endpoint and returns the response
-	postQueryPersonaSigner := func(personaTag string, tick int) QueryPersonaSignerResponse {
-		bz, err = json.Marshal(QueryPersonaSignerRequest{
+	// postReadPersonaSigner is a helper that makes a request to the read-persona-signer endpoint and returns the response
+	postReadPersonaSigner := func(personaTag string, tick int) ReadPersonaSignerResponse {
+		bz, err = json.Marshal(ReadPersonaSignerRequest{
 			PersonaTag: personaTag,
 			Tick:       tick,
 		})
 		assert.NilError(t, err)
-		resp, err = http.Post(txh.makeURL("/query-persona-signer"), "application/json", bytes.NewReader(bz))
+		resp, err = http.Post(txh.makeURL("/"+readPrefix+"persona-signer"), "application/json", bytes.NewReader(bz))
 		assert.NilError(t, err)
 		assert.Equal(t, resp.StatusCode, 200)
-		var queryPersonaSignerResponse QueryPersonaSignerResponse
-		assert.NilError(t, json.NewDecoder(resp.Body).Decode(&queryPersonaSignerResponse))
-		return queryPersonaSignerResponse
+		var readPersonaSignerResponse ReadPersonaSignerResponse
+		assert.NilError(t, json.NewDecoder(resp.Body).Decode(&readPersonaSignerResponse))
+		return readPersonaSignerResponse
 	}
 
 	// Check some random person tag against a tick far in the past. This should be available.
-	personaSignerResp := postQueryPersonaSigner("some_other_persona_tag", -100)
+	personaSignerResp := postReadPersonaSigner("some_other_persona_tag", -100)
 	assert.Equal(t, personaSignerResp.Status, "available")
 
 	// If the game tick matches the passed in game tick, there hasn't been enough time to process the create persona tx.
-	personaSignerResp = postQueryPersonaSigner(personaTag, tick)
+	personaSignerResp = postReadPersonaSigner(personaTag, tick)
 	assert.Equal(t, personaSignerResp.Status, "unknown")
 
 	// Tick the game state so that the persona can actually be registered
 	assert.NilError(t, world.Tick(context.Background()))
 
 	// The persona tag should now be registered with our signer address.
-	personaSignerResp = postQueryPersonaSigner(personaTag, tick)
+	personaSignerResp = postReadPersonaSigner(personaTag, tick)
 	assert.Equal(t, personaSignerResp.Status, "assigned")
 	assert.Equal(t, personaSignerResp.SignerAddress, signerAddr)
 }
@@ -317,33 +317,33 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 func TestCanListQueries(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	endpoints := []string{"foo", "bar", "baz"}
-	queries := make([]ecs.IQuery, 0, len(endpoints))
+	queries := make([]ecs.IRead, 0, len(endpoints))
 	for _, e := range endpoints {
-		q := ecs.NewQueryType(e, func(world *ecs.World, i []byte) ([]byte, error) {
+		q := ecs.NewReadType(e, func(world *ecs.World, i []byte) ([]byte, error) {
 			return nil, nil
 		})
 		queries = append(queries, q)
 	}
-	assert.NilError(t, world.RegisterQueries(queries...))
+	assert.NilError(t, world.RegisterReads(queries...))
 	assert.NilError(t, world.LoadGameState())
 
 	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
 
-	resp, err := http.Get(txh.makeURL(listQueryEndpoint))
+	resp, err := http.Get(txh.makeURL(listReadEndpoint))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 	var gotEndpoints []string
 	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&gotEndpoints))
 	for i, e := range gotEndpoints {
-		assert.Equal(t, e, "/query-"+endpoints[i])
+		assert.Equal(t, e, "/"+readPrefix+endpoints[i])
 	}
 }
 
-// TestQueryEncodeDecode tests that queries are properly marshalled/unmarshalled in the context of http communication.
+// TestReadEncodeDecode tests that read requests/responses are properly marshalled/unmarshalled in the context of http communication.
 // We do not necessarily need to test anything w/r/t world storage, as what users decide to do within the context
-// of their queries are up to them, and not necessarily required for this feature to provably work.
-func TestQueryEncodeDecode(t *testing.T) {
-	// setup this query business stuff
+// of their read requests are up to them, and not necessarily required for this feature to provably work.
+func TestReadEncodeDecode(t *testing.T) {
+	// setup this read business stuff
 	type FooRequest struct {
 		Foo  int    `json:"foo,omitempty"`
 		Meow string `json:"bar,omitempty"`
@@ -353,7 +353,7 @@ func TestQueryEncodeDecode(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 	endpoint := "foo"
-	fq := ecs.NewQueryType(endpoint, func(world *ecs.World, bz []byte) ([]byte, error) {
+	fq := ecs.NewReadType(endpoint, func(world *ecs.World, bz []byte) ([]byte, error) {
 		var req FooRequest
 		err := json.Unmarshal(bz, &req)
 		if err != nil {
@@ -362,21 +362,20 @@ func TestQueryEncodeDecode(t *testing.T) {
 		return json.Marshal(FooResponse{Meow: req.Meow})
 	})
 
-	// setup the world, register the query, load.
+	// setup the world, register the reads, load.
 	world := inmem.NewECSWorldForTest(t)
-	assert.NilError(t, world.RegisterQueries(fq))
+	assert.NilError(t, world.RegisterReads(fq))
 	assert.NilError(t, world.LoadGameState())
 
 	// make our test tx handler
 	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
 
-	// _, err = http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bz))
-	// now we setup a request, and marshal it to json to send to the handler
+	// now we set up a request, and marshal it to json to send to the handler
 	req := FooRequest{Foo: 12, Meow: "hello"}
 	bz, err := json.Marshal(req)
 	assert.NilError(t, err)
 
-	res, err := http.Post(txh.makeURL("/query-"+endpoint), "application/json", bytes.NewReader(bz))
+	res, err := http.Post(txh.makeURL("/"+readPrefix+endpoint), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 
 	buf, err := io.ReadAll(res.Body)
