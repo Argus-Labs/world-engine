@@ -30,6 +30,11 @@ func writeResult(w http.ResponseWriter, v any) {
 	if s, ok := v.(string); ok {
 		v = struct{ Msg string }{Msg: s}
 	}
+	// Allow cors
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
 	enc := json.NewEncoder(w)
 	if err := enc.Encode(v); err != nil {
 		writeError(w, "can't encode", err)
