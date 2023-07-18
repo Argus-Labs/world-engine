@@ -36,6 +36,8 @@ run:
 linters-settings:
   gosec:
     excludes:
+      # disable G402, which complains if we don't pass a specific version to tls.Config.
+      # we do not need this check as tls.Config will just use a default version if no version is specified.
       - G402
   cyclop:
     # The maximal code complexity to report.
