@@ -121,12 +121,12 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 		Signature:  "doesnt matter what goes in here",
 		Body:       common.Bytes2Hex(bz),
 	}
-	unsignedBz, err := json.Marshal(payload)
+	bogusSignatureBz, err := json.Marshal(payload)
 	assert.NilError(t, err)
 
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
-	resp, err := http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(unsignedBz))
+	resp, err := http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bogusSignatureBz))
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %v", mustReadBody(t, resp))
 
