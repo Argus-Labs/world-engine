@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/ethereum/go-ethereum/common"
 	"io"
 	"net/http"
 	"testing"
@@ -88,6 +89,7 @@ func mustReadBody(t *testing.T, resp *http.Response) string {
 }
 
 func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
+
 	w := inmem.NewECSWorldForTest(t)
 	endpoint := "move"
 	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint)
@@ -112,10 +114,19 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	}
 	bz, err := json.Marshal(tx)
 	assert.NilError(t, err)
+	payload := &sign.SignedPayload{
+		PersonaTag: "meow",
+		Namespace:  w.GetNamespace(),
+		Nonce:      40,
+		Signature:  "doesnt matter what goes in here",
+		Body:       common.Bytes2Hex(bz),
+	}
+	unsignedBz, err := json.Marshal(payload)
+	assert.NilError(t, err)
 
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
-	resp, err := http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(unsignedBz))
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %v", mustReadBody(t, resp))
 
@@ -154,8 +165,8 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 		Namespace:  "some_namespace",
 		Nonce:      100,
 		// this bogus signature is OK because DisableSignatureVerification was used
-		Signature: []byte{1, 2, 3, 4},
-		Body:      bz,
+		Signature: common.Bytes2Hex([]byte{1, 2, 3, 4}),
+		Body:      common.Bytes2Hex(bz),
 	}
 
 	bz, err = json.Marshal(&signedTx)

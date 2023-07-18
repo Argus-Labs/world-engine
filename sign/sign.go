@@ -2,10 +2,12 @@
 package sign
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -20,32 +22,50 @@ type SignedPayload struct {
 	PersonaTag string
 	Namespace  string
 	Nonce      uint64
-	Signature  []byte
-	Body       []byte
+	Signature  string // hex encoded string
+	Body       string // hex encoded string
 }
 
-// Unmarshal attempts to unmarshal the given buf into a SignedPayload. SignedPayload.Verify must still
-// be called to verify this signature.
-func Unmarshal(buf []byte) (*SignedPayload, error) {
-	sp := &SignedPayload{}
-	if err := json.Unmarshal(buf, sp); err != nil {
-		return nil, err
+func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
+	s := new(SignedPayload)
+	dec := json.NewDecoder(bytes.NewBuffer(bz))
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(s); err != nil {
+		return nil, fmt.Errorf("error decoding SignedPayload: %w", err)
 	}
-	return sp, nil
+
+	// ensure that all fields are present. we could do this via reflection, but checking directly is faster than
+	// using reflection package.
+	if s.PersonaTag == "" {
+		return nil, errors.New("SignerPayload must contain PersonaTag field")
+	}
+	if s.Namespace == "" {
+		return nil, errors.New("SignerPayload must contain Namespace field")
+	}
+	if s.Signature == "" {
+		return nil, errors.New("SignerPayload must contain Signature field")
+	}
+	if s.Body == "" {
+		return nil, errors.New("SignerPayload must contain Body field")
+	}
+	return s, nil
 }
 
-// NewSignedPayload signs a given body, tag, and nonce with the given private key.
+// NewSignedPayload signs a given body, tag, and nonce with the given private key. data should be a hex encoded string.
 func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
+	if data == nil || reflect.ValueOf(data).IsZero() {
+		return nil, errors.New("cannot sign empty data")
+	}
 	bz, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
-
 	sp := &SignedPayload{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Nonce:      nonce,
-		Body:       bz,
+		Body:       common.Bytes2Hex(bz),
 	}
 	hash, err := sp.hash()
 	if err != nil {
@@ -55,7 +75,7 @@ func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce 
 	if err != nil {
 		return nil, err
 	}
-	sp.Signature = buf
+	sp.Signature = common.Bytes2Hex(buf)
 	return sp, nil
 }
 
@@ -75,7 +95,7 @@ func (s *SignedPayload) Verify(hexAddress string) error {
 	if err != nil {
 		return err
 	}
-	signerPubKey, err := crypto.SigToPub(hash, s.Signature)
+	signerPubKey, err := crypto.SigToPub(hash, common.Hex2Bytes(s.Signature))
 	if err != nil {
 		return err
 	}
@@ -97,7 +117,7 @@ func (s *SignedPayload) hash() ([]byte, error) {
 	if _, err := hash.Write([]byte(fmt.Sprintf("%d", s.Nonce))); err != nil {
 		return nil, err
 	}
-	if _, err := hash.Write(s.Body); err != nil {
+	if _, err := hash.Write([]byte(s.Body)); err != nil {
 		return nil, err
 	}
 	return hash.Sum(nil), nil
