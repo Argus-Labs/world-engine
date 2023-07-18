@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/argus-labs/world-engine/sign"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
@@ -24,7 +25,8 @@ type TransactionType[T any] struct {
 // TransactionQueue is a list of transactions that were queued since the start of the
 // last game tick.
 type TransactionQueue struct {
-	queue map[transaction.TypeID][]any
+	queue      map[transaction.TypeID][]any
+	signatures map[transaction.TypeID][]*sign.SignedPayload
 }
 
 func NewTransactionType[T any](name string) *TransactionType[T] {
@@ -69,9 +71,13 @@ func (t *TransactionType[T]) ID() transaction.TypeID {
 }
 
 // AddToQueue adds a transaction with the given data to the world object. The transaction will be executed
-// at the next game tick.
-func (t *TransactionType[T]) AddToQueue(world *World, data T) {
-	world.AddTransaction(t.ID(), data)
+// at the next game tick. An optional sign.SignedPayload can be associated with this transaction.
+func (t *TransactionType[T]) AddToQueue(world *World, data T, sigs ...*sign.SignedPayload) {
+	var sig *sign.SignedPayload
+	if len(sigs) > 0 {
+		sig = sigs[0]
+	}
+	world.AddTransaction(t.ID(), data, sig)
 }
 
 func (t *TransactionType[T]) SetID(id transaction.TypeID) error {
@@ -89,7 +95,7 @@ func (t *TransactionType[T]) SetID(id transaction.TypeID) error {
 	return nil
 }
 
-// In extracts all the transactions from the transaction queue that match this TransactionType's name.
+// In extracts all the transactions in the transaction queue that match this TransactionType's ID.
 func (t *TransactionType[T]) In(tq *TransactionQueue) []T {
 	var txs []T
 	for _, tx := range tq.queue[t.ID()] {
@@ -98,6 +104,20 @@ func (t *TransactionType[T]) In(tq *TransactionQueue) []T {
 		}
 	}
 	return txs
+}
+
+// TxAndSigsIn extracts all the transactions and their related signatures in the transaction queue 
+// that match this TransactionType's ID.
+func (t *TransactionType[T]) TxsAndSigsIn(tq *TransactionQueue) ([]T, []*sign.SignedPayload) {
+	var txs []T
+	var sigs []*sign.SignedPayload
+	for i, tx := range tq.queue[t.ID()] {
+		if val, ok := tx.(T); ok {
+			txs = append(txs, val)
+			sigs = append(sigs, tq.signatures[t.ID()][i])
+		}
+	}
+	return txs, sigs
 }
 
 func (t *TransactionType[T]) Encode(a any) ([]byte, error) {

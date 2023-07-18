@@ -117,26 +117,26 @@ func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
 	return createPersonaTx.SignerAddress, nil
 }
 
-func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWorld bool) (payload []byte, err error) {
+func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWorld bool) (payload []byte, sig *sign.SignedPayload, err error) {
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
-		return nil, errors.New("unable to read body")
+		return nil, nil, errors.New("unable to read body")
 	}
 	sp, err := decode[sign.SignedPayload](buf)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if t.disableSigVerification {
 		// During testing (with signature verification disabled), a request body can either be wrapped in a signed payload,
 		// or the request body can be sent as is.
 		if len(sp.Body) == 0 {
-			return buf, nil
+			return buf, &sp, nil
 		}
-		return sp.Body, nil
+		return sp.Body, &sp, nil
 	}
 
 	if sp.Namespace != t.w.GetNamespace() {
-		return nil, fmt.Errorf("%w: namespace must be %q", ErrorInvalidSignature, t.w.GetNamespace())
+		return nil, nil, fmt.Errorf("%w: namespace must be %q", ErrorInvalidSignature, t.w.GetNamespace())
 	}
 
 	var signerAddress string
@@ -148,28 +148,28 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 		signerAddress, err = getSignerAddressFromPayload(sp)
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	nonce, err := t.w.GetNonce(signerAddress)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if sp.Nonce <= nonce {
-		return nil, fmt.Errorf("invalid nonce: %w", ErrorInvalidSignature)
+		return nil, nil, fmt.Errorf("invalid nonce: %w", ErrorInvalidSignature)
 	}
 
 	if err := sp.Verify(signerAddress); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrorInvalidSignature, err)
+		return nil, nil, fmt.Errorf("%w: %w", ErrorInvalidSignature, err)
 	}
 	if err := t.w.SetNonce(signerAddress, sp.Nonce); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if len(sp.Body) == 0 {
-		return buf, nil
+		return buf, &sp, nil
 	}
-	return sp.Body, nil
+	return sp.Body, &sp, nil
 }
 
 func (t *Handler) handleQueryPersonaSigner(w http.ResponseWriter, r *http.Request) {
@@ -205,7 +205,7 @@ func (t *Handler) handleQueryPersonaSigner(w http.ResponseWriter, r *http.Reques
 
 func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		payload, err := t.verifySignature(request, false)
+		payload, sp, err := t.verifySignature(request, false)
 		if err != nil {
 			if errors.Is(err, ErrorInvalidSignature) {
 				writeUnauthorized(writer, err)
@@ -220,7 +220,7 @@ func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.Han
 			writeError(writer, "unable to decode transaction", err)
 			return
 		}
-		t.w.AddTransaction(tx.ID(), txVal)
+		t.w.AddTransaction(tx.ID(), txVal, sp)
 		writeResult(writer, CreatePersonaResponse{
 			Tick:   t.w.CurrentTick(),
 			Status: "ok",
@@ -230,7 +230,7 @@ func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.Han
 
 func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		payload, err := t.verifySignature(request, true)
+		payload, sp, err := t.verifySignature(request, true)
 		if errors.Is(err, ErrorInvalidSignature) {
 			writeUnauthorized(writer, err)
 			return
@@ -243,7 +243,7 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 			writeError(writer, "unable to decode transaction", err)
 			return
 		}
-		t.w.AddTransaction(tx.ID(), txVal)
+		t.w.AddTransaction(tx.ID(), txVal, sp)
 		writeResult(writer, "ok")
 	}
 }
