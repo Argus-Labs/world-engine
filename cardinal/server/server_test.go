@@ -23,7 +23,7 @@ type SendEnergyTx struct {
 
 // testTransactionHandler is a helper struct that can start an HTTP server on port 4040 with the given world.
 type testTransactionHandler struct {
-	*TransactionHandler
+	*Handler
 	t         *testing.T
 	urlPrefix string
 }
@@ -33,7 +33,7 @@ func (t *testTransactionHandler) makeURL(path string) string {
 }
 
 func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) *testTransactionHandler {
-	txh, err := NewTransactionHandler(world, opts...)
+	txh, err := NewHandler(world, opts...)
 	assert.NilError(t, err)
 	t.Cleanup(func() {
 		assert.NilError(t, txh.Close())
@@ -43,9 +43,9 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 	urlPrefix := "http://localhost:" + port
 
 	return &testTransactionHandler{
-		TransactionHandler: txh,
-		t:                  t,
-		urlPrefix:          urlPrefix,
+		Handler:   txh,
+		t:         t,
+		urlPrefix: urlPrefix,
 	}
 }
 
@@ -57,7 +57,7 @@ func TestCanListTransactionEndpoints(t *testing.T) {
 	assert.NilError(t, w.RegisterTransactions(alphaTx, betaTx, gammaTx))
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
-	resp, err := http.Get(txh.makeURL("/cardinal/list_endpoints"))
+	resp, err := http.Get(txh.makeURL(listTxEndpoint))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 	var gotEndpoints []string
@@ -65,9 +65,9 @@ func TestCanListTransactionEndpoints(t *testing.T) {
 
 	// Make sure the gotEndpoints contains alpha, beta and gamma. It's ok to have extra endpoints
 	foundEndpoints := map[string]bool{
-		"/tx_alpha": false,
-		"/tx_beta":  false,
-		"/tx_gamma": false,
+		"/tx-alpha": false,
+		"/tx-beta":  false,
+		"/tx-gamma": false,
 	}
 
 	for _, e := range gotEndpoints {
@@ -115,7 +115,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
-	resp, err := http.Post(txh.makeURL("/tx_"+endpoint), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %v", mustReadBody(t, resp))
 
@@ -160,7 +160,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 
 	bz, err = json.Marshal(&signedTx)
 	assert.NilError(t, err)
-	_, err = http.Post(txh.makeURL("/tx_"+endpoint), "application/json", bytes.NewReader(bz))
+	_, err = http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 
 	assert.NilError(t, w.LoadGameState())
@@ -192,7 +192,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	bz, err := signedPayload.Marshal()
 	assert.NilError(t, err)
 
-	resp, err := http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	body := mustReadBody(t, resp)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %s", body)
@@ -209,7 +209,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 			Tick:       tick,
 		})
 		assert.NilError(t, err)
-		resp, err = http.Post(txh.makeURL("/query_persona_signer"), "application/json", bytes.NewReader(bz))
+		resp, err = http.Post(txh.makeURL("/query-persona-signer"), "application/json", bytes.NewReader(bz))
 		assert.NilError(t, err)
 		assert.Equal(t, resp.StatusCode, 200)
 		var queryPersonaSignerResponse QueryPersonaSignerResponse
@@ -254,7 +254,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err := http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
 	// This should fail because the namespace does not match the world's namespace
 	assert.Equal(t, resp.StatusCode, 401)
 
@@ -263,7 +263,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err = http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 200)
 }
 
@@ -289,11 +289,11 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Register a persona. This should succeed
-	resp, err := http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 200)
 
 	// Repeat the request. Since the nonce is the same, this should fail
-	resp, err = http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// Using an old nonce should fail
@@ -301,7 +301,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err = http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// But increasing the nonce should work
@@ -309,6 +309,82 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err = http.Post(txh.makeURL("/tx_create_persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 200)
+}
+
+// TestCanListQueries tests that we can list the available queries in the handler.
+func TestCanListQueries(t *testing.T) {
+	world := inmem.NewECSWorldForTest(t)
+	endpoints := []string{"foo", "bar", "baz"}
+	queries := make([]ecs.IQuery, 0, len(endpoints))
+	for _, e := range endpoints {
+		q := ecs.NewQueryType(e, func(world *ecs.World, i []byte) ([]byte, error) {
+			return nil, nil
+		})
+		queries = append(queries, q)
+	}
+	assert.NilError(t, world.RegisterQueries(queries...))
+	assert.NilError(t, world.LoadGameState())
+
+	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
+
+	resp, err := http.Get(txh.makeURL(listQueryEndpoint))
+	assert.NilError(t, err)
+	assert.Equal(t, resp.StatusCode, 200)
+	var gotEndpoints []string
+	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&gotEndpoints))
+	for i, e := range gotEndpoints {
+		assert.Equal(t, e, "/query-"+endpoints[i])
+	}
+}
+
+// TestQueryEncodeDecode tests that queries are properly marshalled/unmarshalled in the context of http communication.
+// We do not necessarily need to test anything w/r/t world storage, as what users decide to do within the context
+// of their queries are up to them, and not necessarily required for this feature to provably work.
+func TestQueryEncodeDecode(t *testing.T) {
+	// setup this query business stuff
+	type FooRequest struct {
+		Foo  int    `json:"foo,omitempty"`
+		Meow string `json:"bar,omitempty"`
+	}
+
+	type FooResponse struct {
+		Meow string `json:"meow,omitempty"`
+	}
+	endpoint := "foo"
+	fq := ecs.NewQueryType(endpoint, func(world *ecs.World, bz []byte) ([]byte, error) {
+		var req FooRequest
+		err := json.Unmarshal(bz, &req)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(FooResponse{Meow: req.Meow})
+	})
+
+	// setup the world, register the query, load.
+	world := inmem.NewECSWorldForTest(t)
+	assert.NilError(t, world.RegisterQueries(fq))
+	assert.NilError(t, world.LoadGameState())
+
+	// make our test tx handler
+	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
+
+	// _, err = http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bz))
+	// now we setup a request, and marshal it to json to send to the handler
+	req := FooRequest{Foo: 12, Meow: "hello"}
+	bz, err := json.Marshal(req)
+	assert.NilError(t, err)
+
+	res, err := http.Post(txh.makeURL("/query-"+endpoint), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+
+	buf, err := io.ReadAll(res.Body)
+	assert.NilError(t, err)
+
+	var fooRes FooResponse
+	err = json.Unmarshal(buf, &fooRes)
+	assert.NilError(t, err)
+
+	assert.Equal(t, fooRes.Meow, req.Meow)
 }

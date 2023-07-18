@@ -14,8 +14,8 @@ import (
 	"github.com/argus-labs/world-engine/sign"
 )
 
-// TransactionHandler is a type that contains endpoints for transactions in a given ecs world.
-type TransactionHandler struct {
+// Handler is a type that contains endpoints for transactions and queries in a given ecs world.
+type Handler struct {
 	w                      *ecs.World
 	mux                    *http.ServeMux
 	server                 *http.Server
@@ -29,15 +29,18 @@ var (
 )
 
 const (
+	listTxEndpoint    = "/cardinal/list-tx-endpoints"
+	listQueryEndpoint = "/cardinal/list-query-endpoints"
+
 	getSignerForPersonaStatusUnknown   = "unknown"
 	getSignerForPersonaStatusAvailable = "available"
 	getSignerForPersonaStatusAssigned  = "assigned"
 )
 
-// NewTransactionHandler returns a new TransactionHandler that can handle HTTP requests. An HTTP endpoint for each
-// transaction registered with the given world is automatically created.
-func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, error) {
-	th := &TransactionHandler{
+// NewHandler returns a new Handler that can handle HTTP requests. An HTTP endpoint for each
+// transaction and query registered with the given world is automatically created.
+func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
+	th := &Handler{
 		w:   w,
 		mux: http.NewServeMux(),
 	}
@@ -45,13 +48,14 @@ func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, e
 		opt(th)
 	}
 
+	// make the transaction endpoints
 	txs, err := w.ListTransactions()
 	if err != nil {
 		return nil, err
 	}
-	var endpoints []string
+	txEndpoints := make([]string, 0, len(txs))
 	for _, tx := range txs {
-		endpoint := conformPath("tx_" + tx.Name())
+		endpoint := conformPath("tx-" + tx.Name())
 		if tx.Name() == ecs.CreatePersonaTx.Name() {
 			// The CreatePersonaTx is different from normal transactions because it doesn't look up a signer
 			// address from the world to verify the transaction.
@@ -59,33 +63,44 @@ func NewTransactionHandler(w *ecs.World, opts ...Option) (*TransactionHandler, e
 		} else {
 			th.mux.HandleFunc(endpoint, th.makeTxHandler(tx))
 		}
-		endpoints = append(endpoints, endpoint)
+		txEndpoints = append(txEndpoints, endpoint)
 	}
-
-	th.mux.HandleFunc("/cardinal/list_endpoints", func(writer http.ResponseWriter, request *http.Request) {
-		writeResult(writer, endpoints)
+	th.mux.HandleFunc(listTxEndpoint, func(writer http.ResponseWriter, request *http.Request) {
+		writeResult(writer, txEndpoints)
 	})
 
-	queryPersonaSignerEndpoint := conformPath("query_persona_signer")
+	// make the query endpoints
+	queries := w.ListQueries()
+	queryEndpoints := make([]string, 0, len(queries))
+	for _, q := range queries {
+		endpoint := conformPath("query-" + q.Name())
+		th.mux.HandleFunc(endpoint, th.makeQueryHandler(q))
+		queryEndpoints = append(queryEndpoints, endpoint)
+	}
+	th.mux.HandleFunc(listQueryEndpoint, func(writer http.ResponseWriter, request *http.Request) {
+		writeResult(writer, queryEndpoints)
+	})
+
+	queryPersonaSignerEndpoint := conformPath("query-persona-signer")
 	th.mux.HandleFunc(queryPersonaSignerEndpoint, th.handleQueryPersonaSigner)
-	endpoints = append(endpoints, queryPersonaSignerEndpoint)
+	txEndpoints = append(txEndpoints, queryPersonaSignerEndpoint)
 	return th, nil
 }
 
-// CreatePersonaResponse is returned from a tx_create_persona request. It contains the current tick of the game
-// (needed to call the query_persona_signer endpoint).
+// CreatePersonaResponse is returned from a tx-create-persona request. It contains the current tick of the game
+// (needed to call the query-persona-signer endpoint).
 type CreatePersonaResponse struct {
 	Tick   int
 	Status string
 }
 
-// QueryPersonaSignerRequest is the desired request body for the query_persona_signer endpoint.
+// QueryPersonaSignerRequest is the desired request body for the query-persona-signer endpoint.
 type QueryPersonaSignerRequest struct {
 	PersonaTag string
 	Tick       int
 }
 
-// QueryPersonaSignerResponse is used as the response body for the query_persona_signer endpoint. Status can be:
+// QueryPersonaSignerResponse is used as the response body for the query-persona-signer endpoint. Status can be:
 // "assigned": The requested persona tag has been assigned the returned SignerAddress
 // "unknown": The game tick has not advanced far enough to know what the signer address. SignerAddress will be empty.
 // "available": The game tick has advanced, and no signer address has been assigned. SignerAddress will be empty.
@@ -102,7 +117,7 @@ func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
 	return createPersonaTx.SignerAddress, nil
 }
 
-func (t *TransactionHandler) verifySignature(request *http.Request, getSignedAddressFromWorld bool) (payload []byte, err error) {
+func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWorld bool) (payload []byte, err error) {
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, errors.New("unable to read body")
@@ -157,7 +172,7 @@ func (t *TransactionHandler) verifySignature(request *http.Request, getSignedAdd
 	return sp.Body, nil
 }
 
-func (t *TransactionHandler) handleQueryPersonaSigner(w http.ResponseWriter, r *http.Request) {
+func (t *Handler) handleQueryPersonaSigner(w http.ResponseWriter, r *http.Request) {
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeError(w, "unable to read body", err)
@@ -188,7 +203,7 @@ func (t *TransactionHandler) handleQueryPersonaSigner(w http.ResponseWriter, r *
 	})
 }
 
-func (t *TransactionHandler) makeCreatePersonaHandler(tx transaction.ITransaction) http.HandlerFunc {
+func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		payload, err := t.verifySignature(request, false)
 		if err != nil {
@@ -213,7 +228,7 @@ func (t *TransactionHandler) makeCreatePersonaHandler(tx transaction.ITransactio
 	}
 }
 
-func (t *TransactionHandler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
+func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		payload, err := t.verifySignature(request, true)
 		if errors.Is(err, ErrorInvalidSignature) {
@@ -233,6 +248,22 @@ func (t *TransactionHandler) makeTxHandler(tx transaction.ITransaction) http.Han
 	}
 }
 
+func (t *Handler) makeQueryHandler(q ecs.IQuery) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		buf, err := io.ReadAll(request.Body)
+		if err != nil {
+			writeError(writer, "unable to read request body", err)
+			return
+		}
+		res, err := q.HandleQuery(t.w, buf)
+		if err != nil {
+			writeError(writer, "error handling query", err)
+			return
+		}
+		writer.Write(res)
+	}
+}
+
 // fixes a path to contain a leading slash.
 // if the path already contains a leading slash, it is simply returned as is.
 func conformPath(p string) string {
@@ -243,9 +274,9 @@ func conformPath(p string) string {
 }
 
 // Serve sets up the endpoints passed in by the user, as well as a special "/list" endpoint, that informs consumers
-// what endpoints the user set up in the TransactionHandler. Then, it serves the application, blocking the main thread.
+// what endpoints the user set up in the Handler. Then, it serves the application, blocking the main thread.
 // Please us `go txh.Serve(host,port)` if you do not want to block execution after calling this function.
-func (t *TransactionHandler) Serve(host, port string) {
+func (t *Handler) Serve(host, port string) {
 	t.server = &http.Server{
 		Addr:    fmt.Sprintf("%s:%s", host, port),
 		Handler: t.mux,
@@ -256,7 +287,7 @@ func (t *TransactionHandler) Serve(host, port string) {
 	}
 }
 
-func (t *TransactionHandler) Close() error {
+func (t *Handler) Close() error {
 	if err := t.server.Close(); err != nil {
 		return err
 	}
@@ -294,10 +325,10 @@ func decode[T any](buf []byte) (T, error) {
 	return val, nil
 }
 
-type Option func(th *TransactionHandler)
+type Option func(th *Handler)
 
 func DisableSignatureVerification() Option {
-	return func(th *TransactionHandler) {
+	return func(th *Handler) {
 		th.disableSigVerification = true
 	}
 }
