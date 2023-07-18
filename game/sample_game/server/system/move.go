@@ -10,7 +10,7 @@ func MoveSystem(world *ecs.World, tq *ecs.TransactionQueue) error {
 	for _, move := range tx.Move.In(tq) {
 		pos, err := comp.Position.Get(world, move.ID)
 		if err != nil {
-			return err
+			return nil
 		}
 		pos.X += move.XDelta
 		pos.Y += move.YDelta

@@ -34,18 +34,12 @@ func Unmarshal(buf []byte) (*SignedPayload, error) {
 	return sp, nil
 }
 
-// NewSignedPayload signs a given body, tag, and nonce with the given private key.
-func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
-	bz, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-
+func NewSignedString(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, str string) (*SignedPayload, error) {
 	sp := &SignedPayload{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Nonce:      nonce,
-		Body:       bz,
+		Body:       []byte(str),
 	}
 	hash, err := sp.hash()
 	if err != nil {
@@ -57,6 +51,16 @@ func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce 
 	}
 	sp.Signature = buf
 	return sp, nil
+
+}
+
+// NewSignedPayload signs a given body, tag, and nonce with the given private key.
+func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
+	bz, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	return NewSignedString(pk, personaTag, namespace, nonce, string(bz))
 }
 
 // Marshal serializes this SignedPayload to bytes, which can then be passed in to Unmarshal.

@@ -129,6 +129,9 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	if err != nil {
 		return nil, nil, err
 	}
+	if sp.PersonaTag == "" {
+		return nil, nil, errors.New("PersonaTag must not be empty")
+	}
 	if t.disableSigVerification {
 		// During testing (with signature verification disabled), a request body can either be wrapped in a signed payload,
 		// or the request body can be sent as is.
@@ -139,7 +142,7 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	}
 
 	if sp.Namespace != t.w.GetNamespace() {
-		return nil, nil, fmt.Errorf("%w: namespace must be %q", ErrorInvalidSignature, t.w.GetNamespace())
+		return nil, nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, t.w.GetNamespace())
 	}
 
 	var signerAddress string
@@ -159,7 +162,8 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 		return nil, nil, err
 	}
 	if sp.Nonce <= nonce {
-		return nil, nil, fmt.Errorf("invalid nonce: %w", ErrorInvalidSignature)
+		return nil, nil, fmt.Errorf("%w: got nonce %d, but must be greater than %d",
+			ErrorInvalidSignature, sp.Nonce, nonce)
 	}
 
 	if err := sp.Verify(signerAddress); err != nil {
