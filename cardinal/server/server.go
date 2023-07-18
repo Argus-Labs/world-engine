@@ -1,8 +1,6 @@
 package server
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
@@ -210,35 +208,4 @@ func (t *Handler) Close() error {
 		return err
 	}
 	return nil
-}
-
-func writeUnauthorized(w http.ResponseWriter, err error) {
-	w.WriteHeader(401)
-	fmt.Fprintf(w, "unauthorized: %v", err)
-}
-
-func writeError(w http.ResponseWriter, msg string, err error) {
-	w.WriteHeader(500)
-	fmt.Fprintf(w, "%s: %v", msg, err)
-}
-
-func writeResult(w http.ResponseWriter, v any) {
-	if s, ok := v.(string); ok {
-		v = struct{ Msg string }{Msg: s}
-	}
-	enc := json.NewEncoder(w)
-	if err := enc.Encode(v); err != nil {
-		writeError(w, "can't encode", err)
-		return
-	}
-}
-
-func decode[T any](buf []byte) (T, error) {
-	dec := json.NewDecoder(bytes.NewBuffer(buf))
-	dec.DisallowUnknownFields()
-	var val T
-	if err := dec.Decode(&val); err != nil {
-		return val, err
-	}
-	return val, nil
 }
