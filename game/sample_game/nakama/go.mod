@@ -2,10 +2,8 @@ module github.com/argus-labs/world-engine/game/sample_game/nakama
 
 go 1.20
 
-replace github.com/argus-labs/world-engine/sign => ../../../sign
-
 require (
-	github.com/argus-labs/world-engine/sign v0.0.0-20230707202412-c8445f1731f0
+	github.com/argus-labs/world-engine/sign v0.1.3-alpha
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/heroiclabs/nakama-common v1.27.0
 )
