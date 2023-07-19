@@ -63,6 +63,11 @@ func (t *Handler) handleReadPersonaSigner(w http.ResponseWriter, r *http.Request
 		SignerAddress: addr,
 	}
 	resJson, err := json.Marshal(res)
+	if err != nil {
+		writeError(w, "unable to marshal response", err)
+		return
+	}
+
 	writeResult(w, resJson)
 }
 

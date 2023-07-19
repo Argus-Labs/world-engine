@@ -3,6 +3,7 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/rs/zerolog/log"
 	"net/http"
 )
@@ -18,11 +19,13 @@ func conformPath(p string) string {
 
 func writeUnauthorized(w http.ResponseWriter, err error) {
 	w.WriteHeader(401)
+	_, _ = fmt.Fprintf(w, "unauthorized: %v", err)
 	log.Info().Msgf("unauthorized: %v", err)
 }
 
 func writeError(w http.ResponseWriter, msg string, err error) {
 	w.WriteHeader(500)
+	_, _ = fmt.Fprintf(w, "%s: %v", msg, err)
 	log.Info().Msgf("%s: %v", msg, err)
 }
 
