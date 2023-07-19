@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 )
 
 // fixes a path to contain a leading slash.
@@ -27,18 +28,30 @@ func writeError(w http.ResponseWriter, msg string, err error) {
 }
 
 func writeResult(w http.ResponseWriter, v any) {
-	if s, ok := v.(string); ok {
-		v = struct{ Msg string }{Msg: s}
-	}
 	// Allow cors
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-	enc := json.NewEncoder(w)
-	if err := enc.Encode(v); err != nil {
-		writeError(w, "can't encode", err)
-		return
+	if reflect.TypeOf(v).String() == "[]uint8" {
+		// Handle JSON bytes
+		_, err := w.Write(v.([]byte))
+		if err != nil {
+			writeError(w, "can't write", err)
+			return
+		}
+	} else {
+		// Handle anything else
+		o, err := json.Marshal(v)
+		if err != nil {
+			writeError(w, "can't marshal", err)
+			return
+		}
+		_, err = w.Write(o)
+		if err != nil {
+			writeError(w, "can't write", err)
+			return
+		}
 	}
 }
 

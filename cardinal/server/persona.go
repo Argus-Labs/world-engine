@@ -1,9 +1,11 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
+	"github.com/invopop/jsonschema"
 	"io"
 	"net/http"
 )
@@ -59,6 +61,15 @@ func (t *Handler) handleReadPersonaSigner(w http.ResponseWriter, r *http.Request
 		Status:        status,
 		SignerAddress: addr,
 	})
+}
+
+func (t *Handler) handleReadPersonaSignerSchema(w http.ResponseWriter, r *http.Request) {
+	jsonSchema, err := json.Marshal(jsonschema.Reflect(new(ReadPersonaSignerRequest)))
+	if err != nil {
+		panic(err)
+	}
+
+	writeResult(w, jsonschema.Reflect(jsonSchema))
 }
 
 func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.HandlerFunc {

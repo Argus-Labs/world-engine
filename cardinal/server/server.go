@@ -88,8 +88,11 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 		readEndpoints = append(readEndpoints, schemaEndpoint)
 	}
 	readPersonaSignerEndpoint := conformPath(readPrefix + "persona-signer")
+	readPersonaSignerSchemaEndpoint := conformPath(schemaEndpointPrefix + readPrefix + "persona-signer")
 	th.mux.HandleFunc(readPersonaSignerEndpoint, th.handleReadPersonaSigner)
+	th.mux.HandleFunc(readPersonaSignerSchemaEndpoint, th.handleReadPersonaSignerSchema)
 	readEndpoints = append(readEndpoints, readPersonaSignerEndpoint)
+	readEndpoints = append(readEndpoints, readPersonaSignerSchemaEndpoint)
 	th.mux.HandleFunc(listReadEndpoint, func(writer http.ResponseWriter, request *http.Request) {
 		writeResult(writer, readEndpoints)
 	})

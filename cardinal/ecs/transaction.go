@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/argus-labs/world-engine/sign"
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/invopop/jsonschema"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
@@ -31,7 +32,7 @@ type TransactionQueue struct {
 }
 
 func NewTransactionType[T any](name string) *TransactionType[T] {
-	jsonSchema, err := json.Marshal(new(T))
+	jsonSchema, err := json.Marshal(jsonschema.Reflect(new(T)))
 	if err != nil {
 		panic(err)
 	}

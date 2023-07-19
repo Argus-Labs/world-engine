@@ -1,6 +1,9 @@
 package ecs
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/invopop/jsonschema"
+)
 
 type IRead interface {
 	// Name returns the name of the read.
@@ -24,7 +27,7 @@ type ReadType[T any] struct {
 var _ IRead = NewReadType[struct{}]("", *new(Handler))
 
 func NewReadType[T any](name string, handler Handler) *ReadType[T] {
-	jsonSchema, err := json.Marshal(new(T))
+	jsonSchema, err := json.Marshal(jsonschema.Reflect(new(T)))
 	if err != nil {
 		panic(err)
 	}
