@@ -3,7 +3,6 @@ package server
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"io"
 	"log"
 	"net/http"
@@ -99,7 +98,7 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 }
 
 func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
-	createPersonaTx, err := decode[ecs.CreatePersonaTransaction](common.Hex2Bytes(sp.Body))
+	createPersonaTx, err := decode[ecs.CreatePersonaTransaction](sp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -122,7 +121,7 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 		if len(sp.Body) == 0 {
 			return buf, sp, nil
 		}
-		return common.Hex2Bytes(sp.Body), sp, nil
+		return sp.Body, sp, nil
 	}
 
 	if sp.Namespace != t.w.GetNamespace() {
@@ -159,7 +158,7 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	if len(sp.Body) == 0 {
 		return buf, sp, nil
 	}
-	return common.Hex2Bytes(sp.Body), sp, nil
+	return sp.Body, sp, nil
 }
 
 func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {

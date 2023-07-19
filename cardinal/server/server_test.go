@@ -119,7 +119,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 		Namespace:  w.GetNamespace(),
 		Nonce:      40,
 		Signature:  "doesnt matter what goes in here",
-		Body:       common.Bytes2Hex(bz),
+		Body:       bz,
 	}
 	bogusSignatureBz, err := json.Marshal(payload)
 	assert.NilError(t, err)
@@ -166,7 +166,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 		Nonce:      100,
 		// this bogus signature is OK because DisableSignatureVerification was used
 		Signature: common.Bytes2Hex([]byte{1, 2, 3, 4}),
-		Body:      common.Bytes2Hex(bz),
+		Body:      bz,
 	}
 
 	bz, err = json.Marshal(&signedTx)
