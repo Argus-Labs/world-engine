@@ -24,7 +24,7 @@ type ReadType[T any] struct {
 	handler Handler
 }
 
-var _ IRead = NewReadType[struct{}]("", *new(Handler))
+var _ IRead = NewReadType[struct{}]("", nil)
 
 func NewReadType[T any](name string, handler Handler) *ReadType[T] {
 	jsonSchema, err := json.Marshal(jsonschema.Reflect(new(T)))

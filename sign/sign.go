@@ -108,11 +108,6 @@ func (s *SignedPayload) Verify(hexAddress string) error {
 
 func (s *SignedPayload) hash() ([]byte, error) {
 	hash := crypto.NewKeccakState()
-	bz, err := json.Marshal(s.Body)
-	if err != nil {
-		return nil, err
-	}
-
 	if _, err := hash.Write([]byte(s.PersonaTag)); err != nil {
 		return nil, err
 	}
@@ -122,7 +117,7 @@ func (s *SignedPayload) hash() ([]byte, error) {
 	if _, err := hash.Write([]byte(fmt.Sprintf("%d", s.Nonce))); err != nil {
 		return nil, err
 	}
-	if _, err := hash.Write(bz); err != nil {
+	if _, err := hash.Write(s.Body); err != nil {
 		return nil, err
 	}
 	return hash.Sum(nil), nil

@@ -383,6 +383,7 @@ func TestCanListReads(t *testing.T) {
 // of their read requests are up to them, and not necessarily required for this feature to provably work.
 func TestReadEncodeDecode(t *testing.T) {
 	// setup this read business stuff
+
 	type FooRequest struct {
 		Foo  int    `json:"foo,omitempty"`
 		Meow string `json:"bar,omitempty"`

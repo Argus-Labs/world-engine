@@ -3,9 +3,8 @@ package server
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"github.com/rs/zerolog/log"
 	"net/http"
-	"reflect"
 )
 
 // fixes a path to contain a leading slash.
@@ -19,39 +18,27 @@ func conformPath(p string) string {
 
 func writeUnauthorized(w http.ResponseWriter, err error) {
 	w.WriteHeader(401)
-	fmt.Fprintf(w, "unauthorized: %v", err)
+	log.Info().Msgf("unauthorized: %v", err)
 }
 
 func writeError(w http.ResponseWriter, msg string, err error) {
 	w.WriteHeader(500)
-	fmt.Fprintf(w, "%s: %v", msg, err)
+	log.Info().Msgf("%s: %v", msg, err)
 }
 
-func writeResult(w http.ResponseWriter, v any) {
-	// Allow cors
+// writeResult takes in a json body string and writes it to the response writer.
+func writeResult(w http.ResponseWriter, body json.RawMessage) {
+	// Allow cors header
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-	if reflect.TypeOf(v).String() == "[]uint8" {
-		// Handle JSON bytes
-		_, err := w.Write(v.([]byte))
-		if err != nil {
-			writeError(w, "can't write", err)
-			return
-		}
-	} else {
-		// Handle anything else
-		o, err := json.Marshal(v)
-		if err != nil {
-			writeError(w, "can't marshal", err)
-			return
-		}
-		_, err = w.Write(o)
-		if err != nil {
-			writeError(w, "can't write", err)
-			return
-		}
+	// Json content header
+	w.Header().Set("Content-Type", "application/json")
+
+	err := json.NewEncoder(w).Encode(body)
+	if err != nil {
+		writeError(w, "unable to encode body", err)
 	}
 }
 

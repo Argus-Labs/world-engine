@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -64,16 +65,22 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 			// The CreatePersonaTx is different from normal transactions because it doesn't look up a signer
 			// address from the world to verify the transaction.
 			th.mux.HandleFunc(endpoint, th.makeCreatePersonaHandler(tx))
-			th.mux.HandleFunc(schemaEndpoint, th.makeTxSchemaHandler(tx))
+			th.mux.HandleFunc(schemaEndpoint, th.makeSchemaHandler(tx.Schema()))
 		} else {
 			th.mux.HandleFunc(endpoint, th.makeTxHandler(tx))
-			th.mux.HandleFunc(schemaEndpoint, th.makeTxSchemaHandler(tx))
+			th.mux.HandleFunc(schemaEndpoint, th.makeSchemaHandler(tx.Schema()))
 		}
-		txEndpoints = append(txEndpoints, endpoint)
-		txEndpoints = append(txEndpoints, schemaEndpoint)
+		txEndpoints = append(txEndpoints, endpoint, schemaEndpoint)
 	}
 	th.mux.HandleFunc(listTxEndpoint, func(writer http.ResponseWriter, request *http.Request) {
-		writeResult(writer, txEndpoints)
+		// marshall txEndpoints to JSON and write to writer
+		res, err := json.Marshal(txEndpoints)
+		if err != nil {
+			writeError(writer, "unable to marshal response", err)
+			return
+		}
+
+		writeResult(writer, res)
 	})
 
 	// make the read endpoints
@@ -83,18 +90,22 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 		endpoint := conformPath(readPrefix + r.Name())
 		schemaEndpoint := conformPath(schemaEndpointPrefix + readPrefix + r.Name())
 		th.mux.HandleFunc(endpoint, th.makeReadHandler(r))
-		th.mux.HandleFunc(schemaEndpoint, th.makeReadSchemaHandler(r))
-		readEndpoints = append(readEndpoints, endpoint)
-		readEndpoints = append(readEndpoints, schemaEndpoint)
+		th.mux.HandleFunc(schemaEndpoint, th.makeSchemaHandler(r.Schema()))
+		readEndpoints = append(readEndpoints, endpoint, schemaEndpoint)
 	}
 	readPersonaSignerEndpoint := conformPath(readPrefix + "persona-signer")
 	readPersonaSignerSchemaEndpoint := conformPath(schemaEndpointPrefix + readPrefix + "persona-signer")
 	th.mux.HandleFunc(readPersonaSignerEndpoint, th.handleReadPersonaSigner)
 	th.mux.HandleFunc(readPersonaSignerSchemaEndpoint, th.handleReadPersonaSignerSchema)
-	readEndpoints = append(readEndpoints, readPersonaSignerEndpoint)
-	readEndpoints = append(readEndpoints, readPersonaSignerSchemaEndpoint)
+	readEndpoints = append(readEndpoints, readPersonaSignerEndpoint, readPersonaSignerSchemaEndpoint)
 	th.mux.HandleFunc(listReadEndpoint, func(writer http.ResponseWriter, request *http.Request) {
-		writeResult(writer, readEndpoints)
+		res, err := json.Marshal(readEndpoints)
+		if err != nil {
+			writeError(writer, "unable to marshal response", err)
+			return
+		}
+
+		writeResult(writer, res)
 	})
 
 	return th, nil
@@ -180,7 +191,13 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 			return
 		}
 		t.w.AddTransaction(tx.ID(), txVal, sp)
-		writeResult(writer, "ok")
+
+		res, err := json.Marshal("ok")
+		if err != nil {
+			writeError(writer, "unable to marshal response", err)
+			return
+		}
+		writeResult(writer, res)
 	}
 }
 
@@ -200,15 +217,15 @@ func (t *Handler) makeReadHandler(r ecs.IRead) http.HandlerFunc {
 	}
 }
 
-func (t *Handler) makeTxSchemaHandler(tx transaction.ITransaction) http.HandlerFunc {
+func (t *Handler) makeSchemaHandler(schema string) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		writeResult(writer, tx.Schema())
-	}
-}
+		res, err := json.Marshal(schema)
+		if err != nil {
+			writeError(writer, "unable to marshal response", err)
+			return
+		}
 
-func (t *Handler) makeReadSchemaHandler(r ecs.IRead) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		writeResult(writer, r.Schema())
+		writeResult(writer, res)
 	}
 }
 
