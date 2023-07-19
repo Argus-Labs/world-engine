@@ -1,15 +1,13 @@
 package ecs
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"github.com/argus-labs/world-engine/sign"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
-
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
-	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 )
 
 var _ transaction.ITransaction = NewTransactionType[struct{}]("")
@@ -20,7 +18,6 @@ type TransactionType[T any] struct {
 	id      transaction.TypeID
 	isIDSet bool
 	name    string
-	schema  string // JSON schema
 	evmType *abi.Type
 }
 
@@ -32,14 +29,8 @@ type TransactionQueue struct {
 }
 
 func NewTransactionType[T any](name string) *TransactionType[T] {
-	jsonSchema, err := json.Marshal(jsonschema.Reflect(new(T)))
-	if err != nil {
-		panic(err)
-	}
-
 	return &TransactionType[T]{
-		name:   name,
-		schema: string(jsonSchema),
+		name: name,
 	}
 }
 
@@ -47,8 +38,8 @@ func (t *TransactionType[T]) Name() string {
 	return t.name
 }
 
-func (t *TransactionType[T]) Schema() string {
-	return t.schema
+func (t *TransactionType[T]) Schema() *jsonschema.Schema {
+	return jsonschema.Reflect(new(T))
 }
 
 // DecodeEVMBytes decodes abi encoded solidity structs into Go structs of the same structure.

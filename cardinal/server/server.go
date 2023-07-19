@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/invopop/jsonschema"
 	"io"
 	"log"
 	"net/http"
@@ -65,11 +66,10 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 			// The CreatePersonaTx is different from normal transactions because it doesn't look up a signer
 			// address from the world to verify the transaction.
 			th.mux.HandleFunc(endpoint, th.makeCreatePersonaHandler(tx))
-			th.mux.HandleFunc(schemaEndpoint, th.makeSchemaHandler(tx.Schema()))
 		} else {
 			th.mux.HandleFunc(endpoint, th.makeTxHandler(tx))
-			th.mux.HandleFunc(schemaEndpoint, th.makeSchemaHandler(tx.Schema()))
 		}
+		th.mux.HandleFunc(schemaEndpoint, th.makeSchemaHandler(tx.Schema()))
 		txEndpoints = append(txEndpoints, endpoint, schemaEndpoint)
 	}
 	th.mux.HandleFunc(listTxEndpoint, func(writer http.ResponseWriter, request *http.Request) {
@@ -217,7 +217,7 @@ func (t *Handler) makeReadHandler(r ecs.IRead) http.HandlerFunc {
 	}
 }
 
-func (t *Handler) makeSchemaHandler(schema string) http.HandlerFunc {
+func (t *Handler) makeSchemaHandler(schema *jsonschema.Schema) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		res, err := json.Marshal(schema)
 		if err != nil {
