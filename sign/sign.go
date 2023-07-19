@@ -23,7 +23,7 @@ type SignedPayload struct {
 	Namespace  string
 	Nonce      uint64
 	Signature  string // hex encoded string
-	Body       string // hex encoded string
+	Body       []byte
 }
 
 func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
@@ -46,13 +46,13 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 	if s.Signature == "" {
 		return nil, errors.New("SignerPayload must contain Signature field")
 	}
-	if s.Body == "" {
+	if len(s.Body) == 0 {
 		return nil, errors.New("SignerPayload must contain Body field")
 	}
 	return s, nil
 }
 
-// NewSignedPayload signs a given body, tag, and nonce with the given private key. data should be a hex encoded string.
+// NewSignedPayload signs a given body, tag, and nonce with the given private key. data should be a json encoded string.
 func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
 	if data == nil || reflect.ValueOf(data).IsZero() {
 		return nil, errors.New("cannot sign empty data")
@@ -65,7 +65,7 @@ func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce 
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Nonce:      nonce,
-		Body:       common.Bytes2Hex(bz),
+		Body:       bz,
 	}
 	hash, err := sp.hash()
 	if err != nil {
@@ -117,7 +117,7 @@ func (s *SignedPayload) hash() ([]byte, error) {
 	if _, err := hash.Write([]byte(fmt.Sprintf("%d", s.Nonce))); err != nil {
 		return nil, err
 	}
-	if _, err := hash.Write([]byte(s.Body)); err != nil {
+	if _, err := hash.Write(s.Body); err != nil {
 		return nil, err
 	}
 	return hash.Sum(nil), nil
