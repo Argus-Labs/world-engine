@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/ethereum/go-ethereum/common"
 	"io"
 	"log"
@@ -19,6 +20,9 @@ type Handler struct {
 	mux                    *http.ServeMux
 	server                 *http.Server
 	disableSigVerification bool
+
+	// plugins
+	adapter chain.Writer
 }
 
 var (
@@ -170,6 +174,7 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 		}
 		t.w.AddTransaction(tx.ID(), txVal, sp)
 		writeResult(writer, "ok")
+		t.adapter.Submit()
 	}
 }
 

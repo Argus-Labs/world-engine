@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/argus-labs/world-engine/sign"
 	"google.golang.org/grpc/credentials"
 	"os"
 
@@ -17,7 +18,15 @@ import (
 
 // Adapter is a type that helps facilitate communication with the EVM base shard.
 type Adapter interface {
-	Submit(ctx context.Context, namespace string, tick uint64, txs []byte) error
+	Writer
+	Reader
+}
+
+type Writer interface {
+	Submit(context.Context, *sign.SignedPayload) error
+}
+
+type Reader interface {
 	QueryBatches(ctx context.Context, req *shardtypes.QueryBatchesRequest) (*shardtypes.QueryBatchesResponse, error)
 }
 
@@ -80,7 +89,7 @@ func NewAdapter(cfg Config, opts ...Option) (Adapter, error) {
 }
 
 // Submit submits the transaction bytes to the EVM base shard.
-func (a adapterImpl) Submit(ctx context.Context, namespace string, tick uint64, txs []byte) error {
+func (a adapterImpl) Submit(ctx context.Context, sp *sign.SignedPayload) error {
 	req := &shardv1.SubmitShardBatchRequest{Namespace: namespace, TickId: tick, Batch: txs}
 	_, err := a.ShardReceiver.SubmitShardBatch(ctx, req)
 	return err

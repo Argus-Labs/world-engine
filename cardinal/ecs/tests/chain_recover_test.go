@@ -109,6 +109,9 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		ClaimPlanetTx.AddToQueue(w, tx)
 	}
 
+	// TODO(technicallyty): update this test so that we properly submit transactions to the adapter (directly).
+	// likely the format will change, so we'll see how that goes..
+
 	// we want to run a tick, so that the transactions go through the submission process, and end up stored in our
 	// dummy adapter above.
 	doneSignal := make(chan struct{})

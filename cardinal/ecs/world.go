@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"sync"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
@@ -43,12 +42,11 @@ type World struct {
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
 	// txQueues is a map of transaction names to the relevant list of transactions data
-	txQueues     map[transaction.TypeID][]any
-	txSignatures map[transaction.TypeID][]*sign.SignedPayload
+	txQueues map[transaction.TypeID][]any
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
 
-	chain chain.Adapter
+	chain chain.Reader
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
@@ -183,12 +181,11 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	worldId := nextWorldId
 	nextWorldId++
 	w := &World{
-		id:           worldId,
-		store:        s,
-		tick:         0,
-		systems:      make([]System, 0, 256), // this can just stay in memory.
-		txQueues:     map[transaction.TypeID][]any{},
-		txSignatures: map[transaction.TypeID][]*sign.SignedPayload{},
+		id:       worldId,
+		store:    s,
+		tick:     0,
+		systems:  make([]System, 0, 256), // this can just stay in memory.
+		txQueues: map[transaction.TypeID][]any{},
 	}
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
@@ -411,7 +408,6 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPay
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
 	w.txQueues[id] = append(w.txQueues[id], v)
-	w.txSignatures[id] = append(w.txSignatures[id], sig)
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
@@ -443,14 +439,8 @@ func (w *World) Tick(ctx context.Context) error {
 	if err := w.store.TickStore.FinalizeTick(); err != nil {
 		return err
 	}
-	prevTick := w.tick
 	w.tick++
 
-	// if we're not recovering these transactions, and we have an EVM base shard connection + transactions to process,
-	// submit them to the EVM base shard.
-	if !w.isRecovering && (w.chain != nil && len(txs) > 0) {
-		w.submitToChain(ctx, *txQueue, uint64(prevTick))
-	}
 	return nil
 }
 
@@ -460,7 +450,7 @@ type TxBatch struct {
 }
 
 // submitToChain spins up a new go routine that will submit the transactions to the EVM base shard.
-func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick uint64) {
+/*func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick uint64) {
 	go func(ctx context.Context) {
 		// convert transaction queue map into slice
 		txb := make([]TxBatch, 0, len(txq.queue))
@@ -505,7 +495,7 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		doneSignal <- struct{}{}
 
 	}(ctx)
-}
+}*/
 
 const (
 	storeArchetypeCompIdxKey  = "arch_component_index"
