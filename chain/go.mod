@@ -3,11 +3,13 @@ module github.com/argus-labs/world-engine/chain
 go 1.20
 
 replace (
+	cosmossdk.io/client/v2 => github.com/rollkit/cosmos-sdk/client/v2 v2.0.0-20230607201127-d0e1a9be4efa
 	cosmossdk.io/x/evidence => github.com/rollkit/cosmos-sdk/x/evidence v0.0.0-20230714164100-d5353aba3338
+	cosmossdk.io/x/upgrade => github.com/rollkit/cosmos-sdk/x/upgrade v0.0.0-20230714164100-d5353aba3338
 	github.com/cometbft/cometbft => github.com/rollkit/cometbft v0.0.0-20230614163111-d6a8d2c98cc0
 	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.0-beta2.0.20230714164100-d5353aba3338
 	// Required for stateful precompiles and supporting the Ethereum JSON-RPC API.
-	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20230609180942-c6acc930b404
+	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20230629154458-90866dc0cf0a
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 
@@ -51,10 +53,10 @@ require (
 	google.golang.org/protobuf v1.31.0
 	gotest.tools v2.2.0+incompatible
 	gotest.tools/v3 v3.5.0
-	pkg.berachain.dev/polaris/contracts v0.0.0-20230717165123-80a30c3435c3
+	pkg.berachain.dev/polaris/contracts v0.0.0-20230717191722-ca5ee4732870
 	pkg.berachain.dev/polaris/cosmos v0.0.0-20230717191722-ca5ee4732870
-	pkg.berachain.dev/polaris/eth v0.0.0-20230717165123-80a30c3435c3
-	pkg.berachain.dev/polaris/lib v0.0.0-20230717165123-80a30c3435c3
+	pkg.berachain.dev/polaris/eth v0.0.0-20230717191722-ca5ee4732870
+	pkg.berachain.dev/polaris/lib v0.0.0-20230717191722-ca5ee4732870
 )
 
 require (
@@ -98,6 +100,7 @@ require (
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/pebble v0.0.0-20230710174534-a9a079d4fb6b // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
+	github.com/cockroachdb/tokenbucket v0.0.0-20230613231145-182959a1fad6 // indirect
 	github.com/cometbft/cometbft-db v0.8.0 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/consensys/gnark-crypto v0.10.0 // indirect
@@ -183,6 +186,7 @@ require (
 	github.com/hashicorp/go-getter v1.7.1 // indirect
 	github.com/hashicorp/go-hclog v1.5.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
+	github.com/hashicorp/go-metrics v0.5.1 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-plugin v1.4.10 // indirect
 	github.com/hashicorp/go-safetemp v1.0.0 // indirect
