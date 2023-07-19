@@ -28,8 +28,10 @@ var (
 )
 
 const (
-	listTxEndpoint   = "/list-tx-endpoints"
-	listReadEndpoint = "/list-read-endpoints"
+	listTxEndpoint   = "/list/tx-endpoints"
+	listReadEndpoint = "/list/read-endpoints"
+
+	schemaEndpointPrefix = "/schema/"
 
 	readPrefix = "read-"
 	txPrefix   = "tx-"
@@ -55,17 +57,21 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	txEndpoints := make([]string, 0, len(txs))
+	txEndpoints := make([]string, 0, len(txs)*2)
 	for _, tx := range txs {
 		endpoint := conformPath(txPrefix + tx.Name())
+		schemaEndpoint := conformPath(schemaEndpointPrefix + txPrefix + tx.Name())
 		if tx.Name() == ecs.CreatePersonaTx.Name() {
 			// The CreatePersonaTx is different from normal transactions because it doesn't look up a signer
 			// address from the world to verify the transaction.
 			th.mux.HandleFunc(endpoint, th.makeCreatePersonaHandler(tx))
+			th.mux.HandleFunc(schemaEndpoint, th.makeTxSchemaHandler(tx))
 		} else {
 			th.mux.HandleFunc(endpoint, th.makeTxHandler(tx))
+			th.mux.HandleFunc(schemaEndpoint, th.makeTxSchemaHandler(tx))
 		}
 		txEndpoints = append(txEndpoints, endpoint)
+		txEndpoints = append(txEndpoints, schemaEndpoint)
 	}
 	th.mux.HandleFunc(listTxEndpoint, func(writer http.ResponseWriter, request *http.Request) {
 		writeResult(writer, txEndpoints)
@@ -73,19 +79,22 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 
 	// make the read endpoints
 	reads := w.ListReads()
-	readEndpoints := make([]string, 0, len(reads))
-	for _, q := range reads {
-		endpoint := conformPath(readPrefix + q.Name())
-		th.mux.HandleFunc(endpoint, th.makeReadHandler(q))
+	readEndpoints := make([]string, 0, len(reads)*2)
+	for _, r := range reads {
+		endpoint := conformPath(readPrefix + r.Name())
+		schemaEndpoint := conformPath(schemaEndpointPrefix + readPrefix + r.Name())
+		th.mux.HandleFunc(endpoint, th.makeReadHandler(r))
+		th.mux.HandleFunc(schemaEndpoint, th.makeReadSchemaHandler(r))
 		readEndpoints = append(readEndpoints, endpoint)
+		readEndpoints = append(readEndpoints, schemaEndpoint)
 	}
+	readPersonaSignerEndpoint := conformPath(readPrefix + "persona-signer")
+	th.mux.HandleFunc(readPersonaSignerEndpoint, th.handleReadPersonaSigner)
+	readEndpoints = append(readEndpoints, readPersonaSignerEndpoint)
 	th.mux.HandleFunc(listReadEndpoint, func(writer http.ResponseWriter, request *http.Request) {
 		writeResult(writer, readEndpoints)
 	})
 
-	readPersonaSignerEndpoint := conformPath(readPrefix + "persona-signer")
-	th.mux.HandleFunc(readPersonaSignerEndpoint, th.handleReadPersonaSigner)
-	txEndpoints = append(txEndpoints, readPersonaSignerEndpoint)
 	return th, nil
 }
 
@@ -173,19 +182,31 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 	}
 }
 
-func (t *Handler) makeReadHandler(q ecs.IRead) http.HandlerFunc {
+func (t *Handler) makeReadHandler(r ecs.IRead) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		buf, err := io.ReadAll(request.Body)
 		if err != nil {
 			writeError(writer, "unable to read request body", err)
 			return
 		}
-		res, err := q.HandleRead(t.w, buf)
+		res, err := r.HandleRead(t.w, buf)
 		if err != nil {
 			writeError(writer, "error handling read", err)
 			return
 		}
-		writer.Write(res)
+		writeResult(writer, res)
+	}
+}
+
+func (t *Handler) makeTxSchemaHandler(tx transaction.ITransaction) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		writeResult(writer, tx.Schema())
+	}
+}
+
+func (t *Handler) makeReadSchemaHandler(r ecs.IRead) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		writeResult(writer, r.Schema())
 	}
 }
 

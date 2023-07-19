@@ -1,9 +1,9 @@
 package ecs
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-
 	"github.com/argus-labs/world-engine/sign"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 
@@ -19,6 +19,7 @@ type TransactionType[T any] struct {
 	id      transaction.TypeID
 	isIDSet bool
 	name    string
+	schema  string // JSON schema
 	evmType *abi.Type
 }
 
@@ -30,13 +31,23 @@ type TransactionQueue struct {
 }
 
 func NewTransactionType[T any](name string) *TransactionType[T] {
+	jsonSchema, err := json.Marshal(new(T))
+	if err != nil {
+		panic(err)
+	}
+
 	return &TransactionType[T]{
-		name: name,
+		name:   name,
+		schema: string(jsonSchema),
 	}
 }
 
 func (t *TransactionType[T]) Name() string {
 	return t.name
+}
+
+func (t *TransactionType[T]) Schema() string {
+	return t.schema
 }
 
 // DecodeEVMBytes decodes abi encoded solidity structs into Go structs of the same structure.
