@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/argus-labs/world-engine/cardinal/chain"
@@ -174,7 +175,12 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 		}
 		t.w.AddTransaction(tx.ID(), txVal, sp)
 		writeResult(writer, "ok")
-		t.adapter.Submit()
+		if t.adapter != nil {
+			err = t.adapter.Submit(context.Background(), sp)
+			if err != nil {
+				writeError(writer, "error submitting transaction to blockchain", err)
+			}
+		}
 	}
 }
 
