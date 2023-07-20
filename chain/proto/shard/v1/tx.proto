@@ -12,16 +12,17 @@ option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  rpc SubmitBatch(SubmitBatchRequest) returns (SubmitBatchResponse);
+  rpc SubmitCardinalTx(SubmitCardinalTxRequest) returns (SubmitCardinalTxResponse);
 }
 
-message SubmitBatchRequest {
+message SubmitCardinalTxRequest {
   option (cosmos.msg.v1.signer) = "sender";
 
   // sender is the address of the sender. this will be set to the module address.
   string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 
-  TransactionBatch transaction_batch = 2;
+  // cardinal_tx is a proto marshalled SignedPayload.
+  bytes cardinal_tx = 2;
 }
 
-message SubmitBatchResponse {}
+message SubmitCardinalTxResponse {}

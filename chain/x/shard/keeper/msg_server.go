@@ -1,7 +1,9 @@
 package keeper
 
 import (
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
+	"google.golang.org/protobuf/proto"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -11,15 +13,21 @@ import (
 
 var _ types.MsgServer = &Keeper{}
 
-func (k *Keeper) SubmitBatch(ctx context.Context, msg *types.SubmitBatchRequest) (*types.SubmitBatchResponse, error) {
+func (k *Keeper) SubmitCardinalTx(ctx context.Context, msg *types.SubmitCardinalTxRequest) (*types.SubmitCardinalTxResponse, error) {
 	if msg.Sender != k.auth {
-		return nil, sdkerrors.ErrUnauthorized.Wrap("this function cannot be used by EOAs. the transaction must be " +
-			"initialized internally")
+		return nil, sdkerrors.ErrUnauthorized.Wrap("SubmitCardinalTx is a system function and cannot be called " +
+			"externally.")
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	err := k.saveBatch(sdkCtx, msg.TransactionBatch)
+	sp := new(shardv1.SignedPayload)
+	err := proto.Unmarshal(msg.CardinalTx, sp)
 	if err != nil {
 		return nil, err
 	}
-	return &types.SubmitBatchResponse{}, nil
+	err = k.saveTransaction(sdkCtx, sp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.SubmitCardinalTxResponse{}, nil
 }

@@ -1,8 +1,13 @@
 buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230706010157-acc3d9a427bd.1 h1:bCWFZ/s0V7MY3jX+dHN+ygDBWmBr9WbiK4VVqWrk6Co=
 buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230706010157-acc3d9a427bd.1/go.mod h1:fbAMesoz+HdUWhpP/2mft2TohcARiZvr842hUcvdQo8=
+buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230719103334-2142d567a4b3.1 h1:0FiQC0T9pxW3RAozbWTO0T4ytqnU1cgZjD2cHu6dGOw=
+buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230719103334-2142d567a4b3.1/go.mod h1:GZfNY26dzR0lkDLWw5xzrUpxAtElkxX1g+MHxmjtSQY=
 buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.28.1-20230706010157-acc3d9a427bd.4/go.mod h1:4MaNgQtb43WIueUejxPifpusXSZttMJwX4g7Baqz9Y0=
+buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.28.1-20230719103334-2142d567a4b3.4/go.mod h1:4MaNgQtb43WIueUejxPifpusXSZttMJwX4g7Baqz9Y0=
 buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230706010157-acc3d9a427bd.1 h1:hVuIx07atjmmJAemcp7po0mOwkGfz0gB/+wzMk6Y+3A=
 buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230706010157-acc3d9a427bd.1/go.mod h1:znJrAqamygZMR7LrV3nDqY7HQcgUnFxDiqidxu1nh8A=
+buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230719103334-2142d567a4b3.1 h1:VHLFUW+Izd1maXDR7tWznibPwyebXJcBkBF6Aw7N71g=
+buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230719103334-2142d567a4b3.1/go.mod h1:znJrAqamygZMR7LrV3nDqY7HQcgUnFxDiqidxu1nh8A=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.31.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=

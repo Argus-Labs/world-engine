@@ -19,14 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	Msg_SubmitBatch_FullMethodName = "/shard.v1.Msg/SubmitBatch"
+	Msg_SubmitCardinalTx_FullMethodName = "/shard.v1.Msg/SubmitCardinalTx"
 )
 
 // MsgClient is the client API for Msg service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MsgClient interface {
-	SubmitBatch(ctx context.Context, in *SubmitBatchRequest, opts ...grpc.CallOption) (*SubmitBatchResponse, error)
+	SubmitCardinalTx(ctx context.Context, in *SubmitCardinalTxRequest, opts ...grpc.CallOption) (*SubmitCardinalTxResponse, error)
 }
 
 type msgClient struct {
@@ -37,9 +37,9 @@ func NewMsgClient(cc grpc.ClientConnInterface) MsgClient {
 	return &msgClient{cc}
 }
 
-func (c *msgClient) SubmitBatch(ctx context.Context, in *SubmitBatchRequest, opts ...grpc.CallOption) (*SubmitBatchResponse, error) {
-	out := new(SubmitBatchResponse)
-	err := c.cc.Invoke(ctx, Msg_SubmitBatch_FullMethodName, in, out, opts...)
+func (c *msgClient) SubmitCardinalTx(ctx context.Context, in *SubmitCardinalTxRequest, opts ...grpc.CallOption) (*SubmitCardinalTxResponse, error) {
+	out := new(SubmitCardinalTxResponse)
+	err := c.cc.Invoke(ctx, Msg_SubmitCardinalTx_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func (c *msgClient) SubmitBatch(ctx context.Context, in *SubmitBatchRequest, opt
 // All implementations must embed UnimplementedMsgServer
 // for forward compatibility
 type MsgServer interface {
-	SubmitBatch(context.Context, *SubmitBatchRequest) (*SubmitBatchResponse, error)
+	SubmitCardinalTx(context.Context, *SubmitCardinalTxRequest) (*SubmitCardinalTxResponse, error)
 	mustEmbedUnimplementedMsgServer()
 }
 
@@ -58,8 +58,8 @@ type MsgServer interface {
 type UnimplementedMsgServer struct {
 }
 
-func (UnimplementedMsgServer) SubmitBatch(context.Context, *SubmitBatchRequest) (*SubmitBatchResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SubmitBatch not implemented")
+func (UnimplementedMsgServer) SubmitCardinalTx(context.Context, *SubmitCardinalTxRequest) (*SubmitCardinalTxResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitCardinalTx not implemented")
 }
 func (UnimplementedMsgServer) mustEmbedUnimplementedMsgServer() {}
 
@@ -74,20 +74,20 @@ func RegisterMsgServer(s grpc.ServiceRegistrar, srv MsgServer) {
 	s.RegisterService(&Msg_ServiceDesc, srv)
 }
 
-func _Msg_SubmitBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SubmitBatchRequest)
+func _Msg_SubmitCardinalTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitCardinalTxRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).SubmitBatch(ctx, in)
+		return srv.(MsgServer).SubmitCardinalTx(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: Msg_SubmitBatch_FullMethodName,
+		FullMethod: Msg_SubmitCardinalTx_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).SubmitBatch(ctx, req.(*SubmitBatchRequest))
+		return srv.(MsgServer).SubmitCardinalTx(ctx, req.(*SubmitCardinalTxRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -100,8 +100,8 @@ var Msg_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SubmitBatch",
-			Handler:    _Msg_SubmitBatch_Handler,
+			MethodName: "SubmitCardinalTx",
+			Handler:    _Msg_SubmitCardinalTx_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

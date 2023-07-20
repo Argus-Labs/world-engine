@@ -3,8 +3,8 @@ package shard
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/protobuf/proto"
 	"log"
 	"net"
 	"os"
@@ -27,7 +27,7 @@ var (
 type Server struct {
 	moduleAddr sdk.AccAddress
 	lock       sync.Mutex
-	msgQueue   []types.SubmitBatchRequest
+	msgQueue   []*types.SubmitCardinalTxRequest
 	serverOpts []grpc.ServerOption
 }
 
@@ -85,7 +85,7 @@ func (s *Server) Serve(listenAddr string) {
 }
 
 // FlushMessages first copies the transactions in the queue, then clears the queue and returns the copy.
-func (s *Server) FlushMessages() []types.SubmitBatchRequest {
+func (s *Server) FlushMessages() []*types.SubmitCardinalTxRequest {
 	// no-op if we have nothing
 	if len(s.msgQueue) == 0 {
 		return nil
@@ -93,7 +93,7 @@ func (s *Server) FlushMessages() []types.SubmitBatchRequest {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	// copy the transactions
-	msgs := make([]types.SubmitBatchRequest, len(s.msgQueue))
+	msgs := make([]*types.SubmitCardinalTxRequest, len(s.msgQueue))
 	copy(msgs, s.msgQueue)
 
 	// clear the queue
@@ -104,17 +104,17 @@ func (s *Server) FlushMessages() []types.SubmitBatchRequest {
 // SubmitShardBatch appends the shard tx submissions to the queue IFF they pass validation.
 func (s *Server) SubmitShardBatch(_ context.Context, req *shard.SubmitShardBatchRequest) (
 	*shard.SubmitShardBatchResponse, error) {
-	sbr := types.SubmitBatchRequest{
-		Sender: s.moduleAddr.String(),
-		TransactionBatch: &types.TransactionBatch{
-			Namespace: req.Namespace,
-			Tick:      req.TickId,
-			Batch:     req.Batch,
-		},
+
+	bz, err := proto.Marshal(req.Payload)
+	if err != nil {
+		return nil, err
 	}
-	if err := sbr.ValidateBasic(); err != nil {
-		return nil, fmt.Errorf("cannot submit batch to blockchain. invalid submission: %w", err)
+
+	sbr := &types.SubmitCardinalTxRequest{
+		Sender:     s.moduleAddr.String(),
+		CardinalTx: bz,
 	}
+
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.msgQueue = append(s.msgQueue, sbr)

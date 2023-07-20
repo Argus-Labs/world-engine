@@ -18,8 +18,8 @@ replace (
 )
 
 require (
-	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230706010157-acc3d9a427bd.1
-	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230706010157-acc3d9a427bd.1
+	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230719103334-2142d567a4b3.1
+	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230719103334-2142d567a4b3.1
 	cosmossdk.io/api v0.5.0
 	cosmossdk.io/client/v2 v2.0.0-20230711172342-1b0fcdc9f059
 	cosmossdk.io/core v0.9.0

@@ -15,27 +15,27 @@ import (
 )
 
 var (
-	md_SubmitBatchRequest                   protoreflect.MessageDescriptor
-	fd_SubmitBatchRequest_sender            protoreflect.FieldDescriptor
-	fd_SubmitBatchRequest_transaction_batch protoreflect.FieldDescriptor
+	md_SubmitCardinalTxRequest             protoreflect.MessageDescriptor
+	fd_SubmitCardinalTxRequest_sender      protoreflect.FieldDescriptor
+	fd_SubmitCardinalTxRequest_cardinal_tx protoreflect.FieldDescriptor
 )
 
 func init() {
 	file_shard_v1_tx_proto_init()
-	md_SubmitBatchRequest = File_shard_v1_tx_proto.Messages().ByName("SubmitBatchRequest")
-	fd_SubmitBatchRequest_sender = md_SubmitBatchRequest.Fields().ByName("sender")
-	fd_SubmitBatchRequest_transaction_batch = md_SubmitBatchRequest.Fields().ByName("transaction_batch")
+	md_SubmitCardinalTxRequest = File_shard_v1_tx_proto.Messages().ByName("SubmitCardinalTxRequest")
+	fd_SubmitCardinalTxRequest_sender = md_SubmitCardinalTxRequest.Fields().ByName("sender")
+	fd_SubmitCardinalTxRequest_cardinal_tx = md_SubmitCardinalTxRequest.Fields().ByName("cardinal_tx")
 }
 
-var _ protoreflect.Message = (*fastReflection_SubmitBatchRequest)(nil)
+var _ protoreflect.Message = (*fastReflection_SubmitCardinalTxRequest)(nil)
 
-type fastReflection_SubmitBatchRequest SubmitBatchRequest
+type fastReflection_SubmitCardinalTxRequest SubmitCardinalTxRequest
 
-func (x *SubmitBatchRequest) ProtoReflect() protoreflect.Message {
-	return (*fastReflection_SubmitBatchRequest)(x)
+func (x *SubmitCardinalTxRequest) ProtoReflect() protoreflect.Message {
+	return (*fastReflection_SubmitCardinalTxRequest)(x)
 }
 
-func (x *SubmitBatchRequest) slowProtoReflect() protoreflect.Message {
+func (x *SubmitCardinalTxRequest) slowProtoReflect() protoreflect.Message {
 	mi := &file_shard_v1_tx_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -47,43 +47,43 @@ func (x *SubmitBatchRequest) slowProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-var _fastReflection_SubmitBatchRequest_messageType fastReflection_SubmitBatchRequest_messageType
-var _ protoreflect.MessageType = fastReflection_SubmitBatchRequest_messageType{}
+var _fastReflection_SubmitCardinalTxRequest_messageType fastReflection_SubmitCardinalTxRequest_messageType
+var _ protoreflect.MessageType = fastReflection_SubmitCardinalTxRequest_messageType{}
 
-type fastReflection_SubmitBatchRequest_messageType struct{}
+type fastReflection_SubmitCardinalTxRequest_messageType struct{}
 
-func (x fastReflection_SubmitBatchRequest_messageType) Zero() protoreflect.Message {
-	return (*fastReflection_SubmitBatchRequest)(nil)
+func (x fastReflection_SubmitCardinalTxRequest_messageType) Zero() protoreflect.Message {
+	return (*fastReflection_SubmitCardinalTxRequest)(nil)
 }
-func (x fastReflection_SubmitBatchRequest_messageType) New() protoreflect.Message {
-	return new(fastReflection_SubmitBatchRequest)
+func (x fastReflection_SubmitCardinalTxRequest_messageType) New() protoreflect.Message {
+	return new(fastReflection_SubmitCardinalTxRequest)
 }
-func (x fastReflection_SubmitBatchRequest_messageType) Descriptor() protoreflect.MessageDescriptor {
-	return md_SubmitBatchRequest
+func (x fastReflection_SubmitCardinalTxRequest_messageType) Descriptor() protoreflect.MessageDescriptor {
+	return md_SubmitCardinalTxRequest
 }
 
 // Descriptor returns message descriptor, which contains only the protobuf
 // type information for the message.
-func (x *fastReflection_SubmitBatchRequest) Descriptor() protoreflect.MessageDescriptor {
-	return md_SubmitBatchRequest
+func (x *fastReflection_SubmitCardinalTxRequest) Descriptor() protoreflect.MessageDescriptor {
+	return md_SubmitCardinalTxRequest
 }
 
 // Type returns the message type, which encapsulates both Go and protobuf
 // type information. If the Go type information is not needed,
 // it is recommended that the message descriptor be used instead.
-func (x *fastReflection_SubmitBatchRequest) Type() protoreflect.MessageType {
-	return _fastReflection_SubmitBatchRequest_messageType
+func (x *fastReflection_SubmitCardinalTxRequest) Type() protoreflect.MessageType {
+	return _fastReflection_SubmitCardinalTxRequest_messageType
 }
 
 // New returns a newly allocated and mutable empty message.
-func (x *fastReflection_SubmitBatchRequest) New() protoreflect.Message {
-	return new(fastReflection_SubmitBatchRequest)
+func (x *fastReflection_SubmitCardinalTxRequest) New() protoreflect.Message {
+	return new(fastReflection_SubmitCardinalTxRequest)
 }
 
 // Interface unwraps the message reflection interface and
 // returns the underlying ProtoMessage interface.
-func (x *fastReflection_SubmitBatchRequest) Interface() protoreflect.ProtoMessage {
-	return (*SubmitBatchRequest)(x)
+func (x *fastReflection_SubmitCardinalTxRequest) Interface() protoreflect.ProtoMessage {
+	return (*SubmitCardinalTxRequest)(x)
 }
 
 // Range iterates over every populated field in an undefined order,
@@ -91,16 +91,16 @@ func (x *fastReflection_SubmitBatchRequest) Interface() protoreflect.ProtoMessag
 // Range returns immediately if f returns false.
 // While iterating, mutating operations may only be performed
 // on the current field descriptor.
-func (x *fastReflection_SubmitBatchRequest) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
+func (x *fastReflection_SubmitCardinalTxRequest) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
 	if x.Sender != "" {
 		value := protoreflect.ValueOfString(x.Sender)
-		if !f(fd_SubmitBatchRequest_sender, value) {
+		if !f(fd_SubmitCardinalTxRequest_sender, value) {
 			return
 		}
 	}
-	if x.TransactionBatch != nil {
-		value := protoreflect.ValueOfMessage(x.TransactionBatch.ProtoReflect())
-		if !f(fd_SubmitBatchRequest_transaction_batch, value) {
+	if len(x.CardinalTx) != 0 {
+		value := protoreflect.ValueOfBytes(x.CardinalTx)
+		if !f(fd_SubmitCardinalTxRequest_cardinal_tx, value) {
 			return
 		}
 	}
@@ -117,17 +117,17 @@ func (x *fastReflection_SubmitBatchRequest) Range(f func(protoreflect.FieldDescr
 // In other cases (aside from the nullable cases above),
 // a proto3 scalar field is populated if it contains a non-zero value, and
 // a repeated field is populated if it is non-empty.
-func (x *fastReflection_SubmitBatchRequest) Has(fd protoreflect.FieldDescriptor) bool {
+func (x *fastReflection_SubmitCardinalTxRequest) Has(fd protoreflect.FieldDescriptor) bool {
 	switch fd.FullName() {
-	case "shard.v1.SubmitBatchRequest.sender":
+	case "shard.v1.SubmitCardinalTxRequest.sender":
 		return x.Sender != ""
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		return x.TransactionBatch != nil
+	case "shard.v1.SubmitCardinalTxRequest.cardinal_tx":
+		return len(x.CardinalTx) != 0
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxRequest does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -137,17 +137,17 @@ func (x *fastReflection_SubmitBatchRequest) Has(fd protoreflect.FieldDescriptor)
 // associated with the given field number.
 //
 // Clear is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchRequest) Clear(fd protoreflect.FieldDescriptor) {
+func (x *fastReflection_SubmitCardinalTxRequest) Clear(fd protoreflect.FieldDescriptor) {
 	switch fd.FullName() {
-	case "shard.v1.SubmitBatchRequest.sender":
+	case "shard.v1.SubmitCardinalTxRequest.sender":
 		x.Sender = ""
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		x.TransactionBatch = nil
+	case "shard.v1.SubmitCardinalTxRequest.cardinal_tx":
+		x.CardinalTx = nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxRequest does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -157,19 +157,19 @@ func (x *fastReflection_SubmitBatchRequest) Clear(fd protoreflect.FieldDescripto
 // the default value of a bytes scalar is guaranteed to be a copy.
 // For unpopulated composite types, it returns an empty, read-only view
 // of the value; to obtain a mutable reference, use Mutable.
-func (x *fastReflection_SubmitBatchRequest) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitCardinalTxRequest) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
 	switch descriptor.FullName() {
-	case "shard.v1.SubmitBatchRequest.sender":
+	case "shard.v1.SubmitCardinalTxRequest.sender":
 		value := x.Sender
 		return protoreflect.ValueOfString(value)
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		value := x.TransactionBatch
-		return protoreflect.ValueOfMessage(value.ProtoReflect())
+	case "shard.v1.SubmitCardinalTxRequest.cardinal_tx":
+		value := x.CardinalTx
+		return protoreflect.ValueOfBytes(value)
 	default:
 		if descriptor.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", descriptor.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxRequest does not contain field %s", descriptor.FullName()))
 	}
 }
 
@@ -183,17 +183,17 @@ func (x *fastReflection_SubmitBatchRequest) Get(descriptor protoreflect.FieldDes
 // empty, read-only value, then it panics.
 //
 // Set is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchRequest) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
+func (x *fastReflection_SubmitCardinalTxRequest) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
 	switch fd.FullName() {
-	case "shard.v1.SubmitBatchRequest.sender":
+	case "shard.v1.SubmitCardinalTxRequest.sender":
 		x.Sender = value.Interface().(string)
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		x.TransactionBatch = value.Message().Interface().(*TransactionBatch)
+	case "shard.v1.SubmitCardinalTxRequest.cardinal_tx":
+		x.CardinalTx = value.Bytes()
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxRequest does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -207,48 +207,44 @@ func (x *fastReflection_SubmitBatchRequest) Set(fd protoreflect.FieldDescriptor,
 // It panics if the field does not contain a composite type.
 //
 // Mutable is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchRequest) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitCardinalTxRequest) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		if x.TransactionBatch == nil {
-			x.TransactionBatch = new(TransactionBatch)
-		}
-		return protoreflect.ValueOfMessage(x.TransactionBatch.ProtoReflect())
-	case "shard.v1.SubmitBatchRequest.sender":
-		panic(fmt.Errorf("field sender of message shard.v1.SubmitBatchRequest is not mutable"))
+	case "shard.v1.SubmitCardinalTxRequest.sender":
+		panic(fmt.Errorf("field sender of message shard.v1.SubmitCardinalTxRequest is not mutable"))
+	case "shard.v1.SubmitCardinalTxRequest.cardinal_tx":
+		panic(fmt.Errorf("field cardinal_tx of message shard.v1.SubmitCardinalTxRequest is not mutable"))
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxRequest does not contain field %s", fd.FullName()))
 	}
 }
 
 // NewField returns a new value that is assignable to the field
 // for the given descriptor. For scalars, this returns the default value.
 // For lists, maps, and messages, this returns a new, empty, mutable value.
-func (x *fastReflection_SubmitBatchRequest) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitCardinalTxRequest) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.SubmitBatchRequest.sender":
+	case "shard.v1.SubmitCardinalTxRequest.sender":
 		return protoreflect.ValueOfString("")
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		m := new(TransactionBatch)
-		return protoreflect.ValueOfMessage(m.ProtoReflect())
+	case "shard.v1.SubmitCardinalTxRequest.cardinal_tx":
+		return protoreflect.ValueOfBytes(nil)
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxRequest does not contain field %s", fd.FullName()))
 	}
 }
 
 // WhichOneof reports which field within the oneof is populated,
 // returning nil if none are populated.
 // It panics if the oneof descriptor does not belong to this message.
-func (x *fastReflection_SubmitBatchRequest) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
+func (x *fastReflection_SubmitCardinalTxRequest) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
 	switch d.FullName() {
 	default:
-		panic(fmt.Errorf("%s is not a oneof field in shard.v1.SubmitBatchRequest", d.FullName()))
+		panic(fmt.Errorf("%s is not a oneof field in shard.v1.SubmitCardinalTxRequest", d.FullName()))
 	}
 	panic("unreachable")
 }
@@ -256,7 +252,7 @@ func (x *fastReflection_SubmitBatchRequest) WhichOneof(d protoreflect.OneofDescr
 // GetUnknown retrieves the entire list of unknown fields.
 // The caller may only mutate the contents of the RawFields
 // if the mutated bytes are stored back into the message with SetUnknown.
-func (x *fastReflection_SubmitBatchRequest) GetUnknown() protoreflect.RawFields {
+func (x *fastReflection_SubmitCardinalTxRequest) GetUnknown() protoreflect.RawFields {
 	return x.unknownFields
 }
 
@@ -267,7 +263,7 @@ func (x *fastReflection_SubmitBatchRequest) GetUnknown() protoreflect.RawFields 
 // An empty RawFields may be passed to clear the fields.
 //
 // SetUnknown is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchRequest) SetUnknown(fields protoreflect.RawFields) {
+func (x *fastReflection_SubmitCardinalTxRequest) SetUnknown(fields protoreflect.RawFields) {
 	x.unknownFields = fields
 }
 
@@ -279,7 +275,7 @@ func (x *fastReflection_SubmitBatchRequest) SetUnknown(fields protoreflect.RawFi
 // message type, but the details are implementation dependent.
 // Validity is not part of the protobuf data model, and may not
 // be preserved in marshaling or other operations.
-func (x *fastReflection_SubmitBatchRequest) IsValid() bool {
+func (x *fastReflection_SubmitCardinalTxRequest) IsValid() bool {
 	return x != nil
 }
 
@@ -289,9 +285,9 @@ func (x *fastReflection_SubmitBatchRequest) IsValid() bool {
 // The returned methods type is identical to
 // "google.golang.org/protobuf/runtime/protoiface".Methods.
 // Consult the protoiface package documentation for details.
-func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
+func (x *fastReflection_SubmitCardinalTxRequest) ProtoMethods() *protoiface.Methods {
 	size := func(input protoiface.SizeInput) protoiface.SizeOutput {
-		x := input.Message.Interface().(*SubmitBatchRequest)
+		x := input.Message.Interface().(*SubmitCardinalTxRequest)
 		if x == nil {
 			return protoiface.SizeOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -307,8 +303,8 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 		if l > 0 {
 			n += 1 + l + runtime.Sov(uint64(l))
 		}
-		if x.TransactionBatch != nil {
-			l = options.Size(x.TransactionBatch)
+		l = len(x.CardinalTx)
+		if l > 0 {
 			n += 1 + l + runtime.Sov(uint64(l))
 		}
 		if x.unknownFields != nil {
@@ -321,7 +317,7 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 	}
 
 	marshal := func(input protoiface.MarshalInput) (protoiface.MarshalOutput, error) {
-		x := input.Message.Interface().(*SubmitBatchRequest)
+		x := input.Message.Interface().(*SubmitCardinalTxRequest)
 		if x == nil {
 			return protoiface.MarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -340,17 +336,10 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 			i -= len(x.unknownFields)
 			copy(dAtA[i:], x.unknownFields)
 		}
-		if x.TransactionBatch != nil {
-			encoded, err := options.Marshal(x.TransactionBatch)
-			if err != nil {
-				return protoiface.MarshalOutput{
-					NoUnkeyedLiterals: input.NoUnkeyedLiterals,
-					Buf:               input.Buf,
-				}, err
-			}
-			i -= len(encoded)
-			copy(dAtA[i:], encoded)
-			i = runtime.EncodeVarint(dAtA, i, uint64(len(encoded)))
+		if len(x.CardinalTx) > 0 {
+			i -= len(x.CardinalTx)
+			copy(dAtA[i:], x.CardinalTx)
+			i = runtime.EncodeVarint(dAtA, i, uint64(len(x.CardinalTx)))
 			i--
 			dAtA[i] = 0x12
 		}
@@ -372,7 +361,7 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 		}, nil
 	}
 	unmarshal := func(input protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) {
-		x := input.Message.Interface().(*SubmitBatchRequest)
+		x := input.Message.Interface().(*SubmitCardinalTxRequest)
 		if x == nil {
 			return protoiface.UnmarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -404,10 +393,10 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 			fieldNum := int32(wire >> 3)
 			wireType := int(wire & 0x7)
 			if wireType == 4 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitBatchRequest: wiretype end group for non-group")
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitCardinalTxRequest: wiretype end group for non-group")
 			}
 			if fieldNum <= 0 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitBatchRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitCardinalTxRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 			}
 			switch fieldNum {
 			case 1:
@@ -444,9 +433,9 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 				iNdEx = postIndex
 			case 2:
 				if wireType != 2 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field TransactionBatch", wireType)
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field CardinalTx", wireType)
 				}
-				var msglen int
+				var byteLen int
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
 						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
@@ -456,26 +445,24 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					msglen |= int(b&0x7F) << shift
+					byteLen |= int(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
 				}
-				if msglen < 0 {
+				if byteLen < 0 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
 				}
-				postIndex := iNdEx + msglen
+				postIndex := iNdEx + byteLen
 				if postIndex < 0 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
 				}
 				if postIndex > l {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
 				}
-				if x.TransactionBatch == nil {
-					x.TransactionBatch = &TransactionBatch{}
-				}
-				if err := options.Unmarshal(dAtA[iNdEx:postIndex], x.TransactionBatch); err != nil {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, err
+				x.CardinalTx = append(x.CardinalTx[:0], dAtA[iNdEx:postIndex]...)
+				if x.CardinalTx == nil {
+					x.CardinalTx = []byte{}
 				}
 				iNdEx = postIndex
 			default:
@@ -514,23 +501,23 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 }
 
 var (
-	md_SubmitBatchResponse protoreflect.MessageDescriptor
+	md_SubmitCardinalTxResponse protoreflect.MessageDescriptor
 )
 
 func init() {
 	file_shard_v1_tx_proto_init()
-	md_SubmitBatchResponse = File_shard_v1_tx_proto.Messages().ByName("SubmitBatchResponse")
+	md_SubmitCardinalTxResponse = File_shard_v1_tx_proto.Messages().ByName("SubmitCardinalTxResponse")
 }
 
-var _ protoreflect.Message = (*fastReflection_SubmitBatchResponse)(nil)
+var _ protoreflect.Message = (*fastReflection_SubmitCardinalTxResponse)(nil)
 
-type fastReflection_SubmitBatchResponse SubmitBatchResponse
+type fastReflection_SubmitCardinalTxResponse SubmitCardinalTxResponse
 
-func (x *SubmitBatchResponse) ProtoReflect() protoreflect.Message {
-	return (*fastReflection_SubmitBatchResponse)(x)
+func (x *SubmitCardinalTxResponse) ProtoReflect() protoreflect.Message {
+	return (*fastReflection_SubmitCardinalTxResponse)(x)
 }
 
-func (x *SubmitBatchResponse) slowProtoReflect() protoreflect.Message {
+func (x *SubmitCardinalTxResponse) slowProtoReflect() protoreflect.Message {
 	mi := &file_shard_v1_tx_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -542,43 +529,43 @@ func (x *SubmitBatchResponse) slowProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-var _fastReflection_SubmitBatchResponse_messageType fastReflection_SubmitBatchResponse_messageType
-var _ protoreflect.MessageType = fastReflection_SubmitBatchResponse_messageType{}
+var _fastReflection_SubmitCardinalTxResponse_messageType fastReflection_SubmitCardinalTxResponse_messageType
+var _ protoreflect.MessageType = fastReflection_SubmitCardinalTxResponse_messageType{}
 
-type fastReflection_SubmitBatchResponse_messageType struct{}
+type fastReflection_SubmitCardinalTxResponse_messageType struct{}
 
-func (x fastReflection_SubmitBatchResponse_messageType) Zero() protoreflect.Message {
-	return (*fastReflection_SubmitBatchResponse)(nil)
+func (x fastReflection_SubmitCardinalTxResponse_messageType) Zero() protoreflect.Message {
+	return (*fastReflection_SubmitCardinalTxResponse)(nil)
 }
-func (x fastReflection_SubmitBatchResponse_messageType) New() protoreflect.Message {
-	return new(fastReflection_SubmitBatchResponse)
+func (x fastReflection_SubmitCardinalTxResponse_messageType) New() protoreflect.Message {
+	return new(fastReflection_SubmitCardinalTxResponse)
 }
-func (x fastReflection_SubmitBatchResponse_messageType) Descriptor() protoreflect.MessageDescriptor {
-	return md_SubmitBatchResponse
+func (x fastReflection_SubmitCardinalTxResponse_messageType) Descriptor() protoreflect.MessageDescriptor {
+	return md_SubmitCardinalTxResponse
 }
 
 // Descriptor returns message descriptor, which contains only the protobuf
 // type information for the message.
-func (x *fastReflection_SubmitBatchResponse) Descriptor() protoreflect.MessageDescriptor {
-	return md_SubmitBatchResponse
+func (x *fastReflection_SubmitCardinalTxResponse) Descriptor() protoreflect.MessageDescriptor {
+	return md_SubmitCardinalTxResponse
 }
 
 // Type returns the message type, which encapsulates both Go and protobuf
 // type information. If the Go type information is not needed,
 // it is recommended that the message descriptor be used instead.
-func (x *fastReflection_SubmitBatchResponse) Type() protoreflect.MessageType {
-	return _fastReflection_SubmitBatchResponse_messageType
+func (x *fastReflection_SubmitCardinalTxResponse) Type() protoreflect.MessageType {
+	return _fastReflection_SubmitCardinalTxResponse_messageType
 }
 
 // New returns a newly allocated and mutable empty message.
-func (x *fastReflection_SubmitBatchResponse) New() protoreflect.Message {
-	return new(fastReflection_SubmitBatchResponse)
+func (x *fastReflection_SubmitCardinalTxResponse) New() protoreflect.Message {
+	return new(fastReflection_SubmitCardinalTxResponse)
 }
 
 // Interface unwraps the message reflection interface and
 // returns the underlying ProtoMessage interface.
-func (x *fastReflection_SubmitBatchResponse) Interface() protoreflect.ProtoMessage {
-	return (*SubmitBatchResponse)(x)
+func (x *fastReflection_SubmitCardinalTxResponse) Interface() protoreflect.ProtoMessage {
+	return (*SubmitCardinalTxResponse)(x)
 }
 
 // Range iterates over every populated field in an undefined order,
@@ -586,7 +573,7 @@ func (x *fastReflection_SubmitBatchResponse) Interface() protoreflect.ProtoMessa
 // Range returns immediately if f returns false.
 // While iterating, mutating operations may only be performed
 // on the current field descriptor.
-func (x *fastReflection_SubmitBatchResponse) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
+func (x *fastReflection_SubmitCardinalTxResponse) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
 }
 
 // Has reports whether a field is populated.
@@ -600,13 +587,13 @@ func (x *fastReflection_SubmitBatchResponse) Range(f func(protoreflect.FieldDesc
 // In other cases (aside from the nullable cases above),
 // a proto3 scalar field is populated if it contains a non-zero value, and
 // a repeated field is populated if it is non-empty.
-func (x *fastReflection_SubmitBatchResponse) Has(fd protoreflect.FieldDescriptor) bool {
+func (x *fastReflection_SubmitCardinalTxResponse) Has(fd protoreflect.FieldDescriptor) bool {
 	switch fd.FullName() {
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxResponse does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -616,13 +603,13 @@ func (x *fastReflection_SubmitBatchResponse) Has(fd protoreflect.FieldDescriptor
 // associated with the given field number.
 //
 // Clear is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchResponse) Clear(fd protoreflect.FieldDescriptor) {
+func (x *fastReflection_SubmitCardinalTxResponse) Clear(fd protoreflect.FieldDescriptor) {
 	switch fd.FullName() {
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxResponse does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -632,13 +619,13 @@ func (x *fastReflection_SubmitBatchResponse) Clear(fd protoreflect.FieldDescript
 // the default value of a bytes scalar is guaranteed to be a copy.
 // For unpopulated composite types, it returns an empty, read-only view
 // of the value; to obtain a mutable reference, use Mutable.
-func (x *fastReflection_SubmitBatchResponse) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitCardinalTxResponse) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
 	switch descriptor.FullName() {
 	default:
 		if descriptor.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", descriptor.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxResponse does not contain field %s", descriptor.FullName()))
 	}
 }
 
@@ -652,13 +639,13 @@ func (x *fastReflection_SubmitBatchResponse) Get(descriptor protoreflect.FieldDe
 // empty, read-only value, then it panics.
 //
 // Set is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchResponse) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
+func (x *fastReflection_SubmitCardinalTxResponse) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
 	switch fd.FullName() {
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxResponse does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -672,36 +659,36 @@ func (x *fastReflection_SubmitBatchResponse) Set(fd protoreflect.FieldDescriptor
 // It panics if the field does not contain a composite type.
 //
 // Mutable is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchResponse) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitCardinalTxResponse) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxResponse does not contain field %s", fd.FullName()))
 	}
 }
 
 // NewField returns a new value that is assignable to the field
 // for the given descriptor. For scalars, this returns the default value.
 // For lists, maps, and messages, this returns a new, empty, mutable value.
-func (x *fastReflection_SubmitBatchResponse) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitCardinalTxResponse) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitCardinalTxResponse does not contain field %s", fd.FullName()))
 	}
 }
 
 // WhichOneof reports which field within the oneof is populated,
 // returning nil if none are populated.
 // It panics if the oneof descriptor does not belong to this message.
-func (x *fastReflection_SubmitBatchResponse) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
+func (x *fastReflection_SubmitCardinalTxResponse) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
 	switch d.FullName() {
 	default:
-		panic(fmt.Errorf("%s is not a oneof field in shard.v1.SubmitBatchResponse", d.FullName()))
+		panic(fmt.Errorf("%s is not a oneof field in shard.v1.SubmitCardinalTxResponse", d.FullName()))
 	}
 	panic("unreachable")
 }
@@ -709,7 +696,7 @@ func (x *fastReflection_SubmitBatchResponse) WhichOneof(d protoreflect.OneofDesc
 // GetUnknown retrieves the entire list of unknown fields.
 // The caller may only mutate the contents of the RawFields
 // if the mutated bytes are stored back into the message with SetUnknown.
-func (x *fastReflection_SubmitBatchResponse) GetUnknown() protoreflect.RawFields {
+func (x *fastReflection_SubmitCardinalTxResponse) GetUnknown() protoreflect.RawFields {
 	return x.unknownFields
 }
 
@@ -720,7 +707,7 @@ func (x *fastReflection_SubmitBatchResponse) GetUnknown() protoreflect.RawFields
 // An empty RawFields may be passed to clear the fields.
 //
 // SetUnknown is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchResponse) SetUnknown(fields protoreflect.RawFields) {
+func (x *fastReflection_SubmitCardinalTxResponse) SetUnknown(fields protoreflect.RawFields) {
 	x.unknownFields = fields
 }
 
@@ -732,7 +719,7 @@ func (x *fastReflection_SubmitBatchResponse) SetUnknown(fields protoreflect.RawF
 // message type, but the details are implementation dependent.
 // Validity is not part of the protobuf data model, and may not
 // be preserved in marshaling or other operations.
-func (x *fastReflection_SubmitBatchResponse) IsValid() bool {
+func (x *fastReflection_SubmitCardinalTxResponse) IsValid() bool {
 	return x != nil
 }
 
@@ -742,9 +729,9 @@ func (x *fastReflection_SubmitBatchResponse) IsValid() bool {
 // The returned methods type is identical to
 // "google.golang.org/protobuf/runtime/protoiface".Methods.
 // Consult the protoiface package documentation for details.
-func (x *fastReflection_SubmitBatchResponse) ProtoMethods() *protoiface.Methods {
+func (x *fastReflection_SubmitCardinalTxResponse) ProtoMethods() *protoiface.Methods {
 	size := func(input protoiface.SizeInput) protoiface.SizeOutput {
-		x := input.Message.Interface().(*SubmitBatchResponse)
+		x := input.Message.Interface().(*SubmitCardinalTxResponse)
 		if x == nil {
 			return protoiface.SizeOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -766,7 +753,7 @@ func (x *fastReflection_SubmitBatchResponse) ProtoMethods() *protoiface.Methods 
 	}
 
 	marshal := func(input protoiface.MarshalInput) (protoiface.MarshalOutput, error) {
-		x := input.Message.Interface().(*SubmitBatchResponse)
+		x := input.Message.Interface().(*SubmitCardinalTxResponse)
 		if x == nil {
 			return protoiface.MarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -796,7 +783,7 @@ func (x *fastReflection_SubmitBatchResponse) ProtoMethods() *protoiface.Methods 
 		}, nil
 	}
 	unmarshal := func(input protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) {
-		x := input.Message.Interface().(*SubmitBatchResponse)
+		x := input.Message.Interface().(*SubmitCardinalTxResponse)
 		if x == nil {
 			return protoiface.UnmarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -828,10 +815,10 @@ func (x *fastReflection_SubmitBatchResponse) ProtoMethods() *protoiface.Methods 
 			fieldNum := int32(wire >> 3)
 			wireType := int(wire & 0x7)
 			if wireType == 4 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitBatchResponse: wiretype end group for non-group")
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitCardinalTxResponse: wiretype end group for non-group")
 			}
 			if fieldNum <= 0 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitBatchResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitCardinalTxResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 			}
 			switch fieldNum {
 			default:
@@ -882,18 +869,19 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type SubmitBatchRequest struct {
+type SubmitCardinalTxRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	// sender is the address of the sender. this will be set to the module address.
-	Sender           string            `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
-	TransactionBatch *TransactionBatch `protobuf:"bytes,2,opt,name=transaction_batch,json=transactionBatch,proto3" json:"transaction_batch,omitempty"`
+	Sender string `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
+	// cardinal_tx is a proto marshalled SignedPayload.
+	CardinalTx []byte `protobuf:"bytes,2,opt,name=cardinal_tx,json=cardinalTx,proto3" json:"cardinal_tx,omitempty"`
 }
 
-func (x *SubmitBatchRequest) Reset() {
-	*x = SubmitBatchRequest{}
+func (x *SubmitCardinalTxRequest) Reset() {
+	*x = SubmitCardinalTxRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_shard_v1_tx_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -901,39 +889,39 @@ func (x *SubmitBatchRequest) Reset() {
 	}
 }
 
-func (x *SubmitBatchRequest) String() string {
+func (x *SubmitCardinalTxRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SubmitBatchRequest) ProtoMessage() {}
+func (*SubmitCardinalTxRequest) ProtoMessage() {}
 
-// Deprecated: Use SubmitBatchRequest.ProtoReflect.Descriptor instead.
-func (*SubmitBatchRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SubmitCardinalTxRequest.ProtoReflect.Descriptor instead.
+func (*SubmitCardinalTxRequest) Descriptor() ([]byte, []int) {
 	return file_shard_v1_tx_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SubmitBatchRequest) GetSender() string {
+func (x *SubmitCardinalTxRequest) GetSender() string {
 	if x != nil {
 		return x.Sender
 	}
 	return ""
 }
 
-func (x *SubmitBatchRequest) GetTransactionBatch() *TransactionBatch {
+func (x *SubmitCardinalTxRequest) GetCardinalTx() []byte {
 	if x != nil {
-		return x.TransactionBatch
+		return x.CardinalTx
 	}
 	return nil
 }
 
-type SubmitBatchResponse struct {
+type SubmitCardinalTxResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 }
 
-func (x *SubmitBatchResponse) Reset() {
-	*x = SubmitBatchResponse{}
+func (x *SubmitCardinalTxResponse) Reset() {
+	*x = SubmitCardinalTxResponse{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_shard_v1_tx_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -941,14 +929,14 @@ func (x *SubmitBatchResponse) Reset() {
 	}
 }
 
-func (x *SubmitBatchResponse) String() string {
+func (x *SubmitCardinalTxResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SubmitBatchResponse) ProtoMessage() {}
+func (*SubmitCardinalTxResponse) ProtoMessage() {}
 
-// Deprecated: Use SubmitBatchResponse.ProtoReflect.Descriptor instead.
-func (*SubmitBatchResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use SubmitCardinalTxResponse.ProtoReflect.Descriptor instead.
+func (*SubmitCardinalTxResponse) Descriptor() ([]byte, []int) {
 	return file_shard_v1_tx_proto_rawDescGZIP(), []int{1}
 }
 
@@ -961,23 +949,22 @@ var file_shard_v1_tx_proto_rawDesc = []byte{
 	0x6f, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x17, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73,
 	0x2f, 0x6d, 0x73, 0x67, 0x2f, 0x76, 0x31, 0x2f, 0x6d, 0x73, 0x67, 0x2e, 0x70, 0x72, 0x6f, 0x74,
 	0x6f, 0x1a, 0x14, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x2f, 0x74, 0x79, 0x70, 0x65,
-	0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x9c, 0x01, 0x0a, 0x12, 0x53, 0x75, 0x62, 0x6d,
-	0x69, 0x74, 0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x30,
-	0x0a, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x42, 0x18,
-	0xd2, 0xb4, 0x2d, 0x14, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2e, 0x41, 0x64, 0x64, 0x72, 0x65,
-	0x73, 0x73, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x52, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72,
-	0x12, 0x47, 0x0a, 0x11, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x5f,
-	0x62, 0x61, 0x74, 0x63, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x73, 0x68,
-	0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69,
-	0x6f, 0x6e, 0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x10, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63,
-	0x74, 0x69, 0x6f, 0x6e, 0x42, 0x61, 0x74, 0x63, 0x68, 0x3a, 0x0b, 0x82, 0xe7, 0xb0, 0x2a, 0x06,
-	0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x22, 0x15, 0x0a, 0x13, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74,
-	0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x58, 0x0a,
-	0x03, 0x4d, 0x73, 0x67, 0x12, 0x4a, 0x0a, 0x0b, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x42, 0x61,
-	0x74, 0x63, 0x68, 0x12, 0x1c, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x53,
-	0x75, 0x62, 0x6d, 0x69, 0x74, 0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x1d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x75, 0x62,
-	0x6d, 0x69, 0x74, 0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x79, 0x0a, 0x17, 0x53, 0x75, 0x62, 0x6d, 0x69,
+	0x74, 0x43, 0x61, 0x72, 0x64, 0x69, 0x6e, 0x61, 0x6c, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x12, 0x30, 0x0a, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x18, 0x01, 0x20, 0x01,
+	0x28, 0x09, 0x42, 0x18, 0xd2, 0xb4, 0x2d, 0x14, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2e, 0x41,
+	0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x52, 0x06, 0x73, 0x65,
+	0x6e, 0x64, 0x65, 0x72, 0x12, 0x1f, 0x0a, 0x0b, 0x63, 0x61, 0x72, 0x64, 0x69, 0x6e, 0x61, 0x6c,
+	0x5f, 0x74, 0x78, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0a, 0x63, 0x61, 0x72, 0x64, 0x69,
+	0x6e, 0x61, 0x6c, 0x54, 0x78, 0x3a, 0x0b, 0x82, 0xe7, 0xb0, 0x2a, 0x06, 0x73, 0x65, 0x6e, 0x64,
+	0x65, 0x72, 0x22, 0x1a, 0x0a, 0x18, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61, 0x72, 0x64,
+	0x69, 0x6e, 0x61, 0x6c, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x67,
+	0x0a, 0x03, 0x4d, 0x73, 0x67, 0x12, 0x59, 0x0a, 0x10, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43,
+	0x61, 0x72, 0x64, 0x69, 0x6e, 0x61, 0x6c, 0x54, 0x78, 0x12, 0x21, 0x2e, 0x73, 0x68, 0x61, 0x72,
+	0x64, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61, 0x72, 0x64, 0x69,
+	0x6e, 0x61, 0x6c, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x73,
+	0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61,
+	0x72, 0x64, 0x69, 0x6e, 0x61, 0x6c, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
 	0x1a, 0x05, 0x80, 0xe7, 0xb0, 0x2a, 0x01, 0x42, 0x7b, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73,
 	0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x42, 0x07, 0x54, 0x78, 0x50, 0x72, 0x6f, 0x74, 0x6f,
 	0x50, 0x01, 0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f,
@@ -1003,19 +990,17 @@ func file_shard_v1_tx_proto_rawDescGZIP() []byte {
 
 var file_shard_v1_tx_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_shard_v1_tx_proto_goTypes = []interface{}{
-	(*SubmitBatchRequest)(nil),  // 0: shard.v1.SubmitBatchRequest
-	(*SubmitBatchResponse)(nil), // 1: shard.v1.SubmitBatchResponse
-	(*TransactionBatch)(nil),    // 2: shard.v1.TransactionBatch
+	(*SubmitCardinalTxRequest)(nil),  // 0: shard.v1.SubmitCardinalTxRequest
+	(*SubmitCardinalTxResponse)(nil), // 1: shard.v1.SubmitCardinalTxResponse
 }
 var file_shard_v1_tx_proto_depIdxs = []int32{
-	2, // 0: shard.v1.SubmitBatchRequest.transaction_batch:type_name -> shard.v1.TransactionBatch
-	0, // 1: shard.v1.Msg.SubmitBatch:input_type -> shard.v1.SubmitBatchRequest
-	1, // 2: shard.v1.Msg.SubmitBatch:output_type -> shard.v1.SubmitBatchResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0, // 0: shard.v1.Msg.SubmitCardinalTx:input_type -> shard.v1.SubmitCardinalTxRequest
+	1, // 1: shard.v1.Msg.SubmitCardinalTx:output_type -> shard.v1.SubmitCardinalTxResponse
+	1, // [1:2] is the sub-list for method output_type
+	0, // [0:1] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_shard_v1_tx_proto_init() }
@@ -1026,7 +1011,7 @@ func file_shard_v1_tx_proto_init() {
 	file_shard_v1_types_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_shard_v1_tx_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SubmitBatchRequest); i {
+			switch v := v.(*SubmitCardinalTxRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1038,7 +1023,7 @@ func file_shard_v1_tx_proto_init() {
 			}
 		}
 		file_shard_v1_tx_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SubmitBatchResponse); i {
+			switch v := v.(*SubmitCardinalTxResponse); i {
 			case 0:
 				return &v.state
 			case 1:

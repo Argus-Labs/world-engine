@@ -1,15 +1,12 @@
 package keeper
 
 import (
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"encoding/binary"
-	"fmt"
-
 	"github.com/cosmos/cosmos-sdk/runtime"
 
 	"cosmossdk.io/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
 )
 
 /*
@@ -26,10 +23,10 @@ var (
 	namespaceStorePrefix = []byte("nss")
 )
 
-// batchStore retrieves the store for storing batches within a given namespace.
-func (k *Keeper) batchStore(ctx sdk.Context, ns string) prefix.Store {
+// transactionStore retrieves the store for storing transactions from a given world.
+func (k *Keeper) transactionStore(ctx sdk.Context, worldNamespace string) prefix.Store {
 	store := runtime.KVStoreAdapter(k.storeService.OpenKVStore(ctx))
-	return prefix.NewStore(store, []byte(ns))
+	return prefix.NewStore(store, []byte(worldNamespace))
 }
 
 // nameSpaceStore retrieves the store for storing namespaces.
@@ -38,25 +35,25 @@ func (k *Keeper) nameSpaceStore(ctx sdk.Context) prefix.Store {
 	return prefix.NewStore(store, namespaceStorePrefix)
 }
 
-// iterateBatches iterates over all batches, calling fn for each batch in the store.
-// if fn returns false, the iteration stops. if fn returns true, the iteration continues.
-// start and end indicate the range of the iteration. Leaving both as nil will iterate over ALL batches.
-// supplying only a start value will iterate from that point til the end.
-func (k *Keeper) iterateBatches(
-	ctx sdk.Context,
-	start, end []byte,
-	ns string,
-	cb func(tick uint64, batch []byte) bool) {
-	store := k.batchStore(ctx, ns)
-	it := store.Iterator(start, end)
-	for ; it.Valid(); it.Next() {
-		tick := k.uint64ForBytes(it.Key())
-		batch := it.Value()
-		if keepGoing := cb(tick, batch); !keepGoing {
-			break
-		}
-	}
-}
+//// iterateBatches iterates over all batches, calling fn for each batch in the store.
+//// if fn returns false, the iteration stops. if fn returns true, the iteration continues.
+//// start and end indicate the range of the iteration. Leaving both as nil will iterate over ALL batches.
+//// supplying only a start value will iterate from that point til the end.
+//func (k *Keeper) iterateBatches(
+//	ctx sdk.Context,
+//	start, end []byte,
+//	ns string,
+//	cb func(tick uint64, batch []byte) bool) {
+//	store := k.batchStore(ctx, ns)
+//	it := store.Iterator(start, end)
+//	for ; it.Valid(); it.Next() {
+//		tick := k.uint64ForBytes(it.Key())
+//		batch := it.Value()
+//		if keepGoing := cb(tick, batch); !keepGoing {
+//			break
+//		}
+//	}
+//}
 
 // iterateNamespaces iterates over all namespaces, calling fn for each batch in the store.
 // if fn returns false, the iteration stops. if fn returns true, the iteration continues.
@@ -70,16 +67,8 @@ func (k *Keeper) iterateNamespaces(ctx sdk.Context, cb func(ns string) bool) {
 	}
 }
 
-// saveBatch saves a batch of transaction data.
-func (k *Keeper) saveBatch(ctx sdk.Context, req *types.TransactionBatch) error {
-	k.saveNamespace(ctx, req.Namespace)
-	store := k.batchStore(ctx, req.Namespace)
-	key := k.bytesForUint(req.Tick)
-	has := store.Has(key)
-	if has {
-		return fmt.Errorf("tx batch for tick %d in namespace %s already submitted", req.Tick, req.Namespace)
-	}
-	store.Set(key, req.Batch)
+func (k *Keeper) saveTransaction(ctx sdk.Context, payload *shardv1.SignedPayload) error {
+
 	return nil
 }
 

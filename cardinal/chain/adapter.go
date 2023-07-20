@@ -90,13 +90,7 @@ func NewAdapter(cfg Config, opts ...Option) (Adapter, error) {
 
 // Submit submits the transaction bytes to the EVM base shard.
 func (a adapterImpl) Submit(ctx context.Context, sp *sign.SignedPayload) error {
-	req := &shardv1.SubmitShardBatchRequest{Payload: &shardv1.SignedPayload{
-		PersonaTag: ,
-		Namespace:  "",
-		Nonce:      0,
-		Signature:  "",
-		Body:       nil,
-	}}
+	req := &shardv1.SubmitShardBatchRequest{Payload: signedPayloadToProto(sp)}
 	_, err := a.ShardReceiver.SubmitShardBatch(ctx, req)
 	return err
 }
