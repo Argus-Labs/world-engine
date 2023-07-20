@@ -437,8 +437,6 @@ github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a/go.mod h1:SGn
 github.com/alicebob/miniredis/v2 v2.30.2 h1:lc1UAUT9ZA7h4srlfBmBt2aorm5Yftk9nBjxz7EyY9I=
 github.com/alicebob/miniredis/v2 v2.30.2/go.mod h1:b25qWj4fCEsBeAAR2mlb0ufImGC6uH3VlUfb/HS5zKg=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/argus-labs/world-engine/cardinal v0.1.12-alpha h1:wFi8Gsu2jT5jzZAnFhZqXlwDJDFKoxZmHaCIChf70EI=
-github.com/argus-labs/world-engine/cardinal v0.1.12-alpha/go.mod h1:lSOaGzToP1SQXhbmOPsIqUJenase2InkZlS5surbaX8=
 github.com/argus-labs/world-engine/chain v0.0.0-20230707202412-c8445f1731f0 h1:bf+EAQVbh3hplWCilz4+JjtEVyDiDy6hrQkoKgO8/zg=
 github.com/argus-labs/world-engine/chain v0.0.0-20230707202412-c8445f1731f0/go.mod h1:3Q64gRzseoJTBsUvD8fxUNavWZWpjNPxx90ZMurFS8Y=
 github.com/argus-labs/world-engine/sign v0.1.0-alpha h1:FNTTdxMnkUHCCKGHrE7ma03bw2wf2JdH7ARXiAEjW2c=
