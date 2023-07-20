@@ -3,12 +3,11 @@ package ecs
 import (
 	"errors"
 	"fmt"
-
-	"github.com/argus-labs/world-engine/sign"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
+	"github.com/argus-labs/world-engine/sign"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/invopop/jsonschema"
 )
 
 var _ transaction.ITransaction = NewTransactionType[struct{}]("")
@@ -37,6 +36,10 @@ func NewTransactionType[T any](name string) *TransactionType[T] {
 
 func (t *TransactionType[T]) Name() string {
 	return t.name
+}
+
+func (t *TransactionType[T]) Schema() *jsonschema.Schema {
+	return jsonschema.Reflect(new(T))
 }
 
 // DecodeEVMBytes decodes abi encoded solidity structs into Go structs of the same structure.
@@ -106,7 +109,7 @@ func (t *TransactionType[T]) In(tq *TransactionQueue) []T {
 	return txs
 }
 
-// TxAndSigsIn extracts all the transactions and their related signatures in the transaction queue 
+// TxsAndSigsIn extracts all the transactions and their related signatures in the transaction queue
 // that match this TransactionType's ID.
 func (t *TransactionType[T]) TxsAndSigsIn(tq *TransactionQueue) ([]T, []*sign.SignedPayload) {
 	var txs []T

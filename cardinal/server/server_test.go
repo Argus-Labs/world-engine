@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/ethereum/go-ethereum/common"
 	"io"
 	"net/http"
 	"testing"
@@ -88,6 +89,7 @@ func mustReadBody(t *testing.T, resp *http.Response) string {
 }
 
 func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
+
 	w := inmem.NewECSWorldForTest(t)
 	endpoint := "move"
 	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint)
@@ -112,10 +114,19 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	}
 	bz, err := json.Marshal(tx)
 	assert.NilError(t, err)
+	payload := &sign.SignedPayload{
+		PersonaTag: "meow",
+		Namespace:  w.GetNamespace(),
+		Nonce:      40,
+		Signature:  "doesnt matter what goes in here",
+		Body:       bz,
+	}
+	bogusSignatureBz, err := json.Marshal(payload)
+	assert.NilError(t, err)
 
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
-	resp, err := http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bogusSignatureBz))
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %v", mustReadBody(t, resp))
 
@@ -154,7 +165,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 		Namespace:  "some_namespace",
 		Nonce:      100,
 		// this bogus signature is OK because DisableSignatureVerification was used
-		Signature: []byte{1, 2, 3, 4},
+		Signature: common.Bytes2Hex([]byte{1, 2, 3, 4}),
 		Body:      bz,
 	}
 
@@ -313,18 +324,44 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 200)
 }
 
-// TestCanListQueries tests that we can list the available queries in the handler.
-func TestCanListQueries(t *testing.T) {
+// TestCanListReads tests that we can list the available queries in the handler.
+func TestCanListReads(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	endpoints := []string{"foo", "bar", "baz"}
-	queries := make([]ecs.IRead, 0, len(endpoints))
-	for _, e := range endpoints {
-		q := ecs.NewReadType(e, func(world *ecs.World, i []byte) ([]byte, error) {
-			return nil, nil
-		})
-		queries = append(queries, q)
+	type FooRequest struct {
+		Foo  int    `json:"foo,omitempty"`
+		Meow string `json:"bar,omitempty"`
 	}
-	assert.NilError(t, world.RegisterReads(queries...))
+
+	type FooResponse struct {
+		Meow string `json:"meow,omitempty"`
+	}
+
+	fooRead := ecs.NewReadType[FooRequest]("foo", func(world *ecs.World, bz []byte) ([]byte, error) {
+		var req FooRequest
+		err := json.Unmarshal(bz, &req)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(FooResponse{Meow: req.Meow})
+	})
+	barRead := ecs.NewReadType[FooRequest]("bar", func(world *ecs.World, bz []byte) ([]byte, error) {
+		var req FooRequest
+		err := json.Unmarshal(bz, &req)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(FooResponse{Meow: req.Meow})
+	})
+	bazRead := ecs.NewReadType[FooRequest]("baz", func(world *ecs.World, bz []byte) ([]byte, error) {
+		var req FooRequest
+		err := json.Unmarshal(bz, &req)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(FooResponse{Meow: req.Meow})
+	})
+
+	assert.NilError(t, world.RegisterReads(fooRead, barRead, bazRead))
 	assert.NilError(t, world.LoadGameState())
 
 	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
@@ -334,8 +371,10 @@ func TestCanListQueries(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 200)
 	var gotEndpoints []string
 	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&gotEndpoints))
+
+	endpoints := []string{"/read-foo", "/schema/read-foo", "/read-bar", "/schema/read-bar", "/read-baz", "/schema/read-baz", "/read-persona-signer", "/schema/read-persona-signer"}
 	for i, e := range gotEndpoints {
-		assert.Equal(t, e, "/"+readPrefix+endpoints[i])
+		assert.Equal(t, e, endpoints[i])
 	}
 }
 
@@ -344,6 +383,7 @@ func TestCanListQueries(t *testing.T) {
 // of their read requests are up to them, and not necessarily required for this feature to provably work.
 func TestReadEncodeDecode(t *testing.T) {
 	// setup this read business stuff
+
 	type FooRequest struct {
 		Foo  int    `json:"foo,omitempty"`
 		Meow string `json:"bar,omitempty"`
@@ -353,7 +393,7 @@ func TestReadEncodeDecode(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 	endpoint := "foo"
-	fq := ecs.NewReadType(endpoint, func(world *ecs.World, bz []byte) ([]byte, error) {
+	fq := ecs.NewReadType[FooRequest](endpoint, func(world *ecs.World, bz []byte) ([]byte, error) {
 		var req FooRequest
 		err := json.Unmarshal(bz, &req)
 		if err != nil {

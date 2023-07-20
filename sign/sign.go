@@ -2,10 +2,12 @@
 package sign
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -20,21 +22,41 @@ type SignedPayload struct {
 	PersonaTag string
 	Namespace  string
 	Nonce      uint64
-	Signature  []byte
+	Signature  string // hex encoded string
 	Body       []byte
 }
 
-// Unmarshal attempts to unmarshal the given buf into a SignedPayload. SignedPayload.Verify must still
-// be called to verify this signature.
-func Unmarshal(buf []byte) (*SignedPayload, error) {
-	sp := &SignedPayload{}
-	if err := json.Unmarshal(buf, sp); err != nil {
-		return nil, err
+func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
+	s := new(SignedPayload)
+	dec := json.NewDecoder(bytes.NewBuffer(bz))
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(s); err != nil {
+		return nil, fmt.Errorf("error decoding SignedPayload: %w", err)
 	}
-	return sp, nil
+
+	// ensure that all fields are present. we could do this via reflection, but checking directly is faster than
+	// using reflection package.
+	if s.PersonaTag == "" {
+		return nil, errors.New("SignerPayload must contain PersonaTag field")
+	}
+	if s.Namespace == "" {
+		return nil, errors.New("SignerPayload must contain Namespace field")
+	}
+	if s.Signature == "" {
+		return nil, errors.New("SignerPayload must contain Signature field")
+	}
+	if len(s.Body) == 0 {
+		return nil, errors.New("SignerPayload must contain Body field")
+	}
+	return s, nil
 }
 
+// NewSignedString signs a given string, tag, and nonce with the given private key
 func NewSignedString(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, str string) (*SignedPayload, error) {
+	if len(str) == 0 {
+		return nil, errors.New("cannot sign empty data")
+	}
 	sp := &SignedPayload{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
@@ -49,13 +71,16 @@ func NewSignedString(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce u
 	if err != nil {
 		return nil, err
 	}
-	sp.Signature = buf
+	sp.Signature = common.Bytes2Hex(buf)
 	return sp, nil
 
 }
 
 // NewSignedPayload signs a given body, tag, and nonce with the given private key.
 func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
+	if data == nil || reflect.ValueOf(data).IsZero() {
+		return nil, errors.New("cannot sign empty data")
+	}
 	bz, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
@@ -79,7 +104,7 @@ func (s *SignedPayload) Verify(hexAddress string) error {
 	if err != nil {
 		return err
 	}
-	signerPubKey, err := crypto.SigToPub(hash, s.Signature)
+	signerPubKey, err := crypto.SigToPub(hash, common.Hex2Bytes(s.Signature))
 	if err != nil {
 		return err
 	}

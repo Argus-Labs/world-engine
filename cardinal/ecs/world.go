@@ -393,16 +393,20 @@ func (w *World) StorageAccessor() StorageAccessor {
 }
 
 // copyTransactions makes a copy of the world txQueue, then zeroes out the txQueue.
-func (w *World) copyTransactions() map[transaction.TypeID][]any {
+func (w *World) copyTransactions() (map[transaction.TypeID][]any, map[transaction.TypeID][]*sign.SignedPayload) {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
 	txsMap := make(map[transaction.TypeID][]any, len(w.txQueues))
+	sigsMap := make(map[transaction.TypeID][]*sign.SignedPayload, len(w.txSignatures))
 	for id, txs := range w.txQueues {
 		txsMap[id] = make([]interface{}, len(txs))
+		sigsMap[id] = make([]*sign.SignedPayload, len(txs))
 		copy(txsMap[id], txs)
+		copy(sigsMap[id], w.txSignatures[id])
 		w.txQueues[id] = w.txQueues[id][:0]
+		w.txSignatures[id] = w.txSignatures[id][:0]
 	}
-	return txsMap
+	return txsMap, sigsMap
 }
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
@@ -420,14 +424,15 @@ func (w *World) Tick(ctx context.Context) error {
 	if !w.stateIsLoaded {
 		return errors.New("must load state before first tick")
 	}
-	txs := w.copyTransactions()
+	txs, sigs := w.copyTransactions()
 
 	if err := w.store.TickStore.StartNextTick(w.registeredTransactions, txs); err != nil {
 		return err
 	}
 
 	txQueue := &TransactionQueue{
-		queue: txs,
+		queue:      txs,
+		signatures: sigs,
 	}
 
 	for _, sys := range w.systems {
