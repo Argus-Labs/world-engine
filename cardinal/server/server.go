@@ -125,7 +125,8 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 		return nil, nil, errors.New("unable to read body")
 	}
 
-	sp, err := sign.UnmarshalSignedPayload(buf)
+	var signedPayload []byte
+	sp, err := sign.UnmarshalSignedPayload(signedPayload)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -133,7 +134,7 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 		// During testing (with signature verification disabled), a request body can either be wrapped in a signed payload,
 		// or the request body can be sent as is.
 		if len(sp.Body) == 0 {
-			return buf, sp, nil
+			return signedPayload, sp, nil
 		}
 		return sp.Body, sp, nil
 	}
