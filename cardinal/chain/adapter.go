@@ -27,7 +27,9 @@ type Writer interface {
 }
 
 type Reader interface {
-	QueryBatches(ctx context.Context, req *shardtypes.QueryBatchesRequest) (*shardtypes.QueryBatchesResponse, error)
+	QueryTransactions(
+		context.Context,
+		*shardtypes.QueryTransactionsRequest) (*shardtypes.QueryTransactionsResponse, error)
 }
 
 type Config struct {
@@ -88,15 +90,20 @@ func NewAdapter(cfg Config, opts ...Option) (Adapter, error) {
 	return a, nil
 }
 
-// Submit submits the transaction bytes to the EVM base shard.
+// Submit submits a transaction to the EVM base shard.
 func (a adapterImpl) Submit(ctx context.Context, sp *sign.SignedPayload) error {
-	req := &shardv1.SubmitShardBatchRequest{Payload: signedPayloadToProto(sp)}
-	_, err := a.ShardReceiver.SubmitShardBatch(ctx, req)
+	req := &shardv1.SubmitCardinalTxRequest{Tx: signedPayloadToProto(sp)}
+	_, err := a.ShardReceiver.SubmitCardinalTx(ctx, req)
 	return err
 }
 
-func (a adapterImpl) QueryBatches(ctx context.Context, req *shardtypes.QueryBatchesRequest) (*shardtypes.QueryBatchesResponse, error) {
-	return a.ShardQuerier.Batches(ctx, req)
+func (a adapterImpl) QueryTransactions(
+	ctx context.Context,
+	req *shardtypes.QueryTransactionsRequest) (
+	*shardtypes.QueryTransactionsResponse,
+	error,
+) {
+	return a.ShardQuerier.Transactions(ctx, req)
 }
 
 func signedPayloadToProto(sp *sign.SignedPayload) *shardv1.SignedPayload {

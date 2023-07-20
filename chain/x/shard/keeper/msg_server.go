@@ -24,7 +24,7 @@ func (k *Keeper) SubmitCardinalTx(ctx context.Context, msg *types.SubmitCardinal
 	if err != nil {
 		return nil, err
 	}
-	err = k.saveTransaction(sdkCtx, sp)
+	err = k.saveTransaction(sdkCtx, sp.Namespace, msg.CardinalTx)
 	if err != nil {
 		return nil, err
 	}

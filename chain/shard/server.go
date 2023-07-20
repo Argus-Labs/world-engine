@@ -101,11 +101,12 @@ func (s *Server) FlushMessages() []*types.SubmitCardinalTxRequest {
 	return msgs
 }
 
-// SubmitShardBatch appends the shard tx submissions to the queue IFF they pass validation.
-func (s *Server) SubmitShardBatch(_ context.Context, req *shard.SubmitShardBatchRequest) (
-	*shard.SubmitShardBatchResponse, error) {
+// SubmitCardinalTx appends the cardinal tx submission to the queue, which eventually gets executed during
+// abci.EndBlock
+func (s *Server) SubmitCardinalTx(_ context.Context, req *shard.SubmitCardinalTxRequest) (
+	*shard.SubmitCardinalTxResponse, error) {
 
-	bz, err := proto.Marshal(req.Payload)
+	bz, err := proto.Marshal(req.Tx)
 	if err != nil {
 		return nil, err
 	}
@@ -118,5 +119,5 @@ func (s *Server) SubmitShardBatch(_ context.Context, req *shard.SubmitShardBatch
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.msgQueue = append(s.msgQueue, sbr)
-	return &shard.SubmitShardBatchResponse{}, nil
+	return &shard.SubmitCardinalTxResponse{}, nil
 }

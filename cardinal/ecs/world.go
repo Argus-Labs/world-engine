@@ -1,10 +1,11 @@
 package ecs
 
 import (
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"google.golang.org/protobuf/proto"
 	"sync"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
@@ -655,7 +656,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	namespace := w.GetNamespace()
 	var nextKey []byte
 	for {
-		res, err := w.chain.QueryBatches(ctx, &types.QueryBatchesRequest{
+		res, err := w.chain.QueryTransactions(ctx, &types.QueryTransactionsRequest{
 			Namespace: namespace,
 			Page: &types.PageRequest{
 				Key: nextKey,
@@ -664,16 +665,12 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		for _, batch := range res.Batches {
-			txb, err := w.decodeBatch(batch.Batch)
+		for _, tx := range res.Transactions {
+			payload, err := w.decodeTransaction(tx)
 			if err != nil {
 				return err
 			}
-			for _, tx := range txb {
-				w.txQueues[tx.TxID] = tx.Txs
-			}
-			// force the tick to the stored tick.
-			w.tick = int(batch.Tick)
+
 			err = w.Tick(ctx)
 			if err != nil {
 				return err
@@ -695,46 +692,10 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	return nil
 }
 
-func (w *World) encodeBatch(txb []TxBatch) ([]byte, error) {
-	return json.Marshal(txb)
-}
-
-func (w *World) decodeBatch(bz []byte) ([]TxBatch, error) {
-	var batches []TxBatch
-
-	// first we simply unmarshal the data into the slice of transaction batches.
-	err := json.Unmarshal(bz, &batches)
-	if err != nil {
-		return nil, err
-	}
-
-	// since txs are stored as `any`s, we need to do some extra work in order to unmarshal them into
-	// their concrete types. at this point, they're just unmarshalled as map[string]interface{}
-	for _, batch := range batches {
-		// first we get the ITransaction for this batch of txs.
-		transactionType := w.getITx(batch.TxID)
-		// catch the edge case where somehow the batch was stored with a tx TypeID that isn't registered in the world.
-		if transactionType == nil {
-			return nil, fmt.Errorf("attempted to decode transaction with ID %d, "+
-				"but no such transaction with that ID was registered", batch.TxID)
-		}
-
-		for i, tx := range batch.Txs {
-			// for each tx, we need to first JSON marshal, as they are currently map[string]interface{}.
-			txBytes, err := json.Marshal(tx)
-			if err != nil {
-				return nil, err
-			}
-			// now we can decode the JSON using the ITransaction, to get the concrete tx struct.
-			underlyingTx, err := transactionType.Decode(txBytes)
-			if err != nil {
-				return nil, err
-			}
-			// put the concrete tx back into the txs slice.
-			batch.Txs[i] = underlyingTx
-		}
-	}
-	return batches, nil
+func (w *World) decodeTransaction(bz []byte) (*shardv1.SignedPayload, error) {
+	payload := new(shardv1.SignedPayload)
+	err := proto.Unmarshal(bz, payload)
+	return payload, err
 }
 
 // getITx iterates over the registered transactions and returns the ITransaction associated with the TypeID.

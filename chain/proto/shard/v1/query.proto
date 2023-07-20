@@ -4,8 +4,6 @@ package shard.v1;
 
 import "cosmos_proto/cosmos.proto";
 import "cosmos/msg/v1/msg.proto";
-import "shard/v1/types.proto";
-
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
@@ -13,17 +11,20 @@ import "google/api/annotations.proto";
 option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
 
 service Query {
-  rpc Batches(QueryBatchesRequest) returns (QueryBatchesResponse);
+  rpc Transactions(QueryTransactionsRequest) returns (QueryTransactionsResponse);
 }
 
-message QueryBatchesRequest {
+message QueryTransactionsRequest {
   string namespace = 1;
   PageRequest page = 2;
 }
 
-message QueryBatchesResponse {
-    repeated TransactionBatch batches = 1;
-    PageResponse page = 2;
+message QueryTransactionsResponse {
+  // transactions are a list of proto encoded SignedPayload.
+  // NOTE: these need to be unmarshalled into the protobuf generated SignedPayload, NOT the go struct found in the
+  // sign package.
+  repeated bytes transactions = 1;
+  PageResponse page = 2;
 }
 
 message PageRequest {

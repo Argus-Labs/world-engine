@@ -4,10 +4,12 @@ package shard.v1;
 
 option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
 
-import "shard/v1/types.proto";
-
-
 message GenesisState {
-  // batches contains all the transaction batches.
-  repeated TransactionBatch batches = 1;
+  // transactions is a list of proto encoded SignPayload.
+  repeated Transactions transactions = 1;
+}
+
+message Transactions {
+  string namespace = 1;
+  repeated bytes txs = 2;
 }

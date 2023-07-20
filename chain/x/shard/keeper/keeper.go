@@ -19,25 +19,27 @@ func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
 }
 
 func (k *Keeper) InitGenesis(ctx sdk.Context, genesis *types.GenesisState) {
-	for _, b := range genesis.Batches {
-		if err := k.saveBatch(ctx, b); err != nil {
-			panic(err)
+	for _, txs := range genesis.Transactions {
+		namespace := txs.Namespace
+		for _, tx := range txs.Txs {
+			err := k.saveTransaction(ctx, namespace, tx)
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 }
 
 func (k *Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
-	batches := make([]*types.TransactionBatch, 0)
+	allTxs := make([]*types.Transactions, 0)
 	k.iterateNamespaces(ctx, func(ns string) bool {
-		k.iterateBatches(ctx, nil, nil, ns, func(tick uint64, batch []byte) bool {
-			batches = append(batches, &types.TransactionBatch{
-				Namespace: ns,
-				Tick:      tick,
-				Batch:     batch,
-			})
+		txs := &types.Transactions{Namespace: ns}
+		k.iterateTransactions(ctx, nil, nil, ns, func(_ []byte, tx []byte) bool {
+			txs.Txs = append(txs.Txs, tx)
 			return true
 		})
+		allTxs = append(allTxs, txs)
 		return true
 	})
-	return &types.GenesisState{Batches: batches}
+	return &types.GenesisState{Transactions: allTxs}
 }
