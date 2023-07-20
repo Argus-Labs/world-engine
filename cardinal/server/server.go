@@ -112,13 +112,7 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 }
 
 func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
-	// Convert json string to []byte
-	txBody, err := json.Marshal(sp.Body)
-	if err != nil {
-		return "", errors.New("unable to marshal tx body")
-	}
-
-	createPersonaTx, err := decode[ecs.CreatePersonaTransaction](txBody)
+	createPersonaTx, err := decode[ecs.CreatePersonaTransaction](sp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -136,15 +130,9 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 		return nil, nil, err
 	}
 
-	// Convert json string to []byte
-	txBody, err := json.Marshal(sp.Body)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	// Handle the case where signature is disabled
 	if t.disableSigVerification {
-		return txBody, sp, nil
+		return sp.Body, sp, nil
 	}
 	///////////////////////////////////////////////
 
@@ -186,7 +174,7 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	if len(sp.Body) == 0 {
 		return buf, sp, nil
 	}
-	return txBody, sp, nil
+	return sp.Body, sp, nil
 }
 
 func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
