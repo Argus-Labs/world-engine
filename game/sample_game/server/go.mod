@@ -7,16 +7,11 @@ replace (
 	github.com/cometbft/cometbft => github.com/rollkit/cometbft v0.0.0-20230614163111-d6a8d2c98cc0
 	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.0-beta2.0.20230714164100-d5353aba3338
 	// Required for stateful precompiles and supporting the Ethereum JSON-RPC API.
-	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20230609180942-c6acc930b404
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
-replace github.com/argus-labs/world-engine/cardinal => ../../../cardinal
-
-replace github.com/argus-labs/world-engine/sign => ../../../sign
-
-require github.com/argus-labs/world-engine/cardinal v0.1.3-alpha
+require github.com/argus-labs/world-engine/cardinal v0.1.10-alpha
 
 require (
 	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230706220147-5852f366165d.1 // indirect
@@ -35,7 +30,7 @@ require (
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/alicebob/miniredis/v2 v2.30.2 // indirect
 	github.com/argus-labs/world-engine/chain v0.0.0-20230707202412-c8445f1731f0 // indirect
-	github.com/argus-labs/world-engine/sign v0.0.0-20230717124149-1431a28b6942 // indirect
+	github.com/argus-labs/world-engine/sign v0.1.0-alpha // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
