@@ -23,7 +23,8 @@ var (
 
 	globalPrivateKey    *ecdsa.PrivateKey
 	globalSignerAddress string
-	nonceMutex          sync.Mutex
+	// nonceMutex is used to ensure that Nakama's current nonce can be read and incremented atomically.
+	nonceMutex sync.Mutex
 )
 
 const (

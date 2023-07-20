@@ -127,10 +127,10 @@ func initPersonaTagAssignmentMap(ctx context.Context, logger runtime.Logger, nk 
 
 // initPersonaEndpoints sets up the nakame RPC endpoints that are used to claim a persona tag and display a persona tag.
 func initPersonaEndpoints(logger runtime.Logger, initializer runtime.Initializer) error {
-	if err := initializer.RegisterRpc("nakama/claim_persona", handleClaimPersona); err != nil {
+	if err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona); err != nil {
 		return err
 	}
-	if err := initializer.RegisterRpc("nakama/show_persona", handleShowPersona); err != nil {
+	if err := initializer.RegisterRpc("nakama/show-persona", handleShowPersona); err != nil {
 		return err
 	}
 	return nil
@@ -321,7 +321,7 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 // initCardinalEndpoints queries the cardinal server to find the list of existing endpoints, and attempts to
 // set up RPC wrappers around each one.
 func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initializer) error {
-	endpoints, err := cardinalListEndpoints()
+	endpoints, err := cardinalListAllEndpoints()
 	if err != nil {
 		return fmt.Errorf("failed to get list of cardinal endpoints: %w", err)
 	}

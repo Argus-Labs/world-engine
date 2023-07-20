@@ -18,8 +18,10 @@ import (
 )
 
 var (
-	createPersonaEndpoint     = "tx-create-persona"
-	listEndpointsEndpoint     = "cardinal/list-tx-endpoints"
+	createPersonaEndpoint   = "tx-create-persona"
+	listTxEndpointsEndpoint = "list/tx-endpoints"
+	listReadEndpoints       = "list/read-endpoints"
+
 	readPersonaSignerEndpoint = "read-persona-signer"
 
 	readPersonaSignerStatusUnknown   = "unknown"
@@ -38,8 +40,8 @@ func makeURL(resource string) string {
 	return fmt.Sprintf("%s/%s", addr, resource)
 }
 
-func cardinalListEndpoints() ([]string, error) {
-	url := makeURL(listEndpointsEndpoint)
+func cardinalListEndpoints(path string) ([]string, error) {
+	url := makeURL(path)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -53,6 +55,22 @@ func cardinalListEndpoints() ([]string, error) {
 	if err := dec.Decode(&endpoints); err != nil {
 		return nil, err
 	}
+	return endpoints, nil
+
+}
+
+func cardinalListAllEndpoints() ([]string, error) {
+	var endpoints []string
+	txs, err := cardinalListEndpoints(listTxEndpointsEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	endpoints = append(endpoints, txs...)
+	reads, err := cardinalListEndpoints(listReadEndpoints)
+	if err != nil {
+		return nil, err
+	}
+	endpoints = append(endpoints, reads...)
 	return endpoints, nil
 }
 
