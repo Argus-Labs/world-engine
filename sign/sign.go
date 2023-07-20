@@ -23,7 +23,7 @@ type SignedPayload struct {
 	Namespace  string
 	Nonce      uint64
 	Signature  string // hex encoded string
-	Body       []byte
+	Body       string // json string
 }
 
 func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
@@ -65,7 +65,7 @@ func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce 
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Nonce:      nonce,
-		Body:       bz,
+		Body:       string(bz),
 	}
 	hash, err := sp.hash()
 	if err != nil {
@@ -117,7 +117,7 @@ func (s *SignedPayload) hash() ([]byte, error) {
 	if _, err := hash.Write([]byte(fmt.Sprintf("%d", s.Nonce))); err != nil {
 		return nil, err
 	}
-	if _, err := hash.Write(s.Body); err != nil {
+	if _, err := hash.Write([]byte(s.Body)); err != nil {
 		return nil, err
 	}
 	return hash.Sum(nil), nil
