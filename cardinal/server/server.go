@@ -131,8 +131,7 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 		return nil, nil, errors.New("unable to read body")
 	}
 
-	var signedPayload []byte
-	sp, err := sign.UnmarshalSignedPayload(signedPayload)
+	sp, err := sign.UnmarshalSignedPayload(buf)
 	if err != nil {
 		return nil, nil, err
 	}
