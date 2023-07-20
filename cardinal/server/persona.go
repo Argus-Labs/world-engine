@@ -1,9 +1,11 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
+	"github.com/invopop/jsonschema"
 	"io"
 	"net/http"
 )
@@ -55,10 +57,28 @@ func (t *Handler) handleReadPersonaSigner(w http.ResponseWriter, r *http.Request
 	} else {
 		status = getSignerForPersonaStatusAssigned
 	}
-	writeResult(w, ReadPersonaSignerResponse{
+
+	res := ReadPersonaSignerResponse{
 		Status:        status,
 		SignerAddress: addr,
-	})
+	}
+	resJson, err := json.Marshal(res)
+	if err != nil {
+		writeError(w, "unable to marshal response", err)
+		return
+	}
+
+	writeResult(w, resJson)
+}
+
+func (t *Handler) handleReadPersonaSignerSchema(w http.ResponseWriter, _ *http.Request) {
+	jsonSchema, err := json.Marshal(jsonschema.Reflect(new(ReadPersonaSignerRequest)))
+	if err != nil {
+		writeError(w, "unable to marshal response", err)
+		return
+	}
+
+	writeResult(w, jsonSchema)
 }
 
 func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.HandlerFunc {
@@ -79,9 +99,16 @@ func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.Han
 			return
 		}
 		t.w.AddTransaction(tx.ID(), txVal, sp)
-		writeResult(writer, CreatePersonaResponse{
+
+		res, err := json.Marshal(CreatePersonaResponse{
 			Tick:   t.w.CurrentTick(),
 			Status: "ok",
 		})
+		if err != nil {
+			writeError(writer, "unable to marshal response", err)
+			return
+		}
+
+		writeResult(writer, res)
 	}
 }
