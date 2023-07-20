@@ -7,14 +7,14 @@ option go_package = "github.com/argus-labs/world-engine/shard/v1";
 // service ShardHandler deals with transactions coming from game shards.
 service ShardHandler {
   // SubmitCardinalBatch handles receiving batches of transactions from a game shard and persisting them to the chain.
-  rpc SubmitShardBatch(SubmitShardBatchRequest) returns (SubmitShardBatchResponse);
+  rpc SubmitCardinalTx(SubmitCardinalTxRequest) returns (SubmitCardinalTxResponse);
 }
 
-message SubmitShardBatchRequest {
-  SignedPayload payload = 1;
+message SubmitCardinalTxRequest {
+  SignedPayload tx = 1;
 }
 
-message SubmitShardBatchResponse {
+message SubmitCardinalTxResponse {
 
 }
 

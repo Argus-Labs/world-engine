@@ -11,8 +11,8 @@ replace (
 )
 
 require (
-	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230706220147-5852f366165d.1
-	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230706220147-5852f366165d.1
+	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230719103334-2142d567a4b3.1
+	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230719103334-2142d567a4b3.1
 	github.com/alicebob/miniredis/v2 v2.30.1
 	github.com/argus-labs/world-engine/chain v0.0.0-20230707202412-c8445f1731f0
 	github.com/argus-labs/world-engine/sign v0.0.0-20230717124149-1431a28b6942
