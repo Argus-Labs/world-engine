@@ -441,6 +441,8 @@ github.com/argus-labs/world-engine/chain v0.0.0-20230707202412-c8445f1731f0 h1:b
 github.com/argus-labs/world-engine/chain v0.0.0-20230707202412-c8445f1731f0/go.mod h1:3Q64gRzseoJTBsUvD8fxUNavWZWpjNPxx90ZMurFS8Y=
 github.com/argus-labs/world-engine/sign v0.0.0-20230717124149-1431a28b6942 h1:aq5fX71K7lfQgqATBfofXGuVdQC48tMc+IL2CCU2JT0=
 github.com/argus-labs/world-engine/sign v0.0.0-20230717124149-1431a28b6942/go.mod h1:PWuRoQA8n221n1ta8IuV8juhGT/AIcGFYqdK8a3SC58=
+github.com/argus-labs/world-engine/sign v0.1.0-alpha h1:FNTTdxMnkUHCCKGHrE7ma03bw2wf2JdH7ARXiAEjW2c=
+github.com/argus-labs/world-engine/sign v0.1.0-alpha/go.mod h1:PWuRoQA8n221n1ta8IuV8juhGT/AIcGFYqdK8a3SC58=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/armon/go-metrics v0.4.1 h1:hR91U9KYmb6bLBYLQjyM+3j+rcd/UhE+G78SFnF8gJA=
 github.com/armon/go-metrics v0.4.1/go.mod h1:E6amYzXo6aW1tqzoZGT755KkbgrJsSdpwZ+3JqfkOG4=
