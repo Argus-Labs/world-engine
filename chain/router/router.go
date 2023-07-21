@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"os"
+	"strconv"
 )
 
 type Result struct {
@@ -70,7 +71,7 @@ func (r *router) Send(ctx context.Context, namespace, sender string, msgID uint6
 	}
 	req := &v1.MsgSend{
 		Sender:    sender,
-		MessageId: msgID,
+		MessageId: strconv.FormatUint(uint64(msgID), 10),
 		Message:   msg,
 	}
 	res, err := client.SendMsg(ctx, req)
