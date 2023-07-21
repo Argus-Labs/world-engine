@@ -203,11 +203,17 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 			return
 		}
 		writeResult(writer, res)
+		// as long as we have an adapter, and the current world is not in recovery mode
 		if t.adapter != nil {
-			err = t.adapter.Submit(context.Background(), sp)
-			if err != nil {
-				writeError(writer, "error submitting transaction to blockchain", err)
+			if t.w.IsRecovering() {
+				writeError(writer, "unable to submit transactions: game world is recovering state", nil)
+			} else {
+				err = t.adapter.Submit(context.Background(), sp)
+				if err != nil {
+					writeError(writer, "error submitting transaction to blockchain", err)
+				}
 			}
+
 		}
 	}
 }

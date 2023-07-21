@@ -63,6 +63,10 @@ var (
 	ErrorDuplicateReadName                     = errors.New("read names must be unique")
 )
 
+func (w *World) IsRecovering() bool {
+	return w.isRecovering
+}
+
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
 	err := w.store.EntityLocStore.SetLocation(id, location)
 	if err != nil {
