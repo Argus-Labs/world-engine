@@ -32,7 +32,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	"pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/staking"
 	cosmlib "pkg.berachain.dev/polaris/cosmos/lib"
 	"pkg.berachain.dev/polaris/eth/common"
 )
@@ -42,24 +41,24 @@ func (c *Contract) getDelegationHelper(
 	ctx context.Context,
 	del sdk.AccAddress,
 	val sdk.ValAddress,
-) (*big.Int, error) {
+) ([]any, error) {
 	res, err := c.querier.Delegation(ctx, &stakingtypes.QueryDelegationRequest{
 		DelegatorAddr: del.String(),
 		ValidatorAddr: val.String(),
 	})
 	if status.Code(err) == codes.NotFound {
 		// handle the case where the delegation does not exist
-		return big.NewInt(0), nil
+		return []any{big.NewInt(0)}, nil
 	} else if err != nil {
 		return nil, err
 	}
 
 	delegation := res.GetDelegationResponse()
 	if delegation == nil {
-		return big.NewInt(0), nil
+		return []any{big.NewInt(0)}, nil
 	}
 
-	return delegation.Balance.Amount.BigInt(), nil
+	return []any{delegation.Balance.Amount.BigInt()}, nil
 }
 
 // getUnbondingDelegationHelper is the helper function for `getUnbondingDelegation`.
@@ -67,18 +66,18 @@ func (c *Contract) getUnbondingDelegationHelper(
 	ctx context.Context,
 	del sdk.AccAddress,
 	val sdk.ValAddress,
-) ([]staking.IStakingModuleUnbondingDelegationEntry, error) {
+) ([]any, error) {
 	res, err := c.querier.UnbondingDelegation(ctx, &stakingtypes.QueryUnbondingDelegationRequest{
 		DelegatorAddr: del.String(),
 		ValidatorAddr: val.String(),
 	})
 	if status.Code(err) == codes.NotFound {
-		return []staking.IStakingModuleUnbondingDelegationEntry{}, nil
+		return []any{[]stakingtypes.UnbondingDelegationEntry{}}, nil
 	} else if err != nil {
 		return nil, err
 	}
 
-	return cosmlib.SdkUDEToStakingUDE(res.GetUnbond().Entries), nil
+	return []any{cosmlib.SdkUDEToStakingUDE(res.GetUnbond().Entries)}, nil
 }
 
 // getRedelegationsHelper is the helper function for `getRedelegations.
@@ -87,7 +86,7 @@ func (c *Contract) getRedelegationsHelper(
 	del sdk.AccAddress,
 	srcValidator sdk.ValAddress,
 	dstValidator sdk.ValAddress,
-) ([]staking.IStakingModuleRedelegationEntry, error) {
+) ([]any, error) {
 	rsp, err := c.querier.Redelegations(
 		ctx,
 		&stakingtypes.QueryRedelegationsRequest{
@@ -97,7 +96,7 @@ func (c *Contract) getRedelegationsHelper(
 		},
 	)
 	if status.Code(err) == codes.NotFound {
-		return []staking.IStakingModuleRedelegationEntry{}, nil
+		return []any{[]stakingtypes.RedelegationEntry{}}, nil
 	} else if err != nil {
 		return nil, err
 	}
@@ -119,7 +118,7 @@ func (c *Contract) getRedelegationsHelper(
 		redelegationEntries = append(redelegationEntries, entryRsp.GetRedelegationEntry())
 	}
 
-	return cosmlib.SdkREToStakingRE(redelegationEntries), err
+	return []any{cosmlib.SdkREToStakingRE(redelegationEntries)}, err
 }
 
 // delegateHelper is the helper function for `delegate`.
@@ -128,18 +127,18 @@ func (c *Contract) delegateHelper(
 	caller common.Address,
 	amount *big.Int,
 	validatorAddress sdk.ValAddress,
-) (bool, error) {
+) ([]any, error) {
 	denom, err := c.bondDenom(ctx)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	_, err = c.msgServer.Delegate(ctx, stakingtypes.NewMsgDelegate(
 		cosmlib.AddressToAccAddress(caller),
 		validatorAddress,
-		sdk.Coin{Denom: denom, Amount: sdkmath.NewIntFromBigInt(amount)},
+		sdk.NewCoin(denom, sdkmath.NewIntFromBigInt(amount)),
 	))
-	return err == nil, err
+	return []any{err == nil}, err
 }
 
 // undelegateHelper is the helper function for `undelegate`.
@@ -148,18 +147,18 @@ func (c *Contract) undelegateHelper(
 	caller common.Address,
 	amount *big.Int,
 	val sdk.ValAddress,
-) (bool, error) {
+) ([]any, error) {
 	denom, err := c.bondDenom(ctx)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	_, err = c.msgServer.Undelegate(ctx, stakingtypes.NewMsgUndelegate(
 		cosmlib.AddressToAccAddress(caller),
 		val,
-		sdk.Coin{Denom: denom, Amount: sdkmath.NewIntFromBigInt(amount)},
+		sdk.NewCoin(denom, sdkmath.NewIntFromBigInt(amount)),
 	))
-	return err == nil, err
+	return []any{err == nil}, err
 }
 
 // beginRedelegateHelper is the helper function for `beginRedelegate`.
@@ -168,10 +167,10 @@ func (c *Contract) beginRedelegateHelper(
 	caller common.Address,
 	amount *big.Int,
 	srcVal, dstVal sdk.ValAddress,
-) (bool, error) {
+) ([]any, error) {
 	bondDenom, err := c.bondDenom(ctx)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	_, err = c.msgServer.BeginRedelegate(
@@ -180,10 +179,10 @@ func (c *Contract) beginRedelegateHelper(
 			cosmlib.AddressToAccAddress(caller),
 			srcVal,
 			dstVal,
-			sdk.Coin{Denom: bondDenom, Amount: sdkmath.NewIntFromBigInt(amount)},
+			sdk.NewCoin(bondDenom, sdkmath.NewIntFromBigInt(amount)),
 		),
 	)
-	return err == nil, err
+	return []any{err == nil}, err
 }
 
 // cancelRedelegateHelper is the helper function for `cancelRedelegate`.
@@ -193,10 +192,10 @@ func (c *Contract) cancelUnbondingDelegationHelper(
 	amount *big.Int,
 	val sdk.ValAddress,
 	creationHeight int64,
-) (bool, error) {
+) ([]any, error) {
 	bondDenom, err := c.bondDenom(ctx)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	_, err = c.msgServer.CancelUnbondingDelegation(
@@ -205,13 +204,13 @@ func (c *Contract) cancelUnbondingDelegationHelper(
 			cosmlib.AddressToAccAddress(caller),
 			val,
 			creationHeight,
-			sdk.Coin{Denom: bondDenom, Amount: sdkmath.NewIntFromBigInt(amount)},
+			sdk.NewCoin(bondDenom, sdkmath.NewIntFromBigInt(amount)),
 		),
 	)
-	return err != nil, err
+	return []any{err != nil}, err
 }
 
-func (c *Contract) activeValidatorsHelper(ctx context.Context) ([]common.Address, error) {
+func (c *Contract) activeValidatorsHelper(ctx context.Context) ([]any, error) {
 	res, err := c.querier.Validators(ctx, &stakingtypes.QueryValidatorsRequest{
 		Status: stakingtypes.BondStatusBonded,
 	})
@@ -229,10 +228,10 @@ func (c *Contract) activeValidatorsHelper(ctx context.Context) ([]common.Address
 		}
 		addrs = append(addrs, cosmlib.ValAddressToEthAddress(valAddr))
 	}
-	return addrs, nil
+	return []any{addrs}, nil
 }
 
-func (c *Contract) validatorsHelper(ctx context.Context) ([]staking.IStakingModuleValidator, error) {
+func (c *Contract) validatorsHelper(ctx context.Context) ([]any, error) {
 	res, err := c.querier.Validators(ctx, &stakingtypes.QueryValidatorsRequest{
 		Status: stakingtypes.BondStatusBonded,
 	})
@@ -245,37 +244,29 @@ func (c *Contract) validatorsHelper(ctx context.Context) ([]staking.IStakingModu
 		return nil, err
 	}
 
-	return vals, nil
+	return []any{vals}, nil
 }
 
 // valAddr must be the bech32 address of the validator.
-func (c *Contract) validatorHelper(
-	ctx context.Context,
-	valAddr string,
-) (staking.IStakingModuleValidator, error) {
+func (c *Contract) validatorHelper(ctx context.Context, valAddr string) ([]any, error) {
 	res, err := c.querier.Validator(ctx, &stakingtypes.QueryValidatorRequest{
 		ValidatorAddr: valAddr,
 	})
 	if err != nil {
-		return staking.IStakingModuleValidator{}, err
+		return nil, err
 	}
 
-	val, err := cosmlib.SdkValidatorsToStakingValidators(
-		[]stakingtypes.Validator{res.GetValidator()},
-	)
+	val, err := cosmlib.SdkValidatorsToStakingValidators([]stakingtypes.Validator{res.GetValidator()})
 	if err != nil {
-		return staking.IStakingModuleValidator{}, err
+		return nil, err
 	}
 
 	// guaranteed not to panic because val is guaranteed to have length 1.
-	return val[0], nil
+	return []any{val[0]}, nil
 }
 
 // accAddr must be the bech32 address of the delegator.
-func (c *Contract) delegatorValidatorsHelper(
-	ctx context.Context,
-	accAddr string,
-) ([]staking.IStakingModuleValidator, error) {
+func (c *Contract) delegatorValidatorsHelper(ctx context.Context, accAddr string) ([]any, error) {
 	res, err := c.querier.DelegatorValidators(ctx, &stakingtypes.QueryDelegatorValidatorsRequest{
 		DelegatorAddr: accAddr,
 	})
@@ -288,7 +279,7 @@ func (c *Contract) delegatorValidatorsHelper(
 		return nil, err
 	}
 
-	return vals, nil
+	return []any{vals}, nil
 }
 
 // bondDenom returns the bond denom from the staking module.

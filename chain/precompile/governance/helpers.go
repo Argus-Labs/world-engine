@@ -31,44 +31,42 @@ import (
 	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/governance"
 )
 
-// submitProposalHelper is a helper function for the `SubmitProposal` method of the
-// governance precompile contract.
+// submitProposalHelper is a helper function for the `SubmitProposal` method of the governance precompile contract.
 func (c *Contract) submitProposalHelper(
 	ctx context.Context,
 	proposalBz []byte,
 	message []*codectypes.Any,
-) (uint64, error) {
+) ([]any, error) {
 	// Decode the proposal.
 	var proposal v1.MsgSubmitProposal
 	if err := proposal.Unmarshal(proposalBz); err != nil {
-		return 0, fmt.Errorf("failed to unmarshal proposal: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal proposal: %w", err)
 	}
 	proposal.Messages = message
 
 	// Submit the message.
 	res, err := c.msgServer.SubmitProposal(ctx, &proposal)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return res.ProposalId, nil
+	return []any{res.ProposalId}, nil
 }
 
-// cancelProposalHelper is a helper function for the `CancelProposal` method of the
-// governance precompile contract.
+// cancelProposalHelper is a helper function for the `CancelProposal` method of the governance precompile contract.
 func (c *Contract) cancelProposalHelper(
 	ctx context.Context,
 	proposer sdk.AccAddress,
 	proposalID uint64,
-) (uint64, uint64, error) {
+) ([]any, error) {
 	res, err := c.msgServer.CancelProposal(ctx, &v1.MsgCancelProposal{
 		ProposalId: proposalID,
 		Proposer:   proposer.String(),
 	})
 	if err != nil {
-		return 0, 0, err
+		return nil, err
 	}
 
-	return uint64(res.CanceledTime.Unix()), res.CanceledHeight, nil
+	return []any{uint64(res.CanceledTime.Unix()), res.CanceledHeight}, nil
 }
 
 // voteHelper is a helper function for the `Vote` method of the governance precompile contract.
@@ -78,25 +76,24 @@ func (c *Contract) voteHelper(
 	proposalID uint64,
 	option int32,
 	metadata string,
-) (bool, error) {
+) ([]any, error) {
 	_, err := c.msgServer.Vote(ctx, &v1.MsgVote{
 		ProposalId: proposalID,
 		Voter:      voter.String(),
 		Option:     v1.VoteOption(option),
 		Metadata:   metadata,
 	})
-	return err == nil, err
+	return []any{err == nil}, err
 }
 
-// voteWeighted is a helper function for the `VoteWeighted` method of the
-// governance precompile contract.
+// voteWeighted is a helper function for the `VoteWeighted` method of the governance precompile contract.
 func (c *Contract) voteWeightedHelper(
 	ctx context.Context,
 	voter sdk.AccAddress,
 	proposalID uint64,
 	options []generated.IGovernanceModuleWeightedVoteOption,
 	metadata string,
-) (bool, error) {
+) ([]any, error) {
 	// Convert the options to v1.WeightedVoteOption.
 	msgOptions := make([]*v1.WeightedVoteOption, len(options))
 	for i, option := range options {
@@ -114,30 +111,25 @@ func (c *Contract) voteWeightedHelper(
 			Metadata:   metadata,
 		},
 	)
-	return err == nil, err
+	return []any{err == nil}, err
 }
 
-// getProposalHelper is a helper function for the `GetProposal` method of the
-// governance precompile contract.
-func (c *Contract) getProposalHelper(
-	ctx context.Context,
-	proposalID uint64,
-) (generated.IGovernanceModuleProposal, error) {
+// getProposalHelper is a helper function for the `GetProposal` method of the governance precompile contract.
+func (c *Contract) getProposalHelper(ctx context.Context, proposalID uint64) ([]any, error) {
 	res, err := c.querier.Proposal(ctx, &v1.QueryProposalRequest{
 		ProposalId: proposalID,
 	})
 	if err != nil {
-		return generated.IGovernanceModuleProposal{}, err
+		return nil, err
 	}
-	return transformProposalToABIProposal(*res.Proposal), nil
+	return []any{transformProposalToABIProposal(*res.Proposal)}, nil
 }
 
-// getProposalsHelper is a helper function for the `GetProposal` method of the
-// governance precompile contract.
+// getProposalsHelper is a helper function for the `GetProposal` method of the governance precompile contract.
 func (c *Contract) getProposalsHelper(
 	ctx context.Context,
 	proposalStatus int32,
-) ([]generated.IGovernanceModuleProposal, error) {
+) ([]any, error) {
 	res, err := c.querier.Proposals(ctx, &v1.QueryProposalsRequest{
 		ProposalStatus: v1.ProposalStatus(proposalStatus),
 	})
@@ -150,7 +142,7 @@ func (c *Contract) getProposalsHelper(
 		proposals = append(proposals, transformProposalToABIProposal(*proposal))
 	}
 
-	return proposals, nil
+	return []any{proposals}, nil
 }
 
 // transformProposalToABIProposal is a helper function to transform a `v1.Proposal`

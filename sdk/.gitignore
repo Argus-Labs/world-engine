@@ -1,7 +1,0 @@
-data/*
-config/*
-
-cmd/test/config/*
-cmd/test/data/*
-
-vendor/*
