@@ -29,6 +29,10 @@ var componentDataKey = func(worldId string, compId component.TypeID, archID int)
 	return fmt.Sprintf("WORLD-%s:CID-%d:A-%d", worldId, compId, archID)
 }
 
+func TestBrokenTest(t *testing.T) {
+	t.Fatal("this test is broken")
+}
+
 func TestList(t *testing.T) {
 	type SomeComp struct {
 		Foo int
