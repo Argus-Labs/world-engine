@@ -29,7 +29,6 @@ DA_CONFIG='{"base_url":"'$DA_BASE_URL'","timeout":60000000000,"fee":6000,"gas_li
 echo "DA_NAMESPACE_ID: $DA_NAMESPACE_ID"
 echo "DA_CONFIG: $DA_CONFIG"
 
-exit 1
 # World Engine Chain Config & Init
 world comet unsafe-reset-all
 rm -rf /root/.world/config/
