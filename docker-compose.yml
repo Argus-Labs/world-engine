@@ -57,7 +57,7 @@ services:
     container_name: evm_base_shard
     environment:
       ## Env vars reference: https://github.com/Argus-Labs/world-engine/blob/main/chain/README.md
-      - DA_AUTH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.0ElJrQZ53BBEQnrVb98K8xd0KkyZynsquHjcZGns-os"
+      - DA_AUTH_TOKEN=
       #- DA_NAMESPACE_ID=
       #- DA_CONFIG=
       #- USE_SHARD_LISTENER=true
