@@ -40,11 +40,11 @@ import (
 
 	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/governance"
 	cosmlib "pkg.berachain.dev/polaris/cosmos/lib"
-	"pkg.berachain.dev/polaris/cosmos/precompile/testutil"
-	testutils "pkg.berachain.dev/polaris/cosmos/testing/utils"
+	"pkg.berachain.dev/polaris/cosmos/precompile"
+	precomtest "pkg.berachain.dev/polaris/cosmos/precompile/test"
+	testutil "pkg.berachain.dev/polaris/cosmos/testing/utils"
 	"pkg.berachain.dev/polaris/cosmos/types"
-	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
-	"pkg.berachain.dev/polaris/eth/core/vm"
+	"pkg.berachain.dev/polaris/eth/common"
 	"pkg.berachain.dev/polaris/lib/utils"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -58,34 +58,25 @@ func TestGovernancePrecompile(t *testing.T) {
 
 var _ = Describe("Governance Precompile", func() {
 	var (
-		sdkCtx   sdk.Context
+		ctx      sdk.Context
 		bk       bankkeeper.Keeper
 		gk       *governancekeeper.Keeper
 		caller   sdk.AccAddress
 		mockCtrl *gomock.Controller
 		contract *Contract
-		sf       *ethprecompile.StatefulFactory
-		ctx      context.Context
 	)
 
 	BeforeEach(func() {
-		t := testutil.GinkgoTestReporter{}
+		t := precomtest.GinkgoTestReporter{}
 		mockCtrl = gomock.NewController(t)
 		types.SetupCosmosConfig()
-		caller = cosmlib.AddressToAccAddress(testutils.Alice)
-		sdkCtx, bk, gk = testutil.Setup(mockCtrl, caller)
+		caller = cosmlib.AddressToAccAddress(testutil.Alice)
+		ctx, bk, gk = precomtest.Setup(mockCtrl, caller)
 		contract = utils.MustGetAs[*Contract](NewPrecompileContract(
 			governancekeeper.NewMsgServerImpl(gk),
 			governancekeeper.NewQueryServer(gk),
 		))
 		types.SetupCosmosConfig()
-		sf = ethprecompile.NewStatefulFactory()
-		ctx = vm.NewPolarContext(
-			sdkCtx,
-			nil,
-			cosmlib.AccAddressToEthAddress(caller),
-			big.NewInt(0),
-		)
 	})
 
 	AfterEach(func() {
@@ -93,8 +84,7 @@ var _ = Describe("Governance Precompile", func() {
 	})
 
 	It("Should have precompile tests and custom value decoders", func() {
-		_, err := sf.Build(contract, nil)
-		Expect(err).ToNot(HaveOccurred())
+		Expect(contract.PrecompileMethods()).To(HaveLen(6))
 		Expect(contract.CustomValueDecoders()).ToNot(BeNil())
 	})
 
@@ -103,7 +93,7 @@ var _ = Describe("Governance Precompile", func() {
 		BeforeEach(func() {
 			msg = banktypes.MsgSend{
 				FromAddress: caller.String(),
-				ToAddress:   testutils.Bob.String(),
+				ToAddress:   testutil.Bob.String(),
 				Amount:      sdk.NewCoins(sdk.NewInt64Coin("abera", 100)),
 			}
 		})
@@ -132,16 +122,37 @@ var _ = Describe("Governance Precompile", func() {
 	})
 
 	When("Submitting a proposal", func() {
+		It("Should fail if proposal is of wrong type", func() {
+			res, err := contract.SubmitProposal(
+				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
+				"invalid",
+			)
+			Expect(err).To(MatchError(precompile.ErrInvalidBytes))
+			Expect(res).To(BeNil())
+		})
+		It("Should fail if the message is of wrong type", func() {
+			res, err := contract.SubmitProposal(
+				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
+				[]byte{},
+				"invalid",
+			)
+			Expect(err).To(MatchError(precompile.ErrInvalidBytes))
+			Expect(res).To(BeNil())
+		})
 		It("should succeed", func() {
 			initDeposit := sdk.NewCoins(sdk.NewInt64Coin("abera", 100))
 			govAcct := gk.GetGovernanceAccount(ctx).GetAddress()
 			err := cosmlib.MintCoinsToAddress(
-				sdk.UnwrapSDKContext(vm.UnwrapPolarContext(ctx).Context()),
-				bk,
-				governancetypes.ModuleName,
-				cosmlib.AccAddressToEthAddress(govAcct),
-				"abera",
-				big.NewInt(100),
+				ctx, bk, governancetypes.ModuleName,
+				cosmlib.AccAddressToEthAddress(govAcct), "abera", big.NewInt(100),
 			)
 			Expect(err).ToNot(HaveOccurred())
 			message := &banktypes.MsgSend{
@@ -168,6 +179,10 @@ var _ = Describe("Governance Precompile", func() {
 			// Submit the proposal.
 			res, err := contract.SubmitProposal(
 				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
 				proposalBz,
 				msgBz,
 			)
@@ -177,6 +192,30 @@ var _ = Describe("Governance Precompile", func() {
 	})
 
 	When("Canceling a proposal", func() {
+		It("should fail if the proposal ID is invalid", func() {
+			res, err := contract.CancelProposal(
+				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
+				"invalid",
+			)
+			Expect(err).To(MatchError(precompile.ErrInvalidUint64))
+			Expect(res).To(BeNil())
+		})
+		It("should fail if the proposal does not exist", func() {
+			res, err := contract.CancelProposal(
+				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
+				big.NewInt(1),
+			)
+			Expect(err).To(HaveOccurred())
+			Expect(res).To(BeNil())
+		})
 		It("should succeed", func() {
 			err := gk.SetProposal(ctx, v1.Proposal{
 				Id:       1,
@@ -185,13 +224,16 @@ var _ = Describe("Governance Precompile", func() {
 				Status:   v1.StatusVotingPeriod,
 			})
 			Expect(err).ToNot(HaveOccurred())
-			res, res1, err := contract.CancelProposal(
+			res, err := contract.CancelProposal(
 				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
 				uint64(1),
 			)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(res).ToNot(BeNil())
-			Expect(res1).ToNot(BeNil())
 		})
 
 	})
@@ -206,20 +248,69 @@ var _ = Describe("Governance Precompile", func() {
 			})
 			Expect(err).ToNot(HaveOccurred())
 		})
-
+		It("should fail if the proposal ID is of invalid type", func() {
+			res, err := contract.Vote(
+				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
+				"invalid",
+				int32(1),
+				"metadata",
+			)
+			Expect(err).To(MatchError(precompile.ErrInvalidUint64))
+			Expect(res).To(BeNil())
+		})
+		It("should fail if the vote option is of invalid type", func() {
+			res, err := contract.Vote(
+				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
+				uint64(1),
+				"invalid",
+				"metadata",
+			)
+			Expect(err).To(MatchError(precompile.ErrInvalidInt32))
+			Expect(res).To(BeNil())
+		})
+		It("should fail if the metadata is of invalid type", func() {
+			res, err := contract.Vote(
+				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
+				uint64(1),
+				int32(1),
+				123,
+			)
+			Expect(err).To(MatchError(precompile.ErrInvalidString))
+			Expect(res).To(BeNil())
+		})
 		It("should fail if the proposal does not exist", func() {
 			res, err := contract.Vote(
 				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
 				uint64(1000),
 				int32(1),
 				"metadata",
 			)
-			Expect(res).To(BeFalse())
 			Expect(err).To(HaveOccurred())
+			Expect(res).To(HaveLen(1))
 		})
 		It("should succeed", func() {
 			res, err := contract.Vote(
 				ctx,
+				nil,
+				cosmlib.AccAddressToEthAddress(caller),
+				big.NewInt(0),
+				false,
 				uint64(1),
 				int32(1),
 				"metadata",
@@ -229,16 +320,61 @@ var _ = Describe("Governance Precompile", func() {
 		})
 
 		When("Voting Weight", func() {
-
+			It("should fail if the proposal ID is of invalid type", func() {
+				res, err := contract.VoteWeighted(
+					ctx,
+					nil,
+					cosmlib.AccAddressToEthAddress(caller),
+					big.NewInt(0),
+					false,
+					"invalid",
+					[]generated.IGovernanceModuleWeightedVoteOption{},
+					"metadata",
+				)
+				Expect(err).To(MatchError(precompile.ErrInvalidBigInt))
+				Expect(res).To(BeNil())
+			})
+			It("should fail if the vote option is of invalid type", func() {
+				res, err := contract.VoteWeighted(
+					ctx,
+					nil,
+					cosmlib.AccAddressToEthAddress(caller),
+					big.NewInt(0),
+					false,
+					uint64(1),
+					12,
+					"metadata",
+				)
+				Expect(err).To(MatchError(precompile.ErrInvalidOptions))
+				Expect(res).To(BeNil())
+			})
+			It("should fail if the metadata is of invalid type", func() {
+				res, err := contract.VoteWeighted(
+					ctx,
+					nil,
+					cosmlib.AccAddressToEthAddress(caller),
+					big.NewInt(0),
+					false,
+					uint64(1),
+					[]generated.IGovernanceModuleWeightedVoteOption{},
+					123,
+				)
+				Expect(err).To(MatchError(precompile.ErrInvalidString))
+				Expect(res).To(BeNil())
+			})
 			It("should fail if the proposal does not exist", func() {
 				res, err := contract.VoteWeighted(
 					ctx,
+					nil,
+					cosmlib.AccAddressToEthAddress(caller),
+					big.NewInt(0),
+					false,
 					uint64(1000),
 					[]generated.IGovernanceModuleWeightedVoteOption{},
 					"metadata",
 				)
-				Expect(res).To(BeFalse())
 				Expect(err).To(HaveOccurred())
+				Expect(res).To(HaveLen(1))
 			})
 			It("should succeed", func() {
 				weight, err := sdkmath.LegacyNewDecFromStr("1")
@@ -251,6 +387,10 @@ var _ = Describe("Governance Precompile", func() {
 				}
 				res, err := contract.VoteWeighted(
 					ctx,
+					nil,
+					cosmlib.AccAddressToEthAddress(caller),
+					big.NewInt(0),
+					false,
 					uint64(1),
 					options,
 					"metadata",
@@ -299,24 +439,57 @@ var _ = Describe("Governance Precompile", func() {
 			})
 
 			When("GetProposal", func() {
+				It("should fail if the proposal ID is of invalid type", func() {
+					res, err := contract.GetProposal(
+						ctx,
+						nil,
+						cosmlib.AccAddressToEthAddress(caller),
+						big.NewInt(0),
+						false,
+						"invalid",
+					)
+					Expect(err).To(MatchError(precompile.ErrInvalidUint64))
+					Expect(res).To(BeNil())
+				})
 				It("should get the proposal", func() {
 					res, err := contract.GetProposal(
 						ctx,
+						nil,
+						cosmlib.AccAddressToEthAddress(caller),
+						big.NewInt(0),
+						false,
 						uint64(2),
 					)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(res).ToNot(BeNil())
+					Expect(res).To(HaveLen(1))
 				})
 			})
 			When("GetProposals", func() {
 				BeforeEach(func() {
 					// Not filled proposal, hence will panic the parser.
-					_, _, err := contract.CancelProposal(ctx, uint64(1))
+					_, err := contract.CancelProposal(ctx, nil, common.Address(caller), big.NewInt(0), false, uint64(1))
 					Expect(err).ToNot(HaveOccurred())
+				})
+				It("should fail if the status is of invalid type", func() {
+					res, err := contract.GetProposals(
+						ctx,
+						nil,
+						cosmlib.AccAddressToEthAddress(caller),
+						big.NewInt(0),
+						false,
+						"",
+					)
+					Expect(err).To(MatchError(precompile.ErrInvalidInt32))
+					Expect(res).To(BeNil())
 				})
 				It("should get the proposals", func() {
 					res, err := contract.GetProposals(
 						ctx,
+						nil,
+						cosmlib.AccAddressToEthAddress(caller),
+						big.NewInt(0),
+						false,
 						int32(0),
 					)
 					Expect(err).ToNot(HaveOccurred())
