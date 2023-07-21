@@ -56,24 +56,32 @@ services:
   chain:
     container_name: evm_base_shard
     environment:
-      - da_config={"base_url":"http://celestia:26659","timeout":60000000000,"fee":6000,"gas_limit":6000000}
+      ## Env vars reference: https://github.com/Argus-Labs/world-engine/blob/main/chain/README.md
+      - DA_AUTH_TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJBbGxvdyI6WyJwdWJsaWMiLCJyZWFkIiwid3JpdGUiLCJhZG1pbiJdfQ.0ElJrQZ53BBEQnrVb98K8xd0KkyZynsquHjcZGns-os"
+      #- DA_NAMESPACE_ID=
+      #- DA_CONFIG=
+      #- USE_SHARD_LISTENER=true
+      #- SHARD_HANDLER_LISTEN_ADDR=0.0.0.0:9000
+      #- SERVER_CERT_PATH=
+      #- SERVER_KEY_PATH=
+      #- CLIENT_CERT_PATH=
     build:
       context: chain
       dockerfile: Dockerfile
     restart: unless-stopped
     expose:
-      - "5050"
-      - "9090"
       - "1317"
+      - "9000"
       - "26657"
     ports:
-      - "9090:9090"
       - "1317:1317"
+      - "9000:9000"
       - "26657:26657"
     networks:
       - default
     depends_on:
       - celestia
+
 
   tester:
     container_name: tester_container
@@ -97,11 +105,10 @@ services:
       dockerfile: Dockerfile
     networks:
       - default
-    logging:
-      driver: none
     restart: on-failure
     ports:
       - "26657"
+      - "26658"
       - "26659"
       - "9090"
 
