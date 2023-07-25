@@ -15,7 +15,7 @@ require (
 	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230706220147-5852f366165d.1
 	github.com/alicebob/miniredis/v2 v2.30.1
 	github.com/argus-labs/world-engine/chain v0.0.0-20230707202412-c8445f1731f0
-	github.com/argus-labs/world-engine/sign v0.1.0-alpha
+	github.com/argus-labs/world-engine/sign v0.1.3-alpha
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/invopop/jsonschema v0.7.0
 	github.com/redis/go-redis/v9 v9.0.2
