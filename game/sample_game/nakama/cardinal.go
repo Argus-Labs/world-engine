@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 
@@ -28,16 +27,21 @@ var (
 	readPersonaSignerStatusAvailable = "available"
 	readPersonaSignerStatusAssigned  = "assigned"
 
+	globalCardinalAddress string
+
 	ErrorPersonaSignerNotAssigned = errors.New("persona signer has not been assigned")
 )
 
-func makeURL(resource string) string {
-	addr := os.Getenv(EnvCardinalAddr)
-	if addr == "" {
-		log.Fatal(fmt.Sprintf("Must specify a cardinal server via %s", EnvCardinalAddr))
+func initCardinalAddress() error {
+	globalCardinalAddress = os.Getenv(EnvCardinalAddr)
+	if globalCardinalAddress == "" {
+		return fmt.Errorf("must specify a cardinal server via %s", EnvCardinalAddr)
 	}
+	return nil
+}
 
-	return fmt.Sprintf("%s/%s", addr, resource)
+func makeURL(resource string) string {
+	return fmt.Sprintf("%s/%s", globalCardinalAddress, resource)
 }
 
 func cardinalListEndpoints(path string) ([]string, error) {
@@ -76,9 +80,12 @@ func cardinalListAllEndpoints() ([]string, error) {
 
 func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, personaTag string) (tick int, err error) {
 	signerAddress := getSignerAddress()
-	createPersonaTx := map[string]interface{}{
-		"PersonaTag":    personaTag,
-		"SignerAddress": signerAddress,
+	createPersonaTx := struct {
+		PersonaTag    string
+		SignerAddress string
+	}{
+		PersonaTag:    personaTag,
+		SignerAddress: signerAddress,
 	}
 
 	key, nonce, err := getPrivateKeyAndANonce(ctx, nk)
@@ -122,10 +129,15 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 }
 
 func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick int) (signerAddress string, err error) {
-	buf, err := json.Marshal(map[string]interface{}{
-		"PersonaTag": personaTag,
-		"Tick":       tick,
-	})
+	readPersonaRequest := struct {
+		PersonaTag string
+		Tick       int
+	}{
+		PersonaTag: personaTag,
+		Tick:       tick,
+	}
+
+	buf, err := json.Marshal(readPersonaRequest)
 	if err != nil {
 		return "", err
 	}

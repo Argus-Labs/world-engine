@@ -21,6 +21,9 @@ var (
 	ErrorNoStorageObjectFound       = errors.New("no storage object found")
 	ErrorTooManyStorageObjectsFound = errors.New("too many storage objects found")
 
+	// globalPrivateKey stores Nakama's private key, so it does not have to be periodically fetched from the StorageObject
+	// system. This pattern should have a security pass. See:
+	// https://linear.app/arguslabs/issue/NAK-5/review-the-pattern-of-storing-the-nakama-private-key-in-a-global
 	globalPrivateKey    *ecdsa.PrivateKey
 	globalSignerAddress string
 	// nonceMutex is used to ensure that Nakama's current nonce can be read and incremented atomically.
