@@ -109,3 +109,17 @@ To make use of these, set the following environment variables to the path of you
 - SERVER_CERT_PATH=<path/to/server/cert>
 - SERVER_KEY_PATH=<path/to/server/key>
 - CLIENT_CERT_PATH=<path/to/client/cert>
+
+### Celestia DA Layer Connections
+The following variable are use to configure the conenctions to the Data Availability layer (Celestia).
+
+Required:
+- DA_AUTH_TOKEN=<Celestia RPC node authentication token>
+
+   Get Authentication token from [rollkit/local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet) with `docker logs celestia_devnet | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1`.
+   If using Celestia Arabica/Mocha testnet, follow the [RPC-API tutorial](https://docs.celestia.org/developers/rpc-tutorial/#auth-token).
+
+Optional:
+- DA_NAMESPACE_ID=(10 bytes hex encoded value, generate random value using: `openssl rand -hex 10`. default: 67480c4a88c4d12935d4)
+- DA_BASE_URL=(default: `http://celestia-devnet:26658`)
+- DA_CONFIG=(default: `{"base_url":"'$DA_BASE_URL'","timeout":60000000000,"fee":6000,"gas_limit":6000000,"fee":600000,"auth_token":"'$DA_AUTH_TOKEN'"}`

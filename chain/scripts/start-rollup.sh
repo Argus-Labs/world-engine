@@ -18,7 +18,7 @@ TOKEN_AMOUNT="10000000000000000000000000stake"
 STAKING_AMOUNT="1000000000stake"
 
 # DA related variables/configuration
-DA_BASE_URL="${DA_BASE_URL:-"http://celestia:26658"}"
+DA_BASE_URL="${DA_BASE_URL:-"http://celestia-devnet:26658"}"
 DA_BLOCK_HEIGHT=0
 
 # Use 10 bytes hex encoded value (generate random value: `openssl rand -hex 10`)
@@ -42,5 +42,5 @@ world genesis collect-gentxs
 
 sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' ~/.celestia-app/config/config.toml
 
-world start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config='{"base_url":"http://celestia:26658","timeout":60000000000,"fee":6000,"gas_limit":6000000,"fee":600000,"auth_token":"'$AUTH_TOKEN'"}' --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --minimum-gas-prices 0stake
+world start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --minimum-gas-prices 0stake
 
