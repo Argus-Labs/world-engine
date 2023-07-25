@@ -8,4 +8,4 @@ type CreatePlayerTransaction struct {
 	X, Y int
 }
 
-var CreatePlayer = ecs.NewTransactionType[CreatePlayerTransaction]()
+var CreatePlayer = ecs.NewTransactionType[CreatePlayerTransaction]("create-player")

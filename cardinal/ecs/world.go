@@ -760,7 +760,7 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 }
 
 func (w *World) GetNamespace() string {
-	return string(rune(w.id))
+	return fmt.Sprintf("%d", w.id)
 }
 
 func (w *World) LogError(err error) {
