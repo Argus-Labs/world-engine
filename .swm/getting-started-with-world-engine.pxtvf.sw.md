@@ -32,7 +32,8 @@ The World Engine comes with a few preconfigured `Dockerfile`s to quickly get the
 *   Celestia - the DA layer
 
 *   `📄 chain/Dockerfile` - the rollup
-<br/>
+
+*   `📄 game/sample_game` - a sample Cardinal based game
 
 *   `📄 cardinal/Dockerfile` - Game server/ECS
 
@@ -53,6 +54,24 @@ Interacting with the rollup is easiest via gRPC. The rollup exposes the gRPC por
 TODO: update command and insert token here
 
 Interacting with the preconfigured Nakama ECS Game server can be done either over gRPC or using the web interface. Follow the instructions below to access the web interface:
+
+<br/>
+
+<br/>
+
+Instructions to access the Nakama Web Interface.
+<!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
+### 📄 game/sample_game/README.md
+```markdown
+91     Visit `localhost:7351` in a web browser to access Nakama. For local development, use `admin:password` as your login
+92     credentials.
+93
+94     The Account tab on the left will give you access to a valid account ID.
+95
+96     The API Explorer tab on the left will allow you to make requests to the gameplay server.
+```
+
+<br/>
 
 The Nakama server can also be interacted with via Nakama client libraries. See the following example below on how to interact with Nakama via the C# client library. The code below shows how to establish a connection, as well as call a custom RPC endpoint.
 
