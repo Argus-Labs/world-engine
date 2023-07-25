@@ -134,15 +134,14 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// Handle the case where signature is disabled
 	if t.disableSigVerification {
-		// During testing (with signature verification disabled), a request body can either be wrapped in a signed payload,
-		// or the request body can be sent as is.
-		if len(sp.Body) == 0 {
-			return buf, sp, nil
-		}
 		return sp.Body, sp, nil
 	}
+	///////////////////////////////////////////////
 
+	// Check that the namespace is correct
 	if sp.Namespace != t.w.GetNamespace() {
 		return nil, nil, fmt.Errorf("%w: namespace must be %q", ErrorInvalidSignature, t.w.GetNamespace())
 	}
@@ -159,6 +158,7 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 		return nil, nil, err
 	}
 
+	// Check the nonce
 	nonce, err := t.w.GetNonce(signerAddress)
 	if err != nil {
 		return nil, nil, err
@@ -167,9 +167,11 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 		return nil, nil, fmt.Errorf("invalid nonce: %w", ErrorInvalidSignature)
 	}
 
+	// Verify signature
 	if err := sp.Verify(signerAddress); err != nil {
 		return nil, nil, fmt.Errorf("%w: %w", ErrorInvalidSignature, err)
 	}
+	// Update nonce
 	if err := t.w.SetNonce(signerAddress, sp.Nonce); err != nil {
 		return nil, nil, err
 	}

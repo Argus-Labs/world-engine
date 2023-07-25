@@ -22,8 +22,8 @@ type SignedPayload struct {
 	PersonaTag string
 	Namespace  string
 	Nonce      uint64
-	Signature  string // hex encoded string
-	Body       []byte
+	Signature  string          // hex encoded string
+	Body       json.RawMessage // json string
 }
 
 func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
@@ -117,7 +117,7 @@ func (s *SignedPayload) hash() ([]byte, error) {
 	if _, err := hash.Write([]byte(fmt.Sprintf("%d", s.Nonce))); err != nil {
 		return nil, err
 	}
-	if _, err := hash.Write(s.Body); err != nil {
+	if _, err := hash.Write([]byte(s.Body)); err != nil {
 		return nil, err
 	}
 	return hash.Sum(nil), nil
