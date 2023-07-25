@@ -20,6 +20,7 @@ type Handler struct {
 	mux                    *http.ServeMux
 	server                 *http.Server
 	disableSigVerification bool
+	port                   string
 }
 
 var (
@@ -233,10 +234,10 @@ func (t *Handler) makeSchemaHandler(schema *jsonschema.Schema) http.HandlerFunc 
 
 // Serve sets up the endpoints passed in by the user, as well as a special "/list" endpoint, that informs consumers
 // what endpoints the user set up in the Handler. Then, it serves the application, blocking the main thread.
-// Please us `go txh.Serve(host,port)` if you do not want to block execution after calling this function.
-func (t *Handler) Serve(host, port string) {
+// Please us `go txh.Serve()` if you do not want to block execution after calling this function.
+func (t *Handler) Serve() {
 	t.server = &http.Server{
-		Addr:    fmt.Sprintf("%s:%s", host, port),
+		Addr:    fmt.Sprintf(":%s", t.port),
 		Handler: t.mux,
 	}
 	err := t.server.ListenAndServe()

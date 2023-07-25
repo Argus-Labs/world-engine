@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argus-labs/world-engine/cardinal/server"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	"github.com/argus-labs/world-engine/sign"
@@ -39,6 +41,7 @@ type World struct {
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
 	registeredReads          []IRead
+	isReadsRegistered        bool
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
@@ -49,6 +52,9 @@ type World struct {
 	txLock sync.Mutex
 
 	chain chain.Adapter
+
+	handler *server.Handler
+
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
@@ -59,10 +65,37 @@ type World struct {
 var (
 	ErrorComponentRegistrationMustHappenOnce   = errors.New("component registration must happen exactly 1 time")
 	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
+	ErrorReadRegistrationMustHappenOnce        = errors.New("read registration must happen exactly 1 time")
 	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
 	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
 	ErrorDuplicateReadName                     = errors.New("read names must be unique")
 )
+
+func (w *World) setupHandler(opts ...server.Option) error {
+	h, err := server.NewHandler(w, opts...)
+	if err != nil {
+		return fmt.Errorf("error setting up handler: %w", err)
+	}
+	w.handler = h
+	go h.Serve()
+	return nil
+}
+
+// Loop runs the game loop. It does so by running a tick at every duration passed into the function.
+// For example: running world.Loop(ctx, 1 * time.Second) would run a tick every second.
+func (w *World) Loop(ctx context.Context, tickTime time.Duration) error {
+	// we only check state and components
+	if !w.stateIsLoaded || !w.isComponentsRegistered {
+		return errors.New("components and state must be loaded before looping the game")
+	}
+	go func() {
+		for range time.Tick(tickTime) {
+			if err := w.Tick(ctx); err != nil {
+				panic(fmt.Errorf("shutting down world: tick error at tick %d: %w", w.tick, err))
+			}
+		}
+	}()
+}
 
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
 	err := w.store.EntityLocStore.SetLocation(id, location)
@@ -125,6 +158,9 @@ func (w *World) RegisterReads(reads ...IRead) error {
 	if w.stateIsLoaded {
 		panic("cannot register reads after loading game state")
 	}
+	if w.isReadsRegistered {
+		return ErrorReadRegistrationMustHappenOnce
+	}
 	w.registeredReads = append(w.registeredReads, reads...)
 	seenReadNames := map[string]struct{}{}
 	for _, t := range w.registeredReads {
@@ -134,6 +170,7 @@ func (w *World) RegisterReads(reads ...IRead) error {
 		}
 		seenReadNames[name] = struct{}{}
 	}
+	w.isReadsRegistered = true
 	return nil
 }
 

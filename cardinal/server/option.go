@@ -7,3 +7,9 @@ func DisableSignatureVerification() Option {
 		th.disableSigVerification = true
 	}
 }
+
+func WithPort(p string) Option {
+	return func(th *Handler) {
+		th.port = p
+	}
+}
