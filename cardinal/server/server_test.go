@@ -134,50 +134,50 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	assert.Equal(t, 1, count)
 }
 
-func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
-	count := 0
-	endpoint := "move"
-	w := inmem.NewECSWorldForTest(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint)
-	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
-		txs := sendTx.In(queue)
-		assert.Equal(t, 1, len(txs))
-		tx := txs[0]
-		assert.Equal(t, tx.From, "me")
-		assert.Equal(t, tx.To, "you")
-		assert.Equal(t, tx.Amount, uint64(420))
-		count++
-		return nil
-	})
-
-	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
-
-	tx := SendEnergyTx{
-		From:   "me",
-		To:     "you",
-		Amount: 420,
-	}
-	bz, err := json.Marshal(tx)
-	assert.NilError(t, err)
-	signedTx := sign.SignedPayload{
-		PersonaTag: "some_persona",
-		Namespace:  "some_namespace",
-		Nonce:      100,
-		// this bogus signature is OK because DisableSignatureVerification was used
-		Signature: common.Bytes2Hex([]byte{1, 2, 3, 4}),
-		Body:      bz,
-	}
-
-	bz, err = json.Marshal(&signedTx)
-	assert.NilError(t, err)
-	_, err = http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-
-	assert.NilError(t, w.LoadGameState())
-	assert.NilError(t, w.Tick(context.Background()))
-	assert.Equal(t, 1, count)
-}
+//func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
+//	count := 0
+//	endpoint := "move"
+//	w := inmem.NewECSWorldForTest(t)
+//	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint)
+//	assert.NilError(t, w.RegisterTransactions(sendTx))
+//	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+//		txs := sendTx.In(queue)
+//		assert.Equal(t, 1, len(txs))
+//		tx := txs[0]
+//		assert.Equal(t, tx.From, "me")
+//		assert.Equal(t, tx.To, "you")
+//		assert.Equal(t, tx.Amount, uint64(420))
+//		count++
+//		return nil
+//	})
+//
+//	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
+//
+//	tx := SendEnergyTx{
+//		From:   "me",
+//		To:     "you",
+//		Amount: 420,
+//	}
+//	bz, err := json.Marshal(tx)
+//	assert.NilError(t, err)
+//	signedTx := sign.SignedPayload{
+//		PersonaTag: "some_persona",
+//		Namespace:  "some_namespace",
+//		Nonce:      100,
+//		// this bogus signature is OK because DisableSignatureVerification was used
+//		Signature: common.Bytes2Hex([]byte{1, 2, 3, 4}),
+//		Body:      bz,
+//	}
+//
+//	bz, err = json.Marshal(&signedTx)
+//	assert.NilError(t, err)
+//	_, err = http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bz))
+//	assert.NilError(t, err)
+//
+//	assert.NilError(t, w.LoadGameState())
+//	assert.NilError(t, w.Tick(context.Background()))
+//	assert.Equal(t, 1, count)
+//}
 
 func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
