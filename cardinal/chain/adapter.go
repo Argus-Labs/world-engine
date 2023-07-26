@@ -23,7 +23,7 @@ type Adapter interface {
 }
 
 type Writer interface {
-	Submit(context.Context, *sign.SignedPayload) error
+	Submit(context.Context, *sign.SignedPayload, uint64, uint64) error
 }
 
 type Reader interface {
@@ -91,15 +91,16 @@ func NewAdapter(cfg Config, opts ...Option) (Adapter, error) {
 }
 
 // Submit submits a transaction to the EVM base shard.
-func (a adapterImpl) Submit(ctx context.Context, sp *sign.SignedPayload) error {
-	req := &shardv1.SubmitCardinalTxRequest{Tx: signedPayloadToProto(sp)}
+func (a adapterImpl) Submit(ctx context.Context, sp *sign.SignedPayload, txID uint64, tick uint64) error {
+	req := &shardv1.SubmitCardinalTxRequest{Tx: signedPayloadToProto(sp), Tick: tick, TxId: txID}
 	_, err := a.ShardReceiver.SubmitCardinalTx(ctx, req)
 	return err
 }
 
 func (a adapterImpl) QueryTransactions(
 	ctx context.Context,
-	req *shardtypes.QueryTransactionsRequest) (
+	req *shardtypes.QueryTransactionsRequest,
+) (
 	*shardtypes.QueryTransactionsResponse,
 	error,
 ) {

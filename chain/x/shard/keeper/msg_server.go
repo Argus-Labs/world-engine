@@ -20,11 +20,11 @@ func (k *Keeper) SubmitCardinalTx(ctx context.Context, msg *types.SubmitCardinal
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	sp := new(shardv1.SignedPayload)
-	err := proto.Unmarshal(msg.CardinalTx, sp)
+	err := proto.Unmarshal(msg.SignedPayload, sp)
 	if err != nil {
 		return nil, err
 	}
-	err = k.saveTransaction(sdkCtx, sp.Namespace, msg.CardinalTx)
+	err = k.saveTransaction(sdkCtx, sp.Namespace, msg.SignedPayload)
 	if err != nil {
 		return nil, err
 	}

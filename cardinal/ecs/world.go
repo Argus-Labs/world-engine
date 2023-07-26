@@ -43,7 +43,8 @@ type World struct {
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
 	// txQueues is a map of transaction names to the relevant list of transactions data
-	txQueues map[transaction.TypeID][]any
+	txQueues     map[transaction.TypeID][]any
+	txSignatures map[transaction.TypeID][]*sign.SignedPayload
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
 
@@ -413,10 +414,12 @@ func (w *World) copyTransactions() (map[transaction.TypeID][]any, map[transactio
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) {
+func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) int {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
 	w.txQueues[id] = append(w.txQueues[id], v)
+	w.txSignatures[id] = append(w.txSignatures[id], sig)
+	return w.CurrentTick()
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
@@ -674,6 +677,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
+			_ = payload
 
 			err = w.Tick(ctx)
 			if err != nil {

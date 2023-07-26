@@ -11,12 +11,12 @@ service ShardHandler {
 }
 
 message SubmitCardinalTxRequest {
-  SignedPayload tx = 1;
+  uint64 tick = 1;
+  uint64 tx_id = 2;
+  SignedPayload tx = 3;
 }
 
-message SubmitCardinalTxResponse {
-
-}
+message SubmitCardinalTxResponse {}
 
 message SignedPayload {
   string PersonaTag = 1;

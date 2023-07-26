@@ -112,8 +112,10 @@ func (s *Server) SubmitCardinalTx(_ context.Context, req *shard.SubmitCardinalTx
 	}
 
 	sbr := &types.SubmitCardinalTxRequest{
-		Sender:     s.moduleAddr.String(),
-		CardinalTx: bz,
+		Sender:        s.moduleAddr.String(),
+		Tick:          req.Tick,
+		TxId:          req.TxId,
+		SignedPayload: bz,
 	}
 
 	s.lock.Lock()

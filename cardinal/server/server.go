@@ -197,25 +197,32 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 			writeError(writer, "unable to decode transaction", err)
 			return
 		}
-		t.w.AddTransaction(tx.ID(), txVal, sp)
 
-		res, err := json.Marshal("ok")
-		if err != nil {
-			writeError(writer, "unable to marshal response", err)
-			return
+		submitTx := func() uint64 {
+			tick := t.w.AddTransaction(tx.ID(), txVal, sp)
+
+			res, err := json.Marshal("ok")
+			if err != nil {
+				writeError(writer, "unable to marshal response", err)
+				return 0
+			}
+			writeResult(writer, res)
+			return uint64(tick)
 		}
-		writeResult(writer, res)
+
 		// as long as we have an adapter, and the current world is not in recovery mode
 		if t.adapter != nil {
 			if t.w.IsRecovering() {
 				writeError(writer, "unable to submit transactions: game world is recovering state", nil)
 			} else {
-				err = t.adapter.Submit(context.Background(), sp)
+				tick := submitTx()
+				err = t.adapter.Submit(context.Background(), sp, uint64(tx.ID()), tick)
 				if err != nil {
 					writeError(writer, "error submitting transaction to blockchain", err)
 				}
 			}
-
+		} else {
+			submitTx()
 		}
 	}
 }

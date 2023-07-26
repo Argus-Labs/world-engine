@@ -20,8 +20,14 @@ message SubmitCardinalTxRequest {
   // sender is the address of the sender. this will be set to the module address.
   string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 
+  // tick is the game tick that this transaction was executed in.
+  uint64 tick = 2;
+
+  // tx_id is the id associated with the bytes in SignedPayload.Body.
+  uint64 tx_id = 3;
+
   // cardinal_tx is a proto marshalled SignedPayload.
-  bytes cardinal_tx = 2;
+  bytes signed_payload = 4;
 }
 
 message SubmitCardinalTxResponse {}
