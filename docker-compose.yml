@@ -141,4 +141,4 @@ volumes:
 
 networks:
   default:
-      driver: bridge
+    driver: bridge
