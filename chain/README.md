@@ -99,12 +99,13 @@ mage start
 Start the `chain` and `celestia-devnet` using `chain/docker-compose.yml`, make sure to follow these steps:
 - Start local-celestia-devnet
   ```
-  docker compose up celestia-devnet -d --wait --wait-timeout 60
+  docker compose up celestia-devnet -d --wait
   ```
 
-- Set DA_AUTH_TOKEN value.
+- Get DA_AUTH_TOKEN (Celestia RPC Authentication token) from celestia_devnet logs.
   ```
-  export DA_AUTH_TOKEN=$(docker logs celestia_devnet | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1)
+  export DA_AUTH_TOKEN=$(docker logs celestia_devnet 2>&1 | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1)
+  echo "Auth Token >> $DA_AUTH_TOKEN"
   ```
 
 - Start the `chain` / `evm_base_shard`

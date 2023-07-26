@@ -4,8 +4,8 @@ services:
     container_name: evm_base_shard
     environment:
       ## Env vars reference: https://github.com/Argus-Labs/world-engine/blob/main/chain/README.md
-      ## Get AUTH_TOKEN from celestia_devnet container: `docker logs celestia_devnet | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1`
-      - DA_AUTH_TOKEN=${DA_AUTH_TOKEN}
+      ## Get AUTH_TOKEN from celestia_devnet container: `docker logs celestia_devnet 2>&1 | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1`
+      - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-}
     build:
       context: .
       dockerfile: Dockerfile
@@ -22,6 +22,7 @@ services:
       - celestia-devnet
 
   celestia-devnet:
+    container_name: celestia_devnet
     image: ghcr.io/rollkit/local-celestia-devnet:v0.11.0-rc8
     networks:
       - world-engine
