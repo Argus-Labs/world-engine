@@ -6,6 +6,9 @@
   <a href="https://magefile.org" target="_blank">
     <img alt="Built with Mage" src="https://magefile.org/badge.svg" />
   </a>
+  <a href="https://codecov.io/gh/Argus-Labs/world-engine" >
+    <img src="https://codecov.io/gh/Argus-Labs/world-engine/branch/main/graph/badge.svg?token=XMH4P082HZ"/>
+  </a>
 </div>
 
 World Engine is a sharded layer 2 blockchain SDK designed with the needs of game developers and players in mind. The
