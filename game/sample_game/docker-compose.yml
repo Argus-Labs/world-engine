@@ -61,6 +61,6 @@ services:
       - server
       - nakama
     environment:
-      - NAKAMA_ADDRESS=nakama:7350
+      - NAKAMA_ADDRESS=http://nakama:7350
 volumes:
   data:

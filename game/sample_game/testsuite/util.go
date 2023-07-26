@@ -21,11 +21,9 @@ type nakamaClient struct {
 	authHeader string
 }
 
-func newClient() *nakamaClient {
+func newClient(t *testing.T) *nakamaClient {
 	host := os.Getenv("NAKAMA_ADDRESS")
-	if host == "" {
-		host = "localhost:7350"
-	}
+	assert.Check(t, host != "", "nakama address must be set via environment variable NAKAMA_ADDRESS")
 
 	h := &nakamaClient{
 		addr: host,
@@ -34,10 +32,9 @@ func newClient() *nakamaClient {
 }
 
 func (c *nakamaClient) registerDevice(username, deviceID string) error {
-	addr := fmt.Sprintf("http://defaultkey:@%s", c.addr)
 	path := "v2/account/authenticate/device"
 	options := fmt.Sprintf("create=true&username=%s", username)
-	url := fmt.Sprintf("%s/%s?%s", addr, path, options)
+	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
 	body := map[string]any{
 		"id": deviceID,
 	}
@@ -46,8 +43,14 @@ func (c *nakamaClient) registerDevice(username, deviceID string) error {
 		return err
 	}
 	reader := bytes.NewReader(buf)
+	req, err := http.NewRequest("POST", url, reader)
+	req.Header.Set("Content-Type", "application/json")
+	// defaultkey is the default server key. See https://heroiclabs.com/docs/nakama/concepts/authentication/ for more
+	// details.
+	req.SetBasicAuth("defaultkey", "")
 
-	resp, err := http.Post(url, "application/json", reader)
+	resp, err := http.DefaultClient.Do(req)
+	//	resp, err := http.Post(url, "application/json", reader)
 	if err != nil {
 		return err
 	}
@@ -68,7 +71,7 @@ func (c *nakamaClient) rpc(path string, body any) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	url := fmt.Sprintf("http://%s/v2/rpc/%s?unwrap", c.addr, path)
+	url := fmt.Sprintf("%s/v2/rpc/%s?unwrap", c.addr, path)
 	req, err := http.NewRequest("POST", url, bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
@@ -84,14 +87,7 @@ func (c *nakamaClient) rpc(path string, body any) (*http.Response, error) {
 
 func copyBody(r *http.Response) string {
 	buf, err := io.ReadAll(r.Body)
-	msg := fmt.Sprintf("response body is:\n%v\nReadAll error:%v", string(buf), err)
+	msg := fmt.Sprintf("response body is:\n%v\nReadAll error is:%v", string(buf), err)
 	r.Body = io.NopCloser(bytes.NewReader(buf))
 	return msg
-}
-
-func bodyToMap(t *testing.T, r *http.Response) map[string]any {
-	m := map[string]any{}
-	err := json.NewDecoder(r.Body).Decode(&m)
-	assert.NilError(t, err)
-	return m
 }

@@ -1,6 +1,7 @@
 package testsuite
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -14,8 +15,8 @@ import (
 
 func TestCanShowPersona(t *testing.T) {
 	username, deviceID, personaTag := triple(randomString())
-	c := newClient()
-	c.registerDevice(username, deviceID)
+	c := newClient(t)
+	assert.NilError(t, c.registerDevice(username, deviceID))
 
 	resp, err := c.rpc("nakama/claim-persona", map[string]any{
 		"persona_tag": personaTag,
@@ -23,14 +24,14 @@ func TestCanShowPersona(t *testing.T) {
 	assert.NilError(t, err, "claim-persona failed")
 	assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
 
-	assert.NilError(t, waitForAcceptedPersonaTag(t, c))
+	assert.NilError(t, waitForAcceptedPersonaTag(c))
 }
 
 func TestDifferentUsersCannotClaimSamePersonaTag(t *testing.T) {
 	userA, deviceA, ptA := triple(randomString())
 
-	aClient := newClient()
-	aClient.registerDevice(userA, deviceA)
+	aClient := newClient(t)
+	assert.NilError(t, aClient.registerDevice(userA, deviceA))
 
 	resp, err := aClient.rpc("nakama/claim-persona", map[string]any{
 		"persona_tag": ptA,
@@ -41,8 +42,8 @@ func TestDifferentUsersCannotClaimSamePersonaTag(t *testing.T) {
 	userB, deviceB, ptB := triple(randomString())
 	// user B will try to claim the same persona tag as user A
 	ptB = ptA
-	bClient := newClient()
-	bClient.registerDevice(userB, deviceB)
+	bClient := newClient(t)
+	assert.NilError(t, bClient.registerDevice(userB, deviceB))
 	resp, err = bClient.rpc("nakama/claim-persona", map[string]any{
 		"persona_tag": ptB,
 	})
@@ -62,8 +63,8 @@ func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
 	// before making any calls to claim-persona.
 	for i := range users {
 		name := users[i]
-		c := newClient()
-		c.registerDevice(name, name)
+		c := newClient(t)
+		assert.NilError(t, c.registerDevice(name, name))
 		clients = append(clients, c)
 	}
 
@@ -97,8 +98,8 @@ func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
 
 func TestCannotClaimAdditionalPersonATag(t *testing.T) {
 	user, device, tag := triple(randomString())
-	c := newClient()
-	c.registerDevice(user, device)
+	c := newClient(t)
+	assert.NilError(t, c.registerDevice(user, device))
 
 	resp, err := c.rpc("nakama/claim-persona", map[string]any{
 		"persona_tag": tag,
@@ -113,8 +114,9 @@ func TestCannotClaimAdditionalPersonATag(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 409, resp.StatusCode, copyBody(resp))
 
-	assert.NilError(t, waitForAcceptedPersonaTag(t, c))
-	// Trying to request a different persona tag right away should fail.
+	assert.NilError(t, waitForAcceptedPersonaTag(c))
+	// Trying to request a different persona tag after the original has been accepted
+	// should fail
 	resp, err = c.rpc("nakama/claim-persona", map[string]any{
 		"persona_tag": "some-other-persona-tag",
 	})
@@ -125,8 +127,8 @@ func TestCannotClaimAdditionalPersonATag(t *testing.T) {
 
 func TestPersonaTagFieldCannotBeEmpty(t *testing.T) {
 	user, device, _ := triple(randomString())
-	c := newClient()
-	c.registerDevice(user, device)
+	c := newClient(t)
+	assert.NilError(t, c.registerDevice(user, device))
 
 	resp, err := c.rpc("nakama/claim-persona", map[string]any{
 		"ignore_me": "foobar",
@@ -138,29 +140,52 @@ func TestPersonaTagFieldCannotBeEmpty(t *testing.T) {
 // waitForAcceptedPersonaTag periodically queries the show-persona endpoint until a previously claimed persona tag
 // is "accepted". A response of "pending" will wait a short period of time, then repeat the request. After 1 second,
 // this helper returns an error.
-func waitForAcceptedPersonaTag(t *testing.T, c *nakamaClient) (err error) {
-	timeout := time.After(time.Second)
-	tick := time.Tick(10 * time.Millisecond)
+func waitForAcceptedPersonaTag(c *nakamaClient) error {
+	timeout := time.After(2 * time.Second)
+	retry := time.Tick(10 * time.Millisecond)
 	for {
 		resp, err := c.rpc("nakama/show-persona", nil)
-		assert.NilError(t, err)
-		assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
-		status := bodyToMap(t, resp)["status"].(string)
+		if err != nil {
+			return err
+		}
+		status, err := getStatusFromResponse(resp)
+		if err != nil {
+			return fmt.Errorf("unable to get 'status' field from response: %v", err)
+		}
 		if status == "accepted" {
 			break
-		} else if status == "pending" {
-			continue
-		} else {
+		} else if status != "pending" {
 			return fmt.Errorf("bad status %q while waiting for persona tag to be accepted", status)
 		}
+
 		select {
 		case <-timeout:
 			return errors.New("timeout while waiting for persona tag to be accepted")
-		case <-tick:
+		case <-retry:
 			continue
 		}
 	}
 	return nil
+}
+
+func getStatusFromResponse(resp *http.Response) (string, error) {
+	if resp.StatusCode != 200 {
+		return "", fmt.Errorf("got status code %d, want 200; response body: %v", resp.StatusCode, copyBody(resp))
+	}
+	m := map[string]any{}
+	if err := json.NewDecoder(resp.Body).Decode(&m); err != nil {
+		return "", err
+	}
+	statusIface, ok := m["status"]
+	if !ok {
+		return "", fmt.Errorf("field 'status' not found in response body; got %v", m)
+	}
+	status, ok := statusIface.(string)
+	if !ok {
+		return "", fmt.Errorf("unable to cast value %v to string", statusIface)
+	}
+
+	return status, nil
 }
 
 const chars = "abcdefghijklmnopqrstuvwxyz"
