@@ -52,20 +52,16 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 	return s, nil
 }
 
-// NewSignedPayload signs a given body, tag, and nonce with the given private key. data should be a json encoded string.
-func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
-	if data == nil || reflect.ValueOf(data).IsZero() {
+// NewSignedString signs a given string, tag, and nonce with the given private key
+func NewSignedString(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, str string) (*SignedPayload, error) {
+	if len(str) == 0 {
 		return nil, errors.New("cannot sign empty data")
-	}
-	bz, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
 	}
 	sp := &SignedPayload{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Nonce:      nonce,
-		Body:       bz,
+		Body:       []byte(str),
 	}
 	hash, err := sp.hash()
 	if err != nil {
@@ -77,6 +73,19 @@ func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce 
 	}
 	sp.Signature = common.Bytes2Hex(buf)
 	return sp, nil
+
+}
+
+// NewSignedPayload signs a given body, tag, and nonce with the given private key.
+func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
+	if data == nil || reflect.ValueOf(data).IsZero() {
+		return nil, errors.New("cannot sign empty data")
+	}
+	bz, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	return NewSignedString(pk, personaTag, namespace, nonce, string(bz))
 }
 
 // Marshal serializes this SignedPayload to bytes, which can then be passed in to Unmarshal.

@@ -28,15 +28,17 @@ services:
     build: ./nakama
     depends_on:
       - postgres
-      - server
     environment:
-      - CARDINAL_ADDR=http://server:3333
+      - CARDINAL_ADDR=${CARDINAL_ADDR:-http://server:3333}
+      - CARDINAL_NAMESPACE=0
     entrypoint:
       - "/bin/sh"
       - "-ecx"
       - >
         /nakama/nakama migrate up --database.address postgres:localdb@postgres:5432/nakama &&
         exec /nakama/nakama --config /nakama/data/local.yml --database.address postgres:localdb@postgres:5432/nakama        
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     expose:
       - "7349"
       - "7350"

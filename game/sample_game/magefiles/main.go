@@ -15,6 +15,7 @@ func Check() error {
 	return checkPrereq(true)
 }
 
+
 // Stop stops Nakama and the game server.
 func Stop() error {
 	return sh.Run("docker", "compose", "stop")
@@ -32,6 +33,21 @@ func Restart() error {
 	return nil
 }
 
+// Nakama starts just the Nakama server. The game server needs to be started some other way.
+func Nakama() error {
+	mg.Deps(exitMagefilesDir)
+	if err := prepareDir("nakama"); err != nil {
+		return err
+	}
+	env := map[string]string{
+		"CARDINAL_ADDR": "http://host.docker.internal:3333",
+	}
+	if err := sh.RunWithV(env, "docker", "compose", "up", "--build", "nakama"); err != nil {
+		return err
+	}
+	return nil
+}
+
 // Start starts Nakama and the game server
 func Start() error {
 	mg.Deps(exitMagefilesDir)
@@ -41,7 +57,7 @@ func Start() error {
 	if err := prepareDir("nakama"); err != nil {
 		return err
 	}
-	if err := sh.RunV("docker", "compose", "up", "--build"); err != nil {
+	if err := sh.RunV("docker", "compose", "up", "--build", "server", "nakama"); err != nil {
 		return err
 	}
 	return nil

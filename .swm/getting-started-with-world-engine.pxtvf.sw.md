@@ -65,9 +65,9 @@ Instructions to access the Nakama Web Interface.
 ```markdown
 91     Visit `localhost:7351` in a web browser to access Nakama. For local development, use `admin:password` as your login
 92     credentials.
-93
+93     
 94     The Account tab on the left will give you access to a valid account ID.
-95
+95     
 96     The API Explorer tab on the left will allow you to make requests to the gameplay server.
 ```
 
