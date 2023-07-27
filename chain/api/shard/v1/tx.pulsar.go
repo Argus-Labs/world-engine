@@ -15,20 +15,20 @@ import (
 )
 
 var (
-	md_SubmitCardinalTxRequest                protoreflect.MessageDescriptor
-	fd_SubmitCardinalTxRequest_sender         protoreflect.FieldDescriptor
-	fd_SubmitCardinalTxRequest_tick           protoreflect.FieldDescriptor
-	fd_SubmitCardinalTxRequest_tx_id          protoreflect.FieldDescriptor
-	fd_SubmitCardinalTxRequest_signed_payload protoreflect.FieldDescriptor
+	md_SubmitCardinalTxRequest           protoreflect.MessageDescriptor
+	fd_SubmitCardinalTxRequest_sender    protoreflect.FieldDescriptor
+	fd_SubmitCardinalTxRequest_namespace protoreflect.FieldDescriptor
+	fd_SubmitCardinalTxRequest_tick      protoreflect.FieldDescriptor
+	fd_SubmitCardinalTxRequest_txs       protoreflect.FieldDescriptor
 )
 
 func init() {
 	file_shard_v1_tx_proto_init()
 	md_SubmitCardinalTxRequest = File_shard_v1_tx_proto.Messages().ByName("SubmitCardinalTxRequest")
 	fd_SubmitCardinalTxRequest_sender = md_SubmitCardinalTxRequest.Fields().ByName("sender")
+	fd_SubmitCardinalTxRequest_namespace = md_SubmitCardinalTxRequest.Fields().ByName("namespace")
 	fd_SubmitCardinalTxRequest_tick = md_SubmitCardinalTxRequest.Fields().ByName("tick")
-	fd_SubmitCardinalTxRequest_tx_id = md_SubmitCardinalTxRequest.Fields().ByName("tx_id")
-	fd_SubmitCardinalTxRequest_signed_payload = md_SubmitCardinalTxRequest.Fields().ByName("signed_payload")
+	fd_SubmitCardinalTxRequest_txs = md_SubmitCardinalTxRequest.Fields().ByName("txs")
 }
 
 var _ protoreflect.Message = (*fastReflection_SubmitCardinalTxRequest)(nil)
@@ -102,21 +102,21 @@ func (x *fastReflection_SubmitCardinalTxRequest) Range(f func(protoreflect.Field
 			return
 		}
 	}
+	if x.Namespace != "" {
+		value := protoreflect.ValueOfString(x.Namespace)
+		if !f(fd_SubmitCardinalTxRequest_namespace, value) {
+			return
+		}
+	}
 	if x.Tick != uint64(0) {
 		value := protoreflect.ValueOfUint64(x.Tick)
 		if !f(fd_SubmitCardinalTxRequest_tick, value) {
 			return
 		}
 	}
-	if x.TxId != uint64(0) {
-		value := protoreflect.ValueOfUint64(x.TxId)
-		if !f(fd_SubmitCardinalTxRequest_tx_id, value) {
-			return
-		}
-	}
-	if len(x.SignedPayload) != 0 {
-		value := protoreflect.ValueOfBytes(x.SignedPayload)
-		if !f(fd_SubmitCardinalTxRequest_signed_payload, value) {
+	if x.Txs != nil {
+		value := protoreflect.ValueOfMessage(x.Txs.ProtoReflect())
+		if !f(fd_SubmitCardinalTxRequest_txs, value) {
 			return
 		}
 	}
@@ -137,12 +137,12 @@ func (x *fastReflection_SubmitCardinalTxRequest) Has(fd protoreflect.FieldDescri
 	switch fd.FullName() {
 	case "shard.v1.SubmitCardinalTxRequest.sender":
 		return x.Sender != ""
+	case "shard.v1.SubmitCardinalTxRequest.namespace":
+		return x.Namespace != ""
 	case "shard.v1.SubmitCardinalTxRequest.tick":
 		return x.Tick != uint64(0)
-	case "shard.v1.SubmitCardinalTxRequest.tx_id":
-		return x.TxId != uint64(0)
-	case "shard.v1.SubmitCardinalTxRequest.signed_payload":
-		return len(x.SignedPayload) != 0
+	case "shard.v1.SubmitCardinalTxRequest.txs":
+		return x.Txs != nil
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
@@ -161,12 +161,12 @@ func (x *fastReflection_SubmitCardinalTxRequest) Clear(fd protoreflect.FieldDesc
 	switch fd.FullName() {
 	case "shard.v1.SubmitCardinalTxRequest.sender":
 		x.Sender = ""
+	case "shard.v1.SubmitCardinalTxRequest.namespace":
+		x.Namespace = ""
 	case "shard.v1.SubmitCardinalTxRequest.tick":
 		x.Tick = uint64(0)
-	case "shard.v1.SubmitCardinalTxRequest.tx_id":
-		x.TxId = uint64(0)
-	case "shard.v1.SubmitCardinalTxRequest.signed_payload":
-		x.SignedPayload = nil
+	case "shard.v1.SubmitCardinalTxRequest.txs":
+		x.Txs = nil
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
@@ -186,15 +186,15 @@ func (x *fastReflection_SubmitCardinalTxRequest) Get(descriptor protoreflect.Fie
 	case "shard.v1.SubmitCardinalTxRequest.sender":
 		value := x.Sender
 		return protoreflect.ValueOfString(value)
+	case "shard.v1.SubmitCardinalTxRequest.namespace":
+		value := x.Namespace
+		return protoreflect.ValueOfString(value)
 	case "shard.v1.SubmitCardinalTxRequest.tick":
 		value := x.Tick
 		return protoreflect.ValueOfUint64(value)
-	case "shard.v1.SubmitCardinalTxRequest.tx_id":
-		value := x.TxId
-		return protoreflect.ValueOfUint64(value)
-	case "shard.v1.SubmitCardinalTxRequest.signed_payload":
-		value := x.SignedPayload
-		return protoreflect.ValueOfBytes(value)
+	case "shard.v1.SubmitCardinalTxRequest.txs":
+		value := x.Txs
+		return protoreflect.ValueOfMessage(value.ProtoReflect())
 	default:
 		if descriptor.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
@@ -217,12 +217,12 @@ func (x *fastReflection_SubmitCardinalTxRequest) Set(fd protoreflect.FieldDescri
 	switch fd.FullName() {
 	case "shard.v1.SubmitCardinalTxRequest.sender":
 		x.Sender = value.Interface().(string)
+	case "shard.v1.SubmitCardinalTxRequest.namespace":
+		x.Namespace = value.Interface().(string)
 	case "shard.v1.SubmitCardinalTxRequest.tick":
 		x.Tick = value.Uint()
-	case "shard.v1.SubmitCardinalTxRequest.tx_id":
-		x.TxId = value.Uint()
-	case "shard.v1.SubmitCardinalTxRequest.signed_payload":
-		x.SignedPayload = value.Bytes()
+	case "shard.v1.SubmitCardinalTxRequest.txs":
+		x.Txs = value.Message().Interface().(*Transactions)
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
@@ -243,14 +243,17 @@ func (x *fastReflection_SubmitCardinalTxRequest) Set(fd protoreflect.FieldDescri
 // Mutable is a mutating operation and unsafe for concurrent use.
 func (x *fastReflection_SubmitCardinalTxRequest) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
+	case "shard.v1.SubmitCardinalTxRequest.txs":
+		if x.Txs == nil {
+			x.Txs = new(Transactions)
+		}
+		return protoreflect.ValueOfMessage(x.Txs.ProtoReflect())
 	case "shard.v1.SubmitCardinalTxRequest.sender":
 		panic(fmt.Errorf("field sender of message shard.v1.SubmitCardinalTxRequest is not mutable"))
+	case "shard.v1.SubmitCardinalTxRequest.namespace":
+		panic(fmt.Errorf("field namespace of message shard.v1.SubmitCardinalTxRequest is not mutable"))
 	case "shard.v1.SubmitCardinalTxRequest.tick":
 		panic(fmt.Errorf("field tick of message shard.v1.SubmitCardinalTxRequest is not mutable"))
-	case "shard.v1.SubmitCardinalTxRequest.tx_id":
-		panic(fmt.Errorf("field tx_id of message shard.v1.SubmitCardinalTxRequest is not mutable"))
-	case "shard.v1.SubmitCardinalTxRequest.signed_payload":
-		panic(fmt.Errorf("field signed_payload of message shard.v1.SubmitCardinalTxRequest is not mutable"))
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
@@ -266,12 +269,13 @@ func (x *fastReflection_SubmitCardinalTxRequest) NewField(fd protoreflect.FieldD
 	switch fd.FullName() {
 	case "shard.v1.SubmitCardinalTxRequest.sender":
 		return protoreflect.ValueOfString("")
+	case "shard.v1.SubmitCardinalTxRequest.namespace":
+		return protoreflect.ValueOfString("")
 	case "shard.v1.SubmitCardinalTxRequest.tick":
 		return protoreflect.ValueOfUint64(uint64(0))
-	case "shard.v1.SubmitCardinalTxRequest.tx_id":
-		return protoreflect.ValueOfUint64(uint64(0))
-	case "shard.v1.SubmitCardinalTxRequest.signed_payload":
-		return protoreflect.ValueOfBytes(nil)
+	case "shard.v1.SubmitCardinalTxRequest.txs":
+		m := new(Transactions)
+		return protoreflect.ValueOfMessage(m.ProtoReflect())
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitCardinalTxRequest"))
@@ -345,14 +349,15 @@ func (x *fastReflection_SubmitCardinalTxRequest) ProtoMethods() *protoiface.Meth
 		if l > 0 {
 			n += 1 + l + runtime.Sov(uint64(l))
 		}
+		l = len(x.Namespace)
+		if l > 0 {
+			n += 1 + l + runtime.Sov(uint64(l))
+		}
 		if x.Tick != 0 {
 			n += 1 + runtime.Sov(uint64(x.Tick))
 		}
-		if x.TxId != 0 {
-			n += 1 + runtime.Sov(uint64(x.TxId))
-		}
-		l = len(x.SignedPayload)
-		if l > 0 {
+		if x.Txs != nil {
+			l = options.Size(x.Txs)
 			n += 1 + l + runtime.Sov(uint64(l))
 		}
 		if x.unknownFields != nil {
@@ -384,22 +389,31 @@ func (x *fastReflection_SubmitCardinalTxRequest) ProtoMethods() *protoiface.Meth
 			i -= len(x.unknownFields)
 			copy(dAtA[i:], x.unknownFields)
 		}
-		if len(x.SignedPayload) > 0 {
-			i -= len(x.SignedPayload)
-			copy(dAtA[i:], x.SignedPayload)
-			i = runtime.EncodeVarint(dAtA, i, uint64(len(x.SignedPayload)))
+		if x.Txs != nil {
+			encoded, err := options.Marshal(x.Txs)
+			if err != nil {
+				return protoiface.MarshalOutput{
+					NoUnkeyedLiterals: input.NoUnkeyedLiterals,
+					Buf:               input.Buf,
+				}, err
+			}
+			i -= len(encoded)
+			copy(dAtA[i:], encoded)
+			i = runtime.EncodeVarint(dAtA, i, uint64(len(encoded)))
 			i--
 			dAtA[i] = 0x22
-		}
-		if x.TxId != 0 {
-			i = runtime.EncodeVarint(dAtA, i, uint64(x.TxId))
-			i--
-			dAtA[i] = 0x18
 		}
 		if x.Tick != 0 {
 			i = runtime.EncodeVarint(dAtA, i, uint64(x.Tick))
 			i--
-			dAtA[i] = 0x10
+			dAtA[i] = 0x18
+		}
+		if len(x.Namespace) > 0 {
+			i -= len(x.Namespace)
+			copy(dAtA[i:], x.Namespace)
+			i = runtime.EncodeVarint(dAtA, i, uint64(len(x.Namespace)))
+			i--
+			dAtA[i] = 0x12
 		}
 		if len(x.Sender) > 0 {
 			i -= len(x.Sender)
@@ -490,6 +504,38 @@ func (x *fastReflection_SubmitCardinalTxRequest) ProtoMethods() *protoiface.Meth
 				x.Sender = string(dAtA[iNdEx:postIndex])
 				iNdEx = postIndex
 			case 2:
+				if wireType != 2 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
+				}
+				var stringLen uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
+					}
+					if iNdEx >= l {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					stringLen |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				intStringLen := int(stringLen)
+				if intStringLen < 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
+				}
+				postIndex := iNdEx + intStringLen
+				if postIndex < 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
+				}
+				if postIndex > l {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+				}
+				x.Namespace = string(dAtA[iNdEx:postIndex])
+				iNdEx = postIndex
+			case 3:
 				if wireType != 0 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Tick", wireType)
 				}
@@ -508,30 +554,11 @@ func (x *fastReflection_SubmitCardinalTxRequest) ProtoMethods() *protoiface.Meth
 						break
 					}
 				}
-			case 3:
-				if wireType != 0 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field TxId", wireType)
-				}
-				x.TxId = 0
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
-					}
-					if iNdEx >= l {
-						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					x.TxId |= uint64(b&0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
 			case 4:
 				if wireType != 2 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field SignedPayload", wireType)
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Txs", wireType)
 				}
-				var byteLen int
+				var msglen int
 				for shift := uint(0); ; shift += 7 {
 					if shift >= 64 {
 						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
@@ -541,24 +568,26 @@ func (x *fastReflection_SubmitCardinalTxRequest) ProtoMethods() *protoiface.Meth
 					}
 					b := dAtA[iNdEx]
 					iNdEx++
-					byteLen |= int(b&0x7F) << shift
+					msglen |= int(b&0x7F) << shift
 					if b < 0x80 {
 						break
 					}
 				}
-				if byteLen < 0 {
+				if msglen < 0 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
 				}
-				postIndex := iNdEx + byteLen
+				postIndex := iNdEx + msglen
 				if postIndex < 0 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
 				}
 				if postIndex > l {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
 				}
-				x.SignedPayload = append(x.SignedPayload[:0], dAtA[iNdEx:postIndex]...)
-				if x.SignedPayload == nil {
-					x.SignedPayload = []byte{}
+				if x.Txs == nil {
+					x.Txs = &Transactions{}
+				}
+				if err := options.Unmarshal(dAtA[iNdEx:postIndex], x.Txs); err != nil {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, err
 				}
 				iNdEx = postIndex
 			default:
@@ -972,12 +1001,12 @@ type SubmitCardinalTxRequest struct {
 
 	// sender is the address of the sender. this will be set to the module address.
 	Sender string `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
+	// namespace is the namespace of the world the transactions originated from.
+	Namespace string `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	// tick is the game tick that this transaction was executed in.
-	Tick uint64 `protobuf:"varint,2,opt,name=tick,proto3" json:"tick,omitempty"`
-	// tx_id is the id associated with the bytes in SignedPayload.Body.
-	TxId uint64 `protobuf:"varint,3,opt,name=tx_id,json=txId,proto3" json:"tx_id,omitempty"`
-	// cardinal_tx is a proto marshalled SignedPayload.
-	SignedPayload []byte `protobuf:"bytes,4,opt,name=signed_payload,json=signedPayload,proto3" json:"signed_payload,omitempty"`
+	Tick uint64 `protobuf:"varint,3,opt,name=tick,proto3" json:"tick,omitempty"`
+	// txs are the transactions that occurred in this tick.
+	Txs *Transactions `protobuf:"bytes,4,opt,name=txs,proto3" json:"txs,omitempty"`
 }
 
 func (x *SubmitCardinalTxRequest) Reset() {
@@ -1007,6 +1036,13 @@ func (x *SubmitCardinalTxRequest) GetSender() string {
 	return ""
 }
 
+func (x *SubmitCardinalTxRequest) GetNamespace() string {
+	if x != nil {
+		return x.Namespace
+	}
+	return ""
+}
+
 func (x *SubmitCardinalTxRequest) GetTick() uint64 {
 	if x != nil {
 		return x.Tick
@@ -1014,16 +1050,9 @@ func (x *SubmitCardinalTxRequest) GetTick() uint64 {
 	return 0
 }
 
-func (x *SubmitCardinalTxRequest) GetTxId() uint64 {
+func (x *SubmitCardinalTxRequest) GetTxs() *Transactions {
 	if x != nil {
-		return x.TxId
-	}
-	return 0
-}
-
-func (x *SubmitCardinalTxRequest) GetSignedPayload() []byte {
-	if x != nil {
-		return x.SignedPayload
+		return x.Txs
 	}
 	return nil
 }
@@ -1062,34 +1091,36 @@ var file_shard_v1_tx_proto_rawDesc = []byte{
 	0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x5f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x63, 0x6f, 0x73, 0x6d,
 	0x6f, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x17, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73,
 	0x2f, 0x6d, 0x73, 0x67, 0x2f, 0x76, 0x31, 0x2f, 0x6d, 0x73, 0x67, 0x2e, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x22, 0xa8, 0x01, 0x0a, 0x17, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61, 0x72, 0x64,
-	0x69, 0x6e, 0x61, 0x6c, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x30, 0x0a,
-	0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x42, 0x18, 0xd2,
-	0xb4, 0x2d, 0x14, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2e, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73,
-	0x73, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x52, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x12,
-	0x12, 0x0a, 0x04, 0x74, 0x69, 0x63, 0x6b, 0x18, 0x02, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04, 0x74,
-	0x69, 0x63, 0x6b, 0x12, 0x13, 0x0a, 0x05, 0x74, 0x78, 0x5f, 0x69, 0x64, 0x18, 0x03, 0x20, 0x01,
-	0x28, 0x04, 0x52, 0x04, 0x74, 0x78, 0x49, 0x64, 0x12, 0x25, 0x0a, 0x0e, 0x73, 0x69, 0x67, 0x6e,
-	0x65, 0x64, 0x5f, 0x70, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0c,
-	0x52, 0x0d, 0x73, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x3a,
-	0x0b, 0x82, 0xe7, 0xb0, 0x2a, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x22, 0x1a, 0x0a, 0x18,
-	0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61, 0x72, 0x64, 0x69, 0x6e, 0x61, 0x6c, 0x54, 0x78,
-	0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x67, 0x0a, 0x03, 0x4d, 0x73, 0x67, 0x12,
-	0x59, 0x0a, 0x10, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61, 0x72, 0x64, 0x69, 0x6e, 0x61,
-	0x6c, 0x54, 0x78, 0x12, 0x21, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x53,
-	0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61, 0x72, 0x64, 0x69, 0x6e, 0x61, 0x6c, 0x54, 0x78, 0x52,
-	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76,
-	0x31, 0x2e, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61, 0x72, 0x64, 0x69, 0x6e, 0x61, 0x6c,
-	0x54, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x1a, 0x05, 0x80, 0xe7, 0xb0, 0x2a,
-	0x01, 0x42, 0x7b, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76,
-	0x31, 0x42, 0x07, 0x54, 0x78, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x21, 0x63, 0x6f,
-	0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x73,
-	0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68, 0x61, 0x72, 0x64, 0x76, 0x31, 0xa2,
-	0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x56, 0x31,
-	0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0xe2, 0x02, 0x14, 0x53, 0x68,
-	0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61,
-	0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64, 0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x1a, 0x14, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x2f, 0x74, 0x79, 0x70, 0x65,
+	0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0xb4, 0x01, 0x0a, 0x17, 0x53, 0x75, 0x62, 0x6d,
+	0x69, 0x74, 0x43, 0x61, 0x72, 0x64, 0x69, 0x6e, 0x61, 0x6c, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75,
+	0x65, 0x73, 0x74, 0x12, 0x30, 0x0a, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x09, 0x42, 0x18, 0xd2, 0xb4, 0x2d, 0x14, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2e,
+	0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x52, 0x06, 0x73,
+	0x65, 0x6e, 0x64, 0x65, 0x72, 0x12, 0x1c, 0x0a, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61,
+	0x63, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x70,
+	0x61, 0x63, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x69, 0x63, 0x6b, 0x18, 0x03, 0x20, 0x01, 0x28,
+	0x04, 0x52, 0x04, 0x74, 0x69, 0x63, 0x6b, 0x12, 0x28, 0x0a, 0x03, 0x74, 0x78, 0x73, 0x18, 0x04,
+	0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e,
+	0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x03, 0x74, 0x78,
+	0x73, 0x3a, 0x0b, 0x82, 0xe7, 0xb0, 0x2a, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x22, 0x1a,
+	0x0a, 0x18, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61, 0x72, 0x64, 0x69, 0x6e, 0x61, 0x6c,
+	0x54, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x67, 0x0a, 0x03, 0x4d, 0x73,
+	0x67, 0x12, 0x59, 0x0a, 0x10, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61, 0x72, 0x64, 0x69,
+	0x6e, 0x61, 0x6c, 0x54, 0x78, 0x12, 0x21, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31,
+	0x2e, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61, 0x72, 0x64, 0x69, 0x6e, 0x61, 0x6c, 0x54,
+	0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x22, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64,
+	0x2e, 0x76, 0x31, 0x2e, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x43, 0x61, 0x72, 0x64, 0x69, 0x6e,
+	0x61, 0x6c, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x1a, 0x05, 0x80, 0xe7,
+	0xb0, 0x2a, 0x01, 0x42, 0x7b, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64,
+	0x2e, 0x76, 0x31, 0x42, 0x07, 0x54, 0x78, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x21,
+	0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69,
+	0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68, 0x61, 0x72, 0x64, 0x76,
+	0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x2e,
+	0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0xe2, 0x02, 0x14,
+	0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65, 0x74, 0x61,
+	0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64, 0x3a, 0x3a, 0x56, 0x31,
+	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1108,15 +1139,17 @@ var file_shard_v1_tx_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_shard_v1_tx_proto_goTypes = []interface{}{
 	(*SubmitCardinalTxRequest)(nil),  // 0: shard.v1.SubmitCardinalTxRequest
 	(*SubmitCardinalTxResponse)(nil), // 1: shard.v1.SubmitCardinalTxResponse
+	(*Transactions)(nil),             // 2: shard.v1.Transactions
 }
 var file_shard_v1_tx_proto_depIdxs = []int32{
-	0, // 0: shard.v1.Msg.SubmitCardinalTx:input_type -> shard.v1.SubmitCardinalTxRequest
-	1, // 1: shard.v1.Msg.SubmitCardinalTx:output_type -> shard.v1.SubmitCardinalTxResponse
-	1, // [1:2] is the sub-list for method output_type
-	0, // [0:1] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	2, // 0: shard.v1.SubmitCardinalTxRequest.txs:type_name -> shard.v1.Transactions
+	0, // 1: shard.v1.Msg.SubmitCardinalTx:input_type -> shard.v1.SubmitCardinalTxRequest
+	1, // 2: shard.v1.Msg.SubmitCardinalTx:output_type -> shard.v1.SubmitCardinalTxResponse
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_shard_v1_tx_proto_init() }
@@ -1124,6 +1157,7 @@ func file_shard_v1_tx_proto_init() {
 	if File_shard_v1_tx_proto != nil {
 		return
 	}
+	file_shard_v1_types_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_shard_v1_tx_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*SubmitCardinalTxRequest); i {

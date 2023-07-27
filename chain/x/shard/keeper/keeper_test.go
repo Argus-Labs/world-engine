@@ -43,143 +43,117 @@ func (s *TestSuite) SetupTest() {
 	s.ctx = ctx
 }
 
-func (s *TestSuite) TestSubmitBatch() {
-	tx := &shardv1.SignedPayload{
+func (s *TestSuite) TestSubmitTransactions() {
+	tick := uint64(2)
+	sp := &shardv1.SignedPayload{
 		PersonaTag: "meow",
 		Namespace:  "darkforest-west1",
 		Nonce:      1,
 		Signature:  "0xfooooooooo",
 		Body:       []byte("transaction"),
 	}
-	bz, err := proto.Marshal(tx)
+	signedPayloadBz, err := proto.Marshal(sp)
 	s.Require().NoError(err)
-	res, err := s.keeper.SubmitCardinalTx(s.ctx, &types.SubmitCardinalTxRequest{
-		Sender: s.auth, CardinalTx: bz,
-	})
+	txs := &types.Transactions{Txs: []*types.Transaction{
+		{3, signedPayloadBz},
+		{4, signedPayloadBz},
+	}}
+	_, err = s.keeper.SubmitCardinalTx(
+		s.ctx,
+		&types.SubmitCardinalTxRequest{
+			Sender:    s.auth,
+			Namespace: sp.Namespace,
+			Tick:      tick,
+			Txs:       txs,
+		},
+	)
 	s.Require().NoError(err)
-	s.Require().NotNil(res)
-	newTx := &shardv1.SignedPayload{
-		PersonaTag: "bark",
-		Namespace:  "darkforest-east1",
-		Nonce:      13,
-		Signature:  "0xbarrrrrrrrrr",
-		Body:       []byte("some tx"),
-	}
-	bz, err = proto.Marshal(newTx)
-	s.Require().NoError(err)
-	res, err = s.keeper.SubmitCardinalTx(s.ctx, &types.SubmitCardinalTxRequest{
-		Sender:     s.auth,
-		CardinalTx: bz,
-	})
-	s.Require().NoError(err)
-	s.Require().NotNil(res)
 
-	genesis := s.keeper.ExportGenesis(s.ctx)
-	s.Require().Len(genesis.Transactions, 2)
-	// check the darkforest-east1 transactions.. should only be 1.
-	s.Require().Len(genesis.Transactions[0].Txs, 1)
-	// now check the tx was saved properly
-	gotTx := new(shardv1.SignedPayload)
-	err = proto.Unmarshal(genesis.Transactions[0].Txs[0], gotTx)
+	// submit some transactions for a different namespace..
+	_, err = s.keeper.SubmitCardinalTx(
+		s.ctx,
+		&types.SubmitCardinalTxRequest{
+			Sender:    s.auth,
+			Namespace: "foo",
+			Tick:      tick,
+			Txs: &types.Transactions{Txs: []*types.Transaction{
+				{3, signedPayloadBz},
+				{4, signedPayloadBz},
+			}},
+		},
+	)
 	s.Require().NoError(err)
-	s.Require().True(proto.Equal(gotTx, newTx))
 
-	// now lets check darkforest-west1 transactions
-	s.Require().Len(genesis.Transactions[1].Txs, 1)
-	// now check the tx was saved properly
-	gotTx = new(shardv1.SignedPayload)
-	err = proto.Unmarshal(genesis.Transactions[1].Txs[0], gotTx)
+	res, err := s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{Namespace: sp.Namespace})
 	s.Require().NoError(err)
-	s.Require().True(proto.Equal(gotTx, tx))
+	// we only submitted transactions for 1 tick, so there should only be 1.
+	s.Require().Len(res.Txs, 1)
+	// should have equal amount of txs within the tick.
+	s.Require().Len(res.Txs[0].Txs.Txs, len(txs.Txs))
 }
 
 func (s *TestSuite) TestSubmitBatch_Unauthorized() {
 	_, err := s.keeper.SubmitCardinalTx(s.ctx, &types.SubmitCardinalTxRequest{
-		Sender:     s.addrs[1].String(),
-		CardinalTx: nil,
+		Sender:    s.addrs[1].String(),
+		Namespace: "foo",
+		Tick:      4,
+		Txs:       nil,
 	})
 	s.Require().ErrorIs(err, sdkerrors.ErrUnauthorized)
 }
 
-func (s *TestSuite) TestQueryBatches() {
-	ns := "cardinal1"
-	transactions := []*shardv1.SignedPayload{
-		{
-			PersonaTag: "dark_mage1",
-			Namespace:  ns,
-			Nonce:      3,
-			Signature:  "0xfoo",
-			Body:       []byte("tx_data"),
-		},
-		{
-			PersonaTag: "dark_mage2",
-			Namespace:  ns,
-			Nonce:      4,
-			Signature:  "0xfoo1",
-			Body:       []byte("tx_data"),
-		},
-		{
-			PersonaTag: "dark_mage3",
-			Namespace:  ns,
-			Nonce:      5,
-			Signature:  "0xfoo2",
-			Body:       []byte("tx_data"),
-		},
+func (s *TestSuite) TestExportGenesis() {
+	submit1 := &types.SubmitCardinalTxRequest{
+		Sender:    s.auth,
+		Namespace: "foo",
+		Tick:      1,
+		Txs: &types.Transactions{Txs: []*types.Transaction{
+			{1, []byte("foo")},
+			{10, []byte("bar")},
+			{1, []byte("baz")},
+		}},
 	}
-	for _, tx := range transactions {
-		bz, err := proto.Marshal(tx)
+
+	submit2 := &types.SubmitCardinalTxRequest{
+		Sender:    s.auth,
+		Namespace: "bar",
+		Tick:      3,
+		Txs: &types.Transactions{Txs: []*types.Transaction{
+			{15, []byte("qux")},
+			{2, []byte("quiz")},
+		}},
+	}
+
+	submit3 := &types.SubmitCardinalTxRequest{
+		Sender:    s.auth,
+		Namespace: "foo",
+		Tick:      2,
+		Txs: &types.Transactions{Txs: []*types.Transaction{
+			{4, []byte("qux")},
+			{9, []byte("quiz")},
+		}},
+	}
+
+	reqs := []*types.SubmitCardinalTxRequest{submit1, submit2, submit3}
+	for _, req := range reqs {
+		_, err := s.keeper.SubmitCardinalTx(s.ctx, req)
 		s.Require().NoError(err)
-		_, err = s.keeper.SubmitCardinalTx(s.ctx, &types.SubmitCardinalTxRequest{
-			Sender:     s.auth,
-			CardinalTx: bz,
-		})
-		s.Require().NoError(err)
 	}
 
-	otherTx := &shardv1.SignedPayload{
-		PersonaTag: "dark_mage2",
-		Namespace:  "darkforest-east1",
-		Nonce:      3,
-		Signature:  "0xfoo",
-		Body:       []byte("tx_data"),
-	}
-	bz, err := proto.Marshal(otherTx)
-	// submit one not relevant to our namespace.
-	_, err = s.keeper.SubmitCardinalTx(s.ctx, &types.SubmitCardinalTxRequest{
-		Sender:     s.auth,
-		CardinalTx: bz,
-	})
-	s.Require().NoError(err)
+	gen := s.keeper.ExportGenesis(s.ctx)
+	// there should only be 2 namespaced txs, because we only submitted 2 diff ones.
+	s.Require().Len(gen.Txs, 2)
+	s.Require().Len(gen.Txs[1].Txs, 2)            // we submitted 2 ticks for namespace "foo"
+	s.Require().Len(gen.Txs[1].Txs[0].Txs.Txs, 3) // the first tick had 3 txs
+	s.Require().Len(gen.Txs[1].Txs[1].Txs.Txs, 2) // the second tick had 2 txs
 
-	res, err := s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{
-		Namespace: ns,
-		Page:      nil,
-	})
-	s.Require().NoError(err)
-	s.Require().Len(res.Transactions, len(transactions))
+	s.Require().Len(gen.Txs[0].Txs, 1)            // only one tick under namespace "bar"
+	s.Require().Len(gen.Txs[0].Txs[0].Txs.Txs, 2) // only 2 txs in the tick.
 
-	// limit the request to only 2.
-	limit := uint32(2)
-	res, err = s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{
-		Namespace: ns,
-		Page: &types.PageRequest{
-			Key:   nil,
-			Limit: limit,
-		},
+	// importing back the genesis should not panic
+	s.Require().NotPanics(func() {
+		s.keeper.InitGenesis(s.ctx, gen)
 	})
-	s.Require().NoError(err)
-	// should only have received 2.
-	s.Require().Len(res.Transactions, int(limit))
-
-	// query again with the key in page response should give us the remaining batch.
-	res, err = s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{
-		Namespace: ns,
-		Page: &types.PageRequest{
-			Key: res.Page.Key,
-		},
-	})
-	s.Require().NoError(err)
-	s.Require().Len(res.Transactions, len(transactions)-int(limit))
 }
 
 func TestTestSuite(t *testing.T) {

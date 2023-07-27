@@ -1,10 +1,7 @@
 package keeper
 
 import (
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
-	"google.golang.org/protobuf/proto"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
@@ -19,12 +16,8 @@ func (k *Keeper) SubmitCardinalTx(ctx context.Context, msg *types.SubmitCardinal
 			"externally.")
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	sp := new(shardv1.SignedPayload)
-	err := proto.Unmarshal(msg.SignedPayload, sp)
-	if err != nil {
-		return nil, err
-	}
-	err = k.saveTransaction(sdkCtx, sp.Namespace, msg.SignedPayload)
+
+	err := k.saveTransactions(sdkCtx, msg.Namespace, msg.Tick, msg.Txs)
 	if err != nil {
 		return nil, err
 	}

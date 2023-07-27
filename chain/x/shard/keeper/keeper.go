@@ -19,10 +19,10 @@ func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
 }
 
 func (k *Keeper) InitGenesis(ctx sdk.Context, genesis *types.GenesisState) {
-	for _, txs := range genesis.Transactions {
-		namespace := txs.Namespace
-		for _, tx := range txs.Txs {
-			err := k.saveTransaction(ctx, namespace, tx)
+	for _, nstx := range genesis.Txs {
+		namespace := nstx.Namespace
+		for _, tickedTx := range nstx.Txs {
+			err := k.saveTransactions(ctx, namespace, tickedTx.Tick, tickedTx.Txs)
 			if err != nil {
 				panic(err)
 			}
@@ -31,15 +31,21 @@ func (k *Keeper) InitGenesis(ctx sdk.Context, genesis *types.GenesisState) {
 }
 
 func (k *Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
-	allTxs := make([]*types.Transactions, 0)
+	res := new(types.GenesisState)
 	k.iterateNamespaces(ctx, func(ns string) bool {
-		txs := &types.Transactions{Namespace: ns}
-		k.iterateTransactions(ctx, nil, nil, ns, func(_ []byte, tx []byte) bool {
-			txs.Txs = append(txs.Txs, tx)
+		nstxs := &types.NamespacedTransactions{
+			Namespace: ns,
+			Txs:       nil,
+		}
+		k.iterateTransactions(ctx, nil, nil, ns, func(tick uint64, txs *types.Transactions) bool {
+			nstxs.Txs = append(nstxs.Txs, &types.TickedTransactions{
+				Tick: tick,
+				Txs:  txs,
+			})
 			return true
 		})
-		allTxs = append(allTxs, txs)
+		res.Txs = append(res.Txs, nstxs)
 		return true
 	})
-	return &types.GenesisState{Transactions: allTxs}
+	return res
 }

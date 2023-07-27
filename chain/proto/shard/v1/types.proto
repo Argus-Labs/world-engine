@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package shard.v1;
+
+option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
+
+
+message Transaction {
+  // tx_id is the ID associated with the payloads below. This is needed so we know which transaction struct
+  // to unmarshal the payload.Body into.
+  uint64 tx_id = 1;
+
+  // signed_payload is a proto encoded SignedPayload
+  // (https://buf.build/argus-labs/world-engine/file/main:shard/v1/shard.proto#L21).
+  bytes signed_payload = 2;
+}
+
+message Transactions {
+  repeated Transaction txs = 1;
+}
+
+// TickedTransactions contains a tick number, and the transactions that occurred in that tick.
+message TickedTransactions {
+  uint64 tick = 1;
+  Transactions txs = 2;
+}

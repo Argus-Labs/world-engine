@@ -2,14 +2,19 @@ syntax = "proto3";
 
 package shard.v1;
 
+import "shard/v1/types.proto";
+
 option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
 
 message GenesisState {
-  // transactions is a list of proto encoded SignPayload.
-  repeated Transactions transactions = 1;
+  // txs contains a world's namespace, and all the transactions that occurred within that world.
+  repeated NamespacedTransactions txs = 1;
 }
 
-message Transactions {
+message NamespacedTransactions {
+  // namespace is the namespace the transactions occurred in.
   string namespace = 1;
-  repeated bytes txs = 2;
+
+  // txs contains a tick number, and the transactions that occurred within that tick.
+  repeated TickedTransactions txs = 2;
 }

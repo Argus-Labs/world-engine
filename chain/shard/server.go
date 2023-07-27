@@ -1,20 +1,18 @@
 package shard
 
 import (
+	shardgrpc "buf.build/gen/go/argus-labs/world-engine/grpc/go/shard/v1/shardv1grpc"
+	shard "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
 	"crypto/tls"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/proto"
 	"log"
 	"net"
 	"os"
-	"sync"
-
-	shardgrpc "buf.build/gen/go/argus-labs/world-engine/grpc/go/shard/v1/shardv1grpc"
-	shard "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	"google.golang.org/grpc"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 )
@@ -26,8 +24,7 @@ var (
 
 type Server struct {
 	moduleAddr sdk.AccAddress
-	lock       sync.Mutex
-	msgQueue   []*types.SubmitCardinalTxRequest
+	tq         *TxQueue
 	serverOpts []grpc.ServerOption
 }
 
@@ -35,8 +32,7 @@ func NewShardServer(opts ...Option) *Server {
 	addr := authtypes.NewModuleAddress(Name)
 	s := &Server{
 		moduleAddr: addr,
-		lock:       sync.Mutex{},
-		msgQueue:   nil,
+		tq:         &TxQueue{moduleAddr: addr.String()},
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -84,24 +80,12 @@ func (s *Server) Serve(listenAddr string) {
 	}()
 }
 
-// FlushMessages first copies the transactions in the queue, then clears the queue and returns the copy.
+// FlushMessages gets the next available batch of transactions ready to be stored.
 func (s *Server) FlushMessages() []*types.SubmitCardinalTxRequest {
-	// no-op if we have nothing
-	if len(s.msgQueue) == 0 {
-		return nil
-	}
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	// copy the transactions
-	msgs := make([]*types.SubmitCardinalTxRequest, len(s.msgQueue))
-	copy(msgs, s.msgQueue)
-
-	// clear the queue
-	s.msgQueue = s.msgQueue[:0]
-	return msgs
+	return s.tq.GetTxs()
 }
 
-// SubmitCardinalTx appends the cardinal tx submission to the queue, which eventually gets executed during
+// SubmitCardinalTx appends the cardinal tx submission to the tx queue, which eventually gets executed during
 // abci.EndBlock
 func (s *Server) SubmitCardinalTx(_ context.Context, req *shard.SubmitCardinalTxRequest) (
 	*shard.SubmitCardinalTxResponse, error) {
@@ -111,15 +95,7 @@ func (s *Server) SubmitCardinalTx(_ context.Context, req *shard.SubmitCardinalTx
 		return nil, err
 	}
 
-	sbr := &types.SubmitCardinalTxRequest{
-		Sender:        s.moduleAddr.String(),
-		Tick:          req.Tick,
-		TxId:          req.TxId,
-		SignedPayload: bz,
-	}
+	s.tq.AddTx(req.Tx.Namespace, req.Tick, req.TxId, bz)
 
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	s.msgQueue = append(s.msgQueue, sbr)
 	return &shard.SubmitCardinalTxResponse{}, nil
 }
