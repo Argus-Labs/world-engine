@@ -1,7 +1,7 @@
 name: World Engine - Docs
 env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_ORG_ID: ${{ secrets.DOCS_VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.DOCS_VERCEL_PROJECT_ID }}
 on:
   pull_request:
     paths:
@@ -9,8 +9,14 @@ on:
     branches:
       - main
       - develop
+  push:
+    paths:
+      - docs/**
+    branches:
+      - main
 jobs:
   deploy-preview:
+    if: ${{ github.ref != 'refs/heads/main' }}
     strategy:
       matrix:
         npm-version: [16]
@@ -20,17 +26,14 @@ jobs:
       run:
         shell: bash
         working-directory: docs
-    env:
-      VERCEL_ORG_ID: ${{ secrets.DOCS_VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.DOCS_VERCEL_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-            node-version: ${{ matrix.npm-version }}
+          node-version: ${{ matrix.npm-version }}
       - uses: pnpm/action-setup@v2
         with:
-            version: ${{ matrix.pnpm-version }}
+          version: ${{ matrix.pnpm-version }}
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
       - name: Pull Vercel Environment Information
@@ -39,3 +42,30 @@ jobs:
         run: vercel build --token=${{ secrets.DOCS_VERCEL_TOKEN }}
       - name: Deploy Project Artifacts to Vercel
         run: vercel deploy --prebuilt --token=${{ secrets.DOCS_VERCEL_TOKEN }}
+  deploy-production:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    strategy:
+      matrix:
+        npm-version: [16]
+        pnpm-version: [8]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.npm-version }}
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ matrix.pnpm-version }}
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.DOCS_VERCEL_TOKEN }}
+      - name: Build Project Artifacts
+        run: vercel build --token=${{ secrets.DOCS_VERCEL_TOKEN }}
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.DOCS_VERCEL_TOKEN }}
