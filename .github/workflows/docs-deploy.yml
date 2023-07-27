@@ -28,6 +28,8 @@ jobs:
         working-directory: docs
     permissions:
       pull-requests: write
+      contents: 'read'
+      id-token: 'write'
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -70,6 +72,8 @@ jobs:
         working-directory: docs
     permissions:
       pull-requests: write
+      contents: 'read'
+      id-token: 'write'
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -83,7 +87,7 @@ jobs:
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.DOCS_VERCEL_TOKEN }}
       - name: Build Project Artifacts
-        run: vercel build --token=${{ secrets.DOCS_VERCEL_TOKEN }}
+        run: vercel build --environment=production --token=${{ secrets.DOCS_VERCEL_TOKEN }}
       - name: Deploy Project Artifacts to Vercel
         id: vercel-deploy-results
         run: vercel deploy --prebuilt --prod --token=${{ secrets.DOCS_VERCEL_TOKEN }}
