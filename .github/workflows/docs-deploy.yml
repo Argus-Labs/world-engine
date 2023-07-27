@@ -89,7 +89,7 @@ jobs:
       - name: Build Project Artifacts
         run: vercel build --token=${{ secrets.DOCS_VERCEL_TOKEN }}
       - name: Prebuilt Artifacts
-        run: vercel --prebuilt
+        run: vercel --prebuilt --token=${{ secrets.DOCS_VERCEL_TOKEN }}
       - name: Deploy Project Artifacts to Vercel
         id: vercel-deploy-results
         run: vercel deploy --prebuilt --prod --token=${{ secrets.DOCS_VERCEL_TOKEN }}
