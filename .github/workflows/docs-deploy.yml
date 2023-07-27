@@ -49,11 +49,11 @@ jobs:
         run: vercel deploy --prebuilt --token=${{ secrets.DOCS_VERCEL_TOKEN }}
       - name: Construct PR Comment
         run: |-
-          echo "### 🎉 World Engine Docs deployed!" >> PR-COMMENT.txt
+          echo "### World Engine Docs deployed!" >> PR-COMMENT.txt
           echo "----------------------------------------------" >> PR-COMMENT.txt
-          echo "${{ steps.vercel-deploy-results.outputs.stdout }}" | grep Inspect >> PR-COMMENT.txt
+          printf "${{ steps.vercel-deploy-results.outputs.stdout }}" | grep Inspect >> PR-COMMENT.txt
           echo -n "Preview URL: "
-          echo "${{ steps.vercel-deploy-results.outputs.stdout }}" | tail -n 1 >> PR-COMMENT.txt
+          printf "${{ steps.vercel-deploy-results.outputs.stdout }}" | tail -n 1 >> PR-COMMENT.txt
           echo "----------------------------------------------" >> PR-COMMENT.txt
       - uses: mshick/add-pr-comment@v2
         with:
@@ -87,17 +87,19 @@ jobs:
       - name: Pull Vercel Environment Information
         run: vercel pull --yes --environment=production --token=${{ secrets.DOCS_VERCEL_TOKEN }}
       - name: Build Project Artifacts
-        run: vercel build --environment=production --token=${{ secrets.DOCS_VERCEL_TOKEN }}
+        run: vercel build --token=${{ secrets.DOCS_VERCEL_TOKEN }}
+      - name: Prebuilt Artifacts
+        run: vercel --prebuilt
       - name: Deploy Project Artifacts to Vercel
         id: vercel-deploy-results
         run: vercel deploy --prebuilt --prod --token=${{ secrets.DOCS_VERCEL_TOKEN }}
       - name: Construct PR Comment
         run: |-
-          echo "### 🎉 World Engine Docs deployed!" >> PR-COMMENT.txt
+          echo "### World Engine Docs deployed!" >> PR-COMMENT.txt
           echo "----------------------------------------------" >> PR-COMMENT.txt
-          echo "${{ steps.vercel-deploy-results.outputs.stdout }}" | grep Inspect >> PR-COMMENT.txt
+          printf "${{ steps.vercel-deploy-results.outputs.stdout }}" | grep Inspect >> PR-COMMENT.txt
           echo -n "Production URL: "
-          echo "${{ steps.vercel-deploy-results.outputs.stdout }}" | tail -n 1 >> PR-COMMENT.txt
+          printf "${{ steps.vercel-deploy-results.outputs.stdout }}" | tail -n 1 >> PR-COMMENT.txt
           echo "----------------------------------------------" >> PR-COMMENT.txt
       - uses: mshick/add-pr-comment@v2
         with:
