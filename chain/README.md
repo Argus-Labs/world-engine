@@ -94,13 +94,32 @@ After ensuring dependecies are installed correctly, run the following command to
 mage start
 ```
 
-The network will have an Ethereum JSON-RPC server running at `http://localhost:1317/eth/rpc` and a Tendermint RPC server running at `http://localhost:26657`.
+## Running using Docker Compose
+
+Start the `chain` and `celestia-devnet` using `chain/docker-compose.yml`, make sure to follow these steps:
+- Start local-celestia-devnet
+  ```
+  docker compose up celestia-devnet -d --wait
+  ```
+
+- Get DA_AUTH_TOKEN (Celestia RPC Authentication token) from celestia_devnet logs.
+  ```
+  export DA_AUTH_TOKEN=$(docker logs celestia_devnet 2>&1 | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1)
+  echo "Auth Token >> $DA_AUTH_TOKEN"
+  ```
+
+- Start the `chain` / `evm_base_shard`
+  ```
+  docker compose up chain -d
+  ```
+
+
 
 ## Environment Variables
 The following env variables must be set for the following features.
 
 ### Game Shard Tx Storage
-- USE_SHARD_LISTENER=true 
+- USE_SHARD_LISTENER=true
 - SHARD_HANDLER_LISTEN_ADDR=<the address you want this server to listen on (i.e. 10.209.21:3090)
 
 ### Secure gRPC Connections
@@ -109,3 +128,27 @@ To make use of these, set the following environment variables to the path of you
 - SERVER_CERT_PATH=<path/to/server/cert>
 - SERVER_KEY_PATH=<path/to/server/key>
 - CLIENT_CERT_PATH=<path/to/client/cert>
+
+### Celestia DA Layer Connections
+The following variables are used to configure the connection to the Data Availability layer (Celestia).
+
+Required:
+
+- DA_AUTH_TOKEN=celetia-rpc-node-auth-token
+
+   Get Authentication token from [rollkit/local-celestia-devnet](https://github.com/rollkit/local-celestia-devnet) with `docker logs celestia_devnet | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1`.
+   For Celestia Arabica/Mocha testnet, follow the [RPC-API tutorial](https://docs.celestia.org/developers/rpc-tutorial/#auth-token).
+
+Optional:
+
+- DA_NAMESPACE_ID=(default: `67480c4a88c4d12935d4`)
+
+  10 bytes hex encoded value, generate random value using: `openssl rand -hex 10`.
+
+- DA_BASE_URL=(default: `http://celestia-devnet:26658`)
+
+  Celestia RPC base URL, default value are based on `docker-compose.yml` services URL.
+
+- DA_CONFIG=(default: `{"base_url":"'$DA_BASE_URL'","timeout":60000000000,"fee":6000,"gas_limit":6000000,"fee":600000,"auth_token":"'$DA_AUTH_TOKEN'"}`
+
+  Configure custom json formatted value for `--rollkit.da_config` arguments, see: `chain/scripts/start-rollup.sh`.
