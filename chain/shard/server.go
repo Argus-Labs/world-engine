@@ -13,6 +13,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 )
@@ -32,7 +33,12 @@ func NewShardServer(opts ...Option) *Server {
 	addr := authtypes.NewModuleAddress(Name)
 	s := &Server{
 		moduleAddr: addr,
-		tq:         &TxQueue{moduleAddr: addr.String()},
+		tq: &TxQueue{
+			lock:       sync.Mutex{},
+			ntx:        make(NamespacedTxs, 0),
+			outbox:     make([]*types.SubmitCardinalTxRequest, 0),
+			moduleAddr: addr.String(),
+		},
 	}
 	for _, opt := range opts {
 		opt(s)

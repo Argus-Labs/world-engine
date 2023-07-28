@@ -24,6 +24,10 @@ type txQueue struct {
 // NamespacedTxs maps namespaces to a transaction queue.
 type NamespacedTxs map[string]*txQueue
 
+func (tc *TxQueue) TxsForNamespaceInTick(ns string, tick uint64) *types.SubmitCardinalTxRequest {
+	return tc.ntx[ns].txs[tick]
+}
+
 // AddTx first checks if there are already transactions stored for the tick in the request.
 // If there are, we simply append this request to txs.
 // If there aren't yet, we append the tick number to tickQueue, then append to the txs map.
@@ -63,6 +67,14 @@ func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 		delete(tc.ntx[namespace].txs, prev)
 
 	}
+	if tc.ntx[namespace].txs[tick] == nil {
+		tc.ntx[namespace].txs[tick] = &types.SubmitCardinalTxRequest{
+			Sender:    tc.moduleAddr,
+			Namespace: namespace,
+			Tick:      tick,
+			Txs:       &types.Transactions{Txs: make([]*types.Transaction, 0)},
+		}
+	}
 	// finally, we append the transaction data to the transaction queue.
 	tc.ntx[namespace].txs[tick].Txs.Txs = append(tc.ntx[namespace].txs[tick].Txs.Txs, &types.Transaction{
 		TxId:          txID,
@@ -75,7 +87,7 @@ func (tc *TxQueue) GetTxs() []*types.SubmitCardinalTxRequest {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
 	// copy the outbox
-	outboxCopy := make([]*types.SubmitCardinalTxRequest, 0, len(tc.outbox))
+	outboxCopy := make([]*types.SubmitCardinalTxRequest, len(tc.outbox))
 	copy(outboxCopy, tc.outbox)
 	// clear outbox, retain capacity
 	tc.outbox = tc.outbox[:0]
