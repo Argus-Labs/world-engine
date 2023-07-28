@@ -78,7 +78,13 @@ mage stop
 
 Alternatively, killing the `mage start` process will also stop Nakama and the gameplay server.
 
-Note, if any server endpoints have been added or removed Nakama must be relaunched (via `mage stop` and `mage start`).
+Note: if any server endpoints have been added or removed Nakama must be relaunched (via `mage stop` and `mage start`).
+
+To start JUST the Nakama server
+```bash
+mage nakama
+```
+Note: Nakama depends on the gameplay server, so you'll have to start that separately. This command is useful when you want to start the debug server in debug mode to step through code and troubleshoot.
 
 # Verify the Server is Running
 
@@ -89,9 +95,30 @@ The Account tab on the left will give you access to a valid account ID.
 
 The API Explorer tab on the left will allow you to make requests to the gameplay server.
 
+# Claim PersonaTags and sign transactions
+
+By default, Nakama will sign transactions with a private key. Before transactions can be signed, a PersonaTag must be associated with the Nakama UserID. This is done by:
+
+- Visit localhost:7351 and log in with "admin:password"
+- On the left banner, click the "API Explorer" tab
+- Create a new Nakama user:
+  - Select the "AuthenticateDevice" endpoint in the dropdown and set the request body to:
+  - {"account": {"id": "1234567890"}}, "create": true, "username": "some-user-name"}
+  - Hit Send Request
+- On the left banner, click the "Accounts" tab
+- Find the newly created user and copy the User ID
+- Go back to "API Explorer" and paste the User ID into the "set user ID as request context" box.
+- Select the "namaka/claim_persona" endpoint in the dropdown.
+- Set the Request Body to {"PersonaTag": "<some-persona-tag>"}
+- Hit Send Request
+- Verify the UserID to PersonaTag association was successful:
+- Select the "nakama/show_persona" endpoint in the dropdown
+- Hit Send Request. You should see "Status": "accepted" in the response
+- That's it. Future transactions will automatically be signed with this PersonaTag and the Nakama private key.
+
 # Copy the Sample Game Server
 
-You can make a fully copy of nakama, the cardinal server, and the mage build targets with:
+You can make a full copy of nakama, the cardinal server, and the mage build targets with:
 
 ```bash
 mage copy <target-directory> <module-path>
