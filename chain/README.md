@@ -130,7 +130,7 @@ To make use of these, set the following environment variables to the path of you
 - CLIENT_CERT_PATH=<path/to/client/cert>
 
 ### Celestia DA Layer Connections
-The following variable are use to configure the conenctions to the Data Availability layer (Celestia).
+The following variables are used to configure the connection to the Data Availability layer (Celestia).
 
 Required:
 
