@@ -187,11 +187,12 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	worldId := nextWorldId
 	nextWorldId++
 	w := &World{
-		id:       worldId,
-		store:    s,
-		tick:     0,
-		systems:  make([]System, 0, 256), // this can just stay in memory.
-		txQueues: map[transaction.TypeID][]any{},
+		id:           worldId,
+		store:        s,
+		tick:         0,
+		systems:      make([]System, 0, 256), // this can just stay in memory.
+		txQueues:     map[transaction.TypeID][]any{},
+		txSignatures: map[transaction.TypeID][]*sign.SignedPayload{},
 	}
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
@@ -672,15 +673,34 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		for _, tx := range res.Transactions {
-			payload, err := w.decodeTransaction(tx)
-			if err != nil {
-				return err
+		for _, tickedTxs := range res.Txs {
+			target := tickedTxs.Tick
+			// tick up to target
+			for current := w.CurrentTick(); uint64(current) != target; {
+				if err := w.Tick(ctx); err != nil {
+					return err
+				}
+				current = w.CurrentTick()
 			}
-			_ = payload
-
-			err = w.Tick(ctx)
-			if err != nil {
+			// we've now reached target. we need to inject the transactions and tick.
+			transactions := tickedTxs.Txs.Txs
+			for _, tx := range transactions {
+				sp, err := w.decodeTransaction(tx.SignedPayload)
+				if err != nil {
+					return err
+				}
+				itx := w.getITx(transaction.TypeID(tx.TxId))
+				if itx == nil {
+					return fmt.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
+				}
+				v, err := itx.Decode(sp.Body)
+				if err != nil {
+					return err
+				}
+				w.AddTransaction(transaction.TypeID(tx.TxId), v, w.protoSignedPayloadToGo(sp))
+			}
+			// run the tick for this batch
+			if err := w.Tick(ctx); err != nil {
 				return err
 			}
 		}
@@ -698,6 +718,16 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (w *World) protoSignedPayloadToGo(sp *shardv1.SignedPayload) *sign.SignedPayload {
+	return &sign.SignedPayload{
+		PersonaTag: sp.PersonaTag,
+		Namespace:  sp.Namespace,
+		Nonce:      sp.Nonce,
+		Signature:  sp.Signature,
+		Body:       sp.Body,
+	}
 }
 
 func (w *World) decodeTransaction(bz []byte) (*shardv1.SignedPayload, error) {

@@ -23,7 +23,7 @@ type Adapter interface {
 }
 
 type Writer interface {
-	Submit(context.Context, *sign.SignedPayload, uint64, uint64) error
+	Submit(ctx context.Context, p *sign.SignedPayload, txID, tick uint64) error
 }
 
 type Reader interface {
