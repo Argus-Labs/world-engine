@@ -48,6 +48,7 @@ jobs:
         id: vercel-deploy-results
         run: |
           vercel deploy --prebuilt --token=${{ secrets.DOCS_VERCEL_TOKEN }} 2>&1 | tee output.txt
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "DEPLOY_OUTPUT<<$EOF" >> $GITHUB_OUTPUT
           echo "$(cat output.txt)" >> $GITHUB_OUTPUT
           echo "$EOF" >> $GITHUB_OUTPUT
@@ -96,6 +97,7 @@ jobs:
         id: vercel-deploy-results
         run: |
           vercel deploy --prebuilt --prod --token=${{ secrets.DOCS_VERCEL_TOKEN }} 2>&1 | tee output.txt
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "DEPLOY_OUTPUT<<$EOF" >> $GITHUB_OUTPUT
           echo "$(cat output.txt)" >> $GITHUB_OUTPUT
           echo "$EOF" >> $GITHUB_OUTPUT
