@@ -48,10 +48,12 @@ jobs:
         id: vercel-deploy-results
         run: |
           vercel deploy --prebuilt --token=${{ secrets.DOCS_VERCEL_TOKEN }} 2>&1 | tee output.txt
-          echo "DEPLOY_OUTPUT=$(cat output.txt)" >> "$GITHUB_OUTPUT"
+          echo "DEPLOY_OUTPUT<<$EOF" >> $GITHUB_OUTPUT
+          echo "$(cat output.txt)" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
       - name: Construct PR Comment
         run: |-
-          echo "### World Engine Docs deployed!" >> PR-COMMENT.txt
+          echo "### World Engine Docs deployed (Preview)!" >> PR-COMMENT.txt
           echo "----------------------------------------------" >> PR-COMMENT.txt
           echo "${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}" | grep Inspect >> PR-COMMENT.txt
           echo -n "Preview URL: "
@@ -93,11 +95,13 @@ jobs:
       - name: Deploy Project Artifacts to Vercel
         id: vercel-deploy-results
         run: |
-          vercel deploy --prebuilt --token=${{ secrets.DOCS_VERCEL_TOKEN }} 2>&1 | tee output.txt
-          echo "DEPLOY_OUTPUT=$(cat output.txt)" >> "$GITHUB_OUTPUT"
+          vercel deploy --prebuilt --prod --token=${{ secrets.DOCS_VERCEL_TOKEN }} 2>&1 | tee output.txt
+          echo "DEPLOY_OUTPUT<<$EOF" >> $GITHUB_OUTPUT
+          echo "$(cat output.txt)" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
       - name: Construct PR Comment
         run: |-
-          echo "### World Engine Docs deployed!" >> PR-COMMENT.txt
+          echo "### World Engine Docs deployed (Production)!" >> PR-COMMENT.txt
           echo "----------------------------------------------" >> PR-COMMENT.txt
           echo "${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}" | grep Inspect >> PR-COMMENT.txt
           echo "${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}" | grep Production >> PR-COMMENT.txt
