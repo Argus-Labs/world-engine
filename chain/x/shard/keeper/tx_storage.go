@@ -9,16 +9,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-/*
-Storage Layout:
-p = store prefix
-k = key
-v = value
-		Namespaces(Singleton array): 		p<nsi> : k<namespace> -> v<>
-		Transactions(Incremental mapping: 	p<world_namespace> : k<transaction_index> -> v<tx>
-		Transaction Indexes: 				p<nsi> : k<world_namespace> -> v<transaction_index>
-*/
-
 const (
 	uint64Size = 8
 )
@@ -39,26 +29,6 @@ func (k *Keeper) getTransactionKey(tick uint64) []byte {
 func (k *Keeper) extractTransactionKeyValue(key []byte) uint64 {
 	return binary.BigEndian.Uint64(key)
 }
-
-//// iterateBatches iterates over all batches, calling fn for each batch in the store.
-//// if fn returns false, the iteration stops. if fn returns true, the iteration continues.
-//// start and end indicate the range of the iteration. Leaving both as nil will iterate over ALL batches.
-//// supplying only a start value will iterate from that point til the end.
-//func (k *Keeper) iterateBatches(
-//	ctx sdk.Context,
-//	start, end []byte,
-//	ns string,
-//	cb func(tick uint64, batch []byte) bool) {
-//	store := k.batchStore(ctx, ns)
-//	it := store.Iterator(start, end)
-//	for ; it.Valid(); it.Next() {
-//		tick := k.uint64ForBytes(it.Key())
-//		batch := it.Value()
-//		if keepGoing := cb(tick, batch); !keepGoing {
-//			break
-//		}
-//	}
-//}
 
 func (k *Keeper) iterateTransactions(
 	ctx sdk.Context,

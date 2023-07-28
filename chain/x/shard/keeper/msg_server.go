@@ -10,7 +10,8 @@ import (
 
 var _ types.MsgServer = &Keeper{}
 
-func (k *Keeper) SubmitCardinalTx(ctx context.Context, msg *types.SubmitCardinalTxRequest) (*types.SubmitCardinalTxResponse, error) {
+func (k *Keeper) SubmitCardinalTx(ctx context.Context, msg *types.SubmitCardinalTxRequest,
+) (*types.SubmitCardinalTxResponse, error) {
 	if msg.Sender != k.auth {
 		return nil, sdkerrors.ErrUnauthorized.Wrap("SubmitCardinalTx is a system function and cannot be called " +
 			"externally.")

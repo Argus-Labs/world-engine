@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-// TxQueue acts as a transaction queue. Transactions come in to the TxQueue with at tick,
+// TxQueue acts as a transaction queue. Transactions come in to the TxQueue with at tick.
 type TxQueue struct {
 	lock       sync.Mutex
 	ntx        NamespacedTxs
@@ -45,7 +45,7 @@ func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 			Sender:    tc.moduleAddr,
 			Namespace: namespace,
 			Tick:      tick,
-			Txs:       &types.Transactions{Txs: []*types.Transaction{{txID, payload}}},
+			Txs:       &types.Transactions{Txs: []*types.Transaction{{TxId: txID, SignedPayload: payload}}},
 		}
 		return
 	}
@@ -57,7 +57,6 @@ func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 		// check to see if this is a new tick. if it is, we enqueue it and
 		// then send the previous ticks data to the outbox.
 	} else if lastTick := tc.ntx[namespace].tickQueue.Peek(); lastTick != tick {
-
 		// enqueue the new tick
 		tc.ntx[namespace].tickQueue.Enqueue(tick)
 
@@ -65,7 +64,6 @@ func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 		prev := tc.ntx[namespace].tickQueue.Dequeue()
 		tc.outbox = append(tc.outbox, tc.ntx[namespace].txs[prev])
 		delete(tc.ntx[namespace].txs, prev)
-
 	}
 	if tc.ntx[namespace].txs[tick] == nil {
 		tc.ntx[namespace].txs[tick] = &types.SubmitCardinalTxRequest{
@@ -86,10 +84,10 @@ func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 func (tc *TxQueue) GetTxs() []*types.SubmitCardinalTxRequest {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
-	// copy the outbox
+	// copy the outbox.
 	outboxCopy := make([]*types.SubmitCardinalTxRequest, len(tc.outbox))
 	copy(outboxCopy, tc.outbox)
-	// clear outbox, retain capacity
+	// clear outbox, retain capacity.
 	tc.outbox = tc.outbox[:0]
 	return outboxCopy
 }

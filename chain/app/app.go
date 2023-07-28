@@ -354,7 +354,6 @@ func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
 				return sdk.EndBlock{}, err
 			}
 		}
-
 	}
 	eb, err := app.ModuleManager.EndBlock(ctx)
 	if err != nil {

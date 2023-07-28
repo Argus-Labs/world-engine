@@ -92,10 +92,9 @@ func (s *Server) FlushMessages() []*types.SubmitCardinalTxRequest {
 }
 
 // SubmitCardinalTx appends the cardinal tx submission to the tx queue, which eventually gets executed during
-// abci.EndBlock
+// abci.EndBlock.
 func (s *Server) SubmitCardinalTx(_ context.Context, req *shard.SubmitCardinalTxRequest) (
 	*shard.SubmitCardinalTxResponse, error) {
-
 	bz, err := proto.Marshal(req.Tx)
 	if err != nil {
 		return nil, err
