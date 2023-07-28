@@ -47,22 +47,21 @@ jobs:
       - name: Deploy Project Artifacts to Vercel
         id: vercel-deploy-results
         run: |
-          vercel deploy --prebuilt --token=${{ secrets.DOCS_VERCEL_TOKEN }} 2>&1 | tee output.txt
+          vercel deploy --prebuilt --token=${{ secrets.DOCS_VERCEL_TOKEN }} &> | tee output.txt
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "DEPLOY_OUTPUT<<$EOF" >> $GITHUB_OUTPUT
           echo "$(cat output.txt  | grep Inspect)" >> $GITHUB_OUTPUT
-          echo "$(cat output.txt  | tail -n 1)" >> $GITHUB_OUTPUT
+          echo "$(cat output.txt  | grep Preview)" >> $GITHUB_OUTPUT
           echo "$EOF" >> $GITHUB_OUTPUT
-      - name: Construct PR Comment
-        run: |-
-          echo "### World Engine Docs deployed (Preview)!" >> PR-COMMENT.txt
-          echo "----------------------------------------------" >> PR-COMMENT.txt
-          echo "${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}" >> PR-COMMENT.txt
-          echo "----------------------------------------------" >> PR-COMMENT.txt
-      - uses: mshick/add-pr-comment@v2
+      - name: PR Comment Deploy Results
+        uses: thollander/actions-comment-pull-request@v2
         with:
-          message-path: |
-            ./PR-COMMENT.txt
+          comment_tag: vercel_deploy_preview
+          message: |
+            ### World Engine Docs deployed (Preview)!
+            ----------------------------------------------
+            ${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}
+            ----------------------------------------------
   deploy-production:
 #    if: ${{ github.ref == 'refs/heads/main' }}
     strategy:
@@ -101,13 +100,12 @@ jobs:
           echo "$(cat output.txt  | grep Inspect)" >> $GITHUB_OUTPUT
           echo "$(cat output.txt  | grep Production)" >> $GITHUB_OUTPUT
           echo "$EOF" >> $GITHUB_OUTPUT
-      - name: Construct PR Comment
-        run: |-
-          echo "### World Engine Docs deployed (Production)!" >> PR-COMMENT.txt
-          echo "----------------------------------------------" >> PR-COMMENT.txt
-          echo "${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}" >> PR-COMMENT.txt
-          echo "----------------------------------------------" >> PR-COMMENT.txt
-      - uses: mshick/add-pr-comment@v2
+      - name: PR Comment Deploy Results
+        uses: thollander/actions-comment-pull-request@v2
         with:
-          message-path: |
-            ./PR-COMMENT.txt
+          comment_tag: vercel_deploy_production
+          message: |
+            ### World Engine Docs deployed (Production)!
+            ----------------------------------------------
+            ${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}
+            ----------------------------------------------
