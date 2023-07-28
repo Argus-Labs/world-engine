@@ -1,8 +1,8 @@
 ---
 id: pxtvf
 title: Getting Started with World Engine
-file_version: 1.1.2
-app_version: 1.9.10
+file_version: 1.1.3
+app_version: 1.13.13
 ---
 
 ## Components
@@ -33,8 +33,6 @@ The World Engine comes with a few preconfigured `Dockerfile`s to quickly get the
 
 *   `📄 chain/Dockerfile` - the rollup
 
-*   `📄 game/nakama/Dockerfile` - the preconfigured relay server
-
 *   `📄 cardinal/Dockerfile` - Game server/ECS
 
 All components can be ran with a simple script inside the TODO(insert token script that runs all services)
@@ -54,25 +52,6 @@ Interacting with the rollup is easiest via gRPC. The rollup exposes the gRPC por
 TODO: update command and insert token here
 
 Interacting with the preconfigured Nakama ECS Game server can be done either over gRPC or using the web interface. Follow the instructions below to access the web interface:
-
-<br/>
-
-<br/>
-
-Instructions to access the Nakama Web Interface.
-<!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
-### 📄 game/nakama/readme.md
-```markdown
-1      go to localhost:7351 after container finishes initialization
-2      
-3      enter in credentials:
-4      
-5      username: admin
-6      password: password
-7      ref: https://youtu.be/Ru3RZ6LkJEk
-```
-
-<br/>
 
 The Nakama server can also be interacted with via Nakama client libraries. See the following example below on how to interact with Nakama via the C# client library. The code below shows how to establish a connection, as well as call a custom RPC endpoint.
 
