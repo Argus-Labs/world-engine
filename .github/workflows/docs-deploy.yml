@@ -47,11 +47,11 @@ jobs:
       - name: Deploy Project Artifacts to Vercel
         id: vercel-deploy-results
         run: |
-          vercel deploy --prebuilt --token=${{ secrets.DOCS_VERCEL_TOKEN }} &> | tee output.txt
+          vercel deploy --prebuilt --token=${{ secrets.DOCS_VERCEL_TOKEN }} 2>&1 | tee output.txt
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "DEPLOY_OUTPUT<<$EOF" >> $GITHUB_OUTPUT
-          echo "$(cat output.txt  | grep Inspect)" >> $GITHUB_OUTPUT
-          echo "$(cat output.txt  | grep Preview)" >> $GITHUB_OUTPUT
+          echo ":mag: $(cat output.txt  | grep Inspect)" >> $GITHUB_OUTPUT
+          echo ":globe_with_meridians: $(cat output.txt  | grep Production)" >> $GITHUB_OUTPUT
           echo "$EOF" >> $GITHUB_OUTPUT
       - name: PR Comment Deploy Results
         uses: thollander/actions-comment-pull-request@v2
@@ -59,9 +59,9 @@ jobs:
           comment_tag: vercel_deploy_preview
           message: |
             ### World Engine Docs deployed (Preview)!
-            ----------------------------------------------
+            ___
             ${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}
-            ----------------------------------------------
+
   deploy-production:
 #    if: ${{ github.ref == 'refs/heads/main' }}
     strategy:
@@ -97,8 +97,8 @@ jobs:
           vercel deploy --prebuilt --prod --token=${{ secrets.DOCS_VERCEL_TOKEN }} 2>&1 | tee output.txt
           EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
           echo "DEPLOY_OUTPUT<<$EOF" >> $GITHUB_OUTPUT
-          echo "$(cat output.txt  | grep Inspect)" >> $GITHUB_OUTPUT
-          echo "$(cat output.txt  | grep Production)" >> $GITHUB_OUTPUT
+          echo ":mag: $(cat output.txt  | grep Inspect)" >> $GITHUB_OUTPUT
+          echo ":globe_with_meridians: $(cat output.txt  | grep Production)" >> $GITHUB_OUTPUT
           echo "$EOF" >> $GITHUB_OUTPUT
       - name: PR Comment Deploy Results
         uses: thollander/actions-comment-pull-request@v2
@@ -106,6 +106,5 @@ jobs:
           comment_tag: vercel_deploy_production
           message: |
             ### World Engine Docs deployed (Production)!
-            ----------------------------------------------
+            ___
             ${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}
-            ----------------------------------------------
