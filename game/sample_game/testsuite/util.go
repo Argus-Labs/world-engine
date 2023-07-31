@@ -22,8 +22,8 @@ type nakamaClient struct {
 }
 
 func newClient(t *testing.T) *nakamaClient {
-	host := os.Getenv("NAKAMA_ADDRESS")
-	assert.Check(t, host != "", "nakama address must be set via environment variable NAKAMA_ADDRESS")
+	host := os.Getenv(envNakamaAddress)
+	assert.Check(t, host != "", "nakama address must be set via environment variable %s", envNakamaAddress)
 
 	h := &nakamaClient{
 		addr: host,
