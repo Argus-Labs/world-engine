@@ -94,17 +94,5 @@ jobs:
         id: vercel-deploy-results
         run: |
           vercel deploy --prebuilt --prod --token=${{ secrets.DOCS_VERCEL_TOKEN }} 2>&1 | tee output.txt
-          ## Randomized EOF for multiline $GITHUB_OUTPUT
-          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
-          echo "DEPLOY_OUTPUT<<$EOF" >> $GITHUB_OUTPUT
-          echo ":mag: $(cat output.txt  | grep Inspect)" >> $GITHUB_OUTPUT
-          echo ":globe_with_meridians: $(cat output.txt  | grep Production)" >> $GITHUB_OUTPUT
-          echo "$EOF" >> $GITHUB_OUTPUT
-      - name: PR Comment Deploy Results
-        uses: thollander/actions-comment-pull-request@v2
-        with:
-          comment_tag: vercel_deploy_production
-          message: |
-            ### World Engine Docs deployed to Vercel (Production)!
-            ___
-            ${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}
+          echo ":mag: $(cat output.txt  | grep Inspect)"
+          echo ":globe_with_meridians: $(cat output.txt  | grep Production)"
