@@ -14,28 +14,83 @@ import (
 	sync "sync"
 )
 
+var _ protoreflect.List = (*_SubmitShardTxRequest_4_list)(nil)
+
+type _SubmitShardTxRequest_4_list struct {
+	list *[]*Transaction
+}
+
+func (x *_SubmitShardTxRequest_4_list) Len() int {
+	if x.list == nil {
+		return 0
+	}
+	return len(*x.list)
+}
+
+func (x *_SubmitShardTxRequest_4_list) Get(i int) protoreflect.Value {
+	return protoreflect.ValueOfMessage((*x.list)[i].ProtoReflect())
+}
+
+func (x *_SubmitShardTxRequest_4_list) Set(i int, value protoreflect.Value) {
+	valueUnwrapped := value.Message()
+	concreteValue := valueUnwrapped.Interface().(*Transaction)
+	(*x.list)[i] = concreteValue
+}
+
+func (x *_SubmitShardTxRequest_4_list) Append(value protoreflect.Value) {
+	valueUnwrapped := value.Message()
+	concreteValue := valueUnwrapped.Interface().(*Transaction)
+	*x.list = append(*x.list, concreteValue)
+}
+
+func (x *_SubmitShardTxRequest_4_list) AppendMutable() protoreflect.Value {
+	v := new(Transaction)
+	*x.list = append(*x.list, v)
+	return protoreflect.ValueOfMessage(v.ProtoReflect())
+}
+
+func (x *_SubmitShardTxRequest_4_list) Truncate(n int) {
+	for i := n; i < len(*x.list); i++ {
+		(*x.list)[i] = nil
+	}
+	*x.list = (*x.list)[:n]
+}
+
+func (x *_SubmitShardTxRequest_4_list) NewElement() protoreflect.Value {
+	v := new(Transaction)
+	return protoreflect.ValueOfMessage(v.ProtoReflect())
+}
+
+func (x *_SubmitShardTxRequest_4_list) IsValid() bool {
+	return x.list != nil
+}
+
 var (
-	md_SubmitBatchRequest                   protoreflect.MessageDescriptor
-	fd_SubmitBatchRequest_sender            protoreflect.FieldDescriptor
-	fd_SubmitBatchRequest_transaction_batch protoreflect.FieldDescriptor
+	md_SubmitShardTxRequest           protoreflect.MessageDescriptor
+	fd_SubmitShardTxRequest_sender    protoreflect.FieldDescriptor
+	fd_SubmitShardTxRequest_namespace protoreflect.FieldDescriptor
+	fd_SubmitShardTxRequest_epoch     protoreflect.FieldDescriptor
+	fd_SubmitShardTxRequest_txs       protoreflect.FieldDescriptor
 )
 
 func init() {
 	file_shard_v1_tx_proto_init()
-	md_SubmitBatchRequest = File_shard_v1_tx_proto.Messages().ByName("SubmitBatchRequest")
-	fd_SubmitBatchRequest_sender = md_SubmitBatchRequest.Fields().ByName("sender")
-	fd_SubmitBatchRequest_transaction_batch = md_SubmitBatchRequest.Fields().ByName("transaction_batch")
+	md_SubmitShardTxRequest = File_shard_v1_tx_proto.Messages().ByName("SubmitShardTxRequest")
+	fd_SubmitShardTxRequest_sender = md_SubmitShardTxRequest.Fields().ByName("sender")
+	fd_SubmitShardTxRequest_namespace = md_SubmitShardTxRequest.Fields().ByName("namespace")
+	fd_SubmitShardTxRequest_epoch = md_SubmitShardTxRequest.Fields().ByName("epoch")
+	fd_SubmitShardTxRequest_txs = md_SubmitShardTxRequest.Fields().ByName("txs")
 }
 
-var _ protoreflect.Message = (*fastReflection_SubmitBatchRequest)(nil)
+var _ protoreflect.Message = (*fastReflection_SubmitShardTxRequest)(nil)
 
-type fastReflection_SubmitBatchRequest SubmitBatchRequest
+type fastReflection_SubmitShardTxRequest SubmitShardTxRequest
 
-func (x *SubmitBatchRequest) ProtoReflect() protoreflect.Message {
-	return (*fastReflection_SubmitBatchRequest)(x)
+func (x *SubmitShardTxRequest) ProtoReflect() protoreflect.Message {
+	return (*fastReflection_SubmitShardTxRequest)(x)
 }
 
-func (x *SubmitBatchRequest) slowProtoReflect() protoreflect.Message {
+func (x *SubmitShardTxRequest) slowProtoReflect() protoreflect.Message {
 	mi := &file_shard_v1_tx_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -47,43 +102,43 @@ func (x *SubmitBatchRequest) slowProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-var _fastReflection_SubmitBatchRequest_messageType fastReflection_SubmitBatchRequest_messageType
-var _ protoreflect.MessageType = fastReflection_SubmitBatchRequest_messageType{}
+var _fastReflection_SubmitShardTxRequest_messageType fastReflection_SubmitShardTxRequest_messageType
+var _ protoreflect.MessageType = fastReflection_SubmitShardTxRequest_messageType{}
 
-type fastReflection_SubmitBatchRequest_messageType struct{}
+type fastReflection_SubmitShardTxRequest_messageType struct{}
 
-func (x fastReflection_SubmitBatchRequest_messageType) Zero() protoreflect.Message {
-	return (*fastReflection_SubmitBatchRequest)(nil)
+func (x fastReflection_SubmitShardTxRequest_messageType) Zero() protoreflect.Message {
+	return (*fastReflection_SubmitShardTxRequest)(nil)
 }
-func (x fastReflection_SubmitBatchRequest_messageType) New() protoreflect.Message {
-	return new(fastReflection_SubmitBatchRequest)
+func (x fastReflection_SubmitShardTxRequest_messageType) New() protoreflect.Message {
+	return new(fastReflection_SubmitShardTxRequest)
 }
-func (x fastReflection_SubmitBatchRequest_messageType) Descriptor() protoreflect.MessageDescriptor {
-	return md_SubmitBatchRequest
+func (x fastReflection_SubmitShardTxRequest_messageType) Descriptor() protoreflect.MessageDescriptor {
+	return md_SubmitShardTxRequest
 }
 
 // Descriptor returns message descriptor, which contains only the protobuf
 // type information for the message.
-func (x *fastReflection_SubmitBatchRequest) Descriptor() protoreflect.MessageDescriptor {
-	return md_SubmitBatchRequest
+func (x *fastReflection_SubmitShardTxRequest) Descriptor() protoreflect.MessageDescriptor {
+	return md_SubmitShardTxRequest
 }
 
 // Type returns the message type, which encapsulates both Go and protobuf
 // type information. If the Go type information is not needed,
 // it is recommended that the message descriptor be used instead.
-func (x *fastReflection_SubmitBatchRequest) Type() protoreflect.MessageType {
-	return _fastReflection_SubmitBatchRequest_messageType
+func (x *fastReflection_SubmitShardTxRequest) Type() protoreflect.MessageType {
+	return _fastReflection_SubmitShardTxRequest_messageType
 }
 
 // New returns a newly allocated and mutable empty message.
-func (x *fastReflection_SubmitBatchRequest) New() protoreflect.Message {
-	return new(fastReflection_SubmitBatchRequest)
+func (x *fastReflection_SubmitShardTxRequest) New() protoreflect.Message {
+	return new(fastReflection_SubmitShardTxRequest)
 }
 
 // Interface unwraps the message reflection interface and
 // returns the underlying ProtoMessage interface.
-func (x *fastReflection_SubmitBatchRequest) Interface() protoreflect.ProtoMessage {
-	return (*SubmitBatchRequest)(x)
+func (x *fastReflection_SubmitShardTxRequest) Interface() protoreflect.ProtoMessage {
+	return (*SubmitShardTxRequest)(x)
 }
 
 // Range iterates over every populated field in an undefined order,
@@ -91,16 +146,28 @@ func (x *fastReflection_SubmitBatchRequest) Interface() protoreflect.ProtoMessag
 // Range returns immediately if f returns false.
 // While iterating, mutating operations may only be performed
 // on the current field descriptor.
-func (x *fastReflection_SubmitBatchRequest) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
+func (x *fastReflection_SubmitShardTxRequest) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
 	if x.Sender != "" {
 		value := protoreflect.ValueOfString(x.Sender)
-		if !f(fd_SubmitBatchRequest_sender, value) {
+		if !f(fd_SubmitShardTxRequest_sender, value) {
 			return
 		}
 	}
-	if x.TransactionBatch != nil {
-		value := protoreflect.ValueOfMessage(x.TransactionBatch.ProtoReflect())
-		if !f(fd_SubmitBatchRequest_transaction_batch, value) {
+	if x.Namespace != "" {
+		value := protoreflect.ValueOfString(x.Namespace)
+		if !f(fd_SubmitShardTxRequest_namespace, value) {
+			return
+		}
+	}
+	if x.Epoch != uint64(0) {
+		value := protoreflect.ValueOfUint64(x.Epoch)
+		if !f(fd_SubmitShardTxRequest_epoch, value) {
+			return
+		}
+	}
+	if len(x.Txs) != 0 {
+		value := protoreflect.ValueOfList(&_SubmitShardTxRequest_4_list{list: &x.Txs})
+		if !f(fd_SubmitShardTxRequest_txs, value) {
 			return
 		}
 	}
@@ -117,17 +184,21 @@ func (x *fastReflection_SubmitBatchRequest) Range(f func(protoreflect.FieldDescr
 // In other cases (aside from the nullable cases above),
 // a proto3 scalar field is populated if it contains a non-zero value, and
 // a repeated field is populated if it is non-empty.
-func (x *fastReflection_SubmitBatchRequest) Has(fd protoreflect.FieldDescriptor) bool {
+func (x *fastReflection_SubmitShardTxRequest) Has(fd protoreflect.FieldDescriptor) bool {
 	switch fd.FullName() {
-	case "shard.v1.SubmitBatchRequest.sender":
+	case "shard.v1.SubmitShardTxRequest.sender":
 		return x.Sender != ""
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		return x.TransactionBatch != nil
+	case "shard.v1.SubmitShardTxRequest.namespace":
+		return x.Namespace != ""
+	case "shard.v1.SubmitShardTxRequest.epoch":
+		return x.Epoch != uint64(0)
+	case "shard.v1.SubmitShardTxRequest.txs":
+		return len(x.Txs) != 0
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxRequest does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -137,17 +208,21 @@ func (x *fastReflection_SubmitBatchRequest) Has(fd protoreflect.FieldDescriptor)
 // associated with the given field number.
 //
 // Clear is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchRequest) Clear(fd protoreflect.FieldDescriptor) {
+func (x *fastReflection_SubmitShardTxRequest) Clear(fd protoreflect.FieldDescriptor) {
 	switch fd.FullName() {
-	case "shard.v1.SubmitBatchRequest.sender":
+	case "shard.v1.SubmitShardTxRequest.sender":
 		x.Sender = ""
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		x.TransactionBatch = nil
+	case "shard.v1.SubmitShardTxRequest.namespace":
+		x.Namespace = ""
+	case "shard.v1.SubmitShardTxRequest.epoch":
+		x.Epoch = uint64(0)
+	case "shard.v1.SubmitShardTxRequest.txs":
+		x.Txs = nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxRequest does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -157,19 +232,28 @@ func (x *fastReflection_SubmitBatchRequest) Clear(fd protoreflect.FieldDescripto
 // the default value of a bytes scalar is guaranteed to be a copy.
 // For unpopulated composite types, it returns an empty, read-only view
 // of the value; to obtain a mutable reference, use Mutable.
-func (x *fastReflection_SubmitBatchRequest) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitShardTxRequest) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
 	switch descriptor.FullName() {
-	case "shard.v1.SubmitBatchRequest.sender":
+	case "shard.v1.SubmitShardTxRequest.sender":
 		value := x.Sender
 		return protoreflect.ValueOfString(value)
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		value := x.TransactionBatch
-		return protoreflect.ValueOfMessage(value.ProtoReflect())
+	case "shard.v1.SubmitShardTxRequest.namespace":
+		value := x.Namespace
+		return protoreflect.ValueOfString(value)
+	case "shard.v1.SubmitShardTxRequest.epoch":
+		value := x.Epoch
+		return protoreflect.ValueOfUint64(value)
+	case "shard.v1.SubmitShardTxRequest.txs":
+		if len(x.Txs) == 0 {
+			return protoreflect.ValueOfList(&_SubmitShardTxRequest_4_list{})
+		}
+		listValue := &_SubmitShardTxRequest_4_list{list: &x.Txs}
+		return protoreflect.ValueOfList(listValue)
 	default:
 		if descriptor.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", descriptor.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxRequest does not contain field %s", descriptor.FullName()))
 	}
 }
 
@@ -183,17 +267,23 @@ func (x *fastReflection_SubmitBatchRequest) Get(descriptor protoreflect.FieldDes
 // empty, read-only value, then it panics.
 //
 // Set is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchRequest) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
+func (x *fastReflection_SubmitShardTxRequest) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
 	switch fd.FullName() {
-	case "shard.v1.SubmitBatchRequest.sender":
+	case "shard.v1.SubmitShardTxRequest.sender":
 		x.Sender = value.Interface().(string)
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		x.TransactionBatch = value.Message().Interface().(*TransactionBatch)
+	case "shard.v1.SubmitShardTxRequest.namespace":
+		x.Namespace = value.Interface().(string)
+	case "shard.v1.SubmitShardTxRequest.epoch":
+		x.Epoch = value.Uint()
+	case "shard.v1.SubmitShardTxRequest.txs":
+		lv := value.List()
+		clv := lv.(*_SubmitShardTxRequest_4_list)
+		x.Txs = *clv.list
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxRequest does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -207,48 +297,57 @@ func (x *fastReflection_SubmitBatchRequest) Set(fd protoreflect.FieldDescriptor,
 // It panics if the field does not contain a composite type.
 //
 // Mutable is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchRequest) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitShardTxRequest) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		if x.TransactionBatch == nil {
-			x.TransactionBatch = new(TransactionBatch)
+	case "shard.v1.SubmitShardTxRequest.txs":
+		if x.Txs == nil {
+			x.Txs = []*Transaction{}
 		}
-		return protoreflect.ValueOfMessage(x.TransactionBatch.ProtoReflect())
-	case "shard.v1.SubmitBatchRequest.sender":
-		panic(fmt.Errorf("field sender of message shard.v1.SubmitBatchRequest is not mutable"))
+		value := &_SubmitShardTxRequest_4_list{list: &x.Txs}
+		return protoreflect.ValueOfList(value)
+	case "shard.v1.SubmitShardTxRequest.sender":
+		panic(fmt.Errorf("field sender of message shard.v1.SubmitShardTxRequest is not mutable"))
+	case "shard.v1.SubmitShardTxRequest.namespace":
+		panic(fmt.Errorf("field namespace of message shard.v1.SubmitShardTxRequest is not mutable"))
+	case "shard.v1.SubmitShardTxRequest.epoch":
+		panic(fmt.Errorf("field epoch of message shard.v1.SubmitShardTxRequest is not mutable"))
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxRequest does not contain field %s", fd.FullName()))
 	}
 }
 
 // NewField returns a new value that is assignable to the field
 // for the given descriptor. For scalars, this returns the default value.
 // For lists, maps, and messages, this returns a new, empty, mutable value.
-func (x *fastReflection_SubmitBatchRequest) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitShardTxRequest) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.SubmitBatchRequest.sender":
+	case "shard.v1.SubmitShardTxRequest.sender":
 		return protoreflect.ValueOfString("")
-	case "shard.v1.SubmitBatchRequest.transaction_batch":
-		m := new(TransactionBatch)
-		return protoreflect.ValueOfMessage(m.ProtoReflect())
+	case "shard.v1.SubmitShardTxRequest.namespace":
+		return protoreflect.ValueOfString("")
+	case "shard.v1.SubmitShardTxRequest.epoch":
+		return protoreflect.ValueOfUint64(uint64(0))
+	case "shard.v1.SubmitShardTxRequest.txs":
+		list := []*Transaction{}
+		return protoreflect.ValueOfList(&_SubmitShardTxRequest_4_list{list: &list})
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxRequest does not contain field %s", fd.FullName()))
 	}
 }
 
 // WhichOneof reports which field within the oneof is populated,
 // returning nil if none are populated.
 // It panics if the oneof descriptor does not belong to this message.
-func (x *fastReflection_SubmitBatchRequest) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
+func (x *fastReflection_SubmitShardTxRequest) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
 	switch d.FullName() {
 	default:
-		panic(fmt.Errorf("%s is not a oneof field in shard.v1.SubmitBatchRequest", d.FullName()))
+		panic(fmt.Errorf("%s is not a oneof field in shard.v1.SubmitShardTxRequest", d.FullName()))
 	}
 	panic("unreachable")
 }
@@ -256,7 +355,7 @@ func (x *fastReflection_SubmitBatchRequest) WhichOneof(d protoreflect.OneofDescr
 // GetUnknown retrieves the entire list of unknown fields.
 // The caller may only mutate the contents of the RawFields
 // if the mutated bytes are stored back into the message with SetUnknown.
-func (x *fastReflection_SubmitBatchRequest) GetUnknown() protoreflect.RawFields {
+func (x *fastReflection_SubmitShardTxRequest) GetUnknown() protoreflect.RawFields {
 	return x.unknownFields
 }
 
@@ -267,7 +366,7 @@ func (x *fastReflection_SubmitBatchRequest) GetUnknown() protoreflect.RawFields 
 // An empty RawFields may be passed to clear the fields.
 //
 // SetUnknown is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchRequest) SetUnknown(fields protoreflect.RawFields) {
+func (x *fastReflection_SubmitShardTxRequest) SetUnknown(fields protoreflect.RawFields) {
 	x.unknownFields = fields
 }
 
@@ -279,7 +378,7 @@ func (x *fastReflection_SubmitBatchRequest) SetUnknown(fields protoreflect.RawFi
 // message type, but the details are implementation dependent.
 // Validity is not part of the protobuf data model, and may not
 // be preserved in marshaling or other operations.
-func (x *fastReflection_SubmitBatchRequest) IsValid() bool {
+func (x *fastReflection_SubmitShardTxRequest) IsValid() bool {
 	return x != nil
 }
 
@@ -289,9 +388,9 @@ func (x *fastReflection_SubmitBatchRequest) IsValid() bool {
 // The returned methods type is identical to
 // "google.golang.org/protobuf/runtime/protoiface".Methods.
 // Consult the protoiface package documentation for details.
-func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
+func (x *fastReflection_SubmitShardTxRequest) ProtoMethods() *protoiface.Methods {
 	size := func(input protoiface.SizeInput) protoiface.SizeOutput {
-		x := input.Message.Interface().(*SubmitBatchRequest)
+		x := input.Message.Interface().(*SubmitShardTxRequest)
 		if x == nil {
 			return protoiface.SizeOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -307,9 +406,18 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 		if l > 0 {
 			n += 1 + l + runtime.Sov(uint64(l))
 		}
-		if x.TransactionBatch != nil {
-			l = options.Size(x.TransactionBatch)
+		l = len(x.Namespace)
+		if l > 0 {
 			n += 1 + l + runtime.Sov(uint64(l))
+		}
+		if x.Epoch != 0 {
+			n += 1 + runtime.Sov(uint64(x.Epoch))
+		}
+		if len(x.Txs) > 0 {
+			for _, e := range x.Txs {
+				l = options.Size(e)
+				n += 1 + l + runtime.Sov(uint64(l))
+			}
 		}
 		if x.unknownFields != nil {
 			n += len(x.unknownFields)
@@ -321,7 +429,7 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 	}
 
 	marshal := func(input protoiface.MarshalInput) (protoiface.MarshalOutput, error) {
-		x := input.Message.Interface().(*SubmitBatchRequest)
+		x := input.Message.Interface().(*SubmitShardTxRequest)
 		if x == nil {
 			return protoiface.MarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -340,17 +448,31 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 			i -= len(x.unknownFields)
 			copy(dAtA[i:], x.unknownFields)
 		}
-		if x.TransactionBatch != nil {
-			encoded, err := options.Marshal(x.TransactionBatch)
-			if err != nil {
-				return protoiface.MarshalOutput{
-					NoUnkeyedLiterals: input.NoUnkeyedLiterals,
-					Buf:               input.Buf,
-				}, err
+		if len(x.Txs) > 0 {
+			for iNdEx := len(x.Txs) - 1; iNdEx >= 0; iNdEx-- {
+				encoded, err := options.Marshal(x.Txs[iNdEx])
+				if err != nil {
+					return protoiface.MarshalOutput{
+						NoUnkeyedLiterals: input.NoUnkeyedLiterals,
+						Buf:               input.Buf,
+					}, err
+				}
+				i -= len(encoded)
+				copy(dAtA[i:], encoded)
+				i = runtime.EncodeVarint(dAtA, i, uint64(len(encoded)))
+				i--
+				dAtA[i] = 0x22
 			}
-			i -= len(encoded)
-			copy(dAtA[i:], encoded)
-			i = runtime.EncodeVarint(dAtA, i, uint64(len(encoded)))
+		}
+		if x.Epoch != 0 {
+			i = runtime.EncodeVarint(dAtA, i, uint64(x.Epoch))
+			i--
+			dAtA[i] = 0x18
+		}
+		if len(x.Namespace) > 0 {
+			i -= len(x.Namespace)
+			copy(dAtA[i:], x.Namespace)
+			i = runtime.EncodeVarint(dAtA, i, uint64(len(x.Namespace)))
 			i--
 			dAtA[i] = 0x12
 		}
@@ -372,7 +494,7 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 		}, nil
 	}
 	unmarshal := func(input protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) {
-		x := input.Message.Interface().(*SubmitBatchRequest)
+		x := input.Message.Interface().(*SubmitShardTxRequest)
 		if x == nil {
 			return protoiface.UnmarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -404,10 +526,10 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 			fieldNum := int32(wire >> 3)
 			wireType := int(wire & 0x7)
 			if wireType == 4 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitBatchRequest: wiretype end group for non-group")
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitShardTxRequest: wiretype end group for non-group")
 			}
 			if fieldNum <= 0 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitBatchRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitShardTxRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 			}
 			switch fieldNum {
 			case 1:
@@ -444,7 +566,58 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 				iNdEx = postIndex
 			case 2:
 				if wireType != 2 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field TransactionBatch", wireType)
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
+				}
+				var stringLen uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
+					}
+					if iNdEx >= l {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					stringLen |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				intStringLen := int(stringLen)
+				if intStringLen < 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
+				}
+				postIndex := iNdEx + intStringLen
+				if postIndex < 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
+				}
+				if postIndex > l {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+				}
+				x.Namespace = string(dAtA[iNdEx:postIndex])
+				iNdEx = postIndex
+			case 3:
+				if wireType != 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Epoch", wireType)
+				}
+				x.Epoch = 0
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
+					}
+					if iNdEx >= l {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					x.Epoch |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+			case 4:
+				if wireType != 2 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Txs", wireType)
 				}
 				var msglen int
 				for shift := uint(0); ; shift += 7 {
@@ -471,10 +644,8 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 				if postIndex > l {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
 				}
-				if x.TransactionBatch == nil {
-					x.TransactionBatch = &TransactionBatch{}
-				}
-				if err := options.Unmarshal(dAtA[iNdEx:postIndex], x.TransactionBatch); err != nil {
+				x.Txs = append(x.Txs, &Transaction{})
+				if err := options.Unmarshal(dAtA[iNdEx:postIndex], x.Txs[len(x.Txs)-1]); err != nil {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, err
 				}
 				iNdEx = postIndex
@@ -514,23 +685,23 @@ func (x *fastReflection_SubmitBatchRequest) ProtoMethods() *protoiface.Methods {
 }
 
 var (
-	md_SubmitBatchResponse protoreflect.MessageDescriptor
+	md_SubmitShardTxResponse protoreflect.MessageDescriptor
 )
 
 func init() {
 	file_shard_v1_tx_proto_init()
-	md_SubmitBatchResponse = File_shard_v1_tx_proto.Messages().ByName("SubmitBatchResponse")
+	md_SubmitShardTxResponse = File_shard_v1_tx_proto.Messages().ByName("SubmitShardTxResponse")
 }
 
-var _ protoreflect.Message = (*fastReflection_SubmitBatchResponse)(nil)
+var _ protoreflect.Message = (*fastReflection_SubmitShardTxResponse)(nil)
 
-type fastReflection_SubmitBatchResponse SubmitBatchResponse
+type fastReflection_SubmitShardTxResponse SubmitShardTxResponse
 
-func (x *SubmitBatchResponse) ProtoReflect() protoreflect.Message {
-	return (*fastReflection_SubmitBatchResponse)(x)
+func (x *SubmitShardTxResponse) ProtoReflect() protoreflect.Message {
+	return (*fastReflection_SubmitShardTxResponse)(x)
 }
 
-func (x *SubmitBatchResponse) slowProtoReflect() protoreflect.Message {
+func (x *SubmitShardTxResponse) slowProtoReflect() protoreflect.Message {
 	mi := &file_shard_v1_tx_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -542,43 +713,43 @@ func (x *SubmitBatchResponse) slowProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-var _fastReflection_SubmitBatchResponse_messageType fastReflection_SubmitBatchResponse_messageType
-var _ protoreflect.MessageType = fastReflection_SubmitBatchResponse_messageType{}
+var _fastReflection_SubmitShardTxResponse_messageType fastReflection_SubmitShardTxResponse_messageType
+var _ protoreflect.MessageType = fastReflection_SubmitShardTxResponse_messageType{}
 
-type fastReflection_SubmitBatchResponse_messageType struct{}
+type fastReflection_SubmitShardTxResponse_messageType struct{}
 
-func (x fastReflection_SubmitBatchResponse_messageType) Zero() protoreflect.Message {
-	return (*fastReflection_SubmitBatchResponse)(nil)
+func (x fastReflection_SubmitShardTxResponse_messageType) Zero() protoreflect.Message {
+	return (*fastReflection_SubmitShardTxResponse)(nil)
 }
-func (x fastReflection_SubmitBatchResponse_messageType) New() protoreflect.Message {
-	return new(fastReflection_SubmitBatchResponse)
+func (x fastReflection_SubmitShardTxResponse_messageType) New() protoreflect.Message {
+	return new(fastReflection_SubmitShardTxResponse)
 }
-func (x fastReflection_SubmitBatchResponse_messageType) Descriptor() protoreflect.MessageDescriptor {
-	return md_SubmitBatchResponse
+func (x fastReflection_SubmitShardTxResponse_messageType) Descriptor() protoreflect.MessageDescriptor {
+	return md_SubmitShardTxResponse
 }
 
 // Descriptor returns message descriptor, which contains only the protobuf
 // type information for the message.
-func (x *fastReflection_SubmitBatchResponse) Descriptor() protoreflect.MessageDescriptor {
-	return md_SubmitBatchResponse
+func (x *fastReflection_SubmitShardTxResponse) Descriptor() protoreflect.MessageDescriptor {
+	return md_SubmitShardTxResponse
 }
 
 // Type returns the message type, which encapsulates both Go and protobuf
 // type information. If the Go type information is not needed,
 // it is recommended that the message descriptor be used instead.
-func (x *fastReflection_SubmitBatchResponse) Type() protoreflect.MessageType {
-	return _fastReflection_SubmitBatchResponse_messageType
+func (x *fastReflection_SubmitShardTxResponse) Type() protoreflect.MessageType {
+	return _fastReflection_SubmitShardTxResponse_messageType
 }
 
 // New returns a newly allocated and mutable empty message.
-func (x *fastReflection_SubmitBatchResponse) New() protoreflect.Message {
-	return new(fastReflection_SubmitBatchResponse)
+func (x *fastReflection_SubmitShardTxResponse) New() protoreflect.Message {
+	return new(fastReflection_SubmitShardTxResponse)
 }
 
 // Interface unwraps the message reflection interface and
 // returns the underlying ProtoMessage interface.
-func (x *fastReflection_SubmitBatchResponse) Interface() protoreflect.ProtoMessage {
-	return (*SubmitBatchResponse)(x)
+func (x *fastReflection_SubmitShardTxResponse) Interface() protoreflect.ProtoMessage {
+	return (*SubmitShardTxResponse)(x)
 }
 
 // Range iterates over every populated field in an undefined order,
@@ -586,7 +757,7 @@ func (x *fastReflection_SubmitBatchResponse) Interface() protoreflect.ProtoMessa
 // Range returns immediately if f returns false.
 // While iterating, mutating operations may only be performed
 // on the current field descriptor.
-func (x *fastReflection_SubmitBatchResponse) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
+func (x *fastReflection_SubmitShardTxResponse) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
 }
 
 // Has reports whether a field is populated.
@@ -600,13 +771,13 @@ func (x *fastReflection_SubmitBatchResponse) Range(f func(protoreflect.FieldDesc
 // In other cases (aside from the nullable cases above),
 // a proto3 scalar field is populated if it contains a non-zero value, and
 // a repeated field is populated if it is non-empty.
-func (x *fastReflection_SubmitBatchResponse) Has(fd protoreflect.FieldDescriptor) bool {
+func (x *fastReflection_SubmitShardTxResponse) Has(fd protoreflect.FieldDescriptor) bool {
 	switch fd.FullName() {
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxResponse does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -616,13 +787,13 @@ func (x *fastReflection_SubmitBatchResponse) Has(fd protoreflect.FieldDescriptor
 // associated with the given field number.
 //
 // Clear is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchResponse) Clear(fd protoreflect.FieldDescriptor) {
+func (x *fastReflection_SubmitShardTxResponse) Clear(fd protoreflect.FieldDescriptor) {
 	switch fd.FullName() {
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxResponse does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -632,13 +803,13 @@ func (x *fastReflection_SubmitBatchResponse) Clear(fd protoreflect.FieldDescript
 // the default value of a bytes scalar is guaranteed to be a copy.
 // For unpopulated composite types, it returns an empty, read-only view
 // of the value; to obtain a mutable reference, use Mutable.
-func (x *fastReflection_SubmitBatchResponse) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitShardTxResponse) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
 	switch descriptor.FullName() {
 	default:
 		if descriptor.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", descriptor.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxResponse does not contain field %s", descriptor.FullName()))
 	}
 }
 
@@ -652,13 +823,13 @@ func (x *fastReflection_SubmitBatchResponse) Get(descriptor protoreflect.FieldDe
 // empty, read-only value, then it panics.
 //
 // Set is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchResponse) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
+func (x *fastReflection_SubmitShardTxResponse) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
 	switch fd.FullName() {
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxResponse does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -672,36 +843,36 @@ func (x *fastReflection_SubmitBatchResponse) Set(fd protoreflect.FieldDescriptor
 // It panics if the field does not contain a composite type.
 //
 // Mutable is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchResponse) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitShardTxResponse) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxResponse does not contain field %s", fd.FullName()))
 	}
 }
 
 // NewField returns a new value that is assignable to the field
 // for the given descriptor. For scalars, this returns the default value.
 // For lists, maps, and messages, this returns a new, empty, mutable value.
-func (x *fastReflection_SubmitBatchResponse) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_SubmitShardTxResponse) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitBatchResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.SubmitShardTxResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.SubmitBatchResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.SubmitShardTxResponse does not contain field %s", fd.FullName()))
 	}
 }
 
 // WhichOneof reports which field within the oneof is populated,
 // returning nil if none are populated.
 // It panics if the oneof descriptor does not belong to this message.
-func (x *fastReflection_SubmitBatchResponse) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
+func (x *fastReflection_SubmitShardTxResponse) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
 	switch d.FullName() {
 	default:
-		panic(fmt.Errorf("%s is not a oneof field in shard.v1.SubmitBatchResponse", d.FullName()))
+		panic(fmt.Errorf("%s is not a oneof field in shard.v1.SubmitShardTxResponse", d.FullName()))
 	}
 	panic("unreachable")
 }
@@ -709,7 +880,7 @@ func (x *fastReflection_SubmitBatchResponse) WhichOneof(d protoreflect.OneofDesc
 // GetUnknown retrieves the entire list of unknown fields.
 // The caller may only mutate the contents of the RawFields
 // if the mutated bytes are stored back into the message with SetUnknown.
-func (x *fastReflection_SubmitBatchResponse) GetUnknown() protoreflect.RawFields {
+func (x *fastReflection_SubmitShardTxResponse) GetUnknown() protoreflect.RawFields {
 	return x.unknownFields
 }
 
@@ -720,7 +891,7 @@ func (x *fastReflection_SubmitBatchResponse) GetUnknown() protoreflect.RawFields
 // An empty RawFields may be passed to clear the fields.
 //
 // SetUnknown is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_SubmitBatchResponse) SetUnknown(fields protoreflect.RawFields) {
+func (x *fastReflection_SubmitShardTxResponse) SetUnknown(fields protoreflect.RawFields) {
 	x.unknownFields = fields
 }
 
@@ -732,7 +903,7 @@ func (x *fastReflection_SubmitBatchResponse) SetUnknown(fields protoreflect.RawF
 // message type, but the details are implementation dependent.
 // Validity is not part of the protobuf data model, and may not
 // be preserved in marshaling or other operations.
-func (x *fastReflection_SubmitBatchResponse) IsValid() bool {
+func (x *fastReflection_SubmitShardTxResponse) IsValid() bool {
 	return x != nil
 }
 
@@ -742,9 +913,9 @@ func (x *fastReflection_SubmitBatchResponse) IsValid() bool {
 // The returned methods type is identical to
 // "google.golang.org/protobuf/runtime/protoiface".Methods.
 // Consult the protoiface package documentation for details.
-func (x *fastReflection_SubmitBatchResponse) ProtoMethods() *protoiface.Methods {
+func (x *fastReflection_SubmitShardTxResponse) ProtoMethods() *protoiface.Methods {
 	size := func(input protoiface.SizeInput) protoiface.SizeOutput {
-		x := input.Message.Interface().(*SubmitBatchResponse)
+		x := input.Message.Interface().(*SubmitShardTxResponse)
 		if x == nil {
 			return protoiface.SizeOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -766,7 +937,7 @@ func (x *fastReflection_SubmitBatchResponse) ProtoMethods() *protoiface.Methods 
 	}
 
 	marshal := func(input protoiface.MarshalInput) (protoiface.MarshalOutput, error) {
-		x := input.Message.Interface().(*SubmitBatchResponse)
+		x := input.Message.Interface().(*SubmitShardTxResponse)
 		if x == nil {
 			return protoiface.MarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -796,7 +967,7 @@ func (x *fastReflection_SubmitBatchResponse) ProtoMethods() *protoiface.Methods 
 		}, nil
 	}
 	unmarshal := func(input protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) {
-		x := input.Message.Interface().(*SubmitBatchResponse)
+		x := input.Message.Interface().(*SubmitShardTxResponse)
 		if x == nil {
 			return protoiface.UnmarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -828,10 +999,10 @@ func (x *fastReflection_SubmitBatchResponse) ProtoMethods() *protoiface.Methods 
 			fieldNum := int32(wire >> 3)
 			wireType := int(wire & 0x7)
 			if wireType == 4 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitBatchResponse: wiretype end group for non-group")
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitShardTxResponse: wiretype end group for non-group")
 			}
 			if fieldNum <= 0 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitBatchResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: SubmitShardTxResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 			}
 			switch fieldNum {
 			default:
@@ -882,18 +1053,25 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type SubmitBatchRequest struct {
+type SubmitShardTxRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
 	// sender is the address of the sender. this will be set to the module address.
-	Sender           string            `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
-	TransactionBatch *TransactionBatch `protobuf:"bytes,2,opt,name=transaction_batch,json=transactionBatch,proto3" json:"transaction_batch,omitempty"`
+	Sender string `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
+	// namespace is the namespace of the world the transactions originated from.
+	Namespace string `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	// epoch is an arbitrary interval that this transaction was executed in.
+	// for loop driven games, this is likely a tick. for event driven games,
+	// this could be some general period of time.
+	Epoch uint64 `protobuf:"varint,3,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	// txs are the transactions that occurred in this tick.
+	Txs []*Transaction `protobuf:"bytes,4,rep,name=txs,proto3" json:"txs,omitempty"`
 }
 
-func (x *SubmitBatchRequest) Reset() {
-	*x = SubmitBatchRequest{}
+func (x *SubmitShardTxRequest) Reset() {
+	*x = SubmitShardTxRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_shard_v1_tx_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -901,39 +1079,53 @@ func (x *SubmitBatchRequest) Reset() {
 	}
 }
 
-func (x *SubmitBatchRequest) String() string {
+func (x *SubmitShardTxRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SubmitBatchRequest) ProtoMessage() {}
+func (*SubmitShardTxRequest) ProtoMessage() {}
 
-// Deprecated: Use SubmitBatchRequest.ProtoReflect.Descriptor instead.
-func (*SubmitBatchRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SubmitShardTxRequest.ProtoReflect.Descriptor instead.
+func (*SubmitShardTxRequest) Descriptor() ([]byte, []int) {
 	return file_shard_v1_tx_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SubmitBatchRequest) GetSender() string {
+func (x *SubmitShardTxRequest) GetSender() string {
 	if x != nil {
 		return x.Sender
 	}
 	return ""
 }
 
-func (x *SubmitBatchRequest) GetTransactionBatch() *TransactionBatch {
+func (x *SubmitShardTxRequest) GetNamespace() string {
 	if x != nil {
-		return x.TransactionBatch
+		return x.Namespace
+	}
+	return ""
+}
+
+func (x *SubmitShardTxRequest) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *SubmitShardTxRequest) GetTxs() []*Transaction {
+	if x != nil {
+		return x.Txs
 	}
 	return nil
 }
 
-type SubmitBatchResponse struct {
+type SubmitShardTxResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 }
 
-func (x *SubmitBatchResponse) Reset() {
-	*x = SubmitBatchResponse{}
+func (x *SubmitShardTxResponse) Reset() {
+	*x = SubmitShardTxResponse{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_shard_v1_tx_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -941,14 +1133,14 @@ func (x *SubmitBatchResponse) Reset() {
 	}
 }
 
-func (x *SubmitBatchResponse) String() string {
+func (x *SubmitShardTxResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SubmitBatchResponse) ProtoMessage() {}
+func (*SubmitShardTxResponse) ProtoMessage() {}
 
-// Deprecated: Use SubmitBatchResponse.ProtoReflect.Descriptor instead.
-func (*SubmitBatchResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use SubmitShardTxResponse.ProtoReflect.Descriptor instead.
+func (*SubmitShardTxResponse) Descriptor() ([]byte, []int) {
 	return file_shard_v1_tx_proto_rawDescGZIP(), []int{1}
 }
 
@@ -961,32 +1153,34 @@ var file_shard_v1_tx_proto_rawDesc = []byte{
 	0x6f, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x17, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73,
 	0x2f, 0x6d, 0x73, 0x67, 0x2f, 0x76, 0x31, 0x2f, 0x6d, 0x73, 0x67, 0x2e, 0x70, 0x72, 0x6f, 0x74,
 	0x6f, 0x1a, 0x14, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x2f, 0x74, 0x79, 0x70, 0x65,
-	0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x9c, 0x01, 0x0a, 0x12, 0x53, 0x75, 0x62, 0x6d,
-	0x69, 0x74, 0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x30,
-	0x0a, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x42, 0x18,
-	0xd2, 0xb4, 0x2d, 0x14, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2e, 0x41, 0x64, 0x64, 0x72, 0x65,
-	0x73, 0x73, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x52, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72,
-	0x12, 0x47, 0x0a, 0x11, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x5f,
-	0x62, 0x61, 0x74, 0x63, 0x68, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x73, 0x68,
-	0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69,
-	0x6f, 0x6e, 0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x10, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63,
-	0x74, 0x69, 0x6f, 0x6e, 0x42, 0x61, 0x74, 0x63, 0x68, 0x3a, 0x0b, 0x82, 0xe7, 0xb0, 0x2a, 0x06,
-	0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x22, 0x15, 0x0a, 0x13, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74,
-	0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x58, 0x0a,
-	0x03, 0x4d, 0x73, 0x67, 0x12, 0x4a, 0x0a, 0x0b, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x42, 0x61,
-	0x74, 0x63, 0x68, 0x12, 0x1c, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x53,
-	0x75, 0x62, 0x6d, 0x69, 0x74, 0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
-	0x74, 0x1a, 0x1d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x75, 0x62,
-	0x6d, 0x69, 0x74, 0x42, 0x61, 0x74, 0x63, 0x68, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
-	0x1a, 0x05, 0x80, 0xe7, 0xb0, 0x2a, 0x01, 0x42, 0x7b, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73,
-	0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x42, 0x07, 0x54, 0x78, 0x50, 0x72, 0x6f, 0x74, 0x6f,
-	0x50, 0x01, 0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f,
-	0x2f, 0x61, 0x70, 0x69, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68,
-	0x61, 0x72, 0x64, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68,
-	0x61, 0x72, 0x64, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56,
-	0x31, 0xe2, 0x02, 0x14, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42,
-	0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64,
-	0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0xb2, 0x01, 0x0a, 0x14, 0x53, 0x75, 0x62, 0x6d,
+	0x69, 0x74, 0x53, 0x68, 0x61, 0x72, 0x64, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
+	0x12, 0x30, 0x0a, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09,
+	0x42, 0x18, 0xd2, 0xb4, 0x2d, 0x14, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2e, 0x41, 0x64, 0x64,
+	0x72, 0x65, 0x73, 0x73, 0x53, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x52, 0x06, 0x73, 0x65, 0x6e, 0x64,
+	0x65, 0x72, 0x12, 0x1c, 0x0a, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65,
+	0x12, 0x14, 0x0a, 0x05, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04, 0x52,
+	0x05, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x12, 0x27, 0x0a, 0x03, 0x74, 0x78, 0x73, 0x18, 0x04, 0x20,
+	0x03, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x54,
+	0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x03, 0x74, 0x78, 0x73, 0x3a,
+	0x0b, 0x82, 0xe7, 0xb0, 0x2a, 0x06, 0x73, 0x65, 0x6e, 0x64, 0x65, 0x72, 0x22, 0x17, 0x0a, 0x15,
+	0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x53, 0x68, 0x61, 0x72, 0x64, 0x54, 0x78, 0x52, 0x65, 0x73,
+	0x70, 0x6f, 0x6e, 0x73, 0x65, 0x32, 0x5e, 0x0a, 0x03, 0x4d, 0x73, 0x67, 0x12, 0x50, 0x0a, 0x0d,
+	0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x53, 0x68, 0x61, 0x72, 0x64, 0x54, 0x78, 0x12, 0x1e, 0x2e,
+	0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x53,
+	0x68, 0x61, 0x72, 0x64, 0x54, 0x78, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x1f, 0x2e,
+	0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x53, 0x75, 0x62, 0x6d, 0x69, 0x74, 0x53,
+	0x68, 0x61, 0x72, 0x64, 0x54, 0x78, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x1a, 0x05,
+	0x80, 0xe7, 0xb0, 0x2a, 0x01, 0x42, 0x7b, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61,
+	0x72, 0x64, 0x2e, 0x76, 0x31, 0x42, 0x07, 0x54, 0x78, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01,
+	0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61,
+	0x70, 0x69, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68, 0x61, 0x72,
+	0x64, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72,
+	0x64, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0xe2,
+	0x02, 0x14, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65,
+	0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64, 0x3a, 0x3a,
+	0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1003,14 +1197,14 @@ func file_shard_v1_tx_proto_rawDescGZIP() []byte {
 
 var file_shard_v1_tx_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_shard_v1_tx_proto_goTypes = []interface{}{
-	(*SubmitBatchRequest)(nil),  // 0: shard.v1.SubmitBatchRequest
-	(*SubmitBatchResponse)(nil), // 1: shard.v1.SubmitBatchResponse
-	(*TransactionBatch)(nil),    // 2: shard.v1.TransactionBatch
+	(*SubmitShardTxRequest)(nil),  // 0: shard.v1.SubmitShardTxRequest
+	(*SubmitShardTxResponse)(nil), // 1: shard.v1.SubmitShardTxResponse
+	(*Transaction)(nil),           // 2: shard.v1.Transaction
 }
 var file_shard_v1_tx_proto_depIdxs = []int32{
-	2, // 0: shard.v1.SubmitBatchRequest.transaction_batch:type_name -> shard.v1.TransactionBatch
-	0, // 1: shard.v1.Msg.SubmitBatch:input_type -> shard.v1.SubmitBatchRequest
-	1, // 2: shard.v1.Msg.SubmitBatch:output_type -> shard.v1.SubmitBatchResponse
+	2, // 0: shard.v1.SubmitShardTxRequest.txs:type_name -> shard.v1.Transaction
+	0, // 1: shard.v1.Msg.SubmitShardTx:input_type -> shard.v1.SubmitShardTxRequest
+	1, // 2: shard.v1.Msg.SubmitShardTx:output_type -> shard.v1.SubmitShardTxResponse
 	2, // [2:3] is the sub-list for method output_type
 	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -1026,7 +1220,7 @@ func file_shard_v1_tx_proto_init() {
 	file_shard_v1_types_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_shard_v1_tx_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SubmitBatchRequest); i {
+			switch v := v.(*SubmitShardTxRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -1038,7 +1232,7 @@ func file_shard_v1_tx_proto_init() {
 			}
 		}
 		file_shard_v1_tx_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SubmitBatchResponse); i {
+			switch v := v.(*SubmitShardTxResponse); i {
 			case 0:
 				return &v.state
 			case 1:

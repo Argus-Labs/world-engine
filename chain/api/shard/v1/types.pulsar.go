@@ -13,29 +13,27 @@ import (
 )
 
 var (
-	md_TransactionBatch           protoreflect.MessageDescriptor
-	fd_TransactionBatch_namespace protoreflect.FieldDescriptor
-	fd_TransactionBatch_tick      protoreflect.FieldDescriptor
-	fd_TransactionBatch_batch     protoreflect.FieldDescriptor
+	md_Transaction                protoreflect.MessageDescriptor
+	fd_Transaction_tx_id          protoreflect.FieldDescriptor
+	fd_Transaction_signed_payload protoreflect.FieldDescriptor
 )
 
 func init() {
 	file_shard_v1_types_proto_init()
-	md_TransactionBatch = File_shard_v1_types_proto.Messages().ByName("TransactionBatch")
-	fd_TransactionBatch_namespace = md_TransactionBatch.Fields().ByName("namespace")
-	fd_TransactionBatch_tick = md_TransactionBatch.Fields().ByName("tick")
-	fd_TransactionBatch_batch = md_TransactionBatch.Fields().ByName("batch")
+	md_Transaction = File_shard_v1_types_proto.Messages().ByName("Transaction")
+	fd_Transaction_tx_id = md_Transaction.Fields().ByName("tx_id")
+	fd_Transaction_signed_payload = md_Transaction.Fields().ByName("signed_payload")
 }
 
-var _ protoreflect.Message = (*fastReflection_TransactionBatch)(nil)
+var _ protoreflect.Message = (*fastReflection_Transaction)(nil)
 
-type fastReflection_TransactionBatch TransactionBatch
+type fastReflection_Transaction Transaction
 
-func (x *TransactionBatch) ProtoReflect() protoreflect.Message {
-	return (*fastReflection_TransactionBatch)(x)
+func (x *Transaction) ProtoReflect() protoreflect.Message {
+	return (*fastReflection_Transaction)(x)
 }
 
-func (x *TransactionBatch) slowProtoReflect() protoreflect.Message {
+func (x *Transaction) slowProtoReflect() protoreflect.Message {
 	mi := &file_shard_v1_types_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -47,43 +45,43 @@ func (x *TransactionBatch) slowProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-var _fastReflection_TransactionBatch_messageType fastReflection_TransactionBatch_messageType
-var _ protoreflect.MessageType = fastReflection_TransactionBatch_messageType{}
+var _fastReflection_Transaction_messageType fastReflection_Transaction_messageType
+var _ protoreflect.MessageType = fastReflection_Transaction_messageType{}
 
-type fastReflection_TransactionBatch_messageType struct{}
+type fastReflection_Transaction_messageType struct{}
 
-func (x fastReflection_TransactionBatch_messageType) Zero() protoreflect.Message {
-	return (*fastReflection_TransactionBatch)(nil)
+func (x fastReflection_Transaction_messageType) Zero() protoreflect.Message {
+	return (*fastReflection_Transaction)(nil)
 }
-func (x fastReflection_TransactionBatch_messageType) New() protoreflect.Message {
-	return new(fastReflection_TransactionBatch)
+func (x fastReflection_Transaction_messageType) New() protoreflect.Message {
+	return new(fastReflection_Transaction)
 }
-func (x fastReflection_TransactionBatch_messageType) Descriptor() protoreflect.MessageDescriptor {
-	return md_TransactionBatch
+func (x fastReflection_Transaction_messageType) Descriptor() protoreflect.MessageDescriptor {
+	return md_Transaction
 }
 
 // Descriptor returns message descriptor, which contains only the protobuf
 // type information for the message.
-func (x *fastReflection_TransactionBatch) Descriptor() protoreflect.MessageDescriptor {
-	return md_TransactionBatch
+func (x *fastReflection_Transaction) Descriptor() protoreflect.MessageDescriptor {
+	return md_Transaction
 }
 
 // Type returns the message type, which encapsulates both Go and protobuf
 // type information. If the Go type information is not needed,
 // it is recommended that the message descriptor be used instead.
-func (x *fastReflection_TransactionBatch) Type() protoreflect.MessageType {
-	return _fastReflection_TransactionBatch_messageType
+func (x *fastReflection_Transaction) Type() protoreflect.MessageType {
+	return _fastReflection_Transaction_messageType
 }
 
 // New returns a newly allocated and mutable empty message.
-func (x *fastReflection_TransactionBatch) New() protoreflect.Message {
-	return new(fastReflection_TransactionBatch)
+func (x *fastReflection_Transaction) New() protoreflect.Message {
+	return new(fastReflection_Transaction)
 }
 
 // Interface unwraps the message reflection interface and
 // returns the underlying ProtoMessage interface.
-func (x *fastReflection_TransactionBatch) Interface() protoreflect.ProtoMessage {
-	return (*TransactionBatch)(x)
+func (x *fastReflection_Transaction) Interface() protoreflect.ProtoMessage {
+	return (*Transaction)(x)
 }
 
 // Range iterates over every populated field in an undefined order,
@@ -91,22 +89,16 @@ func (x *fastReflection_TransactionBatch) Interface() protoreflect.ProtoMessage 
 // Range returns immediately if f returns false.
 // While iterating, mutating operations may only be performed
 // on the current field descriptor.
-func (x *fastReflection_TransactionBatch) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
-	if x.Namespace != "" {
-		value := protoreflect.ValueOfString(x.Namespace)
-		if !f(fd_TransactionBatch_namespace, value) {
+func (x *fastReflection_Transaction) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
+	if x.TxId != uint64(0) {
+		value := protoreflect.ValueOfUint64(x.TxId)
+		if !f(fd_Transaction_tx_id, value) {
 			return
 		}
 	}
-	if x.Tick != uint64(0) {
-		value := protoreflect.ValueOfUint64(x.Tick)
-		if !f(fd_TransactionBatch_tick, value) {
-			return
-		}
-	}
-	if len(x.Batch) != 0 {
-		value := protoreflect.ValueOfBytes(x.Batch)
-		if !f(fd_TransactionBatch_batch, value) {
+	if len(x.SignedPayload) != 0 {
+		value := protoreflect.ValueOfBytes(x.SignedPayload)
+		if !f(fd_Transaction_signed_payload, value) {
 			return
 		}
 	}
@@ -123,19 +115,17 @@ func (x *fastReflection_TransactionBatch) Range(f func(protoreflect.FieldDescrip
 // In other cases (aside from the nullable cases above),
 // a proto3 scalar field is populated if it contains a non-zero value, and
 // a repeated field is populated if it is non-empty.
-func (x *fastReflection_TransactionBatch) Has(fd protoreflect.FieldDescriptor) bool {
+func (x *fastReflection_Transaction) Has(fd protoreflect.FieldDescriptor) bool {
 	switch fd.FullName() {
-	case "shard.v1.TransactionBatch.namespace":
-		return x.Namespace != ""
-	case "shard.v1.TransactionBatch.tick":
-		return x.Tick != uint64(0)
-	case "shard.v1.TransactionBatch.batch":
-		return len(x.Batch) != 0
+	case "shard.v1.Transaction.tx_id":
+		return x.TxId != uint64(0)
+	case "shard.v1.Transaction.signed_payload":
+		return len(x.SignedPayload) != 0
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TransactionBatch"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Transaction"))
 		}
-		panic(fmt.Errorf("message shard.v1.TransactionBatch does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.Transaction does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -145,19 +135,17 @@ func (x *fastReflection_TransactionBatch) Has(fd protoreflect.FieldDescriptor) b
 // associated with the given field number.
 //
 // Clear is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_TransactionBatch) Clear(fd protoreflect.FieldDescriptor) {
+func (x *fastReflection_Transaction) Clear(fd protoreflect.FieldDescriptor) {
 	switch fd.FullName() {
-	case "shard.v1.TransactionBatch.namespace":
-		x.Namespace = ""
-	case "shard.v1.TransactionBatch.tick":
-		x.Tick = uint64(0)
-	case "shard.v1.TransactionBatch.batch":
-		x.Batch = nil
+	case "shard.v1.Transaction.tx_id":
+		x.TxId = uint64(0)
+	case "shard.v1.Transaction.signed_payload":
+		x.SignedPayload = nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TransactionBatch"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Transaction"))
 		}
-		panic(fmt.Errorf("message shard.v1.TransactionBatch does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.Transaction does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -167,22 +155,19 @@ func (x *fastReflection_TransactionBatch) Clear(fd protoreflect.FieldDescriptor)
 // the default value of a bytes scalar is guaranteed to be a copy.
 // For unpopulated composite types, it returns an empty, read-only view
 // of the value; to obtain a mutable reference, use Mutable.
-func (x *fastReflection_TransactionBatch) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_Transaction) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
 	switch descriptor.FullName() {
-	case "shard.v1.TransactionBatch.namespace":
-		value := x.Namespace
-		return protoreflect.ValueOfString(value)
-	case "shard.v1.TransactionBatch.tick":
-		value := x.Tick
+	case "shard.v1.Transaction.tx_id":
+		value := x.TxId
 		return protoreflect.ValueOfUint64(value)
-	case "shard.v1.TransactionBatch.batch":
-		value := x.Batch
+	case "shard.v1.Transaction.signed_payload":
+		value := x.SignedPayload
 		return protoreflect.ValueOfBytes(value)
 	default:
 		if descriptor.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TransactionBatch"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Transaction"))
 		}
-		panic(fmt.Errorf("message shard.v1.TransactionBatch does not contain field %s", descriptor.FullName()))
+		panic(fmt.Errorf("message shard.v1.Transaction does not contain field %s", descriptor.FullName()))
 	}
 }
 
@@ -196,19 +181,17 @@ func (x *fastReflection_TransactionBatch) Get(descriptor protoreflect.FieldDescr
 // empty, read-only value, then it panics.
 //
 // Set is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_TransactionBatch) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
+func (x *fastReflection_Transaction) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
 	switch fd.FullName() {
-	case "shard.v1.TransactionBatch.namespace":
-		x.Namespace = value.Interface().(string)
-	case "shard.v1.TransactionBatch.tick":
-		x.Tick = value.Uint()
-	case "shard.v1.TransactionBatch.batch":
-		x.Batch = value.Bytes()
+	case "shard.v1.Transaction.tx_id":
+		x.TxId = value.Uint()
+	case "shard.v1.Transaction.signed_payload":
+		x.SignedPayload = value.Bytes()
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TransactionBatch"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Transaction"))
 		}
-		panic(fmt.Errorf("message shard.v1.TransactionBatch does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.Transaction does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -222,48 +205,44 @@ func (x *fastReflection_TransactionBatch) Set(fd protoreflect.FieldDescriptor, v
 // It panics if the field does not contain a composite type.
 //
 // Mutable is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_TransactionBatch) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_Transaction) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.TransactionBatch.namespace":
-		panic(fmt.Errorf("field namespace of message shard.v1.TransactionBatch is not mutable"))
-	case "shard.v1.TransactionBatch.tick":
-		panic(fmt.Errorf("field tick of message shard.v1.TransactionBatch is not mutable"))
-	case "shard.v1.TransactionBatch.batch":
-		panic(fmt.Errorf("field batch of message shard.v1.TransactionBatch is not mutable"))
+	case "shard.v1.Transaction.tx_id":
+		panic(fmt.Errorf("field tx_id of message shard.v1.Transaction is not mutable"))
+	case "shard.v1.Transaction.signed_payload":
+		panic(fmt.Errorf("field signed_payload of message shard.v1.Transaction is not mutable"))
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TransactionBatch"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Transaction"))
 		}
-		panic(fmt.Errorf("message shard.v1.TransactionBatch does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.Transaction does not contain field %s", fd.FullName()))
 	}
 }
 
 // NewField returns a new value that is assignable to the field
 // for the given descriptor. For scalars, this returns the default value.
 // For lists, maps, and messages, this returns a new, empty, mutable value.
-func (x *fastReflection_TransactionBatch) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_Transaction) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.TransactionBatch.namespace":
-		return protoreflect.ValueOfString("")
-	case "shard.v1.TransactionBatch.tick":
+	case "shard.v1.Transaction.tx_id":
 		return protoreflect.ValueOfUint64(uint64(0))
-	case "shard.v1.TransactionBatch.batch":
+	case "shard.v1.Transaction.signed_payload":
 		return protoreflect.ValueOfBytes(nil)
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TransactionBatch"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Transaction"))
 		}
-		panic(fmt.Errorf("message shard.v1.TransactionBatch does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.Transaction does not contain field %s", fd.FullName()))
 	}
 }
 
 // WhichOneof reports which field within the oneof is populated,
 // returning nil if none are populated.
 // It panics if the oneof descriptor does not belong to this message.
-func (x *fastReflection_TransactionBatch) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
+func (x *fastReflection_Transaction) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
 	switch d.FullName() {
 	default:
-		panic(fmt.Errorf("%s is not a oneof field in shard.v1.TransactionBatch", d.FullName()))
+		panic(fmt.Errorf("%s is not a oneof field in shard.v1.Transaction", d.FullName()))
 	}
 	panic("unreachable")
 }
@@ -271,7 +250,7 @@ func (x *fastReflection_TransactionBatch) WhichOneof(d protoreflect.OneofDescrip
 // GetUnknown retrieves the entire list of unknown fields.
 // The caller may only mutate the contents of the RawFields
 // if the mutated bytes are stored back into the message with SetUnknown.
-func (x *fastReflection_TransactionBatch) GetUnknown() protoreflect.RawFields {
+func (x *fastReflection_Transaction) GetUnknown() protoreflect.RawFields {
 	return x.unknownFields
 }
 
@@ -282,7 +261,7 @@ func (x *fastReflection_TransactionBatch) GetUnknown() protoreflect.RawFields {
 // An empty RawFields may be passed to clear the fields.
 //
 // SetUnknown is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_TransactionBatch) SetUnknown(fields protoreflect.RawFields) {
+func (x *fastReflection_Transaction) SetUnknown(fields protoreflect.RawFields) {
 	x.unknownFields = fields
 }
 
@@ -294,7 +273,7 @@ func (x *fastReflection_TransactionBatch) SetUnknown(fields protoreflect.RawFiel
 // message type, but the details are implementation dependent.
 // Validity is not part of the protobuf data model, and may not
 // be preserved in marshaling or other operations.
-func (x *fastReflection_TransactionBatch) IsValid() bool {
+func (x *fastReflection_Transaction) IsValid() bool {
 	return x != nil
 }
 
@@ -304,9 +283,9 @@ func (x *fastReflection_TransactionBatch) IsValid() bool {
 // The returned methods type is identical to
 // "google.golang.org/protobuf/runtime/protoiface".Methods.
 // Consult the protoiface package documentation for details.
-func (x *fastReflection_TransactionBatch) ProtoMethods() *protoiface.Methods {
+func (x *fastReflection_Transaction) ProtoMethods() *protoiface.Methods {
 	size := func(input protoiface.SizeInput) protoiface.SizeOutput {
-		x := input.Message.Interface().(*TransactionBatch)
+		x := input.Message.Interface().(*Transaction)
 		if x == nil {
 			return protoiface.SizeOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -318,14 +297,10 @@ func (x *fastReflection_TransactionBatch) ProtoMethods() *protoiface.Methods {
 		var n int
 		var l int
 		_ = l
-		l = len(x.Namespace)
-		if l > 0 {
-			n += 1 + l + runtime.Sov(uint64(l))
+		if x.TxId != 0 {
+			n += 1 + runtime.Sov(uint64(x.TxId))
 		}
-		if x.Tick != 0 {
-			n += 1 + runtime.Sov(uint64(x.Tick))
-		}
-		l = len(x.Batch)
+		l = len(x.SignedPayload)
 		if l > 0 {
 			n += 1 + l + runtime.Sov(uint64(l))
 		}
@@ -339,7 +314,7 @@ func (x *fastReflection_TransactionBatch) ProtoMethods() *protoiface.Methods {
 	}
 
 	marshal := func(input protoiface.MarshalInput) (protoiface.MarshalOutput, error) {
-		x := input.Message.Interface().(*TransactionBatch)
+		x := input.Message.Interface().(*Transaction)
 		if x == nil {
 			return protoiface.MarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -358,24 +333,17 @@ func (x *fastReflection_TransactionBatch) ProtoMethods() *protoiface.Methods {
 			i -= len(x.unknownFields)
 			copy(dAtA[i:], x.unknownFields)
 		}
-		if len(x.Batch) > 0 {
-			i -= len(x.Batch)
-			copy(dAtA[i:], x.Batch)
-			i = runtime.EncodeVarint(dAtA, i, uint64(len(x.Batch)))
-			i--
-			dAtA[i] = 0x22
-		}
-		if x.Tick != 0 {
-			i = runtime.EncodeVarint(dAtA, i, uint64(x.Tick))
-			i--
-			dAtA[i] = 0x18
-		}
-		if len(x.Namespace) > 0 {
-			i -= len(x.Namespace)
-			copy(dAtA[i:], x.Namespace)
-			i = runtime.EncodeVarint(dAtA, i, uint64(len(x.Namespace)))
+		if len(x.SignedPayload) > 0 {
+			i -= len(x.SignedPayload)
+			copy(dAtA[i:], x.SignedPayload)
+			i = runtime.EncodeVarint(dAtA, i, uint64(len(x.SignedPayload)))
 			i--
 			dAtA[i] = 0x12
+		}
+		if x.TxId != 0 {
+			i = runtime.EncodeVarint(dAtA, i, uint64(x.TxId))
+			i--
+			dAtA[i] = 0x8
 		}
 		if input.Buf != nil {
 			input.Buf = append(input.Buf, dAtA...)
@@ -388,7 +356,7 @@ func (x *fastReflection_TransactionBatch) ProtoMethods() *protoiface.Methods {
 		}, nil
 	}
 	unmarshal := func(input protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) {
-		x := input.Message.Interface().(*TransactionBatch)
+		x := input.Message.Interface().(*Transaction)
 		if x == nil {
 			return protoiface.UnmarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -420,66 +388,34 @@ func (x *fastReflection_TransactionBatch) ProtoMethods() *protoiface.Methods {
 			fieldNum := int32(wire >> 3)
 			wireType := int(wire & 0x7)
 			if wireType == 4 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: TransactionBatch: wiretype end group for non-group")
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: Transaction: wiretype end group for non-group")
 			}
 			if fieldNum <= 0 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: TransactionBatch: illegal tag %d (wire type %d)", fieldNum, wire)
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: Transaction: illegal tag %d (wire type %d)", fieldNum, wire)
 			}
 			switch fieldNum {
+			case 1:
+				if wireType != 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field TxId", wireType)
+				}
+				x.TxId = 0
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
+					}
+					if iNdEx >= l {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					x.TxId |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
 			case 2:
 				if wireType != 2 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
-				}
-				var stringLen uint64
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
-					}
-					if iNdEx >= l {
-						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					stringLen |= uint64(b&0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-				intStringLen := int(stringLen)
-				if intStringLen < 0 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
-				}
-				postIndex := iNdEx + intStringLen
-				if postIndex < 0 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
-				}
-				if postIndex > l {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
-				}
-				x.Namespace = string(dAtA[iNdEx:postIndex])
-				iNdEx = postIndex
-			case 3:
-				if wireType != 0 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Tick", wireType)
-				}
-				x.Tick = 0
-				for shift := uint(0); ; shift += 7 {
-					if shift >= 64 {
-						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
-					}
-					if iNdEx >= l {
-						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
-					}
-					b := dAtA[iNdEx]
-					iNdEx++
-					x.Tick |= uint64(b&0x7F) << shift
-					if b < 0x80 {
-						break
-					}
-				}
-			case 4:
-				if wireType != 2 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Batch", wireType)
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field SignedPayload", wireType)
 				}
 				var byteLen int
 				for shift := uint(0); ; shift += 7 {
@@ -506,9 +442,551 @@ func (x *fastReflection_TransactionBatch) ProtoMethods() *protoiface.Methods {
 				if postIndex > l {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
 				}
-				x.Batch = append(x.Batch[:0], dAtA[iNdEx:postIndex]...)
-				if x.Batch == nil {
-					x.Batch = []byte{}
+				x.SignedPayload = append(x.SignedPayload[:0], dAtA[iNdEx:postIndex]...)
+				if x.SignedPayload == nil {
+					x.SignedPayload = []byte{}
+				}
+				iNdEx = postIndex
+			default:
+				iNdEx = preIndex
+				skippy, err := runtime.Skip(dAtA[iNdEx:])
+				if err != nil {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, err
+				}
+				if (skippy < 0) || (iNdEx+skippy) < 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
+				}
+				if (iNdEx + skippy) > l {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+				}
+				if !options.DiscardUnknown {
+					x.unknownFields = append(x.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+				}
+				iNdEx += skippy
+			}
+		}
+
+		if iNdEx > l {
+			return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+		}
+		return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, nil
+	}
+	return &protoiface.Methods{
+		NoUnkeyedLiterals: struct{}{},
+		Flags:             protoiface.SupportMarshalDeterministic | protoiface.SupportUnmarshalDiscardUnknown,
+		Size:              size,
+		Marshal:           marshal,
+		Unmarshal:         unmarshal,
+		Merge:             nil,
+		CheckInitialized:  nil,
+	}
+}
+
+var _ protoreflect.List = (*_Epoch_2_list)(nil)
+
+type _Epoch_2_list struct {
+	list *[]*Transaction
+}
+
+func (x *_Epoch_2_list) Len() int {
+	if x.list == nil {
+		return 0
+	}
+	return len(*x.list)
+}
+
+func (x *_Epoch_2_list) Get(i int) protoreflect.Value {
+	return protoreflect.ValueOfMessage((*x.list)[i].ProtoReflect())
+}
+
+func (x *_Epoch_2_list) Set(i int, value protoreflect.Value) {
+	valueUnwrapped := value.Message()
+	concreteValue := valueUnwrapped.Interface().(*Transaction)
+	(*x.list)[i] = concreteValue
+}
+
+func (x *_Epoch_2_list) Append(value protoreflect.Value) {
+	valueUnwrapped := value.Message()
+	concreteValue := valueUnwrapped.Interface().(*Transaction)
+	*x.list = append(*x.list, concreteValue)
+}
+
+func (x *_Epoch_2_list) AppendMutable() protoreflect.Value {
+	v := new(Transaction)
+	*x.list = append(*x.list, v)
+	return protoreflect.ValueOfMessage(v.ProtoReflect())
+}
+
+func (x *_Epoch_2_list) Truncate(n int) {
+	for i := n; i < len(*x.list); i++ {
+		(*x.list)[i] = nil
+	}
+	*x.list = (*x.list)[:n]
+}
+
+func (x *_Epoch_2_list) NewElement() protoreflect.Value {
+	v := new(Transaction)
+	return protoreflect.ValueOfMessage(v.ProtoReflect())
+}
+
+func (x *_Epoch_2_list) IsValid() bool {
+	return x.list != nil
+}
+
+var (
+	md_Epoch       protoreflect.MessageDescriptor
+	fd_Epoch_epoch protoreflect.FieldDescriptor
+	fd_Epoch_txs   protoreflect.FieldDescriptor
+)
+
+func init() {
+	file_shard_v1_types_proto_init()
+	md_Epoch = File_shard_v1_types_proto.Messages().ByName("Epoch")
+	fd_Epoch_epoch = md_Epoch.Fields().ByName("epoch")
+	fd_Epoch_txs = md_Epoch.Fields().ByName("txs")
+}
+
+var _ protoreflect.Message = (*fastReflection_Epoch)(nil)
+
+type fastReflection_Epoch Epoch
+
+func (x *Epoch) ProtoReflect() protoreflect.Message {
+	return (*fastReflection_Epoch)(x)
+}
+
+func (x *Epoch) slowProtoReflect() protoreflect.Message {
+	mi := &file_shard_v1_types_proto_msgTypes[1]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+var _fastReflection_Epoch_messageType fastReflection_Epoch_messageType
+var _ protoreflect.MessageType = fastReflection_Epoch_messageType{}
+
+type fastReflection_Epoch_messageType struct{}
+
+func (x fastReflection_Epoch_messageType) Zero() protoreflect.Message {
+	return (*fastReflection_Epoch)(nil)
+}
+func (x fastReflection_Epoch_messageType) New() protoreflect.Message {
+	return new(fastReflection_Epoch)
+}
+func (x fastReflection_Epoch_messageType) Descriptor() protoreflect.MessageDescriptor {
+	return md_Epoch
+}
+
+// Descriptor returns message descriptor, which contains only the protobuf
+// type information for the message.
+func (x *fastReflection_Epoch) Descriptor() protoreflect.MessageDescriptor {
+	return md_Epoch
+}
+
+// Type returns the message type, which encapsulates both Go and protobuf
+// type information. If the Go type information is not needed,
+// it is recommended that the message descriptor be used instead.
+func (x *fastReflection_Epoch) Type() protoreflect.MessageType {
+	return _fastReflection_Epoch_messageType
+}
+
+// New returns a newly allocated and mutable empty message.
+func (x *fastReflection_Epoch) New() protoreflect.Message {
+	return new(fastReflection_Epoch)
+}
+
+// Interface unwraps the message reflection interface and
+// returns the underlying ProtoMessage interface.
+func (x *fastReflection_Epoch) Interface() protoreflect.ProtoMessage {
+	return (*Epoch)(x)
+}
+
+// Range iterates over every populated field in an undefined order,
+// calling f for each field descriptor and value encountered.
+// Range returns immediately if f returns false.
+// While iterating, mutating operations may only be performed
+// on the current field descriptor.
+func (x *fastReflection_Epoch) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
+	if x.Epoch != uint64(0) {
+		value := protoreflect.ValueOfUint64(x.Epoch)
+		if !f(fd_Epoch_epoch, value) {
+			return
+		}
+	}
+	if len(x.Txs) != 0 {
+		value := protoreflect.ValueOfList(&_Epoch_2_list{list: &x.Txs})
+		if !f(fd_Epoch_txs, value) {
+			return
+		}
+	}
+}
+
+// Has reports whether a field is populated.
+//
+// Some fields have the property of nullability where it is possible to
+// distinguish between the default value of a field and whether the field
+// was explicitly populated with the default value. Singular message fields,
+// member fields of a oneof, and proto2 scalar fields are nullable. Such
+// fields are populated only if explicitly set.
+//
+// In other cases (aside from the nullable cases above),
+// a proto3 scalar field is populated if it contains a non-zero value, and
+// a repeated field is populated if it is non-empty.
+func (x *fastReflection_Epoch) Has(fd protoreflect.FieldDescriptor) bool {
+	switch fd.FullName() {
+	case "shard.v1.Epoch.epoch":
+		return x.Epoch != uint64(0)
+	case "shard.v1.Epoch.txs":
+		return len(x.Txs) != 0
+	default:
+		if fd.IsExtension() {
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Epoch"))
+		}
+		panic(fmt.Errorf("message shard.v1.Epoch does not contain field %s", fd.FullName()))
+	}
+}
+
+// Clear clears the field such that a subsequent Has call reports false.
+//
+// Clearing an extension field clears both the extension type and value
+// associated with the given field number.
+//
+// Clear is a mutating operation and unsafe for concurrent use.
+func (x *fastReflection_Epoch) Clear(fd protoreflect.FieldDescriptor) {
+	switch fd.FullName() {
+	case "shard.v1.Epoch.epoch":
+		x.Epoch = uint64(0)
+	case "shard.v1.Epoch.txs":
+		x.Txs = nil
+	default:
+		if fd.IsExtension() {
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Epoch"))
+		}
+		panic(fmt.Errorf("message shard.v1.Epoch does not contain field %s", fd.FullName()))
+	}
+}
+
+// Get retrieves the value for a field.
+//
+// For unpopulated scalars, it returns the default value, where
+// the default value of a bytes scalar is guaranteed to be a copy.
+// For unpopulated composite types, it returns an empty, read-only view
+// of the value; to obtain a mutable reference, use Mutable.
+func (x *fastReflection_Epoch) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
+	switch descriptor.FullName() {
+	case "shard.v1.Epoch.epoch":
+		value := x.Epoch
+		return protoreflect.ValueOfUint64(value)
+	case "shard.v1.Epoch.txs":
+		if len(x.Txs) == 0 {
+			return protoreflect.ValueOfList(&_Epoch_2_list{})
+		}
+		listValue := &_Epoch_2_list{list: &x.Txs}
+		return protoreflect.ValueOfList(listValue)
+	default:
+		if descriptor.IsExtension() {
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Epoch"))
+		}
+		panic(fmt.Errorf("message shard.v1.Epoch does not contain field %s", descriptor.FullName()))
+	}
+}
+
+// Set stores the value for a field.
+//
+// For a field belonging to a oneof, it implicitly clears any other field
+// that may be currently set within the same oneof.
+// For extension fields, it implicitly stores the provided ExtensionType.
+// When setting a composite type, it is unspecified whether the stored value
+// aliases the source's memory in any way. If the composite value is an
+// empty, read-only value, then it panics.
+//
+// Set is a mutating operation and unsafe for concurrent use.
+func (x *fastReflection_Epoch) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
+	switch fd.FullName() {
+	case "shard.v1.Epoch.epoch":
+		x.Epoch = value.Uint()
+	case "shard.v1.Epoch.txs":
+		lv := value.List()
+		clv := lv.(*_Epoch_2_list)
+		x.Txs = *clv.list
+	default:
+		if fd.IsExtension() {
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Epoch"))
+		}
+		panic(fmt.Errorf("message shard.v1.Epoch does not contain field %s", fd.FullName()))
+	}
+}
+
+// Mutable returns a mutable reference to a composite type.
+//
+// If the field is unpopulated, it may allocate a composite value.
+// For a field belonging to a oneof, it implicitly clears any other field
+// that may be currently set within the same oneof.
+// For extension fields, it implicitly stores the provided ExtensionType
+// if not already stored.
+// It panics if the field does not contain a composite type.
+//
+// Mutable is a mutating operation and unsafe for concurrent use.
+func (x *fastReflection_Epoch) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
+	switch fd.FullName() {
+	case "shard.v1.Epoch.txs":
+		if x.Txs == nil {
+			x.Txs = []*Transaction{}
+		}
+		value := &_Epoch_2_list{list: &x.Txs}
+		return protoreflect.ValueOfList(value)
+	case "shard.v1.Epoch.epoch":
+		panic(fmt.Errorf("field epoch of message shard.v1.Epoch is not mutable"))
+	default:
+		if fd.IsExtension() {
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Epoch"))
+		}
+		panic(fmt.Errorf("message shard.v1.Epoch does not contain field %s", fd.FullName()))
+	}
+}
+
+// NewField returns a new value that is assignable to the field
+// for the given descriptor. For scalars, this returns the default value.
+// For lists, maps, and messages, this returns a new, empty, mutable value.
+func (x *fastReflection_Epoch) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
+	switch fd.FullName() {
+	case "shard.v1.Epoch.epoch":
+		return protoreflect.ValueOfUint64(uint64(0))
+	case "shard.v1.Epoch.txs":
+		list := []*Transaction{}
+		return protoreflect.ValueOfList(&_Epoch_2_list{list: &list})
+	default:
+		if fd.IsExtension() {
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Epoch"))
+		}
+		panic(fmt.Errorf("message shard.v1.Epoch does not contain field %s", fd.FullName()))
+	}
+}
+
+// WhichOneof reports which field within the oneof is populated,
+// returning nil if none are populated.
+// It panics if the oneof descriptor does not belong to this message.
+func (x *fastReflection_Epoch) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
+	switch d.FullName() {
+	default:
+		panic(fmt.Errorf("%s is not a oneof field in shard.v1.Epoch", d.FullName()))
+	}
+	panic("unreachable")
+}
+
+// GetUnknown retrieves the entire list of unknown fields.
+// The caller may only mutate the contents of the RawFields
+// if the mutated bytes are stored back into the message with SetUnknown.
+func (x *fastReflection_Epoch) GetUnknown() protoreflect.RawFields {
+	return x.unknownFields
+}
+
+// SetUnknown stores an entire list of unknown fields.
+// The raw fields must be syntactically valid according to the wire format.
+// An implementation may panic if this is not the case.
+// Once stored, the caller must not mutate the content of the RawFields.
+// An empty RawFields may be passed to clear the fields.
+//
+// SetUnknown is a mutating operation and unsafe for concurrent use.
+func (x *fastReflection_Epoch) SetUnknown(fields protoreflect.RawFields) {
+	x.unknownFields = fields
+}
+
+// IsValid reports whether the message is valid.
+//
+// An invalid message is an empty, read-only value.
+//
+// An invalid message often corresponds to a nil pointer of the concrete
+// message type, but the details are implementation dependent.
+// Validity is not part of the protobuf data model, and may not
+// be preserved in marshaling or other operations.
+func (x *fastReflection_Epoch) IsValid() bool {
+	return x != nil
+}
+
+// ProtoMethods returns optional fastReflectionFeature-path implementations of various operations.
+// This method may return nil.
+//
+// The returned methods type is identical to
+// "google.golang.org/protobuf/runtime/protoiface".Methods.
+// Consult the protoiface package documentation for details.
+func (x *fastReflection_Epoch) ProtoMethods() *protoiface.Methods {
+	size := func(input protoiface.SizeInput) protoiface.SizeOutput {
+		x := input.Message.Interface().(*Epoch)
+		if x == nil {
+			return protoiface.SizeOutput{
+				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
+				Size:              0,
+			}
+		}
+		options := runtime.SizeInputToOptions(input)
+		_ = options
+		var n int
+		var l int
+		_ = l
+		if x.Epoch != 0 {
+			n += 1 + runtime.Sov(uint64(x.Epoch))
+		}
+		if len(x.Txs) > 0 {
+			for _, e := range x.Txs {
+				l = options.Size(e)
+				n += 1 + l + runtime.Sov(uint64(l))
+			}
+		}
+		if x.unknownFields != nil {
+			n += len(x.unknownFields)
+		}
+		return protoiface.SizeOutput{
+			NoUnkeyedLiterals: input.NoUnkeyedLiterals,
+			Size:              n,
+		}
+	}
+
+	marshal := func(input protoiface.MarshalInput) (protoiface.MarshalOutput, error) {
+		x := input.Message.Interface().(*Epoch)
+		if x == nil {
+			return protoiface.MarshalOutput{
+				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
+				Buf:               input.Buf,
+			}, nil
+		}
+		options := runtime.MarshalInputToOptions(input)
+		_ = options
+		size := options.Size(x)
+		dAtA := make([]byte, size)
+		i := len(dAtA)
+		_ = i
+		var l int
+		_ = l
+		if x.unknownFields != nil {
+			i -= len(x.unknownFields)
+			copy(dAtA[i:], x.unknownFields)
+		}
+		if len(x.Txs) > 0 {
+			for iNdEx := len(x.Txs) - 1; iNdEx >= 0; iNdEx-- {
+				encoded, err := options.Marshal(x.Txs[iNdEx])
+				if err != nil {
+					return protoiface.MarshalOutput{
+						NoUnkeyedLiterals: input.NoUnkeyedLiterals,
+						Buf:               input.Buf,
+					}, err
+				}
+				i -= len(encoded)
+				copy(dAtA[i:], encoded)
+				i = runtime.EncodeVarint(dAtA, i, uint64(len(encoded)))
+				i--
+				dAtA[i] = 0x12
+			}
+		}
+		if x.Epoch != 0 {
+			i = runtime.EncodeVarint(dAtA, i, uint64(x.Epoch))
+			i--
+			dAtA[i] = 0x8
+		}
+		if input.Buf != nil {
+			input.Buf = append(input.Buf, dAtA...)
+		} else {
+			input.Buf = dAtA
+		}
+		return protoiface.MarshalOutput{
+			NoUnkeyedLiterals: input.NoUnkeyedLiterals,
+			Buf:               input.Buf,
+		}, nil
+	}
+	unmarshal := func(input protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) {
+		x := input.Message.Interface().(*Epoch)
+		if x == nil {
+			return protoiface.UnmarshalOutput{
+				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
+				Flags:             input.Flags,
+			}, nil
+		}
+		options := runtime.UnmarshalInputToOptions(input)
+		_ = options
+		dAtA := input.Buf
+		l := len(dAtA)
+		iNdEx := 0
+		for iNdEx < l {
+			preIndex := iNdEx
+			var wire uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				wire |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			fieldNum := int32(wire >> 3)
+			wireType := int(wire & 0x7)
+			if wireType == 4 {
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: Epoch: wiretype end group for non-group")
+			}
+			if fieldNum <= 0 {
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: Epoch: illegal tag %d (wire type %d)", fieldNum, wire)
+			}
+			switch fieldNum {
+			case 1:
+				if wireType != 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Epoch", wireType)
+				}
+				x.Epoch = 0
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
+					}
+					if iNdEx >= l {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					x.Epoch |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+			case 2:
+				if wireType != 2 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Txs", wireType)
+				}
+				var msglen int
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
+					}
+					if iNdEx >= l {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					msglen |= int(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				if msglen < 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
+				}
+				postIndex := iNdEx + msglen
+				if postIndex < 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrInvalidLength
+				}
+				if postIndex > l {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+				}
+				x.Txs = append(x.Txs, &Transaction{})
+				if err := options.Unmarshal(dAtA[iNdEx:postIndex], x.Txs[len(x.Txs)-1]); err != nil {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, err
 				}
 				iNdEx = postIndex
 			default:
@@ -559,21 +1037,21 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type TransactionBatch struct {
+type Transaction struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// namespace is the namespace of the shard that sent the batch.
-	Namespace string `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	// tick is the tick number the tx data originates from.
-	Tick uint64 `protobuf:"varint,3,opt,name=tick,proto3" json:"tick,omitempty"`
-	// batch is a blob of transaction data.
-	Batch []byte `protobuf:"bytes,4,opt,name=batch,proto3" json:"batch,omitempty"`
+	// tx_id is the ID associated with the payloads below. This is needed so we know which transaction struct
+	// to unmarshal the payload.Body into.
+	TxId uint64 `protobuf:"varint,1,opt,name=tx_id,json=txId,proto3" json:"tx_id,omitempty"`
+	// signed_payload is a proto encoded SignedPayload
+	// (https://buf.build/argus-labs/world-engine/file/main:shard/v1/shard.proto#L21).
+	SignedPayload []byte `protobuf:"bytes,2,opt,name=signed_payload,json=signedPayload,proto3" json:"signed_payload,omitempty"`
 }
 
-func (x *TransactionBatch) Reset() {
-	*x = TransactionBatch{}
+func (x *Transaction) Reset() {
+	*x = Transaction{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_shard_v1_types_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -581,34 +1059,71 @@ func (x *TransactionBatch) Reset() {
 	}
 }
 
-func (x *TransactionBatch) String() string {
+func (x *Transaction) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*TransactionBatch) ProtoMessage() {}
+func (*Transaction) ProtoMessage() {}
 
-// Deprecated: Use TransactionBatch.ProtoReflect.Descriptor instead.
-func (*TransactionBatch) Descriptor() ([]byte, []int) {
+// Deprecated: Use Transaction.ProtoReflect.Descriptor instead.
+func (*Transaction) Descriptor() ([]byte, []int) {
 	return file_shard_v1_types_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *TransactionBatch) GetNamespace() string {
+func (x *Transaction) GetTxId() uint64 {
 	if x != nil {
-		return x.Namespace
-	}
-	return ""
-}
-
-func (x *TransactionBatch) GetTick() uint64 {
-	if x != nil {
-		return x.Tick
+		return x.TxId
 	}
 	return 0
 }
 
-func (x *TransactionBatch) GetBatch() []byte {
+func (x *Transaction) GetSignedPayload() []byte {
 	if x != nil {
-		return x.Batch
+		return x.SignedPayload
+	}
+	return nil
+}
+
+// Epoch contains an epoch number, and the transactions that occurred in that epoch.
+type Epoch struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	Epoch uint64         `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	Txs   []*Transaction `protobuf:"bytes,2,rep,name=txs,proto3" json:"txs,omitempty"`
+}
+
+func (x *Epoch) Reset() {
+	*x = Epoch{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_shard_v1_types_proto_msgTypes[1]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *Epoch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Epoch) ProtoMessage() {}
+
+// Deprecated: Use Epoch.ProtoReflect.Descriptor instead.
+func (*Epoch) Descriptor() ([]byte, []int) {
+	return file_shard_v1_types_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *Epoch) GetEpoch() uint64 {
+	if x != nil {
+		return x.Epoch
+	}
+	return 0
+}
+
+func (x *Epoch) GetTxs() []*Transaction {
+	if x != nil {
+		return x.Txs
 	}
 	return nil
 }
@@ -618,21 +1133,24 @@ var File_shard_v1_types_proto protoreflect.FileDescriptor
 var file_shard_v1_types_proto_rawDesc = []byte{
 	0x0a, 0x14, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x2f, 0x74, 0x79, 0x70, 0x65, 0x73,
 	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x12, 0x08, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31,
-	0x22, 0x5a, 0x0a, 0x10, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x42,
-	0x61, 0x74, 0x63, 0x68, 0x12, 0x1c, 0x0a, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63,
-	0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61,
-	0x63, 0x65, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x69, 0x63, 0x6b, 0x18, 0x03, 0x20, 0x01, 0x28, 0x04,
-	0x52, 0x04, 0x74, 0x69, 0x63, 0x6b, 0x12, 0x14, 0x0a, 0x05, 0x62, 0x61, 0x74, 0x63, 0x68, 0x18,
-	0x04, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x05, 0x62, 0x61, 0x74, 0x63, 0x68, 0x42, 0x7e, 0x0a, 0x0c,
-	0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x42, 0x0a, 0x54, 0x79,
-	0x70, 0x65, 0x73, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d,
-	0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x73, 0x68, 0x61,
-	0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68, 0x61, 0x72, 0x64, 0x76, 0x31, 0xa2, 0x02, 0x03,
-	0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x56, 0x31, 0xca, 0x02,
-	0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0xe2, 0x02, 0x14, 0x53, 0x68, 0x61, 0x72,
-	0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61,
-	0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64, 0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x33,
+	0x22, 0x49, 0x0a, 0x0b, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x12,
+	0x13, 0x0a, 0x05, 0x74, 0x78, 0x5f, 0x69, 0x64, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04,
+	0x74, 0x78, 0x49, 0x64, 0x12, 0x25, 0x0a, 0x0e, 0x73, 0x69, 0x67, 0x6e, 0x65, 0x64, 0x5f, 0x70,
+	0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x0d, 0x73, 0x69,
+	0x67, 0x6e, 0x65, 0x64, 0x50, 0x61, 0x79, 0x6c, 0x6f, 0x61, 0x64, 0x22, 0x46, 0x0a, 0x05, 0x45,
+	0x70, 0x6f, 0x63, 0x68, 0x12, 0x14, 0x0a, 0x05, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x18, 0x01, 0x20,
+	0x01, 0x28, 0x04, 0x52, 0x05, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x12, 0x27, 0x0a, 0x03, 0x74, 0x78,
+	0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e,
+	0x76, 0x31, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x03,
+	0x74, 0x78, 0x73, 0x42, 0x7e, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64,
+	0x2e, 0x76, 0x31, 0x42, 0x0a, 0x54, 0x79, 0x70, 0x65, 0x73, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50,
+	0x01, 0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f,
+	0x61, 0x70, 0x69, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68, 0x61,
+	0x72, 0x64, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68, 0x61,
+	0x72, 0x64, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31,
+	0xe2, 0x02, 0x14, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d,
+	0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64, 0x3a,
+	0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -647,16 +1165,18 @@ func file_shard_v1_types_proto_rawDescGZIP() []byte {
 	return file_shard_v1_types_proto_rawDescData
 }
 
-var file_shard_v1_types_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_shard_v1_types_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_shard_v1_types_proto_goTypes = []interface{}{
-	(*TransactionBatch)(nil), // 0: shard.v1.TransactionBatch
+	(*Transaction)(nil), // 0: shard.v1.Transaction
+	(*Epoch)(nil),       // 1: shard.v1.Epoch
 }
 var file_shard_v1_types_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: shard.v1.Epoch.txs:type_name -> shard.v1.Transaction
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_shard_v1_types_proto_init() }
@@ -666,7 +1186,19 @@ func file_shard_v1_types_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_shard_v1_types_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TransactionBatch); i {
+			switch v := v.(*Transaction); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_shard_v1_types_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*Epoch); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -684,7 +1216,7 @@ func file_shard_v1_types_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_shard_v1_types_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

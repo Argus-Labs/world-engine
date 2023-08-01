@@ -29,24 +29,31 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type SubmitBatchRequest struct {
+type SubmitShardTxRequest struct {
 	// sender is the address of the sender. this will be set to the module address.
-	Sender           string            `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
-	TransactionBatch *TransactionBatch `protobuf:"bytes,2,opt,name=transaction_batch,json=transactionBatch,proto3" json:"transaction_batch,omitempty"`
+	Sender string `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
+	// namespace is the namespace of the world the transactions originated from.
+	Namespace string `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	// epoch is an arbitrary interval that this transaction was executed in.
+	// for loop driven games, this is likely a tick. for event driven games,
+	// this could be some general period of time.
+	Epoch uint64 `protobuf:"varint,3,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	// txs are the transactions that occurred in this tick.
+	Txs []*Transaction `protobuf:"bytes,4,rep,name=txs,proto3" json:"txs,omitempty"`
 }
 
-func (m *SubmitBatchRequest) Reset()         { *m = SubmitBatchRequest{} }
-func (m *SubmitBatchRequest) String() string { return proto.CompactTextString(m) }
-func (*SubmitBatchRequest) ProtoMessage()    {}
-func (*SubmitBatchRequest) Descriptor() ([]byte, []int) {
+func (m *SubmitShardTxRequest) Reset()         { *m = SubmitShardTxRequest{} }
+func (m *SubmitShardTxRequest) String() string { return proto.CompactTextString(m) }
+func (*SubmitShardTxRequest) ProtoMessage()    {}
+func (*SubmitShardTxRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_2ea9067d7c94eab8, []int{0}
 }
-func (m *SubmitBatchRequest) XXX_Unmarshal(b []byte) error {
+func (m *SubmitShardTxRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SubmitBatchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *SubmitShardTxRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SubmitBatchRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_SubmitShardTxRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -56,47 +63,61 @@ func (m *SubmitBatchRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, 
 		return b[:n], nil
 	}
 }
-func (m *SubmitBatchRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SubmitBatchRequest.Merge(m, src)
+func (m *SubmitShardTxRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SubmitShardTxRequest.Merge(m, src)
 }
-func (m *SubmitBatchRequest) XXX_Size() int {
+func (m *SubmitShardTxRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *SubmitBatchRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_SubmitBatchRequest.DiscardUnknown(m)
+func (m *SubmitShardTxRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SubmitShardTxRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SubmitBatchRequest proto.InternalMessageInfo
+var xxx_messageInfo_SubmitShardTxRequest proto.InternalMessageInfo
 
-func (m *SubmitBatchRequest) GetSender() string {
+func (m *SubmitShardTxRequest) GetSender() string {
 	if m != nil {
 		return m.Sender
 	}
 	return ""
 }
 
-func (m *SubmitBatchRequest) GetTransactionBatch() *TransactionBatch {
+func (m *SubmitShardTxRequest) GetNamespace() string {
 	if m != nil {
-		return m.TransactionBatch
+		return m.Namespace
+	}
+	return ""
+}
+
+func (m *SubmitShardTxRequest) GetEpoch() uint64 {
+	if m != nil {
+		return m.Epoch
+	}
+	return 0
+}
+
+func (m *SubmitShardTxRequest) GetTxs() []*Transaction {
+	if m != nil {
+		return m.Txs
 	}
 	return nil
 }
 
-type SubmitBatchResponse struct {
+type SubmitShardTxResponse struct {
 }
 
-func (m *SubmitBatchResponse) Reset()         { *m = SubmitBatchResponse{} }
-func (m *SubmitBatchResponse) String() string { return proto.CompactTextString(m) }
-func (*SubmitBatchResponse) ProtoMessage()    {}
-func (*SubmitBatchResponse) Descriptor() ([]byte, []int) {
+func (m *SubmitShardTxResponse) Reset()         { *m = SubmitShardTxResponse{} }
+func (m *SubmitShardTxResponse) String() string { return proto.CompactTextString(m) }
+func (*SubmitShardTxResponse) ProtoMessage()    {}
+func (*SubmitShardTxResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_2ea9067d7c94eab8, []int{1}
 }
-func (m *SubmitBatchResponse) XXX_Unmarshal(b []byte) error {
+func (m *SubmitShardTxResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SubmitBatchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *SubmitShardTxResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SubmitBatchResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_SubmitShardTxResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -106,48 +127,50 @@ func (m *SubmitBatchResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return b[:n], nil
 	}
 }
-func (m *SubmitBatchResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SubmitBatchResponse.Merge(m, src)
+func (m *SubmitShardTxResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SubmitShardTxResponse.Merge(m, src)
 }
-func (m *SubmitBatchResponse) XXX_Size() int {
+func (m *SubmitShardTxResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *SubmitBatchResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_SubmitBatchResponse.DiscardUnknown(m)
+func (m *SubmitShardTxResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SubmitShardTxResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SubmitBatchResponse proto.InternalMessageInfo
+var xxx_messageInfo_SubmitShardTxResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*SubmitBatchRequest)(nil), "shard.v1.SubmitBatchRequest")
-	proto.RegisterType((*SubmitBatchResponse)(nil), "shard.v1.SubmitBatchResponse")
+	proto.RegisterType((*SubmitShardTxRequest)(nil), "shard.v1.SubmitShardTxRequest")
+	proto.RegisterType((*SubmitShardTxResponse)(nil), "shard.v1.SubmitShardTxResponse")
 }
 
 func init() { proto.RegisterFile("shard/v1/tx.proto", fileDescriptor_2ea9067d7c94eab8) }
 
 var fileDescriptor_2ea9067d7c94eab8 = []byte{
-	// 329 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x2c, 0xce, 0x48, 0x2c,
-	0x4a, 0xd1, 0x2f, 0x33, 0xd4, 0x2f, 0xa9, 0xd0, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0xe2, 0x00,
-	0x0b, 0xe9, 0x95, 0x19, 0x4a, 0x49, 0x26, 0xe7, 0x17, 0xe7, 0xe6, 0x17, 0xc7, 0x83, 0xc5, 0xf5,
-	0x21, 0x1c, 0x88, 0x22, 0x29, 0x71, 0x08, 0x4f, 0x3f, 0xb7, 0x38, 0x1d, 0xa4, 0x39, 0xb7, 0x38,
-	0x1d, 0x2a, 0x21, 0x82, 0x30, 0xb0, 0xb2, 0x20, 0x15, 0xaa, 0x5c, 0x69, 0x0e, 0x23, 0x97, 0x50,
-	0x70, 0x69, 0x52, 0x6e, 0x66, 0x89, 0x53, 0x62, 0x49, 0x72, 0x46, 0x50, 0x6a, 0x61, 0x69, 0x6a,
-	0x71, 0x89, 0x90, 0x01, 0x17, 0x5b, 0x71, 0x6a, 0x5e, 0x4a, 0x6a, 0x91, 0x04, 0xa3, 0x02, 0xa3,
-	0x06, 0xa7, 0x93, 0xc4, 0xa5, 0x2d, 0xba, 0x22, 0x50, 0x7b, 0x1c, 0x53, 0x52, 0x8a, 0x52, 0x8b,
-	0x8b, 0x83, 0x4b, 0x8a, 0x32, 0xf3, 0xd2, 0x83, 0xa0, 0xea, 0x84, 0xdc, 0xb9, 0x04, 0x4b, 0x8a,
-	0x12, 0xf3, 0x8a, 0x13, 0x93, 0x4b, 0x32, 0xf3, 0xf3, 0xe2, 0x93, 0x40, 0xa6, 0x49, 0x30, 0x29,
-	0x30, 0x6a, 0x70, 0x1b, 0x49, 0xe9, 0xc1, 0x1c, 0xae, 0x17, 0x82, 0x50, 0x02, 0xb1, 0x4f, 0xa0,
-	0x04, 0x4d, 0xc4, 0x8a, 0xbb, 0xe9, 0xf9, 0x06, 0x2d, 0xa8, 0xa9, 0x4a, 0xa2, 0x5c, 0xc2, 0x28,
-	0xae, 0x2b, 0x2e, 0xc8, 0xcf, 0x2b, 0x4e, 0x35, 0x8a, 0xe0, 0x62, 0xf6, 0x2d, 0x4e, 0x17, 0xf2,
-	0xe2, 0xe2, 0x46, 0x92, 0x15, 0x92, 0x41, 0xd8, 0x83, 0xe9, 0x25, 0x29, 0x59, 0x1c, 0xb2, 0x10,
-	0x23, 0xa5, 0x58, 0x1b, 0x9e, 0x6f, 0xd0, 0x62, 0x74, 0x0a, 0x38, 0xf1, 0x48, 0x8e, 0xf1, 0xc2,
-	0x23, 0x39, 0xc6, 0x07, 0x8f, 0xe4, 0x18, 0x27, 0x3c, 0x96, 0x63, 0xb8, 0xf0, 0x58, 0x8e, 0xe1,
-	0xc6, 0x63, 0x39, 0x86, 0x28, 0xb3, 0xf4, 0xcc, 0x92, 0x8c, 0xd2, 0x24, 0xbd, 0xe4, 0xfc, 0x5c,
-	0xfd, 0xc4, 0xa2, 0xf4, 0xd2, 0x62, 0xdd, 0x9c, 0xc4, 0xa4, 0x62, 0xfd, 0xf2, 0xfc, 0xa2, 0x9c,
-	0x14, 0xdd, 0xd4, 0xbc, 0xf4, 0xcc, 0xbc, 0x54, 0xfd, 0xe4, 0x8c, 0xc4, 0xcc, 0x3c, 0xfd, 0x0a,
-	0x7d, 0x48, 0x50, 0x83, 0xc3, 0x39, 0x89, 0x0d, 0x1c, 0xd0, 0xc6, 0x80, 0x00, 0x00, 0x00, 0xff,
-	0xff, 0x84, 0x8a, 0x11, 0x4f, 0xd1, 0x01, 0x00, 0x00,
+	// 356 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x51, 0xcd, 0x6a, 0xdb, 0x40,
+	0x10, 0xf6, 0x56, 0xb6, 0xa9, 0xd7, 0xf4, 0x50, 0x21, 0x63, 0x55, 0x14, 0xd5, 0xf8, 0x52, 0x63,
+	0xb0, 0xb6, 0x76, 0xa1, 0x87, 0xde, 0xea, 0x7b, 0xc1, 0xc8, 0x3e, 0xf5, 0xd0, 0xb2, 0x92, 0x16,
+	0x49, 0x60, 0xed, 0xaa, 0x3b, 0x2b, 0x47, 0xb9, 0x85, 0x3c, 0x41, 0x1e, 0xc5, 0x84, 0x3c, 0x44,
+	0x8e, 0x26, 0xa7, 0x1c, 0x83, 0x7d, 0xf0, 0x6b, 0x04, 0xfd, 0x04, 0x93, 0x90, 0x1c, 0xbf, 0x9f,
+	0xf9, 0x66, 0x86, 0x0f, 0x7f, 0x84, 0x88, 0xca, 0x80, 0x6c, 0xa6, 0x44, 0xe5, 0x4e, 0x2a, 0x85,
+	0x12, 0xfa, 0xfb, 0x92, 0x72, 0x36, 0x53, 0xeb, 0x93, 0x2f, 0x20, 0x11, 0xf0, 0xaf, 0xe4, 0x49,
+	0x05, 0x2a, 0x93, 0xd5, 0xaf, 0x10, 0x49, 0x20, 0x2c, 0x86, 0x13, 0x08, 0x6b, 0xc1, 0x38, 0x05,
+	0x9e, 0xa7, 0xac, 0xb6, 0x0f, 0xaf, 0x11, 0x36, 0x96, 0x99, 0x97, 0xc4, 0x6a, 0x59, 0xc8, 0xab,
+	0xdc, 0x65, 0xff, 0x33, 0x06, 0x4a, 0xff, 0x86, 0xdb, 0xc0, 0x78, 0xc0, 0xa4, 0x89, 0x06, 0x68,
+	0xd4, 0x99, 0x9b, 0x77, 0x37, 0x13, 0xa3, 0xde, 0xf4, 0x2b, 0x08, 0x24, 0x03, 0x58, 0x2a, 0x19,
+	0xf3, 0xd0, 0xad, 0x7d, 0xfa, 0x67, 0xdc, 0xe1, 0x34, 0x61, 0x90, 0x52, 0x9f, 0x99, 0xef, 0x8a,
+	0x21, 0xf7, 0x44, 0xe8, 0x06, 0x6e, 0xb1, 0x54, 0xf8, 0x91, 0xa9, 0x0d, 0xd0, 0xa8, 0xe9, 0x56,
+	0x40, 0xff, 0x8a, 0x35, 0x95, 0x83, 0xd9, 0x1c, 0x68, 0xa3, 0xee, 0xac, 0xe7, 0x3c, 0x3d, 0xe8,
+	0xac, 0x24, 0xe5, 0x40, 0x7d, 0x15, 0x0b, 0xee, 0x16, 0x8e, 0x9f, 0xdd, 0xcb, 0xe3, 0x76, 0x5c,
+	0x6f, 0x1a, 0xf6, 0x71, 0xef, 0xc5, 0xcd, 0x90, 0x0a, 0x0e, 0x6c, 0xf6, 0x17, 0x6b, 0xbf, 0x21,
+	0xd4, 0x17, 0xf8, 0xc3, 0x33, 0x5d, 0xb7, 0x4f, 0xc9, 0xaf, 0x3d, 0x6b, 0x7d, 0x79, 0x53, 0xaf,
+	0x82, 0xad, 0xd6, 0xc5, 0x71, 0x3b, 0x46, 0xf3, 0xc5, 0xed, 0xde, 0x46, 0xbb, 0xbd, 0x8d, 0x1e,
+	0xf6, 0x36, 0xba, 0x3a, 0xd8, 0x8d, 0xdd, 0xc1, 0x6e, 0xdc, 0x1f, 0xec, 0xc6, 0x9f, 0x1f, 0x61,
+	0xac, 0xa2, 0xcc, 0x73, 0x7c, 0x91, 0x10, 0x2a, 0xc3, 0x0c, 0x26, 0x6b, 0xea, 0x01, 0x39, 0x13,
+	0x72, 0x1d, 0x4c, 0x18, 0x0f, 0x63, 0xce, 0x88, 0x1f, 0xd1, 0x98, 0x93, 0x9c, 0x54, 0x45, 0x94,
+	0x2d, 0x78, 0xed, 0xb2, 0x86, 0xef, 0x8f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x94, 0x12, 0xc0, 0x2a,
+	0xef, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -162,7 +185,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	SubmitBatch(ctx context.Context, in *SubmitBatchRequest, opts ...grpc.CallOption) (*SubmitBatchResponse, error)
+	SubmitShardTx(ctx context.Context, in *SubmitShardTxRequest, opts ...grpc.CallOption) (*SubmitShardTxResponse, error)
 }
 
 type msgClient struct {
@@ -173,9 +196,9 @@ func NewMsgClient(cc grpc1.ClientConn) MsgClient {
 	return &msgClient{cc}
 }
 
-func (c *msgClient) SubmitBatch(ctx context.Context, in *SubmitBatchRequest, opts ...grpc.CallOption) (*SubmitBatchResponse, error) {
-	out := new(SubmitBatchResponse)
-	err := c.cc.Invoke(ctx, "/shard.v1.Msg/SubmitBatch", in, out, opts...)
+func (c *msgClient) SubmitShardTx(ctx context.Context, in *SubmitShardTxRequest, opts ...grpc.CallOption) (*SubmitShardTxResponse, error) {
+	out := new(SubmitShardTxResponse)
+	err := c.cc.Invoke(ctx, "/shard.v1.Msg/SubmitShardTx", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -184,35 +207,35 @@ func (c *msgClient) SubmitBatch(ctx context.Context, in *SubmitBatchRequest, opt
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	SubmitBatch(context.Context, *SubmitBatchRequest) (*SubmitBatchResponse, error)
+	SubmitShardTx(context.Context, *SubmitShardTxRequest) (*SubmitShardTxResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
 type UnimplementedMsgServer struct {
 }
 
-func (*UnimplementedMsgServer) SubmitBatch(ctx context.Context, req *SubmitBatchRequest) (*SubmitBatchResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SubmitBatch not implemented")
+func (*UnimplementedMsgServer) SubmitShardTx(ctx context.Context, req *SubmitShardTxRequest) (*SubmitShardTxResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitShardTx not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
 	s.RegisterService(&_Msg_serviceDesc, srv)
 }
 
-func _Msg_SubmitBatch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SubmitBatchRequest)
+func _Msg_SubmitShardTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitShardTxRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).SubmitBatch(ctx, in)
+		return srv.(MsgServer).SubmitShardTx(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/shard.v1.Msg/SubmitBatch",
+		FullMethod: "/shard.v1.Msg/SubmitShardTx",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).SubmitBatch(ctx, req.(*SubmitBatchRequest))
+		return srv.(MsgServer).SubmitShardTx(ctx, req.(*SubmitShardTxRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -222,15 +245,15 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SubmitBatch",
-			Handler:    _Msg_SubmitBatch_Handler,
+			MethodName: "SubmitShardTx",
+			Handler:    _Msg_SubmitShardTx_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "shard/v1/tx.proto",
 }
 
-func (m *SubmitBatchRequest) Marshal() (dAtA []byte, err error) {
+func (m *SubmitShardTxRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -240,25 +263,39 @@ func (m *SubmitBatchRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SubmitBatchRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *SubmitShardTxRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SubmitBatchRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SubmitShardTxRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if m.TransactionBatch != nil {
-		{
-			size, err := m.TransactionBatch.MarshalToSizedBuffer(dAtA[:i])
-			if err != nil {
-				return 0, err
+	if len(m.Txs) > 0 {
+		for iNdEx := len(m.Txs) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Txs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintTx(dAtA, i, uint64(size))
 			}
-			i -= size
-			i = encodeVarintTx(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x22
 		}
+	}
+	if m.Epoch != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.Epoch))
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.Namespace) > 0 {
+		i -= len(m.Namespace)
+		copy(dAtA[i:], m.Namespace)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Namespace)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -272,7 +309,7 @@ func (m *SubmitBatchRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *SubmitBatchResponse) Marshal() (dAtA []byte, err error) {
+func (m *SubmitShardTxResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -282,12 +319,12 @@ func (m *SubmitBatchResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SubmitBatchResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *SubmitShardTxResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SubmitBatchResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SubmitShardTxResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -306,7 +343,7 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *SubmitBatchRequest) Size() (n int) {
+func (m *SubmitShardTxRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -316,14 +353,23 @@ func (m *SubmitBatchRequest) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	if m.TransactionBatch != nil {
-		l = m.TransactionBatch.Size()
+	l = len(m.Namespace)
+	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.Epoch != 0 {
+		n += 1 + sovTx(uint64(m.Epoch))
+	}
+	if len(m.Txs) > 0 {
+		for _, e := range m.Txs {
+			l = e.Size()
+			n += 1 + l + sovTx(uint64(l))
+		}
 	}
 	return n
 }
 
-func (m *SubmitBatchResponse) Size() (n int) {
+func (m *SubmitShardTxResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -338,7 +384,7 @@ func sovTx(x uint64) (n int) {
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *SubmitBatchRequest) Unmarshal(dAtA []byte) error {
+func (m *SubmitShardTxRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -361,10 +407,10 @@ func (m *SubmitBatchRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SubmitBatchRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: SubmitShardTxRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SubmitBatchRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: SubmitShardTxRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -401,7 +447,58 @@ func (m *SubmitBatchRequest) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TransactionBatch", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Namespace = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Epoch", wireType)
+			}
+			m.Epoch = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Epoch |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Txs", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -428,10 +525,8 @@ func (m *SubmitBatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if m.TransactionBatch == nil {
-				m.TransactionBatch = &TransactionBatch{}
-			}
-			if err := m.TransactionBatch.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.Txs = append(m.Txs, &Transaction{})
+			if err := m.Txs[len(m.Txs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -456,7 +551,7 @@ func (m *SubmitBatchRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SubmitBatchResponse) Unmarshal(dAtA []byte) error {
+func (m *SubmitShardTxResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -479,10 +574,10 @@ func (m *SubmitBatchResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SubmitBatchResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: SubmitShardTxResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SubmitBatchResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: SubmitShardTxResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:

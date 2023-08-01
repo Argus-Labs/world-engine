@@ -161,6 +161,7 @@ linters-settings:
     # Default: []
     disable:
       - fieldalignment # too strict
+      - composites
     # Settings per analyzer.
     settings:
       shadow:

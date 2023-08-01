@@ -1,4 +1,4 @@
-package chain
+package shard
 
 import "google.golang.org/grpc"
 

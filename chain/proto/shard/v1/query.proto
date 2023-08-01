@@ -4,33 +4,45 @@ package shard.v1;
 
 import "cosmos_proto/cosmos.proto";
 import "cosmos/msg/v1/msg.proto";
-import "shard/v1/types.proto";
-
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
+import "shard/v1/types.proto";
+
 
 
 option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
 
 service Query {
-  rpc Batches(QueryBatchesRequest) returns (QueryBatchesResponse);
+  rpc Transactions(QueryTransactionsRequest) returns (QueryTransactionsResponse);
 }
 
-message QueryBatchesRequest {
+message QueryTransactionsRequest {
   string namespace = 1;
   PageRequest page = 2;
 }
 
-message QueryBatchesResponse {
-    repeated TransactionBatch batches = 1;
-    PageResponse page = 2;
+message QueryTransactionsResponse {
+  // epochs contains the transactions. Each entry contains an epoch, and a list of txs that occurred in that epoch.
+  repeated Epoch epochs = 1;
+
+  // page contains information on how to query the next items in the collection, if any.
+  // when page is nil/empty, there is nothing left to query.
+  PageResponse page = 2;
 }
 
+// PageRequest represents a request for a paged query.
 message PageRequest {
+  // key is the cosmos SDK store key to begin the iteration on.
   bytes key = 1;
+  // limit is the amount of items we want to limit in our return.
+  // example, if the collection we are interested has 10 items,
+  // and we set limit to 5, the query will only return 5 items.
   uint32  limit = 2;
 }
 
+// PageResponse represents a response to a paged query.
 message PageResponse {
+  // if a key is present, that means there are more items from the collection to query, and the given key is the key for
+  // the item after the last one returned. if key is nil, that means there are no more items in the collection to query.
   bytes key = 1;
 }

@@ -1,4 +1,7 @@
 buf.build/gen/go/argus-labs/cardinal/grpc/go v1.2.0-20230419204405-6273c6504412.4/go.mod h1:P6Hq7NMh0HM0S0p13UMWB7aT1swECD7BXP8vgGIrxws=
+buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230801220620-fcdafeaf80ca.1/go.mod h1:UYW7x7OhG98x453/C5xQJc/ukUWpIOR1y8jbX1GNREw=
+buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.28.1-20230801220620-fcdafeaf80ca.4/go.mod h1:4MaNgQtb43WIueUejxPifpusXSZttMJwX4g7Baqz9Y0=
+buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230801220620-fcdafeaf80ca.1/go.mod h1:znJrAqamygZMR7LrV3nDqY7HQcgUnFxDiqidxu1nh8A=
 buf.build/gen/go/cosmos/cosmos-proto/grpc/go v1.2.0-20211202220400-1935555c206d.4/go.mod h1:4BLD3qB5/QzdNdFnviF26v7IPBEbVXhl717CSs/x1SE=
 buf.build/gen/go/cosmos/cosmos-proto/grpc/go v1.3.0-20211202220400-1935555c206d.1 h1:lMoezaY7PUlR3DxGjRuUAzHQnnhwuaX21eJNURRCq9U=
 buf.build/gen/go/cosmos/cosmos-proto/protocolbuffers/go v1.30.0-20211202220400-1935555c206d.1 h1:Kj8t58XPssDLZoHgrsQ1+0JuVLWY82LXfWCsD2vSq74=
@@ -1192,6 +1195,7 @@ github.com/schollz/closestmatch v2.1.0+incompatible h1:Uel2GXEpJqOWBrlyI+oY9LTiy
 github.com/sclevine/agouti v3.0.0+incompatible/go.mod h1:b4WX9W9L1sfQKXeJf1mUTLZKJ48R1S7H23Ji7oFO5Bw=
 github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 h1:nn5Wsu0esKSJiIVhscUtVbo7ada43DJhG55ua/hjS5I=
 github.com/securego/gosec/v2 v2.13.1/go.mod h1:EO1sImBMBWFjOTFzMWfTRrZW6M15gm60ljzrmy/wtHo=
+github.com/segmentio/fasthash v1.0.3/go.mod h1:waKX8l2N8yckOgmSsXJi7x1ZfdKZ4x7KRMzBtS3oedY=
 github.com/segmentio/kafka-go v0.2.0 h1:HtCSf6B4gN/87yc5qTl7WsxPKQIIGXLPPM1bMCPOsoY=
 github.com/sergi/go-diff v1.2.0/go.mod h1:STckp+ISIX8hZLjrqAeVduY0gWCT9IjLuqbuNXdaHfM=
 github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible/go.mod h1:5b4v6he4MtMOwMlS0TUMTu2PcXUg8+E1lC7eC3UO/RA=
@@ -1312,6 +1316,7 @@ github.com/yudai/gojsondiff v1.0.0 h1:27cbfqXLVEJ1o8I6v3y9lg8Ydm53EKqHXAOMxEGlCO
 github.com/yudai/golcs v0.0.0-20170316035057-ecda9a501e82 h1:BHyfKlQyqbsFN5p3IfnEUduWvb9is428/nNb5L3U01M=
 github.com/yudai/pp v2.0.1+incompatible h1:Q4//iY4pNF6yPLZIigmvcl7k/bPgrcTPIFIcmawg5bI=
 github.com/yuin/goldmark v1.4.13 h1:fVcFKWvrslecOb/tg+Cc05dkeYx540o0FuFt3nUVDoE=
+github.com/zyedidia/generic v1.2.1/go.mod h1:ly2RBz4mnz1yeuVbQA/VFwGjK3mnHGRj1JuoG336Bis=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/etcd v0.0.0-20191023171146-3cf2f69b5738 h1:VcrIfasaLFkyjk6KNlXQSzO+B0fZcnECiDrKJsfxka0=
 go.etcd.io/etcd/api/v3 v3.5.6 h1:Cy2qx3npLcYqTKqGJzMypnMv2tiRyifZJ17BlWIWA7A=

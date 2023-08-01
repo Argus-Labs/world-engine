@@ -14,16 +14,18 @@ replace (
 )
 
 require (
-	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230706220147-5852f366165d.1
-	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230706220147-5852f366165d.1
+	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230801220620-fcdafeaf80ca.1
+	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230801220620-fcdafeaf80ca.1
 	github.com/alicebob/miniredis/v2 v2.30.2
 	github.com/argus-labs/world-engine/chain v0.0.0-20230707202412-c8445f1731f0
 	github.com/argus-labs/world-engine/sign v0.1.3-alpha
+	github.com/cometbft/cometbft v0.38.0-rc3
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/invopop/jsonschema v0.7.0
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/rs/zerolog v1.29.1
 	google.golang.org/grpc v1.56.2
+	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.0
 )
 
@@ -38,7 +40,6 @@ require (
 	cosmossdk.io/store v1.0.0-alpha.1 // indirect
 	cosmossdk.io/x/tx v0.9.1 // indirect
 	github.com/DataDog/zstd v1.5.5 // indirect
-	github.com/JeremyLoy/config v1.5.0 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
@@ -49,7 +50,6 @@ require (
 	github.com/cockroachdb/pebble v0.0.0-20230711190327-88bbab59ff4f // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230613231145-182959a1fad6 // indirect
-	github.com/cometbft/cometbft v0.38.0-rc3 // indirect
 	github.com/cometbft/cometbft-db v0.8.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/cosmos-db v1.0.0 // indirect
@@ -119,7 +119,6 @@ require (
 	google.golang.org/genproto v0.0.0-20230706204954-ccb25ca9f130 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20230629202037-9506855d4529 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect

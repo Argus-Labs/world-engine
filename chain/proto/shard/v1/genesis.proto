@@ -2,12 +2,19 @@ syntax = "proto3";
 
 package shard.v1;
 
-option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
-
 import "shard/v1/types.proto";
 
+option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
 
 message GenesisState {
-  // batches contains all the transaction batches.
-  repeated TransactionBatch batches = 1;
+  // namespace_transactions contains a world's namespace, and all the transactions that occurred within that world.
+  repeated NamespaceTransactions namespace_transactions = 1;
+}
+
+message NamespaceTransactions {
+  // namespace is the namespace the transactions occurred in.
+  string namespace = 1;
+
+  // epochs contains an epoch number, and the transactions that occurred within that epoch.
+  repeated Epoch epochs = 2;
 }
