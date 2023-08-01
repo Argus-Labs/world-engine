@@ -78,24 +78,24 @@ func (m *Transaction) GetSignedPayload() []byte {
 	return nil
 }
 
-// Tick contains a tick number, and the transactions that occurred in that tick.
-type Tick struct {
-	Tick uint64         `protobuf:"varint,1,opt,name=tick,proto3" json:"tick,omitempty"`
-	Txs  []*Transaction `protobuf:"bytes,2,rep,name=txs,proto3" json:"txs,omitempty"`
+// Epoch contains an epoch number, and the transactions that occurred in that epoch.
+type Epoch struct {
+	Epoch uint64         `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	Txs   []*Transaction `protobuf:"bytes,2,rep,name=txs,proto3" json:"txs,omitempty"`
 }
 
-func (m *Tick) Reset()         { *m = Tick{} }
-func (m *Tick) String() string { return proto.CompactTextString(m) }
-func (*Tick) ProtoMessage()    {}
-func (*Tick) Descriptor() ([]byte, []int) {
+func (m *Epoch) Reset()         { *m = Epoch{} }
+func (m *Epoch) String() string { return proto.CompactTextString(m) }
+func (*Epoch) ProtoMessage()    {}
+func (*Epoch) Descriptor() ([]byte, []int) {
 	return fileDescriptor_0a60f84bb846c47b, []int{1}
 }
-func (m *Tick) XXX_Unmarshal(b []byte) error {
+func (m *Epoch) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *Tick) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *Epoch) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_Tick.Marshal(b, m, deterministic)
+		return xxx_messageInfo_Epoch.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -105,26 +105,26 @@ func (m *Tick) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 		return b[:n], nil
 	}
 }
-func (m *Tick) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Tick.Merge(m, src)
+func (m *Epoch) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Epoch.Merge(m, src)
 }
-func (m *Tick) XXX_Size() int {
+func (m *Epoch) XXX_Size() int {
 	return m.Size()
 }
-func (m *Tick) XXX_DiscardUnknown() {
-	xxx_messageInfo_Tick.DiscardUnknown(m)
+func (m *Epoch) XXX_DiscardUnknown() {
+	xxx_messageInfo_Epoch.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Tick proto.InternalMessageInfo
+var xxx_messageInfo_Epoch proto.InternalMessageInfo
 
-func (m *Tick) GetTick() uint64 {
+func (m *Epoch) GetEpoch() uint64 {
 	if m != nil {
-		return m.Tick
+		return m.Epoch
 	}
 	return 0
 }
 
-func (m *Tick) GetTxs() []*Transaction {
+func (m *Epoch) GetTxs() []*Transaction {
 	if m != nil {
 		return m.Txs
 	}
@@ -133,29 +133,29 @@ func (m *Tick) GetTxs() []*Transaction {
 
 func init() {
 	proto.RegisterType((*Transaction)(nil), "shard.v1.Transaction")
-	proto.RegisterType((*Tick)(nil), "shard.v1.Tick")
+	proto.RegisterType((*Epoch)(nil), "shard.v1.Epoch")
 }
 
 func init() { proto.RegisterFile("shard/v1/types.proto", fileDescriptor_0a60f84bb846c47b) }
 
 var fileDescriptor_0a60f84bb846c47b = []byte{
-	// 245 bytes of a gzipped FileDescriptorProto
+	// 246 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x29, 0xce, 0x48, 0x2c,
 	0x4a, 0xd1, 0x2f, 0x33, 0xd4, 0x2f, 0xa9, 0x2c, 0x48, 0x2d, 0xd6, 0x2b, 0x28, 0xca, 0x2f, 0xc9,
 	0x17, 0xe2, 0x00, 0x8b, 0xea, 0x95, 0x19, 0x2a, 0x79, 0x72, 0x71, 0x87, 0x14, 0x25, 0xe6, 0x15,
 	0x27, 0x26, 0x97, 0x64, 0xe6, 0xe7, 0x09, 0x09, 0x73, 0xb1, 0x96, 0x54, 0xc4, 0x67, 0xa6, 0x48,
 	0x30, 0x2a, 0x30, 0x6a, 0xb0, 0x04, 0xb1, 0x94, 0x54, 0x78, 0xa6, 0x08, 0xa9, 0x72, 0xf1, 0x15,
 	0x67, 0xa6, 0xe7, 0xa5, 0xa6, 0xc4, 0x17, 0x24, 0x56, 0xe6, 0xe4, 0x27, 0xa6, 0x48, 0x30, 0x29,
-	0x30, 0x6a, 0xf0, 0x04, 0xf1, 0x42, 0x44, 0x03, 0x20, 0x82, 0x4a, 0xce, 0x5c, 0x2c, 0x21, 0x99,
-	0xc9, 0xd9, 0x42, 0x42, 0x5c, 0x2c, 0x25, 0x99, 0xc9, 0xd9, 0x70, 0x23, 0x40, 0x62, 0xea, 0x5c,
-	0xcc, 0x25, 0x15, 0xc5, 0x12, 0x4c, 0x0a, 0xcc, 0x1a, 0xdc, 0x46, 0xa2, 0x7a, 0x30, 0xeb, 0xf5,
-	0x90, 0xec, 0x0e, 0x02, 0xa9, 0x70, 0x0a, 0x38, 0xf1, 0x48, 0x8e, 0xf1, 0xc2, 0x23, 0x39, 0xc6,
-	0x07, 0x8f, 0xe4, 0x18, 0x27, 0x3c, 0x96, 0x63, 0xb8, 0xf0, 0x58, 0x8e, 0xe1, 0xc6, 0x63, 0x39,
-	0x86, 0x28, 0xb3, 0xf4, 0xcc, 0x92, 0x8c, 0xd2, 0x24, 0xbd, 0xe4, 0xfc, 0x5c, 0xfd, 0xc4, 0xa2,
-	0xf4, 0xd2, 0x62, 0xdd, 0x9c, 0xc4, 0xa4, 0x62, 0xfd, 0xf2, 0xfc, 0xa2, 0x9c, 0x14, 0xdd, 0xd4,
-	0xbc, 0xf4, 0xcc, 0xbc, 0x54, 0xfd, 0xe4, 0x8c, 0xc4, 0xcc, 0x3c, 0xfd, 0x0a, 0x7d, 0x88, 0xa7,
-	0xc1, 0x3e, 0x4e, 0x62, 0x03, 0x7b, 0xd9, 0x18, 0x10, 0x00, 0x00, 0xff, 0xff, 0xa6, 0xca, 0xcd,
-	0x44, 0x0a, 0x01, 0x00, 0x00,
+	0x30, 0x6a, 0xf0, 0x04, 0xf1, 0x42, 0x44, 0x03, 0x20, 0x82, 0x4a, 0x6e, 0x5c, 0xac, 0xae, 0x05,
+	0xf9, 0xc9, 0x19, 0x42, 0x22, 0x5c, 0xac, 0xa9, 0x20, 0x06, 0xd4, 0x10, 0x08, 0x47, 0x48, 0x9d,
+	0x8b, 0xb9, 0xa4, 0xa2, 0x58, 0x82, 0x49, 0x81, 0x59, 0x83, 0xdb, 0x48, 0x54, 0x0f, 0xe6, 0x02,
+	0x3d, 0x24, 0xeb, 0x83, 0x40, 0x2a, 0x9c, 0x02, 0x4e, 0x3c, 0x92, 0x63, 0xbc, 0xf0, 0x48, 0x8e,
+	0xf1, 0xc1, 0x23, 0x39, 0xc6, 0x09, 0x8f, 0xe5, 0x18, 0x2e, 0x3c, 0x96, 0x63, 0xb8, 0xf1, 0x58,
+	0x8e, 0x21, 0xca, 0x2c, 0x3d, 0xb3, 0x24, 0xa3, 0x34, 0x49, 0x2f, 0x39, 0x3f, 0x57, 0x3f, 0xb1,
+	0x28, 0xbd, 0xb4, 0x58, 0x37, 0x27, 0x31, 0xa9, 0x58, 0xbf, 0x3c, 0xbf, 0x28, 0x27, 0x45, 0x37,
+	0x35, 0x2f, 0x3d, 0x33, 0x2f, 0x55, 0x3f, 0x39, 0x23, 0x31, 0x33, 0x4f, 0xbf, 0x42, 0x1f, 0xe2,
+	0x6f, 0xb0, 0xa7, 0x93, 0xd8, 0xc0, 0xbe, 0x36, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff, 0x59, 0xa0,
+	0xfd, 0xe5, 0x0d, 0x01, 0x00, 0x00,
 }
 
 func (m *Transaction) Marshal() (dAtA []byte, err error) {
@@ -193,7 +193,7 @@ func (m *Transaction) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *Tick) Marshal() (dAtA []byte, err error) {
+func (m *Epoch) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -203,12 +203,12 @@ func (m *Tick) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *Tick) MarshalTo(dAtA []byte) (int, error) {
+func (m *Epoch) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *Tick) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *Epoch) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -227,8 +227,8 @@ func (m *Tick) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0x12
 		}
 	}
-	if m.Tick != 0 {
-		i = encodeVarintTypes(dAtA, i, uint64(m.Tick))
+	if m.Epoch != 0 {
+		i = encodeVarintTypes(dAtA, i, uint64(m.Epoch))
 		i--
 		dAtA[i] = 0x8
 	}
@@ -262,14 +262,14 @@ func (m *Transaction) Size() (n int) {
 	return n
 }
 
-func (m *Tick) Size() (n int) {
+func (m *Epoch) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if m.Tick != 0 {
-		n += 1 + sovTypes(uint64(m.Tick))
+	if m.Epoch != 0 {
+		n += 1 + sovTypes(uint64(m.Epoch))
 	}
 	if len(m.Txs) > 0 {
 		for _, e := range m.Txs {
@@ -389,7 +389,7 @@ func (m *Transaction) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *Tick) Unmarshal(dAtA []byte) error {
+func (m *Epoch) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -412,17 +412,17 @@ func (m *Tick) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: Tick: wiretype end group for non-group")
+			return fmt.Errorf("proto: Epoch: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: Tick: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Epoch: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Tick", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Epoch", wireType)
 			}
-			m.Tick = 0
+			m.Epoch = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowTypes
@@ -432,7 +432,7 @@ func (m *Tick) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Tick |= uint64(b&0x7F) << shift
+				m.Epoch |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}

@@ -24,7 +24,7 @@ type Adapter interface {
 
 // WriteAdapter provides the functionality to send transactions to the EVM base shard.
 type WriteAdapter interface {
-	Submit(ctx context.Context, p *sign.SignedPayload, txID, tick uint64) error
+	Submit(ctx context.Context, p *sign.SignedPayload, txID, epoch uint64) error
 }
 
 // ReadAdapter provides the functionality to read transactions from the EVM base shard.
@@ -93,8 +93,8 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 }
 
 // Submit submits a transaction to the EVM base shard.
-func (a adapterImpl) Submit(ctx context.Context, sp *sign.SignedPayload, txID uint64, tick uint64) error {
-	req := &shardv1.SubmitShardTxRequest{Tx: signedPayloadToProto(sp), Tick: tick, TxId: txID}
+func (a adapterImpl) Submit(ctx context.Context, sp *sign.SignedPayload, txID uint64, epoch uint64) error {
+	req := &shardv1.SubmitShardTxRequest{Tx: signedPayloadToProto(sp), Epoch: epoch, TxId: txID}
 	_, err := a.ShardReceiver.SubmitShardTx(ctx, req)
 	return err
 }

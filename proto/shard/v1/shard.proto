@@ -11,7 +11,7 @@ service ShardHandler {
 }
 
 message SubmitShardTxRequest {
-  uint64 tick = 1;
+  uint64 epoch = 1;
   uint64 tx_id = 2;
   SignedPayload tx = 3;
 }

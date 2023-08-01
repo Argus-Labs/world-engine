@@ -19,10 +19,10 @@ func (k *Keeper) transactionStore(ctx sdk.Context, worldNamespace string) prefix
 	return prefix.NewStore(store, []byte(worldNamespace))
 }
 
-// transactions are keyed via ticks.
-func (k *Keeper) getTransactionKey(tick uint64) []byte {
+// transactions are keyed via epochs.
+func (k *Keeper) getTransactionKey(epoch uint64) []byte {
 	buf := make([]byte, uint64Size)
-	binary.BigEndian.PutUint64(buf, tick)
+	binary.BigEndian.PutUint64(buf, epoch)
 	return buf
 }
 
@@ -30,29 +30,29 @@ func (k *Keeper) iterateTransactions(
 	ctx sdk.Context,
 	start, end []byte,
 	ns string,
-	cb func(tick *types.Tick) bool) {
+	cb func(e *types.Epoch) bool) {
 	store := k.transactionStore(ctx, ns)
 	it := store.Iterator(start, end)
 	for ; it.Valid(); it.Next() {
-		tickBz := it.Value()
-		tick := new(types.Tick)
-		err := tick.Unmarshal(tickBz)
+		epochBz := it.Value()
+		epoch := new(types.Epoch)
+		err := epoch.Unmarshal(epochBz)
 		if err != nil {
 			// this shouldn't ever happen, so lets just panic if it somehow does.
-			panic(fmt.Errorf("error while unmarshalling transaction bytes into %T: %w", tick, err))
+			panic(fmt.Errorf("error while unmarshalling transaction bytes into %T: %w", epoch, err))
 		}
 		// if callback returns false, we stop.
-		if !cb(tick) {
+		if !cb(epoch) {
 			break
 		}
 	}
 }
 
-func (k *Keeper) saveTransactions(ctx sdk.Context, ns string, tick *types.Tick) error {
+func (k *Keeper) saveTransactions(ctx sdk.Context, ns string, e *types.Epoch) error {
 	k.saveNamespace(ctx, ns)
 	store := k.transactionStore(ctx, ns)
-	key := k.getTransactionKey(tick.Tick)
-	bz, err := tick.Marshal()
+	key := k.getTransactionKey(e.Epoch)
+	bz, err := e.Marshal()
 	if err != nil {
 		return err
 	}

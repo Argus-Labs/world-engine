@@ -44,7 +44,7 @@ func (s *TestSuite) SetupTest() {
 }
 
 func (s *TestSuite) TestSubmitTransactions() {
-	tick := uint64(2)
+	epoch := uint64(2)
 	sp := &shardv1.SignedPayload{
 		PersonaTag: "meow",
 		Namespace:  "darkforest-west1",
@@ -63,7 +63,7 @@ func (s *TestSuite) TestSubmitTransactions() {
 		&types.SubmitShardTxRequest{
 			Sender:    s.auth,
 			Namespace: sp.Namespace,
-			Tick:      tick,
+			Epoch:     epoch,
 			Txs:       txs,
 		},
 	)
@@ -75,7 +75,7 @@ func (s *TestSuite) TestSubmitTransactions() {
 		&types.SubmitShardTxRequest{
 			Sender:    s.auth,
 			Namespace: "foo",
-			Tick:      tick,
+			Epoch:     epoch,
 			Txs: []*types.Transaction{
 				{3, signedPayloadBz},
 				{4, signedPayloadBz},
@@ -86,17 +86,17 @@ func (s *TestSuite) TestSubmitTransactions() {
 
 	res, err := s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{Namespace: sp.Namespace})
 	s.Require().NoError(err)
-	// we only submitted transactions for 1 tick, so there should only be 1.
-	s.Require().Len(res.Ticks, 1)
-	// should have equal amount of txs within the tick.
-	s.Require().Len(res.Ticks[0].Txs, len(txs))
+	// we only submitted transactions for 1 epoch, so there should only be 1.
+	s.Require().Len(res.Epochs, 1)
+	// should have equal amount of txs within the epoch.
+	s.Require().Len(res.Epochs[0].Txs, len(txs))
 }
 
 func (s *TestSuite) TestSubmitBatch_Unauthorized() {
 	_, err := s.keeper.SubmitShardTx(s.ctx, &types.SubmitShardTxRequest{
 		Sender:    s.addrs[1].String(),
 		Namespace: "foo",
-		Tick:      4,
+		Epoch:     4,
 		Txs:       nil,
 	})
 	s.Require().ErrorIs(err, sdkerrors.ErrUnauthorized)
@@ -106,7 +106,7 @@ func (s *TestSuite) TestExportGenesis() {
 	submit1 := &types.SubmitShardTxRequest{
 		Sender:    s.auth,
 		Namespace: "foo",
-		Tick:      1,
+		Epoch:     1,
 		Txs: []*types.Transaction{
 			{1, []byte("foo")},
 			{10, []byte("bar")},
@@ -117,7 +117,7 @@ func (s *TestSuite) TestExportGenesis() {
 	submit2 := &types.SubmitShardTxRequest{
 		Sender:    s.auth,
 		Namespace: "bar",
-		Tick:      3,
+		Epoch:     3,
 		Txs: []*types.Transaction{
 			{15, []byte("qux")},
 			{2, []byte("quiz")},
@@ -127,7 +127,7 @@ func (s *TestSuite) TestExportGenesis() {
 	submit3 := &types.SubmitShardTxRequest{
 		Sender:    s.auth,
 		Namespace: "foo",
-		Tick:      2,
+		Epoch:     2,
 		Txs: []*types.Transaction{
 			{4, []byte("qux")},
 			{9, []byte("quiz")},
@@ -143,12 +143,12 @@ func (s *TestSuite) TestExportGenesis() {
 	gen := s.keeper.ExportGenesis(s.ctx)
 	// there should only be 2 namespaced txs, because we only submitted 2 diff ones.
 	s.Require().Len(gen.NamespaceTransactions, 2)
-	s.Require().Len(gen.NamespaceTransactions[1].Ticks, 2)        // we submitted 2 ticks for namespace foo
-	s.Require().Len(gen.NamespaceTransactions[1].Ticks[0].Txs, 3) // the first tick had 3 txs
-	s.Require().Len(gen.NamespaceTransactions[1].Ticks[1].Txs, 2) // the second tick had 2 txs
+	s.Require().Len(gen.NamespaceTransactions[1].Epochs, 2)        // we submitted 2 epochs for namespace foo
+	s.Require().Len(gen.NamespaceTransactions[1].Epochs[0].Txs, 3) // the first epoch had 3 txs
+	s.Require().Len(gen.NamespaceTransactions[1].Epochs[1].Txs, 2) // the second epoch had 2 txs
 
-	s.Require().Len(gen.NamespaceTransactions[0].Ticks, 1)        // only one tick under namespace "bar"
-	s.Require().Len(gen.NamespaceTransactions[0].Ticks[0].Txs, 2) // only 2 txs in the tick.
+	s.Require().Len(gen.NamespaceTransactions[0].Epochs, 1)        // only one epoch under namespace "bar"
+	s.Require().Len(gen.NamespaceTransactions[0].Epochs[0].Txs, 2) // only 2 txs in the epoch.
 
 	// importing back the genesis should not panic
 	s.Require().NotPanics(func() {

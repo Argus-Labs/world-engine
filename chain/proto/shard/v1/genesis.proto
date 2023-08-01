@@ -15,6 +15,6 @@ message NamespaceTransactions {
   // namespace is the namespace the transactions occurred in.
   string namespace = 1;
 
-  // txs contains a tick number, and the transactions that occurred within that tick.
-  repeated Tick ticks = 2;
+  // epochs contains an epoch number, and the transactions that occurred within that epoch.
+  repeated Epoch epochs = 2;
 }

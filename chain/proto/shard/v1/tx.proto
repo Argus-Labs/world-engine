@@ -24,8 +24,10 @@ message SubmitShardTxRequest {
   // namespace is the namespace of the world the transactions originated from.
   string namespace  = 2;
 
-  // tick is the game tick that this transaction was executed in.
-  uint64 tick = 3;
+  // epoch is an arbitrary interval that this transaction was executed in.
+  // for loop driven games, this is likely a tick. for event driven games,
+  // this could be some general period of time.
+  uint64 epoch = 3;
 
   // txs are the transactions that occurred in this tick.
   repeated Transaction txs = 4;

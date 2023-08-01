@@ -509,7 +509,7 @@ func (x *fastReflection_GenesisState) ProtoMethods() *protoiface.Methods {
 var _ protoreflect.List = (*_NamespaceTransactions_2_list)(nil)
 
 type _NamespaceTransactions_2_list struct {
-	list *[]*Tick
+	list *[]*Epoch
 }
 
 func (x *_NamespaceTransactions_2_list) Len() int {
@@ -525,18 +525,18 @@ func (x *_NamespaceTransactions_2_list) Get(i int) protoreflect.Value {
 
 func (x *_NamespaceTransactions_2_list) Set(i int, value protoreflect.Value) {
 	valueUnwrapped := value.Message()
-	concreteValue := valueUnwrapped.Interface().(*Tick)
+	concreteValue := valueUnwrapped.Interface().(*Epoch)
 	(*x.list)[i] = concreteValue
 }
 
 func (x *_NamespaceTransactions_2_list) Append(value protoreflect.Value) {
 	valueUnwrapped := value.Message()
-	concreteValue := valueUnwrapped.Interface().(*Tick)
+	concreteValue := valueUnwrapped.Interface().(*Epoch)
 	*x.list = append(*x.list, concreteValue)
 }
 
 func (x *_NamespaceTransactions_2_list) AppendMutable() protoreflect.Value {
-	v := new(Tick)
+	v := new(Epoch)
 	*x.list = append(*x.list, v)
 	return protoreflect.ValueOfMessage(v.ProtoReflect())
 }
@@ -549,7 +549,7 @@ func (x *_NamespaceTransactions_2_list) Truncate(n int) {
 }
 
 func (x *_NamespaceTransactions_2_list) NewElement() protoreflect.Value {
-	v := new(Tick)
+	v := new(Epoch)
 	return protoreflect.ValueOfMessage(v.ProtoReflect())
 }
 
@@ -560,14 +560,14 @@ func (x *_NamespaceTransactions_2_list) IsValid() bool {
 var (
 	md_NamespaceTransactions           protoreflect.MessageDescriptor
 	fd_NamespaceTransactions_namespace protoreflect.FieldDescriptor
-	fd_NamespaceTransactions_ticks     protoreflect.FieldDescriptor
+	fd_NamespaceTransactions_epochs    protoreflect.FieldDescriptor
 )
 
 func init() {
 	file_shard_v1_genesis_proto_init()
 	md_NamespaceTransactions = File_shard_v1_genesis_proto.Messages().ByName("NamespaceTransactions")
 	fd_NamespaceTransactions_namespace = md_NamespaceTransactions.Fields().ByName("namespace")
-	fd_NamespaceTransactions_ticks = md_NamespaceTransactions.Fields().ByName("ticks")
+	fd_NamespaceTransactions_epochs = md_NamespaceTransactions.Fields().ByName("epochs")
 }
 
 var _ protoreflect.Message = (*fastReflection_NamespaceTransactions)(nil)
@@ -641,9 +641,9 @@ func (x *fastReflection_NamespaceTransactions) Range(f func(protoreflect.FieldDe
 			return
 		}
 	}
-	if len(x.Ticks) != 0 {
-		value := protoreflect.ValueOfList(&_NamespaceTransactions_2_list{list: &x.Ticks})
-		if !f(fd_NamespaceTransactions_ticks, value) {
+	if len(x.Epochs) != 0 {
+		value := protoreflect.ValueOfList(&_NamespaceTransactions_2_list{list: &x.Epochs})
+		if !f(fd_NamespaceTransactions_epochs, value) {
 			return
 		}
 	}
@@ -664,8 +664,8 @@ func (x *fastReflection_NamespaceTransactions) Has(fd protoreflect.FieldDescript
 	switch fd.FullName() {
 	case "shard.v1.NamespaceTransactions.namespace":
 		return x.Namespace != ""
-	case "shard.v1.NamespaceTransactions.ticks":
-		return len(x.Ticks) != 0
+	case "shard.v1.NamespaceTransactions.epochs":
+		return len(x.Epochs) != 0
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.NamespaceTransactions"))
@@ -684,8 +684,8 @@ func (x *fastReflection_NamespaceTransactions) Clear(fd protoreflect.FieldDescri
 	switch fd.FullName() {
 	case "shard.v1.NamespaceTransactions.namespace":
 		x.Namespace = ""
-	case "shard.v1.NamespaceTransactions.ticks":
-		x.Ticks = nil
+	case "shard.v1.NamespaceTransactions.epochs":
+		x.Epochs = nil
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.NamespaceTransactions"))
@@ -705,11 +705,11 @@ func (x *fastReflection_NamespaceTransactions) Get(descriptor protoreflect.Field
 	case "shard.v1.NamespaceTransactions.namespace":
 		value := x.Namespace
 		return protoreflect.ValueOfString(value)
-	case "shard.v1.NamespaceTransactions.ticks":
-		if len(x.Ticks) == 0 {
+	case "shard.v1.NamespaceTransactions.epochs":
+		if len(x.Epochs) == 0 {
 			return protoreflect.ValueOfList(&_NamespaceTransactions_2_list{})
 		}
-		listValue := &_NamespaceTransactions_2_list{list: &x.Ticks}
+		listValue := &_NamespaceTransactions_2_list{list: &x.Epochs}
 		return protoreflect.ValueOfList(listValue)
 	default:
 		if descriptor.IsExtension() {
@@ -733,10 +733,10 @@ func (x *fastReflection_NamespaceTransactions) Set(fd protoreflect.FieldDescript
 	switch fd.FullName() {
 	case "shard.v1.NamespaceTransactions.namespace":
 		x.Namespace = value.Interface().(string)
-	case "shard.v1.NamespaceTransactions.ticks":
+	case "shard.v1.NamespaceTransactions.epochs":
 		lv := value.List()
 		clv := lv.(*_NamespaceTransactions_2_list)
-		x.Ticks = *clv.list
+		x.Epochs = *clv.list
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.NamespaceTransactions"))
@@ -757,11 +757,11 @@ func (x *fastReflection_NamespaceTransactions) Set(fd protoreflect.FieldDescript
 // Mutable is a mutating operation and unsafe for concurrent use.
 func (x *fastReflection_NamespaceTransactions) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.NamespaceTransactions.ticks":
-		if x.Ticks == nil {
-			x.Ticks = []*Tick{}
+	case "shard.v1.NamespaceTransactions.epochs":
+		if x.Epochs == nil {
+			x.Epochs = []*Epoch{}
 		}
-		value := &_NamespaceTransactions_2_list{list: &x.Ticks}
+		value := &_NamespaceTransactions_2_list{list: &x.Epochs}
 		return protoreflect.ValueOfList(value)
 	case "shard.v1.NamespaceTransactions.namespace":
 		panic(fmt.Errorf("field namespace of message shard.v1.NamespaceTransactions is not mutable"))
@@ -780,8 +780,8 @@ func (x *fastReflection_NamespaceTransactions) NewField(fd protoreflect.FieldDes
 	switch fd.FullName() {
 	case "shard.v1.NamespaceTransactions.namespace":
 		return protoreflect.ValueOfString("")
-	case "shard.v1.NamespaceTransactions.ticks":
-		list := []*Tick{}
+	case "shard.v1.NamespaceTransactions.epochs":
+		list := []*Epoch{}
 		return protoreflect.ValueOfList(&_NamespaceTransactions_2_list{list: &list})
 	default:
 		if fd.IsExtension() {
@@ -856,8 +856,8 @@ func (x *fastReflection_NamespaceTransactions) ProtoMethods() *protoiface.Method
 		if l > 0 {
 			n += 1 + l + runtime.Sov(uint64(l))
 		}
-		if len(x.Ticks) > 0 {
-			for _, e := range x.Ticks {
+		if len(x.Epochs) > 0 {
+			for _, e := range x.Epochs {
 				l = options.Size(e)
 				n += 1 + l + runtime.Sov(uint64(l))
 			}
@@ -891,9 +891,9 @@ func (x *fastReflection_NamespaceTransactions) ProtoMethods() *protoiface.Method
 			i -= len(x.unknownFields)
 			copy(dAtA[i:], x.unknownFields)
 		}
-		if len(x.Ticks) > 0 {
-			for iNdEx := len(x.Ticks) - 1; iNdEx >= 0; iNdEx-- {
-				encoded, err := options.Marshal(x.Ticks[iNdEx])
+		if len(x.Epochs) > 0 {
+			for iNdEx := len(x.Epochs) - 1; iNdEx >= 0; iNdEx-- {
+				encoded, err := options.Marshal(x.Epochs[iNdEx])
 				if err != nil {
 					return protoiface.MarshalOutput{
 						NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -997,7 +997,7 @@ func (x *fastReflection_NamespaceTransactions) ProtoMethods() *protoiface.Method
 				iNdEx = postIndex
 			case 2:
 				if wireType != 2 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Ticks", wireType)
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Epochs", wireType)
 				}
 				var msglen int
 				for shift := uint(0); ; shift += 7 {
@@ -1024,8 +1024,8 @@ func (x *fastReflection_NamespaceTransactions) ProtoMethods() *protoiface.Method
 				if postIndex > l {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
 				}
-				x.Ticks = append(x.Ticks, &Tick{})
-				if err := options.Unmarshal(dAtA[iNdEx:postIndex], x.Ticks[len(x.Ticks)-1]); err != nil {
+				x.Epochs = append(x.Epochs, &Epoch{})
+				if err := options.Unmarshal(dAtA[iNdEx:postIndex], x.Epochs[len(x.Epochs)-1]); err != nil {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, err
 				}
 				iNdEx = postIndex
@@ -1120,8 +1120,8 @@ type NamespaceTransactions struct {
 
 	// namespace is the namespace the transactions occurred in.
 	Namespace string `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
-	// txs contains a tick number, and the transactions that occurred within that tick.
-	Ticks []*Tick `protobuf:"bytes,2,rep,name=ticks,proto3" json:"ticks,omitempty"`
+	// epochs contains an epoch number, and the transactions that occurred within that epoch.
+	Epochs []*Epoch `protobuf:"bytes,2,rep,name=epochs,proto3" json:"epochs,omitempty"`
 }
 
 func (x *NamespaceTransactions) Reset() {
@@ -1151,9 +1151,9 @@ func (x *NamespaceTransactions) GetNamespace() string {
 	return ""
 }
 
-func (x *NamespaceTransactions) GetTicks() []*Tick {
+func (x *NamespaceTransactions) GetEpochs() []*Epoch {
 	if x != nil {
-		return x.Ticks
+		return x.Epochs
 	}
 	return nil
 }
@@ -1171,21 +1171,21 @@ var file_shard_v1_genesis_proto_rawDesc = []byte{
 	0x2e, 0x76, 0x31, 0x2e, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x54, 0x72, 0x61,
 	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x15, 0x6e, 0x61, 0x6d, 0x65, 0x73,
 	0x70, 0x61, 0x63, 0x65, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73,
-	0x22, 0x5b, 0x0a, 0x15, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x54, 0x72, 0x61,
+	0x22, 0x5e, 0x0a, 0x15, 0x4e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x54, 0x72, 0x61,
 	0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x1c, 0x0a, 0x09, 0x6e, 0x61, 0x6d,
 	0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6e, 0x61,
-	0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x12, 0x24, 0x0a, 0x05, 0x74, 0x69, 0x63, 0x6b, 0x73,
-	0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0e, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76,
-	0x31, 0x2e, 0x54, 0x69, 0x63, 0x6b, 0x52, 0x05, 0x74, 0x69, 0x63, 0x6b, 0x73, 0x42, 0x80, 0x01,
-	0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x42, 0x0c,
-	0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x21,
-	0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69,
-	0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68, 0x61, 0x72, 0x64, 0x76,
-	0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x2e,
-	0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0xe2, 0x02, 0x14,
-	0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65, 0x74, 0x61,
-	0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64, 0x3a, 0x3a, 0x56, 0x31,
-	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x12, 0x27, 0x0a, 0x06, 0x65, 0x70, 0x6f, 0x63, 0x68,
+	0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0f, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e,
+	0x76, 0x31, 0x2e, 0x45, 0x70, 0x6f, 0x63, 0x68, 0x52, 0x06, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x73,
+	0x42, 0x80, 0x01, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76,
+	0x31, 0x42, 0x0c, 0x47, 0x65, 0x6e, 0x65, 0x73, 0x69, 0x73, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50,
+	0x01, 0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f,
+	0x61, 0x70, 0x69, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68, 0x61,
+	0x72, 0x64, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68, 0x61,
+	0x72, 0x64, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31,
+	0xe2, 0x02, 0x14, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d,
+	0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64, 0x3a,
+	0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1204,11 +1204,11 @@ var file_shard_v1_genesis_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_shard_v1_genesis_proto_goTypes = []interface{}{
 	(*GenesisState)(nil),          // 0: shard.v1.GenesisState
 	(*NamespaceTransactions)(nil), // 1: shard.v1.NamespaceTransactions
-	(*Tick)(nil),                  // 2: shard.v1.Tick
+	(*Epoch)(nil),                 // 2: shard.v1.Epoch
 }
 var file_shard_v1_genesis_proto_depIdxs = []int32{
 	1, // 0: shard.v1.GenesisState.namespace_transactions:type_name -> shard.v1.NamespaceTransactions
-	2, // 1: shard.v1.NamespaceTransactions.ticks:type_name -> shard.v1.Tick
+	2, // 1: shard.v1.NamespaceTransactions.epochs:type_name -> shard.v1.Epoch
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

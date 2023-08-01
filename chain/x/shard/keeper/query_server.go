@@ -18,19 +18,19 @@ func (k *Keeper) Transactions(ctx context.Context, req *types.QueryTransactionsR
 	}
 	key, limit := types.ExtractPageRequest(req.Page)
 	res := types.QueryTransactionsResponse{
-		Ticks: make([]*types.Tick, 0, limit),
-		Page:  &types.PageResponse{},
+		Epochs: make([]*types.Epoch, 0, limit),
+		Page:   &types.PageResponse{},
 	}
 	count := uint32(0)
 	k.iterateTransactions(sdk.UnwrapSDKContext(ctx), key, nil,
-		req.Namespace, func(tick *types.Tick) bool {
+		req.Namespace, func(e *types.Epoch) bool {
 			// we keep the check here so that if we hit the limit,
 			// we return the NEXT key in the iteration, not the one before it.
 			if count == limit {
-				res.Page.Key = k.getTransactionKey(tick.Tick)
+				res.Page.Key = k.getTransactionKey(e.Epoch)
 				return false
 			}
-			res.Ticks = append(res.Ticks, tick)
+			res.Epochs = append(res.Epochs, e)
 			return true
 		})
 

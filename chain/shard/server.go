@@ -100,7 +100,7 @@ func (s *Server) SubmitShardTx(_ context.Context, req *shard.SubmitShardTxReques
 		return nil, err
 	}
 
-	s.tq.AddTx(req.Tx.Namespace, req.Tick, req.TxId, bz)
+	s.tq.AddTx(req.Tx.Namespace, req.Epoch, req.TxId, bz)
 
 	return &shard.SubmitShardTxResponse{}, nil
 }

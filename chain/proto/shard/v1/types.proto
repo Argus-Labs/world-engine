@@ -15,8 +15,8 @@ message Transaction {
   bytes signed_payload = 2;
 }
 
-// Tick contains a tick number, and the transactions that occurred in that tick.
-message Tick {
-  uint64 tick = 1;
+// Epoch contains an epoch number, and the transactions that occurred in that epoch.
+message Epoch {
+  uint64 epoch = 1;
   repeated Transaction txs = 2;
 }

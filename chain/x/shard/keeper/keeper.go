@@ -21,8 +21,8 @@ func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
 func (k *Keeper) InitGenesis(ctx sdk.Context, genesis *types.GenesisState) {
 	for _, nstx := range genesis.NamespaceTransactions {
 		namespace := nstx.Namespace
-		for _, tickedTx := range nstx.Ticks {
-			err := k.saveTransactions(ctx, namespace, tickedTx)
+		for _, epochTxs := range nstx.Epochs {
+			err := k.saveTransactions(ctx, namespace, epochTxs)
 			if err != nil {
 				panic(err)
 			}
@@ -35,10 +35,10 @@ func (k *Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	k.iterateNamespaces(ctx, func(ns string) bool {
 		nstxs := &types.NamespaceTransactions{
 			Namespace: ns,
-			Ticks:     nil,
+			Epochs:    nil,
 		}
-		k.iterateTransactions(ctx, nil, nil, ns, func(tick *types.Tick) bool {
-			nstxs.Ticks = append(nstxs.Ticks, tick)
+		k.iterateTransactions(ctx, nil, nil, ns, func(e *types.Epoch) bool {
+			nstxs.Epochs = append(nstxs.Epochs, e)
 			return true
 		})
 		res.NamespaceTransactions = append(res.NamespaceTransactions, nstxs)
