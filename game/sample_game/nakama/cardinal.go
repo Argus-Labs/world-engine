@@ -17,10 +17,9 @@ import (
 )
 
 var (
-	createPersonaEndpoint   = "tx-create-persona"
-	listTxEndpointsEndpoint = "list/tx-endpoints"
-	listReadEndpoints       = "list/read-endpoints"
-
+	createPersonaEndpoint     = "tx-create-persona"
+	listTxEndpointsEndpoint   = "list/tx-endpoints"
+	listReadEndpoints         = "list/read-endpoints"
 	readPersonaSignerEndpoint = "read-persona-signer"
 
 	readPersonaSignerStatusUnknown   = "unknown"
@@ -29,7 +28,8 @@ var (
 
 	globalCardinalAddress string
 
-	ErrorPersonaSignerNotAssigned = errors.New("persona signer has not been assigned")
+	ErrorPersonaSignerAvailable = errors.New("persona signer is available")
+	ErrorPersonaSignerUnknown   = errors.New("persona signer is unknown.")
 )
 
 func initCardinalAddress() error {
@@ -160,8 +160,10 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick int
 	if err := json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
 		return "", err
 	}
-	if resp.Status != readPersonaSignerStatusAssigned {
-		return "", ErrorPersonaSignerNotAssigned
+	if resp.Status == readPersonaSignerStatusUnknown {
+		return "", ErrorPersonaSignerUnknown
+	} else if resp.Status == readPersonaSignerStatusAvailable {
+		return "", ErrorPersonaSignerAvailable
 	}
 	return resp.SignerAddress, nil
 }
