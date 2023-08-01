@@ -34,37 +34,29 @@ func (tc *TxQueue) TxsForNamespaceInTick(ns string, tick uint64) *types.SubmitCa
 func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
-	// handle the case where this is a brand-new namespace
+	// if we have a brand-new namespace submitting transactions, we setup a new queue for it.
 	if tc.ntx[namespace] == nil {
 		tc.ntx[namespace] = &txQueue{
 			tickQueue: queue.New[uint64](),
 			txs:       make(map[uint64]*types.SubmitCardinalTxRequest),
 		}
-		tc.ntx[namespace].tickQueue.Enqueue(tick)
-		tc.ntx[namespace].txs[tick] = &types.SubmitCardinalTxRequest{
-			Sender:    tc.moduleAddr,
-			Namespace: namespace,
-			Tick:      tick,
-			Txs:       []*types.Transaction{{TxId: txID, SignedPayload: payload}},
-		}
-		return
 	}
 
-	// namespace is present.
-	// if there are no ticks in the queue, just enqueue it.
+	// if the queue is empty, enqueue the tick number.
 	if tc.ntx[namespace].tickQueue.Empty() {
 		tc.ntx[namespace].tickQueue.Enqueue(tick)
-		// check to see if this is a new tick. if it is, we enqueue it and
-		// then send the previous ticks data to the outbox.
 	} else if lastTick := tc.ntx[namespace].tickQueue.Peek(); lastTick != tick {
-		// enqueue the new tick
+		// if the queue is not empty, and the submitting tick is not the same as the last seen one:
+		// 1. enqueue the new tick
+		// 2. dequeue the top tick, and submit its transactions to the outbox.
+		// 3. delete the transactions from the map.
 		tc.ntx[namespace].tickQueue.Enqueue(tick)
-
-		// since we know this is a new tick, we can dequeue and put the transaction request in the outbox.
 		prev := tc.ntx[namespace].tickQueue.Dequeue()
 		tc.outbox = append(tc.outbox, tc.ntx[namespace].txs[prev])
 		delete(tc.ntx[namespace].txs, prev)
 	}
+
+	// if we don't have a request for this tick yet, instantiate one.
 	if tc.ntx[namespace].txs[tick] == nil {
 		tc.ntx[namespace].txs[tick] = &types.SubmitCardinalTxRequest{
 			Sender:    tc.moduleAddr,
@@ -73,7 +65,8 @@ func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 			Txs:       make([]*types.Transaction, 0),
 		}
 	}
-	// finally, we append the transaction data to the transaction queue.
+
+	// append the transaction data for this tick.
 	tc.ntx[namespace].txs[tick].Txs = append(tc.ntx[namespace].txs[tick].Txs, &types.Transaction{
 		TxId:          txID,
 		SignedPayload: payload,
