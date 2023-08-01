@@ -26,10 +26,6 @@ func (k *Keeper) getTransactionKey(tick uint64) []byte {
 	return buf
 }
 
-func (k *Keeper) extractTransactionKeyValue(key []byte) uint64 {
-	return binary.BigEndian.Uint64(key)
-}
-
 func (k *Keeper) iterateTransactions(
 	ctx sdk.Context,
 	start, end []byte,
