@@ -29,7 +29,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type SubmitCardinalTxRequest struct {
+type SubmitShardTxRequest struct {
 	// sender is the address of the sender. this will be set to the module address.
 	Sender string `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
 	// namespace is the namespace of the world the transactions originated from.
@@ -40,18 +40,18 @@ type SubmitCardinalTxRequest struct {
 	Txs []*Transaction `protobuf:"bytes,4,rep,name=txs,proto3" json:"txs,omitempty"`
 }
 
-func (m *SubmitCardinalTxRequest) Reset()         { *m = SubmitCardinalTxRequest{} }
-func (m *SubmitCardinalTxRequest) String() string { return proto.CompactTextString(m) }
-func (*SubmitCardinalTxRequest) ProtoMessage()    {}
-func (*SubmitCardinalTxRequest) Descriptor() ([]byte, []int) {
+func (m *SubmitShardTxRequest) Reset()         { *m = SubmitShardTxRequest{} }
+func (m *SubmitShardTxRequest) String() string { return proto.CompactTextString(m) }
+func (*SubmitShardTxRequest) ProtoMessage()    {}
+func (*SubmitShardTxRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_2ea9067d7c94eab8, []int{0}
 }
-func (m *SubmitCardinalTxRequest) XXX_Unmarshal(b []byte) error {
+func (m *SubmitShardTxRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SubmitCardinalTxRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *SubmitShardTxRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SubmitCardinalTxRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_SubmitShardTxRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -61,61 +61,61 @@ func (m *SubmitCardinalTxRequest) XXX_Marshal(b []byte, deterministic bool) ([]b
 		return b[:n], nil
 	}
 }
-func (m *SubmitCardinalTxRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SubmitCardinalTxRequest.Merge(m, src)
+func (m *SubmitShardTxRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SubmitShardTxRequest.Merge(m, src)
 }
-func (m *SubmitCardinalTxRequest) XXX_Size() int {
+func (m *SubmitShardTxRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *SubmitCardinalTxRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_SubmitCardinalTxRequest.DiscardUnknown(m)
+func (m *SubmitShardTxRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_SubmitShardTxRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SubmitCardinalTxRequest proto.InternalMessageInfo
+var xxx_messageInfo_SubmitShardTxRequest proto.InternalMessageInfo
 
-func (m *SubmitCardinalTxRequest) GetSender() string {
+func (m *SubmitShardTxRequest) GetSender() string {
 	if m != nil {
 		return m.Sender
 	}
 	return ""
 }
 
-func (m *SubmitCardinalTxRequest) GetNamespace() string {
+func (m *SubmitShardTxRequest) GetNamespace() string {
 	if m != nil {
 		return m.Namespace
 	}
 	return ""
 }
 
-func (m *SubmitCardinalTxRequest) GetTick() uint64 {
+func (m *SubmitShardTxRequest) GetTick() uint64 {
 	if m != nil {
 		return m.Tick
 	}
 	return 0
 }
 
-func (m *SubmitCardinalTxRequest) GetTxs() []*Transaction {
+func (m *SubmitShardTxRequest) GetTxs() []*Transaction {
 	if m != nil {
 		return m.Txs
 	}
 	return nil
 }
 
-type SubmitCardinalTxResponse struct {
+type SubmitShardTxResponse struct {
 }
 
-func (m *SubmitCardinalTxResponse) Reset()         { *m = SubmitCardinalTxResponse{} }
-func (m *SubmitCardinalTxResponse) String() string { return proto.CompactTextString(m) }
-func (*SubmitCardinalTxResponse) ProtoMessage()    {}
-func (*SubmitCardinalTxResponse) Descriptor() ([]byte, []int) {
+func (m *SubmitShardTxResponse) Reset()         { *m = SubmitShardTxResponse{} }
+func (m *SubmitShardTxResponse) String() string { return proto.CompactTextString(m) }
+func (*SubmitShardTxResponse) ProtoMessage()    {}
+func (*SubmitShardTxResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_2ea9067d7c94eab8, []int{1}
 }
-func (m *SubmitCardinalTxResponse) XXX_Unmarshal(b []byte) error {
+func (m *SubmitShardTxResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SubmitCardinalTxResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *SubmitShardTxResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_SubmitCardinalTxResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_SubmitShardTxResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -125,50 +125,50 @@ func (m *SubmitCardinalTxResponse) XXX_Marshal(b []byte, deterministic bool) ([]
 		return b[:n], nil
 	}
 }
-func (m *SubmitCardinalTxResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SubmitCardinalTxResponse.Merge(m, src)
+func (m *SubmitShardTxResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SubmitShardTxResponse.Merge(m, src)
 }
-func (m *SubmitCardinalTxResponse) XXX_Size() int {
+func (m *SubmitShardTxResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *SubmitCardinalTxResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_SubmitCardinalTxResponse.DiscardUnknown(m)
+func (m *SubmitShardTxResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_SubmitShardTxResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_SubmitCardinalTxResponse proto.InternalMessageInfo
+var xxx_messageInfo_SubmitShardTxResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*SubmitCardinalTxRequest)(nil), "shard.v1.SubmitCardinalTxRequest")
-	proto.RegisterType((*SubmitCardinalTxResponse)(nil), "shard.v1.SubmitCardinalTxResponse")
+	proto.RegisterType((*SubmitShardTxRequest)(nil), "shard.v1.SubmitShardTxRequest")
+	proto.RegisterType((*SubmitShardTxResponse)(nil), "shard.v1.SubmitShardTxResponse")
 }
 
 func init() { proto.RegisterFile("shard/v1/tx.proto", fileDescriptor_2ea9067d7c94eab8) }
 
 var fileDescriptor_2ea9067d7c94eab8 = []byte{
-	// 361 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x91, 0x41, 0x8b, 0xd3, 0x40,
-	0x14, 0xc7, 0x3b, 0xa6, 0x16, 0x3b, 0xbd, 0xe8, 0x50, 0x69, 0x0c, 0x12, 0x6a, 0x2f, 0x96, 0x42,
-	0x33, 0xb6, 0x82, 0x07, 0x6f, 0xd6, 0xb3, 0x20, 0x69, 0x2f, 0x7a, 0x91, 0x49, 0x32, 0x4c, 0x07,
-	0x9b, 0x99, 0x38, 0x6f, 0x52, 0xe3, 0x4d, 0xfc, 0x04, 0x7e, 0x94, 0xc2, 0xee, 0x87, 0xd8, 0x63,
-	0xd9, 0xd3, 0x1e, 0x97, 0xf6, 0xd0, 0xaf, 0xb1, 0x34, 0xc9, 0x52, 0xd8, 0x65, 0xf7, 0x36, 0xef,
-	0x3f, 0xbf, 0xf7, 0xfe, 0xef, 0xf1, 0xc7, 0x2f, 0x60, 0xc9, 0x4c, 0x42, 0xd7, 0x13, 0x6a, 0x8b,
-	0x20, 0x33, 0xda, 0x6a, 0xf2, 0xac, 0x94, 0x82, 0xf5, 0xc4, 0x7b, 0x15, 0x6b, 0x48, 0x35, 0xfc,
-	0x28, 0x75, 0x5a, 0x15, 0x15, 0xe4, 0xf5, 0xaa, 0x8a, 0xa6, 0x20, 0x8e, 0xcd, 0x29, 0x88, 0xfa,
-	0xa3, 0x7b, 0x1a, 0xf8, 0x27, 0xe3, 0x35, 0x3e, 0x38, 0x43, 0xb8, 0x37, 0xcf, 0xa3, 0x54, 0xda,
-	0xcf, 0xcc, 0x24, 0x52, 0xb1, 0xd5, 0xa2, 0x08, 0xf9, 0xaf, 0x9c, 0x83, 0x25, 0xef, 0x70, 0x0b,
-	0xb8, 0x4a, 0xb8, 0x71, 0x51, 0x1f, 0x0d, 0xdb, 0x33, 0xf7, 0xf2, 0x7c, 0xdc, 0xad, 0xcd, 0x3e,
-	0x25, 0x89, 0xe1, 0x00, 0x73, 0x6b, 0xa4, 0x12, 0x61, 0xcd, 0x91, 0xd7, 0xb8, 0xad, 0x58, 0xca,
-	0x21, 0x63, 0x31, 0x77, 0x9f, 0x1c, 0x9b, 0xc2, 0x93, 0x40, 0x08, 0x6e, 0x5a, 0x19, 0xff, 0x74,
-	0x9d, 0x3e, 0x1a, 0x36, 0xc3, 0xf2, 0x4d, 0xde, 0x62, 0xc7, 0x16, 0xe0, 0x36, 0xfb, 0xce, 0xb0,
-	0x33, 0x7d, 0x19, 0xdc, 0x5e, 0x18, 0x2c, 0x0c, 0x53, 0xc0, 0x62, 0x2b, 0xb5, 0x0a, 0x8f, 0xc4,
-	0xc7, 0xce, 0xbf, 0xc3, 0x66, 0x54, 0xfb, 0x0c, 0x3c, 0xec, 0xde, 0x5f, 0x1a, 0x32, 0xad, 0x80,
-	0x4f, 0x05, 0x76, 0xbe, 0x80, 0x20, 0xdf, 0xf0, 0xf3, 0xbb, 0x08, 0x79, 0x73, 0x9a, 0xff, 0xc0,
-	0xcd, 0xde, 0xe0, 0x31, 0xa4, 0x72, 0xf0, 0x9e, 0xfe, 0x3d, 0x6c, 0x46, 0x68, 0xf6, 0xf5, 0x62,
-	0xe7, 0xa3, 0xed, 0xce, 0x47, 0xd7, 0x3b, 0x1f, 0xfd, 0xdf, 0xfb, 0x8d, 0xed, 0xde, 0x6f, 0x5c,
-	0xed, 0xfd, 0xc6, 0xf7, 0x0f, 0x42, 0xda, 0x65, 0x1e, 0x05, 0xb1, 0x4e, 0x29, 0x33, 0x22, 0x87,
-	0xf1, 0x8a, 0x45, 0x40, 0x7f, 0x6b, 0xb3, 0x4a, 0xc6, 0x5c, 0x09, 0xa9, 0x38, 0x8d, 0x97, 0x4c,
-	0x2a, 0x5a, 0xd0, 0x2a, 0x95, 0x32, 0x92, 0xa8, 0x55, 0x66, 0xf2, 0xfe, 0x26, 0x00, 0x00, 0xff,
-	0xff, 0xd4, 0x67, 0x3c, 0x6a, 0xfc, 0x01, 0x00, 0x00,
+	// 357 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x51, 0xcd, 0x6e, 0xda, 0x40,
+	0x18, 0x64, 0x6b, 0x8a, 0xca, 0xa2, 0x1e, 0xba, 0x02, 0xe1, 0x5a, 0x95, 0x8b, 0xb8, 0x14, 0x21,
+	0xe1, 0x2d, 0x54, 0xea, 0xa1, 0xb7, 0x72, 0xaf, 0x84, 0x0c, 0xa7, 0x1e, 0x12, 0xad, 0xed, 0x95,
+	0xb1, 0x82, 0x77, 0x9d, 0xfd, 0xd6, 0xc4, 0xb9, 0x45, 0x79, 0x82, 0x3c, 0x0a, 0x87, 0x3c, 0x44,
+	0x8e, 0x28, 0xa7, 0x1c, 0x23, 0x38, 0xf0, 0x1a, 0x91, 0x7f, 0x22, 0x94, 0x28, 0xb9, 0xed, 0x37,
+	0x33, 0xdf, 0x7c, 0x3b, 0x1a, 0xfc, 0x05, 0x96, 0x4c, 0x05, 0x74, 0x3d, 0xa6, 0x3a, 0x73, 0x12,
+	0x25, 0xb5, 0x24, 0x9f, 0x0a, 0xc8, 0x59, 0x8f, 0xad, 0xaf, 0xbe, 0x84, 0x58, 0xc2, 0x69, 0x81,
+	0xd3, 0x72, 0x28, 0x45, 0x56, 0xb7, 0x9c, 0x68, 0x0c, 0x61, 0xbe, 0x1c, 0x43, 0x58, 0x11, 0xed,
+	0xa3, 0xe1, 0x65, 0xc2, 0x2b, 0x79, 0x7f, 0x83, 0x70, 0x7b, 0x9e, 0x7a, 0x71, 0xa4, 0xe7, 0x39,
+	0xbd, 0xc8, 0x5c, 0x7e, 0x9e, 0x72, 0xd0, 0xe4, 0x27, 0x6e, 0x00, 0x17, 0x01, 0x57, 0x26, 0xea,
+	0xa1, 0x41, 0x73, 0x6a, 0xde, 0xdf, 0x8e, 0xda, 0xd5, 0xa5, 0xbf, 0x41, 0xa0, 0x38, 0xc0, 0x5c,
+	0xab, 0x48, 0x84, 0x6e, 0xa5, 0x23, 0xdf, 0x70, 0x53, 0xb0, 0x98, 0x43, 0xc2, 0x7c, 0x6e, 0x7e,
+	0xc8, 0x97, 0xdc, 0x23, 0x40, 0x08, 0xae, 0xeb, 0xc8, 0x3f, 0x33, 0x8d, 0x1e, 0x1a, 0xd4, 0xdd,
+	0xe2, 0x4d, 0x7e, 0x60, 0x43, 0x67, 0x60, 0xd6, 0x7b, 0xc6, 0xa0, 0x35, 0xe9, 0x38, 0xcf, 0xf1,
+	0x9c, 0x85, 0x62, 0x02, 0x98, 0xaf, 0x23, 0x29, 0xdc, 0x5c, 0xf1, 0xa7, 0x75, 0x7d, 0xd8, 0x0c,
+	0xab, 0x3b, 0xfd, 0x2e, 0xee, 0xbc, 0xfa, 0x31, 0x24, 0x52, 0x00, 0x9f, 0x9c, 0x60, 0xe3, 0x1f,
+	0x84, 0x64, 0x86, 0x3f, 0xbf, 0xe0, 0x89, 0x7d, 0x74, 0x7e, 0x2b, 0xaa, 0xf5, 0xfd, 0x5d, 0xbe,
+	0x34, 0xb6, 0x3e, 0x5e, 0x1d, 0x36, 0x43, 0x34, 0x9d, 0xdd, 0xed, 0x6c, 0xb4, 0xdd, 0xd9, 0xe8,
+	0x71, 0x67, 0xa3, 0x9b, 0xbd, 0x5d, 0xdb, 0xee, 0xed, 0xda, 0xc3, 0xde, 0xae, 0xfd, 0xff, 0x1d,
+	0x46, 0x7a, 0x99, 0x7a, 0x8e, 0x2f, 0x63, 0xca, 0x54, 0x98, 0xc2, 0x68, 0xc5, 0x3c, 0xa0, 0x17,
+	0x52, 0xad, 0x82, 0x11, 0x17, 0x61, 0x24, 0x38, 0xf5, 0x97, 0x2c, 0x12, 0x34, 0xa3, 0x65, 0x0d,
+	0x45, 0x07, 0x5e, 0xa3, 0x28, 0xe1, 0xd7, 0x53, 0x00, 0x00, 0x00, 0xff, 0xff, 0x43, 0x29, 0x23,
+	0x62, 0xed, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -183,7 +183,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	SubmitCardinalTx(ctx context.Context, in *SubmitCardinalTxRequest, opts ...grpc.CallOption) (*SubmitCardinalTxResponse, error)
+	SubmitShardTx(ctx context.Context, in *SubmitShardTxRequest, opts ...grpc.CallOption) (*SubmitShardTxResponse, error)
 }
 
 type msgClient struct {
@@ -194,9 +194,9 @@ func NewMsgClient(cc grpc1.ClientConn) MsgClient {
 	return &msgClient{cc}
 }
 
-func (c *msgClient) SubmitCardinalTx(ctx context.Context, in *SubmitCardinalTxRequest, opts ...grpc.CallOption) (*SubmitCardinalTxResponse, error) {
-	out := new(SubmitCardinalTxResponse)
-	err := c.cc.Invoke(ctx, "/shard.v1.Msg/SubmitCardinalTx", in, out, opts...)
+func (c *msgClient) SubmitShardTx(ctx context.Context, in *SubmitShardTxRequest, opts ...grpc.CallOption) (*SubmitShardTxResponse, error) {
+	out := new(SubmitShardTxResponse)
+	err := c.cc.Invoke(ctx, "/shard.v1.Msg/SubmitShardTx", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -205,35 +205,35 @@ func (c *msgClient) SubmitCardinalTx(ctx context.Context, in *SubmitCardinalTxRe
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	SubmitCardinalTx(context.Context, *SubmitCardinalTxRequest) (*SubmitCardinalTxResponse, error)
+	SubmitShardTx(context.Context, *SubmitShardTxRequest) (*SubmitShardTxResponse, error)
 }
 
 // UnimplementedMsgServer can be embedded to have forward compatible implementations.
 type UnimplementedMsgServer struct {
 }
 
-func (*UnimplementedMsgServer) SubmitCardinalTx(ctx context.Context, req *SubmitCardinalTxRequest) (*SubmitCardinalTxResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SubmitCardinalTx not implemented")
+func (*UnimplementedMsgServer) SubmitShardTx(ctx context.Context, req *SubmitShardTxRequest) (*SubmitShardTxResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitShardTx not implemented")
 }
 
 func RegisterMsgServer(s grpc1.Server, srv MsgServer) {
 	s.RegisterService(&_Msg_serviceDesc, srv)
 }
 
-func _Msg_SubmitCardinalTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SubmitCardinalTxRequest)
+func _Msg_SubmitShardTx_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitShardTxRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MsgServer).SubmitCardinalTx(ctx, in)
+		return srv.(MsgServer).SubmitShardTx(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/shard.v1.Msg/SubmitCardinalTx",
+		FullMethod: "/shard.v1.Msg/SubmitShardTx",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MsgServer).SubmitCardinalTx(ctx, req.(*SubmitCardinalTxRequest))
+		return srv.(MsgServer).SubmitShardTx(ctx, req.(*SubmitShardTxRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -243,15 +243,15 @@ var _Msg_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SubmitCardinalTx",
-			Handler:    _Msg_SubmitCardinalTx_Handler,
+			MethodName: "SubmitShardTx",
+			Handler:    _Msg_SubmitShardTx_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "shard/v1/tx.proto",
 }
 
-func (m *SubmitCardinalTxRequest) Marshal() (dAtA []byte, err error) {
+func (m *SubmitShardTxRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -261,12 +261,12 @@ func (m *SubmitCardinalTxRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SubmitCardinalTxRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *SubmitShardTxRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SubmitCardinalTxRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SubmitShardTxRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -307,7 +307,7 @@ func (m *SubmitCardinalTxRequest) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	return len(dAtA) - i, nil
 }
 
-func (m *SubmitCardinalTxResponse) Marshal() (dAtA []byte, err error) {
+func (m *SubmitShardTxResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -317,12 +317,12 @@ func (m *SubmitCardinalTxResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SubmitCardinalTxResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *SubmitShardTxResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SubmitCardinalTxResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *SubmitShardTxResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -341,7 +341,7 @@ func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *SubmitCardinalTxRequest) Size() (n int) {
+func (m *SubmitShardTxRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -367,7 +367,7 @@ func (m *SubmitCardinalTxRequest) Size() (n int) {
 	return n
 }
 
-func (m *SubmitCardinalTxResponse) Size() (n int) {
+func (m *SubmitShardTxResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -382,7 +382,7 @@ func sovTx(x uint64) (n int) {
 func sozTx(x uint64) (n int) {
 	return sovTx(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *SubmitCardinalTxRequest) Unmarshal(dAtA []byte) error {
+func (m *SubmitShardTxRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -405,10 +405,10 @@ func (m *SubmitCardinalTxRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SubmitCardinalTxRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: SubmitShardTxRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SubmitCardinalTxRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: SubmitShardTxRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -549,7 +549,7 @@ func (m *SubmitCardinalTxRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SubmitCardinalTxResponse) Unmarshal(dAtA []byte) error {
+func (m *SubmitShardTxResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -572,10 +572,10 @@ func (m *SubmitCardinalTxResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SubmitCardinalTxResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: SubmitShardTxResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SubmitCardinalTxResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: SubmitShardTxResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:

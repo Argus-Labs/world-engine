@@ -36,7 +36,7 @@ func NewShardServer(opts ...Option) *Server {
 		tq: &TxQueue{
 			lock:       sync.Mutex{},
 			ntx:        make(NamespacedTxs, 0),
-			outbox:     make([]*types.SubmitCardinalTxRequest, 0),
+			outbox:     make([]*types.SubmitShardTxRequest, 0),
 			moduleAddr: addr.String(),
 		},
 	}
@@ -87,14 +87,14 @@ func (s *Server) Serve(listenAddr string) {
 }
 
 // FlushMessages gets the next available batch of transactions ready to be stored.
-func (s *Server) FlushMessages() []*types.SubmitCardinalTxRequest {
+func (s *Server) FlushMessages() []*types.SubmitShardTxRequest {
 	return s.tq.GetTxs()
 }
 
-// SubmitCardinalTx appends the cardinal tx submission to the tx queue, which eventually gets executed during
+// SubmitShardTx appends the game shard tx submission to the tx queue, which eventually gets executed during
 // abci.EndBlock.
-func (s *Server) SubmitCardinalTx(_ context.Context, req *shard.SubmitCardinalTxRequest) (
-	*shard.SubmitCardinalTxResponse, error) {
+func (s *Server) SubmitShardTx(_ context.Context, req *shard.SubmitShardTxRequest) (
+	*shard.SubmitShardTxResponse, error) {
 	bz, err := proto.Marshal(req.Tx)
 	if err != nil {
 		return nil, err
@@ -102,5 +102,5 @@ func (s *Server) SubmitCardinalTx(_ context.Context, req *shard.SubmitCardinalTx
 
 	s.tq.AddTx(req.Tx.Namespace, req.Tick, req.TxId, bz)
 
-	return &shard.SubmitCardinalTxResponse{}, nil
+	return &shard.SubmitShardTxResponse{}, nil
 }

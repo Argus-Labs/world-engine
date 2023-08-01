@@ -6,11 +6,11 @@ import (
 )
 
 var (
-	_ sdk.Msg              = &SubmitCardinalTxRequest{}
-	_ sdk.HasValidateBasic = &SubmitCardinalTxRequest{}
+	_ sdk.Msg              = &SubmitShardTxRequest{}
+	_ sdk.HasValidateBasic = &SubmitShardTxRequest{}
 )
 
-func (m *SubmitCardinalTxRequest) ValidateBasic() error {
+func (m *SubmitShardTxRequest) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Sender); err != nil {
 		return sdkerrors.ErrInvalidAddress.Wrap(err.Error())
 	}

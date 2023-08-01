@@ -12,10 +12,10 @@ option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  rpc SubmitCardinalTx(SubmitCardinalTxRequest) returns (SubmitCardinalTxResponse);
+  rpc SubmitShardTx(SubmitShardTxRequest) returns (SubmitShardTxResponse);
 }
 
-message SubmitCardinalTxRequest {
+message SubmitShardTxRequest {
   option (cosmos.msg.v1.signer) = "sender";
 
   // sender is the address of the sender. this will be set to the module address.
@@ -31,4 +31,4 @@ message SubmitCardinalTxRequest {
   repeated Transaction txs = 4;
 }
 
-message SubmitCardinalTxResponse {}
+message SubmitShardTxResponse {}

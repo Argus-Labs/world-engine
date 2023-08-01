@@ -10,7 +10,7 @@ import (
 func TestServer(t *testing.T) {
 	s := NewShardServer()
 	ctx := context.Background()
-	_, err := s.SubmitCardinalTx(ctx, &shardv1.SubmitCardinalTxRequest{
+	_, err := s.SubmitShardTx(ctx, &shardv1.SubmitShardTxRequest{
 		Tick: 1,
 		TxId: 1,
 		Tx: &shardv1.SignedPayload{
@@ -22,7 +22,7 @@ func TestServer(t *testing.T) {
 		},
 	})
 	assert.NilError(t, err)
-	_, err = s.SubmitCardinalTx(ctx, &shardv1.SubmitCardinalTxRequest{
+	_, err = s.SubmitShardTx(ctx, &shardv1.SubmitShardTxRequest{
 		Tick: 1,
 		TxId: 2,
 		Tx: &shardv1.SignedPayload{
@@ -34,7 +34,7 @@ func TestServer(t *testing.T) {
 		},
 	})
 	assert.NilError(t, err)
-	_, err = s.SubmitCardinalTx(ctx, &shardv1.SubmitCardinalTxRequest{
+	_, err = s.SubmitShardTx(ctx, &shardv1.SubmitShardTxRequest{
 		Tick: 40,
 		TxId: 2,
 		Tx: &shardv1.SignedPayload{
@@ -52,7 +52,7 @@ func TestServer(t *testing.T) {
 	// so it will wait for more txs from it's currently known tick.
 	assert.Equal(t, len(txs), 0)
 	// submit a tx in namespace with the next tick.
-	_, err = s.SubmitCardinalTx(ctx, &shardv1.SubmitCardinalTxRequest{
+	_, err = s.SubmitShardTx(ctx, &shardv1.SubmitShardTxRequest{
 		Tick: 4,
 		TxId: 2,
 		Tx: &shardv1.SignedPayload{

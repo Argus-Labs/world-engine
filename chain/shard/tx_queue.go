@@ -10,7 +10,7 @@ import (
 type TxQueue struct {
 	lock       sync.Mutex
 	ntx        NamespacedTxs
-	outbox     []*types.SubmitCardinalTxRequest
+	outbox     []*types.SubmitShardTxRequest
 	moduleAddr string
 }
 
@@ -18,13 +18,13 @@ type txQueue struct {
 	// tickQueue are the ticks waiting to be submitted to the blockchain
 	tickQueue *queue.Queue[uint64]
 	// txs are the transaction requests, indexed by tick.
-	txs map[uint64]*types.SubmitCardinalTxRequest
+	txs map[uint64]*types.SubmitShardTxRequest
 }
 
 // NamespacedTxs maps namespaces to a transaction queue.
 type NamespacedTxs map[string]*txQueue
 
-func (tc *TxQueue) TxsForNamespaceInTick(ns string, tick uint64) *types.SubmitCardinalTxRequest {
+func (tc *TxQueue) GetRequestForNamespaceTick(ns string, tick uint64) *types.SubmitShardTxRequest {
 	return tc.ntx[ns].txs[tick]
 }
 
@@ -38,7 +38,7 @@ func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 	if tc.ntx[namespace] == nil {
 		tc.ntx[namespace] = &txQueue{
 			tickQueue: queue.New[uint64](),
-			txs:       make(map[uint64]*types.SubmitCardinalTxRequest),
+			txs:       make(map[uint64]*types.SubmitShardTxRequest),
 		}
 	}
 
@@ -58,7 +58,7 @@ func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 
 	// if we don't have a request for this tick yet, instantiate one.
 	if tc.ntx[namespace].txs[tick] == nil {
-		tc.ntx[namespace].txs[tick] = &types.SubmitCardinalTxRequest{
+		tc.ntx[namespace].txs[tick] = &types.SubmitShardTxRequest{
 			Sender:    tc.moduleAddr,
 			Namespace: namespace,
 			Tick:      tick,
@@ -74,11 +74,11 @@ func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 }
 
 // GetTxs simply copies the transactions in the outbox, clears the outbox, then returns the copy.
-func (tc *TxQueue) GetTxs() []*types.SubmitCardinalTxRequest {
+func (tc *TxQueue) GetTxs() []*types.SubmitShardTxRequest {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
 	// copy the outbox.
-	outboxCopy := make([]*types.SubmitCardinalTxRequest, len(tc.outbox))
+	outboxCopy := make([]*types.SubmitShardTxRequest, len(tc.outbox))
 	copy(outboxCopy, tc.outbox)
 	// clear outbox, retain capacity.
 	tc.outbox = tc.outbox[:0]

@@ -58,9 +58,9 @@ func (s *TestSuite) TestSubmitTransactions() {
 		{3, signedPayloadBz},
 		{4, signedPayloadBz},
 	}
-	_, err = s.keeper.SubmitCardinalTx(
+	_, err = s.keeper.SubmitShardTx(
 		s.ctx,
-		&types.SubmitCardinalTxRequest{
+		&types.SubmitShardTxRequest{
 			Sender:    s.auth,
 			Namespace: sp.Namespace,
 			Tick:      tick,
@@ -70,9 +70,9 @@ func (s *TestSuite) TestSubmitTransactions() {
 	s.Require().NoError(err)
 
 	// submit some transactions for a different namespace..
-	_, err = s.keeper.SubmitCardinalTx(
+	_, err = s.keeper.SubmitShardTx(
 		s.ctx,
-		&types.SubmitCardinalTxRequest{
+		&types.SubmitShardTxRequest{
 			Sender:    s.auth,
 			Namespace: "foo",
 			Tick:      tick,
@@ -93,7 +93,7 @@ func (s *TestSuite) TestSubmitTransactions() {
 }
 
 func (s *TestSuite) TestSubmitBatch_Unauthorized() {
-	_, err := s.keeper.SubmitCardinalTx(s.ctx, &types.SubmitCardinalTxRequest{
+	_, err := s.keeper.SubmitShardTx(s.ctx, &types.SubmitShardTxRequest{
 		Sender:    s.addrs[1].String(),
 		Namespace: "foo",
 		Tick:      4,
@@ -103,7 +103,7 @@ func (s *TestSuite) TestSubmitBatch_Unauthorized() {
 }
 
 func (s *TestSuite) TestExportGenesis() {
-	submit1 := &types.SubmitCardinalTxRequest{
+	submit1 := &types.SubmitShardTxRequest{
 		Sender:    s.auth,
 		Namespace: "foo",
 		Tick:      1,
@@ -114,7 +114,7 @@ func (s *TestSuite) TestExportGenesis() {
 		},
 	}
 
-	submit2 := &types.SubmitCardinalTxRequest{
+	submit2 := &types.SubmitShardTxRequest{
 		Sender:    s.auth,
 		Namespace: "bar",
 		Tick:      3,
@@ -124,7 +124,7 @@ func (s *TestSuite) TestExportGenesis() {
 		},
 	}
 
-	submit3 := &types.SubmitCardinalTxRequest{
+	submit3 := &types.SubmitShardTxRequest{
 		Sender:    s.auth,
 		Namespace: "foo",
 		Tick:      2,
@@ -134,9 +134,9 @@ func (s *TestSuite) TestExportGenesis() {
 		},
 	}
 
-	reqs := []*types.SubmitCardinalTxRequest{submit1, submit2, submit3}
+	reqs := []*types.SubmitShardTxRequest{submit1, submit2, submit3}
 	for _, req := range reqs {
-		_, err := s.keeper.SubmitCardinalTx(s.ctx, req)
+		_, err := s.keeper.SubmitShardTx(s.ctx, req)
 		s.Require().NoError(err)
 	}
 
