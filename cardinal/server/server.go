@@ -215,8 +215,9 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 			return uint64(tick)
 		}
 
-		// as long as we have an adapter, and the current world is not in recovery mode
+		// check if we have an adapter
 		if t.adapter != nil {
+			// if the world is recovering via adapter, we shouldn't accept transactions.
 			if t.w.IsRecovering() {
 				writeError(writer, "unable to submit transactions: game world is recovering state", nil)
 			} else {
@@ -227,6 +228,7 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 				}
 			}
 		} else {
+			// if there is no adapter, then we can just put the tx in the queue.
 			submitTx()
 		}
 	}
