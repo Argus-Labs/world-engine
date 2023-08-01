@@ -48,7 +48,7 @@ type World struct {
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
 
-	chain shard.Reader
+	chain shard.ReadAdapter
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
@@ -674,7 +674,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		for _, tickedTxs := range res.Txs {
+		for _, tickedTxs := range res.Ticks {
 			target := tickedTxs.Tick
 			// tick up to target
 			if target < uint64(w.CurrentTick()) {
@@ -687,7 +687,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				current = w.CurrentTick()
 			}
 			// we've now reached target. we need to inject the transactions and tick.
-			transactions := tickedTxs.Txs.Txs
+			transactions := tickedTxs.Txs
 			for _, tx := range transactions {
 				sp, err := w.decodeTransaction(tx.SignedPayload)
 				if err != nil {

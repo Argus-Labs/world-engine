@@ -24,7 +24,7 @@ type Handler struct {
 	disableSigVerification bool
 
 	// plugins
-	adapter shard.Writer
+	adapter shard.WriteAdapter
 }
 
 var (
