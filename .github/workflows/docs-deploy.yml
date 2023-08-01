@@ -1,0 +1,98 @@
+name: World Engine - Docs
+env:
+  VERCEL_ORG_ID: ${{ secrets.DOCS_VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.DOCS_VERCEL_PROJECT_ID }}
+on:
+  pull_request:
+    paths:
+      - docs/**
+    branches:
+      - main
+      - develop
+  push:
+    paths:
+      - docs/**
+    branches:
+      - main
+jobs:
+  deploy-preview:
+    if: ${{ github.ref != 'refs/heads/main' }}
+    strategy:
+      matrix:
+        npm-version: [16]
+        pnpm-version: [8]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: docs
+    permissions:
+      pull-requests: write
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.npm-version }}
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ matrix.pnpm-version }}
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=preview --token=${{ secrets.DOCS_VERCEL_TOKEN }}
+      - name: Build Project Artifacts
+        run: vercel build --token=${{ secrets.DOCS_VERCEL_TOKEN }}
+      - name: Deploy Project Artifacts to Vercel
+        id: vercel-deploy-results
+        run: |
+          vercel deploy --prebuilt --token=${{ secrets.DOCS_VERCEL_TOKEN }} 2>&1 | tee output.txt
+          ## Randomized EOF for multiline $GITHUB_OUTPUT
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          echo "DEPLOY_OUTPUT<<$EOF" >> $GITHUB_OUTPUT
+          echo ":mag: $(cat output.txt  | grep Inspect)" >> $GITHUB_OUTPUT
+          echo ":globe_with_meridians: Preview: $(cat output.txt  | grep Queued | sed s/Queued//)" >> $GITHUB_OUTPUT
+          echo "$EOF" >> $GITHUB_OUTPUT
+      - name: PR Comment Deploy Results
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          comment_tag: vercel_deploy_preview
+          message: |
+            ### World Engine Docs deployed to Vercel (Preview)!
+            ___
+            ${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}
+
+  deploy-production:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    strategy:
+      matrix:
+        npm-version: [16]
+        pnpm-version: [8]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: docs
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.npm-version }}
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ matrix.pnpm-version }}
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.DOCS_VERCEL_TOKEN }}
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.DOCS_VERCEL_TOKEN }}
+      - name: Deploy Project Artifacts to Vercel
+        id: vercel-deploy-results
+        run: |
+          vercel deploy --prebuilt --prod --token=${{ secrets.DOCS_VERCEL_TOKEN }} 2>&1 | tee output.txt
+          echo ":mag: $(cat output.txt  | grep Inspect)"
+          echo ":globe_with_meridians: $(cat output.txt  | grep Production)"

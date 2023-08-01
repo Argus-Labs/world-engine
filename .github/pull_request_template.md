@@ -1,15 +1,8 @@
-<!-- < < < < < < < < < < < < < < < < < < < < < < < < < < < < < < < < < ☺
-v                               ✰  Thanks for creating a PR! ✰
-v    Before smashing the submit button please review the checkboxes.
-v    If a checkbox is n/a - please still include it but + a little note why
-v    If your PR doesn't close an issue, that's OK!  Just remove the Closes: #XXX line!
-☺ > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > > >  -->
-
 Closes: #XXX
 
 ## What is the purpose of the change
 
-> Add a description of the overall background and high level changes that this PR introduces
+> Add a description of the overall background and high-level changes that this PR introduces
 
 _(E.g.: This pull request improves documation of area A by adding ...._
 
@@ -25,7 +18,7 @@ _(for example:)_
 
 _(Please pick one of the following options)_
 
-This change is a trivial rework / code cleanup without any test coverage.
+This change is a trivial rework/code cleanup without any test coverage.
 
 _(or)_
 
@@ -41,9 +34,3 @@ _(example:)_
 - _Added integration tests for end-to-end deployment with ..._
 - _Extended integration test for ..._
 - _Manually verified the change by ..._
-
-## Documentation and Release Note
-
-- Does this pull request introduce a new feature or user-facing behavior changes? (yes / no)
-- Is a relevant changelog entry added to the `Unreleased` section in `CHANGELOG.md`? (yes / no)
-- How is the feature or change documented? (not applicable / specification (`x/<module>/spec/`) / [Osmosis docs repo](https://github.com/osmosis-labs/docs) / not documented)

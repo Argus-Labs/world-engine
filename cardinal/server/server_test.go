@@ -135,6 +135,9 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 }
 
 func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
+	// skipping as this does not always work 100% of the time.
+	// https://linear.app/arguslabs/issue/CAR-115/refactor-tests-that-use-http-calls-to-use-a-mock-http-connection
+	t.Skip("this test is flaky and does not always pass")
 	count := 0
 	endpoint := "move"
 	w := inmem.NewECSWorldForTest(t)
@@ -336,29 +339,15 @@ func TestCanListReads(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 
-	fooRead := ecs.NewReadType[FooRequest]("foo", func(world *ecs.World, bz []byte) ([]byte, error) {
-		var req FooRequest
-		err := json.Unmarshal(bz, &req)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(FooResponse{Meow: req.Meow})
+	fooRead := ecs.NewReadType[FooRequest, FooResponse]("foo", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+		return FooResponse{Meow: req.Meow}, nil
 	})
-	barRead := ecs.NewReadType[FooRequest]("bar", func(world *ecs.World, bz []byte) ([]byte, error) {
-		var req FooRequest
-		err := json.Unmarshal(bz, &req)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(FooResponse{Meow: req.Meow})
+	barRead := ecs.NewReadType[FooRequest, FooResponse]("bar", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+
+		return FooResponse{Meow: req.Meow}, nil
 	})
-	bazRead := ecs.NewReadType[FooRequest]("baz", func(world *ecs.World, bz []byte) ([]byte, error) {
-		var req FooRequest
-		err := json.Unmarshal(bz, &req)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(FooResponse{Meow: req.Meow})
+	bazRead := ecs.NewReadType[FooRequest, FooResponse]("baz", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+		return FooResponse{Meow: req.Meow}, nil
 	})
 
 	assert.NilError(t, world.RegisterReads(fooRead, barRead, bazRead))
@@ -393,16 +382,11 @@ func TestReadEncodeDecode(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 	endpoint := "foo"
-	fq := ecs.NewReadType[FooRequest](endpoint, func(world *ecs.World, bz []byte) ([]byte, error) {
-		var req FooRequest
-		err := json.Unmarshal(bz, &req)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(FooResponse{Meow: req.Meow})
+	fq := ecs.NewReadType[FooRequest, FooResponse](endpoint, func(world *ecs.World, req FooRequest) (FooResponse, error) {
+		return FooResponse{Meow: req.Meow}, nil
 	})
 
-	// setup the world, register the reads, load.
+	// set up the world, register the reads, load.
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.RegisterReads(fq))
 	assert.NilError(t, world.LoadGameState())

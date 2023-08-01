@@ -123,7 +123,7 @@ func initPrivateKey(ctx context.Context, logger runtime.Logger, nk runtime.Nakam
 		if err := setPrivateKeyHex(ctx, nk, privateKeyHex); err != nil {
 			return err
 		}
-		if err := setNonce(ctx, nk, 0); err != nil {
+		if err := setNonce(ctx, nk, 1); err != nil {
 			return err
 		}
 	}

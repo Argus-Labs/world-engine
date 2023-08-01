@@ -55,5 +55,12 @@ services:
       - "7350:7350"
       - "7351:7351"
     restart: unless-stopped
+  testsuite:
+    build: ./testsuite
+    depends_on:
+      - server
+      - nakama
+    environment:
+      - NAKAMA_ADDRESS=http://nakama:7350
 volumes:
   data:
