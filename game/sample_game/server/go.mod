@@ -12,7 +12,7 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
-require github.com/argus-labs/world-engine/cardinal v0.1.12-alpha
+require github.com/argus-labs/world-engine/cardinal v0.1.18-alpha
 
 require (
 	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230706220147-5852f366165d.1 // indirect
@@ -31,7 +31,7 @@ require (
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/alicebob/miniredis/v2 v2.30.2 // indirect
 	github.com/argus-labs/world-engine/chain v0.0.0-20230707202412-c8445f1731f0 // indirect
-	github.com/argus-labs/world-engine/sign v0.1.0-alpha // indirect
+	github.com/argus-labs/world-engine/sign v0.1.3-alpha // indirect
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect

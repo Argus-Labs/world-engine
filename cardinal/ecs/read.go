@@ -1,6 +1,10 @@
 package ecs
 
-import "github.com/invopop/jsonschema"
+import (
+	"encoding/json"
+	"fmt"
+	"github.com/invopop/jsonschema"
+)
 
 type IRead interface {
 	// Name returns the name of the read.
@@ -12,31 +16,44 @@ type IRead interface {
 	Schema() *jsonschema.Schema
 }
 
-// Handler represent a function that handles a read request, and returns a read response.
-type Handler func(*World, []byte) ([]byte, error)
-
-type ReadType[T any] struct {
+type ReadType[Request any, Reply any] struct {
 	name    string
-	handler Handler
+	handler func(world *World, req Request) (Reply, error)
 }
 
-var _ IRead = NewReadType[struct{}]("", nil)
+var _ IRead = NewReadType[struct{}, struct{}]("", nil)
 
-func NewReadType[T any](name string, handler Handler) *ReadType[T] {
-	return &ReadType[T]{
+func NewReadType[Request any, Reply any](
+	name string,
+	handler func(world *World, req Request) (Reply, error),
+) *ReadType[Request, Reply] {
+	return &ReadType[Request, Reply]{
 		name:    name,
 		handler: handler,
 	}
 }
 
-func (r *ReadType[T]) Name() string {
+func (r *ReadType[req, rep]) Name() string {
 	return r.name
 }
 
-func (r *ReadType[T]) Schema() *jsonschema.Schema {
-	return jsonschema.Reflect(new(T))
+func (r *ReadType[req, rep]) Schema() *jsonschema.Schema {
+	return jsonschema.Reflect(new(req))
 }
 
-func (r *ReadType[T]) HandleRead(w *World, req []byte) ([]byte, error) {
-	return r.handler(w, req)
+func (r *ReadType[req, rep]) HandleRead(w *World, bz []byte) ([]byte, error) {
+	t := new(req)
+	err := json.Unmarshal(bz, t)
+	if err != nil {
+		return nil, fmt.Errorf("unable to unmarshal read request into type %T: %w", *t, err)
+	}
+	res, err := r.handler(w, *t)
+	if err != nil {
+		return nil, err
+	}
+	bz, err = json.Marshal(res)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal response %T: %w", res, err)
+	}
+	return bz, nil
 }

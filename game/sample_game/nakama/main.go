@@ -150,9 +150,9 @@ func getUserID(ctx context.Context) (string, error) {
 }
 
 type personaTagStorageObj struct {
-	PersonaTag string
-	Status     personaTagStatus
-	Tick       int
+	PersonaTag string           `json:"persona_tag"`
+	Status     personaTagStatus `json:"status"`
+	Tick       int              `json:"tick"`
 }
 
 // storageObjToPersonaTagStorageObj converts a generic Nakama StorageObject to a locally defined personaTagStorageObj.
@@ -237,9 +237,9 @@ func handleClaimPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 	} else if err == nil {
 		switch ptr.Status {
 		case personaTagStatusPending:
-			return logError(logger, "persona tag %q is pending for this account", ptr.PersonaTag)
+			return logCode(logger, ALREADY_EXISTS, "persona tag %q is pending for this account", ptr.PersonaTag)
 		case personaTagStatusAccepted:
-			return logError(logger, "persona tag %q already associated with this account", ptr.PersonaTag)
+			return logCode(logger, ALREADY_EXISTS, "persona tag %q already associated with this account", ptr.PersonaTag)
 		default:
 			// In other cases, allow the user to claim a persona tag.
 		}
@@ -250,7 +250,7 @@ func handleClaimPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 		return logError(logger, "unable to marshal payload: %w", err)
 	}
 	if ptr.PersonaTag == "" {
-		return logError(logger, "PersonaTag field must not be empty")
+		return logCode(logger, INVALID_ARGUMENT, "persona_tag field must not be empty")
 	}
 
 	ptr.Status = personaTagStatusPending
@@ -270,7 +270,7 @@ func handleClaimPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 		if err := setPersonaTagStorageObj(ctx, nk, ptr); err != nil {
 			return logError(logger, "unable to set persona tag storage object: %w", err)
 		}
-		return logError(logger, "persona tag %q is not available", ptr.PersonaTag)
+		return logCode(logger, ALREADY_EXISTS, "persona tag %q is not available", ptr.PersonaTag)
 	}
 
 	tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
@@ -300,13 +300,16 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 	if errors.Is(err, ErrorPersonaTagStorageObjNotFound) {
 		return logError(logger, "no persona tag found: %w", err)
 	} else if err != nil {
-		return logError(logger, "unable to get persona tag storage object")
+		return logError(logger, "unable to get persona tag storage object: %w", err)
 	}
 
 	if ptr.Status == personaTagStatusPending {
 		logger.Debug("persona tag status is pending. Attempting to verify against cardinal.")
 		verified, err := verifyPersonaTag(ctx, ptr)
-		if err != nil {
+		if err == ErrorPersonaSignerUnknown {
+			// The status should remain pending
+			return ptr.toJSON()
+		} else if err != nil {
 			return logError(logger, "signer address could not be verified: %w", err)
 		}
 		logger.Debug("done with request. verified is %v", verified)
@@ -367,6 +370,12 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 		}
 	}
 	return nil
+}
+
+func logCode(logger runtime.Logger, code int, format string, v ...interface{}) (string, error) {
+	err := fmt.Errorf(format, v...)
+	logger.Error(err.Error())
+	return "", runtime.NewError(err.Error(), code)
 }
 
 func logError(logger runtime.Logger, format string, v ...interface{}) (string, error) {

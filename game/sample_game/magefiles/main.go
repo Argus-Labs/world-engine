@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -15,6 +16,20 @@ func Check() error {
 	return checkPrereq(true)
 }
 
+func Test() error {
+	mg.Deps(exitMagefilesDir)
+	if err := sh.RunV("docker", "compose", "down", "--volumes"); err != nil {
+		return err
+	}
+
+	if err := prepareDirs("testsuite", "server", "nakama"); err != nil {
+		return err
+	}
+	if err := sh.RunV("docker", "compose", "up", "--build", "--abort-on-container-exit", "--exit-code-from", "testsuite", "--attach", "testsuite"); err != nil {
+		return err
+	}
+	return nil
+}
 
 // Stop stops Nakama and the game server.
 func Stop() error {
@@ -51,14 +66,20 @@ func Nakama() error {
 // Start starts Nakama and the game server
 func Start() error {
 	mg.Deps(exitMagefilesDir)
-	if err := prepareDir("server"); err != nil {
-		return err
-	}
-	if err := prepareDir("nakama"); err != nil {
+	if err := prepareDirs("server", "nakama"); err != nil {
 		return err
 	}
 	if err := sh.RunV("docker", "compose", "up", "--build", "server", "nakama"); err != nil {
 		return err
+	}
+	return nil
+}
+
+func prepareDirs(dirs ...string) error {
+	for _, d := range dirs {
+		if err := prepareDir(d); err != nil {
+			return fmt.Errorf("failed to prepare dir %d: %w", d, err)
+		}
 	}
 	return nil
 }

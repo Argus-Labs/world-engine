@@ -3,8 +3,9 @@ go 1.20
 use (
 	cardinal
 	chain
-	sign
 	magefiles
-	game/sample_game/server
+	sign
 	game/sample_game/nakama
+	game/sample_game/server
+	game/sample_game/testsuite
 )
