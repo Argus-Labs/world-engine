@@ -24,7 +24,7 @@ func TestAddTx(t *testing.T) {
 	// at this point, outbox should be empty, and there should be 2 txs in the queue.
 	assert.Equal(t, len(txq.outbox), 0)
 	txs := txq.TxsForNamespaceInTick(namespace, tick)
-	assert.Equal(t, len(txs.Txs.Txs), 2)
+	assert.Equal(t, len(txs.Txs), 2)
 
 	// now we add a tx from a different tick
 	newTick := uint64(4)

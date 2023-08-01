@@ -18,7 +18,10 @@ func (k *Keeper) SubmitCardinalTx(ctx context.Context, msg *types.SubmitCardinal
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
-	err := k.saveTransactions(sdkCtx, msg.Namespace, msg.Tick, msg.Txs)
+	err := k.saveTransactions(sdkCtx, msg.Namespace, &types.Tick{
+		Tick: msg.Tick,
+		Txs:  msg.Txs,
+	})
 	if err != nil {
 		return nil, err
 	}

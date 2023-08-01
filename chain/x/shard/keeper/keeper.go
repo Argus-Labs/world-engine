@@ -22,7 +22,7 @@ func (k *Keeper) InitGenesis(ctx sdk.Context, genesis *types.GenesisState) {
 	for _, nstx := range genesis.NamespaceTransactions {
 		namespace := nstx.Namespace
 		for _, tickedTx := range nstx.Ticks {
-			err := k.saveTransactions(ctx, namespace, tickedTx.Tick, tickedTx.Txs)
+			err := k.saveTransactions(ctx, namespace, tickedTx)
 			if err != nil {
 				panic(err)
 			}
@@ -37,11 +37,8 @@ func (k *Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 			Namespace: ns,
 			Ticks:     nil,
 		}
-		k.iterateTransactions(ctx, nil, nil, ns, func(tick uint64, txs *types.Transactions) bool {
-			nstxs.Ticks = append(nstxs.Ticks, &types.Tick{
-				Tick: tick,
-				Txs:  txs,
-			})
+		k.iterateTransactions(ctx, nil, nil, ns, func(tick *types.Tick) bool {
+			nstxs.Ticks = append(nstxs.Ticks, tick)
 			return true
 		})
 		res.NamespaceTransactions = append(res.NamespaceTransactions, nstxs)

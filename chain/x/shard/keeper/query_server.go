@@ -23,17 +23,14 @@ func (k *Keeper) Transactions(ctx context.Context, req *types.QueryTransactionsR
 	}
 	count := uint32(0)
 	k.iterateTransactions(sdk.UnwrapSDKContext(ctx), key, nil,
-		req.Namespace, func(tick uint64, txs *types.Transactions) bool {
+		req.Namespace, func(tick *types.Tick) bool {
 			// we keep the check here so that if we hit the limit,
 			// we return the NEXT key in the iteration, not the one before it.
 			if count == limit {
-				res.Page.Key = k.getTransactionKey(tick)
+				res.Page.Key = k.getTransactionKey(tick.Tick)
 				return false
 			}
-			res.Ticks = append(res.Ticks, &types.Tick{
-				Tick: tick,
-				Txs:  txs,
-			})
+			res.Ticks = append(res.Ticks, tick)
 			return true
 		})
 

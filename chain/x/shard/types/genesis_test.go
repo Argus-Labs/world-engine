@@ -39,7 +39,7 @@ func TestGenesisValidate(t *testing.T) {
 		{
 			name: "empty signed payload",
 			mutate: func(state *GenesisState) {
-				state.NamespaceTransactions[0].Ticks[0].Txs = &Transactions{Txs: []*Transaction{{}}}
+				state.NamespaceTransactions[0].Ticks[0].Txs = []*Transaction{{}}
 			},
 			err: "no transaction data",
 		},

@@ -45,7 +45,7 @@ func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 			Sender:    tc.moduleAddr,
 			Namespace: namespace,
 			Tick:      tick,
-			Txs:       &types.Transactions{Txs: []*types.Transaction{{TxId: txID, SignedPayload: payload}}},
+			Txs:       []*types.Transaction{{TxId: txID, SignedPayload: payload}},
 		}
 		return
 	}
@@ -70,11 +70,11 @@ func (tc *TxQueue) AddTx(namespace string, tick, txID uint64, payload []byte) {
 			Sender:    tc.moduleAddr,
 			Namespace: namespace,
 			Tick:      tick,
-			Txs:       &types.Transactions{Txs: make([]*types.Transaction, 0)},
+			Txs:       make([]*types.Transaction, 0),
 		}
 	}
 	// finally, we append the transaction data to the transaction queue.
-	tc.ntx[namespace].txs[tick].Txs.Txs = append(tc.ntx[namespace].txs[tick].Txs.Txs, &types.Transaction{
+	tc.ntx[namespace].txs[tick].Txs = append(tc.ntx[namespace].txs[tick].Txs, &types.Transaction{
 		TxId:          txID,
 		SignedPayload: payload,
 	})

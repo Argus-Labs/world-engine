@@ -28,7 +28,7 @@ message SubmitCardinalTxRequest {
   uint64 tick = 3;
 
   // txs are the transactions that occurred in this tick.
-  Transactions txs = 4;
+  repeated Transaction txs = 4;
 }
 
 message SubmitCardinalTxResponse {}

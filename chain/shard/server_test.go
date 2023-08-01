@@ -68,5 +68,5 @@ func TestServer(t *testing.T) {
 	// txs should now have 1 request.
 	assert.Equal(t, len(txs), 1)
 	// the request should have the 2 transactions from the first tick.
-	assert.Equal(t, len(txs[0].Txs.Txs), 2)
+	assert.Equal(t, len(txs[0].Txs), 2)
 }

@@ -54,10 +54,10 @@ func (s *TestSuite) TestSubmitTransactions() {
 	}
 	signedPayloadBz, err := proto.Marshal(sp)
 	s.Require().NoError(err)
-	txs := &types.Transactions{Txs: []*types.Transaction{
+	txs := []*types.Transaction{
 		{3, signedPayloadBz},
 		{4, signedPayloadBz},
-	}}
+	}
 	_, err = s.keeper.SubmitCardinalTx(
 		s.ctx,
 		&types.SubmitCardinalTxRequest{
@@ -76,10 +76,10 @@ func (s *TestSuite) TestSubmitTransactions() {
 			Sender:    s.auth,
 			Namespace: "foo",
 			Tick:      tick,
-			Txs: &types.Transactions{Txs: []*types.Transaction{
+			Txs: []*types.Transaction{
 				{3, signedPayloadBz},
 				{4, signedPayloadBz},
-			}},
+			},
 		},
 	)
 	s.Require().NoError(err)
@@ -89,7 +89,7 @@ func (s *TestSuite) TestSubmitTransactions() {
 	// we only submitted transactions for 1 tick, so there should only be 1.
 	s.Require().Len(res.Ticks, 1)
 	// should have equal amount of txs within the tick.
-	s.Require().Len(res.Ticks[0].Txs.Txs, len(txs.Txs))
+	s.Require().Len(res.Ticks[0].Txs, len(txs))
 }
 
 func (s *TestSuite) TestSubmitBatch_Unauthorized() {
@@ -107,31 +107,31 @@ func (s *TestSuite) TestExportGenesis() {
 		Sender:    s.auth,
 		Namespace: "foo",
 		Tick:      1,
-		Txs: &types.Transactions{Txs: []*types.Transaction{
+		Txs: []*types.Transaction{
 			{1, []byte("foo")},
 			{10, []byte("bar")},
 			{1, []byte("baz")},
-		}},
+		},
 	}
 
 	submit2 := &types.SubmitCardinalTxRequest{
 		Sender:    s.auth,
 		Namespace: "bar",
 		Tick:      3,
-		Txs: &types.Transactions{Txs: []*types.Transaction{
+		Txs: []*types.Transaction{
 			{15, []byte("qux")},
 			{2, []byte("quiz")},
-		}},
+		},
 	}
 
 	submit3 := &types.SubmitCardinalTxRequest{
 		Sender:    s.auth,
 		Namespace: "foo",
 		Tick:      2,
-		Txs: &types.Transactions{Txs: []*types.Transaction{
+		Txs: []*types.Transaction{
 			{4, []byte("qux")},
 			{9, []byte("quiz")},
-		}},
+		},
 	}
 
 	reqs := []*types.SubmitCardinalTxRequest{submit1, submit2, submit3}
@@ -143,12 +143,12 @@ func (s *TestSuite) TestExportGenesis() {
 	gen := s.keeper.ExportGenesis(s.ctx)
 	// there should only be 2 namespaced txs, because we only submitted 2 diff ones.
 	s.Require().Len(gen.NamespaceTransactions, 2)
-	s.Require().Len(gen.NamespaceTransactions[1].Ticks, 2)            // we submitted 2 ticks for namespace foo
-	s.Require().Len(gen.NamespaceTransactions[1].Ticks[0].Txs.Txs, 3) // the first tick had 3 txs
-	s.Require().Len(gen.NamespaceTransactions[1].Ticks[1].Txs.Txs, 2) // the second tick had 2 txs
+	s.Require().Len(gen.NamespaceTransactions[1].Ticks, 2)        // we submitted 2 ticks for namespace foo
+	s.Require().Len(gen.NamespaceTransactions[1].Ticks[0].Txs, 3) // the first tick had 3 txs
+	s.Require().Len(gen.NamespaceTransactions[1].Ticks[1].Txs, 2) // the second tick had 2 txs
 
-	s.Require().Len(gen.NamespaceTransactions[0].Ticks, 1)            // only one tick under namespace "bar"
-	s.Require().Len(gen.NamespaceTransactions[0].Ticks[0].Txs.Txs, 2) // only 2 txs in the tick.
+	s.Require().Len(gen.NamespaceTransactions[0].Ticks, 1)        // only one tick under namespace "bar"
+	s.Require().Len(gen.NamespaceTransactions[0].Ticks[0].Txs, 2) // only 2 txs in the tick.
 
 	// importing back the genesis should not panic
 	s.Require().NotPanics(func() {

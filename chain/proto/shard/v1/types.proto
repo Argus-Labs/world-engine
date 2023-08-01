@@ -15,12 +15,8 @@ message Transaction {
   bytes signed_payload = 2;
 }
 
-message Transactions {
-  repeated Transaction txs = 1;
-}
-
 // Tick contains a tick number, and the transactions that occurred in that tick.
 message Tick {
   uint64 tick = 1;
-  Transactions txs = 2;
+  repeated Transaction txs = 2;
 }

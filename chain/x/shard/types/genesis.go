@@ -15,10 +15,10 @@ func (g *GenesisState) Validate() error {
 			return fmt.Errorf("no transactions for namespace %s", nstx.Namespace)
 		}
 		for _, tickedTxs := range nstx.Ticks {
-			if tickedTxs.Txs == nil || tickedTxs.Txs.Txs == nil {
+			if tickedTxs.Txs == nil {
 				return fmt.Errorf("no transactions for tick %d in namespace %s", tickedTxs.Tick, nstx.Namespace)
 			}
-			for j, tx := range tickedTxs.Txs.Txs {
+			for j, tx := range tickedTxs.Txs {
 				if tx.SignedPayload == nil {
 					return fmt.Errorf("no transaction data for tx %d in tick %d in namespace %s", j,
 						tickedTxs.Tick, nstx.Namespace)
