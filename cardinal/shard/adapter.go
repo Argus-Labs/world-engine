@@ -1,10 +1,11 @@
-package chain
+package shard
 
 import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/argus-labs/world-engine/sign"
 	"google.golang.org/grpc/credentials"
 	"os"
 
@@ -17,11 +18,23 @@ import (
 
 // Adapter is a type that helps facilitate communication with the EVM base shard.
 type Adapter interface {
-	Submit(ctx context.Context, namespace string, tick uint64, txs []byte) error
-	QueryBatches(ctx context.Context, req *shardtypes.QueryBatchesRequest) (*shardtypes.QueryBatchesResponse, error)
+	WriteAdapter
+	ReadAdapter
 }
 
-type Config struct {
+// WriteAdapter provides the functionality to send transactions to the EVM base shard.
+type WriteAdapter interface {
+	Submit(ctx context.Context, p *sign.SignedPayload, txID, epoch uint64) error
+}
+
+// ReadAdapter provides the functionality to read transactions from the EVM base shard.
+type ReadAdapter interface {
+	QueryTransactions(
+		context.Context,
+		*shardtypes.QueryTransactionsRequest) (*shardtypes.QueryTransactionsResponse, error)
+}
+
+type AdapterConfig struct {
 	// ShardReceiverAddr is the address to communicate with the secure shard submission channel.
 	ShardReceiverAddr string `json:"shard_receiver_addr,omitempty"`
 
@@ -34,7 +47,7 @@ var (
 )
 
 type adapterImpl struct {
-	cfg           Config
+	cfg           AdapterConfig
 	grpcOpts      []grpc.DialOption
 	ShardReceiver shardgrpc.ShardHandlerClient
 	ShardQuerier  shardtypes.QueryClient
@@ -60,7 +73,7 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 	return credentials.NewTLS(config), nil
 }
 
-func NewAdapter(cfg Config, opts ...Option) (Adapter, error) {
+func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	a := &adapterImpl{cfg: cfg}
 	for _, opt := range opts {
 		opt(a)
@@ -79,13 +92,29 @@ func NewAdapter(cfg Config, opts ...Option) (Adapter, error) {
 	return a, nil
 }
 
-// Submit submits the transaction bytes to the EVM base shard.
-func (a adapterImpl) Submit(ctx context.Context, namespace string, tick uint64, txs []byte) error {
-	req := &shardv1.SubmitShardBatchRequest{Namespace: namespace, TickId: tick, Batch: txs}
-	_, err := a.ShardReceiver.SubmitShardBatch(ctx, req)
+// Submit submits a transaction to the EVM base shard.
+func (a adapterImpl) Submit(ctx context.Context, sp *sign.SignedPayload, txID uint64, epoch uint64) error {
+	req := &shardv1.SubmitShardTxRequest{Tx: signedPayloadToProto(sp), Epoch: epoch, TxId: txID}
+	_, err := a.ShardReceiver.SubmitShardTx(ctx, req)
 	return err
 }
 
-func (a adapterImpl) QueryBatches(ctx context.Context, req *shardtypes.QueryBatchesRequest) (*shardtypes.QueryBatchesResponse, error) {
-	return a.ShardQuerier.Batches(ctx, req)
+func (a adapterImpl) QueryTransactions(
+	ctx context.Context,
+	req *shardtypes.QueryTransactionsRequest,
+) (
+	*shardtypes.QueryTransactionsResponse,
+	error,
+) {
+	return a.ShardQuerier.Transactions(ctx, req)
+}
+
+func signedPayloadToProto(sp *sign.SignedPayload) *shardv1.SignedPayload {
+	return &shardv1.SignedPayload{
+		PersonaTag: sp.PersonaTag,
+		Namespace:  sp.Namespace,
+		Nonce:      sp.Nonce,
+		Signature:  sp.Signature,
+		Body:       sp.Body,
+	}
 }

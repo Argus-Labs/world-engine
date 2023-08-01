@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
@@ -11,15 +10,21 @@ import (
 
 var _ types.MsgServer = &Keeper{}
 
-func (k *Keeper) SubmitBatch(ctx context.Context, msg *types.SubmitBatchRequest) (*types.SubmitBatchResponse, error) {
+func (k *Keeper) SubmitShardTx(ctx context.Context, msg *types.SubmitShardTxRequest,
+) (*types.SubmitShardTxResponse, error) {
 	if msg.Sender != k.auth {
-		return nil, sdkerrors.ErrUnauthorized.Wrap("this function cannot be used by EOAs. the transaction must be " +
-			"initialized internally")
+		return nil, sdkerrors.ErrUnauthorized.Wrap("SubmitShardTx is a system function and cannot be called " +
+			"externally.")
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	err := k.saveBatch(sdkCtx, msg.TransactionBatch)
+
+	err := k.saveTransactions(sdkCtx, msg.Namespace, &types.Epoch{
+		Epoch: msg.Epoch,
+		Txs:   msg.Txs,
+	})
 	if err != nil {
 		return nil, err
 	}
-	return &types.SubmitBatchResponse{}, nil
+
+	return &types.SubmitShardTxResponse{}, nil
 }

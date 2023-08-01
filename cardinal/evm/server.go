@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"net"
 	"os"
 
@@ -23,9 +24,11 @@ var (
 // ITransactionTypes is a map that maps transaction type ID's to transaction types.
 type ITransactionTypes map[transaction.TypeID]transaction.ITransaction
 
+var _ TxHandler = &ecs.World{}
+
 // TxHandler is a type that gives access to transaction data in the ecs.World, as well as access to queue transactions.
 type TxHandler interface {
-	AddTransaction(transaction.TypeID, any, *sign.SignedPayload)
+	AddTransaction(transaction.TypeID, any, *sign.SignedPayload) int
 	ListTransactions() ([]transaction.ITransaction, error)
 }
 

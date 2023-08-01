@@ -31,23 +31,23 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type QueryBatchesRequest struct {
+type QueryTransactionsRequest struct {
 	Namespace string       `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	Page      *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 }
 
-func (m *QueryBatchesRequest) Reset()         { *m = QueryBatchesRequest{} }
-func (m *QueryBatchesRequest) String() string { return proto.CompactTextString(m) }
-func (*QueryBatchesRequest) ProtoMessage()    {}
-func (*QueryBatchesRequest) Descriptor() ([]byte, []int) {
+func (m *QueryTransactionsRequest) Reset()         { *m = QueryTransactionsRequest{} }
+func (m *QueryTransactionsRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryTransactionsRequest) ProtoMessage()    {}
+func (*QueryTransactionsRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_1088f6b90570984a, []int{0}
 }
-func (m *QueryBatchesRequest) XXX_Unmarshal(b []byte) error {
+func (m *QueryTransactionsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryBatchesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryTransactionsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryBatchesRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryTransactionsRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -57,49 +57,52 @@ func (m *QueryBatchesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte,
 		return b[:n], nil
 	}
 }
-func (m *QueryBatchesRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryBatchesRequest.Merge(m, src)
+func (m *QueryTransactionsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryTransactionsRequest.Merge(m, src)
 }
-func (m *QueryBatchesRequest) XXX_Size() int {
+func (m *QueryTransactionsRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryBatchesRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryBatchesRequest.DiscardUnknown(m)
+func (m *QueryTransactionsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryTransactionsRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryBatchesRequest proto.InternalMessageInfo
+var xxx_messageInfo_QueryTransactionsRequest proto.InternalMessageInfo
 
-func (m *QueryBatchesRequest) GetNamespace() string {
+func (m *QueryTransactionsRequest) GetNamespace() string {
 	if m != nil {
 		return m.Namespace
 	}
 	return ""
 }
 
-func (m *QueryBatchesRequest) GetPage() *PageRequest {
+func (m *QueryTransactionsRequest) GetPage() *PageRequest {
 	if m != nil {
 		return m.Page
 	}
 	return nil
 }
 
-type QueryBatchesResponse struct {
-	Batches []*TransactionBatch `protobuf:"bytes,1,rep,name=batches,proto3" json:"batches,omitempty"`
-	Page    *PageResponse       `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+type QueryTransactionsResponse struct {
+	// epochs contains the transactions. Each entry contains an epoch, and a list of txs that occurred in that epoch.
+	Epochs []*Epoch `protobuf:"bytes,1,rep,name=epochs,proto3" json:"epochs,omitempty"`
+	// page contains information on how to query the next items in the collection, if any.
+	// when page is nil/empty, there is nothing left to query.
+	Page *PageResponse `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 }
 
-func (m *QueryBatchesResponse) Reset()         { *m = QueryBatchesResponse{} }
-func (m *QueryBatchesResponse) String() string { return proto.CompactTextString(m) }
-func (*QueryBatchesResponse) ProtoMessage()    {}
-func (*QueryBatchesResponse) Descriptor() ([]byte, []int) {
+func (m *QueryTransactionsResponse) Reset()         { *m = QueryTransactionsResponse{} }
+func (m *QueryTransactionsResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryTransactionsResponse) ProtoMessage()    {}
+func (*QueryTransactionsResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_1088f6b90570984a, []int{1}
 }
-func (m *QueryBatchesResponse) XXX_Unmarshal(b []byte) error {
+func (m *QueryTransactionsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *QueryBatchesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *QueryTransactionsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_QueryBatchesResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_QueryTransactionsResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -109,34 +112,39 @@ func (m *QueryBatchesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte
 		return b[:n], nil
 	}
 }
-func (m *QueryBatchesResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_QueryBatchesResponse.Merge(m, src)
+func (m *QueryTransactionsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryTransactionsResponse.Merge(m, src)
 }
-func (m *QueryBatchesResponse) XXX_Size() int {
+func (m *QueryTransactionsResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *QueryBatchesResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_QueryBatchesResponse.DiscardUnknown(m)
+func (m *QueryTransactionsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryTransactionsResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_QueryBatchesResponse proto.InternalMessageInfo
+var xxx_messageInfo_QueryTransactionsResponse proto.InternalMessageInfo
 
-func (m *QueryBatchesResponse) GetBatches() []*TransactionBatch {
+func (m *QueryTransactionsResponse) GetEpochs() []*Epoch {
 	if m != nil {
-		return m.Batches
+		return m.Epochs
 	}
 	return nil
 }
 
-func (m *QueryBatchesResponse) GetPage() *PageResponse {
+func (m *QueryTransactionsResponse) GetPage() *PageResponse {
 	if m != nil {
 		return m.Page
 	}
 	return nil
 }
 
+// PageRequest represents a request for a paged query.
 type PageRequest struct {
-	Key   []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// key is the cosmos SDK store key to begin the iteration on.
+	Key []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// limit is the amount of items we want to limit in our return.
+	// example, if the collection we are interested has 10 items,
+	// and we set limit to 5, the query will only return 5 items.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
 }
 
@@ -187,7 +195,10 @@ func (m *PageRequest) GetLimit() uint32 {
 	return 0
 }
 
+// PageResponse represents a response to a paged query.
 type PageResponse struct {
+	// if a key is present, that means there are more items from the collection to query, and the given key is the key for
+	// the item after the last one returned. if key is nil, that means there are no more items in the collection to query.
 	Key []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 }
 
@@ -232,8 +243,8 @@ func (m *PageResponse) GetKey() []byte {
 }
 
 func init() {
-	proto.RegisterType((*QueryBatchesRequest)(nil), "shard.v1.QueryBatchesRequest")
-	proto.RegisterType((*QueryBatchesResponse)(nil), "shard.v1.QueryBatchesResponse")
+	proto.RegisterType((*QueryTransactionsRequest)(nil), "shard.v1.QueryTransactionsRequest")
+	proto.RegisterType((*QueryTransactionsResponse)(nil), "shard.v1.QueryTransactionsResponse")
 	proto.RegisterType((*PageRequest)(nil), "shard.v1.PageRequest")
 	proto.RegisterType((*PageResponse)(nil), "shard.v1.PageResponse")
 }
@@ -241,32 +252,31 @@ func init() {
 func init() { proto.RegisterFile("shard/v1/query.proto", fileDescriptor_1088f6b90570984a) }
 
 var fileDescriptor_1088f6b90570984a = []byte{
-	// 386 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x92, 0xcd, 0x6e, 0xe2, 0x30,
-	0x14, 0x85, 0xc9, 0x30, 0x0c, 0x83, 0x61, 0xa4, 0x91, 0x27, 0x33, 0xc3, 0x44, 0x4c, 0x14, 0xb1,
-	0xa2, 0x95, 0x88, 0x05, 0xfd, 0x79, 0x00, 0x56, 0x5d, 0x42, 0xd4, 0x55, 0x17, 0xad, 0x9c, 0x60,
-	0x39, 0x51, 0x13, 0x3b, 0xc4, 0x0e, 0x85, 0xb7, 0xe8, 0x63, 0x75, 0xc9, 0xb2, 0xcb, 0x0a, 0x5e,
-	0xa4, 0x8a, 0x1d, 0x14, 0xe8, 0xcf, 0xce, 0xf7, 0xf8, 0xde, 0xef, 0x9e, 0x93, 0x18, 0x98, 0x22,
-	0xc4, 0xd9, 0x1c, 0x2d, 0x47, 0x68, 0x91, 0x93, 0x6c, 0xed, 0xa6, 0x19, 0x97, 0x1c, 0x7e, 0x57,
-	0xaa, 0xbb, 0x1c, 0x59, 0xff, 0x02, 0x2e, 0x12, 0x2e, 0xee, 0x94, 0x8e, 0x74, 0xa1, 0x9b, 0xac,
-	0xbf, 0xba, 0x42, 0x89, 0xa0, 0xc5, 0x7c, 0x22, 0x68, 0x79, 0x51, 0x31, 0xe5, 0x3a, 0x25, 0xfb,
-	0x76, 0x93, 0x72, 0xca, 0x35, 0xa6, 0x38, 0x95, 0x6a, 0x8f, 0x72, 0x4e, 0x63, 0x82, 0x70, 0x1a,
-	0x21, 0xcc, 0x18, 0x97, 0x58, 0x46, 0x9c, 0x95, 0x33, 0xfd, 0x5b, 0xf0, 0x6b, 0x56, 0xd8, 0x9a,
-	0x60, 0x19, 0x84, 0x44, 0x78, 0x64, 0x91, 0x13, 0x21, 0x61, 0x0f, 0xb4, 0x18, 0x4e, 0x88, 0x48,
-	0x71, 0x40, 0xba, 0x86, 0x63, 0x0c, 0x5a, 0x5e, 0x25, 0xc0, 0x13, 0xf0, 0x35, 0xc5, 0x94, 0x74,
-	0xbf, 0x38, 0xc6, 0xa0, 0x3d, 0xfe, 0xed, 0xee, 0xb3, 0xb8, 0x53, 0x4c, 0x49, 0x89, 0xf0, 0x54,
-	0x4b, 0x7f, 0x05, 0xcc, 0x63, 0xbe, 0x48, 0x39, 0x13, 0x04, 0x9e, 0x83, 0xa6, 0xaf, 0xa5, 0xae,
-	0xe1, 0xd4, 0x07, 0xed, 0xb1, 0x55, 0x51, 0xae, 0x33, 0xcc, 0x04, 0x0e, 0x0a, 0x9b, 0x6a, 0xcc,
-	0xdb, 0xb7, 0xc2, 0xd3, 0xa3, 0xc5, 0x7f, 0xde, 0x2e, 0xd6, 0xec, 0x72, 0xf3, 0x05, 0x68, 0x1f,
-	0xd8, 0x81, 0x3f, 0x41, 0xfd, 0x9e, 0xac, 0x55, 0x96, 0x8e, 0x57, 0x1c, 0xa1, 0x09, 0x1a, 0x71,
-	0x94, 0x44, 0x52, 0xd1, 0x7e, 0x78, 0xba, 0xe8, 0x3b, 0xa0, 0x73, 0x08, 0x7b, 0x3f, 0x37, 0x9e,
-	0x81, 0x86, 0x8a, 0x04, 0xaf, 0x40, 0xb3, 0x8c, 0x05, 0xff, 0x57, 0x56, 0x3e, 0xf8, 0x9c, 0x96,
-	0xfd, 0xd9, 0xb5, 0x5e, 0x32, 0x99, 0x3e, 0x6d, 0x6d, 0x63, 0xb3, 0xb5, 0x8d, 0x97, 0xad, 0x6d,
-	0x3c, 0xee, 0xec, 0xda, 0x66, 0x67, 0xd7, 0x9e, 0x77, 0x76, 0xed, 0xe6, 0x92, 0x46, 0x32, 0xcc,
-	0x7d, 0x37, 0xe0, 0x09, 0xc2, 0x19, 0xcd, 0xc5, 0x30, 0xc6, 0xbe, 0x40, 0x0f, 0x3c, 0x8b, 0xe7,
-	0x43, 0xc2, 0x68, 0xc4, 0x08, 0x0a, 0x42, 0x1c, 0x31, 0xb4, 0x42, 0xfa, 0x51, 0xa8, 0x17, 0xe1,
-	0x7f, 0x53, 0xbf, 0xf7, 0xec, 0x35, 0x00, 0x00, 0xff, 0xff, 0x8f, 0xd9, 0xb0, 0xe8, 0x7e, 0x02,
-	0x00, 0x00,
+	// 381 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x51, 0xcd, 0x4e, 0xea, 0x40,
+	0x14, 0xa6, 0x97, 0x0b, 0xb9, 0x0c, 0xdc, 0x68, 0x26, 0xa8, 0x85, 0x90, 0xa6, 0xa9, 0x0b, 0xd1,
+	0x84, 0x4e, 0xc0, 0xe8, 0x03, 0x98, 0xb8, 0xc7, 0xc6, 0xc4, 0xc4, 0x8d, 0x0e, 0x65, 0x32, 0x6d,
+	0x6c, 0x67, 0x86, 0x4e, 0x8b, 0xf2, 0x16, 0x3e, 0x96, 0x4b, 0x96, 0x2e, 0x0d, 0xbc, 0x88, 0xe9,
+	0x4c, 0x49, 0xf1, 0x77, 0x37, 0xe7, 0x3b, 0xe7, 0x7c, 0x3f, 0x73, 0x40, 0x5b, 0x06, 0x38, 0x99,
+	0xa2, 0xf9, 0x10, 0xcd, 0x32, 0x92, 0x2c, 0x5c, 0x91, 0xf0, 0x94, 0xc3, 0x7f, 0x0a, 0x75, 0xe7,
+	0xc3, 0x6e, 0xc7, 0xe7, 0x32, 0xe6, 0xf2, 0x4e, 0xe1, 0x48, 0x17, 0x7a, 0xa8, 0x7b, 0xa0, 0x2b,
+	0x14, 0x4b, 0x9a, 0xef, 0xc7, 0x92, 0x16, 0x8d, 0x36, 0xe5, 0x94, 0xeb, 0x85, 0xfc, 0x55, 0xa0,
+	0x3d, 0xca, 0x39, 0x8d, 0x08, 0xc2, 0x22, 0x44, 0x98, 0x31, 0x9e, 0xe2, 0x34, 0xe4, 0x6c, 0x43,
+	0x56, 0xfa, 0x48, 0x17, 0x82, 0x14, 0xa8, 0xe3, 0x03, 0xf3, 0x2a, 0xb7, 0x75, 0x9d, 0x60, 0x26,
+	0xb1, 0xaf, 0x16, 0x3c, 0x32, 0xcb, 0x88, 0x4c, 0x61, 0x0f, 0x34, 0x18, 0x8e, 0x89, 0x14, 0xd8,
+	0x27, 0xa6, 0x61, 0x1b, 0xfd, 0x86, 0x57, 0x02, 0xf0, 0x18, 0xfc, 0x15, 0x98, 0x12, 0xf3, 0x8f,
+	0x6d, 0xf4, 0x9b, 0xa3, 0x3d, 0x77, 0x13, 0xc8, 0x1d, 0x63, 0x4a, 0x0a, 0x0a, 0x4f, 0x8d, 0x38,
+	0x02, 0x74, 0xbe, 0x11, 0x91, 0x82, 0x33, 0x49, 0xe0, 0x11, 0xa8, 0x13, 0xc1, 0xfd, 0x40, 0x9a,
+	0x86, 0x5d, 0xed, 0x37, 0x47, 0x3b, 0x25, 0xd3, 0x65, 0x8e, 0x7b, 0x45, 0x1b, 0x9e, 0x7c, 0x10,
+	0xdc, 0xff, 0x2c, 0xa8, 0xe9, 0x0a, 0xc5, 0x33, 0xd0, 0xdc, 0xb2, 0x01, 0x77, 0x41, 0xf5, 0x81,
+	0x2c, 0x54, 0x86, 0x96, 0x97, 0x3f, 0x61, 0x1b, 0xd4, 0xa2, 0x30, 0x0e, 0x53, 0xc5, 0xf6, 0xdf,
+	0xd3, 0x85, 0x63, 0x83, 0xd6, 0x36, 0xd9, 0xd7, 0xbd, 0xd1, 0x3d, 0xa8, 0xa9, 0x28, 0xf0, 0x06,
+	0xb4, 0xb6, 0xe3, 0x40, 0xa7, 0xf4, 0xf3, 0xd3, 0x87, 0x76, 0x0f, 0x7f, 0x9d, 0xd1, 0x9a, 0x17,
+	0xe3, 0x97, 0x95, 0x65, 0x2c, 0x57, 0x96, 0xf1, 0xb6, 0xb2, 0x8c, 0xe7, 0xb5, 0x55, 0x59, 0xae,
+	0xad, 0xca, 0xeb, 0xda, 0xaa, 0xdc, 0x9e, 0xd3, 0x30, 0x0d, 0xb2, 0x89, 0xeb, 0xf3, 0x18, 0xe1,
+	0x84, 0x66, 0x72, 0x10, 0xe1, 0x89, 0x44, 0x8f, 0x3c, 0x89, 0xa6, 0x03, 0xc2, 0x68, 0xc8, 0x08,
+	0xf2, 0x03, 0x1c, 0x32, 0xf4, 0x84, 0xf4, 0xb1, 0xd5, 0xa5, 0x27, 0x75, 0x75, 0xea, 0xd3, 0xf7,
+	0x00, 0x00, 0x00, 0xff, 0xff, 0x6a, 0x90, 0x70, 0x97, 0x8a, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -281,7 +291,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type QueryClient interface {
-	Batches(ctx context.Context, in *QueryBatchesRequest, opts ...grpc.CallOption) (*QueryBatchesResponse, error)
+	Transactions(ctx context.Context, in *QueryTransactionsRequest, opts ...grpc.CallOption) (*QueryTransactionsResponse, error)
 }
 
 type queryClient struct {
@@ -292,9 +302,9 @@ func NewQueryClient(cc grpc1.ClientConn) QueryClient {
 	return &queryClient{cc}
 }
 
-func (c *queryClient) Batches(ctx context.Context, in *QueryBatchesRequest, opts ...grpc.CallOption) (*QueryBatchesResponse, error) {
-	out := new(QueryBatchesResponse)
-	err := c.cc.Invoke(ctx, "/shard.v1.Query/Batches", in, out, opts...)
+func (c *queryClient) Transactions(ctx context.Context, in *QueryTransactionsRequest, opts ...grpc.CallOption) (*QueryTransactionsResponse, error) {
+	out := new(QueryTransactionsResponse)
+	err := c.cc.Invoke(ctx, "/shard.v1.Query/Transactions", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -303,35 +313,35 @@ func (c *queryClient) Batches(ctx context.Context, in *QueryBatchesRequest, opts
 
 // QueryServer is the server API for Query service.
 type QueryServer interface {
-	Batches(context.Context, *QueryBatchesRequest) (*QueryBatchesResponse, error)
+	Transactions(context.Context, *QueryTransactionsRequest) (*QueryTransactionsResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
 type UnimplementedQueryServer struct {
 }
 
-func (*UnimplementedQueryServer) Batches(ctx context.Context, req *QueryBatchesRequest) (*QueryBatchesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Batches not implemented")
+func (*UnimplementedQueryServer) Transactions(ctx context.Context, req *QueryTransactionsRequest) (*QueryTransactionsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Transactions not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
 	s.RegisterService(&_Query_serviceDesc, srv)
 }
 
-func _Query_Batches_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(QueryBatchesRequest)
+func _Query_Transactions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryTransactionsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(QueryServer).Batches(ctx, in)
+		return srv.(QueryServer).Transactions(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/shard.v1.Query/Batches",
+		FullMethod: "/shard.v1.Query/Transactions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(QueryServer).Batches(ctx, req.(*QueryBatchesRequest))
+		return srv.(QueryServer).Transactions(ctx, req.(*QueryTransactionsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -341,15 +351,15 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*QueryServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Batches",
-			Handler:    _Query_Batches_Handler,
+			MethodName: "Transactions",
+			Handler:    _Query_Transactions_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "shard/v1/query.proto",
 }
 
-func (m *QueryBatchesRequest) Marshal() (dAtA []byte, err error) {
+func (m *QueryTransactionsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -359,12 +369,12 @@ func (m *QueryBatchesRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *QueryBatchesRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryTransactionsRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryBatchesRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryTransactionsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -391,7 +401,7 @@ func (m *QueryBatchesRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *QueryBatchesResponse) Marshal() (dAtA []byte, err error) {
+func (m *QueryTransactionsResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -401,12 +411,12 @@ func (m *QueryBatchesResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *QueryBatchesResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *QueryTransactionsResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *QueryBatchesResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *QueryTransactionsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -423,10 +433,10 @@ func (m *QueryBatchesResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x12
 	}
-	if len(m.Batches) > 0 {
-		for iNdEx := len(m.Batches) - 1; iNdEx >= 0; iNdEx-- {
+	if len(m.Epochs) > 0 {
+		for iNdEx := len(m.Epochs) - 1; iNdEx >= 0; iNdEx-- {
 			{
-				size, err := m.Batches[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				size, err := m.Epochs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
 				if err != nil {
 					return 0, err
 				}
@@ -516,7 +526,7 @@ func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *QueryBatchesRequest) Size() (n int) {
+func (m *QueryTransactionsRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -533,14 +543,14 @@ func (m *QueryBatchesRequest) Size() (n int) {
 	return n
 }
 
-func (m *QueryBatchesResponse) Size() (n int) {
+func (m *QueryTransactionsResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
 	var l int
 	_ = l
-	if len(m.Batches) > 0 {
-		for _, e := range m.Batches {
+	if len(m.Epochs) > 0 {
+		for _, e := range m.Epochs {
 			l = e.Size()
 			n += 1 + l + sovQuery(uint64(l))
 		}
@@ -587,7 +597,7 @@ func sovQuery(x uint64) (n int) {
 func sozQuery(x uint64) (n int) {
 	return sovQuery(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *QueryBatchesRequest) Unmarshal(dAtA []byte) error {
+func (m *QueryTransactionsRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -610,10 +620,10 @@ func (m *QueryBatchesRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryBatchesRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryTransactionsRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryBatchesRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryTransactionsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -705,7 +715,7 @@ func (m *QueryBatchesRequest) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *QueryBatchesResponse) Unmarshal(dAtA []byte) error {
+func (m *QueryTransactionsResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -728,15 +738,15 @@ func (m *QueryBatchesResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: QueryBatchesResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: QueryTransactionsResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: QueryBatchesResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: QueryTransactionsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Batches", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Epochs", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -763,8 +773,8 @@ func (m *QueryBatchesResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Batches = append(m.Batches, &TransactionBatch{})
-			if err := m.Batches[len(m.Batches)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.Epochs = append(m.Epochs, &Epoch{})
+			if err := m.Epochs[len(m.Epochs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

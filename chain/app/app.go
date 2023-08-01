@@ -27,8 +27,6 @@ import (
 	"path/filepath"
 
 	"github.com/argus-labs/world-engine/chain/shard"
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
-
 	dbm "github.com/cosmos/cosmos-db"
 
 	"cosmossdk.io/depinject"
@@ -347,11 +345,11 @@ func (app *App) TxConfig() client.TxConfig {
 // EndBlock implements abci.EndBlocker. In addition to running each module's EndBlock function,
 // it flushes messages received from game shards and passes them to the shard handler, storing them on chain.
 func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
-	txns := app.ShardHandler.FlushMessages()
-	if txns != nil {
-		handler := app.MsgServiceRouter().Handler(&types.SubmitBatchRequest{})
-		for i := range txns {
-			_, err := handler(ctx, &txns[i])
+	txs := app.ShardHandler.FlushMessages()
+	if txs != nil {
+		handler := app.MsgServiceRouter().Handler(txs[0])
+		for _, tx := range txs {
+			_, err := handler(ctx, tx)
 			if err != nil {
 				return sdk.EndBlock{}, err
 			}

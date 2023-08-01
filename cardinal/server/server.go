@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argus-labs/world-engine/cardinal/shard"
 	"github.com/invopop/jsonschema"
 	"io"
 	"log"
@@ -20,6 +22,9 @@ type Handler struct {
 	mux                    *http.ServeMux
 	server                 *http.Server
 	disableSigVerification bool
+
+	// plugins
+	adapter shard.WriteAdapter
 }
 
 var (
@@ -134,7 +139,6 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 		return nil, nil, errors.New("PersonaTag must not be empty")
 	}
 
-
 	// Handle the case where signature is disabled
 	if t.disableSigVerification {
 		return sp.Body, sp, nil
@@ -198,14 +202,35 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 			writeError(writer, "unable to decode transaction", err)
 			return
 		}
-		t.w.AddTransaction(tx.ID(), txVal, sp)
 
-		res, err := json.Marshal("ok")
-		if err != nil {
-			writeError(writer, "unable to marshal response", err)
-			return
+		submitTx := func() uint64 {
+			tick := t.w.AddTransaction(tx.ID(), txVal, sp)
+
+			res, err := json.Marshal("ok")
+			if err != nil {
+				writeError(writer, "unable to marshal response", err)
+				return 0
+			}
+			writeResult(writer, res)
+			return uint64(tick)
 		}
-		writeResult(writer, res)
+
+		// check if we have an adapter
+		if t.adapter != nil {
+			// if the world is recovering via adapter, we shouldn't accept transactions.
+			if t.w.IsRecovering() {
+				writeError(writer, "unable to submit transactions: game world is recovering state", nil)
+			} else {
+				tick := submitTx()
+				err = t.adapter.Submit(context.Background(), sp, uint64(tx.ID()), tick)
+				if err != nil {
+					writeError(writer, "error submitting transaction to blockchain", err)
+				}
+			}
+		} else {
+			// if there is no adapter, then we can just put the tx in the queue.
+			submitTx()
+		}
 	}
 }
 
