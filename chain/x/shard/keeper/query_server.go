@@ -18,8 +18,8 @@ func (k *Keeper) Transactions(ctx context.Context, req *types.QueryTransactionsR
 	}
 	key, limit := types.ExtractPageRequest(req.Page)
 	res := types.QueryTransactionsResponse{
-		Txs:  make([]*types.TickedTransactions, 0, limit),
-		Page: &types.PageResponse{},
+		Ticks: make([]*types.Tick, 0, limit),
+		Page:  &types.PageResponse{},
 	}
 	count := uint32(0)
 	k.iterateTransactions(sdk.UnwrapSDKContext(ctx), key, nil,
@@ -30,7 +30,7 @@ func (k *Keeper) Transactions(ctx context.Context, req *types.QueryTransactionsR
 				res.Page.Key = k.getTransactionKey(tick)
 				return false
 			}
-			res.Txs = append(res.Txs, &types.TickedTransactions{
+			res.Ticks = append(res.Ticks, &types.Tick{
 				Tick: tick,
 				Txs:  txs,
 			})

@@ -19,8 +19,8 @@ message Transactions {
   repeated Transaction txs = 1;
 }
 
-// TickedTransactions contains a tick number, and the transactions that occurred in that tick.
-message TickedTransactions {
+// Tick contains a tick number, and the transactions that occurred in that tick.
+message Tick {
   uint64 tick = 1;
   Transactions txs = 2;
 }

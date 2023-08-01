@@ -87,9 +87,9 @@ func (s *TestSuite) TestSubmitTransactions() {
 	res, err := s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{Namespace: sp.Namespace})
 	s.Require().NoError(err)
 	// we only submitted transactions for 1 tick, so there should only be 1.
-	s.Require().Len(res.Txs, 1)
+	s.Require().Len(res.Ticks, 1)
 	// should have equal amount of txs within the tick.
-	s.Require().Len(res.Txs[0].Txs.Txs, len(txs.Txs))
+	s.Require().Len(res.Ticks[0].Txs.Txs, len(txs.Txs))
 }
 
 func (s *TestSuite) TestSubmitBatch_Unauthorized() {
@@ -142,13 +142,13 @@ func (s *TestSuite) TestExportGenesis() {
 
 	gen := s.keeper.ExportGenesis(s.ctx)
 	// there should only be 2 namespaced txs, because we only submitted 2 diff ones.
-	s.Require().Len(gen.Txs, 2)
-	s.Require().Len(gen.Txs[1].Txs, 2)            // we submitted 2 ticks for namespace "foo"
-	s.Require().Len(gen.Txs[1].Txs[0].Txs.Txs, 3) // the first tick had 3 txs
-	s.Require().Len(gen.Txs[1].Txs[1].Txs.Txs, 2) // the second tick had 2 txs
+	s.Require().Len(gen.NamespaceTransactions, 2)
+	s.Require().Len(gen.NamespaceTransactions[1].Ticks, 2)            // we submitted 2 ticks for namespace foo
+	s.Require().Len(gen.NamespaceTransactions[1].Ticks[0].Txs.Txs, 3) // the first tick had 3 txs
+	s.Require().Len(gen.NamespaceTransactions[1].Ticks[1].Txs.Txs, 2) // the second tick had 2 txs
 
-	s.Require().Len(gen.Txs[0].Txs, 1)            // only one tick under namespace "bar"
-	s.Require().Len(gen.Txs[0].Txs[0].Txs.Txs, 2) // only 2 txs in the tick.
+	s.Require().Len(gen.NamespaceTransactions[0].Ticks, 1)            // only one tick under namespace "bar"
+	s.Require().Len(gen.NamespaceTransactions[0].Ticks[0].Txs.Txs, 2) // only 2 txs in the tick.
 
 	// importing back the genesis should not panic
 	s.Require().NotPanics(func() {

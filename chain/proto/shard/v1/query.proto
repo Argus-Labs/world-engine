@@ -23,7 +23,7 @@ message QueryTransactionsRequest {
 
 message QueryTransactionsResponse {
   // txs contains the transactions. Each entry contains a tick, and a list of txs that occurred in that tick.
-  repeated TickedTransactions txs = 1;
+  repeated Tick ticks = 1;
 
   // page contains information on how to query the next items in the collection, if any.
   // when page is nil/empty, there is nothing left to query.

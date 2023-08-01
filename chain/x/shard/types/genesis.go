@@ -7,14 +7,14 @@ func DefaultGenesis() *GenesisState {
 }
 
 func (g *GenesisState) Validate() error {
-	for i, nstx := range g.Txs {
+	for i, nstx := range g.NamespaceTransactions {
 		if nstx.Namespace == "" {
 			return fmt.Errorf("empty namespace at %d", i)
 		}
-		if nstx.Txs == nil {
+		if nstx.Ticks == nil {
 			return fmt.Errorf("no transactions for namespace %s", nstx.Namespace)
 		}
-		for _, tickedTxs := range nstx.Txs {
+		for _, tickedTxs := range nstx.Ticks {
 			if tickedTxs.Txs == nil || tickedTxs.Txs.Txs == nil {
 				return fmt.Errorf("no transactions for tick %d in namespace %s", tickedTxs.Tick, nstx.Namespace)
 			}

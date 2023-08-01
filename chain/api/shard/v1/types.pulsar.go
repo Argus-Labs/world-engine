@@ -977,27 +977,27 @@ func (x *fastReflection_Transactions) ProtoMethods() *protoiface.Methods {
 }
 
 var (
-	md_TickedTransactions      protoreflect.MessageDescriptor
-	fd_TickedTransactions_tick protoreflect.FieldDescriptor
-	fd_TickedTransactions_txs  protoreflect.FieldDescriptor
+	md_Tick      protoreflect.MessageDescriptor
+	fd_Tick_tick protoreflect.FieldDescriptor
+	fd_Tick_txs  protoreflect.FieldDescriptor
 )
 
 func init() {
 	file_shard_v1_types_proto_init()
-	md_TickedTransactions = File_shard_v1_types_proto.Messages().ByName("TickedTransactions")
-	fd_TickedTransactions_tick = md_TickedTransactions.Fields().ByName("tick")
-	fd_TickedTransactions_txs = md_TickedTransactions.Fields().ByName("txs")
+	md_Tick = File_shard_v1_types_proto.Messages().ByName("Tick")
+	fd_Tick_tick = md_Tick.Fields().ByName("tick")
+	fd_Tick_txs = md_Tick.Fields().ByName("txs")
 }
 
-var _ protoreflect.Message = (*fastReflection_TickedTransactions)(nil)
+var _ protoreflect.Message = (*fastReflection_Tick)(nil)
 
-type fastReflection_TickedTransactions TickedTransactions
+type fastReflection_Tick Tick
 
-func (x *TickedTransactions) ProtoReflect() protoreflect.Message {
-	return (*fastReflection_TickedTransactions)(x)
+func (x *Tick) ProtoReflect() protoreflect.Message {
+	return (*fastReflection_Tick)(x)
 }
 
-func (x *TickedTransactions) slowProtoReflect() protoreflect.Message {
+func (x *Tick) slowProtoReflect() protoreflect.Message {
 	mi := &file_shard_v1_types_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1009,43 +1009,43 @@ func (x *TickedTransactions) slowProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-var _fastReflection_TickedTransactions_messageType fastReflection_TickedTransactions_messageType
-var _ protoreflect.MessageType = fastReflection_TickedTransactions_messageType{}
+var _fastReflection_Tick_messageType fastReflection_Tick_messageType
+var _ protoreflect.MessageType = fastReflection_Tick_messageType{}
 
-type fastReflection_TickedTransactions_messageType struct{}
+type fastReflection_Tick_messageType struct{}
 
-func (x fastReflection_TickedTransactions_messageType) Zero() protoreflect.Message {
-	return (*fastReflection_TickedTransactions)(nil)
+func (x fastReflection_Tick_messageType) Zero() protoreflect.Message {
+	return (*fastReflection_Tick)(nil)
 }
-func (x fastReflection_TickedTransactions_messageType) New() protoreflect.Message {
-	return new(fastReflection_TickedTransactions)
+func (x fastReflection_Tick_messageType) New() protoreflect.Message {
+	return new(fastReflection_Tick)
 }
-func (x fastReflection_TickedTransactions_messageType) Descriptor() protoreflect.MessageDescriptor {
-	return md_TickedTransactions
+func (x fastReflection_Tick_messageType) Descriptor() protoreflect.MessageDescriptor {
+	return md_Tick
 }
 
 // Descriptor returns message descriptor, which contains only the protobuf
 // type information for the message.
-func (x *fastReflection_TickedTransactions) Descriptor() protoreflect.MessageDescriptor {
-	return md_TickedTransactions
+func (x *fastReflection_Tick) Descriptor() protoreflect.MessageDescriptor {
+	return md_Tick
 }
 
 // Type returns the message type, which encapsulates both Go and protobuf
 // type information. If the Go type information is not needed,
 // it is recommended that the message descriptor be used instead.
-func (x *fastReflection_TickedTransactions) Type() protoreflect.MessageType {
-	return _fastReflection_TickedTransactions_messageType
+func (x *fastReflection_Tick) Type() protoreflect.MessageType {
+	return _fastReflection_Tick_messageType
 }
 
 // New returns a newly allocated and mutable empty message.
-func (x *fastReflection_TickedTransactions) New() protoreflect.Message {
-	return new(fastReflection_TickedTransactions)
+func (x *fastReflection_Tick) New() protoreflect.Message {
+	return new(fastReflection_Tick)
 }
 
 // Interface unwraps the message reflection interface and
 // returns the underlying ProtoMessage interface.
-func (x *fastReflection_TickedTransactions) Interface() protoreflect.ProtoMessage {
-	return (*TickedTransactions)(x)
+func (x *fastReflection_Tick) Interface() protoreflect.ProtoMessage {
+	return (*Tick)(x)
 }
 
 // Range iterates over every populated field in an undefined order,
@@ -1053,16 +1053,16 @@ func (x *fastReflection_TickedTransactions) Interface() protoreflect.ProtoMessag
 // Range returns immediately if f returns false.
 // While iterating, mutating operations may only be performed
 // on the current field descriptor.
-func (x *fastReflection_TickedTransactions) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
+func (x *fastReflection_Tick) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
 	if x.Tick != uint64(0) {
 		value := protoreflect.ValueOfUint64(x.Tick)
-		if !f(fd_TickedTransactions_tick, value) {
+		if !f(fd_Tick_tick, value) {
 			return
 		}
 	}
 	if x.Txs != nil {
 		value := protoreflect.ValueOfMessage(x.Txs.ProtoReflect())
-		if !f(fd_TickedTransactions_txs, value) {
+		if !f(fd_Tick_txs, value) {
 			return
 		}
 	}
@@ -1079,17 +1079,17 @@ func (x *fastReflection_TickedTransactions) Range(f func(protoreflect.FieldDescr
 // In other cases (aside from the nullable cases above),
 // a proto3 scalar field is populated if it contains a non-zero value, and
 // a repeated field is populated if it is non-empty.
-func (x *fastReflection_TickedTransactions) Has(fd protoreflect.FieldDescriptor) bool {
+func (x *fastReflection_Tick) Has(fd protoreflect.FieldDescriptor) bool {
 	switch fd.FullName() {
-	case "shard.v1.TickedTransactions.tick":
+	case "shard.v1.Tick.tick":
 		return x.Tick != uint64(0)
-	case "shard.v1.TickedTransactions.txs":
+	case "shard.v1.Tick.txs":
 		return x.Txs != nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TickedTransactions"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Tick"))
 		}
-		panic(fmt.Errorf("message shard.v1.TickedTransactions does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.Tick does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -1099,17 +1099,17 @@ func (x *fastReflection_TickedTransactions) Has(fd protoreflect.FieldDescriptor)
 // associated with the given field number.
 //
 // Clear is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_TickedTransactions) Clear(fd protoreflect.FieldDescriptor) {
+func (x *fastReflection_Tick) Clear(fd protoreflect.FieldDescriptor) {
 	switch fd.FullName() {
-	case "shard.v1.TickedTransactions.tick":
+	case "shard.v1.Tick.tick":
 		x.Tick = uint64(0)
-	case "shard.v1.TickedTransactions.txs":
+	case "shard.v1.Tick.txs":
 		x.Txs = nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TickedTransactions"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Tick"))
 		}
-		panic(fmt.Errorf("message shard.v1.TickedTransactions does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.Tick does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -1119,19 +1119,19 @@ func (x *fastReflection_TickedTransactions) Clear(fd protoreflect.FieldDescripto
 // the default value of a bytes scalar is guaranteed to be a copy.
 // For unpopulated composite types, it returns an empty, read-only view
 // of the value; to obtain a mutable reference, use Mutable.
-func (x *fastReflection_TickedTransactions) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_Tick) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
 	switch descriptor.FullName() {
-	case "shard.v1.TickedTransactions.tick":
+	case "shard.v1.Tick.tick":
 		value := x.Tick
 		return protoreflect.ValueOfUint64(value)
-	case "shard.v1.TickedTransactions.txs":
+	case "shard.v1.Tick.txs":
 		value := x.Txs
 		return protoreflect.ValueOfMessage(value.ProtoReflect())
 	default:
 		if descriptor.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TickedTransactions"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Tick"))
 		}
-		panic(fmt.Errorf("message shard.v1.TickedTransactions does not contain field %s", descriptor.FullName()))
+		panic(fmt.Errorf("message shard.v1.Tick does not contain field %s", descriptor.FullName()))
 	}
 }
 
@@ -1145,17 +1145,17 @@ func (x *fastReflection_TickedTransactions) Get(descriptor protoreflect.FieldDes
 // empty, read-only value, then it panics.
 //
 // Set is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_TickedTransactions) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
+func (x *fastReflection_Tick) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
 	switch fd.FullName() {
-	case "shard.v1.TickedTransactions.tick":
+	case "shard.v1.Tick.tick":
 		x.Tick = value.Uint()
-	case "shard.v1.TickedTransactions.txs":
+	case "shard.v1.Tick.txs":
 		x.Txs = value.Message().Interface().(*Transactions)
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TickedTransactions"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Tick"))
 		}
-		panic(fmt.Errorf("message shard.v1.TickedTransactions does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.Tick does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -1169,48 +1169,48 @@ func (x *fastReflection_TickedTransactions) Set(fd protoreflect.FieldDescriptor,
 // It panics if the field does not contain a composite type.
 //
 // Mutable is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_TickedTransactions) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_Tick) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.TickedTransactions.txs":
+	case "shard.v1.Tick.txs":
 		if x.Txs == nil {
 			x.Txs = new(Transactions)
 		}
 		return protoreflect.ValueOfMessage(x.Txs.ProtoReflect())
-	case "shard.v1.TickedTransactions.tick":
-		panic(fmt.Errorf("field tick of message shard.v1.TickedTransactions is not mutable"))
+	case "shard.v1.Tick.tick":
+		panic(fmt.Errorf("field tick of message shard.v1.Tick is not mutable"))
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TickedTransactions"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Tick"))
 		}
-		panic(fmt.Errorf("message shard.v1.TickedTransactions does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.Tick does not contain field %s", fd.FullName()))
 	}
 }
 
 // NewField returns a new value that is assignable to the field
 // for the given descriptor. For scalars, this returns the default value.
 // For lists, maps, and messages, this returns a new, empty, mutable value.
-func (x *fastReflection_TickedTransactions) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_Tick) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.TickedTransactions.tick":
+	case "shard.v1.Tick.tick":
 		return protoreflect.ValueOfUint64(uint64(0))
-	case "shard.v1.TickedTransactions.txs":
+	case "shard.v1.Tick.txs":
 		m := new(Transactions)
 		return protoreflect.ValueOfMessage(m.ProtoReflect())
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.TickedTransactions"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Tick"))
 		}
-		panic(fmt.Errorf("message shard.v1.TickedTransactions does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.Tick does not contain field %s", fd.FullName()))
 	}
 }
 
 // WhichOneof reports which field within the oneof is populated,
 // returning nil if none are populated.
 // It panics if the oneof descriptor does not belong to this message.
-func (x *fastReflection_TickedTransactions) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
+func (x *fastReflection_Tick) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
 	switch d.FullName() {
 	default:
-		panic(fmt.Errorf("%s is not a oneof field in shard.v1.TickedTransactions", d.FullName()))
+		panic(fmt.Errorf("%s is not a oneof field in shard.v1.Tick", d.FullName()))
 	}
 	panic("unreachable")
 }
@@ -1218,7 +1218,7 @@ func (x *fastReflection_TickedTransactions) WhichOneof(d protoreflect.OneofDescr
 // GetUnknown retrieves the entire list of unknown fields.
 // The caller may only mutate the contents of the RawFields
 // if the mutated bytes are stored back into the message with SetUnknown.
-func (x *fastReflection_TickedTransactions) GetUnknown() protoreflect.RawFields {
+func (x *fastReflection_Tick) GetUnknown() protoreflect.RawFields {
 	return x.unknownFields
 }
 
@@ -1229,7 +1229,7 @@ func (x *fastReflection_TickedTransactions) GetUnknown() protoreflect.RawFields 
 // An empty RawFields may be passed to clear the fields.
 //
 // SetUnknown is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_TickedTransactions) SetUnknown(fields protoreflect.RawFields) {
+func (x *fastReflection_Tick) SetUnknown(fields protoreflect.RawFields) {
 	x.unknownFields = fields
 }
 
@@ -1241,7 +1241,7 @@ func (x *fastReflection_TickedTransactions) SetUnknown(fields protoreflect.RawFi
 // message type, but the details are implementation dependent.
 // Validity is not part of the protobuf data model, and may not
 // be preserved in marshaling or other operations.
-func (x *fastReflection_TickedTransactions) IsValid() bool {
+func (x *fastReflection_Tick) IsValid() bool {
 	return x != nil
 }
 
@@ -1251,9 +1251,9 @@ func (x *fastReflection_TickedTransactions) IsValid() bool {
 // The returned methods type is identical to
 // "google.golang.org/protobuf/runtime/protoiface".Methods.
 // Consult the protoiface package documentation for details.
-func (x *fastReflection_TickedTransactions) ProtoMethods() *protoiface.Methods {
+func (x *fastReflection_Tick) ProtoMethods() *protoiface.Methods {
 	size := func(input protoiface.SizeInput) protoiface.SizeOutput {
-		x := input.Message.Interface().(*TickedTransactions)
+		x := input.Message.Interface().(*Tick)
 		if x == nil {
 			return protoiface.SizeOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -1282,7 +1282,7 @@ func (x *fastReflection_TickedTransactions) ProtoMethods() *protoiface.Methods {
 	}
 
 	marshal := func(input protoiface.MarshalInput) (protoiface.MarshalOutput, error) {
-		x := input.Message.Interface().(*TickedTransactions)
+		x := input.Message.Interface().(*Tick)
 		if x == nil {
 			return protoiface.MarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -1331,7 +1331,7 @@ func (x *fastReflection_TickedTransactions) ProtoMethods() *protoiface.Methods {
 		}, nil
 	}
 	unmarshal := func(input protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) {
-		x := input.Message.Interface().(*TickedTransactions)
+		x := input.Message.Interface().(*Tick)
 		if x == nil {
 			return protoiface.UnmarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -1363,10 +1363,10 @@ func (x *fastReflection_TickedTransactions) ProtoMethods() *protoiface.Methods {
 			fieldNum := int32(wire >> 3)
 			wireType := int(wire & 0x7)
 			if wireType == 4 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: TickedTransactions: wiretype end group for non-group")
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: Tick: wiretype end group for non-group")
 			}
 			if fieldNum <= 0 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: TickedTransactions: illegal tag %d (wire type %d)", fieldNum, wire)
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: Tick: illegal tag %d (wire type %d)", fieldNum, wire)
 			}
 			switch fieldNum {
 			case 1:
@@ -1554,8 +1554,8 @@ func (x *Transactions) GetTxs() []*Transaction {
 	return nil
 }
 
-// TickedTransactions contains a tick number, and the transactions that occurred in that tick.
-type TickedTransactions struct {
+// Tick contains a tick number, and the transactions that occurred in that tick.
+type Tick struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -1564,8 +1564,8 @@ type TickedTransactions struct {
 	Txs  *Transactions `protobuf:"bytes,2,opt,name=txs,proto3" json:"txs,omitempty"`
 }
 
-func (x *TickedTransactions) Reset() {
-	*x = TickedTransactions{}
+func (x *Tick) Reset() {
+	*x = Tick{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_shard_v1_types_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1573,25 +1573,25 @@ func (x *TickedTransactions) Reset() {
 	}
 }
 
-func (x *TickedTransactions) String() string {
+func (x *Tick) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*TickedTransactions) ProtoMessage() {}
+func (*Tick) ProtoMessage() {}
 
-// Deprecated: Use TickedTransactions.ProtoReflect.Descriptor instead.
-func (*TickedTransactions) Descriptor() ([]byte, []int) {
+// Deprecated: Use Tick.ProtoReflect.Descriptor instead.
+func (*Tick) Descriptor() ([]byte, []int) {
 	return file_shard_v1_types_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *TickedTransactions) GetTick() uint64 {
+func (x *Tick) GetTick() uint64 {
 	if x != nil {
 		return x.Tick
 	}
 	return 0
 }
 
-func (x *TickedTransactions) GetTxs() *Transactions {
+func (x *Tick) GetTxs() *Transactions {
 	if x != nil {
 		return x.Txs
 	}
@@ -1611,20 +1611,20 @@ var file_shard_v1_types_proto_rawDesc = []byte{
 	0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x27, 0x0a, 0x03, 0x74,
 	0x78, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64,
 	0x2e, 0x76, 0x31, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52,
-	0x03, 0x74, 0x78, 0x73, 0x22, 0x52, 0x0a, 0x12, 0x54, 0x69, 0x63, 0x6b, 0x65, 0x64, 0x54, 0x72,
-	0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x12, 0x0a, 0x04, 0x74, 0x69,
-	0x63, 0x6b, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04, 0x74, 0x69, 0x63, 0x6b, 0x12, 0x28,
-	0x0a, 0x03, 0x74, 0x78, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x73, 0x68,
-	0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69,
-	0x6f, 0x6e, 0x73, 0x52, 0x03, 0x74, 0x78, 0x73, 0x42, 0x7e, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e,
-	0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x42, 0x0a, 0x54, 0x79, 0x70, 0x65, 0x73, 0x50,
-	0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64,
-	0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76,
-	0x31, 0x3b, 0x73, 0x68, 0x61, 0x72, 0x64, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa,
-	0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61,
-	0x72, 0x64, 0x5c, 0x56, 0x31, 0xe2, 0x02, 0x14, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31,
-	0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53,
-	0x68, 0x61, 0x72, 0x64, 0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x03, 0x74, 0x78, 0x73, 0x22, 0x44, 0x0a, 0x04, 0x54, 0x69, 0x63, 0x6b, 0x12, 0x12, 0x0a, 0x04,
+	0x74, 0x69, 0x63, 0x6b, 0x18, 0x01, 0x20, 0x01, 0x28, 0x04, 0x52, 0x04, 0x74, 0x69, 0x63, 0x6b,
+	0x12, 0x28, 0x0a, 0x03, 0x74, 0x78, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e,
+	0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63,
+	0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x03, 0x74, 0x78, 0x73, 0x42, 0x7e, 0x0a, 0x0c, 0x63, 0x6f,
+	0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x42, 0x0a, 0x54, 0x79, 0x70, 0x65,
+	0x73, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73,
+	0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x64,
+	0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68, 0x61, 0x72, 0x64, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x53, 0x58,
+	0x58, 0xaa, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x08, 0x53,
+	0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0xe2, 0x02, 0x14, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c,
+	0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02,
+	0x09, 0x53, 0x68, 0x61, 0x72, 0x64, 0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74,
+	0x6f, 0x33,
 }
 
 var (
@@ -1641,13 +1641,13 @@ func file_shard_v1_types_proto_rawDescGZIP() []byte {
 
 var file_shard_v1_types_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_shard_v1_types_proto_goTypes = []interface{}{
-	(*Transaction)(nil),        // 0: shard.v1.Transaction
-	(*Transactions)(nil),       // 1: shard.v1.Transactions
-	(*TickedTransactions)(nil), // 2: shard.v1.TickedTransactions
+	(*Transaction)(nil),  // 0: shard.v1.Transaction
+	(*Transactions)(nil), // 1: shard.v1.Transactions
+	(*Tick)(nil),         // 2: shard.v1.Tick
 }
 var file_shard_v1_types_proto_depIdxs = []int32{
 	0, // 0: shard.v1.Transactions.txs:type_name -> shard.v1.Transaction
-	1, // 1: shard.v1.TickedTransactions.txs:type_name -> shard.v1.Transactions
+	1, // 1: shard.v1.Tick.txs:type_name -> shard.v1.Transactions
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -1686,7 +1686,7 @@ func file_shard_v1_types_proto_init() {
 			}
 		}
 		file_shard_v1_types_proto_msgTypes[2].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*TickedTransactions); i {
+			switch v := v.(*Tick); i {
 			case 0:
 				return &v.state
 			case 1:

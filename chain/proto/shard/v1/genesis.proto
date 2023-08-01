@@ -7,14 +7,14 @@ import "shard/v1/types.proto";
 option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
 
 message GenesisState {
-  // txs contains a world's namespace, and all the transactions that occurred within that world.
-  repeated NamespacedTransactions txs = 1;
+  // namespace_transactions contains a world's namespace, and all the transactions that occurred within that world.
+  repeated NamespaceTransactions namespace_transactions = 1;
 }
 
-message NamespacedTransactions {
+message NamespaceTransactions {
   // namespace is the namespace the transactions occurred in.
   string namespace = 1;
 
   // txs contains a tick number, and the transactions that occurred within that tick.
-  repeated TickedTransactions txs = 2;
+  repeated Tick ticks = 2;
 }

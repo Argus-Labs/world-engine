@@ -18,28 +18,28 @@ func TestGenesisValidate(t *testing.T) {
 		{
 			name: "no namespace",
 			mutate: func(state *GenesisState) {
-				state.Txs = append(state.Txs, &NamespacedTransactions{})
+				state.NamespaceTransactions = append(state.NamespaceTransactions, &NamespaceTransactions{})
 			},
 			err: "empty namespace",
 		},
 		{
 			name: "no transactions",
 			mutate: func(state *GenesisState) {
-				state.Txs[0].Namespace = "foo"
+				state.NamespaceTransactions[0].Namespace = "foo"
 			},
 			err: "no transactions for namespace foo",
 		},
 		{
 			name: "no transactions for tick",
 			mutate: func(state *GenesisState) {
-				state.Txs[0].Txs = append(state.Txs[0].Txs, &TickedTransactions{})
+				state.NamespaceTransactions[0].Ticks = append(state.NamespaceTransactions[0].Ticks, &Tick{})
 			},
 			err: "no transactions for tick 0 in namespace foo",
 		},
 		{
 			name: "empty signed payload",
 			mutate: func(state *GenesisState) {
-				state.Txs[0].Txs[0].Txs = &Transactions{Txs: []*Transaction{{}}}
+				state.NamespaceTransactions[0].Ticks[0].Txs = &Transactions{Txs: []*Transaction{{}}}
 			},
 			err: "no transaction data",
 		},

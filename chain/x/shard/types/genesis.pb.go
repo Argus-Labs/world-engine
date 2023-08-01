@@ -23,8 +23,8 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type GenesisState struct {
-	// txs contains a world's namespace, and all the transactions that occurred within that world.
-	Txs []*NamespacedTransactions `protobuf:"bytes,1,rep,name=txs,proto3" json:"txs,omitempty"`
+	// namespace_transactions contains a world's namespace, and all the transactions that occurred within that world.
+	NamespaceTransactions []*NamespaceTransactions `protobuf:"bytes,1,rep,name=namespace_transactions,json=namespaceTransactions,proto3" json:"namespace_transactions,omitempty"`
 }
 
 func (m *GenesisState) Reset()         { *m = GenesisState{} }
@@ -60,32 +60,32 @@ func (m *GenesisState) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_GenesisState proto.InternalMessageInfo
 
-func (m *GenesisState) GetTxs() []*NamespacedTransactions {
+func (m *GenesisState) GetNamespaceTransactions() []*NamespaceTransactions {
 	if m != nil {
-		return m.Txs
+		return m.NamespaceTransactions
 	}
 	return nil
 }
 
-type NamespacedTransactions struct {
+type NamespaceTransactions struct {
 	// namespace is the namespace the transactions occurred in.
 	Namespace string `protobuf:"bytes,1,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	// txs contains a tick number, and the transactions that occurred within that tick.
-	Txs []*TickedTransactions `protobuf:"bytes,2,rep,name=txs,proto3" json:"txs,omitempty"`
+	Ticks []*Tick `protobuf:"bytes,2,rep,name=ticks,proto3" json:"ticks,omitempty"`
 }
 
-func (m *NamespacedTransactions) Reset()         { *m = NamespacedTransactions{} }
-func (m *NamespacedTransactions) String() string { return proto.CompactTextString(m) }
-func (*NamespacedTransactions) ProtoMessage()    {}
-func (*NamespacedTransactions) Descriptor() ([]byte, []int) {
+func (m *NamespaceTransactions) Reset()         { *m = NamespaceTransactions{} }
+func (m *NamespaceTransactions) String() string { return proto.CompactTextString(m) }
+func (*NamespaceTransactions) ProtoMessage()    {}
+func (*NamespaceTransactions) Descriptor() ([]byte, []int) {
 	return fileDescriptor_4ec65e0ff6cb305e, []int{1}
 }
-func (m *NamespacedTransactions) XXX_Unmarshal(b []byte) error {
+func (m *NamespaceTransactions) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *NamespacedTransactions) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *NamespaceTransactions) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_NamespacedTransactions.Marshal(b, m, deterministic)
+		return xxx_messageInfo_NamespaceTransactions.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -95,57 +95,57 @@ func (m *NamespacedTransactions) XXX_Marshal(b []byte, deterministic bool) ([]by
 		return b[:n], nil
 	}
 }
-func (m *NamespacedTransactions) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NamespacedTransactions.Merge(m, src)
+func (m *NamespaceTransactions) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NamespaceTransactions.Merge(m, src)
 }
-func (m *NamespacedTransactions) XXX_Size() int {
+func (m *NamespaceTransactions) XXX_Size() int {
 	return m.Size()
 }
-func (m *NamespacedTransactions) XXX_DiscardUnknown() {
-	xxx_messageInfo_NamespacedTransactions.DiscardUnknown(m)
+func (m *NamespaceTransactions) XXX_DiscardUnknown() {
+	xxx_messageInfo_NamespaceTransactions.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_NamespacedTransactions proto.InternalMessageInfo
+var xxx_messageInfo_NamespaceTransactions proto.InternalMessageInfo
 
-func (m *NamespacedTransactions) GetNamespace() string {
+func (m *NamespaceTransactions) GetNamespace() string {
 	if m != nil {
 		return m.Namespace
 	}
 	return ""
 }
 
-func (m *NamespacedTransactions) GetTxs() []*TickedTransactions {
+func (m *NamespaceTransactions) GetTicks() []*Tick {
 	if m != nil {
-		return m.Txs
+		return m.Ticks
 	}
 	return nil
 }
 
 func init() {
 	proto.RegisterType((*GenesisState)(nil), "shard.v1.GenesisState")
-	proto.RegisterType((*NamespacedTransactions)(nil), "shard.v1.NamespacedTransactions")
+	proto.RegisterType((*NamespaceTransactions)(nil), "shard.v1.NamespaceTransactions")
 }
 
 func init() { proto.RegisterFile("shard/v1/genesis.proto", fileDescriptor_4ec65e0ff6cb305e) }
 
 var fileDescriptor_4ec65e0ff6cb305e = []byte{
-	// 242 bytes of a gzipped FileDescriptorProto
+	// 253 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x2b, 0xce, 0x48, 0x2c,
 	0x4a, 0xd1, 0x2f, 0x33, 0xd4, 0x4f, 0x4f, 0xcd, 0x4b, 0x2d, 0xce, 0x2c, 0xd6, 0x2b, 0x28, 0xca,
 	0x2f, 0xc9, 0x17, 0xe2, 0x00, 0x8b, 0xeb, 0x95, 0x19, 0x4a, 0x89, 0xc0, 0x55, 0x94, 0x54, 0x16,
-	0xa4, 0x42, 0xe5, 0x95, 0x9c, 0xb8, 0x78, 0xdc, 0x21, 0x1a, 0x82, 0x4b, 0x12, 0x4b, 0x52, 0x85,
-	0x8c, 0xb8, 0x98, 0x4b, 0x2a, 0x8a, 0x25, 0x18, 0x15, 0x98, 0x35, 0xb8, 0x8d, 0x14, 0xf4, 0x60,
-	0xba, 0xf5, 0xfc, 0x12, 0x73, 0x53, 0x8b, 0x0b, 0x12, 0x93, 0x53, 0x53, 0x42, 0x8a, 0x12, 0xf3,
-	0x8a, 0x13, 0x93, 0x4b, 0x32, 0xf3, 0xf3, 0x8a, 0x83, 0x40, 0x8a, 0x95, 0xd2, 0xb8, 0xc4, 0xb0,
-	0x4b, 0x0b, 0xc9, 0x70, 0x71, 0xe6, 0xc1, 0x64, 0x24, 0x18, 0x15, 0x18, 0x35, 0x38, 0x83, 0x10,
-	0x02, 0x42, 0x7a, 0x10, 0xbb, 0x98, 0xc0, 0x76, 0xc9, 0x20, 0xec, 0x0a, 0xc9, 0x4c, 0xce, 0xc6,
-	0x62, 0x8f, 0x53, 0xc0, 0x89, 0x47, 0x72, 0x8c, 0x17, 0x1e, 0xc9, 0x31, 0x3e, 0x78, 0x24, 0xc7,
-	0x38, 0xe1, 0xb1, 0x1c, 0xc3, 0x85, 0xc7, 0x72, 0x0c, 0x37, 0x1e, 0xcb, 0x31, 0x44, 0x99, 0xa5,
-	0x67, 0x96, 0x64, 0x94, 0x26, 0xe9, 0x25, 0xe7, 0xe7, 0xea, 0x27, 0x16, 0xa5, 0x97, 0x16, 0xeb,
-	0xe6, 0x24, 0x26, 0x15, 0xeb, 0x97, 0xe7, 0x17, 0xe5, 0xa4, 0xe8, 0xa6, 0xe6, 0xa5, 0x67, 0xe6,
-	0xa5, 0xea, 0x27, 0x67, 0x24, 0x66, 0xe6, 0xe9, 0x57, 0xe8, 0x43, 0x82, 0x01, 0x1c, 0x06, 0x49,
-	0x6c, 0xe0, 0x40, 0x30, 0x06, 0x04, 0x00, 0x00, 0xff, 0xff, 0xbe, 0x83, 0x06, 0x5a, 0x3e, 0x01,
-	0x00, 0x00,
+	0xa4, 0x42, 0xe5, 0x95, 0xd2, 0xb8, 0x78, 0xdc, 0x21, 0x1a, 0x82, 0x4b, 0x12, 0x4b, 0x52, 0x85,
+	0xc2, 0xb8, 0xc4, 0xf2, 0x12, 0x73, 0x53, 0x8b, 0x0b, 0x12, 0x93, 0x53, 0xe3, 0x4b, 0x8a, 0x12,
+	0xf3, 0x8a, 0x13, 0x93, 0x4b, 0x32, 0xf3, 0xf3, 0x8a, 0x25, 0x18, 0x15, 0x98, 0x35, 0xb8, 0x8d,
+	0xe4, 0xf5, 0x60, 0x06, 0xea, 0xf9, 0xc1, 0xd4, 0x85, 0x20, 0x29, 0x0b, 0x12, 0xcd, 0xc3, 0x26,
+	0xac, 0x14, 0xcd, 0x25, 0x8a, 0x55, 0xbd, 0x90, 0x0c, 0x17, 0x27, 0x5c, 0x87, 0x04, 0xa3, 0x02,
+	0xa3, 0x06, 0x67, 0x10, 0x42, 0x40, 0x48, 0x85, 0x8b, 0xb5, 0x24, 0x33, 0x39, 0xbb, 0x58, 0x82,
+	0x09, 0x6c, 0x3b, 0x1f, 0xc2, 0xf6, 0x90, 0xcc, 0xe4, 0xec, 0x20, 0x88, 0xa4, 0x53, 0xc0, 0x89,
+	0x47, 0x72, 0x8c, 0x17, 0x1e, 0xc9, 0x31, 0x3e, 0x78, 0x24, 0xc7, 0x38, 0xe1, 0xb1, 0x1c, 0xc3,
+	0x85, 0xc7, 0x72, 0x0c, 0x37, 0x1e, 0xcb, 0x31, 0x44, 0x99, 0xa5, 0x67, 0x96, 0x64, 0x94, 0x26,
+	0xe9, 0x25, 0xe7, 0xe7, 0xea, 0x27, 0x16, 0xa5, 0x97, 0x16, 0xeb, 0xe6, 0x24, 0x26, 0x15, 0xeb,
+	0x97, 0xe7, 0x17, 0xe5, 0xa4, 0xe8, 0xa6, 0xe6, 0xa5, 0x67, 0xe6, 0xa5, 0xea, 0x27, 0x67, 0x24,
+	0x66, 0xe6, 0xe9, 0x57, 0xe8, 0x43, 0xc2, 0x07, 0x1c, 0x38, 0x49, 0x6c, 0xe0, 0xd0, 0x31, 0x06,
+	0x04, 0x00, 0x00, 0xff, 0xff, 0x73, 0x24, 0x6e, 0x93, 0x57, 0x01, 0x00, 0x00,
 }
 
 func (m *GenesisState) Marshal() (dAtA []byte, err error) {
@@ -168,10 +168,10 @@ func (m *GenesisState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Txs) > 0 {
-		for iNdEx := len(m.Txs) - 1; iNdEx >= 0; iNdEx-- {
+	if len(m.NamespaceTransactions) > 0 {
+		for iNdEx := len(m.NamespaceTransactions) - 1; iNdEx >= 0; iNdEx-- {
 			{
-				size, err := m.Txs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				size, err := m.NamespaceTransactions[iNdEx].MarshalToSizedBuffer(dAtA[:i])
 				if err != nil {
 					return 0, err
 				}
@@ -185,7 +185,7 @@ func (m *GenesisState) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *NamespacedTransactions) Marshal() (dAtA []byte, err error) {
+func (m *NamespaceTransactions) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -195,20 +195,20 @@ func (m *NamespacedTransactions) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *NamespacedTransactions) MarshalTo(dAtA []byte) (int, error) {
+func (m *NamespaceTransactions) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *NamespacedTransactions) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *NamespaceTransactions) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
 	_ = l
-	if len(m.Txs) > 0 {
-		for iNdEx := len(m.Txs) - 1; iNdEx >= 0; iNdEx-- {
+	if len(m.Ticks) > 0 {
+		for iNdEx := len(m.Ticks) - 1; iNdEx >= 0; iNdEx-- {
 			{
-				size, err := m.Txs[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				size, err := m.Ticks[iNdEx].MarshalToSizedBuffer(dAtA[:i])
 				if err != nil {
 					return 0, err
 				}
@@ -246,8 +246,8 @@ func (m *GenesisState) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if len(m.Txs) > 0 {
-		for _, e := range m.Txs {
+	if len(m.NamespaceTransactions) > 0 {
+		for _, e := range m.NamespaceTransactions {
 			l = e.Size()
 			n += 1 + l + sovGenesis(uint64(l))
 		}
@@ -255,7 +255,7 @@ func (m *GenesisState) Size() (n int) {
 	return n
 }
 
-func (m *NamespacedTransactions) Size() (n int) {
+func (m *NamespaceTransactions) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -265,8 +265,8 @@ func (m *NamespacedTransactions) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovGenesis(uint64(l))
 	}
-	if len(m.Txs) > 0 {
-		for _, e := range m.Txs {
+	if len(m.Ticks) > 0 {
+		for _, e := range m.Ticks {
 			l = e.Size()
 			n += 1 + l + sovGenesis(uint64(l))
 		}
@@ -311,7 +311,7 @@ func (m *GenesisState) Unmarshal(dAtA []byte) error {
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Txs", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field NamespaceTransactions", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -338,8 +338,8 @@ func (m *GenesisState) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Txs = append(m.Txs, &NamespacedTransactions{})
-			if err := m.Txs[len(m.Txs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.NamespaceTransactions = append(m.NamespaceTransactions, &NamespaceTransactions{})
+			if err := m.NamespaceTransactions[len(m.NamespaceTransactions)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -364,7 +364,7 @@ func (m *GenesisState) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *NamespacedTransactions) Unmarshal(dAtA []byte) error {
+func (m *NamespaceTransactions) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -387,10 +387,10 @@ func (m *NamespacedTransactions) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: NamespacedTransactions: wiretype end group for non-group")
+			return fmt.Errorf("proto: NamespaceTransactions: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: NamespacedTransactions: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: NamespaceTransactions: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -427,7 +427,7 @@ func (m *NamespacedTransactions) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Txs", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Ticks", wireType)
 			}
 			var msglen int
 			for shift := uint(0); ; shift += 7 {
@@ -454,8 +454,8 @@ func (m *NamespacedTransactions) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Txs = append(m.Txs, &TickedTransactions{})
-			if err := m.Txs[len(m.Txs)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+			m.Ticks = append(m.Ticks, &Tick{})
+			if err := m.Ticks[len(m.Ticks)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
