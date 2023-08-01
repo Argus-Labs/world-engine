@@ -1,6 +1,6 @@
 package server
 
-import "github.com/argus-labs/world-engine/cardinal/chain"
+import "github.com/argus-labs/world-engine/cardinal/shard"
 
 type Option func(th *Handler)
 
@@ -10,7 +10,7 @@ func DisableSignatureVerification() Option {
 	}
 }
 
-func WithAdapter(a chain.Adapter) Option {
+func WithAdapter(a shard.Adapter) Option {
 	return func(th *Handler) {
 		th.adapter = a
 	}

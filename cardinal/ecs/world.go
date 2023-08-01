@@ -11,11 +11,11 @@ import (
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	"github.com/argus-labs/world-engine/sign"
 
-	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
+	"github.com/argus-labs/world-engine/cardinal/shard"
 )
 
 // WorldId is a unique identifier for a world.
@@ -48,7 +48,7 @@ type World struct {
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
 
-	chain chain.Reader
+	chain shard.Reader
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool

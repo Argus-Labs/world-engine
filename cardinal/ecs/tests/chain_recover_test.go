@@ -12,13 +12,13 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
+	"github.com/argus-labs/world-engine/cardinal/shard"
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 )
 
-var _ chain.Adapter = &DummyAdapter{}
+var _ shard.Adapter = &DummyAdapter{}
 
 type DummyAdapter struct {
 	txs map[uint64]*types.Transactions

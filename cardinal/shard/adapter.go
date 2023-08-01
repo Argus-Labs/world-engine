@@ -1,4 +1,4 @@
-package chain
+package shard
 
 import (
 	"context"
@@ -18,21 +18,23 @@ import (
 
 // Adapter is a type that helps facilitate communication with the EVM base shard.
 type Adapter interface {
-	Writer
-	Reader
+	WriteAdapter
+	ReadAdapter
 }
 
-type Writer interface {
+// WriteAdapter provides the functionality to send transactions to the EVM base shard.
+type WriteAdapter interface {
 	Submit(ctx context.Context, p *sign.SignedPayload, txID, tick uint64) error
 }
 
-type Reader interface {
+// ReadAdapter provides the functionality to read transactions from the EVM base shard.
+type ReadAdapter interface {
 	QueryTransactions(
 		context.Context,
 		*shardtypes.QueryTransactionsRequest) (*shardtypes.QueryTransactionsResponse, error)
 }
 
-type Config struct {
+type AdapterConfig struct {
 	// ShardReceiverAddr is the address to communicate with the secure shard submission channel.
 	ShardReceiverAddr string `json:"shard_receiver_addr,omitempty"`
 
@@ -45,7 +47,7 @@ var (
 )
 
 type adapterImpl struct {
-	cfg           Config
+	cfg           AdapterConfig
 	grpcOpts      []grpc.DialOption
 	ShardReceiver shardgrpc.ShardHandlerClient
 	ShardQuerier  shardtypes.QueryClient
@@ -71,7 +73,7 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 	return credentials.NewTLS(config), nil
 }
 
-func NewAdapter(cfg Config, opts ...Option) (Adapter, error) {
+func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	a := &adapterImpl{cfg: cfg}
 	for _, opt := range opts {
 		opt(a)

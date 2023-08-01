@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argus-labs/world-engine/cardinal/chain"
+	"github.com/argus-labs/world-engine/cardinal/shard"
 	"github.com/invopop/jsonschema"
 	"io"
 	"log"
@@ -24,7 +24,7 @@ type Handler struct {
 	disableSigVerification bool
 
 	// plugins
-	adapter chain.Writer
+	adapter shard.Writer
 }
 
 var (
@@ -138,7 +138,6 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	if sp.PersonaTag == "" {
 		return nil, nil, errors.New("PersonaTag must not be empty")
 	}
-
 
 	// Handle the case where signature is disabled
 	if t.disableSigVerification {
