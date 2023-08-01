@@ -94,8 +94,8 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 
 // Submit submits a transaction to the EVM base shard.
 func (a adapterImpl) Submit(ctx context.Context, sp *sign.SignedPayload, txID uint64, tick uint64) error {
-	req := &shardv1.SubmitCardinalTxRequest{Tx: signedPayloadToProto(sp), Tick: tick, TxId: txID}
-	_, err := a.ShardReceiver.SubmitCardinalTx(ctx, req)
+	req := &shardv1.SubmitShardTxRequest{Tx: signedPayloadToProto(sp), Tick: tick, TxId: txID}
+	_, err := a.ShardReceiver.SubmitShardTx(ctx, req)
 	return err
 }
 
