@@ -674,8 +674,8 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		for _, tickedTxs := range res.Ticks {
-			target := tickedTxs.Tick
+		for _, tickedTxs := range res.Epochs {
+			target := tickedTxs.Epoch
 			// tick up to target
 			if target < uint64(w.CurrentTick()) {
 				return fmt.Errorf("got tx for tick %d, but world is at tick %d", target, w.CurrentTick())
