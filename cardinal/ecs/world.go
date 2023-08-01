@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	"github.com/argus-labs/world-engine/sign"
+	"github.com/rs/zerolog/log"
 
 	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
@@ -457,6 +459,17 @@ func (w *World) Tick(ctx context.Context) error {
 		w.submitToChain(ctx, *txQueue, uint64(prevTick))
 	}
 	return nil
+}
+
+func (w *World) StartTicks(ctx context.Context, loopInterval time.Duration) {
+	log.Info().Msg("Game loop started")
+	go func() {
+		for range time.Tick(loopInterval) {
+			if err := w.Tick(context.Background()); err != nil {
+				panic(err)
+			}
+		}
+	}()
 }
 
 type TxBatch struct {
