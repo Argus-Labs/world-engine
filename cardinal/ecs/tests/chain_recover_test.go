@@ -47,15 +47,15 @@ func (d *DummyAdapter) Submit(ctx context.Context, p *sign.SignedPayload, txID, 
 }
 
 func (d *DummyAdapter) QueryTransactions(ctx context.Context, request *types.QueryTransactionsRequest) (*types.QueryTransactionsResponse, error) {
-	tickedTxs := make([]*types.Tick, 0, len(d.txs))
+	tickedTxs := make([]*types.Epoch, 0, len(d.txs))
 	for tick, txs := range d.txs {
-		tickedTxs = append(tickedTxs, &types.Tick{
-			Tick: tick,
-			Txs:  txs,
+		tickedTxs = append(tickedTxs, &types.Epoch{
+			Epoch: tick,
+			Txs:   txs,
 		})
 	}
 	sort.Slice(tickedTxs, func(i, j int) bool {
-		return tickedTxs[i].Tick < tickedTxs[j].Tick
+		return tickedTxs[i].Epoch < tickedTxs[j].Epoch
 	})
 
 	var pr *types.PageResponse
@@ -72,8 +72,8 @@ func (d *DummyAdapter) QueryTransactions(ctx context.Context, request *types.Que
 	}
 
 	return &types.QueryTransactionsResponse{
-		Ticks: tickedTxs,
-		Page:  pr,
+		Epochs: tickedTxs,
+		Page:   pr,
 	}, nil
 }
 
