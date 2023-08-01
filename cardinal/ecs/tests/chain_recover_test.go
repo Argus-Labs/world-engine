@@ -21,7 +21,7 @@ import (
 var _ shard.Adapter = &DummyAdapter{}
 
 type DummyAdapter struct {
-	txs map[uint64]*types.Transactions
+	txs map[uint64][]*types.Transaction
 }
 
 func (d *DummyAdapter) Submit(ctx context.Context, p *sign.SignedPayload, txID, tick uint64) error {
@@ -37,9 +37,9 @@ func (d *DummyAdapter) Submit(ctx context.Context, p *sign.SignedPayload, txID, 
 		return err
 	}
 	if d.txs[tick] == nil {
-		d.txs[tick] = &types.Transactions{Txs: make([]*types.Transaction, 0)}
+		d.txs[tick] = make([]*types.Transaction, 0)
 	}
-	d.txs[tick].Txs = append(d.txs[tick].Txs, &types.Transaction{
+	d.txs[tick] = append(d.txs[tick], &types.Transaction{
 		TxId:          txID,
 		SignedPayload: bz,
 	})
@@ -47,9 +47,9 @@ func (d *DummyAdapter) Submit(ctx context.Context, p *sign.SignedPayload, txID, 
 }
 
 func (d *DummyAdapter) QueryTransactions(ctx context.Context, request *types.QueryTransactionsRequest) (*types.QueryTransactionsResponse, error) {
-	tickedTxs := make([]*types.TickedTransactions, 0, len(d.txs))
+	tickedTxs := make([]*types.Tick, 0, len(d.txs))
 	for tick, txs := range d.txs {
-		tickedTxs = append(tickedTxs, &types.TickedTransactions{
+		tickedTxs = append(tickedTxs, &types.Tick{
 			Tick: tick,
 			Txs:  txs,
 		})
@@ -72,8 +72,8 @@ func (d *DummyAdapter) QueryTransactions(ctx context.Context, request *types.Que
 	}
 
 	return &types.QueryTransactionsResponse{
-		Txs:  tickedTxs,
-		Page: pr,
+		Ticks: tickedTxs,
+		Page:  pr,
 	}, nil
 }
 
@@ -87,7 +87,7 @@ type SendEnergyTransaction struct {
 func TestWorld_RecoverFromChain(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
-	adapter := &DummyAdapter{txs: make(map[uint64]*types.Transactions, 0)}
+	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
 	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(adapter))
 	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction]("send_energy")
 	err := w.RegisterTransactions(SendEnergyTx)
