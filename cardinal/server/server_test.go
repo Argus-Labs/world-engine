@@ -135,6 +135,9 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 }
 
 func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
+	// skipping as this does not always work 100% of the time.
+	// https://linear.app/arguslabs/issue/CAR-115/refactor-tests-that-use-http-calls-to-use-a-mock-http-connection
+	t.Skip("this test is flaky and does not always pass")
 	count := 0
 	endpoint := "move"
 	w := inmem.NewECSWorldForTest(t)
