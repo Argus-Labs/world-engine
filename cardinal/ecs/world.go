@@ -461,11 +461,12 @@ func (w *World) Tick(ctx context.Context) error {
 	return nil
 }
 
-func (w *World) StartTicks(ctx context.Context, loopInterval time.Duration) {
+func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 	log.Info().Msg("Game loop started")
 	go func() {
 		for range time.Tick(loopInterval) {
 			if err := w.Tick(ctx); err != nil {
+				log.Panic().Err(err).Msg("Error running Tick in Game Loop.")
 				panic(err)
 			}
 		}
