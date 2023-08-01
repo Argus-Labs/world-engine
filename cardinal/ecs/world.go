@@ -467,7 +467,6 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 		for range time.Tick(loopInterval) {
 			if err := w.Tick(ctx); err != nil {
 				log.Panic().Err(err).Msg("Error running Tick in Game Loop.")
-				panic(err)
 			}
 		}
 	}()
