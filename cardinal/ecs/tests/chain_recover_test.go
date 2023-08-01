@@ -3,6 +3,7 @@ package tests
 import (
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
+	"encoding/binary"
 	"github.com/argus-labs/world-engine/sign"
 	"github.com/cometbft/cometbft/libs/rand"
 	"google.golang.org/protobuf/proto"
@@ -20,8 +21,7 @@ import (
 var _ chain.Adapter = &DummyAdapter{}
 
 type DummyAdapter struct {
-	calls uint8
-	txs   map[uint64]*types.Transactions
+	txs map[uint64]*types.Transactions
 }
 
 func (d *DummyAdapter) Submit(ctx context.Context, p *sign.SignedPayload, txID, tick uint64) error {
@@ -57,17 +57,20 @@ func (d *DummyAdapter) QueryTransactions(ctx context.Context, request *types.Que
 	sort.Slice(tickedTxs, func(i, j int) bool {
 		return tickedTxs[i].Tick < tickedTxs[j].Tick
 	})
+
 	var pr *types.PageResponse
-	if d.calls == 0 {
-		// return the first half
-		tickedTxs = tickedTxs[0 : len(tickedTxs)/2]
-		d.calls++
-		pr = &types.PageResponse{Key: []byte("this doesnt matter")}
+	if request.Page.Key == nil {
+		half := len(tickedTxs) / 2
+		tickedTxs = tickedTxs[0:half]
+		nextKey := make([]byte, 8)
+		binary.BigEndian.PutUint64(nextKey, uint64(half))
+		pr = &types.PageResponse{Key: nextKey}
 	} else {
-		tickedTxs = tickedTxs[len(tickedTxs)/2:]
+		key := binary.BigEndian.Uint64(request.Page.Key)
+		tickedTxs = tickedTxs[key:]
 		pr = nil
 	}
-	// to simulate a paged response we're just gonna half this bad boy
+
 	return &types.QueryTransactionsResponse{
 		Txs:  tickedTxs,
 		Page: pr,
