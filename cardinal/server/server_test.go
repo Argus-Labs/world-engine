@@ -232,7 +232,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	}
 
 	// Check some random person tag against a tick far in the past. This should be available.
-	personaSignerResp := postReadPersonaSigner("some_other_persona_tag", -100)
+	personaSignerResp := postReadPersonaSigner("some_other_persona_tag", 0)
 	assert.Equal(t, personaSignerResp.Status, "available")
 
 	// If the game tick matches the passed in game tick, there hasn't been enough time to process the create persona tx.

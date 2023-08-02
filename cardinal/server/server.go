@@ -154,7 +154,7 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	if getSignedAddressFromWorld {
 		// Use -1 as the tick. We don't care about any pending CreatePersonaTxs, we just want to know the
 		// current signer address for the given persona. Any error will fail this request.
-		signerAddress, err = t.w.GetSignerForPersonaTag(sp.PersonaTag, -1)
+		signerAddress, err = t.w.GetSignerForPersonaTag(sp.PersonaTag, 1)
 	} else {
 		signerAddress, err = getSignerAddressFromPayload(*sp)
 	}
