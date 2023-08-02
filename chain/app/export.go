@@ -76,7 +76,7 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool,
 //
 //	in favor of export at a block height
 //
-//nolint:funlen,gocognit,gocyclo // from sdk.
+//nolint:funlen,gocognit,gocyclo,cyclop // from sdk.
 func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []string) {
 	applyAllowedAddrs := false
 
