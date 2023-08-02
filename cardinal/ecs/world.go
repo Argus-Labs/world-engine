@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"google.golang.org/protobuf/proto"
 	"sync"
+	"time"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	"github.com/argus-labs/world-engine/sign"
+	"github.com/rs/zerolog/log"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
@@ -457,6 +459,17 @@ func (w *World) Tick(ctx context.Context) error {
 	w.tick++
 
 	return nil
+}
+
+func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
+	log.Info().Msg("Game loop started")
+	go func() {
+		for range time.Tick(loopInterval) {
+			if err := w.Tick(ctx); err != nil {
+				log.Panic().Err(err).Msg("Error running Tick in Game Loop.")
+			}
+		}
+	}()
 }
 
 type TxBatch struct {
