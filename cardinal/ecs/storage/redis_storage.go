@@ -414,8 +414,8 @@ func (r *RedisStorage) Load(key string) (data []byte, ok bool, err error) {
 // of transactions for this tick. If Transaction is one ahead of End, it means the transactions have been uploaded
 // but at least one System failed to run to completion.
 type tickDetails struct {
-	Start int
-	End   int
+	Start uint64
+	End   uint64
 }
 
 var _ TickStorage = &RedisStorage{}
@@ -446,7 +446,7 @@ func (r *RedisStorage) setTickDetails(ctx context.Context, details tickDetails) 
 	return r.Client.Set(ctx, key, buf, 0).Err()
 }
 
-func (r *RedisStorage) GetTickNumbers() (start, end int, err error) {
+func (r *RedisStorage) GetTickNumbers() (start, end uint64, err error) {
 	ctx := context.Background()
 	details, err := r.getTickDetails(ctx)
 	if err != nil {
