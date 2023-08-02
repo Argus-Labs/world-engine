@@ -31,11 +31,11 @@ func NewPrecompileContract(r router.Router) *Contract {
 // Send implements the Send precompile function in router.sol.
 func (c *Contract) Send(
 	ctx context.Context,
-	msg []byte,
+	message []byte,
 	messageID uint64,
 	namespace string,
 ) ([]byte, error) {
 	pCtx := vm.UnwrapPolarContext(ctx)
-	_, err := c.rtr.Send(ctx, namespace, pCtx.MsgSender().String(), messageID, msg)
+	_, err := c.rtr.Send(ctx, namespace, pCtx.MsgSender().String(), messageID, message)
 	return nil, err
 }
