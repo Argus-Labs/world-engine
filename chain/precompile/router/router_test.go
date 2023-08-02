@@ -1,18 +1,37 @@
+// SPDX-License-Identifier: BUSL-1.1
+//
+// Copyright (C) 2023, Berachain Foundation. All rights reserved.
+// Use of this software is govered by the Business Source License included
+// in the LICENSE file of this repository and at www.mariadb.com/bsl11.
+//
+// ANY USE OF THE LICENSED WORK IN VIOLATION OF THIS LICENSE WILL AUTOMATICALLY
+// TERMINATE YOUR RIGHTS UNDER THIS LICENSE FOR THE CURRENT AND ALL OTHER
+// VERSIONS OF THE LICENSED WORK.
+//
+// THIS LICENSE DOES NOT GRANT YOU ANY RIGHT IN ANY TRADEMARK OR LOGO OF
+// LICENSOR OR ITS AFFILIATES (PROVIDED THAT YOU MAY USE A TRADEMARK OR LOGO OF
+// LICENSOR AS EXPRESSLY REQUIRED BY THIS LICENSE).
+//
+// TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE LICENSED WORK IS PROVIDED ON
+// AN “AS IS” BASIS. LICENSOR HEREBY DISCLAIMS ALL WARRANTIES AND CONDITIONS,
+// EXPRESS OR IMPLIED, INCLUDING (WITHOUT LIMITATION) WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND
+// TITLE.
+
 package router
 
 import (
-	"math/big"
 	"testing"
 
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/golang/mock/gomock"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/router"
 	cosmlib "pkg.berachain.dev/polaris/cosmos/lib"
-	testutil "pkg.berachain.dev/polaris/cosmos/testing/utils"
+	"pkg.berachain.dev/polaris/eth/accounts/abi"
+	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
 	"pkg.berachain.dev/polaris/lib/utils"
 
-	"github.com/argus-labs/world-engine/chain/router/mocks"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 func TestRouterPrecompile(t *testing.T) {
@@ -20,76 +39,38 @@ func TestRouterPrecompile(t *testing.T) {
 	RunSpecs(t, "cosmos/precompile/router")
 }
 
-var _ = Describe("Router precompile", func() {
-	var (
-		ctx      sdk.Context
-		caller   sdk.AccAddress
-		mockCtrl *gomock.Controller
-		contract *Contract
-		rtr      *mocks.MockRouter
-	)
-
+var _ = Describe("Router Precompile", func() {
+	var contract *Contract
+	var sf *ethprecompile.StatefulFactory
 	BeforeEach(func() {
-		mockCtrl = gomock.NewController(GinkgoT())
-		rtr = mocks.NewMockRouter(mockCtrl)
-		ctx = testutil.NewContext()
-		caller = sdk.AccAddress("bob")
-		contract = utils.MustGetAs[*Contract](NewPrecompileContract(rtr))
+		contract = utils.MustGetAs[*Contract](
+			NewPrecompileContract(
+				nil,
+			),
+		)
+		sf = ethprecompile.NewStatefulFactory()
 	})
 
-	When("Sending a message", func() {
-		It("should fail if there are not enough arguments", func() {
-			res, err := contract.Send(
-				ctx,
-				nil,
-				cosmlib.AccAddressToEthAddress(caller),
-				big.NewInt(0),
-				false,
-				"invalid",
-			)
-			Expect(err).Should(HaveOccurred())
-			Expect(res).To(BeNil())
-		})
-		It("should fail if the first arg is the wrong type", func() {
-			res, err := contract.Send(
-				ctx,
-				nil,
-				cosmlib.AccAddressToEthAddress(caller),
-				big.NewInt(0),
-				false,
-				"foo", "bar",
-			)
-			Expect(err).Should(HaveOccurred())
-			Expect(res).To(BeNil())
-		})
-		It("should fail if the second arg is the wrong type", func() {
-
-			res, err := contract.Send(
-				ctx,
-				nil,
-				cosmlib.AccAddressToEthAddress(caller),
-				big.NewInt(0),
-				false,
-				[]byte("foo"), 15,
-			)
-			Expect(err).Should(HaveOccurred())
-			Expect(res).To(BeNil())
-		})
-		It("should succeed", func() {
-			msg := []byte("foo")
-			namespace := "cardinal"
-			msgID := uint64(4)
-			sender := cosmlib.AccAddressToEthAddress(caller)
-			rtr.EXPECT().Send(ctx, namespace, sender.String(), msgID, msg).Times(1)
-			_, err := contract.Send(
-				ctx,
-				nil,
-				cosmlib.AccAddressToEthAddress(caller),
-				big.NewInt(0),
-				false,
-				msg, msgID, namespace,
-			)
-			Expect(err).ToNot(HaveOccurred())
-		})
+	It("should have static registry key", func() {
+		Expect(contract.RegistryKey()).To(Equal(
+			cosmlib.AccAddressToEthAddress(authtypes.NewModuleAddress(name))),
+		)
 	})
+
+	It("should have correct ABI methods", func() {
+		var cAbi abi.ABI
+		err := cAbi.UnmarshalJSON([]byte(generated.RouterMetaData.ABI))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(contract.ABIMethods()).To(Equal(cAbi.Methods))
+	})
+
+	It("should match the precompile methods", func() {
+		_, err := sf.Build(contract, nil)
+		Expect(err).ToNot(HaveOccurred())
+	})
+
+	It("custom value decoder should be no-op", func() {
+		Expect(contract.CustomValueDecoders()).To(BeNil())
+	})
+
 })

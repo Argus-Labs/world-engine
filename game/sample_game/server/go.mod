@@ -2,12 +2,13 @@ module github.com/argus-labs/world-engine/game/sample_game/server
 
 go 1.20
 
+// external, necessary replacements
 replace (
-	cosmossdk.io/x/evidence => github.com/rollkit/cosmos-sdk/x/evidence v0.0.0-20230714164100-d5353aba3338
-	github.com/cometbft/cometbft => github.com/rollkit/cometbft v0.0.0-20230614163111-d6a8d2c98cc0
-	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.0-beta2.0.20230714164100-d5353aba3338
-	// Required for stateful precompiles and supporting the Ethereum JSON-RPC API.
+	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.0-beta2.0.20230721012257-443317a43b03
+	// We replace `go-ethereum` with `polaris-geth` in order include our required changes.
+	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20230629154458-90866dc0cf0a
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
+	// Required at the moment until a bug in the comsos-sdk is fixed.
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
