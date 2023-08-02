@@ -23,6 +23,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/x/distribution/types"
 	"log"
 
 	storetypes "cosmossdk.io/store/types"
@@ -75,7 +76,7 @@ func (app *App) ExportAppStateAndValidators(forZeroHeight bool,
 //
 //	in favor of export at a block height
 //
-//nolint:funlen,gocognit // from sdk.
+//nolint:funlen,gocognit,gocyclo // from sdk.
 func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []string) {
 	applyAllowedAddrs := false
 
@@ -114,7 +115,8 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 		panic(err)
 	}
 	for _, delegation := range dels {
-		valAddr, err := sdk.ValAddressFromBech32(delegation.ValidatorAddress)
+		var valAddr sdk.ValAddress
+		valAddr, err = sdk.ValAddressFromBech32(delegation.ValidatorAddress)
 		if err != nil {
 			panic(err)
 		}
@@ -137,11 +139,13 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 	// reinitialize all validators
 	err = app.StakingKeeper.IterateValidators(ctx, func(_ int64, val stakingtypes.ValidatorI) bool {
 		// donate any unwithdrawn outstanding reward fraction tokens to the community pool
-		scraps, err := app.DistrKeeper.GetValidatorOutstandingRewardsCoins(ctx, val.GetOperator())
+		var scraps sdk.DecCoins
+		scraps, err = app.DistrKeeper.GetValidatorOutstandingRewardsCoins(ctx, val.GetOperator())
 		if err != nil {
 			panic(err)
 		}
-		feePool, err := app.DistrKeeper.FeePool.Get(ctx)
+		var feePool types.FeePool
+		feePool, err = app.DistrKeeper.FeePool.Get(ctx)
 		if err != nil {
 			panic(err)
 		}
@@ -161,7 +165,8 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 
 	// reinitialize all delegations
 	for _, del := range dels {
-		valAddr, err := sdk.ValAddressFromBech32(del.ValidatorAddress)
+		var valAddr sdk.ValAddress
+		valAddr, err = sdk.ValAddressFromBech32(del.ValidatorAddress)
 		if err != nil {
 			panic(err)
 		}
@@ -221,7 +226,8 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 
 	for ; iter.Valid(); iter.Next() {
 		addr := sdk.ValAddress(stakingtypes.AddressFromValidatorsKey(iter.Key()))
-		validator, err := app.StakingKeeper.GetValidator(ctx, addr)
+		var validator stakingtypes.Validator
+		validator, err = app.StakingKeeper.GetValidator(ctx, addr)
 		if err != nil {
 			panic(err)
 		}
