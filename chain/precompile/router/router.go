@@ -10,11 +10,7 @@ import (
 	"pkg.berachain.dev/polaris/eth/core/vm"
 )
 
-const (
-	name = "world_engine_router"
-
-	maxArgs = 3
-)
+const name = "world_engine_router"
 
 type Contract struct {
 	ethprecompile.BaseContract
@@ -22,7 +18,7 @@ type Contract struct {
 }
 
 // NewPrecompileContract returns a new instance of the Router precompile.
-func NewPrecompileContract(r router.Router) ethprecompile.StatefulImpl {
+func NewPrecompileContract(r router.Router) *Contract {
 	return &Contract{
 		BaseContract: ethprecompile.NewBaseContract(
 			generated.RouterMetaData.ABI,
@@ -38,7 +34,7 @@ func (c *Contract) Send(
 	msg []byte,
 	messageID uint64,
 	namespace string,
-) (any, error) {
+) ([]byte, error) {
 	pCtx := vm.UnwrapPolarContext(ctx)
 	_, err := c.rtr.Send(ctx, namespace, pCtx.MsgSender().String(), messageID, msg)
 	return nil, err
