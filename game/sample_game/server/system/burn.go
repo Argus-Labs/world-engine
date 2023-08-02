@@ -11,34 +11,36 @@ import (
 
 func BurnSystem(world *ecs.World, tq *ecs.TransactionQueue) error {
 	fires := map[comp.PositionComponent]bool{}
-	ecs.NewQuery(filter.Exact(comp.Position)).Each(world, func(id storage.EntityID) {
+	ecs.NewQuery(filter.Exact(comp.Position)).Each(world, func(id storage.EntityID) bool {
 		pos, err := comp.Position.Get(world, id)
 		if err != nil {
 			log.Print(err)
-			return
+			return true
 		}
 		fires[pos] = true
+		return true
 	})
-	ecs.NewQuery(filter.Exact(comp.Health, comp.Position)).Each(world, func(id storage.EntityID) {
+	ecs.NewQuery(filter.Exact(comp.Health, comp.Position)).Each(world, func(id storage.EntityID) bool {
 		pos, err := comp.Position.Get(world, id)
 		if err != nil {
 			log.Print(err)
-			return
+			return true
 		}
 		if !fires[pos] {
-			return
+			return true
 		}
 
 		health, err := comp.Health.Get(world, id)
 		if err != nil {
 			log.Print(err)
-			return
+			return true
 		}
 		health.Val -= 10
 		if err := comp.Health.Set(world, id, health); err != nil {
 			log.Print(err)
-			return
+			return true
 		}
+		return true
 	})
 	return nil
 }

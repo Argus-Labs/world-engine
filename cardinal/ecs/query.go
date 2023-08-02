@@ -30,15 +30,20 @@ func NewQuery(filter filter.LayoutFilter) *Query {
 	}
 }
 
+type QueryCallBackFn func(storage.EntityID) bool
+
 // Each iterates over all entityLocationStore that match the query.
-func (q *Query) Each(w *World, callback func(storage.EntityID)) {
+func (q *Query) Each(w *World, callback QueryCallBackFn) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
 	for iter.HasNext() {
 		entities := iter.Next()
 		for _, id := range entities {
-			callback(id)
+			cont := callback(id)
+			if !cont {
+				return
+			}
 		}
 	}
 }

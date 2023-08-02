@@ -93,7 +93,7 @@ func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error
 }
 
 // Each iterates over the entityLocationStore that have the component.
-func (c *ComponentType[T]) Each(w *World, callback func(storage.EntityID)) {
+func (c *ComponentType[T]) Each(w *World, callback QueryCallBackFn) {
 	c.query.Each(w, callback)
 }
 

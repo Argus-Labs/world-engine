@@ -110,16 +110,16 @@ func getPlayerInfoFromWorld(world *ecs.World) ([]playerInfo, error) {
 	var players []playerInfo
 	var errs []error
 
-	queryPlayers(world).Each(world, func(id storage.EntityID) {
+	queryPlayers(world).Each(world, func(id storage.EntityID) bool {
 		currPos, err := component.Position.Get(world, id)
 		if err != nil {
 			errs = append(errs, err)
-			return
+			return true
 		}
 		currHealth, err := component.Health.Get(world, id)
 		if err != nil {
 			errs = append(errs, err)
-			return
+			return true
 		}
 		players = append(players, playerInfo{
 			ID:     id,
@@ -127,6 +127,7 @@ func getPlayerInfoFromWorld(world *ecs.World) ([]playerInfo, error) {
 			XPos:   currPos.X,
 			YPos:   currPos.Y,
 		})
+		return true
 	})
 	return players, errors.Join(errs...)
 }

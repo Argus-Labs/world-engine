@@ -171,9 +171,10 @@ func TestCanReloadState(t *testing.T) {
 	_, err := alphaWorld.CreateMany(10, oneAlphaNum)
 	assert.NilError(t, err)
 	alphaWorld.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
-		oneAlphaNum.Each(w, func(id storage.EntityID) {
+		oneAlphaNum.Each(w, func(id storage.EntityID) bool {
 			err := oneAlphaNum.Set(w, id, NumberComponent{int(id)})
 			assert.Check(t, err == nil)
+			return true
 		})
 		return nil
 	})
@@ -189,11 +190,12 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, betaWorld.LoadGameState())
 
 	count := 0
-	oneBetaNum.Each(betaWorld, func(id storage.EntityID) {
+	oneBetaNum.Each(betaWorld, func(id storage.EntityID) bool {
 		count++
 		num, err := oneBetaNum.Get(betaWorld, id)
 		assert.NilError(t, err)
 		assert.Equal(t, int(id), num.Num)
+		return true
 	})
 	// Make sure we actually have 10 entities
 	assert.Equal(t, 10, count)
