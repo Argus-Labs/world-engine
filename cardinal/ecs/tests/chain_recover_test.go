@@ -93,7 +93,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	err := w.RegisterTransactions(SendEnergyTx)
 	assert.NilError(t, err)
 
-	sysRuns := 0
+	var sysRuns uint64 = 0
 	timesSendEnergyRan := 0
 	// send energy system
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
@@ -106,7 +106,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	})
 	namespace := "game1"
 	payloads := make([]*sign.SignedPayload, 0, 10)
-	finalTick := 20
+	var finalTick uint64 = 20
 	for i := 0; i <= 10; i++ {
 		payload := generateRandomTransaction(t, namespace, SendEnergyTx)
 		payloads = append(payloads, payload)

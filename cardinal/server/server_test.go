@@ -187,6 +187,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	tx := ecs.NewTransactionType[SendEnergyTx]("some_tx")
 	assert.NilError(t, world.RegisterTransactions(tx))
 	assert.NilError(t, world.LoadGameState())
+	assert.NilError(t, world.Tick(context.Background()))
 
 	txh := makeTestTransactionHandler(t, world)
 
