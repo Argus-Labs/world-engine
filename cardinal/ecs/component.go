@@ -25,7 +25,7 @@ func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T] {
 }
 
 // ComponentType represents a type of component. It is used to identify
-// a component when getting or setting componentStore of an entity.
+// a component when getting or setting the component of an entity.
 type ComponentType[T any] struct {
 	isIDSet    bool
 	id         component.TypeID
@@ -92,7 +92,8 @@ func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error
 	return nil
 }
 
-// Each iterates over the entityLocationStore that have the component.
+// Each iterates over the entities that have the component.
+// If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
 func (c *ComponentType[T]) Each(w *World, callback QueryCallBackFn) {
 	c.query.Each(w, callback)
 }

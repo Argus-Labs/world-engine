@@ -368,7 +368,7 @@ func (w *World) TransferArchetype(from storage.ArchetypeID, to storage.Archetype
 		}
 	}
 
-	// move componentStore
+	// move component
 	for _, componentType := range fromLayout.Components() {
 		store := w.store.CompStore.Storage(componentType)
 		if toLayout.HasComponent(componentType) {
@@ -647,7 +647,7 @@ func (w *World) getArchetypeForComponents(components []component.IComponentType)
 }
 
 func (w *World) noDuplicates(components []component.IComponentType) bool {
-	// check if there are duplicate values inside componentStore slice
+	// check if there are duplicate values inside component slice
 	for i := 0; i < len(components); i++ {
 		for j := i + 1; j < len(components); j++ {
 			if components[i] == components[j] {
