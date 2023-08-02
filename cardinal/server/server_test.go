@@ -217,7 +217,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	tick := createPersonaResponse.Tick
 
 	// postReadPersonaSigner is a helper that makes a request to the read-persona-signer endpoint and returns the response
-	postReadPersonaSigner := func(personaTag string, tick int) ReadPersonaSignerResponse {
+	postReadPersonaSigner := func(personaTag string, tick uint64) ReadPersonaSignerResponse {
 		bz, err = json.Marshal(ReadPersonaSignerRequest{
 			PersonaTag: personaTag,
 			Tick:       tick,

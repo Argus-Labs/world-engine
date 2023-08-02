@@ -28,7 +28,7 @@ var _ TxHandler = &ecs.World{}
 
 // TxHandler is a type that gives access to transaction data in the ecs.World, as well as access to queue transactions.
 type TxHandler interface {
-	AddTransaction(transaction.TypeID, any, *sign.SignedPayload) int
+	AddTransaction(transaction.TypeID, any, *sign.SignedPayload) uint64
 	ListTransactions() ([]transaction.ITransaction, error)
 }
 

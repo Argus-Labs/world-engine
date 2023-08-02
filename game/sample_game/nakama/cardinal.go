@@ -78,7 +78,7 @@ func cardinalListAllEndpoints() ([]string, error) {
 	return endpoints, nil
 }
 
-func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, personaTag string) (tick int, err error) {
+func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, personaTag string) (tick uint64, err error) {
 	signerAddress := getSignerAddress()
 	createPersonaTx := struct {
 		PersonaTag    string
@@ -117,7 +117,7 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 	}
 	createPersonaResponse := struct {
 		Status string
-		Tick   int
+		Tick   uint64
 	}{}
 	if err := json.NewDecoder(resp.Body).Decode(&createPersonaResponse); err != nil {
 		return 0, fmt.Errorf("unable to decode response: %w", err)
@@ -128,10 +128,10 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 	return createPersonaResponse.Tick, nil
 }
 
-func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick int) (signerAddress string, err error) {
+func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uint64) (signerAddress string, err error) {
 	readPersonaRequest := struct {
 		PersonaTag string
-		Tick       int
+		Tick       uint64
 	}{
 		PersonaTag: personaTag,
 		Tick:       tick,
