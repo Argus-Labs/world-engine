@@ -34,12 +34,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestAddressPrecompile(t *testing.T) {
+func TestRouterPrecompile(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "cosmos/precompile/router")
 }
 
-var _ = Describe("Address Precompile", func() {
+var _ = Describe("Router Precompile", func() {
 	var contract *Contract
 	var sf *ethprecompile.StatefulFactory
 	BeforeEach(func() {
