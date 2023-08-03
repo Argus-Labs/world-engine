@@ -2,10 +2,12 @@ package tests
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	"errors"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
 
 	"gotest.tools/v3/assert"
 
@@ -361,4 +363,76 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	alphaTx := ecs.NewTransactionType[SomeTx]("name_match")
 	betaTx := ecs.NewTransactionType[OtherTx]("name_match")
 	assert.ErrorIs(t, world.RegisterTransactions(alphaTx, betaTx), ecs.ErrorDuplicateTransactionName)
+}
+
+func TestCanGetTransactionErrorsAndResults(t *testing.T) {
+	type MoveTx struct {
+		DeltaX, DeltaY int
+	}
+	type MoveTxResult struct {
+		EndX, EndY int
+	}
+	world := inmem.NewECSWorldForTest(t)
+
+	// Each transaction now needs an input and an output
+	moveTx := ecs.NewTransactionType[MoveTx, MoveTxResult]("move")
+	assert.NilError(t, world.RegisterTransactions(moveTx))
+
+	wantFirstError := errors.New("this is a transaction error")
+	wantSecondError := errors.New("another transaction error")
+	wantDeltaX, wantDeltaY := 99, 100
+
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+		// This new TxsIn function returns a triplet of information:
+		// 1) The transaction input
+		// 2) An ID that uniquely identifies this specific transaction
+		// 3) The signature
+		// This function would replace both "In" and "TxsAndSigsIn"
+		txs := moveTx.TxsIn(queue)
+		assert.Equal(t, 1, len(txs), "expected 1 move transaction")
+		tx := txs[0]
+		// The input for the transaction is found at tx.Val
+		assert.Equal(t, wantDeltaX, tx.Val.DeltaX)
+		assert.Equal(t, wantDeltaY, tx.Val.DeltaY)
+
+		// AddError will associate an error with the tx.ID. Multiple errors can be
+		// associated with a transaction.
+		moveTx.AddError(world, tx.ID, wantFirstError)
+		moveTx.AddError(world, tx.ID, wantSecondError)
+
+		// SetResult sets the output for the transaction. Only one output can be set
+		// for a tx.ID (the last assigned result will clobber other results)
+		moveTx.SetResult(world, tx.ID, MoveTxResult{42, 42})
+		return nil
+	})
+	assert.NilError(t, world.LoadGameState())
+	txID := moveTx.AddToQueue(world, MoveTx{99, 100})
+
+	// Tick the game so the transaction is processed
+	assert.NilError(t, world.Tick(context.Background()))
+
+	// There will be 2 ways to get transaction results.
+
+	// Option 1: Use the moveTx to get a concrete type, the list of errors, and an ok flag (e.g. if the txID is not
+	// valid, false will be returned). Different systems should use this method to check for results/errors from
+	// previously run systems. This can also be used for read endpoints. Essentially, when a Cardinal user wants to
+	// access transaction results, they should use this method.
+	moveTxResult, errs, ok := moveTx.GetResult(world, txID)
+	assert.Check(t, ok)
+	assert.Equal(t, 2, len(errs))
+	assert.ErrorIs(t, wantFirstError, errs[0])
+	assert.ErrorIs(t, wantSecondError, errs[1])
+	assert.Equal(t, MoveTxResult{42, 42}, moveTxResult)
+
+	// Option 2: Use the world object to get the tx results. The returned iface is of type interface{},
+	// so it will be less safe to use. This will be used in HTTP/RPC handlers where the output is not actually examined,
+	// and it's just being serialized to JSON.
+	iface, errs, ok := world.GetTransactionResult(txID)
+	assert.Equal(t, true, ok)
+	assert.Equal(t, 2, len(errs))
+	assert.ErrorIs(t, wantFirstError, errs[0])
+	assert.ErrorIs(t, wantSecondError, errs[1])
+	gotResult, ok := iface.(MoveTxResult)
+	assert.Check(t, ok)
+	assert.Equal(t, MoveTxResult{42, 42}, gotResult)
 }
