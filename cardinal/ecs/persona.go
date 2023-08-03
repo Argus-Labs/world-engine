@@ -74,7 +74,7 @@ var (
 // GetSignerForPersonaTag returns the signer address that has been registered for the given persona tag after the
 // given tick. If the world's tick is less than or equal to the given tick, ErrorCreatePersonaTXsNotProcessed is returned.
 // If the given personaTag has no signer address, ErrorPersonaTagHasNoSigner is returned.
-func (w *World) GetSignerForPersonaTag(personaTag string, tick int) (addr string, err error) {
+func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
 	if tick >= w.tick {
 		return "", ErrorCreatePersonaTxsNotProcessed
 	}

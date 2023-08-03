@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
-	"github.com/argus-labs/world-engine/sign"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
@@ -26,16 +25,6 @@ type ITransactionTypes map[transaction.TypeID]transaction.ITransaction
 
 // IReadTypes maps read resource names to the underlying IRead
 type IReadTypes map[string]ecs.IRead
-
-var _ IWorld = &ecs.World{}
-
-// IWorld is a type that gives access to transaction and read data in the ecs.World, as well as access to queue
-// transactions.
-type IWorld interface {
-	AddTransaction(transaction.TypeID, any, *sign.SignedPayload) int
-	ListTransactions() ([]transaction.ITransaction, error)
-	ListReads() []ecs.IRead
-}
 
 type srv struct {
 	txMap      ITransactionTypes
@@ -83,7 +72,7 @@ func loadCredentials(serverCertPath, serverKeyPath string) (credentials.Transpor
 		return nil, err
 	}
 
-	// Create & return credentials
+	// Create the credentials and return it
 	config := &tls.Config{
 		Certificates: []tls.Certificate{serverCert},
 		ClientAuth:   tls.NoClientCert,

@@ -24,13 +24,13 @@ func TestTickHappyPath(t *testing.T) {
 		assert.NilError(t, oneWorld.Tick(context.Background()))
 	}
 
-	assert.Equal(t, 10, oneWorld.CurrentTick())
+	assert.Equal(t, uint64(10), oneWorld.CurrentTick())
 
 	twoWorld := initWorldWithRedis(t, rs)
 	twoEnergy := ecs.NewComponentType[EnergyComponent]()
 	assert.NilError(t, twoWorld.RegisterComponents(twoEnergy))
 	assert.NilError(t, twoWorld.LoadGameState())
-	assert.Equal(t, 10, twoWorld.CurrentTick())
+	assert.Equal(t, uint64(10), twoWorld.CurrentTick())
 }
 
 func TestCanIdentifyAndFixSystemError(t *testing.T) {

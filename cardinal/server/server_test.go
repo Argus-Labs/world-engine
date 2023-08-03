@@ -187,6 +187,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	tx := ecs.NewTransactionType[SendEnergyTx]("some_tx")
 	assert.NilError(t, world.RegisterTransactions(tx))
 	assert.NilError(t, world.LoadGameState())
+	assert.NilError(t, world.Tick(context.Background()))
 
 	txh := makeTestTransactionHandler(t, world)
 
@@ -217,7 +218,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	tick := createPersonaResponse.Tick
 
 	// postReadPersonaSigner is a helper that makes a request to the read-persona-signer endpoint and returns the response
-	postReadPersonaSigner := func(personaTag string, tick int) ReadPersonaSignerResponse {
+	postReadPersonaSigner := func(personaTag string, tick uint64) ReadPersonaSignerResponse {
 		bz, err = json.Marshal(ReadPersonaSignerRequest{
 			PersonaTag: personaTag,
 			Tick:       tick,
@@ -232,7 +233,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	}
 
 	// Check some random person tag against a tick far in the past. This should be available.
-	personaSignerResp := postReadPersonaSigner("some_other_persona_tag", -100)
+	personaSignerResp := postReadPersonaSigner("some_other_persona_tag", 0)
 	assert.Equal(t, personaSignerResp.Status, "available")
 
 	// If the game tick matches the passed in game tick, there hasn't been enough time to process the create persona tx.
