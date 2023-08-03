@@ -25,6 +25,7 @@ type IRead interface {
 	DecodeEVMRequest([]byte) (any, error)
 	// EncodeEVMReply encodes the reply as an abi encoded struct.
 	EncodeEVMReply(any) ([]byte, error)
+	// DecodeEVMReply decodes EVM reply bytes, into the concrete go reply type.
 	DecodeEVMReply([]byte) (any, error)
 }
 
