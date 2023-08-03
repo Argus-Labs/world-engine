@@ -13,14 +13,14 @@ import (
 // CreatePersonaResponse is returned from a tx-create-persona request. It contains the current tick of the game
 // (needed to call the read-persona-signer endpoint).
 type CreatePersonaResponse struct {
-	Tick   int
+	Tick   uint64
 	Status string
 }
 
 // ReadPersonaSignerRequest is the desired request body for the read-persona-signer endpoint.
 type ReadPersonaSignerRequest struct {
 	PersonaTag string
-	Tick       int
+	Tick       uint64
 }
 
 // ReadPersonaSignerResponse is used as the response body for the read-persona-signer endpoint. Status can be:

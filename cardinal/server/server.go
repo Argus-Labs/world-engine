@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argus-labs/world-engine/cardinal/shard"
-	"github.com/invopop/jsonschema"
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/argus-labs/world-engine/cardinal/shard"
+	"github.com/invopop/jsonschema"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
@@ -152,9 +153,9 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 
 	var signerAddress string
 	if getSignedAddressFromWorld {
-		// Use -1 as the tick. We don't care about any pending CreatePersonaTxs, we just want to know the
+		// Use 0 as the tick. We don't care about any pending CreatePersonaTxs, we just want to know the
 		// current signer address for the given persona. Any error will fail this request.
-		signerAddress, err = t.w.GetSignerForPersonaTag(sp.PersonaTag, -1)
+		signerAddress, err = t.w.GetSignerForPersonaTag(sp.PersonaTag, 0)
 	} else {
 		signerAddress, err = getSignerAddressFromPayload(*sp)
 	}

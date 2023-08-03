@@ -88,7 +88,7 @@ type StateStorage interface {
 }
 
 type TickStorage interface {
-	GetTickNumbers() (start, end int, err error)
+	GetTickNumbers() (start, end uint64, err error)
 	StartNextTick(txs []transaction.ITransaction, queues map[transaction.TypeID][]any) error
 	FinalizeTick() error
 	Recover(txs []transaction.ITransaction) (map[transaction.TypeID][]any, error)

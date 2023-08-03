@@ -37,7 +37,7 @@ type World struct {
 	id                       WorldId
 	store                    storage.WorldStorage
 	systems                  []System
-	tick                     int
+	tick                     uint64
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
 	registeredReads          []IRead
@@ -207,7 +207,7 @@ func (w *World) ID() WorldId {
 	return w.id
 }
 
-func (w *World) CurrentTick() int {
+func (w *World) CurrentTick() uint64 {
 	return w.tick
 }
 
@@ -418,7 +418,7 @@ func (w *World) copyTransactions() (map[transaction.TypeID][]any, map[transactio
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) int {
+func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) uint64 {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
 	w.txQueues[id] = append(w.txQueues[id], v)
