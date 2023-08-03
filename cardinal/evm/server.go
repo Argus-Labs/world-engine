@@ -83,7 +83,7 @@ func loadCredentials(serverCertPath, serverKeyPath string) (credentials.Transpor
 		return nil, err
 	}
 
-	// Create the credentials and return txMap
+	// Create & return credentials
 	config := &tls.Config{
 		Certificates: []tls.Certificate{serverCert},
 		ClientAuth:   tls.NoClientCert,
