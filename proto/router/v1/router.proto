@@ -6,6 +6,7 @@ option go_package = "github.com/argus-labs/world-engine/router/v1";
 
 service Msg {
   rpc SendMsg(MsgSend) returns (MsgSendResponse);
+  rpc QueryShard(QueryShardRequest) returns (QueryShardResponse);
 }
 
 message MsgSend {
@@ -24,4 +25,17 @@ message MsgSendResponse {
   uint64 code = 1;
   // message is an encoded message that should be able to be unpacked into a solidity struct.
   bytes message = 2;
+}
+
+message QueryShardRequest {
+  // resource is the resource to query for.
+  string resource = 1;
+
+  // request is an ABI encoded request struct.
+  bytes request = 2;
+}
+
+message QueryShardResponse {
+  // response is an ABI encoded response struct.
+  bytes response = 1;
 }

@@ -39,3 +39,11 @@ func (c *Contract) Send(
 	_, err := c.rtr.Send(ctx, namespace, pCtx.MsgSender().String(), messageID, message)
 	return nil, err
 }
+
+func (c *Contract) Query(
+	ctx context.Context,
+	request []byte,
+	resource, namespace string,
+) ([]byte, error) {
+	return c.rtr.Query(ctx, request, resource, namespace)
+}

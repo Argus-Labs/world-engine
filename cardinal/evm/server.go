@@ -21,25 +21,32 @@ var (
 	_ routerv1grpc.MsgServer = &srv{}
 )
 
-// ITransactionTypes is a map that maps transaction type ID's to transaction types.
+// ITransactionTypes maps transaction type ID's to transaction types.
 type ITransactionTypes map[transaction.TypeID]transaction.ITransaction
 
-var _ TxHandler = &ecs.World{}
+// IReadTypes maps read resource names to the underlying IRead
+type IReadTypes map[string]ecs.IRead
 
-// TxHandler is a type that gives access to transaction data in the ecs.World, as well as access to queue transactions.
-type TxHandler interface {
+var _ IWorld = &ecs.World{}
+
+// IWorld is a type that gives access to transaction and read data in the ecs.World, as well as access to queue
+// transactions.
+type IWorld interface {
 	AddTransaction(transaction.TypeID, any, *sign.SignedPayload) int
 	ListTransactions() ([]transaction.ITransaction, error)
+	ListReads() []ecs.IRead
 }
 
 type srv struct {
-	it         ITransactionTypes
-	txh        TxHandler
+	txMap      ITransactionTypes
+	readMap    IReadTypes
+	world      *ecs.World
 	serverOpts []grpc.ServerOption
 }
 
-func NewServer(txh TxHandler, opts ...Option) (routerv1grpc.MsgServer, error) {
-	txs, err := txh.ListTransactions()
+func NewServer(w *ecs.World, opts ...Option) (routerv1grpc.MsgServer, error) {
+	// setup txs
+	txs, err := w.ListTransactions()
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +54,14 @@ func NewServer(txh TxHandler, opts ...Option) (routerv1grpc.MsgServer, error) {
 	for _, tx := range txs {
 		it[tx.ID()] = tx
 	}
-	s := &srv{it: it, txh: txh}
+
+	reads := w.ListReads()
+	ir := make(IReadTypes, len(reads))
+	for _, r := range reads {
+		ir[r.Name()] = r
+	}
+
+	s := &srv{txMap: it, readMap: ir, world: w}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -69,7 +83,7 @@ func loadCredentials(serverCertPath, serverKeyPath string) (credentials.Transpor
 		return nil, err
 	}
 
-	// Create the credentials and return it
+	// Create the credentials and return txMap
 	config := &tls.Config{
 		Certificates: []tls.Certificate{serverCert},
 		ClientAuth:   tls.NoClientCert,
@@ -97,7 +111,7 @@ func (s *srv) Serve(addr string) error {
 
 func (s *srv) SendMsg(ctx context.Context, msg *routerv1.MsgSend) (*routerv1.MsgSendResponse, error) {
 	// first we check if we can extract the transaction associated with the id
-	itx, ok := s.it[transaction.TypeID(msg.MessageId)]
+	itx, ok := s.txMap[transaction.TypeID(msg.MessageId)]
 	if !ok {
 		return nil, fmt.Errorf("no transaction with ID %d is registerd in this world", msg.MessageId)
 	}
@@ -107,6 +121,26 @@ func (s *srv) SendMsg(ctx context.Context, msg *routerv1.MsgSend) (*routerv1.Msg
 		return nil, err
 	}
 	// add transaction to the world queue
-	s.txh.AddTransaction(itx.ID(), tx, nil)
+	s.world.AddTransaction(itx.ID(), tx, nil)
 	return &routerv1.MsgSendResponse{}, nil
+}
+
+func (s *srv) QueryShard(ctx context.Context, req *routerv1.QueryShardRequest) (*routerv1.QueryShardResponse, error) {
+	read, ok := s.readMap[req.Resource]
+	if !ok {
+		return nil, fmt.Errorf("no read with name %s found", req.Resource)
+	}
+	ecsRequest, err := read.DecodeEVMRequest(req.Request)
+	if err != nil {
+		return nil, err
+	}
+	reply, err := read.HandleRead(s.world, ecsRequest)
+	if err != nil {
+		return nil, err
+	}
+	bz, err := read.EncodeEVMReply(reply)
+	if err != nil {
+		return nil, err
+	}
+	return &routerv1.QueryShardResponse{Response: bz}, nil
 }

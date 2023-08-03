@@ -21,6 +21,7 @@ type Result struct {
 type Router interface {
 	// Send sends the msg payload to the game shard indicated by the namespace, if such namespace exists on chain.
 	Send(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error)
+	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
 }
 
 var (
@@ -81,6 +82,21 @@ func (r *router) Send(ctx context.Context, namespace, sender string, msgID uint6
 		Code:    res.Code,
 		Message: res.Message,
 	}, nil
+}
+
+func (r *router) Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error) {
+	client, err := r.getConnectionForNamespace(namespace)
+	if err != nil {
+		return nil, err
+	}
+	res, err := client.QueryShard(ctx, &v1.QueryShardRequest{
+		Resource: resource,
+		Request:  request,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res.Response, nil
 }
 
 func (r *router) getConnectionForNamespace(ns string) (routerv1grpc.MsgClient, error) {
