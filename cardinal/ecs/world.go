@@ -1,13 +1,14 @@
 package ecs
 
 import (
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"sync"
 	"time"
+
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	"github.com/argus-labs/world-engine/sign"
@@ -56,6 +57,12 @@ type World struct {
 	isRecovering bool
 
 	errs []error
+}
+
+type TxID struct {
+	Tick  int
+	ID    transaction.TypeID
+	Index uint64
 }
 
 var (
@@ -418,12 +425,22 @@ func (w *World) copyTransactions() (map[transaction.TypeID][]any, map[transactio
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) int {
+func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) TxID {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
+	index := len(w.txQueues[id])
 	w.txQueues[id] = append(w.txQueues[id], v)
 	w.txSignatures[id] = append(w.txSignatures[id], sig)
-	return w.CurrentTick()
+	tick := w.CurrentTick()
+	return TxID{
+		Tick:  tick,
+		ID:    id,
+		Index: uint64(index),
+	}
+}
+
+func (w *World) GetTransactionResult(id TxID) (v any, errs []error, ok bool) {
+	panic("no implemented")
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
