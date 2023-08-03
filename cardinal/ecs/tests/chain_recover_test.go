@@ -93,7 +93,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	err := w.RegisterTransactions(SendEnergyTx)
 	assert.NilError(t, err)
 
-	var sysRuns uint64 = 0
+	sysRuns := uint64(0)
 	timesSendEnergyRan := 0
 	// send energy system
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
