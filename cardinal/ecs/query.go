@@ -10,19 +10,19 @@ type cache struct {
 	seen       int
 }
 
-// Query represents a query for entityLocationStore.
-// It is used to filter entityLocationStore based on their componentStore.
-// It receives arbitrary filters that are used to filter entityLocationStore.
+// Query represents a query for entities.
+// It is used to filter entities based on their components.
+// It receives arbitrary filters that are used to filter entities.
 // It contains a cache that is used to avoid re-evaluating the query.
 // So it is not recommended to create a new query every time you want
-// to filter entityLocationStore with the same query.
+// to filter entities with the same query.
 type Query struct {
 	layoutMatches map[WorldId]*cache
 	filter        filter.LayoutFilter
 }
 
 // NewQuery creates a new query.
-// It receives arbitrary filters that are used to filter entityLocationStore.
+// It receives arbitrary filters that are used to filter entities.
 func NewQuery(filter filter.LayoutFilter) *Query {
 	return &Query{
 		layoutMatches: make(map[WorldId]*cache),
@@ -30,20 +30,26 @@ func NewQuery(filter filter.LayoutFilter) *Query {
 	}
 }
 
-// Each iterates over all entityLocationStore that match the query.
-func (q *Query) Each(w *World, callback func(storage.EntityID)) {
+type QueryCallBackFn func(storage.EntityID) bool
+
+// Each iterates over all entities that match the query.
+// If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
+func (q *Query) Each(w *World, callback QueryCallBackFn) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
 	for iter.HasNext() {
 		entities := iter.Next()
 		for _, id := range entities {
-			callback(id)
+			cont := callback(id)
+			if !cont {
+				return
+			}
 		}
 	}
 }
 
-// Count returns the number of entityLocationStore that match the query.
+// Count returns the number of entities that match the query.
 func (q *Query) Count(w *World) int {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)

@@ -25,7 +25,7 @@ type OwnableComponent struct {
 func UpdateEnergySystem(w *ecs.World, tq *ecs.TransactionQueue) error {
 	errs := []error{}
 
-	Energy.Each(w, func(ent storage.EntityID) {
+	Energy.Each(w, func(ent storage.EntityID) bool {
 		energyPlanet, err := Energy.Get(w, ent)
 		if err != nil {
 			errs = append(errs, err)
@@ -35,6 +35,7 @@ func UpdateEnergySystem(w *ecs.World, tq *ecs.TransactionQueue) error {
 		if err != nil {
 			errs = append(errs, err)
 		}
+		return true
 	})
 	if len(errs) > 0 {
 		return errors.Join(errs...)
@@ -65,10 +66,11 @@ func TestECS(t *testing.T) {
 
 	assert.NilError(t, world.Tick(context.Background()))
 
-	Energy.Each(world, func(id storage.EntityID) {
+	Energy.Each(world, func(id storage.EntityID) bool {
 		energyPlanet, err := Energy.Get(world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, int64(10), energyPlanet.Amt)
+		return true
 	})
 
 	q := ecs.NewQuery(filter.Or(filter.Contains(Energy), filter.Contains(Ownable)))
@@ -96,13 +98,14 @@ func TestVelocitySimulation(t *testing.T) {
 	assert.NilError(t, Velocity.Set(world, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
-	Velocity.Each(world, func(id storage.EntityID) {
+	Velocity.Each(world, func(id storage.EntityID) bool {
 		vel, err := Velocity.Get(world, id)
 		assert.NilError(t, err)
 		pos, err := Position.Get(world, id)
 		assert.NilError(t, err)
 		newPos := Pos{pos.X + vel.DX, pos.Y + vel.DY}
 		assert.NilError(t, Position.Set(world, id, newPos))
+		return true
 	})
 
 	finalPos, err := Position.Get(world, shipID)
@@ -149,10 +152,11 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Make sure we find exactly 2 entries
 	count := 0
-	tuple.Each(world, func(id storage.EntityID) {
+	tuple.Each(world, func(id storage.EntityID) bool {
 		_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
+		return true
 	})
 
 	assert.Equal(t, count, 2)
@@ -161,10 +165,11 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Now we should only find 1 entity
 	count = 0
-	tuple.Each(world, func(id storage.EntityID) {
+	tuple.Each(world, func(id storage.EntityID) bool {
 		_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
+		return true
 	})
 	assert.Equal(t, count, 1)
 
@@ -176,10 +181,11 @@ func TestCanRemoveEntity(t *testing.T) {
 	err = world.Remove(entities[1])
 	assert.NilError(t, err)
 	count = 0
-	tuple.Each(world, func(id storage.EntityID) {
+	tuple.Each(world, func(id storage.EntityID) bool {
 		_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
+		return true
 	})
 	assert.Equal(t, count, 0)
 
@@ -203,26 +209,29 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	// Pre-populate all the entities with their own IDs. This will help
 	// us keep track of which component belongs to which entity in the case
 	// of a problem
-	Count.Each(world, func(id storage.EntityID) {
+	Count.Each(world, func(id storage.EntityID) bool {
 		assert.NilError(t, Count.Set(world, id, CountComponent{int(id)}))
+		return true
 	})
 
 	// Remove the even entries
 	itr := 0
-	Count.Each(world, func(id storage.EntityID) {
+	Count.Each(world, func(id storage.EntityID) bool {
 		if itr%2 == 0 {
 			assert.NilError(t, world.Remove(id))
 		}
 		itr++
+		return true
 	})
 	// Verify we did this Each the correct number of times
 	assert.Equal(t, 10, itr)
 
 	seen := map[int]int{}
-	Count.Each(world, func(id storage.EntityID) {
+	Count.Each(world, func(id storage.EntityID) bool {
 		c, err := Count.Get(world, id)
 		assert.NilError(t, err)
 		seen[c.Val]++
+		return true
 	})
 
 	// Verify we're left with exactly 5 odd values between 1 and 9
@@ -298,10 +307,11 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	// count and countAgain are helpers that simplify the counting of how many
 	// entities have a particular component.
 	var count int
-	countAgain := func() func(ent storage.EntityID) {
+	countAgain := func() func(ent storage.EntityID) bool {
 		count = 0
-		return func(ent storage.EntityID) {
+		return func(ent storage.EntityID) bool {
 			count++
+			return true
 		}
 	}
 	// 3 entities have alpha
@@ -324,8 +334,9 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	assert.Equal(t, 1, count)
 
 	// Make sure the one ent that has gamma is entIDs[1]
-	gamma.Each(world, func(id storage.EntityID) {
+	gamma.Each(world, func(id storage.EntityID) bool {
 		assert.Equal(t, id, entIDs[1])
+		return true
 	})
 }
 
@@ -359,14 +370,16 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 
 	// Only one entity has the components a and b
 	abFilter := filter.Contains(a, b)
-	ecs.NewQuery(abFilter).Each(world, func(id storage.EntityID) {
+	ecs.NewQuery(abFilter).Each(world, func(id storage.EntityID) bool {
 		assert.Equal(t, id, ab)
+		return true
 	})
 	assert.Equal(t, ecs.NewQuery(abFilter).Count(world), 1)
 
 	cdFilter := filter.Contains(c, d)
-	ecs.NewQuery(cdFilter).Each(world, func(id storage.EntityID) {
+	ecs.NewQuery(cdFilter).Each(world, func(id storage.EntityID) bool {
 		assert.Equal(t, id, cd)
+		return true
 	})
 	assert.Equal(t, ecs.NewQuery(abFilter).Count(world), 1)
 

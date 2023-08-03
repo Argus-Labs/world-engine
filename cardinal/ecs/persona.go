@@ -33,13 +33,14 @@ func RegisterPersonaSystem(world *World, queue *TransactionQueue) error {
 	}
 	personaTagToAddress := map[string]string{}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(world, func(id storage.EntityID) {
+	NewQuery(filter.Exact(SignerComp)).Each(world, func(id storage.EntityID) bool {
 		sc, err := SignerComp.Get(world, id)
 		if err != nil {
 			errs = append(errs, err)
-			return
+			return true
 		}
 		personaTagToAddress[sc.PersonaTag] = sc.SignerAddress
+		return true
 	})
 	if len(errs) != 0 {
 		return errors.Join(errs...)
@@ -78,17 +79,16 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick int) (addr string
 		return "", ErrorCreatePersonaTxsNotProcessed
 	}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(w, func(id storage.EntityID) {
-		if addr != "" {
-			return
-		}
+	NewQuery(filter.Exact(SignerComp)).Each(w, func(id storage.EntityID) bool {
 		sc, err := SignerComp.Get(w, id)
 		if err != nil {
 			errs = append(errs, err)
 		}
 		if sc.PersonaTag == personaTag {
 			addr = sc.SignerAddress
+			return false
 		}
+		return true
 	})
 	if len(errs) > 0 {
 		return "", errors.Join(errs...)
