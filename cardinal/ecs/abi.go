@@ -29,7 +29,7 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 
 	for i := 0; i < rt.NumField(); i++ {
 		field := rt.Field(i)
-		fieldType := field.Type.Name()
+		fieldType := field.Type.String()
 		solType, err := goTypeToSolidityType(fieldType, field.Tag.Get("solidity"))
 		if err != nil {
 			return nil, err
