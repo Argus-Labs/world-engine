@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
-	"reflect"
 )
 
 type IRead interface {
@@ -68,11 +67,7 @@ func (r *ReadType[Request, Reply]) generateABIBindings() error {
 		return fmt.Errorf("error generating reply ABI binding: %w", err)
 	}
 	r.requestABI = reqABI
-	var request Request
-	r.requestABI.TupleType = reflect.TypeOf(request)
 	r.replyABI = repABI
-	var reply Reply
-	r.replyABI.TupleType = reflect.TypeOf(reply)
 	return nil
 }
 

@@ -11,13 +11,15 @@ import (
 var goTypeToSolType = map[string]string{
 	"bool":           "bool",
 	"string":         "string",
-	"uint":           "uint64",
-	"int":            "int64",
 	"common.Address": "address",
 	"uint8":          "uint8",
 	"uint16":         "uint16",
 	"uint32":         "uint32",
 	"uint64":         "uint64",
+	"int8":           "int8",
+	"int16":          "int16",
+	"int32":          "int32",
+	"int64":          "int64",
 }
 
 func GenerateABIType(goStruct any) (*abi.Type, error) {
@@ -44,6 +46,7 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 	if err != nil {
 		return nil, err
 	}
+	at.TupleType = rt
 	return &at, nil
 }
 
@@ -75,7 +78,10 @@ func goTypeToSolidityType(t string, tag string) (string, error) {
 	// for everything else, we can just look up in the map.
 	solType, ok := goTypeToSolType[t]
 	if !ok {
-		return "", fmt.Errorf("unrecognized type %s", t)
+		if strings.Contains(t, "int") {
+			return "", fmt.Errorf("uint/int without a size (i.e. uint64, int8, etc) is unsupported")
+		}
+		return "", fmt.Errorf("unsupported type %s", t)
 	}
 	return solType, nil
 }
