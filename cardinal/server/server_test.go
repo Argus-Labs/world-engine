@@ -52,9 +52,9 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 
 func TestCanListTransactionEndpoints(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx]("alpha", false)
-	betaTx := ecs.NewTransactionType[SendEnergyTx]("beta", false)
-	gammaTx := ecs.NewTransactionType[SendEnergyTx]("gamma", false)
+	alphaTx := ecs.NewTransactionType[SendEnergyTx]("alpha")
+	betaTx := ecs.NewTransactionType[SendEnergyTx]("beta")
+	gammaTx := ecs.NewTransactionType[SendEnergyTx]("gamma")
 	assert.NilError(t, w.RegisterTransactions(alphaTx, betaTx, gammaTx))
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
@@ -92,7 +92,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 
 	w := inmem.NewECSWorldForTest(t)
 	endpoint := "move"
-	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint, false)
+	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	count := 0
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
@@ -141,7 +141,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	count := 0
 	endpoint := "move"
 	w := inmem.NewECSWorldForTest(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint, false)
+	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		txs := sendTx.In(queue)
@@ -184,7 +184,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 
 func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	tx := ecs.NewTransactionType[SendEnergyTx]("some_tx", false)
+	tx := ecs.NewTransactionType[SendEnergyTx]("some_tx")
 	assert.NilError(t, world.RegisterTransactions(tx))
 	assert.NilError(t, world.LoadGameState())
 	assert.NilError(t, world.Tick(context.Background()))
