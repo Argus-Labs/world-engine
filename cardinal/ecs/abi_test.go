@@ -12,6 +12,8 @@ type FooReply struct {
 	Hi bool
 }
 
+// TestNoTagPanics tests that it panics when a struct field is of type *big.Int and does not have a `solidity` struct
+// field tag.
 func TestNoTagPanics(t *testing.T) {
 	type FooReadBroken struct {
 		Large *big.Int
