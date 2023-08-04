@@ -54,12 +54,12 @@ func goTypeToSolidityType(t string, tag string) (string, error) {
 	}
 	// next handle slices, all we do here is check that it contains the brackets,
 	// then recursively call this function with everything after the brackets.
-	// in solidity, the location of brackets for slice/array declarations is at the end.
 	if strings.Contains(t, "[]") {
 		inner, err := goTypeToSolidityType(t[2:], tag)
 		if err != nil {
 			return "", err
 		}
+		// in solidity, the location of brackets for slice/array declarations is at the end.
 		return inner + "[]", nil
 	}
 	// geth will use *big.Int for uint and int sizes >64 in solidity. structs using this function with *big.Int fields
