@@ -120,7 +120,7 @@ func TestServer_Query(t *testing.T) {
 	// set up a read that simply returns the FooRead.X
 	read := ecs.NewReadType[FooRead, FooReply]("foo", func(world *ecs.World, req FooRead) (FooReply, error) {
 		return FooReply{Y: req.X}, nil
-	}, true)
+	}, ecs.WithEVMSupport[FooRead, FooReply])
 	w := inmem.NewECSWorldForTest(t)
 	err := w.RegisterReads(read)
 	assert.NilError(t, err)
