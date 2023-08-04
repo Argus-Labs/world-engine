@@ -42,8 +42,8 @@ func TestServer_SendMsg(t *testing.T) {
 	BarEvmTx.TupleType = reflect.TypeOf(BarTransaction{})
 
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction]("footx")
-	BarTx := ecs.NewTransactionType[BarTransaction]("bartx")
+	FooTx := ecs.NewTransactionType[FooTransaction]("footx", false)
+	BarTx := ecs.NewTransactionType[BarTransaction]("bartx", false)
 
 	// bind them to EVM types
 	FooTx.SetEVMType(&FooEvmTX)

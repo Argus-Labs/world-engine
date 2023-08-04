@@ -8,4 +8,4 @@ type CreateFireTransaction struct {
 	X, Y int
 }
 
-var CreateFire = ecs.NewTransactionType[CreateFireTransaction]("create-fire")
+var CreateFire = ecs.NewTransactionType[CreateFireTransaction]("create-fire", false)

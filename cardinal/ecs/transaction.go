@@ -28,10 +28,25 @@ type TransactionQueue struct {
 	signatures map[transaction.TypeID][]*sign.SignedPayload
 }
 
-func NewTransactionType[T any](name string) *TransactionType[T] {
-	return &TransactionType[T]{
+func WithEVMSupport[T any]() func(transactionType *TransactionType[T]) {
+	return func(txt *TransactionType[T]) {
+		var tx T
+		abiType, err := GenerateABIType(tx)
+		if err != nil {
+			panic(err)
+		}
+		txt.evmType = abiType
+	}
+}
+
+func NewTransactionType[T any](name string, opts ...func() func(*TransactionType[T])) *TransactionType[T] {
+	txt := &TransactionType[T]{
 		name: name,
 	}
+	for _, opt := range opts {
+		opt()(txt)
+	}
+	return txt
 }
 
 func (t *TransactionType[T]) Name() string {

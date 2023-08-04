@@ -10,4 +10,4 @@ type MoveTransaction struct {
 	XDelta, YDelta int
 }
 
-var Move = ecs.NewTransactionType[MoveTransaction]("move")
+var Move = ecs.NewTransactionType[MoveTransaction]("move", false)

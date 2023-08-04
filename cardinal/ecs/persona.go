@@ -14,7 +14,10 @@ type CreatePersonaTransaction struct {
 }
 
 // CreatePersonaTx is a concrete ECS transaction.
-var CreatePersonaTx = NewTransactionType[CreatePersonaTransaction]("create-persona")
+var CreatePersonaTx = NewTransactionType[CreatePersonaTransaction](
+	"create-persona",
+	WithEVMSupport[CreatePersonaTransaction],
+)
 
 type SignerComponent struct {
 	PersonaTag    string
