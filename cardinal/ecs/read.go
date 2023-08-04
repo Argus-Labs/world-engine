@@ -3,6 +3,7 @@ package ecs
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
 )
 
@@ -17,20 +18,46 @@ type IRead interface {
 }
 
 type ReadType[Request any, Reply any] struct {
-	name    string
-	handler func(world *World, req Request) (Reply, error)
+	name       string
+	handler    func(world *World, req Request) (Reply, error)
+	requestABI *abi.Type
+	replyABI   *abi.Type
 }
 
-var _ IRead = NewReadType[struct{}, struct{}]("", nil)
+var _ IRead = NewReadType[struct{}, struct{}]("", nil, false)
 
 func NewReadType[Request any, Reply any](
 	name string,
 	handler func(world *World, req Request) (Reply, error),
+	supportEvm bool,
 ) *ReadType[Request, Reply] {
-	return &ReadType[Request, Reply]{
+	r := &ReadType[Request, Reply]{
 		name:    name,
 		handler: handler,
 	}
+	if supportEvm {
+		err := r.generateABIBindings()
+		if err != nil {
+			panic(err)
+		}
+	}
+	return r
+}
+
+func (r *ReadType[Request, Reply]) generateABIBindings() error {
+	var req Request
+	reqABI, err := GenerateABIType(req)
+	if err != nil {
+		return fmt.Errorf("error generating request ABI binding: %w", err)
+	}
+	var rep Reply
+	repABI, err := GenerateABIType(rep)
+	if err != nil {
+		return fmt.Errorf("error generating reply ABI binding: %w", err)
+	}
+	r.requestABI = reqABI
+	r.replyABI = repABI
+	return nil
 }
 
 func (r *ReadType[req, rep]) Name() string {
