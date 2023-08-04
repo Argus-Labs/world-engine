@@ -56,21 +56,21 @@ func (r *ReadType[req, rep]) Schema() *jsonschema.Schema {
 }
 
 func (r *ReadType[req, rep]) HandleRead(world *World, a any) (any, error) {
-	re, ok := a.(req)
+	request, ok := a.(req)
 	if !ok {
 		return nil, fmt.Errorf("cannot cast %T to this reads request type %T", a, new(req))
 	}
-	res, err := r.handler(world, re)
-	return res, err
+	reply, err := r.handler(world, request)
+	return reply, err
 }
 
 func (r *ReadType[req, rep]) HandleReadRaw(w *World, bz []byte) ([]byte, error) {
-	t := new(req)
-	err := json.Unmarshal(bz, t)
+	request := new(req)
+	err := json.Unmarshal(bz, request)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal read request into type %T: %w", *t, err)
+		return nil, fmt.Errorf("unable to unmarshal read request into type %T: %w", *request, err)
 	}
-	res, err := r.handler(w, *t)
+	res, err := r.handler(w, *request)
 	if err != nil {
 		return nil, err
 	}
