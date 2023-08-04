@@ -25,8 +25,8 @@ type IRead interface {
 	EncodeEVMReply(any) ([]byte, error)
 	// DecodeEVMReply decodes EVM reply bytes, into the concrete go reply type.
 	DecodeEVMReply([]byte) (any, error)
-	// EncodeRequestAsABI encodes a go struct in abi format. This is mostly used for testing.
-	EncodeRequestAsABI(any) ([]byte, error)
+	// EncodeAsABI encodes a go struct in abi format. This is mostly used for testing.
+	EncodeAsABI(any) ([]byte, error)
 }
 
 type ReadType[Request any, Reply any] struct {
@@ -160,17 +160,20 @@ func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	return bz, err
 }
 
-func (r *ReadType[Request, Reply]) EncodeRequestAsABI(req any) ([]byte, error) {
-	if r.requestABI == nil {
-		return nil, errors.New("cannot call EncodeRequestAsABI without setting supportEVM to true when " +
+func (r *ReadType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
+	if r.requestABI == nil || r.replyABI == nil {
+		return nil, errors.New("cannot call EncodeAsABI without setting supportEVM to true when " +
 			"creating the read")
 	}
-	request, ok := req.(Request)
+	req, ok := input.(Request)
 	if !ok {
-		return nil, fmt.Errorf("expected the request struct %T, got %T", request, req)
+		if rep, ok := input.(Reply); !ok {
+			return nil, fmt.Errorf("expected the input struct to be either %T or %T, but got %T",
+				req, rep, input)
+		}
 	}
 	args := abi.Arguments{{Type: *r.requestABI}}
-	bz, err := args.Pack(request)
+	bz, err := args.Pack(input)
 	if err != nil {
 		return nil, err
 	}

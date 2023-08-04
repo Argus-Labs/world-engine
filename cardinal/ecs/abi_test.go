@@ -28,7 +28,7 @@ func TestWorksWithTag(t *testing.T) {
 	}
 	read := NewReadType[FooReadWorks, FooReply]("foo", nil, true)
 
-	_, err := read.EncodeRequestAsABI(FooReadWorks{big.NewInt(300000000)})
+	_, err := read.EncodeAsABI(FooReadWorks{big.NewInt(300000000)})
 	assert.NilError(t, err, nil)
 }
 
@@ -37,6 +37,6 @@ func TestAddrWorks(t *testing.T) {
 		Addr common.Address
 	}
 	read := NewReadType[FooReadAddr, FooReply]("foo", nil, true)
-	_, err := read.EncodeRequestAsABI(FooReadAddr{common.HexToAddress("0x6265617665726275696c642e6f7267")})
+	_, err := read.EncodeAsABI(FooReadAddr{common.HexToAddress("0x6265617665726275696c642e6f7267")})
 	assert.NilError(t, err)
 }

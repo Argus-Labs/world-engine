@@ -36,7 +36,7 @@ func TestReadEVM(t *testing.T) {
 	assert.NilError(t, err)
 
 	// create the abi encoded bytes that the EVM would send.
-	bz, err := fooRead.EncodeRequestAsABI(FooRequest{ID: "foo"})
+	bz, err := fooRead.EncodeAsABI(FooRequest{ID: "foo"})
 	assert.NilError(t, err)
 
 	// query the resource.
