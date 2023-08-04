@@ -342,14 +342,14 @@ func TestCanListReads(t *testing.T) {
 
 	fooRead := ecs.NewReadType[FooRequest, FooResponse]("foo", func(world *ecs.World, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
-	})
+	}, false)
 	barRead := ecs.NewReadType[FooRequest, FooResponse]("bar", func(world *ecs.World, req FooRequest) (FooResponse, error) {
 
 		return FooResponse{Meow: req.Meow}, nil
-	})
+	}, false)
 	bazRead := ecs.NewReadType[FooRequest, FooResponse]("baz", func(world *ecs.World, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
-	})
+	}, false)
 
 	assert.NilError(t, world.RegisterReads(fooRead, barRead, bazRead))
 	assert.NilError(t, world.LoadGameState())
@@ -385,7 +385,7 @@ func TestReadEncodeDecode(t *testing.T) {
 	endpoint := "foo"
 	fq := ecs.NewReadType[FooRequest, FooResponse](endpoint, func(world *ecs.World, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
-	})
+	}, false)
 
 	// set up the world, register the reads, load.
 	world := inmem.NewECSWorldForTest(t)
