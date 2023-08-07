@@ -1,14 +1,15 @@
 package evm
 
 import (
-	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"context"
+	"reflect"
+	"testing"
+
+	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"gotest.tools/v3/assert"
-	"reflect"
-	"testing"
 )
 
 type FooTransaction struct {
@@ -20,6 +21,8 @@ type BarTransaction struct {
 	Y uint64
 	Z bool
 }
+
+type TxReply struct{}
 
 // TestServer_SendMsg tests that when sending messages through to the EVM receiver server, they get passed along to
 // the world, and executed in systems.
@@ -42,8 +45,8 @@ func TestServer_SendMsg(t *testing.T) {
 	BarEvmTx.TupleType = reflect.TypeOf(BarTransaction{})
 
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction]("footx")
-	BarTx := ecs.NewTransactionType[BarTransaction]("bartx")
+	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx")
+	BarTx := ecs.NewTransactionType[BarTransaction, TxReply]("bartx")
 
 	// bind them to EVM types
 	FooTx.SetEVMType(&FooEvmTX)
@@ -69,10 +72,10 @@ func TestServer_SendMsg(t *testing.T) {
 		assert.Equal(t, len(inFooTxs), len(fooTxs))
 		assert.Equal(t, len(inBarTxs), len(barTxs))
 		for i, tx := range inFooTxs {
-			assert.DeepEqual(t, tx, fooTxs[i])
+			assert.DeepEqual(t, tx.Value, fooTxs[i])
 		}
 		for i, tx := range inBarTxs {
-			assert.DeepEqual(t, tx, barTxs[i])
+			assert.DeepEqual(t, tx.Value, barTxs[i])
 		}
 		return nil
 	})

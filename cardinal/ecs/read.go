@@ -3,6 +3,7 @@ package ecs
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/invopop/jsonschema"
 )
 
@@ -13,7 +14,7 @@ type IRead interface {
 	// and is expected to return a json encoded response struct.
 	HandleRead(*World, []byte) ([]byte, error)
 	// Schema returns the json schema of the read request.
-	Schema() *jsonschema.Schema
+	Schema() (request, reply *jsonschema.Schema)
 }
 
 type ReadType[Request any, Reply any] struct {
@@ -37,8 +38,8 @@ func (r *ReadType[req, rep]) Name() string {
 	return r.name
 }
 
-func (r *ReadType[req, rep]) Schema() *jsonschema.Schema {
-	return jsonschema.Reflect(new(req))
+func (r *ReadType[req, rep]) Schema() (request, reply *jsonschema.Schema) {
+	return jsonschema.Reflect(new(req)), jsonschema.Reflect(new(rep))
 }
 
 func (r *ReadType[req, rep]) HandleRead(w *World, bz []byte) ([]byte, error) {

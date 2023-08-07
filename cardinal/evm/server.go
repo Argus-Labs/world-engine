@@ -4,9 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"net"
 	"os"
+
+	"github.com/argus-labs/world-engine/cardinal/ecs"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"github.com/argus-labs/world-engine/sign"
@@ -28,7 +29,7 @@ var _ TxHandler = &ecs.World{}
 
 // TxHandler is a type that gives access to transaction data in the ecs.World, as well as access to queue transactions.
 type TxHandler interface {
-	AddTransaction(transaction.TypeID, any, *sign.SignedPayload) uint64
+	AddTransaction(transaction.TypeID, any, *sign.SignedPayload) (uint64, transaction.TxID)
 	ListTransactions() ([]transaction.ITransaction, error)
 }
 
@@ -106,7 +107,11 @@ func (s *srv) SendMsg(ctx context.Context, msg *routerv1.MsgSend) (*routerv1.Msg
 	if err != nil {
 		return nil, err
 	}
+	sig := &sign.SignedPayload{
+		PersonaTag: "persona_tag",
+		Nonce:      99,
+	}
 	// add transaction to the world queue
-	s.txh.AddTransaction(itx.ID(), tx, nil)
+	s.txh.AddTransaction(itx.ID(), tx, sig)
 	return &routerv1.MsgSendResponse{}, nil
 }

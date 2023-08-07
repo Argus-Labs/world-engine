@@ -1,14 +1,15 @@
 package tests
 
 import (
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
 	"encoding/binary"
+	"sort"
+	"testing"
+
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"github.com/argus-labs/world-engine/sign"
 	"github.com/cometbft/cometbft/libs/rand"
 	"google.golang.org/protobuf/proto"
-	"sort"
-	"testing"
 
 	"gotest.tools/v3/assert"
 
@@ -82,6 +83,8 @@ type SendEnergyTransaction struct {
 	Amount   uint64
 }
 
+type SendEnergyTransactionResponse struct{}
+
 // TestWorld_RecoverFromChain tests that after submitting transactions to the chain, they can be queried, re-ran,
 // and end up with the same game state as before.
 func TestWorld_RecoverFromChain(t *testing.T) {
@@ -89,7 +92,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
 	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(adapter))
-	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction]("send_energy")
+	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
 	err := w.RegisterTransactions(SendEnergyTx)
 	assert.NilError(t, err)
 
@@ -123,7 +126,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	assert.Equal(t, len(payloads), timesSendEnergyRan)
 }
 
-func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[SendEnergyTransaction]) *sign.SignedPayload {
+func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]) *sign.SignedPayload {
 	tx1 := SendEnergyTransaction{
 		To:     rand.Str(5),
 		From:   rand.Str(4),

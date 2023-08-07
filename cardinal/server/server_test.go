@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/ethereum/go-ethereum/common"
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/argus-labs/world-engine/sign"
 	"gotest.tools/v3/assert"
@@ -21,6 +22,8 @@ type SendEnergyTx struct {
 	From, To string
 	Amount   uint64
 }
+
+type SendEnergyTxResult struct{}
 
 // testTransactionHandler is a helper struct that can start an HTTP server on port 4040 with the given world.
 type testTransactionHandler struct {
@@ -52,9 +55,9 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 
 func TestCanListTransactionEndpoints(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx]("alpha")
-	betaTx := ecs.NewTransactionType[SendEnergyTx]("beta")
-	gammaTx := ecs.NewTransactionType[SendEnergyTx]("gamma")
+	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	betaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("beta")
+	gammaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("gamma")
 	assert.NilError(t, w.RegisterTransactions(alphaTx, betaTx, gammaTx))
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
@@ -92,16 +95,16 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 
 	w := inmem.NewECSWorldForTest(t)
 	endpoint := "move"
-	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint)
+	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	count := 0
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
-		assert.Equal(t, tx.From, "me")
-		assert.Equal(t, tx.To, "you")
-		assert.Equal(t, tx.Amount, uint64(420))
+		assert.Equal(t, tx.Value.From, "me")
+		assert.Equal(t, tx.Value.To, "you")
+		assert.Equal(t, tx.Value.Amount, uint64(420))
 		count++
 		return nil
 	})
@@ -141,15 +144,15 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	count := 0
 	endpoint := "move"
 	w := inmem.NewECSWorldForTest(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx](endpoint)
+	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
-		assert.Equal(t, tx.From, "me")
-		assert.Equal(t, tx.To, "you")
-		assert.Equal(t, tx.Amount, uint64(420))
+		assert.Equal(t, tx.Value.From, "me")
+		assert.Equal(t, tx.Value.To, "you")
+		assert.Equal(t, tx.Value.Amount, uint64(420))
 		count++
 		return nil
 	})
@@ -184,7 +187,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 
 func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	tx := ecs.NewTransactionType[SendEnergyTx]("some_tx")
+	tx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("some_tx")
 	assert.NilError(t, world.RegisterTransactions(tx))
 	assert.NilError(t, world.LoadGameState())
 	assert.NilError(t, world.Tick(context.Background()))
