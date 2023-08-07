@@ -1,8 +1,8 @@
 ---
 id: pxtvf
 title: Getting Started with World Engine
-file_version: 1.1.2
-app_version: 1.9.10
+file_version: 1.1.3
+app_version: 1.13.13
 ---
 
 ## Components
@@ -33,7 +33,7 @@ The World Engine comes with a few preconfigured `Dockerfile`s to quickly get the
 
 *   `📄 chain/Dockerfile` - the rollup
 
-*   `📄 game/nakama/Dockerfile` - the preconfigured relay server
+*   `📄 game/sample_game` - a sample Cardinal based game
 
 *   `📄 cardinal/Dockerfile` - Game server/ECS
 
@@ -61,15 +61,14 @@ Interacting with the preconfigured Nakama ECS Game server can be done either ove
 
 Instructions to access the Nakama Web Interface.
 <!-- NOTE-swimm-snippet: the lines below link your snippet to Swimm -->
-### 📄 game/nakama/readme.md
+### 📄 game/sample_game/README.md
 ```markdown
-1      go to localhost:7351 after container finishes initialization
-2      
-3      enter in credentials:
-4      
-5      username: admin
-6      password: password
-7      ref: https://youtu.be/Ru3RZ6LkJEk
+91     Visit `localhost:7351` in a web browser to access Nakama. For local development, use `admin:password` as your login
+92     credentials.
+93     
+94     The Account tab on the left will give you access to a valid account ID.
+95     
+96     The API Explorer tab on the left will allow you to make requests to the gameplay server.
 ```
 
 <br/>

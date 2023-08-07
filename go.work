@@ -1,10 +1,12 @@
 go 1.20
 
 use (
-	./chain
-	./magefiles
-	./cardinal
-	./game/sample_game/nakama
-	./game/sample_game/server
-	./sign
+	cardinal
+	chain
+	magefiles
+	sign
+	chain/contracts
+	game/sample_game/nakama
+	game/sample_game/server
+	game/sample_game/testsuite
 )

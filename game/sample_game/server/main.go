@@ -32,6 +32,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/argus-labs/world-engine/cardinal/server"
 	"github.com/argus-labs/world-engine/game/sample_game/server/component"
 	"github.com/argus-labs/world-engine/game/sample_game/server/system"
 	"github.com/argus-labs/world-engine/game/sample_game/server/transaction"
@@ -60,7 +61,9 @@ func mustSetupWorld(world *ecs.World) {
 	must(world.LoadGameState())
 }
 
-const EnvCardinalPort = "CARDINAL_PORT"
+const (
+	EnvCardinalPort = "CARDINAL_PORT"
+)
 
 func main() {
 	world := inmem.NewECSWorld()
@@ -70,35 +73,14 @@ func main() {
 	if port == "" {
 		log.Fatalf("Must specify a port via %s", EnvCardinalPort)
 	}
-	h := &httpHandler{world: world}
-
-	handlers := []struct {
-		path    string
-		handler func(http.ResponseWriter, *http.Request)
-	}{
-		{"list_players", h.listPlayers},
-		{"create_player", h.createPlayer},
-		{"create_fire", h.createFire},
-		{"move_player", h.movePlayer},
-	}
-
-	log.Printf("Attempting to register %d handlers\n", len(handlers))
-	var paths []string
-	for _, h := range handlers {
-		http.HandleFunc("/"+h.path, h.handler)
-		paths = append(paths, h.path)
-	}
-	http.HandleFunc("/list", func(w http.ResponseWriter, r *http.Request) {
-		enc := json.NewEncoder(w)
-		if err := enc.Encode(paths); err != nil {
-			writeError(w, "cant marshal list", err)
-		}
-	})
 
 	go gameLoop(world)
 
-	log.Printf("Starting cardinal server on port %s\n", port)
-	http.ListenAndServe(":"+port, nil)
+	th, err := server.NewHandler(world) //, server.DisableSignatureVerification())
+	if err != nil {
+		log.Fatal(err)
+	}
+	th.Serve("", port)
 }
 
 func gameLoop(world *ecs.World) {
@@ -120,44 +102,6 @@ type httpHandler struct {
 	world *ecs.World
 }
 
-func (h *httpHandler) listPlayers(w http.ResponseWriter, _ *http.Request) {
-	players, err := getPlayerInfoFromWorld(h.world)
-	if err != nil {
-		writeError(w, "failed to list players", err)
-	} else {
-		writeResult(w, players)
-	}
-}
-
-func (h *httpHandler) createFire(w http.ResponseWriter, r *http.Request) {
-	createFire, err := decode[transaction.CreateFireTransaction](r)
-	if err != nil {
-		writeError(w, "unable to decode create fire tx", err)
-	}
-	transaction.CreateFire.AddToQueue(h.world, createFire)
-	writeResult(w, "ok")
-}
-
-func (h *httpHandler) createPlayer(w http.ResponseWriter, r *http.Request) {
-	createPlayer, err := decode[transaction.CreatePlayerTransaction](r)
-	if err != nil {
-		writeError(w, "unable to decode create player tx", err)
-		return
-	}
-	transaction.CreatePlayer.AddToQueue(h.world, createPlayer)
-	writeResult(w, "ok")
-}
-
-func (h *httpHandler) movePlayer(w http.ResponseWriter, r *http.Request) {
-	movePlayer, err := decode[transaction.MoveTransaction](r)
-	if err != nil {
-		writeError(w, "unable to decode move tx", err)
-		return
-	}
-	transaction.Move.AddToQueue(h.world, movePlayer)
-	writeResult(w, "ok")
-}
-
 func queryPlayers(world *ecs.World) *ecs.Query {
 	return ecs.NewQuery(filter.Exact(component.Health, component.Position))
 }
@@ -166,16 +110,16 @@ func getPlayerInfoFromWorld(world *ecs.World) ([]playerInfo, error) {
 	var players []playerInfo
 	var errs []error
 
-	queryPlayers(world).Each(world, func(id storage.EntityID) {
+	queryPlayers(world).Each(world, func(id storage.EntityID) bool {
 		currPos, err := component.Position.Get(world, id)
 		if err != nil {
 			errs = append(errs, err)
-			return
+			return true
 		}
 		currHealth, err := component.Health.Get(world, id)
 		if err != nil {
 			errs = append(errs, err)
-			return
+			return true
 		}
 		players = append(players, playerInfo{
 			ID:     id,
@@ -183,6 +127,7 @@ func getPlayerInfoFromWorld(world *ecs.World) ([]playerInfo, error) {
 			XPos:   currPos.X,
 			YPos:   currPos.Y,
 		})
+		return true
 	})
 	return players, errors.Join(errs...)
 }

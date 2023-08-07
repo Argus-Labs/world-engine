@@ -1,7 +1,10 @@
 package keeper_test
 
 import (
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"github.com/argus-labs/world-engine/chain/x/shard"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	"google.golang.org/protobuf/proto"
 	"testing"
 
 	storetypes "cosmossdk.io/store/types"
@@ -11,7 +14,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/suite"
 
@@ -41,137 +43,117 @@ func (s *TestSuite) SetupTest() {
 	s.ctx = ctx
 }
 
-func (s *TestSuite) TestSubmitBatch() {
-	batch := &types.TransactionBatch{
-		Namespace: "cardinal1",
-		Tick:      420,
-		Batch:     []byte("data"),
+func (s *TestSuite) TestSubmitTransactions() {
+	epoch := uint64(2)
+	sp := &shardv1.SignedPayload{
+		PersonaTag: "meow",
+		Namespace:  "darkforest-west1",
+		Nonce:      1,
+		Signature:  "0xfooooooooo",
+		Body:       []byte("transaction"),
 	}
-	res, err := s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
-		Sender:           s.auth,
-		TransactionBatch: batch,
-	})
+	signedPayloadBz, err := proto.Marshal(sp)
 	s.Require().NoError(err)
-	s.Require().NotNil(res)
-	newBatch := &types.TransactionBatch{
-		Namespace: "cardinal2",
-		Tick:      320,
-		Batch:     []byte("data2"),
+	txs := []*types.Transaction{
+		{3, signedPayloadBz},
+		{4, signedPayloadBz},
 	}
-	res, err = s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
-		Sender:           s.auth,
-		TransactionBatch: newBatch,
-	})
+	_, err = s.keeper.SubmitShardTx(
+		s.ctx,
+		&types.SubmitShardTxRequest{
+			Sender:    s.auth,
+			Namespace: sp.Namespace,
+			Epoch:     epoch,
+			Txs:       txs,
+		},
+	)
 	s.Require().NoError(err)
-	s.Require().NotNil(res)
-	genesis := s.keeper.ExportGenesis(s.ctx)
-	s.Require().Len(genesis.Batches, 2)
-	s.Require().Equal(*genesis.Batches[0], *batch)
-	s.Require().Equal(*genesis.Batches[1], *newBatch)
+
+	// submit some transactions for a different namespace..
+	_, err = s.keeper.SubmitShardTx(
+		s.ctx,
+		&types.SubmitShardTxRequest{
+			Sender:    s.auth,
+			Namespace: "foo",
+			Epoch:     epoch,
+			Txs: []*types.Transaction{
+				{3, signedPayloadBz},
+				{4, signedPayloadBz},
+			},
+		},
+	)
+	s.Require().NoError(err)
+
+	res, err := s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{Namespace: sp.Namespace})
+	s.Require().NoError(err)
+	// we only submitted transactions for 1 epoch, so there should only be 1.
+	s.Require().Len(res.Epochs, 1)
+	// should have equal amount of txs within the epoch.
+	s.Require().Len(res.Epochs[0].Txs, len(txs))
 }
 
 func (s *TestSuite) TestSubmitBatch_Unauthorized() {
-	_, err := s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
-		Sender: s.addrs[1].String(),
-		TransactionBatch: &types.TransactionBatch{
-			Namespace: "cardinal",
-			Tick:      420,
-			Batch:     []byte("some data"),
-		},
+	_, err := s.keeper.SubmitShardTx(s.ctx, &types.SubmitShardTxRequest{
+		Sender:    s.addrs[1].String(),
+		Namespace: "foo",
+		Epoch:     4,
+		Txs:       nil,
 	})
 	s.Require().ErrorIs(err, sdkerrors.ErrUnauthorized)
 }
 
-func (s *TestSuite) TestQueryBatches() {
-	ns := "cardinal1"
-	batches := []*types.TransactionBatch{
-		{
-			Namespace: ns,
-			Tick:      42,
-			Batch:     []byte("x"),
-		},
-		{
-			Namespace: ns,
-			Tick:      43,
-			Batch:     []byte("y"),
-		},
-		{
-			Namespace: ns,
-			Tick:      44,
-			Batch:     []byte("z"),
+func (s *TestSuite) TestExportGenesis() {
+	submit1 := &types.SubmitShardTxRequest{
+		Sender:    s.auth,
+		Namespace: "foo",
+		Epoch:     1,
+		Txs: []*types.Transaction{
+			{1, []byte("foo")},
+			{10, []byte("bar")},
+			{1, []byte("baz")},
 		},
 	}
-	for _, batch := range batches {
-		_, err := s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
-			Sender:           s.auth,
-			TransactionBatch: batch,
-		})
+
+	submit2 := &types.SubmitShardTxRequest{
+		Sender:    s.auth,
+		Namespace: "bar",
+		Epoch:     3,
+		Txs: []*types.Transaction{
+			{15, []byte("qux")},
+			{2, []byte("quiz")},
+		},
+	}
+
+	submit3 := &types.SubmitShardTxRequest{
+		Sender:    s.auth,
+		Namespace: "foo",
+		Epoch:     2,
+		Txs: []*types.Transaction{
+			{4, []byte("qux")},
+			{9, []byte("quiz")},
+		},
+	}
+
+	reqs := []*types.SubmitShardTxRequest{submit1, submit2, submit3}
+	for _, req := range reqs {
+		_, err := s.keeper.SubmitShardTx(s.ctx, req)
 		s.Require().NoError(err)
 	}
 
-	// submit one not relevant to our namespace.
-	_, err := s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
-		Sender: s.auth,
-		TransactionBatch: &types.TransactionBatch{
-			Namespace: "notcardinal",
-			Tick:      32,
-			Batch:     []byte("foo"),
-		},
-	})
-	s.Require().NoError(err)
+	gen := s.keeper.ExportGenesis(s.ctx)
+	// there should only be 2 namespaced txs, because we only submitted 2 diff ones.
+	s.Require().Len(gen.NamespaceTransactions, 2)
+	s.Require().Len(gen.NamespaceTransactions[1].Epochs, 2)        // we submitted 2 epochs for namespace foo
+	s.Require().Len(gen.NamespaceTransactions[1].Epochs[0].Txs, 3) // the first epoch had 3 txs
+	s.Require().Len(gen.NamespaceTransactions[1].Epochs[1].Txs, 2) // the second epoch had 2 txs
 
-	res, err := s.keeper.Batches(s.ctx, &types.QueryBatchesRequest{
-		Namespace: ns,
-		Page:      nil,
-	})
-	s.Require().NoError(err)
-	s.Require().Len(res.Batches, len(batches))
+	s.Require().Len(gen.NamespaceTransactions[0].Epochs, 1)        // only one epoch under namespace "bar"
+	s.Require().Len(gen.NamespaceTransactions[0].Epochs[0].Txs, 2) // only 2 txs in the epoch.
 
-	// limit the request to only 2.
-	limit := uint32(2)
-	res, err = s.keeper.Batches(s.ctx, &types.QueryBatchesRequest{
-		Namespace: ns,
-		Page: &types.PageRequest{
-			Key:   nil,
-			Limit: limit,
-		},
+	// importing back the genesis should not panic
+	s.Require().NotPanics(func() {
+		s.keeper.InitGenesis(s.ctx, gen)
 	})
-	s.Require().NoError(err)
-	// should only have received 2.
-	s.Require().Len(res.Batches, int(limit))
-
-	// query again with the key in page response should give us the remaining batch.
-	res, err = s.keeper.Batches(s.ctx, &types.QueryBatchesRequest{
-		Namespace: ns,
-		Page: &types.PageRequest{
-			Key: res.Page.Key,
-		},
-	})
-	s.Require().NoError(err)
-	s.Require().Len(res.Batches, len(batches)-int(limit))
-}
-
-// TestSubmitBatch_DuplicateTick tests that when duplicate ticks are submitted, the data is overwritten.
-func (s *TestSuite) TestSubmitBatch_DuplicateTick() {
-	batch := &types.TransactionBatch{
-		Namespace: "cardinal",
-		Tick:      4,
-		Batch:     []byte("data"),
-	}
-
-	_, err := s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
-		Sender:           s.auth,
-		TransactionBatch: batch,
-	})
-	s.Require().NoError(err)
-
-	// change the data
-	batch.Batch = []byte("different data")
-	_, err = s.keeper.SubmitBatch(s.ctx, &types.SubmitBatchRequest{
-		Sender:           s.auth,
-		TransactionBatch: batch,
-	})
-	s.Require().ErrorContains(err, "already submitted")
 }
 
 func TestTestSuite(t *testing.T) {

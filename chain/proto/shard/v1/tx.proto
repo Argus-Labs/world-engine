@@ -12,16 +12,25 @@ option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  rpc SubmitBatch(SubmitBatchRequest) returns (SubmitBatchResponse);
+  rpc SubmitShardTx(SubmitShardTxRequest) returns (SubmitShardTxResponse);
 }
 
-message SubmitBatchRequest {
+message SubmitShardTxRequest {
   option (cosmos.msg.v1.signer) = "sender";
 
   // sender is the address of the sender. this will be set to the module address.
   string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 
-  TransactionBatch transaction_batch = 2;
+  // namespace is the namespace of the world the transactions originated from.
+  string namespace  = 2;
+
+  // epoch is an arbitrary interval that this transaction was executed in.
+  // for loop driven games, this is likely a tick. for event driven games,
+  // this could be some general period of time.
+  uint64 epoch = 3;
+
+  // txs are the transactions that occurred in this tick.
+  repeated Transaction txs = 4;
 }
 
-message SubmitBatchResponse {}
+message SubmitShardTxResponse {}

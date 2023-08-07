@@ -33,13 +33,14 @@ func RegisterPersonaSystem(world *World, queue *TransactionQueue) error {
 	}
 	personaTagToAddress := map[string]string{}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(world, func(id storage.EntityID) {
+	NewQuery(filter.Exact(SignerComp)).Each(world, func(id storage.EntityID) bool {
 		sc, err := SignerComp.Get(world, id)
 		if err != nil {
 			errs = append(errs, err)
-			return
+			return true
 		}
 		personaTagToAddress[sc.PersonaTag] = sc.SignerAddress
+		return true
 	})
 	if len(errs) != 0 {
 		return errors.Join(errs...)
@@ -73,22 +74,21 @@ var (
 // GetSignerForPersonaTag returns the signer address that has been registered for the given persona tag after the
 // given tick. If the world's tick is less than or equal to the given tick, ErrorCreatePersonaTXsNotProcessed is returned.
 // If the given personaTag has no signer address, ErrorPersonaTagHasNoSigner is returned.
-func (w *World) GetSignerForPersonaTag(personaTag string, tick int) (addr string, err error) {
+func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
 	if tick >= w.tick {
 		return "", ErrorCreatePersonaTxsNotProcessed
 	}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(w, func(id storage.EntityID) {
-		if addr != "" {
-			return
-		}
+	NewQuery(filter.Exact(SignerComp)).Each(w, func(id storage.EntityID) bool {
 		sc, err := SignerComp.Get(w, id)
 		if err != nil {
 			errs = append(errs, err)
 		}
 		if sc.PersonaTag == personaTag {
 			addr = sc.SignerAddress
+			return false
 		}
+		return true
 	})
 	if len(errs) > 0 {
 		return "", errors.Join(errs...)

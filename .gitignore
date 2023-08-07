@@ -275,3 +275,5 @@ contracts/out/
 */**/*.bin
 */**/*.json
 
+# Docs
+!docs/package.json

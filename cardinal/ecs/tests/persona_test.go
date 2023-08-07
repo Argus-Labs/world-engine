@@ -34,12 +34,13 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	count := 0
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id storage.EntityID) {
+	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id storage.EntityID) bool {
 		count++
 		sc, err := ecs.SignerComp.Get(world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantAddress)
+		return true
 	})
 	assert.Equal(t, 1, count)
 }

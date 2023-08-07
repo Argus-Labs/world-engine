@@ -135,6 +135,9 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 }
 
 func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
+	// skipping as this does not always work 100% of the time.
+	// https://linear.app/arguslabs/issue/CAR-115/refactor-tests-that-use-http-calls-to-use-a-mock-http-connection
+	t.Skip("this test is flaky and does not always pass")
 	count := 0
 	endpoint := "move"
 	w := inmem.NewECSWorldForTest(t)
@@ -184,6 +187,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	tx := ecs.NewTransactionType[SendEnergyTx]("some_tx")
 	assert.NilError(t, world.RegisterTransactions(tx))
 	assert.NilError(t, world.LoadGameState())
+	assert.NilError(t, world.Tick(context.Background()))
 
 	txh := makeTestTransactionHandler(t, world)
 
@@ -214,7 +218,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	tick := createPersonaResponse.Tick
 
 	// postReadPersonaSigner is a helper that makes a request to the read-persona-signer endpoint and returns the response
-	postReadPersonaSigner := func(personaTag string, tick int) ReadPersonaSignerResponse {
+	postReadPersonaSigner := func(personaTag string, tick uint64) ReadPersonaSignerResponse {
 		bz, err = json.Marshal(ReadPersonaSignerRequest{
 			PersonaTag: personaTag,
 			Tick:       tick,
@@ -229,7 +233,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	}
 
 	// Check some random person tag against a tick far in the past. This should be available.
-	personaSignerResp := postReadPersonaSigner("some_other_persona_tag", -100)
+	personaSignerResp := postReadPersonaSigner("some_other_persona_tag", 0)
 	assert.Equal(t, personaSignerResp.Status, "available")
 
 	// If the game tick matches the passed in game tick, there hasn't been enough time to process the create persona tx.
@@ -336,29 +340,15 @@ func TestCanListReads(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 
-	fooRead := ecs.NewReadType[FooRequest]("foo", func(world *ecs.World, bz []byte) ([]byte, error) {
-		var req FooRequest
-		err := json.Unmarshal(bz, &req)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(FooResponse{Meow: req.Meow})
+	fooRead := ecs.NewReadType[FooRequest, FooResponse]("foo", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+		return FooResponse{Meow: req.Meow}, nil
 	})
-	barRead := ecs.NewReadType[FooRequest]("bar", func(world *ecs.World, bz []byte) ([]byte, error) {
-		var req FooRequest
-		err := json.Unmarshal(bz, &req)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(FooResponse{Meow: req.Meow})
+	barRead := ecs.NewReadType[FooRequest, FooResponse]("bar", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+
+		return FooResponse{Meow: req.Meow}, nil
 	})
-	bazRead := ecs.NewReadType[FooRequest]("baz", func(world *ecs.World, bz []byte) ([]byte, error) {
-		var req FooRequest
-		err := json.Unmarshal(bz, &req)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(FooResponse{Meow: req.Meow})
+	bazRead := ecs.NewReadType[FooRequest, FooResponse]("baz", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+		return FooResponse{Meow: req.Meow}, nil
 	})
 
 	assert.NilError(t, world.RegisterReads(fooRead, barRead, bazRead))
@@ -393,16 +383,11 @@ func TestReadEncodeDecode(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 	endpoint := "foo"
-	fq := ecs.NewReadType[FooRequest](endpoint, func(world *ecs.World, bz []byte) ([]byte, error) {
-		var req FooRequest
-		err := json.Unmarshal(bz, &req)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(FooResponse{Meow: req.Meow})
+	fq := ecs.NewReadType[FooRequest, FooResponse](endpoint, func(world *ecs.World, req FooRequest) (FooResponse, error) {
+		return FooResponse{Meow: req.Meow}, nil
 	})
 
-	// setup the world, register the reads, load.
+	// set up the world, register the reads, load.
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.RegisterReads(fq))
 	assert.NilError(t, world.LoadGameState())

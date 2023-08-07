@@ -1,13 +1,16 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/invopop/jsonschema"
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/argus-labs/world-engine/cardinal/shard"
+	"github.com/invopop/jsonschema"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
@@ -20,6 +23,9 @@ type Handler struct {
 	mux                    *http.ServeMux
 	server                 *http.Server
 	disableSigVerification bool
+
+	// plugins
+	adapter shard.WriteAdapter
 }
 
 var (
@@ -129,24 +135,27 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	if err != nil {
 		return nil, nil, err
 	}
-	if t.disableSigVerification {
-		// During testing (with signature verification disabled), a request body can either be wrapped in a signed payload,
-		// or the request body can be sent as is.
-		if len(sp.Body) == 0 {
-			return buf, sp, nil
-		}
-		return sp.Body, sp, nil
+
+	if sp.PersonaTag == "" {
+		return nil, nil, errors.New("PersonaTag must not be empty")
 	}
 
+	// Handle the case where signature is disabled
+	if t.disableSigVerification {
+		return sp.Body, sp, nil
+	}
+	///////////////////////////////////////////////
+
+	// Check that the namespace is correct
 	if sp.Namespace != t.w.GetNamespace() {
-		return nil, nil, fmt.Errorf("%w: namespace must be %q", ErrorInvalidSignature, t.w.GetNamespace())
+		return nil, nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, t.w.GetNamespace())
 	}
 
 	var signerAddress string
 	if getSignedAddressFromWorld {
-		// Use -1 as the tick. We don't care about any pending CreatePersonaTxs, we just want to know the
+		// Use 0 as the tick. We don't care about any pending CreatePersonaTxs, we just want to know the
 		// current signer address for the given persona. Any error will fail this request.
-		signerAddress, err = t.w.GetSignerForPersonaTag(sp.PersonaTag, -1)
+		signerAddress, err = t.w.GetSignerForPersonaTag(sp.PersonaTag, 0)
 	} else {
 		signerAddress, err = getSignerAddressFromPayload(*sp)
 	}
@@ -154,17 +163,21 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 		return nil, nil, err
 	}
 
+	// Check the nonce
 	nonce, err := t.w.GetNonce(signerAddress)
 	if err != nil {
 		return nil, nil, err
 	}
 	if sp.Nonce <= nonce {
-		return nil, nil, fmt.Errorf("invalid nonce: %w", ErrorInvalidSignature)
+		return nil, nil, fmt.Errorf("%w: got nonce %d, but must be greater than %d",
+			ErrorInvalidSignature, sp.Nonce, nonce)
 	}
 
+	// Verify signature
 	if err := sp.Verify(signerAddress); err != nil {
 		return nil, nil, fmt.Errorf("%w: %w", ErrorInvalidSignature, err)
 	}
+	// Update nonce
 	if err := t.w.SetNonce(signerAddress, sp.Nonce); err != nil {
 		return nil, nil, err
 	}
@@ -190,14 +203,35 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 			writeError(writer, "unable to decode transaction", err)
 			return
 		}
-		t.w.AddTransaction(tx.ID(), txVal, sp)
 
-		res, err := json.Marshal("ok")
-		if err != nil {
-			writeError(writer, "unable to marshal response", err)
-			return
+		submitTx := func() uint64 {
+			tick := t.w.AddTransaction(tx.ID(), txVal, sp)
+
+			res, err := json.Marshal("ok")
+			if err != nil {
+				writeError(writer, "unable to marshal response", err)
+				return 0
+			}
+			writeResult(writer, res)
+			return uint64(tick)
 		}
-		writeResult(writer, res)
+
+		// check if we have an adapter
+		if t.adapter != nil {
+			// if the world is recovering via adapter, we shouldn't accept transactions.
+			if t.w.IsRecovering() {
+				writeError(writer, "unable to submit transactions: game world is recovering state", nil)
+			} else {
+				tick := submitTx()
+				err = t.adapter.Submit(context.Background(), sp, uint64(tx.ID()), tick)
+				if err != nil {
+					writeError(writer, "error submitting transaction to blockchain", err)
+				}
+			}
+		} else {
+			// if there is no adapter, then we can just put the tx in the queue.
+			submitTx()
+		}
 	}
 }
 

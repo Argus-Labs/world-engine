@@ -1,21 +1,23 @@
 package ecs
 
 import (
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
+	"google.golang.org/protobuf/proto"
 	"sync"
+	"time"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	"github.com/argus-labs/world-engine/sign"
+	"github.com/rs/zerolog/log"
 
-	"github.com/argus-labs/world-engine/cardinal/chain"
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
+	"github.com/argus-labs/world-engine/cardinal/shard"
 )
 
 // WorldId is a unique identifier for a world.
@@ -35,7 +37,7 @@ type World struct {
 	id                       WorldId
 	store                    storage.WorldStorage
 	systems                  []System
-	tick                     int
+	tick                     uint64
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
 	registeredReads          []IRead
@@ -48,7 +50,7 @@ type World struct {
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
 
-	chain chain.Adapter
+	chain shard.ReadAdapter
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
@@ -63,6 +65,10 @@ var (
 	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
 	ErrorDuplicateReadName                     = errors.New("read names must be unique")
 )
+
+func (w *World) IsRecovering() bool {
+	return w.isRecovering
+}
 
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
 	err := w.store.EntityLocStore.SetLocation(id, location)
@@ -201,7 +207,7 @@ func (w *World) ID() WorldId {
 	return w.id
 }
 
-func (w *World) CurrentTick() int {
+func (w *World) CurrentTick() uint64 {
 	return w.tick
 }
 
@@ -362,7 +368,7 @@ func (w *World) TransferArchetype(from storage.ArchetypeID, to storage.Archetype
 		}
 	}
 
-	// move componentStore
+	// move component
 	for _, componentType := range fromLayout.Components() {
 		store := w.store.CompStore.Storage(componentType)
 		if toLayout.HasComponent(componentType) {
@@ -410,12 +416,14 @@ func (w *World) copyTransactions() (map[transaction.TypeID][]any, map[transactio
 }
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
-// Instead, use a TransactionType.AddToQueue to ensure type consistency.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) {
+// Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
+// executed in.
+func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) uint64 {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
 	w.txQueues[id] = append(w.txQueues[id], v)
 	w.txSignatures[id] = append(w.txSignatures[id], sig)
+	return w.CurrentTick()
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
@@ -448,15 +456,20 @@ func (w *World) Tick(ctx context.Context) error {
 	if err := w.store.TickStore.FinalizeTick(); err != nil {
 		return err
 	}
-	prevTick := w.tick
 	w.tick++
 
-	// if we're not recovering these transactions, and we have an EVM base shard connection + transactions to process,
-	// submit them to the EVM base shard.
-	if !w.isRecovering && (w.chain != nil && len(txs) > 0) {
-		w.submitToChain(ctx, *txQueue, uint64(prevTick))
-	}
 	return nil
+}
+
+func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
+	log.Info().Msg("Game loop started")
+	go func() {
+		for range time.Tick(loopInterval) {
+			if err := w.Tick(ctx); err != nil {
+				log.Panic().Err(err).Msg("Error running Tick in Game Loop.")
+			}
+		}
+	}()
 }
 
 type TxBatch struct {
@@ -465,7 +478,7 @@ type TxBatch struct {
 }
 
 // submitToChain spins up a new go routine that will submit the transactions to the EVM base shard.
-func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick uint64) {
+/*func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick uint64) {
 	go func(ctx context.Context) {
 		// convert transaction queue map into slice
 		txb := make([]TxBatch, 0, len(txq.queue))
@@ -510,7 +523,7 @@ func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick ui
 		doneSignal <- struct{}{}
 
 	}(ctx)
-}
+}*/
 
 const (
 	storeArchetypeCompIdxKey  = "arch_component_index"
@@ -634,7 +647,7 @@ func (w *World) getArchetypeForComponents(components []component.IComponentType)
 }
 
 func (w *World) noDuplicates(components []component.IComponentType) bool {
-	// check if there are duplicate values inside componentStore slice
+	// check if there are duplicate values inside component slice
 	for i := 0; i < len(components); i++ {
 		for j := i + 1; j < len(components); j++ {
 			if components[i] == components[j] {
@@ -665,7 +678,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	namespace := w.GetNamespace()
 	var nextKey []byte
 	for {
-		res, err := w.chain.QueryBatches(ctx, &types.QueryBatchesRequest{
+		res, err := w.chain.QueryTransactions(ctx, &types.QueryTransactionsRequest{
 			Namespace: namespace,
 			Page: &types.PageRequest{
 				Key: nextKey,
@@ -674,18 +687,37 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		for _, batch := range res.Batches {
-			txb, err := w.decodeBatch(batch.Batch)
-			if err != nil {
-				return err
+		for _, tickedTxs := range res.Epochs {
+			target := tickedTxs.Epoch
+			// tick up to target
+			if target < uint64(w.CurrentTick()) {
+				return fmt.Errorf("got tx for tick %d, but world is at tick %d", target, w.CurrentTick())
 			}
-			for _, tx := range txb {
-				w.txQueues[tx.TxID] = tx.Txs
+			for current := w.CurrentTick(); uint64(current) != target; {
+				if err := w.Tick(ctx); err != nil {
+					return err
+				}
+				current = w.CurrentTick()
 			}
-			// force the tick to the stored tick.
-			w.tick = int(batch.Tick)
-			err = w.Tick(ctx)
-			if err != nil {
+			// we've now reached target. we need to inject the transactions and tick.
+			transactions := tickedTxs.Txs
+			for _, tx := range transactions {
+				sp, err := w.decodeTransaction(tx.SignedPayload)
+				if err != nil {
+					return err
+				}
+				itx := w.getITx(transaction.TypeID(tx.TxId))
+				if itx == nil {
+					return fmt.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
+				}
+				v, err := itx.Decode(sp.Body)
+				if err != nil {
+					return err
+				}
+				w.AddTransaction(transaction.TypeID(tx.TxId), v, w.protoSignedPayloadToGo(sp))
+			}
+			// run the tick for this batch
+			if err := w.Tick(ctx); err != nil {
 				return err
 			}
 		}
@@ -705,46 +737,20 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	return nil
 }
 
-func (w *World) encodeBatch(txb []TxBatch) ([]byte, error) {
-	return json.Marshal(txb)
+func (w *World) protoSignedPayloadToGo(sp *shardv1.SignedPayload) *sign.SignedPayload {
+	return &sign.SignedPayload{
+		PersonaTag: sp.PersonaTag,
+		Namespace:  sp.Namespace,
+		Nonce:      sp.Nonce,
+		Signature:  sp.Signature,
+		Body:       sp.Body,
+	}
 }
 
-func (w *World) decodeBatch(bz []byte) ([]TxBatch, error) {
-	var batches []TxBatch
-
-	// first we simply unmarshal the data into the slice of transaction batches.
-	err := json.Unmarshal(bz, &batches)
-	if err != nil {
-		return nil, err
-	}
-
-	// since txs are stored as `any`s, we need to do some extra work in order to unmarshal them into
-	// their concrete types. at this point, they're just unmarshalled as map[string]interface{}
-	for _, batch := range batches {
-		// first we get the ITransaction for this batch of txs.
-		transactionType := w.getITx(batch.TxID)
-		// catch the edge case where somehow the batch was stored with a tx TypeID that isn't registered in the world.
-		if transactionType == nil {
-			return nil, fmt.Errorf("attempted to decode transaction with ID %d, "+
-				"but no such transaction with that ID was registered", batch.TxID)
-		}
-
-		for i, tx := range batch.Txs {
-			// for each tx, we need to first JSON marshal, as they are currently map[string]interface{}.
-			txBytes, err := json.Marshal(tx)
-			if err != nil {
-				return nil, err
-			}
-			// now we can decode the JSON using the ITransaction, to get the concrete tx struct.
-			underlyingTx, err := transactionType.Decode(txBytes)
-			if err != nil {
-				return nil, err
-			}
-			// put the concrete tx back into the txs slice.
-			batch.Txs[i] = underlyingTx
-		}
-	}
-	return batches, nil
+func (w *World) decodeTransaction(bz []byte) (*shardv1.SignedPayload, error) {
+	payload := new(shardv1.SignedPayload)
+	err := proto.Unmarshal(bz, payload)
+	return payload, err
 }
 
 // getITx iterates over the registered transactions and returns the ITransaction associated with the TypeID.
@@ -760,7 +766,7 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 }
 
 func (w *World) GetNamespace() string {
-	return string(rune(w.id))
+	return fmt.Sprintf("%d", w.id)
 }
 
 func (w *World) LogError(err error) {

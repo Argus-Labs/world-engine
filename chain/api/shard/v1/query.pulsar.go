@@ -17,27 +17,27 @@ import (
 )
 
 var (
-	md_QueryBatchesRequest           protoreflect.MessageDescriptor
-	fd_QueryBatchesRequest_namespace protoreflect.FieldDescriptor
-	fd_QueryBatchesRequest_page      protoreflect.FieldDescriptor
+	md_QueryTransactionsRequest           protoreflect.MessageDescriptor
+	fd_QueryTransactionsRequest_namespace protoreflect.FieldDescriptor
+	fd_QueryTransactionsRequest_page      protoreflect.FieldDescriptor
 )
 
 func init() {
 	file_shard_v1_query_proto_init()
-	md_QueryBatchesRequest = File_shard_v1_query_proto.Messages().ByName("QueryBatchesRequest")
-	fd_QueryBatchesRequest_namespace = md_QueryBatchesRequest.Fields().ByName("namespace")
-	fd_QueryBatchesRequest_page = md_QueryBatchesRequest.Fields().ByName("page")
+	md_QueryTransactionsRequest = File_shard_v1_query_proto.Messages().ByName("QueryTransactionsRequest")
+	fd_QueryTransactionsRequest_namespace = md_QueryTransactionsRequest.Fields().ByName("namespace")
+	fd_QueryTransactionsRequest_page = md_QueryTransactionsRequest.Fields().ByName("page")
 }
 
-var _ protoreflect.Message = (*fastReflection_QueryBatchesRequest)(nil)
+var _ protoreflect.Message = (*fastReflection_QueryTransactionsRequest)(nil)
 
-type fastReflection_QueryBatchesRequest QueryBatchesRequest
+type fastReflection_QueryTransactionsRequest QueryTransactionsRequest
 
-func (x *QueryBatchesRequest) ProtoReflect() protoreflect.Message {
-	return (*fastReflection_QueryBatchesRequest)(x)
+func (x *QueryTransactionsRequest) ProtoReflect() protoreflect.Message {
+	return (*fastReflection_QueryTransactionsRequest)(x)
 }
 
-func (x *QueryBatchesRequest) slowProtoReflect() protoreflect.Message {
+func (x *QueryTransactionsRequest) slowProtoReflect() protoreflect.Message {
 	mi := &file_shard_v1_query_proto_msgTypes[0]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -49,43 +49,43 @@ func (x *QueryBatchesRequest) slowProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-var _fastReflection_QueryBatchesRequest_messageType fastReflection_QueryBatchesRequest_messageType
-var _ protoreflect.MessageType = fastReflection_QueryBatchesRequest_messageType{}
+var _fastReflection_QueryTransactionsRequest_messageType fastReflection_QueryTransactionsRequest_messageType
+var _ protoreflect.MessageType = fastReflection_QueryTransactionsRequest_messageType{}
 
-type fastReflection_QueryBatchesRequest_messageType struct{}
+type fastReflection_QueryTransactionsRequest_messageType struct{}
 
-func (x fastReflection_QueryBatchesRequest_messageType) Zero() protoreflect.Message {
-	return (*fastReflection_QueryBatchesRequest)(nil)
+func (x fastReflection_QueryTransactionsRequest_messageType) Zero() protoreflect.Message {
+	return (*fastReflection_QueryTransactionsRequest)(nil)
 }
-func (x fastReflection_QueryBatchesRequest_messageType) New() protoreflect.Message {
-	return new(fastReflection_QueryBatchesRequest)
+func (x fastReflection_QueryTransactionsRequest_messageType) New() protoreflect.Message {
+	return new(fastReflection_QueryTransactionsRequest)
 }
-func (x fastReflection_QueryBatchesRequest_messageType) Descriptor() protoreflect.MessageDescriptor {
-	return md_QueryBatchesRequest
+func (x fastReflection_QueryTransactionsRequest_messageType) Descriptor() protoreflect.MessageDescriptor {
+	return md_QueryTransactionsRequest
 }
 
 // Descriptor returns message descriptor, which contains only the protobuf
 // type information for the message.
-func (x *fastReflection_QueryBatchesRequest) Descriptor() protoreflect.MessageDescriptor {
-	return md_QueryBatchesRequest
+func (x *fastReflection_QueryTransactionsRequest) Descriptor() protoreflect.MessageDescriptor {
+	return md_QueryTransactionsRequest
 }
 
 // Type returns the message type, which encapsulates both Go and protobuf
 // type information. If the Go type information is not needed,
 // it is recommended that the message descriptor be used instead.
-func (x *fastReflection_QueryBatchesRequest) Type() protoreflect.MessageType {
-	return _fastReflection_QueryBatchesRequest_messageType
+func (x *fastReflection_QueryTransactionsRequest) Type() protoreflect.MessageType {
+	return _fastReflection_QueryTransactionsRequest_messageType
 }
 
 // New returns a newly allocated and mutable empty message.
-func (x *fastReflection_QueryBatchesRequest) New() protoreflect.Message {
-	return new(fastReflection_QueryBatchesRequest)
+func (x *fastReflection_QueryTransactionsRequest) New() protoreflect.Message {
+	return new(fastReflection_QueryTransactionsRequest)
 }
 
 // Interface unwraps the message reflection interface and
 // returns the underlying ProtoMessage interface.
-func (x *fastReflection_QueryBatchesRequest) Interface() protoreflect.ProtoMessage {
-	return (*QueryBatchesRequest)(x)
+func (x *fastReflection_QueryTransactionsRequest) Interface() protoreflect.ProtoMessage {
+	return (*QueryTransactionsRequest)(x)
 }
 
 // Range iterates over every populated field in an undefined order,
@@ -93,16 +93,16 @@ func (x *fastReflection_QueryBatchesRequest) Interface() protoreflect.ProtoMessa
 // Range returns immediately if f returns false.
 // While iterating, mutating operations may only be performed
 // on the current field descriptor.
-func (x *fastReflection_QueryBatchesRequest) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
+func (x *fastReflection_QueryTransactionsRequest) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
 	if x.Namespace != "" {
 		value := protoreflect.ValueOfString(x.Namespace)
-		if !f(fd_QueryBatchesRequest_namespace, value) {
+		if !f(fd_QueryTransactionsRequest_namespace, value) {
 			return
 		}
 	}
 	if x.Page != nil {
 		value := protoreflect.ValueOfMessage(x.Page.ProtoReflect())
-		if !f(fd_QueryBatchesRequest_page, value) {
+		if !f(fd_QueryTransactionsRequest_page, value) {
 			return
 		}
 	}
@@ -119,17 +119,17 @@ func (x *fastReflection_QueryBatchesRequest) Range(f func(protoreflect.FieldDesc
 // In other cases (aside from the nullable cases above),
 // a proto3 scalar field is populated if it contains a non-zero value, and
 // a repeated field is populated if it is non-empty.
-func (x *fastReflection_QueryBatchesRequest) Has(fd protoreflect.FieldDescriptor) bool {
+func (x *fastReflection_QueryTransactionsRequest) Has(fd protoreflect.FieldDescriptor) bool {
 	switch fd.FullName() {
-	case "shard.v1.QueryBatchesRequest.namespace":
+	case "shard.v1.QueryTransactionsRequest.namespace":
 		return x.Namespace != ""
-	case "shard.v1.QueryBatchesRequest.page":
+	case "shard.v1.QueryTransactionsRequest.page":
 		return x.Page != nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -139,17 +139,17 @@ func (x *fastReflection_QueryBatchesRequest) Has(fd protoreflect.FieldDescriptor
 // associated with the given field number.
 //
 // Clear is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_QueryBatchesRequest) Clear(fd protoreflect.FieldDescriptor) {
+func (x *fastReflection_QueryTransactionsRequest) Clear(fd protoreflect.FieldDescriptor) {
 	switch fd.FullName() {
-	case "shard.v1.QueryBatchesRequest.namespace":
+	case "shard.v1.QueryTransactionsRequest.namespace":
 		x.Namespace = ""
-	case "shard.v1.QueryBatchesRequest.page":
+	case "shard.v1.QueryTransactionsRequest.page":
 		x.Page = nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -159,19 +159,19 @@ func (x *fastReflection_QueryBatchesRequest) Clear(fd protoreflect.FieldDescript
 // the default value of a bytes scalar is guaranteed to be a copy.
 // For unpopulated composite types, it returns an empty, read-only view
 // of the value; to obtain a mutable reference, use Mutable.
-func (x *fastReflection_QueryBatchesRequest) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_QueryTransactionsRequest) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
 	switch descriptor.FullName() {
-	case "shard.v1.QueryBatchesRequest.namespace":
+	case "shard.v1.QueryTransactionsRequest.namespace":
 		value := x.Namespace
 		return protoreflect.ValueOfString(value)
-	case "shard.v1.QueryBatchesRequest.page":
+	case "shard.v1.QueryTransactionsRequest.page":
 		value := x.Page
 		return protoreflect.ValueOfMessage(value.ProtoReflect())
 	default:
 		if descriptor.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesRequest does not contain field %s", descriptor.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", descriptor.FullName()))
 	}
 }
 
@@ -185,17 +185,17 @@ func (x *fastReflection_QueryBatchesRequest) Get(descriptor protoreflect.FieldDe
 // empty, read-only value, then it panics.
 //
 // Set is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_QueryBatchesRequest) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
+func (x *fastReflection_QueryTransactionsRequest) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
 	switch fd.FullName() {
-	case "shard.v1.QueryBatchesRequest.namespace":
+	case "shard.v1.QueryTransactionsRequest.namespace":
 		x.Namespace = value.Interface().(string)
-	case "shard.v1.QueryBatchesRequest.page":
+	case "shard.v1.QueryTransactionsRequest.page":
 		x.Page = value.Message().Interface().(*PageRequest)
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -209,48 +209,48 @@ func (x *fastReflection_QueryBatchesRequest) Set(fd protoreflect.FieldDescriptor
 // It panics if the field does not contain a composite type.
 //
 // Mutable is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_QueryBatchesRequest) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_QueryTransactionsRequest) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.QueryBatchesRequest.page":
+	case "shard.v1.QueryTransactionsRequest.page":
 		if x.Page == nil {
 			x.Page = new(PageRequest)
 		}
 		return protoreflect.ValueOfMessage(x.Page.ProtoReflect())
-	case "shard.v1.QueryBatchesRequest.namespace":
-		panic(fmt.Errorf("field namespace of message shard.v1.QueryBatchesRequest is not mutable"))
+	case "shard.v1.QueryTransactionsRequest.namespace":
+		panic(fmt.Errorf("field namespace of message shard.v1.QueryTransactionsRequest is not mutable"))
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", fd.FullName()))
 	}
 }
 
 // NewField returns a new value that is assignable to the field
 // for the given descriptor. For scalars, this returns the default value.
 // For lists, maps, and messages, this returns a new, empty, mutable value.
-func (x *fastReflection_QueryBatchesRequest) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_QueryTransactionsRequest) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.QueryBatchesRequest.namespace":
+	case "shard.v1.QueryTransactionsRequest.namespace":
 		return protoreflect.ValueOfString("")
-	case "shard.v1.QueryBatchesRequest.page":
+	case "shard.v1.QueryTransactionsRequest.page":
 		m := new(PageRequest)
 		return protoreflect.ValueOfMessage(m.ProtoReflect())
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesRequest"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsRequest"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesRequest does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsRequest does not contain field %s", fd.FullName()))
 	}
 }
 
 // WhichOneof reports which field within the oneof is populated,
 // returning nil if none are populated.
 // It panics if the oneof descriptor does not belong to this message.
-func (x *fastReflection_QueryBatchesRequest) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
+func (x *fastReflection_QueryTransactionsRequest) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
 	switch d.FullName() {
 	default:
-		panic(fmt.Errorf("%s is not a oneof field in shard.v1.QueryBatchesRequest", d.FullName()))
+		panic(fmt.Errorf("%s is not a oneof field in shard.v1.QueryTransactionsRequest", d.FullName()))
 	}
 	panic("unreachable")
 }
@@ -258,7 +258,7 @@ func (x *fastReflection_QueryBatchesRequest) WhichOneof(d protoreflect.OneofDesc
 // GetUnknown retrieves the entire list of unknown fields.
 // The caller may only mutate the contents of the RawFields
 // if the mutated bytes are stored back into the message with SetUnknown.
-func (x *fastReflection_QueryBatchesRequest) GetUnknown() protoreflect.RawFields {
+func (x *fastReflection_QueryTransactionsRequest) GetUnknown() protoreflect.RawFields {
 	return x.unknownFields
 }
 
@@ -269,7 +269,7 @@ func (x *fastReflection_QueryBatchesRequest) GetUnknown() protoreflect.RawFields
 // An empty RawFields may be passed to clear the fields.
 //
 // SetUnknown is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_QueryBatchesRequest) SetUnknown(fields protoreflect.RawFields) {
+func (x *fastReflection_QueryTransactionsRequest) SetUnknown(fields protoreflect.RawFields) {
 	x.unknownFields = fields
 }
 
@@ -281,7 +281,7 @@ func (x *fastReflection_QueryBatchesRequest) SetUnknown(fields protoreflect.RawF
 // message type, but the details are implementation dependent.
 // Validity is not part of the protobuf data model, and may not
 // be preserved in marshaling or other operations.
-func (x *fastReflection_QueryBatchesRequest) IsValid() bool {
+func (x *fastReflection_QueryTransactionsRequest) IsValid() bool {
 	return x != nil
 }
 
@@ -291,9 +291,9 @@ func (x *fastReflection_QueryBatchesRequest) IsValid() bool {
 // The returned methods type is identical to
 // "google.golang.org/protobuf/runtime/protoiface".Methods.
 // Consult the protoiface package documentation for details.
-func (x *fastReflection_QueryBatchesRequest) ProtoMethods() *protoiface.Methods {
+func (x *fastReflection_QueryTransactionsRequest) ProtoMethods() *protoiface.Methods {
 	size := func(input protoiface.SizeInput) protoiface.SizeOutput {
-		x := input.Message.Interface().(*QueryBatchesRequest)
+		x := input.Message.Interface().(*QueryTransactionsRequest)
 		if x == nil {
 			return protoiface.SizeOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -323,7 +323,7 @@ func (x *fastReflection_QueryBatchesRequest) ProtoMethods() *protoiface.Methods 
 	}
 
 	marshal := func(input protoiface.MarshalInput) (protoiface.MarshalOutput, error) {
-		x := input.Message.Interface().(*QueryBatchesRequest)
+		x := input.Message.Interface().(*QueryTransactionsRequest)
 		if x == nil {
 			return protoiface.MarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -374,7 +374,7 @@ func (x *fastReflection_QueryBatchesRequest) ProtoMethods() *protoiface.Methods 
 		}, nil
 	}
 	unmarshal := func(input protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) {
-		x := input.Message.Interface().(*QueryBatchesRequest)
+		x := input.Message.Interface().(*QueryTransactionsRequest)
 		if x == nil {
 			return protoiface.UnmarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -406,10 +406,10 @@ func (x *fastReflection_QueryBatchesRequest) ProtoMethods() *protoiface.Methods 
 			fieldNum := int32(wire >> 3)
 			wireType := int(wire & 0x7)
 			if wireType == 4 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: QueryBatchesRequest: wiretype end group for non-group")
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: QueryTransactionsRequest: wiretype end group for non-group")
 			}
 			if fieldNum <= 0 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: QueryBatchesRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: QueryTransactionsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 			}
 			switch fieldNum {
 			case 1:
@@ -515,79 +515,79 @@ func (x *fastReflection_QueryBatchesRequest) ProtoMethods() *protoiface.Methods 
 	}
 }
 
-var _ protoreflect.List = (*_QueryBatchesResponse_1_list)(nil)
+var _ protoreflect.List = (*_QueryTransactionsResponse_1_list)(nil)
 
-type _QueryBatchesResponse_1_list struct {
-	list *[]*TransactionBatch
+type _QueryTransactionsResponse_1_list struct {
+	list *[]*Epoch
 }
 
-func (x *_QueryBatchesResponse_1_list) Len() int {
+func (x *_QueryTransactionsResponse_1_list) Len() int {
 	if x.list == nil {
 		return 0
 	}
 	return len(*x.list)
 }
 
-func (x *_QueryBatchesResponse_1_list) Get(i int) protoreflect.Value {
+func (x *_QueryTransactionsResponse_1_list) Get(i int) protoreflect.Value {
 	return protoreflect.ValueOfMessage((*x.list)[i].ProtoReflect())
 }
 
-func (x *_QueryBatchesResponse_1_list) Set(i int, value protoreflect.Value) {
+func (x *_QueryTransactionsResponse_1_list) Set(i int, value protoreflect.Value) {
 	valueUnwrapped := value.Message()
-	concreteValue := valueUnwrapped.Interface().(*TransactionBatch)
+	concreteValue := valueUnwrapped.Interface().(*Epoch)
 	(*x.list)[i] = concreteValue
 }
 
-func (x *_QueryBatchesResponse_1_list) Append(value protoreflect.Value) {
+func (x *_QueryTransactionsResponse_1_list) Append(value protoreflect.Value) {
 	valueUnwrapped := value.Message()
-	concreteValue := valueUnwrapped.Interface().(*TransactionBatch)
+	concreteValue := valueUnwrapped.Interface().(*Epoch)
 	*x.list = append(*x.list, concreteValue)
 }
 
-func (x *_QueryBatchesResponse_1_list) AppendMutable() protoreflect.Value {
-	v := new(TransactionBatch)
+func (x *_QueryTransactionsResponse_1_list) AppendMutable() protoreflect.Value {
+	v := new(Epoch)
 	*x.list = append(*x.list, v)
 	return protoreflect.ValueOfMessage(v.ProtoReflect())
 }
 
-func (x *_QueryBatchesResponse_1_list) Truncate(n int) {
+func (x *_QueryTransactionsResponse_1_list) Truncate(n int) {
 	for i := n; i < len(*x.list); i++ {
 		(*x.list)[i] = nil
 	}
 	*x.list = (*x.list)[:n]
 }
 
-func (x *_QueryBatchesResponse_1_list) NewElement() protoreflect.Value {
-	v := new(TransactionBatch)
+func (x *_QueryTransactionsResponse_1_list) NewElement() protoreflect.Value {
+	v := new(Epoch)
 	return protoreflect.ValueOfMessage(v.ProtoReflect())
 }
 
-func (x *_QueryBatchesResponse_1_list) IsValid() bool {
+func (x *_QueryTransactionsResponse_1_list) IsValid() bool {
 	return x.list != nil
 }
 
 var (
-	md_QueryBatchesResponse         protoreflect.MessageDescriptor
-	fd_QueryBatchesResponse_batches protoreflect.FieldDescriptor
-	fd_QueryBatchesResponse_page    protoreflect.FieldDescriptor
+	md_QueryTransactionsResponse        protoreflect.MessageDescriptor
+	fd_QueryTransactionsResponse_epochs protoreflect.FieldDescriptor
+	fd_QueryTransactionsResponse_page   protoreflect.FieldDescriptor
 )
 
 func init() {
 	file_shard_v1_query_proto_init()
-	md_QueryBatchesResponse = File_shard_v1_query_proto.Messages().ByName("QueryBatchesResponse")
-	fd_QueryBatchesResponse_batches = md_QueryBatchesResponse.Fields().ByName("batches")
-	fd_QueryBatchesResponse_page = md_QueryBatchesResponse.Fields().ByName("page")
+	md_QueryTransactionsResponse = File_shard_v1_query_proto.Messages().ByName("QueryTransactionsResponse")
+	fd_QueryTransactionsResponse_epochs = md_QueryTransactionsResponse.Fields().ByName("epochs")
+	fd_QueryTransactionsResponse_page = md_QueryTransactionsResponse.Fields().ByName("page")
 }
 
-var _ protoreflect.Message = (*fastReflection_QueryBatchesResponse)(nil)
+var _ protoreflect.Message = (*fastReflection_QueryTransactionsResponse)(nil)
 
-type fastReflection_QueryBatchesResponse QueryBatchesResponse
+type fastReflection_QueryTransactionsResponse QueryTransactionsResponse
 
-func (x *QueryBatchesResponse) ProtoReflect() protoreflect.Message {
-	return (*fastReflection_QueryBatchesResponse)(x)
+func (x *QueryTransactionsResponse) ProtoReflect() protoreflect.Message {
+	return (*fastReflection_QueryTransactionsResponse)(x)
 }
 
-func (x *QueryBatchesResponse) slowProtoReflect() protoreflect.Message {
+func (x *QueryTransactionsResponse) slowProtoReflect() protoreflect.Message {
 	mi := &file_shard_v1_query_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -599,43 +599,43 @@ func (x *QueryBatchesResponse) slowProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-var _fastReflection_QueryBatchesResponse_messageType fastReflection_QueryBatchesResponse_messageType
-var _ protoreflect.MessageType = fastReflection_QueryBatchesResponse_messageType{}
+var _fastReflection_QueryTransactionsResponse_messageType fastReflection_QueryTransactionsResponse_messageType
+var _ protoreflect.MessageType = fastReflection_QueryTransactionsResponse_messageType{}
 
-type fastReflection_QueryBatchesResponse_messageType struct{}
+type fastReflection_QueryTransactionsResponse_messageType struct{}
 
-func (x fastReflection_QueryBatchesResponse_messageType) Zero() protoreflect.Message {
-	return (*fastReflection_QueryBatchesResponse)(nil)
+func (x fastReflection_QueryTransactionsResponse_messageType) Zero() protoreflect.Message {
+	return (*fastReflection_QueryTransactionsResponse)(nil)
 }
-func (x fastReflection_QueryBatchesResponse_messageType) New() protoreflect.Message {
-	return new(fastReflection_QueryBatchesResponse)
+func (x fastReflection_QueryTransactionsResponse_messageType) New() protoreflect.Message {
+	return new(fastReflection_QueryTransactionsResponse)
 }
-func (x fastReflection_QueryBatchesResponse_messageType) Descriptor() protoreflect.MessageDescriptor {
-	return md_QueryBatchesResponse
+func (x fastReflection_QueryTransactionsResponse_messageType) Descriptor() protoreflect.MessageDescriptor {
+	return md_QueryTransactionsResponse
 }
 
 // Descriptor returns message descriptor, which contains only the protobuf
 // type information for the message.
-func (x *fastReflection_QueryBatchesResponse) Descriptor() protoreflect.MessageDescriptor {
-	return md_QueryBatchesResponse
+func (x *fastReflection_QueryTransactionsResponse) Descriptor() protoreflect.MessageDescriptor {
+	return md_QueryTransactionsResponse
 }
 
 // Type returns the message type, which encapsulates both Go and protobuf
 // type information. If the Go type information is not needed,
 // it is recommended that the message descriptor be used instead.
-func (x *fastReflection_QueryBatchesResponse) Type() protoreflect.MessageType {
-	return _fastReflection_QueryBatchesResponse_messageType
+func (x *fastReflection_QueryTransactionsResponse) Type() protoreflect.MessageType {
+	return _fastReflection_QueryTransactionsResponse_messageType
 }
 
 // New returns a newly allocated and mutable empty message.
-func (x *fastReflection_QueryBatchesResponse) New() protoreflect.Message {
-	return new(fastReflection_QueryBatchesResponse)
+func (x *fastReflection_QueryTransactionsResponse) New() protoreflect.Message {
+	return new(fastReflection_QueryTransactionsResponse)
 }
 
 // Interface unwraps the message reflection interface and
 // returns the underlying ProtoMessage interface.
-func (x *fastReflection_QueryBatchesResponse) Interface() protoreflect.ProtoMessage {
-	return (*QueryBatchesResponse)(x)
+func (x *fastReflection_QueryTransactionsResponse) Interface() protoreflect.ProtoMessage {
+	return (*QueryTransactionsResponse)(x)
 }
 
 // Range iterates over every populated field in an undefined order,
@@ -643,16 +643,16 @@ func (x *fastReflection_QueryBatchesResponse) Interface() protoreflect.ProtoMess
 // Range returns immediately if f returns false.
 // While iterating, mutating operations may only be performed
 // on the current field descriptor.
-func (x *fastReflection_QueryBatchesResponse) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
-	if len(x.Batches) != 0 {
-		value := protoreflect.ValueOfList(&_QueryBatchesResponse_1_list{list: &x.Batches})
-		if !f(fd_QueryBatchesResponse_batches, value) {
+func (x *fastReflection_QueryTransactionsResponse) Range(f func(protoreflect.FieldDescriptor, protoreflect.Value) bool) {
+	if len(x.Epochs) != 0 {
+		value := protoreflect.ValueOfList(&_QueryTransactionsResponse_1_list{list: &x.Epochs})
+		if !f(fd_QueryTransactionsResponse_epochs, value) {
 			return
 		}
 	}
 	if x.Page != nil {
 		value := protoreflect.ValueOfMessage(x.Page.ProtoReflect())
-		if !f(fd_QueryBatchesResponse_page, value) {
+		if !f(fd_QueryTransactionsResponse_page, value) {
 			return
 		}
 	}
@@ -669,17 +669,17 @@ func (x *fastReflection_QueryBatchesResponse) Range(f func(protoreflect.FieldDes
 // In other cases (aside from the nullable cases above),
 // a proto3 scalar field is populated if it contains a non-zero value, and
 // a repeated field is populated if it is non-empty.
-func (x *fastReflection_QueryBatchesResponse) Has(fd protoreflect.FieldDescriptor) bool {
+func (x *fastReflection_QueryTransactionsResponse) Has(fd protoreflect.FieldDescriptor) bool {
 	switch fd.FullName() {
-	case "shard.v1.QueryBatchesResponse.batches":
-		return len(x.Batches) != 0
-	case "shard.v1.QueryBatchesResponse.page":
+	case "shard.v1.QueryTransactionsResponse.epochs":
+		return len(x.Epochs) != 0
+	case "shard.v1.QueryTransactionsResponse.page":
 		return x.Page != nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsResponse does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -689,17 +689,17 @@ func (x *fastReflection_QueryBatchesResponse) Has(fd protoreflect.FieldDescripto
 // associated with the given field number.
 //
 // Clear is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_QueryBatchesResponse) Clear(fd protoreflect.FieldDescriptor) {
+func (x *fastReflection_QueryTransactionsResponse) Clear(fd protoreflect.FieldDescriptor) {
 	switch fd.FullName() {
-	case "shard.v1.QueryBatchesResponse.batches":
-		x.Batches = nil
-	case "shard.v1.QueryBatchesResponse.page":
+	case "shard.v1.QueryTransactionsResponse.epochs":
+		x.Epochs = nil
+	case "shard.v1.QueryTransactionsResponse.page":
 		x.Page = nil
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsResponse does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -709,22 +709,22 @@ func (x *fastReflection_QueryBatchesResponse) Clear(fd protoreflect.FieldDescrip
 // the default value of a bytes scalar is guaranteed to be a copy.
 // For unpopulated composite types, it returns an empty, read-only view
 // of the value; to obtain a mutable reference, use Mutable.
-func (x *fastReflection_QueryBatchesResponse) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_QueryTransactionsResponse) Get(descriptor protoreflect.FieldDescriptor) protoreflect.Value {
 	switch descriptor.FullName() {
-	case "shard.v1.QueryBatchesResponse.batches":
-		if len(x.Batches) == 0 {
-			return protoreflect.ValueOfList(&_QueryBatchesResponse_1_list{})
+	case "shard.v1.QueryTransactionsResponse.epochs":
+		if len(x.Epochs) == 0 {
+			return protoreflect.ValueOfList(&_QueryTransactionsResponse_1_list{})
 		}
-		listValue := &_QueryBatchesResponse_1_list{list: &x.Batches}
+		listValue := &_QueryTransactionsResponse_1_list{list: &x.Epochs}
 		return protoreflect.ValueOfList(listValue)
-	case "shard.v1.QueryBatchesResponse.page":
+	case "shard.v1.QueryTransactionsResponse.page":
 		value := x.Page
 		return protoreflect.ValueOfMessage(value.ProtoReflect())
 	default:
 		if descriptor.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesResponse does not contain field %s", descriptor.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsResponse does not contain field %s", descriptor.FullName()))
 	}
 }
 
@@ -738,19 +738,19 @@ func (x *fastReflection_QueryBatchesResponse) Get(descriptor protoreflect.FieldD
 // empty, read-only value, then it panics.
 //
 // Set is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_QueryBatchesResponse) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
+func (x *fastReflection_QueryTransactionsResponse) Set(fd protoreflect.FieldDescriptor, value protoreflect.Value) {
 	switch fd.FullName() {
-	case "shard.v1.QueryBatchesResponse.batches":
+	case "shard.v1.QueryTransactionsResponse.epochs":
 		lv := value.List()
-		clv := lv.(*_QueryBatchesResponse_1_list)
-		x.Batches = *clv.list
-	case "shard.v1.QueryBatchesResponse.page":
+		clv := lv.(*_QueryTransactionsResponse_1_list)
+		x.Epochs = *clv.list
+	case "shard.v1.QueryTransactionsResponse.page":
 		x.Page = value.Message().Interface().(*PageResponse)
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsResponse does not contain field %s", fd.FullName()))
 	}
 }
 
@@ -764,53 +764,53 @@ func (x *fastReflection_QueryBatchesResponse) Set(fd protoreflect.FieldDescripto
 // It panics if the field does not contain a composite type.
 //
 // Mutable is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_QueryBatchesResponse) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_QueryTransactionsResponse) Mutable(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.QueryBatchesResponse.batches":
-		if x.Batches == nil {
-			x.Batches = []*TransactionBatch{}
+	case "shard.v1.QueryTransactionsResponse.epochs":
+		if x.Epochs == nil {
+			x.Epochs = []*Epoch{}
 		}
-		value := &_QueryBatchesResponse_1_list{list: &x.Batches}
+		value := &_QueryTransactionsResponse_1_list{list: &x.Epochs}
 		return protoreflect.ValueOfList(value)
-	case "shard.v1.QueryBatchesResponse.page":
+	case "shard.v1.QueryTransactionsResponse.page":
 		if x.Page == nil {
 			x.Page = new(PageResponse)
 		}
 		return protoreflect.ValueOfMessage(x.Page.ProtoReflect())
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsResponse does not contain field %s", fd.FullName()))
 	}
 }
 
 // NewField returns a new value that is assignable to the field
 // for the given descriptor. For scalars, this returns the default value.
 // For lists, maps, and messages, this returns a new, empty, mutable value.
-func (x *fastReflection_QueryBatchesResponse) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
+func (x *fastReflection_QueryTransactionsResponse) NewField(fd protoreflect.FieldDescriptor) protoreflect.Value {
 	switch fd.FullName() {
-	case "shard.v1.QueryBatchesResponse.batches":
-		list := []*TransactionBatch{}
-		return protoreflect.ValueOfList(&_QueryBatchesResponse_1_list{list: &list})
-	case "shard.v1.QueryBatchesResponse.page":
+	case "shard.v1.QueryTransactionsResponse.epochs":
+		list := []*Epoch{}
+		return protoreflect.ValueOfList(&_QueryTransactionsResponse_1_list{list: &list})
+	case "shard.v1.QueryTransactionsResponse.page":
 		m := new(PageResponse)
 		return protoreflect.ValueOfMessage(m.ProtoReflect())
 	default:
 		if fd.IsExtension() {
-			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryBatchesResponse"))
+			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.QueryTransactionsResponse"))
 		}
-		panic(fmt.Errorf("message shard.v1.QueryBatchesResponse does not contain field %s", fd.FullName()))
+		panic(fmt.Errorf("message shard.v1.QueryTransactionsResponse does not contain field %s", fd.FullName()))
 	}
 }
 
 // WhichOneof reports which field within the oneof is populated,
 // returning nil if none are populated.
 // It panics if the oneof descriptor does not belong to this message.
-func (x *fastReflection_QueryBatchesResponse) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
+func (x *fastReflection_QueryTransactionsResponse) WhichOneof(d protoreflect.OneofDescriptor) protoreflect.FieldDescriptor {
 	switch d.FullName() {
 	default:
-		panic(fmt.Errorf("%s is not a oneof field in shard.v1.QueryBatchesResponse", d.FullName()))
+		panic(fmt.Errorf("%s is not a oneof field in shard.v1.QueryTransactionsResponse", d.FullName()))
 	}
 	panic("unreachable")
 }
@@ -818,7 +818,7 @@ func (x *fastReflection_QueryBatchesResponse) WhichOneof(d protoreflect.OneofDes
 // GetUnknown retrieves the entire list of unknown fields.
 // The caller may only mutate the contents of the RawFields
 // if the mutated bytes are stored back into the message with SetUnknown.
-func (x *fastReflection_QueryBatchesResponse) GetUnknown() protoreflect.RawFields {
+func (x *fastReflection_QueryTransactionsResponse) GetUnknown() protoreflect.RawFields {
 	return x.unknownFields
 }
 
@@ -829,7 +829,7 @@ func (x *fastReflection_QueryBatchesResponse) GetUnknown() protoreflect.RawField
 // An empty RawFields may be passed to clear the fields.
 //
 // SetUnknown is a mutating operation and unsafe for concurrent use.
-func (x *fastReflection_QueryBatchesResponse) SetUnknown(fields protoreflect.RawFields) {
+func (x *fastReflection_QueryTransactionsResponse) SetUnknown(fields protoreflect.RawFields) {
 	x.unknownFields = fields
 }
 
@@ -841,7 +841,7 @@ func (x *fastReflection_QueryBatchesResponse) SetUnknown(fields protoreflect.Raw
 // message type, but the details are implementation dependent.
 // Validity is not part of the protobuf data model, and may not
 // be preserved in marshaling or other operations.
-func (x *fastReflection_QueryBatchesResponse) IsValid() bool {
+func (x *fastReflection_QueryTransactionsResponse) IsValid() bool {
 	return x != nil
 }
 
@@ -851,9 +851,9 @@ func (x *fastReflection_QueryBatchesResponse) IsValid() bool {
 // The returned methods type is identical to
 // "google.golang.org/protobuf/runtime/protoiface".Methods.
 // Consult the protoiface package documentation for details.
-func (x *fastReflection_QueryBatchesResponse) ProtoMethods() *protoiface.Methods {
+func (x *fastReflection_QueryTransactionsResponse) ProtoMethods() *protoiface.Methods {
 	size := func(input protoiface.SizeInput) protoiface.SizeOutput {
-		x := input.Message.Interface().(*QueryBatchesResponse)
+		x := input.Message.Interface().(*QueryTransactionsResponse)
 		if x == nil {
 			return protoiface.SizeOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -865,8 +865,8 @@ func (x *fastReflection_QueryBatchesResponse) ProtoMethods() *protoiface.Methods
 		var n int
 		var l int
 		_ = l
-		if len(x.Batches) > 0 {
-			for _, e := range x.Batches {
+		if len(x.Epochs) > 0 {
+			for _, e := range x.Epochs {
 				l = options.Size(e)
 				n += 1 + l + runtime.Sov(uint64(l))
 			}
@@ -885,7 +885,7 @@ func (x *fastReflection_QueryBatchesResponse) ProtoMethods() *protoiface.Methods
 	}
 
 	marshal := func(input protoiface.MarshalInput) (protoiface.MarshalOutput, error) {
-		x := input.Message.Interface().(*QueryBatchesResponse)
+		x := input.Message.Interface().(*QueryTransactionsResponse)
 		if x == nil {
 			return protoiface.MarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -918,9 +918,9 @@ func (x *fastReflection_QueryBatchesResponse) ProtoMethods() *protoiface.Methods
 			i--
 			dAtA[i] = 0x12
 		}
-		if len(x.Batches) > 0 {
-			for iNdEx := len(x.Batches) - 1; iNdEx >= 0; iNdEx-- {
-				encoded, err := options.Marshal(x.Batches[iNdEx])
+		if len(x.Epochs) > 0 {
+			for iNdEx := len(x.Epochs) - 1; iNdEx >= 0; iNdEx-- {
+				encoded, err := options.Marshal(x.Epochs[iNdEx])
 				if err != nil {
 					return protoiface.MarshalOutput{
 						NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -945,7 +945,7 @@ func (x *fastReflection_QueryBatchesResponse) ProtoMethods() *protoiface.Methods
 		}, nil
 	}
 	unmarshal := func(input protoiface.UnmarshalInput) (protoiface.UnmarshalOutput, error) {
-		x := input.Message.Interface().(*QueryBatchesResponse)
+		x := input.Message.Interface().(*QueryTransactionsResponse)
 		if x == nil {
 			return protoiface.UnmarshalOutput{
 				NoUnkeyedLiterals: input.NoUnkeyedLiterals,
@@ -977,15 +977,15 @@ func (x *fastReflection_QueryBatchesResponse) ProtoMethods() *protoiface.Methods
 			fieldNum := int32(wire >> 3)
 			wireType := int(wire & 0x7)
 			if wireType == 4 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: QueryBatchesResponse: wiretype end group for non-group")
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: QueryTransactionsResponse: wiretype end group for non-group")
 			}
 			if fieldNum <= 0 {
-				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: QueryBatchesResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+				return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: QueryTransactionsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 			}
 			switch fieldNum {
 			case 1:
 				if wireType != 2 {
-					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Batches", wireType)
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Epochs", wireType)
 				}
 				var msglen int
 				for shift := uint(0); ; shift += 7 {
@@ -1012,8 +1012,8 @@ func (x *fastReflection_QueryBatchesResponse) ProtoMethods() *protoiface.Methods
 				if postIndex > l {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
 				}
-				x.Batches = append(x.Batches, &TransactionBatch{})
-				if err := options.Unmarshal(dAtA[iNdEx:postIndex], x.Batches[len(x.Batches)-1]); err != nil {
+				x.Epochs = append(x.Epochs, &Epoch{})
+				if err := options.Unmarshal(dAtA[iNdEx:postIndex], x.Epochs[len(x.Epochs)-1]); err != nil {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, err
 				}
 				iNdEx = postIndex
@@ -1993,7 +1993,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type QueryBatchesRequest struct {
+type QueryTransactionsRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -2002,8 +2002,8 @@ type QueryBatchesRequest struct {
 	Page      *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 }
 
-func (x *QueryBatchesRequest) Reset() {
-	*x = QueryBatchesRequest{}
+func (x *QueryTransactionsRequest) Reset() {
+	*x = QueryTransactionsRequest{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_shard_v1_query_proto_msgTypes[0]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2011,42 +2011,45 @@ func (x *QueryBatchesRequest) Reset() {
 	}
 }
 
-func (x *QueryBatchesRequest) String() string {
+func (x *QueryTransactionsRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*QueryBatchesRequest) ProtoMessage() {}
+func (*QueryTransactionsRequest) ProtoMessage() {}
 
-// Deprecated: Use QueryBatchesRequest.ProtoReflect.Descriptor instead.
-func (*QueryBatchesRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use QueryTransactionsRequest.ProtoReflect.Descriptor instead.
+func (*QueryTransactionsRequest) Descriptor() ([]byte, []int) {
 	return file_shard_v1_query_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *QueryBatchesRequest) GetNamespace() string {
+func (x *QueryTransactionsRequest) GetNamespace() string {
 	if x != nil {
 		return x.Namespace
 	}
 	return ""
 }
 
-func (x *QueryBatchesRequest) GetPage() *PageRequest {
+func (x *QueryTransactionsRequest) GetPage() *PageRequest {
 	if x != nil {
 		return x.Page
 	}
 	return nil
 }
 
-type QueryBatchesResponse struct {
+type QueryTransactionsResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Batches []*TransactionBatch `protobuf:"bytes,1,rep,name=batches,proto3" json:"batches,omitempty"`
-	Page    *PageResponse       `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	// epochs contains the transactions. Each entry contains an epoch, and a list of txs that occurred in that epoch.
+	Epochs []*Epoch `protobuf:"bytes,1,rep,name=epochs,proto3" json:"epochs,omitempty"`
+	// page contains information on how to query the next items in the collection, if any.
+	// when page is nil/empty, there is nothing left to query.
+	Page *PageResponse `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 }
 
-func (x *QueryBatchesResponse) Reset() {
-	*x = QueryBatchesResponse{}
+func (x *QueryTransactionsResponse) Reset() {
+	*x = QueryTransactionsResponse{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_shard_v1_query_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -2054,37 +2057,42 @@ func (x *QueryBatchesResponse) Reset() {
 	}
 }
 
-func (x *QueryBatchesResponse) String() string {
+func (x *QueryTransactionsResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*QueryBatchesResponse) ProtoMessage() {}
+func (*QueryTransactionsResponse) ProtoMessage() {}
 
-// Deprecated: Use QueryBatchesResponse.ProtoReflect.Descriptor instead.
-func (*QueryBatchesResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use QueryTransactionsResponse.ProtoReflect.Descriptor instead.
+func (*QueryTransactionsResponse) Descriptor() ([]byte, []int) {
 	return file_shard_v1_query_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *QueryBatchesResponse) GetBatches() []*TransactionBatch {
+func (x *QueryTransactionsResponse) GetEpochs() []*Epoch {
 	if x != nil {
-		return x.Batches
+		return x.Epochs
 	}
 	return nil
 }
 
-func (x *QueryBatchesResponse) GetPage() *PageResponse {
+func (x *QueryTransactionsResponse) GetPage() *PageResponse {
 	if x != nil {
 		return x.Page
 	}
 	return nil
 }
 
+// PageRequest represents a request for a paged query.
 type PageRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Key   []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// key is the cosmos SDK store key to begin the iteration on.
+	Key []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// limit is the amount of items we want to limit in our return.
+	// example, if the collection we are interested has 10 items,
+	// and we set limit to 5, the query will only return 5 items.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
 }
 
@@ -2122,11 +2130,14 @@ func (x *PageRequest) GetLimit() uint32 {
 	return 0
 }
 
+// PageResponse represents a response to a paged query.
 type PageResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// if a key is present, that means there are more items from the collection to query, and the given key is the key for
+	// the item after the last one returned. if key is nil, that means there are no more items in the collection to query.
 	Key []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 }
 
@@ -2165,44 +2176,45 @@ var file_shard_v1_query_proto_rawDesc = []byte{
 	0x1a, 0x19, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x5f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x63,
 	0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x17, 0x63, 0x6f, 0x73,
 	0x6d, 0x6f, 0x73, 0x2f, 0x6d, 0x73, 0x67, 0x2f, 0x76, 0x31, 0x2f, 0x6d, 0x73, 0x67, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x14, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x2f, 0x74,
-	0x79, 0x70, 0x65, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x14, 0x67, 0x6f, 0x67, 0x6f,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x67, 0x6f, 0x67, 0x6f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x1a, 0x1c, 0x67, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x61, 0x6e, 0x6e,
-	0x6f, 0x74, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x5e,
-	0x0a, 0x13, 0x51, 0x75, 0x65, 0x72, 0x79, 0x42, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x52, 0x65,
-	0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1c, 0x0a, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x70, 0x61,
-	0x63, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6e, 0x61, 0x6d, 0x65, 0x73, 0x70,
-	0x61, 0x63, 0x65, 0x12, 0x29, 0x0a, 0x04, 0x70, 0x61, 0x67, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28,
-	0x0b, 0x32, 0x15, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x50, 0x61, 0x67,
-	0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x04, 0x70, 0x61, 0x67, 0x65, 0x22, 0x78,
-	0x0a, 0x14, 0x51, 0x75, 0x65, 0x72, 0x79, 0x42, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x52, 0x65,
-	0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x34, 0x0a, 0x07, 0x62, 0x61, 0x74, 0x63, 0x68, 0x65,
-	0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1a, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e,
-	0x76, 0x31, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x42, 0x61,
-	0x74, 0x63, 0x68, 0x52, 0x07, 0x62, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x12, 0x2a, 0x0a, 0x04,
-	0x70, 0x61, 0x67, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x73, 0x68, 0x61,
-	0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x50, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e,
-	0x73, 0x65, 0x52, 0x04, 0x70, 0x61, 0x67, 0x65, 0x22, 0x35, 0x0a, 0x0b, 0x50, 0x61, 0x67, 0x65,
-	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01,
-	0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x6c, 0x69, 0x6d,
-	0x69, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x22,
-	0x20, 0x0a, 0x0c, 0x50, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12,
-	0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x6b, 0x65,
-	0x79, 0x32, 0x51, 0x0a, 0x05, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x48, 0x0a, 0x07, 0x42, 0x61,
-	0x74, 0x63, 0x68, 0x65, 0x73, 0x12, 0x1d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31,
-	0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x42, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x52, 0x65, 0x71,
-	0x75, 0x65, 0x73, 0x74, 0x1a, 0x1e, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e,
-	0x51, 0x75, 0x65, 0x72, 0x79, 0x42, 0x61, 0x74, 0x63, 0x68, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70,
-	0x6f, 0x6e, 0x73, 0x65, 0x42, 0x7e, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72,
-	0x64, 0x2e, 0x76, 0x31, 0x42, 0x0a, 0x51, 0x75, 0x65, 0x72, 0x79, 0x50, 0x72, 0x6f, 0x74, 0x6f,
-	0x50, 0x01, 0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f,
-	0x2f, 0x61, 0x70, 0x69, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68,
-	0x61, 0x72, 0x64, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68,
-	0x61, 0x72, 0x64, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56,
-	0x31, 0xe2, 0x02, 0x14, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42,
-	0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64,
-	0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x14, 0x67, 0x6f, 0x67, 0x6f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f,
+	0x67, 0x6f, 0x67, 0x6f, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x1c, 0x67, 0x6f, 0x6f, 0x67,
+	0x6c, 0x65, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x61, 0x6e, 0x6e, 0x6f, 0x74, 0x61, 0x74, 0x69, 0x6f,
+	0x6e, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x1a, 0x14, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f,
+	0x76, 0x31, 0x2f, 0x74, 0x79, 0x70, 0x65, 0x73, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x63,
+	0x0a, 0x18, 0x51, 0x75, 0x65, 0x72, 0x79, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69,
+	0x6f, 0x6e, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x1c, 0x0a, 0x09, 0x6e, 0x61,
+	0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6e,
+	0x61, 0x6d, 0x65, 0x73, 0x70, 0x61, 0x63, 0x65, 0x12, 0x29, 0x0a, 0x04, 0x70, 0x61, 0x67, 0x65,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76,
+	0x31, 0x2e, 0x50, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x04, 0x70,
+	0x61, 0x67, 0x65, 0x22, 0x70, 0x0a, 0x19, 0x51, 0x75, 0x65, 0x72, 0x79, 0x54, 0x72, 0x61, 0x6e,
+	0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x12, 0x27, 0x0a, 0x06, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b,
+	0x32, 0x0f, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x45, 0x70, 0x6f, 0x63,
+	0x68, 0x52, 0x06, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x73, 0x12, 0x2a, 0x0a, 0x04, 0x70, 0x61, 0x67,
+	0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x16, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e,
+	0x76, 0x31, 0x2e, 0x50, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x52,
+	0x04, 0x70, 0x61, 0x67, 0x65, 0x22, 0x35, 0x0a, 0x0b, 0x50, 0x61, 0x67, 0x65, 0x52, 0x65, 0x71,
+	0x75, 0x65, 0x73, 0x74, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28,
+	0x0c, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x18,
+	0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x05, 0x6c, 0x69, 0x6d, 0x69, 0x74, 0x22, 0x20, 0x0a, 0x0c,
+	0x50, 0x61, 0x67, 0x65, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x12, 0x10, 0x0a, 0x03,
+	0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x03, 0x6b, 0x65, 0x79, 0x32, 0x60,
+	0x0a, 0x05, 0x51, 0x75, 0x65, 0x72, 0x79, 0x12, 0x57, 0x0a, 0x0c, 0x54, 0x72, 0x61, 0x6e, 0x73,
+	0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x12, 0x22, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e,
+	0x76, 0x31, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74,
+	0x69, 0x6f, 0x6e, 0x73, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x23, 0x2e, 0x73, 0x68,
+	0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x51, 0x75, 0x65, 0x72, 0x79, 0x54, 0x72, 0x61, 0x6e,
+	0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65,
+	0x42, 0x7e, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31,
+	0x42, 0x0a, 0x51, 0x75, 0x65, 0x72, 0x79, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x21,
+	0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69,
+	0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68, 0x61, 0x72, 0x64, 0x76,
+	0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x2e,
+	0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0xe2, 0x02, 0x14,
+	0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65, 0x74, 0x61,
+	0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64, 0x3a, 0x3a, 0x56, 0x31,
+	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -2219,18 +2231,18 @@ func file_shard_v1_query_proto_rawDescGZIP() []byte {
 
 var file_shard_v1_query_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_shard_v1_query_proto_goTypes = []interface{}{
-	(*QueryBatchesRequest)(nil),  // 0: shard.v1.QueryBatchesRequest
-	(*QueryBatchesResponse)(nil), // 1: shard.v1.QueryBatchesResponse
-	(*PageRequest)(nil),          // 2: shard.v1.PageRequest
-	(*PageResponse)(nil),         // 3: shard.v1.PageResponse
-	(*TransactionBatch)(nil),     // 4: shard.v1.TransactionBatch
+	(*QueryTransactionsRequest)(nil),  // 0: shard.v1.QueryTransactionsRequest
+	(*QueryTransactionsResponse)(nil), // 1: shard.v1.QueryTransactionsResponse
+	(*PageRequest)(nil),               // 2: shard.v1.PageRequest
+	(*PageResponse)(nil),              // 3: shard.v1.PageResponse
+	(*Epoch)(nil),                     // 4: shard.v1.Epoch
 }
 var file_shard_v1_query_proto_depIdxs = []int32{
-	2, // 0: shard.v1.QueryBatchesRequest.page:type_name -> shard.v1.PageRequest
-	4, // 1: shard.v1.QueryBatchesResponse.batches:type_name -> shard.v1.TransactionBatch
-	3, // 2: shard.v1.QueryBatchesResponse.page:type_name -> shard.v1.PageResponse
-	0, // 3: shard.v1.Query.Batches:input_type -> shard.v1.QueryBatchesRequest
-	1, // 4: shard.v1.Query.Batches:output_type -> shard.v1.QueryBatchesResponse
+	2, // 0: shard.v1.QueryTransactionsRequest.page:type_name -> shard.v1.PageRequest
+	4, // 1: shard.v1.QueryTransactionsResponse.epochs:type_name -> shard.v1.Epoch
+	3, // 2: shard.v1.QueryTransactionsResponse.page:type_name -> shard.v1.PageResponse
+	0, // 3: shard.v1.Query.Transactions:input_type -> shard.v1.QueryTransactionsRequest
+	1, // 4: shard.v1.Query.Transactions:output_type -> shard.v1.QueryTransactionsResponse
 	4, // [4:5] is the sub-list for method output_type
 	3, // [3:4] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name
@@ -2246,7 +2258,7 @@ func file_shard_v1_query_proto_init() {
 	file_shard_v1_types_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_shard_v1_query_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*QueryBatchesRequest); i {
+			switch v := v.(*QueryTransactionsRequest); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2258,7 +2270,7 @@ func file_shard_v1_query_proto_init() {
 			}
 		}
 		file_shard_v1_query_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*QueryBatchesResponse); i {
+			switch v := v.(*QueryTransactionsResponse); i {
 			case 0:
 				return &v.state
 			case 1:
