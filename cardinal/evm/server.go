@@ -20,15 +20,15 @@ var (
 	_ routerv1grpc.MsgServer = &srv{}
 )
 
-// ITransactionTypes maps transaction type ID's to transaction types.
-type ITransactionTypes map[transaction.TypeID]transaction.ITransaction
+// txByID maps transaction type ID's to transaction types.
+type txByID map[transaction.TypeID]transaction.ITransaction
 
-// IReadTypes maps read resource names to the underlying IRead
-type IReadTypes map[string]ecs.IRead
+// readByName maps read resource names to the underlying IRead
+type readByName map[string]ecs.IRead
 
 type srv struct {
-	txMap      ITransactionTypes
-	readMap    IReadTypes
+	txMap      txByID
+	readMap    readByName
 	world      *ecs.World
 	serverOpts []grpc.ServerOption
 }
@@ -39,13 +39,13 @@ func NewServer(w *ecs.World, opts ...Option) (routerv1grpc.MsgServer, error) {
 	if err != nil {
 		return nil, err
 	}
-	it := make(ITransactionTypes, len(txs))
+	it := make(txByID, len(txs))
 	for _, tx := range txs {
 		it[tx.ID()] = tx
 	}
 
 	reads := w.ListReads()
-	ir := make(IReadTypes, len(reads))
+	ir := make(readByName, len(reads))
 	for _, r := range reads {
 		ir[r.Name()] = r
 	}
