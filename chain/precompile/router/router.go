@@ -28,14 +28,22 @@ func NewPrecompileContract(r router.Router) *Contract {
 	}
 }
 
-// Send implements the Send precompile function in router.sol.
-func (c *Contract) Send(
+// SendMessage implements the sendMessage precompile function in router.sol.
+func (c *Contract) SendMessage(
 	ctx context.Context,
 	message []byte,
 	messageID uint64,
 	namespace string,
 ) ([]byte, error) {
 	pCtx := vm.UnwrapPolarContext(ctx)
-	_, err := c.rtr.Send(ctx, namespace, pCtx.MsgSender().String(), messageID, message)
+	_, err := c.rtr.SendMessage(ctx, namespace, pCtx.MsgSender().String(), messageID, message)
 	return nil, err
+}
+
+func (c *Contract) Query(
+	ctx context.Context,
+	request []byte,
+	resource, namespace string,
+) ([]byte, error) {
+	return c.rtr.Query(ctx, request, resource, namespace)
 }
