@@ -2,10 +2,10 @@ package evm
 
 import "google.golang.org/grpc"
 
-type Option func(*srv)
+type Option func(*msgServerImpl)
 
 func WithCredentials(certPath, keyPath string) Option {
-	return func(s *srv) {
+	return func(s *msgServerImpl) {
 		if certPath == "" || keyPath == "" {
 			panic("must provide both cert and key path")
 		}

@@ -54,9 +54,9 @@ contract GovernanceWrapper {
      * @param message The message.
      */
     function submit(bytes calldata proposal, bytes calldata message, string calldata denom, uint256 amount)
-    external
-    payable
-    returns (uint64)
+        external
+        payable
+        returns (uint64)
     {
         // Send the deposit amount to the contract.
         Cosmos.Coin[] memory coins = new Cosmos.Coin[](1);

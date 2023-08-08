@@ -19,8 +19,9 @@ type Result struct {
 
 //go:generate mockgen -source=router.go -package mocks -destination mocks/router.go
 type Router interface {
-	// Send sends the msg payload to the game shard indicated by the namespace, if such namespace exists on chain.
-	Send(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error)
+	// SendMessage sends the msg payload to the game shard indicated by the namespace, if such namespace exists on chain.
+	SendMessage(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error)
+	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
 }
 
 var (
@@ -63,17 +64,17 @@ func NewRouter(cardinalAddr string, opts ...Option) Router {
 	return r
 }
 
-func (r *router) Send(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error) {
+func (r *router) SendMessage(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error) {
 	client, err := r.getConnectionForNamespace(namespace)
 	if err != nil {
 		return nil, err
 	}
-	req := &v1.MsgSend{
+	req := &v1.SendMessageRequest{
 		Sender:    sender,
 		MessageId: msgID,
 		Message:   msg,
 	}
-	res, err := client.SendMsg(ctx, req)
+	res, err := client.SendMessage(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +82,21 @@ func (r *router) Send(ctx context.Context, namespace, sender string, msgID uint6
 		Code:    res.Code,
 		Message: res.Message,
 	}, nil
+}
+
+func (r *router) Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error) {
+	client, err := r.getConnectionForNamespace(namespace)
+	if err != nil {
+		return nil, err
+	}
+	res, err := client.QueryShard(ctx, &v1.QueryShardRequest{
+		Resource: resource,
+		Request:  request,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return res.Response, nil
 }
 
 func (r *router) getConnectionForNamespace(ns string) (routerv1grpc.MsgClient, error) {

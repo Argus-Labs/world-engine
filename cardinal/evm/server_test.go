@@ -21,9 +21,9 @@ type BarTransaction struct {
 	Z bool
 }
 
-// TestServer_SendMsg tests that when sending messages through to the EVM receiver server, they get passed along to
+// TestServer_SendMessage tests that when sending messages through to the EVM receiver server, they get passed along to
 // the world, and executed in systems.
-func TestServer_SendMsg(t *testing.T) {
+func TestServer_SendMessage(t *testing.T) {
 	// setup the world
 	w := inmem.NewECSWorldForTest(t)
 
@@ -85,7 +85,7 @@ func TestServer_SendMsg(t *testing.T) {
 	for _, tx := range fooTxs {
 		fooTxBz, err := abi.Arguments{{Type: FooEvmTX}}.Pack(tx)
 		assert.NilError(t, err)
-		_, err = server.SendMsg(context.Background(), &routerv1.MsgSend{
+		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    "hello",
 			Message:   fooTxBz,
 			MessageId: uint64(FooTx.ID()),
@@ -95,7 +95,7 @@ func TestServer_SendMsg(t *testing.T) {
 	for _, tx := range barTxs {
 		barTxBz, err := abi.Arguments{{Type: BarEvmTx}}.Pack(tx)
 		assert.NilError(t, err)
-		_, err = server.SendMsg(context.Background(), &routerv1.MsgSend{
+		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    "hello",
 			Message:   barTxBz,
 			MessageId: uint64(BarTx.ID()),
@@ -108,5 +108,39 @@ func TestServer_SendMsg(t *testing.T) {
 	// piped through above.
 	err = w.Tick(context.Background())
 	assert.NilError(t, err)
+}
 
+func TestServer_Query(t *testing.T) {
+	type FooRead struct {
+		X uint64
+	}
+	type FooReply struct {
+		Y uint64
+	}
+	// set up a read that simply returns the FooRead.X
+	read := ecs.NewReadType[FooRead, FooReply]("foo", func(world *ecs.World, req FooRead) (FooReply, error) {
+		return FooReply{Y: req.X}, nil
+	}, ecs.WithEVMSupport[FooRead, FooReply])
+	w := inmem.NewECSWorldForTest(t)
+	err := w.RegisterReads(read)
+	assert.NilError(t, err)
+	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}]("nothing"))
+	assert.NilError(t, err)
+	s, err := NewServer(w)
+	assert.NilError(t, err)
+
+	request := FooRead{X: 3000}
+	bz, err := read.EncodeAsABI(request)
+	assert.NilError(t, err)
+
+	res, err := s.QueryShard(context.Background(), &routerv1.QueryShardRequest{
+		Resource: "foo",
+		Request:  bz,
+	})
+	assert.NilError(t, err)
+
+	gotAny, err := read.DecodeEVMReply(res.Response)
+	got := gotAny.(FooReply)
+	// Y should equal X here as we simply set reply's Y to request's X in the read handler above.
+	assert.Equal(t, got.Y, request.X)
 }

@@ -152,7 +152,7 @@ func getUserID(ctx context.Context) (string, error) {
 type personaTagStorageObj struct {
 	PersonaTag string           `json:"persona_tag"`
 	Status     personaTagStatus `json:"status"`
-	Tick       int              `json:"tick"`
+	Tick       uint64           `json:"tick"`
 }
 
 // storageObjToPersonaTagStorageObj converts a generic Nakama StorageObject to a locally defined personaTagStorageObj.

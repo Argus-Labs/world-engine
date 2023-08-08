@@ -5,20 +5,13 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
-var goTypeToSolType = map[string]string{
-	"bool":           "bool",
-	"string":         "string",
-	"uint":           "uint64",
-	"int":            "int64",
-	"common.Address": "address",
-	"uint8":          "uint8",
-	"uint16":         "uint16",
-	"uint32":         "uint32",
-	"uint64":         "uint64",
-}
+var (
+	hasNumbers = regexp.MustCompile(`\d+`)
+)
 
 func GenerateABIType(goStruct any) (*abi.Type, error) {
 	rt := reflect.TypeOf(goStruct)
@@ -44,6 +37,7 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 	if err != nil {
 		return nil, err
 	}
+	at.TupleType = rt
 	return &at, nil
 }
 
@@ -72,10 +66,23 @@ func goTypeToSolidityType(t string, tag string) (string, error) {
 		return tag, nil
 	}
 
-	// for everything else, we can just look up in the map.
-	solType, ok := goTypeToSolType[t]
-	if !ok {
-		return "", fmt.Errorf("unrecognized type %s", t)
+	if t == "common.Address" {
+		return "address", nil
 	}
-	return solType, nil
+
+	if t == "string" || t == "bool" {
+		return t, nil
+	}
+
+	// the final type we can support is int/uint, so if we don't have that by here, we error.
+	if !strings.Contains(t, "int") {
+		return "", fmt.Errorf("unsupported type %s", t)
+	}
+
+	// finally, check if the uint/int passed contains a size. uint/int without size does not work in ABI->Go.
+	if !hasNumbers.MatchString(t) {
+		return "", errors.New("cannot use uint/int without specifying size (i.e. uint64, int8, etc)")
+	}
+	return t, nil
+
 }
