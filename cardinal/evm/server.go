@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync/atomic"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 
@@ -37,6 +38,7 @@ type srv struct {
 	it         ITransactionTypes
 	txh        TxHandler
 	serverOpts []grpc.ServerOption
+	nextNonce  *atomic.Uint64
 }
 
 func NewServer(txh TxHandler, opts ...Option) (routerv1grpc.MsgServer, error) {
@@ -48,7 +50,7 @@ func NewServer(txh TxHandler, opts ...Option) (routerv1grpc.MsgServer, error) {
 	for _, tx := range txs {
 		it[tx.ID()] = tx
 	}
-	s := &srv{it: it, txh: txh}
+	s := &srv{it: it, txh: txh, nextNonce: &atomic.Uint64{}}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -96,6 +98,17 @@ func (s *srv) Serve(addr string) error {
 	return nil
 }
 
+// nextSig produces a signature that has a static PersonaTag and a unique nonce. srv's TxHandler wants a unique
+// signature to help identify transactions, however this signature information is not readily available in evm
+// messages. nextSig is a currently workaround to ensure signatures assocaited with transactions are unique.
+// See https://linear.app/arguslabs/issue/CAR-133/mechanism-to-tie-evm-0x-address-to-cardinal-persona
+func (s *srv) nextSig() *sign.SignedPayload {
+	return &sign.SignedPayload{
+		PersonaTag: "internal-persona-tag-for-evm-server",
+		Nonce:      s.nextNonce.Add(1),
+	}
+}
+
 func (s *srv) SendMsg(ctx context.Context, msg *routerv1.MsgSend) (*routerv1.MsgSendResponse, error) {
 	// first we check if we can extract the transaction associated with the id
 	itx, ok := s.it[transaction.TypeID(msg.MessageId)]
@@ -107,10 +120,7 @@ func (s *srv) SendMsg(ctx context.Context, msg *routerv1.MsgSend) (*routerv1.Msg
 	if err != nil {
 		return nil, err
 	}
-	sig := &sign.SignedPayload{
-		PersonaTag: "persona_tag",
-		Nonce:      99,
-	}
+	sig := s.nextSig()
 	// add transaction to the world queue
 	s.txh.AddTransaction(itx.ID(), tx, sig)
 	return &routerv1.MsgSendResponse{}, nil
