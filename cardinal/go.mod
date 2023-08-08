@@ -17,13 +17,14 @@ require (
 	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230808004839-11a21a99bf62.1
 	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230808004839-11a21a99bf62.1
 	github.com/alicebob/miniredis/v2 v2.30.2
-	github.com/argus-labs/world-engine/chain v0.0.0-20230707202412-c8445f1731f0
+	github.com/argus-labs/world-engine/chain v0.1.1-alpha
 	github.com/argus-labs/world-engine/sign v0.1.3-alpha
 	github.com/cometbft/cometbft v0.38.0-rc3
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/invopop/jsonschema v0.7.0
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/rs/zerolog v1.29.1
+	github.com/stretchr/testify v1.8.4
 	google.golang.org/grpc v1.56.2
 	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.0
@@ -106,7 +107,6 @@ require (
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/cobra v1.7.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/stretchr/testify v1.8.4 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/yuin/gopher-lua v1.1.0 // indirect
