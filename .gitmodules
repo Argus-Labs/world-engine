@@ -4,3 +4,6 @@
 [submodule "chain/contracts/lib/forge-std"]
 	path = chain/contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
+[submodule "example/starter-game-template"]
+	path = example/starter-game-template
+	url = https://github.com/Argus-Labs/starter-game-template
