@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/sign"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"google.golang.org/grpc"
@@ -101,12 +102,11 @@ func (s *msgServerImpl) Serve(addr string) error {
 	return nil
 }
 
-
 // nextSig produces a signature that has a static PersonaTag and a unique nonce. srv's TxHandler wants a unique
 // signature to help identify transactions, however this signature information is not readily available in evm
 // messages. nextSig is a currently workaround to ensure signatures assocaited with transactions are unique.
 // See https://linear.app/arguslabs/issue/CAR-133/mechanism-to-tie-evm-0x-address-to-cardinal-persona
-func (s *srv) nextSig() *sign.SignedPayload {
+func (s *msgServerImpl) nextSig() *sign.SignedPayload {
 	return &sign.SignedPayload{
 		PersonaTag: "internal-persona-tag-for-evm-server",
 		Nonce:      s.nextNonce.Add(1),

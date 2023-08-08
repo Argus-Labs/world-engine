@@ -127,7 +127,7 @@ func TestServer_Query(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	err := w.RegisterReads(read)
 	assert.NilError(t, err)
-	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}]("nothing"))
+	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("nothing"))
 	assert.NilError(t, err)
 	s, err := NewServer(w)
 	assert.NilError(t, err)
