@@ -30,7 +30,7 @@ type testTransactionHandler struct {
 }
 
 func (t *testTransactionHandler) makeURL(path string) string {
-	return t.urlPrefix + path
+	return t.urlPrefix + "/" + path
 }
 
 func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) *testTransactionHandler {
@@ -66,9 +66,9 @@ func TestCanListTransactionEndpoints(t *testing.T) {
 
 	// Make sure the gotEndpoints contains alpha, beta and gamma. It's ok to have extra endpoints
 	foundEndpoints := map[string]bool{
-		"/tx-alpha": false,
-		"/tx-beta":  false,
-		"/tx-gamma": false,
+		"tx-alpha": false,
+		"tx-beta":  false,
+		"tx-gamma": false,
 	}
 
 	for _, e := range gotEndpoints {
@@ -126,7 +126,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
-	resp, err := http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bogusSignatureBz))
+	resp, err := http.Post(txh.makeURL("tx-"+endpoint), "application/json", bytes.NewReader(bogusSignatureBz))
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %v", mustReadBody(t, resp))
 
@@ -174,7 +174,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 
 	bz, err = json.Marshal(&signedTx)
 	assert.NilError(t, err)
-	_, err = http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bz))
+	_, err = http.Post(txh.makeURL("tx-"+endpoint), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 
 	assert.NilError(t, w.LoadGameState())
@@ -207,7 +207,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	bz, err := signedPayload.Marshal()
 	assert.NilError(t, err)
 
-	resp, err := http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	body := mustReadBody(t, resp)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %s", body)
@@ -224,7 +224,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 			Tick:       tick,
 		})
 		assert.NilError(t, err)
-		resp, err = http.Post(txh.makeURL("/"+readPrefix+"persona-signer"), "application/json", bytes.NewReader(bz))
+		resp, err = http.Post(txh.makeURL(""+readPrefix+"persona-signer"), "application/json", bytes.NewReader(bz))
 		assert.NilError(t, err)
 		assert.Equal(t, resp.StatusCode, 200)
 		var readPersonaSignerResponse ReadPersonaSignerResponse
@@ -269,7 +269,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err := http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	// This should fail because the namespace does not match the world's namespace
 	assert.Equal(t, resp.StatusCode, 401)
 
@@ -278,7 +278,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 200)
 }
 
@@ -304,11 +304,11 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Register a persona. This should succeed
-	resp, err := http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 200)
 
 	// Repeat the request. Since the nonce is the same, this should fail
-	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// Using an old nonce should fail
@@ -316,7 +316,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// But increasing the nonce should work
@@ -324,7 +324,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 200)
 }
 
@@ -362,7 +362,7 @@ func TestCanListReads(t *testing.T) {
 	var gotEndpoints []string
 	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&gotEndpoints))
 
-	endpoints := []string{"/read-foo", "/schema/read-foo", "/read-bar", "/schema/read-bar", "/read-baz", "/schema/read-baz", "/read-persona-signer", "/schema/read-persona-signer"}
+	endpoints := []string{"read-foo", "schema/read-foo", "read-bar", "schema/read-bar", "read-baz", "schema/read-baz", "read-persona-signer", "schema/read-persona-signer"}
 	for i, e := range gotEndpoints {
 		assert.Equal(t, e, endpoints[i])
 	}
@@ -400,7 +400,7 @@ func TestReadEncodeDecode(t *testing.T) {
 	bz, err := json.Marshal(req)
 	assert.NilError(t, err)
 
-	res, err := http.Post(txh.makeURL("/"+readPrefix+endpoint), "application/json", bytes.NewReader(bz))
+	res, err := http.Post(txh.makeURL(readPrefix+endpoint), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 
 	buf, err := io.ReadAll(res.Body)

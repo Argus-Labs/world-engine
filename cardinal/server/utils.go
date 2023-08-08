@@ -3,8 +3,12 @@ package server
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/sign"
 	"github.com/rs/zerolog/log"
+	"io"
 	"net/http"
 )
 
@@ -15,6 +19,17 @@ func conformPath(p string) string {
 		p = "/" + p
 	}
 	return p
+}
+
+func writeHandler(payload interface{}) func(writer http.ResponseWriter, request *http.Request) {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		res, err := json.Marshal(payload)
+		if err != nil {
+			writeError(writer, "unable to marshal response", err)
+			return
+		}
+		writeResult(writer, res)
+	}
 }
 
 func writeUnauthorized(w http.ResponseWriter, err error) {
@@ -53,4 +68,75 @@ func decode[T any](buf []byte) (T, error) {
 		return val, err
 	}
 	return val, nil
+}
+
+func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
+	createPersonaTx, err := decode[ecs.CreatePersonaTransaction](sp.Body)
+	if err != nil {
+		return "", err
+	}
+	return createPersonaTx.SignerAddress, nil
+}
+
+func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWorld bool) (payload []byte, sig *sign.SignedPayload, err error) {
+	buf, err := io.ReadAll(request.Body)
+	if err != nil {
+		return nil, nil, errors.New("unable to read body")
+	}
+
+	sp, err := sign.UnmarshalSignedPayload(buf)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if sp.PersonaTag == "" {
+		return nil, nil, errors.New("PersonaTag must not be empty")
+	}
+
+	// Handle the case where signature is disabled
+	if t.disableSigVerification {
+		return sp.Body, sp, nil
+	}
+	///////////////////////////////////////////////
+
+	// Check that the namespace is correct
+	if sp.Namespace != t.w.GetNamespace() {
+		return nil, nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, t.w.GetNamespace())
+	}
+
+	var signerAddress string
+	if getSignedAddressFromWorld {
+		// Use 0 as the tick. We don't care about any pending CreatePersonaTxs, we just want to know the
+		// current signer address for the given persona. Any error will fail this request.
+		signerAddress, err = t.w.GetSignerForPersonaTag(sp.PersonaTag, 0)
+	} else {
+		signerAddress, err = getSignerAddressFromPayload(*sp)
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Check the nonce
+	nonce, err := t.w.GetNonce(signerAddress)
+	if err != nil {
+		return nil, nil, err
+	}
+	if sp.Nonce <= nonce {
+		return nil, nil, fmt.Errorf("%w: got nonce %d, but must be greater than %d",
+			ErrorInvalidSignature, sp.Nonce, nonce)
+	}
+
+	// Verify signature
+	if err := sp.Verify(signerAddress); err != nil {
+		return nil, nil, fmt.Errorf("%w: %w", ErrorInvalidSignature, err)
+	}
+	// Update nonce
+	if err := t.w.SetNonce(signerAddress, sp.Nonce); err != nil {
+		return nil, nil, err
+	}
+
+	if len(sp.Body) == 0 {
+		return buf, sp, nil
+	}
+	return sp.Body, sp, nil
 }
