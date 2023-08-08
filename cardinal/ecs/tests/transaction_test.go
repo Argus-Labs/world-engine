@@ -410,35 +410,22 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 		return nil
 	})
 	assert.NilError(t, world.LoadGameState())
-	txID := moveTx.AddToQueue(world, MoveTx{99, 100})
+	_ = moveTx.AddToQueue(world, MoveTx{99, 100})
 
 	// Tick the game so the transaction is processed
 	assert.NilError(t, world.Tick(context.Background()))
 
-	// There will be 2 ways to get transaction results.
-
-	// Option 1: Use the moveTx to get a concrete type, the list of errors, and an ok flag (e.g. if the txID is not
-	// valid, false will be returned). Different systems should use this method to check for results/errors from
-	// previously run systems. This can also be used for read endpoints. Essentially, when a Cardinal user wants to
-	// access transaction results, they should use this method.
-	moveTxResult, errs, ok := moveTx.GetReceipt(world, txID)
+	tick := world.CurrentTick() - 1
+	receipts, err := world.GetTransactionReceiptsForTick(tick)
+	assert.NilError(t, err)
+	assert.Equal(t, 1, len(receipts))
+	r := receipts[0]
+	assert.Equal(t, 2, len(r.Errs))
+	assert.ErrorIs(t, wantFirstError, r.Errs[0])
+	assert.ErrorIs(t, wantSecondError, r.Errs[1])
+	got, ok := r.Value.(MoveTxResult)
 	assert.Check(t, ok)
-	assert.Equal(t, 2, len(errs))
-	assert.ErrorIs(t, wantFirstError, errs[0])
-	assert.ErrorIs(t, wantSecondError, errs[1])
-	assert.Equal(t, MoveTxResult{42, 42}, moveTxResult)
-
-	// Option 2: Use the world object to get the tx results. The returned iface is of type interface{},
-	// so it will be less safe to use. This will be used in HTTP/RPC handlers where the output is not actually examined,
-	// and it's just being serialized to JSON.
-	iface, errs, ok := world.GetTransactionReceipt(txID)
-	assert.Equal(t, true, ok)
-	assert.Equal(t, 2, len(errs))
-	assert.ErrorIs(t, wantFirstError, errs[0])
-	assert.ErrorIs(t, wantSecondError, errs[1])
-	gotResult, ok := iface.(MoveTxResult)
-	assert.Check(t, ok)
-	assert.Equal(t, MoveTxResult{42, 42}, gotResult)
+	assert.Equal(t, MoveTxResult{42, 42}, got)
 }
 
 func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
