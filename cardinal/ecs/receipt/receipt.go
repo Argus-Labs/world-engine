@@ -18,7 +18,8 @@ var (
 type History struct {
 	currTick     *atomic.Uint64
 	ticksToStore uint64
-	history      []map[transaction.TxID]Receipt
+	// Receipts for a given tick are assigned to an index into this history slice which acts as a ring buffer.
+	history []map[transaction.TxID]Receipt
 }
 
 type Receipt struct {
