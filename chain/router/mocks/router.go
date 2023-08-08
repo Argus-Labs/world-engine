@@ -35,17 +35,32 @@ func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 	return m.recorder
 }
 
-// Send mocks base method.
-func (m *MockRouter) Send(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*router.Result, error) {
+// Query mocks base method.
+func (m *MockRouter) Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Send", ctx, namespace, sender, msgID, msg)
+	ret := m.ctrl.Call(m, "Query", ctx, request, resource, namespace)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Query indicates an expected call of Query.
+func (mr *MockRouterMockRecorder) Query(ctx, request, resource, namespace interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Query", reflect.TypeOf((*MockRouter)(nil).Query), ctx, request, resource, namespace)
+}
+
+// SendMessage mocks base method.
+func (m *MockRouter) SendMessage(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*router.Result, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendMessage", ctx, namespace, sender, msgID, msg)
 	ret0, _ := ret[0].(*router.Result)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Send indicates an expected call of Send.
-func (mr *MockRouterMockRecorder) Send(ctx, namespace, sender, msgID, msg interface{}) *gomock.Call {
+// SendMessage indicates an expected call of SendMessage.
+func (mr *MockRouterMockRecorder) SendMessage(ctx, namespace, sender, msgID, msg interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockRouter)(nil).Send), ctx, namespace, sender, msgID, msg)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendMessage", reflect.TypeOf((*MockRouter)(nil).SendMessage), ctx, namespace, sender, msgID, msg)
 }
