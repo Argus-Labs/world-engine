@@ -1,13 +1,14 @@
 package tests
 
 import (
-	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"context"
+	"testing"
+
+	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"github.com/argus-labs/world-engine/cardinal/evm"
 	"gotest.tools/v3/assert"
-	"testing"
 )
 
 func TestReadEVM(t *testing.T) {
@@ -30,7 +31,7 @@ func TestReadEVM(t *testing.T) {
 
 	w := inmem.NewECSWorldForTest(t)
 	err := w.RegisterReads(fooRead)
-	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}]("blah"))
+	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)
 	s, err := evm.NewServer(w)
 	assert.NilError(t, err)
