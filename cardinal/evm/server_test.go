@@ -42,8 +42,8 @@ func TestServer_SendMessage(t *testing.T) {
 	BarEvmTx.TupleType = reflect.TypeOf(BarTransaction{})
 
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction]("footx", ecs.WithEVMSupport[FooTransaction])
-	BarTx := ecs.NewTransactionType[BarTransaction]("bartx", ecs.WithEVMSupport[BarTransaction])
+	FooTx := ecs.NewTransactionType[FooTransaction]("footx", ecs.WithTxEVMSupport[FooTransaction])
+	BarTx := ecs.NewTransactionType[BarTransaction]("bartx", ecs.WithTxEVMSupport[BarTransaction])
 
 	// bind them to EVM types
 	FooTx.SetEVMType(&FooEvmTX)
@@ -120,7 +120,7 @@ func TestServer_Query(t *testing.T) {
 	// set up a read that simply returns the FooRead.X
 	read := ecs.NewReadType[FooRead, FooReply]("foo", func(world *ecs.World, req FooRead) (FooReply, error) {
 		return FooReply{Y: req.X}, nil
-	}, ecs.WithEVMSupport[FooRead, FooReply])
+	}, ecs.WithReadEVMSupport[FooRead, FooReply])
 	w := inmem.NewECSWorldForTest(t)
 	err := w.RegisterReads(read)
 	assert.NilError(t, err)

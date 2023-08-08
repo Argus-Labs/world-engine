@@ -28,7 +28,7 @@ type TransactionQueue struct {
 	signatures map[transaction.TypeID][]*sign.SignedPayload
 }
 
-func WithEVMSupport[T any]() func(transactionType *TransactionType[T]) {
+func WithTxEVMSupport[T any]() func(transactionType *TransactionType[T]) {
 	return func(txt *TransactionType[T]) {
 		var tx T
 		abiType, err := GenerateABIType(tx)

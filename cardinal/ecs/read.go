@@ -35,7 +35,7 @@ type ReadType[Request any, Reply any] struct {
 	replyABI   *abi.Type
 }
 
-func WithEVMSupport[Request, Reply any]() func(transactionType *ReadType[Request, Reply]) {
+func WithReadEVMSupport[Request, Reply any]() func(transactionType *ReadType[Request, Reply]) {
 	return func(read *ReadType[Request, Reply]) {
 		var req Request
 		var rep Reply
@@ -121,7 +121,7 @@ func (r *ReadType[req, rep]) HandleReadRaw(w *World, bz []byte) ([]byte, error) 
 
 func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if r.requestABI == nil {
-		return nil, errors.New("cannot call DecodeEVMRequest without using the WithEVMSupport option when " +
+		return nil, errors.New("cannot call DecodeEVMRequest without using the WithReadEVMSupport option when " +
 			"creating the read")
 	}
 	args := abi.Arguments{{Type: *r.requestABI}}
@@ -141,7 +141,7 @@ func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 
 func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if r.replyABI == nil {
-		return nil, errors.New("cannot call DecodeEVMReply without using the WithEVMSupport option when " +
+		return nil, errors.New("cannot call DecodeEVMReply without using the WithReadEVMSupport option when " +
 			"creating the read")
 	}
 	args := abi.Arguments{{Type: *r.replyABI}}
@@ -161,7 +161,7 @@ func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 
 func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	if r.replyABI == nil {
-		return nil, errors.New("cannot call EncodeEVMReply without using the WithEVMSupport option when " +
+		return nil, errors.New("cannot call EncodeEVMReply without using the WithReadEVMSupport option when " +
 			"creating the read")
 	}
 	args := abi.Arguments{{Type: *r.replyABI}}
@@ -171,7 +171,7 @@ func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 
 func (r *ReadType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 	if r.requestABI == nil || r.replyABI == nil {
-		return nil, errors.New("cannot call EncodeAsABI without using the WithEVMSupport option when " +
+		return nil, errors.New("cannot call EncodeAsABI without using the WithReadEVMSupport option when " +
 			"creating the read")
 	}
 	req, ok := input.(Request)
