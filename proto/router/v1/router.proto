@@ -5,11 +5,11 @@ package world.engine.router.v1;
 option go_package = "github.com/argus-labs/world-engine/router/v1";
 
 service Msg {
-  rpc SendMsg(MsgSend) returns (MsgSendResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
   rpc QueryShard(QueryShardRequest) returns (QueryShardResponse);
 }
 
-message MsgSend {
+message SendMessageRequest {
   // sender is the identifier of the message sender.
   string sender = 1;
   // message contains the underlying bytes of the message. typically, this is an abi encoded solidity struct.
@@ -20,7 +20,7 @@ message MsgSend {
   uint64 message_id = 3;
 }
 
-message MsgSendResponse {
+message SendMessageResponse {
   // code is an arbitrary integer that denotes the result of some message execution.
   uint64 code = 1;
   // message is an encoded message that should be able to be unpacked into a solidity struct.

@@ -21,9 +21,9 @@ type BarTransaction struct {
 	Z bool
 }
 
-// TestServer_SendMsg tests that when sending messages through to the EVM receiver server, they get passed along to
+// TestServer_SendMessage tests that when sending messages through to the EVM receiver server, they get passed along to
 // the world, and executed in systems.
-func TestServer_SendMsg(t *testing.T) {
+func TestServer_SendMessage(t *testing.T) {
 	// setup the world
 	w := inmem.NewECSWorldForTest(t)
 
@@ -85,7 +85,7 @@ func TestServer_SendMsg(t *testing.T) {
 	for _, tx := range fooTxs {
 		fooTxBz, err := abi.Arguments{{Type: FooEvmTX}}.Pack(tx)
 		assert.NilError(t, err)
-		_, err = server.SendMsg(context.Background(), &routerv1.MsgSend{
+		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    "hello",
 			Message:   fooTxBz,
 			MessageId: uint64(FooTx.ID()),
@@ -95,7 +95,7 @@ func TestServer_SendMsg(t *testing.T) {
 	for _, tx := range barTxs {
 		barTxBz, err := abi.Arguments{{Type: BarEvmTx}}.Pack(tx)
 		assert.NilError(t, err)
-		_, err = server.SendMsg(context.Background(), &routerv1.MsgSend{
+		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    "hello",
 			Message:   barTxBz,
 			MessageId: uint64(BarTx.ID()),

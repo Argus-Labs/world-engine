@@ -98,7 +98,8 @@ func (s *msgServerImpl) Serve(addr string) error {
 	return nil
 }
 
-func (s *msgServerImpl) SendMsg(ctx context.Context, msg *routerv1.MsgSend) (*routerv1.MsgSendResponse, error) {
+func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessageRequest,
+) (*routerv1.SendMessageResponse, error) {
 	// first we check if we can extract the transaction associated with the id
 	itx, ok := s.txMap[transaction.TypeID(msg.MessageId)]
 	if !ok {
@@ -111,7 +112,7 @@ func (s *msgServerImpl) SendMsg(ctx context.Context, msg *routerv1.MsgSend) (*ro
 	}
 	// add transaction to the world queue
 	s.world.AddTransaction(itx.ID(), tx, nil)
-	return &routerv1.MsgSendResponse{}, nil
+	return &routerv1.SendMessageResponse{}, nil
 }
 
 func (s *msgServerImpl) QueryShard(ctx context.Context, req *routerv1.QueryShardRequest) (*routerv1.QueryShardResponse, error) {
