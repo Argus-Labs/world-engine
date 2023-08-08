@@ -5,9 +5,7 @@ import (
 	"context"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"gotest.tools/v3/assert"
-	"reflect"
 	"testing"
 )
 
@@ -27,27 +25,10 @@ func TestServer_SendMessage(t *testing.T) {
 	// setup the world
 	w := inmem.NewECSWorldForTest(t)
 
-	// build the dynamic ABI types for evm compat
-	FooEvmTX, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
-		{Name: "X", Type: "uint64"},
-		{Name: "Y", Type: "string"},
-	})
-	assert.NilError(t, err)
-	FooEvmTX.TupleType = reflect.TypeOf(FooTransaction{})
-	BarEvmTx, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
-		{Name: "Y", Type: "uint64"},
-		{Name: "Z", Type: "bool"},
-	})
-	assert.NilError(t, err)
-	BarEvmTx.TupleType = reflect.TypeOf(BarTransaction{})
-
 	// create the ECS transactions
 	FooTx := ecs.NewTransactionType[FooTransaction]("footx", ecs.WithTxEVMSupport[FooTransaction])
 	BarTx := ecs.NewTransactionType[BarTransaction]("bartx", ecs.WithTxEVMSupport[BarTransaction])
 
-	// bind them to EVM types
-	FooTx.SetEVMType(&FooEvmTX)
-	BarTx.SetEVMType(&BarEvmTx)
 	assert.NilError(t, w.RegisterTransactions(FooTx, BarTx))
 
 	// create some txs to submit
@@ -83,7 +64,7 @@ func TestServer_SendMessage(t *testing.T) {
 
 	// marshal out the bytes to send from each list of transactions.
 	for _, tx := range fooTxs {
-		fooTxBz, err := abi.Arguments{{Type: FooEvmTX}}.Pack(tx)
+		fooTxBz, err := FooTx.ABIEncode(tx)
 		assert.NilError(t, err)
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    "hello",
@@ -93,7 +74,7 @@ func TestServer_SendMessage(t *testing.T) {
 		assert.NilError(t, err)
 	}
 	for _, tx := range barTxs {
-		barTxBz, err := abi.Arguments{{Type: BarEvmTx}}.Pack(tx)
+		barTxBz, err := BarTx.ABIEncode(tx)
 		assert.NilError(t, err)
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    "hello",

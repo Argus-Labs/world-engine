@@ -10,6 +10,10 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
+var (
+	ErrEVMTypeNotSet = errors.New("EVM type is not set")
+)
+
 var _ transaction.ITransaction = NewTransactionType[struct{}]("")
 
 // TransactionType helps manage adding transactions (aka events) to the world transaction queue. It also assists
@@ -60,7 +64,7 @@ func (t *TransactionType[T]) Schema() *jsonschema.Schema {
 // DecodeEVMBytes decodes abi encoded solidity structs into Go structs of the same structure.
 func (t *TransactionType[T]) DecodeEVMBytes(bz []byte) (any, error) {
 	if t.evmType == nil {
-		return nil, errors.New("cannot call DecodeEVMBytes without setting via SetEVMType first")
+		return nil, ErrEVMTypeNotSet
 	}
 	args := abi.Arguments{{Type: *t.evmType}}
 	unpacked, err := args.Unpack(bz)
@@ -75,10 +79,6 @@ func (t *TransactionType[T]) DecodeEVMBytes(bz []byte) (any, error) {
 		return nil, fmt.Errorf("error decoding EVM bytes: cannot cast %T to %T", unpacked[0], new(T))
 	}
 	return underlying, nil
-}
-
-func (t *TransactionType[T]) SetEVMType(at *abi.Type) {
-	t.evmType = at
 }
 
 func (t *TransactionType[T]) ID() transaction.TypeID {
@@ -144,4 +144,12 @@ func (t *TransactionType[T]) Encode(a any) ([]byte, error) {
 
 func (t *TransactionType[T]) Decode(bytes []byte) (any, error) {
 	return storage.Decode[T](bytes)
+}
+
+func (t *TransactionType[T]) ABIEncode(v any) ([]byte, error) {
+	if t.evmType == nil {
+		return nil, ErrEVMTypeNotSet
+	}
+	args := abi.Arguments{{Type: *t.evmType}}
+	return args.Pack(v)
 }

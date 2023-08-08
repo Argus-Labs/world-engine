@@ -14,4 +14,5 @@ type ITransaction interface {
 	Encode(any) ([]byte, error)
 	Decode([]byte) (any, error)
 	DecodeEVMBytes([]byte) (any, error)
+	ABIEncode(any) ([]byte, error)
 }
