@@ -203,7 +203,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		opt(w)
 	}
 	if w.receiptHistory == nil {
-		w.receiptHistory = receipt.NewHistory(uint64(w.CurrentTick()), 10)
+		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), 10)
 	}
 	return w, nil
 }
@@ -514,7 +514,7 @@ type TxBatch struct {
 		}
 
 		// check if context contains a done channel.
-		done := ctx.Value("done")
+		done := ctx.Result("done")
 		// if there is none, we just return.
 		if done == nil {
 			return
@@ -695,10 +695,10 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		for _, tickedTxs := range res.Epochs {
 			target := tickedTxs.Epoch
 			// tick up to target
-			if target < uint64(w.CurrentTick()) {
+			if target < w.CurrentTick() {
 				return fmt.Errorf("got tx for tick %d, but world is at tick %d", target, w.CurrentTick())
 			}
-			for current := w.CurrentTick(); uint64(current) != target; {
+			for current := w.CurrentTick(); current != target; {
 				if err := w.Tick(ctx); err != nil {
 					return err
 				}
@@ -799,7 +799,7 @@ func (w *World) GetTransactionReceipt(id transaction.TxID) (any, []error, bool) 
 	if !ok {
 		return nil, nil, false
 	}
-	return rec.Value, rec.Errs, true
+	return rec.Result, rec.Errs, true
 }
 
 func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {

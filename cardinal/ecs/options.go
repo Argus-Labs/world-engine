@@ -15,6 +15,6 @@ func WithAdapter(adapter shard.Adapter) Option {
 
 func WithReceiptHistorySize(size int) Option {
 	return func(w *World) {
-		w.receiptHistory = receipt.NewHistory(uint64(w.CurrentTick()), size)
+		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), size)
 	}
 }

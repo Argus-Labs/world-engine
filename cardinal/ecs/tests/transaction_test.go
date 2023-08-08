@@ -423,7 +423,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	assert.Equal(t, 2, len(r.Errs))
 	assert.ErrorIs(t, wantFirstError, r.Errs[0])
 	assert.ErrorIs(t, wantSecondError, r.Errs[1])
-	got, ok := r.Value.(MoveTxResult)
+	got, ok := r.Result.(MoveTxResult)
 	assert.Check(t, ok)
 	assert.Equal(t, MoveTxResult{42, 42}, got)
 }
@@ -519,7 +519,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	assert.Equal(t, 1, len(receipts))
 	r := receipts[0]
 	assert.Equal(t, 0, len(r.Errs))
-	gotResult, ok := r.Value.(TxOut)
+	gotResult, ok := r.Result.(TxOut)
 	assert.Check(t, ok)
 	assert.Equal(t, secondResult, gotResult)
 }
