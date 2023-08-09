@@ -205,7 +205,7 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 		}
 
 		submitTx := func() uint64 {
-			tick := t.w.AddTransaction(tx.ID(), txVal, sp)
+			tick, _ := t.w.AddTransaction(tx.ID(), txVal, sp)
 
 			res, err := json.Marshal("ok")
 			if err != nil {
@@ -251,9 +251,13 @@ func (t *Handler) makeReadHandler(r ecs.IRead) http.HandlerFunc {
 	}
 }
 
-func (t *Handler) makeSchemaHandler(schema *jsonschema.Schema) http.HandlerFunc {
+func (t *Handler) makeSchemaHandler(inSchema, outSchema *jsonschema.Schema) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		res, err := json.Marshal(schema)
+		requestAndReply := map[string]*jsonschema.Schema{
+			"request": inSchema,
+			"reply":   outSchema,
+		}
+		res, err := json.Marshal(requestAndReply)
 		if err != nil {
 			writeError(writer, "unable to marshal response", err)
 			return

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
 )
@@ -17,7 +18,7 @@ type IRead interface {
 	// and is expected to return a json encoded response struct.
 	HandleReadRaw(*World, []byte) ([]byte, error)
 	// Schema returns the json schema of the read request.
-	Schema() *jsonschema.Schema
+  Schema() (request, reply *jsonschema.Schema)
 	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
 	DecodeEVMRequest([]byte) (any, error)
 	// EncodeEVMReply encodes the reply as an abi encoded struct.
@@ -89,8 +90,8 @@ func (r *ReadType[req, rep]) Name() string {
 	return r.name
 }
 
-func (r *ReadType[req, rep]) Schema() *jsonschema.Schema {
-	return jsonschema.Reflect(new(req))
+func (r *ReadType[req, rep]) Schema() (request, reply *jsonschema.Schema) {
+	return jsonschema.Reflect(new(req)), jsonschema.Reflect(new(rep))
 }
 
 func (r *ReadType[req, rep]) HandleRead(world *World, a any) (any, error) {

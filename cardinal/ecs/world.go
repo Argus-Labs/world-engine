@@ -1,13 +1,15 @@
 package ecs
 
 import (
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/protobuf/proto"
 	"sync"
 	"time"
+
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
+	"github.com/argus-labs/world-engine/cardinal/ecs/receipt"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	"github.com/argus-labs/world-engine/sign"
@@ -45,10 +47,11 @@ type World struct {
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
 	// txQueues is a map of transaction names to the relevant list of transactions data
-	txQueues     map[transaction.TypeID][]any
-	txSignatures map[transaction.TypeID][]*sign.SignedPayload
+	txQueues transaction.TxMap
 	// txLock ensures txQueues is not modified in the middle of a tick.
 	txLock sync.Mutex
+
+	receiptHistory *receipt.History
 
 	chain shard.ReadAdapter
 	// isRecovering indicates that the world is recovering from the DA layer.
@@ -189,16 +192,18 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	worldId := nextWorldId
 	nextWorldId++
 	w := &World{
-		id:           worldId,
-		store:        s,
-		tick:         0,
-		systems:      make([]System, 0, 256), // this can just stay in memory.
-		txQueues:     map[transaction.TypeID][]any{},
-		txSignatures: map[transaction.TypeID][]*sign.SignedPayload{},
+		id:       worldId,
+		store:    s,
+		tick:     0,
+		systems:  make([]System, 0, 256), // this can just stay in memory.
+		txQueues: transaction.TxMap{},
 	}
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
 		opt(w)
+	}
+	if w.receiptHistory == nil {
+		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), 10)
 	}
 	return w, nil
 }
@@ -399,31 +404,31 @@ func (w *World) StorageAccessor() StorageAccessor {
 }
 
 // copyTransactions makes a copy of the world txQueue, then zeroes out the txQueue.
-func (w *World) copyTransactions() (map[transaction.TypeID][]any, map[transaction.TypeID][]*sign.SignedPayload) {
+func (w *World) copyTransactions() transaction.TxMap {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
-	txsMap := make(map[transaction.TypeID][]any, len(w.txQueues))
-	sigsMap := make(map[transaction.TypeID][]*sign.SignedPayload, len(w.txSignatures))
+	txsMap := make(transaction.TxMap, len(w.txQueues))
 	for id, txs := range w.txQueues {
-		txsMap[id] = make([]interface{}, len(txs))
-		sigsMap[id] = make([]*sign.SignedPayload, len(txs))
+		txsMap[id] = make([]transaction.TxAny, len(txs))
 		copy(txsMap[id], txs)
-		copy(sigsMap[id], w.txSignatures[id])
 		w.txQueues[id] = w.txQueues[id][:0]
-		w.txSignatures[id] = w.txSignatures[id][:0]
 	}
-	return txsMap, sigsMap
+	return txsMap
 }
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) uint64 {
+func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (tick uint64, txID transaction.TxID) {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
-	w.txQueues[id] = append(w.txQueues[id], v)
-	w.txSignatures[id] = append(w.txSignatures[id], sig)
-	return w.CurrentTick()
+	txID = transaction.TxID{PersonaTag: sig.PersonaTag, Index: sig.Nonce}
+	w.txQueues[id] = append(w.txQueues[id], transaction.TxAny{
+		ID:    txID,
+		Value: v,
+		Sig:   sig,
+	})
+	return w.CurrentTick(), txID
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
@@ -432,15 +437,14 @@ func (w *World) Tick(ctx context.Context) error {
 	if !w.stateIsLoaded {
 		return errors.New("must load state before first tick")
 	}
-	txs, sigs := w.copyTransactions()
+	txs := w.copyTransactions()
 
 	if err := w.store.TickStore.StartNextTick(w.registeredTransactions, txs); err != nil {
 		return err
 	}
 
 	txQueue := &TransactionQueue{
-		queue:      txs,
-		signatures: sigs,
+		queue: txs,
 	}
 
 	for _, sys := range w.systems {
@@ -448,6 +452,7 @@ func (w *World) Tick(ctx context.Context) error {
 			return err
 		}
 	}
+	w.receiptHistory.NextTick()
 
 	if err := w.saveArchetypeData(); err != nil {
 		return err
@@ -509,7 +514,7 @@ type TxBatch struct {
 		}
 
 		// check if context contains a done channel.
-		done := ctx.Value("done")
+		done := ctx.Result("done")
 		// if there is none, we just return.
 		if done == nil {
 			return
@@ -552,7 +557,7 @@ func (w *World) saveToKey(key string, cm storage.ComponentMarshaler) error {
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
 // transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
 // transactions that need to be processed because the last tick was successful.
-func (w *World) recoverGameState() (recoveredTxs map[transaction.TypeID][]any, err error) {
+func (w *World) recoverGameState() (recoveredTxs transaction.TxMap, err error) {
 	start, end, err := w.store.TickStore.GetTickNumbers()
 	if err != nil {
 		return nil, err
@@ -690,10 +695,10 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		for _, tickedTxs := range res.Epochs {
 			target := tickedTxs.Epoch
 			// tick up to target
-			if target < uint64(w.CurrentTick()) {
+			if target < w.CurrentTick() {
 				return fmt.Errorf("got tx for tick %d, but world is at tick %d", target, w.CurrentTick())
 			}
-			for current := w.CurrentTick(); uint64(current) != target; {
+			for current := w.CurrentTick(); current != target; {
 				if err := w.Tick(ctx); err != nil {
 					return err
 				}
@@ -779,4 +784,24 @@ func (w *World) GetNonce(signerAddress string) (uint64, error) {
 
 func (w *World) SetNonce(signerAddress string, nonce uint64) error {
 	return w.store.NonceStore.SetNonce(signerAddress, nonce)
+}
+
+func (w *World) AddTransactionError(id transaction.TxID, err error) {
+	w.receiptHistory.AddError(id, err)
+}
+
+func (w *World) SetTransactionResult(id transaction.TxID, a any) {
+	w.receiptHistory.SetResult(id, a)
+}
+
+func (w *World) GetTransactionReceipt(id transaction.TxID) (any, []error, bool) {
+	rec, ok := w.receiptHistory.GetReceipt(id)
+	if !ok {
+		return nil, nil, false
+	}
+	return rec.Result, rec.Errs, true
+}
+
+func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
+	return w.receiptHistory.GetReceiptsForTick(tick)
 }
