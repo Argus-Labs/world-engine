@@ -7,6 +7,6 @@ use (
 	sign
 	chain/contracts
 	example/starter-game-template/nakama
-	example/starter-game-template/server
+	example/starter-game-template/cardinal
 	example/starter-game-template/testsuite
 )
