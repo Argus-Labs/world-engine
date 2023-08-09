@@ -12,23 +12,23 @@ git clone https://github.com/Argus-Labs/starter-game-template
 
 The game template has 4 directories, but you will only need to worry about 2 of them (cardinal and nakama).
 
-- cardinal: code for your game server.
-- magefiles: utility scripts that utilize the `mage` build tool (an alternative to `make`)
-- nakama: code for the relayer/account abstraction layer.
-- testsuite: e2e tests for the whole stack.
+- `cardinal`: code for your game server.
+- `magefiles`: utility scripts that utilize the `mage` build tool (an alternative to `make`)
+- `nakama`: code for the relayer/account abstraction layer.
+- `testsuite`: e2e tests for the whole stack.
 
 ### Cardinal
 
 Cardinal is where the game logic lives. We recommend the following directory structure to organize your code:
 
-- component: component definitions
-- system: system functions implementations
-- read: read (query) implementations for your game state (used by external clients)
-- tx: transaction definitions
+- `component`: component definitions
+- `system`: system functions implementations
+- `read`: read (query) implementations for your game state (used by external clients)
+- `tx`: transaction definitions
 
 The starter game template comes with some existing code in these directories, so you can get a feel for how things
 should be organized and implemented.
-    
+
 ### Nakama
 
 Nakama is where the relayer and account abstraction layer lives. We expect most people to use our version of Nakama,
