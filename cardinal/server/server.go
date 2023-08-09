@@ -242,7 +242,7 @@ func (t *Handler) makeReadHandler(r ecs.IRead) http.HandlerFunc {
 			writeError(writer, "unable to read request body", err)
 			return
 		}
-		res, err := r.HandleRead(t.w, buf)
+		res, err := r.HandleReadRaw(t.w, buf)
 		if err != nil {
 			writeError(writer, "error handling read", err)
 			return
