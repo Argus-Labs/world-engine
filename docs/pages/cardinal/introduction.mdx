@@ -1,7 +1,43 @@
 # Meet Cardinal
 
 Cardinal is a powerful game server library that enables the development of fully on-chain games. It follows the ECS
-(Entity-Component-System) architecture which facilitates fast and efficient updates to game state. If you are unfamiliar
-with ECS concepts, we recommend the following reading: [What is ECS?](https://github.com/SanderMertens/ecs-faq#what-is-ecs)
+(Entity-Component-System) architecture which facilitates fast and efficient updates to game state.
 
-Developers building on Cardinal write their code in Go.
+## Understanding ECS
+
+ECS, or Entity-Component-System, stands as a programming paradigm specifically tailored for game development. While ECS
+itself is conceptually straightforward, its effective implementation demands a nuanced understanding. Familiarizing
+yourself with the ECS model is crucial before delving into the capabilities of Cardinal.
+
+
+### Entities
+
+Entities are simply a unique identifier of something in the game. Entities can be players, objects, NPCs, etc. They are
+the simplest unit in the ECS system.
+
+### Components
+
+Components are data fragments that bind to entities, offering descriptive attributes. Imagine a "Health" component for
+players, tracking their health status. Maintaining component generality is key – for instance, a health component can be
+reused for different types of entities, such as animals or destructible objects.
+
+### Entities, part two
+
+Now that components are understood, let's revisit entities. In the ECS realm, entities aren't conjured from thin air;
+they are composed through the combination of one or more components. Consider a fighting game, where a player is
+composed of both a "Health" component, quantifying hit points, and an "Attack" component, dictating the inflicted damage
+potential.
+
+### Systems
+
+Systems are the heartbeat of ECS, encompassing functions that manipulate entities, allowing your game logic comes to
+life. Systems often operate by iteratively traversing specific components and updating their values. For instance, a
+"HealthRegen" system could iterate over entities with the "Health" component, progressively replenishing health values.
+
+
+## Why Do We Need ECS?
+
+When used correctly, ECS unlocks a realm of organized code and seamless extensibility. Injecting new features into
+your game can be as straightforward as introducing a novel system that interacts with existing components. It's
+important to note that while ECS is a formidable tool, it isn't a universal solution. Certain game scenarios might find
+better suited solutions outside the ECS paradigm.
