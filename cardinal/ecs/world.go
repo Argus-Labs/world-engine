@@ -216,6 +216,10 @@ func (w *World) CurrentTick() uint64 {
 	return w.tick
 }
 
+func (w *World) ReceiptHistorySize() uint64 {
+	return w.receiptHistory.Size()
+}
+
 func (w *World) CreateMany(num int, components ...component.IComponentType) ([]storage.EntityID, error) {
 	archetypeID := w.getArchetypeForComponents(components)
 	entities := make([]storage.EntityID, 0, num)

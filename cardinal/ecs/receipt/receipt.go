@@ -48,6 +48,10 @@ func NewHistory(currentTick uint64, ticksToStore int) *History {
 	return h
 }
 
+func (h *History) Size() uint64 {
+	return h.ticksToStore
+}
+
 // NextTick advances the internal History tick by 1. Errors and results can only be set on the current tick. Receipts
 // from ticks in the past are read only.
 func (h *History) NextTick() {
