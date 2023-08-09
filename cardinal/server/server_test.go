@@ -610,11 +610,11 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 
 	foundInc, foundDupe, foundErr := false, false, false
 	for _, r := range txReceipts.Receipts {
-		if len(r.Errs) > 0 {
+		if len(r.Errors) > 0 {
 			foundErr = true
-			assert.Equal(t, 2, len(r.Errs))
-			assert.Equal(t, wantError.Error(), r.Errs[0])
-			assert.Equal(t, wantError.Error(), r.Errs[1])
+			assert.Equal(t, 2, len(r.Errors))
+			assert.Equal(t, wantError.Error(), r.Errors[0])
+			assert.Equal(t, wantError.Error(), r.Errors[1])
 			continue
 		}
 		m, ok := r.Result.(map[string]any)

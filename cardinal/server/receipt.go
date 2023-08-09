@@ -18,15 +18,16 @@ type ListTxReceiptsRequest struct {
 // Meaning StartTick is included and EndTick is not. To iterate over all ticks in the future, use the returned
 // EndTick as the StartTick in the next request. If StartTick == EndTick, the receipts list will be empty.
 type ListTxReceiptsReply struct {
-	StartTick uint64        `json:"start_tick"`
-	EndTick   uint64        `json:"end_tick"`
-	Receipts  []jsonReceipt `json:"receipts"`
+	StartTick uint64    `json:"start_tick"`
+	EndTick   uint64    `json:"end_tick"`
+	Receipts  []Receipt `json:"receipts"`
 }
 
-type jsonReceipt struct {
-	ID     transaction.TxID
-	Result any
-	Errs   []string
+// Receipt represents a single transaction receipt. It contains an ID, a result, and a list of errors.
+type Receipt struct {
+	ID     transaction.TxID `json:"id"`
+	Result any              `json:"result"`
+	Errors []string         `json:"errors"`
 }
 
 // errsToStringSlice convert a slice of errors into a slice of strings. This is needed as json.Marshal does not
@@ -74,10 +75,10 @@ func handleListTxReceipts(world *ecs.World) http.HandlerFunc {
 				continue
 			}
 			for _, r := range currReceipts {
-				reply.Receipts = append(reply.Receipts, jsonReceipt{
+				reply.Receipts = append(reply.Receipts, Receipt{
 					ID:     r.ID,
 					Result: r.Result,
-					Errs:   errsToStringSlice(r.Errs),
+					Errors: errsToStringSlice(r.Errs),
 				})
 			}
 		}
