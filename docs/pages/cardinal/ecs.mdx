@@ -1,7 +1,7 @@
 # Introduction to ECS
 
-Cardinal is a powerful game server library that enables the development of fully on-chain games. It follows the ECS
-(Entity-Component-System) architecture which facilitates fast and efficient updates to game state.
+Cardinal follows the ECS (Entity-Component-System) architecture which facilitates fast and efficient updates to game
+state, as well as enabling painless extensibility to your games.
 
 ECS, or Entity-Component-System, stands as a programming paradigm specifically tailored for game development. While ECS
 itself is conceptually straightforward, its effective implementation demands a nuanced understanding. Familiarizing
@@ -21,7 +21,7 @@ reused for different types of entities, such as animals or destructible objects.
 
 ### Entities, part two
 
-Now that components are understood, let's revisit entities. In the ECS realm, entities aren't conjured from thin air;
+Now that we've explained components, let's revisit entities. In the ECS realm, entities aren't conjured from thin air;
 they are composed through the combination of one or more components. Consider a fighting game, where a player is
 composed of both a "Health" component, quantifying hit points, and an "Attack" component, dictating the inflicted damage
 potential.
@@ -29,8 +29,9 @@ potential.
 ### Systems
 
 Systems are the heartbeat of ECS, encompassing functions that manipulate entities, allowing your game logic comes to
-life. Systems often operate by iteratively traversing specific components and updating their values. For instance, a
-"HealthRegen" system could iterate over entities with the "Health" component, progressively replenishing health values.
+come to life. Systems often operate by iteratively traversing specific components and updating their values. For
+instance, a "HealthRegen" system could iterate over entities with the "Health" component, progressively replenishing
+health values.
 
 
 ## Why Do We Need ECS?
