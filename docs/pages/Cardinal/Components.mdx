@@ -1,0 +1,46 @@
+# Components
+
+Components are the structures that give entities their state. In Cardinal, you define your component using a normal Go
+struct.
+
+```go
+type Health struct {
+    Amount  uint64
+    Cap     uint64
+}
+```
+
+In order to use this struct in the ECS world, instantiate a new component type, passing your struct in the type
+parameter.
+
+```go
+import "github.com/argus-labs/world-engine/cardinal/ecs"
+
+var (
+	 HealthComponent = ecs.NewComponentType[Health]()
+)
+
+```
+
+## Options
+
+The `NewComponentType` function also accepts Options to alter the component.
+
+### WithDefault
+`WithDefault` allows entities with this component to be instantiated with a default value, rather than the zero value of the struct.
+If you are not familiar with Go's zero values, check out this [article](https://www.scaler.com/topics/golang/golang-zero-values/).
+
+```go
+import "github.com/argus-labs/world-engine/cardinal/ecs"
+
+type Health struct {
+    Amount  uint64
+    Cap     uint64
+}
+
+var (
+	 HealthComponent = ecs.NewComponentType[Health](ecs.WithDefault(Health{Amount: 100, Cap: 100})
+)
+```
+
+The above code would start every entity with the `HealthComponent` attached to it at full health, instead of zero.

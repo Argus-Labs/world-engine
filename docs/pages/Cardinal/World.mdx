@@ -1,0 +1,114 @@
+# World
+
+The `World` object is the manager of everything happening in the game. It deals with registering components systems,
+transactions, reads, as well as ticking the game simulation forward. `World`'s in Cardinal use [Redis](https://redis.io/) to store the game's state.
+
+## Creating a World
+
+Cardinal provides two ways to create a world.
+
+### In Memory
+
+Using the `inmem` package, you can get an instantiated `World` object that uses an in-memory data store, [miniredis](https://github.com/alicebob/miniredis).This is the simplest way to get started with building and testing your game. Do note however, that this should NOT be used in production.
+
+### With Redis Instance
+
+To instantiate a production ready `World` object, you need to instantiate a `RedisStorage` object, create a
+`WorldStorage` object from that:
+
+```go
+import (
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+)
+
+func main() {
+	redisAddr := os.GetEnv("REDIS_ADDR")
+	redisPass := os.GetEnv("REDIS_PASS")
+	store := storage.NewRedisStorage(storage.Options{
+		Addr: redisAddr
+		Password: redisPass
+	})
+	worldStorage := storage.NewWorldStorage(&store)
+
+	world := ecs.NewWorld(worldStorage)
+}
+```
+
+## Registering Components
+
+In order to use your components in the `World`, they must first be registered.
+
+Assuming your components live in a `component` directory:
+
+```go
+err := world.RegisterComponents(component.Health, component.Attack)
+if err != nil {
+	panic(err)
+}
+```
+
+## Registering Transactions
+
+In order to use your transactions in the `World`, they must first be registered.
+
+Assuming your transactions live in a `tx` directory:
+
+```go
+err := world.RegisterTransactions(tx.Join, tx.Attack, tx.Move)
+if err != nil {
+	panic(err)
+}
+```
+
+
+## Registering Reads
+
+In order to use your reads in the `World`, they must first be registered.
+
+Assuming your reads live in a `read` directory:
+
+```go
+err := world.RegisterReads(read.Player, read.Weapons)
+if err != nil {
+	panic(err)
+}
+```
+
+## Adding Systems
+
+Systems are added to the world via the `AddSystem` method on `World`. It is important that systems are added in the
+order in which you want them to be executed in during ticks.
+
+Assuming your systems are implemented in a `system` directory:
+
+```go
+world.AddSystem(system.Movement)
+world.AddSystem(system.Attack)
+world.AddSystem(system.Physics)
+```
+
+## Loading Game State
+
+Game state, if any, must be loaded before starting the game loop.
+
+```go
+world.LoadGameState()
+```
+
+This method will load in any game state that might exist in already in Redis. This is helpful for instances where
+your game server crashed, and you want to pick up where you last left off. Do not worry if this is a fresh world. In
+this case, `LoadGameState` is essentially a no-op.
+
+## Starting the Game Loop
+
+Once you've registered everything in your world and loaded the game state, your game simulation can begin.
+
+To kick off the game loop, use the `StartGameLoop` method. This method takes a `time.Duration` value, which controls
+how often a `Tick` occurs.
+
+```go
+ctx := context.Background()
+world.StartGameLoop(ctx, time.Millisecond * 500)
+```
+
+The code above will call incur a tick every 500 milliseconds, which will update the game 2 times every second.

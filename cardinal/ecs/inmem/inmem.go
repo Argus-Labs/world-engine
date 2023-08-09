@@ -6,10 +6,9 @@ package inmem
 
 import (
 	"fmt"
+	"github.com/alicebob/miniredis/v2"
 	"log"
 	"testing"
-
-	"github.com/alicebob/miniredis/v2"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
@@ -53,6 +52,5 @@ func newInMemoryWorld(s *miniredis.Miniredis, opts ...ecs.Option) (*ecs.World, e
 		DB:       0,  // use default DB
 	}, "in-memory-world")
 	worldStorage := storage.NewWorldStorage(&rs)
-
 	return ecs.NewWorld(worldStorage, opts...)
 }
