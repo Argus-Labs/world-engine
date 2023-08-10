@@ -2,13 +2,11 @@ package evm
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"gotest.tools/v3/assert"
 )
 
@@ -30,27 +28,10 @@ func TestServer_SendMessage(t *testing.T) {
 	// setup the world
 	w := inmem.NewECSWorldForTest(t)
 
-	// build the dynamic ABI types for evm compat
-	FooEvmTX, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
-		{Name: "X", Type: "uint64"},
-		{Name: "Y", Type: "string"},
-	})
-	assert.NilError(t, err)
-	FooEvmTX.TupleType = reflect.TypeOf(FooTransaction{})
-	BarEvmTx, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
-		{Name: "Y", Type: "uint64"},
-		{Name: "Z", Type: "bool"},
-	})
-	assert.NilError(t, err)
-	BarEvmTx.TupleType = reflect.TypeOf(BarTransaction{})
-
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx")
-	BarTx := ecs.NewTransactionType[BarTransaction, TxReply]("bartx")
+	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
+	BarTx := ecs.NewTransactionType[BarTransaction, TxReply]("bartx", ecs.WithTxEVMSupport[BarTransaction, TxReply])
 
-	// bind them to EVM types
-	FooTx.SetEVMType(&FooEvmTX)
-	BarTx.SetEVMType(&BarEvmTx)
 	assert.NilError(t, w.RegisterTransactions(FooTx, BarTx))
 
 	// create some txs to submit
@@ -86,7 +67,7 @@ func TestServer_SendMessage(t *testing.T) {
 
 	// marshal out the bytes to send from each list of transactions.
 	for _, tx := range fooTxs {
-		fooTxBz, err := abi.Arguments{{Type: FooEvmTX}}.Pack(tx)
+		fooTxBz, err := FooTx.ABIEncode(tx)
 		assert.NilError(t, err)
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    "hello",
@@ -96,7 +77,7 @@ func TestServer_SendMessage(t *testing.T) {
 		assert.NilError(t, err)
 	}
 	for _, tx := range barTxs {
-		barTxBz, err := abi.Arguments{{Type: BarEvmTx}}.Pack(tx)
+		barTxBz, err := BarTx.ABIEncode(tx)
 		assert.NilError(t, err)
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    "hello",
@@ -123,7 +104,7 @@ func TestServer_Query(t *testing.T) {
 	// set up a read that simply returns the FooRead.X
 	read := ecs.NewReadType[FooRead, FooReply]("foo", func(world *ecs.World, req FooRead) (FooReply, error) {
 		return FooReply{Y: req.X}, nil
-	}, ecs.WithEVMSupport[FooRead, FooReply])
+	}, ecs.WithReadEVMSupport[FooRead, FooReply])
 	w := inmem.NewECSWorldForTest(t)
 	err := w.RegisterReads(read)
 	assert.NilError(t, err)
