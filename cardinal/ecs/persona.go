@@ -13,10 +13,14 @@ type CreatePersonaTransaction struct {
 	SignerAddress string
 }
 
+type CreatePersonaTransactionResult struct {
+	Success bool
+}
+
 // CreatePersonaTx is a concrete ECS transaction.
-var CreatePersonaTx = NewTransactionType[CreatePersonaTransaction](
+var CreatePersonaTx = NewTransactionType[CreatePersonaTransaction, CreatePersonaTransactionResult](
 	"create-persona",
-	WithTxEVMSupport[CreatePersonaTransaction],
+	WithTxEVMSupport[CreatePersonaTransaction, CreatePersonaTransactionResult],
 )
 
 type SignerComponent struct {
@@ -48,22 +52,28 @@ func RegisterPersonaSystem(world *World, queue *TransactionQueue) error {
 	if len(errs) != 0 {
 		return errors.Join(errs...)
 	}
-	for _, tx := range createTxs {
+	for _, txData := range createTxs {
+		tx := txData.Value
 		if _, ok := personaTagToAddress[tx.PersonaTag]; ok {
 			// This PersonaTag has already been registered. Don't do anything
 			continue
 		}
 		id, err := world.Create(SignerComp)
 		if err != nil {
-			return err
+			CreatePersonaTx.AddError(world, txData.ID, err)
+			continue
 		}
 		if err := SignerComp.Set(world, id, SignerComponent{
 			PersonaTag:    tx.PersonaTag,
 			SignerAddress: tx.SignerAddress,
 		}); err != nil {
-			return err
+			CreatePersonaTx.AddError(world, txData.ID, err)
+			continue
 		}
 		personaTagToAddress[tx.PersonaTag] = tx.SignerAddress
+		CreatePersonaTx.SetResult(world, txData.ID, CreatePersonaTransactionResult{
+			Success: true,
+		})
 	}
 
 	return nil

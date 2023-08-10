@@ -7,6 +7,10 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
+	"github.com/argus-labs/world-engine/sign"
+	"github.com/ethereum/go-ethereum/crypto"
 	"gotest.tools/v3/assert"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
@@ -174,6 +178,58 @@ func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
 	gotData, err := storage.Decode[*SomeData](gotBytes)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, gotData, wantData)
+}
+
+func TestCanSaveAndRecoverSignatures(t *testing.T) {
+	rs := getRedisStorage(t)
+	type TxIn struct {
+		Str string
+	}
+	type TxOut struct {
+		Str string
+	}
+
+	tx := ecs.NewTransactionType[TxIn, TxOut]("tx_a")
+	tx.SetID(55)
+
+	key, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+
+	wantVal := TxIn{"the_data"}
+	personaTag := "xyzzy"
+	wantSig, err := sign.NewSignedPayload(key, personaTag, "namespace", 66, wantVal)
+	assert.NilError(t, err)
+	wantTxID := transaction.TxID{personaTag, 100}
+
+	queue := transaction.TxMap{
+		tx.ID(): []transaction.TxAny{
+			{
+				Value: wantVal,
+				ID:    wantTxID,
+				Sig:   wantSig,
+			},
+		},
+	}
+
+	txSlice := []transaction.ITransaction{tx}
+
+	rs.StartNextTick(txSlice, queue)
+
+	gotQueue, err := rs.Recover(txSlice)
+	assert.NilError(t, err)
+
+	assert.Equal(t, 1, len(gotQueue))
+	slice, ok := gotQueue[tx.ID()]
+	assert.Check(t, ok)
+	assert.Equal(t, 1, len(slice))
+	assert.Equal(t, wantTxID, slice[0].ID)
+	gotSig := slice[0].Sig
+	assert.DeepEqual(t, wantSig, gotSig)
+
+	gotVal, ok := slice[0].Value.(TxIn)
+	assert.Check(t, ok)
+	assert.Equal(t, wantVal, gotVal)
+
 }
 
 func TestLargeArbitraryDataProducesError(t *testing.T) {

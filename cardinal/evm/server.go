@@ -4,9 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"net"
 	"os"
+	"sync/atomic"
+
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/sign"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"google.golang.org/grpc"
@@ -31,6 +34,7 @@ type msgServerImpl struct {
 	readMap    readByName
 	world      *ecs.World
 	serverOpts []grpc.ServerOption
+	nextNonce  *atomic.Uint64
 }
 
 func NewServer(w *ecs.World, opts ...Option) (routerv1grpc.MsgServer, error) {
@@ -50,7 +54,7 @@ func NewServer(w *ecs.World, opts ...Option) (routerv1grpc.MsgServer, error) {
 		ir[r.Name()] = r
 	}
 
-	s := &msgServerImpl{txMap: it, readMap: ir, world: w}
+	s := &msgServerImpl{txMap: it, readMap: ir, world: w, nextNonce: &atomic.Uint64{}}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -98,6 +102,17 @@ func (s *msgServerImpl) Serve(addr string) error {
 	return nil
 }
 
+// nextSig produces a signature that has a static PersonaTag and a unique nonce. srv's TxHandler wants a unique
+// signature to help identify transactions, however this signature information is not readily available in evm
+// messages. nextSig is a currently workaround to ensure signatures assocaited with transactions are unique.
+// See https://linear.app/arguslabs/issue/CAR-133/mechanism-to-tie-evm-0x-address-to-cardinal-persona
+func (s *msgServerImpl) nextSig() *sign.SignedPayload {
+	return &sign.SignedPayload{
+		PersonaTag: "internal-persona-tag-for-evm-server",
+		Nonce:      s.nextNonce.Add(1),
+	}
+}
+
 func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessageRequest,
 ) (*routerv1.SendMessageResponse, error) {
 	// first we check if we can extract the transaction associated with the id
@@ -110,8 +125,9 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 	if err != nil {
 		return nil, err
 	}
+	sig := s.nextSig()
 	// add transaction to the world queue
-	s.world.AddTransaction(itx.ID(), tx, nil)
+	s.world.AddTransaction(itx.ID(), tx, sig)
 	return &routerv1.SendMessageResponse{}, nil
 }
 

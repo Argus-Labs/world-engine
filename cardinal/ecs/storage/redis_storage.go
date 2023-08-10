@@ -9,6 +9,7 @@ import (
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
+	"github.com/argus-labs/world-engine/sign"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 )
@@ -456,22 +457,26 @@ func (r *RedisStorage) GetTickNumbers() (start, end uint64, err error) {
 }
 
 type pendingTransaction struct {
-	ID   transaction.TypeID
-	Data []byte
+	TypeID transaction.TypeID
+	TxID   transaction.TxID
+	Data   []byte
+	Sig    *sign.SignedPayload
 }
 
-func (r *RedisStorage) storeTransactions(ctx context.Context, txs []transaction.ITransaction, queues map[transaction.TypeID][]any) error {
+func (r *RedisStorage) storeTransactions(ctx context.Context, txs []transaction.ITransaction, queues transaction.TxMap) error {
 	var pending []pendingTransaction
 	for _, tx := range txs {
 		currList := queues[tx.ID()]
-		for _, iface := range currList {
-			buf, err := tx.Encode(iface)
+		for _, txData := range currList {
+			buf, err := tx.Encode(txData.Value)
 			if err != nil {
 				return err
 			}
 			currItem := pendingTransaction{
-				ID:   tx.ID(),
-				Data: buf,
+				TypeID: tx.ID(),
+				TxID:   txData.ID,
+				Sig:    txData.Sig,
+				Data:   buf,
 			}
 			pending = append(pending, currItem)
 		}
@@ -497,7 +502,7 @@ func (r *RedisStorage) getPendingTransactionsFromRedis(ctx context.Context) ([]p
 	return Decode[[]pendingTransaction](buf)
 }
 
-func (r *RedisStorage) StartNextTick(txs []transaction.ITransaction, queues map[transaction.TypeID][]any) error {
+func (r *RedisStorage) StartNextTick(txs []transaction.ITransaction, queues transaction.TxMap) error {
 	ctx := context.Background()
 	if err := r.storeTransactions(ctx, txs, queues); err != nil {
 		return err
@@ -621,7 +626,7 @@ func (r *RedisStorage) recoverSnapshot(ctx context.Context) error {
 
 // Recover recovers the game state from the last game tick and any pending transactions that have been saved to the DB,
 // but not yet applied to a game tick.
-func (r *RedisStorage) Recover(txs []transaction.ITransaction) (map[transaction.TypeID][]any, error) {
+func (r *RedisStorage) Recover(txs []transaction.ITransaction) (transaction.TxMap, error) {
 	ctx := context.Background()
 	if err := r.recoverSnapshot(ctx); err != nil {
 		return nil, err
@@ -635,14 +640,18 @@ func (r *RedisStorage) Recover(txs []transaction.ITransaction) (map[transaction.
 		idToTx[tx.ID()] = tx
 	}
 
-	allQueues := map[transaction.TypeID][]any{}
+	allQueues := transaction.TxMap{}
 	for _, p := range pending {
-		tx := idToTx[p.ID]
-		iface, err := tx.Decode(p.Data)
+		tx := idToTx[p.TypeID]
+		txData, err := tx.Decode(p.Data)
 		if err != nil {
 			return nil, err
 		}
-		allQueues[tx.ID()] = append(allQueues[tx.ID()], iface)
+		allQueues[tx.ID()] = append(allQueues[tx.ID()], transaction.TxAny{
+			ID:    p.TxID,
+			Sig:   p.Sig,
+			Value: txData,
+		})
 	}
 	return allQueues, nil
 }

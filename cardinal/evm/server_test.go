@@ -1,12 +1,13 @@
 package evm
 
 import (
-	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"context"
+	"testing"
+
+	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"gotest.tools/v3/assert"
-	"testing"
 )
 
 type FooTransaction struct {
@@ -19,6 +20,8 @@ type BarTransaction struct {
 	Z bool
 }
 
+type TxReply struct{}
+
 // TestServer_SendMessage tests that when sending messages through to the EVM receiver server, they get passed along to
 // the world, and executed in systems.
 func TestServer_SendMessage(t *testing.T) {
@@ -26,8 +29,8 @@ func TestServer_SendMessage(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction]("footx", ecs.WithTxEVMSupport[FooTransaction])
-	BarTx := ecs.NewTransactionType[BarTransaction]("bartx", ecs.WithTxEVMSupport[BarTransaction])
+	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
+	BarTx := ecs.NewTransactionType[BarTransaction, TxReply]("bartx", ecs.WithTxEVMSupport[BarTransaction, TxReply])
 
 	assert.NilError(t, w.RegisterTransactions(FooTx, BarTx))
 
@@ -50,10 +53,10 @@ func TestServer_SendMessage(t *testing.T) {
 		assert.Equal(t, len(inFooTxs), len(fooTxs))
 		assert.Equal(t, len(inBarTxs), len(barTxs))
 		for i, tx := range inFooTxs {
-			assert.DeepEqual(t, tx, fooTxs[i])
+			assert.DeepEqual(t, tx.Value, fooTxs[i])
 		}
 		for i, tx := range inBarTxs {
-			assert.DeepEqual(t, tx, barTxs[i])
+			assert.DeepEqual(t, tx.Value, barTxs[i])
 		}
 		return nil
 	})
@@ -105,7 +108,7 @@ func TestServer_Query(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	err := w.RegisterReads(read)
 	assert.NilError(t, err)
-	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}]("nothing"))
+	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("nothing"))
 	assert.NilError(t, err)
 	s, err := NewServer(w)
 	assert.NilError(t, err)
