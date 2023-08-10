@@ -111,18 +111,31 @@ ctx := context.Background()
 world.StartGameLoop(ctx, time.Millisecond * 500)
 ```
 
-The code above will call incur a tick every 500 milliseconds, which will update the game 2 times every second.
+The code above will incur a tick every 500 milliseconds, which will update the game 2 times every second.
 
 ## Creating Entities
 
 Entities can be created in the world in two different ways:
 
-### Create
 
-The `Create` method accepts one or more components and returns the newly created entity's ID.
-
-Example:
+`Create` accepts one or more components and returns the newly created entity's ID.
 
 ```go
+// create one entity with the Health and Attack component.
+id, err := world.Create(component.Health, component.Attack)
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+`CreateMany` does the same thing, but takes the amount of entities to create as the first parameter, and
+returns a slice of entity IDs.
 
 
+```go
+// create 10 entities with the Health and Attack component.
+ids, err := world.Create(10, component.Health, component.Attack)
+if err != nil {
+    log.Fatal(err)
+}
+```

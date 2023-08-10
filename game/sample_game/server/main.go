@@ -66,6 +66,7 @@ const (
 )
 
 func main() {
+
 	world := inmem.NewECSWorld()
 	mustSetupWorld(world)
 

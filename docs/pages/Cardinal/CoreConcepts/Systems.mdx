@@ -1,0 +1,13 @@
+# Systems
+
+Systems are the functions that are run every tick. Systems must adhere to the following function signature:
+
+```go
+import "github.com/argus-labs/world-engine/cardinal/ecs"
+
+func SomeSystem(*ecs.World, *ecs.TransactionQueue) error { return nil }
+```
+
+## Transaction Queue
+
+The transaction queue passed into systems contains all transactions that were queued for this tick.
