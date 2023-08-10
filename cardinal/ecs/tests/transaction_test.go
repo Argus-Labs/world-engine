@@ -336,7 +336,7 @@ func TestCannotDecodeEVMBeforeSetEVM(t *testing.T) {
 	type foo struct{}
 	tx := ecs.NewTransactionType[foo, EmptyTxResult]("foo")
 	_, err := tx.DecodeEVMBytes([]byte{})
-	assert.ErrorContains(t, err, "EVM type is not set")
+	assert.ErrorIs(t, err, ecs.ErrEVMTypeNotSet)
 }
 
 func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
