@@ -28,3 +28,33 @@ var PickUpTransaction = ecs.NewTransactionType[PickUpItemInput, PickupItemOutput
 
 ## Options
 
+The `NewTransactionType` function accepts Options to alter the transaction.
+
+### WithTxEVMSupport
+
+`WithTxEVMSupport` enables this transaction to be sent via smart contracts in the EVM. This does, however, restrict the types you can use in the transaction fields. See [Supported Field Types] for more info.
+
+```go
+var PickUpTransaction = ecs.NewTransactionType[PickUpItemInput, PickupItemOutput]("pick-up-item", ecs.WithTxEVMSupport[PickUpItemInput, PickupItemOutput])
+```
+
+#### Supported Field Types
+Below are the field types available to use when utilizing the `WithTxEVMSupport` transaction option.
+
+- []byte
+- string
+- bool
+- int8 - int64
+- uint8 - uint64
+- github.com/ethereum/go-ethereum/common.Address
+- *math/big.Int
+
+Additionally, slices of all the above types work as well.
+
+NOTE: when using `*big.Int`, you MUST use a special "solidity" struct tag to indicate which underlying solidity integer type you want to resolve to. This is due to go-ethereum using `*big.Int` for any uint or int above the size of 64.
+
+```go
+type FooTxInput struct {
+    Num *big.Int `solidity:"uint256"`
+}
+```

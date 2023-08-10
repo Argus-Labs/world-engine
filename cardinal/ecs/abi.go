@@ -42,8 +42,8 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 }
 
 func goTypeToSolidityType(t string, tag string) (string, error) {
-	// first handle the most special type. []bytes. this is very specific for ethereum, in that it translates to 'bytes'
-	if t == "[]bytes" {
+	// first handle the most special type. []byte. this is very specific for ethereum, in that it translates to 'bytes'
+	if t == "[]byte" {
 		return "bytes", nil
 	}
 	// next handle slices, all we do here is check that it contains the brackets,
