@@ -112,3 +112,17 @@ world.StartGameLoop(ctx, time.Millisecond * 500)
 ```
 
 The code above will call incur a tick every 500 milliseconds, which will update the game 2 times every second.
+
+## Creating Entities
+
+Entities can be created in the world in two different ways:
+
+### Create
+
+The `Create` method accepts one or more components and returns the newly created entity's ID.
+
+Example:
+
+```go
+
+
