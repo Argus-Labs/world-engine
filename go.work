@@ -6,7 +6,4 @@ use (
 	magefiles
 	sign
 	chain/contracts
-	game/sample_game/nakama
-	game/sample_game/server
-	game/sample_game/testsuite
 )

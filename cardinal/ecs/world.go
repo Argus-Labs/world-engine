@@ -102,10 +102,14 @@ func (w *World) Archetype(archID storage.ArchetypeID) storage.ArchetypeStorage {
 }
 
 func (w *World) AddSystem(s System) {
+	w.AddSystems(s)
+}
+
+func (w *World) AddSystems(s ...System) {
 	if w.stateIsLoaded {
 		panic("cannot register systems after loading game state")
 	}
-	w.systems = append(w.systems, s)
+	w.systems = append(w.systems, s...)
 }
 
 // RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
@@ -214,6 +218,10 @@ func (w *World) ID() WorldId {
 
 func (w *World) CurrentTick() uint64 {
 	return w.tick
+}
+
+func (w *World) ReceiptHistorySize() uint64 {
+	return w.receiptHistory.Size()
 }
 
 func (w *World) CreateMany(num int, components ...component.IComponentType) ([]storage.EntityID, error) {

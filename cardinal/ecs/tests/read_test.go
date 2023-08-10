@@ -27,7 +27,7 @@ func TestReadEVM(t *testing.T) {
 	}
 	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
-	}, ecs.WithEVMSupport[FooRequest, FooReply])
+	}, ecs.WithReadEVMSupport[FooRequest, FooReply])
 
 	w := inmem.NewECSWorldForTest(t)
 	err := w.RegisterReads(fooRead)
