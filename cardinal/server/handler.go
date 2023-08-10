@@ -79,7 +79,7 @@ func registerTxHandlers(w *ecs.World, th *Handler) error {
 }
 
 func registerReceiptEndpoints(world *ecs.World, th *Handler) error {
-	th.mux.HandleFunc(conformPath(listTxReceipts), handleListTxReceipts(world))
+	th.mux.HandleFunc(conformPath(txReceiptsEndpoint), handleListTxReceipts(world))
 	return nil
 }
 

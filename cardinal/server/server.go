@@ -30,7 +30,9 @@ var (
 const (
 	listTxEndpoint   = "list/tx-endpoints"
 	listReadEndpoint = "list/read-endpoints"
-	listTxReceipts   = "list/tx-receipts"
+
+	// Don't name this tx-receipts to ensure it doesn't match the prefix for normal transactions
+	txReceiptsEndpoint = "transaction-receipts"
 
 	schemaEndpointPrefix = "schema/"
 

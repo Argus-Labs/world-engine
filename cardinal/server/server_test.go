@@ -436,7 +436,7 @@ func TestMalformedRequestToGetTransactionReceiptsProducesError(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.LoadGameState())
 	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
-	res := txh.post(listTxReceipts, map[string]any{
+	res := txh.post(txReceiptsEndpoint, map[string]any{
 		"missing_start_tick": 0,
 	})
 	assert.Check(t, 400 <= res.StatusCode && res.StatusCode <= 499)
@@ -448,9 +448,9 @@ func TestTransactionReceiptReturnCorrectTickWindows(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
 
-	// getReceipts is a helper that hits the listTxReceipts endpoint.
+	// getReceipts is a helper that hits the txReceiptsEndpoint endpoint.
 	getReceipts := func(start uint64) ListTxReceiptsReply {
-		res := txh.post(listTxReceipts, ListTxReceiptsRequest{
+		res := txh.post(txReceiptsEndpoint, ListTxReceiptsRequest{
 			StartTick: start,
 		})
 		assert.Equal(t, 200, res.StatusCode)
@@ -573,7 +573,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 
 	// We're going to be getting the list of receipts a lot, so make a helper to fetch the receipts
 	getReceipts := func(start uint64) ListTxReceiptsReply {
-		res := txh.post(listTxReceipts, ListTxReceiptsRequest{
+		res := txh.post(txReceiptsEndpoint, ListTxReceiptsRequest{
 			StartTick: start,
 		})
 		assert.Equal(t, 200, res.StatusCode)
