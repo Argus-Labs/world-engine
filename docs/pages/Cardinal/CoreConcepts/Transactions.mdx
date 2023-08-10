@@ -1,0 +1,30 @@
+# Transactions
+
+Transactions in Cardinal define the types of messages that can be sent from a game client and be processed in
+systems. To create a Cardinal transaction type, you must first define the transaction input and output. Both of
+these are just normal Go structs.
+
+```go
+type PickUpItemInput struct {
+	ItemID uint64
+}
+
+type PickUpItemOutput struct {
+	Success bool
+}
+```
+
+Then create the Cardinal transaction type using the `NewTransactionType` function in the ecs package. Note, this
+function takes a `name` argument. The name passed into the transaction gets used as the endpoint on the game server
+to execute this transaction. For example, if the transaction passed in was "foo-bar", the resulting endpoint would
+be `address:port/tx/foo-bar` (TODO: update this after we finalize how we want to handle endpoints)
+
+```go
+import "github.com/argus-labs/world-engine/cardinal/ecs"
+
+
+var PickUpTransaction = ecs.NewTransactionType[PickUpItemInput, PickupItemOutput]("pick-up-item")
+```
+
+## Options
+
