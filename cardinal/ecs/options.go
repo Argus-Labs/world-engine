@@ -18,3 +18,9 @@ func WithReceiptHistorySize(size int) Option {
 		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), size)
 	}
 }
+
+func WithWorldID(id string) Option {
+	return func(w *World) {
+		w.id = WorldId(id)
+	}
+}

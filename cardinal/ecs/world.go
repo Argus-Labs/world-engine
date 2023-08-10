@@ -23,7 +23,7 @@ import (
 )
 
 // WorldId is a unique identifier for a world.
-type WorldId int
+type WorldId string
 
 // StorageAccessor is an accessor for the world's storage.
 type StorageAccessor struct {
@@ -184,15 +184,10 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 	return w.registeredTransactions, nil
 }
 
-var nextWorldId WorldId = 0
-
 // NewWorld creates a new world.
 func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	// TODO: this should prob be handled by redis as well...
-	worldId := nextWorldId
-	nextWorldId++
 	w := &World{
-		id:       worldId,
 		store:    s,
 		tick:     0,
 		systems:  make([]System, 0, 256), // this can just stay in memory.
@@ -201,6 +196,9 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
 		opt(w)
+	}
+	if w.id == "" {
+		w.id = "world"
 	}
 	if w.receiptHistory == nil {
 		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), 10)
@@ -771,7 +769,7 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 }
 
 func (w *World) GetNamespace() string {
-	return fmt.Sprintf("%d", w.id)
+	return string(w.id)
 }
 
 func (w *World) LogError(err error) {
