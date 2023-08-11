@@ -1,8 +1,7 @@
 # Transactions
 
 Transactions define the types of messages that can be sent from a game client and be processed in
-systems. Additionally, all registered transactions in Cardinal create a transaction endpoint, that automatically injects the transaction into the World's transaction queue. To create a Cardinal transaction type, you must first define the transaction input and output. Both of
-these are just normal Go structs.
+systems. Additionally, all registered transactions in Cardinal create a transaction endpoint, that automatically injects the transaction into the World's transaction queue. To create a Cardinal transaction type, first define the transaction input and output. Both of these are just normal Go structs.
 
 ```go
 type PickUpItemInput struct {
@@ -16,7 +15,7 @@ type PickUpItemOutput struct {
 
 Then create the Cardinal transaction type using the `NewTransactionType` function in the ecs package. Note, this
 function takes a `name` argument. The name passed into the transaction gets used as the endpoint on the game server
-to execute this transaction. For example, if the transaction passed in was "foo-bar", the resulting endpoint would
+to execute this transaction. For example, if the transaction name passed in was "foo-bar", the resulting endpoint would
 be `address:port/tx/foo-bar` (TODO: update this after we finalize how we want to handle endpoints)
 
 ```go

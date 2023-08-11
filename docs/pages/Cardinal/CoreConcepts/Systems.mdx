@@ -12,7 +12,7 @@ Systems give you a reference to the world, as well as the transaction queue. Thi
 
 ## Getting Transactions
 
-In order to get specific transactions from the queue, utilize the transaction's `In` method. This transaction method takes the queue as an argument, and returns a slice of that transaction's data.
+In order to get specific transactions from the queue, utilize the transaction's `In` method. This transaction method takes the queue as an argument, and returns a slice of `TxData`, which contains data related to that transaction.
 
 ```go
 import "github.com/argus-labs/world-engine/cardinal/ecs"
@@ -21,3 +21,18 @@ func SomeSystem(world *ecs.World, queue *ecs.TransactionQueue) error {
     txs := SomeTx.In(queue)
 }
 ```
+## TxData
+
+```go
+type TxData[In any] struct {
+    ID    transaction.TxID
+    Value In
+    Sig   *sign.SignedPayload
+}
+```
+
+The ID is a unique ID for the transaction. If you come from a blockchain background, you can think of this as the transaction hash.
+
+The value is the underlying transaction struct.
+
+Sig contains signature information, like the persona tag of the player that sent the transaction.
