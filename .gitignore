@@ -198,8 +198,6 @@ contracts/out/lib/
 contracts/out/
 */**/broadcast
 */**/*.bin
-*/**/*.json
-
 
 # cosmos
 .testnets/
@@ -273,7 +271,6 @@ contracts/out/lib/
 contracts/out/
 */**/broadcast
 */**/*.bin
-*/**/*.json
 
 # Docs
 !docs/package.json
