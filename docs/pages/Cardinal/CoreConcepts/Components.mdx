@@ -16,9 +16,7 @@ parameter.
 ```go
 import "github.com/argus-labs/world-engine/cardinal/ecs"
 
-var (
-	 HealthComponent = ecs.NewComponentType[Health]()
-)
+var HealthComponent = ecs.NewComponentType[Health]()
 
 ```
 
@@ -38,9 +36,7 @@ type Health struct {
     Cap     uint64
 }
 
-var (
-	 HealthComponent = ecs.NewComponentType[Health](ecs.WithDefault(Health{Amount: 100, Cap: 100})
-)
+var HealthComponent = ecs.NewComponentType[Health](ecs.WithDefault(Health{Amount: 100, Cap: 100})
 ```
 
 The above code would start every entity with the `HealthComponent` attached to it at full health, instead of zero.
