@@ -1,7 +1,10 @@
 # Components
 
-Components are the structures that give entities their state. In Cardinal, you define your component using a normal Go
-struct.
+Components are the structures that give entities their state.
+
+## Creating a Component
+
+In Cardinal, you define your component using a normal Go struct.
 
 ```go
 type Health struct {
@@ -18,6 +21,70 @@ import "github.com/argus-labs/world-engine/cardinal/ecs"
 
 var HealthComponent = ecs.NewComponentType[Health]()
 
+```
+
+## Getting Component Data
+Component data is retrieved via the `Get` method of the corresponding component type. `Get` requires a pointer to `World` and the ID of the entity with this component, and returns the component struct and an error.
+
+```go
+health, err := HealthComponent.Get(world, id)
+```
+
+## Setting Component Data
+Components are updated via the `Set` method of the corresponding component type. `Set` requires a pointer `World`, the ID of the entity with this component, and the go struct that defines this component. `Set` may return an error.
+
+```go
+err := HealthComponent.Set(world, id, Health{Amount: 50, Cap: 100})
+```
+
+## Updating Component Data
+Aside from directly setting component data (effectively a full overwrite), component types provide a method `Update`, which updates component data with a more ergonomic callback pattern. `Update` takes a pointer to `World`, the ID of the entity to update, and a callback function. The
+callback function supplies the component struct directly, and expects a return value of the updated component struct. `Update` may return an error.
+
+```
+err := HealthComponent.Update(world, id, func(h Health) Health {
+    // take away 10 from the total heatlh
+    h.Amount -= 10
+    return h
+})
+```
+
+## Entity Iteration
+Components can also iterate over all entities that contain this component with the method `Each`. `Each` takes a pointer to world, and a callback function which will supplies each entity ID at every call. The callback function expects a boolean value to be returned, which indicates whether the
+iteration should continue. A return value of `true` indicates the iteration should continue, while `false` indicates the iteration should stop. `Each` may return an error.
+
+```go
+err := HealthComponent.Each(world, func(id storage.EntityID) bool {
+    // do something with entity ID...
+	return true // continue the iteration
+})
+```
+
+## First Entity
+The first entity with a component can be retrieved via the component type's `First` method. `First` simply takes a pointer to world, and returns the entity ID and an error. This is useful for singleton component patterns.
+
+```go
+entityID, err := HealthComponent.First(world)
+```
+
+## Adding Components to Entities
+Component types contain a method `AddTo`, which enables components to be dynamically added to entities. This is useful for instances when an entity is "upgraded" and gains extra behavior.
+
+`AddTo` expects a pointer to world, and the ID of the entity we want to add the component to. `AddTo`
+will return an error if the entity already has the component.
+
+```go
+err := HealthComponent.AddTo(world, id)
+```
+
+## Removing Components From Entities
+Component types contain a method `RemoveFrom`, which enables components to be dynamically removed from entities. This is useful for instances when an entity is "downgraded" and needs to lose behavior.
+
+`RemoveFrom` expects a pointer to world, and the ID of the entity we want to remove the component
+from. This method will return an error if the entity does not have the component.
+
+```go
+err := HealthComponent.RemoveFrom(world, id)
 ```
 
 ## Options
