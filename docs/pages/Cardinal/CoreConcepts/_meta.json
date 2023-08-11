@@ -7,5 +7,7 @@
   },
   "Reads": {},
   "World": {},
-  "evm-support": {}
+  "evm-support": {
+    "title": "EVM Support"
+  }
 }
