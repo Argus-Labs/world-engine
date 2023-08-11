@@ -1,7 +1,7 @@
 # World
 
 The `World` object is the manager of everything happening in the game. It deals with registering components systems,
-transactions, reads, as well as ticking the game simulation forward. `World`'s in Cardinal use [Redis](https://redis.io/) to store the game's state.
+transactions, and reads, as well as ticking the game simulation forward. `World`'s in Cardinal use [Redis](https://redis.io/) to store the game's state.
 
 ## Creating a World
 
@@ -9,11 +9,11 @@ Cardinal provides two ways to create a world.
 
 ### In Memory
 
-Using the `inmem` package, you can get an instantiated `World` object that uses an in-memory data store, [miniredis](https://github.com/alicebob/miniredis).This is the simplest way to get started with building and testing your game. Do note however, that this should NOT be used in production.
+Using the `inmem` package, you can get an instantiated `World` object that uses an in-memory data store, [miniredis](https://github.com/alicebob/miniredis). This is the simplest way to get started with building and testing your game. Do note however, this should NOT be used in production.
 
 ### With Redis Instance
 
-To instantiate a production ready `World` object, you need to instantiate a `RedisStorage` object, create a
+To instantiate a production ready `World` object, you need to instantiate a `RedisStorage` object, and create a
 `WorldStorage` object from that:
 
 ```go

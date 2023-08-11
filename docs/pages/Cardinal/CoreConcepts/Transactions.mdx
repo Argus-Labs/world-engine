@@ -1,7 +1,7 @@
 # Transactions
 
-Transactions in Cardinal define the types of messages that can be sent from a game client and be processed in
-systems. To create a Cardinal transaction type, you must first define the transaction input and output. Both of
+Transactions define the types of messages that can be sent from a game client and be processed in
+systems. Additionally, all registered transactions in Cardinal create a transaction endpoint, that automatically injects the transaction into the World's transaction queue. To create a Cardinal transaction type, you must first define the transaction input and output. Both of
 these are just normal Go structs.
 
 ```go
@@ -32,29 +32,16 @@ The `NewTransactionType` function accepts Options to alter the transaction.
 
 ### WithTxEVMSupport
 
-`WithTxEVMSupport` enables this transaction to be sent via smart contracts in the EVM. This does, however, restrict the types you can use in the transaction fields. See [Supported Field Types] for more info.
+import { Callout } from 'nextra/components'
+
+import Link from 'next/link'
+
+<Callout type={"warning"}>
+   Not all Go types are supported when using `WithTxEVMSupport`. <Link href="/cardinal/CoreConcepts/evm-support">Read More</Link>
+</Callout>
+
+`WithTxEVMSupport` enables this transaction to be sent via smart contracts in the EVM.
 
 ```go
 var PickUpTransaction = ecs.NewTransactionType[PickUpItemInput, PickupItemOutput]("pick-up-item", ecs.WithTxEVMSupport[PickUpItemInput, PickupItemOutput])
-```
-
-#### Supported Field Types
-Below are the field types available to use when utilizing the `WithTxEVMSupport` transaction option.
-
-- []byte
-- string
-- bool
-- int8 - int64
-- uint8 - uint64
-- github.com/ethereum/go-ethereum/common.Address
-- *math/big.Int
-
-Additionally, slices of all the above types work as well.
-
-NOTE: when using `*big.Int`, you MUST use a special "solidity" struct tag to indicate which underlying solidity integer type you want to resolve to. This is due to go-ethereum using `*big.Int` for any uint or int above the size of 64.
-
-```go
-type FooTxInput struct {
-    Num *big.Int `solidity:"uint256"`
-}
 ```

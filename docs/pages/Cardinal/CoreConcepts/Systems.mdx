@@ -5,9 +5,19 @@ Systems are the functions that are run every tick. Systems must adhere to the fo
 ```go
 import "github.com/argus-labs/world-engine/cardinal/ecs"
 
-func SomeSystem(*ecs.World, *ecs.TransactionQueue) error { return nil }
+func SomeSystem(*ecs.World, *ecs.TransactionQueue) error
 ```
 
-## Transaction Queue
+Systems give you a reference to the world, as well as the transaction queue. This allows you to access any transaction currently queued for this tick, as well as update any component state.
 
-The transaction queue passed into systems contains all transactions that were queued for this tick.
+## Getting Transactions
+
+In order to get specific transactions from the queue, utilize the transaction's `In` method. This transaction method takes the queue as an argument, and returns a slice of that transaction's data.
+
+```go
+import "github.com/argus-labs/world-engine/cardinal/ecs"
+
+func SomeSystem(world *ecs.World, queue *ecs.TransactionQueue) error {
+    txs := SomeTx.In(queue)
+}
+```
