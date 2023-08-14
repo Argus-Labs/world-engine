@@ -3,7 +3,7 @@ package keeper
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 
 	"cosmossdk.io/core/store"
 )

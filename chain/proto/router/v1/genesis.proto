@@ -2,7 +2,7 @@ syntax = "proto3";
 package router.v1;
 import "router/v1/query.proto";
 
-option go_package = "pkg.world.dev/world-engine/chain/x/router/types";
+option go_package = "github.com/argus-labs/world-engine/chain/x/router/types";
 
 
 message Genesis {

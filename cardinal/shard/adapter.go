@@ -13,7 +13,7 @@ import (
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"google.golang.org/grpc"
 
-	shardtypes "pkg.world.dev/world-engine/chain/x/shard/types"
+	shardtypes "github.com/argus-labs/world-engine/chain/x/shard/types"
 )
 
 // Adapter is a type that helps facilitate communication with the EVM base shard.

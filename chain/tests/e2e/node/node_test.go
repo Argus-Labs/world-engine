@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gotest.tools/assert"
 
-	"pkg.world.dev/world-engine/chain/runtime"
-	argus "pkg.world.dev/world-engine/chain/runtime/config"
-	"pkg.world.dev/world-engine/chain/utils"
+	"github.com/argus-labs/world-engine/chain/runtime"
+	argus "github.com/argus-labs/world-engine/chain/runtime/config"
+	"github.com/argus-labs/world-engine/chain/utils"
 
 	"cosmossdk.io/simapp/params"
 

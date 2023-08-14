@@ -27,7 +27,7 @@ import (
 
 	"pkg.berachain.dev/polaris/eth/accounts"
 
-	"pkg.world.dev/world-engine/chain/config"
+	"github.com/argus-labs/world-engine/chain/config"
 )
 
 var (

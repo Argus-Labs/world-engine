@@ -13,8 +13,8 @@ import (
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/spf13/cobra"
 
-	"pkg.world.dev/world-engine/chain/x/shard/keeper"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"github.com/argus-labs/world-engine/chain/x/shard/keeper"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 )
 
 const (

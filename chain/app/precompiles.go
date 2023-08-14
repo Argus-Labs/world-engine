@@ -34,7 +34,7 @@ import (
 	stakingprecompile "pkg.berachain.dev/polaris/cosmos/precompile/staking"
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
 
-	"pkg.world.dev/world-engine/chain/precompile/router"
+	"github.com/argus-labs/world-engine/chain/precompile/router"
 )
 
 // PrecompilesToInject returns a function that provides the initialization of the standard

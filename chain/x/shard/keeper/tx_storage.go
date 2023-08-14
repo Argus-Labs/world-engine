@@ -4,9 +4,9 @@ import (
 	"cosmossdk.io/store/prefix"
 	"encoding/binary"
 	"fmt"
+	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
 )
 
 const (

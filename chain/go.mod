@@ -1,4 +1,4 @@
-module pkg.world.dev/world-engine/chain
+module github.com/argus-labs/world-engine/chain
 
 go 1.20
 

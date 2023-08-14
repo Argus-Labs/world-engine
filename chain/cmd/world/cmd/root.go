@@ -65,7 +65,7 @@ import (
 	evmante "pkg.berachain.dev/polaris/cosmos/x/evm/ante"
 	evmmepool "pkg.berachain.dev/polaris/cosmos/x/evm/plugins/txpool/mempool"
 
-	"pkg.world.dev/world-engine/chain/app"
+	"github.com/argus-labs/world-engine/chain/app"
 )
 
 // NewRootCmd creates a new root command for simd. It is called once in the main function.

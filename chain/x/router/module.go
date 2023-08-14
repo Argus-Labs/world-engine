@@ -16,8 +16,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/spf13/cobra"
 
-	"pkg.world.dev/world-engine/chain/x/router/keeper"
-	routertypes "pkg.world.dev/world-engine/chain/x/router/types"
+	"github.com/argus-labs/world-engine/chain/x/router/keeper"
+	routertypes "github.com/argus-labs/world-engine/chain/x/router/types"
 )
 
 const (
