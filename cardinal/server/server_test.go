@@ -9,12 +9,12 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/argus-labs/world-engine/sign"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/sign"
 )
 
 type SendEnergyTx struct {

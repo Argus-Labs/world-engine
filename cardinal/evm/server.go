@@ -8,8 +8,8 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/argus-labs/world-engine/sign"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

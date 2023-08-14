@@ -1,4 +1,4 @@
-module github.com/argus-labs/world-engine/contracts
+module pkg.world.dev/world-engine/chain/contracts
 
 go 1.20
 
