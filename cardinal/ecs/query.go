@@ -17,7 +17,7 @@ type cache struct {
 // So it is not recommended to create a new query every time you want
 // to filter entities with the same query.
 type Query struct {
-	layoutMatches map[WorldId]*cache
+	layoutMatches map[Namespace]*cache
 	filter        filter.LayoutFilter
 }
 
@@ -25,7 +25,7 @@ type Query struct {
 // It receives arbitrary filters that are used to filter entities.
 func NewQuery(filter filter.LayoutFilter) *Query {
 	return &Query{
-		layoutMatches: make(map[WorldId]*cache),
+		layoutMatches: make(map[Namespace]*cache),
 		filter:        filter,
 	}
 }
@@ -80,7 +80,7 @@ func (q *Query) First(w *World) (id storage.EntityID, ok bool, err error) {
 }
 
 func (q *Query) evaluateQuery(world *World, accessor *StorageAccessor) []storage.ArchetypeID {
-	w := world.ID()
+	w := Namespace(world.Namespace())
 	if _, ok := q.layoutMatches[w]; !ok {
 		q.layoutMatches[w] = &cache{
 			archetypes: make([]storage.ArchetypeID, 0),

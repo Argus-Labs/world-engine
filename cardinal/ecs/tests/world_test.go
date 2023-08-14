@@ -25,3 +25,9 @@ func TestAddSystems(t *testing.T) {
 
 	assert.Equal(t, count, 3)
 }
+
+func TestSetNamespace(t *testing.T) {
+	id := "foo"
+	w := inmem.NewECSWorldForTest(t, ecs.WithNamespace(id))
+	assert.Equal(t, w.Namespace(), id)
+}
