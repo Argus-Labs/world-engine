@@ -127,7 +127,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	assert.NilError(t, err)
 	payload := &sign.SignedPayload{
 		PersonaTag: "meow",
-		Namespace:  w.GetNamespace(),
+		Namespace:  w.Namespace(),
 		Nonce:      40,
 		Signature:  "doesnt matter what goes in here",
 		Body:       bz,
@@ -212,7 +212,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 		SignerAddress: signerAddr,
 	}
 
-	signedPayload, err := sign.NewSignedPayload(privateKey, personaTag, world.GetNamespace(), 100, createPersonaTx)
+	signedPayload, err := sign.NewSignedPayload(privateKey, personaTag, world.Namespace(), 100, createPersonaTx)
 	assert.NilError(t, err)
 
 	bz, err := signedPayload.Marshal()
@@ -285,7 +285,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// The namespace now matches the world
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, world.GetNamespace(), 100, createPersonaTx)
+	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, world.Namespace(), 100, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -303,7 +303,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 
 	personaTag := "some_dude"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	namespace := world.GetNamespace()
+	namespace := world.Namespace()
 
 	createPersonaTx := ecs.CreatePersonaTransaction{
 		PersonaTag:    personaTag,

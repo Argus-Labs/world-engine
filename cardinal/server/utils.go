@@ -106,8 +106,8 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	///////////////////////////////////////////////
 
 	// Check that the namespace is correct
-	if sp.Namespace != t.w.GetNamespace() {
-		return nil, nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, t.w.GetNamespace())
+	if sp.Namespace != t.w.Namespace() {
+		return nil, nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, t.w.Namespace())
 	}
 
 	var signerAddress string
