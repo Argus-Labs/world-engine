@@ -3,11 +3,11 @@ package server
 import (
 	"encoding/json"
 	"errors"
-	"github.com/argus-labs/world-engine/cardinal/ecs"
-	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"github.com/invopop/jsonschema"
 	"io"
 	"net/http"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 // CreatePersonaResponse is returned from a tx-create-persona request. It contains the current tick of the game

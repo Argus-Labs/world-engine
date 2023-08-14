@@ -1,8 +1,8 @@
 package ecs
 
 import (
-	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type cache struct {

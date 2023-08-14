@@ -7,15 +7,15 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs"
-	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"github.com/argus-labs/world-engine/sign"
 	"github.com/ethereum/go-ethereum/crypto"
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
 
 var _ encoding.BinaryMarshaler = Foo{}

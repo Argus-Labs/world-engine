@@ -3,8 +3,8 @@ package storage
 import (
 	"fmt"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs/component"
-	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
 var _ ComponentStorageManager = &ComponentsSliceStorage{}
