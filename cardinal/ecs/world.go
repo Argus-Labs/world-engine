@@ -11,9 +11,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 
+	"github.com/argus-labs/world-engine/sign"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
-	"pkg.world.dev/world-engine/sign"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"

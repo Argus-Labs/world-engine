@@ -1,4 +1,4 @@
-module pkg.world.dev/world-engine/sign
+module github.com/argus-labs/world-engine/sign
 
 go 1.20
 
