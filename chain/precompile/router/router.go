@@ -2,12 +2,12 @@ package router
 
 import (
 	"context"
-	"github.com/argus-labs/world-engine/chain/router"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/router"
 	cosmlib "pkg.berachain.dev/polaris/cosmos/lib"
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
 	"pkg.berachain.dev/polaris/eth/core/vm"
+	"pkg.world.dev/world-engine/chain/router"
 )
 
 const name = "world_engine_router"

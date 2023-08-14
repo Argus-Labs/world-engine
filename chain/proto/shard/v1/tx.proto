@@ -6,7 +6,7 @@ import "cosmos_proto/cosmos.proto";
 import "cosmos/msg/v1/msg.proto";
 import "shard/v1/types.proto";
 
-option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
+option go_package = "pkg.world.dev/world-engine/chain/x/shard/types";
 
 
 service Msg {

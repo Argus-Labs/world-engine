@@ -26,8 +26,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/argus-labs/world-engine/chain/shard"
 	dbm "github.com/cosmos/cosmos-db"
+	"pkg.world.dev/world-engine/chain/shard"
 
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
@@ -70,9 +70,9 @@ import (
 	evmkeeper "pkg.berachain.dev/polaris/cosmos/x/evm/keeper"
 	evmmempool "pkg.berachain.dev/polaris/cosmos/x/evm/plugins/txpool/mempool"
 
-	"github.com/argus-labs/world-engine/chain/router"
-	routerkeeper "github.com/argus-labs/world-engine/chain/x/router/keeper"
-	shardkeeper "github.com/argus-labs/world-engine/chain/x/shard/keeper"
+	"pkg.world.dev/world-engine/chain/router"
+	routerkeeper "pkg.world.dev/world-engine/chain/x/router/keeper"
+	shardkeeper "pkg.world.dev/world-engine/chain/x/shard/keeper"
 )
 
 // DefaultNodeHome default home directories for the application daemon.
