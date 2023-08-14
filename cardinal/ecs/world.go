@@ -191,17 +191,15 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 // NewWorld creates a new world.
 func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	w := &World{
-		store:    s,
-		tick:     0,
-		systems:  make([]System, 0, 256), // this can just stay in memory.
-		txQueues: transaction.TxMap{},
+		store:     s,
+		namespace: "world",
+		tick:      0,
+		systems:   make([]System, 0),
+		txQueues:  transaction.TxMap{},
 	}
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
 		opt(w)
-	}
-	if w.namespace == "" {
-		w.namespace = "world"
 	}
 	if w.receiptHistory == nil {
 		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), 10)
