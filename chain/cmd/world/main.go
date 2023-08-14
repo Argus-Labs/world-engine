@@ -28,10 +28,10 @@ import (
 
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 
-	simapp "github.com/argus-labs/world-engine/chain/app"
-	"github.com/argus-labs/world-engine/chain/cmd/world/cmd"
-	"github.com/argus-labs/world-engine/chain/config"
-	"github.com/argus-labs/world-engine/chain/types"
+	simapp "pkg.world.dev/world-engine/chain/app"
+	"pkg.world.dev/world-engine/chain/cmd/world/cmd"
+	"pkg.world.dev/world-engine/chain/config"
+	"pkg.world.dev/world-engine/chain/types"
 )
 
 func main() {

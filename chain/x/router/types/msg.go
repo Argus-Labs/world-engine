@@ -6,7 +6,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
-	"github.com/argus-labs/world-engine/chain/utils"
+	"pkg.world.dev/world-engine/chain/utils"
 )
 
 var (

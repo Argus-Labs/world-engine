@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package shard.v1;
 
-option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
+option go_package = "pkg.world.dev/world-engine/chain/x/shard/types";
 
 
 message Transaction {

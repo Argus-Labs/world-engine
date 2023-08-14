@@ -2,9 +2,9 @@ package keeper_test
 
 import (
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-	"github.com/argus-labs/world-engine/chain/x/shard"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"google.golang.org/protobuf/proto"
+	"pkg.world.dev/world-engine/chain/x/shard"
 	"testing"
 
 	storetypes "cosmossdk.io/store/types"
@@ -17,8 +17,8 @@ import (
 	moduletestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/argus-labs/world-engine/chain/x/shard/keeper"
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/chain/x/shard/keeper"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
 )
 
 type TestSuite struct {

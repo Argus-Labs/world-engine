@@ -5,7 +5,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
 )
 
 var _ types.MsgServer = &Keeper{}

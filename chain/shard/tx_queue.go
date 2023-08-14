@@ -1,8 +1,8 @@
 package shard
 
 import (
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
 	"github.com/zyedidia/generic/queue"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"sync"
 )
 

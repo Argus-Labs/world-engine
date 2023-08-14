@@ -4,7 +4,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	routertypes "github.com/argus-labs/world-engine/chain/x/router/types"
+	routertypes "pkg.world.dev/world-engine/chain/x/router/types"
 )
 
 type Keeper struct {

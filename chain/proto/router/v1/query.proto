@@ -5,7 +5,7 @@ package router.v1;
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 
-option go_package = "github.com/argus-labs/world-engine/chain/x/router/types";
+option go_package = "pkg.world.dev/world-engine/chain/x/router/types";
 
 // `QueryService` provides defines the gRPC querier service.
 service QueryService {

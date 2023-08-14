@@ -1,9 +1,9 @@
 package app
 
 import (
-	"github.com/argus-labs/world-engine/chain/router"
-	"github.com/argus-labs/world-engine/chain/shard"
 	"os"
+	"pkg.world.dev/world-engine/chain/router"
+	"pkg.world.dev/world-engine/chain/shard"
 )
 
 func (app *App) setPlugins() {
