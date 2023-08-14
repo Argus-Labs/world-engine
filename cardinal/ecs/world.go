@@ -190,7 +190,6 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 
 // NewWorld creates a new world.
 func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
-	// TODO: this should prob be handled by redis as well...
 	w := &World{
 		store:    s,
 		tick:     0,
