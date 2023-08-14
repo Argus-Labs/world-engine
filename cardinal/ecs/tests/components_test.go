@@ -3,11 +3,11 @@ package tests
 import (
 	"testing"
 
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
+	storage2 "github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	storage2 "pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 func TestComponents(t *testing.T) {

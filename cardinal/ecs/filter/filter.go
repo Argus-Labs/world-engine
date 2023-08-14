@@ -1,7 +1,7 @@
 package filter
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
 // LayoutFilter is a filter that filters entities based on their components.

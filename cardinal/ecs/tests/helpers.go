@@ -6,10 +6,10 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"github.com/redis/go-redis/v9"
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 const WorldId string = "1"

@@ -1,11 +1,11 @@
 package tests
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
 )
 
 func TestIndex(t *testing.T) {

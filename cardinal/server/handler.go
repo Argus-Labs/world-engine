@@ -7,9 +7,9 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"github.com/invopop/jsonschema"
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 func registerReadHandlers(w *ecs.World, th *Handler) error {

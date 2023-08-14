@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
 // ComponentIndex represents the Index of component in an archetype.

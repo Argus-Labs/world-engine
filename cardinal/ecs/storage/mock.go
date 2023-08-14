@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
 var (

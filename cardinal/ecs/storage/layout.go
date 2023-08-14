@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
 )
 
 // Layout represents a ArchLayout of components.

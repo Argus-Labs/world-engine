@@ -1,4 +1,4 @@
-module pkg.world.dev/world-engine/cardinal
+module github.com/argus-labs/world-engine/cardinal
 
 go 1.20
 

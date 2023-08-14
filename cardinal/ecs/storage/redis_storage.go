@@ -7,11 +7,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"github.com/argus-labs/world-engine/sign"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 // Archetypes can just be stored in program memory. It just a structure that allows us to quickly

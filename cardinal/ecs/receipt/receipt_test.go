@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 func txID(name string, index uint64) transaction.TxID {

@@ -8,12 +8,12 @@ import (
 	"os"
 	"sync/atomic"
 
+	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/sign"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"buf.build/gen/go/argus-labs/world-engine/grpc/go/router/v1/routerv1grpc"
 	"buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"

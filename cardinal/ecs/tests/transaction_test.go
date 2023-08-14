@@ -3,14 +3,14 @@ package tests
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"testing"
 	"time"
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 )
 
 type ScoreComponent struct {

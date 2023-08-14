@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/shard"
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/shard"
 )
 
 // Handler is a type that contains endpoints for transactions and queries in a given ecs world.

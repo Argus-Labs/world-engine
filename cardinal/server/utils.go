@@ -8,9 +8,9 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/sign"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
 // fixes a path to contain a leading slash.

@@ -1,6 +1,6 @@
 package server
 
-import "pkg.world.dev/world-engine/cardinal/shard"
+import "github.com/argus-labs/world-engine/cardinal/shard"
 
 type Option func(th *Handler)
 

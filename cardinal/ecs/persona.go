@@ -3,8 +3,8 @@ package ecs
 import (
 	"errors"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
+	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 )
 
 // CreatePersonaTransaction allows for the associating of a persona tag with a signer address.

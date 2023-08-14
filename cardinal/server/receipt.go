@@ -5,8 +5,8 @@ import (
 	"io"
 	"net/http"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
 )
 
 type ListTxReceiptsRequest struct {

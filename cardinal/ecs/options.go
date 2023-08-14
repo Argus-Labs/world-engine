@@ -1,8 +1,8 @@
 package ecs
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/shard"
+	"github.com/argus-labs/world-engine/cardinal/ecs/receipt"
+	"github.com/argus-labs/world-engine/cardinal/shard"
 )
 
 type Option func(w *World)

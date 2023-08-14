@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 )
 
 type FooTransaction struct {

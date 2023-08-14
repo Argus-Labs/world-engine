@@ -13,10 +13,10 @@ import (
 
 	"gotest.tools/v3/assert"
 
+	"github.com/argus-labs/world-engine/cardinal/ecs"
+	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
+	"github.com/argus-labs/world-engine/cardinal/shard"
 	"github.com/argus-labs/world-engine/chain/x/shard/types"
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 var _ shard.Adapter = &DummyAdapter{}
