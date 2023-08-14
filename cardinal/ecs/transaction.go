@@ -3,6 +3,7 @@ package ecs
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
@@ -11,15 +12,20 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
+var (
+	ErrEVMTypeNotSet = errors.New("EVM type is not set")
+)
+
 var _ transaction.ITransaction = NewTransactionType[struct{}, struct{}]("")
 
 // TransactionType helps manage adding transactions (aka events) to the world transaction queue. It also assists
 // in the using of transactions inside of System functions.
 type TransactionType[In, Out any] struct {
-	id      transaction.TypeID
-	isIDSet bool
-	name    string
-	evmType *abi.Type
+	id         transaction.TypeID
+	isIDSet    bool
+	name       string
+	inEVMType  *abi.Type
+	outEVMType *abi.Type
 }
 
 // TransactionQueue is a list of transactions that were queued since the start of the
@@ -28,10 +34,32 @@ type TransactionQueue struct {
 	queue transaction.TxMap
 }
 
-func NewTransactionType[In, Out any](name string) *TransactionType[In, Out] {
-	return &TransactionType[In, Out]{
+func WithTxEVMSupport[In, Out any]() func(transactionType *TransactionType[In, Out]) {
+	return func(txt *TransactionType[In, Out]) {
+		var in In
+		abiType, err := GenerateABIType(in)
+		if err != nil {
+			panic(err)
+		}
+		txt.inEVMType = abiType
+
+		var out Out
+		abiType, err = GenerateABIType(out)
+		if err != nil {
+			panic(err)
+		}
+		txt.outEVMType = abiType
+	}
+}
+
+func NewTransactionType[In, Out any](name string, opts ...func() func(*TransactionType[In, Out])) *TransactionType[In, Out] {
+	txt := &TransactionType[In, Out]{
 		name: name,
 	}
+	for _, opt := range opts {
+		opt()(txt)
+	}
+	return txt
 }
 
 func (t *TransactionType[In, Out]) Name() string {
@@ -42,12 +70,12 @@ func (t *TransactionType[In, Out]) Schema() (in, out *jsonschema.Schema) {
 	return jsonschema.Reflect(new(In)), jsonschema.Reflect(new(Out))
 }
 
-// DecodeEVMBytes decodes abi encoded solidity structs into Go structs of the same structure.
+// DecodeEVMBytes decodes abi encoded solidity structs into the transaction's "In" type.
 func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
-	if t.evmType == nil {
-		return nil, errors.New("cannot call DecodeEVMBytes without setting via SetEVMType first")
+	if t.inEVMType == nil {
+		return nil, ErrEVMTypeNotSet
 	}
-	args := abi.Arguments{{Type: *t.evmType}}
+	args := abi.Arguments{{Type: *t.inEVMType}}
 	unpacked, err := args.Unpack(bz)
 	if err != nil {
 		return nil, err
@@ -60,10 +88,6 @@ func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
 		return nil, fmt.Errorf("error decoding EVM bytes: cannot cast %T to %T", unpacked[0], new(In))
 	}
 	return underlying, nil
-}
-
-func (t *TransactionType[In, Out]) SetEVMType(at *abi.Type) {
-	t.evmType = at
 }
 
 func (t *TransactionType[In, Out]) ID() transaction.TypeID {
@@ -152,4 +176,22 @@ func (t *TransactionType[In, Out]) Encode(a any) ([]byte, error) {
 
 func (t *TransactionType[In, Out]) Decode(bytes []byte) (any, error) {
 	return storage.Decode[In](bytes)
+}
+
+// ABIEncode encodes the input to the transactions matching evm type. If the input is not either of the transactions
+// evm types, an error is returned.
+func (t *TransactionType[In, Out]) ABIEncode(v any) ([]byte, error) {
+	if t.inEVMType == nil || t.outEVMType == nil {
+		return nil, ErrEVMTypeNotSet
+	}
+	vType := reflect.TypeOf(v)
+	if vType == t.inEVMType.TupleType {
+		args := abi.Arguments{{Type: *t.inEVMType}}
+		return args.Pack(v)
+	}
+	if vType == t.outEVMType.TupleType {
+		args := abi.Arguments{{Type: *t.outEVMType}}
+		return args.Pack(v)
+	}
+	return nil, fmt.Errorf("expected input to be of type %T or %T, got %T", t.inEVMType, t.outEVMType, v)
 }

@@ -4,18 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
-
-	"github.com/argus-labs/world-engine/sign"
-	"gotest.tools/v3/assert"
-
 	"github.com/argus-labs/world-engine/cardinal/ecs"
 	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
+	"github.com/argus-labs/world-engine/sign"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"gotest.tools/v3/assert"
 )
 
 type SendEnergyTx struct {
@@ -33,7 +32,16 @@ type testTransactionHandler struct {
 }
 
 func (t *testTransactionHandler) makeURL(path string) string {
-	return t.urlPrefix + path
+	return t.urlPrefix + "/" + path
+}
+
+func (t *testTransactionHandler) post(path string, payload any) *http.Response {
+	bz, err := json.Marshal(payload)
+	assert.NilError(t.t, err)
+
+	res, err := http.Post(t.makeURL(path), "application/json", bytes.NewReader(bz))
+	assert.NilError(t.t, err)
+	return res
 }
 
 func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) *testTransactionHandler {
@@ -69,9 +77,9 @@ func TestCanListTransactionEndpoints(t *testing.T) {
 
 	// Make sure the gotEndpoints contains alpha, beta and gamma. It's ok to have extra endpoints
 	foundEndpoints := map[string]bool{
-		"/tx-alpha": false,
-		"/tx-beta":  false,
-		"/tx-gamma": false,
+		"tx-alpha": false,
+		"tx-beta":  false,
+		"tx-gamma": false,
 	}
 
 	for _, e := range gotEndpoints {
@@ -129,7 +137,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
-	resp, err := http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bogusSignatureBz))
+	resp, err := http.Post(txh.makeURL("tx-"+endpoint), "application/json", bytes.NewReader(bogusSignatureBz))
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %v", mustReadBody(t, resp))
 
@@ -177,7 +185,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 
 	bz, err = json.Marshal(&signedTx)
 	assert.NilError(t, err)
-	_, err = http.Post(txh.makeURL("/tx-"+endpoint), "application/json", bytes.NewReader(bz))
+	_, err = http.Post(txh.makeURL("tx-"+endpoint), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 
 	assert.NilError(t, w.LoadGameState())
@@ -210,7 +218,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	bz, err := signedPayload.Marshal()
 	assert.NilError(t, err)
 
-	resp, err := http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	body := mustReadBody(t, resp)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %s", body)
@@ -227,7 +235,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 			Tick:       tick,
 		})
 		assert.NilError(t, err)
-		resp, err = http.Post(txh.makeURL("/"+readPrefix+"persona-signer"), "application/json", bytes.NewReader(bz))
+		resp, err = http.Post(txh.makeURL(readPrefix+"persona-signer"), "application/json", bytes.NewReader(bz))
 		assert.NilError(t, err)
 		assert.Equal(t, resp.StatusCode, 200)
 		var readPersonaSignerResponse ReadPersonaSignerResponse
@@ -272,7 +280,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err := http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	// This should fail because the namespace does not match the world's namespace
 	assert.Equal(t, resp.StatusCode, 401)
 
@@ -281,7 +289,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 200)
 }
 
@@ -307,11 +315,11 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Register a persona. This should succeed
-	resp, err := http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 200)
 
 	// Repeat the request. Since the nonce is the same, this should fail
-	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// Using an old nonce should fail
@@ -319,7 +327,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// But increasing the nonce should work
@@ -327,7 +335,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err = http.Post(txh.makeURL("/tx-create-persona"), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.Equal(t, resp.StatusCode, 200)
 }
 
@@ -365,7 +373,15 @@ func TestCanListReads(t *testing.T) {
 	var gotEndpoints []string
 	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&gotEndpoints))
 
-	endpoints := []string{"/read-foo", "/schema/read-foo", "/read-bar", "/schema/read-bar", "/read-baz", "/schema/read-baz", "/read-persona-signer", "/schema/read-persona-signer"}
+	endpoints := []string{"read-foo",
+		"schema/read-foo",
+		"read-bar",
+		"schema/read-bar",
+		"read-baz",
+		"schema/read-baz",
+		"read-persona-signer",
+		"schema/read-persona-signer",
+	}
 	for i, e := range gotEndpoints {
 		assert.Equal(t, e, endpoints[i])
 	}
@@ -403,7 +419,7 @@ func TestReadEncodeDecode(t *testing.T) {
 	bz, err := json.Marshal(req)
 	assert.NilError(t, err)
 
-	res, err := http.Post(txh.makeURL("/"+readPrefix+endpoint), "application/json", bytes.NewReader(bz))
+	res, err := http.Post(txh.makeURL(readPrefix+endpoint), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 
 	buf, err := io.ReadAll(res.Body)
@@ -414,4 +430,211 @@ func TestReadEncodeDecode(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Equal(t, fooRes.Meow, req.Meow)
+}
+
+func TestMalformedRequestToGetTransactionReceiptsProducesError(t *testing.T) {
+	world := inmem.NewECSWorldForTest(t)
+	assert.NilError(t, world.LoadGameState())
+	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
+	res := txh.post(txReceiptsEndpoint, map[string]any{
+		"missing_start_tick": 0,
+	})
+	assert.Check(t, 400 <= res.StatusCode && res.StatusCode <= 499)
+}
+
+func TestTransactionReceiptReturnCorrectTickWindows(t *testing.T) {
+	historySize := uint64(10)
+	world := inmem.NewECSWorldForTest(t, ecs.WithReceiptHistorySize(int(historySize)))
+	assert.NilError(t, world.LoadGameState())
+	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
+
+	// getReceipts is a helper that hits the txReceiptsEndpoint endpoint.
+	getReceipts := func(start uint64) ListTxReceiptsReply {
+		res := txh.post(txReceiptsEndpoint, ListTxReceiptsRequest{
+			StartTick: start,
+		})
+		assert.Equal(t, 200, res.StatusCode)
+		var reply ListTxReceiptsReply
+		assert.NilError(t, json.NewDecoder(res.Body).Decode(&reply))
+		return reply
+	}
+	tick := world.CurrentTick()
+	// Attempting to get receipt data for the current tick should return no valid ticks as the
+	// transactions have not yet been processed.
+	reply := getReceipts(tick)
+	tickCount := reply.EndTick - reply.StartTick
+	assert.Equal(t, uint64(0), tickCount)
+
+	// Attempting to get ticks in the future should also produce no valid ticks.
+	reply = getReceipts(tick + 10000)
+	tickCount = reply.EndTick - reply.StartTick
+	assert.Equal(t, uint64(0), tickCount)
+
+	// Tick once
+	ctx := context.Background()
+	assert.NilError(t, world.Tick(ctx))
+
+	// The world ticked one time, so we should find 1 valid tick.
+	reply = getReceipts(tick)
+	tickCount = reply.EndTick - reply.StartTick
+	assert.Equal(t, uint64(1), tickCount)
+	assert.Equal(t, tick, reply.StartTick)
+
+	// tick a bunch so that the tick history becomes fully populated
+	jumpAhead := historySize * 2
+	for i := uint64(0); i < jumpAhead; i++ {
+		assert.NilError(t, world.Tick(ctx))
+	}
+
+	reply = getReceipts(tick)
+	// We should find at most historySize valid ticks
+	tickCount = reply.EndTick - reply.StartTick
+	// EndTick is not actually included in the results. e.g. if StartTick and EndTick are equal,
+	// tickCount will be 0, meaning no ticks are included in the results.
+	assert.Equal(t, historySize, tickCount-1)
+	// We jumped ahead quite a bit, so the returned StartTick should be ahead of the tick we asked for
+	wantStartTick := tick + jumpAhead - historySize
+	assert.Equal(t, wantStartTick, reply.StartTick)
+
+	// Another way to figure out what StartTick should be is to subtract historySize from the current tick.
+	// This is the oldest tick available to us.
+	wantStartTick = world.CurrentTick() - historySize - 1
+	assert.Equal(t, wantStartTick, reply.StartTick)
+
+	// assuming wantStartTick is the oldest tick we can ask for if we ask for 3 ticks after that we
+	// should get the remaining of historySize.
+	tick = wantStartTick + 3
+	reply = getReceipts(tick)
+	tickCount = reply.EndTick - reply.StartTick - 1
+	assert.Equal(t, historySize-3, tickCount)
+}
+
+func TestCanGetTransactionReceipts(t *testing.T) {
+	// IncRequest in a transaction that increments the given number by 1.
+	type IncRequest struct {
+		Number int
+	}
+	type IncReply struct {
+		Number int
+	}
+
+	// DupeRequest is a transaction that appends a copy of the given string to itself.
+	type DupeRequest struct {
+		Str string
+	}
+	type DupeReply struct {
+		Str string
+	}
+
+	// ErrRequest is a transaction that will produce an error
+	type ErrRequest struct{}
+	type ErrReply struct{}
+
+	incTx := ecs.NewTransactionType[IncRequest, IncReply]("increment")
+	dupeTx := ecs.NewTransactionType[DupeRequest, DupeReply]("duplicate")
+	errTx := ecs.NewTransactionType[ErrRequest, ErrReply]("error")
+
+	world := inmem.NewECSWorldForTest(t)
+	assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
+	// System to handle incrementing numbers
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+		for _, tx := range incTx.In(queue) {
+			incTx.SetResult(world, tx.ID, IncReply{
+				Number: tx.Value.Number + 1,
+			})
+		}
+		return nil
+	})
+	// System to handle duplicating strings
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+		for _, tx := range dupeTx.In(queue) {
+			dupeTx.SetResult(world, tx.ID, DupeReply{
+				Str: tx.Value.Str + tx.Value.Str,
+			})
+		}
+		return nil
+	})
+	wantError := errors.New("some error")
+	// System to handle error production
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+		for _, tx := range errTx.In(queue) {
+			errTx.AddError(world, tx.ID, wantError)
+			errTx.AddError(world, tx.ID, wantError)
+		}
+		return nil
+	})
+	assert.NilError(t, world.LoadGameState())
+
+	// World setup is done. First check that there are no transactions.
+	ctx := context.Background()
+	assert.NilError(t, world.Tick(ctx))
+
+	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
+
+	// We're going to be getting the list of receipts a lot, so make a helper to fetch the receipts
+	getReceipts := func(start uint64) ListTxReceiptsReply {
+		res := txh.post(txReceiptsEndpoint, ListTxReceiptsRequest{
+			StartTick: start,
+		})
+		assert.Equal(t, 200, res.StatusCode)
+
+		var txReceipts ListTxReceiptsReply
+		assert.NilError(t, json.NewDecoder(res.Body).Decode(&txReceipts))
+		return txReceipts
+	}
+
+	txReceipts := getReceipts(0)
+	// Receipts should start out empty
+	assert.Equal(t, uint64(0), txReceipts.StartTick)
+	assert.Equal(t, 0, len(txReceipts.Receipts))
+
+	nonce := uint64(0)
+	nextSig := func() *sign.SignedPayload {
+		nonce++
+		return &sign.SignedPayload{
+			PersonaTag: "some-persona-tag",
+			Nonce:      nonce,
+		}
+	}
+
+	incTx.AddToQueue(world, IncRequest{99}, nextSig())
+	dupeTx.AddToQueue(world, DupeRequest{"foobar"}, nextSig())
+	errTx.AddToQueue(world, ErrRequest{}, nextSig())
+
+	assert.NilError(t, world.Tick(ctx))
+
+	txReceipts = getReceipts(0)
+	assert.Equal(t, uint64(0), txReceipts.StartTick)
+	assert.Equal(t, uint64(2), txReceipts.EndTick)
+	assert.Equal(t, 3, len(txReceipts.Receipts))
+
+	foundInc, foundDupe, foundErr := false, false, false
+	for _, r := range txReceipts.Receipts {
+		if len(r.Errors) > 0 {
+			foundErr = true
+			assert.Equal(t, 2, len(r.Errors))
+			assert.Equal(t, wantError.Error(), r.Errors[0])
+			assert.Equal(t, wantError.Error(), r.Errors[1])
+			continue
+		}
+		m, ok := r.Result.(map[string]any)
+		assert.Check(t, ok)
+		if _, ok := m["Number"]; ok {
+			foundInc = true
+			num, ok := m["Number"].(float64)
+			assert.Check(t, ok)
+			assert.Equal(t, 100, int(num))
+		} else if _, ok := m["Str"]; ok {
+			foundDupe = true
+			str, ok := m["Str"].(string)
+			assert.Check(t, ok)
+			assert.Equal(t, "foobarfoobar", str)
+		} else {
+			assert.Assert(t, false, "unknown transaction result", r.Result)
+		}
+	}
+
+	assert.Check(t, foundInc)
+	assert.Check(t, foundDupe)
+	assert.Check(t, foundErr)
 }

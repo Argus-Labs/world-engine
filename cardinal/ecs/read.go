@@ -36,7 +36,7 @@ type ReadType[Request any, Reply any] struct {
 	replyABI   *abi.Type
 }
 
-func WithEVMSupport[Request, Reply any]() func(transactionType *ReadType[Request, Reply]) {
+func WithReadEVMSupport[Request, Reply any]() func(transactionType *ReadType[Request, Reply]) {
 	return func(read *ReadType[Request, Reply]) {
 		var req Request
 		var rep Reply
@@ -122,8 +122,7 @@ func (r *ReadType[req, rep]) HandleReadRaw(w *World, bz []byte) ([]byte, error) 
 
 func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if r.requestABI == nil {
-		return nil, errors.New("cannot call DecodeEVMRequest without using the WithEVMSupport option when " +
-			"creating the read")
+		return nil, ErrEVMTypeNotSet
 	}
 	args := abi.Arguments{{Type: *r.requestABI}}
 	unpacked, err := args.Unpack(bz)
@@ -142,8 +141,7 @@ func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 
 func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if r.replyABI == nil {
-		return nil, errors.New("cannot call DecodeEVMReply without using the WithEVMSupport option when " +
-			"creating the read")
+		return nil, ErrEVMTypeNotSet
 	}
 	args := abi.Arguments{{Type: *r.replyABI}}
 	unpacked, err := args.Unpack(bz)
@@ -162,8 +160,7 @@ func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 
 func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	if r.replyABI == nil {
-		return nil, errors.New("cannot call EncodeEVMReply without using the WithEVMSupport option when " +
-			"creating the read")
+		return nil, ErrEVMTypeNotSet
 	}
 	args := abi.Arguments{{Type: *r.replyABI}}
 	bz, err := args.Pack(a)
@@ -172,8 +169,7 @@ func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 
 func (r *ReadType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 	if r.requestABI == nil || r.replyABI == nil {
-		return nil, errors.New("cannot call EncodeAsABI without using the WithEVMSupport option when " +
-			"creating the read")
+		return nil, ErrEVMTypeNotSet
 	}
 	req, ok := input.(Request)
 	if !ok {

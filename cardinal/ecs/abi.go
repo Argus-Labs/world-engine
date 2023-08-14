@@ -9,6 +9,10 @@ import (
 	"strings"
 )
 
+const (
+	bigIntStructTag = "evm"
+)
+
 var (
 	hasNumbers = regexp.MustCompile(`\d+`)
 )
@@ -23,7 +27,7 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 	for i := 0; i < rt.NumField(); i++ {
 		field := rt.Field(i)
 		fieldType := field.Type.String()
-		solType, err := goTypeToSolidityType(fieldType, field.Tag.Get("solidity"))
+		solType, err := goTypeToSolidityType(fieldType, field.Tag.Get(bigIntStructTag))
 		if err != nil {
 			return nil, err
 		}
@@ -42,8 +46,8 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 }
 
 func goTypeToSolidityType(t string, tag string) (string, error) {
-	// first handle the most special type. []bytes. this is very specific for ethereum, in that it translates to 'bytes'
-	if t == "[]bytes" {
+	// first handle the most special type. []byte. this is very specific for ethereum, in that it translates to 'bytes'
+	if t == "[]byte" {
 		return "bytes", nil
 	}
 	// next handle slices, all we do here is check that it contains the brackets,
@@ -60,8 +64,8 @@ func goTypeToSolidityType(t string, tag string) (string, error) {
 	// are expected to use a special `solidity` struct tag to indicate the type they want to use here.
 	if t == "*big.Int" {
 		if tag == "" {
-			return "", errors.New("cannot convert *big.Int to solidity type. *big.Int is a special type that " +
-				"requires the go struct tag informing the parser whether to convert this to a uint256 or int256 type")
+			return "", fmt.Errorf("when using *big.Int, you MUST use the `%s` struct tag to indicate which "+
+				"underlying evm integer type you wish to resolve to (i.e. uint256, int128, etc)", bigIntStructTag)
 		}
 		return tag, nil
 	}

@@ -47,8 +47,8 @@ func TestGenerateABIType_AllValidTypes(t *testing.T) {
 
 		Bytes []byte
 
-		BigInt      *big.Int   `solidity:"uint256"`
-		SliceBigInt []*big.Int `solidity:"int256"`
+		BigInt      *big.Int   `evm:"uint256"`
+		SliceBigInt []*big.Int `evm:"int256"`
 	}
 	at, err := GenerateABIType(BigType{})
 	assert.Nil(t, err)
