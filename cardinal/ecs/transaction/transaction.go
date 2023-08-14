@@ -1,8 +1,8 @@
 package transaction
 
 import (
-	"github.com/argus-labs/world-engine/sign"
 	"github.com/invopop/jsonschema"
+	"pkg.world.dev/world-engine/sign"
 )
 
 type TxMap map[TypeID][]TxAny
