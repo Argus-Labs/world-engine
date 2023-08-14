@@ -1,8 +1,6 @@
 # Getting Started
 
-The easiest way to get started with building a Cardinal game shard is via the
-[starter-game-template](https://github.com/Argus-Labs/starter-game-template). To the template, simply run the following
-command in your preferred development directory:
+The easiest way to get started with building a Cardinal game shard is via the [starter-game-template](https://github.com/Argus-Labs/starter-game-template). To get the template, run the following command in your preferred development directory:
 
 ```zsh
 git clone https://github.com/Argus-Labs/starter-game-template
@@ -12,10 +10,10 @@ git clone https://github.com/Argus-Labs/starter-game-template
 
 The starter game template has 4 directories, but you will only need to worry about 2 of them (cardinal and nakama).
 
-- `cardinal`: code for your game server.
-- `magefiles`: utility scripts that utilize the `mage` build tool (an alternative to `make`)
-- `nakama`: code for the relayer/account abstraction layer.
-- `testsuite`: e2e tests for the whole stack.
+- `[cardinal](https://github.com/Argus-Labs/starter-game-template/tree/main/cardinal)`: code for your game server.
+- `[magefiles](https://github.com/Argus-Labs/starter-game-template/tree/main/magefiles)`: utility scripts that utilize the `mage` build tool (an alternative to `make`)
+- `[nakama](https://github.com/Argus-Labs/starter-game-template/tree/main/nakama)`: code for the relayer/account abstraction layer.
+- `[testsuite](https://github.com/Argus-Labs/starter-game-template/tree/main/testsuite)`: e2e tests for the whole stack.
 
 ### Cardinal
 
@@ -34,5 +32,5 @@ should be organized and implemented.
 Nakama is where the relayer and account abstraction layer lives. We expect most people to use our version of Nakama,
 which comes with a few benefits:
 
-- automatically sets up RPC endpoints for game clients to hook into the Cardinal game world
-- handles account abstraction and persona tags (similar to gamer-tags)
+- Automatically set up RPC endpoints for game clients to hook into the Cardinal game world
+- Handle account abstraction and persona tags (similar to gamer-tags)
