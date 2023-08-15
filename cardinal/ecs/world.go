@@ -8,18 +8,18 @@ import (
 	"time"
 
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-	"github.com/argus-labs/world-engine/cardinal/ecs/receipt"
 	"google.golang.org/protobuf/proto"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
-	"github.com/argus-labs/world-engine/sign"
 	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/sign"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs/component"
-	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
-	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
-	"github.com/argus-labs/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 // Namespace is a unique identifier for a world.

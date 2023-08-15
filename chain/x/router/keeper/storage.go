@@ -6,7 +6,7 @@ import (
 	"cosmossdk.io/store/prefix"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/argus-labs/world-engine/chain/x/router/types"
+	"pkg.world.dev/world-engine/chain/x/router/types"
 )
 
 var (

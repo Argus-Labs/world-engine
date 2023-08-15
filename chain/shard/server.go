@@ -15,7 +15,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
 )
 
 var (

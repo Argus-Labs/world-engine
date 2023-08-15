@@ -1,6 +1,6 @@
-module github.com/argus-labs/world-engine/chain
+module pkg.world.dev/world-engine/chain
 
-go 1.20
+go 1.21
 
 // external, necessary replacements
 replace (

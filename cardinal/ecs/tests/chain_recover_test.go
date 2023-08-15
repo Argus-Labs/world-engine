@@ -7,16 +7,16 @@ import (
 	"testing"
 
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-	"github.com/argus-labs/world-engine/sign"
 	"github.com/cometbft/cometbft/libs/rand"
 	"google.golang.org/protobuf/proto"
+	"pkg.world.dev/world-engine/sign"
 
 	"gotest.tools/v3/assert"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs"
-	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
-	"github.com/argus-labs/world-engine/cardinal/shard"
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
 )
 
 var _ shard.Adapter = &DummyAdapter{}

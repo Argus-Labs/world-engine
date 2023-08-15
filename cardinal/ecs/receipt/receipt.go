@@ -7,7 +7,7 @@ import (
 	"errors"
 	"sync/atomic"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 var (
