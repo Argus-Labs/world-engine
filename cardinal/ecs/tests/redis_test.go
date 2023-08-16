@@ -217,8 +217,6 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 
 	gotQueue, err := rs.Recover(txSlice)
 	assert.NilError(t, err)
-	//make sure gotQueue is a copy not a reference to original queue
-	assert.Assert(t, &queue != &gotQueue)
 
 	assert.Equal(t, 1, len(gotQueue))
 	slice, ok := gotQueue[tx.ID()]
