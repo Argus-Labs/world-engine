@@ -554,6 +554,33 @@ func (r *RedisStorage) partitionKeys(ctx context.Context) (stateKeys, snapshotKe
 	return stateKeys, snapshotKeys, nil
 }
 
+// copyKey copies the contents of the src key to the dst key. Ideally, this could be replaced
+// the redis command r.Client.Copy(...), however miniredis (used for unit testing) has a bug
+// where this copy command for lists doesn't work as expected.
+// See https://linear.app/arguslabs/issue/WORLD-210/update-miniredis-version for more details.
+func (r *RedisStorage) copyKey(ctx context.Context, src, dst string) error {
+	keyType, err := r.Client.Type(ctx, src).Result()
+	if err != nil {
+		return err
+	}
+	if keyType != "list" {
+		return r.Client.Copy(ctx, src, dst, 0, true).Err()
+	}
+	if err := r.Client.Del(ctx, dst).Err(); err != nil {
+		return err
+	}
+	vals, err := r.Client.LRange(ctx, src, 0, -1).Result()
+	if err != nil {
+		return err
+	}
+	ivals := make([]interface{}, len(vals))
+	for i, v := range vals {
+		ivals[i] = v
+	}
+
+	return r.Client.RPush(ctx, dst, ivals...).Err()
+}
+
 func (r *RedisStorage) makeSnapshot(ctx context.Context) error {
 	toCopy, toDelete, err := r.partitionKeys(ctx)
 	if err != nil {
@@ -568,7 +595,7 @@ func (r *RedisStorage) makeSnapshot(ctx context.Context) error {
 
 	for _, sourceKey := range toCopy {
 		destKey := snapshotPrefix + sourceKey
-		if err := r.Client.Copy(ctx, sourceKey, destKey, 0, true).Err(); err != nil {
+		if err := r.copyKey(ctx, sourceKey, destKey); err != nil {
 			return err
 		}
 	}
@@ -590,7 +617,7 @@ func (r *RedisStorage) recoverSnapshot(ctx context.Context) error {
 	}
 	for _, sourceKey := range snapshotKeys {
 		destKey := strings.TrimPrefix(sourceKey, snapshotPrefix)
-		if err := r.Client.Copy(ctx, sourceKey, destKey, 0, true).Err(); err != nil {
+		if err := r.copyKey(ctx, sourceKey, destKey); err != nil {
 			return err
 		}
 	}
