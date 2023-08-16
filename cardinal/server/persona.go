@@ -3,19 +3,13 @@ package server
 import (
 	"encoding/json"
 	"errors"
-	"github.com/invopop/jsonschema"
 	"io"
 	"net/http"
+
+	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
-
-// CreatePersonaResponse is returned from a tx-create-persona request. It contains the current tick of the game
-// (needed to call the read-persona-signer endpoint).
-type CreatePersonaResponse struct {
-	Tick   uint64
-	Status string
-}
 
 // ReadPersonaSignerRequest is the desired request body for the read-persona-signer endpoint.
 type ReadPersonaSignerRequest struct {
@@ -98,11 +92,11 @@ func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.Han
 			writeError(writer, "unable to decode transaction", err)
 			return
 		}
-		t.w.AddTransaction(tx.ID(), txVal, sp)
+		tick, id := t.w.AddTransaction(tx.ID(), txVal, sp)
 
-		res, err := json.Marshal(CreatePersonaResponse{
-			Tick:   t.w.CurrentTick(),
-			Status: "ok",
+		res, err := json.Marshal(ReceiptID{
+			ID:   id.String(),
+			Tick: tick,
 		})
 		if err != nil {
 			writeError(writer, "unable to marshal response", err)

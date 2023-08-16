@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"fmt"
+
 	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -16,6 +18,10 @@ type TxAny struct {
 type TxID struct {
 	PersonaTag string
 	Index      uint64
+}
+
+func (id TxID) String() string {
+	return fmt.Sprintf("%s-%d", id.PersonaTag, id.Index)
 }
 
 type TypeID int

@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -223,10 +225,10 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	body := mustReadBody(t, resp)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %s", body)
 
-	var createPersonaResponse CreatePersonaResponse
-	assert.NilError(t, json.Unmarshal([]byte(body), &createPersonaResponse))
-	assert.Equal(t, createPersonaResponse.Status, "ok")
-	tick := createPersonaResponse.Tick
+	var receiptID ReceiptID
+	assert.NilError(t, json.Unmarshal([]byte(body), &receiptID))
+	assert.Equal(t, receiptID.Tick, world.CurrentTick())
+	tick := receiptID.Tick
 
 	// postReadPersonaSigner is a helper that makes a request to the read-persona-signer endpoint and returns the response
 	postReadPersonaSigner := func(personaTag string, tick uint64) ReadPersonaSignerResponse {
@@ -637,4 +639,74 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	assert.Check(t, foundInc)
 	assert.Check(t, foundDupe)
 	assert.Check(t, foundErr)
+}
+
+func TestTransactionIDIsReturned(t *testing.T) {
+	type MoveTx struct{}
+	world := inmem.NewECSWorldForTest(t)
+	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+	world.RegisterTransactions(moveTx)
+	assert.NilError(t, world.LoadGameState())
+	ctx := context.Background()
+	// Preemptive tick so the tick isn't the zero value
+	assert.NilError(t, world.Tick(ctx))
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	txh := makeTestTransactionHandler(t, world)
+
+	personaTag := "clifford_the_big_red_dog"
+	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+	namespace := world.Namespace()
+	nonce := uint64(99)
+
+	createPersonaTx := ecs.CreatePersonaTransaction{
+		PersonaTag:    personaTag,
+		SignerAddress: signerAddr,
+	}
+
+	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, namespace, nonce, createPersonaTx)
+	assert.NilError(t, err)
+	bz, err := sigPayload.Marshal()
+	assert.NilError(t, err)
+
+	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+
+	assert.Equal(t, 200, resp.StatusCode)
+
+	var receiptID ReceiptID
+	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&receiptID))
+
+	// The ID field should not be empty
+	assert.Check(t, receiptID.ID != "")
+	// The ID field should contain the persona tag (this may change in the future)
+	assert.Check(t, strings.Contains(receiptID.ID, personaTag))
+	// The ID field should contain the nonce (this may change in the future)
+	assert.Check(t, strings.Contains(receiptID.ID, fmt.Sprintf("%d", nonce)))
+	// The tick should equal the current tick
+	assert.Equal(t, world.CurrentTick(), receiptID.Tick)
+
+	assert.NilError(t, world.Tick(ctx))
+
+	// Also check to make sure transaction IDs are returned for other kinds of transactions
+	nonce++
+	emptyData := map[string]any{}
+	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, nonce, emptyData)
+
+	bz, err = sigPayload.Marshal()
+	assert.NilError(t, err)
+
+	resp, err = http.Post(txh.makeURL("tx-move"), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&receiptID))
+
+	// The ID field should not be empty
+	assert.Check(t, receiptID.ID != "")
+	// The ID field should contain the persona tag (this may change in the future)
+	assert.Check(t, strings.Contains(receiptID.ID, personaTag))
+	// The ID field should contain the nonce (this may change in the future)
+	assert.Check(t, strings.Contains(receiptID.ID, fmt.Sprintf("%d", nonce)))
+	// The tick should equal the current tick
+	assert.Equal(t, world.CurrentTick(), receiptID.Tick)
 }

@@ -116,9 +116,12 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 		}
 
 		submitTx := func() uint64 {
-			tick, _ := t.w.AddTransaction(tx.ID(), txVal, sp)
+			tick, id := t.w.AddTransaction(tx.ID(), txVal, sp)
 
-			res, err := json.Marshal("ok")
+			res, err := json.Marshal(ReceiptID{
+				ID:   id.String(),
+				Tick: tick,
+			})
 			if err != nil {
 				writeError(writer, "unable to marshal response", err)
 				return 0
