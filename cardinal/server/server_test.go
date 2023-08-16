@@ -45,13 +45,14 @@ func (t *testTransactionHandler) post(path string, payload any) *http.Response {
 }
 
 func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) *testTransactionHandler {
+	port := "4040"
+	opts = append(opts, WithPort(port))
 	txh, err := NewHandler(world, opts...)
 	assert.NilError(t, err)
 	t.Cleanup(func() {
 		assert.NilError(t, txh.Close())
 	})
-	port := "4040"
-	go txh.Serve("", port)
+	go txh.Serve()
 	urlPrefix := "http://localhost:" + port
 
 	return &testTransactionHandler{
