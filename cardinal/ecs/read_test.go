@@ -6,7 +6,7 @@ import (
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"gotest.tools/v3/assert"
-	. "pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/evm"
 )
@@ -25,13 +25,13 @@ func TestReadEVM(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooRead := NewReadType[FooRequest, FooReply]("foo", func(world *World, req FooRequest) (FooReply, error) {
+	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
-	}, WithReadEVMSupport[FooRequest, FooReply])
+	}, ecs.WithReadEVMSupport[FooRequest, FooReply])
 
 	w := inmem.NewECSWorldForTest(t)
 	err := w.RegisterReads(fooRead)
-	err = w.RegisterTransactions(NewTransactionType[struct{}, struct{}]("blah"))
+	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)
 	s, err := evm.NewServer(w)
 	assert.NilError(t, err)
