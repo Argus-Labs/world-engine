@@ -1,4 +1,4 @@
-package tests
+package ecs_test
 
 import (
 	"context"
@@ -12,8 +12,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 
 	"gotest.tools/v3/assert"
-
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	. "pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
@@ -91,15 +90,15 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
-	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(adapter))
-	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
+	w := inmem.NewECSWorldForTest(t, WithAdapter(adapter))
+	SendEnergyTx := NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
 	err := w.RegisterTransactions(SendEnergyTx)
 	assert.NilError(t, err)
 
 	sysRuns := uint64(0)
 	timesSendEnergyRan := 0
 	// send energy system
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	w.AddSystem(func(world *World, queue *TransactionQueue) error {
 		sysRuns++
 		txs := SendEnergyTx.In(queue)
 		if len(txs) > 0 {
@@ -126,7 +125,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	assert.Equal(t, len(payloads), timesSendEnergyRan)
 }
 
-func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]) *sign.SignedPayload {
+func generateRandomTransaction(t *testing.T, ns string, tx *TransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]) *sign.SignedPayload {
 	tx1 := SendEnergyTransaction{
 		To:     rand.Str(5),
 		From:   rand.Str(4),
@@ -147,7 +146,7 @@ func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{}
-	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(adapter))
+	w := inmem.NewECSWorldForTest(t, WithAdapter(adapter))
 	assert.NilError(t, w.LoadGameState())
 	assert.NilError(t, w.Tick(ctx))
 

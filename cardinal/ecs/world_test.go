@@ -1,16 +1,16 @@
-package tests
+package ecs_test
 
 import (
 	"context"
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	. "pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"testing"
 )
 
 func TestAddSystems(t *testing.T) {
 	count := 0
-	sys := func(w *ecs.World, txq *ecs.TransactionQueue) error {
+	sys := func(w *World, txq *TransactionQueue) error {
 		count++
 		return nil
 	}
@@ -28,6 +28,6 @@ func TestAddSystems(t *testing.T) {
 
 func TestSetNamespace(t *testing.T) {
 	id := "foo"
-	w := inmem.NewECSWorldForTest(t, ecs.WithNamespace(id))
+	w := inmem.NewECSWorldForTest(t, WithNamespace(id))
 	assert.Equal(t, w.Namespace(), id)
 }

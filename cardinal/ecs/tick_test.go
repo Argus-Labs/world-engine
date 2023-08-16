@@ -1,22 +1,22 @@
-package tests
+package ecs_test
 
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/tests"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
-
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	. "pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 func TestTickHappyPath(t *testing.T) {
 	rs := miniredis.RunT(t)
-	oneWorld := initWorldWithRedis(t, rs)
-	oneEnergy := ecs.NewComponentType[EnergyComponent]()
+	oneWorld := tests.InitWorldWithRedis(t, rs)
+	oneEnergy := NewComponentType[EnergyComponent]()
 	assert.NilError(t, oneWorld.RegisterComponents(oneEnergy))
 	assert.NilError(t, oneWorld.LoadGameState())
 
@@ -26,8 +26,8 @@ func TestTickHappyPath(t *testing.T) {
 
 	assert.Equal(t, uint64(10), oneWorld.CurrentTick())
 
-	twoWorld := initWorldWithRedis(t, rs)
-	twoEnergy := ecs.NewComponentType[EnergyComponent]()
+	twoWorld := tests.InitWorldWithRedis(t, rs)
+	twoEnergy := NewComponentType[EnergyComponent]()
 	assert.NilError(t, twoWorld.RegisterComponents(twoEnergy))
 	assert.NilError(t, twoWorld.LoadGameState())
 	assert.Equal(t, uint64(10), twoWorld.CurrentTick())
@@ -39,8 +39,8 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	}
 
 	rs := miniredis.RunT(t)
-	oneWorld := initWorldWithRedis(t, rs)
-	onePower := ecs.NewComponentType[PowerComponent]()
+	oneWorld := tests.InitWorldWithRedis(t, rs)
+	onePower := NewComponentType[PowerComponent]()
 	assert.NilError(t, oneWorld.RegisterComponents(onePower))
 
 	id, err := oneWorld.Create(onePower)
@@ -49,7 +49,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	errorSystem := errors.New("3 power? That's too much, man!")
 
 	// In this test, our "buggy" system fails once Power reaches 3
-	oneWorld.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	oneWorld.AddSystem(func(world *World, queue *TransactionQueue) error {
 		p, err := onePower.Get(world, id)
 		if err != nil {
 			return err
@@ -70,12 +70,12 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.ErrorIs(t, errorSystem, oneWorld.Tick(context.Background()))
 
 	// Set up a new world using the same storage layer
-	twoWorld := initWorldWithRedis(t, rs)
-	twoPower := ecs.NewComponentType[*PowerComponent]()
+	twoWorld := tests.InitWorldWithRedis(t, rs)
+	twoPower := NewComponentType[*PowerComponent]()
 	assert.NilError(t, twoWorld.RegisterComponents(twoPower))
 
 	// this is our fixed system that can handle Power levels of 3 and higher
-	twoWorld.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	twoWorld.AddSystem(func(world *World, queue *TransactionQueue) error {
 		p, err := onePower.Get(world, id)
 		if err != nil {
 			return err
@@ -102,8 +102,8 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 		Val int
 	}
 	world := inmem.NewECSWorldForTest(t)
-	alpha := ecs.NewComponentType[ScalarComponent]()
-	beta := ecs.NewComponentType[ScalarComponent]()
+	alpha := NewComponentType[ScalarComponent]()
+	beta := NewComponentType[ScalarComponent]()
 	assert.NilError(t, world.RegisterComponents(alpha))
 	assert.NilError(t, world.LoadGameState())
 
@@ -145,9 +145,9 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 	}
 	rs := miniredis.RunT(t)
 	for _, firstWorldIteration := range []bool{true, false} {
-		world := initWorldWithRedis(t, rs)
-		static := ecs.NewComponentType[ScalarComponent]()
-		toggle := ecs.NewComponentType[ScalarComponent]()
+		world := tests.InitWorldWithRedis(t, rs)
+		static := NewComponentType[ScalarComponent]()
+		toggle := NewComponentType[ScalarComponent]()
 		assert.NilError(t, world.RegisterComponents(static, toggle))
 
 		if firstWorldIteration {
@@ -156,7 +156,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		}
 
 		errorToggleComponent := errors.New("problem with toggle component")
-		world.AddSystem(func(w *ecs.World, _ *ecs.TransactionQueue) error {
+		world.AddSystem(func(w *World, _ *TransactionQueue) error {
 			// Get the one and only entity ID
 			id, ok, err := static.First(w)
 			assert.NilError(t, err)
@@ -214,15 +214,15 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 	rs := miniredis.RunT(t)
 	errorBadPowerChange := errors.New("bad power change transaction")
 	for _, isBuggyIteration := range []bool{true, false} {
-		world := initWorldWithRedis(t, rs)
+		world := tests.InitWorldWithRedis(t, rs)
 
-		powerComp := ecs.NewComponentType[FloatValue]()
+		powerComp := NewComponentType[FloatValue]()
 		assert.NilError(t, world.RegisterComponents(powerComp))
 
-		powerTx := ecs.NewTransactionType[FloatValue, FloatValue]("change_power")
+		powerTx := NewTransactionType[FloatValue, FloatValue]("change_power")
 		assert.NilError(t, world.RegisterTransactions(powerTx))
 
-		world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
+		world.AddSystem(func(w *World, queue *TransactionQueue) error {
 			id, err := powerComp.MustFirst(w)
 			assert.NilError(t, err)
 			entityPower, err := powerComp.Get(w, id)

@@ -1,4 +1,4 @@
-package tests
+package ecs_test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	. "pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -19,13 +19,13 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 
 	wantTag := "CoolMage"
 	wantAddress := "123-456"
-	ecs.CreatePersonaTx.AddToQueue(world, ecs.CreatePersonaTransaction{
+	CreatePersonaTx.AddToQueue(world, CreatePersonaTransaction{
 		PersonaTag:    wantTag,
 		SignerAddress: wantAddress,
 	})
 	// This CreatePersonaTx has the same persona tag, but it shouldn't be registered because
 	// it comes second.
-	ecs.CreatePersonaTx.AddToQueue(world, ecs.CreatePersonaTransaction{
+	CreatePersonaTx.AddToQueue(world, CreatePersonaTransaction{
 		PersonaTag:    wantTag,
 		SignerAddress: "some-other-address",
 	})
@@ -34,9 +34,9 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	count := 0
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id storage.EntityID) bool {
+	NewQuery(filter.Exact(SignerComp)).Each(world, func(id storage.EntityID) bool {
 		count++
-		sc, err := ecs.SignerComp.Get(world, id)
+		sc, err := SignerComp.Get(world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantAddress)
@@ -56,12 +56,12 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	}
 
 	_, err := world.GetSignerForPersonaTag("missing_persona", 1)
-	assert.ErrorIs(t, err, ecs.ErrorPersonaTagHasNoSigner)
+	assert.ErrorIs(t, err, ErrorPersonaTagHasNoSigner)
 
 	// Queue up a CreatePersonaTx
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
-	ecs.CreatePersonaTx.AddToQueue(world, ecs.CreatePersonaTransaction{
+	CreatePersonaTx.AddToQueue(world, CreatePersonaTransaction{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddress,
 	})
@@ -69,7 +69,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	// originally got the CreatePersonaTx.
 	tick := world.CurrentTick()
 	_, err = world.GetSignerForPersonaTag(personaTag, tick)
-	assert.ErrorIs(t, err, ecs.ErrorCreatePersonaTxsNotProcessed)
+	assert.ErrorIs(t, err, ErrorCreatePersonaTxsNotProcessed)
 
 	assert.NilError(t, world.Tick(ctx))
 	// The CreatePersonaTx has now been processed
@@ -86,7 +86,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		// Attempt to register many different signer addresses with the same persona tag.
-		ecs.CreatePersonaTx.AddToQueue(world, ecs.CreatePersonaTransaction{
+		CreatePersonaTx.AddToQueue(world, CreatePersonaTransaction{
 			PersonaTag:    personaTag,
 			SignerAddress: fmt.Sprintf("address-%d", i),
 		})
@@ -103,7 +103,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 	// Attempt to register this persona tag again in a different tick. We should still maintain the original
 	// signer address.
-	ecs.CreatePersonaTx.AddToQueue(world, ecs.CreatePersonaTransaction{
+	CreatePersonaTx.AddToQueue(world, CreatePersonaTransaction{
 		PersonaTag:    personaTag,
 		SignerAddress: "some-other-address",
 	})
