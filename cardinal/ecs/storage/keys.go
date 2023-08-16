@@ -37,27 +37,27 @@ define keys for redis storage
 */
 
 func (r *RedisStorage) componentDataKey(archID ArchetypeID, compID component.TypeID) string {
-	return fmt.Sprintf("COMPD:WORLD-%s:CID-%d:A-%d", r.WorldID, compID, archID)
+	return fmt.Sprintf("COMPD:CID-%d:A-%d", compID, archID)
 }
 
 func (r *RedisStorage) archetypeIndexKey(id ArchetypeID) string {
-	return fmt.Sprintf("ARCHIDX:WORLD-%s:A-%d", r.WorldID, id)
+	return fmt.Sprintf("ARCHIDX:A-%d", id)
 }
 
 func (r *RedisStorage) entityLocationKey(id EntityID) string {
-	return fmt.Sprintf("LOC:WORLD-%s:E-%d", r.WorldID, id)
+	return fmt.Sprintf("LOC:E-%d", id)
 }
 
 func (r *RedisStorage) entityLocationLenKey() string {
-	return fmt.Sprintf("LOCL:WORLD-%s", r.WorldID)
+	return "LOCL"
 }
 
 func (r *RedisStorage) nextEntityIDKey() string {
-	return fmt.Sprintf("ENTITY:WORLD-%s:NEXTID", r.WorldID)
+	return "ENTITY:NEXTID"
 }
 
 func (r *RedisStorage) stateStorageKey(subKey string) string {
-	return fmt.Sprintf("STATE:WORLD-%s:%s", r.WorldID, subKey)
+	return fmt.Sprintf("STATE:%s", subKey)
 }
 
 func (r *RedisStorage) tickKey() string {

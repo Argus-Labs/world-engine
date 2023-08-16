@@ -35,7 +35,6 @@ import (
 // We could end up with some issues (needs to be determined).
 
 type RedisStorage struct {
-	WorldID                string
 	ComponentStoragePrefix component.TypeID
 	Client                 *redis.Client
 	Log                    zerolog.Logger
@@ -44,11 +43,10 @@ type RedisStorage struct {
 
 type Options = redis.Options
 
-func NewRedisStorage(options Options, worldID string) RedisStorage {
+func NewRedisStorage(options Options) RedisStorage {
 	return RedisStorage{
-		WorldID: worldID,
-		Client:  redis.NewClient(&options),
-		Log:     zerolog.New(os.Stdout),
+		Client: redis.NewClient(&options),
+		Log:    zerolog.New(os.Stdout),
 	}
 }
 

@@ -18,7 +18,7 @@ type IRead interface {
 	// and is expected to return a json encoded response struct.
 	HandleReadRaw(*World, []byte) ([]byte, error)
 	// Schema returns the json schema of the read request.
-  Schema() (request, reply *jsonschema.Schema)
+	Schema() (request, reply *jsonschema.Schema)
 	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
 	DecodeEVMRequest([]byte) (any, error)
 	// EncodeEVMReply encodes the reply as an abi encoded struct.
