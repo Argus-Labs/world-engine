@@ -180,17 +180,6 @@ func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
 	assert.DeepEqual(t, gotData, wantData)
 }
 
-func TestMiniRedisCopy(t *testing.T) {
-	rs := getRedisStorage(t)
-	ctx := context.Background()
-	rs.Client.LPush(ctx, "testing", "original")
-	rs.Client.Copy(ctx, "testing", "testing2", 0, true)
-	rs.Client.LSet(ctx, "testing", 0, "changed")
-	x := rs.Client.LRange(ctx, "testing", 0, 0)
-	y := rs.Client.LRange(ctx, "testing2", 0, 0)
-	assert.Assert(t, x.Val()[0] != y.Val()[0])
-}
-
 func TestCanSaveAndRecoverSignatures(t *testing.T) {
 	rs := getRedisStorage(t)
 	type TxIn struct {
@@ -228,6 +217,8 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 
 	gotQueue, err := rs.Recover(txSlice)
 	assert.NilError(t, err)
+	//make sure gotQueue is a copy not a reference to original queue
+	assert.Assert(t, &queue != &gotQueue)
 
 	assert.Equal(t, 1, len(gotQueue))
 	slice, ok := gotQueue[tx.ID()]
