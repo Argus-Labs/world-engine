@@ -199,7 +199,7 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 	personaTag := "xyzzy"
 	wantSig, err := sign.NewSignedPayload(key, personaTag, "namespace", 66, wantVal)
 	assert.NilError(t, err)
-	wantTxID := transaction.TxID{personaTag, 100}
+	wantTxID := transaction.TxID("some-transaction-id")
 
 	queue := transaction.TxMap{
 		tx.ID(): []transaction.TxAny{

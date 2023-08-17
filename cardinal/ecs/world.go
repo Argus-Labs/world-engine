@@ -8,6 +8,7 @@ import (
 	"time"
 
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
+	"github.com/ethereum/go-ethereum/crypto"
 	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 
@@ -415,13 +416,17 @@ func (w *World) copyTransactions() transaction.TxMap {
 	return txsMap
 }
 
+func signatureToID(sig *sign.SignedPayload) transaction.TxID {
+	return transaction.TxID(crypto.Keccak256Hash([]byte(sig.Signature)).Hex())
+}
+
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
 func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (tick uint64, txID transaction.TxID) {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
-	txID = transaction.TxID{PersonaTag: sig.PersonaTag, Index: sig.Nonce}
+	txID = signatureToID(sig)
 	w.txQueues[id] = append(w.txQueues[id], transaction.TxAny{
 		ID:    txID,
 		Value: v,

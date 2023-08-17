@@ -82,7 +82,7 @@ func handleListTxReceipts(world *ecs.World) http.HandlerFunc {
 			}
 			for _, r := range currReceipts {
 				reply.Receipts = append(reply.Receipts, Receipt{
-					ID:     r.ID.String(),
+					ID:     string(r.ID),
 					Result: r.Result,
 					Errors: errsToStringSlice(r.Errs),
 				})

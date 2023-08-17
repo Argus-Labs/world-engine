@@ -4,20 +4,20 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
-func txID(name string, index uint64) transaction.TxID {
-	return transaction.TxID{
-		PersonaTag: name,
-		Index:      index,
-	}
+func txID(t *testing.T) transaction.TxID {
+	id, err := uuid.NewUUID()
+	assert.NilError(t, err)
+	return transaction.TxID(id.String())
 }
 
 func TestCanSaveAndGetAnError(t *testing.T) {
 	rh := NewHistory(100, 10)
-	id := txID("foobar", 99)
+	id := txID(t)
 	wantError := errors.New("some error")
 
 	rh.AddError(id, wantError)
@@ -31,7 +31,7 @@ func TestCanSaveAndGetAnError(t *testing.T) {
 
 func TestCanSaveAndGetManyErrors(t *testing.T) {
 	rh := NewHistory(99, 5)
-	id := txID("xyzzy", 10)
+	id := txID(t)
 	errA, errB := errors.New("a error"), errors.New("b error")
 	rh.AddError(id, errA)
 	rh.AddError(id, errB)
@@ -50,7 +50,7 @@ func TestCanSaveAndGetResult(t *testing.T) {
 	}
 
 	rh := NewHistory(99, 5)
-	id := txID("xyzzy", 10)
+	id := txID(t)
 	wantStruct := myStruct{"woo", 100}
 	rh.SetResult(id, wantStruct)
 
@@ -69,7 +69,7 @@ func TestCanReplaceResult(t *testing.T) {
 	}
 
 	rh := NewHistory(99, 5)
-	id := txID("xyzzy", 10)
+	id := txID(t)
 
 	doNotWant := toBeReplaced{"replaceme"}
 	rh.SetResult(id, doNotWant)
@@ -90,7 +90,7 @@ func TestCanReplaceResult(t *testing.T) {
 
 func TestMissingIDReturnsNotOK(t *testing.T) {
 	rh := NewHistory(99, 5)
-	id := txID("does not exist", 10)
+	id := txID(t)
 
 	_, ok := rh.GetReceipt(id)
 	assert.Check(t, !ok)
@@ -119,7 +119,7 @@ func TestOldTicksAreDiscarded(t *testing.T) {
 	historyLength := 3
 	// ticksToStore is 3, so at most 3 ticks from the past will be remembered.
 	rh := NewHistory(tickToGet, historyLength)
-	id := txID("an-old-id", 10)
+	id := txID(t)
 	wantResult := MyStruct{1234}
 	wantError := errors.New("some error")
 	rh.SetResult(id, wantResult)

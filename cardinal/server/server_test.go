@@ -5,10 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -325,7 +323,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// Using an old nonce should fail
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, 50, createPersonaTx)
+	sigPayload, err = sign.NewSystemSignedPayload(privateKey, namespace, 50, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -333,7 +331,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// But increasing the nonce should work
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, 101, createPersonaTx)
+	sigPayload, err = sign.NewSystemSignedPayload(privateKey, namespace, 101, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -591,17 +589,21 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	assert.Equal(t, 0, len(txReceipts.Receipts))
 
 	nonce := uint64(0)
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
 	nextSig := func() *sign.SignedPayload {
+		sig, err := sign.NewSignedPayload(privateKey, "my-persona-tag", "namespace", nonce, "data")
+		assert.NilError(t, err)
 		nonce++
-		return &sign.SignedPayload{
-			PersonaTag: "some-persona-tag",
-			Nonce:      nonce,
-		}
+		return sig
 	}
 
-	incTx.AddToQueue(world, IncRequest{99}, nextSig())
-	dupeTx.AddToQueue(world, DupeRequest{"foobar"}, nextSig())
-	errTx.AddToQueue(world, ErrRequest{}, nextSig())
+	incID := incTx.AddToQueue(world, IncRequest{99}, nextSig())
+	dupeID := dupeTx.AddToQueue(world, DupeRequest{"foobar"}, nextSig())
+	errID := errTx.AddToQueue(world, ErrRequest{}, nextSig())
+	assert.Check(t, incID != dupeID)
+	assert.Check(t, dupeID != errID)
+	assert.Check(t, errID != incID)
 
 	assert.NilError(t, world.Tick(ctx))
 
@@ -679,10 +681,6 @@ func TestTransactionIDIsReturned(t *testing.T) {
 
 	// The ID field should not be empty
 	assert.Check(t, receiptID.ID != "")
-	// The ID field should contain the persona tag (this may change in the future)
-	assert.Check(t, strings.Contains(receiptID.ID, personaTag))
-	// The ID field should contain the nonce (this may change in the future)
-	assert.Check(t, strings.Contains(receiptID.ID, fmt.Sprintf("%d", nonce)))
 	// The tick should equal the current tick
 	assert.Equal(t, world.CurrentTick(), receiptID.Tick)
 
@@ -703,10 +701,6 @@ func TestTransactionIDIsReturned(t *testing.T) {
 
 	// The ID field should not be empty
 	assert.Check(t, receiptID.ID != "")
-	// The ID field should contain the persona tag (this may change in the future)
-	assert.Check(t, strings.Contains(receiptID.ID, personaTag))
-	// The ID field should contain the nonce (this may change in the future)
-	assert.Check(t, strings.Contains(receiptID.ID, fmt.Sprintf("%d", nonce)))
 	// The tick should equal the current tick
 	assert.Equal(t, world.CurrentTick(), receiptID.Tick)
 }
