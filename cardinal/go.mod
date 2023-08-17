@@ -17,9 +17,7 @@ replace (
 require (
 	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230808004839-11a21a99bf62.1
 	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230808004839-11a21a99bf62.1
-	github.com/alicebob/miniredis/v2 v2.30.2
-	pkg.world.dev/world-engine/chain v0.1.1-alpha
-	pkg.world.dev/world-engine/sign v0.1.3-alpha
+	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/cometbft/cometbft v0.38.0-rc3
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/invopop/jsonschema v0.7.0
@@ -29,6 +27,8 @@ require (
 	google.golang.org/grpc v1.56.2
 	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.0
+	pkg.world.dev/world-engine/chain v0.1.11-alpha
+	pkg.world.dev/world-engine/sign v0.1.3-alpha
 )
 
 require (
