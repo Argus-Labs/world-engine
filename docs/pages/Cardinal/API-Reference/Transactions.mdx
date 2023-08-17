@@ -4,11 +4,11 @@ Transactions define the types of messages that can be sent from a game client an
 systems. Additionally, all registered transactions in Cardinal create a transaction endpoint, that automatically injects the transaction into the World's transaction queue. To create a Cardinal transaction type, first define the transaction input and output. Both of these are just normal Go structs.
 
 ```go
-type PickUpItemInput struct {
+type PickupItemInput struct {
 	ItemID uint64
 }
 
-type PickUpItemOutput struct {
+type PickupItemOutput struct {
 	Success bool
 }
 ```
@@ -16,13 +16,13 @@ type PickUpItemOutput struct {
 Then create the Cardinal transaction type using the `NewTransactionType` function in the ecs package. Note, this
 function takes a `name` argument. The name passed into the transaction gets used as the endpoint on the game server
 to execute this transaction. For example, if the transaction name passed in was "foo-bar", the resulting endpoint would
-be `address:port/tx/foo-bar` (TODO: update this after we finalize how we want to handle endpoints)
+be `address:port/tx/foo-bar` (TODO: update this after we finalize how we want to handle endpoints) https://linear.app/arguslabs/issue/CAR-139/refactor-http-endpoints-to-follow-a-clear-readtx-pattern
 
 ```go
 import "github.com/argus-labs/world-engine/cardinal/ecs"
 
 
-var PickUpTransaction = ecs.NewTransactionType[PickUpItemInput, PickupItemOutput]("pick-up-item")
+var PickupTransaction = ecs.NewTransactionType[PickupItemInput, PickupItemOutput]("pick-up-item")
 ```
 
 ## Options
@@ -36,11 +36,11 @@ import { Callout } from 'nextra/components'
 import Link from 'next/link'
 
 <Callout type={"warning"}>
-   Not all Go types are supported when using `WithTxEVMSupport`. <Link href="/cardinal/CoreConcepts/evm-support">Read More</Link>
+   Not all Go types are supported when using `WithTxEVMSupport`. <Link href="/Cardinal/API-Reference/evm-support">Read More</Link>
 </Callout>
 
 `WithTxEVMSupport` enables this transaction to be sent via smart contracts in the EVM.
 
 ```go
-var PickUpTransaction = ecs.NewTransactionType[PickUpItemInput, PickupItemOutput]("pick-up-item", ecs.WithTxEVMSupport[PickUpItemInput, PickupItemOutput])
+var PickupTransaction = ecs.NewTransactionType[PickupItemInput, PickupItemOutput]("pickup-item", ecs.WithTxEVMSupport[PickupItemInput, PickupItemOutput])
 ```

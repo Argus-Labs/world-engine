@@ -4,6 +4,12 @@ Components are the structures that give entities their state.
 
 ## Creating a Component
 
+The `NewComponentType` function is used to create a new instance of a component type with customizable options. This function is designed to be generic, enabling it to accommodate any type, including those defined by users.
+
+```go
+func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T]
+```
+
 In Cardinal, you define your component using a normal Go struct.
 
 ```go
@@ -41,12 +47,26 @@ err := HealthComponent.Set(world, id, Health{Amount: 50, Cap: 100})
 Aside from directly setting component data (effectively a full overwrite), component types provide a method `Update`, which updates component data with a more ergonomic callback pattern. `Update` takes a pointer to `World`, the ID of the entity to update, and a callback function. The
 callback function supplies the component struct directly, and expects a return value of the updated component struct. `Update` may return an error.
 
-```
+```go
 err := HealthComponent.Update(world, id, func(h Health) Health {
     // take away 10 from the total heatlh
     h.Amount -= 10
     return h
 })
+```
+
+Component data can also be updated using the get/set methods described in the previous sections:
+
+```go
+health, err := HealthComponent.Get(world, id)
+if err != nil {
+    return err
+}
+health.Amount -= 10
+err = HealthComponent.Set(world, id, health)
+if err != nil {
+    return err
+}
 ```
 
 ## Entity Iteration

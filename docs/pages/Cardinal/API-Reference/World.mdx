@@ -1,3 +1,5 @@
+import { Callout } from 'nextra/components'
+
 # World
 
 The `World` object is the manager of everything happening in the game. It deals with registering components systems,
@@ -9,7 +11,7 @@ Cardinal provides two ways to create a world.
 
 ### In Memory
 
-Using the `inmem` package, you can get an instantiated `World` object that uses an in-memory data store, [miniredis](https://github.com/alicebob/miniredis). This is the simplest way to get started with building and testing your game. Do note however, this should NOT be used in production.
+Using the `inmem` package, you can get an instantiated `World` object that uses an in-memory data store, [miniredis](https://github.com/alicebob/miniredis). This is the simplest way to get started with building and testing your game. This should NOT be used in production.
 
 ### With Redis Instance
 
@@ -46,6 +48,9 @@ if err != nil {
 	panic(err)
 }
 ```
+<Callout type={"warning"}>
+`RegisterComponents` must only be called once. Subsequent calls to this method will return an error.
+</Callout>
 
 ## Registering Transactions
 
@@ -59,6 +64,9 @@ if err != nil {
 	panic(err)
 }
 ```
+<Callout type={"warning"}>
+`RegisterTransactions` must only be called once. Subsequent calls to this method will return an error.
+</Callout>
 
 
 ## Registering Reads
@@ -73,6 +81,9 @@ if err != nil {
 	panic(err)
 }
 ```
+<Callout type={"warning"}>
+`RegisterReads` must only be called once. Subsequent calls to this method will return an error.
+</Callout>
 
 ## Adding Systems
 
@@ -90,6 +101,10 @@ world.AddSystem(system.Physics)
 ## Loading Game State
 
 Game state, if any, must be loaded before starting the game loop.
+
+<Callout type={"warning"}>
+   `LoadGameState` must be called after components and transactions have been registered. `LoadGameState` can be called at most once. Subsequent calls to this method will return an error.
+</Callout>
 
 ```go
 world.LoadGameState()

@@ -19,7 +19,7 @@ type PlayerReply struct {
 ```
 
 Once the request and reply structs have been defined, instantiate the Read. Note that the `NewReadType` function takes a name argument of type string. Cardinal uses this name to automatically create the endpoint for this read. For example, passing "foo-bar" would result in the endpoint
-`address:port/read/foo-bar`. (TODO: update this after we finalize how we want to handle endpoints)
+`address:port/read/foo-bar`. (TODO: update this after we finalize how we want to handle endpoints) https://linear.app/arguslabs/issue/CAR-139/refactor-http-endpoints-to-follow-a-clear-readtx-pattern
 
 ```go
 import "github.com/argus-labs/world-engine/cardinal/ecs"
@@ -45,7 +45,7 @@ import { Callout } from 'nextra/components'
 import Link from 'next/link'
 
 <Callout type={"warning"}>
-    Not all Go types are supported when using `WithReadEVMSupport`. <Link href="/cardinal/CoreConcepts/evm-support">Read More</Link>
+    Not all Go types are supported when using `WithReadEVMSupport`. <Link href="/Cardinal/API-Reference/evm-support">Read More</Link>
 </Callout>
 
 `WithReadEVMSupport` enables this read to be called from smart contracts in the EVM.

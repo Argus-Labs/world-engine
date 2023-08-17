@@ -17,8 +17,8 @@ In order to get specific transactions from the queue, utilize the transaction's 
 ```go
 import "github.com/argus-labs/world-engine/cardinal/ecs"
 
-func SomeSystem(world *ecs.World, queue *ecs.TransactionQueue) error {
-    txs := SomeTx.In(queue)
+func AttackSystem(world *ecs.World, queue *ecs.TransactionQueue) error {
+    txs := AttackTransaction.In(queue)
 }
 ```
 ## TxData
