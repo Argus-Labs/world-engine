@@ -75,14 +75,13 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 }
 
 func (t *Handler) InitializeServer() {
-	if len(t.port) == 0 {
+	if _, err := strconv.Atoi(t.port); err != nil || len(t.port) == 0 {
 		envPort := os.Getenv("CARDINAL_PORT")
 		if _, err := strconv.Atoi(envPort); err == nil {
 			t.port = envPort
 		} else {
 			t.port = "4040"
 		}
-
 	}
 	t.server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", t.port),

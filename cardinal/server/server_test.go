@@ -73,6 +73,7 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 	t.Cleanup(func() {
 		assert.NilError(t, txh.Close())
 	})
+	txh.port = ""
 	err = os.Setenv("CARDINAL_PORT", "1337")
 	assert.NilError(t, err)
 	txh.InitializeServer()
@@ -82,7 +83,10 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 	assert.NilError(t, err)
 	txh.InitializeServer()
 	assert.Equal(t, txh.port, "4040")
-
+	err = os.Setenv("CARDINAL_PORT", "4555")
+	txh.port = "bad"
+	txh.InitializeServer()
+	assert.Equal(t, txh.port, "4555")
 }
 
 func TestCanListTransactionEndpoints(t *testing.T) {
