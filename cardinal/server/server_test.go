@@ -65,9 +65,7 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 func TestIfServeSetEnvVarForPort(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	betaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("beta")
-	gammaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("gamma")
-	assert.NilError(t, world.RegisterTransactions(alphaTx, betaTx, gammaTx))
+	assert.NilError(t, world.RegisterTransactions(alphaTx))
 	txh, err := NewHandler(world, DisableSignatureVerification())
 	assert.NilError(t, err)
 	t.Cleanup(func() {

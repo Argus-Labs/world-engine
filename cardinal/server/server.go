@@ -91,7 +91,9 @@ func (t *Handler) InitializeServer() {
 
 // Serve sets up the endpoints passed in by the user, as well as a special "/list" endpoint, that informs consumers
 // what endpoints the user set up in the Handler. Then, it serves the application, blocking the main thread.
-// Please us `go txh.Serve(host,port)` if you do not want to block execution after calling this function.
+// Please us `go txh.Serve()` if you do not want to block execution after calling this function.
+// Will default to env var "CARDINAL_PORT". If that's not set correctly then will default to port 4040
+// if no correct port was previously set.
 func (t *Handler) Serve() {
 	t.InitializeServer()
 	err := t.server.ListenAndServe()
