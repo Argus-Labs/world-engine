@@ -5,18 +5,17 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/tests"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/tests"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
 
 var _ encoding.BinaryMarshaler = Foo{}
@@ -182,7 +181,7 @@ func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
 }
 
 func TestMiniRedisCopy(t *testing.T) {
-	rs := getRedisStorage(t)
+	rs := tests.GetRedisStorage(t)
 	ctx := context.Background()
 	rs.Client.LPush(ctx, "testing", "original")
 	rs.Client.Copy(ctx, "testing", "testing2", 0, true)
