@@ -3,14 +3,15 @@ package ecs_test
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs/tests"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/tests"
 )
 
 func TestTickHappyPath(t *testing.T) {
