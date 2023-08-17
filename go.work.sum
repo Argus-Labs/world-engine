@@ -656,8 +656,6 @@ github.com/breml/bidichk v0.2.4 h1:i3yedFWWQ7YzjdZJHnPo9d/xURinSq3OM+gyM43K4/8=
 github.com/breml/bidichk v0.2.4/go.mod h1:7Zk0kRFt1LIZxtQdl9W9JwGAcLTTkOs+tN7wuEYGJ3s=
 github.com/breml/errchkjson v0.3.1 h1:hlIeXuspTyt8Y/UmP5qy1JocGNR00KQHgfaNtRAjoxQ=
 github.com/breml/errchkjson v0.3.1/go.mod h1:XroxrzKjdiutFyW3nWhw34VGg7kiMsDQox73yWCGI2U=
-github.com/bsm/ginkgo/v2 v2.5.0/go.mod h1:AiKlXPm7ItEHNc/2+OkrNG4E0ITzojb9/xWzvQ9XZ9w=
-github.com/bsm/gomega v1.20.0/go.mod h1:JifAceMQ4crZIWYUKrlGcmbN3bqHogVTADMD2ATsbwk=
 github.com/btcsuite/btcd/btcec/v2 v2.2.0/go.mod h1:U7MHm051Al6XmscBQ0BoNydpOTsFAn707034b5nY8zU=
 github.com/btcsuite/btcd/btcec/v2 v2.2.1/go.mod h1:9/CSmJxmuvqzX9Wh2fXMWToLOHhPd11lSPuIupwTkI8=
 github.com/btcsuite/btcd/btcutil v1.1.2/go.mod h1:UR7dsSJzJUfMmFiiLlIrMq1lS9jh9EdCV7FStZSnpi0=
@@ -1926,6 +1924,8 @@ mvdan.cc/unparam v0.0.0-20220706161116-678bad134442/go.mod h1:F/Cxw/6mVrNKqrR2Yj
 pgregory.net/rapid v0.6.2/go.mod h1:PY5XlDGj0+V1FCq0o192FdRhpKHGTRIWBgqjDBTrq04=
 pkg.berachain.dev/polaris/e2e/localnet v0.0.0-20230717165123-80a30c3435c3 h1:7myFcgQ69jiaZq/JYSkKkkd5nWqa2wBFIm4vDb/Vr8Y=
 pkg.berachain.dev/polaris/e2e/localnet v0.0.0-20230717165123-80a30c3435c3/go.mod h1:ehu8gQdH7uNvXKhaO9g6hrvCiODiiZXAIsxwL4fZ6mw=
+pkg.world.dev/world-engine/chain v0.1.11-alpha/go.mod h1:qpm1QXHj2RyXIiwkEolaZMMqeNVcMX+hH4OQ9nE0/5M=
+pkg.world.dev/world-engine/sign v0.1.5-alpha/go.mod h1:JcKXhdeYvCPRAgsCUSFEDcAJgf67VgMWWrA2Y2VZJSg=
 rsc.io/binaryregexp v0.2.0 h1:HfqmD5MEmC0zvwBuF187nq9mdnXjXsSivRiXN7SmRkE=
 rsc.io/pdf v0.1.1 h1:k1MczvYDUvJBe93bYd7wrZLLUEcLZAuF824/I4e5Xr4=
 rsc.io/quote/v3 v3.1.0 h1:9JKUTTIUgS6kzR9mK1YuGKv6Nl+DijDNIc0ghT58FaY=
