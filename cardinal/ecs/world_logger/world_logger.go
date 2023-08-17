@@ -20,13 +20,12 @@ func componentToString(component component.IComponentType) string {
 	return fmt.Sprintf("component_id: %d, component_name: %s", component.ID(), component.Name())
 }
 
-func (wl *WorldLogger) componentsLogString(id string) string {
-	var buffer strings.Builder
-	buffer.WriteString(fmt.Sprintf("log_id: %s, total_components: %d\n", id, len(wl.world.ListRegisteredComponents())))
+func (wl *WorldLogger) componentsLogString(id string, stringBuilder strings.Builder) strings.Builder {
+	stringBuilder.WriteString(fmt.Sprintf("log_id: %s, total_components: %d\n", id, len(wl.world.ListRegisteredComponents())))
 	for _, _component := range wl.world.ListRegisteredComponents() {
-		buffer.WriteString(fmt.Sprintf("	log_id: %s, %s\n", id, componentToString(_component)))
+		stringBuilder.WriteString(fmt.Sprintf("	log_id: %s, %s\n", id, componentToString(_component)))
 	}
-	return buffer.String()
+	return stringBuilder
 }
 
 func systemToString(system *ecs.System) string {
@@ -35,19 +34,20 @@ func systemToString(system *ecs.System) string {
 	return fmt.Sprintf("system_name: %s", functionName)
 }
 
-func (wl *WorldLogger) systemLogString(id string) string {
-	var buffer strings.Builder
-	buffer.WriteString(fmt.Sprintf("log_id: %s, total_systems: %d\n", id, len(wl.world.ListSystems())))
+func (wl *WorldLogger) systemLogString(id string, stringBuilder strings.Builder) strings.Builder {
+	stringBuilder.WriteString(fmt.Sprintf("log_id: %s, total_systems: %d\n", id, len(wl.world.ListSystems())))
 	for _, system := range wl.world.ListSystems() {
-		buffer.WriteString(fmt.Sprintf("	log_id: %s, %s\n", id, systemToString(&system)))
+		stringBuilder.WriteString(fmt.Sprintf("	log_id: %s, %s\n", id, systemToString(&system)))
 	}
-	return buffer.String()
+	return stringBuilder
 }
 
-func (wl *WorldLogger) LogWorldState() {
-	id := uuid.New().String()
-	var buffer strings.Builder
-	buffer.WriteString(wl.componentsLogString(id))
-	buffer.WriteString(wl.systemLogString(id))
-	wl.logger.Print(buffer.String())
+func (wl *WorldLogger) LogWorldState(id string) {
+	if len(id) == 0 {
+		id = uuid.New().String()
+	}
+	var stringBuilder strings.Builder
+	stringBuilder = wl.componentsLogString(id, stringBuilder)
+	stringBuilder = wl.systemLogString(id, stringBuilder)
+	wl.logger.Print(stringBuilder.String())
 }
