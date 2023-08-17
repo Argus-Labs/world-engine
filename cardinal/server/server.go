@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-
+	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/shard"
+	"strconv"
 )
 
 // Handler is a type that contains endpoints for transactions and queries in a given ecs world.
@@ -78,7 +79,13 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 // Please us `go txh.Serve(host,port)` if you do not want to block execution after calling this function.
 func (t *Handler) Serve() {
 	if len(t.port) == 0 {
-		t.port = "4040"
+		envPort := os.Getenv("CARDINAL_PORT")
+		if _, err := strconv.Atoi(envPort); err == nil {
+			t.port = envPort
+		} else {
+			t.port = "4040"
+		}
+
 	}
 	t.server = &http.Server{
 		Addr:    fmt.Sprintf(":%s", t.port),
