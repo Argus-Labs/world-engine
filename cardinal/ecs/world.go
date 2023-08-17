@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs/world_logger"
 	"sync"
 	"time"
 
@@ -59,6 +60,8 @@ type World struct {
 	isRecovering bool
 
 	errs []error
+
+	logger world_logger.WorldLogger
 }
 
 var (
@@ -197,6 +200,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		systems:   make([]System, 0),
 		txQueues:  transaction.TxMap{},
 	}
+	w.logger = world_logger.NewWorldLogger(nil, w)
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
 		opt(w)
@@ -252,7 +256,10 @@ func (w *World) createEntity(archetypeID storage.ArchetypeID) (storage.EntityID,
 		return 0, err
 	}
 	archetype.PushEntity(nextEntityID)
-
+	err = w.logger.LogDebugEntity(nextEntityID, "Entity created")
+	if err != nil {
+		return 0, err
+	}
 	return nextEntityID, err
 }
 
@@ -300,6 +307,10 @@ func (w *World) Len() (int, error) {
 // Remove removes the given Entity from the world
 func (w *World) Remove(id storage.EntityID) error {
 	ok, err := w.Valid(id)
+	if err != nil {
+		return err
+	}
+	err = w.logger.LogDebugEntity(id, "deleting entity")
 	if err != nil {
 		return err
 	}
