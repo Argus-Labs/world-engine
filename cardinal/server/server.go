@@ -74,10 +74,7 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	return th, nil
 }
 
-// Serve sets up the endpoints passed in by the user, as well as a special "/list" endpoint, that informs consumers
-// what endpoints the user set up in the Handler. Then, it serves the application, blocking the main thread.
-// Please us `go txh.Serve(host,port)` if you do not want to block execution after calling this function.
-func (t *Handler) Serve() {
+func (t *Handler) InitializeServer() {
 	if len(t.port) == 0 {
 		envPort := os.Getenv("CARDINAL_PORT")
 		if _, err := strconv.Atoi(envPort); err == nil {
@@ -91,6 +88,13 @@ func (t *Handler) Serve() {
 		Addr:    fmt.Sprintf(":%s", t.port),
 		Handler: t.mux,
 	}
+}
+
+// Serve sets up the endpoints passed in by the user, as well as a special "/list" endpoint, that informs consumers
+// what endpoints the user set up in the Handler. Then, it serves the application, blocking the main thread.
+// Please us `go txh.Serve(host,port)` if you do not want to block execution after calling this function.
+func (t *Handler) Serve() {
+	t.InitializeServer()
 	err := t.server.ListenAndServe()
 	if err != nil {
 		log.Print(err)
