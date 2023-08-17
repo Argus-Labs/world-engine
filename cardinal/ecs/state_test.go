@@ -2,7 +2,6 @@ package ecs_test
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal/ecs/tests"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -12,6 +11,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/tests"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
