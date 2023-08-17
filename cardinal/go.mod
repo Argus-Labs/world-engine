@@ -4,20 +4,20 @@ go 1.21
 
 // external, necessary replacements
 replace (
+	pkg.world.dev/world-engine/chain => ../chain
+	pkg.world.dev/world-engine/sign => ../sign
 	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.0-beta2.0.20230721012257-443317a43b03
 	// We replace `go-ethereum` with `polaris-geth` in order include our required changes.
 	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20230629154458-90866dc0cf0a
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	// Required at the moment until a bug in the comsos-sdk is fixed.
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	pkg.world.dev/world-engine/chain => ../chain
-	pkg.world.dev/world-engine/sign => ../sign
 )
 
 require (
 	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230808004839-11a21a99bf62.1
 	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230808004839-11a21a99bf62.1
-	github.com/alicebob/miniredis/v2 v2.30.2
+	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/cometbft/cometbft v0.38.0-rc3
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/google/uuid v1.3.0
@@ -28,7 +28,7 @@ require (
 	google.golang.org/grpc v1.56.2
 	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.0
-	pkg.world.dev/world-engine/chain v0.1.1-alpha
+	pkg.world.dev/world-engine/chain v0.1.11-alpha
 	pkg.world.dev/world-engine/sign v0.1.3-alpha
 )
 
