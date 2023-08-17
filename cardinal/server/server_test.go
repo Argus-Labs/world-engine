@@ -214,7 +214,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 		SignerAddress: signerAddr,
 	}
 
-	signedPayload, err := sign.NewSignedPayload(privateKey, personaTag, world.Namespace(), 100, createPersonaTx)
+	signedPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace(), 100, createPersonaTx)
 	assert.NilError(t, err)
 
 	bz, err := signedPayload.Marshal()
@@ -287,7 +287,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// The namespace now matches the world
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, world.Namespace(), 100, createPersonaTx)
+	sigPayload, err = sign.NewSystemSignedPayload(privateKey, world.Namespace(), 100, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -311,7 +311,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
-	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, namespace, 100, createPersonaTx)
+	sigPayload, err := sign.NewSystemSignedPayload(privateKey, namespace, 100, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -664,7 +664,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 		SignerAddress: signerAddr,
 	}
 
-	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, namespace, nonce, createPersonaTx)
+	sigPayload, err := sign.NewSystemSignedPayload(privateKey, namespace, nonce, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)

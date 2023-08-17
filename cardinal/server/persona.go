@@ -3,12 +3,14 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/sign"
 )
 
 // ReadPersonaSignerRequest is the desired request body for the read-persona-signer endpoint.
@@ -77,13 +79,20 @@ func (t *Handler) handleReadPersonaSignerSchema(w http.ResponseWriter, _ *http.R
 
 func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		payload, sp, err := t.verifySignature(request, false)
+		payload, sp, err := t.verifySignature(request, true)
 		if err != nil {
 			if errors.Is(err, ErrorInvalidSignature) {
 				writeUnauthorized(writer, err)
 				return
+			} else if errors.Is(err, ErrorSystemTransactionRequired) {
+				writeUnauthorized(writer, err)
+				return
 			}
 			writeError(writer, "unable to verify signature", err)
+			return
+		}
+		if !sp.IsSystemPayload() {
+			writeUnauthorized(writer, fmt.Errorf("persona tag %q is required for this transaction", sign.SystemPersonaTag))
 			return
 		}
 

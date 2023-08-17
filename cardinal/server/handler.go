@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/sign"
 )
 
 func registerReadHandlers(w *ecs.World, th *Handler) error {
@@ -101,12 +103,19 @@ func (t *Handler) makeSchemaHandler(inSchema, outSchema *jsonschema.Schema) http
 
 func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		payload, sp, err := t.verifySignature(request, true)
+		payload, sp, err := t.verifySignature(request, false)
 		if errors.Is(err, ErrorInvalidSignature) {
+			writeUnauthorized(writer, err)
+			return
+		} else if errors.Is(err, ErrorSystemTransactionForbidden) {
 			writeUnauthorized(writer, err)
 			return
 		} else if err != nil {
 			writeError(writer, "unable to verify signature", err)
+			return
+		}
+		if sp.IsSystemPayload() {
+			writeUnauthorized(writer, fmt.Errorf("persona tag %q is not allowed for this transaction", sign.SystemPersonaTag))
 			return
 		}
 		txVal, err := tx.Decode(payload)

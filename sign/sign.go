@@ -16,7 +16,12 @@ import (
 var (
 	// ErrorSignatureValidationFailed is returned when a signature is not valid.
 	ErrorSignatureValidationFailed = errors.New("signature validation failed")
+	ErrorCannotSignEmptyBody       = errors.New("cannot sign empty body")
+	ErrorInvalidPersonaTag         = errors.New("invalid persona tag")
+	ErrorInvalidNamespace          = errors.New("invalid namespace")
 )
+
+const SystemPersonaTag = "SystemPersonaTag"
 
 type SignedPayload struct {
 	PersonaTag string
@@ -52,16 +57,27 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 	return s, nil
 }
 
-// NewSignedString signs a given string, tag, and nonce with the given private key
-func NewSignedString(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, str string) (*SignedPayload, error) {
-	if len(str) == 0 {
-		return nil, errors.New("cannot sign empty data")
+// newSignedAny uses the given private key to sign the personaTag, namespace, nonce, and data.
+func newSignedAny(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
+	if data == nil || reflect.ValueOf(data).IsZero() {
+		return nil, ErrorCannotSignEmptyBody
+	}
+	if len(namespace) == 0 {
+		return nil, ErrorInvalidNamespace
+	}
+
+	bz, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	if len(bz) == 0 {
+		return nil, ErrorCannotSignEmptyBody
 	}
 	sp := &SignedPayload{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Nonce:      nonce,
-		Body:       []byte(str),
+		Body:       bz,
 	}
 	hash, err := sp.hash()
 	if err != nil {
@@ -76,16 +92,21 @@ func NewSignedString(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce u
 
 }
 
+// NewSystemSignedPayload signs a given body, and nonce with the given private key using the SystemPersonaTag
+func NewSystemSignedPayload(pk *ecdsa.PrivateKey, namespace string, nonce uint64, data any) (*SignedPayload, error) {
+	return newSignedAny(pk, SystemPersonaTag, namespace, nonce, data)
+}
+
 // NewSignedPayload signs a given body, tag, and nonce with the given private key.
 func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
-	if data == nil || reflect.ValueOf(data).IsZero() {
-		return nil, errors.New("cannot sign empty data")
+	if len(personaTag) == 0 || personaTag == SystemPersonaTag {
+		return nil, ErrorInvalidPersonaTag
 	}
-	bz, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
-	}
-	return NewSignedString(pk, personaTag, namespace, nonce, string(bz))
+	return newSignedAny(pk, personaTag, namespace, nonce, data)
+}
+
+func (s *SignedPayload) IsSystemPayload() bool {
+	return s.PersonaTag == SystemPersonaTag
 }
 
 // Marshal serializes this SignedPayload to bytes, which can then be passed in to Unmarshal.
