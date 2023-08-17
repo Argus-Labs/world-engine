@@ -757,3 +757,11 @@ func (w *World) GetTransactionReceipt(id transaction.TxID) (any, []error, bool) 
 func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
+
+func (w *World) ListRegisteredComponents() []IComponentType {
+	return w.registeredComponents
+}
+
+func (w *World) ListSystems() []System {
+	return w.systems
+}
