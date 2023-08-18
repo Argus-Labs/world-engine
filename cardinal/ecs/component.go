@@ -99,21 +99,17 @@ func (c *ComponentType[T]) Each(w *World, callback QueryCallBackFn) {
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w *World) (storage.EntityID, bool, error) {
+func (c *ComponentType[T]) First(w *World) (storage.EntityID, error) {
 	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w *World) (storage.EntityID, error) {
-	id, ok, err := c.query.First(w)
+func (c *ComponentType[T]) MustFirst(w *World) storage.EntityID {
+	id, err := c.query.First(w)
 	if err != nil {
-		return storage.BadID, err
-	}
-	if !ok {
 		panic(fmt.Sprintf("no entity has the component %s", c.name))
 	}
-
-	return id, nil
+	return id
 }
 
 // RemoveFrom removes this component form the given entity.
