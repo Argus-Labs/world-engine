@@ -31,7 +31,7 @@ func TestWorldLogger(t *testing.T) {
 	traceId := "test_trace_id"
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
-	//opts is used to hijack the Logger placed in the world object and replace it with something that writes to buffer
+	//opts is used to hijack the Logger placed in the world object and replace it with something that writes to buf(above)
 	//so it's more easily unit tested. All logging methods called by w.Logger are now written to the buf variable.
 	opt := func(w *ecs.World) {
 		w.Logger = ecs.NewWorldLogger(&bufLogger, w)
