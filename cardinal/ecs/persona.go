@@ -60,18 +60,18 @@ func RegisterPersonaSystem(world *World, queue *TransactionQueue) error {
 		}
 		id, err := world.Create(SignerComp)
 		if err != nil {
-			CreatePersonaTx.AddError(world, txData.ID, err)
+			CreatePersonaTx.AddError(world, txData.TxHash, err)
 			continue
 		}
 		if err := SignerComp.Set(world, id, SignerComponent{
 			PersonaTag:    tx.PersonaTag,
 			SignerAddress: tx.SignerAddress,
 		}); err != nil {
-			CreatePersonaTx.AddError(world, txData.ID, err)
+			CreatePersonaTx.AddError(world, txData.TxHash, err)
 			continue
 		}
 		personaTagToAddress[tx.PersonaTag] = tx.SignerAddress
-		CreatePersonaTx.SetResult(world, txData.ID, CreatePersonaTransactionResult{
+		CreatePersonaTx.SetResult(world, txData.TxHash, CreatePersonaTransactionResult{
 			Success: true,
 		})
 	}

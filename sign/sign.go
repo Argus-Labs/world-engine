@@ -27,7 +27,8 @@ type SignedPayload struct {
 	PersonaTag string
 	Namespace  string
 	Nonce      uint64
-	Signature  string          // hex encoded string
+	Signature  string // hex encoded string
+	Hash       common.Hash
 	Body       json.RawMessage // json string
 }
 
@@ -54,6 +55,7 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 	if len(s.Body) == 0 {
 		return nil, errors.New("SignerPayload must contain Body field")
 	}
+	s.populateHash()
 	return s, nil
 }
 
@@ -79,11 +81,8 @@ func newSignedAny(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint
 		Nonce:      nonce,
 		Body:       bz,
 	}
-	hash, err := sp.hash()
-	if err != nil {
-		return nil, err
-	}
-	buf, err := crypto.Sign(hash, pk)
+	sp.populateHash()
+	buf, err := crypto.Sign(sp.Hash.Bytes(), pk)
 	if err != nil {
 		return nil, err
 	}
@@ -114,6 +113,14 @@ func (s *SignedPayload) Marshal() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+// HashHex return a hex encoded hash of the signature
+func (s *SignedPayload) HashHex() string {
+	if len(s.Hash) == 0 {
+		s.populateHash()
+	}
+	return s.Hash.Hex()
+}
+
 // Verify verifies this SignedPayload has a valid signature. If nil is returned, the signature is valid.
 // Signature verification follows the pattern in crypto.TestSign:
 // https://github.com/ethereum/go-ethereum/blob/master/crypto/crypto_test.go#L94
@@ -121,11 +128,10 @@ func (s *SignedPayload) Marshal() ([]byte, error) {
 func (s *SignedPayload) Verify(hexAddress string) error {
 	addr := common.HexToAddress(hexAddress)
 
-	hash, err := s.hash()
-	if err != nil {
-		return err
+	if len(s.Hash) == 0 {
+		s.populateHash()
 	}
-	signerPubKey, err := crypto.SigToPub(hash, common.Hex2Bytes(s.Signature))
+	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), common.Hex2Bytes(s.Signature))
 	if err != nil {
 		return err
 	}
@@ -136,19 +142,11 @@ func (s *SignedPayload) Verify(hexAddress string) error {
 	return nil
 }
 
-func (s *SignedPayload) hash() ([]byte, error) {
-	hash := crypto.NewKeccakState()
-	if _, err := hash.Write([]byte(s.PersonaTag)); err != nil {
-		return nil, err
-	}
-	if _, err := hash.Write([]byte(s.Namespace)); err != nil {
-		return nil, err
-	}
-	if _, err := hash.Write([]byte(fmt.Sprintf("%d", s.Nonce))); err != nil {
-		return nil, err
-	}
-	if _, err := hash.Write([]byte(s.Body)); err != nil {
-		return nil, err
-	}
-	return hash.Sum(nil), nil
+func (s *SignedPayload) populateHash() {
+	s.Hash = crypto.Keccak256Hash(
+		[]byte(s.PersonaTag),
+		[]byte(s.Namespace),
+		[]byte(fmt.Sprintf("%d", s.Nonce)),
+		s.Body,
+	)
 }

@@ -24,16 +24,15 @@ type ListTxReceiptsReply struct {
 
 // Receipt represents a single transaction receipt. It contains an ID, a result, and a list of errors.
 type Receipt struct {
-	ID     string   `json:"id"`
+	TxHash string   `json:"tx_hash"`
+	Tick   uint64   `json:"tick"`
 	Result any      `json:"result"`
 	Errors []string `json:"errors"`
 }
 
-// ReceiptID represents ID of a single transaction receipt as well as the tick that the transaction was accepted on.
-// It is returned to the client before the data from the transaction receipt has been generated
-type ReceiptID struct {
-	ID   string `json:"id"`
-	Tick uint64 `json:"tick"`
+type TransactionReply struct {
+	TxHash string `json:"tx_hash"`
+	Tick   uint64 `json:"tick"`
 }
 
 // errsToStringSlice convert a slice of errors into a slice of strings. This is needed as json.Marshal does not
@@ -82,7 +81,8 @@ func handleListTxReceipts(world *ecs.World) http.HandlerFunc {
 			}
 			for _, r := range currReceipts {
 				reply.Receipts = append(reply.Receipts, Receipt{
-					ID:     string(r.ID),
+					TxHash: string(r.TxHash),
+					Tick:   t,
 					Result: r.Result,
 					Errors: errsToStringSlice(r.Errs),
 				})

@@ -458,7 +458,7 @@ func (r *RedisStorage) GetTickNumbers() (start, end uint64, err error) {
 
 type pendingTransaction struct {
 	TypeID transaction.TypeID
-	TxID   transaction.TxID
+	TxHash transaction.TxHash
 	Data   []byte
 	Sig    *sign.SignedPayload
 }
@@ -474,7 +474,7 @@ func (r *RedisStorage) storeTransactions(ctx context.Context, txs []transaction.
 			}
 			currItem := pendingTransaction{
 				TypeID: tx.ID(),
-				TxID:   txData.ID,
+				TxHash: txData.TxHash,
 				Sig:    txData.Sig,
 				Data:   buf,
 			}
@@ -648,9 +648,9 @@ func (r *RedisStorage) Recover(txs []transaction.ITransaction) (transaction.TxMa
 			return nil, err
 		}
 		allQueues[tx.ID()] = append(allQueues[tx.ID()], transaction.TxAny{
-			ID:    p.TxID,
-			Sig:   p.Sig,
-			Value: txData,
+			TxHash: p.TxHash,
+			Sig:    p.Sig,
+			Value:  txData,
 		})
 	}
 	return allQueues, nil

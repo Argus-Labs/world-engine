@@ -8,12 +8,12 @@ import (
 type TxMap map[TypeID][]TxAny
 
 type TxAny struct {
-	Value any
-	ID    TxID
-	Sig   *sign.SignedPayload
+	Value  any
+	TxHash TxHash
+	Sig    *sign.SignedPayload
 }
 
-type TxID string
+type TxHash string
 
 type TypeID int
 

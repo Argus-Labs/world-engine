@@ -223,10 +223,10 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	body := mustReadBody(t, resp)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %s", body)
 
-	var receiptID ReceiptID
-	assert.NilError(t, json.Unmarshal([]byte(body), &receiptID))
-	assert.Equal(t, receiptID.Tick, world.CurrentTick())
-	tick := receiptID.Tick
+	var txReply TransactionReply
+	assert.NilError(t, json.Unmarshal([]byte(body), &txReply))
+	assert.Equal(t, txReply.Tick, world.CurrentTick())
+	tick := txReply.Tick
 
 	// postReadPersonaSigner is a helper that makes a request to the read-persona-signer endpoint and returns the response
 	postReadPersonaSigner := func(personaTag string, tick uint64) ReadPersonaSignerResponse {
@@ -539,7 +539,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	// System to handle incrementing numbers
 	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		for _, tx := range incTx.In(queue) {
-			incTx.SetResult(world, tx.ID, IncReply{
+			incTx.SetResult(world, tx.TxHash, IncReply{
 				Number: tx.Value.Number + 1,
 			})
 		}
@@ -548,7 +548,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	// System to handle duplicating strings
 	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		for _, tx := range dupeTx.In(queue) {
-			dupeTx.SetResult(world, tx.ID, DupeReply{
+			dupeTx.SetResult(world, tx.TxHash, DupeReply{
 				Str: tx.Value.Str + tx.Value.Str,
 			})
 		}
@@ -558,8 +558,8 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	// System to handle error production
 	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		for _, tx := range errTx.In(queue) {
-			errTx.AddError(world, tx.ID, wantError)
-			errTx.AddError(world, tx.ID, wantError)
+			errTx.AddError(world, tx.TxHash, wantError)
+			errTx.AddError(world, tx.TxHash, wantError)
 		}
 		return nil
 	})
@@ -605,6 +605,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	assert.Check(t, dupeID != errID)
 	assert.Check(t, errID != incID)
 
+	wantTick := world.CurrentTick()
 	assert.NilError(t, world.Tick(ctx))
 
 	txReceipts = getReceipts(0)
@@ -614,6 +615,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 
 	foundInc, foundDupe, foundErr := false, false, false
 	for _, r := range txReceipts.Receipts {
+		assert.Equal(t, wantTick, r.Tick)
 		if len(r.Errors) > 0 {
 			foundErr = true
 			assert.Equal(t, 2, len(r.Errors))
@@ -676,13 +678,13 @@ func TestTransactionIDIsReturned(t *testing.T) {
 
 	assert.Equal(t, 200, resp.StatusCode)
 
-	var receiptID ReceiptID
-	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&receiptID))
+	var txReply TransactionReply
+	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&txReply))
 
-	// The ID field should not be empty
-	assert.Check(t, receiptID.ID != "")
+	// The hash field should not be empty
+	assert.Check(t, txReply.TxHash != "")
 	// The tick should equal the current tick
-	assert.Equal(t, world.CurrentTick(), receiptID.Tick)
+	assert.Equal(t, world.CurrentTick(), txReply.Tick)
 
 	assert.NilError(t, world.Tick(ctx))
 
@@ -697,10 +699,10 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	resp, err = http.Post(txh.makeURL("tx-move"), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
-	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&receiptID))
+	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&txReply))
 
-	// The ID field should not be empty
-	assert.Check(t, receiptID.ID != "")
+	// The hash field should not be empty
+	assert.Check(t, txReply.TxHash != "")
 	// The tick should equal the current tick
-	assert.Equal(t, world.CurrentTick(), receiptID.Tick)
+	assert.Equal(t, world.CurrentTick(), txReply.Tick)
 }

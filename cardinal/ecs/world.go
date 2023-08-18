@@ -8,7 +8,6 @@ import (
 	"time"
 
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-	"github.com/ethereum/go-ethereum/crypto"
 	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 
@@ -416,23 +415,19 @@ func (w *World) copyTransactions() transaction.TxMap {
 	return txsMap
 }
 
-func signatureToID(sig *sign.SignedPayload) transaction.TxID {
-	return transaction.TxID(crypto.Keccak256Hash([]byte(sig.Signature)).Hex())
-}
-
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (tick uint64, txID transaction.TxID) {
+func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (tick uint64, txHash transaction.TxHash) {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
-	txID = signatureToID(sig)
+	txHash = transaction.TxHash(sig.HashHex())
 	w.txQueues[id] = append(w.txQueues[id], transaction.TxAny{
-		ID:    txID,
-		Value: v,
-		Sig:   sig,
+		TxHash: txHash,
+		Value:  v,
+		Sig:    sig,
 	})
-	return w.CurrentTick(), txID
+	return w.CurrentTick(), txHash
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
@@ -743,15 +738,15 @@ func (w *World) SetNonce(signerAddress string, nonce uint64) error {
 	return w.store.NonceStore.SetNonce(signerAddress, nonce)
 }
 
-func (w *World) AddTransactionError(id transaction.TxID, err error) {
+func (w *World) AddTransactionError(id transaction.TxHash, err error) {
 	w.receiptHistory.AddError(id, err)
 }
 
-func (w *World) SetTransactionResult(id transaction.TxID, a any) {
+func (w *World) SetTransactionResult(id transaction.TxHash, a any) {
 	w.receiptHistory.SetResult(id, a)
 }
 
-func (w *World) GetTransactionReceipt(id transaction.TxID) (any, []error, bool) {
+func (w *World) GetTransactionReceipt(id transaction.TxHash) (any, []error, bool) {
 	rec, ok := w.receiptHistory.GetReceipt(id)
 	if !ok {
 		return nil, nil, false

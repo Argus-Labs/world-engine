@@ -3,9 +3,10 @@ package tests
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/ecs"
 
 	"gotest.tools/v3/assert"
 
@@ -382,14 +383,14 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 		assert.Equal(t, wantDeltaX, tx.Value.DeltaX)
 		assert.Equal(t, wantDeltaY, tx.Value.DeltaY)
 
-		// AddError will associate an error with the tx.ID. Multiple errors can be
+		// AddError will associate an error with the tx.TxHash. Multiple errors can be
 		// associated with a transaction.
-		moveTx.AddError(world, tx.ID, wantFirstError)
-		moveTx.AddError(world, tx.ID, wantSecondError)
+		moveTx.AddError(world, tx.TxHash, wantFirstError)
+		moveTx.AddError(world, tx.TxHash, wantSecondError)
 
 		// SetResult sets the output for the transaction. Only one output can be set
-		// for a tx.ID (the last assigned result will clobber other results)
-		moveTx.SetResult(world, tx.ID, MoveTxResult{42, 42})
+		// for a tx.TxHash (the last assigned result will clobber other results)
+		moveTx.SetResult(world, tx.TxHash, MoveTxResult{42, 42})
 		return nil
 	})
 	assert.NilError(t, world.LoadGameState())
@@ -427,10 +428,10 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))
-		id := txs[0].ID
-		_, _, ok := numTx.GetReceipt(world, id)
+		hash := txs[0].TxHash
+		_, _, ok := numTx.GetReceipt(world, hash)
 		assert.Check(t, !ok)
-		numTx.AddError(world, id, wantErr)
+		numTx.AddError(world, hash, wantErr)
 		return nil
 	})
 
@@ -438,8 +439,8 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))
-		id := txs[0].ID
-		_, errs, ok := numTx.GetReceipt(world, id)
+		hash := txs[0].TxHash
+		_, errs, ok := numTx.GetReceipt(world, hash)
 		assert.Check(t, ok)
 		assert.Equal(t, 1, len(errs))
 		assert.ErrorIs(t, wantErr, errs[0])
@@ -471,10 +472,10 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))
-		id := txs[0].ID
-		_, _, ok := numTx.GetReceipt(world, id)
+		hash := txs[0].TxHash
+		_, _, ok := numTx.GetReceipt(world, hash)
 		assert.Check(t, !ok)
-		numTx.SetResult(world, id, firstResult)
+		numTx.SetResult(world, hash, firstResult)
 		return nil
 	})
 
@@ -482,12 +483,12 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))
-		id := txs[0].ID
-		out, errs, ok := numTx.GetReceipt(world, id)
+		hash := txs[0].TxHash
+		out, errs, ok := numTx.GetReceipt(world, hash)
 		assert.Check(t, ok)
 		assert.Equal(t, 0, len(errs))
 		assert.Equal(t, TxOut{1234}, out)
-		numTx.SetResult(world, id, secondResult)
+		numTx.SetResult(world, hash, secondResult)
 		return nil
 	})
 	assert.NilError(t, world.LoadGameState())
