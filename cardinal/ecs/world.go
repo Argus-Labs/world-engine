@@ -60,7 +60,7 @@ type World struct {
 
 	errs []error
 
-	logger WorldLogger
+	Logger WorldLogger
 }
 
 var (
@@ -199,7 +199,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		systems:   make([]System, 0),
 		txQueues:  transaction.TxMap{},
 	}
-	w.logger = NewWorldLogger(nil, w)
+	w.Logger = NewWorldLogger(&log.Logger, w)
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
 		opt(w)
