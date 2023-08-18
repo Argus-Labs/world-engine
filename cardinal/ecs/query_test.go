@@ -1,4 +1,4 @@
-package tests
+package ecs_test
 
 import (
 	"gotest.tools/v3/assert"
