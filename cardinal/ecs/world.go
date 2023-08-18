@@ -306,9 +306,6 @@ func (w *World) Remove(id storage.EntityID) error {
 	if err != nil {
 		return err
 	}
-	if err != nil {
-		return err
-	}
 	if ok {
 		loc, err := w.store.EntityLocStore.GetLocation(id)
 		if err != nil {
