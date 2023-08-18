@@ -4,23 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/world_logger"
 	"sync"
 	"time"
 
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-	"google.golang.org/protobuf/proto"
-	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
-	"pkg.world.dev/world-engine/sign"
+	"google.golang.org/protobuf/proto"
+
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/sign"
 )
 
 // Namespace is a unique identifier for a world.
@@ -61,7 +60,7 @@ type World struct {
 
 	errs []error
 
-	logger world_logger.WorldLogger
+	logger WorldLogger
 }
 
 var (
@@ -200,7 +199,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		systems:   make([]System, 0),
 		txQueues:  transaction.TxMap{},
 	}
-	w.logger = world_logger.NewWorldLogger(nil, w)
+	w.logger = NewWorldLogger(nil, w)
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
 		opt(w)
@@ -256,7 +255,6 @@ func (w *World) createEntity(archetypeID storage.ArchetypeID) (storage.EntityID,
 		return 0, err
 	}
 	archetype.PushEntity(nextEntityID)
-	err = w.logger.LogDebugEntity(nextEntityID, "Entity created")
 	if err != nil {
 		return 0, err
 	}
@@ -310,7 +308,6 @@ func (w *World) Remove(id storage.EntityID) error {
 	if err != nil {
 		return err
 	}
-	err = w.logger.LogDebugEntity(id, "deleting entity")
 	if err != nil {
 		return err
 	}
@@ -767,12 +764,4 @@ func (w *World) GetTransactionReceipt(id transaction.TxID) (any, []error, bool) 
 
 func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
 	return w.receiptHistory.GetReceiptsForTick(tick)
-}
-
-func (w *World) ListRegisteredComponents() []IComponentType {
-	return w.registeredComponents
-}
-
-func (w *World) ListSystems() []System {
-	return w.systems
 }

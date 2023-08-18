@@ -1,27 +1,35 @@
-package world_logger
+package ecs
 
 import (
-	"github.com/google/uuid"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"io"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"reflect"
 	"runtime"
 )
 
-type IWorldLogger interface {
-	LogWorldState(id string)
-	LogInfo(id string, message string)
-	LogDebug(id string, message string)
-	LogError(id string, message string)
+type WorldLogger struct {
+	world  *World
+	logger *zerolog.Logger
 }
 
-type WorldLogger struct {
-	world  *ecs.World
-	logger zerolog.Logger
+func NewWorldLogger(logger *zerolog.Logger, world *World) WorldLogger {
+	return WorldLogger{
+		logger: logger,
+		world:  world,
+	}
+}
+
+func (wl *WorldLogger) LogInfo(trace_id string, message string) {
+	wl.logger.Info().Str("trace_id", trace_id).Msg(message)
+}
+
+func (wl *WorldLogger) LogDebug(trace_id string, message string) {
+	wl.logger.Debug().Str("trace_id", trace_id).Msg(message)
+}
+
+func (wl *WorldLogger) LogError(trace_id string, message string) {
+	wl.logger.Error().Str("trace_id", trace_id).Msg(message)
 }
 
 func loadComponentIntoArrayLogger(component component.IComponentType, arrayLogger *zerolog.Array) *zerolog.Array {
@@ -34,24 +42,24 @@ func loadComponentIntoArrayLogger(component component.IComponentType, arrayLogge
 }
 
 func (wl *WorldLogger) loadComponentInfoToLogger(zeroLoggerEvent *zerolog.Event) *zerolog.Event {
-	zeroLoggerEvent = zeroLoggerEvent.Int("total_components", len(wl.world.ListRegisteredComponents()))
+	zeroLoggerEvent = zeroLoggerEvent.Int("total_components", len(wl.world.registeredComponents))
 	arrayLogger := zerolog.Arr()
-	for _, _component := range wl.world.ListRegisteredComponents() {
+	for _, _component := range wl.world.registeredComponents {
 		arrayLogger = loadComponentIntoArrayLogger(_component, arrayLogger)
 	}
 	zeroLoggerEvent.Array("components", arrayLogger)
 	return zeroLoggerEvent
 }
 
-func loadSystemIntoArrayLogger(system *ecs.System, arrayLogger *zerolog.Array) *zerolog.Array {
+func loadSystemIntoArrayLogger(system *System, arrayLogger *zerolog.Array) *zerolog.Array {
 	functionName := runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name()
 	return arrayLogger.Str(functionName)
 }
 
 func (wl *WorldLogger) loadSystemInfoToLogger(zeroLoggerEvent *zerolog.Event) *zerolog.Event {
-	zeroLoggerEvent = zeroLoggerEvent.Int("total_systems", len(wl.world.ListSystems()))
+	zeroLoggerEvent = zeroLoggerEvent.Int("total_systems", len(wl.world.systems))
 	arrayLogger := zerolog.Arr()
-	for _, system := range wl.world.ListSystems() {
+	for _, system := range wl.world.systems {
 		arrayLogger = loadSystemIntoArrayLogger(&system, arrayLogger)
 	}
 	zeroLoggerEvent.Array("systems", arrayLogger)
@@ -86,36 +94,10 @@ func (wl *WorldLogger) LogDebugEntity(entityId storage.EntityID, message string)
 	return nil
 }
 
-func (wl *WorldLogger) LogWorldState(message string) {
+func (wl *WorldLogger) LogWorldState(trace_id string, message string) {
 	loggerEvent := wl.logger.Info()
-	loggerEvent.Str("id", uuid.NewString())
+	loggerEvent.Str("trace_id", trace_id)
 	loggerEvent = wl.loadComponentInfoToLogger(loggerEvent)
 	loggerEvent = wl.loadSystemInfoToLogger(loggerEvent)
 	loggerEvent.Msg(message)
-}
-
-func NewWorldLogger(writer io.Writer, world *ecs.World) WorldLogger {
-	if writer != nil {
-		return WorldLogger{
-			logger: zerolog.New(writer),
-			world:  world,
-		}
-	} else {
-		return WorldLogger{
-			logger: log.Logger,
-			world:  world,
-		}
-	}
-}
-
-func (wl *WorldLogger) LogInfo(id string, message string) {
-	wl.logger.Info().Str("id", id).Msg(message)
-}
-
-func (wl *WorldLogger) LogDebug(id string, message string) {
-	wl.logger.Debug().Str("id", id).Msg(message)
-}
-
-func (wl *WorldLogger) LogError(id string, message string) {
-	wl.logger.Error().Str("id", id).Msg(message)
 }
