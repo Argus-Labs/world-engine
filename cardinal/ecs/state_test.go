@@ -2,6 +2,7 @@ package ecs_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -11,7 +12,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/tests"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
@@ -35,7 +35,7 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	// This redisStore will be used to create multiple worlds to ensure state is consistent across the worlds.
 	redisStore := miniredis.RunT(t)
 
-	oneWorld := tests.InitWorldWithRedis(t, redisStore)
+	oneWorld := testutil.InitWorldWithRedis(t, redisStore)
 	oneAlphaNum := ecs.NewComponentType[NumberComponent]()
 	assert.NilError(t, oneWorld.RegisterComponents(oneAlphaNum))
 	assert.NilError(t, oneWorld.LoadGameState())
@@ -46,20 +46,20 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	assert.NilError(t, oneWorld.Tick(context.Background()))
 
 	// Too few components registered
-	twoWorld := tests.InitWorldWithRedis(t, redisStore)
+	twoWorld := testutil.InitWorldWithRedis(t, redisStore)
 	assert.NilError(t, twoWorld.RegisterComponents())
 	err = twoWorld.LoadGameState()
 	assert.ErrorContains(t, err, storage.ErrorComponentMismatchWithSavedState.Error())
 
 	// It's ok to register extra components.
-	threeWorld := tests.InitWorldWithRedis(t, redisStore)
+	threeWorld := testutil.InitWorldWithRedis(t, redisStore)
 	threeAlphaNum := ecs.NewComponentType[NumberComponent]()
 	threeBetaNum := ecs.NewComponentType[NumberComponent]()
 	assert.NilError(t, threeWorld.RegisterComponents(threeAlphaNum, threeBetaNum))
 	assert.NilError(t, threeWorld.LoadGameState())
 
 	// Just the right number of components registered
-	fourWorld := tests.InitWorldWithRedis(t, redisStore)
+	fourWorld := testutil.InitWorldWithRedis(t, redisStore)
 	fourAlphaNum := ecs.NewComponentType[NumberComponent]()
 	assert.NilError(t, fourWorld.RegisterComponents(fourAlphaNum))
 	assert.NilError(t, fourWorld.LoadGameState())
@@ -67,7 +67,7 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 
 func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	redisStore := miniredis.RunT(t)
-	oneWorld := tests.InitWorldWithRedis(t, redisStore)
+	oneWorld := testutil.InitWorldWithRedis(t, redisStore)
 	oneNum := ecs.NewComponentType[NumberComponent]()
 	assert.NilError(t, oneWorld.RegisterComponents(oneNum))
 	assert.NilError(t, oneWorld.LoadGameState())
@@ -83,7 +83,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, oneWorld.Tick(context.Background()))
 
 	// Make a second instance of the world using the same storage.
-	twoWorld := tests.InitWorldWithRedis(t, redisStore)
+	twoWorld := testutil.InitWorldWithRedis(t, redisStore)
 	twoNum := ecs.NewComponentType[NumberComponent]()
 	assert.NilError(t, twoWorld.RegisterComponents(twoNum))
 	assert.NilError(t, twoWorld.LoadGameState())
@@ -100,7 +100,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	redisStore := miniredis.RunT(t)
 
-	oneWorld := tests.InitWorldWithRedis(t, redisStore)
+	oneWorld := testutil.InitWorldWithRedis(t, redisStore)
 	oneAlphaNum := ecs.NewComponentType[NumberComponent]()
 	oneBetaNum := ecs.NewComponentType[NumberComponent]()
 	assert.NilError(t, oneWorld.RegisterComponents(oneAlphaNum, oneBetaNum))
@@ -125,7 +125,7 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 	// Create a brand new world, but use the original redis store. We should be able to load
 	// the game state from the redis store (including archetype indices).
-	twoWorld := tests.InitWorldWithRedis(t, redisStore)
+	twoWorld := testutil.InitWorldWithRedis(t, redisStore)
 	twoAlphaNum := ecs.NewComponentType[NumberComponent]()
 	twoBetaNum := ecs.NewComponentType[NumberComponent]()
 	// The ordering of registering these components is important. It must match the ordering above.
@@ -147,7 +147,7 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	// it never created any entities
 	assert.NilError(t, twoWorld.Tick(context.Background()))
 
-	threeWorld := tests.InitWorldWithRedis(t, redisStore)
+	threeWorld := testutil.InitWorldWithRedis(t, redisStore)
 	threeAlphaNum := ecs.NewComponentType[NumberComponent]()
 	threeBetaNum := ecs.NewComponentType[NumberComponent]()
 	// Again, the ordering of registering these components is important. It must match the ordering above
@@ -165,7 +165,7 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 func TestCanReloadState(t *testing.T) {
 	redisStore := miniredis.RunT(t)
-	alphaWorld := tests.InitWorldWithRedis(t, redisStore)
+	alphaWorld := testutil.InitWorldWithRedis(t, redisStore)
 	oneAlphaNum := ecs.NewComponentType[NumberComponent]()
 	assert.NilError(t, alphaWorld.RegisterComponents(oneAlphaNum))
 
@@ -185,7 +185,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, alphaWorld.Tick(context.Background()))
 
 	// Make a new world, using the original redis DB that (hopefully) has our data
-	betaWorld := tests.InitWorldWithRedis(t, redisStore)
+	betaWorld := testutil.InitWorldWithRedis(t, redisStore)
 	oneBetaNum := ecs.NewComponentType[NumberComponent]()
 	assert.NilError(t, betaWorld.RegisterComponents(oneBetaNum))
 	assert.NilError(t, betaWorld.LoadGameState())
