@@ -1,14 +1,15 @@
-package tests
+package storage_test
 
 import (
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
 
 	"gotest.tools/v3/assert"
 )
 
 func TestSetAndGetNonce(t *testing.T) {
-	rs := getRedisStorage(t)
+	rs := testutil.GetRedisStorage(t)
 	address := "some-address"
 	wantNonce := uint64(100)
 	assert.NilError(t, rs.SetNonce(address, wantNonce))
@@ -18,7 +19,7 @@ func TestSetAndGetNonce(t *testing.T) {
 }
 
 func TestMissingNonceIsZero(t *testing.T) {
-	rs := getRedisStorage(t)
+	rs := testutil.GetRedisStorage(t)
 
 	gotNonce, err := rs.GetNonce("some-address-that-doesn't-exist")
 	assert.NilError(t, err)
@@ -26,7 +27,7 @@ func TestMissingNonceIsZero(t *testing.T) {
 }
 
 func TestCanStoreManyNonces(t *testing.T) {
-	rs := getRedisStorage(t)
+	rs := testutil.GetRedisStorage(t)
 	for i := uint64(10); i < 100; i++ {
 		addr := fmt.Sprintf("%d", i)
 		assert.NilError(t, rs.SetNonce(addr, i))

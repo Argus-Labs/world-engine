@@ -1,4 +1,4 @@
-package tests
+package filter_test
 
 import (
 	"fmt"
