@@ -22,7 +22,7 @@ func NewWorldLogger(logger *zerolog.Logger, world *World) WorldLogger {
 }
 
 func (wl *WorldLogger) Log(traceId string, logLevel zerolog.Level, message string) {
-	wl.logger.WithLevel(logLevel).Str("trace_id", traceId)
+	wl.logger.WithLevel(logLevel).Str("trace_id", traceId).Msg(message)
 }
 
 func (wl *WorldLogger) LogInfo(traceId string, message string) {
