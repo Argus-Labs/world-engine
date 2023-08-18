@@ -24,7 +24,7 @@ type EnergyComp struct {
 	value int
 }
 
-var Energy = ecs.NewComponentType[EnergyComp]()
+var energy = ecs.NewComponentType[EnergyComp]()
 
 func TestWorldLogger(t *testing.T) {
 
@@ -40,7 +40,7 @@ func TestWorldLogger(t *testing.T) {
 
 	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, w.RegisterTransactions(alphaTx))
-	err := w.RegisterComponents(Energy)
+	err := w.RegisterComponents(energy)
 	assert.NilError(t, err)
 	//Test log world state
 	w.Logger.LogWorldState(traceId, zerolog.InfoLevel, "test message")
@@ -70,7 +70,7 @@ func TestWorldLogger(t *testing.T) {
 `
 	//require.JSONEq compares json strings for equality.
 	require.JSONEq(t, buf.String(), jsonWorldInfoString)
-	archetypeId := w.GetArchetypeForComponents([]component.IComponentType{Energy})
+	archetypeId := w.GetArchetypeForComponents([]component.IComponentType{energy})
 	entityId, err := w.Create(w.Archetype(archetypeId).Layout().Components()...)
 	assert.NilError(t, err)
 	buf.Reset()
