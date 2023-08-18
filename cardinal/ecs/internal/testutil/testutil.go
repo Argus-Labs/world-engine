@@ -1,4 +1,4 @@
-package tests
+package testutil
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 
 const WorldId string = "1"
 
-func getRedisStorage(t *testing.T) storage.RedisStorage {
+func GetRedisStorage(t *testing.T) storage.RedisStorage {
 	s := miniredis.RunT(t)
 	return storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
@@ -23,9 +23,9 @@ func getRedisStorage(t *testing.T) storage.RedisStorage {
 	}, WorldId)
 }
 
-// initWorldWithRedis sets up an ecs.World using the given redis DB. ecs.NewECSWorldForTest is not used
+// InitWorldWithRedis sets up an ecs.World using the given redis DB. ecs.NewECSWorldForTest is not used
 // because the test will re-use the incoming miniredis instance to initialize multiple worlds.
-func initWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
+func InitWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
 	rs := storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
@@ -37,9 +37,9 @@ func initWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
 	return w
 }
 
-// dumpRedis prints the contents of each key/value in the given miniredis instance.
+// DumpRedis prints the contents of each key/value in the given miniredis instance.
 // For list keys, each item is printed to a separate line.
-func dumpRedis(t *testing.T, r *miniredis.Miniredis, label any) {
+func DumpRedis(t *testing.T, r *miniredis.Miniredis, label any) {
 	t.Log("*************************************************")
 	t.Logf("* starting redis dump: %v", label)
 	t.Log("*************************************************")

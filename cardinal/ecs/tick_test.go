@@ -1,8 +1,9 @@
-package tests
+package ecs_test
 
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -15,7 +16,7 @@ import (
 
 func TestTickHappyPath(t *testing.T) {
 	rs := miniredis.RunT(t)
-	oneWorld := initWorldWithRedis(t, rs)
+	oneWorld := testutil.InitWorldWithRedis(t, rs)
 	oneEnergy := ecs.NewComponentType[EnergyComponent]()
 	assert.NilError(t, oneWorld.RegisterComponents(oneEnergy))
 	assert.NilError(t, oneWorld.LoadGameState())
@@ -26,7 +27,7 @@ func TestTickHappyPath(t *testing.T) {
 
 	assert.Equal(t, uint64(10), oneWorld.CurrentTick())
 
-	twoWorld := initWorldWithRedis(t, rs)
+	twoWorld := testutil.InitWorldWithRedis(t, rs)
 	twoEnergy := ecs.NewComponentType[EnergyComponent]()
 	assert.NilError(t, twoWorld.RegisterComponents(twoEnergy))
 	assert.NilError(t, twoWorld.LoadGameState())
@@ -39,7 +40,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	}
 
 	rs := miniredis.RunT(t)
-	oneWorld := initWorldWithRedis(t, rs)
+	oneWorld := testutil.InitWorldWithRedis(t, rs)
 	onePower := ecs.NewComponentType[PowerComponent]()
 	assert.NilError(t, oneWorld.RegisterComponents(onePower))
 
@@ -70,7 +71,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.ErrorIs(t, errorSystem, oneWorld.Tick(context.Background()))
 
 	// Set up a new world using the same storage layer
-	twoWorld := initWorldWithRedis(t, rs)
+	twoWorld := testutil.InitWorldWithRedis(t, rs)
 	twoPower := ecs.NewComponentType[*PowerComponent]()
 	assert.NilError(t, twoWorld.RegisterComponents(twoPower))
 
@@ -144,7 +145,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 	}
 	rs := miniredis.RunT(t)
 	for _, firstWorldIteration := range []bool{true, false} {
-		world := initWorldWithRedis(t, rs)
+		world := testutil.InitWorldWithRedis(t, rs)
 		static := ecs.NewComponentType[ScalarComponent]()
 		toggle := ecs.NewComponentType[ScalarComponent]()
 		assert.NilError(t, world.RegisterComponents(static, toggle))
@@ -211,7 +212,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 	rs := miniredis.RunT(t)
 	errorBadPowerChange := errors.New("bad power change transaction")
 	for _, isBuggyIteration := range []bool{true, false} {
-		world := initWorldWithRedis(t, rs)
+		world := testutil.InitWorldWithRedis(t, rs)
 
 		powerComp := ecs.NewComponentType[FloatValue]()
 		assert.NilError(t, world.RegisterComponents(powerComp))
