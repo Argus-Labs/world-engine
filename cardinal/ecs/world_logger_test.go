@@ -74,7 +74,7 @@ func TestWorldLogger(t *testing.T) {
 	entityId, err := w.Create(w.Archetype(archetypeId).Layout().Components()...)
 	assert.NilError(t, err)
 	buf.Reset()
-	//test log entity based on entity id
+	//test log entity
 	err = w.Logger.LogEntity(traceId, zerolog.DebugLevel, entityId, "test message")
 	assert.NilError(t, err)
 	jsonEntityInfoString := `
