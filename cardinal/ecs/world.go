@@ -247,9 +247,7 @@ func (w *World) createEntity(archetypeID storage.ArchetypeID) (storage.EntityID,
 	}
 	archetype := w.store.ArchAccessor.Archetype(archetypeID)
 	componentIndex, err := w.store.CompStore.PushComponents(archetype.Layout().Components(), archetypeID)
-	if err != nil {
-		return 0, err
-	}
+
 	err = w.store.EntityLocStore.Insert(nextEntityID, archetypeID, componentIndex)
 	if err != nil {
 		return 0, err
