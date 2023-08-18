@@ -4,8 +4,6 @@ go 1.21
 
 // external, necessary replacements
 replace (
-	pkg.world.dev/world-engine/chain => ../chain
-	pkg.world.dev/world-engine/sign => ../sign
 	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.0-beta2.0.20230721012257-443317a43b03
 	// We replace `go-ethereum` with `polaris-geth` in order include our required changes.
 	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20230629154458-90866dc0cf0a
@@ -29,7 +27,7 @@ require (
 	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.0
 	pkg.world.dev/world-engine/chain v0.1.11-alpha
-	pkg.world.dev/world-engine/sign v0.1.3-alpha
+	pkg.world.dev/world-engine/sign v0.1.5-alpha
 )
 
 require (
