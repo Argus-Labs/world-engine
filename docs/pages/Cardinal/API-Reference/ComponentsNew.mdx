@@ -1,0 +1,74 @@
+# Components
+
+This API reference will help you understand how to use components and configuration options available for components.
+
+```go
+package components
+
+import "pkg.world.dev/world-engine/cardinal/ecs"
+
+type Health struct {
+    Amount      uint64
+    Capacity    uint64
+}
+
+var HealthComponent = ecs.NewComponentType[Health](ecs.WithDefault(Health{Amount: 100, Capacity: 100}))
+```
+
+## NewComponentType
+
+`NewComponentType` creates a new `ComponentType`. ComponentTypes wrap around your component data types and provide uniform methods to mutate and read component data.
+
+```go
+func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T]
+```
+
+### Parameters
+
+| Parameter  | Type                    | Description                                                     |
+|------------|-------------------------|-----------------------------------------------------------------|
+| `T`        | `any`                   | The Go type to create a new `ComponentType` for. |
+| `opts`     | `...ComponentOption[T]` | Variadic parameter that allows passing one or more `ComponentOption` for customization. |
+
+### Options
+
+#### WithDefault
+
+The `WithDefault` component option enables entities created with this component to be instantiated with a default value.
+Note: since this Option is passed into a generic function with the type parameter already specified, you do not need to pass in the type again to the option itself.
+
+```go
+func WithDefault[T any](defaultVal T) ComponentOption[T]
+```
+
+| Parameter     | Type         | Description                                   |
+|---------------|--------------|-----------------------------------------------|
+| `defaultVal`  | `T`          | The default value to be set for the component type. |
+
+
+## Methods
+
+### Get
+
+`Get` retrieves the underlying component data for a given entity.
+
+```go
+func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error)
+```
+
+#### Parameters
+
+| Parameter   | Type          | Description                                    |
+|-------------|---------------|------------------------------------------------|
+| `w`         | `*World`      | A pointer to the ECS world object.             |
+| `id`        | `storage.EntityID` | The ID of the entity from which to retrieve the component data. |
+
+#### Return Values
+
+| Return Value | Type          | Description                                    |
+|--------------|---------------|------------------------------------------------|
+| `comp`       | `T`           | The retrieved component data.                  |
+| `err`        | `error`       | An error indicating any issues during retrieval. |
+
+
+
