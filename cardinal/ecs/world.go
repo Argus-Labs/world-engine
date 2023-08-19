@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"sync"
 	"time"
 
@@ -38,7 +42,8 @@ type StorageAccessor struct {
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
-	systems                  []System
+	systems                  []RegisteredSystem
+	systemNames              []string
 	tick                     uint64
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
@@ -60,7 +65,7 @@ type World struct {
 
 	errs []error
 
-	Logger WorldLogger
+	Logger *zerolog.Logger
 }
 
 var (
@@ -111,7 +116,15 @@ func (w *World) AddSystems(s ...System) {
 	if w.stateIsLoaded {
 		panic("cannot register systems after loading game state")
 	}
-	w.systems = append(w.systems, s...)
+	for _, system := range s {
+		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
+		systemLogger := w.createSystemLogger(functionName)
+		w.systemNames = append(w.systemNames, functionName)
+		registeredSystem := func(w *World, t *TransactionQueue) error {
+			return system(w, t, &systemLogger)
+		}
+		w.systems = append(w.systems, registeredSystem)
+	}
 }
 
 // RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
@@ -196,10 +209,10 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		store:     s,
 		namespace: "world",
 		tick:      0,
-		systems:   make([]System, 0),
+		systems:   make([]RegisteredSystem, 0),
 		txQueues:  transaction.TxMap{},
 	}
-	w.Logger = NewWorldLogger(&log.Logger, w)
+	w.Logger = &log.Logger //global logger
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
 		opt(w)
@@ -759,4 +772,83 @@ func (w *World) GetTransactionReceipt(id transaction.TxID) (any, []error, bool) 
 
 func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
 	return w.receiptHistory.GetReceiptsForTick(tick)
+}
+
+func (w *World) loadComponentIntoArrayLogger(component component.IComponentType, arrayLogger *zerolog.Array) *zerolog.Array {
+	dictLogger := zerolog.Dict()
+	dictLogger = dictLogger.Int("component_id", int(component.ID()))
+	dictLogger = dictLogger.Str("component_name", component.Name())
+	return arrayLogger.Dict(dictLogger)
+}
+
+func (w *World) loadComponentInfoToLogEvent(zeroLoggerEvent *zerolog.Event) *zerolog.Event {
+	zeroLoggerEvent = zeroLoggerEvent.Int("total_components", len(w.registeredComponents))
+	arrayLogger := zerolog.Arr()
+	for _, _component := range w.registeredComponents {
+		arrayLogger = w.loadComponentIntoArrayLogger(_component, arrayLogger)
+	}
+	zeroLoggerEvent.Array("components", arrayLogger)
+	return zeroLoggerEvent
+}
+
+func (w *World) loadSystemIntoArrayLogger(registeredSystemIndex int, arrayLogger *zerolog.Array) *zerolog.Array {
+	//functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(*system).Pointer()).Name())
+	return arrayLogger.Str(w.systemNames[registeredSystemIndex])
+}
+
+func (w *World) loadSystemInfoToLogEvent(zeroLoggerEvent *zerolog.Event) *zerolog.Event {
+	zeroLoggerEvent = zeroLoggerEvent.Int("total_systems", len(w.systems))
+	arrayLogger := zerolog.Arr()
+	for index, _ := range w.systems {
+		arrayLogger = w.loadSystemIntoArrayLogger(index, arrayLogger)
+	}
+	zeroLoggerEvent.Array("systems", arrayLogger)
+	return zeroLoggerEvent
+}
+
+func (w *World) loadEntityInfoIntoLogger(entityID storage.EntityID, zeroLoggerEvent *zerolog.Event) (*zerolog.Event, error) {
+	entity, err := w.Entity(entityID)
+	if err != nil {
+		return nil, err
+	}
+
+	archetype := entity.Archetype(w)
+	arrayLogger := zerolog.Arr()
+	for _, _component := range archetype.Layout().Components() {
+		arrayLogger = w.loadComponentIntoArrayLogger(_component, arrayLogger)
+	}
+	zeroLoggerEvent.Array("components", arrayLogger)
+	zeroLoggerEvent.Int("entity_id", int(entityID))
+	zeroLoggerEvent.Int("archetype_id", int(entity.Loc.ArchID))
+	return zeroLoggerEvent, nil
+}
+
+func (w *World) LogEntity(logLevel zerolog.Level, entityId storage.EntityID, message string) error {
+	zeroLoggerEvent := w.Logger.WithLevel(logLevel)
+	var err error = nil
+	zeroLoggerEvent, err = w.loadEntityInfoIntoLogger(entityId, zeroLoggerEvent)
+	if err != nil {
+		return err
+	}
+	zeroLoggerEvent.Msg(message)
+	return nil
+}
+
+func (w *World) LogWorldState(logLevel zerolog.Level, message string) {
+	zeroLoggerEvent := w.Logger.WithLevel(logLevel)
+	zeroLoggerEvent = w.loadComponentInfoToLogEvent(zeroLoggerEvent)
+	zeroLoggerEvent = w.loadSystemInfoToLogEvent(zeroLoggerEvent)
+	zeroLoggerEvent.Msg(message)
+}
+
+func (w *World) createSystemLogger(systemName string) zerolog.Logger {
+	return w.Logger.With().
+		Str("system", systemName).
+		Logger()
+}
+
+func (w *World) CreateTraceLogger(traceId string) zerolog.Logger {
+	return w.Logger.With().
+		Str("trace_id", traceId).
+		Logger()
 }

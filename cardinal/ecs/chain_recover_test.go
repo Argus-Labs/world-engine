@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"encoding/binary"
+	"github.com/rs/zerolog"
 	"sort"
 	"testing"
 
@@ -99,7 +100,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	sysRuns := uint64(0)
 	timesSendEnergyRan := 0
 	// send energy system
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *zerolog.Logger) error {
 		sysRuns++
 		txs := SendEnergyTx.In(queue)
 		if len(txs) > 0 {

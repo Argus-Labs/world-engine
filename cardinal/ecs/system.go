@@ -1,3 +1,6 @@
 package ecs
 
-type System func(*World, *TransactionQueue) error
+import "github.com/rs/zerolog"
+
+type RegisteredSystem func(*World, *TransactionQueue) error
+type System func(*World, *TransactionQueue, *zerolog.Logger) error

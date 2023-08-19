@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"github.com/rs/zerolog"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -22,7 +23,7 @@ type OwnableComponent struct {
 	Owner string
 }
 
-func UpdateEnergySystem(w *ecs.World, tq *ecs.TransactionQueue) error {
+func UpdateEnergySystem(w *ecs.World, tq *ecs.TransactionQueue, _ *zerolog.Logger) error {
 	errs := []error{}
 
 	Energy.Each(w, func(ent storage.EntityID) bool {

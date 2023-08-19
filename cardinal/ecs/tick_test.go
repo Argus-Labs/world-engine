@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
 
@@ -50,7 +51,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	errorSystem := errors.New("3 power? That's too much, man!")
 
 	// In this test, our "buggy" system fails once Power reaches 3
-	oneWorld.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	oneWorld.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *zerolog.Logger) error {
 		p, err := onePower.Get(world, id)
 		if err != nil {
 			return err
@@ -76,7 +77,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.NilError(t, twoWorld.RegisterComponents(twoPower))
 
 	// this is our fixed system that can handle Power levels of 3 and higher
-	twoWorld.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	twoWorld.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *zerolog.Logger) error {
 		p, err := onePower.Get(world, id)
 		if err != nil {
 			return err
@@ -157,7 +158,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		}
 
 		errorToggleComponent := errors.New("problem with toggle component")
-		world.AddSystem(func(w *ecs.World, _ *ecs.TransactionQueue) error {
+		world.AddSystem(func(w *ecs.World, _ *ecs.TransactionQueue, _ *zerolog.Logger) error {
 			// Get the one and only entity ID
 			id, ok, err := static.First(w)
 			assert.NilError(t, err)
@@ -223,7 +224,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		powerTx := ecs.NewTransactionType[FloatValue, FloatValue]("change_power")
 		assert.NilError(t, world.RegisterTransactions(powerTx))
 
-		world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
+		world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue, _ *zerolog.Logger) error {
 			id, err := powerComp.MustFirst(w)
 			assert.NilError(t, err)
 			entityPower, err := powerComp.Get(w, id)

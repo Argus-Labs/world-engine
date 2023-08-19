@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"errors"
+	"github.com/rs/zerolog"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -33,7 +34,7 @@ var SignerComp = NewComponentType[SignerComponent]()
 
 // RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func RegisterPersonaSystem(world *World, queue *TransactionQueue) error {
+func RegisterPersonaSystem(world *World, queue *TransactionQueue, _ *zerolog.Logger) error {
 	createTxs := CreatePersonaTx.In(queue)
 	if len(createTxs) == 0 {
 		return nil
