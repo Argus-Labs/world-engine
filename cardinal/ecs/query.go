@@ -63,20 +63,20 @@ func (q *Query) Count(w *World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w *World) (id storage.EntityID, ok bool, err error) {
+func (q *Query) First(w *World) (id storage.EntityID, err error) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
 	if !iter.HasNext() {
-		return storage.BadID, false, err
+		return storage.BadID, err
 	}
 	for iter.HasNext() {
 		entities := iter.Next()
 		if len(entities) > 0 {
-			return entities[0], true, nil
+			return entities[0], nil
 		}
 	}
-	return storage.BadID, false, err
+	return storage.BadID, err
 }
 
 func (q *Query) evaluateQuery(world *World, accessor *StorageAccessor) []storage.ArchetypeID {
