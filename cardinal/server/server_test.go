@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/rs/zerolog"
 	"io"
 	"net/http"
 	"testing"
@@ -106,7 +107,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	count := 0
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *zerolog.Logger) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -154,7 +155,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *zerolog.Logger) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -537,7 +538,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *zerolog.Logger) error {
 		for _, tx := range incTx.In(queue) {
 			incTx.SetResult(world, tx.ID, IncReply{
 				Number: tx.Value.Number + 1,
@@ -546,7 +547,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 		return nil
 	})
 	// System to handle duplicating strings
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *zerolog.Logger) error {
 		for _, tx := range dupeTx.In(queue) {
 			dupeTx.SetResult(world, tx.ID, DupeReply{
 				Str: tx.Value.Str + tx.Value.Str,
@@ -556,7 +557,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	})
 	wantError := errors.New("some error")
 	// System to handle error production
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *zerolog.Logger) error {
 		for _, tx := range errTx.In(queue) {
 			errTx.AddError(world, tx.ID, wantError)
 			errTx.AddError(world, tx.ID, wantError)
