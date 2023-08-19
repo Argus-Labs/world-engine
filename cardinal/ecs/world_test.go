@@ -36,6 +36,11 @@ func TestSetNamespace(t *testing.T) {
 	assert.Equal(t, w.Namespace(), id)
 }
 
+func testSystem(world *ecs.World, queue *ecs.TransactionQueue, logger *zerolog.Logger) error {
+	logger.Log().Msg("test")
+	return nil
+}
+
 func TestWorldLogger(t *testing.T) {
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
@@ -96,4 +101,18 @@ func TestWorldLogger(t *testing.T) {
 		}`
 
 	require.JSONEq(t, buf.String(), jsonEntityInfoString)
+	buf.Reset()
+	w.AddSystems(testSystem)
+	ctx := context.Background()
+	err = w.LoadGameState()
+	assert.NilError(t, err)
+	err = w.Tick(ctx)
+	assert.NilError(t, err)
+	jsonSystemLogTestString := `
+		{
+    		"system": "ecs_test.testSystem",
+    		"message": "test"
+		}
+	`
+	require.JSONEq(t, buf.String(), jsonSystemLogTestString)
 }
