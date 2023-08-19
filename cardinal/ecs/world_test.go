@@ -41,6 +41,19 @@ func testSystem(world *ecs.World, queue *ecs.TransactionQueue, logger *zerolog.L
 	return nil
 }
 
+type SendEnergyTx struct {
+	From, To string
+	Amount   uint64
+}
+
+type SendEnergyTxResult struct{}
+
+type EnergyComp struct {
+	value int
+}
+
+var energy = ecs.NewComponentType[EnergyComp]()
+
 func TestWorldLogger(t *testing.T) {
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
