@@ -130,15 +130,6 @@ func (c *ComponentType[T]) AddTo(w *World, id storage.EntityID) error {
 	return e.AddComponent(w, c)
 }
 
-// SetValue sets the value of the component.
-func (c *ComponentType[T]) SetValue(w *World, id storage.EntityID, value T) error {
-	_, err := c.Get(w, id)
-	if err != nil {
-		return err
-	}
-	return c.Set(w, id, value)
-}
-
 // String returns the component type name.
 func (c *ComponentType[T]) String() string {
 	return c.name
