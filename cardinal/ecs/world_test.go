@@ -116,9 +116,9 @@ func TestWorldLogger(t *testing.T) {
 	require.JSONEq(t, buf.String(), jsonEntityInfoString)
 	buf.Reset()
 	w.AddSystems(testSystem)
-	ctx := context.Background()
 	err = w.LoadGameState()
 	assert.NilError(t, err)
+	ctx := context.Background()
 	err = w.Tick(ctx)
 	assert.NilError(t, err)
 	jsonSystemLogTestString := `
