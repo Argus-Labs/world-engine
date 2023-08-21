@@ -1,44 +1,70 @@
 # Reads
 
-Reads define the request and reply types to read game state data. When reads are created, Cardinal automatically sets up an endpoint in the game server to process the read.
-
-## Creating a Read
-
-To create a read, first define a Request struct and a Reply struct:
+This API reference will help you understand how to use Reads and configuration options available for Reads.
 
 ```go
+package reads
 
-type PlayerRequest struct {
-    ID string
+import "pkg.world.dev/world-engine/cardinal/ecs"
+
+type PlanetInfoRequest struct {
+	TargetID uint64
 }
 
-type PlayerReply struct {
-    Items       []Item
-    Position    Coordinates
+type PlanetInfoReply struct {
+	Owner   string
+	Level   uint8
+	Energy  uint64
+	Cap     uint64
+	Silver  uint64
 }
+
+var PlanetInfo = ecs.NewReadType[PlanetInfoRequest, PlanetInfoReply](
+	"planet-info",
+	ecs.WithReadEVMSupport[PlanetInfoRequest, PlanetInfoReply],
+)
 ```
 
-Once the request and reply structs have been defined, instantiate the Read. Note that the `NewReadType` function takes a name argument of type string. Cardinal uses this name to automatically create the endpoint for this read. For example, passing "foo-bar" would result in the endpoint
-`address:port/read/foo-bar`. (TODO: update this after we finalize how we want to handle endpoints) https://linear.app/arguslabs/issue/CAR-139/refactor-http-endpoints-to-follow-a-clear-readtx-pattern
+## NewReadType
+
+`NewReadType` creates a new `ReadType`. `ReadType`s wrap around a request and reply type. The request specifies the data needed for the read request. The reply type represents the data requested. Reads also require a function that implements the read.
 
 ```go
-import "github.com/argus-labs/world-engine/cardinal/ecs"
-
-var ReadPlayer = ecs.NewReadType[PlayerRequest, PlayerReply](
-	"player-info",
-	func(world *ecs.World, req PlayerRequest) (PlayerReply, error) {
-		reply := PlayerReply{}
-		// impl read...
-		return reply, nil
-	},
-	)
+func NewReadType[Request any, Reply any](
+	name string,
+	handler func(world *World, req Request) (Reply, error),
+	opts ...func() func(readType *ReadType[Request, Reply]),
+) *ReadType[Request, Reply]
 ```
+
+### Type Parameters
+
+| Type Parameter | Description                                     |
+|----------------|-------------------------------------------------|
+| Request        | The type parameter representing the request type. |
+| Reply          | The type parameter representing the reply type.   |
+
+### Parameters
+
+| Parameter   | Type                                          | Description                                                                                        |
+|-------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------|
+| name        | string                                        | The name of the new read type.                                                                    |
+| handler     | func(world *World, req Request) (Reply, error) | The handler function for processing requests and generating a reply.                            |
+| opts        | variadic functions of func() func(*ReadType[Request, Reply]) | Optional functional options that configure the properties of the read type.  |
+
+
+### Return Value
+
+| Return Type             | Description                                                             |
+|-------------------------|-------------------------------------------------------------------------|
+| *ReadType[Request, Reply] | A pointer to a new instance of ReadType[Request, Reply].                |
 
 ## Options
 
-The `NewReadType` function accepts Options to alter the read.
-
 ### WithReadEVMSupport
+
+The `WithReadEVMSupport` enables this read to be sent from EVM smart contracts. Note: the option requires the type parameters again. This is needed so option can generate the concrete EVM equivalent types for the request and reply of the read.
+
 
 import { Callout } from 'nextra/components'
 
@@ -48,19 +74,7 @@ import Link from 'next/link'
     Not all Go types are supported when using `WithReadEVMSupport`. <Link href="/Cardinal/API-Reference/evm-support">Read More</Link>
 </Callout>
 
-`WithReadEVMSupport` enables this read to be called from smart contracts in the EVM.
-
-
 ```go
-import "github.com/argus-labs/world-engine/cardinal/ecs"
-
-var ReadPlayer = ecs.NewReadType[PlayerRequest, PlayerReply](
-	"player-info",
-	func(world *ecs.World, req PlayerRequest) (PlayerReply, error) {
-		reply := PlayerReply{}
-		// impl read...
-		return reply, nil
-	},
-    ecs.WithReadEVMSupport[PlayerRequest, PlayerReply],
-	)
+func WithReadEVMSupport[Request, Reply any]() func(transactionType *ReadType[Request, Reply])
 ```
+

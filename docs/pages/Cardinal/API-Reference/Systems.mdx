@@ -3,12 +3,10 @@
 Systems are the functions that are run every tick. Systems must adhere to the following function signature:
 
 ```go
-import "github.com/argus-labs/world-engine/cardinal/ecs"
-
-func SomeSystem(*ecs.World, *ecs.TransactionQueue) error
+type System func(*World, *TransactionQueue) error
 ```
 
-Systems give you a reference to the world, as well as the transaction queue. This allows you to access any transaction currently queued for this tick, as well as update any component state.
+Systems give you a reference to the ECS `World` object, as well as a `TransactionQueue`. This allows you to access any transaction currently queued for this tick.
 
 ## Getting Transactions
 
@@ -25,17 +23,11 @@ func AttackSystem(world *ecs.World, queue *ecs.TransactionQueue) error {
 
 ```go
 type TxData[In any] struct {
-    ID    transaction.TxID
-    Value In
-    Sig   *sign.SignedPayload
+    ID    transaction.TxID     // unique transaction ID
+    Value In                   // transaction input
+    Sig   *sign.SignedPayload  // optional transaction signature
 }
 ```
-
-The ID is a unique ID for the transaction. If you come from a blockchain background, you can think of this as the transaction hash.
-
-The value is the underlying transaction struct.
-
-Sig contains signature information, like the persona tag of the player that sent the transaction.
 
 ## Example System
 

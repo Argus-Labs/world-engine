@@ -19,8 +19,8 @@ func WithReceiptHistorySize(size int) Option {
 	}
 }
 
-func WithNamespace(id string) Option {
+func WithNamespace(ns string) Option {
 	return func(w *World) {
-		w.namespace = Namespace(id)
+		w.namespace = Namespace(ns)
 	}
 }
