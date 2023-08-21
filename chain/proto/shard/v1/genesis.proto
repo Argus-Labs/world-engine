@@ -4,7 +4,7 @@ package shard.v1;
 
 import "shard/v1/types.proto";
 
-option go_package = "github.com/argus-labs/world-engine/chain/x/shard/types";
+option go_package = "pkg.world.dev/world-engine/chain/x/shard/types";
 
 message GenesisState {
   // namespace_transactions contains a world's namespace, and all the transactions that occurred within that world.

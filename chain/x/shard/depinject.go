@@ -4,8 +4,8 @@ import (
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/depinject"
-	modulev1 "github.com/argus-labs/world-engine/chain/api/shard/module/v1"
-	"github.com/argus-labs/world-engine/chain/x/shard/keeper"
+	modulev1 "pkg.world.dev/world-engine/chain/api/shard/module/v1"
+	"pkg.world.dev/world-engine/chain/x/shard/keeper"
 )
 
 //nolint:gochecknoinits // GRRRR fix later.

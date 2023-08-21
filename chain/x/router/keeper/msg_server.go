@@ -5,7 +5,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"github.com/argus-labs/world-engine/chain/x/router/types"
+	"pkg.world.dev/world-engine/chain/x/router/types"
 
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )

@@ -1,8 +1,8 @@
 package ecs
 
 import (
-	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type cache struct {
@@ -17,7 +17,7 @@ type cache struct {
 // So it is not recommended to create a new query every time you want
 // to filter entities with the same query.
 type Query struct {
-	layoutMatches map[WorldId]*cache
+	layoutMatches map[Namespace]*cache
 	filter        filter.LayoutFilter
 }
 
@@ -25,7 +25,7 @@ type Query struct {
 // It receives arbitrary filters that are used to filter entities.
 func NewQuery(filter filter.LayoutFilter) *Query {
 	return &Query{
-		layoutMatches: make(map[WorldId]*cache),
+		layoutMatches: make(map[Namespace]*cache),
 		filter:        filter,
 	}
 }
@@ -63,24 +63,24 @@ func (q *Query) Count(w *World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w *World) (id storage.EntityID, ok bool, err error) {
+func (q *Query) First(w *World) (id storage.EntityID, err error) {
 	accessor := w.StorageAccessor()
 	result := q.evaluateQuery(w, &accessor)
 	iter := storage.NewEntityIterator(0, accessor.Archetypes, result)
 	if !iter.HasNext() {
-		return storage.BadID, false, err
+		return storage.BadID, err
 	}
 	for iter.HasNext() {
 		entities := iter.Next()
 		if len(entities) > 0 {
-			return entities[0], true, nil
+			return entities[0], nil
 		}
 	}
-	return storage.BadID, false, err
+	return storage.BadID, err
 }
 
 func (q *Query) evaluateQuery(world *World, accessor *StorageAccessor) []storage.ArchetypeID {
-	w := world.ID()
+	w := Namespace(world.Namespace())
 	if _, ok := q.layoutMatches[w]; !ok {
 		q.layoutMatches[w] = &cache{
 			archetypes: make([]storage.ArchetypeID, 0),

@@ -1,21 +1,21 @@
-package tests
+package storage_test
 
 import (
 	"context"
 	"encoding"
 	"encoding/json"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs"
-	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
-	"github.com/argus-labs/world-engine/sign"
 	"github.com/ethereum/go-ethereum/crypto"
 	"gotest.tools/v3/assert"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
-
-	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/sign"
 )
 
 var _ encoding.BinaryMarshaler = Foo{}
@@ -39,7 +39,7 @@ func TestList(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	rs := getRedisStorage(t)
+	rs := testutil.GetRedisStorage(t)
 	store := storage.NewWorldStorage(&rs)
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 	compStore := store.CompStore.Storage(x)
@@ -57,7 +57,7 @@ func TestList(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, foo.Foo, 20)
 
-	key := componentDataKey(WorldId, x.ID(), 0)
+	key := componentDataKey(testutil.WorldId, x.ID(), 0)
 	res := rs.Client.LRange(ctx, key, 0, -1)
 	result, err := res.Result()
 	assert.NilError(t, err)
@@ -75,7 +75,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	_ = ctx
 	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 
-	rs := getRedisStorage(t)
+	rs := testutil.GetRedisStorage(t)
 	store := storage.NewWorldStorage(&rs)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
@@ -110,7 +110,7 @@ func TestRedis_CompIndex(t *testing.T) {
 
 func TestRedis_Location(t *testing.T) {
 	//ctx := context.Background()
-	rs := getRedisStorage(t)
+	rs := testutil.GetRedisStorage(t)
 	store := storage.NewWorldStorage(&rs)
 
 	loc := storage.NewLocation(0, 1)
@@ -146,7 +146,7 @@ func TestRedis_Location(t *testing.T) {
 }
 
 func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
-	rs := getRedisStorage(t)
+	rs := testutil.GetRedisStorage(t)
 	type SomeData struct {
 		One   string
 		Two   int
@@ -180,8 +180,19 @@ func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
 	assert.DeepEqual(t, gotData, wantData)
 }
 
+func TestMiniRedisCopy(t *testing.T) {
+	rs := testutil.GetRedisStorage(t)
+	ctx := context.Background()
+	rs.Client.LPush(ctx, "testing", "original")
+	rs.Client.Copy(ctx, "testing", "testing2", 0, true)
+	rs.Client.LSet(ctx, "testing", 0, "changed")
+	x := rs.Client.LRange(ctx, "testing", 0, 0)
+	y := rs.Client.LRange(ctx, "testing2", 0, 0)
+	assert.Assert(t, x.Val()[0] != y.Val()[0])
+}
+
 func TestCanSaveAndRecoverSignatures(t *testing.T) {
-	rs := getRedisStorage(t)
+	rs := testutil.GetRedisStorage(t)
 	type TxIn struct {
 		Str string
 	}
@@ -233,7 +244,7 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 }
 
 func TestLargeArbitraryDataProducesError(t *testing.T) {
-	rs := getRedisStorage(t)
+	rs := testutil.GetRedisStorage(t)
 	// Make a 6 Mb slice. This should not fit in a redis bucket
 	largePayload := make([]byte, 6*1024*1024)
 	err := rs.Save("foobar", largePayload)
@@ -241,7 +252,7 @@ func TestLargeArbitraryDataProducesError(t *testing.T) {
 }
 
 func TestGettingIndexStorageShouldNotImpactIncrement(t *testing.T) {
-	rs := getRedisStorage(t)
+	rs := testutil.GetRedisStorage(t)
 
 	archID := storage.ArchetypeID(99)
 

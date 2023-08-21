@@ -1,8 +1,8 @@
 package ecs
 
 import (
-	"github.com/argus-labs/world-engine/cardinal/ecs/receipt"
-	"github.com/argus-labs/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
+	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 type Option func(w *World)
@@ -16,5 +16,11 @@ func WithAdapter(adapter shard.Adapter) Option {
 func WithReceiptHistorySize(size int) Option {
 	return func(w *World) {
 		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), size)
+	}
+}
+
+func WithNamespace(id string) Option {
+	return func(w *World) {
+		w.namespace = Namespace(id)
 	}
 }

@@ -43,9 +43,9 @@ import (
 	"cosmossdk.io/depinject"
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	shardmodulev1 "github.com/argus-labs/world-engine/chain/api/shard/module/v1"
-	"github.com/argus-labs/world-engine/chain/shard"
-	shardmodule "github.com/argus-labs/world-engine/chain/x/shard"
+	shardmodulev1 "pkg.world.dev/world-engine/chain/api/shard/module/v1"
+	"pkg.world.dev/world-engine/chain/shard"
+	shardmodule "pkg.world.dev/world-engine/chain/x/shard"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -88,8 +88,8 @@ import (
 	_ "pkg.berachain.dev/polaris/cosmos/x/erc20"      // import for side-effects
 	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side-effects
 
-	routermodule "github.com/argus-labs/world-engine/chain/api/router/module/v1"
-	"github.com/argus-labs/world-engine/chain/x/router"
+	routermodule "pkg.world.dev/world-engine/chain/api/router/module/v1"
+	"pkg.world.dev/world-engine/chain/x/router"
 )
 
 var (

@@ -8,22 +8,22 @@ import (
 	"time"
 
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-	"github.com/argus-labs/world-engine/cardinal/ecs/receipt"
 	"google.golang.org/protobuf/proto"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 
-	"github.com/argus-labs/world-engine/chain/x/shard/types"
-	"github.com/argus-labs/world-engine/sign"
 	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/sign"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs/component"
-	"github.com/argus-labs/world-engine/cardinal/ecs/filter"
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
-	"github.com/argus-labs/world-engine/cardinal/ecs/transaction"
-	"github.com/argus-labs/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
-// WorldId is a unique identifier for a world.
-type WorldId int
+// Namespace is a unique identifier for a world.
+type Namespace string
 
 // StorageAccessor is an accessor for the world's storage.
 type StorageAccessor struct {
@@ -36,7 +36,7 @@ type StorageAccessor struct {
 }
 
 type World struct {
-	id                       WorldId
+	namespace                Namespace
 	store                    storage.WorldStorage
 	systems                  []System
 	tick                     uint64
@@ -188,19 +188,14 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 	return w.registeredTransactions, nil
 }
 
-var nextWorldId WorldId = 0
-
 // NewWorld creates a new world.
 func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
-	// TODO: this should prob be handled by redis as well...
-	worldId := nextWorldId
-	nextWorldId++
 	w := &World{
-		id:       worldId,
-		store:    s,
-		tick:     0,
-		systems:  make([]System, 0, 256), // this can just stay in memory.
-		txQueues: transaction.TxMap{},
+		store:     s,
+		namespace: "world",
+		tick:      0,
+		systems:   make([]System, 0),
+		txQueues:  transaction.TxMap{},
 	}
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
@@ -210,10 +205,6 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), 10)
 	}
 	return w, nil
-}
-
-func (w *World) ID() WorldId {
-	return w.id
 }
 
 func (w *World) CurrentTick() uint64 {
@@ -490,54 +481,6 @@ type TxBatch struct {
 	Txs  []any              `json:"txs,omitempty"`
 }
 
-// submitToChain spins up a new go routine that will submit the transactions to the EVM base shard.
-/*func (w *World) submitToChain(ctx context.Context, txq TransactionQueue, tick uint64) {
-	go func(ctx context.Context) {
-		// convert transaction queue map into slice
-		txb := make([]TxBatch, 0, len(txq.queue))
-		for id, txs := range txq.queue {
-			txb = append(txb, TxBatch{
-				TxID: id,
-				Txs:  txs,
-			})
-		}
-		// sort based on transaction id to keep determinism.
-		sort.Slice(txb, func(i, j int) bool {
-			return txb[i].TxID < txb[j].TxID
-		})
-
-		// turn the slice into bytes
-		bz, err := w.encodeBatch(txb)
-		if err != nil {
-			// TODO: https://linear.app/arguslabs/issue/CAR-92/keep-track-of-ackd-transaction-bundles
-			// we need to signal this didn't work.
-			w.LogError(err)
-			return
-		}
-
-		// submit to chain
-		err = w.chain.Submit(ctx, w.GetNamespace(), tick, bz)
-		if err != nil {
-			w.LogError(err)
-		}
-
-		// check if context contains a done channel.
-		done := ctx.Result("done")
-		// if there is none, we just return.
-		if done == nil {
-			return
-		}
-		// done signal found. if it's the right type, send signal through channel that we are done
-		// processing the transactions.
-		doneSignal, ok := done.(chan struct{})
-		if !ok {
-			return
-		}
-		doneSignal <- struct{}{}
-
-	}(ctx)
-}*/
-
 const (
 	storeArchetypeCompIdxKey  = "arch_component_index"
 	storeArchetypeAccessorKey = "arch_accessor"
@@ -688,7 +631,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	defer func() {
 		w.isRecovering = false
 	}()
-	namespace := w.GetNamespace()
+	namespace := w.Namespace()
 	var nextKey []byte
 	for {
 		res, err := w.chain.QueryTransactions(ctx, &types.QueryTransactionsRequest{
@@ -778,8 +721,9 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 	return itx
 }
 
-func (w *World) GetNamespace() string {
-	return fmt.Sprintf("%d", w.id)
+// Namespace returns the world's namespace.
+func (w *World) Namespace() string {
+	return string(w.namespace)
 }
 
 func (w *World) LogError(err error) {

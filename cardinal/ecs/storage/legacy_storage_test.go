@@ -1,11 +1,11 @@
-package tests
+package storage_test
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 func TestStorage_Bytes(t *testing.T) {

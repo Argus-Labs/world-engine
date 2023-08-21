@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	router "github.com/argus-labs/world-engine/chain/router"
+	router "pkg.world.dev/world-engine/chain/router"
 	gomock "github.com/golang/mock/gomock"
 )
 

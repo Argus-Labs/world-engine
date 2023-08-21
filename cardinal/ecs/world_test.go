@@ -1,10 +1,10 @@
-package tests
+package ecs_test
 
 import (
 	"context"
-	"github.com/argus-labs/world-engine/cardinal/ecs"
-	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"testing"
 )
 
@@ -24,4 +24,10 @@ func TestAddSystems(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Equal(t, count, 3)
+}
+
+func TestSetNamespace(t *testing.T) {
+	id := "foo"
+	w := inmem.NewECSWorldForTest(t, ecs.WithNamespace(id))
+	assert.Equal(t, w.Namespace(), id)
 }

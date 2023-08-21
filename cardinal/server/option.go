@@ -1,8 +1,14 @@
 package server
 
-import "github.com/argus-labs/world-engine/cardinal/shard"
+import "pkg.world.dev/world-engine/cardinal/shard"
 
 type Option func(th *Handler)
+
+func WithPort(port string) Option {
+	return func(th *Handler) {
+		th.port = port
+	}
+}
 
 func DisableSignatureVerification() Option {
 	return func(th *Handler) {

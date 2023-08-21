@@ -8,9 +8,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs"
-	"github.com/argus-labs/world-engine/sign"
 	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/sign"
 )
 
 // fixes a path to contain a leading slash.
@@ -106,8 +106,8 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	///////////////////////////////////////////////
 
 	// Check that the namespace is correct
-	if sp.Namespace != t.w.GetNamespace() {
-		return nil, nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, t.w.GetNamespace())
+	if sp.Namespace != t.w.Namespace() {
+		return nil, nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, t.w.Namespace())
 	}
 
 	var signerAddress string

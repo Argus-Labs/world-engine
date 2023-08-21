@@ -1,21 +1,22 @@
-package tests
+package ecs_test
 
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs"
-	"github.com/argus-labs/world-engine/cardinal/ecs/inmem"
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 func TestTickHappyPath(t *testing.T) {
 	rs := miniredis.RunT(t)
-	oneWorld := initWorldWithRedis(t, rs)
+	oneWorld := testutil.InitWorldWithRedis(t, rs)
 	oneEnergy := ecs.NewComponentType[EnergyComponent]()
 	assert.NilError(t, oneWorld.RegisterComponents(oneEnergy))
 	assert.NilError(t, oneWorld.LoadGameState())
@@ -26,7 +27,7 @@ func TestTickHappyPath(t *testing.T) {
 
 	assert.Equal(t, uint64(10), oneWorld.CurrentTick())
 
-	twoWorld := initWorldWithRedis(t, rs)
+	twoWorld := testutil.InitWorldWithRedis(t, rs)
 	twoEnergy := ecs.NewComponentType[EnergyComponent]()
 	assert.NilError(t, twoWorld.RegisterComponents(twoEnergy))
 	assert.NilError(t, twoWorld.LoadGameState())
@@ -39,7 +40,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	}
 
 	rs := miniredis.RunT(t)
-	oneWorld := initWorldWithRedis(t, rs)
+	oneWorld := testutil.InitWorldWithRedis(t, rs)
 	onePower := ecs.NewComponentType[PowerComponent]()
 	assert.NilError(t, oneWorld.RegisterComponents(onePower))
 
@@ -70,7 +71,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.ErrorIs(t, errorSystem, oneWorld.Tick(context.Background()))
 
 	// Set up a new world using the same storage layer
-	twoWorld := initWorldWithRedis(t, rs)
+	twoWorld := testutil.InitWorldWithRedis(t, rs)
 	twoPower := ecs.NewComponentType[*PowerComponent]()
 	assert.NilError(t, twoWorld.RegisterComponents(twoPower))
 
@@ -116,9 +117,8 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
-		gotID, ok, err := alpha.First(world)
+		gotID, err := alpha.First(world)
 		assert.NilError(t, err)
-		assert.Check(t, ok)
 		assert.Equal(t, wantID, gotID)
 
 		// Make sure the associated component is correct
@@ -145,7 +145,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 	}
 	rs := miniredis.RunT(t)
 	for _, firstWorldIteration := range []bool{true, false} {
-		world := initWorldWithRedis(t, rs)
+		world := testutil.InitWorldWithRedis(t, rs)
 		static := ecs.NewComponentType[ScalarComponent]()
 		toggle := ecs.NewComponentType[ScalarComponent]()
 		assert.NilError(t, world.RegisterComponents(static, toggle))
@@ -158,9 +158,8 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		errorToggleComponent := errors.New("problem with toggle component")
 		world.AddSystem(func(w *ecs.World, _ *ecs.TransactionQueue) error {
 			// Get the one and only entity ID
-			id, ok, err := static.First(w)
+			id, err := static.First(w)
 			assert.NilError(t, err)
-			assert.Check(t, ok)
 
 			s, err := static.Get(w, id)
 			assert.NilError(t, err)
@@ -180,9 +179,8 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		})
 		assert.NilError(t, world.LoadGameState())
 
-		id, ok, err := static.First(world)
+		id, err := static.First(world)
 		assert.NilError(t, err)
-		assert.Check(t, ok)
 
 		if firstWorldIteration {
 			for i := 0; i < 4; i++ {
@@ -214,7 +212,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 	rs := miniredis.RunT(t)
 	errorBadPowerChange := errors.New("bad power change transaction")
 	for _, isBuggyIteration := range []bool{true, false} {
-		world := initWorldWithRedis(t, rs)
+		world := testutil.InitWorldWithRedis(t, rs)
 
 		powerComp := ecs.NewComponentType[FloatValue]()
 		assert.NilError(t, world.RegisterComponents(powerComp))
@@ -223,9 +221,9 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		assert.NilError(t, world.RegisterTransactions(powerTx))
 
 		world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
-			id, err := powerComp.MustFirst(w)
-			assert.NilError(t, err)
+			id := powerComp.MustFirst(w)
 			entityPower, err := powerComp.Get(w, id)
+			assert.NilError(t, err)
 
 			changes := powerTx.In(queue)
 			assert.Equal(t, 1, len(changes))
@@ -247,8 +245,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		// fetchPower is a small helper to get the power of the only entity in the world
 		fetchPower := func() float64 {
-			id, ok, err := powerComp.First(world)
-			assert.Check(t, ok)
+			id, err := powerComp.First(world)
 			assert.NilError(t, err)
 			power, err := powerComp.Get(world, id)
 			assert.NilError(t, err)

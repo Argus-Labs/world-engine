@@ -1,10 +1,10 @@
-package tests
+package storage_test
 
 import (
-	"github.com/argus-labs/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"testing"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
 
 type (

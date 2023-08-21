@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/argus-labs/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
 
 type ArchetypeID int
