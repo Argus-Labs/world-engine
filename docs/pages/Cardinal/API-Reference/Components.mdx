@@ -12,7 +12,9 @@ type Health struct {
     Capacity    uint64
 }
 
-var HealthComponent = ecs.NewComponentType[Health](ecs.WithDefault(Health{Amount: 100, Capacity: 100}))
+var HealthComponent = ecs.NewComponentType[Health](
+	ecs.WithDefault(Health{Amount: 100, Capacity: 100}),
+)
 ```
 
 ## NewComponentType
