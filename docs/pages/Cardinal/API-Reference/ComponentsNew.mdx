@@ -56,6 +56,12 @@ func WithDefault[T any](defaultVal T) ComponentOption[T]
 func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error)
 ```
 
+#### Example
+
+```go
+health, err := HealthComponent.Get(w, id)
+```
+
 #### Parameters
 
 | Parameter   | Type          | Description                                    |
@@ -64,11 +70,110 @@ func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error
 | `id`        | `storage.EntityID` | The ID of the entity from which to retrieve the component data. |
 
 #### Return Values
-
-| Return Value | Type          | Description                                    |
-|--------------|---------------|------------------------------------------------|
-| `comp`       | `T`           | The retrieved component data.                  |
-| `err`        | `error`       | An error indicating any issues during retrieval. |
-
+| Type          | Description                                    |
+|---------------|------------------------------------------------|
+|`T`           | The retrieved component data.                  |
+| `error`       | An error indicating any issues during retrieval. |
 
 
+### Set
+
+`Set` sets the component data for a given entity.
+
+```go
+func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error
+```
+
+#### Example
+
+```go
+newHealth := Health{Amount: 45, Capacity: 100}
+err := HealthComponent.Set(w, id, newHealth)
+```
+
+#### Parameters
+
+| Parameter    | Type                     | Description                                    |
+|--------------|--------------------------|------------------------------------------------|
+| `w`          | `*World`                 | A pointer to the ECS world object.             |
+| `id`         | `storage.EntityID`       | Entity ID of the entity to set the component.   |
+| `component`  | `T`                      | Component value to set for the entity.          |
+
+
+#### Return Value
+
+| Type          | Description                                    |
+|---------------|------------------------------------------------|
+| `error`       | An error indicating any issues during the operation. |
+
+
+
+### Update
+
+`Update` allows you to mutate underlying component data in one function call. `Update` uses `Get` and `Set` under the hood.
+
+```go
+func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(T) T) error
+```
+
+#### Example
+
+```go
+err := HealthComponent.Update(w, id, func(h Health) Health {
+	h.Amount -= 10 // take away 10 health
+	return r
+})
+```
+
+#### Parameters
+
+| Parameter    | Type             | Description                                              |
+|--------------|------------------|----------------------------------------------------------|
+| `w`          | `*World`         | Pointer to the ECS world object.                         |
+| `id`         | `storage.EntityID` | ID of the entity to perform the component update on. |
+| `fn`         | `func(T) T`      | Function that modifies the component's value.            |
+
+#### Return Value
+
+| Return Type | Description                                       |
+|-------------|---------------------------------------------------|
+| `error`     | An error indicating any issues during the operation. |
+
+
+### Each
+
+`Each` iterates over entities that have the component. The callback expects a boolean value to be returned. Returning true continues the iteration and returning false stops the iteration.
+
+```go
+func (c *ComponentType[T]) Each(w *World, callback QueryCallBackFn)
+```
+
+#### Example
+
+```go
+// example showing how we can iterate over entities with HealthComponent and check if a given entity ID has the component.
+lookingForEntity := storage.EntityID(40)
+hasEntity := false
+HealthComponent.Each(w, func(id storage.EntityID) bool {
+    if id == desiredEntity {
+        hasEntity = true
+        return false // stop the iteration
+    }
+    return true // continue the iteration
+})
+```
+
+
+#### Parameters
+| Parameter    | Type                             | Description                                            |
+|--------------|----------------------------------|--------------------------------------------------------|
+| `w`          | `*World`                         | Pointer to the ECS world object.                       |
+| `callback`   | `QueryCallBackFn`                | Callback function to be invoked for each entity.       |
+
+### First
+
+`First` returns the first entity that has the component.
+
+```go
+func (c *ComponentType[T]) First(w *World) (storage.EntityID, error)
+```
