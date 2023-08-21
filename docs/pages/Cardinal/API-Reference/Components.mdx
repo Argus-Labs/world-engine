@@ -17,11 +17,17 @@ var HealthComponent = ecs.NewComponentType[Health](ecs.WithDefault(Health{Amount
 
 ## NewComponentType
 
-`NewComponentType` creates a new `ComponentType`. ComponentTypes wrap around your component data types and provide uniform methods to mutate and read component data.
+`NewComponentType` creates a new `ComponentType`. `ComponentType`s wrap around your component data types and provide uniform methods to mutate and read component data.
 
 ```go
 func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T]
 ```
+
+### Type Parameter
+
+| Type Parameter | Type | Description                                     |
+|----------------|------|-------------------------------------------------|
+| T             | any  | The data structure for the component.             |
 
 ### Parameters
 
@@ -29,6 +35,13 @@ func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T]
 |------------|-------------------------|-----------------------------------------------------------------|
 | `T`        | `any`                   | The Go type to create a new `ComponentType` for. |
 | `opts`     | `...ComponentOption[T]` | Variadic parameter that allows passing one or more `ComponentOption` for customization. |
+
+### Return Value
+
+| Type                 | Description                                       |
+|----------------------|---------------------------------------------------|
+| *ComponentType[T]    | A pointer to a new instance of ComponentType[T].  |
+
 
 ### Options
 

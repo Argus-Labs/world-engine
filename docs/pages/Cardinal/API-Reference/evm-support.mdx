@@ -20,7 +20,7 @@ import { Callout } from 'nextra/components'
 
 
 <Callout type={"warning"}>
-    When using `*big.Int`, you MUST use a special "evm" struct tag to indicate which underlying solidity integer type you want to resolve to. This is due to go-ethereum using `*big.Int` for any uint or int greater than 64 bits.
+    When using `*big.Int`, you MUST use a special "evm" struct tag to indicate which underlying evm integer type you want to resolve to. This is due to go-ethereum using `*big.Int` for any uint or int greater than 64 bits.
 </Callout>
 
 Example:

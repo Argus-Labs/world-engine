@@ -52,7 +52,10 @@ func WithTxEVMSupport[In, Out any]() func(transactionType *TransactionType[In, O
 	}
 }
 
-func NewTransactionType[In, Out any](name string, opts ...func() func(*TransactionType[In, Out])) *TransactionType[In, Out] {
+func NewTransactionType[In, Out any](
+	name string,
+	opts ...func() func(*TransactionType[In, Out]),
+) *TransactionType[In, Out] {
 	txt := &TransactionType[In, Out]{
 		name: name,
 	}
