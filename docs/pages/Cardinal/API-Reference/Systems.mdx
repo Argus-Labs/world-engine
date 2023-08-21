@@ -1,0 +1,83 @@
+# Systems
+
+Systems are the functions that run every tick. Systems must adhere to the following function signature:
+
+```go
+type System func(*World, *TransactionQueue) error
+```
+
+Systems are given a reference to the ECS `World` object, as well as a `TransactionQueue`. This provides access any transaction currently queued for the current tick.
+
+## Getting Transactions
+
+In order to get specific transactions from the queue, utilize a specific transaction's `In` method. This transaction method takes the queue as an argument, and returns a slice of `TxData`, which contains data related to that transaction.
+
+```go
+import "github.com/argus-labs/world-engine/cardinal/ecs"
+
+func AttackSystem(world *ecs.World, queue *ecs.TransactionQueue) error {
+    txs := AttackTransaction.In(queue)
+	for _, tx := range txs {
+		// do something with each tx...
+	}
+}
+```
+## TxData
+
+```go
+type TxData[In any] struct {
+    ID    transaction.TxID     // unique transaction ID
+    Value In                   // transaction input
+    Sig   *sign.SignedPayload  // optional transaction signature
+}
+```
+
+## Example System
+
+```go
+// define a component
+type Health struct {
+	Amount uint64
+	Cap    uint64
+}
+
+var HealthComponent = ecs.NewComponentType[Health]()
+
+// define an attack transaction
+type AttackInput struct {
+	TargetPlayer uint64
+	Amount       uint64
+}
+
+type AttackOutput struct {
+	Success bool
+}
+
+var AttackTx = ecs.NewTransactionType[AttackInput, AttackOutput]("attack")
+
+// implement the system
+var AttackSystem ecs.System = func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	// get all attack transactions in the queue
+	txs := AttackTx.In(queue)
+
+	for _, tx := range txs {
+		// get the underlying attack tx struct
+		atk := tx.Value
+
+		// update the component based on the attack
+		err := HealthComponent.Update(world, storage.EntityID(atk.TargetPlayer), func(health Health) Health {
+			health.Amount -= atk.Amount
+			return health
+		})
+		// if an error occurred, set the result, and add the error to the transaction.
+		if err != nil {
+			AttackTx.SetResult(world, tx.ID, AttackOutput{Success: false})
+			AttackTx.AddError(world, tx.ID, err)
+			continue
+		}
+		// set result for success case
+		AttackTx.SetResult(world, tx.ID, AttackOutput{Success: true})
+	}
+	return nil
+}
+```
