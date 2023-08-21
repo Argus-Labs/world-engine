@@ -1,129 +1,278 @@
 # Components
 
-Components are the structures that give entities their state.
+This API reference will help you understand how to use components and configuration options available for components.
 
-## Creating a Component
+```go
+package components
 
-The `NewComponentType` function is used to create a new instance of a component type with customizable options. This function is designed to be generic, enabling it to accommodate any type, including those defined by users.
+import "pkg.world.dev/world-engine/cardinal/ecs"
+
+type Health struct {
+    Amount      uint64
+    Capacity    uint64
+}
+
+var HealthComponent = ecs.NewComponentType[Health](ecs.WithDefault(Health{Amount: 100, Capacity: 100}))
+```
+
+## NewComponentType
+
+`NewComponentType` creates a new `ComponentType`. ComponentTypes wrap around your component data types and provide uniform methods to mutate and read component data.
 
 ```go
 func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T]
 ```
 
-In Cardinal, you define your component using a normal Go struct.
+### Parameters
+
+| Parameter  | Type                    | Description                                                     |
+|------------|-------------------------|-----------------------------------------------------------------|
+| `T`        | `any`                   | The Go type to create a new `ComponentType` for. |
+| `opts`     | `...ComponentOption[T]` | Variadic parameter that allows passing one or more `ComponentOption` for customization. |
+
+### Options
+
+#### WithDefault
+
+The `WithDefault` component option enables entities created with this component to be instantiated with a default value.
+Note: since this Option is passed into a generic function with the type parameter already specified, you do not need to pass in the type again to the option itself.
 
 ```go
-type Health struct {
-    Amount  uint64
-    Cap     uint64
-}
+func WithDefault[T any](defaultVal T) ComponentOption[T]
 ```
 
-In order to use this struct in the ECS world, instantiate a new component type, passing your struct in the type
-parameter.
+| Parameter     | Type         | Description                                   |
+|---------------|--------------|-----------------------------------------------|
+| `defaultVal`  | `T`          | The default value to be set for the component type. |
+
+
+## Methods
+
+### Get
+
+`Get` retrieves the underlying component data for a given entity.
 
 ```go
-import "github.com/argus-labs/world-engine/cardinal/ecs"
-
-var HealthComponent = ecs.NewComponentType[Health]()
-
+func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error)
 ```
 
-## Getting Component Data
-Component data is retrieved via the `Get` method of the corresponding component type. `Get` requires a pointer to `World` and the ID of the entity with this component, and returns the component struct and an error.
+#### Example
 
 ```go
-health, err := HealthComponent.Get(world, id)
+health, err := HealthComponent.Get(w, id)
 ```
 
-## Setting Component Data
-Components are updated via the `Set` method of the corresponding component type. `Set` requires a pointer `World`, the ID of the entity with this component, and the go struct that defines this component. `Set` may return an error.
+#### Parameters
+
+| Parameter   | Type          | Description                                    |
+|-------------|---------------|------------------------------------------------|
+| `w`         | `*World`      | A pointer to the ECS world object.             |
+| `id`        | `storage.EntityID` | The ID of the entity from which to retrieve the component data. |
+
+#### Return Values
+| Type          | Description                                    |
+|---------------|------------------------------------------------|
+|`T`           | The retrieved component data.                  |
+| `error`       | An error indicating any issues during retrieval. |
+
+
+### Set
+
+`Set` sets the component data for a given entity.
 
 ```go
-err := HealthComponent.Set(world, id, Health{Amount: 50, Cap: 100})
+func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error
 ```
 
-## Updating Component Data
-Aside from directly setting component data (effectively a full overwrite), component types provide a method `Update`, which updates component data with a more ergonomic callback pattern. `Update` takes a pointer to `World`, the ID of the entity to update, and a callback function. The
-callback function supplies the component struct directly, and expects a return value of the updated component struct. `Update` may return an error.
+#### Example
 
 ```go
-err := HealthComponent.Update(world, id, func(h Health) Health {
-    // take away 10 from the total heatlh
-    h.Amount -= 10
-    return h
+newHealth := Health{Amount: 45, Capacity: 100}
+err := HealthComponent.Set(w, id, newHealth)
+```
+
+#### Parameters
+
+| Parameter    | Type                     | Description                                    |
+|--------------|--------------------------|------------------------------------------------|
+| `w`          | `*World`                 | A pointer to the ECS world object.             |
+| `id`         | `storage.EntityID`       | Entity ID of the entity to set the component.   |
+| `component`  | `T`                      | Component value to set for the entity.          |
+
+
+#### Return Value
+
+| Type          | Description                                    |
+|---------------|------------------------------------------------|
+| `error`       | An error indicating any issues during the operation. |
+
+
+
+### Update
+
+`Update` allows you to mutate underlying component data in one function call. `Update` uses `Get` and `Set` under the hood.
+
+```go
+func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(T) T) error
+```
+
+#### Example
+
+```go
+err := HealthComponent.Update(w, id, func(h Health) Health {
+	h.Amount -= 10 // take away 10 health
+	return r
 })
 ```
 
-Component data can also be updated using the get/set methods described in the previous sections:
+#### Parameters
+
+| Parameter    | Type             | Description                                              |
+|--------------|------------------|----------------------------------------------------------|
+| `w`          | `*World`         | Pointer to the ECS world object.                         |
+| `id`         | `storage.EntityID` | ID of the entity to perform the component update on. |
+| `fn`         | `func(T) T`      | Function that modifies the component's value.            |
+
+#### Return Value
+
+| Type | Description                                       |
+|-------------|---------------------------------------------------|
+| `error`     | An error indicating any issues during the operation. |
+
+
+### Each
+
+`Each` iterates over entities that have the component. The callback expects a boolean value to be returned. Returning true continues the iteration and returning false stops the iteration.
 
 ```go
-health, err := HealthComponent.Get(world, id)
-if err != nil {
-    return err
-}
-health.Amount -= 10
-err = HealthComponent.Set(world, id, health)
-if err != nil {
-    return err
-}
+func (c *ComponentType[T]) Each(w *World, callback QueryCallBackFn)
 ```
 
-## Entity Iteration
-Components can also iterate over all entities that contain this component with the method `Each`. `Each` takes a pointer to world, and a callback function which will supplies each entity ID at every call. The callback function expects a boolean value to be returned, which indicates whether the
-iteration should continue. A return value of `true` indicates the iteration should continue, while `false` indicates the iteration should stop. `Each` may return an error.
+#### Example
 
 ```go
-err := HealthComponent.Each(world, func(id storage.EntityID) bool {
-    // do something with entity ID...
-	return true // continue the iteration
+// example showing how we can iterate over entities with HealthComponent and check if a given entity ID has the component.
+lookingForEntity := storage.EntityID(40)
+hasEntity := false
+HealthComponent.Each(w, func(id storage.EntityID) bool {
+    if id == desiredEntity {
+        hasEntity = true
+        return false // stop the iteration
+    }
+    return true // continue the iteration
 })
 ```
 
-## First Entity
-The first entity with a component can be retrieved via the component type's `First` method. `First` simply takes a pointer to world, and returns the entity ID and an error. This is useful for singleton component patterns.
+
+#### Parameters
+| Parameter    | Type                             | Description                                            |
+|--------------|----------------------------------|--------------------------------------------------------|
+| `w`          | `*World`                         | Pointer to the ECS world object.                       |
+| `callback`   | `QueryCallBackFn`                | Callback function to be invoked for each entity.       |
+
+### First
+
+`First` returns the first entity that has the component.
 
 ```go
-entityID, err := HealthComponent.First(world)
+func (c *ComponentType[T]) First(w *World) (storage.EntityID, error)
 ```
 
-## Adding Components to Entities
-Component types contain a method `AddTo`, which enables components to be dynamically added to entities. This is useful for instances when an entity is "upgraded" and gains extra behavior.
-
-`AddTo` expects a pointer to world, and the ID of the entity we want to add the component to. `AddTo`
-will return an error if the entity already has the component.
+#### Example
 
 ```go
-err := HealthComponent.AddTo(world, id)
+entity, err := HealthComponent.First(w)
 ```
 
-## Removing Components From Entities
-Component types contain a method `RemoveFrom`, which enables components to be dynamically removed from entities. This is useful for instances when an entity is "downgraded" and needs to lose behavior.
+#### Parameters
+| Parameter | Type       | Description                           |
+|-----------|------------|---------------------------------------|
+| `w`       | `*World`   | Pointer to the ECS world object.      |
 
-`RemoveFrom` expects a pointer to world, and the ID of the entity we want to remove the component
-from. This method will return an error if the entity does not have the component.
+#### Return Values
+
+| Type             | Description                                      |
+|------------------|--------------------------------------------------|
+| `storage.EntityID` | The ID of the first entity with the component. |
+| `error`          | Returns an error if no entity is found.          |
+
+
+### MustFirst
+
+`MustFirst` returns the first entity that has the component. MustFirst will panic if any errors are encountered.
 
 ```go
-err := HealthComponent.RemoveFrom(world, id)
+func (c *ComponentType[T]) MustFirst(w *World) storage.EntityID
 ```
 
-## Options
-
-The `NewComponentType` function accepts Options to alter the component.
-
-### WithDefault
-`WithDefault` allows entities with this component to be instantiated with a default value, rather than the zero value of the struct.
-If you are not familiar with Go's zero values, check out this [article](https://www.scaler.com/topics/golang/golang-zero-values/).
+#### Example
 
 ```go
-import "github.com/argus-labs/world-engine/cardinal/ecs"
-
-type Health struct {
-    Amount  uint64
-    Cap     uint64
-}
-
-var HealthComponent = ecs.NewComponentType[Health](ecs.WithDefault(Health{Amount: 100, Cap: 100})
+entity := HealthComponent.MustFirst(w)
 ```
 
-The above code would start every entity with the `HealthComponent` attached to it at full health, instead of zero.
+#### Parameters
+| Parameter | Type       | Description                           |
+|-----------|------------|---------------------------------------|
+| `w`       | `*World`   | Pointer to the ECS world object.      |
+
+#### Return Value
+
+| Type             | Description                                      |
+|------------------|--------------------------------------------------|
+| `storage.EntityID` | The ID of the first entity with the component. |
+
+### RemoveFrom
+
+`RemoveFrom` removes the component from the given entity. An error will be returned if the entity does not have the component.
+
+```go
+func (c *ComponentType[T]) RemoveFrom(w *World, id storage.EntityID) error
+```
+
+#### Example
+
+```go
+target := storage.EntityID(10)
+err := HealthComponent.RemoveFrom(w, target)
+```
+
+#### Parameters
+| Parameter | Type                 | Description                                      |
+|-----------|----------------------|--------------------------------------------------|
+| `w`       | `*World`             | Pointer to the ECS world object.                 |
+| `id`      | `storage.EntityID`   | Entity ID of the entity to remove the component from. |
+
+#### Return Value
+
+| Type | Description                                          |
+|-------------|------------------------------------------------------|
+| `error`     | Returns an error if the operation encounters an issue. |
+
+
+### AddTo
+
+`AddTo` adds the component to a given entity. An error will be returned if the entity already has the component.
+
+```go
+func (c *ComponentType[T]) AddTo(w *World, id storage.EntityID) error
+```
+
+#### Example
+
+```go
+target := storage.EntityID(40)
+err := HealthComponent.AddTo(w, target)
+```
+
+#### Parameters
+| Parameter | Type                 | Description                                      |
+|-----------|----------------------|--------------------------------------------------|
+| `w`       | `*World`             | Pointer to the ECS world object.                 |
+| `id`      | `storage.EntityID`   | Entity ID of the entity to add the component to. |
+
+#### Return Value
+
+| Type | Description                                          |
+|-------------|------------------------------------------------------|
+| `error`     | Returns an error if the operation encounters an issue. |
