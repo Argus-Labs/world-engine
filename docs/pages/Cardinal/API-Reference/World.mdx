@@ -115,6 +115,10 @@ import (
 func main() {
     // ... world setup ...
 
+	// Systems will run in order in which they are added:
+	// 1. MoveSystem
+	// 2. HealthRegenSystem
+	// 3. AttackSystem
     world.AddSystems(systems.MoveSystem, systems.HealthRegenSystem, systems.AttackSystem)
 }
 ```
