@@ -1,22 +1,25 @@
 # Systems
 
-Systems are the functions that are run every tick. Systems must adhere to the following function signature:
+Systems are the functions that run every tick. Systems must adhere to the following function signature:
 
 ```go
 type System func(*World, *TransactionQueue) error
 ```
 
-Systems give you a reference to the ECS `World` object, as well as a `TransactionQueue`. This allows you to access any transaction currently queued for this tick.
+Systems are given a reference to the ECS `World` object, as well as a `TransactionQueue`. This provides access any transaction currently queued for the current tick.
 
 ## Getting Transactions
 
-In order to get specific transactions from the queue, utilize the transaction's `In` method. This transaction method takes the queue as an argument, and returns a slice of `TxData`, which contains data related to that transaction.
+In order to get specific transactions from the queue, utilize a specific transaction's `In` method. This transaction method takes the queue as an argument, and returns a slice of `TxData`, which contains data related to that transaction.
 
 ```go
 import "github.com/argus-labs/world-engine/cardinal/ecs"
 
 func AttackSystem(world *ecs.World, queue *ecs.TransactionQueue) error {
     txs := AttackTransaction.In(queue)
+	for _, tx := range txs {
+		// do something with each tx...
+	}
 }
 ```
 ## TxData
