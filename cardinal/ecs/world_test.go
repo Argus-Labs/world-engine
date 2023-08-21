@@ -55,20 +55,20 @@ type EnergyComp struct {
 var energy = ecs.NewComponentType[EnergyComp]()
 
 func TestWorldLogger(t *testing.T) {
-	var buf bytes.Buffer
-	bufLogger := zerolog.New(&buf)
 
 	w := inmem.NewECSWorldForTest(t)
 	//replaces internal logger with one that logs to the buf variable above.
-	w.Logger = &bufLogger
+	var buf bytes.Buffer
+	bufLogger := zerolog.New(&buf)
+	w.InjectLogger(&bufLogger)
 
 	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, w.RegisterTransactions(alphaTx))
 	err := w.RegisterComponents(energy)
 	assert.NilError(t, err)
-	//Test log world state
-	//traceLogger := w.CreateTraceLogger(traceId)
-	w.LogWorldState(zerolog.InfoLevel, "test message")
+	logEvent := bufLogger.Info()
+	logEvent = w.LoadWorldStateIntoLogger(logEvent)
+	logEvent.Msg("test message")
 	jsonWorldInfoString := `{
 					"level":"info",
 					"total_components":2,
@@ -98,8 +98,10 @@ func TestWorldLogger(t *testing.T) {
 	assert.NilError(t, err)
 	buf.Reset()
 	//test log entity
-	err = w.LogEntity(zerolog.DebugLevel, entityId, "test message")
+	entityLoggerEvent := bufLogger.Debug()
+	entityLoggerEvent, err = w.LoadEntityInfoIntoLogger(entityId, entityLoggerEvent)
 	assert.NilError(t, err)
+	entityLoggerEvent.Msg("test message")
 	jsonEntityInfoString := `
 		{
 			"level":"debug",
@@ -112,7 +114,6 @@ func TestWorldLogger(t *testing.T) {
 			"archetype_id":0,
 			"message":"test message"
 		}`
-
 	require.JSONEq(t, buf.String(), jsonEntityInfoString)
 	buf.Reset()
 	w.AddSystems(testSystem)
