@@ -153,16 +153,16 @@ import (
 
     "pkg.world.dev/world-engine/cardinal/ecs"
 
-    "github.com/my-username/my-world-engine-project/components"
+    "github.com/my-username/my-world-engine-project/component"
 )
 
 func main() {
     // ... world setup ...
 
     err := world.RegisterComponents(
-		components.LocationComponent,
-		components.AttackPowerComponent,
-		components.HealthComponent,
+		component.LocationComponent,
+		component.AttackPowerComponent,
+		component.HealthComponent,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -200,16 +200,16 @@ import (
 
     "pkg.world.dev/world-engine/cardinal/ecs"
 
-    "github.com/my-username/my-world-engine-project/reads"
+    "github.com/my-username/my-world-engine-project/read"
 )
 
 func main() {
     // ... world setup ...
 
     err := world.RegisterReads(
-		reads.ReadLocation,
-		reads.ReadHealth,
-		reads.ReadAttackPower,
+		read.ReadLocation,
+		read.ReadHealth,
+		read.ReadAttackPower,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -248,15 +248,15 @@ import (
 
     "pkg.world.dev/world-engine/cardinal/ecs"
 
-    "github.com/my-username/my-world-engine-project/txs"
+    "github.com/my-username/my-world-engine-project/tx"
 )
 
 func main() {
     // ... world setup ...
 
     err := world.RegisterTransactions(
-		txs.MoveTx,
-		txs.AttackTx,
+		tx.MoveTx,
+		tx.AttackTx,
 	)
 	if err != nil {
 		log.Fatal(err)
