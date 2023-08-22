@@ -7,8 +7,8 @@ package tx
 
 import "pkg.world.dev/world-engine/cardinal/ecs"
 
-// AttackInput is the input for the Attack transaction.
-type AttackInput struct {
+// AttackMsg is the input for the Attack transaction.
+type AttackMsg struct {
     TargetID uint64
 }
 
@@ -18,9 +18,9 @@ type AttackReceipt struct {
 }
 
 // AttackTx is an attack transaction.
-var AttackTx = ecs.NewTransactionType[AttackInput, AttackReceipt](
+var AttackTx = ecs.NewTransactionType[AttackMsg, AttackReceipt](
 	"attack",
-	ecs.WithTxEVMSupport[AttackInput, AttackReceipt],
+	ecs.WithTxEVMSupport[AttackMsg, AttackReceipt],
 )
 ```
 
@@ -87,7 +87,7 @@ func (t *TransactionType[In, Out]) AddToQueue(world *World, data In, sigs ...*si
 
 #### Example
 ```go
-txID := AttackTx.AddToQueue(w, AttackInput{TargetID: 3502})
+txID := AttackTx.AddToQueue(w, AttackMsg{TargetID: 3502})
 ```
 
 #### Parameters

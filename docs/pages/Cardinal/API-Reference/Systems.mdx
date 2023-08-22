@@ -44,7 +44,7 @@ type Health struct {
 var HealthComponent = ecs.NewComponentType[Health]()
 
 // define an attack transaction
-type AttackInput struct {
+type AttackMsg struct {
 	TargetPlayer uint64
 	Amount       uint64
 }
@@ -53,7 +53,7 @@ type AttackReceipt struct {
 	Success bool
 }
 
-var AttackTx = ecs.NewTransactionType[AttackInput, AttackReceipt]("attack")
+var AttackTx = ecs.NewTransactionType[AttackMsg, AttackReceipt]("attack")
 
 // implement the system
 var AttackSystem ecs.System = func(world *ecs.World, queue *ecs.TransactionQueue) error {
