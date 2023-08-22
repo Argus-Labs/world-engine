@@ -2,7 +2,6 @@ package evm
 
 import (
 	"context"
-	"github.com/rs/zerolog"
 	"testing"
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
@@ -48,7 +47,7 @@ func TestServer_SendMessage(t *testing.T) {
 	}
 
 	// add a system that checks that they are submitted properly to the world.
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *zerolog.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		inFooTxs := FooTx.In(queue)
 		inBarTxs := BarTx.In(queue)
 		assert.Equal(t, len(inFooTxs), len(fooTxs))
