@@ -41,7 +41,7 @@ type StorageAccessor struct {
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
-	systems                  []RegisteredSystem
+	systems                  []registeredSystem
 	SystemNames              []string
 	tick                     uint64
 	registeredComponents     []IComponentType
@@ -122,7 +122,7 @@ func (w *World) AddSystems(s ...System) {
 		systemLogger := w.logger.CreateSystemLogger(functionName)
 		//appends the system name to a list member in world
 		w.SystemNames = append(w.SystemNames, functionName)
-		//curries the log parameter in system into RegisteredSystem, such that RegisteredSystem stores the logger
+		//curries the log parameter in system into registeredSystem, such that registeredSystem stores the logger
 		//as a closure and no longer needs it as a parameter.
 		registeredSystem := func(w *World, t *TransactionQueue) error {
 			return system(w, t, &systemLogger)
@@ -214,7 +214,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		store:     s,
 		namespace: "world",
 		tick:      0,
-		systems:   make([]RegisteredSystem, 0),
+		systems:   make([]registeredSystem, 0),
 		txQueues:  transaction.TxMap{},
 		logger: &Logger{
 			&log.Logger,
@@ -785,7 +785,7 @@ func (w *World) GetComponents() *[]IComponentType {
 	return &w.registeredComponents
 }
 
-func (w *World) GetSystems() *[]RegisteredSystem {
+func (w *World) GetSystems() *[]registeredSystem {
 	return &w.systems
 }
 
