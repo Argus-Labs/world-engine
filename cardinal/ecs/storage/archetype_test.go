@@ -1,4 +1,4 @@
-package tests
+package storage_test
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"

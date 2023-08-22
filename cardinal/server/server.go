@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-
+	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/shard"
+	"strconv"
 )
 
 // Handler is a type that contains endpoints for transactions and queries in a given ecs world.
@@ -16,6 +17,7 @@ type Handler struct {
 	mux                    *http.ServeMux
 	server                 *http.Server
 	disableSigVerification bool
+	port                   string
 
 	// plugins
 	adapter shard.WriteAdapter
@@ -72,14 +74,28 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	return th, nil
 }
 
-// Serve sets up the endpoints passed in by the user, as well as a special "/list" endpoint, that informs consumers
-// what endpoints the user set up in the Handler. Then, it serves the application, blocking the main thread.
-// Please us `go txh.Serve(host,port)` if you do not want to block execution after calling this function.
-func (t *Handler) Serve(host, port string) {
+func (t *Handler) InitializeServer() {
+	if _, err := strconv.Atoi(t.port); err != nil || len(t.port) == 0 {
+		envPort := os.Getenv("CARDINAL_PORT")
+		if _, err := strconv.Atoi(envPort); err == nil {
+			t.port = envPort
+		} else {
+			t.port = "4040"
+		}
+	}
 	t.server = &http.Server{
-		Addr:    fmt.Sprintf("%s:%s", host, port),
+		Addr:    fmt.Sprintf(":%s", t.port),
 		Handler: t.mux,
 	}
+}
+
+// Serve sets up the endpoints passed in by the user, as well as a special "/list" endpoint, that informs consumers
+// what endpoints the user set up in the Handler. Then, it serves the application, blocking the main thread.
+// Please us `go txh.Serve()` if you do not want to block execution after calling this function.
+// Will default to env var "CARDINAL_PORT". If that's not set correctly then will default to port 4040
+// if no correct port was previously set.
+func (t *Handler) Serve() {
+	t.InitializeServer()
 	err := t.server.ListenAndServe()
 	if err != nil {
 		log.Print(err)

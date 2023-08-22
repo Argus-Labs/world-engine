@@ -5,16 +5,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
-	"net/http"
-	"testing"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"gotest.tools/v3/assert"
+	"io"
+	"net/http"
+	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/sign"
+	"testing"
 )
 
 type SendEnergyTx struct {
@@ -45,13 +45,14 @@ func (t *testTransactionHandler) post(path string, payload any) *http.Response {
 }
 
 func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) *testTransactionHandler {
+	port := "4040"
+	opts = append(opts, WithPort(port))
 	txh, err := NewHandler(world, opts...)
 	assert.NilError(t, err)
 	t.Cleanup(func() {
 		assert.NilError(t, txh.Close())
 	})
-	port := "4040"
-	go txh.Serve("", port)
+	go txh.Serve()
 	urlPrefix := "http://localhost:" + port
 
 	return &testTransactionHandler{
@@ -59,6 +60,31 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 		t:         t,
 		urlPrefix: urlPrefix,
 	}
+}
+
+func TestIfServeSetEnvVarForPort(t *testing.T) {
+	world := inmem.NewECSWorldForTest(t)
+	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	assert.NilError(t, world.RegisterTransactions(alphaTx))
+	txh, err := NewHandler(world, DisableSignatureVerification())
+	assert.NilError(t, err)
+	t.Cleanup(func() {
+		assert.NilError(t, txh.Close())
+	})
+	txh.port = ""
+	err = os.Setenv("CARDINAL_PORT", "1337")
+	assert.NilError(t, err)
+	txh.InitializeServer()
+	assert.Equal(t, txh.port, "1337")
+	txh.port = ""
+	err = os.Setenv("CARDINAL_PORT", "133asdfsdgdfdfgdf7")
+	assert.NilError(t, err)
+	txh.InitializeServer()
+	assert.Equal(t, txh.port, "4040")
+	err = os.Setenv("CARDINAL_PORT", "4555")
+	txh.port = "bad"
+	txh.InitializeServer()
+	assert.Equal(t, txh.port, "4555")
 }
 
 func TestCanListTransactionEndpoints(t *testing.T) {
