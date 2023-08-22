@@ -89,7 +89,7 @@ func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
 	return createPersonaTx.SignerAddress, nil
 }
 
-func (t *Handler) verifySignature(request *http.Request, requireSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
+func (t *Handler) verifySignature(request *http.Request, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nil, errors.New("unable to read body")
@@ -114,9 +114,9 @@ func (t *Handler) verifySignature(request *http.Request, requireSystemTransactio
 	if sp.Namespace != t.w.Namespace() {
 		return nil, nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, t.w.Namespace())
 	}
-	if requireSystemTransaction && !sp.IsSystemPayload() {
+	if isSystemTransaction && !sp.IsSystemPayload() {
 		return nil, nil, ErrorSystemTransactionRequired
-	} else if !requireSystemTransaction && sp.IsSystemPayload() {
+	} else if !isSystemTransaction && sp.IsSystemPayload() {
 		return nil, nil, ErrorSystemTransactionForbidden
 	}
 

@@ -21,6 +21,8 @@ var (
 	ErrorInvalidNamespace          = errors.New("invalid namespace")
 )
 
+// SystemPersonaTag is a reserved persona tag for transaction. It is used in transactions when a PersonaTag
+// does not actually exist (e.g. during the PersonaTag creation process).
 const SystemPersonaTag = "SystemPersonaTag"
 
 type SignedPayload struct {
