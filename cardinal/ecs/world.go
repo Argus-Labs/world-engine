@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/rs/zerolog"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -43,7 +42,7 @@ type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
 	systems                  []RegisteredSystem
-	systemNames              []string
+	SystemNames              []string
 	tick                     uint64
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
@@ -65,7 +64,7 @@ type World struct {
 
 	errs []error
 
-	logger *zerolog.Logger
+	logger *Logger
 }
 
 var (
@@ -118,8 +117,8 @@ func (w *World) AddSystems(s ...System) {
 	}
 	for _, system := range s {
 		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
-		systemLogger := w.createSystemLogger(functionName)
-		w.systemNames = append(w.systemNames, functionName)
+		systemLogger := w.logger.CreateSystemLogger(functionName)
+		w.SystemNames = append(w.SystemNames, functionName)
 		registeredSystem := func(w *World, t *TransactionQueue) error {
 			return system(w, t, &systemLogger)
 		}
@@ -211,7 +210,9 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		tick:      0,
 		systems:   make([]RegisteredSystem, 0),
 		txQueues:  transaction.TxMap{},
-		logger:    &log.Logger,
+		logger: &Logger{
+			&log.Logger,
+		},
 	}
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
@@ -774,73 +775,14 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, e
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) loadComponentIntoArrayLogger(component component.IComponentType, arrayLogger *zerolog.Array) *zerolog.Array {
-	dictLogger := zerolog.Dict()
-	dictLogger = dictLogger.Int("component_id", int(component.ID()))
-	dictLogger = dictLogger.Str("component_name", component.Name())
-	return arrayLogger.Dict(dictLogger)
+func (w *World) GetComponents() *[]IComponentType {
+	return &w.registeredComponents
 }
 
-func (w *World) LoadComponentInfoToLogEvent(zeroLoggerEvent *zerolog.Event) *zerolog.Event {
-	zeroLoggerEvent = zeroLoggerEvent.Int("total_components", len(w.registeredComponents))
-	arrayLogger := zerolog.Arr()
-	for _, _component := range w.registeredComponents {
-		arrayLogger = w.loadComponentIntoArrayLogger(_component, arrayLogger)
-	}
-	zeroLoggerEvent.Array("components", arrayLogger)
-	return zeroLoggerEvent
+func (w *World) GetSystems() *[]RegisteredSystem {
+	return &w.systems
 }
 
-func (w *World) loadSystemIntoArrayLogger(registeredSystemIndex int, arrayLogger *zerolog.Array) *zerolog.Array {
-	//functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(*system).Pointer()).Name())
-	return arrayLogger.Str(w.systemNames[registeredSystemIndex])
-}
-
-func (w *World) LoadSystemInfoToLogEvent(zeroLoggerEvent *zerolog.Event) *zerolog.Event {
-	zeroLoggerEvent = zeroLoggerEvent.Int("total_systems", len(w.systems))
-	arrayLogger := zerolog.Arr()
-	for index, _ := range w.systems {
-		arrayLogger = w.loadSystemIntoArrayLogger(index, arrayLogger)
-	}
-	zeroLoggerEvent.Array("systems", arrayLogger)
-	return zeroLoggerEvent
-}
-
-func (w *World) LoadEntityInfoIntoLogger(entityID storage.EntityID, zeroLoggerEvent *zerolog.Event) (*zerolog.Event, error) {
-	entity, err := w.Entity(entityID)
-	if err != nil {
-		return nil, err
-	}
-
-	archetype := entity.Archetype(w)
-	arrayLogger := zerolog.Arr()
-	for _, _component := range archetype.Layout().Components() {
-		arrayLogger = w.loadComponentIntoArrayLogger(_component, arrayLogger)
-	}
-	zeroLoggerEvent.Array("components", arrayLogger)
-	zeroLoggerEvent.Int("entity_id", int(entityID))
-	zeroLoggerEvent.Int("archetype_id", int(entity.Loc.ArchID))
-	return zeroLoggerEvent, nil
-}
-
-func (w *World) LoadWorldStateIntoLogger(zeroLoggerEvent *zerolog.Event) *zerolog.Event {
-	zeroLoggerEvent = w.LoadComponentInfoToLogEvent(zeroLoggerEvent)
-	zeroLoggerEvent = w.LoadSystemInfoToLogEvent(zeroLoggerEvent)
-	return zeroLoggerEvent
-}
-
-func (w *World) createSystemLogger(systemName string) zerolog.Logger {
-	return w.logger.With().
-		Str("system", systemName).
-		Logger()
-}
-
-func (w *World) CreateTraceLogger(traceId string) zerolog.Logger {
-	return w.logger.With().
-		Str("trace_id", traceId).
-		Logger()
-}
-
-func (w *World) InjectLogger(logger *zerolog.Logger) {
+func (w *World) InjectLogger(logger *Logger) {
 	w.logger = logger
 }
