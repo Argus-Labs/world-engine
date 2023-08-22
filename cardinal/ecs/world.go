@@ -116,12 +116,18 @@ func (w *World) AddSystems(s ...System) {
 		panic("cannot register systems after loading game state")
 	}
 	for _, system := range s {
+		//retrieves function name from system using a reflection trick
 		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
+		//creates a logger with the system name
 		systemLogger := w.logger.CreateSystemLogger(functionName)
+		//appends the system name to a list member in world
 		w.SystemNames = append(w.SystemNames, functionName)
+		//curries the log parameter in system into RegisteredSystem, such that RegisteredSystem stores the logger
+		//as a closure and no longer needs it as a parameter.
 		registeredSystem := func(w *World, t *TransactionQueue) error {
 			return system(w, t, &systemLogger)
 		}
+		//appends registeredSystem into the member system list in world.
 		w.systems = append(w.systems, registeredSystem)
 	}
 }

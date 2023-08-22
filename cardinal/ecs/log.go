@@ -55,18 +55,21 @@ func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, world *Worl
 	return zeroLoggerEvent.Int("archetype_id", int(entity.Loc.ArchID)), nil
 }
 
+// LogComponents logs all component info related to the world
 func (l *Logger) LogComponents(world *World, level zerolog.Level) {
 	zeroLoggerEvent := l.WithLevel(level)
 	zeroLoggerEvent = l.loadComponentsToEvent(zeroLoggerEvent, world)
 	zeroLoggerEvent.Send()
 }
 
+// LogSystem logs all system info related to the world
 func (l *Logger) LogSystem(world *World, level zerolog.Level) {
 	zeroLoggerEvent := l.WithLevel(level)
 	zeroLoggerEvent = l.loadSystemIntoEvent(zeroLoggerEvent, world)
 	zeroLoggerEvent.Send()
 }
 
+// LogEntity logs entity info given an entityID
 func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID storage.EntityID) error {
 	zeroLoggerEvent := l.WithLevel(level)
 	var err error = nil
@@ -78,6 +81,7 @@ func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID storage.E
 	return nil
 }
 
+// LogWorld Logs everything about the world (components and Systems)
 func (l *Logger) LogWorld(world *World, level zerolog.Level) {
 	zeroLoggerEvent := l.WithLevel(level)
 	zeroLoggerEvent = l.loadComponentsToEvent(zeroLoggerEvent, world)
@@ -85,6 +89,7 @@ func (l *Logger) LogWorld(world *World, level zerolog.Level) {
 	zeroLoggerEvent.Send()
 }
 
+// CreateSystemLogger creates a Sub logger with the entry {"system" : systemName}
 func (l *Logger) CreateSystemLogger(systemName string) Logger {
 	zeroLogger := l.Logger.With().
 		Str("system", systemName).Logger()
@@ -93,6 +98,7 @@ func (l *Logger) CreateSystemLogger(systemName string) Logger {
 	}
 }
 
+// CreateTraceLogger Creates a trace logger. Using a single id you can use this logger to follow and log a data path.
 func (l *Logger) CreateTraceLogger(traceId string) zerolog.Logger {
 	return l.Logger.With().
 		Str("trace_id", traceId).
