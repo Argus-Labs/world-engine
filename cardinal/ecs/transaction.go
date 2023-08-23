@@ -104,7 +104,7 @@ var emptySignature = &sign.SignedPayload{}
 
 // AddToQueue adds a transaction with the given data to the world object. The transaction will be executed
 // at the next game tick. An optional sign.SignedPayload can be associated with this transaction.
-func (t *TransactionType[In, Out]) AddToQueue(world *World, data In, sigs ...*sign.SignedPayload) transaction.TxID {
+func (t *TransactionType[In, Out]) AddToQueue(world *World, data In, sigs ...*sign.SignedPayload) transaction.TxHash {
 	sig := emptySignature
 	if len(sigs) > 0 {
 		sig = sigs[0]
@@ -129,21 +129,21 @@ func (t *TransactionType[In, Out]) SetID(id transaction.TypeID) error {
 }
 
 type TxData[In any] struct {
-	ID    transaction.TxID
-	Value In
-	Sig   *sign.SignedPayload
+	TxHash transaction.TxHash
+	Value  In
+	Sig    *sign.SignedPayload
 }
 
-func (t *TransactionType[In, Out]) AddError(world *World, id transaction.TxID, err error) {
-	world.AddTransactionError(id, err)
+func (t *TransactionType[In, Out]) AddError(world *World, hash transaction.TxHash, err error) {
+	world.AddTransactionError(hash, err)
 }
 
-func (t *TransactionType[In, Out]) SetResult(world *World, id transaction.TxID, result Out) {
-	world.SetTransactionResult(id, result)
+func (t *TransactionType[In, Out]) SetResult(world *World, hash transaction.TxHash, result Out) {
+	world.SetTransactionResult(hash, result)
 }
 
-func (t *TransactionType[In, Out]) GetReceipt(world *World, id transaction.TxID) (v Out, errs []error, ok bool) {
-	iface, errs, ok := world.GetTransactionReceipt(id)
+func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxHash) (v Out, errs []error, ok bool) {
+	iface, errs, ok := world.GetTransactionReceipt(hash)
 	if !ok {
 		return v, nil, false
 	}
@@ -164,9 +164,9 @@ func (t *TransactionType[In, Out]) In(tq *TransactionQueue) []TxData[In] {
 	for _, tx := range tq.queue[t.ID()] {
 		if val, ok := tx.Value.(In); ok {
 			txs = append(txs, TxData[In]{
-				ID:    tx.ID,
-				Value: val,
-				Sig:   tx.Sig,
+				TxHash: tx.TxHash,
+				Value:  val,
+				Sig:    tx.Sig,
 			})
 		}
 	}
