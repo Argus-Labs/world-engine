@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"os"
 	"pkg.world.dev/world-engine/sign"
 
@@ -24,21 +25,25 @@ type Adapter interface {
 
 // WriteAdapter provides the functionality to send transactions to the EVM base shard.
 type WriteAdapter interface {
+	// Submit submits a transaction to the EVM base shard's game tx sequencer, where the tx data will be sequenced and
+	// stored on chain.
 	Submit(ctx context.Context, p *sign.SignedPayload, txID, epoch uint64) error
 }
 
 // ReadAdapter provides the functionality to read transactions from the EVM base shard.
 type ReadAdapter interface {
+	// QueryTransactions queries transactions stored on-chain. This is primarily used to rebuild state during world
+	// recovery.
 	QueryTransactions(
 		context.Context,
 		*shardtypes.QueryTransactionsRequest) (*shardtypes.QueryTransactionsResponse, error)
 }
 
 type AdapterConfig struct {
-	// ShardReceiverAddr is the address to communicate with the secure shard submission channel.
-	ShardReceiverAddr string `json:"shard_receiver_addr,omitempty"`
+	// ShardSequencerAddr is the address of the base shard's game tx sequencer.
+	ShardSequencerAddr string `json:"shard_receiver_addr,omitempty"`
 
-	// EVMBaseShardAddr is the address to submit transactions and query directly with the EVM base shard.
+	// EVMBaseShardAddr is the address of the EVM base shard's cosmos gRPC server
 	EVMBaseShardAddr string `json:"evm_base_shard_addr"`
 }
 
@@ -47,10 +52,10 @@ var (
 )
 
 type adapterImpl struct {
-	cfg           AdapterConfig
-	grpcOpts      []grpc.DialOption
-	ShardReceiver shardgrpc.ShardHandlerClient
-	ShardQuerier  shardtypes.QueryClient
+	cfg            AdapterConfig
+	grpcOpts       []grpc.DialOption
+	ShardSequencer shardgrpc.ShardHandlerClient
+	ShardQuerier   shardtypes.QueryClient
 }
 
 func loadClientCredentials(path string) (credentials.TransportCredentials, error) {
@@ -78,13 +83,16 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	for _, opt := range opts {
 		opt(a)
 	}
-	conn, err := grpc.Dial(cfg.ShardReceiverAddr, a.grpcOpts...)
+	if len(a.grpcOpts) == 0 {
+		a.grpcOpts = append(a.grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
+	conn, err := grpc.Dial(cfg.ShardSequencerAddr, a.grpcOpts...)
 	if err != nil {
 		return nil, err
 	}
-	a.ShardReceiver = shardgrpc.NewShardHandlerClient(conn)
+	a.ShardSequencer = shardgrpc.NewShardHandlerClient(conn)
 
-	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr)
+	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}
@@ -92,10 +100,9 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	return a, nil
 }
 
-// Submit submits a transaction to the EVM base shard.
 func (a adapterImpl) Submit(ctx context.Context, sp *sign.SignedPayload, txID uint64, epoch uint64) error {
 	req := &shardv1.SubmitShardTxRequest{Tx: signedPayloadToProto(sp), Epoch: epoch, TxId: txID}
-	_, err := a.ShardReceiver.SubmitShardTx(ctx, req)
+	_, err := a.ShardSequencer.SubmitShardTx(ctx, req)
 	return err
 }
 

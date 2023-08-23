@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"os"
 )
 
@@ -60,6 +61,9 @@ func NewRouter(cardinalAddr string, opts ...Option) Router {
 	r := &router{cardinalAddr: cardinalAddr}
 	for _, opt := range opts {
 		opt(r)
+	}
+	if len(r.clientOpts) == 0 {
+		r.clientOpts = append(r.clientOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 	return r
 }
