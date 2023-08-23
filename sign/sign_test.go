@@ -42,48 +42,51 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 
 	testCases := []struct {
 		name    string
-		payload func() *SignedPayload
-		expErr  bool
+		payload func() (*SignedPayload, error)
+		expErr  error
 	}{
 		{
 			name: "valid",
-			payload: func() *SignedPayload {
-				sp, err := NewSignedPayload(goodKey, "tag", "namespace", 40, "body")
-				assert.NilError(t, err)
-				return sp
+			payload: func() (*SignedPayload, error) {
+				return NewSignedPayload(goodKey, "tag", "namespace", 40, "body")
 			},
-			expErr: false,
+			expErr: nil,
 		},
 		{
 			name: "missing persona tag",
-			payload: func() *SignedPayload {
-				sp, err := NewSignedPayload(goodKey, "", "ns", 20, "body")
-				assert.NilError(t, err)
-				return sp
+			payload: func() (*SignedPayload, error) {
+				return NewSignedPayload(goodKey, "", "ns", 20, "body")
 			},
-			expErr: true,
+			expErr: ErrorInvalidPersonaTag,
 		},
 		{
 			name: "missing namespace",
-			payload: func() *SignedPayload {
-				sp, err := NewSignedPayload(goodKey, "fop", "", 20, "body")
-				assert.NilError(t, err)
-				return sp
+			payload: func() (*SignedPayload, error) {
+				return NewSignedPayload(goodKey, "fop", "", 20, "body")
 			},
-			expErr: true,
+			expErr: ErrorInvalidNamespace,
+		},
+		{
+			name: "system signed payload",
+			payload: func() (*SignedPayload, error) {
+				return NewSystemSignedPayload(goodKey, "some-namespace", 25, "body")
+			},
+			expErr: nil,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			bz, err := tc.payload().Marshal()
+			payload, err := tc.payload()
+			if tc.expErr != nil {
+				assert.ErrorIs(t, tc.expErr, err)
+				return
+			}
+			assert.NilError(t, err, "in test case %q", tc.name)
+			bz, err := payload.Marshal()
 			assert.NilError(t, err)
 			_, err = UnmarshalSignedPayload(bz)
-			if tc.expErr {
-				assert.ErrorContains(t, err, "")
-			} else {
-				assert.NilError(t, err)
-			}
+			assert.NilError(t, err)
 		})
 	}
 }

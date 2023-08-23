@@ -4,25 +4,25 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
-func txID(name string, index uint64) transaction.TxID {
-	return transaction.TxID{
-		PersonaTag: name,
-		Index:      index,
-	}
+func txHash(t *testing.T) transaction.TxHash {
+	id, err := uuid.NewUUID()
+	assert.NilError(t, err)
+	return transaction.TxHash(id.String())
 }
 
 func TestCanSaveAndGetAnError(t *testing.T) {
 	rh := NewHistory(100, 10)
-	id := txID("foobar", 99)
+	hash := txHash(t)
 	wantError := errors.New("some error")
 
-	rh.AddError(id, wantError)
+	rh.AddError(hash, wantError)
 
-	rec, ok := rh.GetReceipt(id)
+	rec, ok := rh.GetReceipt(hash)
 	assert.Check(t, ok)
 	assert.Equal(t, 1, len(rec.Errs))
 	assert.ErrorIs(t, wantError, rec.Errs[0])
@@ -31,11 +31,11 @@ func TestCanSaveAndGetAnError(t *testing.T) {
 
 func TestCanSaveAndGetManyErrors(t *testing.T) {
 	rh := NewHistory(99, 5)
-	id := txID("xyzzy", 10)
+	hash := txHash(t)
 	errA, errB := errors.New("a error"), errors.New("b error")
-	rh.AddError(id, errA)
-	rh.AddError(id, errB)
-	rec, ok := rh.GetReceipt(id)
+	rh.AddError(hash, errA)
+	rh.AddError(hash, errB)
+	rec, ok := rh.GetReceipt(hash)
 	assert.Check(t, ok)
 	assert.Equal(t, 2, len(rec.Errs))
 	assert.ErrorIs(t, errA, rec.Errs[0])
@@ -50,11 +50,11 @@ func TestCanSaveAndGetResult(t *testing.T) {
 	}
 
 	rh := NewHistory(99, 5)
-	id := txID("xyzzy", 10)
+	hash := txHash(t)
 	wantStruct := myStruct{"woo", 100}
-	rh.SetResult(id, wantStruct)
+	rh.SetResult(hash, wantStruct)
 
-	rec, ok := rh.GetReceipt(id)
+	rec, ok := rh.GetReceipt(hash)
 	assert.Check(t, ok)
 	assert.Equal(t, 0, len(rec.Errs))
 	assert.Check(t, rec.Result != nil)
@@ -69,15 +69,15 @@ func TestCanReplaceResult(t *testing.T) {
 	}
 
 	rh := NewHistory(99, 5)
-	id := txID("xyzzy", 10)
+	hash := txHash(t)
 
 	doNotWant := toBeReplaced{"replaceme"}
-	rh.SetResult(id, doNotWant)
+	rh.SetResult(hash, doNotWant)
 
 	want := toBeReplaced{"I actually want this result"}
-	rh.SetResult(id, want)
+	rh.SetResult(hash, want)
 
-	rec, ok := rh.GetReceipt(id)
+	rec, ok := rh.GetReceipt(hash)
 	assert.Check(t, ok)
 	assert.Equal(t, 0, len(rec.Errs))
 	assert.Check(t, rec.Result != nil)
@@ -88,11 +88,11 @@ func TestCanReplaceResult(t *testing.T) {
 
 }
 
-func TestMissingIDReturnsNotOK(t *testing.T) {
+func TestMissingHashReturnsNotOK(t *testing.T) {
 	rh := NewHistory(99, 5)
-	id := txID("does not exist", 10)
+	hash := txHash(t)
 
-	_, ok := rh.GetReceipt(id)
+	_, ok := rh.GetReceipt(hash)
 	assert.Check(t, !ok)
 }
 
@@ -119,11 +119,11 @@ func TestOldTicksAreDiscarded(t *testing.T) {
 	historyLength := 3
 	// ticksToStore is 3, so at most 3 ticks from the past will be remembered.
 	rh := NewHistory(tickToGet, historyLength)
-	id := txID("an-old-id", 10)
+	hash := txHash(t)
 	wantResult := MyStruct{1234}
 	wantError := errors.New("some error")
-	rh.SetResult(id, wantResult)
-	rh.AddError(id, wantError)
+	rh.SetResult(hash, wantResult)
+	rh.AddError(hash, wantError)
 
 	// We should be able to call NextTick 3 times and still be able to get the relevant tick
 	for i := 0; i < historyLength; i++ {

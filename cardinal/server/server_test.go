@@ -238,7 +238,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 		SignerAddress: signerAddr,
 	}
 
-	signedPayload, err := sign.NewSignedPayload(privateKey, personaTag, world.Namespace(), 100, createPersonaTx)
+	signedPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace(), 100, createPersonaTx)
 	assert.NilError(t, err)
 
 	bz, err := signedPayload.Marshal()
@@ -249,10 +249,10 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	body := mustReadBody(t, resp)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %s", body)
 
-	var createPersonaResponse CreatePersonaResponse
-	assert.NilError(t, json.Unmarshal([]byte(body), &createPersonaResponse))
-	assert.Equal(t, createPersonaResponse.Status, "ok")
-	tick := createPersonaResponse.Tick
+	var txReply TransactionReply
+	assert.NilError(t, json.Unmarshal([]byte(body), &txReply))
+	assert.Equal(t, txReply.Tick, world.CurrentTick())
+	tick := txReply.Tick
 
 	// postReadPersonaSigner is a helper that makes a request to the read-persona-signer endpoint and returns the response
 	postReadPersonaSigner := func(personaTag string, tick uint64) ReadPersonaSignerResponse {
@@ -311,7 +311,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// The namespace now matches the world
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, world.Namespace(), 100, createPersonaTx)
+	sigPayload, err = sign.NewSystemSignedPayload(privateKey, world.Namespace(), 100, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -335,7 +335,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
-	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, namespace, 100, createPersonaTx)
+	sigPayload, err := sign.NewSystemSignedPayload(privateKey, namespace, 100, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -349,7 +349,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// Using an old nonce should fail
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, 50, createPersonaTx)
+	sigPayload, err = sign.NewSystemSignedPayload(privateKey, namespace, 50, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -357,7 +357,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// But increasing the nonce should work
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, 101, createPersonaTx)
+	sigPayload, err = sign.NewSystemSignedPayload(privateKey, namespace, 101, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -565,7 +565,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	// System to handle incrementing numbers
 	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		for _, tx := range incTx.In(queue) {
-			incTx.SetResult(world, tx.ID, IncReply{
+			incTx.SetResult(world, tx.TxHash, IncReply{
 				Number: tx.Value.Number + 1,
 			})
 		}
@@ -574,7 +574,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	// System to handle duplicating strings
 	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		for _, tx := range dupeTx.In(queue) {
-			dupeTx.SetResult(world, tx.ID, DupeReply{
+			dupeTx.SetResult(world, tx.TxHash, DupeReply{
 				Str: tx.Value.Str + tx.Value.Str,
 			})
 		}
@@ -584,8 +584,8 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	// System to handle error production
 	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
 		for _, tx := range errTx.In(queue) {
-			errTx.AddError(world, tx.ID, wantError)
-			errTx.AddError(world, tx.ID, wantError)
+			errTx.AddError(world, tx.TxHash, wantError)
+			errTx.AddError(world, tx.TxHash, wantError)
 		}
 		return nil
 	})
@@ -615,18 +615,23 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	assert.Equal(t, 0, len(txReceipts.Receipts))
 
 	nonce := uint64(0)
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
 	nextSig := func() *sign.SignedPayload {
+		sig, err := sign.NewSignedPayload(privateKey, "my-persona-tag", "namespace", nonce, "data")
+		assert.NilError(t, err)
 		nonce++
-		return &sign.SignedPayload{
-			PersonaTag: "some-persona-tag",
-			Nonce:      nonce,
-		}
+		return sig
 	}
 
-	incTx.AddToQueue(world, IncRequest{99}, nextSig())
-	dupeTx.AddToQueue(world, DupeRequest{"foobar"}, nextSig())
-	errTx.AddToQueue(world, ErrRequest{}, nextSig())
+	incID := incTx.AddToQueue(world, IncRequest{99}, nextSig())
+	dupeID := dupeTx.AddToQueue(world, DupeRequest{"foobar"}, nextSig())
+	errID := errTx.AddToQueue(world, ErrRequest{}, nextSig())
+	assert.Check(t, incID != dupeID)
+	assert.Check(t, dupeID != errID)
+	assert.Check(t, errID != incID)
 
+	wantTick := world.CurrentTick()
 	assert.NilError(t, world.Tick(ctx))
 
 	txReceipts = getReceipts(0)
@@ -636,6 +641,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 
 	foundInc, foundDupe, foundErr := false, false, false
 	for _, r := range txReceipts.Receipts {
+		assert.Equal(t, wantTick, r.Tick)
 		if len(r.Errors) > 0 {
 			foundErr = true
 			assert.Equal(t, 2, len(r.Errors))
@@ -663,4 +669,66 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	assert.Check(t, foundInc)
 	assert.Check(t, foundDupe)
 	assert.Check(t, foundErr)
+}
+
+func TestTransactionIDIsReturned(t *testing.T) {
+	type MoveTx struct{}
+	world := inmem.NewECSWorldForTest(t)
+	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+	world.RegisterTransactions(moveTx)
+	assert.NilError(t, world.LoadGameState())
+	ctx := context.Background()
+	// Preemptive tick so the tick isn't the zero value
+	assert.NilError(t, world.Tick(ctx))
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	txh := makeTestTransactionHandler(t, world)
+
+	personaTag := "clifford_the_big_red_dog"
+	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+	namespace := world.Namespace()
+	nonce := uint64(99)
+
+	createPersonaTx := ecs.CreatePersonaTransaction{
+		PersonaTag:    personaTag,
+		SignerAddress: signerAddr,
+	}
+
+	sigPayload, err := sign.NewSystemSignedPayload(privateKey, namespace, nonce, createPersonaTx)
+	assert.NilError(t, err)
+	bz, err := sigPayload.Marshal()
+	assert.NilError(t, err)
+
+	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+
+	assert.Equal(t, 200, resp.StatusCode)
+
+	var txReply TransactionReply
+	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&txReply))
+
+	// The hash field should not be empty
+	assert.Check(t, txReply.TxHash != "")
+	// The tick should equal the current tick
+	assert.Equal(t, world.CurrentTick(), txReply.Tick)
+
+	assert.NilError(t, world.Tick(ctx))
+
+	// Also check to make sure transaction IDs are returned for other kinds of transactions
+	nonce++
+	emptyData := map[string]any{}
+	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, nonce, emptyData)
+
+	bz, err = sigPayload.Marshal()
+	assert.NilError(t, err)
+
+	resp, err = http.Post(txh.makeURL("tx-move"), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&txReply))
+
+	// The hash field should not be empty
+	assert.Check(t, txReply.TxHash != "")
+	// The tick should equal the current tick
+	assert.Equal(t, world.CurrentTick(), txReply.Tick)
 }

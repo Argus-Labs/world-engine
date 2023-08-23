@@ -210,14 +210,14 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 	personaTag := "xyzzy"
 	wantSig, err := sign.NewSignedPayload(key, personaTag, "namespace", 66, wantVal)
 	assert.NilError(t, err)
-	wantTxID := transaction.TxID{personaTag, 100}
+	wantTxHash := transaction.TxHash("some-transaction-hash")
 
 	queue := transaction.TxMap{
 		tx.ID(): []transaction.TxAny{
 			{
-				Value: wantVal,
-				ID:    wantTxID,
-				Sig:   wantSig,
+				Value:  wantVal,
+				TxHash: wantTxHash,
+				Sig:    wantSig,
 			},
 		},
 	}
@@ -233,7 +233,7 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 	slice, ok := gotQueue[tx.ID()]
 	assert.Check(t, ok)
 	assert.Equal(t, 1, len(slice))
-	assert.Equal(t, wantTxID, slice[0].ID)
+	assert.Equal(t, wantTxHash, slice[0].TxHash)
 	gotSig := slice[0].Sig
 	assert.DeepEqual(t, wantSig, gotSig)
 

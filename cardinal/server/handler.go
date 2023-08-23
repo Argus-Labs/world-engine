@@ -101,8 +101,11 @@ func (t *Handler) makeSchemaHandler(inSchema, outSchema *jsonschema.Schema) http
 
 func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		payload, sp, err := t.verifySignature(request, true)
+		payload, sp, err := t.verifySignature(request, false)
 		if errors.Is(err, ErrorInvalidSignature) {
+			writeUnauthorized(writer, err)
+			return
+		} else if errors.Is(err, ErrorSystemTransactionForbidden) {
 			writeUnauthorized(writer, err)
 			return
 		} else if err != nil {
@@ -116,9 +119,12 @@ func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 		}
 
 		submitTx := func() uint64 {
-			tick, _ := t.w.AddTransaction(tx.ID(), txVal, sp)
+			tick, txHash := t.w.AddTransaction(tx.ID(), txVal, sp)
 
-			res, err := json.Marshal("ok")
+			res, err := json.Marshal(TransactionReply{
+				TxHash: string(txHash),
+				Tick:   tick,
+			})
 			if err != nil {
 				writeError(writer, "unable to marshal response", err)
 				return 0
