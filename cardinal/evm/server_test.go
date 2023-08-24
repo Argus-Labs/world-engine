@@ -54,18 +54,18 @@ func TestServer_SendMessage(t *testing.T) {
 
 	// add a system that checks that they are submitted properly to the world.
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
-		if enabled {
-			inFooTxs := FooTx.In(queue)
-			inBarTxs := BarTx.In(queue)
-			assert.Equal(t, len(inFooTxs), len(fooTxs))
-			assert.Equal(t, len(inBarTxs), len(barTxs))
-			for i, tx := range inFooTxs {
-				assert.DeepEqual(t, tx.Value, fooTxs[i])
-			}
-			for i, tx := range inBarTxs {
-				assert.DeepEqual(t, tx.Value, barTxs[i])
-			}
+		if !enabled {
 			return nil
+		}
+		inFooTxs := FooTx.In(queue)
+		inBarTxs := BarTx.In(queue)
+		assert.Equal(t, len(inFooTxs), len(fooTxs))
+		assert.Equal(t, len(inBarTxs), len(barTxs))
+		for i, tx := range inFooTxs {
+			assert.DeepEqual(t, tx.Value, fooTxs[i])
+		}
+		for i, tx := range inBarTxs {
+			assert.DeepEqual(t, tx.Value, barTxs[i])
 		}
 		return nil
 	})
