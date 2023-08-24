@@ -40,7 +40,7 @@ var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, Auth
 // AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
-func AuthorizePersonaAddressSystem(world *World, queue *TransactionQueue) error {
+func AuthorizePersonaAddressSystem(world *World, queue *TransactionQueue, _ *Logger) error {
 	txs := AuthorizePersonaAddressTx.In(queue)
 	if len(txs) == 0 {
 		return nil

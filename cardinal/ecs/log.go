@@ -27,13 +27,13 @@ func (l *Logger) loadComponentsToEvent(zeroLoggerEvent *zerolog.Event, world *Wo
 }
 
 func (_ *Logger) loadSystemIntoArrayLogger(world *World, registeredSystemIndex int, arrayLogger *zerolog.Array) *zerolog.Array {
-	return arrayLogger.Str(world.SystemNames[registeredSystemIndex])
+	return arrayLogger.Str(world.systemNames[registeredSystemIndex])
 }
 
 func (l *Logger) loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, world *World) *zerolog.Event {
-	zeroLoggerEvent.Int("total_systems", len(*world.GetSystems()))
+	zeroLoggerEvent.Int("total_systems", len(world.GetSystems()))
 	arrayLogger := zerolog.Arr()
-	for index, _ := range *world.GetSystems() {
+	for index, _ := range world.GetSystems() {
 		arrayLogger = l.loadSystemIntoArrayLogger(world, index, arrayLogger)
 	}
 	return zeroLoggerEvent.Array("systems", arrayLogger)
