@@ -4,22 +4,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"sync"
 	"time"
 
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-	"google.golang.org/protobuf/proto"
-	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
-	"pkg.world.dev/world-engine/sign"
+	"google.golang.org/protobuf/proto"
+
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/sign"
 )
 
 // Namespace is a unique identifier for a world.
@@ -38,7 +41,8 @@ type StorageAccessor struct {
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
-	systems                  []System
+	systems                  []registeredSystem
+	SystemNames              []string
 	tick                     uint64
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
@@ -59,6 +63,8 @@ type World struct {
 	isRecovering bool
 
 	errs []error
+
+	logger *Logger
 }
 
 var (
@@ -109,7 +115,21 @@ func (w *World) AddSystems(s ...System) {
 	if w.stateIsLoaded {
 		panic("cannot register systems after loading game state")
 	}
-	w.systems = append(w.systems, s...)
+	for _, system := range s {
+		// retrieves function name from system using a reflection trick
+		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
+		// creates a logger with the system name
+		systemLogger := w.logger.CreateSystemLogger(functionName)
+		// appends the system name to a list member in world
+		w.SystemNames = append(w.SystemNames, functionName)
+		// curries the log parameter in system into registeredSystem, such that registeredSystem stores the logger
+		// as a closure and no longer needs it as a parameter.
+		registeredSystem := func(w *World, t *TransactionQueue) error {
+			return system(w, t, &systemLogger)
+		}
+		// appends registeredSystem into the member system list in world.
+		w.systems = append(w.systems, registeredSystem)
+	}
 }
 
 // RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
@@ -194,8 +214,11 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		store:     s,
 		namespace: "world",
 		tick:      0,
-		systems:   make([]System, 0),
+		systems:   make([]registeredSystem, 0),
 		txQueues:  transaction.TxMap{},
+		logger: &Logger{
+			&log.Logger,
+		},
 	}
 	w.AddSystem(RegisterPersonaSystem)
 	for _, opt := range opts {
@@ -756,4 +779,16 @@ func (w *World) GetTransactionReceipt(id transaction.TxHash) (any, []error, bool
 
 func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
 	return w.receiptHistory.GetReceiptsForTick(tick)
+}
+
+func (w *World) GetComponents() *[]IComponentType {
+	return &w.registeredComponents
+}
+
+func (w *World) GetSystems() *[]registeredSystem {
+	return &w.systems
+}
+
+func (w *World) InjectLogger(logger *Logger) {
+	w.logger = logger
 }
