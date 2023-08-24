@@ -149,12 +149,12 @@ func TestWorldLogger(t *testing.T) {
 			}`, logStrings[2])
 	// test tick end
 	require.JSONEq(t, `
-				{
-					"level":"info",
-					"tick":"0",
-					"processed_transactions":0,
-					"message":"Tick ended"
-				}`, logStrings[3])
+			 {
+				 "level":"info",
+				 "tick":"0",
+				 "processed_transactions":0,
+				 "message":"Tick ended"
+			 }`, logStrings[3])
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
