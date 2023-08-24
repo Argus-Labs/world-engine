@@ -60,10 +60,11 @@ func TestWorldLogger(t *testing.T) {
 								"component_name":"EnergyComp"
 							}
 						],
-					"total_systems":1,
+					"total_systems":2,
 					"systems":
 						[
-							"ecs.RegisterPersonaSystem"
+							"ecs.RegisterPersonaSystem",
+							"ecs.AuthorizePersonaAddressSystem"
 						]
 				}
 `
