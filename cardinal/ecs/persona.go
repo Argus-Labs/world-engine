@@ -78,6 +78,7 @@ func AuthorizePersonaAddressSystem(world *World, queue *TransactionQueue, _ *Log
 			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
 			continue
 		}
+		AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: true})
 	}
 	return nil
 }
