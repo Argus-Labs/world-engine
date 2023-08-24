@@ -2,6 +2,7 @@ package evm
 
 import (
 	"context"
+	"fmt"
 	"pkg.world.dev/world-engine/sign"
 	"testing"
 
@@ -151,4 +152,36 @@ func TestServer_Query(t *testing.T) {
 	got := gotAny.(FooReply)
 	// Y should equal X here as we simply set reply's Y to request's X in the read handler above.
 	assert.Equal(t, got.Y, request.X)
+}
+
+// TestServer_UnauthorizedAddress tests that when a transaction is sent to Cardinal's EVM server, and there is no
+// Authorized address for the sender, an error occurs.
+func TestServer_UnauthorizedAddress(t *testing.T) {
+	// setup the world
+	w := inmem.NewECSWorldForTest(t)
+
+	// create the ECS transactions
+	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
+
+	assert.NilError(t, w.RegisterTransactions(FooTx))
+
+	// create some txs to submit
+
+	fooTx := FooTransaction{X: 420, Y: "world"}
+
+	assert.NilError(t, w.LoadGameState())
+
+	server, err := NewServer(w)
+	assert.NilError(t, err)
+
+	fooTxBz, err := FooTx.ABIEncode(fooTx)
+	assert.NilError(t, err)
+
+	sender := "hello"
+	_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
+		Sender:    sender,
+		Message:   fooTxBz,
+		MessageId: uint64(FooTx.ID()),
+	})
+	assert.Error(t, err, fmt.Sprintf("address %s does not have a linked persona tag", sender))
 }
