@@ -19,12 +19,12 @@ type MovePlayerResult struct {
 var MoveTx = cardinal.NewTransactionType[MovePlayerMsg, MovePlayerResult]("move-player")
 
 func ExampleTransactionType() {
-	world, err := cardinal.NewWorldInMemory()
+	world, err := cardinal.NewMockWorld()
 	if err != nil {
 		panic(err)
 	}
 
-	world.AddSystem(func(world *cardinal.World, queue *cardinal.TransactionQueue) error {
+	world.RegisterSystem(func(world *cardinal.World, queue *cardinal.TransactionQueue) error {
 		for _, tx := range MoveTx.In(queue) {
 			msg := tx.Value()
 			// handle the transaction

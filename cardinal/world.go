@@ -15,7 +15,9 @@ import (
 )
 
 type World struct {
-	impl *ecs.World
+	impl          *ecs.World
+	loopInterval  time.Duration
+	serverOptions []server.Option
 }
 
 // System is a function that process the transaction in the given transaction queue.
@@ -30,8 +32,9 @@ type (
 	TxHash   = transaction.TxHash
 )
 
-// NewWorldUsingRedis creates a new World object using Redis as the storage layer.
-func NewWorldUsingRedis(addr, password string, opts ...WorldOption) (*World, error) {
+// NewWorld creates a new World object using Redis as the storage layer.
+func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
+	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
 	log.Log().Msg("Running in normal mode, using external Redis")
 	if addr == "" {
 		return nil, errors.New("redis address is required")
@@ -46,36 +49,48 @@ func NewWorldUsingRedis(addr, password string, opts ...WorldOption) (*World, err
 		DB:       0,        // use default DB
 	}, "world")
 	worldStorage := storage.NewWorldStorage(&rs)
-	world, err := ecs.NewWorld(worldStorage, opts...)
+	ecsWorld, err := ecs.NewWorld(worldStorage, ecsOptions...)
 	if err != nil {
 		return nil, err
 	}
 
-	return &World{
-		impl: world,
-	}, nil
+	world := &World{
+		impl:          ecsWorld,
+		serverOptions: serverOptions,
+	}
+	for _, opt := range cardinalOptions {
+		opt(world)
+	}
+
+	return world, nil
 }
 
-// NewWorldInMemory creates a World that uses an in-memory redis DB as the storage
-// layer. This is only suitable for local development.
-func NewWorldInMemory(opts ...WorldOption) (*World, error) {
-	return &World{
-		impl: inmem.NewECSWorld(opts...),
-	}, nil
+// NewMockWorld creates a World that uses an in-memory redis DB as the storage layer.
+// This is only suitable for local development.
+func NewMockWorld(opts ...WorldOption) (*World, error) {
+	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
+	world := &World{
+		impl:          inmem.NewECSWorld(ecsOptions...),
+		serverOptions: serverOptions,
+	}
+	for _, opt := range cardinalOptions {
+		opt(world)
+	}
+	return world, nil
 }
 
-// AddSystem adds the given system to the world object so that the system will be executed
+// RegisterSystem adds the given system to the world object so that the system will be executed
 // at every game tick.
-func (w *World) AddSystem(system System) {
+func (w *World) RegisterSystem(system System) {
 	w.impl.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
-		return system(&World{world}, &TransactionQueue{queue})
+		return system(&World{impl: world}, &TransactionQueue{queue})
 	})
 }
 
-// AddSystems allows for the adding of multiple systems in a single call. See AddSystem for more details.
-func (w *World) AddSystems(systems ...System) {
+// RegisterSystems allows for the adding of multiple systems in a single call. See AddSystem for more details.
+func (w *World) RegisterSystems(systems ...System) {
 	for _, s := range systems {
-		w.AddSystem(s)
+		w.RegisterSystem(s)
 	}
 }
 
@@ -114,25 +129,23 @@ func (w *World) Remove(id EntityID) error {
 
 // StartGame starts running the world game loop. After loopInterval time passes, a world tick is attempted.
 // In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
-// to this world. After StartGame is called, RegisterComponents, RegisterTransactions, RegisterReads, and AddSystem(s) may
-// not be called. If StartGame doesn't encounter any errors, it will block on the given done channel.
-func (w *World) StartGame(loopInterval time.Duration, disableSigVerification bool, port string, done chan struct{}) error {
+// to this world. After StartGame is called, RegisterComponents, RegisterTransactions, RegisterReads, and AddSystem may
+// not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
+// the game in the background.
+func (w *World) StartGame() error {
 	if err := w.impl.LoadGameState(); err != nil {
 		return err
 	}
-	var opts []server.Option
-	if disableSigVerification {
-		opts = append(opts, server.DisableSignatureVerification())
-	}
-	opts = append(opts, server.WithPort(port))
-	txh, err := server.NewHandler(w.impl, opts...)
+	txh, err := server.NewHandler(w.impl, w.serverOptions...)
 	if err != nil {
 		return err
 	}
-	w.impl.StartGameLoop(context.Background(), loopInterval)
+	if w.loopInterval == 0 {
+		w.loopInterval = time.Second
+	}
+	w.impl.StartGameLoop(context.Background(), w.loopInterval)
 	go txh.Serve()
-	<-done
-	return nil
+	select {}
 }
 
 // RegisterComponents adds the given components to the game world. After components are added, entities
@@ -153,16 +166,74 @@ func (w *World) RegisterReads(reads ...AnyReadType) error {
 	return w.impl.RegisterReads(toIReadType(reads)...)
 }
 
-type WorldOption = ecs.Option
+// WorldOption represents an option that can be used to augment how the cardinal.World will be run.
+type WorldOption struct {
+	ecsOption      ecs.Option
+	serverOption   server.Option
+	cardinalOption func(*World)
+}
 
+// WithAdapter provides the world with communicate channels to the EVM base shard, enabling transaction storage and
+// transaction retrieval for state rebuilding purposes.
 func WithAdapter(adapter shard.Adapter) WorldOption {
-	return ecs.WithAdapter(adapter)
+	return WorldOption{
+		ecsOption: ecs.WithAdapter(adapter),
+	}
 }
 
+// WithReceiptHistorySize specifies how many ticks worth of transaction receipts should be kept in memory. The default
+// is 10. A smaller number uses less memory, but limits the
 func WithReceiptHistorySize(size int) WorldOption {
-	return ecs.WithReceiptHistorySize(size)
+	return WorldOption{
+		ecsOption: ecs.WithReceiptHistorySize(size),
+	}
 }
 
+// WithNamespace sets the World's namespace. The default is "world". The namespace is used in the transaction
+// signing process.
 func WithNamespace(namespace string) WorldOption {
-	return ecs.WithNamespace(namespace)
+	return WorldOption{
+		ecsOption: ecs.WithNamespace(namespace),
+	}
+}
+
+// WithHTTPServerPort specifies the port for the World's HTTP server. If omitted, the environment variable CARDINAL_PORT
+// will be used, and if that is unset, port 4040 will be used.
+func WithHTTPServerPort(port string) WorldOption {
+	return WorldOption{
+		serverOption: server.WithPort(port),
+	}
+}
+
+// WithNoSignatureVerification disables signature verification for the HTTP server. This should only be
+// used for local development.
+func WithNoSignatureVerification() WorldOption {
+	return WorldOption{
+		serverOption: server.DisableSignatureVerification(),
+	}
+}
+
+// WithLoopInterval sets the time between ticks. If left unset, 1 second is used as a default.
+func WithLoopInterval(interval time.Duration) WorldOption {
+	return WorldOption{
+		cardinalOption: func(world *World) {
+			world.loopInterval = interval
+		},
+	}
+}
+
+// separateOptions separates the given options into ecs options, server options, and cardinal (this package) options.
+// The different options are all grouped together to simplify the end user's experience, but under the hood different
+// options are meant for different sub-systems.
+func separateOptions(opts []WorldOption) (ecsOptions []ecs.Option, serverOptions []server.Option, cardinalOptions []func(*World)) {
+	for _, opt := range opts {
+		if opt.ecsOption != nil {
+			ecsOptions = append(ecsOptions, opt.ecsOption)
+		} else if opt.serverOption != nil {
+			serverOptions = append(serverOptions, opt.serverOption)
+		} else if opt.cardinalOption != nil {
+			cardinalOptions = append(cardinalOptions, opt.cardinalOption)
+		}
+	}
+	return ecsOptions, serverOptions, cardinalOptions
 }

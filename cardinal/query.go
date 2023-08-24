@@ -12,14 +12,16 @@ type Query struct {
 }
 
 // NewQuery creates a new Query.
-func NewQuery(filter LayoutFilter) *Query {
+func NewQuery(filter ComponentFilter) *Query {
 	return &Query{ecs.NewQuery(filter)}
 }
 
-// QueryCallBackFn represents a function that can operate on a single EntityID.
+// QueryCallBackFn represents a function that can operate on a single EntityID, and returns whether the next EntityID
+// should be processed.
 type QueryCallBackFn func(EntityID) bool
 
-// Each executes the given callback function on every EntityID that matches this query.
+// Each executes the given callback function on every EntityID that matches this query. If any call to callback returns
+// falls, no more entities will be processed.
 func (q *Query) Each(w *World, callback QueryCallBackFn) {
 	q.impl.Each(w.impl, func(eid storage.EntityID) bool {
 		return callback(eid)
@@ -36,24 +38,33 @@ func (q *Query) First(w *World) (id EntityID, err error) {
 	return q.impl.First(w.impl)
 }
 
-type LayoutFilter = filter.LayoutFilter
+// ComponentFilter represents a filter that will be passed to NewQuery to help decide which entities should be
+// returned in the query.
+type ComponentFilter = filter.LayoutFilter
 
-func And(filters ...LayoutFilter) LayoutFilter {
+// And returns entities that match ALL the given filters.
+func And(filters ...ComponentFilter) ComponentFilter {
 	return filter.And(filters...)
 }
 
-func Contains(components ...AnyComponentType) LayoutFilter {
+// Contains returns entities that have been associated with all the given components. Entities that have been associated
+// with other components not listed will still be returned.
+func Contains(components ...AnyComponentType) ComponentFilter {
 	return filter.Contains(toIComponentType(components)...)
 }
 
-func Exact(components ...AnyComponentType) LayoutFilter {
+// Exact returns entities that have the exact set of given components (order is not important). Entities that have been
+// associated with other component not listed will NOT be returned.
+func Exact(components ...AnyComponentType) ComponentFilter {
 	return filter.Exact(toIComponentType(components)...)
 }
 
-func Not(layoutFilter LayoutFilter) LayoutFilter {
+// Not returns entities that do NOT match the given filter.
+func Not(layoutFilter ComponentFilter) ComponentFilter {
 	return filter.Not(layoutFilter)
 }
 
-func Or(filters ...LayoutFilter) LayoutFilter {
+// Or returns entities that match 1 or more of the given filters.
+func Or(filters ...ComponentFilter) ComponentFilter {
 	return filter.Or(filters...)
 }
