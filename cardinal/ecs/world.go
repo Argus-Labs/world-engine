@@ -786,10 +786,6 @@ func (w *World) GetComponents() *[]IComponentType {
 	return &w.registeredComponents
 }
 
-func (w *World) GetSystems() []System {
-	return w.systems
-}
-
 func (w *World) InjectLogger(logger *Logger) {
 	w.logger = logger
 }

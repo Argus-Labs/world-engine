@@ -31,9 +31,9 @@ func (_ *Logger) loadSystemIntoArrayLogger(world *World, registeredSystemIndex i
 }
 
 func (l *Logger) loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, world *World) *zerolog.Event {
-	zeroLoggerEvent.Int("total_systems", len(world.GetSystems()))
+	zeroLoggerEvent.Int("total_systems", len(world.systems))
 	arrayLogger := zerolog.Arr()
-	for index, _ := range world.GetSystems() {
+	for index, _ := range world.systems {
 		arrayLogger = l.loadSystemIntoArrayLogger(world, index, arrayLogger)
 	}
 	return zeroLoggerEvent.Array("systems", arrayLogger)
