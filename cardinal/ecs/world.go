@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog"
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -275,7 +277,10 @@ func (w *World) createEntity(archetypeID storage.ArchetypeID) (storage.EntityID,
 		return 0, err
 	}
 	archetype.PushEntity(nextEntityID)
-
+	err = w.logger.LogEntity(w, zerolog.DebugLevel, nextEntityID)
+	if err != nil {
+		w.logger.Err(err).Send()
+	}
 	return nextEntityID, err
 }
 
@@ -324,6 +329,7 @@ func (w *World) Len() (int, error) {
 func (w *World) Remove(id storage.EntityID) error {
 	ok, err := w.Valid(id)
 	if err != nil {
+		w.logger.Debug().Int("entity_id", int(id)).Msg("failed to remove")
 		return err
 	}
 	if ok {
@@ -338,6 +344,7 @@ func (w *World) Remove(id storage.EntityID) error {
 			return err
 		}
 	}
+	w.logger.Debug().Int("entity_id", int(id)).Msg("removed")
 	return nil
 }
 
@@ -456,6 +463,8 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPay
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick(ctx context.Context) error {
+	tickAsString := strconv.FormatUint(w.tick, 10)
+	w.logger.Info().Str("tick", tickAsString).Msg("Tick started")
 	if !w.stateIsLoaded {
 		return errors.New("must load state before first tick")
 	}
@@ -468,12 +477,13 @@ func (w *World) Tick(ctx context.Context) error {
 	txQueue := &TransactionQueue{
 		queue: txs,
 	}
-
+	initialTransactionAmount := len(txQueue.queue)
 	for _, sys := range w.systems {
 		if err := sys(w, txQueue); err != nil {
 			return err
 		}
 	}
+	transactionsProcessed := initialTransactionAmount - len(txQueue.queue)
 	w.receiptHistory.NextTick()
 
 	if err := w.saveArchetypeData(); err != nil {
@@ -484,7 +494,10 @@ func (w *World) Tick(ctx context.Context) error {
 		return err
 	}
 	w.tick++
-
+	w.logger.Info().
+		Str("tick", tickAsString).
+		Int("processed_transactions", transactionsProcessed).
+		Msg("Tick ended")
 	return nil
 }
 
@@ -493,7 +506,7 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 	go func() {
 		for range time.Tick(loopInterval) {
 			if err := w.Tick(ctx); err != nil {
-				log.Panic().Err(err).Msg("Error running Tick in Game Loop.")
+				w.logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
 			}
 		}
 	}()
@@ -609,6 +622,7 @@ func (w *World) insertArchetype(layout *storage.Layout) storage.ArchetypeID {
 	archID := storage.ArchetypeID(w.store.ArchAccessor.Count())
 
 	w.store.ArchAccessor.PushArchetype(archID, layout)
+	w.logger.Debug().Int("archetype_id", int(archID)).Msg("created")
 	return archID
 }
 
