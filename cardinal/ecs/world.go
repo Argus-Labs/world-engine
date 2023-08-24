@@ -42,6 +42,7 @@ type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
 	systems                  []System
+	systemLoggers            []*Logger
 	systemNames              []string
 	tick                     uint64
 	registeredComponents     []IComponentType
@@ -118,7 +119,8 @@ func (w *World) AddSystems(s ...System) {
 	for _, system := range s {
 		// retrieves function name from system using a reflection trick
 		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
-		// appends the system name to a list member in world
+		sysLogger := w.logger.CreateSystemLogger(functionName)
+		w.systemLoggers = append(w.systemLoggers, &sysLogger)
 		w.systemNames = append(w.systemNames, functionName)
 		// appends registeredSystem into the member system list in world.
 		w.systems = append(w.systems, system)
@@ -470,8 +472,7 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 
 	for i, sys := range w.systems {
-		systemLogger := w.logger.CreateSystemLogger(w.systemNames[i])
-		if err := sys(w, txQueue, &systemLogger); err != nil {
+		if err := sys(w, txQueue, w.systemLoggers[i]); err != nil {
 			return err
 		}
 	}
