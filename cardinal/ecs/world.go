@@ -4,22 +4,25 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"sync"
 	"time"
 
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-	"google.golang.org/protobuf/proto"
-	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
-	"pkg.world.dev/world-engine/sign"
+	"google.golang.org/protobuf/proto"
+
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/sign"
 )
 
 // Namespace is a unique identifier for a world.
@@ -39,6 +42,8 @@ type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
 	systems                  []System
+	systemLoggers            []*Logger
+	systemNames              []string
 	tick                     uint64
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
@@ -59,6 +64,8 @@ type World struct {
 	isRecovering bool
 
 	errs []error
+
+	logger *Logger
 }
 
 var (
@@ -109,7 +116,15 @@ func (w *World) AddSystems(s ...System) {
 	if w.stateIsLoaded {
 		panic("cannot register systems after loading game state")
 	}
-	w.systems = append(w.systems, s...)
+	for _, system := range s {
+		// retrieves function name from system using a reflection trick
+		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
+		sysLogger := w.logger.CreateSystemLogger(functionName)
+		w.systemLoggers = append(w.systemLoggers, &sysLogger)
+		w.systemNames = append(w.systemNames, functionName)
+		// appends registeredSystem into the member system list in world.
+		w.systems = append(w.systems, system)
+	}
 }
 
 // RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
@@ -158,7 +173,7 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 		return ErrorTransactionRegistrationMustHappenOnce
 	}
 	w.isTransactionsRegistered = true
-	w.registeredTransactions = append(w.registeredTransactions, CreatePersonaTx)
+	w.registerInternalTransactions()
 	w.registeredTransactions = append(w.registeredTransactions, txs...)
 
 	seenTxNames := map[string]bool{}
@@ -175,6 +190,13 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 		}
 	}
 	return nil
+}
+
+func (w *World) registerInternalTransactions() {
+	w.registeredTransactions = append(w.registeredTransactions,
+		CreatePersonaTx,
+		AuthorizePersonaAddressTx,
+	)
 }
 
 func (w *World) ListReads() []IRead {
@@ -196,8 +218,11 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		tick:      0,
 		systems:   make([]System, 0),
 		txQueues:  transaction.TxMap{},
+		logger: &Logger{
+			&log.Logger,
+		},
 	}
-	w.AddSystem(RegisterPersonaSystem)
+	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
 	for _, opt := range opts {
 		opt(w)
 	}
@@ -418,16 +443,16 @@ func (w *World) copyTransactions() transaction.TxMap {
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (tick uint64, txID transaction.TxID) {
+func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (tick uint64, txHash transaction.TxHash) {
 	w.txLock.Lock()
 	defer w.txLock.Unlock()
-	txID = transaction.TxID{PersonaTag: sig.PersonaTag, Index: sig.Nonce}
+	txHash = transaction.TxHash(sig.HashHex())
 	w.txQueues[id] = append(w.txQueues[id], transaction.TxAny{
-		ID:    txID,
-		Value: v,
-		Sig:   sig,
+		TxHash: txHash,
+		Value:  v,
+		Sig:    sig,
 	})
-	return w.CurrentTick(), txID
+	return w.CurrentTick(), txHash
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
@@ -446,8 +471,8 @@ func (w *World) Tick(ctx context.Context) error {
 		queue: txs,
 	}
 
-	for _, sys := range w.systems {
-		if err := sys(w, txQueue); err != nil {
+	for i, sys := range w.systems {
+		if err := sys(w, txQueue, w.systemLoggers[i]); err != nil {
 			return err
 		}
 	}
@@ -738,15 +763,15 @@ func (w *World) SetNonce(signerAddress string, nonce uint64) error {
 	return w.store.NonceStore.SetNonce(signerAddress, nonce)
 }
 
-func (w *World) AddTransactionError(id transaction.TxID, err error) {
+func (w *World) AddTransactionError(id transaction.TxHash, err error) {
 	w.receiptHistory.AddError(id, err)
 }
 
-func (w *World) SetTransactionResult(id transaction.TxID, a any) {
+func (w *World) SetTransactionResult(id transaction.TxHash, a any) {
 	w.receiptHistory.SetResult(id, a)
 }
 
-func (w *World) GetTransactionReceipt(id transaction.TxID) (any, []error, bool) {
+func (w *World) GetTransactionReceipt(id transaction.TxHash) (any, []error, bool) {
 	rec, ok := w.receiptHistory.GetReceipt(id)
 	if !ok {
 		return nil, nil, false
@@ -756,4 +781,12 @@ func (w *World) GetTransactionReceipt(id transaction.TxID) (any, []error, bool) 
 
 func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
 	return w.receiptHistory.GetReceiptsForTick(tick)
+}
+
+func (w *World) GetComponents() *[]IComponentType {
+	return &w.registeredComponents
+}
+
+func (w *World) InjectLogger(logger *Logger) {
+	w.logger = logger
 }

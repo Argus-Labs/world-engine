@@ -13,6 +13,11 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
+var (
+	ErrorSystemTransactionRequired  = errors.New("system transaction required")
+	ErrorSystemTransactionForbidden = errors.New("system transaction forbidden")
+)
+
 // fixes a path to contain a leading slash.
 // if the path already contains a leading slash, it is simply returned as is.
 func conformPath(p string) string {
@@ -84,7 +89,7 @@ func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
 	return createPersonaTx.SignerAddress, nil
 }
 
-func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWorld bool) (payload []byte, sig *sign.SignedPayload, err error) {
+func (t *Handler) verifySignature(request *http.Request, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nil, errors.New("unable to read body")
@@ -109,14 +114,20 @@ func (t *Handler) verifySignature(request *http.Request, getSignedAddressFromWor
 	if sp.Namespace != t.w.Namespace() {
 		return nil, nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, t.w.Namespace())
 	}
+	if isSystemTransaction && !sp.IsSystemPayload() {
+		return nil, nil, ErrorSystemTransactionRequired
+	} else if !isSystemTransaction && sp.IsSystemPayload() {
+		return nil, nil, ErrorSystemTransactionForbidden
+	}
 
 	var signerAddress string
-	if getSignedAddressFromWorld {
-		// Use 0 as the tick. We don't care about any pending CreatePersonaTxs, we just want to know the
-		// current signer address for the given persona. Any error will fail this request.
-		signerAddress, err = t.w.GetSignerForPersonaTag(sp.PersonaTag, 0)
-	} else {
+	if sp.IsSystemPayload() {
+		// For system transactions, just use the signed address that is include in the signature.
 		signerAddress, err = getSignerAddressFromPayload(*sp)
+	} else {
+		// For non-system transaction, get the signer address from storage. If this PersonaTag doesn't exist,
+		// an error will be returned and the signature verification will fail.
+		signerAddress, err = t.w.GetSignerForPersonaTag(sp.PersonaTag, 0)
 	}
 	if err != nil {
 		return nil, nil, err

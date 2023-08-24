@@ -3,19 +3,13 @@ package server
 import (
 	"encoding/json"
 	"errors"
-	"github.com/invopop/jsonschema"
 	"io"
 	"net/http"
+
+	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
-
-// CreatePersonaResponse is returned from a tx-create-persona request. It contains the current tick of the game
-// (needed to call the read-persona-signer endpoint).
-type CreatePersonaResponse struct {
-	Tick   uint64
-	Status string
-}
 
 // ReadPersonaSignerRequest is the desired request body for the read-persona-signer endpoint.
 type ReadPersonaSignerRequest struct {
@@ -83,9 +77,12 @@ func (t *Handler) handleReadPersonaSignerSchema(w http.ResponseWriter, _ *http.R
 
 func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		payload, sp, err := t.verifySignature(request, false)
+		payload, sp, err := t.verifySignature(request, true)
 		if err != nil {
 			if errors.Is(err, ErrorInvalidSignature) {
+				writeUnauthorized(writer, err)
+				return
+			} else if errors.Is(err, ErrorSystemTransactionRequired) {
 				writeUnauthorized(writer, err)
 				return
 			}
@@ -98,11 +95,11 @@ func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.Han
 			writeError(writer, "unable to decode transaction", err)
 			return
 		}
-		t.w.AddTransaction(tx.ID(), txVal, sp)
+		tick, txHash := t.w.AddTransaction(tx.ID(), txVal, sp)
 
-		res, err := json.Marshal(CreatePersonaResponse{
-			Tick:   t.w.CurrentTick(),
-			Status: "ok",
+		res, err := json.Marshal(TransactionReply{
+			TxHash: string(txHash),
+			Tick:   tick,
 		})
 		if err != nil {
 			writeError(writer, "unable to marshal response", err)

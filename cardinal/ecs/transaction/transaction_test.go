@@ -3,9 +3,10 @@ package transaction_test
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/ecs"
 
 	"gotest.tools/v3/assert"
 
@@ -37,7 +38,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Set up a system that allows for the modification of a player's score
-	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		modifyScore := modifyScoreTx.In(queue)
 		for _, txData := range modifyScore {
 			ms := txData.Value
@@ -89,7 +90,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 
 	id, err := world.Create(count)
 	assert.NilError(t, err)
-	world.AddSystem(func(w *ecs.World, _ *ecs.TransactionQueue) error {
+	world.AddSystem(func(w *ecs.World, _ *ecs.TransactionQueue, _ *ecs.Logger) error {
 		return count.Update(w, id, func(c CounterComponent) CounterComponent {
 			c.Count++
 			return c
@@ -114,7 +115,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
 
-	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		modifyScores := modifyScoreTx.In(queue)
 		for _, msData := range modifyScores {
 			ms := msData.Value
@@ -172,7 +173,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	inSystemCh := make(chan struct{})
 	// This system will block forever. This will give us a never-ending game tick that we can use
 	// to verify that the addition of more transactions doesn't block.
-	world.AddSystem(func(*ecs.World, *ecs.TransactionQueue) error {
+	world.AddSystem(func(*ecs.World, *ecs.TransactionQueue, *ecs.Logger) error {
 		<-inSystemCh
 		select {}
 		return nil
@@ -215,13 +216,13 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	// Create two system that report how many instances of the ModifyScoreTx exist in the
 	// transaction queue. These counts should be the same for each tick.
-	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		modScores := modScoreTx.In(queue)
 		modScoreCountCh <- len(modScores)
 		return nil
 	})
 
-	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		modScores := modScoreTx.In(queue)
 		modScoreCountCh <- len(modScores)
 		return nil
@@ -281,7 +282,7 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 	alpha.AddToQueue(world, NewOwner{"alpha"})
 	beta.AddToQueue(world, NewOwner{"beta"})
 
-	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		newNames := alpha.In(queue)
 		assert.Check(t, 1 == len(newNames), "expected 1 transaction, not %d", len(newNames))
 		assert.Check(t, "alpha" == newNames[0].Value.Name)
@@ -369,7 +370,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	wantSecondError := errors.New("another transaction error")
 	wantDeltaX, wantDeltaY := 99, 100
 
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		// This new TxsIn function returns a triplet of information:
 		// 1) The transaction input
 		// 2) An ID that uniquely identifies this specific transaction
@@ -382,14 +383,14 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 		assert.Equal(t, wantDeltaX, tx.Value.DeltaX)
 		assert.Equal(t, wantDeltaY, tx.Value.DeltaY)
 
-		// AddError will associate an error with the tx.ID. Multiple errors can be
+		// AddError will associate an error with the tx.TxHash. Multiple errors can be
 		// associated with a transaction.
-		moveTx.AddError(world, tx.ID, wantFirstError)
-		moveTx.AddError(world, tx.ID, wantSecondError)
+		moveTx.AddError(world, tx.TxHash, wantFirstError)
+		moveTx.AddError(world, tx.TxHash, wantSecondError)
 
 		// SetResult sets the output for the transaction. Only one output can be set
-		// for a tx.ID (the last assigned result will clobber other results)
-		moveTx.SetResult(world, tx.ID, MoveTxResult{42, 42})
+		// for a tx.TxHash (the last assigned result will clobber other results)
+		moveTx.SetResult(world, tx.TxHash, MoveTxResult{42, 42})
 		return nil
 	})
 	assert.NilError(t, world.LoadGameState())
@@ -423,23 +424,23 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	assert.NilError(t, world.RegisterTransactions(numTx))
 	wantErr := errors.New("some transaction error")
 	systemCalls := 0
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))
-		id := txs[0].ID
-		_, _, ok := numTx.GetReceipt(world, id)
+		hash := txs[0].TxHash
+		_, _, ok := numTx.GetReceipt(world, hash)
 		assert.Check(t, !ok)
-		numTx.AddError(world, id, wantErr)
+		numTx.AddError(world, hash, wantErr)
 		return nil
 	})
 
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))
-		id := txs[0].ID
-		_, errs, ok := numTx.GetReceipt(world, id)
+		hash := txs[0].TxHash
+		_, errs, ok := numTx.GetReceipt(world, hash)
 		assert.Check(t, ok)
 		assert.Equal(t, 1, len(errs))
 		assert.ErrorIs(t, wantErr, errs[0])
@@ -467,27 +468,27 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 
 	firstResult := TxOut{1234}
 	secondResult := TxOut{5678}
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))
-		id := txs[0].ID
-		_, _, ok := numTx.GetReceipt(world, id)
+		hash := txs[0].TxHash
+		_, _, ok := numTx.GetReceipt(world, hash)
 		assert.Check(t, !ok)
-		numTx.SetResult(world, id, firstResult)
+		numTx.SetResult(world, hash, firstResult)
 		return nil
 	})
 
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))
-		id := txs[0].ID
-		out, errs, ok := numTx.GetReceipt(world, id)
+		hash := txs[0].TxHash
+		out, errs, ok := numTx.GetReceipt(world, hash)
 		assert.Check(t, ok)
 		assert.Equal(t, 0, len(errs))
 		assert.Equal(t, TxOut{1234}, out)
-		numTx.SetResult(world, id, secondResult)
+		numTx.SetResult(world, hash, secondResult)
 		return nil
 	})
 	assert.NilError(t, world.LoadGameState())
