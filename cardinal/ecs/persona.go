@@ -119,7 +119,7 @@ func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, e
 
 // RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func RegisterPersonaSystem(world *World, queue *TransactionQueue) error {
+func RegisterPersonaSystem(world *World, queue *TransactionQueue, _ *Logger) error {
 	createTxs := CreatePersonaTx.In(queue)
 	if len(createTxs) == 0 {
 		return nil

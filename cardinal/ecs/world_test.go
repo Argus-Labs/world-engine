@@ -10,7 +10,7 @@ import (
 
 func TestAddSystems(t *testing.T) {
 	count := 0
-	sys := func(w *ecs.World, txq *ecs.TransactionQueue) error {
+	sys := func(w *ecs.World, txq *ecs.TransactionQueue, _ *ecs.Logger) error {
 		count++
 		return nil
 	}
