@@ -79,21 +79,6 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 	return world, nil
 }
 
-// RegisterSystem adds the given system to the world object so that the system will be executed
-// at every game tick.
-func (w *World) RegisterSystem(system System) {
-	w.impl.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
-		return system(&World{impl: world}, &TransactionQueue{queue})
-	})
-}
-
-// RegisterSystems allows for the adding of multiple systems in a single call. See AddSystem for more details.
-func (w *World) RegisterSystems(systems ...System) {
-	for _, s := range systems {
-		w.RegisterSystem(s)
-	}
-}
-
 func toITransactionType(ins []AnyTransaction) []transaction.ITransaction {
 	out := make([]transaction.ITransaction, 0, len(ins))
 	for _, t := range ins {
@@ -148,20 +133,31 @@ func (w *World) StartGame() error {
 	select {}
 }
 
+// RegisterSystems allows for the adding of multiple systems in a single call. See AddSystem for more details.
+// RegisterSystems adds the given system(s) to the world object so that the system will be executed at every
+// game tick. This Register method can be called multiple times.
+func (w *World) RegisterSystems(systems ...System) {
+	for _, system := range systems {
+		w.impl.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+			return system(&World{impl: world}, &TransactionQueue{queue})
+		})
+	}
+}
+
 // RegisterComponents adds the given components to the game world. After components are added, entities
-// with these components may be created. This function must only be called once.
+// with these components may be created. This Register method must only be called once.
 func (w *World) RegisterComponents(components ...AnyComponentType) error {
 	return w.impl.RegisterComponents(toIComponentType(components)...)
 }
 
 // RegisterTransactions adds the given transactions to the game world. HTTP endpoints to queue up/execute these
-// transaction will automatically be created when StartGame is called.
+// transaction will automatically be created when StartGame is called. This Register method must only be called once.
 func (w *World) RegisterTransactions(txs ...AnyTransaction) error {
 	return w.impl.RegisterTransactions(toITransactionType(txs)...)
 }
 
 // RegisterReads adds the given read capabilities to the game world. HTTP endpoints to use these reads
-// will automatically be created when StartGame is called.
+// will automatically be created when StartGame is called. This Register method must only be called once.
 func (w *World) RegisterReads(reads ...AnyReadType) error {
 	return w.impl.RegisterReads(toIReadType(reads)...)
 }
