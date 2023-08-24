@@ -22,7 +22,7 @@ type OwnableComponent struct {
 	Owner string
 }
 
-func UpdateEnergySystem(w *ecs.World, tq *ecs.TransactionQueue) error {
+func UpdateEnergySystem(w *ecs.World, tq *ecs.TransactionQueue, _ *ecs.Logger) error {
 	errs := []error{}
 
 	Energy.Each(w, func(ent storage.EntityID) bool {
