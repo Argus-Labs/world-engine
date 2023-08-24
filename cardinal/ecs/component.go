@@ -3,6 +3,7 @@ package ecs
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"unsafe"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -89,6 +90,11 @@ func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error
 	if err != nil {
 		return err
 	}
+	w.logger.Debug().
+		Str("entity_id", strconv.FormatUint(uint64(id), 10)).
+		Str("component_name", c.name).
+		Int("component_id", int(c.ID())).
+		Msg("entity updated")
 	return nil
 }
 

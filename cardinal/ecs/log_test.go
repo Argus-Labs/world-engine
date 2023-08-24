@@ -9,6 +9,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"strings"
 	"testing"
 )
@@ -26,8 +27,21 @@ type EnergyComp struct {
 
 var energy = ecs.NewComponentType[EnergyComp]()
 
-func testSystem(_ *ecs.World, _ *ecs.TransactionQueue, logger *ecs.Logger) error {
+func testSystem(w *ecs.World, _ *ecs.TransactionQueue, logger *ecs.Logger) error {
 	logger.Log().Msg("test")
+	energy.Each(w, func(entityId storage.EntityID) bool {
+		energyPlanet, err := energy.Get(w, entityId)
+		if err != nil {
+			return false
+		}
+		energyPlanet.value += 10 // bs whatever
+		err = energy.Set(w, entityId, energyPlanet)
+		if err != nil {
+			return false
+		}
+		return true
+	})
+
 	return nil
 }
 
@@ -101,14 +115,19 @@ func TestWorldLogger(t *testing.T) {
 	assert.NilError(t, err)
 	ctx := context.Background()
 
-	// testing output of a tick. Should log the system log and tick start and end strings.
+	// testing output of logging a tick. Should log the system log and tick start and end strings.
 	err = w.Tick(ctx)
 	assert.NilError(t, err)
 	logString := buf.String()
-	threeStrings := strings.Split(logString, "\n")[:3]
+	threeStrings := strings.Split(logString, "\n")[:4]
+	// test tick start
 	require.JSONEq(t, "{\"level\":\"info\",\"tick\":\"0\",\"message\":\"Tick started\"}", threeStrings[0])
+	// test if system name recorded in log
 	require.JSONEq(t, "{\"system\":\"ecs_test.testSystem\",\"message\":\"test\"}", threeStrings[1])
-	require.JSONEq(t, "{\"level\":\"info\",\"tick\":\"0\",\"processed_transactions\":0,\"message\":\"Tick ended\"}", threeStrings[2])
+	// test if updating component worked
+	require.JSONEq(t, "{\"level\":\"debug\",\"entity_id\":\"0\",\"component_name\":\"EnergyComp\",\"component_id\":2,\"message\":\"entity updated\"}", threeStrings[2])
+	// test tick end
+	require.JSONEq(t, "{\"level\":\"info\",\"tick\":\"0\",\"processed_transactions\":0,\"message\":\"Tick ended\"}", threeStrings[3])
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
