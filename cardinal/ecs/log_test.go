@@ -87,7 +87,12 @@ func TestWorldLogger(t *testing.T) {
 	buf.Reset()
 	archetypeId := w.GetArchetypeForComponents([]component.IComponentType{energy})
 	archetype_creations_json_string := buf.String()
-	require.JSONEq(t, "{\"level\":\"debug\",\"archetype_id\":0,\"message\":\"created\"}\n", archetype_creations_json_string)
+	require.JSONEq(t, `
+			{
+				"level":"debug",
+				"archetype_id":0,
+				"message":"created"
+			}`, archetype_creations_json_string)
 	entityId, err := w.Create(w.Archetype(archetypeId).Layout().Components()...)
 	assert.NilError(t, err)
 	buf.Reset()
@@ -119,21 +124,67 @@ func TestWorldLogger(t *testing.T) {
 	err = w.Tick(ctx)
 	assert.NilError(t, err)
 	logString := buf.String()
-	threeStrings := strings.Split(logString, "\n")[:4]
+	logStrings := strings.Split(logString, "\n")[:4]
 	// test tick start
-	require.JSONEq(t, "{\"level\":\"info\",\"tick\":\"0\",\"message\":\"Tick started\"}", threeStrings[0])
+	require.JSONEq(t, `
+			{
+				"level":"info",
+				"tick":"0",
+				"message":"Tick started"
+			}`, logStrings[0])
 	// test if system name recorded in log
-	require.JSONEq(t, "{\"system\":\"ecs_test.testSystem\",\"message\":\"test\"}", threeStrings[1])
+	require.JSONEq(t, `
+			{
+				"system":"ecs_test.testSystem",
+				"message":"test"
+			}`, logStrings[1])
 	// test if updating component worked
-	require.JSONEq(t, "{\"level\":\"debug\",\"entity_id\":\"0\",\"component_name\":\"EnergyComp\",\"component_id\":2,\"message\":\"entity updated\"}", threeStrings[2])
+	require.JSONEq(t, `
+			{
+				"level":"debug",
+				"entity_id":"0",
+				"component_name":"EnergyComp",
+				"component_id":2,
+				"message":"entity updated"
+			}`, logStrings[2])
 	// test tick end
-	require.JSONEq(t, "{\"level\":\"info\",\"tick\":\"0\",\"processed_transactions\":0,\"message\":\"Tick ended\"}", threeStrings[3])
+	require.JSONEq(t, `
+				{
+					"level":"info",
+					"tick":"0",
+					"processed_transactions":0,
+					"message":"Tick ended"
+				}`, logStrings[3])
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
 	_, err = w.CreateMany(2, []component.IComponentType{energy}...)
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
-	require.JSONEq(t, "{\"level\":\"debug\",\"components\":[{\"component_id\":2,\"component_name\":\"EnergyComp\"}],\"entity_id\":1,\"archetype_id\":0}", entityCreationStrings[0])
-	require.JSONEq(t, "{\"level\":\"debug\",\"components\":[{\"component_id\":2,\"component_name\":\"EnergyComp\"}],\"entity_id\":2,\"archetype_id\":0}", entityCreationStrings[1])
+	require.JSONEq(t, `
+			{
+				"level":"debug",
+				"components":
+					[
+						{
+							"component_id":2,
+							"component_name":"EnergyComp"
+						}
+					],
+				"entity_id":1,
+				"archetype_id":0
+			}`, entityCreationStrings[0])
+	require.JSONEq(t, `
+			{
+				"level":"debug",
+				"components":
+					[
+						{
+							"component_id":2,
+							"component_name":"EnergyComp"
+						}
+					],
+				"entity_id":2,
+				"archetype_id":0
+			}`, entityCreationStrings[1])
 }
