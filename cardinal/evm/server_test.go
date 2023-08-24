@@ -2,6 +2,7 @@ package evm
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/sign"
 	"testing"
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
@@ -46,21 +47,44 @@ func TestServer_SendMessage(t *testing.T) {
 		{Y: 400, Z: false},
 	}
 
+	// need the system to tick for adding the persona + authorized address. so wrapping the test system below
+	// in an enabled block to prevent it from checking test cases until the persona transactions are handled.
+	enabled := false
+
 	// add a system that checks that they are submitted properly to the world.
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
-		inFooTxs := FooTx.In(queue)
-		inBarTxs := BarTx.In(queue)
-		assert.Equal(t, len(inFooTxs), len(fooTxs))
-		assert.Equal(t, len(inBarTxs), len(barTxs))
-		for i, tx := range inFooTxs {
-			assert.DeepEqual(t, tx.Value, fooTxs[i])
-		}
-		for i, tx := range inBarTxs {
-			assert.DeepEqual(t, tx.Value, barTxs[i])
+		if enabled {
+			inFooTxs := FooTx.In(queue)
+			inBarTxs := BarTx.In(queue)
+			assert.Equal(t, len(inFooTxs), len(fooTxs))
+			assert.Equal(t, len(inBarTxs), len(barTxs))
+			for i, tx := range inFooTxs {
+				assert.DeepEqual(t, tx.Value, fooTxs[i])
+			}
+			for i, tx := range inBarTxs {
+				assert.DeepEqual(t, tx.Value, barTxs[i])
+			}
+			return nil
 		}
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
+
+	sender := "0xHelloThere"
+	// create authorized addresses for the evm transaction's msg sender.
+	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+		PersonaTag:    "foo",
+		SignerAddress: "bar",
+	})
+	ecs.AuthorizePersonaAddressTx.AddToQueue(w, ecs.AuthorizePersonaAddress{
+		PersonaTag: "foo",
+		Address:    sender,
+	}, &sign.SignedPayload{PersonaTag: "foo"})
+	err := w.Tick(context.Background())
+	assert.NilError(t, err)
+
+	// now that the persona transactions are handled, we can flip enabled to true, allowing the test system to run.
+	enabled = true
 
 	server, err := NewServer(w)
 	assert.NilError(t, err)
@@ -70,7 +94,7 @@ func TestServer_SendMessage(t *testing.T) {
 		fooTxBz, err := FooTx.ABIEncode(tx)
 		assert.NilError(t, err)
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
-			Sender:    "hello",
+			Sender:    sender,
 			Message:   fooTxBz,
 			MessageId: uint64(FooTx.ID()),
 		})
@@ -80,7 +104,7 @@ func TestServer_SendMessage(t *testing.T) {
 		barTxBz, err := BarTx.ABIEncode(tx)
 		assert.NilError(t, err)
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
-			Sender:    "hello",
+			Sender:    sender,
 			Message:   barTxBz,
 			MessageId: uint64(BarTx.ID()),
 		})

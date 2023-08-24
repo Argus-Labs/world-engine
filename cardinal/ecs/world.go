@@ -158,7 +158,7 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 		return ErrorTransactionRegistrationMustHappenOnce
 	}
 	w.isTransactionsRegistered = true
-	w.registeredTransactions = append(w.registeredTransactions, CreatePersonaTx)
+	w.registerInternalTransactions()
 	w.registeredTransactions = append(w.registeredTransactions, txs...)
 
 	seenTxNames := map[string]bool{}
@@ -175,6 +175,13 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 		}
 	}
 	return nil
+}
+
+func (w *World) registerInternalTransactions() {
+	w.registeredTransactions = append(w.registeredTransactions,
+		CreatePersonaTx,
+		AuthorizePersonaAddressTx,
+	)
 }
 
 func (w *World) ListReads() []IRead {
@@ -197,7 +204,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		systems:   make([]System, 0),
 		txQueues:  transaction.TxMap{},
 	}
-	w.AddSystem(RegisterPersonaSystem)
+	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
 	for _, opt := range opts {
 		opt(w)
 	}
