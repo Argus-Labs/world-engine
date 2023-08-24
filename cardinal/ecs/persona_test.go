@@ -136,7 +136,9 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
 	assert.NilError(t, world.Tick(context.Background()))
 
+	count := 0
 	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id storage.EntityID) bool {
+		count++
 		sc, err := ecs.SignerComp.Get(world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
@@ -145,4 +147,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 		assert.Equal(t, sc.AuthorizedAddresses[0], wantAddr)
 		return true
 	})
+	// verify that the query was even ran. if for some reason there were no SignerComponents in the state,
+	// this test would still pass (false positive).
+	assert.Equal(t, count, 1)
 }
