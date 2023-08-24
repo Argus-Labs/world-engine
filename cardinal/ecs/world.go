@@ -41,8 +41,9 @@ type StorageAccessor struct {
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
-	systems                  []registeredSystem
-	SystemNames              []string
+	systems                  []System
+	systemLoggers            []*Logger
+	systemNames              []string
 	tick                     uint64
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
@@ -118,17 +119,11 @@ func (w *World) AddSystems(s ...System) {
 	for _, system := range s {
 		// retrieves function name from system using a reflection trick
 		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
-		// creates a logger with the system name
-		systemLogger := w.logger.CreateSystemLogger(functionName)
-		// appends the system name to a list member in world
-		w.SystemNames = append(w.SystemNames, functionName)
-		// curries the log parameter in system into registeredSystem, such that registeredSystem stores the logger
-		// as a closure and no longer needs it as a parameter.
-		registeredSystem := func(w *World, t *TransactionQueue) error {
-			return system(w, t, &systemLogger)
-		}
+		sysLogger := w.logger.CreateSystemLogger(functionName)
+		w.systemLoggers = append(w.systemLoggers, &sysLogger)
+		w.systemNames = append(w.systemNames, functionName)
 		// appends registeredSystem into the member system list in world.
-		w.systems = append(w.systems, registeredSystem)
+		w.systems = append(w.systems, system)
 	}
 }
 
@@ -178,7 +173,7 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 		return ErrorTransactionRegistrationMustHappenOnce
 	}
 	w.isTransactionsRegistered = true
-	w.registeredTransactions = append(w.registeredTransactions, CreatePersonaTx)
+	w.registerInternalTransactions()
 	w.registeredTransactions = append(w.registeredTransactions, txs...)
 
 	seenTxNames := map[string]bool{}
@@ -195,6 +190,13 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 		}
 	}
 	return nil
+}
+
+func (w *World) registerInternalTransactions() {
+	w.registeredTransactions = append(w.registeredTransactions,
+		CreatePersonaTx,
+		AuthorizePersonaAddressTx,
+	)
 }
 
 func (w *World) ListReads() []IRead {
@@ -214,13 +216,13 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		store:     s,
 		namespace: "world",
 		tick:      0,
-		systems:   make([]registeredSystem, 0),
+		systems:   make([]System, 0),
 		txQueues:  transaction.TxMap{},
 		logger: &Logger{
 			&log.Logger,
 		},
 	}
-	w.AddSystem(RegisterPersonaSystem)
+	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
 	for _, opt := range opts {
 		opt(w)
 	}
@@ -469,8 +471,8 @@ func (w *World) Tick(ctx context.Context) error {
 		queue: txs,
 	}
 
-	for _, sys := range w.systems {
-		if err := sys(w, txQueue); err != nil {
+	for i, sys := range w.systems {
+		if err := sys(w, txQueue, w.systemLoggers[i]); err != nil {
 			return err
 		}
 	}
@@ -783,10 +785,6 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, e
 
 func (w *World) GetComponents() *[]IComponentType {
 	return &w.registeredComponents
-}
-
-func (w *World) GetSystems() *[]registeredSystem {
-	return &w.systems
 }
 
 func (w *World) InjectLogger(logger *Logger) {
