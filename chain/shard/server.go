@@ -5,6 +5,7 @@ import (
 	shard "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
 	"crypto/tls"
+	"fmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"google.golang.org/grpc"
@@ -23,12 +24,15 @@ var (
 	_    shardgrpc.ShardHandlerServer = &Server{}
 )
 
+// Server is the server that handles incoming requests for transaction storage from game shards.
+// It handles sequencing them and storing them on-chain.
 type Server struct {
 	moduleAddr sdk.AccAddress
 	tq         *TxQueue
 	serverOpts []grpc.ServerOption
 }
 
+// NewShardServer returns a new Server.
 func NewShardServer(opts ...Option) *Server {
 	addr := authtypes.NewModuleAddress(Name)
 	s := &Server{
@@ -81,7 +85,8 @@ func (s *Server) Serve(listenAddr string) {
 	go func() {
 		err = grpcServer.Serve(listener)
 		if err != nil {
-			panic(err)
+			log.Fatal(fmt.Errorf("encountered an error when attempting to serve the ShardHandler gRPC "+
+				"server: %w", err))
 		}
 	}()
 }

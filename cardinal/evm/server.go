@@ -30,11 +30,12 @@ type txByID map[transaction.TypeID]transaction.ITransaction
 type readByName map[string]ecs.IRead
 
 type msgServerImpl struct {
-	txMap      txByID
-	readMap    readByName
-	world      *ecs.World
-	serverOpts []grpc.ServerOption
-	nextNonce  *atomic.Uint64
+	txMap         txByID
+	readMap       readByName
+	world         *ecs.World
+	serverOpts    []grpc.ServerOption
+	senderToNonce map[string]*atomic.Uint64
+	nextNonce     *atomic.Uint64
 }
 
 func NewServer(w *ecs.World, opts ...Option) (routerv1grpc.MsgServer, error) {
@@ -102,14 +103,17 @@ func (s *msgServerImpl) Serve(addr string) error {
 	return nil
 }
 
-// nextSig produces a signature that has a static PersonaTag and a unique nonce. srv's TxHandler wants a unique
+// nextSig produces a signature that has a static PersonaTag and a unique nonce. msgServerImpl's TxHandler wants a unique
 // signature to help identify transactions, however this signature information is not readily available in evm
-// messages. nextSig is a currently workaround to ensure signatures assocaited with transactions are unique.
+// messages. nextSig is a currently workaround to ensure signatures associated with transactions are unique.
 // See https://linear.app/arguslabs/issue/CAR-133/mechanism-to-tie-evm-0x-address-to-cardinal-persona
-func (s *msgServerImpl) nextSig() *sign.SignedPayload {
+func (s *msgServerImpl) nextSig(addr string) *sign.SignedPayload {
+	if _, ok := s.senderToNonce[addr]; !ok {
+		s.senderToNonce[addr] = &atomic.Uint64{}
+	}
 	return &sign.SignedPayload{
-		PersonaTag: "internal-persona-tag-for-evm-server",
-		Nonce:      s.nextNonce.Add(1),
+		PersonaTag: addr,
+		Nonce:      s.senderToNonce[addr].Add(1),
 	}
 }
 
@@ -118,14 +122,14 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 	// first we check if we can extract the transaction associated with the id
 	itx, ok := s.txMap[transaction.TypeID(msg.MessageId)]
 	if !ok {
-		return nil, fmt.Errorf("no transaction with ID %d is registerd in this world", msg.MessageId)
+		return nil, fmt.Errorf("no transaction with ID %d is registerd in the world", msg.MessageId)
 	}
 	// decode the evm bytes into the transaction
 	tx, err := itx.DecodeEVMBytes(msg.Message)
 	if err != nil {
 		return nil, err
 	}
-	sig := s.nextSig()
+	sig := s.nextSig(msg.Sender)
 	// add transaction to the world queue
 	s.world.AddTransaction(itx.ID(), tx, sig)
 	return &routerv1.SendMessageResponse{}, nil

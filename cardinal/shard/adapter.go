@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"os"
 	"pkg.world.dev/world-engine/sign"
 
@@ -35,10 +36,10 @@ type ReadAdapter interface {
 }
 
 type AdapterConfig struct {
-	// ShardReceiverAddr is the address to communicate with the secure shard submission channel.
-	ShardReceiverAddr string `json:"shard_receiver_addr,omitempty"`
+	// ShardSequencerAddr is the address to submit transactions to the EVM base shard's game shard sequencer server.
+	ShardSequencerAddr string `json:"shard_receiver_addr,omitempty"`
 
-	// EVMBaseShardAddr is the address to submit transactions and query directly with the EVM base shard.
+	// EVMBaseShardAddr is the address to query the EVM base shard's shard storage module.
 	EVMBaseShardAddr string `json:"evm_base_shard_addr"`
 }
 
@@ -49,8 +50,8 @@ var (
 type adapterImpl struct {
 	cfg           AdapterConfig
 	grpcOpts      []grpc.DialOption
-	ShardReceiver shardgrpc.ShardHandlerClient
-	ShardQuerier  shardtypes.QueryClient
+	ShardReceiver shardgrpc.ShardHandlerClient // this is the custom gRPC server that handles tx submissions to the EVM base shard.
+	ShardQuerier  shardtypes.QueryClient       // this is the proto client exposed by the shard storage module of the evm base shard.
 }
 
 func loadClientCredentials(path string) (credentials.TransportCredentials, error) {
@@ -78,13 +79,18 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	for _, opt := range opts {
 		opt(a)
 	}
-	conn, err := grpc.Dial(cfg.ShardReceiverAddr, a.grpcOpts...)
+	if len(a.grpcOpts) == 0 {
+		a.grpcOpts = append(a.grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	}
+	// we need secure comms here because only this connection should be able to send stuff to the shard receiver.
+	conn, err := grpc.Dial(cfg.ShardSequencerAddr, a.grpcOpts...)
 	if err != nil {
 		return nil, err
 	}
 	a.ShardReceiver = shardgrpc.NewShardHandlerClient(conn)
 
-	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr)
+	// we don't need secure comms for this connection, cause we're just querying cosmos public RPC endpoints.
+	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
 	}

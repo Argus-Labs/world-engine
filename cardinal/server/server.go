@@ -70,11 +70,11 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	if err := registerReceiptEndpoints(w, th); err != nil {
 		return nil, fmt.Errorf("failed to register receipt handlers: %w", err)
 	}
-
+	th.initialize()
 	return th, nil
 }
 
-func (t *Handler) InitializeServer() {
+func (t *Handler) initialize() {
 	if _, err := strconv.Atoi(t.port); err != nil || len(t.port) == 0 {
 		envPort := os.Getenv("CARDINAL_PORT")
 		if _, err := strconv.Atoi(envPort); err == nil {
@@ -95,7 +95,7 @@ func (t *Handler) InitializeServer() {
 // Will default to env var "CARDINAL_PORT". If that's not set correctly then will default to port 4040
 // if no correct port was previously set.
 func (t *Handler) Serve() {
-	t.InitializeServer()
+	t.initialize()
 	err := t.server.ListenAndServe()
 	if err != nil {
 		log.Print(err)

@@ -1,9 +1,10 @@
-go 1.21
+go 1.21.0
 
 use (
 	cardinal
 	chain
+	chain/contracts
+	example/tester
 	magefiles
 	sign
-	chain/contracts
 )
