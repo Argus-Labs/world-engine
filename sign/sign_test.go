@@ -1,6 +1,7 @@
 package sign
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -88,5 +89,34 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 			_, err = UnmarshalSignedPayload(bz)
 			assert.NilError(t, err)
 		})
+	}
+}
+
+func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+
+	type SomeStruct struct {
+		Str string
+		Num int
+	}
+	testCases := []any{
+		SomeStruct{Str: "a-string", Num: 99},
+		`{"Str": "a-string", "Num": 99}`,
+		[]byte(`{"Str": "a-string", "Num": 99}`),
+	}
+
+	for _, tc := range testCases {
+		sp, err := NewSignedPayload(key, "coolmage", "world", 100, tc)
+		assert.NilError(t, err)
+
+		buf, err := sp.Marshal()
+		assert.NilError(t, err)
+		gotSP, err := UnmarshalSignedPayload(buf)
+		assert.NilError(t, err)
+		var gotStruct SomeStruct
+		assert.NilError(t, json.Unmarshal(gotSP.Body, &gotStruct))
+		assert.Equal(t, "a-string", gotStruct.Str)
+		assert.Equal(t, 99, gotStruct.Num)
 	}
 }

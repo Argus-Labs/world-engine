@@ -69,10 +69,20 @@ func newSignedAny(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint
 	if len(namespace) == 0 {
 		return nil, ErrorInvalidNamespace
 	}
+	var bz []byte
 
-	bz, err := json.Marshal(data)
-	if err != nil {
-		return nil, err
+	// If the given data is already a string or a slice of bytes, assume it's already marshalled json.
+	switch v := data.(type) {
+	case string:
+		bz = []byte(v)
+	case []byte:
+		bz = v
+	default:
+		var err error
+		bz, err = json.Marshal(data)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(bz) == 0 {
 		return nil, ErrorCannotSignEmptyBody
