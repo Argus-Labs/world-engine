@@ -309,6 +309,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
 	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
 	// This should fail because the namespace does not match the world's namespace
 	assert.Equal(t, resp.StatusCode, 401)
 
@@ -620,7 +621,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	nextSig := func() *sign.SignedPayload {
-		sig, err := sign.NewSignedPayload(privateKey, "my-persona-tag", "namespace", nonce, "data")
+		sig, err := sign.NewSignedPayload(privateKey, "my-persona-tag", "namespace", nonce, `{"data": "stuff"}`)
 		assert.NilError(t, err)
 		nonce++
 		return sig
