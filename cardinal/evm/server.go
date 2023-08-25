@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"sync/atomic"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -102,17 +104,6 @@ func (s *msgServerImpl) Serve(addr string) error {
 	return nil
 }
 
-// nextSig produces a signature that has a static PersonaTag and a unique nonce. srv's TxHandler wants a unique
-// signature to help identify transactions, however this signature information is not readily available in evm
-// messages. nextSig is a currently workaround to ensure signatures assocaited with transactions are unique.
-// See https://linear.app/arguslabs/issue/CAR-133/mechanism-to-tie-evm-0x-address-to-cardinal-persona
-func (s *msgServerImpl) nextSig() *sign.SignedPayload {
-	return &sign.SignedPayload{
-		PersonaTag: "internal-persona-tag-for-evm-server",
-		Nonce:      s.nextNonce.Add(1),
-	}
-}
-
 func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessageRequest,
 ) (*routerv1.SendMessageResponse, error) {
 	// first we check if we can extract the transaction associated with the id
@@ -125,10 +116,46 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 	if err != nil {
 		return nil, err
 	}
-	sig := s.nextSig()
+
+	// check if the sender has a linked persona address. if not don't process the transaction.
+	sc, err := s.getSignerComponentForAuthorizedAddr(msg.Sender)
+	if err != nil {
+		return nil, err
+	}
+	// since we are injecting directly, all we need is the persona tag in the signed payload. the sig checking happens
+	// in the server's Handler, not in `World`.
+	sig := &sign.SignedPayload{PersonaTag: sc.PersonaTag}
 	// add transaction to the world queue
 	s.world.AddTransaction(itx.ID(), tx, sig)
 	return &routerv1.SendMessageResponse{}, nil
+}
+
+// getSignerComponentForAuthorizedAddr attempts to find a stored SignerComponent which contains the provided `addr`
+// within its authorized addresses slice.
+func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
+	var sc *ecs.SignerComponent
+	var err error
+	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id storage.EntityID) bool {
+		var signerComp ecs.SignerComponent
+		signerComp, err = ecs.SignerComp.Get(s.world, id)
+		if err != nil {
+			return false
+		}
+		for _, authAddr := range signerComp.AuthorizedAddresses {
+			if authAddr == addr {
+				sc = &signerComp
+				return false
+			}
+		}
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+	if sc == nil {
+		return nil, fmt.Errorf("address %s does not have a linked persona tag", addr)
+	}
+	return sc, nil
 }
 
 func (s *msgServerImpl) QueryShard(ctx context.Context, req *routerv1.QueryShardRequest) (*routerv1.QueryShardResponse, error) {

@@ -3,7 +3,7 @@ go 1.21
 use (
 	cardinal
 	chain
+	chain/contracts
 	magefiles
 	sign
-	chain/contracts
 )
