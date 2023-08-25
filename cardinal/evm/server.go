@@ -30,11 +30,13 @@ type txByID map[transaction.TypeID]transaction.ITransaction
 type readByName map[string]ecs.IRead
 
 type msgServerImpl struct {
-	txMap      txByID
-	readMap    readByName
-	world      *ecs.World
-	serverOpts []grpc.ServerOption
-	nextNonce  *atomic.Uint64
+	txMap     txByID
+	readMap   readByName
+	world     *ecs.World
+	nextNonce *atomic.Uint64
+
+	// opts
+	creds credentials.TransportCredentials
 }
 
 func NewServer(w *ecs.World, opts ...Option) (routerv1grpc.MsgServer, error) {
@@ -87,7 +89,7 @@ func loadCredentials(serverCertPath, serverKeyPath string) (credentials.Transpor
 
 // Serve serves the application in a new go routine.
 func (s *msgServerImpl) Serve(addr string) error {
-	server := grpc.NewServer(s.serverOpts...)
+	server := grpc.NewServer(grpc.Creds(s.creds))
 	routerv1grpc.RegisterMsgServer(server, s)
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {

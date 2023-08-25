@@ -31,7 +31,9 @@ var (
 
 type router struct {
 	cardinalAddr string
-	clientOpts   []grpc.DialOption
+
+	// opts
+	creds credentials.TransportCredentials
 }
 
 func loadClientCredentials(path string) (credentials.TransportCredentials, error) {
@@ -58,12 +60,9 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 // TODO(technicallyty): its a bit unclear how im going to query the state machine here, so router is just going to
 // take the cardinal address directly for now...
 func NewRouter(cardinalAddr string, opts ...Option) Router {
-	r := &router{cardinalAddr: cardinalAddr}
+	r := &router{cardinalAddr: cardinalAddr, creds: insecure.NewCredentials()}
 	for _, opt := range opts {
 		opt(r)
-	}
-	if len(r.clientOpts) == 0 {
-		r.clientOpts = append(r.clientOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 	return r
 }
@@ -106,7 +105,7 @@ func (r *router) Query(ctx context.Context, request []byte, resource, namespace 
 func (r *router) getConnectionForNamespace(ns string) (routerv1grpc.MsgClient, error) {
 	conn, err := grpc.Dial(
 		r.cardinalAddr,
-		r.clientOpts...,
+		grpc.WithTransportCredentials(r.creds),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to %s address for namespace %s", r.cardinalAddr, ns)

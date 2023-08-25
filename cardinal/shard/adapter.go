@@ -53,9 +53,11 @@ var (
 
 type adapterImpl struct {
 	cfg            AdapterConfig
-	grpcOpts       []grpc.DialOption
 	ShardSequencer shardgrpc.ShardHandlerClient
 	ShardQuerier   shardtypes.QueryClient
+
+	// opts
+	creds credentials.TransportCredentials
 }
 
 func loadClientCredentials(path string) (credentials.TransportCredentials, error) {
@@ -79,14 +81,11 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 }
 
 func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
-	a := &adapterImpl{cfg: cfg}
+	a := &adapterImpl{cfg: cfg, creds: insecure.NewCredentials()}
 	for _, opt := range opts {
 		opt(a)
 	}
-	if len(a.grpcOpts) == 0 {
-		a.grpcOpts = append(a.grpcOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	}
-	conn, err := grpc.Dial(cfg.ShardSequencerAddr, a.grpcOpts...)
+	conn, err := grpc.Dial(cfg.ShardSequencerAddr, grpc.WithTransportCredentials(a.creds))
 	if err != nil {
 		return nil, err
 	}
