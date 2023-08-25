@@ -479,13 +479,11 @@ func (w *World) Tick(ctx context.Context) error {
 	txQueue := &TransactionQueue{
 		queue: txs,
 	}
-	initialTransactionAmount := len(txQueue.queue)
 	for i, sys := range w.systems {
 		if err := sys(w, txQueue, w.systemLoggers[i]); err != nil {
 			return err
 		}
 	}
-	transactionsProcessed := initialTransactionAmount - len(txQueue.queue)
 	w.receiptHistory.NextTick()
 
 	if err := w.saveArchetypeData(); err != nil {
@@ -498,7 +496,6 @@ func (w *World) Tick(ctx context.Context) error {
 	w.tick++
 	w.logger.Info().
 		Str("tick", tickAsString).
-		Int("processed_transactions", transactionsProcessed).
 		Msg("Tick ended")
 	return nil
 }
