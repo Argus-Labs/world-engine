@@ -2,14 +2,17 @@ package testutil
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"strings"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/redis/go-redis/v9"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/sign"
 )
 
 const WorldId string = "1"
@@ -72,4 +75,24 @@ func DumpRedis(t *testing.T, r *miniredis.Miniredis, label any) {
 			assert.NilError(t, err)
 		}
 	}
+}
+
+var (
+	nonce      uint64
+	privateKey *ecdsa.PrivateKey
+)
+
+func init() {
+	var err error
+	privateKey, err = crypto.GenerateKey()
+	if err != nil {
+		panic(err)
+	}
+}
+
+func UniqueSignature(t *testing.T) *sign.SignedPayload {
+	nonce++
+	sig, err := sign.NewSignedPayload(privateKey, "some-persona-tag", "namespace", nonce, "data")
+	assert.NilError(t, err)
+	return sig
 }
