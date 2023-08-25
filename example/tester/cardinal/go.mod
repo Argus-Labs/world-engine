@@ -1,6 +1,6 @@
 module github.com/argus-labs/world-engine/example/tester
 
-go 1.21.0
+go 1.21
 
 replace (
 	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.46.0-beta2.0.20230721012257-443317a43b03

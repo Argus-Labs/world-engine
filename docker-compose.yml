@@ -1,0 +1,57 @@
+version: '3'
+services:
+  chain:
+    container_name: evm_base_shard
+    environment:
+      ## Env vars reference: https://github.com/Argus-Labs/world-engine/blob/main/chain/README.md
+      ## Get AUTH_TOKEN from celestia_devnet container: `docker logs celestia_devnet 2>&1 | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1`
+      - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-}
+    build:
+      context: chain
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "1317"
+      - "26657"
+    ports:
+      - "1317:1317"
+      - "26657:26657"
+    networks:
+      - world-engine
+    depends_on:
+      - celestia-devnet
+
+  celestia-devnet:
+    container_name: celestia_devnet
+    image: ghcr.io/rollkit/local-celestia-devnet:v0.11.0-rc8
+    networks:
+      - world-engine
+    restart: on-failure
+    ports:
+      - "26657"
+      - "26658"
+      - "26659"
+      - "9090"
+  game:
+    container_name: game
+    environment:
+      - REDIS_ADDR=redis:6379
+    build:
+      context: example/tester
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - world-engine
+  redis:
+    image: redis:latest
+    command: redis-server
+    expose:
+      - "6379"
+    ports:
+      - "6379:6379"
+    restart: always
+
+
+networks:
+  world-engine:
+    driver: bridge

@@ -7,11 +7,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
-func Move(world *ecs.World, queue *ecs.TransactionQueue) error {
+func Move(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
 	for _, mtx := range tx.MoveTx.In(queue) {
 		playerEntityID, ok := PlayerEntityID[mtx.Sig.PersonaTag]
 		if !ok {
-			tx.MoveTx.AddError(world, mtx.ID, fmt.Errorf("player %s has not joined yet", mtx.Sig.PersonaTag))
+			tx.MoveTx.AddError(world, mtx.TxHash, fmt.Errorf("player %s has not joined yet", mtx.Sig.PersonaTag))
 		}
 		err := comp.LocationComponent.Update(world, playerEntityID, func(location comp.Location) comp.Location {
 			switch mtx.Value.Direction {
@@ -27,7 +27,7 @@ func Move(world *ecs.World, queue *ecs.TransactionQueue) error {
 			return location
 		})
 		if err != nil {
-			tx.MoveTx.AddError(world, mtx.ID, err)
+			tx.MoveTx.AddError(world, mtx.TxHash, err)
 		}
 	}
 	return nil

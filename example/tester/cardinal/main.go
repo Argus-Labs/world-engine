@@ -10,6 +10,7 @@ import (
 	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/evm"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"time"
@@ -22,7 +23,7 @@ func main() {
 	adapter := setupAdapter()
 	world, err := ecs.NewWorld(
 		store,
-		ecs.WithNamespace("test"),
+		ecs.WithNamespace("test-world"),
 		ecs.WithReceiptHistorySize(10),
 		ecs.WithAdapter(adapter),
 	)
@@ -41,7 +42,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	world.AddSystem(sys.Move)
+	world.AddSystems(sys.Join, sys.Move)
 	err = world.LoadGameState()
 	if err != nil {
 		log.Fatal(err)
@@ -52,7 +53,16 @@ func main() {
 		log.Fatal(err)
 	}
 	world.StartGameLoop(ctx, time.Second*1)
-	srvr.Serve()
+	go srvr.Serve()
+	evmServer, err := evm.NewServer(world)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = evmServer.Serve()
+	if err != nil {
+		panic(err)
+	}
+	select {}
 }
 
 func setupAdapter() shard.Adapter {

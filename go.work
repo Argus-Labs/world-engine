@@ -4,7 +4,8 @@ use (
 	cardinal
 	chain
 	chain/contracts
-	example/tester
+	example/tester/cardinal
+	example/tester/nakama
 	magefiles
 	sign
 )

@@ -9,11 +9,11 @@ import (
 
 var PlayerEntityID = make(map[string]storage.EntityID, 0)
 
-func Join(world *ecs.World, queue *ecs.TransactionQueue) error {
+func Join(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
 	for _, jtx := range tx.JoinTx.In(queue) {
 		entity, err := world.Create(comp.LocationComponent, comp.PlayerComponent)
 		if err != nil {
-			tx.JoinTx.AddError(world, jtx.ID, err)
+			tx.JoinTx.AddError(world, jtx.TxHash, err)
 			continue
 		}
 		err = comp.PlayerComponent.Update(world, entity, func(player comp.Player) comp.Player {
@@ -21,7 +21,7 @@ func Join(world *ecs.World, queue *ecs.TransactionQueue) error {
 			return player
 		})
 		if err != nil {
-			tx.JoinTx.AddError(world, jtx.ID, err)
+			tx.JoinTx.AddError(world, jtx.TxHash, err)
 			continue
 		}
 		PlayerEntityID[jtx.Sig.PersonaTag] = entity

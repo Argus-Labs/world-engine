@@ -4,13 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"sync/atomic"
-
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
@@ -23,7 +22,16 @@ import (
 
 var (
 	_ routerv1grpc.MsgServer = &msgServerImpl{}
+
+	defaultPort = "9020"
 )
+
+type Server interface {
+	Serve() error
+	SendMessage(ctx context.Context, msg *routerv1.SendMessageRequest,
+	) (*routerv1.SendMessageResponse, error)
+	QueryShard(ctx context.Context, req *routerv1.QueryShardRequest) (*routerv1.QueryShardResponse, error)
+}
 
 // txByID maps transaction type ID's to transaction types.
 type txByID map[transaction.TypeID]transaction.ITransaction
@@ -36,10 +44,12 @@ type msgServerImpl struct {
 	readMap    readByName
 	world      *ecs.World
 	serverOpts []grpc.ServerOption
-	nextNonce  *atomic.Uint64
+
+	// options
+	port string
 }
 
-func NewServer(w *ecs.World, opts ...Option) (routerv1grpc.MsgServer, error) {
+func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	// setup txs
 	txs, err := w.ListTransactions()
 	if err != nil {
@@ -56,7 +66,7 @@ func NewServer(w *ecs.World, opts ...Option) (routerv1grpc.MsgServer, error) {
 		ir[r.Name()] = r
 	}
 
-	s := &msgServerImpl{txMap: it, readMap: ir, world: w, nextNonce: &atomic.Uint64{}}
+	s := &msgServerImpl{txMap: it, readMap: ir, world: w, port: defaultPort}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -88,17 +98,17 @@ func loadCredentials(serverCertPath, serverKeyPath string) (credentials.Transpor
 }
 
 // Serve serves the application in a new go routine.
-func (s *msgServerImpl) Serve(addr string) error {
+func (s *msgServerImpl) Serve() error {
 	server := grpc.NewServer(s.serverOpts...)
 	routerv1grpc.RegisterMsgServer(server, s)
-	listener, err := net.Listen("tcp", addr)
+	listener, err := net.Listen("tcp", ":"+s.port)
 	if err != nil {
 		return err
 	}
 	go func() {
 		err = server.Serve(listener)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}()
 	return nil
