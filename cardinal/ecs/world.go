@@ -451,7 +451,6 @@ func (w *World) Tick(ctx context.Context) error {
 			return err
 		}
 	}
-	w.receiptHistory.NextTick()
 
 	if err := w.saveArchetypeData(); err != nil {
 		return err
@@ -461,6 +460,7 @@ func (w *World) Tick(ctx context.Context) error {
 		return err
 	}
 	w.tick++
+	w.receiptHistory.NextTick()
 
 	return nil
 }
@@ -554,6 +554,7 @@ func (w *World) LoadGameState() error {
 			return err
 		}
 	}
+	w.receiptHistory.SetTick(w.tick)
 
 	return nil
 }
