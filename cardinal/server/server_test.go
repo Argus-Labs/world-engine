@@ -620,7 +620,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	nextSig := func() *sign.SignedPayload {
-		sig, err := sign.NewSignedPayload(privateKey, "my-persona-tag", "namespace", nonce, "data")
+		sig, err := sign.NewSignedPayload(privateKey, "my-persona-tag", "namespace", nonce, `{"data": "stuff"}`)
 		assert.NilError(t, err)
 		nonce++
 		return sig

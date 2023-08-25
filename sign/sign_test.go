@@ -13,7 +13,7 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	assert.NilError(t, err)
 	badKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
-	wantBody := "this is a request body"
+	wantBody := `{"msg": "this is a request body"}`
 	wantPersonaTag := "my-tag"
 	wantNamespace := "my-namespace"
 	wantNonce := uint64(100)
@@ -49,28 +49,28 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 		{
 			name: "valid",
 			payload: func() (*SignedPayload, error) {
-				return NewSignedPayload(goodKey, "tag", "namespace", 40, "body")
+				return NewSignedPayload(goodKey, "tag", "namespace", 40, "{}")
 			},
 			expErr: nil,
 		},
 		{
 			name: "missing persona tag",
 			payload: func() (*SignedPayload, error) {
-				return NewSignedPayload(goodKey, "", "ns", 20, "body")
+				return NewSignedPayload(goodKey, "", "ns", 20, "{}")
 			},
 			expErr: ErrorInvalidPersonaTag,
 		},
 		{
 			name: "missing namespace",
 			payload: func() (*SignedPayload, error) {
-				return NewSignedPayload(goodKey, "fop", "", 20, "body")
+				return NewSignedPayload(goodKey, "fop", "", 20, "{}")
 			},
 			expErr: ErrorInvalidNamespace,
 		},
 		{
 			name: "system signed payload",
 			payload: func() (*SignedPayload, error) {
-				return NewSystemSignedPayload(goodKey, "some-namespace", 25, "body")
+				return NewSystemSignedPayload(goodKey, "some-namespace", 25, "{}")
 			},
 			expErr: nil,
 		},
