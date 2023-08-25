@@ -61,6 +61,35 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 	return s, nil
 }
 
+// normalizeJSON marshals the given data object. If data is a string or bytes, the json format is verified
+// and any extraneous spaces are removed. Otherwise, the given data is run through json.Marshal.
+func normalizeJSON(data any) ([]byte, error) {
+	var asBuf []byte
+	if v, ok := data.(string); ok {
+		asBuf = []byte(v)
+	} else if v, ok := data.([]byte); ok {
+		asBuf = v
+	}
+	if asBuf == nil {
+		// The given data was neither a string nor a []byte. Just json.Marshal it.
+		return json.Marshal(data)
+	}
+
+	// Make sure the given string/[]byte is valid json
+	if !json.Valid(asBuf) {
+		return nil, fmt.Errorf("data %q is not valid json", string(asBuf))
+	}
+	// Unmarshal, then marshal the data to normalize it. For example, extra spaces will be removed.
+	// This is required because when the signed payload is serialized/deserialized those spaces will also
+	// be lost. If they are not removed beforehand, the hashes of the message before serialization and after
+	// will be different.
+	m := map[string]any{}
+	if err := json.Unmarshal(asBuf, &m); err != nil {
+		return nil, err
+	}
+	return json.Marshal(m)
+}
+
 // newSignedAny uses the given private key to sign the personaTag, namespace, nonce, and data.
 func newSignedAny(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
 	if data == nil || reflect.ValueOf(data).IsZero() {
@@ -69,8 +98,7 @@ func newSignedAny(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint
 	if len(namespace) == 0 {
 		return nil, ErrorInvalidNamespace
 	}
-
-	bz, err := json.Marshal(data)
+	bz, err := normalizeJSON(data)
 	if err != nil {
 		return nil, err
 	}
