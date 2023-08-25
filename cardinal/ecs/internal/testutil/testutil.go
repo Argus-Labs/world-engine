@@ -92,7 +92,7 @@ func init() {
 
 func UniqueSignature(t *testing.T) *sign.SignedPayload {
 	nonce++
-	sig, err := sign.NewSignedPayload(privateKey, "some-persona-tag", "namespace", nonce, "data")
+	sig, err := sign.NewSignedPayload(privateKey, "some-persona-tag", "namespace", nonce, `{"some":"data"}`)
 	assert.NilError(t, err)
 	return sig
 }
