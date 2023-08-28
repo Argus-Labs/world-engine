@@ -83,7 +83,7 @@ func (s *Server) Serve(listenAddr string) {
 	go func() {
 		err = grpcServer.Serve(listener)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}()
 }

@@ -5,16 +5,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-	"gotest.tools/v3/assert"
 	"io"
 	"net/http"
 	"os"
+	"testing"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/sign"
-	"testing"
 )
 
 type SendEnergyTx struct {
@@ -74,16 +76,16 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 	txh.port = ""
 	err = os.Setenv("CARDINAL_PORT", "1337")
 	assert.NilError(t, err)
-	txh.InitializeServer()
+	txh.initialize()
 	assert.Equal(t, txh.port, "1337")
 	txh.port = ""
 	err = os.Setenv("CARDINAL_PORT", "133asdfsdgdfdfgdf7")
 	assert.NilError(t, err)
-	txh.InitializeServer()
+	txh.initialize()
 	assert.Equal(t, txh.port, "4040")
 	err = os.Setenv("CARDINAL_PORT", "4555")
 	txh.port = "bad"
-	txh.InitializeServer()
+	txh.initialize()
 	assert.Equal(t, txh.port, "4555")
 }
 
@@ -132,7 +134,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	count := 0
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -180,7 +182,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -307,6 +309,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
 	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
 	// This should fail because the namespace does not match the world's namespace
 	assert.Equal(t, resp.StatusCode, 401)
 
@@ -563,7 +566,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		for _, tx := range incTx.In(queue) {
 			incTx.SetResult(world, tx.TxHash, IncReply{
 				Number: tx.Value.Number + 1,
@@ -572,7 +575,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 		return nil
 	})
 	// System to handle duplicating strings
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		for _, tx := range dupeTx.In(queue) {
 			dupeTx.SetResult(world, tx.TxHash, DupeReply{
 				Str: tx.Value.Str + tx.Value.Str,
@@ -582,7 +585,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	})
 	wantError := errors.New("some error")
 	// System to handle error production
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		for _, tx := range errTx.In(queue) {
 			errTx.AddError(world, tx.TxHash, wantError)
 			errTx.AddError(world, tx.TxHash, wantError)
@@ -618,7 +621,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	nextSig := func() *sign.SignedPayload {
-		sig, err := sign.NewSignedPayload(privateKey, "my-persona-tag", "namespace", nonce, "data")
+		sig, err := sign.NewSignedPayload(privateKey, "my-persona-tag", "namespace", nonce, `{"data": "stuff"}`)
 		assert.NilError(t, err)
 		nonce++
 		return sig

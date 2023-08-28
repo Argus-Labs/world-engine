@@ -14,3 +14,9 @@ func WithCredentials(certPath, keyPath string) Option {
 		s.creds = creds
 	}
 }
+
+func WithPort(port string) Option {
+	return func(impl *msgServerImpl) {
+		impl.port = port
+	}
+}
