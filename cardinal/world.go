@@ -11,7 +11,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/server"
-	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 type World struct {
@@ -79,22 +78,6 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 	return world, nil
 }
 
-func toITransactionType(ins []AnyTransaction) []transaction.ITransaction {
-	out := make([]transaction.ITransaction, 0, len(ins))
-	for _, t := range ins {
-		out = append(out, t.Convert())
-	}
-	return out
-}
-
-func toIReadType(ins []AnyReadType) []ecs.IRead {
-	out := make([]ecs.IRead, 0, len(ins))
-	for _, r := range ins {
-		out = append(out, r.Convert())
-	}
-	return out
-}
-
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
 func (w *World) CreateMany(num int, components ...AnyComponentType) ([]EntityID, error) {
@@ -160,76 +143,4 @@ func (w *World) RegisterTransactions(txs ...AnyTransaction) error {
 // will automatically be created when StartGame is called. This Register method must only be called once.
 func (w *World) RegisterReads(reads ...AnyReadType) error {
 	return w.impl.RegisterReads(toIReadType(reads)...)
-}
-
-// WorldOption represents an option that can be used to augment how the cardinal.World will be run.
-type WorldOption struct {
-	ecsOption      ecs.Option
-	serverOption   server.Option
-	cardinalOption func(*World)
-}
-
-// WithAdapter provides the world with communicate channels to the EVM base shard, enabling transaction storage and
-// transaction retrieval for state rebuilding purposes.
-func WithAdapter(adapter shard.Adapter) WorldOption {
-	return WorldOption{
-		ecsOption: ecs.WithAdapter(adapter),
-	}
-}
-
-// WithReceiptHistorySize specifies how many ticks worth of transaction receipts should be kept in memory. The default
-// is 10. A smaller number uses less memory, but limits the
-func WithReceiptHistorySize(size int) WorldOption {
-	return WorldOption{
-		ecsOption: ecs.WithReceiptHistorySize(size),
-	}
-}
-
-// WithNamespace sets the World's namespace. The default is "world". The namespace is used in the transaction
-// signing process.
-func WithNamespace(namespace string) WorldOption {
-	return WorldOption{
-		ecsOption: ecs.WithNamespace(namespace),
-	}
-}
-
-// WithHTTPServerPort specifies the port for the World's HTTP server. If omitted, the environment variable CARDINAL_PORT
-// will be used, and if that is unset, port 4040 will be used.
-func WithHTTPServerPort(port string) WorldOption {
-	return WorldOption{
-		serverOption: server.WithPort(port),
-	}
-}
-
-// WithNoSignatureVerification disables signature verification for the HTTP server. This should only be
-// used for local development.
-func WithNoSignatureVerification() WorldOption {
-	return WorldOption{
-		serverOption: server.DisableSignatureVerification(),
-	}
-}
-
-// WithLoopInterval sets the time between ticks. If left unset, 1 second is used as a default.
-func WithLoopInterval(interval time.Duration) WorldOption {
-	return WorldOption{
-		cardinalOption: func(world *World) {
-			world.loopInterval = interval
-		},
-	}
-}
-
-// separateOptions separates the given options into ecs options, server options, and cardinal (this package) options.
-// The different options are all grouped together to simplify the end user's experience, but under the hood different
-// options are meant for different sub-systems.
-func separateOptions(opts []WorldOption) (ecsOptions []ecs.Option, serverOptions []server.Option, cardinalOptions []func(*World)) {
-	for _, opt := range opts {
-		if opt.ecsOption != nil {
-			ecsOptions = append(ecsOptions, opt.ecsOption)
-		} else if opt.serverOption != nil {
-			serverOptions = append(serverOptions, opt.serverOption)
-		} else if opt.cardinalOption != nil {
-			cardinalOptions = append(cardinalOptions, opt.cardinalOption)
-		}
-	}
-	return ecsOptions, serverOptions, cardinalOptions
 }
