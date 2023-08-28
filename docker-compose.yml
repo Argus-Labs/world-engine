@@ -37,7 +37,7 @@ services:
     environment:
       - REDIS_ADDR=redis:6379
     build:
-      context: example/tester
+      context: example/tester/cardinal
       dockerfile: Dockerfile
     restart: unless-stopped
     networks:

@@ -72,8 +72,8 @@ func setupAdapter() shard.Adapter {
 	shardReceiverAddr = "0.0.0.0:4200"
 	baseShardAddr = "0.0.0.0:4213"
 	cfg := shard.AdapterConfig{
-		ShardSequencerAddr: shardReceiverAddr,
-		EVMBaseShardAddr:   baseShardAddr,
+		ShardReceiverAddr: shardReceiverAddr,
+		EVMBaseShardAddr:  baseShardAddr,
 	}
 	adapter, err := shard.NewAdapter(cfg)
 	if err != nil {
