@@ -110,7 +110,7 @@ func TestGenerateABIType_NoSizeOnInt(t *testing.T) {
 
 func TestGenerateABIType_StructInStruct(t *testing.T) {
 	type Bar struct {
-		X uint64 `json:"X"`
+		HelloWorld uint64 `json:"HelloWorld"`
 	}
 
 	type Foo struct {
