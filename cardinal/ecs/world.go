@@ -279,10 +279,7 @@ func (w *World) createEntity(archetypeID storage.ArchetypeID) (storage.EntityID,
 		return 0, err
 	}
 	archetype.PushEntity(nextEntityID)
-	err = w.logger.LogEntity(w, zerolog.DebugLevel, nextEntityID)
-	if err != nil {
-		w.logger.Err(err).Send()
-	}
+	w.logger.LogEntity(w, zerolog.DebugLevel, nextEntityID)
 	return nextEntityID, err
 }
 
@@ -465,6 +462,8 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPay
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick(ctx context.Context) error {
+	startTime := time.Now()
+	warningThreshold := 100 * time.Millisecond
 	tickAsString := strconv.FormatUint(w.tick, 10)
 	w.logger.Info().Str("tick", tickAsString).Msg("Tick started")
 	if !w.stateIsLoaded {
@@ -494,9 +493,20 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 	w.tick++
 	w.receiptHistory.NextTick()
-	w.logger.Info().
+	elapsedTime := time.Since(startTime)
+
+	var logEvent *zerolog.Event
+	message := "tick ended"
+	if elapsedTime > warningThreshold {
+		logEvent = w.logger.Warn()
+		message = message + fmt.Sprintf(", (warning: tick exceeded %dms)", warningThreshold.Milliseconds())
+	} else {
+		logEvent = w.logger.Info()
+	}
+	logEvent.
+		Int("tick_execution_time", int(elapsedTime.Milliseconds())).
 		Str("tick", tickAsString).
-		Msg("Tick ended")
+		Msg(message)
 	return nil
 }
 

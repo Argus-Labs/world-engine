@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"gotest.tools/v3/assert"
@@ -12,6 +13,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"strings"
 	"testing"
+	"time"
 )
 
 type SendEnergyTx struct {
@@ -43,6 +45,11 @@ func testSystem(w *ecs.World, _ *ecs.TransactionQueue, logger *ecs.Logger) error
 	})
 
 	return nil
+}
+
+func testSystemWarningTrigger(w *ecs.World, tx *ecs.TransactionQueue, logger *ecs.Logger) error {
+	time.Sleep(time.Millisecond * 400)
+	return testSystem(w, tx, logger)
 }
 
 func TestWorldLogger(t *testing.T) {
@@ -98,8 +105,7 @@ func TestWorldLogger(t *testing.T) {
 	buf.Reset()
 
 	// test log entity
-	err = cardinalLogger.LogEntity(w, zerolog.DebugLevel, entityId)
-	assert.NilError(t, err)
+	cardinalLogger.LogEntity(w, zerolog.DebugLevel, entityId)
 	jsonEntityInfoString := `
 		{
 			"level":"debug",
@@ -115,7 +121,7 @@ func TestWorldLogger(t *testing.T) {
 
 	//create a system for logging.
 	buf.Reset()
-	w.AddSystems(testSystem)
+	w.AddSystems(testSystemWarningTrigger)
 	err = w.LoadGameState()
 	assert.NilError(t, err)
 	ctx := context.Background()
@@ -135,7 +141,7 @@ func TestWorldLogger(t *testing.T) {
 	// test if system name recorded in log
 	require.JSONEq(t, `
 			{
-				"system":"ecs_test.testSystem",
+				"system":"ecs_test.testSystemWarningTrigger",
 				"message":"test"
 			}`, logStrings[1])
 	// test if updating component worked
@@ -148,12 +154,44 @@ func TestWorldLogger(t *testing.T) {
 				"message":"entity updated"
 			}`, logStrings[2])
 	// test tick end
-	require.JSONEq(t, `
-			 {
-				 "level":"info",
+	buf.Reset()
+	sanitizeJsonBytes := func(json []byte) []byte {
+		json = bytes.Replace(json, []byte("\t"), []byte(""), -1)
+		json = bytes.Replace(json, []byte("\n"), []byte(""), -1)
+		json = bytes.Replace(json, []byte("\r"), []byte(""), -1)
+		return json
+	}
+	var map1, map2 map[string]interface{}
+	//tick execution time is not tested.
+	json1 := []byte(`{
+				 "level":"warn",
 				 "tick":"0",
-				 "message":"Tick ended"
-			 }`, logStrings[3])
+				 "tick_execution_time": 0, 
+				 "message":"tick ended, (warning: tick exceeded 100ms)"
+			 }`)
+	json1 = sanitizeJsonBytes(json1)
+	if err = json.Unmarshal(json1, &map1); err != nil {
+		t.Fatalf("Error unmarshalling json1: %v", err)
+	}
+	if err = json.Unmarshal([]byte(logStrings[3]), &map2); err != nil {
+		t.Fatalf("Error unmarshalling buf: %v", err)
+	}
+	names := []string{"level", "tick", "tick_execution_time", "message"}
+	for _, name := range names {
+		v1, ok := map1[name]
+		if !ok {
+			t.Errorf("Should be a value in %s", name)
+		}
+		v2, ok := map2[name]
+		if !ok {
+			t.Errorf("Should be a value in %s", name)
+		}
+		if name == "tick_execution_time" {
+			//time is not deterministic in the context of unit tests, therefore it is not unit testable.
+		} else {
+			assert.Equal(t, v1, v2)
+		}
+	}
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
