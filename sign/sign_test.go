@@ -104,6 +104,11 @@ func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
 		SomeStruct{Str: "a-string", Num: 99},
 		`{"Str": "a-string", "Num": 99}`,
 		[]byte(`{"Str": "a-string", "Num": 99}`),
+		// This test case has different kinds of whitespace.
+		`{
+		"Str":      "a-string", 
+
+"Num":    99   }`,
 	}
 
 	for _, tc := range testCases {
