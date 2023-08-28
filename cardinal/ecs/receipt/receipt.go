@@ -60,6 +60,10 @@ func (h *History) NextTick() {
 	h.history[mod] = map[transaction.TxHash]Receipt{}
 }
 
+func (h *History) SetTick(tick uint64) {
+	h.currTick.Store(tick)
+}
+
 // AddError associates the given error with the given transaction hash. Calling this multiple times will append
 // the error any previously added errors.
 func (h *History) AddError(hash transaction.TxHash, err error) {
