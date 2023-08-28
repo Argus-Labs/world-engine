@@ -152,7 +152,6 @@ func TestWorldLogger(t *testing.T) {
 			 {
 				 "level":"info",
 				 "tick":"0",
-				 "processed_transactions":0,
 				 "message":"Tick ended"
 			 }`, logStrings[3])
 
