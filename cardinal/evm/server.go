@@ -24,6 +24,8 @@ var (
 	_ routerv1grpc.MsgServer = &msgServerImpl{}
 
 	defaultPort = "9020"
+
+	cardinalEvmPortEnv = "CARDINAL_EVM_PORT"
 )
 
 type Server interface {
@@ -49,7 +51,8 @@ type msgServerImpl struct {
 }
 
 // NewServer returns a new EVM connection server. This server is responsible for handling requests originating from
-// the EVM. It runs on a default port of 9020, but a custom port can be set using options.
+// the EVM. It runs on a default port of 9020, but a custom port can be set using options, or by setting an env variable
+// with key CARDINAL_EVM_PORT.
 func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	// setup txs
 	txs, err := w.ListTransactions()
@@ -70,6 +73,12 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	s := &msgServerImpl{txMap: it, readMap: ir, world: w, port: defaultPort}
 	for _, opt := range opts {
 		opt(s)
+	}
+	if s.port == defaultPort {
+		port := os.Getenv(cardinalEvmPortEnv)
+		if port != "" {
+			s.port = port
+		}
 	}
 	return s, nil
 }
