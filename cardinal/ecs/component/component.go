@@ -12,6 +12,7 @@ type (
 		// New returns the marshaled bytes of the default value for the component struct.
 		New() ([]byte, error)
 		// Name returns the name of the component.
+
 		Name() string
 	}
 )
