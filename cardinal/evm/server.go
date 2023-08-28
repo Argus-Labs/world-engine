@@ -4,11 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net"
 	"os"
-	"sync/atomic"
-
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
@@ -21,7 +22,17 @@ import (
 
 var (
 	_ routerv1grpc.MsgServer = &msgServerImpl{}
+
+	defaultPort = "9020"
+
+	cardinalEvmPortEnv = "CARDINAL_EVM_PORT"
 )
+
+type Server interface {
+	routerv1grpc.MsgServer
+	// Serve serves the application in a new go routine.
+	Serve() error
+}
 
 // txByID maps transaction type ID's to transaction types.
 type txByID map[transaction.TypeID]transaction.ITransaction
@@ -30,14 +41,19 @@ type txByID map[transaction.TypeID]transaction.ITransaction
 type readByName map[string]ecs.IRead
 
 type msgServerImpl struct {
-	txMap      txByID
-	readMap    readByName
-	world      *ecs.World
-	serverOpts []grpc.ServerOption
-	nextNonce  *atomic.Uint64
+	txMap   txByID
+	readMap readByName
+	world   *ecs.World
+
+	// opts
+	creds credentials.TransportCredentials
+	port  string
 }
 
-func NewServer(w *ecs.World, opts ...Option) (routerv1grpc.MsgServer, error) {
+// NewServer returns a new EVM connection server. This server is responsible for handling requests originating from
+// the EVM. It runs on a default port of 9020, but a custom port can be set using options, or by setting an env variable
+// with key CARDINAL_EVM_PORT.
+func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	// setup txs
 	txs, err := w.ListTransactions()
 	if err != nil {
@@ -54,9 +70,15 @@ func NewServer(w *ecs.World, opts ...Option) (routerv1grpc.MsgServer, error) {
 		ir[r.Name()] = r
 	}
 
-	s := &msgServerImpl{txMap: it, readMap: ir, world: w, nextNonce: &atomic.Uint64{}}
+	s := &msgServerImpl{txMap: it, readMap: ir, world: w, port: defaultPort}
 	for _, opt := range opts {
 		opt(s)
+	}
+	if s.port == defaultPort {
+		port := os.Getenv(cardinalEvmPortEnv)
+		if port != "" {
+			s.port = port
+		}
 	}
 	return s, nil
 }
@@ -86,31 +108,20 @@ func loadCredentials(serverCertPath, serverKeyPath string) (credentials.Transpor
 }
 
 // Serve serves the application in a new go routine.
-func (s *msgServerImpl) Serve(addr string) error {
-	server := grpc.NewServer(s.serverOpts...)
+func (s *msgServerImpl) Serve() error {
+	server := grpc.NewServer(grpc.Creds(s.creds))
 	routerv1grpc.RegisterMsgServer(server, s)
-	listener, err := net.Listen("tcp", addr)
+	listener, err := net.Listen("tcp", ":"+s.port)
 	if err != nil {
 		return err
 	}
 	go func() {
 		err = server.Serve(listener)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 	}()
 	return nil
-}
-
-// nextSig produces a signature that has a static PersonaTag and a unique nonce. srv's TxHandler wants a unique
-// signature to help identify transactions, however this signature information is not readily available in evm
-// messages. nextSig is a currently workaround to ensure signatures assocaited with transactions are unique.
-// See https://linear.app/arguslabs/issue/CAR-133/mechanism-to-tie-evm-0x-address-to-cardinal-persona
-func (s *msgServerImpl) nextSig() *sign.SignedPayload {
-	return &sign.SignedPayload{
-		PersonaTag: "internal-persona-tag-for-evm-server",
-		Nonce:      s.nextNonce.Add(1),
-	}
 }
 
 func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessageRequest,
@@ -125,10 +136,46 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 	if err != nil {
 		return nil, err
 	}
-	sig := s.nextSig()
+
+	// check if the sender has a linked persona address. if not don't process the transaction.
+	sc, err := s.getSignerComponentForAuthorizedAddr(msg.Sender)
+	if err != nil {
+		return nil, err
+	}
+	// since we are injecting directly, all we need is the persona tag in the signed payload. the sig checking happens
+	// in the server's Handler, not in `World`.
+	sig := &sign.SignedPayload{PersonaTag: sc.PersonaTag}
 	// add transaction to the world queue
 	s.world.AddTransaction(itx.ID(), tx, sig)
 	return &routerv1.SendMessageResponse{}, nil
+}
+
+// getSignerComponentForAuthorizedAddr attempts to find a stored SignerComponent which contains the provided `addr`
+// within its authorized addresses slice.
+func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
+	var sc *ecs.SignerComponent
+	var err error
+	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id storage.EntityID) bool {
+		var signerComp ecs.SignerComponent
+		signerComp, err = ecs.SignerComp.Get(s.world, id)
+		if err != nil {
+			return false
+		}
+		for _, authAddr := range signerComp.AuthorizedAddresses {
+			if authAddr == addr {
+				sc = &signerComp
+				return false
+			}
+		}
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+	if sc == nil {
+		return nil, fmt.Errorf("address %s does not have a linked persona tag", addr)
+	}
+	return sc, nil
 }
 
 func (s *msgServerImpl) QueryShard(ctx context.Context, req *routerv1.QueryShardRequest) (*routerv1.QueryShardResponse, error) {

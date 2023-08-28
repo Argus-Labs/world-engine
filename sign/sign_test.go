@@ -1,6 +1,7 @@
 package sign
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -12,7 +13,7 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	assert.NilError(t, err)
 	badKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
-	wantBody := "this is a request body"
+	wantBody := `{"msg": "this is a request body"}`
 	wantPersonaTag := "my-tag"
 	wantNamespace := "my-namespace"
 	wantNonce := uint64(100)
@@ -48,28 +49,28 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 		{
 			name: "valid",
 			payload: func() (*SignedPayload, error) {
-				return NewSignedPayload(goodKey, "tag", "namespace", 40, "body")
+				return NewSignedPayload(goodKey, "tag", "namespace", 40, "{}")
 			},
 			expErr: nil,
 		},
 		{
 			name: "missing persona tag",
 			payload: func() (*SignedPayload, error) {
-				return NewSignedPayload(goodKey, "", "ns", 20, "body")
+				return NewSignedPayload(goodKey, "", "ns", 20, "{}")
 			},
 			expErr: ErrorInvalidPersonaTag,
 		},
 		{
 			name: "missing namespace",
 			payload: func() (*SignedPayload, error) {
-				return NewSignedPayload(goodKey, "fop", "", 20, "body")
+				return NewSignedPayload(goodKey, "fop", "", 20, "{}")
 			},
 			expErr: ErrorInvalidNamespace,
 		},
 		{
 			name: "system signed payload",
 			payload: func() (*SignedPayload, error) {
-				return NewSystemSignedPayload(goodKey, "some-namespace", 25, "body")
+				return NewSystemSignedPayload(goodKey, "some-namespace", 25, "{}")
 			},
 			expErr: nil,
 		},
@@ -88,5 +89,39 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 			_, err = UnmarshalSignedPayload(bz)
 			assert.NilError(t, err)
 		})
+	}
+}
+
+func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+
+	type SomeStruct struct {
+		Str string
+		Num int
+	}
+	testCases := []any{
+		SomeStruct{Str: "a-string", Num: 99},
+		`{"Str": "a-string", "Num": 99}`,
+		[]byte(`{"Str": "a-string", "Num": 99}`),
+		// This test case has different kinds of whitespace.
+		`{
+		"Str":      "a-string", 
+
+"Num":    99   }`,
+	}
+
+	for _, tc := range testCases {
+		sp, err := NewSignedPayload(key, "coolmage", "world", 100, tc)
+		assert.NilError(t, err)
+
+		buf, err := sp.Marshal()
+		assert.NilError(t, err)
+		gotSP, err := UnmarshalSignedPayload(buf)
+		assert.NilError(t, err)
+		var gotStruct SomeStruct
+		assert.NilError(t, json.Unmarshal(gotSP.Body, &gotStruct))
+		assert.Equal(t, "a-string", gotStruct.Str)
+		assert.Equal(t, 99, gotStruct.Num)
 	}
 }

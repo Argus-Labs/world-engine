@@ -10,7 +10,7 @@ import (
 
 func TestAddSystems(t *testing.T) {
 	count := 0
-	sys := func(w *ecs.World, txq *ecs.TransactionQueue) error {
+	sys := func(w *ecs.World, txq *ecs.TransactionQueue, _ *ecs.Logger) error {
 		count++
 		return nil
 	}
@@ -24,6 +24,28 @@ func TestAddSystems(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Equal(t, count, 3)
+}
+
+func TestSystemExecutionOrder(t *testing.T) {
+	w := inmem.NewECSWorldForTest(t)
+	order := make([]int, 0, 3)
+	w.AddSystems(func(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
+		order = append(order, 1)
+		return nil
+	}, func(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
+		order = append(order, 2)
+		return nil
+	}, func(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
+		order = append(order, 3)
+		return nil
+	})
+	err := w.LoadGameState()
+	assert.NilError(t, err)
+	assert.NilError(t, w.Tick(context.Background()))
+	expectedOrder := []int{1, 2, 3}
+	for i, elem := range order {
+		assert.Equal(t, elem, expectedOrder[i])
+	}
 }
 
 func TestSetNamespace(t *testing.T) {

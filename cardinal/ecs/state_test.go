@@ -2,11 +2,11 @@ package ecs_test
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -171,7 +171,7 @@ func TestCanReloadState(t *testing.T) {
 
 	_, err := alphaWorld.CreateMany(10, oneAlphaNum)
 	assert.NilError(t, err)
-	alphaWorld.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue) error {
+	alphaWorld.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		oneAlphaNum.Each(w, func(id storage.EntityID) bool {
 			err := oneAlphaNum.Set(w, id, NumberComponent{int(id)})
 			assert.Check(t, err == nil)
@@ -200,4 +200,59 @@ func TestCanReloadState(t *testing.T) {
 	})
 	// Make sure we actually have 10 entities
 	assert.Equal(t, 10, count)
+}
+
+func TestWorldTickAndHistoryTickMatch(t *testing.T) {
+	redisStore := miniredis.RunT(t)
+	ctx := context.Background()
+
+	// Ensure that across multiple reloads, getting the transaction receipts for a tick
+	// that is still in the tx receipt history window will not return any errors.
+	for reload := 0; reload < 5; reload++ {
+		world := testutil.InitWorldWithRedis(t, redisStore)
+		assert.NilError(t, world.LoadGameState())
+		relevantTick := world.CurrentTick()
+		for i := 0; i < 5; i++ {
+			assert.NilError(t, world.Tick(ctx))
+		}
+		// Ignore the actual receipts (they will be empty). Just make sure the tick we're asking
+		// for isn't considered too far in the future.
+		_, err := world.GetTransactionReceiptsForTick(relevantTick)
+		assert.NilError(t, err, "error in reload %d", reload)
+	}
+}
+
+func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
+	type Msg struct{}
+	type Result struct{}
+	someTx := ecs.NewTransactionType[Msg, Result]("some-tx")
+	redisStore := miniredis.RunT(t)
+	ctx := context.Background()
+
+	// Ensure that across multiple reloads we can queue up transactions, execute those transactions
+	// in a tick, and then find those transactions in the tx receipt history.
+	for reload := 0; reload < 5; reload++ {
+		world := testutil.InitWorldWithRedis(t, redisStore)
+		assert.NilError(t, world.RegisterTransactions(someTx))
+		world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
+			for _, tx := range someTx.In(queue) {
+				someTx.SetResult(world, tx.TxHash, Result{})
+			}
+			return nil
+		})
+		assert.NilError(t, world.LoadGameState())
+
+		relevantTick := world.CurrentTick()
+		for i := 0; i < 3; i++ {
+			_ = someTx.AddToQueue(world, Msg{}, testutil.UniqueSignature(t))
+		}
+
+		for i := 0; i < 5; i++ {
+			assert.NilError(t, world.Tick(ctx))
+		}
+
+		receipts, err := world.GetTransactionReceiptsForTick(relevantTick)
+		assert.NilError(t, err)
+		assert.Equal(t, 3, len(receipts))
+	}
 }

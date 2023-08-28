@@ -2,6 +2,8 @@ package evm
 
 import (
 	"context"
+	"fmt"
+	"pkg.world.dev/world-engine/sign"
 	"testing"
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
@@ -46,8 +48,15 @@ func TestServer_SendMessage(t *testing.T) {
 		{Y: 400, Z: false},
 	}
 
+	// need the system to tick for adding the persona + authorized address. so wrapping the test system below
+	// in an enabled block to prevent it from checking test cases until the persona transactions are handled.
+	enabled := false
+
 	// add a system that checks that they are submitted properly to the world.
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue) error {
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+		if !enabled {
+			return nil
+		}
 		inFooTxs := FooTx.In(queue)
 		inBarTxs := BarTx.In(queue)
 		assert.Equal(t, len(inFooTxs), len(fooTxs))
@@ -62,6 +71,22 @@ func TestServer_SendMessage(t *testing.T) {
 	})
 	assert.NilError(t, w.LoadGameState())
 
+	sender := "0xHelloThere"
+	// create authorized addresses for the evm transaction's msg sender.
+	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+		PersonaTag:    "foo",
+		SignerAddress: "bar",
+	})
+	ecs.AuthorizePersonaAddressTx.AddToQueue(w, ecs.AuthorizePersonaAddress{
+		PersonaTag: "foo",
+		Address:    sender,
+	}, &sign.SignedPayload{PersonaTag: "foo"})
+	err := w.Tick(context.Background())
+	assert.NilError(t, err)
+
+	// now that the persona transactions are handled, we can flip enabled to true, allowing the test system to run.
+	enabled = true
+
 	server, err := NewServer(w)
 	assert.NilError(t, err)
 
@@ -70,7 +95,7 @@ func TestServer_SendMessage(t *testing.T) {
 		fooTxBz, err := FooTx.ABIEncode(tx)
 		assert.NilError(t, err)
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
-			Sender:    "hello",
+			Sender:    sender,
 			Message:   fooTxBz,
 			MessageId: uint64(FooTx.ID()),
 		})
@@ -80,7 +105,7 @@ func TestServer_SendMessage(t *testing.T) {
 		barTxBz, err := BarTx.ABIEncode(tx)
 		assert.NilError(t, err)
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
-			Sender:    "hello",
+			Sender:    sender,
 			Message:   barTxBz,
 			MessageId: uint64(BarTx.ID()),
 		})
@@ -127,4 +152,36 @@ func TestServer_Query(t *testing.T) {
 	got := gotAny.(FooReply)
 	// Y should equal X here as we simply set reply's Y to request's X in the read handler above.
 	assert.Equal(t, got.Y, request.X)
+}
+
+// TestServer_UnauthorizedAddress tests that when a transaction is sent to Cardinal's EVM server, and there is no
+// Authorized address for the sender, an error occurs.
+func TestServer_UnauthorizedAddress(t *testing.T) {
+	// setup the world
+	w := inmem.NewECSWorldForTest(t)
+
+	// create the ECS transactions
+	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
+
+	assert.NilError(t, w.RegisterTransactions(FooTx))
+
+	// create some txs to submit
+
+	fooTx := FooTransaction{X: 420, Y: "world"}
+
+	assert.NilError(t, w.LoadGameState())
+
+	server, err := NewServer(w)
+	assert.NilError(t, err)
+
+	fooTxBz, err := FooTx.ABIEncode(fooTx)
+	assert.NilError(t, err)
+
+	sender := "hello"
+	_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
+		Sender:    sender,
+		Message:   fooTxBz,
+		MessageId: uint64(FooTx.ID()),
+	})
+	assert.Error(t, err, fmt.Sprintf("address %s does not have a linked persona tag", sender))
 }

@@ -18,6 +18,7 @@ require (
 	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/cometbft/cometbft v0.38.0-rc3
 	github.com/ethereum/go-ethereum v1.12.0
+	github.com/google/uuid v1.3.0
 	github.com/invopop/jsonschema v0.7.0
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/rs/zerolog v1.29.1
@@ -26,7 +27,7 @@ require (
 	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.0
 	pkg.world.dev/world-engine/chain v0.1.11-alpha
-	pkg.world.dev/world-engine/sign v0.1.5-alpha
+	pkg.world.dev/world-engine/sign v0.1.7-alpha
 )
 
 require (
