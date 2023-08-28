@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/chain
 
-go 1.21
+go 1.20
 
 // external, necessary replacements
 replace (
