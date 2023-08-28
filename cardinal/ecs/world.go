@@ -511,7 +511,8 @@ func (w *World) Tick(ctx context.Context) error {
 }
 
 func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
-	log.Info().Msg("Game loop started")
+	w.logger.Info().Msg("Game loop started")
+	w.logger.LogWorld(w, zerolog.InfoLevel)
 	go func() {
 		for range time.Tick(loopInterval) {
 			if err := w.Tick(ctx); err != nil {
