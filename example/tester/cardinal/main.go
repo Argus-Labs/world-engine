@@ -18,12 +18,13 @@ import (
 
 func main() {
 	redisAddr := os.Getenv("REDIS_ADDR")
+	namespace := os.Getenv("CARDINAL_NAMESPACE")
 	rs := storage.NewRedisStorage(storage.Options{Addr: redisAddr}, "test")
 	store := storage.NewWorldStorage(&rs)
 	adapter := setupAdapter()
 	world, err := ecs.NewWorld(
 		store,
-		ecs.WithNamespace("test-world"),
+		ecs.WithNamespace(namespace),
 		ecs.WithReceiptHistorySize(10),
 		ecs.WithAdapter(adapter),
 	)
