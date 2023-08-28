@@ -41,7 +41,7 @@ type ReadAdapter interface {
 
 type AdapterConfig struct {
 	// ShardSequencerAddr is the address of the base shard's game tx sequencer.
-	ShardSequencerAddr string `json:"shard_receiver_addr,omitempty"`
+	ShardSequencerAddr string `json:"shard_sequencer_addr"`
 
 	// EVMBaseShardAddr is the address of the EVM base shard's cosmos gRPC server
 	EVMBaseShardAddr string `json:"evm_base_shard_addr"`
