@@ -5,7 +5,6 @@ import (
 	shard "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
 	"crypto/tls"
-	"fmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"google.golang.org/grpc"
@@ -85,8 +84,7 @@ func (s *Server) Serve(listenAddr string) {
 	go func() {
 		err = grpcServer.Serve(listener)
 		if err != nil {
-			log.Fatal(fmt.Errorf("encountered an error when attempting to serve the ShardHandler gRPC "+
-				"server: %w", err))
+			log.Fatal(err)
 		}
 	}()
 }

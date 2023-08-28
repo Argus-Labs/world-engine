@@ -75,19 +75,20 @@ func normalizeJSON(data any) ([]byte, error) {
 		return json.Marshal(data)
 	}
 
-	// Make sure the given string/[]byte is valid json
 	if !json.Valid(asBuf) {
 		return nil, fmt.Errorf("data %q is not valid json", string(asBuf))
 	}
-	// Unmarshal, then marshal the data to normalize it. For example, extra spaces will be removed.
+
+	dst := &bytes.Buffer{}
+
+	// JSON strings need to be compacted (insignificant whitespace removed).
 	// This is required because when the signed payload is serialized/deserialized those spaces will also
 	// be lost. If they are not removed beforehand, the hashes of the message before serialization and after
 	// will be different.
-	m := map[string]any{}
-	if err := json.Unmarshal(asBuf, &m); err != nil {
+	if err := json.Compact(dst, asBuf); err != nil {
 		return nil, err
 	}
-	return json.Marshal(m)
+	return dst.Bytes(), nil
 }
 
 // newSignedAny uses the given private key to sign the personaTag, namespace, nonce, and data.

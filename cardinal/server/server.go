@@ -47,7 +47,8 @@ const (
 )
 
 // NewHandler returns a new Handler that can handle HTTP requests. An HTTP endpoint for each
-// transaction and read registered with the given world is automatically created.
+// transaction and read registered with the given world is automatically created. The server runs on a default port
+// of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
 func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	th := &Handler{
 		w:   w,
@@ -74,6 +75,9 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	return th, nil
 }
 
+// initialize initializes the server. It firsts checks for a port set on the handler via options.
+// if no port is found, or a bad port was passed into the option, it falls back to an environment variable,
+// CARDINAL_PORT. If not set, it falls back to a default port of 4040.
 func (t *Handler) initialize() {
 	if _, err := strconv.Atoi(t.port); err != nil || len(t.port) == 0 {
 		envPort := os.Getenv("CARDINAL_PORT")
@@ -95,10 +99,9 @@ func (t *Handler) initialize() {
 // Will default to env var "CARDINAL_PORT". If that's not set correctly then will default to port 4040
 // if no correct port was previously set.
 func (t *Handler) Serve() {
-	t.initialize()
 	err := t.server.ListenAndServe()
 	if err != nil {
-		log.Print(err)
+		log.Fatal(err)
 	}
 }
 
