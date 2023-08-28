@@ -76,16 +76,16 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 	txh.port = ""
 	err = os.Setenv("CARDINAL_PORT", "1337")
 	assert.NilError(t, err)
-	txh.InitializeServer()
+	txh.initialize()
 	assert.Equal(t, txh.port, "1337")
 	txh.port = ""
 	err = os.Setenv("CARDINAL_PORT", "133asdfsdgdfdfgdf7")
 	assert.NilError(t, err)
-	txh.InitializeServer()
+	txh.initialize()
 	assert.Equal(t, txh.port, "4040")
 	err = os.Setenv("CARDINAL_PORT", "4555")
 	txh.port = "bad"
-	txh.InitializeServer()
+	txh.initialize()
 	assert.Equal(t, txh.port, "4555")
 }
 
