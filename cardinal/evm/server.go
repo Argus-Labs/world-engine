@@ -41,13 +41,13 @@ type txByID map[transaction.TypeID]transaction.ITransaction
 type readByName map[string]ecs.IRead
 
 type msgServerImpl struct {
-	txMap      txByID
-	readMap    readByName
-	world      *ecs.World
-	serverOpts []grpc.ServerOption
+	txMap   txByID
+	readMap readByName
+	world   *ecs.World
 
 	// opts
-	port string
+	creds credentials.TransportCredentials
+	port  string
 }
 
 // NewServer returns a new EVM connection server. This server is responsible for handling requests originating from
@@ -109,7 +109,7 @@ func loadCredentials(serverCertPath, serverKeyPath string) (credentials.Transpor
 
 // Serve serves the application in a new go routine.
 func (s *msgServerImpl) Serve() error {
-	server := grpc.NewServer(s.serverOpts...)
+	server := grpc.NewServer(grpc.Creds(s.creds))
 	routerv1grpc.RegisterMsgServer(server, s)
 	listener, err := net.Listen("tcp", ":"+s.port)
 	if err != nil {
