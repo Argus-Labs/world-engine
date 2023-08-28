@@ -22,20 +22,9 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 	if rt.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("expected input to be of type struct, got %T", goStruct)
 	}
-	args := make([]abi.ArgumentMarshaling, 0, rt.NumField())
-
-	for i := 0; i < rt.NumField(); i++ {
-		field := rt.Field(i)
-		fieldType := field.Type.String()
-		solType, err := goTypeToSolidityType(fieldType, field.Tag.Get(bigIntStructTag))
-		if err != nil {
-			return nil, err
-		}
-		fieldName := field.Name
-		args = append(args, abi.ArgumentMarshaling{
-			Name: fieldName,
-			Type: solType,
-		})
+	args, err := getArgumentsForType(rt)
+	if err != nil {
+		return nil, err
 	}
 	at, err := abi.NewType("tuple", "", args)
 	if err != nil {
@@ -43,6 +32,38 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 	}
 	at.TupleType = rt
 	return &at, nil
+}
+
+func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
+	args := make([]abi.ArgumentMarshaling, 0, rt.NumField())
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
+		kind := field.Type.Kind()
+		fieldType := field.Type.String()
+		fieldName := field.Name
+		if kind == reflect.Struct {
+			components, err := getArgumentsForType(field.Type)
+			if err != nil {
+				return nil, err
+			}
+			arg := abi.ArgumentMarshaling{
+				Name:       fieldName,
+				Type:       "tuple",
+				Components: components,
+			}
+			args = append(args, arg)
+			continue
+		}
+		solType, err := goTypeToSolidityType(fieldType, field.Tag.Get(bigIntStructTag))
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, abi.ArgumentMarshaling{
+			Name: fieldName,
+			Type: solType,
+		})
+	}
+	return args, nil
 }
 
 func goTypeToSolidityType(t string, tag string) (string, error) {
