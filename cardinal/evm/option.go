@@ -1,7 +1,5 @@
 package evm
 
-import "google.golang.org/grpc"
-
 type Option func(*msgServerImpl)
 
 func WithCredentials(certPath, keyPath string) Option {
@@ -13,7 +11,7 @@ func WithCredentials(certPath, keyPath string) Option {
 		if err != nil {
 			panic(err)
 		}
-		s.serverOpts = append(s.serverOpts, grpc.Creds(creds))
+		s.creds = creds
 	}
 }
 
