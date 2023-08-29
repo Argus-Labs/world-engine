@@ -93,12 +93,12 @@ func WithNamespace(id string) Option
 
 ## Methods
 
-### AddSystems
+### RegisterSystems
 
-`AddSystems` adds one or more systems to the `World`. Systems are executed in the order of which they were added to the world.
+`RegisterSystems` registers one or more systems to the `World`. Systems are executed in the order of which they were added to the world.
 
 ```go
-func (w *World) AddSystems(s ...System)
+func (w *World) RegisterSystems(s ...System)
 ```
 
 #### Example
@@ -119,7 +119,7 @@ func main() {
 	// 1. MoveSystem
 	// 2. HealthRegenSystem
 	// 3. AttackSystem
-    world.AddSystems(systems.MoveSystem, systems.HealthRegenSystem, systems.AttackSystem)
+    world.RegisterSystems(systems.MoveSystem, systems.HealthRegenSystem, systems.AttackSystem)
 }
 ```
 

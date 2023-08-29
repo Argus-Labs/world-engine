@@ -49,11 +49,11 @@ type AttackMsg struct {
 	Amount       uint64
 }
 
-type AttackReceipt struct {
+type AttackResult struct {
 	Success bool
 }
 
-var AttackTx = ecs.NewTransactionType[AttackMsg, AttackReceipt]("attack")
+var AttackTx = ecs.NewTransactionType[AttackMsg, AttackResult]("attack")
 
 // implement the system
 var AttackSystem ecs.System = func(world *ecs.World, queue *ecs.TransactionQueue) error {
@@ -71,12 +71,12 @@ var AttackSystem ecs.System = func(world *ecs.World, queue *ecs.TransactionQueue
 		})
 		// if an error occurred, set the result, and add the error to the transaction.
 		if err != nil {
-			AttackTx.SetResult(world, tx.ID, AttackReceipt{Success: false})
+			AttackTx.SetResult(world, tx.ID, AttackResult{Success: false})
 			AttackTx.AddError(world, tx.ID, err)
 			continue
 		}
 		// set result for success case
-		AttackTx.SetResult(world, tx.ID, AttackReceipt{Success: true})
+		AttackTx.SetResult(world, tx.ID, AttackResult{Success: true})
 	}
 	return nil
 }

@@ -12,15 +12,15 @@ type AttackMsg struct {
     TargetID uint64
 }
 
-// AttackReceipt is the receipt for the Attack transaction.
-type AttackReceipt struct {
+// AttackResult is the result of the Attack transaction.
+type AttackResult struct {
 	Success bool
 }
 
 // AttackTx is an attack transaction.
-var AttackTx = ecs.NewTransactionType[AttackMsg, AttackReceipt](
+var AttackTx = ecs.NewTransactionType[AttackMsg, AttackResult](
 	"attack",
-	ecs.WithTxEVMSupport[AttackMsg, AttackReceipt],
+	ecs.WithTxEVMSupport[AttackMsg, AttackResult],
 )
 ```
 
@@ -137,7 +137,7 @@ func (t *TransactionType[In, Out]) SetResult(world *World, id transaction.TxID, 
 #### Example
 
 ```go
-AttackTx.SetResult(w, txID, AttackReceipt{Success: true})
+AttackTx.SetResult(w, txID, AttackResult{Success: true})
 ```
 
 #### Parameters
