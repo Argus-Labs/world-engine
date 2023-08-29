@@ -107,3 +107,29 @@ func TestGenerateABIType_NoSizeOnInt(t *testing.T) {
 	_, err = GenerateABIType(InvalidInt{})
 	assert.Error(t, err)
 }
+
+func TestGenerateABIType_StructInStruct(t *testing.T) {
+	type Bar struct {
+		HelloWorld uint64 `json:"HelloWorld"`
+	}
+
+	type Foo struct {
+		Y uint64
+		B Bar
+	}
+	foo := Foo{32, Bar{42}}
+	a, err := GenerateABIType(foo)
+	assert.Nil(t, err)
+	args := abi.Arguments{{Type: *a}}
+	bz, err := args.Pack(foo)
+	assert.Nil(t, err)
+
+	unpacked, err := args.Unpack(bz)
+	assert.Nil(t, err)
+	assert.Len(t, unpacked, 1)
+
+	underlyingFoo, ok := unpacked[0].(Foo)
+	assert.True(t, ok)
+
+	assert.Equal(t, underlyingFoo, foo)
+}
