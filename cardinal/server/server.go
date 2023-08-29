@@ -3,12 +3,12 @@ package server
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
+	"strconv"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/shard"
-	"strconv"
 )
 
 // Handler is a type that contains endpoints for transactions and queries in a given ecs world.
@@ -103,16 +103,10 @@ func (t *Handler) initialize() {
 // Please us `go txh.Serve()` if you do not want to block execution after calling this function.
 // Will default to env var "CARDINAL_PORT". If that's not set correctly then will default to port 4040
 // if no correct port was previously set.
-func (t *Handler) Serve() {
-	err := t.server.ListenAndServe()
-	if err != nil {
-		log.Fatal(err)
-	}
+func (t *Handler) Serve() error {
+	return t.server.ListenAndServe()
 }
 
 func (t *Handler) Close() error {
-	if err := t.server.Close(); err != nil {
-		return err
-	}
-	return nil
+	return t.server.Close()
 }
