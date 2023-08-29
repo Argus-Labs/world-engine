@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -28,6 +27,12 @@ func TestNoTagPanics(t *testing.T) {
 }
 
 func TestGenerateABIType_AllValidTypes(t *testing.T) {
+	type SomeOtherType struct {
+		X uint64
+		Y int64
+		Z common.Address
+		D *big.Int `evm:"int128"`
+	}
 	type BigType struct {
 		Uint8      uint8
 		Uint32     uint32
@@ -51,10 +56,15 @@ func TestGenerateABIType_AllValidTypes(t *testing.T) {
 
 		BigInt      *big.Int   `evm:"uint256"`
 		SliceBigInt []*big.Int `evm:"int256"`
+
+		SomeOtherStruct SomeOtherType
+
+		SliceOfSomeOtherStruct []SomeOtherType
 	}
 	at, err := GenerateABIType(BigType{})
 	assert.Nil(t, err)
 	args := abi.Arguments{{Type: *at}}
+
 	b := BigType{
 		Uint8:        30,
 		Uint32:       22,
@@ -72,6 +82,20 @@ func TestGenerateABIType_AllValidTypes(t *testing.T) {
 		Bytes:        []byte("hello"),
 		BigInt:       big.NewInt(3520),
 		SliceBigInt:  []*big.Int{big.NewInt(32), big.NewInt(40)},
+		SomeOtherStruct: SomeOtherType{
+			X: 40,
+			Y: 50,
+			Z: common.BigToAddress(big.NewInt(234235)),
+			D: big.NewInt(3884),
+		},
+		SliceOfSomeOtherStruct: []SomeOtherType{
+			{
+				X: 32,
+				Y: 3252,
+				Z: common.BigToAddress(big.NewInt(1248)),
+				D: big.NewInt(44),
+			},
+		},
 	}
 	bz, err := args.Pack(b)
 	assert.Nil(t, err)
@@ -80,10 +104,20 @@ func TestGenerateABIType_AllValidTypes(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, unpacked, 1)
 
-	bigUnpacked, ok := unpacked[0].(BigType)
-	assert.True(t, ok)
+	got, err := serDeInto[BigType](unpacked[0])
+	assert.Nil(t, err)
+	assert.Equal(t, *got, b)
+}
 
-	assert.Equal(t, b, bigUnpacked)
+func serDeInto[T any](iface interface{}) (*T, error) {
+	bz, err := json.Marshal(iface)
+	if err != nil {
+		return nil, err
+	}
+
+	v := new(T)
+	err = json.Unmarshal(bz, v)
+	return v, err
 }
 
 func TestGenerateABIType_PanicOnImportedTypes(t *testing.T) {
@@ -130,10 +164,10 @@ func TestGenerateABIType_StructInStruct(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, unpacked, 1)
 
-	underlyingFoo, ok := unpacked[0].(Foo)
-	assert.True(t, ok)
+	got, err := serDeInto[Foo](unpacked[0])
+	assert.Nil(t, err)
 
-	assert.Equal(t, underlyingFoo, foo)
+	assert.Equal(t, *got, foo)
 }
 
 func TestGenerateABIType_SliceOfStructInStruct(t *testing.T) {
@@ -156,66 +190,8 @@ func TestGenerateABIType_SliceOfStructInStruct(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, unpacked, 1)
 
-	underlyingFoo, ok := unpacked[0].(Foo)
-	assert.True(t, ok)
-
-	assert.Equal(t, underlyingFoo, foo)
-}
-
-func TestThing(t *testing.T) {
-	type Bar struct {
-		HelloWorld uint64
-	}
-	type Foo struct {
-		Y uint64
-		B []Bar
-	}
-
-	foo := Foo{32, []Bar{{HelloWorld: 42}}}
-
-	fooType, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
-		{
-			Name: "Y",
-			Type: "uint64",
-		},
-		{
-			Name: "B",
-			Type: "tuple[]",
-			Components: []abi.ArgumentMarshaling{
-				{
-					Name: "HelloWorld",
-					Type: "uint64",
-				},
-			},
-		},
-	})
-
-	assert.Nil(t, err)
-	//fooType.TupleType = reflect.TypeOf(foo)
-	//fooType.TupleElems[1].TupleType = reflect.TypeOf(Bar{})
-	//barType := fooType.TupleElems[1]
-	//barType.
-
-	for _, abiType := range fooType.TupleElems {
-		fmt.Println(abiType.TupleType)
-	}
-
-	args := abi.Arguments{{Type: fooType}}
-
-	bz, err := args.Pack(foo)
+	underlyingFoo, err := serDeInto[Foo](unpacked[0])
 	assert.Nil(t, err)
 
-	vals, err := args.Unpack(bz)
-	assert.Nil(t, err)
-
-	fmt.Printf("%+v\n", vals)
-
-	wantVal := vals[0]
-	bz, err = json.Marshal(wantVal)
-	assert.Nil(t, err)
-	foo1 := new(Foo)
-	err = json.Unmarshal(bz, foo1)
-	assert.Nil(t, err)
-
-	fmt.Println(foo1)
+	assert.Equal(t, *underlyingFoo, foo)
 }

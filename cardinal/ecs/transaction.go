@@ -199,5 +199,8 @@ func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
 	}
 	input := new(In)
 	err = json.Unmarshal(encoded, input)
-	return input, err
+	if err != nil {
+		return nil, err
+	}
+	return *input, nil
 }

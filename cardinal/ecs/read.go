@@ -137,7 +137,10 @@ func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	}
 	request := new(req)
 	err = json.Unmarshal(encoded, request)
-	return request, err
+	if err != nil {
+		return nil, err
+	}
+	return *request, nil
 }
 
 func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
@@ -158,7 +161,10 @@ func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	}
 	reply := new(rep)
 	err = json.Unmarshal(encoded, reply)
-	return reply, err
+	if err != nil {
+		return nil, err
+	}
+	return *reply, nil
 }
 
 func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
