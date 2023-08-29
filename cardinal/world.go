@@ -112,7 +112,11 @@ func (w *World) StartGame() error {
 		w.loopInterval = time.Second
 	}
 	w.impl.StartGameLoop(context.Background(), w.loopInterval)
-	go txh.Serve()
+	go func() {
+		if err := txh.Serve(); err != nil {
+			log.Fatal().Err(err)
+		}
+	}()
 	select {}
 }
 
