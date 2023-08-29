@@ -55,7 +55,7 @@ func testSystemWarningTrigger(w *ecs.World, tx *ecs.TransactionQueue, logger *ec
 func TestWorldLogger(t *testing.T) {
 
 	w := inmem.NewECSWorldForTest(t)
-	//replaces internal logger with one that logs to the buf variable above.
+	//replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
 	cardinalLogger := ecs.Logger{

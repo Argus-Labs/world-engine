@@ -58,6 +58,10 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 		opt(th)
 	}
 
+	if th.disableSigVerification {
+		w.Logger.Warn().Msg("disable signature verification enabled. Do not enable this in production.")
+	}
+
 	// register tx endpoints
 	if err := registerTxHandlers(w, th); err != nil {
 		return nil, fmt.Errorf("failed to register tx handlers: %w", err)

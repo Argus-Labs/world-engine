@@ -76,7 +76,7 @@ func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID storage.E
 	var err error = nil
 	zeroLoggerEvent, err = l.loadEntityIntoEvent(zeroLoggerEvent, world, entityID)
 	if err != nil {
-		l.Err(err).Msg(fmt.Sprintf("Error in logger when retrieving entity with id %d", entityID))
+		l.Err(err).Msg(fmt.Sprintf("Error in Logger when retrieving entity with id %d", entityID))
 	} else {
 		zeroLoggerEvent.Send()
 	}
@@ -90,7 +90,7 @@ func (l *Logger) LogWorld(world *World, level zerolog.Level) {
 	zeroLoggerEvent.Send()
 }
 
-// CreateSystemLogger creates a Sub logger with the entry {"system" : systemName}
+// CreateSystemLogger creates a Sub Logger with the entry {"system" : systemName}
 func (l *Logger) CreateSystemLogger(systemName string) Logger {
 	zeroLogger := l.Logger.With().
 		Str("system", systemName).Logger()
@@ -99,7 +99,7 @@ func (l *Logger) CreateSystemLogger(systemName string) Logger {
 	}
 }
 
-// CreateTraceLogger Creates a trace logger. Using a single id you can use this logger to follow and log a data path.
+// CreateTraceLogger Creates a trace Logger. Using a single id you can use this Logger to follow and log a data path.
 func (l *Logger) CreateTraceLogger(traceId string) zerolog.Logger {
 	return l.Logger.With().
 		Str("trace_id", traceId).

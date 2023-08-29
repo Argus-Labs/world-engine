@@ -67,7 +67,7 @@ type World struct {
 
 	errs []error
 
-	logger *Logger
+	Logger *Logger
 }
 
 var (
@@ -121,7 +121,7 @@ func (w *World) AddSystems(s ...System) {
 	for _, system := range s {
 		// retrieves function name from system using a reflection trick
 		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
-		sysLogger := w.logger.CreateSystemLogger(functionName)
+		sysLogger := w.Logger.CreateSystemLogger(functionName)
 		w.systemLoggers = append(w.systemLoggers, &sysLogger)
 		w.systemNames = append(w.systemNames, functionName)
 		// appends registeredSystem into the member system list in world.
@@ -220,7 +220,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		tick:      0,
 		systems:   make([]System, 0),
 		txQueues:  transaction.TxMap{},
-		logger: &Logger{
+		Logger: &Logger{
 			&log.Logger,
 		},
 	}
@@ -279,7 +279,7 @@ func (w *World) createEntity(archetypeID storage.ArchetypeID) (storage.EntityID,
 		return 0, err
 	}
 	archetype.PushEntity(nextEntityID)
-	w.logger.LogEntity(w, zerolog.DebugLevel, nextEntityID)
+	w.Logger.LogEntity(w, zerolog.DebugLevel, nextEntityID)
 	return nextEntityID, err
 }
 
@@ -328,7 +328,7 @@ func (w *World) Len() (int, error) {
 func (w *World) Remove(id storage.EntityID) error {
 	ok, err := w.Valid(id)
 	if err != nil {
-		w.logger.Debug().Int("entity_id", int(id)).Msg("failed to remove")
+		w.Logger.Debug().Int("entity_id", int(id)).Msg("failed to remove")
 		return err
 	}
 	if ok {
@@ -343,7 +343,7 @@ func (w *World) Remove(id storage.EntityID) error {
 			return err
 		}
 	}
-	w.logger.Debug().Int("entity_id", int(id)).Msg("removed")
+	w.Logger.Debug().Int("entity_id", int(id)).Msg("removed")
 	return nil
 }
 
@@ -465,7 +465,7 @@ func (w *World) Tick(ctx context.Context) error {
 	startTime := time.Now()
 	warningThreshold := 100 * time.Millisecond
 	tickAsString := strconv.FormatUint(w.tick, 10)
-	w.logger.Info().Str("tick", tickAsString).Msg("Tick started")
+	w.Logger.Info().Str("tick", tickAsString).Msg("Tick started")
 	if !w.stateIsLoaded {
 		return errors.New("must load state before first tick")
 	}
@@ -498,10 +498,10 @@ func (w *World) Tick(ctx context.Context) error {
 	var logEvent *zerolog.Event
 	message := "tick ended"
 	if elapsedTime > warningThreshold {
-		logEvent = w.logger.Warn()
+		logEvent = w.Logger.Warn()
 		message = message + fmt.Sprintf(", (warning: tick exceeded %dms)", warningThreshold.Milliseconds())
 	} else {
-		logEvent = w.logger.Info()
+		logEvent = w.Logger.Info()
 	}
 	logEvent.
 		Int("tick_execution_time", int(elapsedTime.Milliseconds())).
@@ -511,12 +511,25 @@ func (w *World) Tick(ctx context.Context) error {
 }
 
 func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
-	w.logger.Info().Msg("Game loop started")
-	w.logger.LogWorld(w, zerolog.InfoLevel)
+	w.Logger.Info().Msg("Game loop started")
+	w.Logger.LogWorld(w, zerolog.InfoLevel)
+	//todo: add links to docs related to each warning
+	if !w.isComponentsRegistered {
+		w.Logger.Warn().Msg("No components registered.")
+	}
+	if !w.isTransactionsRegistered {
+		w.Logger.Warn().Msg("No transactions registered.")
+	}
+	if len(w.registeredReads) == 0 {
+		w.Logger.Warn().Msg("No reads registered.")
+	}
+	if len(w.systems) == 0 {
+		w.Logger.Warn().Msg("No systems registered.")
+	}
 	go func() {
 		for range time.Tick(loopInterval) {
 			if err := w.Tick(ctx); err != nil {
-				w.logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
+				w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
 			}
 		}
 	}()
@@ -633,7 +646,7 @@ func (w *World) insertArchetype(layout *storage.Layout) storage.ArchetypeID {
 	archID := storage.ArchetypeID(w.store.ArchAccessor.Count())
 
 	w.store.ArchAccessor.PushArchetype(archID, layout)
-	w.logger.Debug().Int("archetype_id", int(archID)).Msg("created")
+	w.Logger.Debug().Int("archetype_id", int(archID)).Msg("created")
 	return archID
 }
 
@@ -811,5 +824,5 @@ func (w *World) GetComponents() *[]IComponentType {
 }
 
 func (w *World) InjectLogger(logger *Logger) {
-	w.logger = logger
+	w.Logger = logger
 }
