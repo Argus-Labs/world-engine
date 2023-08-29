@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -51,11 +52,40 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 	opts = append(opts, WithPort(port))
 	txh, err := NewHandler(world, opts...)
 	assert.NilError(t, err)
+
+	healthPath := "/health"
+
+	// Add a health check endpoint so we can make sure the server is up and running before allowing any test
+	// logic to run.
+	txh.mux.HandleFunc(healthPath, func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(200)
+	})
+
 	t.Cleanup(func() {
 		assert.NilError(t, txh.Close())
 	})
-	go txh.Serve()
+
+	go func() {
+		err = txh.Serve()
+		// ErrServerClosed is returned from txh.Serve after txh.Close is called. This is
+		// normal.
+		if err != http.ErrServerClosed {
+			assert.NilError(t, err)
+		}
+	}()
+
 	urlPrefix := "http://localhost:" + port
+	healthURL := urlPrefix + healthPath
+	start := time.Now()
+	for {
+		assert.Check(t, time.Since(start) < time.Second, "timeout while waiting for a healthy server")
+
+		resp, err := http.Get(healthURL)
+		if err == nil && resp.StatusCode == 200 {
+			// the health check endpoint was successfully queried.
+			break
+		}
+	}
 
 	return &testTransactionHandler{
 		Handler:   txh,
@@ -174,9 +204,6 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 }
 
 func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
-	// skipping as this does not always work 100% of the time.
-	// https://linear.app/arguslabs/issue/CAR-115/refactor-tests-that-use-http-calls-to-use-a-mock-http-connection
-	t.Skip("this test is flaky and does not always pass")
 	count := 0
 	endpoint := "move"
 	w := inmem.NewECSWorldForTest(t)
@@ -345,10 +372,12 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 
 	// Register a persona. This should succeed
 	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 
 	// Repeat the request. Since the nonce is the same, this should fail
 	resp, err = http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// Using an old nonce should fail
@@ -357,6 +386,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
 	resp, err = http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// But increasing the nonce should work
@@ -365,6 +395,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
 	resp, err = http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 }
 
@@ -704,7 +735,6 @@ func TestTransactionIDIsReturned(t *testing.T) {
 
 	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
-
 	assert.Equal(t, 200, resp.StatusCode)
 
 	var txReply TransactionReply
