@@ -42,6 +42,7 @@ func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
 		fieldType := field.Type.String()
 		fieldName := field.Name
 
+		// make a closure for handling nested struct generation.
 		genStruct := func(p reflect.Type) (abi.ArgumentMarshaling, error) {
 			components, err := getArgumentsForType(p)
 			if err != nil {
@@ -54,6 +55,8 @@ func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
 			}
 			return arg, nil
 		}
+
+		// handle the special case for slice of struct fields.
 		if kind == reflect.Slice {
 			if field.Type.Elem().Kind() == reflect.Struct {
 				arg, err := genStruct(field.Type.Elem())
@@ -65,6 +68,8 @@ func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
 				continue
 			}
 		}
+
+		// handle special case for struct fields.
 		if kind == reflect.Struct {
 			arg, err := genStruct(field.Type)
 			if err != nil {
@@ -73,6 +78,8 @@ func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
 			args = append(args, arg)
 			continue
 		}
+
+		// all other fields can be handled normally.
 		solType, err := goTypeToSolidityType(fieldType, field.Tag.Get(bigIntStructTag))
 		if err != nil {
 			return nil, err
@@ -131,6 +138,7 @@ func goTypeToSolidityType(t string, tag string) (string, error) {
 
 }
 
+// SerdeInto takes an interface with JSON tags, serializes it to JSON, then deserializes it to the specified type param.
 func SerdeInto[T any](iface interface{}) (T, error) {
 	v := new(T)
 	bz, err := json.Marshal(iface)
