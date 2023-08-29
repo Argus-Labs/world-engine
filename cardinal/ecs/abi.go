@@ -30,7 +30,6 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 	if err != nil {
 		return nil, err
 	}
-	at.TupleType = rt
 	return &at, nil
 }
 
@@ -41,15 +40,34 @@ func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
 		kind := field.Type.Kind()
 		fieldType := field.Type.String()
 		fieldName := field.Name
-		if kind == reflect.Struct {
-			components, err := getArgumentsForType(field.Type)
+
+		genStruct := func(p reflect.Type) (abi.ArgumentMarshaling, error) {
+			components, err := getArgumentsForType(p)
 			if err != nil {
-				return nil, err
+				return abi.ArgumentMarshaling{}, err
 			}
 			arg := abi.ArgumentMarshaling{
 				Name:       fieldName,
 				Type:       "tuple",
 				Components: components,
+			}
+			return arg, nil
+		}
+		if kind == reflect.Slice {
+			if field.Type.Elem().Kind() == reflect.Struct {
+				arg, err := genStruct(field.Type.Elem())
+				if err != nil {
+					return nil, err
+				}
+				arg.Type = "tuple[]"
+				args = append(args, arg)
+				continue
+			}
+		}
+		if kind == reflect.Struct {
+			arg, err := genStruct(field.Type)
+			if err != nil {
+				return nil, err
 			}
 			args = append(args, arg)
 			continue

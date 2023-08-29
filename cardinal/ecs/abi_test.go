@@ -1,6 +1,8 @@
 package ecs
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -132,4 +134,88 @@ func TestGenerateABIType_StructInStruct(t *testing.T) {
 	assert.True(t, ok)
 
 	assert.Equal(t, underlyingFoo, foo)
+}
+
+func TestGenerateABIType_SliceOfStructInStruct(t *testing.T) {
+	type Bar struct {
+		HelloWorld uint64 `json:"HelloWorld"`
+	}
+
+	type Foo struct {
+		Y uint64
+		B []Bar
+	}
+	foo := Foo{32, []Bar{{899789}}}
+	a, err := GenerateABIType(foo)
+	assert.Nil(t, err)
+	args := abi.Arguments{{Type: *a}}
+	bz, err := args.Pack(foo)
+	assert.Nil(t, err)
+
+	unpacked, err := args.Unpack(bz)
+	assert.Nil(t, err)
+	assert.Len(t, unpacked, 1)
+
+	underlyingFoo, ok := unpacked[0].(Foo)
+	assert.True(t, ok)
+
+	assert.Equal(t, underlyingFoo, foo)
+}
+
+func TestThing(t *testing.T) {
+	type Bar struct {
+		HelloWorld uint64
+	}
+	type Foo struct {
+		Y uint64
+		B []Bar
+	}
+
+	foo := Foo{32, []Bar{{HelloWorld: 42}}}
+
+	fooType, err := abi.NewType("tuple", "", []abi.ArgumentMarshaling{
+		{
+			Name: "Y",
+			Type: "uint64",
+		},
+		{
+			Name: "B",
+			Type: "tuple[]",
+			Components: []abi.ArgumentMarshaling{
+				{
+					Name: "HelloWorld",
+					Type: "uint64",
+				},
+			},
+		},
+	})
+
+	assert.Nil(t, err)
+	//fooType.TupleType = reflect.TypeOf(foo)
+	//fooType.TupleElems[1].TupleType = reflect.TypeOf(Bar{})
+	//barType := fooType.TupleElems[1]
+	//barType.
+
+	for _, abiType := range fooType.TupleElems {
+		fmt.Println(abiType.TupleType)
+	}
+
+	args := abi.Arguments{{Type: fooType}}
+
+	bz, err := args.Pack(foo)
+	assert.Nil(t, err)
+
+	vals, err := args.Unpack(bz)
+	assert.Nil(t, err)
+
+	fmt.Printf("%+v\n", vals)
+
+	wantVal := vals[0]
+	bz, err = json.Marshal(wantVal)
+	assert.Nil(t, err)
+	foo1 := new(Foo)
+	err = json.Unmarshal(bz, foo1)
+	assert.Nil(t, err)
+
+	fmt.Println(foo1)
 }

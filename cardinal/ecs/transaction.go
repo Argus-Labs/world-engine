@@ -1,10 +1,9 @@
 package ecs
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
-
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -68,26 +67,6 @@ func (t *TransactionType[In, Out]) Name() string {
 
 func (t *TransactionType[In, Out]) Schema() (in, out *jsonschema.Schema) {
 	return jsonschema.Reflect(new(In)), jsonschema.Reflect(new(Out))
-}
-
-// DecodeEVMBytes decodes abi encoded solidity structs into the transaction's "In" type.
-func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
-	if t.inEVMType == nil {
-		return nil, ErrEVMTypeNotSet
-	}
-	args := abi.Arguments{{Type: *t.inEVMType}}
-	unpacked, err := args.Unpack(bz)
-	if err != nil {
-		return nil, err
-	}
-	if len(unpacked) < 1 {
-		return nil, fmt.Errorf("error decoding EVM bytes: no values could be unpacked into the abi type")
-	}
-	underlying, ok := unpacked[0].(In)
-	if !ok {
-		return nil, fmt.Errorf("error decoding EVM bytes: cannot cast %T to %T", unpacked[0], new(In))
-	}
-	return underlying, nil
 }
 
 func (t *TransactionType[In, Out]) ID() transaction.TypeID {
@@ -184,14 +163,41 @@ func (t *TransactionType[In, Out]) ABIEncode(v any) ([]byte, error) {
 	if t.inEVMType == nil || t.outEVMType == nil {
 		return nil, ErrEVMTypeNotSet
 	}
-	vType := reflect.TypeOf(v)
-	if vType == t.inEVMType.TupleType {
-		args := abi.Arguments{{Type: *t.inEVMType}}
-		return args.Pack(v)
+
+	var args abi.Arguments
+	var input any
+	switch v.(type) {
+	case In:
+		input = v.(In)
+		args = abi.Arguments{{Type: *t.inEVMType}}
+	case Out:
+		input = v.(Out)
+		args = abi.Arguments{{Type: *t.outEVMType}}
+	default:
+		return nil, fmt.Errorf("expected input to be of type %T or %T, got %T", new(In), new(Out), v)
 	}
-	if vType == t.outEVMType.TupleType {
-		args := abi.Arguments{{Type: *t.outEVMType}}
-		return args.Pack(v)
+
+	return args.Pack(input)
+}
+
+// DecodeEVMBytes decodes abi encoded solidity structs into the transaction's "In" type.
+func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
+	if t.inEVMType == nil {
+		return nil, ErrEVMTypeNotSet
 	}
-	return nil, fmt.Errorf("expected input to be of type %T or %T, got %T", t.inEVMType, t.outEVMType, v)
+	args := abi.Arguments{{Type: *t.inEVMType}}
+	unpacked, err := args.Unpack(bz)
+	if err != nil {
+		return nil, err
+	}
+	if len(unpacked) < 1 {
+		return nil, fmt.Errorf("error decoding EVM bytes: no values could be unpacked into the abi type")
+	}
+	encoded, err := json.Marshal(unpacked[0])
+	if err != nil {
+		return nil, err
+	}
+	input := new(In)
+	err = json.Unmarshal(encoded, input)
+	return input, err
 }
