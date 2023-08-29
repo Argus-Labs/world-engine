@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -128,4 +129,15 @@ func goTypeToSolidityType(t string, tag string) (string, error) {
 	}
 	return t, nil
 
+}
+
+func SerdeInto[T any](iface interface{}) (T, error) {
+	v := new(T)
+	bz, err := json.Marshal(iface)
+	if err != nil {
+		return *v, err
+	}
+
+	err = json.Unmarshal(bz, v)
+	return *v, err
 }

@@ -1,7 +1,6 @@
 package ecs
 
 import (
-	"encoding/json"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
@@ -104,20 +103,9 @@ func TestGenerateABIType_AllValidTypes(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, unpacked, 1)
 
-	got, err := serDeInto[BigType](unpacked[0])
+	got, err := SerdeInto[BigType](unpacked[0])
 	assert.Nil(t, err)
-	assert.Equal(t, *got, b)
-}
-
-func serDeInto[T any](iface interface{}) (*T, error) {
-	bz, err := json.Marshal(iface)
-	if err != nil {
-		return nil, err
-	}
-
-	v := new(T)
-	err = json.Unmarshal(bz, v)
-	return v, err
+	assert.Equal(t, got, b)
 }
 
 func TestGenerateABIType_PanicOnImportedTypes(t *testing.T) {
@@ -164,10 +152,10 @@ func TestGenerateABIType_StructInStruct(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, unpacked, 1)
 
-	got, err := serDeInto[Foo](unpacked[0])
+	got, err := SerdeInto[Foo](unpacked[0])
 	assert.Nil(t, err)
 
-	assert.Equal(t, *got, foo)
+	assert.Equal(t, got, foo)
 }
 
 func TestGenerateABIType_SliceOfStructInStruct(t *testing.T) {
@@ -190,8 +178,8 @@ func TestGenerateABIType_SliceOfStructInStruct(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, unpacked, 1)
 
-	underlyingFoo, err := serDeInto[Foo](unpacked[0])
+	underlyingFoo, err := SerdeInto[Foo](unpacked[0])
 	assert.Nil(t, err)
 
-	assert.Equal(t, *underlyingFoo, foo)
+	assert.Equal(t, underlyingFoo, foo)
 }

@@ -131,16 +131,11 @@ func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	encoded, err := json.Marshal(unpacked[0])
+	request, err := SerdeInto[req](unpacked[0])
 	if err != nil {
 		return nil, err
 	}
-	request := new(req)
-	err = json.Unmarshal(encoded, request)
-	if err != nil {
-		return nil, err
-	}
-	return *request, nil
+	return request, nil
 }
 
 func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
@@ -155,16 +150,11 @@ func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	encoded, err := json.Marshal(unpacked[0])
+	reply, err := SerdeInto[rep](unpacked[0])
 	if err != nil {
 		return nil, err
 	}
-	reply := new(rep)
-	err = json.Unmarshal(encoded, reply)
-	if err != nil {
-		return nil, err
-	}
-	return *reply, nil
+	return reply, nil
 }
 
 func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {

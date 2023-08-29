@@ -1,7 +1,6 @@
 package ecs
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -193,14 +192,9 @@ func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, fmt.Errorf("error decoding EVM bytes: no values could be unpacked into the abi type")
 	}
-	encoded, err := json.Marshal(unpacked[0])
+	input, err := SerdeInto[In](unpacked[0])
 	if err != nil {
 		return nil, err
 	}
-	input := new(In)
-	err = json.Unmarshal(encoded, input)
-	if err != nil {
-		return nil, err
-	}
-	return *input, nil
+	return input, nil
 }
