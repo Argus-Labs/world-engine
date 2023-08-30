@@ -54,6 +54,7 @@ jobs:
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
           [ "$VERSION" == "main" ] && VERSION=latest
+          echo "Image to push: $IMAGE_ID_CHAIN:$VERSION"
 
-          docker tag chain-local-build:latest $IMAGE_ID_CHAIN:$VERSION .
+          docker tag chain-local-build:latest $IMAGE_ID_CHAIN:$VERSION
           docker push $IMAGE_ID_CHAIN:$VERSION
