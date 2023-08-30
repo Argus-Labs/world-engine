@@ -6,11 +6,11 @@ Systems are the functions that run every tick. Systems must adhere to the follow
 type System func(*World, *TransactionQueue, *Logger) error
 ```
 
-Systems are given a reference to the `World` object, a `TransactionQueue`, and a system specific logger.
+Systems are given a reference to the `World` object, a `TransactionQueue`, and a system specific `Logger`.
 
 ## Getting Transactions
 
-In order to get specific transactions from the queue, utilize a specific transaction's `In` method. This transaction method takes the queue as an argument, and returns a slice of `TxData`, which contains data related to that transaction.
+In order to get specific transactions from the queue, utilize a `TransactionType`'s `In` method. This `TransactionType` method takes the queue as an argument, and returns a slice of `TxData`, which contains data related to that transaction.
 
 ```go
 import "github.com/argus-labs/world-engine/cardinal/ecs"
@@ -19,6 +19,9 @@ func AttackSystem(world *World, queue *TransactionQueue, logger *Logger) error {
     txs := AttackTransaction.In(queue)
 	for _, tx := range txs {
 		// do something with each tx...
+		msg := tx.Value()
+		hash := tx.Hash()
+		sig := tx.Sig()
 	}
 }
 ```
