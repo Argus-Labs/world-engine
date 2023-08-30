@@ -3,19 +3,18 @@ package server
 import (
 	"errors"
 	"fmt"
-	"github.com/go-openapi/runtime/middleware"
 	"log"
 	"net/http"
 	"os"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"strconv"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
 
-	//"github.com/go-openapi/errors"
 	"github.com/go-openapi/loads"
 	swagger_runtime "github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
 )
 
