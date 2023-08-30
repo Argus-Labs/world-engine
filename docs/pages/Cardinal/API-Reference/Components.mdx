@@ -56,7 +56,7 @@ func NewComponentTypeWithDefault[T any](defaultVal T) *ComponentType[T]
 |-------------|---------------|------------------------------------------------------------------------------|
 | `defaultVal`         | `T`      | The default value for this component.                                                          |
 
-#### Return Values
+#### Return Value
 
 | Type                 | Description                                       |
 |----------------------|---------------------------------------------------|
@@ -71,7 +71,7 @@ func NewComponentTypeWithDefault[T any](defaultVal T) *ComponentType[T]
 `Get` retrieves the underlying component data for a given entity.
 
 ```go
-func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error)
+func (c *ComponentType[T]) Get(w *World, id EntityID) (comp T, err error)
 ```
 
 #### Example
@@ -85,7 +85,7 @@ health, err := HealthComponent.Get(w, id)
 | Parameter   | Type          | Description                                    |
 |-------------|---------------|------------------------------------------------|
 | `w`         | `*World`      | A pointer to the ECS world object.             |
-| `id`        | `storage.EntityID` | The ID of the entity from which to retrieve the component data. |
+| `id`        | `EntityID` | The ID of the entity from which to retrieve the component data. |
 
 #### Return Values
 | Type          | Description                                    |
@@ -99,7 +99,7 @@ health, err := HealthComponent.Get(w, id)
 `Set` sets the component data for a given entity.
 
 ```go
-func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error
+func (c *ComponentType[T]) Set(w *World, id EntityID, component T) error
 ```
 
 #### Example
@@ -114,7 +114,7 @@ err := HealthComponent.Set(w, id, newHealth)
 | Parameter    | Type                     | Description                                    |
 |--------------|--------------------------|------------------------------------------------|
 | `w`          | `*World`                 | A pointer to the ECS world object.             |
-| `id`         | `storage.EntityID`       | Entity ID of the entity to set the component.   |
+| `id`         | `EntityID`       | Entity ID of the entity to set the component data for.   |
 | `component`  | `T`                      | Component value to set for the entity.          |
 
 
@@ -128,10 +128,10 @@ err := HealthComponent.Set(w, id, newHealth)
 
 ### Update
 
-`Update` allows you to mutate underlying component data in one function call. `Update` uses `Get` and `Set` under the hood.
+`Update` enables modification of the underlying component data in a single function call. `Update` uses `Get` and `Set` under the hood.
 
 ```go
-func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(T) T) error
+func (c *ComponentType[T]) Update(w *World, id EntityID, fn func(T) T) error
 ```
 
 #### Example
@@ -148,7 +148,7 @@ err := HealthComponent.Update(w, id, func(h Health) Health {
 | Parameter    | Type             | Description                                              |
 |--------------|------------------|----------------------------------------------------------|
 | `w`          | `*World`         | Pointer to the ECS world object.                         |
-| `id`         | `storage.EntityID` | ID of the entity to perform the component update on. |
+| `id`         | `EntityID` | ID of the entity to perform the component update on. |
 | `fn`         | `func(T) T`      | Function that modifies the component's value.            |
 
 #### Return Value
@@ -162,13 +162,13 @@ err := HealthComponent.Update(w, id, func(h Health) Health {
 `RemoveFrom` removes the component from the given entity. An error will be returned if the entity does not have the component.
 
 ```go
-func (c *ComponentType[T]) RemoveFrom(w *World, id storage.EntityID) error
+func (c *ComponentType[T]) RemoveFrom(w *World, id EntityID) error
 ```
 
 #### Example
 
 ```go
-target := storage.EntityID(10)
+target := EntityID(10)
 err := HealthComponent.RemoveFrom(w, target)
 ```
 
@@ -176,7 +176,7 @@ err := HealthComponent.RemoveFrom(w, target)
 | Parameter | Type                 | Description                                      |
 |-----------|----------------------|--------------------------------------------------|
 | `w`       | `*World`             | Pointer to the ECS world object.                 |
-| `id`      | `storage.EntityID`   | Entity ID of the entity to remove the component from. |
+| `id`      | `EntityID`   | Entity ID of the entity to remove the component from. |
 
 #### Return Value
 
@@ -190,13 +190,13 @@ err := HealthComponent.RemoveFrom(w, target)
 `AddTo` adds the component to a given entity. An error will be returned if the entity already has the component.
 
 ```go
-func (c *ComponentType[T]) AddTo(w *World, id storage.EntityID) error
+func (c *ComponentType[T]) AddTo(w *World, id EntityID) error
 ```
 
 #### Example
 
 ```go
-target := storage.EntityID(40)
+target := EntityID(40)
 err := HealthComponent.AddTo(w, target)
 ```
 
@@ -204,7 +204,7 @@ err := HealthComponent.AddTo(w, target)
 | Parameter | Type                 | Description                                      |
 |-----------|----------------------|--------------------------------------------------|
 | `w`       | `*World`             | Pointer to the ECS world object.                 |
-| `id`      | `storage.EntityID`   | Entity ID of the entity to add the component to. |
+| `id`      | `EntityID`   | Entity ID of the entity to add the component to. |
 
 #### Return Value
 
