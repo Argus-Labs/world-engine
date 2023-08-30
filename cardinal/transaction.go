@@ -36,6 +36,14 @@ func NewTransactionType[Msg, Result any](name string) *TransactionType[Msg, Resu
 	}
 }
 
+// NewTransactionTypeWithEVMSupport creates a new instance of a TransactionType, with EVM transactions enabled.
+// This allows this transaction to be sent from EVM smart contracts on the EVM base shard.
+func NewTransactionTypeWithEVMSupport[Msg, Result any](name string) *TransactionType[Msg, Result] {
+	return &TransactionType[Msg, Result]{
+		impl: ecs.NewTransactionType[Msg, Result](name, ecs.WithTxEVMSupport[Msg, Result]),
+	}
+}
+
 // AddError adds the given error to the transaction identified by the given hash. Multiple errors can be
 // added to the same transaction hash.
 func (t *TransactionType[Msg, Result]) AddError(world *World, hash TxHash, err error) {

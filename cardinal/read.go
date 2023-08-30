@@ -28,6 +28,17 @@ func NewReadType[Request any, Reply any](
 	}
 }
 
+// NewReadTypeWithEVMSupport creates a new instance of a ReadType with EVM support, allowing this read to be called from
+// the EVM base shard. The World state must not be changed in the given handler function.
+func NewReadTypeWithEVMSupport[Request, Reply any](name string, handler func(*World, Request) (Reply, error)) *ReadType[Request, Reply] {
+	return &ReadType[Request, Reply]{
+		impl: ecs.NewReadType[Request, Reply](name, func(world *ecs.World, req Request) (Reply, error) {
+			outerWorld := &World{impl: world}
+			return handler(outerWorld, req)
+		}, ecs.WithReadEVMSupport[Request, Reply]),
+	}
+}
+
 // Convert implements the AnyReadType interface which allows a ReadType to be registered
 // with a World via RegisterReads.
 func (r *ReadType[Request, Reply]) Convert() ecs.IRead {
