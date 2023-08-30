@@ -13,20 +13,20 @@ import (
 	"time"
 
 
-    "pkg.world.dev/world-engine/cardinal/ecs"
+    "pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
     redisAddr := os.Getenv("redis_address")
     redisPassword := os.Getenv("redis_password")
 
-    world, err := ecs.NewWorld(
+    world, err := cardinal.NewWorld(
 		redisAddr,
 		redisPassword,
-		ecs.WithNamespace("my-world"),
-		ecs.WithReceiptHistorySize(10),
-		ecs.WithTickInterval(500 * time.Millisecond),
-		ecs.WithPort("4001"),
+		cardinal.WithNamespace("my-world"),
+		cardinal.WithReceiptHistorySize(10),
+		cardinal.WithTickInterval(500 * time.Millisecond),
+		cardinal.WithPort("4001"),
 	)
     if err != nil {
         log.Fatal(err)
@@ -152,8 +152,6 @@ func (w *World) RegisterSystems(s ...System)
 package main
 
 import (
-    "pkg.world.dev/world-engine/cardinal/ecs"
-
     "github.com/my-username/my-world-engine-project/systems"
 )
 
@@ -195,8 +193,6 @@ package main
 
 import (
 	"log"
-
-    "pkg.world.dev/world-engine/cardinal/ecs"
 
     "github.com/my-username/my-world-engine-project/component"
 )
@@ -242,8 +238,6 @@ package main
 
 import (
 	"log"
-
-    "pkg.world.dev/world-engine/cardinal/ecs"
 
     "github.com/my-username/my-world-engine-project/read"
 )
@@ -291,8 +285,6 @@ package main
 import (
 	"log"
 
-    "pkg.world.dev/world-engine/cardinal/ecs"
-
     "github.com/my-username/my-world-engine-project/tx"
 )
 
@@ -334,8 +326,6 @@ package main
 
 import (
 	"log"
-
-    "pkg.world.dev/world-engine/cardinal/ecs"
 
     "github.com/my-username/my-world-engine-project/components"
 )
@@ -384,8 +374,6 @@ package main
 import (
 	"log"
 
-    "pkg.world.dev/world-engine/cardinal/ecs"
-
     "github.com/my-username/my-world-engine-project/components"
 )
 
@@ -431,8 +419,6 @@ package main
 import (
 	"log"
 
-    "pkg.world.dev/world-engine/cardinal/ecs"
-
     "github.com/my-username/my-world-engine-project/components"
 )
 
@@ -473,14 +459,6 @@ func main() {
 
 ```go
 func (w *World) StartGame() error
-```
-
-#### Example
-```go
-err := world.StartGameLoop()
-if err != nil {
-	log.Fatal(err)
-}
 ```
 
 #### Return Value
