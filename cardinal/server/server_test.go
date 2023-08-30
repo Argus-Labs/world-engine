@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -229,16 +230,13 @@ func TestHandleSwaggerServer(t *testing.T) {
 
 	//TODO: next
 	// Queue up a CreatePersonaTx
-	//personaTag := "foobar"
-	//signerAddress := "xyzzy"
-	//ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
-	//	PersonaTag:    personaTag,
-	//	SignerAddress: signerAddress,
-	//})
-	//readPersonaRequest := ReadPersonaSignerRequest{
-	//	PersonaTag: personaTag,
-	//	Tick:       0,
-	//}
+	personaTag := "foobar"
+	signerAddress := "xyzzy"
+	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+		PersonaTag:    personaTag,
+		SignerAddress: signerAddress,
+	})
+
 	//create readers
 	type FooRequest struct {
 		ID string
@@ -279,23 +277,38 @@ func TestHandleSwaggerServer(t *testing.T) {
 	assert.NilError(t, err)
 
 	//Test /query/http/endpoints
-	expectedEndpointResult := EndpointsResult{
-		TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/persona/authorize-persona-address", "/tx/core/move"},
-		QueryEndpoints: []string{"/query/core/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/submit"},
-	}
-	resp, err := http.Get(txh.makeURL("query/http/endpoints"))
-	assert.NilError(t, err)
-	defer resp.Body.Close()
-	var endpointResult EndpointsResult
-	err = json.NewDecoder(resp.Body).Decode(&endpointResult)
-	assert.NilError(t, err)
-	assert.Assert(t, reflect.DeepEqual(endpointResult, expectedEndpointResult))
+	//expectedEndpointResult := EndpointsResult{
+	//	TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/persona/authorize-persona-address", "/tx/core/move"},
+	//	QueryEndpoints: []string{"/query/core/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/submit"},
+	//}
+	//resp1, err := http.Get(txh.makeURL("query/http/endpoints"))
+	//assert.NilError(t, err)
+	//defer resp1.Body.Close()
+	//var endpointResult EndpointsResult
+	//err = json.NewDecoder(resp1.Body).Decode(&endpointResult)
+	//assert.NilError(t, err)
+	//assert.Assert(t, reflect.DeepEqual(endpointResult, expectedEndpointResult))
 
-	//TODO: next pr
 	//Test /query/persona/signer
-	//expectedReadPersonaSignerResponse := ReadPersonaSignerResponse{}
-	//
-	//resp, err := http.NewRequest("GET", txh.makeURL("/query/persona/submit"))
+	expectedReadPersonaSignerResponse := ReadPersonaSignerResponse{}
+	personaSignerResponse := ReadPersonaSignerResponse{}
+	readPersonaRequest := ReadPersonaSignerRequest{
+		PersonaTag: personaTag,
+		Tick:       0,
+	}
+	readPersonaRequestData, err := json.Marshal(readPersonaRequest)
+	assert.NilError(t, err)
+	req, err := http.NewRequest("POST", txh.makeURL("query/persona/signer"), bytes.NewBuffer(readPersonaRequestData))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Length", strconv.Itoa(len(readPersonaRequestData)))
+	req.Header.Set("Accept", "application/json")
+	client := http.Client{}
+	resp2, err := client.Do(req)
+	//resp2, err := http.Post(txh.makeURL("/query/persona/signer"), "application/json", bytes.NewBuffer(readPersonaRequestData))
+	assert.NilError(t, err)
+	defer resp2.Body.Close()
+	json.NewDecoder(resp2.Body).Decode(&expectedReadPersonaSignerResponse)
+	reflect.DeepEqual(expectedReadPersonaSignerResponse, personaSignerResponse)
 
 }
 

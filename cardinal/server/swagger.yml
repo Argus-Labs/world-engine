@@ -108,7 +108,7 @@ paths:
                 '400':
                     description: Invalid read request
     /query/persona/signer:
-        get:
+        post:
             summary: Get persona data from cardinal
             description: Get persona data from cardinal
             consumes:

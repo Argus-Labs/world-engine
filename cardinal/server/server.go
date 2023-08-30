@@ -60,7 +60,9 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 	if err != nil {
 		return nil, err
 	}
-	api := untyped.NewAPI(specDoc)
+	api := untyped.NewAPI(specDoc).WithoutJSONDefaults()
+	api.RegisterConsumer("application/json", swagger_runtime.JSONConsumer())
+	api.RegisterProducer("application/json", swagger_runtime.JSONProducer())
 	err = registerTxHandlerSwagger(w, api)
 	if err != nil {
 		return nil, err
@@ -203,7 +205,7 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
 	})
 	api.RegisterOperation("GET", "/query/core/{readType}", coreHandler)
 	api.RegisterOperation("GET", "/query/http/endpoints", listHandler)
-	api.RegisterOperation("GET", "/query/persona/signer", personaHandler)
+	api.RegisterOperation("POST", "/query/persona/signer", personaHandler)
 	api.RegisterOperation("GET", "/query/receipts/submit", receiptsHandler)
 
 	return nil
