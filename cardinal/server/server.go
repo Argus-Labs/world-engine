@@ -3,12 +3,20 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/go-openapi/runtime/middleware"
+	"log"
 	"net/http"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"strconv"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/shard"
+
+	//"github.com/go-openapi/errors"
+	"github.com/go-openapi/loads"
+	swagger_runtime "github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware/untyped"
 )
 
 // Handler is a type that contains endpoints for transactions and queries in a given ecs world.
@@ -45,6 +53,156 @@ const (
 	getSignerForPersonaStatusAvailable = "available"
 	getSignerForPersonaStatusAssigned  = "assigned"
 )
+
+func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (*Handler, error) {
+	specDoc, err := loads.Spec(pathToSwaggerSpec)
+	if err != nil {
+		return nil, err
+	}
+	api := untyped.NewAPI(specDoc)
+	err = registerTxHandlerSwagger(w, api)
+	if err != nil {
+		return nil, err
+	}
+	err = registerReadHandlerSwagger(w, api)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := api.Validate(); err != nil {
+		log.Fatalln(err)
+	}
+
+	app := middleware.NewContext(specDoc, api, nil)
+	th := &Handler{
+		w:   w,
+		mux: http.NewServeMux(),
+	}
+	for _, opt := range opts {
+		opt(th)
+	}
+	th.mux.Handle("/", app.APIHandler(nil))
+	th.initialize()
+	return th, nil
+}
+
+func getValueFromParams(params *interface{}, name string) (interface{}, bool) {
+	data, ok := (*params).(map[string]interface{})
+	if !ok {
+		return nil, ok
+	}
+	return data[name], true
+}
+
+func registerTxHandlerSwagger(world *ecs.World, api *untyped.API) error {
+	//var txEndpoints []string
+
+	// Register tx endpoints
+	txs, err := world.ListTransactions()
+	if err != nil {
+		return err
+	}
+
+	txNameToTx := make(map[string]*transaction.ITransaction)
+	for _, tx := range txs {
+		txNameToTx[tx.Name()] = &tx
+	}
+
+	coreHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		txType, ok := getValueFromParams(&params, "txType")
+		if !ok {
+			return nil, errors.New("txType not found in params")
+		}
+		txTypeString, ok := txType.(string)
+		if !ok {
+			return nil, errors.New("txType was not a string")
+		}
+		fmt.Print(txTypeString)
+		return TransactionReply{
+			TxHash: "",
+			Tick:   0,
+		}, nil
+	})
+
+	createPersonaHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		return ecs.CreatePersonaTransactionResult{Success: true}, nil
+	})
+
+	authorizePersonaAddressHandler := swagger_runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
+		return ecs.AuthorizePersonaAddressResult{Success: true}, nil
+	})
+	api.RegisterOperation("POST", "/tx/core/{txType}", coreHandler)
+	api.RegisterOperation("POST", "/tx/persona/create-persona", createPersonaHandler)
+	api.RegisterOperation("POST", "/tx/persona/authorize-persona-address", authorizePersonaAddressHandler)
+
+	return nil
+}
+
+type EndpointsResult struct {
+	TxEndpoints    []string `json:"tx_endpoints"`
+	QueryEndpoints []string `json:"query_endpoints"`
+}
+
+func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
+	//var txEndpoints []string
+	coreHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		return struct {
+			test string
+		}{test: "test"}, nil
+	})
+	listHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		txs, err := world.ListTransactions()
+		txEndpoints := make([]string, 0, len(txs))
+		if err != nil {
+			return nil, err
+		}
+		for _, tx := range txs {
+			if tx.Name() != "create-persona" && tx.Name() != "authorize-persona-address" {
+				txEndpoints = append(txEndpoints, "/tx/core/"+tx.Name())
+			} else {
+				txEndpoints = append(txEndpoints, "/tx/persona/"+tx.Name())
+			}
+		}
+
+		queryEndpoints := make([]string, 0, len(world.ListReads())+3)
+		for _, read := range world.ListReads() {
+			queryEndpoints = append(queryEndpoints, "/query/core/"+read.Name())
+		}
+		queryEndpoints = append(queryEndpoints, "/query/http/endpoints")
+		queryEndpoints = append(queryEndpoints, "/query/persona/signer")
+		queryEndpoints = append(queryEndpoints, "/query/receipt/submit")
+		return EndpointsResult{
+			TxEndpoints:    txEndpoints,
+			QueryEndpoints: queryEndpoints,
+		}, nil
+	})
+	personaHandler := swagger_runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
+		return ReadPersonaSignerResponse{Status: "", SignerAddress: ""}, nil
+	})
+	receiptsHandler := swagger_runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
+		return struct {
+			start_tick uint64
+			end_tick   uint64
+			Receipt    []struct {
+				tx_hash string
+				tick    uint64
+				result  interface{}
+				errors  []string
+			}
+		}{start_tick: 0, end_tick: 0, Receipt: []struct {
+			tx_hash string
+			tick    uint64
+			result  interface{}
+			errors  []string
+		}{}}, nil
+	})
+	api.RegisterOperation("GET", "/query/core/{readType}", coreHandler)
+	api.RegisterOperation("GET", "/query/http/endpoints", listHandler)
+	api.RegisterOperation("GET", "/query/persona/signer", personaHandler)
+	api.RegisterOperation("GET", "/query/receipts/submit", receiptsHandler)
+
+	return nil
+}
 
 // NewHandler returns a new Handler that can handle HTTP requests. An HTTP endpoint for each
 // transaction and read registered with the given world is automatically created. The server runs on a default port
