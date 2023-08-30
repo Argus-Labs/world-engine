@@ -6,6 +6,20 @@
 
 The easiest way to install a Cosmos-SDK Blockchain running Polaris is to download a pre-built binary. You can find the latest binaries on the [releases](https://github.com/polaris/releases) page.
 
+### From Prebuilt Docker Image
+
+Pull `chain` prebuild Docker Image:
+```bash
+docker pull us-docker.pkg.dev/argus-labs/world-engine/chain:<latest/tag_version>
+```
+
+Run `chain` container, supply the DA_BASE_URL and DA_AUTH_TOKEN environment variables accordingly:
+```bash
+docker run -it --rm -e DA_BASE_URL=http://celestia-da-layer-url:26658 -e DA_AUTH_TOKEN=celestia-da-later-token  us-docker.pkg.dev/argus-labs/world-engine/chain:latest
+```
+
+See the Docker Compose section below for instructions on running both the `chain` and `Celestia Devnet` stack.
+
 ### From Source
 
 **Step 1: Install Golang & Foundry**
@@ -110,8 +124,9 @@ Start the `chain` and `celestia-devnet` using `chain/docker-compose.yml`, make s
 
 - Start the `chain` / `evm_base_shard`
   ```
-  docker compose up chain -d
+  docker compose up chain --buiild --detach
   ```
+
 
 
 
