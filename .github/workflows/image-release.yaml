@@ -1,0 +1,59 @@
+name: image-release-pipeline
+
+## workflow will trigger on below condition,
+## except image release that have jobs condition to trigger only on tagging
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*'
+
+env:
+  REGISTRY_URL: us-docker.pkg.dev
+
+jobs:
+  chain-release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: chain
+    # Add "id-token" with the intended permissions.
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: GCP auth
+        id: auth
+        uses: google-github-actions/auth@v1
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
+      - name: GCP - Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID_PACKAGES }}
+      - name: Docker - Auth to artifact registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGISTRY_URL }}
+      - name: Docker - Build
+        run: |
+          docker build -t chain-local-build:latest .
+      - name: Docker - Publish Image
+        run: |
+          ## Construct image_id
+          IMAGE_ID_CHAIN=${{ env.REGISTRY_URL }}/${{ github.repository_owner }}/${{ github.event.repository.name }}/chain
+          IMAGE_ID_CHAIN=$(echo $IMAGE_ID_CHAIN | tr '[A-Z]' '[a-z]')
+
+          ## Get version from tag name, or use latest when on main branch
+          VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+          [ "$VERSION" == "main" ] && VERSION=latest
+
+          docker tag chain-local-build:latest $IMAGE_ID_CHAIN:$VERSION .
+          docker push $IMAGE_ID_CHAIN:$VERSION
