@@ -46,6 +46,16 @@ func (c *ComponentType[T]) Name() string {
 	return c.impl.Name()
 }
 
+// RemoveFrom removes this component form the given entity.
+func (c *ComponentType[T]) RemoveFrom(w *World, id EntityID) error {
+	return c.impl.RemoveFrom(w.impl, id)
+}
+
+// AddTo adds this component to the given entity.
+func (c *ComponentType[T]) AddTo(w *World, id EntityID) error {
+	return c.impl.AddTo(w.impl, id)
+}
+
 // Get returns the component data that is associated with the given id. An error is returned if this entity
 // is not actually associated with this component type.
 func (c *ComponentType[T]) Get(w *World, id EntityID) (comp T, err error) {
