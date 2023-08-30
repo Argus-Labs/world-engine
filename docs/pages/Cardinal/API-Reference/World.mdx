@@ -10,20 +10,23 @@ package main
 
 import (
     "log"
+	"time"
+
 
     "pkg.world.dev/world-engine/cardinal/ecs"
 )
 
 func main() {
     redisAddr := os.Getenv("redis_address")
-    redisStore := storage.NewRedisStorage(storage.Options{Addr: redisAddr}, "my-world")
-
-    worldStore := storage.NewWorldStorage(&redisStore)
+    redisPassword := os.Getenv("redis_password")
 
     world, err := ecs.NewWorld(
-		worldStore,
+		redisAddr,
+		redisPassword,
 		ecs.WithNamespace("my-world"),
 		ecs.WithReceiptHistorySize(10),
+		ecs.WithTickInterval(500 * time.Millisecond),
+		ecs.WithPort("4001"),
 	)
     if err != nil {
         log.Fatal(err)
@@ -36,14 +39,14 @@ func main() {
 `NewWorld` creates a new `World` object.
 
 ```go
-func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error)
+func NewWorld(addr, password string, opts ...WorldOption) (*World, error)
 ```
 
 ### Parameters
 | Parameter | Type                        | Description                                               |
 |-----------|-----------------------------|-----------------------------------------------------------|
 | s         | storage.WorldStorage       | The storage backend to be used for the world.             |
-| opts      | ...Option                  | Optional functional options for configuring the world.    |
+| opts      | ...WorldOption                  | Options for configuring the world.  |
 
 ### Return Values
 
@@ -56,7 +59,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error)
 
 #### WithAdapter
 
-The `WithAdapter` world option enables `World` objects to read transactions from the sequencer (EVM base shard), and rebuild game state from those transactions. When running World Engine in production, the `WithAdapter` option must be used.
+The `WithAdapter` world option enables `World` objects to read/write transactions to/from the sequencer (EVM base shard), and rebuild game state from those transactions. When running World Engine in production, the `WithAdapter` option must be used.
 
 ```go
 func WithAdapter(adapter shard.Adapter) Option
@@ -90,6 +93,48 @@ func WithNamespace(id string) Option
 |-----------|---------|-----------------------------------------------|
 | ns        | string  | The namespace to be set for World. |
 
+
+#### WithPort
+
+The `WithPort` option allows for a custom port to be set for the World's server. If this option is unset, Cardinal checks for a `CARDINAL_PORT` environment variable. If that is also unset, it uses a default port of 4040.
+
+```go
+func WithPort(port string) WorldOption
+```
+
+| Parameter | Type    | Description                                   |
+|-----------|---------|-----------------------------------------------|
+| port        | string  | The port number for the world's server. |
+
+
+#### WithDisableSignatureVerification
+
+The `WithDisableSignatureVerification` disables signature verification on the World's server. This should only be used for testing.
+
+```go
+func WithDisableSignatureVerification() WorldOption
+```
+This method has no parameters.
+
+#### WithLoopInterval
+
+The `WithLoopInterval` sets the tick intervals of the World. If unset, a tick will occur every 1 second.
+
+```go
+func WithLoopInterval(interval time.Duration) WorldOption {
+```
+
+| Parameter | Type    | Description                                   |
+|-----------|---------|-----------------------------------------------|
+| interval        | time.Duration  | The interval of time for each tick. |
+
+
+##### Example
+
+```go
+// option to make ticks happen every 500 milliseconds.
+opt := WithLoopInterval(500 * time.Millisecond)
+```
 
 ## Methods
 
@@ -141,7 +186,7 @@ func main() {
 
 
 ```go
-func (w *World) RegisterComponents(components ...component.IComponentType) error
+func (w *World) RegisterComponents(components ...AnyComponentType) error
 ```
 #### Example
 
@@ -174,7 +219,7 @@ func main() {
 
 | Parameter    | Type                    | Description                                                    |
 |--------------|-------------------------|----------------------------------------------------------------|
-| components   | ...component.IComponentType | Variadic parameter for components to be registered with the World. |
+| components   | ...AnyComponentType | Variadic parameter for components to be registered with the World. |
 
 #### Return Value
 
@@ -188,7 +233,7 @@ func main() {
 `RegisterReads` registers the reads in the `World`. This allows the `Read` endpoints to be automatically generated.
 
 ```go
-func (w *World) RegisterReads(reads ...IRead) error
+func (w *World) RegisterReads(reads ...AnyReadType) error
 ```
 #### Example
 
@@ -219,7 +264,7 @@ func main() {
 #### Parameters
 | Parameter    | Type       | Description                                                   |
 |--------------|------------|---------------------------------------------------------------|
-| reads        | ...IRead   | Variadic parameter for IRead instances to be registered.      |
+| reads        | ...AnyReadType   | Variadic parameter for IRead instances to be registered.      |
 
 
 #### Return Value
@@ -236,7 +281,7 @@ func main() {
 </Callout>
 
 ```go
-func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error
+func (w *World) RegisterTransactions(txs ...AnyTransaction) error
 ```
 
 #### Example
@@ -267,7 +312,7 @@ func main() {
 #### Parameters
 | Parameter        | Type                | Description                                                    |
 |------------------|---------------------|----------------------------------------------------------------|
-| txs              | ...transaction.ITransaction | Variadic parameter for ITransaction instances to be registered. |
+| txs              | ...AnyTransaction                 | Variadic parameter for ITransaction instances to be registered. |
 
 #### Return Value
 | Type   | Description                                                               |
@@ -280,7 +325,7 @@ func main() {
 `CreateMany` creates a specified amount of entities with a specified set of components.
 
 ```go
-func (w *World) CreateMany(num int, components ...component.IComponentType) ([]storage.EntityID, error)
+func (w *World) CreateMany(num int, components ...AnyComponentType) ([]EntityID, error)
 ```
 
 #### Example
@@ -315,13 +360,13 @@ func main() {
 | Parameter    | Type                | Description                                                                                               |
 |--------------|---------------------|-----------------------------------------------------------------------------------------------------------|
 | num          | int                 | The number of entities to create.                                                                        |
-| components   | ...component.IComponentType | Variadic parameter for components to associate with the created entities.                             |
+| components   | ...AnyComponentType | Variadic parameter for components to associate with the created entities.                             |
 
 #### Return Values
 
 | Type             | Description                                                                   |
 |------------------|-------------------------------------------------------------------------------|
-| []storage.EntityID | A slice of storage.EntityID representing the IDs of the created entities.    |
+| []EntityID | A slice of EntityID representing the IDs of the created entities.    |
 | error            | An error indicating any issues that occurred during the creation process.  |
 
 ### Create
@@ -329,7 +374,7 @@ func main() {
 `Create` creates a single entity with a given set of components.
 
 ```go
-func (w *World) Create(components ...component.IComponentType) (storage.EntityID, error)
+func (w *World) Create(components ...AnyComponentType) (EntityID, error)
 ```
 
 #### Example
@@ -361,73 +406,16 @@ func main() {
 #### Parameters
 | Parameter    | Type                | Description                                                                                               |
 |--------------|---------------------|-----------------------------------------------------------------------------------------------------------|
-| components   | ...component.IComponentType | Variadic parameter for components to associate with the created entity.                               |
+| components   | ...AnyComponentType | Variadic parameter for components to associate with the created entity.                               |
 
 
 #### Return Values
 | Type             | Description                                                                   |
 |------------------|-------------------------------------------------------------------------------|
-| storage.EntityID | The ID of the created entity.                                                 |
+| EntityID | The ID of the created entity.                                                 |
 | error            | An error indicating any issues that occurred during the creation process.  |
 
 
-
-### Valid
-
-`Valid` checks if a given entity exists within the `World`.
-
-```go
-func (w *World) Valid(id storage.EntityID) (bool, error)
-```
-
-#### Example
-```go
-package main
-
-import (
-	"log"
-
-    "pkg.world.dev/world-engine/cardinal/ecs"
-
-    "github.com/my-username/my-world-engine-project/components"
-)
-
-func main() {
-    // ... world setup ...
-
-	// create an entity with the location and health component.
-    entityID, err := world.Create(
-		components.LocationComponent,
-		components.HealthComponent,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// ok = true, err = nil
-	ok, err := world.Valid(entityID)
-}
-```
-#### Parameters
-| Parameter    | Type                   | Description                            |
-|--------------|------------------------|----------------------------------------|
-| id           | storage.EntityID       | The entity ID to check for validity.   |
-
-#### Return Values
-
-| Type   | Description                                                                              |
-|--------|------------------------------------------------------------------------------------------|
-| bool   | A boolean indicating whether the entity with the given ID is valid.                     |
-| error  | An error indicating any issues that occurred during the validation process.            |
-
-
-### Len
-
-`Len` returns how many entities currenlty exist within the `World`.
-
-```go
-func (w *World) Len() (int, error)
-```
 ### Remove
 
 `Remove` removes a given entity from the `World`.
@@ -479,55 +467,23 @@ func main() {
 |--------|-----------------------------------------------------------------------------------------------|
 | error  | An error indicating any issues that occurred during the removal process.                   |
 
-### StartGameLoop
+### StartGame
 
-`StartGameLoop` begins the game loop in a new Go routine. `StartGameLoop` runs a tick at a specified interval.
+`StartGame` starts the game by loading any previously saved game state, spinning up the transaction/read handler, and starting the game ticks. This method blocks the main Go routine. If for whatever reason execution needs to continue after calling this method, it should be called in a separate go routine.
 
 ```go
-func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration)
+func (w *World) StartGame() error
 ```
 
 #### Example
 ```go
-world.StartGameLoop(ctx, time.Second * 1) // tick every second
+err := world.StartGameLoop()
+if err != nil {
+	log.Fatal(err)
+}
 ```
-
-#### Parameters
-| Parameter      | Type                    | Description                                       |
-|----------------|-------------------------|---------------------------------------------------|
-| ctx            | context.Context         | The context for the game loop.                   |
-| loopInterval   | time.Duration           | The interval at which the game loop should run.  |
-
-### LoadGameState
-
-`LoadGameState` loads any game state stored in the Redis instance. If no game state is stored, this method is a no-op.
-
-
-<Callout type={"warning"}>
-    `LoadGameState` must only be called once, and must be called after transactions and components are registered, else, an error will be returned.
-</Callout>
-
-```go
-func (w *World) LoadGameState() error
-```
-
-### RecoverFromChain
-
-`RecoverFromChain` will recover the `World` state from the EVM base shard, if and only if the adapter option was used when instantiating the `World`. This method cannot be called in the middle of a running `World` (i.e. when the tick is greater than 0).
-
-```go
-func (w *World) RecoverFromChain(ctx context.Context) error
-```
-
-#### Parameters
-
-| Parameter      | Type                 | Description                                                                                                                                               |
-|----------------|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| ctx            | context.Context      | The context for the recovery process.                                                                                                                     |
 
 #### Return Value
-| Type   | Description                                                                               |
-|--------|-------------------------------------------------------------------------------------------|
-| error  | An error indicating any issues that occurred during the recovery process.                |
-
-
+| Type   | Description                                                                                   |
+|--------|-----------------------------------------------------------------------------------------------|
+| error  | An error indicating any issues when starting the game.                   |
