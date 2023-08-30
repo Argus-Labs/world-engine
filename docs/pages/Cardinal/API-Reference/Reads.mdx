@@ -5,7 +5,7 @@ This API reference will help you understand how to use Reads and configuration o
 ```go
 package reads
 
-import "pkg.world.dev/world-engine/cardinal/ecs"
+import "pkg.world.dev/world-engine/cardinal"
 
 type PlanetInfoRequest struct {
 	TargetID uint64
@@ -19,9 +19,13 @@ type PlanetInfoReply struct {
 	Silver  uint64
 }
 
-var PlanetInfo = ecs.NewReadType[PlanetInfoRequest, PlanetInfoReply](
+var PlanetInfo = cardinal.NewReadType[PlanetInfoRequest, PlanetInfoReply](
 	"planet-info",
-	ecs.WithReadEVMSupport[PlanetInfoRequest, PlanetInfoReply],
+	func(w *cardinal.World, req PlanetInfoRequest) (PlanetInfoReply, error) {
+		// do some query stuff...
+		reply := doSomeQueryThing(req)
+		return reply, nil
+	},
 )
 ```
 

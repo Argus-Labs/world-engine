@@ -5,16 +5,14 @@ This API reference will help you understand how to use components and configurat
 ```go
 package components
 
-import "pkg.world.dev/world-engine/cardinal/ecs"
+import "pkg.world.dev/world-engine/cardinal"
 
 type Health struct {
     Amount      uint64
     Capacity    uint64
 }
 
-var HealthComponent = ecs.NewComponentType[Health](
-	ecs.WithDefault(Health{Amount: 100, Capacity: 100}),
-)
+var HealthComponent = cardinal.NewComponentType[Health]()
 ```
 
 ## NewComponentType
@@ -22,7 +20,28 @@ var HealthComponent = ecs.NewComponentType[Health](
 `NewComponentType` creates a new `ComponentType`. `ComponentType`s wrap around your component data types and provide uniform methods to mutate and read component data.
 
 ```go
-func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T]
+func NewComponentType[T any]() *ComponentType[T]
+```
+
+### Type Parameter
+
+| Type Parameter | Type | Description                                     |
+|----------------|------|-------------------------------------------------|
+| `T`             | `any`  | The data structure for the component.             |
+
+### Return Value
+
+| Type                 | Description                                       |
+|----------------------|---------------------------------------------------|
+| `*ComponentType[T]`    | A pointer to a new instance of ComponentType[T].  |
+
+
+## NewComponentTypeWithDefault
+
+`NewComponentTypeWithDefault` creates a `ComponentType` with a default value that is applied to newly created entities with the component.
+
+```go
+func NewComponentTypeWithDefault[T any](defaultVal T) *ComponentType[T]
 ```
 
 ### Type Parameter
@@ -33,31 +52,16 @@ func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T]
 
 ### Parameters
 
-| Parameter  | Type                    | Description                                                     |
-|------------|-------------------------|-----------------------------------------------------------------|
-| `opts`     | `...ComponentOption[T]` | Variadic parameter that allows passing one or more `ComponentOption` for customization. |
+| Parameter   | Type          | Description                                                                  |
+|-------------|---------------|------------------------------------------------------------------------------|
+| `defaultVal`         | `T`      | The default value for this component.                                                          |
 
-### Return Value
+#### Return Values
 
 | Type                 | Description                                       |
 |----------------------|---------------------------------------------------|
 | `*ComponentType[T]`    | A pointer to a new instance of ComponentType[T].  |
 
-
-### Options
-
-#### WithDefault
-
-The `WithDefault` component option enables entities created with this component to be instantiated with a default value.
-Note: since this Option is passed into a generic function with the type parameter already specified, you do not need to pass in the type again to the option itself.
-
-```go
-func WithDefault[T any](defaultVal T) ComponentOption[T]
-```
-
-| Parameter     | Type         | Description                                   |
-|---------------|--------------|-----------------------------------------------|
-| `defaultVal`  | `T`          | The default value to be set for the component type. |
 
 
 ## Methods

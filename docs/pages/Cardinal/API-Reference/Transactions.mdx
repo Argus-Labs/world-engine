@@ -5,7 +5,9 @@ This API reference will help you understand how to use transactions and configur
 ```go
 package tx
 
-import "pkg.world.dev/world-engine/cardinal/ecs"
+import (
+	"pkg.world.dev/world-engine/cardinal"
+)
 
 // AttackMsg is the input for the Attack transaction.
 type AttackMsg struct {
@@ -18,9 +20,8 @@ type AttackResult struct {
 }
 
 // AttackTx is an attack transaction.
-var AttackTx = ecs.NewTransactionType[AttackMsg, AttackResult](
+var AttackTx = cardinal.NewTransactionType[AttackMsg, AttackResult](
 	"attack",
-	ecs.WithTxEVMSupport[AttackMsg, AttackResult],
 )
 ```
 
@@ -29,18 +30,18 @@ var AttackTx = ecs.NewTransactionType[AttackMsg, AttackResult](
 `NewTransactionType` creates a new `TransactionType`. `TransactionType`s wrap around an input and output type. The input specifies the input for a transaction and the output represents the result of the transaction's execution.
 
 ```go
-func NewTransactionType[In, Out any](
+func NewTransactionType[Msg, Result any](
 	name string,
-	opts ...func() func(*TransactionType[In, Out]),
-) *TransactionType[In, Out]
+	opts ...func() func(*TransactionType[Msg, Result]),
+) *TransactionType[Msg, Result]
 ```
 
 ### Type Parameters
 
 | Type Parameter | Type | Description                                     |
 |----------------|------|-------------------------------------------------|
-| In             | any  | The input type of the transaction.              |
-| Out            | any  | The output type of the transaction.             |
+| Msg             | any  | The input type of the transaction.              |
+| Result            | any  | The result type of the transaction.             |
 
 
 ### Parameters
@@ -48,13 +49,13 @@ func NewTransactionType[In, Out any](
 | Parameter | Type                                  | Description                                         |
 |-----------|---------------------------------------|-----------------------------------------------------|
 | name      | string                                | The name of the new transaction type, as well as the name of the endpoint for this transaction               |
-| opts      | func() func(*TransactionType[In, Out]) | Optional functional options for configuring the transaction type. |
+| opts      | func() func(*TransactionType[Msg, Result]) | Optional functional options for configuring the transaction type. |
 
 ### Return Value
 
 | Type                 | Description                                       |
 |----------------------|---------------------------------------------------|
-| *TransactionType[In, Out]    | A pointer to a new instance of TransactionType[In, Out].  |
+| *TransactionType[Msg, Result]    | A pointer to a new instance of TransactionType[Msg, Result].  |
 
 ## Options
 
@@ -72,44 +73,17 @@ import Link from 'next/link'
 </Callout>
 
 ```go
-func WithTxEVMSupport[In, Out any]() func(transactionType *TransactionType[In, Out])
+func WithTxEVMSupport[Msg, Result any]() func(transactionType *TransactionType[Msg, Result])
 ```
 
 ## Methods
-
-### AddToQueue
-
-`AddToQueue` adds a transaction to the world's queue, enabling it to be executed in the next game tick.
-
-```go
-func (t *TransactionType[In, Out]) AddToQueue(world *World, data In, sigs ...*sign.SignedPayload) transaction.TxID
-```
-
-#### Example
-```go
-txID := AttackTx.AddToQueue(w, AttackMsg{TargetID: 3502})
-```
-
-#### Parameters
-
-| Parameter   | Type                 | Description                                                                          |
-|-------------|----------------------|--------------------------------------------------------------------------------------|
-| world       | *World               | A pointer to a World instance to which the transaction will be added.               |
-| data        | In                   | The transaction input data.                                      |
-| sigs        | ...*sign.SignedPayload | Variadic parameter for signed payloads associated with the transaction (optional).   |
-
-#### Return Value
-
-| Type | Description                                                                           |
-|-------------|---------------------------------------------------------------------------------------|
-| transaction.TxID | The unique transaction ID assigned to the newly added transaction in the world object.  |
 
 ### AddError
 
 `AddError` adds an error to a specific transaction that signifies an issue has occurred with the transaction's execution.
 
 ```go
-func (t *TransactionType[In, Out]) AddError(world *World, id transaction.TxID, err error)
+func (t *TransactionType[Msg, Result]) AddError(world *World, id transaction.TxID, err error)
 ```
 
 #### Example
@@ -131,7 +105,7 @@ AttackTx.AddError(w, txID, fmt.Errorf("player does with id %d does not exist", t
 `SetResult` adds a result for a transaction's execution. `SetResult` uses the transaction type's output data structure for the result data. Setting a result for a transaction allows the result to be queried by clients.
 
 ```go
-func (t *TransactionType[In, Out]) SetResult(world *World, id transaction.TxID, result Out)
+func (t *TransactionType[Msg, Result]) SetResult(world *World, id transaction.TxID, result Out)
 ```
 
 #### Example
@@ -154,7 +128,7 @@ AttackTx.SetResult(w, txID, AttackResult{Success: true})
 `GetReceipt` gets the result, if any, and errors, if any, associated with a specific transaction.
 
 ```go
-func (t *TransactionType[In, Out]) GetReceipt(world *World, id transaction.TxID) (v Out, errs []error, ok bool)
+func (t *TransactionType[Msg, Result]) GetReceipt(world *World, hash TxHash) (r Result, errs []error, ok bool)
 ```
 
 #### Example
@@ -167,13 +141,13 @@ output, errs, ok := AttackTx.GetReceipt(w, txID)
 | Parameter   | Type                 | Description                                         |
 |-------------|----------------------|-----------------------------------------------------|
 | world       | *World               | A pointer to a World instance.  |
-| id          | transaction.TxID     | The ID of the transaction we want the receipt for.    |
+| id          | TxHash    | The hash of the transaction for the receipt.    |
 
 #### Return Values
 
 | Type        | Description                                                     |
 |--------------------|-----------------------------------------------------------------|
-| Out              | The transaction result.  |
+| Result              | The transaction result.  |
 | []error               | A slice of errors associated with the transaction.            |
 | bool                 | A boolean indicating if the receipt was found in the world.  |
 
@@ -182,7 +156,7 @@ output, errs, ok := AttackTx.GetReceipt(w, txID)
 `In` is a method primarily used in Systems that retrieve all transactions of the `TransactionType` from the `World`'s `TransactionQueue`.
 
 ```go
-func (t *TransactionType[In, Out]) In(tq *TransactionQueue) []TxData[In]
+func (t *TransactionType[Msg, Result]) In(tq *TransactionQueue) []TxData[In]
 ```
 
 #### Example
@@ -191,6 +165,9 @@ func (t *TransactionType[In, Out]) In(tq *TransactionQueue) []TxData[In]
 txs := AttackTx.In(tq)
 for _, tx := range txs {
 	// ... do something with each tx
+	txVal := tx.Value()
+	hash := tx.Hash()
+	sig := tx.Sig()
 }
 ```
 
@@ -205,4 +182,4 @@ for _, tx := range txs {
 
 | Type        | Description                                                     |
 |--------------------|-----------------------------------------------------------------|
-| []TxData[In]       | A slice of TxData - containing ID, Value (type: In), and a Signature.|
+| []TxData[Msg]       | A slice of TxData - containing TxHash, Value (type: Msg), and a Signature.|

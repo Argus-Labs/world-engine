@@ -3,10 +3,10 @@
 Systems are the functions that run every tick. Systems must adhere to the following function signature:
 
 ```go
-type System func(*World, *TransactionQueue) error
+type System func(*World, *TransactionQueue, *Logger) error
 ```
 
-Systems are given a reference to the ECS `World` object, as well as a `TransactionQueue`. This provides access any transaction currently queued for the current tick.
+Systems are given a reference to the `World` object, a `TransactionQueue`, and a system specific logger.
 
 ## Getting Transactions
 
@@ -15,7 +15,7 @@ In order to get specific transactions from the queue, utilize a specific transac
 ```go
 import "github.com/argus-labs/world-engine/cardinal/ecs"
 
-func AttackSystem(world *ecs.World, queue *ecs.TransactionQueue) error {
+func AttackSystem(world *World, queue *TransactionQueue, logger *Logger) error {
     txs := AttackTransaction.In(queue)
 	for _, tx := range txs {
 		// do something with each tx...
@@ -25,9 +25,9 @@ func AttackSystem(world *ecs.World, queue *ecs.TransactionQueue) error {
 ## TxData
 
 ```go
-type TxData[In any] struct {
-    ID    transaction.TxID     // unique transaction ID
-    Value In                   // transaction input
+type TxData[Msg any] struct {
+    ID    transaction.TxHash     // unique transaction hash
+    Value Msg                   // transaction input
     Sig   *sign.SignedPayload  // optional transaction signature
 }
 ```
@@ -41,7 +41,7 @@ type Health struct {
 	Cap    uint64
 }
 
-var HealthComponent = ecs.NewComponentType[Health]()
+var HealthComponent = cardinal.NewComponentType[Health]()
 
 // define an attack transaction
 type AttackMsg struct {
@@ -53,16 +53,16 @@ type AttackResult struct {
 	Success bool
 }
 
-var AttackTx = ecs.NewTransactionType[AttackMsg, AttackResult]("attack")
+var AttackTx = cardinal.NewTransactionType[AttackMsg, AttackResult]("attack")
 
 // implement the system
-var AttackSystem ecs.System = func(world *ecs.World, queue *ecs.TransactionQueue) error {
+func AttackSystem(world *cardinal.World, queue *cardinal.TransactionQueue, logger cardinal.Logger) error {
 	// get all attack transactions in the queue
 	txs := AttackTx.In(queue)
 
 	for _, tx := range txs {
 		// get the underlying attack tx struct
-		atk := tx.Value
+		atk := tx.Value()
 
 		// update the component based on the attack
 		err := HealthComponent.Update(world, storage.EntityID(atk.TargetPlayer), func(health Health) Health {
@@ -71,12 +71,12 @@ var AttackSystem ecs.System = func(world *ecs.World, queue *ecs.TransactionQueue
 		})
 		// if an error occurred, set the result, and add the error to the transaction.
 		if err != nil {
-			AttackTx.SetResult(world, tx.ID, AttackResult{Success: false})
-			AttackTx.AddError(world, tx.ID, err)
+			AttackTx.SetResult(world, tx.Hash(), AttackResult{Success: false})
+			AttackTx.AddError(world, tx.Hash(), err)
 			continue
 		}
 		// set result for success case
-		AttackTx.SetResult(world, tx.ID, AttackResult{Success: true})
+		AttackTx.SetResult(world, tx.Hash(), AttackResult{Success: true})
 	}
 	return nil
 }
