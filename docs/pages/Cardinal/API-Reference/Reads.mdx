@@ -1,9 +1,14 @@
+
+import { Callout } from 'nextra/components'
+
+import Link from 'next/link'
+
 # Reads
 
-This API reference will help you understand how to use Reads and configuration options available for Reads.
+Reference documentation for Cardinal Reads.
 
 ```go
-package reads
+package read
 
 import "pkg.world.dev/world-engine/cardinal"
 
@@ -23,8 +28,8 @@ var PlanetInfo = cardinal.NewReadType[PlanetInfoRequest, PlanetInfoReply](
 	"planet-info",
 	func(w *cardinal.World, req PlanetInfoRequest) (PlanetInfoReply, error) {
 		// do some query stuff...
-		reply := doSomeQueryThing(req)
-		return reply, nil
+		reply, err := doSomeQueryLogic(req)
+		return reply, err
 	},
 )
 ```
@@ -37,7 +42,6 @@ var PlanetInfo = cardinal.NewReadType[PlanetInfoRequest, PlanetInfoReply](
 func NewReadType[Request any, Reply any](
 	name string,
 	handler func(world *World, req Request) (Reply, error),
-	opts ...func() func(readType *ReadType[Request, Reply]),
 ) *ReadType[Request, Reply]
 ```
 
@@ -54,7 +58,6 @@ func NewReadType[Request any, Reply any](
 |-------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------|
 | name        | string                                        | The name of the new read type.                                                                    |
 | handler     | func(world *World, req Request) (Reply, error) | The handler function for processing requests and generating a reply.                            |
-| opts        | variadic functions of func() func(*ReadType[Request, Reply]) | Optional functional options that configure the properties of the read type.  |
 
 
 ### Return Value
@@ -63,22 +66,40 @@ func NewReadType[Request any, Reply any](
 |-------------------------|-------------------------------------------------------------------------|
 | *ReadType[Request, Reply] | A pointer to a new instance of ReadType[Request, Reply].                |
 
-## Options
 
-### WithReadEVMSupport
+## NewReadTypeWithEVMSupport
 
-The `WithReadEVMSupport` enables this read to be sent from EVM smart contracts. Note: the option requires the type parameters again. This is needed so option can generate the concrete EVM equivalent types for the request and reply of the read.
-
-
-import { Callout } from 'nextra/components'
-
-import Link from 'next/link'
-
+`NewReadTypeWithEVMSupport` creates a new `ReadType` with EVM support, allowing this read to handle requests originating from EVM smart contracts.
 <Callout type={"warning"}>
-    Not all Go types are supported when using `WithReadEVMSupport`. <Link href="/Cardinal/API-Reference/evm-support">Read More</Link>
+    Not all Go types are supported when using EVM supported reads. <Link href="/Cardinal/API-Reference/evm-support">Read More</Link>
 </Callout>
 
 ```go
-func WithReadEVMSupport[Request, Reply any]() func(transactionType *ReadType[Request, Reply])
+func NewReadTypeWithEVMSupport[Request any, Reply any](
+	name string,
+	handler func(world *World, req Request) (Reply, error),
+) *ReadType[Request, Reply]
 ```
+
+### Type Parameters
+
+| Type Parameter | Description                                     |
+|----------------|-------------------------------------------------|
+| Request        | The type parameter representing the request type. |
+| Reply          | The type parameter representing the reply type.   |
+
+### Parameters
+
+| Parameter   | Type                                          | Description                                                                                        |
+|-------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------|
+| name        | string                                        | The name of the new read type.                                                                    |
+| handler     | func(world *World, req Request) (Reply, error) | The handler function for processing requests and generating a reply.                            |
+
+
+### Return Value
+
+| Return Type             | Description                                                             |
+|-------------------------|-------------------------------------------------------------------------|
+| *ReadType[Request, Reply] | A pointer to a new instance of ReadType[Request, Reply].                |
+
 
