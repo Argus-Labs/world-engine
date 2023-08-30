@@ -124,7 +124,7 @@ Start the `chain` and `celestia-devnet` using `chain/docker-compose.yml`, make s
 
 - Start the `chain` / `evm_base_shard`
   ```
-  docker compose up chain --buiild --detach
+  docker compose up chain --build --detach
   ```
 
 
