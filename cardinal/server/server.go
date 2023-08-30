@@ -54,6 +54,7 @@ const (
 	getSignerForPersonaStatusAssigned  = "assigned"
 )
 
+// NewSwaggerHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
 func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (*Handler, error) {
 	specDoc, err := loads.Spec(pathToSwaggerSpec)
 	if err != nil {
@@ -86,6 +87,7 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 	return th, nil
 }
 
+// utility function to extract parameters from swagger handlers
 func getValueFromParams(params *interface{}, name string) (interface{}, bool) {
 	data, ok := (*params).(map[string]interface{})
 	if !ok {
@@ -94,6 +96,7 @@ func getValueFromParams(params *interface{}, name string) (interface{}, bool) {
 	return data[name], true
 }
 
+// register transaction handlers on swagger server
 func registerTxHandlerSwagger(world *ecs.World, api *untyped.API) error {
 	//var txEndpoints []string
 
@@ -138,11 +141,13 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API) error {
 	return nil
 }
 
+// result struct for /query/http/endpoints
 type EndpointsResult struct {
 	TxEndpoints    []string `json:"tx_endpoints"`
 	QueryEndpoints []string `json:"query_endpoints"`
 }
 
+// register query endpoints for swagger server
 func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
 	//var txEndpoints []string
 	coreHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
