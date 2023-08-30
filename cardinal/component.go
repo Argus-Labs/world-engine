@@ -46,7 +46,7 @@ func (c *ComponentType[T]) Name() string {
 	return c.impl.Name()
 }
 
-// RemoveFrom removes this component form the given entity.
+// RemoveFrom removes this component from the given entity.
 func (c *ComponentType[T]) RemoveFrom(w *World, id EntityID) error {
 	return c.impl.RemoveFrom(w.impl, id)
 }
