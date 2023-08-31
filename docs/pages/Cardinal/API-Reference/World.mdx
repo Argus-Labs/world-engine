@@ -10,8 +10,7 @@ package main
 
 import (
     "log"
-	"time"
-
+    "time"
 
     "pkg.world.dev/world-engine/cardinal"
 )
@@ -192,7 +191,7 @@ func (w *World) RegisterComponents(components ...AnyComponentType) error
 package main
 
 import (
-	"log"
+    "log"
 
     "github.com/my-username/my-world-engine-project/component"
 )
@@ -237,7 +236,7 @@ func (w *World) RegisterReads(reads ...AnyReadType) error
 package main
 
 import (
-	"log"
+    "log"
 
     "github.com/my-username/my-world-engine-project/read"
 )
@@ -283,7 +282,7 @@ func (w *World) RegisterTransactions(txs ...AnyTransaction) error
 package main
 
 import (
-	"log"
+    "log"
 
     "github.com/my-username/my-world-engine-project/tx"
 )
@@ -325,7 +324,7 @@ func (w *World) CreateMany(num int, components ...AnyComponentType) ([]EntityID,
 package main
 
 import (
-	"log"
+    "log"
 
     "github.com/my-username/my-world-engine-project/components"
 )
@@ -372,7 +371,7 @@ func (w *World) Create(components ...AnyComponentType) (EntityID, error)
 package main
 
 import (
-	"log"
+    "log"
 
     "github.com/my-username/my-world-engine-project/components"
 )
@@ -417,7 +416,7 @@ func (w *World) Remove(id storage.EntityID) error
 package main
 
 import (
-	"log"
+    "log"
 
     "github.com/my-username/my-world-engine-project/components"
 )
