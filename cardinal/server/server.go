@@ -13,7 +13,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/shard"
 
 	"github.com/go-openapi/loads"
-	swagger_runtime "github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
 )
@@ -87,8 +87,8 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 }
 
 // utility function to extract parameters from swagger handlers
-func getValueFromParams(params *interface{}, name string) (interface{}, bool) {
-	data, ok := (*params).(map[string]interface{})
+func getValueFromParams(params interface{}, name string) (interface{}, bool) {
+	data, ok := (params).(map[string]interface{})
 	if !ok {
 		return nil, ok
 	}
@@ -105,33 +105,24 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API) error {
 		return err
 	}
 
-	txNameToTx := make(map[string]*transaction.ITransaction)
+	txNameToTx := make(map[string]transaction.ITransaction)
 	for _, tx := range txs {
-		txNameToTx[tx.Name()] = &tx
+		txNameToTx[tx.Name()] = tx
 	}
 
-	coreHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		txType, ok := getValueFromParams(&params, "txType")
-		if !ok {
-			return nil, errors.New("txType not found in params")
-		}
-		txTypeString, ok := txType.(string)
-		if !ok {
-			return nil, errors.New("txType was not a string")
-		}
-		fmt.Print(txTypeString)
+	coreHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		return TransactionReply{
 			TxHash: "",
 			Tick:   0,
-		}, nil
+		}, errors.New("not implemented")
 	})
 
-	createPersonaHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		return ecs.CreatePersonaTransactionResult{Success: true}, nil
+	createPersonaHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		return ecs.CreatePersonaTransactionResult{Success: true}, errors.New("not implemented")
 	})
 
-	authorizePersonaAddressHandler := swagger_runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
-		return ecs.AuthorizePersonaAddressResult{Success: true}, nil
+	authorizePersonaAddressHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
+		return ecs.AuthorizePersonaAddressResult{Success: true}, errors.New("not implemented")
 	})
 	api.RegisterOperation("POST", "/tx/core/{txType}", coreHandler)
 	api.RegisterOperation("POST", "/tx/persona/create-persona", createPersonaHandler)
@@ -149,12 +140,12 @@ type EndpointsResult struct {
 // register query endpoints for swagger server
 func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
 	//var txEndpoints []string
-	coreHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+	coreHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		return struct {
 			test string
-		}{test: "test"}, nil
+		}{test: "test"}, errors.New("not implemented")
 	})
-	listHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+	listHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		txs, err := world.ListTransactions()
 		txEndpoints := make([]string, 0, len(txs))
 		if err != nil {
@@ -180,10 +171,10 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
 			QueryEndpoints: queryEndpoints,
 		}, nil
 	})
-	personaHandler := swagger_runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
-		return ReadPersonaSignerResponse{Status: "", SignerAddress: ""}, nil
+	personaHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
+		return ReadPersonaSignerResponse{Status: "", SignerAddress: ""}, errors.New("not implemented")
 	})
-	receiptsHandler := swagger_runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
+	receiptsHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
 		return struct {
 			start_tick uint64
 			end_tick   uint64
@@ -198,7 +189,7 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
 			tick    uint64
 			result  interface{}
 			errors  []string
-		}{}}, nil
+		}{}}, errors.New("not implemented")
 	})
 	api.RegisterOperation("GET", "/query/core/{readType}", coreHandler)
 	api.RegisterOperation("GET", "/query/http/endpoints", listHandler)
