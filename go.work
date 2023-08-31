@@ -1,9 +1,9 @@
 go 1.21
 
 use (
-	cardinal
+	//cardinal
 	chain
-	chain/contracts
-	magefiles
-	sign
+	//chain/contracts
+	//magefiles
+	//sign
 )
