@@ -38,6 +38,10 @@ var PlanetInfo = cardinal.NewReadType[PlanetInfoRequest, PlanetInfoReply](
 
 `NewReadType` creates a new `ReadType`. `ReadType`s wrap around a request and reply type. The request specifies the data needed for the read request. The reply type represents the data requested. Reads also require a function that implements the read.
 
+<Callout type={"warning"}>
+    Read handler functions should NOT modify state. State should only be modified in <Link href="/Cardinal/API-Reference/Systems">Systems</Link>.
+</Callout>
+
 ```go
 func NewReadType[Request any, Reply any](
 	name string,
