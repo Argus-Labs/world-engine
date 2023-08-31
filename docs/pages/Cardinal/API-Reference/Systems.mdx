@@ -17,8 +17,8 @@ import "github.com/argus-labs/world-engine/cardinal/ecs"
 
 func AttackSystem(world *World, queue *TransactionQueue, logger *Logger) error {
     txs := AttackTransaction.In(queue)
-	for _, tx := range txs {
-		// do something with each tx...
+    for _, tx := range txs {
+        // do something with each tx...
 		msg := tx.Value()
 		hash := tx.Hash()
 		sig := tx.Sig()
