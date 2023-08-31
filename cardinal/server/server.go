@@ -221,23 +221,13 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		"ReadPersonaSignerRequest",
 		makeReadPersonaSignerRequest,
 		handler.getPersonaSignerResponse)
-	receiptsHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
-		return struct {
-			start_tick uint64
-			end_tick   uint64
-			Receipt    []struct {
-				tx_hash string
-				tick    uint64
-				result  interface{}
-				errors  []string
-			}
-		}{start_tick: 0, end_tick: 0, Receipt: []struct {
-			tx_hash string
-			tick    uint64
-			result  interface{}
-			errors  []string
-		}{}}, errors.New("not implemented")
-	})
+
+	receiptsHandler := createSwaggerHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
+		"ListTxReceiptsRequest",
+		makeListTxReceiptsRequest,
+		getListTxReceiptsReplyFromRequest(world),
+	)
+
 	api.RegisterOperation("POST", "/query/game/{readType}", gameHandler)
 	api.RegisterOperation("POST", "/query/http/endpoints", listHandler)
 	api.RegisterOperation("POST", "/query/persona/signer", personaHandler)

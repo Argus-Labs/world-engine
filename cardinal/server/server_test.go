@@ -305,7 +305,6 @@ func TestHandleSwaggerServer(t *testing.T) {
 	err = json.NewDecoder(resp2.Body).Decode(&expectedReadPersonaSignerResponse)
 	assert.NilError(t, err)
 	reflect.DeepEqual(expectedReadPersonaSignerResponse, personaSignerResponse)
-
 }
 
 func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
@@ -672,6 +671,151 @@ func TestTransactionReceiptReturnCorrectTickWindows(t *testing.T) {
 	reply = getReceipts(tick)
 	tickCount = reply.EndTick - reply.StartTick - 1
 	assert.Equal(t, historySize-3, tickCount)
+}
+func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
+	swaggerQueryReceiptsEndpoint := "query/receipts/list"
+	for _, receiptEndpoint := range []string{txReceiptsEndpoint, swaggerQueryReceiptsEndpoint} {
+		// IncRequest in a transaction that increments the given number by 1.
+		type IncRequest struct {
+			Number int
+		}
+		type IncReply struct {
+			Number int
+		}
+
+		// DupeRequest is a transaction that appends a copy of the given string to itself.
+		type DupeRequest struct {
+			Str string
+		}
+		type DupeReply struct {
+			Str string
+		}
+
+		// ErrRequest is a transaction that will produce an error
+		type ErrRequest struct{}
+		type ErrReply struct{}
+
+		incTx := ecs.NewTransactionType[IncRequest, IncReply]("increment")
+		dupeTx := ecs.NewTransactionType[DupeRequest, DupeReply]("duplicate")
+		errTx := ecs.NewTransactionType[ErrRequest, ErrReply]("error")
+
+		world := inmem.NewECSWorldForTest(t)
+		assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
+		// System to handle incrementing numbers
+		world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+			for _, tx := range incTx.In(queue) {
+				incTx.SetResult(world, tx.TxHash, IncReply{
+					Number: tx.Value.Number + 1,
+				})
+			}
+			return nil
+		})
+		// System to handle duplicating strings
+		world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+			for _, tx := range dupeTx.In(queue) {
+				dupeTx.SetResult(world, tx.TxHash, DupeReply{
+					Str: tx.Value.Str + tx.Value.Str,
+				})
+			}
+			return nil
+		})
+		wantError := errors.New("some error")
+		// System to handle error production
+		world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+			for _, tx := range errTx.In(queue) {
+				errTx.AddError(world, tx.TxHash, wantError)
+				errTx.AddError(world, tx.TxHash, wantError)
+			}
+			return nil
+		})
+		assert.NilError(t, world.LoadGameState())
+
+		// World setup is done. First check that there are no transactions.
+		ctx := context.Background()
+		assert.NilError(t, world.Tick(ctx))
+
+		swaggerFilePath := ""
+		if receiptEndpoint == swaggerQueryReceiptsEndpoint {
+			swaggerFilePath = "./swagger.yml"
+		}
+		txh := makeTestTransactionHandler(t, world, swaggerFilePath, DisableSignatureVerification())
+
+		// We're going to be getting the list of receipts a lot, so make a helper to fetch the receipts
+		getReceipts := func(start uint64) ListTxReceiptsReply {
+			res := txh.post(receiptEndpoint, ListTxReceiptsRequest{
+				StartTick: start,
+			})
+			assert.Equal(t, 200, res.StatusCode)
+
+			var txReceipts ListTxReceiptsReply
+			assert.NilError(t, json.NewDecoder(res.Body).Decode(&txReceipts))
+			return txReceipts
+		}
+
+		txReceipts := getReceipts(0)
+		// Receipts should start out empty
+		assert.Equal(t, uint64(0), txReceipts.StartTick)
+		assert.Equal(t, 0, len(txReceipts.Receipts))
+
+		nonce := uint64(0)
+		privateKey, err := crypto.GenerateKey()
+		assert.NilError(t, err)
+		nextSig := func() *sign.SignedPayload {
+			sig, err := sign.NewSignedPayload(privateKey, "my-persona-tag", "namespace", nonce, `{"data": "stuff"}`)
+			assert.NilError(t, err)
+			nonce++
+			return sig
+		}
+
+		incID := incTx.AddToQueue(world, IncRequest{99}, nextSig())
+		dupeID := dupeTx.AddToQueue(world, DupeRequest{"foobar"}, nextSig())
+		errID := errTx.AddToQueue(world, ErrRequest{}, nextSig())
+		assert.Check(t, incID != dupeID)
+		assert.Check(t, dupeID != errID)
+		assert.Check(t, errID != incID)
+
+		wantTick := world.CurrentTick()
+		assert.NilError(t, world.Tick(ctx))
+
+		txReceipts = getReceipts(0)
+		assert.Equal(t, uint64(0), txReceipts.StartTick)
+		assert.Equal(t, uint64(2), txReceipts.EndTick)
+		assert.Equal(t, 3, len(txReceipts.Receipts))
+
+		foundInc, foundDupe, foundErr := false, false, false
+		for _, r := range txReceipts.Receipts {
+			assert.Equal(t, wantTick, r.Tick)
+			if len(r.Errors) > 0 {
+				foundErr = true
+				assert.Equal(t, 2, len(r.Errors))
+				assert.Equal(t, wantError.Error(), r.Errors[0])
+				assert.Equal(t, wantError.Error(), r.Errors[1])
+				continue
+			}
+			m, ok := r.Result.(map[string]any)
+			assert.Check(t, ok)
+			if _, ok := m["Number"]; ok {
+				foundInc = true
+				num, ok := m["Number"].(float64)
+				assert.Check(t, ok)
+				assert.Equal(t, 100, int(num))
+			} else if _, ok := m["Str"]; ok {
+				foundDupe = true
+				str, ok := m["Str"].(string)
+				assert.Check(t, ok)
+				assert.Equal(t, "foobarfoobar", str)
+			} else {
+				assert.Assert(t, false, "unknown transaction result", r.Result)
+			}
+		}
+
+		assert.Check(t, foundInc)
+		assert.Check(t, foundDupe)
+		assert.Check(t, foundErr)
+
+		err = txh.Close()
+		assert.NilError(t, err)
+	}
 }
 
 func TestCanGetTransactionReceipts(t *testing.T) {

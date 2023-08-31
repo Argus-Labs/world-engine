@@ -155,16 +155,16 @@ paths:
                 - application/json
             operationId: receipts
             parameters:
-                - name: receiptRequestBody
+                - name: ListTxReceiptsRequest
                   required: true
                   in: body
                   schema:
-                      $ref: '#/definitions/ReceiptsRequest'
+                      $ref: '#/definitions/ListTxReceiptsRequest'
             responses:
                 '200':
                     description: successful operation
                     schema:
-                        $ref: '#/definitions/ReceiptsReply'
+                        $ref: '#/definitions/ListTxReceiptsReply'
                 '400':
                     description: Invalid transaction request
 
@@ -256,7 +256,7 @@ definitions:
                 type: string
             Body:
                 type: object
-    ReceiptsRequest:
+    ListTxReceiptsRequest:
         required:
             - start_tick
         type: object
@@ -264,7 +264,7 @@ definitions:
             start_tick:
                 type: integer
                 format: int64
-    ReceiptsReply:
+    ListTxReceiptsReply:
         required:
             - start_tick
             - end_tick

@@ -35,6 +35,10 @@ type TransactionReply struct {
 	Tick   uint64 `json:"tick"`
 }
 
+func makeListTxReceiptsRequest() ListTxReceiptsRequest {
+	return ListTxReceiptsRequest{}
+}
+
 // errsToStringSlice convert a slice of errors into a slice of strings. This is needed as json.Marshal does not
 // extract the Error string from errors when marshalling.
 func errsToStringSlice(errs []error) []string {
@@ -45,18 +49,9 @@ func errsToStringSlice(errs []error) []string {
 	return r
 }
 
-func handleListTxReceipts(world *ecs.World) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		buf, err := io.ReadAll(request.Body)
-		if err != nil {
-			writeError(writer, "unable to ready body", err)
-			return
-		}
-		req, err := decode[ListTxReceiptsRequest](buf)
-		if err != nil {
-			writeBadRequest(writer, "unable to decode list receipts request", err)
-			return
-		}
+// with world construct a function that takes a receipts request and returns a reply.
+func getListTxReceiptsReplyFromRequest(world *ecs.World) func(*ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
+	return func(req *ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
 		reply := ListTxReceiptsReply{}
 		reply.EndTick = world.CurrentTick()
 		size := world.ReceiptHistorySize()
@@ -87,6 +82,28 @@ func handleListTxReceipts(world *ecs.World) http.HandlerFunc {
 					Errors: errsToStringSlice(r.Errs),
 				})
 			}
+		}
+		return &reply, nil
+	}
+}
+
+func handleListTxReceipts(world *ecs.World) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		buf, err := io.ReadAll(request.Body)
+		if err != nil {
+			writeError(writer, "unable to ready body", err)
+			return
+		}
+		req, err := decode[ListTxReceiptsRequest](buf)
+		if err != nil {
+			writeBadRequest(writer, "unable to decode list receipts request", err)
+			return
+		}
+
+		reply, err := getListTxReceiptsReplyFromRequest(world)(&req)
+		if err != nil {
+			writeError(writer, "unable to get receipts", err)
+			return
 		}
 
 		res, err := json.Marshal(reply)
