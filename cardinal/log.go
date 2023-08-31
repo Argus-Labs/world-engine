@@ -19,8 +19,8 @@ func (l *Logger) LogSystem(world *World, level zerolog.Level) {
 }
 
 // LogEntity logs entity info given an entityID
-func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID EntityID) error {
-	return l.impl.LogEntity(world.impl, level, entityID)
+func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID EntityID) {
+	l.impl.LogEntity(world.impl, level, entityID)
 }
 
 // LogWorld Logs everything about the world (components and Systems)
