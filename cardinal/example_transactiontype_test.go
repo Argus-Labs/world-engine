@@ -24,6 +24,11 @@ func ExampleTransactionType() {
 		panic(err)
 	}
 
+	err = world.RegisterTransactions(MoveTx)
+	if err != nil {
+		panic(err)
+	}
+
 	world.RegisterSystems(func(world *cardinal.World, queue *cardinal.TransactionQueue, logger *cardinal.Logger) error {
 		for _, tx := range MoveTx.In(queue) {
 			msg := tx.Value()
@@ -41,6 +46,11 @@ func ExampleTransactionType() {
 		}
 		return nil
 	})
-
 	// The above system will be called during each game tick.
+
+	err = world.StartGame()
+	if err != nil {
+		panic(err)
+	}
+
 }
