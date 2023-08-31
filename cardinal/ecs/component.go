@@ -3,6 +3,7 @@ package ecs
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"unsafe"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -89,6 +90,11 @@ func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error
 	if err != nil {
 		return err
 	}
+	w.Logger.Debug().
+		Str("entity_id", strconv.FormatUint(uint64(id), 10)).
+		Str("component_name", c.name).
+		Int("component_id", int(c.ID())).
+		Msg("entity updated")
 	return nil
 }
 
@@ -112,7 +118,7 @@ func (c *ComponentType[T]) MustFirst(w *World) storage.EntityID {
 	return id
 }
 
-// RemoveFrom removes this component form the given entity.
+// RemoveFrom removes this component from the given entity.
 func (c *ComponentType[T]) RemoveFrom(w *World, id storage.EntityID) error {
 	e, err := w.Entity(id)
 	if err != nil {

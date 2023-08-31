@@ -1,0 +1,213 @@
+# Components
+
+Reference documentation for Cardinal Components.
+
+```go
+package components
+
+import "pkg.world.dev/world-engine/cardinal"
+
+type Health struct {
+    Amount      uint64
+    Capacity    uint64
+}
+
+var HealthComponent = cardinal.NewComponentType[Health]()
+```
+
+## NewComponentType
+
+`NewComponentType` creates a new `ComponentType`. `ComponentType`s wrap around your component data types and provide uniform methods to mutate and read component data.
+
+```go
+func NewComponentType[T any]() *ComponentType[T]
+```
+
+### Type Parameter
+
+| Type Parameter | Type | Description                                     |
+|----------------|------|-------------------------------------------------|
+| `T`             | `any`  | The data structure for the component.             |
+
+### Return Value
+
+| Type                 | Description                                       |
+|----------------------|---------------------------------------------------|
+| `*ComponentType[T]`    | A pointer to a new instance of ComponentType[T].  |
+
+
+## NewComponentTypeWithDefault
+
+`NewComponentTypeWithDefault` creates a `ComponentType` with a default value that is applied to newly created entities with the component.
+
+```go
+func NewComponentTypeWithDefault[T any](defaultVal T) *ComponentType[T]
+```
+
+### Type Parameter
+
+| Type Parameter | Type | Description                                     |
+|----------------|------|-------------------------------------------------|
+| `T`             | `any`  | The data structure for the component.             |
+
+### Parameters
+
+| Parameter   | Type          | Description                                                                  |
+|-------------|---------------|------------------------------------------------------------------------------|
+| `defaultVal`         | `T`      | The default value for this component.                                                          |
+
+#### Return Value
+
+| Type                 | Description                                       |
+|----------------------|---------------------------------------------------|
+| `*ComponentType[T]`    | A pointer to a new instance of ComponentType[T].  |
+
+
+
+## Methods
+
+### Get
+
+`Get` retrieves the underlying component data for a given entity.
+
+```go
+func (c *ComponentType[T]) Get(w *World, id EntityID) (comp T, err error)
+```
+
+#### Example
+
+```go
+health, err := HealthComponent.Get(w, id)
+```
+
+#### Parameters
+
+| Parameter   | Type          | Description                                    |
+|-------------|---------------|------------------------------------------------|
+| `w`         | `*World`      | A pointer to the ECS world object.             |
+| `id`        | `EntityID` | The ID of the entity from which to retrieve the component data. |
+
+#### Return Values
+| Type          | Description                                    |
+|---------------|------------------------------------------------|
+|`T`           | The retrieved component data.                  |
+| `error`       | An error indicating any issues during retrieval. |
+
+
+### Set
+
+`Set` sets the component data for a given entity.
+
+```go
+func (c *ComponentType[T]) Set(w *World, id EntityID, component T) error
+```
+
+#### Example
+
+```go
+newHealth := Health{Amount: 45, Capacity: 100}
+err := HealthComponent.Set(w, id, newHealth)
+```
+
+#### Parameters
+
+| Parameter    | Type                     | Description                                    |
+|--------------|--------------------------|------------------------------------------------|
+| `w`          | `*World`                 | A pointer to the ECS world object.             |
+| `id`         | `EntityID`       | Entity ID of the entity to set the component data for.   |
+| `component`  | `T`                      | Component value to set for the entity.          |
+
+
+#### Return Value
+
+| Type          | Description                                    |
+|---------------|------------------------------------------------|
+| `error`       | An error indicating any issues during the operation. |
+
+
+
+### Update
+
+`Update` enables modification of the underlying component data in a single function call. `Update` uses `Get` and `Set` under the hood.
+
+```go
+func (c *ComponentType[T]) Update(w *World, id EntityID, fn func(T) T) error
+```
+
+#### Example
+
+```go
+err := HealthComponent.Update(w, id, func(h Health) Health {
+	h.Amount -= 10 // take away 10 health
+	return r
+})
+```
+
+#### Parameters
+
+| Parameter    | Type             | Description                                              |
+|--------------|------------------|----------------------------------------------------------|
+| `w`          | `*World`         | Pointer to the ECS world object.                         |
+| `id`         | `EntityID` | ID of the entity to perform the component update on. |
+| `fn`         | `func(T) T`      | Function that modifies the component's value.            |
+
+#### Return Value
+
+| Type | Description                                       |
+|-------------|---------------------------------------------------|
+| `error`     | An error indicating any issues during the operation. |
+
+### RemoveFrom
+
+`RemoveFrom` removes the component from the given entity. An error will be returned if the entity does not have the component.
+
+```go
+func (c *ComponentType[T]) RemoveFrom(w *World, id EntityID) error
+```
+
+#### Example
+
+```go
+target := EntityID(10)
+err := HealthComponent.RemoveFrom(w, target)
+```
+
+#### Parameters
+| Parameter | Type                 | Description                                      |
+|-----------|----------------------|--------------------------------------------------|
+| `w`       | `*World`             | Pointer to the ECS world object.                 |
+| `id`      | `EntityID`   | Entity ID of the entity to remove the component from. |
+
+#### Return Value
+
+| Type | Description                                          |
+|-------------|------------------------------------------------------|
+| `error`     | Returns an error if the operation encounters an issue. |
+
+
+### AddTo
+
+`AddTo` adds the component to a given entity. An error will be returned if the entity already has the component.
+
+```go
+func (c *ComponentType[T]) AddTo(w *World, id EntityID) error
+```
+
+#### Example
+
+```go
+target := EntityID(40)
+err := HealthComponent.AddTo(w, target)
+```
+
+#### Parameters
+| Parameter | Type                 | Description                                      |
+|-----------|----------------------|--------------------------------------------------|
+| `w`       | `*World`             | Pointer to the ECS world object.                 |
+| `id`      | `EntityID`   | Entity ID of the entity to add the component to. |
+
+#### Return Value
+
+| Type | Description                                          |
+|-------------|------------------------------------------------------|
+| `error`     | Returns an error if the operation encounters an issue. |

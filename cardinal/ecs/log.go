@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"fmt"
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -70,15 +71,15 @@ func (l *Logger) LogSystem(world *World, level zerolog.Level) {
 }
 
 // LogEntity logs entity info given an entityID
-func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID storage.EntityID) error {
+func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID storage.EntityID) {
 	zeroLoggerEvent := l.WithLevel(level)
 	var err error = nil
 	zeroLoggerEvent, err = l.loadEntityIntoEvent(zeroLoggerEvent, world, entityID)
 	if err != nil {
-		return err
+		l.Err(err).Msg(fmt.Sprintf("Error in Logger when retrieving entity with id %d", entityID))
+	} else {
+		zeroLoggerEvent.Send()
 	}
-	zeroLoggerEvent.Send()
-	return nil
 }
 
 // LogWorld Logs everything about the world (components and Systems)
@@ -89,7 +90,7 @@ func (l *Logger) LogWorld(world *World, level zerolog.Level) {
 	zeroLoggerEvent.Send()
 }
 
-// CreateSystemLogger creates a Sub logger with the entry {"system" : systemName}
+// CreateSystemLogger creates a Sub Logger with the entry {"system" : systemName}
 func (l *Logger) CreateSystemLogger(systemName string) Logger {
 	zeroLogger := l.Logger.With().
 		Str("system", systemName).Logger()
@@ -98,7 +99,7 @@ func (l *Logger) CreateSystemLogger(systemName string) Logger {
 	}
 }
 
-// CreateTraceLogger Creates a trace logger. Using a single id you can use this logger to follow and log a data path.
+// CreateTraceLogger Creates a trace Logger. Using a single id you can use this Logger to follow and log a data path.
 func (l *Logger) CreateTraceLogger(traceId string) zerolog.Logger {
 	return l.Logger.With().
 		Str("trace_id", traceId).
