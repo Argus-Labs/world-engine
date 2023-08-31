@@ -283,7 +283,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 		TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/persona/authorize-persona-address", "/tx/game/send-energy"},
 		QueryEndpoints: []string{"/query/game/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/list"},
 	}
-	resp, err := http.Get(txh.makeURL("query/http/endpoints"))
+	resp, err := http.Post(txh.makeURL("query/http/endpoints"), "application/json", nil)
 	assert.NilError(t, err)
 	defer resp.Body.Close()
 	var endpointResult EndpointsResult

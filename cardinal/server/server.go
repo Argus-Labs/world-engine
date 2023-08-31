@@ -202,10 +202,10 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
 			errors  []string
 		}{}}, errors.New("not implemented")
 	})
-	api.RegisterOperation("GET", "/query/game/{readType}", gameHandler)
-	api.RegisterOperation("GET", "/query/http/endpoints", listHandler)
-	api.RegisterOperation("GET", "/query/persona/signer", personaHandler)
-	api.RegisterOperation("GET", "/query/receipts/list", receiptsHandler)
+	api.RegisterOperation("POST", "/query/game/{readType}", gameHandler)
+	api.RegisterOperation("POST", "/query/http/endpoints", listHandler)
+	api.RegisterOperation("POST", "/query/persona/signer", personaHandler)
+	api.RegisterOperation("POST", "/query/receipts/list", receiptsHandler)
 
 	return nil
 }
