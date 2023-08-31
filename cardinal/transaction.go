@@ -51,7 +51,7 @@ func (t *TransactionType[Msg, Result]) AddError(world *World, hash TxHash, err e
 }
 
 // SetResult sets the result of the transaction identified by the given hash. Only one result may be associated
-// with a transaction hash, so calling this multiple times will clober previous results.
+// with a transaction hash, so calling this multiple times will clobber previously set results.
 func (t *TransactionType[Msg, Result]) SetResult(world *World, hash TxHash, result Result) {
 	world.impl.SetTransactionResult(hash, result)
 }

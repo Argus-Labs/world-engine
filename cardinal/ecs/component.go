@@ -118,7 +118,7 @@ func (c *ComponentType[T]) MustFirst(w *World) storage.EntityID {
 	return id
 }
 
-// RemoveFrom removes this component form the given entity.
+// RemoveFrom removes this component from the given entity.
 func (c *ComponentType[T]) RemoveFrom(w *World, id storage.EntityID) error {
 	e, err := w.Entity(id)
 	if err != nil {
