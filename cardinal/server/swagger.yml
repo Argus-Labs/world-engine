@@ -1,7 +1,7 @@
 consumes:
     - application/json
 info:
-    description: Backend server for world engine
+    description: Backend server for World Engine
     title: Cardinal
     version: 0.0.1
 produces:
@@ -41,7 +41,7 @@ paths:
     /tx/persona/create-persona:
         post:
             summary: Create a Persona transaction to Cardinal
-            description: Submit a Persona transaction to Cardinal
+            description: Create a Persona transaction to Cardinal
             consumes:
                 - application/json
             produces:
