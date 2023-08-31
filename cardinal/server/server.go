@@ -3,21 +3,19 @@ package server
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 
-	"github.com/mitchellh/mapstructure"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
-
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
 
 	"github.com/go-openapi/loads"
-	swagger_runtime "github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
+	"github.com/mitchellh/mapstructure"
 )
 
 // Handler is a type that contains endpoints for transactions and queries in a given ecs world.
@@ -71,8 +69,8 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 		return nil, err
 	}
 	api := untyped.NewAPI(specDoc).WithoutJSONDefaults()
-	api.RegisterConsumer("application/json", swagger_runtime.JSONConsumer())
-	api.RegisterProducer("application/json", swagger_runtime.JSONProducer())
+	api.RegisterConsumer("application/json", runtime.JSONConsumer())
+	api.RegisterProducer("application/json", runtime.JSONProducer())
 	err = registerTxHandlerSwagger(w, api, th)
 	if err != nil {
 		return nil, err
@@ -83,7 +81,7 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 	}
 
 	if err := api.Validate(); err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 
 	app := middleware.NewContext(specDoc, api, nil)
@@ -95,7 +93,7 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 }
 
 // utility function to create a swagger handler from a request name, request constructor, request to response function.
-func createSwaggerHandler[Request any, Response any](requestName string, createRequest func() Request, requestHandler func(*Request) (*Response, error)) swagger_runtime.OperationHandlerFunc {
+func createSwaggerHandler[Request any, Response any](requestName string, createRequest func() Request, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
 	return func(params interface{}) (interface{}, error) {
 		request := createRequest()
 		ok := getValueFromParams[Request](&params, requestName, &request)
@@ -141,35 +139,28 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 		return err
 	}
 
-	txNameToTx := make(map[string]*transaction.ITransaction)
+	txNameToTx := make(map[string]transaction.ITransaction)
 	for _, tx := range txs {
-		txNameToTx[tx.Name()] = &tx
+		txNameToTx[tx.Name()] = tx
 	}
 
-	coreHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		//txType, ok := getValueFromParams(&params, "txType")
-		//if !ok {
-		//	return nil, errors.New("txType not found in params")
-		//}
-		//txTypeString, ok := txType.(string)
-		//if !ok {
-		//	return nil, errors.New("txType was not a string")
-		//}
-		//fmt.Print(txTypeString)
+	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		return TransactionReply{
 			TxHash: "",
 			Tick:   0,
-		}, nil
+		}, errors.New("not implemented")
 	})
 
-	createPersonaHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		return ecs.CreatePersonaTransactionResult{Success: true}, nil
+	// will be moved to ecs
+	createPersonaHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		return ecs.CreatePersonaTransactionResult{Success: true}, errors.New("not implemented")
 	})
 
-	authorizePersonaAddressHandler := swagger_runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
-		return ecs.AuthorizePersonaAddressResult{Success: true}, nil
+	// will be moved to ecs
+	authorizePersonaAddressHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
+		return ecs.AuthorizePersonaAddressResult{Success: true}, errors.New("not implemented")
 	})
-	api.RegisterOperation("POST", "/tx/core/{txType}", coreHandler)
+	api.RegisterOperation("POST", "/tx/game/{txType}", gameHandler)
 	api.RegisterOperation("POST", "/tx/persona/create-persona", createPersonaHandler)
 	api.RegisterOperation("POST", "/tx/persona/authorize-persona-address", authorizePersonaAddressHandler)
 
@@ -182,45 +173,55 @@ type EndpointsResult struct {
 	QueryEndpoints []string `json:"query_endpoints"`
 }
 
+func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
+	txs, err := world.ListTransactions()
+	txEndpoints := make([]string, 0, len(txs))
+	if err != nil {
+		return nil, err
+	}
+	for _, tx := range txs {
+		if tx.Name() != ecs.CreatePersonaTx.Name() && tx.Name() != ecs.AuthorizePersonaAddressTx.Name() {
+			txEndpoints = append(txEndpoints, "/tx/game/"+tx.Name())
+		} else {
+			txEndpoints = append(txEndpoints, "/tx/persona/"+tx.Name())
+		}
+	}
+
+	queryEndpoints := make([]string, 0, len(world.ListReads())+3)
+	for _, read := range world.ListReads() {
+		queryEndpoints = append(queryEndpoints, "/query/game/"+read.Name())
+	}
+	queryEndpoints = append(queryEndpoints, "/query/http/endpoints")
+	queryEndpoints = append(queryEndpoints, "/query/persona/signer")
+	queryEndpoints = append(queryEndpoints, "/query/receipt/list")
+	return &EndpointsResult{
+		TxEndpoints:    txEndpoints,
+		QueryEndpoints: queryEndpoints,
+	}, nil
+}
+
 // register query endpoints for swagger server
 func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handler) error {
 	//var txEndpoints []string
-	coreHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		return struct {
 			test string
-		}{test: "test"}, nil
+		}{test: "test"}, errors.New("not implemented")
 	})
-	listHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		txs, err := world.ListTransactions()
-		txEndpoints := make([]string, 0, len(txs))
-		if err != nil {
-			return nil, err
-		}
-		for _, tx := range txs {
-			if tx.Name() != "create-persona" && tx.Name() != "authorize-persona-address" {
-				txEndpoints = append(txEndpoints, "/tx/core/"+tx.Name())
-			} else {
-				txEndpoints = append(txEndpoints, "/tx/persona/"+tx.Name())
-			}
-		}
+	endpoints, err := createAllEndpoints(world)
+	if err != nil {
+		return err
+	}
+	listHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		return endpoints, nil
+	})
 
-		queryEndpoints := make([]string, 0, len(world.ListReads())+3)
-		for _, read := range world.ListReads() {
-			queryEndpoints = append(queryEndpoints, "/query/core/"+read.Name())
-		}
-		queryEndpoints = append(queryEndpoints, "/query/http/endpoints")
-		queryEndpoints = append(queryEndpoints, "/query/persona/signer")
-		queryEndpoints = append(queryEndpoints, "/query/receipt/submit")
-		return EndpointsResult{
-			TxEndpoints:    txEndpoints,
-			QueryEndpoints: queryEndpoints,
-		}, nil
-	})
+	// Will be moved to ecs.
 	personaHandler := createSwaggerHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
 		"ReadPersonaSignerRequest",
 		makeReadPersonaSignerRequest,
 		handler.getPersonaSignerResponse)
-	receiptsHandler := swagger_runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
+	receiptsHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
 		return struct {
 			start_tick uint64
 			end_tick   uint64
@@ -235,12 +236,12 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 			tick    uint64
 			result  interface{}
 			errors  []string
-		}{}}, nil
+		}{}}, errors.New("not implemented")
 	})
-	api.RegisterOperation("GET", "/query/core/{readType}", coreHandler)
-	api.RegisterOperation("GET", "/query/http/endpoints", listHandler)
+	api.RegisterOperation("POST", "/query/game/{readType}", gameHandler)
+	api.RegisterOperation("POST", "/query/http/endpoints", listHandler)
 	api.RegisterOperation("POST", "/query/persona/signer", personaHandler)
-	api.RegisterOperation("GET", "/query/receipts/submit", receiptsHandler)
+	api.RegisterOperation("POST", "/query/receipts/list", receiptsHandler)
 
 	return nil
 }

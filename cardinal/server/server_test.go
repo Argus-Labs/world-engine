@@ -213,9 +213,8 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 }
 
 func TestHandleSwaggerServer(t *testing.T) {
-	endpoint := "move"
 	w := inmem.NewECSWorldForTest(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
+	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		return nil
@@ -245,7 +244,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
 	}, ecs.WithReadEVMSupport[FooRequest, FooReply])
-	err := w.RegisterReads(fooRead)
+	assert.NilError(t, w.RegisterReads(fooRead))
 
 	txh := makeTestTransactionHandler(t, w, "./swagger.yml", DisableSignatureVerification())
 
@@ -265,15 +264,15 @@ func TestHandleSwaggerServer(t *testing.T) {
 		Body:      bz,
 	}
 
-	bz, err = json.Marshal(&signedTx)
+	bz, err = signedTx.Marshal()
 	assert.NilError(t, err)
 
 	//Test /query/http/endpoints
 	expectedEndpointResult := EndpointsResult{
-		TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/persona/authorize-persona-address", "/tx/core/move"},
-		QueryEndpoints: []string{"/query/core/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/submit"},
+		TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/persona/authorize-persona-address", "/tx/game/send-energy"},
+		QueryEndpoints: []string{"/query/game/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/list"},
 	}
-	resp1, err := http.Get(txh.makeURL("query/http/endpoints"))
+	resp1, err := http.Post(txh.makeURL("query/http/endpoints"), "application/json", nil)
 	assert.NilError(t, err)
 	defer resp1.Body.Close()
 	var endpointResult EndpointsResult
