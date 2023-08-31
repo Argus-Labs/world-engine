@@ -131,11 +131,11 @@ func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	underlying, ok := unpacked[0].(req)
-	if !ok {
-		return nil, fmt.Errorf("error decoding EVM bytes: cannot cast %T to %T", unpacked[0], new(req))
+	request, err := SerdeInto[req](unpacked[0])
+	if err != nil {
+		return nil, err
 	}
-	return underlying, nil
+	return request, nil
 }
 
 func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
@@ -150,11 +150,11 @@ func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	underlying, ok := unpacked[0].(rep)
-	if !ok {
-		return nil, fmt.Errorf("error decoding EVM bytes: cannot cast %T to %T", unpacked[0], new(req))
+	reply, err := SerdeInto[rep](unpacked[0])
+	if err != nil {
+		return nil, err
 	}
-	return underlying, nil
+	return reply, nil
 }
 
 func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
@@ -170,15 +170,22 @@ func (r *ReadType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 	if r.requestABI == nil || r.replyABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
-	req, ok := input.(Request)
-	if !ok {
-		if rep, ok := input.(Reply); !ok {
-			return nil, fmt.Errorf("expected the input struct to be either %T or %T, but got %T",
-				req, rep, input)
-		}
+
+	var args abi.Arguments
+	var in any
+	switch input.(type) {
+	case Request:
+		in = input.(Request)
+		args = abi.Arguments{{Type: *r.requestABI}}
+	case Reply:
+		in = input.(Reply)
+		args = abi.Arguments{{Type: *r.replyABI}}
+	default:
+		return nil, fmt.Errorf("expected the input struct to be either %T or %T, but got %T",
+			new(Request), new(Reply), input)
 	}
-	args := abi.Arguments{{Type: *r.requestABI}}
-	bz, err := args.Pack(input)
+
+	bz, err := args.Pack(in)
 	if err != nil {
 		return nil, err
 	}
