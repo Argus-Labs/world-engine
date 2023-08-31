@@ -117,7 +117,7 @@ paths:
                 - application/json
             operationId: read
             parameters:
-                - name: readBody
+                - name: ReadPersonaSignerRequest
                   required: true
                   in: body
                   schema:

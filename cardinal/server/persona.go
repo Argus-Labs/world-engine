@@ -17,6 +17,10 @@ type ReadPersonaSignerRequest struct {
 	Tick       uint64
 }
 
+func makeReadPersonaSignerRequest() ReadPersonaSignerRequest {
+	return ReadPersonaSignerRequest{}
+}
+
 // ReadPersonaSignerResponse is used as the response body for the read-persona-signer endpoint. Status can be:
 // "assigned": The requested persona tag has been assigned the returned SignerAddress
 // "unknown": The game tick has not advanced far enough to know what the signer address. SignerAddress will be empty.
@@ -24,6 +28,26 @@ type ReadPersonaSignerRequest struct {
 type ReadPersonaSignerResponse struct {
 	Status        string
 	SignerAddress string
+}
+
+func (t *Handler) getPersonaSignerResponse(req *ReadPersonaSignerRequest) (*ReadPersonaSignerResponse, error) {
+	var status string
+	addr, err := t.w.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
+	if errors.Is(err, ecs.ErrorPersonaTagHasNoSigner) {
+		status = getSignerForPersonaStatusAvailable
+	} else if errors.Is(err, ecs.ErrorCreatePersonaTxsNotProcessed) {
+		status = getSignerForPersonaStatusUnknown
+	} else if err != nil {
+		return nil, err
+	} else {
+		status = getSignerForPersonaStatusAssigned
+	}
+
+	res := ReadPersonaSignerResponse{
+		Status:        status,
+		SignerAddress: addr,
+	}
+	return &res, nil
 }
 
 func (t *Handler) handleReadPersonaSigner(w http.ResponseWriter, r *http.Request) {
@@ -39,23 +63,12 @@ func (t *Handler) handleReadPersonaSigner(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var status string
-	addr, err := t.w.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
-	if err == ecs.ErrorPersonaTagHasNoSigner {
-		status = getSignerForPersonaStatusAvailable
-	} else if err == ecs.ErrorCreatePersonaTxsNotProcessed {
-		status = getSignerForPersonaStatusUnknown
-	} else if err != nil {
+	res, err := t.getPersonaSignerResponse(&req)
+	if err != nil {
 		writeError(w, "read persona signer error", err)
 		return
-	} else {
-		status = getSignerForPersonaStatusAssigned
 	}
 
-	res := ReadPersonaSignerResponse{
-		Status:        status,
-		SignerAddress: addr,
-	}
 	resJson, err := json.Marshal(res)
 	if err != nil {
 		writeError(w, "unable to marshal response", err)

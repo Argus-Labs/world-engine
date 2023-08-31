@@ -3,19 +3,20 @@ package server
 import (
 	"errors"
 	"fmt"
-	"github.com/go-openapi/runtime/middleware"
 	"log"
 	"net/http"
 	"os"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"strconv"
+
+	"github.com/mitchellh/mapstructure"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/shard"
 
-	//"github.com/go-openapi/errors"
 	"github.com/go-openapi/loads"
 	swagger_runtime "github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
 )
 
@@ -56,6 +57,15 @@ const (
 
 // NewSwaggerHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
 func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (*Handler, error) {
+
+	th := &Handler{
+		w:   w,
+		mux: http.NewServeMux(),
+	}
+	for _, opt := range opts {
+		opt(th)
+	}
+
 	specDoc, err := loads.Spec(pathToSwaggerSpec)
 	if err != nil {
 		return nil, err
@@ -63,11 +73,11 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 	api := untyped.NewAPI(specDoc).WithoutJSONDefaults()
 	api.RegisterConsumer("application/json", swagger_runtime.JSONConsumer())
 	api.RegisterProducer("application/json", swagger_runtime.JSONProducer())
-	err = registerTxHandlerSwagger(w, api)
+	err = registerTxHandlerSwagger(w, api, th)
 	if err != nil {
 		return nil, err
 	}
-	err = registerReadHandlerSwagger(w, api)
+	err = registerReadHandlerSwagger(w, api, th)
 	if err != nil {
 		return nil, err
 	}
@@ -77,29 +87,52 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 	}
 
 	app := middleware.NewContext(specDoc, api, nil)
-	th := &Handler{
-		w:   w,
-		mux: http.NewServeMux(),
-	}
-	for _, opt := range opts {
-		opt(th)
-	}
+
 	th.mux.Handle("/", app.APIHandler(nil))
 	th.initialize()
+
 	return th, nil
 }
 
+// utility function to create a swagger handler from a request name, request constructor, request to response function.
+func createSwaggerHandler[Request any, Response any](requestName string, createRequest func() Request, requestHandler func(*Request) (*Response, error)) swagger_runtime.OperationHandlerFunc {
+	return func(params interface{}) (interface{}, error) {
+		request := createRequest()
+		ok := getValueFromParams[Request](&params, requestName, &request)
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("could not find %s in parameters", requestName))
+		}
+		resp, err := requestHandler(&request)
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
+	}
+}
+
 // utility function to extract parameters from swagger handlers
-func getValueFromParams(params *interface{}, name string) (interface{}, bool) {
+func getValueFromParams[T any](params *interface{}, name string, value *T) bool {
 	data, ok := (*params).(map[string]interface{})
 	if !ok {
-		return nil, ok
+		return ok
 	}
-	return data[name], true
+	mappedStructUntyped, ok := data[name]
+	if !ok {
+		return ok
+	}
+	mappedStruct, ok := mappedStructUntyped.(map[string]interface{})
+	if !ok {
+		return ok
+	}
+	err := mapstructure.Decode(mappedStruct, value)
+	if err != nil {
+		return ok
+	}
+	return true
 }
 
 // register transaction handlers on swagger server
-func registerTxHandlerSwagger(world *ecs.World, api *untyped.API) error {
+func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handler) error {
 	//var txEndpoints []string
 
 	// Register tx endpoints
@@ -114,15 +147,15 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API) error {
 	}
 
 	coreHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		txType, ok := getValueFromParams(&params, "txType")
-		if !ok {
-			return nil, errors.New("txType not found in params")
-		}
-		txTypeString, ok := txType.(string)
-		if !ok {
-			return nil, errors.New("txType was not a string")
-		}
-		fmt.Print(txTypeString)
+		//txType, ok := getValueFromParams(&params, "txType")
+		//if !ok {
+		//	return nil, errors.New("txType not found in params")
+		//}
+		//txTypeString, ok := txType.(string)
+		//if !ok {
+		//	return nil, errors.New("txType was not a string")
+		//}
+		//fmt.Print(txTypeString)
 		return TransactionReply{
 			TxHash: "",
 			Tick:   0,
@@ -150,7 +183,7 @@ type EndpointsResult struct {
 }
 
 // register query endpoints for swagger server
-func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
+func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handler) error {
 	//var txEndpoints []string
 	coreHandler := swagger_runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		return struct {
@@ -183,9 +216,10 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
 			QueryEndpoints: queryEndpoints,
 		}, nil
 	})
-	personaHandler := swagger_runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
-		return ReadPersonaSignerResponse{Status: "", SignerAddress: ""}, nil
-	})
+	personaHandler := createSwaggerHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
+		"ReadPersonaSignerRequest",
+		makeReadPersonaSignerRequest,
+		handler.getPersonaSignerResponse)
 	receiptsHandler := swagger_runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
 		return struct {
 			start_tick uint64
