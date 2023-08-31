@@ -174,9 +174,9 @@ result, errs, ok := AttackTx.GetReceipt(w, txHash)
 
 | Type        | Description                                                     |
 |--------------------|-----------------------------------------------------------------|
-| Result              | The transaction result.  |
-| []error               | A slice of errors associated with the transaction.            |
-| bool                 | A boolean indicating if the receipt was found in the world.  |
+| Result              | The result of the transaction associated with the transaction hash.  |
+| []error               | Any errors that may have occurred with the transaction associated with the transaction hash.         |
+| bool                 | A boolean indicating if a receipt was found for the transaction associated with the transaction hash.  |
 
 ### In
 
