@@ -281,7 +281,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	//Test /query/http/endpoints
 	expectedEndpointResult := EndpointsResult{
 		TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/persona/authorize-persona-address", "/tx/game/send-energy"},
-		QueryEndpoints: []string{"/query/game/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/submit"},
+		QueryEndpoints: []string{"/query/game/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/list"},
 	}
 	resp, err := http.Get(txh.makeURL("query/http/endpoints"))
 	assert.NilError(t, err)

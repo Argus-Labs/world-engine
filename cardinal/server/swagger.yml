@@ -145,7 +145,7 @@ paths:
                         $ref: '#/definitions/ReadListEndpoints'
                 '400':
                     description: Invalid read request
-    /query/receipts/submit:
+    /query/receipts/list:
         get:
             summary: Get transaction receipts from Cardinal
             description: Get transaction receipts from Cardinal

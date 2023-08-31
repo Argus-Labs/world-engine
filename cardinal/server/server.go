@@ -158,7 +158,7 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 	}
 	queryEndpoints = append(queryEndpoints, "/query/http/endpoints")
 	queryEndpoints = append(queryEndpoints, "/query/persona/signer")
-	queryEndpoints = append(queryEndpoints, "/query/receipt/submit")
+	queryEndpoints = append(queryEndpoints, "/query/receipt/list")
 	return &EndpointsResult{
 		TxEndpoints:    txEndpoints,
 		QueryEndpoints: queryEndpoints,
@@ -205,7 +205,7 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
 	api.RegisterOperation("GET", "/query/game/{readType}", gameHandler)
 	api.RegisterOperation("GET", "/query/http/endpoints", listHandler)
 	api.RegisterOperation("GET", "/query/persona/signer", personaHandler)
-	api.RegisterOperation("GET", "/query/receipts/submit", receiptsHandler)
+	api.RegisterOperation("GET", "/query/receipts/list", receiptsHandler)
 
 	return nil
 }
