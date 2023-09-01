@@ -17,10 +17,6 @@ type ReadPersonaSignerRequest struct {
 	Tick       uint64
 }
 
-func makeReadPersonaSignerRequest() ReadPersonaSignerRequest {
-	return ReadPersonaSignerRequest{}
-}
-
 // ReadPersonaSignerResponse is used as the response body for the read-persona-signer endpoint. Status can be:
 // "assigned": The requested persona tag has been assigned the returned SignerAddress
 // "unknown": The game tick has not advanced far enough to know what the signer address. SignerAddress will be empty.

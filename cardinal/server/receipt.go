@@ -35,10 +35,6 @@ type TransactionReply struct {
 	Tick   uint64 `json:"tick"`
 }
 
-func makeListTxReceiptsRequest() ListTxReceiptsRequest {
-	return ListTxReceiptsRequest{}
-}
-
 // errsToStringSlice convert a slice of errors into a slice of strings. This is needed as json.Marshal does not
 // extract the Error string from errors when marshalling.
 func errsToStringSlice(errs []error) []string {

@@ -94,14 +94,13 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 }
 
 // utility function to create a swagger handler from a request name, request constructor, request to response function.
-func createSwaggerHandler[Request any, Response any](requestName string, createRequest func() Request, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
+func createSwaggerHandler[Request any, Response any](requestName string, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
 	return func(params interface{}) (interface{}, error) {
-		request := createRequest()
-		ok := getValueFromParams[Request](&params, requestName, &request)
+		request, ok := getValueFromParams[Request](params, requestName)
 		if !ok {
 			return nil, errors.New(fmt.Sprintf("could not find %s in parameters", requestName))
 		}
-		resp, err := requestHandler(&request)
+		resp, err := requestHandler(request)
 		if err != nil {
 			return nil, err
 		}
@@ -110,24 +109,25 @@ func createSwaggerHandler[Request any, Response any](requestName string, createR
 }
 
 // utility function to extract parameters from swagger handlers
-func getValueFromParams[T any](params *interface{}, name string, value *T) bool {
-	data, ok := (*params).(map[string]interface{})
+func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
+	data, ok := params.(map[string]interface{})
 	if !ok {
-		return ok
+		return nil, ok
 	}
 	mappedStructUntyped, ok := data[name]
 	if !ok {
-		return ok
+		return nil, ok
 	}
 	mappedStruct, ok := mappedStructUntyped.(map[string]interface{})
 	if !ok {
-		return ok
+		return nil, ok
 	}
+	value := new(T)
 	err := mapstructure.Decode(mappedStruct, value)
 	if err != nil {
-		return ok
+		return nil, ok
 	}
-	return true
+	return value, true
 }
 
 // register transaction handlers on swagger server
@@ -269,12 +269,10 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 	// Will be moved to ecs.
 	personaHandler := createSwaggerHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
 		"ReadPersonaSignerRequest",
-		makeReadPersonaSignerRequest,
 		handler.getPersonaSignerResponse)
 
 	receiptsHandler := createSwaggerHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
 		"ListTxReceiptsRequest",
-		makeListTxReceiptsRequest,
 		getListTxReceiptsReplyFromRequest(world),
 	)
 	api.RegisterOperation("POST", "/query/game/{readType}", gameHandler)
