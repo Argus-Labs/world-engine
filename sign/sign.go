@@ -62,6 +62,7 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 	return s, nil
 }
 
+// MappedSignedPayload Identical to UnmarshalSignedPayload but takes a payload in the form of map[string]any
 func MappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error) {
 	s := new(SignedPayload)
 	signedPayloadKeys := map[string]bool{
