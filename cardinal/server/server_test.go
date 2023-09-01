@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -18,7 +17,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/sign"
@@ -229,6 +227,12 @@ func TestHandleSwaggerServer(t *testing.T) {
 		SignerAddress: signerAddress,
 	})
 
+	ecs.AuthorizePersonaAddressTx.AddToQueue(w, ecs.AuthorizePersonaAddress{
+		PersonaTag: personaTag,
+		Address:    signerAddress,
+	}, &sign.SignedPayload{PersonaTag: personaTag})
+	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
+
 	//create readers
 	type FooRequest struct {
 		ID string
@@ -327,7 +331,9 @@ func TestHandleSwaggerServer(t *testing.T) {
 		assert.NilError(t, err)
 	}
 	assert.DeepEqual(t, actualFooReply, expectedReply)
-	fmt.Println(resp3)
+
+	// tx/persona/authorize-persona-address
+
 }
 
 func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {

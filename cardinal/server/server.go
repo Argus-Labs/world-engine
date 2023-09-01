@@ -11,6 +11,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/sign"
 
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/runtime"
@@ -130,6 +131,58 @@ func getValueFromParams[T any](params *interface{}, name string, value *T) bool 
 	return true
 }
 
+func processTxParams(params interface{}, pathParam string, txNameToTx map[string]transaction.ITransaction, handler *Handler) (
+	payload []byte, sp *sign.SignedPayload,
+	tx transaction.ITransaction, err error) {
+	mappedParams, ok := params.(map[string]interface{})
+	if !ok {
+		err = errors.New("params not readable")
+		return
+	}
+
+	if len(pathParam) > 0 {
+		txType, ok := mappedParams[pathParam]
+		if !ok {
+			err = errors.New("params do not contain txType from the path /tx/game/{txType}")
+		}
+		txTypeString, ok := txType.(string)
+		if !ok {
+			err = errors.New("txType needs to be a string from path")
+			return
+		}
+		tx, ok = txNameToTx[txTypeString]
+		if !ok {
+			err = errors.New(fmt.Sprintf("could not locate transaction type: %s", txTypeString))
+		}
+	}
+
+	txBody, ok := mappedParams["txBody"]
+	if !ok {
+		err = errors.New("params do not contain txBody from the body of the http request")
+		return
+	}
+	txBodyMap, ok := txBody.(map[string]interface{})
+	if !ok {
+		err = errors.New("txBody needs to be a json object in the body")
+
+	}
+	payload, sp, err = handler.verifySignatureOfMapRequest(txBodyMap, false)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func processTxBodyMap(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload, handler *Handler) (*TransactionReply, error) {
+	rawJsonResult, err := handler.processTransaction(tx, payload, sp)
+	transactionReply := new(TransactionReply)
+	err = json.Unmarshal(rawJsonResult, transactionReply)
+	if err != nil {
+		return nil, err
+	}
+	return transactionReply, nil
+}
+
 // register transaction handlers on swagger server
 func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handler) error {
 	//var txEndpoints []string
@@ -146,37 +199,16 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	}
 
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		mappedParams, ok := params.(map[string]interface{})
-		if !ok {
-			return nil, errors.New("params not readable")
-		}
-		txType, ok := mappedParams["txType"]
-		if !ok {
-			return nil, errors.New("params do not contain txType from the path /tx/game/{txType}")
-		}
-		txTypeString, ok := txType.(string)
-		if !ok {
-			return nil, errors.New("txType needs to be a string from path")
-		}
-		tx, ok := txNameToTx[txTypeString]
-		txBody, ok := mappedParams["txBody"]
-		if !ok {
-			return nil, errors.New("params do not contain txBody from the body of the http request")
-		}
-		txBodyMap, ok := txBody.(map[string]interface{})
-		if !ok {
-			return nil, errors.New("txBody needs to be a json object in the body")
-		}
-		rawJsonTxBody, err := json.Marshal(txBodyMap)
-		if err != nil {
-			return nil, errors.New("")
-		}
-		handler.processTransaction(tx, rawJsonTxBody, sp)
-
-		return TransactionReply{
-			TxHash: "",
-			Tick:   0,
-		}, errors.New("not implemented")
+		//TODO implement and test game handler.
+		//txBodyMap, payload, sp, tx, err := processTxParams(params, "txType", txNameToTx, handler)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//if tx.Name() == ecs.AuthorizePersonaAddressTx.Name() {
+		//	return nil, errors.New(fmt.Sprintf("This route should not process %s, use tx/persona/%s", tx.Name(), ecs.AuthorizePersonaAddressTx.Name()))
+		//}
+		//return processTxBodyMap(txBodyMap, tx, payload, sp, handler)
+		return nil, errors.New("not implemented")
 	})
 
 	// will be moved to ecs
@@ -185,8 +217,12 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	})
 
 	// will be moved to ecs
-	authorizePersonaAddressHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
-		return ecs.AuthorizePersonaAddressResult{Success: true}, errors.New("not implemented")
+	authorizePersonaAddressHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		payload, sp, _, err := processTxParams(params, "", txNameToTx, handler)
+		if err != nil {
+			return nil, err
+		}
+		return processTxBodyMap(ecs.AuthorizePersonaAddressTx, payload, sp, handler)
 	})
 	api.RegisterOperation("POST", "/tx/game/{txType}", gameHandler)
 	api.RegisterOperation("POST", "/tx/persona/create-persona", createPersonaHandler)
@@ -195,7 +231,7 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	return nil
 }
 
-// result struct for /query/http/endpoints
+// EndpointsResult result struct for /query/http/endpoints
 type EndpointsResult struct {
 	TxEndpoints    []string `json:"tx_endpoints"`
 	QueryEndpoints []string `json:"query_endpoints"`

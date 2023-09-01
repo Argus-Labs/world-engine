@@ -168,6 +168,10 @@ func (t *Handler) verifySignatureOfMapRequest(request map[string]interface{}, is
 	}
 	payload, sig, err = t.verifySignatureOfSignedPayload(sp, isSystemTransaction)
 	if len(sp.Body) == 0 {
+		buf, err := json.Marshal(request)
+		if err != nil {
+			return nil, nil, err
+		}
 		return buf, sp, nil
 	} else {
 		return payload, sig, err
