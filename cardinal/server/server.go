@@ -95,7 +95,7 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 // utility function to create a swagger handler from a request name, request constructor, request to response function.
 func createSwaggerHandler[Request any, Response any](requestName string, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
 	return func(params interface{}) (interface{}, error) {
-		request, ok := getValueFromParams[Request](&params, requestName)
+		request, ok := getValueFromParams[Request](params, requestName)
 		if !ok {
 			return nil, errors.New(fmt.Sprintf("could not find %s in parameters", requestName))
 		}
@@ -220,23 +220,12 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 	personaHandler := createSwaggerHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
 		"ReadPersonaSignerRequest",
 		handler.getPersonaSignerResponse)
-	receiptsHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
-		return struct {
-			start_tick uint64
-			end_tick   uint64
-			Receipt    []struct {
-				tx_hash string
-				tick    uint64
-				result  interface{}
-				errors  []string
-			}
-		}{start_tick: 0, end_tick: 0, Receipt: []struct {
-			tx_hash string
-			tick    uint64
-			result  interface{}
-			errors  []string
-		}{}}, errors.New("not implemented")
-	})
+
+	receiptsHandler := createSwaggerHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
+		"ListTxReceiptsRequest",
+		getListTxReceiptsReplyFromRequest(world),
+	)
+
 	api.RegisterOperation("POST", "/query/game/{readType}", gameHandler)
 	api.RegisterOperation("POST", "/query/http/endpoints", listHandler)
 	api.RegisterOperation("POST", "/query/persona/signer", personaHandler)
