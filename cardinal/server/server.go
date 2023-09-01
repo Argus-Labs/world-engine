@@ -171,7 +171,7 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 		if err != nil {
 			return nil, errors.New("")
 		}
-		tx.
+		handler.processTransaction(tx, rawJsonTxBody, sp)
 
 		return TransactionReply{
 			TxHash: "",

@@ -144,12 +144,25 @@ func (t *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, isSyste
 	return sp.Body, sp, nil
 }
 
-func (t *Handler) verifySignature(request *http.Request, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
+func (t *Handler) verifySignatureOfHttpRequest(request *http.Request, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nil, errors.New("unable to read body")
 	}
 	sp, err := sign.UnmarshalSignedPayload(buf)
+	if err != nil {
+		return nil, nil, err
+	}
+	payload, sig, err = t.verifySignatureOfSignedPayload(sp, isSystemTransaction)
+	if len(sp.Body) == 0 {
+		return buf, sp, nil
+	} else {
+		return payload, sig, err
+	}
+}
+
+func (t *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
+	sp, err := sign.MappedSignedPayload(request)
 	if err != nil {
 		return nil, nil, err
 	}

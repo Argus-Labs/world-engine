@@ -62,7 +62,7 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 	return s, nil
 }
 
-func mappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error) {
+func MappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error) {
 	s := new(SignedPayload)
 	signedPayloadKeys := map[string]bool{
 		"PersonaTag": true,

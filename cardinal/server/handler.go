@@ -148,7 +148,7 @@ func (t *Handler) processTransaction(tx transaction.ITransaction, payload []byte
 
 func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		payload, sp, err := t.verifySignature(request, false)
+		payload, sp, err := t.verifySignatureOfHttpRequest(request, false)
 		if errors.Is(err, ErrorInvalidSignature) {
 			writeUnauthorized(writer, err)
 			return
