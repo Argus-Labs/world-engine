@@ -281,8 +281,8 @@ func TestHandleSwaggerServer(t *testing.T) {
 	assert.Assert(t, reflect.DeepEqual(endpointResult, expectedEndpointResult))
 
 	//Test /query/persona/signer
-	expectedReadPersonaSignerResponse := ReadPersonaSignerResponse{}
-	personaSignerResponse := ReadPersonaSignerResponse{Status: personaTag, SignerAddress: signerAddress}
+	gotReadPersonaSignerResponse := ReadPersonaSignerResponse{}
+	expectedReadPersonaSignerResponse := ReadPersonaSignerResponse{Status: personaTag, SignerAddress: signerAddress}
 	readPersonaRequest := ReadPersonaSignerRequest{
 		PersonaTag: personaTag,
 		Tick:       0,
@@ -302,9 +302,9 @@ func TestHandleSwaggerServer(t *testing.T) {
 	resp2, err := client.Do(req)
 	assert.NilError(t, err)
 	defer resp2.Body.Close()
-	err = json.NewDecoder(resp2.Body).Decode(&expectedReadPersonaSignerResponse)
+	err = json.NewDecoder(resp2.Body).Decode(&gotReadPersonaSignerResponse)
 	assert.NilError(t, err)
-	reflect.DeepEqual(expectedReadPersonaSignerResponse, personaSignerResponse)
+	reflect.DeepEqual(gotReadPersonaSignerResponse, expectedReadPersonaSignerResponse)
 
 }
 
