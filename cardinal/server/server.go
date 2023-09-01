@@ -15,6 +15,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
+	"github.com/mitchellh/mapstructure"
 )
 
 // Handler is a type that contains endpoints for transactions and queries in a given ecs world.
@@ -54,16 +55,27 @@ const (
 
 // NewSwaggerHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
 func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (*Handler, error) {
+
+	th := &Handler{
+		w:   w,
+		mux: http.NewServeMux(),
+	}
+	for _, opt := range opts {
+		opt(th)
+	}
+
 	specDoc, err := loads.Spec(pathToSwaggerSpec)
 	if err != nil {
 		return nil, err
 	}
-	api := untyped.NewAPI(specDoc)
-	err = registerTxHandlerSwagger(w, api)
+	api := untyped.NewAPI(specDoc).WithoutJSONDefaults()
+	api.RegisterConsumer("application/json", runtime.JSONConsumer())
+	api.RegisterProducer("application/json", runtime.JSONProducer())
+	err = registerTxHandlerSwagger(w, api, th)
 	if err != nil {
 		return nil, err
 	}
-	err = registerReadHandlerSwagger(w, api)
+	err = registerReadHandlerSwagger(w, api, th)
 	if err != nil {
 		return nil, err
 	}
@@ -73,29 +85,52 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 	}
 
 	app := middleware.NewContext(specDoc, api, nil)
-	th := &Handler{
-		w:   w,
-		mux: http.NewServeMux(),
-	}
-	for _, opt := range opts {
-		opt(th)
-	}
+
 	th.mux.Handle("/", app.APIHandler(nil))
 	th.initialize()
+
 	return th, nil
 }
 
+// utility function to create a swagger handler from a request name, request constructor, request to response function.
+func createSwaggerHandler[Request any, Response any](requestName string, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
+	return func(params interface{}) (interface{}, error) {
+		request, ok := getValueFromParams[Request](&params, requestName)
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("could not find %s in parameters", requestName))
+		}
+		resp, err := requestHandler(request)
+		if err != nil {
+			return nil, err
+		}
+		return resp, nil
+	}
+}
+
 // utility function to extract parameters from swagger handlers
-func getValueFromParams(params interface{}, name string) (interface{}, bool) {
-	data, ok := (params).(map[string]interface{})
+func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
+	data, ok := params.(map[string]interface{})
 	if !ok {
 		return nil, ok
 	}
-	return data[name], true
+	mappedStructUntyped, ok := data[name]
+	if !ok {
+		return nil, ok
+	}
+	mappedStruct, ok := mappedStructUntyped.(map[string]interface{})
+	if !ok {
+		return nil, ok
+	}
+	value := new(T)
+	err := mapstructure.Decode(mappedStruct, value)
+	if err != nil {
+		return nil, ok
+	}
+	return value, true
 }
 
 // register transaction handlers on swagger server
-func registerTxHandlerSwagger(world *ecs.World, api *untyped.API) error {
+func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handler) error {
 	//var txEndpoints []string
 
 	// Register tx endpoints
@@ -166,7 +201,7 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 }
 
 // register query endpoints for swagger server
-func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
+func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handler) error {
 	//var txEndpoints []string
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		return struct {
@@ -182,9 +217,9 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
 	})
 
 	// Will be moved to ecs.
-	personaHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
-		return ReadPersonaSignerResponse{Status: "", SignerAddress: ""}, errors.New("not implemented")
-	})
+	personaHandler := createSwaggerHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
+		"ReadPersonaSignerRequest",
+		handler.getPersonaSignerResponse)
 	receiptsHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
 		return struct {
 			start_tick uint64

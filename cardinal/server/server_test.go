@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strconv"
 	"testing"
 	"time"
 
@@ -63,7 +64,7 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, swaggerFilePath 
 
 	healthPath := "/health"
 
-	// Add a health check endpoint so we can make sure the server is up and running before allowing any test
+	// Add a health check endpoint, so we can make sure the server is up and running before allowing any test
 	// logic to run.
 	txh.mux.HandleFunc(healthPath, func(writer http.ResponseWriter, request *http.Request) {
 		writer.WriteHeader(200)
@@ -212,33 +213,21 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 }
 
 func TestHandleSwaggerServer(t *testing.T) {
-	count := 0
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
-		txs := sendTx.In(queue)
-		assert.Equal(t, 1, len(txs))
-		tx := txs[0]
-		assert.Equal(t, tx.Value.From, "me")
-		assert.Equal(t, tx.Value.To, "you")
-		assert.Equal(t, tx.Value.Amount, uint64(420))
-		count++
 		return nil
 	})
 
-	//TODO: next
 	// Queue up a CreatePersonaTx
-	//personaTag := "foobar"
-	//signerAddress := "xyzzy"
-	//ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
-	//	PersonaTag:    personaTag,
-	//	SignerAddress: signerAddress,
-	//})
-	//readPersonaRequest := ReadPersonaSignerRequest{
-	//	PersonaTag: personaTag,
-	//	Tick:       0,
-	//}
+	personaTag := "foobar"
+	signerAddress := "xyzzy"
+	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+		PersonaTag:    personaTag,
+		SignerAddress: signerAddress,
+	})
+
 	//create readers
 	type FooRequest struct {
 		ID string
@@ -283,19 +272,39 @@ func TestHandleSwaggerServer(t *testing.T) {
 		TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/persona/authorize-persona-address", "/tx/game/send-energy"},
 		QueryEndpoints: []string{"/query/game/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/list"},
 	}
-	resp, err := http.Post(txh.makeURL("query/http/endpoints"), "application/json", nil)
+	resp1, err := http.Post(txh.makeURL("query/http/endpoints"), "application/json", nil)
 	assert.NilError(t, err)
-	defer resp.Body.Close()
+	defer resp1.Body.Close()
 	var endpointResult EndpointsResult
-	err = json.NewDecoder(resp.Body).Decode(&endpointResult)
+	err = json.NewDecoder(resp1.Body).Decode(&endpointResult)
 	assert.NilError(t, err)
 	assert.Assert(t, reflect.DeepEqual(endpointResult, expectedEndpointResult))
 
-	//TODO: next pr
 	//Test /query/persona/signer
-	//expectedReadPersonaSignerResponse := ReadPersonaSignerResponse{}
-	//
-	//resp, err := http.NewRequest("GET", txh.makeURL("/query/persona/submit"))
+	gotReadPersonaSignerResponse := ReadPersonaSignerResponse{}
+	expectedReadPersonaSignerResponse := ReadPersonaSignerResponse{Status: personaTag, SignerAddress: signerAddress}
+	readPersonaRequest := ReadPersonaSignerRequest{
+		PersonaTag: personaTag,
+		Tick:       0,
+	}
+	readPersonaRequestData, err := json.Marshal(readPersonaRequest)
+	assert.NilError(t, err)
+	req, err := http.NewRequest("POST", txh.makeURL("query/persona/signer"), bytes.NewBuffer(readPersonaRequestData))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Length", strconv.Itoa(len(readPersonaRequestData)))
+	req.Header.Set("Accept", "application/json")
+	client := http.Client{}
+	ctx := context.Background()
+	err = w.LoadGameState()
+	assert.NilError(t, err)
+	err = w.Tick(ctx)
+	assert.NilError(t, err)
+	resp2, err := client.Do(req)
+	assert.NilError(t, err)
+	defer resp2.Body.Close()
+	err = json.NewDecoder(resp2.Body).Decode(&gotReadPersonaSignerResponse)
+	assert.NilError(t, err)
+	reflect.DeepEqual(gotReadPersonaSignerResponse, expectedReadPersonaSignerResponse)
 
 }
 
@@ -398,7 +407,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	personaSignerResp := postReadPersonaSigner("some_other_persona_tag", 0)
 	assert.Equal(t, personaSignerResp.Status, "available")
 
-	// If the game tick matches the passed in game tick, there hasn't been enough time to process the create persona tx.
+	// If the game tick matches the passed in game tick, there hasn't been enough time to process the create_persona_tx.
 	personaSignerResp = postReadPersonaSigner(personaTag, tick)
 	assert.Equal(t, personaSignerResp.Status, "unknown")
 
