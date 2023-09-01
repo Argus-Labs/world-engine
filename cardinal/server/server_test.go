@@ -8,12 +8,14 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
@@ -47,10 +49,16 @@ func (t *testTransactionHandler) post(path string, payload any) *http.Response {
 	return res
 }
 
-func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) *testTransactionHandler {
+func makeTestTransactionHandler(t *testing.T, world *ecs.World, swaggerFilePath string, opts ...Option) *testTransactionHandler {
 	port := "4040"
 	opts = append(opts, WithPort(port))
-	txh, err := NewHandler(world, opts...)
+	var txh *Handler
+	var err error
+	if len(swaggerFilePath) == 0 {
+		txh, err = NewHandler(world, opts...)
+	} else {
+		txh, err = NewSwaggerHandler(world, swaggerFilePath, opts...)
+	}
 	assert.NilError(t, err)
 
 	healthPath := "/health"
@@ -125,7 +133,7 @@ func TestCanListTransactionEndpoints(t *testing.T) {
 	betaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("beta")
 	gammaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("gamma")
 	assert.NilError(t, w.RegisterTransactions(alphaTx, betaTx, gammaTx))
-	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
+	txh := makeTestTransactionHandler(t, w, "", DisableSignatureVerification())
 
 	resp, err := http.Get(txh.makeURL(listTxEndpoint))
 	assert.NilError(t, err)
@@ -193,7 +201,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	bogusSignatureBz, err := json.Marshal(payload)
 	assert.NilError(t, err)
 
-	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
+	txh := makeTestTransactionHandler(t, w, "", DisableSignatureVerification())
 
 	resp, err := http.Post(txh.makeURL("tx-"+endpoint), "application/json", bytes.NewReader(bogusSignatureBz))
 	assert.NilError(t, err)
@@ -201,6 +209,94 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 
 	assert.NilError(t, w.Tick(context.Background()))
 	assert.Equal(t, 1, count)
+}
+
+func TestHandleSwaggerServer(t *testing.T) {
+	count := 0
+	w := inmem.NewECSWorldForTest(t)
+	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
+	assert.NilError(t, w.RegisterTransactions(sendTx))
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+		txs := sendTx.In(queue)
+		assert.Equal(t, 1, len(txs))
+		tx := txs[0]
+		assert.Equal(t, tx.Value.From, "me")
+		assert.Equal(t, tx.Value.To, "you")
+		assert.Equal(t, tx.Value.Amount, uint64(420))
+		count++
+		return nil
+	})
+
+	//TODO: next
+	// Queue up a CreatePersonaTx
+	//personaTag := "foobar"
+	//signerAddress := "xyzzy"
+	//ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+	//	PersonaTag:    personaTag,
+	//	SignerAddress: signerAddress,
+	//})
+	//readPersonaRequest := ReadPersonaSignerRequest{
+	//	PersonaTag: personaTag,
+	//	Tick:       0,
+	//}
+	//create readers
+	type FooRequest struct {
+		ID string
+	}
+	type FooReply struct {
+		Name string
+		Age  uint64
+	}
+
+	expectedReply := FooReply{
+		Name: "Chad",
+		Age:  22,
+	}
+	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+		return expectedReply, nil
+	}, ecs.WithReadEVMSupport[FooRequest, FooReply])
+	assert.NilError(t, w.RegisterReads(fooRead))
+
+	txh := makeTestTransactionHandler(t, w, "./swagger.yml", DisableSignatureVerification())
+
+	tx := SendEnergyTx{
+		From:   "me",
+		To:     "you",
+		Amount: 420,
+	}
+	bz, err := json.Marshal(tx)
+	assert.NilError(t, err)
+	signedTx := sign.SignedPayload{
+		PersonaTag: "some_persona",
+		Namespace:  "some_namespace",
+		Nonce:      100,
+		// this bogus signature is OK because DisableSignatureVerification was used
+		Signature: common.Bytes2Hex([]byte{1, 2, 3, 4}),
+		Body:      bz,
+	}
+
+	bz, err = signedTx.Marshal()
+	assert.NilError(t, err)
+
+	//Test /query/http/endpoints
+	expectedEndpointResult := EndpointsResult{
+		TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/persona/authorize-persona-address", "/tx/game/send-energy"},
+		QueryEndpoints: []string{"/query/game/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/list"},
+	}
+	resp, err := http.Post(txh.makeURL("query/http/endpoints"), "application/json", nil)
+	assert.NilError(t, err)
+	defer resp.Body.Close()
+	var endpointResult EndpointsResult
+	err = json.NewDecoder(resp.Body).Decode(&endpointResult)
+	assert.NilError(t, err)
+	assert.Assert(t, reflect.DeepEqual(endpointResult, expectedEndpointResult))
+
+	//TODO: next pr
+	//Test /query/persona/signer
+	//expectedReadPersonaSignerResponse := ReadPersonaSignerResponse{}
+	//
+	//resp, err := http.NewRequest("GET", txh.makeURL("/query/persona/submit"))
+
 }
 
 func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
@@ -220,7 +316,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 		return nil
 	})
 
-	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
+	txh := makeTestTransactionHandler(t, w, "", DisableSignatureVerification())
 
 	tx := SendEnergyTx{
 		From:   "me",
@@ -255,7 +351,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 	assert.NilError(t, world.Tick(context.Background()))
 
-	txh := makeTestTransactionHandler(t, world)
+	txh := makeTestTransactionHandler(t, world, "")
 
 	personaTag := "CoolMage"
 	privateKey, err := crypto.GenerateKey()
@@ -321,7 +417,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 
-	txh := makeTestTransactionHandler(t, world)
+	txh := makeTestTransactionHandler(t, world, "")
 
 	personaTag := "some_dude"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -355,7 +451,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 
-	txh := makeTestTransactionHandler(t, world)
+	txh := makeTestTransactionHandler(t, world, "")
 
 	personaTag := "some_dude"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -425,7 +521,7 @@ func TestCanListReads(t *testing.T) {
 	assert.NilError(t, world.RegisterReads(fooRead, barRead, bazRead))
 	assert.NilError(t, world.LoadGameState())
 
-	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
+	txh := makeTestTransactionHandler(t, world, "", DisableSignatureVerification())
 
 	resp, err := http.Get(txh.makeURL(listReadEndpoint))
 	assert.NilError(t, err)
@@ -472,7 +568,7 @@ func TestReadEncodeDecode(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	// make our test tx handler
-	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
+	txh := makeTestTransactionHandler(t, world, "", DisableSignatureVerification())
 
 	// now we set up a request, and marshal it to json to send to the handler
 	req := FooRequest{Foo: 12, Meow: "hello"}
@@ -495,7 +591,7 @@ func TestReadEncodeDecode(t *testing.T) {
 func TestMalformedRequestToGetTransactionReceiptsProducesError(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.LoadGameState())
-	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
+	txh := makeTestTransactionHandler(t, world, "", DisableSignatureVerification())
 	res := txh.post(txReceiptsEndpoint, map[string]any{
 		"missing_start_tick": 0,
 	})
@@ -506,7 +602,7 @@ func TestTransactionReceiptReturnCorrectTickWindows(t *testing.T) {
 	historySize := uint64(10)
 	world := inmem.NewECSWorldForTest(t, ecs.WithReceiptHistorySize(int(historySize)))
 	assert.NilError(t, world.LoadGameState())
-	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
+	txh := makeTestTransactionHandler(t, world, "", DisableSignatureVerification())
 
 	// getReceipts is a helper that hits the txReceiptsEndpoint endpoint.
 	getReceipts := func(start uint64) ListTxReceiptsReply {
@@ -629,7 +725,7 @@ func TestCanGetTransactionReceipts(t *testing.T) {
 	ctx := context.Background()
 	assert.NilError(t, world.Tick(ctx))
 
-	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
+	txh := makeTestTransactionHandler(t, world, "", DisableSignatureVerification())
 
 	// We're going to be getting the list of receipts a lot, so make a helper to fetch the receipts
 	getReceipts := func(start uint64) ListTxReceiptsReply {
@@ -716,7 +812,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	assert.NilError(t, world.Tick(ctx))
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
-	txh := makeTestTransactionHandler(t, world)
+	txh := makeTestTransactionHandler(t, world, "")
 
 	personaTag := "clifford_the_big_red_dog"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
