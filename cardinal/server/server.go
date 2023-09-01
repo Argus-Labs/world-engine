@@ -154,11 +154,24 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 		if !ok {
 			return nil, errors.New("params do not contain txType from the path /tx/game/{txType}")
 		}
-		tx := txNameToTx[txType]
+		txTypeString, ok := txType.(string)
+		if !ok {
+			return nil, errors.New("txType needs to be a string from path")
+		}
+		tx, ok := txNameToTx[txTypeString]
 		txBody, ok := mappedParams["txBody"]
 		if !ok {
 			return nil, errors.New("params do not contain txBody from the body of the http request")
 		}
+		txBodyMap, ok := txBody.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("txBody needs to be a json object in the body")
+		}
+		rawJsonTxBody, err := json.Marshal(txBodyMap)
+		if err != nil {
+			return nil, errors.New("")
+		}
+		tx.
 
 		return TransactionReply{
 			TxHash: "",
