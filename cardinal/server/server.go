@@ -93,14 +93,14 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 }
 
 // utility function to create a swagger handler from a request name, request constructor, request to response function.
-func createSwaggerHandler[Request any, Response any](requestName string, createRequest func() Request, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
+func createSwaggerHandler[Request any, Response any](requestName string, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
 	return func(params interface{}) (interface{}, error) {
-		request := createRequest()
-		ok := getValueFromParams[Request](&params, requestName, &request)
+		request := new(Request)
+		ok := getValueFromParams[Request](&params, requestName, request)
 		if !ok {
 			return nil, errors.New(fmt.Sprintf("could not find %s in parameters", requestName))
 		}
-		resp, err := requestHandler(&request)
+		resp, err := requestHandler(request)
 		if err != nil {
 			return nil, err
 		}
@@ -219,7 +219,6 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 	// Will be moved to ecs.
 	personaHandler := createSwaggerHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
 		"ReadPersonaSignerRequest",
-		makeReadPersonaSignerRequest,
 		handler.getPersonaSignerResponse)
 	receiptsHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
 		return struct {
