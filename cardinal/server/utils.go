@@ -161,6 +161,7 @@ func (t *Handler) verifySignatureOfHttpRequest(request *http.Request, isSystemTr
 	}
 }
 
+// identical to verifySignatureOfHttpRequest but takes in the body of the request in the form of a map.
 func (t *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
 	sp, err := sign.MappedSignedPayload(request)
 	if err != nil {
