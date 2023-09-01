@@ -4,6 +4,6 @@ use (
 	//cardinal
 	chain
 	//chain/contracts
-	//magefiles
+	magefiles
 	//sign
 )
