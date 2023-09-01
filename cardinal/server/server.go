@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -203,10 +204,59 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 // register query endpoints for swagger server
 func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handler) error {
 	//var txEndpoints []string
+	readNameToReadType := make(map[string]ecs.IRead)
+	for _, read := range world.ListReads() {
+		readNameToReadType[read.Name()] = read
+	}
+
+	// query/game/{readType} is a dynamic route that must dynamically handle things thus it can't use
+	// the createSwaggerHandler utility function below as the Request and Reply types are dynamic.
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		return struct {
-			test string
-		}{test: "test"}, errors.New("not implemented")
+		mapStruct, ok := params.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("invalid parameter input, map could not be created")
+		}
+		readTypeUntyped, ok := mapStruct["readType"]
+		if !ok {
+			return nil, errors.New("readType parameter not found")
+		}
+		readTypeString, ok := readTypeUntyped.(string)
+		if !ok {
+			return nil, errors.New("readType was the wrong type, it should be a string from the path")
+		}
+		outputType, ok := readNameToReadType[readTypeString]
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("readType of type %s does not exist", readTypeString))
+		}
+
+		bodyData, ok := mapStruct["readBody"]
+		if !ok {
+			return nil, errors.New("readBody parameter not found")
+		}
+		bodyDataAsMap, ok := bodyData.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("data not convertable to map")
+		}
+
+		//Huge hack.
+		//the json body comes in as a map.
+		//go-swagger validates all the data and shoves it into a map
+		//I can't get the relevant Request Type associated with the Read here
+		//So I convert that map into raw json
+		//Then I have IRead.HandleReadRaw just output a rawJsonReply.
+		//I convert that into a json.RawMessage which go-swagger will validate.
+		rawJsonBody, err := json.Marshal(bodyDataAsMap)
+		if err != nil {
+			return nil, err
+		}
+		rawJsonReply, err := outputType.HandleReadRaw(world, rawJsonBody)
+		result := make(json.RawMessage, 0, len(rawJsonReply))
+		err = json.Unmarshal(rawJsonReply, &result)
+		if err != nil {
+			return nil, err
+		}
+		return result, nil
+
 	})
 	endpoints, err := createAllEndpoints(world)
 	if err != nil {
@@ -227,7 +277,6 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		makeListTxReceiptsRequest,
 		getListTxReceiptsReplyFromRequest(world),
 	)
-
 	api.RegisterOperation("POST", "/query/game/{readType}", gameHandler)
 	api.RegisterOperation("POST", "/query/http/endpoints", listHandler)
 	api.RegisterOperation("POST", "/query/persona/signer", personaHandler)
