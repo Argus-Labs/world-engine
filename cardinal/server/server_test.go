@@ -243,7 +243,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	}
 	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
-	}, ecs.WithReadEVMSupport[FooRequest, FooReply])
+	})
 	assert.NilError(t, w.RegisterReads(fooRead))
 
 	txh := makeTestTransactionHandler(t, w, "./swagger.yml", DisableSignatureVerification())
@@ -306,6 +306,26 @@ func TestHandleSwaggerServer(t *testing.T) {
 	assert.NilError(t, err)
 	reflect.DeepEqual(gotReadPersonaSignerResponse, expectedReadPersonaSignerResponse)
 
+	//Test /query/game/foo
+	fooRequest := FooRequest{ID: "1"}
+	fooData, err := json.Marshal(fooRequest)
+	if err != nil {
+		assert.NilError(t, err)
+	}
+	resp3, err := http.Post(txh.makeURL("query/game/foo"), "application/json", bytes.NewBuffer(fooData))
+	if err != nil {
+		assert.NilError(t, err)
+	}
+	defer resp3.Body.Close()
+	actualFooReply := FooReply{
+		Name: "",
+		Age:  0,
+	}
+	err = json.NewDecoder(resp3.Body).Decode(&actualFooReply)
+	if err != nil {
+		assert.NilError(t, err)
+	}
+	assert.DeepEqual(t, actualFooReply, expectedReply)
 }
 
 func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
