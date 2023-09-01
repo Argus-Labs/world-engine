@@ -227,11 +227,11 @@ func TestHandleSwaggerServer(t *testing.T) {
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddress,
 	})
-
-	ecs.AuthorizePersonaAddressTx.AddToQueue(w, ecs.AuthorizePersonaAddress{
+	authorizedPersonaAddress := ecs.AuthorizePersonaAddress{
 		PersonaTag: personaTag,
 		Address:    signerAddress,
-	}, &sign.SignedPayload{PersonaTag: personaTag})
+	}
+	ecs.AuthorizePersonaAddressTx.AddToQueue(w, authorizedPersonaAddress, &sign.SignedPayload{PersonaTag: personaTag})
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
 
 	//create readers
@@ -332,8 +332,29 @@ func TestHandleSwaggerServer(t *testing.T) {
 		assert.NilError(t, err)
 	}
 	assert.DeepEqual(t, actualFooReply, expectedReply)
-
+	personaAddressJson, err := json.Marshal(authorizedPersonaAddress)
+	assert.NilError(t, err)
 	// tx/persona/authorize-persona-address
+	signedTxPayload := sign.SignedPayload{
+		PersonaTag: personaTag,
+		Namespace:  "some_namespace",
+		Nonce:      100,
+		// this bogus signature is OK because DisableSignatureVerification was used
+		Signature: common.Bytes2Hex([]byte{1, 2, 3, 4}),
+		Body:      personaAddressJson,
+	}
+	signedTxJson, err := json.Marshal(signedTxPayload)
+	assert.NilError(t, err)
+	expectedTxReply := TransactionReply{
+		TxHash: "0xe12ef0d6e60ae35db0291878a9b2b1cf82fb9a5fb7c3fc50ce6f8cf49300a7c2",
+		Tick:   1,
+	}
+	gotTxReply := TransactionReply{}
+	resp4, err := http.Post(txh.makeURL("tx/persona/authorize-persona-address"), "application/json", bytes.NewBuffer(signedTxJson))
+	assert.NilError(t, err)
+	err = json.NewDecoder(resp4.Body).Decode(&gotTxReply)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, gotTxReply, expectedTxReply)
 
 }
 

@@ -30,8 +30,8 @@ type SignedPayload struct {
 	PersonaTag string
 	Namespace  string
 	Nonce      uint64
-	Signature  string // hex encoded string
-	Hash       common.Hash
+	Signature  string          // hex encoded string
+	Hash       common.Hash     `mapstructure:",omitempty"`
 	Body       json.RawMessage // json string
 }
 
@@ -78,10 +78,17 @@ func MappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error)
 			return nil, errors.New(fmt.Sprintf("invalid field: %s in body", key))
 		}
 	}
-	err := mapstructure.Decode(payload, s)
+	serializedBody, err := json.Marshal(payload["Body"])
 	if err != nil {
 		return nil, err
 	}
+	delete(payload, "Hash")
+	delete(payload, "Body")
+	err = mapstructure.Decode(payload, s)
+	if err != nil {
+		return nil, err
+	}
+	s.Body = serializedBody
 	// ensure that all fields are present. we could do this via reflection, but checking directly is faster than
 	// using reflection package.
 	if s.PersonaTag == "" {

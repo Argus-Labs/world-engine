@@ -47,7 +47,7 @@ paths:
             produces:
                 - application/json
             parameters:
-                - name: transactionBody
+                - name: txBody
                   in: body
                   description: Transaction details
                   required: true
@@ -69,7 +69,7 @@ paths:
             produces:
                 - application/json
             parameters:
-                - name: transactionBody
+                - name: txBody
                   in: body
                   description: Transaction details
                   required: true
