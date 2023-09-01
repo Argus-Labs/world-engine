@@ -95,14 +95,13 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 }
 
 // utility function to create a swagger handler from a request name, request constructor, request to response function.
-func createSwaggerQueryHandler[Request any, Response any](requestName string, createRequest func() Request, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
+func createSwaggerQueryHandler[Request any, Response any](requestName string, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
 	return func(params interface{}) (interface{}, error) {
-		request := createRequest()
-		ok := getValueFromParams[Request](&params, requestName, &request)
+		request, ok := getValueFromParams[Request](params, requestName)
 		if !ok {
 			return nil, errors.New(fmt.Sprintf("could not find %s in parameters", requestName))
 		}
-		resp, err := requestHandler(&request)
+		resp, err := requestHandler(request)
 		if err != nil {
 			return nil, err
 		}
@@ -111,24 +110,25 @@ func createSwaggerQueryHandler[Request any, Response any](requestName string, cr
 }
 
 // utility function to extract parameters from swagger handlers
-func getValueFromParams[T any](params *interface{}, name string, value *T) bool {
-	data, ok := (*params).(map[string]interface{})
+func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
+	data, ok := params.(map[string]interface{})
 	if !ok {
-		return ok
+		return nil, ok
 	}
 	mappedStructUntyped, ok := data[name]
 	if !ok {
-		return ok
+		return nil, ok
 	}
 	mappedStruct, ok := mappedStructUntyped.(map[string]interface{})
 	if !ok {
-		return ok
+		return nil, ok
 	}
+	value := new(T)
 	err := mapstructure.Decode(mappedStruct, value)
 	if err != nil {
-		return ok
+		return nil, ok
 	}
-	return true
+	return value, true
 }
 
 func processTxParams(params interface{}, pathParam string, txNameToTx map[string]transaction.ITransaction, handler *Handler) (
@@ -285,11 +285,11 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		}
 		readTypeString, ok := readTypeUntyped.(string)
 		if !ok {
-			return nil, errors.New("readType was the wrong type, it should be a string from the path")
+			return nil, fmt.Errorf("readType was the wrong type, it should be a string from the path")
 		}
 		outputType, ok := readNameToReadType[readTypeString]
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("readType of type %s does not exist", readTypeString))
+			return nil, fmt.Errorf(fmt.Sprintf("readType of type %s does not exist", readTypeString))
 		}
 
 		bodyData, ok := mapStruct["readBody"]
@@ -313,12 +313,10 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 			return nil, err
 		}
 		rawJsonReply, err := outputType.HandleReadRaw(world, rawJsonBody)
-		result := make(json.RawMessage, 0, len(rawJsonReply))
-		err = json.Unmarshal(rawJsonReply, &result)
 		if err != nil {
 			return nil, err
 		}
-		return result, nil
+		return json.RawMessage(rawJsonReply), nil
 
 	})
 	endpoints, err := createAllEndpoints(world)
@@ -332,14 +330,13 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 	// Will be moved to ecs.
 	personaHandler := createSwaggerQueryHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
 		"ReadPersonaSignerRequest",
-		makeReadPersonaSignerRequest,
 		handler.getPersonaSignerResponse)
 
 	receiptsHandler := createSwaggerQueryHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
 		"ListTxReceiptsRequest",
-		makeListTxReceiptsRequest,
 		getListTxReceiptsReplyFromRequest(world),
 	)
+
 	api.RegisterOperation("POST", "/query/game/{readType}", gameHandler)
 	api.RegisterOperation("POST", "/query/http/endpoints", listHandler)
 	api.RegisterOperation("POST", "/query/persona/signer", personaHandler)
