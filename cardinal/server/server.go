@@ -275,6 +275,7 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		"ListTxReceiptsRequest",
 		getListTxReceiptsReplyFromRequest(world),
 	)
+
 	api.RegisterOperation("POST", "/query/game/{readType}", gameHandler)
 	api.RegisterOperation("POST", "/query/http/endpoints", listHandler)
 	api.RegisterOperation("POST", "/query/persona/signer", personaHandler)
