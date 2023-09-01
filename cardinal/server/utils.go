@@ -89,17 +89,7 @@ func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
 	return createPersonaTx.SignerAddress, nil
 }
 
-func (t *Handler) verifySignature(request *http.Request, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
-	buf, err := io.ReadAll(request.Body)
-	if err != nil {
-		return nil, nil, errors.New("unable to read body")
-	}
-
-	sp, err := sign.UnmarshalSignedPayload(buf)
-	if err != nil {
-		return nil, nil, err
-	}
-
+func (t *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
 	if sp.PersonaTag == "" {
 		return nil, nil, errors.New("PersonaTag must not be empty")
 	}
@@ -151,9 +141,22 @@ func (t *Handler) verifySignature(request *http.Request, isSystemTransaction boo
 	if err := t.w.SetNonce(signerAddress, sp.Nonce); err != nil {
 		return nil, nil, err
 	}
+	return sp.Body, sp, nil
+}
 
+func (t *Handler) verifySignature(request *http.Request, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
+	buf, err := io.ReadAll(request.Body)
+	if err != nil {
+		return nil, nil, errors.New("unable to read body")
+	}
+	sp, err := sign.UnmarshalSignedPayload(buf)
+	if err != nil {
+		return nil, nil, err
+	}
+	payload, sig, err = t.verifySignatureOfSignedPayload(sp, isSystemTransaction)
 	if len(sp.Body) == 0 {
 		return buf, sp, nil
+	} else {
+		return payload, sig, err
 	}
-	return sp.Body, sp, nil
 }

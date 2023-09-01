@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mitchellh/mapstructure"
 )
 
 var (
@@ -43,6 +44,44 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 		return nil, fmt.Errorf("error decoding SignedPayload: %w", err)
 	}
 
+	// ensure that all fields are present. we could do this via reflection, but checking directly is faster than
+	// using reflection package.
+	if s.PersonaTag == "" {
+		return nil, errors.New("SignerPayload must contain PersonaTag field")
+	}
+	if s.Namespace == "" {
+		return nil, errors.New("SignerPayload must contain Namespace field")
+	}
+	if s.Signature == "" {
+		return nil, errors.New("SignerPayload must contain Signature field")
+	}
+	if len(s.Body) == 0 {
+		return nil, errors.New("SignerPayload must contain Body field")
+	}
+	s.populateHash()
+	return s, nil
+}
+
+func mappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error) {
+	s := new(SignedPayload)
+	signedPayloadKeys := map[string]bool{
+		"PersonaTag": true,
+		"Namespace":  true,
+		"Signature":  true,
+		"Nonce":      true,
+		"Body":       true,
+		"Hash":       true,
+	}
+	for key, _ := range payload {
+		_, ok := signedPayloadKeys[key]
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("invalid field: %s in body", key))
+		}
+	}
+	err := mapstructure.Decode(payload, s)
+	if err != nil {
+		return nil, err
+	}
 	// ensure that all fields are present. we could do this via reflection, but checking directly is faster than
 	// using reflection package.
 	if s.PersonaTag == "" {

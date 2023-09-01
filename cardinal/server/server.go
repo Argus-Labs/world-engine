@@ -94,7 +94,7 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 }
 
 // utility function to create a swagger handler from a request name, request constructor, request to response function.
-func createSwaggerHandler[Request any, Response any](requestName string, createRequest func() Request, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
+func createSwaggerQueryHandler[Request any, Response any](requestName string, createRequest func() Request, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
 	return func(params interface{}) (interface{}, error) {
 		request := createRequest()
 		ok := getValueFromParams[Request](&params, requestName, &request)
@@ -146,6 +146,20 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	}
 
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		mappedParams, ok := params.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("params not readable")
+		}
+		txType, ok := mappedParams["txType"]
+		if !ok {
+			return nil, errors.New("params do not contain txType from the path /tx/game/{txType}")
+		}
+		tx := txNameToTx[txType]
+		txBody, ok := mappedParams["txBody"]
+		if !ok {
+			return nil, errors.New("params do not contain txBody from the body of the http request")
+		}
+
 		return TransactionReply{
 			TxHash: "",
 			Tick:   0,
@@ -210,7 +224,7 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 	}
 
 	// query/game/{readType} is a dynamic route that must dynamically handle things thus it can't use
-	// the createSwaggerHandler utility function below as the Request and Reply types are dynamic.
+	// the createSwaggerQueryHandler utility function below as the Request and Reply types are dynamic.
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		mapStruct, ok := params.(map[string]interface{})
 		if !ok {
@@ -267,12 +281,12 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 	})
 
 	// Will be moved to ecs.
-	personaHandler := createSwaggerHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
+	personaHandler := createSwaggerQueryHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
 		"ReadPersonaSignerRequest",
 		makeReadPersonaSignerRequest,
 		handler.getPersonaSignerResponse)
 
-	receiptsHandler := createSwaggerHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
+	receiptsHandler := createSwaggerQueryHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
 		"ListTxReceiptsRequest",
 		makeListTxReceiptsRequest,
 		getListTxReceiptsReplyFromRequest(world),
