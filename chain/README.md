@@ -6,6 +6,20 @@
 
 The easiest way to install a Cosmos-SDK Blockchain running Polaris is to download a pre-built binary. You can find the latest binaries on the [releases](https://github.com/polaris/releases) page.
 
+### Makefile
+
+To install the World Engine blockchain in your bin, making it globally accessable from your terminal, run this command in the `chain` directory:
+
+```bash
+make install
+```
+
+To verify installation was successful run:
+
+```bash
+world version
+```
+
 ### From Prebuilt Docker Image
 
 Pull `chain` prebuild Docker Image:
