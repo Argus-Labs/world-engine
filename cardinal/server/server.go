@@ -222,11 +222,11 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		}
 		readTypeString, ok := readTypeUntyped.(string)
 		if !ok {
-			return nil, errors.New("readType was the wrong type, it should be a string from the path")
+			return nil, fmt.Errorf("readType was the wrong type, it should be a string from the path")
 		}
 		outputType, ok := readNameToReadType[readTypeString]
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("readType of type %s does not exist", readTypeString))
+			return nil, fmt.Errorf(fmt.Sprintf("readType of type %s does not exist", readTypeString))
 		}
 
 		bodyData, ok := mapStruct["readBody"]
@@ -250,12 +250,10 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 			return nil, err
 		}
 		rawJsonReply, err := outputType.HandleReadRaw(world, rawJsonBody)
-		result := make(json.RawMessage, 0, len(rawJsonReply))
-		err = json.Unmarshal(rawJsonReply, &result)
 		if err != nil {
 			return nil, err
 		}
-		return result, nil
+		return json.RawMessage(rawJsonReply), nil
 
 	})
 	endpoints, err := createAllEndpoints(world)
