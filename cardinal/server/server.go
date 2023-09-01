@@ -223,7 +223,6 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 
 	receiptsHandler := createSwaggerHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
 		"ListTxReceiptsRequest",
-		makeListTxReceiptsRequest,
 		getListTxReceiptsReplyFromRequest(world),
 	)
 
