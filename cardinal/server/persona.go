@@ -86,7 +86,7 @@ func (t *Handler) handleReadPersonaSignerSchema(w http.ResponseWriter, _ *http.R
 
 func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		payload, sp, err := t.verifySignatureOfHttpRequest(request, true)
+		payload, sp, err := t.verifySignatureOfhttpRequest(request, true)
 		if err != nil {
 			if errors.Is(err, ErrorInvalidSignature) {
 				writeUnauthorized(writer, err)

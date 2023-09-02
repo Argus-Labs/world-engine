@@ -131,46 +131,50 @@ func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
 	return value, true
 }
 
-func processTxParams(params interface{}, pathParam string, txNameToTx map[string]transaction.ITransaction, handler *Handler) (
-	payload []byte, sp *sign.SignedPayload,
-	tx transaction.ITransaction, err error) {
+func processTxParams(
+	params interface{},
+	pathParam string,
+	txNameToTx map[string]transaction.ITransaction,
+	handler *Handler) (
+
+	[]byte,
+	*sign.SignedPayload,
+	transaction.ITransaction,
+	error) {
 	mappedParams, ok := params.(map[string]interface{})
 	if !ok {
-		err = errors.New("params not readable")
-		return
+		return nil, nil, nil, errors.New("params not readable")
 	}
-
+	var tx transaction.ITransaction
 	if len(pathParam) > 0 {
 		txType, ok := mappedParams[pathParam]
 		if !ok {
-			err = errors.New("params do not contain txType from the path /tx/game/{txType}")
+			return nil, nil, nil, errors.New("params do not contain txType from the path /tx/game/{txType}")
 		}
 		txTypeString, ok := txType.(string)
 		if !ok {
-			err = errors.New("txType needs to be a string from path")
-			return
+			return nil, nil, nil, errors.New("txType needs to be a string from path")
 		}
 		tx, ok = txNameToTx[txTypeString]
 		if !ok {
-			err = errors.New(fmt.Sprintf("could not locate transaction type: %s", txTypeString))
+			return nil, nil, nil, errors.New(fmt.Sprintf("could not locate transaction type: %s", txTypeString))
 		}
 	}
 
 	txBody, ok := mappedParams["txBody"]
 	if !ok {
-		err = errors.New("params do not contain txBody from the body of the http request")
-		return
+		return nil, nil, nil, errors.New("params do not contain txBody from the body of the http request")
 	}
 	txBodyMap, ok := txBody.(map[string]interface{})
 	if !ok {
-		err = errors.New("txBody needs to be a json object in the body")
+		return nil, nil, nil, errors.New("txBody needs to be a json object in the body")
 
 	}
-	payload, sp, err = handler.verifySignatureOfMapRequest(txBodyMap, false)
+	payload, sp, err := handler.verifySignatureOfMapRequest(txBodyMap, false)
 	if err != nil {
-		return
+		return nil, nil, nil, err
 	}
-	return
+	return payload, sp, tx, nil
 }
 
 func processTxBodyMap(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload, handler *Handler) (*TransactionReply, error) {
