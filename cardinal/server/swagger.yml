@@ -52,7 +52,7 @@ paths:
                   description: Transaction details
                   required: true
                   schema:
-                      $ref: '#/definitions/CreatePersonaTransaction'
+                      $ref: '#/definitions/TxRequestWithCreatePersona'
             responses:
                 '200':
                     description: successful operation
@@ -169,6 +169,28 @@ paths:
                     description: Invalid transaction request
 
 definitions:
+    TxRequestWithCreatePersona:
+        required:
+            - PersonaTag
+            - Namespace
+            - Nonce
+            - Signature
+            - Body
+        type: object
+        properties:
+            PersonaTag:
+                type: string
+                example: CoolMage
+            Namespace:
+                type: string
+                example: agar-shooter
+            Nonce:
+                type: integer
+                format: int64
+            Signature:
+                type: string
+            Body:
+                $ref: '#/definitions/CreatePersonaTransaction'
     CreatePersonaTransaction:
         type: object
         required:

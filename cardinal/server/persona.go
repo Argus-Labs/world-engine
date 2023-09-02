@@ -9,6 +9,7 @@ import (
 	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/sign"
 )
 
 // ReadPersonaSignerRequest is the desired request body for the read-persona-signer endpoint.
@@ -84,6 +85,19 @@ func (t *Handler) handleReadPersonaSignerSchema(w http.ResponseWriter, _ *http.R
 	writeResult(w, jsonSchema)
 }
 
+func generateCreatePersonaResponseFromPayload(payload []byte, sp *sign.SignedPayload, tx transaction.ITransaction, world *ecs.World) (*TransactionReply, error) {
+	txVal, err := tx.Decode(payload)
+	if err != nil {
+		return nil, errors.New("unable to decode transaction")
+	}
+	tick, txHash := world.AddTransaction(tx.ID(), txVal, sp)
+	res := TransactionReply{
+		TxHash: string(txHash),
+		Tick:   tick,
+	}
+	return &res, nil
+}
+
 func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		payload, sp, err := t.verifySignatureOfHttpRequest(request, true)
@@ -98,18 +112,12 @@ func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.Han
 			writeError(writer, "unable to verify signature", err)
 			return
 		}
-
-		txVal, err := tx.Decode(payload)
+		txReply, err := generateCreatePersonaResponseFromPayload(payload, sp, tx, t.w)
 		if err != nil {
-			writeError(writer, "unable to decode transaction", err)
+			writeError(writer, "", err)
 			return
 		}
-		tick, txHash := t.w.AddTransaction(tx.ID(), txVal, sp)
-
-		res, err := json.Marshal(TransactionReply{
-			TxHash: string(txHash),
-			Tick:   tick,
-		})
+		res, err := json.Marshal(txReply)
 		if err != nil {
 			writeError(writer, "unable to marshal response", err)
 			return

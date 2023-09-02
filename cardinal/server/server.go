@@ -131,7 +131,7 @@ func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
 	return value, true
 }
 
-func processTxParams(params interface{}, pathParam string, txNameToTx map[string]transaction.ITransaction, handler *Handler) (
+func processTxParams(params interface{}, pathParam string, txNameToTx map[string]transaction.ITransaction, handler *Handler, isSystemTransaction bool) (
 	payload []byte, sp *sign.SignedPayload,
 	tx transaction.ITransaction, err error) {
 	mappedParams, ok := params.(map[string]interface{})
@@ -166,7 +166,7 @@ func processTxParams(params interface{}, pathParam string, txNameToTx map[string
 		err = errors.New("txBody needs to be a json object in the body")
 
 	}
-	payload, sp, err = handler.verifySignatureOfMapRequest(txBodyMap, false)
+	payload, sp, err = handler.verifySignatureOfMapRequest(txBodyMap, isSystemTransaction)
 	if err != nil {
 		return
 	}
@@ -199,7 +199,7 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	}
 
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		payload, sp, tx, err := processTxParams(params, "txType", txNameToTx, handler)
+		payload, sp, tx, err := processTxParams(params, "txType", txNameToTx, handler, false)
 		if err != nil {
 			return nil, err
 		}
@@ -211,12 +211,20 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 
 	// will be moved to ecs
 	createPersonaHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		return ecs.CreatePersonaTransactionResult{Success: true}, errors.New("not implemented")
+		payload, sp, _, err := processTxParams(params, "", txNameToTx, handler, true)
+		if err != nil {
+			return nil, err
+		}
+		txReply, err := generateCreatePersonaResponseFromPayload(payload, sp, ecs.CreatePersonaTx, world)
+		if err != nil {
+			return nil, err
+		}
+		return &txReply, nil
 	})
 
 	// will be moved to ecs
 	authorizePersonaAddressHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		payload, sp, _, err := processTxParams(params, "", txNameToTx, handler)
+		payload, sp, _, err := processTxParams(params, "", txNameToTx, handler, false)
 		if err != nil {
 			return nil, err
 		}
