@@ -141,9 +141,6 @@ Start the `chain` and `celestia-devnet` using `chain/docker-compose.yml`, make s
   docker compose up chain --build --detach
   ```
 
-
-
-
 ## Environment Variables
 The following env variables must be set for the following features.
 

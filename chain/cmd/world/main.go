@@ -24,8 +24,6 @@ import (
 	"os"
 
 	"cosmossdk.io/log"
-	"github.com/spf13/viper"
-
 	svrcmd "github.com/cosmos/cosmos-sdk/server/cmd"
 
 	simapp "pkg.world.dev/world-engine/chain/app"
@@ -35,15 +33,10 @@ import (
 )
 
 func main() {
-	var err error
-	var cfg config.WorldEngineConfig
-	cfg, err = getWorldEngineConfig()
-	if err != nil {
-		cfg = getDefaultConfig()
-	}
+	cfg := getDefaultConfig()
 	types.SetupCosmosConfig(cfg)
 	rootCmd := cmd.NewRootCmd()
-	if err = svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
+	if err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
 		log.NewLogger(rootCmd.OutOrStderr()).Error("failure when running app", "err", err)
 		os.Exit(1)
 	}
@@ -51,9 +44,9 @@ func main() {
 
 func getDefaultConfig() config.WorldEngineConfig {
 	return config.WorldEngineConfig{
-		DisplayDenom:    "stake",
-		BaseDenom:       "ustake",
-		Bech32Prefix:    "polar",
+		DisplayDenom:    "eth",
+		BaseDenom:       "gwei",
+		Bech32Prefix:    "world",
 		RouterAuthority: "",
 	}
 }
@@ -61,19 +54,20 @@ func getDefaultConfig() config.WorldEngineConfig {
 // getWorldEngineConfig loads the world engine configuration. It requires that a path and filename be in
 // the environment variables, so that viper can target the file and load it.
 func getWorldEngineConfig() (config.WorldEngineConfig, error) {
-	v := viper.New()
-	path := os.Getenv("WORLD_ENGINE_CONFIG_PATH")
-	name := os.Getenv("WORLD_ENGINE_CONFIG_NAME")
-	v.AddConfigPath(path)
-	v.SetConfigName(name)
-	err := v.ReadInConfig()
-	if err != nil {
-		return config.WorldEngineConfig{}, err
-	}
-	worldEngineCfg := config.WorldEngineConfig{}
-	err = v.Unmarshal(&worldEngineCfg)
-	if err != nil {
-		return config.WorldEngineConfig{}, err
-	}
-	return worldEngineCfg, nil
+	//v := viper.New()
+	//path := os.Getenv("WORLD_ENGINE_CONFIG_PATH")
+	//name := os.Getenv("WORLD_ENGINE_CONFIG_NAME")
+	//v.AddConfigPath(path)
+	//v.SetConfigName(name)
+	//err := v.ReadInConfig()
+	//if err != nil {
+	//	return config.WorldEngineConfig{}, err
+	//}
+	//worldEngineCfg := config.WorldEngineConfig{}
+	//err = v.Unmarshal(&worldEngineCfg)
+	//if err != nil {
+	//	return config.WorldEngineConfig{}, err
+	//}
+	//return worldEngineCfg, nil
+	return getDefaultConfig(), nil
 }
