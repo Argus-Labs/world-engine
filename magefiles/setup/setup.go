@@ -46,8 +46,8 @@ var (
 	abigen       = "github.com/ethereum/go-ethereum/cmd/abigen"
 	gci          = "github.com/daixiang0/gci"
 
-	//allTools = []string{buf, gosec, golangcilint, addlicense,
-	//	moq, ginkgo, golines, rlpgen, abigen, gci}
+	// allTools = []string{buf, gosec, golangcilint, addlicense,
+	// moq, ginkgo, golines, rlpgen, abigen, gci}
 	allTools []string
 )
 
