@@ -14,7 +14,7 @@ To install the World Engine blockchain in your bin, making it globally accessabl
 make install
 ```
 
-To verify installation was successful run:
+To verify installation was successful, run:
 
 ```bash
 world version
