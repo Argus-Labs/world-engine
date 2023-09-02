@@ -88,6 +88,7 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.3 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
+	github.com/bufbuild/protocompile v0.6.0 // indirect
 	github.com/bytedance/sonic v1.10.0 // indirect
 	github.com/celestiaorg/go-fraud v0.1.2 // indirect
 	github.com/celestiaorg/go-header v0.2.13 // indirect

@@ -1,0 +1,300 @@
+consumes:
+    - application/json
+info:
+    description: Backend server for World Engine
+    title: Cardinal
+    version: 0.0.1
+produces:
+    - application/json
+schemes:
+    - http
+swagger: "2.0"
+
+paths:
+    /tx/game/{txType}:
+        post:
+            summary: Submit a transaction to Cardinal
+            description: Submit a transaction to Cardinal
+            consumes:
+                - application/json
+            produces:
+                - application/json
+            parameters:
+                - name: txType
+                  in: path
+                  description: label of the transaction that wants to be submitted
+                  required: true
+                  type: string
+                - name: txBody
+                  in: body
+                  description: Transaction details
+                  required: true
+                  schema:
+                      $ref: '#/definitions/TxRequest'
+            responses:
+                '200':
+                    description: successful operation
+                    schema:
+                        $ref: '#/definitions/TxReply'
+                '400':
+                    description: Invalid transaction request
+    /tx/persona/create-persona:
+        post:
+            summary: Create a Persona transaction to Cardinal
+            description: Create a Persona transaction to Cardinal
+            consumes:
+                - application/json
+            produces:
+                - application/json
+            parameters:
+                - name: transactionBody
+                  in: body
+                  description: Transaction details
+                  required: true
+                  schema:
+                      $ref: '#/definitions/CreatePersonaTransaction'
+            responses:
+                '200':
+                    description: successful operation
+                    schema:
+                        $ref: '#/definitions/CreatePersonaTransactionResult'
+                '400':
+                    description: Invalid transaction request
+    /tx/persona/authorize-persona-address:
+        post:
+            summary: Create a Persona transaction to Cardinal
+            description: Submit a Persona transaction to Cardinal
+            consumes:
+                - application/json
+            produces:
+                - application/json
+            parameters:
+                - name: transactionBody
+                  in: body
+                  description: Transaction details
+                  required: true
+                  schema:
+                      $ref: '#/definitions/TxRequest'
+            responses:
+                '200':
+                    description: successful operation
+                    schema:
+                        $ref: '#/definitions/TxReply'
+                '400':
+                    description: Invalid transaction request
+    /query/game/{readType}:
+        post:
+            summary: Query the ecs
+            description: Query the ecs
+            consumes:
+                - application/json
+            produces:
+                - application/json
+            operationId: read
+            parameters:
+                - name: readType
+                  in: path
+                  description: The read type
+                  required: true
+                  type: string
+                - name: readBody
+                  required: true
+                  in: body
+                  schema: {}
+            responses:
+                '200':
+                    description: read response
+                    schema: {}
+                '400':
+                    description: Invalid read request
+    /query/persona/signer:
+        post:
+            summary: Get persona data from cardinal
+            description: Get persona data from cardinal
+            consumes:
+                - application/json
+            produces:
+                - application/json
+            operationId: read
+            parameters:
+                - name: ReadPersonaSignerRequest
+                  required: true
+                  in: body
+                  schema:
+                      $ref: '#/definitions/ReadPersonaSignerRequest'
+            responses:
+                '200':
+                    description: read response
+                    schema:
+                        $ref: '#/definitions/ReadPersonaSignerResponse'
+                '400':
+                    description: Invalid read request
+    /query/http/endpoints:
+        post:
+            summary: Get all http endpoints from cardinal
+            description: Get all http endpoints from cardinal
+            consumes:
+                - application/json
+            produces:
+                - application/json
+            operationId: read
+            responses:
+                '200':
+                    description: list of read endpoints
+                    schema:
+                        $ref: '#/definitions/ReadListEndpoints'
+                '400':
+                    description: Invalid read request
+    /query/receipts/list:
+        post:
+            summary: Get transaction receipts from Cardinal
+            description: Get transaction receipts from Cardinal
+            consumes:
+                - application/json
+            produces:
+                - application/json
+            operationId: receipts
+            parameters:
+                - name: ListTxReceiptsRequest
+                  required: true
+                  in: body
+                  schema:
+                      $ref: '#/definitions/ListTxReceiptsRequest'
+            responses:
+                '200':
+                    description: successful operation
+                    schema:
+                        $ref: '#/definitions/ListTxReceiptsReply'
+                '400':
+                    description: Invalid transaction request
+
+definitions:
+    CreatePersonaTransaction:
+        type: object
+        required:
+            - PersonaTag
+            - SignerAddress
+        properties:
+            PersonaTag:
+                type: string
+            SignerAddress:
+                type: string
+    CreatePersonaTransactionResult:
+        type: object
+        required:
+            - Success
+        properties:
+            Success:
+                type: boolean
+    ReadPersonaSignerRequest:
+        type: object
+        required:
+            - PersonaTag
+            - Tick
+        properties:
+            PersonaTag:
+                type: string
+            Tick:
+                type: integer
+                format: int64
+    ReadPersonaSignerResponse:
+        type: object
+        required:
+            - Status
+            - SignerAddress
+        properties:
+            Status:
+                type: string
+            SignerAddress:
+                type: string
+    ReadListEndpoints:
+        type: object
+        required:
+            - tx_endpoints
+            - query_endpoints
+        properties:
+            tx_endpoints:
+                type: array
+                items:
+                    type: string
+            query_endpoints:
+                type: array
+                items:
+                    type: string
+        items:
+            type: string
+    TxReply:
+        required:
+            - tx_hash
+            - tick
+        type: object
+        properties:
+            tx_hash:
+                type: string
+            tick:
+                type: integer
+                format: int64
+    TxRequest:
+        required:
+            - PersonaTag
+            - Namespace
+            - Nonce
+            - Signature
+            - Body
+        type: object
+        properties:
+            PersonaTag:
+                type: string
+                example: CoolMage
+            Namespace:
+                type: string
+                example: agar-shooter
+            Nonce:
+                type: integer
+                format: int64
+            Signature:
+                type: string
+            Body:
+                type: object
+    ListTxReceiptsRequest:
+        required:
+            - start_tick
+        type: object
+        properties:
+            start_tick:
+                type: integer
+                format: int64
+    ListTxReceiptsReply:
+        required:
+            - start_tick
+            - end_tick
+            - receipts
+        type: object
+        properties:
+            start_tick:
+                type: integer
+                format: int64
+            end_tick:
+                type: integer
+                format: int64
+            receipts:
+                type: array
+                items:
+                    $ref: '#/definitions/Receipts'
+    Receipts:
+        required:
+            - tx_hash
+            - tick
+            - result
+            - errors
+        type: object
+        properties:
+            tx_hash:
+                type: string
+            tick:
+                type: integer
+            result: {}
+            errors:
+                type: array
+                items:
+                    type: string

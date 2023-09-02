@@ -81,7 +81,18 @@ func GenerateCheck() error {
 
 // Runs 'go tidy' on the entire project.
 func Tidy() error {
-	return ExecuteForAllModules(moduleDirs, goModTidy, false)
+	dirs, err := findGoModFiles()
+	if err != nil {
+		return err
+	}
+	err = ExecuteForAllModules(dirs, goModTidy, false)
+	if err != nil {
+		return err
+	}
+	for _, dir := range dirs {
+		fmt.Printf("tidied %s\n", dir)
+	}
+	return nil
 }
 
 // Runs 'go work sync' on the entire project.
