@@ -25,6 +25,8 @@ import (
 	"errors"
 	"io"
 	"os"
+	evmmempool "pkg.berachain.dev/polaris/cosmos/x/evm/plugins/txpool/mempool"
+	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
 
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/spf13/cobra"
@@ -34,8 +36,6 @@ import (
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
-	"cosmossdk.io/x/tx/signing"
-
 	cmtcfg "github.com/cometbft/cometbft/config"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -62,9 +62,6 @@ import (
 
 	ethcryptocodec "pkg.berachain.dev/polaris/cosmos/crypto/codec"
 	"pkg.berachain.dev/polaris/cosmos/crypto/keyring"
-	evmante "pkg.berachain.dev/polaris/cosmos/x/evm/ante"
-	evmmepool "pkg.berachain.dev/polaris/cosmos/x/evm/plugins/txpool/mempool"
-
 	"pkg.world.dev/world-engine/chain/app"
 )
 
@@ -80,8 +77,10 @@ func NewRootCmd() *cobra.Command {
 		autoCliOpts        autocli.AppOptions
 		moduleBasicManager module.BasicManager
 	)
-	if err := depinject.Inject(depinject.Configs(app.Config, depinject.Supply(
-		evmmepool.NewPolarisEthereumTxPool(), log.NewNopLogger())),
+
+	if err := depinject.Inject(depinject.Configs(app.Config,
+		depinject.Supply(evmmempool.NewPolarisEthereumTxPool(), log.NewNopLogger()),
+		depinject.Provide(evmtypes.ProvideEthereumTransactionGetSigners)),
 		&interfaceRegistry,
 		&appCodec,
 		&txConfig,
@@ -101,12 +100,12 @@ func NewRootCmd() *cobra.Command {
 		WithInput(os.Stdin).
 		WithAccountRetriever(types.AccountRetriever{}).
 		WithHomeDir(app.DefaultNodeHome).
-		WithViper(""). // In app, we don't use any prefix for env variables.
+		WithViper(""). // In simapp, we don't use any prefix for env variables.
 		WithKeyringOptions(keyring.EthSecp256k1Option())
 
 	rootCmd := &cobra.Command{
-		Use:   "world",
-		Short: "world engine application",
+		Use:   "polard",
+		Short: "polaris sample app",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			// set the default command outputs
 			cmd.SetOut(cmd.OutOrStdout())
@@ -125,15 +124,11 @@ func NewRootCmd() *cobra.Command {
 
 			// This needs to go after ReadFromClientConfig, as that function
 			// sets the RPC client needed for SIGN_MODE_TEXTUAL.
-			txConfigOpts := tx.ConfigOptions{
-				TextualCoinMetadataQueryFn: txmodule.NewGRPCCoinMetadataQueryFn(initClientCtx),
-			}
-
-			// Add a custom sign mode handler for ethereum transactions.
-			txConfigOpts.CustomSignModes = []signing.SignModeHandler{evmante.SignModeEthTxHandler{}}
 			txConfigWithTextual, err := tx.NewTxConfigWithOptions(
 				codec.NewProtoCodec(interfaceRegistry),
-				txConfigOpts,
+				tx.ConfigOptions{
+					TextualCoinMetadataQueryFn: txmodule.NewGRPCCoinMetadataQueryFn(initClientCtx),
+				},
 			)
 			if err != nil {
 				return err
@@ -163,70 +158,13 @@ func NewRootCmd() *cobra.Command {
 // initCometBFTConfig helps to override default CometBFT Config values.
 // return cmtcfg.DefaultConfig if no custom configuration is required for the application.
 func initCometBFTConfig() *cmtcfg.Config {
-	cfg := cmtcfg.DefaultConfig()
-
-	// these values put a higher strain on node memory
-	// cfg.P2P.MaxNumInboundPeers = 100
-	// cfg.P2P.MaxNumOutboundPeers = 40
-
-	return cfg
+	return cmtcfg.DefaultConfig()
 }
 
 // initAppConfig helps to override default appConfig template and configs.
 // return "", nil if no custom configuration is required for the application.
 func initAppConfig() (string, interface{}) {
-	// The following code snippet is just for reference.
-
-	// WASMConfig defines configuration for the wasm module.
-	type WASMConfig struct {
-		// This is the maximum sdk gas (wasm and storage) that we allow for any x/wasm "smart" queries
-		QueryGasLimit uint64 `mapstructure:"query_gas_limit"`
-
-		// Address defines the gRPC-web server to listen on
-		LruSize uint64 `mapstructure:"lru_size"`
-	}
-
-	type CustomAppConfig struct {
-		serverconfig.Config
-
-		WASM WASMConfig `mapstructure:"wasm"`
-	}
-
-	// Optionally allow the chain developer to overwrite the SDK's default
-	// server config.
-	srvCfg := serverconfig.DefaultConfig()
-	// The SDK's default minimum gas price is set to "" (empty value) inside
-	// app.toml. If left empty by validators, the node will halt on startup.
-	// However, the chain developer can set a default app.toml value for their
-	// validators here.
-	//
-	// In summary:
-	// - if you leave srvCfg.MinGasPrices = "", all validators MUST tweak their
-	//   own app.toml config,
-	// - if you set srvCfg.MinGasPrices non-empty, validators CAN tweak their
-	//   own app.toml to override, or use this default value.
-	//
-	// In app, we set the min gas prices to 0.
-	srvCfg.MinGasPrices = "0stake"
-	// srvCfg.BaseConfig.IAVLDisableFastNode = true // disable fastnode by default
-
-	customAppConfig := CustomAppConfig{
-		Config: *srvCfg,
-		WASM: WASMConfig{
-			LruSize:       1,
-			QueryGasLimit: 300000,
-		},
-	}
-
-	customAppTemplate := serverconfig.DefaultConfigTemplate + `
-[wasm]
-# This is the maximum sdk gas (wasm and storage) that we allow for any x/wasm "smart" queries
-query_gas_limit = 300000
-# This is the number of wasm vm instances we keep cached in memory for speed-up
-# Warning: this is currently unstable and may lead to crashes, best to keep for 0 unless testing locally
-lru_size = 0`
-
-	return customAppTemplate, customAppConfig
+	return serverconfig.DefaultConfigTemplate, serverconfig.DefaultConfig()
 }
 
 func initRootCmd(
@@ -251,11 +189,11 @@ func initRootCmd(
 
 	// add keybase, auxiliary RPC, query, genesis, and tx child commands
 	rootCmd.AddCommand(
-		rpc.StatusCommand(),
+		server.StatusCommand(),
 		genesisCommand(txConfig, basicManager),
 		queryCommand(),
 		txCommand(),
-		keys.Commands(app.DefaultNodeHome),
+		keys.Commands(),
 	)
 }
 
@@ -334,7 +272,7 @@ func newApp(
 	)
 }
 
-// appExport creates a new app (optionally at a given height) and exports state.
+// appExport creates a new simapp (optionally at a given height) and exports state.
 func appExport(
 	logger log.Logger,
 	db dbm.DB,
@@ -361,16 +299,16 @@ func appExport(
 	viperAppOpts.Set(server.FlagInvCheckPeriod, 1)
 	appOpts = viperAppOpts
 
-	var simApp *app.App
+	var testApp *app.App
 	if height != -1 {
-		simApp = app.NewApp(logger, db, traceStore, false, appOpts)
+		testApp = app.NewApp(logger, db, traceStore, false, appOpts)
 
-		if err := simApp.LoadHeight(height); err != nil {
+		if err := testApp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		simApp = app.NewApp(logger, db, traceStore, true, appOpts)
+		testApp = app.NewApp(logger, db, traceStore, true, appOpts)
 	}
 
-	return simApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)
+	return testApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)
 }
