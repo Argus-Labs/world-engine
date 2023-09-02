@@ -74,8 +74,7 @@ func MappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error)
 		"Hash":       true,
 	}
 	for key, _ := range payload {
-		_, ok := signedPayloadKeys[key]
-		if !ok {
+		if !signedPayloadKeys[key] {
 			return nil, errors.New(fmt.Sprintf("invalid field: %s in body", key))
 		}
 	}
