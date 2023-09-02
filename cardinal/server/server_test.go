@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -359,48 +360,54 @@ func TestHandleSwaggerServer(t *testing.T) {
 }
 
 func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
-	count := 0
 	endpoint := "move"
-	w := inmem.NewECSWorldForTest(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
-	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
-		txs := sendTx.In(queue)
-		assert.Equal(t, 1, len(txs))
-		tx := txs[0]
-		assert.Equal(t, tx.Value.From, "me")
-		assert.Equal(t, tx.Value.To, "you")
-		assert.Equal(t, tx.Value.Amount, uint64(420))
-		count++
-		return nil
-	})
+	swaggerTxEndpoint := fmt.Sprintf("tx/game/%s", endpoint)
+	for _, url := range []string{"tx-" + endpoint, swaggerTxEndpoint} {
+		count := 0
+		w := inmem.NewECSWorldForTest(t)
+		sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
+		assert.NilError(t, w.RegisterTransactions(sendTx))
+		w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+			txs := sendTx.In(queue)
+			assert.Equal(t, 1, len(txs))
+			tx := txs[0]
+			assert.Equal(t, tx.Value.From, "me")
+			assert.Equal(t, tx.Value.To, "you")
+			assert.Equal(t, tx.Value.Amount, uint64(420))
+			count++
+			return nil
+		})
+		swaggerFilePath := ""
+		if url == swaggerTxEndpoint {
+			swaggerFilePath = "./swagger.yml"
+		}
+		txh := makeTestTransactionHandler(t, w, swaggerFilePath, DisableSignatureVerification())
+		tx := SendEnergyTx{
+			From:   "me",
+			To:     "you",
+			Amount: 420,
+		}
+		bz, err := json.Marshal(tx)
+		assert.NilError(t, err)
+		signedTx := sign.SignedPayload{
+			PersonaTag: "some_persona",
+			Namespace:  "some_namespace",
+			Nonce:      100,
+			// this bogus signature is OK because DisableSignatureVerification was used
+			Signature: common.Bytes2Hex([]byte{1, 2, 3, 4}),
+			Body:      bz,
+		}
 
-	txh := makeTestTransactionHandler(t, w, "", DisableSignatureVerification())
+		bz, err = json.Marshal(&signedTx)
+		assert.NilError(t, err)
+		_, err = http.Post(txh.makeURL(url), "application/json", bytes.NewReader(bz))
+		assert.NilError(t, err)
 
-	tx := SendEnergyTx{
-		From:   "me",
-		To:     "you",
-		Amount: 420,
+		assert.NilError(t, w.LoadGameState())
+		assert.NilError(t, w.Tick(context.Background()))
+		assert.Equal(t, 1, count)
+		txh.Close()
 	}
-	bz, err := json.Marshal(tx)
-	assert.NilError(t, err)
-	signedTx := sign.SignedPayload{
-		PersonaTag: "some_persona",
-		Namespace:  "some_namespace",
-		Nonce:      100,
-		// this bogus signature is OK because DisableSignatureVerification was used
-		Signature: common.Bytes2Hex([]byte{1, 2, 3, 4}),
-		Body:      bz,
-	}
-
-	bz, err = json.Marshal(&signedTx)
-	assert.NilError(t, err)
-	_, err = http.Post(txh.makeURL("tx-"+endpoint), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-
-	assert.NilError(t, w.LoadGameState())
-	assert.NilError(t, w.Tick(context.Background()))
-	assert.Equal(t, 1, count)
 }
 
 func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {

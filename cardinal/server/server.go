@@ -199,16 +199,14 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	}
 
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		//TODO implement and test game handler.
-		//txBodyMap, payload, sp, tx, err := processTxParams(params, "txType", txNameToTx, handler)
-		//if err != nil {
-		//	return nil, err
-		//}
-		//if tx.Name() == ecs.AuthorizePersonaAddressTx.Name() {
-		//	return nil, errors.New(fmt.Sprintf("This route should not process %s, use tx/persona/%s", tx.Name(), ecs.AuthorizePersonaAddressTx.Name()))
-		//}
-		//return processTxBodyMap(txBodyMap, tx, payload, sp, handler)
-		return nil, errors.New("not implemented")
+		payload, sp, tx, err := processTxParams(params, "txType", txNameToTx, handler)
+		if err != nil {
+			return nil, err
+		}
+		if tx.Name() == ecs.AuthorizePersonaAddressTx.Name() {
+			return nil, errors.New(fmt.Sprintf("This route should not process %s, use tx/persona/%s", tx.Name(), ecs.AuthorizePersonaAddressTx.Name()))
+		}
+		return processTxBodyMap(tx, payload, sp, handler)
 	})
 
 	// will be moved to ecs
