@@ -167,6 +167,14 @@ Required:
 
 Optional:
 
+- BLOCK_TIME=(default: `10s`)
+
+  Specify time to generate new block in the chain.
+
+- DA_BLOCK_HEIGHT=(default: `0`)
+
+  Configure block height in the DA layer at which the chain will start submitting data.
+
 - DA_NAMESPACE_ID=(default: `67480c4a88c4d12935d4`)
 
   10 bytes hex encoded value, generate random value using: `openssl rand -hex 10`.

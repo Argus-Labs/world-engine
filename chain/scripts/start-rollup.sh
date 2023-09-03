@@ -19,7 +19,8 @@ STAKING_AMOUNT="1000000000eth"
 
 # DA related variables/configuration
 DA_BASE_URL="${DA_BASE_URL:-"http://celestia-devnet:26658"}"
-DA_BLOCK_HEIGHT=0
+DA_BLOCK_HEIGHT=${DA_BLOCK_HEIGHT:-0}
+BLOCK_TIME="${BLOCK_TIME:-"10s"}"
 
 # Use 10 bytes hex encoded value (generate random value: `openssl rand -hex 10`)
 DA_NAMESPACE_ID="${DA_NAMESPACE_ID:-"67480c4a88c4d12935d4"}"
@@ -46,4 +47,4 @@ sed -i '/api\]/,/\[/ s/enable = false/enable = true/' /root/.world/config/app.to
 
 sed -i 's/"stake"/"eth"/g' /root/.world/config/genesis.json
 
-world start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --minimum-gas-prices 0eth
+world start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.block_time $BLOCK_TIME --minimum-gas-prices 0eth
