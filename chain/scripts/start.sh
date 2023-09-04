@@ -27,7 +27,7 @@ while [ -z "$DA_AUTH_TOKEN" ]; do
 done
 
 echo "starting rollup..."
-docker compose up chain --build
+docker compose up chain
 
 
 
