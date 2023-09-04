@@ -6,16 +6,18 @@ services:
       ## Env vars reference: https://github.com/Argus-Labs/world-engine/blob/main/chain/README.md
       ## Get AUTH_TOKEN from celestia_devnet container: `docker logs celestia_devnet 2>&1 | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1`
       - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-}
+      - DA_BLOCK_HEIGHT=${DA_BLOCK_HEIGHT:-0}
+      - DA_BASE_URL=${DA_BASE_URL:-http://celestia-devnet:26658}
+      - BLOCK_TIME=${BLOCK_TIME:-10s}
     image: us-docker.pkg.dev/argus-labs/world-engine/chain:latest
     build:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    expose:
-      - "1317"
-      - "26657"
     ports:
       - "1317:1317"
+      - "8545:8545"
+      - "8546:8546"
       - "26657:26657"
     networks:
       - world-engine
