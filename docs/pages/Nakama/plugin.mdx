@@ -20,7 +20,7 @@ And register those objects with `world.RegisterTransactions` and `world.Register
 
 RPC requests to those Nakama endpoints will be passed along to your Cardinal implementation.
 
-**Transactions** (prefixed with `/tx`) are added to the transaction queue, and a transaction hash is immediately returned. The transaction will be processed at the next game tick, and the transaction hash can be used to identify the results of previously submitted transactions. See [Transaction Hashes and Receipts](/plugin#transaction-hashes-and-receipts) and [Streaming Transaction Receipts](/plugin#streaming-transaction-receipts) for more details.
+**Transactions** (prefixed with `/tx`) are added to the transaction queue, and a transaction hash is immediately returned. The transaction will be processed at the next game tick, and the transaction hash can be used to identify the results of previously submitted transactions. See [Transaction Hashes and Receipts](/Nakama/plugin#transaction-hashes-and-receipts) and [Streaming Transaction Receipts](/Nakama/plugin#streaming-transaction-receipts) for more details.
 
 **Queries** (prefixed with `/query`) are processed right away and the result of the query will be returned in the request response.
 
@@ -28,7 +28,7 @@ The communication from a client (e.g. the Nakama console or a custom-built game 
 
 ## Transaction Signatures
 
-When submitting transactions from Nakama to Cardinal, transactions must be cryptographically signed. The Cardinal plugin will use an existing private key, or generate one if one does not exist. This key generation and signing happens automatically. To make use of this automatic signing, a client must first register a [Persona Tag](/plugin#local-userid-to-persona-tag). Once a Persona Tag has been requested and accepted, future transactions will be automatically signed.
+When submitting transactions from Nakama to Cardinal, transactions must be cryptographically signed. The Cardinal plugin will use an existing private key, or generate one if one does not exist. This key generation and signing happens automatically. To make use of this automatic signing, a client must first register a [Persona Tag](/Nakama/plugin#local-userid-to-persona-tag). Once a Persona Tag has been requested and accepted, future transactions will be automatically signed.
 
 After generation, the key is stored in Nakama's storage layer under the admin User ID.
 
@@ -104,7 +104,7 @@ Eventually the transaction will be processed and a "Receipt" will be generated. 
 2) A single result that was generated for this transaction.
 3) A list of errors that were generated while processing this transaction
 
-Cardinal exposes the endpoint `/transaction-receipts`, however Nakama does not generate a corresponding RPC for this endpoint. Clients shouldn't call this endpoint directly. Instead, see the [Streaming Transaction Receipts](/plugin#streaming-transaction-receipts) section for instructions on how to consume these receipts.
+Cardinal exposes the endpoint `/transaction-receipts`, however Nakama does not generate a corresponding RPC for this endpoint. Clients shouldn't call this endpoint directly. Instead, see the [Streaming Transaction Receipts](/Nakama/plugin#streaming-transaction-receipts) section for instructions on how to consume these receipts.
 
 The remainder of this section describes the communication between Nakama and Cardinal.
 
