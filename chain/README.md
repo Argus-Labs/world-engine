@@ -6,6 +6,20 @@
 
 The easiest way to install a Cosmos-SDK Blockchain running Polaris is to download a pre-built binary. You can find the latest binaries on the [releases](https://github.com/polaris/releases) page.
 
+### Makefile
+
+To install the World Engine blockchain in your bin, making it globally accessable from your terminal, run this command in the `chain` directory:
+
+```bash
+make install
+```
+
+To verify installation was successful, run:
+
+```bash
+world version
+```
+
 ### From Prebuilt Docker Image
 
 Pull `chain` prebuild Docker Image:
@@ -127,9 +141,6 @@ Start the `chain` and `celestia-devnet` using `chain/docker-compose.yml`, make s
   docker compose up chain --build --detach
   ```
 
-
-
-
 ## Environment Variables
 The following env variables must be set for the following features.
 
@@ -155,6 +166,14 @@ Required:
    For Celestia Arabica/Mocha testnet, follow the [RPC-API tutorial](https://docs.celestia.org/developers/rpc-tutorial/#auth-token).
 
 Optional:
+
+- BLOCK_TIME=(default: `10s`)
+
+  Specify time to generate new block in the chain.
+
+- DA_BLOCK_HEIGHT=(default: `0`)
+
+  Configure block height in the DA layer at which the chain will start submitting data.
 
 - DA_NAMESPACE_ID=(default: `67480c4a88c4d12935d4`)
 

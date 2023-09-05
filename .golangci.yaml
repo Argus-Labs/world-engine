@@ -326,7 +326,7 @@ issues:
 
   exclude-rules:
     - path: "magefiles/.*\\.go"
-      linters: [forbidigo]
+      linters: [forbidigo,godot,unused]
     - path: "mock/.*\\.go"
       linters: [funlen]
     - path: "build"
