@@ -67,7 +67,12 @@ func WithLoopInterval(interval time.Duration) WorldOption {
 	}
 }
 
-func WithPrettyLogOption(world *ecs.World) {
+func WithPrettyLog(world *ecs.World) WorldOption {
 	prettyLogger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	world.Logger.Logger = &prettyLogger
+	return WorldOption{
+		ecsOption:      nil,
+		serverOption:   nil,
+		cardinalOption: nil,
+	}
 }
