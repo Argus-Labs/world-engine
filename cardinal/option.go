@@ -1,8 +1,11 @@
 package cardinal
 
 import (
+	"os"
 	"time"
 
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -62,4 +65,9 @@ func WithLoopInterval(interval time.Duration) WorldOption {
 			world.loopInterval = interval
 		},
 	}
+}
+
+func WithPrettyLogOption(world *ecs.World) {
+	prettyLogger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	world.Logger.Logger = &prettyLogger
 }
