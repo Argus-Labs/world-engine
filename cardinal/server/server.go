@@ -131,7 +131,7 @@ func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
 	return value, true
 }
 
-type ProcessedTxResults struct {
+type processedTxResults struct {
 	rawPayload    []byte //could be original request or body of signedPayload
 	signedPayload *sign.SignedPayload
 	transaction   transaction.ITransaction
@@ -141,7 +141,7 @@ func processTxParams(
 	params interface{},
 	pathParam string,
 	txNameToTx map[string]transaction.ITransaction,
-	handler *Handler) (*ProcessedTxResults, error) {
+	handler *Handler) (*processedTxResults, error) {
 	mappedParams, ok := params.(map[string]interface{})
 	if !ok {
 		return nil, errors.New("params not readable")
@@ -175,7 +175,7 @@ func processTxParams(
 	if err != nil {
 		return nil, err
 	}
-	result := ProcessedTxResults{
+	result := processedTxResults{
 		payload,
 		sp,
 		tx,
