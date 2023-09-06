@@ -13,8 +13,13 @@ var MoveTx = cardinal.NewTransactionType[MoveMsg, MoveResult]("move-a-player")
 var PositionRead = cardinal.NewReadType[PositionRequest, PositionReply]("position", handlePositionRead)
 ```
 
-And register those objects with `world.RegisterTransactions` and `world.RegisterReads`, the following RPC endpoints will be created in Nakama:
+And register those objects with `world.RegisterTransactions` and `world.RegisterReads`, the following set of RPC endpoints will be created in Nakama:
 
+### Secheduled for deprecation
+- /tx-move-a-player
+- /read-position 
+
+### Coming Soon
 - /tx/game/move-a-player
 - /query/game/position
 
@@ -22,7 +27,7 @@ RPC requests to those Nakama endpoints will be passed along to your Cardinal imp
 
 **Transactions** (prefixed with `/tx`) are added to the transaction queue, and a transaction hash is immediately returned. The transaction will be processed at the next game tick, and the transaction hash can be used to identify the results of previously submitted transactions. See [Transaction Hashes and Receipts](/Nakama/plugin#transaction-hashes-and-receipts) and [Streaming Transaction Receipts](/Nakama/plugin#streaming-transaction-receipts) for more details.
 
-**Queries** (prefixed with `/query`) are processed right away and the result of the query will be returned in the request response.
+**Queries** (prefixed with `/query`/`/read`) are processed right away and the result of the query will be returned in the request response.
 
 The communication from a client (e.g. the Nakama console or a custom-built game client) to Nakama uses the RPC protocol. Communication between Nakama and Cardinal makes use of HTTP. Request payloads and response payloads are JSON encoded strings.
 
@@ -41,7 +46,7 @@ After generation, the key is stored in Nakama's storage layer under the admin Us
 
 Nakama manages User Accounts, however these User Accounts cannot be used directly by Cardinal based games. Cardinal also supports requests from (EG EVM BASE SHARDS OR SOMETHING), so Cardinal maintains a separate list of authenticated users called "Persona Tags" (like gamer-tags). Before a user may interact with Cardinal, they must first register a Persona Tag with Cardinal.
 
-Within Cardinal, Persona Tags creation is managed by the `ecs.CreatePersonaTx` transaction as well as the `ecs.RegisterPersonaSystem`. This transaction gets its own RPC endpoint (`/tx/persona/create-persona`), however Nakama cannot pass these transaction requests directly to Cardinal. Nakama must perform some pre-processing before handing off the request to Cardinal.
+Within Cardinal, Persona Tags creation is managed by the `ecs.CreatePersonaTx` transaction as well as the `ecs.RegisterPersonaSystem`. This transaction gets its own RPC endpoint (`/tx/persona/create-persona`/`/tx-create-persona`), however Nakama cannot pass these transaction requests directly to Cardinal. Nakama must perform some pre-processing before handing off the request to Cardinal.
 
 Specifically, Nakama:
 
@@ -52,7 +57,7 @@ Specifically, Nakama:
     - The User ID to Persona Tag association starts off as "pending" and will later be updated to either "accepted" or "rejected"
 3) Creates a signed System level transaction using `sign.NewSystemSignedPayload`.
     - The System signature indicated to Cardinal that there is not a previously-registered Persona Tag generating this transaction.
-4) Sends a request to Cardinal's `/tx/persona/create` endpoint.
+4) Sends a request to Cardinal's `/tx/persona/create-persona`/`/tx-create-persona` endpoint.
     - This gives Cardinal a chance to decide if the Persona Tag truly is up for grabs, or if someone has already claimed it.
     - It also gives Cardinal the opportunity to select a "winner" if the same Persona Tag is registered multiple times on the same tick.
 
