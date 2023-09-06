@@ -175,12 +175,11 @@ func processTxParams(
 	if err != nil {
 		return nil, err
 	}
-	result := processedTxResults{
+	return &processedTxResults{
 		payload,
 		sp,
 		tx,
-	}
-	return &result, nil
+	}, nil
 }
 
 func processTxBodyMap(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload, handler *Handler) (*TransactionReply, error) {
