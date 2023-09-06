@@ -11,6 +11,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/sign"
 
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/runtime"
@@ -94,7 +95,7 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 }
 
 // utility function to create a swagger handler from a request name, request constructor, request to response function.
-func createSwaggerHandler[Request any, Response any](requestName string, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
+func createSwaggerQueryHandler[Request any, Response any](requestName string, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
 	return func(params interface{}) (interface{}, error) {
 		request, ok := getValueFromParams[Request](params, requestName)
 		if !ok {
@@ -130,6 +131,59 @@ func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
 	return value, true
 }
 
+func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string]transaction.ITransaction) (transaction.ITransaction, error) {
+	mappedParams, ok := params.(map[string]interface{})
+	if !ok {
+		return nil, errors.New("params not readable")
+	}
+	txType, ok := mappedParams[pathParam]
+	if !ok {
+		return nil, errors.New("params do not contain txType from the path /tx/game/{txType}")
+	}
+	txTypeString, ok := txType.(string)
+	if !ok {
+		return nil, errors.New("txType needs to be a string from path")
+	}
+	tx, ok := txNameToTx[txTypeString]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("could not locate transaction type: %s", txTypeString))
+	}
+	return tx, nil
+}
+
+func getBodyAndSigFromParams(
+	params interface{},
+	handler *Handler) ([]byte, *sign.SignedPayload, error) {
+	mappedParams, ok := params.(map[string]interface{})
+	if !ok {
+		return nil, nil, errors.New("params not readable")
+	}
+	txBody, ok := mappedParams["txBody"]
+	if !ok {
+		return nil, nil, errors.New("params do not contain txBody from the body of the http request")
+	}
+	txBodyMap, ok := txBody.(map[string]interface{})
+	if !ok {
+		return nil, nil, errors.New("txBody needs to be a json object in the body")
+
+	}
+	payload, sp, err := handler.verifySignatureOfMapRequest(txBodyMap, false)
+	if err != nil {
+		return nil, nil, err
+	}
+	return payload, sp, nil
+}
+
+func processTxBodyMap(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload, handler *Handler) (*TransactionReply, error) {
+	rawJsonResult, err := handler.processTransaction(tx, payload, sp)
+	transactionReply := new(TransactionReply)
+	err = json.Unmarshal(rawJsonResult, transactionReply)
+	if err != nil {
+		return nil, err
+	}
+	return transactionReply, nil
+}
+
 // register transaction handlers on swagger server
 func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handler) error {
 	//var txEndpoints []string
@@ -146,10 +200,16 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	}
 
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		return TransactionReply{
-			TxHash: "",
-			Tick:   0,
-		}, errors.New("not implemented")
+		//TODO implement and test game handler.
+		//txBodyMap, payload, sp, tx, err := processTxParams(params, "txType", txNameToTx, handler)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//if tx.Name() == ecs.AuthorizePersonaAddressTx.Name() {
+		//	return nil, errors.New(fmt.Sprintf("This route should not process %s, use tx/persona/%s", tx.Name(), ecs.AuthorizePersonaAddressTx.Name()))
+		//}
+		//return processTxBodyMap(txBodyMap, tx, payload, sp, handler)
+		return nil, errors.New("not implemented")
 	})
 
 	// will be moved to ecs
@@ -158,8 +218,12 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	})
 
 	// will be moved to ecs
-	authorizePersonaAddressHandler := runtime.OperationHandlerFunc(func(i interface{}) (interface{}, error) {
-		return ecs.AuthorizePersonaAddressResult{Success: true}, errors.New("not implemented")
+	authorizePersonaAddressHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		rawPayload, signedPayload, err := getBodyAndSigFromParams(params, handler)
+		if err != nil {
+			return nil, err
+		}
+		return processTxBodyMap(ecs.AuthorizePersonaAddressTx, rawPayload, signedPayload, handler)
 	})
 	api.RegisterOperation("POST", "/tx/game/{txType}", gameHandler)
 	api.RegisterOperation("POST", "/tx/persona/create-persona", createPersonaHandler)
@@ -168,7 +232,7 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	return nil
 }
 
-// result struct for /query/http/endpoints
+// EndpointsResult result struct for /query/http/endpoints
 type EndpointsResult struct {
 	TxEndpoints    []string `json:"tx_endpoints"`
 	QueryEndpoints []string `json:"query_endpoints"`
@@ -210,7 +274,7 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 	}
 
 	// query/game/{readType} is a dynamic route that must dynamically handle things thus it can't use
-	// the createSwaggerHandler utility function below as the Request and Reply types are dynamic.
+	// the createSwaggerQueryHandler utility function below as the Request and Reply types are dynamic.
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		mapStruct, ok := params.(map[string]interface{})
 		if !ok {
@@ -265,11 +329,11 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 	})
 
 	// Will be moved to ecs.
-	personaHandler := createSwaggerHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
+	personaHandler := createSwaggerQueryHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
 		"ReadPersonaSignerRequest",
 		handler.getPersonaSignerResponse)
 
-	receiptsHandler := createSwaggerHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
+	receiptsHandler := createSwaggerQueryHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
 		"ListTxReceiptsRequest",
 		getListTxReceiptsReplyFromRequest(world),
 	)

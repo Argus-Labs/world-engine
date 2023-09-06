@@ -11,6 +11,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mitchellh/mapstructure"
 )
 
 var (
@@ -29,8 +30,8 @@ type SignedPayload struct {
 	PersonaTag string
 	Namespace  string
 	Nonce      uint64
-	Signature  string // hex encoded string
-	Hash       common.Hash
+	Signature  string          // hex encoded string
+	Hash       common.Hash     `mapstructure:",omitempty"`
 	Body       json.RawMessage // json string
 }
 
@@ -43,6 +44,51 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 		return nil, fmt.Errorf("error decoding SignedPayload: %w", err)
 	}
 
+	// ensure that all fields are present. we could do this via reflection, but checking directly is faster than
+	// using reflection package.
+	if s.PersonaTag == "" {
+		return nil, errors.New("SignerPayload must contain PersonaTag field")
+	}
+	if s.Namespace == "" {
+		return nil, errors.New("SignerPayload must contain Namespace field")
+	}
+	if s.Signature == "" {
+		return nil, errors.New("SignerPayload must contain Signature field")
+	}
+	if len(s.Body) == 0 {
+		return nil, errors.New("SignerPayload must contain Body field")
+	}
+	s.populateHash()
+	return s, nil
+}
+
+// MappedSignedPayload Identical to UnmarshalSignedPayload but takes a payload in the form of map[string]any
+func MappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error) {
+	s := new(SignedPayload)
+	signedPayloadKeys := map[string]bool{
+		"PersonaTag": true,
+		"Namespace":  true,
+		"Signature":  true,
+		"Nonce":      true,
+		"Body":       true,
+		"Hash":       true,
+	}
+	for key, _ := range payload {
+		if !signedPayloadKeys[key] {
+			return nil, errors.New(fmt.Sprintf("invalid field: %s in body", key))
+		}
+	}
+	serializedBody, err := json.Marshal(payload["Body"])
+	if err != nil {
+		return nil, err
+	}
+	delete(payload, "Hash")
+	delete(payload, "Body")
+	err = mapstructure.Decode(payload, s)
+	if err != nil {
+		return nil, err
+	}
+	s.Body = serializedBody
 	// ensure that all fields are present. we could do this via reflection, but checking directly is faster than
 	// using reflection package.
 	if s.PersonaTag == "" {
