@@ -9,7 +9,6 @@ services:
       - DA_BLOCK_HEIGHT=${DA_BLOCK_HEIGHT:-0}
       - DA_BASE_URL=${DA_BASE_URL:-http://celestia-devnet:26658}
       - BLOCK_TIME=${BLOCK_TIME:-10s}
-    image: us-docker.pkg.dev/argus-labs/world-engine/chain:latest
     build:
       context: .
       dockerfile: Dockerfile
