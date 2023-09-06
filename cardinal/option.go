@@ -31,12 +31,6 @@ func WithReceiptHistorySize(size int) WorldOption {
 	}
 }
 
-func WithPrettyLog() WorldOption {
-	return WorldOption{
-		ecsOption: ecs.WithPrettyLog(),
-	}
-}
-
 // WithNamespace sets the World's namespace. The default is "world". The namespace is used in the transaction
 // signing process.
 func WithNamespace(namespace string) WorldOption {
