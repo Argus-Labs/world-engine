@@ -7,7 +7,7 @@ on:
     branches:
       - main
     tags:
-      - 'v*.*.*'
+      - 'chain/v*.*.*'
 
 env:
   REGISTRY_URL: us-docker.pkg.dev
@@ -54,9 +54,9 @@ jobs:
           IMAGE_ID_CHAIN=${{ env.REGISTRY_URL }}/${{ github.repository_owner }}/${{ github.event.repository.name }}/chain
           IMAGE_ID_CHAIN=$(echo $IMAGE_ID_CHAIN | tr '[A-Z]' '[a-z]')
 
-          ## Get version from tag name, or use latest when on main branch
+          ## Get version from tag name (ex: chain/v0.0.0 --> registry/chain:v0.0.0)
+          ## Or use 'latest' when on main branch
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
-          [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
           [ "$VERSION" == "main" ] && VERSION=latest
           echo "Image to push: $IMAGE_ID_CHAIN:$VERSION"
 
