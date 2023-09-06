@@ -27,6 +27,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/magefile/mage/sh"
@@ -103,4 +104,27 @@ func ExecuteForAllModules(dirs []string, f func(args ...string) error, withArgs 
 		}
 	}
 	return nil
+}
+
+func findGoModFiles() ([]string, error) {
+	rootDir := "."
+	var goModDirs []string
+
+	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.Name() == "go.mod" {
+			goModDirs = append(goModDirs, filepath.Dir(path))
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return goModDirs, nil
 }

@@ -25,6 +25,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
 
 	dbm "github.com/cosmos/cosmos-db"
 	"pkg.world.dev/world-engine/chain/shard"
@@ -153,6 +154,7 @@ func NewApp(
 		// merge the Config and other configuration in one config
 		appConfig = depinject.Configs(
 			Config,
+			depinject.Provide(evmtypes.ProvideEthereumTransactionGetSigners),
 			depinject.Supply(
 				// supply the application options
 				appOpts,

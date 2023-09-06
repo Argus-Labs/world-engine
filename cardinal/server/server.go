@@ -131,46 +131,47 @@ func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
 	return value, true
 }
 
-func processTxParams(params interface{}, pathParam string, txNameToTx map[string]transaction.ITransaction, handler *Handler) (
-	payload []byte, sp *sign.SignedPayload,
-	tx transaction.ITransaction, err error) {
+func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string]transaction.ITransaction) (transaction.ITransaction, error) {
 	mappedParams, ok := params.(map[string]interface{})
 	if !ok {
-		err = errors.New("params not readable")
-		return
+		return nil, errors.New("params not readable")
 	}
-
-	if len(pathParam) > 0 {
-		txType, ok := mappedParams[pathParam]
-		if !ok {
-			err = errors.New("params do not contain txType from the path /tx/game/{txType}")
-		}
-		txTypeString, ok := txType.(string)
-		if !ok {
-			err = errors.New("txType needs to be a string from path")
-			return
-		}
-		tx, ok = txNameToTx[txTypeString]
-		if !ok {
-			err = errors.New(fmt.Sprintf("could not locate transaction type: %s", txTypeString))
-		}
+	txType, ok := mappedParams[pathParam]
+	if !ok {
+		return nil, errors.New("params do not contain txType from the path /tx/game/{txType}")
 	}
+	txTypeString, ok := txType.(string)
+	if !ok {
+		return nil, errors.New("txType needs to be a string from path")
+	}
+	tx, ok := txNameToTx[txTypeString]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("could not locate transaction type: %s", txTypeString))
+	}
+	return tx, nil
+}
 
+func getBodyAndSigFromParams(
+	params interface{},
+	handler *Handler) ([]byte, *sign.SignedPayload, error) {
+	mappedParams, ok := params.(map[string]interface{})
+	if !ok {
+		return nil, nil, errors.New("params not readable")
+	}
 	txBody, ok := mappedParams["txBody"]
 	if !ok {
-		err = errors.New("params do not contain txBody from the body of the http request")
-		return
+		return nil, nil, errors.New("params do not contain txBody from the body of the http request")
 	}
 	txBodyMap, ok := txBody.(map[string]interface{})
 	if !ok {
-		err = errors.New("txBody needs to be a json object in the body")
+		return nil, nil, errors.New("txBody needs to be a json object in the body")
 
 	}
-	payload, sp, err = handler.verifySignatureOfMapRequest(txBodyMap, false)
+	payload, sp, err := handler.verifySignatureOfMapRequest(txBodyMap, false)
 	if err != nil {
-		return
+		return nil, nil, err
 	}
-	return
+	return payload, sp, nil
 }
 
 func processTxBodyMap(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload, handler *Handler) (*TransactionReply, error) {
@@ -199,7 +200,11 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	}
 
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		payload, sp, tx, err := processTxParams(params, "txType", txNameToTx, handler)
+		payload, sp, err := getBodyAndSigFromParams(params, handler)
+		if err != nil {
+			return nil, err
+		}
+		tx, err := getTxFromParams("txType", params, txNameToTx)
 		if err != nil {
 			return nil, err
 		}
@@ -216,11 +221,11 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 
 	// will be moved to ecs
 	authorizePersonaAddressHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		payload, sp, _, err := processTxParams(params, "", txNameToTx, handler)
+		rawPayload, signedPayload, err := getBodyAndSigFromParams(params, handler)
 		if err != nil {
 			return nil, err
 		}
-		return processTxBodyMap(ecs.AuthorizePersonaAddressTx, payload, sp, handler)
+		return processTxBodyMap(ecs.AuthorizePersonaAddressTx, rawPayload, signedPayload, handler)
 	})
 	api.RegisterOperation("POST", "/tx/game/{txType}", gameHandler)
 	api.RegisterOperation("POST", "/tx/persona/create-persona", createPersonaHandler)
