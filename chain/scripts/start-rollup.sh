@@ -32,7 +32,7 @@ echo "DA_CONFIG: $DA_CONFIG"
 
 # World Engine Chain Config & Init
 world comet unsafe-reset-all
-rm -rf /root/.world/config/
+rm -rf /root/.world/
 
 world init $VALIDATOR_NAME --chain-id $CHAIN_ID
 
