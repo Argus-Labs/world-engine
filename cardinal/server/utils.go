@@ -144,7 +144,7 @@ func (t *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, isSyste
 	return sp, nil
 }
 
-func (t *Handler) verifySignatureOfhttpRequest(request *http.Request, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
+func (t *Handler) verifySignatureOfHTTPRequest(request *http.Request, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nil, errors.New("unable to read body")
@@ -164,7 +164,7 @@ func (t *Handler) verifySignatureOfhttpRequest(request *http.Request, isSystemTr
 	}
 }
 
-// identical to verifySignatureOfhttpRequest but takes in the body of the request in the form of a map.
+// identical to verifySignatureOfHTTPRequest but takes in the body of the request in the form of a map.
 func (t *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
 	sp, err := sign.MappedSignedPayload(request)
 	if err != nil {
