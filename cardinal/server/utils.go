@@ -181,7 +181,6 @@ func (t *Handler) verifySignatureOfMapRequest(request map[string]interface{}, is
 		}
 		return buf, sp, nil
 	} else {
-		return sig.Body, sig, err
+		return sig.Body, sig, nil
 	}
-	return sp.Body, sp, nil
 }
