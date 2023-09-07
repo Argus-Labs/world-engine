@@ -209,7 +209,7 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 			return nil, err
 		}
 		if tx.Name() == ecs.AuthorizePersonaAddressTx.Name() {
-			return nil, errors.New(fmt.Sprintf("This route should not process %s, use tx/persona/%s", tx.Name(), ecs.AuthorizePersonaAddressTx.Name()))
+			return nil, fmt.Errorf("This route should not process %s, use tx/persona/%s", tx.Name(), ecs.AuthorizePersonaAddressTx.Name())
 		}
 		return processTxBodyMap(tx, payload, sp, handler)
 	})
