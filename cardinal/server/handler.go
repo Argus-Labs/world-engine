@@ -104,7 +104,7 @@ func (t *Handler) makeSchemaHandler(inSchema, outSchema *jsonschema.Schema) http
 func (t *Handler) processTransaction(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload) ([]byte, error) {
 	txVal, err := tx.Decode(payload)
 	if err != nil {
-		return nil, fmt.Errorf("unable to decode transaction, %w", err)
+		return nil, fmt.Errorf("unable to decode transaction: %w", err)
 	}
 
 	submitTx := func() (uint64, []byte, error) {
@@ -115,7 +115,7 @@ func (t *Handler) processTransaction(tx transaction.ITransaction, payload []byte
 			Tick:   tick,
 		})
 		if err != nil {
-			return 0, nil, fmt.Errorf("unable to marshal response, %w", err)
+			return 0, nil, fmt.Errorf("unable to marshal response: %w", err)
 		}
 		return tick, res, nil
 	}
@@ -132,7 +132,7 @@ func (t *Handler) processTransaction(tx transaction.ITransaction, payload []byte
 			}
 			err = t.adapter.Submit(context.Background(), sp, uint64(tx.ID()), tick)
 			if err != nil {
-				return nil, fmt.Errorf("error submitting transaction to blockchain, %w", err)
+				return nil, fmt.Errorf("error submitting transaction to blockchain: %w", err)
 			}
 			return res, nil
 		}
