@@ -218,6 +218,13 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	createPersonaHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		payload, sp, err := getBodyAndSigFromParams(params, handler, true)
 		if err != nil {
+			if errors.Is(err, ErrorInvalidSignature) || errors.Is(err, ErrorSystemTransactionRequired) {
+				return middleware.Error(401, err), nil
+			} else {
+				return nil, err
+			}
+		}
+		if err != nil {
 			return nil, err
 		}
 		txReply, err := generateCreatePersonaResponseFromPayload(payload, sp, ecs.CreatePersonaTx, world)

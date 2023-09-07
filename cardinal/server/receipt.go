@@ -9,7 +9,7 @@ import (
 )
 
 type ListTxReceiptsRequest struct {
-	StartTick uint64 `json:"start_tick"`
+	StartTick uint64 `json:"start_tick" mapstructure:"start_tick"`
 }
 
 // ListTxReceiptsReply returns the transaction receipts for the given range of ticks. The interval is closed on
