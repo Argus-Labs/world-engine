@@ -1,0 +1,205 @@
+# Cardinal Plugin
+
+Go-based Nakama containers can be extended using shared objects (aka [plugins](https://pkg.go.dev/plugin)). The [starter-game-template](https://github.com/Argus-Labs/starter-game-template) leverages this shared object pattern to expand on Nakama to better interact with a Cardinal based backend.
+
+The Nakama plugin bundled with the starter-game-template is general purpose, and should work with your Cardinal based game without any modifications. As you work on your game, you may find that you want to further change the Nakama plugin to better serve your specific use case. This document serves as a reference for the various aspects of the Cardinal-focused Nakama plugin.
+
+## RPC Endpoints
+
+Transactions and Reads registered with a `cardinal.World` object will automatically get Nakama RPC endpoints created for them. For example, if you set up a Transaction and a Read with the following code:
+
+```go
+var MoveTx = cardinal.NewTransactionType[MoveMsg, MoveResult]("move-a-player")
+var PositionRead = cardinal.NewReadType[PositionRequest, PositionReply]("position", handlePositionRead)
+```
+
+And register those objects with `world.RegisterTransactions` and `world.RegisterReads`, the following set of RPC endpoints will be created in Nakama:
+
+### Secheduled for deprecation
+- /tx-move-a-player
+- /read-position 
+
+### Coming Soon
+- /tx/game/move-a-player
+- /query/game/position
+
+RPC requests to those Nakama endpoints will be passed along to your Cardinal implementation.
+
+**Transactions** (prefixed with `/tx`) are added to the transaction queue, and a transaction hash is immediately returned. The transaction will be processed at the next game tick, and the transaction hash can be used to identify the results of previously submitted transactions. See [Transaction Hashes and Receipts](/Nakama/plugin#transaction-hashes-and-receipts) and [Streaming Transaction Receipts](/Nakama/plugin#streaming-transaction-receipts) for more details.
+
+**Queries** (prefixed with `/query`/`/read`) are processed right away and the result of the query will be returned in the request response.
+
+The communication from a client (e.g. the Nakama console or a custom-built game client) to Nakama uses the RPC protocol. Communication between Nakama and Cardinal makes use of HTTP. Request payloads and response payloads are JSON encoded strings.
+
+## Transaction Signatures
+
+When submitting transactions from Nakama to Cardinal, transactions must be cryptographically signed. The Cardinal plugin will use an existing private key, or generate one if one does not exist. This key generation and signing happens automatically. To make use of this automatic signing, a client must first register a [Persona Tag](/Nakama/plugin#local-userid-to-persona-tag). Once a Persona Tag has been requested and accepted, future transactions will be automatically signed.
+
+After generation, the key is stored in Nakama's storage layer under the admin User ID.
+
+| Collection Name        | Key Name          | User ID                              | Description                                      |
+|------------------------|-------------------|--------------------------------------|--------------------------------------------------|
+| private_key_collection | private_key_key   | 00000000-0000-0000-0000-000000000000 | Private key using ECSDA and the secp256k1 curve  |
+| private_key_collection | private_key_nonce | 00000000-0000-0000-0000-000000000000 | The next nonce to use when signing a transaction |
+
+## Local UserID to PersonaTag
+
+Nakama manages User Accounts, however these User Accounts cannot be used directly by Cardinal based games. Cardinal also supports requests from (EG EVM BASE SHARDS OR SOMETHING), so Cardinal maintains a separate list of authenticated users called "Persona Tags" (like gamer-tags). Before a user may interact with Cardinal, they must first register a Persona Tag with Cardinal.
+
+Within Cardinal, Persona Tags creation is managed by the `ecs.CreatePersonaTx` transaction as well as the `ecs.RegisterPersonaSystem`. This transaction gets its own RPC endpoint (`/tx/persona/create-persona`/`/tx-create-persona`), however Nakama cannot pass these transaction requests directly to Cardinal. Nakama must perform some pre-processing before handing off the request to Cardinal.
+
+Specifically, Nakama:
+
+1) Attempts to associate the Persona Tag with the Nakama user.
+    - If some other user has already claimed this Persona Tag, Nakama will fail the request.
+    - Alternatively, if the active user has already successfully claimed a Persona Tag, Nakama will fail the request.
+2) Saves that association to Nakama's storage layer under "cardinal_collection"/"persona_tag" storage object.
+    - The User ID to Persona Tag association starts off as "pending" and will later be updated to either "accepted" or "rejected"
+3) Creates a signed System level transaction using `sign.NewSystemSignedPayload`.
+    - The System signature indicated to Cardinal that there is not a previously-registered Persona Tag generating this transaction.
+4) Sends a request to Cardinal's `/tx/persona/create-persona`/`/tx-create-persona` endpoint.
+    - This gives Cardinal a chance to decide if the Persona Tag truly is up for grabs, or if someone has already claimed it.
+    - It also gives Cardinal the opportunity to select a "winner" if the same Persona Tag is registered multiple times on the same tick.
+
+The RPC endpoints related to setting up Persona Tags in Cardinal are `nakama/claim-persona` and `nakama/show-persona`.
+
+The `nakama/claim-persona` endpoint should be called with a body of:
+
+```json
+{"persona_tag": "the-persona-tag-you-want-to-claim"}
+```
+
+### Persona Tag Storage Object
+
+If the claiming of the Persona Tag was successful, the storage object in Nakama will have this form:
+
+```json
+{
+  "tick": 245,
+  "status": "accepted",
+  "tx_hash": "0xba57f759722cfd42be659665e46883c6f46e6e0d54430a472c50313915d458ae",
+  "persona_tag": "cool-mage"
+}
+```
+
+The meaning of each field:
+
+- `tick`: The Cardinal World tick that this `claim-persona` request was made.
+- `status`: Whether this `claim-persona` request was successful or not. This field can be:
+    - `pending`: Cardinal has not yet had a chance to process this claim Persona Tag request.
+    - `rejected`: Nakama or Cardinal decided to not allocate this Persona Tag to the user.
+    - `accepted`: Nakama and Cardinal agree that this Persona Tag is associated with the user.
+- `tx_hash`: The transaction hash that uniquely identifies the original `claim-persona` request
+- `persona_tag`: The actual Persona Tag that was requested
+
+## Transaction Hashes and Receipts
+
+When submitting a transaction to Cardinal, the transaction is not processed right away. Transactions are only processed in Systems registered with `world.RegisterSystems`, and Systems are only executed during a world tick. Because the transaction result cannot be resolved right away, a "transaction hash" is returned from Cardinal when a transaction is submitted.
+
+```json
+{
+  "tick": 245,
+  "tx_hash": "0xba57f759722cfd42be659665e46883c6f46e6e0d54430a472c50313915d458ae"
+}
+```
+
+Eventually the transaction will be processed and a "Receipt" will be generated. A Receipt consists of:
+
+1) A tx_hash to identify it
+2) A single result that was generated for this transaction.
+3) A list of errors that were generated while processing this transaction
+
+Cardinal exposes the endpoint `/transaction-receipts`, however Nakama does not generate a corresponding RPC for this endpoint. Clients shouldn't call this endpoint directly. Instead, see the [Streaming Transaction Receipts](/Nakama/plugin#streaming-transaction-receipts) section for instructions on how to consume these receipts.
+
+The remainder of this section describes the communication between Nakama and Cardinal.
+
+Nakama periodically gets a list of completed transaction receipts by sending a payload like this:
+
+```json
+{
+  "start_tick": 245,
+}
+```
+
+To the `/transaction-receipts` endpoint. Cardinal responds with something like:
+
+```json
+{
+  "start_tick": 245,
+  "end_tick": 301,
+  "receipts": [
+    {
+      "tx_hash": "0xba57f759722cfd42be659665e46883c6f46e6e0d54430a472c50313915d458ae",
+      "tick": 250,
+      "result": {
+        // Some JSON body specific to this particluar transaction.
+      },
+      "errors": [
+        "invalid player",
+        "invalid world"
+      ]
+    },
+    {
+      "tx_hash": "0xc6f46e6e0d54430a472c50313915d458a5ba57f759722cfd42be659665e46883",
+      "tick": 251,
+      "result": {
+        // Some JSON body specific to this particluar transaction.
+      },
+      "errors": []
+    }
+  ]
+}
+```
+
+The result field is game specific. For example, the following go code:
+
+```go
+type MoveInput struct{
+	Dx, Dy int
+}
+
+type MoveOutput struct {
+	FinalX, FinalY int
+}
+
+var MoveTx = cardinal.NewTransactionType[MoveInput, MoveOutput]("move")
+````
+
+Would result in a transaction receipt like:
+
+```json
+    {
+      "tx_hash": "0xc6f46e6e0d54430a472c50313915d458a5ba57f759722cfd42be659665e46883",
+      "tick": 251,
+      "result": {
+        "FinalX": 100,
+        "FinalY": 200
+      },
+      "errors": [
+        "invalid position"
+      ]
+    }
+```
+
+The result of a transaction and relevant errors can be set like this:
+
+```go
+func MyMoveSystem(world *cardinal.World, queue *cardinal.TransactionQueue, log *cardinal.Logger) error {
+	for _, tx := range MoveTx.In(queue) {
+		MoveTx.SetResult(world, tx.TxHash(), MoveOutput{
+			FinalX: 100,
+			FinalY: 200,
+		})
+		MoveTx.AddError(world, tx.TxHash(), errors.New("invalid position")
+	}
+	return nil
+}
+```
+
+Note that only 1 result may be set, while any number of errors may be added to a transaction hash.
+
+## Streaming Transaction Receipts
+
+Clients cannot ask Nakama directly for transaction receipts. Instead, they must subscribe to a data socket and handle receipts as they are generated. The Cardinal plugin uses Nakama's [match data messages](https://heroiclabs.com/docs/nakama/concepts/multiplayer/authoritative/#send-data-messages) to deliver receipts to clients.
+
+The Cardinal Nakama plugin sets up a background process that periodically gets receipts form Cardinal (see [dispatcher.go](https://github.com/Argus-Labs/starter-game-template/blob/main/nakama/dispatcher.go)). Other parts of the Cardinal Nakama plugin subscribe to this dispatcher to handle transaction receipts. For example [match.go](https://github.com/Argus-Labs/starter-game-template/blob/main/nakama/match.go) broadcasts receipts to any players that have joined the global match.

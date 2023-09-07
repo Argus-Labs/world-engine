@@ -21,11 +21,11 @@
 package router
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"testing"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/router"
-	cosmlib "pkg.berachain.dev/polaris/cosmos/lib"
 	"pkg.berachain.dev/polaris/eth/accounts/abi"
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
 	"pkg.berachain.dev/polaris/lib/utils"
@@ -53,7 +53,7 @@ var _ = Describe("Router Precompile", func() {
 
 	It("should have static registry key", func() {
 		Expect(contract.RegistryKey()).To(Equal(
-			cosmlib.AccAddressToEthAddress(authtypes.NewModuleAddress(name))),
+			common.BytesToAddress(authtypes.NewModuleAddress(name))),
 		)
 	})
 

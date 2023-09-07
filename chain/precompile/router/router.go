@@ -3,8 +3,8 @@ package router
 import (
 	"context"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/ethereum/go-ethereum/common"
 	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/router"
-	cosmlib "pkg.berachain.dev/polaris/cosmos/lib"
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
 	"pkg.berachain.dev/polaris/eth/core/vm"
 	"pkg.world.dev/world-engine/chain/router"
@@ -22,7 +22,7 @@ func NewPrecompileContract(r router.Router) *Contract {
 	return &Contract{
 		BaseContract: ethprecompile.NewBaseContract(
 			generated.RouterMetaData.ABI,
-			cosmlib.AccAddressToEthAddress(authtypes.NewModuleAddress(name)),
+			common.BytesToAddress(authtypes.NewModuleAddress(name)),
 		),
 		rtr: r,
 	}
