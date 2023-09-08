@@ -105,15 +105,15 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, swaggerFilePath 
 }
 
 func TestIfServeSetEnvVarForPort(t *testing.T) {
-	for i := 0; i < 2; i++ {
+	for _, isTestingSwagger := range []bool{true, false} {
 		world := inmem.NewECSWorldForTest(t)
 		alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
 		assert.NilError(t, world.RegisterTransactions(alphaTx))
 		var txh *Handler
 		var err error
-		if i == 0 {
+		if !isTestingSwagger {
 			txh, err = NewHandler(world, DisableSignatureVerification())
-		} else if i == 1 {
+		} else if isTestingSwagger {
 			txh, err = NewSwaggerHandler(world, "./swagger.yml", DisableSignatureVerification())
 		} else {
 			t.Fail()
