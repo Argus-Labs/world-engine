@@ -374,6 +374,13 @@ func TestHandleSwaggerServer(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, gotTxReply, expectedTxReply)
 
+	resp5, err := http.Post(txh.makeURL("tx/game/dsakjsdlfksdj"), "application/json", bytes.NewBuffer(signedTxJson))
+	assert.NilError(t, err)
+	assert.Equal(t, resp5.StatusCode, 404)
+	resp6, err := http.Post(txh.makeURL("query/game/sdsdfsdfsdf"), "application/json", bytes.NewBuffer(signedTxJson))
+	assert.NilError(t, err)
+	assert.Equal(t, resp6.StatusCode, 404)
+
 }
 
 func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
