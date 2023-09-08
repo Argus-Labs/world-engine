@@ -63,3 +63,9 @@ func WithLoopInterval(interval time.Duration) WorldOption {
 		},
 	}
 }
+
+func WithPrettyLog() WorldOption {
+	return WorldOption{
+		ecsOption: ecs.WithPrettyLog(),
+	}
+}
