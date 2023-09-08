@@ -99,7 +99,7 @@ func createSwaggerQueryHandler[Request any, Response any](requestName string, re
 	return func(params interface{}) (interface{}, error) {
 		request, ok := getValueFromParams[Request](params, requestName)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("could not find %s in parameters", requestName))
+			return middleware.Error(404, fmt.Errorf("%s not found", requestName)), nil
 		}
 		resp, err := requestHandler(request)
 		if err != nil {
@@ -206,7 +206,7 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 		}
 		tx, err := getTxFromParams("txType", params, txNameToTx)
 		if err != nil {
-			return nil, err
+			return middleware.Error(404, err), nil
 		}
 		if tx.Name() == ecs.AuthorizePersonaAddressTx.Name() {
 			return nil, fmt.Errorf("This route should not process %s, use tx/persona/%s", tx.Name(), ecs.AuthorizePersonaAddressTx.Name())
@@ -307,7 +307,7 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		}
 		outputType, ok := readNameToReadType[readTypeString]
 		if !ok {
-			return nil, fmt.Errorf(fmt.Sprintf("readType of type %s does not exist", readTypeString))
+			return middleware.Error(404, fmt.Errorf("readType of type %s does not exist", readTypeString)), nil
 		}
 
 		bodyData, ok := mapStruct["readBody"]
