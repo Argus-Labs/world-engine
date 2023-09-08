@@ -153,7 +153,7 @@ func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string
 
 func getBodyAndSigFromParams(
 	params interface{},
-	handler *Handler) ([]byte, *sign.SignedPayload, error) {
+	handler *Handler, isSystemTransaction bool) ([]byte, *sign.SignedPayload, error) {
 	mappedParams, ok := params.(map[string]interface{})
 	if !ok {
 		return nil, nil, errors.New("params not readable")
@@ -167,7 +167,7 @@ func getBodyAndSigFromParams(
 		return nil, nil, errors.New("txBody needs to be a json object in the body")
 
 	}
-	payload, sp, err := handler.verifySignatureOfMapRequest(txBodyMap, false)
+	payload, sp, err := handler.verifySignatureOfMapRequest(txBodyMap, isSystemTransaction)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -200,7 +200,7 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 	}
 
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		payload, sp, err := getBodyAndSigFromParams(params, handler)
+		payload, sp, err := getBodyAndSigFromParams(params, handler, false)
 		if err != nil {
 			return nil, err
 		}
@@ -216,12 +216,20 @@ func registerTxHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handl
 
 	// will be moved to ecs
 	createPersonaHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		return ecs.CreatePersonaTransactionResult{Success: true}, errors.New("not implemented")
+		payload, sp, err := getBodyAndSigFromParams(params, handler, true)
+		if err != nil {
+			return nil, err
+		}
+		txReply, err := generateCreatePersonaResponseFromPayload(payload, sp, ecs.CreatePersonaTx, world)
+		if err != nil {
+			return nil, err
+		}
+		return &txReply, nil
 	})
 
 	// will be moved to ecs
 	authorizePersonaAddressHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		rawPayload, signedPayload, err := getBodyAndSigFromParams(params, handler)
+		rawPayload, signedPayload, err := getBodyAndSigFromParams(params, handler, false)
 		if err != nil {
 			return nil, err
 		}

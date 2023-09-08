@@ -877,62 +877,71 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 }
 
 func TestTransactionIDIsReturned(t *testing.T) {
-	type MoveTx struct{}
-	world := inmem.NewECSWorldForTest(t)
-	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
-	world.RegisterTransactions(moveTx)
-	assert.NilError(t, world.LoadGameState())
-	ctx := context.Background()
-	// Preemptive tick so the tick isn't the zero value
-	assert.NilError(t, world.Tick(ctx))
-	privateKey, err := crypto.GenerateKey()
-	assert.NilError(t, err)
-	txh := makeTestTransactionHandler(t, world, "")
+	swaggerCreatePersonUrl := "tx/persona/create-persona"
+	swaggerUrls := []string{swaggerCreatePersonUrl, "tx/game/move"}
+	for _, urls := range [][]string{[]string{"tx-create-persona", "tx-move"}, swaggerUrls} {
+		type MoveTx struct{}
+		world := inmem.NewECSWorldForTest(t)
+		moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+		world.RegisterTransactions(moveTx)
+		assert.NilError(t, world.LoadGameState())
+		ctx := context.Background()
+		// Preemptive tick so the tick isn't the zero value
+		assert.NilError(t, world.Tick(ctx))
+		privateKey, err := crypto.GenerateKey()
+		assert.NilError(t, err)
+		swaggerFilePath := ""
+		if urls[0] == swaggerCreatePersonUrl {
+			swaggerFilePath = "./swagger.yml"
+		}
+		txh := makeTestTransactionHandler(t, world, swaggerFilePath)
 
-	personaTag := "clifford_the_big_red_dog"
-	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	namespace := world.Namespace()
-	nonce := uint64(99)
+		personaTag := "clifford_the_big_red_dog"
+		signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+		namespace := world.Namespace()
+		nonce := uint64(99)
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
-		PersonaTag:    personaTag,
-		SignerAddress: signerAddr,
+		createPersonaTx := ecs.CreatePersonaTransaction{
+			PersonaTag:    personaTag,
+			SignerAddress: signerAddr,
+		}
+
+		sigPayload, err := sign.NewSystemSignedPayload(privateKey, namespace, nonce, createPersonaTx)
+		assert.NilError(t, err)
+		bz, err := sigPayload.Marshal()
+		assert.NilError(t, err)
+
+		resp, err := http.Post(txh.makeURL(urls[0]), "application/json", bytes.NewReader(bz))
+		assert.NilError(t, err)
+		assert.Equal(t, 200, resp.StatusCode)
+
+		var txReply TransactionReply
+		assert.NilError(t, json.NewDecoder(resp.Body).Decode(&txReply))
+
+		// The hash field should not be empty
+		assert.Check(t, txReply.TxHash != "")
+		// The tick should equal the current tick
+		assert.Equal(t, world.CurrentTick(), txReply.Tick)
+
+		assert.NilError(t, world.Tick(ctx))
+
+		// Also check to make sure transaction IDs are returned for other kinds of transactions
+		nonce++
+		emptyData := map[string]any{}
+		sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, nonce, emptyData)
+
+		bz, err = sigPayload.Marshal()
+		assert.NilError(t, err)
+
+		resp, err = http.Post(txh.makeURL(urls[1]), "application/json", bytes.NewReader(bz))
+		assert.NilError(t, err)
+		assert.Equal(t, 200, resp.StatusCode)
+		assert.NilError(t, json.NewDecoder(resp.Body).Decode(&txReply))
+
+		// The hash field should not be empty
+		assert.Check(t, txReply.TxHash != "")
+		// The tick should equal the current tick
+		assert.Equal(t, world.CurrentTick(), txReply.Tick)
+		txh.Close()
 	}
-
-	sigPayload, err := sign.NewSystemSignedPayload(privateKey, namespace, nonce, createPersonaTx)
-	assert.NilError(t, err)
-	bz, err := sigPayload.Marshal()
-	assert.NilError(t, err)
-
-	resp, err := http.Post(txh.makeURL("tx-create-persona"), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
-
-	var txReply TransactionReply
-	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&txReply))
-
-	// The hash field should not be empty
-	assert.Check(t, txReply.TxHash != "")
-	// The tick should equal the current tick
-	assert.Equal(t, world.CurrentTick(), txReply.Tick)
-
-	assert.NilError(t, world.Tick(ctx))
-
-	// Also check to make sure transaction IDs are returned for other kinds of transactions
-	nonce++
-	emptyData := map[string]any{}
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, nonce, emptyData)
-
-	bz, err = sigPayload.Marshal()
-	assert.NilError(t, err)
-
-	resp, err = http.Post(txh.makeURL("tx-move"), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
-	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&txReply))
-
-	// The hash field should not be empty
-	assert.Check(t, txReply.TxHash != "")
-	// The tick should equal the current tick
-	assert.Equal(t, world.CurrentTick(), txReply.Tick)
 }
