@@ -135,7 +135,7 @@ func (t *CQLTerm) String() string {
 	return strings.Join(out, " ")
 }
 
-var CQLParser = participle.MustBuild[CQLTerm]()
+var internalCQLParser = participle.MustBuild[CQLTerm]()
 
 // TODO: Value is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
@@ -208,4 +208,16 @@ func termToLayoutFilter(term *CQLTerm, stringToComponent func(string) component.
 		}
 	}
 	return acc, nil
+}
+
+func CQLParse(cqlText string, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
+	term, err := internalCQLParser.ParseString("", cqlText)
+	if err != nil {
+		return nil, err
+	}
+	resultFilter, err := termToLayoutFilter(term, stringToComponent)
+	if err != nil {
+		return nil, err
+	}
+	return resultFilter, nil
 }

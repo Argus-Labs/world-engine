@@ -82,6 +82,26 @@ paths:
                         $ref: '#/definitions/TxReply'
                 '400':
                     description: Invalid transaction request
+
+    /query/game/cql:
+        post:
+            summary: Query the ecs with CQL (component query language)
+            description: Query the ecs with CQL (component query language)
+            consumes:
+                - text/plain
+            produces:
+                - application/json
+            operationId: cql
+            responses:
+                200:
+                    description: cql results
+                    schema: {}
+            parameters:
+                - name: cql
+                  description: cql (component query language)
+                  in: body
+                  required: true
+                  schema: {}
     /query/game/{readType}:
         post:
             summary: Query the ecs

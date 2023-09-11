@@ -12,7 +12,7 @@ import (
 )
 
 func TestParser(t *testing.T) {
-	term, err := CQLParser.ParseString("", "!(EXACT(a, b) & EXACT(a)) | CONTAINS(b)")
+	term, err := internalCQLParser.ParseString("", "!(EXACT(a, b) & EXACT(a)) | CONTAINS(b)")
 	testTerm := CQLTerm{
 		Left: &CQLFactor{Base: &CQLValue{
 			Exact:    nil,

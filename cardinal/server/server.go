@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/sign"
@@ -355,6 +356,23 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		getListTxReceiptsReplyFromRequest(world),
 	)
 
+	cqlHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		mapStruct, ok := params.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("invalid parameter input, map could not be created")
+		}
+		cql, ok := mapStruct["cql"]
+		if !ok {
+			return nil, errors.New("cql parameter could not be found")
+		}
+		cqlString, ok := cql.(string)
+		if !ok {
+			return nil, errors.New("cql could not be converted to string")
+		}
+		cql
+	}
+
+	api.RegisterOperation("POST", "/query/game/cql", cqlHandler)
 	api.RegisterOperation("POST", "/query/game/{readType}", gameHandler)
 	api.RegisterOperation("POST", "/query/http/endpoints", listHandler)
 	api.RegisterOperation("POST", "/query/persona/signer", personaHandler)
