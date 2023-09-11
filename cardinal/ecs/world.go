@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/rs/zerolog"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -12,11 +11,10 @@ import (
 	"sync"
 	"time"
 
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
-
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
@@ -29,16 +27,6 @@ import (
 
 // Namespace is a unique identifier for a world.
 type Namespace string
-
-// StorageAccessor is an accessor for the world's storage.
-type StorageAccessor struct {
-	// Index is the search archCompIndexStore for the world.
-	Index storage.ArchetypeComponentIndex
-	// Components is the component storage for the world.
-	Components *storage.Components
-	// Archetypes is the archetype storage for the world.
-	Archetypes storage.ArchetypeAccessor
-}
 
 type World struct {
 	namespace                Namespace
@@ -421,14 +409,6 @@ func (w *World) TransferArchetype(from storage.ArchetypeID, to storage.Archetype
 	}
 
 	return storage.ComponentIndex(len(toArch.Entities()) - 1), nil
-}
-
-func (w *World) StorageAccessor() StorageAccessor {
-	return StorageAccessor{
-		w.store.ArchCompIdxStore,
-		&w.store.CompStore,
-		w.store.ArchAccessor,
-	}
 }
 
 // copyTransactions makes a copy of the world txQueue, then zeroes out the txQueue.
