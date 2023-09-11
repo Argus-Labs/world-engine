@@ -76,6 +76,9 @@ func TestECS(t *testing.T) {
 	q := ecs.NewQuery(filter.Or(filter.Contains(Energy), filter.Contains(Ownable)))
 	amt := q.Count(world)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
+	comp, exists := world.GetComponentByName("EnergyComponent")
+	assert.Assert(t, exists)
+	assert.Equal(t, comp.Name(), Energy.Name())
 }
 
 func TestVelocitySimulation(t *testing.T) {
