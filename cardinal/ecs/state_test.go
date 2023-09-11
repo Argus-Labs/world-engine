@@ -7,6 +7,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -171,7 +172,7 @@ func TestCanReloadState(t *testing.T) {
 
 	_, err := alphaWorld.CreateMany(10, oneAlphaNum)
 	assert.NilError(t, err)
-	alphaWorld.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		oneAlphaNum.Each(w, func(id storage.EntityID) bool {
 			err := oneAlphaNum.Set(w, id, NumberComponent{int(id)})
 			assert.Check(t, err == nil)
@@ -234,7 +235,7 @@ func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 	for reload := 0; reload < 5; reload++ {
 		world := testutil.InitWorldWithRedis(t, redisStore)
 		assert.NilError(t, world.RegisterTransactions(someTx))
-		world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
+		world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecs.Logger) error {
 			for _, tx := range someTx.In(queue) {
 				someTx.SetResult(world, tx.TxHash, Result{})
 			}

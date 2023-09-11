@@ -125,8 +125,8 @@ func (w *World) StartGame() error {
 // game tick. This Register method can be called multiple times.
 func (w *World) RegisterSystems(systems ...System) {
 	for _, system := range systems {
-		w.impl.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
-			return system(&World{impl: world}, &TransactionQueue{queue}, &Logger{logger})
+		w.impl.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecs.Logger) error {
+			return system(&World{impl: world}, &TransactionQueue{impl: queue}, &Logger{logger})
 		})
 	}
 }

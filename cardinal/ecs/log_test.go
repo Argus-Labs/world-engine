@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"gotest.tools/v3/assert"
@@ -11,9 +15,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"strings"
-	"testing"
-	"time"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 type SendEnergyTx struct {
@@ -29,7 +31,7 @@ type EnergyComp struct {
 
 var energy = ecs.NewComponentType[EnergyComp]()
 
-func testSystem(w *ecs.World, _ *ecs.TransactionQueue, logger *ecs.Logger) error {
+func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *ecs.Logger) error {
 	logger.Log().Msg("test")
 	energy.Each(w, func(entityId storage.EntityID) bool {
 		energyPlanet, err := energy.Get(w, entityId)
@@ -47,7 +49,7 @@ func testSystem(w *ecs.World, _ *ecs.TransactionQueue, logger *ecs.Logger) error
 	return nil
 }
 
-func testSystemWarningTrigger(w *ecs.World, tx *ecs.TransactionQueue, logger *ecs.Logger) error {
+func testSystemWarningTrigger(w *ecs.World, tx *transaction.TxQueue, logger *ecs.Logger) error {
 	time.Sleep(time.Millisecond * 400)
 	return testSystem(w, tx, logger)
 }

@@ -463,10 +463,10 @@ type pendingTransaction struct {
 	Sig    *sign.SignedPayload
 }
 
-func (r *RedisStorage) storeTransactions(ctx context.Context, txs []transaction.ITransaction, queues transaction.TxMap) error {
+func (r *RedisStorage) storeTransactions(ctx context.Context, txs []transaction.ITransaction, queue *transaction.TxQueue) error {
 	var pending []pendingTransaction
 	for _, tx := range txs {
-		currList := queues[tx.ID()]
+		currList := queue.ForID(tx.ID())
 		for _, txData := range currList {
 			buf, err := tx.Encode(txData.Value)
 			if err != nil {
@@ -502,9 +502,9 @@ func (r *RedisStorage) getPendingTransactionsFromRedis(ctx context.Context) ([]p
 	return Decode[[]pendingTransaction](buf)
 }
 
-func (r *RedisStorage) StartNextTick(txs []transaction.ITransaction, queues transaction.TxMap) error {
+func (r *RedisStorage) StartNextTick(txs []transaction.ITransaction, queue *transaction.TxQueue) error {
 	ctx := context.Background()
-	if err := r.storeTransactions(ctx, txs, queues); err != nil {
+	if err := r.storeTransactions(ctx, txs, queue); err != nil {
 		return err
 	}
 	if err := r.makeSnapshot(ctx); err != nil {
@@ -599,7 +599,7 @@ func (r *RedisStorage) recoverSnapshot(ctx context.Context) error {
 
 // Recover recovers the game state from the last game tick and any pending transactions that have been saved to the DB,
 // but not yet applied to a game tick.
-func (r *RedisStorage) Recover(txs []transaction.ITransaction) (transaction.TxMap, error) {
+func (r *RedisStorage) Recover(txs []transaction.ITransaction) (*transaction.TxQueue, error) {
 	ctx := context.Background()
 	if err := r.recoverSnapshot(ctx); err != nil {
 		return nil, err
@@ -613,20 +613,20 @@ func (r *RedisStorage) Recover(txs []transaction.ITransaction) (transaction.TxMa
 		idToTx[tx.ID()] = tx
 	}
 
-	allQueues := transaction.TxMap{}
+	queue := transaction.NewTxQueue()
 	for _, p := range pending {
 		tx := idToTx[p.TypeID]
 		txData, err := tx.Decode(p.Data)
 		if err != nil {
 			return nil, err
 		}
-		allQueues[tx.ID()] = append(allQueues[tx.ID()], transaction.TxAny{
+		queue.Push(tx.ID(), transaction.TxAny{
 			TxHash: p.TxHash,
 			Sig:    p.Sig,
 			Value:  txData,
 		})
 	}
-	return allQueues, nil
+	return queue, nil
 }
 
 // ---------------------------------------------------------------------------

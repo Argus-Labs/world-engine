@@ -5,8 +5,9 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"gotest.tools/v3/assert"
@@ -212,15 +213,12 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 	assert.NilError(t, err)
 	wantTxHash := transaction.TxHash("some-transaction-hash")
 
-	queue := transaction.TxMap{
-		tx.ID(): []transaction.TxAny{
-			{
-				Value:  wantVal,
-				TxHash: wantTxHash,
-				Sig:    wantSig,
-			},
-		},
-	}
+	queue := transaction.NewTxQueue()
+	queue.Push(tx.ID(), transaction.TxAny{
+		Value:  wantVal,
+		TxHash: wantTxHash,
+		Sig:    wantSig,
+	})
 
 	txSlice := []transaction.ITransaction{tx}
 
@@ -229,9 +227,7 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 	gotQueue, err := rs.Recover(txSlice)
 	assert.NilError(t, err)
 
-	assert.Equal(t, 1, len(gotQueue))
-	slice, ok := gotQueue[tx.ID()]
-	assert.Check(t, ok)
+	slice := gotQueue.ForID(tx.ID())
 	assert.Equal(t, 1, len(slice))
 	assert.Equal(t, wantTxHash, slice[0].TxHash)
 	gotSig := slice[0].Sig

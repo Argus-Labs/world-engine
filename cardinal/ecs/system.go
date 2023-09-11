@@ -1,3 +1,5 @@
 package ecs
 
-type System func(*World, *TransactionQueue, *Logger) error
+import "pkg.world.dev/world-engine/cardinal/ecs/transaction"
+
+type System func(*World, *transaction.TxQueue, *Logger) error

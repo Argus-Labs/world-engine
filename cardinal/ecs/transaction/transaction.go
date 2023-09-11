@@ -5,7 +5,25 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-type TxMap map[TypeID][]TxAny
+type TxQueue struct {
+	m txMap
+}
+
+func NewTxQueue() *TxQueue {
+	return &TxQueue{
+		m: txMap{},
+	}
+}
+
+func (t *TxQueue) ForID(id TypeID) []TxAny {
+	return t.m[id]
+}
+
+func (t *TxQueue) Push(id TypeID, a TxAny) {
+	t.m[id] = append(t.m[id], a)
+}
+
+type txMap map[TypeID][]TxAny
 
 type TxAny struct {
 	Value  any
