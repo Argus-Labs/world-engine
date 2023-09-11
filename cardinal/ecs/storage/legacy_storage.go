@@ -10,7 +10,7 @@ import (
 var _ ComponentStorageManager = &ComponentsSliceStorage{}
 
 // ComponentsSliceStorage is a structure that contains component data in slices.
-// Component data is indexed by component type ID, archetype Index, and finally component Index.
+// CQLComponent data is indexed by component type ID, archetype Index, and finally component Index.
 type ComponentsSliceStorage struct {
 	componentStorages []*ComponentSliceStorage
 }
