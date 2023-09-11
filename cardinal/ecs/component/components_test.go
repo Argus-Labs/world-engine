@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
@@ -104,6 +105,10 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	foundComp := ecs.NewComponentType[string]()
 	notFoundComp := ecs.NewComponentType[string]()
+
+	foundComp.SetName("foundComp")
+	notFoundComp.SetName("notFoundComp")
+
 	assert.NilError(t, world.RegisterComponents(foundComp, notFoundComp))
 
 	id, err := world.Create(foundComp)

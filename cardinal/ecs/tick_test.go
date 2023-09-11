@@ -3,11 +3,13 @@ package ecs_test
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
+
 	"gotest.tools/v3/assert"
+
+	"github.com/alicebob/miniredis/v2"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
@@ -148,6 +150,8 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		world := testutil.InitWorldWithRedis(t, rs)
 		static := ecs.NewComponentType[ScalarComponent]()
 		toggle := ecs.NewComponentType[ScalarComponent]()
+		static.SetName("static")
+		toggle.SetName("toggle")
 		assert.NilError(t, world.RegisterComponents(static, toggle))
 
 		if firstWorldIteration {

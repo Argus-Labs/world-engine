@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
+
+	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -55,6 +56,8 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	threeWorld := testutil.InitWorldWithRedis(t, redisStore)
 	threeAlphaNum := ecs.NewComponentType[NumberComponent]()
 	threeBetaNum := ecs.NewComponentType[NumberComponent]()
+	threeBetaNum.SetName("threeBetaNum")
+	threeAlphaNum.SetName("threeAlphaNum")
 	assert.NilError(t, threeWorld.RegisterComponents(threeAlphaNum, threeBetaNum))
 	assert.NilError(t, threeWorld.LoadGameState())
 
@@ -103,6 +106,8 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	oneWorld := testutil.InitWorldWithRedis(t, redisStore)
 	oneAlphaNum := ecs.NewComponentType[NumberComponent]()
 	oneBetaNum := ecs.NewComponentType[NumberComponent]()
+	oneAlphaNum.SetName("oneAlphaNum")
+	oneBetaNum.SetName("OneBetaNum")
 	assert.NilError(t, oneWorld.RegisterComponents(oneAlphaNum, oneBetaNum))
 	assert.NilError(t, oneWorld.LoadGameState())
 
@@ -129,6 +134,8 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	twoAlphaNum := ecs.NewComponentType[NumberComponent]()
 	twoBetaNum := ecs.NewComponentType[NumberComponent]()
 	// The ordering of registering these components is important. It must match the ordering above.
+	twoAlphaNum.SetName("towAlphaNum")
+	twoBetaNum.SetName("towBetaNum")
 	assert.NilError(t, twoWorld.RegisterComponents(twoAlphaNum, twoBetaNum))
 	assert.NilError(t, twoWorld.LoadGameState())
 
@@ -151,6 +158,8 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	threeAlphaNum := ecs.NewComponentType[NumberComponent]()
 	threeBetaNum := ecs.NewComponentType[NumberComponent]()
 	// Again, the ordering of registering these components is important. It must match the ordering above
+	threeAlphaNum.SetName("threeAlphaNum")
+	threeBetaNum.SetName("threeBetaNum")
 	assert.NilError(t, threeWorld.RegisterComponents(threeAlphaNum, threeBetaNum))
 	assert.NilError(t, threeWorld.LoadGameState())
 
