@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -54,14 +55,24 @@ func (c *ComponentType[T]) SetID(id component.TypeID) error {
 
 // Get returns component data from the entity.
 func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error) {
-	entity, err := w.Entity(id)
+	es := w.EncomStorage()
+	value, err := es.GetComponent(c, id)
 	if err != nil {
 		return comp, err
 	}
-	bz, err := entity.Component(w, c)
-	if err != nil {
-		return comp, err
+	var ok bool
+	comp, ok = value.(T)
+	if !ok {
+		return comp, errors.New("unable to type cast component")
 	}
+	return comp, nil
+}
+
+func (c *ComponentType[T]) Marshal(value any) (bz []byte, err error) {
+	return storage.Encode(value)
+}
+
+func (c *ComponentType[T]) Unmarshal(bz []byte) (value any, err error) {
 	return storage.Decode[T](bz)
 }
 
@@ -78,15 +89,8 @@ func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(T) T) e
 
 // Set sets component data to the entity.
 func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error {
-	entity, err := w.Entity(id)
-	if err != nil {
-		return err
-	}
-	bz, err := storage.Encode(component)
-	if err != nil {
-		return err
-	}
-	err = w.SetComponent(c, bz, entity.Loc.ArchID, entity.Loc.CompIndex)
+	es := w.EncomStorage()
+	err := es.SetComponent(c, id, component)
 	if err != nil {
 		return err
 	}

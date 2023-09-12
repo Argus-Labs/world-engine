@@ -10,12 +10,24 @@ import (
 
 var (
 	nextMockComponentTypeId component.TypeID = 1
+
+	_ component.IComponentType = &MockComponentType[int]{}
 )
 
 type MockComponentType[T any] struct {
 	id         component.TypeID
 	typ        reflect.Type
 	defaultVal interface{}
+}
+
+func (m *MockComponentType[T]) Marshal(a any) ([]byte, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (m *MockComponentType[T]) Unmarshal(bytes []byte) (any, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 func NewMockComponentType[T any](t T, defaultVal interface{}) *MockComponentType[T] {

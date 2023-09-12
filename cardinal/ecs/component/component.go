@@ -13,5 +13,8 @@ type (
 		New() ([]byte, error)
 		// Name returns the name of the component.
 		Name() string
+
+		Marshal(any) ([]byte, error)
+		Unmarshal([]byte) (any, error)
 	}
 )

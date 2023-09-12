@@ -16,6 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/encom"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -31,6 +32,7 @@ type Namespace string
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
+	encom                    *encom.EncomStorage
 	systems                  []System
 	systemLoggers            []*Logger
 	systemNames              []string
@@ -203,6 +205,7 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	w := &World{
 		store:     s,
+		encom:     encom.NewEncomStorage(s),
 		namespace: "world",
 		tick:      0,
 		systems:   make([]System, 0),
@@ -300,6 +303,10 @@ func (w *World) Entity(id storage.EntityID) (storage.Entity, error) {
 		return storage.BadEntity, err
 	}
 	return storage.NewEntity(id, loc), nil
+}
+
+func (w *World) EncomStorage() *encom.EncomStorage {
+	return w.encom
 }
 
 // Len return the number of entities in this world
