@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
@@ -17,6 +18,10 @@ func TestCanFilterByArchetype(t *testing.T) {
 	alpha := ecs.NewComponentType[string]()
 	beta := ecs.NewComponentType[string]()
 	gamma := ecs.NewComponentType[string]()
+
+	alpha.SetName("alpha")
+	beta.SetName("beta")
+	gamma.SetName("gamma")
 
 	assert.NilError(t, world.RegisterComponents(alpha, beta, gamma))
 	assert.NilError(t, world.LoadGameState())
@@ -100,6 +105,8 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	alpha := ecs.NewComponentType[string]()
 	beta := ecs.NewComponentType[string]()
+	alpha.SetName("alpha")
+	beta.SetName("beta")
 	assert.NilError(t, world.RegisterComponents(alpha, beta))
 	assert.NilError(t, world.LoadGameState())
 

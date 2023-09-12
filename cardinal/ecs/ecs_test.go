@@ -76,6 +76,9 @@ func TestECS(t *testing.T) {
 	q := ecs.NewQuery(filter.Or(filter.Contains(Energy), filter.Contains(Ownable)))
 	amt := q.Count(world)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
+	comp, exists := world.GetComponentByName("EnergyComponent")
+	assert.Assert(t, exists)
+	assert.Equal(t, comp.Name(), Energy.Name())
 }
 
 func TestVelocitySimulation(t *testing.T) {
@@ -256,6 +259,8 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	reactorEnergy := ecs.NewComponentType[EnergyComponent]()
 	weaponsEnergy := ecs.NewComponentType[EnergyComponent]()
+	reactorEnergy.SetName("reactorEnergy")
+	weaponsEnergy.SetName("weaponsEnergy")
 	assert.NilError(t, world.RegisterComponents(reactorEnergy, weaponsEnergy))
 	assert.NilError(t, world.LoadGameState())
 	ent, err := world.Create(reactorEnergy)
@@ -298,6 +303,9 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	alpha := ecs.NewComponentType[Label](ecs.WithDefault(Label{"alpha"}))
 	beta := ecs.NewComponentType[Label](ecs.WithDefault(Label{"beta"}))
 	gamma := ecs.NewComponentType[Label](ecs.WithDefault(Label{"gamma"}))
+	alpha.SetName("alpha")
+	beta.SetName("beta")
+	gamma.SetName("gamma")
 	assert.NilError(t, world.RegisterComponents(alpha, beta, gamma))
 	assert.NilError(t, world.LoadGameState())
 
@@ -345,6 +353,8 @@ func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 
 	alpha := ecs.NewComponentType[EnergyComponent]()
 	beta := ecs.NewComponentType[EnergyComponent]()
+	alpha.SetName("alpha")
+	beta.SetName("beta")
 	assert.NilError(t, world.RegisterComponents(alpha, beta))
 	assert.NilError(t, world.LoadGameState())
 
@@ -358,6 +368,10 @@ func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 func TestQueriesAndFiltersWorks(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	a, b, c, d := ecs.NewComponentType[int](), ecs.NewComponentType[int](), ecs.NewComponentType[int](), ecs.NewComponentType[int]()
+	a.SetName("a")
+	b.SetName("b")
+	c.SetName("c")
+	d.SetName("d")
 	assert.NilError(t, world.RegisterComponents(a, b, c, d))
 	assert.NilError(t, world.LoadGameState())
 
