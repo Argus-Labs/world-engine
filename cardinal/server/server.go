@@ -361,15 +361,21 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		if !ok {
 			return nil, errors.New("invalid parameter input, map could not be created")
 		}
-		cql, ok := mapStruct["cql"]
+		cqlType, ok := mapStruct["cql"]
 		if !ok {
 			return nil, errors.New("cql parameter could not be found")
 		}
-		cqlString, ok := cql.(string)
+		cqlString, ok := cqlType.(string)
 		if !ok {
 			return nil, errors.New("cql could not be converted to string")
 		}
-		cql
+		resultFilter, err := cql.CQLParse(cqlString)
+		if err != nil {
+			return middleware.Error(422, err), nil
+		}
+		return
+
+
 	}
 
 	api.RegisterOperation("POST", "/query/game/cql", cqlHandler)
