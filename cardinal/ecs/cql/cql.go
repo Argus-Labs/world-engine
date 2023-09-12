@@ -142,11 +142,11 @@ var CQLParser = participle.MustBuild[cqlTerm]()
 // be checked.
 func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
 	if value.Not != nil {
-		result_filter, err := valueToLayoutFilter(value.Not.SubExpression, stringToComponent)
+		resultFilter, err := valueToLayoutFilter(value.Not.SubExpression, stringToComponent)
 		if err != nil {
 			return nil, err
 		}
-		return filter.Not(result_filter), nil
+		return filter.Not(resultFilter), nil
 	} else if value.Exact != nil {
 		if len(value.Exact.Components) <= 0 {
 			return nil, errors.New("EXACT cannot have zero parameters")
@@ -192,19 +192,18 @@ func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) component.
 	if err != nil {
 		return nil, err
 	}
-	if len(term.Right) > 0 {
-		for _, opFactor := range term.Right {
-			operator, resultFilter, err := opFactorToLayoutFilter(opFactor, stringToComponent)
-			if err != nil {
-				return nil, err
-			}
-			if *operator == opAnd {
-				acc = filter.And(acc, resultFilter)
-			} else if *operator == opOr {
-				acc = filter.Or(acc, resultFilter)
-			} else {
-				return nil, errors.New("invalid operator")
-			}
+	for _, opFactor := range term.Right {
+		operator, resultFilter, err := opFactorToLayoutFilter(opFactor, stringToComponent)
+		if err != nil {
+			return nil, err
+		}
+		switch *operator {
+		case opAnd:
+			acc = filter.And(acc, resultFilter)
+		case opOr:
+			acc = filter.Or(acc, resultFilter)
+		default:
+			return nil, errors.New("invalid operator")
 		}
 	}
 	return acc, nil
