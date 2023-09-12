@@ -10,6 +10,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/sign"
@@ -369,14 +370,20 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		if !ok {
 			return nil, errors.New("cql could not be converted to string")
 		}
-		resultFilter, err := cql.CQLParse(cqlString)
+		resultFilter, err := cql.CQLParse(cqlString, world.GetComponentByName)
 		if err != nil {
 			return middleware.Error(422, err), nil
 		}
-		return
 
+		entityIds := make([]storage.EntityID, 0)
 
-	}
+		ecs.NewQuery(resultFilter).Each(world, func(id storage.EntityID) bool {
+			entityIds = append(entityIds, id)
+			return true
+		})
+
+		return entityIds, nil
+	})
 
 	api.RegisterOperation("POST", "/query/game/cql", cqlHandler)
 	api.RegisterOperation("POST", "/query/game/{readType}", gameHandler)
