@@ -153,7 +153,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	wantCount := 50
 	ids, err := world.CreateMany(wantCount, alpha, beta)
 	assert.NilError(t, err)
-	// Make some extra entities that will be ignored. Our queryString later
+	// Make some extra entities that will be ignored. Our query later
 	// should NOT contain these entities
 	_, err = world.CreateMany(20, alpha)
 	assert.NilError(t, err)
