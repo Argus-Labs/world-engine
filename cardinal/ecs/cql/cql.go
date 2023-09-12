@@ -82,7 +82,7 @@ func (o cqlOperator) String() string {
 func (e *cqlExact) String() string {
 	parameters := ""
 	for i, comp := range e.Components {
-		parameters += comp.Name + ", "
+		parameters += comp.Name
 		if i < len(e.Components)-1 {
 			parameters += ", "
 		}
@@ -104,23 +104,15 @@ func (e *cqlContains) String() string {
 
 func (v *cqlValue) String() string {
 	if v.Exact != nil {
-		parameters := ""
-		for _, comp := range v.Exact.Components {
-			parameters += comp.Name + ", "
-		}
-		return "EXACT(" + parameters + ")"
+		return v.Exact.String()
 	} else if v.Contains != nil {
-		parameters := ""
-		for _, comp := range v.Contains.Components {
-			parameters += comp.Name + ", "
-		}
-		return "CONTAINS(" + parameters + ")"
+		return v.Contains.String()
 	} else if v.Not != nil {
 		return "!(" + v.Not.SubExpression.String() + ")"
 	} else if v.Subexpression != nil {
 		return "(" + v.Subexpression.String() + ")"
 	} else {
-		panic("blah")
+		panic("logic error displaying CQL ast. Check the code in cql.go")
 	}
 }
 

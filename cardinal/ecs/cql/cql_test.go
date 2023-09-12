@@ -1,6 +1,7 @@
 package cql
 
 import (
+	"fmt"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -8,6 +9,7 @@ import (
 
 func TestParser(t *testing.T) {
 	term, err := CQLParser.ParseString("", "!(EXACT(a, b) & EXACT(a)) | CONTAINS(b)")
+	fmt.Println(term.String())
 	testTerm := cqlTerm{
 		Left: &cqlFactor{Base: &cqlValue{
 			Exact:    nil,
