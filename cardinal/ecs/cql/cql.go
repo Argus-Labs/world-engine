@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/alecthomas/participle/v2"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
 type cqlOperator int
@@ -134,3 +136,75 @@ func (t *cqlTerm) String() string {
 }
 
 var CQLParser = participle.MustBuild[cqlTerm]()
+
+// TODO: Value is sum type is represented as a product type. There is a case where multiple properties are filled out.
+// Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
+// be checked.
+func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
+	if value.Not != nil {
+		resultFilter, err := valueToLayoutFilter(value.Not.SubExpression, stringToComponent)
+		if err != nil {
+			return nil, err
+		}
+		return filter.Not(resultFilter), nil
+	} else if value.Exact != nil {
+		if len(value.Exact.Components) <= 0 {
+			return nil, errors.New("EXACT cannot have zero parameters")
+		}
+		components := make([]component.IComponentType, 0, len(value.Exact.Components))
+		for _, componentName := range value.Exact.Components {
+			components = append(components, stringToComponent(componentName.Name))
+		}
+		return filter.Exact(components...), nil
+	} else if value.Contains != nil {
+		if len(value.Contains.Components) <= 0 {
+			return nil, errors.New("CONTAINS cannot have zero parameters")
+		}
+		components := make([]component.IComponentType, 0, len(value.Contains.Components))
+		for _, componentName := range value.Contains.Components {
+			components = append(components, stringToComponent(componentName.Name))
+		}
+		return filter.Contains(components...), nil
+	} else if value.Subexpression != nil {
+		return termToLayoutFilter(value.Subexpression, stringToComponent)
+	} else {
+		return nil, errors.New("unknown error during conversion from CQL AST to LayoutFilter")
+	}
+}
+
+func factorToLayoutFilter(factor *cqlFactor, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
+	return valueToLayoutFilter(factor.Base, stringToComponent)
+}
+
+func opFactorToLayoutFilter(opFactor *cqlOpFactor, stringToComponent func(string) component.IComponentType) (*cqlOperator, filter.LayoutFilter, error) {
+	resultFilter, err := factorToLayoutFilter(opFactor.Factor, stringToComponent)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &opFactor.Operator, resultFilter, nil
+}
+
+func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
+	if term.Left == nil {
+		return nil, errors.New("Not enough values in expression")
+	}
+	acc, err := factorToLayoutFilter(term.Left, stringToComponent)
+	if err != nil {
+		return nil, err
+	}
+	for _, opFactor := range term.Right {
+		operator, resultFilter, err := opFactorToLayoutFilter(opFactor, stringToComponent)
+		if err != nil {
+			return nil, err
+		}
+		switch *operator {
+		case opAnd:
+			acc = filter.And(acc, resultFilter)
+		case opOr:
+			acc = filter.Or(acc, resultFilter)
+		default:
+			return nil, errors.New("invalid operator")
+		}
+	}
+	return acc, nil
+}
