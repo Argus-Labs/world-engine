@@ -19,8 +19,16 @@ const (
 
 var operatorMap = map[string]cqlOperator{"&": opAnd, "|": opOr}
 
+// Capture basically tells the parser library how to transform a string token that's parsed into the operator type.
 func (o *cqlOperator) Capture(s []string) error {
-	*o = operatorMap[s[0]]
+	if len(s) <= 0 {
+		return errors.New("invalid operator")
+	}
+	operator, ok := operatorMap[s[0]]
+	if !ok {
+		return errors.New("invalid operator")
+	}
+	*o = operator
 	return nil
 }
 
@@ -76,7 +84,7 @@ func (o cqlOperator) String() string {
 func (e *cqlExact) String() string {
 	parameters := ""
 	for i, comp := range e.Components {
-		parameters += comp.Name + ", "
+		parameters += comp.Name
 		if i < len(e.Components)-1 {
 			parameters += ", "
 		}
@@ -98,23 +106,15 @@ func (e *cqlContains) String() string {
 
 func (v *cqlValue) String() string {
 	if v.Exact != nil {
-		parameters := ""
-		for _, comp := range v.Exact.Components {
-			parameters += comp.Name + ", "
-		}
-		return "EXACT(" + parameters + ")"
+		return v.Exact.String()
 	} else if v.Contains != nil {
-		parameters := ""
-		for _, comp := range v.Contains.Components {
-			parameters += comp.Name + ", "
-		}
-		return "CONTAINS(" + parameters + ")"
+		return v.Contains.String()
 	} else if v.Not != nil {
 		return "!(" + v.Not.SubExpression.String() + ")"
 	} else if v.Subexpression != nil {
 		return "(" + v.Subexpression.String() + ")"
 	} else {
-		panic("blah")
+		panic("logic error displaying CQL ast. Check the code in cql.go")
 	}
 }
 
@@ -142,22 +142,22 @@ var internalCQLParser = participle.MustBuild[cqlTerm]()
 // be checked.
 func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
 	if value.Not != nil {
-		result_filter, err := valueToLayoutFilter(value.Not.SubExpression, stringToComponent)
+		resultFilter, err := valueToLayoutFilter(value.Not.SubExpression, stringToComponent)
 		if err != nil {
 			return nil, err
 		}
-		return filter.Not(result_filter), nil
+		return filter.Not(resultFilter), nil
 	} else if value.Exact != nil {
 		if len(value.Exact.Components) <= 0 {
 			return nil, errors.New("EXACT cannot have zero parameters")
 		}
 		components := make([]component.IComponentType, 0, len(value.Exact.Components))
 		for _, componentName := range value.Exact.Components {
-			if comp, ok := stringToComponent(componentName.Name); ok {
-				components = append(components, comp)
-			} else {
-				return nil, fmt.Errorf("%s does not exist", componentName.Name)
+			comp, ok := stringToComponent(componentName.Name)
+			if !ok {
+				return nil, fmt.Errorf("the component: %s was not found", componentName.Name)
 			}
+			components = append(components, comp)
 		}
 		return filter.Exact(components...), nil
 	} else if value.Contains != nil {
@@ -166,11 +166,11 @@ func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) (compon
 		}
 		components := make([]component.IComponentType, 0, len(value.Contains.Components))
 		for _, componentName := range value.Contains.Components {
-			if comp, ok := stringToComponent(componentName.Name); ok {
-				components = append(components, comp)
-			} else {
-				return nil, fmt.Errorf("%s does not exist", componentName.Name)
+			comp, ok := stringToComponent(componentName.Name)
+			if !ok {
+				return nil, fmt.Errorf("the component: %s was not found", componentName.Name)
 			}
+			components = append(components, comp)
 		}
 		return filter.Contains(components...), nil
 	} else if value.Subexpression != nil {
@@ -200,19 +200,18 @@ func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) (component
 	if err != nil {
 		return nil, err
 	}
-	if len(term.Right) > 0 {
-		for _, opFactor := range term.Right {
-			operator, resultFilter, err := opFactorToLayoutFilter(opFactor, stringToComponent)
-			if err != nil {
-				return nil, err
-			}
-			if *operator == opAnd {
-				acc = filter.And(acc, resultFilter)
-			} else if *operator == opOr {
-				acc = filter.Or(acc, resultFilter)
-			} else {
-				return nil, errors.New("invalid operator")
-			}
+	for _, opFactor := range term.Right {
+		operator, resultFilter, err := opFactorToLayoutFilter(opFactor, stringToComponent)
+		if err != nil {
+			return nil, err
+		}
+		switch *operator {
+		case opAnd:
+			acc = filter.And(acc, resultFilter)
+		case opOr:
+			acc = filter.Or(acc, resultFilter)
+		default:
+			return nil, errors.New("invalid operator")
 		}
 	}
 	return acc, nil
