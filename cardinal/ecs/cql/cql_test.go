@@ -8,27 +8,27 @@ import (
 
 func TestParser(t *testing.T) {
 	term, err := CQLParser.ParseString("", "!(EXACT(a, b) & EXACT(a)) | CONTAINS(b)")
-	testTerm := CQLTerm{
-		Left: &CQLFactor{Base: &CQLValue{
+	testTerm := cqlTerm{
+		Left: &cqlFactor{Base: &cqlValue{
 			Exact:    nil,
 			Contains: nil,
-			Not: &CQLNot{SubExpression: &CQLValue{
+			Not: &cqlNot{SubExpression: &cqlValue{
 				Exact:    nil,
 				Contains: nil,
 				Not:      nil,
-				Subexpression: &CQLTerm{
-					Left: &CQLFactor{Base: &CQLValue{
-						Exact: &CQLExact{Components: []*CQLComponent{
-							&CQLComponent{Name: "a"},
-							&CQLComponent{Name: "b"}}},
+				Subexpression: &cqlTerm{
+					Left: &cqlFactor{Base: &cqlValue{
+						Exact: &cqlExact{Components: []*cqlComponent{
+							&cqlComponent{Name: "a"},
+							&cqlComponent{Name: "b"}}},
 						Contains:      nil,
 						Not:           nil,
 						Subexpression: nil,
 					}},
-					Right: []*CQLOpFactor{&CQLOpFactor{
-						Operator: OpAnd,
-						Factor: &CQLFactor{Base: &CQLValue{
-							Exact:         &CQLExact{Components: []*CQLComponent{&CQLComponent{Name: "a"}}},
+					Right: []*cqlOpFactor{&cqlOpFactor{
+						Operator: opAnd,
+						Factor: &cqlFactor{Base: &cqlValue{
+							Exact:         &cqlExact{Components: []*cqlComponent{&cqlComponent{Name: "a"}}},
 							Contains:      nil,
 							Not:           nil,
 							Subexpression: nil,
@@ -38,12 +38,12 @@ func TestParser(t *testing.T) {
 			}},
 			Subexpression: nil,
 		}},
-		Right: []*CQLOpFactor{
-			&CQLOpFactor{
-				Operator: OpOr,
-				Factor: &CQLFactor{Base: &CQLValue{
+		Right: []*cqlOpFactor{
+			&cqlOpFactor{
+				Operator: opOr,
+				Factor: &cqlFactor{Base: &cqlValue{
 					Exact:         nil,
-					Contains:      &CQLContains{Components: []*CQLComponent{&CQLComponent{Name: "b"}}},
+					Contains:      &cqlContains{Components: []*cqlComponent{&cqlComponent{Name: "b"}}},
 					Not:           nil,
 					Subexpression: nil,
 				}},
