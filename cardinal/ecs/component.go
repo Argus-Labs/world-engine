@@ -16,9 +16,9 @@ type IComponentType = component.IComponentType
 
 // NewComponentType creates a new component type.
 // The function is used to create a new component of the type.
-func NewComponentType[T any](opts ...ComponentOption[T]) *ComponentType[T] {
+func NewComponentType[T any](name string, opts ...ComponentOption[T]) *ComponentType[T] {
 	var t T
-	comp := newComponentType(t, nil)
+	comp := newComponentType(t, name, nil)
 	for _, opt := range opts {
 		opt(comp)
 	}
@@ -179,10 +179,10 @@ func (c *ComponentType[T]) validateDefaultVal() {
 
 // newComponentType creates a new component type.
 // The argument is a struct that represents a data of the component.
-func newComponentType[T any](s T, defaultVal interface{}) *ComponentType[T] {
+func newComponentType[T any](s T, name string, defaultVal interface{}) *ComponentType[T] {
 	componentType := &ComponentType[T]{
 		typ:        reflect.TypeOf(s),
-		name:       reflect.TypeOf(s).Name(),
+		name:       name,
 		defaultVal: defaultVal,
 	}
 	componentType.query = NewQuery(filter.Contains(componentType))

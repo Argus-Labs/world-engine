@@ -4,16 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"strings"
+	"testing"
+	"time"
+
+	"gotest.tools/v3/assert"
+
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
-	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"strings"
-	"testing"
-	"time"
 )
 
 type SendEnergyTx struct {
@@ -27,7 +29,7 @@ type EnergyComp struct {
 	value int
 }
 
-var energy = ecs.NewComponentType[EnergyComp]()
+var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
 
 func testSystem(w *ecs.World, _ *ecs.TransactionQueue, logger *ecs.Logger) error {
 	logger.Log().Msg("test")

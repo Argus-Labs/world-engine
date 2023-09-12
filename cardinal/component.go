@@ -27,17 +27,17 @@ func toIComponentType(ins []AnyComponentType) []component.IComponentType {
 
 // NewComponentType creates a new instance of a ComponentType. When this ComponentType is added to an EntityID,
 // the zero value of the T struct will be saved with the entity.
-func NewComponentType[T any]() *ComponentType[T] {
+func NewComponentType[T any](name string) *ComponentType[T] {
 	return &ComponentType[T]{
-		impl: ecs.NewComponentType[T](),
+		impl: ecs.NewComponentType[T](name),
 	}
 }
 
 // NewComponentTypeWithDefault creates a new instance of a ComponentType. When this ComponentType is added to
 // an EntityID, the defaultVal will be saved with the entity.
-func NewComponentTypeWithDefault[T any](defaultVal T) *ComponentType[T] {
+func NewComponentTypeWithDefault[T any](name string, defaultVal T) *ComponentType[T] {
 	return &ComponentType[T]{
-		impl: ecs.NewComponentType[T](ecs.WithDefault(defaultVal)),
+		impl: ecs.NewComponentType[T](name, ecs.WithDefault(defaultVal)),
 	}
 }
 

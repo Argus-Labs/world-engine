@@ -1,19 +1,21 @@
 package ecs_test
 
 import (
+	"testing"
+
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"testing"
 )
 
 func TestQueryEarlyTermination(t *testing.T) {
 	type FooComponent struct {
 		Data string
 	}
-	foo := ecs.NewComponentType[FooComponent]()
+	foo := ecs.NewComponentType[FooComponent]("foo")
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.RegisterComponents(foo))
 

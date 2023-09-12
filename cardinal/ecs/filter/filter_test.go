@@ -15,13 +15,9 @@ import (
 func TestCanFilterByArchetype(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
-	alpha := ecs.NewComponentType[string]()
-	beta := ecs.NewComponentType[string]()
-	gamma := ecs.NewComponentType[string]()
-
-	alpha.SetName("alpha")
-	beta.SetName("beta")
-	gamma.SetName("gamma")
+	alpha := ecs.NewComponentType[string]("alpha")
+	beta := ecs.NewComponentType[string]("beta")
+	gamma := ecs.NewComponentType[string]("gamma")
 
 	assert.NilError(t, world.RegisterComponents(alpha, beta, gamma))
 	assert.NilError(t, world.LoadGameState())
@@ -52,8 +48,8 @@ func TestCanFilterByArchetype(t *testing.T) {
 // with the same parameters.
 func TestExactVsContains(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	alpha := ecs.NewComponentType[string]()
-	beta := ecs.NewComponentType[string]()
+	alpha := ecs.NewComponentType[string]("alpha")
+	beta := ecs.NewComponentType[string]("beta")
 	alphaCount := 75
 	_, err := world.CreateMany(alphaCount, alpha)
 	assert.NilError(t, err)
@@ -103,10 +99,8 @@ func TestExactVsContains(t *testing.T) {
 
 func TestCanGetArchetypeFromEntity(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	alpha := ecs.NewComponentType[string]()
-	beta := ecs.NewComponentType[string]()
-	alpha.SetName("alpha")
-	beta.SetName("beta")
+	alpha := ecs.NewComponentType[string]("alpha")
+	beta := ecs.NewComponentType[string]("beta")
 	assert.NilError(t, world.RegisterComponents(alpha, beta))
 	assert.NilError(t, world.LoadGameState())
 
@@ -133,7 +127,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 func BenchmarkEntityCreation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		world := inmem.NewECSWorldForTest(b)
-		alpha := ecs.NewComponentType[string]()
+		alpha := ecs.NewComponentType[string]("alpha")
 		assert.NilError(b, world.RegisterComponents(alpha))
 		assert.NilError(b, world.LoadGameState())
 		_, err := world.CreateMany(100000, alpha)
@@ -157,8 +151,8 @@ func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StopTimer()
 	world := inmem.NewECSWorldForTest(b)
-	alpha := ecs.NewComponentType[string]()
-	beta := ecs.NewComponentType[string]()
+	alpha := ecs.NewComponentType[string]("alpha")
+	beta := ecs.NewComponentType[string]("beta")
 	assert.NilError(b, world.RegisterComponents(alpha, beta))
 	assert.NilError(b, world.LoadGameState())
 	_, err := world.CreateMany(relevantCount, alpha, beta)
