@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
@@ -102,8 +103,9 @@ func TestComponents(t *testing.T) {
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	foundComp := ecs.NewComponentType[string]()
-	notFoundComp := ecs.NewComponentType[string]()
+	foundComp := ecs.NewComponentType[string]("foundComp")
+	notFoundComp := ecs.NewComponentType[string]("notFoundComp")
+
 	assert.NilError(t, world.RegisterComponents(foundComp, notFoundComp))
 
 	id, err := world.Create(foundComp)
@@ -117,7 +119,7 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 		Val int
 	}
 	world := inmem.NewECSWorldForTest(t)
-	valComp := ecs.NewComponentType[ValueComponent]()
+	valComp := ecs.NewComponentType[ValueComponent]("ValueComponent")
 	assert.NilError(t, world.RegisterComponents(valComp))
 
 	id, err := world.Create(valComp)

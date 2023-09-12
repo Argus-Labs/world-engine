@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/rs/zerolog"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -12,8 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
+
 	"google.golang.org/protobuf/proto"
+
+	"github.com/rs/zerolog/log"
 
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 
@@ -47,6 +49,7 @@ type World struct {
 	systemLoggers            []*Logger
 	systemNames              []string
 	tick                     uint64
+	nameToComponent          map[string]IComponentType
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
 	registeredReads          []IRead
@@ -148,7 +151,21 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 			return err
 		}
 	}
+
+	for _, c := range components {
+		if _, ok := w.nameToComponent[c.Name()]; !ok {
+			w.nameToComponent[c.Name()] = c
+		} else {
+			return errors.New("cannot register multiple components with the same name")
+		}
+	}
+
 	return nil
+}
+
+func (w *World) GetComponentByName(name string) (IComponentType, bool) {
+	componentType, exists := w.nameToComponent[name]
+	return componentType, exists
 }
 
 func (w *World) RegisterReads(reads ...IRead) error {
@@ -215,11 +232,12 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 // NewWorld creates a new world.
 func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	w := &World{
-		store:     s,
-		namespace: "world",
-		tick:      0,
-		systems:   make([]System, 0),
-		txQueues:  transaction.TxMap{},
+		store:           s,
+		namespace:       "world",
+		tick:            0,
+		systems:         make([]System, 0),
+		nameToComponent: make(map[string]IComponentType),
+		txQueues:        transaction.TxMap{},
 		Logger: &Logger{
 			&log.Logger,
 		},
