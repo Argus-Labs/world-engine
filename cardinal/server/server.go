@@ -362,13 +362,21 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		if !ok {
 			return nil, errors.New("invalid parameter input, map could not be created")
 		}
-		cqlType, ok := mapStruct["cql"]
+		cqlRequestUntyped, ok := mapStruct["cql"]
 		if !ok {
-			return nil, errors.New("cql parameter could not be found")
+			return nil, errors.New("cql body parameter could not be found")
 		}
-		cqlString, ok := cqlType.(string)
+		cqlRequest, ok := cqlRequestUntyped.(map[string]interface{})
 		if !ok {
-			return nil, errors.New("cql could not be converted to string")
+			return middleware.Error(422, fmt.Errorf("json is invalid")), nil
+		}
+		cqlStringUntyped, ok := cqlRequest["CQL"]
+		if !ok {
+			return middleware.Error(422, fmt.Errorf("json is invalid")), nil
+		}
+		cqlString, ok := cqlStringUntyped.(string)
+		if !ok {
+			return middleware.Error(422, fmt.Errorf("json is invalid")), nil
 		}
 		resultFilter, err := cql.CQLParse(cqlString, world.GetComponentByName)
 		if err != nil {

@@ -88,7 +88,7 @@ paths:
             summary: Query the ecs with CQL (component query language)
             description: Query the ecs with CQL (component query language)
             consumes:
-                - text/plain
+                - application/json
             produces:
                 - application/json
             operationId: cql
@@ -101,7 +101,8 @@ paths:
                   description: cql (component query language)
                   in: body
                   required: true
-                  schema: {}
+                  schema:
+                      $ref: '#/definitions/CQLRequest'
     /query/game/{readType}:
         post:
             summary: Query the ecs
@@ -189,6 +190,14 @@ paths:
                     description: Invalid transaction request
 
 definitions:
+    CQLRequest:
+        type: object
+        required:
+            - CQL
+        properties:
+            CQL:
+                type: string
+                example: "(EXACT(energyComponent) | CONTAINS(healthComponent)) & CONTAINS(goodGuyComponent)"
     TxRequestWithCreatePersona:
         required:
             - PersonaTag

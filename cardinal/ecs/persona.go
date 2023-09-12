@@ -90,7 +90,7 @@ type SignerComponent struct {
 }
 
 // SignerComp is the concrete ECS component that pairs a persona tag to a signer address.
-var SignerComp = NewComponentType[SignerComponent]()
+var SignerComp = NewComponentType[SignerComponent]("SignerComponent")
 
 type personaTagComponentData struct {
 	SignerAddress string

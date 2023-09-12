@@ -19,7 +19,7 @@ import (
 func TestTickHappyPath(t *testing.T) {
 	rs := miniredis.RunT(t)
 	oneWorld := testutil.InitWorldWithRedis(t, rs)
-	oneEnergy := ecs.NewComponentType[EnergyComponent]()
+	oneEnergy := ecs.NewComponentType[EnergyComponent]("oneEnergy")
 	assert.NilError(t, oneWorld.RegisterComponents(oneEnergy))
 	assert.NilError(t, oneWorld.LoadGameState())
 
@@ -30,7 +30,7 @@ func TestTickHappyPath(t *testing.T) {
 	assert.Equal(t, uint64(10), oneWorld.CurrentTick())
 
 	twoWorld := testutil.InitWorldWithRedis(t, rs)
-	twoEnergy := ecs.NewComponentType[EnergyComponent]()
+	twoEnergy := ecs.NewComponentType[EnergyComponent]("twoEnergy")
 	assert.NilError(t, twoWorld.RegisterComponents(twoEnergy))
 	assert.NilError(t, twoWorld.LoadGameState())
 	assert.Equal(t, uint64(10), twoWorld.CurrentTick())
@@ -43,7 +43,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	rs := miniredis.RunT(t)
 	oneWorld := testutil.InitWorldWithRedis(t, rs)
-	onePower := ecs.NewComponentType[PowerComponent]()
+	onePower := ecs.NewComponentType[PowerComponent]("onePower")
 	assert.NilError(t, oneWorld.RegisterComponents(onePower))
 
 	id, err := oneWorld.Create(onePower)
@@ -74,7 +74,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	// Set up a new world using the same storage layer
 	twoWorld := testutil.InitWorldWithRedis(t, rs)
-	twoPower := ecs.NewComponentType[*PowerComponent]()
+	twoPower := ecs.NewComponentType[*PowerComponent]("twoPower")
 	assert.NilError(t, twoWorld.RegisterComponents(twoPower))
 
 	// this is our fixed system that can handle Power levels of 3 and higher
@@ -105,8 +105,8 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 		Val int
 	}
 	world := inmem.NewECSWorldForTest(t)
-	alpha := ecs.NewComponentType[ScalarComponent]()
-	beta := ecs.NewComponentType[ScalarComponent]()
+	alpha := ecs.NewComponentType[ScalarComponent]("alpha")
+	beta := ecs.NewComponentType[ScalarComponent]("beta")
 	assert.NilError(t, world.RegisterComponents(alpha))
 	assert.NilError(t, world.LoadGameState())
 
@@ -148,10 +148,8 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 	rs := miniredis.RunT(t)
 	for _, firstWorldIteration := range []bool{true, false} {
 		world := testutil.InitWorldWithRedis(t, rs)
-		static := ecs.NewComponentType[ScalarComponent]()
-		toggle := ecs.NewComponentType[ScalarComponent]()
-		static.SetName("static")
-		toggle.SetName("toggle")
+		static := ecs.NewComponentType[ScalarComponent]("static")
+		toggle := ecs.NewComponentType[ScalarComponent]("toggle")
 		assert.NilError(t, world.RegisterComponents(static, toggle))
 
 		if firstWorldIteration {
@@ -218,7 +216,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 	for _, isBuggyIteration := range []bool{true, false} {
 		world := testutil.InitWorldWithRedis(t, rs)
 
-		powerComp := ecs.NewComponentType[FloatValue]()
+		powerComp := ecs.NewComponentType[FloatValue]("powerComp")
 		assert.NilError(t, world.RegisterComponents(powerComp))
 
 		powerTx := ecs.NewTransactionType[FloatValue, FloatValue]("change_power")

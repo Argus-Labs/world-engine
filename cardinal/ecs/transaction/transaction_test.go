@@ -29,7 +29,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
 	// Create an entity with a score component
-	score := ecs.NewComponentType[*ScoreComponent]()
+	score := ecs.NewComponentType[*ScoreComponent]("score")
 	assert.NilError(t, world.RegisterComponents(score))
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
@@ -85,7 +85,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	type CounterComponent struct {
 		Count int
 	}
-	count := ecs.NewComponentType[CounterComponent]()
+	count := ecs.NewComponentType[CounterComponent]("count")
 	assert.NilError(t, world.RegisterComponents(count))
 
 	id, err := world.Create(count)
@@ -109,7 +109,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	alphaScore := ecs.NewComponentType[ScoreComponent]()
+	alphaScore := ecs.NewComponentType[ScoreComponent]("alphaScore")
 	assert.NilError(t, world.RegisterComponents(alphaScore))
 
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")

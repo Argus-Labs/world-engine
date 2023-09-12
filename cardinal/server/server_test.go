@@ -238,6 +238,16 @@ func TestHandleSwaggerServer(t *testing.T) {
 		return nil
 	})
 
+	alpha := ecs.NewComponentType[string]("alpha")
+	beta := ecs.NewComponentType[string]("beta")
+	assert.NilError(t, w.RegisterComponents(alpha, beta))
+	alphaCount := 75
+	_, err := w.CreateMany(alphaCount, alpha)
+	assert.NilError(t, err)
+	bothCount := 100
+	_, err = w.CreateMany(bothCount, alpha, beta)
+	assert.NilError(t, err)
+
 	// Queue up a CreatePersonaTx
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
@@ -380,6 +390,79 @@ func TestHandleSwaggerServer(t *testing.T) {
 	resp6, err := http.Post(txh.makeURL("query/game/sdsdfsdfsdf"), "application/json", bytes.NewBuffer(signedTxJson))
 	assert.NilError(t, err)
 	assert.Equal(t, resp6.StatusCode, 404)
+
+	//test query/game/cql
+	jsonQuery := struct{ CQL string }{"blah"}
+	jsonQueryBytes, err := json.Marshal(jsonQuery)
+	assert.NilError(t, err)
+	resp7, err := http.Post(txh.makeURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+	assert.NilError(t, err)
+	assert.Equal(t, resp7.StatusCode, 422)
+
+	jsonQuery = struct{ CQL string }{"CONTAINS(alpha) & CONTAINS(beta)"}
+	jsonQueryBytes, err = json.Marshal(jsonQuery)
+	resp8, err := http.Post(txh.makeURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+	assert.NilError(t, err)
+	assert.Equal(t, resp8.StatusCode, 200)
+	var nums []int
+	err = json.NewDecoder(resp8.Body).Decode(&nums)
+	assert.NilError(t, err)
+	assert.Equal(t, len(nums), bothCount)
+
+	jsonQuery = struct{ CQL string }{"CONTAINS(alpha) | CONTAINS(beta)"}
+	jsonQueryBytes, err = json.Marshal(jsonQuery)
+	resp9, err := http.Post(txh.makeURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+	assert.NilError(t, err)
+	assert.Equal(t, resp9.StatusCode, 200)
+	err = json.NewDecoder(resp9.Body).Decode(&nums)
+	assert.NilError(t, err)
+	assert.Equal(t, len(nums), bothCount+alphaCount)
+
+	jsonQuery = struct{ CQL string }{"CONTAINS(beta)"}
+	jsonQueryBytes, err = json.Marshal(jsonQuery)
+	resp10, err := http.Post(txh.makeURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+	assert.NilError(t, err)
+	assert.Equal(t, resp10.StatusCode, 200)
+	err = json.NewDecoder(resp10.Body).Decode(&nums)
+	assert.NilError(t, err)
+	assert.Equal(t, len(nums), bothCount)
+
+	jsonQuery = struct{ CQL string }{"EXACT(alpha)"}
+	jsonQueryBytes, err = json.Marshal(jsonQuery)
+	resp11, err := http.Post(txh.makeURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+	assert.NilError(t, err)
+	assert.Equal(t, resp11.StatusCode, 200)
+	err = json.NewDecoder(resp11.Body).Decode(&nums)
+	assert.NilError(t, err)
+	assert.Equal(t, len(nums), alphaCount)
+
+	jsonQuery = struct{ CQL string }{"EXACT(beta)"}
+	jsonQueryBytes, err = json.Marshal(jsonQuery)
+	resp12, err := http.Post(txh.makeURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+	assert.NilError(t, err)
+	assert.Equal(t, resp12.StatusCode, 200)
+	err = json.NewDecoder(resp12.Body).Decode(&nums)
+	assert.NilError(t, err)
+	assert.Equal(t, len(nums), 0)
+
+	jsonQuery = struct{ CQL string }{"!(CONTAINS(alpha) | CONTAINS(beta))"}
+	jsonQueryBytes, err = json.Marshal(jsonQuery)
+	resp13, err := http.Post(txh.makeURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+	assert.NilError(t, err)
+	assert.Equal(t, resp13.StatusCode, 200)
+	err = json.NewDecoder(resp13.Body).Decode(&nums)
+	assert.NilError(t, err)
+	assert.Equal(t, len(nums), 1)
+	//SignerComponent is registered on an entity hence 1 when you read all things that do not contain beta or alpha
+
+	jsonQuery = struct{ CQL string }{"!CONTAINS(alpha) & CONTAINS(beta)"}
+	jsonQueryBytes, err = json.Marshal(jsonQuery)
+	resp14, err := http.Post(txh.makeURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+	assert.NilError(t, err)
+	assert.Equal(t, resp14.StatusCode, 200)
+	err = json.NewDecoder(resp14.Body).Decode(&nums)
+	assert.NilError(t, err)
+	assert.Equal(t, len(nums), 0)
 
 }
 

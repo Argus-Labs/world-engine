@@ -228,3 +228,10 @@ func CQLParse(cqlText string, stringToComponent func(string) (component.ICompone
 	}
 	return resultFilter, nil
 }
+
+type QueryRequest struct {
+	CQL string
+}
+
+type QueryResponse struct {
+}
