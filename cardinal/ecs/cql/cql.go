@@ -10,70 +10,70 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
-type CQLOperator int
+type cqlOperator int
 
 const (
-	OpAnd CQLOperator = iota
-	OpOr
+	opAnd cqlOperator = iota
+	opOr
 )
 
-var operatorMap = map[string]CQLOperator{"&": OpAnd, "|": OpOr}
+var operatorMap = map[string]cqlOperator{"&": opAnd, "|": opOr}
 
-func (o *CQLOperator) Capture(s []string) error {
+func (o *cqlOperator) Capture(s []string) error {
 	*o = operatorMap[s[0]]
 	return nil
 }
 
-type CQLComponent struct {
+type cqlComponent struct {
 	Name string `@Ident`
 }
 
-type CQLNot struct {
-	SubExpression *CQLValue `"!" @@`
+type cqlNot struct {
+	SubExpression *cqlValue `"!" @@`
 }
 
-type CQLExact struct {
-	Components []*CQLComponent `"EXACT""(" (@@",")* @@ ")"`
+type cqlExact struct {
+	Components []*cqlComponent `"EXACT""(" (@@",")* @@ ")"`
 }
 
-type CQLContains struct {
-	Components []*CQLComponent `"CONTAINS" "(" (@@",")* @@ ")"`
+type cqlContains struct {
+	Components []*cqlComponent `"CONTAINS" "(" (@@",")* @@ ")"`
 }
 
-type CQLValue struct {
-	Exact         *CQLExact    `@@`
-	Contains      *CQLContains `| @@`
-	Not           *CQLNot      `| @@`
-	Subexpression *CQLTerm     `| "(" @@ ")"`
+type cqlValue struct {
+	Exact         *cqlExact    `@@`
+	Contains      *cqlContains `| @@`
+	Not           *cqlNot      `| @@`
+	Subexpression *cqlTerm     `| "(" @@ ")"`
 }
 
-type CQLFactor struct {
-	Base *CQLValue `@@`
+type cqlFactor struct {
+	Base *cqlValue `@@`
 }
 
-type CQLOpFactor struct {
-	Operator CQLOperator `@("&" | "|")`
-	Factor   *CQLFactor  `@@`
+type cqlOpFactor struct {
+	Operator cqlOperator `@("&" | "|")`
+	Factor   *cqlFactor  `@@`
 }
 
-type CQLTerm struct {
-	Left  *CQLFactor     `@@`
-	Right []*CQLOpFactor `@@*`
+type cqlTerm struct {
+	Left  *cqlFactor     `@@`
+	Right []*cqlOpFactor `@@*`
 }
 
 // Display
 
-func (o CQLOperator) String() string {
+func (o cqlOperator) String() string {
 	switch o {
-	case OpAnd:
+	case opAnd:
 		return "&"
-	case OpOr:
+	case opOr:
 		return "|"
 	}
 	panic("unsupported operator")
 }
 
-func (e *CQLExact) String() string {
+func (e *cqlExact) String() string {
 	parameters := ""
 	for i, comp := range e.Components {
 		parameters += comp.Name + ", "
@@ -85,7 +85,7 @@ func (e *CQLExact) String() string {
 
 }
 
-func (e *CQLContains) String() string {
+func (e *cqlContains) String() string {
 	parameters := ""
 	for i, comp := range e.Components {
 		parameters += comp.Name
@@ -96,7 +96,7 @@ func (e *CQLContains) String() string {
 	return "CONTAINS(" + parameters + ")"
 }
 
-func (v *CQLValue) String() string {
+func (v *cqlValue) String() string {
 	if v.Exact != nil {
 		parameters := ""
 		for _, comp := range v.Exact.Components {
@@ -118,16 +118,16 @@ func (v *CQLValue) String() string {
 	}
 }
 
-func (f *CQLFactor) String() string {
+func (f *cqlFactor) String() string {
 	out := f.Base.String()
 	return out
 }
 
-func (o *CQLOpFactor) String() string {
+func (o *cqlOpFactor) String() string {
 	return fmt.Sprintf("%s %s", o.Operator, o.Factor)
 }
 
-func (t *CQLTerm) String() string {
+func (t *cqlTerm) String() string {
 	out := []string{t.Left.String()}
 	for _, r := range t.Right {
 		out = append(out, r.String())
@@ -135,12 +135,12 @@ func (t *CQLTerm) String() string {
 	return strings.Join(out, " ")
 }
 
-var CQLParser = participle.MustBuild[CQLTerm]()
+var CQLParser = participle.MustBuild[cqlTerm]()
 
 // TODO: Value is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
 // be checked.
-func valueToLayoutFilter(value *CQLValue, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
+func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
 	if value.Not != nil {
 		result_filter, err := valueToLayoutFilter(value.Not.SubExpression, stringToComponent)
 		if err != nil {
@@ -172,11 +172,11 @@ func valueToLayoutFilter(value *CQLValue, stringToComponent func(string) compone
 	}
 }
 
-func factorToLayoutFilter(factor *CQLFactor, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
+func factorToLayoutFilter(factor *cqlFactor, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
 	return valueToLayoutFilter(factor.Base, stringToComponent)
 }
 
-func opFactorToLayoutFilter(opFactor *CQLOpFactor, stringToComponent func(string) component.IComponentType) (*CQLOperator, filter.LayoutFilter, error) {
+func opFactorToLayoutFilter(opFactor *cqlOpFactor, stringToComponent func(string) component.IComponentType) (*cqlOperator, filter.LayoutFilter, error) {
 	resultFilter, err := factorToLayoutFilter(opFactor.Factor, stringToComponent)
 	if err != nil {
 		return nil, nil, err
@@ -184,7 +184,7 @@ func opFactorToLayoutFilter(opFactor *CQLOpFactor, stringToComponent func(string
 	return &opFactor.Operator, resultFilter, nil
 }
 
-func termToLayoutFilter(term *CQLTerm, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
+func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
 	if term.Left == nil {
 		return nil, errors.New("Not enough values in expression")
 	}
@@ -198,9 +198,9 @@ func termToLayoutFilter(term *CQLTerm, stringToComponent func(string) component.
 			if err != nil {
 				return nil, err
 			}
-			if *operator == OpAnd {
+			if *operator == opAnd {
 				acc = filter.And(acc, resultFilter)
-			} else if *operator == OpOr {
+			} else if *operator == opOr {
 				acc = filter.Or(acc, resultFilter)
 			} else {
 				return nil, errors.New("invalid operator")
