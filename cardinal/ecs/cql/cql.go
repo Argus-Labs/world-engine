@@ -1,6 +1,7 @@
 package cql
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,8 +17,16 @@ const (
 
 var operatorMap = map[string]cqlOperator{"&": opAnd, "|": opOr}
 
+// Capture basically tells the parser library how to transform a string token that's parsed into the operator type.
 func (o *cqlOperator) Capture(s []string) error {
-	*o = operatorMap[s[0]]
+	if len(s) <= 0 {
+		return errors.New("invalid operator")
+	}
+	operator, ok := operatorMap[s[0]]
+	if !ok {
+		return errors.New("invalid operator")
+	}
+	*o = operator
 	return nil
 }
 
