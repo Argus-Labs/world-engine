@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
@@ -60,6 +61,24 @@ func NewReadType[Request any, Reply any](
 	handler func(world *World, req Request) (Reply, error),
 	opts ...func() func(readType *ReadType[Request, Reply]),
 ) *ReadType[Request, Reply] {
+	var req Request
+	var rep Reply
+	reqType := reflect.TypeOf(req)
+	reqKind := reqType.Kind()
+	reqValid := false
+	if (reqKind == reflect.Pointer && reqType.Elem().Kind() == reflect.Struct) || reqKind == reflect.Struct {
+		reqValid = true
+	}
+	repType := reflect.TypeOf(rep)
+	repKind := reqType.Kind()
+	repValid := false
+	if (repKind == reflect.Pointer && repType.Elem().Kind() == reflect.Struct) || repKind == reflect.Struct {
+		repValid = true
+	}
+
+	if !repValid || !reqValid {
+		panic("The Request and Reply must be both structs")
+	}
 	r := &ReadType[Request, Reply]{
 		name:    name,
 		handler: handler,
