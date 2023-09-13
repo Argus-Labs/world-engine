@@ -18,23 +18,21 @@ type ReadType[Request, Reply any] struct {
 // in the given handler function.
 func NewReadType[Request any, Reply any](
 	name string,
-	handler func(*World, Request) (Reply, error),
+	handler func(WorldContext, Request) (Reply, error),
 ) *ReadType[Request, Reply] {
 	return &ReadType[Request, Reply]{
-		impl: ecs.NewReadType[Request, Reply](name, func(world *ecs.World, req Request) (Reply, error) {
-			outerWorld := &World{impl: world}
-			return handler(outerWorld, req)
+		impl: ecs.NewReadType[Request, Reply](name, func(ctx WorldContext, req Request) (Reply, error) {
+			return handler(ctx, req)
 		}),
 	}
 }
 
 // NewReadTypeWithEVMSupport creates a new instance of a ReadType with EVM support, allowing this read to be called from
 // the EVM base shard. The World state must not be changed in the given handler function.
-func NewReadTypeWithEVMSupport[Request, Reply any](name string, handler func(*World, Request) (Reply, error)) *ReadType[Request, Reply] {
+func NewReadTypeWithEVMSupport[Request, Reply any](name string, handler func(WorldContext, Request) (Reply, error)) *ReadType[Request, Reply] {
 	return &ReadType[Request, Reply]{
-		impl: ecs.NewReadType[Request, Reply](name, func(world *ecs.World, req Request) (Reply, error) {
-			outerWorld := &World{impl: world}
-			return handler(outerWorld, req)
+		impl: ecs.NewReadType[Request, Reply](name, func(ctx WorldContext, req Request) (Reply, error) {
+			return handler(ctx, req)
 		}, ecs.WithReadEVMSupport[Request, Reply]),
 	}
 }

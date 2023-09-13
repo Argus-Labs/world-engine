@@ -189,7 +189,8 @@ func (s *msgServerImpl) QueryShard(ctx context.Context, req *routerv1.QueryShard
 	if err != nil {
 		return nil, err
 	}
-	reply, err := read.HandleRead(s.world, ecsRequest)
+	rCtx := s.world.NewReadContext()
+	reply, err := read.HandleRead(rCtx, ecsRequest)
 	if err != nil {
 		return nil, err
 	}

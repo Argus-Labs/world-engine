@@ -22,14 +22,14 @@ type World struct {
 type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
-	EntityID      = storage.EntityID
-	TxHash        = transaction.TxHash
-	SystemContext = ecs.WorldContext
+	EntityID     = storage.EntityID
+	TxHash       = transaction.TxHash
+	WorldContext = ecs.WorldContext
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
 	// with a world using AddSystem or AddSystems.
-	System func(SystemContext) error
+	System func(WorldContext) error
 )
 
 // NewWorld creates a new World object using Redis as the storage layer.

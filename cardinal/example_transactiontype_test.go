@@ -29,7 +29,7 @@ func ExampleTransactionType() {
 		panic(err)
 	}
 
-	world.RegisterSystems(func(ctx cardinal.SystemContext) error {
+	world.RegisterSystems(func(ctx cardinal.WorldContext) error {
 		for _, tx := range MoveTx.In(ctx) {
 			msg := tx.Value()
 			// handle the transaction

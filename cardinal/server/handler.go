@@ -175,7 +175,8 @@ func (t *Handler) makeReadHandler(r ecs.IRead) http.HandlerFunc {
 			writeError(writer, "unable to read request body", err)
 			return
 		}
-		res, err := r.HandleReadRaw(t.w, buf)
+		ctx := t.w.NewReadContext()
+		res, err := r.HandleReadRaw(ctx, buf)
 		if err != nil {
 			writeError(writer, "error handling read", err)
 			return

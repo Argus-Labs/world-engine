@@ -47,29 +47,29 @@ func (c *ComponentType[T]) Name() string {
 }
 
 // RemoveFrom removes this component from the given entity.
-func (c *ComponentType[T]) RemoveFrom(ctx SystemContext, id EntityID) error {
+func (c *ComponentType[T]) RemoveFrom(ctx WorldContext, id EntityID) error {
 	return c.impl.RemoveFrom(ctx, id)
 }
 
 // AddTo adds this component to the given entity.
-func (c *ComponentType[T]) AddTo(ctx SystemContext, id EntityID) error {
+func (c *ComponentType[T]) AddTo(ctx WorldContext, id EntityID) error {
 	return c.impl.AddTo(ctx, id)
 }
 
 // Get returns the component data that is associated with the given id. An error is returned if this entity
 // is not actually associated with this component type.
-func (c *ComponentType[T]) Get(ctx SystemContext, id EntityID) (comp T, err error) {
+func (c *ComponentType[T]) Get(ctx WorldContext, id EntityID) (comp T, err error) {
 	return c.impl.Get(ctx, id)
 }
 
 // Set sets the component data for a specific EntityID.
-func (c *ComponentType[T]) Set(ctx SystemContext, id EntityID, comp T) error {
+func (c *ComponentType[T]) Set(ctx WorldContext, id EntityID, comp T) error {
 	return c.impl.Set(ctx, id, comp)
 }
 
 // Update updates the component data that is associated with the given EntityID. It is a convenience wrapper
 // for a Get followed by a Set.
-func (c *ComponentType[T]) Update(ctx SystemContext, id EntityID, fn func(T) T) error {
+func (c *ComponentType[T]) Update(ctx WorldContext, id EntityID, fn func(T) T) error {
 	return c.impl.Update(ctx, id, fn)
 }
 

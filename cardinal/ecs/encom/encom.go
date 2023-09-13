@@ -1,21 +1,39 @@
 package encom
 
 import (
+	"errors"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
+var (
+	ErrorReadOnlyEncomStorageCannotChangeState = errors.New("read only entity/component storage cannot change state")
+)
+
 type EncomStorage struct {
-	store storage.WorldStorage
+	store    storage.WorldStorage
+	readOnly bool
 }
 
 func NewEncomStorage(store storage.WorldStorage) *EncomStorage {
 	return &EncomStorage{
-		store: store,
+		store:    store,
+		readOnly: false,
+	}
+}
+
+func (e *EncomStorage) AsReadOnly() *EncomStorage {
+	return &EncomStorage{
+		store:    e.store,
+		readOnly: true,
 	}
 }
 
 func (e *EncomStorage) SetComponent(cType component.IComponentType, id storage.EntityID, value any) error {
+	if e.readOnly {
+		return ErrorReadOnlyEncomStorageCannotChangeState
+	}
 	loc, err := e.store.EntityLocStore.GetLocation(id)
 	if err != nil {
 		return err

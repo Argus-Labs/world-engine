@@ -441,6 +441,16 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPay
 	return w.CurrentTick(), txHash
 }
 
+func (w *World) NewReadContext() WorldContext {
+	return WorldContext{
+		World:   w,
+		ES:      w.EncomStorage().AsReadOnly(),
+		TxQueue: nil,
+		Logger:  w.Logger,
+	}
+
+}
+
 func (w *World) NewSystemContext(txQueue *transaction.TxQueue) WorldContext {
 	return WorldContext{
 		World:   w,

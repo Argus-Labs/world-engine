@@ -330,7 +330,8 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		if err != nil {
 			return nil, err
 		}
-		rawJsonReply, err := outputType.HandleReadRaw(world, rawJsonBody)
+		ctx := world.NewReadContext()
+		rawJsonReply, err := outputType.HandleReadRaw(ctx, rawJsonBody)
 		if err != nil {
 			return nil, err
 		}

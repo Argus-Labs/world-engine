@@ -22,19 +22,19 @@ type QueryCallBackFn func(EntityID) bool
 
 // Each executes the given callback function on every EntityID that matches this query. If any call to callback returns
 // falls, no more entities will be processed.
-func (q *Query) Each(ctx SystemContext, callback QueryCallBackFn) {
+func (q *Query) Each(ctx WorldContext, callback QueryCallBackFn) {
 	q.impl.Each(ctx, func(eid storage.EntityID) bool {
 		return callback(eid)
 	})
 }
 
 // Count returns the number of entities that match this query.
-func (q *Query) Count(ctx SystemContext) int {
+func (q *Query) Count(ctx WorldContext) int {
 	return q.impl.Count(ctx)
 }
 
 // First returns the first entity that matches this query.
-func (q *Query) First(ctx SystemContext) (id EntityID, err error) {
+func (q *Query) First(ctx WorldContext) (id EntityID, err error) {
 	return q.impl.First(ctx)
 }
 

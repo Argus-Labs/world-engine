@@ -13,10 +13,10 @@ type IRead interface {
 	// Name returns the name of the read.
 	Name() string
 	// HandleRead handles reads with concrete types, rather than encoded bytes.
-	HandleRead(*World, any) (any, error)
+	HandleRead(WorldContext, any) (any, error)
 	// HandleReadRaw is given a reference to the world, json encoded bytes that represent a read request
 	// and is expected to return a json encoded response struct.
-	HandleReadRaw(*World, []byte) ([]byte, error)
+	HandleReadRaw(WorldContext, []byte) ([]byte, error)
 	// Schema returns the json schema of the read request.
 	Schema() (request, reply *jsonschema.Schema)
 	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
@@ -31,7 +31,7 @@ type IRead interface {
 
 type ReadType[Request any, Reply any] struct {
 	name       string
-	handler    func(world *World, req Request) (Reply, error)
+	handler    func(ctx WorldContext, req Request) (Reply, error)
 	requestABI *abi.Type
 	replyABI   *abi.Type
 }
@@ -57,7 +57,7 @@ var _ IRead = NewReadType[struct{}, struct{}]("", nil)
 
 func NewReadType[Request any, Reply any](
 	name string,
-	handler func(world *World, req Request) (Reply, error),
+	handler func(ctx WorldContext, req Request) (Reply, error),
 	opts ...func() func(readType *ReadType[Request, Reply]),
 ) *ReadType[Request, Reply] {
 	r := &ReadType[Request, Reply]{
@@ -94,22 +94,22 @@ func (r *ReadType[req, rep]) Schema() (request, reply *jsonschema.Schema) {
 	return jsonschema.Reflect(new(req)), jsonschema.Reflect(new(rep))
 }
 
-func (r *ReadType[req, rep]) HandleRead(world *World, a any) (any, error) {
+func (r *ReadType[req, rep]) HandleRead(ctx WorldContext, a any) (any, error) {
 	request, ok := a.(req)
 	if !ok {
 		return nil, fmt.Errorf("cannot cast %T to this reads request type %T", a, new(req))
 	}
-	reply, err := r.handler(world, request)
+	reply, err := r.handler(ctx, request)
 	return reply, err
 }
 
-func (r *ReadType[req, rep]) HandleReadRaw(w *World, bz []byte) ([]byte, error) {
+func (r *ReadType[req, rep]) HandleReadRaw(ctx WorldContext, bz []byte) ([]byte, error) {
 	request := new(req)
 	err := json.Unmarshal(bz, request)
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal read request into type %T: %w", *request, err)
 	}
-	res, err := r.handler(w, *request)
+	res, err := r.handler(ctx, *request)
 	if err != nil {
 		return nil, err
 	}
