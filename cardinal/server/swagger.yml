@@ -201,7 +201,7 @@ definitions:
             id:
                 type: integer
             data:
-                type: object
+                type: array
     CQLRequest:
         type: object
         required:
