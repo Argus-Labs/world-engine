@@ -193,6 +193,10 @@ paths:
 
 definitions:
     CQLResponse:
+        type: array
+        items:
+            - $ref: "#/definitions/CQLResponseElement"
+    CQLResponseElement:
         type: object
         required:
             - id
