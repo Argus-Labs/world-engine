@@ -68,6 +68,9 @@ func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error
 // Update is a helper that combines a Get followed by a Set to modify a component's value. Pass in a function
 // fn that will return a modified component. Update will hide the calls to Get and Set
 func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(T) T) error {
+	if _, ok := w.nameToComponent[c.Name()]; !ok {
+		return fmt.Errorf("%s is not registered, please register it before updating", c.Name())
+	}
 	val, err := c.Get(w, id)
 	if err != nil {
 		return err
