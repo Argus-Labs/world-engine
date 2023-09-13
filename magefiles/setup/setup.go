@@ -48,7 +48,8 @@ var (
 
 	// allTools = []string{buf, gosec, golangcilint, addlicense,
 	// moq, ginkgo, golines, rlpgen, abigen, gci}
-	allTools []string
+	
+	allTools []string{ginkgo}
 )
 
 // Setup runs the setup script for the current OS.
