@@ -95,7 +95,8 @@ paths:
             responses:
                 200:
                     description: cql results
-                    schema: {}
+                    schema:
+                        $ref: '#/definitions/CQLResponse'
             parameters:
                 - name: cql
                   description: cql (component query language)
@@ -103,6 +104,7 @@ paths:
                   required: true
                   schema:
                       $ref: '#/definitions/CQLRequest'
+
     /query/game/{readType}:
         post:
             summary: Query the ecs
@@ -190,6 +192,16 @@ paths:
                     description: Invalid transaction request
 
 definitions:
+    CQLResponse:
+        type: object
+        required:
+            - id
+            - data
+        properties:
+            id:
+                type: integer
+            data:
+                type: object
     CQLRequest:
         type: object
         required:
