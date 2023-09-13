@@ -486,6 +486,14 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPay
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick(ctx context.Context) error {
+	nullSystemName := "No system  is running."
+	nameOfCurrentRunningSystem := nullSystemName
+	defer func() {
+		if panicValue := recover(); panicValue != nil {
+			w.Logger.Error().Msgf("Tick: %d, Current running system: %s", w.tick, nameOfCurrentRunningSystem)
+			panic(panicValue)
+		}
+	}()
 	startTime := time.Now()
 	warningThreshold := 100 * time.Millisecond
 	tickAsString := strconv.FormatUint(w.tick, 10)
@@ -503,7 +511,10 @@ func (w *World) Tick(ctx context.Context) error {
 		queue: txs,
 	}
 	for i, sys := range w.systems {
-		if err := sys(w, txQueue, w.systemLoggers[i]); err != nil {
+		nameOfCurrentRunningSystem = w.systemNames[i]
+		err := sys(w, txQueue, w.systemLoggers[i])
+		nameOfCurrentRunningSystem = nullSystemName
+		if err != nil {
 			return err
 		}
 	}
