@@ -32,10 +32,11 @@ func TestCanFilterByArchetype(t *testing.T) {
 	count := 0
 	// Loop over every entity that has exactly the alpha and beta components. There should
 	// only be subsetCount entities.
-	ecs.NewQuery(filter.Exact(alpha, beta)).Each(world, func(id storage.EntityID) bool {
+	ctx := world.NewSystemContext(nil)
+	ecs.NewQuery(filter.Exact(alpha, beta)).Each(ctx, func(id storage.EntityID) bool {
 		count++
 		// Make sure the gamma component is not on this entity
-		_, err := gamma.Get(world, id)
+		_, err := gamma.Get(ctx, id)
 		assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
 		return true
 	})
@@ -56,8 +57,9 @@ func TestExactVsContains(t *testing.T) {
 	_, err = world.CreateMany(bothCount, alpha, beta)
 	assert.NilError(t, err)
 	count := 0
+	ctx := world.NewSystemContext(nil)
 	// Contains(alpha) should return all entities
-	ecs.NewQuery(filter.Contains(alpha)).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Contains(alpha)).Each(ctx, func(id storage.EntityID) bool {
 		count++
 		return true
 	})
@@ -65,7 +67,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Contains(beta) should only return the entities that have both components
-	ecs.NewQuery(filter.Contains(beta)).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Contains(beta)).Each(ctx, func(id storage.EntityID) bool {
 		count++
 		return true
 	})
@@ -73,7 +75,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Exact(alpha) should not return the entities that have both alpha and beta
-	ecs.NewQuery(filter.Exact(alpha)).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Exact(alpha)).Each(ctx, func(id storage.EntityID) bool {
 		count++
 		return true
 	})
@@ -81,7 +83,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Exact(alpha, beta) should not return the entities that only have alpha
-	ecs.NewQuery(filter.Exact(alpha, beta)).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Exact(alpha, beta)).Each(ctx, func(id storage.EntityID) bool {
 		count++
 		return true
 	})
@@ -89,7 +91,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Make sure the order of alpha/beta doesn't matter
-	ecs.NewQuery(filter.Exact(beta, alpha)).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Exact(beta, alpha)).Each(ctx, func(id storage.EntityID) bool {
 		count++
 		return true
 	})
@@ -115,7 +117,8 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	assert.NilError(t, err)
 
 	count := 0
-	ecs.NewQuery(filter.Exact(comps...)).Each(world, func(id storage.EntityID) bool {
+	ctx := world.NewSystemContext(nil)
+	ecs.NewQuery(filter.Exact(comps...)).Each(ctx, func(id storage.EntityID) bool {
 		count++
 		return true
 	})
@@ -159,9 +162,10 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	_, err = world.CreateMany(ignoreCount, alpha)
 	assert.NilError(b, err)
 	b.StartTimer()
+	ctx := world.NewSystemContext(nil)
 	for i := 0; i < b.N; i++ {
 		count := 0
-		ecs.NewQuery(filter.Exact(alpha, beta)).Each(world, func(id storage.EntityID) bool {
+		ecs.NewQuery(filter.Exact(alpha, beta)).Each(ctx, func(id storage.EntityID) bool {
 			count++
 			return true
 		})

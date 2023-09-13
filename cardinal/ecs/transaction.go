@@ -107,12 +107,12 @@ type TxData[In any] struct {
 	Sig    *sign.SignedPayload
 }
 
-func (t *TransactionType[In, Out]) AddError(world *World, hash transaction.TxHash, err error) {
-	world.AddTransactionError(hash, err)
+func (t *TransactionType[In, Out]) AddError(ctx WorldContext, hash transaction.TxHash, err error) {
+	ctx.World.AddTransactionError(hash, err)
 }
 
-func (t *TransactionType[In, Out]) SetResult(world *World, hash transaction.TxHash, result Out) {
-	world.SetTransactionResult(hash, result)
+func (t *TransactionType[In, Out]) SetResult(ctx WorldContext, hash transaction.TxHash, result Out) {
+	ctx.World.SetTransactionResult(hash, result)
 }
 
 func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxHash) (v Out, errs []error, ok bool) {
@@ -132,9 +132,9 @@ func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxH
 }
 
 // In extracts all the transactions in the transaction queue that match this TransactionType's ID.
-func (t *TransactionType[In, Out]) In(tq *transaction.TxQueue) []TxData[In] {
+func (t *TransactionType[In, Out]) In(ctx WorldContext) []TxData[In] {
 	var txs []TxData[In]
-	for _, tx := range tq.ForID(t.ID()) {
+	for _, tx := range ctx.TxQueue.ForID(t.ID()) {
 		if val, ok := tx.Value.(In); ok {
 			txs = append(txs, TxData[In]{
 				TxHash: tx.TxHash,

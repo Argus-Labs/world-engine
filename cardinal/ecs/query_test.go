@@ -22,7 +22,8 @@ func TestQueryEarlyTermination(t *testing.T) {
 	stop := 5
 	_, err := world.CreateMany(total, foo)
 	assert.NilError(t, err)
-	ecs.NewQuery(filter.Exact(foo)).Each(world, func(id storage.EntityID) bool {
+	ctx := world.NewSystemContext(nil)
+	ecs.NewQuery(filter.Exact(foo)).Each(ctx, func(id storage.EntityID) bool {
 		count++
 		if count == stop {
 			return false
@@ -32,7 +33,7 @@ func TestQueryEarlyTermination(t *testing.T) {
 	assert.Equal(t, count, stop)
 
 	count = 0
-	ecs.NewQuery(filter.Exact(foo)).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Exact(foo)).Each(ctx, func(id storage.EntityID) bool {
 		count++
 		return true
 	})

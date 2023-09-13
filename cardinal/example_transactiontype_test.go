@@ -29,8 +29,8 @@ func ExampleTransactionType() {
 		panic(err)
 	}
 
-	world.RegisterSystems(func(world *cardinal.World, queue *cardinal.TransactionQueue, logger *cardinal.Logger) error {
-		for _, tx := range MoveTx.In(queue) {
+	world.RegisterSystems(func(ctx cardinal.SystemContext) error {
+		for _, tx := range MoveTx.In(ctx) {
 			msg := tx.Value()
 			// handle the transaction
 			// ...

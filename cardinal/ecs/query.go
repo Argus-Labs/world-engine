@@ -34,9 +34,9 @@ type QueryCallBackFn func(storage.EntityID) bool
 
 // Each iterates over all entities that match the query.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (q *Query) Each(w *World, callback QueryCallBackFn) {
-	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+func (q *Query) Each(ctx WorldContext, callback QueryCallBackFn) {
+	result := q.evaluateQuery(ctx)
+	iter := storage.NewEntityIterator(0, ctx.World.store.ArchAccessor, result)
 	for iter.HasNext() {
 		entities := iter.Next()
 		for _, id := range entities {
@@ -49,9 +49,9 @@ func (q *Query) Each(w *World, callback QueryCallBackFn) {
 }
 
 // Count returns the number of entities that match the query.
-func (q *Query) Count(w *World) int {
-	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+func (q *Query) Count(ctx WorldContext) int {
+	result := q.evaluateQuery(ctx)
+	iter := storage.NewEntityIterator(0, ctx.World.store.ArchAccessor, result)
 	ret := 0
 	for iter.HasNext() {
 		entities := iter.Next()
@@ -61,9 +61,9 @@ func (q *Query) Count(w *World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w *World) (id storage.EntityID, err error) {
-	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+func (q *Query) First(ctx WorldContext) (id storage.EntityID, err error) {
+	result := q.evaluateQuery(ctx)
+	iter := storage.NewEntityIterator(0, ctx.World.store.ArchAccessor, result)
 	if !iter.HasNext() {
 		return storage.BadID, err
 	}
@@ -76,8 +76,8 @@ func (q *Query) First(w *World) (id storage.EntityID, err error) {
 	return storage.BadID, err
 }
 
-func (q *Query) evaluateQuery(world *World) []storage.ArchetypeID {
-	w := Namespace(world.Namespace())
+func (q *Query) evaluateQuery(ctx WorldContext) []storage.ArchetypeID {
+	w := Namespace(ctx.World.Namespace())
 	if _, ok := q.layoutMatches[w]; !ok {
 		q.layoutMatches[w] = &cache{
 			archetypes: make([]storage.ArchetypeID, 0),
@@ -85,9 +85,9 @@ func (q *Query) evaluateQuery(world *World) []storage.ArchetypeID {
 		}
 	}
 	cache := q.layoutMatches[w]
-	for it := world.store.ArchCompIdxStore.SearchFrom(q.filter, cache.seen); it.HasNext(); {
+	for it := ctx.World.store.ArchCompIdxStore.SearchFrom(q.filter, cache.seen); it.HasNext(); {
 		cache.archetypes = append(cache.archetypes, it.Next())
 	}
-	cache.seen = world.store.ArchAccessor.Count()
+	cache.seen = ctx.World.store.ArchAccessor.Count()
 	return cache.archetypes
 }

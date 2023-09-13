@@ -22,13 +22,14 @@ type World struct {
 type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
-	EntityID = storage.EntityID
-	TxHash   = transaction.TxHash
+	EntityID      = storage.EntityID
+	TxHash        = transaction.TxHash
+	SystemContext = ecs.WorldContext
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
 	// with a world using AddSystem or AddSystems.
-	System func(*World, *TransactionQueue, *Logger) error
+	System func(SystemContext) error
 )
 
 // NewWorld creates a new World object using Redis as the storage layer.
@@ -125,8 +126,8 @@ func (w *World) StartGame() error {
 // game tick. This Register method can be called multiple times.
 func (w *World) RegisterSystems(systems ...System) {
 	for _, system := range systems {
-		w.impl.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecs.Logger) error {
-			return system(&World{impl: world}, &TransactionQueue{impl: queue}, &Logger{logger})
+		w.impl.AddSystem(func(ctx ecs.WorldContext) error {
+			return system(ctx)
 		})
 	}
 }

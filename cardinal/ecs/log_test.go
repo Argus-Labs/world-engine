@@ -15,7 +15,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 type SendEnergyTx struct {
@@ -31,15 +30,15 @@ type EnergyComp struct {
 
 var energy = ecs.NewComponentType[EnergyComp]()
 
-func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *ecs.Logger) error {
-	logger.Log().Msg("test")
-	energy.Each(w, func(entityId storage.EntityID) bool {
-		energyPlanet, err := energy.Get(w, entityId)
+func testSystem(ctx ecs.WorldContext) error {
+	ctx.Logger.Log().Msg("test")
+	energy.Each(ctx, func(entityId storage.EntityID) bool {
+		energyPlanet, err := energy.Get(ctx, entityId)
 		if err != nil {
 			return false
 		}
 		energyPlanet.value += 10 // bs whatever
-		err = energy.Set(w, entityId, energyPlanet)
+		err = energy.Set(ctx, entityId, energyPlanet)
 		if err != nil {
 			return false
 		}
@@ -49,9 +48,9 @@ func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *ecs.Logger) error 
 	return nil
 }
 
-func testSystemWarningTrigger(w *ecs.World, tx *transaction.TxQueue, logger *ecs.Logger) error {
+func testSystemWarningTrigger(ctx ecs.WorldContext) error {
 	time.Sleep(time.Millisecond * 400)
-	return testSystem(w, tx, logger)
+	return testSystem(ctx)
 }
 
 func TestWorldLogger(t *testing.T) {
@@ -153,6 +152,7 @@ func TestWorldLogger(t *testing.T) {
 				"entity_id":"0",
 				"component_name":"EnergyComp",
 				"component_id":2,
+				"system":"ecs_test.testSystemWarningTrigger",
 				"message":"entity updated"
 			}`, logStrings[2])
 	// test tick end

@@ -63,8 +63,8 @@ func (t *TransactionType[Msg, Result]) GetReceipt(world *World, hash TxHash) (r 
 }
 
 // In returns the transactions in the given transaction queue that match this transaction's type.
-func (t *TransactionType[Msg, Result]) In(tq *TransactionQueue) []TxData[Msg] {
-	ecsTxData := t.impl.In(tq.impl)
+func (t *TransactionType[Msg, Result]) In(ctx SystemContext) []TxData[Msg] {
+	ecsTxData := t.impl.In(ctx)
 	out := make([]TxData[Msg], 0, len(ecsTxData))
 	for _, tx := range ecsTxData {
 		out = append(out, TxData[Msg]{

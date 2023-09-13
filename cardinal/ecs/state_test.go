@@ -6,12 +6,10 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
-
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -172,9 +170,9 @@ func TestCanReloadState(t *testing.T) {
 
 	_, err := alphaWorld.CreateMany(10, oneAlphaNum)
 	assert.NilError(t, err)
-	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
-		oneAlphaNum.Each(w, func(id storage.EntityID) bool {
-			err := oneAlphaNum.Set(w, id, NumberComponent{int(id)})
+	alphaWorld.AddSystem(func(ctx ecs.WorldContext) error {
+		oneAlphaNum.Each(ctx, func(id storage.EntityID) bool {
+			err := oneAlphaNum.Set(ctx, id, NumberComponent{int(id)})
 			assert.Check(t, err == nil)
 			return true
 		})
@@ -192,9 +190,10 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, betaWorld.LoadGameState())
 
 	count := 0
-	oneBetaNum.Each(betaWorld, func(id storage.EntityID) bool {
+	betaCtx := betaWorld.NewSystemContext(nil)
+	oneBetaNum.Each(betaCtx, func(id storage.EntityID) bool {
 		count++
-		num, err := oneBetaNum.Get(betaWorld, id)
+		num, err := oneBetaNum.Get(betaCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, int(id), num.Num)
 		return true
@@ -235,9 +234,9 @@ func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 	for reload := 0; reload < 5; reload++ {
 		world := testutil.InitWorldWithRedis(t, redisStore)
 		assert.NilError(t, world.RegisterTransactions(someTx))
-		world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecs.Logger) error {
-			for _, tx := range someTx.In(queue) {
-				someTx.SetResult(world, tx.TxHash, Result{})
+		world.AddSystem(func(ctx ecs.WorldContext) error {
+			for _, tx := range someTx.In(ctx) {
+				someTx.SetResult(ctx, tx.TxHash, Result{})
 			}
 			return nil
 		})

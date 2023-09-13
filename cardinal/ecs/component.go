@@ -54,9 +54,8 @@ func (c *ComponentType[T]) SetID(id component.TypeID) error {
 }
 
 // Get returns component data from the entity.
-func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error) {
-	es := w.EncomStorage()
-	value, err := es.GetComponent(c, id)
+func (c *ComponentType[T]) Get(ctx WorldContext, id storage.EntityID) (comp T, err error) {
+	value, err := ctx.ES.GetComponent(c, id)
 	if err != nil {
 		return comp, err
 	}
@@ -78,23 +77,22 @@ func (c *ComponentType[T]) Unmarshal(bz []byte) (value any, err error) {
 
 // Update is a helper that combines a Get followed by a Set to modify a component's value. Pass in a function
 // fn that will return a modified component. Update will hide the calls to Get and Set
-func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(T) T) error {
-	val, err := c.Get(w, id)
+func (c *ComponentType[T]) Update(ctx WorldContext, id storage.EntityID, fn func(T) T) error {
+	val, err := c.Get(ctx, id)
 	if err != nil {
 		return err
 	}
 	val = fn(val)
-	return c.Set(w, id, val)
+	return c.Set(ctx, id, val)
 }
 
 // Set sets component data to the entity.
-func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error {
-	es := w.EncomStorage()
-	err := es.SetComponent(c, id, component)
+func (c *ComponentType[T]) Set(ctx WorldContext, id storage.EntityID, component T) error {
+	err := ctx.ES.SetComponent(c, id, component)
 	if err != nil {
 		return err
 	}
-	w.Logger.Debug().
+	ctx.Logger.Debug().
 		Str("entity_id", strconv.FormatUint(uint64(id), 10)).
 		Str("component_name", c.name).
 		Int("component_id", int(c.ID())).
@@ -104,18 +102,18 @@ func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error
 
 // Each iterates over the entities that have the component.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (c *ComponentType[T]) Each(w *World, callback QueryCallBackFn) {
-	c.query.Each(w, callback)
+func (c *ComponentType[T]) Each(ctx WorldContext, callback QueryCallBackFn) {
+	c.query.Each(ctx, callback)
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w *World) (storage.EntityID, error) {
-	return c.query.First(w)
+func (c *ComponentType[T]) First(ctx WorldContext) (storage.EntityID, error) {
+	return c.query.First(ctx)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w *World) storage.EntityID {
-	id, err := c.query.First(w)
+func (c *ComponentType[T]) MustFirst(ctx WorldContext) storage.EntityID {
+	id, err := c.query.First(ctx)
 	if err != nil {
 		panic(fmt.Sprintf("no entity has the component %s", c.name))
 	}
@@ -123,7 +121,8 @@ func (c *ComponentType[T]) MustFirst(w *World) storage.EntityID {
 }
 
 // RemoveFrom removes this component from the given entity.
-func (c *ComponentType[T]) RemoveFrom(w *World, id storage.EntityID) error {
+func (c *ComponentType[T]) RemoveFrom(ctx WorldContext, id storage.EntityID) error {
+	w := ctx.World
 	e, err := w.Entity(id)
 	if err != nil {
 		return err
@@ -132,7 +131,8 @@ func (c *ComponentType[T]) RemoveFrom(w *World, id storage.EntityID) error {
 }
 
 // AddTo adds this component to the given entity.
-func (c *ComponentType[T]) AddTo(w *World, id storage.EntityID) error {
+func (c *ComponentType[T]) AddTo(ctx WorldContext, id storage.EntityID) error {
+	w := ctx.World
 	e, err := w.Entity(id)
 	if err != nil {
 		return err

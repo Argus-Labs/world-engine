@@ -6,7 +6,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 // CreatePersonaTransaction allows for the associating of a persona tag with a signer address.
@@ -41,29 +40,29 @@ var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, Auth
 // AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
-func AuthorizePersonaAddressSystem(world *World, queue *transaction.TxQueue, _ *Logger) error {
-	txs := AuthorizePersonaAddressTx.In(queue)
+func AuthorizePersonaAddressSystem(ctx WorldContext) error {
+	txs := AuthorizePersonaAddressTx.In(ctx)
 	if len(txs) == 0 {
 		return nil
 	}
-	personaTagToAddress, err := buildPersonaTagMapping(world)
+	personaTagToAddress, err := buildPersonaTagMapping(ctx)
 	if err != nil {
 		return err
 	}
 	for _, tx := range txs {
 		if tx.Sig.PersonaTag != tx.Value.PersonaTag {
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, fmt.Errorf("signer does not match request"))
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
+			AuthorizePersonaAddressTx.AddError(ctx, tx.TxHash, fmt.Errorf("signer does not match request"))
+			AuthorizePersonaAddressTx.SetResult(ctx, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
 			continue
 		}
 		data, ok := personaTagToAddress[tx.Value.PersonaTag]
 		if !ok {
 			// This PersonaTag has not been registered.
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, fmt.Errorf("persona does not exist"))
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
+			AuthorizePersonaAddressTx.AddError(ctx, tx.TxHash, fmt.Errorf("persona does not exist"))
+			AuthorizePersonaAddressTx.SetResult(ctx, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
 			continue
 		}
-		err = SignerComp.Update(world, data.EntityID, func(component SignerComponent) SignerComponent {
+		err = SignerComp.Update(ctx, data.EntityID, func(component SignerComponent) SignerComponent {
 			// check if this address already exists
 			for _, addr := range component.AuthorizedAddresses {
 				// if its already in the authorized addresses slice, just return the component.
@@ -75,11 +74,11 @@ func AuthorizePersonaAddressSystem(world *World, queue *transaction.TxQueue, _ *
 			return component
 		})
 		if err != nil {
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, err)
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
+			AuthorizePersonaAddressTx.AddError(ctx, tx.TxHash, err)
+			AuthorizePersonaAddressTx.SetResult(ctx, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
 			continue
 		}
-		AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: true})
+		AuthorizePersonaAddressTx.SetResult(ctx, tx.TxHash, AuthorizePersonaAddressResult{Success: true})
 	}
 	return nil
 }
@@ -98,11 +97,11 @@ type personaTagComponentData struct {
 	EntityID      storage.EntityID
 }
 
-func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, error) {
+func buildPersonaTagMapping(ctx WorldContext) (map[string]personaTagComponentData, error) {
 	personaTagToAddress := map[string]personaTagComponentData{}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(world, func(id storage.EntityID) bool {
-		sc, err := SignerComp.Get(world, id)
+	NewQuery(filter.Exact(SignerComp)).Each(ctx, func(id storage.EntityID) bool {
+		sc, err := SignerComp.Get(ctx, id)
 		if err != nil {
 			errs = append(errs, err)
 			return true
@@ -121,12 +120,12 @@ func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, e
 
 // RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *Logger) error {
-	createTxs := CreatePersonaTx.In(queue)
+func RegisterPersonaSystem(ctx WorldContext) error {
+	createTxs := CreatePersonaTx.In(ctx)
 	if len(createTxs) == 0 {
 		return nil
 	}
-	personaTagToAddress, err := buildPersonaTagMapping(world)
+	personaTagToAddress, err := buildPersonaTagMapping(ctx)
 	if err != nil {
 		return err
 	}
@@ -136,23 +135,23 @@ func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *Logger) 
 			// This PersonaTag has already been registered. Don't do anything
 			continue
 		}
-		id, err := world.Create(SignerComp)
+		id, err := ctx.World.Create(SignerComp)
 		if err != nil {
-			CreatePersonaTx.AddError(world, txData.TxHash, err)
+			CreatePersonaTx.AddError(ctx, txData.TxHash, err)
 			continue
 		}
-		if err := SignerComp.Set(world, id, SignerComponent{
+		if err := SignerComp.Set(ctx, id, SignerComponent{
 			PersonaTag:    tx.PersonaTag,
 			SignerAddress: tx.SignerAddress,
 		}); err != nil {
-			CreatePersonaTx.AddError(world, txData.TxHash, err)
+			CreatePersonaTx.AddError(ctx, txData.TxHash, err)
 			continue
 		}
 		personaTagToAddress[tx.PersonaTag] = personaTagComponentData{
 			SignerAddress: tx.SignerAddress,
 			EntityID:      id,
 		}
-		CreatePersonaTx.SetResult(world, txData.TxHash, CreatePersonaTransactionResult{
+		CreatePersonaTx.SetResult(ctx, txData.TxHash, CreatePersonaTransactionResult{
 			Success: true,
 		})
 	}
@@ -173,8 +172,9 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 		return "", ErrorCreatePersonaTxsNotProcessed
 	}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(w, func(id storage.EntityID) bool {
-		sc, err := SignerComp.Get(w, id)
+	sCtx := w.NewSystemContext(nil)
+	NewQuery(filter.Exact(SignerComp)).Each(sCtx, func(id storage.EntityID) bool {
+		sc, err := SignerComp.Get(sCtx, id)
 		if err != nil {
 			errs = append(errs, err)
 		}

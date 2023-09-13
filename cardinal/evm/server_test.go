@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
@@ -55,12 +54,12 @@ func TestServer_SendMessage(t *testing.T) {
 	enabled := false
 
 	// add a system that checks that they are submitted properly to the world.
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(ctx ecs.WorldContext) error {
 		if !enabled {
 			return nil
 		}
-		inFooTxs := FooTx.In(queue)
-		inBarTxs := BarTx.In(queue)
+		inFooTxs := FooTx.In(ctx)
+		inBarTxs := BarTx.In(ctx)
 		assert.Equal(t, len(inFooTxs), len(fooTxs))
 		assert.Equal(t, len(inBarTxs), len(barTxs))
 		for i, tx := range inFooTxs {

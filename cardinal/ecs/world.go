@@ -441,6 +441,15 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPay
 	return w.CurrentTick(), txHash
 }
 
+func (w *World) NewSystemContext(txQueue *transaction.TxQueue) WorldContext {
+	return WorldContext{
+		World:   w,
+		ES:      w.EncomStorage(),
+		TxQueue: txQueue,
+		Logger:  w.Logger,
+	}
+}
+
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick(ctx context.Context) error {
@@ -457,8 +466,11 @@ func (w *World) Tick(ctx context.Context) error {
 		return err
 	}
 
+	sCtx := w.NewSystemContext(txQueue)
+
 	for i, sys := range w.systems {
-		if err := sys(w, txQueue, w.systemLoggers[i]); err != nil {
+		sCtx.Logger = w.systemLoggers[i]
+		if err := sys(sCtx); err != nil {
 			return err
 		}
 	}

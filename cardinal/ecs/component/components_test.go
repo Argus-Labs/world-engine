@@ -108,7 +108,8 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 
 	id, err := world.Create(foundComp)
 	assert.NilError(t, err)
-	_, err = notFoundComp.Get(world, id)
+	ctx := world.NewSystemContext(nil)
+	_, err = notFoundComp.Get(ctx, id)
 	assert.ErrorIs(t, err, storage2.ErrorComponentNotOnEntity)
 }
 
@@ -123,15 +124,16 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	id, err := world.Create(valComp)
 	assert.NilError(t, err)
 
-	assert.NilError(t, valComp.Set(world, id, ValueComponent{99}))
+	ctx := world.NewSystemContext(nil)
+	assert.NilError(t, valComp.Set(ctx, id, ValueComponent{99}))
 
-	val, err := valComp.Get(world, id)
+	val, err := valComp.Get(ctx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
 	_, err = world.Create(valComp)
 
-	val, err = valComp.Get(world, id)
+	val, err = valComp.Get(ctx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 }

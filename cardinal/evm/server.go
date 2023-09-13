@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -155,9 +156,10 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
 	var err error
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id storage.EntityID) bool {
+	ctx := s.world.NewSystemContext(nil)
+	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(ctx, func(id storage.EntityID) bool {
 		var signerComp ecs.SignerComponent
-		signerComp, err = ecs.SignerComp.Get(s.world, id)
+		signerComp, err = ecs.SignerComp.Get(ctx, id)
 		if err != nil {
 			return false
 		}
