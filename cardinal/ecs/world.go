@@ -152,7 +152,7 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 		}
 	}
 
-	for _, c := range components {
+	for _, c := range w.registeredComponents {
 		if _, ok := w.nameToComponent[c.Name()]; !ok {
 			w.nameToComponent[c.Name()] = c
 		} else {

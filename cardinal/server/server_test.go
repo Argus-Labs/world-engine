@@ -443,6 +443,8 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	}
 	for i, urlSet := range urlSets {
 		world := inmem.NewECSWorldForTest(t)
+		err := world.RegisterComponents()
+		assert.NilError(t, err)
 		tx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("some_tx")
 		assert.NilError(t, world.RegisterTransactions(tx))
 		assert.NilError(t, world.LoadGameState())

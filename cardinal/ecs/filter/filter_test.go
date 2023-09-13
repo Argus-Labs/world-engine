@@ -50,8 +50,10 @@ func TestExactVsContains(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	alpha := ecs.NewComponentType[string]("alpha")
 	beta := ecs.NewComponentType[string]("beta")
+	err := world.RegisterComponents(alpha, beta)
+	assert.NilError(t, err)
 	alphaCount := 75
-	_, err := world.CreateMany(alphaCount, alpha)
+	_, err = world.CreateMany(alphaCount, alpha)
 	assert.NilError(t, err)
 	bothCount := 100
 	_, err = world.CreateMany(bothCount, alpha, beta)
