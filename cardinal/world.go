@@ -149,6 +149,10 @@ func (w *World) RegisterReads(reads ...AnyReadType) error {
 	return w.impl.RegisterReads(toIReadType(reads)...)
 }
 
+func (w *World) CurrentTick() uint64 {
+	return w.impl.CurrentTick()
+}
+
 func (w *World) Tick(ctx context.Context) error {
 	return w.impl.Tick(ctx)
 }
