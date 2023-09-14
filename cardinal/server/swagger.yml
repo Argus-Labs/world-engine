@@ -82,6 +82,29 @@ paths:
                         $ref: '#/definitions/TxReply'
                 '400':
                     description: Invalid transaction request
+
+    /query/game/cql:
+        post:
+            summary: Query the ecs with CQL (component query language)
+            description: Query the ecs with CQL (component query language)
+            consumes:
+                - application/json
+            produces:
+                - application/json
+            operationId: cql
+            responses:
+                200:
+                    description: cql results
+                    schema:
+                        $ref: '#/definitions/CQLResponse'
+            parameters:
+                - name: cql
+                  description: cql (component query language)
+                  in: body
+                  required: true
+                  schema:
+                      $ref: '#/definitions/CQLRequest'
+
     /query/game/{readType}:
         post:
             summary: Query the ecs
@@ -169,6 +192,28 @@ paths:
                     description: Invalid transaction request
 
 definitions:
+    CQLResponse:
+        type: array
+        items:
+            - $ref: "#/definitions/CQLResponseElement"
+    CQLResponseElement:
+        type: object
+        required:
+            - id
+            - data
+        properties:
+            id:
+                type: integer
+            data:
+                type: array
+    CQLRequest:
+        type: object
+        required:
+            - CQL
+        properties:
+            CQL:
+                type: string
+                example: "(EXACT(energyComponent) | CONTAINS(healthComponent)) & CONTAINS(goodGuyComponent)"
     TxRequestWithCreatePersona:
         required:
             - PersonaTag

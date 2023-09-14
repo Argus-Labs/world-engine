@@ -1,10 +1,15 @@
 package ecs_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"testing"
 
+	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 
 	"gotest.tools/v3/assert"
@@ -34,6 +39,62 @@ func TestTickHappyPath(t *testing.T) {
 	assert.NilError(t, twoWorld.RegisterComponents(twoEnergy))
 	assert.NilError(t, twoWorld.LoadGameState())
 	assert.Equal(t, uint64(10), twoWorld.CurrentTick())
+}
+func TestIfPanicMessageLogged(t *testing.T) {
+
+	w := inmem.NewECSWorldForTest(t)
+	//replaces internal Logger with one that logs to the buf variable above.
+	var buf bytes.Buffer
+	bufLogger := zerolog.New(&buf)
+	cardinalLogger := ecs.Logger{
+		&bufLogger,
+	}
+	w.InjectLogger(&cardinalLogger)
+	// In this test, our "buggy" system fails once Power reaches 3
+	errorTxt := "BIG ERROR OH NO"
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+		panic(errorTxt)
+	})
+	assert.NilError(t, w.LoadGameState())
+	ctx := context.Background()
+
+	defer func() {
+		if panicValue := recover(); panicValue != nil {
+			//This test should swallow a panic
+			lastjson, err := findLastJSON(buf.Bytes())
+			assert.NilError(t, err)
+			values := map[string]string{}
+			err = json.Unmarshal(lastjson, &values)
+			assert.NilError(t, err)
+			msg, ok := values["message"]
+			assert.Assert(t, ok)
+			assert.Equal(t, msg, "Tick: 0, Current running system: ecs_test.TestIfPanicMessageLogged.func1")
+			panicString, ok := panicValue.(string)
+			assert.Assert(t, ok)
+			assert.Equal(t, panicString, errorTxt)
+		} else {
+			assert.Assert(t, false) //This test should create a panic.
+		}
+	}()
+
+	err := w.Tick(ctx)
+	assert.NilError(t, err)
+}
+
+func findLastJSON(buf []byte) (json.RawMessage, error) {
+	dec := json.NewDecoder(bytes.NewReader(buf))
+	var lastVal json.RawMessage
+	for {
+		if err := dec.Decode(&lastVal); err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+	}
+	if lastVal == nil {
+		return nil, fmt.Errorf("no JSON value found")
+	}
+	return lastVal, nil
 }
 
 func TestCanIdentifyAndFixSystemError(t *testing.T) {

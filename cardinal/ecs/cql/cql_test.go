@@ -13,7 +13,7 @@ import (
 )
 
 func TestParser(t *testing.T) {
-	term, err := CQLParser.ParseString("", "!(EXACT(a, b) & EXACT(a)) | CONTAINS(b)")
+	term, err := internalCQLParser.ParseString("", "!(EXACT(a, b) & EXACT(a)) | CONTAINS(b)")
 	fmt.Println(term.String())
 	testTerm := cqlTerm{
 		Left: &cqlFactor{Base: &cqlValue{
@@ -61,8 +61,8 @@ func TestParser(t *testing.T) {
 	assert.DeepEqual(t, *term, testTerm)
 
 	emptyComponent := ecs.NewComponentType[struct{}]("emptyComponent")
-	stringToComponent := func(_ string) component.IComponentType {
-		return emptyComponent
+	stringToComponent := func(_ string) (component.IComponentType, bool) {
+		return emptyComponent, true
 	}
 	filterResult, err := termToLayoutFilter(term, stringToComponent)
 	assert.NilError(t, err)
@@ -78,7 +78,7 @@ func TestParser(t *testing.T) {
 	//have to do the below because of unexported fields in LayoutFilter datastructures. .
 	assert.Assert(t, reflect.DeepEqual(filterResult, testResult))
 	query := "CONTAINS(A) & CONTAINS(A, B) & CONTAINS(A, B, C) | EXACT(D)"
-	term, err = CQLParser.ParseString("", query)
+	term, err = internalCQLParser.ParseString("", query)
 	assert.NilError(t, err)
 	result, err := termToLayoutFilter(term, stringToComponent)
 	assert.NilError(t, err)
