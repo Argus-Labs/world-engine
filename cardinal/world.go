@@ -148,3 +148,7 @@ func (w *World) RegisterTransactions(txs ...AnyTransaction) error {
 func (w *World) RegisterReads(reads ...AnyReadType) error {
 	return w.impl.RegisterReads(toIReadType(reads)...)
 }
+
+func (w *World) CurrentTick() uint64 {
+	return w.impl.CurrentTick()
+}
