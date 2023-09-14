@@ -15,7 +15,7 @@ type AnyTransaction interface {
 // TransactionQueue contains the entire set of transactions that should be processed in a game tick. It is a parameter
 // to a System function. Access the transactions of a particular type by using TransactionType.In
 type TransactionQueue struct {
-	impl *ecs.TransactionQueue
+	impl *transaction.TxQueue
 }
 
 // TxData represents a single transaction.

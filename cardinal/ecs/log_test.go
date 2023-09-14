@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
@@ -31,7 +32,7 @@ type EnergyComp struct {
 
 var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
 
-func testSystem(w *ecs.World, _ *ecs.TransactionQueue, logger *ecs.Logger) error {
+func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *ecs.Logger) error {
 	logger.Log().Msg("test")
 	energy.Each(w, func(entityId storage.EntityID) bool {
 		energyPlanet, err := energy.Get(w, entityId)
@@ -49,7 +50,7 @@ func testSystem(w *ecs.World, _ *ecs.TransactionQueue, logger *ecs.Logger) error
 	return nil
 }
 
-func testSystemWarningTrigger(w *ecs.World, tx *ecs.TransactionQueue, logger *ecs.Logger) error {
+func testSystemWarningTrigger(w *ecs.World, tx *transaction.TxQueue, logger *ecs.Logger) error {
 	time.Sleep(time.Millisecond * 400)
 	return testSystem(w, tx, logger)
 }

@@ -1,11 +1,51 @@
 package transaction
 
 import (
+	"sync"
+
 	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/sign"
 )
 
-type TxMap map[TypeID][]TxAny
+type TxQueue struct {
+	m   txMap
+	mux *sync.Mutex
+}
+
+func NewTxQueue() *TxQueue {
+	return &TxQueue{
+		m:   txMap{},
+		mux: &sync.Mutex{},
+	}
+}
+
+func (t *TxQueue) AddTransaction(id TypeID, v any, sig *sign.SignedPayload) TxHash {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	txHash := TxHash(sig.HashHex())
+	t.m[id] = append(t.m[id], TxAny{
+		TxHash: txHash,
+		Value:  v,
+		Sig:    sig,
+	})
+	return txHash
+}
+
+func (t *TxQueue) CopyTransaction() *TxQueue {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	cpy := &TxQueue{
+		m: t.m,
+	}
+	t.m = txMap{}
+	return cpy
+}
+
+func (t *TxQueue) ForID(id TypeID) []TxAny {
+	return t.m[id]
+}
+
+type txMap map[TypeID][]TxAny
 
 type TxAny struct {
 	Value  any

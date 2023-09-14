@@ -3,6 +3,7 @@ package ecs
 import (
 	"errors"
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -24,12 +25,6 @@ type TransactionType[In, Out any] struct {
 	name       string
 	inEVMType  *abi.Type
 	outEVMType *abi.Type
-}
-
-// TransactionQueue is a list of transactions that were queued since the start of the
-// last game tick.
-type TransactionQueue struct {
-	queue transaction.TxMap
 }
 
 func WithTxEVMSupport[In, Out any]() func(transactionType *TransactionType[In, Out]) {
@@ -137,9 +132,9 @@ func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxH
 }
 
 // In extracts all the transactions in the transaction queue that match this TransactionType's ID.
-func (t *TransactionType[In, Out]) In(tq *TransactionQueue) []TxData[In] {
+func (t *TransactionType[In, Out]) In(tq *transaction.TxQueue) []TxData[In] {
 	var txs []TxData[In]
-	for _, tx := range tq.queue[t.ID()] {
+	for _, tx := range tq.ForID(t.ID()) {
 		if val, ok := tx.Value.(In); ok {
 			txs = append(txs, TxData[In]{
 				TxHash: tx.TxHash,
