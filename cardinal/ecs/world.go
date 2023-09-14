@@ -71,22 +71,6 @@ func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
-func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
-	err := w.store.EntityLocStore.SetLocation(id, location)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (w *World) Component(componentType component.IComponentType, archID storage.ArchetypeID, componentIndex storage.ComponentIndex) ([]byte, error) {
-	return w.store.CompStore.Storage(componentType).Component(archID, componentIndex)
-}
-
-func (w *World) SetComponent(cType component.IComponentType, component []byte, archID storage.ArchetypeID, componentIndex storage.ComponentIndex) error {
-	return w.store.CompStore.Storage(cType).SetComponent(archID, componentIndex, component)
-}
-
 func (w *World) GetLayout(archID storage.ArchetypeID) []component.IComponentType {
 	return w.store.ArchAccessor.Archetype(archID).Layout().Components()
 }
@@ -233,17 +217,7 @@ func (w *World) ReceiptHistorySize() uint64 {
 }
 
 func (w *World) CreateMany(num int, components ...component.IComponentType) ([]storage.EntityID, error) {
-	archetypeID := w.getArchetypeForComponents(components)
-	entities := make([]storage.EntityID, 0, num)
-	for i := 0; i < num; i++ {
-		e, err := w.createEntity(archetypeID)
-		if err != nil {
-			return nil, err
-		}
-
-		entities = append(entities, e)
-	}
-	return entities, nil
+	return w.EncomStorage().CreateManyEntities(num, components...)
 }
 
 func (w *World) Create(components ...component.IComponentType) (storage.EntityID, error) {
@@ -252,25 +226,6 @@ func (w *World) Create(components ...component.IComponentType) (storage.EntityID
 		return 0, err
 	}
 	return entities[0], nil
-}
-
-func (w *World) createEntity(archetypeID storage.ArchetypeID) (storage.EntityID, error) {
-	nextEntityID, err := w.nextEntity()
-	if err != nil {
-		return 0, err
-	}
-	archetype := w.store.ArchAccessor.Archetype(archetypeID)
-	componentIndex, err := w.store.CompStore.PushComponents(archetype.Layout().Components(), archetypeID)
-	if err != nil {
-		return 0, err
-	}
-	err = w.store.EntityLocStore.Insert(nextEntityID, archetypeID, componentIndex)
-	if err != nil {
-		return 0, err
-	}
-	archetype.PushEntity(nextEntityID)
-	w.Logger.LogEntity(w, zerolog.DebugLevel, nextEntityID)
-	return nextEntityID, err
 }
 
 func (w *World) Valid(id storage.EntityID) (bool, error) {
@@ -295,16 +250,6 @@ func (w *World) Valid(id storage.EntityID) (bool, error) {
 	return id == w.store.ArchAccessor.Archetype(a).Entities()[c], nil
 }
 
-// Entity converts an EntityID to an Entity. An Entity has storage specific details
-// about where data for this entity is located
-func (w *World) Entity(id storage.EntityID) (storage.Entity, error) {
-	loc, err := w.store.EntityLocStore.GetLocation(id)
-	if err != nil {
-		return storage.BadEntity, err
-	}
-	return storage.NewEntity(id, loc), nil
-}
-
 func (w *World) EncomStorage() *encom.EncomStorage {
 	return w.encom
 }
@@ -316,105 +261,6 @@ func (w *World) Len() (int, error) {
 		return 0, err
 	}
 	return l, nil
-}
-
-// Remove removes the given Entity from the world
-func (w *World) Remove(id storage.EntityID) error {
-	ok, err := w.Valid(id)
-	if err != nil {
-		w.Logger.Debug().Int("entity_id", int(id)).Msg("failed to remove")
-		return err
-	}
-	if ok {
-		loc, err := w.store.EntityLocStore.GetLocation(id)
-		if err != nil {
-			return err
-		}
-		if err := w.store.EntityLocStore.Remove(id); err != nil {
-			return err
-		}
-		if err := w.removeAtLocation(id, loc); err != nil {
-			return err
-		}
-	}
-	w.Logger.Debug().Int("entity_id", int(id)).Msg("removed")
-	return nil
-}
-
-func (w *World) removeAtLocation(id storage.EntityID, loc storage.Location) error {
-	archID := loc.ArchID
-	componentIndex := loc.CompIndex
-	archetype := w.store.ArchAccessor.Archetype(archID)
-	archetype.SwapRemove(componentIndex)
-	err := w.store.CompStore.Remove(archID, archetype.Layout().Components(), componentIndex)
-	if err != nil {
-		return err
-	}
-	if int(componentIndex) < len(archetype.Entities()) {
-		swappedID := archetype.Entities()[componentIndex]
-		if err := w.store.EntityLocStore.SetLocation(swappedID, loc); err != nil {
-			return err
-		}
-	}
-	w.store.EntityMgr.Destroy(id)
-	return nil
-}
-
-func (w *World) TransferArchetype(from storage.ArchetypeID, to storage.ArchetypeID, idx storage.ComponentIndex) (storage.ComponentIndex, error) {
-	if from == to {
-		return idx, nil
-	}
-	fromArch := w.store.ArchAccessor.Archetype(from)
-	toArch := w.store.ArchAccessor.Archetype(to)
-
-	// move entity id
-	id := fromArch.SwapRemove(idx)
-	toArch.PushEntity(id)
-	err := w.store.EntityLocStore.Insert(id, to, storage.ComponentIndex(len(toArch.Entities())-1))
-	if err != nil {
-		return 0, err
-	}
-
-	if len(fromArch.Entities()) > int(idx) {
-		movedID := fromArch.Entities()[idx]
-		err := w.store.EntityLocStore.Insert(movedID, from, idx)
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	// creates component if not exists in new layout
-	fromLayout := fromArch.Layout()
-	toLayout := toArch.Layout()
-	for _, componentType := range toLayout.Components() {
-		if !fromLayout.HasComponent(componentType) {
-			store := w.store.CompStore.Storage(componentType)
-			if err := store.PushComponent(componentType, to); err != nil {
-				return 0, err
-			}
-		}
-	}
-
-	// move component
-	for _, componentType := range fromLayout.Components() {
-		store := w.store.CompStore.Storage(componentType)
-		if toLayout.HasComponent(componentType) {
-			if err := store.MoveComponent(from, idx, to); err != nil {
-				return 0, err
-			}
-		} else {
-			_, err := store.SwapRemove(from, idx)
-			if err != nil {
-				return 0, err
-			}
-		}
-	}
-	err = w.store.CompStore.Move(from, to)
-	if err != nil {
-		return 0, err
-	}
-
-	return storage.ComponentIndex(len(toArch.Entities()) - 1), nil
 }
 
 // copyTransactions makes a copy of the world txQueue, then zeroes out the txQueue.
@@ -628,14 +474,6 @@ func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []I
 		return err
 	}
 	return cm.UnmarshalWithComps(buf, comps)
-}
-
-func (w *World) GetComponentsOnEntity(id storage.EntityID) ([]IComponentType, error) {
-	ent, err := w.Entity(id)
-	if err != nil {
-		return nil, err
-	}
-	return w.GetLayout(ent.Loc.ArchID), nil
 }
 
 func (w *World) nextEntity() (storage.EntityID, error) {

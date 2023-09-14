@@ -56,6 +56,11 @@ func NewRedisStorage(options Options, worldID string) RedisStorage {
 // 							COMPONENT INDEX STORAGE
 // ---------------------------------------------------------------------------
 
+var (
+	ErrorComponentAlreadyOnEntity = errors.New("component already on entity")
+	ErrorComponentNotOnEntity     = errors.New("component not on entity")
+)
+
 var _ ComponentIndexStorage = &RedisStorage{}
 
 func (r *RedisStorage) GetComponentIndexStorage(cid component.TypeID) ComponentIndexStorage {

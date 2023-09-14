@@ -93,7 +93,7 @@ func (w *World) Create(components ...AnyComponentType) (EntityID, error) {
 
 // Remove removes the given entity id from the world.
 func (w *World) Remove(id EntityID) error {
-	return w.impl.Remove(id)
+	return w.impl.EncomStorage().RemoveEntity(id)
 }
 
 // StartGame starts running the world game loop. After loopInterval time passes, a world tick is attempted.

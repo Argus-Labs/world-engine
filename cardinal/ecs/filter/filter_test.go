@@ -106,19 +106,16 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	wantCount := 50
-	ids, err := world.CreateMany(wantCount, alpha, beta)
+	_, err := world.CreateMany(wantCount, alpha, beta)
 	assert.NilError(t, err)
 	// Make some extra entities that will be ignored. Our query later
 	// should NOT contain these entities
 	_, err = world.CreateMany(20, alpha)
 	assert.NilError(t, err)
-	id := ids[0]
-	comps, err := world.GetComponentsOnEntity(id)
-	assert.NilError(t, err)
 
 	count := 0
 	ctx := world.NewSystemContext(nil)
-	ecs.NewQuery(filter.Exact(comps...)).Each(ctx, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Exact(alpha, beta)).Each(ctx, func(id storage.EntityID) bool {
 		count++
 		return true
 	})

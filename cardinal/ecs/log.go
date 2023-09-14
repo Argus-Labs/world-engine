@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"fmt"
+
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -34,21 +35,24 @@ func (_ *Logger) loadSystemIntoArrayLogger(world *World, registeredSystemIndex i
 func (l *Logger) loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, world *World) *zerolog.Event {
 	zeroLoggerEvent.Int("total_systems", len(world.systems))
 	arrayLogger := zerolog.Arr()
-	for index, _ := range world.systems {
+	for index := range world.systems {
 		arrayLogger = l.loadSystemIntoArrayLogger(world, index, arrayLogger)
 	}
 	return zeroLoggerEvent.Array("systems", arrayLogger)
 }
 
 func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, world *World, entityID storage.EntityID) (*zerolog.Event, error) {
-	entity, err := world.Entity(entityID)
+	es := world.EncomStorage()
+	entity, err := es.GetEntity(entityID)
 	if err != nil {
 		return nil, err
 	}
-
-	archetype := entity.Archetype(world)
 	arrayLogger := zerolog.Arr()
-	for _, _component := range archetype.Layout().Components() {
+	components, err := es.GetComponentsForEntity(entityID)
+	if err != nil {
+		return nil, err
+	}
+	for _, _component := range components {
 		arrayLogger = l.loadComponentIntoArrayLogger(_component, arrayLogger)
 	}
 	zeroLoggerEvent.Array("components", arrayLogger)

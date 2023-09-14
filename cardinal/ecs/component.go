@@ -122,22 +122,12 @@ func (c *ComponentType[T]) MustFirst(ctx WorldContext) storage.EntityID {
 
 // RemoveFrom removes this component from the given entity.
 func (c *ComponentType[T]) RemoveFrom(ctx WorldContext, id storage.EntityID) error {
-	w := ctx.World
-	e, err := w.Entity(id)
-	if err != nil {
-		return err
-	}
-	return e.RemoveComponent(w, c)
+	return ctx.ES.RemoveComponentFrom(c, id)
 }
 
 // AddTo adds this component to the given entity.
 func (c *ComponentType[T]) AddTo(ctx WorldContext, id storage.EntityID) error {
-	w := ctx.World
-	e, err := w.Entity(id)
-	if err != nil {
-		return err
-	}
-	return e.AddComponent(w, c)
+	return ctx.ES.AddComponentToEntity(c, id)
 }
 
 // String returns the component type name.

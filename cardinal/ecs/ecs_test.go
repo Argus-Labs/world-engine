@@ -164,7 +164,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	})
 
 	assert.Equal(t, count, 2)
-	err = world.Remove(entities[0])
+	err = world.EncomStorage().RemoveEntity(entities[0])
 	assert.NilError(t, err)
 
 	// Now we should only find 1 entity
@@ -178,11 +178,11 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 1)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = world.Entity(entities[0])
+	_, err = world.EncomStorage().GetEntity(entities[0])
 	assert.Check(t, err != nil)
 
 	// Remove the other entity
-	err = world.Remove(entities[1])
+	err = world.EncomStorage().RemoveEntity(entities[1])
 	assert.NilError(t, err)
 	count = 0
 	tuple.Each(ctx, func(id storage.EntityID) bool {
@@ -194,7 +194,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 0)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = world.Entity(entities[0])
+	_, err = world.EncomStorage().GetEntity(entities[0])
 	assert.Check(t, err != nil)
 }
 
@@ -223,7 +223,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	itr := 0
 	Count.Each(ctx, func(id storage.EntityID) bool {
 		if itr%2 == 0 {
-			assert.NilError(t, world.Remove(id))
+			assert.NilError(t, world.EncomStorage().RemoveEntity(id))
 		}
 		itr++
 		return true
@@ -282,7 +282,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	entity, err := world.Create(a, b)
 	assert.NilError(t, err)
 
-	ent, err := world.Entity(entity)
+	ent, err := world.EncomStorage().GetEntity(entity)
 	assert.NilError(t, err)
 
 	archIDBefore := ent.Loc.ArchID
@@ -291,7 +291,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	ctx := world.NewSystemContext(nil)
 	assert.NilError(t, a.RemoveFrom(ctx, entity))
 
-	ent, err = world.Entity(entity)
+	ent, err = world.EncomStorage().GetEntity(entity)
 	assert.NilError(t, err)
 
 	archIDAfter := ent.Loc.ArchID
@@ -440,7 +440,7 @@ func TestCanRemoveFirstEntity(t *testing.T) {
 	assert.NilError(t, valComp.Set(ctx, ids[1], ValueComponent{100}))
 	assert.NilError(t, valComp.Set(ctx, ids[2], ValueComponent{101}))
 
-	assert.NilError(t, world.Remove(ids[0]))
+	assert.NilError(t, world.EncomStorage().RemoveEntity(ids[0]))
 
 	val, err := valComp.Get(ctx, ids[1])
 	assert.NilError(t, err)
