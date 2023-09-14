@@ -152,7 +152,7 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 		}
 	}
 
-	for _, c := range components {
+	for _, c := range w.registeredComponents {
 		if _, ok := w.nameToComponent[c.Name()]; !ok {
 			w.nameToComponent[c.Name()] = c
 		} else {
@@ -261,6 +261,12 @@ func (w *World) ReceiptHistorySize() uint64 {
 }
 
 func (w *World) CreateMany(num int, components ...component.IComponentType) ([]storage.EntityID, error) {
+	for _, comp := range components {
+		if _, ok := w.nameToComponent[comp.Name()]; !ok {
+			return nil, fmt.Errorf("%s was not registered, please register all components before using one to create an entity", comp.Name())
+		}
+	}
+
 	archetypeID := w.getArchetypeForComponents(components)
 	entities := make([]storage.EntityID, 0, num)
 	for i := 0; i < num; i++ {

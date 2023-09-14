@@ -260,6 +260,10 @@ func (e Entity) HasComponent(w WorldAccessor, componentType component.IComponent
 	return e.Archetype(w).Layout().HasComponent(componentType)
 }
 
+func (e Entity) GetComponents(w WorldAccessor) []component.IComponentType {
+	return e.Archetype(w).Layout().Components()
+}
+
 func (e Entity) StringXY(w WorldAccessor) string {
 	var out bytes.Buffer
 	out.WriteString("Entity: {")

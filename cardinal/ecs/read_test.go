@@ -6,10 +6,44 @@ import (
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/evm"
 )
+
+func TestReadTypeNotStructs(t *testing.T) {
+	type FooRequest struct {
+		ID string
+	}
+	type FooReply struct {
+		Name string
+		Age  uint64
+	}
+
+	expectedReply := FooReply{
+		Name: "Chad",
+		Age:  22,
+	}
+
+	defer func() {
+		// test should trigger a panic.
+		panicValue := recover()
+		assert.Assert(t, panicValue != nil)
+		ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+			return expectedReply, nil
+		})
+		defer func() {
+			//defered function should not fail
+			panicValue := recover()
+			assert.Assert(t, panicValue == nil)
+		}()
+	}()
+
+	ecs.NewReadType[string, string]("foo", func(world *ecs.World, req string) (string, error) {
+		return "blah", nil
+	})
+}
 
 func TestReadEVM(t *testing.T) {
 	// --- TEST SETUP ---

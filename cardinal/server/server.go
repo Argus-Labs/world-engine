@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"reflect"
 	"strconv"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/cql"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/sign"
@@ -355,6 +358,78 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		getListTxReceiptsReplyFromRequest(world),
 	)
 
+	cqlHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		mapStruct, ok := params.(map[string]interface{})
+		if !ok {
+			return nil, errors.New("invalid parameter input, map could not be created")
+		}
+		cqlRequestUntyped, ok := mapStruct["cql"]
+		if !ok {
+			return nil, errors.New("cql body parameter could not be found")
+		}
+		cqlRequest, ok := cqlRequestUntyped.(map[string]interface{})
+		if !ok {
+			return middleware.Error(422, fmt.Errorf("json is invalid")), nil
+		}
+		cqlStringUntyped, ok := cqlRequest["CQL"]
+		if !ok {
+			return middleware.Error(422, fmt.Errorf("json is invalid")), nil
+		}
+		cqlString, ok := cqlStringUntyped.(string)
+		if !ok {
+			return middleware.Error(422, fmt.Errorf("json is invalid")), nil
+		}
+		resultFilter, err := cql.CQLParse(cqlString, world.GetComponentByName)
+		if err != nil {
+			return middleware.Error(422, err), nil
+		}
+
+		result := make([]cql.QueryResponse, 0)
+
+		ecs.NewQuery(resultFilter).Each(world, func(id storage.EntityID) bool {
+			var entity storage.Entity
+			entity, err = world.Entity(id)
+			if err != nil {
+				return false
+			}
+			components := entity.GetComponents(world)
+			resultElement := cql.QueryResponse{
+				id,
+				make([]json.RawMessage, 0),
+			}
+
+			// The way our framework is set up it's not designed to retrieve components dynamically at runtime.
+			// As a result we have to use reflection which is generally bad and expensive.
+			for _, c := range components {
+				val := reflect.ValueOf(c)
+				method := val.MethodByName("Get")
+				if !method.IsValid() {
+					err = errors.New("get method not valid on this component")
+					return false
+				}
+				args := []reflect.Value{reflect.ValueOf(world), reflect.ValueOf(id)}
+				results := method.Call(args)
+				if results[1].Interface() != nil {
+					err, _ = results[1].Interface().(error)
+					return false
+				}
+				var data []byte
+				data, err = json.Marshal(results[0].Interface())
+
+				resultElement.Data = append(resultElement.Data, data)
+
+			}
+			result = append(result, resultElement)
+			return true
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return result, nil
+	})
+
+	api.RegisterOperation("POST", "/query/game/cql", cqlHandler)
 	api.RegisterOperation("POST", "/query/game/{readType}", gameHandler)
 	api.RegisterOperation("POST", "/query/http/endpoints", listHandler)
 	api.RegisterOperation("POST", "/query/persona/signer", personaHandler)

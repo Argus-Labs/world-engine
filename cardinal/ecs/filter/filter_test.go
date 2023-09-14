@@ -7,6 +7,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -50,8 +51,10 @@ func TestExactVsContains(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	alpha := ecs.NewComponentType[string]("alpha")
 	beta := ecs.NewComponentType[string]("beta")
+	err := world.RegisterComponents(alpha, beta)
+	assert.NilError(t, err)
 	alphaCount := 75
-	_, err := world.CreateMany(alphaCount, alpha)
+	_, err = world.CreateMany(alphaCount, alpha)
 	assert.NilError(t, err)
 	bothCount := 100
 	_, err = world.CreateMany(bothCount, alpha, beta)
@@ -63,6 +66,14 @@ func TestExactVsContains(t *testing.T) {
 		return true
 	})
 	assert.Equal(t, count, alphaCount+bothCount)
+	count2 := 0
+	sameQuery, err := cql.CQLParse("CONTAINS(alpha)", world.GetComponentByName)
+	assert.NilError(t, err)
+	ecs.NewQuery(sameQuery).Each(world, func(id storage.EntityID) bool {
+		count2++
+		return true
+	})
+	assert.Equal(t, count2, alphaCount+bothCount)
 
 	count = 0
 	// Contains(beta) should only return the entities that have both components
@@ -72,6 +83,14 @@ func TestExactVsContains(t *testing.T) {
 	})
 	assert.Equal(t, count, bothCount)
 
+	count2 = 0
+	sameQuery, err = cql.CQLParse("CONTAINS(beta)", world.GetComponentByName)
+	assert.NilError(t, err)
+	ecs.NewQuery(sameQuery).Each(world, func(id storage.EntityID) bool {
+		count2++
+		return true
+	})
+
 	count = 0
 	// Exact(alpha) should not return the entities that have both alpha and beta
 	ecs.NewQuery(filter.Exact(alpha)).Each(world, func(id storage.EntityID) bool {
@@ -79,6 +98,15 @@ func TestExactVsContains(t *testing.T) {
 		return true
 	})
 	assert.Equal(t, count, alphaCount)
+
+	count2 = 0
+	sameQuery, err = cql.CQLParse("EXACT(alpha)", world.GetComponentByName)
+	assert.NilError(t, err)
+	ecs.NewQuery(sameQuery).Each(world, func(id storage.EntityID) bool {
+		count2++
+		return true
+	})
+	assert.Equal(t, count2, alphaCount)
 
 	count = 0
 	// Exact(alpha, beta) should not return the entities that only have alpha
@@ -88,10 +116,28 @@ func TestExactVsContains(t *testing.T) {
 	})
 	assert.Equal(t, count, bothCount)
 
+	count2 = 0
+	sameQuery, err = cql.CQLParse("EXACT(alpha, beta)", world.GetComponentByName)
+	assert.NilError(t, err)
+	ecs.NewQuery(sameQuery).Each(world, func(id storage.EntityID) bool {
+		count2++
+		return true
+	})
+	assert.Equal(t, count, bothCount)
+
 	count = 0
 	// Make sure the order of alpha/beta doesn't matter
 	ecs.NewQuery(filter.Exact(beta, alpha)).Each(world, func(id storage.EntityID) bool {
 		count++
+		return true
+	})
+	assert.Equal(t, count, bothCount)
+
+	count2 = 0
+	sameQuery, err = cql.CQLParse("EXACT(beta, alpha)", world.GetComponentByName)
+	assert.NilError(t, err)
+	ecs.NewQuery(sameQuery).Each(world, func(id storage.EntityID) bool {
+		count2++
 		return true
 	})
 	assert.Equal(t, count, bothCount)
@@ -121,6 +167,25 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 		return true
 	})
 	assert.Equal(t, count, wantCount)
+
+	count2 := 0
+
+	queryString := "EXACT("
+	for i, c := range comps {
+		queryString += c.Name()
+		if i < len(comps)-1 {
+			queryString += ", "
+		}
+	}
+	queryString += ")"
+
+	sameQuery, err := cql.CQLParse(queryString, world.GetComponentByName)
+	assert.NilError(t, err)
+	ecs.NewQuery(sameQuery).Each(world, func(id storage.EntityID) bool {
+		count2++
+		return true
+	})
+	assert.Equal(t, count2, wantCount)
 
 }
 

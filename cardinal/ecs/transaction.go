@@ -3,6 +3,8 @@ package ecs
 import (
 	"errors"
 	"fmt"
+	"reflect"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -54,6 +56,26 @@ func NewTransactionType[In, Out any](
 	name string,
 	opts ...func() func(*TransactionType[In, Out]),
 ) *TransactionType[In, Out] {
+
+	var in In
+	var out Out
+	inType := reflect.TypeOf(in)
+	inKind := inType.Kind()
+	inValid := false
+	if (inKind == reflect.Pointer && inType.Elem().Kind() == reflect.Struct) || inKind == reflect.Struct {
+		inValid = true
+	}
+	outType := reflect.TypeOf(out)
+	outKind := inType.Kind()
+	outValid := false
+	if (outKind == reflect.Pointer && outType.Elem().Kind() == reflect.Struct) || outKind == reflect.Struct {
+		outValid = true
+	}
+
+	if !outValid || !inValid {
+		panic(fmt.Sprintf("Invalid TransactionType: %s: The In and Out must be both structs", name))
+	}
+
 	txt := &TransactionType[In, Out]{
 		name: name,
 	}

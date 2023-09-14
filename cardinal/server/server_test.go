@@ -18,6 +18,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
@@ -237,6 +238,18 @@ func TestHandleSwaggerServer(t *testing.T) {
 	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
 		return nil
 	})
+	type garbageStruct struct {
+		Something int `json:"something"`
+	}
+	alpha := ecs.NewComponentType[garbageStruct]("alpha")
+	beta := ecs.NewComponentType[garbageStruct]("beta")
+	assert.NilError(t, w.RegisterComponents(alpha, beta))
+	alphaCount := 75
+	_, err := w.CreateMany(alphaCount, alpha)
+	assert.NilError(t, err)
+	bothCount := 100
+	_, err = w.CreateMany(bothCount, alpha, beta)
+	assert.NilError(t, err)
 
 	// Queue up a CreatePersonaTx
 	personaTag := "foobar"
@@ -381,6 +394,37 @@ func TestHandleSwaggerServer(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, resp6.StatusCode, 404)
 
+	//test query/game/cql
+	for _, v := range []struct {
+		cql            string
+		expectedStatus int
+		amount         int
+	}{
+		{cql: "CONTAINS(alpha) & CONTAINS(beta)", expectedStatus: 200, amount: bothCount},
+		{cql: "CONTAINS(alpha) | CONTAINS(beta)", expectedStatus: 200, amount: bothCount + alphaCount},
+		{cql: "CONTAINS(beta)", expectedStatus: 200, amount: bothCount},
+		{cql: "EXACT(alpha)", expectedStatus: 200, amount: alphaCount},
+		{cql: "EXACT(beta)", expectedStatus: 200, amount: 0},
+		{cql: "!(CONTAINS(alpha) | CONTAINS(beta))", expectedStatus: 200, amount: 1},
+		{cql: "!CONTAINS(alpha) & CONTAINS(beta)", expectedStatus: 200, amount: 0},
+	} {
+		jsonQuery := struct{ CQL string }{v.cql}
+		jsonQueryBytes, err := json.Marshal(jsonQuery)
+		assert.NilError(t, err)
+		resp7, err := http.Post(txh.makeURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+		assert.NilError(t, err)
+		assert.Equal(t, resp7.StatusCode, v.expectedStatus)
+		var entities []cql.QueryResponse
+		err = json.NewDecoder(resp7.Body).Decode(&entities)
+		assert.Equal(t, len(entities), v.amount)
+	}
+
+	jsonQuery := struct{ CQL string }{"blah"}
+	jsonQueryBytes, err := json.Marshal(jsonQuery)
+	assert.NilError(t, err)
+	resp8, err := http.Post(txh.makeURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+	assert.NilError(t, err)
+	assert.Equal(t, resp8.StatusCode, 422)
 }
 
 func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
@@ -443,6 +487,8 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	}
 	for i, urlSet := range urlSets {
 		world := inmem.NewECSWorldForTest(t)
+		err := world.RegisterComponents()
+		assert.NilError(t, err)
 		tx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("some_tx")
 		assert.NilError(t, world.RegisterTransactions(tx))
 		assert.NilError(t, world.LoadGameState())
