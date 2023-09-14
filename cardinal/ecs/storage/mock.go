@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"unsafe"
@@ -16,6 +17,7 @@ type MockComponentType[T any] struct {
 	id         component.TypeID
 	typ        reflect.Type
 	defaultVal interface{}
+	isIdSet    bool
 }
 
 func NewMockComponentType[T any](t T, defaultVal interface{}) *MockComponentType[T] {
@@ -28,8 +30,16 @@ func NewMockComponentType[T any](t T, defaultVal interface{}) *MockComponentType
 	return m
 }
 
+func (m *MockComponentType[T]) IsIDSet() bool {
+	return m.isIdSet
+}
+
 func (m *MockComponentType[T]) SetID(id component.TypeID) error {
 	m.id = id
+	if m.isIdSet {
+		return errors.New("id already set on component")
+	}
+	m.isIdSet = true
 	return nil
 }
 

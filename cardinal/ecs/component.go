@@ -52,6 +52,10 @@ func (c *ComponentType[T]) SetID(id component.TypeID) error {
 	return nil
 }
 
+func (c *ComponentType[T]) IsIDSet() bool {
+	return c.isIDSet
+}
+
 // Get returns component data from the entity.
 func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error) {
 	entity, err := w.Entity(id)

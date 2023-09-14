@@ -13,5 +13,7 @@ type (
 		New() ([]byte, error)
 		// Name returns the name of the component.
 		Name() string
+
+		IsIDSet() bool
 	}
 )
