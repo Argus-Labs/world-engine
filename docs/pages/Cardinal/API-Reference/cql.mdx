@@ -4,7 +4,7 @@
 
 CQL (Component Query Language) is a simple query language that queries entities based on components contained in the entity.
 
-In the language, you have components, which is simply the names of the specified components.
+The language uses the names of `ComponentType`s to specify the entities you are interested in querying.
 
 Examples:
 
@@ -13,7 +13,7 @@ Examples:
 * armComponent
 * legComponent
 
-You also have two functions which can be called with a variadic amount of components as parameters:
+Two functions are provided in the language that accept a variadic amount of components as parameters
 
 `EXACT(…) and CONTAINS(…)`
 
