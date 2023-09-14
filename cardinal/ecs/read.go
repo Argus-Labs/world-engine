@@ -77,7 +77,7 @@ func NewReadType[Request any, Reply any](
 	}
 
 	if !repValid || !reqValid {
-		panic("The Request and Reply must be both structs")
+		panic(fmt.Sprintf("Invalid ReadType: %s: The Request and Reply must be both structs", name))
 	}
 	r := &ReadType[Request, Reply]{
 		name:    name,
