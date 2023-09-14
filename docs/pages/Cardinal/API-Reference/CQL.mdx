@@ -4,6 +4,8 @@
 
 CQL (Component Query Language) is a simple query language that queries entities based on components contained in the entity.
 
+### Components
+
 The language uses the names of `ComponentType`s to specify the entities you are interested in querying.
 
 Examples:
@@ -13,20 +15,31 @@ Examples:
 * armComponent
 * legComponent
 
+### Functions
+
 Two functions are provided in the language that accept a variadic amount of components as parameters
 
 `EXACT(…) and CONTAINS(…)`
 
-CONTAINS is a query for entities that only need to "contain" the specified components. If they have more components then just the specified components then it is still a valid entity for that query.
+#### CONTAINS(...)
 
-EXACT is a query for entities that contain "exactly" the specified the components. Nothing more nothing less.
+`CONTAINS` is a query for entities that only need to "contain" the specified components. If they have more components then just the specified components then it is still a valid entity for that query.
+
+Examples:
+
+- `CONTAINS(armComponent)` is a query for all entities that have a arm component. The entity can have more components then just the arm.
+- `CONTAINS(armComponent, legComponent)` is query for all entities that have both an arm component and a leg component. The entity can have more components then the arm and the leg.
+
+#### EXACT(...)
+
+`EXACT` is a query for entities that contain "exactly" the specified the components. Nothing more nothing less.
 
 Examples:
 
 - `EXACT(healthComponent)` is a query for all entities with exactly one health component nothing more.
 - `EXACT(healthComponent, attackComponent)` is a query for all entities with exactly one health component and one attack component, nothing more.
-- `CONTAINS(armComponent)` is a query for all entities that have a arm component. The entity can have more components then just the arm.
-- `CONTAINS(armComponent, legComponent)` is query for all entities that have both an arm component and a leg component. The entity can have more components then the arm and the leg.
+
+### Operators
 
 In CQL there three operators: `&`, `|` and `!`
 
@@ -49,6 +62,8 @@ You can use parenthesis to specify and change precedence in CQL.
 - Example: `(EXACT(legComponent) | !CONTAIN(healthComponent)) & !CONTAIN(attackComponent)`
   - The above is the same query but with precedence changed. Now it is querying an entity with either exactly one leg component or does not have a have a health component. Additionally that entity must not ever contain a attack component.
 
-## How to use CQL:
+## HTTP
 
-There is a http route on Cardinal to use CQL. To execute a query use a POST request to the url with path `query/game/cql`. In the body place a json object in the format: `{"CQL": "<CQL as a string>"}` The results of the query will be an array of objects with an entity id and another nested array of component data relevant to the entity id.
+| path           | Body                                            | Method |
+|----------------|-------------------------------------------------| -------|
+| query/game/cql | `{ "CQL" : "<CQL string>" }`                    | POST   |
