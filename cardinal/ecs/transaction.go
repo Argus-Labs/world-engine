@@ -73,7 +73,7 @@ func NewTransactionType[In, Out any](
 	}
 
 	if !outValid || !inValid {
-		panic(fmt.Sprintf("Invalid ReadType: %s: The Request and Reply must be both structs", name))
+		panic(fmt.Sprintf("Invalid TransactionType: %s: The In and Out must be both structs", name))
 	}
 
 	txt := &TransactionType[In, Out]{
