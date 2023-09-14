@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
-	"sync"
 	"time"
 
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
@@ -42,10 +41,8 @@ type World struct {
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
-	// txQueues is a map of transaction names to the relevant list of transactions data
-	txQueues transaction.TxMap
-	// txLock ensures txQueues is not modified in the middle of a tick.
-	txLock sync.Mutex
+
+	txQueue *transaction.TxQueue
 
 	receiptHistory *receipt.History
 
@@ -223,7 +220,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		tick:            0,
 		systems:         make([]System, 0),
 		nameToComponent: make(map[string]IComponentType),
-		txQueues:        transaction.TxMap{},
+		txQueue:         transaction.NewTxQueue(),
 		Logger: &Logger{
 			&log.Logger,
 		},
@@ -427,32 +424,15 @@ func (w *World) TransferArchetype(from storage.ArchetypeID, to storage.Archetype
 	return storage.ComponentIndex(len(toArch.Entities()) - 1), nil
 }
 
-// copyTransactions makes a copy of the world txQueue, then zeroes out the txQueue.
-func (w *World) copyTransactions() transaction.TxMap {
-	w.txLock.Lock()
-	defer w.txLock.Unlock()
-	txsMap := make(transaction.TxMap, len(w.txQueues))
-	for id, txs := range w.txQueues {
-		txsMap[id] = make([]transaction.TxAny, len(txs))
-		copy(txsMap[id], txs)
-		w.txQueues[id] = w.txQueues[id][:0]
-	}
-	return txsMap
-}
-
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
 func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (tick uint64, txHash transaction.TxHash) {
-	w.txLock.Lock()
-	defer w.txLock.Unlock()
-	txHash = transaction.TxHash(sig.HashHex())
-	w.txQueues[id] = append(w.txQueues[id], transaction.TxAny{
-		TxHash: txHash,
-		Value:  v,
-		Sig:    sig,
-	})
-	return w.CurrentTick(), txHash
+	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
+	// transaction is actually added to the returned tick.
+	tick = w.CurrentTick()
+	txHash = w.txQueue.AddTransaction(id, v, sig)
+	return tick, txHash
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
@@ -473,15 +453,12 @@ func (w *World) Tick(ctx context.Context) error {
 	if !w.stateIsLoaded {
 		return errors.New("must load state before first tick")
 	}
-	txs := w.copyTransactions()
+	txQueue := w.txQueue.CopyTransaction()
 
-	if err := w.store.TickStore.StartNextTick(w.registeredTransactions, txs); err != nil {
+	if err := w.store.TickStore.StartNextTick(w.registeredTransactions, txQueue); err != nil {
 		return err
 	}
 
-	txQueue := &TransactionQueue{
-		queue: txs,
-	}
 	for i, sys := range w.systems {
 		nameOfCurrentRunningSystem = w.systemNames[i]
 		err := sys(w, txQueue, w.systemLoggers[i])
@@ -574,7 +551,7 @@ func (w *World) saveToKey(key string, cm storage.ComponentMarshaler) error {
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
 // transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
 // transactions that need to be processed because the last tick was successful.
-func (w *World) recoverGameState() (recoveredTxs transaction.TxMap, err error) {
+func (w *World) recoverGameState() (recoveredTxs *transaction.TxQueue, err error) {
 	start, end, err := w.store.TickStore.GetTickNumbers()
 	if err != nil {
 		return nil, err
@@ -615,7 +592,7 @@ func (w *World) LoadGameState() error {
 	}
 
 	if recoveredTxs != nil {
-		w.txQueues = recoveredTxs
+		w.txQueue = recoveredTxs
 		if err := w.Tick(context.Background()); err != nil {
 			return err
 		}

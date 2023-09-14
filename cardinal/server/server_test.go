@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -186,7 +187,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 		sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 		assert.NilError(t, w.RegisterTransactions(sendTx))
 		count := 0
-		w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+		w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 			txs := sendTx.In(queue)
 			assert.Equal(t, 1, len(txs))
 			tx := txs[0]
@@ -235,7 +236,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		return nil
 	})
 	type garbageStruct struct {
@@ -435,7 +436,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 		w := inmem.NewECSWorldForTest(t)
 		sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 		assert.NilError(t, w.RegisterTransactions(sendTx))
-		w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+		w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 			txs := sendTx.In(queue)
 			assert.Equal(t, 1, len(txs))
 			tx := txs[0]
@@ -885,7 +886,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 		world := inmem.NewECSWorldForTest(t)
 		assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
 		// System to handle incrementing numbers
-		world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+		world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 			for _, tx := range incTx.In(queue) {
 				incTx.SetResult(world, tx.TxHash, IncReply{
 					Number: tx.Value.Number + 1,
@@ -894,7 +895,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 			return nil
 		})
 		// System to handle duplicating strings
-		world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+		world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 			for _, tx := range dupeTx.In(queue) {
 				dupeTx.SetResult(world, tx.TxHash, DupeReply{
 					Str: tx.Value.Str + tx.Value.Str,
@@ -904,7 +905,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 		})
 		wantError := errors.New("some error")
 		// System to handle error production
-		world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+		world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 			for _, tx := range errTx.In(queue) {
 				errTx.AddError(world, tx.TxHash, wantError)
 				errTx.AddError(world, tx.TxHash, wantError)

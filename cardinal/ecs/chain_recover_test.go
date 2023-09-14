@@ -9,6 +9,7 @@ import (
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"github.com/cometbft/cometbft/libs/rand"
 	"google.golang.org/protobuf/proto"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 
 	"gotest.tools/v3/assert"
@@ -99,7 +100,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	sysRuns := uint64(0)
 	timesSendEnergyRan := 0
 	// send energy system
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		sysRuns++
 		txs := SendEnergyTx.In(queue)
 		if len(txs) > 0 {

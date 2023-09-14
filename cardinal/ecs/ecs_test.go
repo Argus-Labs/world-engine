@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -22,7 +23,7 @@ type OwnableComponent struct {
 	Owner string
 }
 
-func UpdateEnergySystem(w *ecs.World, tq *ecs.TransactionQueue, _ *ecs.Logger) error {
+func UpdateEnergySystem(w *ecs.World, tq *transaction.TxQueue, _ *ecs.Logger) error {
 	errs := []error{}
 
 	Energy.Each(w, func(ent storage.EntityID) bool {
