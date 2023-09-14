@@ -67,6 +67,13 @@ func TestWithoutRegistration(t *testing.T) {
 	})
 	assert.Assert(t, err != nil)
 
+	err = Energy.Set(world, id, EnergyComponent{
+		Amt: 0,
+		Cap: 0,
+	})
+
+	assert.Assert(t, err != nil)
+
 	err = world.RegisterComponents(Energy, Ownable)
 	assert.NilError(t, err)
 	id, err = world.Create(Energy, Ownable)
@@ -74,6 +81,11 @@ func TestWithoutRegistration(t *testing.T) {
 	err = Energy.Update(world, id, func(component EnergyComponent) EnergyComponent {
 		component.Amt += 50
 		return component
+	})
+	assert.NilError(t, err)
+	err = Energy.Set(world, id, EnergyComponent{
+		Amt: 0,
+		Cap: 0,
 	})
 	assert.NilError(t, err)
 

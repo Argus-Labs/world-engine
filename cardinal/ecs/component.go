@@ -81,6 +81,9 @@ func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(T) T) e
 
 // Set sets component data to the entity.
 func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error {
+	if _, ok := w.nameToComponent[c.Name()]; !ok {
+		return fmt.Errorf("%s is not registered, please register it before updating", c.Name())
+	}
 	entity, err := w.Entity(id)
 	if err != nil {
 		return err
