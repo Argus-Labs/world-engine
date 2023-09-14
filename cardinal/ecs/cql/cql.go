@@ -1,6 +1,7 @@
 package cql
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/alecthomas/participle/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type cqlOperator int
@@ -135,12 +137,12 @@ func (t *cqlTerm) String() string {
 	return strings.Join(out, " ")
 }
 
-var CQLParser = participle.MustBuild[cqlTerm]()
+var internalCQLParser = participle.MustBuild[cqlTerm]()
 
 // TODO: Value is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
 // be checked.
-func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
+func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
 	if value.Not != nil {
 		resultFilter, err := valueToLayoutFilter(value.Not.SubExpression, stringToComponent)
 		if err != nil {
@@ -153,7 +155,11 @@ func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) compone
 		}
 		components := make([]component.IComponentType, 0, len(value.Exact.Components))
 		for _, componentName := range value.Exact.Components {
-			components = append(components, stringToComponent(componentName.Name))
+			comp, ok := stringToComponent(componentName.Name)
+			if !ok {
+				return nil, fmt.Errorf("the component: %s was not found", componentName.Name)
+			}
+			components = append(components, comp)
 		}
 		return filter.Exact(components...), nil
 	} else if value.Contains != nil {
@@ -162,7 +168,11 @@ func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) compone
 		}
 		components := make([]component.IComponentType, 0, len(value.Contains.Components))
 		for _, componentName := range value.Contains.Components {
-			components = append(components, stringToComponent(componentName.Name))
+			comp, ok := stringToComponent(componentName.Name)
+			if !ok {
+				return nil, fmt.Errorf("the component: %s was not found", componentName.Name)
+			}
+			components = append(components, comp)
 		}
 		return filter.Contains(components...), nil
 	} else if value.Subexpression != nil {
@@ -172,11 +182,11 @@ func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) compone
 	}
 }
 
-func factorToLayoutFilter(factor *cqlFactor, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
+func factorToLayoutFilter(factor *cqlFactor, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
 	return valueToLayoutFilter(factor.Base, stringToComponent)
 }
 
-func opFactorToLayoutFilter(opFactor *cqlOpFactor, stringToComponent func(string) component.IComponentType) (*cqlOperator, filter.LayoutFilter, error) {
+func opFactorToLayoutFilter(opFactor *cqlOpFactor, stringToComponent func(string) (component.IComponentType, bool)) (*cqlOperator, filter.LayoutFilter, error) {
 	resultFilter, err := factorToLayoutFilter(opFactor.Factor, stringToComponent)
 	if err != nil {
 		return nil, nil, err
@@ -184,7 +194,7 @@ func opFactorToLayoutFilter(opFactor *cqlOpFactor, stringToComponent func(string
 	return &opFactor.Operator, resultFilter, nil
 }
 
-func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) component.IComponentType) (filter.LayoutFilter, error) {
+func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
 	if term.Left == nil {
 		return nil, errors.New("Not enough values in expression")
 	}
@@ -207,4 +217,25 @@ func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) component.
 		}
 	}
 	return acc, nil
+}
+
+func CQLParse(cqlText string, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
+	term, err := internalCQLParser.ParseString("", cqlText)
+	if err != nil {
+		return nil, err
+	}
+	resultFilter, err := termToLayoutFilter(term, stringToComponent)
+	if err != nil {
+		return nil, err
+	}
+	return resultFilter, nil
+}
+
+type QueryRequest struct {
+	CQL string
+}
+
+type QueryResponse struct {
+	Id   storage.EntityID  `json:"id"`
+	Data []json.RawMessage `json:"data"`
 }
