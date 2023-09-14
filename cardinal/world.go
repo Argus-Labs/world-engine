@@ -152,3 +152,7 @@ func (w *World) RegisterReads(reads ...AnyReadType) error {
 func (w *World) CurrentTick() uint64 {
 	return w.impl.CurrentTick()
 }
+
+func (w *World) Tick(ctx context.Context) error {
+	return w.impl.Tick(ctx)
+}
