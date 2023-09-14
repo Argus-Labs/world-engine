@@ -145,6 +145,7 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 	w.registeredComponents = append(w.registeredComponents, SignerComp)
 	w.registeredComponents = append(w.registeredComponents, components...)
 
+	// Find all ids that are already set and put it into a map
 	usedIds := map[component.TypeID]bool{}
 	for _, c := range w.registeredComponents {
 		if c.IsIDSet() {
@@ -152,6 +153,7 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 		}
 	}
 
+	//set all ids on components with ids not set. Additionally do not use ids that have already been used.
 	i := 0
 	for _, c := range w.registeredComponents {
 
