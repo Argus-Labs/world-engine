@@ -25,6 +25,27 @@ type ModifyScoreTx struct {
 
 type EmptyTxResult struct{}
 
+func TestReadTypeNotStructs(t *testing.T) {
+
+	defer func() {
+		// test should trigger a panic. it is swallowed here.
+		panicValue := recover()
+		assert.Assert(t, panicValue != nil)
+
+		defer func() {
+			//defered function should not fail
+			panicValue := recover()
+			assert.Assert(t, panicValue == nil)
+		}()
+
+		ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score2")
+
+	}()
+
+	ecs.NewTransactionType[string, string]("modify_score1")
+
+}
+
 func TestCanQueueTransactions(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
