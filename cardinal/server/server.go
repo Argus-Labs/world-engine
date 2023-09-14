@@ -398,8 +398,8 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 				make([]json.RawMessage, 0),
 			}
 
-			//The way our framework is set up it's not designed to retrieve components dynamically at runtime.
-			//As a result we have to use reflection which is generally bad and expensive.
+			// The way our framework is set up it's not designed to retrieve components dynamically at runtime.
+			// As a result we have to use reflection which is generally bad and expensive.
 			for _, c := range components {
 				val := reflect.ValueOf(c)
 				method := val.MethodByName("Get")
