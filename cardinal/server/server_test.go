@@ -60,7 +60,7 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, swaggerFilePath 
 	if len(swaggerFilePath) == 0 {
 		txh, err = NewHandler(world, opts...)
 	} else {
-		txh, err = NewSwaggerHandler(world, swaggerFilePath, opts...)
+		txh, err = NewSwaggerHandler(world, opts...)
 	}
 	assert.NilError(t, err)
 
@@ -115,7 +115,7 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 		if !isTestingSwagger {
 			txh, err = NewHandler(world, DisableSignatureVerification())
 		} else if isTestingSwagger {
-			txh, err = NewSwaggerHandler(world, "./swagger.yml", DisableSignatureVerification())
+			txh, err = NewSwaggerHandler(world, DisableSignatureVerification())
 		} else {
 			t.Fail()
 		}

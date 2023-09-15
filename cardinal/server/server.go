@@ -1,6 +1,7 @@
 package server
 
 import (
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -59,7 +60,54 @@ const (
 )
 
 // NewSwaggerHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
-func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (*Handler, error) {
+func NewSwaggerHandler(w *ecs.World, opts ...Option) (*Handler, error) {
+	h, err := newSwaggerHandlerEmbed(w, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return h, nil
+}
+
+//go:embed swagger.yml
+var swaggerData []byte
+
+func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
+	th := &Handler{
+		w:   w,
+		mux: http.NewServeMux(),
+	}
+	for _, opt := range opts {
+		opt(th)
+	}
+	specDoc, err := loads.Analyzed(swaggerData, "")
+	if err != nil {
+		return nil, err
+	}
+	api := untyped.NewAPI(specDoc).WithoutJSONDefaults()
+	api.RegisterConsumer("application/json", runtime.JSONConsumer())
+	api.RegisterProducer("application/json", runtime.JSONProducer())
+	err = registerTxHandlerSwagger(w, api, th)
+	if err != nil {
+		return nil, err
+	}
+	err = registerReadHandlerSwagger(w, api, th)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := api.Validate(); err != nil {
+		return nil, err
+	}
+
+	app := middleware.NewContext(specDoc, api, nil)
+
+	th.mux.Handle("/", app.APIHandler(nil))
+	th.initialize()
+
+	return th, nil
+}
+
+func newSwaggerHandlerWithPath(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (*Handler, error) {
 
 	th := &Handler{
 		w:   w,
@@ -68,7 +116,6 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 	for _, opt := range opts {
 		opt(th)
 	}
-
 	specDoc, err := loads.Spec(pathToSwaggerSpec)
 	if err != nil {
 		return nil, err
