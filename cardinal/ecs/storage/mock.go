@@ -53,3 +53,13 @@ func (m *MockComponentType[T]) setDefaultVal(ptr unsafe.Pointer) {
 func (m *MockComponentType[T]) Name() string {
 	return fmt.Sprintf("%s[%s]", reflect.TypeOf(m).Name(), m.typ.Name())
 }
+
+var _ component.IComponentType = &MockComponentType[int]{}
+
+func (m *MockComponentType[T]) Decode(bytes []byte) (any, error) {
+	return Decode[T](bytes)
+}
+
+func (m *MockComponentType[T]) Encode(a any) ([]byte, error) {
+	return Encode(a)
+}

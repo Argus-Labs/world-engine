@@ -13,5 +13,8 @@ type (
 		New() ([]byte, error)
 		// Name returns the name of the component.
 		Name() string
+
+		Decode([]byte) (any, error)
+		Encode(any) ([]byte, error)
 	}
 )
