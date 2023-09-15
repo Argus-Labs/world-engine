@@ -326,6 +326,7 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 	queryEndpoints = append(queryEndpoints, "/query/http/endpoints")
 	queryEndpoints = append(queryEndpoints, "/query/persona/signer")
 	queryEndpoints = append(queryEndpoints, "/query/receipt/list")
+	queryEndpoints = append(queryEndpoints, "/query/game/cql")
 	return &EndpointsResult{
 		TxEndpoints:    txEndpoints,
 		QueryEndpoints: queryEndpoints,
