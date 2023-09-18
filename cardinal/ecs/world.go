@@ -30,6 +30,7 @@ type Namespace string
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
+	storeManager             *StoreManager
 	systems                  []System
 	systemLoggers            []*Logger
 	systemNames              []string
@@ -68,20 +69,16 @@ func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
+func (w *World) StoreManager() *StoreManager {
+	return w.storeManager
+}
+
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
 	err := w.store.EntityLocStore.SetLocation(id, location)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func (w *World) Component(componentType component.IComponentType, archID storage.ArchetypeID, componentIndex storage.ComponentIndex) ([]byte, error) {
-	return w.store.CompStore.Storage(componentType).Component(archID, componentIndex)
-}
-
-func (w *World) SetComponent(cType component.IComponentType, component []byte, archID storage.ArchetypeID, componentIndex storage.ComponentIndex) error {
-	return w.store.CompStore.Storage(cType).SetComponent(archID, componentIndex, component)
 }
 
 func (w *World) GetLayout(archID storage.ArchetypeID) []component.IComponentType {
@@ -216,6 +213,7 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	w := &World{
 		store:           s,
+		storeManager:    NewStoreManager(s),
 		namespace:       "world",
 		tick:            0,
 		systems:         make([]System, 0),
@@ -365,63 +363,6 @@ func (w *World) removeAtLocation(id storage.EntityID, loc storage.Location) erro
 	}
 	w.store.EntityMgr.Destroy(id)
 	return nil
-}
-
-func (w *World) TransferArchetype(from storage.ArchetypeID, to storage.ArchetypeID, idx storage.ComponentIndex) (storage.ComponentIndex, error) {
-	if from == to {
-		return idx, nil
-	}
-	fromArch := w.store.ArchAccessor.Archetype(from)
-	toArch := w.store.ArchAccessor.Archetype(to)
-
-	// move entity id
-	id := fromArch.SwapRemove(idx)
-	toArch.PushEntity(id)
-	err := w.store.EntityLocStore.Insert(id, to, storage.ComponentIndex(len(toArch.Entities())-1))
-	if err != nil {
-		return 0, err
-	}
-
-	if len(fromArch.Entities()) > int(idx) {
-		movedID := fromArch.Entities()[idx]
-		err := w.store.EntityLocStore.Insert(movedID, from, idx)
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	// creates component if not exists in new layout
-	fromLayout := fromArch.Layout()
-	toLayout := toArch.Layout()
-	for _, componentType := range toLayout.Components() {
-		if !fromLayout.HasComponent(componentType) {
-			store := w.store.CompStore.Storage(componentType)
-			if err := store.PushComponent(componentType, to); err != nil {
-				return 0, err
-			}
-		}
-	}
-
-	// move component
-	for _, componentType := range fromLayout.Components() {
-		store := w.store.CompStore.Storage(componentType)
-		if toLayout.HasComponent(componentType) {
-			if err := store.MoveComponent(from, idx, to); err != nil {
-				return 0, err
-			}
-		} else {
-			_, err := store.SwapRemove(from, idx)
-			if err != nil {
-				return 0, err
-			}
-		}
-	}
-	err = w.store.CompStore.Move(from, to)
-	if err != nil {
-		return 0, err
-	}
-
-	return storage.ComponentIndex(len(toArch.Entities()) - 1), nil
 }
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.

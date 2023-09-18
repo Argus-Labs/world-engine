@@ -54,15 +54,15 @@ func (c *ComponentType[T]) SetID(id component.TypeID) error {
 
 // Get returns component data from the entity.
 func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error) {
-	entity, err := w.Entity(id)
+	value, err := w.StoreManager().GetComponentForEntity(c, id)
 	if err != nil {
 		return comp, err
 	}
-	bz, err := entity.Component(w, c)
-	if err != nil {
-		return comp, err
+	comp, ok := value.(T)
+	if !ok {
+		return comp, fmt.Errorf("type assertion for component failed: %v to %v", value, c)
 	}
-	return storage.Decode[T](bz)
+	return comp, nil
 }
 
 // Update is a helper that combines a Get followed by a Set to modify a component's value. Pass in a function
@@ -78,15 +78,7 @@ func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(T) T) e
 
 // Set sets component data to the entity.
 func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error {
-	entity, err := w.Entity(id)
-	if err != nil {
-		return err
-	}
-	bz, err := storage.Encode(component)
-	if err != nil {
-		return err
-	}
-	err = w.SetComponent(c, bz, entity.Loc.ArchID, entity.Loc.CompIndex)
+	err := w.StoreManager().SetComponentForEntity(c, id, component)
 	if err != nil {
 		return err
 	}
@@ -120,20 +112,12 @@ func (c *ComponentType[T]) MustFirst(w *World) storage.EntityID {
 
 // RemoveFrom removes this component from the given entity.
 func (c *ComponentType[T]) RemoveFrom(w *World, id storage.EntityID) error {
-	e, err := w.Entity(id)
-	if err != nil {
-		return err
-	}
-	return e.RemoveComponent(w, c)
+	return w.StoreManager().RemoveComponentFromEntity(c, id)
 }
 
 // AddTo adds this component to the given entity.
 func (c *ComponentType[T]) AddTo(w *World, id storage.EntityID) error {
-	e, err := w.Entity(id)
-	if err != nil {
-		return err
-	}
-	return e.AddComponent(w, c)
+	return w.StoreManager().AddComponentToEntity(c, id)
 }
 
 // String returns the component type name.
@@ -163,6 +147,14 @@ func (c *ComponentType[T]) New() ([]byte, error) {
 		comp = c.defaultVal.(T)
 	}
 	return storage.Encode(comp)
+}
+
+func (c *ComponentType[T]) Encode(v any) ([]byte, error) {
+	return storage.Encode(v)
+}
+
+func (c *ComponentType[T]) Decode(bz []byte) (any, error) {
+	return storage.Decode[T](bz)
 }
 
 func (c *ComponentType[T]) setDefaultVal(ptr unsafe.Pointer) {
