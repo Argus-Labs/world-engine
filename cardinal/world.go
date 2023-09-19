@@ -104,7 +104,7 @@ func (w *World) StartGame() error {
 	if err := w.impl.LoadGameState(); err != nil {
 		return err
 	}
-	txh, err := server.NewSwaggerHandler(w.impl, w.serverOptions...)
+	txh, err := server.NewHandler(w.impl, w.serverOptions...)
 	if err != nil {
 		return err
 	}

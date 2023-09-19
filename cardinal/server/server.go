@@ -59,8 +59,8 @@ const (
 	getSignerForPersonaStatusAssigned  = "assigned"
 )
 
-// NewSwaggerHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
-func NewSwaggerHandler(w *ecs.World, opts ...Option) (*Handler, error) {
+// NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
+func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	h, err := newSwaggerHandlerEmbed(w, opts...)
 	if err != nil {
 		return nil, err
@@ -80,43 +80,6 @@ func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
 		opt(th)
 	}
 	specDoc, err := loads.Analyzed(swaggerData, "")
-	if err != nil {
-		return nil, err
-	}
-	api := untyped.NewAPI(specDoc).WithoutJSONDefaults()
-	api.RegisterConsumer("application/json", runtime.JSONConsumer())
-	api.RegisterProducer("application/json", runtime.JSONProducer())
-	err = registerTxHandlerSwagger(w, api, th)
-	if err != nil {
-		return nil, err
-	}
-	err = registerReadHandlerSwagger(w, api, th)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := api.Validate(); err != nil {
-		return nil, err
-	}
-
-	app := middleware.NewContext(specDoc, api, nil)
-
-	th.mux.Handle("/", app.APIHandler(nil))
-	th.initialize()
-
-	return th, nil
-}
-
-func newSwaggerHandlerWithPath(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (*Handler, error) {
-
-	th := &Handler{
-		w:   w,
-		mux: http.NewServeMux(),
-	}
-	for _, opt := range opts {
-		opt(th)
-	}
-	specDoc, err := loads.Spec(pathToSwaggerSpec)
 	if err != nil {
 		return nil, err
 	}
@@ -486,10 +449,10 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 	return nil
 }
 
-// NewHandler returns a new Handler that can handle HTTP requests. An HTTP endpoint for each
+// OldHandler returns a new Handler that can handle HTTP requests. An HTTP endpoint for each
 // transaction and read registered with the given world is automatically created. The server runs on a default port
 // of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
-func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
+func OldHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	th := &Handler{
 		w:   w,
 		mux: http.NewServeMux(),
