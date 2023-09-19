@@ -227,7 +227,9 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 
 		assert.NilError(t, w.Tick(context.Background()))
 		assert.Equal(t, 1, count)
-		txh.Close()
+		err = txh.Close()
+		assert.NilError(t, err)
+
 	}
 }
 
@@ -307,7 +309,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	//Test /query/http/endpoints
 	expectedEndpointResult := EndpointsResult{
 		TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/persona/authorize-persona-address", "/tx/game/send-energy"},
-		QueryEndpoints: []string{"/query/game/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/list"},
+		QueryEndpoints: []string{"/query/game/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/list", "/query/game/cql"},
 	}
 	resp1, err := http.Post(txh.makeURL("query/http/endpoints"), "application/json", nil)
 	assert.NilError(t, err)
