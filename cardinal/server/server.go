@@ -387,12 +387,10 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 		result := make([]cql.QueryResponse, 0)
 
 		ecs.NewQuery(resultFilter).Each(world, func(id storage.EntityID) bool {
-			var entity storage.Entity
-			entity, err = world.Entity(id)
+			components, err := world.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false
 			}
-			components := entity.GetComponents(world)
 			resultElement := cql.QueryResponse{
 				id,
 				make([]json.RawMessage, 0),

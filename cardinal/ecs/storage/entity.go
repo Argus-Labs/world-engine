@@ -3,17 +3,7 @@ package storage
 import (
 	"errors"
 	"math"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
-
-type WorldAccessor interface {
-	GetArchetypeForComponents([]component.IComponentType) ArchetypeID
-	Entity(id EntityID) (Entity, error)
-	Remove(id EntityID) error
-	Valid(id EntityID) (bool, error)
-	Archetype(ArchetypeID) ArchetypeStorage
-}
 
 var _ EntityManager = &entityMgrImpl{}
 
@@ -78,27 +68,6 @@ var (
 	ErrorComponentAlreadyOnEntity = errors.New("component already on entity")
 	ErrorComponentNotOnEntity     = errors.New("component not on entity")
 )
-
-// Remove removes the entity from the world.
-func (e Entity) Remove(w WorldAccessor) error {
-	return w.Remove(e.ID)
-}
-
-// Valid returns true if the entity is valid.
-func (e Entity) Valid(w WorldAccessor) (bool, error) {
-	ok, err := w.Valid(e.ID)
-	return ok, err
-}
-
-// Archetype returns the archetype.
-func (e Entity) Archetype(w WorldAccessor) ArchetypeStorage {
-	a := e.Loc.ArchID
-	return w.Archetype(a)
-}
-
-func (e Entity) GetComponents(w WorldAccessor) []component.IComponentType {
-	return e.Archetype(w).Layout().Components()
-}
 
 var _ StateStorage = &stateStorageImpl{}
 

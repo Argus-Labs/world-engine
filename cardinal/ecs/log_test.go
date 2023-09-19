@@ -103,12 +103,16 @@ func TestWorldLogger(t *testing.T) {
 				"archetype_id":0,
 				"message":"created"
 			}`, archetype_creations_json_string)
-	entityId, err := w.Create(w.Archetype(archetypeId).Layout().Components()...)
+	components := w.Archetype(archetypeId).Layout().Components()
+	entityId, err := w.Create(components...)
 	assert.NilError(t, err)
 	buf.Reset()
 
+	entity, err := w.StoreManager().GetEntity(entityId)
+	assert.NilError(t, err)
+
 	// test log entity
-	cardinalLogger.LogEntity(w, zerolog.DebugLevel, entityId)
+	cardinalLogger.LogEntity(zerolog.DebugLevel, entity, components)
 	jsonEntityInfoString := `
 		{
 			"level":"debug",

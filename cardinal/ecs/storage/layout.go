@@ -31,6 +31,8 @@ func (l *Layout) Components() []component.IComponentType {
 }
 
 // HasComponent returns true if the ArchLayout has the given component type.
+//
+// Deprecated: Use component.Contains instead
 func (l *Layout) HasComponent(componentType component.IComponentType) bool {
 	for _, ct := range l.ComponentTypes {
 		if ct == componentType {

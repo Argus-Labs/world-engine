@@ -211,17 +211,18 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 
 // NewWorld creates a new world.
 func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
+	logger := &Logger{
+		&log.Logger,
+	}
 	w := &World{
 		store:           s,
-		storeManager:    NewStoreManager(s),
+		storeManager:    NewStoreManager(s, logger),
 		namespace:       "world",
 		tick:            0,
 		systems:         make([]System, 0),
 		nameToComponent: make(map[string]IComponentType),
 		txQueue:         transaction.NewTxQueue(),
-		Logger: &Logger{
-			&log.Logger,
-		},
+		Logger:          logger,
 	}
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
 	for _, opt := range opts {
@@ -242,76 +243,11 @@ func (w *World) ReceiptHistorySize() uint64 {
 }
 
 func (w *World) CreateMany(num int, components ...component.IComponentType) ([]storage.EntityID, error) {
-	archetypeID := w.getArchetypeForComponents(components)
-	entities := make([]storage.EntityID, 0, num)
-	for i := 0; i < num; i++ {
-		e, err := w.createEntity(archetypeID)
-		if err != nil {
-			return nil, err
-		}
-
-		entities = append(entities, e)
-	}
-	return entities, nil
+	return w.StoreManager().CreateManyEntities(num, components...)
 }
 
 func (w *World) Create(components ...component.IComponentType) (storage.EntityID, error) {
-	entities, err := w.CreateMany(1, components...)
-	if err != nil {
-		return 0, err
-	}
-	return entities[0], nil
-}
-
-func (w *World) createEntity(archetypeID storage.ArchetypeID) (storage.EntityID, error) {
-	nextEntityID, err := w.nextEntity()
-	if err != nil {
-		return 0, err
-	}
-	archetype := w.store.ArchAccessor.Archetype(archetypeID)
-	componentIndex, err := w.store.CompStore.PushComponents(archetype.Layout().Components(), archetypeID)
-	if err != nil {
-		return 0, err
-	}
-	err = w.store.EntityLocStore.Insert(nextEntityID, archetypeID, componentIndex)
-	if err != nil {
-		return 0, err
-	}
-	archetype.PushEntity(nextEntityID)
-	w.Logger.LogEntity(w, zerolog.DebugLevel, nextEntityID)
-	return nextEntityID, err
-}
-
-func (w *World) Valid(id storage.EntityID) (bool, error) {
-	if id == storage.BadID {
-		return false, nil
-	}
-	ok, err := w.store.EntityLocStore.ContainsEntity(id)
-	if err != nil {
-		return false, err
-	}
-	if !ok {
-		return false, nil
-	}
-	loc, err := w.store.EntityLocStore.GetLocation(id)
-	if err != nil {
-		return false, err
-	}
-	a := loc.ArchID
-	c := loc.CompIndex
-	// If the version of the entity is not the same as the version of the archetype,
-	// the entity is invalid (it means the entity is already destroyed).
-	return id == w.store.ArchAccessor.Archetype(a).Entities()[c], nil
-}
-
-// Entity converts an EntityID to an Entity. An Entity has storage specific details
-// about where data for this entity is located
-func (w *World) Entity(id storage.EntityID) (storage.Entity, error) {
-	loc, err := w.store.EntityLocStore.GetLocation(id)
-	if err != nil {
-		return storage.BadEntity, err
-	}
-	return storage.NewEntity(id, loc), nil
+	return w.StoreManager().CreateEntity(components...)
 }
 
 // Len return the number of entities in this world
@@ -325,44 +261,7 @@ func (w *World) Len() (int, error) {
 
 // Remove removes the given Entity from the world
 func (w *World) Remove(id storage.EntityID) error {
-	ok, err := w.Valid(id)
-	if err != nil {
-		w.Logger.Debug().Int("entity_id", int(id)).Msg("failed to remove")
-		return err
-	}
-	if ok {
-		loc, err := w.store.EntityLocStore.GetLocation(id)
-		if err != nil {
-			return err
-		}
-		if err := w.store.EntityLocStore.Remove(id); err != nil {
-			return err
-		}
-		if err := w.removeAtLocation(id, loc); err != nil {
-			return err
-		}
-	}
-	w.Logger.Debug().Int("entity_id", int(id)).Msg("removed")
-	return nil
-}
-
-func (w *World) removeAtLocation(id storage.EntityID, loc storage.Location) error {
-	archID := loc.ArchID
-	componentIndex := loc.CompIndex
-	archetype := w.store.ArchAccessor.Archetype(archID)
-	archetype.SwapRemove(componentIndex)
-	err := w.store.CompStore.Remove(archID, archetype.Layout().Components(), componentIndex)
-	if err != nil {
-		return err
-	}
-	if int(componentIndex) < len(archetype.Entities()) {
-		swappedID := archetype.Entities()[componentIndex]
-		if err := w.store.EntityLocStore.SetLocation(swappedID, loc); err != nil {
-			return err
-		}
-	}
-	w.store.EntityMgr.Destroy(id)
-	return nil
+	return w.StoreManager().RemoveEntity(id)
 }
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
@@ -554,14 +453,6 @@ func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []I
 	return cm.UnmarshalWithComps(buf, comps)
 }
 
-func (w *World) GetComponentsOnEntity(id storage.EntityID) ([]IComponentType, error) {
-	ent, err := w.Entity(id)
-	if err != nil {
-		return nil, err
-	}
-	return w.GetLayout(ent.Loc.ArchID), nil
-}
-
 func (w *World) nextEntity() (storage.EntityID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
@@ -744,10 +635,11 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, e
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) GetComponents() *[]IComponentType {
-	return &w.registeredComponents
+func (w *World) GetComponents() []IComponentType {
+	return w.registeredComponents
 }
 
 func (w *World) InjectLogger(logger *Logger) {
 	w.Logger = logger
+	w.StoreManager().InjectLogger(logger)
 }

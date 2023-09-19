@@ -178,7 +178,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 1)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = world.Entity(entities[0])
+	_, err = world.StoreManager().GetEntity(entities[0])
 	assert.Check(t, err != nil)
 
 	// Remove the other entity
@@ -194,7 +194,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 0)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = world.Entity(entities[0])
+	_, err = world.StoreManager().GetEntity(entities[0])
 	assert.Check(t, err != nil)
 }
 
@@ -279,7 +279,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	entity, err := world.Create(a, b)
 	assert.NilError(t, err)
 
-	ent, err := world.Entity(entity)
+	ent, err := world.StoreManager().GetEntity(entity)
 	assert.NilError(t, err)
 
 	archIDBefore := ent.Loc.ArchID
@@ -287,7 +287,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	// The entity should now be in a different archetype
 	assert.NilError(t, a.RemoveFrom(world, entity))
 
-	ent, err = world.Entity(entity)
+	ent, err = world.StoreManager().GetEntity(entity)
 	assert.NilError(t, err)
 
 	archIDAfter := ent.Loc.ArchID

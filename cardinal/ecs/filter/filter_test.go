@@ -158,7 +158,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	_, err = world.CreateMany(20, alpha)
 	assert.NilError(t, err)
 	id := ids[0]
-	comps, err := world.GetComponentsOnEntity(id)
+	comps, err := world.StoreManager().GetComponentTypesForEntity(id)
 	assert.NilError(t, err)
 
 	count := 0
