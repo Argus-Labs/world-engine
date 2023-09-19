@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -147,11 +147,11 @@ func (t *TransactionType[In, Out]) In(tq *transaction.TxQueue) []TxData[In] {
 }
 
 func (t *TransactionType[In, Out]) Encode(a any) ([]byte, error) {
-	return storage.Encode(a)
+	return codec.Encode(a)
 }
 
 func (t *TransactionType[In, Out]) Decode(bytes []byte) (any, error) {
-	return storage.Decode[In](bytes)
+	return codec.Decode[In](bytes)
 }
 
 // ABIEncode encodes the input to the transactions matching evm type. If the input is not either of the transactions

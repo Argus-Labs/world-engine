@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -54,7 +55,7 @@ func TestList(t *testing.T) {
 	assert.NilError(t, err)
 
 	bz, _ := compStore.Component(1, 1)
-	foo, err := storage.Decode[SomeComp](bz)
+	foo, err := codec.Decode[SomeComp](bz)
 	assert.NilError(t, err)
 	assert.Equal(t, foo.Foo, 20)
 
@@ -165,7 +166,7 @@ func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
 			"gamma": 300,
 		},
 	}
-	buf, err := storage.Encode(wantData)
+	buf, err := codec.Encode(wantData)
 	assert.NilError(t, err)
 
 	const key = "foobar"
@@ -176,7 +177,7 @@ func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
 	assert.Equal(t, true, ok)
 	assert.NilError(t, err)
 
-	gotData, err := storage.Decode[*SomeData](gotBytes)
+	gotData, err := codec.Decode[*SomeData](gotBytes)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, gotData, wantData)
 }

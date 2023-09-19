@@ -9,6 +9,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
@@ -262,7 +263,7 @@ func (r *RedisStorage) Insert(id EntityID, archID ArchetypeID, componentIndex Co
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	loc := NewLocation(archID, componentIndex)
-	bz, err := Encode(loc)
+	bz, err := codec.Encode(loc)
 	if err != nil {
 		return err
 	}
@@ -281,7 +282,7 @@ func (r *RedisStorage) Insert(id EntityID, archID ArchetypeID, componentIndex Co
 func (r *RedisStorage) SetLocation(id EntityID, location Location) error {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
-	bz, err := Encode(location)
+	bz, err := codec.Encode(location)
 	if err != nil {
 		return err
 	}
@@ -303,7 +304,7 @@ func (r *RedisStorage) GetLocation(id EntityID) (loc Location, err error) {
 	if err != nil {
 		return loc, err
 	}
-	loc, err = Decode[Location](bz)
+	loc, err = codec.Decode[Location](bz)
 	if err != nil {
 		return loc, err
 	}
@@ -431,7 +432,7 @@ func (r *RedisStorage) getTickDetails(ctx context.Context) (tickDetails, error) 
 		return tickDetails{}, err
 	}
 
-	details, err := Decode[tickDetails](buf)
+	details, err := codec.Decode[tickDetails](buf)
 	if err != nil {
 		return tickDetails{}, err
 	}
@@ -439,7 +440,7 @@ func (r *RedisStorage) getTickDetails(ctx context.Context) (tickDetails, error) 
 }
 
 func (r *RedisStorage) setTickDetails(ctx context.Context, details tickDetails) error {
-	buf, err := Encode(details)
+	buf, err := codec.Encode(details)
 	if err != nil {
 		return err
 	}
@@ -485,7 +486,7 @@ func (r *RedisStorage) storeTransactions(ctx context.Context, txs []transaction.
 }
 
 func (r *RedisStorage) storePendingTransactionsInRedis(ctx context.Context, pending []pendingTransaction) error {
-	buf, err := Encode(pending)
+	buf, err := codec.Encode(pending)
 	if err != nil {
 		return err
 	}
@@ -499,7 +500,7 @@ func (r *RedisStorage) getPendingTransactionsFromRedis(ctx context.Context) ([]p
 	if err != nil {
 		return nil, err
 	}
-	return Decode[[]pendingTransaction](buf)
+	return codec.Decode[[]pendingTransaction](buf)
 }
 
 func (r *RedisStorage) StartNextTick(txs []transaction.ITransaction, queue *transaction.TxQueue) error {

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -57,11 +58,11 @@ func TestComponents(t *testing.T) {
 				t.Errorf("storage should contain the component at %d, %d", tt.archID, tt.compIdx)
 			}
 			bz, _ := st.Component(tt.archID, tt.compIdx)
-			dat, err := storage2.Decode[ComponentData](bz)
+			dat, err := codec.Decode[ComponentData](bz)
 			assert.NilError(t, err)
 			dat.ID = tt.ID
 
-			compBz, err := storage2.Encode(dat)
+			compBz, err := codec.Encode(dat)
 			assert.NilError(t, err)
 
 			err = st.SetComponent(tt.archID, tt.compIdx, compBz)
@@ -94,7 +95,7 @@ func TestComponents(t *testing.T) {
 	}
 
 	bz, _ := storage.Component(dstArchIdx, newCompIdx)
-	dat, err := storage2.Decode[ComponentData](bz)
+	dat, err := codec.Decode[ComponentData](bz)
 	assert.NilError(t, err)
 	if dat.ID != target.ID {
 		t.Errorf("component should have ID '%s', got ID '%s'", target.ID, dat.ID)
