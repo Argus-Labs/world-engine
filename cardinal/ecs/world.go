@@ -562,9 +562,15 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 		w.Logger.Warn().Msg("No systems registered.")
 	}
 	go func() {
-		for range time.Tick(loopInterval) {
+		for {
+			tickStart := time.Now()
 			if err := w.Tick(ctx); err != nil {
-				w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
+				w.Logger.Fatal().Err(err).Msg("error running tick in game loop")
+			}
+			tickEnd := time.Now()
+			result := tickEnd.Sub(tickStart)
+			if result < loopInterval {
+				time.Sleep(loopInterval - result)
 			}
 		}
 	}()
