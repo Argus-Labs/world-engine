@@ -18,3 +18,14 @@ type (
 		Encode(any) ([]byte, error)
 	}
 )
+
+// Contains returns true if the given slice of components contains the given cType. Components are the same if they
+// have the same ID.
+func Contains(components []IComponentType, cType IComponentType) bool {
+	for _, c := range components {
+		if cType.ID() == c.ID() {
+			return true
+		}
+	}
+	return false
+}

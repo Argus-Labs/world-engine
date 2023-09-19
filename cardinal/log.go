@@ -1,6 +1,8 @@
 package cardinal
 
 import (
+	"fmt"
+
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )
@@ -20,7 +22,18 @@ func (l *Logger) LogSystem(world *World, level zerolog.Level) {
 
 // LogEntity logs entity info given an entityID
 func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID EntityID) {
-	l.impl.LogEntity(world.impl, level, entityID)
+	entity, err := world.impl.StoreManager().GetEntity(entityID)
+	if err != nil {
+		l.impl.Warn().Err(fmt.Errorf("failed to get entity %d: %w", entityID, err))
+		return
+	}
+	components, err := world.impl.StoreManager().GetComponentTypesForEntity(entityID)
+	if err != nil {
+		l.impl.Warn().Err(fmt.Errorf("failed to get components for entity %d: %w", entityID, err))
+		return
+	}
+
+	l.impl.LogEntity(level, entity, components)
 }
 
 // LogWorld Logs everything about the world (components and Systems)
