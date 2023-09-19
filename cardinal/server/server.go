@@ -60,6 +60,8 @@ const (
 )
 
 // NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
+// transaction and read registered with the given world is automatically created. The server runs on a default port
+// of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
 func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	h, err := newSwaggerHandlerEmbed(w, opts...)
 	if err != nil {
@@ -450,8 +452,7 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 }
 
 // OldHandler returns a new Handler that can handle HTTP requests. An HTTP endpoint for each
-// transaction and read registered with the given world is automatically created. The server runs on a default port
-// of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
+// deprecated
 func OldHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	th := &Handler{
 		w:   w,
