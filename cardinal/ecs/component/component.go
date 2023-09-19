@@ -19,7 +19,7 @@ type (
 	}
 )
 
-// Contains returns true if the given slice of components contains the given cType. Components are the same if they
+// Contains returns true if the given slice of components contains the given component. Components are the same if they
 // have the same ID.
 func Contains(components []IComponentType, cType IComponentType) bool {
 	for _, c := range components {
