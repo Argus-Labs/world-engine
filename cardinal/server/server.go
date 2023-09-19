@@ -1,6 +1,7 @@
 package server
 
 import (
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -58,9 +59,21 @@ const (
 	getSignerForPersonaStatusAssigned  = "assigned"
 )
 
-// NewSwaggerHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
-func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (*Handler, error) {
+// NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
+// transaction and read registered with the given world is automatically created. The server runs on a default port
+// of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
+func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
+	h, err := newSwaggerHandlerEmbed(w, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return h, nil
+}
 
+//go:embed swagger.yml
+var swaggerData []byte
+
+func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
 	th := &Handler{
 		w:   w,
 		mux: http.NewServeMux(),
@@ -68,8 +81,7 @@ func NewSwaggerHandler(w *ecs.World, pathToSwaggerSpec string, opts ...Option) (
 	for _, opt := range opts {
 		opt(th)
 	}
-
-	specDoc, err := loads.Spec(pathToSwaggerSpec)
+	specDoc, err := loads.Analyzed(swaggerData, "")
 	if err != nil {
 		return nil, err
 	}
@@ -279,6 +291,7 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 	queryEndpoints = append(queryEndpoints, "/query/http/endpoints")
 	queryEndpoints = append(queryEndpoints, "/query/persona/signer")
 	queryEndpoints = append(queryEndpoints, "/query/receipt/list")
+	queryEndpoints = append(queryEndpoints, "/query/game/cql")
 	return &EndpointsResult{
 		TxEndpoints:    txEndpoints,
 		QueryEndpoints: queryEndpoints,
@@ -438,10 +451,9 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 	return nil
 }
 
-// NewHandler returns a new Handler that can handle HTTP requests. An HTTP endpoint for each
-// transaction and read registered with the given world is automatically created. The server runs on a default port
-// of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
-func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
+// OldHandler returns a new Handler that can handle HTTP requests. An HTTP endpoint for each
+// deprecated
+func OldHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	th := &Handler{
 		w:   w,
 		mux: http.NewServeMux(),
