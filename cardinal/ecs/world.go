@@ -25,6 +25,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/cardinal/shutdown"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -71,6 +72,8 @@ type World struct {
 	errs []error
 
 	Logger *Logger
+
+	shutdownManager *shutdown.ShutdownManager
 }
 
 var (
@@ -230,7 +233,7 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 }
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
+func NewWorld(s storage.WorldStorage, shutdownManager *shutdown.ShutdownManager, opts ...Option) (*World, error) {
 	w := &World{
 		store:           s,
 		namespace:       "world",
@@ -241,6 +244,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		Logger: &Logger{
 			&log.Logger,
 		},
+		shutdownManager: shutdownManager,
 	}
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
 	for _, opt := range opts {
@@ -562,9 +566,17 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 		w.Logger.Warn().Msg("No systems registered.")
 	}
 	go func() {
-		for range time.Tick(loopInterval) {
+		ticker := time.NewTicker(loopInterval)
+		for range ticker.C {
 			if err := w.Tick(ctx); err != nil {
 				w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
+			}
+			_, err := w.shutdownManager.HandleGameLoopShutdown(0, func() error {
+				ticker.Stop()
+				return nil
+			})
+			if err != nil {
+				w.Logger.Panic().Err(err).Msg("Error processing shutdown signal")
 			}
 		}
 	}()
