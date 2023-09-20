@@ -1,12 +1,14 @@
 package ecs
 
 import (
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type cache struct {
-	archetypes []storage.ArchetypeID
+	archetypes []archetype.ID
 	seen       int
 }
 
@@ -30,7 +32,7 @@ func NewQuery(filter filter.LayoutFilter) *Query {
 	}
 }
 
-type QueryCallBackFn func(storage.EntityID) bool
+type QueryCallBackFn func(entity.ID) bool
 
 // Each iterates over all entities that match the query.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
@@ -61,7 +63,7 @@ func (q *Query) Count(w *World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w *World) (id storage.EntityID, err error) {
+func (q *Query) First(w *World) (id entity.ID, err error) {
 	result := q.evaluateQuery(w)
 	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
 	if !iter.HasNext() {
@@ -76,11 +78,11 @@ func (q *Query) First(w *World) (id storage.EntityID, err error) {
 	return storage.BadID, err
 }
 
-func (q *Query) evaluateQuery(world *World) []storage.ArchetypeID {
+func (q *Query) evaluateQuery(world *World) []archetype.ID {
 	w := Namespace(world.Namespace())
 	if _, ok := q.layoutMatches[w]; !ok {
 		q.layoutMatches[w] = &cache{
-			archetypes: make([]storage.ArchetypeID, 0),
+			archetypes: make([]archetype.ID, 0),
 			seen:       0,
 		}
 	}

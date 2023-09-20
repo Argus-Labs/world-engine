@@ -3,8 +3,10 @@ package storage
 import (
 	"fmt"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
@@ -57,7 +59,7 @@ func NewSliceStorage() *ComponentSliceStorage {
 }
 
 // PushComponent stores the new data of the component in the archetype.
-func (cs *ComponentSliceStorage) PushComponent(component component.IComponentType, archetypeID ArchetypeID) error {
+func (cs *ComponentSliceStorage) PushComponent(component component.IComponentType, archetypeID archetype.ID) error {
 	// TODO: optimize to avoid allocation
 	compBz, err := component.New()
 	if err != nil {
@@ -68,18 +70,18 @@ func (cs *ComponentSliceStorage) PushComponent(component component.IComponentTyp
 }
 
 // Component returns the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) Component(archetypeID ArchetypeID, componentIndex ComponentIndex) ([]byte, error) {
+func (cs *ComponentSliceStorage) Component(archetypeID archetype.ID, componentIndex component.Index) ([]byte, error) {
 	return cs.storages[archetypeID][componentIndex], nil
 }
 
 // SetComponent sets the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) SetComponent(archetypeID ArchetypeID, componentIndex ComponentIndex, compBz []byte) error {
+func (cs *ComponentSliceStorage) SetComponent(archetypeID archetype.ID, componentIndex component.Index, compBz []byte) error {
 	cs.storages[archetypeID][componentIndex] = compBz
 	return nil
 }
 
 // MoveComponent moves the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) MoveComponent(source ArchetypeID, index ComponentIndex, dst ArchetypeID) error {
+func (cs *ComponentSliceStorage) MoveComponent(source archetype.ID, index component.Index, dst archetype.ID) error {
 	srcSlice := cs.storages[source]
 	dstSlice := cs.storages[dst]
 
@@ -94,7 +96,7 @@ func (cs *ComponentSliceStorage) MoveComponent(source ArchetypeID, index Compone
 }
 
 // SwapRemove removes the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) SwapRemove(archetypeID ArchetypeID, componentIndex ComponentIndex) ([]byte, error) {
+func (cs *ComponentSliceStorage) SwapRemove(archetypeID archetype.ID, componentIndex component.Index) ([]byte, error) {
 	componentValue := cs.storages[archetypeID][componentIndex]
 	cs.storages[archetypeID][componentIndex] = cs.storages[archetypeID][len(cs.storages[archetypeID])-1]
 	cs.storages[archetypeID] = cs.storages[archetypeID][:len(cs.storages[archetypeID])-1]
@@ -102,7 +104,7 @@ func (cs *ComponentSliceStorage) SwapRemove(archetypeID ArchetypeID, componentIn
 }
 
 // Contains returns true if the storage contains the component.
-func (cs *ComponentSliceStorage) Contains(archetypeID ArchetypeID, componentIndex ComponentIndex) (bool, error) {
+func (cs *ComponentSliceStorage) Contains(archetypeID archetype.ID, componentIndex component.Index) (bool, error) {
 	if cs.storages[archetypeID] == nil {
 		return false, nil
 	}
@@ -115,26 +117,26 @@ func (cs *ComponentSliceStorage) Contains(archetypeID ArchetypeID, componentInde
 var _ ComponentIndexStorage = &ComponentIndexMap{}
 
 type ComponentIndexMap struct {
-	idxs map[ArchetypeID]ComponentIndex
+	idxs map[archetype.ID]component.Index
 }
 
 func NewComponentIndexMap() ComponentIndexStorage {
-	return &ComponentIndexMap{idxs: make(map[ArchetypeID]ComponentIndex)}
+	return &ComponentIndexMap{idxs: make(map[archetype.ID]component.Index)}
 }
 
-func (c ComponentIndexMap) ComponentIndex(ai ArchetypeID) (ComponentIndex, bool, error) {
+func (c ComponentIndexMap) ComponentIndex(ai archetype.ID) (component.Index, bool, error) {
 	idx, ok := c.idxs[ai]
 	return idx, ok, nil
 }
 
-func (c *ComponentIndexMap) SetIndex(archID ArchetypeID, compIndex ComponentIndex) error {
+func (c *ComponentIndexMap) SetIndex(archID archetype.ID, compIndex component.Index) error {
 	c.idxs[archID] = compIndex
 	return nil
 }
 
 // IncrementIndex increments the index for this archetype by 1. If the index doesn't
 // currently exist, it is initialized to 0 and 0 is returned.
-func (c *ComponentIndexMap) IncrementIndex(archID ArchetypeID) (ComponentIndex, error) {
+func (c *ComponentIndexMap) IncrementIndex(archID archetype.ID) (component.Index, error) {
 	if _, ok := c.idxs[archID]; !ok {
 		c.idxs[archID] = 0
 	} else {
@@ -143,13 +145,13 @@ func (c *ComponentIndexMap) IncrementIndex(archID ArchetypeID) (ComponentIndex, 
 	return c.idxs[archID], nil
 }
 
-func (c *ComponentIndexMap) DecrementIndex(archID ArchetypeID) error {
+func (c *ComponentIndexMap) DecrementIndex(archID archetype.ID) error {
 	c.idxs[archID]--
 	return nil
 }
 
 type locationValid struct {
-	loc   Location
+	loc   entity.Location
 	valid bool
 }
 
@@ -172,22 +174,22 @@ func NewLocationMap() EntityLocationStorage {
 }
 
 // ContainsEntity returns true if the storage contains the given entity ID.
-func (lm *LocationMap) ContainsEntity(id EntityID) (bool, error) {
+func (lm *LocationMap) ContainsEntity(id entity.ID) (bool, error) {
 	val := lm.locations[id]
 	return val != nil && val.valid, nil
 }
 
 // Remove removes the given entity ID from the storage.
-func (lm *LocationMap) Remove(id EntityID) error {
+func (lm *LocationMap) Remove(id entity.ID) error {
 	lm.locations[id].valid = false
 	lm.len--
 	return nil
 }
 
 // Insert inserts the given entity ID and archetype Index to the storage.
-func (lm *LocationMap) Insert(id EntityID, archetype ArchetypeID, component ComponentIndex) error {
+func (lm *LocationMap) Insert(id entity.ID, archetype archetype.ID, component component.Index) error {
 	if int(id) == len(lm.locations) {
-		loc := NewLocation(archetype, component)
+		loc := entity.NewLocation(archetype, component)
 		lm.locations = append(lm.locations, &locationValid{loc, true})
 		lm.len++
 	} else {
@@ -203,23 +205,23 @@ func (lm *LocationMap) Insert(id EntityID, archetype ArchetypeID, component Comp
 }
 
 // SetLocation sets the given entity ID and archetype Index to the storage.
-func (lm *LocationMap) SetLocation(id EntityID, loc Location) error {
+func (lm *LocationMap) SetLocation(id entity.ID, loc entity.Location) error {
 	lm.Insert(id, loc.ArchID, loc.CompIndex)
 	return nil
 }
 
 // GetLocation returns the location of the given entity ID.
-func (lm *LocationMap) GetLocation(id EntityID) (Location, error) {
+func (lm *LocationMap) GetLocation(id entity.ID) (entity.Location, error) {
 	return lm.locations[id].loc, nil
 }
 
 // ArchetypeID returns the archetype of the given entity ID.
-func (lm *LocationMap) ArchetypeID(id EntityID) (ArchetypeID, error) {
+func (lm *LocationMap) ArchetypeID(id entity.ID) (archetype.ID, error) {
 	return lm.locations[id].loc.ArchID, nil
 }
 
 // ComponentIndexForEntity returns the component of the given entity ID.
-func (lm *LocationMap) ComponentIndexForEntity(id EntityID) (ComponentIndex, error) {
+func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) (component.Index, error) {
 	return lm.locations[id].loc.CompIndex, nil
 }
 
@@ -247,10 +249,10 @@ func (idx *Index) Push(layout *Layout) {
 // SearchFrom searches for archetypes that match the given filter from the given Index.
 func (idx *Index) SearchFrom(f filter.LayoutFilter, start int) *ArchetypeIterator {
 	idx.iterator.Current = 0
-	idx.iterator.Values = []ArchetypeID{}
+	idx.iterator.Values = []archetype.ID{}
 	for i := start; i < len(idx.layouts); i++ {
 		if f.MatchesLayout(idx.layouts[i]) {
-			idx.iterator.Values = append(idx.iterator.Values, ArchetypeID(i))
+			idx.iterator.Values = append(idx.iterator.Values, archetype.ID(i))
 		}
 	}
 	return idx.iterator

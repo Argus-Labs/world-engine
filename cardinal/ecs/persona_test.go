@@ -3,14 +3,15 @@ package ecs_test
 import (
 	"context"
 	"fmt"
-	"pkg.world.dev/world-engine/sign"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/sign"
 
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
@@ -35,7 +36,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	count := 0
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id entity.ID) bool {
 		count++
 		sc, err := ecs.SignerComp.Get(world, id)
 		assert.NilError(t, err)
@@ -137,7 +138,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	count := 0
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id entity.ID) bool {
 		count++
 		sc, err := ecs.SignerComp.Get(world, id)
 		assert.NilError(t, err)

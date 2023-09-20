@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -25,8 +26,8 @@ func TestComponents(t *testing.T) {
 
 	tests := []*struct {
 		layout  *storage2.Layout
-		archID  storage2.ArchetypeID
-		compIdx storage2.ComponentIndex
+		archID  archetype.ID
+		compIdx component.Index
 		ID      string
 	}{
 		{
@@ -74,7 +75,7 @@ func TestComponents(t *testing.T) {
 	storage := components.Storage(ca)
 
 	srcArchIdx := target.archID
-	var dstArchIdx storage2.ArchetypeID = 1
+	var dstArchIdx archetype.ID = 1
 
 	assert.NilError(t, storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx))
 	assert.NilError(t, components.Move(srcArchIdx, dstArchIdx))

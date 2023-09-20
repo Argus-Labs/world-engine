@@ -5,7 +5,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
 type Logger struct {
@@ -41,7 +41,7 @@ func (l *Logger) loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, world *Worl
 	return zeroLoggerEvent.Array("systems", arrayLogger)
 }
 
-func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, entity storage.Entity, components []IComponentType) (*zerolog.Event, error) {
+func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, entity entity.Entity, components []IComponentType) (*zerolog.Event, error) {
 	arrayLogger := zerolog.Arr()
 	for _, _component := range components {
 		arrayLogger = l.loadComponentIntoArrayLogger(_component, arrayLogger)
@@ -66,7 +66,7 @@ func (l *Logger) LogSystem(world *World, level zerolog.Level) {
 }
 
 // LogEntity logs entity info given an entityID
-func (l *Logger) LogEntity(level zerolog.Level, entity storage.Entity, components []IComponentType) {
+func (l *Logger) LogEntity(level zerolog.Level, entity entity.Entity, components []IComponentType) {
 	zeroLoggerEvent := l.WithLevel(level)
 	var err error = nil
 	zeroLoggerEvent, err = l.loadEntityIntoEvent(zeroLoggerEvent, entity, components)

@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type ScoreComponent struct {
@@ -20,7 +20,7 @@ type ScoreComponent struct {
 }
 
 type ModifyScoreTx struct {
-	PlayerID storage.EntityID
+	PlayerID entity.ID
 	Amount   int
 }
 

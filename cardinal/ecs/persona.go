@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
@@ -95,13 +95,13 @@ var SignerComp = NewComponentType[SignerComponent]("SignerComponent")
 
 type personaTagComponentData struct {
 	SignerAddress string
-	EntityID      storage.EntityID
+	EntityID      entity.ID
 }
 
 func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, error) {
 	personaTagToAddress := map[string]personaTagComponentData{}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(world, func(id storage.EntityID) bool {
+	NewQuery(filter.Exact(SignerComp)).Each(world, func(id entity.ID) bool {
 		sc, err := SignerComp.Get(world, id)
 		if err != nil {
 			errs = append(errs, err)
@@ -173,7 +173,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 		return "", ErrorCreatePersonaTxsNotProcessed
 	}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(w, func(id storage.EntityID) bool {
+	NewQuery(filter.Exact(SignerComp)).Each(w, func(id entity.ID) bool {
 		sc, err := SignerComp.Get(w, id)
 		if err != nil {
 			errs = append(errs, err)
