@@ -103,7 +103,7 @@ func TestWorldLogger(t *testing.T) {
 				"archetype_id":0,
 				"message":"created"
 			}`, archetype_creations_json_string)
-	components := w.Archetype(archetypeId).Layout().Components()
+	components := w.Archetype(archetypeId).Components()
 	entityId, err := w.Create(components...)
 	assert.NilError(t, err)
 	buf.Reset()

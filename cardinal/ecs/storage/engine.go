@@ -58,23 +58,23 @@ type ComponentMarshaler interface {
 
 type ArchetypeComponentIndex interface {
 	ComponentMarshaler
-	Push(layout *Layout)
-	SearchFrom(filter filter.LayoutFilter, start int) *ArchetypeIterator
-	Search(layoutFilter filter.LayoutFilter) *ArchetypeIterator
+	Push(comps []component.IComponentType)
+	SearchFrom(filter filter.ComponentFilter, start int) *ArchetypeIterator
+	Search(compfilter filter.ComponentFilter) *ArchetypeIterator
 }
 
 type ArchetypeAccessor interface {
 	ComponentMarshaler
-	PushArchetype(archID archetype.ID, layout *Layout)
+	PushArchetype(archID archetype.ID, comps []component.IComponentType)
 	Archetype(archID archetype.ID) ArchetypeStorage
 	Count() int
 }
 
 type ArchetypeStorage interface {
-	Layout() *Layout
+	Components() []component.IComponentType
 	Entities() []entity.ID
 	SwapRemove(entityIndex component.Index) entity.ID
-	LayoutMatches(components []component.IComponentType) bool
+	ComponentsMatch(components []component.IComponentType) bool
 	PushEntity(entity entity.ID)
 	Count() int
 }

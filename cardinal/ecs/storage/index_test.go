@@ -1,8 +1,9 @@
 package storage_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -17,14 +18,14 @@ func TestIndex(t *testing.T) {
 
 	index := storage.NewArchetypeComponentIndex()
 
-	layoutA := storage.NewLayout([]component.IComponentType{ca})
-	layoutB := storage.NewLayout([]component.IComponentType{ca, cb})
+	compsA := []component.IComponentType{ca}
+	compsB := []component.IComponentType{ca, cb}
 
-	index.Push(layoutA)
-	index.Push(layoutB)
+	index.Push(compsA)
+	index.Push(compsB)
 
 	tests := []struct {
-		filter   filter.LayoutFilter
+		filter   filter.ComponentFilter
 		expected int
 	}{
 		{

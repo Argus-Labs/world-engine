@@ -20,11 +20,11 @@ type archetypeStorageImpl struct {
 	archs []*Archetype
 }
 
-func (a *archetypeStorageImpl) PushArchetype(archID archetype.ID, layout *Layout) {
+func (a *archetypeStorageImpl) PushArchetype(archID archetype.ID, comps []component.IComponentType) {
 	a.archs = append(a.archs, &Archetype{
-		ID:         archID,
-		Entitys:    make([]entity.ID, 0, 256),
-		ArchLayout: layout,
+		ID:      archID,
+		Entitys: make([]entity.ID, 0, 256),
+		Comps:   comps,
 	})
 }
 
@@ -54,7 +54,7 @@ func (a *archetypeStorageImpl) Marshal() ([]byte, error) {
 	for i := range archs {
 		archs[i].ID = a.archs[i].ID
 		archs[i].Entities = a.archs[i].Entitys
-		for _, c := range a.archs[i].Layout().Components() {
+		for _, c := range a.archs[i].Components() {
 			archs[i].ComponentIDs = append(archs[i].ComponentIDs, c.ID())
 		}
 	}
@@ -107,7 +107,7 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []com
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrorComponentMismatchWithSavedState, err)
 		}
-		a.PushArchetype(arch.ID, NewLayout(currComps))
+		a.PushArchetype(arch.ID, currComps)
 		a.archs[len(a.archs)-1].Entitys = arch.Entities
 	}
 	return nil
@@ -116,25 +116,25 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []com
 // Archetype is a collection of Entities for a specific archetype of components.
 // This structure allows to quickly find Entities based on their components.
 type Archetype struct {
-	ID         archetype.ID
-	Entitys    []entity.ID
-	ArchLayout *Layout
+	ID      archetype.ID
+	Entitys []entity.ID
+	Comps   []component.IComponentType
 }
 
 var _ ArchetypeStorage = &Archetype{}
 
 // NewArchetype creates a new archetype.
-func NewArchetype(archID archetype.ID, layout *Layout) *Archetype {
+func NewArchetype(archID archetype.ID, components []component.IComponentType) *Archetype {
 	return &Archetype{
-		ID:         archID,
-		Entitys:    make([]entity.ID, 0, 256),
-		ArchLayout: layout,
+		ID:      archID,
+		Entitys: make([]entity.ID, 0, 256),
+		Comps:   components,
 	}
 }
 
-// Layout is a collection of archetypes for a specific ArchLayout of components.
-func (archetype *Archetype) Layout() *Layout {
-	return archetype.ArchLayout
+// Components returns the slice of components associated with this archetype.
+func (archetype *Archetype) Components() []component.IComponentType {
+	return archetype.Comps
 }
 
 // Entities returns all Entities in this archetype.
@@ -150,13 +150,13 @@ func (archetype *Archetype) SwapRemove(entityIndex component.Index) entity.ID {
 	return removed
 }
 
-// LayoutMatches returns true if the given ArchLayout matches this archetype.
-func (archetype *Archetype) LayoutMatches(components []component.IComponentType) bool {
-	if len(archetype.ArchLayout.Components()) != len(components) {
+// ComponentsMatch returns true if the given components matches this archetype.
+func (archetype *Archetype) ComponentsMatch(components []component.IComponentType) bool {
+	if len(archetype.Components()) != len(components) {
 		return false
 	}
 	for _, componentType := range components {
-		if !archetype.ArchLayout.HasComponent(componentType) {
+		if !component.Contains(archetype.Comps, componentType) {
 			return false
 		}
 	}

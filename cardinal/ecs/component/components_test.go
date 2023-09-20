@@ -25,19 +25,19 @@ func TestComponents(t *testing.T) {
 	components := storage2.NewComponents(storage2.NewComponentsSliceStorage(), storage2.NewComponentIndexMap())
 
 	tests := []*struct {
-		layout  *storage2.Layout
+		comps   []component.IComponentType
 		archID  archetype.ID
 		compIdx component.Index
 		ID      string
 	}{
 		{
-			storage2.NewLayout([]component.IComponentType{ca}),
+			[]component.IComponentType{ca},
 			0,
 			0,
 			"a",
 		},
 		{
-			storage2.NewLayout([]component.IComponentType{ca, cb}),
+			[]component.IComponentType{ca, cb},
 			1,
 			1,
 			"b",
@@ -46,12 +46,12 @@ func TestComponents(t *testing.T) {
 
 	for _, tt := range tests {
 		var err error
-		tt.compIdx, err = components.PushComponents(tt.layout.Components(), tt.archID)
+		tt.compIdx, err = components.PushComponents(tt.comps, tt.archID)
 		assert.NilError(t, err)
 	}
 
 	for _, tt := range tests {
-		for _, comp := range tt.layout.Components() {
+		for _, comp := range tt.comps {
 			st := components.Storage(comp)
 			ok, err := st.Contains(tt.archID, tt.compIdx)
 			assert.NilError(t, err)

@@ -142,7 +142,7 @@ var internalCQLParser = participle.MustBuild[cqlTerm]()
 // TODO: Value is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
 // be checked.
-func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
+func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) (component.IComponentType, bool)) (filter.ComponentFilter, error) {
 	if value.Not != nil {
 		resultFilter, err := valueToLayoutFilter(value.Not.SubExpression, stringToComponent)
 		if err != nil {
@@ -182,11 +182,11 @@ func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) (compon
 	}
 }
 
-func factorToLayoutFilter(factor *cqlFactor, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
+func factorToLayoutFilter(factor *cqlFactor, stringToComponent func(string) (component.IComponentType, bool)) (filter.ComponentFilter, error) {
 	return valueToLayoutFilter(factor.Base, stringToComponent)
 }
 
-func opFactorToLayoutFilter(opFactor *cqlOpFactor, stringToComponent func(string) (component.IComponentType, bool)) (*cqlOperator, filter.LayoutFilter, error) {
+func opFactorToLayoutFilter(opFactor *cqlOpFactor, stringToComponent func(string) (component.IComponentType, bool)) (*cqlOperator, filter.ComponentFilter, error) {
 	resultFilter, err := factorToLayoutFilter(opFactor.Factor, stringToComponent)
 	if err != nil {
 		return nil, nil, err
@@ -194,7 +194,7 @@ func opFactorToLayoutFilter(opFactor *cqlOpFactor, stringToComponent func(string
 	return &opFactor.Operator, resultFilter, nil
 }
 
-func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
+func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) (component.IComponentType, bool)) (filter.ComponentFilter, error) {
 	if term.Left == nil {
 		return nil, errors.New("Not enough values in expression")
 	}
@@ -219,7 +219,7 @@ func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) (component
 	return acc, nil
 }
 
-func CQLParse(cqlText string, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
+func CQLParse(cqlText string, stringToComponent func(string) (component.IComponentType, bool)) (filter.ComponentFilter, error) {
 	term, err := internalCQLParser.ParseString("", cqlText)
 	if err != nil {
 		return nil, err

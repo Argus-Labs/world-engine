@@ -1,8 +1,9 @@
 package storage_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
@@ -19,8 +20,8 @@ func TestMatchesLayout(t *testing.T) {
 	)
 
 	components := []component.IComponentType{ca, cb}
-	archetype := storage.NewArchetype(0, storage.NewLayout(components))
-	if !archetype.LayoutMatches(components) {
+	archetype := storage.NewArchetype(0, components)
+	if !archetype.ComponentsMatch(components) {
 		t.Errorf("archetype should match the ArchLayout")
 	}
 }
@@ -32,7 +33,7 @@ func TestPushEntity(t *testing.T) {
 	)
 
 	components := []component.IComponentType{ca, cb}
-	archetype := storage.NewArchetype(0, storage.NewLayout(components))
+	archetype := storage.NewArchetype(0, components)
 
 	archetype.PushEntity(0)
 	archetype.PushEntity(1)

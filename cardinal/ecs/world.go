@@ -83,8 +83,8 @@ func (w *World) SetEntityLocation(id entity.ID, location entity.Location) error 
 	return nil
 }
 
-func (w *World) GetLayout(archID archetype.ID) []component.IComponentType {
-	return w.store.ArchAccessor.Archetype(archID).Layout().Components()
+func (w *World) GetComponentsForArchetypeID(archID archetype.ID) []component.IComponentType {
+	return w.store.ArchAccessor.Archetype(archID).Components()
 }
 
 func (w *World) GetArchetypeForComponents(componentTypes []component.IComponentType) archetype.ID {
@@ -459,11 +459,11 @@ func (w *World) nextEntity() (entity.ID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 
-func (w *World) insertArchetype(layout *storage.Layout) archetype.ID {
-	w.store.ArchCompIdxStore.Push(layout)
+func (w *World) insertArchetype(comps []IComponentType) archetype.ID {
+	w.store.ArchCompIdxStore.Push(comps)
 	archID := archetype.ID(w.store.ArchAccessor.Count())
 
-	w.store.ArchAccessor.PushArchetype(archID, layout)
+	w.store.ArchAccessor.PushArchetype(archID, comps)
 	w.Logger.Debug().Int("archetype_id", int(archID)).Msg("created")
 	return archID
 }
@@ -478,7 +478,7 @@ func (w *World) getArchetypeForComponents(components []component.IComponentType)
 	if !w.noDuplicates(components) {
 		panic(fmt.Sprintf("duplicate component types: %v", components))
 	}
-	return w.insertArchetype(storage.NewLayout(components))
+	return w.insertArchetype(components)
 }
 
 func (w *World) noDuplicates(components []component.IComponentType) bool {

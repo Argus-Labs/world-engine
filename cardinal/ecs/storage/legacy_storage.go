@@ -227,14 +227,14 @@ func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) (component.Index, e
 
 // Index is a structure that indexes archetypes by their component types.
 type Index struct {
-	layouts  [][]component.IComponentType
-	iterator *ArchetypeIterator
+	compGroups [][]component.IComponentType
+	iterator   *ArchetypeIterator
 }
 
 // NewArchetypeComponentIndex creates a new search Index.
 func NewArchetypeComponentIndex() ArchetypeComponentIndex {
 	return &Index{
-		layouts: [][]component.IComponentType{},
+		compGroups: [][]component.IComponentType{},
 		iterator: &ArchetypeIterator{
 			Current: 0,
 		},
@@ -242,16 +242,16 @@ func NewArchetypeComponentIndex() ArchetypeComponentIndex {
 }
 
 // Push adds an archetype to the search Index.
-func (idx *Index) Push(layout *Layout) {
-	idx.layouts = append(idx.layouts, layout.Components())
+func (idx *Index) Push(comps []component.IComponentType) {
+	idx.compGroups = append(idx.compGroups, comps)
 }
 
 // SearchFrom searches for archetypes that match the given filter from the given Index.
-func (idx *Index) SearchFrom(f filter.LayoutFilter, start int) *ArchetypeIterator {
+func (idx *Index) SearchFrom(f filter.ComponentFilter, start int) *ArchetypeIterator {
 	idx.iterator.Current = 0
 	idx.iterator.Values = []archetype.ID{}
-	for i := start; i < len(idx.layouts); i++ {
-		if f.MatchesLayout(idx.layouts[i]) {
+	for i := start; i < len(idx.compGroups); i++ {
+		if f.MatchesComponents(idx.compGroups[i]) {
 			idx.iterator.Values = append(idx.iterator.Values, archetype.ID(i))
 		}
 	}
@@ -259,35 +259,35 @@ func (idx *Index) SearchFrom(f filter.LayoutFilter, start int) *ArchetypeIterato
 }
 
 // Search searches for archetypes that match the given filter.
-func (idx *Index) Search(filter filter.LayoutFilter) *ArchetypeIterator {
+func (idx *Index) Search(filter filter.ComponentFilter) *ArchetypeIterator {
 	return idx.SearchFrom(filter, 0)
 }
 
 func (idx *Index) Marshal() ([]byte, error) {
-	layouts := [][]component.TypeID{}
-	for _, layout := range idx.layouts {
+	compGroups := [][]component.TypeID{}
+	for _, comps := range idx.compGroups {
 		currIDs := []component.TypeID{}
-		for _, component := range layout {
+		for _, component := range comps {
 			currIDs = append(currIDs, component.ID())
 		}
-		layouts = append(layouts, currIDs)
+		compGroups = append(compGroups, currIDs)
 	}
-	return codec.Encode(layouts)
+	return codec.Encode(compGroups)
 }
 
 func (idx *Index) UnmarshalWithComps(bytes []byte, comps []component.IComponentType) error {
-	layouts, err := codec.Decode[[][]component.TypeID](bytes)
+	compGroups, err := codec.Decode[[][]component.TypeID](bytes)
 	if err != nil {
 		return err
 	}
 	idsToComps := newIDsToComponents(comps)
 
-	for _, layout := range layouts {
-		currComps, err := idsToComps.convert(layout)
+	for _, compGroup := range compGroups {
+		currComps, err := idsToComps.convert(compGroup)
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrorComponentMismatchWithSavedState, err)
 		}
-		idx.layouts = append(idx.layouts, currComps)
+		idx.compGroups = append(idx.compGroups, currComps)
 	}
 	return nil
 }

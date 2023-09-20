@@ -8,12 +8,12 @@ type contains struct {
 	components []component.IComponentType
 }
 
-// Contains matches layouts that contain all the components specified.
-func Contains(components ...component.IComponentType) LayoutFilter {
+// Contains matches archetypes that contain all the components specified.
+func Contains(components ...component.IComponentType) ComponentFilter {
 	return &contains{components: components}
 }
 
-func (f *contains) MatchesLayout(components []component.IComponentType) bool {
+func (f *contains) MatchesComponents(components []component.IComponentType) bool {
 	for _, componentType := range f.components {
 		if !containsComponent(components, componentType) {
 			return false
