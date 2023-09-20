@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -30,7 +31,7 @@ func TestStorage_Bytes(t *testing.T) {
 	for _, test := range tests {
 		err := store.PushComponent(componentType, archIdx)
 		assert.NilError(t, err)
-		bz, err := storage.Encode(Component{ID: test.ID})
+		bz, err := codec.Encode(Component{ID: test.ID})
 		assert.NilError(t, err)
 		fmt.Println(string(bz))
 		store.SetComponent(archIdx, compIdx, bz)
@@ -40,7 +41,7 @@ func TestStorage_Bytes(t *testing.T) {
 	compIdx = 0
 	for _, test := range tests {
 		bz, _ := store.Component(archIdx, compIdx)
-		c, err := storage.Decode[*Component](bz)
+		c, err := codec.Decode[*Component](bz)
 		assert.NilError(t, err)
 		assert.Equal(t, c.ID, test.expected)
 		compIdx++
@@ -48,7 +49,7 @@ func TestStorage_Bytes(t *testing.T) {
 
 	removed, _ := store.SwapRemove(archIdx, 1)
 	assert.Assert(t, removed != nil, "removed component should not be nil")
-	comp, err := storage.Decode[Component](removed)
+	comp, err := codec.Decode[Component](removed)
 	assert.NilError(t, err)
 	assert.Equal(t, comp.ID, "b", "removed component should have ID 'b'")
 
@@ -63,7 +64,7 @@ func TestStorage_Bytes(t *testing.T) {
 
 	for _, test := range tests2 {
 		compBz, _ := store.Component(test.archIdx, test.cmpIdx)
-		comp, err := storage.Decode[Component](compBz)
+		comp, err := codec.Decode[Component](compBz)
 		assert.NilError(t, err)
 		assert.Equal(t, comp.ID, test.expectedID)
 		compIdx++

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"unsafe"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -146,15 +147,15 @@ func (c *ComponentType[T]) New() ([]byte, error) {
 	if c.defaultVal != nil {
 		comp = c.defaultVal.(T)
 	}
-	return storage.Encode(comp)
+	return codec.Encode(comp)
 }
 
 func (c *ComponentType[T]) Encode(v any) ([]byte, error) {
-	return storage.Encode(v)
+	return codec.Encode(v)
 }
 
 func (c *ComponentType[T]) Decode(bz []byte) (any, error) {
-	return storage.Decode[T](bz)
+	return codec.Decode[T](bz)
 }
 
 func (c *ComponentType[T]) setDefaultVal(ptr unsafe.Pointer) {

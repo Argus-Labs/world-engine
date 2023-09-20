@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
 
@@ -57,7 +58,7 @@ func (a *archetypeStorageImpl) Marshal() ([]byte, error) {
 			archs[i].ComponentIDs = append(archs[i].ComponentIDs, c.ID())
 		}
 	}
-	return Encode(archs)
+	return codec.Encode(archs)
 }
 
 var (
@@ -95,7 +96,7 @@ func (c idsToComponents) convert(ids []component.TypeID) (comps []component.ICom
 // an archetypeStorageImpl. The slice of components is required because the interfaces were not
 // actually serialized to bytes, just their IDs.
 func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []component.IComponentType) error {
-	archetypesFromStorage, err := Decode[[]archForStorage](bytes)
+	archetypesFromStorage, err := codec.Decode[[]archForStorage](bytes)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
@@ -269,11 +270,11 @@ func (idx *Index) Marshal() ([]byte, error) {
 		}
 		layouts = append(layouts, currIDs)
 	}
-	return Encode(layouts)
+	return codec.Encode(layouts)
 }
 
 func (idx *Index) UnmarshalWithComps(bytes []byte, comps []component.IComponentType) error {
-	layouts, err := Decode[[][]component.TypeID](bytes)
+	layouts, err := codec.Decode[[][]component.TypeID](bytes)
 	if err != nil {
 		return err
 	}

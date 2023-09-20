@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"unsafe"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
 
@@ -42,7 +43,7 @@ func (m *MockComponentType[T]) New() ([]byte, error) {
 	if m.defaultVal != nil {
 		comp = m.defaultVal.(T)
 	}
-	return Encode(comp)
+	return codec.Encode(comp)
 }
 
 func (m *MockComponentType[T]) setDefaultVal(ptr unsafe.Pointer) {
@@ -57,9 +58,9 @@ func (m *MockComponentType[T]) Name() string {
 var _ component.IComponentType = &MockComponentType[int]{}
 
 func (m *MockComponentType[T]) Decode(bytes []byte) (any, error) {
-	return Decode[T](bytes)
+	return codec.Decode[T](bytes)
 }
 
 func (m *MockComponentType[T]) Encode(a any) ([]byte, error) {
-	return Encode(a)
+	return codec.Encode(a)
 }
