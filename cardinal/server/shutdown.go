@@ -30,8 +30,8 @@ func NewShutdownManager(world *ecs.World, handler *Handler) ShutDownManager {
 				err := manager.Shutdown()
 				if err != nil {
 					fmt.Println("There was an error during shutdown %w", err)
-					return
 				}
+				return
 			}
 		}
 	}()
