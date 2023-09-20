@@ -16,7 +16,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
-	"pkg.world.dev/world-engine/cardinal/shutdown"
 	"pkg.world.dev/world-engine/sign"
 
 	"github.com/go-openapi/loads"
@@ -33,8 +32,6 @@ type Handler struct {
 	server                 *http.Server
 	disableSigVerification bool
 	port                   string
-
-	shutdownManager *shutdown.ShutdownManager
 
 	// plugins
 	adapter shard.WriteAdapter
@@ -66,7 +63,7 @@ const (
 // NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
 // transaction and read registered with the given world is automatically created. The server runs on a default port
 // of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
-func NewHandler(w *ecs.World, shutdownManager *shutdown.ShutdownManager, opts ...Option) (*Handler, error) {
+func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	h, err := newSwaggerHandlerEmbed(w, opts...)
 	if err != nil {
 		return nil, err
@@ -512,27 +509,14 @@ func (t *Handler) initialize() {
 // Will default to env var "CARDINAL_PORT". If that's not set correctly then will default to port 4040
 // if no correct port was previously set.
 func (t *Handler) Serve() error {
-
-	go func() {
-		var shutdownReceived = false
-		var err error = nil
-		for !shutdownReceived {
-			shutdownReceived, err = t.shutdownManager.HandleServerShutDown(2, func() error {
-				ctx := context.Background()
-				err := t.server.Shutdown(ctx)
-				if err != nil {
-					return err
-				}
-			})
-			if err != nil {
-				panic(err)
-			}
-		}
-	}()
-
 	return t.server.ListenAndServe()
 }
 
 func (t *Handler) Close() error {
 	return t.server.Close()
+}
+
+func (t *Handler) Shutdown() error {
+	ctx := context.Background()
+	return t.server.Shutdown(ctx)
 }

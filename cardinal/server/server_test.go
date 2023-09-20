@@ -11,6 +11,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 
@@ -18,9 +19,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"pkg.world.dev/world-engine/cardinal/ecs/cql"
-
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -103,6 +103,56 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, swaggerFilePath 
 		t:         t,
 		urlPrefix: urlPrefix,
 	}
+}
+
+func TestShutDownViaMethod(t *testing.T) {
+	go func() {
+		select {
+		case <-time.After(5 * time.Second):
+			panic("shut down took to long")
+		}
+	}() // If this test is frozen then it failed to shut down, create an assertion failure.
+	w := inmem.NewECSWorldForTest(t)
+	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
+	assert.NilError(t, w.RegisterTransactions(sendTx))
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+		return nil
+	})
+	assert.NilError(t, w.LoadGameState())
+	txh := makeTestTransactionHandler(t, w, "./swagger.yml", DisableSignatureVerification())
+	ctx := context.Background()
+	w.StartGameLoop(ctx, 1*time.Second)
+	shutdownObject := NewShutdownManager(w, txh.Handler)
+	err := shutdownObject.Shutdown()
+	assert.NilError(t, err)
+}
+
+func TestShutDownViaSignal(t *testing.T) {
+	go func() {
+		select {
+		case <-time.After(5 * time.Second):
+			panic("shut down took to long")
+		}
+	}() // If this test is frozen then it failed to shut down, create an assertion failure.
+	w := inmem.NewECSWorldForTest(t)
+	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
+	assert.NilError(t, w.RegisterTransactions(sendTx))
+	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+		return nil
+	})
+	assert.NilError(t, w.LoadGameState())
+	txh := makeTestTransactionHandler(t, w, "./swagger.yml", DisableSignatureVerification())
+	ctx := context.Background()
+	w.StartGameLoop(ctx, 1*time.Second)
+	_ = NewShutdownManager(w, txh.Handler)
+	// Find this process.
+	currentProcess, err := os.FindProcess(os.Getpid())
+	assert.NilError(t, err)
+
+	// Send a SIGINT signal.
+	err = currentProcess.Signal(syscall.SIGINT)
+	assert.NilError(t, err)
+
 }
 
 func TestIfServeSetEnvVarForPort(t *testing.T) {
