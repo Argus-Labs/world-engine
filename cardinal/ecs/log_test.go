@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"github.com/rs/zerolog"
@@ -16,7 +17,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type SendEnergyTx struct {
@@ -34,7 +34,7 @@ var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
 
 func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *ecs.Logger) error {
 	logger.Log().Msg("test")
-	energy.Each(w, func(entityId storage.EntityID) bool {
+	energy.Each(w, func(entityId entity.ID) bool {
 		energyPlanet, err := energy.Get(w, entityId)
 		if err != nil {
 			return false

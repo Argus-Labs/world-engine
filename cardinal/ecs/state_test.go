@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"github.com/alicebob/miniredis/v2"
@@ -174,7 +175,7 @@ func TestCanReloadState(t *testing.T) {
 	_, err := alphaWorld.CreateMany(10, oneAlphaNum)
 	assert.NilError(t, err)
 	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
-		oneAlphaNum.Each(w, func(id storage.EntityID) bool {
+		oneAlphaNum.Each(w, func(id entity.ID) bool {
 			err := oneAlphaNum.Set(w, id, NumberComponent{int(id)})
 			assert.Check(t, err == nil)
 			return true
@@ -193,7 +194,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, betaWorld.LoadGameState())
 
 	count := 0
-	oneBetaNum.Each(betaWorld, func(id storage.EntityID) bool {
+	oneBetaNum.Each(betaWorld, func(id entity.ID) bool {
 		count++
 		num, err := oneBetaNum.Get(betaWorld, id)
 		assert.NilError(t, err)

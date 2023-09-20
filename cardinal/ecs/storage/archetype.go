@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
-
-type ArchetypeID int
 
 var _ ArchetypeAccessor = &archetypeStorageImpl{}
 
@@ -20,10 +20,10 @@ type archetypeStorageImpl struct {
 	archs []*Archetype
 }
 
-func (a *archetypeStorageImpl) PushArchetype(archID ArchetypeID, layout *Layout) {
+func (a *archetypeStorageImpl) PushArchetype(archID archetype.ID, layout *Layout) {
 	a.archs = append(a.archs, &Archetype{
 		ID:         archID,
-		Entitys:    make([]EntityID, 0, 256),
+		Entitys:    make([]entity.ID, 0, 256),
 		ArchLayout: layout,
 	})
 }
@@ -32,7 +32,7 @@ func (a *archetypeStorageImpl) Count() int {
 	return len(a.archs)
 }
 
-func (a *archetypeStorageImpl) Archetype(archID ArchetypeID) ArchetypeStorage {
+func (a *archetypeStorageImpl) Archetype(archID archetype.ID) ArchetypeStorage {
 	return a.archs[archID]
 }
 
@@ -42,8 +42,8 @@ func (a *archetypeStorageImpl) Archetype(archID ArchetypeID) ArchetypeStorage {
 // slice of IComponentTypes with the correct TypeIDs so that we can recover the original
 // archetypeStorageImpl.
 type archForStorage struct {
-	ID           ArchetypeID
-	Entities     []EntityID
+	ID           archetype.ID
+	Entities     []entity.ID
 	ComponentIDs []component.TypeID
 }
 
@@ -116,18 +116,18 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []com
 // Archetype is a collection of Entities for a specific archetype of components.
 // This structure allows to quickly find Entities based on their components.
 type Archetype struct {
-	ID         ArchetypeID
-	Entitys    []EntityID
+	ID         archetype.ID
+	Entitys    []entity.ID
 	ArchLayout *Layout
 }
 
 var _ ArchetypeStorage = &Archetype{}
 
 // NewArchetype creates a new archetype.
-func NewArchetype(archID ArchetypeID, layout *Layout) *Archetype {
+func NewArchetype(archID archetype.ID, layout *Layout) *Archetype {
 	return &Archetype{
 		ID:         archID,
-		Entitys:    make([]EntityID, 0, 256),
+		Entitys:    make([]entity.ID, 0, 256),
 		ArchLayout: layout,
 	}
 }
@@ -138,12 +138,12 @@ func (archetype *Archetype) Layout() *Layout {
 }
 
 // Entities returns all Entities in this archetype.
-func (archetype *Archetype) Entities() []EntityID {
+func (archetype *Archetype) Entities() []entity.ID {
 	return archetype.Entitys
 }
 
 // SwapRemove removes an Ent from the archetype and returns it.
-func (archetype *Archetype) SwapRemove(entityIndex ComponentIndex) EntityID {
+func (archetype *Archetype) SwapRemove(entityIndex component.Index) entity.ID {
 	removed := archetype.Entitys[entityIndex]
 	archetype.Entitys[entityIndex] = archetype.Entitys[len(archetype.Entitys)-1]
 	archetype.Entitys = archetype.Entitys[:len(archetype.Entitys)-1]
@@ -164,7 +164,7 @@ func (archetype *Archetype) LayoutMatches(components []component.IComponentType)
 }
 
 // PushEntity adds an Ent to the archetype.
-func (archetype *Archetype) PushEntity(id EntityID) {
+func (archetype *Archetype) PushEntity(id entity.ID) {
 	archetype.Entitys = append(archetype.Entitys, id)
 }
 

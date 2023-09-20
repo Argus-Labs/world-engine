@@ -11,7 +11,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/sign"
@@ -386,7 +386,7 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 
 		result := make([]cql.QueryResponse, 0)
 
-		ecs.NewQuery(resultFilter).Each(world, func(id storage.EntityID) bool {
+		ecs.NewQuery(resultFilter).Each(world, func(id entity.ID) bool {
 			components, err := world.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false

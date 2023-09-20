@@ -3,20 +3,22 @@ package storage
 import (
 	"errors"
 	"math"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
 var _ EntityManager = &entityMgrImpl{}
 
 func NewEntityManager() EntityManager {
-	return &entityMgrImpl{destroyed: make([]EntityID, 0, 256), nextID: 0}
+	return &entityMgrImpl{destroyed: make([]entity.ID, 0, 256), nextID: 0}
 }
 
 type entityMgrImpl struct {
-	destroyed []EntityID
-	nextID    EntityID
+	destroyed []entity.ID
+	nextID    entity.ID
 }
 
-func (e *entityMgrImpl) GetNextEntityID() EntityID {
+func (e *entityMgrImpl) GetNextEntityID() entity.ID {
 	e.nextID++
 	return e.nextID
 }
@@ -25,7 +27,7 @@ func (e *entityMgrImpl) shrink() {
 	e.destroyed = e.destroyed[:len(e.destroyed)-1]
 }
 
-func (e *entityMgrImpl) NewEntity() (EntityID, error) {
+func (e *entityMgrImpl) NewEntity() (entity.ID, error) {
 	if len(e.destroyed) == 0 {
 		id := e.GetNextEntityID()
 		return id, nil
@@ -35,34 +37,21 @@ func (e *entityMgrImpl) NewEntity() (EntityID, error) {
 	return newEntity, nil
 }
 
-func (e *entityMgrImpl) Destroy(id EntityID) {
+func (e *entityMgrImpl) Destroy(id entity.ID) {
 	e.destroyed = append(e.destroyed, id)
 }
 
-type EntityID uint64
-
-// Entity is a struct that contains an EntityID and a location in an archetype.
-type Entity struct {
-	ID  EntityID
-	Loc Location
-}
-
-func NewEntity(id EntityID, loc Location) Entity {
-	return Entity{
+func NewEntity(id entity.ID, loc entity.Location) entity.Entity {
+	return entity.Entity{
 		ID:  id,
 		Loc: loc,
 	}
 }
 
 var (
-	BadID     EntityID = math.MaxUint64
-	BadEntity Entity   = Entity{BadID, Location{}}
+	BadID     entity.ID     = math.MaxUint64
+	BadEntity entity.Entity = entity.Entity{BadID, entity.Location{}}
 )
-
-// EntityID returns the Entity.
-func (e Entity) EntityID() EntityID {
-	return e.ID
-}
 
 var (
 	ErrorComponentAlreadyOnEntity = errors.New("component already on entity")

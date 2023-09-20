@@ -8,8 +8,8 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type cqlOperator int
@@ -236,6 +236,6 @@ type QueryRequest struct {
 }
 
 type QueryResponse struct {
-	Id   storage.EntityID  `json:"id"`
+	Id   entity.ID         `json:"id"`
 	Data []json.RawMessage `json:"data"`
 }

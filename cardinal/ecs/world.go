@@ -14,7 +14,9 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -73,7 +75,7 @@ func (w *World) StoreManager() *StoreManager {
 	return w.storeManager
 }
 
-func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
+func (w *World) SetEntityLocation(id entity.ID, location entity.Location) error {
 	err := w.store.EntityLocStore.SetLocation(id, location)
 	if err != nil {
 		return err
@@ -81,15 +83,15 @@ func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location
 	return nil
 }
 
-func (w *World) GetLayout(archID storage.ArchetypeID) []component.IComponentType {
+func (w *World) GetLayout(archID archetype.ID) []component.IComponentType {
 	return w.store.ArchAccessor.Archetype(archID).Layout().Components()
 }
 
-func (w *World) GetArchetypeForComponents(componentTypes []component.IComponentType) storage.ArchetypeID {
+func (w *World) GetArchetypeForComponents(componentTypes []component.IComponentType) archetype.ID {
 	return w.getArchetypeForComponents(componentTypes)
 }
 
-func (w *World) Archetype(archID storage.ArchetypeID) storage.ArchetypeStorage {
+func (w *World) Archetype(archID archetype.ID) storage.ArchetypeStorage {
 	return w.store.ArchAccessor.Archetype(archID)
 }
 
@@ -242,11 +244,11 @@ func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
 }
 
-func (w *World) CreateMany(num int, components ...component.IComponentType) ([]storage.EntityID, error) {
+func (w *World) CreateMany(num int, components ...component.IComponentType) ([]entity.ID, error) {
 	return w.StoreManager().CreateManyEntities(num, components...)
 }
 
-func (w *World) Create(components ...component.IComponentType) (storage.EntityID, error) {
+func (w *World) Create(components ...component.IComponentType) (entity.ID, error) {
 	return w.StoreManager().CreateEntity(components...)
 }
 
@@ -260,7 +262,7 @@ func (w *World) Len() (int, error) {
 }
 
 // Remove removes the given Entity from the world
-func (w *World) Remove(id storage.EntityID) error {
+func (w *World) Remove(id entity.ID) error {
 	return w.StoreManager().RemoveEntity(id)
 }
 
@@ -453,20 +455,20 @@ func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []I
 	return cm.UnmarshalWithComps(buf, comps)
 }
 
-func (w *World) nextEntity() (storage.EntityID, error) {
+func (w *World) nextEntity() (entity.ID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 
-func (w *World) insertArchetype(layout *storage.Layout) storage.ArchetypeID {
+func (w *World) insertArchetype(layout *storage.Layout) archetype.ID {
 	w.store.ArchCompIdxStore.Push(layout)
-	archID := storage.ArchetypeID(w.store.ArchAccessor.Count())
+	archID := archetype.ID(w.store.ArchAccessor.Count())
 
 	w.store.ArchAccessor.PushArchetype(archID, layout)
 	w.Logger.Debug().Int("archetype_id", int(archID)).Msg("created")
 	return archID
 }
 
-func (w *World) getArchetypeForComponents(components []component.IComponentType) storage.ArchetypeID {
+func (w *World) getArchetypeForComponents(components []component.IComponentType) archetype.ID {
 	if len(components) == 0 {
 		panic("entity must have at least one component")
 	}

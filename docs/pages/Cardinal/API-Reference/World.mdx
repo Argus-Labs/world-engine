@@ -408,7 +408,7 @@ func main() {
 `Remove` removes a given entity from the `World`.
 
 ```go
-func (w *World) Remove(id storage.EntityID) error
+func (w *World) Remove(id entity.ID) error
 ```
 
 #### Example
@@ -444,7 +444,7 @@ func main() {
 #### Parameters
 | Parameter    | Type                   | Description                                      |
 |--------------|------------------------|--------------------------------------------------|
-| id           | storage.EntityID       | The entity ID to be removed from the world.     |
+| id           | entity.ID              | The entity ID to be removed from the world.     |
 
 
 #### Return Value
