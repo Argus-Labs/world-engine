@@ -13,7 +13,7 @@ type (
 	componentB = struct{}
 )
 
-func TestMatchesLayout(t *testing.T) {
+func TestMatchesComponents(t *testing.T) {
 	var (
 		ca = storage.NewMockComponentType(componentA{}, nil)
 		cb = storage.NewMockComponentType(componentB{}, nil)
@@ -22,7 +22,7 @@ func TestMatchesLayout(t *testing.T) {
 	components := []component.IComponentType{ca, cb}
 	archetype := storage.NewArchetype(0, components)
 	if !archetype.ComponentsMatch(components) {
-		t.Errorf("archetype should match the ArchLayout")
+		t.Errorf("archetype should match the components")
 	}
 }
 

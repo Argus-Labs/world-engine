@@ -64,7 +64,7 @@ func TestParser(t *testing.T) {
 	stringToComponent := func(_ string) (component.IComponentType, bool) {
 		return emptyComponent, true
 	}
-	filterResult, err := termToLayoutFilter(term, stringToComponent)
+	filterResult, err := termToComponentFilter(term, stringToComponent)
 	assert.NilError(t, err)
 	testResult := filter.Or(
 		filter.Not(
@@ -75,12 +75,12 @@ func TestParser(t *testing.T) {
 		),
 		filter.Contains(emptyComponent),
 	)
-	//have to do the below because of unexported fields in LayoutFilter datastructures. .
+	//have to do the below because of unexported fields in ComponentFilter datastructures. .
 	assert.Assert(t, reflect.DeepEqual(filterResult, testResult))
 	query := "CONTAINS(A) & CONTAINS(A, B) & CONTAINS(A, B, C) | EXACT(D)"
 	term, err = internalCQLParser.ParseString("", query)
 	assert.NilError(t, err)
-	result, err := termToLayoutFilter(term, stringToComponent)
+	result, err := termToComponentFilter(term, stringToComponent)
 	assert.NilError(t, err)
 	testResult2 :=
 		filter.Or(
