@@ -8,14 +8,14 @@ type exact struct {
 	components []component.IComponentType
 }
 
-// Exact matches layouts that contain exactly the same components specified.
-func Exact(components ...component.IComponentType) LayoutFilter {
+// Exact matches archetypes that contain exactly the same components specified.
+func Exact(components ...component.IComponentType) ComponentFilter {
 	return exact{
 		components: components,
 	}
 }
 
-func (f exact) MatchesLayout(components []component.IComponentType) bool {
+func (f exact) MatchesComponents(components []component.IComponentType) bool {
 	if len(components) != len(f.components) {
 		return false
 	}

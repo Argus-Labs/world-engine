@@ -79,9 +79,9 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 
 	wantID := oneWorld.GetArchetypeForComponents(comps(oneNum))
-	wantLayout := oneWorld.Archetype(wantID).Layout()
-	assert.Equal(t, 1, len(wantLayout.Components()))
-	assert.Check(t, wantLayout.HasComponent(oneNum))
+	wantComps := oneWorld.Archetype(wantID).Components()
+	assert.Equal(t, 1, len(wantComps))
+	assert.Check(t, component.Contains(wantComps, oneNum))
 
 	assert.NilError(t, oneWorld.Tick(context.Background()))
 
@@ -92,9 +92,9 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, twoWorld.LoadGameState())
 
 	gotID := twoWorld.GetArchetypeForComponents(comps(twoNum))
-	gotLayout := twoWorld.Archetype(gotID).Layout()
-	assert.Equal(t, 1, len(gotLayout.Components()))
-	assert.Check(t, gotLayout.HasComponent(twoNum))
+	gotComps := twoWorld.Archetype(gotID).Components()
+	assert.Equal(t, 1, len(gotComps))
+	assert.Check(t, component.Contains(gotComps, twoNum))
 
 	// Archetype indices should be the same across save/load cycles
 	assert.Equal(t, wantID, gotID)

@@ -59,7 +59,7 @@ func (s *StoreManager) isValid(id entity.ID) (bool, error) {
 func (s *StoreManager) removeAtLocation(id entity.ID, loc entity.Location) error {
 	archetype := s.store.ArchAccessor.Archetype(loc.ArchID)
 	archetype.SwapRemove(loc.CompIndex)
-	err := s.store.CompStore.Remove(loc.ArchID, archetype.Layout().Components(), loc.CompIndex)
+	err := s.store.CompStore.Remove(loc.ArchID, archetype.Components(), loc.CompIndex)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func (s *StoreManager) createEntityFromArchetypeID(archID archetype.ID) (entity.
 		return storage.BadID, err
 	}
 	archetype := s.store.ArchAccessor.Archetype(archID)
-	components := archetype.Layout().Components()
+	components := archetype.Components()
 	componentIndex, err := s.store.CompStore.PushComponents(components, archID)
 	if err != nil {
 		return storage.BadID, err
@@ -176,7 +176,7 @@ func (s *StoreManager) GetComponentForEntity(cType IComponentType, id entity.ID)
 }
 
 func (s *StoreManager) getComponentsForArchetype(archID archetype.ID) []component.IComponentType {
-	return s.store.ArchAccessor.Archetype(archID).Layout().Components()
+	return s.store.ArchAccessor.Archetype(archID).Components()
 }
 
 func (s *StoreManager) hasDuplicates(components []IComponentType) bool {
@@ -192,11 +192,10 @@ func (s *StoreManager) hasDuplicates(components []IComponentType) bool {
 }
 
 func (s *StoreManager) insertArchetype(components []component.IComponentType) archetype.ID {
-	layout := storage.NewLayout(components)
-	s.store.ArchCompIdxStore.Push(layout)
+	s.store.ArchCompIdxStore.Push(components)
 	archID := archetype.ID(s.store.ArchAccessor.Count())
 
-	s.store.ArchAccessor.PushArchetype(archID, layout)
+	s.store.ArchAccessor.PushArchetype(archID, components)
 	s.logger.Debug().Int("archetype_id", int(archID)).Msg("created")
 	return archID
 }
@@ -240,11 +239,11 @@ func (s *StoreManager) transferArchetype(from, to archetype.ID, idx component.In
 		}
 	}
 
-	// creates component if not exists in new layout
-	fromLayout := fromArch.Layout()
-	toLayout := toArch.Layout()
-	for _, componentType := range toLayout.Components() {
-		if !fromLayout.HasComponent(componentType) {
+	// creates component if not exists in new set of components
+	fromComps := fromArch.Components()
+	toComps := toArch.Components()
+	for _, componentType := range toComps {
+		if !component.Contains(fromComps, componentType) {
 			store := s.store.CompStore.Storage(componentType)
 			if err := store.PushComponent(componentType, to); err != nil {
 				return 0, err
@@ -253,9 +252,9 @@ func (s *StoreManager) transferArchetype(from, to archetype.ID, idx component.In
 	}
 
 	// move component
-	for _, componentType := range fromLayout.Components() {
+	for _, componentType := range fromComps {
 		store := s.store.CompStore.Storage(componentType)
-		if toLayout.HasComponent(componentType) {
+		if component.Contains(toComps, componentType) {
 			if err := store.MoveComponent(from, idx, to); err != nil {
 				return 0, err
 			}

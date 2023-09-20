@@ -40,7 +40,7 @@ func (q *Query) First(w *World) (id EntityID, err error) {
 
 // ComponentFilter represents a filter that will be passed to NewQuery to help decide which entities should be
 // returned in the query.
-type ComponentFilter = filter.LayoutFilter
+type ComponentFilter = filter.ComponentFilter
 
 // And returns entities that match ALL the given filters.
 func And(filters ...ComponentFilter) ComponentFilter {
@@ -60,8 +60,8 @@ func Exact(components ...AnyComponentType) ComponentFilter {
 }
 
 // Not returns entities that do NOT match the given filter.
-func Not(layoutFilter ComponentFilter) ComponentFilter {
-	return filter.Not(layoutFilter)
+func Not(compFilter ComponentFilter) ComponentFilter {
+	return filter.Not(compFilter)
 }
 
 // Or returns entities that match 1 or more of the given filters.

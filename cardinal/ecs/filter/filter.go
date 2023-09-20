@@ -4,8 +4,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
 
-// LayoutFilter is a filter that filters entities based on their components.
-type LayoutFilter interface {
-	// MatchesLayout returns true if the entity matches the filter.
-	MatchesLayout(components []component.IComponentType) bool
+// ComponentFilter is a filter that filters entities based on their components.
+type ComponentFilter interface {
+	// MatchesComponents returns true if the entity matches the filter.
+	MatchesComponents(components []component.IComponentType) bool
 }

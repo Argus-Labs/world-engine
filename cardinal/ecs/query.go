@@ -19,16 +19,16 @@ type cache struct {
 // So it is not recommended to create a new query every time you want
 // to filter entities with the same query.
 type Query struct {
-	layoutMatches map[Namespace]*cache
-	filter        filter.LayoutFilter
+	archMatches map[Namespace]*cache
+	filter      filter.ComponentFilter
 }
 
 // NewQuery creates a new query.
 // It receives arbitrary filters that are used to filter entities.
-func NewQuery(filter filter.LayoutFilter) *Query {
+func NewQuery(filter filter.ComponentFilter) *Query {
 	return &Query{
-		layoutMatches: make(map[Namespace]*cache),
-		filter:        filter,
+		archMatches: make(map[Namespace]*cache),
+		filter:      filter,
 	}
 }
 
@@ -80,13 +80,13 @@ func (q *Query) First(w *World) (id entity.ID, err error) {
 
 func (q *Query) evaluateQuery(world *World) []archetype.ID {
 	w := Namespace(world.Namespace())
-	if _, ok := q.layoutMatches[w]; !ok {
-		q.layoutMatches[w] = &cache{
+	if _, ok := q.archMatches[w]; !ok {
+		q.archMatches[w] = &cache{
 			archetypes: make([]archetype.ID, 0),
 			seen:       0,
 		}
 	}
-	cache := q.layoutMatches[w]
+	cache := q.archMatches[w]
 	for it := world.store.ArchCompIdxStore.SearchFrom(q.filter, cache.seen); it.HasNext(); {
 		cache.archetypes = append(cache.archetypes, it.Next())
 	}
