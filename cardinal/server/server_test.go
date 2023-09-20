@@ -59,9 +59,9 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, swaggerFilePath 
 	var txh *Handler
 	var err error
 	if len(swaggerFilePath) == 0 {
-		txh, err = NewHandler(world, opts...)
+		txh, err = OldHandler(world, opts...)
 	} else {
-		txh, err = NewSwaggerHandler(world, swaggerFilePath, opts...)
+		txh, err = NewHandler(world, opts...)
 	}
 	assert.NilError(t, err)
 
@@ -114,9 +114,9 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 		var txh *Handler
 		var err error
 		if !isTestingSwagger {
-			txh, err = NewHandler(world, DisableSignatureVerification())
+			txh, err = OldHandler(world, DisableSignatureVerification())
 		} else if isTestingSwagger {
-			txh, err = NewSwaggerHandler(world, "./swagger.yml", DisableSignatureVerification())
+			txh, err = NewHandler(world, DisableSignatureVerification())
 		} else {
 			t.Fail()
 		}
@@ -228,7 +228,9 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 
 		assert.NilError(t, w.Tick(context.Background()))
 		assert.Equal(t, 1, count)
-		txh.Close()
+		err = txh.Close()
+		assert.NilError(t, err)
+
 	}
 }
 
@@ -308,7 +310,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	//Test /query/http/endpoints
 	expectedEndpointResult := EndpointsResult{
 		TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/persona/authorize-persona-address", "/tx/game/send-energy"},
-		QueryEndpoints: []string{"/query/game/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/list"},
+		QueryEndpoints: []string{"/query/game/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/list", "/query/game/cql"},
 	}
 	resp1, err := http.Post(txh.makeURL("query/http/endpoints"), "application/json", nil)
 	assert.NilError(t, err)
@@ -488,6 +490,8 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	}
 	for i, urlSet := range urlSets {
 		world := inmem.NewECSWorldForTest(t)
+		err := world.RegisterComponents()
+		assert.NilError(t, err)
 		tx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("some_tx")
 		assert.NilError(t, world.RegisterTransactions(tx))
 		assert.NilError(t, world.LoadGameState())

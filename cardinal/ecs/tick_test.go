@@ -137,7 +137,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	// Set up a new world using the same storage layer
 	twoWorld := testutil.InitWorldWithRedis(t, rs)
 	twoPower := ecs.NewComponentType[*PowerComponent]("twoPower")
-	assert.NilError(t, twoWorld.RegisterComponents(twoPower))
+	assert.NilError(t, twoWorld.RegisterComponents(onePower, twoPower))
 
 	// this is our fixed system that can handle Power levels of 3 and higher
 	twoWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {

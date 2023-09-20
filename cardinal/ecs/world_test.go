@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -54,4 +55,39 @@ func TestSetNamespace(t *testing.T) {
 	id := "foo"
 	w := inmem.NewECSWorldForTest(t, ecs.WithNamespace(id))
 	assert.Equal(t, w.Namespace(), id)
+}
+
+func TestWithoutRegistration(t *testing.T) {
+	world := inmem.NewECSWorldForTest(t)
+	id, err := world.Create(Energy, Ownable)
+	assert.Assert(t, err != nil)
+
+	err = Energy.Update(world, id, func(component EnergyComponent) EnergyComponent {
+		component.Amt += 50
+		return component
+	})
+	assert.Assert(t, err != nil)
+
+	err = Energy.Set(world, id, EnergyComponent{
+		Amt: 0,
+		Cap: 0,
+	})
+
+	assert.Assert(t, err != nil)
+
+	err = world.RegisterComponents(Energy, Ownable)
+	assert.NilError(t, err)
+	id, err = world.Create(Energy, Ownable)
+	assert.NilError(t, err)
+	err = Energy.Update(world, id, func(component EnergyComponent) EnergyComponent {
+		component.Amt += 50
+		return component
+	})
+	assert.NilError(t, err)
+	err = Energy.Set(world, id, EnergyComponent{
+		Amt: 0,
+		Cap: 0,
+	})
+	assert.NilError(t, err)
+
 }
