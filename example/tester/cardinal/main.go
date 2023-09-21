@@ -68,9 +68,7 @@ func main() {
 
 func setupAdapter() shard.Adapter {
 	baseShardAddr := os.Getenv("BASE_SHARD_ADDR")
-	shardReceiverAddr := os.Getenv("SHARD_RECEIVER_ADDR")
-	shardReceiverAddr = "0.0.0.0:4200"
-	baseShardAddr = "0.0.0.0:4213"
+	shardReceiverAddr := os.Getenv("SHARD_SEQUENCER_ADDR")
 	cfg := shard.AdapterConfig{
 		ShardReceiverAddr: shardReceiverAddr,
 		EVMBaseShardAddr:  baseShardAddr,
