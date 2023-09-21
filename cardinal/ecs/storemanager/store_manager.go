@@ -1,4 +1,4 @@
-package ecs
+package storemanager
 
 import (
 	"errors"
@@ -96,7 +96,7 @@ func (s *StoreManager) RemoveEntity(id entity.ID) error {
 	return nil
 }
 
-func (s *StoreManager) CreateEntity(comps ...IComponentType) (entity.ID, error) {
+func (s *StoreManager) CreateEntity(comps ...component.IComponentType) (entity.ID, error) {
 	ids, err := s.CreateManyEntities(1, comps...)
 	if err != nil {
 		return storage.BadID, nil
@@ -104,7 +104,7 @@ func (s *StoreManager) CreateEntity(comps ...IComponentType) (entity.ID, error) 
 	return ids[0], nil
 }
 
-func (s *StoreManager) CreateManyEntities(num int, comps ...IComponentType) ([]entity.ID, error) {
+func (s *StoreManager) CreateManyEntities(num int, comps ...component.IComponentType) ([]entity.ID, error) {
 	archetypeID, err := s.getArchetypeIDForComponents(comps)
 	if err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func (s *StoreManager) getEntityLocation(id entity.ID) (entity.Location, error) 
 	return s.store.EntityLocStore.GetLocation(id)
 }
 
-func (s *StoreManager) SetComponentForEntity(cType IComponentType, id entity.ID, value any) error {
+func (s *StoreManager) SetComponentForEntity(cType component.IComponentType, id entity.ID, value any) error {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return err
@@ -156,7 +156,7 @@ func (s *StoreManager) SetComponentForEntity(cType IComponentType, id entity.ID,
 	return s.store.CompStore.Storage(cType).SetComponent(loc.ArchID, loc.CompIndex, bz)
 }
 
-func (s *StoreManager) GetComponentTypesForEntity(id entity.ID) ([]IComponentType, error) {
+func (s *StoreManager) GetComponentTypesForEntity(id entity.ID) ([]component.IComponentType, error) {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return nil, err
@@ -164,7 +164,7 @@ func (s *StoreManager) GetComponentTypesForEntity(id entity.ID) ([]IComponentTyp
 	return s.getComponentsForArchetype(loc.ArchID), nil
 }
 
-func (s *StoreManager) GetComponentForEntity(cType IComponentType, id entity.ID) (any, error) {
+func (s *StoreManager) GetComponentForEntity(cType component.IComponentType, id entity.ID) (any, error) {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return nil, err
@@ -180,7 +180,7 @@ func (s *StoreManager) getComponentsForArchetype(archID archetype.ID) []componen
 	return s.store.ArchAccessor.Archetype(archID).Components()
 }
 
-func (s *StoreManager) hasDuplicates(components []IComponentType) bool {
+func (s *StoreManager) hasDuplicates(components []component.IComponentType) bool {
 	// check if there are duplicate values inside component slice
 	for i := 0; i < len(components); i++ {
 		for j := i + 1; j < len(components); j++ {
@@ -201,7 +201,7 @@ func (s *StoreManager) insertArchetype(components []component.IComponentType) ar
 	return archID
 }
 
-func (s *StoreManager) getArchetypeIDForComponents(components []IComponentType) (archetype.ID, error) {
+func (s *StoreManager) getArchetypeIDForComponents(components []component.IComponentType) (archetype.ID, error) {
 	if len(components) == 0 {
 		return 0, errors.New("entities require at least 1 component")
 	}
@@ -273,7 +273,7 @@ func (s *StoreManager) transferArchetype(from, to archetype.ID, idx component.In
 	return component.Index(len(toArch.Entities()) - 1), nil
 }
 
-func (s *StoreManager) AddComponentToEntity(cType IComponentType, id entity.ID) error {
+func (s *StoreManager) AddComponentToEntity(cType component.IComponentType, id entity.ID) error {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return err
@@ -298,7 +298,7 @@ func (s *StoreManager) AddComponentToEntity(cType IComponentType, id entity.ID) 
 	return s.store.EntityLocStore.SetLocation(id, loc)
 }
 
-func (s *StoreManager) RemoveComponentFromEntity(cType IComponentType, id entity.ID) error {
+func (s *StoreManager) RemoveComponentFromEntity(cType component.IComponentType, id entity.ID) error {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return err
