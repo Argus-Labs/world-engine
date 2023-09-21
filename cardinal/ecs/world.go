@@ -610,7 +610,7 @@ func (w *World) IsGameLoopRunning() bool {
 
 func (w *World) EndGameLoop() {
 	w.endGameLoopCh <- true
-	for w.IsGameLoopRunning() {
+	for w.IsGameLoopRunning() { //Block until loop stops.
 		time.Sleep(100 * time.Millisecond)
 	}
 }
