@@ -1,11 +1,9 @@
 package storage
 
 import (
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
-
-// ComponentIndex represents the Index of component in an archetype.
-type ComponentIndex int
 
 // Components is a structure that facilitates the storage and retrieval of component data.
 // TODO: this kinda sucks.. could prob refactor this and make it prettier for devs.
@@ -23,7 +21,7 @@ func NewComponents(store ComponentStorageManager, idxStore ComponentIndexStorage
 }
 
 // PushComponents stores the new data of the component in the archetype.
-func (cs *Components) PushComponents(components []component.IComponentType, archetypeID ArchetypeID) (ComponentIndex, error) {
+func (cs *Components) PushComponents(components []component.IComponentType, archetypeID archetype.ID) (component.Index, error) {
 	for _, componentType := range components {
 		v := cs.Store.GetComponentStorage(componentType.ID())
 		err := v.PushComponent(componentType, archetypeID)
@@ -39,7 +37,7 @@ func (cs *Components) PushComponents(components []component.IComponentType, arch
 }
 
 // Move moves the bytes of data of the component in the archetype.
-func (cs *Components) Move(src ArchetypeID, dst ArchetypeID) error {
+func (cs *Components) Move(src archetype.ID, dst archetype.ID) error {
 	err := cs.ComponentIndices.DecrementIndex(src)
 	if err != nil {
 		return err
@@ -61,7 +59,7 @@ func (cs *Components) GetComponentIndexStorage(c component.IComponentType) Compo
 }
 
 // Remove removes the component from the storage.
-func (cs *Components) Remove(ai ArchetypeID, comps []component.IComponentType, ci ComponentIndex) error {
+func (cs *Components) Remove(ai archetype.ID, comps []component.IComponentType, ci component.Index) error {
 	for _, ct := range comps {
 		err := cs.remove(ct, ai, ci)
 		if err != nil {
@@ -71,7 +69,7 @@ func (cs *Components) Remove(ai ArchetypeID, comps []component.IComponentType, c
 	return cs.ComponentIndices.DecrementIndex(ai)
 }
 
-func (cs *Components) remove(ct component.IComponentType, ai ArchetypeID, ci ComponentIndex) error {
+func (cs *Components) remove(ct component.IComponentType, ai archetype.ID, ci component.Index) error {
 	storage := cs.Storage(ct)
 	_, err := storage.SwapRemove(ai, ci)
 	return err

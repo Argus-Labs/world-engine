@@ -5,13 +5,13 @@ import (
 )
 
 type not struct {
-	filter LayoutFilter
+	filter ComponentFilter
 }
 
-func Not(filter LayoutFilter) LayoutFilter {
+func Not(filter ComponentFilter) ComponentFilter {
 	return &not{filter: filter}
 }
 
-func (f *not) MatchesLayout(components []component.IComponentType) bool {
-	return !f.filter.MatchesLayout(components)
+func (f *not) MatchesComponents(components []component.IComponentType) bool {
+	return !f.filter.MatchesComponents(components)
 }

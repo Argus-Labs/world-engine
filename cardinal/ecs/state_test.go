@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
@@ -77,9 +79,9 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 
 	wantID := oneWorld.GetArchetypeForComponents(comps(oneNum))
-	wantLayout := oneWorld.Archetype(wantID).Layout()
-	assert.Equal(t, 1, len(wantLayout.Components()))
-	assert.Check(t, wantLayout.HasComponent(oneNum))
+	wantComps := oneWorld.Archetype(wantID).Components()
+	assert.Equal(t, 1, len(wantComps))
+	assert.Check(t, component.Contains(wantComps, oneNum))
 
 	assert.NilError(t, oneWorld.Tick(context.Background()))
 
@@ -90,9 +92,9 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, twoWorld.LoadGameState())
 
 	gotID := twoWorld.GetArchetypeForComponents(comps(twoNum))
-	gotLayout := twoWorld.Archetype(gotID).Layout()
-	assert.Equal(t, 1, len(gotLayout.Components()))
-	assert.Check(t, gotLayout.HasComponent(twoNum))
+	gotComps := twoWorld.Archetype(gotID).Components()
+	assert.Equal(t, 1, len(gotComps))
+	assert.Check(t, component.Contains(gotComps, twoNum))
 
 	// Archetype indices should be the same across save/load cycles
 	assert.Equal(t, wantID, gotID)
@@ -172,8 +174,8 @@ func TestCanReloadState(t *testing.T) {
 
 	_, err := alphaWorld.CreateMany(10, oneAlphaNum)
 	assert.NilError(t, err)
-	alphaWorld.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
-		oneAlphaNum.Each(w, func(id storage.EntityID) bool {
+	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+		oneAlphaNum.Each(w, func(id entity.ID) bool {
 			err := oneAlphaNum.Set(w, id, NumberComponent{int(id)})
 			assert.Check(t, err == nil)
 			return true
@@ -192,7 +194,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, betaWorld.LoadGameState())
 
 	count := 0
-	oneBetaNum.Each(betaWorld, func(id storage.EntityID) bool {
+	oneBetaNum.Each(betaWorld, func(id entity.ID) bool {
 		count++
 		num, err := oneBetaNum.Get(betaWorld, id)
 		assert.NilError(t, err)
@@ -235,7 +237,7 @@ func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 	for reload := 0; reload < 5; reload++ {
 		world := testutil.InitWorldWithRedis(t, redisStore)
 		assert.NilError(t, world.RegisterTransactions(someTx))
-		world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
+		world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecs.Logger) error {
 			for _, tx := range someTx.In(queue) {
 				someTx.SetResult(world, tx.TxHash, Result{})
 			}

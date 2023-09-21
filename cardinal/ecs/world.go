@@ -8,19 +8,17 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
-	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/rs/zerolog"
-
+	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -33,19 +31,10 @@ import (
 // Namespace is a unique identifier for a world.
 type Namespace string
 
-// StorageAccessor is an accessor for the world's storage.
-type StorageAccessor struct {
-	// Index is the search archCompIndexStore for the world.
-	Index storage.ArchetypeComponentIndex
-	// Components is the component storage for the world.
-	Components *storage.Components
-	// Archetypes is the archetype storage for the world.
-	Archetypes storage.ArchetypeAccessor
-}
-
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
+	storeManager             *StoreManager
 	systems                  []System
 	systemLoggers            []*Logger
 	systemNames              []string
@@ -57,10 +46,8 @@ type World struct {
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
-	// txQueues is a map of transaction names to the relevant list of transactions data
-	txQueues transaction.TxMap
-	// txLock ensures txQueues is not modified in the middle of a tick.
-	txLock sync.Mutex
+
+	txQueue *transaction.TxQueue
 
 	receiptHistory *receipt.History
 
@@ -89,17 +76,15 @@ func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
-func (w *World) TxQueueLength() int {
-	w.txLock.Lock()
-	defer w.txLock.Unlock()
-	acc := 0
-	for _, v := range w.txQueues {
-		acc += len(v)
-	}
-	return acc
+func (w *World) StoreManager() *StoreManager {
+	return w.storeManager
 }
 
-func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
+func (w *World) GetTxQueueAmount() int {
+	return w.txQueue.GetAmountOfTxs()
+}
+
+func (w *World) SetEntityLocation(id entity.ID, location entity.Location) error {
 	err := w.store.EntityLocStore.SetLocation(id, location)
 	if err != nil {
 		return err
@@ -107,23 +92,15 @@ func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location
 	return nil
 }
 
-func (w *World) Component(componentType component.IComponentType, archID storage.ArchetypeID, componentIndex storage.ComponentIndex) ([]byte, error) {
-	return w.store.CompStore.Storage(componentType).Component(archID, componentIndex)
+func (w *World) GetComponentsForArchetypeID(archID archetype.ID) []component.IComponentType {
+	return w.store.ArchAccessor.Archetype(archID).Components()
 }
 
-func (w *World) SetComponent(cType component.IComponentType, component []byte, archID storage.ArchetypeID, componentIndex storage.ComponentIndex) error {
-	return w.store.CompStore.Storage(cType).SetComponent(archID, componentIndex, component)
-}
-
-func (w *World) GetLayout(archID storage.ArchetypeID) []component.IComponentType {
-	return w.store.ArchAccessor.Archetype(archID).Layout().Components()
-}
-
-func (w *World) GetArchetypeForComponents(componentTypes []component.IComponentType) storage.ArchetypeID {
+func (w *World) GetArchetypeForComponents(componentTypes []component.IComponentType) archetype.ID {
 	return w.getArchetypeForComponents(componentTypes)
 }
 
-func (w *World) Archetype(archID storage.ArchetypeID) storage.ArchetypeStorage {
+func (w *World) Archetype(archID archetype.ID) storage.ArchetypeStorage {
 	return w.store.ArchAccessor.Archetype(archID)
 }
 
@@ -245,18 +222,20 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 
 // NewWorld creates a new world.
 func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
+	logger := &Logger{
+		&log.Logger,
+	}
 	w := &World{
-		store:           s,
-		namespace:       "world",
-		tick:            0,
-		systems:         make([]System, 0),
-		nameToComponent: make(map[string]IComponentType),
-		txQueues:        transaction.TxMap{},
-		Logger: &Logger{
-			&log.Logger,
-		},
-		endGameLoopCh:     make(chan bool),
+		store:             s,
+		storeManager:      NewStoreManager(s, logger),
+		namespace:         "world",
+		tick:              0,
+		systems:           make([]System, 0),
+		nameToComponent:   make(map[string]IComponentType),
+		txQueue:           transaction.NewTxQueue(),
+		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
+		endGameLoopCh:     make(chan bool),
 	}
 	w.isGameLoopRunning.Store(false)
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
@@ -277,83 +256,21 @@ func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
 }
 
-func (w *World) CreateMany(num int, components ...component.IComponentType) ([]storage.EntityID, error) {
+func (w *World) CreateMany(num int, components ...component.IComponentType) ([]entity.ID, error) {
 	for _, comp := range components {
 		if _, ok := w.nameToComponent[comp.Name()]; !ok {
 			return nil, fmt.Errorf("%s was not registered, please register all components before using one to create an entity", comp.Name())
 		}
 	}
-
-	archetypeID := w.getArchetypeForComponents(components)
-	entities := make([]storage.EntityID, 0, num)
-	for i := 0; i < num; i++ {
-		e, err := w.createEntity(archetypeID)
-		if err != nil {
-			return nil, err
-		}
-
-		entities = append(entities, e)
-	}
-	return entities, nil
+	return w.StoreManager().CreateManyEntities(num, components...)
 }
 
-func (w *World) Create(components ...component.IComponentType) (storage.EntityID, error) {
+func (w *World) Create(components ...component.IComponentType) (entity.ID, error) {
 	entities, err := w.CreateMany(1, components...)
 	if err != nil {
 		return 0, err
 	}
 	return entities[0], nil
-}
-
-func (w *World) createEntity(archetypeID storage.ArchetypeID) (storage.EntityID, error) {
-	nextEntityID, err := w.nextEntity()
-	if err != nil {
-		return 0, err
-	}
-	archetype := w.store.ArchAccessor.Archetype(archetypeID)
-	componentIndex, err := w.store.CompStore.PushComponents(archetype.Layout().Components(), archetypeID)
-	if err != nil {
-		return 0, err
-	}
-	err = w.store.EntityLocStore.Insert(nextEntityID, archetypeID, componentIndex)
-	if err != nil {
-		return 0, err
-	}
-	archetype.PushEntity(nextEntityID)
-	w.Logger.LogEntity(w, zerolog.DebugLevel, nextEntityID)
-	return nextEntityID, err
-}
-
-func (w *World) Valid(id storage.EntityID) (bool, error) {
-	if id == storage.BadID {
-		return false, nil
-	}
-	ok, err := w.store.EntityLocStore.ContainsEntity(id)
-	if err != nil {
-		return false, err
-	}
-	if !ok {
-		return false, nil
-	}
-	loc, err := w.store.EntityLocStore.GetLocation(id)
-	if err != nil {
-		return false, err
-	}
-	a := loc.ArchID
-	c := loc.CompIndex
-	// If the version of the entity is not the same as the version of the archetype,
-	// the entity is invalid (it means the entity is already destroyed).
-	return id == w.store.ArchAccessor.Archetype(a).Entities()[c], nil
-}
-
-// Entity converts an EntityID to an Entity. An Entity has storage specific details
-// about where data for this entity is located
-func (w *World) Entity(id storage.EntityID) (storage.Entity, error) {
-	loc, err := w.store.EntityLocStore.GetLocation(id)
-	if err != nil {
-		return storage.BadEntity, err
-	}
-	return storage.NewEntity(id, loc), nil
 }
 
 // Len return the number of entities in this world
@@ -366,138 +283,19 @@ func (w *World) Len() (int, error) {
 }
 
 // Remove removes the given Entity from the world
-func (w *World) Remove(id storage.EntityID) error {
-	ok, err := w.Valid(id)
-	if err != nil {
-		w.Logger.Debug().Int("entity_id", int(id)).Msg("failed to remove")
-		return err
-	}
-	if ok {
-		loc, err := w.store.EntityLocStore.GetLocation(id)
-		if err != nil {
-			return err
-		}
-		if err := w.store.EntityLocStore.Remove(id); err != nil {
-			return err
-		}
-		if err := w.removeAtLocation(id, loc); err != nil {
-			return err
-		}
-	}
-	w.Logger.Debug().Int("entity_id", int(id)).Msg("removed")
-	return nil
-}
-
-func (w *World) removeAtLocation(id storage.EntityID, loc storage.Location) error {
-	archID := loc.ArchID
-	componentIndex := loc.CompIndex
-	archetype := w.store.ArchAccessor.Archetype(archID)
-	archetype.SwapRemove(componentIndex)
-	err := w.store.CompStore.Remove(archID, archetype.Layout().Components(), componentIndex)
-	if err != nil {
-		return err
-	}
-	if int(componentIndex) < len(archetype.Entities()) {
-		swappedID := archetype.Entities()[componentIndex]
-		if err := w.store.EntityLocStore.SetLocation(swappedID, loc); err != nil {
-			return err
-		}
-	}
-	w.store.EntityMgr.Destroy(id)
-	return nil
-}
-
-func (w *World) TransferArchetype(from storage.ArchetypeID, to storage.ArchetypeID, idx storage.ComponentIndex) (storage.ComponentIndex, error) {
-	if from == to {
-		return idx, nil
-	}
-	fromArch := w.store.ArchAccessor.Archetype(from)
-	toArch := w.store.ArchAccessor.Archetype(to)
-
-	// move entity id
-	id := fromArch.SwapRemove(idx)
-	toArch.PushEntity(id)
-	err := w.store.EntityLocStore.Insert(id, to, storage.ComponentIndex(len(toArch.Entities())-1))
-	if err != nil {
-		return 0, err
-	}
-
-	if len(fromArch.Entities()) > int(idx) {
-		movedID := fromArch.Entities()[idx]
-		err := w.store.EntityLocStore.Insert(movedID, from, idx)
-		if err != nil {
-			return 0, err
-		}
-	}
-
-	// creates component if not exists in new layout
-	fromLayout := fromArch.Layout()
-	toLayout := toArch.Layout()
-	for _, componentType := range toLayout.Components() {
-		if !fromLayout.HasComponent(componentType) {
-			store := w.store.CompStore.Storage(componentType)
-			if err := store.PushComponent(componentType, to); err != nil {
-				return 0, err
-			}
-		}
-	}
-
-	// move component
-	for _, componentType := range fromLayout.Components() {
-		store := w.store.CompStore.Storage(componentType)
-		if toLayout.HasComponent(componentType) {
-			if err := store.MoveComponent(from, idx, to); err != nil {
-				return 0, err
-			}
-		} else {
-			_, err := store.SwapRemove(from, idx)
-			if err != nil {
-				return 0, err
-			}
-		}
-	}
-	err = w.store.CompStore.Move(from, to)
-	if err != nil {
-		return 0, err
-	}
-
-	return storage.ComponentIndex(len(toArch.Entities()) - 1), nil
-}
-
-func (w *World) StorageAccessor() StorageAccessor {
-	return StorageAccessor{
-		w.store.ArchCompIdxStore,
-		&w.store.CompStore,
-		w.store.ArchAccessor,
-	}
-}
-
-// copyTransactions makes a copy of the world txQueue, then zeroes out the txQueue.
-func (w *World) copyTransactions() transaction.TxMap {
-	w.txLock.Lock()
-	defer w.txLock.Unlock()
-	txsMap := make(transaction.TxMap, len(w.txQueues))
-	for id, txs := range w.txQueues {
-		txsMap[id] = make([]transaction.TxAny, len(txs))
-		copy(txsMap[id], txs)
-		w.txQueues[id] = w.txQueues[id][:0]
-	}
-	return txsMap
+func (w *World) Remove(id entity.ID) error {
+	return w.StoreManager().RemoveEntity(id)
 }
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
 func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (tick uint64, txHash transaction.TxHash) {
-	w.txLock.Lock()
-	defer w.txLock.Unlock()
-	txHash = transaction.TxHash(sig.HashHex())
-	w.txQueues[id] = append(w.txQueues[id], transaction.TxAny{
-		TxHash: txHash,
-		Value:  v,
-		Sig:    sig,
-	})
-	return w.CurrentTick(), txHash
+	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
+	// transaction is actually added to the returned tick.
+	tick = w.CurrentTick()
+	txHash = w.txQueue.AddTransaction(id, v, sig)
+	return tick, txHash
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
@@ -518,15 +316,12 @@ func (w *World) Tick(ctx context.Context) error {
 	if !w.stateIsLoaded {
 		return errors.New("must load state before first tick")
 	}
-	txs := w.copyTransactions()
+	txQueue := w.txQueue.CopyTransaction()
 
-	if err := w.store.TickStore.StartNextTick(w.registeredTransactions, txs); err != nil {
+	if err := w.store.TickStore.StartNextTick(w.registeredTransactions, txQueue); err != nil {
 		return err
 	}
 
-	txQueue := &TransactionQueue{
-		queue: txs,
-	}
 	for i, sys := range w.systems {
 		nameOfCurrentRunningSystem = w.systemNames[i]
 		err := sys(w, txQueue, w.systemLoggers[i])
@@ -535,7 +330,6 @@ func (w *World) Tick(ctx context.Context) error {
 			return err
 		}
 	}
-
 	if err := w.saveArchetypeData(); err != nil {
 		return err
 	}
@@ -579,13 +373,12 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 		w.Logger.Warn().Msg("No systems registered.")
 	}
 
-	tickTheWorld := func() {
-		if err := w.Tick(ctx); err != nil {
-			w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
-		}
-	}
-
 	go func() {
+		tickTheWorld := func() {
+			if err := w.Tick(ctx); err != nil {
+				w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
+			}
+		}
 		intervalTicker := time.NewTicker(loopInterval)
 		w.isGameLoopRunning.Store(true)
 	loop:
@@ -594,10 +387,12 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 			case <-intervalTicker.C:
 				tickTheWorld()
 			case <-w.endGameLoopCh:
-				if w.TxQueueLength() > 0 {
-					tickTheWorld() //immediately tick if queue is not empty to process all txs.
+				if w.GetTxQueueAmount() > 0 {
+					tickTheWorld() //immediately tick if queue is not empty to process all txs if queue is not empty.
 				}
 				break loop
+			default:
+				continue
 			}
 		}
 		w.isGameLoopRunning.Store(false)
@@ -647,7 +442,7 @@ func (w *World) saveToKey(key string, cm storage.ComponentMarshaler) error {
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
 // transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
 // transactions that need to be processed because the last tick was successful.
-func (w *World) recoverGameState() (recoveredTxs transaction.TxMap, err error) {
+func (w *World) recoverGameState() (recoveredTxs *transaction.TxQueue, err error) {
 	start, end, err := w.store.TickStore.GetTickNumbers()
 	if err != nil {
 		return nil, err
@@ -688,7 +483,7 @@ func (w *World) LoadGameState() error {
 	}
 
 	if recoveredTxs != nil {
-		w.txQueues = recoveredTxs
+		w.txQueue = recoveredTxs
 		if err := w.Tick(context.Background()); err != nil {
 			return err
 		}
@@ -709,28 +504,20 @@ func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []I
 	return cm.UnmarshalWithComps(buf, comps)
 }
 
-func (w *World) GetComponentsOnEntity(id storage.EntityID) ([]IComponentType, error) {
-	ent, err := w.Entity(id)
-	if err != nil {
-		return nil, err
-	}
-	return w.GetLayout(ent.Loc.ArchID), nil
-}
-
-func (w *World) nextEntity() (storage.EntityID, error) {
+func (w *World) nextEntity() (entity.ID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 
-func (w *World) insertArchetype(layout *storage.Layout) storage.ArchetypeID {
-	w.store.ArchCompIdxStore.Push(layout)
-	archID := storage.ArchetypeID(w.store.ArchAccessor.Count())
+func (w *World) insertArchetype(comps []IComponentType) archetype.ID {
+	w.store.ArchCompIdxStore.Push(comps)
+	archID := archetype.ID(w.store.ArchAccessor.Count())
 
-	w.store.ArchAccessor.PushArchetype(archID, layout)
+	w.store.ArchAccessor.PushArchetype(archID, comps)
 	w.Logger.Debug().Int("archetype_id", int(archID)).Msg("created")
 	return archID
 }
 
-func (w *World) getArchetypeForComponents(components []component.IComponentType) storage.ArchetypeID {
+func (w *World) getArchetypeForComponents(components []component.IComponentType) archetype.ID {
 	if len(components) == 0 {
 		panic("entity must have at least one component")
 	}
@@ -740,7 +527,7 @@ func (w *World) getArchetypeForComponents(components []component.IComponentType)
 	if !w.noDuplicates(components) {
 		panic(fmt.Sprintf("duplicate component types: %v", components))
 	}
-	return w.insertArchetype(storage.NewLayout(components))
+	return w.insertArchetype(components)
 }
 
 func (w *World) noDuplicates(components []component.IComponentType) bool {
@@ -899,10 +686,11 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, e
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) GetComponents() *[]IComponentType {
-	return &w.registeredComponents
+func (w *World) GetComponents() []IComponentType {
+	return w.registeredComponents
 }
 
 func (w *World) InjectLogger(logger *Logger) {
 	w.Logger = logger
+	w.StoreManager().InjectLogger(logger)
 }

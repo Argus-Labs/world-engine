@@ -1,6 +1,9 @@
 package component
 
 type (
+	// Index represents the Index of component in an archetype.
+	Index int
+
 	TypeID int
 
 	// IComponentType is a high level representation of a user defined component struct.
@@ -13,5 +16,19 @@ type (
 		New() ([]byte, error)
 		// Name returns the name of the component.
 		Name() string
+
+		Decode([]byte) (any, error)
+		Encode(any) ([]byte, error)
 	}
 )
+
+// Contains returns true if the given slice of components contains the given component. Components are the same if they
+// have the same ID.
+func Contains(components []IComponentType, cType IComponentType) bool {
+	for _, c := range components {
+		if cType.ID() == c.ID() {
+			return true
+		}
+	}
+	return false
+}

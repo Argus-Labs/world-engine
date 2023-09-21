@@ -39,10 +39,13 @@ func NewGameManager(world *ecs.World, handler *Handler) GameManager {
 }
 
 func (s *GameManager) Shutdown() error {
+	log.Info().Msg("Shutting down server.")
 	err := s.handler.Shutdown()
 	if err != nil {
 		return err
 	}
+	log.Info().Msg("Server successfully shutdown.")
+	log.Info().Msg("Shutting down game loop.")
 	s.world.EndGameLoop()
 	log.Info().Msg("Successfully shutdown server and game loop.")
 	return nil

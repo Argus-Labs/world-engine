@@ -1,18 +1,20 @@
 package storage
 
 import (
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 type ComponentStorage interface {
-	PushComponent(component component.IComponentType, archID ArchetypeID) error
-	Component(archetypeID ArchetypeID, componentIndex ComponentIndex) ([]byte, error)
-	SetComponent(ArchetypeID, ComponentIndex, []byte) error
-	MoveComponent(ArchetypeID, ComponentIndex, ArchetypeID) error
-	SwapRemove(archetypeID ArchetypeID, componentIndex ComponentIndex) ([]byte, error)
-	Contains(archetypeID ArchetypeID, componentIndex ComponentIndex) (bool, error)
+	PushComponent(component component.IComponentType, archID archetype.ID) error
+	Component(archetypeID archetype.ID, componentIndex component.Index) ([]byte, error)
+	SetComponent(archetype.ID, component.Index, []byte) error
+	MoveComponent(archetype.ID, component.Index, archetype.ID) error
+	SwapRemove(archetypeID archetype.ID, componentIndex component.Index) ([]byte, error)
+	Contains(archetypeID archetype.ID, componentIndex component.Index) (bool, error)
 }
 
 type ComponentStorageManager interface {
@@ -21,28 +23,28 @@ type ComponentStorageManager interface {
 }
 
 type ComponentIndexStorage interface {
-	// ComponentIndex returns the current index for this ArchetypeID. If the index doesn't currently
+	// ComponentIndex returns the current index for this archetype.ID. If the index doesn't currently
 	// exist then "0, false, nil" is returned
-	ComponentIndex(ArchetypeID) (ComponentIndex, bool, error)
+	ComponentIndex(archetype.ID) (component.Index, bool, error)
 	// SetIndex sets the index of the given archerype index. This is the next index that will be assigned to a new
 	// entity in this archetype.
-	SetIndex(ArchetypeID, ComponentIndex) error
+	SetIndex(archetype.ID, component.Index) error
 	// IncrementIndex increments an index for this archetype and returns the new value. If the index
 	// does not yet exist, set the index to 0 and return 0.
-	IncrementIndex(ArchetypeID) (ComponentIndex, error)
+	IncrementIndex(archetype.ID) (component.Index, error)
 	// DecrementIndex decrements an index for this archetype by 1. The index is allowed to go into
 	// negative numbers.
-	DecrementIndex(ArchetypeID) error
+	DecrementIndex(archetype.ID) error
 }
 
 type EntityLocationStorage interface {
-	ContainsEntity(EntityID) (bool, error)
-	Remove(EntityID) error
-	Insert(EntityID, ArchetypeID, ComponentIndex) error
-	SetLocation(EntityID, Location) error
-	GetLocation(EntityID) (Location, error)
-	ArchetypeID(id EntityID) (ArchetypeID, error)
-	ComponentIndexForEntity(EntityID) (ComponentIndex, error)
+	ContainsEntity(entity.ID) (bool, error)
+	Remove(entity.ID) error
+	Insert(entity.ID, archetype.ID, component.Index) error
+	SetLocation(entity.ID, entity.Location) error
+	GetLocation(entity.ID) (entity.Location, error)
+	ArchetypeID(id entity.ID) (archetype.ID, error)
+	ComponentIndexForEntity(entity.ID) (component.Index, error)
 	Len() (int, error)
 }
 
@@ -56,30 +58,30 @@ type ComponentMarshaler interface {
 
 type ArchetypeComponentIndex interface {
 	ComponentMarshaler
-	Push(layout *Layout)
-	SearchFrom(filter filter.LayoutFilter, start int) *ArchetypeIterator
-	Search(layoutFilter filter.LayoutFilter) *ArchetypeIterator
+	Push(comps []component.IComponentType)
+	SearchFrom(filter filter.ComponentFilter, start int) *ArchetypeIterator
+	Search(compfilter filter.ComponentFilter) *ArchetypeIterator
 }
 
 type ArchetypeAccessor interface {
 	ComponentMarshaler
-	PushArchetype(archID ArchetypeID, layout *Layout)
-	Archetype(archID ArchetypeID) ArchetypeStorage
+	PushArchetype(archID archetype.ID, comps []component.IComponentType)
+	Archetype(archID archetype.ID) ArchetypeStorage
 	Count() int
 }
 
 type ArchetypeStorage interface {
-	Layout() *Layout
-	Entities() []EntityID
-	SwapRemove(entityIndex ComponentIndex) EntityID
-	LayoutMatches(components []component.IComponentType) bool
-	PushEntity(entity EntityID)
+	Components() []component.IComponentType
+	Entities() []entity.ID
+	SwapRemove(entityIndex component.Index) entity.ID
+	ComponentsMatch(components []component.IComponentType) bool
+	PushEntity(entity entity.ID)
 	Count() int
 }
 
 type EntityManager interface {
-	Destroy(EntityID)
-	NewEntity() (EntityID, error)
+	Destroy(entity.ID)
+	NewEntity() (entity.ID, error)
 }
 
 type StateStorage interface {
@@ -89,9 +91,9 @@ type StateStorage interface {
 
 type TickStorage interface {
 	GetTickNumbers() (start, end uint64, err error)
-	StartNextTick(txs []transaction.ITransaction, queues transaction.TxMap) error
+	StartNextTick(txs []transaction.ITransaction, queues *transaction.TxQueue) error
 	FinalizeTick() error
-	Recover(txs []transaction.ITransaction) (transaction.TxMap, error)
+	Recover(txs []transaction.ITransaction) (*transaction.TxQueue, error)
 }
 
 type NonceStorage interface {

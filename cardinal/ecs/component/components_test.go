@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -23,19 +25,19 @@ func TestComponents(t *testing.T) {
 	components := storage2.NewComponents(storage2.NewComponentsSliceStorage(), storage2.NewComponentIndexMap())
 
 	tests := []*struct {
-		layout  *storage2.Layout
-		archID  storage2.ArchetypeID
-		compIdx storage2.ComponentIndex
+		comps   []component.IComponentType
+		archID  archetype.ID
+		compIdx component.Index
 		ID      string
 	}{
 		{
-			storage2.NewLayout([]component.IComponentType{ca}),
+			[]component.IComponentType{ca},
 			0,
 			0,
 			"a",
 		},
 		{
-			storage2.NewLayout([]component.IComponentType{ca, cb}),
+			[]component.IComponentType{ca, cb},
 			1,
 			1,
 			"b",
@@ -44,12 +46,12 @@ func TestComponents(t *testing.T) {
 
 	for _, tt := range tests {
 		var err error
-		tt.compIdx, err = components.PushComponents(tt.layout.Components(), tt.archID)
+		tt.compIdx, err = components.PushComponents(tt.comps, tt.archID)
 		assert.NilError(t, err)
 	}
 
 	for _, tt := range tests {
-		for _, comp := range tt.layout.Components() {
+		for _, comp := range tt.comps {
 			st := components.Storage(comp)
 			ok, err := st.Contains(tt.archID, tt.compIdx)
 			assert.NilError(t, err)
@@ -57,11 +59,11 @@ func TestComponents(t *testing.T) {
 				t.Errorf("storage should contain the component at %d, %d", tt.archID, tt.compIdx)
 			}
 			bz, _ := st.Component(tt.archID, tt.compIdx)
-			dat, err := storage2.Decode[ComponentData](bz)
+			dat, err := codec.Decode[ComponentData](bz)
 			assert.NilError(t, err)
 			dat.ID = tt.ID
 
-			compBz, err := storage2.Encode(dat)
+			compBz, err := codec.Encode(dat)
 			assert.NilError(t, err)
 
 			err = st.SetComponent(tt.archID, tt.compIdx, compBz)
@@ -73,7 +75,7 @@ func TestComponents(t *testing.T) {
 	storage := components.Storage(ca)
 
 	srcArchIdx := target.archID
-	var dstArchIdx storage2.ArchetypeID = 1
+	var dstArchIdx archetype.ID = 1
 
 	assert.NilError(t, storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx))
 	assert.NilError(t, components.Move(srcArchIdx, dstArchIdx))
@@ -94,7 +96,7 @@ func TestComponents(t *testing.T) {
 	}
 
 	bz, _ := storage.Component(dstArchIdx, newCompIdx)
-	dat, err := storage2.Decode[ComponentData](bz)
+	dat, err := codec.Decode[ComponentData](bz)
 	assert.NilError(t, err)
 	if dat.ID != target.ID {
 		t.Errorf("component should have ID '%s', got ID '%s'", target.ID, dat.ID)

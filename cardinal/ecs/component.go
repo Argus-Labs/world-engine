@@ -6,9 +6,10 @@ import (
 	"strconv"
 	"unsafe"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 // IComponentType is an interface for component types.
@@ -53,21 +54,21 @@ func (c *ComponentType[T]) SetID(id component.TypeID) error {
 }
 
 // Get returns component data from the entity.
-func (c *ComponentType[T]) Get(w *World, id storage.EntityID) (comp T, err error) {
-	entity, err := w.Entity(id)
+func (c *ComponentType[T]) Get(w *World, id entity.ID) (comp T, err error) {
+	value, err := w.StoreManager().GetComponentForEntity(c, id)
 	if err != nil {
 		return comp, err
 	}
-	bz, err := entity.Component(w, c)
-	if err != nil {
-		return comp, err
+	comp, ok := value.(T)
+	if !ok {
+		return comp, fmt.Errorf("type assertion for component failed: %v to %v", value, c)
 	}
-	return storage.Decode[T](bz)
+	return comp, nil
 }
 
 // Update is a helper that combines a Get followed by a Set to modify a component's value. Pass in a function
 // fn that will return a modified component. Update will hide the calls to Get and Set
-func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(T) T) error {
+func (c *ComponentType[T]) Update(w *World, id entity.ID, fn func(T) T) error {
 	if _, ok := w.nameToComponent[c.Name()]; !ok {
 		return fmt.Errorf("%s is not registered, please register it before updating", c.Name())
 	}
@@ -80,19 +81,11 @@ func (c *ComponentType[T]) Update(w *World, id storage.EntityID, fn func(T) T) e
 }
 
 // Set sets component data to the entity.
-func (c *ComponentType[T]) Set(w *World, id storage.EntityID, component T) error {
+func (c *ComponentType[T]) Set(w *World, id entity.ID, component T) error {
 	if _, ok := w.nameToComponent[c.Name()]; !ok {
 		return fmt.Errorf("%s is not registered, please register it before updating", c.Name())
 	}
-	entity, err := w.Entity(id)
-	if err != nil {
-		return err
-	}
-	bz, err := storage.Encode(component)
-	if err != nil {
-		return err
-	}
-	err = w.SetComponent(c, bz, entity.Loc.ArchID, entity.Loc.CompIndex)
+	err := w.StoreManager().SetComponentForEntity(c, id, component)
 	if err != nil {
 		return err
 	}
@@ -111,12 +104,12 @@ func (c *ComponentType[T]) Each(w *World, callback QueryCallBackFn) {
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w *World) (storage.EntityID, error) {
+func (c *ComponentType[T]) First(w *World) (entity.ID, error) {
 	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w *World) storage.EntityID {
+func (c *ComponentType[T]) MustFirst(w *World) entity.ID {
 	id, err := c.query.First(w)
 	if err != nil {
 		panic(fmt.Sprintf("no entity has the component %s", c.name))
@@ -125,21 +118,13 @@ func (c *ComponentType[T]) MustFirst(w *World) storage.EntityID {
 }
 
 // RemoveFrom removes this component from the given entity.
-func (c *ComponentType[T]) RemoveFrom(w *World, id storage.EntityID) error {
-	e, err := w.Entity(id)
-	if err != nil {
-		return err
-	}
-	return e.RemoveComponent(w, c)
+func (c *ComponentType[T]) RemoveFrom(w *World, id entity.ID) error {
+	return w.StoreManager().RemoveComponentFromEntity(c, id)
 }
 
 // AddTo adds this component to the given entity.
-func (c *ComponentType[T]) AddTo(w *World, id storage.EntityID) error {
-	e, err := w.Entity(id)
-	if err != nil {
-		return err
-	}
-	return e.AddComponent(w, c)
+func (c *ComponentType[T]) AddTo(w *World, id entity.ID) error {
+	return w.StoreManager().AddComponentToEntity(c, id)
 }
 
 // String returns the component type name.
@@ -168,7 +153,15 @@ func (c *ComponentType[T]) New() ([]byte, error) {
 	if c.defaultVal != nil {
 		comp = c.defaultVal.(T)
 	}
-	return storage.Encode(comp)
+	return codec.Encode(comp)
+}
+
+func (c *ComponentType[T]) Encode(v any) ([]byte, error) {
+	return codec.Encode(v)
+}
+
+func (c *ComponentType[T]) Decode(bz []byte) (any, error) {
+	return codec.Decode[T](bz)
 }
 
 func (c *ComponentType[T]) setDefaultVal(ptr unsafe.Pointer) {

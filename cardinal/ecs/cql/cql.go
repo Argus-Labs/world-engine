@@ -8,8 +8,8 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type cqlOperator int
@@ -142,9 +142,9 @@ var internalCQLParser = participle.MustBuild[cqlTerm]()
 // TODO: Value is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
 // be checked.
-func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
+func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (component.IComponentType, bool)) (filter.ComponentFilter, error) {
 	if value.Not != nil {
-		resultFilter, err := valueToLayoutFilter(value.Not.SubExpression, stringToComponent)
+		resultFilter, err := valueToComponentFilter(value.Not.SubExpression, stringToComponent)
 		if err != nil {
 			return nil, err
 		}
@@ -176,34 +176,34 @@ func valueToLayoutFilter(value *cqlValue, stringToComponent func(string) (compon
 		}
 		return filter.Contains(components...), nil
 	} else if value.Subexpression != nil {
-		return termToLayoutFilter(value.Subexpression, stringToComponent)
+		return termToComponentFilter(value.Subexpression, stringToComponent)
 	} else {
-		return nil, errors.New("unknown error during conversion from CQL AST to LayoutFilter")
+		return nil, errors.New("unknown error during conversion from CQL AST to ComponentFilter")
 	}
 }
 
-func factorToLayoutFilter(factor *cqlFactor, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
-	return valueToLayoutFilter(factor.Base, stringToComponent)
+func factorToComponentFilter(factor *cqlFactor, stringToComponent func(string) (component.IComponentType, bool)) (filter.ComponentFilter, error) {
+	return valueToComponentFilter(factor.Base, stringToComponent)
 }
 
-func opFactorToLayoutFilter(opFactor *cqlOpFactor, stringToComponent func(string) (component.IComponentType, bool)) (*cqlOperator, filter.LayoutFilter, error) {
-	resultFilter, err := factorToLayoutFilter(opFactor.Factor, stringToComponent)
+func opFactorToComponentFilter(opFactor *cqlOpFactor, stringToComponent func(string) (component.IComponentType, bool)) (*cqlOperator, filter.ComponentFilter, error) {
+	resultFilter, err := factorToComponentFilter(opFactor.Factor, stringToComponent)
 	if err != nil {
 		return nil, nil, err
 	}
 	return &opFactor.Operator, resultFilter, nil
 }
 
-func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
+func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (component.IComponentType, bool)) (filter.ComponentFilter, error) {
 	if term.Left == nil {
 		return nil, errors.New("Not enough values in expression")
 	}
-	acc, err := factorToLayoutFilter(term.Left, stringToComponent)
+	acc, err := factorToComponentFilter(term.Left, stringToComponent)
 	if err != nil {
 		return nil, err
 	}
 	for _, opFactor := range term.Right {
-		operator, resultFilter, err := opFactorToLayoutFilter(opFactor, stringToComponent)
+		operator, resultFilter, err := opFactorToComponentFilter(opFactor, stringToComponent)
 		if err != nil {
 			return nil, err
 		}
@@ -219,12 +219,12 @@ func termToLayoutFilter(term *cqlTerm, stringToComponent func(string) (component
 	return acc, nil
 }
 
-func CQLParse(cqlText string, stringToComponent func(string) (component.IComponentType, bool)) (filter.LayoutFilter, error) {
+func CQLParse(cqlText string, stringToComponent func(string) (component.IComponentType, bool)) (filter.ComponentFilter, error) {
 	term, err := internalCQLParser.ParseString("", cqlText)
 	if err != nil {
 		return nil, err
 	}
-	resultFilter, err := termToLayoutFilter(term, stringToComponent)
+	resultFilter, err := termToComponentFilter(term, stringToComponent)
 	if err != nil {
 		return nil, err
 	}
@@ -236,6 +236,6 @@ type QueryRequest struct {
 }
 
 type QueryResponse struct {
-	Id   storage.EntityID  `json:"id"`
+	Id   entity.ID         `json:"id"`
 	Data []json.RawMessage `json:"data"`
 }

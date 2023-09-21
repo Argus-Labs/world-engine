@@ -17,6 +17,8 @@ import (
 
 	"gotest.tools/v3/assert"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -113,17 +115,18 @@ func setTestTimeout(t *testing.T, timeout time.Duration) {
 		case <-success:
 			// test was successful. Do nothing
 		case <-time.After(timeout):
-			assert.Check(t, false, "test timed out")
+			//assert.Check(t, false, "test timed out")
+			panic("test timed out")
 		}
 	}()
 }
 
 func TestShutDownViaMethod(t *testing.T) {
-	setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create failure with panic.
+	//setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create failure with panic.
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -136,11 +139,12 @@ func TestShutDownViaMethod(t *testing.T) {
 		//wait until game loop is running.
 		time.Sleep(1 * time.Millisecond)
 	}
-	shutdownObject := NewGameManager(w, txh.Handler)
-	err = shutdownObject.Shutdown() //Should block until loop is down.
+	gameObject := NewGameManager(w, txh.Handler)
+	err = gameObject.Shutdown() //Should block until loop is down.
 	assert.NilError(t, err)
 	assert.Assert(t, !w.IsGameLoopRunning())
 	for {
+		time.Sleep(500 * time.Millisecond)
 		_, err := http.Get("http://localhost:4040/health")
 		if err != nil {
 			break //server is supposed to be shutdown.
@@ -154,7 +158,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -179,6 +183,7 @@ func TestShutDownViaSignal(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 	}
 	for {
+		time.Sleep(500 * time.Millisecond)
 		_, err := http.Get("http://localhost:4040/health")
 		if err != nil {
 			break //server is supposed to be shutdown.
@@ -258,7 +263,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	count := 0
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -303,7 +308,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		return nil
 	})
 	type garbageStruct struct {
@@ -502,7 +507,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -910,7 +915,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		for _, tx := range incTx.In(queue) {
 			incTx.SetResult(world, tx.TxHash, IncReply{
 				Number: tx.Value.Number + 1,
@@ -919,7 +924,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 		return nil
 	})
 	// System to handle duplicating strings
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		for _, tx := range dupeTx.In(queue) {
 			dupeTx.SetResult(world, tx.TxHash, DupeReply{
 				Str: tx.Value.Str + tx.Value.Str,
@@ -929,7 +934,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	})
 	wantError := errors.New("some error")
 	// System to handle error production
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		for _, tx := range errTx.In(queue) {
 			errTx.AddError(world, tx.TxHash, wantError)
 			errTx.AddError(world, tx.TxHash, wantError)

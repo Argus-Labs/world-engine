@@ -68,7 +68,7 @@ func AttackSystem(world *cardinal.World, queue *cardinal.TransactionQueue, logge
 		atk := tx.Value()
 
 		// update the component based on the attack
-		err := HealthComponent.Update(world, storage.EntityID(atk.TargetPlayer), func(health Health) Health {
+		err := HealthComponent.Update(world, entity.ID(atk.TargetPlayer), func(health Health) Health {
 			health.Amount -= atk.Amount
 			return health
 		})
