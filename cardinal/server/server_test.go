@@ -176,14 +176,8 @@ func TestShutDownViaSignal(t *testing.T) {
 	for w.IsGameLoopRunning() {
 		time.Sleep(500 * time.Millisecond)
 	}
-	for {
-		time.Sleep(500 * time.Millisecond)
-		_, err := http.Get("http://localhost:4040/health")
-		if err != nil {
-			break //server is supposed to be shutdown.
-		}
-
-	}
+	_, err = http.Get("http://localhost:4040/health")
+	assert.Check(t, err != nil) //Server must shutdown before game loop. So if the gameloop turned off
 
 }
 
