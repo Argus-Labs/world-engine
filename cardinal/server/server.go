@@ -10,7 +10,6 @@ import (
 	"os"
 	"reflect"
 	"strconv"
-	"sync/atomic"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
@@ -35,8 +34,7 @@ type Handler struct {
 	port                   string
 
 	// plugins
-	adapter         shard.WriteAdapter
-	isServerRunning atomic.Bool
+	adapter shard.WriteAdapter
 }
 
 var (
@@ -67,11 +65,9 @@ var swaggerData []byte
 
 func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
 	th := &Handler{
-		w:               w,
-		mux:             http.NewServeMux(),
-		isServerRunning: atomic.Bool{},
+		w:   w,
+		mux: http.NewServeMux(),
 	}
-	th.isServerRunning.Store(false)
 	for _, opt := range opts {
 		opt(th)
 	}
@@ -469,14 +465,8 @@ func (t *Handler) initialize() {
 // Will default to env var "CARDINAL_PORT". If that's not set correctly then will default to port 4040
 // if no correct port was previously set.
 func (t *Handler) Serve() error {
-	t.isServerRunning.Store(true)
 	err := t.server.ListenAndServe()
-	t.isServerRunning.Store(false)
 	return err
-}
-
-func (t *Handler) IsServerRunning() bool {
-	return t.isServerRunning.Load()
 }
 
 func (t *Handler) Close() error {

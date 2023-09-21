@@ -1,22 +1,22 @@
 package server
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
-type ShutDownManager struct {
+type GameManager struct {
 	handler *Handler
 	world   *ecs.World
 }
 
-func NewShutdownManager(world *ecs.World, handler *Handler) ShutDownManager {
+func NewGameManager(world *ecs.World, handler *Handler) GameManager {
 
-	manager := ShutDownManager{
+	manager := GameManager{
 		handler: handler,
 		world:   world,
 	}
@@ -25,12 +25,11 @@ func NewShutdownManager(world *ecs.World, handler *Handler) ShutDownManager {
 	signalChannel := make(chan os.Signal, 1)
 	go func() {
 		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
-		fmt.Printf("signal handler process: %d", os.Getpid())
 		for sig := range signalChannel {
 			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
 				err := manager.Shutdown()
 				if err != nil {
-					fmt.Println("There was an error during shutdown %w", err)
+					log.Err(err).Msgf("There was an error during shutdown.")
 				}
 				return
 			}
@@ -39,12 +38,12 @@ func NewShutdownManager(world *ecs.World, handler *Handler) ShutDownManager {
 	return manager
 }
 
-func (s *ShutDownManager) Shutdown() error {
+func (s *GameManager) Shutdown() error {
 	err := s.handler.Shutdown()
 	if err != nil {
 		return err
 	}
 	s.world.EndGameLoop()
-	fmt.Println("Successfully shutdown server and game loop.")
+	log.Info().Msg("Successfully shutdown server and game loop.")
 	return nil
 }

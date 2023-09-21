@@ -89,6 +89,16 @@ func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
+func (w *World) TxQueueLength() int {
+	w.txLock.Lock()
+	defer w.txLock.Unlock()
+	acc := 0
+	for _, v := range w.txQueues {
+		acc += len(v)
+	}
+	return acc
+}
+
 func (w *World) SetEntityLocation(id storage.EntityID, location storage.Location) error {
 	err := w.store.EntityLocStore.SetLocation(id, location)
 	if err != nil {
@@ -568,21 +578,26 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 	if len(w.systems) == 0 {
 		w.Logger.Warn().Msg("No systems registered.")
 	}
+
+	tickTheWorld := func() {
+		if err := w.Tick(ctx); err != nil {
+			w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
+		}
+	}
+
 	go func() {
+		intervalTicker := time.NewTicker(loopInterval)
 		w.isGameLoopRunning.Store(true)
-		wasEndGameLoopSignalReceived := false
-		for range time.Tick(loopInterval) {
-			if wasEndGameLoopSignalReceived {
-				break
-			}
-			if err := w.Tick(ctx); err != nil {
-				w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
-			}
+	loop:
+		for {
 			select {
+			case <-intervalTicker.C:
+				tickTheWorld()
 			case <-w.endGameLoopCh:
-				wasEndGameLoopSignalReceived = true
-			default:
-				continue
+				if w.TxQueueLength() > 0 {
+					tickTheWorld() //immediately tick if queue is not empty to process all txs.
+				}
+				break loop
 			}
 		}
 		w.isGameLoopRunning.Store(false)
@@ -595,6 +610,9 @@ func (w *World) IsGameLoopRunning() bool {
 
 func (w *World) EndGameLoop() {
 	w.endGameLoopCh <- true
+	for w.IsGameLoopRunning() {
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 type TxBatch struct {
