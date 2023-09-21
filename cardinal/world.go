@@ -9,6 +9,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/server"
@@ -126,7 +127,7 @@ func (w *World) StartGame() error {
 // game tick. This Register method can be called multiple times.
 func (w *World) RegisterSystems(systems ...System) {
 	for _, system := range systems {
-		w.impl.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecs.Logger) error {
+		w.impl.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecslog.Logger) error {
 			return system(&World{impl: world}, &TransactionQueue{queue}, &Logger{logger})
 		})
 	}

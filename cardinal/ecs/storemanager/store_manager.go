@@ -105,7 +105,7 @@ func (s *StoreManager) CreateEntity(comps ...component.IComponentType) (entity.I
 }
 
 func (s *StoreManager) CreateManyEntities(num int, comps ...component.IComponentType) ([]entity.ID, error) {
-	archetypeID, err := s.getArchetypeIDForComponents(comps)
+	archetypeID, err := s.GetArchIDForComponents(comps)
 	if err != nil {
 		return nil, err
 	}
@@ -156,6 +156,10 @@ func (s *StoreManager) SetComponentForEntity(cType component.IComponentType, id 
 	return s.store.CompStore.Storage(cType).SetComponent(loc.ArchID, loc.CompIndex, bz)
 }
 
+func (s *StoreManager) GetComponentTypesForArchID(archID archetype.ID) []component.IComponentType {
+	return s.store.ArchAccessor.Archetype(archID).Components()
+}
+
 func (s *StoreManager) GetComponentTypesForEntity(id entity.ID) ([]component.IComponentType, error) {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
@@ -201,7 +205,7 @@ func (s *StoreManager) insertArchetype(components []component.IComponentType) ar
 	return archID
 }
 
-func (s *StoreManager) getArchetypeIDForComponents(components []component.IComponentType) (archetype.ID, error) {
+func (s *StoreManager) GetArchIDForComponents(components []component.IComponentType) (archetype.ID, error) {
 	if len(components) == 0 {
 		return 0, errors.New("entities require at least 1 component")
 	}
@@ -284,7 +288,7 @@ func (s *StoreManager) AddComponentToEntity(cType component.IComponentType, id e
 		return storage.ErrorComponentAlreadyOnEntity
 	}
 	targetComponents := append(currComponents, cType)
-	targetArchID, err := s.getArchetypeIDForComponents(targetComponents)
+	targetArchID, err := s.GetArchIDForComponents(targetComponents)
 	if err != nil {
 		return fmt.Errorf("unable to create new archetype: %w", err)
 	}
@@ -315,7 +319,7 @@ func (s *StoreManager) RemoveComponentFromEntity(cType component.IComponentType,
 		}
 		targetComponents = append(targetComponents, c2)
 	}
-	targetArchID, err := s.getArchetypeIDForComponents(targetComponents)
+	targetArchID, err := s.GetArchIDForComponents(targetComponents)
 	if err != nil {
 		return err
 	}

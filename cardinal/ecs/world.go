@@ -17,7 +17,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -75,26 +74,6 @@ func (w *World) IsRecovering() bool {
 
 func (w *World) StoreManager() *storemanager.StoreManager {
 	return w.storeManager
-}
-
-func (w *World) SetEntityLocation(id entity.ID, location entity.Location) error {
-	err := w.store.EntityLocStore.SetLocation(id, location)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (w *World) GetComponentsForArchetypeID(archID archetype.ID) []component.IComponentType {
-	return w.store.ArchAccessor.Archetype(archID).Components()
-}
-
-func (w *World) GetArchetypeForComponents(componentTypes []component.IComponentType) archetype.ID {
-	return w.getArchetypeForComponents(componentTypes)
-}
-
-func (w *World) Archetype(archID archetype.ID) storage.ArchetypeStorage {
-	return w.store.ArchAccessor.Archetype(archID)
 }
 
 func (w *World) AddSystem(s System) {
@@ -477,31 +456,6 @@ func (w *World) insertArchetype(comps []IComponentType) archetype.ID {
 	w.store.ArchAccessor.PushArchetype(archID, comps)
 	w.Logger.Debug().Int("archetype_id", int(archID)).Msg("created")
 	return archID
-}
-
-func (w *World) getArchetypeForComponents(components []component.IComponentType) archetype.ID {
-	if len(components) == 0 {
-		panic("entity must have at least one component")
-	}
-	if ii := w.store.ArchCompIdxStore.Search(filter.Exact(components...)); ii.HasNext() {
-		return ii.Next()
-	}
-	if !w.noDuplicates(components) {
-		panic(fmt.Sprintf("duplicate component types: %v", components))
-	}
-	return w.insertArchetype(components)
-}
-
-func (w *World) noDuplicates(components []component.IComponentType) bool {
-	// check if there are duplicate values inside component slice
-	for i := 0; i < len(components); i++ {
-		for j := i + 1; j < len(components); j++ {
-			if components[i] == components[j] {
-				return false
-			}
-		}
-	}
-	return true
 }
 
 // RecoverFromChain will attempt to recover the state of the world based on historical transaction data.

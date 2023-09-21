@@ -96,7 +96,8 @@ func TestWorldLogger(t *testing.T) {
 	//require.JSONEq compares json strings for equality.
 	require.JSONEq(t, buf.String(), jsonWorldInfoString)
 	buf.Reset()
-	archetypeId := w.GetArchetypeForComponents([]component.IComponentType{energy})
+	archetypeId, err := w.StoreManager().GetArchIDForComponents([]component.IComponentType{energy})
+	assert.NilError(t, err)
 	archetype_creations_json_string := buf.String()
 	require.JSONEq(t, `
 			{
@@ -104,7 +105,7 @@ func TestWorldLogger(t *testing.T) {
 				"archetype_id":0,
 				"message":"created"
 			}`, archetype_creations_json_string)
-	components := w.Archetype(archetypeId).Components()
+	components := w.StoreManager().GetComponentTypesForArchID(archetypeId)
 	entityId, err := w.Create(components...)
 	assert.NilError(t, err)
 	buf.Reset()

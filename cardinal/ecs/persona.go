@@ -137,7 +137,7 @@ func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *log.Logg
 			// This PersonaTag has already been registered. Don't do anything
 			continue
 		}
-		id, err := world.Create(SignerComp)
+		id, err := world.StoreManager().CreateEntity(SignerComp)
 		if err != nil {
 			CreatePersonaTx.AddError(world, txData.TxHash, err)
 			continue

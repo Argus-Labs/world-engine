@@ -77,8 +77,9 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	_, err := oneWorld.Create(oneNum)
 	assert.NilError(t, err)
 
-	wantID := oneWorld.GetArchetypeForComponents(comps(oneNum))
-	wantComps := oneWorld.Archetype(wantID).Components()
+	wantID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneNum))
+	assert.NilError(t, err)
+	wantComps := oneWorld.StoreManager().GetComponentTypesForArchID(wantID)
 	assert.Equal(t, 1, len(wantComps))
 	assert.Check(t, component.Contains(wantComps, oneNum))
 
@@ -90,8 +91,9 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, twoWorld.RegisterComponents(twoNum))
 	assert.NilError(t, twoWorld.LoadGameState())
 
-	gotID := twoWorld.GetArchetypeForComponents(comps(twoNum))
-	gotComps := twoWorld.Archetype(gotID).Components()
+	gotID, err := twoWorld.StoreManager().GetArchIDForComponents(comps(twoNum))
+	assert.NilError(t, err)
+	gotComps := twoWorld.StoreManager().GetComponentTypesForArchID(gotID)
 	assert.Equal(t, 1, len(gotComps))
 	assert.Check(t, component.Contains(gotComps, twoNum))
 
@@ -118,9 +120,12 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	// oneAlphaNum
 	// oneBetaNum
 	// oneAlphaNum, oneBetaNum
-	oneJustAlphaArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
-	oneJustBetaArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
-	oneBothArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum, oneBetaNum))
+	oneJustAlphaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneAlphaNum))
+	assert.NilError(t, err)
+	oneJustBetaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneBetaNum))
+	assert.NilError(t, err)
+	oneBothArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneAlphaNum, oneBetaNum))
+	assert.NilError(t, err)
 	// These archetype indices should be preserved between a state save/load
 
 	assert.NilError(t, oneWorld.Tick(context.Background()))
@@ -138,11 +143,14 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 	// The order that we FETCH archetypes shouldn't matter, so this order is intentionally
 	// different from the setup step
-	twoBothArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum, oneAlphaNum))
+	twoBothArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneBothArchID, twoBothArchID)
-	twoJustAlphaArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
+	twoJustAlphaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneAlphaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneJustAlphaArchID, twoJustAlphaArchID)
-	twoJustBetaArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
+	twoJustBetaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneBetaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneJustBetaArchID, twoJustBetaArchID)
 
 	// Save and load again to make sure the "two" world correctly saves its state even though
@@ -157,11 +165,14 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	assert.NilError(t, threeWorld.LoadGameState())
 
 	// And again, the loading of archetypes is intentionally different from the above two steps
-	threeJustBetaArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
+	threeJustBetaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneBetaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneJustBetaArchID, threeJustBetaArchID)
-	threeBothArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum, oneAlphaNum))
+	threeBothArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneBothArchID, threeBothArchID)
-	threeJustAlphaArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
+	threeJustAlphaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneAlphaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneJustAlphaArchID, threeJustAlphaArchID)
 }
 

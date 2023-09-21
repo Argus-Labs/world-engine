@@ -3,14 +3,15 @@ package evm
 import (
 	"context"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
-	"pkg.world.dev/world-engine/sign"
 	"testing"
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/sign"
 )
 
 type FooTransaction struct {
@@ -54,7 +55,7 @@ func TestServer_SendMessage(t *testing.T) {
 	enabled := false
 
 	// add a system that checks that they are submitted properly to the world.
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		if !enabled {
 			return nil
 		}
