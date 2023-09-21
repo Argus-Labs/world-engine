@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -73,7 +74,7 @@ type World struct {
 	Logger *Logger
 
 	endGameLoopCh     chan bool
-	isGameLoopRunning bool
+	isGameLoopRunning atomic.Bool
 }
 
 var (
@@ -245,8 +246,9 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 			&log.Logger,
 		},
 		endGameLoopCh:     make(chan bool),
-		isGameLoopRunning: false,
+		isGameLoopRunning: atomic.Bool{},
 	}
+	w.isGameLoopRunning.Store(false)
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
 	for _, opt := range opts {
 		opt(w)
@@ -567,7 +569,7 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 		w.Logger.Warn().Msg("No systems registered.")
 	}
 	go func() {
-		w.isGameLoopRunning = true
+		w.isGameLoopRunning.Store(true)
 		wasEndGameLoopSignalReceived := false
 		for range time.Tick(loopInterval) {
 			if wasEndGameLoopSignalReceived {
@@ -583,12 +585,12 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 				continue
 			}
 		}
-		w.isGameLoopRunning = false
+		w.isGameLoopRunning.Store(false)
 	}()
 }
 
 func (w *World) IsGameLoopRunning() bool {
-	return w.isGameLoopRunning
+	return w.isGameLoopRunning.Load()
 }
 
 func (w *World) EndGameLoop() {
