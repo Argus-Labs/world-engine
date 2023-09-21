@@ -565,13 +565,17 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 		w.Logger.Warn().Msg("No systems registered.")
 	}
 	go func() {
+		wasEndGameLoopSignalReceived := false
 		for range time.Tick(loopInterval) {
+			if wasEndGameLoopSignalReceived {
+				break
+			}
 			if err := w.Tick(ctx); err != nil {
 				w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
 			}
 			select {
 			case <-w.endGameLoopCh:
-				break
+				wasEndGameLoopSignalReceived = true
 			default:
 				continue
 			}

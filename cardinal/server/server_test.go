@@ -108,10 +108,10 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, swaggerFilePath 
 func TestShutDownViaMethod(t *testing.T) {
 	go func() {
 		select {
-		case <-time.After(5 * time.Second):
+		case <-time.After(7 * time.Second):
 			panic("shut down took to long")
 		}
-	}() // If this test is frozen then it failed to shut down, create an assertion failure.
+	}() // If this test is frozen then it failed to shut down, create failure with panic.
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
@@ -125,6 +125,7 @@ func TestShutDownViaMethod(t *testing.T) {
 	shutdownObject := NewShutdownManager(w, txh.Handler)
 	err := shutdownObject.Shutdown()
 	assert.NilError(t, err)
+	time.Sleep(2 * time.Second)
 }
 
 func TestShutDownViaSignal(t *testing.T) {
@@ -152,7 +153,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	// Send a SIGINT signal.
 	err = currentProcess.Signal(syscall.SIGINT)
 	assert.NilError(t, err)
-
+	time.Sleep(2 * time.Second)
 }
 
 func TestIfServeSetEnvVarForPort(t *testing.T) {
