@@ -43,17 +43,6 @@ var (
 )
 
 const (
-	listTxEndpoint   = "list/tx-endpoints"
-	listReadEndpoint = "list/read-endpoints"
-
-	// Don't name this tx-receipts to ensure it doesn't match the prefix for normal transactions
-	txReceiptsEndpoint = "transaction-receipts"
-
-	schemaEndpointPrefix = "schema/"
-
-	readPrefix = "read-"
-	txPrefix   = "tx-"
-
 	getSignerForPersonaStatusUnknown   = "unknown"
 	getSignerForPersonaStatusAvailable = "available"
 	getSignerForPersonaStatusAssigned  = "assigned"
@@ -447,39 +436,6 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 	api.RegisterOperation("POST", "/query/receipts/list", receiptsHandler)
 
 	return nil
-}
-
-// OldHandler returns a new Handler that can handle HTTP requests. An HTTP endpoint for each
-// deprecated
-func OldHandler(w *ecs.World, opts ...Option) (*Handler, error) {
-	th := &Handler{
-		w:   w,
-		mux: http.NewServeMux(),
-	}
-	for _, opt := range opts {
-		opt(th)
-	}
-
-	if th.disableSigVerification {
-		w.Logger.Warn().Msg("disable signature verification enabled. Do not enable this in production.")
-	}
-
-	// register tx endpoints
-	if err := registerTxHandlers(w, th); err != nil {
-		return nil, fmt.Errorf("failed to register tx handlers: %w", err)
-	}
-
-	// register read endpoints
-	if err := registerReadHandlers(w, th); err != nil {
-		return nil, fmt.Errorf("failed to register read handlers: %w", err)
-	}
-
-	if err := registerReceiptEndpoints(w, th); err != nil {
-		return nil, fmt.Errorf("failed to register receipt handlers: %w", err)
-	}
-
-	th.initialize()
-	return th, nil
 }
 
 // initialize initializes the server. It firsts checks for a port set on the handler via options.
