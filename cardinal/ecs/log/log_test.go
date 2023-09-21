@@ -1,4 +1,4 @@
-package ecs_test
+package log_test
 
 import (
 	"bytes"
@@ -17,6 +17,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/cardinal/ecs/log"
 )
 
 type SendEnergyTx struct {
@@ -32,7 +33,7 @@ type EnergyComp struct {
 
 var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
 
-func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *ecs.Logger) error {
+func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error {
 	logger.Log().Msg("test")
 	energy.Each(w, func(entityId entity.ID) bool {
 		energyPlanet, err := energy.Get(w, entityId)
@@ -50,7 +51,7 @@ func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *ecs.Logger) error 
 	return nil
 }
 
-func testSystemWarningTrigger(w *ecs.World, tx *transaction.TxQueue, logger *ecs.Logger) error {
+func testSystemWarningTrigger(w *ecs.World, tx *transaction.TxQueue, logger *log.Logger) error {
 	time.Sleep(time.Millisecond * 400)
 	return testSystem(w, tx, logger)
 }
@@ -61,7 +62,7 @@ func TestWorldLogger(t *testing.T) {
 	//replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
-	cardinalLogger := ecs.Logger{
+	cardinalLogger := log.Logger{
 		&bufLogger,
 	}
 	w.InjectLogger(&cardinalLogger)
@@ -148,7 +149,7 @@ func TestWorldLogger(t *testing.T) {
 	// test if system name recorded in log
 	require.JSONEq(t, `
 			{
-				"system":"ecs_test.testSystemWarningTrigger",
+				"system":"log_test.testSystemWarningTrigger",
 				"message":"test"
 			}`, logStrings[1])
 	// test if updating component worked

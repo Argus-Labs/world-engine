@@ -9,22 +9,23 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type StoreManager struct {
 	store  storage.WorldStorage
-	logger *Logger
+	logger *log.Logger
 }
 
-func NewStoreManager(store storage.WorldStorage, logger *Logger) *StoreManager {
+func NewStoreManager(store storage.WorldStorage, logger *log.Logger) *StoreManager {
 	return &StoreManager{
 		store:  store,
 		logger: logger,
 	}
 }
 
-func (s *StoreManager) InjectLogger(logger *Logger) {
+func (s *StoreManager) InjectLogger(logger *log.Logger) {
 	s.logger = logger
 }
 

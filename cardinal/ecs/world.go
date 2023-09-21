@@ -18,6 +18,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -34,7 +35,7 @@ type World struct {
 	store                    storage.WorldStorage
 	storeManager             *StoreManager
 	systems                  []System
-	systemLoggers            []*Logger
+	systemLoggers            []*ecslog.Logger
 	systemNames              []string
 	tick                     uint64
 	nameToComponent          map[string]IComponentType
@@ -56,7 +57,7 @@ type World struct {
 
 	errs []error
 
-	Logger *Logger
+	Logger *ecslog.Logger
 }
 
 var (
@@ -213,7 +214,7 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 
 // NewWorld creates a new world.
 func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
-	logger := &Logger{
+	logger := &ecslog.Logger{
 		&log.Logger,
 	}
 	w := &World{
@@ -650,7 +651,11 @@ func (w *World) GetComponents() []IComponentType {
 	return w.registeredComponents
 }
 
-func (w *World) InjectLogger(logger *Logger) {
+func (w *World) GetSystemNames() []string {
+	return w.systemNames
+}
+
+func (w *World) InjectLogger(logger *ecslog.Logger) {
 	w.Logger = logger
 	w.StoreManager().InjectLogger(logger)
 }

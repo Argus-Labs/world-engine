@@ -12,6 +12,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -24,7 +25,7 @@ type OwnableComponent struct {
 	Owner string
 }
 
-func UpdateEnergySystem(w *ecs.World, tq *transaction.TxQueue, _ *ecs.Logger) error {
+func UpdateEnergySystem(w *ecs.World, tq *transaction.TxQueue, _ *log.Logger) error {
 	errs := []error{}
 
 	Energy.Each(w, func(ent entity.ID) bool {
