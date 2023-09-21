@@ -116,19 +116,23 @@ func TestShutDownViaMethod(t *testing.T) {
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 	for !txh.IsServerRunning() {
 		//wait until server is running
+		time.Sleep(1 * time.Millisecond)
 	}
 	ctx := context.Background()
 	w.StartGameLoop(ctx, 1*time.Second)
 	for !w.IsGameLoopRunning() {
 		//wait until game loop is running.
+		time.Sleep(1 * time.Millisecond)
 	}
 	shutdownObject := NewShutdownManager(w, txh.Handler)
 	err := shutdownObject.Shutdown()
 	assert.NilError(t, err)
 	//wait for both game loop and server to shut down.
 	for w.IsGameLoopRunning() {
+		time.Sleep(1 * time.Millisecond)
 	}
 	for txh.IsServerRunning() {
+		time.Sleep(1 * time.Millisecond)
 	}
 }
 
@@ -149,11 +153,13 @@ func TestShutDownViaSignal(t *testing.T) {
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 	for !txh.IsServerRunning() {
 		//wait until server is running
+		time.Sleep(500 * time.Millisecond)
 	}
 	ctx := context.Background()
 	w.StartGameLoop(ctx, 1*time.Second)
 	for !w.IsGameLoopRunning() {
 		//wait until game loop is running
+		time.Sleep(500 * time.Millisecond)
 	}
 	_ = NewShutdownManager(w, txh.Handler)
 
@@ -164,8 +170,10 @@ func TestShutDownViaSignal(t *testing.T) {
 
 	//wait for game loop and server to shutdown.
 	for w.IsGameLoopRunning() {
+		time.Sleep(500 * time.Millisecond)
 	}
 	for txh.IsServerRunning() {
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
