@@ -142,7 +142,7 @@ func TestShutDownViaSignal(t *testing.T) {
 		case <-time.After(10 * time.Second):
 			panic("took too long to shutdown.")
 		}
-	}() // If this test is frozen then it failed to shut down, create an assertion failure.
+	}() // If this test is frozen then it failed to shut down, create a failure with panic.
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
