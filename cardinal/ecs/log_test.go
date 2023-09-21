@@ -9,13 +9,14 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type SendEnergyTx struct {
@@ -31,9 +32,9 @@ type EnergyComp struct {
 
 var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
 
-func testSystem(w *ecs.World, _ *ecs.TransactionQueue, logger *ecs.Logger) error {
+func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *ecs.Logger) error {
 	logger.Log().Msg("test")
-	energy.Each(w, func(entityId storage.EntityID) bool {
+	energy.Each(w, func(entityId entity.ID) bool {
 		energyPlanet, err := energy.Get(w, entityId)
 		if err != nil {
 			return false
@@ -49,7 +50,7 @@ func testSystem(w *ecs.World, _ *ecs.TransactionQueue, logger *ecs.Logger) error
 	return nil
 }
 
-func testSystemWarningTrigger(w *ecs.World, tx *ecs.TransactionQueue, logger *ecs.Logger) error {
+func testSystemWarningTrigger(w *ecs.World, tx *transaction.TxQueue, logger *ecs.Logger) error {
 	time.Sleep(time.Millisecond * 400)
 	return testSystem(w, tx, logger)
 }
@@ -102,12 +103,16 @@ func TestWorldLogger(t *testing.T) {
 				"archetype_id":0,
 				"message":"created"
 			}`, archetype_creations_json_string)
-	entityId, err := w.Create(w.Archetype(archetypeId).Layout().Components()...)
+	components := w.Archetype(archetypeId).Components()
+	entityId, err := w.Create(components...)
 	assert.NilError(t, err)
 	buf.Reset()
 
+	entity, err := w.StoreManager().GetEntity(entityId)
+	assert.NilError(t, err)
+
 	// test log entity
-	cardinalLogger.LogEntity(w, zerolog.DebugLevel, entityId)
+	cardinalLogger.LogEntity(zerolog.DebugLevel, entity, components)
 	jsonEntityInfoString := `
 		{
 			"level":"debug",

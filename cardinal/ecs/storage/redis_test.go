@@ -5,8 +5,12 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"gotest.tools/v3/assert"
@@ -53,7 +57,7 @@ func TestList(t *testing.T) {
 	assert.NilError(t, err)
 
 	bz, _ := compStore.Component(1, 1)
-	foo, err := storage.Decode[SomeComp](bz)
+	foo, err := codec.Decode[SomeComp](bz)
 	assert.NilError(t, err)
 	assert.Equal(t, foo.Foo, 20)
 
@@ -79,7 +83,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	store := storage.NewWorldStorage(&rs)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
-	archID, compIdx := storage.ArchetypeID(0), storage.ComponentIndex(1)
+	archID, compIdx := archetype.ID(0), component.Index(1)
 	assert.NilError(t, idxStore.SetIndex(archID, compIdx))
 	gotIdx, ok, err := idxStore.ComponentIndex(archID)
 	assert.NilError(t, err)
@@ -100,7 +104,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx)
 
-	compIdx = storage.ComponentIndex(25)
+	compIdx = component.Index(25)
 	idxStore.SetIndex(archID, compIdx)
 	gotIdx, ok, err = idxStore.ComponentIndex(archID)
 	assert.NilError(t, err)
@@ -113,8 +117,8 @@ func TestRedis_Location(t *testing.T) {
 	rs := testutil.GetRedisStorage(t)
 	store := storage.NewWorldStorage(&rs)
 
-	loc := storage.NewLocation(0, 1)
-	eid := storage.EntityID(3)
+	loc := entity.NewLocation(0, 1)
+	eid := entity.ID(3)
 	store.EntityLocStore.SetLocation(eid, loc)
 	gotLoc, _ := store.EntityLocStore.GetLocation(eid)
 	assert.Equal(t, loc, gotLoc)
@@ -125,14 +129,14 @@ func TestRedis_Location(t *testing.T) {
 	contains, _ := store.EntityLocStore.ContainsEntity(eid)
 	assert.Equal(t, contains, true)
 
-	notContains, _ := store.EntityLocStore.ContainsEntity(storage.EntityID(420))
+	notContains, _ := store.EntityLocStore.ContainsEntity(entity.ID(420))
 	assert.Equal(t, notContains, false)
 
 	compIdx, _ := store.EntityLocStore.ComponentIndexForEntity(eid)
 	assert.Equal(t, loc.CompIndex, compIdx)
 
-	newEID := storage.EntityID(40)
-	archID2, compIdx2 := storage.ArchetypeID(10), storage.ComponentIndex(15)
+	newEID := entity.ID(40)
+	archID2, compIdx2 := archetype.ID(10), component.Index(15)
 	store.EntityLocStore.Insert(newEID, archID2, compIdx2)
 
 	newLoc, _ := store.EntityLocStore.GetLocation(newEID)
@@ -164,7 +168,7 @@ func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
 			"gamma": 300,
 		},
 	}
-	buf, err := storage.Encode(wantData)
+	buf, err := codec.Encode(wantData)
 	assert.NilError(t, err)
 
 	const key = "foobar"
@@ -175,7 +179,7 @@ func TestCanSaveAndRecoverArbitraryData(t *testing.T) {
 	assert.Equal(t, true, ok)
 	assert.NilError(t, err)
 
-	gotData, err := storage.Decode[*SomeData](gotBytes)
+	gotData, err := codec.Decode[*SomeData](gotBytes)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, gotData, wantData)
 }
@@ -210,17 +214,10 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 	personaTag := "xyzzy"
 	wantSig, err := sign.NewSignedPayload(key, personaTag, "namespace", 66, wantVal)
 	assert.NilError(t, err)
-	wantTxHash := transaction.TxHash("some-transaction-hash")
+	wantTxHash := transaction.TxHash(wantSig.HashHex())
 
-	queue := transaction.TxMap{
-		tx.ID(): []transaction.TxAny{
-			{
-				Value:  wantVal,
-				TxHash: wantTxHash,
-				Sig:    wantSig,
-			},
-		},
-	}
+	queue := transaction.NewTxQueue()
+	queue.AddTransaction(tx.ID(), wantVal, wantSig)
 
 	txSlice := []transaction.ITransaction{tx}
 
@@ -229,9 +226,7 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 	gotQueue, err := rs.Recover(txSlice)
 	assert.NilError(t, err)
 
-	assert.Equal(t, 1, len(gotQueue))
-	slice, ok := gotQueue[tx.ID()]
-	assert.Check(t, ok)
+	slice := gotQueue.ForID(tx.ID())
 	assert.Equal(t, 1, len(slice))
 	assert.Equal(t, wantTxHash, slice[0].TxHash)
 	gotSig := slice[0].Sig
@@ -254,18 +249,18 @@ func TestLargeArbitraryDataProducesError(t *testing.T) {
 func TestGettingIndexStorageShouldNotImpactIncrement(t *testing.T) {
 	rs := testutil.GetRedisStorage(t)
 
-	archID := storage.ArchetypeID(99)
+	archID := archetype.ID(99)
 
 	err := rs.SetIndex(archID, 0)
 	assert.NilError(t, err)
 
 	compIndex, err := rs.IncrementIndex(archID)
 	assert.NilError(t, err)
-	assert.Equal(t, storage.ComponentIndex(1), compIndex)
+	assert.Equal(t, component.Index(1), compIndex)
 
 	compIndex, err = rs.IncrementIndex(archID)
 	assert.NilError(t, err)
-	assert.Equal(t, storage.ComponentIndex(2), compIndex)
+	assert.Equal(t, component.Index(2), compIndex)
 
 	// Get the component index storage for some random component type.
 	// This should have no impact on incrementing the index of archID
@@ -273,5 +268,5 @@ func TestGettingIndexStorageShouldNotImpactIncrement(t *testing.T) {
 
 	compIndex, err = rs.IncrementIndex(archID)
 	assert.NilError(t, err)
-	assert.Equal(t, storage.ComponentIndex(3), compIndex)
+	assert.Equal(t, component.Index(3), compIndex)
 }

@@ -8,11 +8,12 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 func TestAddSystems(t *testing.T) {
 	count := 0
-	sys := func(w *ecs.World, txq *ecs.TransactionQueue, _ *ecs.Logger) error {
+	sys := func(w *ecs.World, txq *transaction.TxQueue, _ *ecs.Logger) error {
 		count++
 		return nil
 	}
@@ -31,13 +32,13 @@ func TestAddSystems(t *testing.T) {
 func TestSystemExecutionOrder(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	order := make([]int, 0, 3)
-	w.AddSystems(func(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
+	w.AddSystems(func(world *ecs.World, queue *transaction.TxQueue, logger *ecs.Logger) error {
 		order = append(order, 1)
 		return nil
-	}, func(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
+	}, func(world *ecs.World, queue *transaction.TxQueue, logger *ecs.Logger) error {
 		order = append(order, 2)
 		return nil
-	}, func(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
+	}, func(world *ecs.World, queue *transaction.TxQueue, logger *ecs.Logger) error {
 		order = append(order, 3)
 		return nil
 	})

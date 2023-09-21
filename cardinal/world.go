@@ -7,6 +7,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -22,7 +23,7 @@ type World struct {
 type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
-	EntityID = storage.EntityID
+	EntityID = entity.ID
 	TxHash   = transaction.TxHash
 
 	// System is a function that process the transaction in the given transaction queue.
@@ -125,7 +126,7 @@ func (w *World) StartGame() error {
 // game tick. This Register method can be called multiple times.
 func (w *World) RegisterSystems(systems ...System) {
 	for _, system := range systems {
-		w.impl.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
+		w.impl.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecs.Logger) error {
 			return system(&World{impl: world}, &TransactionQueue{queue}, &Logger{logger})
 		})
 	}

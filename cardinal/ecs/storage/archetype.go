@@ -4,10 +4,11 @@ import (
 	"errors"
 	"fmt"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
-
-type ArchetypeID int
 
 var _ ArchetypeAccessor = &archetypeStorageImpl{}
 
@@ -19,11 +20,11 @@ type archetypeStorageImpl struct {
 	archs []*Archetype
 }
 
-func (a *archetypeStorageImpl) PushArchetype(archID ArchetypeID, layout *Layout) {
+func (a *archetypeStorageImpl) PushArchetype(archID archetype.ID, comps []component.IComponentType) {
 	a.archs = append(a.archs, &Archetype{
-		ID:         archID,
-		Entitys:    make([]EntityID, 0, 256),
-		ArchLayout: layout,
+		ID:      archID,
+		Entitys: make([]entity.ID, 0, 256),
+		Comps:   comps,
 	})
 }
 
@@ -31,7 +32,7 @@ func (a *archetypeStorageImpl) Count() int {
 	return len(a.archs)
 }
 
-func (a *archetypeStorageImpl) Archetype(archID ArchetypeID) ArchetypeStorage {
+func (a *archetypeStorageImpl) Archetype(archID archetype.ID) ArchetypeStorage {
 	return a.archs[archID]
 }
 
@@ -41,8 +42,8 @@ func (a *archetypeStorageImpl) Archetype(archID ArchetypeID) ArchetypeStorage {
 // slice of IComponentTypes with the correct TypeIDs so that we can recover the original
 // archetypeStorageImpl.
 type archForStorage struct {
-	ID           ArchetypeID
-	Entities     []EntityID
+	ID           archetype.ID
+	Entities     []entity.ID
 	ComponentIDs []component.TypeID
 }
 
@@ -53,11 +54,11 @@ func (a *archetypeStorageImpl) Marshal() ([]byte, error) {
 	for i := range archs {
 		archs[i].ID = a.archs[i].ID
 		archs[i].Entities = a.archs[i].Entitys
-		for _, c := range a.archs[i].Layout().Components() {
+		for _, c := range a.archs[i].Components() {
 			archs[i].ComponentIDs = append(archs[i].ComponentIDs, c.ID())
 		}
 	}
-	return Encode(archs)
+	return codec.Encode(archs)
 }
 
 var (
@@ -95,7 +96,7 @@ func (c idsToComponents) convert(ids []component.TypeID) (comps []component.ICom
 // an archetypeStorageImpl. The slice of components is required because the interfaces were not
 // actually serialized to bytes, just their IDs.
 func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []component.IComponentType) error {
-	archetypesFromStorage, err := Decode[[]archForStorage](bytes)
+	archetypesFromStorage, err := codec.Decode[[]archForStorage](bytes)
 	if err != nil {
 		return err
 	}
@@ -106,7 +107,7 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []com
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrorComponentMismatchWithSavedState, err)
 		}
-		a.PushArchetype(arch.ID, NewLayout(currComps))
+		a.PushArchetype(arch.ID, currComps)
 		a.archs[len(a.archs)-1].Entitys = arch.Entities
 	}
 	return nil
@@ -115,47 +116,47 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []com
 // Archetype is a collection of Entities for a specific archetype of components.
 // This structure allows to quickly find Entities based on their components.
 type Archetype struct {
-	ID         ArchetypeID
-	Entitys    []EntityID
-	ArchLayout *Layout
+	ID      archetype.ID
+	Entitys []entity.ID
+	Comps   []component.IComponentType
 }
 
 var _ ArchetypeStorage = &Archetype{}
 
 // NewArchetype creates a new archetype.
-func NewArchetype(archID ArchetypeID, layout *Layout) *Archetype {
+func NewArchetype(archID archetype.ID, components []component.IComponentType) *Archetype {
 	return &Archetype{
-		ID:         archID,
-		Entitys:    make([]EntityID, 0, 256),
-		ArchLayout: layout,
+		ID:      archID,
+		Entitys: make([]entity.ID, 0, 256),
+		Comps:   components,
 	}
 }
 
-// Layout is a collection of archetypes for a specific ArchLayout of components.
-func (archetype *Archetype) Layout() *Layout {
-	return archetype.ArchLayout
+// Components returns the slice of components associated with this archetype.
+func (archetype *Archetype) Components() []component.IComponentType {
+	return archetype.Comps
 }
 
 // Entities returns all Entities in this archetype.
-func (archetype *Archetype) Entities() []EntityID {
+func (archetype *Archetype) Entities() []entity.ID {
 	return archetype.Entitys
 }
 
 // SwapRemove removes an Ent from the archetype and returns it.
-func (archetype *Archetype) SwapRemove(entityIndex ComponentIndex) EntityID {
+func (archetype *Archetype) SwapRemove(entityIndex component.Index) entity.ID {
 	removed := archetype.Entitys[entityIndex]
 	archetype.Entitys[entityIndex] = archetype.Entitys[len(archetype.Entitys)-1]
 	archetype.Entitys = archetype.Entitys[:len(archetype.Entitys)-1]
 	return removed
 }
 
-// LayoutMatches returns true if the given ArchLayout matches this archetype.
-func (archetype *Archetype) LayoutMatches(components []component.IComponentType) bool {
-	if len(archetype.ArchLayout.Components()) != len(components) {
+// ComponentsMatch returns true if the given components matches this archetype.
+func (archetype *Archetype) ComponentsMatch(components []component.IComponentType) bool {
+	if len(archetype.Components()) != len(components) {
 		return false
 	}
 	for _, componentType := range components {
-		if !archetype.ArchLayout.HasComponent(componentType) {
+		if !component.Contains(archetype.Comps, componentType) {
 			return false
 		}
 	}
@@ -163,7 +164,7 @@ func (archetype *Archetype) LayoutMatches(components []component.IComponentType)
 }
 
 // PushEntity adds an Ent to the archetype.
-func (archetype *Archetype) PushEntity(id EntityID) {
+func (archetype *Archetype) PushEntity(id entity.ID) {
 	archetype.Entitys = append(archetype.Entitys, id)
 }
 

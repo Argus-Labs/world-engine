@@ -2,8 +2,8 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 // Query allowed for the querying of entities within a World.
@@ -23,7 +23,7 @@ type QueryCallBackFn func(EntityID) bool
 // Each executes the given callback function on every EntityID that matches this query. If any call to callback returns
 // falls, no more entities will be processed.
 func (q *Query) Each(w *World, callback QueryCallBackFn) {
-	q.impl.Each(w.impl, func(eid storage.EntityID) bool {
+	q.impl.Each(w.impl, func(eid entity.ID) bool {
 		return callback(eid)
 	})
 }
@@ -40,7 +40,7 @@ func (q *Query) First(w *World) (id EntityID, err error) {
 
 // ComponentFilter represents a filter that will be passed to NewQuery to help decide which entities should be
 // returned in the query.
-type ComponentFilter = filter.LayoutFilter
+type ComponentFilter = filter.ComponentFilter
 
 // And returns entities that match ALL the given filters.
 func And(filters ...ComponentFilter) ComponentFilter {
@@ -60,8 +60,8 @@ func Exact(components ...AnyComponentType) ComponentFilter {
 }
 
 // Not returns entities that do NOT match the given filter.
-func Not(layoutFilter ComponentFilter) ComponentFilter {
-	return filter.Not(layoutFilter)
+func Not(compFilter ComponentFilter) ComponentFilter {
+	return filter.Not(compFilter)
 }
 
 // Or returns entities that match 1 or more of the given filters.

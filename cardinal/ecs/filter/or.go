@@ -5,16 +5,16 @@ import (
 )
 
 type or struct {
-	filters []LayoutFilter
+	filters []ComponentFilter
 }
 
-func Or(filters ...LayoutFilter) LayoutFilter {
+func Or(filters ...ComponentFilter) ComponentFilter {
 	return &or{filters: filters}
 }
 
-func (f *or) MatchesLayout(components []component.IComponentType) bool {
+func (f *or) MatchesComponents(components []component.IComponentType) bool {
 	for _, filter := range f.filters {
-		if filter.MatchesLayout(components) {
+		if filter.MatchesComponents(components) {
 			return true
 		}
 	}

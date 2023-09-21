@@ -3,6 +3,7 @@ package evm
 import (
 	"context"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 	"testing"
 
@@ -53,7 +54,7 @@ func TestServer_SendMessage(t *testing.T) {
 	enabled := false
 
 	// add a system that checks that they are submitted properly to the world.
-	w.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		if !enabled {
 			return nil
 		}
