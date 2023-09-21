@@ -113,7 +113,7 @@ func TestShutDownViaMethod(t *testing.T) {
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
-	txh := makeTestTransactionHandler(t, w, "./swagger.yml", DisableSignatureVerification())
+	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 	for !txh.IsServerRunning() {
 		//wait until server is running
 	}
@@ -146,7 +146,7 @@ func TestShutDownViaSignal(t *testing.T) {
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
-	txh := makeTestTransactionHandler(t, w, "./swagger.yml", DisableSignatureVerification())
+	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 	for !txh.IsServerRunning() {
 		//wait until server is running
 	}
