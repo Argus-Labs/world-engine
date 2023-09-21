@@ -25,6 +25,7 @@ func NewShutdownManager(world *ecs.World, handler *Handler) ShutDownManager {
 	signalChannel := make(chan os.Signal, 1)
 	go func() {
 		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
+		fmt.Printf("signal handler process: %d", os.Getpid())
 		for sig := range signalChannel {
 			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
 				err := manager.Shutdown()
