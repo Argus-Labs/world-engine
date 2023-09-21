@@ -108,8 +108,8 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, swaggerFilePath 
 func TestShutDownViaMethod(t *testing.T) {
 	go func() {
 		select {
-		case <-time.After(20 * time.Second):
-			panic("shut down took to long")
+		case <-time.After(10 * time.Second):
+			panic("took too long to shutdown.")
 		}
 	}() // If this test is frozen then it failed to shut down, create failure with panic.
 	w := inmem.NewECSWorldForTest(t)
@@ -120,18 +120,29 @@ func TestShutDownViaMethod(t *testing.T) {
 	})
 	assert.NilError(t, w.LoadGameState())
 	txh := makeTestTransactionHandler(t, w, "./swagger.yml", DisableSignatureVerification())
+	for !txh.IsServerRunning() {
+		//wait until server is running
+	}
 	ctx := context.Background()
 	w.StartGameLoop(ctx, 1*time.Second)
+	for !w.IsGameLoopRunning() {
+		//wait until game loop is running.
+	}
 	shutdownObject := NewShutdownManager(w, txh.Handler)
 	err := shutdownObject.Shutdown()
 	assert.NilError(t, err)
+	//wait for both game loop and server to shut down.
+	for w.IsGameLoopRunning() {
+	}
+	for txh.IsServerRunning() {
+	}
 }
 
 func TestShutDownViaSignal(t *testing.T) {
 	go func() {
 		select {
-		case <-time.After(20 * time.Second):
-			panic("shut down took to long")
+		case <-time.After(10 * time.Second):
+			panic("took too long to shutdown.")
 		}
 	}() // If this test is frozen then it failed to shut down, create an assertion failure.
 	w := inmem.NewECSWorldForTest(t)
@@ -142,15 +153,25 @@ func TestShutDownViaSignal(t *testing.T) {
 	})
 	assert.NilError(t, w.LoadGameState())
 	txh := makeTestTransactionHandler(t, w, "./swagger.yml", DisableSignatureVerification())
+	for !txh.IsServerRunning() {
+		//wait until server is running
+	}
 	ctx := context.Background()
 	w.StartGameLoop(ctx, 1*time.Second)
+	for !w.IsGameLoopRunning() {
+		//wait until game loop is running
+	}
 	_ = NewShutdownManager(w, txh.Handler)
 
 	// Send a SIGINT signal.
 	cmd := exec.Command("kill", "-INT", strconv.Itoa(os.Getpid()))
 	err := cmd.Run()
-	if err != nil {
-		t.Fatal(err)
+	assert.NilError(t, err)
+
+	//wait for game loop and server to shutdown.
+	for w.IsGameLoopRunning() {
+	}
+	for txh.IsServerRunning() {
 	}
 }
 

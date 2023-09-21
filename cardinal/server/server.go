@@ -34,7 +34,8 @@ type Handler struct {
 	port                   string
 
 	// plugins
-	adapter shard.WriteAdapter
+	adapter         shard.WriteAdapter
+	isServerRunning bool
 }
 
 var (
@@ -76,8 +77,9 @@ var swaggerData []byte
 
 func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
 	th := &Handler{
-		w:   w,
-		mux: http.NewServeMux(),
+		w:               w,
+		mux:             http.NewServeMux(),
+		isServerRunning: false,
 	}
 	for _, opt := range opts {
 		opt(th)
@@ -509,7 +511,14 @@ func (t *Handler) initialize() {
 // Will default to env var "CARDINAL_PORT". If that's not set correctly then will default to port 4040
 // if no correct port was previously set.
 func (t *Handler) Serve() error {
-	return t.server.ListenAndServe()
+	t.isServerRunning = true
+	err := t.server.ListenAndServe()
+	t.isServerRunning = false
+	return err
+}
+
+func (t *Handler) IsServerRunning() bool {
+	return t.isServerRunning
 }
 
 func (t *Handler) Close() error {

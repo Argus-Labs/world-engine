@@ -72,7 +72,8 @@ type World struct {
 
 	Logger *Logger
 
-	endGameLoopCh chan bool
+	endGameLoopCh     chan bool
+	isGameLoopRunning bool
 }
 
 var (
@@ -243,7 +244,8 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		Logger: &Logger{
 			&log.Logger,
 		},
-		endGameLoopCh: make(chan bool),
+		endGameLoopCh:     make(chan bool),
+		isGameLoopRunning: false,
 	}
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
 	for _, opt := range opts {
@@ -565,6 +567,7 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 		w.Logger.Warn().Msg("No systems registered.")
 	}
 	go func() {
+		w.isGameLoopRunning = true
 		wasEndGameLoopSignalReceived := false
 		for range time.Tick(loopInterval) {
 			if wasEndGameLoopSignalReceived {
@@ -580,7 +583,12 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 				continue
 			}
 		}
+		w.isGameLoopRunning = false
 	}()
+}
+
+func (w *World) IsGameLoopRunning() bool {
+	return w.isGameLoopRunning
 }
 
 func (w *World) EndGameLoop() {
