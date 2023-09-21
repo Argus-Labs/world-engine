@@ -10,7 +10,8 @@ RUN CGO_ENABLED=1 make install
 # build on ubuntu
 FROM ubuntu:18.04
 COPY --from=argusd-builder /go/bin/world /usr/local/bin/
-EXPOSE 26656 26657 1317 9090
+EXPOSE 26656 26657 1317 9090 8546 8545 9601
+
 USER 0
 
 COPY scripts/start-rollup.sh start-rollup.sh
