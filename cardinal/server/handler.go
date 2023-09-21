@@ -5,30 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 
-	"github.com/invopop/jsonschema"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
-
-func (t *Handler) makeSchemaHandler(inSchema, outSchema *jsonschema.Schema) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		requestAndReply := map[string]*jsonschema.Schema{
-			"request": inSchema,
-			"reply":   outSchema,
-		}
-		res, err := json.Marshal(requestAndReply)
-		if err != nil {
-			writeError(writer, "unable to marshal response", err)
-			return
-		}
-
-		writeResult(writer, res)
-	}
-}
 
 func (t *Handler) processTransaction(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload) ([]byte, error) {
 	txVal, err := tx.Decode(payload)
@@ -72,43 +52,5 @@ func (t *Handler) processTransaction(tx transaction.ITransaction, payload []byte
 			return nil, err
 		}
 		return res, nil
-	}
-}
-
-func (t *Handler) makeTxHandler(tx transaction.ITransaction) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		payload, sp, err := t.verifySignatureOfHTTPRequest(request, false)
-		if errors.Is(err, ErrorInvalidSignature) {
-			writeUnauthorized(writer, err)
-			return
-		} else if errors.Is(err, ErrorSystemTransactionForbidden) {
-			writeUnauthorized(writer, err)
-			return
-		} else if err != nil {
-			writeError(writer, "unable to verify signature", err)
-			return
-		}
-		res, err := t.processTransaction(tx, payload, sp)
-		if err != nil {
-			writeError(writer, "", err)
-		} else {
-			writeResult(writer, res)
-		}
-	}
-}
-
-func (t *Handler) makeReadHandler(r ecs.IRead) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		buf, err := io.ReadAll(request.Body)
-		if err != nil {
-			writeError(writer, "unable to read request body", err)
-			return
-		}
-		res, err := r.HandleReadRaw(t.w, buf)
-		if err != nil {
-			writeError(writer, "error handling read", err)
-			return
-		}
-		writeResult(writer, res)
 	}
 }
