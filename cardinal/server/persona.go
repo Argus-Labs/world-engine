@@ -9,6 +9,7 @@ import (
 	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/sign"
 )
 
 // ReadPersonaSignerRequest is the desired request body for the read-persona-signer endpoint.
@@ -26,6 +27,26 @@ type ReadPersonaSignerResponse struct {
 	SignerAddress string
 }
 
+func (t *Handler) getPersonaSignerResponse(req *ReadPersonaSignerRequest) (*ReadPersonaSignerResponse, error) {
+	var status string
+	addr, err := t.w.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
+	if errors.Is(err, ecs.ErrorPersonaTagHasNoSigner) {
+		status = getSignerForPersonaStatusAvailable
+	} else if errors.Is(err, ecs.ErrorCreatePersonaTxsNotProcessed) {
+		status = getSignerForPersonaStatusUnknown
+	} else if err != nil {
+		return nil, err
+	} else {
+		status = getSignerForPersonaStatusAssigned
+	}
+
+	res := ReadPersonaSignerResponse{
+		Status:        status,
+		SignerAddress: addr,
+	}
+	return &res, nil
+}
+
 func (t *Handler) handleReadPersonaSigner(w http.ResponseWriter, r *http.Request) {
 	buf, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -39,23 +60,12 @@ func (t *Handler) handleReadPersonaSigner(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var status string
-	addr, err := t.w.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
-	if err == ecs.ErrorPersonaTagHasNoSigner {
-		status = getSignerForPersonaStatusAvailable
-	} else if err == ecs.ErrorCreatePersonaTxsNotProcessed {
-		status = getSignerForPersonaStatusUnknown
-	} else if err != nil {
+	res, err := t.getPersonaSignerResponse(&req)
+	if err != nil {
 		writeError(w, "read persona signer error", err)
 		return
-	} else {
-		status = getSignerForPersonaStatusAssigned
 	}
 
-	res := ReadPersonaSignerResponse{
-		Status:        status,
-		SignerAddress: addr,
-	}
 	resJson, err := json.Marshal(res)
 	if err != nil {
 		writeError(w, "unable to marshal response", err)
@@ -75,9 +85,22 @@ func (t *Handler) handleReadPersonaSignerSchema(w http.ResponseWriter, _ *http.R
 	writeResult(w, jsonSchema)
 }
 
+func generateCreatePersonaResponseFromPayload(payload []byte, sp *sign.SignedPayload, tx transaction.ITransaction, world *ecs.World) (*TransactionReply, error) {
+	txVal, err := tx.Decode(payload)
+	if err != nil {
+		return nil, errors.New("unable to decode transaction")
+	}
+	tick, txHash := world.AddTransaction(tx.ID(), txVal, sp)
+	res := TransactionReply{
+		TxHash: string(txHash),
+		Tick:   tick,
+	}
+	return &res, nil
+}
+
 func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
-		payload, sp, err := t.verifySignature(request, true)
+		payload, sp, err := t.verifySignatureOfHTTPRequest(request, true)
 		if err != nil {
 			if errors.Is(err, ErrorInvalidSignature) {
 				writeUnauthorized(writer, err)
@@ -89,18 +112,12 @@ func (t *Handler) makeCreatePersonaHandler(tx transaction.ITransaction) http.Han
 			writeError(writer, "unable to verify signature", err)
 			return
 		}
-
-		txVal, err := tx.Decode(payload)
+		txReply, err := generateCreatePersonaResponseFromPayload(payload, sp, tx, t.w)
 		if err != nil {
-			writeError(writer, "unable to decode transaction", err)
+			writeError(writer, "", err)
 			return
 		}
-		tick, txHash := t.w.AddTransaction(tx.ID(), txVal, sp)
-
-		res, err := json.Marshal(TransactionReply{
-			TxHash: string(txHash),
-			Tick:   tick,
-		})
+		res, err := json.Marshal(txReply)
 		if err != nil {
 			writeError(writer, "unable to marshal response", err)
 			return

@@ -199,7 +199,6 @@ contracts/out/
 */**/broadcast
 */**/*.bin
 
-
 # cosmos
 .testnets/
 

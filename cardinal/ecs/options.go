@@ -1,6 +1,11 @@
 package ecs
 
 import (
+	"os"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
@@ -19,8 +24,15 @@ func WithReceiptHistorySize(size int) Option {
 	}
 }
 
-func WithNamespace(id string) Option {
+func WithNamespace(ns string) Option {
 	return func(w *World) {
-		w.namespace = Namespace(id)
+		w.namespace = Namespace(ns)
+	}
+}
+
+func WithPrettyLog() Option {
+	return func(world *World) {
+		prettyLogger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+		world.Logger.Logger = &prettyLogger
 	}
 }

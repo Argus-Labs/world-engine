@@ -1,9 +1,11 @@
 package ecs
 
 import (
+	"fmt"
+
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
 type Logger struct {
@@ -18,9 +20,9 @@ func (_ *Logger) loadComponentIntoArrayLogger(component component.IComponentType
 }
 
 func (l *Logger) loadComponentsToEvent(zeroLoggerEvent *zerolog.Event, world *World) *zerolog.Event {
-	zeroLoggerEvent.Int("total_components", len(*world.GetComponents()))
+	zeroLoggerEvent.Int("total_components", len(world.GetComponents()))
 	arrayLogger := zerolog.Arr()
-	for _, _component := range *world.GetComponents() {
+	for _, _component := range world.GetComponents() {
 		arrayLogger = l.loadComponentIntoArrayLogger(_component, arrayLogger)
 	}
 	return zeroLoggerEvent.Array("components", arrayLogger)
@@ -33,25 +35,19 @@ func (_ *Logger) loadSystemIntoArrayLogger(world *World, registeredSystemIndex i
 func (l *Logger) loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, world *World) *zerolog.Event {
 	zeroLoggerEvent.Int("total_systems", len(world.systems))
 	arrayLogger := zerolog.Arr()
-	for index, _ := range world.systems {
+	for index := range world.systems {
 		arrayLogger = l.loadSystemIntoArrayLogger(world, index, arrayLogger)
 	}
 	return zeroLoggerEvent.Array("systems", arrayLogger)
 }
 
-func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, world *World, entityID storage.EntityID) (*zerolog.Event, error) {
-	entity, err := world.Entity(entityID)
-	if err != nil {
-		return nil, err
-	}
-
-	archetype := entity.Archetype(world)
+func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, entity entity.Entity, components []IComponentType) (*zerolog.Event, error) {
 	arrayLogger := zerolog.Arr()
-	for _, _component := range archetype.Layout().Components() {
+	for _, _component := range components {
 		arrayLogger = l.loadComponentIntoArrayLogger(_component, arrayLogger)
 	}
 	zeroLoggerEvent.Array("components", arrayLogger)
-	zeroLoggerEvent.Int("entity_id", int(entityID))
+	zeroLoggerEvent.Int("entity_id", int(entity.EntityID()))
 	return zeroLoggerEvent.Int("archetype_id", int(entity.Loc.ArchID)), nil
 }
 
@@ -70,15 +66,15 @@ func (l *Logger) LogSystem(world *World, level zerolog.Level) {
 }
 
 // LogEntity logs entity info given an entityID
-func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID storage.EntityID) error {
+func (l *Logger) LogEntity(level zerolog.Level, entity entity.Entity, components []IComponentType) {
 	zeroLoggerEvent := l.WithLevel(level)
 	var err error = nil
-	zeroLoggerEvent, err = l.loadEntityIntoEvent(zeroLoggerEvent, world, entityID)
+	zeroLoggerEvent, err = l.loadEntityIntoEvent(zeroLoggerEvent, entity, components)
 	if err != nil {
-		return err
+		l.Err(err).Msg(fmt.Sprintf("Error in Logger when retrieving entity with id %d", entity.EntityID()))
+	} else {
+		zeroLoggerEvent.Send()
 	}
-	zeroLoggerEvent.Send()
-	return nil
 }
 
 // LogWorld Logs everything about the world (components and Systems)
@@ -89,7 +85,7 @@ func (l *Logger) LogWorld(world *World, level zerolog.Level) {
 	zeroLoggerEvent.Send()
 }
 
-// CreateSystemLogger creates a Sub logger with the entry {"system" : systemName}
+// CreateSystemLogger creates a Sub Logger with the entry {"system" : systemName}
 func (l *Logger) CreateSystemLogger(systemName string) Logger {
 	zeroLogger := l.Logger.With().
 		Str("system", systemName).Logger()
@@ -98,7 +94,7 @@ func (l *Logger) CreateSystemLogger(systemName string) Logger {
 	}
 }
 
-// CreateTraceLogger Creates a trace logger. Using a single id you can use this logger to follow and log a data path.
+// CreateTraceLogger Creates a trace Logger. Using a single id you can use this Logger to follow and log a data path.
 func (l *Logger) CreateTraceLogger(traceId string) zerolog.Logger {
 	return l.Logger.With().
 		Str("trace_id", traceId).

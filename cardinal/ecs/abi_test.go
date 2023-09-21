@@ -26,6 +26,12 @@ func TestNoTagPanics(t *testing.T) {
 }
 
 func TestGenerateABIType_AllValidTypes(t *testing.T) {
+	type SomeOtherType struct {
+		X uint64
+		Y int64
+		Z common.Address
+		D *big.Int `evm:"int128"`
+	}
 	type BigType struct {
 		Uint8      uint8
 		Uint32     uint32
@@ -49,10 +55,15 @@ func TestGenerateABIType_AllValidTypes(t *testing.T) {
 
 		BigInt      *big.Int   `evm:"uint256"`
 		SliceBigInt []*big.Int `evm:"int256"`
+
+		SomeOtherStruct SomeOtherType
+
+		SliceOfSomeOtherStruct []SomeOtherType
 	}
 	at, err := GenerateABIType(BigType{})
 	assert.Nil(t, err)
 	args := abi.Arguments{{Type: *at}}
+
 	b := BigType{
 		Uint8:        30,
 		Uint32:       22,
@@ -70,6 +81,20 @@ func TestGenerateABIType_AllValidTypes(t *testing.T) {
 		Bytes:        []byte("hello"),
 		BigInt:       big.NewInt(3520),
 		SliceBigInt:  []*big.Int{big.NewInt(32), big.NewInt(40)},
+		SomeOtherStruct: SomeOtherType{
+			X: 40,
+			Y: 50,
+			Z: common.BigToAddress(big.NewInt(234235)),
+			D: big.NewInt(3884),
+		},
+		SliceOfSomeOtherStruct: []SomeOtherType{
+			{
+				X: 32,
+				Y: 3252,
+				Z: common.BigToAddress(big.NewInt(1248)),
+				D: big.NewInt(44),
+			},
+		},
 	}
 	bz, err := args.Pack(b)
 	assert.Nil(t, err)
@@ -78,10 +103,9 @@ func TestGenerateABIType_AllValidTypes(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, unpacked, 1)
 
-	bigUnpacked, ok := unpacked[0].(BigType)
-	assert.True(t, ok)
-
-	assert.Equal(t, b, bigUnpacked)
+	got, err := SerdeInto[BigType](unpacked[0])
+	assert.Nil(t, err)
+	assert.Equal(t, got, b)
 }
 
 func TestGenerateABIType_PanicOnImportedTypes(t *testing.T) {
@@ -106,4 +130,56 @@ func TestGenerateABIType_NoSizeOnInt(t *testing.T) {
 
 	_, err = GenerateABIType(InvalidInt{})
 	assert.Error(t, err)
+}
+
+func TestGenerateABIType_StructInStruct(t *testing.T) {
+	type Bar struct {
+		HelloWorld uint64 `json:"HelloWorld"`
+	}
+
+	type Foo struct {
+		Y uint64
+		B Bar
+	}
+	foo := Foo{32, Bar{42}}
+	a, err := GenerateABIType(foo)
+	assert.Nil(t, err)
+	args := abi.Arguments{{Type: *a}}
+	bz, err := args.Pack(foo)
+	assert.Nil(t, err)
+
+	unpacked, err := args.Unpack(bz)
+	assert.Nil(t, err)
+	assert.Len(t, unpacked, 1)
+
+	got, err := SerdeInto[Foo](unpacked[0])
+	assert.Nil(t, err)
+
+	assert.Equal(t, got, foo)
+}
+
+func TestGenerateABIType_SliceOfStructInStruct(t *testing.T) {
+	type Bar struct {
+		HelloWorld uint64 `json:"HelloWorld"`
+	}
+
+	type Foo struct {
+		Y uint64
+		B []Bar
+	}
+	foo := Foo{32, []Bar{{899789}}}
+	a, err := GenerateABIType(foo)
+	assert.Nil(t, err)
+	args := abi.Arguments{{Type: *a}}
+	bz, err := args.Pack(foo)
+	assert.Nil(t, err)
+
+	unpacked, err := args.Unpack(bz)
+	assert.Nil(t, err)
+	assert.Len(t, unpacked, 1)
+
+	underlyingFoo, err := SerdeInto[Foo](unpacked[0])
+	assert.Nil(t, err)
+
+	assert.Equal(t, underlyingFoo, foo)
 }

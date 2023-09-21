@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -22,27 +23,73 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 	if rt.Kind() != reflect.Struct {
 		return nil, fmt.Errorf("expected input to be of type struct, got %T", goStruct)
 	}
-	args := make([]abi.ArgumentMarshaling, 0, rt.NumField())
-
-	for i := 0; i < rt.NumField(); i++ {
-		field := rt.Field(i)
-		fieldType := field.Type.String()
-		solType, err := goTypeToSolidityType(fieldType, field.Tag.Get(bigIntStructTag))
-		if err != nil {
-			return nil, err
-		}
-		fieldName := field.Name
-		args = append(args, abi.ArgumentMarshaling{
-			Name: fieldName,
-			Type: solType,
-		})
+	args, err := getArgumentsForType(rt)
+	if err != nil {
+		return nil, err
 	}
 	at, err := abi.NewType("tuple", "", args)
 	if err != nil {
 		return nil, err
 	}
-	at.TupleType = rt
 	return &at, nil
+}
+
+func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
+	args := make([]abi.ArgumentMarshaling, 0, rt.NumField())
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
+		kind := field.Type.Kind()
+		fieldType := field.Type.String()
+		fieldName := field.Name
+
+		// make a closure for handling nested struct generation.
+		genStruct := func(p reflect.Type) (abi.ArgumentMarshaling, error) {
+			components, err := getArgumentsForType(p)
+			if err != nil {
+				return abi.ArgumentMarshaling{}, err
+			}
+			arg := abi.ArgumentMarshaling{
+				Name:       fieldName,
+				Type:       "tuple",
+				Components: components,
+			}
+			return arg, nil
+		}
+
+		// handle the special case for slice of struct fields.
+		if kind == reflect.Slice {
+			if field.Type.Elem().Kind() == reflect.Struct {
+				arg, err := genStruct(field.Type.Elem())
+				if err != nil {
+					return nil, err
+				}
+				arg.Type = "tuple[]"
+				args = append(args, arg)
+				continue
+			}
+		}
+
+		// handle special case for struct fields.
+		if kind == reflect.Struct {
+			arg, err := genStruct(field.Type)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, arg)
+			continue
+		}
+
+		// all other fields can be handled normally.
+		solType, err := goTypeToSolidityType(fieldType, field.Tag.Get(bigIntStructTag))
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, abi.ArgumentMarshaling{
+			Name: fieldName,
+			Type: solType,
+		})
+	}
+	return args, nil
 }
 
 func goTypeToSolidityType(t string, tag string) (string, error) {
@@ -89,4 +136,16 @@ func goTypeToSolidityType(t string, tag string) (string, error) {
 	}
 	return t, nil
 
+}
+
+// SerdeInto takes an interface with JSON tags, serializes it to JSON, then deserializes it to the specified type param.
+func SerdeInto[T any](iface interface{}) (T, error) {
+	v := new(T)
+	bz, err := json.Marshal(iface)
+	if err != nil {
+		return *v, err
+	}
+
+	err = json.Unmarshal(bz, v)
+	return *v, err
 }

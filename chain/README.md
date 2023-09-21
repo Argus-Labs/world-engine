@@ -6,6 +6,34 @@
 
 The easiest way to install a Cosmos-SDK Blockchain running Polaris is to download a pre-built binary. You can find the latest binaries on the [releases](https://github.com/polaris/releases) page.
 
+### Makefile
+
+To install the World Engine blockchain in your bin, making it globally accessable from your terminal, run this command in the `chain` directory:
+
+```bash
+make install
+```
+
+To verify installation was successful, run:
+
+```bash
+world version
+```
+
+### From Prebuilt Docker Image
+
+Pull `chain` prebuild Docker Image:
+```bash
+docker pull us-docker.pkg.dev/argus-labs/world-engine/chain:<latest/tag_version>
+```
+
+Run `chain` container, supply the DA_BASE_URL and DA_AUTH_TOKEN environment variables accordingly:
+```bash
+docker run -it --rm -e DA_BASE_URL=http://celestia-da-layer-url:26658 -e DA_AUTH_TOKEN=celestia-da-later-token  us-docker.pkg.dev/argus-labs/world-engine/chain:latest
+```
+
+See the Docker Compose section below for instructions on running both the `chain` and `Celestia Devnet` stack.
+
 ### From Source
 
 **Step 1: Install Golang & Foundry**
@@ -110,10 +138,8 @@ Start the `chain` and `celestia-devnet` using `chain/docker-compose.yml`, make s
 
 - Start the `chain` / `evm_base_shard`
   ```
-  docker compose up chain -d
+  docker compose up chain --build --detach
   ```
-
-
 
 ## Environment Variables
 The following env variables must be set for the following features.
@@ -140,6 +166,14 @@ Required:
    For Celestia Arabica/Mocha testnet, follow the [RPC-API tutorial](https://docs.celestia.org/developers/rpc-tutorial/#auth-token).
 
 Optional:
+
+- BLOCK_TIME=(default: `10s`)
+
+  Specify time to generate new block in the chain.
+
+- DA_BLOCK_HEIGHT=(default: `0`)
+
+  Configure block height in the DA layer at which the chain will start submitting data.
 
 - DA_NAMESPACE_ID=(default: `67480c4a88c4d12935d4`)
 

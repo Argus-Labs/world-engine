@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -22,10 +24,10 @@ type OwnableComponent struct {
 	Owner string
 }
 
-func UpdateEnergySystem(w *ecs.World, tq *ecs.TransactionQueue, _ *ecs.Logger) error {
+func UpdateEnergySystem(w *ecs.World, tq *transaction.TxQueue, _ *ecs.Logger) error {
 	errs := []error{}
 
-	Energy.Each(w, func(ent storage.EntityID) bool {
+	Energy.Each(w, func(ent entity.ID) bool {
 		energyPlanet, err := Energy.Get(w, ent)
 		if err != nil {
 			errs = append(errs, err)
@@ -44,8 +46,8 @@ func UpdateEnergySystem(w *ecs.World, tq *ecs.TransactionQueue, _ *ecs.Logger) e
 }
 
 var (
-	Energy  = ecs.NewComponentType[EnergyComponent]()
-	Ownable = ecs.NewComponentType[OwnableComponent]()
+	Energy  = ecs.NewComponentType[EnergyComponent]("EnergyComponent")
+	Ownable = ecs.NewComponentType[OwnableComponent]("OwnableComponent")
 )
 
 func TestECS(t *testing.T) {
@@ -66,7 +68,7 @@ func TestECS(t *testing.T) {
 
 	assert.NilError(t, world.Tick(context.Background()))
 
-	Energy.Each(world, func(id storage.EntityID) bool {
+	Energy.Each(world, func(id entity.ID) bool {
 		energyPlanet, err := Energy.Get(world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, int64(10), energyPlanet.Amt)
@@ -76,6 +78,9 @@ func TestECS(t *testing.T) {
 	q := ecs.NewQuery(filter.Or(filter.Contains(Energy), filter.Contains(Ownable)))
 	amt := q.Count(world)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
+	comp, exists := world.GetComponentByName("EnergyComponent")
+	assert.Assert(t, exists)
+	assert.Equal(t, comp.Name(), Energy.Name())
 }
 
 func TestVelocitySimulation(t *testing.T) {
@@ -87,8 +92,8 @@ func TestVelocitySimulation(t *testing.T) {
 		DX, DY float64
 	}
 	// These components are a mix of concrete types and pointer types to make sure they both work
-	Position := ecs.NewComponentType[Pos]()
-	Velocity := ecs.NewComponentType[*Vel]()
+	Position := ecs.NewComponentType[Pos]("Position")
+	Velocity := ecs.NewComponentType[*Vel]("Velocity")
 	assert.NilError(t, world.RegisterComponents(Position, Velocity))
 	assert.NilError(t, world.LoadGameState())
 
@@ -98,7 +103,7 @@ func TestVelocitySimulation(t *testing.T) {
 	assert.NilError(t, Velocity.Set(world, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
-	Velocity.Each(world, func(id storage.EntityID) bool {
+	Velocity.Each(world, func(id entity.ID) bool {
 		vel, err := Velocity.Get(world, id)
 		assert.NilError(t, err)
 		pos, err := Position.Get(world, id)
@@ -119,7 +124,7 @@ func TestCanSetDefaultValue(t *testing.T) {
 		Name string
 	}
 	wantOwner := Owner{"Jeff"}
-	owner := ecs.NewComponentType[Owner](ecs.WithDefault(wantOwner))
+	owner := ecs.NewComponentType[Owner]("owner", ecs.WithDefault(wantOwner))
 	assert.NilError(t, world.RegisterComponents(owner))
 	assert.NilError(t, world.LoadGameState())
 
@@ -143,7 +148,7 @@ func TestCanRemoveEntity(t *testing.T) {
 		A, B int
 	}
 
-	tuple := ecs.NewComponentType[Tuple]()
+	tuple := ecs.NewComponentType[Tuple]("tuple")
 	assert.NilError(t, world.RegisterComponents(tuple))
 	assert.NilError(t, world.LoadGameState())
 
@@ -152,7 +157,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Make sure we find exactly 2 entries
 	count := 0
-	tuple.Each(world, func(id storage.EntityID) bool {
+	tuple.Each(world, func(id entity.ID) bool {
 		_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
@@ -165,7 +170,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Now we should only find 1 entity
 	count = 0
-	tuple.Each(world, func(id storage.EntityID) bool {
+	tuple.Each(world, func(id entity.ID) bool {
 		_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
@@ -174,14 +179,14 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 1)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = world.Entity(entities[0])
+	_, err = world.StoreManager().GetEntity(entities[0])
 	assert.Check(t, err != nil)
 
 	// Remove the other entity
 	err = world.Remove(entities[1])
 	assert.NilError(t, err)
 	count = 0
-	tuple.Each(world, func(id storage.EntityID) bool {
+	tuple.Each(world, func(id entity.ID) bool {
 		_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
@@ -190,7 +195,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 0)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = world.Entity(entities[0])
+	_, err = world.StoreManager().GetEntity(entities[0])
 	assert.Check(t, err != nil)
 }
 
@@ -199,7 +204,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	type CountComponent struct {
 		Val int
 	}
-	Count := ecs.NewComponentType[CountComponent]()
+	Count := ecs.NewComponentType[CountComponent]("Count")
 	assert.NilError(t, world.RegisterComponents(Count))
 	assert.NilError(t, world.LoadGameState())
 
@@ -209,14 +214,14 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	// Pre-populate all the entities with their own IDs. This will help
 	// us keep track of which component belongs to which entity in the case
 	// of a problem
-	Count.Each(world, func(id storage.EntityID) bool {
+	Count.Each(world, func(id entity.ID) bool {
 		assert.NilError(t, Count.Set(world, id, CountComponent{int(id)}))
 		return true
 	})
 
 	// Remove the even entries
 	itr := 0
-	Count.Each(world, func(id storage.EntityID) bool {
+	Count.Each(world, func(id entity.ID) bool {
 		if itr%2 == 0 {
 			assert.NilError(t, world.Remove(id))
 		}
@@ -227,7 +232,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	assert.Equal(t, 10, itr)
 
 	seen := map[int]int{}
-	Count.Each(world, func(id storage.EntityID) bool {
+	Count.Each(world, func(id entity.ID) bool {
 		c, err := Count.Get(world, id)
 		assert.NilError(t, err)
 		seen[c.Val]++
@@ -243,7 +248,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	energy := ecs.NewComponentType[EnergyComponent]()
+	energy := ecs.NewComponentType[EnergyComponent]("energy")
 	assert.NilError(t, world.RegisterComponents(energy))
 	assert.NilError(t, world.LoadGameState())
 
@@ -254,8 +259,8 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	reactorEnergy := ecs.NewComponentType[EnergyComponent]()
-	weaponsEnergy := ecs.NewComponentType[EnergyComponent]()
+	reactorEnergy := ecs.NewComponentType[EnergyComponent]("reactorEnergy")
+	weaponsEnergy := ecs.NewComponentType[EnergyComponent]("weaponsEnergy")
 	assert.NilError(t, world.RegisterComponents(reactorEnergy, weaponsEnergy))
 	assert.NilError(t, world.LoadGameState())
 	ent, err := world.Create(reactorEnergy)
@@ -268,14 +273,14 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	type Foo struct{}
 	type Bar struct{}
-	a, b := ecs.NewComponentType[Foo](), ecs.NewComponentType[Bar]()
+	a, b := ecs.NewComponentType[Foo]("a"), ecs.NewComponentType[Bar]("b")
 	assert.NilError(t, world.RegisterComponents(a, b))
 	assert.NilError(t, world.LoadGameState())
 
 	entity, err := world.Create(a, b)
 	assert.NilError(t, err)
 
-	ent, err := world.Entity(entity)
+	ent, err := world.StoreManager().GetEntity(entity)
 	assert.NilError(t, err)
 
 	archIDBefore := ent.Loc.ArchID
@@ -283,7 +288,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	// The entity should now be in a different archetype
 	assert.NilError(t, a.RemoveFrom(world, entity))
 
-	ent, err = world.Entity(entity)
+	ent, err = world.StoreManager().GetEntity(entity)
 	assert.NilError(t, err)
 
 	archIDAfter := ent.Loc.ArchID
@@ -295,9 +300,9 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	type Label struct {
 		Name string
 	}
-	alpha := ecs.NewComponentType[Label](ecs.WithDefault(Label{"alpha"}))
-	beta := ecs.NewComponentType[Label](ecs.WithDefault(Label{"beta"}))
-	gamma := ecs.NewComponentType[Label](ecs.WithDefault(Label{"gamma"}))
+	alpha := ecs.NewComponentType[Label]("alpha", ecs.WithDefault(Label{"alpha"}))
+	beta := ecs.NewComponentType[Label]("beta", ecs.WithDefault(Label{"beta"}))
+	gamma := ecs.NewComponentType[Label]("game", ecs.WithDefault(Label{"gamma"}))
 	assert.NilError(t, world.RegisterComponents(alpha, beta, gamma))
 	assert.NilError(t, world.LoadGameState())
 
@@ -307,9 +312,9 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	// count and countAgain are helpers that simplify the counting of how many
 	// entities have a particular component.
 	var count int
-	countAgain := func() func(ent storage.EntityID) bool {
+	countAgain := func() func(ent entity.ID) bool {
 		count = 0
-		return func(ent storage.EntityID) bool {
+		return func(ent entity.ID) bool {
 			count++
 			return true
 		}
@@ -334,7 +339,7 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	assert.Equal(t, 1, count)
 
 	// Make sure the one ent that has gamma is entIDs[1]
-	gamma.Each(world, func(id storage.EntityID) bool {
+	gamma.Each(world, func(id entity.ID) bool {
 		assert.Equal(t, id, entIDs[1])
 		return true
 	})
@@ -343,8 +348,8 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
-	alpha := ecs.NewComponentType[EnergyComponent]()
-	beta := ecs.NewComponentType[EnergyComponent]()
+	alpha := ecs.NewComponentType[EnergyComponent]("alpha")
+	beta := ecs.NewComponentType[EnergyComponent]("beta")
 	assert.NilError(t, world.RegisterComponents(alpha, beta))
 	assert.NilError(t, world.LoadGameState())
 
@@ -357,7 +362,7 @@ func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 
 func TestQueriesAndFiltersWorks(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	a, b, c, d := ecs.NewComponentType[int](), ecs.NewComponentType[int](), ecs.NewComponentType[int](), ecs.NewComponentType[int]()
+	a, b, c, d := ecs.NewComponentType[int]("a"), ecs.NewComponentType[int]("b"), ecs.NewComponentType[int]("c"), ecs.NewComponentType[int]("d")
 	assert.NilError(t, world.RegisterComponents(a, b, c, d))
 	assert.NilError(t, world.LoadGameState())
 
@@ -370,14 +375,14 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 
 	// Only one entity has the components a and b
 	abFilter := filter.Contains(a, b)
-	ecs.NewQuery(abFilter).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(abFilter).Each(world, func(id entity.ID) bool {
 		assert.Equal(t, id, ab)
 		return true
 	})
 	assert.Equal(t, ecs.NewQuery(abFilter).Count(world), 1)
 
 	cdFilter := filter.Contains(c, d)
-	ecs.NewQuery(cdFilter).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(cdFilter).Each(world, func(id entity.ID) bool {
 		assert.Equal(t, id, cd)
 		return true
 	})
@@ -392,7 +397,7 @@ func TestUpdateWithPointerType(t *testing.T) {
 		HP int
 	}
 	world := inmem.NewECSWorldForTest(t)
-	hpComp := ecs.NewComponentType[*HealthComponent]()
+	hpComp := ecs.NewComponentType[*HealthComponent]("hpComp")
 	assert.NilError(t, world.RegisterComponents(hpComp))
 	assert.NilError(t, world.LoadGameState())
 
@@ -417,7 +422,7 @@ func TestCanRemoveFirstEntity(t *testing.T) {
 		Val int
 	}
 	world := inmem.NewECSWorldForTest(t)
-	valComp := ecs.NewComponentType[ValueComponent]()
+	valComp := ecs.NewComponentType[ValueComponent]("valComp")
 	assert.NilError(t, world.RegisterComponents(valComp))
 
 	ids, err := world.CreateMany(3, valComp)
@@ -445,8 +450,8 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 		Val int
 	}
 	world := inmem.NewECSWorldForTest(t)
-	valComp := ecs.NewComponentType[ValueComponent]()
-	otherComp := ecs.NewComponentType[OtherComponent]()
+	valComp := ecs.NewComponentType[ValueComponent]("valComp")
+	otherComp := ecs.NewComponentType[OtherComponent]("otherComp")
 	assert.NilError(t, world.RegisterComponents(valComp, otherComp))
 
 	ids, err := world.CreateMany(3, valComp)

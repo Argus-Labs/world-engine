@@ -80,8 +80,8 @@ interface IERC20Module {
      * @param amount the amount of coins to transfer
      */
     function transferCoinToERC20From(string calldata denom, address owner, address recipient, uint256 amount)
-        external
-        returns (bool);
+    external
+    returns (bool);
 
     /**
      * @dev transferCoinToERC20To transfers `amount` SDK coins to ERC20 tokens from `msg.sender` to
@@ -108,8 +108,8 @@ interface IERC20Module {
      * @param amount the amount of tokens to transfer
      */
     function transferERC20ToCoinFrom(IERC20 token, address owner, address recipient, uint256 amount)
-        external
-        returns (bool);
+    external
+    returns (bool);
 
     /**
      * @dev transferERC20ToCoinTo transfers `amount` ERC20 tokens to SDK coins from `msg.sender` to
@@ -119,4 +119,13 @@ interface IERC20Module {
      * @param amount the amount of tokens to transfer
      */
     function transferERC20ToCoinTo(IERC20 token, address recipient, uint256 amount) external returns (bool);
+
+    /**
+     * @dev performBankTransfer performs a bank transfer.
+     * @dev it is assumed `msg.sender` is a PolarisERC20 contract.
+     * @param owner the user who is getting their balance decreased.
+     * @param recipient the user who is gettting their balance increased.
+     * @param amount the amount of coins to transfer.
+     */
+    function performBankTransfer(address owner, address recipient, uint256 amount) external returns (bool);
 }

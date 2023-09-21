@@ -7,7 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -28,12 +28,6 @@ type TransactionType[In, Out any] struct {
 	outEVMType *abi.Type
 }
 
-// TransactionQueue is a list of transactions that were queued since the start of the
-// last game tick.
-type TransactionQueue struct {
-	queue transaction.TxMap
-}
-
 func WithTxEVMSupport[In, Out any]() func(transactionType *TransactionType[In, Out]) {
 	return func(txt *TransactionType[In, Out]) {
 		var in In
@@ -52,7 +46,30 @@ func WithTxEVMSupport[In, Out any]() func(transactionType *TransactionType[In, O
 	}
 }
 
-func NewTransactionType[In, Out any](name string, opts ...func() func(*TransactionType[In, Out])) *TransactionType[In, Out] {
+func NewTransactionType[In, Out any](
+	name string,
+	opts ...func() func(*TransactionType[In, Out]),
+) *TransactionType[In, Out] {
+
+	var in In
+	var out Out
+	inType := reflect.TypeOf(in)
+	inKind := inType.Kind()
+	inValid := false
+	if (inKind == reflect.Pointer && inType.Elem().Kind() == reflect.Struct) || inKind == reflect.Struct {
+		inValid = true
+	}
+	outType := reflect.TypeOf(out)
+	outKind := inType.Kind()
+	outValid := false
+	if (outKind == reflect.Pointer && outType.Elem().Kind() == reflect.Struct) || outKind == reflect.Struct {
+		outValid = true
+	}
+
+	if !outValid || !inValid {
+		panic(fmt.Sprintf("Invalid TransactionType: %s: The In and Out must be both structs", name))
+	}
+
 	txt := &TransactionType[In, Out]{
 		name: name,
 	}
@@ -68,26 +85,6 @@ func (t *TransactionType[In, Out]) Name() string {
 
 func (t *TransactionType[In, Out]) Schema() (in, out *jsonschema.Schema) {
 	return jsonschema.Reflect(new(In)), jsonschema.Reflect(new(Out))
-}
-
-// DecodeEVMBytes decodes abi encoded solidity structs into the transaction's "In" type.
-func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
-	if t.inEVMType == nil {
-		return nil, ErrEVMTypeNotSet
-	}
-	args := abi.Arguments{{Type: *t.inEVMType}}
-	unpacked, err := args.Unpack(bz)
-	if err != nil {
-		return nil, err
-	}
-	if len(unpacked) < 1 {
-		return nil, fmt.Errorf("error decoding EVM bytes: no values could be unpacked into the abi type")
-	}
-	underlying, ok := unpacked[0].(In)
-	if !ok {
-		return nil, fmt.Errorf("error decoding EVM bytes: cannot cast %T to %T", unpacked[0], new(In))
-	}
-	return underlying, nil
 }
 
 func (t *TransactionType[In, Out]) ID() transaction.TypeID {
@@ -156,9 +153,9 @@ func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxH
 }
 
 // In extracts all the transactions in the transaction queue that match this TransactionType's ID.
-func (t *TransactionType[In, Out]) In(tq *TransactionQueue) []TxData[In] {
+func (t *TransactionType[In, Out]) In(tq *transaction.TxQueue) []TxData[In] {
 	var txs []TxData[In]
-	for _, tx := range tq.queue[t.ID()] {
+	for _, tx := range tq.ForID(t.ID()) {
 		if val, ok := tx.Value.(In); ok {
 			txs = append(txs, TxData[In]{
 				TxHash: tx.TxHash,
@@ -171,11 +168,11 @@ func (t *TransactionType[In, Out]) In(tq *TransactionQueue) []TxData[In] {
 }
 
 func (t *TransactionType[In, Out]) Encode(a any) ([]byte, error) {
-	return storage.Encode(a)
+	return codec.Encode(a)
 }
 
 func (t *TransactionType[In, Out]) Decode(bytes []byte) (any, error) {
-	return storage.Decode[In](bytes)
+	return codec.Decode[In](bytes)
 }
 
 // ABIEncode encodes the input to the transactions matching evm type. If the input is not either of the transactions
@@ -184,14 +181,39 @@ func (t *TransactionType[In, Out]) ABIEncode(v any) ([]byte, error) {
 	if t.inEVMType == nil || t.outEVMType == nil {
 		return nil, ErrEVMTypeNotSet
 	}
-	vType := reflect.TypeOf(v)
-	if vType == t.inEVMType.TupleType {
-		args := abi.Arguments{{Type: *t.inEVMType}}
-		return args.Pack(v)
+
+	var args abi.Arguments
+	var input any
+	switch v.(type) {
+	case In:
+		input = v.(In)
+		args = abi.Arguments{{Type: *t.inEVMType}}
+	case Out:
+		input = v.(Out)
+		args = abi.Arguments{{Type: *t.outEVMType}}
+	default:
+		return nil, fmt.Errorf("expected input to be of type %T or %T, got %T", new(In), new(Out), v)
 	}
-	if vType == t.outEVMType.TupleType {
-		args := abi.Arguments{{Type: *t.outEVMType}}
-		return args.Pack(v)
+
+	return args.Pack(input)
+}
+
+// DecodeEVMBytes decodes abi encoded solidity structs into the transaction's "In" type.
+func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
+	if t.inEVMType == nil {
+		return nil, ErrEVMTypeNotSet
 	}
-	return nil, fmt.Errorf("expected input to be of type %T or %T, got %T", t.inEVMType, t.outEVMType, v)
+	args := abi.Arguments{{Type: *t.inEVMType}}
+	unpacked, err := args.Unpack(bz)
+	if err != nil {
+		return nil, err
+	}
+	if len(unpacked) < 1 {
+		return nil, fmt.Errorf("error decoding EVM bytes: no values could be unpacked into the abi type")
+	}
+	input, err := SerdeInto[In](unpacked[0])
+	if err != nil {
+		return nil, err
+	}
+	return input, nil
 }

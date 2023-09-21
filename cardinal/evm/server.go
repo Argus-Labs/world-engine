@@ -7,9 +7,10 @@ import (
 	"log"
 	"net"
 	"os"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
@@ -41,13 +42,13 @@ type txByID map[transaction.TypeID]transaction.ITransaction
 type readByName map[string]ecs.IRead
 
 type msgServerImpl struct {
-	txMap      txByID
-	readMap    readByName
-	world      *ecs.World
-	serverOpts []grpc.ServerOption
+	txMap   txByID
+	readMap readByName
+	world   *ecs.World
 
 	// opts
-	port string
+	creds credentials.TransportCredentials
+	port  string
 }
 
 // NewServer returns a new EVM connection server. This server is responsible for handling requests originating from
@@ -109,7 +110,7 @@ func loadCredentials(serverCertPath, serverKeyPath string) (credentials.Transpor
 
 // Serve serves the application in a new go routine.
 func (s *msgServerImpl) Serve() error {
-	server := grpc.NewServer(s.serverOpts...)
+	server := grpc.NewServer(grpc.Creds(s.creds))
 	routerv1grpc.RegisterMsgServer(server, s)
 	listener, err := net.Listen("tcp", ":"+s.port)
 	if err != nil {
@@ -155,7 +156,7 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
 	var err error
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id entity.ID) bool {
 		var signerComp ecs.SignerComponent
 		signerComp, err = ecs.SignerComp.Get(s.world, id)
 		if err != nil {

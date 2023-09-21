@@ -1,19 +1,21 @@
 package ecs_test
 
 import (
+	"testing"
+
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"testing"
 )
 
 func TestQueryEarlyTermination(t *testing.T) {
 	type FooComponent struct {
 		Data string
 	}
-	foo := ecs.NewComponentType[FooComponent]()
+	foo := ecs.NewComponentType[FooComponent]("foo")
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.RegisterComponents(foo))
 
@@ -22,7 +24,7 @@ func TestQueryEarlyTermination(t *testing.T) {
 	stop := 5
 	_, err := world.CreateMany(total, foo)
 	assert.NilError(t, err)
-	ecs.NewQuery(filter.Exact(foo)).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Exact(foo)).Each(world, func(id entity.ID) bool {
 		count++
 		if count == stop {
 			return false
@@ -32,7 +34,7 @@ func TestQueryEarlyTermination(t *testing.T) {
 	assert.Equal(t, count, stop)
 
 	count = 0
-	ecs.NewQuery(filter.Exact(foo)).Each(world, func(id storage.EntityID) bool {
+	ecs.NewQuery(filter.Exact(foo)).Each(world, func(id entity.ID) bool {
 		count++
 		return true
 	})

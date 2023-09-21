@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type ScoreComponent struct {
@@ -19,17 +20,38 @@ type ScoreComponent struct {
 }
 
 type ModifyScoreTx struct {
-	PlayerID storage.EntityID
+	PlayerID entity.ID
 	Amount   int
 }
 
 type EmptyTxResult struct{}
 
+func TestReadTypeNotStructs(t *testing.T) {
+
+	defer func() {
+		// test should trigger a panic. it is swallowed here.
+		panicValue := recover()
+		assert.Assert(t, panicValue != nil)
+
+		defer func() {
+			//defered function should not fail
+			panicValue := recover()
+			assert.Assert(t, panicValue == nil)
+		}()
+
+		ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score2")
+
+	}()
+
+	ecs.NewTransactionType[string, string]("modify_score1")
+
+}
+
 func TestCanQueueTransactions(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 
 	// Create an entity with a score component
-	score := ecs.NewComponentType[*ScoreComponent]()
+	score := ecs.NewComponentType[*ScoreComponent]("score")
 	assert.NilError(t, world.RegisterComponents(score))
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
@@ -38,7 +60,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Set up a system that allows for the modification of a player's score
-	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		modifyScore := modifyScoreTx.In(queue)
 		for _, txData := range modifyScore {
 			ms := txData.Value
@@ -85,12 +107,12 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	type CounterComponent struct {
 		Count int
 	}
-	count := ecs.NewComponentType[CounterComponent]()
+	count := ecs.NewComponentType[CounterComponent]("count")
 	assert.NilError(t, world.RegisterComponents(count))
 
 	id, err := world.Create(count)
 	assert.NilError(t, err)
-	world.AddSystem(func(w *ecs.World, _ *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(w *ecs.World, _ *transaction.TxQueue, _ *ecs.Logger) error {
 		return count.Update(w, id, func(c CounterComponent) CounterComponent {
 			c.Count++
 			return c
@@ -109,13 +131,13 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
-	alphaScore := ecs.NewComponentType[ScoreComponent]()
+	alphaScore := ecs.NewComponentType[ScoreComponent]("alphaScore")
 	assert.NilError(t, world.RegisterComponents(alphaScore))
 
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
 
-	world.AddSystem(func(w *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		modifyScores := modifyScoreTx.In(queue)
 		for _, msData := range modifyScores {
 			ms := msData.Value
@@ -173,7 +195,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	inSystemCh := make(chan struct{})
 	// This system will block forever. This will give us a never-ending game tick that we can use
 	// to verify that the addition of more transactions doesn't block.
-	world.AddSystem(func(*ecs.World, *ecs.TransactionQueue, *ecs.Logger) error {
+	world.AddSystem(func(*ecs.World, *transaction.TxQueue, *ecs.Logger) error {
 		<-inSystemCh
 		select {}
 		return nil
@@ -216,13 +238,13 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	// Create two system that report how many instances of the ModifyScoreTx exist in the
 	// transaction queue. These counts should be the same for each tick.
-	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(_ *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		modScores := modScoreTx.In(queue)
 		modScoreCountCh <- len(modScores)
 		return nil
 	})
 
-	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(_ *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		modScores := modScoreTx.In(queue)
 		modScoreCountCh <- len(modScores)
 		return nil
@@ -282,7 +304,7 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 	alpha.AddToQueue(world, NewOwner{"alpha"})
 	beta.AddToQueue(world, NewOwner{"beta"})
 
-	world.AddSystem(func(_ *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(_ *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		newNames := alpha.In(queue)
 		assert.Check(t, 1 == len(newNames), "expected 1 transaction, not %d", len(newNames))
 		assert.Check(t, "alpha" == newNames[0].Value.Name)
@@ -370,7 +392,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	wantSecondError := errors.New("another transaction error")
 	wantDeltaX, wantDeltaY := 99, 100
 
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		// This new TxsIn function returns a triplet of information:
 		// 1) The transaction input
 		// 2) An ID that uniquely identifies this specific transaction
@@ -424,7 +446,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	assert.NilError(t, world.RegisterTransactions(numTx))
 	wantErr := errors.New("some transaction error")
 	systemCalls := 0
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))
@@ -435,7 +457,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 		return nil
 	})
 
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))
@@ -468,7 +490,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 
 	firstResult := TxOut{1234}
 	secondResult := TxOut{5678}
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))
@@ -479,7 +501,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 		return nil
 	})
 
-	world.AddSystem(func(world *ecs.World, queue *ecs.TransactionQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
 		systemCalls++
 		txs := numTx.In(queue)
 		assert.Equal(t, 1, len(txs))

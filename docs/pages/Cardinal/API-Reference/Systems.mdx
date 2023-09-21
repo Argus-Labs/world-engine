@@ -1,0 +1,86 @@
+# Systems
+
+Systems are the functions that run every tick. Systems must adhere to the following function signature:
+
+```go
+type System func(*World, *TransactionQueue, *Logger) error
+```
+
+Systems are given a reference to the `World` object, a `TransactionQueue`, and a system specific `Logger`.
+
+## Getting Transactions
+
+In order to get specific transactions from the queue, utilize a `TransactionType`'s `In` method. This `TransactionType` method takes the queue as an argument, and returns a slice of `TxData`, which contains data related to that transaction.
+
+```go
+import "github.com/argus-labs/world-engine/cardinal/ecs"
+
+func AttackSystem(world *World, queue *TransactionQueue, logger *Logger) error {
+    txs := AttackTransaction.In(queue)
+    for _, tx := range txs {
+        // do something with each tx...
+		msg := tx.Value()
+		hash := tx.Hash()
+		sig := tx.Sig()
+	}
+}
+```
+## TxData
+
+```go
+type TxData[Msg any] struct {
+    ID    transaction.TxHash     // unique transaction hash
+    Value Msg                   // transaction input
+    Sig   *sign.SignedPayload  // optional transaction signature
+}
+```
+
+## Example System
+
+```go
+// define a component
+type Health struct {
+	Amount uint64
+	Cap    uint64
+}
+
+var HealthComponent = cardinal.NewComponentType[Health]()
+
+// define an attack transaction
+type AttackMsg struct {
+	TargetPlayer uint64
+	Amount       uint64
+}
+
+type AttackResult struct {
+	Success bool
+}
+
+var AttackTx = cardinal.NewTransactionType[AttackMsg, AttackResult]("attack")
+
+// implement the system
+func AttackSystem(world *cardinal.World, queue *cardinal.TransactionQueue, logger cardinal.Logger) error {
+	// get all attack transactions in the queue
+	txs := AttackTx.In(queue)
+
+	for _, tx := range txs {
+		// get the underlying attack tx struct
+		atk := tx.Value()
+
+		// update the component based on the attack
+		err := HealthComponent.Update(world, entity.ID(atk.TargetPlayer), func(health Health) Health {
+			health.Amount -= atk.Amount
+			return health
+		})
+		// if an error occurred, set the result, and add the error to the transaction.
+		if err != nil {
+			AttackTx.SetResult(world, tx.Hash(), AttackResult{Success: false})
+			AttackTx.AddError(world, tx.Hash(), err)
+			continue
+		}
+		// set result for success case
+		AttackTx.SetResult(world, tx.Hash(), AttackResult{Success: true})
+	}
+	return nil
+}
+```

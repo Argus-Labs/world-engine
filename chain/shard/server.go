@@ -28,7 +28,9 @@ var (
 type Server struct {
 	moduleAddr sdk.AccAddress
 	tq         *TxQueue
-	serverOpts []grpc.ServerOption
+
+	// opts
+	creds credentials.TransportCredentials
 }
 
 // NewShardServer returns a new Server.
@@ -75,7 +77,7 @@ func loadCredentials(certPath, keyPath string) (credentials.TransportCredentials
 
 // Serve serves the application in a new go routine. The routine panics if serve fails.
 func (s *Server) Serve(listenAddr string) {
-	grpcServer := grpc.NewServer(s.serverOpts...)
+	grpcServer := grpc.NewServer(grpc.Creds(s.creds))
 	shardgrpc.RegisterShardHandlerServer(grpcServer, s)
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {

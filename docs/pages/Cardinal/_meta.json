@@ -1,11 +1,14 @@
 {
   "intro": {
-    "title": "Introduction"
+    "title": "Overview"
   },
   "getting-started": {
     "title": "Getting Started"
   },
   "ecs": {
     "title": "ECS"
+  },
+  "API-Reference": {
+    "title": "API Reference"
   }
 }

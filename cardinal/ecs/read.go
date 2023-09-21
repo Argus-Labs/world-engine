@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
@@ -18,7 +19,7 @@ type IRead interface {
 	// and is expected to return a json encoded response struct.
 	HandleReadRaw(*World, []byte) ([]byte, error)
 	// Schema returns the json schema of the read request.
-  Schema() (request, reply *jsonschema.Schema)
+	Schema() (request, reply *jsonschema.Schema)
 	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
 	DecodeEVMRequest([]byte) (any, error)
 	// EncodeEVMReply encodes the reply as an abi encoded struct.
@@ -60,6 +61,24 @@ func NewReadType[Request any, Reply any](
 	handler func(world *World, req Request) (Reply, error),
 	opts ...func() func(readType *ReadType[Request, Reply]),
 ) *ReadType[Request, Reply] {
+	var req Request
+	var rep Reply
+	reqType := reflect.TypeOf(req)
+	reqKind := reqType.Kind()
+	reqValid := false
+	if (reqKind == reflect.Pointer && reqType.Elem().Kind() == reflect.Struct) || reqKind == reflect.Struct {
+		reqValid = true
+	}
+	repType := reflect.TypeOf(rep)
+	repKind := reqType.Kind()
+	repValid := false
+	if (repKind == reflect.Pointer && repType.Elem().Kind() == reflect.Struct) || repKind == reflect.Struct {
+		repValid = true
+	}
+
+	if !repValid || !reqValid {
+		panic(fmt.Sprintf("Invalid ReadType: %s: The Request and Reply must be both structs", name))
+	}
 	r := &ReadType[Request, Reply]{
 		name:    name,
 		handler: handler,
@@ -132,11 +151,11 @@ func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	underlying, ok := unpacked[0].(req)
-	if !ok {
-		return nil, fmt.Errorf("error decoding EVM bytes: cannot cast %T to %T", unpacked[0], new(req))
+	request, err := SerdeInto[req](unpacked[0])
+	if err != nil {
+		return nil, err
 	}
-	return underlying, nil
+	return request, nil
 }
 
 func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
@@ -151,11 +170,11 @@ func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	underlying, ok := unpacked[0].(rep)
-	if !ok {
-		return nil, fmt.Errorf("error decoding EVM bytes: cannot cast %T to %T", unpacked[0], new(req))
+	reply, err := SerdeInto[rep](unpacked[0])
+	if err != nil {
+		return nil, err
 	}
-	return underlying, nil
+	return reply, nil
 }
 
 func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
@@ -171,15 +190,22 @@ func (r *ReadType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 	if r.requestABI == nil || r.replyABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
-	req, ok := input.(Request)
-	if !ok {
-		if rep, ok := input.(Reply); !ok {
-			return nil, fmt.Errorf("expected the input struct to be either %T or %T, but got %T",
-				req, rep, input)
-		}
+
+	var args abi.Arguments
+	var in any
+	switch input.(type) {
+	case Request:
+		in = input.(Request)
+		args = abi.Arguments{{Type: *r.requestABI}}
+	case Reply:
+		in = input.(Reply)
+		args = abi.Arguments{{Type: *r.replyABI}}
+	default:
+		return nil, fmt.Errorf("expected the input struct to be either %T or %T, but got %T",
+			new(Request), new(Reply), input)
 	}
-	args := abi.Arguments{{Type: *r.requestABI}}
-	bz, err := args.Pack(input)
+
+	bz, err := args.Pack(in)
 	if err != nil {
 		return nil, err
 	}
