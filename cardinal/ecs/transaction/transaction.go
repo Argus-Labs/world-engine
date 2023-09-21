@@ -19,6 +19,16 @@ func NewTxQueue() *TxQueue {
 	}
 }
 
+func (t *TxQueue) GetAmountOfTxs() int {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	acc := 0
+	for _, v := range t.m {
+		acc += len(v)
+	}
+	return acc
+}
+
 func (t *TxQueue) AddTransaction(id TypeID, v any, sig *sign.SignedPayload) TxHash {
 	t.mux.Lock()
 	defer t.mux.Unlock()
