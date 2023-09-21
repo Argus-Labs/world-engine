@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/rs/zerolog/log"
 	"os"
 	"pkg.world.dev/world-engine/chain/router"
 	"pkg.world.dev/world-engine/chain/shard"
@@ -12,7 +13,7 @@ func (app *App) setPlugins() {
 	keyPath := os.Getenv("SERVER_KEY_PATH")
 	var opt shard.Option
 	if certPath == "" && keyPath == "" {
-		app.Logger().Info("WARNING: running shard sequencer without SSL certs")
+		log.Warn().Msg("running shard sequencer without SSL certs")
 	} else {
 		opt = shard.WithCredentials(certPath, keyPath)
 	}
@@ -24,6 +25,6 @@ func (app *App) setPlugins() {
 		clientCert := os.Getenv("CLIENT_CERT_PATH")
 		app.Router = router.NewRouter(cardinalShardAddr, router.WithCredentials(clientCert))
 	} else {
-		app.Logger().Info("WARNING: router is not running")
+		log.Warn().Msg("router is not running")
 	}
 }

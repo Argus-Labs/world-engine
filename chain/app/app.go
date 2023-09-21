@@ -147,6 +147,7 @@ func NewApp(
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
 	app := &App{}
+	app.setPlugins()
 	var (
 		appBuilder   *runtime.AppBuilder
 		ethTxMempool = evmmempool.NewPolarisEthereumTxPool()
@@ -310,8 +311,6 @@ func NewApp(
 	if err = app.Load(loadLatest); err != nil {
 		panic(err)
 	}
-
-	app.setPlugins()
 
 	return app
 }
