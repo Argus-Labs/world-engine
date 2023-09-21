@@ -143,14 +143,8 @@ func TestShutDownViaMethod(t *testing.T) {
 	err = gameObject.Shutdown() //Should block until loop is down.
 	assert.NilError(t, err)
 	assert.Assert(t, !w.IsGameLoopRunning())
-	for {
-		time.Sleep(500 * time.Millisecond)
-		_, err := http.Get("http://localhost:4040/health")
-		if err != nil {
-			break //server is supposed to be shutdown.
-		}
-	}
-
+	_, err = http.Get("http://localhost:4040/health")
+	assert.Check(t, err != nil)
 }
 
 func TestShutDownViaSignal(t *testing.T) {
