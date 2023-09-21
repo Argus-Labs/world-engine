@@ -21,7 +21,6 @@
 package router
 
 import (
-	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"testing"
 
@@ -36,7 +35,6 @@ import (
 )
 
 func TestRouterPrecompile(t *testing.T) {
-	fmt.Println(common.BytesToAddress(authtypes.NewModuleAddress(name)))
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "cosmos/precompile/router")
 }
