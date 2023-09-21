@@ -1,9 +1,9 @@
 package shard
 
-type Option func(*Server)
+type Option func(*Sequencer)
 
 func WithCredentials(certPath, keyPath string) Option {
-	return func(server *Server) {
+	return func(server *Sequencer) {
 		creds, err := loadCredentials(certPath, keyPath)
 		if err != nil {
 			panic(err)

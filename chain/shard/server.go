@@ -13,17 +13,23 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"sync"
 
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 )
 
-var (
-	Name                              = "shard_handler_server"
-	_    shardgrpc.ShardHandlerServer = &Server{}
+const (
+	defaultPort = "9601"
 )
 
-type Server struct {
+var (
+	Name                              = "shard_sequencer"
+	_    shardgrpc.ShardHandlerServer = &Sequencer{}
+)
+
+// Sequencer handles sequencing game shard transactions.
+type Sequencer struct {
 	moduleAddr sdk.AccAddress
 	tq         *TxQueue
 
@@ -31,13 +37,19 @@ type Server struct {
 	creds credentials.TransportCredentials
 }
 
-func NewShardServer(opts ...Option) *Server {
+// NewShardSequencer returns a new game shardsequencer server. It runs on a default port of 9601,
+// unless the SHARD_SEQUENCER_PORT environment variable is set.
+//
+// The sequencer exposes a single gRPC endpoint, SubmitShardTx, which will take in transactions from game shards,
+// indexed by namespace. At every block, the sequencer tx queue is flushed, and processed in the storage shard storage
+// module, persisting the data to the blockchain.
+func NewShardSequencer(opts ...Option) *Sequencer {
 	addr := authtypes.NewModuleAddress(Name)
-	s := &Server{
+	s := &Sequencer{
 		moduleAddr: addr,
 		tq: &TxQueue{
 			lock:       sync.Mutex{},
-			ntx:        make(NamespacedTxs, 0),
+			ntx:        make(NamespacedTxs),
 			outbox:     make([]*types.SubmitShardTxRequest, 0),
 			moduleAddr: addr.String(),
 		},
@@ -72,11 +84,18 @@ func loadCredentials(certPath, keyPath string) (credentials.TransportCredentials
 	return credentials.NewTLS(config), nil
 }
 
-// Serve serves the application in a new go routine. The routine panics if serve fails.
-func (s *Server) Serve(listenAddr string) {
+// Serve serves the server in a new go routine.
+func (s *Sequencer) Serve() {
 	grpcServer := grpc.NewServer(grpc.Creds(s.creds))
 	shardgrpc.RegisterShardHandlerServer(grpcServer, s)
-	listener, err := net.Listen("tcp", listenAddr)
+	port := defaultPort
+	// check if a custom port was set
+	if setPort := os.Getenv("SHARD_SEQUENCER_PORT"); setPort != "" {
+		if _, err := strconv.Atoi(setPort); err == nil {
+			port = setPort
+		}
+	}
+	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -88,14 +107,13 @@ func (s *Server) Serve(listenAddr string) {
 	}()
 }
 
-// FlushMessages gets the next available batch of transactions ready to be stored.
-func (s *Server) FlushMessages() []*types.SubmitShardTxRequest {
+// FlushMessages empties and returns all messages stored in the queue.
+func (s *Sequencer) FlushMessages() []*types.SubmitShardTxRequest {
 	return s.tq.GetTxs()
 }
 
-// SubmitShardTx appends the game shard tx submission to the tx queue, which eventually gets executed during
-// abci.EndBlock.
-func (s *Server) SubmitShardTx(_ context.Context, req *shard.SubmitShardTxRequest) (
+// SubmitShardTx appends the game shard tx submission to the tx queue.
+func (s *Sequencer) SubmitShardTx(_ context.Context, req *shard.SubmitShardTxRequest) (
 	*shard.SubmitShardTxResponse, error) {
 	bz, err := proto.Marshal(req.Tx)
 	if err != nil {

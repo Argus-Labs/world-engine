@@ -8,7 +8,7 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	s := NewShardServer()
+	s := NewShardSequencer()
 	ctx := context.Background()
 	_, err := s.SubmitShardTx(ctx, &shardv1.SubmitShardTxRequest{
 		Epoch: 1,
