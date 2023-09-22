@@ -22,7 +22,7 @@ import (
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/storemanager"
+	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
@@ -35,7 +35,7 @@ type Namespace string
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
-	storeManager             *storemanager.StoreManager
+	storeManager             *store.Manager
 	systems                  []System
 	systemLoggers            []*ecslog.Logger
 	systemNames              []string
@@ -77,7 +77,7 @@ func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
-func (w *World) StoreManager() *storemanager.StoreManager {
+func (w *World) StoreManager() *store.Manager {
 	return w.storeManager
 }
 
@@ -208,7 +208,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	}
 	w := &World{
 		store:             s,
-		storeManager:      storemanager.NewStoreManager(s, logger),
+		storeManager:      store.NewStoreManager(s, logger),
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
