@@ -8,12 +8,14 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -58,6 +60,9 @@ type World struct {
 	errs []error
 
 	Logger *ecslog.Logger
+
+	endGameLoopCh     chan bool
+	isGameLoopRunning atomic.Bool
 }
 
 var (
@@ -74,6 +79,10 @@ func (w *World) IsRecovering() bool {
 
 func (w *World) StoreManager() *storemanager.StoreManager {
 	return w.storeManager
+}
+
+func (w *World) GetTxQueueAmount() int {
+	return w.txQueue.GetAmountOfTxs()
 }
 
 func (w *World) AddSystem(s System) {
@@ -198,15 +207,18 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		&log.Logger,
 	}
 	w := &World{
-		store:           s,
-		storeManager:    storemanager.NewStoreManager(s, logger),
-		namespace:       "world",
-		tick:            0,
-		systems:         make([]System, 0),
-		nameToComponent: make(map[string]IComponentType),
-		txQueue:         transaction.NewTxQueue(),
-		Logger:          logger,
+		store:             s,
+		storeManager:      storemanager.NewStoreManager(s, logger),
+		namespace:         "world",
+		tick:              0,
+		systems:           make([]System, 0),
+		nameToComponent:   make(map[string]IComponentType),
+		txQueue:           transaction.NewTxQueue(),
+		Logger:            logger,
+		isGameLoopRunning: atomic.Bool{},
+		endGameLoopCh:     make(chan bool),
 	}
+	w.isGameLoopRunning.Store(false)
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
 	for _, opt := range opts {
 		opt(w)
@@ -299,7 +311,6 @@ func (w *World) Tick(ctx context.Context) error {
 			return err
 		}
 	}
-
 	if err := w.saveArchetypeData(); err != nil {
 		return err
 	}
@@ -342,13 +353,42 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 	if len(w.systems) == 0 {
 		w.Logger.Warn().Msg("No systems registered.")
 	}
+
 	go func() {
-		for range time.Tick(loopInterval) {
+		tickTheWorld := func() {
 			if err := w.Tick(ctx); err != nil {
 				w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
 			}
 		}
+		intervalTicker := time.NewTicker(loopInterval)
+		w.isGameLoopRunning.Store(true)
+	loop:
+		for {
+			select {
+			case <-intervalTicker.C:
+				tickTheWorld()
+			case <-w.endGameLoopCh:
+				if w.GetTxQueueAmount() > 0 {
+					tickTheWorld() //immediately tick if queue is not empty to process all txs if queue is not empty.
+				}
+				break loop
+			default:
+				continue
+			}
+		}
+		w.isGameLoopRunning.Store(false)
 	}()
+}
+
+func (w *World) IsGameLoopRunning() bool {
+	return w.isGameLoopRunning.Load()
+}
+
+func (w *World) EndGameLoop() {
+	w.endGameLoopCh <- true
+	for w.IsGameLoopRunning() { //Block until loop stops.
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 type TxBatch struct {

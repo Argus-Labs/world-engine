@@ -118,8 +118,8 @@ type App struct {
 	ShardKeeper  *shardkeeper.Keeper
 
 	// plugins
-	Router       router.Router
-	ShardHandler *shard.Server
+	Router         router.Router
+	ShardSequencer *shard.Sequencer
 
 	// simulation manager
 	sm *module.SimulationManager
@@ -347,7 +347,7 @@ func (app *App) TxConfig() client.TxConfig {
 // EndBlock implements abci.EndBlocker. In addition to running each module's EndBlock function,
 // it flushes messages received from game shards and passes them to the shard handler, storing them on chain.
 func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
-	txs := app.ShardHandler.FlushMessages()
+	txs := app.ShardSequencer.FlushMessages()
 	if txs != nil {
 		handler := app.MsgServiceRouter().Handler(txs[0])
 		for _, tx := range txs {
@@ -357,11 +357,7 @@ func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
 			}
 		}
 	}
-	eb, err := app.ModuleManager.EndBlock(ctx)
-	if err != nil {
-		return sdk.EndBlock{}, err
-	}
-	return eb, nil
+	return app.ModuleManager.EndBlock(ctx)
 }
 
 // GetKey returns the KVStoreKey for the provided store key.

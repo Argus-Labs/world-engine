@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"reflect"
 	"strconv"
 	"testing"
@@ -97,6 +98,86 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 		t:         t,
 		urlPrefix: urlPrefix,
 	}
+}
+
+func setTestTimeout(t *testing.T, timeout time.Duration) {
+	if _, ok := t.Deadline(); ok {
+		// A deadline has already been set. Don't add an additional deadline.
+		return
+	}
+	success := make(chan bool)
+	t.Cleanup(func() {
+		success <- true
+	})
+	go func() {
+		select {
+		case <-success:
+			// test was successful. Do nothing
+		case <-time.After(timeout):
+			//assert.Check(t, false, "test timed out")
+			panic("test timed out")
+		}
+	}()
+}
+
+func TestShutDownViaMethod(t *testing.T) {
+	//setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create failure with panic.
+	w := inmem.NewECSWorldForTest(t)
+	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
+	assert.NilError(t, w.RegisterTransactions(sendTx))
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+		return nil
+	})
+	assert.NilError(t, w.LoadGameState())
+	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
+	resp, err := http.Get("http://localhost:4040/health")
+	assert.Equal(t, resp.StatusCode, 200)
+	ctx := context.Background()
+	w.StartGameLoop(ctx, 1*time.Second)
+	for !w.IsGameLoopRunning() {
+		//wait until game loop is running.
+		time.Sleep(1 * time.Millisecond)
+	}
+	gameObject := NewGameManager(w, txh.Handler)
+	err = gameObject.Shutdown() //Should block until loop is down.
+	assert.NilError(t, err)
+	assert.Assert(t, !w.IsGameLoopRunning())
+	_, err = http.Get("http://localhost:4040/health")
+	assert.Check(t, err != nil)
+}
+
+func TestShutDownViaSignal(t *testing.T) {
+	setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
+	w := inmem.NewECSWorldForTest(t)
+	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
+	assert.NilError(t, w.RegisterTransactions(sendTx))
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+		return nil
+	})
+	assert.NilError(t, w.LoadGameState())
+	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
+	resp, err := http.Get("http://localhost:4040/health")
+	assert.Equal(t, resp.StatusCode, 200)
+	ctx := context.Background()
+	w.StartGameLoop(ctx, 1*time.Second)
+	for !w.IsGameLoopRunning() {
+		//wait until game loop is running
+		time.Sleep(500 * time.Millisecond)
+	}
+	_ = NewGameManager(w, txh.Handler)
+
+	// Send a SIGINT signal.
+	cmd := exec.Command("kill", "-INT", strconv.Itoa(os.Getpid()))
+	err = cmd.Run()
+	assert.NilError(t, err)
+
+	//wait for game loop and server to shut down.
+	for w.IsGameLoopRunning() {
+		time.Sleep(500 * time.Millisecond)
+	}
+	_, err = http.Get("http://localhost:4040/health")
+	assert.Check(t, err != nil) //Server must shutdown before game loop. So if the gameloop turned off
+
 }
 
 func TestIfServeSetEnvVarForPort(t *testing.T) {

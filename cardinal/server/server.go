@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
@@ -462,9 +463,15 @@ func (t *Handler) initialize() {
 // Will default to env var "CARDINAL_PORT". If that's not set correctly then will default to port 4040
 // if no correct port was previously set.
 func (t *Handler) Serve() error {
-	return t.server.ListenAndServe()
+	err := t.server.ListenAndServe()
+	return err
 }
 
 func (t *Handler) Close() error {
 	return t.server.Close()
+}
+
+func (t *Handler) Shutdown() error {
+	ctx := context.Background()
+	return t.server.Shutdown(ctx)
 }

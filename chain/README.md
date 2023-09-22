@@ -141,12 +141,47 @@ Start the `chain` and `celestia-devnet` using `chain/docker-compose.yml`, make s
   docker compose up chain --build --detach
   ```
 
+## Features
+
+### Game Shard Tx Sequencer
+
+The rollup is extended via a special gRPC server that game shards can connect to for the purpose of submitting and storing transactions to the base shard.
+
+This gRPC server runs, by default, at port `9601`, but can be configured by setting the `SHARD_SEQUENCER_PORT` environment variable.
+
+### Router
+
+The rollup provides an extension to it's underlying EVM environment with a specialized precompile that allows messages to be forwarded from smart contracts to game shards that implement the router server.
+
+The router must be informed of the game shard's server address by setting the environment variable `CARDINAL_EVM_LISTENER_ADDR`. 
+
+#### Using the Router in Solidity
+
+In order to use the precompile, you first need to copy over the precompile contract code. The contract lives at:
+
+`chain/contracts/src/cosmos/precompile/router.sol`
+
+The precompile address will always be `0x356833c4666fFB6bFccbF8D600fa7282290dE073`.
+
+Instantiating the precompile is done like so:
+
+```solidity
+// the path of import will change depending on where you copied the 
+// precompile contract code to.
+import {IRouter} from "./precompile/router.sol";
+
+contract SomeGame {
+    IRouter public immutable router;
+
+    constructor () {
+        router = IRouter(0x356833c4666fFB6bFccbF8D600fa7282290dE073);
+    }
+}
+
+```
+
 ## Environment Variables
 The following env variables must be set for the following features.
-
-### Game Shard Tx Storage
-- USE_SHARD_LISTENER=true
-- SHARD_HANDLER_LISTEN_ADDR=<the address you want this server to listen on (i.e. 10.209.21:3090)
 
 ### Secure gRPC Connections
 For production environments, you'll likely want to setup secure connections between gRPC servers handling system transactions.
