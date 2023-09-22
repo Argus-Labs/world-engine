@@ -316,7 +316,7 @@ func NewApp(
 	return app
 }
 
-func (app *App) FinalizeBlockHook(ctx sdk.Context, block *types.RequestFinalizeBlock) error {
+func (app *App) FinalizeBlockHook(ctx sdk.Context, _ *types.RequestFinalizeBlock) error {
 	app.Logger().Info("running finalize block")
 	txs := app.ShardSequencer.FlushMessages()
 	if len(txs) > 0 {
