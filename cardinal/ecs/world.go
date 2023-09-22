@@ -356,7 +356,7 @@ func (w *World) Tick(ctx context.Context) error {
 	return nil
 }
 
-func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
+func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
 	w.Logger.Info().Msg("Game loop started")
 	w.Logger.LogWorld(w, zerolog.InfoLevel)
 	//todo: add links to docs related to each warning
@@ -378,21 +378,21 @@ func (w *World) StartGameLoop(ctx context.Context, loopInterval time.Duration) {
 			if err := w.Tick(ctx); err != nil {
 				w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
 			}
+			if tickDone != nil {
+				tickDone <- w.CurrentTick()
+			}
 		}
-		intervalTicker := time.NewTicker(loopInterval)
 		w.isGameLoopRunning.Store(true)
 	loop:
 		for {
 			select {
-			case <-intervalTicker.C:
+			case <-tickStart:
 				tickTheWorld()
 			case <-w.endGameLoopCh:
 				if w.GetTxQueueAmount() > 0 {
 					tickTheWorld() //immediately tick if queue is not empty to process all txs if queue is not empty.
 				}
 				break loop
-			default:
-				continue
 			}
 		}
 		w.isGameLoopRunning.Store(false)

@@ -134,7 +134,7 @@ func TestShutDownViaMethod(t *testing.T) {
 	resp, err := http.Get("http://localhost:4040/health")
 	assert.Equal(t, resp.StatusCode, 200)
 	ctx := context.Background()
-	w.StartGameLoop(ctx, 1*time.Second)
+	w.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
 	for !w.IsGameLoopRunning() {
 		//wait until game loop is running.
 		time.Sleep(1 * time.Millisecond)
@@ -160,7 +160,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	resp, err := http.Get("http://localhost:4040/health")
 	assert.Equal(t, resp.StatusCode, 200)
 	ctx := context.Background()
-	w.StartGameLoop(ctx, 1*time.Second)
+	w.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
 	for !w.IsGameLoopRunning() {
 		//wait until game loop is running
 		time.Sleep(500 * time.Millisecond)
