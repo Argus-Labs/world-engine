@@ -2,7 +2,6 @@ package keeper
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
-
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 
 	"cosmossdk.io/core/store"
@@ -14,6 +13,9 @@ type Keeper struct {
 }
 
 func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
+	if auth == "" {
+		panic("authority in shard keeper not set")
+	}
 	k := &Keeper{storeService: ss, auth: auth}
 	return k
 }

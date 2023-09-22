@@ -21,6 +21,7 @@
 package app
 
 import (
+	"github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"io"
 	"os"
@@ -306,13 +307,29 @@ func NewApp(
 
 	app.sm.RegisterStoreDecoders()
 
-	app.SetEndBlocker(app.EndBlock)
+	app.SetPreFinalizeBlockHook(app.FinalizeBlockHook)
 
 	if err = app.Load(loadLatest); err != nil {
 		panic(err)
 	}
 
 	return app
+}
+
+func (app *App) FinalizeBlockHook(ctx sdk.Context, block *types.RequestFinalizeBlock) error {
+	app.Logger().Info("running finalize block")
+	txs := app.ShardSequencer.FlushMessages()
+	if len(txs) > 0 {
+		app.Logger().Info("flushed messages from game shard. Executing...")
+		handler := app.MsgServiceRouter().Handler(txs[0])
+		for _, tx := range txs {
+			_, err := handler(ctx, tx)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // Name returns the name of the App.
@@ -342,24 +359,6 @@ func (app *App) InterfaceRegistry() codectypes.InterfaceRegistry {
 // TxConfig returns App's TxConfig.
 func (app *App) TxConfig() client.TxConfig {
 	return app.txConfig
-}
-
-// EndBlock implements abci.EndBlocker. In addition to running each module's EndBlock function,
-// it flushes messages received from game shards and passes them to the shard handler, storing them on chain.
-func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
-	app.Logger().Info("running end block")
-	txs := app.ShardSequencer.FlushMessages()
-	if txs != nil {
-		app.Logger().Info("flushed messages from game shard. Executing...")
-		handler := app.MsgServiceRouter().Handler(txs[0])
-		for _, tx := range txs {
-			_, err := handler(ctx, tx)
-			if err != nil {
-				return sdk.EndBlock{}, err
-			}
-		}
-	}
-	return app.ModuleManager.EndBlock(ctx)
 }
 
 // GetKey returns the KVStoreKey for the provided store key.
