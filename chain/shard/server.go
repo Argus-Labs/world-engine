@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	log2 "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/proto"
@@ -115,6 +116,7 @@ func (s *Sequencer) FlushMessages() []*types.SubmitShardTxRequest {
 // SubmitShardTx appends the game shard tx submission to the tx queue.
 func (s *Sequencer) SubmitShardTx(_ context.Context, req *shard.SubmitShardTxRequest) (
 	*shard.SubmitShardTxResponse, error) {
+	log2.Logger.Info().Msgf("got transaction from shard: %s", req.Tx.Namespace)
 	bz, err := proto.Marshal(req.Tx)
 	if err != nil {
 		return nil, err

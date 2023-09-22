@@ -10,11 +10,12 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
-	"github.com/argus-labs/world-engine/sign"
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
+	"pkg.world.dev/world-engine/sign"
 )
 
 const (
@@ -39,6 +40,8 @@ const (
 
 type personaTagStatus string
 
+type receiptChan chan *Receipt
+
 const (
 	personaTagStatusUnknown  personaTagStatus = "unknown"
 	personaTagStatusPending  personaTagStatus = "pending"
@@ -59,16 +62,26 @@ var (
 	globalNamespace string
 
 	globalPersonaTagAssignment = sync.Map{}
+
+	globalReceiptsDispatcher *receiptsDispatcher
 )
 
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, initializer runtime.Initializer) error {
 
 	if err := initCardinalAddress(); err != nil {
-		return err
+		return fmt.Errorf("failed to init cardinal address: %w", err)
 	}
 
 	if err := initNamespace(); err != nil {
-		return err
+		return fmt.Errorf("failed to init namespace: %w", err)
+	}
+
+	if err := initReceiptStreaming(logger); err != nil {
+		return fmt.Errorf("failed to init receipt streaming: %w", err)
+	}
+
+	if err := initReceiptMatch(ctx, logger, db, nk, initializer); err != nil {
+		return fmt.Errorf("unable to init matches for receipt streaming")
 	}
 
 	if err := initPrivateKey(ctx, logger, nk); err != nil {
@@ -87,6 +100,10 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 		return fmt.Errorf("failed to init cardinal endpoints: %w", err)
 	}
 
+	if err := initAllowlist(logger, initializer); err != nil {
+		return fmt.Errorf("failed to init allowlist endpoints: %w", err)
+	}
+
 	return nil
 }
 
@@ -95,6 +112,30 @@ func initNamespace() error {
 	if globalNamespace == "" {
 		return fmt.Errorf("must specify a cardinal namespace via %s", EnvCardinalNamespace)
 	}
+	return nil
+}
+
+func initReceiptStreaming(log runtime.Logger) error {
+	globalReceiptsDispatcher = newReceiptsDispatcher()
+	go globalReceiptsDispatcher.pollReceipts(log)
+	go globalReceiptsDispatcher.dispatch(log)
+	return nil
+}
+
+func initReceiptMatch(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, initializer runtime.Initializer) error {
+	err := initializer.RegisterMatch("lobby", func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) (runtime.Match, error) {
+		return &ReceiptMatch{}, nil
+	})
+	if err != nil {
+		logger.Error("unable to register match: %v", err)
+		return err
+	}
+	result, err := nk.MatchCreate(ctx, "lobby", map[string]any{})
+	if err != nil {
+		logger.Error("unable to create match: %v", err)
+		return err
+	}
+	logger.Debug("match create result is %q", result)
 	return nil
 }
 
@@ -153,6 +194,7 @@ type personaTagStorageObj struct {
 	PersonaTag string           `json:"persona_tag"`
 	Status     personaTagStatus `json:"status"`
 	Tick       uint64           `json:"tick"`
+	TxHash     string           `json:"tx_hash"`
 }
 
 // storageObjToPersonaTagStorageObj converts a generic Nakama StorageObject to a locally defined personaTagStorageObj.
@@ -232,7 +274,7 @@ func setPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule, obj *
 
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
 func handleClaimPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-	if ptr, err := getPersonaTagStorageObj(ctx, nk); err != nil && err != ErrorPersonaTagStorageObjNotFound {
+	if ptr, err := getPersonaTagStorageObj(ctx, nk); err != nil && !errors.Is(err, ErrorPersonaTagStorageObjNotFound) {
 		return logError(logger, "unable to get persona tag storage object: %w", err)
 	} else if err == nil {
 		switch ptr.Status {
@@ -263,24 +305,31 @@ func handleClaimPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 		return logError(logger, "unable to get userID: %w", err)
 	}
 
+	// check if the user is verified. this requires them to input a valid beta key.
+	err = checkVerified(ctx, nk, userID)
+	if err != nil {
+		return "", err
+	}
+
 	// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
 	// user having the persona tag. This assignment still needs to be checked with cardinal.
 	if ok := setPersonaTagAssignment(ptr.PersonaTag, userID); !ok {
 		ptr.Status = personaTagStatusRejected
 		if err := setPersonaTagStorageObj(ctx, nk, ptr); err != nil {
-			return logError(logger, "unable to set persona tag storage object: %w", err)
+			return logError(logger, "unable to set persona tag storage object: %v", err)
 		}
 		return logCode(logger, ALREADY_EXISTS, "persona tag %q is not available", ptr.PersonaTag)
 	}
 
-	tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
+	txHash, tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
 	if err != nil {
-		return logError(logger, "unable to make create persona request to cardinal: %w", err)
+		return logError(logger, "unable to make create persona request to cardinal: %v", err)
 	}
 
 	ptr.Tick = tick
+	ptr.TxHash = txHash
 	if err := setPersonaTagStorageObj(ctx, nk, ptr); err != nil {
-		return logError(logger, "unable to save persona tag storage object: %w", err)
+		return logError(logger, "unable to save persona tag storage object: %v", err)
 	}
 	return ptr.toJSON()
 }
@@ -339,34 +388,61 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 		if currEndpoint[0] == '/' {
 			currEndpoint = currEndpoint[1:]
 		}
-		err := initializer.RegisterRpc(currEndpoint, func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-			logger.Debug("Got request for %q", currEndpoint)
 
-			signedPayload, err := makeSignedPayload(ctx, nk, payload)
-			if err != nil {
-				return logError(logger, "unable to make signed payload: %v", err)
-			}
+		// if endpoint starts with "read" register without creating a SignedPayload
+		if strings.HasPrefix(currEndpoint[:4], "read") {
+			err := initializer.RegisterRpc(currEndpoint, func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+				logger.Debug("Got request for %q", currEndpoint)
 
-			req, err := http.NewRequestWithContext(ctx, "POST", makeURL(currEndpoint), signedPayload)
+				req, err := http.NewRequestWithContext(ctx, "POST", makeURL(currEndpoint), strings.NewReader(payload))
+				if err != nil {
+					return logError(logger, "request setup failed for endpoint %q: %v", currEndpoint, err)
+				}
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					return logError(logger, "request failed for endpoint %q: %v", currEndpoint, err)
+				}
+				if resp.StatusCode != 200 {
+					body, _ := io.ReadAll(resp.Body)
+					return logError(logger, "bad status code: %v: %s", resp.Status, body)
+				}
+				str, err := io.ReadAll(resp.Body)
+				if err != nil {
+					return logError(logger, "can't read body: %v", err)
+				}
+				return string(str), nil
+			})
 			if err != nil {
-				return logError(logger, "request setup failed for endpoint %q: %v", currEndpoint, err)
+				return err
 			}
-			resp, err := http.DefaultClient.Do(req)
+		} else {
+			err := initializer.RegisterRpc(currEndpoint, func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+				logger.Debug("Got request for %q", currEndpoint)
+				signedPayload, err := makeSignedPayload(ctx, nk, payload)
+				if err != nil {
+					return logError(logger, "unable to make signed payload: %v", err)
+				}
+				req, err := http.NewRequestWithContext(ctx, "POST", makeURL(currEndpoint), signedPayload)
+				if err != nil {
+					return logError(logger, "request setup failed for endpoint %q: %v", currEndpoint, err)
+				}
+				resp, err := http.DefaultClient.Do(req)
+				if err != nil {
+					return logError(logger, "request failed for endpoint %q: %v", currEndpoint, err)
+				}
+				if resp.StatusCode != 200 {
+					body, _ := io.ReadAll(resp.Body)
+					return logError(logger, "bad status code: %v: %s", resp.Status, body)
+				}
+				str, err := io.ReadAll(resp.Body)
+				if err != nil {
+					return logError(logger, "can't read body: %v", err)
+				}
+				return string(str), nil
+			})
 			if err != nil {
-				return logError(logger, "request failed for endpoint %q: %v", currEndpoint, err)
+				return err
 			}
-			if resp.StatusCode != 200 {
-				body, _ := io.ReadAll(resp.Body)
-				return logError(logger, "bad status code: %v: %s", resp.Status, body)
-			}
-			str, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return logError(logger, "can't read body: %v", err)
-			}
-			return string(str), nil
-		})
-		if err != nil {
-			return err
 		}
 	}
 	return nil
@@ -402,7 +478,7 @@ func makeSignedPayload(ctx context.Context, nk runtime.NakamaModule, payload str
 	}
 
 	pk, nonce, err := getPrivateKeyAndANonce(ctx, nk)
-	sp, err := sign.NewSignedString(pk, personaTag, globalNamespace, nonce, payload)
+	sp, err := sign.NewSignedPayload(pk, personaTag, globalNamespace, nonce, payload)
 	if err != nil {
 		return nil, err
 	}

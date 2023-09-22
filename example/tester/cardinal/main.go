@@ -18,8 +18,8 @@ import (
 
 func main() {
 	redisAddr := os.Getenv("REDIS_ADDR")
-	namespace := os.Getenv("CARDINAL_NAMESPACE")
-	rs := storage.NewRedisStorage(storage.Options{Addr: redisAddr}, "test")
+	namespace := os.Getenv("NAMESPACE")
+	rs := storage.NewRedisStorage(storage.Options{Addr: redisAddr}, namespace)
 	store := storage.NewWorldStorage(&rs)
 	adapter := setupAdapter()
 	world, err := ecs.NewWorld(
@@ -49,7 +49,7 @@ func main() {
 		log.Fatal(err)
 	}
 	ctx := context.Background()
-	srvr, err := server.NewHandler(world, server.WithAdapter(adapter), server.WithPort("2023"))
+	srvr, err := server.NewHandler(world, server.WithAdapter(adapter))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -70,8 +70,8 @@ func setupAdapter() shard.Adapter {
 	baseShardAddr := os.Getenv("BASE_SHARD_ADDR")
 	shardReceiverAddr := os.Getenv("SHARD_SEQUENCER_ADDR")
 	cfg := shard.AdapterConfig{
-		ShardReceiverAddr: shardReceiverAddr,
-		EVMBaseShardAddr:  baseShardAddr,
+		ShardSequencerAddr: shardReceiverAddr,
+		EVMBaseShardAddr:   baseShardAddr,
 	}
 	adapter, err := shard.NewAdapter(cfg)
 	if err != nil {

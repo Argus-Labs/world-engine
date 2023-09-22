@@ -11,6 +11,7 @@ var PlayerEntityID = make(map[string]storage.EntityID, 0)
 
 func Join(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
 	for _, jtx := range tx.JoinTx.In(queue) {
+		logger.Info().Msgf("got join transaction from: %s", jtx.Sig.PersonaTag)
 		entity, err := world.Create(comp.LocationComponent, comp.PlayerComponent)
 		if err != nil {
 			tx.JoinTx.AddError(world, jtx.TxHash, err)

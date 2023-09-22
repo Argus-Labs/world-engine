@@ -1,11 +1,11 @@
 module github.com/argus-labs/world-engine/example/tester/nakama
 
-go 1.20
+go 1.21
 
 require (
-	github.com/argus-labs/world-engine/sign v0.1.4-alpha
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/heroiclabs/nakama-common v1.27.0
+	pkg.world.dev/world-engine/sign v0.1.7-alpha
 )
 
 require (

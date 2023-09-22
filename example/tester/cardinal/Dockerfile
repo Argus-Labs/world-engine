@@ -7,4 +7,6 @@ COPY vendor vendor/
 
 RUN go build -v -o /usr/local/bin/app
 
+EXPOSE 4040
+
 CMD ["app"]

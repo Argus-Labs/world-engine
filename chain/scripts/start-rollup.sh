@@ -47,4 +47,4 @@ sed -i '/api\]/,/\[/ s/enable = false/enable = true/' /root/.world/config/app.to
 
 sed -i 's/"stake"/"eth"/g' /root/.world/config/genesis.json
 
-world start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.block_time $BLOCK_TIME --rollkit.lazy_aggregator  --minimum-gas-prices 0eth
+world start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.block_time $BLOCK_TIME --minimum-gas-prices 0eth

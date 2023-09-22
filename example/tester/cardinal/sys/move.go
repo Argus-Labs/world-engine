@@ -9,6 +9,7 @@ import (
 
 func Move(world *ecs.World, queue *ecs.TransactionQueue, logger *ecs.Logger) error {
 	for _, mtx := range tx.MoveTx.In(queue) {
+		logger.Info().Msgf("got move transaction from: %s", mtx.Sig.PersonaTag)
 		playerEntityID, ok := PlayerEntityID[mtx.Sig.PersonaTag]
 		if !ok {
 			tx.MoveTx.AddError(world, mtx.TxHash, fmt.Errorf("player %s has not joined yet", mtx.Sig.PersonaTag))
