@@ -375,11 +375,12 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 
 	go func() {
 		tickTheWorld := func() {
+			currTick := w.CurrentTick()
 			if err := w.Tick(ctx); err != nil {
 				w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
 			}
 			if tickDone != nil {
-				tickDone <- w.CurrentTick()
+				tickDone <- currTick
 			}
 		}
 		w.isGameLoopRunning.Store(true)
