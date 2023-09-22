@@ -6,6 +6,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
@@ -41,7 +42,7 @@ var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, Auth
 // AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
-func AuthorizePersonaAddressSystem(world *World, queue *transaction.TxQueue, _ *Logger) error {
+func AuthorizePersonaAddressSystem(world *World, queue *transaction.TxQueue, _ *log.Logger) error {
 	txs := AuthorizePersonaAddressTx.In(queue)
 	if len(txs) == 0 {
 		return nil
@@ -121,7 +122,7 @@ func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, e
 
 // RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *Logger) error {
+func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *log.Logger) error {
 	createTxs := CreatePersonaTx.In(queue)
 	if len(createTxs) == 0 {
 		return nil
@@ -136,7 +137,7 @@ func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *Logger) 
 			// This PersonaTag has already been registered. Don't do anything
 			continue
 		}
-		id, err := world.Create(SignerComp)
+		id, err := world.StoreManager().CreateEntity(SignerComp)
 		if err != nil {
 			CreatePersonaTx.AddError(world, txData.TxHash, err)
 			continue

@@ -19,9 +19,10 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
@@ -34,9 +35,9 @@ type Namespace string
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
-	storeManager             *StoreManager
+	storeManager             *store.Manager
 	systems                  []System
-	systemLoggers            []*Logger
+	systemLoggers            []*ecslog.Logger
 	systemNames              []string
 	tick                     uint64
 	nameToComponent          map[string]IComponentType
@@ -58,7 +59,7 @@ type World struct {
 
 	errs []error
 
-	Logger *Logger
+	Logger *ecslog.Logger
 
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
@@ -76,32 +77,12 @@ func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
-func (w *World) StoreManager() *StoreManager {
+func (w *World) StoreManager() *store.Manager {
 	return w.storeManager
 }
 
 func (w *World) GetTxQueueAmount() int {
 	return w.txQueue.GetAmountOfTxs()
-}
-
-func (w *World) SetEntityLocation(id entity.ID, location entity.Location) error {
-	err := w.store.EntityLocStore.SetLocation(id, location)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (w *World) GetComponentsForArchetypeID(archID archetype.ID) []component.IComponentType {
-	return w.store.ArchAccessor.Archetype(archID).Components()
-}
-
-func (w *World) GetArchetypeForComponents(componentTypes []component.IComponentType) archetype.ID {
-	return w.getArchetypeForComponents(componentTypes)
-}
-
-func (w *World) Archetype(archID archetype.ID) storage.ArchetypeStorage {
-	return w.store.ArchAccessor.Archetype(archID)
 }
 
 func (w *World) AddSystem(s System) {
@@ -222,12 +203,12 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 
 // NewWorld creates a new world.
 func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
-	logger := &Logger{
+	logger := &ecslog.Logger{
 		&log.Logger,
 	}
 	w := &World{
 		store:             s,
-		storeManager:      NewStoreManager(s, logger),
+		storeManager:      store.NewStoreManager(s, logger),
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
@@ -517,31 +498,6 @@ func (w *World) insertArchetype(comps []IComponentType) archetype.ID {
 	return archID
 }
 
-func (w *World) getArchetypeForComponents(components []component.IComponentType) archetype.ID {
-	if len(components) == 0 {
-		panic("entity must have at least one component")
-	}
-	if ii := w.store.ArchCompIdxStore.Search(filter.Exact(components...)); ii.HasNext() {
-		return ii.Next()
-	}
-	if !w.noDuplicates(components) {
-		panic(fmt.Sprintf("duplicate component types: %v", components))
-	}
-	return w.insertArchetype(components)
-}
-
-func (w *World) noDuplicates(components []component.IComponentType) bool {
-	// check if there are duplicate values inside component slice
-	for i := 0; i < len(components); i++ {
-		for j := i + 1; j < len(components); j++ {
-			if components[i] == components[j] {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 // RecoverFromChain will attempt to recover the state of the world based on historical transaction data.
 // The function puts the world in a recovery state, and then queries all transaction batches under the world's
 // namespace. The function will continuously ask the EVM base shard for batches, and run ticks for each batch returned.
@@ -690,7 +646,11 @@ func (w *World) GetComponents() []IComponentType {
 	return w.registeredComponents
 }
 
-func (w *World) InjectLogger(logger *Logger) {
+func (w *World) GetSystemNames() []string {
+	return w.systemNames
+}
+
+func (w *World) InjectLogger(logger *ecslog.Logger) {
 	w.Logger = logger
 	w.StoreManager().InjectLogger(logger)
 }
