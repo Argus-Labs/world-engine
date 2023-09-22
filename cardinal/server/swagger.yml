@@ -85,8 +85,8 @@ paths:
 
     /query/game/cql:
         post:
-            summary: Query the ecs with CQL (component query language)
-            description: Query the ecs with CQL (component query language)
+            summary: Query the ecs with CQL (cardinal query language)
+            description: Query the ecs with CQL (cardinal query language)
             consumes:
                 - application/json
             produces:
@@ -99,7 +99,7 @@ paths:
                         $ref: '#/definitions/CQLResponse'
             parameters:
                 - name: cql
-                  description: cql (component query language)
+                  description: cql (cardinal query language)
                   in: body
                   required: true
                   schema:
