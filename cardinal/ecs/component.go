@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -8,7 +9,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
@@ -54,7 +55,7 @@ func (c *ComponentType[T]) SetID(id component.TypeID) error {
 }
 
 // Get returns component data from the entity.
-func (c *ComponentType[T]) Get(w *World, id entity.ID) (comp T, err error) {
+func (c *ComponentType[T]) Get(w *World, id entityid.ID) (comp T, err error) {
 	value, err := w.StoreManager().GetComponentForEntity(c, id)
 	if err != nil {
 		return comp, err
@@ -66,9 +67,13 @@ func (c *ComponentType[T]) Get(w *World, id entity.ID) (comp T, err error) {
 	return comp, nil
 }
 
+func (c *ComponentType[T]) GetRawJson(getter component.IGetterForComponentsOnEntity, id entityid.ID) (json.RawMessage, error) {
+	return getter.GetComponentForEntityInRawJson(c, id)
+}
+
 // Update is a helper that combines a Get followed by a Set to modify a component's value. Pass in a function
 // fn that will return a modified component. Update will hide the calls to Get and Set
-func (c *ComponentType[T]) Update(w *World, id entity.ID, fn func(T) T) error {
+func (c *ComponentType[T]) Update(w *World, id entityid.ID, fn func(T) T) error {
 	if _, ok := w.nameToComponent[c.Name()]; !ok {
 		return fmt.Errorf("%s is not registered, please register it before updating", c.Name())
 	}
@@ -81,7 +86,7 @@ func (c *ComponentType[T]) Update(w *World, id entity.ID, fn func(T) T) error {
 }
 
 // Set sets component data to the entity.
-func (c *ComponentType[T]) Set(w *World, id entity.ID, component T) error {
+func (c *ComponentType[T]) Set(w *World, id entityid.ID, component T) error {
 	if _, ok := w.nameToComponent[c.Name()]; !ok {
 		return fmt.Errorf("%s is not registered, please register it before updating", c.Name())
 	}
@@ -104,12 +109,12 @@ func (c *ComponentType[T]) Each(w *World, callback QueryCallBackFn) {
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w *World) (entity.ID, error) {
+func (c *ComponentType[T]) First(w *World) (entityid.ID, error) {
 	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w *World) entity.ID {
+func (c *ComponentType[T]) MustFirst(w *World) entityid.ID {
 	id, err := c.query.First(w)
 	if err != nil {
 		panic(fmt.Sprintf("no entity has the component %s", c.name))
@@ -118,12 +123,12 @@ func (c *ComponentType[T]) MustFirst(w *World) entity.ID {
 }
 
 // RemoveFrom removes this component from the given entity.
-func (c *ComponentType[T]) RemoveFrom(w *World, id entity.ID) error {
+func (c *ComponentType[T]) RemoveFrom(w *World, id entityid.ID) error {
 	return w.StoreManager().RemoveComponentFromEntity(c, id)
 }
 
 // AddTo adds this component to the given entity.
-func (c *ComponentType[T]) AddTo(w *World, id entity.ID) error {
+func (c *ComponentType[T]) AddTo(w *World, id entityid.ID) error {
 	return w.StoreManager().AddComponentToEntity(c, id)
 }
 

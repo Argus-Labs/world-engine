@@ -4,11 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
+
+	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
@@ -185,7 +186,7 @@ func TestCanReloadState(t *testing.T) {
 	_, err := alphaWorld.CreateMany(10, oneAlphaNum)
 	assert.NilError(t, err)
 	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		oneAlphaNum.Each(w, func(id entity.ID) bool {
+		oneAlphaNum.Each(w, func(id entityid.ID) bool {
 			err := oneAlphaNum.Set(w, id, NumberComponent{int(id)})
 			assert.Check(t, err == nil)
 			return true
@@ -204,7 +205,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, betaWorld.LoadGameState())
 
 	count := 0
-	oneBetaNum.Each(betaWorld, func(id entity.ID) bool {
+	oneBetaNum.Each(betaWorld, func(id entityid.ID) bool {
 		count++
 		num, err := oneBetaNum.Get(betaWorld, id)
 		assert.NilError(t, err)

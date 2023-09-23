@@ -7,13 +7,15 @@ import (
 	"fmt"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -118,7 +120,7 @@ func TestRedis_Location(t *testing.T) {
 	store := storage.NewWorldStorage(&rs)
 
 	loc := entity.NewLocation(0, 1)
-	eid := entity.ID(3)
+	eid := entityid.ID(3)
 	store.EntityLocStore.SetLocation(eid, loc)
 	gotLoc, _ := store.EntityLocStore.GetLocation(eid)
 	assert.Equal(t, loc, gotLoc)
@@ -129,13 +131,13 @@ func TestRedis_Location(t *testing.T) {
 	contains, _ := store.EntityLocStore.ContainsEntity(eid)
 	assert.Equal(t, contains, true)
 
-	notContains, _ := store.EntityLocStore.ContainsEntity(entity.ID(420))
+	notContains, _ := store.EntityLocStore.ContainsEntity(entityid.ID(420))
 	assert.Equal(t, notContains, false)
 
 	compIdx, _ := store.EntityLocStore.ComponentIndexForEntity(eid)
 	assert.Equal(t, loc.CompIndex, compIdx)
 
-	newEID := entity.ID(40)
+	newEID := entityid.ID(40)
 	archID2, compIdx2 := archetype.ID(10), component.Index(15)
 	store.EntityLocStore.Insert(newEID, archID2, compIdx2)
 

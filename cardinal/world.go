@@ -7,7 +7,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -24,7 +24,7 @@ type World struct {
 type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
-	EntityID = entity.ID
+	EntityID = entityid.ID
 	TxHash   = transaction.TxHash
 
 	// System is a function that process the transaction in the given transaction queue.

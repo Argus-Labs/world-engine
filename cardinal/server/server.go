@@ -8,12 +8,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"reflect"
 	"strconv"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/sign"
@@ -389,7 +388,7 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 
 		result := make([]cql.QueryResponse, 0)
 
-		ecs.NewQuery(resultFilter).Each(world, func(id entity.ID) bool {
+		ecs.NewQuery(resultFilter).Each(world, func(id entityid.ID) bool {
 			components, err := world.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false
@@ -402,20 +401,8 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 			// The way our framework is set up it's not designed to retrieve components dynamically at runtime.
 			// As a result we have to use reflection which is generally bad and expensive.
 			for _, c := range components {
-				val := reflect.ValueOf(c)
-				method := val.MethodByName("Get")
-				if !method.IsValid() {
-					err = errors.New("get method not valid on this component")
-					return false
-				}
-				args := []reflect.Value{reflect.ValueOf(world), reflect.ValueOf(id)}
-				results := method.Call(args)
-				if results[1].Interface() != nil {
-					err, _ = results[1].Interface().(error)
-					return false
-				}
-				var data []byte
-				data, err = json.Marshal(results[0].Interface())
+				var data json.RawMessage
+				data, err = c.GetRawJson(world.StoreManager(), id)
 
 				resultElement.Data = append(resultElement.Data, data)
 

@@ -5,7 +5,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 )
 
 /*
@@ -46,7 +46,7 @@ func (r *RedisStorage) archetypeIndexKey(id archetype.ID) string {
 	return fmt.Sprintf("ARCHIDX:WORLD-%s:A-%d", r.WorldID, id)
 }
 
-func (r *RedisStorage) entityLocationKey(id entity.ID) string {
+func (r *RedisStorage) entityLocationKey(id entityid.ID) string {
 	return fmt.Sprintf("LOC:WORLD-%s:E-%d", r.WorldID, id)
 }
 

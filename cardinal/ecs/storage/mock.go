@@ -1,12 +1,14 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"unsafe"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 )
 
 var (
@@ -17,6 +19,11 @@ type MockComponentType[T any] struct {
 	id         component.TypeID
 	typ        reflect.Type
 	defaultVal interface{}
+}
+
+func (m *MockComponentType[T]) GetRawJson(representation component.IGetterForComponentsOnEntity, id entityid.ID) (json.RawMessage, error) {
+	//TODO implement me, or not! I'm just a mock!
+	panic("implement me")
 }
 
 func NewMockComponentType[T any](t T, defaultVal interface{}) *MockComponentType[T] {

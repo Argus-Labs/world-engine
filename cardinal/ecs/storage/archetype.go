@@ -7,7 +7,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 )
 
 var _ ArchetypeAccessor = &archetypeStorageImpl{}
@@ -23,7 +23,7 @@ type archetypeStorageImpl struct {
 func (a *archetypeStorageImpl) PushArchetype(archID archetype.ID, comps []component.IComponentType) {
 	a.archs = append(a.archs, &Archetype{
 		ID:      archID,
-		Entitys: make([]entity.ID, 0, 256),
+		Entitys: make([]entityid.ID, 0, 256),
 		Comps:   comps,
 	})
 }
@@ -43,7 +43,7 @@ func (a *archetypeStorageImpl) Archetype(archID archetype.ID) ArchetypeStorage {
 // archetypeStorageImpl.
 type archForStorage struct {
 	ID           archetype.ID
-	Entities     []entity.ID
+	Entities     []entityid.ID
 	ComponentIDs []component.TypeID
 }
 
@@ -117,7 +117,7 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []com
 // This structure allows to quickly find Entities based on their components.
 type Archetype struct {
 	ID      archetype.ID
-	Entitys []entity.ID
+	Entitys []entityid.ID
 	Comps   []component.IComponentType
 }
 
@@ -127,7 +127,7 @@ var _ ArchetypeStorage = &Archetype{}
 func NewArchetype(archID archetype.ID, components []component.IComponentType) *Archetype {
 	return &Archetype{
 		ID:      archID,
-		Entitys: make([]entity.ID, 0, 256),
+		Entitys: make([]entityid.ID, 0, 256),
 		Comps:   components,
 	}
 }
@@ -138,12 +138,12 @@ func (archetype *Archetype) Components() []component.IComponentType {
 }
 
 // Entities returns all Entities in this archetype.
-func (archetype *Archetype) Entities() []entity.ID {
+func (archetype *Archetype) Entities() []entityid.ID {
 	return archetype.Entitys
 }
 
 // SwapRemove removes an Ent from the archetype and returns it.
-func (archetype *Archetype) SwapRemove(entityIndex component.Index) entity.ID {
+func (archetype *Archetype) SwapRemove(entityIndex component.Index) entityid.ID {
 	removed := archetype.Entitys[entityIndex]
 	archetype.Entitys[entityIndex] = archetype.Entitys[len(archetype.Entitys)-1]
 	archetype.Entitys = archetype.Entitys[:len(archetype.Entitys)-1]
@@ -164,7 +164,7 @@ func (archetype *Archetype) ComponentsMatch(components []component.IComponentTyp
 }
 
 // PushEntity adds an Ent to the archetype.
-func (archetype *Archetype) PushEntity(id entity.ID) {
+func (archetype *Archetype) PushEntity(id entityid.ID) {
 	archetype.Entitys = append(archetype.Entitys, id)
 }
 

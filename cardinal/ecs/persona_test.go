@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/sign"
 
 	"gotest.tools/v3/assert"
@@ -39,7 +39,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	count := 0
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id entity.ID) bool {
+	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id entityid.ID) bool {
 		count++
 		sc, err := ecs.SignerComp.Get(world, id)
 		assert.NilError(t, err)
@@ -143,7 +143,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	count := 0
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id entity.ID) bool {
+	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id entityid.ID) bool {
 		count++
 		sc, err := ecs.SignerComp.Get(world, id)
 		assert.NilError(t, err)

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"

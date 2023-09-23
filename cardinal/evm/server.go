@@ -9,12 +9,13 @@ import (
 	"os"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"buf.build/gen/go/argus-labs/world-engine/grpc/go/router/v1/routerv1grpc"
@@ -156,7 +157,7 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
 	var err error
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id entity.ID) bool {
+	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id entityid.ID) bool {
 		var signerComp ecs.SignerComponent
 		signerComp, err = ecs.SignerComp.Get(s.world, id)
 		if err != nil {

@@ -2,7 +2,7 @@ package ecs
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
@@ -32,7 +32,7 @@ func NewQuery(filter filter.ComponentFilter) *Query {
 	}
 }
 
-type QueryCallBackFn func(entity.ID) bool
+type QueryCallBackFn func(entityid.ID) bool
 
 // Each iterates over all entities that match the query.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
@@ -63,7 +63,7 @@ func (q *Query) Count(w *World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w *World) (id entity.ID, err error) {
+func (q *Query) First(w *World) (id entityid.ID, err error) {
 	result := q.evaluateQuery(w)
 	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
 	if !iter.HasNext() {

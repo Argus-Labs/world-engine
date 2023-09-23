@@ -1,5 +1,17 @@
 package component
 
+import (
+	"encoding/json"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
+)
+
+type IGetterForComponentsOnEntity interface {
+	GetComponentForEntityInRawJson(cType IComponentType, id entityid.ID) (json.RawMessage, error)
+	GetComponentForEntity(cType IComponentType, id entityid.ID) (any, error)
+	GetComponentTypesForEntity(id entityid.ID) ([]IComponentType, error)
+}
+
 type (
 	// Index represents the Index of component in an archetype.
 	Index int
@@ -19,6 +31,7 @@ type (
 
 		Decode([]byte) (any, error)
 		Encode(any) ([]byte, error)
+		GetRawJson(getter IGetterForComponentsOnEntity, id entityid.ID) (json.RawMessage, error)
 	}
 )
 
