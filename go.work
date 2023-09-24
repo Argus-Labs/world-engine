@@ -8,4 +8,5 @@ use (
 	example/tester/nakama
 	magefiles
 	sign
+	e2e
 )
