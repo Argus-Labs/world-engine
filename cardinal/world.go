@@ -16,9 +16,10 @@ import (
 )
 
 type World struct {
-	impl          *ecs.World
-	loopInterval  time.Duration
-	serverOptions []server.Option
+	impl            *ecs.World
+	tickChannel     <-chan time.Time
+	tickDoneChannel chan<- uint64
+	serverOptions   []server.Option
 }
 
 type (
@@ -97,7 +98,7 @@ func (w *World) Remove(id EntityID) error {
 	return w.impl.Remove(id)
 }
 
-// StartGame starts running the world game loop. After loopInterval time passes, a world tick is attempted.
+// StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is attempted.
 // In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
 // to this world. After StartGame is called, RegisterComponents, RegisterTransactions, RegisterReads, and AddSystem may
 // not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
@@ -110,10 +111,10 @@ func (w *World) StartGame() error {
 	if err != nil {
 		return err
 	}
-	if w.loopInterval == 0 {
-		w.loopInterval = time.Second
+	if w.tickChannel == nil {
+		w.tickChannel = time.Tick(time.Second)
 	}
-	w.impl.StartGameLoop(context.Background(), w.loopInterval)
+	w.impl.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
 	go func() {
 		if err := txh.Serve(); err != nil {
 			log.Fatal().Err(err)

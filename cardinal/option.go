@@ -55,11 +55,23 @@ func WithDisableSignatureVerification() WorldOption {
 	}
 }
 
-// WithLoopInterval sets the time between ticks. If left unset, 1 second is used as a default.
-func WithLoopInterval(interval time.Duration) WorldOption {
+// WithTickChannel sets the channel that will be used to decide when world.Tick is executed. If unset, a loop interval
+// of 1 second will be set. To set some other time, use: WithTickChannel(time.Tick(<some-duration>)). Tests can pass
+// in a channel controlled by the test for fine-grained control over when ticks are executed.
+func WithTickChannel(ch <-chan time.Time) WorldOption {
 	return WorldOption{
 		cardinalOption: func(world *World) {
-			world.loopInterval = interval
+			world.tickChannel = ch
+		},
+	}
+}
+
+// WithTickDoneChannel sets a channel that will be notified each time a tick completes. The completed tick will be
+// pushed to the channel. This option is useful in tests when assertions need to be performed at the end of a tick.
+func WithTickDoneChannel(ch chan<- uint64) WorldOption {
+	return WorldOption{
+		cardinalOption: func(world *World) {
+			world.tickDoneChannel = ch
 		},
 	}
 }
