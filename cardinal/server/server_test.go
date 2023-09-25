@@ -1084,6 +1084,7 @@ var _ shard.Adapter = &adapterMock{}
 
 type adapterMock struct {
 	called int
+	hold   chan bool
 }
 
 func (a *adapterMock) Submit(ctx context.Context, p *sign.SignedPayload, txID, epoch uint64) error {
@@ -1092,7 +1093,8 @@ func (a *adapterMock) Submit(ctx context.Context, p *sign.SignedPayload, txID, e
 }
 
 func (a *adapterMock) QueryTransactions(ctx context.Context, request *types.QueryTransactionsRequest) (*types.QueryTransactionsResponse, error) {
-	panic("implement me")
+	<-a.hold
+	return nil, nil
 }
 
 func TestTransactionsSubmittedToChain(t *testing.T) {
@@ -1133,4 +1135,35 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, adapter.called, 2)
+}
+
+func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
+	moveEndpoint := "tx/game/move"
+	type MoveTx struct {
+		Direction string
+	}
+	holdChan := make(chan bool)
+	adapter := adapterMock{hold: holdChan}
+	world := inmem.NewECSWorldForTest(t, ecs.WithAdapter(&adapter))
+	world.Tick(context.Background())
+	go world.RecoverFromChain(context.Background())
+	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+	world.RegisterTransactions(moveTx)
+	assert.NilError(t, world.LoadGameState())
+	txh := makeTestTransactionHandler(t, world, WithAdapter(&adapter), DisableSignatureVerification())
+
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	personaTag := "clifford_the_big_red_dog"
+
+	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, world.Namespace(), 2, MoveTx{Direction: "up"})
+	assert.NilError(t, err)
+	bz, err := sigPayload.Marshal()
+	assert.NilError(t, err)
+	resp, err := http.Post(txh.makeURL(moveEndpoint), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+	assert.Equal(t, 500, resp.StatusCode)
+	bz, err = io.ReadAll(resp.Body)
+	assert.NilError(t, err)
+	assert.ErrorContains(t, errors.New(string(bz)), "game world is recovering state")
 }
