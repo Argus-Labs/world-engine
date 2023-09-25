@@ -7,7 +7,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
@@ -175,20 +174,20 @@ func NewLocationMap() EntityLocationStorage {
 }
 
 // ContainsEntity returns true if the storage contains the given entity ID.
-func (lm *LocationMap) ContainsEntity(id entityid.ID) (bool, error) {
+func (lm *LocationMap) ContainsEntity(id entity.ID) (bool, error) {
 	val := lm.locations[id]
 	return val != nil && val.valid, nil
 }
 
 // Remove removes the given entity ID from the storage.
-func (lm *LocationMap) Remove(id entityid.ID) error {
+func (lm *LocationMap) Remove(id entity.ID) error {
 	lm.locations[id].valid = false
 	lm.len--
 	return nil
 }
 
 // Insert inserts the given entity ID and archetype Index to the storage.
-func (lm *LocationMap) Insert(id entityid.ID, archetype archetype.ID, component component.Index) error {
+func (lm *LocationMap) Insert(id entity.ID, archetype archetype.ID, component component.Index) error {
 	if int(id) == len(lm.locations) {
 		loc := entity.NewLocation(archetype, component)
 		lm.locations = append(lm.locations, &locationValid{loc, true})
@@ -206,23 +205,23 @@ func (lm *LocationMap) Insert(id entityid.ID, archetype archetype.ID, component 
 }
 
 // SetLocation sets the given entity ID and archetype Index to the storage.
-func (lm *LocationMap) SetLocation(id entityid.ID, loc entity.Location) error {
+func (lm *LocationMap) SetLocation(id entity.ID, loc entity.Location) error {
 	lm.Insert(id, loc.ArchID, loc.CompIndex)
 	return nil
 }
 
 // GetLocation returns the location of the given entity ID.
-func (lm *LocationMap) GetLocation(id entityid.ID) (entity.Location, error) {
+func (lm *LocationMap) GetLocation(id entity.ID) (entity.Location, error) {
 	return lm.locations[id].loc, nil
 }
 
 // ArchetypeID returns the archetype of the given entity ID.
-func (lm *LocationMap) ArchetypeID(id entityid.ID) (archetype.ID, error) {
+func (lm *LocationMap) ArchetypeID(id entity.ID) (archetype.ID, error) {
 	return lm.locations[id].loc.ArchID, nil
 }
 
 // ComponentIndexForEntity returns the component of the given entity ID.
-func (lm *LocationMap) ComponentIndexForEntity(id entityid.ID) (component.Index, error) {
+func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) (component.Index, error) {
 	return lm.locations[id].loc.CompIndex, nil
 }
 

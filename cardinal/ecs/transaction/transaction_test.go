@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
@@ -21,7 +21,7 @@ type ScoreComponent struct {
 }
 
 type ModifyScoreTx struct {
-	PlayerID entityid.ID
+	PlayerID entity.ID
 	Amount   int
 }
 

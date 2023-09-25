@@ -2,7 +2,7 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
@@ -23,7 +23,7 @@ type QueryCallBackFn func(EntityID) bool
 // Each executes the given callback function on every EntityID that matches this query. If any call to callback returns
 // falls, no more entities will be processed.
 func (q *Query) Each(w *World, callback QueryCallBackFn) {
-	q.impl.Each(w.impl, func(eid entityid.ID) bool {
+	q.impl.Each(w.impl, func(eid entity.ID) bool {
 		return callback(eid)
 	})
 }

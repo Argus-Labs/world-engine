@@ -8,7 +8,7 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
@@ -236,6 +236,6 @@ type QueryRequest struct {
 }
 
 type QueryResponse struct {
-	Id   entityid.ID       `json:"id"`
+	Id   entity.ID         `json:"id"`
 	Data []json.RawMessage `json:"data"`
 }

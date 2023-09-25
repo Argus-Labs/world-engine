@@ -7,7 +7,7 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -29,7 +29,7 @@ type OwnableComponent struct {
 func UpdateEnergySystem(w *ecs.World, tq *transaction.TxQueue, _ *log.Logger) error {
 	errs := []error{}
 
-	Energy.Each(w, func(ent entityid.ID) bool {
+	Energy.Each(w, func(ent entity.ID) bool {
 		energyPlanet, err := Energy.Get(w, ent)
 		if err != nil {
 			errs = append(errs, err)
@@ -70,7 +70,7 @@ func TestECS(t *testing.T) {
 
 	assert.NilError(t, world.Tick(context.Background()))
 
-	Energy.Each(world, func(id entityid.ID) bool {
+	Energy.Each(world, func(id entity.ID) bool {
 		energyPlanet, err := Energy.Get(world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, int64(10), energyPlanet.Amt)
@@ -105,7 +105,7 @@ func TestVelocitySimulation(t *testing.T) {
 	assert.NilError(t, Velocity.Set(world, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
-	Velocity.Each(world, func(id entityid.ID) bool {
+	Velocity.Each(world, func(id entity.ID) bool {
 		vel, err := Velocity.Get(world, id)
 		assert.NilError(t, err)
 		pos, err := Position.Get(world, id)
@@ -159,7 +159,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Make sure we find exactly 2 entries
 	count := 0
-	tuple.Each(world, func(id entityid.ID) bool {
+	tuple.Each(world, func(id entity.ID) bool {
 		_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
@@ -172,7 +172,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Now we should only find 1 entity
 	count = 0
-	tuple.Each(world, func(id entityid.ID) bool {
+	tuple.Each(world, func(id entity.ID) bool {
 		_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
@@ -188,7 +188,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	err = world.Remove(entities[1])
 	assert.NilError(t, err)
 	count = 0
-	tuple.Each(world, func(id entityid.ID) bool {
+	tuple.Each(world, func(id entity.ID) bool {
 		_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
@@ -216,14 +216,14 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	// Pre-populate all the entities with their own IDs. This will help
 	// us keep track of which component belongs to which entity in the case
 	// of a problem
-	Count.Each(world, func(id entityid.ID) bool {
+	Count.Each(world, func(id entity.ID) bool {
 		assert.NilError(t, Count.Set(world, id, CountComponent{int(id)}))
 		return true
 	})
 
 	// Remove the even entries
 	itr := 0
-	Count.Each(world, func(id entityid.ID) bool {
+	Count.Each(world, func(id entity.ID) bool {
 		if itr%2 == 0 {
 			assert.NilError(t, world.Remove(id))
 		}
@@ -234,7 +234,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	assert.Equal(t, 10, itr)
 
 	seen := map[int]int{}
-	Count.Each(world, func(id entityid.ID) bool {
+	Count.Each(world, func(id entity.ID) bool {
 		c, err := Count.Get(world, id)
 		assert.NilError(t, err)
 		seen[c.Val]++
@@ -314,9 +314,9 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	// count and countAgain are helpers that simplify the counting of how many
 	// entities have a particular component.
 	var count int
-	countAgain := func() func(ent entityid.ID) bool {
+	countAgain := func() func(ent entity.ID) bool {
 		count = 0
-		return func(ent entityid.ID) bool {
+		return func(ent entity.ID) bool {
 			count++
 			return true
 		}
@@ -341,7 +341,7 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	assert.Equal(t, 1, count)
 
 	// Make sure the one ent that has gamma is entIDs[1]
-	gamma.Each(world, func(id entityid.ID) bool {
+	gamma.Each(world, func(id entity.ID) bool {
 		assert.Equal(t, id, entIDs[1])
 		return true
 	})
@@ -377,14 +377,14 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 
 	// Only one entity has the components a and b
 	abFilter := filter.Contains(a, b)
-	ecs.NewQuery(abFilter).Each(world, func(id entityid.ID) bool {
+	ecs.NewQuery(abFilter).Each(world, func(id entity.ID) bool {
 		assert.Equal(t, id, ab)
 		return true
 	})
 	assert.Equal(t, ecs.NewQuery(abFilter).Count(world), 1)
 
 	cdFilter := filter.Contains(c, d)
-	ecs.NewQuery(cdFilter).Each(world, func(id entityid.ID) bool {
+	ecs.NewQuery(cdFilter).Each(world, func(id entity.ID) bool {
 		assert.Equal(t, id, cd)
 		return true
 	})

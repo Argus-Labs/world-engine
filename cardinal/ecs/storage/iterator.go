@@ -2,7 +2,7 @@ package storage
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
 // EntityIterator is an iterator for Ent lists in archetypes.
@@ -27,7 +27,7 @@ func (it *EntityIterator) HasNext() bool {
 }
 
 // Next returns the next Ent list.
-func (it *EntityIterator) Next() []entityid.ID {
+func (it *EntityIterator) Next() []entity.ID {
 	archetypeID := it.indices[it.current]
 	it.current++
 	return it.archAccessor.Archetype(archetypeID).Entities()

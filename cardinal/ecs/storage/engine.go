@@ -4,7 +4,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
@@ -39,13 +38,13 @@ type ComponentIndexStorage interface {
 }
 
 type EntityLocationStorage interface {
-	ContainsEntity(entityid.ID) (bool, error)
-	Remove(entityid.ID) error
-	Insert(entityid.ID, archetype.ID, component.Index) error
-	SetLocation(entityid.ID, entity.Location) error
-	GetLocation(entityid.ID) (entity.Location, error)
-	ArchetypeID(id entityid.ID) (archetype.ID, error)
-	ComponentIndexForEntity(entityid.ID) (component.Index, error)
+	ContainsEntity(entity.ID) (bool, error)
+	Remove(entity.ID) error
+	Insert(entity.ID, archetype.ID, component.Index) error
+	SetLocation(entity.ID, entity.Location) error
+	GetLocation(entity.ID) (entity.Location, error)
+	ArchetypeID(id entity.ID) (archetype.ID, error)
+	ComponentIndexForEntity(entity.ID) (component.Index, error)
 	Len() (int, error)
 }
 
@@ -73,16 +72,16 @@ type ArchetypeAccessor interface {
 
 type ArchetypeStorage interface {
 	Components() []component.IComponentType
-	Entities() []entityid.ID
-	SwapRemove(entityIndex component.Index) entityid.ID
+	Entities() []entity.ID
+	SwapRemove(entityIndex component.Index) entity.ID
 	ComponentsMatch(components []component.IComponentType) bool
-	PushEntity(entity entityid.ID)
+	PushEntity(entity entity.ID)
 	Count() int
 }
 
 type EntityManager interface {
-	Destroy(entityid.ID)
-	NewEntity() (entityid.ID, error)
+	Destroy(entity.ID)
+	NewEntity() (entity.ID, error)
 }
 
 type StateStorage interface {

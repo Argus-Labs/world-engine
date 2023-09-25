@@ -13,7 +13,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -241,7 +240,7 @@ func (r *RedisStorage) Contains(archetypeID archetype.ID, componentIndex compone
 
 var _ EntityLocationStorage = &RedisStorage{}
 
-func (r *RedisStorage) ContainsEntity(id entityid.ID) (bool, error) {
+func (r *RedisStorage) ContainsEntity(id entity.ID) (bool, error) {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	res := r.Client.Get(ctx, key)
@@ -255,14 +254,14 @@ func (r *RedisStorage) ContainsEntity(id entityid.ID) (bool, error) {
 	return locBz != nil, nil
 }
 
-func (r *RedisStorage) Remove(id entityid.ID) error {
+func (r *RedisStorage) Remove(id entity.ID) error {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	res := r.Client.Del(ctx, key)
 	return res.Err()
 }
 
-func (r *RedisStorage) Insert(id entityid.ID, archID archetype.ID, componentIndex component.Index) error {
+func (r *RedisStorage) Insert(id entity.ID, archID archetype.ID, componentIndex component.Index) error {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	loc := entity.NewLocation(archID, componentIndex)
@@ -282,7 +281,7 @@ func (r *RedisStorage) Insert(id entityid.ID, archID archetype.ID, componentInde
 	return nil
 }
 
-func (r *RedisStorage) SetLocation(id entityid.ID, location entity.Location) error {
+func (r *RedisStorage) SetLocation(id entity.ID, location entity.Location) error {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	bz, err := codec.Encode(location)
@@ -296,7 +295,7 @@ func (r *RedisStorage) SetLocation(id entityid.ID, location entity.Location) err
 	return nil
 }
 
-func (r *RedisStorage) GetLocation(id entityid.ID) (loc entity.Location, err error) {
+func (r *RedisStorage) GetLocation(id entity.ID) (loc entity.Location, err error) {
 	ctx := context.Background()
 	key := r.entityLocationKey(id)
 	res := r.Client.Get(ctx, key)
@@ -314,12 +313,12 @@ func (r *RedisStorage) GetLocation(id entityid.ID) (loc entity.Location, err err
 	return loc, nil
 }
 
-func (r *RedisStorage) ArchetypeID(id entityid.ID) (archetype.ID, error) {
+func (r *RedisStorage) ArchetypeID(id entity.ID) (archetype.ID, error) {
 	loc, err := r.GetLocation(id)
 	return loc.ArchID, err
 }
 
-func (r *RedisStorage) ComponentIndexForEntity(id entityid.ID) (component.Index, error) {
+func (r *RedisStorage) ComponentIndexForEntity(id entity.ID) (component.Index, error) {
 	loc, err := r.GetLocation(id)
 	return loc.CompIndex, err
 }
@@ -344,12 +343,12 @@ func (r *RedisStorage) Len() (int, error) {
 
 var _ EntityManager = &RedisStorage{}
 
-func (r *RedisStorage) Destroy(e entityid.ID) {
+func (r *RedisStorage) Destroy(e entity.ID) {
 	// this is just a no-op, not really needed for redis
 	// since we're a bit more space efficient here
 }
 
-func (r *RedisStorage) NewEntity() (entityid.ID, error) {
+func (r *RedisStorage) NewEntity() (entity.ID, error) {
 	ctx := context.Background()
 	key := r.nextEntityIDKey()
 	res := r.Client.Get(ctx, key)
@@ -367,7 +366,7 @@ func (r *RedisStorage) NewEntity() (entityid.ID, error) {
 		}
 	}
 
-	ent := entityid.ID(nextID)
+	ent := entity.ID(nextID)
 	incRes := r.Client.Incr(ctx, key)
 	if err := incRes.Err(); err != nil {
 		return 0, err

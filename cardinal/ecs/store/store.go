@@ -12,7 +12,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -34,7 +33,7 @@ func (s *Manager) InjectLogger(logger *log.Logger) {
 	s.logger = logger
 }
 
-func (s *Manager) GetEntity(id entityid.ID) (entity.Entity, error) {
+func (s *Manager) GetEntity(id entity.ID) (entity.Entity, error) {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return storage.BadEntity, err
@@ -42,7 +41,7 @@ func (s *Manager) GetEntity(id entityid.ID) (entity.Entity, error) {
 	return storage.NewEntity(id, loc), nil
 }
 
-func (s *Manager) isValid(id entityid.ID) (bool, error) {
+func (s *Manager) isValid(id entity.ID) (bool, error) {
 	if id == storage.BadID {
 		return false, errors.New("invalid id: id is the bad ID sentinel")
 	}
@@ -62,7 +61,7 @@ func (s *Manager) isValid(id entityid.ID) (bool, error) {
 	return id == s.store.ArchAccessor.Archetype(loc.ArchID).Entities()[loc.CompIndex], nil
 }
 
-func (s *Manager) removeAtLocation(id entityid.ID, loc entity.Location) error {
+func (s *Manager) removeAtLocation(id entity.ID, loc entity.Location) error {
 	archetype := s.store.ArchAccessor.Archetype(loc.ArchID)
 	archetype.SwapRemove(loc.CompIndex)
 	err := s.store.CompStore.Remove(loc.ArchID, archetype.Components(), loc.CompIndex)
@@ -79,7 +78,7 @@ func (s *Manager) removeAtLocation(id entityid.ID, loc entity.Location) error {
 	return nil
 }
 
-func (s *Manager) RemoveEntity(id entityid.ID) error {
+func (s *Manager) RemoveEntity(id entity.ID) error {
 	ok, err := s.isValid(id)
 	if err != nil {
 		s.logger.Debug().Int("entity_id", int(id)).Msg("failed to remove")
@@ -101,7 +100,7 @@ func (s *Manager) RemoveEntity(id entityid.ID) error {
 	return nil
 }
 
-func (s *Manager) CreateEntity(comps ...component.IComponentType) (entityid.ID, error) {
+func (s *Manager) CreateEntity(comps ...component.IComponentType) (entity.ID, error) {
 	ids, err := s.CreateManyEntities(1, comps...)
 	if err != nil {
 		return storage.BadID, nil
@@ -109,12 +108,12 @@ func (s *Manager) CreateEntity(comps ...component.IComponentType) (entityid.ID, 
 	return ids[0], nil
 }
 
-func (s *Manager) CreateManyEntities(num int, comps ...component.IComponentType) ([]entityid.ID, error) {
+func (s *Manager) CreateManyEntities(num int, comps ...component.IComponentType) ([]entity.ID, error) {
 	archetypeID, err := s.GetArchIDForComponents(comps)
 	if err != nil {
 		return nil, err
 	}
-	entities := make([]entityid.ID, num)
+	entities := make([]entity.ID, num)
 	for i := range entities {
 		e, err := s.createEntityFromArchetypeID(archetypeID)
 		if err != nil {
@@ -125,7 +124,7 @@ func (s *Manager) CreateManyEntities(num int, comps ...component.IComponentType)
 	return entities, nil
 }
 
-func (s *Manager) createEntityFromArchetypeID(archID archetype.ID) (entityid.ID, error) {
+func (s *Manager) createEntityFromArchetypeID(archID archetype.ID) (entity.ID, error) {
 	nextEntityID, err := s.store.EntityMgr.NewEntity()
 	if err != nil {
 		return storage.BadID, err
@@ -145,11 +144,11 @@ func (s *Manager) createEntityFromArchetypeID(archID archetype.ID) (entityid.ID,
 	return nextEntityID, nil
 }
 
-func (s *Manager) getEntityLocation(id entityid.ID) (entity.Location, error) {
+func (s *Manager) getEntityLocation(id entity.ID) (entity.Location, error) {
 	return s.store.EntityLocStore.GetLocation(id)
 }
 
-func (s *Manager) SetComponentForEntity(cType component.IComponentType, id entityid.ID, value any) error {
+func (s *Manager) SetComponentForEntity(cType component.IComponentType, id entity.ID, value any) error {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return err
@@ -165,7 +164,7 @@ func (s *Manager) GetComponentTypesForArchID(archID archetype.ID) []component.IC
 	return s.store.ArchAccessor.Archetype(archID).Components()
 }
 
-func (s *Manager) GetComponentTypesForEntity(id entityid.ID) ([]component.IComponentType, error) {
+func (s *Manager) GetComponentTypesForEntity(id entity.ID) ([]component.IComponentType, error) {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return nil, err
@@ -173,7 +172,7 @@ func (s *Manager) GetComponentTypesForEntity(id entityid.ID) ([]component.ICompo
 	return s.getComponentsForArchetype(loc.ArchID), nil
 }
 
-func (s *Manager) GetComponentForEntity(cType component.IComponentType, id entityid.ID) (any, error) {
+func (s *Manager) GetComponentForEntity(cType component.IComponentType, id entity.ID) (any, error) {
 	bz, err := s.GetComponentForEntityInRawJson(cType, id)
 	if err != nil {
 		return nil, err
@@ -181,7 +180,7 @@ func (s *Manager) GetComponentForEntity(cType component.IComponentType, id entit
 	return cType.Decode(bz)
 }
 
-func (s *Manager) GetComponentForEntityInRawJson(cType component.IComponentType, id entityid.ID) (json.RawMessage, error) {
+func (s *Manager) GetComponentForEntityInRawJson(cType component.IComponentType, id entity.ID) (json.RawMessage, error) {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return nil, err
@@ -286,7 +285,7 @@ func (s *Manager) transferArchetype(from, to archetype.ID, idx component.Index) 
 	return component.Index(len(toArch.Entities()) - 1), nil
 }
 
-func (s *Manager) AddComponentToEntity(cType component.IComponentType, id entityid.ID) error {
+func (s *Manager) AddComponentToEntity(cType component.IComponentType, id entity.ID) error {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return err
@@ -311,7 +310,7 @@ func (s *Manager) AddComponentToEntity(cType component.IComponentType, id entity
 	return s.store.EntityLocStore.SetLocation(id, loc)
 }
 
-func (s *Manager) RemoveComponentFromEntity(cType component.IComponentType, id entityid.ID) error {
+func (s *Manager) RemoveComponentFromEntity(cType component.IComponentType, id entity.ID) error {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return err

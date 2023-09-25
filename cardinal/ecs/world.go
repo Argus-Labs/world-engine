@@ -18,7 +18,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -237,7 +237,7 @@ func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
 }
 
-func (w *World) CreateMany(num int, components ...component.IComponentType) ([]entityid.ID, error) {
+func (w *World) CreateMany(num int, components ...component.IComponentType) ([]entity.ID, error) {
 	for _, comp := range components {
 		if _, ok := w.nameToComponent[comp.Name()]; !ok {
 			return nil, fmt.Errorf("%s was not registered, please register all components before using one to create an entity", comp.Name())
@@ -246,7 +246,7 @@ func (w *World) CreateMany(num int, components ...component.IComponentType) ([]e
 	return w.StoreManager().CreateManyEntities(num, components...)
 }
 
-func (w *World) Create(components ...component.IComponentType) (entityid.ID, error) {
+func (w *World) Create(components ...component.IComponentType) (entity.ID, error) {
 	entities, err := w.CreateMany(1, components...)
 	if err != nil {
 		return 0, err
@@ -264,7 +264,7 @@ func (w *World) Len() (int, error) {
 }
 
 // Remove removes the given Entity from the world
-func (w *World) Remove(id entityid.ID) error {
+func (w *World) Remove(id entity.ID) error {
 	return w.StoreManager().RemoveEntity(id)
 }
 
@@ -485,7 +485,7 @@ func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []I
 	return cm.UnmarshalWithComps(buf, comps)
 }
 
-func (w *World) nextEntity() (entityid.ID, error) {
+func (w *World) nextEntity() (entity.ID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 

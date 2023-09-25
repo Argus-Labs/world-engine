@@ -3,15 +3,16 @@ package entity
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 )
 
+type ID uint64
+
 type Entity struct {
-	ID  entityid.ID
+	ID  ID
 	Loc Location
 }
 
-func (e Entity) EntityID() entityid.ID {
+func (e Entity) EntityID() ID {
 	return e.ID
 }
 

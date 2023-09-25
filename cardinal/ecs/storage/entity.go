@@ -5,21 +5,20 @@ import (
 	"math"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/entityid"
 )
 
 var _ EntityManager = &entityMgrImpl{}
 
 func NewEntityManager() EntityManager {
-	return &entityMgrImpl{destroyed: make([]entityid.ID, 0, 256), nextID: 0}
+	return &entityMgrImpl{destroyed: make([]entity.ID, 0, 256), nextID: 0}
 }
 
 type entityMgrImpl struct {
-	destroyed []entityid.ID
-	nextID    entityid.ID
+	destroyed []entity.ID
+	nextID    entity.ID
 }
 
-func (e *entityMgrImpl) GetNextEntityID() entityid.ID {
+func (e *entityMgrImpl) GetNextEntityID() entity.ID {
 	e.nextID++
 	return e.nextID
 }
@@ -28,7 +27,7 @@ func (e *entityMgrImpl) shrink() {
 	e.destroyed = e.destroyed[:len(e.destroyed)-1]
 }
 
-func (e *entityMgrImpl) NewEntity() (entityid.ID, error) {
+func (e *entityMgrImpl) NewEntity() (entity.ID, error) {
 	if len(e.destroyed) == 0 {
 		id := e.GetNextEntityID()
 		return id, nil
@@ -38,11 +37,11 @@ func (e *entityMgrImpl) NewEntity() (entityid.ID, error) {
 	return newEntity, nil
 }
 
-func (e *entityMgrImpl) Destroy(id entityid.ID) {
+func (e *entityMgrImpl) Destroy(id entity.ID) {
 	e.destroyed = append(e.destroyed, id)
 }
 
-func NewEntity(id entityid.ID, loc entity.Location) entity.Entity {
+func NewEntity(id entity.ID, loc entity.Location) entity.Entity {
 	return entity.Entity{
 		ID:  id,
 		Loc: loc,
@@ -50,7 +49,7 @@ func NewEntity(id entityid.ID, loc entity.Location) entity.Entity {
 }
 
 var (
-	BadID     entityid.ID   = math.MaxUint64
+	BadID     entity.ID     = math.MaxUint64
 	BadEntity entity.Entity = entity.Entity{BadID, entity.Location{}}
 )
 
