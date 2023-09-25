@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -14,6 +15,12 @@ import (
 
 // IComponentType is an interface for component types.
 type IComponentType = component.IComponentType
+
+type GettableAsJSON interface {
+	GetAsJSON(w *World, id entity.ID) (json.RawMessage, error)
+}
+
+var _ GettableAsJSON = &ComponentType[int]{}
 
 // NewComponentType creates a new component type.
 // The function is used to create a new component of the type.
@@ -64,6 +71,14 @@ func (c *ComponentType[T]) Get(w *World, id entity.ID) (comp T, err error) {
 		return comp, fmt.Errorf("type assertion for component failed: %v to %v", value, c)
 	}
 	return comp, nil
+}
+
+func (c *ComponentType[T]) GetAsJSON(w *World, id entity.ID) (json.RawMessage, error) {
+	value, err := c.Get(w, id)
+	if err != nil {
+		return nil, err
+	}
+	return c.Encode(value)
 }
 
 // Update is a helper that combines a Get followed by a Set to modify a component's value. Pass in a function

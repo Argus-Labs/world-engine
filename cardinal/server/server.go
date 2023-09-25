@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"reflect"
 	"strconv"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -399,26 +398,19 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 				make([]json.RawMessage, 0),
 			}
 
-			// The way our framework is set up it's not designed to retrieve components dynamically at runtime.
-			// As a result we have to use reflection which is generally bad and expensive.
 			for _, c := range components {
-				val := reflect.ValueOf(c)
-				method := val.MethodByName("Get")
-				if !method.IsValid() {
-					err = errors.New("get method not valid on this component")
+				hasJSON, ok := c.(ecs.GettableAsJSON)
+				if !ok {
+					err = errors.New("GetAsJSON method not valid on this component")
 					return false
 				}
-				args := []reflect.Value{reflect.ValueOf(world), reflect.ValueOf(id)}
-				results := method.Call(args)
-				if results[1].Interface() != nil {
-					err, _ = results[1].Interface().(error)
+				var data json.RawMessage
+				data, err = hasJSON.GetAsJSON(world, id)
+				if err != nil {
 					return false
 				}
-				var data []byte
-				data, err = json.Marshal(results[0].Interface())
 
 				resultElement.Data = append(resultElement.Data, data)
-
 			}
 			result = append(result, resultElement)
 			return true
