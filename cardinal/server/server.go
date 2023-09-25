@@ -401,7 +401,6 @@ func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Han
 			for _, c := range components {
 				var data json.RawMessage
 				data, err = c.GetRawJson(world.StoreManager(), id)
-
 				resultElement.Data = append(resultElement.Data, data)
 
 			}
