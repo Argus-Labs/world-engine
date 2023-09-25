@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/go-openapi/runtime"
@@ -119,4 +120,25 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 	api.RegisterOperation("POST", "/tx/persona/authorize-persona-address", authorizePersonaAddressHandler)
 
 	return nil
+}
+
+// submitTransaction submits a transaction to the game world, as well as the blockchain.
+func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.SignedPayload) (*TransactionReply, error) {
+	tick, txHash := handler.w.AddTransaction(tx.ID(), txVal, sp)
+	txReply := &TransactionReply{
+		TxHash: string(txHash),
+		Tick:   tick,
+	}
+	// check if we have an adapter
+	if handler.adapter != nil {
+		// if the world is recovering via adapter, we shouldn't accept transactions.
+		if handler.w.IsRecovering() {
+			return nil, errors.New("unable to submit transactions: game world is recovering state")
+		}
+		err := handler.adapter.Submit(context.Background(), sp, uint64(tx.ID()), txReply.Tick)
+		if err != nil {
+			return nil, fmt.Errorf("error submitting transaction to blockchain: %w", err)
+		}
+	}
+	return txReply, nil
 }
