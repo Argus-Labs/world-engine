@@ -42,6 +42,8 @@ type ComponentType[T any] struct {
 	query      *Query
 }
 
+var _ IGettableRawJsonFromEntityId = &ComponentType[int]{}
+
 // SetID set's this component's ID. It must be unique across the world object.
 func (c *ComponentType[T]) SetID(id component.TypeID) error {
 	if c.isIDSet {
