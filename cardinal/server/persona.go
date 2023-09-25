@@ -30,9 +30,9 @@ type ReadPersonaSignerResponse struct {
 	SignerAddress string
 }
 
-func (t *Handler) getPersonaSignerResponse(req *ReadPersonaSignerRequest) (*ReadPersonaSignerResponse, error) {
+func (handler *Handler) getPersonaSignerResponse(req *ReadPersonaSignerRequest) (*ReadPersonaSignerResponse, error) {
 	var status string
-	addr, err := t.w.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
+	addr, err := handler.w.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
 	if errors.Is(err, ecs.ErrorPersonaTagHasNoSigner) {
 		status = getSignerForPersonaStatusAvailable
 	} else if errors.Is(err, ecs.ErrorCreatePersonaTxsNotProcessed) {
@@ -50,19 +50,19 @@ func (t *Handler) getPersonaSignerResponse(req *ReadPersonaSignerRequest) (*Read
 	return &res, nil
 }
 
-func (t *Handler) generateCreatePersonaResponseFromPayload(payload []byte, sp *sign.SignedPayload, tx transaction.ITransaction) (*TransactionReply, error) {
+func (handler *Handler) generateCreatePersonaResponseFromPayload(payload []byte, sp *sign.SignedPayload, tx transaction.ITransaction) (*TransactionReply, error) {
 	txVal, err := tx.Decode(payload)
 	if err != nil {
 		return nil, errors.New("unable to decode transaction")
 	}
-	return t.submitTransaction(txVal, tx, sp)
+	return handler.submitTransaction(txVal, tx, sp)
 }
 
 // submitTransaction submits a transaction to the game world, as well as the blockchain.
-func (t *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.SignedPayload) (*TransactionReply, error) {
+func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.SignedPayload) (*TransactionReply, error) {
 
 	submitTx := func() *TransactionReply {
-		tick, txHash := t.w.AddTransaction(tx.ID(), txVal, sp)
+		tick, txHash := handler.w.AddTransaction(tx.ID(), txVal, sp)
 
 		return &TransactionReply{
 			TxHash: string(txHash),
@@ -71,13 +71,13 @@ func (t *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *
 	}
 
 	// check if we have an adapter
-	if t.adapter != nil {
+	if handler.adapter != nil {
 		// if the world is recovering via adapter, we shouldn't accept transactions.
-		if t.w.IsRecovering() {
+		if handler.w.IsRecovering() {
 			return nil, errors.New("unable to submit transactions: game world is recovering state")
 		} else {
 			txReply := submitTx()
-			err := t.adapter.Submit(context.Background(), sp, uint64(tx.ID()), txReply.Tick)
+			err := handler.adapter.Submit(context.Background(), sp, uint64(tx.ID()), txReply.Tick)
 			if err != nil {
 				return nil, fmt.Errorf("error submitting transaction to blockchain: %w", err)
 			}

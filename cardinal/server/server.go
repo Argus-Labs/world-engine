@@ -69,7 +69,7 @@ func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = registerReadHandlerSwagger(w, api, th)
+	err = th.registerReadHandlerSwagger(w, api)
 	if err != nil {
 		return nil, err
 	}
@@ -161,33 +161,33 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 // initialize initializes the server. It firsts checks for a port set on the handler via options.
 // if no port is found, or a bad port was passed into the option, it falls back to an environment variable,
 // CARDINAL_PORT. If not set, it falls back to a default port of 4040.
-func (t *Handler) initialize() {
-	if _, err := strconv.Atoi(t.port); err != nil || len(t.port) == 0 {
+func (handler *Handler) initialize() {
+	if _, err := strconv.Atoi(handler.port); err != nil || len(handler.port) == 0 {
 		envPort := os.Getenv("CARDINAL_PORT")
 		if _, err := strconv.Atoi(envPort); err == nil {
-			t.port = envPort
+			handler.port = envPort
 		} else {
-			t.port = "4040"
+			handler.port = "4040"
 		}
 	}
-	t.server = &http.Server{
-		Addr:    fmt.Sprintf(":%s", t.port),
-		Handler: t.mux,
+	handler.server = &http.Server{
+		Addr:    fmt.Sprintf(":%s", handler.port),
+		Handler: handler.mux,
 	}
 }
 
 // Serve serves the application, blocking the calling thread.
 // Call this in a new go routine to prevent blocking.
-func (t *Handler) Serve() error {
-	err := t.server.ListenAndServe()
+func (handler *Handler) Serve() error {
+	err := handler.server.ListenAndServe()
 	return err
 }
 
-func (t *Handler) Close() error {
-	return t.server.Close()
+func (handler *Handler) Close() error {
+	return handler.server.Close()
 }
 
-func (t *Handler) Shutdown() error {
+func (handler *Handler) Shutdown() error {
 	ctx := context.Background()
-	return t.server.Shutdown(ctx)
+	return handler.server.Shutdown(ctx)
 }

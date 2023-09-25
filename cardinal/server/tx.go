@@ -12,12 +12,12 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-func (t *Handler) processTransaction(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload) (*TransactionReply, error) {
+func (handler *Handler) processTransaction(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload) (*TransactionReply, error) {
 	txVal, err := tx.Decode(payload)
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode transaction: %w", err)
 	}
-	return t.submitTransaction(txVal, tx, sp)
+	return handler.submitTransaction(txVal, tx, sp)
 }
 
 func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string]transaction.ITransaction) (transaction.ITransaction, error) {
@@ -40,7 +40,7 @@ func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string
 	return tx, nil
 }
 
-func (t *Handler) getBodyAndSigFromParams(
+func (handler *Handler) getBodyAndSigFromParams(
 	params interface{},
 	isSystemTransaction bool) ([]byte, *sign.SignedPayload, error) {
 	mappedParams, ok := params.(map[string]interface{})
@@ -56,7 +56,7 @@ func (t *Handler) getBodyAndSigFromParams(
 		return nil, nil, errors.New("txBody needs to be a json object in the body")
 
 	}
-	payload, sp, err := t.verifySignatureOfMapRequest(txBodyMap, isSystemTransaction)
+	payload, sp, err := handler.verifySignatureOfMapRequest(txBodyMap, isSystemTransaction)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -64,8 +64,8 @@ func (t *Handler) getBodyAndSigFromParams(
 }
 
 // register transaction handlers on swagger server
-func (t *Handler) registerTxHandlerSwagger(api *untyped.API) error {
-	world := t.w
+func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
+	world := handler.w
 	txs, err := world.ListTransactions()
 	if err != nil {
 		return err
@@ -77,7 +77,7 @@ func (t *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 	}
 
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		payload, sp, err := t.getBodyAndSigFromParams(params, false)
+		payload, sp, err := handler.getBodyAndSigFromParams(params, false)
 		if err != nil {
 			return nil, err
 		}
@@ -85,14 +85,11 @@ func (t *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 		if err != nil {
 			return middleware.Error(404, err), nil
 		}
-		if tx.Name() == ecs.AuthorizePersonaAddressTx.Name() {
-			return nil, fmt.Errorf("this route should not process %s, use tx/persona/%s", tx.Name(), ecs.AuthorizePersonaAddressTx.Name())
-		}
-		return t.processTransaction(tx, payload, sp)
+		return handler.processTransaction(tx, payload, sp)
 	})
 
 	createPersonaHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		payload, sp, err := t.getBodyAndSigFromParams(params, true)
+		payload, sp, err := handler.getBodyAndSigFromParams(params, true)
 		if err != nil {
 			if errors.Is(err, ErrorInvalidSignature) || errors.Is(err, ErrorSystemTransactionRequired) {
 				return middleware.Error(401, err), nil
@@ -103,7 +100,7 @@ func (t *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 		if err != nil {
 			return nil, err
 		}
-		txReply, err := t.generateCreatePersonaResponseFromPayload(payload, sp, ecs.CreatePersonaTx)
+		txReply, err := handler.generateCreatePersonaResponseFromPayload(payload, sp, ecs.CreatePersonaTx)
 		if err != nil {
 			return nil, err
 		}
@@ -111,11 +108,11 @@ func (t *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 	})
 
 	authorizePersonaAddressHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		rawPayload, signedPayload, err := t.getBodyAndSigFromParams(params, false)
+		rawPayload, signedPayload, err := handler.getBodyAndSigFromParams(params, false)
 		if err != nil {
 			return nil, err
 		}
-		return t.processTransaction(ecs.AuthorizePersonaAddressTx, rawPayload, signedPayload)
+		return handler.processTransaction(ecs.AuthorizePersonaAddressTx, rawPayload, signedPayload)
 	})
 	api.RegisterOperation("POST", "/tx/game/{txType}", gameHandler)
 	api.RegisterOperation("POST", "/tx/persona/create-persona", createPersonaHandler)

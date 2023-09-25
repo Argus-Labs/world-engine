@@ -14,7 +14,7 @@ import (
 )
 
 // register query endpoints for swagger server
-func registerReadHandlerSwagger(world *ecs.World, api *untyped.API, handler *Handler) error {
+func (handler *Handler) registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
 	readNameToReadType := make(map[string]ecs.IRead)
 	for _, read := range world.ListReads() {
 		readNameToReadType[read.Name()] = read
