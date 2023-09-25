@@ -7,13 +7,14 @@ import (
 	"fmt"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
