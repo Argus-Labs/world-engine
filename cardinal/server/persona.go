@@ -61,30 +61,21 @@ func (handler *Handler) generateCreatePersonaResponseFromPayload(payload []byte,
 // submitTransaction submits a transaction to the game world, as well as the blockchain.
 func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.SignedPayload) (*TransactionReply, error) {
 
-	submitTx := func() *TransactionReply {
-		tick, txHash := handler.w.AddTransaction(tx.ID(), txVal, sp)
-
-		return &TransactionReply{
-			TxHash: string(txHash),
-			Tick:   tick,
-		}
+	tick, txHash := handler.w.AddTransaction(tx.ID(), txVal, sp)
+	txReply := &TransactionReply{
+		TxHash: string(txHash),
+		Tick:   tick,
 	}
-
 	// check if we have an adapter
 	if handler.adapter != nil {
 		// if the world is recovering via adapter, we shouldn't accept transactions.
 		if handler.w.IsRecovering() {
 			return nil, errors.New("unable to submit transactions: game world is recovering state")
-		} else {
-			txReply := submitTx()
-			err := handler.adapter.Submit(context.Background(), sp, uint64(tx.ID()), txReply.Tick)
-			if err != nil {
-				return nil, fmt.Errorf("error submitting transaction to blockchain: %w", err)
-			}
-			return txReply, nil
 		}
-	} else {
-		// if there is no adapter, then we can just put the tx in the queue.
-		return submitTx(), nil
+		err := handler.adapter.Submit(context.Background(), sp, uint64(tx.ID()), txReply.Tick)
+		if err != nil {
+			return nil, fmt.Errorf("error submitting transaction to blockchain: %w", err)
+		}
 	}
+	return txReply, nil
 }
