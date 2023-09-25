@@ -4,6 +4,7 @@
 package store
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -172,15 +173,19 @@ func (s *Manager) GetComponentTypesForEntity(id entity.ID) ([]component.ICompone
 }
 
 func (s *Manager) GetComponentForEntity(cType component.IComponentType, id entity.ID) (any, error) {
-	loc, err := s.getEntityLocation(id)
-	if err != nil {
-		return nil, err
-	}
-	bz, err := s.store.CompStore.Storage(cType).Component(loc.ArchID, loc.CompIndex)
+	bz, err := s.GetComponentForEntityInRawJson(cType, id)
 	if err != nil {
 		return nil, err
 	}
 	return cType.Decode(bz)
+}
+
+func (s *Manager) GetComponentForEntityInRawJson(cType component.IComponentType, id entity.ID) (json.RawMessage, error) {
+	loc, err := s.getEntityLocation(id)
+	if err != nil {
+		return nil, err
+	}
+	return s.store.CompStore.Storage(cType).Component(loc.ArchID, loc.CompIndex)
 }
 
 func (s *Manager) getComponentsForArchetype(archID archetype.ID) []component.IComponentType {
