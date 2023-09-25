@@ -73,6 +73,10 @@ func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = th.registerHealthHandlerSwagger(w, api)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := api.Validate(); err != nil {
 		return nil, err

@@ -11,6 +11,17 @@ schemes:
 swagger: "2.0"
 
 paths:
+    /health:
+        get:
+            summary: Get information on status of world-engine
+            description: Displays information on http server and world game loop
+            produces:
+                - application/json
+            responses:
+                '200':
+                    description: successful operation
+                    schema:
+                        $ref: '#/definitions/HealthReply'
     /tx/game/{txType}:
         post:
             summary: Submit a transaction to Cardinal
@@ -192,6 +203,16 @@ paths:
                     description: Invalid transaction request
 
 definitions:
+    HealthReply:
+        type: object
+        required:
+            - is_server_running
+            - is_game_loop_running
+        properties:
+            is_server_running:
+                type: boolean
+            is_game_loop_running:
+                type: boolean
     CQLResponse:
         type: array
         items:

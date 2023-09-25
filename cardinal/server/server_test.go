@@ -10,16 +10,18 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"pkg.world.dev/world-engine/cardinal/shard"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
+
+	"gotest.tools/v3/assert"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
@@ -62,13 +64,6 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 	assert.NilError(t, err)
 
 	healthPath := "/health"
-
-	// Add a health check endpoint, so we can make sure the server is up and running before allowing any test
-	// logic to run.
-	txh.mux.HandleFunc(healthPath, func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
-	})
-
 	t.Cleanup(func() {
 		assert.NilError(t, txh.Close())
 	})
@@ -122,8 +117,52 @@ func setTestTimeout(t *testing.T, timeout time.Duration) {
 	}()
 }
 
+func TestHealthEndpoint(t *testing.T) {
+	//setTestTimeout(t, 10*time.Second)
+	w := inmem.NewECSWorldForTest(t)
+	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
+	assert.NilError(t, w.RegisterTransactions(sendTx))
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
+		return nil
+	})
+	assert.NilError(t, w.LoadGameState())
+	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
+	resp, err := http.Get("http://localhost:4040/health")
+	assert.NilError(t, err)
+	assert.Equal(t, resp.StatusCode, 200)
+	body := make(map[string]bool)
+	err = json.NewDecoder(resp.Body).Decode(&body)
+	assert.NilError(t, err)
+	v, ok := body["is_server_running"]
+	assert.Assert(t, ok)
+	assert.Assert(t, v)
+	v, ok = body["is_game_loop_running"]
+	assert.Assert(t, ok)
+	assert.Assert(t, !v) //game loop is not running!
+	ctx := context.Background()
+	w.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
+	isGameLoopRunning := false
+	for !isGameLoopRunning {
+		time.Sleep(200 * time.Millisecond)
+		resp, err = http.Get("http://localhost:4040/health")
+		assert.NilError(t, err)
+		assert.Equal(t, resp.StatusCode, 200)
+		err = json.NewDecoder(resp.Body).Decode(&body)
+		v, ok = body["is_server_running"]
+		assert.Assert(t, ok)
+		assert.Assert(t, v)
+		isGameLoopRunning, ok = body["is_game_loop_running"]
+		assert.Assert(t, ok)
+		assert.Assert(t, v) //game loop is running!
+	}
+	gameObject := NewGameManager(w, txh.Handler)
+	err = gameObject.Shutdown()
+	assert.NilError(t, err)
+
+}
+
 func TestShutDownViaMethod(t *testing.T) {
-	//setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create failure with panic.
+	setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create failure with panic.
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
@@ -146,10 +185,12 @@ func TestShutDownViaMethod(t *testing.T) {
 	assert.Assert(t, !w.IsGameLoopRunning())
 	_, err = http.Get("http://localhost:4040/health")
 	assert.Check(t, err != nil)
+	err = txh.Close()
+	assert.NilError(t, err)
 }
 
 func TestShutDownViaSignal(t *testing.T) {
-	setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
+	//setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
