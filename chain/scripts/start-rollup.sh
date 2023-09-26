@@ -41,7 +41,7 @@ world genesis add-genesis-account $KEY_NAME $TOKEN_AMOUNT --keyring-backend test
 world genesis gentx $KEY_NAME $STAKING_AMOUNT --chain-id $CHAIN_ID --keyring-backend test
 world genesis collect-gentxs
 
-sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' /root/.world/config/config.toml
+# sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' /root/.world/config/config.toml
 
 sed -i '/api\]/,/\[/ s/enable = false/enable = true/' /root/.world/config/app.toml
 
