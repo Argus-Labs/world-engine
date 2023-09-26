@@ -656,10 +656,8 @@ func (r *RedisStorage) SetNonce(signerAddress string, nonce uint64) error {
 	return r.Client.HSet(ctx, r.nonceKey(), signerAddress, nonce).Err()
 }
 
-func (r *RedisStorage) Shutdown() error {
-	ctx := context.Background()
-	res := r.Client.Shutdown(ctx)
-	err := res.Err()
+func (r *RedisStorage) Close() error {
+	err := r.Client.Close()
 	if err != nil {
 		return err
 	}

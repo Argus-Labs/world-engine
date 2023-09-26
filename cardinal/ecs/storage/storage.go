@@ -13,6 +13,7 @@ type WorldStorage struct {
 	StateStore       StateStorage
 	TickStore        TickStorage
 	NonceStore       NonceStorage
+	IO               IO
 }
 
 type OmniStorage interface {
@@ -36,5 +37,6 @@ func NewWorldStorage(omni OmniStorage) WorldStorage {
 		StateStore:       omni,
 		TickStore:        omni,
 		NonceStore:       omni,
+		IO:               omni,
 	}
 }

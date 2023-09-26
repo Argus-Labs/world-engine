@@ -102,5 +102,5 @@ type NonceStorage interface {
 }
 
 type IO interface {
-	Shutdown() error
+	Close() error
 }
