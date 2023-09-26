@@ -153,7 +153,6 @@ func TestHealthEndpoint(t *testing.T) {
 		assert.Assert(t, v)
 		isGameLoopRunning, ok = body["is_game_loop_running"]
 		assert.Assert(t, ok)
-		assert.Assert(t, v) //game loop is running!
 	}
 	gameObject := NewGameManager(w, txh.Handler)
 	err = gameObject.Shutdown()
