@@ -149,7 +149,7 @@ func TestHealthEndpoint(t *testing.T) {
 }
 
 func TestShutDownViaMethod(t *testing.T) {
-	//setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create failure with panic.
+	setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create failure with panic.
 	w := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, w.LoadGameState())
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
