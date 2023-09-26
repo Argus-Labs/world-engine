@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
@@ -13,9 +14,9 @@ import (
 )
 
 // register query endpoints for swagger server
-func (handler *Handler) registerReadHandlerSwagger(world *ecs.World, api *untyped.API) error {
+func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
 	readNameToReadType := make(map[string]ecs.IRead)
-	for _, read := range world.ListReads() {
+	for _, read := range handler.w.ListReads() {
 		readNameToReadType[read.Name()] = read
 	}
 
@@ -59,14 +60,14 @@ func (handler *Handler) registerReadHandlerSwagger(world *ecs.World, api *untype
 		if err != nil {
 			return nil, err
 		}
-		rawJsonReply, err := outputType.HandleReadRaw(world, rawJsonBody)
+		rawJsonReply, err := outputType.HandleReadRaw(handler.w, rawJsonBody)
 		if err != nil {
 			return nil, err
 		}
 		return json.RawMessage(rawJsonReply), nil
 
 	})
-	endpoints, err := createAllEndpoints(world)
+	endpoints, err := createAllEndpoints(handler.w)
 	if err != nil {
 		return err
 	}
@@ -80,7 +81,7 @@ func (handler *Handler) registerReadHandlerSwagger(world *ecs.World, api *untype
 
 	receiptsHandler := createSwaggerQueryHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
 		"ListTxReceiptsRequest",
-		getListTxReceiptsReplyFromRequest(world),
+		getListTxReceiptsReplyFromRequest(handler.w),
 	)
 
 	cqlHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
@@ -104,15 +105,15 @@ func (handler *Handler) registerReadHandlerSwagger(world *ecs.World, api *untype
 		if !ok {
 			return middleware.Error(422, fmt.Errorf("json is invalid")), nil
 		}
-		resultFilter, err := cql.CQLParse(cqlString, world.GetComponentByName)
+		resultFilter, err := cql.CQLParse(cqlString, handler.w.GetComponentByName)
 		if err != nil {
 			return middleware.Error(422, err), nil
 		}
 
 		result := make([]cql.QueryResponse, 0)
 
-		ecs.NewQuery(resultFilter).Each(world, func(id entity.ID) bool {
-			components, err := world.StoreManager().GetComponentTypesForEntity(id)
+		ecs.NewQuery(resultFilter).Each(handler.w, func(id entity.ID) bool {
+			components, err := handler.w.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false
 			}
@@ -129,7 +130,7 @@ func (handler *Handler) registerReadHandlerSwagger(world *ecs.World, api *untype
 					return false
 				}
 				var data json.RawMessage
-				data, err = getter.GetRawJson(world, id)
+				data, err = getter.GetRawJson(handler.w, id)
 				if err != nil {
 					return false
 				}
