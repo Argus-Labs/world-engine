@@ -268,10 +268,8 @@ var (
 				Config: appconfig.WrapAny(&routermodule.Module{}),
 			},
 			{
-				Name: shardmodule.ModuleName,
-				Config: appconfig.WrapAny(&shardmodulev1.Module{
-					Authority: authtypes.NewModuleAddress(shard.Name).String(),
-				}),
+				Name:   shardmodule.ModuleName,
+				Config: appconfig.WrapAny(&shardmodulev1.Module{}),
 			},
 		},
 	}),

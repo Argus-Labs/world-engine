@@ -17,6 +17,8 @@ setup:
 	@go run magefiles/setup/setup.go
 
 
-runall:
+chain:
+	./chain/scripts/start.sh --build
+
+game:
 	@docker compose up game nakama -d
-	./chain/scripts/start.sh

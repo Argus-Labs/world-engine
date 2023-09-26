@@ -2,7 +2,11 @@ package keeper
 
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"log"
+	"pkg.world.dev/world-engine/chain/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"strings"
 
 	"cosmossdk.io/core/store"
 )
@@ -14,7 +18,10 @@ type Keeper struct {
 
 func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
 	if auth == "" {
-		panic("authority in shard keeper not set")
+		auth = authtypes.NewModuleAddress(shard.Name).String()
+		if strings.Contains(auth, "cosmos") {
+			log.Fatal("address was cosmos based. bad bad not good")
+		}
 	}
 	k := &Keeper{storeService: ss, auth: auth}
 	return k
