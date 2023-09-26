@@ -1,4 +1,4 @@
-package ecs_test
+package log_test
 
 import (
 	"bytes"
@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
@@ -17,6 +18,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/cardinal/ecs/log"
 )
 
 type SendEnergyTx struct {
@@ -32,7 +34,7 @@ type EnergyComp struct {
 
 var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
 
-func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *ecs.Logger) error {
+func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error {
 	logger.Log().Msg("test")
 	energy.Each(w, func(entityId entity.ID) bool {
 		energyPlanet, err := energy.Get(w, entityId)
@@ -50,7 +52,7 @@ func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *ecs.Logger) error 
 	return nil
 }
 
-func testSystemWarningTrigger(w *ecs.World, tx *transaction.TxQueue, logger *ecs.Logger) error {
+func testSystemWarningTrigger(w *ecs.World, tx *transaction.TxQueue, logger *log.Logger) error {
 	time.Sleep(time.Millisecond * 400)
 	return testSystem(w, tx, logger)
 }
@@ -61,7 +63,7 @@ func TestWorldLogger(t *testing.T) {
 	//replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
-	cardinalLogger := ecs.Logger{
+	cardinalLogger := log.Logger{
 		&bufLogger,
 	}
 	w.InjectLogger(&cardinalLogger)
@@ -95,7 +97,8 @@ func TestWorldLogger(t *testing.T) {
 	//require.JSONEq compares json strings for equality.
 	require.JSONEq(t, buf.String(), jsonWorldInfoString)
 	buf.Reset()
-	archetypeId := w.GetArchetypeForComponents([]component.IComponentType{energy})
+	archetypeId, err := w.StoreManager().GetArchIDForComponents([]component.IComponentType{energy})
+	assert.NilError(t, err)
 	archetype_creations_json_string := buf.String()
 	require.JSONEq(t, `
 			{
@@ -103,7 +106,7 @@ func TestWorldLogger(t *testing.T) {
 				"archetype_id":0,
 				"message":"created"
 			}`, archetype_creations_json_string)
-	components := w.Archetype(archetypeId).Components()
+	components := w.StoreManager().GetComponentTypesForArchID(archetypeId)
 	entityId, err := w.Create(components...)
 	assert.NilError(t, err)
 	buf.Reset()
@@ -148,7 +151,7 @@ func TestWorldLogger(t *testing.T) {
 	// test if system name recorded in log
 	require.JSONEq(t, `
 			{
-				"system":"ecs_test.testSystemWarningTrigger",
+				"system":"log_test.testSystemWarningTrigger",
 				"message":"test"
 			}`, logStrings[1])
 	// test if updating component worked

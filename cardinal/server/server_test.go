@@ -15,15 +15,18 @@ import (
 	"testing"
 	"time"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"gotest.tools/v3/assert"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -61,13 +64,6 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 	assert.NilError(t, err)
 
 	healthPath := "/health"
-
-	// Add a health check endpoint, so we can make sure the server is up and running before allowing any test
-	// logic to run.
-	txh.mux.HandleFunc(healthPath, func(writer http.ResponseWriter, request *http.Request) {
-		writer.WriteHeader(200)
-	})
-
 	t.Cleanup(func() {
 		assert.NilError(t, txh.Close())
 	})
@@ -121,12 +117,48 @@ func setTestTimeout(t *testing.T, timeout time.Duration) {
 	}()
 }
 
-func TestShutDownViaMethod(t *testing.T) {
-	//setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create failure with panic.
+func TestHealthEndpoint(t *testing.T) {
+	setTestTimeout(t, 10*time.Second)
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
+		return nil
+	})
+	assert.NilError(t, w.LoadGameState())
+	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
+	resp, err := http.Get("http://localhost:4040/health")
+	assert.NilError(t, err)
+	assert.Equal(t, resp.StatusCode, 200)
+	var healthResponse HealthResponse
+	err = json.NewDecoder(resp.Body).Decode(&healthResponse)
+	assert.NilError(t, err)
+	assert.Assert(t, healthResponse.IsServerRunning)
+	assert.Assert(t, !healthResponse.IsGameLoopRunning)
+	ctx := context.Background()
+	w.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
+	isGameLoopRunning := false
+	for !isGameLoopRunning {
+		time.Sleep(200 * time.Millisecond)
+		resp, err = http.Get("http://localhost:4040/health")
+		assert.NilError(t, err)
+		assert.Equal(t, resp.StatusCode, 200)
+		err = json.NewDecoder(resp.Body).Decode(&healthResponse)
+		assert.Assert(t, healthResponse.IsServerRunning)
+		isGameLoopRunning = healthResponse.IsGameLoopRunning
+	}
+	gameObject := NewGameManager(w, txh.Handler)
+	err = gameObject.Shutdown()
+	assert.NilError(t, err)
+
+}
+
+func TestShutDownViaMethod(t *testing.T) {
+	setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create failure with panic.
+	w := inmem.NewECSWorldForTest(t)
+	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
+	assert.NilError(t, w.RegisterTransactions(sendTx))
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -134,7 +166,7 @@ func TestShutDownViaMethod(t *testing.T) {
 	resp, err := http.Get("http://localhost:4040/health")
 	assert.Equal(t, resp.StatusCode, 200)
 	ctx := context.Background()
-	w.StartGameLoop(ctx, 1*time.Second)
+	w.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
 	for !w.IsGameLoopRunning() {
 		//wait until game loop is running.
 		time.Sleep(1 * time.Millisecond)
@@ -145,14 +177,16 @@ func TestShutDownViaMethod(t *testing.T) {
 	assert.Assert(t, !w.IsGameLoopRunning())
 	_, err = http.Get("http://localhost:4040/health")
 	assert.Check(t, err != nil)
+	err = txh.Close()
+	assert.NilError(t, err)
 }
 
 func TestShutDownViaSignal(t *testing.T) {
-	setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
+	//setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -160,7 +194,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	resp, err := http.Get("http://localhost:4040/health")
 	assert.Equal(t, resp.StatusCode, 200)
 	ctx := context.Background()
-	w.StartGameLoop(ctx, 1*time.Second)
+	w.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
 	for !w.IsGameLoopRunning() {
 		//wait until game loop is running
 		time.Sleep(500 * time.Millisecond)
@@ -251,7 +285,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	count := 0
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -296,7 +330,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		return nil
 	})
 	type garbageStruct struct {
@@ -495,7 +529,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -903,7 +937,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
-	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		for _, tx := range incTx.In(queue) {
 			incTx.SetResult(world, tx.TxHash, IncReply{
 				Number: tx.Value.Number + 1,
@@ -912,7 +946,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 		return nil
 	})
 	// System to handle duplicating strings
-	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		for _, tx := range dupeTx.In(queue) {
 			dupeTx.SetResult(world, tx.TxHash, DupeReply{
 				Str: tx.Value.Str + tx.Value.Str,
@@ -922,7 +956,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	})
 	wantError := errors.New("some error")
 	// System to handle error production
-	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		for _, tx := range errTx.In(queue) {
 			errTx.AddError(world, tx.TxHash, wantError)
 			errTx.AddError(world, tx.TxHash, wantError)
@@ -1077,4 +1111,92 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	// The tick should equal the current tick
 	assert.Equal(t, world.CurrentTick(), txReply.Tick)
 	txh.Close()
+}
+
+var _ shard.Adapter = &adapterMock{}
+
+type adapterMock struct {
+	called int
+	hold   chan bool
+}
+
+func (a *adapterMock) Submit(ctx context.Context, p *sign.SignedPayload, txID, epoch uint64) error {
+	a.called++
+	return nil
+}
+
+func (a *adapterMock) QueryTransactions(ctx context.Context, request *types.QueryTransactionsRequest) (*types.QueryTransactionsResponse, error) {
+	<-a.hold
+	return nil, nil
+}
+
+func TestTransactionsSubmittedToChain(t *testing.T) {
+	createPersonaEndpoint := "tx/persona/create-persona"
+	moveEndpoint := "tx/game/move"
+	type MoveTx struct {
+		Direction string
+	}
+	world := inmem.NewECSWorldForTest(t)
+	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+	world.RegisterTransactions(moveTx)
+	assert.NilError(t, world.LoadGameState())
+	adapter := adapterMock{}
+	txh := makeTestTransactionHandler(t, world, WithAdapter(&adapter), DisableSignatureVerification())
+
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	personaTag := "clifford_the_big_red_dog"
+	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+	sigPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace(), 1, ecs.CreatePersonaTransaction{
+		PersonaTag:    personaTag,
+		SignerAddress: signerAddr,
+	})
+	assert.NilError(t, err)
+	bz, err := sigPayload.Marshal()
+	assert.NilError(t, err)
+
+	resp, err := http.Post(txh.makeURL(createPersonaEndpoint), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, adapter.called, 1)
+
+	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, world.Namespace(), 2, MoveTx{Direction: "up"})
+	assert.NilError(t, err)
+	bz, err = sigPayload.Marshal()
+	assert.NilError(t, err)
+	resp, err = http.Post(txh.makeURL(moveEndpoint), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+	assert.Equal(t, adapter.called, 2)
+}
+
+func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
+	moveEndpoint := "tx/game/move"
+	type MoveTx struct {
+		Direction string
+	}
+	holdChan := make(chan bool)
+	adapter := adapterMock{hold: holdChan}
+	world := inmem.NewECSWorldForTest(t, ecs.WithAdapter(&adapter))
+	world.Tick(context.Background())
+	go world.RecoverFromChain(context.Background())
+	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+	world.RegisterTransactions(moveTx)
+	assert.NilError(t, world.LoadGameState())
+	txh := makeTestTransactionHandler(t, world, WithAdapter(&adapter), DisableSignatureVerification())
+
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	personaTag := "clifford_the_big_red_dog"
+
+	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, world.Namespace(), 2, MoveTx{Direction: "up"})
+	assert.NilError(t, err)
+	bz, err := sigPayload.Marshal()
+	assert.NilError(t, err)
+	resp, err := http.Post(txh.makeURL(moveEndpoint), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+	assert.Equal(t, 500, resp.StatusCode)
+	bz, err = io.ReadAll(resp.Body)
+	assert.NilError(t, err)
+	assert.ErrorContains(t, errors.New(string(bz)), "game world is recovering state")
 }

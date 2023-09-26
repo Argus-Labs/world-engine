@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -11,6 +12,10 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
+
+type IGettableRawJsonFromEntityId interface {
+	GetRawJson(w *World, id entity.ID) (json.RawMessage, error)
+}
 
 // IComponentType is an interface for component types.
 type IComponentType = component.IComponentType
@@ -36,6 +41,8 @@ type ComponentType[T any] struct {
 	defaultVal interface{}
 	query      *Query
 }
+
+var _ IGettableRawJsonFromEntityId = &ComponentType[int]{}
 
 // SetID set's this component's ID. It must be unique across the world object.
 func (c *ComponentType[T]) SetID(id component.TypeID) error {
@@ -64,6 +71,10 @@ func (c *ComponentType[T]) Get(w *World, id entity.ID) (comp T, err error) {
 		return comp, fmt.Errorf("type assertion for component failed: %v to %v", value, c)
 	}
 	return comp, nil
+}
+
+func (c *ComponentType[T]) GetRawJson(w *World, id entity.ID) (json.RawMessage, error) {
+	return w.StoreManager().GetComponentForEntityInRawJson(c, id)
 }
 
 // Update is a helper that combines a Get followed by a Set to modify a component's value. Pass in a function

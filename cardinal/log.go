@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 )
 
 type Logger struct {
-	impl *ecs.Logger
+	impl *ecslog.Logger
 }
 
 func (l *Logger) LogComponents(world *World, level zerolog.Level) {

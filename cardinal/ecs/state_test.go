@@ -5,16 +5,16 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"github.com/alicebob/miniredis/v2"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
+	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
@@ -78,8 +78,9 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	_, err := oneWorld.Create(oneNum)
 	assert.NilError(t, err)
 
-	wantID := oneWorld.GetArchetypeForComponents(comps(oneNum))
-	wantComps := oneWorld.Archetype(wantID).Components()
+	wantID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneNum))
+	assert.NilError(t, err)
+	wantComps := oneWorld.StoreManager().GetComponentTypesForArchID(wantID)
 	assert.Equal(t, 1, len(wantComps))
 	assert.Check(t, component.Contains(wantComps, oneNum))
 
@@ -91,8 +92,9 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, twoWorld.RegisterComponents(twoNum))
 	assert.NilError(t, twoWorld.LoadGameState())
 
-	gotID := twoWorld.GetArchetypeForComponents(comps(twoNum))
-	gotComps := twoWorld.Archetype(gotID).Components()
+	gotID, err := twoWorld.StoreManager().GetArchIDForComponents(comps(twoNum))
+	assert.NilError(t, err)
+	gotComps := twoWorld.StoreManager().GetComponentTypesForArchID(gotID)
 	assert.Equal(t, 1, len(gotComps))
 	assert.Check(t, component.Contains(gotComps, twoNum))
 
@@ -119,9 +121,12 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	// oneAlphaNum
 	// oneBetaNum
 	// oneAlphaNum, oneBetaNum
-	oneJustAlphaArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
-	oneJustBetaArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
-	oneBothArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum, oneBetaNum))
+	oneJustAlphaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneAlphaNum))
+	assert.NilError(t, err)
+	oneJustBetaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneBetaNum))
+	assert.NilError(t, err)
+	oneBothArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneAlphaNum, oneBetaNum))
+	assert.NilError(t, err)
 	// These archetype indices should be preserved between a state save/load
 
 	assert.NilError(t, oneWorld.Tick(context.Background()))
@@ -139,11 +144,14 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 	// The order that we FETCH archetypes shouldn't matter, so this order is intentionally
 	// different from the setup step
-	twoBothArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum, oneAlphaNum))
+	twoBothArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneBothArchID, twoBothArchID)
-	twoJustAlphaArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
+	twoJustAlphaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneAlphaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneJustAlphaArchID, twoJustAlphaArchID)
-	twoJustBetaArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
+	twoJustBetaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneBetaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneJustBetaArchID, twoJustBetaArchID)
 
 	// Save and load again to make sure the "two" world correctly saves its state even though
@@ -158,11 +166,14 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	assert.NilError(t, threeWorld.LoadGameState())
 
 	// And again, the loading of archetypes is intentionally different from the above two steps
-	threeJustBetaArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum))
+	threeJustBetaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneBetaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneJustBetaArchID, threeJustBetaArchID)
-	threeBothArchID := oneWorld.GetArchetypeForComponents(comps(oneBetaNum, oneAlphaNum))
+	threeBothArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneBothArchID, threeBothArchID)
-	threeJustAlphaArchID := oneWorld.GetArchetypeForComponents(comps(oneAlphaNum))
+	threeJustAlphaArchID, err := oneWorld.StoreManager().GetArchIDForComponents(comps(oneAlphaNum))
+	assert.NilError(t, err)
 	assert.Equal(t, oneJustAlphaArchID, threeJustAlphaArchID)
 }
 
@@ -174,7 +185,7 @@ func TestCanReloadState(t *testing.T) {
 
 	_, err := alphaWorld.CreateMany(10, oneAlphaNum)
 	assert.NilError(t, err)
-	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *ecs.Logger) error {
+	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		oneAlphaNum.Each(w, func(id entity.ID) bool {
 			err := oneAlphaNum.Set(w, id, NumberComponent{int(id)})
 			assert.Check(t, err == nil)
@@ -237,7 +248,7 @@ func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 	for reload := 0; reload < 5; reload++ {
 		world := testutil.InitWorldWithRedis(t, redisStore)
 		assert.NilError(t, world.RegisterTransactions(someTx))
-		world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecs.Logger) error {
+		world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *log.Logger) error {
 			for _, tx := range someTx.In(queue) {
 				someTx.SetResult(world, tx.TxHash, Result{})
 			}

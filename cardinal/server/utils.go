@@ -89,20 +89,20 @@ func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
 	return createPersonaTx.SignerAddress, nil
 }
 
-func (t *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, isSystemTransaction bool) (sig *sign.SignedPayload, err error) {
+func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, isSystemTransaction bool) (sig *sign.SignedPayload, err error) {
 	if sp.PersonaTag == "" {
 		return nil, errors.New("PersonaTag must not be empty")
 	}
 
 	// Handle the case where signature is disabled
-	if t.disableSigVerification {
+	if handler.disableSigVerification {
 		return sp, nil
 	}
 	///////////////////////////////////////////////
 
 	// Check that the namespace is correct
-	if sp.Namespace != t.w.Namespace() {
-		return nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, t.w.Namespace())
+	if sp.Namespace != handler.w.Namespace() {
+		return nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, handler.w.Namespace())
 	}
 	if isSystemTransaction && !sp.IsSystemPayload() {
 		return nil, ErrorSystemTransactionRequired
@@ -117,14 +117,14 @@ func (t *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, isSyste
 	} else {
 		// For non-system transaction, get the signer address from storage. If this PersonaTag doesn't exist,
 		// an error will be returned and the signature verification will fail.
-		signerAddress, err = t.w.GetSignerForPersonaTag(sp.PersonaTag, 0)
+		signerAddress, err = handler.w.GetSignerForPersonaTag(sp.PersonaTag, 0)
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	// Check the nonce
-	nonce, err := t.w.GetNonce(signerAddress)
+	nonce, err := handler.w.GetNonce(signerAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -138,13 +138,13 @@ func (t *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, isSyste
 		return nil, fmt.Errorf("%w: %w", ErrorInvalidSignature, err)
 	}
 	// Update nonce
-	if err := t.w.SetNonce(signerAddress, sp.Nonce); err != nil {
+	if err := handler.w.SetNonce(signerAddress, sp.Nonce); err != nil {
 		return nil, err
 	}
 	return sp, nil
 }
 
-func (t *Handler) verifySignatureOfHTTPRequest(request *http.Request, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
+func (handler *Handler) verifySignatureOfHTTPRequest(request *http.Request, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
 	buf, err := io.ReadAll(request.Body)
 	if err != nil {
 		return nil, nil, errors.New("unable to read body")
@@ -153,7 +153,7 @@ func (t *Handler) verifySignatureOfHTTPRequest(request *http.Request, isSystemTr
 	if err != nil {
 		return nil, nil, err
 	}
-	sig, err = t.verifySignatureOfSignedPayload(sp, isSystemTransaction)
+	sig, err = handler.verifySignatureOfSignedPayload(sp, isSystemTransaction)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -165,12 +165,12 @@ func (t *Handler) verifySignatureOfHTTPRequest(request *http.Request, isSystemTr
 }
 
 // identical to verifySignatureOfHTTPRequest but takes in the body of the request in the form of a map.
-func (t *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
+func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
 	sp, err := sign.MappedSignedPayload(request)
 	if err != nil {
 		return nil, nil, err
 	}
-	sig, err = t.verifySignatureOfSignedPayload(sp, isSystemTransaction)
+	sig, err = handler.verifySignatureOfSignedPayload(sp, isSystemTransaction)
 	if err != nil {
 		return nil, nil, err
 	}
