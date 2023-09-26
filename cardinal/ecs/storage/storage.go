@@ -23,6 +23,7 @@ type OmniStorage interface {
 	StateStorage
 	TickStorage
 	NonceStorage
+	IO
 }
 
 func NewWorldStorage(omni OmniStorage) WorldStorage {

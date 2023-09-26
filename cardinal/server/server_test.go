@@ -10,16 +10,18 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"pkg.world.dev/world-engine/cardinal/shard"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/chain/x/shard/types"
+
+	"gotest.tools/v3/assert"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
@@ -125,11 +127,6 @@ func setTestTimeout(t *testing.T, timeout time.Duration) {
 func TestShutDownViaMethod(t *testing.T) {
 	//setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create failure with panic.
 	w := inmem.NewECSWorldForTest(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
-	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		return nil
-	})
 	assert.NilError(t, w.LoadGameState())
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 	resp, err := http.Get("http://localhost:4040/health")
