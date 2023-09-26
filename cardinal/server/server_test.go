@@ -118,7 +118,7 @@ func setTestTimeout(t *testing.T, timeout time.Duration) {
 }
 
 func TestHealthEndpoint(t *testing.T) {
-	//setTestTimeout(t, 10*time.Second)
+	setTestTimeout(t, 10*time.Second)
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
@@ -130,15 +130,11 @@ func TestHealthEndpoint(t *testing.T) {
 	resp, err := http.Get("http://localhost:4040/health")
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
-	body := make(map[string]bool)
-	err = json.NewDecoder(resp.Body).Decode(&body)
+	var healthResponse HealthResponse
+	err = json.NewDecoder(resp.Body).Decode(&healthResponse)
 	assert.NilError(t, err)
-	v, ok := body["is_server_running"]
-	assert.Assert(t, ok)
-	assert.Assert(t, v)
-	v, ok = body["is_game_loop_running"]
-	assert.Assert(t, ok)
-	assert.Assert(t, !v) //game loop is not running!
+	assert.Assert(t, healthResponse.IsServerRunning)
+	assert.Assert(t, !healthResponse.IsGameLoopRunning)
 	ctx := context.Background()
 	w.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
 	isGameLoopRunning := false
@@ -147,12 +143,9 @@ func TestHealthEndpoint(t *testing.T) {
 		resp, err = http.Get("http://localhost:4040/health")
 		assert.NilError(t, err)
 		assert.Equal(t, resp.StatusCode, 200)
-		err = json.NewDecoder(resp.Body).Decode(&body)
-		v, ok = body["is_server_running"]
-		assert.Assert(t, ok)
-		assert.Assert(t, v)
-		isGameLoopRunning, ok = body["is_game_loop_running"]
-		assert.Assert(t, ok)
+		err = json.NewDecoder(resp.Body).Decode(&healthResponse)
+		assert.Assert(t, healthResponse.IsServerRunning)
+		isGameLoopRunning = healthResponse.IsGameLoopRunning
 	}
 	gameObject := NewGameManager(w, txh.Handler)
 	err = gameObject.Shutdown()

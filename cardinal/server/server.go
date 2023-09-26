@@ -69,11 +69,11 @@ func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = th.registerReadHandlerSwagger(w, api)
+	err = th.registerReadHandlerSwagger(api)
 	if err != nil {
 		return nil, err
 	}
-	err = th.registerHealthHandlerSwagger(w, api)
+	err = th.registerHealthHandlerSwagger(api)
 	if err != nil {
 		return nil, err
 	}
