@@ -154,7 +154,7 @@ func NewApp(
 		ethTxMempool = evmmempool.NewPolarisEthereumTxPool()
 		// merge the Config and other configuration in one config
 		appConfig = depinject.Configs(
-			Config,
+			MakeAppConfig("world"),
 			depinject.Provide(evmtypes.ProvideEthereumTransactionGetSigners),
 			depinject.Supply(
 				// supply the application options
