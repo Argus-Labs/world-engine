@@ -76,6 +76,10 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 			assert.NilError(t, err)
 		}
 	}()
+	gameObject := NewGameManager(world, txh)
+	t.Cleanup(func() {
+		_ = gameObject.Shutdown()
+	})
 
 	urlPrefix := "http://localhost:" + port
 	healthURL := urlPrefix + healthPath
@@ -120,13 +124,8 @@ func setTestTimeout(t *testing.T, timeout time.Duration) {
 func TestHealthEndpoint(t *testing.T) {
 	setTestTimeout(t, 10*time.Second)
 	w := inmem.NewECSWorldForTest(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
-	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		return nil
-	})
 	assert.NilError(t, w.LoadGameState())
-	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
+	makeTestTransactionHandler(t, w, DisableSignatureVerification())
 	resp, err := http.Get("http://localhost:4040/health")
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
@@ -147,20 +146,11 @@ func TestHealthEndpoint(t *testing.T) {
 		assert.Assert(t, healthResponse.IsServerRunning)
 		isGameLoopRunning = healthResponse.IsGameLoopRunning
 	}
-	gameObject := NewGameManager(w, txh.Handler)
-	err = gameObject.Shutdown()
-	assert.NilError(t, err)
-
 }
 
 func TestShutDownViaMethod(t *testing.T) {
 	setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create failure with panic.
 	w := inmem.NewECSWorldForTest(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
-	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		return nil
-	})
 	assert.NilError(t, w.LoadGameState())
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 	resp, err := http.Get("http://localhost:4040/health")
@@ -177,12 +167,10 @@ func TestShutDownViaMethod(t *testing.T) {
 	assert.Assert(t, !w.IsGameLoopRunning())
 	_, err = http.Get("http://localhost:4040/health")
 	assert.Check(t, err != nil)
-	err = txh.Close()
-	assert.NilError(t, err)
 }
 
 func TestShutDownViaSignal(t *testing.T) {
-	//setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
+	setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))

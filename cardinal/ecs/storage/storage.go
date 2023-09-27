@@ -4,6 +4,8 @@
 
 package storage
 
+import "io"
+
 type WorldStorage struct {
 	CompStore        Components
 	EntityLocStore   EntityLocationStorage
@@ -13,6 +15,7 @@ type WorldStorage struct {
 	StateStore       StateStorage
 	TickStore        TickStorage
 	NonceStore       NonceStorage
+	IO               io.Closer
 }
 
 type OmniStorage interface {
@@ -23,6 +26,7 @@ type OmniStorage interface {
 	StateStorage
 	TickStorage
 	NonceStorage
+	io.Closer
 }
 
 func NewWorldStorage(omni OmniStorage) WorldStorage {
@@ -35,5 +39,6 @@ func NewWorldStorage(omni OmniStorage) WorldStorage {
 		StateStore:       omni,
 		TickStore:        omni,
 		NonceStore:       omni,
+		IO:               omni,
 	}
 }
