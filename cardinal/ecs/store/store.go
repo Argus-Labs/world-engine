@@ -29,6 +29,10 @@ func NewStoreManager(store storage.WorldStorage, logger *log.Logger) *Manager {
 	}
 }
 
+func (s *Manager) Close() error {
+	return s.store.IO.Close()
+}
+
 func (s *Manager) InjectLogger(logger *log.Logger) {
 	s.logger = logger
 }
