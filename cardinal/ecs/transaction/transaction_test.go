@@ -247,8 +247,12 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	modScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modScoreTx))
+	ctx := context.Background()
+	tickStart := make(chan time.Time)
+	tickDone := make(chan uint64)
+	world.StartGameLoop(ctx, tickStart, tickDone)
 
-	modScoreCountCh := make(chan int)
+	modScoreCountCh := make(chan int, 2)
 
 	// Create two system that report how many instances of the ModifyScoreTx exist in the
 	// transaction queue. These counts should be the same for each tick.
@@ -267,10 +271,9 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	modScoreTx.AddToQueue(world, &ModifyScoreTx{})
 
-	// Start the game tick. It will be blocked until we read from modScoreCountCh two times
-	go func() {
-		assert.Check(t, nil == world.Tick(context.Background()))
-	}()
+	// Start the game tick and then block until the tick has been completed.
+	tickStart <- time.Now()
+	<-tickDone
 
 	// In the first system, we should see 1 modify score transaction
 	count := <-modScoreCountCh
@@ -283,20 +286,19 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)
 
-	// The tick is over. Tick again, we should see 1 tick for both systems again. This transaction
-	// was added in the middle of the last tick.
-	go func() {
-		assert.Check(t, nil == world.Tick(context.Background()))
-	}()
+	// Tick again, we should see 1 tick for both systems again. This transaction was added in the middle of the last tick.
+	tickStart <- time.Now()
+	<-tickDone
+
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)
 
 	// In this final tick, we should see no modify score transactions
-	go func() {
-		assert.Check(t, nil == world.Tick(context.Background()))
-	}()
+	tickStart <- time.Now()
+	<-tickDone
+
 	count = <-modScoreCountCh
 	assert.Equal(t, 0, count)
 	count = <-modScoreCountCh

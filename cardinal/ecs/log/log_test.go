@@ -102,25 +102,32 @@ func TestWorldLogger(t *testing.T) {
 	//require.JSONEq compares json strings for equality.
 	require.JSONEq(t, buf.String(), jsonWorldInfoString)
 	buf.Reset()
-	archetypeId, err := w.StoreManager().GetArchIDForComponents([]component.IComponentType{energy})
+	components := []component.IComponentType{energy}
+	entityId, err := w.Create(components...)
 	assert.NilError(t, err)
-	archetype_creations_json_string := buf.String()
+	logStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `
 			{
 				"level":"debug",
 				"archetype_id":0,
 				"message":"created"
-			}`, archetype_creations_json_string)
-	components := w.StoreManager().GetComponentTypesForArchID(archetypeId)
-	entityId, err := w.Create(components...)
-	assert.NilError(t, err)
+			}`, logStrings[0])
+	require.JSONEq(t, `
+			{
+				"level":"debug",
+				"components":[{
+					"component_id":2,
+					"component_name":"EnergyComp"
+				}],
+				"entity_id":0,"archetype_id":0
+			}`, logStrings[1])
+
 	buf.Reset()
 
-	entity, err := w.StoreManager().GetEntity(entityId)
-	assert.NilError(t, err)
-
 	// test log entity
-	cardinalLogger.LogEntity(zerolog.DebugLevel, entity, components)
+	archetypeId, err := w.StoreManager().GetArchIDForComponents(components)
+	assert.NilError(t, err)
+	cardinalLogger.LogEntity(zerolog.DebugLevel, entityId, archetypeId, components)
 	jsonEntityInfoString := `
 		{
 			"level":"debug",
@@ -144,8 +151,7 @@ func TestWorldLogger(t *testing.T) {
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
 	err = w.Tick(ctx)
 	assert.NilError(t, err)
-	logString := buf.String()
-	logStrings := strings.Split(logString, "\n")[:4]
+	logStrings = strings.Split(buf.String(), "\n")[:4]
 	// test tick start
 	require.JSONEq(t, `
 			{

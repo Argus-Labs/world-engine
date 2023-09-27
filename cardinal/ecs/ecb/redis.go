@@ -12,35 +12,33 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
-// flushToRedis flushes all pending state changes to redis in an atomic transaction. If an error
-// is returned, no redis changes will have been made.
-func (m *Manager) flushToRedis() error {
+// pipeFlushToRedis return a pipeliner with all pending state changes to redis ready to be committed in an atomic
+// transaction. If an error is returned, no redis changes will have been made.
+func (m *Manager) makePipeOfRedisCommands(ctx context.Context) (redis.Pipeliner, error) {
 	pipe := m.client.TxPipeline()
-	ctx := context.Background()
 
 	if m.typeToComponent == nil {
 		// component.TypeID -> IComponentType mappings are required to serialized data for the DB
-		return errors.New("must call RegisterComponents before flushing to DB")
+		return nil, errors.New("must call RegisterComponents before flushing to DB")
 	}
 
 	if err := m.addComponentChangesToPipe(ctx, pipe); err != nil {
-		return fmt.Errorf("failed to add component changes to pipe: %w", err)
+		return nil, fmt.Errorf("failed to add component changes to pipe: %w", err)
 	}
 	if err := m.addNextEntityIDToPipe(ctx, pipe); err != nil {
-		return fmt.Errorf("failed to add entity id changes to pipe: %w", err)
+		return nil, fmt.Errorf("failed to add entity id changes to pipe: %w", err)
 	}
 	if err := m.addPendingArchIDsToPipe(ctx, pipe); err != nil {
-		return fmt.Errorf("failed to add archID to component type map to pipe: %w", err)
+		return nil, fmt.Errorf("failed to add archID to component type map to pipe: %w", err)
 	}
 	if err := m.addEntityIDToArchIDToPipe(ctx, pipe); err != nil {
-		return fmt.Errorf("failed to add entity ID to archID mapping to pipe: %w", err)
+		return nil, fmt.Errorf("failed to add entity ID to archID mapping to pipe: %w", err)
 	}
 	if err := m.addActiveEntityIDsToPipe(ctx, pipe); err != nil {
-		return fmt.Errorf("failed to add changes to active entity ids to pipe: %w", err)
+		return nil, fmt.Errorf("failed to add changes to active entity ids to pipe: %w", err)
 	}
 
-	_, err := pipe.Exec(ctx)
-	return err
+	return pipe, nil
 }
 
 // addEntityIDToArchIDToPipe adds the information related to mapping an entity ID to its assigned archetype ID.
