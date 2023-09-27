@@ -101,6 +101,8 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 	}
 }
 
+// TODO this function is duplicated in cardinal_test.go. Please eventually move both of these functions
+// into a utils package that lives outside of cardinal.
 func setTestTimeout(t *testing.T, timeout time.Duration) {
 	if _, ok := t.Deadline(); ok {
 		// A deadline has already been set. Don't add an additional deadline.

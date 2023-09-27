@@ -47,19 +47,19 @@ func NewTransactionTypeWithEVMSupport[Msg, Result any](name string) *Transaction
 // AddError adds the given error to the transaction identified by the given hash. Multiple errors can be
 // added to the same transaction hash.
 func (t *TransactionType[Msg, Result]) AddError(world *World, hash TxHash, err error) {
-	world.impl.AddTransactionError(hash, err)
+	world.implWorld.AddTransactionError(hash, err)
 }
 
 // SetResult sets the result of the transaction identified by the given hash. Only one result may be associated
 // with a transaction hash, so calling this multiple times will clobber previously set results.
 func (t *TransactionType[Msg, Result]) SetResult(world *World, hash TxHash, result Result) {
-	world.impl.SetTransactionResult(hash, result)
+	world.implWorld.SetTransactionResult(hash, result)
 }
 
 // GetReceipt returns the result (if any) and errors (if any) associated with the given hash. If false is returned,
 // the hash is not recognized, so the returned result and errors will be empty.
 func (t *TransactionType[Msg, Result]) GetReceipt(world *World, hash TxHash) (r Result, errs []error, ok bool) {
-	return t.impl.GetReceipt(world.impl, hash)
+	return t.impl.GetReceipt(world.implWorld, hash)
 }
 
 // In returns the transactions in the given transaction queue that match this transaction's type.

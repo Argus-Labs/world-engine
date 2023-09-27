@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"os"
 	"os/signal"
 	"syscall"
@@ -40,6 +41,9 @@ func NewGameManager(world *ecs.World, handler *Handler) GameManager {
 
 func (s *GameManager) Shutdown() error {
 	log.Info().Msg("Shutting down server.")
+	if s.handler == nil {
+		return errors.New("game manager has no server, can't shutdown")
+	}
 	err := s.handler.Shutdown()
 	if err != nil {
 		return err
