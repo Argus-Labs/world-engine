@@ -11,12 +11,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"buf.build/gen/go/argus-labs/world-engine/grpc/go/router/v1/routerv1grpc"
 	"buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
