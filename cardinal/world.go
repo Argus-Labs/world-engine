@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -16,7 +17,10 @@ import (
 )
 
 type World struct {
-	impl            *ecs.World
+	implWorld       *ecs.World
+	server          *server.Handler
+	gameManager     *server.GameManager
+	isGameRunning   atomic.Bool
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
@@ -57,13 +61,18 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	}
 
 	world := &World{
-		impl:          ecsWorld,
+		implWorld:     ecsWorld,
 		serverOptions: serverOptions,
 	}
+	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {
 		opt(world)
 	}
-
+	txh, err := server.NewHandler(world.implWorld, world.serverOptions...)
+	if err != nil {
+		return nil, err
+	}
+	world.server = txh
 	return world, nil
 }
 
@@ -72,9 +81,10 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 func NewMockWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
 	world := &World{
-		impl:          inmem.NewECSWorld(ecsOptions...),
+		implWorld:     inmem.NewECSWorld(ecsOptions...),
 		serverOptions: serverOptions,
 	}
+	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {
 		opt(world)
 	}
@@ -84,18 +94,18 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
 func (w *World) CreateMany(num int, components ...AnyComponentType) ([]EntityID, error) {
-	return w.impl.CreateMany(num, toIComponentType(components)...)
+	return w.implWorld.CreateMany(num, toIComponentType(components)...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
 func (w *World) Create(components ...AnyComponentType) (EntityID, error) {
-	return w.impl.Create(toIComponentType(components)...)
+	return w.implWorld.Create(toIComponentType(components)...)
 }
 
 // Remove removes the given entity id from the world.
 func (w *World) Remove(id EntityID) error {
-	return w.impl.Remove(id)
+	return w.implWorld.Remove(id)
 }
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is attempted.
@@ -104,23 +114,46 @@ func (w *World) Remove(id EntityID) error {
 // not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {
-	if err := w.impl.LoadGameState(); err != nil {
-		return err
+	if w.IsGameRunning() {
+		return errors.New("game already running")
 	}
-	txh, err := server.NewHandler(w.impl, w.serverOptions...)
-	if err != nil {
+	if err := w.implWorld.LoadGameState(); err != nil {
 		return err
 	}
 	if w.tickChannel == nil {
 		w.tickChannel = time.Tick(time.Second)
 	}
-	w.impl.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
+	w.implWorld.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
+	txh, err := server.NewHandler(w.implWorld, w.serverOptions...)
+	if err != nil {
+		return err
+	}
+	w.server = txh
+	gameManager := server.NewGameManager(w.implWorld, w.server)
+	w.gameManager = &gameManager
 	go func() {
-		if err := txh.Serve(); err != nil {
+		w.isGameRunning.Store(true)
+		if err := w.server.Serve(); err != nil {
 			log.Fatal().Err(err)
 		}
 	}()
 	select {}
+}
+
+func (w *World) IsGameRunning() bool {
+	return w.isGameRunning.Load()
+}
+
+func (w *World) ShutDown() error {
+	if !w.IsGameRunning() {
+		return errors.New("game is not running")
+	}
+	err := w.gameManager.Shutdown()
+	if err != nil {
+		return err
+	}
+	w.isGameRunning.Store(false)
+	return nil
 }
 
 // RegisterSystems allows for the adding of multiple systems in a single call. See AddSystem for more details.
@@ -128,8 +161,8 @@ func (w *World) StartGame() error {
 // game tick. This Register method can be called multiple times.
 func (w *World) RegisterSystems(systems ...System) {
 	for _, system := range systems {
-		w.impl.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecslog.Logger) error {
-			return system(&World{impl: world}, &TransactionQueue{queue}, &Logger{logger})
+		w.implWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecslog.Logger) error {
+			return system(&World{implWorld: world}, &TransactionQueue{queue}, &Logger{logger})
 		})
 	}
 }
@@ -137,25 +170,25 @@ func (w *World) RegisterSystems(systems ...System) {
 // RegisterComponents adds the given components to the game world. After components are added, entities
 // with these components may be created. This Register method must only be called once.
 func (w *World) RegisterComponents(components ...AnyComponentType) error {
-	return w.impl.RegisterComponents(toIComponentType(components)...)
+	return w.implWorld.RegisterComponents(toIComponentType(components)...)
 }
 
 // RegisterTransactions adds the given transactions to the game world. HTTP endpoints to queue up/execute these
 // transaction will automatically be created when StartGame is called. This Register method must only be called once.
 func (w *World) RegisterTransactions(txs ...AnyTransaction) error {
-	return w.impl.RegisterTransactions(toITransactionType(txs)...)
+	return w.implWorld.RegisterTransactions(toITransactionType(txs)...)
 }
 
 // RegisterReads adds the given read capabilities to the game world. HTTP endpoints to use these reads
 // will automatically be created when StartGame is called. This Register method must only be called once.
 func (w *World) RegisterReads(reads ...AnyReadType) error {
-	return w.impl.RegisterReads(toIReadType(reads)...)
+	return w.implWorld.RegisterReads(toIReadType(reads)...)
 }
 
 func (w *World) CurrentTick() uint64 {
-	return w.impl.CurrentTick()
+	return w.implWorld.CurrentTick()
 }
 
 func (w *World) Tick(ctx context.Context) error {
-	return w.impl.Tick(ctx)
+	return w.implWorld.Tick(ctx)
 }
