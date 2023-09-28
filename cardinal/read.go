@@ -22,7 +22,7 @@ func NewReadType[Request any, Reply any](
 ) *ReadType[Request, Reply] {
 	return &ReadType[Request, Reply]{
 		impl: ecs.NewReadType[Request, Reply](name, func(world *ecs.World, req Request) (Reply, error) {
-			outerWorld := &World{impl: world}
+			outerWorld := &World{implWorld: world}
 			return handler(outerWorld, req)
 		}),
 	}
@@ -33,7 +33,7 @@ func NewReadType[Request any, Reply any](
 func NewReadTypeWithEVMSupport[Request, Reply any](name string, handler func(*World, Request) (Reply, error)) *ReadType[Request, Reply] {
 	return &ReadType[Request, Reply]{
 		impl: ecs.NewReadType[Request, Reply](name, func(world *ecs.World, req Request) (Reply, error) {
-			outerWorld := &World{impl: world}
+			outerWorld := &World{implWorld: world}
 			return handler(outerWorld, req)
 		}, ecs.WithReadEVMSupport[Request, Reply]),
 	}

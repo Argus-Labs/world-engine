@@ -23,19 +23,19 @@ type QueryCallBackFn func(EntityID) bool
 // Each executes the given callback function on every EntityID that matches this query. If any call to callback returns
 // falls, no more entities will be processed.
 func (q *Query) Each(w *World, callback QueryCallBackFn) {
-	q.impl.Each(w.impl, func(eid entity.ID) bool {
+	q.impl.Each(w.implWorld, func(eid entity.ID) bool {
 		return callback(eid)
 	})
 }
 
 // Count returns the number of entities that match this query.
 func (q *Query) Count(w *World) int {
-	return q.impl.Count(w.impl)
+	return q.impl.Count(w.implWorld)
 }
 
 // First returns the first entity that matches this query.
 func (q *Query) First(w *World) (id EntityID, err error) {
-	return q.impl.First(w.impl)
+	return q.impl.First(w.implWorld)
 }
 
 // ComponentFilter represents a filter that will be passed to NewQuery to help decide which entities should be

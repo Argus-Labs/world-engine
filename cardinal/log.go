@@ -12,22 +12,22 @@ type Logger struct {
 }
 
 func (l *Logger) LogComponents(world *World, level zerolog.Level) {
-	l.impl.LogComponents(world.impl, level)
+	l.impl.LogComponents(world.implWorld, level)
 }
 
 // LogSystem logs all system info related to the world
 func (l *Logger) LogSystem(world *World, level zerolog.Level) {
-	l.impl.LogSystem(world.impl, level)
+	l.impl.LogSystem(world.implWorld, level)
 }
 
 // LogEntity logs entity info given an entityID
 func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID EntityID) {
-	entity, err := world.impl.StoreManager().GetEntity(entityID)
+	entity, err := world.implWorld.StoreManager().GetEntity(entityID)
 	if err != nil {
 		l.impl.Warn().Err(fmt.Errorf("failed to get entity %d: %w", entityID, err))
 		return
 	}
-	components, err := world.impl.StoreManager().GetComponentTypesForEntity(entityID)
+	components, err := world.implWorld.StoreManager().GetComponentTypesForEntity(entityID)
 	if err != nil {
 		l.impl.Warn().Err(fmt.Errorf("failed to get components for entity %d: %w", entityID, err))
 		return
@@ -38,7 +38,7 @@ func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID EntityID)
 
 // LogWorld Logs everything about the world (components and Systems)
 func (l *Logger) LogWorld(world *World, level zerolog.Level) {
-	l.impl.LogWorld(world.impl, level)
+	l.impl.LogWorld(world.implWorld, level)
 }
 
 // CreateSystemLogger creates a Sub logger with the entry {"system" : systemName}
