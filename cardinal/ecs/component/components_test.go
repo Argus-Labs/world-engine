@@ -10,7 +10,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	storage2 "pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -105,7 +104,7 @@ func TestComponents(t *testing.T) {
 }
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	foundComp := ecs.NewComponentType[string]("foundComp")
 	notFoundComp := ecs.NewComponentType[string]("notFoundComp")
 
@@ -121,7 +120,7 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	type ValueComponent struct {
 		Val int
 	}
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	valComp := ecs.NewComponentType[ValueComponent]("ValueComponent")
 	assert.NilError(t, world.RegisterComponents(valComp))
 

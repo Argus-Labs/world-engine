@@ -6,7 +6,6 @@ import (
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
@@ -81,10 +80,6 @@ func NewTransactionType[In, Out any](
 
 func (t *TransactionType[In, Out]) Name() string {
 	return t.name
-}
-
-func (t *TransactionType[In, Out]) Schema() (in, out *jsonschema.Schema) {
-	return jsonschema.Reflect(new(In)), jsonschema.Reflect(new(Out))
 }
 
 func (t *TransactionType[In, Out]) ID() transaction.TypeID {

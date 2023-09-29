@@ -9,7 +9,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -81,7 +80,7 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 func NewMockWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
 	world := &World{
-		implWorld:     inmem.NewECSWorld(ecsOptions...),
+		implWorld:     ecs.NewMockWorld(ecsOptions...),
 		serverOptions: serverOptions,
 	}
 	world.isGameRunning.Store(false)
