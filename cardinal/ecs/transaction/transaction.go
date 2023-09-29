@@ -3,7 +3,6 @@ package transaction
 import (
 	"sync"
 
-	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -70,7 +69,6 @@ type TypeID int
 type ITransaction interface {
 	SetID(TypeID) error
 	Name() string
-	Schema() (in, out *jsonschema.Schema)
 	ID() TypeID
 	Encode(any) ([]byte, error)
 	Decode([]byte) (any, error)

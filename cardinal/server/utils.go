@@ -5,10 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-
-	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -18,49 +14,6 @@ var (
 	ErrorSystemTransactionForbidden = errors.New("system transaction forbidden")
 )
 
-// fixes a path to contain a leading slash.
-// if the path already contains a leading slash, it is simply returned as is.
-func conformPath(p string) string {
-	if p[0] != '/' {
-		p = "/" + p
-	}
-	return p
-}
-
-func writeUnauthorized(w http.ResponseWriter, err error) {
-	w.WriteHeader(http.StatusUnauthorized)
-	_, _ = fmt.Fprintf(w, "unauthorized: %v", err)
-	log.Info().Msgf("unauthorized: %v", err)
-}
-
-func writeError(w http.ResponseWriter, msg string, err error) {
-	w.WriteHeader(http.StatusInternalServerError)
-	_, _ = fmt.Fprintf(w, "%s: %v", msg, err)
-	log.Info().Msgf("%s: %v", msg, err)
-}
-
-func writeBadRequest(w http.ResponseWriter, msg string, err error) {
-	w.WriteHeader(http.StatusBadRequest)
-	_, _ = fmt.Fprintf(w, "%s: %v", msg, err)
-	log.Info().Msgf("%s: %v", msg, err)
-}
-
-// writeResult takes in a json body string and writes it to the response writer.
-func writeResult(w http.ResponseWriter, body json.RawMessage) {
-	// Allow cors header
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	// Json content header
-	w.Header().Set("Content-Type", "application/json")
-
-	err := json.NewEncoder(w).Encode(body)
-	if err != nil {
-		writeError(w, "unable to encode body", err)
-	}
-}
-
 func decode[T any](buf []byte) (T, error) {
 	dec := json.NewDecoder(bytes.NewBuffer(buf))
 	dec.DisallowUnknownFields()
@@ -69,16 +22,6 @@ func decode[T any](buf []byte) (T, error) {
 		return val, err
 	}
 	return val, nil
-}
-
-func makeWriteHandler(payload interface{}) (http.HandlerFunc, error) {
-	res, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("unable to marshal payload: %w", err)
-	}
-	return func(writer http.ResponseWriter, request *http.Request) {
-		writeResult(writer, res)
-	}, nil
 }
 
 func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
@@ -144,27 +87,6 @@ func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, i
 	return sp, nil
 }
 
-func (handler *Handler) verifySignatureOfHTTPRequest(request *http.Request, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
-	buf, err := io.ReadAll(request.Body)
-	if err != nil {
-		return nil, nil, errors.New("unable to read body")
-	}
-	sp, err := sign.UnmarshalSignedPayload(buf)
-	if err != nil {
-		return nil, nil, err
-	}
-	sig, err = handler.verifySignatureOfSignedPayload(sp, isSystemTransaction)
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(sp.Body) == 0 {
-		return buf, sp, nil
-	} else {
-		return sig.Body, sig, err
-	}
-}
-
-// identical to verifySignatureOfHTTPRequest but takes in the body of the request in the form of a map.
 func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
 	sp, err := sign.MappedSignedPayload(request)
 	if err != nil {

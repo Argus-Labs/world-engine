@@ -8,7 +8,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 )
 
 func TestQueryEarlyTermination(t *testing.T) {
@@ -16,7 +15,7 @@ func TestQueryEarlyTermination(t *testing.T) {
 		Data string
 	}
 	foo := ecs.NewComponentType[FooComponent]("foo")
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.RegisterComponents(foo))
 
 	total := 10

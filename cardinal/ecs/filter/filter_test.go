@@ -10,12 +10,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 func TestCanFilterByArchetype(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 
 	alpha := ecs.NewComponentType[string]("alpha")
 	beta := ecs.NewComponentType[string]("beta")
@@ -49,7 +48,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 // TestExactVsContains ensures the Exact filter will return a subset of a Contains filter when called
 // with the same parameters.
 func TestExactVsContains(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	alpha := ecs.NewComponentType[string]("alpha")
 	beta := ecs.NewComponentType[string]("beta")
 	err := world.RegisterComponents(alpha, beta)
@@ -145,7 +144,7 @@ func TestExactVsContains(t *testing.T) {
 }
 
 func TestCanGetArchetypeFromEntity(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	alpha := ecs.NewComponentType[string]("alpha")
 	beta := ecs.NewComponentType[string]("beta")
 	assert.NilError(t, world.RegisterComponents(alpha, beta))
@@ -192,7 +191,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 
 func BenchmarkEntityCreation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		world := inmem.NewECSWorldForTest(b)
+		world := ecs.NewTestWorld(b)
 		alpha := ecs.NewComponentType[string]("alpha")
 		assert.NilError(b, world.RegisterComponents(alpha))
 		assert.NilError(b, world.LoadGameState())
@@ -216,7 +215,7 @@ func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 
 func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StopTimer()
-	world := inmem.NewECSWorldForTest(b)
+	world := ecs.NewTestWorld(b)
 	alpha := ecs.NewComponentType[string]("alpha")
 	beta := ecs.NewComponentType[string]("beta")
 	assert.NilError(b, world.RegisterComponents(alpha, beta))

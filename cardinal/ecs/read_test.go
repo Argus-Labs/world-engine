@@ -2,14 +2,13 @@ package ecs_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/evm"
 	"testing"
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/evm"
 )
 
 func TestReadTypeNotStructs(t *testing.T) {
@@ -63,7 +62,7 @@ func TestReadEVM(t *testing.T) {
 		return expectedReply, nil
 	}, ecs.WithReadEVMSupport[FooRequest, FooReply])
 
-	w := inmem.NewECSWorldForTest(t)
+	w := ecs.NewTestWorld(t)
 	err := w.RegisterReads(fooRead)
 	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)

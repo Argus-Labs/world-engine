@@ -12,8 +12,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"gotest.tools/v3/assert"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 )
 
 type ScoreComponent struct {
@@ -49,7 +47,7 @@ func TestReadTypeNotStructs(t *testing.T) {
 }
 
 func TestCanQueueTransactions(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 
 	// Create an entity with a score component
 	score := ecs.NewComponentType[*ScoreComponent]("score")
@@ -104,7 +102,7 @@ func TestCanQueueTransactions(t *testing.T) {
 }
 
 func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	type CounterComponent struct {
 		Count int
 	}
@@ -131,7 +129,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 }
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	alphaScore := ecs.NewComponentType[ScoreComponent]("alphaScore")
 	assert.NilError(t, world.RegisterComponents(alphaScore))
 
@@ -188,7 +186,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 // TestAddToQueueDuringTickDoesNotTimeout verifies that we can add a transaction to the transaction
 // queue during a game tick, and the call does not block.
 func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 
 	modScore := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_Score")
 	assert.NilError(t, world.RegisterTransactions(modScore))
@@ -231,7 +229,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 // TestTransactionsAreExecutedAtNextTick verifies that while a game tick is taking place, new transactions
 // are added to some queue that is not processed until the NEXT tick.
 func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	modScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modScoreTx))
 
@@ -293,7 +291,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 // TestIdenticallyTypedTransactionCanBeDistinguished verifies that two transactions of the same type
 // can be distinguished if they were added with different TransactionType[T]s
 func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	type NewOwner struct {
 		Name string
 	}
@@ -322,13 +320,13 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 
 func TestCannotRegisterDuplicateTransaction(t *testing.T) {
 	tx := ecs.NewTransactionType[ModifyScoreTx, EmptyTxResult]("modify_score")
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	assert.Check(t, nil != world.RegisterTransactions(tx, tx))
 }
 
 func TestCannotCallRegisterTransactionsMultipleTimes(t *testing.T) {
 	tx := ecs.NewTransactionType[ModifyScoreTx, EmptyTxResult]("modify_score")
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.RegisterTransactions(tx))
 	assert.Check(t, nil != world.RegisterTransactions(tx))
 }
@@ -370,7 +368,7 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	type OtherTx struct {
 		Alpha, Beta string
 	}
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	alphaTx := ecs.NewTransactionType[SomeTx, EmptyTxResult]("name_match")
 	betaTx := ecs.NewTransactionType[OtherTx, EmptyTxResult]("name_match")
 	assert.ErrorIs(t, world.RegisterTransactions(alphaTx, betaTx), ecs.ErrorDuplicateTransactionName)
@@ -383,7 +381,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	type MoveTxResult struct {
 		EndX, EndY int
 	}
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 
 	// Each transaction now needs an input and an output
 	moveTx := ecs.NewTransactionType[MoveTx, MoveTxResult]("move")
@@ -442,7 +440,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	type TxOut struct {
 		Number int
 	}
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	numTx := ecs.NewTransactionType[TxIn, TxOut]("number")
 	assert.NilError(t, world.RegisterTransactions(numTx))
 	wantErr := errors.New("some transaction error")
@@ -484,7 +482,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	type TxOut struct {
 		Number int
 	}
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	numTx := ecs.NewTransactionType[TxIn, TxOut]("number")
 	assert.NilError(t, world.RegisterTransactions(numTx))
 	systemCalls := 0

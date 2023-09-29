@@ -56,9 +56,7 @@ type World struct {
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
-
-	errs []error
-
+	
 	Logger *ecslog.Logger
 
 	endGameLoopCh     chan bool
@@ -612,10 +610,6 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 // Namespace returns the world's namespace.
 func (w *World) Namespace() string {
 	return string(w.namespace)
-}
-
-func (w *World) LogError(err error) {
-	w.errs = append(w.errs, err)
 }
 
 func (w *World) GetNonce(signerAddress string) (uint64, error) {
