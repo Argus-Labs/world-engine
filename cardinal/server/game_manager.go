@@ -7,15 +7,15 @@ import (
 	"syscall"
 
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
 type GameManager struct {
 	handler *Handler
-	world   *ecs.World
+	world   interfaces.IWorld
 }
 
-func NewGameManager(world *ecs.World, handler *Handler) GameManager {
+func NewGameManager(world interfaces.IWorld, handler *Handler) interfaces.IGameManager {
 
 	manager := GameManager{
 		handler: handler,
@@ -36,7 +36,7 @@ func NewGameManager(world *ecs.World, handler *Handler) GameManager {
 			}
 		}
 	}()
-	return manager
+	return &manager
 }
 
 func (s *GameManager) Shutdown() error {

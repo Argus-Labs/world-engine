@@ -8,18 +8,16 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
 type World struct {
-	implWorld       *ecs.World
+	implWorld       interfaces.IWorld
 	server          *server.Handler
-	gameManager     *server.GameManager
+	gameManager     interfaces.IGameManager
 	isGameRunning   atomic.Bool
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
@@ -29,8 +27,8 @@ type World struct {
 type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
-	EntityID = entity.ID
-	TxHash   = transaction.TxHash
+	EntityID = interfaces.EntityID
+	TxHash   = interfaces.TxHash
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
@@ -130,7 +128,7 @@ func (w *World) StartGame() error {
 	}
 	w.server = txh
 	gameManager := server.NewGameManager(w.implWorld, w.server)
-	w.gameManager = &gameManager
+	w.gameManager = gameManager
 	go func() {
 		w.isGameRunning.Store(true)
 		if err := w.server.Serve(); err != nil {
@@ -161,7 +159,7 @@ func (w *World) ShutDown() error {
 // game tick. This Register method can be called multiple times.
 func (w *World) RegisterSystems(systems ...System) {
 	for _, system := range systems {
-		w.implWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecslog.Logger) error {
+		w.implWorld.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, logger interfaces.IWorldLogger) error {
 			return system(&World{implWorld: world}, &TransactionQueue{queue}, &Logger{logger})
 		})
 	}

@@ -8,8 +8,8 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
 func TestParser(t *testing.T) {
@@ -61,7 +61,7 @@ func TestParser(t *testing.T) {
 	assert.DeepEqual(t, *term, testTerm)
 
 	emptyComponent := ecs.NewComponentType[struct{}]("emptyComponent")
-	stringToComponent := func(_ string) (component.IComponentType, bool) {
+	stringToComponent := func(_ string) (interfaces.IComponentType, bool) {
 		return emptyComponent, true
 	}
 	filterResult, err := termToComponentFilter(term, stringToComponent)

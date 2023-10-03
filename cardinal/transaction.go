@@ -2,20 +2,20 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 	"pkg.world.dev/world-engine/sign"
 )
 
 // AnyTransaction is implemented by the return value of NewTransactionType and is used in RegisterTransactions; any
 // transaction created by NewTransactionType can be registered with a World object via RegisterTransactions.
 type AnyTransaction interface {
-	Convert() transaction.ITransaction
+	Convert() interfaces.ITransaction
 }
 
 // TransactionQueue contains the entire set of transactions that should be processed in a game tick. It is a parameter
 // to a System function. Access the transactions of a particular type by using TransactionType.In
 type TransactionQueue struct {
-	impl *transaction.TxQueue
+	impl interfaces.ITxQueue
 }
 
 // TxData represents a single transaction.
@@ -76,7 +76,7 @@ func (t *TransactionType[Msg, Result]) In(tq *TransactionQueue) []TxData[Msg] {
 
 // Convert implements the AnyTransactionType interface which allows a TransactionType to be registered
 // with a World via RegisterTransactions.
-func (t *TransactionType[Msg, Result]) Convert() transaction.ITransaction {
+func (t *TransactionType[Msg, Result]) Convert() interfaces.ITransaction {
 	return t.impl
 }
 

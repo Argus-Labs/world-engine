@@ -9,18 +9,16 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
 // []component.IComponentType{a, b, c} becomes:
 // comps(a, b, c)
-func comps(cs ...component.IComponentType) []component.IComponentType {
+func comps(cs ...interfaces.IComponentType) []interfaces.IComponentType {
 	return cs
 }
 
@@ -185,8 +183,8 @@ func TestCanReloadState(t *testing.T) {
 
 	_, err := alphaWorld.CreateMany(10, oneAlphaNum)
 	assert.NilError(t, err)
-	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		oneAlphaNum.Each(w, func(id entity.ID) bool {
+	alphaWorld.AddSystem(func(w interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
+		oneAlphaNum.Each(w, func(id interfaces.EntityID) bool {
 			err := oneAlphaNum.Set(w, id, NumberComponent{int(id)})
 			assert.Check(t, err == nil)
 			return true
@@ -205,7 +203,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, betaWorld.LoadGameState())
 
 	count := 0
-	oneBetaNum.Each(betaWorld, func(id entity.ID) bool {
+	oneBetaNum.Each(betaWorld, func(id interfaces.EntityID) bool {
 		count++
 		num, err := oneBetaNum.Get(betaWorld, id)
 		assert.NilError(t, err)
@@ -248,7 +246,7 @@ func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 	for reload := 0; reload < 5; reload++ {
 		world := testutil.InitWorldWithRedis(t, redisStore)
 		assert.NilError(t, world.RegisterTransactions(someTx))
-		world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *log.Logger) error {
+		world.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, logger interfaces.IWorldLogger) error {
 			for _, tx := range someTx.In(queue) {
 				someTx.SetResult(world, tx.TxHash, Result{})
 			}

@@ -5,20 +5,21 @@ import (
 	"math"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
-var _ EntityManager = &entityMgrImpl{}
+var _ interfaces.EntityManager = &entityMgrImpl{}
 
-func NewEntityManager() EntityManager {
-	return &entityMgrImpl{destroyed: make([]entity.ID, 0, 256), nextID: 0}
+func NewEntityManager() interfaces.EntityManager {
+	return &entityMgrImpl{destroyed: make([]interfaces.EntityID, 0, 256), nextID: 0}
 }
 
 type entityMgrImpl struct {
-	destroyed []entity.ID
-	nextID    entity.ID
+	destroyed []interfaces.EntityID
+	nextID    interfaces.EntityID
 }
 
-func (e *entityMgrImpl) GetNextEntityID() entity.ID {
+func (e *entityMgrImpl) GetNextEntityID() interfaces.EntityID {
 	e.nextID++
 	return e.nextID
 }
@@ -27,7 +28,7 @@ func (e *entityMgrImpl) shrink() {
 	e.destroyed = e.destroyed[:len(e.destroyed)-1]
 }
 
-func (e *entityMgrImpl) NewEntity() (entity.ID, error) {
+func (e *entityMgrImpl) NewEntity() (interfaces.EntityID, error) {
 	if len(e.destroyed) == 0 {
 		id := e.GetNextEntityID()
 		return id, nil
@@ -37,20 +38,21 @@ func (e *entityMgrImpl) NewEntity() (entity.ID, error) {
 	return newEntity, nil
 }
 
-func (e *entityMgrImpl) Destroy(id entity.ID) {
+func (e *entityMgrImpl) Destroy(id interfaces.EntityID) {
 	e.destroyed = append(e.destroyed, id)
 }
 
-func NewEntity(id entity.ID, loc entity.Location) entity.Entity {
-	return entity.Entity{
+func NewEntity(id interfaces.EntityID, loc interfaces.ILocation) interfaces.IEntity {
+	res := entity.Entity{
 		ID:  id,
 		Loc: loc,
 	}
+	return &res
 }
 
 var (
-	BadID     entity.ID     = math.MaxUint64
-	BadEntity entity.Entity = entity.Entity{BadID, entity.Location{}}
+	BadID     interfaces.EntityID = math.MaxUint64
+	BadEntity entity.Entity       = entity.Entity{BadID, &entity.Location{}}
 )
 
 var (
@@ -58,9 +60,9 @@ var (
 	ErrorComponentNotOnEntity     = errors.New("component not on entity")
 )
 
-var _ StateStorage = &stateStorageImpl{}
+var _ interfaces.StateStorage = &stateStorageImpl{}
 
-func NewStateStorage() StateStorage {
+func NewStateStorage() interfaces.StateStorage {
 	return &stateStorageImpl{
 		data: map[string][]byte{},
 	}

@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
 type ListTxReceiptsRequest struct {
@@ -46,7 +47,7 @@ func errsToStringSlice(errs []error) []string {
 }
 
 // with world construct a function that takes a receipts request and returns a reply.
-func getListTxReceiptsReplyFromRequest(world *ecs.World) func(*ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
+func getListTxReceiptsReplyFromRequest(world interfaces.IWorld) func(*ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
 	return func(req *ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
 		reply := ListTxReceiptsReply{}
 		reply.EndTick = world.CurrentTick()
@@ -72,10 +73,10 @@ func getListTxReceiptsReplyFromRequest(world *ecs.World) func(*ListTxReceiptsReq
 			}
 			for _, r := range currReceipts {
 				reply.Receipts = append(reply.Receipts, Receipt{
-					TxHash: string(r.TxHash),
+					TxHash: string(r.GetTxHash()),
 					Tick:   t,
-					Result: r.Result,
-					Errors: errsToStringSlice(r.Errs),
+					Result: r.GetResult(),
+					Errors: errsToStringSlice(r.GetErrors()),
 				})
 			}
 		}

@@ -10,12 +10,12 @@ import (
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
 // register query endpoints for swagger server
 func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
-	readNameToReadType := make(map[string]ecs.IRead)
+	readNameToReadType := make(map[string]interfaces.IRead)
 	for _, read := range handler.w.ListReads() {
 		readNameToReadType[read.Name()] = read
 	}
@@ -112,7 +112,7 @@ func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
 
 		result := make([]cql.QueryResponse, 0)
 
-		ecs.NewQuery(resultFilter).Each(handler.w, func(id entity.ID) bool {
+		ecs.NewQuery(resultFilter).Each(handler.w, func(id interfaces.EntityID) bool {
 			components, err := handler.w.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false

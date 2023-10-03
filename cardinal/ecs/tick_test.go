@@ -9,15 +9,16 @@ import (
 	"io"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog"
-	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
 func TestTickHappyPath(t *testing.T) {
@@ -51,7 +52,7 @@ func TestIfPanicMessageLogged(t *testing.T) {
 	w.InjectLogger(&cardinalLogger)
 	// In this test, our "buggy" system fails once Power reaches 3
 	errorTxt := "BIG ERROR OH NO"
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
+	w.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
 		panic(errorTxt)
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -112,7 +113,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	errorSystem := errors.New("3 power? That's too much, man!")
 
 	// In this test, our "buggy" system fails once Power reaches 3
-	oneWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
+	oneWorld.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
 		p, err := onePower.Get(world, id)
 		if err != nil {
 			return err
@@ -138,7 +139,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.NilError(t, twoWorld.RegisterComponents(onePower, twoPower))
 
 	// this is our fixed system that can handle Power levels of 3 and higher
-	twoWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
+	twoWorld.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
 		p, err := onePower.Get(world, id)
 		if err != nil {
 			return err
@@ -218,7 +219,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		}
 
 		errorToggleComponent := errors.New("problem with toggle component")
-		world.AddSystem(func(w *ecs.World, _ *transaction.TxQueue, _ *log.Logger) error {
+		world.AddSystem(func(w interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
 			// Get the one and only entity ID
 			id, err := static.First(w)
 			assert.NilError(t, err)
@@ -282,7 +283,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		powerTx := ecs.NewTransactionType[FloatValue, FloatValue]("change_power")
 		assert.NilError(t, world.RegisterTransactions(powerTx))
 
-		world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
+		world.AddSystem(func(w interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
 			id := powerComp.MustFirst(w)
 			entityPower, err := powerComp.Get(w, id)
 			assert.NilError(t, err)

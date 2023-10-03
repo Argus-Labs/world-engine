@@ -2,8 +2,8 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
 // Query allowed for the querying of entities within a World.
@@ -23,7 +23,7 @@ type QueryCallBackFn func(EntityID) bool
 // Each executes the given callback function on every EntityID that matches this query. If any call to callback returns
 // falls, no more entities will be processed.
 func (q *Query) Each(w *World, callback QueryCallBackFn) {
-	q.impl.Each(w.implWorld, func(eid entity.ID) bool {
+	q.impl.Each(w.implWorld, func(eid interfaces.EntityID) bool {
 		return callback(eid)
 	})
 }
@@ -40,7 +40,7 @@ func (q *Query) First(w *World) (id EntityID, err error) {
 
 // ComponentFilter represents a filter that will be passed to NewQuery to help decide which entities should be
 // returned in the query.
-type ComponentFilter = filter.ComponentFilter
+type ComponentFilter = interfaces.IComponentFilter
 
 // And returns entities that match ALL the given filters.
 func And(filters ...ComponentFilter) ComponentFilter {

@@ -4,15 +4,16 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+
+	"github.com/google/uuid"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
-func txHash(t *testing.T) transaction.TxHash {
+func txHash(t *testing.T) interfaces.TxHash {
 	id, err := uuid.NewUUID()
 	assert.NilError(t, err)
-	return transaction.TxHash(id.String())
+	return interfaces.TxHash(id.String())
 }
 
 func TestCanSaveAndGetAnError(t *testing.T) {
@@ -132,9 +133,9 @@ func TestOldTicksAreDiscarded(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, 1, len(recs), "failed to get receipts in step %d", i)
 		rec := recs[0]
-		assert.Equal(t, 1, len(rec.Errs))
-		assert.ErrorIs(t, wantError, rec.Errs[0])
-		gotResult, ok := rec.Result.(MyStruct)
+		assert.Equal(t, 1, len(rec.GetErrors()))
+		assert.ErrorIs(t, wantError, rec.GetErrors()[0])
+		gotResult, ok := rec.GetResult().(MyStruct)
 		assert.Check(t, ok)
 		assert.Equal(t, wantResult, gotResult)
 	}

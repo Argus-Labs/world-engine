@@ -10,6 +10,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/evm"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
 func TestReadTypeNotStructs(t *testing.T) {
@@ -30,7 +31,7 @@ func TestReadTypeNotStructs(t *testing.T) {
 		// test should trigger a panic.
 		panicValue := recover()
 		assert.Assert(t, panicValue != nil)
-		ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+		ecs.NewReadType[FooRequest, FooReply]("foo", func(world interfaces.IWorld, req FooRequest) (FooReply, error) {
 			return expectedReply, nil
 		})
 		defer func() {
@@ -40,7 +41,7 @@ func TestReadTypeNotStructs(t *testing.T) {
 		}()
 	}()
 
-	ecs.NewReadType[string, string]("foo", func(world *ecs.World, req string) (string, error) {
+	ecs.NewReadType[string, string]("foo", func(world interfaces.IWorld, req string) (string, error) {
 		return "blah", nil
 	})
 }
@@ -59,7 +60,7 @@ func TestReadEVM(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world interfaces.IWorld, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
 	}, ecs.WithReadEVMSupport[FooRequest, FooReply])
 

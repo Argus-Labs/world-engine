@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog"
-	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
 type Logger struct {
-	impl *ecslog.Logger
+	impl interfaces.IWorldLogger
 }
 
 func (l *Logger) LogComponents(world *World, level zerolog.Level) {
@@ -24,12 +24,12 @@ func (l *Logger) LogSystem(world *World, level zerolog.Level) {
 func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID EntityID) {
 	entity, err := world.implWorld.StoreManager().GetEntity(entityID)
 	if err != nil {
-		l.impl.Warn().Err(fmt.Errorf("failed to get entity %d: %w", entityID, err))
+		l.impl.GetZeroLogger().Warn().Err(fmt.Errorf("failed to get entity %d: %w", entityID, err))
 		return
 	}
 	components, err := world.implWorld.StoreManager().GetComponentTypesForEntity(entityID)
 	if err != nil {
-		l.impl.Warn().Err(fmt.Errorf("failed to get components for entity %d: %w", entityID, err))
+		l.impl.GetZeroLogger().Warn().Err(fmt.Errorf("failed to get components for entity %d: %w", entityID, err))
 		return
 	}
 
@@ -45,7 +45,7 @@ func (l *Logger) LogWorld(world *World, level zerolog.Level) {
 func (l *Logger) CreateSystemLogger(systemName string) Logger {
 	log := l.impl.CreateSystemLogger(systemName)
 	return Logger{
-		impl: &log,
+		impl: log,
 	}
 }
 

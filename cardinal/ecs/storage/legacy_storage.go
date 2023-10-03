@@ -3,14 +3,12 @@ package storage
 import (
 	"fmt"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
-var _ ComponentStorageManager = &ComponentsSliceStorage{}
+var _ interfaces.ComponentStorageManager = &ComponentsSliceStorage{}
 
 // ComponentsSliceStorage is a structure that contains component data in slices.
 // Component data is indexed by component type ID, archetype Index, and finally component Index.
@@ -18,16 +16,16 @@ type ComponentsSliceStorage struct {
 	componentStorages []*ComponentSliceStorage
 }
 
-func (c ComponentsSliceStorage) GetComponentIndexStorage(cid component.TypeID) ComponentIndexStorage {
+func (c ComponentsSliceStorage) GetComponentIndexStorage(cid interfaces.ComponentTypeID) interfaces.ComponentIndexStorage {
 	//TODO implement me
 	panic("implement me")
 }
 
-func NewComponentsSliceStorage() ComponentStorageManager {
+func NewComponentsSliceStorage() interfaces.ComponentStorageManager {
 	return &ComponentsSliceStorage{componentStorages: make([]*ComponentSliceStorage, 512)}
 }
 
-func (c ComponentsSliceStorage) GetComponentStorage(cid component.TypeID) ComponentStorage {
+func (c ComponentsSliceStorage) GetComponentStorage(cid interfaces.ComponentTypeID) interfaces.ComponentStorage {
 	s := c.componentStorages[cid]
 	// we need to **explicitly** return nil here if the ComponentSliceStorage pointer is nil.
 	// the storage slice is pre-allocated with pointer values,
@@ -40,7 +38,7 @@ func (c ComponentsSliceStorage) GetComponentStorage(cid component.TypeID) Compon
 	return s
 }
 
-var _ ComponentStorage = &ComponentSliceStorage{}
+var _ interfaces.ComponentStorage = &ComponentSliceStorage{}
 
 // ComponentSliceStorage is a structure that stores the bytes of data of each component.
 // It stores the bytes in the two-dimensional slice.
@@ -59,7 +57,7 @@ func NewSliceStorage() *ComponentSliceStorage {
 }
 
 // PushComponent stores the new data of the component in the archetype.
-func (cs *ComponentSliceStorage) PushComponent(component component.IComponentType, archetypeID archetype.ID) error {
+func (cs *ComponentSliceStorage) PushComponent(component interfaces.IComponentType, archetypeID interfaces.ArchetypeID) error {
 	// TODO: optimize to avoid allocation
 	compBz, err := component.New()
 	if err != nil {
@@ -70,18 +68,18 @@ func (cs *ComponentSliceStorage) PushComponent(component component.IComponentTyp
 }
 
 // Component returns the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) Component(archetypeID archetype.ID, componentIndex component.Index) ([]byte, error) {
+func (cs *ComponentSliceStorage) Component(archetypeID interfaces.ArchetypeID, componentIndex interfaces.ComponentIndex) ([]byte, error) {
 	return cs.storages[archetypeID][componentIndex], nil
 }
 
 // SetComponent sets the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) SetComponent(archetypeID archetype.ID, componentIndex component.Index, compBz []byte) error {
+func (cs *ComponentSliceStorage) SetComponent(archetypeID interfaces.ArchetypeID, componentIndex interfaces.ComponentIndex, compBz []byte) error {
 	cs.storages[archetypeID][componentIndex] = compBz
 	return nil
 }
 
 // MoveComponent moves the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) MoveComponent(source archetype.ID, index component.Index, dst archetype.ID) error {
+func (cs *ComponentSliceStorage) MoveComponent(source interfaces.ArchetypeID, index interfaces.ComponentIndex, dst interfaces.ArchetypeID) error {
 	srcSlice := cs.storages[source]
 	dstSlice := cs.storages[dst]
 
@@ -96,7 +94,7 @@ func (cs *ComponentSliceStorage) MoveComponent(source archetype.ID, index compon
 }
 
 // SwapRemove removes the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) SwapRemove(archetypeID archetype.ID, componentIndex component.Index) ([]byte, error) {
+func (cs *ComponentSliceStorage) SwapRemove(archetypeID interfaces.ArchetypeID, componentIndex interfaces.ComponentIndex) ([]byte, error) {
 	componentValue := cs.storages[archetypeID][componentIndex]
 	cs.storages[archetypeID][componentIndex] = cs.storages[archetypeID][len(cs.storages[archetypeID])-1]
 	cs.storages[archetypeID] = cs.storages[archetypeID][:len(cs.storages[archetypeID])-1]
@@ -104,7 +102,7 @@ func (cs *ComponentSliceStorage) SwapRemove(archetypeID archetype.ID, componentI
 }
 
 // Contains returns true if the storage contains the component.
-func (cs *ComponentSliceStorage) Contains(archetypeID archetype.ID, componentIndex component.Index) (bool, error) {
+func (cs *ComponentSliceStorage) Contains(archetypeID interfaces.ArchetypeID, componentIndex interfaces.ComponentIndex) (bool, error) {
 	if cs.storages[archetypeID] == nil {
 		return false, nil
 	}
@@ -114,29 +112,29 @@ func (cs *ComponentSliceStorage) Contains(archetypeID archetype.ID, componentInd
 	return cs.storages[archetypeID][componentIndex] != nil, nil
 }
 
-var _ ComponentIndexStorage = &ComponentIndexMap{}
+var _ interfaces.ComponentIndexStorage = &ComponentIndexMap{}
 
 type ComponentIndexMap struct {
-	idxs map[archetype.ID]component.Index
+	idxs map[interfaces.ArchetypeID]interfaces.ComponentIndex
 }
 
-func NewComponentIndexMap() ComponentIndexStorage {
-	return &ComponentIndexMap{idxs: make(map[archetype.ID]component.Index)}
+func NewComponentIndexMap() interfaces.ComponentIndexStorage {
+	return &ComponentIndexMap{idxs: make(map[interfaces.ArchetypeID]interfaces.ComponentIndex)}
 }
 
-func (c ComponentIndexMap) ComponentIndex(ai archetype.ID) (component.Index, bool, error) {
+func (c ComponentIndexMap) ComponentIndex(ai interfaces.ArchetypeID) (interfaces.ComponentIndex, bool, error) {
 	idx, ok := c.idxs[ai]
 	return idx, ok, nil
 }
 
-func (c *ComponentIndexMap) SetIndex(archID archetype.ID, compIndex component.Index) error {
+func (c *ComponentIndexMap) SetIndex(archID interfaces.ArchetypeID, compIndex interfaces.ComponentIndex) error {
 	c.idxs[archID] = compIndex
 	return nil
 }
 
 // IncrementIndex increments the index for this archetype by 1. If the index doesn't
 // currently exist, it is initialized to 0 and 0 is returned.
-func (c *ComponentIndexMap) IncrementIndex(archID archetype.ID) (component.Index, error) {
+func (c *ComponentIndexMap) IncrementIndex(archID interfaces.ArchetypeID) (interfaces.ComponentIndex, error) {
 	if _, ok := c.idxs[archID]; !ok {
 		c.idxs[archID] = 0
 	} else {
@@ -145,13 +143,13 @@ func (c *ComponentIndexMap) IncrementIndex(archID archetype.ID) (component.Index
 	return c.idxs[archID], nil
 }
 
-func (c *ComponentIndexMap) DecrementIndex(archID archetype.ID) error {
+func (c *ComponentIndexMap) DecrementIndex(archID interfaces.ArchetypeID) error {
 	c.idxs[archID]--
 	return nil
 }
 
 type locationValid struct {
-	loc   entity.Location
+	loc   interfaces.ILocation
 	valid bool
 }
 
@@ -166,7 +164,7 @@ func (lm *LocationMap) Len() (int, error) {
 }
 
 // NewLocationMap creates an empty storage.
-func NewLocationMap() EntityLocationStorage {
+func NewLocationMap() interfaces.EntityLocationStorage {
 	return &LocationMap{
 		locations: make([]*locationValid, 1, 256),
 		len:       0,
@@ -174,28 +172,28 @@ func NewLocationMap() EntityLocationStorage {
 }
 
 // ContainsEntity returns true if the storage contains the given entity ID.
-func (lm *LocationMap) ContainsEntity(id entity.ID) (bool, error) {
+func (lm *LocationMap) ContainsEntity(id interfaces.EntityID) (bool, error) {
 	val := lm.locations[id]
 	return val != nil && val.valid, nil
 }
 
 // Remove removes the given entity ID from the storage.
-func (lm *LocationMap) Remove(id entity.ID) error {
+func (lm *LocationMap) Remove(id interfaces.EntityID) error {
 	lm.locations[id].valid = false
 	lm.len--
 	return nil
 }
 
 // Insert inserts the given entity ID and archetype Index to the storage.
-func (lm *LocationMap) Insert(id entity.ID, archetype archetype.ID, component component.Index) error {
+func (lm *LocationMap) Insert(id interfaces.EntityID, archetype interfaces.ArchetypeID, component interfaces.ComponentIndex) error {
 	if int(id) == len(lm.locations) {
 		loc := entity.NewLocation(archetype, component)
 		lm.locations = append(lm.locations, &locationValid{loc, true})
 		lm.len++
 	} else {
 		val := lm.locations[id]
-		val.loc.ArchID = archetype
-		val.loc.CompIndex = component
+		val.loc.SetArchID(archetype)
+		val.loc.SetCompIndex(component)
 		if !val.valid {
 			lm.len++
 			val.valid = true
@@ -205,36 +203,36 @@ func (lm *LocationMap) Insert(id entity.ID, archetype archetype.ID, component co
 }
 
 // SetLocation sets the given entity ID and archetype Index to the storage.
-func (lm *LocationMap) SetLocation(id entity.ID, loc entity.Location) error {
-	lm.Insert(id, loc.ArchID, loc.CompIndex)
+func (lm *LocationMap) SetLocation(id interfaces.EntityID, loc interfaces.ILocation) error {
+	lm.Insert(id, loc.GetArchID(), loc.GetCompIndex())
 	return nil
 }
 
 // GetLocation returns the location of the given entity ID.
-func (lm *LocationMap) GetLocation(id entity.ID) (entity.Location, error) {
+func (lm *LocationMap) GetLocation(id interfaces.EntityID) (interfaces.ILocation, error) {
 	return lm.locations[id].loc, nil
 }
 
 // ArchetypeID returns the archetype of the given entity ID.
-func (lm *LocationMap) ArchetypeID(id entity.ID) (archetype.ID, error) {
-	return lm.locations[id].loc.ArchID, nil
+func (lm *LocationMap) ArchetypeID(id interfaces.EntityID) (interfaces.ArchetypeID, error) {
+	return lm.locations[id].loc.GetArchID(), nil
 }
 
 // ComponentIndexForEntity returns the component of the given entity ID.
-func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) (component.Index, error) {
-	return lm.locations[id].loc.CompIndex, nil
+func (lm *LocationMap) ComponentIndexForEntity(id interfaces.EntityID) (interfaces.ComponentIndex, error) {
+	return lm.locations[id].loc.GetCompIndex(), nil
 }
 
 // Index is a structure that indexes archetypes by their component types.
 type Index struct {
-	compGroups [][]component.IComponentType
+	compGroups [][]interfaces.IComponentType
 	iterator   *ArchetypeIterator
 }
 
 // NewArchetypeComponentIndex creates a new search Index.
-func NewArchetypeComponentIndex() ArchetypeComponentIndex {
+func NewArchetypeComponentIndex() interfaces.ArchetypeComponentIndex {
 	return &Index{
-		compGroups: [][]component.IComponentType{},
+		compGroups: [][]interfaces.IComponentType{},
 		iterator: &ArchetypeIterator{
 			Current: 0,
 		},
@@ -242,31 +240,31 @@ func NewArchetypeComponentIndex() ArchetypeComponentIndex {
 }
 
 // Push adds an archetype to the search Index.
-func (idx *Index) Push(comps []component.IComponentType) {
+func (idx *Index) Push(comps []interfaces.IComponentType) {
 	idx.compGroups = append(idx.compGroups, comps)
 }
 
 // SearchFrom searches for archetypes that match the given filter from the given Index.
-func (idx *Index) SearchFrom(f filter.ComponentFilter, start int) *ArchetypeIterator {
+func (idx *Index) SearchFrom(f interfaces.IComponentFilter, start int) interfaces.IArchtypeIterator {
 	idx.iterator.Current = 0
-	idx.iterator.Values = []archetype.ID{}
+	idx.iterator.Values = []interfaces.ArchetypeID{}
 	for i := start; i < len(idx.compGroups); i++ {
 		if f.MatchesComponents(idx.compGroups[i]) {
-			idx.iterator.Values = append(idx.iterator.Values, archetype.ID(i))
+			idx.iterator.Values = append(idx.iterator.Values, interfaces.ArchetypeID(i))
 		}
 	}
 	return idx.iterator
 }
 
 // Search searches for archetypes that match the given filter.
-func (idx *Index) Search(filter filter.ComponentFilter) *ArchetypeIterator {
+func (idx *Index) Search(filter interfaces.IComponentFilter) interfaces.IArchtypeIterator {
 	return idx.SearchFrom(filter, 0)
 }
 
 func (idx *Index) Marshal() ([]byte, error) {
-	compGroups := [][]component.TypeID{}
+	compGroups := [][]interfaces.ComponentTypeID{}
 	for _, comps := range idx.compGroups {
-		currIDs := []component.TypeID{}
+		currIDs := []interfaces.ComponentTypeID{}
 		for _, component := range comps {
 			currIDs = append(currIDs, component.ID())
 		}
@@ -275,8 +273,8 @@ func (idx *Index) Marshal() ([]byte, error) {
 	return codec.Encode(compGroups)
 }
 
-func (idx *Index) UnmarshalWithComps(bytes []byte, comps []component.IComponentType) error {
-	compGroups, err := codec.Decode[[][]component.TypeID](bytes)
+func (idx *Index) UnmarshalWithComps(bytes []byte, comps []interfaces.IComponentType) error {
+	compGroups, err := codec.Decode[[][]interfaces.ComponentTypeID](bytes)
 	if err != nil {
 		return err
 	}

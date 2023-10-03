@@ -5,11 +5,10 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	storage2 "pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
@@ -26,19 +25,19 @@ func TestComponents(t *testing.T) {
 	components := storage2.NewComponents(storage2.NewComponentsSliceStorage(), storage2.NewComponentIndexMap())
 
 	tests := []*struct {
-		comps   []component.IComponentType
-		archID  archetype.ID
-		compIdx component.Index
+		comps   []interfaces.IComponentType
+		archID  interfaces.ArchetypeID
+		compIdx interfaces.ComponentIndex
 		ID      string
 	}{
 		{
-			[]component.IComponentType{ca},
+			[]interfaces.IComponentType{ca},
 			0,
 			0,
 			"a",
 		},
 		{
-			[]component.IComponentType{ca, cb},
+			[]interfaces.IComponentType{ca, cb},
 			1,
 			1,
 			"b",
@@ -76,7 +75,7 @@ func TestComponents(t *testing.T) {
 	storage := components.Storage(ca)
 
 	srcArchIdx := target.archID
-	var dstArchIdx archetype.ID = 1
+	var dstArchIdx interfaces.ArchetypeID = 1
 
 	assert.NilError(t, storage.MoveComponent(srcArchIdx, target.compIdx, dstArchIdx))
 	assert.NilError(t, components.Move(srcArchIdx, dstArchIdx))

@@ -4,32 +4,25 @@
 
 package storage
 
-import "io"
+import (
+	"io"
+
+	"pkg.world.dev/world-engine/cardinal/interfaces"
+)
 
 type WorldStorage struct {
 	CompStore        Components
-	EntityLocStore   EntityLocationStorage
-	ArchCompIdxStore ArchetypeComponentIndex
-	ArchAccessor     ArchetypeAccessor
-	EntityMgr        EntityManager
-	StateStore       StateStorage
-	TickStore        TickStorage
-	NonceStore       NonceStorage
+	EntityLocStore   interfaces.EntityLocationStorage
+	ArchCompIdxStore interfaces.ArchetypeComponentIndex
+	ArchAccessor     interfaces.ArchetypeAccessor
+	EntityMgr        interfaces.EntityManager
+	StateStore       interfaces.StateStorage
+	TickStore        interfaces.TickStorage
+	NonceStore       interfaces.NonceStorage
 	IO               io.Closer
 }
 
-type OmniStorage interface {
-	ComponentStorageManager
-	ComponentIndexStorage
-	EntityLocationStorage
-	EntityManager
-	StateStorage
-	TickStorage
-	NonceStorage
-	io.Closer
-}
-
-func NewWorldStorage(omni OmniStorage) WorldStorage {
+func NewWorldStorage(omni interfaces.OmniStorage) WorldStorage {
 	return WorldStorage{
 		CompStore:        NewComponents(omni, omni),
 		EntityLocStore:   omni,

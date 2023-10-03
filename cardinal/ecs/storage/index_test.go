@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
@@ -18,14 +18,14 @@ func TestIndex(t *testing.T) {
 
 	index := storage.NewArchetypeComponentIndex()
 
-	compsA := []component.IComponentType{ca}
-	compsB := []component.IComponentType{ca, cb}
+	compsA := []interfaces.IComponentType{ca}
+	compsB := []interfaces.IComponentType{ca, cb}
 
 	index.Push(compsA)
 	index.Push(compsB)
 
 	tests := []struct {
-		filter   filter.ComponentFilter
+		filter   interfaces.IComponentFilter
 		expected int
 	}{
 		{
@@ -47,10 +47,10 @@ func TestIndex(t *testing.T) {
 
 	for _, tt := range tests {
 		it := index.Search(tt.filter)
-		if len(it.Values) != tt.expected {
+		if len(it.GetValues()) != tt.expected {
 			t.Errorf("Index should have %d archetypes", tt.expected)
 		}
-		if it.Current != 0 && it.HasNext() {
+		if it.GetCurrent() != 0 && it.HasNext() {
 			t.Errorf("Index should have 0 as current")
 		}
 		if tt.expected == 0 && it.HasNext() {

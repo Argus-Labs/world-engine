@@ -6,10 +6,9 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
 func TestStorage_Bytes(t *testing.T) {
@@ -29,8 +28,8 @@ func TestStorage_Bytes(t *testing.T) {
 		{ID: "c", expected: "c"},
 	}
 
-	var archIdx archetype.ID = 0
-	var compIdx component.Index = 0
+	var archIdx interfaces.ArchetypeID = 0
+	var compIdx interfaces.ComponentIndex = 0
 	for _, test := range tests {
 		err := store.PushComponent(componentType, archIdx)
 		assert.NilError(t, err)
@@ -57,8 +56,8 @@ func TestStorage_Bytes(t *testing.T) {
 	assert.Equal(t, comp.ID, "b", "removed component should have ID 'b'")
 
 	tests2 := []struct {
-		archIdx    archetype.ID
-		cmpIdx     component.Index
+		archIdx    interfaces.ArchetypeID
+		cmpIdx     interfaces.ComponentIndex
 		expectedID string
 	}{
 		{archIdx: 0, cmpIdx: 0, expectedID: "a"},

@@ -1,19 +1,19 @@
 package filter
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
 type contains struct {
-	components []component.IComponentType
+	components []interfaces.IComponentType
 }
 
 // Contains matches archetypes that contain all the components specified.
-func Contains(components ...component.IComponentType) ComponentFilter {
+func Contains(components ...interfaces.IComponentType) interfaces.IComponentFilter {
 	return &contains{components: components}
 }
 
-func (f *contains) MatchesComponents(components []component.IComponentType) bool {
+func (f *contains) MatchesComponents(components []interfaces.IComponentType) bool {
 	for _, componentType := range f.components {
 		if !containsComponent(components, componentType) {
 			return false
