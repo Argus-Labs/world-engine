@@ -11,8 +11,8 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/public"
+	"pkg.world.dev/world-engine/cardinal/storage"
 )
 
 // NewECSWorld creates an ecs.World that uses an in-memory redis DB as the storage

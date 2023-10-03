@@ -9,10 +9,10 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/codec"
+	"pkg.world.dev/world-engine/cardinal/entity"
 	"pkg.world.dev/world-engine/cardinal/public"
+	"pkg.world.dev/world-engine/cardinal/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 

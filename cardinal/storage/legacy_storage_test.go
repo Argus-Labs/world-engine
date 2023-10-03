@@ -6,9 +6,9 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/public"
+	"pkg.world.dev/world-engine/cardinal/storage"
 )
 
 func TestStorage_Bytes(t *testing.T) {

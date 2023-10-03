@@ -3,8 +3,8 @@ package storage_test
 import (
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/public"
+	"pkg.world.dev/world-engine/cardinal/storage"
 )
 
 type (

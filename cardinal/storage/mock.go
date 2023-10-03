@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"unsafe"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
+	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/public"
 )
 

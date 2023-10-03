@@ -5,11 +5,11 @@ import (
 
 	"gotest.tools/v3/assert"
 
+	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	storage2 "pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/inmem"
 	"pkg.world.dev/world-engine/cardinal/public"
+	storage2 "pkg.world.dev/world-engine/cardinal/storage"
 )
 
 func TestComponents(t *testing.T) {

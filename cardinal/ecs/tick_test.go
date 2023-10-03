@@ -14,11 +14,11 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/inmem"
+	"pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/public"
+	"pkg.world.dev/world-engine/cardinal/storage"
+	"pkg.world.dev/world-engine/cardinal/testutil"
 )
 
 func TestTickHappyPath(t *testing.T) {

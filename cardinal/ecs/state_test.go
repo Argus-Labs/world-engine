@@ -7,12 +7,12 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/alicebob/miniredis/v2"
+	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/inmem"
 	"pkg.world.dev/world-engine/cardinal/public"
+	"pkg.world.dev/world-engine/cardinal/storage"
+	"pkg.world.dev/world-engine/cardinal/testutil"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes

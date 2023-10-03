@@ -2,8 +2,9 @@ package storage_test
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/testutil"
 
 	"gotest.tools/v3/assert"
 )

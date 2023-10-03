@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/participle/v2"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/public"
 )
 

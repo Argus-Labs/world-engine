@@ -3,8 +3,8 @@ package storage
 import (
 	"fmt"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/codec"
+	"pkg.world.dev/world-engine/cardinal/entity"
 	"pkg.world.dev/world-engine/cardinal/public"
 )
 
