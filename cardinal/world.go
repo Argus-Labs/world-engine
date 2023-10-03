@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	world2 "pkg.world.dev/world-engine/cardinal/ecs/world"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
@@ -52,7 +53,7 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 		DB:       0,        // use default DB
 	}, "world")
 	worldStorage := storage.NewWorldStorage(&rs)
-	ecsWorld, err := ecs.NewWorld(worldStorage, ecsOptions...)
+	ecsWorld, err := world2.NewWorld(worldStorage, ecsOptions...)
 	if err != nil {
 		return nil, err
 	}

@@ -11,8 +11,8 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/redis/go-redis/v9"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/world"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -37,7 +37,7 @@ func InitWorldWithRedis(t *testing.T, s *miniredis.Miniredis) public.IWorld {
 		DB:       0,  // use default DB
 	}, "in-memory-world")
 	worldStorage := storage.NewWorldStorage(&rs)
-	w, err := ecs.NewWorld(worldStorage)
+	w, err := world.NewWorld(worldStorage)
 	assert.NilError(t, err)
 	return w
 }

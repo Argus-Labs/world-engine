@@ -7,6 +7,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs/options"
+	"pkg.world.dev/world-engine/cardinal/ecs/world"
 	"pkg.world.dev/world-engine/cardinal/public"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -51,5 +52,5 @@ func newMockWorld(s *miniredis.Miniredis, opts ...options.Option) (public.IWorld
 	}, "in-memory-world")
 	worldStorage := storage.NewWorldStorage(&rs)
 
-	return NewWorld(worldStorage, opts...)
+	return world.NewWorld(worldStorage, opts...)
 }

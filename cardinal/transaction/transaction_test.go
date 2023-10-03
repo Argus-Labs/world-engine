@@ -11,6 +11,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	world2 "pkg.world.dev/world-engine/cardinal/ecs/world"
 	"pkg.world.dev/world-engine/cardinal/public"
 )
 
@@ -371,7 +372,7 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	alphaTx := transaction.NewTransactionType[SomeTx, EmptyTxResult]("name_match")
 	betaTx := transaction.NewTransactionType[OtherTx, EmptyTxResult]("name_match")
-	assert.ErrorIs(t, world.RegisterTransactions(alphaTx, betaTx), ecs.ErrorDuplicateTransactionName)
+	assert.ErrorIs(t, world.RegisterTransactions(alphaTx, betaTx), world2.ErrorDuplicateTransactionName)
 }
 
 func TestCanGetTransactionErrorsAndResults(t *testing.T) {

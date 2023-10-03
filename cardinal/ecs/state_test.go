@@ -12,6 +12,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/testutil"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	world2 "pkg.world.dev/world-engine/cardinal/ecs/world"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/utils"
 )
@@ -30,7 +31,7 @@ type NumberComponent struct {
 func TestComponentsCanOnlyBeRegisteredOnce(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.RegisterComponents())
-	assert.ErrorIs(t, world.RegisterComponents(), ecs.ErrorComponentRegistrationMustHappenOnce)
+	assert.ErrorIs(t, world.RegisterComponents(), world2.ErrorComponentRegistrationMustHappenOnce)
 }
 
 func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
