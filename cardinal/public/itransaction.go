@@ -1,14 +1,12 @@
 package public
 
 import (
-	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/sign"
 )
 
 type ITransaction interface {
 	SetID(TransactionTypeID) error
 	Name() string
-	Schema() (in, out *jsonschema.Schema)
 	ID() TransactionTypeID
 	Encode(any) ([]byte, error)
 	Decode([]byte) (any, error)

@@ -13,7 +13,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/inmem"
 	"pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/public"
 )
@@ -56,7 +55,7 @@ func testSystemWarningTrigger(w public.IWorld, tx public.ITxQueue, logger public
 
 func TestWorldLogger(t *testing.T) {
 
-	w := inmem.NewECSWorldForTest(t)
+	w := ecs.NewTestWorld(t)
 	//replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)

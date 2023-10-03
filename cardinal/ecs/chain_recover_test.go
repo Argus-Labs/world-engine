@@ -12,7 +12,6 @@ import (
 
 	"github.com/cometbft/cometbft/libs/rand"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/inmem"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
@@ -91,7 +90,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
-	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(adapter))
+	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
 	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
 	err := w.RegisterTransactions(SendEnergyTx)
 	assert.NilError(t, err)
@@ -147,7 +146,7 @@ func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{}
-	w := inmem.NewECSWorldForTest(t, ecs.WithAdapter(adapter))
+	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
 	assert.NilError(t, w.LoadGameState())
 	assert.NilError(t, w.Tick(ctx))
 

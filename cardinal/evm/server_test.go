@@ -9,7 +9,6 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/inmem"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -30,7 +29,7 @@ type TxReply struct{}
 // the world, and executed in systems.
 func TestServer_SendMessage(t *testing.T) {
 	// setup the world
-	w := inmem.NewECSWorldForTest(t)
+	w := ecs.NewTestWorld(t)
 
 	// create the ECS transactions
 	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
@@ -132,7 +131,7 @@ func TestServer_Query(t *testing.T) {
 	read := ecs.NewReadType[FooRead, FooReply]("foo", func(world public.IWorld, req FooRead) (FooReply, error) {
 		return FooReply{Y: req.X}, nil
 	}, ecs.WithReadEVMSupport[FooRead, FooReply])
-	w := inmem.NewECSWorldForTest(t)
+	w := ecs.NewTestWorld(t)
 	err := w.RegisterReads(read)
 	assert.NilError(t, err)
 	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("nothing"))
@@ -160,7 +159,7 @@ func TestServer_Query(t *testing.T) {
 // Authorized address for the sender, an error occurs.
 func TestServer_UnauthorizedAddress(t *testing.T) {
 	// setup the world
-	w := inmem.NewECSWorldForTest(t)
+	w := ecs.NewTestWorld(t)
 
 	// create the ECS transactions
 	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])

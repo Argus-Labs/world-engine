@@ -7,7 +7,6 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/inmem"
 	"pkg.world.dev/world-engine/cardinal/public"
 )
 
@@ -18,7 +17,7 @@ func TestAddSystems(t *testing.T) {
 		return nil
 	}
 
-	w := inmem.NewECSWorldForTest(t)
+	w := ecs.NewTestWorld(t)
 	w.AddSystems(sys, sys, sys)
 	err := w.LoadGameState()
 	assert.NilError(t, err)
@@ -30,7 +29,7 @@ func TestAddSystems(t *testing.T) {
 }
 
 func TestSystemExecutionOrder(t *testing.T) {
-	w := inmem.NewECSWorldForTest(t)
+	w := ecs.NewTestWorld(t)
 	order := make([]int, 0, 3)
 	w.AddSystems(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		order = append(order, 1)
@@ -53,12 +52,12 @@ func TestSystemExecutionOrder(t *testing.T) {
 
 func TestSetNamespace(t *testing.T) {
 	id := "foo"
-	w := inmem.NewECSWorldForTest(t, ecs.WithNamespace(id))
+	w := ecs.NewTestWorld(t, ecs.WithNamespace(id))
 	assert.Equal(t, w.Namespace(), id)
 }
 
 func TestWithoutRegistration(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	id, err := world.Create(Energy, Ownable)
 	assert.Assert(t, err != nil)
 

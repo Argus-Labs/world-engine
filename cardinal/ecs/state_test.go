@@ -9,7 +9,6 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/inmem"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/storage"
 	"pkg.world.dev/world-engine/cardinal/testutil"
@@ -27,7 +26,7 @@ type NumberComponent struct {
 }
 
 func TestComponentsCanOnlyBeRegisteredOnce(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.RegisterComponents())
 	assert.ErrorIs(t, world.RegisterComponents(), ecs.ErrorComponentRegistrationMustHappenOnce)
 }

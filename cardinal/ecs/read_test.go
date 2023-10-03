@@ -9,7 +9,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/evm"
-	"pkg.world.dev/world-engine/cardinal/inmem"
 	"pkg.world.dev/world-engine/cardinal/public"
 )
 
@@ -64,7 +63,7 @@ func TestReadEVM(t *testing.T) {
 		return expectedReply, nil
 	}, ecs.WithReadEVMSupport[FooRequest, FooReply])
 
-	w := inmem.NewECSWorldForTest(t)
+	w := ecs.NewTestWorld(t)
 	err := w.RegisterReads(fooRead)
 	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)

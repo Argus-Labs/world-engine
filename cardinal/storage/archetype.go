@@ -104,7 +104,7 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []pub
 	for _, arch := range archetypesFromStorage {
 		currComps, err := idsToComps.convert(arch.ComponentIDs)
 		if err != nil {
-			return fmt.Errorf("%w: %v", ErrorComponentMismatchWithSavedState, err)
+			return fmt.Errorf("%w: %w", ErrorComponentMismatchWithSavedState, err)
 		}
 		a.PushArchetype(arch.ID, currComps)
 		a.archs[len(a.archs)-1].Entitys = arch.Entities

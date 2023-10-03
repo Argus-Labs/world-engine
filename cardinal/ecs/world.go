@@ -55,8 +55,6 @@ type World struct {
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
 
-	errs []error
-
 	Logger public.IWorldLogger
 
 	endGameLoopCh     chan bool
@@ -217,7 +215,7 @@ func (w *World) ListTransactions() ([]public.ITransaction, error) {
 }
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
+func NewWorld(s storage.WorldStorage, opts ...Option) (public.IWorld, error) {
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}
@@ -631,10 +629,6 @@ func (w *World) SetNamespace(namespace string) {
 // Namespace returns the world's namespace.
 func (w *World) Namespace() string {
 	return string(w.namespace)
-}
-
-func (w *World) LogError(err error) {
-	w.errs = append(w.errs, err)
 }
 
 func (w *World) GetNonce(signerAddress string) (uint64, error) {

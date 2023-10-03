@@ -1,10 +1,6 @@
 package server
 
 import (
-	"encoding/json"
-	"io"
-	"net/http"
-
 	"pkg.world.dev/world-engine/cardinal/public"
 )
 
@@ -80,33 +76,5 @@ func getListTxReceiptsReplyFromRequest(world public.IWorld) func(*ListTxReceipts
 			}
 		}
 		return &reply, nil
-	}
-}
-
-func handleListTxReceipts(world public.IWorld) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		buf, err := io.ReadAll(request.Body)
-		if err != nil {
-			writeError(writer, "unable to ready body", err)
-			return
-		}
-		req, err := decode[ListTxReceiptsRequest](buf)
-		if err != nil {
-			writeBadRequest(writer, "unable to decode list receipts request", err)
-			return
-		}
-
-		reply, err := getListTxReceiptsReplyFromRequest(world)(&req)
-		if err != nil {
-			writeError(writer, "unable to get receipts", err)
-			return
-		}
-
-		res, err := json.Marshal(reply)
-		if err != nil {
-			writeError(writer, "unable to marshal response", err)
-			return
-		}
-		writeResult(writer, res)
 	}
 }

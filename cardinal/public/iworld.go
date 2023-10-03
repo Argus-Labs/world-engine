@@ -47,7 +47,6 @@ type IWorld interface {
 	GetComponents() []IComponentType
 	GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
 	GetSystemNames() []string
-	LogError(err error)
 	GetLogger() IWorldLogger
 	InjectLogger(logger IWorldLogger)
 	Create(components ...IComponentType) (EntityID, error)

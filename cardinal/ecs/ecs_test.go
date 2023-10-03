@@ -9,7 +9,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/filter"
-	"pkg.world.dev/world-engine/cardinal/inmem"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/storage"
 )
@@ -50,7 +49,7 @@ var (
 )
 
 func TestECS(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.RegisterComponents(Energy, Ownable))
 
 	// create a bunch of planets!
@@ -83,7 +82,7 @@ func TestECS(t *testing.T) {
 }
 
 func TestVelocitySimulation(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	type Pos struct {
 		X, Y float64
 	}
@@ -118,7 +117,7 @@ func TestVelocitySimulation(t *testing.T) {
 }
 
 func TestCanSetDefaultValue(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	type Owner struct {
 		Name string
 	}
@@ -142,7 +141,7 @@ func TestCanSetDefaultValue(t *testing.T) {
 }
 
 func TestCanRemoveEntity(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	type Tuple struct {
 		A, B int
 	}
@@ -199,7 +198,7 @@ func TestCanRemoveEntity(t *testing.T) {
 }
 
 func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	type CountComponent struct {
 		Val int
 	}
@@ -246,7 +245,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 }
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	energy := ecs.NewComponentType[EnergyComponent]("energy")
 	assert.NilError(t, world.RegisterComponents(energy))
 	assert.NilError(t, world.LoadGameState())
@@ -257,7 +256,7 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 }
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	reactorEnergy := ecs.NewComponentType[EnergyComponent]("reactorEnergy")
 	weaponsEnergy := ecs.NewComponentType[EnergyComponent]("weaponsEnergy")
 	assert.NilError(t, world.RegisterComponents(reactorEnergy, weaponsEnergy))
@@ -269,7 +268,7 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 }
 
 func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	type Foo struct{}
 	type Bar struct{}
 	a, b := ecs.NewComponentType[Foo]("a"), ecs.NewComponentType[Bar]("b")
@@ -295,7 +294,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 }
 
 func TestEntriesCanChangeTheirArchetype(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	type Label struct {
 		Name string
 	}
@@ -345,7 +344,7 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 }
 
 func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 
 	alpha := ecs.NewComponentType[EnergyComponent]("alpha")
 	beta := ecs.NewComponentType[EnergyComponent]("beta")
@@ -360,7 +359,7 @@ func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 }
 
 func TestQueriesAndFiltersWorks(t *testing.T) {
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	a, b, c, d := ecs.NewComponentType[int]("a"), ecs.NewComponentType[int]("b"), ecs.NewComponentType[int]("c"), ecs.NewComponentType[int]("d")
 	assert.NilError(t, world.RegisterComponents(a, b, c, d))
 	assert.NilError(t, world.LoadGameState())
@@ -395,7 +394,7 @@ func TestUpdateWithPointerType(t *testing.T) {
 	type HealthComponent struct {
 		HP int
 	}
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	hpComp := ecs.NewComponentType[*HealthComponent]("hpComp")
 	assert.NilError(t, world.RegisterComponents(hpComp))
 	assert.NilError(t, world.LoadGameState())
@@ -420,7 +419,7 @@ func TestCanRemoveFirstEntity(t *testing.T) {
 	type ValueComponent struct {
 		Val int
 	}
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	valComp := ecs.NewComponentType[ValueComponent]("valComp")
 	assert.NilError(t, world.RegisterComponents(valComp))
 
@@ -448,7 +447,7 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 	type OtherComponent struct {
 		Val int
 	}
-	world := inmem.NewECSWorldForTest(t)
+	world := ecs.NewTestWorld(t)
 	valComp := ecs.NewComponentType[ValueComponent]("valComp")
 	otherComp := ecs.NewComponentType[OtherComponent]("otherComp")
 	assert.NilError(t, world.RegisterComponents(valComp, otherComp))
