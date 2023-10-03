@@ -9,12 +9,11 @@ import (
 
 	"gotest.tools/v3/assert"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
-
-	"github.com/ethereum/go-ethereum/crypto"
+	"pkg.world.dev/world-engine/cardinal/public"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -33,7 +32,7 @@ func (f Foo) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(f)
 }
 
-var componentDataKey = func(worldId string, compId interfaces.ComponentTypeID, archID int) string {
+var componentDataKey = func(worldId string, compId public.ComponentTypeID, archID int) string {
 	return fmt.Sprintf("WORLD-%s:CID-%d:A-%d", worldId, compId, archID)
 }
 
@@ -83,7 +82,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	store := storage.NewWorldStorage(&rs)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
-	archID, compIdx := interfaces.ArchetypeID(0), interfaces.ComponentIndex(1)
+	archID, compIdx := public.ArchetypeID(0), public.ComponentIndex(1)
 	assert.NilError(t, idxStore.SetIndex(archID, compIdx))
 	gotIdx, ok, err := idxStore.ComponentIndex(archID)
 	assert.NilError(t, err)
@@ -104,7 +103,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx)
 
-	compIdx = interfaces.ComponentIndex(25)
+	compIdx = public.ComponentIndex(25)
 	idxStore.SetIndex(archID, compIdx)
 	gotIdx, ok, err = idxStore.ComponentIndex(archID)
 	assert.NilError(t, err)
@@ -118,7 +117,7 @@ func TestRedis_Location(t *testing.T) {
 	store := storage.NewWorldStorage(&rs)
 
 	loc := entity.NewLocation(0, 1)
-	eid := interfaces.EntityID(3)
+	eid := public.EntityID(3)
 	store.EntityLocStore.SetLocation(eid, loc)
 	gotLoc, _ := store.EntityLocStore.GetLocation(eid)
 	assert.Equal(t, loc.GetArchID(), gotLoc.GetArchID())
@@ -130,14 +129,14 @@ func TestRedis_Location(t *testing.T) {
 	contains, _ := store.EntityLocStore.ContainsEntity(eid)
 	assert.Equal(t, contains, true)
 
-	notContains, _ := store.EntityLocStore.ContainsEntity(interfaces.EntityID(420))
+	notContains, _ := store.EntityLocStore.ContainsEntity(public.EntityID(420))
 	assert.Equal(t, notContains, false)
 
 	compIdx, _ := store.EntityLocStore.ComponentIndexForEntity(eid)
 	assert.Equal(t, loc.GetCompIndex(), compIdx)
 
-	newEID := interfaces.EntityID(40)
-	archID2, compIdx2 := interfaces.ArchetypeID(10), interfaces.ComponentIndex(15)
+	newEID := public.EntityID(40)
+	archID2, compIdx2 := public.ArchetypeID(10), public.ComponentIndex(15)
 	store.EntityLocStore.Insert(newEID, archID2, compIdx2)
 
 	newLoc, _ := store.EntityLocStore.GetLocation(newEID)
@@ -215,12 +214,12 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 	personaTag := "xyzzy"
 	wantSig, err := sign.NewSignedPayload(key, personaTag, "namespace", 66, wantVal)
 	assert.NilError(t, err)
-	wantTxHash := interfaces.TxHash(wantSig.HashHex())
+	wantTxHash := public.TxHash(wantSig.HashHex())
 
 	queue := transaction.NewTxQueue()
 	queue.AddTransaction(tx.ID(), wantVal, wantSig)
 
-	txSlice := []interfaces.ITransaction{tx}
+	txSlice := []public.ITransaction{tx}
 
 	rs.StartNextTick(txSlice, queue)
 
@@ -250,24 +249,24 @@ func TestLargeArbitraryDataProducesError(t *testing.T) {
 func TestGettingIndexStorageShouldNotImpactIncrement(t *testing.T) {
 	rs := testutil.GetRedisStorage(t)
 
-	archID := interfaces.ArchetypeID(99)
+	archID := public.ArchetypeID(99)
 
 	err := rs.SetIndex(archID, 0)
 	assert.NilError(t, err)
 
 	compIndex, err := rs.IncrementIndex(archID)
 	assert.NilError(t, err)
-	assert.Equal(t, interfaces.ComponentIndex(1), compIndex)
+	assert.Equal(t, public.ComponentIndex(1), compIndex)
 
 	compIndex, err = rs.IncrementIndex(archID)
 	assert.NilError(t, err)
-	assert.Equal(t, interfaces.ComponentIndex(2), compIndex)
+	assert.Equal(t, public.ComponentIndex(2), compIndex)
 
 	// Get the component index storage for some random component type.
 	// This should have no impact on incrementing the index of archID
-	_ = rs.GetComponentIndexStorage(interfaces.ComponentTypeID(100))
+	_ = rs.GetComponentIndexStorage(public.ComponentTypeID(100))
 
 	compIndex, err = rs.IncrementIndex(archID)
 	assert.NilError(t, err)
-	assert.Equal(t, interfaces.ComponentIndex(3), compIndex)
+	assert.Equal(t, public.ComponentIndex(3), compIndex)
 }

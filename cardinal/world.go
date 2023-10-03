@@ -10,14 +10,14 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
 type World struct {
-	implWorld       interfaces.IWorld
+	implWorld       public.IWorld
 	server          *server.Handler
-	gameManager     interfaces.IGameManager
+	gameManager     public.IGameManager
 	isGameRunning   atomic.Bool
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
@@ -27,8 +27,8 @@ type World struct {
 type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
-	EntityID = interfaces.EntityID
-	TxHash   = interfaces.TxHash
+	EntityID = public.EntityID
+	TxHash   = public.TxHash
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
@@ -159,7 +159,7 @@ func (w *World) ShutDown() error {
 // game tick. This Register method can be called multiple times.
 func (w *World) RegisterSystems(systems ...System) {
 	for _, system := range systems {
-		w.implWorld.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, logger interfaces.IWorldLogger) error {
+		w.implWorld.AddSystem(func(world public.IWorld, queue public.ITxQueue, logger public.IWorldLogger) error {
 			return system(&World{implWorld: world}, &TransactionQueue{queue}, &Logger{logger})
 		})
 	}

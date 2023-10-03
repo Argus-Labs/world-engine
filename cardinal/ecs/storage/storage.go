@@ -7,22 +7,22 @@ package storage
 import (
 	"io"
 
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 type WorldStorage struct {
 	CompStore        Components
-	EntityLocStore   interfaces.EntityLocationStorage
-	ArchCompIdxStore interfaces.ArchetypeComponentIndex
-	ArchAccessor     interfaces.ArchetypeAccessor
-	EntityMgr        interfaces.EntityManager
-	StateStore       interfaces.StateStorage
-	TickStore        interfaces.TickStorage
-	NonceStore       interfaces.NonceStorage
+	EntityLocStore   public.EntityLocationStorage
+	ArchCompIdxStore public.ArchetypeComponentIndex
+	ArchAccessor     public.ArchetypeAccessor
+	EntityMgr        public.EntityManager
+	StateStore       public.StateStorage
+	TickStore        public.TickStorage
+	NonceStore       public.NonceStorage
 	IO               io.Closer
 }
 
-func NewWorldStorage(omni interfaces.OmniStorage) WorldStorage {
+func NewWorldStorage(omni public.OmniStorage) WorldStorage {
 	return WorldStorage{
 		CompStore:        NewComponents(omni, omni),
 		EntityLocStore:   omni,

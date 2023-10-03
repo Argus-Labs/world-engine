@@ -7,15 +7,15 @@ import (
 	"syscall"
 
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 type GameManager struct {
 	handler *Handler
-	world   interfaces.IWorld
+	world   public.IWorld
 }
 
-func NewGameManager(world interfaces.IWorld, handler *Handler) interfaces.IGameManager {
+func NewGameManager(world public.IWorld, handler *Handler) public.IGameManager {
 
 	manager := GameManager{
 		handler: handler,

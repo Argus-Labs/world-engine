@@ -1,4 +1,4 @@
-package interfaces
+package public
 
 // ComponentFilter is a filter that filters entities based on their components.
 type IComponentFilter interface {

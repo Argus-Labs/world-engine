@@ -3,7 +3,7 @@ package transaction
 import (
 	"sync"
 
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -29,11 +29,11 @@ func (t *TxQueue) GetAmountOfTxs() int {
 	return acc
 }
 
-func (t *TxQueue) AddTransaction(id interfaces.TransactionTypeID, v any, sig *sign.SignedPayload) interfaces.TxHash {
+func (t *TxQueue) AddTransaction(id public.TransactionTypeID, v any, sig *sign.SignedPayload) public.TxHash {
 	t.mux.Lock()
 	defer t.mux.Unlock()
-	txHash := interfaces.TxHash(sig.HashHex())
-	t.m[id] = append(t.m[id], interfaces.TxAny{
+	txHash := public.TxHash(sig.HashHex())
+	t.m[id] = append(t.m[id], public.TxAny{
 		TxHash: txHash,
 		Value:  v,
 		Sig:    sig,
@@ -41,7 +41,7 @@ func (t *TxQueue) AddTransaction(id interfaces.TransactionTypeID, v any, sig *si
 	return txHash
 }
 
-func (t *TxQueue) CopyTransaction() interfaces.ITxQueue {
+func (t *TxQueue) CopyTransaction() public.ITxQueue {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	cpy := &TxQueue{
@@ -51,8 +51,8 @@ func (t *TxQueue) CopyTransaction() interfaces.ITxQueue {
 	return cpy
 }
 
-func (t *TxQueue) ForID(id interfaces.TransactionTypeID) []interfaces.TxAny {
+func (t *TxQueue) ForID(id public.TransactionTypeID) []public.TxAny {
 	return t.m[id]
 }
 
-type txMap map[interfaces.TransactionTypeID][]interfaces.TxAny
+type txMap map[public.TransactionTypeID][]public.TxAny

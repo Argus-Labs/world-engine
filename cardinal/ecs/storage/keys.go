@@ -3,7 +3,7 @@ package storage
 import (
 	"fmt"
 
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 /*
@@ -36,15 +36,15 @@ define keys for redis storage
 	Hash set of signature address to uint64 nonce
 */
 
-func (r *RedisStorage) componentDataKey(archID interfaces.ArchetypeID, compID interfaces.ComponentTypeID) string {
+func (r *RedisStorage) componentDataKey(archID public.ArchetypeID, compID public.ComponentTypeID) string {
 	return fmt.Sprintf("COMPD:WORLD-%s:CID-%d:A-%d", r.WorldID, compID, archID)
 }
 
-func (r *RedisStorage) archetypeIndexKey(id interfaces.ArchetypeID) string {
+func (r *RedisStorage) archetypeIndexKey(id public.ArchetypeID) string {
 	return fmt.Sprintf("ARCHIDX:WORLD-%s:A-%d", r.WorldID, id)
 }
 
-func (r *RedisStorage) entityLocationKey(id interfaces.EntityID) string {
+func (r *RedisStorage) entityLocationKey(id public.EntityID) string {
 	return fmt.Sprintf("LOC:WORLD-%s:E-%d", r.WorldID, id)
 }
 

@@ -1,4 +1,4 @@
-package interfaces
+package public
 
 // IComponentType is a high level representation of a user defined component struct.
 type IComponentType interface {

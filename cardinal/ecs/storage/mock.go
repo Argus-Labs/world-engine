@@ -6,15 +6,15 @@ import (
 	"unsafe"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 var (
-	nextMockComponentTypeId interfaces.ComponentTypeID = 1
+	nextMockComponentTypeId public.ComponentTypeID = 1
 )
 
 type MockComponentType[T any] struct {
-	id         interfaces.ComponentTypeID
+	id         public.ComponentTypeID
 	typ        reflect.Type
 	defaultVal interface{}
 }
@@ -29,12 +29,12 @@ func NewMockComponentType[T any](t T, defaultVal interface{}) *MockComponentType
 	return m
 }
 
-func (m *MockComponentType[T]) SetID(id interfaces.ComponentTypeID) error {
+func (m *MockComponentType[T]) SetID(id public.ComponentTypeID) error {
 	m.id = id
 	return nil
 }
 
-func (m *MockComponentType[T]) ID() interfaces.ComponentTypeID {
+func (m *MockComponentType[T]) ID() public.ComponentTypeID {
 	return m.id
 }
 
@@ -55,7 +55,7 @@ func (m *MockComponentType[T]) Name() string {
 	return fmt.Sprintf("%s[%s]", reflect.TypeOf(m).Name(), m.typ.Name())
 }
 
-var _ interfaces.IComponentType = &MockComponentType[int]{}
+var _ public.IComponentType = &MockComponentType[int]{}
 
 func (m *MockComponentType[T]) Decode(bytes []byte) (any, error) {
 	return codec.Decode[T](bytes)

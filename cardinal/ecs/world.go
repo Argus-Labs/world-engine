@@ -21,7 +21,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
@@ -33,22 +33,22 @@ type Namespace string
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
-	storeManager             interfaces.IStoreManager
-	systems                  []interfaces.System
-	systemLoggers            []interfaces.IWorldLogger
+	storeManager             public.IStoreManager
+	systems                  []public.System
+	systemLoggers            []public.IWorldLogger
 	systemNames              []string
 	tick                     uint64
 	nameToComponent          map[string]IComponentType
 	registeredComponents     []IComponentType
-	registeredTransactions   []interfaces.ITransaction
-	registeredReads          []interfaces.IRead
+	registeredTransactions   []public.ITransaction
+	registeredReads          []public.IRead
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
 
-	txQueue interfaces.ITxQueue
+	txQueue public.ITxQueue
 
-	receiptHistory interfaces.IHistory
+	receiptHistory public.IHistory
 
 	chain shard.ReadAdapter
 	// isRecovering indicates that the world is recovering from the DA layer.
@@ -57,7 +57,7 @@ type World struct {
 
 	errs []error
 
-	Logger interfaces.IWorldLogger
+	Logger public.IWorldLogger
 
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
@@ -88,11 +88,11 @@ func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
-func (w *World) GetLogger() interfaces.IWorldLogger {
+func (w *World) GetLogger() public.IWorldLogger {
 	return w.Logger
 }
 
-func (w *World) StoreManager() interfaces.IStoreManager {
+func (w *World) StoreManager() public.IStoreManager {
 	return w.storeManager
 }
 
@@ -100,11 +100,11 @@ func (w *World) GetTxQueueAmount() int {
 	return w.txQueue.GetAmountOfTxs()
 }
 
-func (w *World) AddSystem(s interfaces.System) {
+func (w *World) AddSystem(s public.System) {
 	w.AddSystems(s)
 }
 
-func (w *World) AddSystems(s ...interfaces.System) {
+func (w *World) AddSystems(s ...public.System) {
 	if w.stateIsLoaded {
 		panic("cannot register systems after loading game state")
 	}
@@ -121,7 +121,7 @@ func (w *World) AddSystems(s ...interfaces.System) {
 
 // RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
 // This will give components the ability to access their own data.
-func (w *World) RegisterComponents(components ...interfaces.IComponentType) error {
+func (w *World) RegisterComponents(components ...public.IComponentType) error {
 	if w.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
@@ -133,7 +133,7 @@ func (w *World) RegisterComponents(components ...interfaces.IComponentType) erro
 	w.registeredComponents = append(w.registeredComponents, components...)
 
 	for i, c := range w.registeredComponents {
-		id := interfaces.ComponentTypeID(i + 1)
+		id := public.ComponentTypeID(i + 1)
 		if err := c.SetID(id); err != nil {
 			return err
 		}
@@ -155,7 +155,7 @@ func (w *World) GetComponentByName(name string) (IComponentType, bool) {
 	return componentType, exists
 }
 
-func (w *World) RegisterReads(reads ...interfaces.IRead) error {
+func (w *World) RegisterReads(reads ...public.IRead) error {
 	if w.stateIsLoaded {
 		panic("cannot register reads after loading game state")
 	}
@@ -171,7 +171,7 @@ func (w *World) RegisterReads(reads ...interfaces.IRead) error {
 	return nil
 }
 
-func (w *World) RegisterTransactions(txs ...interfaces.ITransaction) error {
+func (w *World) RegisterTransactions(txs ...public.ITransaction) error {
 	if w.stateIsLoaded {
 		panic("cannot register transactions after loading game state")
 	}
@@ -190,7 +190,7 @@ func (w *World) RegisterTransactions(txs ...interfaces.ITransaction) error {
 		}
 		seenTxNames[name] = true
 
-		id := interfaces.TransactionTypeID(i + 1)
+		id := public.TransactionTypeID(i + 1)
 		if err := t.SetID(id); err != nil {
 			return err
 		}
@@ -205,11 +205,11 @@ func (w *World) registerInternalTransactions() {
 	)
 }
 
-func (w *World) ListReads() []interfaces.IRead {
+func (w *World) ListReads() []public.IRead {
 	return w.registeredReads
 }
 
-func (w *World) ListTransactions() ([]interfaces.ITransaction, error) {
+func (w *World) ListTransactions() ([]public.ITransaction, error) {
 	if !w.isTransactionsRegistered {
 		return nil, errors.New("cannot list transactions until transaction registration occurs")
 	}
@@ -226,7 +226,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		storeManager:      store.NewStoreManager(s, logger),
 		namespace:         "world",
 		tick:              0,
-		systems:           make([]interfaces.System, 0),
+		systems:           make([]public.System, 0),
 		nameToComponent:   make(map[string]IComponentType),
 		txQueue:           transaction.NewTxQueue(),
 		Logger:            logger,
@@ -252,7 +252,7 @@ func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
 }
 
-func (w *World) CreateMany(num int, components ...interfaces.IComponentType) ([]interfaces.EntityID, error) {
+func (w *World) CreateMany(num int, components ...public.IComponentType) ([]public.EntityID, error) {
 	for _, comp := range components {
 		if _, ok := w.nameToComponent[comp.Name()]; !ok {
 			return nil, fmt.Errorf("%s was not registered, please register all components before using one to create an entity", comp.Name())
@@ -261,7 +261,7 @@ func (w *World) CreateMany(num int, components ...interfaces.IComponentType) ([]
 	return w.StoreManager().CreateManyEntities(num, components...)
 }
 
-func (w *World) Create(components ...interfaces.IComponentType) (interfaces.EntityID, error) {
+func (w *World) Create(components ...public.IComponentType) (public.EntityID, error) {
 	entities, err := w.CreateMany(1, components...)
 	if err != nil {
 		return 0, err
@@ -279,14 +279,14 @@ func (w *World) EntityAmount() (int, error) {
 }
 
 // Remove removes the given Entity from the world
-func (w *World) Remove(id interfaces.EntityID) error {
+func (w *World) Remove(id public.EntityID) error {
 	return w.StoreManager().RemoveEntity(id)
 }
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id interfaces.TransactionTypeID, v any, sig *sign.SignedPayload) (tick uint64, txHash interfaces.TxHash) {
+func (w *World) AddTransaction(id public.TransactionTypeID, v any, sig *sign.SignedPayload) (tick uint64, txHash public.TxHash) {
 	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
 	// transaction is actually added to the returned tick.
 	tick = w.CurrentTick()
@@ -411,8 +411,8 @@ func (w *World) EndGameLoop() {
 }
 
 type TxBatch struct {
-	TxID interfaces.TransactionTypeID `json:"tx_id,omitempty"`
-	Txs  []any                        `json:"txs,omitempty"`
+	TxID public.TransactionTypeID `json:"tx_id,omitempty"`
+	Txs  []any                    `json:"txs,omitempty"`
 }
 
 const (
@@ -430,7 +430,7 @@ func (w *World) saveArchetypeData() error {
 	return nil
 }
 
-func (w *World) saveToKey(key string, cm interfaces.ComponentMarshaler) error {
+func (w *World) saveToKey(key string, cm public.ComponentMarshaler) error {
 	buf, err := cm.Marshal()
 	if err != nil {
 		return err
@@ -442,7 +442,7 @@ func (w *World) saveToKey(key string, cm interfaces.ComponentMarshaler) error {
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
 // transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
 // transactions that need to be processed because the last tick was successful.
-func (w *World) recoverGameState() (recoveredTxs interfaces.ITxQueue, err error) {
+func (w *World) recoverGameState() (recoveredTxs public.ITxQueue, err error) {
 	start, end, err := w.store.TickStore.GetTickNumbers()
 	if err != nil {
 		return nil, err
@@ -493,7 +493,7 @@ func (w *World) LoadGameState() error {
 	return nil
 }
 
-func (w *World) loadFromKey(key string, cm interfaces.ComponentMarshaler, comps []IComponentType) error {
+func (w *World) loadFromKey(key string, cm public.ComponentMarshaler, comps []IComponentType) error {
 	buf, ok, err := w.store.StateStore.Load(key)
 	if !ok {
 		// There is no saved data for this key
@@ -504,13 +504,13 @@ func (w *World) loadFromKey(key string, cm interfaces.ComponentMarshaler, comps 
 	return cm.UnmarshalWithComps(buf, comps)
 }
 
-func (w *World) nextEntity() (interfaces.EntityID, error) {
+func (w *World) nextEntity() (public.EntityID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 
-func (w *World) insertArchetype(comps []IComponentType) interfaces.ArchetypeID {
+func (w *World) insertArchetype(comps []IComponentType) public.ArchetypeID {
 	w.store.ArchCompIdxStore.Push(comps)
-	archID := interfaces.ArchetypeID(w.store.ArchAccessor.Count())
+	archID := public.ArchetypeID(w.store.ArchAccessor.Count())
 
 	w.store.ArchAccessor.PushArchetype(archID, comps)
 	w.Logger.GetZeroLogger().Debug().Int("archetype_id", int(archID)).Msg("created")
@@ -565,7 +565,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				itx := w.getITx(interfaces.TransactionTypeID(tx.TxId))
+				itx := w.getITx(public.TransactionTypeID(tx.TxId))
 				if itx == nil {
 					return fmt.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
 				}
@@ -573,7 +573,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				w.AddTransaction(interfaces.TransactionTypeID(tx.TxId), v, w.protoSignedPayloadToGo(sp))
+				w.AddTransaction(public.TransactionTypeID(tx.TxId), v, w.protoSignedPayloadToGo(sp))
 			}
 			// run the tick for this batch
 			if err := w.Tick(ctx); err != nil {
@@ -613,8 +613,8 @@ func (w *World) decodeTransaction(bz []byte) (*shardv1.SignedPayload, error) {
 }
 
 // getITx iterates over the registered transactions and returns the ITransaction associated with the TypeID.
-func (w *World) getITx(id interfaces.TransactionTypeID) interfaces.ITransaction {
-	var itx interfaces.ITransaction
+func (w *World) getITx(id public.TransactionTypeID) public.ITransaction {
+	var itx public.ITransaction
 	for _, tx := range w.registeredTransactions {
 		if id == tx.ID() {
 			itx = tx
@@ -645,15 +645,15 @@ func (w *World) SetNonce(signerAddress string, nonce uint64) error {
 	return w.store.NonceStore.SetNonce(signerAddress, nonce)
 }
 
-func (w *World) AddTransactionError(id interfaces.TxHash, err error) {
+func (w *World) AddTransactionError(id public.TxHash, err error) {
 	w.receiptHistory.AddError(id, err)
 }
 
-func (w *World) SetTransactionResult(id interfaces.TxHash, a any) {
+func (w *World) SetTransactionResult(id public.TxHash, a any) {
 	w.receiptHistory.SetResult(id, a)
 }
 
-func (w *World) GetTransactionReceipt(id interfaces.TxHash) (any, []error, bool) {
+func (w *World) GetTransactionReceipt(id public.TxHash) (any, []error, bool) {
 	rec, ok := w.receiptHistory.GetReceipt(id)
 	if !ok {
 		return nil, nil, false
@@ -661,11 +661,11 @@ func (w *World) GetTransactionReceipt(id interfaces.TxHash) (any, []error, bool)
 	return rec.GetResult(), rec.GetErrors(), true
 }
 
-func (w *World) SetReceiptHistory(history interfaces.IHistory) {
+func (w *World) SetReceiptHistory(history public.IHistory) {
 	w.receiptHistory = history
 }
 
-func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]interfaces.IReceipt, error) {
+func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]public.IReceipt, error) {
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
@@ -677,7 +677,7 @@ func (w *World) GetSystemNames() []string {
 	return w.systemNames
 }
 
-func (w *World) InjectLogger(logger interfaces.IWorldLogger) {
+func (w *World) InjectLogger(logger public.IWorldLogger) {
 	w.Logger = logger
 	w.StoreManager().InjectLogger(logger)
 }

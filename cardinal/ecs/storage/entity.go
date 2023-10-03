@@ -5,21 +5,21 @@ import (
 	"math"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
-var _ interfaces.EntityManager = &entityMgrImpl{}
+var _ public.EntityManager = &entityMgrImpl{}
 
-func NewEntityManager() interfaces.EntityManager {
-	return &entityMgrImpl{destroyed: make([]interfaces.EntityID, 0, 256), nextID: 0}
+func NewEntityManager() public.EntityManager {
+	return &entityMgrImpl{destroyed: make([]public.EntityID, 0, 256), nextID: 0}
 }
 
 type entityMgrImpl struct {
-	destroyed []interfaces.EntityID
-	nextID    interfaces.EntityID
+	destroyed []public.EntityID
+	nextID    public.EntityID
 }
 
-func (e *entityMgrImpl) GetNextEntityID() interfaces.EntityID {
+func (e *entityMgrImpl) GetNextEntityID() public.EntityID {
 	e.nextID++
 	return e.nextID
 }
@@ -28,7 +28,7 @@ func (e *entityMgrImpl) shrink() {
 	e.destroyed = e.destroyed[:len(e.destroyed)-1]
 }
 
-func (e *entityMgrImpl) NewEntity() (interfaces.EntityID, error) {
+func (e *entityMgrImpl) NewEntity() (public.EntityID, error) {
 	if len(e.destroyed) == 0 {
 		id := e.GetNextEntityID()
 		return id, nil
@@ -38,11 +38,11 @@ func (e *entityMgrImpl) NewEntity() (interfaces.EntityID, error) {
 	return newEntity, nil
 }
 
-func (e *entityMgrImpl) Destroy(id interfaces.EntityID) {
+func (e *entityMgrImpl) Destroy(id public.EntityID) {
 	e.destroyed = append(e.destroyed, id)
 }
 
-func NewEntity(id interfaces.EntityID, loc interfaces.ILocation) interfaces.IEntity {
+func NewEntity(id public.EntityID, loc public.ILocation) public.IEntity {
 	res := entity.Entity{
 		ID:  id,
 		Loc: loc,
@@ -51,8 +51,8 @@ func NewEntity(id interfaces.EntityID, loc interfaces.ILocation) interfaces.IEnt
 }
 
 var (
-	BadID     interfaces.EntityID = math.MaxUint64
-	BadEntity entity.Entity       = entity.Entity{BadID, &entity.Location{}}
+	BadID     public.EntityID = math.MaxUint64
+	BadEntity entity.Entity   = entity.Entity{BadID, &entity.Location{}}
 )
 
 var (
@@ -60,9 +60,9 @@ var (
 	ErrorComponentNotOnEntity     = errors.New("component not on entity")
 )
 
-var _ interfaces.StateStorage = &stateStorageImpl{}
+var _ public.StateStorage = &stateStorageImpl{}
 
-func NewStateStorage() interfaces.StateStorage {
+func NewStateStorage() public.StateStorage {
 	return &stateStorageImpl{
 		data: map[string][]byte{},
 	}

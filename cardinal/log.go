@@ -4,11 +4,11 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 type Logger struct {
-	impl interfaces.IWorldLogger
+	impl public.IWorldLogger
 }
 
 func (l *Logger) LogComponents(world *World, level zerolog.Level) {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 type cqlOperator int
@@ -141,7 +141,7 @@ var internalCQLParser = participle.MustBuild[cqlTerm]()
 // TODO: Value is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
 // be checked.
-func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (interfaces.IComponentType, bool)) (interfaces.IComponentFilter, error) {
+func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (public.IComponentType, bool)) (public.IComponentFilter, error) {
 	if value.Not != nil {
 		resultFilter, err := valueToComponentFilter(value.Not.SubExpression, stringToComponent)
 		if err != nil {
@@ -152,7 +152,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (int
 		if len(value.Exact.Components) <= 0 {
 			return nil, errors.New("EXACT cannot have zero parameters")
 		}
-		components := make([]interfaces.IComponentType, 0, len(value.Exact.Components))
+		components := make([]public.IComponentType, 0, len(value.Exact.Components))
 		for _, componentName := range value.Exact.Components {
 			comp, ok := stringToComponent(componentName.Name)
 			if !ok {
@@ -165,7 +165,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (int
 		if len(value.Contains.Components) <= 0 {
 			return nil, errors.New("CONTAINS cannot have zero parameters")
 		}
-		components := make([]interfaces.IComponentType, 0, len(value.Contains.Components))
+		components := make([]public.IComponentType, 0, len(value.Contains.Components))
 		for _, componentName := range value.Contains.Components {
 			comp, ok := stringToComponent(componentName.Name)
 			if !ok {
@@ -181,11 +181,11 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (int
 	}
 }
 
-func factorToComponentFilter(factor *cqlFactor, stringToComponent func(string) (interfaces.IComponentType, bool)) (interfaces.IComponentFilter, error) {
+func factorToComponentFilter(factor *cqlFactor, stringToComponent func(string) (public.IComponentType, bool)) (public.IComponentFilter, error) {
 	return valueToComponentFilter(factor.Base, stringToComponent)
 }
 
-func opFactorToComponentFilter(opFactor *cqlOpFactor, stringToComponent func(string) (interfaces.IComponentType, bool)) (*cqlOperator, interfaces.IComponentFilter, error) {
+func opFactorToComponentFilter(opFactor *cqlOpFactor, stringToComponent func(string) (public.IComponentType, bool)) (*cqlOperator, public.IComponentFilter, error) {
 	resultFilter, err := factorToComponentFilter(opFactor.Factor, stringToComponent)
 	if err != nil {
 		return nil, nil, err
@@ -193,7 +193,7 @@ func opFactorToComponentFilter(opFactor *cqlOpFactor, stringToComponent func(str
 	return &opFactor.Operator, resultFilter, nil
 }
 
-func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (interfaces.IComponentType, bool)) (interfaces.IComponentFilter, error) {
+func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (public.IComponentType, bool)) (public.IComponentFilter, error) {
 	if term.Left == nil {
 		return nil, errors.New("Not enough values in expression")
 	}
@@ -218,7 +218,7 @@ func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (interf
 	return acc, nil
 }
 
-func CQLParse(cqlText string, stringToComponent func(string) (interfaces.IComponentType, bool)) (interfaces.IComponentFilter, error) {
+func CQLParse(cqlText string, stringToComponent func(string) (public.IComponentType, bool)) (public.IComponentFilter, error) {
 	term, err := internalCQLParser.ParseString("", cqlText)
 	if err != nil {
 		return nil, err
@@ -235,6 +235,6 @@ type QueryRequest struct {
 }
 
 type QueryResponse struct {
-	Id   interfaces.EntityID `json:"id"`
-	Data []json.RawMessage   `json:"data"`
+	Id   public.EntityID   `json:"id"`
+	Data []json.RawMessage `json:"data"`
 }

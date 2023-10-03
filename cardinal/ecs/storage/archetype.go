@@ -6,12 +6,12 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
-var _ interfaces.ArchetypeAccessor = &archetypeStorageImpl{}
+var _ public.ArchetypeAccessor = &archetypeStorageImpl{}
 
-func NewArchetypeAccessor() interfaces.ArchetypeAccessor {
+func NewArchetypeAccessor() public.ArchetypeAccessor {
 	return &archetypeStorageImpl{archs: make([]*Archetype, 0)}
 }
 
@@ -19,10 +19,10 @@ type archetypeStorageImpl struct {
 	archs []*Archetype
 }
 
-func (a *archetypeStorageImpl) PushArchetype(archID interfaces.ArchetypeID, comps []interfaces.IComponentType) {
+func (a *archetypeStorageImpl) PushArchetype(archID public.ArchetypeID, comps []public.IComponentType) {
 	a.archs = append(a.archs, &Archetype{
 		ID:      archID,
-		Entitys: make([]interfaces.EntityID, 0, 256),
+		Entitys: make([]public.EntityID, 0, 256),
 		Comps:   comps,
 	})
 }
@@ -31,7 +31,7 @@ func (a *archetypeStorageImpl) Count() int {
 	return len(a.archs)
 }
 
-func (a *archetypeStorageImpl) Archetype(archID interfaces.ArchetypeID) interfaces.ArchetypeStorage {
+func (a *archetypeStorageImpl) Archetype(archID public.ArchetypeID) public.ArchetypeStorage {
 	return a.archs[archID]
 }
 
@@ -41,9 +41,9 @@ func (a *archetypeStorageImpl) Archetype(archID interfaces.ArchetypeID) interfac
 // slice of IComponentTypes with the correct TypeIDs so that we can recover the original
 // archetypeStorageImpl.
 type archForStorage struct {
-	ID           interfaces.ArchetypeID
-	Entities     []interfaces.EntityID
-	ComponentIDs []interfaces.ComponentTypeID
+	ID           public.ArchetypeID
+	Entities     []public.EntityID
+	ComponentIDs []public.ComponentTypeID
 }
 
 // Marshal converts the archetypeStorageImpl to bytes. Only the IDs from the IComponentTypes
@@ -68,19 +68,19 @@ var (
 
 // idsToComponents converts slices of TypeIDs to the corresponding IComponentTypes
 type idsToComponents struct {
-	m map[interfaces.ComponentTypeID]interfaces.IComponentType
+	m map[public.ComponentTypeID]public.IComponentType
 }
 
-func newIDsToComponents(components []interfaces.IComponentType) idsToComponents {
-	m := map[interfaces.ComponentTypeID]interfaces.IComponentType{}
+func newIDsToComponents(components []public.IComponentType) idsToComponents {
+	m := map[public.ComponentTypeID]public.IComponentType{}
 	for i, comp := range components {
 		m[comp.ID()] = components[i]
 	}
 	return idsToComponents{m: m}
 }
 
-func (c idsToComponents) convert(ids []interfaces.ComponentTypeID) (comps []interfaces.IComponentType, ok error) {
-	comps = []interfaces.IComponentType{}
+func (c idsToComponents) convert(ids []public.ComponentTypeID) (comps []public.IComponentType, ok error) {
+	comps = []public.IComponentType{}
 	for _, id := range ids {
 		comp, ok := c.m[id]
 		if !ok {
@@ -94,7 +94,7 @@ func (c idsToComponents) convert(ids []interfaces.ComponentTypeID) (comps []inte
 // UnmarshalWithComps converts some bytes (generated with Marshal) and a list of components into
 // an archetypeStorageImpl. The slice of components is required because the interfaces were not
 // actually serialized to bytes, just their IDs.
-func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []interfaces.IComponentType) error {
+func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []public.IComponentType) error {
 	archetypesFromStorage, err := codec.Decode[[]archForStorage](bytes)
 	if err != nil {
 		return err
@@ -115,34 +115,34 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []int
 // Archetype is a collection of Entities for a specific archetype of components.
 // This structure allows to quickly find Entities based on their components.
 type Archetype struct {
-	ID      interfaces.ArchetypeID
-	Entitys []interfaces.EntityID
-	Comps   []interfaces.IComponentType
+	ID      public.ArchetypeID
+	Entitys []public.EntityID
+	Comps   []public.IComponentType
 }
 
-var _ interfaces.ArchetypeStorage = &Archetype{}
+var _ public.ArchetypeStorage = &Archetype{}
 
 // NewArchetype creates a new archetype.
-func NewArchetype(archID interfaces.ArchetypeID, components []interfaces.IComponentType) *Archetype {
+func NewArchetype(archID public.ArchetypeID, components []public.IComponentType) *Archetype {
 	return &Archetype{
 		ID:      archID,
-		Entitys: make([]interfaces.EntityID, 0, 256),
+		Entitys: make([]public.EntityID, 0, 256),
 		Comps:   components,
 	}
 }
 
 // Components returns the slice of components associated with this archetype.
-func (archetype *Archetype) Components() []interfaces.IComponentType {
+func (archetype *Archetype) Components() []public.IComponentType {
 	return archetype.Comps
 }
 
 // Entities returns all Entities in this archetype.
-func (archetype *Archetype) Entities() []interfaces.EntityID {
+func (archetype *Archetype) Entities() []public.EntityID {
 	return archetype.Entitys
 }
 
 // SwapRemove removes an Ent from the archetype and returns it.
-func (archetype *Archetype) SwapRemove(entityIndex interfaces.ComponentIndex) interfaces.EntityID {
+func (archetype *Archetype) SwapRemove(entityIndex public.ComponentIndex) public.EntityID {
 	removed := archetype.Entitys[entityIndex]
 	archetype.Entitys[entityIndex] = archetype.Entitys[len(archetype.Entitys)-1]
 	archetype.Entitys = archetype.Entitys[:len(archetype.Entitys)-1]
@@ -150,7 +150,7 @@ func (archetype *Archetype) SwapRemove(entityIndex interfaces.ComponentIndex) in
 }
 
 // ComponentsMatch returns true if the given components matches this archetype.
-func (archetype *Archetype) ComponentsMatch(components []interfaces.IComponentType) bool {
+func (archetype *Archetype) ComponentsMatch(components []public.IComponentType) bool {
 	if len(archetype.Components()) != len(components) {
 		return false
 	}
@@ -163,7 +163,7 @@ func (archetype *Archetype) ComponentsMatch(components []interfaces.IComponentTy
 }
 
 // PushEntity adds an Ent to the archetype.
-func (archetype *Archetype) PushEntity(id interfaces.EntityID) {
+func (archetype *Archetype) PushEntity(id public.EntityID) {
 	archetype.Entitys = append(archetype.Entitys, id)
 }
 

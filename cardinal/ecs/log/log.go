@@ -4,21 +4,21 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 type Logger struct {
 	Logger *zerolog.Logger
 }
 
-func (_ *Logger) loadComponentIntoArrayLogger(component interfaces.IComponentType, arrayLogger *zerolog.Array) *zerolog.Array {
+func (_ *Logger) loadComponentIntoArrayLogger(component public.IComponentType, arrayLogger *zerolog.Array) *zerolog.Array {
 	dictLogger := zerolog.Dict()
 	dictLogger = dictLogger.Int("component_id", int(component.ID()))
 	dictLogger = dictLogger.Str("component_name", component.Name())
 	return arrayLogger.Dict(dictLogger)
 }
 
-func (l *Logger) loadComponentsToEvent(zeroLoggerEvent *zerolog.Event, target interfaces.IWorld) *zerolog.Event {
+func (l *Logger) loadComponentsToEvent(zeroLoggerEvent *zerolog.Event, target public.IWorld) *zerolog.Event {
 	zeroLoggerEvent.Int("total_components", len(target.GetComponents()))
 	arrayLogger := zerolog.Arr()
 	for _, _component := range target.GetComponents() {
@@ -31,7 +31,7 @@ func (_ *Logger) loadSystemIntoArrayLogger(name string, arrayLogger *zerolog.Arr
 	return arrayLogger.Str(name)
 }
 
-func (l *Logger) loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, world interfaces.IWorld) *zerolog.Event {
+func (l *Logger) loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, world public.IWorld) *zerolog.Event {
 	zeroLoggerEvent.Int("total_systems", len(world.GetSystemNames()))
 	arrayLogger := zerolog.Arr()
 	for _, name := range world.GetSystemNames() {
@@ -40,7 +40,7 @@ func (l *Logger) loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, world inter
 	return zeroLoggerEvent.Array("systems", arrayLogger)
 }
 
-func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, entity interfaces.IEntity, components []interfaces.IComponentType) (*zerolog.Event, error) {
+func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, entity public.IEntity, components []public.IComponentType) (*zerolog.Event, error) {
 	arrayLogger := zerolog.Arr()
 	for _, _component := range components {
 		arrayLogger = l.loadComponentIntoArrayLogger(_component, arrayLogger)
@@ -51,21 +51,21 @@ func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, entity inte
 }
 
 // LogComponents logs all component info related to the world
-func (l *Logger) LogComponents(world interfaces.IWorld, level zerolog.Level) {
+func (l *Logger) LogComponents(world public.IWorld, level zerolog.Level) {
 	zeroLoggerEvent := l.Logger.WithLevel(level)
 	zeroLoggerEvent = l.loadComponentsToEvent(zeroLoggerEvent, world)
 	zeroLoggerEvent.Send()
 }
 
 // LogSystem logs all system info related to the world
-func (l *Logger) LogSystem(world interfaces.IWorld, level zerolog.Level) {
+func (l *Logger) LogSystem(world public.IWorld, level zerolog.Level) {
 	zeroLoggerEvent := l.Logger.WithLevel(level)
 	zeroLoggerEvent = l.loadSystemIntoEvent(zeroLoggerEvent, world)
 	zeroLoggerEvent.Send()
 }
 
 // LogEntity logs entity info given an entityID
-func (l *Logger) LogEntity(level zerolog.Level, entity interfaces.IEntity, components []interfaces.IComponentType) {
+func (l *Logger) LogEntity(level zerolog.Level, entity public.IEntity, components []public.IComponentType) {
 	zeroLoggerEvent := l.Logger.WithLevel(level)
 	var err error = nil
 	zeroLoggerEvent, err = l.loadEntityIntoEvent(zeroLoggerEvent, entity, components)
@@ -81,7 +81,7 @@ func (l *Logger) GetZeroLogger() *zerolog.Logger {
 }
 
 // LogWorld Logs everything about the world (components and Systems)
-func (l *Logger) LogWorld(world interfaces.IWorld, level zerolog.Level) {
+func (l *Logger) LogWorld(world public.IWorld, level zerolog.Level) {
 	zeroLoggerEvent := l.Logger.WithLevel(level)
 	zeroLoggerEvent = l.loadComponentsToEvent(zeroLoggerEvent, world)
 	zeroLoggerEvent = l.loadSystemIntoEvent(zeroLoggerEvent, world)
@@ -89,7 +89,7 @@ func (l *Logger) LogWorld(world interfaces.IWorld, level zerolog.Level) {
 }
 
 // CreateSystemLogger creates a Sub Logger with the entry {"system" : systemName}
-func (l *Logger) CreateSystemLogger(systemName string) interfaces.IWorldLogger {
+func (l *Logger) CreateSystemLogger(systemName string) public.IWorldLogger {
 	zeroLogger := l.Logger.With().
 		Str("system", systemName).Logger()
 	res := Logger{

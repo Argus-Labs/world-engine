@@ -9,15 +9,15 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 type IGettableRawJsonFromEntityId interface {
-	GetRawJson(w interfaces.IWorld, id interfaces.EntityID) (json.RawMessage, error)
+	GetRawJson(w public.IWorld, id public.EntityID) (json.RawMessage, error)
 }
 
 // IComponentType is an interface for component types.
-type IComponentType = interfaces.IComponentType
+type IComponentType = public.IComponentType
 
 // NewComponentType creates a new component type.
 // The function is used to create a new component of the type.
@@ -34,7 +34,7 @@ func NewComponentType[T any](name string, opts ...ComponentOption[T]) *Component
 // a component when getting or setting the component of an entity.
 type ComponentType[T any] struct {
 	isIDSet    bool
-	id         interfaces.ComponentTypeID
+	id         public.ComponentTypeID
 	typ        reflect.Type
 	name       string
 	defaultVal interface{}
@@ -44,7 +44,7 @@ type ComponentType[T any] struct {
 var _ IGettableRawJsonFromEntityId = &ComponentType[int]{}
 
 // SetID set's this component's ID. It must be unique across the world object.
-func (c *ComponentType[T]) SetID(id interfaces.ComponentTypeID) error {
+func (c *ComponentType[T]) SetID(id public.ComponentTypeID) error {
 	if c.isIDSet {
 		// In games implemented with Cardinal, components will only be initialized one time (on startup).
 		// In tests, it's often useful to use the same component in multiple worlds. This check will allow for the
@@ -60,7 +60,7 @@ func (c *ComponentType[T]) SetID(id interfaces.ComponentTypeID) error {
 }
 
 // Get returns component data from the entity.
-func (c *ComponentType[T]) Get(w interfaces.IWorld, id interfaces.EntityID) (comp T, err error) {
+func (c *ComponentType[T]) Get(w public.IWorld, id public.EntityID) (comp T, err error) {
 	value, err := w.StoreManager().GetComponentForEntity(c, id)
 	if err != nil {
 		return comp, err
@@ -72,13 +72,13 @@ func (c *ComponentType[T]) Get(w interfaces.IWorld, id interfaces.EntityID) (com
 	return comp, nil
 }
 
-func (c *ComponentType[T]) GetRawJson(w interfaces.IWorld, id interfaces.EntityID) (json.RawMessage, error) {
+func (c *ComponentType[T]) GetRawJson(w public.IWorld, id public.EntityID) (json.RawMessage, error) {
 	return w.StoreManager().GetComponentForEntityInRawJson(c, id)
 }
 
 // Update is a helper that combines a Get followed by a Set to modify a component's value. Pass in a function
 // fn that will return a modified component. Update will hide the calls to Get and Set
-func (c *ComponentType[T]) Update(w interfaces.IWorld, id interfaces.EntityID, fn func(T) T) error {
+func (c *ComponentType[T]) Update(w public.IWorld, id public.EntityID, fn func(T) T) error {
 	if _, ok := w.GetComponentFromName(c.Name()); !ok {
 		return fmt.Errorf("%s is not registered, please register it before updating", c.Name())
 	}
@@ -91,7 +91,7 @@ func (c *ComponentType[T]) Update(w interfaces.IWorld, id interfaces.EntityID, f
 }
 
 // Set sets component data to the entity.
-func (c *ComponentType[T]) Set(w interfaces.IWorld, id interfaces.EntityID, component T) error {
+func (c *ComponentType[T]) Set(w public.IWorld, id public.EntityID, component T) error {
 	if _, ok := w.GetComponentFromName(c.Name()); !ok {
 		return fmt.Errorf("%s is not registered, please register it before updating", c.Name())
 	}
@@ -109,17 +109,17 @@ func (c *ComponentType[T]) Set(w interfaces.IWorld, id interfaces.EntityID, comp
 
 // Each iterates over the entities that have the component.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (c *ComponentType[T]) Each(w interfaces.IWorld, callback QueryCallBackFn) {
+func (c *ComponentType[T]) Each(w public.IWorld, callback QueryCallBackFn) {
 	c.query.Each(w, callback)
 }
 
 // First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w interfaces.IWorld) (interfaces.EntityID, error) {
+func (c *ComponentType[T]) First(w public.IWorld) (public.EntityID, error) {
 	return c.query.First(w)
 }
 
 // MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w interfaces.IWorld) interfaces.EntityID {
+func (c *ComponentType[T]) MustFirst(w public.IWorld) public.EntityID {
 	id, err := c.query.First(w)
 	if err != nil {
 		panic(fmt.Sprintf("no entity has the component %s", c.name))
@@ -128,12 +128,12 @@ func (c *ComponentType[T]) MustFirst(w interfaces.IWorld) interfaces.EntityID {
 }
 
 // RemoveFrom removes this component from the given entity.
-func (c *ComponentType[T]) RemoveFrom(w interfaces.IWorld, id interfaces.EntityID) error {
+func (c *ComponentType[T]) RemoveFrom(w public.IWorld, id public.EntityID) error {
 	return w.StoreManager().RemoveComponentFromEntity(c, id)
 }
 
 // AddTo adds this component to the given entity.
-func (c *ComponentType[T]) AddTo(w interfaces.IWorld, id interfaces.EntityID) error {
+func (c *ComponentType[T]) AddTo(w public.IWorld, id public.EntityID) error {
 	return w.StoreManager().AddComponentToEntity(c, id)
 }
 
@@ -154,7 +154,7 @@ func (c *ComponentType[T]) Name() string {
 }
 
 // ID returns the component type id.
-func (c *ComponentType[T]) ID() interfaces.ComponentTypeID {
+func (c *ComponentType[T]) ID() public.ComponentTypeID {
 	return c.id
 }
 

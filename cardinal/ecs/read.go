@@ -8,12 +8,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 type ReadType[Request any, Reply any] struct {
 	name       string
-	handler    func(world interfaces.IWorld, req Request) (Reply, error)
+	handler    func(world public.IWorld, req Request) (Reply, error)
 	requestABI *abi.Type
 	replyABI   *abi.Type
 }
@@ -35,11 +35,11 @@ func WithReadEVMSupport[Request, Reply any]() func(transactionType *ReadType[Req
 	}
 }
 
-var _ interfaces.IRead = NewReadType[struct{}, struct{}]("", nil)
+var _ public.IRead = NewReadType[struct{}, struct{}]("", nil)
 
 func NewReadType[Request any, Reply any](
 	name string,
-	handler func(world interfaces.IWorld, req Request) (Reply, error),
+	handler func(world public.IWorld, req Request) (Reply, error),
 	opts ...func() func(readType *ReadType[Request, Reply]),
 ) *ReadType[Request, Reply] {
 	var req Request
@@ -94,7 +94,7 @@ func (r *ReadType[req, rep]) Schema() (request, reply *jsonschema.Schema) {
 	return jsonschema.Reflect(new(req)), jsonschema.Reflect(new(rep))
 }
 
-func (r *ReadType[req, rep]) HandleRead(world interfaces.IWorld, a any) (any, error) {
+func (r *ReadType[req, rep]) HandleRead(world public.IWorld, a any) (any, error) {
 	request, ok := a.(req)
 	if !ok {
 		return nil, fmt.Errorf("cannot cast %T to this reads request type %T", a, new(req))
@@ -103,7 +103,7 @@ func (r *ReadType[req, rep]) HandleRead(world interfaces.IWorld, a any) (any, er
 	return reply, err
 }
 
-func (r *ReadType[req, rep]) HandleReadRaw(w interfaces.IWorld, bz []byte) ([]byte, error) {
+func (r *ReadType[req, rep]) HandleReadRaw(w public.IWorld, bz []byte) ([]byte, error) {
 	request := new(req)
 	err := json.Unmarshal(bz, request)
 	if err != nil {

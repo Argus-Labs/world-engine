@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -16,12 +16,12 @@ var (
 	ErrEVMTypeNotSet = errors.New("EVM type is not set")
 )
 
-var _ interfaces.ITransaction = NewTransactionType[struct{}, struct{}]("")
+var _ public.ITransaction = NewTransactionType[struct{}, struct{}]("")
 
 // TransactionType helps manage adding transactions (aka events) to the world transaction queue. It also assists
 // in the using of transactions inside of System functions.
 type TransactionType[In, Out any] struct {
-	id         interfaces.TransactionTypeID
+	id         public.TransactionTypeID
 	isIDSet    bool
 	name       string
 	inEVMType  *abi.Type
@@ -87,7 +87,7 @@ func (t *TransactionType[In, Out]) Schema() (in, out *jsonschema.Schema) {
 	return jsonschema.Reflect(new(In)), jsonschema.Reflect(new(Out))
 }
 
-func (t *TransactionType[In, Out]) ID() interfaces.TransactionTypeID {
+func (t *TransactionType[In, Out]) ID() public.TransactionTypeID {
 	if !t.isIDSet {
 		panic(fmt.Sprintf("id on %v is not set", t))
 	}
@@ -98,7 +98,7 @@ var emptySignature = &sign.SignedPayload{}
 
 // AddToQueue adds a transaction with the given data to the world object. The transaction will be executed
 // at the next game tick. An optional sign.SignedPayload can be associated with this transaction.
-func (t *TransactionType[In, Out]) AddToQueue(world interfaces.IWorld, data In, sigs ...*sign.SignedPayload) interfaces.TxHash {
+func (t *TransactionType[In, Out]) AddToQueue(world public.IWorld, data In, sigs ...*sign.SignedPayload) public.TxHash {
 	sig := emptySignature
 	if len(sigs) > 0 {
 		sig = sigs[0]
@@ -107,7 +107,7 @@ func (t *TransactionType[In, Out]) AddToQueue(world interfaces.IWorld, data In, 
 	return id
 }
 
-func (t *TransactionType[In, Out]) SetID(id interfaces.TransactionTypeID) error {
+func (t *TransactionType[In, Out]) SetID(id public.TransactionTypeID) error {
 	if t.isIDSet {
 		// In games implemented with Cardinal, transactions will only be initialized one time (on startup).
 		// In tests, it's often useful to use the same transaction in multiple worlds. This check will allow for the
@@ -123,20 +123,20 @@ func (t *TransactionType[In, Out]) SetID(id interfaces.TransactionTypeID) error 
 }
 
 type TxData[In any] struct {
-	TxHash interfaces.TxHash
+	TxHash public.TxHash
 	Value  In
 	Sig    *sign.SignedPayload
 }
 
-func (t *TransactionType[In, Out]) AddError(world interfaces.IWorld, hash interfaces.TxHash, err error) {
+func (t *TransactionType[In, Out]) AddError(world public.IWorld, hash public.TxHash, err error) {
 	world.AddTransactionError(hash, err)
 }
 
-func (t *TransactionType[In, Out]) SetResult(world interfaces.IWorld, hash interfaces.TxHash, result Out) {
+func (t *TransactionType[In, Out]) SetResult(world public.IWorld, hash public.TxHash, result Out) {
 	world.SetTransactionResult(hash, result)
 }
 
-func (t *TransactionType[In, Out]) GetReceipt(world interfaces.IWorld, hash interfaces.TxHash) (v Out, errs []error, ok bool) {
+func (t *TransactionType[In, Out]) GetReceipt(world public.IWorld, hash public.TxHash) (v Out, errs []error, ok bool) {
 	iface, errs, ok := world.GetTransactionReceipt(hash)
 	if !ok {
 		return v, nil, false
@@ -153,7 +153,7 @@ func (t *TransactionType[In, Out]) GetReceipt(world interfaces.IWorld, hash inte
 }
 
 // In extracts all the transactions in the transaction queue that match this TransactionType's ID.
-func (t *TransactionType[In, Out]) In(tq interfaces.ITxQueue) []TxData[In] {
+func (t *TransactionType[In, Out]) In(tq public.ITxQueue) []TxData[In] {
 	var txs []TxData[In]
 	for _, tx := range tq.ForID(t.ID()) {
 		if val, ok := tx.Value.(In); ok {

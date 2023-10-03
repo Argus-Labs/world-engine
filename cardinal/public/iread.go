@@ -1,4 +1,4 @@
-package interfaces
+package public
 
 import "github.com/invopop/jsonschema"
 

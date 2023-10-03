@@ -10,7 +10,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
@@ -35,15 +35,15 @@ type Server interface {
 }
 
 // txByID maps transaction type ID's to transaction types.
-type txByID map[interfaces.TransactionTypeID]interfaces.ITransaction
+type txByID map[public.TransactionTypeID]public.ITransaction
 
 // readByName maps read resource names to the underlying IRead
-type readByName map[string]interfaces.IRead
+type readByName map[string]public.IRead
 
 type msgServerImpl struct {
 	txMap   txByID
 	readMap readByName
-	world   interfaces.IWorld
+	world   public.IWorld
 
 	// opts
 	creds credentials.TransportCredentials
@@ -53,7 +53,7 @@ type msgServerImpl struct {
 // NewServer returns a new EVM connection server. This server is responsible for handling requests originating from
 // the EVM. It runs on a default port of 9020, but a custom port can be set using options, or by setting an env variable
 // with key CARDINAL_EVM_PORT.
-func NewServer(w interfaces.IWorld, opts ...Option) (Server, error) {
+func NewServer(w public.IWorld, opts ...Option) (Server, error) {
 	// setup txs
 	txs, err := w.ListTransactions()
 	if err != nil {
@@ -127,7 +127,7 @@ func (s *msgServerImpl) Serve() error {
 func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessageRequest,
 ) (*routerv1.SendMessageResponse, error) {
 	// first we check if we can extract the transaction associated with the id
-	itx, ok := s.txMap[interfaces.TransactionTypeID(msg.MessageId)]
+	itx, ok := s.txMap[public.TransactionTypeID(msg.MessageId)]
 	if !ok {
 		return nil, fmt.Errorf("no transaction with ID %d is registerd in this world", msg.MessageId)
 	}
@@ -155,7 +155,7 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
 	var err error
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id interfaces.EntityID) bool {
+	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id public.EntityID) bool {
 		var signerComp ecs.SignerComponent
 		signerComp, err = ecs.SignerComp.Get(s.world, id)
 		if err != nil {

@@ -2,11 +2,11 @@ package ecs
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 type cache struct {
-	archetypes []interfaces.ArchetypeID
+	archetypes []public.ArchetypeID
 	seen       int
 }
 
@@ -18,23 +18,23 @@ type cache struct {
 // to filter entities with the same query.
 type Query struct {
 	archMatches map[Namespace]*cache
-	filter      interfaces.IComponentFilter
+	filter      public.IComponentFilter
 }
 
 // NewQuery creates a new query.
 // It receives arbitrary filters that are used to filter entities.
-func NewQuery(filter interfaces.IComponentFilter) *Query {
+func NewQuery(filter public.IComponentFilter) *Query {
 	return &Query{
 		archMatches: make(map[Namespace]*cache),
 		filter:      filter,
 	}
 }
 
-type QueryCallBackFn func(interfaces.EntityID) bool
+type QueryCallBackFn func(public.EntityID) bool
 
 // Each iterates over all entities that match the query.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (q *Query) Each(w interfaces.IWorld, callback QueryCallBackFn) {
+func (q *Query) Each(w public.IWorld, callback QueryCallBackFn) {
 	result := q.evaluateQuery(w)
 	iter := storage.NewEntityIterator(0, w.StoreManager().GetArchAccessor(), result)
 	for iter.HasNext() {
@@ -49,7 +49,7 @@ func (q *Query) Each(w interfaces.IWorld, callback QueryCallBackFn) {
 }
 
 // Count returns the number of entities that match the query.
-func (q *Query) Count(w interfaces.IWorld) int {
+func (q *Query) Count(w public.IWorld) int {
 	result := q.evaluateQuery(w)
 	iter := storage.NewEntityIterator(0, w.StoreManager().GetArchAccessor(), result)
 	ret := 0
@@ -61,7 +61,7 @@ func (q *Query) Count(w interfaces.IWorld) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w interfaces.IWorld) (id interfaces.EntityID, err error) {
+func (q *Query) First(w public.IWorld) (id public.EntityID, err error) {
 	result := q.evaluateQuery(w)
 	iter := storage.NewEntityIterator(0, w.StoreManager().GetArchAccessor(), result)
 	if !iter.HasNext() {
@@ -76,11 +76,11 @@ func (q *Query) First(w interfaces.IWorld) (id interfaces.EntityID, err error) {
 	return storage.BadID, err
 }
 
-func (q *Query) evaluateQuery(world interfaces.IWorld) []interfaces.ArchetypeID {
+func (q *Query) evaluateQuery(world public.IWorld) []public.ArchetypeID {
 	w := Namespace(world.Namespace())
 	if _, ok := q.archMatches[w]; !ok {
 		q.archMatches[w] = &cache{
-			archetypes: make([]interfaces.ArchetypeID, 0),
+			archetypes: make([]public.ArchetypeID, 0),
 			seen:       0,
 		}
 	}

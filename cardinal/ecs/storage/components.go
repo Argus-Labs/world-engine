@@ -1,18 +1,16 @@
 package storage
 
-import (
-	"pkg.world.dev/world-engine/cardinal/interfaces"
-)
+import "pkg.world.dev/world-engine/cardinal/public"
 
 // Components is a structure that facilitates the storage and retrieval of component data.
 // TODO: this kinda sucks.. could prob refactor this and make it prettier for devs.
 type Components struct {
-	Store            interfaces.ComponentStorageManager
-	ComponentIndices interfaces.ComponentIndexStorage
+	Store            public.ComponentStorageManager
+	ComponentIndices public.ComponentIndexStorage
 }
 
 // NewComponents creates a new empty structure that stores data of components.
-func NewComponents(store interfaces.ComponentStorageManager, idxStore interfaces.ComponentIndexStorage) Components {
+func NewComponents(store public.ComponentStorageManager, idxStore public.ComponentIndexStorage) Components {
 	return Components{
 		Store:            store,
 		ComponentIndices: idxStore,
@@ -20,7 +18,7 @@ func NewComponents(store interfaces.ComponentStorageManager, idxStore interfaces
 }
 
 // PushComponents stores the new data of the component in the archetype.
-func (cs *Components) PushComponents(components []interfaces.IComponentType, archetypeID interfaces.ArchetypeID) (interfaces.ComponentIndex, error) {
+func (cs *Components) PushComponents(components []public.IComponentType, archetypeID public.ArchetypeID) (public.ComponentIndex, error) {
 	for _, componentType := range components {
 		v := cs.Store.GetComponentStorage(componentType.ID())
 		err := v.PushComponent(componentType, archetypeID)
@@ -36,7 +34,7 @@ func (cs *Components) PushComponents(components []interfaces.IComponentType, arc
 }
 
 // Move moves the bytes of data of the component in the archetype.
-func (cs *Components) Move(src interfaces.ArchetypeID, dst interfaces.ArchetypeID) error {
+func (cs *Components) Move(src public.ArchetypeID, dst public.ArchetypeID) error {
 	err := cs.ComponentIndices.DecrementIndex(src)
 	if err != nil {
 		return err
@@ -49,16 +47,16 @@ func (cs *Components) Move(src interfaces.ArchetypeID, dst interfaces.ArchetypeI
 }
 
 // Storage returns the component data storage accessor.
-func (cs *Components) Storage(c interfaces.IComponentType) interfaces.ComponentStorage {
+func (cs *Components) Storage(c public.IComponentType) public.ComponentStorage {
 	return cs.Store.GetComponentStorage(c.ID())
 }
 
-func (cs *Components) GetComponentIndexStorage(c interfaces.IComponentType) interfaces.ComponentIndexStorage {
+func (cs *Components) GetComponentIndexStorage(c public.IComponentType) public.ComponentIndexStorage {
 	return cs.Store.GetComponentIndexStorage(c.ID())
 }
 
 // Remove removes the component from the storage.
-func (cs *Components) Remove(ai interfaces.ArchetypeID, comps []interfaces.IComponentType, ci interfaces.ComponentIndex) error {
+func (cs *Components) Remove(ai public.ArchetypeID, comps []public.IComponentType, ci public.ComponentIndex) error {
 	for _, ct := range comps {
 		err := cs.remove(ct, ai, ci)
 		if err != nil {
@@ -68,7 +66,7 @@ func (cs *Components) Remove(ai interfaces.ArchetypeID, comps []interfaces.IComp
 	return cs.ComponentIndices.DecrementIndex(ai)
 }
 
-func (cs *Components) remove(ct interfaces.IComponentType, ai interfaces.ArchetypeID, ci interfaces.ComponentIndex) error {
+func (cs *Components) remove(ct public.IComponentType, ai public.ArchetypeID, ci public.ComponentIndex) error {
 	storage := cs.Storage(ct)
 	_, err := storage.SwapRemove(ai, ci)
 	return err

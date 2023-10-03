@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 
@@ -56,7 +56,7 @@ func (t *testTransactionHandler) post(path string, payload any) *http.Response {
 	return res
 }
 
-func makeTestTransactionHandler(t *testing.T, world interfaces.IWorld, opts ...Option) *testTransactionHandler {
+func makeTestTransactionHandler(t *testing.T, world public.IWorld, opts ...Option) *testTransactionHandler {
 	port := "4040"
 	opts = append(opts, WithPort(port))
 	txh, err := NewHandler(world, opts...)
@@ -175,7 +175,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
+	w.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -274,7 +274,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	count := 0
-	w.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
+	w.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -319,7 +319,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
+	w.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		return nil
 	})
 	type garbageStruct struct {
@@ -362,7 +362,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world interfaces.IWorld, req FooRequest) (FooReply, error) {
+	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world public.IWorld, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
 	})
 	assert.NilError(t, w.RegisterReads(fooRead))
@@ -518,7 +518,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	w := inmem.NewECSWorldForTest(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
+	w.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		txs := sendTx.In(queue)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -730,14 +730,14 @@ func TestCanListReads(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 
-	fooRead := ecs.NewReadType[FooRequest, FooResponse]("foo", func(world interfaces.IWorld, req FooRequest) (FooResponse, error) {
+	fooRead := ecs.NewReadType[FooRequest, FooResponse]("foo", func(world public.IWorld, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
-	barRead := ecs.NewReadType[FooRequest, FooResponse]("bar", func(world interfaces.IWorld, req FooRequest) (FooResponse, error) {
+	barRead := ecs.NewReadType[FooRequest, FooResponse]("bar", func(world public.IWorld, req FooRequest) (FooResponse, error) {
 
 		return FooResponse{Meow: req.Meow}, nil
 	})
-	bazRead := ecs.NewReadType[FooRequest, FooResponse]("baz", func(world interfaces.IWorld, req FooRequest) (FooResponse, error) {
+	bazRead := ecs.NewReadType[FooRequest, FooResponse]("baz", func(world public.IWorld, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
 
@@ -781,7 +781,7 @@ func TestReadEncodeDecode(t *testing.T) {
 	type FooResponse struct {
 		Meow string `json:"meow,omitempty"`
 	}
-	fq := ecs.NewReadType[FooRequest, FooResponse](endpoint, func(world interfaces.IWorld, req FooRequest) (FooResponse, error) {
+	fq := ecs.NewReadType[FooRequest, FooResponse](endpoint, func(world public.IWorld, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
 
@@ -926,7 +926,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	world := inmem.NewECSWorldForTest(t)
 	assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
-	world.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
+	world.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		for _, tx := range incTx.In(queue) {
 			incTx.SetResult(world, tx.TxHash, IncReply{
 				Number: tx.Value.Number + 1,
@@ -935,7 +935,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 		return nil
 	})
 	// System to handle duplicating strings
-	world.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
+	world.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		for _, tx := range dupeTx.In(queue) {
 			dupeTx.SetResult(world, tx.TxHash, DupeReply{
 				Str: tx.Value.Str + tx.Value.Str,
@@ -945,7 +945,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	})
 	wantError := errors.New("some error")
 	// System to handle error production
-	world.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
+	world.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		for _, tx := range errTx.In(queue) {
 			errTx.AddError(world, tx.TxHash, wantError)
 			errTx.AddError(world, tx.TxHash, wantError)

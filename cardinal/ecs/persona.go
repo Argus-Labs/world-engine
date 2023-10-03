@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 // CreatePersonaTransaction allows for the associating of a persona tag with a signer address.
@@ -40,7 +40,7 @@ var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, Auth
 // AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
-func AuthorizePersonaAddressSystem(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
+func AuthorizePersonaAddressSystem(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 	txs := AuthorizePersonaAddressTx.In(queue)
 	if len(txs) == 0 {
 		return nil
@@ -94,13 +94,13 @@ var SignerComp = NewComponentType[SignerComponent]("SignerComponent")
 
 type personaTagComponentData struct {
 	SignerAddress string
-	EntityID      interfaces.EntityID
+	EntityID      public.EntityID
 }
 
-func buildPersonaTagMapping(world interfaces.IWorld) (map[string]personaTagComponentData, error) {
+func buildPersonaTagMapping(world public.IWorld) (map[string]personaTagComponentData, error) {
 	personaTagToAddress := map[string]personaTagComponentData{}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(world, func(id interfaces.EntityID) bool {
+	NewQuery(filter.Exact(SignerComp)).Each(world, func(id public.EntityID) bool {
 		sc, err := SignerComp.Get(world, id)
 		if err != nil {
 			errs = append(errs, err)
@@ -120,7 +120,7 @@ func buildPersonaTagMapping(world interfaces.IWorld) (map[string]personaTagCompo
 
 // RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func RegisterPersonaSystem(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
+func RegisterPersonaSystem(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 	createTxs := CreatePersonaTx.In(queue)
 	if len(createTxs) == 0 {
 		return nil
@@ -172,7 +172,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 		return "", ErrorCreatePersonaTxsNotProcessed
 	}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(w, func(id interfaces.EntityID) bool {
+	NewQuery(filter.Exact(SignerComp)).Each(w, func(id public.EntityID) bool {
 		sc, err := SignerComp.Get(w, id)
 		if err != nil {
 			errs = append(errs, err)

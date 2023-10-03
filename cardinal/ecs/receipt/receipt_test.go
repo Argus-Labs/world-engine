@@ -7,13 +7,13 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/google/uuid"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
-func txHash(t *testing.T) interfaces.TxHash {
+func txHash(t *testing.T) public.TxHash {
 	id, err := uuid.NewUUID()
 	assert.NilError(t, err)
-	return interfaces.TxHash(id.String())
+	return public.TxHash(id.String())
 }
 
 func TestCanSaveAndGetAnError(t *testing.T) {

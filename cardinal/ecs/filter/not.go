@@ -1,17 +1,15 @@
 package filter
 
-import (
-	"pkg.world.dev/world-engine/cardinal/interfaces"
-)
+import "pkg.world.dev/world-engine/cardinal/public"
 
 type not struct {
-	filter interfaces.IComponentFilter
+	filter public.IComponentFilter
 }
 
-func Not(filter interfaces.IComponentFilter) interfaces.IComponentFilter {
+func Not(filter public.IComponentFilter) public.IComponentFilter {
 	return &not{filter: filter}
 }
 
-func (f *not) MatchesComponents(components []interfaces.IComponentType) bool {
+func (f *not) MatchesComponents(components []public.IComponentType) bool {
 	return !f.filter.MatchesComponents(components)
 }

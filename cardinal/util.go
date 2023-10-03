@@ -2,20 +2,20 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
-func toITransactionType(ins []AnyTransaction) []interfaces.ITransaction {
-	out := make([]interfaces.ITransaction, 0, len(ins))
+func toITransactionType(ins []AnyTransaction) []public.ITransaction {
+	out := make([]public.ITransaction, 0, len(ins))
 	for _, t := range ins {
 		out = append(out, t.Convert())
 	}
 	return out
 }
 
-func toIReadType(ins []AnyReadType) []interfaces.IRead {
-	out := make([]interfaces.IRead, 0, len(ins))
+func toIReadType(ins []AnyReadType) []public.IRead {
+	out := make([]public.IRead, 0, len(ins))
 	for _, r := range ins {
 		out = append(out, r.Convert())
 	}

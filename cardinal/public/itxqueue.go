@@ -1,4 +1,4 @@
-package interfaces
+package public
 
 import (
 	"pkg.world.dev/world-engine/sign"

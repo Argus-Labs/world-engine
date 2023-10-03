@@ -15,13 +15,13 @@ import (
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"github.com/mitchellh/mapstructure"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 // Handler is a type that contains endpoints for transactions and queries in a given ecs world.
 type Handler struct {
-	w                      interfaces.IWorld
+	w                      public.IWorld
 	mux                    *http.ServeMux
 	server                 *http.Server
 	disableSigVerification bool
@@ -40,7 +40,7 @@ var (
 // NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
 // transaction and read registered with the given world is automatically created. The server runs on a default port
 // of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
-func NewHandler(w interfaces.IWorld, opts ...Option) (*Handler, error) {
+func NewHandler(w public.IWorld, opts ...Option) (*Handler, error) {
 	h, err := newSwaggerHandlerEmbed(w, opts...)
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func NewHandler(w interfaces.IWorld, opts ...Option) (*Handler, error) {
 //go:embed swagger.yml
 var swaggerData []byte
 
-func newSwaggerHandlerEmbed(w interfaces.IWorld, opts ...Option) (*Handler, error) {
+func newSwaggerHandlerEmbed(w public.IWorld, opts ...Option) (*Handler, error) {
 	th := &Handler{
 		w:   w,
 		mux: http.NewServeMux(),
@@ -134,7 +134,7 @@ type EndpointsResult struct {
 	QueryEndpoints []string `json:"query_endpoints"`
 }
 
-func createAllEndpoints(world interfaces.IWorld) (*EndpointsResult, error) {
+func createAllEndpoints(world public.IWorld) (*EndpointsResult, error) {
 	txs, err := world.ListTransactions()
 	if err != nil {
 		return nil, err

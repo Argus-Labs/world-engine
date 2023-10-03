@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 type ListTxReceiptsRequest struct {
@@ -46,7 +46,7 @@ func errsToStringSlice(errs []error) []string {
 }
 
 // with world construct a function that takes a receipts request and returns a reply.
-func getListTxReceiptsReplyFromRequest(world interfaces.IWorld) func(*ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
+func getListTxReceiptsReplyFromRequest(world public.IWorld) func(*ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
 	return func(req *ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
 		reply := ListTxReceiptsReply{}
 		reply.EndTick = world.CurrentTick()
@@ -83,7 +83,7 @@ func getListTxReceiptsReplyFromRequest(world interfaces.IWorld) func(*ListTxRece
 	}
 }
 
-func handleListTxReceipts(world interfaces.IWorld) http.HandlerFunc {
+func handleListTxReceipts(world public.IWorld) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		buf, err := io.ReadAll(request.Body)
 		if err != nil {

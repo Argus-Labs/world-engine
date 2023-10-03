@@ -2,13 +2,13 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 // AnyComponent is implemented by the return value of NewComponentType and is used in RegisterComponents; any
 // component created by NewComponentType can be registered with a World object via RegisterComponents.
 type AnyComponentType interface {
-	Convert() interfaces.IComponentType
+	Convert() public.IComponentType
 	Name() string
 }
 
@@ -17,8 +17,8 @@ type ComponentType[T any] struct {
 	impl *ecs.ComponentType[T]
 }
 
-func toIComponentType(ins []AnyComponentType) []interfaces.IComponentType {
-	out := make([]interfaces.IComponentType, 0, len(ins))
+func toIComponentType(ins []AnyComponentType) []public.IComponentType {
+	out := make([]public.IComponentType, 0, len(ins))
 	for _, c := range ins {
 		out = append(out, c.Convert())
 	}
@@ -75,6 +75,6 @@ func (c *ComponentType[T]) Update(w *World, id EntityID, fn func(T) T) error {
 
 // Convert implements the AnyComponentType interface which allows a ComponentType to be registered
 // with a World via RegisterComponents.
-func (c *ComponentType[T]) Convert() interfaces.IComponentType {
+func (c *ComponentType[T]) Convert() public.IComponentType {
 	return c.impl
 }

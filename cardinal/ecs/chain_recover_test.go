@@ -13,7 +13,7 @@ import (
 	"github.com/cometbft/cometbft/libs/rand"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
@@ -99,7 +99,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	sysRuns := uint64(0)
 	timesSendEnergyRan := 0
 	// send energy system
-	w.AddSystem(func(world interfaces.IWorld, queue interfaces.ITxQueue, _ interfaces.IWorldLogger) error {
+	w.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		sysRuns++
 		txs := SendEnergyTx.In(queue)
 		if len(txs) > 0 {

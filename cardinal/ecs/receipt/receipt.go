@@ -7,7 +7,7 @@ import (
 	"errors"
 	"sync/atomic"
 
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 var (
@@ -21,17 +21,17 @@ type History struct {
 	currTick     *atomic.Uint64
 	ticksToStore uint64
 	// Receipts for a given tick are assigned to an index into this history slice which acts as a ring buffer.
-	history []map[interfaces.TxHash]Receipt
+	history []map[public.TxHash]Receipt
 }
 
 // Receipt contains a transaction hash, an arbitrary result, and a list of errors.
 type Receipt struct {
-	TxHash interfaces.TxHash
+	TxHash public.TxHash
 	Result any
 	Errs   []error
 }
 
-func (r *Receipt) GetTxHash() interfaces.TxHash {
+func (r *Receipt) GetTxHash() public.TxHash {
 	return r.TxHash
 }
 
@@ -52,9 +52,9 @@ func NewHistory(currentTick uint64, ticksToStore int) *History {
 		// Store ticksToStore plus the "current" tick
 		ticksToStore: uint64(ticksToStore),
 	}
-	h.history = make([]map[interfaces.TxHash]Receipt, 0, ticksToStore)
+	h.history = make([]map[public.TxHash]Receipt, 0, ticksToStore)
 	for i := 0; i < ticksToStore; i++ {
-		h.history = append(h.history, map[interfaces.TxHash]Receipt{})
+		h.history = append(h.history, map[public.TxHash]Receipt{})
 	}
 	h.currTick.Store(currentTick)
 	return h
@@ -69,7 +69,7 @@ func (h *History) Size() uint64 {
 func (h *History) NextTick() {
 	newCurr := h.currTick.Add(1)
 	mod := newCurr % h.ticksToStore
-	h.history[mod] = map[interfaces.TxHash]Receipt{}
+	h.history[mod] = map[public.TxHash]Receipt{}
 }
 
 func (h *History) SetTick(tick uint64) {
@@ -78,7 +78,7 @@ func (h *History) SetTick(tick uint64) {
 
 // AddError associates the given error with the given transaction hash. Calling this multiple times will append
 // the error any previously added errors.
-func (h *History) AddError(hash interfaces.TxHash, err error) {
+func (h *History) AddError(hash public.TxHash, err error) {
 	tick := int(h.currTick.Load() % h.ticksToStore)
 	rec := h.history[tick][hash]
 	rec.TxHash = hash
@@ -88,7 +88,7 @@ func (h *History) AddError(hash interfaces.TxHash, err error) {
 
 // SetResult sets the given transaction hash to the given result. Calling this multiple times will replace any previous
 // results.
-func (h *History) SetResult(hash interfaces.TxHash, result any) {
+func (h *History) SetResult(hash public.TxHash, result any) {
 	tick := int(h.currTick.Load() % h.ticksToStore)
 	rec := h.history[tick][hash]
 	rec.TxHash = hash
@@ -98,7 +98,7 @@ func (h *History) SetResult(hash interfaces.TxHash, result any) {
 
 // GetReceipt gets the receipt (the transaction result and the list of errors) for the given transaction hash in the
 // current tick. To get receipts from previous ticks use GetReceiptsForTick.
-func (h *History) GetReceipt(hash interfaces.TxHash) (rec interfaces.IReceipt, ok bool) {
+func (h *History) GetReceipt(hash public.TxHash) (rec public.IReceipt, ok bool) {
 	tick := int(h.currTick.Load() % h.ticksToStore)
 	temp, ok := h.history[tick][hash]
 	rec = &temp
@@ -107,7 +107,7 @@ func (h *History) GetReceipt(hash interfaces.TxHash) (rec interfaces.IReceipt, o
 
 // GetReceiptsForTick gets all receipts for the given tick. If the tick is still active, or if the tick is too
 // far in the past, an error is returned.
-func (h *History) GetReceiptsForTick(tick uint64) ([]interfaces.IReceipt, error) {
+func (h *History) GetReceiptsForTick(tick uint64) ([]public.IReceipt, error) {
 	currTick := h.currTick.Load()
 	// The requested tick is either in the future, or it is currently being processed. We don't yet know
 	// what the results of this tick will be.
@@ -118,7 +118,7 @@ func (h *History) GetReceiptsForTick(tick uint64) ([]interfaces.IReceipt, error)
 		return nil, ErrorOldTickHasBeenDiscarded
 	}
 	mod := tick % h.ticksToStore
-	recs := make([]interfaces.IReceipt, 0, len(h.history[mod]))
+	recs := make([]public.IReceipt, 0, len(h.history[mod]))
 	for key := range h.history[mod] {
 		value, ok := h.history[mod][key]
 		if !ok {

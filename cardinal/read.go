@@ -2,13 +2,13 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/interfaces"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 // AnyReadType is implemented by the return value of NewReadType and is used in RegisterReads; any
 // read operation creates by NewReadType can be registered with a World object via RegisterReads.
 type AnyReadType interface {
-	Convert() interfaces.IRead
+	Convert() public.IRead
 }
 
 // ReadType represents a read operation on a world object. The state of the world object must not be
@@ -24,7 +24,7 @@ func NewReadType[Request any, Reply any](
 	handler func(*World, Request) (Reply, error),
 ) *ReadType[Request, Reply] {
 	return &ReadType[Request, Reply]{
-		impl: ecs.NewReadType[Request, Reply](name, func(world interfaces.IWorld, req Request) (Reply, error) {
+		impl: ecs.NewReadType[Request, Reply](name, func(world public.IWorld, req Request) (Reply, error) {
 			outerWorld := &World{implWorld: world}
 			return handler(outerWorld, req)
 		}),
@@ -35,7 +35,7 @@ func NewReadType[Request any, Reply any](
 // the EVM base shard. The World state must not be changed in the given handler function.
 func NewReadTypeWithEVMSupport[Request, Reply any](name string, handler func(*World, Request) (Reply, error)) *ReadType[Request, Reply] {
 	return &ReadType[Request, Reply]{
-		impl: ecs.NewReadType[Request, Reply](name, func(world interfaces.IWorld, req Request) (Reply, error) {
+		impl: ecs.NewReadType[Request, Reply](name, func(world public.IWorld, req Request) (Reply, error) {
 			outerWorld := &World{implWorld: world}
 			return handler(outerWorld, req)
 		}, ecs.WithReadEVMSupport[Request, Reply]),
@@ -44,6 +44,6 @@ func NewReadTypeWithEVMSupport[Request, Reply any](name string, handler func(*Wo
 
 // Convert implements the AnyReadType interface which allows a ReadType to be registered
 // with a World via RegisterReads.
-func (r *ReadType[Request, Reply]) Convert() interfaces.IRead {
+func (r *ReadType[Request, Reply]) Convert() public.IRead {
 	return r.impl
 }

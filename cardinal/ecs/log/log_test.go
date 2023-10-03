@@ -10,13 +10,12 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/interfaces"
-
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/inmem"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 type SendEnergyTx struct {
@@ -32,9 +31,9 @@ type EnergyComp struct {
 
 var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
 
-func testSystem(w interfaces.IWorld, _ interfaces.ITxQueue, logger interfaces.IWorldLogger) error {
+func testSystem(w public.IWorld, _ public.ITxQueue, logger public.IWorldLogger) error {
 	logger.GetZeroLogger().Log().Msg("test")
-	energy.Each(w, func(entityId interfaces.EntityID) bool {
+	energy.Each(w, func(entityId public.EntityID) bool {
 		energyPlanet, err := energy.Get(w, entityId)
 		if err != nil {
 			return false
@@ -50,7 +49,7 @@ func testSystem(w interfaces.IWorld, _ interfaces.ITxQueue, logger interfaces.IW
 	return nil
 }
 
-func testSystemWarningTrigger(w interfaces.IWorld, tx interfaces.ITxQueue, logger interfaces.IWorldLogger) error {
+func testSystemWarningTrigger(w public.IWorld, tx public.ITxQueue, logger public.IWorldLogger) error {
 	time.Sleep(time.Millisecond * 400)
 	return testSystem(w, tx, logger)
 }
@@ -95,7 +94,7 @@ func TestWorldLogger(t *testing.T) {
 	//require.JSONEq compares json strings for equality.
 	require.JSONEq(t, buf.String(), jsonWorldInfoString)
 	buf.Reset()
-	archetypeId, err := w.StoreManager().GetArchIDForComponents([]interfaces.IComponentType{energy})
+	archetypeId, err := w.StoreManager().GetArchIDForComponents([]public.IComponentType{energy})
 	assert.NilError(t, err)
 	archetype_creations_json_string := buf.String()
 	require.JSONEq(t, `
@@ -203,7 +202,7 @@ func TestWorldLogger(t *testing.T) {
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
-	_, err = w.CreateMany(2, []interfaces.IComponentType{energy}...)
+	_, err = w.CreateMany(2, []public.IComponentType{energy}...)
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `

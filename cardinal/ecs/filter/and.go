@@ -1,18 +1,16 @@
 package filter
 
-import (
-	"pkg.world.dev/world-engine/cardinal/interfaces"
-)
+import "pkg.world.dev/world-engine/cardinal/public"
 
 type and struct {
-	filters []interfaces.IComponentFilter
+	filters []public.IComponentFilter
 }
 
-func And(filters ...interfaces.IComponentFilter) interfaces.IComponentFilter {
+func And(filters ...public.IComponentFilter) public.IComponentFilter {
 	return &and{filters: filters}
 }
 
-func (f *and) MatchesComponents(components []interfaces.IComponentType) bool {
+func (f *and) MatchesComponents(components []public.IComponentType) bool {
 	for _, filter := range f.filters {
 		if !filter.MatchesComponents(components) {
 			return false
