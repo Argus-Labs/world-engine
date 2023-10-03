@@ -5,7 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/persona"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -25,7 +26,7 @@ func decode[T any](buf []byte) (T, error) {
 }
 
 func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
-	createPersonaTx, err := decode[ecs.CreatePersonaTransaction](sp.Body)
+	createPersonaTx, err := decode[persona.CreatePersonaTransaction](sp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -60,7 +61,7 @@ func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, i
 	} else {
 		// For non-system transaction, get the signer address from storage. If this PersonaTag doesn't exist,
 		// an error will be returned and the signature verification will fail.
-		signerAddress, err = handler.w.GetSignerForPersonaTag(sp.PersonaTag, 0)
+		signerAddress, err = persona.GetSignerForPersonaTag(handler.w, sp.PersonaTag, 0)
 	}
 	if err != nil {
 		return nil, err

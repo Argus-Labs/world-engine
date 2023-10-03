@@ -15,6 +15,11 @@ import (
 	"testing"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/options"
+	"pkg.world.dev/world-engine/cardinal/ecs/persona"
+	"pkg.world.dev/world-engine/cardinal/ecs/read"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
@@ -23,8 +28,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"pkg.world.dev/world-engine/cardinal/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	//"pkg.world.dev/world-engine/cardinal/inmem"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -173,7 +178,7 @@ func TestShutDownViaMethod(t *testing.T) {
 func TestShutDownViaSignal(t *testing.T) {
 	setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
 	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
+	sendTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	w.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		return nil
@@ -206,7 +211,7 @@ func TestShutDownViaSignal(t *testing.T) {
 
 func TestIfServeSetEnvVarForPort(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	alphaTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, world.RegisterTransactions(alphaTx))
 	txh, err := NewHandler(world, DisableSignatureVerification())
 	assert.NilError(t, err)
@@ -231,9 +236,9 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 
 func TestCanListTransactionEndpoints(t *testing.T) {
 	w := ecs.NewTestWorld(t)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	betaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("beta")
-	gammaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("gamma")
+	alphaTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	betaTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("beta")
+	gammaTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("gamma")
 	assert.NilError(t, w.RegisterTransactions(alphaTx, betaTx, gammaTx))
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
@@ -271,7 +276,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	endpoint := "move"
 	url := "tx/game/" + endpoint
 	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
+	sendTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	count := 0
 	w.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
@@ -317,7 +322,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 
 func TestHandleSwaggerServer(t *testing.T) {
 	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
+	sendTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	w.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		return nil
@@ -325,8 +330,8 @@ func TestHandleSwaggerServer(t *testing.T) {
 	type garbageStruct struct {
 		Something int `json:"something"`
 	}
-	alpha := ecs.NewComponentType[garbageStruct]("alpha")
-	beta := ecs.NewComponentType[garbageStruct]("beta")
+	alpha := component.NewComponentType[garbageStruct]("alpha")
+	beta := component.NewComponentType[garbageStruct]("beta")
 	assert.NilError(t, w.RegisterComponents(alpha, beta))
 	alphaCount := 75
 	_, err := w.CreateMany(alphaCount, alpha)
@@ -338,15 +343,15 @@ func TestHandleSwaggerServer(t *testing.T) {
 	// Queue up a CreatePersonaTx
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
-	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+	persona.CreatePersonaTx.AddToQueue(w, persona.CreatePersonaTransaction{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddress,
 	})
-	authorizedPersonaAddress := ecs.AuthorizePersonaAddress{
+	authorizedPersonaAddress := persona.AuthorizePersonaAddress{
 		PersonaTag: personaTag,
 		Address:    signerAddress,
 	}
-	ecs.AuthorizePersonaAddressTx.AddToQueue(w, authorizedPersonaAddress, &sign.SignedPayload{PersonaTag: personaTag})
+	persona.AuthorizePersonaAddressTx.AddToQueue(w, authorizedPersonaAddress, &sign.SignedPayload{PersonaTag: personaTag})
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
 
 	//create readers
@@ -362,7 +367,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world public.IWorld, req FooRequest) (FooReply, error) {
+	fooRead := read.NewReadType[FooRequest, FooReply]("foo", func(world public.IWorld, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
 	})
 	assert.NilError(t, w.RegisterReads(fooRead))
@@ -516,7 +521,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	url := fmt.Sprintf("tx/game/%s", endpoint)
 	count := 0
 	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
+	sendTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	w.AddSystem(func(world public.IWorld, queue public.ITxQueue, _ public.IWorldLogger) error {
 		txs := sendTx.In(queue)
@@ -563,7 +568,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	err := world.RegisterComponents()
 	assert.NilError(t, err)
-	tx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("some_tx")
+	tx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("some_tx")
 	assert.NilError(t, world.RegisterTransactions(tx))
 	assert.NilError(t, world.LoadGameState())
 	assert.NilError(t, world.Tick(context.Background()))
@@ -574,7 +579,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := persona.CreatePersonaTransaction{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
@@ -641,7 +646,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	personaTag := "some_dude"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := persona.CreatePersonaTransaction{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
@@ -678,7 +683,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 	namespace := world.Namespace()
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := persona.CreatePersonaTransaction{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
@@ -730,14 +735,14 @@ func TestCanListReads(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 
-	fooRead := ecs.NewReadType[FooRequest, FooResponse]("foo", func(world public.IWorld, req FooRequest) (FooResponse, error) {
+	fooRead := read.NewReadType[FooRequest, FooResponse]("foo", func(world public.IWorld, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
-	barRead := ecs.NewReadType[FooRequest, FooResponse]("bar", func(world public.IWorld, req FooRequest) (FooResponse, error) {
+	barRead := read.NewReadType[FooRequest, FooResponse]("bar", func(world public.IWorld, req FooRequest) (FooResponse, error) {
 
 		return FooResponse{Meow: req.Meow}, nil
 	})
-	bazRead := ecs.NewReadType[FooRequest, FooResponse]("baz", func(world public.IWorld, req FooRequest) (FooResponse, error) {
+	bazRead := read.NewReadType[FooRequest, FooResponse]("baz", func(world public.IWorld, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
 
@@ -781,7 +786,7 @@ func TestReadEncodeDecode(t *testing.T) {
 	type FooResponse struct {
 		Meow string `json:"meow,omitempty"`
 	}
-	fq := ecs.NewReadType[FooRequest, FooResponse](endpoint, func(world public.IWorld, req FooRequest) (FooResponse, error) {
+	fq := read.NewReadType[FooRequest, FooResponse](endpoint, func(world public.IWorld, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
 
@@ -831,7 +836,7 @@ func TestTransactionReceiptReturnCorrectTickWindows(t *testing.T) {
 	url := "query/receipts/list"
 
 	historySize := uint64(10)
-	world := ecs.NewTestWorld(t, ecs.WithReceiptHistorySize(int(historySize)))
+	world := ecs.NewTestWorld(t, options.WithReceiptHistorySize(int(historySize)))
 	assert.NilError(t, world.LoadGameState())
 	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
 
@@ -919,9 +924,9 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	type ErrRequest struct{}
 	type ErrReply struct{}
 
-	incTx := ecs.NewTransactionType[IncRequest, IncReply]("increment")
-	dupeTx := ecs.NewTransactionType[DupeRequest, DupeReply]("duplicate")
-	errTx := ecs.NewTransactionType[ErrRequest, ErrReply]("error")
+	incTx := transaction.NewTransactionType[IncRequest, IncReply]("increment")
+	dupeTx := transaction.NewTransactionType[DupeRequest, DupeReply]("duplicate")
+	errTx := transaction.NewTransactionType[ErrRequest, ErrReply]("error")
 
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
@@ -1043,7 +1048,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	urls := swaggerUrls
 	type MoveTx struct{}
 	world := ecs.NewTestWorld(t)
-	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+	moveTx := transaction.NewTransactionType[MoveTx, MoveTx]("move")
 	world.RegisterTransactions(moveTx)
 	assert.NilError(t, world.LoadGameState())
 	ctx := context.Background()
@@ -1058,7 +1063,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	namespace := world.Namespace()
 	nonce := uint64(99)
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := persona.CreatePersonaTransaction{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
@@ -1126,7 +1131,7 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 		Direction string
 	}
 	world := ecs.NewTestWorld(t)
-	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+	moveTx := transaction.NewTransactionType[MoveTx, MoveTx]("move")
 	world.RegisterTransactions(moveTx)
 	assert.NilError(t, world.LoadGameState())
 	adapter := adapterMock{}
@@ -1136,7 +1141,7 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	assert.NilError(t, err)
 	personaTag := "clifford_the_big_red_dog"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	sigPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace(), 1, ecs.CreatePersonaTransaction{
+	sigPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace(), 1, persona.CreatePersonaTransaction{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	})
@@ -1166,10 +1171,10 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 	}
 	holdChan := make(chan bool)
 	adapter := adapterMock{hold: holdChan}
-	world := ecs.NewTestWorld(t, ecs.WithAdapter(&adapter))
+	world := ecs.NewTestWorld(t, options.WithAdapter(&adapter))
 	world.Tick(context.Background())
 	go world.RecoverFromChain(context.Background())
-	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+	moveTx := transaction.NewTransactionType[MoveTx, MoveTx]("move")
 	world.RegisterTransactions(moveTx)
 	assert.NilError(t, world.LoadGameState())
 	txh := makeTestTransactionHandler(t, world, WithAdapter(&adapter), DisableSignatureVerification())

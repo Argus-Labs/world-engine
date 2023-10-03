@@ -14,7 +14,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"github.com/mitchellh/mapstructure"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/persona"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
@@ -141,7 +141,7 @@ func createAllEndpoints(world public.IWorld) (*EndpointsResult, error) {
 	}
 	txEndpoints := make([]string, 0, len(txs))
 	for _, tx := range txs {
-		if tx.Name() != ecs.CreatePersonaTx.Name() && tx.Name() != ecs.AuthorizePersonaAddressTx.Name() {
+		if tx.Name() != persona.CreatePersonaTx.Name() && tx.Name() != persona.AuthorizePersonaAddressTx.Name() {
 			txEndpoints = append(txEndpoints, "/tx/game/"+tx.Name())
 		} else {
 			txEndpoints = append(txEndpoints, "/tx/persona/"+tx.Name())

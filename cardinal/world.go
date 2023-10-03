@@ -8,9 +8,9 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/server"
-	"pkg.world.dev/world-engine/cardinal/storage"
 )
 
 type World struct {
@@ -90,13 +90,13 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func (w *World) CreateMany(num int, components ...AnyComponentType) ([]EntityID, error) {
+func (w *World) CreateMany(num int, components ...public.AnyComponentType) ([]EntityID, error) {
 	return w.implWorld.CreateMany(num, toIComponentType(components)...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func (w *World) Create(components ...AnyComponentType) (EntityID, error) {
+func (w *World) Create(components ...public.AnyComponentType) (EntityID, error) {
 	return w.implWorld.Create(toIComponentType(components)...)
 }
 
@@ -166,7 +166,7 @@ func (w *World) RegisterSystems(systems ...System) {
 
 // RegisterComponents adds the given components to the game world. After components are added, entities
 // with these components may be created. This Register method must only be called once.
-func (w *World) RegisterComponents(components ...AnyComponentType) error {
+func (w *World) RegisterComponents(components ...public.AnyComponentType) error {
 	return w.implWorld.RegisterComponents(toIComponentType(components)...)
 }
 

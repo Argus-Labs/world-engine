@@ -9,6 +9,9 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/persona"
+	read2 "pkg.world.dev/world-engine/cardinal/ecs/read"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -32,8 +35,8 @@ func TestServer_SendMessage(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
-	BarTx := ecs.NewTransactionType[BarTransaction, TxReply]("bartx", ecs.WithTxEVMSupport[BarTransaction, TxReply])
+	FooTx := transaction.NewTransactionType[FooTransaction, TxReply]("footx", transaction.WithTxEVMSupport[FooTransaction, TxReply])
+	BarTx := transaction.NewTransactionType[BarTransaction, TxReply]("bartx", transaction.WithTxEVMSupport[BarTransaction, TxReply])
 
 	assert.NilError(t, w.RegisterTransactions(FooTx, BarTx))
 
@@ -74,11 +77,11 @@ func TestServer_SendMessage(t *testing.T) {
 
 	sender := "0xHelloThere"
 	// create authorized addresses for the evm transaction's msg sender.
-	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+	persona.CreatePersonaTx.AddToQueue(w, persona.CreatePersonaTransaction{
 		PersonaTag:    "foo",
 		SignerAddress: "bar",
 	})
-	ecs.AuthorizePersonaAddressTx.AddToQueue(w, ecs.AuthorizePersonaAddress{
+	persona.AuthorizePersonaAddressTx.AddToQueue(w, persona.AuthorizePersonaAddress{
 		PersonaTag: "foo",
 		Address:    sender,
 	}, &sign.SignedPayload{PersonaTag: "foo"})
@@ -128,13 +131,13 @@ func TestServer_Query(t *testing.T) {
 		Y uint64
 	}
 	// set up a read that simply returns the FooRead.X
-	read := ecs.NewReadType[FooRead, FooReply]("foo", func(world public.IWorld, req FooRead) (FooReply, error) {
+	read := read2.NewReadType[FooRead, FooReply]("foo", func(world public.IWorld, req FooRead) (FooReply, error) {
 		return FooReply{Y: req.X}, nil
-	}, ecs.WithReadEVMSupport[FooRead, FooReply])
+	}, read2.WithReadEVMSupport[FooRead, FooReply])
 	w := ecs.NewTestWorld(t)
 	err := w.RegisterReads(read)
 	assert.NilError(t, err)
-	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("nothing"))
+	err = w.RegisterTransactions(transaction.NewTransactionType[struct{}, struct{}]("nothing"))
 	assert.NilError(t, err)
 	s, err := NewServer(w)
 	assert.NilError(t, err)
@@ -162,7 +165,7 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
+	FooTx := transaction.NewTransactionType[FooTransaction, TxReply]("footx", transaction.WithTxEVMSupport[FooTransaction, TxReply])
 
 	assert.NilError(t, w.RegisterTransactions(FooTx))
 

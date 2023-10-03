@@ -21,3 +21,10 @@ type (
 	// Index represents the Index of component in an archetype.
 	ComponentIndex int
 )
+
+// AnyComponent is implemented by the return value of NewComponentType and is used in RegisterComponents; any
+// component created by NewComponentType can be registered with a World object via RegisterComponents.
+type AnyComponentType interface {
+	Convert() IComponentType
+	Name() string
+}

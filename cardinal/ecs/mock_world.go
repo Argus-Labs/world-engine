@@ -6,15 +6,16 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"pkg.world.dev/world-engine/cardinal/ecs/options"
 	"pkg.world.dev/world-engine/cardinal/public"
 
-	"pkg.world.dev/world-engine/cardinal/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 // NewMockWorld creates an ecs.World that uses a mock redis DB as the storage
 // layer. This is only suitable for local development. If you are creating an ecs.World for
 // unit tests, use NewTestWorld.
-func NewMockWorld(opts ...Option) public.IWorld {
+func NewMockWorld(opts ...options.Option) public.IWorld {
 	// We manually set the start address to make the port deterministic
 	s := miniredis.NewMiniRedis()
 	err := s.StartAddr(":12345")
@@ -33,7 +34,7 @@ func NewMockWorld(opts ...Option) public.IWorld {
 
 // NewTestWorld creates an ecs.World suitable for running in tests. Relevant resources
 // are automatically cleaned up at the completion of each test.
-func NewTestWorld(t testing.TB, opts ...Option) public.IWorld {
+func NewTestWorld(t testing.TB, opts ...options.Option) public.IWorld {
 	s := miniredis.RunT(t)
 	w, err := newMockWorld(s, opts...)
 	if err != nil {
@@ -42,7 +43,7 @@ func NewTestWorld(t testing.TB, opts ...Option) public.IWorld {
 	return w
 }
 
-func newMockWorld(s *miniredis.Miniredis, opts ...Option) (public.IWorld, error) {
+func newMockWorld(s *miniredis.Miniredis, opts ...options.Option) (public.IWorld, error) {
 	rs := storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set

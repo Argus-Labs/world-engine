@@ -8,8 +8,9 @@ import (
 	"net"
 	"os"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/persona"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/sign"
 
@@ -152,12 +153,12 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 
 // getSignerComponentForAuthorizedAddr attempts to find a stored SignerComponent which contains the provided `addr`
 // within its authorized addresses slice.
-func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
-	var sc *ecs.SignerComponent
+func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*persona.SignerComponent, error) {
+	var sc *persona.SignerComponent
 	var err error
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id public.EntityID) bool {
-		var signerComp ecs.SignerComponent
-		signerComp, err = ecs.SignerComp.Get(s.world, id)
+	component.NewQuery(filter.Exact(persona.SignerComp)).Each(s.world, func(id public.EntityID) bool {
+		var signerComp persona.SignerComponent
+		signerComp, err = persona.SignerComp.Get(s.world, id)
 		if err != nil {
 			return false
 		}

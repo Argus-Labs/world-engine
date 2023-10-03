@@ -16,30 +16,29 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	ecslog "pkg.world.dev/world-engine/cardinal/log"
+	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/options"
+	"pkg.world.dev/world-engine/cardinal/ecs/persona"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/public"
-	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/shard"
-	"pkg.world.dev/world-engine/cardinal/storage"
-	"pkg.world.dev/world-engine/cardinal/store"
 	"pkg.world.dev/world-engine/cardinal/transaction"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
 )
 
-// Namespace is a unique identifier for a world.
-type Namespace string
-
 type World struct {
-	namespace                Namespace
+	namespace                public.WorldNamespace
 	store                    storage.WorldStorage
 	storeManager             public.IStoreManager
 	systems                  []public.System
 	systemLoggers            []public.IWorldLogger
 	systemNames              []string
 	tick                     uint64
-	nameToComponent          map[string]IComponentType
-	registeredComponents     []IComponentType
+	nameToComponent          map[string]public.IComponentType
+	registeredComponents     []public.IComponentType
 	registeredTransactions   []public.ITransaction
 	registeredReads          []public.IRead
 	isComponentsRegistered   bool
@@ -69,7 +68,7 @@ var (
 	ErrorDuplicateReadName                     = errors.New("read names must be unique")
 )
 
-func (w *World) GetComponentFromName(name string) (IComponentType, bool) {
+func (w *World) GetComponentFromName(name string) (public.IComponentType, bool) {
 	res, ok := w.nameToComponent[name]
 	return res, ok
 }
@@ -127,7 +126,7 @@ func (w *World) RegisterComponents(components ...public.IComponentType) error {
 		return ErrorComponentRegistrationMustHappenOnce
 	}
 	w.isComponentsRegistered = true
-	w.registeredComponents = append(w.registeredComponents, SignerComp)
+	w.registeredComponents = append(w.registeredComponents, persona.SignerComp)
 	w.registeredComponents = append(w.registeredComponents, components...)
 
 	for i, c := range w.registeredComponents {
@@ -148,7 +147,7 @@ func (w *World) RegisterComponents(components ...public.IComponentType) error {
 	return nil
 }
 
-func (w *World) GetComponentByName(name string) (IComponentType, bool) {
+func (w *World) GetComponentByName(name string) (public.IComponentType, bool) {
 	componentType, exists := w.nameToComponent[name]
 	return componentType, exists
 }
@@ -198,8 +197,8 @@ func (w *World) RegisterTransactions(txs ...public.ITransaction) error {
 
 func (w *World) registerInternalTransactions() {
 	w.registeredTransactions = append(w.registeredTransactions,
-		CreatePersonaTx,
-		AuthorizePersonaAddressTx,
+		persona.CreatePersonaTx,
+		persona.AuthorizePersonaAddressTx,
 	)
 }
 
@@ -215,7 +214,7 @@ func (w *World) ListTransactions() ([]public.ITransaction, error) {
 }
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage, opts ...Option) (public.IWorld, error) {
+func NewWorld(s storage.WorldStorage, opts ...options.Option) (public.IWorld, error) {
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}
@@ -225,14 +224,14 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (public.IWorld, error) {
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]public.System, 0),
-		nameToComponent:   make(map[string]IComponentType),
+		nameToComponent:   make(map[string]public.IComponentType),
 		txQueue:           transaction.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
 		endGameLoopCh:     make(chan bool),
 	}
 	w.isGameLoopRunning.Store(false)
-	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	w.AddSystems(persona.RegisterPersonaSystem, persona.AuthorizePersonaAddressSystem)
 	for _, opt := range opts {
 		opt(w)
 	}
@@ -491,7 +490,7 @@ func (w *World) LoadGameState() error {
 	return nil
 }
 
-func (w *World) loadFromKey(key string, cm public.ComponentMarshaler, comps []IComponentType) error {
+func (w *World) loadFromKey(key string, cm public.ComponentMarshaler, comps []public.IComponentType) error {
 	buf, ok, err := w.store.StateStore.Load(key)
 	if !ok {
 		// There is no saved data for this key
@@ -506,7 +505,7 @@ func (w *World) nextEntity() (public.EntityID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 
-func (w *World) insertArchetype(comps []IComponentType) public.ArchetypeID {
+func (w *World) insertArchetype(comps []public.IComponentType) public.ArchetypeID {
 	w.store.ArchCompIdxStore.Push(comps)
 	archID := public.ArchetypeID(w.store.ArchAccessor.Count())
 
@@ -623,7 +622,7 @@ func (w *World) getITx(id public.TransactionTypeID) public.ITransaction {
 }
 
 func (w *World) SetNamespace(namespace string) {
-	w.namespace = Namespace(namespace)
+	w.namespace = public.WorldNamespace(namespace)
 }
 
 // Namespace returns the world's namespace.
@@ -663,7 +662,7 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]public.IReceipt, e
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) GetComponents() []IComponentType {
+func (w *World) GetComponents() []public.IComponentType {
 	return w.registeredComponents
 }
 

@@ -3,14 +3,14 @@ package cardinal
 import (
 	"time"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/options"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 // WorldOption represents an option that can be used to augment how the cardinal.World will be run.
 type WorldOption struct {
-	ecsOption      ecs.Option
+	ecsOption      options.Option
 	serverOption   server.Option
 	cardinalOption func(*World)
 }
@@ -19,7 +19,7 @@ type WorldOption struct {
 // transaction retrieval for state rebuilding purposes.
 func WithAdapter(adapter shard.Adapter) WorldOption {
 	return WorldOption{
-		ecsOption: ecs.WithAdapter(adapter),
+		ecsOption: options.WithAdapter(adapter),
 	}
 }
 
@@ -27,7 +27,7 @@ func WithAdapter(adapter shard.Adapter) WorldOption {
 // is 10. A smaller number uses less memory, but limits the
 func WithReceiptHistorySize(size int) WorldOption {
 	return WorldOption{
-		ecsOption: ecs.WithReceiptHistorySize(size),
+		ecsOption: options.WithReceiptHistorySize(size),
 	}
 }
 
@@ -35,7 +35,7 @@ func WithReceiptHistorySize(size int) WorldOption {
 // signing process.
 func WithNamespace(namespace string) WorldOption {
 	return WorldOption{
-		ecsOption: ecs.WithNamespace(namespace),
+		ecsOption: options.WithNamespace(namespace),
 	}
 }
 
@@ -78,6 +78,6 @@ func WithTickDoneChannel(ch chan<- uint64) WorldOption {
 
 func WithPrettyLog() WorldOption {
 	return WorldOption{
-		ecsOption: ecs.WithPrettyLog(),
+		ecsOption: options.WithPrettyLog(),
 	}
 }

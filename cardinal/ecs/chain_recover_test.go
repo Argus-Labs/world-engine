@@ -12,6 +12,8 @@ import (
 
 	"github.com/cometbft/cometbft/libs/rand"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/options"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
@@ -90,8 +92,8 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
-	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
-	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
+	w := ecs.NewTestWorld(t, options.WithAdapter(adapter))
+	SendEnergyTx := transaction.NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
 	err := w.RegisterTransactions(SendEnergyTx)
 	assert.NilError(t, err)
 
@@ -125,7 +127,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	assert.Equal(t, len(payloads), timesSendEnergyRan)
 }
 
-func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]) *sign.SignedPayload {
+func generateRandomTransaction(t *testing.T, ns string, tx *transaction.TransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]) *sign.SignedPayload {
 	tx1 := SendEnergyTransaction{
 		To:     rand.Str(5),
 		From:   rand.Str(4),
@@ -146,7 +148,7 @@ func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{}
-	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
+	w := ecs.NewTestWorld(t, options.WithAdapter(adapter))
 	assert.NilError(t, w.LoadGameState())
 	assert.NilError(t, w.Tick(ctx))
 

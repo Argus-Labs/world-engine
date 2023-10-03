@@ -3,7 +3,7 @@ package server
 import (
 	"errors"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/persona"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -31,10 +31,10 @@ type ReadPersonaSignerResponse struct {
 
 func (handler *Handler) getPersonaSignerResponse(req *ReadPersonaSignerRequest) (*ReadPersonaSignerResponse, error) {
 	var status string
-	addr, err := handler.w.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
-	if errors.Is(err, ecs.ErrorPersonaTagHasNoSigner) {
+	addr, err := persona.GetSignerForPersonaTag(handler.w, req.PersonaTag, req.Tick)
+	if errors.Is(err, persona.ErrorPersonaTagHasNoSigner) {
 		status = getSignerForPersonaStatusAvailable
-	} else if errors.Is(err, ecs.ErrorCreatePersonaTxsNotProcessed) {
+	} else if errors.Is(err, persona.ErrorCreatePersonaTxsNotProcessed) {
 		status = getSignerForPersonaStatusUnknown
 	} else if err != nil {
 		return nil, err

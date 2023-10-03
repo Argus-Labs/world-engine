@@ -1,23 +1,16 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/public"
 )
 
-// AnyComponent is implemented by the return value of NewComponentType and is used in RegisterComponents; any
-// component created by NewComponentType can be registered with a World object via RegisterComponents.
-type AnyComponentType interface {
-	Convert() public.IComponentType
-	Name() string
-}
-
 // ComponentType represents an accessor that can get and set a specific kind of data (T) using an EntityID.
 type ComponentType[T any] struct {
-	impl *ecs.ComponentType[T]
+	impl *component.ComponentType[T]
 }
 
-func toIComponentType(ins []AnyComponentType) []public.IComponentType {
+func toIComponentType(ins []public.AnyComponentType) []public.IComponentType {
 	out := make([]public.IComponentType, 0, len(ins))
 	for _, c := range ins {
 		out = append(out, c.Convert())
@@ -29,7 +22,7 @@ func toIComponentType(ins []AnyComponentType) []public.IComponentType {
 // the zero value of the T struct will be saved with the entity.
 func NewComponentType[T any](name string) *ComponentType[T] {
 	return &ComponentType[T]{
-		impl: ecs.NewComponentType[T](name),
+		impl: component.NewComponentType[T](name),
 	}
 }
 
@@ -37,7 +30,7 @@ func NewComponentType[T any](name string) *ComponentType[T] {
 // an EntityID, the defaultVal will be saved with the entity.
 func NewComponentTypeWithDefault[T any](name string, defaultVal T) *ComponentType[T] {
 	return &ComponentType[T]{
-		impl: ecs.NewComponentType[T](name, ecs.WithDefault(defaultVal)),
+		impl: component.NewComponentType[T](name, component.WithDefault(defaultVal)),
 	}
 }
 

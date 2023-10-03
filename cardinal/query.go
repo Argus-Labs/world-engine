@@ -1,19 +1,19 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/public"
 )
 
 // Query allowed for the querying of entities within a World.
 type Query struct {
-	impl *ecs.Query
+	impl public.IQuery
 }
 
 // NewQuery creates a new Query.
 func NewQuery(filter ComponentFilter) *Query {
-	return &Query{ecs.NewQuery(filter)}
+	return &Query{component.NewQuery(filter)}
 }
 
 // QueryCallBackFn represents a function that can operate on a single EntityID, and returns whether the next EntityID
@@ -49,13 +49,13 @@ func And(filters ...ComponentFilter) ComponentFilter {
 
 // Contains returns entities that have been associated with all the given components. Entities that have been associated
 // with other components not listed will still be returned.
-func Contains(components ...AnyComponentType) ComponentFilter {
+func Contains(components ...public.AnyComponentType) ComponentFilter {
 	return filter.Contains(toIComponentType(components)...)
 }
 
 // Exact returns entities that have the exact set of given components (order is not important). Entities that have been
 // associated with other component not listed will NOT be returned.
-func Exact(components ...AnyComponentType) ComponentFilter {
+func Exact(components ...public.AnyComponentType) ComponentFilter {
 	return filter.Exact(toIComponentType(components)...)
 }
 

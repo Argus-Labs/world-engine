@@ -8,7 +8,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/persona"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -101,7 +101,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 		if err != nil {
 			return nil, err
 		}
-		txReply, err := handler.generateCreatePersonaResponseFromPayload(payload, sp, ecs.CreatePersonaTx)
+		txReply, err := handler.generateCreatePersonaResponseFromPayload(payload, sp, persona.CreatePersonaTx)
 		if err != nil {
 			return nil, err
 		}
@@ -113,7 +113,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 		if err != nil {
 			return nil, err
 		}
-		return handler.processTransaction(ecs.AuthorizePersonaAddressTx, rawPayload, signedPayload)
+		return handler.processTransaction(persona.AuthorizePersonaAddressTx, rawPayload, signedPayload)
 	})
 	api.RegisterOperation("POST", "/tx/game/{txType}", gameHandler)
 	api.RegisterOperation("POST", "/tx/persona/create-persona", createPersonaHandler)

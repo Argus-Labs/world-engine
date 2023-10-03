@@ -45,7 +45,7 @@ type IWorld interface {
 	StartGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64)
 	EndGameLoop()
 	GetComponents() []IComponentType
-	GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
+	//GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
 	GetSystemNames() []string
 	GetLogger() IWorldLogger
 	InjectLogger(logger IWorldLogger)
@@ -53,3 +53,6 @@ type IWorld interface {
 	GetComponentFromName(name string) (IComponentType, bool)
 	//ILoggable
 }
+
+// Namespace is a unique identifier for a world.
+type WorldNamespace string

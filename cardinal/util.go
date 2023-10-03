@@ -1,7 +1,7 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/options"
 	"pkg.world.dev/world-engine/cardinal/public"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
@@ -25,7 +25,7 @@ func toIReadType(ins []AnyReadType) []public.IRead {
 // separateOptions separates the given options into ecs options, server options, and cardinal (this package) options.
 // The different options are all grouped together to simplify the end user's experience, but under the hood different
 // options are meant for different sub-systems.
-func separateOptions(opts []WorldOption) (ecsOptions []ecs.Option, serverOptions []server.Option, cardinalOptions []func(*World)) {
+func separateOptions(opts []WorldOption) (ecsOptions []options.Option, serverOptions []server.Option, cardinalOptions []func(*World)) {
 	for _, opt := range opts {
 		if opt.ecsOption != nil {
 			ecsOptions = append(ecsOptions, opt.ecsOption)

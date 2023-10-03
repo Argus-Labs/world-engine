@@ -7,6 +7,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/options"
 	"pkg.world.dev/world-engine/cardinal/public"
 )
 
@@ -52,7 +53,7 @@ func TestSystemExecutionOrder(t *testing.T) {
 
 func TestSetNamespace(t *testing.T) {
 	id := "foo"
-	w := ecs.NewTestWorld(t, ecs.WithNamespace(id))
+	w := ecs.NewTestWorld(t, options.WithNamespace(id))
 	assert.Equal(t, w.Namespace(), id)
 }
 

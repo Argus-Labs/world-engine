@@ -1,7 +1,7 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/read"
 	"pkg.world.dev/world-engine/cardinal/public"
 )
 
@@ -14,7 +14,7 @@ type AnyReadType interface {
 // ReadType represents a read operation on a world object. The state of the world object must not be
 // changed during the read operation.
 type ReadType[Request, Reply any] struct {
-	impl *ecs.ReadType[Request, Reply]
+	impl *read.ReadType[Request, Reply]
 }
 
 // NewReadType creates a new instance of a ReadType. The World state must not be changed
@@ -24,7 +24,7 @@ func NewReadType[Request any, Reply any](
 	handler func(*World, Request) (Reply, error),
 ) *ReadType[Request, Reply] {
 	return &ReadType[Request, Reply]{
-		impl: ecs.NewReadType[Request, Reply](name, func(world public.IWorld, req Request) (Reply, error) {
+		impl: read.NewReadType[Request, Reply](name, func(world public.IWorld, req Request) (Reply, error) {
 			outerWorld := &World{implWorld: world}
 			return handler(outerWorld, req)
 		}),
@@ -35,10 +35,10 @@ func NewReadType[Request any, Reply any](
 // the EVM base shard. The World state must not be changed in the given handler function.
 func NewReadTypeWithEVMSupport[Request, Reply any](name string, handler func(*World, Request) (Reply, error)) *ReadType[Request, Reply] {
 	return &ReadType[Request, Reply]{
-		impl: ecs.NewReadType[Request, Reply](name, func(world public.IWorld, req Request) (Reply, error) {
+		impl: read.NewReadType[Request, Reply](name, func(world public.IWorld, req Request) (Reply, error) {
 			outerWorld := &World{implWorld: world}
 			return handler(outerWorld, req)
-		}, ecs.WithReadEVMSupport[Request, Reply]),
+		}, read.WithReadEVMSupport[Request, Reply]),
 	}
 }
 
