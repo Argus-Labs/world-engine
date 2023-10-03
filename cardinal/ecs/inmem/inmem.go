@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"pkg.world.dev/world-engine/cardinal/interfaces"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -18,7 +19,7 @@ import (
 // NewECSWorld creates an ecs.World that uses an in-memory redis DB as the storage
 // layer. This is only suitable for local development. If you are creating an ecs.World for
 // unit tests, use NewECSWorldForTest.
-func NewECSWorld(opts ...ecs.Option) *ecs.World {
+func NewECSWorld(opts ...ecs.Option) interfaces.IWorld {
 	// We manually set the start address to make the port deterministic
 	s := miniredis.NewMiniRedis()
 	err := s.StartAddr(":12345")
@@ -37,7 +38,7 @@ func NewECSWorld(opts ...ecs.Option) *ecs.World {
 
 // NewECSWorldForTest creates an ecs.World suitable for running in tests. Relevant resources
 // are automatically cleaned up at the completion of each test.
-func NewECSWorldForTest(t testing.TB, opts ...ecs.Option) *ecs.World {
+func NewECSWorldForTest(t testing.TB, opts ...ecs.Option) interfaces.IWorld {
 	s := miniredis.RunT(t)
 	w, err := newInMemoryWorld(s, opts...)
 	if err != nil {
@@ -46,7 +47,7 @@ func NewECSWorldForTest(t testing.TB, opts ...ecs.Option) *ecs.World {
 	return w
 }
 
-func newInMemoryWorld(s *miniredis.Miniredis, opts ...ecs.Option) (*ecs.World, error) {
+func newInMemoryWorld(s *miniredis.Miniredis, opts ...ecs.Option) (interfaces.IWorld, error) {
 	rs := storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set

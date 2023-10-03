@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -23,8 +24,11 @@ type IWorld interface {
 	LoadGameState() error
 	RecoverFromChain(ctx context.Context) error
 	Namespace() string
+	SetNamespace(namespace string)
 	GetNonce(signerAddress string) (uint64, error)
 	SetNonce(signerAddress string, nonce uint64) error
+	GetChain() *shard.ReadAdapter
+	SetChain(chain *shard.Adapter)
 	AddTransactionError(id TxHash, err error)
 	SetTransactionResult(id TxHash, a any)
 	GetTransactionReceipt(id TxHash) (any, []error, bool)
@@ -33,6 +37,7 @@ type IWorld interface {
 	Tick(ctx context.Context) error
 	CurrentTick() uint64
 	ReceiptHistorySize() uint64
+	SetReceiptHistory(history IHistory)
 	CreateMany(num int, components ...IComponentType) ([]EntityID, error)
 	// Len return the number of entities in this world
 	EntityAmount() (int, error)

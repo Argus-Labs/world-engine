@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/interfaces"
 )
 
@@ -84,7 +83,7 @@ func getListTxReceiptsReplyFromRequest(world interfaces.IWorld) func(*ListTxRece
 	}
 }
 
-func handleListTxReceipts(world *ecs.World) http.HandlerFunc {
+func handleListTxReceipts(world interfaces.IWorld) http.HandlerFunc {
 	return func(writer http.ResponseWriter, request *http.Request) {
 		buf, err := io.ReadAll(request.Body)
 		if err != nil {

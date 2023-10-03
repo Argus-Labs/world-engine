@@ -48,7 +48,7 @@ type World struct {
 
 	txQueue interfaces.ITxQueue
 
-	receiptHistory *receipt.History
+	receiptHistory interfaces.IHistory
 
 	chain shard.ReadAdapter
 	// isRecovering indicates that the world is recovering from the DA layer.
@@ -74,6 +74,14 @@ var (
 func (w *World) GetComponentFromName(name string) (IComponentType, bool) {
 	res, ok := w.nameToComponent[name]
 	return res, ok
+}
+
+func (w *World) GetChain() *shard.ReadAdapter {
+	return &w.chain
+}
+
+func (w *World) SetChain(chain *shard.Adapter) {
+	w.chain = *chain
 }
 
 func (w *World) IsRecovering() bool {
@@ -616,6 +624,10 @@ func (w *World) getITx(id interfaces.TransactionTypeID) interfaces.ITransaction 
 	return itx
 }
 
+func (w *World) SetNamespace(namespace string) {
+	w.namespace = Namespace(namespace)
+}
+
 // Namespace returns the world's namespace.
 func (w *World) Namespace() string {
 	return string(w.namespace)
@@ -646,7 +658,11 @@ func (w *World) GetTransactionReceipt(id interfaces.TxHash) (any, []error, bool)
 	if !ok {
 		return nil, nil, false
 	}
-	return rec.Result, rec.Errs, true
+	return rec.GetResult(), rec.GetErrors(), true
+}
+
+func (w *World) SetReceiptHistory(history interfaces.IHistory) {
+	w.receiptHistory = history
 }
 
 func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]interfaces.IReceipt, error) {

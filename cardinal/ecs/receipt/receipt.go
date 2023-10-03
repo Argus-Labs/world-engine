@@ -98,9 +98,10 @@ func (h *History) SetResult(hash interfaces.TxHash, result any) {
 
 // GetReceipt gets the receipt (the transaction result and the list of errors) for the given transaction hash in the
 // current tick. To get receipts from previous ticks use GetReceiptsForTick.
-func (h *History) GetReceipt(hash interfaces.TxHash) (rec Receipt, ok bool) {
+func (h *History) GetReceipt(hash interfaces.TxHash) (rec interfaces.IReceipt, ok bool) {
 	tick := int(h.currTick.Load() % h.ticksToStore)
-	rec, ok = h.history[tick][hash]
+	temp, ok := h.history[tick][hash]
+	rec = &temp
 	return rec, ok
 }
 

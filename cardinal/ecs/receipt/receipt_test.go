@@ -25,9 +25,9 @@ func TestCanSaveAndGetAnError(t *testing.T) {
 
 	rec, ok := rh.GetReceipt(hash)
 	assert.Check(t, ok)
-	assert.Equal(t, 1, len(rec.Errs))
-	assert.ErrorIs(t, wantError, rec.Errs[0])
-	assert.Equal(t, nil, rec.Result)
+	assert.Equal(t, 1, len(rec.GetErrors()))
+	assert.ErrorIs(t, wantError, rec.GetErrors()[0])
+	assert.Equal(t, nil, rec.GetResult())
 }
 
 func TestCanSaveAndGetManyErrors(t *testing.T) {
@@ -38,10 +38,10 @@ func TestCanSaveAndGetManyErrors(t *testing.T) {
 	rh.AddError(hash, errB)
 	rec, ok := rh.GetReceipt(hash)
 	assert.Check(t, ok)
-	assert.Equal(t, 2, len(rec.Errs))
-	assert.ErrorIs(t, errA, rec.Errs[0])
-	assert.ErrorIs(t, errB, rec.Errs[1])
-	assert.Equal(t, nil, rec.Result)
+	assert.Equal(t, 2, len(rec.GetErrors()))
+	assert.ErrorIs(t, errA, rec.GetErrors()[0])
+	assert.ErrorIs(t, errB, rec.GetErrors()[1])
+	assert.Equal(t, nil, rec.GetResult())
 }
 
 func TestCanSaveAndGetResult(t *testing.T) {
@@ -57,9 +57,9 @@ func TestCanSaveAndGetResult(t *testing.T) {
 
 	rec, ok := rh.GetReceipt(hash)
 	assert.Check(t, ok)
-	assert.Equal(t, 0, len(rec.Errs))
-	assert.Check(t, rec.Result != nil)
-	gotStruct, ok := rec.Result.(myStruct)
+	assert.Equal(t, 0, len(rec.GetErrors()))
+	assert.Check(t, rec.GetResult() != nil)
+	gotStruct, ok := rec.GetResult().(myStruct)
 	assert.Check(t, ok)
 	assert.Equal(t, wantStruct, gotStruct)
 }
@@ -80,10 +80,10 @@ func TestCanReplaceResult(t *testing.T) {
 
 	rec, ok := rh.GetReceipt(hash)
 	assert.Check(t, ok)
-	assert.Equal(t, 0, len(rec.Errs))
-	assert.Check(t, rec.Result != nil)
+	assert.Equal(t, 0, len(rec.GetErrors()))
+	assert.Check(t, rec.GetResult() != nil)
 
-	got, ok := rec.Result.(toBeReplaced)
+	got, ok := rec.GetResult().(toBeReplaced)
 	assert.Check(t, ok)
 	assert.Equal(t, want, got)
 

@@ -56,7 +56,7 @@ func (t *testTransactionHandler) post(path string, payload any) *http.Response {
 	return res
 }
 
-func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) *testTransactionHandler {
+func makeTestTransactionHandler(t *testing.T, world interfaces.IWorld, opts ...Option) *testTransactionHandler {
 	port := "4040"
 	opts = append(opts, WithPort(port))
 	txh, err := NewHandler(world, opts...)
