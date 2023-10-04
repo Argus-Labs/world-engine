@@ -2,6 +2,9 @@ package ecs_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/engine"
+	"pkg.world.dev/world-engine/cardinal/engine/log"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -11,9 +14,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
@@ -238,7 +239,7 @@ func TestWorldTickAndHistoryTickMatch(t *testing.T) {
 func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 	type Msg struct{}
 	type Result struct{}
-	someTx := ecs.NewTransactionType[Msg, Result]("some-tx")
+	someTx := engine.NewTransactionType[Msg, Result]("some-tx")
 	redisStore := miniredis.RunT(t)
 	ctx := context.Background()
 

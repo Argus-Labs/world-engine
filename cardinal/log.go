@@ -2,9 +2,9 @@ package cardinal
 
 import (
 	"fmt"
+	ecslog "pkg.world.dev/world-engine/cardinal/engine/log"
 
 	"github.com/rs/zerolog"
-	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 )
 
 type Logger struct {

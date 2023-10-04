@@ -1,8 +1,11 @@
-package ecs_test
+package engine_test
 
 import (
 	"context"
 	"encoding/binary"
+	"pkg.world.dev/world-engine/cardinal/engine"
+	"pkg.world.dev/world-engine/cardinal/engine/log"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"sort"
 	"testing"
 
@@ -11,8 +14,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
@@ -90,8 +91,8 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
-	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
-	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
+	w := ecs.NewTestWorld(t, engine.WithAdapter(adapter))
+	SendEnergyTx := engine.NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
 	err := w.RegisterTransactions(SendEnergyTx)
 	assert.NilError(t, err)
 
@@ -125,7 +126,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	assert.Equal(t, len(payloads), timesSendEnergyRan)
 }
 
-func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]) *sign.SignedPayload {
+func generateRandomTransaction(t *testing.T, ns string, tx *engine.TransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]) *sign.SignedPayload {
 	tx1 := SendEnergyTransaction{
 		To:     rand.Str(5),
 		From:   rand.Str(4),
@@ -146,7 +147,7 @@ func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{}
-	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
+	w := ecs.NewTestWorld(t, engine.WithAdapter(adapter))
 	assert.NilError(t, w.LoadGameState())
 	assert.NilError(t, w.Tick(ctx))
 

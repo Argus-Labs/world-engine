@@ -3,11 +3,12 @@ package ecs
 import (
 	"errors"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/engine"
+	"pkg.world.dev/world-engine/cardinal/engine/log"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 // CreatePersonaTransaction allows for the associating of a persona tag with a signer address.
@@ -21,9 +22,9 @@ type CreatePersonaTransactionResult struct {
 }
 
 // CreatePersonaTx is a concrete ECS transaction.
-var CreatePersonaTx = NewTransactionType[CreatePersonaTransaction, CreatePersonaTransactionResult](
+var CreatePersonaTx = engine.NewTransactionType[CreatePersonaTransaction, CreatePersonaTransactionResult](
 	"create-persona",
-	WithTxEVMSupport[CreatePersonaTransaction, CreatePersonaTransactionResult],
+	engine.WithTxEVMSupport[CreatePersonaTransaction, CreatePersonaTransactionResult],
 )
 
 type AuthorizePersonaAddress struct {
@@ -35,7 +36,7 @@ type AuthorizePersonaAddressResult struct {
 	Success bool
 }
 
-var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, AuthorizePersonaAddressResult](
+var AuthorizePersonaAddressTx = engine.NewTransactionType[AuthorizePersonaAddress, AuthorizePersonaAddressResult](
 	"authorize-persona-address",
 )
 
@@ -120,7 +121,7 @@ func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, e
 	return personaTagToAddress, nil
 }
 
-// RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
+// RegisterPersonaSystem is an System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
 func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *log.Logger) error {
 	createTxs := CreatePersonaTx.In(queue)

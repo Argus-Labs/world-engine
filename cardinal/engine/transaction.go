@@ -1,13 +1,14 @@
-package ecs
+package engine
 
 import (
 	"errors"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -93,7 +94,7 @@ var emptySignature = &sign.SignedPayload{}
 
 // AddToQueue adds a transaction with the given data to the world object. The transaction will be executed
 // at the next game tick. An optional sign.SignedPayload can be associated with this transaction.
-func (t *TransactionType[In, Out]) AddToQueue(world *World, data In, sigs ...*sign.SignedPayload) transaction.TxHash {
+func (t *TransactionType[In, Out]) AddToQueue(world *ecs.World, data In, sigs ...*sign.SignedPayload) transaction.TxHash {
 	sig := emptySignature
 	if len(sigs) > 0 {
 		sig = sigs[0]
@@ -123,15 +124,15 @@ type TxData[In any] struct {
 	Sig    *sign.SignedPayload
 }
 
-func (t *TransactionType[In, Out]) AddError(world *World, hash transaction.TxHash, err error) {
+func (t *TransactionType[In, Out]) AddError(world *ecs.World, hash transaction.TxHash, err error) {
 	world.AddTransactionError(hash, err)
 }
 
-func (t *TransactionType[In, Out]) SetResult(world *World, hash transaction.TxHash, result Out) {
+func (t *TransactionType[In, Out]) SetResult(world *ecs.World, hash transaction.TxHash, result Out) {
 	world.SetTransactionResult(hash, result)
 }
 
-func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxHash) (v Out, errs []error, ok bool) {
+func (t *TransactionType[In, Out]) GetReceipt(world *ecs.World, hash transaction.TxHash) (v Out, errs []error, ok bool) {
 	iface, errs, ok := world.GetTransactionReceipt(hash)
 	if !ok {
 		return v, nil, false

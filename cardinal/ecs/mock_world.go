@@ -3,6 +3,7 @@ package ecs
 import (
 	"fmt"
 	"log"
+	"pkg.world.dev/world-engine/cardinal/engine"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -13,7 +14,7 @@ import (
 // NewMockWorld creates an ecs.World that uses a mock redis DB as the storage
 // layer. This is only suitable for local development. If you are creating an ecs.World for
 // unit tests, use NewTestWorld.
-func NewMockWorld(opts ...Option) *World {
+func NewMockWorld(opts ...engine.Option) *World {
 	// We manually set the start address to make the port deterministic
 	s := miniredis.NewMiniRedis()
 	err := s.StartAddr(":12345")
@@ -32,7 +33,7 @@ func NewMockWorld(opts ...Option) *World {
 
 // NewTestWorld creates an ecs.World suitable for running in tests. Relevant resources
 // are automatically cleaned up at the completion of each test.
-func NewTestWorld(t testing.TB, opts ...Option) *World {
+func NewTestWorld(t testing.TB, opts ...engine.Option) *World {
 	s := miniredis.RunT(t)
 	w, err := newMockWorld(s, opts...)
 	if err != nil {
@@ -41,7 +42,7 @@ func NewTestWorld(t testing.TB, opts ...Option) *World {
 	return w
 }
 
-func newMockWorld(s *miniredis.Miniredis, opts ...Option) (*World, error) {
+func newMockWorld(s *miniredis.Miniredis, opts ...engine.Option) (*World, error) {
 	rs := storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set

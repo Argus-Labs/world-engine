@@ -1,9 +1,10 @@
-package ecs
+package engine
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -14,10 +15,10 @@ type IRead interface {
 	// Name returns the name of the read.
 	Name() string
 	// HandleRead handles reads with concrete types, rather than encoded bytes.
-	HandleRead(*World, any) (any, error)
+	HandleRead(*ecs.World, any) (any, error)
 	// HandleReadRaw is given a reference to the world, json encoded bytes that represent a read request
 	// and is expected to return a json encoded response struct.
-	HandleReadRaw(*World, []byte) ([]byte, error)
+	HandleReadRaw(*ecs.World, []byte) ([]byte, error)
 	// Schema returns the json schema of the read request.
 	Schema() (request, reply *jsonschema.Schema)
 	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
@@ -32,7 +33,7 @@ type IRead interface {
 
 type ReadType[Request any, Reply any] struct {
 	name       string
-	handler    func(world *World, req Request) (Reply, error)
+	handler    func(world *ecs.World, req Request) (Reply, error)
 	requestABI *abi.Type
 	replyABI   *abi.Type
 }
@@ -58,7 +59,7 @@ var _ IRead = NewReadType[struct{}, struct{}]("", nil)
 
 func NewReadType[Request any, Reply any](
 	name string,
-	handler func(world *World, req Request) (Reply, error),
+	handler func(world *ecs.World, req Request) (Reply, error),
 	opts ...func() func(readType *ReadType[Request, Reply]),
 ) *ReadType[Request, Reply] {
 	var req Request
@@ -113,7 +114,7 @@ func (r *ReadType[req, rep]) Schema() (request, reply *jsonschema.Schema) {
 	return jsonschema.Reflect(new(req)), jsonschema.Reflect(new(rep))
 }
 
-func (r *ReadType[req, rep]) HandleRead(world *World, a any) (any, error) {
+func (r *ReadType[req, rep]) HandleRead(world *ecs.World, a any) (any, error) {
 	request, ok := a.(req)
 	if !ok {
 		return nil, fmt.Errorf("cannot cast %T to this reads request type %T", a, new(req))
@@ -122,7 +123,7 @@ func (r *ReadType[req, rep]) HandleRead(world *World, a any) (any, error) {
 	return reply, err
 }
 
-func (r *ReadType[req, rep]) HandleReadRaw(w *World, bz []byte) ([]byte, error) {
+func (r *ReadType[req, rep]) HandleReadRaw(w *ecs.World, bz []byte) ([]byte, error) {
 	request := new(req)
 	err := json.Unmarshal(bz, request)
 	if err != nil {

@@ -1,8 +1,8 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/engine"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
@@ -14,8 +14,8 @@ func toITransactionType(ins []AnyTransaction) []transaction.ITransaction {
 	return out
 }
 
-func toIReadType(ins []AnyReadType) []ecs.IRead {
-	out := make([]ecs.IRead, 0, len(ins))
+func toIReadType(ins []AnyReadType) []engine.IRead {
+	out := make([]engine.IRead, 0, len(ins))
 	for _, r := range ins {
 		out = append(out, r.Convert())
 	}
@@ -25,7 +25,7 @@ func toIReadType(ins []AnyReadType) []ecs.IRead {
 // separateOptions separates the given options into ecs options, server options, and cardinal (this package) options.
 // The different options are all grouped together to simplify the end user's experience, but under the hood different
 // options are meant for different sub-systems.
-func separateOptions(opts []WorldOption) (ecsOptions []ecs.Option, serverOptions []server.Option, cardinalOptions []func(*World)) {
+func separateOptions(opts []WorldOption) (ecsOptions []engine.Option, serverOptions []server.Option, cardinalOptions []func(*World)) {
 	for _, opt := range opts {
 		if opt.ecsOption != nil {
 			ecsOptions = append(ecsOptions, opt.ecsOption)

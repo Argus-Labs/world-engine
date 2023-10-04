@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"strings"
 
 	"github.com/redis/go-redis/v9"
@@ -13,7 +14,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 

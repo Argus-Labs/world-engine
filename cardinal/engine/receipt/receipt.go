@@ -5,9 +5,8 @@ package receipt
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"sync/atomic"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 var (

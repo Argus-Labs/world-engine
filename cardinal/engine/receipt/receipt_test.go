@@ -2,11 +2,11 @@ package receipt
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"testing"
 
 	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 func txHash(t *testing.T) transaction.TxHash {

@@ -1,7 +1,8 @@
-package ecs_test
+package engine_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/engine"
 	"pkg.world.dev/world-engine/cardinal/evm"
 	"testing"
 
@@ -29,7 +30,7 @@ func TestReadTypeNotStructs(t *testing.T) {
 		// test should trigger a panic.
 		panicValue := recover()
 		assert.Assert(t, panicValue != nil)
-		ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+		engine.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
 			return expectedReply, nil
 		})
 		defer func() {
@@ -39,7 +40,7 @@ func TestReadTypeNotStructs(t *testing.T) {
 		}()
 	}()
 
-	ecs.NewReadType[string, string]("foo", func(world *ecs.World, req string) (string, error) {
+	engine.NewReadType[string, string]("foo", func(world *ecs.World, req string) (string, error) {
 		return "blah", nil
 	})
 }
@@ -58,13 +59,13 @@ func TestReadEVM(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+	fooRead := engine.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
-	}, ecs.WithReadEVMSupport[FooRequest, FooReply])
+	}, engine.WithReadEVMSupport[FooRequest, FooReply])
 
 	w := ecs.NewTestWorld(t)
 	err := w.RegisterReads(fooRead)
-	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("blah"))
+	err = w.RegisterTransactions(engine.NewTransactionType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)
 	s, err := evm.NewServer(w)
 	assert.NilError(t, err)

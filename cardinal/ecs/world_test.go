@@ -2,13 +2,14 @@ package ecs_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/engine"
+	"pkg.world.dev/world-engine/cardinal/engine/log"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"testing"
 
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 func TestAddSystems(t *testing.T) {
@@ -53,7 +54,7 @@ func TestSystemExecutionOrder(t *testing.T) {
 
 func TestSetNamespace(t *testing.T) {
 	id := "foo"
-	w := ecs.NewTestWorld(t, ecs.WithNamespace(id))
+	w := ecs.NewTestWorld(t, engine.WithNamespace(id))
 	assert.Equal(t, w.Namespace(), id)
 }
 

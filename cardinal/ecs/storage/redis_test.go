@@ -5,6 +5,8 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/engine"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -16,10 +18,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -205,7 +205,7 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 		Str string
 	}
 
-	tx := ecs.NewTransactionType[TxIn, TxOut]("tx_a")
+	tx := engine.NewTransactionType[TxIn, TxOut]("tx_a")
 	tx.SetID(55)
 
 	key, err := crypto.GenerateKey()

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/engine"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
@@ -15,7 +16,7 @@ import (
 
 // register query endpoints for swagger server
 func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
-	readNameToReadType := make(map[string]ecs.IRead)
+	readNameToReadType := make(map[string]engine.IRead)
 	for _, read := range handler.w.ListReads() {
 		readNameToReadType[read.Name()] = read
 	}

@@ -7,11 +7,12 @@ import (
 	"log"
 	"net"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/engine"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
@@ -39,7 +40,7 @@ type Server interface {
 type txByID map[transaction.TypeID]transaction.ITransaction
 
 // readByName maps read resource names to the underlying IRead
-type readByName map[string]ecs.IRead
+type readByName map[string]engine.IRead
 
 type msgServerImpl struct {
 	txMap   txByID

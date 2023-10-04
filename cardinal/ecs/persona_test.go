@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -10,7 +11,6 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 

@@ -3,7 +3,7 @@ package server
 import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 

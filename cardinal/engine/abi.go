@@ -1,4 +1,4 @@
-package ecs
+package engine
 
 import (
 	"encoding/json"

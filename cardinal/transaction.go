@@ -1,8 +1,8 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/engine"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -20,19 +20,19 @@ type TransactionQueue struct {
 
 // TxData represents a single transaction.
 type TxData[T any] struct {
-	impl ecs.TxData[T]
+	impl engine.TxData[T]
 }
 
 // TransactionType represents a type of transaction that can be executed on the World object. The Msg struct represents
 // the input for a specific transaction, and the Result struct represents the result of processing the transaction.
 type TransactionType[Msg, Result any] struct {
-	impl *ecs.TransactionType[Msg, Result]
+	impl *engine.TransactionType[Msg, Result]
 }
 
 // NewTransactionType creates a new instance of a TransactionType.
 func NewTransactionType[Msg, Result any](name string) *TransactionType[Msg, Result] {
 	return &TransactionType[Msg, Result]{
-		impl: ecs.NewTransactionType[Msg, Result](name),
+		impl: engine.NewTransactionType[Msg, Result](name),
 	}
 }
 
@@ -40,7 +40,7 @@ func NewTransactionType[Msg, Result any](name string) *TransactionType[Msg, Resu
 // This allows this transaction to be sent from EVM smart contracts on the EVM base shard.
 func NewTransactionTypeWithEVMSupport[Msg, Result any](name string) *TransactionType[Msg, Result] {
 	return &TransactionType[Msg, Result]{
-		impl: ecs.NewTransactionType[Msg, Result](name, ecs.WithTxEVMSupport[Msg, Result]),
+		impl: engine.NewTransactionType[Msg, Result](name, engine.WithTxEVMSupport[Msg, Result]),
 	}
 }
 

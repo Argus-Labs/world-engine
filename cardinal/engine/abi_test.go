@@ -1,4 +1,4 @@
-package ecs
+package engine
 
 import (
 	"github.com/ethereum/go-ethereum/accounts/abi"

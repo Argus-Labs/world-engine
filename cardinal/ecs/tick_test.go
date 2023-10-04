@@ -7,6 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"pkg.world.dev/world-engine/cardinal/engine"
+	"pkg.world.dev/world-engine/cardinal/engine/log"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -14,9 +17,7 @@ import (
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 func TestTickHappyPath(t *testing.T) {
@@ -278,7 +279,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		powerComp := ecs.NewComponentType[FloatValue]("powerComp")
 		assert.NilError(t, world.RegisterComponents(powerComp))
 
-		powerTx := ecs.NewTransactionType[FloatValue, FloatValue]("change_power")
+		powerTx := engine.NewTransactionType[FloatValue, FloatValue]("change_power")
 		assert.NilError(t, world.RegisterTransactions(powerTx))
 
 		world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {

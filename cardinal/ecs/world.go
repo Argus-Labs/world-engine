@@ -5,6 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/engine"
+	ecslog "pkg.world.dev/world-engine/cardinal/engine/log"
+	"pkg.world.dev/world-engine/cardinal/engine/receipt"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -19,11 +23,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
@@ -43,7 +44,7 @@ type World struct {
 	nameToComponent          map[string]IComponentType
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
-	registeredReads          []IRead
+	registeredReads          []engine.IRead
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
@@ -56,7 +57,7 @@ type World struct {
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
-	
+
 	Logger *ecslog.Logger
 
 	endGameLoopCh     chan bool
@@ -138,7 +139,7 @@ func (w *World) GetComponentByName(name string) (IComponentType, bool) {
 	return componentType, exists
 }
 
-func (w *World) RegisterReads(reads ...IRead) error {
+func (w *World) RegisterReads(reads ...engine.IRead) error {
 	if w.stateIsLoaded {
 		panic("cannot register reads after loading game state")
 	}
@@ -188,7 +189,7 @@ func (w *World) registerInternalTransactions() {
 	)
 }
 
-func (w *World) ListReads() []IRead {
+func (w *World) ListReads() []engine.IRead {
 	return w.registeredReads
 }
 
@@ -200,7 +201,7 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 }
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
+func NewWorld(s storage.WorldStorage, opts ...engine.Option) (*World, error) {
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}

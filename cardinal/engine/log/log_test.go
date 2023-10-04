@@ -4,20 +4,20 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"pkg.world.dev/world-engine/cardinal/engine"
+	"pkg.world.dev/world-engine/cardinal/engine/log"
+	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"strings"
 	"testing"
 	"time"
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
-
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
 type SendEnergyTx struct {
@@ -66,7 +66,7 @@ func TestWorldLogger(t *testing.T) {
 		&bufLogger,
 	}
 	w.InjectLogger(&cardinalLogger)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	alphaTx := engine.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, w.RegisterTransactions(alphaTx))
 	err := w.RegisterComponents(energy)
 	assert.NilError(t, err)
