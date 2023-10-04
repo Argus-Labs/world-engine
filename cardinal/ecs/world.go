@@ -28,8 +28,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/ecs/world_namespace"
 	"pkg.world.dev/world-engine/cardinal/shard"
-	"pkg.world.dev/world-engine/cardinal/world_namespace"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
 )

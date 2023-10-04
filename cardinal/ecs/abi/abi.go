@@ -1,4 +1,4 @@
-package ecs_abi
+package abi
 
 import (
 	"encoding/json"

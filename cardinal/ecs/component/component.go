@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"unsafe"
 
-	"pkg.world.dev/world-engine/cardinal/world_namespace"
+	"pkg.world.dev/world-engine/cardinal/ecs/world_namespace"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"

@@ -1,13 +1,13 @@
-package ecs_abi_test
+package abi_test
 
 import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/ecs_abi"
+	"pkg.world.dev/world-engine/cardinal/ecs/abi"
 )
 
 // TestNoTagPanics tests that it panics when a struct field is of type *big.Int and does not have a `solidity` struct
@@ -16,14 +16,14 @@ func TestNoTagPanics(t *testing.T) {
 	type FooReadBroken struct {
 		Large *big.Int
 	}
-	_, err := ecs_abi.GenerateABIType(FooReadBroken{})
+	_, err := abi.GenerateABIType(FooReadBroken{})
 	assert.Error(t, err)
 
 	type FooReadBrokenSlice struct {
 		SliceBig []*big.Int
 	}
 
-	_, err = ecs_abi.GenerateABIType(FooReadBrokenSlice{})
+	_, err = abi.GenerateABIType(FooReadBrokenSlice{})
 	assert.Error(t, err)
 }
 
@@ -62,9 +62,9 @@ func TestGenerateABIType_AllValidTypes(t *testing.T) {
 
 		SliceOfSomeOtherStruct []SomeOtherType
 	}
-	at, err := ecs_abi.GenerateABIType(BigType{})
+	at, err := abi.GenerateABIType(BigType{})
 	assert.Nil(t, err)
-	args := abi.Arguments{{Type: *at}}
+	args := ethabi.Arguments{{Type: *at}}
 
 	b := BigType{
 		Uint8:        30,
@@ -105,7 +105,7 @@ func TestGenerateABIType_AllValidTypes(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, unpacked, 1)
 
-	got, err := ecs_abi.SerdeInto[BigType](unpacked[0])
+	got, err := abi.SerdeInto[BigType](unpacked[0])
 	assert.Nil(t, err)
 	assert.Equal(t, got, b)
 }
@@ -114,7 +114,7 @@ func TestGenerateABIType_PanicOnImportedTypes(t *testing.T) {
 	type InvalidType struct {
 		X common.Decimal
 	}
-	_, err := ecs_abi.GenerateABIType(InvalidType{})
+	_, err := abi.GenerateABIType(InvalidType{})
 	assert.Error(t, err)
 }
 
@@ -127,10 +127,10 @@ func TestGenerateABIType_NoSizeOnInt(t *testing.T) {
 		Int int
 	}
 
-	_, err := ecs_abi.GenerateABIType(InvalidUint{})
+	_, err := abi.GenerateABIType(InvalidUint{})
 	assert.Error(t, err)
 
-	_, err = ecs_abi.GenerateABIType(InvalidInt{})
+	_, err = abi.GenerateABIType(InvalidInt{})
 	assert.Error(t, err)
 }
 
@@ -144,9 +144,9 @@ func TestGenerateABIType_StructInStruct(t *testing.T) {
 		B Bar
 	}
 	foo := Foo{32, Bar{42}}
-	a, err := ecs_abi.GenerateABIType(foo)
+	a, err := abi.GenerateABIType(foo)
 	assert.Nil(t, err)
-	args := abi.Arguments{{Type: *a}}
+	args := ethabi.Arguments{{Type: *a}}
 	bz, err := args.Pack(foo)
 	assert.Nil(t, err)
 
@@ -154,7 +154,7 @@ func TestGenerateABIType_StructInStruct(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, unpacked, 1)
 
-	got, err := ecs_abi.SerdeInto[Foo](unpacked[0])
+	got, err := abi.SerdeInto[Foo](unpacked[0])
 	assert.Nil(t, err)
 
 	assert.Equal(t, got, foo)
@@ -170,9 +170,9 @@ func TestGenerateABIType_SliceOfStructInStruct(t *testing.T) {
 		B []Bar
 	}
 	foo := Foo{32, []Bar{{899789}}}
-	a, err := ecs_abi.GenerateABIType(foo)
+	a, err := abi.GenerateABIType(foo)
 	assert.Nil(t, err)
-	args := abi.Arguments{{Type: *a}}
+	args := ethabi.Arguments{{Type: *a}}
 	bz, err := args.Pack(foo)
 	assert.Nil(t, err)
 
@@ -180,7 +180,7 @@ func TestGenerateABIType_SliceOfStructInStruct(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, unpacked, 1)
 
-	underlyingFoo, err := ecs_abi.SerdeInto[Foo](unpacked[0])
+	underlyingFoo, err := abi.SerdeInto[Foo](unpacked[0])
 	assert.Nil(t, err)
 
 	assert.Equal(t, underlyingFoo, foo)
