@@ -8,21 +8,21 @@ import (
 	"errors"
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal/engine/log"
+	storage2 "pkg.world.dev/world-engine/cardinal/engine/storage"
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type Manager struct {
-	store  storage.WorldStorage
+	store  storage2.WorldStorage
 	logger *log.Logger
 }
 
-func NewStoreManager(store storage.WorldStorage, logger *log.Logger) *Manager {
+func NewStoreManager(store storage2.WorldStorage, logger *log.Logger) *Manager {
 	return &Manager{
 		store:  store,
 		logger: logger,
@@ -40,13 +40,13 @@ func (s *Manager) InjectLogger(logger *log.Logger) {
 func (s *Manager) GetEntity(id entity.ID) (entity.Entity, error) {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
-		return storage.BadEntity, err
+		return storage2.BadEntity, err
 	}
-	return storage.NewEntity(id, loc), nil
+	return storage2.NewEntity(id, loc), nil
 }
 
 func (s *Manager) isValid(id entity.ID) (bool, error) {
-	if id == storage.BadID {
+	if id == storage2.BadID {
 		return false, errors.New("invalid id: id is the bad ID sentinel")
 	}
 	ok, err := s.store.EntityLocStore.ContainsEntity(id)
@@ -107,7 +107,7 @@ func (s *Manager) RemoveEntity(id entity.ID) error {
 func (s *Manager) CreateEntity(comps ...component.IComponentType) (entity.ID, error) {
 	ids, err := s.CreateManyEntities(1, comps...)
 	if err != nil {
-		return storage.BadID, nil
+		return storage2.BadID, nil
 	}
 	return ids[0], nil
 }
@@ -131,19 +131,19 @@ func (s *Manager) CreateManyEntities(num int, comps ...component.IComponentType)
 func (s *Manager) createEntityFromArchetypeID(archID archetype.ID) (entity.ID, error) {
 	nextEntityID, err := s.store.EntityMgr.NewEntity()
 	if err != nil {
-		return storage.BadID, err
+		return storage2.BadID, err
 	}
 	archetype := s.store.ArchAccessor.Archetype(archID)
 	components := archetype.Components()
 	componentIndex, err := s.store.CompStore.PushComponents(components, archID)
 	if err != nil {
-		return storage.BadID, err
+		return storage2.BadID, err
 	}
 	if err := s.store.EntityLocStore.Insert(nextEntityID, archID, componentIndex); err != nil {
-		return storage.BadID, err
+		return storage2.BadID, err
 	}
 	archetype.PushEntity(nextEntityID)
-	entity := storage.NewEntity(nextEntityID, entity.NewLocation(archID, componentIndex))
+	entity := storage2.NewEntity(nextEntityID, entity.NewLocation(archID, componentIndex))
 	s.logger.LogEntity(zerolog.DebugLevel, entity, components)
 	return nextEntityID, nil
 }
@@ -297,7 +297,7 @@ func (s *Manager) AddComponentToEntity(cType component.IComponentType, id entity
 
 	currComponents := s.getComponentsForArchetype(loc.ArchID)
 	if component.Contains(currComponents, cType) {
-		return storage.ErrorComponentAlreadyOnEntity
+		return storage2.ErrorComponentAlreadyOnEntity
 	}
 	targetComponents := append(currComponents, cType)
 	targetArchID, err := s.GetArchIDForComponents(targetComponents)
@@ -322,7 +322,7 @@ func (s *Manager) RemoveComponentFromEntity(cType component.IComponentType, id e
 
 	currComponents := s.getComponentsForArchetype(loc.ArchID)
 	if !component.Contains(currComponents, cType) {
-		return storage.ErrorComponentNotOnEntity
+		return storage2.ErrorComponentNotOnEntity
 	}
 	targetComponents := make([]component.IComponentType, 0, len(currComponents)-1)
 	for _, c2 := range currComponents {

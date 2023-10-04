@@ -1,4 +1,4 @@
-package ecs_test
+package engine_test
 
 import (
 	"bytes"
@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"pkg.world.dev/world-engine/cardinal/engine"
 	"pkg.world.dev/world-engine/cardinal/engine/log"
+	"pkg.world.dev/world-engine/cardinal/engine/storage"
 	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"testing"
 
@@ -17,13 +17,12 @@ import (
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 func TestTickHappyPath(t *testing.T) {
 	rs := miniredis.RunT(t)
 	oneWorld := testutil.InitWorldWithRedis(t, rs)
-	oneEnergy := ecs.NewComponentType[EnergyComponent]("oneEnergy")
+	oneEnergy := ecs.NewComponentType[ecs.EnergyComponent]("oneEnergy")
 	assert.NilError(t, oneWorld.RegisterComponents(oneEnergy))
 	assert.NilError(t, oneWorld.LoadGameState())
 
@@ -34,7 +33,7 @@ func TestTickHappyPath(t *testing.T) {
 	assert.Equal(t, uint64(10), oneWorld.CurrentTick())
 
 	twoWorld := testutil.InitWorldWithRedis(t, rs)
-	twoEnergy := ecs.NewComponentType[EnergyComponent]("twoEnergy")
+	twoEnergy := ecs.NewComponentType[ecs.EnergyComponent]("twoEnergy")
 	assert.NilError(t, twoWorld.RegisterComponents(twoEnergy))
 	assert.NilError(t, twoWorld.LoadGameState())
 	assert.Equal(t, uint64(10), twoWorld.CurrentTick())
@@ -279,7 +278,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		powerComp := ecs.NewComponentType[FloatValue]("powerComp")
 		assert.NilError(t, world.RegisterComponents(powerComp))
 
-		powerTx := engine.NewTransactionType[FloatValue, FloatValue]("change_power")
+		powerTx := NewTransactionType[FloatValue, FloatValue]("change_power")
 		assert.NilError(t, world.RegisterTransactions(powerTx))
 
 		world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {

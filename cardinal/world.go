@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	ecslog "pkg.world.dev/world-engine/cardinal/engine/log"
+	storage2 "pkg.world.dev/world-engine/cardinal/engine/storage"
 	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"sync/atomic"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
@@ -48,12 +48,12 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 		log.Log().Msg("Redis password is not set, make sure to set up redis with password in prod")
 	}
 
-	rs := storage.NewRedisStorage(storage.Options{
+	rs := storage2.NewRedisStorage(storage2.Options{
 		Addr:     addr,
 		Password: password, // make sure to set this in prod
 		DB:       0,        // use default DB
 	}, "world")
-	worldStorage := storage.NewWorldStorage(&rs)
+	worldStorage := storage2.NewWorldStorage(&rs)
 	ecsWorld, err := ecs.NewWorld(worldStorage, ecsOptions...)
 	if err != nil {
 		return nil, err

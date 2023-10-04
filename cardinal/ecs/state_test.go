@@ -4,6 +4,7 @@ import (
 	"context"
 	"pkg.world.dev/world-engine/cardinal/engine"
 	"pkg.world.dev/world-engine/cardinal/engine/log"
+	"pkg.world.dev/world-engine/cardinal/engine/storage"
 	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"testing"
 
@@ -14,7 +15,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes

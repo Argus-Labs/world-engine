@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal/engine"
+	storage2 "pkg.world.dev/world-engine/cardinal/engine/storage"
 	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"testing"
 
@@ -19,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -45,8 +45,8 @@ func TestList(t *testing.T) {
 	ctx := context.Background()
 
 	rs := testutil.GetRedisStorage(t)
-	store := storage.NewWorldStorage(&rs)
-	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
+	store := storage2.NewWorldStorage(&rs)
+	x := storage2.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 	compStore := store.CompStore.Storage(x)
 
 	err := compStore.PushComponent(x, 0)
@@ -78,10 +78,10 @@ func TestRedis_CompIndex(t *testing.T) {
 	}
 	ctx := context.Background()
 	_ = ctx
-	x := storage.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
+	x := storage2.NewMockComponentType(SomeComp{}, SomeComp{Foo: 20})
 
 	rs := testutil.GetRedisStorage(t)
-	store := storage.NewWorldStorage(&rs)
+	store := storage2.NewWorldStorage(&rs)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
 	archID, compIdx := archetype.ID(0), component.Index(1)
@@ -116,7 +116,7 @@ func TestRedis_CompIndex(t *testing.T) {
 func TestRedis_Location(t *testing.T) {
 	//ctx := context.Background()
 	rs := testutil.GetRedisStorage(t)
-	store := storage.NewWorldStorage(&rs)
+	store := storage2.NewWorldStorage(&rs)
 
 	loc := entity.NewLocation(0, 1)
 	eid := entity.ID(3)
@@ -244,7 +244,7 @@ func TestLargeArbitraryDataProducesError(t *testing.T) {
 	// Make a 6 Mb slice. This should not fit in a redis bucket
 	largePayload := make([]byte, 6*1024*1024)
 	err := rs.Save("foobar", largePayload)
-	assert.ErrorIs(t, err, storage.ErrorBufferTooLargeForRedisValue)
+	assert.ErrorIs(t, err, storage2.ErrorBufferTooLargeForRedisValue)
 }
 
 func TestGettingIndexStorageShouldNotImpactIncrement(t *testing.T) {

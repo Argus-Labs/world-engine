@@ -2,6 +2,7 @@ package storage_test
 
 import (
 	"fmt"
+	storage2 "pkg.world.dev/world-engine/cardinal/engine/storage"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -9,16 +10,15 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 func TestStorage_Bytes(t *testing.T) {
 	type Component struct{ ID string }
 	var (
-		componentType = storage.NewMockComponentType[any](Component{}, Component{ID: "foo"})
+		componentType = storage2.NewMockComponentType[any](Component{}, Component{ID: "foo"})
 	)
 
-	store := storage.NewSliceStorage()
+	store := storage2.NewSliceStorage()
 
 	tests := []struct {
 		ID       string

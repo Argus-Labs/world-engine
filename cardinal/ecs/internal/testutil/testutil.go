@@ -3,6 +3,7 @@ package testutil
 import (
 	"context"
 	"crypto/ecdsa"
+	storage2 "pkg.world.dev/world-engine/cardinal/engine/storage"
 	"strings"
 	"testing"
 
@@ -11,15 +12,14 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/sign"
 )
 
 const WorldId string = "1"
 
-func GetRedisStorage(t *testing.T) storage.RedisStorage {
+func GetRedisStorage(t *testing.T) storage2.RedisStorage {
 	s := miniredis.RunT(t)
-	return storage.NewRedisStorage(storage.Options{
+	return storage2.NewRedisStorage(storage2.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
@@ -29,12 +29,12 @@ func GetRedisStorage(t *testing.T) storage.RedisStorage {
 // InitWorldWithRedis sets up an ecs.World using the given redis DB. ecs.NewECSWorldForTest is not used
 // because the test will re-use the incoming miniredis instance to initialize multiple worlds.
 func InitWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
-	rs := storage.NewRedisStorage(storage.Options{
+	rs := storage2.NewRedisStorage(storage2.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, "in-memory-world")
-	worldStorage := storage.NewWorldStorage(&rs)
+	worldStorage := storage2.NewWorldStorage(&rs)
 	w, err := ecs.NewWorld(worldStorage)
 	assert.NilError(t, err)
 	return w

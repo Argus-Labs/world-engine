@@ -1,6 +1,7 @@
 package component_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal/engine/storage"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -10,7 +11,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	storage2 "pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 func TestComponents(t *testing.T) {
@@ -18,11 +18,11 @@ func TestComponents(t *testing.T) {
 		ID string
 	}
 	var (
-		ca = storage2.NewMockComponentType(ComponentData{}, ComponentData{ID: "foo"})
-		cb = storage2.NewMockComponentType(ComponentData{}, ComponentData{ID: "bar"})
+		ca = storage.NewMockComponentType(ComponentData{}, ComponentData{ID: "foo"})
+		cb = storage.NewMockComponentType(ComponentData{}, ComponentData{ID: "bar"})
 	)
 
-	components := storage2.NewComponents(storage2.NewComponentsSliceStorage(), storage2.NewComponentIndexMap())
+	components := storage.NewComponents(storage.NewComponentsSliceStorage(), storage.NewComponentIndexMap())
 
 	tests := []*struct {
 		comps   []component.IComponentType
@@ -113,7 +113,7 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	id, err := world.Create(foundComp)
 	assert.NilError(t, err)
 	_, err = notFoundComp.Get(world, id)
-	assert.ErrorIs(t, err, storage2.ErrorComponentNotOnEntity)
+	assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
 }
 
 func TestMultipleCallsToCreateSupported(t *testing.T) {

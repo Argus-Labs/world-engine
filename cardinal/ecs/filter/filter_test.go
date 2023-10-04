@@ -2,6 +2,7 @@ package filter_test
 
 import (
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/engine/storage"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -10,7 +11,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 func TestCanFilterByArchetype(t *testing.T) {

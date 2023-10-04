@@ -4,7 +4,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	storage2 "pkg.world.dev/world-engine/cardinal/engine/storage"
 )
 
 type cache struct {
@@ -38,7 +38,7 @@ type QueryCallBackFn func(entity.ID) bool
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
 func (q *Query) Each(w *World, callback QueryCallBackFn) {
 	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+	iter := storage2.NewEntityIterator(0, w.store.ArchAccessor, result)
 	for iter.HasNext() {
 		entities := iter.Next()
 		for _, id := range entities {
@@ -53,7 +53,7 @@ func (q *Query) Each(w *World, callback QueryCallBackFn) {
 // Count returns the number of entities that match the query.
 func (q *Query) Count(w *World) int {
 	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+	iter := storage2.NewEntityIterator(0, w.store.ArchAccessor, result)
 	ret := 0
 	for iter.HasNext() {
 		entities := iter.Next()
@@ -65,9 +65,9 @@ func (q *Query) Count(w *World) int {
 // First returns the first entity that matches the query.
 func (q *Query) First(w *World) (id entity.ID, err error) {
 	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+	iter := storage2.NewEntityIterator(0, w.store.ArchAccessor, result)
 	if !iter.HasNext() {
-		return storage.BadID, err
+		return storage2.BadID, err
 	}
 	for iter.HasNext() {
 		entities := iter.Next()
@@ -75,7 +75,7 @@ func (q *Query) First(w *World) (id entity.ID, err error) {
 			return entities[0], nil
 		}
 	}
-	return storage.BadID, err
+	return storage2.BadID, err
 }
 
 func (q *Query) evaluateQuery(world *World) []archetype.ID {

@@ -1,9 +1,8 @@
 package storage_test
 
 import (
+	storage2 "pkg.world.dev/world-engine/cardinal/engine/storage"
 	"testing"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -11,12 +10,12 @@ import (
 
 func TestIndex(t *testing.T) {
 	var (
-		ca = storage.NewMockComponentType(struct{}{}, nil)
-		cb = storage.NewMockComponentType(struct{}{}, nil)
-		cc = storage.NewMockComponentType(struct{}{}, nil)
+		ca = storage2.NewMockComponentType(struct{}{}, nil)
+		cb = storage2.NewMockComponentType(struct{}{}, nil)
+		cc = storage2.NewMockComponentType(struct{}{}, nil)
 	)
 
-	index := storage.NewArchetypeComponentIndex()
+	index := storage2.NewArchetypeComponentIndex()
 
 	compsA := []component.IComponentType{ca}
 	compsB := []component.IComponentType{ca, cb}

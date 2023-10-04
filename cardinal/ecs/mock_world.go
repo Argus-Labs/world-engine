@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"log"
 	"pkg.world.dev/world-engine/cardinal/engine"
+	storage2 "pkg.world.dev/world-engine/cardinal/engine/storage"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 // NewMockWorld creates an ecs.World that uses a mock redis DB as the storage
@@ -43,12 +42,12 @@ func NewTestWorld(t testing.TB, opts ...engine.Option) *World {
 }
 
 func newMockWorld(s *miniredis.Miniredis, opts ...engine.Option) (*World, error) {
-	rs := storage.NewRedisStorage(storage.Options{
+	rs := storage2.NewRedisStorage(storage2.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, "in-memory-world")
-	worldStorage := storage.NewWorldStorage(&rs)
+	worldStorage := storage2.NewWorldStorage(&rs)
 
 	return NewWorld(worldStorage, opts...)
 }

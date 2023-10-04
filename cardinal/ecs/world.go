@@ -8,6 +8,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/engine"
 	ecslog "pkg.world.dev/world-engine/cardinal/engine/log"
 	"pkg.world.dev/world-engine/cardinal/engine/receipt"
+	storage2 "pkg.world.dev/world-engine/cardinal/engine/storage"
+	"pkg.world.dev/world-engine/cardinal/engine/store"
 	"pkg.world.dev/world-engine/cardinal/engine/transaction"
 	"reflect"
 	"runtime"
@@ -23,8 +25,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
@@ -35,7 +35,7 @@ type Namespace string
 
 type World struct {
 	namespace                Namespace
-	store                    storage.WorldStorage
+	store                    storage2.WorldStorage
 	storeManager             *store.Manager
 	systems                  []System
 	systemLoggers            []*ecslog.Logger
@@ -201,7 +201,7 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 }
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage, opts ...engine.Option) (*World, error) {
+func NewWorld(s storage2.WorldStorage, opts ...engine.Option) (*World, error) {
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}
@@ -414,7 +414,7 @@ func (w *World) saveArchetypeData() error {
 	return nil
 }
 
-func (w *World) saveToKey(key string, cm storage.ComponentMarshaler) error {
+func (w *World) saveToKey(key string, cm storage2.ComponentMarshaler) error {
 	buf, err := cm.Marshal()
 	if err != nil {
 		return err
@@ -477,7 +477,7 @@ func (w *World) LoadGameState() error {
 	return nil
 }
 
-func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []IComponentType) error {
+func (w *World) loadFromKey(key string, cm storage2.ComponentMarshaler, comps []IComponentType) error {
 	buf, ok, err := w.store.StateStore.Load(key)
 	if !ok {
 		// There is no saved data for this key
