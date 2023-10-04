@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"pkg.world.dev/world-engine/cardinal/engine"
+	"pkg.world.dev/world-engine/cardinal/engine/internal/testutil"
 	"pkg.world.dev/world-engine/cardinal/engine/log"
 	"pkg.world.dev/world-engine/cardinal/engine/storage"
 	"pkg.world.dev/world-engine/cardinal/engine/transaction"
@@ -14,7 +15,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
