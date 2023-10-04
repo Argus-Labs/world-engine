@@ -9,8 +9,11 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/query"
+	"pkg.world.dev/world-engine/cardinal/ecs/world_namespace"
 )
 
 // register query endpoints for swagger server
@@ -112,7 +115,7 @@ func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
 
 		result := make([]cql.QueryResponse, 0)
 
-		ecs.NewQuery(resultFilter).Each(handler.w, func(id entity.ID) bool {
+		query.NewQuery(resultFilter).Each(world_namespace.Namespace(handler.w.Namespace()), handler.w.Store(), func(id entity.ID) bool {
 			components, err := handler.w.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false
@@ -123,14 +126,14 @@ func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
 			}
 
 			for _, c := range components {
-				var getter ecs.IGettableRawJsonFromEntityId
-				getter, ok = c.(ecs.IGettableRawJsonFromEntityId)
+				var getter component.IGettableRawJsonFromEntityId
+				getter, ok = c.(component.IGettableRawJsonFromEntityId)
 				if !ok {
 					err = fmt.Errorf("%s is not serializeable to json", c.Name())
 					return false
 				}
 				var data json.RawMessage
-				data, err = getter.GetRawJson(handler.w, id)
+				data, err = getter.GetRawJson(handler.w.StoreManager(), id)
 				if err != nil {
 					return false
 				}

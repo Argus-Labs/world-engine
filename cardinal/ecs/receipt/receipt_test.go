@@ -4,15 +4,16 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+
+	"github.com/google/uuid"
+	"pkg.world.dev/world-engine/cardinal/ecs/itransaction"
 )
 
-func txHash(t *testing.T) transaction.TxHash {
+func txHash(t *testing.T) itransaction.TxHash {
 	id, err := uuid.NewUUID()
 	assert.NilError(t, err)
-	return transaction.TxHash(id.String())
+	return itransaction.TxHash(id.String())
 }
 
 func TestCanSaveAndGetAnError(t *testing.T) {

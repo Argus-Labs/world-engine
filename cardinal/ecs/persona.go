@@ -4,10 +4,13 @@ import (
 	"errors"
 	"fmt"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/query"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/ecs/world_namespace"
 )
 
 // CreatePersonaTransaction allows for the associating of a persona tag with a signer address.
@@ -21,9 +24,9 @@ type CreatePersonaTransactionResult struct {
 }
 
 // CreatePersonaTx is a concrete ECS transaction.
-var CreatePersonaTx = NewTransactionType[CreatePersonaTransaction, CreatePersonaTransactionResult](
+var CreatePersonaTx = transaction.NewTransactionType[CreatePersonaTransaction, CreatePersonaTransactionResult](
 	"create-persona",
-	WithTxEVMSupport[CreatePersonaTransaction, CreatePersonaTransactionResult],
+	transaction.WithTxEVMSupport[CreatePersonaTransaction, CreatePersonaTransactionResult],
 )
 
 type AuthorizePersonaAddress struct {
@@ -35,55 +38,9 @@ type AuthorizePersonaAddressResult struct {
 	Success bool
 }
 
-var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, AuthorizePersonaAddressResult](
+var AuthorizePersonaAddressTx = transaction.NewTransactionType[AuthorizePersonaAddress, AuthorizePersonaAddressResult](
 	"authorize-persona-address",
 )
-
-// AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
-// users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
-// them to mutate their owned state from the context of the EVM.
-func AuthorizePersonaAddressSystem(world *World, queue *transaction.TxQueue, _ *log.Logger) error {
-	txs := AuthorizePersonaAddressTx.In(queue)
-	if len(txs) == 0 {
-		return nil
-	}
-	personaTagToAddress, err := buildPersonaTagMapping(world)
-	if err != nil {
-		return err
-	}
-	for _, tx := range txs {
-		if tx.Sig.PersonaTag != tx.Value.PersonaTag {
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, fmt.Errorf("signer does not match request"))
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
-		}
-		data, ok := personaTagToAddress[tx.Value.PersonaTag]
-		if !ok {
-			// This PersonaTag has not been registered.
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, fmt.Errorf("persona does not exist"))
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
-		}
-		err = SignerComp.Update(world, data.EntityID, func(component SignerComponent) SignerComponent {
-			// check if this address already exists
-			for _, addr := range component.AuthorizedAddresses {
-				// if its already in the authorized addresses slice, just return the component.
-				if addr == tx.Value.Address {
-					return component
-				}
-			}
-			component.AuthorizedAddresses = append(component.AuthorizedAddresses, tx.Value.Address)
-			return component
-		})
-		if err != nil {
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, err)
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
-		}
-		AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: true})
-	}
-	return nil
-}
 
 type SignerComponent struct {
 	PersonaTag          string
@@ -92,7 +49,7 @@ type SignerComponent struct {
 }
 
 // SignerComp is the concrete ECS component that pairs a persona tag to a signer address.
-var SignerComp = NewComponentType[SignerComponent]("SignerComponent")
+var SignerComp = component.NewComponentType[SignerComponent]("SignerComponent")
 
 type personaTagComponentData struct {
 	SignerAddress string
@@ -102,8 +59,8 @@ type personaTagComponentData struct {
 func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, error) {
 	personaTagToAddress := map[string]personaTagComponentData{}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(world, func(id entity.ID) bool {
-		sc, err := SignerComp.Get(world, id)
+	query.NewQuery(filter.Exact(SignerComp)).Each(world_namespace.Namespace(world.Namespace()), world.Store(), func(id entity.ID) bool {
+		sc, err := SignerComp.Get(world.StoreManager(), id)
 		if err != nil {
 			errs = append(errs, err)
 			return true
@@ -139,21 +96,21 @@ func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *log.Logg
 		}
 		id, err := world.StoreManager().CreateEntity(SignerComp)
 		if err != nil {
-			CreatePersonaTx.AddError(world, txData.TxHash, err)
+			CreatePersonaTx.AddError(world.receiptHistory, txData.TxHash, err)
 			continue
 		}
-		if err := SignerComp.Set(world, id, SignerComponent{
+		if err := SignerComp.Set(world.Logger, world.NameToComponent(), world.StoreManager(), id, SignerComponent{
 			PersonaTag:    tx.PersonaTag,
 			SignerAddress: tx.SignerAddress,
 		}); err != nil {
-			CreatePersonaTx.AddError(world, txData.TxHash, err)
+			CreatePersonaTx.AddError(world.receiptHistory, txData.TxHash, err)
 			continue
 		}
 		personaTagToAddress[tx.PersonaTag] = personaTagComponentData{
 			SignerAddress: tx.SignerAddress,
 			EntityID:      id,
 		}
-		CreatePersonaTx.SetResult(world, txData.TxHash, CreatePersonaTransactionResult{
+		CreatePersonaTx.SetResult(world.GetReceiptHistory(), txData.TxHash, CreatePersonaTransactionResult{
 			Success: true,
 		})
 	}
@@ -166,31 +123,48 @@ var (
 	ErrorCreatePersonaTxsNotProcessed = errors.New("create persona txs have not been processed for the given tick")
 )
 
-// GetSignerForPersonaTag returns the signer address that has been registered for the given persona tag after the
-// given tick. If the world's tick is less than or equal to the given tick, ErrorCreatePersonaTXsNotProcessed is returned.
-// If the given personaTag has no signer address, ErrorPersonaTagHasNoSigner is returned.
-func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
-	if tick >= w.tick {
-		return "", ErrorCreatePersonaTxsNotProcessed
+// AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
+// users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
+// them to mutate their owned state from the context of the EVM.
+func AuthorizePersonaAddressSystem(world *World, queue *transaction.TxQueue, _ *log.Logger) error {
+	txs := AuthorizePersonaAddressTx.In(queue)
+	if len(txs) == 0 {
+		return nil
 	}
-	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(w, func(id entity.ID) bool {
-		sc, err := SignerComp.Get(w, id)
+	personaTagToAddress, err := buildPersonaTagMapping(world)
+	if err != nil {
+		return err
+	}
+	for _, tx := range txs {
+		if tx.Sig.PersonaTag != tx.Value.PersonaTag {
+			AuthorizePersonaAddressTx.AddError(world.receiptHistory, tx.TxHash, fmt.Errorf("signer does not match request"))
+			AuthorizePersonaAddressTx.SetResult(world.GetReceiptHistory(), tx.TxHash, AuthorizePersonaAddressResult{Success: false})
+			continue
+		}
+		data, ok := personaTagToAddress[tx.Value.PersonaTag]
+		if !ok {
+			// This PersonaTag has not been registered.
+			AuthorizePersonaAddressTx.AddError(world.receiptHistory, tx.TxHash, fmt.Errorf("persona does not exist"))
+			AuthorizePersonaAddressTx.SetResult(world.GetReceiptHistory(), tx.TxHash, AuthorizePersonaAddressResult{Success: false})
+			continue
+		}
+		err = SignerComp.Update(world.Logger, world.NameToComponent(), world.StoreManager(), data.EntityID, func(component SignerComponent) SignerComponent {
+			// check if this address already exists
+			for _, addr := range component.AuthorizedAddresses {
+				// if its already in the authorized addresses slice, just return the component.
+				if addr == tx.Value.Address {
+					return component
+				}
+			}
+			component.AuthorizedAddresses = append(component.AuthorizedAddresses, tx.Value.Address)
+			return component
+		})
 		if err != nil {
-			errs = append(errs, err)
+			AuthorizePersonaAddressTx.AddError(world.receiptHistory, tx.TxHash, err)
+			AuthorizePersonaAddressTx.SetResult(world.GetReceiptHistory(), tx.TxHash, AuthorizePersonaAddressResult{Success: false})
+			continue
 		}
-		if sc.PersonaTag == personaTag {
-			addr = sc.SignerAddress
-			return false
-		}
-		return true
-	})
-	if len(errs) > 0 {
-		return "", errors.Join(errs...)
+		AuthorizePersonaAddressTx.SetResult(world.GetReceiptHistory(), tx.TxHash, AuthorizePersonaAddressResult{Success: true})
 	}
-
-	if addr == "" {
-		return "", ErrorPersonaTagHasNoSigner
-	}
-	return addr, nil
+	return nil
 }

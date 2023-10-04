@@ -11,6 +11,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
 	"github.com/rs/zerolog"
@@ -31,17 +32,17 @@ type EnergyComp struct {
 	value int
 }
 
-var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
+var energy = component.NewComponentType[EnergyComp]("EnergyComp")
 
 func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error {
 	logger.Log().Msg("test")
-	energy.Each(w, func(entityId entity.ID) bool {
-		energyPlanet, err := energy.Get(w, entityId)
+	energy.Each(w.Namespace(), w.Store(), func(entityId entity.ID) bool {
+		energyPlanet, err := energy.Get(w.StoreManager(), entityId)
 		if err != nil {
 			return false
 		}
 		energyPlanet.value += 10 // bs whatever
-		err = energy.Set(w, entityId, energyPlanet)
+		err = energy.Set(w.Logger, w.NameToComponent(), w.StoreManager(), entityId, energyPlanet)
 		if err != nil {
 			return false
 		}
@@ -66,7 +67,7 @@ func TestWorldLogger(t *testing.T) {
 		&bufLogger,
 	}
 	w.InjectLogger(&cardinalLogger)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	alphaTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, w.RegisterTransactions(alphaTx))
 	err := w.RegisterComponents(energy)
 	assert.NilError(t, err)
@@ -96,7 +97,7 @@ func TestWorldLogger(t *testing.T) {
 	//require.JSONEq compares json strings for equality.
 	require.JSONEq(t, buf.String(), jsonWorldInfoString)
 	buf.Reset()
-	archetypeId, err := w.StoreManager().GetArchIDForComponents([]component.IComponentType{energy})
+	archetypeId, err := w.StoreManager().GetArchIDForComponents([]icomponent.IComponentType{energy})
 	assert.NilError(t, err)
 	archetype_creations_json_string := buf.String()
 	require.JSONEq(t, `
@@ -204,7 +205,7 @@ func TestWorldLogger(t *testing.T) {
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
-	_, err = w.CreateMany(2, []component.IComponentType{energy}...)
+	_, err = w.CreateMany(2, []icomponent.IComponentType{energy}...)
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `

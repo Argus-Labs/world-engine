@@ -8,7 +8,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -30,7 +30,7 @@ func TestStorage_Bytes(t *testing.T) {
 	}
 
 	var archIdx archetype.ID = 0
-	var compIdx component.Index = 0
+	var compIdx component_types.Index = 0
 	for _, test := range tests {
 		err := store.PushComponent(componentType, archIdx)
 		assert.NilError(t, err)
@@ -58,7 +58,7 @@ func TestStorage_Bytes(t *testing.T) {
 
 	tests2 := []struct {
 		archIdx    archetype.ID
-		cmpIdx     component.Index
+		cmpIdx     component_types.Index
 		expectedID string
 	}{
 		{archIdx: 0, cmpIdx: 0, expectedID: "a"},

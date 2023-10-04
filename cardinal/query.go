@@ -1,19 +1,20 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/query"
+	"pkg.world.dev/world-engine/cardinal/ecs/world_namespace"
 )
 
 // Query allowed for the querying of entities within a World.
 type Query struct {
-	impl *ecs.Query
+	impl *query.Query
 }
 
 // NewQuery creates a new Query.
 func NewQuery(filter ComponentFilter) *Query {
-	return &Query{ecs.NewQuery(filter)}
+	return &Query{query.NewQuery(filter)}
 }
 
 // QueryCallBackFn represents a function that can operate on a single EntityID, and returns whether the next EntityID
@@ -23,19 +24,19 @@ type QueryCallBackFn func(EntityID) bool
 // Each executes the given callback function on every EntityID that matches this query. If any call to callback returns
 // falls, no more entities will be processed.
 func (q *Query) Each(w *World, callback QueryCallBackFn) {
-	q.impl.Each(w.implWorld, func(eid entity.ID) bool {
+	q.impl.Each(world_namespace.Namespace(w.implWorld.Namespace()), w.implWorld.Store(), func(eid entity.ID) bool {
 		return callback(eid)
 	})
 }
 
 // Count returns the number of entities that match this query.
 func (q *Query) Count(w *World) int {
-	return q.impl.Count(w.implWorld)
+	return q.impl.Count(w.implWorld.Namespace(), w.implWorld.Store())
 }
 
 // First returns the first entity that matches this query.
 func (q *Query) First(w *World) (id EntityID, err error) {
-	return q.impl.First(w.implWorld)
+	return q.impl.First(w.implWorld.Namespace(), w.implWorld.Store())
 }
 
 // ComponentFilter represents a filter that will be passed to NewQuery to help decide which entities should be

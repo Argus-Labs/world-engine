@@ -7,6 +7,8 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
+	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -25,19 +27,19 @@ func TestComponents(t *testing.T) {
 	components := storage2.NewComponents(storage2.NewComponentsSliceStorage(), storage2.NewComponentIndexMap())
 
 	tests := []*struct {
-		comps   []component.IComponentType
+		comps   []icomponent.IComponentType
 		archID  archetype.ID
-		compIdx component.Index
+		compIdx component_types.Index
 		ID      string
 	}{
 		{
-			[]component.IComponentType{ca},
+			[]icomponent.IComponentType{ca},
 			0,
 			0,
 			"a",
 		},
 		{
-			[]component.IComponentType{ca, cb},
+			[]icomponent.IComponentType{ca, cb},
 			1,
 			1,
 			"b",
@@ -105,14 +107,14 @@ func TestComponents(t *testing.T) {
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	foundComp := ecs.NewComponentType[string]("foundComp")
-	notFoundComp := ecs.NewComponentType[string]("notFoundComp")
+	foundComp := component.NewComponentType[string]("foundComp")
+	notFoundComp := component.NewComponentType[string]("notFoundComp")
 
 	assert.NilError(t, world.RegisterComponents(foundComp, notFoundComp))
 
 	id, err := world.Create(foundComp)
 	assert.NilError(t, err)
-	_, err = notFoundComp.Get(world, id)
+	_, err = notFoundComp.Get(world.StoreManager(), id)
 	assert.ErrorIs(t, err, storage2.ErrorComponentNotOnEntity)
 }
 
@@ -121,21 +123,21 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 		Val int
 	}
 	world := ecs.NewTestWorld(t)
-	valComp := ecs.NewComponentType[ValueComponent]("ValueComponent")
+	valComp := component.NewComponentType[ValueComponent]("ValueComponent")
 	assert.NilError(t, world.RegisterComponents(valComp))
 
 	id, err := world.Create(valComp)
 	assert.NilError(t, err)
 
-	assert.NilError(t, valComp.Set(world, id, ValueComponent{99}))
+	assert.NilError(t, valComp.Set(world.Logger, world.NameToComponent(), world.StoreManager(), id, ValueComponent{99}))
 
-	val, err := valComp.Get(world, id)
+	val, err := valComp.Get(world.StoreManager(), id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
 	_, err = world.Create(valComp)
 
-	val, err = valComp.Get(world, id)
+	val, err = valComp.Get(world.StoreManager(), id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 }

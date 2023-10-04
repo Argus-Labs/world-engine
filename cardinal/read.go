@@ -1,6 +1,8 @@
 package cardinal
 
-import "pkg.world.dev/world-engine/cardinal/ecs"
+import (
+	"pkg.world.dev/world-engine/cardinal/ecs"
+)
 
 // AnyReadType is implemented by the return value of NewReadType and is used in RegisterReads; any
 // read operation creates by NewReadType can be registered with a World object via RegisterReads.

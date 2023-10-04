@@ -1,21 +1,21 @@
 package filter
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 )
 
 type exact struct {
-	components []component.IComponentType
+	components []icomponent.IComponentType
 }
 
 // Exact matches archetypes that contain exactly the same components specified.
-func Exact(components ...component.IComponentType) ComponentFilter {
+func Exact(components ...icomponent.IComponentType) ComponentFilter {
 	return exact{
 		components: components,
 	}
 }
 
-func (f exact) MatchesComponents(components []component.IComponentType) bool {
+func (f exact) MatchesComponents(components []icomponent.IComponentType) bool {
 	if len(components) != len(f.components) {
 		return false
 	}

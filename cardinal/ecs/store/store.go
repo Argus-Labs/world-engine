@@ -10,11 +10,13 @@ import (
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/utils"
 )
 
 type Manager struct {
@@ -104,7 +106,7 @@ func (s *Manager) RemoveEntity(id entity.ID) error {
 	return nil
 }
 
-func (s *Manager) CreateEntity(comps ...component.IComponentType) (entity.ID, error) {
+func (s *Manager) CreateEntity(comps ...icomponent.IComponentType) (entity.ID, error) {
 	ids, err := s.CreateManyEntities(1, comps...)
 	if err != nil {
 		return storage.BadID, nil
@@ -112,7 +114,7 @@ func (s *Manager) CreateEntity(comps ...component.IComponentType) (entity.ID, er
 	return ids[0], nil
 }
 
-func (s *Manager) CreateManyEntities(num int, comps ...component.IComponentType) ([]entity.ID, error) {
+func (s *Manager) CreateManyEntities(num int, comps ...icomponent.IComponentType) ([]entity.ID, error) {
 	archetypeID, err := s.GetArchIDForComponents(comps)
 	if err != nil {
 		return nil, err
@@ -152,7 +154,7 @@ func (s *Manager) getEntityLocation(id entity.ID) (entity.Location, error) {
 	return s.store.EntityLocStore.GetLocation(id)
 }
 
-func (s *Manager) SetComponentForEntity(cType component.IComponentType, id entity.ID, value any) error {
+func (s *Manager) SetComponentForEntity(cType icomponent.IComponentType, id entity.ID, value any) error {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return err
@@ -164,11 +166,11 @@ func (s *Manager) SetComponentForEntity(cType component.IComponentType, id entit
 	return s.store.CompStore.Storage(cType).SetComponent(loc.ArchID, loc.CompIndex, bz)
 }
 
-func (s *Manager) GetComponentTypesForArchID(archID archetype.ID) []component.IComponentType {
+func (s *Manager) GetComponentTypesForArchID(archID archetype.ID) []icomponent.IComponentType {
 	return s.store.ArchAccessor.Archetype(archID).Components()
 }
 
-func (s *Manager) GetComponentTypesForEntity(id entity.ID) ([]component.IComponentType, error) {
+func (s *Manager) GetComponentTypesForEntity(id entity.ID) ([]icomponent.IComponentType, error) {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return nil, err
@@ -176,7 +178,7 @@ func (s *Manager) GetComponentTypesForEntity(id entity.ID) ([]component.ICompone
 	return s.getComponentsForArchetype(loc.ArchID), nil
 }
 
-func (s *Manager) GetComponentForEntity(cType component.IComponentType, id entity.ID) (any, error) {
+func (s *Manager) GetComponentForEntity(cType icomponent.IComponentType, id entity.ID) (any, error) {
 	bz, err := s.GetComponentForEntityInRawJson(cType, id)
 	if err != nil {
 		return nil, err
@@ -184,7 +186,7 @@ func (s *Manager) GetComponentForEntity(cType component.IComponentType, id entit
 	return cType.Decode(bz)
 }
 
-func (s *Manager) GetComponentForEntityInRawJson(cType component.IComponentType, id entity.ID) (json.RawMessage, error) {
+func (s *Manager) GetComponentForEntityInRawJson(cType icomponent.IComponentType, id entity.ID) (json.RawMessage, error) {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return nil, err
@@ -192,11 +194,11 @@ func (s *Manager) GetComponentForEntityInRawJson(cType component.IComponentType,
 	return s.store.CompStore.Storage(cType).Component(loc.ArchID, loc.CompIndex)
 }
 
-func (s *Manager) getComponentsForArchetype(archID archetype.ID) []component.IComponentType {
+func (s *Manager) getComponentsForArchetype(archID archetype.ID) []icomponent.IComponentType {
 	return s.store.ArchAccessor.Archetype(archID).Components()
 }
 
-func (s *Manager) hasDuplicates(components []component.IComponentType) bool {
+func (s *Manager) hasDuplicates(components []icomponent.IComponentType) bool {
 	// check if there are duplicate values inside component slice
 	for i := 0; i < len(components); i++ {
 		for j := i + 1; j < len(components); j++ {
@@ -208,7 +210,7 @@ func (s *Manager) hasDuplicates(components []component.IComponentType) bool {
 	return false
 }
 
-func (s *Manager) insertArchetype(components []component.IComponentType) archetype.ID {
+func (s *Manager) insertArchetype(components []icomponent.IComponentType) archetype.ID {
 	s.store.ArchCompIdxStore.Push(components)
 	archID := archetype.ID(s.store.ArchAccessor.Count())
 
@@ -217,7 +219,7 @@ func (s *Manager) insertArchetype(components []component.IComponentType) archety
 	return archID
 }
 
-func (s *Manager) GetArchIDForComponents(components []component.IComponentType) (archetype.ID, error) {
+func (s *Manager) GetArchIDForComponents(components []icomponent.IComponentType) (archetype.ID, error) {
 	if len(components) == 0 {
 		return 0, errors.New("entities require at least 1 component")
 	}
@@ -233,7 +235,7 @@ func (s *Manager) GetArchIDForComponents(components []component.IComponentType) 
 	return s.insertArchetype(components), nil
 }
 
-func (s *Manager) transferArchetype(from, to archetype.ID, idx component.Index) (component.Index, error) {
+func (s *Manager) transferArchetype(from, to archetype.ID, idx component_types.Index) (component_types.Index, error) {
 	if from == to {
 		return idx, nil
 	}
@@ -243,7 +245,7 @@ func (s *Manager) transferArchetype(from, to archetype.ID, idx component.Index) 
 	// move entity id
 	id := fromArch.SwapRemove(idx)
 	toArch.PushEntity(id)
-	err := s.store.EntityLocStore.Insert(id, to, component.Index(len(toArch.Entities())-1))
+	err := s.store.EntityLocStore.Insert(id, to, component_types.Index(len(toArch.Entities())-1))
 	if err != nil {
 		return 0, err
 	}
@@ -260,7 +262,7 @@ func (s *Manager) transferArchetype(from, to archetype.ID, idx component.Index) 
 	fromComps := fromArch.Components()
 	toComps := toArch.Components()
 	for _, componentType := range toComps {
-		if !component.Contains(fromComps, componentType) {
+		if !utils.Contains(fromComps, componentType) {
 			store := s.store.CompStore.Storage(componentType)
 			if err := store.PushComponent(componentType, to); err != nil {
 				return 0, err
@@ -271,7 +273,7 @@ func (s *Manager) transferArchetype(from, to archetype.ID, idx component.Index) 
 	// move component
 	for _, componentType := range fromComps {
 		store := s.store.CompStore.Storage(componentType)
-		if component.Contains(toComps, componentType) {
+		if utils.Contains(toComps, componentType) {
 			if err := store.MoveComponent(from, idx, to); err != nil {
 				return 0, err
 			}
@@ -286,17 +288,17 @@ func (s *Manager) transferArchetype(from, to archetype.ID, idx component.Index) 
 	if err != nil {
 		return 0, err
 	}
-	return component.Index(len(toArch.Entities()) - 1), nil
+	return component_types.Index(len(toArch.Entities()) - 1), nil
 }
 
-func (s *Manager) AddComponentToEntity(cType component.IComponentType, id entity.ID) error {
+func (s *Manager) AddComponentToEntity(cType icomponent.IComponentType, id entity.ID) error {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return err
 	}
 
 	currComponents := s.getComponentsForArchetype(loc.ArchID)
-	if component.Contains(currComponents, cType) {
+	if utils.Contains(currComponents, cType) {
 		return storage.ErrorComponentAlreadyOnEntity
 	}
 	targetComponents := append(currComponents, cType)
@@ -314,17 +316,17 @@ func (s *Manager) AddComponentToEntity(cType component.IComponentType, id entity
 	return s.store.EntityLocStore.SetLocation(id, loc)
 }
 
-func (s *Manager) RemoveComponentFromEntity(cType component.IComponentType, id entity.ID) error {
+func (s *Manager) RemoveComponentFromEntity(cType icomponent.IComponentType, id entity.ID) error {
 	loc, err := s.getEntityLocation(id)
 	if err != nil {
 		return err
 	}
 
 	currComponents := s.getComponentsForArchetype(loc.ArchID)
-	if !component.Contains(currComponents, cType) {
+	if !utils.Contains(currComponents, cType) {
 		return storage.ErrorComponentNotOnEntity
 	}
-	targetComponents := make([]component.IComponentType, 0, len(currComponents)-1)
+	targetComponents := make([]icomponent.IComponentType, 0, len(currComponents)-1)
 	for _, c2 := range currComponents {
 		if c2 == cType {
 			continue

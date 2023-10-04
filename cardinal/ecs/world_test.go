@@ -62,13 +62,13 @@ func TestWithoutRegistration(t *testing.T) {
 	id, err := world.Create(Energy, Ownable)
 	assert.Assert(t, err != nil)
 
-	err = Energy.Update(world, id, func(component EnergyComponent) EnergyComponent {
+	err = Energy.Update(world.Logger, world.NameToComponent(), world.StoreManager(), id, func(component EnergyComponent) EnergyComponent {
 		component.Amt += 50
 		return component
 	})
 	assert.Assert(t, err != nil)
 
-	err = Energy.Set(world, id, EnergyComponent{
+	err = Energy.Set(world.Logger, world.NameToComponent(), world.StoreManager(), id, EnergyComponent{
 		Amt: 0,
 		Cap: 0,
 	})
@@ -79,12 +79,12 @@ func TestWithoutRegistration(t *testing.T) {
 	assert.NilError(t, err)
 	id, err = world.Create(Energy, Ownable)
 	assert.NilError(t, err)
-	err = Energy.Update(world, id, func(component EnergyComponent) EnergyComponent {
+	err = Energy.Update(world.Logger, world.NameToComponent(), world.StoreManager(), id, func(component EnergyComponent) EnergyComponent {
 		component.Amt += 50
 		return component
 	})
 	assert.NilError(t, err)
-	err = Energy.Set(world, id, EnergyComponent{
+	err = Energy.Set(world.Logger, world.NameToComponent(), world.StoreManager(), id, EnergyComponent{
 		Amt: 0,
 		Cap: 0,
 	})

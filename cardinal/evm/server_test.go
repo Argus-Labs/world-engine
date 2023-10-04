@@ -7,6 +7,7 @@ import (
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -32,8 +33,8 @@ func TestServer_SendMessage(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
-	BarTx := ecs.NewTransactionType[BarTransaction, TxReply]("bartx", ecs.WithTxEVMSupport[BarTransaction, TxReply])
+	FooTx := transaction.NewTransactionType[FooTransaction, TxReply]("footx", transaction.WithTxEVMSupport[FooTransaction, TxReply])
+	BarTx := transaction.NewTransactionType[BarTransaction, TxReply]("bartx", transaction.WithTxEVMSupport[BarTransaction, TxReply])
 
 	assert.NilError(t, w.RegisterTransactions(FooTx, BarTx))
 
@@ -74,11 +75,11 @@ func TestServer_SendMessage(t *testing.T) {
 
 	sender := "0xHelloThere"
 	// create authorized addresses for the evm transaction's msg sender.
-	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaTx.AddToQueue(w.GetTxQueue(), ecs.CreatePersonaTransaction{
 		PersonaTag:    "foo",
 		SignerAddress: "bar",
 	})
-	ecs.AuthorizePersonaAddressTx.AddToQueue(w, ecs.AuthorizePersonaAddress{
+	ecs.AuthorizePersonaAddressTx.AddToQueue(w.GetTxQueue(), ecs.AuthorizePersonaAddress{
 		PersonaTag: "foo",
 		Address:    sender,
 	}, &sign.SignedPayload{PersonaTag: "foo"})
@@ -134,7 +135,7 @@ func TestServer_Query(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	err := w.RegisterReads(read)
 	assert.NilError(t, err)
-	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("nothing"))
+	err = w.RegisterTransactions(transaction.NewTransactionType[struct{}, struct{}]("nothing"))
 	assert.NilError(t, err)
 	s, err := NewServer(w)
 	assert.NilError(t, err)
@@ -162,7 +163,7 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
+	FooTx := transaction.NewTransactionType[FooTransaction, TxReply]("footx", transaction.WithTxEVMSupport[FooTransaction, TxReply])
 
 	assert.NilError(t, w.RegisterTransactions(FooTx))
 

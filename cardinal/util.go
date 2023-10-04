@@ -2,12 +2,12 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/ecs/itransaction"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
-func toITransactionType(ins []AnyTransaction) []transaction.ITransaction {
-	out := make([]transaction.ITransaction, 0, len(ins))
+func toITransactionType(ins []AnyTransaction) []itransaction.ITransaction {
+	out := make([]itransaction.ITransaction, 0, len(ins))
 	for _, t := range ins {
 		out = append(out, t.Convert())
 	}

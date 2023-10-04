@@ -11,7 +11,9 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/ecs/itransaction"
+	"pkg.world.dev/world-engine/cardinal/ecs/query"
+	"pkg.world.dev/world-engine/cardinal/ecs/world_namespace"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
@@ -36,7 +38,7 @@ type Server interface {
 }
 
 // txByID maps transaction type ID's to transaction types.
-type txByID map[transaction.TypeID]transaction.ITransaction
+type txByID map[itransaction.TypeID]itransaction.ITransaction
 
 // readByName maps read resource names to the underlying IRead
 type readByName map[string]ecs.IRead
@@ -128,7 +130,7 @@ func (s *msgServerImpl) Serve() error {
 func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessageRequest,
 ) (*routerv1.SendMessageResponse, error) {
 	// first we check if we can extract the transaction associated with the id
-	itx, ok := s.txMap[transaction.TypeID(msg.MessageId)]
+	itx, ok := s.txMap[itransaction.TypeID(msg.MessageId)]
 	if !ok {
 		return nil, fmt.Errorf("no transaction with ID %d is registerd in this world", msg.MessageId)
 	}
@@ -156,9 +158,9 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
 	var err error
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id entity.ID) bool {
+	query.NewQuery(filter.Exact(ecs.SignerComp)).Each(world_namespace.Namespace(s.world.Namespace()), s.world.Store(), func(id entity.ID) bool {
 		var signerComp ecs.SignerComponent
-		signerComp, err = ecs.SignerComp.Get(s.world, id)
+		signerComp, err = ecs.SignerComp.Get(s.world.StoreManager(), id)
 		if err != nil {
 			return false
 		}

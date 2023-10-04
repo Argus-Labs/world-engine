@@ -3,9 +3,9 @@ package storage_test
 import (
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
@@ -18,8 +18,8 @@ func TestIndex(t *testing.T) {
 
 	index := storage.NewArchetypeComponentIndex()
 
-	compsA := []component.IComponentType{ca}
-	compsB := []component.IComponentType{ca, cb}
+	compsA := []icomponent.IComponentType{ca}
+	compsB := []icomponent.IComponentType{ca, cb}
 
 	index.Push(compsA)
 	index.Push(compsB)

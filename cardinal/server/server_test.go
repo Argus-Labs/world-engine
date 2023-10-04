@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 
@@ -173,7 +174,7 @@ func TestShutDownViaMethod(t *testing.T) {
 func TestShutDownViaSignal(t *testing.T) {
 	setTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
 	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
+	sendTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		return nil
@@ -206,7 +207,7 @@ func TestShutDownViaSignal(t *testing.T) {
 
 func TestIfServeSetEnvVarForPort(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	alphaTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, world.RegisterTransactions(alphaTx))
 	txh, err := NewHandler(world, DisableSignatureVerification())
 	assert.NilError(t, err)
@@ -231,9 +232,9 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 
 func TestCanListTransactionEndpoints(t *testing.T) {
 	w := ecs.NewTestWorld(t)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	betaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("beta")
-	gammaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("gamma")
+	alphaTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	betaTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("beta")
+	gammaTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("gamma")
 	assert.NilError(t, w.RegisterTransactions(alphaTx, betaTx, gammaTx))
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
@@ -271,7 +272,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	endpoint := "move"
 	url := "tx/game/" + endpoint
 	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
+	sendTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	count := 0
 	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
@@ -317,7 +318,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 
 func TestHandleSwaggerServer(t *testing.T) {
 	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
+	sendTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		return nil
@@ -325,8 +326,8 @@ func TestHandleSwaggerServer(t *testing.T) {
 	type garbageStruct struct {
 		Something int `json:"something"`
 	}
-	alpha := ecs.NewComponentType[garbageStruct]("alpha")
-	beta := ecs.NewComponentType[garbageStruct]("beta")
+	alpha := component.NewComponentType[garbageStruct]("alpha")
+	beta := component.NewComponentType[garbageStruct]("beta")
 	assert.NilError(t, w.RegisterComponents(alpha, beta))
 	alphaCount := 75
 	_, err := w.CreateMany(alphaCount, alpha)
@@ -338,7 +339,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	// Queue up a CreatePersonaTx
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
-	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaTx.AddToQueue(w.GetTxQueue(), ecs.CreatePersonaTransaction{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddress,
 	})
@@ -346,7 +347,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 		PersonaTag: personaTag,
 		Address:    signerAddress,
 	}
-	ecs.AuthorizePersonaAddressTx.AddToQueue(w, authorizedPersonaAddress, &sign.SignedPayload{PersonaTag: personaTag})
+	ecs.AuthorizePersonaAddressTx.AddToQueue(w.GetTxQueue(), authorizedPersonaAddress, &sign.SignedPayload{PersonaTag: personaTag})
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
 
 	//create readers
@@ -516,7 +517,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	url := fmt.Sprintf("tx/game/%s", endpoint)
 	count := 0
 	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
+	sendTx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		txs := sendTx.In(queue)
@@ -563,7 +564,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	err := world.RegisterComponents()
 	assert.NilError(t, err)
-	tx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("some_tx")
+	tx := transaction.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("some_tx")
 	assert.NilError(t, world.RegisterTransactions(tx))
 	assert.NilError(t, world.LoadGameState())
 	assert.NilError(t, world.Tick(context.Background()))
@@ -919,16 +920,16 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	type ErrRequest struct{}
 	type ErrReply struct{}
 
-	incTx := ecs.NewTransactionType[IncRequest, IncReply]("increment")
-	dupeTx := ecs.NewTransactionType[DupeRequest, DupeReply]("duplicate")
-	errTx := ecs.NewTransactionType[ErrRequest, ErrReply]("error")
+	incTx := transaction.NewTransactionType[IncRequest, IncReply]("increment")
+	dupeTx := transaction.NewTransactionType[DupeRequest, DupeReply]("duplicate")
+	errTx := transaction.NewTransactionType[ErrRequest, ErrReply]("error")
 
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
 	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		for _, tx := range incTx.In(queue) {
-			incTx.SetResult(world, tx.TxHash, IncReply{
+			incTx.SetResult(world.GetReceiptHistory(), tx.TxHash, IncReply{
 				Number: tx.Value.Number + 1,
 			})
 		}
@@ -937,7 +938,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	// System to handle duplicating strings
 	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		for _, tx := range dupeTx.In(queue) {
-			dupeTx.SetResult(world, tx.TxHash, DupeReply{
+			dupeTx.SetResult(world.GetReceiptHistory(), tx.TxHash, DupeReply{
 				Str: tx.Value.Str + tx.Value.Str,
 			})
 		}
@@ -947,8 +948,8 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	// System to handle error production
 	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		for _, tx := range errTx.In(queue) {
-			errTx.AddError(world, tx.TxHash, wantError)
-			errTx.AddError(world, tx.TxHash, wantError)
+			errTx.AddError(world.GetReceiptHistory(), tx.TxHash, wantError)
+			errTx.AddError(world.GetReceiptHistory(), tx.TxHash, wantError)
 		}
 		return nil
 	})
@@ -987,9 +988,9 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 		return sig
 	}
 
-	incID := incTx.AddToQueue(world, IncRequest{99}, nextSig())
-	dupeID := dupeTx.AddToQueue(world, DupeRequest{"foobar"}, nextSig())
-	errID := errTx.AddToQueue(world, ErrRequest{}, nextSig())
+	incID := incTx.AddToQueue(world.GetTxQueue(), IncRequest{99}, nextSig())
+	dupeID := dupeTx.AddToQueue(world.GetTxQueue(), DupeRequest{"foobar"}, nextSig())
+	errID := errTx.AddToQueue(world.GetTxQueue(), ErrRequest{}, nextSig())
 	assert.Check(t, incID != dupeID)
 	assert.Check(t, dupeID != errID)
 	assert.Check(t, errID != incID)
@@ -1043,7 +1044,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	urls := swaggerUrls
 	type MoveTx struct{}
 	world := ecs.NewTestWorld(t)
-	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+	moveTx := transaction.NewTransactionType[MoveTx, MoveTx]("move")
 	world.RegisterTransactions(moveTx)
 	assert.NilError(t, world.LoadGameState())
 	ctx := context.Background()
@@ -1126,7 +1127,7 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 		Direction string
 	}
 	world := ecs.NewTestWorld(t)
-	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+	moveTx := transaction.NewTransactionType[MoveTx, MoveTx]("move")
 	world.RegisterTransactions(moveTx)
 	assert.NilError(t, world.LoadGameState())
 	adapter := adapterMock{}
@@ -1169,7 +1170,7 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 	world := ecs.NewTestWorld(t, ecs.WithAdapter(&adapter))
 	world.Tick(context.Background())
 	go world.RecoverFromChain(context.Background())
-	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
+	moveTx := transaction.NewTransactionType[MoveTx, MoveTx]("move")
 	world.RegisterTransactions(moveTx)
 	assert.NilError(t, world.LoadGameState())
 	txh := makeTestTransactionHandler(t, world, WithAdapter(&adapter), DisableSignatureVerification())

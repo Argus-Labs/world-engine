@@ -6,8 +6,11 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/utils"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 )
 
 var _ ArchetypeAccessor = &archetypeStorageImpl{}
@@ -20,7 +23,7 @@ type archetypeStorageImpl struct {
 	archs []*Archetype
 }
 
-func (a *archetypeStorageImpl) PushArchetype(archID archetype.ID, comps []component.IComponentType) {
+func (a *archetypeStorageImpl) PushArchetype(archID archetype.ID, comps []icomponent.IComponentType) {
 	a.archs = append(a.archs, &Archetype{
 		ID:      archID,
 		Entitys: make([]entity.ID, 0, 256),
@@ -44,7 +47,7 @@ func (a *archetypeStorageImpl) Archetype(archID archetype.ID) ArchetypeStorage {
 type archForStorage struct {
 	ID           archetype.ID
 	Entities     []entity.ID
-	ComponentIDs []component.TypeID
+	ComponentIDs []component_types.TypeID
 }
 
 // Marshal converts the archetypeStorageImpl to bytes. Only the IDs from the IComponentTypes
@@ -69,19 +72,19 @@ var (
 
 // idsToComponents converts slices of TypeIDs to the corresponding IComponentTypes
 type idsToComponents struct {
-	m map[component.TypeID]component.IComponentType
+	m map[component_types.TypeID]icomponent.IComponentType
 }
 
-func newIDsToComponents(components []component.IComponentType) idsToComponents {
-	m := map[component.TypeID]component.IComponentType{}
+func newIDsToComponents(components []icomponent.IComponentType) idsToComponents {
+	m := map[component_types.TypeID]icomponent.IComponentType{}
 	for i, comp := range components {
 		m[comp.ID()] = components[i]
 	}
 	return idsToComponents{m: m}
 }
 
-func (c idsToComponents) convert(ids []component.TypeID) (comps []component.IComponentType, ok error) {
-	comps = []component.IComponentType{}
+func (c idsToComponents) convert(ids []component_types.TypeID) (comps []icomponent.IComponentType, ok error) {
+	comps = []icomponent.IComponentType{}
 	for _, id := range ids {
 		comp, ok := c.m[id]
 		if !ok {
@@ -95,7 +98,7 @@ func (c idsToComponents) convert(ids []component.TypeID) (comps []component.ICom
 // UnmarshalWithComps converts some bytes (generated with Marshal) and a list of components into
 // an archetypeStorageImpl. The slice of components is required because the interfaces were not
 // actually serialized to bytes, just their IDs.
-func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []component.IComponentType) error {
+func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []icomponent.IComponentType) error {
 	archetypesFromStorage, err := codec.Decode[[]archForStorage](bytes)
 	if err != nil {
 		return err
@@ -118,13 +121,13 @@ func (a *archetypeStorageImpl) UnmarshalWithComps(bytes []byte, components []com
 type Archetype struct {
 	ID      archetype.ID
 	Entitys []entity.ID
-	Comps   []component.IComponentType
+	Comps   []icomponent.IComponentType
 }
 
 var _ ArchetypeStorage = &Archetype{}
 
 // NewArchetype creates a new archetype.
-func NewArchetype(archID archetype.ID, components []component.IComponentType) *Archetype {
+func NewArchetype(archID archetype.ID, components []icomponent.IComponentType) *Archetype {
 	return &Archetype{
 		ID:      archID,
 		Entitys: make([]entity.ID, 0, 256),
@@ -133,7 +136,7 @@ func NewArchetype(archID archetype.ID, components []component.IComponentType) *A
 }
 
 // Components returns the slice of components associated with this archetype.
-func (archetype *Archetype) Components() []component.IComponentType {
+func (archetype *Archetype) Components() []icomponent.IComponentType {
 	return archetype.Comps
 }
 
@@ -143,7 +146,7 @@ func (archetype *Archetype) Entities() []entity.ID {
 }
 
 // SwapRemove removes an Ent from the archetype and returns it.
-func (archetype *Archetype) SwapRemove(entityIndex component.Index) entity.ID {
+func (archetype *Archetype) SwapRemove(entityIndex component_types.Index) entity.ID {
 	removed := archetype.Entitys[entityIndex]
 	archetype.Entitys[entityIndex] = archetype.Entitys[len(archetype.Entitys)-1]
 	archetype.Entitys = archetype.Entitys[:len(archetype.Entitys)-1]
@@ -151,12 +154,12 @@ func (archetype *Archetype) SwapRemove(entityIndex component.Index) entity.ID {
 }
 
 // ComponentsMatch returns true if the given components matches this archetype.
-func (archetype *Archetype) ComponentsMatch(components []component.IComponentType) bool {
+func (archetype *Archetype) ComponentsMatch(components []icomponent.IComponentType) bool {
 	if len(archetype.Components()) != len(components) {
 		return false
 	}
 	for _, componentType := range components {
-		if !component.Contains(archetype.Comps, componentType) {
+		if !utils.Contains(archetype.Comps, componentType) {
 			return false
 		}
 	}

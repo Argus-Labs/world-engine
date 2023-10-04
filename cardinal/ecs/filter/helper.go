@@ -1,10 +1,10 @@
 package filter
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 )
 
-func containsComponent(components []component.IComponentType, c component.IComponentType) bool {
+func containsComponent(components []icomponent.IComponentType, c icomponent.IComponentType) bool {
 	for _, comp := range components {
 		if comp == c {
 			return true

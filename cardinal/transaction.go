@@ -1,7 +1,7 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/itransaction"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -9,7 +9,7 @@ import (
 // AnyTransaction is implemented by the return value of NewTransactionType and is used in RegisterTransactions; any
 // transaction created by NewTransactionType can be registered with a World object via RegisterTransactions.
 type AnyTransaction interface {
-	Convert() transaction.ITransaction
+	Convert() itransaction.ITransaction
 }
 
 // TransactionQueue contains the entire set of transactions that should be processed in a game tick. It is a parameter
@@ -20,19 +20,19 @@ type TransactionQueue struct {
 
 // TxData represents a single transaction.
 type TxData[T any] struct {
-	impl ecs.TxData[T]
+	impl transaction.TxData[T]
 }
 
 // TransactionType represents a type of transaction that can be executed on the World object. The Msg struct represents
 // the input for a specific transaction, and the Result struct represents the result of processing the transaction.
 type TransactionType[Msg, Result any] struct {
-	impl *ecs.TransactionType[Msg, Result]
+	impl *transaction.TransactionType[Msg, Result]
 }
 
 // NewTransactionType creates a new instance of a TransactionType.
 func NewTransactionType[Msg, Result any](name string) *TransactionType[Msg, Result] {
 	return &TransactionType[Msg, Result]{
-		impl: ecs.NewTransactionType[Msg, Result](name),
+		impl: transaction.NewTransactionType[Msg, Result](name),
 	}
 }
 
@@ -40,7 +40,7 @@ func NewTransactionType[Msg, Result any](name string) *TransactionType[Msg, Resu
 // This allows this transaction to be sent from EVM smart contracts on the EVM base shard.
 func NewTransactionTypeWithEVMSupport[Msg, Result any](name string) *TransactionType[Msg, Result] {
 	return &TransactionType[Msg, Result]{
-		impl: ecs.NewTransactionType[Msg, Result](name, ecs.WithTxEVMSupport[Msg, Result]),
+		impl: transaction.NewTransactionType[Msg, Result](name, transaction.WithTxEVMSupport[Msg, Result]),
 	}
 }
 
@@ -59,7 +59,7 @@ func (t *TransactionType[Msg, Result]) SetResult(world *World, hash TxHash, resu
 // GetReceipt returns the result (if any) and errors (if any) associated with the given hash. If false is returned,
 // the hash is not recognized, so the returned result and errors will be empty.
 func (t *TransactionType[Msg, Result]) GetReceipt(world *World, hash TxHash) (r Result, errs []error, ok bool) {
-	return t.impl.GetReceipt(world.implWorld, hash)
+	return t.impl.GetReceipt(world.implWorld.GetReceiptHistory(), hash)
 }
 
 // In returns the transactions in the given transaction queue that match this transaction's type.
@@ -76,7 +76,7 @@ func (t *TransactionType[Msg, Result]) In(tq *TransactionQueue) []TxData[Msg] {
 
 // Convert implements the AnyTransactionType interface which allows a TransactionType to be registered
 // with a World via RegisterTransactions.
-func (t *TransactionType[Msg, Result]) Convert() transaction.ITransaction {
+func (t *TransactionType[Msg, Result]) Convert() itransaction.ITransaction {
 	return t.impl
 }
 

@@ -11,13 +11,13 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
+	"pkg.world.dev/world-engine/cardinal/ecs/itransaction"
 
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
@@ -34,7 +34,7 @@ func (f Foo) MarshalBinary() (data []byte, err error) {
 	return json.Marshal(f)
 }
 
-var componentDataKey = func(worldId string, compId component.TypeID, archID int) string {
+var componentDataKey = func(worldId string, compId component_types.TypeID, archID int) string {
 	return fmt.Sprintf("WORLD-%s:CID-%d:A-%d", worldId, compId, archID)
 }
 
@@ -84,7 +84,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	store := storage.NewWorldStorage(&rs)
 
 	idxStore := store.CompStore.GetComponentIndexStorage(x)
-	archID, compIdx := archetype.ID(0), component.Index(1)
+	archID, compIdx := archetype.ID(0), component_types.Index(1)
 	assert.NilError(t, idxStore.SetIndex(archID, compIdx))
 	gotIdx, ok, err := idxStore.ComponentIndex(archID)
 	assert.NilError(t, err)
@@ -105,7 +105,7 @@ func TestRedis_CompIndex(t *testing.T) {
 	assert.Check(t, ok == true)
 	assert.Check(t, gotIdx == compIdx)
 
-	compIdx = component.Index(25)
+	compIdx = component_types.Index(25)
 	idxStore.SetIndex(archID, compIdx)
 	gotIdx, ok, err = idxStore.ComponentIndex(archID)
 	assert.NilError(t, err)
@@ -137,7 +137,7 @@ func TestRedis_Location(t *testing.T) {
 	assert.Equal(t, loc.CompIndex, compIdx)
 
 	newEID := entity.ID(40)
-	archID2, compIdx2 := archetype.ID(10), component.Index(15)
+	archID2, compIdx2 := archetype.ID(10), component_types.Index(15)
 	store.EntityLocStore.Insert(newEID, archID2, compIdx2)
 
 	newLoc, _ := store.EntityLocStore.GetLocation(newEID)
@@ -205,7 +205,7 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 		Str string
 	}
 
-	tx := ecs.NewTransactionType[TxIn, TxOut]("tx_a")
+	tx := transaction.NewTransactionType[TxIn, TxOut]("tx_a")
 	tx.SetID(55)
 
 	key, err := crypto.GenerateKey()
@@ -215,12 +215,12 @@ func TestCanSaveAndRecoverSignatures(t *testing.T) {
 	personaTag := "xyzzy"
 	wantSig, err := sign.NewSignedPayload(key, personaTag, "namespace", 66, wantVal)
 	assert.NilError(t, err)
-	wantTxHash := transaction.TxHash(wantSig.HashHex())
+	wantTxHash := itransaction.TxHash(wantSig.HashHex())
 
 	queue := transaction.NewTxQueue()
 	queue.AddTransaction(tx.ID(), wantVal, wantSig)
 
-	txSlice := []transaction.ITransaction{tx}
+	txSlice := []itransaction.ITransaction{tx}
 
 	rs.StartNextTick(txSlice, queue)
 
@@ -257,17 +257,17 @@ func TestGettingIndexStorageShouldNotImpactIncrement(t *testing.T) {
 
 	compIndex, err := rs.IncrementIndex(archID)
 	assert.NilError(t, err)
-	assert.Equal(t, component.Index(1), compIndex)
+	assert.Equal(t, component_types.Index(1), compIndex)
 
 	compIndex, err = rs.IncrementIndex(archID)
 	assert.NilError(t, err)
-	assert.Equal(t, component.Index(2), compIndex)
+	assert.Equal(t, component_types.Index(2), compIndex)
 
 	// Get the component index storage for some random component type.
 	// This should have no impact on incrementing the index of archID
-	_ = rs.GetComponentIndexStorage(component.TypeID(100))
+	_ = rs.GetComponentIndexStorage(component_types.TypeID(100))
 
 	compIndex, err = rs.IncrementIndex(archID)
 	assert.NilError(t, err)
-	assert.Equal(t, component.Index(3), compIndex)
+	assert.Equal(t, component_types.Index(3), compIndex)
 }

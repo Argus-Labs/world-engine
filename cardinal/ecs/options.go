@@ -5,6 +5,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/world_namespace"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -26,7 +27,7 @@ func WithReceiptHistorySize(size int) Option {
 
 func WithNamespace(ns string) Option {
 	return func(w *World) {
-		w.namespace = Namespace(ns)
+		w.namespace = world_namespace.Namespace(ns)
 	}
 }
 

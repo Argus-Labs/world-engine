@@ -9,6 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/itransaction"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -29,7 +30,7 @@ type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
 	EntityID = entity.ID
-	TxHash   = transaction.TxHash
+	TxHash   = itransaction.TxHash
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered

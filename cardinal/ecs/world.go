@@ -17,32 +17,35 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
+	"pkg.world.dev/world-engine/cardinal/ecs/itransaction"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/query"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/ecs/world_namespace"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
 )
 
-// Namespace is a unique identifier for a world.
-type Namespace string
-
 type World struct {
-	namespace                Namespace
+	namespace                world_namespace.Namespace
 	store                    storage.WorldStorage
 	storeManager             *store.Manager
 	systems                  []System
 	systemLoggers            []*ecslog.Logger
 	systemNames              []string
 	tick                     uint64
-	nameToComponent          map[string]IComponentType
-	registeredComponents     []IComponentType
-	registeredTransactions   []transaction.ITransaction
+	nameToComponent          map[string]icomponent.IComponentType
+	registeredComponents     []icomponent.IComponentType
+	registeredTransactions   []itransaction.ITransaction
 	registeredReads          []IRead
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
@@ -56,7 +59,7 @@ type World struct {
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
-	
+
 	Logger *ecslog.Logger
 
 	endGameLoopCh     chan bool
@@ -71,12 +74,57 @@ var (
 	ErrorDuplicateReadName                     = errors.New("read names must be unique")
 )
 
+func (w *World) NameToComponent() map[string]icomponent.IComponentType {
+	return w.nameToComponent
+}
+
+func (w *World) GetReceiptHistory() *receipt.History {
+	return w.receiptHistory
+}
+
+func (w *World) GetTxQueue() *transaction.TxQueue {
+	return w.txQueue
+}
+
+// GetSignerForPersonaTag returns the signer address that has been registered for the given persona tag after the
+// given tick. If the world's tick is less than or equal to the given tick, ErrorCreatePersonaTXsNotProcessed is returned.
+// If the given personaTag has no signer address, ErrorPersonaTagHasNoSigner is returned.
+func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
+	if tick >= w.tick {
+		return "", ErrorCreatePersonaTxsNotProcessed
+	}
+	var errs []error
+	query.NewQuery(filter.Exact(SignerComp)).Each(world_namespace.Namespace(w.Namespace()), w.Store(), func(id entity.ID) bool {
+		sc, err := SignerComp.Get(w.StoreManager(), id)
+		if err != nil {
+			errs = append(errs, err)
+		}
+		if sc.PersonaTag == personaTag {
+			addr = sc.SignerAddress
+			return false
+		}
+		return true
+	})
+	if len(errs) > 0 {
+		return "", errors.Join(errs...)
+	}
+
+	if addr == "" {
+		return "", ErrorPersonaTagHasNoSigner
+	}
+	return addr, nil
+}
+
 func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
 func (w *World) StoreManager() *store.Manager {
 	return w.storeManager
+}
+
+func (w *World) Store() *storage.WorldStorage {
+	return &w.store
 }
 
 func (w *World) GetTxQueueAmount() int {
@@ -104,7 +152,7 @@ func (w *World) AddSystems(s ...System) {
 
 // RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
 // This will give components the ability to access their own data.
-func (w *World) RegisterComponents(components ...component.IComponentType) error {
+func (w *World) RegisterComponents(components ...icomponent.IComponentType) error {
 	if w.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
@@ -116,7 +164,7 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 	w.registeredComponents = append(w.registeredComponents, components...)
 
 	for i, c := range w.registeredComponents {
-		id := component.TypeID(i + 1)
+		id := component_types.TypeID(i + 1)
 		if err := c.SetID(id); err != nil {
 			return err
 		}
@@ -133,7 +181,7 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 	return nil
 }
 
-func (w *World) GetComponentByName(name string) (IComponentType, bool) {
+func (w *World) GetComponentByName(name string) (icomponent.IComponentType, bool) {
 	componentType, exists := w.nameToComponent[name]
 	return componentType, exists
 }
@@ -154,7 +202,7 @@ func (w *World) RegisterReads(reads ...IRead) error {
 	return nil
 }
 
-func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
+func (w *World) RegisterTransactions(txs ...itransaction.ITransaction) error {
 	if w.stateIsLoaded {
 		panic("cannot register transactions after loading game state")
 	}
@@ -173,7 +221,7 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 		}
 		seenTxNames[name] = true
 
-		id := transaction.TypeID(i + 1)
+		id := itransaction.TypeID(i + 1)
 		if err := t.SetID(id); err != nil {
 			return err
 		}
@@ -192,7 +240,7 @@ func (w *World) ListReads() []IRead {
 	return w.registeredReads
 }
 
-func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
+func (w *World) ListTransactions() ([]itransaction.ITransaction, error) {
 	if !w.isTransactionsRegistered {
 		return nil, errors.New("cannot list transactions until transaction registration occurs")
 	}
@@ -210,7 +258,7 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
-		nameToComponent:   make(map[string]IComponentType),
+		nameToComponent:   make(map[string]icomponent.IComponentType),
 		txQueue:           transaction.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
@@ -235,7 +283,7 @@ func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
 }
 
-func (w *World) CreateMany(num int, components ...component.IComponentType) ([]entity.ID, error) {
+func (w *World) CreateMany(num int, components ...icomponent.IComponentType) ([]entity.ID, error) {
 	for _, comp := range components {
 		if _, ok := w.nameToComponent[comp.Name()]; !ok {
 			return nil, fmt.Errorf("%s was not registered, please register all components before using one to create an entity", comp.Name())
@@ -244,7 +292,7 @@ func (w *World) CreateMany(num int, components ...component.IComponentType) ([]e
 	return w.StoreManager().CreateManyEntities(num, components...)
 }
 
-func (w *World) Create(components ...component.IComponentType) (entity.ID, error) {
+func (w *World) Create(components ...icomponent.IComponentType) (entity.ID, error) {
 	entities, err := w.CreateMany(1, components...)
 	if err != nil {
 		return 0, err
@@ -269,7 +317,7 @@ func (w *World) Remove(id entity.ID) error {
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (tick uint64, txHash transaction.TxHash) {
+func (w *World) AddTransaction(id itransaction.TypeID, v any, sig *sign.SignedPayload) (tick uint64, txHash itransaction.TxHash) {
 	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
 	// transaction is actually added to the returned tick.
 	tick = w.CurrentTick()
@@ -394,8 +442,8 @@ func (w *World) EndGameLoop() {
 }
 
 type TxBatch struct {
-	TxID transaction.TypeID `json:"tx_id,omitempty"`
-	Txs  []any              `json:"txs,omitempty"`
+	TxID itransaction.TypeID `json:"tx_id,omitempty"`
+	Txs  []any               `json:"txs,omitempty"`
 }
 
 const (
@@ -476,7 +524,7 @@ func (w *World) LoadGameState() error {
 	return nil
 }
 
-func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []IComponentType) error {
+func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []icomponent.IComponentType) error {
 	buf, ok, err := w.store.StateStore.Load(key)
 	if !ok {
 		// There is no saved data for this key
@@ -491,7 +539,7 @@ func (w *World) nextEntity() (entity.ID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 
-func (w *World) insertArchetype(comps []IComponentType) archetype.ID {
+func (w *World) insertArchetype(comps []icomponent.IComponentType) archetype.ID {
 	w.store.ArchCompIdxStore.Push(comps)
 	archID := archetype.ID(w.store.ArchAccessor.Count())
 
@@ -548,7 +596,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				itx := w.getITx(transaction.TypeID(tx.TxId))
+				itx := w.getITx(itransaction.TypeID(tx.TxId))
 				if itx == nil {
 					return fmt.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
 				}
@@ -556,7 +604,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				w.AddTransaction(transaction.TypeID(tx.TxId), v, w.protoSignedPayloadToGo(sp))
+				w.AddTransaction(itransaction.TypeID(tx.TxId), v, w.protoSignedPayloadToGo(sp))
 			}
 			// run the tick for this batch
 			if err := w.Tick(ctx); err != nil {
@@ -596,8 +644,8 @@ func (w *World) decodeTransaction(bz []byte) (*shardv1.SignedPayload, error) {
 }
 
 // getITx iterates over the registered transactions and returns the ITransaction associated with the TypeID.
-func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
-	var itx transaction.ITransaction
+func (w *World) getITx(id itransaction.TypeID) itransaction.ITransaction {
+	var itx itransaction.ITransaction
 	for _, tx := range w.registeredTransactions {
 		if id == tx.ID() {
 			itx = tx
@@ -620,15 +668,15 @@ func (w *World) SetNonce(signerAddress string, nonce uint64) error {
 	return w.store.NonceStore.SetNonce(signerAddress, nonce)
 }
 
-func (w *World) AddTransactionError(id transaction.TxHash, err error) {
+func (w *World) AddTransactionError(id itransaction.TxHash, err error) {
 	w.receiptHistory.AddError(id, err)
 }
 
-func (w *World) SetTransactionResult(id transaction.TxHash, a any) {
+func (w *World) SetTransactionResult(id itransaction.TxHash, a any) {
 	w.receiptHistory.SetResult(id, a)
 }
 
-func (w *World) GetTransactionReceipt(id transaction.TxHash) (any, []error, bool) {
+func (w *World) GetTransactionReceipt(id itransaction.TxHash) (any, []error, bool) {
 	rec, ok := w.receiptHistory.GetReceipt(id)
 	if !ok {
 		return nil, nil, false
@@ -640,7 +688,7 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, e
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) GetComponents() []IComponentType {
+func (w *World) GetComponents() []icomponent.IComponentType {
 	return w.registeredComponents
 }
 

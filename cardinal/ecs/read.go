@@ -8,6 +8,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
+	"pkg.world.dev/world-engine/cardinal/ecs/ecs_abi"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 type IRead interface {
@@ -41,11 +43,11 @@ func WithReadEVMSupport[Request, Reply any]() func(transactionType *ReadType[Req
 	return func(read *ReadType[Request, Reply]) {
 		var req Request
 		var rep Reply
-		reqABI, err := GenerateABIType(req)
+		reqABI, err := ecs_abi.GenerateABIType(req)
 		if err != nil {
 			panic(err)
 		}
-		repABI, err := GenerateABIType(rep)
+		repABI, err := ecs_abi.GenerateABIType(rep)
 		if err != nil {
 			panic(err)
 		}
@@ -91,12 +93,12 @@ func NewReadType[Request any, Reply any](
 
 func (r *ReadType[Request, Reply]) generateABIBindings() error {
 	var req Request
-	reqABI, err := GenerateABIType(req)
+	reqABI, err := ecs_abi.GenerateABIType(req)
 	if err != nil {
 		return fmt.Errorf("error generating request ABI binding: %w", err)
 	}
 	var rep Reply
-	repABI, err := GenerateABIType(rep)
+	repABI, err := ecs_abi.GenerateABIType(rep)
 	if err != nil {
 		return fmt.Errorf("error generating reply ABI binding: %w", err)
 	}
@@ -141,7 +143,7 @@ func (r *ReadType[req, rep]) HandleReadRaw(w *World, bz []byte) ([]byte, error) 
 
 func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if r.requestABI == nil {
-		return nil, ErrEVMTypeNotSet
+		return nil, transaction.ErrEVMTypeNotSet
 	}
 	args := abi.Arguments{{Type: *r.requestABI}}
 	unpacked, err := args.Unpack(bz)
@@ -151,7 +153,7 @@ func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	request, err := SerdeInto[req](unpacked[0])
+	request, err := ecs_abi.SerdeInto[req](unpacked[0])
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +162,7 @@ func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 
 func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if r.replyABI == nil {
-		return nil, ErrEVMTypeNotSet
+		return nil, transaction.ErrEVMTypeNotSet
 	}
 	args := abi.Arguments{{Type: *r.replyABI}}
 	unpacked, err := args.Unpack(bz)
@@ -170,7 +172,7 @@ func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	reply, err := SerdeInto[rep](unpacked[0])
+	reply, err := ecs_abi.SerdeInto[rep](unpacked[0])
 	if err != nil {
 		return nil, err
 	}
@@ -179,7 +181,7 @@ func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 
 func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	if r.replyABI == nil {
-		return nil, ErrEVMTypeNotSet
+		return nil, transaction.ErrEVMTypeNotSet
 	}
 	args := abi.Arguments{{Type: *r.replyABI}}
 	bz, err := args.Pack(a)
@@ -188,7 +190,7 @@ func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 
 func (r *ReadType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 	if r.requestABI == nil || r.replyABI == nil {
-		return nil, ErrEVMTypeNotSet
+		return nil, transaction.ErrEVMTypeNotSet
 	}
 
 	var args abi.Arguments

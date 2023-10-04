@@ -1,10 +1,11 @@
-package ecs
+package query
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/world_namespace"
 )
 
 type cache struct {
@@ -19,7 +20,7 @@ type cache struct {
 // So it is not recommended to create a new query every time you want
 // to filter entities with the same query.
 type Query struct {
-	archMatches map[Namespace]*cache
+	archMatches map[world_namespace.Namespace]*cache
 	filter      filter.ComponentFilter
 }
 
@@ -27,7 +28,7 @@ type Query struct {
 // It receives arbitrary filters that are used to filter entities.
 func NewQuery(filter filter.ComponentFilter) *Query {
 	return &Query{
-		archMatches: make(map[Namespace]*cache),
+		archMatches: make(map[world_namespace.Namespace]*cache),
 		filter:      filter,
 	}
 }
@@ -36,9 +37,9 @@ type QueryCallBackFn func(entity.ID) bool
 
 // Each iterates over all entities that match the query.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (q *Query) Each(w *World, callback QueryCallBackFn) {
-	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+func (q *Query) Each(namespace world_namespace.Namespace, worldStorage *storage.WorldStorage, callback QueryCallBackFn) {
+	result := q.evaluateQuery(namespace, worldStorage)
+	iter := storage.NewEntityIterator(0, worldStorage.ArchAccessor, result)
 	for iter.HasNext() {
 		entities := iter.Next()
 		for _, id := range entities {
@@ -51,9 +52,9 @@ func (q *Query) Each(w *World, callback QueryCallBackFn) {
 }
 
 // Count returns the number of entities that match the query.
-func (q *Query) Count(w *World) int {
-	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+func (q *Query) Count(namespace string, worldStorage *storage.WorldStorage) int {
+	result := q.evaluateQuery(world_namespace.Namespace(namespace), worldStorage)
+	iter := storage.NewEntityIterator(0, worldStorage.ArchAccessor, result)
 	ret := 0
 	for iter.HasNext() {
 		entities := iter.Next()
@@ -63,9 +64,9 @@ func (q *Query) Count(w *World) int {
 }
 
 // First returns the first entity that matches the query.
-func (q *Query) First(w *World) (id entity.ID, err error) {
-	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+func (q *Query) First(namespace string, worldStorage *storage.WorldStorage) (id entity.ID, err error) {
+	result := q.evaluateQuery(world_namespace.Namespace(namespace), worldStorage)
+	iter := storage.NewEntityIterator(0, worldStorage.ArchAccessor, result)
 	if !iter.HasNext() {
 		return storage.BadID, err
 	}
@@ -78,8 +79,8 @@ func (q *Query) First(w *World) (id entity.ID, err error) {
 	return storage.BadID, err
 }
 
-func (q *Query) evaluateQuery(world *World) []archetype.ID {
-	w := Namespace(world.Namespace())
+func (q *Query) evaluateQuery(namespace world_namespace.Namespace, s *storage.WorldStorage) []archetype.ID {
+	w := namespace
 	if _, ok := q.archMatches[w]; !ok {
 		q.archMatches[w] = &cache{
 			archetypes: make([]archetype.ID, 0),
@@ -87,9 +88,9 @@ func (q *Query) evaluateQuery(world *World) []archetype.ID {
 		}
 	}
 	cache := q.archMatches[w]
-	for it := world.store.ArchCompIdxStore.SearchFrom(q.filter, cache.seen); it.HasNext(); {
+	for it := s.ArchCompIdxStore.SearchFrom(q.filter, cache.seen); it.HasNext(); {
 		cache.archetypes = append(cache.archetypes, it.Next())
 	}
-	cache.seen = world.store.ArchAccessor.Count()
+	cache.seen = s.ArchAccessor.Count()
 	return cache.archetypes
 }
