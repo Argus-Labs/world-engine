@@ -10,7 +10,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/query"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
-	"pkg.world.dev/world-engine/cardinal/ecs/world_namespace"
+	"pkg.world.dev/world-engine/cardinal/world_namespace"
 )
 
 // CreatePersonaTransaction allows for the associating of a persona tag with a signer address.
