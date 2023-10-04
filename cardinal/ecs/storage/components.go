@@ -2,7 +2,6 @@ package storage
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 )
 
@@ -22,7 +21,7 @@ func NewComponents(store ComponentStorageManager, idxStore ComponentIndexStorage
 }
 
 // PushComponents stores the new data of the component in the archetype.
-func (cs *Components) PushComponents(components []icomponent.IComponentType, archetypeID archetype.ID) (component_types.Index, error) {
+func (cs *Components) PushComponents(components []icomponent.IComponentType, archetypeID archetype.ID) (icomponent.Index, error) {
 	for _, componentType := range components {
 		v := cs.Store.GetComponentStorage(componentType.ID())
 		err := v.PushComponent(componentType, archetypeID)
@@ -60,7 +59,7 @@ func (cs *Components) GetComponentIndexStorage(c icomponent.IComponentType) Comp
 }
 
 // Remove removes the component from the storage.
-func (cs *Components) Remove(ai archetype.ID, comps []icomponent.IComponentType, ci component_types.Index) error {
+func (cs *Components) Remove(ai archetype.ID, comps []icomponent.IComponentType, ci icomponent.Index) error {
 	for _, ct := range comps {
 		err := cs.remove(ct, ai, ci)
 		if err != nil {
@@ -70,7 +69,7 @@ func (cs *Components) Remove(ai archetype.ID, comps []icomponent.IComponentType,
 	return cs.ComponentIndices.DecrementIndex(ai)
 }
 
-func (cs *Components) remove(ct icomponent.IComponentType, ai archetype.ID, ci component_types.Index) error {
+func (cs *Components) remove(ct icomponent.IComponentType, ai archetype.ID, ci icomponent.Index) error {
 	storage := cs.Storage(ct)
 	_, err := storage.SwapRemove(ai, ci)
 	return err

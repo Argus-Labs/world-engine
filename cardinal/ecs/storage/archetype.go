@@ -8,7 +8,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/utils"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 )
@@ -47,7 +46,7 @@ func (a *archetypeStorageImpl) Archetype(archID archetype.ID) ArchetypeStorage {
 type archForStorage struct {
 	ID           archetype.ID
 	Entities     []entity.ID
-	ComponentIDs []component_types.TypeID
+	ComponentIDs []icomponent.TypeID
 }
 
 // Marshal converts the archetypeStorageImpl to bytes. Only the IDs from the IComponentTypes
@@ -72,18 +71,18 @@ var (
 
 // idsToComponents converts slices of TypeIDs to the corresponding IComponentTypes
 type idsToComponents struct {
-	m map[component_types.TypeID]icomponent.IComponentType
+	m map[icomponent.TypeID]icomponent.IComponentType
 }
 
 func newIDsToComponents(components []icomponent.IComponentType) idsToComponents {
-	m := map[component_types.TypeID]icomponent.IComponentType{}
+	m := map[icomponent.TypeID]icomponent.IComponentType{}
 	for i, comp := range components {
 		m[comp.ID()] = components[i]
 	}
 	return idsToComponents{m: m}
 }
 
-func (c idsToComponents) convert(ids []component_types.TypeID) (comps []icomponent.IComponentType, ok error) {
+func (c idsToComponents) convert(ids []icomponent.TypeID) (comps []icomponent.IComponentType, ok error) {
 	comps = []icomponent.IComponentType{}
 	for _, id := range ids {
 		comp, ok := c.m[id]
@@ -146,7 +145,7 @@ func (archetype *Archetype) Entities() []entity.ID {
 }
 
 // SwapRemove removes an Ent from the archetype and returns it.
-func (archetype *Archetype) SwapRemove(entityIndex component_types.Index) entity.ID {
+func (archetype *Archetype) SwapRemove(entityIndex icomponent.Index) entity.ID {
 	removed := archetype.Entitys[entityIndex]
 	archetype.Entitys[entityIndex] = archetype.Entitys[len(archetype.Entitys)-1]
 	archetype.Entitys = archetype.Entitys[:len(archetype.Entitys)-1]

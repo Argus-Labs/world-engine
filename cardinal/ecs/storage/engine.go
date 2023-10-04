@@ -2,7 +2,6 @@ package storage
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
@@ -12,28 +11,28 @@ import (
 
 type ComponentStorage interface {
 	PushComponent(component icomponent.IComponentType, archID archetype.ID) error
-	Component(archetypeID archetype.ID, componentIndex component_types.Index) ([]byte, error)
-	SetComponent(archetype.ID, component_types.Index, []byte) error
-	MoveComponent(archetype.ID, component_types.Index, archetype.ID) error
-	SwapRemove(archetypeID archetype.ID, componentIndex component_types.Index) ([]byte, error)
-	Contains(archetypeID archetype.ID, componentIndex component_types.Index) (bool, error)
+	Component(archetypeID archetype.ID, componentIndex icomponent.Index) ([]byte, error)
+	SetComponent(archetype.ID, icomponent.Index, []byte) error
+	MoveComponent(archetype.ID, icomponent.Index, archetype.ID) error
+	SwapRemove(archetypeID archetype.ID, componentIndex icomponent.Index) ([]byte, error)
+	Contains(archetypeID archetype.ID, componentIndex icomponent.Index) (bool, error)
 }
 
 type ComponentStorageManager interface {
-	GetComponentStorage(cid component_types.TypeID) ComponentStorage
-	GetComponentIndexStorage(cid component_types.TypeID) ComponentIndexStorage
+	GetComponentStorage(cid icomponent.TypeID) ComponentStorage
+	GetComponentIndexStorage(cid icomponent.TypeID) ComponentIndexStorage
 }
 
 type ComponentIndexStorage interface {
 	// ComponentIndex returns the current index for this archetype.ID. If the index doesn't currently
 	// exist then "0, false, nil" is returned
-	ComponentIndex(archetype.ID) (component_types.Index, bool, error)
+	ComponentIndex(archetype.ID) (icomponent.Index, bool, error)
 	// SetIndex sets the index of the given archerype index. This is the next index that will be assigned to a new
 	// entity in this archetype.
-	SetIndex(archetype.ID, component_types.Index) error
+	SetIndex(archetype.ID, icomponent.Index) error
 	// IncrementIndex increments an index for this archetype and returns the new value. If the index
 	// does not yet exist, set the index to 0 and return 0.
-	IncrementIndex(archetype.ID) (component_types.Index, error)
+	IncrementIndex(archetype.ID) (icomponent.Index, error)
 	// DecrementIndex decrements an index for this archetype by 1. The index is allowed to go into
 	// negative numbers.
 	DecrementIndex(archetype.ID) error
@@ -42,11 +41,11 @@ type ComponentIndexStorage interface {
 type EntityLocationStorage interface {
 	ContainsEntity(entity.ID) (bool, error)
 	Remove(entity.ID) error
-	Insert(entity.ID, archetype.ID, component_types.Index) error
+	Insert(entity.ID, archetype.ID, icomponent.Index) error
 	SetLocation(entity.ID, entity.Location) error
 	GetLocation(entity.ID) (entity.Location, error)
 	ArchetypeID(id entity.ID) (archetype.ID, error)
-	ComponentIndexForEntity(entity.ID) (component_types.Index, error)
+	ComponentIndexForEntity(entity.ID) (icomponent.Index, error)
 	Len() (int, error)
 }
 
@@ -75,7 +74,7 @@ type ArchetypeAccessor interface {
 type ArchetypeStorage interface {
 	Components() []icomponent.IComponentType
 	Entities() []entity.ID
-	SwapRemove(entityIndex component_types.Index) entity.ID
+	SwapRemove(entityIndex icomponent.Index) entity.ID
 	ComponentsMatch(components []icomponent.IComponentType) bool
 	PushEntity(entity entity.ID)
 	Count() int

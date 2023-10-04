@@ -7,7 +7,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -29,7 +28,7 @@ func TestComponents(t *testing.T) {
 	tests := []*struct {
 		comps   []icomponent.IComponentType
 		archID  archetype.ID
-		compIdx component_types.Index
+		compIdx icomponent.Index
 		ID      string
 	}{
 		{

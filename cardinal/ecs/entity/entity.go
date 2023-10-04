@@ -2,7 +2,7 @@ package entity
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
+	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 )
 
 type ID uint64
@@ -19,11 +19,11 @@ func (e Entity) EntityID() ID {
 // Location is a location of an Entity in the storage.
 type Location struct {
 	ArchID    archetype.ID
-	CompIndex component_types.Index
+	CompIndex icomponent.Index
 }
 
 // NewLocation creates a new EntityLocation.
-func NewLocation(archetype archetype.ID, component component_types.Index) Location {
+func NewLocation(archetype archetype.ID, component icomponent.Index) Location {
 	return Location{
 		ArchID:    archetype,
 		CompIndex: component,

@@ -10,7 +10,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/world_namespace"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
@@ -39,7 +38,7 @@ func NewComponentType[T any](name string, opts ...ComponentOption[T]) *Component
 // a component when getting or setting the component of an entity.
 type ComponentType[T any] struct {
 	isIDSet    bool
-	id         component_types.TypeID
+	id         icomponent.TypeID
 	typ        reflect.Type
 	name       string
 	defaultVal interface{}
@@ -49,7 +48,7 @@ type ComponentType[T any] struct {
 var _ IGettableRawJsonFromEntityId = &ComponentType[int]{}
 
 // SetID set's this component's ID. It must be unique across the world object.
-func (c *ComponentType[T]) SetID(id component_types.TypeID) error {
+func (c *ComponentType[T]) SetID(id icomponent.TypeID) error {
 	if c.isIDSet {
 		// In games implemented with Cardinal, components will only be initialized one time (on startup).
 		// In tests, it's often useful to use the same component in multiple worlds. This check will allow for the
@@ -159,7 +158,7 @@ func (c *ComponentType[T]) Name() string {
 }
 
 // ID returns the component type id.
-func (c *ComponentType[T]) ID() component_types.TypeID {
+func (c *ComponentType[T]) ID() icomponent.TypeID {
 	return c.id
 }
 

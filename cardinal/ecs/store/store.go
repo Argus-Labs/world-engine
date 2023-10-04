@@ -10,7 +10,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
@@ -235,7 +234,7 @@ func (s *Manager) GetArchIDForComponents(components []icomponent.IComponentType)
 	return s.insertArchetype(components), nil
 }
 
-func (s *Manager) transferArchetype(from, to archetype.ID, idx component_types.Index) (component_types.Index, error) {
+func (s *Manager) transferArchetype(from, to archetype.ID, idx icomponent.Index) (icomponent.Index, error) {
 	if from == to {
 		return idx, nil
 	}
@@ -245,7 +244,7 @@ func (s *Manager) transferArchetype(from, to archetype.ID, idx component_types.I
 	// move entity id
 	id := fromArch.SwapRemove(idx)
 	toArch.PushEntity(id)
-	err := s.store.EntityLocStore.Insert(id, to, component_types.Index(len(toArch.Entities())-1))
+	err := s.store.EntityLocStore.Insert(id, to, icomponent.Index(len(toArch.Entities())-1))
 	if err != nil {
 		return 0, err
 	}
@@ -288,7 +287,7 @@ func (s *Manager) transferArchetype(from, to archetype.ID, idx component_types.I
 	if err != nil {
 		return 0, err
 	}
-	return component_types.Index(len(toArch.Entities()) - 1), nil
+	return icomponent.Index(len(toArch.Entities()) - 1), nil
 }
 
 func (s *Manager) AddComponentToEntity(cType icomponent.IComponentType, id entity.ID) error {

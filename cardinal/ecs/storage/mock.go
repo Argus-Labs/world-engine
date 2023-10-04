@@ -6,16 +6,15 @@ import (
 	"unsafe"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 )
 
 var (
-	nextMockComponentTypeId component_types.TypeID = 1
+	nextMockComponentTypeId icomponent.TypeID = 1
 )
 
 type MockComponentType[T any] struct {
-	id         component_types.TypeID
+	id         icomponent.TypeID
 	typ        reflect.Type
 	defaultVal interface{}
 }
@@ -30,12 +29,12 @@ func NewMockComponentType[T any](t T, defaultVal interface{}) *MockComponentType
 	return m
 }
 
-func (m *MockComponentType[T]) SetID(id component_types.TypeID) error {
+func (m *MockComponentType[T]) SetID(id icomponent.TypeID) error {
 	m.id = id
 	return nil
 }
 
-func (m *MockComponentType[T]) ID() component_types.TypeID {
+func (m *MockComponentType[T]) ID() icomponent.TypeID {
 	return m.id
 }
 

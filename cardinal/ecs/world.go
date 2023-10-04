@@ -17,7 +17,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_types"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
@@ -164,7 +163,7 @@ func (w *World) RegisterComponents(components ...icomponent.IComponentType) erro
 	w.registeredComponents = append(w.registeredComponents, components...)
 
 	for i, c := range w.registeredComponents {
-		id := component_types.TypeID(i + 1)
+		id := icomponent.TypeID(i + 1)
 		if err := c.SetID(id); err != nil {
 			return err
 		}
