@@ -3,9 +3,9 @@ package storage
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 	"pkg.world.dev/world-engine/cardinal/ecs/itransaction"
+	"pkg.world.dev/world-engine/cardinal/ecs/query/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 

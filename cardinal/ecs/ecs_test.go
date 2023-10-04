@@ -14,8 +14,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/world_namespace"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/query/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 

@@ -8,8 +8,8 @@ import (
 
 	"github.com/alecthomas/participle/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
+	"pkg.world.dev/world-engine/cardinal/ecs/query/filter"
 )
 
 type cqlOperator int

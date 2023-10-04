@@ -8,8 +8,8 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
+	"pkg.world.dev/world-engine/cardinal/ecs/query/filter"
 )
 
 func TestParser(t *testing.T) {

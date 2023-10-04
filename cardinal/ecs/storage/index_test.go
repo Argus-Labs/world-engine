@@ -6,7 +6,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/icomponent"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/query/filter"
 )
 
 func TestIndex(t *testing.T) {
