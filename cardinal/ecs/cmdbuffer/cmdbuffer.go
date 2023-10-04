@@ -6,12 +6,14 @@ import (
 	"errors"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
+	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 )
@@ -39,7 +41,7 @@ type Manager struct {
 	archIDToComps  map[archetype.ID][]component.IComponentType
 	pendingArchIDs []archetype.ID
 
-	logger *log.Logger
+	logger *ecslog.Logger
 }
 
 var (
@@ -56,13 +58,17 @@ func NewManager(client *redis.Client) (*Manager, error) {
 		compValuesToDelete: map[compKey]bool{},
 
 		activeEntities: map[archetype.ID]activeEntities{},
+		archIDToComps:  map[archetype.ID][]component.IComponentType{},
 
 		entityIDToArchID:       map[entity.ID]archetype.ID{},
 		entityIDToOriginArchID: map[entity.ID]archetype.ID{},
 
-		// These fields cannot be set until RegisterComponents is called
-		archIDToComps:   nil,
+		// This field cannot be set until RegisterComponents is called
 		typeToComponent: nil,
+
+		logger: &ecslog.Logger{
+			&log.Logger,
+		},
 	}
 
 	return m, nil
@@ -185,6 +191,13 @@ func (m *Manager) CreateManyEntities(num int, comps ...component.IComponentType)
 		m.entityIDToOriginArchID[currID] = doesNotExistArchetypeID
 		active.ids = append(active.ids, currID)
 		active.modified = true
+		m.logger.LogEntity(zerolog.DebugLevel, entity.Entity{
+			ID: currID,
+			Loc: entity.Location{
+				ArchID: archID,
+				// Component Index is not a part of the command buffer's storage model
+				CompIndex: -1,
+			}}, comps)
 	}
 	m.setActiveEntities(archID, active)
 	return ids, nil
@@ -363,12 +376,13 @@ func (m *Manager) GetEntitiesForArchID(archID archetype.ID) []entity.ID {
 	return active.ids
 }
 
-// SearchFrom returns an ArchetypeIterator based ona component filter. The iterator will iterate over all archetypes
+// SearchFrom returns an ArchetypeIterator based on a component filter. The iterator will iterate over all archetypes
 // that match the given filter.
 func (m *Manager) SearchFrom(filter filter.ComponentFilter, start int) *storage.ArchetypeIterator {
 	itr := &storage.ArchetypeIterator{}
-	for archID, comps := range m.archIDToComps {
-		if !filter.MatchesComponents(comps) {
+	for i := start; i < len(m.archIDToComps); i++ {
+		archID := archetype.ID(i)
+		if !filter.MatchesComponents(m.archIDToComps[archID]) {
 			continue
 		}
 		itr.Values = append(itr.Values, archID)
@@ -382,7 +396,7 @@ func (m *Manager) ArchetypeCount() int {
 }
 
 // InjectLogger sets the logger for the manager.
-func (m *Manager) InjectLogger(logger *log.Logger) {
+func (m *Manager) InjectLogger(logger *ecslog.Logger) {
 	m.logger = logger
 }
 
@@ -444,6 +458,7 @@ func (m *Manager) getArchIDForComponentsOrMakeIt(comps []component.IComponentTyp
 	id := archetype.ID(len(m.archIDToComps))
 	m.pendingArchIDs = append(m.pendingArchIDs, id)
 	m.archIDToComps[id] = comps
+	m.logger.Debug().Int("archetype_id", int(id)).Msg("created")
 	return id, nil
 }
 

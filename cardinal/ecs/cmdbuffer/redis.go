@@ -2,12 +2,14 @@ package cmdbuffer
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 // flushToRedis flushes all pending state changes to redis in an atomic transaction. If an error
@@ -15,6 +17,11 @@ import (
 func (m *Manager) flushToRedis() error {
 	pipe := m.client.TxPipeline()
 	ctx := context.Background()
+
+	if m.typeToComponent == nil {
+		// component.TypeID -> IComponentType mappings are required to serialized data for the DB
+		return errors.New("must call RegisterComponents before flushing to DB")
+	}
 
 	if err := m.addComponentChangesToPipe(ctx, pipe); err != nil {
 		return fmt.Errorf("failed to add component changes to pipe: %w", err)
@@ -107,7 +114,7 @@ func (m *Manager) loadArchIDs() error {
 	key := redisArchIDsToCompTypesKey()
 	bz, err := m.client.Get(ctx, key).Bytes()
 	if err == redis.Nil {
-		m.archIDToComps = map[archetype.ID][]component.IComponentType{}
+		// Nothing is saved in the DB. Leave the m.archIDToComps field unchanged
 		return nil
 	} else if err != nil {
 		return err
@@ -175,10 +182,17 @@ func (m *Manager) decodeArchIDToCompTypes(bz []byte) error {
 	for archID, compTypeIDs := range fromStorage {
 		currComps := []component.IComponentType{}
 		for _, compTypeID := range compTypeIDs {
-			currComps = append(currComps, m.typeToComponent[compTypeID])
+			currComp, ok := m.typeToComponent[compTypeID]
+			if !ok {
+				return storage.ErrorComponentMismatchWithSavedState
+			}
+			currComps = append(currComps, currComp)
 		}
 
 		result[archID] = currComps
+	}
+	if len(m.archIDToComps) > 0 {
+		return errors.New("assigned archetype ID is about to be overwritten by something from storage")
 	}
 	m.archIDToComps = result
 	return nil
