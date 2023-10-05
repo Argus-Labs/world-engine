@@ -48,7 +48,7 @@ sed -i '/api\]/,/\[/ s/enable = false/enable = true/' /root/.world/config/app.to
 # Cosmos SDK gRPC listener
 sed -i'.bak' 's#"localhost:9090"#"0.0.0.0:9090"#g' /root/.world/config/app.toml
 # Cosmos SDK API server listener
-sed -i'.bak' 's#"localhost:1317"#"0.0.0.0:1317"#g' /root/.world/config/app.toml
+sed -i'.bak' 's#localhost:1317#0.0.0.0:1317#g' /root/.world/config/app.toml
 
 sed -i 's/"stake"/"eth"/g' /root/.world/config/genesis.json
 
