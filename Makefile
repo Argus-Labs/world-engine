@@ -23,7 +23,7 @@ rollup:
 
 
 game:
-	@docker compose up game nakama -d
+	@docker compose up game nakama
 
 
 kill:

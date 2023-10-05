@@ -14,7 +14,7 @@ type Chain struct {
 	bank  banktypes.QueryClient
 }
 
-func NewChainClient(t *testing.T) Chain {
+func newChainClient(t *testing.T) Chain {
 	cc, err := grpc.Dial("localhost:9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NilError(t, err)
 	return Chain{shard: shardtypes.NewQueryClient(cc), bank: banktypes.NewQueryClient(cc)}

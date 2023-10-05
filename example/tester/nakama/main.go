@@ -274,6 +274,19 @@ func setPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule, obj *
 
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
 func handleClaimPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+	logger.Info("attempting to claim persona")
+	userID, err := getUserID(ctx)
+	if err != nil {
+		return logError(logger, "unable to get userID: %w", err)
+	}
+
+	// check if the user is verified. this requires them to input a valid beta key.
+	err = checkVerified(ctx, nk, userID)
+	if err != nil {
+		logError(logger, "user must first enter a valid beta key to the claim-key endpoint before claiming a persona: %w", err)
+		return "", err
+	}
+
 	if ptr, err := getPersonaTagStorageObj(ctx, nk); err != nil && !errors.Is(err, ErrorPersonaTagStorageObjNotFound) {
 		return logError(logger, "unable to get persona tag storage object: %w", err)
 	} else if err == nil {
@@ -300,17 +313,6 @@ func handleClaimPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 		return logError(logger, "unable to set persona tag storage object: %w", err)
 	}
 
-	userID, err := getUserID(ctx)
-	if err != nil {
-		return logError(logger, "unable to get userID: %w", err)
-	}
-
-	// check if the user is verified. this requires them to input a valid beta key.
-	err = checkVerified(ctx, nk, userID)
-	if err != nil {
-		return "", err
-	}
-
 	// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
 	// user having the persona tag. This assignment still needs to be checked with cardinal.
 	if ok := setPersonaTagAssignment(ptr.PersonaTag, userID); !ok {
@@ -325,6 +327,8 @@ func handleClaimPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 	if err != nil {
 		return logError(logger, "unable to make create persona request to cardinal: %v", err)
 	}
+
+	logger.Info("persona transaction sent successfully")
 
 	ptr.Tick = tick
 	ptr.TxHash = txHash

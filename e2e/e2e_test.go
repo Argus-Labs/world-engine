@@ -27,7 +27,7 @@ type MoveTx struct {
 
 func TestTransactionStoredOnChain(t *testing.T) {
 	c := newClient(t)
-	chain := NewChainClient(t)
+	chain := newChainClient(t)
 	user := "foobar"
 	persona := "foobarspersona"
 	err := c.registerDevice(user, adminNakamaID)
@@ -37,15 +37,17 @@ func TestTransactionStoredOnChain(t *testing.T) {
 	assert.NilError(t, err)
 
 	fmt.Printf("%+v\n", res)
-
+	assert.Equal(t, 200, res.StatusCode, "claim persona failed with code %d: body: %v", res.StatusCode, res.Body)
 	time.Sleep(time.Second * 2)
 
-	_, err = c.rpc("tx-join", emptyStruct)
+	res, err = c.rpc("tx-join", emptyStruct)
 	assert.NilError(t, err)
+	assert.Equal(t, 200, res.StatusCode, "tx-join failed with code %d: body %v", res.StatusCode, res.Body)
 	time.Sleep(2 * time.Second)
 
-	_, err = c.rpc("tx-move", MoveTx{Direction: "up"})
+	res, err = c.rpc("tx-move", MoveTx{Direction: "up"})
 	assert.NilError(t, err)
+	assert.Equal(t, 200, res.StatusCode, "tx- failed with code %d: body %v", res.StatusCode, res.Body)
 	time.Sleep(2 * time.Second)
 
 	txs, err := chain.shard.Transactions(context.Background(), &types.QueryTransactionsRequest{
