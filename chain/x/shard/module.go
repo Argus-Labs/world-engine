@@ -73,6 +73,7 @@ func (a AppModule) ExportGenesis(context sdk.Context, cdc codec.JSONCodec) json.
 
 func (a AppModule) RegisterServices(cfg module.Configurator) {
 	types.RegisterMsgServer(cfg.MsgServer(), a.keeper)
+	types.RegisterQueryServer(cfg.QueryServer(), a.keeper)
 }
 
 type AppModuleBasic struct{}

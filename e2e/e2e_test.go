@@ -3,7 +3,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"testing"
@@ -29,13 +28,15 @@ type MoveTx struct {
 func TestTransactionStoredOnChain(t *testing.T) {
 	c := newClient(t)
 	chain := NewChainClient(t)
-	user := "foooooobar"
-	persona := "fooooobar"
+	user := "foobar"
+	persona := "foobarspersona"
 	err := c.registerDevice(user, adminNakamaID)
 	assert.NilError(t, err)
 
-	_, err = c.rpc("nakama/claim-persona", ClaimPersonaTx{PersonaTag: persona})
+	res, err := c.rpc("nakama/claim-persona", ClaimPersonaTx{PersonaTag: persona})
 	assert.NilError(t, err)
+
+	fmt.Printf("%+v\n", res)
 
 	time.Sleep(time.Second * 2)
 
@@ -53,11 +54,4 @@ func TestTransactionStoredOnChain(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	fmt.Println(txs.String())
-}
-
-func TestCanGRPCQueryChain(t *testing.T) {
-	chain := NewChainClient(t)
-	res, err := chain.bank.Params(context.Background(), &banktypes.QueryParamsRequest{})
-	assert.NilError(t, err)
-	fmt.Printf("%+v\n", res)
 }
