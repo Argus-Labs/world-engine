@@ -70,7 +70,7 @@ func (m *Manager) addEntityIDToArchIDToPipe(ctx context.Context, pipe redis.Pipe
 	return nil
 }
 
-// addNextEntityIDToPipe adds any changes to the next available entity ID to the given redis pip.e
+// addNextEntityIDToPipe adds any changes to the next available entity ID to the given redis pipe.
 func (m *Manager) addNextEntityIDToPipe(ctx context.Context, pipe redis.Pipeliner) error {
 	// There are no pending entity id creations, so there's nothing to commit
 	if m.pendingEntityIDs == 0 {
