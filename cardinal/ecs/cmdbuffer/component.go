@@ -15,8 +15,9 @@ type compKey struct {
 	entityID entity.ID
 }
 
-// normalizeComponents re-orders the given components so their IDs are strictly increasing.
-func normalizeComponents(components []component.IComponentType) error {
+// sortComponentSet re-orders the given components so their IDs are strictly increasing. If any component is duplicated
+// an error is returned.
+func sortComponentSet(components []component.IComponentType) error {
 	sort.Slice(components, func(i, j int) bool {
 		return components[i].ID() < components[j].ID()
 	})

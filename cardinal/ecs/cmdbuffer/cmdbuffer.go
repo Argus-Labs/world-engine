@@ -274,7 +274,9 @@ func (m *Manager) AddComponentToEntity(cType component.IComponentType, id entity
 		return storage.ErrorComponentAlreadyOnEntity
 	}
 	toComps := append(fromComps, cType)
-	normalizeComponents(toComps)
+	if err = sortComponentSet(toComps); err != nil {
+		return err
+	}
 
 	toArchID, err := m.getArchIDForComponentsOrMakeIt(toComps)
 	if err != nil {
@@ -345,7 +347,7 @@ func (m *Manager) GetArchIDForComponents(components []component.IComponentType) 
 	if len(components) == 0 {
 		return 0, errors.New("must provide at least 1 component")
 	}
-	if err := normalizeComponents(components); err != nil {
+	if err := sortComponentSet(components); err != nil {
 		return 0, err
 	}
 	for archID, comps := range m.archIDToComps {
