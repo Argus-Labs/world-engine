@@ -263,7 +263,8 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	// us keep track of which component belongs to which entity in the case
 	// of a problem
 	Count.Each(world, func(id entity.ID) bool {
-		assert.NilError(t, Count.Set(world, id, CountComponent{int(id)}))
+		assert.NilError(t, ecs.SetComponent[CountComponent](world, id, &CountComponent{int(id)}))
+		//assert.NilError(t, Count.Set(world, id, CountComponent{int(id)}))
 		return true
 	})
 
@@ -394,18 +395,37 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	})
 }
 
+type EnergyComponentAlpha struct {
+	Amt int64
+	Cap int64
+}
+
+func (e EnergyComponentAlpha) Name() string {
+	return "alpha"
+}
+
+type EnergyComponentBeta struct {
+	Amt int64
+	Cap int64
+}
+
+func (e EnergyComponentBeta) Name() string {
+	return "beta"
+}
+
 func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 
-	alpha := ecs.NewComponentType[EnergyComponent]("alpha")
-	beta := ecs.NewComponentType[EnergyComponent]("beta")
+	alpha := ecs.NewComponentType[EnergyComponentAlpha]("alpha")
+	beta := ecs.NewComponentType[EnergyComponentBeta]("beta")
 	assert.NilError(t, world.RegisterComponents(alpha, beta))
 	assert.NilError(t, world.LoadGameState())
 
 	id, err := world.Create(alpha)
 	assert.NilError(t, err)
 
-	err = beta.Set(world, id, EnergyComponent{100, 200})
+	err = ecs.SetComponent[EnergyComponentBeta](world, id, &EnergyComponentBeta{100, 200})
+	//err = beta.Set(world, id, EnergyComponentBeta{100, 200})
 	assert.Check(t, err != nil)
 }
 
@@ -489,9 +509,9 @@ func TestCanRemoveFirstEntity(t *testing.T) {
 
 	ids, err := world.CreateMany(3, valComp)
 	assert.NilError(t, err)
-	assert.NilError(t, valComp.Set(world, ids[0], ValueComponent1{99}))
-	assert.NilError(t, valComp.Set(world, ids[1], ValueComponent1{100}))
-	assert.NilError(t, valComp.Set(world, ids[2], ValueComponent1{101}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent1](world, ids[0], &ValueComponent1{99}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent1](world, ids[1], &ValueComponent1{100}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent1](world, ids[2], &ValueComponent1{101}))
 
 	assert.NilError(t, world.Remove(ids[0]))
 
@@ -530,9 +550,9 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 
 	ids, err := world.CreateMany(3, valComp)
 	assert.NilError(t, err)
-	assert.NilError(t, valComp.Set(world, ids[0], ValueComponent2{99}))
-	assert.NilError(t, valComp.Set(world, ids[1], ValueComponent2{100}))
-	assert.NilError(t, valComp.Set(world, ids[2], ValueComponent2{101}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent2](world, ids[0], &ValueComponent2{99}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent2](world, ids[1], &ValueComponent2{100}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent2](world, ids[2], &ValueComponent2{101}))
 
 	assert.NilError(t, otherComp.AddTo(world, ids[0]))
 
