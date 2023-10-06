@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 
@@ -56,10 +57,28 @@ func (t *testTransactionHandler) post(path string, payload any) *http.Response {
 	return res
 }
 
+func testSocketEchoRoute(t *testing.T, httpHandler *testTransactionHandler, timesToTest int) {
+	path := "/event"
+	urlString := httpHandler.makeURL(path)
+	c, _, err := websocket.DefaultDialer.Dial(urlString, nil)
+	assert.NilError(t, err)
+	originalMessage := []byte("testing\n")
+	err = c.WriteMessage(websocket.TextMessage, originalMessage)
+	assert.NilError(t, err)
+	for i := 0; i < timesToTest; i++ {
+		messageType, message, err := c.ReadMessage()
+		assert.NilError(t, err)
+		assert.Equal(t, messageType, websocket.TextMessage)
+		assert.Equal(t, originalMessage, message)
+	}
+	err = c.Close()
+	assert.NilError(t, err)
+}
+
 func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) *testTransactionHandler {
 	port := "4040"
 	opts = append(opts, WithPort(port))
-	txh, err := NewHandler(world, opts...)
+	txh, err := NewHandler(world, nil, opts...)
 	assert.NilError(t, err)
 
 	healthPath := "/health"
@@ -208,7 +227,7 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, world.RegisterTransactions(alphaTx))
-	txh, err := NewHandler(world, DisableSignatureVerification())
+	txh, err := NewHandler(world, nil, DisableSignatureVerification())
 	assert.NilError(t, err)
 	t.Cleanup(func() {
 		assert.NilError(t, txh.Close())
@@ -1189,3 +1208,10 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 	assert.NilError(t, err)
 	assert.ErrorContains(t, errors.New(string(bz)), "game world is recovering state")
 }
+
+//func TestWebsocketEventsRoute(t *testing.T) {
+//	w := ecs.NewTestWorld(t)
+//	assert.NilError(t, w.LoadGameState())
+//	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
+//
+//}
