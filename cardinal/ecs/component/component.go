@@ -14,11 +14,15 @@ type (
 		ID() TypeID
 		// New returns the marshaled bytes of the default value for the component struct.
 		New() ([]byte, error)
+
+		Encode(any) ([]byte, error)
+		Decode([]byte) (any, error)
+		INameable
+	}
+
+	INameable interface {
 		// Name returns the name of the component.
 		Name() string
-
-		Decode([]byte) (any, error)
-		Encode(any) ([]byte, error)
 	}
 )
 

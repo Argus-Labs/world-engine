@@ -119,12 +119,21 @@ func TestVelocitySimulation(t *testing.T) {
 	assert.Equal(t, wantPos, finalPos)
 }
 
+type Owner struct {
+	MyName string
+}
+
+// Additional method.
+func (Owner) Name() string {
+	return "owner"
+}
+
 func TestCanSetDefaultValue(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	type Owner struct {
-		Name string
-	}
+
 	wantOwner := Owner{"Jeff"}
+
+	//Below disapears and should be handled by RegisterComponents.
 	owner := ecs.NewComponentType[Owner]("owner", ecs.WithDefault(wantOwner))
 	assert.NilError(t, world.RegisterComponents(owner))
 	assert.NilError(t, world.LoadGameState())
@@ -132,15 +141,19 @@ func TestCanSetDefaultValue(t *testing.T) {
 	alpha, err := world.Create(owner)
 	assert.NilError(t, err)
 
-	alphaOwner, err := owner.Get(world, alpha)
+	//alphaOwner, err := owner.Get(world, alpha)
+	alphaOwner, err := ecs.GetComponent[Owner](world, alpha)
 	assert.NilError(t, err)
 	assert.Equal(t, alphaOwner, wantOwner)
 
-	alphaOwner.Name = "Bob"
-	assert.NilError(t, owner.Set(world, alpha, alphaOwner))
+	alphaOwner.MyName = "Bob"
+	//assert.NilError(t, owner.Set(world, alpha, *alphaOwner))
+	assert.NilError(t, ecs.SetComponent[Owner](world, alpha, alphaOwner))
 
-	newOwner, err := owner.Get(world, alpha)
-	assert.Equal(t, newOwner.Name, "Bob")
+	//newOwner, err := owner.Get(world, alpha)
+	newOwner, err := ecs.GetComponent[Owner](world, alpha)
+	assert.NilError(t, err)
+	assert.Equal(t, newOwner.MyName, "Bob")
 }
 
 func TestCanRemoveEntity(t *testing.T) {
