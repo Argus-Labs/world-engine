@@ -29,3 +29,15 @@ func sortComponentSet(components []component.IComponentType) error {
 
 	return nil
 }
+
+func isComponentSetMatch(a, b []component.IComponentType) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].ID() != b[i].ID() {
+			return false
+		}
+	}
+	return true
+}

@@ -83,20 +83,6 @@ func (m *Manager) RegisterComponents(comps []component.IComponentType) error {
 	return m.loadArchIDs()
 }
 
-// AtomicFn commits any pending changes to the DB, performs the actions inside of fn. If fn results in an error,
-// any pending changes that were generated inside of fn are discarded. If fn results in no error, the pending
-// changes are committed.
-func (m *Manager) AtomicFn(fn func() error) error {
-	if err := m.CommitPending(); err != nil {
-		return err
-	}
-	if err := fn(); err != nil {
-		m.DiscardPending()
-		return err
-	}
-	return m.CommitPending()
-}
-
 // CommitPending commits any pending state changes to the DB. If an error is returned, there will be no changes
 // to the underlying DB.
 func (m *Manager) CommitPending() error {
@@ -351,17 +337,7 @@ func (m *Manager) GetArchIDForComponents(components []component.IComponentType) 
 		return 0, err
 	}
 	for archID, comps := range m.archIDToComps {
-		if len(comps) != len(components) {
-			continue
-		}
-		match := true
-		for i := range comps {
-			if comps[i].ID() != components[i].ID() {
-				match = false
-				break
-			}
-		}
-		if match {
+		if isComponentSetMatch(comps, components) {
 			return archID, nil
 		}
 	}

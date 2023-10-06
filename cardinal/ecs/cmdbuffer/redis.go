@@ -110,18 +110,18 @@ func (m *Manager) addComponentChangesToPipe(ctx context.Context, pipe redis.Pipe
 
 // preloadArchIDs loads the mapping of archetypes IDs to sets of IComponentTypes from storage.
 func (m *Manager) loadArchIDs() error {
-	ctx := context.Background()
-	key := redisArchIDsToCompTypesKey()
-	bz, err := m.client.Get(ctx, key).Bytes()
-	if err == redis.Nil {
-		// Nothing is saved in the DB. Leave the m.archIDToComps field unchanged
-		return nil
-	} else if err != nil {
+	archIDToComps, ok, err := getArchIDToCompTypesFromRedis(m.client, m.typeToComponent)
+	if err != nil {
 		return err
 	}
-	if err = m.decodeArchIDToCompTypes(bz); err != nil {
-		return fmt.Errorf("failed to decode map of arch IDs to component types: %w", err)
+	if !ok {
+		// Nothing is saved in the DB. Leave the m.archIDToComps field unchanged
+		return nil
 	}
+	if len(m.archIDToComps) > 0 {
+		return errors.New("assigned archetype ID is about to be overwritten by something from storage")
+	}
+	m.archIDToComps = archIDToComps
 	return nil
 }
 
@@ -171,10 +171,19 @@ func (m *Manager) encodeArchIDToCompTypes() ([]byte, error) {
 	return codec.Encode(forStorage)
 }
 
-func (m *Manager) decodeArchIDToCompTypes(bz []byte) error {
+func getArchIDToCompTypesFromRedis(client *redis.Client, typeToComp map[component.TypeID]component.IComponentType) (m map[archetype.ID][]component.IComponentType, ok bool, err error) {
+	ctx := context.Background()
+	key := redisArchIDsToCompTypesKey()
+	bz, err := client.Get(ctx, key).Bytes()
+	if err == redis.Nil {
+		return nil, false, nil
+	} else if err != nil {
+		return nil, false, err
+	}
+
 	fromStorage, err := codec.Decode[map[archetype.ID][]component.TypeID](bz)
 	if err != nil {
-		return err
+		return nil, false, err
 	}
 
 	// result is the mapping of Arch ID -> IComponent sets
@@ -182,18 +191,14 @@ func (m *Manager) decodeArchIDToCompTypes(bz []byte) error {
 	for archID, compTypeIDs := range fromStorage {
 		currComps := []component.IComponentType{}
 		for _, compTypeID := range compTypeIDs {
-			currComp, ok := m.typeToComponent[compTypeID]
+			currComp, ok := typeToComp[compTypeID]
 			if !ok {
-				return storage.ErrorComponentMismatchWithSavedState
+				return nil, false, storage.ErrorComponentMismatchWithSavedState
 			}
 			currComps = append(currComps, currComp)
 		}
 
 		result[archID] = currComps
 	}
-	if len(m.archIDToComps) > 0 {
-		return errors.New("assigned archetype ID is about to be overwritten by something from storage")
-	}
-	m.archIDToComps = result
-	return nil
+	return result, true, nil
 }

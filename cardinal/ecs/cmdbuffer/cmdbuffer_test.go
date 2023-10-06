@@ -1,14 +1,12 @@
 package cmdbuffer_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/cmdbuffer"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -113,43 +111,32 @@ func TestDiscardedComponentChangeRevertsToOriginalValue(t *testing.T) {
 func TestDiscardedEntityIDsWillBeAssignedAgain(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
-	var ids []entity.ID
-	manager.AtomicFn(func() error {
-		var err error
-		ids, err = manager.CreateManyEntities(10, fooComp)
-		assert.NilError(t, err)
-		return nil
-	})
+	ids, err := manager.CreateManyEntities(10, fooComp)
+	assert.NilError(t, err)
+	assert.NilError(t, manager.CommitPending())
 	// This is the next ID we should expect to be assigned
 	nextID := ids[len(ids)-1] + 1
 
-	atomicErr := errors.New("some error")
-	assert.ErrorIs(t, atomicErr, manager.AtomicFn(func() error {
-		// Create a new entity. It should have nextID as the ID
-		gotID, err := manager.CreateEntity(fooComp)
-		assert.NilError(t, err)
-		assert.Equal(t, nextID, gotID)
-		// But uhoh, there's a problem. Returning an error here means the entity creation
-		// will be undone
-		return atomicErr
-	}))
+	// Create a new entity. It should have nextID as the ID
+	gotID, err := manager.CreateEntity(fooComp)
+	assert.NilError(t, err)
+	assert.Equal(t, nextID, gotID)
+	// But uhoh, there's a problem. Returning an error here means the entity creation
+	// will be undone
+	manager.DiscardPending()
 
 	// Create an entity again. We should get nextID assigned again.
-	assert.NilError(t, manager.AtomicFn(func() error {
-		// Create a new entity. It should have nextID as the ID
-		gotID, err := manager.CreateEntity(fooComp)
-		assert.NilError(t, err)
-		assert.Equal(t, nextID, gotID)
-		return nil
-	}))
+	// Create a new entity. It should have nextID as the ID
+	gotID, err = manager.CreateEntity(fooComp)
+	assert.NilError(t, err)
+	assert.Equal(t, nextID, gotID)
+	assert.NilError(t, manager.CommitPending())
 
 	// Now that nextID has been assigned, creating a new entity should give us a new entity ID
-	assert.NilError(t, manager.AtomicFn(func() error {
-		gotID, err := manager.CreateEntity(fooComp)
-		assert.NilError(t, err)
-		assert.Equal(t, gotID, nextID+1)
-		return nil
-	}))
+	gotID, err = manager.CreateEntity(fooComp)
+	assert.NilError(t, err)
+	assert.Equal(t, gotID, nextID+1)
+	assert.NilError(t, manager.CommitPending())
 }
 
 func TestCanGetComponentsForEntity(t *testing.T) {
@@ -172,40 +159,34 @@ func TestGettingInvalidEntityResultsInAnError(t *testing.T) {
 func TestComponentSetsCanBeDiscarded(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
-	var firstID entity.ID
-	var firstArchID archetype.ID
-	manager.AtomicFn(func() error {
-		var err error
-		firstID, err = manager.CreateEntity(fooComp)
-		assert.NilError(t, err)
-		comps, err := manager.GetComponentTypesForEntity(firstID)
-		assert.NilError(t, err)
-		assert.Equal(t, 1, len(comps))
-		assert.Equal(t, comps[0].ID(), fooComp.ID())
-		// Discard this entity creation
-		firstArchID, err = manager.GetArchIDForComponents(comps)
-		assert.NilError(t, err)
-		return errors.New("some error")
-	})
+	firstID, err := manager.CreateEntity(fooComp)
+	assert.NilError(t, err)
+	comps, err := manager.GetComponentTypesForEntity(firstID)
+	assert.NilError(t, err)
+	assert.Equal(t, 1, len(comps))
+	assert.Equal(t, comps[0].ID(), fooComp.ID())
+	// Discard this entity creation
+	firstArchID, err := manager.GetArchIDForComponents(comps)
+	assert.NilError(t, err)
+
+	// Discard the above changes
+	manager.DiscardPending()
 
 	// Repeat the above operation. We should end up with the same entity ID, and it should
 	// end up containing a different set of components
-	manager.AtomicFn(func() error {
-		gotID, err := manager.CreateEntity(fooComp, barComp)
-		assert.NilError(t, err)
-		// The assigned entity ID should be reused
-		assert.Equal(t, gotID, firstID)
-		comps, err := manager.GetComponentTypesForEntity(gotID)
-		assert.NilError(t, err)
-		assert.Equal(t, 2, len(comps))
-		assert.Equal(t, comps[0].ID(), fooComp.ID())
+	gotID, err := manager.CreateEntity(fooComp, barComp)
+	assert.NilError(t, err)
+	// The assigned entity ID should be reused
+	assert.Equal(t, gotID, firstID)
+	comps, err = manager.GetComponentTypesForEntity(gotID)
+	assert.NilError(t, err)
+	assert.Equal(t, 2, len(comps))
+	assert.Equal(t, comps[0].ID(), fooComp.ID())
 
-		gotArchID, err := manager.GetArchIDForComponents(comps)
-		assert.NilError(t, err)
-		// The archetype ID should be reused
-		assert.Equal(t, firstArchID, gotArchID)
-		return nil
-	})
+	gotArchID, err := manager.GetArchIDForComponents(comps)
+	assert.NilError(t, err)
+	// The archetype ID should be reused
+	assert.Equal(t, firstArchID, gotArchID)
 }
 
 func TestCannotGetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
