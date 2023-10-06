@@ -144,7 +144,7 @@ func TestCanSetDefaultValue(t *testing.T) {
 	//alphaOwner, err := owner.Get(world, alpha)
 	alphaOwner, err := ecs.GetComponent[Owner](world, alpha)
 	assert.NilError(t, err)
-	assert.Equal(t, alphaOwner, wantOwner)
+	assert.Equal(t, *alphaOwner, wantOwner)
 
 	alphaOwner.MyName = "Bob"
 	//assert.NilError(t, owner.Set(world, alpha, *alphaOwner))

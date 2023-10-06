@@ -225,17 +225,19 @@ func GetComponent[T component.INameable](w *World, id entity.ID) (comp *T, err e
 	}
 	value, err := w.StoreManager().GetComponentForEntity(c, id)
 	if err != nil {
-		return comp, err
+		return nil, err
 	}
-	comp, ok = value.(*T)
+	t, ok = value.(T)
 	if !ok {
-		return comp, fmt.Errorf("type assertion for component failed: %v to %v", value, c)
+		return nil, fmt.Errorf("type assertion for component failed: %v to %v", value, c)
 	}
+	comp = &t
+
 	return comp, nil
 }
 
 // Set sets component data to the entity.
-func SetComponent[T component.INameable](w *World, id entity.ID, component any) error {
+func SetComponent[T component.INameable](w *World, id entity.ID, component *T) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -254,7 +256,7 @@ func SetComponent[T component.INameable](w *World, id entity.ID, component any) 
 	return nil
 }
 
-func UpdateComponent[T component.INameable](w *World, id entity.ID, fn func(T) T) error {
+func UpdateComponent[T component.INameable](w *World, id entity.ID, fn func(*T) *T) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -268,8 +270,8 @@ func UpdateComponent[T component.INameable](w *World, id entity.ID, fn func(T) T
 	if err != nil {
 		return err
 	}
-	updatedVal := fn(*val)
-	return SetComponent[T](w, id, &updatedVal)
+	updatedVal := fn(val)
+	return SetComponent[T](w, id, updatedVal)
 }
 
 //// EachComponent iterates over the entities that have the component.
