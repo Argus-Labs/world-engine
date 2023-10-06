@@ -229,9 +229,13 @@ func GetComponent[T component.INameable](w *World, id entity.ID) (comp *T, err e
 	}
 	t, ok = value.(T)
 	if !ok {
-		return nil, fmt.Errorf("type assertion for component failed: %v to %v", value, c)
+		comp, ok = value.(*T)
+		if !ok {
+			return nil, fmt.Errorf("type assertion for component failed: %v to %v", value, c)
+		}
+	} else {
+		comp = &t
 	}
-	comp = &t
 
 	return comp, nil
 }
