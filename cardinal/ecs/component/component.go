@@ -17,10 +17,10 @@ type (
 
 		Encode(any) ([]byte, error)
 		Decode([]byte) (any, error)
-		INameable
+		IAbstractComponent
 	}
 
-	INameable interface {
+	IAbstractComponent interface {
 		// Name returns the name of the component.
 		Name() string
 	}

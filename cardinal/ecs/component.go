@@ -216,7 +216,7 @@ func WithDefault[T any](defaultVal T) ComponentOption[T] {
 }
 
 // Get returns component data from the entity.
-func GetComponent[T component.INameable](w *World, id entity.ID) (comp *T, err error) {
+func GetComponent[T component.IAbstractComponent](w *World, id entity.ID) (comp *T, err error) {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -241,7 +241,7 @@ func GetComponent[T component.INameable](w *World, id entity.ID) (comp *T, err e
 }
 
 // Set sets component data to the entity.
-func SetComponent[T component.INameable](w *World, id entity.ID, component *T) error {
+func SetComponent[T component.IAbstractComponent](w *World, id entity.ID, component *T) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -260,7 +260,7 @@ func SetComponent[T component.INameable](w *World, id entity.ID, component *T) e
 	return nil
 }
 
-func UpdateComponent[T component.INameable](w *World, id entity.ID, fn func(*T) *T) error {
+func UpdateComponent[T component.IAbstractComponent](w *World, id entity.ID, fn func(*T) *T) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -280,7 +280,7 @@ func UpdateComponent[T component.INameable](w *World, id entity.ID, fn func(*T) 
 
 //// EachComponent iterates over the entities that have the component.
 //// If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-//func EachComponent[T component.INameable](w *World, callback QueryCallBackFn) {
+//func EachComponent[T component.IAbstractComponent](w *World, callback QueryCallBackFn) {
 //	var t T
 //	name := t.Name()
 //	c, ok := w.nameToComponent[name]
@@ -291,7 +291,7 @@ func UpdateComponent[T component.INameable](w *World, id entity.ID, fn func(*T) 
 //}
 //
 //// FirstComponent First returns the first entity that has the component.
-//func FirstComponent[T component.INameable](w *World) (entity.ID, error) {
+//func FirstComponent[T component.IAbstractComponent](w *World) (entity.ID, error) {
 //	var t T
 //	name := t.Name()
 //	c, ok := w.nameToComponent[name]
@@ -302,7 +302,7 @@ func UpdateComponent[T component.INameable](w *World, id entity.ID, fn func(*T) 
 //}
 //
 //// MustFirstComponent MustFirst returns the first entity that has the component or panics.
-//func MustFirstComponent[T component.INameable](w *World) entity.ID {
+//func MustFirstComponent[T component.IAbstractComponent](w *World) entity.ID {
 //	var t T
 //	name := t.Name()
 //	c, ok := w.nameToComponent[name]
@@ -316,7 +316,7 @@ func UpdateComponent[T component.INameable](w *World, id entity.ID, fn func(*T) 
 //	return id
 //}
 //
-//func GetRawJsonComponent[T component.INameable](w *World, id entity.ID) (json.RawMessage, error) {
+//func GetRawJsonComponent[T component.IAbstractComponent](w *World, id entity.ID) (json.RawMessage, error) {
 //	var t T
 //	name := t.Name()
 //	c, ok := w.nameToComponent[name]
