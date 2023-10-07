@@ -91,6 +91,10 @@ type SignerComponent struct {
 	AuthorizedAddresses []string
 }
 
+func (SignerComponent) Name() string {
+	return "SignerComponent"
+}
+
 // SignerComp is the concrete ECS component that pairs a persona tag to a signer address.
 var SignerComp = NewComponentType[SignerComponent]("SignerComponent")
 
@@ -103,7 +107,7 @@ func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, e
 	personaTagToAddress := map[string]personaTagComponentData{}
 	var errs []error
 	NewQuery(filter.Exact(SignerComp)).Each(world, func(id entity.ID) bool {
-		sc, err := SignerComp.Get(world, id)
+		sc, err := GetComponent[SignerComponent](world, id)
 		if err != nil {
 			errs = append(errs, err)
 			return true
@@ -142,7 +146,7 @@ func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *log.Logg
 			CreatePersonaTx.AddError(world, txData.TxHash, err)
 			continue
 		}
-		if err := SignerComp.Set(world, id, SignerComponent{
+		if err := SetComponent[SignerComponent](world, id, &SignerComponent{
 			PersonaTag:    tx.PersonaTag,
 			SignerAddress: tx.SignerAddress,
 		}); err != nil {
@@ -175,7 +179,8 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 	}
 	var errs []error
 	NewQuery(filter.Exact(SignerComp)).Each(w, func(id entity.ID) bool {
-		sc, err := SignerComp.Get(w, id)
+		sc, err := GetComponent[SignerComponent](w, id)
+		//sc, err := SignerComp.Get(w, id)
 		if err != nil {
 			errs = append(errs, err)
 		}

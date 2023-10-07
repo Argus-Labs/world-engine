@@ -157,14 +157,14 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.S
 	var sc *ecs.SignerComponent
 	var err error
 	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id entity.ID) bool {
-		var signerComp ecs.SignerComponent
-		signerComp, err = ecs.SignerComp.Get(s.world, id)
+		var signerComp *ecs.SignerComponent
+		signerComp, err = ecs.GetComponent[ecs.SignerComponent](s.world, id)
 		if err != nil {
 			return false
 		}
 		for _, authAddr := range signerComp.AuthorizedAddresses {
 			if authAddr == addr {
-				sc = &signerComp
+				sc = signerComp
 				return false
 			}
 		}

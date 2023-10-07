@@ -520,7 +520,7 @@ func TestCanRemoveFirstEntity(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 100, val.Val)
 
-	val, err = ecs.GetComponent[ValueComponent1](world, ids[1])
+	val, err = ecs.GetComponent[ValueComponent1](world, ids[2])
 	//val, err = valComp.Get(world, ids[2])
 	assert.NilError(t, err)
 	assert.Equal(t, 101, val.Val)

@@ -27,6 +27,10 @@ type NumberComponent struct {
 	Num int
 }
 
+func (NumberComponent) Name() string {
+	return "oneAlphaNum"
+}
+
 func TestComponentsCanOnlyBeRegisteredOnce(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.RegisterComponents())
@@ -176,17 +180,34 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	assert.Equal(t, oneJustAlphaArchID, threeJustAlphaArchID)
 }
 
+type oneBetaNumComp struct {
+	Num int
+}
+
+func (oneBetaNumComp) Name() string {
+	return "oneBetaNum"
+}
+
+type oneAlphaNumComp struct {
+	Num int
+}
+
+func (oneAlphaNumComp) Name() string {
+	return "oneAlphaNum"
+}
+
 func TestCanReloadState(t *testing.T) {
 	redisStore := miniredis.RunT(t)
 	alphaWorld := testutil.InitWorldWithRedis(t, redisStore)
-	oneAlphaNum := ecs.NewComponentType[NumberComponent]("oneAlphaNum")
+	oneAlphaNum := ecs.NewComponentType[oneAlphaNumComp]("oneAlphaNum")
 	assert.NilError(t, alphaWorld.RegisterComponents(oneAlphaNum))
 
 	_, err := alphaWorld.CreateMany(10, oneAlphaNum)
 	assert.NilError(t, err)
 	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		oneAlphaNum.Each(w, func(id entity.ID) bool {
-			err := oneAlphaNum.Set(w, id, NumberComponent{int(id)})
+			err := ecs.SetComponent[oneAlphaNumComp](w, id, &oneAlphaNumComp{int(id)})
+			//err := oneAlphaNum.Set(w, id, oneAlphaNumComp{int(id)})
 			assert.Check(t, err == nil)
 			return true
 		})
@@ -199,14 +220,15 @@ func TestCanReloadState(t *testing.T) {
 
 	// Make a new world, using the original redis DB that (hopefully) has our data
 	betaWorld := testutil.InitWorldWithRedis(t, redisStore)
-	oneBetaNum := ecs.NewComponentType[NumberComponent]("oneBetaNum")
+	oneBetaNum := ecs.NewComponentType[oneBetaNumComp]("oneBetaNum")
 	assert.NilError(t, betaWorld.RegisterComponents(oneBetaNum))
 	assert.NilError(t, betaWorld.LoadGameState())
 
 	count := 0
 	oneBetaNum.Each(betaWorld, func(id entity.ID) bool {
 		count++
-		num, err := oneBetaNum.Get(betaWorld, id)
+		num, err := ecs.GetComponent[oneBetaNumComp](betaWorld, id)
+		//num, err := oneBetaNum.Get(betaWorld, id)
 		assert.NilError(t, err)
 		assert.Equal(t, int(id), num.Num)
 		return true

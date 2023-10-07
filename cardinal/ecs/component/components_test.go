@@ -103,23 +103,41 @@ func TestComponents(t *testing.T) {
 	}
 }
 
+type foundComp struct{}
+type notFoundComp struct{}
+
+func (_ foundComp) Name() string {
+	return "foundComp"
+}
+
+func (_ notFoundComp) Name() string {
+	return "notFoundComp"
+}
+
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	foundComp := ecs.NewComponentType[string]("foundComp")
-	notFoundComp := ecs.NewComponentType[string]("notFoundComp")
+	found := ecs.NewComponentType[foundComp]("foundComp")
+	notFound := ecs.NewComponentType[notFoundComp]("notFoundComp")
 
-	assert.NilError(t, world.RegisterComponents(foundComp, notFoundComp))
+	assert.NilError(t, world.RegisterComponents(found, notFound))
 
-	id, err := world.Create(foundComp)
+	id, err := world.Create(found)
 	assert.NilError(t, err)
-	_, err = notFoundComp.Get(world, id)
+	_, err = ecs.GetComponent[notFoundComp](world, id)
+	//_, err = notFound.Get(world, id)
 	assert.ErrorIs(t, err, storage2.ErrorComponentNotOnEntity)
 }
 
+type ValueComponent struct {
+	Val int
+}
+
+func (ValueComponent) Name() string {
+	return "ValueComponent"
+}
+
 func TestMultipleCallsToCreateSupported(t *testing.T) {
-	type ValueComponent struct {
-		Val int
-	}
+
 	world := ecs.NewTestWorld(t)
 	valComp := ecs.NewComponentType[ValueComponent]("ValueComponent")
 	assert.NilError(t, world.RegisterComponents(valComp))
@@ -127,15 +145,16 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	id, err := world.Create(valComp)
 	assert.NilError(t, err)
 
-	assert.NilError(t, valComp.Set(world, id, ValueComponent{99}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent](world, id, &ValueComponent{99}))
 
-	val, err := valComp.Get(world, id)
+	val, err := ecs.GetComponent[ValueComponent](world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
 	_, err = world.Create(valComp)
 
-	val, err = valComp.Get(world, id)
+	val, err = ecs.GetComponent[ValueComponent](world, id)
+	//val, err = valComp.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 }

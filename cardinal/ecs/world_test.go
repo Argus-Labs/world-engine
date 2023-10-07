@@ -68,7 +68,7 @@ func TestWithoutRegistration(t *testing.T) {
 	})
 	assert.Assert(t, err != nil)
 
-	err = Energy.Set(world, id, EnergyComponent{
+	err = ecs.SetComponent[EnergyComponent](world, id, &EnergyComponent{
 		Amt: 0,
 		Cap: 0,
 	})
@@ -84,7 +84,7 @@ func TestWithoutRegistration(t *testing.T) {
 		return component
 	})
 	assert.NilError(t, err)
-	err = Energy.Set(world, id, EnergyComponent{
+	err = ecs.SetComponent[EnergyComponent](world, id, &EnergyComponent{
 		Amt: 0,
 		Cap: 0,
 	})

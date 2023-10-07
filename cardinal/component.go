@@ -56,17 +56,6 @@ func (c *ComponentType[T]) AddTo(w *World, id EntityID) error {
 	return c.impl.AddTo(w.implWorld, id)
 }
 
-// Get returns the component data that is associated with the given id. An error is returned if this entity
-// is not actually associated with this component type.
-func (c *ComponentType[T]) Get(w *World, id EntityID) (comp T, err error) {
-	return c.impl.Get(w.implWorld, id)
-}
-
-// Set sets the component data for a specific EntityID.
-func (c *ComponentType[T]) Set(w *World, id EntityID, comp T) error {
-	return c.impl.Set(w.implWorld, id, comp)
-}
-
 // Update updates the component data that is associated with the given EntityID. It is a convenience wrapper
 // for a Get followed by a Set.
 func (c *ComponentType[T]) Update(w *World, id EntityID, fn func(T) T) error {
