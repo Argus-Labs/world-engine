@@ -25,7 +25,7 @@ services:
 
   celestia-devnet:
     container_name: celestia_devnet
-    image: ghcr.io/rollkit/local-celestia-devnet:v0.11.0-rc8
+    image: ghcr.io/rollkit/local-celestia-devnet:v0.11.0-rc12
     networks:
       - world-engine
     restart: on-failure
