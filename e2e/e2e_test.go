@@ -40,7 +40,14 @@ func TestTransactionStoredOnChain(t *testing.T) {
 
 	fmt.Printf("%+v\n", res)
 	assert.Equal(t, 200, res.StatusCode, "claim persona failed with code %d: body: %v", res.StatusCode, res.Body)
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Second * 3)
+
+	res, err = c.rpc("nakama/show-persona", ClaimPersonaTx{PersonaTag: persona})
+	assert.NilError(t, err)
+
+	fmt.Printf("%+v\n", res)
+	assert.Equal(t, 200, res.StatusCode, "show persona failed with code %d: body: %v", res.StatusCode, res.Body)
+	time.Sleep(time.Second * 3)
 
 	res, err = c.rpc("tx-join", emptyStruct)
 	assert.NilError(t, err)
