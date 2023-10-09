@@ -23,8 +23,9 @@ services:
       - world-engine
 
   nakama:
+    container_name: test_nakama
     platform: linux/amd64
-    build: ./example/tester/nakama
+    build: ./e2e/tester/nakama
     depends_on:
       - postgres
       - game
@@ -96,14 +97,14 @@ services:
       - "9090"
 
   game:
-    container_name: game
+    container_name: test_game
     environment:
       - REDIS_ADDR=redis:6379
       - NAMESPACE=TESTGAME
       - SHARD_SEQUENCER_ADDR=chain:9601
       - BASE_SHARD_ADDR=chain:9090
     build:
-      context: example/tester/cardinal
+      context: e2e/tester/cardinal
       dockerfile: Dockerfile
     restart: unless-stopped
     ports:
