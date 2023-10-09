@@ -26,10 +26,12 @@ type MoveTx struct {
 }
 
 func TestTransactionStoredOnChain(t *testing.T) {
+	t.Skip("cannot run this test unless the docker containers for base shard, game shard, nakama, and " +
+		"celestia are running")
 	c := newClient(t)
 	chain := newChainClient(t)
-	user := "foobar"
-	persona := "foobarspersona"
+	user := "foo"
+	persona := "foobar"
 	err := c.registerDevice(user, adminNakamaID)
 	assert.NilError(t, err)
 
@@ -55,5 +57,5 @@ func TestTransactionStoredOnChain(t *testing.T) {
 		Page:      nil,
 	})
 	assert.NilError(t, err)
-	fmt.Println(txs.String())
+	assert.Check(t, len(txs.Epochs) != 0)
 }
