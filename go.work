@@ -4,9 +4,9 @@ use (
 	cardinal
 	chain
 	chain/contracts
-	example/tester/cardinal
-	example/tester/nakama
+	e2e
+	e2e/tester/cardinal
+	e2e/tester/nakama
 	magefiles
 	sign
-	e2e
 )

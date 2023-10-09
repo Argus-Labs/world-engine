@@ -56,7 +56,7 @@ require (
 	google.golang.org/grpc v1.57.0
 	google.golang.org/protobuf v1.31.0
 	gotest.tools v2.2.0+incompatible
-	gotest.tools/v3 v3.5.0
+	gotest.tools/v3 v3.5.1
 	pkg.berachain.dev/polaris/contracts v0.0.0-20230827184022-e3cec7a2c178
 	pkg.berachain.dev/polaris/cosmos v0.0.0-20230830221145-a6c6454d3697
 	pkg.berachain.dev/polaris/eth v0.0.0-20230827184022-e3cec7a2c178
