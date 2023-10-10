@@ -129,7 +129,7 @@ func (c *ComponentType[T]) MustFirst(w *World) entity.ID {
 	return id
 }
 
-func RemoveFromComponent[T component.IAbstractComponent](w *World, id entity.ID) error {
+func RemoveComponentFrom[T component.IAbstractComponent](w *World, id entity.ID) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -139,7 +139,7 @@ func RemoveFromComponent[T component.IAbstractComponent](w *World, id entity.ID)
 	return w.StoreManager().RemoveComponentFromEntity(c, id)
 }
 
-func AddToComponent[T component.IAbstractComponent](w *World, id entity.ID) error {
+func AddComponentTo[T component.IAbstractComponent](w *World, id entity.ID) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]

@@ -223,11 +223,11 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 	verifyCanFindEntity()
 
 	// Add on the beta component
-	assert.NilError(t, ecs.AddToComponent[Beta](world, wantID))
+	assert.NilError(t, ecs.AddComponentTo[Beta](world, wantID))
 	verifyCanFindEntity()
 
 	// Remove the beta component
-	assert.NilError(t, ecs.RemoveFromComponent[Beta](world, wantID))
+	assert.NilError(t, ecs.RemoveComponentFrom[Beta](world, wantID))
 	verifyCanFindEntity()
 }
 
@@ -273,9 +273,9 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			s.Val++
 			assert.NilError(t, ecs.SetComponent[ScalarComponentStatic](w, id, s))
 			if s.Val%2 == 1 {
-				assert.NilError(t, ecs.AddToComponent[ScalarComponentToggle](w, id))
+				assert.NilError(t, ecs.AddComponentTo[ScalarComponentToggle](w, id))
 			} else {
-				assert.NilError(t, ecs.RemoveFromComponent[ScalarComponentToggle](w, id))
+				assert.NilError(t, ecs.RemoveComponentFrom[ScalarComponentToggle](w, id))
 			}
 
 			if firstWorldIteration && s.Val == 5 {

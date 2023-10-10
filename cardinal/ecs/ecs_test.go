@@ -304,7 +304,7 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 
 	ent, err := world.Create(energy)
 	assert.NilError(t, err)
-	assert.ErrorIs(t, ecs.AddToComponent[EnergyComponent](world, ent), storage.ErrorComponentAlreadyOnEntity)
+	assert.ErrorIs(t, ecs.AddComponentTo[EnergyComponent](world, ent), storage.ErrorComponentAlreadyOnEntity)
 }
 
 type ReactorEnergy struct {
@@ -335,7 +335,7 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 	assert.NilError(t, err)
 
 	//assert.ErrorIs(t, weaponsEnergy.RemoveFrom(world, ent), storage.ErrorComponentNotOnEntity)
-	assert.ErrorIs(t, ecs.RemoveFromComponent[WeaponEnergy](world, ent), storage.ErrorComponentNotOnEntity)
+	assert.ErrorIs(t, ecs.RemoveComponentFrom[WeaponEnergy](world, ent), storage.ErrorComponentNotOnEntity)
 }
 
 type Foo struct{}
@@ -365,7 +365,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	archIDBefore := ent.Loc.ArchID
 
 	// The entity should now be in a different archetype
-	assert.NilError(t, ecs.RemoveFromComponent[Foo](world, entity))
+	assert.NilError(t, ecs.RemoveComponentFrom[Foo](world, entity))
 
 	ent, err = world.StoreManager().GetEntity(entity)
 	assert.NilError(t, err)
@@ -425,14 +425,14 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	gamma.Each(world, countAgain())
 	assert.Equal(t, 0, count)
 
-	assert.NilError(t, ecs.RemoveFromComponent[Alpha](world, entIDs[0]))
+	assert.NilError(t, ecs.RemoveComponentFrom[Alpha](world, entIDs[0]))
 
 	// alpha has been removed from entity[0], so only 2 entities should now have alpha
 	alpha.Each(world, countAgain())
 	assert.Equal(t, 2, count)
 
 	// Add gamma to an entity. Now 1 entity should have gamma.
-	assert.NilError(t, ecs.AddToComponent[Gamma](world, entIDs[1]))
+	assert.NilError(t, ecs.AddComponentTo[Gamma](world, entIDs[1]))
 	gamma.Each(world, countAgain())
 	assert.Equal(t, 1, count)
 
@@ -602,7 +602,7 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 	assert.NilError(t, ecs.SetComponent[ValueComponent2](world, ids[1], &ValueComponent2{100}))
 	assert.NilError(t, ecs.SetComponent[ValueComponent2](world, ids[2], &ValueComponent2{101}))
 
-	assert.NilError(t, ecs.AddToComponent[OtherComponent](world, ids[0]))
+	assert.NilError(t, ecs.AddComponentTo[OtherComponent](world, ids[0]))
 
 	val, err := ecs.GetComponent[ValueComponent2](world, ids[1])
 	//val, err := valComp.Get(world, ids[1])
