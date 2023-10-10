@@ -298,31 +298,60 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	energy := ecs.NewComponentType[EnergyComponent]("energy")
+	energy := ecs.NewComponentType[EnergyComponent]("EnergyComponent")
 	assert.NilError(t, world.RegisterComponents(energy))
 	assert.NilError(t, world.LoadGameState())
 
 	ent, err := world.Create(energy)
 	assert.NilError(t, err)
-	assert.ErrorIs(t, energy.AddTo(world, ent), storage.ErrorComponentAlreadyOnEntity)
+	assert.ErrorIs(t, ecs.AddToComponent[EnergyComponent](world, ent), storage.ErrorComponentAlreadyOnEntity)
+}
+
+type ReactorEnergy struct {
+	Amt int64
+	Cap int64
+}
+
+type WeaponEnergy struct {
+	Amt int64
+	Cap int64
+}
+
+func (ReactorEnergy) Name() string {
+	return "reactorEnergy"
+}
+
+func (WeaponEnergy) Name() string {
+	return "weaponsEnergy"
 }
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	reactorEnergy := ecs.NewComponentType[EnergyComponent]("reactorEnergy")
-	weaponsEnergy := ecs.NewComponentType[EnergyComponent]("weaponsEnergy")
+	reactorEnergy := ecs.NewComponentType[ReactorEnergy]("reactorEnergy")
+	weaponsEnergy := ecs.NewComponentType[WeaponEnergy]("weaponsEnergy")
 	assert.NilError(t, world.RegisterComponents(reactorEnergy, weaponsEnergy))
 	assert.NilError(t, world.LoadGameState())
 	ent, err := world.Create(reactorEnergy)
 	assert.NilError(t, err)
 
-	assert.ErrorIs(t, weaponsEnergy.RemoveFrom(world, ent), storage.ErrorComponentNotOnEntity)
+	//assert.ErrorIs(t, weaponsEnergy.RemoveFrom(world, ent), storage.ErrorComponentNotOnEntity)
+	assert.ErrorIs(t, ecs.RemoveFromComponent[WeaponEnergy](world, ent), storage.ErrorComponentNotOnEntity)
+}
+
+type Foo struct{}
+type Bar struct{}
+
+func (Foo) Name() string {
+	return "a"
+}
+
+func (Bar) Name() string {
+	return "b"
 }
 
 func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	type Foo struct{}
-	type Bar struct{}
+
 	a, b := ecs.NewComponentType[Foo]("a"), ecs.NewComponentType[Bar]("b")
 	assert.NilError(t, world.RegisterComponents(a, b))
 	assert.NilError(t, world.LoadGameState())
@@ -336,7 +365,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	archIDBefore := ent.Loc.ArchID
 
 	// The entity should now be in a different archetype
-	assert.NilError(t, a.RemoveFrom(world, entity))
+	assert.NilError(t, ecs.RemoveFromComponent[Foo](world, entity))
 
 	ent, err = world.StoreManager().GetEntity(entity)
 	assert.NilError(t, err)
@@ -345,14 +374,33 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	assert.Check(t, archIDBefore != archIDAfter)
 }
 
+type Alpha struct {
+	Name1 string
+}
+type Beta struct {
+	Name1 string
+}
+type Gamma struct {
+	Name1 string
+}
+
+func (Alpha) Name() string {
+	return "alpha"
+}
+
+func (Beta) Name() string {
+	return "beta"
+}
+
+func (Gamma) Name() string {
+	return "gamma"
+}
+
 func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	type Label struct {
-		Name string
-	}
-	alpha := ecs.NewComponentType[Label]("alpha", ecs.WithDefault(Label{"alpha"}))
-	beta := ecs.NewComponentType[Label]("beta", ecs.WithDefault(Label{"beta"}))
-	gamma := ecs.NewComponentType[Label]("game", ecs.WithDefault(Label{"gamma"}))
+	alpha := ecs.NewComponentType[Alpha]("alpha", ecs.WithDefault(Alpha{"alpha"}))
+	beta := ecs.NewComponentType[Beta]("beta", ecs.WithDefault(Beta{"beta"}))
+	gamma := ecs.NewComponentType[Gamma]("gamma", ecs.WithDefault(Gamma{"gamma"}))
 	assert.NilError(t, world.RegisterComponents(alpha, beta, gamma))
 	assert.NilError(t, world.LoadGameState())
 
@@ -377,14 +425,14 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	gamma.Each(world, countAgain())
 	assert.Equal(t, 0, count)
 
-	assert.NilError(t, alpha.RemoveFrom(world, entIDs[0]))
+	assert.NilError(t, ecs.RemoveFromComponent[Alpha](world, entIDs[0]))
 
 	// alpha has been removed from entity[0], so only 2 entities should now have alpha
 	alpha.Each(world, countAgain())
 	assert.Equal(t, 2, count)
 
 	// Add gamma to an entity. Now 1 entity should have gamma.
-	assert.NilError(t, gamma.AddTo(world, entIDs[1]))
+	assert.NilError(t, ecs.AddToComponent[Gamma](world, entIDs[1]))
 	gamma.Each(world, countAgain())
 	assert.Equal(t, 1, count)
 
@@ -555,7 +603,7 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 	assert.NilError(t, ecs.SetComponent[ValueComponent2](world, ids[1], &ValueComponent2{100}))
 	assert.NilError(t, ecs.SetComponent[ValueComponent2](world, ids[2], &ValueComponent2{101}))
 
-	assert.NilError(t, otherComp.AddTo(world, ids[0]))
+	assert.NilError(t, ecs.AddToComponent[OtherComponent](world, ids[0]))
 
 	val, err := ecs.GetComponent[ValueComponent2](world, ids[1])
 	//val, err := valComp.Get(world, ids[1])

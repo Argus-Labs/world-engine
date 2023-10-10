@@ -85,13 +85,23 @@ func (c *ComponentType[T]) MustFirst(w *World) entity.ID {
 	return id
 }
 
-// RemoveFrom removes this component from the given entity.
-func (c *ComponentType[T]) RemoveFrom(w *World, id entity.ID) error {
+func RemoveFromComponent[T component.IAbstractComponent](w *World, id entity.ID) error {
+	var t T
+	name := t.Name()
+	c, ok := w.nameToComponent[name]
+	if !ok {
+		return errors.New("Must register component")
+	}
 	return w.StoreManager().RemoveComponentFromEntity(c, id)
 }
 
-// AddTo adds this component to the given entity.
-func (c *ComponentType[T]) AddTo(w *World, id entity.ID) error {
+func AddToComponent[T component.IAbstractComponent](w *World, id entity.ID) error {
+	var t T
+	name := t.Name()
+	c, ok := w.nameToComponent[name]
+	if !ok {
+		return errors.New("Must register component")
+	}
 	return w.StoreManager().AddComponentToEntity(c, id)
 }
 
