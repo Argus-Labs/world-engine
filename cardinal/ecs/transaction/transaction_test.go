@@ -67,7 +67,7 @@ func TestCanQueueTransactions(t *testing.T) {
 		modifyScore := modifyScoreTx.In(queue)
 		for _, txData := range modifyScore {
 			ms := txData.Value
-			err := ecs.UpdateComponent[ScoreComponent](w, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
+			err := score.Update(w, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 				s.Score += ms.Amount
 				return s
 			})
@@ -125,7 +125,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	id, err := world.Create(count)
 	assert.NilError(t, err)
 	world.AddSystem(func(w *ecs.World, _ *transaction.TxQueue, _ *log.Logger) error {
-		return ecs.UpdateComponent[CounterComponent](w, id, func(c *CounterComponent) *CounterComponent {
+		return count.Update(w, id, func(c CounterComponent) CounterComponent {
 			c.Count++
 			return c
 		})
@@ -154,7 +154,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		modifyScores := modifyScoreTx.In(queue)
 		for _, msData := range modifyScores {
 			ms := msData.Value
-			err := ecs.UpdateComponent[ScoreComponent](w, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
+			err := score.Update(w, ms.PlayerID, func(s ScoreComponent) ScoreComponent {
 				s.Score += ms.Amount
 				return s
 			})
