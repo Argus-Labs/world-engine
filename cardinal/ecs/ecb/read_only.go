@@ -16,7 +16,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 )
 
-var _ store.IReader = &readOnlyManager{}
+var _ store.Reader = &readOnlyManager{}
 
 var (
 	ErrorNoArchIDMappingFound = errors.New("no mapping of archID to components found")
@@ -28,7 +28,7 @@ type readOnlyManager struct {
 	archIDToComps   map[archetype.ID][]component.IComponentType
 }
 
-func (m *Manager) NewReadOnlyStore() store.IReader {
+func (m *Manager) NewReadOnlyStore() store.Reader {
 	return &readOnlyManager{
 		client:          m.client,
 		typeToComponent: m.typeToComponent,
@@ -51,8 +51,8 @@ func (r *readOnlyManager) refreshArchIDToCompTypes() error {
 
 // GetEntity converts an entity ID into an entity.Entity.
 // TODO: This is only used in tests, so it should be removed from the StoreManager interface.
+// See: https://linear.app/arguslabs/issue/WORLD-394/remove-getentity-method-from-storemanager
 func (r *readOnlyManager) GetEntity(id entity.ID) (entity.Entity, error) {
-	//TODO implement me
 	panic("implement me")
 }
 
@@ -108,8 +108,12 @@ func (r *readOnlyManager) GetArchIDForComponents(components []component.ICompone
 	if err := sortComponentSet(components); err != nil {
 		return 0, err
 	}
-	for _, tryRefresh := range []bool{false, true} {
-		if tryRefresh {
+
+	// It's slow to refresh the archIDToComps map from redis, and mappings never change (once initially set).
+	// Skip the refreshing from redis in the first pass. Maybe the component set in question is already in our
+	// in-memory map. If we fail to find it on the first pass, refresh the map from redis.
+	for _, refreshMapFromRedis := range []bool{false, true} {
+		if refreshMapFromRedis {
 			if err := r.refreshArchIDToCompTypes(); err != nil {
 				return 0, err
 			}
@@ -134,7 +138,8 @@ func (r *readOnlyManager) GetEntitiesForArchID(archID archetype.ID) []entity.ID 
 	}
 	ids, err := codec.Decode[[]entity.ID](bz)
 	if err != nil {
-		// TODO: This method should allow for returning an error, but this impacts the store.IManager interface
+		// TODO: This should either return an error or never panic.
+		// See https://linear.app/arguslabs/issue/WORLD-395/update-ecbgetentitiesforarchid-to-return-error-or-to-never-panicp
 		panic(err)
 	}
 	return ids

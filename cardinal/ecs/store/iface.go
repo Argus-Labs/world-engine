@@ -11,7 +11,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
-type IReader interface {
+type Reader interface {
 	// One Entity
 	GetEntity(id entity.ID) (entity.Entity, error)
 
@@ -34,7 +34,7 @@ type IReader interface {
 	ArchetypeCount() int
 }
 
-type IWriter interface {
+type Writer interface {
 	// One Entity
 	RemoveEntity(id entity.ID) error
 
@@ -56,6 +56,6 @@ type IWriter interface {
 // IManager represents all the methods required to track Component, Entity, and Archetype information
 // which powers the ECS storage layer.
 type IManager interface {
-	IReader
-	IWriter
+	Reader
+	Writer
 }

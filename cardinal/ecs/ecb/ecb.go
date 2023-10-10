@@ -118,8 +118,8 @@ func (m *Manager) DiscardPending() {
 
 // GetEntity converts an entity ID into an entity.Entity.
 // TODO: This is only used in tests, so it should be removed from the StoreManager interface.
+// See: https://linear.app/arguslabs/issue/WORLD-394/remove-getentity-method-from-storemanager
 func (m *Manager) GetEntity(id entity.ID) (entity.Entity, error) {
-	//TODO implement me
 	panic("implement me")
 }
 
@@ -157,7 +157,7 @@ func (m *Manager) CreateEntity(comps ...component.IComponentType) (entity.ID, er
 
 // CreateManyEntities creates many entities with the given set of components.
 func (m *Manager) CreateManyEntities(num int, comps ...component.IComponentType) ([]entity.ID, error) {
-	archID, err := m.getArchIDForComponentsOrMakeIt(comps)
+	archID, err := m.getOrMakeArchIDForComponents(comps)
 	if err != nil {
 		return nil, err
 	}
@@ -264,11 +264,11 @@ func (m *Manager) AddComponentToEntity(cType component.IComponentType, id entity
 		return err
 	}
 
-	toArchID, err := m.getArchIDForComponentsOrMakeIt(toComps)
+	toArchID, err := m.getOrMakeArchIDForComponents(toComps)
 	if err != nil {
 		return err
 	}
-	fromArchID, err := m.getArchIDForComponentsOrMakeIt(fromComps)
+	fromArchID, err := m.getOrMakeArchIDForComponents(fromComps)
 	if err != nil {
 		return err
 	}
@@ -295,16 +295,16 @@ func (m *Manager) RemoveComponentFromEntity(cType component.IComponentType, id e
 		return storage.ErrorComponentNotOnEntity
 	}
 	if len(newCompSet) == 0 {
-		return errors.New("cannot remove all components form an entity")
+		return errors.New("cannot remove all components from an entity")
 	}
 	key := compKey{cType.ID(), id}
 	delete(m.compValues, key)
 	m.compValuesToDelete[key] = true
-	fromArchID, err := m.getArchIDForComponentsOrMakeIt(comps)
+	fromArchID, err := m.getOrMakeArchIDForComponents(comps)
 	if err != nil {
 		return err
 	}
-	toArchID, err := m.getArchIDForComponentsOrMakeIt(newCompSet)
+	toArchID, err := m.getOrMakeArchIDForComponents(newCompSet)
 	if err != nil {
 		return err
 	}
@@ -348,7 +348,8 @@ func (m *Manager) GetArchIDForComponents(components []component.IComponentType) 
 func (m *Manager) GetEntitiesForArchID(archID archetype.ID) []entity.ID {
 	active, err := m.getActiveEntities(archID)
 	if err != nil {
-		// TODO: This shouldn't be a panic. The error should be returned.
+		// TODO: This should either return an error or never panic.
+		// See https://linear.app/arguslabs/issue/WORLD-395/update-ecbgetentitiesforarchid-to-return-error-or-to-never-panicp
 		panic(err)
 	}
 	return active.ids
@@ -421,10 +422,10 @@ func (m *Manager) nextEntityID() (entity.ID, error) {
 	return entity.ID(id), nil
 }
 
-// getArchIDForComponentsOrMakeIt converts the given set of components into an archetype ID. If the set of components
+// getOrMakeArchIDForComponents converts the given set of components into an archetype ID. If the set of components
 // has already been assigned an archetype ID, that ID is returned. If this is a new set of components, an archetype ID is
 // generated.
-func (m *Manager) getArchIDForComponentsOrMakeIt(comps []component.IComponentType) (archetype.ID, error) {
+func (m *Manager) getOrMakeArchIDForComponents(comps []component.IComponentType) (archetype.ID, error) {
 	archID, err := m.GetArchIDForComponents(comps)
 	if err == nil {
 		return archID, nil
