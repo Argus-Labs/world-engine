@@ -40,7 +40,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	count := 0
 	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id entity.ID) bool {
 		count++
-		sc, err := ecs.SignerComp.Get(world, id)
+		sc, err := ecs.GetComponent[ecs.SignerComponent](world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantAddress)
@@ -144,7 +144,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	count := 0
 	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id entity.ID) bool {
 		count++
-		sc, err := ecs.SignerComp.Get(world, id)
+		sc, err := ecs.GetComponent[ecs.SignerComponent](world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantSigner)

@@ -31,17 +31,23 @@ type EnergyComp struct {
 	value int
 }
 
+func (EnergyComp) Name() string {
+	return "EnergyComp"
+}
+
 var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
 
 func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error {
 	logger.Log().Msg("test")
 	energy.Each(w, func(entityId entity.ID) bool {
-		energyPlanet, err := energy.Get(w, entityId)
+		energyPlanet, err := ecs.GetComponent[EnergyComp](w, entityId)
+		//energyPlanet, err := energy.Get(w, entityId)
 		if err != nil {
 			return false
 		}
 		energyPlanet.value += 10 // bs whatever
-		err = energy.Set(w, entityId, energyPlanet)
+		err = ecs.SetComponent[EnergyComp](w, entityId, energyPlanet)
+		//err = energy.Set(w, entityId, energyPlanet)
 		if err != nil {
 			return false
 		}
