@@ -64,7 +64,8 @@ func AuthorizePersonaAddressSystem(world *World, queue *transaction.TxQueue, _ *
 			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
 			continue
 		}
-		err = SignerComp.Update(world, data.EntityID, func(component SignerComponent) SignerComponent {
+
+		err = UpdateComponent[SignerComponent](world, data.EntityID, func(component *SignerComponent) *SignerComponent {
 			// check if this address already exists
 			for _, addr := range component.AuthorizedAddresses {
 				// if its already in the authorized addresses slice, just return the component.
@@ -75,6 +76,7 @@ func AuthorizePersonaAddressSystem(world *World, queue *transaction.TxQueue, _ *
 			component.AuthorizedAddresses = append(component.AuthorizedAddresses, tx.Value.Address)
 			return component
 		})
+
 		if err != nil {
 			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, err)
 			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
