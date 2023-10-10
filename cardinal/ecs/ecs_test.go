@@ -479,13 +479,14 @@ func TestUpdateWithPointerType(t *testing.T) {
 	id, err := world.Create(hpComp)
 	assert.NilError(t, err)
 
-	hpComp.Update(world, id, func(h *HealthComponent) *HealthComponent {
+	err = ecs.UpdateComponent[HealthComponent](world, id, func(h *HealthComponent) *HealthComponent {
 		if h == nil {
 			h = &HealthComponent{}
 		}
 		h.HP += 100
 		return h
 	})
+	assert.NilError(t, err)
 
 	hp, err := ecs.GetComponent[HealthComponent](world, id)
 	//hp, err := hpComp.Get(world, id)
