@@ -5,7 +5,7 @@ go 1.21
 replace (
 	// cosmossdk.io/x/evidence => github.com/rollkit/cosmos-sdk/x/evidence v0.0.0-20230721012257-443317a43b03
 	// github.com/cometbft/cometbft => github.com/rollkit/cometbft v0.0.0-20230614163111-d6a8d2c98cc0
-	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.50.0-rc.0-rollkit-v0.11.0-rc0-no-fraud-proofs-test
+	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.50.0-rc.0-rollkit-v0.11.0-rc1-no-fraud-proofs
 	//v0.46.0-beta2.0.20230721012257-443317a43b03
 	// Required for stateful precompiles and supporting the Ethereum JSON-RPC API.
 	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20230824153638-497f3de05c05
@@ -47,6 +47,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
+	github.com/rs/zerolog v1.30.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
@@ -90,12 +91,12 @@ require (
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect
 	github.com/bufbuild/protocompile v0.6.0 // indirect
 	github.com/bytedance/sonic v1.10.0 // indirect
-	github.com/celestiaorg/go-fraud v0.1.2 // indirect
-	github.com/celestiaorg/go-header v0.2.13 // indirect
+	github.com/celestiaorg/go-fraud v0.2.0 // indirect
+	github.com/celestiaorg/go-header v0.3.1 // indirect
 	github.com/celestiaorg/go-libp2p-messenger v0.2.0 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/nmt v0.18.1 // indirect
-	github.com/celestiaorg/rsmt2d v0.10.0 // indirect
+	github.com/celestiaorg/nmt v0.19.0 // indirect
+	github.com/celestiaorg/rsmt2d v0.11.0 // indirect
 	github.com/celestiaorg/utils v0.1.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
@@ -153,7 +154,7 @@ require (
 	github.com/getsentry/sentry-go v0.23.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
 	github.com/gin-gonic/gin v1.9.1 // indirect
-	github.com/go-kit/kit v0.12.0 // indirect
+	github.com/go-kit/kit v0.13.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
@@ -233,7 +234,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.16.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
-	github.com/klauspost/reedsolomon v1.11.1 // indirect
+	github.com/klauspost/reedsolomon v1.11.8 // indirect
 	github.com/koron/go-ssdp v0.0.4 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
@@ -311,10 +312,9 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
-	github.com/rollkit/celestia-openrpc v0.1.2 // indirect
-	github.com/rollkit/rollkit v0.11.0-rc0 // indirect
+	github.com/rollkit/celestia-openrpc v0.2.0 // indirect
+	github.com/rollkit/rollkit v0.11.0-rc1 // indirect
 	github.com/rs/cors v1.9.0 // indirect
-	github.com/rs/zerolog v1.30.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
@@ -355,15 +355,15 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.25.0 // indirect
 	golang.org/x/arch v0.4.0 // indirect
-	golang.org/x/crypto v0.12.0 // indirect
+	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
 	golang.org/x/mod v0.12.0 // indirect
-	golang.org/x/net v0.14.0 // indirect
+	golang.org/x/net v0.15.0 // indirect
 	golang.org/x/oauth2 v0.8.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
-	golang.org/x/sys v0.11.0 // indirect
-	golang.org/x/term v0.11.0 // indirect
-	golang.org/x/text v0.12.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/term v0.12.0 // indirect
+	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.12.1-0.20230818141832-9425c2e70961 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
