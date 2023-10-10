@@ -1,4 +1,4 @@
-package cmdbuffer_test
+package ecb_test
 
 import (
 	"testing"
@@ -7,21 +7,21 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/cmdbuffer"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
-func newCmdBufferForTest(t *testing.T) *cmdbuffer.Manager {
+func newCmdBufferForTest(t *testing.T) *ecb.Manager {
 	manager, _ := newCmdBufferAndRedisClientForTest(t, nil)
 	return manager
 }
 
-// newCmdBufferAndRedisClientForTest creates a cmdbuffer.Manager using the given redis client. If the passed in redis
+// newCmdBufferAndRedisClientForTest creates a ecb.Manager using the given redis client. If the passed in redis
 // client is nil, a redis client is created.
-func newCmdBufferAndRedisClientForTest(t *testing.T, client *redis.Client) (*cmdbuffer.Manager, *redis.Client) {
+func newCmdBufferAndRedisClientForTest(t *testing.T, client *redis.Client) (*ecb.Manager, *redis.Client) {
 	if client == nil {
 		s := miniredis.RunT(t)
 		options := redis.Options{
@@ -32,7 +32,7 @@ func newCmdBufferAndRedisClientForTest(t *testing.T, client *redis.Client) (*cmd
 
 		client = redis.NewClient(&options)
 	}
-	manager, err := cmdbuffer.NewManager(client)
+	manager, err := ecb.NewManager(client)
 	assert.NilError(t, err)
 	assert.NilError(t, manager.RegisterComponents(allComponents))
 	return manager, client

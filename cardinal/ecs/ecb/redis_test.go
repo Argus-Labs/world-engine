@@ -1,7 +1,7 @@
-package cmdbuffer
+package ecb
 
-// Most tests in this package are under cmdbuffer_test. This makes the tests act like external clients
-// that can import both the ecs package and the cmdbuffer package. Tests in this file verify that the
+// Most tests in this package are under ecb_test.go. This makes the tests act like external clients
+// that can import both the ecs package and the ecb package. Tests in this file verify that the
 // internal state of redis is correct, so they need access to the package private methods in keys.go.
 
 import (

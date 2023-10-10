@@ -1,4 +1,4 @@
-package cmdbuffer_test
+package ecb_test
 
 import (
 	"testing"

@@ -1,5 +1,5 @@
 /*
-Package cmdbuffer allows for buffering of state changes to the ECS storage layer, and either committing those changes
+Package ecb allows for buffering of state changes to the ECS storage layer, and either committing those changes
 in an atomic Redis transaction, or discarding the changes. In either case, the underlying Redis DB is never in an
 intermediate state.
 
@@ -67,4 +67,4 @@ these keys and rebuild the other mapping in memory.
 In memory, compValues are written to redis during a CommitPending cycle. Components that were not actually changed (e.g.
 only read operations were performed) are still written to the DB.
 */
-package cmdbuffer
+package ecb

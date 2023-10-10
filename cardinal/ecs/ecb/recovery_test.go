@@ -1,11 +1,11 @@
-package cmdbuffer_test
+package ecb_test
 
 import (
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/cmdbuffer"
+	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
@@ -54,7 +54,7 @@ func TestComponentSetsCanBeRecovered(t *testing.T) {
 	assert.Equal(t, firstArchID, secondArchID)
 }
 
-func getArchIDForEntity(t *testing.T, m *cmdbuffer.Manager, id entity.ID) archetype.ID {
+func getArchIDForEntity(t *testing.T, m *ecb.Manager, id entity.ID) archetype.ID {
 	comps, err := m.GetComponentTypesForEntity(id)
 	assert.NilError(t, err)
 	archID, err := m.GetArchIDForComponents(comps)
