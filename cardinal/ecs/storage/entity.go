@@ -54,8 +54,9 @@ var (
 )
 
 var (
-	ErrorComponentAlreadyOnEntity = errors.New("component already on entity")
-	ErrorComponentNotOnEntity     = errors.New("component not on entity")
+	ErrorComponentAlreadyOnEntity          = errors.New("component already on entity")
+	ErrorComponentNotOnEntity              = errors.New("component not on entity")
+	ErrorEntityMustHaveAtLeastOneComponent = errors.New("entities must have at least 1 component")
 )
 
 var _ StateStorage = &stateStorageImpl{}

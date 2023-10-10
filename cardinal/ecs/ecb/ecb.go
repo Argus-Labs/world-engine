@@ -295,7 +295,7 @@ func (m *Manager) RemoveComponentFromEntity(cType component.IComponentType, id e
 		return storage.ErrorComponentNotOnEntity
 	}
 	if len(newCompSet) == 0 {
-		return errors.New("cannot remove all components from an entity")
+		return storage.ErrorEntityMustHaveAtLeastOneComponent
 	}
 	key := compKey{cType.ID(), id}
 	delete(m.compValues, key)
