@@ -46,16 +46,6 @@ func (c *ComponentType[T]) Name() string {
 	return c.impl.Name()
 }
 
-// RemoveFrom removes this component from the given entity.
-func (c *ComponentType[T]) RemoveFrom(w *World, id EntityID) error {
-	return c.impl.RemoveFrom(w.implWorld, id)
-}
-
-// AddTo adds this component to the given entity.
-func (c *ComponentType[T]) AddTo(w *World, id EntityID) error {
-	return c.impl.AddTo(w.implWorld, id)
-}
-
 // Convert implements the AnyComponentType interface which allows a ComponentType to be registered
 // with a World via RegisterComponents.
 func (c *ComponentType[T]) Convert() component.IComponentType {
