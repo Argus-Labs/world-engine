@@ -62,7 +62,7 @@ func TestWithoutRegistration(t *testing.T) {
 	id, err := world.Create(Energy, Ownable)
 	assert.Assert(t, err != nil)
 
-	err = ecs.UpdateComponent[EnergyComponent](world, id, func(component *EnergyComponent) *EnergyComponent {
+	err = Energy.Update(world, id, func(component EnergyComponent) EnergyComponent {
 		component.Amt += 50
 		return component
 	})
@@ -79,7 +79,7 @@ func TestWithoutRegistration(t *testing.T) {
 	assert.NilError(t, err)
 	id, err = world.Create(Energy, Ownable)
 	assert.NilError(t, err)
-	err = ecs.UpdateComponent[EnergyComponent](world, id, func(component *EnergyComponent) *EnergyComponent {
+	err = Energy.Update(world, id, func(component EnergyComponent) EnergyComponent {
 		component.Amt += 50
 		return component
 	})
