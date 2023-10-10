@@ -56,6 +56,12 @@ func (c *ComponentType[T]) AddTo(w *World, id EntityID) error {
 	return c.impl.AddTo(w.implWorld, id)
 }
 
+// Update updates the component data that is associated with the given EntityID. It is a convenience wrapper
+// for a Get followed by a Set.
+func (c *ComponentType[T]) Update(w *World, id EntityID, fn func(T) T) error {
+	return c.impl.Update(w.implWorld, id, fn)
+}
+
 // Convert implements the AnyComponentType interface which allows a ComponentType to be registered
 // with a World via RegisterComponents.
 func (c *ComponentType[T]) Convert() component.IComponentType {
