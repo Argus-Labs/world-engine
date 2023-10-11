@@ -18,6 +18,10 @@ type ScoreComponent struct {
 	Score int
 }
 
+func (ScoreComponent) Name() string {
+	return "score"
+}
+
 type ModifyScoreTx struct {
 	PlayerID entity.ID
 	Amount   int
@@ -63,7 +67,7 @@ func TestCanQueueTransactions(t *testing.T) {
 		modifyScore := modifyScoreTx.In(queue)
 		for _, txData := range modifyScore {
 			ms := txData.Value
-			err := score.Update(w, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
+			err := ecs.UpdateComponent[ScoreComponent](w, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 				s.Score += ms.Amount
 				return s
 			})
@@ -77,10 +81,11 @@ func TestCanQueueTransactions(t *testing.T) {
 
 	modifyScoreTx.AddToQueue(world, &ModifyScoreTx{id, 100})
 
-	assert.NilError(t, score.Set(world, id, &ScoreComponent{}))
+	assert.NilError(t, ecs.SetComponent[ScoreComponent](world, id, &ScoreComponent{}))
 
 	// Verify the score is 0
-	s, err := score.Get(world, id)
+	s, err := ecs.GetComponent[ScoreComponent](world, id)
+	//s, err := score.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 0, s.Score)
 
@@ -88,7 +93,8 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	// Verify the score was updated
-	s, err = score.Get(world, id)
+	s, err = ecs.GetComponent[ScoreComponent](world, id)
+	//s, err = score.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, s.Score)
 
@@ -96,23 +102,30 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	// Verify the score hasn't changed
-	s, err = score.Get(world, id)
+	s, err = ecs.GetComponent[ScoreComponent](world, id)
+	//s, err = score.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, s.Score)
 }
 
+type CounterComponent struct {
+	Count int
+}
+
+func (CounterComponent) Name() string {
+	return "count"
+}
+
 func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	type CounterComponent struct {
-		Count int
-	}
+
 	count := ecs.NewComponentType[CounterComponent]("count")
 	assert.NilError(t, world.RegisterComponents(count))
 
 	id, err := world.Create(count)
 	assert.NilError(t, err)
 	world.AddSystem(func(w *ecs.World, _ *transaction.TxQueue, _ *log.Logger) error {
-		return count.Update(w, id, func(c CounterComponent) CounterComponent {
+		return ecs.UpdateComponent[CounterComponent](w, id, func(c *CounterComponent) *CounterComponent {
 			c.Count++
 			return c
 		})
@@ -123,15 +136,16 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 		assert.NilError(t, world.Tick(context.Background()))
 	}
 
-	c, err := count.Get(world, id)
+	c, err := ecs.GetComponent[CounterComponent](world, id)
+	//c, err := count.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 10, c.Count)
 }
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	alphaScore := ecs.NewComponentType[ScoreComponent]("alphaScore")
-	assert.NilError(t, world.RegisterComponents(alphaScore))
+	score := ecs.NewComponentType[ScoreComponent]("score")
+	assert.NilError(t, world.RegisterComponents(score))
 
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
@@ -140,7 +154,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		modifyScores := modifyScoreTx.In(queue)
 		for _, msData := range modifyScores {
 			ms := msData.Value
-			err := alphaScore.Update(w, ms.PlayerID, func(s ScoreComponent) ScoreComponent {
+			err := ecs.UpdateComponent[ScoreComponent](w, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 				s.Score += ms.Amount
 				return s
 			})
@@ -150,7 +164,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	})
 	assert.NilError(t, world.LoadGameState())
 
-	ids, err := world.CreateMany(100, alphaScore)
+	ids, err := world.CreateMany(100, score)
 	assert.NilError(t, err)
 	// Entities at index 5, 10 and 50 will be updated with some values
 	modifyScoreTx.AddToQueue(world, &ModifyScoreTx{
@@ -177,7 +191,8 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		} else if i == 50 {
 			wantScore = 150
 		}
-		s, err := alphaScore.Get(world, id)
+		s, err := ecs.GetComponent[ScoreComponent](world, id)
+		//s, err := score.Get(world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, wantScore, s.Score)
 	}

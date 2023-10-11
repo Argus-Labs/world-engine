@@ -13,12 +13,28 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
+type alphaComponent struct{}
+type betaComponent struct{}
+type gammaComponent struct{}
+
+func (alphaComponent) Name() string {
+	return "alpha"
+}
+
+func (betaComponent) Name() string {
+	return "beta"
+}
+
+func (gammaComponent) Name() string {
+	return "gamma"
+}
+
 func TestCanFilterByArchetype(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 
-	alpha := ecs.NewComponentType[string]("alpha")
-	beta := ecs.NewComponentType[string]("beta")
-	gamma := ecs.NewComponentType[string]("gamma")
+	alpha := ecs.NewComponentType[alphaComponent]("alpha")
+	beta := ecs.NewComponentType[betaComponent]("beta")
+	gamma := ecs.NewComponentType[gammaComponent]("gamma")
 
 	assert.NilError(t, world.RegisterComponents(alpha, beta, gamma))
 	assert.NilError(t, world.LoadGameState())
@@ -37,7 +53,8 @@ func TestCanFilterByArchetype(t *testing.T) {
 	ecs.NewQuery(filter.Exact(alpha, beta)).Each(world, func(id entity.ID) bool {
 		count++
 		// Make sure the gamma component is not on this entity
-		_, err := gamma.Get(world, id)
+		_, err := ecs.GetComponent[gammaComponent](world, id)
+		//_, err := gamma.Get(world, id)
 		assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
 		return true
 	})

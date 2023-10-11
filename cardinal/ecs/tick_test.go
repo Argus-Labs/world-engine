@@ -9,9 +9,10 @@ import (
 	"io"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog"
-	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
@@ -95,14 +96,27 @@ func findLastJSON(buf []byte) (json.RawMessage, error) {
 	return lastVal, nil
 }
 
+type onePowerComponent struct {
+	Power int
+}
+
+func (onePowerComponent) Name() string {
+	return "onePower"
+}
+
+type twoPowerComponent struct {
+	Power int
+}
+
+func (twoPowerComponent) Name() string {
+	return "twoPower"
+}
+
 func TestCanIdentifyAndFixSystemError(t *testing.T) {
-	type PowerComponent struct {
-		Power int
-	}
 
 	rs := miniredis.RunT(t)
 	oneWorld := testutil.InitWorldWithRedis(t, rs)
-	onePower := ecs.NewComponentType[PowerComponent]("onePower")
+	onePower := ecs.NewComponentType[onePowerComponent]("onePower")
 	assert.NilError(t, oneWorld.RegisterComponents(onePower))
 
 	id, err := oneWorld.Create(onePower)
@@ -112,7 +126,8 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	// In this test, our "buggy" system fails once Power reaches 3
 	oneWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		p, err := onePower.Get(world, id)
+		p, err := ecs.GetComponent[onePowerComponent](world, id)
+		//p, err := onePower.Get(world, id)
 		if err != nil {
 			return err
 		}
@@ -120,7 +135,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 		if p.Power >= 3 {
 			return errorSystem
 		}
-		return onePower.Set(world, id, p)
+		return ecs.SetComponent[onePowerComponent](world, id, p)
 	})
 	assert.NilError(t, oneWorld.LoadGameState())
 
@@ -133,48 +148,64 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	// Set up a new world using the same storage layer
 	twoWorld := testutil.InitWorldWithRedis(t, rs)
-	twoPower := ecs.NewComponentType[*PowerComponent]("twoPower")
+	twoPower := ecs.NewComponentType[*twoPowerComponent]("twoPower")
 	assert.NilError(t, twoWorld.RegisterComponents(onePower, twoPower))
 
 	// this is our fixed system that can handle Power levels of 3 and higher
 	twoWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		p, err := onePower.Get(world, id)
+		p, err := ecs.GetComponent[onePowerComponent](world, id)
+		//p, err := onePower.Get(world, id)
 		if err != nil {
 			return err
 		}
 		p.Power++
-		return onePower.Set(world, id, p)
+		return ecs.SetComponent[onePowerComponent](world, id, p)
 	})
 
 	// Loading a game state with the fixed system should automatically finish the previous tick.
 	assert.NilError(t, twoWorld.LoadGameState())
-	p, err := onePower.Get(twoWorld, id)
+	p, err := ecs.GetComponent[onePowerComponent](twoWorld, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 3, p.Power)
 
 	// Just for fun, tick one last time to make sure power is still being incremented.
 	assert.NilError(t, twoWorld.Tick(context.Background()))
-	p, err = onePower.Get(twoWorld, id)
+	p1, err := ecs.GetComponent[onePowerComponent](twoWorld, id)
+	//p, err = onePower.Get(twoWorld, id)
 	assert.NilError(t, err)
-	assert.Equal(t, 4, p.Power)
+	assert.Equal(t, 4, p1.Power)
+}
+
+type ScalarComponentAlpha struct {
+	Val int
+}
+
+type ScalarComponentBeta struct {
+	Val int
+}
+
+func (ScalarComponentAlpha) Name() string {
+	return "alpha"
+}
+
+func (ScalarComponentBeta) Name() string {
+	return "beta"
 }
 
 func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
-	type ScalarComponent struct {
-		Val int
-	}
+
 	world := ecs.NewTestWorld(t)
-	alpha := ecs.NewComponentType[ScalarComponent]("alpha")
-	beta := ecs.NewComponentType[ScalarComponent]("beta")
-	assert.NilError(t, world.RegisterComponents(alpha))
+	alpha := ecs.NewComponentType[ScalarComponentAlpha]("alpha")
+	beta := ecs.NewComponentType[ScalarComponentBeta]("beta")
+	assert.NilError(t, world.RegisterComponents(alpha, beta))
 	assert.NilError(t, world.LoadGameState())
 
 	wantID, err := world.Create(alpha)
 	assert.NilError(t, err)
 
-	wantScalar := ScalarComponent{99}
+	wantScalar := ScalarComponentAlpha{99}
 
-	assert.NilError(t, alpha.Set(world, wantID, wantScalar))
+	assert.NilError(t, ecs.SetComponent[ScalarComponentAlpha](world, wantID, &wantScalar))
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
@@ -183,32 +214,46 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 		assert.Equal(t, wantID, gotID)
 
 		// Make sure the associated component is correct
-		gotScalar, err := alpha.Get(world, wantID)
+		gotScalar, err := ecs.GetComponent[ScalarComponentAlpha](world, wantID)
 		assert.NilError(t, err)
-		assert.Equal(t, wantScalar, gotScalar)
+		assert.Equal(t, wantScalar, *gotScalar)
 	}
 
 	// Make sure we can find the one-and-only entity ID
 	verifyCanFindEntity()
 
 	// Add on the beta component
-	assert.NilError(t, beta.AddTo(world, wantID))
+	assert.NilError(t, ecs.AddComponentTo[Beta](world, wantID))
 	verifyCanFindEntity()
 
 	// Remove the beta component
-	assert.NilError(t, beta.RemoveFrom(world, wantID))
+	assert.NilError(t, ecs.RemoveComponentFrom[Beta](world, wantID))
 	verifyCanFindEntity()
 }
 
+type ScalarComponentStatic struct {
+	Val int
+}
+
+type ScalarComponentToggle struct {
+	Val int
+}
+
+func (ScalarComponentStatic) Name() string {
+	return "static"
+}
+
+func (ScalarComponentToggle) Name() string {
+	return "toggle"
+}
+
 func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
-	type ScalarComponent struct {
-		Val int
-	}
+
 	rs := miniredis.RunT(t)
 	for _, firstWorldIteration := range []bool{true, false} {
 		world := testutil.InitWorldWithRedis(t, rs)
-		static := ecs.NewComponentType[ScalarComponent]("static")
-		toggle := ecs.NewComponentType[ScalarComponent]("toggle")
+		static := ecs.NewComponentType[ScalarComponentStatic]("static")
+		toggle := ecs.NewComponentType[ScalarComponentToggle]("toggle")
 		assert.NilError(t, world.RegisterComponents(static, toggle))
 
 		if firstWorldIteration {
@@ -222,14 +267,15 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			id, err := static.First(w)
 			assert.NilError(t, err)
 
-			s, err := static.Get(w, id)
+			s, err := ecs.GetComponent[ScalarComponentStatic](w, id)
+			//s, err := static.Get(w, id)
 			assert.NilError(t, err)
 			s.Val++
-			assert.NilError(t, static.Set(w, id, s))
+			assert.NilError(t, ecs.SetComponent[ScalarComponentStatic](w, id, s))
 			if s.Val%2 == 1 {
-				assert.NilError(t, toggle.AddTo(w, id))
+				assert.NilError(t, ecs.AddComponentTo[ScalarComponentToggle](w, id))
 			} else {
-				assert.NilError(t, toggle.RemoveFrom(w, id))
+				assert.NilError(t, ecs.RemoveComponentFrom[ScalarComponentToggle](w, id))
 			}
 
 			if firstWorldIteration && s.Val == 5 {
@@ -248,7 +294,8 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 				assert.NilError(t, world.Tick(context.Background()))
 			}
 			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
-			_, err := toggle.Get(world, id)
+			_, err := ecs.GetComponent[ScalarComponentToggle](world, id)
+			//_, err := toggle.Get(world, id)
 			assert.ErrorIs(t, storage.ErrorComponentNotOnEntity, err)
 
 			// Ticking again should result in an error
@@ -256,40 +303,49 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		} else {
 			// At this second iteration, the errorToggleComponent bug has been fixed. static.Val should be 5
 			// and toggle should have just been added to the entity.
-			_, err := toggle.Get(world, id)
+			_, err := ecs.GetComponent[ScalarComponentToggle](world, id)
+			//_, err := toggle.Get(world, id)
 			assert.NilError(t, err)
 
-			s, err := static.Get(world, id)
+			s, err := ecs.GetComponent[ScalarComponentStatic](world, id)
+
+			//s, err := static.Get(world, id)
 			assert.NilError(t, err)
 			assert.Equal(t, 5, s.Val)
 		}
 	}
 }
 
+type PowerComp struct {
+	Val float64
+}
+
+func (PowerComp) Name() string {
+	return "powerComp"
+}
+
 func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
-	type FloatValue struct {
-		Val float64
-	}
+
 	rs := miniredis.RunT(t)
 	errorBadPowerChange := errors.New("bad power change transaction")
 	for _, isBuggyIteration := range []bool{true, false} {
 		world := testutil.InitWorldWithRedis(t, rs)
 
-		powerComp := ecs.NewComponentType[FloatValue]("powerComp")
+		powerComp := ecs.NewComponentType[PowerComp]("powerComp")
 		assert.NilError(t, world.RegisterComponents(powerComp))
 
-		powerTx := ecs.NewTransactionType[FloatValue, FloatValue]("change_power")
+		powerTx := ecs.NewTransactionType[PowerComp, PowerComp]("change_power")
 		assert.NilError(t, world.RegisterTransactions(powerTx))
 
 		world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 			id := powerComp.MustFirst(w)
-			entityPower, err := powerComp.Get(w, id)
+			entityPower, err := ecs.GetComponent[PowerComp](w, id)
 			assert.NilError(t, err)
 
 			changes := powerTx.In(queue)
 			assert.Equal(t, 1, len(changes))
 			entityPower.Val += changes[0].Value.Val
-			assert.NilError(t, powerComp.Set(w, id, entityPower))
+			assert.NilError(t, ecs.SetComponent[PowerComp](w, id, entityPower))
 
 			if isBuggyIteration && changes[0].Value.Val == 666 {
 				return errorBadPowerChange
@@ -308,31 +364,32 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		fetchPower := func() float64 {
 			id, err := powerComp.First(world)
 			assert.NilError(t, err)
-			power, err := powerComp.Get(world, id)
+			power, err := ecs.GetComponent[PowerComp](world, id)
+			//power, err := powerComp.Get(world, id)
 			assert.NilError(t, err)
 			return power.Val
 		}
 
 		if isBuggyIteration {
 			// perform a few ticks that will not result in an error
-			powerTx.AddToQueue(world, FloatValue{1000})
+			powerTx.AddToQueue(world, PowerComp{1000})
 			assert.NilError(t, world.Tick(context.Background()))
-			powerTx.AddToQueue(world, FloatValue{1000})
+			powerTx.AddToQueue(world, PowerComp{1000})
 			assert.NilError(t, world.Tick(context.Background()))
-			powerTx.AddToQueue(world, FloatValue{1000})
+			powerTx.AddToQueue(world, PowerComp{1000})
 			assert.NilError(t, world.Tick(context.Background()))
 
 			assert.Equal(t, float64(3000), fetchPower())
 
 			// In this "buggy" iteration, the above system cannot handle a power of 666.
-			powerTx.AddToQueue(world, FloatValue{666})
+			powerTx.AddToQueue(world, PowerComp{666})
 			assert.ErrorIs(t, errorBadPowerChange, world.Tick(context.Background()))
 		} else {
 			// Loading the game state above should successfully re-process that final 666 transactions.
 			assert.Equal(t, float64(3666), fetchPower())
 
 			// One more tick for good measure
-			powerTx.AddToQueue(world, FloatValue{1000})
+			powerTx.AddToQueue(world, PowerComp{1000})
 			assert.NilError(t, world.Tick(context.Background()))
 
 			assert.Equal(t, float64(4666), fetchPower())

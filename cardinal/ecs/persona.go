@@ -43,45 +43,35 @@ var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, Auth
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
 func AuthorizePersonaAddressSystem(world *World, queue *transaction.TxQueue, _ *log.Logger) error {
-	txs := AuthorizePersonaAddressTx.In(queue)
-	if len(txs) == 0 {
-		return nil
-	}
 	personaTagToAddress, err := buildPersonaTagMapping(world)
 	if err != nil {
 		return err
 	}
-	for _, tx := range txs {
-		if tx.Sig.PersonaTag != tx.Value.PersonaTag {
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, fmt.Errorf("signer does not match request"))
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
+	AuthorizePersonaAddressTx.ForEach(world, queue, func(tx TxData[AuthorizePersonaAddress]) (AuthorizePersonaAddressResult, error) {
+		val, sig := tx.Value, tx.Sig
+		result := AuthorizePersonaAddressResult{Success: false}
+		if sig.PersonaTag != val.PersonaTag {
+			return AuthorizePersonaAddressResult{Success: false}, fmt.Errorf("sigher does not match request")
 		}
 		data, ok := personaTagToAddress[tx.Value.PersonaTag]
 		if !ok {
-			// This PersonaTag has not been registered.
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, fmt.Errorf("persona does not exist"))
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
+			return result, fmt.Errorf("persona does not exist")
 		}
-		err = SignerComp.Update(world, data.EntityID, func(component SignerComponent) SignerComponent {
-			// check if this address already exists
-			for _, addr := range component.AuthorizedAddresses {
-				// if its already in the authorized addresses slice, just return the component.
-				if addr == tx.Value.Address {
-					return component
+		err = UpdateComponent[SignerComponent](world, data.EntityID, func(s *SignerComponent) *SignerComponent {
+			for _, addr := range s.AuthorizedAddresses {
+				if addr == val.Address {
+					return s
 				}
 			}
-			component.AuthorizedAddresses = append(component.AuthorizedAddresses, tx.Value.Address)
-			return component
+			s.AuthorizedAddresses = append(s.AuthorizedAddresses, val.Address)
+			return s
 		})
 		if err != nil {
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, err)
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
+			return result, fmt.Errorf("unable to update signer component with address: %w", err)
 		}
-		AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: true})
-	}
+		result.Success = true
+		return result, nil
+	})
 	return nil
 }
 
@@ -89,6 +79,10 @@ type SignerComponent struct {
 	PersonaTag          string
 	SignerAddress       string
 	AuthorizedAddresses []string
+}
+
+func (SignerComponent) Name() string {
+	return "SignerComponent"
 }
 
 // SignerComp is the concrete ECS component that pairs a persona tag to a signer address.
@@ -103,7 +97,7 @@ func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, e
 	personaTagToAddress := map[string]personaTagComponentData{}
 	var errs []error
 	NewQuery(filter.Exact(SignerComp)).Each(world, func(id entity.ID) bool {
-		sc, err := SignerComp.Get(world, id)
+		sc, err := GetComponent[SignerComponent](world, id)
 		if err != nil {
 			errs = append(errs, err)
 			return true
@@ -142,7 +136,7 @@ func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *log.Logg
 			CreatePersonaTx.AddError(world, txData.TxHash, err)
 			continue
 		}
-		if err := SignerComp.Set(world, id, SignerComponent{
+		if err := SetComponent[SignerComponent](world, id, &SignerComponent{
 			PersonaTag:    tx.PersonaTag,
 			SignerAddress: tx.SignerAddress,
 		}); err != nil {
@@ -175,7 +169,8 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 	}
 	var errs []error
 	NewQuery(filter.Exact(SignerComp)).Each(w, func(id entity.ID) bool {
-		sc, err := SignerComp.Get(w, id)
+		sc, err := GetComponent[SignerComponent](w, id)
+		//sc, err := SignerComp.Get(w, id)
 		if err != nil {
 			errs = append(errs, err)
 		}

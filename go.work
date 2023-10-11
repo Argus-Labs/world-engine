@@ -5,5 +5,6 @@ use (
 	chain
 	chain/contracts
 	magefiles
+	relay/nakama
 	sign
 )

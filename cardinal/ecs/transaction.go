@@ -147,6 +147,16 @@ func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxH
 	return value, errs, true
 }
 
+func (t *TransactionType[In, Out]) ForEach(world *World, tq *transaction.TxQueue, fn func(TxData[In]) (Out, error)) {
+	for _, tx := range t.In(tq) {
+		if result, err := fn(tx); err != nil {
+			t.AddError(world, tx.TxHash, err)
+		} else {
+			t.SetResult(world, tx.TxHash, result)
+		}
+	}
+}
+
 // In extracts all the transactions in the transaction queue that match this TransactionType's ID.
 func (t *TransactionType[In, Out]) In(tq *transaction.TxQueue) []TxData[In] {
 	var txs []TxData[In]
