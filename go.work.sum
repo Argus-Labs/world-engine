@@ -1155,8 +1155,11 @@ github.com/hashicorp/memberlist v0.5.0/go.mod h1:yvyXLpo0QaGE59Y7hDTsTzDD25JYBZ4
 github.com/hashicorp/serf v0.10.0/go.mod h1:bXN03oZc5xlH46k/K1qTrpXb9ERKyY1/i/N5mxvgrZw=
 github.com/hashicorp/serf v0.10.1 h1:Z1H2J60yRKvfDYAOZLd2MU0ND4AH/WDz7xYHDWQsIPY=
 github.com/hashicorp/serf v0.10.1/go.mod h1:yL2t6BqATOLGc5HF7qbFkTfXoPIY0WZdWHfEvMqbG+4=
+github.com/heroiclabs/nakama-common v1.27.0 h1:f1MT78rq7R6+rc8l48LtYvFfxyrLvQ426N96su7jBXA=
+github.com/heroiclabs/nakama-common v1.27.0/go.mod h1:/znXrt+yd+i7WHvizD3SNeA4tTLl9PvVckHafUnLAi0=
 github.com/holiman/uint256 v1.2.0/go.mod h1:y4ga/t+u+Xwd7CpDgZESaRcWy0I7XMlTMA25ApIH5Jw=
 github.com/holiman/uint256 v1.2.2-0.20230321075855-87b91420868c/go.mod h1:SC8Ryt4n+UBbPbIBKaG9zbbDlp4jOru9xFZmPzLUTxw=
+github.com/holiman/uint256 v1.2.2/go.mod h1:SC8Ryt4n+UBbPbIBKaG9zbbDlp4jOru9xFZmPzLUTxw=
 github.com/hpcloud/tail v1.0.0 h1:nfCOvKYfkgYP8hkirhJocXT2+zOD8yUNjXaWfTlyFKI=
 github.com/huandu/xstrings v1.2.0 h1:yPeWdRnmynF7p+lLYz0H2tthW9lqhMJrQV/U7yy4wX0=
 github.com/hudl/fargo v1.4.0 h1:ZDDILMbB37UlAVLlWcJ2Iz1XuahZZTDZfdCKeclfq2s=
@@ -2167,6 +2170,7 @@ pkg.berachain.dev/polaris/e2e/localnet v0.0.0-20230810045725-b6ed353ceb0e/go.mod
 pkg.berachain.dev/polaris/e2e/localnet v0.0.0-20230827184022-e3cec7a2c178 h1:Bv6/LKq7HbuYsST0SQkALG9Ky2dYnRAH0fbwAKcT+9s=
 pkg.berachain.dev/polaris/e2e/localnet v0.0.0-20230827184022-e3cec7a2c178/go.mod h1:+jlaZMsqEJL8OofyHrjBjxRPqNCdRAXcldOV2SxNb9g=
 pkg.world.dev/world-engine/sign v0.1.5-alpha/go.mod h1:JcKXhdeYvCPRAgsCUSFEDcAJgf67VgMWWrA2Y2VZJSg=
+pkg.world.dev/world-engine/sign v0.1.7-alpha/go.mod h1:JcKXhdeYvCPRAgsCUSFEDcAJgf67VgMWWrA2Y2VZJSg=
 rsc.io/binaryregexp v0.2.0 h1:HfqmD5MEmC0zvwBuF187nq9mdnXjXsSivRiXN7SmRkE=
 rsc.io/pdf v0.1.1 h1:k1MczvYDUvJBe93bYd7wrZLLUEcLZAuF824/I4e5Xr4=
 rsc.io/quote/v3 v3.1.0 h1:9JKUTTIUgS6kzR9mK1YuGKv6Nl+DijDNIc0ghT58FaY=
