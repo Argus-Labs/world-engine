@@ -56,7 +56,7 @@ type World struct {
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
-	
+
 	Logger *ecslog.Logger
 
 	endGameLoopCh     chan bool
@@ -651,4 +651,12 @@ func (w *World) GetSystemNames() []string {
 func (w *World) InjectLogger(logger *ecslog.Logger) {
 	w.Logger = logger
 	w.StoreManager().InjectLogger(logger)
+}
+
+func (w *World) NewQuery(filter Filterable) (*Query, error) {
+	componentFilter, err := filter.ConvertToComponentFilter(w)
+	if err != nil {
+		return nil, err
+	}
+	return NewQuery(componentFilter), nil
 }
