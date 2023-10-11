@@ -10,10 +10,16 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
+type FooComponent struct {
+	Data string
+}
+
+func (FooComponent) Name() string {
+	return "foo"
+}
+
 func TestQueryEarlyTermination(t *testing.T) {
-	type FooComponent struct {
-		Data string
-	}
+
 	foo := ecs.NewComponentType[FooComponent]("foo")
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.RegisterComponents(foo))
@@ -21,7 +27,7 @@ func TestQueryEarlyTermination(t *testing.T) {
 	total := 10
 	count := 0
 	stop := 5
-	_, err := world.CreateMany(total, foo)
+	_, err := ecs.CreateMany(world, total, FooComponent{})
 	assert.NilError(t, err)
 	ecs.NewQuery(filter.Exact(foo)).Each(world, func(id entity.ID) bool {
 		count++

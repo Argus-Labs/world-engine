@@ -115,6 +115,26 @@ func (c *ComponentType[T]) MustFirst(w *World) entity.ID {
 	return id
 }
 
+func CreateMany(world *World, num int, components ...component.IAbstractComponent) ([]entity.ID, error) {
+	acc := make([]IComponentType, 0, len(components))
+	for _, comp := range components {
+		c, ok := world.GetComponentByName(comp.Name())
+		if !ok {
+			return nil, errors.New("Must register component before creating an entity")
+		}
+		acc = append(acc, c)
+	}
+	return world.StoreManager().CreateManyEntities(num, acc...)
+}
+
+func Create(world *World, components ...component.IAbstractComponent) (entity.ID, error) {
+	entities, err := CreateMany(world, 1, components...)
+	if err != nil {
+		return 0, err
+	}
+	return entities[0], nil
+}
+
 func RemoveComponentFrom[T component.IAbstractComponent](w *World, id entity.ID) error {
 	var t T
 	name := t.Name()

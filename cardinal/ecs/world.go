@@ -56,7 +56,7 @@ type World struct {
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
-	
+
 	Logger *ecslog.Logger
 
 	endGameLoopCh     chan bool
@@ -233,23 +233,6 @@ func (w *World) CurrentTick() uint64 {
 
 func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
-}
-
-func (w *World) CreateMany(num int, components ...component.IComponentType) ([]entity.ID, error) {
-	for _, comp := range components {
-		if _, ok := w.nameToComponent[comp.Name()]; !ok {
-			return nil, fmt.Errorf("%s was not registered, please register all components before using one to create an entity", comp.Name())
-		}
-	}
-	return w.StoreManager().CreateManyEntities(num, components...)
-}
-
-func (w *World) Create(components ...component.IComponentType) (entity.ID, error) {
-	entities, err := w.CreateMany(1, components...)
-	if err != nil {
-		return 0, err
-	}
-	return entities[0], nil
 }
 
 // Len return the number of entities in this world

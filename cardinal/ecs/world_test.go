@@ -59,7 +59,7 @@ func TestSetNamespace(t *testing.T) {
 
 func TestWithoutRegistration(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	id, err := world.Create(Energy, Ownable)
+	id, err := ecs.Create(world, EnergyComponent{}, OwnableComponent{})
 	assert.Assert(t, err != nil)
 
 	err = ecs.UpdateComponent[EnergyComponent](world, id, func(component *EnergyComponent) *EnergyComponent {
@@ -77,7 +77,7 @@ func TestWithoutRegistration(t *testing.T) {
 
 	err = world.RegisterComponents(Energy, Ownable)
 	assert.NilError(t, err)
-	id, err = world.Create(Energy, Ownable)
+	id, err = ecs.Create(world, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 	err = ecs.UpdateComponent[EnergyComponent](world, id, func(component *EnergyComponent) *EnergyComponent {
 		component.Amt += 50
