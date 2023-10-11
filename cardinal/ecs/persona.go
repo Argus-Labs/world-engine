@@ -43,45 +43,35 @@ var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, Auth
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
 func AuthorizePersonaAddressSystem(world *World, queue *transaction.TxQueue, _ *log.Logger) error {
-	txs := AuthorizePersonaAddressTx.In(queue)
-	if len(txs) == 0 {
-		return nil
-	}
 	personaTagToAddress, err := buildPersonaTagMapping(world)
 	if err != nil {
 		return err
 	}
-	for _, tx := range txs {
-		if tx.Sig.PersonaTag != tx.Value.PersonaTag {
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, fmt.Errorf("signer does not match request"))
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
+	AuthorizePersonaAddressTx.ForEach(world, queue, func(tx TxData[AuthorizePersonaAddress]) (AuthorizePersonaAddressResult, error) {
+		val, sig := tx.Value, tx.Sig
+		result := AuthorizePersonaAddressResult{Success: false}
+		if sig.PersonaTag != val.PersonaTag {
+			return AuthorizePersonaAddressResult{Success: false}, fmt.Errorf("sigher does not match request")
 		}
 		data, ok := personaTagToAddress[tx.Value.PersonaTag]
 		if !ok {
-			// This PersonaTag has not been registered.
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, fmt.Errorf("persona does not exist"))
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
+			return result, fmt.Errorf("persona does not exist")
 		}
-		err = UpdateComponent[SignerComponent](world, data.EntityID, func(component *SignerComponent) *SignerComponent {
-			// check if this address already exists
-			for _, addr := range component.AuthorizedAddresses {
-				// if its already in the authorized addresses slice, just return the component.
-				if addr == tx.Value.Address {
-					return component
+		err = UpdateComponent[SignerComponent](world, data.EntityID, func(s *SignerComponent) *SignerComponent {
+			for _, addr := range s.AuthorizedAddresses {
+				if addr == val.Address {
+					return s
 				}
 			}
-			component.AuthorizedAddresses = append(component.AuthorizedAddresses, tx.Value.Address)
-			return component
+			s.AuthorizedAddresses = append(s.AuthorizedAddresses, val.Address)
+			return s
 		})
 		if err != nil {
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, err)
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
+			return result, fmt.Errorf("unable to update signer component with address: %w", err)
 		}
-		AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: true})
-	}
+		result.Success = true
+		return result, nil
+	})
 	return nil
 }
 
