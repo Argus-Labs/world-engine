@@ -79,7 +79,7 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	assert.NilError(t, world.Tick(context.Background()))
-	query, err := world.NewQuery(ecs.And(ecs.Contains(EnergyComponent{})))
+	query, err := world.NewQuery(ecs.Contains(EnergyComponent{}))
 	assert.NilError(t, err)
 	query.Each(world, func(id entity.ID) bool {
 		energyPlanet, err := ecs.GetComponent[EnergyComponent](world, id)
@@ -437,6 +437,7 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 
 	// 0 entities have gamma
 	gammaQuery, err := world.NewQuery(ecs.Contains(Gamma{}))
+	assert.NilError(t, err)
 	gammaQuery.Each(world, countAgain())
 	assert.Equal(t, 0, count)
 
