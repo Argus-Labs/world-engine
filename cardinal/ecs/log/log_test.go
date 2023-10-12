@@ -115,7 +115,7 @@ func TestWorldLogger(t *testing.T) {
 				"message":"created"
 			}`, archetype_creations_json_string)
 	components := w.StoreManager().GetComponentTypesForArchID(archetypeId)
-	entityId, err := w.Create(components...)
+	entityId, err := ecs.Create(w, EnergyComp{})
 	assert.NilError(t, err)
 	buf.Reset()
 
@@ -213,7 +213,7 @@ func TestWorldLogger(t *testing.T) {
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
-	_, err = w.CreateMany(2, []component.IComponentType{energy}...)
+	_, err = ecs.CreateMany(w, 2, EnergyComp{})
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `

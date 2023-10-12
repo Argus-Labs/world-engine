@@ -65,6 +65,42 @@ func (c *ComponentType[T]) GetRawJson(w *World, id entity.ID) (json.RawMessage, 
 	return w.StoreManager().GetComponentForEntityInRawJson(c, id)
 }
 
+func CreateMany(world *World, num int, components ...component.IAbstractComponent) ([]entity.ID, error) {
+	acc := make([]IComponentType, 0, len(components))
+	for _, comp := range components {
+		c, err := world.GetComponentByName(comp.Name())
+		if err != nil {
+			return nil, err
+		}
+		acc = append(acc, c)
+	}
+	entityIds, err := world.StoreManager().CreateManyEntities(num, acc...)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range entityIds {
+		for _, comp := range components {
+			c, err := world.GetComponentByName(comp.Name())
+			if err != nil {
+				return nil, errors.New("Must register component before creating an entity")
+			}
+			err = world.StoreManager().SetComponentForEntity(c, id, comp)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return entityIds, nil
+}
+
+func Create(world *World, components ...component.IAbstractComponent) (entity.ID, error) {
+	entities, err := CreateMany(world, 1, components...)
+	if err != nil {
+		return 0, err
+	}
+	return entities[0], nil
+}
+
 func RemoveComponentFrom[T component.IAbstractComponent](w *World, id entity.ID) error {
 	var t T
 	name := t.Name()

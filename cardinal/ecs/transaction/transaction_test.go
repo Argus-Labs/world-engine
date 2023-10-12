@@ -59,7 +59,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
 
-	id, err := world.Create(score)
+	id, err := ecs.Create(world, ScoreComponent{})
 	assert.NilError(t, err)
 
 	// Set up a system that allows for the modification of a player's score
@@ -122,7 +122,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	count := ecs.NewComponentType[CounterComponent]("count")
 	assert.NilError(t, world.RegisterComponents(count))
 
-	id, err := world.Create(count)
+	id, err := ecs.Create(world, CounterComponent{})
 	assert.NilError(t, err)
 	world.AddSystem(func(w *ecs.World, _ *transaction.TxQueue, _ *log.Logger) error {
 		return ecs.UpdateComponent[CounterComponent](w, id, func(c *CounterComponent) *CounterComponent {
@@ -164,7 +164,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	})
 	assert.NilError(t, world.LoadGameState())
 
-	ids, err := world.CreateMany(100, score)
+	ids, err := ecs.CreateMany(world, 100, ScoreComponent{})
 	assert.NilError(t, err)
 	// Entities at index 5, 10 and 50 will be updated with some values
 	modifyScoreTx.AddToQueue(world, &ModifyScoreTx{

@@ -3,9 +3,10 @@ package ecb_test
 import (
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
-	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
@@ -261,15 +262,24 @@ func TestCannotAddComponentToEntityThatAlreadyHasTheComponent(t *testing.T) {
 	assert.ErrorIs(t, err, storage.ErrorComponentAlreadyOnEntity)
 }
 
+type Health struct {
+	Value int
+}
+
+func (Health) Name() string {
+	return "health"
+}
+
+type Power struct {
+	Value int
+}
+
+func (Power) Name() string {
+	return "power"
+}
+
 func TestStorageCanBeUsedInQueries(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	type Health struct {
-		Value int
-	}
-
-	type Power struct {
-		Value int
-	}
 
 	healthComp := ecs.NewComponentType[Health]("health")
 	powerComp := ecs.NewComponentType[Power]("power")
@@ -278,11 +288,11 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 	assert.NilError(t, world.RegisterComponents(healthComp, powerComp))
 	assert.NilError(t, world.LoadGameState())
 
-	justHealthIDs, err := world.CreateMany(8, healthComp)
+	justHealthIDs, err := ecs.CreateMany(world, 8, Health{})
 	assert.NilError(t, err)
-	justPowerIDs, err := world.CreateMany(9, powerComp)
+	justPowerIDs, err := ecs.CreateMany(world, 9, Power{})
 	assert.NilError(t, err)
-	healthAndPowerIDs, err := world.CreateMany(10, healthComp, powerComp)
+	healthAndPowerIDs, err := ecs.CreateMany(world, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
 	testCases := []struct {

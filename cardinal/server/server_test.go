@@ -315,6 +315,18 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+type garbageStructAlpha struct {
+	Something int `json:"something"`
+}
+
+func (garbageStructAlpha) Name() string { return "alpha" }
+
+type garbageStructBeta struct {
+	Something int `json:"something"`
+}
+
+func (garbageStructBeta) Name() string { return "beta" }
+
 func TestHandleSwaggerServer(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
@@ -322,17 +334,15 @@ func TestHandleSwaggerServer(t *testing.T) {
 	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		return nil
 	})
-	type garbageStruct struct {
-		Something int `json:"something"`
-	}
-	alpha := ecs.NewComponentType[garbageStruct]("alpha")
-	beta := ecs.NewComponentType[garbageStruct]("beta")
+
+	alpha := ecs.NewComponentType[garbageStructAlpha]("alpha")
+	beta := ecs.NewComponentType[garbageStructBeta]("beta")
 	assert.NilError(t, w.RegisterComponents(alpha, beta))
 	alphaCount := 75
-	_, err := w.CreateMany(alphaCount, alpha)
+	_, err := ecs.CreateMany(w, alphaCount, garbageStructAlpha{})
 	assert.NilError(t, err)
 	bothCount := 100
-	_, err = w.CreateMany(bothCount, alpha, beta)
+	_, err = ecs.CreateMany(w, bothCount, garbageStructAlpha{}, garbageStructBeta{})
 	assert.NilError(t, err)
 
 	// Queue up a CreatePersonaTx

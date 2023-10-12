@@ -40,11 +40,10 @@ func TestCanFilterByArchetype(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	subsetCount := 50
-	// Make some entities that only have the alpha and beta components
-	_, err := world.CreateMany(subsetCount, alpha, beta)
+	_, err := ecs.CreateMany(world, subsetCount, alphaComponent{}, betaComponent{})
 	assert.NilError(t, err)
 	// Make some entities that have all 3 component.
-	_, err = world.CreateMany(20, alpha, beta, gamma)
+	_, err = ecs.CreateMany(world, 20, alphaComponent{}, betaComponent{}, gammaComponent{})
 	assert.NilError(t, err)
 
 	count := 0
@@ -64,17 +63,26 @@ func TestCanFilterByArchetype(t *testing.T) {
 
 // TestExactVsContains ensures the Exact filter will return a subset of a Contains filter when called
 // with the same parameters.
+
+type Alpha struct{}
+
+func (Alpha) Name() string { return "alpha" }
+
+type Beta struct{}
+
+func (Beta) Name() string { return "beta" }
+
 func TestExactVsContains(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	alpha := ecs.NewComponentType[string]("alpha")
-	beta := ecs.NewComponentType[string]("beta")
+	alpha := ecs.NewComponentType[Alpha]("alpha")
+	beta := ecs.NewComponentType[Beta]("beta")
 	err := world.RegisterComponents(alpha, beta)
 	assert.NilError(t, err)
 	alphaCount := 75
-	_, err = world.CreateMany(alphaCount, alpha)
+	_, err = ecs.CreateMany(world, alphaCount, Alpha{})
 	assert.NilError(t, err)
 	bothCount := 100
-	_, err = world.CreateMany(bothCount, alpha, beta)
+	_, err = ecs.CreateMany(world, bothCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	count := 0
 	// Contains(alpha) should return all entities
@@ -162,17 +170,17 @@ func TestExactVsContains(t *testing.T) {
 
 func TestCanGetArchetypeFromEntity(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	alpha := ecs.NewComponentType[string]("alpha")
-	beta := ecs.NewComponentType[string]("beta")
+	alpha := ecs.NewComponentType[Alpha]("alpha")
+	beta := ecs.NewComponentType[Beta]("beta")
 	assert.NilError(t, world.RegisterComponents(alpha, beta))
 	assert.NilError(t, world.LoadGameState())
 
 	wantCount := 50
-	ids, err := world.CreateMany(wantCount, alpha, beta)
+	ids, err := ecs.CreateMany(world, wantCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some extra entities that will be ignored. Our query later
 	// should NOT contain these entities
-	_, err = world.CreateMany(20, alpha)
+	_, err = ecs.CreateMany(world, 20, Alpha{})
 	assert.NilError(t, err)
 	id := ids[0]
 	comps, err := world.StoreManager().GetComponentTypesForEntity(id)
@@ -209,10 +217,10 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 func BenchmarkEntityCreation(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		world := ecs.NewTestWorld(b)
-		alpha := ecs.NewComponentType[string]("alpha")
+		alpha := ecs.NewComponentType[Alpha]("alpha")
 		assert.NilError(b, world.RegisterComponents(alpha))
 		assert.NilError(b, world.LoadGameState())
-		_, err := world.CreateMany(100000, alpha)
+		_, err := ecs.CreateMany(world, 100000, Alpha{})
 		assert.NilError(b, err)
 	}
 }
@@ -233,13 +241,13 @@ func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StopTimer()
 	world := ecs.NewTestWorld(b)
-	alpha := ecs.NewComponentType[string]("alpha")
-	beta := ecs.NewComponentType[string]("beta")
+	alpha := ecs.NewComponentType[Alpha]("alpha")
+	beta := ecs.NewComponentType[Beta]("beta")
 	assert.NilError(b, world.RegisterComponents(alpha, beta))
 	assert.NilError(b, world.LoadGameState())
-	_, err := world.CreateMany(relevantCount, alpha, beta)
+	_, err := ecs.CreateMany(world, relevantCount, Alpha{}, Beta{})
 	assert.NilError(b, err)
-	_, err = world.CreateMany(ignoreCount, alpha)
+	_, err = ecs.CreateMany(world, ignoreCount, Alpha{})
 	assert.NilError(b, err)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {

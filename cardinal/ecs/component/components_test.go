@@ -121,7 +121,7 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 
 	assert.NilError(t, world.RegisterComponents(found, notFound))
 
-	id, err := world.Create(found)
+	id, err := ecs.Create(world, foundComp{})
 	assert.NilError(t, err)
 	_, err = ecs.GetComponent[notFoundComp](world, id)
 	//_, err = notFound.Get(world, id)
@@ -142,7 +142,7 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	valComp := ecs.NewComponentType[ValueComponent]("ValueComponent")
 	assert.NilError(t, world.RegisterComponents(valComp))
 
-	id, err := world.Create(valComp)
+	id, err := ecs.Create(world, ValueComponent{})
 	assert.NilError(t, err)
 
 	assert.NilError(t, ecs.SetComponent[ValueComponent](world, id, &ValueComponent{99}))
@@ -151,7 +151,7 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
-	_, err = world.Create(valComp)
+	_, err = ecs.Create(world, ValueComponent{})
 
 	val, err = ecs.GetComponent[ValueComponent](world, id)
 	//val, err = valComp.Get(world, id)

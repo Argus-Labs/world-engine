@@ -119,7 +119,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	onePower := ecs.NewComponentType[onePowerComponent]("onePower")
 	assert.NilError(t, oneWorld.RegisterComponents(onePower))
 
-	id, err := oneWorld.Create(onePower)
+	id, err := ecs.Create(oneWorld, onePowerComponent{})
 	assert.NilError(t, err)
 
 	errorSystem := errors.New("3 power? That's too much, man!")
@@ -200,7 +200,7 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 	assert.NilError(t, world.RegisterComponents(alpha, beta))
 	assert.NilError(t, world.LoadGameState())
 
-	wantID, err := world.Create(alpha)
+	wantID, err := ecs.Create(world, ScalarComponentAlpha{})
 	assert.NilError(t, err)
 
 	wantScalar := ScalarComponentAlpha{99}
@@ -259,7 +259,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		assert.NilError(t, world.RegisterComponents(static, toggle))
 
 		if firstWorldIteration {
-			_, err := world.Create(static)
+			_, err := ecs.Create(world, ScalarComponentStatic{})
 			assert.NilError(t, err)
 		}
 
@@ -363,7 +363,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		// Only create the entity for the first iteration
 		if isBuggyIteration {
-			_, err := world.Create(powerComp)
+			_, err := ecs.Create(world, PowerComp{})
 			assert.NilError(t, err)
 		}
 
