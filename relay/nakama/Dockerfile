@@ -6,6 +6,7 @@ ENV CGO_ENABLED 1
 WORKDIR /backend
 
 COPY go.mod .
+COPY go.sum .
 COPY *.go .
 RUN go mod vendor
 
