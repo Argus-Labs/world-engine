@@ -261,7 +261,7 @@ func NewApp(
 		homePath+"/config/world.toml",
 		homePath+"/data/world",
 		logger,
-		app.Router.DispatchOrDequeue,
+		app.Router.HandleDispatch,
 	)
 	opt := ante.HandlerOptions{
 		AccountKeeper:   app.AccountKeeper,

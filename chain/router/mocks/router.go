@@ -8,8 +8,10 @@ import (
 	context "context"
 	reflect "reflect"
 
-	router "pkg.world.dev/world-engine/chain/router"
 	gomock "github.com/golang/mock/gomock"
+	core "pkg.berachain.dev/polaris/eth/core"
+	types "pkg.berachain.dev/polaris/eth/core/types"
+	router "pkg.world.dev/world-engine/chain/router"
 )
 
 // MockRouter is a mock of Router interface.
@@ -33,6 +35,18 @@ func NewMockRouter(ctrl *gomock.Controller) *MockRouter {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 	return m.recorder
+}
+
+// DispatchOrDequeue mocks base method.
+func (m *MockRouter) HandleDispatch(arg0 *types.Transaction, result *core.ExecutionResult) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "HandleDispatch", arg0, result)
+}
+
+// DispatchOrDequeue indicates an expected call of DispatchOrDequeue.
+func (mr *MockRouterMockRecorder) DispatchOrDequeue(arg0, result interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleDispatch", reflect.TypeOf((*MockRouter)(nil).HandleDispatch), arg0, result)
 }
 
 // Query mocks base method.

@@ -1,8 +1,6 @@
 package router
 
 import (
-	"buf.build/gen/go/argus-labs/world-engine/grpc/go/router/v1/routerv1grpc"
-	v1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -11,6 +9,7 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"os"
+	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 
 	"pkg.berachain.dev/polaris/eth/core"
 	"pkg.berachain.dev/polaris/eth/core/types"
@@ -23,22 +22,25 @@ type Result struct {
 	Message []byte
 }
 
-//go:generate mockgen -source=router.go -package mocks -destination mocks/router.go
+//go:generate mockgen -source=routerImpl.go -package mocks -destination mocks/routerImpl.go
 type Router interface {
 	// SendMessage sends the msg payload to the game shard indicated by the namespace, if such namespace exists on chain.
 	SendMessage(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error)
+	// Query queries a game shard.
 	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
-	DispatchOrDequeue(_ *types.Transaction, result *core.ExecutionResult)
+	// HandleDispatch implements the polaris EVM PostTxProcessing hook. It runs after an EVM tx execution has finished
+	// processing.
+	HandleDispatch(_ *types.Transaction, result *core.ExecutionResult)
 }
 
 var (
-	_ Router = &router{}
+	_ Router = &routerImpl{}
 )
 
-type router struct {
-	cardinalAddr  string
-	logger        log.Logger
-	queuedMessage *v1.SendMessageRequest
+type routerImpl struct {
+	cardinalAddr string
+	logger       log.Logger
+	queue        *msgQueue
 	// opts
 	creds credentials.TransportCredentials
 }
@@ -63,38 +65,43 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 	return credentials.NewTLS(config), nil
 }
 
-// NewRouter returns a new router instance with a connection to a single cardinal shard instance.
-// TODO(technicallyty): its a bit unclear how im going to query the state machine here, so router is just going to
+// NewRouter returns a new routerImpl instance with a connection to a single cardinal shard instance.
+// TODO(technicallyty): its a bit unclear how im going to query the state machine here, so routerImpl is just going to
 // take the cardinal address directly for now...
 func NewRouter(cardinalAddr string, logger log.Logger, opts ...Option) Router {
-	r := &router{cardinalAddr: cardinalAddr, logger: logger, creds: insecure.NewCredentials()}
+	r := &routerImpl{cardinalAddr: cardinalAddr, logger: logger, creds: insecure.NewCredentials()}
 	for _, opt := range opts {
 		opt(r)
 	}
 	return r
 }
 
-func (r *router) DispatchOrDequeue(tx *types.Transaction, result *core.ExecutionResult) {
+func (r *routerImpl) HandleDispatch(tx *types.Transaction, result *core.ExecutionResult) {
+	// no-op if nothing was queued after an evm tx.
+	if !r.queue.IsSet() {
+		return
+	}
+	// if tx failed, just clear the queue, we're not going to send the message.
 	if result.Failed() {
-		r.clearQueue()
+		r.queue.Clear()
 	} else {
 		r.dispatchMessage()
 	}
 }
 
-func (r *router) dispatchMessage() {
-	defer r.clearQueue()
+func (r *routerImpl) dispatchMessage() {
+	defer r.queue.Clear()
 	// we do not need to pass in a namespace, since we just default to a given cardinal addr anyways.
 	// this will eventually need to update to have a proper mapping of namespace -> game shard EVM grpc address.
 	// https://linear.app/arguslabs/issue/WORLD-13/update-router-to-look-up-the-correct-namespace-mapping
-	client, err := r.getConnectionForNamespace("")
+	client, err := r.getConnectionForNamespace(r.queue.namespace)
 	if err != nil {
 		// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
 		// this error in the callback storage module.
 		r.logger.Error("error getting game shard gRPC connection", "error", err)
 		return
 	}
-	res, err := client.SendMessage(context.Background(), r.queuedMessage)
+	res, err := client.SendMessage(context.Background(), r.queue.msg)
 	if err != nil {
 		// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
 		// this error in the callback storage module.
@@ -106,32 +113,29 @@ func (r *router) dispatchMessage() {
 	_ = res
 }
 
-func (r *router) clearQueue() {
-	r.queuedMessage = nil
-}
-
-func (r *router) SendMessage(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error) {
-	req := &v1.SendMessageRequest{
+func (r *routerImpl) SendMessage(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error) {
+	req := &routerv1.SendMessageRequest{
 		Sender:    sender,
 		MessageId: msgID,
 		Message:   msg,
 	}
-	if r.queuedMessage != nil {
-		return nil, fmt.Errorf("INTERNAL: message was already queued in the router")
+	if r.queue.IsSet() {
+		// this should never happen, but let's catch it anyway.
+		return nil, fmt.Errorf("INTERNAL ERROR: message queue was not cleared")
 	}
-	r.queuedMessage = req
+	r.queue.Set(namespace, req)
 	return &Result{
 		Code:    0,
 		Message: []byte("message queued"),
 	}, nil
 }
 
-func (r *router) Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error) {
+func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error) {
 	client, err := r.getConnectionForNamespace(namespace)
 	if err != nil {
 		return nil, err
 	}
-	res, err := client.QueryShard(ctx, &v1.QueryShardRequest{
+	res, err := client.QueryShard(ctx, &routerv1.QueryShardRequest{
 		Resource: resource,
 		Request:  request,
 	})
@@ -144,7 +148,7 @@ func (r *router) Query(ctx context.Context, request []byte, resource, namespace 
 // TODO: we eventually want this to work via namespace mappings by registered game shards.
 // https://linear.app/arguslabs/issue/WORLD-13/update-router-to-look-up-the-correct-namespace-mapping
 // https://linear.app/arguslabs/issue/WORLD-370/register-game-shard-on-base-shard
-func (r *router) getConnectionForNamespace(ns string) (routerv1grpc.MsgClient, error) {
+func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
 	conn, err := grpc.Dial(
 		r.cardinalAddr,
 		grpc.WithTransportCredentials(r.creds),
@@ -152,5 +156,5 @@ func (r *router) getConnectionForNamespace(ns string) (routerv1grpc.MsgClient, e
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to %s address for namespace %s", r.cardinalAddr, ns)
 	}
-	return routerv1grpc.NewMsgClient(conn), nil
+	return routerv1.NewMsgClient(conn), nil
 }
