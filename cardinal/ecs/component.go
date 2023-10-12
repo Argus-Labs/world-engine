@@ -124,7 +124,23 @@ func CreateMany(world *World, num int, components ...component.IAbstractComponen
 		}
 		acc = append(acc, c)
 	}
-	return world.StoreManager().CreateManyEntities(num, acc...)
+	entityIds, err := world.StoreManager().CreateManyEntities(num, acc...)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range entityIds {
+		for _, comp := range components {
+			c, ok := world.GetComponentByName(comp.Name())
+			if !ok {
+				return nil, errors.New("Must register component before creating an entity")
+			}
+			err := world.StoreManager().SetComponentForEntity(c, id, comp)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return entityIds, nil
 }
 
 func Create(world *World, components ...component.IAbstractComponent) (entity.ID, error) {

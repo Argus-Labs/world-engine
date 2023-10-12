@@ -162,20 +162,20 @@ func TestCanSetDefaultValue(t *testing.T) {
 	assert.NilError(t, world.RegisterComponents(owner))
 	assert.NilError(t, world.LoadGameState())
 
-	alpha, err := ecs.Create(world, Owner{})
+	alphaEntity, err := ecs.Create(world, wantOwner)
 	assert.NilError(t, err)
 
 	//alphaOwner, err := owner.Get(world, alpha)
-	alphaOwner, err := ecs.GetComponent[Owner](world, alpha)
+	alphaOwner, err := ecs.GetComponent[Owner](world, alphaEntity)
 	assert.NilError(t, err)
 	assert.Equal(t, *alphaOwner, wantOwner)
 
 	alphaOwner.MyName = "Bob"
 	//assert.NilError(t, owner.Set(world, alpha, *alphaOwner))
-	assert.NilError(t, ecs.SetComponent[Owner](world, alpha, alphaOwner))
+	assert.NilError(t, ecs.SetComponent[Owner](world, alphaEntity, alphaOwner))
 
 	//newOwner, err := owner.Get(world, alpha)
-	newOwner, err := ecs.GetComponent[Owner](world, alpha)
+	newOwner, err := ecs.GetComponent[Owner](world, alphaEntity)
 	assert.NilError(t, err)
 	assert.Equal(t, newOwner.MyName, "Bob")
 }
@@ -628,4 +628,21 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 	//val, err = valComp.Get(world, ids[2])
 	assert.NilError(t, err)
 	assert.Equal(t, 101, val.Val)
+}
+
+func TestEntityCreationAndSetting(t *testing.T) {
+	world := ecs.NewTestWorld(t)
+	valComp := ecs.NewComponentType[ValueComponent2]("valComp")
+	otherComp := ecs.NewComponentType[OtherComponent]("otherComp")
+	assert.NilError(t, world.RegisterComponents(valComp, otherComp))
+	ids, err := ecs.CreateMany(world, 300, ValueComponent2{999}, OtherComponent{999})
+	assert.NilError(t, err)
+	for _, id := range ids {
+		x, err := ecs.GetComponent[ValueComponent2](world, id)
+		assert.NilError(t, err)
+		y, err := ecs.GetComponent[OtherComponent](world, id)
+		assert.NilError(t, err)
+		assert.Equal(t, x.Val, 999)
+		assert.Equal(t, y.Val, 999)
+	}
 }
