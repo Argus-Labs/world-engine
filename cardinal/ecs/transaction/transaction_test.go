@@ -252,10 +252,12 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	tickDone := make(chan uint64)
 	world.StartGameLoop(ctx, tickStart, tickDone)
 
-	modScoreCountCh := make(chan int, 2)
+	modScoreCountCh := make(chan int)
 
 	// Create two system that report how many instances of the ModifyScoreTx exist in the
-	// transaction queue. These counts should be the same for each tick.
+	// transaction queue. These counts should be the same for each tick. modScoreCountCh is an unbuffered channel
+	// so these systems will block while writing to modScoreCountCh. This allows the test to ensure that we can run
+	// commands mid-tick.
 	world.AddSystem(func(_ *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		modScores := modScoreTx.In(queue)
 		modScoreCountCh <- len(modScores)
@@ -271,9 +273,8 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	modScoreTx.AddToQueue(world, &ModifyScoreTx{})
 
-	// Start the game tick and then block until the tick has been completed.
+	// Start the game tick. The tick will block while waiting to write to modScoreCountCh
 	tickStart <- time.Now()
-	<-tickDone
 
 	// In the first system, we should see 1 modify score transaction
 	count := <-modScoreCountCh
@@ -286,23 +287,27 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)
 
-	// Tick again, we should see 1 tick for both systems again. This transaction was added in the middle of the last tick.
-	tickStart <- time.Now()
+	// Block until the tick has completed.
 	<-tickDone
+
+	// Start the next tick.
+	tickStart <- time.Now()
 
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)
+
+	// Block until the tick has completed.
+	<-tickDone
 
 	// In this final tick, we should see no modify score transactions
 	tickStart <- time.Now()
+	count = <-modScoreCountCh
+	assert.Equal(t, 0, count)
+	count = <-modScoreCountCh
+	assert.Equal(t, 0, count)
 	<-tickDone
-
-	count = <-modScoreCountCh
-	assert.Equal(t, 0, count)
-	count = <-modScoreCountCh
-	assert.Equal(t, 0, count)
 }
 
 // TestIdenticallyTypedTransactionCanBeDistinguished verifies that two transactions of the same type
