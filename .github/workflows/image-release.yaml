@@ -1,4 +1,4 @@
-name: Docker Image Release
+name: Container Image Release
 
 ## workflow will trigger on below condition,
 ## except image release that have jobs condition to trigger only on tagging
@@ -101,7 +101,7 @@ jobs:
           gcloud auth configure-docker ${{ env.REGISTRY_URL }}
       - name: Docker - Build
         run: |
-          docker build -t chain-local-build:latest .
+          docker build -t nakama-local-build:latest .
       - name: Docker - Publish Image
         run: |
           ## Construct image_id
