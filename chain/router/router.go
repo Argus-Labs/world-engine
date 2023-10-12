@@ -70,7 +70,7 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 // TODO(technicallyty): its a bit unclear how im going to query the state machine here, so routerImpl is just going to
 // take the cardinal address directly for now...
 func NewRouter(cardinalAddr string, logger log.Logger, opts ...Option) Router {
-	r := &routerImpl{cardinalAddr: cardinalAddr, logger: logger, creds: insecure.NewCredentials()}
+	r := &routerImpl{cardinalAddr: cardinalAddr, logger: logger, creds: insecure.NewCredentials(), queue: new(msgQueue)}
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -84,32 +84,45 @@ func (r *routerImpl) HandleDispatch(tx *types.Transaction, result *core.Executio
 	}
 	// if tx failed, just clear the queue, we're not going to send the message.
 	if result.Failed() {
+		r.logger.Debug("EVM Execution Failed, clearing the message queue")
 		r.queue.Clear()
 	} else {
+		r.logger.Debug("Dispatching EVM transaction to game shard...")
 		r.dispatchMessage(tx.Hash())
 	}
 }
 
 func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 	defer r.queue.Clear()
+	msg := r.queue.msg
+	msg.EvmTxHash = txHash.String()
+	namespace := r.queue.namespace
 	// we do not need to pass in a namespace, since we just default to a given cardinal addr anyways.
 	// this will eventually need to update to have a proper mapping of namespace -> game shard EVM grpc address.
 	// https://linear.app/arguslabs/issue/WORLD-13/update-router-to-look-up-the-correct-namespace-mapping
-	client, err := r.getConnectionForNamespace(r.queue.namespace)
+	client, err := r.getConnectionForNamespace(namespace)
 	if err != nil {
 		// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
 		// this error in the callback storage module.
 		r.logger.Error("error getting game shard gRPC connection", "error", err)
 		return
 	}
-	r.queue.msg.EvmTxHash = txHash.String()
-	res, err := client.SendMessage(context.Background(), r.queue.msg)
+
+	r.logger.Debug("Sending tx to game shard",
+		"evm_tx_hash", txHash.String(),
+		"game_shard_namespace", namespace,
+		"sender", msg.Sender,
+		"msg_id", msg.MessageId,
+	)
+
+	res, err := client.SendMessage(context.Background(), msg)
 	if err != nil {
 		// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
 		// this error in the callback storage module.
 		r.logger.Error("failed to send message to game shard", "error", err)
 		return
 	}
+	r.logger.Debug("successfully sent message to game shard")
 	// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
 	// the result in the callback storage module.
 	_ = res
@@ -156,7 +169,7 @@ func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, e
 		grpc.WithTransportCredentials(r.creds),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to %s address for namespace %s", r.cardinalAddr, ns)
+		return nil, fmt.Errorf("error connecting to '%s' for namespace '%s'", r.cardinalAddr, ns)
 	}
 	return routerv1.NewMsgClient(conn), nil
 }
