@@ -68,9 +68,9 @@ func (c *ComponentType[T]) GetRawJson(w *World, id entity.ID) (json.RawMessage, 
 func CreateMany(world *World, num int, components ...component.IAbstractComponent) ([]entity.ID, error) {
 	acc := make([]IComponentType, 0, len(components))
 	for _, comp := range components {
-		c, ok := world.GetComponentByName(comp.Name())
-		if !ok {
-			return nil, errors.New("Must register component before creating an entity")
+		c, err := world.GetComponentByName(comp.Name())
+		if err != nil {
+			return nil, err
 		}
 		acc = append(acc, c)
 	}
@@ -80,11 +80,11 @@ func CreateMany(world *World, num int, components ...component.IAbstractComponen
 	}
 	for _, id := range entityIds {
 		for _, comp := range components {
-			c, ok := world.GetComponentByName(comp.Name())
-			if !ok {
+			c, err := world.GetComponentByName(comp.Name())
+			if err != nil {
 				return nil, errors.New("Must register component before creating an entity")
 			}
-			err := world.StoreManager().SetComponentForEntity(c, id, comp)
+			err = world.StoreManager().SetComponentForEntity(c, id, comp)
 			if err != nil {
 				return nil, err
 			}

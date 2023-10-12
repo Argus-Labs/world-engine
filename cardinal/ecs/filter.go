@@ -1,8 +1,6 @@
 package ecs
 
 import (
-	"errors"
-
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
@@ -87,9 +85,9 @@ func (s not) ConvertToComponentFilter(world *World) (filter.ComponentFilter, err
 func (s contains) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
 	acc := make([]IComponentType, 0, len(s.components))
 	for _, internalComponent := range s.components {
-		c, ok := world.GetComponentByName(internalComponent.Name())
-		if !ok {
-			return nil, errors.New("Must register component to query it.")
+		c, err := world.GetComponentByName(internalComponent.Name())
+		if err != nil {
+			return nil, err
 		}
 		acc = append(acc, c)
 	}
@@ -99,9 +97,9 @@ func (s contains) ConvertToComponentFilter(world *World) (filter.ComponentFilter
 func (s exact) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
 	acc := make([]IComponentType, 0, len(s.components))
 	for _, internalComponent := range s.components {
-		c, ok := world.GetComponentByName(internalComponent.Name())
-		if !ok {
-			return nil, errors.New("Must register component to query it.")
+		c, err := world.GetComponentByName(internalComponent.Name())
+		if err != nil {
+			return nil, err
 		}
 		acc = append(acc, c)
 	}

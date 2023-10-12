@@ -137,9 +137,12 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 	return nil
 }
 
-func (w *World) GetComponentByName(name string) (IComponentType, bool) {
+func (w *World) GetComponentByName(name string) (IComponentType, error) {
 	componentType, exists := w.nameToComponent[name]
-	return componentType, exists
+	if !exists {
+		return nil, fmt.Errorf("Component with name %s not found. Must register component before using", name)
+	}
+	return componentType, nil
 }
 
 func (w *World) RegisterReads(reads ...IRead) error {

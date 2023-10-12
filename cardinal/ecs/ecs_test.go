@@ -93,8 +93,8 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, err)
 	amt := q.Count(world)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
-	comp, exists := world.GetComponentByName("EnergyComponent")
-	assert.Assert(t, exists)
+	comp, err := world.GetComponentByName("EnergyComponent")
+	assert.NilError(t, err)
 	assert.Equal(t, comp.Name(), Energy.Name())
 }
 
