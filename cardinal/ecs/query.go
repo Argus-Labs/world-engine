@@ -7,6 +7,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/store"
 )
 
 type cache struct {
@@ -39,8 +40,8 @@ type QueryCallBackFn func(entity.ID) bool
 // Each iterates over all entities that match the query.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
 func (q *Query) Each(w *World, callback QueryCallBackFn) {
-	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+	result := q.evaluateQuery(w.namespace, w.StoreManager())
+	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
 	for iter.HasNext() {
 		entities := iter.Next()
 		for _, id := range entities {
@@ -54,8 +55,8 @@ func (q *Query) Each(w *World, callback QueryCallBackFn) {
 
 // Count returns the number of entities that match the query.
 func (q *Query) Count(w *World) int {
-	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+	result := q.evaluateQuery(w.namespace, w.StoreManager())
+	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
 	ret := 0
 	for iter.HasNext() {
 		entities := iter.Next()
@@ -66,8 +67,8 @@ func (q *Query) Count(w *World) int {
 
 // First returns the first entity that matches the query.
 func (q *Query) First(w *World) (id entity.ID, err error) {
-	result := q.evaluateQuery(w)
-	iter := storage.NewEntityIterator(0, w.store.ArchAccessor, result)
+	result := q.evaluateQuery(w.namespace, w.StoreManager())
+	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
 	if !iter.HasNext() {
 		return storage.BadID, err
 	}
@@ -88,18 +89,17 @@ func (q *Query) MustFirst(w *World) entity.ID {
 	return id
 }
 
-func (q *Query) evaluateQuery(world *World) []archetype.ID {
-	w := Namespace(world.Namespace())
-	if _, ok := q.archMatches[w]; !ok {
-		q.archMatches[w] = &cache{
+func (q *Query) evaluateQuery(namespace Namespace, sm store.IManager) []archetype.ID {
+	if _, ok := q.archMatches[namespace]; !ok {
+		q.archMatches[namespace] = &cache{
 			archetypes: make([]archetype.ID, 0),
 			seen:       0,
 		}
 	}
-	cache := q.archMatches[w]
-	for it := world.store.ArchCompIdxStore.SearchFrom(q.filter, cache.seen); it.HasNext(); {
+	cache := q.archMatches[namespace]
+	for it := sm.SearchFrom(q.filter, cache.seen); it.HasNext(); {
 		cache.archetypes = append(cache.archetypes, it.Next())
 	}
-	cache.seen = world.store.ArchAccessor.Count()
+	cache.seen = sm.ArchetypeCount()
 	return cache.archetypes
 }
