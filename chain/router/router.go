@@ -127,7 +127,9 @@ func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 	_ = res
 }
 
-func (r *routerImpl) SendMessage(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error) {
+func (r *routerImpl) SendMessage(_ context.Context, namespace, sender string, msgID uint64, msg []byte) (
+	*Result, error,
+) {
 	req := &routerv1.SendMessageRequest{
 		Sender:    sender,
 		MessageId: msgID,

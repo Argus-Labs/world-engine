@@ -24,7 +24,14 @@ func TestRouter(t *testing.T) {
 	assert.NilError(t, err)
 	// make sure its set in the queue
 	assert.Equal(t, router.queue.IsSet(), true)
-	tx := types.NewTransaction(1, common.HexToAddress("0x61d2B2315605660c3855C8BE139B82e0635E13E3"), big.NewInt(10), 40, big.NewInt(10), []byte("hello"))
+	tx := types.NewTransaction(
+		1,
+		common.HexToAddress("0x61d2B2315605660c3855C8BE139B82e0635E13E3"),
+		big.NewInt(10),
+		40,
+		big.NewInt(10),
+		[]byte("hello"),
+	)
 	// test dispatch when there is a successful tx
 	router.HandleDispatch(tx, &core.ExecutionResult{Err: nil})
 	// queue should be cleared after dispatching
