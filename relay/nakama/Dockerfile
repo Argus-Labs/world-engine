@@ -7,7 +7,7 @@ WORKDIR /backend
 
 COPY go.mod .
 COPY *.go .
-RUN go mod download
+RUN go mod vendor
 
 RUN go build --trimpath --mod=vendor --buildmode=plugin -o ./backend.so
 
