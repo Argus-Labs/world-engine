@@ -12,9 +12,6 @@ import (
 )
 
 type Reader interface {
-	// One Entity
-	GetEntity(id entity.ID) (entity.Entity, error)
-
 	// One Component One Entity
 	GetComponentForEntity(cType component.IComponentType, id entity.ID) (any, error)
 	GetComponentForEntityInRawJson(cType component.IComponentType, id entity.ID) (json.RawMessage, error)
@@ -27,7 +24,7 @@ type Reader interface {
 	GetArchIDForComponents(components []component.IComponentType) (archetype.ID, error)
 
 	// One Archetype Many Entities
-	GetEntitiesForArchID(archID archetype.ID) []entity.ID
+	GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error)
 
 	// Misc
 	SearchFrom(filter filter.ComponentFilter, start int) *storage.ArchetypeIterator

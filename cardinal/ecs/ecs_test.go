@@ -92,7 +92,8 @@ func TestECS(t *testing.T) {
 
 	q, err := world.NewQuery(ecs.Or(ecs.Contains(EnergyComponent{}), ecs.Contains(OwnableComponent{})))
 	assert.NilError(t, err)
-	amt := q.Count(world)
+	amt, err := q.Count(world)
+	assert.NilError(t, err)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
 	comp, err := world.GetComponentByName("EnergyComponent")
 	assert.NilError(t, err)
@@ -524,16 +525,21 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 		assert.Equal(t, id, ab)
 		return true
 	})
-	assert.Equal(t, ecs.NewQuery(abFilter).Count(world), 1)
+	count, err := ecs.NewQuery(abFilter).Count(world)
+	assert.NilError(t, err)
+	assert.Equal(t, count, 1)
 
 	cdFilter := filter.Contains(c, d)
 	ecs.NewQuery(cdFilter).Each(world, func(id entity.ID) bool {
 		assert.Equal(t, id, cd)
 		return true
 	})
-	assert.Equal(t, ecs.NewQuery(abFilter).Count(world), 1)
+	count, err = ecs.NewQuery(abFilter).Count(world)
+	assert.NilError(t, err)
+	assert.Equal(t, count, 1)
 
-	allCount := ecs.NewQuery(filter.Or(filter.Contains(a), filter.Contains(d))).Count(world)
+	allCount, err := ecs.NewQuery(filter.Or(filter.Contains(a), filter.Contains(d))).Count(world)
+	assert.NilError(t, err)
 	assert.Equal(t, allCount, 3)
 }
 

@@ -29,7 +29,7 @@ func (q *Query) Each(w *World, callback QueryCallBackFn) {
 }
 
 // Count returns the number of entities that match this query.
-func (q *Query) Count(w *World) int {
+func (q *Query) Count(w *World) (int, error) {
 	return q.impl.Count(w.implWorld)
 }
 
