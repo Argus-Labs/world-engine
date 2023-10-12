@@ -12,6 +12,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -36,12 +37,17 @@ func newWorldWithRealRedis(t testing.TB) *ecs.World {
 	return world
 }
 
+type Health struct {
+	Value int
+}
+
+func (Health) Name() string {
+	return "health"
+}
+
 // setupWorld creates a new *ecs.World and initializes the world to have numOfEntities already created. If enableHealthSystem
 // is set, a System will be added to the world that increments every entity's "health" by 1 every tick.
 func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.World {
-	type Health struct {
-		Value int
-	}
 
 	//world := ecs.NewTestWorld(t)
 	world := newWorldWithRealRedis(t)
@@ -51,11 +57,11 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 	healthComp := ecs.NewComponentType[Health]("health")
 	if enableHealthSystem {
 		world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, logger *ecslog.Logger) error {
-			healthComp.Each(w, func(id entity.ID) bool {
-				health, err := healthComp.Get(w, id)
+			ecs.NewQuery(filter.Contains(healthComp)).Each(w, func(id entity.ID) bool {
+				health, err := ecs.GetComponent[Health](w, id)
 				assert.NilError(t, err)
 				health.Value++
-				assert.NilError(t, healthComp.Set(w, id, health))
+				assert.NilError(t, ecs.SetComponent[Health](w, id, health))
 				return true
 			})
 			return nil
@@ -64,7 +70,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 
 	assert.NilError(t, world.RegisterComponents(healthComp))
 	assert.NilError(t, world.LoadGameState())
-	_, err := world.CreateMany(numOfEntities, healthComp)
+	_, err := ecs.CreateMany(world, numOfEntities, Health{})
 	assert.NilError(t, err)
 	// Perform a game tick to ensure the newly created entities have been committed to the DB
 	ctx := context.Background()

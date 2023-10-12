@@ -1,6 +1,8 @@
 package ecs
 
 import (
+	"fmt"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -77,6 +79,14 @@ func (q *Query) First(w *World) (id entity.ID, err error) {
 		}
 	}
 	return storage.BadID, err
+}
+
+func (q *Query) MustFirst(w *World) entity.ID {
+	id, err := q.First(w)
+	if err != nil {
+		panic(fmt.Sprintf("no entity matches the query."))
+	}
+	return id
 }
 
 func (q *Query) evaluateQuery(namespace Namespace, sm store.IManager) []archetype.ID {

@@ -61,8 +61,8 @@ func TestParser(t *testing.T) {
 	assert.DeepEqual(t, *term, testTerm)
 
 	emptyComponent := ecs.NewComponentType[struct{}]("emptyComponent")
-	stringToComponent := func(_ string) (component.IComponentType, bool) {
-		return emptyComponent, true
+	stringToComponent := func(_ string) (component.IComponentType, error) {
+		return emptyComponent, nil
 	}
 	filterResult, err := termToComponentFilter(term, stringToComponent)
 	assert.NilError(t, err)

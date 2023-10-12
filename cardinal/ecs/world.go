@@ -140,9 +140,12 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 	return nil
 }
 
-func (w *World) GetComponentByName(name string) (IComponentType, bool) {
+func (w *World) GetComponentByName(name string) (IComponentType, error) {
 	componentType, exists := w.nameToComponent[name]
-	return componentType, exists
+	if !exists {
+		return nil, fmt.Errorf("Component with name %s not found. Must register component before using", name)
+	}
+	return componentType, nil
 }
 
 func (w *World) RegisterReads(reads ...IRead) error {
@@ -241,23 +244,6 @@ func (w *World) CurrentTick() uint64 {
 
 func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
-}
-
-func (w *World) CreateMany(num int, components ...component.IComponentType) ([]entity.ID, error) {
-	for _, comp := range components {
-		if _, ok := w.nameToComponent[comp.Name()]; !ok {
-			return nil, fmt.Errorf("%s was not registered, please register all components before using one to create an entity", comp.Name())
-		}
-	}
-	return w.StoreManager().CreateManyEntities(num, components...)
-}
-
-func (w *World) Create(components ...component.IComponentType) (entity.ID, error) {
-	entities, err := w.CreateMany(1, components...)
-	if err != nil {
-		return 0, err
-	}
-	return entities[0], nil
 }
 
 // Len return the number of entities in this world
@@ -644,4 +630,12 @@ func (w *World) GetSystemNames() []string {
 func (w *World) InjectLogger(logger *ecslog.Logger) {
 	w.Logger = logger
 	w.StoreManager().InjectLogger(logger)
+}
+
+func (w *World) NewQuery(filter Filterable) (*Query, error) {
+	componentFilter, err := filter.ConvertToComponentFilter(w)
+	if err != nil {
+		return nil, err
+	}
+	return NewQuery(componentFilter), nil
 }

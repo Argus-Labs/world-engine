@@ -39,9 +39,12 @@ var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
 
 func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error {
 	logger.Log().Msg("test")
-	energy.Each(w, func(entityId entity.ID) bool {
+	q, err := w.NewQuery(ecs.Contains(EnergyComp{}))
+	if err != nil {
+		return err
+	}
+	q.Each(w, func(entityId entity.ID) bool {
 		energyPlanet, err := ecs.GetComponent[EnergyComp](w, entityId)
-		//energyPlanet, err := energy.Get(w, entityId)
 		if err != nil {
 			return false
 		}
@@ -103,7 +106,7 @@ func TestWorldLogger(t *testing.T) {
 	require.JSONEq(t, buf.String(), jsonWorldInfoString)
 	buf.Reset()
 	components := []component.IComponentType{energy}
-	entityId, err := w.Create(components...)
+	entityId, err := ecs.Create(w, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `
@@ -216,7 +219,7 @@ func TestWorldLogger(t *testing.T) {
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
-	_, err = w.CreateMany(2, []component.IComponentType{energy}...)
+	_, err = ecs.CreateMany(w, 2, EnergyComp{})
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `
