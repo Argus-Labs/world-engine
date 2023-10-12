@@ -280,7 +280,8 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	count := <-modScoreCountCh
 	assert.Equal(t, 1, count)
 
-	// Add a transaction mid-tick.
+	// Add two transactions mid-tick.
+	modScoreTx.AddToQueue(world, &ModifyScoreTx{})
 	modScoreTx.AddToQueue(world, &ModifyScoreTx{})
 
 	// The tick is still not over, so we should still only see 1 modify score transaction
@@ -293,10 +294,11 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	// Start the next tick.
 	tickStart <- time.Now()
 
+	// This second tick shold find 2 ModifyScore transactions. They were added in the middle of the previous tick.
 	count = <-modScoreCountCh
-	assert.Equal(t, 1, count)
+	assert.Equal(t, 2, count)
 	count = <-modScoreCountCh
-	assert.Equal(t, 1, count)
+	assert.Equal(t, 2, count)
 
 	// Block until the tick has completed.
 	<-tickDone

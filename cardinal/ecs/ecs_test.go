@@ -360,9 +360,9 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	getArchIDForEntityID := func(id entity.ID) archetype.ID {
 		components, err := world.StoreManager().GetComponentTypesForEntity(id)
 		assert.NilError(t, err)
-		archIDBefore, err := world.StoreManager().GetArchIDForComponents(components)
+		archID, err := world.StoreManager().GetArchIDForComponents(components)
 		assert.NilError(t, err)
-		return archIDBefore
+		return archID
 	}
 
 	entity, err := world.Create(a, b)

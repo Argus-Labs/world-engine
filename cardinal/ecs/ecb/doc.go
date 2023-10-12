@@ -52,6 +52,17 @@ value:	JSON serialized bytes that can be deserialized to a map of archetype.ID t
 what archetype IDs have already been assigned and what groups of components each archetype ID corresponds to. This field
 must be loaded into memory before any entity creation or component addition/removals take place.
 
+key: 	"ECB:START-TICK"
+value:  An integer that represents the last tick that was started.
+
+key: 	"ECB:END-TICK"
+value: 	An integer that represents the last tick that was successfully completed.
+
+key: 	"ECB:PENDING-TRANSACTIONS"
+value:  JSON serialized bytes that can be deserialized to a list of transactions. These are the transactions that were
+processed in the last started tick. This data is only relevant when the START-TICK number does not match the END-TICK
+number.
+
 # In-memory storage model
 
 The in-memory data model roughly matches the model that is stored in redis, but there are some differences:

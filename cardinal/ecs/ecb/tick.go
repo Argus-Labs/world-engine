@@ -14,6 +14,10 @@ import (
 // associated with that tick. This means the manager here must also implement the TickStore interface.
 var _ storage.TickStorage = &Manager{}
 
+// GetTickNumbers returns the last tick that was started and the last tick that was ended. If start == end, it means
+// the last tick that was attempted completed successfully. If start != end, it means a tick was started but did not
+// complete successfully; Recover must be used to recover the pending transactions so the previously started tick can
+// be completed.
 func (m *Manager) GetTickNumbers() (start, end uint64, err error) {
 	ctx := context.Background()
 	start, err = m.client.Get(ctx, redisStartTickKey()).Uint64()
@@ -31,6 +35,8 @@ func (m *Manager) GetTickNumbers() (start, end uint64, err error) {
 	return start, end, nil
 }
 
+// StartNextTick saves the given transactions to the DB and sets the tick trackers to indicate we are in the middle
+// of a tick. While transactions are saved to the DB, no state changes take palce at this time.
 func (m *Manager) StartNextTick(txs []transaction.ITransaction, queue *transaction.TxQueue) error {
 	ctx := context.Background()
 	pipe := m.client.TxPipeline()
@@ -46,6 +52,8 @@ func (m *Manager) StartNextTick(txs []transaction.ITransaction, queue *transacti
 	return err
 }
 
+// FinalizeTick combines all pending state changes into a single multi/exec redis transactions and commits them
+// to the DB.
 func (m *Manager) FinalizeTick() error {
 	ctx := context.Background()
 	pipe, err := m.makePipeOfRedisCommands(ctx)
@@ -59,6 +67,8 @@ func (m *Manager) FinalizeTick() error {
 	return err
 }
 
+// Recover fetches the pending transactions for an incomplete tick. This should only be called if GetTickNumbers
+// indicates that the previous tick was started, but never completed.
 func (m *Manager) Recover(txs []transaction.ITransaction) (*transaction.TxQueue, error) {
 	ctx := context.Background()
 	key := redisPendingTransactionKey()
