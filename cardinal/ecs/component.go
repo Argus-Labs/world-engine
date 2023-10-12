@@ -61,58 +61,8 @@ func (c *ComponentType[T]) SetID(id component.TypeID) error {
 	return nil
 }
 
-// Get returns component data from the entity.
-func (c *ComponentType[T]) Get(w *World, id entity.ID) (comp T, err error) {
-	value, err := w.StoreManager().GetComponentForEntity(c, id)
-	if err != nil {
-		return comp, err
-	}
-	comp, ok := value.(T)
-	if !ok {
-		return comp, fmt.Errorf("type assertion for component failed: %v to %v", value, c)
-	}
-	return comp, nil
-}
-
 func (c *ComponentType[T]) GetRawJson(w *World, id entity.ID) (json.RawMessage, error) {
 	return w.StoreManager().GetComponentForEntityInRawJson(c, id)
-}
-
-// Set sets component data to the entity.
-func (c *ComponentType[T]) Set(w *World, id entity.ID, component T) error {
-	if _, ok := w.nameToComponent[c.Name()]; !ok {
-		return fmt.Errorf("%s is not registered, please register it before updating", c.Name())
-	}
-	err := w.StoreManager().SetComponentForEntity(c, id, component)
-	if err != nil {
-		return err
-	}
-	w.Logger.Debug().
-		Str("entity_id", strconv.FormatUint(uint64(id), 10)).
-		Str("component_name", c.name).
-		Int("component_id", int(c.ID())).
-		Msg("entity updated")
-	return nil
-}
-
-// Each iterates over the entities that have the component.
-// If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (c *ComponentType[T]) Each(w *World, callback QueryCallBackFn) {
-	c.query.Each(w, callback)
-}
-
-// First returns the first entity that has the component.
-func (c *ComponentType[T]) First(w *World) (entity.ID, error) {
-	return c.query.First(w)
-}
-
-// MustFirst returns the first entity that has the component or panics.
-func (c *ComponentType[T]) MustFirst(w *World) entity.ID {
-	id, err := c.query.First(w)
-	if err != nil {
-		panic(fmt.Sprintf("no entity has the component %s", c.name))
-	}
-	return id
 }
 
 func RemoveComponentFrom[T component.IAbstractComponent](w *World, id entity.ID) error {
@@ -274,43 +224,6 @@ func UpdateComponent[T component.IAbstractComponent](w *World, id entity.ID, fn 
 	return SetComponent[T](w, id, updatedVal)
 }
 
-//// EachComponent iterates over the entities that have the component.
-//// If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-//func EachComponent[T component.IAbstractComponent](w *World, callback QueryCallBackFn) {
-//	var t T
-//	name := t.Name()
-//	c, ok := w.nameToComponent[name]
-//	if !ok {
-//		panic(fmt.Errorf("%s is not registered, please register it before updating", t.Name()))
-//	}
-//	c.GetQuery().Each(w, callback)
-//}
-//
-//// FirstComponent First returns the first entity that has the component.
-//func FirstComponent[T component.IAbstractComponent](w *World) (entity.ID, error) {
-//	var t T
-//	name := t.Name()
-//	c, ok := w.nameToComponent[name]
-//	if !ok {
-//		return -1, fmt.Errorf("%s is not registered, please register it before updating", t.Name())
-//	}
-//	return c.GetQuery().First(w)
-//}
-//
-//// MustFirstComponent MustFirst returns the first entity that has the component or panics.
-//func MustFirstComponent[T component.IAbstractComponent](w *World) entity.ID {
-//	var t T
-//	name := t.Name()
-//	c, ok := w.nameToComponent[name]
-//	if !ok {
-//		panic(fmt.Errorf("%s is not registered, please register it before updating", t.Name()))
-//	}
-//	id, err := c.GetQuery().First(w)
-//	if err != nil {
-//		panic(fmt.Sprintf("no entity has the component %s", c.Name()))
-//	}
-//	return id
-//}
 //
 //func GetRawJsonComponent[T component.IAbstractComponent](w *World, id entity.ID) (json.RawMessage, error) {
 //	var t T

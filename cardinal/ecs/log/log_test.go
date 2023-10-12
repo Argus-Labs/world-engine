@@ -39,9 +39,12 @@ var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
 
 func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error {
 	logger.Log().Msg("test")
-	energy.Each(w, func(entityId entity.ID) bool {
+	q, err := w.NewQuery(ecs.Contains(EnergyComp{}))
+	if err != nil {
+		return err
+	}
+	q.Each(w, func(entityId entity.ID) bool {
 		energyPlanet, err := ecs.GetComponent[EnergyComp](w, entityId)
-		//energyPlanet, err := energy.Get(w, entityId)
 		if err != nil {
 			return false
 		}
