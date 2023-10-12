@@ -209,7 +209,9 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
-		gotID, err := alpha.First(world)
+		q, err := world.NewQuery(ecs.Contains(ScalarComponentAlpha{}))
+		assert.NilError(t, err)
+		gotID, err := q.First(world)
 		assert.NilError(t, err)
 		assert.Equal(t, wantID, gotID)
 
@@ -264,7 +266,9 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		errorToggleComponent := errors.New("problem with toggle component")
 		world.AddSystem(func(w *ecs.World, _ *transaction.TxQueue, _ *log.Logger) error {
 			// Get the one and only entity ID
-			id, err := static.First(w)
+			q, err := w.NewQuery(ecs.Contains(ScalarComponentStatic{}))
+			assert.NilError(t, err)
+			id, err := q.First(w)
 			assert.NilError(t, err)
 
 			s, err := ecs.GetComponent[ScalarComponentStatic](w, id)
@@ -285,8 +289,9 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			return nil
 		})
 		assert.NilError(t, world.LoadGameState())
-
-		id, err := static.First(world)
+		q, err := world.NewQuery(ecs.Contains(ScalarComponentStatic{}))
+		assert.NilError(t, err)
+		id, err := q.First(world)
 		assert.NilError(t, err)
 
 		if firstWorldIteration {
@@ -338,7 +343,9 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		assert.NilError(t, world.RegisterTransactions(powerTx))
 
 		world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-			id := powerComp.MustFirst(w)
+			q, err := w.NewQuery(ecs.Contains(PowerComp{}))
+			assert.NilError(t, err)
+			id := q.MustFirst(w)
 			entityPower, err := ecs.GetComponent[PowerComp](w, id)
 			assert.NilError(t, err)
 
@@ -362,7 +369,9 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		// fetchPower is a small helper to get the power of the only entity in the world
 		fetchPower := func() float64 {
-			id, err := powerComp.First(world)
+			q, err := world.NewQuery(ecs.Contains(PowerComp{}))
+			assert.NilError(t, err)
+			id, err := q.First(world)
 			assert.NilError(t, err)
 			power, err := ecs.GetComponent[PowerComp](world, id)
 			//power, err := powerComp.Get(world, id)

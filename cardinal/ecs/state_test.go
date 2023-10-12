@@ -221,7 +221,11 @@ func TestCanReloadState(t *testing.T) {
 	_, err := ecs.CreateMany(alphaWorld, 10, oneAlphaNumComp{})
 	assert.NilError(t, err)
 	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		oneAlphaNum.Each(w, func(id entity.ID) bool {
+		q, err := w.NewQuery(ecs.Contains(oneAlphaNum))
+		if err != nil {
+			return err
+		}
+		q.Each(w, func(id entity.ID) bool {
 			err := ecs.SetComponent[oneAlphaNumComp](w, id, &oneAlphaNumComp{int(id)})
 			//err := oneAlphaNum.Set(w, id, oneAlphaNumComp{int(id)})
 			assert.Check(t, err == nil)
@@ -241,7 +245,9 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, betaWorld.LoadGameState())
 
 	count := 0
-	oneBetaNum.Each(betaWorld, func(id entity.ID) bool {
+	q, err := betaWorld.NewQuery(ecs.Contains(oneBetaNumComp{}))
+	assert.NilError(t, err)
+	q.Each(betaWorld, func(id entity.ID) bool {
 		count++
 		num, err := ecs.GetComponent[oneBetaNumComp](betaWorld, id)
 		//num, err := oneBetaNum.Get(betaWorld, id)

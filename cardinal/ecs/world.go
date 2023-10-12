@@ -639,3 +639,11 @@ func (w *World) InjectLogger(logger *ecslog.Logger) {
 	w.Logger = logger
 	w.StoreManager().InjectLogger(logger)
 }
+
+func (w *World) NewQuery(filter Filterable) (*Query, error) {
+	componentFilter, err := filter.ConvertToComponentFilter(w)
+	if err != nil {
+		return nil, err
+	}
+	return NewQuery(componentFilter), nil
+}

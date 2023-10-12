@@ -21,7 +21,7 @@ type EnergyComponent struct {
 	Cap int64
 }
 
-func (e EnergyComponent) Name() string {
+func (EnergyComponent) Name() string {
 	return "EnergyComponent"
 }
 
@@ -35,8 +35,9 @@ func (OwnableComponent) Name() string {
 
 func UpdateEnergySystem(w *ecs.World, tq *transaction.TxQueue, _ *log.Logger) error {
 	errs := []error{}
-
-	Energy.Each(w, func(ent entity.ID) bool {
+	q, err := w.NewQuery(ecs.Contains(EnergyComponent{}))
+	errs = append(errs, err)
+	q.Each(w, func(ent entity.ID) bool {
 		energyPlanet, err := ecs.GetComponent[EnergyComponent](w, ent)
 		//energyPlanet, err := Energy.Get(w, ent)
 		if err != nil {
@@ -78,8 +79,9 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	assert.NilError(t, world.Tick(context.Background()))
-
-	Energy.Each(world, func(id entity.ID) bool {
+	query, err := world.NewQuery(ecs.Contains(EnergyComponent{}))
+	assert.NilError(t, err)
+	query.Each(world, func(id entity.ID) bool {
 		energyPlanet, err := ecs.GetComponent[EnergyComponent](world, id)
 		//energyPlanet, err := Energy.Get(world, id)
 		assert.NilError(t, err)
@@ -87,7 +89,8 @@ func TestECS(t *testing.T) {
 		return true
 	})
 
-	q := ecs.NewQuery(filter.Or(filter.Contains(Energy), filter.Contains(Ownable)))
+	q, err := world.NewQuery(ecs.Or(ecs.Contains(EnergyComponent{}), ecs.Contains(OwnableComponent{})))
+	assert.NilError(t, err)
 	amt := q.Count(world)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
 	comp, exists := world.GetComponentByName("EnergyComponent")
@@ -125,7 +128,9 @@ func TestVelocitySimulation(t *testing.T) {
 	assert.NilError(t, ecs.SetComponent[Vel](world, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
-	Velocity.Each(world, func(id entity.ID) bool {
+	velocityQuery, err := world.NewQuery(ecs.Contains(&Vel{}))
+	assert.NilError(t, err)
+	velocityQuery.Each(world, func(id entity.ID) bool {
 		vel, err := ecs.GetComponent[Vel](world, id)
 		//vel, err := Velocity.Get(world, id)
 		assert.NilError(t, err)
@@ -200,7 +205,9 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Make sure we find exactly 2 entries
 	count := 0
-	tuple.Each(world, func(id entity.ID) bool {
+	q, err := world.NewQuery(ecs.Contains(Tuple{}))
+	assert.NilError(t, err)
+	q.Each(world, func(id entity.ID) bool {
 		_, err := ecs.GetComponent[Tuple](world, id)
 		//_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
@@ -214,7 +221,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Now we should only find 1 entity
 	count = 0
-	tuple.Each(world, func(id entity.ID) bool {
+	q.Each(world, func(id entity.ID) bool {
 		_, err := ecs.GetComponent[Tuple](world, id)
 		//_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
@@ -231,7 +238,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	err = world.Remove(entities[1])
 	assert.NilError(t, err)
 	count = 0
-	tuple.Each(world, func(id entity.ID) bool {
+	q.Each(world, func(id entity.ID) bool {
 		_, err := ecs.GetComponent[Tuple](world, id)
 		//_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
@@ -266,7 +273,8 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	// Pre-populate all the entities with their own IDs. This will help
 	// us keep track of which component belongs to which entity in the case
 	// of a problem
-	Count.Each(world, func(id entity.ID) bool {
+	q, err := world.NewQuery(ecs.Contains(CountComponent{}))
+	q.Each(world, func(id entity.ID) bool {
 		assert.NilError(t, ecs.SetComponent[CountComponent](world, id, &CountComponent{int(id)}))
 		//assert.NilError(t, Count.Set(world, id, CountComponent{int(id)}))
 		return true
@@ -274,7 +282,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 
 	// Remove the even entries
 	itr := 0
-	Count.Each(world, func(id entity.ID) bool {
+	q.Each(world, func(id entity.ID) bool {
 		if itr%2 == 0 {
 			assert.NilError(t, world.Remove(id))
 		}
@@ -285,7 +293,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	assert.Equal(t, 10, itr)
 
 	seen := map[int]int{}
-	Count.Each(world, func(id entity.ID) bool {
+	q.Each(world, func(id entity.ID) bool {
 		c, err := ecs.GetComponent[CountComponent](world, id)
 		//c, err := Count.Get(world, id)
 		assert.NilError(t, err)
@@ -422,26 +430,30 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 		}
 	}
 	// 3 entities have alpha
-	alpha.Each(world, countAgain())
+	alphaQuery, err := world.NewQuery(ecs.Contains(Alpha{}))
+	assert.NilError(t, err)
+	alphaQuery.Each(world, countAgain())
 	assert.Equal(t, 3, count)
 
 	// 0 entities have gamma
-	gamma.Each(world, countAgain())
+	gammaQuery, err := world.NewQuery(ecs.Contains(Gamma{}))
+	assert.NilError(t, err)
+	gammaQuery.Each(world, countAgain())
 	assert.Equal(t, 0, count)
 
 	assert.NilError(t, ecs.RemoveComponentFrom[Alpha](world, entIDs[0]))
 
 	// alpha has been removed from entity[0], so only 2 entities should now have alpha
-	alpha.Each(world, countAgain())
+	alphaQuery.Each(world, countAgain())
 	assert.Equal(t, 2, count)
 
 	// Add gamma to an entity. Now 1 entity should have gamma.
 	assert.NilError(t, ecs.AddComponentTo[Gamma](world, entIDs[1]))
-	gamma.Each(world, countAgain())
+	gammaQuery.Each(world, countAgain())
 	assert.Equal(t, 1, count)
 
 	// Make sure the one ent that has gamma is entIDs[1]
-	gamma.Each(world, func(id entity.ID) bool {
+	gammaQuery.Each(world, func(id entity.ID) bool {
 		assert.Equal(t, id, entIDs[1])
 		return true
 	})
