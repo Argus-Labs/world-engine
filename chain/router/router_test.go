@@ -15,7 +15,8 @@ import (
 
 func TestRouter(t *testing.T) {
 	r := NewRouter("", log.NewTestLogger(t))
-	router := r.(*routerImpl)
+	router, ok := r.(*routerImpl)
+	assert.Equal(t, ok, true)
 
 	namespace, sender, msgID, msg := "cardinal", "foo", uint64(5), []byte("hello")
 	// queue a message
@@ -30,7 +31,9 @@ func TestRouter(t *testing.T) {
 	assert.Equal(t, router.queue.IsSet(), false)
 
 	// queue another message
-	router.SendMessage(context.Background(), namespace, sender, msgID, msg)
+	_, err = router.SendMessage(context.Background(), namespace, sender, msgID, msg)
+	assert.NilError(t, err)
+
 	// this time, lets check when the execution result is failed, we still clear the queue.
 	router.HandleDispatch(tx, &core.ExecutionResult{Err: errors.New("some error")})
 	assert.Equal(t, router.queue.IsSet(), false)
