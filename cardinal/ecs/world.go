@@ -35,7 +35,7 @@ type Namespace string
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
-	storeManager             *store.Manager
+	storeManager             store.IManager
 	systems                  []System
 	systemLoggers            []*ecslog.Logger
 	systemNames              []string
@@ -75,7 +75,7 @@ func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
-func (w *World) StoreManager() *store.Manager {
+func (w *World) StoreManager() store.IManager {
 	return w.storeManager
 }
 
@@ -128,6 +128,10 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 		} else {
 			return errors.New("cannot register multiple components with the same name")
 		}
+	}
+
+	if err := w.storeManager.RegisterComponents(w.registeredComponents); err != nil {
+		return err
 	}
 
 	return nil

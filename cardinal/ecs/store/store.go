@@ -17,6 +17,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
+var _ IManager = &Manager{}
+
 type Manager struct {
 	store  storage.WorldStorage
 	logger *log.Logger
@@ -27,6 +29,18 @@ func NewStoreManager(store storage.WorldStorage, logger *log.Logger) *Manager {
 		store:  store,
 		logger: logger,
 	}
+}
+
+func (s *Manager) GetEntitiesForArchID(archID archetype.ID) []entity.ID {
+	return s.store.ArchAccessor.Archetype(archID).Entities()
+}
+
+func (s *Manager) SearchFrom(filter filter.ComponentFilter, seen int) *storage.ArchetypeIterator {
+	return s.store.ArchCompIdxStore.SearchFrom(filter, seen)
+}
+
+func (s *Manager) ArchetypeCount() int {
+	return s.store.ArchAccessor.Count()
 }
 
 func (s *Manager) Close() error {
@@ -190,6 +204,10 @@ func (s *Manager) GetComponentForEntityInRawJson(cType component.IComponentType,
 		return nil, err
 	}
 	return s.store.CompStore.Storage(cType).Component(loc.ArchID, loc.CompIndex)
+}
+
+func (s *Manager) RegisterComponents([]component.IComponentType) error {
+	return nil
 }
 
 func (s *Manager) getComponentsForArchetype(archID archetype.ID) []component.IComponentType {
