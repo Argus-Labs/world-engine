@@ -23,7 +23,6 @@ type Result struct {
 	Message []byte
 }
 
-//go:generate mockgen -source=routerImpl.go -package mocks -destination mocks/routerImpl.go
 type Router interface {
 	// SendMessage sends the msg payload to the game shard indicated by the namespace, if such namespace exists on chain.
 	SendMessage(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error)
