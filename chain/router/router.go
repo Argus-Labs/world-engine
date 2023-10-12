@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -85,11 +86,11 @@ func (r *routerImpl) HandleDispatch(tx *types.Transaction, result *core.Executio
 	if result.Failed() {
 		r.queue.Clear()
 	} else {
-		r.dispatchMessage()
+		r.dispatchMessage(tx.Hash())
 	}
 }
 
-func (r *routerImpl) dispatchMessage() {
+func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 	defer r.queue.Clear()
 	// we do not need to pass in a namespace, since we just default to a given cardinal addr anyways.
 	// this will eventually need to update to have a proper mapping of namespace -> game shard EVM grpc address.
@@ -101,6 +102,7 @@ func (r *routerImpl) dispatchMessage() {
 		r.logger.Error("error getting game shard gRPC connection", "error", err)
 		return
 	}
+	r.queue.msg.EvmTxHash = txHash.String()
 	res, err := client.SendMessage(context.Background(), r.queue.msg)
 	if err != nil {
 		// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
