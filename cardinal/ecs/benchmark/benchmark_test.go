@@ -72,11 +72,11 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 	return world
 }
 
-func BenchmarkWorld_Tick(b *testing.B) {
-	maxEntities := 1000
+func BenchmarkWorld_TickNoSystems(b *testing.B) {
+	maxEntities := 10000
 	enableHealthSystem := false
 
-	for i := maxEntities; i <= maxEntities; i *= 10 {
+	for i := 1; i <= maxEntities; i *= 10 {
 		world := setupWorld(b, i, enableHealthSystem)
 		name := fmt.Sprintf("%d entities", i)
 		b.Run(name, func(b *testing.B) {
