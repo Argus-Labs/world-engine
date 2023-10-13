@@ -343,9 +343,8 @@ func TestHandleSwaggerServer(t *testing.T) {
 		return nil
 	})
 
-	alpha := ecs.NewComponentType[garbageStructAlpha]("alpha")
-	beta := ecs.NewComponentType[garbageStructBeta]("beta")
-	assert.NilError(t, w.RegisterComponents(alpha, beta))
+	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](w))
+	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](w))
 	alphaCount := 75
 	_, err := ecs.CreateMany(w, alphaCount, garbageStructAlpha{})
 	assert.NilError(t, err)
@@ -579,8 +578,6 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 
 	urlSet := []string{"tx/persona/create-persona", "query/persona/signer"}
 	world := ecs.NewTestWorld(t)
-	err := world.RegisterComponents()
-	assert.NilError(t, err)
 	tx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("some_tx")
 	assert.NilError(t, world.RegisterTransactions(tx))
 	assert.NilError(t, world.LoadGameState())
