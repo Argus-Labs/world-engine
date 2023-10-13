@@ -35,7 +35,6 @@ func (EnergyComp) Name() string {
 	return "EnergyComp"
 }
 
-var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
 
 func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error {
 	logger.Log().Msg("test")
@@ -77,8 +76,7 @@ func TestWorldLogger(t *testing.T) {
 	w.InjectLogger(&cardinalLogger)
 	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, w.RegisterTransactions(alphaTx))
-	err := w.RegisterComponents(energy)
-	assert.NilError(t, err)
+	assert.NilError(t, ecs.RegisterComponent[EnergyComp](w))
 	cardinalLogger.LogWorld(w, zerolog.InfoLevel)
 	jsonWorldInfoString := `{
 					"level":"info",
@@ -103,8 +101,10 @@ func TestWorldLogger(t *testing.T) {
 				}
 `
 	//require.JSONEq compares json strings for equality.
-	require.JSONEq(t, buf.String(), jsonWorldInfoString)
+	require.JSONEq(t, jsonWorldInfoString, buf.String())
 	buf.Reset()
+	energy, err := w.GetComponentByName(EnergyComp{}.Name())
+	assert.NilError(t, err)
 	components := []component.IComponentType{energy}
 	entityId, err := ecs.Create(w, EnergyComp{})
 	assert.NilError(t, err)

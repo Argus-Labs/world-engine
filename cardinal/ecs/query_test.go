@@ -7,7 +7,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
 type FooComponent struct {
@@ -20,16 +19,17 @@ func (FooComponent) Name() string {
 
 func TestQueryEarlyTermination(t *testing.T) {
 
-	foo := ecs.NewComponentType[FooComponent]("foo")
 	world := ecs.NewTestWorld(t)
-	assert.NilError(t, world.RegisterComponents(foo))
+	assert.NilError(t, ecs.RegisterComponent[FooComponent](world))
 
 	total := 10
 	count := 0
 	stop := 5
 	_, err := ecs.CreateMany(world, total, FooComponent{})
 	assert.NilError(t, err)
-	ecs.NewQuery(filter.Exact(foo)).Each(world, func(id entity.ID) bool {
+	q, err := world.NewQuery(ecs.Exact(FooComponent{}))
+	assert.NilError(t, err)
+	q.Each(world, func(id entity.ID) bool {
 		count++
 		if count == stop {
 			return false
@@ -39,7 +39,9 @@ func TestQueryEarlyTermination(t *testing.T) {
 	assert.Equal(t, count, stop)
 
 	count = 0
-	ecs.NewQuery(filter.Exact(foo)).Each(world, func(id entity.ID) bool {
+	q, err = world.NewQuery(ecs.Exact(FooComponent{}))
+	assert.NilError(t, err)
+	q.Each(world, func(id entity.ID) bool {
 		count++
 		return true
 	})

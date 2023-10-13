@@ -11,7 +11,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -43,13 +42,21 @@ type Foo struct {
 	Value int
 }
 
+func (Foo) Name() string {
+	return "foo"
+}
+
 type Bar struct {
 	Value int
 }
 
+func (Bar) Name() string {
+	return "bar"
+}
+
 var (
-	fooComp       = ecs.NewComponentType[Foo]("foo")
-	barComp       = ecs.NewComponentType[Bar]("bar")
+	fooComp       = ecs.NewComponentType[Foo]()
+	barComp       = ecs.NewComponentType[Bar]()
 	allComponents = []component.IComponentType{fooComp, barComp}
 )
 
@@ -281,11 +288,9 @@ func (Power) Name() string {
 func TestStorageCanBeUsedInQueries(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
-	healthComp := ecs.NewComponentType[Health]("health")
-	powerComp := ecs.NewComponentType[Power]("power")
-
 	world := ecs.NewTestWorld(t, ecs.WithStoreManager(manager))
-	assert.NilError(t, world.RegisterComponents(healthComp, powerComp))
+	assert.NilError(t, ecs.RegisterComponent[Health](world))
+	assert.NilError(t, ecs.RegisterComponent[Power](world))
 	assert.NilError(t, world.LoadGameState())
 
 	justHealthIDs, err := ecs.CreateMany(world, 8, Health{})
@@ -296,34 +301,36 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 	assert.NilError(t, err)
 
 	testCases := []struct {
-		filter  filter.ComponentFilter
+		filter  ecs.Filterable
 		wantIDs []entity.ID
 	}{
 		{
-			filter:  filter.Contains(healthComp),
+			filter:  ecs.Contains(Health{}),
 			wantIDs: append(justHealthIDs, healthAndPowerIDs...),
 		},
 		{
-			filter:  filter.Contains(powerComp),
+			filter:  ecs.Contains(Power{}),
 			wantIDs: append(justPowerIDs, healthAndPowerIDs...),
 		},
 		{
-			filter:  filter.Exact(healthComp, powerComp),
+			filter:  ecs.Exact(Health{}, Power{}),
 			wantIDs: healthAndPowerIDs,
 		},
 		{
-			filter:  filter.Exact(healthComp),
+			filter:  ecs.Exact(Health{}),
 			wantIDs: justHealthIDs,
 		},
 		{
-			filter:  filter.Exact(powerComp),
+			filter:  ecs.Exact(Power{}),
 			wantIDs: justPowerIDs,
 		},
 	}
 
 	for _, tc := range testCases {
 		found := map[entity.ID]bool{}
-		ecs.NewQuery(tc.filter).Each(world, func(id entity.ID) bool {
+		q, err := world.NewQuery(tc.filter)
+		assert.NilError(t, err)
+		q.Each(world, func(id entity.ID) bool {
 			found[id] = true
 			return true
 		})

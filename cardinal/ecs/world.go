@@ -61,10 +61,11 @@ type World struct {
 
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
+
+	nextComponentID component.TypeID
 }
 
 var (
-	ErrorComponentRegistrationMustHappenOnce   = errors.New("component registration must happen exactly 1 time")
 	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
 	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
 	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
@@ -109,34 +110,24 @@ func (w *World) AddSystems(s ...System) {
 	}
 }
 
-// RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
-// This will give components the ability to access their own data.
-func (w *World) RegisterComponents(components ...component.IComponentType) error {
-	if w.stateIsLoaded {
+func RegisterComponent[T component.IAbstractComponent](world *World) error {
+	if world.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
-	if w.isComponentsRegistered {
-		return ErrorComponentRegistrationMustHappenOnce
+	var t T
+	_, err := world.GetComponentByName(t.Name())
+	if err == nil {
+		return fmt.Errorf("component with name '%s' is already registered", t.Name())
 	}
-	w.isComponentsRegistered = true
-	w.registeredComponents = append(w.registeredComponents, SignerComp)
-	w.registeredComponents = append(w.registeredComponents, components...)
-
-	for i, c := range w.registeredComponents {
-		id := component.TypeID(i + 1)
-		if err := c.SetID(id); err != nil {
-			return err
-		}
+	c := NewComponentType[T]()
+	err = c.SetID(world.nextComponentID)
+	if err != nil {
+		return err
 	}
-
-	for _, c := range w.registeredComponents {
-		if _, ok := w.nameToComponent[c.Name()]; !ok {
-			w.nameToComponent[c.Name()] = c
-		} else {
-			return errors.New("cannot register multiple components with the same name")
-		}
-	}
-
+	world.registeredComponents = append(world.registeredComponents, c)
+	world.nextComponentID += 1
+	world.nameToComponent[t.Name()] = c
+	world.isComponentsRegistered = true
 	return nil
 }
 
@@ -226,9 +217,14 @@ func NewWorld(s storage.WorldStorage, sm store.IManager, opts ...Option) (*World
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
 		endGameLoopCh:     make(chan bool),
+		nextComponentID:   1,
 	}
 	w.isGameLoopRunning.Store(false)
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	err := RegisterComponent[SignerComponent](w)
+	if err != nil {
+		return nil, err
+	}
 	for _, opt := range opts {
 		opt(w)
 	}
@@ -421,8 +417,10 @@ func (w *World) LoadGameState() error {
 			return err
 		}
 	}
+
 	if !w.isComponentsRegistered {
-		if err := w.RegisterComponents(); err != nil {
+		err := RegisterComponent[SignerComponent](w)
+		if err != nil {
 			return err
 		}
 	}

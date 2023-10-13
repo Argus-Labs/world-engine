@@ -75,8 +75,8 @@ func TestWithoutRegistration(t *testing.T) {
 
 	assert.Assert(t, err != nil)
 
-	err = world.RegisterComponents(Energy, Ownable)
-	assert.NilError(t, err)
+	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](world))
+	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](world))
 	id, err = ecs.Create(world, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 	err = ecs.UpdateComponent[EnergyComponent](world, id, func(component *EnergyComponent) *EnergyComponent {
