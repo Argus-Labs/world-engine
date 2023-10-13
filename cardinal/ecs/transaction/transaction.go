@@ -40,6 +40,19 @@ func (t *TxQueue) AddTransaction(id TypeID, v any, sig *sign.SignedPayload) TxHa
 	return txHash
 }
 
+func (t *TxQueue) AddEVMTransaction(id TypeID, v any, sig *sign.SignedPayload, evmTxHash string) TxHash {
+	t.mux.Lock()
+	defer t.mux.Unlock()
+	txHash := TxHash(sig.HashHex())
+	t.m[id] = append(t.m[id], TxAny{
+		TxHash:          txHash,
+		Value:           v,
+		Sig:             sig,
+		EVMSourceTxHash: evmTxHash,
+	})
+	return txHash
+}
+
 func (t *TxQueue) CopyTransaction() *TxQueue {
 	t.mux.Lock()
 	defer t.mux.Unlock()
@@ -60,6 +73,8 @@ type TxAny struct {
 	Value  any
 	TxHash TxHash
 	Sig    *sign.SignedPayload
+	// EVMSourceTxHash is the tx hash of the EVM tx that triggered this tx.
+	EVMSourceTxHash string
 }
 
 type TxHash string

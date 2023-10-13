@@ -149,7 +149,7 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 	// in the server's Handler, not in `World`.
 	sig := &sign.SignedPayload{PersonaTag: sc.PersonaTag}
 	// add transaction to the world queue
-	s.world.AddTransaction(itx.ID(), tx, sig)
+	s.world.AddEVMTransaction(itx.ID(), tx, sig, msg.EvmTxHash)
 	return &routerv1.SendMessageResponse{}, nil
 }
 

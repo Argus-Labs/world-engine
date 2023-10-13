@@ -56,7 +56,7 @@ type World struct {
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
-	
+
 	Logger *ecslog.Logger
 
 	endGameLoopCh     chan bool
@@ -274,6 +274,12 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPay
 	// transaction is actually added to the returned tick.
 	tick = w.CurrentTick()
 	txHash = w.txQueue.AddTransaction(id, v, sig)
+	return tick, txHash
+}
+
+func (w *World) AddEVMTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload, evmTxHash string) (tick uint64, txHash transaction.TxHash) {
+	tick = w.CurrentTick()
+	txHash = w.txQueue.AddEVMTransaction(id, v, sig, evmTxHash)
 	return tick, txHash
 }
 
