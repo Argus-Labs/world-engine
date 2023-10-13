@@ -10,15 +10,15 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-type IRead interface {
-	// Name returns the name of the read.
+type IQuery interface {
+	// Name returns the name of the query.
 	Name() string
-	// HandleRead handles reads with concrete types, rather than encoded bytes.
-	HandleRead(*World, any) (any, error)
-	// HandleReadRaw is given a reference to the world, json encoded bytes that represent a read request
+	// HandleQuery handles queries with concrete types, rather than encoded bytes.
+	HandleQuery(*World, any) (any, error)
+	// HandleQueryRaw is given a reference to the world, json encoded bytes that represent a query request
 	// and is expected to return a json encoded response struct.
-	HandleReadRaw(*World, []byte) ([]byte, error)
-	// Schema returns the json schema of the read request.
+	HandleQueryRaw(*World, []byte) ([]byte, error)
+	// Schema returns the json schema of the query request.
 	Schema() (request, reply *jsonschema.Schema)
 	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
 	DecodeEVMRequest([]byte) (any, error)
@@ -30,15 +30,15 @@ type IRead interface {
 	EncodeAsABI(any) ([]byte, error)
 }
 
-type ReadType[Request any, Reply any] struct {
+type QueryType[Request any, Reply any] struct {
 	name       string
 	handler    func(world *World, req Request) (Reply, error)
 	requestABI *abi.Type
 	replyABI   *abi.Type
 }
 
-func WithReadEVMSupport[Request, Reply any]() func(transactionType *ReadType[Request, Reply]) {
-	return func(read *ReadType[Request, Reply]) {
+func WithQueryEVMSupport[Request, Reply any]() func(transactionType *QueryType[Request, Reply]) {
+	return func(query *QueryType[Request, Reply]) {
 		var req Request
 		var rep Reply
 		reqABI, err := GenerateABIType(req)
@@ -49,18 +49,18 @@ func WithReadEVMSupport[Request, Reply any]() func(transactionType *ReadType[Req
 		if err != nil {
 			panic(err)
 		}
-		read.requestABI = reqABI
-		read.replyABI = repABI
+		query.requestABI = reqABI
+		query.replyABI = repABI
 	}
 }
 
-var _ IRead = NewReadType[struct{}, struct{}]("", nil)
+var _ IQuery = NewQueryType[struct{}, struct{}]("", nil)
 
-func NewReadType[Request any, Reply any](
+func NewQueryType[Request any, Reply any](
 	name string,
 	handler func(world *World, req Request) (Reply, error),
-	opts ...func() func(readType *ReadType[Request, Reply]),
-) *ReadType[Request, Reply] {
+	opts ...func() func(queryType *QueryType[Request, Reply]),
+) *QueryType[Request, Reply] {
 	var req Request
 	var rep Reply
 	reqType := reflect.TypeOf(req)
@@ -77,9 +77,9 @@ func NewReadType[Request any, Reply any](
 	}
 
 	if !repValid || !reqValid {
-		panic(fmt.Sprintf("Invalid ReadType: %s: The Request and Reply must be both structs", name))
+		panic(fmt.Sprintf("Invalid QueryType: %s: The Request and Reply must be both structs", name))
 	}
-	r := &ReadType[Request, Reply]{
+	r := &QueryType[Request, Reply]{
 		name:    name,
 		handler: handler,
 	}
@@ -89,7 +89,7 @@ func NewReadType[Request any, Reply any](
 	return r
 }
 
-func (r *ReadType[Request, Reply]) generateABIBindings() error {
+func (r *QueryType[Request, Reply]) generateABIBindings() error {
 	var req Request
 	reqABI, err := GenerateABIType(req)
 	if err != nil {
@@ -105,28 +105,28 @@ func (r *ReadType[Request, Reply]) generateABIBindings() error {
 	return nil
 }
 
-func (r *ReadType[req, rep]) Name() string {
+func (r *QueryType[req, rep]) Name() string {
 	return r.name
 }
 
-func (r *ReadType[req, rep]) Schema() (request, reply *jsonschema.Schema) {
+func (r *QueryType[req, rep]) Schema() (request, reply *jsonschema.Schema) {
 	return jsonschema.Reflect(new(req)), jsonschema.Reflect(new(rep))
 }
 
-func (r *ReadType[req, rep]) HandleRead(world *World, a any) (any, error) {
+func (r *QueryType[req, rep]) HandleQuery(world *World, a any) (any, error) {
 	request, ok := a.(req)
 	if !ok {
-		return nil, fmt.Errorf("cannot cast %T to this reads request type %T", a, new(req))
+		return nil, fmt.Errorf("cannot cast %T to this query request type %T", a, new(req))
 	}
 	reply, err := r.handler(world, request)
 	return reply, err
 }
 
-func (r *ReadType[req, rep]) HandleReadRaw(w *World, bz []byte) ([]byte, error) {
+func (r *QueryType[req, rep]) HandleQueryRaw(w *World, bz []byte) ([]byte, error) {
 	request := new(req)
 	err := json.Unmarshal(bz, request)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal read request into type %T: %w", *request, err)
+		return nil, fmt.Errorf("unable to unmarshal query request into type %T: %w", *request, err)
 	}
 	res, err := r.handler(w, *request)
 	if err != nil {
@@ -139,7 +139,7 @@ func (r *ReadType[req, rep]) HandleReadRaw(w *World, bz []byte) ([]byte, error) 
 	return bz, nil
 }
 
-func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
+func (r *QueryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if r.requestABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
@@ -158,7 +158,7 @@ func (r *ReadType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	return request, nil
 }
 
-func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
+func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if r.replyABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
@@ -177,7 +177,7 @@ func (r *ReadType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	return reply, nil
 }
 
-func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
+func (r *QueryType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	if r.replyABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
@@ -186,7 +186,7 @@ func (r *ReadType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	return bz, err
 }
 
-func (r *ReadType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
+func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 	if r.requestABI == nil || r.replyABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}

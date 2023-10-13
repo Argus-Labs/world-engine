@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components'
 
 # World
 
-The `World` object is the manager of everything happening in the game. It deals with registering components, systems, transactions, and reads, as well as ticking the game simulation forward. `World` objects use [Redis](https://redis.io/) to store the game's state.
+The `World` object is the manager of everything happening in the game. It deals with registering components, systems, transactions, and queries, as well as ticking the game simulation forward. `World` objects use [Redis](https://redis.io/) to store the game's state.
 
 
 ```go
@@ -223,12 +223,12 @@ func main() {
 | error       | An error indicating any issues that occurred during the component registration. |
 
 
-### RegisterReads
+### RegisterQueries
 
-`RegisterReads` registers the reads in the `World`. This allows the `Read` endpoints to be automatically generated.
+`RegisterQueries` registers the queries in the `World`. This allows the `Query` endpoints to be automatically generated.
 
 ```go
-func (w *World) RegisterReads(reads ...AnyReadType) error
+func (w *World) RegisterQueries(queries ...AnyQueryType) error
 ```
 #### Example
 
@@ -238,16 +238,16 @@ package main
 import (
     "log"
 
-    "github.com/my-username/my-world-engine-project/read"
+    "github.com/my-username/my-world-engine-project/query"
 )
 
 func main() {
     // ... world setup ...
 
-    err := world.RegisterReads(
-		read.ReadLocation,
-		read.ReadHealth,
-		read.ReadAttackPower,
+    err := world.RegisterQueries(
+		query.QueryLocation,
+		query.QueryHealth,
+		query.QueryAttackPower,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -255,15 +255,15 @@ func main() {
 }
 ```
 #### Parameters
-| Parameter    | Type       | Description                                                   |
-|--------------|------------|---------------------------------------------------------------|
-| reads        | ...AnyReadType   | Variadic parameter for IRead instances to be registered.      |
+| Parameter      | Type            | Description                                                    |
+|----------------|-----------------|----------------------------------------------------------------|
+| queries        | ...AnyQueryType | Variadic parameter for IQuery instances to be registered.      |
 
 
 #### Return Value
-| Type   | Description                                                               |
-|--------|---------------------------------------------------------------------------|
-| error  | An error indicating any issues that occurred during the read registration. |
+| Type   | Description                                                                 |
+|--------|-----------------------------------------------------------------------------|
+| error  | An error indicating any issues that occurred during the query registration. |
 
 ### RegisterTransactions
 
@@ -454,7 +454,7 @@ func main() {
 
 ### StartGame
 
-`StartGame` starts the game by loading any previously saved game state, spinning up the transaction/read handler, and starting the game ticks. This method blocks the main Go routine. If for whatever reason execution needs to continue after calling this method, it should be called in a separate go routine.
+`StartGame` starts the game by loading any previously saved game state, spinning up the transaction/query handler, and starting the game ticks. This method blocks the main Go routine. If for whatever reason execution needs to continue after calling this method, it should be called in a separate go routine.
 
 ```go
 func (w *World) StartGame() error

@@ -43,7 +43,7 @@ type World struct {
 	nameToComponent          map[string]IComponentType
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
-	registeredReads          []IRead
+	registeredQueries        []IQuery
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
@@ -52,7 +52,7 @@ type World struct {
 
 	receiptHistory *receipt.History
 
-	chain shard.ReadAdapter
+	chain shard.QueryAdapter
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
@@ -68,7 +68,7 @@ var (
 	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
 	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
 	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
-	ErrorDuplicateReadName                     = errors.New("read names must be unique")
+	ErrorDuplicateQueryName                    = errors.New("query names must be unique")
 )
 
 func (w *World) IsRecovering() bool {
@@ -148,18 +148,18 @@ func (w *World) GetComponentByName(name string) (IComponentType, error) {
 	return componentType, nil
 }
 
-func (w *World) RegisterReads(reads ...IRead) error {
+func (w *World) RegisterQueries(queries ...IQuery) error {
 	if w.stateIsLoaded {
-		panic("cannot register reads after loading game state")
+		panic("cannot register queries after loading game state")
 	}
-	w.registeredReads = append(w.registeredReads, reads...)
-	seenReadNames := map[string]struct{}{}
-	for _, t := range w.registeredReads {
+	w.registeredQueries = append(w.registeredQueries, queries...)
+	seenQueryNames := map[string]struct{}{}
+	for _, t := range w.registeredQueries {
 		name := t.Name()
-		if _, ok := seenReadNames[name]; ok {
-			return fmt.Errorf("duplicate read %q: %w", name, ErrorDuplicateReadName)
+		if _, ok := seenQueryNames[name]; ok {
+			return fmt.Errorf("duplicate query %q: %w", name, ErrorDuplicateQueryName)
 		}
-		seenReadNames[name] = struct{}{}
+		seenQueryNames[name] = struct{}{}
 	}
 	return nil
 }
@@ -198,8 +198,8 @@ func (w *World) registerInternalTransactions() {
 	)
 }
 
-func (w *World) ListReads() []IRead {
-	return w.registeredReads
+func (w *World) ListQueries() []IQuery {
+	return w.registeredQueries
 }
 
 func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
@@ -337,8 +337,8 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 	if !w.isTransactionsRegistered {
 		w.Logger.Warn().Msg("No transactions registered.")
 	}
-	if len(w.registeredReads) == 0 {
-		w.Logger.Warn().Msg("No reads registered.")
+	if len(w.registeredQueries) == 0 {
+		w.Logger.Warn().Msg("No queries registered.")
 	}
 	if len(w.systems) == 0 {
 		w.Logger.Warn().Msg("No systems registered.")
