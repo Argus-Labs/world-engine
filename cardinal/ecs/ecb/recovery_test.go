@@ -153,14 +153,16 @@ func TestEntitiesCanBeFetchedAfterReload(t *testing.T) {
 	comps, err := manager.GetComponentTypesForEntity(ids[0])
 	archID, err := manager.GetArchIDForComponents(comps)
 
-	ids = manager.GetEntitiesForArchID(archID)
+	ids, err = manager.GetEntitiesForArchID(archID)
+	assert.NilError(t, err)
 	assert.Equal(t, 10, len(ids))
 
 	assert.NilError(t, manager.CommitPending())
 
 	// Create a new Manager instances and make sure the previously created entities can be found
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
-	ids = manager.GetEntitiesForArchID(archID)
+	ids, err = manager.GetEntitiesForArchID(archID)
+	assert.NilError(t, err)
 	assert.Equal(t, 10, len(ids))
 }
 
@@ -174,7 +176,8 @@ func TestTheRemovalOfEntitiesCanBeDiscarded(t *testing.T) {
 	archID, err := manager.GetArchIDForComponents(comps)
 	assert.NilError(t, err)
 
-	gotIDs := manager.GetEntitiesForArchID(archID)
+	gotIDs, err := manager.GetEntitiesForArchID(archID)
+	assert.NilError(t, err)
 	assert.Equal(t, 10, len(gotIDs))
 	assert.NilError(t, manager.CommitPending())
 
@@ -183,13 +186,15 @@ func TestTheRemovalOfEntitiesCanBeDiscarded(t *testing.T) {
 	assert.NilError(t, manager.RemoveEntity(ids[4]))
 	assert.NilError(t, manager.RemoveEntity(ids[7]))
 
-	gotIDs = manager.GetEntitiesForArchID(archID)
+	gotIDs, err = manager.GetEntitiesForArchID(archID)
+	assert.NilError(t, err)
 	assert.Equal(t, 7, len(gotIDs))
 
 	// Discard these changes (this should bring the entities back)
 	manager.DiscardPending()
 
-	gotIDs = manager.GetEntitiesForArchID(archID)
+	gotIDs, err = manager.GetEntitiesForArchID(archID)
+	assert.NilError(t, err)
 	assert.Equal(t, 10, len(gotIDs))
 }
 
