@@ -12,6 +12,6 @@ func Not(filter ComponentFilter) ComponentFilter {
 	return &not{filter: filter}
 }
 
-func (f *not) MatchesComponents(components []component.IComponentType) bool {
+func (f *not) MatchesComponents(components []component.IComponentMetaData) bool {
 	return !f.filter.MatchesComponents(components)
 }

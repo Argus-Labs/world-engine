@@ -9,7 +9,7 @@ import (
 )
 
 type ComponentStorage interface {
-	PushComponent(component component.IComponentType, archID archetype.ID) error
+	PushComponent(component component.IComponentMetaData, archID archetype.ID) error
 	Component(archetypeID archetype.ID, componentIndex component.Index) ([]byte, error)
 	SetComponent(archetype.ID, component.Index, []byte) error
 	MoveComponent(archetype.ID, component.Index, archetype.ID) error
@@ -49,32 +49,32 @@ type EntityLocationStorage interface {
 }
 
 // ComponentMarshaler is an interface that can marshal and unmarshal itself to bytes. Since
-// IComponentType are interfaces (and not easily serilizable) a list of instantiated
+// IComponentMetaData are interfaces (and not easily serilizable) a list of instantiated
 // components is required to unmarshal the data.
 type ComponentMarshaler interface {
 	Marshal() ([]byte, error)
-	UnmarshalWithComps([]byte, []component.IComponentType) error
+	UnmarshalWithComps([]byte, []component.IComponentMetaData) error
 }
 
 type ArchetypeComponentIndex interface {
 	ComponentMarshaler
-	Push(comps []component.IComponentType)
+	Push(comps []component.IComponentMetaData)
 	SearchFrom(filter filter.ComponentFilter, start int) *ArchetypeIterator
 	Search(compfilter filter.ComponentFilter) *ArchetypeIterator
 }
 
 type ArchetypeAccessor interface {
 	ComponentMarshaler
-	PushArchetype(archID archetype.ID, comps []component.IComponentType)
+	PushArchetype(archID archetype.ID, comps []component.IComponentMetaData)
 	Archetype(archID archetype.ID) ArchetypeStorage
 	Count() int
 }
 
 type ArchetypeStorage interface {
-	Components() []component.IComponentType
+	Components() []component.IComponentMetaData
 	Entities() []entity.ID
 	SwapRemove(entityIndex component.Index) entity.ID
-	ComponentsMatch(components []component.IComponentType) bool
+	ComponentsMatch(components []component.IComponentMetaData) bool
 	PushEntity(entity entity.ID)
 	Count() int
 }

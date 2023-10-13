@@ -22,11 +22,11 @@ type not struct {
 }
 
 type contains struct {
-	components []component.IAbstractComponent
+	components []component.Component
 }
 
 type exact struct {
-	components []component.IAbstractComponent
+	components []component.Component
 }
 
 func And(filters ...Filterable) Filterable {
@@ -41,11 +41,11 @@ func Not(filter Filterable) Filterable {
 	return &not{filter: filter}
 }
 
-func Contains(components ...component.IAbstractComponent) Filterable {
+func Contains(components ...component.Component) Filterable {
 	return &contains{components: components}
 }
 
-func Exact(components ...component.IAbstractComponent) Filterable {
+func Exact(components ...component.Component) Filterable {
 	return &exact{components: components}
 }
 
@@ -83,7 +83,7 @@ func (s not) ConvertToComponentFilter(world *World) (filter.ComponentFilter, err
 }
 
 func (s contains) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
-	acc := make([]IComponentType, 0, len(s.components))
+	acc := make([]IComponentMetaData, 0, len(s.components))
 	for _, internalComponent := range s.components {
 		c, err := world.GetComponentByName(internalComponent.Name())
 		if err != nil {
@@ -95,7 +95,7 @@ func (s contains) ConvertToComponentFilter(world *World) (filter.ComponentFilter
 }
 
 func (s exact) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
-	acc := make([]IComponentType, 0, len(s.components))
+	acc := make([]IComponentMetaData, 0, len(s.components))
 	for _, internalComponent := range s.components {
 		c, err := world.GetComponentByName(internalComponent.Name())
 		if err != nil {

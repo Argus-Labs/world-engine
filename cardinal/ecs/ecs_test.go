@@ -58,8 +58,8 @@ func UpdateEnergySystem(w *ecs.World, tq *transaction.TxQueue, _ *log.Logger) er
 }
 
 var (
-	Energy  = ecs.NewComponentType[EnergyComponent]()
-	Ownable = ecs.NewComponentType[OwnableComponent]()
+	Energy  = ecs.NewComponentMetaData[EnergyComponent]()
+	Ownable = ecs.NewComponentMetaData[OwnableComponent]()
 )
 
 func TestECS(t *testing.T) {

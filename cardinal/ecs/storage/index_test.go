@@ -18,8 +18,8 @@ func TestIndex(t *testing.T) {
 
 	index := storage.NewArchetypeComponentIndex()
 
-	compsA := []component.IComponentType{ca}
-	compsB := []component.IComponentType{ca, cb}
+	compsA := []component.IComponentMetaData{ca}
+	compsB := []component.IComponentMetaData{ca, cb}
 
 	index.Push(compsA)
 	index.Push(compsB)

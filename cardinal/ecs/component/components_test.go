@@ -25,19 +25,19 @@ func TestComponents(t *testing.T) {
 	components := storage2.NewComponents(storage2.NewComponentsSliceStorage(), storage2.NewComponentIndexMap())
 
 	tests := []*struct {
-		comps   []component.IComponentType
+		comps   []component.IComponentMetaData
 		archID  archetype.ID
 		compIdx component.Index
 		ID      string
 	}{
 		{
-			[]component.IComponentType{ca},
+			[]component.IComponentMetaData{ca},
 			0,
 			0,
 			"a",
 		},
 		{
-			[]component.IComponentType{ca, cb},
+			[]component.IComponentMetaData{ca, cb},
 			1,
 			1,
 			"b",

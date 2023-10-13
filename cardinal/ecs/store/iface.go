@@ -16,15 +16,15 @@ type Reader interface {
 	GetEntity(id entity.ID) (entity.Entity, error)
 
 	// One Component One Entity
-	GetComponentForEntity(cType component.IComponentType, id entity.ID) (any, error)
-	GetComponentForEntityInRawJson(cType component.IComponentType, id entity.ID) (json.RawMessage, error)
+	GetComponentForEntity(cType component.IComponentMetaData, id entity.ID) (any, error)
+	GetComponentForEntityInRawJson(cType component.IComponentMetaData, id entity.ID) (json.RawMessage, error)
 
 	// Many Components One Entity
-	GetComponentTypesForEntity(id entity.ID) ([]component.IComponentType, error)
+	GetComponentTypesForEntity(id entity.ID) ([]component.IComponentMetaData, error)
 
 	// One Archetype Many Components
-	GetComponentTypesForArchID(archID archetype.ID) []component.IComponentType
-	GetArchIDForComponents(components []component.IComponentType) (archetype.ID, error)
+	GetComponentTypesForArchID(archID archetype.ID) []component.IComponentMetaData
+	GetArchIDForComponents(components []component.IComponentMetaData) (archetype.ID, error)
 
 	// One Archetype Many Entities
 	GetEntitiesForArchID(archID archetype.ID) []entity.ID
@@ -39,18 +39,18 @@ type Writer interface {
 	RemoveEntity(id entity.ID) error
 
 	// Many Components
-	CreateEntity(comps ...component.IComponentType) (entity.ID, error)
-	CreateManyEntities(num int, comps ...component.IComponentType) ([]entity.ID, error)
+	CreateEntity(comps ...component.IComponentMetaData) (entity.ID, error)
+	CreateManyEntities(num int, comps ...component.IComponentMetaData) ([]entity.ID, error)
 
 	// One Component One Entity
-	SetComponentForEntity(cType component.IComponentType, id entity.ID, value any) error
-	AddComponentToEntity(cType component.IComponentType, id entity.ID) error
-	RemoveComponentFromEntity(cType component.IComponentType, id entity.ID) error
+	SetComponentForEntity(cType component.IComponentMetaData, id entity.ID, value any) error
+	AddComponentToEntity(cType component.IComponentMetaData, id entity.ID) error
+	RemoveComponentFromEntity(cType component.IComponentMetaData, id entity.ID) error
 
 	// Misc
 	InjectLogger(logger *ecslog.Logger)
 	Close() error
-	RegisterComponents([]component.IComponentType) error
+	RegisterComponents([]component.IComponentMetaData) error
 }
 
 // IManager represents all the methods required to track Component, Entity, and Archetype information

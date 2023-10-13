@@ -6,8 +6,8 @@ type (
 
 	TypeID int
 
-	// IComponentType is a high level representation of a user defined component struct.
-	IComponentType interface {
+	// IComponentMetaData is a high level representation of a user defined component struct.
+	IComponentMetaData interface {
 		// SetID sets the ID of this component. It must only be set once
 		SetID(TypeID) error
 		// ID returns the ID of the component.
@@ -17,10 +17,10 @@ type (
 
 		Encode(any) ([]byte, error)
 		Decode([]byte) (any, error)
-		IAbstractComponent
+		Name() string
 	}
 
-	IAbstractComponent interface {
+	Component interface {
 		// Name returns the name of the component.
 		Name() string
 	}
@@ -28,7 +28,7 @@ type (
 
 // Contains returns true if the given slice of components contains the given component. Components are the same if they
 // have the same ID.
-func Contains(components []IComponentType, cType IComponentType) bool {
+func Contains(components []IComponentMetaData, cType IComponentMetaData) bool {
 	for _, c := range components {
 		if cType.ID() == c.ID() {
 			return true

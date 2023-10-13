@@ -14,16 +14,12 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
-type IGettableRawJsonFromEntityId interface {
-	GetRawJson(w *World, id entity.ID) (json.RawMessage, error)
-}
+// IComponentMetaData is an interface for component types.
+type IComponentMetaData = component.IComponentMetaData
 
-// IComponentType is an interface for component types.
-type IComponentType = component.IComponentType
-
-// NewComponentType creates a new component type.
+// NewComponentMetaData creates a new component type.
 // The function is used to create a new component of the type.
-func NewComponentType[T component.IAbstractComponent](opts ...ComponentOption[T]) *ComponentType[T] {
+func NewComponentMetaData[T component.Component](opts ...ComponentOption[T]) *ComponentMetaData[T] {
 	var t T
 	comp := newComponentType(t, t.Name(), nil)
 	for _, opt := range opts {
@@ -32,9 +28,9 @@ func NewComponentType[T component.IAbstractComponent](opts ...ComponentOption[T]
 	return comp
 }
 
-// ComponentType represents a type of component. It is used to identify
+// ComponentMetaData represents a type of component. It is used to identify
 // a component when getting or setting the component of an entity.
-type ComponentType[T any] struct {
+type ComponentMetaData[T any] struct {
 	isIDSet    bool
 	id         component.TypeID
 	typ        reflect.Type
@@ -43,10 +39,8 @@ type ComponentType[T any] struct {
 	query      *Query
 }
 
-var _ IGettableRawJsonFromEntityId = &ComponentType[int]{}
-
 // SetID set's this component's ID. It must be unique across the world object.
-func (c *ComponentType[T]) SetID(id component.TypeID) error {
+func (c *ComponentMetaData[T]) SetID(id component.TypeID) error {
 	if c.isIDSet {
 		// In games implemented with Cardinal, components will only be initialized one time (on startup).
 		// In tests, it's often useful to use the same component in multiple worlds. This check will allow for the
@@ -61,12 +55,12 @@ func (c *ComponentType[T]) SetID(id component.TypeID) error {
 	return nil
 }
 
-func (c *ComponentType[T]) GetRawJson(w *World, id entity.ID) (json.RawMessage, error) {
-	return w.StoreManager().GetComponentForEntityInRawJson(c, id)
+func GetRawJsonOfComponent(w *World, component component.IComponentMetaData, id entity.ID) (json.RawMessage, error) {
+	return w.StoreManager().GetComponentForEntityInRawJson(component, id)
 }
 
-func CreateMany(world *World, num int, components ...component.IAbstractComponent) ([]entity.ID, error) {
-	acc := make([]IComponentType, 0, len(components))
+func CreateMany(world *World, num int, components ...component.Component) ([]entity.ID, error) {
+	acc := make([]IComponentMetaData, 0, len(components))
 	for _, comp := range components {
 		c, err := world.GetComponentByName(comp.Name())
 		if err != nil {
@@ -93,7 +87,7 @@ func CreateMany(world *World, num int, components ...component.IAbstractComponen
 	return entityIds, nil
 }
 
-func Create(world *World, components ...component.IAbstractComponent) (entity.ID, error) {
+func Create(world *World, components ...component.Component) (entity.ID, error) {
 	entities, err := CreateMany(world, 1, components...)
 	if err != nil {
 		return 0, err
@@ -101,7 +95,7 @@ func Create(world *World, components ...component.IAbstractComponent) (entity.ID
 	return entities[0], nil
 }
 
-func RemoveComponentFrom[T component.IAbstractComponent](w *World, id entity.ID) error {
+func RemoveComponentFrom[T component.Component](w *World, id entity.ID) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -111,7 +105,7 @@ func RemoveComponentFrom[T component.IAbstractComponent](w *World, id entity.ID)
 	return w.StoreManager().RemoveComponentFromEntity(c, id)
 }
 
-func AddComponentTo[T component.IAbstractComponent](w *World, id entity.ID) error {
+func AddComponentTo[T component.Component](w *World, id entity.ID) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -122,27 +116,27 @@ func AddComponentTo[T component.IAbstractComponent](w *World, id entity.ID) erro
 }
 
 // String returns the component type name.
-func (c *ComponentType[T]) String() string {
+func (c *ComponentMetaData[T]) String() string {
 	return c.name
 }
 
 // SetName sets the component type name.
-func (c *ComponentType[T]) SetName(name string) *ComponentType[T] {
+func (c *ComponentMetaData[T]) SetName(name string) *ComponentMetaData[T] {
 	c.name = name
 	return c
 }
 
 // Name returns the component type name.
-func (c *ComponentType[T]) Name() string {
+func (c *ComponentMetaData[T]) Name() string {
 	return c.name
 }
 
 // ID returns the component type id.
-func (c *ComponentType[T]) ID() component.TypeID {
+func (c *ComponentMetaData[T]) ID() component.TypeID {
 	return c.id
 }
 
-func (c *ComponentType[T]) New() ([]byte, error) {
+func (c *ComponentMetaData[T]) New() ([]byte, error) {
 	var comp T
 	if c.defaultVal != nil {
 		comp = c.defaultVal.(T)
@@ -150,20 +144,20 @@ func (c *ComponentType[T]) New() ([]byte, error) {
 	return codec.Encode(comp)
 }
 
-func (c *ComponentType[T]) Encode(v any) ([]byte, error) {
+func (c *ComponentMetaData[T]) Encode(v any) ([]byte, error) {
 	return codec.Encode(v)
 }
 
-func (c *ComponentType[T]) Decode(bz []byte) (any, error) {
+func (c *ComponentMetaData[T]) Decode(bz []byte) (any, error) {
 	return codec.Decode[T](bz)
 }
 
-func (c *ComponentType[T]) setDefaultVal(ptr unsafe.Pointer) {
+func (c *ComponentMetaData[T]) setDefaultVal(ptr unsafe.Pointer) {
 	v := reflect.Indirect(reflect.ValueOf(c.defaultVal))
 	reflect.NewAt(c.typ, ptr).Elem().Set(v)
 }
 
-func (c *ComponentType[T]) validateDefaultVal() {
+func (c *ComponentMetaData[T]) validateDefaultVal() {
 	if !reflect.TypeOf(c.defaultVal).AssignableTo(c.typ) {
 		err := fmt.Sprintf("default value is not assignable to component type: %s", c.name)
 		panic(err)
@@ -172,8 +166,8 @@ func (c *ComponentType[T]) validateDefaultVal() {
 
 // newComponentType creates a new component type.
 // The argument is a struct that represents a data of the component.
-func newComponentType[T any](s T, name string, defaultVal interface{}) *ComponentType[T] {
-	componentType := &ComponentType[T]{
+func newComponentType[T any](s T, name string, defaultVal interface{}) *ComponentMetaData[T] {
+	componentType := &ComponentMetaData[T]{
 		typ:        reflect.TypeOf(s),
 		name:       name,
 		defaultVal: defaultVal,
@@ -185,20 +179,20 @@ func newComponentType[T any](s T, name string, defaultVal interface{}) *Componen
 	return componentType
 }
 
-// ComponentOption is a type that can be passed to NewComponentType to augment the creation
+// ComponentOption is a type that can be passed to NewComponentMetaData to augment the creation
 // of the component type
-type ComponentOption[T any] func(c *ComponentType[T])
+type ComponentOption[T any] func(c *ComponentMetaData[T])
 
-// WithDefault updated the created ComponentType with a default value
+// WithDefault updated the created ComponentMetaData with a default value
 func WithDefault[T any](defaultVal T) ComponentOption[T] {
-	return func(c *ComponentType[T]) {
+	return func(c *ComponentMetaData[T]) {
 		c.defaultVal = defaultVal
 		c.validateDefaultVal()
 	}
 }
 
 // Get returns component data from the entity.
-func GetComponent[T component.IAbstractComponent](w *World, id entity.ID) (comp *T, err error) {
+func GetComponent[T component.Component](w *World, id entity.ID) (comp *T, err error) {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -223,7 +217,7 @@ func GetComponent[T component.IAbstractComponent](w *World, id entity.ID) (comp 
 }
 
 // Set sets component data to the entity.
-func SetComponent[T component.IAbstractComponent](w *World, id entity.ID, component *T) error {
+func SetComponent[T component.Component](w *World, id entity.ID, component *T) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -242,7 +236,7 @@ func SetComponent[T component.IAbstractComponent](w *World, id entity.ID, compon
 	return nil
 }
 
-func UpdateComponent[T component.IAbstractComponent](w *World, id entity.ID, fn func(*T) *T) error {
+func UpdateComponent[T component.Component](w *World, id entity.ID, fn func(*T) *T) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -261,7 +255,7 @@ func UpdateComponent[T component.IAbstractComponent](w *World, id entity.ID, fn 
 }
 
 //
-//func GetRawJsonComponent[T component.IAbstractComponent](w *World, id entity.ID) (json.RawMessage, error) {
+//func GetRawJsonComponent[T component.Component](w *World, id entity.ID) (json.RawMessage, error) {
 //	var t T
 //	name := t.Name()
 //	c, ok := w.nameToComponent[name]

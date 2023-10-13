@@ -59,7 +59,7 @@ func NewSliceStorage() *ComponentSliceStorage {
 }
 
 // PushComponent stores the new data of the component in the archetype.
-func (cs *ComponentSliceStorage) PushComponent(component component.IComponentType, archetypeID archetype.ID) error {
+func (cs *ComponentSliceStorage) PushComponent(component component.IComponentMetaData, archetypeID archetype.ID) error {
 	// TODO: optimize to avoid allocation
 	compBz, err := component.New()
 	if err != nil {
@@ -227,14 +227,14 @@ func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) (component.Index, e
 
 // Index is a structure that indexes archetypes by their component types.
 type Index struct {
-	compGroups [][]component.IComponentType
+	compGroups [][]component.IComponentMetaData
 	iterator   *ArchetypeIterator
 }
 
 // NewArchetypeComponentIndex creates a new search Index.
 func NewArchetypeComponentIndex() ArchetypeComponentIndex {
 	return &Index{
-		compGroups: [][]component.IComponentType{},
+		compGroups: [][]component.IComponentMetaData{},
 		iterator: &ArchetypeIterator{
 			Current: 0,
 		},
@@ -242,7 +242,7 @@ func NewArchetypeComponentIndex() ArchetypeComponentIndex {
 }
 
 // Push adds an archetype to the search Index.
-func (idx *Index) Push(comps []component.IComponentType) {
+func (idx *Index) Push(comps []component.IComponentMetaData) {
 	idx.compGroups = append(idx.compGroups, comps)
 }
 
@@ -275,7 +275,7 @@ func (idx *Index) Marshal() ([]byte, error) {
 	return codec.Encode(compGroups)
 }
 
-func (idx *Index) UnmarshalWithComps(bytes []byte, comps []component.IComponentType) error {
+func (idx *Index) UnmarshalWithComps(bytes []byte, comps []component.IComponentMetaData) error {
 	compGroups, err := codec.Decode[[][]component.TypeID](bytes)
 	if err != nil {
 		return err

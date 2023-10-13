@@ -33,19 +33,19 @@ func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 
 	testCases := []struct {
 		name  string
-		comps []component.IComponentType
+		comps []component.IComponentMetaData
 	}{
 		{
 			"just foo",
-			[]component.IComponentType{fooComp},
+			[]component.IComponentMetaData{fooComp},
 		},
 		{
 			"just bar",
-			[]component.IComponentType{barComp},
+			[]component.IComponentMetaData{barComp},
 		},
 		{
 			"foo and bar",
-			[]component.IComponentType{fooComp, barComp},
+			[]component.IComponentMetaData{fooComp, barComp},
 		},
 	}
 
@@ -79,22 +79,22 @@ func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 	testCases := []struct {
 		name        string
 		idsToCreate int
-		comps       []component.IComponentType
+		comps       []component.IComponentMetaData
 	}{
 		{
 			"only foo",
 			3,
-			[]component.IComponentType{fooComp},
+			[]component.IComponentMetaData{fooComp},
 		},
 		{
 			"only bar",
 			4,
-			[]component.IComponentType{barComp},
+			[]component.IComponentMetaData{barComp},
 		},
 		{
 			"foo and bar",
 			5,
-			[]component.IComponentType{fooComp, barComp},
+			[]component.IComponentMetaData{fooComp, barComp},
 		},
 	}
 
@@ -118,7 +118,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, manager.CommitPending())
 
-	fooArchID, err := manager.GetArchIDForComponents([]component.IComponentType{fooComp})
+	fooArchID, err := manager.GetArchIDForComponents([]component.IComponentMetaData{fooComp})
 	assert.NilError(t, err)
 
 	roManager := manager.NewReadOnlyStore()
@@ -134,7 +134,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	gotIDs = roManager.GetEntitiesForArchID(fooArchID)
 	assert.Equal(t, 0, len(gotIDs))
 
-	bothArchID, err := roManager.GetArchIDForComponents([]component.IComponentType{fooComp, barComp})
+	bothArchID, err := roManager.GetArchIDForComponents([]component.IComponentMetaData{fooComp, barComp})
 	assert.NilError(t, err)
 
 	gotIDs = roManager.GetEntitiesForArchID(bothArchID)

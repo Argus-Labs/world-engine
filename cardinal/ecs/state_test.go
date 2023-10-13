@@ -17,9 +17,9 @@ import (
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
-// []component.IComponentType{a, b, c} becomes:
+// []component.IComponentMetaData{a, b, c} becomes:
 // comps(a, b, c)
-func comps(cs ...component.IComponentType) []component.IComponentType {
+func comps(cs ...component.IComponentMetaData) []component.IComponentMetaData {
 	return cs
 }
 

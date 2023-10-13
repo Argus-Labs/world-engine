@@ -5,15 +5,15 @@ import (
 )
 
 type contains struct {
-	components []component.IComponentType
+	components []component.IComponentMetaData
 }
 
 // Contains matches archetypes that contain all the components specified.
-func Contains(components ...component.IComponentType) ComponentFilter {
+func Contains(components ...component.IComponentMetaData) ComponentFilter {
 	return &contains{components: components}
 }
 
-func (f *contains) MatchesComponents(components []component.IComponentType) bool {
+func (f *contains) MatchesComponents(components []component.IComponentMetaData) bool {
 	for _, componentType := range f.components {
 		if !containsComponent(components, componentType) {
 			return false

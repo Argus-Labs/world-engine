@@ -8,8 +8,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -98,13 +98,13 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func (w *World) CreateMany(num int, components ...component.IAbstractComponent) ([]EntityID, error) {
+func (w *World) CreateMany(num int, components ...component.Component) ([]EntityID, error) {
 	return ecs.CreateMany(w.implWorld, num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func (w *World) Create(components ...component.IAbstractComponent) (EntityID, error) {
+func (w *World) Create(components ...component.Component) (EntityID, error) {
 	return ecs.Create(w.implWorld, components...)
 }
 
@@ -172,7 +172,7 @@ func (w *World) RegisterSystems(systems ...System) {
 	}
 }
 
-func RegisterComponent[T component.IAbstractComponent](world *World) error {
+func RegisterComponent[T component.Component](world *World) error {
 	return ecs.RegisterComponent[T](world.implWorld)
 }
 

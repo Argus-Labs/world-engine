@@ -147,7 +147,7 @@ func (r *RedisStorage) GetComponentStorage(cid component.TypeID) ComponentStorag
 // 							COMPONENT STORAGE
 // ---------------------------------------------------------------------------
 
-func (r *RedisStorage) PushComponent(component component.IComponentType, archID archetype.ID) error {
+func (r *RedisStorage) PushComponent(component component.IComponentMetaData, archID archetype.ID) error {
 	ctx := context.Background()
 	key := r.componentDataKey(archID, r.ComponentStoragePrefix)
 	componentBz, err := component.New()

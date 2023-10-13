@@ -35,7 +35,6 @@ func (EnergyComp) Name() string {
 	return "EnergyComp"
 }
 
-
 func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error {
 	logger.Log().Msg("test")
 	q, err := w.NewQuery(ecs.Contains(EnergyComp{}))
@@ -105,7 +104,7 @@ func TestWorldLogger(t *testing.T) {
 	buf.Reset()
 	energy, err := w.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
-	components := []component.IComponentType{energy}
+	components := []component.IComponentMetaData{energy}
 	entityId, err := ecs.Create(w, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:2]
