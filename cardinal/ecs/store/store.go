@@ -157,8 +157,7 @@ func (s *Manager) createEntityFromArchetypeID(archID archetype.ID) (entity.ID, e
 		return storage.BadID, err
 	}
 	archetype.PushEntity(nextEntityID)
-	entity := storage.NewEntity(nextEntityID, entity.NewLocation(archID, componentIndex))
-	s.logger.LogEntity(zerolog.DebugLevel, entity, components)
+	s.logger.LogEntity(zerolog.DebugLevel, nextEntityID, archID, components)
 	return nextEntityID, nil
 }
 

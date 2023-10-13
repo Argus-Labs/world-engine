@@ -79,6 +79,13 @@ func (w *World) StoreManager() store.IManager {
 	return w.storeManager
 }
 
+func (w *World) TickStore() storage.TickStorage {
+	if ts, ok := w.StoreManager().(storage.TickStorage); ok {
+		return ts
+	}
+	return w.store.TickStore
+}
+
 func (w *World) GetTxQueueAmount() int {
 	return w.txQueue.GetAmountOfTxs()
 }
@@ -128,10 +135,6 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 		} else {
 			return errors.New("cannot register multiple components with the same name")
 		}
-	}
-
-	if err := w.storeManager.RegisterComponents(w.registeredComponents); err != nil {
-		return err
 	}
 
 	return nil
@@ -207,13 +210,14 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 }
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
+func NewWorld(s storage.WorldStorage, sm store.IManager, opts ...Option) (*World, error) {
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}
+	sm.InjectLogger(logger)
 	w := &World{
 		store:             s,
-		storeManager:      store.NewStoreManager(s, logger),
+		storeManager:      sm,
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
@@ -287,7 +291,7 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 	txQueue := w.txQueue.CopyTransaction()
 
-	if err := w.store.TickStore.StartNextTick(w.registeredTransactions, txQueue); err != nil {
+	if err := w.TickStore().StartNextTick(w.registeredTransactions, txQueue); err != nil {
 		return err
 	}
 
@@ -299,13 +303,11 @@ func (w *World) Tick(ctx context.Context) error {
 			return err
 		}
 	}
-	if err := w.saveArchetypeData(); err != nil {
+
+	if err := w.TickStore().FinalizeTick(); err != nil {
 		return err
 	}
 
-	if err := w.store.TickStore.FinalizeTick(); err != nil {
-		return err
-	}
 	w.tick++
 	w.receiptHistory.NextTick()
 	elapsedTime := time.Since(startTime)
@@ -393,30 +395,12 @@ const (
 	storeArchetypeAccessorKey = "arch_accessor"
 )
 
-func (w *World) saveArchetypeData() error {
-	if err := w.saveToKey(storeArchetypeAccessorKey, w.store.ArchAccessor); err != nil {
-		return err
-	}
-	if err := w.saveToKey(storeArchetypeCompIdxKey, w.store.ArchCompIdxStore); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (w *World) saveToKey(key string, cm storage.ComponentMarshaler) error {
-	buf, err := cm.Marshal()
-	if err != nil {
-		return err
-	}
-	return w.store.StateStore.Save(key, buf)
-}
-
 // recoverGameState checks the status of the last game tick. If the tick was incomplete (indicating
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
 // transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
 // transactions that need to be processed because the last tick was successful.
 func (w *World) recoverGameState() (recoveredTxs *transaction.TxQueue, err error) {
-	start, end, err := w.store.TickStore.GetTickNumbers()
+	start, end, err := w.TickStore().GetTickNumbers()
 	if err != nil {
 		return nil, err
 	}
@@ -425,7 +409,7 @@ func (w *World) recoverGameState() (recoveredTxs *transaction.TxQueue, err error
 	if start == end {
 		return nil, nil
 	}
-	return w.store.TickStore.Recover(w.registeredTransactions)
+	return w.TickStore().Recover(w.registeredTransactions)
 }
 
 func (w *World) LoadGameState() error {
@@ -442,6 +426,11 @@ func (w *World) LoadGameState() error {
 			return err
 		}
 	}
+
+	if err := w.storeManager.RegisterComponents(w.registeredComponents); err != nil {
+		return err
+	}
+
 	w.stateIsLoaded = true
 	recoveredTxs, err := w.recoverGameState()
 	if err != nil {
