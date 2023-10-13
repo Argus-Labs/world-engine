@@ -3,11 +3,11 @@ package ecb_test
 import (
 	"testing"
 
-	"gotest.tools/v3/assert"
-
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
+	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/climate"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -288,12 +288,21 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 	assert.NilError(t, world.RegisterComponents(healthComp, powerComp))
 	assert.NilError(t, world.LoadGameState())
 
-	justHealthIDs, err := ecs.CreateMany(world, 8, Health{})
+	// It's not obvious how to allow for state changes outside of System. In production code this shouldn't be allowed
+	// at all (state changes must happen inside a System during a tick). Instead of making ecs.NewClimate a public function
+	// perhaps this should be found in a test utility package.
+	clim := ecs.NewClimate(world, nil)
+	justHealthIDs, err := ecs.CreateMany(clim, 8, Health{})
 	assert.NilError(t, err)
-	justPowerIDs, err := ecs.CreateMany(world, 9, Power{})
+	justPowerIDs, err := ecs.CreateMany(clim, 9, Power{})
 	assert.NilError(t, err)
-	healthAndPowerIDs, err := ecs.CreateMany(world, 10, Health{}, Power{})
-	assert.NilError(t, err)
+
+	// Another option for getting a climate from a world:
+	var healthAndPowerIDs []entity.ID
+	world.Init(func(clim climate.Climate) {
+		healthAndPowerIDs, err = ecs.CreateMany(clim, 10, Health{}, Power{})
+		assert.NilError(t, err)
+	})
 
 	testCases := []struct {
 		filter  filter.ComponentFilter

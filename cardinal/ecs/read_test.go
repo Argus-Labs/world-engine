@@ -2,8 +2,10 @@ package ecs_test
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal/evm"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/climate"
+	"pkg.world.dev/world-engine/cardinal/evm"
 
 	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"gotest.tools/v3/assert"
@@ -29,7 +31,7 @@ func TestReadTypeNotStructs(t *testing.T) {
 		// test should trigger a panic.
 		panicValue := recover()
 		assert.Assert(t, panicValue != nil)
-		ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+		ecs.NewReadType[FooRequest, FooReply]("foo", func(clim climate.Climate, req FooRequest) (FooReply, error) {
 			return expectedReply, nil
 		})
 		defer func() {
@@ -39,7 +41,7 @@ func TestReadTypeNotStructs(t *testing.T) {
 		}()
 	}()
 
-	ecs.NewReadType[string, string]("foo", func(world *ecs.World, req string) (string, error) {
+	ecs.NewReadType[string, string]("foo", func(clim climate.Climate, req string) (string, error) {
 		return "blah", nil
 	})
 }
@@ -58,7 +60,7 @@ func TestReadEVM(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(clim climate.Climate, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
 	}, ecs.WithReadEVMSupport[FooRequest, FooReply])
 

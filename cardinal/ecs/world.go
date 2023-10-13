@@ -13,6 +13,7 @@ import (
 
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"google.golang.org/protobuf/proto"
+	"pkg.world.dev/world-engine/cardinal/ecs/climate"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -291,9 +292,10 @@ func (w *World) Tick(ctx context.Context) error {
 		return err
 	}
 
+	clim := NewClimate(w, txQueue)
 	for i, sys := range w.systems {
 		nameOfCurrentRunningSystem = w.systemNames[i]
-		err := sys(w, txQueue, w.systemLoggers[i])
+		err := sys(clim)
 		nameOfCurrentRunningSystem = nullSystemName
 		if err != nil {
 			return err
@@ -426,6 +428,13 @@ func (w *World) recoverGameState() (recoveredTxs *transaction.TxQueue, err error
 		return nil, nil
 	}
 	return w.store.TickStore.Recover(w.registeredTransactions)
+}
+
+// Init generates a one-off climate object and calls the given function. This can be used to initialize game
+// state outside normal ticks and Systems. This is a risky method to hand to end users because it could be easily be
+// misused to cause state changes in the wrong places.
+func (w *World) Init(fn func(climate.Climate)) {
+	fn(NewClimate(w, nil))
 }
 
 func (w *World) LoadGameState() error {

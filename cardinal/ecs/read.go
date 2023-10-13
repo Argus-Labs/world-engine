@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
+	"pkg.world.dev/world-engine/cardinal/ecs/climate"
 )
 
 type IRead interface {
@@ -32,7 +33,7 @@ type IRead interface {
 
 type ReadType[Request any, Reply any] struct {
 	name       string
-	handler    func(world *World, req Request) (Reply, error)
+	handler    func(clim climate.Climate, req Request) (Reply, error)
 	requestABI *abi.Type
 	replyABI   *abi.Type
 }
@@ -58,7 +59,7 @@ var _ IRead = NewReadType[struct{}, struct{}]("", nil)
 
 func NewReadType[Request any, Reply any](
 	name string,
-	handler func(world *World, req Request) (Reply, error),
+	handler func(clim climate.Climate, req Request) (Reply, error),
 	opts ...func() func(readType *ReadType[Request, Reply]),
 ) *ReadType[Request, Reply] {
 	var req Request
@@ -118,7 +119,8 @@ func (r *ReadType[req, rep]) HandleRead(world *World, a any) (any, error) {
 	if !ok {
 		return nil, fmt.Errorf("cannot cast %T to this reads request type %T", a, new(req))
 	}
-	reply, err := r.handler(world, request)
+	clim := NewReadOnlyClimate(world)
+	reply, err := r.handler(clim, request)
 	return reply, err
 }
 
@@ -128,7 +130,8 @@ func (r *ReadType[req, rep]) HandleReadRaw(w *World, bz []byte) ([]byte, error) 
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal read request into type %T: %w", *request, err)
 	}
-	res, err := r.handler(w, *request)
+	clim := NewReadOnlyClimate(w)
+	res, err := r.handler(clim, *request)
 	if err != nil {
 		return nil, err
 	}

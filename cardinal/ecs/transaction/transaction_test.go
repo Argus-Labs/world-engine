@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/climate"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -63,11 +64,11 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Set up a system that allows for the modification of a player's score
-	world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		modifyScore := modifyScoreTx.In(queue)
+	world.AddSystem(func(clim climate.Climate) error {
+		modifyScore := modifyScoreTx.In(clim)
 		for _, txData := range modifyScore {
 			ms := txData.Value
-			err := ecs.UpdateComponent[ScoreComponent](w, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
+			err := ecs.UpdateComponent[ScoreComponent](clim, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 				s.Score += ms.Amount
 				return s
 			})
@@ -150,11 +151,11 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
 
-	world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		modifyScores := modifyScoreTx.In(queue)
+	world.AddSystem(func(clim climate.Climate) error {
+		modifyScores := modifyScoreTx.In(clim)
 		for _, msData := range modifyScores {
 			ms := msData.Value
-			err := ecs.UpdateComponent[ScoreComponent](w, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
+			err := ecs.UpdateComponent[ScoreComponent](clim, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 				s.Score += ms.Amount
 				return s
 			})

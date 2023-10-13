@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"pkg.world.dev/world-engine/cardinal/ecs/climate"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
@@ -147,8 +148,12 @@ func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxH
 	return value, errs, true
 }
 
-func (t *TransactionType[In, Out]) ForEach(world *World, tq *transaction.TxQueue, fn func(TxData[In]) (Out, error)) {
-	for _, tx := range t.In(tq) {
+func (t *TransactionType[In, Out]) ForEach(clim climate.Climate, fn func(TxData[In]) (Out, error)) {
+	world, err := climateGetWorld(clim)
+	if err != nil {
+		return
+	}
+	for _, tx := range t.In(clim) {
 		if result, err := fn(tx); err != nil {
 			t.AddError(world, tx.TxHash, err)
 		} else {
@@ -158,7 +163,11 @@ func (t *TransactionType[In, Out]) ForEach(world *World, tq *transaction.TxQueue
 }
 
 // In extracts all the transactions in the transaction queue that match this TransactionType's ID.
-func (t *TransactionType[In, Out]) In(tq *transaction.TxQueue) []TxData[In] {
+func (t *TransactionType[In, Out]) In(clim climate.Climate) []TxData[In] {
+	tq, err := climateGetTxQueue(clim)
+	if err != nil {
+		return nil
+	}
 	var txs []TxData[In]
 	for _, tx := range tq.ForID(t.ID()) {
 		if val, ok := tx.Value.(In); ok {

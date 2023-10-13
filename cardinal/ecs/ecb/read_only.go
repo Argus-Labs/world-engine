@@ -28,7 +28,7 @@ type readOnlyManager struct {
 	archIDToComps   map[archetype.ID][]component.IComponentType
 }
 
-func (m *Manager) NewReadOnlyStore() store.Reader {
+func (m *Manager) ToReadOnly() store.Reader {
 	return &readOnlyManager{
 		client:          m.client,
 		typeToComponent: m.typeToComponent,

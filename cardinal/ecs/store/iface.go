@@ -58,4 +58,5 @@ type Writer interface {
 type IManager interface {
 	Reader
 	Writer
+	ToReadOnly() Reader
 }

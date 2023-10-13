@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"unsafe"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/climate"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -65,7 +66,14 @@ func (c *ComponentType[T]) GetRawJson(w *World, id entity.ID) (json.RawMessage, 
 	return w.StoreManager().GetComponentForEntityInRawJson(c, id)
 }
 
-func CreateMany(world *World, num int, components ...component.IAbstractComponent) ([]entity.ID, error) {
+func CreateMany(clim climate.Climate, num int, components ...component.IAbstractComponent) ([]entity.ID, error) {
+	if climateIsReadOnly(clim) {
+		return nil, errors.New("cannot modify state during read-only operation")
+	}
+	world, err := climateGetWorld(clim)
+	if err != nil {
+		return nil, err
+	}
 	acc := make([]IComponentType, 0, len(components))
 	for _, comp := range components {
 		c, err := world.GetComponentByName(comp.Name())
@@ -93,8 +101,8 @@ func CreateMany(world *World, num int, components ...component.IAbstractComponen
 	return entityIds, nil
 }
 
-func Create(world *World, components ...component.IAbstractComponent) (entity.ID, error) {
-	entities, err := CreateMany(world, 1, components...)
+func Create(clim climate.Climate, components ...component.IAbstractComponent) (entity.ID, error) {
+	entities, err := CreateMany(clim, 1, components...)
 	if err != nil {
 		return 0, err
 	}
@@ -198,14 +206,23 @@ func WithDefault[T any](defaultVal T) ComponentOption[T] {
 }
 
 // Get returns component data from the entity.
-func GetComponent[T component.IAbstractComponent](w *World, id entity.ID) (comp *T, err error) {
+func GetComponent[T component.IAbstractComponent](clim climate.Climate, id entity.ID) (comp *T, err error) {
+	w, err := climateGetWorld(clim)
+	if err != nil {
+		return nil, err
+	}
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
 	if !ok {
 		return nil, errors.New("Must register component")
 	}
-	value, err := w.StoreManager().GetComponentForEntity(c, id)
+
+	reader, err := climateGetStoreReader(clim)
+	if err != nil {
+		return nil, err
+	}
+	value, err := reader.GetComponentForEntity(c, id)
 	if err != nil {
 		return nil, err
 	}
@@ -223,14 +240,21 @@ func GetComponent[T component.IAbstractComponent](w *World, id entity.ID) (comp 
 }
 
 // Set sets component data to the entity.
-func SetComponent[T component.IAbstractComponent](w *World, id entity.ID, component *T) error {
+func SetComponent[T component.IAbstractComponent](clim climate.Climate, id entity.ID, component *T) error {
+	if climateIsReadOnly(clim) {
+		return errors.New("cannot modify state")
+	}
+	w, err := climateGetWorld(clim)
+	if err != nil {
+		return err
+	}
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
 	if !ok {
 		return fmt.Errorf("%s is not registered, please register it before updating", t.Name())
 	}
-	err := w.StoreManager().SetComponentForEntity(c, id, component)
+	err = w.StoreManager().SetComponentForEntity(c, id, component)
 	if err != nil {
 		return err
 	}
@@ -242,7 +266,14 @@ func SetComponent[T component.IAbstractComponent](w *World, id entity.ID, compon
 	return nil
 }
 
-func UpdateComponent[T component.IAbstractComponent](w *World, id entity.ID, fn func(*T) *T) error {
+func UpdateComponent[T component.IAbstractComponent](clim climate.Climate, id entity.ID, fn func(*T) *T) error {
+	if climateIsReadOnly(clim) {
+		return errors.New("cannot modify state")
+	}
+	w, err := climateGetWorld(clim)
+	if err != nil {
+		return err
+	}
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -252,12 +283,12 @@ func UpdateComponent[T component.IAbstractComponent](w *World, id entity.ID, fn 
 	if _, ok := w.nameToComponent[c.Name()]; !ok {
 		return fmt.Errorf("%s is not registered, please register it before updating", c.Name())
 	}
-	val, err := GetComponent[T](w, id)
+	val, err := GetComponent[T](clim, id)
 	if err != nil {
 		return err
 	}
 	updatedVal := fn(val)
-	return SetComponent[T](w, id, updatedVal)
+	return SetComponent[T](clim, id, updatedVal)
 }
 
 //

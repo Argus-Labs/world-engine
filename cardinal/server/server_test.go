@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/climate"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 
@@ -175,7 +176,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
+	w.AddSystem(func(clim climate.Climate) error {
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -274,8 +275,8 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	count := 0
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		txs := sendTx.In(queue)
+	w.AddSystem(func(clim climate.Climate) error {
+		txs := sendTx.In(clim)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
 		assert.Equal(t, tx.Value.From, "me")
@@ -331,7 +332,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
+	w.AddSystem(func(climate.Climate) error {
 		return nil
 	})
 
@@ -372,7 +373,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(clim climate.Climate, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
 	})
 	assert.NilError(t, w.RegisterReads(fooRead))
