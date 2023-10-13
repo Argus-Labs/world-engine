@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"strconv"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
-func GetRawJsonOfComponent(w *World, component component.IComponentMetaData, id entity.ID) (json.RawMessage, error) {
+func GetRawJsonOfComponent(w *World, component component_metadata.IComponentMetaData, id entity.ID) (json.RawMessage, error) {
 	return w.StoreManager().GetComponentForEntityInRawJson(component, id)
 }
 
-func CreateMany(world *World, num int, components ...component.Component) ([]entity.ID, error) {
-	acc := make([]component.IComponentMetaData, 0, len(components))
+func CreateMany(world *World, num int, components ...component_metadata.Component) ([]entity.ID, error) {
+	acc := make([]component_metadata.IComponentMetaData, 0, len(components))
 	for _, comp := range components {
 		c, err := world.GetComponentByName(comp.Name())
 		if err != nil {
@@ -42,7 +42,7 @@ func CreateMany(world *World, num int, components ...component.Component) ([]ent
 	return entityIds, nil
 }
 
-func Create(world *World, components ...component.Component) (entity.ID, error) {
+func Create(world *World, components ...component_metadata.Component) (entity.ID, error) {
 	entities, err := CreateMany(world, 1, components...)
 	if err != nil {
 		return 0, err
@@ -50,7 +50,7 @@ func Create(world *World, components ...component.Component) (entity.ID, error) 
 	return entities[0], nil
 }
 
-func RemoveComponentFrom[T component.Component](w *World, id entity.ID) error {
+func RemoveComponentFrom[T component_metadata.Component](w *World, id entity.ID) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -60,7 +60,7 @@ func RemoveComponentFrom[T component.Component](w *World, id entity.ID) error {
 	return w.StoreManager().RemoveComponentFromEntity(c, id)
 }
 
-func AddComponentTo[T component.Component](w *World, id entity.ID) error {
+func AddComponentTo[T component_metadata.Component](w *World, id entity.ID) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -71,7 +71,7 @@ func AddComponentTo[T component.Component](w *World, id entity.ID) error {
 }
 
 // Get returns component data from the entity.
-func GetComponent[T component.Component](w *World, id entity.ID) (comp *T, err error) {
+func GetComponent[T component_metadata.Component](w *World, id entity.ID) (comp *T, err error) {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -96,7 +96,7 @@ func GetComponent[T component.Component](w *World, id entity.ID) (comp *T, err e
 }
 
 // Set sets component data to the entity.
-func SetComponent[T component.Component](w *World, id entity.ID, component *T) error {
+func SetComponent[T component_metadata.Component](w *World, id entity.ID, component *T) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]
@@ -115,7 +115,7 @@ func SetComponent[T component.Component](w *World, id entity.ID, component *T) e
 	return nil
 }
 
-func UpdateComponent[T component.Component](w *World, id entity.ID, fn func(*T) *T) error {
+func UpdateComponent[T component_metadata.Component](w *World, id entity.ID, fn func(*T) *T) error {
 	var t T
 	name := t.Name()
 	c, ok := w.nameToComponent[name]

@@ -9,7 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -24,8 +24,8 @@ var (
 
 type readOnlyManager struct {
 	client          *redis.Client
-	typeToComponent map[component.TypeID]component.IComponentMetaData
-	archIDToComps   map[archetype.ID][]component.IComponentMetaData
+	typeToComponent map[component_metadata.TypeID]component_metadata.IComponentMetaData
+	archIDToComps   map[archetype.ID][]component_metadata.IComponentMetaData
 }
 
 func (m *Manager) NewReadOnlyStore() store.Reader {
@@ -56,7 +56,7 @@ func (r *readOnlyManager) GetEntity(id entity.ID) (entity.Entity, error) {
 	panic("implement me")
 }
 
-func (r *readOnlyManager) GetComponentForEntity(cType component.IComponentMetaData, id entity.ID) (any, error) {
+func (r *readOnlyManager) GetComponentForEntity(cType component_metadata.IComponentMetaData, id entity.ID) (any, error) {
 	bz, err := r.GetComponentForEntityInRawJson(cType, id)
 	if err != nil {
 		return nil, err
@@ -64,13 +64,13 @@ func (r *readOnlyManager) GetComponentForEntity(cType component.IComponentMetaDa
 	return cType.Decode(bz)
 }
 
-func (r *readOnlyManager) GetComponentForEntityInRawJson(cType component.IComponentMetaData, id entity.ID) (json.RawMessage, error) {
+func (r *readOnlyManager) GetComponentForEntityInRawJson(cType component_metadata.IComponentMetaData, id entity.ID) (json.RawMessage, error) {
 	ctx := context.Background()
 	key := redisComponentKey(cType.ID(), id)
 	return r.client.Get(ctx, key).Bytes()
 }
 
-func (r *readOnlyManager) getComponentsForArchID(archID archetype.ID) ([]component.IComponentMetaData, error) {
+func (r *readOnlyManager) getComponentsForArchID(archID archetype.ID) ([]component_metadata.IComponentMetaData, error) {
 	if comps, ok := r.archIDToComps[archID]; ok {
 		return comps, nil
 	}
@@ -83,7 +83,7 @@ func (r *readOnlyManager) getComponentsForArchID(archID archetype.ID) ([]compone
 
 }
 
-func (r *readOnlyManager) GetComponentTypesForEntity(id entity.ID) ([]component.IComponentMetaData, error) {
+func (r *readOnlyManager) GetComponentTypesForEntity(id entity.ID) ([]component_metadata.IComponentMetaData, error) {
 	ctx := context.Background()
 
 	archIDKey := redisArchetypeIDForEntityID(id)
@@ -96,7 +96,7 @@ func (r *readOnlyManager) GetComponentTypesForEntity(id entity.ID) ([]component.
 	return r.getComponentsForArchID(archID)
 }
 
-func (r *readOnlyManager) GetComponentTypesForArchID(archID archetype.ID) []component.IComponentMetaData {
+func (r *readOnlyManager) GetComponentTypesForArchID(archID archetype.ID) []component_metadata.IComponentMetaData {
 	comps, err := r.getComponentsForArchID(archID)
 	if err != nil {
 		panic(err)
@@ -104,7 +104,7 @@ func (r *readOnlyManager) GetComponentTypesForArchID(archID archetype.ID) []comp
 	return comps
 }
 
-func (r *readOnlyManager) GetArchIDForComponents(components []component.IComponentMetaData) (archetype.ID, error) {
+func (r *readOnlyManager) GetArchIDForComponents(components []component_metadata.IComponentMetaData) (archetype.ID, error) {
 	if err := sortComponentSet(components); err != nil {
 		return 0, err
 	}

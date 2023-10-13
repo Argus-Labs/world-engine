@@ -5,7 +5,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
@@ -18,7 +18,7 @@ type ComponentsSliceStorage struct {
 	componentStorages []*ComponentSliceStorage
 }
 
-func (c ComponentsSliceStorage) GetComponentIndexStorage(cid component.TypeID) ComponentIndexStorage {
+func (c ComponentsSliceStorage) GetComponentIndexStorage(cid component_metadata.TypeID) ComponentIndexStorage {
 	//TODO implement me
 	panic("implement me")
 }
@@ -27,7 +27,7 @@ func NewComponentsSliceStorage() ComponentStorageManager {
 	return &ComponentsSliceStorage{componentStorages: make([]*ComponentSliceStorage, 512)}
 }
 
-func (c ComponentsSliceStorage) GetComponentStorage(cid component.TypeID) ComponentStorage {
+func (c ComponentsSliceStorage) GetComponentStorage(cid component_metadata.TypeID) ComponentStorage {
 	s := c.componentStorages[cid]
 	// we need to **explicitly** return nil here if the ComponentSliceStorage pointer is nil.
 	// the storage slice is pre-allocated with pointer values,
@@ -59,7 +59,7 @@ func NewSliceStorage() *ComponentSliceStorage {
 }
 
 // PushComponent stores the new data of the component in the archetype.
-func (cs *ComponentSliceStorage) PushComponent(component component.IComponentMetaData, archetypeID archetype.ID) error {
+func (cs *ComponentSliceStorage) PushComponent(component component_metadata.IComponentMetaData, archetypeID archetype.ID) error {
 	// TODO: optimize to avoid allocation
 	compBz, err := component.New()
 	if err != nil {
@@ -70,18 +70,18 @@ func (cs *ComponentSliceStorage) PushComponent(component component.IComponentMet
 }
 
 // Component returns the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) Component(archetypeID archetype.ID, componentIndex component.Index) ([]byte, error) {
+func (cs *ComponentSliceStorage) Component(archetypeID archetype.ID, componentIndex component_metadata.Index) ([]byte, error) {
 	return cs.storages[archetypeID][componentIndex], nil
 }
 
 // SetComponent sets the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) SetComponent(archetypeID archetype.ID, componentIndex component.Index, compBz []byte) error {
+func (cs *ComponentSliceStorage) SetComponent(archetypeID archetype.ID, componentIndex component_metadata.Index, compBz []byte) error {
 	cs.storages[archetypeID][componentIndex] = compBz
 	return nil
 }
 
 // MoveComponent moves the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) MoveComponent(source archetype.ID, index component.Index, dst archetype.ID) error {
+func (cs *ComponentSliceStorage) MoveComponent(source archetype.ID, index component_metadata.Index, dst archetype.ID) error {
 	srcSlice := cs.storages[source]
 	dstSlice := cs.storages[dst]
 
@@ -96,7 +96,7 @@ func (cs *ComponentSliceStorage) MoveComponent(source archetype.ID, index compon
 }
 
 // SwapRemove removes the bytes of data of the component in the archetype.
-func (cs *ComponentSliceStorage) SwapRemove(archetypeID archetype.ID, componentIndex component.Index) ([]byte, error) {
+func (cs *ComponentSliceStorage) SwapRemove(archetypeID archetype.ID, componentIndex component_metadata.Index) ([]byte, error) {
 	componentValue := cs.storages[archetypeID][componentIndex]
 	cs.storages[archetypeID][componentIndex] = cs.storages[archetypeID][len(cs.storages[archetypeID])-1]
 	cs.storages[archetypeID] = cs.storages[archetypeID][:len(cs.storages[archetypeID])-1]
@@ -104,7 +104,7 @@ func (cs *ComponentSliceStorage) SwapRemove(archetypeID archetype.ID, componentI
 }
 
 // Contains returns true if the storage contains the component.
-func (cs *ComponentSliceStorage) Contains(archetypeID archetype.ID, componentIndex component.Index) (bool, error) {
+func (cs *ComponentSliceStorage) Contains(archetypeID archetype.ID, componentIndex component_metadata.Index) (bool, error) {
 	if cs.storages[archetypeID] == nil {
 		return false, nil
 	}
@@ -117,26 +117,26 @@ func (cs *ComponentSliceStorage) Contains(archetypeID archetype.ID, componentInd
 var _ ComponentIndexStorage = &ComponentIndexMap{}
 
 type ComponentIndexMap struct {
-	idxs map[archetype.ID]component.Index
+	idxs map[archetype.ID]component_metadata.Index
 }
 
 func NewComponentIndexMap() ComponentIndexStorage {
-	return &ComponentIndexMap{idxs: make(map[archetype.ID]component.Index)}
+	return &ComponentIndexMap{idxs: make(map[archetype.ID]component_metadata.Index)}
 }
 
-func (c ComponentIndexMap) ComponentIndex(ai archetype.ID) (component.Index, bool, error) {
+func (c ComponentIndexMap) ComponentIndex(ai archetype.ID) (component_metadata.Index, bool, error) {
 	idx, ok := c.idxs[ai]
 	return idx, ok, nil
 }
 
-func (c *ComponentIndexMap) SetIndex(archID archetype.ID, compIndex component.Index) error {
+func (c *ComponentIndexMap) SetIndex(archID archetype.ID, compIndex component_metadata.Index) error {
 	c.idxs[archID] = compIndex
 	return nil
 }
 
 // IncrementIndex increments the index for this archetype by 1. If the index doesn't
 // currently exist, it is initialized to 0 and 0 is returned.
-func (c *ComponentIndexMap) IncrementIndex(archID archetype.ID) (component.Index, error) {
+func (c *ComponentIndexMap) IncrementIndex(archID archetype.ID) (component_metadata.Index, error) {
 	if _, ok := c.idxs[archID]; !ok {
 		c.idxs[archID] = 0
 	} else {
@@ -187,7 +187,7 @@ func (lm *LocationMap) Remove(id entity.ID) error {
 }
 
 // Insert inserts the given entity ID and archetype Index to the storage.
-func (lm *LocationMap) Insert(id entity.ID, archetype archetype.ID, component component.Index) error {
+func (lm *LocationMap) Insert(id entity.ID, archetype archetype.ID, component component_metadata.Index) error {
 	if int(id) == len(lm.locations) {
 		loc := entity.NewLocation(archetype, component)
 		lm.locations = append(lm.locations, &locationValid{loc, true})
@@ -221,20 +221,20 @@ func (lm *LocationMap) ArchetypeID(id entity.ID) (archetype.ID, error) {
 }
 
 // ComponentIndexForEntity returns the component of the given entity ID.
-func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) (component.Index, error) {
+func (lm *LocationMap) ComponentIndexForEntity(id entity.ID) (component_metadata.Index, error) {
 	return lm.locations[id].loc.CompIndex, nil
 }
 
 // Index is a structure that indexes archetypes by their component types.
 type Index struct {
-	compGroups [][]component.IComponentMetaData
+	compGroups [][]component_metadata.IComponentMetaData
 	iterator   *ArchetypeIterator
 }
 
 // NewArchetypeComponentIndex creates a new search Index.
 func NewArchetypeComponentIndex() ArchetypeComponentIndex {
 	return &Index{
-		compGroups: [][]component.IComponentMetaData{},
+		compGroups: [][]component_metadata.IComponentMetaData{},
 		iterator: &ArchetypeIterator{
 			Current: 0,
 		},
@@ -242,7 +242,7 @@ func NewArchetypeComponentIndex() ArchetypeComponentIndex {
 }
 
 // Push adds an archetype to the search Index.
-func (idx *Index) Push(comps []component.IComponentMetaData) {
+func (idx *Index) Push(comps []component_metadata.IComponentMetaData) {
 	idx.compGroups = append(idx.compGroups, comps)
 }
 
@@ -264,9 +264,9 @@ func (idx *Index) Search(filter filter.ComponentFilter) *ArchetypeIterator {
 }
 
 func (idx *Index) Marshal() ([]byte, error) {
-	compGroups := [][]component.TypeID{}
+	compGroups := [][]component_metadata.TypeID{}
 	for _, comps := range idx.compGroups {
-		currIDs := []component.TypeID{}
+		currIDs := []component_metadata.TypeID{}
 		for _, component := range comps {
 			currIDs = append(currIDs, component.ID())
 		}
@@ -275,8 +275,8 @@ func (idx *Index) Marshal() ([]byte, error) {
 	return codec.Encode(compGroups)
 }
 
-func (idx *Index) UnmarshalWithComps(bytes []byte, comps []component.IComponentMetaData) error {
-	compGroups, err := codec.Decode[[][]component.TypeID](bytes)
+func (idx *Index) UnmarshalWithComps(bytes []byte, comps []component_metadata.IComponentMetaData) error {
+	compGroups, err := codec.Decode[[][]component_metadata.TypeID](bytes)
 	if err != nil {
 		return err
 	}

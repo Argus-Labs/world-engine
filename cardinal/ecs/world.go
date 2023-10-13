@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
@@ -40,8 +40,8 @@ type World struct {
 	systemLoggers            []*ecslog.Logger
 	systemNames              []string
 	tick                     uint64
-	nameToComponent          map[string]component.IComponentMetaData
-	registeredComponents     []component.IComponentMetaData
+	nameToComponent          map[string]component_metadata.IComponentMetaData
+	registeredComponents     []component_metadata.IComponentMetaData
 	registeredTransactions   []transaction.ITransaction
 	registeredReads          []IRead
 	isComponentsRegistered   bool
@@ -62,7 +62,7 @@ type World struct {
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
 
-	nextComponentID component.TypeID
+	nextComponentID component_metadata.TypeID
 }
 
 var (
@@ -74,6 +74,10 @@ var (
 
 func (w *World) IsRecovering() bool {
 	return w.isRecovering
+}
+
+func (w *World) GetNameSpace() Namespace {
+	return w.namespace
 }
 
 func (w *World) StoreManager() store.IManager {
@@ -110,7 +114,7 @@ func (w *World) AddSystems(s ...System) {
 	}
 }
 
-func RegisterComponent[T component.Component](world *World) error {
+func RegisterComponent[T component_metadata.Component](world *World) error {
 	if world.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
@@ -119,7 +123,7 @@ func RegisterComponent[T component.Component](world *World) error {
 	if err == nil {
 		return fmt.Errorf("component with name '%s' is already registered", t.Name())
 	}
-	c := component.NewComponentMetaData[T]()
+	c := component_metadata.NewComponentMetaData[T]()
 	err = c.SetID(world.nextComponentID)
 	if err != nil {
 		return err
@@ -131,7 +135,7 @@ func RegisterComponent[T component.Component](world *World) error {
 	return nil
 }
 
-func (w *World) GetComponentByName(name string) (component.IComponentMetaData, error) {
+func (w *World) GetComponentByName(name string) (component_metadata.IComponentMetaData, error) {
 	componentType, exists := w.nameToComponent[name]
 	if !exists {
 		return nil, fmt.Errorf("Component with name %s not found. Must register component before using", name)
@@ -212,7 +216,7 @@ func NewWorld(s storage.WorldStorage, sm store.IManager, opts ...Option) (*World
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
-		nameToComponent:   make(map[string]component.IComponentMetaData),
+		nameToComponent:   make(map[string]component_metadata.IComponentMetaData),
 		txQueue:           transaction.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
@@ -453,7 +457,7 @@ func (w *World) LoadGameState() error {
 	return nil
 }
 
-func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []component.IComponentMetaData) error {
+func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []component_metadata.IComponentMetaData) error {
 	buf, ok, err := w.store.StateStore.Load(key)
 	if !ok {
 		// There is no saved data for this key
@@ -468,7 +472,7 @@ func (w *World) nextEntity() (entity.ID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 
-func (w *World) insertArchetype(comps []component.IComponentMetaData) archetype.ID {
+func (w *World) insertArchetype(comps []component_metadata.IComponentMetaData) archetype.ID {
 	w.store.ArchCompIdxStore.Push(comps)
 	archID := archetype.ID(w.store.ArchAccessor.Count())
 
@@ -617,7 +621,7 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, e
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) GetComponents() []component.IComponentMetaData {
+func (w *World) GetComponents() []component_metadata.IComponentMetaData {
 	return w.registeredComponents
 }
 

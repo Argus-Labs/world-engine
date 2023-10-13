@@ -1,13 +1,11 @@
-package component
+package component_metadata
 
 import (
 	"fmt"
 	"reflect"
 	"unsafe"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
 type (
@@ -36,17 +34,6 @@ type (
 	}
 )
 
-// Contains returns true if the given slice of components contains the given component. Components are the same if they
-// have the same ID.
-func Contains(components []IComponentMetaData, cType IComponentMetaData) bool {
-	for _, c := range components {
-		if cType.ID() == c.ID() {
-			return true
-		}
-	}
-	return false
-}
-
 // NewComponentMetaData creates a new component type.
 // The function is used to create a new component of the type.
 func NewComponentMetaData[T Component](opts ...ComponentOption[T]) *ComponentMetaData[T] {
@@ -66,7 +53,6 @@ type ComponentMetaData[T any] struct {
 	typ        reflect.Type
 	name       string
 	defaultVal interface{}
-	query      *ecs.Query
 }
 
 // SetID set's this component's ID. It must be unique across the world object.
@@ -142,7 +128,6 @@ func newComponentType[T any](s T, name string, defaultVal interface{}) *Componen
 		name:       name,
 		defaultVal: defaultVal,
 	}
-	componentType.query = ecs.NewQuery(filter.Contains(componentType))
 	if defaultVal != nil {
 		componentType.validateDefaultVal()
 	}

@@ -3,10 +3,10 @@ package storage_test
 import (
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 )
 
 func TestIndex(t *testing.T) {
@@ -18,8 +18,8 @@ func TestIndex(t *testing.T) {
 
 	index := storage.NewArchetypeComponentIndex()
 
-	compsA := []component.IComponentMetaData{ca}
-	compsB := []component.IComponentMetaData{ca, cb}
+	compsA := []component_metadata.IComponentMetaData{ca}
+	compsB := []component_metadata.IComponentMetaData{ca, cb}
 
 	index.Push(compsA)
 	index.Push(compsB)

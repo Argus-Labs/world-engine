@@ -8,8 +8,9 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -19,7 +20,7 @@ import (
 // comps reduces the typing needed to create a slice of IComponentTypes
 // []component.IComponentMetaData{a, b, c} becomes:
 // comps(a, b, c)
-func comps(cs ...component.IComponentMetaData) []component.IComponentMetaData {
+func comps(cs ...component_metadata.IComponentMetaData) []component_metadata.IComponentMetaData {
 	return cs
 }
 
@@ -99,7 +100,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	wantComps := oneWorld.StoreManager().GetComponentTypesForArchID(wantID)
 	assert.Equal(t, 1, len(wantComps))
-	assert.Check(t, component.Contains(wantComps, oneNum))
+	assert.Check(t, filter.MatchComponentMetaData(wantComps, oneNum))
 
 	assert.NilError(t, oneWorld.Tick(context.Background()))
 
@@ -113,7 +114,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	gotComps := twoWorld.StoreManager().GetComponentTypesForArchID(gotID)
 	assert.Equal(t, 1, len(gotComps))
-	assert.Check(t, component.Contains(gotComps, twoNum))
+	assert.Check(t, filter.MatchComponentMetaData(gotComps, twoNum))
 
 	// Archetype indices should be the same across save/load cycles
 	assert.Equal(t, wantID, gotID)

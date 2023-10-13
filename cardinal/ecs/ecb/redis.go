@@ -8,7 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -158,9 +158,9 @@ func (m *Manager) addActiveEntityIDsToPipe(ctx context.Context, pipe redis.Pipel
 }
 
 func (m *Manager) encodeArchIDToCompTypes() ([]byte, error) {
-	forStorage := map[archetype.ID][]component.TypeID{}
+	forStorage := map[archetype.ID][]component_metadata.TypeID{}
 	for archID, comps := range m.archIDToComps {
-		typeIDs := []component.TypeID{}
+		typeIDs := []component_metadata.TypeID{}
 		for _, comp := range comps {
 			typeIDs = append(typeIDs, comp.ID())
 		}
@@ -169,7 +169,7 @@ func (m *Manager) encodeArchIDToCompTypes() ([]byte, error) {
 	return codec.Encode(forStorage)
 }
 
-func getArchIDToCompTypesFromRedis(client *redis.Client, typeToComp map[component.TypeID]component.IComponentMetaData) (m map[archetype.ID][]component.IComponentMetaData, ok bool, err error) {
+func getArchIDToCompTypesFromRedis(client *redis.Client, typeToComp map[component_metadata.TypeID]component_metadata.IComponentMetaData) (m map[archetype.ID][]component_metadata.IComponentMetaData, ok bool, err error) {
 	ctx := context.Background()
 	key := redisArchIDsToCompTypesKey()
 	bz, err := client.Get(ctx, key).Bytes()
@@ -179,15 +179,15 @@ func getArchIDToCompTypesFromRedis(client *redis.Client, typeToComp map[componen
 		return nil, false, err
 	}
 
-	fromStorage, err := codec.Decode[map[archetype.ID][]component.TypeID](bz)
+	fromStorage, err := codec.Decode[map[archetype.ID][]component_metadata.TypeID](bz)
 	if err != nil {
 		return nil, false, err
 	}
 
 	// result is the mapping of Arch ID -> IComponent sets
-	result := map[archetype.ID][]component.IComponentMetaData{}
+	result := map[archetype.ID][]component_metadata.IComponentMetaData{}
 	for archID, compTypeIDs := range fromStorage {
-		currComps := []component.IComponentMetaData{}
+		currComps := []component_metadata.IComponentMetaData{}
 		for _, compTypeID := range compTypeIDs {
 			currComp, ok := typeToComp[compTypeID]
 			if !ok {

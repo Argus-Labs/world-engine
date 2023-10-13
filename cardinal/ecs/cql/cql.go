@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/participle/v2"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
@@ -142,7 +142,7 @@ var internalCQLParser = participle.MustBuild[cqlTerm]()
 // TODO: Value is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
 // be checked.
-func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (component.IComponentMetaData, error)) (filter.ComponentFilter, error) {
+func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (component_metadata.IComponentMetaData, error)) (filter.ComponentFilter, error) {
 	if value.Not != nil {
 		resultFilter, err := valueToComponentFilter(value.Not.SubExpression, stringToComponent)
 		if err != nil {
@@ -153,7 +153,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (com
 		if len(value.Exact.Components) <= 0 {
 			return nil, errors.New("EXACT cannot have zero parameters")
 		}
-		components := make([]component.IComponentMetaData, 0, len(value.Exact.Components))
+		components := make([]component_metadata.IComponentMetaData, 0, len(value.Exact.Components))
 		for _, componentName := range value.Exact.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {
@@ -166,7 +166,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (com
 		if len(value.Contains.Components) <= 0 {
 			return nil, errors.New("CONTAINS cannot have zero parameters")
 		}
-		components := make([]component.IComponentMetaData, 0, len(value.Contains.Components))
+		components := make([]component_metadata.IComponentMetaData, 0, len(value.Contains.Components))
 		for _, componentName := range value.Contains.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {
@@ -182,11 +182,11 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (com
 	}
 }
 
-func factorToComponentFilter(factor *cqlFactor, stringToComponent func(string) (component.IComponentMetaData, error)) (filter.ComponentFilter, error) {
+func factorToComponentFilter(factor *cqlFactor, stringToComponent func(string) (component_metadata.IComponentMetaData, error)) (filter.ComponentFilter, error) {
 	return valueToComponentFilter(factor.Base, stringToComponent)
 }
 
-func opFactorToComponentFilter(opFactor *cqlOpFactor, stringToComponent func(string) (component.IComponentMetaData, error)) (*cqlOperator, filter.ComponentFilter, error) {
+func opFactorToComponentFilter(opFactor *cqlOpFactor, stringToComponent func(string) (component_metadata.IComponentMetaData, error)) (*cqlOperator, filter.ComponentFilter, error) {
 	resultFilter, err := factorToComponentFilter(opFactor.Factor, stringToComponent)
 	if err != nil {
 		return nil, nil, err
@@ -194,7 +194,7 @@ func opFactorToComponentFilter(opFactor *cqlOpFactor, stringToComponent func(str
 	return &opFactor.Operator, resultFilter, nil
 }
 
-func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (component.IComponentMetaData, error)) (filter.ComponentFilter, error) {
+func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (component_metadata.IComponentMetaData, error)) (filter.ComponentFilter, error) {
 	if term.Left == nil {
 		return nil, errors.New("Not enough values in expression")
 	}
@@ -219,7 +219,7 @@ func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (compon
 	return acc, nil
 }
 
-func CQLParse(cqlText string, stringToComponent func(string) (component.IComponentMetaData, error)) (filter.ComponentFilter, error) {
+func CQLParse(cqlText string, stringToComponent func(string) (component_metadata.IComponentMetaData, error)) (filter.ComponentFilter, error) {
 	term, err := internalCQLParser.ParseString("", cqlText)
 	if err != nil {
 		return nil, err

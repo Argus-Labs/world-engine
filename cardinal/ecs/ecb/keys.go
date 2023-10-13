@@ -4,12 +4,12 @@ import (
 	"fmt"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
 // redisComponentKey is the key that maps an entity ID and a specific component ID to the value of that component.
-func redisComponentKey(typeID component.TypeID, id entity.ID) string {
+func redisComponentKey(typeID component_metadata.TypeID, id entity.ID) string {
 	return fmt.Sprintf("ECB:COMPONENT-VALUE:TYPE-ID-%d:ENTITY-ID-%d", typeID, id)
 }
 

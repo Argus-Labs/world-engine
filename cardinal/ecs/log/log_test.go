@@ -16,7 +16,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 )
 
@@ -104,7 +104,7 @@ func TestWorldLogger(t *testing.T) {
 	buf.Reset()
 	energy, err := w.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
-	components := []component.IComponentMetaData{energy}
+	components := []component_metadata.IComponentMetaData{energy}
 	entityId, err := ecs.Create(w, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:2]

@@ -1,7 +1,7 @@
 package ecs
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
@@ -22,11 +22,11 @@ type not struct {
 }
 
 type contains struct {
-	components []component.Component
+	components []component_metadata.Component
 }
 
 type exact struct {
-	components []component.Component
+	components []component_metadata.Component
 }
 
 func And(filters ...Filterable) Filterable {
@@ -41,11 +41,11 @@ func Not(filter Filterable) Filterable {
 	return &not{filter: filter}
 }
 
-func Contains(components ...component.Component) Filterable {
+func Contains(components ...component_metadata.Component) Filterable {
 	return &contains{components: components}
 }
 
-func Exact(components ...component.Component) Filterable {
+func Exact(components ...component_metadata.Component) Filterable {
 	return &exact{components: components}
 }
 
@@ -83,7 +83,7 @@ func (s not) ConvertToComponentFilter(world *World) (filter.ComponentFilter, err
 }
 
 func (s contains) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
-	acc := make([]component.IComponentMetaData, 0, len(s.components))
+	acc := make([]component_metadata.IComponentMetaData, 0, len(s.components))
 	for _, internalComponent := range s.components {
 		c, err := world.GetComponentByName(internalComponent.Name())
 		if err != nil {
@@ -95,7 +95,7 @@ func (s contains) ConvertToComponentFilter(world *World) (filter.ComponentFilter
 }
 
 func (s exact) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
-	acc := make([]component.IComponentMetaData, 0, len(s.components))
+	acc := make([]component_metadata.IComponentMetaData, 0, len(s.components))
 	for _, internalComponent := range s.components {
 		c, err := world.GetComponentByName(internalComponent.Name())
 		if err != nil {

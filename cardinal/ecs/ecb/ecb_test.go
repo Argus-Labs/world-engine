@@ -8,7 +8,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -55,9 +55,9 @@ func (Bar) Name() string {
 }
 
 var (
-	fooComp       = component.NewComponentMetaData[Foo]()
-	barComp       = component.NewComponentMetaData[Bar]()
-	allComponents = []component.IComponentMetaData{fooComp, barComp}
+	fooComp       = component_metadata.NewComponentMetaData[Foo]()
+	barComp       = component_metadata.NewComponentMetaData[Bar]()
+	allComponents = []component_metadata.IComponentMetaData{fooComp, barComp}
 )
 
 func init() {
@@ -383,9 +383,9 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 	_, err = manager.CreateManyEntities(startEntityCount, fooComp, barComp)
 	assert.NilError(t, err)
 
-	fooArchID, err := manager.GetArchIDForComponents([]component.IComponentMetaData{fooComp})
+	fooArchID, err := manager.GetArchIDForComponents([]component_metadata.IComponentMetaData{fooComp})
 	assert.NilError(t, err)
-	bothArchID, err := manager.GetArchIDForComponents([]component.IComponentMetaData{barComp, fooComp})
+	bothArchID, err := manager.GetArchIDForComponents([]component_metadata.IComponentMetaData{barComp, fooComp})
 	assert.NilError(t, err)
 
 	// Make sure there are the correct number of ids in each archetype to start
