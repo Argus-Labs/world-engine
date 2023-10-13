@@ -6,7 +6,7 @@ import (
 )
 
 type HasEntitiesForArchetype interface {
-	GetEntitiesForArchID(archID archetype.ID) []entity.ID
+	GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error)
 }
 
 // EntityIterator is an iterator for Ent lists in archetypes.
@@ -31,7 +31,7 @@ func (it *EntityIterator) HasNext() bool {
 }
 
 // Next returns the next Ent list.
-func (it *EntityIterator) Next() []entity.ID {
+func (it *EntityIterator) Next() ([]entity.ID, error) {
 	archetypeID := it.indices[it.current]
 	it.current++
 	return it.archAccessor.GetEntitiesForArchID(archetypeID)
