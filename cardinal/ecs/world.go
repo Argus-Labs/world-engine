@@ -61,10 +61,11 @@ type World struct {
 
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
+
+	availableComponentTypeID component.TypeID
 }
 
 var (
-	ErrorComponentRegistrationMustHappenOnce   = errors.New("component registration must happen exactly 1 time")
 	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
 	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
 	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
@@ -108,9 +109,6 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 	if w.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
-	if w.isComponentsRegistered {
-		return ErrorComponentRegistrationMustHappenOnce
-	}
 	w.isComponentsRegistered = true
 	w.registeredComponents = append(w.registeredComponents, SignerComp)
 	w.registeredComponents = append(w.registeredComponents, components...)
@@ -134,6 +132,44 @@ func (w *World) RegisterComponents(components ...component.IComponentType) error
 		return err
 	}
 
+	return nil
+}
+
+func RegisterComponent[T component.IAbstractComponent](world *World) error {
+	if world.stateIsLoaded {
+		panic("cannot register components after loading game state")
+	}
+
+	//Register SignerComponent component if it does not exist
+	_, err := world.GetComponentByName(SignerComp.Name())
+	if err != nil {
+		err = SignerComp.SetID(world.availableComponentTypeID)
+		if err != nil {
+			return err
+		}
+		world.availableComponentTypeID += 1
+		world.registeredComponents = append(world.registeredComponents, SignerComp)
+		world.nameToComponent[SignerComp.Name()] = SignerComp
+	}
+
+	var t T
+	//If user is trying to register the signing component by here it must already be registered.
+	//thus skip registration and return.
+	if t.Name() == SignerComp.Name() {
+		return nil
+	}
+	_, err = world.GetComponentByName(t.Name())
+	if err == nil {
+		return fmt.Errorf("Error witht the name %s is already registered", t.Name())
+	}
+	c := NewComponentType[T]()
+	err = c.SetID(world.availableComponentTypeID)
+	if err != nil {
+		return err
+	}
+	world.registeredComponents = append(world.registeredComponents, c)
+	world.availableComponentTypeID += 1
+	world.nameToComponent[t.Name()] = c
 	return nil
 }
 
@@ -212,16 +248,17 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		&log.Logger,
 	}
 	w := &World{
-		store:             s,
-		storeManager:      store.NewStoreManager(s, logger),
-		namespace:         "world",
-		tick:              0,
-		systems:           make([]System, 0),
-		nameToComponent:   make(map[string]IComponentType),
-		txQueue:           transaction.NewTxQueue(),
-		Logger:            logger,
-		isGameLoopRunning: atomic.Bool{},
-		endGameLoopCh:     make(chan bool),
+		store:                    s,
+		storeManager:             store.NewStoreManager(s, logger),
+		namespace:                "world",
+		tick:                     0,
+		systems:                  make([]System, 0),
+		nameToComponent:          make(map[string]IComponentType),
+		txQueue:                  transaction.NewTxQueue(),
+		Logger:                   logger,
+		isGameLoopRunning:        atomic.Bool{},
+		endGameLoopCh:            make(chan bool),
+		availableComponentTypeID: 1,
 	}
 	w.isGameLoopRunning.Store(false)
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
@@ -434,11 +471,6 @@ func (w *World) LoadGameState() error {
 	}
 	if !w.isTransactionsRegistered {
 		if err := w.RegisterTransactions(); err != nil {
-			return err
-		}
-	}
-	if !w.isComponentsRegistered {
-		if err := w.RegisterComponents(); err != nil {
 			return err
 		}
 	}

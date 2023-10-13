@@ -86,7 +86,7 @@ func (SignerComponent) Name() string {
 }
 
 // SignerComp is the concrete ECS component that pairs a persona tag to a signer address.
-var SignerComp = NewComponentType[SignerComponent]("SignerComponent")
+var SignerComp = NewComponentType[SignerComponent]()
 
 type personaTagComponentData struct {
 	SignerAddress string

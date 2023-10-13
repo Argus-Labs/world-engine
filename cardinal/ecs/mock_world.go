@@ -5,6 +5,8 @@ import (
 	"log"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/alicebob/miniredis/v2"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -38,6 +40,8 @@ func NewTestWorld(t testing.TB, opts ...Option) *World {
 	if err != nil {
 		t.Fatalf("Unable to initialize world: %v", err)
 	}
+	err = RegisterComponent[SignerComponent](w)
+	assert.NilError(t, err)
 	return w
 }
 

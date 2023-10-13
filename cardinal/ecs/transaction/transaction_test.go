@@ -54,8 +54,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 
 	// Create an entity with a score component
-	score := ecs.NewComponentType[*ScoreComponent]("score")
-	assert.NilError(t, world.RegisterComponents(score))
+	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](world))
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
 
@@ -119,8 +118,7 @@ func (CounterComponent) Name() string {
 func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 
-	count := ecs.NewComponentType[CounterComponent]("count")
-	assert.NilError(t, world.RegisterComponents(count))
+	assert.NilError(t, ecs.RegisterComponent[CounterComponent](world))
 
 	id, err := ecs.Create(world, CounterComponent{})
 	assert.NilError(t, err)
@@ -144,8 +142,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	score := ecs.NewComponentType[ScoreComponent]("score")
-	assert.NilError(t, world.RegisterComponents(score))
+	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](world))
 
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))

@@ -173,6 +173,10 @@ func (w *World) RegisterComponents(components ...AnyComponentType) error {
 	return w.implWorld.RegisterComponents(toIComponentType(components)...)
 }
 
+func RegisterComponent[T component.IAbstractComponent](world *World) error {
+	return ecs.RegisterComponent[T](world.implWorld)
+}
+
 // RegisterTransactions adds the given transactions to the game world. HTTP endpoints to queue up/execute these
 // transaction will automatically be created when StartGame is called. This Register method must only be called once.
 func (w *World) RegisterTransactions(txs ...AnyTransaction) error {
