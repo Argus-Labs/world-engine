@@ -17,12 +17,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"buf.build/gen/go/argus-labs/world-engine/grpc/go/router/v1/routerv1grpc"
-	"buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
+	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 )
 
 var (
-	_ routerv1grpc.MsgServer = &msgServerImpl{}
+	_ routerv1.MsgServer = &msgServerImpl{}
 
 	defaultPort = "9020"
 
@@ -30,7 +29,7 @@ var (
 )
 
 type Server interface {
-	routerv1grpc.MsgServer
+	routerv1.MsgServer
 	// Serve serves the application in a new go routine.
 	Serve() error
 }
@@ -42,6 +41,9 @@ type txByID map[transaction.TypeID]transaction.ITransaction
 type readByName map[string]ecs.IRead
 
 type msgServerImpl struct {
+	// required embed
+	routerv1.UnimplementedMsgServer
+
 	txMap   txByID
 	readMap readByName
 	world   *ecs.World
@@ -111,7 +113,7 @@ func loadCredentials(serverCertPath, serverKeyPath string) (credentials.Transpor
 // Serve serves the application in a new go routine.
 func (s *msgServerImpl) Serve() error {
 	server := grpc.NewServer(grpc.Creds(s.creds))
-	routerv1grpc.RegisterMsgServer(server, s)
+	routerv1.RegisterMsgServer(server, s)
 	listener, err := net.Listen("tcp", ":"+s.port)
 	if err != nil {
 		return err

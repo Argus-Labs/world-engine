@@ -5,8 +5,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/evm"
 	"testing"
 
-	routerv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"gotest.tools/v3/assert"
+	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )
