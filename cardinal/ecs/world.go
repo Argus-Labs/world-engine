@@ -138,6 +138,7 @@ func RegisterComponent[T component.IAbstractComponent](world *World) error {
 	world.registeredComponents = append(world.registeredComponents, c)
 	world.availableComponentTypeID += 1
 	world.nameToComponent[t.Name()] = c
+	world.isComponentsRegistered = true
 	return nil
 }
 
@@ -442,6 +443,14 @@ func (w *World) LoadGameState() error {
 			return err
 		}
 	}
+
+	if !w.isComponentsRegistered {
+		err := RegisterComponent[SignerComponent](w)
+		if err != nil {
+			return err
+		}
+	}
+
 	w.stateIsLoaded = true
 	recoveredTxs, err := w.recoverGameState()
 	if err != nil {
