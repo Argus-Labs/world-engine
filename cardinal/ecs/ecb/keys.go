@@ -39,3 +39,15 @@ func redisActiveEntityIDKey(archID archetype.ID) string {
 func redisArchIDsToCompTypesKey() string {
 	return "ECB:ARCHETYPE-ID-TO-COMPONENT-TYPES"
 }
+
+func redisStartTickKey() string {
+	return "ECB:START-TICK"
+}
+
+func redisEndTickKey() string {
+	return "ECB:END-TICK"
+}
+
+func redisPendingTransactionKey() string {
+	return "ECB:PENDING-TRANSACTIONS"
+}

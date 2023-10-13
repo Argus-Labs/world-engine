@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -228,7 +229,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 1)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = world.StoreManager().GetEntity(entities[0])
+	_, err = world.StoreManager().GetComponentTypesForEntity(entities[0])
 	assert.Check(t, err != nil)
 
 	// Remove the other entity
@@ -245,7 +246,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 0)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = world.StoreManager().GetEntity(entities[0])
+	_, err = world.StoreManager().GetComponentTypesForEntity(entities[0])
 	assert.Check(t, err != nil)
 }
 
@@ -363,21 +364,22 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 
 	assert.NilError(t, world.LoadGameState())
 
+	getArchIDForEntityID := func(id entity.ID) archetype.ID {
+		components, err := world.StoreManager().GetComponentTypesForEntity(id)
+		assert.NilError(t, err)
+		archID, err := world.StoreManager().GetArchIDForComponents(components)
+		assert.NilError(t, err)
+		return archID
+	}
 	entity, err := ecs.Create(world, Foo{}, Bar{})
 	assert.NilError(t, err)
 
-	ent, err := world.StoreManager().GetEntity(entity)
-	assert.NilError(t, err)
-
-	archIDBefore := ent.Loc.ArchID
+	archIDBefore := getArchIDForEntityID(entity)
 
 	// The entity should now be in a different archetype
 	assert.NilError(t, ecs.RemoveComponentFrom[Foo](world, entity))
 
-	ent, err = world.StoreManager().GetEntity(entity)
-	assert.NilError(t, err)
-
-	archIDAfter := ent.Loc.ArchID
+	archIDAfter := getArchIDForEntityID(entity)
 	assert.Check(t, archIDBefore != archIDAfter)
 }
 

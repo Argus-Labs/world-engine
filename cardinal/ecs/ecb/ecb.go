@@ -86,9 +86,16 @@ func (m *Manager) RegisterComponents(comps []component.IComponentType) error {
 // CommitPending commits any pending state changes to the DB. If an error is returned, there will be no changes
 // to the underlying DB.
 func (m *Manager) CommitPending() error {
-	if err := m.flushToRedis(); err != nil {
+	ctx := context.Background()
+	pipe, err := m.makePipeOfRedisCommands(ctx)
+	if err != nil {
 		return err
 	}
+	_, err = pipe.Exec(ctx)
+	if err != nil {
+		return err
+	}
+
 	m.pendingArchIDs = nil
 
 	// All changes were just successfully committed to redis, so stop tracking them locally
@@ -177,13 +184,7 @@ func (m *Manager) CreateManyEntities(num int, comps ...component.IComponentType)
 		m.entityIDToOriginArchID[currID] = doesNotExistArchetypeID
 		active.ids = append(active.ids, currID)
 		active.modified = true
-		m.logger.LogEntity(zerolog.DebugLevel, entity.Entity{
-			ID: currID,
-			Loc: entity.Location{
-				ArchID: archID,
-				// Component Index is not a part of the command buffer's storage model
-				CompIndex: -1,
-			}}, comps)
+		m.logger.LogEntity(zerolog.DebugLevel, currID, archID, comps)
 	}
 	m.setActiveEntities(archID, active)
 	return ids, nil
