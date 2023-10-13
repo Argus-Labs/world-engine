@@ -7,6 +7,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
 // TODO this function needs to be moved to a utils package above cardinal to prevent circulars.
@@ -51,7 +52,9 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	assert.NilError(t, err)
 	gotNumOfEntities := 0
 	world.RegisterSystems(func(world *cardinal.World, queue *cardinal.TransactionQueue, logger *cardinal.Logger) error {
-		cardinal.NewQuery(cardinal.Exact(comp)).Each(world, func(cardinal.EntityID) bool {
+		q, err := world.NewQuery(ecs.Exact(Foo{}))
+		assert.NilError(t, err)
+		q.Each(world, func(cardinal.EntityID) bool {
 			gotNumOfEntities++
 			return true
 		})

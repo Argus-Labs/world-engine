@@ -103,38 +103,6 @@ func (w *World) AddSystems(s ...System) {
 	}
 }
 
-// RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
-// This will give components the ability to access their own data.
-func (w *World) RegisterComponents(components ...component.IComponentType) error {
-	if w.stateIsLoaded {
-		panic("cannot register components after loading game state")
-	}
-	w.isComponentsRegistered = true
-	w.registeredComponents = append(w.registeredComponents, SignerComp)
-	w.registeredComponents = append(w.registeredComponents, components...)
-
-	for i, c := range w.registeredComponents {
-		id := component.TypeID(i + 1)
-		if err := c.SetID(id); err != nil {
-			return err
-		}
-	}
-
-	for _, c := range w.registeredComponents {
-		if _, ok := w.nameToComponent[c.Name()]; !ok {
-			w.nameToComponent[c.Name()] = c
-		} else {
-			return errors.New("cannot register multiple components with the same name")
-		}
-	}
-
-	if err := w.storeManager.RegisterComponents(w.registeredComponents); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func RegisterComponent[T component.IAbstractComponent](world *World) error {
 	if world.stateIsLoaded {
 		panic("cannot register components after loading game state")

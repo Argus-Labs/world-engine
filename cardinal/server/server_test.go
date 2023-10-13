@@ -570,7 +570,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 
 	urlSet := []string{"tx/persona/create-persona", "query/persona/signer"}
 	world := ecs.NewTestWorld(t)
-	err := world.RegisterComponents()
+	err := ecs.RegisterComponent[ecs.SignerComponent](world)
 	assert.NilError(t, err)
 	tx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("some_tx")
 	assert.NilError(t, world.RegisterTransactions(tx))

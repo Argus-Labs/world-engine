@@ -110,7 +110,7 @@ func (w *World) Remove(id EntityID) error {
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is attempted.
 // In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
-// to this world. After StartGame is called, RegisterComponents, RegisterTransactions, RegisterReads, and AddSystem may
+// to this world. After StartGame is called, RegisterComponent, RegisterTransactions, RegisterReads, and AddSystem may
 // not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {
@@ -165,12 +165,6 @@ func (w *World) RegisterSystems(systems ...System) {
 			return system(&World{implWorld: world}, &TransactionQueue{queue}, &Logger{logger})
 		})
 	}
-}
-
-// RegisterComponents adds the given components to the game world. After components are added, entities
-// with these components may be created. This Register method must only be called once.
-func (w *World) RegisterComponents(components ...AnyComponentType) error {
-	return w.implWorld.RegisterComponents(toIComponentType(components)...)
 }
 
 func RegisterComponent[T component.IAbstractComponent](world *World) error {
