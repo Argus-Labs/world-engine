@@ -4,63 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
-	"unsafe"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
-
-// IComponentMetaData is an interface for component types.
-type IComponentMetaData = component.IComponentMetaData
-
-// NewComponentMetaData creates a new component type.
-// The function is used to create a new component of the type.
-func NewComponentMetaData[T component.Component](opts ...ComponentOption[T]) *ComponentMetaData[T] {
-	var t T
-	comp := newComponentType(t, t.Name(), nil)
-	for _, opt := range opts {
-		opt(comp)
-	}
-	return comp
-}
-
-// ComponentMetaData represents a type of component. It is used to identify
-// a component when getting or setting the component of an entity.
-type ComponentMetaData[T any] struct {
-	isIDSet    bool
-	id         component.TypeID
-	typ        reflect.Type
-	name       string
-	defaultVal interface{}
-	query      *Query
-}
-
-// SetID set's this component's ID. It must be unique across the world object.
-func (c *ComponentMetaData[T]) SetID(id component.TypeID) error {
-	if c.isIDSet {
-		// In games implemented with Cardinal, components will only be initialized one time (on startup).
-		// In tests, it's often useful to use the same component in multiple worlds. This check will allow for the
-		// re-initialization of components, as long as the ID doesn't change.
-		if id == c.id {
-			return nil
-		}
-		return fmt.Errorf("id for component %v is already set to %v, cannot change to %v", c, c.id, id)
-	}
-	c.id = id
-	c.isIDSet = true
-	return nil
-}
 
 func GetRawJsonOfComponent(w *World, component component.IComponentMetaData, id entity.ID) (json.RawMessage, error) {
 	return w.StoreManager().GetComponentForEntityInRawJson(component, id)
 }
 
 func CreateMany(world *World, num int, components ...component.Component) ([]entity.ID, error) {
-	acc := make([]IComponentMetaData, 0, len(components))
+	acc := make([]component.IComponentMetaData, 0, len(components))
 	for _, comp := range components {
 		c, err := world.GetComponentByName(comp.Name())
 		if err != nil {
@@ -113,82 +68,6 @@ func AddComponentTo[T component.Component](w *World, id entity.ID) error {
 		return errors.New("Must register component")
 	}
 	return w.StoreManager().AddComponentToEntity(c, id)
-}
-
-// String returns the component type name.
-func (c *ComponentMetaData[T]) String() string {
-	return c.name
-}
-
-// SetName sets the component type name.
-func (c *ComponentMetaData[T]) SetName(name string) *ComponentMetaData[T] {
-	c.name = name
-	return c
-}
-
-// Name returns the component type name.
-func (c *ComponentMetaData[T]) Name() string {
-	return c.name
-}
-
-// ID returns the component type id.
-func (c *ComponentMetaData[T]) ID() component.TypeID {
-	return c.id
-}
-
-func (c *ComponentMetaData[T]) New() ([]byte, error) {
-	var comp T
-	if c.defaultVal != nil {
-		comp = c.defaultVal.(T)
-	}
-	return codec.Encode(comp)
-}
-
-func (c *ComponentMetaData[T]) Encode(v any) ([]byte, error) {
-	return codec.Encode(v)
-}
-
-func (c *ComponentMetaData[T]) Decode(bz []byte) (any, error) {
-	return codec.Decode[T](bz)
-}
-
-func (c *ComponentMetaData[T]) setDefaultVal(ptr unsafe.Pointer) {
-	v := reflect.Indirect(reflect.ValueOf(c.defaultVal))
-	reflect.NewAt(c.typ, ptr).Elem().Set(v)
-}
-
-func (c *ComponentMetaData[T]) validateDefaultVal() {
-	if !reflect.TypeOf(c.defaultVal).AssignableTo(c.typ) {
-		err := fmt.Sprintf("default value is not assignable to component type: %s", c.name)
-		panic(err)
-	}
-}
-
-// newComponentType creates a new component type.
-// The argument is a struct that represents a data of the component.
-func newComponentType[T any](s T, name string, defaultVal interface{}) *ComponentMetaData[T] {
-	componentType := &ComponentMetaData[T]{
-		typ:        reflect.TypeOf(s),
-		name:       name,
-		defaultVal: defaultVal,
-	}
-	componentType.query = NewQuery(filter.Contains(componentType))
-	if defaultVal != nil {
-		componentType.validateDefaultVal()
-	}
-	return componentType
-}
-
-// ComponentOption is a type that can be passed to NewComponentMetaData to augment the creation
-// of the component type
-type ComponentOption[T any] func(c *ComponentMetaData[T])
-
-// WithDefault updated the created ComponentMetaData with a default value
-func WithDefault[T any](defaultVal T) ComponentOption[T] {
-	return func(c *ComponentMetaData[T]) {
-		c.defaultVal = defaultVal
-		c.validateDefaultVal()
-	}
 }
 
 // Get returns component data from the entity.
@@ -253,14 +132,3 @@ func UpdateComponent[T component.Component](w *World, id entity.ID, fn func(*T) 
 	updatedVal := fn(val)
 	return SetComponent[T](w, id, updatedVal)
 }
-
-//
-//func GetRawJsonComponent[T component.Component](w *World, id entity.ID) (json.RawMessage, error) {
-//	var t T
-//	name := t.Name()
-//	c, ok := w.nameToComponent[name]
-//	if !ok {
-//		return nil, errors.New("Must register component")
-//	}
-//	return w.StoreManager().GetComponentForEntityInRawJson(c, id)
-//}

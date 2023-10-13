@@ -83,7 +83,7 @@ func (s not) ConvertToComponentFilter(world *World) (filter.ComponentFilter, err
 }
 
 func (s contains) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
-	acc := make([]IComponentMetaData, 0, len(s.components))
+	acc := make([]component.IComponentMetaData, 0, len(s.components))
 	for _, internalComponent := range s.components {
 		c, err := world.GetComponentByName(internalComponent.Name())
 		if err != nil {
@@ -95,7 +95,7 @@ func (s contains) ConvertToComponentFilter(world *World) (filter.ComponentFilter
 }
 
 func (s exact) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
-	acc := make([]IComponentMetaData, 0, len(s.components))
+	acc := make([]component.IComponentMetaData, 0, len(s.components))
 	for _, internalComponent := range s.components {
 		c, err := world.GetComponentByName(internalComponent.Name())
 		if err != nil {

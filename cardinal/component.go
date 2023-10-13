@@ -1,7 +1,6 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
 
@@ -14,7 +13,7 @@ type AnyComponentType interface {
 
 // ComponentType represents an accessor that can get and set a specific kind of data (T) using an EntityID.
 type ComponentType[T any] struct {
-	impl *ecs.ComponentMetaData[T]
+	impl *component.ComponentMetaData[T]
 }
 
 func toIComponentType(ins []AnyComponentType) []component.IComponentMetaData {
