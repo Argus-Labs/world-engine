@@ -110,7 +110,7 @@ func RegisterComponent[T component.IAbstractComponent](world *World) error {
 	var t T
 	_, err := world.GetComponentByName(t.Name())
 	if err == nil {
-		return fmt.Errorf("Error witht the name %s is already registered", t.Name())
+		return fmt.Errorf("component with name '%s' is already registered", t.Name())
 	}
 	c := NewComponentType[T]()
 	err = c.SetID(world.availableComponentTypeID)
