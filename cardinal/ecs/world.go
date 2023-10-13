@@ -62,7 +62,7 @@ type World struct {
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
 
-	availableComponentTypeID component.TypeID
+	nextComponentID component.TypeID
 }
 
 var (
@@ -113,12 +113,12 @@ func RegisterComponent[T component.IAbstractComponent](world *World) error {
 		return fmt.Errorf("component with name '%s' is already registered", t.Name())
 	}
 	c := NewComponentType[T]()
-	err = c.SetID(world.availableComponentTypeID)
+	err = c.SetID(world.nextComponentID)
 	if err != nil {
 		return err
 	}
 	world.registeredComponents = append(world.registeredComponents, c)
-	world.availableComponentTypeID += 1
+	world.nextComponentID += 1
 	world.nameToComponent[t.Name()] = c
 	world.isComponentsRegistered = true
 	return nil
@@ -199,17 +199,17 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		&log.Logger,
 	}
 	w := &World{
-		store:                    s,
-		storeManager:             store.NewStoreManager(s, logger),
-		namespace:                "world",
-		tick:                     0,
-		systems:                  make([]System, 0),
-		nameToComponent:          make(map[string]IComponentType),
-		txQueue:                  transaction.NewTxQueue(),
-		Logger:                   logger,
-		isGameLoopRunning:        atomic.Bool{},
-		endGameLoopCh:            make(chan bool),
-		availableComponentTypeID: 1,
+		store:             s,
+		storeManager:      store.NewStoreManager(s, logger),
+		namespace:         "world",
+		tick:              0,
+		systems:           make([]System, 0),
+		nameToComponent:   make(map[string]IComponentType),
+		txQueue:           transaction.NewTxQueue(),
+		Logger:            logger,
+		isGameLoopRunning: atomic.Bool{},
+		endGameLoopCh:     make(chan bool),
+		nextComponentID:   1,
 	}
 	w.isGameLoopRunning.Store(false)
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
