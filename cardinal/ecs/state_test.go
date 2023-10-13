@@ -70,7 +70,6 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 
 	// Too few components registered
 	twoWorld := testutil.InitWorldWithRedis(t, redisStore)
-	assert.NilError(t, ecs.RegisterComponent[ecs.SignerComponent](twoWorld))
 	err = twoWorld.LoadGameState()
 	assert.ErrorContains(t, err, storage.ErrorComponentMismatchWithSavedState.Error())
 

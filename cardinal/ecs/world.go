@@ -107,26 +107,8 @@ func RegisterComponent[T component.IAbstractComponent](world *World) error {
 	if world.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
-
-	//Register SignerComponent component if it does not exist
-	_, err := world.GetComponentByName(SignerComp.Name())
-	if err != nil {
-		err = SignerComp.SetID(world.availableComponentTypeID)
-		if err != nil {
-			return err
-		}
-		world.availableComponentTypeID += 1
-		world.registeredComponents = append(world.registeredComponents, SignerComp)
-		world.nameToComponent[SignerComp.Name()] = SignerComp
-	}
-
 	var t T
-	//If user is trying to register the signing component by here it must already be registered.
-	//thus skip registration and return.
-	if t.Name() == SignerComp.Name() {
-		return nil
-	}
-	_, err = world.GetComponentByName(t.Name())
+	_, err := world.GetComponentByName(t.Name())
 	if err == nil {
 		return fmt.Errorf("Error witht the name %s is already registered", t.Name())
 	}
@@ -231,6 +213,10 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 	}
 	w.isGameLoopRunning.Store(false)
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	err := RegisterComponent[SignerComponent](w)
+	if err != nil {
+		return nil, err
+	}
 	for _, opt := range opts {
 		opt(w)
 	}

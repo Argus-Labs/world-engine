@@ -40,7 +40,6 @@ func NewTestWorld(t testing.TB, opts ...Option) *World {
 	if err != nil {
 		t.Fatalf("Unable to initialize world: %v", err)
 	}
-	err = RegisterComponent[SignerComponent](w)
 	assert.NilError(t, err)
 	return w
 }

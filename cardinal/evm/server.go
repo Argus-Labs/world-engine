@@ -10,7 +10,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 
@@ -156,7 +155,11 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
 	var err error
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id entity.ID) bool {
+	q, err := s.world.NewQuery(ecs.Exact(ecs.SignerComponent{}))
+	if err != nil {
+		return nil, err
+	}
+	q.Each(s.world, func(id entity.ID) bool {
 		var signerComp *ecs.SignerComponent
 		signerComp, err = ecs.GetComponent[ecs.SignerComponent](s.world, id)
 		if err != nil {
