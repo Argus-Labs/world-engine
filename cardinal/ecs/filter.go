@@ -46,7 +46,7 @@ func Contains(components ...component.IAbstractComponent) Filterable {
 }
 
 func Exact(components ...component.IAbstractComponent) Filterable {
-	return &contains{components: components}
+	return &exact{components: components}
 }
 
 func (s or) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {

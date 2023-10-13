@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/rs/zerolog"
 	"gotest.tools/v3/assert"
+
+	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -54,10 +54,11 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 
 	disabledLogger := world.Logger.Level(zerolog.Disabled)
 	world.InjectLogger(&ecslog.Logger{&disabledLogger})
-	healthComp := ecs.NewComponentType[Health]("health")
 	if enableHealthSystem {
 		world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, logger *ecslog.Logger) error {
-			ecs.NewQuery(filter.Contains(healthComp)).Each(w, func(id entity.ID) bool {
+			q, err := world.NewQuery(ecs.Contains(Health{}))
+			assert.NilError(t, err)
+			q.Each(w, func(id entity.ID) bool {
 				health, err := ecs.GetComponent[Health](w, id)
 				assert.NilError(t, err)
 				health.Value++
@@ -68,7 +69,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 		})
 	}
 
-	assert.NilError(t, world.RegisterComponents(healthComp))
+	assert.NilError(t, ecs.RegisterComponent[Health](world))
 	assert.NilError(t, world.LoadGameState())
 	_, err := ecs.CreateMany(world, numOfEntities, Health{})
 	assert.NilError(t, err)

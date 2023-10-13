@@ -23,9 +23,9 @@ type IComponentType = component.IComponentType
 
 // NewComponentType creates a new component type.
 // The function is used to create a new component of the type.
-func NewComponentType[T any](name string, opts ...ComponentOption[T]) *ComponentType[T] {
+func NewComponentType[T component.IAbstractComponent](opts ...ComponentOption[T]) *ComponentType[T] {
 	var t T
-	comp := newComponentType(t, name, nil)
+	comp := newComponentType(t, t.Name(), nil)
 	for _, opt := range opts {
 		opt(comp)
 	}
