@@ -191,19 +191,22 @@ func (w *World) RegisterComponents(components ...AnyComponentType) error
 package main
 
 import (
-
 "log"
 "github.com/my-username/my-world-engine-project/component"
 "pkg.world.dev/world-engine/cardinal/ecs"
-)"pkg.world.dev/world-engine/cardinal/ecs"
-
 )
 
 func main() {
     // ... world setup ...
 
 	err := ecs.RegisterComponent[LocationComponet](world)
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = ecs.RegisterComponent[AttackPowerComponent](world)
+	if err != nil {
+		log.Fatal(err)
+	}
 	err = ecs.RegisterComponent[HealthComponent](world)
 	if err != nil {
 		log.Fatal(err)
