@@ -76,7 +76,7 @@ func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
-func (w *World) GetNameSpace() Namespace {
+func (w *World) GetNamespace() Namespace {
 	return w.namespace
 }
 
@@ -498,7 +498,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	defer func() {
 		w.isRecovering = false
 	}()
-	namespace := w.Namespace()
+	namespace := w.NamespaceAsString()
 	var nextKey []byte
 	for {
 		res, err := w.chain.QueryTransactions(ctx, &types.QueryTransactionsRequest{
@@ -589,7 +589,7 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 }
 
 // Namespace returns the world's namespace.
-func (w *World) Namespace() string {
+func (w *World) NamespaceAsString() string {
 	return string(w.namespace)
 }
 

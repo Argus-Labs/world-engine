@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -44,8 +45,8 @@ func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, i
 	///////////////////////////////////////////////
 
 	// Check that the namespace is correct
-	if sp.Namespace != handler.w.Namespace() {
-		return nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, handler.w.Namespace())
+	if sp.Namespace != handler.w.NamespaceAsString() {
+		return nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, handler.w.NamespaceAsString())
 	}
 	if isSystemTransaction && !sp.IsSystemPayload() {
 		return nil, ErrorSystemTransactionRequired
