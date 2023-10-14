@@ -123,13 +123,6 @@ func (m *Manager) DiscardPending() {
 	m.pendingArchIDs = m.pendingArchIDs[:0]
 }
 
-// GetEntity converts an entity ID into an entity.Entity.
-// TODO: This is only used in tests, so it should be removed from the StoreManager interface.
-// See: https://linear.app/arguslabs/issue/WORLD-394/remove-getentity-method-from-storemanager
-func (m *Manager) GetEntity(id entity.ID) (entity.Entity, error) {
-	panic("implement me")
-}
-
 // RemoveEntity removes the given entity from the ECS data model.
 func (m *Manager) RemoveEntity(idToRemove entity.ID) error {
 	archID, err := m.getArchetypeForEntity(idToRemove)
@@ -346,14 +339,12 @@ func (m *Manager) GetArchIDForComponents(components []component_metadata.ICompon
 }
 
 // GetEntitiesForArchID returns all the entities that currently belong to the given archetype ID.
-func (m *Manager) GetEntitiesForArchID(archID archetype.ID) []entity.ID {
+func (m *Manager) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error) {
 	active, err := m.getActiveEntities(archID)
 	if err != nil {
-		// TODO: This should either return an error or never panic.
-		// See https://linear.app/arguslabs/issue/WORLD-395/update-ecbgetentitiesforarchid-to-return-error-or-to-never-panicp
-		panic(err)
+		return nil, err
 	}
-	return active.ids
+	return active.ids, nil
 }
 
 // SearchFrom returns an ArchetypeIterator based on a component filter. The iterator will iterate over all archetypes

@@ -108,7 +108,8 @@ func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 		archID, err := roManager.GetArchIDForComponents(tc.comps)
 		assert.NilError(t, err)
 
-		gotIDs := roManager.GetEntitiesForArchID(archID)
+		gotIDs, err := roManager.GetEntitiesForArchID(archID)
+		assert.NilError(t, err)
 		assert.DeepEqual(t, ids, gotIDs)
 	}
 }
@@ -124,7 +125,8 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 
 	roManager := manager.NewReadOnlyStore()
 
-	gotIDs := roManager.GetEntitiesForArchID(fooArchID)
+	gotIDs, err := roManager.GetEntitiesForArchID(fooArchID)
+	assert.NilError(t, err)
 	assert.Equal(t, 1, len(gotIDs))
 	assert.Equal(t, gotIDs[0], id)
 
@@ -132,13 +134,15 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	assert.NilError(t, manager.CommitPending())
 
 	// There should be no more entities with JUST the foo componnet
-	gotIDs = roManager.GetEntitiesForArchID(fooArchID)
+	gotIDs, err = roManager.GetEntitiesForArchID(fooArchID)
+	assert.NilError(t, err)
 	assert.Equal(t, 0, len(gotIDs))
 
 	bothArchID, err := roManager.GetArchIDForComponents([]component_metadata.IComponentMetaData{fooComp, barComp})
 	assert.NilError(t, err)
 
-	gotIDs = roManager.GetEntitiesForArchID(bothArchID)
+	gotIDs, err = roManager.GetEntitiesForArchID(bothArchID)
+	assert.NilError(t, err)
 	assert.Equal(t, 1, len(gotIDs))
 	assert.Equal(t, gotIDs[0], id)
 }

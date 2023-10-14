@@ -359,7 +359,8 @@ func TestEntityCanBeRemoved(t *testing.T) {
 	archID, err := manager.GetArchIDForComponents(comps)
 	assert.NilError(t, err)
 
-	gotIDs := manager.GetEntitiesForArchID(archID)
+	gotIDs, err := manager.GetEntitiesForArchID(archID)
+	assert.NilError(t, err)
 	assert.Equal(t, 5, len(gotIDs))
 
 	// Only the ids at odd indices should be findable
@@ -389,16 +390,20 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Make sure there are the correct number of ids in each archetype to start
-	ids := manager.GetEntitiesForArchID(fooArchID)
+	ids, err := manager.GetEntitiesForArchID(fooArchID)
+	assert.NilError(t, err)
 	assert.Equal(t, 1, len(ids))
-	ids = manager.GetEntitiesForArchID(bothArchID)
+	ids, err = manager.GetEntitiesForArchID(bothArchID)
+	assert.NilError(t, err)
 	assert.Equal(t, startEntityCount, len(ids))
 
 	assert.NilError(t, manager.AddComponentToEntity(barComp, id))
 
-	ids = manager.GetEntitiesForArchID(fooArchID)
+	ids, err = manager.GetEntitiesForArchID(fooArchID)
+	assert.NilError(t, err)
 	assert.Equal(t, 0, len(ids))
-	ids = manager.GetEntitiesForArchID(bothArchID)
+	ids, err = manager.GetEntitiesForArchID(bothArchID)
+	assert.NilError(t, err)
 	assert.Equal(t, startEntityCount+1, len(ids))
 
 	// make sure the target id is in the new list of ids.
@@ -413,9 +418,11 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 
 	// Also make sure we can remove the archetype
 	assert.NilError(t, manager.RemoveComponentFromEntity(barComp, id))
-	ids = manager.GetEntitiesForArchID(fooArchID)
+	ids, err = manager.GetEntitiesForArchID(fooArchID)
+	assert.NilError(t, err)
 	assert.Equal(t, 1, len(ids))
-	ids = manager.GetEntitiesForArchID(bothArchID)
+	ids, err = manager.GetEntitiesForArchID(bothArchID)
+	assert.NilError(t, err)
 	assert.Equal(t, startEntityCount, len(ids))
 
 	// Make sure the target id is NOT in the 'both' group

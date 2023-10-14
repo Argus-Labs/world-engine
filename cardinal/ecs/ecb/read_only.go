@@ -49,13 +49,6 @@ func (r *readOnlyManager) refreshArchIDToCompTypes() error {
 	return nil
 }
 
-// GetEntity converts an entity ID into an entity.Entity.
-// TODO: This is only used in tests, so it should be removed from the StoreManager interface.
-// See: https://linear.app/arguslabs/issue/WORLD-394/remove-getentity-method-from-storemanager
-func (r *readOnlyManager) GetEntity(id entity.ID) (entity.Entity, error) {
-	panic("implement me")
-}
-
 func (r *readOnlyManager) GetComponentForEntity(cType component_metadata.IComponentMetaData, id entity.ID) (any, error) {
 	bz, err := r.GetComponentForEntityInRawJson(cType, id)
 	if err != nil {
@@ -128,21 +121,19 @@ func (r *readOnlyManager) GetArchIDForComponents(components []component_metadata
 	return 0, errors.New("arch ID for components not found")
 }
 
-func (r *readOnlyManager) GetEntitiesForArchID(archID archetype.ID) []entity.ID {
+func (r *readOnlyManager) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error) {
 	ctx := context.Background()
 	key := redisActiveEntityIDKey(archID)
 	bz, err := r.client.Get(ctx, key).Bytes()
 	if err != nil {
 		// No entities were found for this archetype ID
-		return nil
+		return nil, nil
 	}
 	ids, err := codec.Decode[[]entity.ID](bz)
 	if err != nil {
-		// TODO: This should either return an error or never panic.
-		// See https://linear.app/arguslabs/issue/WORLD-395/update-ecbgetentitiesforarchid-to-return-error-or-to-never-panicp
-		panic(err)
+		return nil, err
 	}
-	return ids
+	return ids, nil
 }
 
 func (r *readOnlyManager) SearchFrom(filter filter.ComponentFilter, start int) *storage.ArchetypeIterator {
