@@ -129,8 +129,8 @@ func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
 
 // EndpointsResult result struct for /query/http/endpoints
 type EndpointsResult struct {
-	TxEndpoints    []string `json:"tx_endpoints"`
-	QueryEndpoints []string `json:"query_endpoints"`
+	TxEndpoints    []string `json:"txEndpoints"`
+	QueryEndpoints []string `json:"queryEndpoints"`
 }
 
 func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {

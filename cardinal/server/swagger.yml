@@ -298,14 +298,14 @@ definitions:
     ReadListEndpoints:
         type: object
         required:
-            - tx_endpoints
-            - query_endpoints
+            - txEndpoints
+            - queryEndpoints
         properties:
-            tx_endpoints:
+            txEndpoints:
                 type: array
                 items:
                     type: string
-            query_endpoints:
+            queryEndpoints:
                 type: array
                 items:
                     type: string

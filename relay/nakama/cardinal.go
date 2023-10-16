@@ -50,8 +50,8 @@ func makeURL(resource string) string {
 }
 
 type endpoints struct {
-	TxEndpoints    []string `json:"tx_endpoints"`
-	QueryEndpoints []string `json:"query_endpoints"`
+	TxEndpoints    []string `json:"txEndpoints"`
+	QueryEndpoints []string `json:"queryEndpoints"`
 }
 
 func cardinalGetEndpointsStruct() (txEndpoints []string, queryEndpoints []string, err error) {
