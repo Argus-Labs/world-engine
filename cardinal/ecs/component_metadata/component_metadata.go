@@ -34,9 +34,9 @@ type (
 	}
 )
 
-// NewComponentMetaData creates a new component type.
+// NewComponentMetadata creates a new component type.
 // The function is used to create a new component of the type.
-func NewComponentMetaData[T Component](opts ...ComponentOption[T]) *ComponentMetaData[T] {
+func NewComponentMetadata[T Component](opts ...ComponentOption[T]) *ComponentMetaData[T] {
 	var t T
 	comp := newComponentType(t, t.Name(), nil)
 	for _, opt := range opts {
@@ -134,7 +134,7 @@ func newComponentType[T any](s T, name string, defaultVal interface{}) *Componen
 	return componentType
 }
 
-// ComponentOption is a type that can be passed to NewComponentMetaData to augment the creation
+// ComponentOption is a type that can be passed to NewComponentMetadata to augment the creation
 // of the component type
 type ComponentOption[T any] func(c *ComponentMetaData[T])
 

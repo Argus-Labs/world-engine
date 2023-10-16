@@ -123,7 +123,7 @@ func RegisterComponent[T component_metadata.Component](world *World) error {
 	if err == nil {
 		return fmt.Errorf("component with name '%s' is already registered", t.Name())
 	}
-	c := component_metadata.NewComponentMetaData[T]()
+	c := component_metadata.NewComponentMetadata[T]()
 	err = c.SetID(world.nextComponentID)
 	if err != nil {
 		return err

@@ -55,8 +55,8 @@ func (Bar) Name() string {
 }
 
 var (
-	fooComp       = component_metadata.NewComponentMetaData[Foo]()
-	barComp       = component_metadata.NewComponentMetaData[Bar]()
+	fooComp       = component_metadata.NewComponentMetadata[Foo]()
+	barComp       = component_metadata.NewComponentMetadata[Bar]()
 	allComponents = []component_metadata.IComponentMetaData{fooComp, barComp}
 )
 

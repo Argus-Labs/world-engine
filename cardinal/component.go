@@ -4,8 +4,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 )
 
-// AnyComponent is implemented by the return value of NewComponentMetaData and is used in RegisterComponents; any
-// component created by NewComponentMetaData can be registered with a World object via RegisterComponents.
+// AnyComponent is implemented by the return value of NewComponentMetadata and is used in RegisterComponents; any
+// component created by NewComponentMetadata can be registered with a World object via RegisterComponents.
 type AnyComponentType interface {
 	Convert() component_metadata.IComponentMetaData
 	Name() string
