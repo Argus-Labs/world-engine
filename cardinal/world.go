@@ -8,8 +8,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -115,7 +115,7 @@ func (w *World) Remove(id EntityID) error {
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is attempted.
 // In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
-// to this world. After StartGame is called, RegisterComponent, RegisterTransactions, RegisterReads, and AddSystem may
+// to this world. After StartGame is called, RegisterComponent, RegisterTransactions, RegisterQueries, and AddSystem may
 // not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {
@@ -182,10 +182,10 @@ func (w *World) RegisterTransactions(txs ...AnyTransaction) error {
 	return w.implWorld.RegisterTransactions(toITransactionType(txs)...)
 }
 
-// RegisterReads adds the given read capabilities to the game world. HTTP endpoints to use these reads
+// RegisterQueries adds the given query capabilities to the game world. HTTP endpoints to use these queries
 // will automatically be created when StartGame is called. This Register method must only be called once.
-func (w *World) RegisterReads(reads ...AnyReadType) error {
-	return w.implWorld.RegisterReads(toIReadType(reads)...)
+func (w *World) RegisterQueries(queries ...AnyQueryType) error {
+	return w.implWorld.RegisterQueries(toIQueryType(queries)...)
 }
 
 func (w *World) CurrentTick() uint64 {

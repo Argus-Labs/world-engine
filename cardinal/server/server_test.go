@@ -379,10 +379,10 @@ func TestHandleSwaggerServer(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooRead := ecs.NewReadType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+	fooQuery := ecs.NewQueryType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
 	})
-	assert.NilError(t, w.RegisterReads(fooRead))
+	assert.NilError(t, w.RegisterQueries(fooQuery))
 
 	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
 
@@ -419,17 +419,17 @@ func TestHandleSwaggerServer(t *testing.T) {
 	assert.Assert(t, reflect.DeepEqual(endpointResult, expectedEndpointResult))
 
 	//Test /query/persona/signer
-	gotReadPersonaSignerResponse := ReadPersonaSignerResponse{}
-	expectedReadPersonaSignerResponse := ReadPersonaSignerResponse{Status: personaTag, SignerAddress: signerAddress}
-	readPersonaRequest := ReadPersonaSignerRequest{
+	gotQueryPersonaSignerResponse := QueryPersonaSignerResponse{}
+	expectedQueryPersonaSignerResponse := QueryPersonaSignerResponse{Status: personaTag, SignerAddress: signerAddress}
+	queryPersonaRequest := QueryPersonaSignerRequest{
 		PersonaTag: personaTag,
 		Tick:       0,
 	}
-	readPersonaRequestData, err := json.Marshal(readPersonaRequest)
+	queryPersonaRequestData, err := json.Marshal(queryPersonaRequest)
 	assert.NilError(t, err)
-	req, err := http.NewRequest("POST", txh.makeHttpURL("query/persona/signer"), bytes.NewBuffer(readPersonaRequestData))
+	req, err := http.NewRequest("POST", txh.makeHttpURL("query/persona/signer"), bytes.NewBuffer(queryPersonaRequestData))
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Content-Length", strconv.Itoa(len(readPersonaRequestData)))
+	req.Header.Set("Content-Length", strconv.Itoa(len(queryPersonaRequestData)))
 	req.Header.Set("Accept", "application/json")
 	client := http.Client{}
 	ctx := context.Background()
@@ -440,9 +440,9 @@ func TestHandleSwaggerServer(t *testing.T) {
 	resp2, err := client.Do(req)
 	assert.NilError(t, err)
 	defer resp2.Body.Close()
-	err = json.NewDecoder(resp2.Body).Decode(&gotReadPersonaSignerResponse)
+	err = json.NewDecoder(resp2.Body).Decode(&gotQueryPersonaSignerResponse)
 	assert.NilError(t, err)
-	reflect.DeepEqual(gotReadPersonaSignerResponse, expectedReadPersonaSignerResponse)
+	reflect.DeepEqual(gotQueryPersonaSignerResponse, expectedQueryPersonaSignerResponse)
 
 	//Test /query/game/foo
 	fooRequest := FooRequest{ID: "1"}
@@ -610,9 +610,9 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	assert.Equal(t, txReply.Tick, world.CurrentTick())
 	tick := txReply.Tick
 
-	// postReadPersonaSigner is a helper that makes a request to the read-persona-signer endpoint and returns the response
-	postReadPersonaSigner := func(personaTag string, tick uint64) ReadPersonaSignerResponse {
-		bz, err = json.Marshal(ReadPersonaSignerRequest{
+	// postQueryPersonaSigner is a helper that makes a request to the query-persona-signer endpoint and returns the response
+	postQueryPersonaSigner := func(personaTag string, tick uint64) QueryPersonaSignerResponse {
+		bz, err = json.Marshal(QueryPersonaSignerRequest{
 			PersonaTag: personaTag,
 			Tick:       tick,
 		})
@@ -620,24 +620,24 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 		resp, err = http.Post(txh.makeHttpURL(urlSet[1]), "application/json", bytes.NewReader(bz))
 		assert.NilError(t, err)
 		assert.Equal(t, resp.StatusCode, 200)
-		var readPersonaSignerResponse ReadPersonaSignerResponse
-		assert.NilError(t, json.NewDecoder(resp.Body).Decode(&readPersonaSignerResponse))
-		return readPersonaSignerResponse
+		var queryPersonaSignerResponse QueryPersonaSignerResponse
+		assert.NilError(t, json.NewDecoder(resp.Body).Decode(&queryPersonaSignerResponse))
+		return queryPersonaSignerResponse
 	}
 
 	// Check some random person tag against a tick far in the past. This should be available.
-	personaSignerResp := postReadPersonaSigner("some_other_persona_tag", 0)
+	personaSignerResp := postQueryPersonaSigner("some_other_persona_tag", 0)
 	assert.Equal(t, personaSignerResp.Status, "available")
 
 	// If the game tick matches the passed in game tick, there hasn't been enough time to process the create_persona_tx.
-	personaSignerResp = postReadPersonaSigner(personaTag, tick)
+	personaSignerResp = postQueryPersonaSigner(personaTag, tick)
 	assert.Equal(t, personaSignerResp.Status, "unknown")
 
 	// Tick the game state so that the persona can actually be registered
 	assert.NilError(t, world.Tick(context.Background()))
 
 	// The persona tag should now be registered with our signer address.
-	personaSignerResp = postReadPersonaSigner(personaTag, tick)
+	personaSignerResp = postQueryPersonaSigner(personaTag, tick)
 	assert.Equal(t, personaSignerResp.Status, "assigned")
 	assert.Equal(t, personaSignerResp.SignerAddress, signerAddr)
 	err = txh.Close()
@@ -733,8 +733,8 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-// TestCanListReads tests that we can list the available queries in the handler.
-func TestCanListReads(t *testing.T) {
+// TestCanListQueries tests that we can list the available queries in the handler.
+func TestCanListQueries(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	type FooRequest struct {
 		Foo  int    `json:"foo,omitempty"`
@@ -745,18 +745,18 @@ func TestCanListReads(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 
-	fooRead := ecs.NewReadType[FooRequest, FooResponse]("foo", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+	fooQuery := ecs.NewQueryType[FooRequest, FooResponse]("foo", func(world *ecs.World, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
-	barRead := ecs.NewReadType[FooRequest, FooResponse]("bar", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+	barQuery := ecs.NewQueryType[FooRequest, FooResponse]("bar", func(world *ecs.World, req FooRequest) (FooResponse, error) {
 
 		return FooResponse{Meow: req.Meow}, nil
 	})
-	bazRead := ecs.NewReadType[FooRequest, FooResponse]("baz", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+	bazQuery := ecs.NewQueryType[FooRequest, FooResponse]("baz", func(world *ecs.World, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
 
-	assert.NilError(t, world.RegisterReads(fooRead, barRead, bazRead))
+	assert.NilError(t, world.RegisterQueries(fooQuery, barQuery, bazQuery))
 	assert.NilError(t, world.LoadGameState())
 
 	txh := makeTestTransactionHandler(t, world, DisableSignatureVerification())
@@ -782,10 +782,10 @@ func TestCanListReads(t *testing.T) {
 	}
 }
 
-// TestReadEncodeDecode tests that read requests/responses are properly marshalled/unmarshalled in the context of http communication.
+// TestQueryEncodeDecode tests that query requests/responses are properly marshalled/unmarshalled in the context of http communication.
 // We do not necessarily need to test anything w/r/t world storage, as what users decide to do within the context
-// of their read requests are up to them, and not necessarily required for this feature to provably work.
-func TestReadEncodeDecode(t *testing.T) {
+// of their query requests are up to them, and not necessarily required for this feature to provably work.
+func TestQueryEncodeDecode(t *testing.T) {
 	// setup this read business stuff
 	endpoint := "foo"
 	type FooRequest struct {
@@ -796,14 +796,14 @@ func TestReadEncodeDecode(t *testing.T) {
 	type FooResponse struct {
 		Meow string `json:"meow,omitempty"`
 	}
-	fq := ecs.NewReadType[FooRequest, FooResponse](endpoint, func(world *ecs.World, req FooRequest) (FooResponse, error) {
+	fq := ecs.NewQueryType[FooRequest, FooResponse](endpoint, func(world *ecs.World, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
 
 	url := "query/game/" + endpoint
-	// set up the world, register the reads, load.
+	// set up the world, register the queries, load.
 	world := ecs.NewTestWorld(t)
-	assert.NilError(t, world.RegisterReads(fq))
+	assert.NilError(t, world.RegisterQueries(fq))
 	assert.NilError(t, world.LoadGameState())
 
 	// make our test tx handler

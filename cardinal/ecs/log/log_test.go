@@ -35,10 +35,9 @@ func (EnergyComp) Name() string {
 	return "EnergyComp"
 }
 
-
 func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error {
 	logger.Log().Msg("test")
-	q, err := w.NewQuery(ecs.Contains(EnergyComp{}))
+	q, err := w.NewSearch(ecs.Contains(EnergyComp{}))
 	if err != nil {
 		return err
 	}
