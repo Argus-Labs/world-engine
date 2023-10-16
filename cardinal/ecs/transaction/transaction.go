@@ -7,8 +7,9 @@ import (
 )
 
 type TxQueue struct {
-	m   txMap
-	mux *sync.Mutex
+	m          txMap
+	txsInQueue int
+	mux        *sync.Mutex
 }
 
 func NewTxQueue() *TxQueue {
@@ -18,49 +19,62 @@ func NewTxQueue() *TxQueue {
 	}
 }
 
-func (t *TxQueue) GetAmountOfTxs() int {
-	t.mux.Lock()
-	defer t.mux.Unlock()
-	acc := 0
-	for _, v := range t.m {
-		acc += len(v)
+func (t *TxQueue) GetEVMTxs() []TxAny {
+	transactions := make([]TxAny, 0)
+	for _, txs := range t.m {
+		// skip if theres nothing
+		if txs == nil || len(txs) == 0 {
+			continue
+		}
+		for _, tx := range txs {
+			if tx.EVMSourceTxHash != "" {
+				transactions = append(transactions)
+			}
+		}
 	}
-	return acc
+	return transactions
+}
+
+func (t *TxQueue) GetAmountOfTxs() int {
+	return t.txsInQueue
 }
 
 func (t *TxQueue) AddTransaction(id TypeID, v any, sig *sign.SignedPayload) TxHash {
-	t.mux.Lock()
-	defer t.mux.Unlock()
-	txHash := TxHash(sig.HashHex())
-	t.m[id] = append(t.m[id], TxAny{
-		TxHash: txHash,
-		Value:  v,
-		Sig:    sig,
-	})
-	return txHash
+	return t.addTransaction(id, v, sig, "")
 }
 
 func (t *TxQueue) AddEVMTransaction(id TypeID, v any, sig *sign.SignedPayload, evmTxHash string) TxHash {
+	return t.addTransaction(id, v, sig, evmTxHash)
+}
+
+func (t *TxQueue) addTransaction(id TypeID, v any, sig *sign.SignedPayload, evmTxHash string) TxHash {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	txHash := TxHash(sig.HashHex())
 	t.m[id] = append(t.m[id], TxAny{
+		TxID:            id,
 		TxHash:          txHash,
 		Value:           v,
 		Sig:             sig,
 		EVMSourceTxHash: evmTxHash,
 	})
+	t.txsInQueue++
 	return txHash
 }
 
-func (t *TxQueue) CopyTransaction() *TxQueue {
+func (t *TxQueue) CopyTransactions() *TxQueue {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	cpy := &TxQueue{
 		m: t.m,
 	}
-	t.m = txMap{}
+	t.reset()
 	return cpy
+}
+
+func (t *TxQueue) reset() {
+	t.m = txMap{}
+	t.txsInQueue = 0
 }
 
 func (t *TxQueue) ForID(id TypeID) []TxAny {
@@ -70,6 +84,7 @@ func (t *TxQueue) ForID(id TypeID) []TxAny {
 type txMap map[TypeID][]TxAny
 
 type TxAny struct {
+	TxID   TypeID
 	Value  any
 	TxHash TxHash
 	Sig    *sign.SignedPayload

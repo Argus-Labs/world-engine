@@ -286,7 +286,7 @@ func (w *World) AddEVMTransaction(id transaction.TypeID, v any, sig *sign.Signed
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick(ctx context.Context) error {
-	nullSystemName := "No system  is running."
+	nullSystemName := "No system is running."
 	nameOfCurrentRunningSystem := nullSystemName
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
@@ -301,7 +301,7 @@ func (w *World) Tick(ctx context.Context) error {
 	if !w.stateIsLoaded {
 		return errors.New("must load state before first tick")
 	}
-	txQueue := w.txQueue.CopyTransaction()
+	txQueue := w.txQueue.CopyTransactions()
 
 	if err := w.store.TickStore.StartNextTick(w.registeredTransactions, txQueue); err != nil {
 		return err
@@ -322,6 +322,7 @@ func (w *World) Tick(ctx context.Context) error {
 	if err := w.store.TickStore.FinalizeTick(); err != nil {
 		return err
 	}
+	w.dispatchEvmResults(txQueue.GetEVMTxs())
 	w.tick++
 	w.receiptHistory.NextTick()
 	elapsedTime := time.Since(startTime)
@@ -339,6 +340,28 @@ func (w *World) Tick(ctx context.Context) error {
 		Str("tick", tickAsString).
 		Msg(message)
 	return nil
+}
+
+func (w *World) dispatchEvmResults(txs []transaction.TxAny) error {
+	// iterate over all EVM originated transactions
+	for _, tx := range txs {
+		// see if tx has a receipt (sometimes it won't because:
+		// 1. isn't using TxIterator and didn't ever do a `SetResult`)
+		rec, ok := w.receiptHistory.GetReceipt(tx.TxHash)
+		if !ok {
+			continue
+		}
+		itx := w.getITx(tx.TxID)
+		if rec.Result == nil {
+
+		} else {
+			abiBz, err := itx.ABIEncode(rec.Result)
+			if err != nil {
+				return err
+			}
+
+		}
+	}
 }
 
 func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {

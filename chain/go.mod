@@ -14,7 +14,6 @@ replace (
 	// github.com/tendermint/tendermint => github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121
 	pkg.berachain.dev/polaris/cosmos => github.com/argus-labs/polaris/cosmos v0.0.1
 	pkg.berachain.dev/polaris/eth => github.com/argus-labs/polaris/eth v0.0.1
-
 )
 
 // internal replacements
