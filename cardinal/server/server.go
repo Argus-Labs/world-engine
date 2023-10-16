@@ -37,7 +37,7 @@ var (
 )
 
 // NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
-// transaction and read registered with the given world is automatically created. The server runs on a default port
+// transactions and queries registered with the given world are automatically created. The server runs on a default port
 // of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
 func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 	h, err := newSwaggerHandlerEmbed(w, opts...)
@@ -69,7 +69,7 @@ func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = th.registerReadHandlerSwagger(api)
+	err = th.registerQueryHandlerSwagger(api)
 	if err != nil {
 		return nil, err
 	}
@@ -147,10 +147,10 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 		}
 	}
 
-	reads := world.ListReads()
-	queryEndpoints := make([]string, 0, len(reads)+3)
-	for _, read := range reads {
-		queryEndpoints = append(queryEndpoints, "/query/game/"+read.Name())
+	queries := world.ListQueries()
+	queryEndpoints := make([]string, 0, len(queries)+3)
+	for _, query := range queries {
+		queryEndpoints = append(queryEndpoints, "/query/game/"+query.Name())
 	}
 	queryEndpoints = append(queryEndpoints, "/query/http/endpoints")
 	queryEndpoints = append(queryEndpoints, "/query/persona/signer")

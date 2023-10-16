@@ -10,7 +10,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 
@@ -37,16 +36,16 @@ type Server interface {
 // txByID maps transaction type ID's to transaction types.
 type txByID map[transaction.TypeID]transaction.ITransaction
 
-// readByName maps read resource names to the underlying IRead
-type readByName map[string]ecs.IRead
+// queryByName maps query resource names to the underlying IQuery
+type queryByName map[string]ecs.IQuery
 
 type msgServerImpl struct {
 	// required embed
 	routerv1.UnimplementedMsgServer
 
-	txMap   txByID
-	readMap readByName
-	world   *ecs.World
+	txMap    txByID
+	queryMap queryByName
+	world    *ecs.World
 
 	// opts
 	creds credentials.TransportCredentials
@@ -67,13 +66,13 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 		it[tx.ID()] = tx
 	}
 
-	reads := w.ListReads()
-	ir := make(readByName, len(reads))
-	for _, r := range reads {
-		ir[r.Name()] = r
+	queries := w.ListQueries()
+	ir := make(queryByName, len(queries))
+	for _, q := range queries {
+		ir[q.Name()] = q
 	}
 
-	s := &msgServerImpl{txMap: it, readMap: ir, world: w, port: defaultPort}
+	s := &msgServerImpl{txMap: it, queryMap: ir, world: w, port: defaultPort}
 	for _, opt := range opts {
 		opt(s)
 	}
@@ -158,7 +157,11 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
 	var err error
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(s.world, func(id entity.ID) bool {
+	q, err := s.world.NewSearch(ecs.Exact(ecs.SignerComponent{}))
+	if err != nil {
+		return nil, err
+	}
+	q.Each(s.world, func(id entity.ID) bool {
 		var signerComp *ecs.SignerComponent
 		signerComp, err = ecs.GetComponent[ecs.SignerComponent](s.world, id)
 		if err != nil {
@@ -182,19 +185,19 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.S
 }
 
 func (s *msgServerImpl) QueryShard(ctx context.Context, req *routerv1.QueryShardRequest) (*routerv1.QueryShardResponse, error) {
-	read, ok := s.readMap[req.Resource]
+	query, ok := s.queryMap[req.Resource]
 	if !ok {
-		return nil, fmt.Errorf("no read with name %s found", req.Resource)
+		return nil, fmt.Errorf("no query with name %s found", req.Resource)
 	}
-	ecsRequest, err := read.DecodeEVMRequest(req.Request)
+	ecsRequest, err := query.DecodeEVMRequest(req.Request)
 	if err != nil {
 		return nil, err
 	}
-	reply, err := read.HandleRead(s.world, ecsRequest)
+	reply, err := query.HandleQuery(s.world, ecsRequest)
 	if err != nil {
 		return nil, err
 	}
-	bz, err := read.EncodeEVMReply(reply)
+	bz, err := query.EncodeEVMReply(reply)
 	if err != nil {
 		return nil, err
 	}

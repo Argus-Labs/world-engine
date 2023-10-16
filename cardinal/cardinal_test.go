@@ -7,6 +7,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
 // TODO this function needs to be moved to a utils package above cardinal to prevent circulars.
@@ -30,9 +31,13 @@ func setTestTimeout(t *testing.T, timeout time.Duration) {
 	}()
 }
 
+type Foo struct{}
+
+func (Foo) Name() string { return "foo" }
+
 func TestCanQueryInsideSystem(t *testing.T) {
 	setTestTimeout(t, 10*time.Second)
-	type Foo struct{}
+
 	nextTickCh := make(chan time.Time)
 	tickDoneCh := make(chan uint64)
 
@@ -40,15 +45,16 @@ func TestCanQueryInsideSystem(t *testing.T) {
 		cardinal.WithTickChannel(nextTickCh),
 		cardinal.WithTickDoneChannel(tickDoneCh))
 	assert.NilError(t, err)
-	comp := cardinal.NewComponentType[Foo]("foo")
-	world.RegisterComponents(comp)
+	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	wantNumOfEntities := 10
-	_, err = world.CreateMany(wantNumOfEntities, comp)
+	_, err = world.CreateMany(wantNumOfEntities, Foo{})
 	assert.NilError(t, err)
 	gotNumOfEntities := 0
 	world.RegisterSystems(func(world *cardinal.World, queue *cardinal.TransactionQueue, logger *cardinal.Logger) error {
-		cardinal.NewQuery(cardinal.Exact(comp)).Each(world, func(cardinal.EntityID) bool {
+		q, err := world.NewSearch(ecs.Exact(Foo{}))
+		assert.NilError(t, err)
+		q.Each(world, func(cardinal.EntityID) bool {
 			gotNumOfEntities++
 			return true
 		})

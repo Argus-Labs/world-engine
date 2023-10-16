@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/chain
 
-go 1.21
+go 1.21.0
 
 replace (
 	// cosmossdk.io/x/evidence => github.com/rollkit/cosmos-sdk/x/evidence v0.0.0-20230721012257-443317a43b03
@@ -14,6 +14,7 @@ replace (
 	// github.com/tendermint/tendermint => github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121
 	pkg.berachain.dev/polaris/cosmos => github.com/argus-labs/polaris/cosmos v0.0.1
 	pkg.berachain.dev/polaris/eth => github.com/argus-labs/polaris/eth v0.0.1
+
 )
 
 // internal replacements
@@ -48,13 +49,12 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
-	github.com/rs/zerolog v1.30.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
 	github.com/zyedidia/generic v1.2.1
 	google.golang.org/genproto/googleapis/api v0.0.0-20230726155614-23370e0ffb3e
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.31.0
 	gotest.tools v2.2.0+incompatible
 	gotest.tools/v3 v3.5.0
@@ -62,6 +62,7 @@ require (
 	pkg.berachain.dev/polaris/cosmos v0.0.0-20230830221145-a6c6454d3697
 	pkg.berachain.dev/polaris/eth v0.0.0-20230827184022-e3cec7a2c178
 	pkg.berachain.dev/polaris/lib v0.0.0-20230827184022-e3cec7a2c178
+	pkg.world.dev/world-engine/rift v0.0.1
 )
 
 require (
@@ -316,6 +317,7 @@ require (
 	github.com/rollkit/celestia-openrpc v0.2.0 // indirect
 	github.com/rollkit/rollkit v0.11.0-rc1 // indirect
 	github.com/rs/cors v1.9.0 // indirect
+	github.com/rs/zerolog v1.30.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
@@ -360,7 +362,7 @@ require (
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.15.0 // indirect
-	golang.org/x/oauth2 v0.8.0 // indirect
+	golang.org/x/oauth2 v0.10.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/term v0.12.0 // indirect

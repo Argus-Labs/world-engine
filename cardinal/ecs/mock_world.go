@@ -5,7 +5,10 @@ import (
 	"log"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/alicebob/miniredis/v2"
+	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
@@ -38,6 +41,7 @@ func NewTestWorld(t testing.TB, opts ...Option) *World {
 	if err != nil {
 		t.Fatalf("Unable to initialize world: %v", err)
 	}
+	assert.NilError(t, err)
 	return w
 }
 
@@ -48,6 +52,10 @@ func newMockWorld(s *miniredis.Miniredis, opts ...Option) (*World, error) {
 		DB:       0,  // use default DB
 	}, "in-memory-world")
 	worldStorage := storage.NewWorldStorage(&rs)
+	sm, err := ecb.NewManager(rs.Client)
+	if err != nil {
+		return nil, err
+	}
 
-	return NewWorld(worldStorage, opts...)
+	return NewWorld(worldStorage, sm, opts...)
 }

@@ -121,26 +121,26 @@ func TestServer_SendMessage(t *testing.T) {
 }
 
 func TestServer_Query(t *testing.T) {
-	type FooRead struct {
+	type FooReq struct {
 		X uint64
 	}
 	type FooReply struct {
 		Y uint64
 	}
-	// set up a read that simply returns the FooRead.X
-	read := ecs.NewReadType[FooRead, FooReply]("foo", func(world *ecs.World, req FooRead) (FooReply, error) {
+	// set up a query that simply returns the FooReq.X
+	query := ecs.NewQueryType[FooReq, FooReply]("foo", func(world *ecs.World, req FooReq) (FooReply, error) {
 		return FooReply{Y: req.X}, nil
-	}, ecs.WithReadEVMSupport[FooRead, FooReply])
+	}, ecs.WithQueryEVMSupport[FooReq, FooReply])
 	w := ecs.NewTestWorld(t)
-	err := w.RegisterReads(read)
+	err := w.RegisterQueries(query)
 	assert.NilError(t, err)
 	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("nothing"))
 	assert.NilError(t, err)
 	s, err := NewServer(w)
 	assert.NilError(t, err)
 
-	request := FooRead{X: 3000}
-	bz, err := read.EncodeAsABI(request)
+	request := FooReq{X: 3000}
+	bz, err := query.EncodeAsABI(request)
 	assert.NilError(t, err)
 
 	res, err := s.QueryShard(context.Background(), &routerv1.QueryShardRequest{
@@ -149,9 +149,9 @@ func TestServer_Query(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	gotAny, err := read.DecodeEVMReply(res.Response)
+	gotAny, err := query.DecodeEVMReply(res.Response)
 	got := gotAny.(FooReply)
-	// Y should equal X here as we simply set reply's Y to request's X in the read handler above.
+	// Y should equal X here as we simply set reply's Y to request's X in the query handler above.
 	assert.Equal(t, got.Y, request.X)
 }
 

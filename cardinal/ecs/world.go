@@ -35,7 +35,7 @@ type Namespace string
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
-	storeManager             *store.Manager
+	storeManager             store.IManager
 	systems                  []System
 	systemLoggers            []*ecslog.Logger
 	systemNames              []string
@@ -43,7 +43,7 @@ type World struct {
 	nameToComponent          map[string]IComponentType
 	registeredComponents     []IComponentType
 	registeredTransactions   []transaction.ITransaction
-	registeredReads          []IRead
+	registeredQueries        []IQuery
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
@@ -52,7 +52,7 @@ type World struct {
 
 	receiptHistory *receipt.History
 
-	chain shard.ReadAdapter
+	chain shard.QueryAdapter
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
@@ -61,22 +61,30 @@ type World struct {
 
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
+
+	nextComponentID component.TypeID
 }
 
 var (
-	ErrorComponentRegistrationMustHappenOnce   = errors.New("component registration must happen exactly 1 time")
 	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
 	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
 	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
-	ErrorDuplicateReadName                     = errors.New("read names must be unique")
+	ErrorDuplicateQueryName                    = errors.New("query names must be unique")
 )
 
 func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
-func (w *World) StoreManager() *store.Manager {
+func (w *World) StoreManager() store.IManager {
 	return w.storeManager
+}
+
+func (w *World) TickStore() storage.TickStorage {
+	if ts, ok := w.StoreManager().(storage.TickStorage); ok {
+		return ts
+	}
+	return w.store.TickStore
 }
 
 func (w *World) GetTxQueueAmount() int {
@@ -102,54 +110,54 @@ func (w *World) AddSystems(s ...System) {
 	}
 }
 
-// RegisterComponents attempts to initialize the given slice of components with a WorldAccessor.
-// This will give components the ability to access their own data.
-func (w *World) RegisterComponents(components ...component.IComponentType) error {
-	if w.stateIsLoaded {
+func RegisterComponent[T component.IAbstractComponent](world *World) error {
+	if world.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
-	if w.isComponentsRegistered {
-		return ErrorComponentRegistrationMustHappenOnce
+	var t T
+	_, err := world.GetComponentByName(t.Name())
+	if err == nil {
+		return fmt.Errorf("component with name '%s' is already registered", t.Name())
 	}
-	w.isComponentsRegistered = true
-	w.registeredComponents = append(w.registeredComponents, SignerComp)
-	w.registeredComponents = append(w.registeredComponents, components...)
-
-	for i, c := range w.registeredComponents {
-		id := component.TypeID(i + 1)
-		if err := c.SetID(id); err != nil {
-			return err
-		}
+	c := NewComponentType[T]()
+	err = c.SetID(world.nextComponentID)
+	if err != nil {
+		return err
 	}
-
-	for _, c := range w.registeredComponents {
-		if _, ok := w.nameToComponent[c.Name()]; !ok {
-			w.nameToComponent[c.Name()] = c
-		} else {
-			return errors.New("cannot register multiple components with the same name")
-		}
-	}
-
+	world.registeredComponents = append(world.registeredComponents, c)
+	world.nextComponentID += 1
+	world.nameToComponent[t.Name()] = c
+	world.isComponentsRegistered = true
 	return nil
 }
 
-func (w *World) GetComponentByName(name string) (IComponentType, bool) {
-	componentType, exists := w.nameToComponent[name]
-	return componentType, exists
+func MustRegisterComponent[T component.IAbstractComponent](world *World) {
+	err := RegisterComponent[T](world)
+	if err != nil {
+		panic(err)
+	}
 }
 
-func (w *World) RegisterReads(reads ...IRead) error {
-	if w.stateIsLoaded {
-		panic("cannot register reads after loading game state")
+func (w *World) GetComponentByName(name string) (IComponentType, error) {
+	componentType, exists := w.nameToComponent[name]
+	if !exists {
+		return nil, fmt.Errorf("Component with name %s not found. Must register component before using", name)
 	}
-	w.registeredReads = append(w.registeredReads, reads...)
-	seenReadNames := map[string]struct{}{}
-	for _, t := range w.registeredReads {
+	return componentType, nil
+}
+
+func (w *World) RegisterQueries(queries ...IQuery) error {
+	if w.stateIsLoaded {
+		panic("cannot register queries after loading game state")
+	}
+	w.registeredQueries = append(w.registeredQueries, queries...)
+	seenQueryNames := map[string]struct{}{}
+	for _, t := range w.registeredQueries {
 		name := t.Name()
-		if _, ok := seenReadNames[name]; ok {
-			return fmt.Errorf("duplicate read %q: %w", name, ErrorDuplicateReadName)
+		if _, ok := seenQueryNames[name]; ok {
+			return fmt.Errorf("duplicate query %q: %w", name, ErrorDuplicateQueryName)
 		}
-		seenReadNames[name] = struct{}{}
+		seenQueryNames[name] = struct{}{}
 	}
 	return nil
 }
@@ -188,8 +196,8 @@ func (w *World) registerInternalTransactions() {
 	)
 }
 
-func (w *World) ListReads() []IRead {
-	return w.registeredReads
+func (w *World) ListQueries() []IQuery {
+	return w.registeredQueries
 }
 
 func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
@@ -200,13 +208,14 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 }
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
+func NewWorld(s storage.WorldStorage, sm store.IManager, opts ...Option) (*World, error) {
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}
+	sm.InjectLogger(logger)
 	w := &World{
 		store:             s,
-		storeManager:      store.NewStoreManager(s, logger),
+		storeManager:      sm,
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
@@ -215,9 +224,14 @@ func NewWorld(s storage.WorldStorage, opts ...Option) (*World, error) {
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
 		endGameLoopCh:     make(chan bool),
+		nextComponentID:   1,
 	}
 	w.isGameLoopRunning.Store(false)
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	err := RegisterComponent[SignerComponent](w)
+	if err != nil {
+		return nil, err
+	}
 	for _, opt := range opts {
 		opt(w)
 	}
@@ -233,23 +247,6 @@ func (w *World) CurrentTick() uint64 {
 
 func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
-}
-
-func (w *World) CreateMany(num int, components ...component.IComponentType) ([]entity.ID, error) {
-	for _, comp := range components {
-		if _, ok := w.nameToComponent[comp.Name()]; !ok {
-			return nil, fmt.Errorf("%s was not registered, please register all components before using one to create an entity", comp.Name())
-		}
-	}
-	return w.StoreManager().CreateManyEntities(num, components...)
-}
-
-func (w *World) Create(components ...component.IComponentType) (entity.ID, error) {
-	entities, err := w.CreateMany(1, components...)
-	if err != nil {
-		return 0, err
-	}
-	return entities[0], nil
 }
 
 // Len return the number of entities in this world
@@ -303,7 +300,7 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 	txQueue := w.txQueue.CopyTransactions()
 
-	if err := w.store.TickStore.StartNextTick(w.registeredTransactions, txQueue); err != nil {
+	if err := w.TickStore().StartNextTick(w.registeredTransactions, txQueue); err != nil {
 		return err
 	}
 
@@ -315,11 +312,8 @@ func (w *World) Tick(ctx context.Context) error {
 			return err
 		}
 	}
-	if err := w.saveArchetypeData(); err != nil {
-		return err
-	}
 
-	if err := w.store.TickStore.FinalizeTick(); err != nil {
+	if err := w.TickStore().FinalizeTick(); err != nil {
 		return err
 	}
 	w.dispatchEvmResults(txQueue.GetEVMTxs())
@@ -374,8 +368,8 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 	if !w.isTransactionsRegistered {
 		w.Logger.Warn().Msg("No transactions registered.")
 	}
-	if len(w.registeredReads) == 0 {
-		w.Logger.Warn().Msg("No reads registered.")
+	if len(w.registeredQueries) == 0 {
+		w.Logger.Warn().Msg("No queries registered.")
 	}
 	if len(w.systems) == 0 {
 		w.Logger.Warn().Msg("No systems registered.")
@@ -432,30 +426,12 @@ const (
 	storeArchetypeAccessorKey = "arch_accessor"
 )
 
-func (w *World) saveArchetypeData() error {
-	if err := w.saveToKey(storeArchetypeAccessorKey, w.store.ArchAccessor); err != nil {
-		return err
-	}
-	if err := w.saveToKey(storeArchetypeCompIdxKey, w.store.ArchCompIdxStore); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (w *World) saveToKey(key string, cm storage.ComponentMarshaler) error {
-	buf, err := cm.Marshal()
-	if err != nil {
-		return err
-	}
-	return w.store.StateStore.Save(key, buf)
-}
-
 // recoverGameState checks the status of the last game tick. If the tick was incomplete (indicating
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
 // transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
 // transactions that need to be processed because the last tick was successful.
 func (w *World) recoverGameState() (recoveredTxs *transaction.TxQueue, err error) {
-	start, end, err := w.store.TickStore.GetTickNumbers()
+	start, end, err := w.TickStore().GetTickNumbers()
 	if err != nil {
 		return nil, err
 	}
@@ -464,7 +440,7 @@ func (w *World) recoverGameState() (recoveredTxs *transaction.TxQueue, err error
 	if start == end {
 		return nil, nil
 	}
-	return w.store.TickStore.Recover(w.registeredTransactions)
+	return w.TickStore().Recover(w.registeredTransactions)
 }
 
 func (w *World) LoadGameState() error {
@@ -476,11 +452,18 @@ func (w *World) LoadGameState() error {
 			return err
 		}
 	}
+
 	if !w.isComponentsRegistered {
-		if err := w.RegisterComponents(); err != nil {
+		err := RegisterComponent[SignerComponent](w)
+		if err != nil {
 			return err
 		}
 	}
+
+	if err := w.storeManager.RegisterComponents(w.registeredComponents); err != nil {
+		return err
+	}
+
 	w.stateIsLoaded = true
 	recoveredTxs, err := w.recoverGameState()
 	if err != nil {
@@ -680,4 +663,12 @@ func (w *World) GetSystemNames() []string {
 func (w *World) InjectLogger(logger *ecslog.Logger) {
 	w.Logger = logger
 	w.StoreManager().InjectLogger(logger)
+}
+
+func (w *World) NewSearch(filter Filterable) (*Search, error) {
+	componentFilter, err := filter.ConvertToComponentFilter(w)
+	if err != nil {
+		return nil, err
+	}
+	return NewSearch(componentFilter), nil
 }

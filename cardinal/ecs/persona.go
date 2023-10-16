@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
@@ -85,9 +84,6 @@ func (SignerComponent) Name() string {
 	return "SignerComponent"
 }
 
-// SignerComp is the concrete ECS component that pairs a persona tag to a signer address.
-var SignerComp = NewComponentType[SignerComponent]("SignerComponent")
-
 type personaTagComponentData struct {
 	SignerAddress string
 	EntityID      entity.ID
@@ -96,7 +92,11 @@ type personaTagComponentData struct {
 func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, error) {
 	personaTagToAddress := map[string]personaTagComponentData{}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(world, func(id entity.ID) bool {
+	q, err := world.NewSearch(Exact(SignerComponent{}))
+	if err != nil {
+		return nil, err
+	}
+	q.Each(world, func(id entity.ID) bool {
 		sc, err := GetComponent[SignerComponent](world, id)
 		if err != nil {
 			errs = append(errs, err)
@@ -131,7 +131,7 @@ func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *log.Logg
 			// This PersonaTag has already been registered. Don't do anything
 			continue
 		}
-		id, err := world.StoreManager().CreateEntity(SignerComp)
+		id, err := Create(world, SignerComponent{})
 		if err != nil {
 			CreatePersonaTx.AddError(world, txData.TxHash, err)
 			continue
@@ -168,7 +168,11 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 		return "", ErrorCreatePersonaTxsNotProcessed
 	}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(w, func(id entity.ID) bool {
+	q, err := w.NewSearch(Exact(SignerComponent{}))
+	if err != nil {
+		return "", err
+	}
+	q.Each(w, func(id entity.ID) bool {
 		sc, err := GetComponent[SignerComponent](w, id)
 		//sc, err := SignerComp.Get(w, id)
 		if err != nil {

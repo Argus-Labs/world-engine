@@ -12,6 +12,10 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
+type EmptyComponent struct{}
+
+func (EmptyComponent) Name() string { return "emptyComponent" }
+
 func TestParser(t *testing.T) {
 	term, err := internalCQLParser.ParseString("", "!(EXACT(a, b) & EXACT(a)) | CONTAINS(b)")
 	fmt.Println(term.String())
@@ -60,9 +64,9 @@ func TestParser(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, *term, testTerm)
 
-	emptyComponent := ecs.NewComponentType[struct{}]("emptyComponent")
-	stringToComponent := func(_ string) (component.IComponentType, bool) {
-		return emptyComponent, true
+	emptyComponent := ecs.NewComponentType[EmptyComponent]()
+	stringToComponent := func(_ string) (component.IComponentType, error) {
+		return emptyComponent, nil
 	}
 	filterResult, err := termToComponentFilter(term, stringToComponent)
 	assert.NilError(t, err)
