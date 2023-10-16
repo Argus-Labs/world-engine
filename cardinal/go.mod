@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/cardinal
 
-go 1.21
+go 1.21.0
 
 // external, necessary replacements
 replace (
@@ -23,15 +23,17 @@ require (
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.26.0
 	github.com/google/uuid v1.3.0
+	github.com/gorilla/websocket v1.5.0
 	github.com/invopop/jsonschema v0.7.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/rs/zerolog v1.30.0
 	github.com/stretchr/testify v1.8.4
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.0
 	pkg.world.dev/world-engine/chain v0.1.11-alpha
+	pkg.world.dev/world-engine/rift v0.0.1
 	pkg.world.dev/world-engine/sign v0.1.8-alpha
 )
 
@@ -90,7 +92,6 @@ require (
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
-	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-metrics v0.5.1 // indirect
