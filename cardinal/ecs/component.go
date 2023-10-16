@@ -40,7 +40,7 @@ type ComponentType[T any] struct {
 	typ        reflect.Type
 	name       string
 	defaultVal interface{}
-	query      *Query
+	query      *Search
 }
 
 var _ IGettableRawJsonFromEntityId = &ComponentType[int]{}
@@ -178,7 +178,7 @@ func newComponentType[T any](s T, name string, defaultVal interface{}) *Componen
 		name:       name,
 		defaultVal: defaultVal,
 	}
-	componentType.query = NewQuery(filter.Contains(componentType))
+	componentType.query = NewSearch(filter.Contains(componentType))
 	if defaultVal != nil {
 		componentType.validateDefaultVal()
 	}

@@ -157,7 +157,7 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
 	var err error
-	q, err := s.world.NewQuery(ecs.Exact(ecs.SignerComponent{}))
+	q, err := s.world.NewSearch(ecs.Exact(ecs.SignerComponent{}))
 	if err != nil {
 		return nil, err
 	}

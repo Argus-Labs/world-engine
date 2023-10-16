@@ -15,32 +15,32 @@ type cache struct {
 	seen       int
 }
 
-// Query represents a query for entities.
+// Search represents a search for entities.
 // It is used to filter entities based on their components.
 // It receives arbitrary filters that are used to filter entities.
-// It contains a cache that is used to avoid re-evaluating the query.
-// So it is not recommended to create a new query every time you want
-// to filter entities with the same query.
-type Query struct {
+// It contains a cache that is used to avoid re-evaluating the search.
+// So it is not recommended to create a new search every time you want
+// to filter entities with the same search.
+type Search struct {
 	archMatches map[Namespace]*cache
 	filter      filter.ComponentFilter
 }
 
-// NewQuery creates a new query.
+// NewSearch creates a new search.
 // It receives arbitrary filters that are used to filter entities.
-func NewQuery(filter filter.ComponentFilter) *Query {
-	return &Query{
+func NewSearch(filter filter.ComponentFilter) *Search {
+	return &Search{
 		archMatches: make(map[Namespace]*cache),
 		filter:      filter,
 	}
 }
 
-type QueryCallBackFn func(entity.ID) bool
+type SearchCallBackFn func(entity.ID) bool
 
-// Each iterates over all entities that match the query.
+// Each iterates over all entities that match the search.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (q *Query) Each(w *World, callback QueryCallBackFn) error {
-	result := q.evaluateQuery(w.namespace, w.StoreManager())
+func (q *Search) Each(w *World, callback SearchCallBackFn) error {
+	result := q.evaluateSearch(w.namespace, w.StoreManager())
 	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
@@ -57,9 +57,9 @@ func (q *Query) Each(w *World, callback QueryCallBackFn) error {
 	return nil
 }
 
-// Count returns the number of entities that match the query.
-func (q *Query) Count(w *World) (int, error) {
-	result := q.evaluateQuery(w.namespace, w.StoreManager())
+// Count returns the number of entities that match the search.
+func (q *Search) Count(w *World) (int, error) {
+	result := q.evaluateSearch(w.namespace, w.StoreManager())
 	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
 	ret := 0
 	for iter.HasNext() {
@@ -72,9 +72,9 @@ func (q *Query) Count(w *World) (int, error) {
 	return ret, nil
 }
 
-// First returns the first entity that matches the query.
-func (q *Query) First(w *World) (id entity.ID, err error) {
-	result := q.evaluateQuery(w.namespace, w.StoreManager())
+// First returns the first entity that matches the search.
+func (q *Search) First(w *World) (id entity.ID, err error) {
+	result := q.evaluateSearch(w.namespace, w.StoreManager())
 	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
 	if !iter.HasNext() {
 		return storage.BadID, err
@@ -91,15 +91,15 @@ func (q *Query) First(w *World) (id entity.ID, err error) {
 	return storage.BadID, err
 }
 
-func (q *Query) MustFirst(w *World) entity.ID {
+func (q *Search) MustFirst(w *World) entity.ID {
 	id, err := q.First(w)
 	if err != nil {
-		panic(fmt.Sprintf("no entity matches the query."))
+		panic(fmt.Sprintf("no entity matches the search."))
 	}
 	return id
 }
 
-func (q *Query) evaluateQuery(namespace Namespace, sm store.IManager) []archetype.ID {
+func (q *Search) evaluateSearch(namespace Namespace, sm store.IManager) []archetype.ID {
 	if _, ok := q.archMatches[namespace]; !ok {
 		q.archMatches[namespace] = &cache{
 			archetypes: make([]archetype.ID, 0),

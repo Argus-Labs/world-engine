@@ -630,10 +630,10 @@ func (w *World) InjectLogger(logger *ecslog.Logger) {
 	w.StoreManager().InjectLogger(logger)
 }
 
-func (w *World) NewQuery(filter Filterable) (*Query, error) {
+func (w *World) NewSearch(filter Filterable) (*Search, error) {
 	componentFilter, err := filter.ConvertToComponentFilter(w)
 	if err != nil {
 		return nil, err
 	}
-	return NewQuery(componentFilter), nil
+	return NewSearch(componentFilter), nil
 }

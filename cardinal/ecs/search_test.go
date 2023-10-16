@@ -17,7 +17,7 @@ func (FooComponent) Name() string {
 	return "foo"
 }
 
-func TestQueryEarlyTermination(t *testing.T) {
+func TestSearchEarlyTermination(t *testing.T) {
 
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, ecs.RegisterComponent[FooComponent](world))
@@ -27,7 +27,7 @@ func TestQueryEarlyTermination(t *testing.T) {
 	stop := 5
 	_, err := ecs.CreateMany(world, total, FooComponent{})
 	assert.NilError(t, err)
-	q, err := world.NewQuery(ecs.Exact(FooComponent{}))
+	q, err := world.NewSearch(ecs.Exact(FooComponent{}))
 	assert.NilError(t, err)
 	q.Each(world, func(id entity.ID) bool {
 		count++
@@ -39,7 +39,7 @@ func TestQueryEarlyTermination(t *testing.T) {
 	assert.Equal(t, count, stop)
 
 	count = 0
-	q, err = world.NewQuery(ecs.Exact(FooComponent{}))
+	q, err = world.NewSearch(ecs.Exact(FooComponent{}))
 	assert.NilError(t, err)
 	q.Each(world, func(id entity.ID) bool {
 		count++

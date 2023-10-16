@@ -52,7 +52,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		//Huge hack.
 		//the json body comes in as a map.
 		//go-swagger validates all the data and shoves it into a map
-		//I can't get the relevant Request Type associated with the Query here
+		//I can't get the relevant Request Type associated with the Search here
 		//So I convert that map into raw json
 		//Then I have IQuery.HandleQueryRaw just output a rawJsonReply.
 		//I convert that into a json.RawMessage which go-swagger will validate.
@@ -112,7 +112,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 
 		result := make([]cql.QueryResponse, 0)
 
-		ecs.NewQuery(resultFilter).Each(handler.w, func(id entity.ID) bool {
+		ecs.NewSearch(resultFilter).Each(handler.w, func(id entity.ID) bool {
 			components, err := handler.w.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false
