@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
@@ -15,8 +16,8 @@ const (
 
 // ReadPersonaSignerRequest is the desired request body for the read-persona-signer endpoint.
 type ReadPersonaSignerRequest struct {
-	PersonaTag string
-	Tick       uint64
+	PersonaTag string `json:"personaTag"`
+	Tick       uint64 `json:"tick"`
 }
 
 // ReadPersonaSignerResponse is used as the response body for the read-persona-signer endpoint. Status can be:
@@ -24,8 +25,8 @@ type ReadPersonaSignerRequest struct {
 // "unknown": The game tick has not advanced far enough to know what the signer address. SignerAddress will be empty.
 // "available": The game tick has advanced, and no signer address has been assigned. SignerAddress will be empty.
 type ReadPersonaSignerResponse struct {
-	Status        string
-	SignerAddress string
+	Status        string `json:"status"`
+	SignerAddress string `json:"signerAddress"`
 }
 
 func (handler *Handler) getPersonaSignerResponse(req *ReadPersonaSignerRequest) (*ReadPersonaSignerResponse, error) {

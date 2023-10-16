@@ -16,7 +16,7 @@ type CreatePersonaTransaction struct {
 }
 
 type CreatePersonaTransactionResult struct {
-	Success bool
+	Success bool `json:"success"`
 }
 
 // CreatePersonaTx is a concrete ECS transaction.

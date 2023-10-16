@@ -270,30 +270,30 @@ definitions:
     CreatePersonaTransactionResult:
         type: object
         required:
-            - Success
+            - success
         properties:
-            Success:
+            success:
                 type: boolean
     ReadPersonaSignerRequest:
         type: object
         required:
-            - PersonaTag
-            - Tick
+            - personaTag
+            - tick
         properties:
-            PersonaTag:
+            personaTag:
                 type: string
-            Tick:
+            tick:
                 type: integer
                 format: int64
     ReadPersonaSignerResponse:
         type: object
         required:
-            - Status
-            - SignerAddress
+            - status
+            - signerAddress
         properties:
-            Status:
+            status:
                 type: string
-            SignerAddress:
+            signerAddress:
                 type: string
     ReadListEndpoints:
         type: object
