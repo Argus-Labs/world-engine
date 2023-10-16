@@ -131,6 +131,13 @@ func RegisterComponent[T component.IAbstractComponent](world *World) error {
 	return nil
 }
 
+func MustRegisterComponent[T component.IAbstractComponent](world *World) {
+	err := RegisterComponent[T](world)
+	if err != nil {
+		panic(err)
+	}
+}
+
 func (w *World) GetComponentByName(name string) (IComponentType, error) {
 	componentType, exists := w.nameToComponent[name]
 	if !exists {
