@@ -206,12 +206,12 @@ definitions:
     HealthReply:
         type: object
         required:
-            - is_server_running
-            - is_game_loop_running
+            - isServerRunning
+            - isGameLoopRunning
         properties:
-            is_server_running:
+            isServerRunning:
                 type: boolean
-            is_game_loop_running:
+            isGameLoopRunning:
                 type: boolean
     CQLResponse:
         type: array

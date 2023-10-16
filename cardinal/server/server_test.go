@@ -138,7 +138,7 @@ func TestHealthEndpoint(t *testing.T) {
 	resp, err := http.Get("http://localhost:4040/health")
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
-	var healthResponse HealthResponse
+	var healthResponse HealthReply
 	err = json.NewDecoder(resp.Body).Decode(&healthResponse)
 	assert.NilError(t, err)
 	assert.Assert(t, healthResponse.IsServerRunning)
