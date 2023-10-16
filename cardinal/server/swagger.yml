@@ -260,12 +260,12 @@ definitions:
     CreatePersonaTransaction:
         type: object
         required:
-            - PersonaTag
-            - SignerAddress
+            - personaTag
+            - signerAddress
         properties:
-            PersonaTag:
+            personaTag:
                 type: string
-            SignerAddress:
+            signerAddress:
                 type: string
     CreatePersonaTransactionResult:
         type: object
