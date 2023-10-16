@@ -23,8 +23,7 @@ import (
 func TestTickHappyPath(t *testing.T) {
 	rs := miniredis.RunT(t)
 	oneWorld := testutil.InitWorldWithRedis(t, rs)
-	oneEnergy := ecs.NewComponentType[EnergyComponent]("oneEnergy")
-	assert.NilError(t, oneWorld.RegisterComponents(oneEnergy))
+	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](oneWorld))
 	assert.NilError(t, oneWorld.LoadGameState())
 
 	for i := 0; i < 10; i++ {
@@ -34,8 +33,7 @@ func TestTickHappyPath(t *testing.T) {
 	assert.Equal(t, uint64(10), oneWorld.CurrentTick())
 
 	twoWorld := testutil.InitWorldWithRedis(t, rs)
-	twoEnergy := ecs.NewComponentType[EnergyComponent]("twoEnergy")
-	assert.NilError(t, twoWorld.RegisterComponents(twoEnergy))
+	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](twoWorld))
 	assert.NilError(t, twoWorld.LoadGameState())
 	assert.Equal(t, uint64(10), twoWorld.CurrentTick())
 }
@@ -116,10 +114,9 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	rs := miniredis.RunT(t)
 	oneWorld := testutil.InitWorldWithRedis(t, rs)
-	onePower := ecs.NewComponentType[onePowerComponent]("onePower")
-	assert.NilError(t, oneWorld.RegisterComponents(onePower))
+	assert.NilError(t, ecs.RegisterComponent[onePowerComponent](oneWorld))
 
-	id, err := oneWorld.Create(onePower)
+	id, err := ecs.Create(oneWorld, onePowerComponent{})
 	assert.NilError(t, err)
 
 	errorSystem := errors.New("3 power? That's too much, man!")
@@ -148,8 +145,8 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	// Set up a new world using the same storage layer
 	twoWorld := testutil.InitWorldWithRedis(t, rs)
-	twoPower := ecs.NewComponentType[*twoPowerComponent]("twoPower")
-	assert.NilError(t, twoWorld.RegisterComponents(onePower, twoPower))
+	assert.NilError(t, ecs.RegisterComponent[onePowerComponent](twoWorld))
+	assert.NilError(t, ecs.RegisterComponent[twoPowerComponent](twoWorld))
 
 	// this is our fixed system that can handle Power levels of 3 and higher
 	twoWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
@@ -195,12 +192,11 @@ func (ScalarComponentBeta) Name() string {
 func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 
 	world := ecs.NewTestWorld(t)
-	alpha := ecs.NewComponentType[ScalarComponentAlpha]("alpha")
-	beta := ecs.NewComponentType[ScalarComponentBeta]("beta")
-	assert.NilError(t, world.RegisterComponents(alpha, beta))
+	assert.NilError(t, ecs.RegisterComponent[ScalarComponentAlpha](world))
+	assert.NilError(t, ecs.RegisterComponent[ScalarComponentBeta](world))
 	assert.NilError(t, world.LoadGameState())
 
-	wantID, err := world.Create(alpha)
+	wantID, err := ecs.Create(world, ScalarComponentAlpha{})
 	assert.NilError(t, err)
 
 	wantScalar := ScalarComponentAlpha{99}
@@ -209,7 +205,9 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
-		gotID, err := alpha.First(world)
+		q, err := world.NewQuery(ecs.Contains(ScalarComponentAlpha{}))
+		assert.NilError(t, err)
+		gotID, err := q.First(world)
 		assert.NilError(t, err)
 		assert.Equal(t, wantID, gotID)
 
@@ -252,19 +250,20 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 	rs := miniredis.RunT(t)
 	for _, firstWorldIteration := range []bool{true, false} {
 		world := testutil.InitWorldWithRedis(t, rs)
-		static := ecs.NewComponentType[ScalarComponentStatic]("static")
-		toggle := ecs.NewComponentType[ScalarComponentToggle]("toggle")
-		assert.NilError(t, world.RegisterComponents(static, toggle))
+		assert.NilError(t, ecs.RegisterComponent[ScalarComponentStatic](world))
+		assert.NilError(t, ecs.RegisterComponent[ScalarComponentToggle](world))
 
 		if firstWorldIteration {
-			_, err := world.Create(static)
+			_, err := ecs.Create(world, ScalarComponentStatic{})
 			assert.NilError(t, err)
 		}
 
 		errorToggleComponent := errors.New("problem with toggle component")
 		world.AddSystem(func(w *ecs.World, _ *transaction.TxQueue, _ *log.Logger) error {
 			// Get the one and only entity ID
-			id, err := static.First(w)
+			q, err := w.NewQuery(ecs.Contains(ScalarComponentStatic{}))
+			assert.NilError(t, err)
+			id, err := q.First(w)
 			assert.NilError(t, err)
 
 			s, err := ecs.GetComponent[ScalarComponentStatic](w, id)
@@ -285,8 +284,9 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			return nil
 		})
 		assert.NilError(t, world.LoadGameState())
-
-		id, err := static.First(world)
+		q, err := world.NewQuery(ecs.Contains(ScalarComponentStatic{}))
+		assert.NilError(t, err)
+		id, err := q.First(world)
 		assert.NilError(t, err)
 
 		if firstWorldIteration {
@@ -331,14 +331,15 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 	for _, isBuggyIteration := range []bool{true, false} {
 		world := testutil.InitWorldWithRedis(t, rs)
 
-		powerComp := ecs.NewComponentType[PowerComp]("powerComp")
-		assert.NilError(t, world.RegisterComponents(powerComp))
+		assert.NilError(t, ecs.RegisterComponent[PowerComp](world))
 
 		powerTx := ecs.NewTransactionType[PowerComp, PowerComp]("change_power")
 		assert.NilError(t, world.RegisterTransactions(powerTx))
 
 		world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-			id := powerComp.MustFirst(w)
+			q, err := w.NewQuery(ecs.Contains(PowerComp{}))
+			assert.NilError(t, err)
+			id := q.MustFirst(w)
 			entityPower, err := ecs.GetComponent[PowerComp](w, id)
 			assert.NilError(t, err)
 
@@ -356,13 +357,15 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		// Only create the entity for the first iteration
 		if isBuggyIteration {
-			_, err := world.Create(powerComp)
+			_, err := ecs.Create(world, PowerComp{})
 			assert.NilError(t, err)
 		}
 
 		// fetchPower is a small helper to get the power of the only entity in the world
 		fetchPower := func() float64 {
-			id, err := powerComp.First(world)
+			q, err := world.NewQuery(ecs.Contains(PowerComp{}))
+			assert.NilError(t, err)
+			id, err := q.First(world)
 			assert.NilError(t, err)
 			power, err := ecs.GetComponent[PowerComp](world, id)
 			//power, err := powerComp.Get(world, id)

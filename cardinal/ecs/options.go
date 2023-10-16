@@ -5,8 +5,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
+	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
@@ -34,5 +34,11 @@ func WithPrettyLog() Option {
 	return func(world *World) {
 		prettyLogger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 		world.Logger.Logger = &prettyLogger
+	}
+}
+
+func WithStoreManager(s store.IManager) Option {
+	return func(w *World) {
+		w.storeManager = s
 	}
 }

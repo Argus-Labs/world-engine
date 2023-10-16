@@ -54,12 +54,11 @@ func TestCanQueueTransactions(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 
 	// Create an entity with a score component
-	score := ecs.NewComponentType[*ScoreComponent]("score")
-	assert.NilError(t, world.RegisterComponents(score))
+	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](world))
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
 
-	id, err := world.Create(score)
+	id, err := ecs.Create(world, ScoreComponent{})
 	assert.NilError(t, err)
 
 	// Set up a system that allows for the modification of a player's score
@@ -119,10 +118,9 @@ func (CounterComponent) Name() string {
 func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 
-	count := ecs.NewComponentType[CounterComponent]("count")
-	assert.NilError(t, world.RegisterComponents(count))
+	assert.NilError(t, ecs.RegisterComponent[CounterComponent](world))
 
-	id, err := world.Create(count)
+	id, err := ecs.Create(world, CounterComponent{})
 	assert.NilError(t, err)
 	world.AddSystem(func(w *ecs.World, _ *transaction.TxQueue, _ *log.Logger) error {
 		return ecs.UpdateComponent[CounterComponent](w, id, func(c *CounterComponent) *CounterComponent {
@@ -144,8 +142,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	score := ecs.NewComponentType[ScoreComponent]("score")
-	assert.NilError(t, world.RegisterComponents(score))
+	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](world))
 
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
@@ -164,7 +161,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	})
 	assert.NilError(t, world.LoadGameState())
 
-	ids, err := world.CreateMany(100, score)
+	ids, err := ecs.CreateMany(world, 100, ScoreComponent{})
 	assert.NilError(t, err)
 	// Entities at index 5, 10 and 50 will be updated with some values
 	modifyScoreTx.AddToQueue(world, &ModifyScoreTx{
@@ -247,11 +244,17 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	modScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modScoreTx))
+	ctx := context.Background()
+	tickStart := make(chan time.Time)
+	tickDone := make(chan uint64)
+	world.StartGameLoop(ctx, tickStart, tickDone)
 
 	modScoreCountCh := make(chan int)
 
 	// Create two system that report how many instances of the ModifyScoreTx exist in the
-	// transaction queue. These counts should be the same for each tick.
+	// transaction queue. These counts should be the same for each tick. modScoreCountCh is an unbuffered channel
+	// so these systems will block while writing to modScoreCountCh. This allows the test to ensure that we can run
+	// commands mid-tick.
 	world.AddSystem(func(_ *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
 		modScores := modScoreTx.In(queue)
 		modScoreCountCh <- len(modScores)
@@ -267,40 +270,43 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	modScoreTx.AddToQueue(world, &ModifyScoreTx{})
 
-	// Start the game tick. It will be blocked until we read from modScoreCountCh two times
-	go func() {
-		assert.Check(t, nil == world.Tick(context.Background()))
-	}()
+	// Start the game tick. The tick will block while waiting to write to modScoreCountCh
+	tickStart <- time.Now()
 
 	// In the first system, we should see 1 modify score transaction
 	count := <-modScoreCountCh
 	assert.Equal(t, 1, count)
 
-	// Add a transaction mid-tick.
+	// Add two transactions mid-tick.
+	modScoreTx.AddToQueue(world, &ModifyScoreTx{})
 	modScoreTx.AddToQueue(world, &ModifyScoreTx{})
 
 	// The tick is still not over, so we should still only see 1 modify score transaction
 	count = <-modScoreCountCh
 	assert.Equal(t, 1, count)
 
-	// The tick is over. Tick again, we should see 1 tick for both systems again. This transaction
-	// was added in the middle of the last tick.
-	go func() {
-		assert.Check(t, nil == world.Tick(context.Background()))
-	}()
+	// Block until the tick has completed.
+	<-tickDone
+
+	// Start the next tick.
+	tickStart <- time.Now()
+
+	// This second tick shold find 2 ModifyScore transactions. They were added in the middle of the previous tick.
 	count = <-modScoreCountCh
-	assert.Equal(t, 1, count)
+	assert.Equal(t, 2, count)
 	count = <-modScoreCountCh
-	assert.Equal(t, 1, count)
+	assert.Equal(t, 2, count)
+
+	// Block until the tick has completed.
+	<-tickDone
 
 	// In this final tick, we should see no modify score transactions
-	go func() {
-		assert.Check(t, nil == world.Tick(context.Background()))
-	}()
+	tickStart <- time.Now()
 	count = <-modScoreCountCh
 	assert.Equal(t, 0, count)
 	count = <-modScoreCountCh
 	assert.Equal(t, 0, count)
+	<-tickDone
 }
 
 // TestIdenticallyTypedTransactionCanBeDistinguished verifies that two transactions of the same type

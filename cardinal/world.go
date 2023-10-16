@@ -8,6 +8,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -54,7 +56,11 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 		DB:       0,        // use default DB
 	}, "world")
 	worldStorage := storage.NewWorldStorage(&rs)
-	ecsWorld, err := ecs.NewWorld(worldStorage, ecsOptions...)
+	storeManager, err := ecb.NewManager(rs.Client)
+	if err != nil {
+		return nil, err
+	}
+	ecsWorld, err := ecs.NewWorld(worldStorage, storeManager, ecsOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -92,14 +98,14 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func (w *World) CreateMany(num int, components ...AnyComponentType) ([]EntityID, error) {
-	return w.implWorld.CreateMany(num, toIComponentType(components)...)
+func (w *World) CreateMany(num int, components ...component.IAbstractComponent) ([]EntityID, error) {
+	return ecs.CreateMany(w.implWorld, num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func (w *World) Create(components ...AnyComponentType) (EntityID, error) {
-	return w.implWorld.Create(toIComponentType(components)...)
+func (w *World) Create(components ...component.IAbstractComponent) (EntityID, error) {
+	return ecs.Create(w.implWorld, components...)
 }
 
 // Remove removes the given entity id from the world.
@@ -109,7 +115,7 @@ func (w *World) Remove(id EntityID) error {
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is attempted.
 // In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
-// to this world. After StartGame is called, RegisterComponents, RegisterTransactions, RegisterReads, and AddSystem may
+// to this world. After StartGame is called, RegisterComponent, RegisterTransactions, RegisterReads, and AddSystem may
 // not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {
@@ -166,10 +172,8 @@ func (w *World) RegisterSystems(systems ...System) {
 	}
 }
 
-// RegisterComponents adds the given components to the game world. After components are added, entities
-// with these components may be created. This Register method must only be called once.
-func (w *World) RegisterComponents(components ...AnyComponentType) error {
-	return w.implWorld.RegisterComponents(toIComponentType(components)...)
+func RegisterComponent[T component.IAbstractComponent](world *World) error {
+	return ecs.RegisterComponent[T](world.implWorld)
 }
 
 // RegisterTransactions adds the given transactions to the game world. HTTP endpoints to queue up/execute these

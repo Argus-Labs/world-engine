@@ -3,7 +3,6 @@ package cardinal
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
 // Query allowed for the querying of entities within a World.
@@ -12,8 +11,12 @@ type Query struct {
 }
 
 // NewQuery creates a new Query.
-func NewQuery(filter ComponentFilter) *Query {
-	return &Query{ecs.NewQuery(filter)}
+func (w *World) NewQuery(filter ecs.Filterable) (*Query, error) {
+	q, err := w.implWorld.NewQuery(filter)
+	if err != nil {
+		return nil, err
+	}
+	return &Query{q}, nil
 }
 
 // QueryCallBackFn represents a function that can operate on a single EntityID, and returns whether the next EntityID
@@ -29,42 +32,11 @@ func (q *Query) Each(w *World, callback QueryCallBackFn) {
 }
 
 // Count returns the number of entities that match this query.
-func (q *Query) Count(w *World) int {
+func (q *Query) Count(w *World) (int, error) {
 	return q.impl.Count(w.implWorld)
 }
 
 // First returns the first entity that matches this query.
 func (q *Query) First(w *World) (id EntityID, err error) {
 	return q.impl.First(w.implWorld)
-}
-
-// ComponentFilter represents a filter that will be passed to NewQuery to help decide which entities should be
-// returned in the query.
-type ComponentFilter = filter.ComponentFilter
-
-// And returns entities that match ALL the given filters.
-func And(filters ...ComponentFilter) ComponentFilter {
-	return filter.And(filters...)
-}
-
-// Contains returns entities that have been associated with all the given components. Entities that have been associated
-// with other components not listed will still be returned.
-func Contains(components ...AnyComponentType) ComponentFilter {
-	return filter.Contains(toIComponentType(components)...)
-}
-
-// Exact returns entities that have the exact set of given components (order is not important). Entities that have been
-// associated with other component not listed will NOT be returned.
-func Exact(components ...AnyComponentType) ComponentFilter {
-	return filter.Exact(toIComponentType(components)...)
-}
-
-// Not returns entities that do NOT match the given filter.
-func Not(compFilter ComponentFilter) ComponentFilter {
-	return filter.Not(compFilter)
-}
-
-// Or returns entities that match 1 or more of the given filters.
-func Or(filters ...ComponentFilter) ComponentFilter {
-	return filter.Or(filters...)
 }

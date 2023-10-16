@@ -1,4 +1,4 @@
-go 1.21
+go 1.21.0
 
 use (
 	cardinal
@@ -7,4 +7,5 @@ use (
 	magefiles
 	relay/nakama
 	sign
+	rift
 )

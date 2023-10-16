@@ -17,6 +17,8 @@ type webSocketHandler struct {
 	upgrader      websocket.Upgrader
 }
 
+var upgrader = websocket.Upgrader{}
+
 func (w *webSocketHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
 	if request.URL.Path == w.path {
 		ws, err := w.upgrader.Upgrade(responseWriter, request, nil)
@@ -64,6 +66,28 @@ func webSocketEchoHandler(conn *websocket.Conn) error {
 				return nil
 			}
 			return err
+		}
+	}
+}
+
+func Echo(w http.ResponseWriter, r *http.Request) {
+	c, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Print("upgrade:", err)
+		return
+	}
+	defer c.Close()
+	for {
+		mt, message, err := c.ReadMessage()
+		if err != nil {
+			log.Print("read:", err)
+			break
+		}
+		log.Printf("recv: %s", message)
+		err = c.WriteMessage(mt, message)
+		if err != nil {
+			log.Print("write:", err)
+			break
 		}
 	}
 }

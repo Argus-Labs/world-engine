@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/cardinal
 
-go 1.21
+go 1.21.0
 
 // external, necessary replacements
 replace (
@@ -29,10 +29,11 @@ require (
 	github.com/redis/go-redis/v9 v9.0.2
 	github.com/rs/zerolog v1.30.0
 	github.com/stretchr/testify v1.8.4
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.0
 	pkg.world.dev/world-engine/chain v0.1.11-alpha
+	pkg.world.dev/world-engine/rift v0.0.1
 	pkg.world.dev/world-engine/sign v0.1.8-alpha
 )
 

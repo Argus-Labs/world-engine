@@ -17,6 +17,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
+var _ IManager = &Manager{}
+
 type Manager struct {
 	store  storage.WorldStorage
 	logger *log.Logger
@@ -29,20 +31,24 @@ func NewStoreManager(store storage.WorldStorage, logger *log.Logger) *Manager {
 	}
 }
 
+func (s *Manager) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error) {
+	return s.store.ArchAccessor.Archetype(archID).Entities(), nil
+}
+
+func (s *Manager) SearchFrom(filter filter.ComponentFilter, seen int) *storage.ArchetypeIterator {
+	return s.store.ArchCompIdxStore.SearchFrom(filter, seen)
+}
+
+func (s *Manager) ArchetypeCount() int {
+	return s.store.ArchAccessor.Count()
+}
+
 func (s *Manager) Close() error {
 	return s.store.IO.Close()
 }
 
 func (s *Manager) InjectLogger(logger *log.Logger) {
 	s.logger = logger
-}
-
-func (s *Manager) GetEntity(id entity.ID) (entity.Entity, error) {
-	loc, err := s.getEntityLocation(id)
-	if err != nil {
-		return storage.BadEntity, err
-	}
-	return storage.NewEntity(id, loc), nil
 }
 
 func (s *Manager) isValid(id entity.ID) (bool, error) {
@@ -143,8 +149,7 @@ func (s *Manager) createEntityFromArchetypeID(archID archetype.ID) (entity.ID, e
 		return storage.BadID, err
 	}
 	archetype.PushEntity(nextEntityID)
-	entity := storage.NewEntity(nextEntityID, entity.NewLocation(archID, componentIndex))
-	s.logger.LogEntity(zerolog.DebugLevel, entity, components)
+	s.logger.LogEntity(zerolog.DebugLevel, nextEntityID, archID, components)
 	return nextEntityID, nil
 }
 
@@ -190,6 +195,10 @@ func (s *Manager) GetComponentForEntityInRawJson(cType component.IComponentType,
 		return nil, err
 	}
 	return s.store.CompStore.Storage(cType).Component(loc.ArchID, loc.CompIndex)
+}
+
+func (s *Manager) RegisterComponents([]component.IComponentType) error {
+	return nil
 }
 
 func (s *Manager) getComponentsForArchetype(archID archetype.ID) []component.IComponentType {
