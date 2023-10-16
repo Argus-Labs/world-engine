@@ -313,11 +313,11 @@ definitions:
             type: string
     TxReply:
         required:
-            - tx_hash
+            - txHash
             - tick
         type: object
         properties:
-            tx_hash:
+            txHash:
                 type: string
             tick:
                 type: integer

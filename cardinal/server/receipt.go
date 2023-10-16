@@ -27,7 +27,7 @@ type Receipt struct {
 }
 
 type TransactionReply struct {
-	TxHash string `json:"tx_hash"`
+	TxHash string `json:"txHash"`
 	Tick   uint64 `json:"tick"`
 }
 
