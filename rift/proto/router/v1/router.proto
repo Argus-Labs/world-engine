@@ -5,13 +5,14 @@ package world.engine.router.v1;
 option go_package = "github.com/argus-labs/world-engine/router/v1";
 
 service Msg {
-  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc SendMessage(stream SendMessageRequest) returns (stream SendMessageResponse);
   rpc QueryShard(QueryShardRequest) returns (QueryShardResponse);
 }
 
 message SendMessageRequest {
   // sender is the identifier of the message sender.
   string sender = 1;
+
   // message contains the underlying bytes of the message. typically, this is an abi encoded solidity struct.
   bytes message = 2;
 
@@ -24,10 +25,14 @@ message SendMessageRequest {
 }
 
 message SendMessageResponse {
-  // code is an arbitrary integer that denotes the result of some message execution.
-  uint64 code = 1;
-  // message is an encoded message that should be able to be unpacked into a solidity struct.
-  bytes message = 2;
+  // errs contain any errors that occurred during the transaction execution.
+  string errs = 1;
+
+  // result is an ABI encoded struct of the transaction type's result.
+  bytes result = 2;
+
+  // evm_tx_hash is the tx hash of the evm transaction that triggered the request.
+  string evm_tx_hash = 3;
 }
 
 message QueryShardRequest {
