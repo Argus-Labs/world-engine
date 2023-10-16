@@ -13,14 +13,14 @@ type ListTxReceiptsRequest struct {
 // Meaning StartTick is included and EndTick is not. To iterate over all ticks in the future, use the returned
 // EndTick as the StartTick in the next request. If StartTick == EndTick, the receipts list will be empty.
 type ListTxReceiptsReply struct {
-	StartTick uint64    `json:"start_tick"`
-	EndTick   uint64    `json:"end_tick"`
+	StartTick uint64    `json:"startTick"`
+	EndTick   uint64    `json:"endTick"`
 	Receipts  []Receipt `json:"receipts"`
 }
 
 // Receipt represents a single transaction receipt. It contains an ID, a result, and a list of errors.
 type Receipt struct {
-	TxHash string   `json:"tx_hash"`
+	TxHash string   `json:"txHash"`
 	Tick   uint64   `json:"tick"`
 	Result any      `json:"result"`
 	Errors []string `json:"errors"`

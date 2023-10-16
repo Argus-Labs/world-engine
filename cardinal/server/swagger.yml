@@ -354,15 +354,15 @@ definitions:
                 format: int64
     ListTxReceiptsReply:
         required:
-            - start_tick
-            - end_tick
+            - startTick
+            - endTick
             - receipts
         type: object
         properties:
-            start_tick:
+            startTick:
                 type: integer
                 format: int64
-            end_tick:
+            endTick:
                 type: integer
                 format: int64
             receipts:
