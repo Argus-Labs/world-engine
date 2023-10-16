@@ -371,13 +371,13 @@ definitions:
                     $ref: '#/definitions/Receipts'
     Receipts:
         required:
-            - tx_hash
+            - txHash
             - tick
             - result
             - errors
         type: object
         properties:
-            tx_hash:
+            txHash:
                 type: string
             tick:
                 type: integer
