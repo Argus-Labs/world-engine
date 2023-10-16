@@ -40,7 +40,7 @@ type QueryCallBackFn func(entity.ID) bool
 // Each iterates over all entities that match the query.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
 func (q *Query) Each(w *World, callback QueryCallBackFn) error {
-	result := q.evaluateQuery(w.GetNamespace(), w.StoreManager())
+	result := q.evaluateQuery(w.Namespace(), w.StoreManager())
 	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
@@ -59,7 +59,7 @@ func (q *Query) Each(w *World, callback QueryCallBackFn) error {
 
 // Count returns the number of entities that match the query.
 func (q *Query) Count(w *World) (int, error) {
-	result := q.evaluateQuery(w.GetNamespace(), w.StoreManager())
+	result := q.evaluateQuery(w.Namespace(), w.StoreManager())
 	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
 	ret := 0
 	for iter.HasNext() {
@@ -74,7 +74,7 @@ func (q *Query) Count(w *World) (int, error) {
 
 // First returns the first entity that matches the query.
 func (q *Query) First(w *World) (id entity.ID, err error) {
-	result := q.evaluateQuery(w.GetNamespace(), w.StoreManager())
+	result := q.evaluateQuery(w.Namespace(), w.StoreManager())
 	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
 	if !iter.HasNext() {
 		return storage.BadID, err

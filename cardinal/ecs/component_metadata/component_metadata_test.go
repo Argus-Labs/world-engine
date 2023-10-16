@@ -116,8 +116,8 @@ func (_ notFoundComp) Name() string {
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	assert.NilError(t, ecs.RegisterComponent[foundComp](world))
-	assert.NilError(t, ecs.RegisterComponent[notFoundComp](world))
+	ecs.MustRegisterComponent[foundComp](world)
+	ecs.MustRegisterComponent[notFoundComp](world)
 
 	id, err := ecs.Create(world, foundComp{})
 	assert.NilError(t, err)

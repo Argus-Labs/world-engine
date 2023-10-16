@@ -76,7 +76,7 @@ func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }
 
-func (w *World) GetNamespace() Namespace {
+func (w *World) Namespace() Namespace {
 	return w.namespace
 }
 
@@ -133,6 +133,13 @@ func RegisterComponent[T component_metadata.Component](world *World) error {
 	world.nameToComponent[t.Name()] = c
 	world.isComponentsRegistered = true
 	return nil
+}
+
+func MustRegisterComponent[T component_metadata.Component](world *World) {
+	err := RegisterComponent[T](world)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (w *World) GetComponentByName(name string) (component_metadata.IComponentMetaData, error) {
