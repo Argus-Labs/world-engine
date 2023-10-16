@@ -237,25 +237,25 @@ definitions:
                 example: "(EXACT(energyComponent) | CONTAINS(healthComponent)) & CONTAINS(goodGuyComponent)"
     TxRequestWithCreatePersona:
         required:
-            - PersonaTag
-            - Namespace
-            - Nonce
-            - Signature
-            - Body
+            - personaTag
+            - namespace
+            - nonce
+            - signature
+            - body
         type: object
         properties:
-            PersonaTag:
+            personaTag:
                 type: string
                 example: CoolMage
-            Namespace:
+            namespace:
                 type: string
                 example: agar-shooter
-            Nonce:
+            nonce:
                 type: integer
                 format: int64
-            Signature:
+            signature:
                 type: string
-            Body:
+            body:
                 $ref: '#/definitions/CreatePersonaTransaction'
     CreatePersonaTransaction:
         type: object
@@ -324,25 +324,25 @@ definitions:
                 format: int64
     TxRequest:
         required:
-            - PersonaTag
-            - Namespace
-            - Nonce
-            - Signature
-            - Body
+            - personaTag
+            - namespace
+            - nonce
+            - signature
+            - body
         type: object
         properties:
-            PersonaTag:
+            personaTag:
                 type: string
                 example: CoolMage
-            Namespace:
+            namespace:
                 type: string
                 example: agar-shooter
-            Nonce:
+            nonce:
                 type: integer
                 format: int64
-            Signature:
+            signature:
                 type: string
-            Body:
+            body:
                 type: object
     ListTxReceiptsRequest:
         required:
