@@ -12,11 +12,11 @@ import (
 
 func CreateEventHub() *EventHub {
 	res := EventHub{
-		websocket_connections: map[*websocket.Conn]bool{},
-		Broadcast:             make(chan []byte),
-		Register:              make(chan *websocket.Conn),
-		Unregister:            make(chan *websocket.Conn),
-		Shutdown:              make(chan bool),
+		websocketConnections: map[*websocket.Conn]bool{},
+		Broadcast:            make(chan []byte),
+		Register:             make(chan *websocket.Conn),
+		Unregister:           make(chan *websocket.Conn),
+		Shutdown:             make(chan bool),
 	}
 	return &res
 }
@@ -26,53 +26,50 @@ type Event struct {
 }
 
 type EventHub struct {
-	websocket_connections map[*websocket.Conn]bool
-	Broadcast             chan []byte
-	Unregister            chan *websocket.Conn
-	Register              chan *websocket.Conn
-	Shutdown              chan bool
+	websocketConnections map[*websocket.Conn]bool
+	Broadcast            chan []byte
+	Unregister           chan *websocket.Conn
+	Register             chan *websocket.Conn
+	Shutdown             chan bool
 }
 
 func (h *EventHub) run() {
+	unregisterConnection := func(conn *websocket.Conn) {
+		if _, ok := h.websocketConnections[conn]; ok {
+			delete(h.websocketConnections, conn)
+			err := conn.Close()
+			if err != nil {
+				log.Logger.Error().Err(err)
+			}
+		}
+	}
 Loop:
 	for {
 		select {
 		case conn := <-h.Register:
-			h.websocket_connections[conn] = true
+			h.websocketConnections[conn] = true
 		case conn := <-h.Unregister:
-			if _, ok := h.websocket_connections[conn]; ok {
-				delete(h.websocket_connections, conn)
-				err := conn.Close()
-				if err != nil {
-					log.Logger.Error().Err(err)
-				}
-			}
+			unregisterConnection(conn)
 		case message := <-h.Broadcast:
-			for conn := range h.websocket_connections {
+			for conn := range h.websocketConnections {
 
-				err := conn.SetWriteDeadline(time.Now().Add(3 * time.Second))
+				err := conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
 				if err != nil {
-					go func() {
-						h.Unregister <- conn
-					}()
+					unregisterConnection(conn)
 					log.Logger.Error().Err(err)
 					break Loop
 				}
 				err = conn.WriteMessage(websocket.TextMessage, message)
 				if err != nil {
-					go func() {
-						h.Unregister <- conn
-					}()
+					unregisterConnection(conn)
 					log.Logger.Error().Err(err)
 				}
 
 			}
 		case <-h.Shutdown:
-			go func() {
-				for conn, _ := range h.websocket_connections {
-					h.Unregister <- conn
-				}
-			}()
+			for conn, _ := range h.websocketConnections {
+				unregisterConnection(conn)
+			}
 			break Loop
 		}
 	}

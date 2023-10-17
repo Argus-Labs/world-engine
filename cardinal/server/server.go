@@ -39,7 +39,7 @@ var (
 // NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
 // transactions and queries registered with the given world are automatically created. The server runs on a default port
 // of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
-func NewHandler(w *ecs.World, builder *middleware.Builder, opts ...Option) (*Handler, error) {
+func NewHandler(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	h, err := newSwaggerHandlerEmbed(w, builder, opts...)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func NewHandler(w *ecs.World, builder *middleware.Builder, opts ...Option) (*Han
 //go:embed swagger.yml
 var swaggerData []byte
 
-func newSwaggerHandlerEmbed(w *ecs.World, builder *middleware.Builder, opts ...Option) (*Handler, error) {
+func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	th := &Handler{
 		w:   w,
 		mux: http.NewServeMux(),
@@ -87,11 +87,7 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder *middleware.Builder, opts ...O
 	}
 
 	app := middleware.NewContext(specDoc, api, nil)
-	if builder != nil {
-		th.mux.Handle("/", app.APIHandler(*builder))
-	} else {
-		th.mux.Handle("/", app.APIHandler(nil))
-	}
+	th.mux.Handle("/", app.APIHandler(builder))
 	th.initialize()
 
 	return th, nil

@@ -70,7 +70,7 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 		eventHub.run()
 	}()
 	eventBuilder := CreateNewWebSocketBuilder("/events", CreateWebSocketEventHandler(eventHub))
-	txh, err := NewHandler(world, &eventBuilder, opts...)
+	txh, err := NewHandler(world, eventBuilder, opts...)
 	assert.NilError(t, err)
 
 	//add test websocket handler.
@@ -1251,8 +1251,7 @@ func TestEvents(t *testing.T) {
 		}()
 	}
 
-	for i, dialer := range dialers {
-		_ = i
+	for _, dialer := range dialers {
 		for j := 0; j < numberToTest; j++ {
 			mode, message, err := dialer.ReadMessage()
 			assert.NilError(t, err)
