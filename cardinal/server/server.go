@@ -78,13 +78,20 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder *middleware.Builder, opts ...O
 		return nil, err
 	}
 
+	api.RegisterOperation("GET", "/events", runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		return struct{}{}, nil
+	}))
+
 	if err := api.Validate(); err != nil {
 		return nil, err
 	}
 
 	app := middleware.NewContext(specDoc, api, nil)
-
-	th.mux.Handle("/", app.APIHandler(*builder))
+	if builder != nil {
+		th.mux.Handle("/", app.APIHandler(*builder))
+	} else {
+		th.mux.Handle("/", app.APIHandler(nil))
+	}
 	th.initialize()
 
 	return th, nil

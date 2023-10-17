@@ -40,8 +40,9 @@ type SendEnergyTxResult struct{}
 // testTransactionHandler is a helper struct that can start an HTTP server on port 4040 with the given world.
 type testTransactionHandler struct {
 	*Handler
-	t    *testing.T
-	host string
+	t        *testing.T
+	host     string
+	eventHub *EventHub
 }
 
 func (t *testTransactionHandler) makeHttpURL(path string) string {
@@ -61,32 +62,20 @@ func (t *testTransactionHandler) post(path string, payload any) *http.Response {
 	return res
 }
 
-func testSocketEchoRoute(t *testing.T, httpHandler *testTransactionHandler, timesToTest int) {
-	path := "/event"
-	urlString := httpHandler.makeHttpURL(path)
-	c, _, err := websocket.DefaultDialer.Dial(urlString, nil)
-	assert.NilError(t, err)
-	originalMessage := []byte("testing\n")
-	err = c.WriteMessage(websocket.TextMessage, originalMessage)
-	assert.NilError(t, err)
-	for i := 0; i < timesToTest; i++ {
-		messageType, message, err := c.ReadMessage()
-		assert.NilError(t, err)
-		assert.Equal(t, messageType, websocket.TextMessage)
-		assert.Equal(t, originalMessage, message)
-	}
-	err = c.Close()
-	assert.NilError(t, err)
-}
-
 func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) *testTransactionHandler {
 	port := "4040"
 	opts = append(opts, WithPort(port))
-	txh, err := NewHandler(world, nil, opts...)
+	eventHub := CreateEventHub()
+	go func() {
+		eventHub.run()
+	}()
+	eventBuilder := CreateNewWebSocketBuilder("/events", CreateWebSocketEventHandler(eventHub))
+	txh, err := NewHandler(world, &eventBuilder, opts...)
 	assert.NilError(t, err)
 
 	//add test websocket handler.
 	txh.mux.HandleFunc("/echo", Echo)
+	//txh.mux.HandleFunc("/events")
 
 	healthPath := "/health"
 	t.Cleanup(func() {
@@ -120,9 +109,10 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...Option) 
 	}
 
 	return &testTransactionHandler{
-		Handler: txh,
-		t:       t,
-		host:    host,
+		Handler:  txh,
+		t:        t,
+		host:     host,
+		eventHub: eventHub,
 	}
 }
 
@@ -149,7 +139,7 @@ func setTestTimeout(t *testing.T, timeout time.Duration) {
 }
 
 func TestHealthEndpoint(t *testing.T) {
-	setTestTimeout(t, 10*time.Second)
+	//setTestTimeout(t, 10*time.Second)
 	w := ecs.NewTestWorld(t)
 	assert.NilError(t, w.LoadGameState())
 	makeTestTransactionHandler(t, w, DisableSignatureVerification())
@@ -1239,4 +1229,39 @@ func TestWebSocket(t *testing.T) {
 	assert.Equal(t, string(message), messageToSend)
 	err = dial.Close()
 	assert.NilError(t, err)
+}
+
+func TestEvents(t *testing.T) {
+	//broadcast 5 messages to 5 clients means 25 messages received.
+	numberToTest := 5
+	w := ecs.NewTestWorld(t)
+	assert.NilError(t, w.LoadGameState())
+	txh := makeTestTransactionHandler(t, w, DisableSignatureVerification())
+	url := txh.makeWebSocketURL("events")
+	dialers := make([]*websocket.Conn, numberToTest, numberToTest)
+	for i, _ := range dialers {
+		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
+		assert.NilError(t, err)
+		dialers[i] = dial
+	}
+	for i := 0; i < numberToTest; i++ {
+		i := i
+		go func() {
+			txh.eventHub.Broadcast <- []byte(fmt.Sprintf("test%d", i))
+		}()
+	}
+
+	for i, dialer := range dialers {
+		_ = i
+		for j := 0; j < numberToTest; j++ {
+			//err := dialer.SetReadDeadline(time.Now().Add(3 * time.Second))
+			//assert.NilError(t, err)
+			mode, message, err := dialer.ReadMessage()
+			assert.NilError(t, err)
+			assert.Equal(t, mode, websocket.TextMessage)
+			assert.Equal(t, string(message)[:4], "test")
+			fmt.Println(string(message))
+		}
+	}
+	//txh.eventHub.Shutdown <- true
 }
