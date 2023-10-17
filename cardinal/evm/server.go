@@ -3,10 +3,12 @@ package evm
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -46,6 +48,8 @@ type msgServerImpl struct {
 	txMap    txByID
 	queryMap queryByName
 	world    *ecs.World
+
+	receiptChan chan receipt.Receipt
 
 	// opts
 	creds credentials.TransportCredentials
@@ -126,30 +130,59 @@ func (s *msgServerImpl) Serve() error {
 	return nil
 }
 
-func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessageRequest,
-) (*routerv1.SendMessageResponse, error) {
-	// first we check if we can extract the transaction associated with the id
-	itx, ok := s.txMap[transaction.TypeID(msg.MessageId)]
-	if !ok {
-		return nil, fmt.Errorf("no transaction with ID %d is registerd in this world", msg.MessageId)
+// SendMessage is the server implementation for cross-shard messaging from base shard's Router service.
+func (s *msgServerImpl) SendMessage(stream routerv1.Msg_SendMessageServer) error {
+	handleReply := func(stream routerv1.Msg_SendMessageServer, result []byte, errs ...error) {
+		reply := new(routerv1.SendMessageResponse)
+		reply.Result = result
+		reply.Errs = errors.Join(errs...).Error()
+		err := stream.Send(reply)
+		if err != nil {
+			// uh oh. now this gets tricky.
+			// handle error. this may require reconnections.
+		}
 	}
-	// decode the evm bytes into the transaction
-	tx, err := itx.DecodeEVMBytes(msg.Message)
-	if err != nil {
-		return nil, err
+	handleOutbound := func(stream routerv1.Msg_SendMessageServer) error {
+		for {
+			rcp := <-s.receiptChan
+			handleReply(stream)
+		}
 	}
+	handleInbound := func(stream routerv1.Msg_SendMessageServer) error {
+		for {
+			msg, err := stream.Recv()
+			if err != nil {
+				handleReply(stream, nil, err)
+				continue
+			}
+			// first we check if we can extract the transaction associated with the id
+			itx, ok := s.txMap[transaction.TypeID(msg.MessageId)]
+			if !ok {
+				handleReply(stream, nil, fmt.Errorf("no transaction with ID %d is registerd in this world", msg.MessageId))
+				continue
+			}
+			// decode the evm bytes into the transaction
+			tx, err := itx.DecodeEVMBytes(msg.Message)
+			if err != nil {
+				handleReply(stream, nil, err)
+				continue
+			}
 
-	// check if the sender has a linked persona address. if not don't process the transaction.
-	sc, err := s.getSignerComponentForAuthorizedAddr(msg.Sender)
-	if err != nil {
-		return nil, err
+			// check if the sender has a linked persona address. if not don't process the transaction.
+			sc, err := s.getSignerComponentForAuthorizedAddr(msg.Sender)
+			if err != nil {
+				handleReply(stream, nil, err)
+				continue
+			}
+			// since we are injecting directly, all we need is the persona tag in the signed payload. the sig checking happens
+			// in the server's Handler, not in `World`.
+			sig := &sign.SignedPayload{PersonaTag: sc.PersonaTag}
+			// add transaction to the world queue
+			s.world.AddEVMTransaction(itx.ID(), tx, sig, msg.EvmTxHash)
+		}
+		return nil
 	}
-	// since we are injecting directly, all we need is the persona tag in the signed payload. the sig checking happens
-	// in the server's Handler, not in `World`.
-	sig := &sign.SignedPayload{PersonaTag: sc.PersonaTag}
-	// add transaction to the world queue
-	s.world.AddEVMTransaction(itx.ID(), tx, sig, msg.EvmTxHash)
-	return &routerv1.SendMessageResponse{}, nil
+	return nil
 }
 
 // getSignerComponentForAuthorizedAddr attempts to find a stored SignerComponent which contains the provided `addr`

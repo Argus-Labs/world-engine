@@ -190,12 +190,12 @@ func (t *TransactionType[In, Out]) ABIEncode(v any) ([]byte, error) {
 	var args abi.Arguments
 	var input any
 	switch v.(type) {
-	case In:
-		input = v.(In)
-		args = abi.Arguments{{Type: *t.inEVMType}}
 	case Out:
 		input = v.(Out)
 		args = abi.Arguments{{Type: *t.outEVMType}}
+	case In:
+		input = v.(In)
+		args = abi.Arguments{{Type: *t.inEVMType}}
 	default:
 		return nil, fmt.Errorf("expected input to be of type %T or %T, got %T", new(In), new(Out), v)
 	}

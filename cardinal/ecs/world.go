@@ -336,26 +336,38 @@ func (w *World) Tick(ctx context.Context) error {
 	return nil
 }
 
+type EVMTxReceipt struct {
+	ABIResult []byte
+	Errs      []error
+	EVMTxHash string
+}
+
 func (w *World) dispatchEvmResults(txs []transaction.TxAny) error {
 	// iterate over all EVM originated transactions
 	for _, tx := range txs {
 		// see if tx has a receipt (sometimes it won't because:
-		// 1. isn't using TxIterator and didn't ever do a `SetResult`)
+		// The system isn't using TxIterators && never explicitly called SetResult.
 		rec, ok := w.receiptHistory.GetReceipt(tx.TxHash)
 		if !ok {
 			continue
 		}
-		itx := w.getITx(tx.TxID)
-		if rec.Result == nil {
+		if rec.Result == nil && (len(rec.Errs) == 0) {
 
 		} else {
+			itx := w.getITx(tx.TxID)
 			abiBz, err := itx.ABIEncode(rec.Result)
 			if err != nil {
+				// TODO: should we notify the EVM of this?
 				return err
 			}
-
+			rec := EVMTxReceipt{
+				ABIResult: abiBz,
+				Errs:      rec.Errs,
+				EVMTxHash: tx.EVMSourceTxHash,
+			}
 		}
 	}
+	return nil
 }
 
 func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
