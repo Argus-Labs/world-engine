@@ -8,8 +8,9 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -17,9 +18,9 @@ import (
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
-// []component.IComponentType{a, b, c} becomes:
+// []component.IComponentMetaData{a, b, c} becomes:
 // comps(a, b, c)
-func comps(cs ...component.IComponentType) []component.IComponentType {
+func comps(cs ...component_metadata.IComponentMetaData) []component_metadata.IComponentMetaData {
 	return cs
 }
 
@@ -99,7 +100,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	wantComps := oneWorld.StoreManager().GetComponentTypesForArchID(wantID)
 	assert.Equal(t, 1, len(wantComps))
-	assert.Check(t, component.Contains(wantComps, oneNum))
+	assert.Check(t, filter.MatchComponentMetaData(wantComps, oneNum))
 
 	assert.NilError(t, oneWorld.Tick(context.Background()))
 
@@ -113,7 +114,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	gotComps := twoWorld.StoreManager().GetComponentTypesForArchID(gotID)
 	assert.Equal(t, 1, len(gotComps))
-	assert.Check(t, component.Contains(gotComps, twoNum))
+	assert.Check(t, filter.MatchComponentMetaData(gotComps, twoNum))
 
 	// Archetype indices should be the same across save/load cycles
 	assert.Equal(t, wantID, gotID)
@@ -221,7 +222,7 @@ func TestCanReloadState(t *testing.T) {
 	oneAlphaNum, err := alphaWorld.GetComponentByName(oneAlphaNumComp{}.Name())
 	assert.NilError(t, err)
 	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		q, err := w.NewQuery(ecs.Contains(oneAlphaNum))
+		q, err := w.NewSearch(ecs.Contains(oneAlphaNum))
 		if err != nil {
 			return err
 		}
@@ -244,7 +245,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, betaWorld.LoadGameState())
 
 	count := 0
-	q, err := betaWorld.NewQuery(ecs.Contains(OneBetaNum{}))
+	q, err := betaWorld.NewSearch(ecs.Contains(OneBetaNum{}))
 	assert.NilError(t, err)
 	q.Each(betaWorld, func(id entity.ID) bool {
 		count++

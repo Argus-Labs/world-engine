@@ -14,35 +14,35 @@ import (
 )
 
 // register query endpoints for swagger server
-func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
-	readNameToReadType := make(map[string]ecs.IRead)
-	for _, read := range handler.w.ListReads() {
-		readNameToReadType[read.Name()] = read
+func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
+	queryNameToQueryType := make(map[string]ecs.IQuery)
+	for _, query := range handler.w.ListQueries() {
+		queryNameToQueryType[query.Name()] = query
 	}
 
-	// query/game/{readType} is a dynamic route that must dynamically handle things thus it can't use
+	// query/game/{queryType} is a dynamic route that must dynamically handle things thus it can't use
 	// the createSwaggerQueryHandler utility function below as the Request and Reply types are dynamic.
 	queryHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		mapStruct, ok := params.(map[string]interface{})
 		if !ok {
 			return nil, errors.New("invalid parameter input, map could not be created")
 		}
-		readTypeUntyped, ok := mapStruct["readType"]
+		queryTypeUntyped, ok := mapStruct["queryType"]
 		if !ok {
-			return nil, errors.New("readType parameter not found")
+			return nil, errors.New("queryType parameter not found")
 		}
-		readTypeString, ok := readTypeUntyped.(string)
+		queryTypeString, ok := queryTypeUntyped.(string)
 		if !ok {
-			return nil, fmt.Errorf("readType was the wrong type, it should be a string from the path")
+			return nil, fmt.Errorf("queryType was the wrong type, it should be a string from the path")
 		}
-		outputType, ok := readNameToReadType[readTypeString]
+		outputType, ok := queryNameToQueryType[queryTypeString]
 		if !ok {
-			return middleware.Error(404, fmt.Errorf("readType of type %s does not exist", readTypeString)), nil
+			return middleware.Error(404, fmt.Errorf("queryType of type %s does not exist", queryTypeString)), nil
 		}
 
-		bodyData, ok := mapStruct["readBody"]
+		bodyData, ok := mapStruct["queryBody"]
 		if !ok {
-			return nil, errors.New("readBody parameter not found")
+			return nil, errors.New("queryBody parameter not found")
 		}
 		bodyDataAsMap, ok := bodyData.(map[string]interface{})
 		if !ok {
@@ -52,15 +52,15 @@ func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
 		//Huge hack.
 		//the json body comes in as a map.
 		//go-swagger validates all the data and shoves it into a map
-		//I can't get the relevant Request Type associated with the Read here
+		//I can't get the relevant Request Type associated with the Search here
 		//So I convert that map into raw json
-		//Then I have IRead.HandleReadRaw just output a rawJsonReply.
+		//Then I have IQuery.HandleQueryRaw just output a rawJsonReply.
 		//I convert that into a json.RawMessage which go-swagger will validate.
 		rawJsonBody, err := json.Marshal(bodyDataAsMap)
 		if err != nil {
 			return nil, err
 		}
-		rawJsonReply, err := outputType.HandleReadRaw(handler.w, rawJsonBody)
+		rawJsonReply, err := outputType.HandleQueryRaw(handler.w, rawJsonBody)
 		if err != nil {
 			return nil, err
 		}
@@ -75,8 +75,8 @@ func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
 		return endpoints, nil
 	})
 
-	personaHandler := createSwaggerQueryHandler[ReadPersonaSignerRequest, ReadPersonaSignerResponse](
-		"ReadPersonaSignerRequest",
+	personaHandler := createSwaggerQueryHandler[QueryPersonaSignerRequest, QueryPersonaSignerResponse](
+		"QueryPersonaSignerRequest",
 		handler.getPersonaSignerResponse)
 
 	receiptsHandler := createSwaggerQueryHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
@@ -112,7 +112,7 @@ func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
 
 		result := make([]cql.QueryResponse, 0)
 
-		ecs.NewQuery(resultFilter).Each(handler.w, func(id entity.ID) bool {
+		ecs.NewSearch(resultFilter).Each(handler.w, func(id entity.ID) bool {
 			components, err := handler.w.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false
@@ -123,14 +123,7 @@ func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
 			}
 
 			for _, c := range components {
-				var getter ecs.IGettableRawJsonFromEntityId
-				getter, ok = c.(ecs.IGettableRawJsonFromEntityId)
-				if !ok {
-					err = fmt.Errorf("%s is not serializeable to json", c.Name())
-					return false
-				}
-				var data json.RawMessage
-				data, err = getter.GetRawJson(handler.w, id)
+				data, err := ecs.GetRawJsonOfComponent(handler.w, c, id)
 				if err != nil {
 					return false
 				}
@@ -148,7 +141,7 @@ func (handler *Handler) registerReadHandlerSwagger(api *untyped.API) error {
 	})
 
 	api.RegisterOperation("POST", "/query/game/cql", cqlHandler)
-	api.RegisterOperation("POST", "/query/game/{readType}", queryHandler)
+	api.RegisterOperation("POST", "/query/game/{queryType}", queryHandler)
 	api.RegisterOperation("POST", "/query/http/endpoints", listHandler)
 	api.RegisterOperation("POST", "/query/persona/signer", personaHandler)
 	api.RegisterOperation("POST", "/query/receipts/list", receiptsHandler)

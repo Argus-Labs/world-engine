@@ -2,45 +2,45 @@ package cardinal
 
 import "pkg.world.dev/world-engine/cardinal/ecs"
 
-// AnyReadType is implemented by the return value of NewReadType and is used in RegisterReads; any
-// read operation creates by NewReadType can be registered with a World object via RegisterReads.
-type AnyReadType interface {
-	Convert() ecs.IRead
+// AnyQueryType is implemented by the return value of NewQueryType and is used in RegisterQueries; any
+// query operation creates by NewQueryType can be registered with a World object via RegisterQueries.
+type AnyQueryType interface {
+	Convert() ecs.IQuery
 }
 
-// ReadType represents a read operation on a world object. The state of the world object must not be
-// changed during the read operation.
-type ReadType[Request, Reply any] struct {
-	impl *ecs.ReadType[Request, Reply]
+// QueryType represents a query operation on a world object. The state of the world object must not be
+// changed during the query operation.
+type QueryType[Request, Reply any] struct {
+	impl *ecs.QueryType[Request, Reply]
 }
 
-// NewReadType creates a new instance of a ReadType. The World state must not be changed
+// NewQueryType creates a new instance of a QueryType. The World state must not be changed
 // in the given handler function.
-func NewReadType[Request any, Reply any](
+func NewQueryType[Request any, Reply any](
 	name string,
 	handler func(*World, Request) (Reply, error),
-) *ReadType[Request, Reply] {
-	return &ReadType[Request, Reply]{
-		impl: ecs.NewReadType[Request, Reply](name, func(world *ecs.World, req Request) (Reply, error) {
+) *QueryType[Request, Reply] {
+	return &QueryType[Request, Reply]{
+		impl: ecs.NewQueryType[Request, Reply](name, func(world *ecs.World, req Request) (Reply, error) {
 			outerWorld := &World{implWorld: world}
 			return handler(outerWorld, req)
 		}),
 	}
 }
 
-// NewReadTypeWithEVMSupport creates a new instance of a ReadType with EVM support, allowing this read to be called from
+// NewQueryTypeWithEVMSupport creates a new instance of a QueryType with EVM support, allowing this query to be called from
 // the EVM base shard. The World state must not be changed in the given handler function.
-func NewReadTypeWithEVMSupport[Request, Reply any](name string, handler func(*World, Request) (Reply, error)) *ReadType[Request, Reply] {
-	return &ReadType[Request, Reply]{
-		impl: ecs.NewReadType[Request, Reply](name, func(world *ecs.World, req Request) (Reply, error) {
+func NewQueryTypeWithEVMSupport[Request, Reply any](name string, handler func(*World, Request) (Reply, error)) *QueryType[Request, Reply] {
+	return &QueryType[Request, Reply]{
+		impl: ecs.NewQueryType[Request, Reply](name, func(world *ecs.World, req Request) (Reply, error) {
 			outerWorld := &World{implWorld: world}
 			return handler(outerWorld, req)
-		}, ecs.WithReadEVMSupport[Request, Reply]),
+		}, ecs.WithQueryEVMSupport[Request, Reply]),
 	}
 }
 
-// Convert implements the AnyReadType interface which allows a ReadType to be registered
-// with a World via RegisterReads.
-func (r *ReadType[Request, Reply]) Convert() ecs.IRead {
+// Convert implements the AnyQueryType interface which allows a QueryType to be registered
+// with a World via RegisterQueries.
+func (r *QueryType[Request, Reply]) Convert() ecs.IQuery {
 	return r.impl
 }

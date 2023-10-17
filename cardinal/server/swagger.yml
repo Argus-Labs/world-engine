@@ -116,7 +116,7 @@ paths:
                   schema:
                       $ref: '#/definitions/CQLRequest'
 
-    /query/game/{readType}:
+    /query/game/{queryType}:
         post:
             summary: Query the ecs
             description: Query the ecs
@@ -124,23 +124,23 @@ paths:
                 - application/json
             produces:
                 - application/json
-            operationId: read
+            operationId: query
             parameters:
-                - name: readType
+                - name: queryType
                   in: path
-                  description: The read type
+                  description: The query type
                   required: true
                   type: string
-                - name: readBody
+                - name: queryBody
                   required: true
                   in: body
                   schema: {}
             responses:
                 '200':
-                    description: read response
+                    description: query response
                     schema: {}
                 '400':
-                    description: Invalid read request
+                    description: Invalid query request
     /query/persona/signer:
         post:
             summary: Get persona data from cardinal
@@ -149,20 +149,20 @@ paths:
                 - application/json
             produces:
                 - application/json
-            operationId: read
+            operationId: query
             parameters:
-                - name: ReadPersonaSignerRequest
+                - name: QueryPersonaSignerRequest
                   required: true
                   in: body
                   schema:
-                      $ref: '#/definitions/ReadPersonaSignerRequest'
+                      $ref: '#/definitions/QueryPersonaSignerRequest'
             responses:
                 '200':
-                    description: read response
+                    description: query response
                     schema:
-                        $ref: '#/definitions/ReadPersonaSignerResponse'
+                        $ref: '#/definitions/QueryPersonaSignerResponse'
                 '400':
-                    description: Invalid read request
+                    description: Invalid query request
     /query/http/endpoints:
         post:
             summary: Get all http endpoints from cardinal
@@ -171,14 +171,14 @@ paths:
                 - application/json
             produces:
                 - application/json
-            operationId: read
+            operationId: query
             responses:
                 '200':
-                    description: list of read endpoints
+                    description: list of query endpoints
                     schema:
-                        $ref: '#/definitions/ReadListEndpoints'
+                        $ref: '#/definitions/QueryListEndpoints'
                 '400':
-                    description: Invalid read request
+                    description: Invalid query request
     /query/receipts/list:
         post:
             summary: Get transaction receipts from Cardinal
@@ -274,7 +274,7 @@ definitions:
         properties:
             success:
                 type: boolean
-    ReadPersonaSignerRequest:
+    QueryPersonaSignerRequest:
         type: object
         required:
             - personaTag
@@ -285,7 +285,7 @@ definitions:
             tick:
                 type: integer
                 format: int64
-    ReadPersonaSignerResponse:
+    QueryPersonaSignerResponse:
         type: object
         required:
             - status
@@ -295,7 +295,7 @@ definitions:
                 type: string
             signerAddress:
                 type: string
-    ReadListEndpoints:
+    QueryListEndpoints:
         type: object
         required:
             - txEndpoints

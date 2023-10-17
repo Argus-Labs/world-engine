@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 )
 
 func TestReadOnly_CanGetComponent(t *testing.T) {
@@ -33,19 +34,19 @@ func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 
 	testCases := []struct {
 		name  string
-		comps []component.IComponentType
+		comps []component_metadata.IComponentMetaData
 	}{
 		{
 			"just foo",
-			[]component.IComponentType{fooComp},
+			[]component_metadata.IComponentMetaData{fooComp},
 		},
 		{
 			"just bar",
-			[]component.IComponentType{barComp},
+			[]component_metadata.IComponentMetaData{barComp},
 		},
 		{
 			"foo and bar",
-			[]component.IComponentType{fooComp, barComp},
+			[]component_metadata.IComponentMetaData{fooComp, barComp},
 		},
 	}
 
@@ -79,22 +80,22 @@ func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 	testCases := []struct {
 		name        string
 		idsToCreate int
-		comps       []component.IComponentType
+		comps       []component_metadata.IComponentMetaData
 	}{
 		{
 			"only foo",
 			3,
-			[]component.IComponentType{fooComp},
+			[]component_metadata.IComponentMetaData{fooComp},
 		},
 		{
 			"only bar",
 			4,
-			[]component.IComponentType{barComp},
+			[]component_metadata.IComponentMetaData{barComp},
 		},
 		{
 			"foo and bar",
 			5,
-			[]component.IComponentType{fooComp, barComp},
+			[]component_metadata.IComponentMetaData{fooComp, barComp},
 		},
 	}
 
@@ -119,7 +120,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, manager.CommitPending())
 
-	fooArchID, err := manager.GetArchIDForComponents([]component.IComponentType{fooComp})
+	fooArchID, err := manager.GetArchIDForComponents([]component_metadata.IComponentMetaData{fooComp})
 	assert.NilError(t, err)
 
 	roManager := manager.NewReadOnlyStore()
@@ -137,7 +138,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(gotIDs))
 
-	bothArchID, err := roManager.GetArchIDForComponents([]component.IComponentType{fooComp, barComp})
+	bothArchID, err := roManager.GetArchIDForComponents([]component_metadata.IComponentMetaData{fooComp, barComp})
 	assert.NilError(t, err)
 
 	gotIDs, err = roManager.GetEntitiesForArchID(bothArchID)

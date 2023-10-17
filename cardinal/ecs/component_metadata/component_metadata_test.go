@@ -1,15 +1,15 @@
-package component_test
+package component_metadata_test
 
 import (
 	"testing"
 
 	"gotest.tools/v3/assert"
 
+	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	storage2 "pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -25,19 +25,19 @@ func TestComponents(t *testing.T) {
 	components := storage2.NewComponents(storage2.NewComponentsSliceStorage(), storage2.NewComponentIndexMap())
 
 	tests := []*struct {
-		comps   []component.IComponentType
+		comps   []component_metadata.IComponentMetaData
 		archID  archetype.ID
-		compIdx component.Index
+		compIdx component_metadata.Index
 		ID      string
 	}{
 		{
-			[]component.IComponentType{ca},
+			[]component_metadata.IComponentMetaData{ca},
 			0,
 			0,
 			"a",
 		},
 		{
-			[]component.IComponentType{ca, cb},
+			[]component_metadata.IComponentMetaData{ca, cb},
 			1,
 			1,
 			"b",
@@ -116,8 +116,8 @@ func (_ notFoundComp) Name() string {
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	assert.NilError(t, ecs.RegisterComponent[foundComp](world))
-	assert.NilError(t, ecs.RegisterComponent[notFoundComp](world))
+	ecs.MustRegisterComponent[foundComp](world)
+	ecs.MustRegisterComponent[notFoundComp](world)
 
 	id, err := ecs.Create(world, foundComp{})
 	assert.NilError(t, err)

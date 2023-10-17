@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -35,7 +37,7 @@ func (OwnableComponent) Name() string {
 
 func UpdateEnergySystem(w *ecs.World, tq *transaction.TxQueue, _ *log.Logger) error {
 	errs := []error{}
-	q, err := w.NewQuery(ecs.Contains(EnergyComponent{}))
+	q, err := w.NewSearch(ecs.Contains(EnergyComponent{}))
 	errs = append(errs, err)
 	q.Each(w, func(ent entity.ID) bool {
 		energyPlanet, err := ecs.GetComponent[EnergyComponent](w, ent)
@@ -58,8 +60,8 @@ func UpdateEnergySystem(w *ecs.World, tq *transaction.TxQueue, _ *log.Logger) er
 }
 
 var (
-	Energy  = ecs.NewComponentType[EnergyComponent]()
-	Ownable = ecs.NewComponentType[OwnableComponent]()
+	Energy  = component_metadata.NewComponentMetadata[EnergyComponent]()
+	Ownable = component_metadata.NewComponentMetadata[OwnableComponent]()
 )
 
 func TestECS(t *testing.T) {
@@ -80,7 +82,7 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	assert.NilError(t, world.Tick(context.Background()))
-	query, err := world.NewQuery(ecs.Contains(EnergyComponent{}))
+	query, err := world.NewSearch(ecs.Contains(EnergyComponent{}))
 	assert.NilError(t, err)
 	query.Each(world, func(id entity.ID) bool {
 		energyPlanet, err := ecs.GetComponent[EnergyComponent](world, id)
@@ -90,7 +92,7 @@ func TestECS(t *testing.T) {
 		return true
 	})
 
-	q, err := world.NewQuery(ecs.Or(ecs.Contains(EnergyComponent{}), ecs.Contains(OwnableComponent{})))
+	q, err := world.NewSearch(ecs.Or(ecs.Contains(EnergyComponent{}), ecs.Contains(OwnableComponent{})))
 	assert.NilError(t, err)
 	amt, err := q.Count(world)
 	assert.NilError(t, err)
@@ -129,7 +131,7 @@ func TestVelocitySimulation(t *testing.T) {
 	assert.NilError(t, ecs.SetComponent[Vel](world, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
-	velocityQuery, err := world.NewQuery(ecs.Contains(&Vel{}))
+	velocityQuery, err := world.NewSearch(ecs.Contains(&Vel{}))
 	assert.NilError(t, err)
 	velocityQuery.Each(world, func(id entity.ID) bool {
 		vel, err := ecs.GetComponent[Vel](world, id)
@@ -204,7 +206,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Make sure we find exactly 2 entries
 	count := 0
-	q, err := world.NewQuery(ecs.Contains(Tuple{}))
+	q, err := world.NewSearch(ecs.Contains(Tuple{}))
 	assert.NilError(t, err)
 	q.Each(world, func(id entity.ID) bool {
 		_, err := ecs.GetComponent[Tuple](world, id)
@@ -271,7 +273,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	// Pre-populate all the entities with their own IDs. This will help
 	// us keep track of which component belongs to which entity in the case
 	// of a problem
-	q, err := world.NewQuery(ecs.Contains(CountComponent{}))
+	q, err := world.NewSearch(ecs.Contains(CountComponent{}))
 	q.Each(world, func(id entity.ID) bool {
 		assert.NilError(t, ecs.SetComponent[CountComponent](world, id, &CountComponent{int(id)}))
 		//assert.NilError(t, Count.Set(world, id, CountComponent{int(id)}))
@@ -428,13 +430,13 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 		}
 	}
 	// 3 entities have alpha
-	alphaQuery, err := world.NewQuery(ecs.Contains(Alpha{}))
+	alphaQuery, err := world.NewSearch(ecs.Contains(Alpha{}))
 	assert.NilError(t, err)
 	alphaQuery.Each(world, countAgain())
 	assert.Equal(t, 3, count)
 
 	// 0 entities have gamma
-	gammaQuery, err := world.NewQuery(ecs.Contains(Gamma{}))
+	gammaQuery, err := world.NewSearch(ecs.Contains(Gamma{}))
 	assert.NilError(t, err)
 	gammaQuery.Each(world, countAgain())
 	assert.Equal(t, 0, count)
@@ -518,32 +520,32 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 
 	// Only one entity has the components a and b
 	abFilter := ecs.Contains(A{}, B{})
-	q, err := world.NewQuery(abFilter)
+	q, err := world.NewSearch(abFilter)
 	assert.NilError(t, err)
 	q.Each(world, func(id entity.ID) bool {
 		assert.Equal(t, id, ab)
 		return true
 	})
-	q, err = world.NewQuery(abFilter)
+	q, err = world.NewSearch(abFilter)
 	assert.NilError(t, err)
 	num, err := q.Count(world)
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
 	cdFilter := ecs.Contains(C{}, D{})
-	q, err = world.NewQuery(cdFilter)
+	q, err = world.NewSearch(cdFilter)
 	assert.NilError(t, err)
 	q.Each(world, func(id entity.ID) bool {
 		assert.Equal(t, id, cd)
 		return true
 	})
-	q, err = world.NewQuery(abFilter)
+	q, err = world.NewSearch(abFilter)
 	assert.NilError(t, err)
 	num, err = q.Count(world)
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
-	q, err = world.NewQuery(ecs.Or(ecs.Contains(A{}), ecs.Contains(D{})))
+	q, err = world.NewSearch(ecs.Or(ecs.Contains(A{}), ecs.Contains(D{})))
 	assert.NilError(t, err)
 	allCount, err := q.Count(world)
 	assert.NilError(t, err)

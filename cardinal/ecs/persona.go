@@ -92,7 +92,7 @@ type personaTagComponentData struct {
 func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, error) {
 	personaTagToAddress := map[string]personaTagComponentData{}
 	var errs []error
-	q, err := world.NewQuery(Exact(SignerComponent{}))
+	q, err := world.NewSearch(Exact(SignerComponent{}))
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +168,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 		return "", ErrorCreatePersonaTxsNotProcessed
 	}
 	var errs []error
-	q, err := w.NewQuery(Exact(SignerComponent{}))
+	q, err := w.NewSearch(Exact(SignerComponent{}))
 	if err != nil {
 		return "", err
 	}

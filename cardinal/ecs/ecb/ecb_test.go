@@ -8,7 +8,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -55,9 +55,9 @@ func (Bar) Name() string {
 }
 
 var (
-	fooComp       = ecs.NewComponentType[Foo]()
-	barComp       = ecs.NewComponentType[Bar]()
-	allComponents = []component.IComponentType{fooComp, barComp}
+	fooComp       = component_metadata.NewComponentMetadata[Foo]()
+	barComp       = component_metadata.NewComponentMetadata[Bar]()
+	allComponents = []component_metadata.IComponentMetaData{fooComp, barComp}
 )
 
 func init() {
@@ -328,7 +328,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 
 	for _, tc := range testCases {
 		found := map[entity.ID]bool{}
-		q, err := world.NewQuery(tc.filter)
+		q, err := world.NewSearch(tc.filter)
 		assert.NilError(t, err)
 		q.Each(world, func(id entity.ID) bool {
 			found[id] = true
@@ -384,9 +384,9 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 	_, err = manager.CreateManyEntities(startEntityCount, fooComp, barComp)
 	assert.NilError(t, err)
 
-	fooArchID, err := manager.GetArchIDForComponents([]component.IComponentType{fooComp})
+	fooArchID, err := manager.GetArchIDForComponents([]component_metadata.IComponentMetaData{fooComp})
 	assert.NilError(t, err)
-	bothArchID, err := manager.GetArchIDForComponents([]component.IComponentType{barComp, fooComp})
+	bothArchID, err := manager.GetArchIDForComponents([]component_metadata.IComponentMetaData{barComp, fooComp})
 	assert.NilError(t, err)
 
 	// Make sure there are the correct number of ids in each archetype to start

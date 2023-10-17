@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
@@ -32,6 +32,10 @@ import (
 // Namespace is a unique identifier for a world.
 type Namespace string
 
+func (n Namespace) String() string {
+	return string(n)
+}
+
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
@@ -40,10 +44,10 @@ type World struct {
 	systemLoggers            []*ecslog.Logger
 	systemNames              []string
 	tick                     uint64
-	nameToComponent          map[string]IComponentType
-	registeredComponents     []IComponentType
+	nameToComponent          map[string]component_metadata.IComponentMetaData
+	registeredComponents     []component_metadata.IComponentMetaData
 	registeredTransactions   []transaction.ITransaction
-	registeredReads          []IRead
+	registeredQueries        []IQuery
 	isComponentsRegistered   bool
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
@@ -52,7 +56,7 @@ type World struct {
 
 	receiptHistory *receipt.History
 
-	chain shard.ReadAdapter
+	chain shard.QueryAdapter
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering bool
@@ -62,18 +66,22 @@ type World struct {
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
 
-	nextComponentID component.TypeID
+	nextComponentID component_metadata.TypeID
 }
 
 var (
 	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
 	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
 	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
-	ErrorDuplicateReadName                     = errors.New("read names must be unique")
+	ErrorDuplicateQueryName                    = errors.New("query names must be unique")
 )
 
 func (w *World) IsRecovering() bool {
 	return w.isRecovering
+}
+
+func (w *World) Namespace() Namespace {
+	return w.namespace
 }
 
 func (w *World) StoreManager() store.IManager {
@@ -110,7 +118,7 @@ func (w *World) AddSystems(s ...System) {
 	}
 }
 
-func RegisterComponent[T component.IAbstractComponent](world *World) error {
+func RegisterComponent[T component_metadata.Component](world *World) error {
 	if world.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
@@ -119,7 +127,7 @@ func RegisterComponent[T component.IAbstractComponent](world *World) error {
 	if err == nil {
 		return fmt.Errorf("component with name '%s' is already registered", t.Name())
 	}
-	c := NewComponentType[T]()
+	c := component_metadata.NewComponentMetadata[T]()
 	err = c.SetID(world.nextComponentID)
 	if err != nil {
 		return err
@@ -131,7 +139,14 @@ func RegisterComponent[T component.IAbstractComponent](world *World) error {
 	return nil
 }
 
-func (w *World) GetComponentByName(name string) (IComponentType, error) {
+func MustRegisterComponent[T component_metadata.Component](world *World) {
+	err := RegisterComponent[T](world)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (w *World) GetComponentByName(name string) (component_metadata.IComponentMetaData, error) {
 	componentType, exists := w.nameToComponent[name]
 	if !exists {
 		return nil, fmt.Errorf("Component with name %s not found. Must register component before using", name)
@@ -139,18 +154,18 @@ func (w *World) GetComponentByName(name string) (IComponentType, error) {
 	return componentType, nil
 }
 
-func (w *World) RegisterReads(reads ...IRead) error {
+func (w *World) RegisterQueries(queries ...IQuery) error {
 	if w.stateIsLoaded {
-		panic("cannot register reads after loading game state")
+		panic("cannot register queries after loading game state")
 	}
-	w.registeredReads = append(w.registeredReads, reads...)
-	seenReadNames := map[string]struct{}{}
-	for _, t := range w.registeredReads {
+	w.registeredQueries = append(w.registeredQueries, queries...)
+	seenQueryNames := map[string]struct{}{}
+	for _, t := range w.registeredQueries {
 		name := t.Name()
-		if _, ok := seenReadNames[name]; ok {
-			return fmt.Errorf("duplicate read %q: %w", name, ErrorDuplicateReadName)
+		if _, ok := seenQueryNames[name]; ok {
+			return fmt.Errorf("duplicate query %q: %w", name, ErrorDuplicateQueryName)
 		}
-		seenReadNames[name] = struct{}{}
+		seenQueryNames[name] = struct{}{}
 	}
 	return nil
 }
@@ -189,8 +204,8 @@ func (w *World) registerInternalTransactions() {
 	)
 }
 
-func (w *World) ListReads() []IRead {
-	return w.registeredReads
+func (w *World) ListQueries() []IQuery {
+	return w.registeredQueries
 }
 
 func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
@@ -212,7 +227,7 @@ func NewWorld(s storage.WorldStorage, sm store.IManager, opts ...Option) (*World
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
-		nameToComponent:   make(map[string]IComponentType),
+		nameToComponent:   make(map[string]component_metadata.IComponentMetaData),
 		txQueue:           transaction.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
@@ -333,8 +348,8 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 	if !w.isTransactionsRegistered {
 		w.Logger.Warn().Msg("No transactions registered.")
 	}
-	if len(w.registeredReads) == 0 {
-		w.Logger.Warn().Msg("No reads registered.")
+	if len(w.registeredQueries) == 0 {
+		w.Logger.Warn().Msg("No queries registered.")
 	}
 	if len(w.systems) == 0 {
 		w.Logger.Warn().Msg("No systems registered.")
@@ -453,7 +468,7 @@ func (w *World) LoadGameState() error {
 	return nil
 }
 
-func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []IComponentType) error {
+func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []component_metadata.IComponentMetaData) error {
 	buf, ok, err := w.store.StateStore.Load(key)
 	if !ok {
 		// There is no saved data for this key
@@ -468,7 +483,7 @@ func (w *World) nextEntity() (entity.ID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 
-func (w *World) insertArchetype(comps []IComponentType) archetype.ID {
+func (w *World) insertArchetype(comps []component_metadata.IComponentMetaData) archetype.ID {
 	w.store.ArchCompIdxStore.Push(comps)
 	archID := archetype.ID(w.store.ArchAccessor.Count())
 
@@ -494,7 +509,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	defer func() {
 		w.isRecovering = false
 	}()
-	namespace := w.Namespace()
+	namespace := w.Namespace().String()
 	var nextKey []byte
 	for {
 		res, err := w.chain.QueryTransactions(ctx, &types.QueryTransactionsRequest{
@@ -584,11 +599,6 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 	return itx
 }
 
-// Namespace returns the world's namespace.
-func (w *World) Namespace() string {
-	return string(w.namespace)
-}
-
 func (w *World) GetNonce(signerAddress string) (uint64, error) {
 	return w.store.NonceStore.GetNonce(signerAddress)
 }
@@ -617,7 +627,7 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, e
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) GetComponents() []IComponentType {
+func (w *World) GetComponents() []component_metadata.IComponentMetaData {
 	return w.registeredComponents
 }
 
@@ -630,10 +640,10 @@ func (w *World) InjectLogger(logger *ecslog.Logger) {
 	w.StoreManager().InjectLogger(logger)
 }
 
-func (w *World) NewQuery(filter Filterable) (*Query, error) {
+func (w *World) NewSearch(filter Filterable) (*Search, error) {
 	componentFilter, err := filter.ConvertToComponentFilter(w)
 	if err != nil {
 		return nil, err
 	}
-	return NewQuery(componentFilter), nil
+	return NewSearch(componentFilter), nil
 }

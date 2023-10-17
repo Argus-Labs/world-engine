@@ -56,7 +56,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 	world.InjectLogger(&ecslog.Logger{&disabledLogger})
 	if enableHealthSystem {
 		world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, logger *ecslog.Logger) error {
-			q, err := world.NewQuery(ecs.Contains(Health{}))
+			q, err := world.NewSearch(ecs.Contains(Health{}))
 			assert.NilError(t, err)
 			q.Each(w, func(id entity.ID) bool {
 				health, err := ecs.GetComponent[Health](w, id)
