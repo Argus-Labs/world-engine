@@ -8,10 +8,11 @@ import (
 	"context"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
-	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -33,7 +34,7 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 
 	manager, err := NewManager(client)
 	assert.NilError(t, err)
-	manager.RegisterComponents([]component.IComponentType{alphaComp, betaComp})
+	manager.RegisterComponents([]component_metadata.IComponentMetaData{alphaComp, betaComp})
 
 	id, err := manager.CreateEntity(alphaComp, betaComp)
 	assert.NilError(t, err)

@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
@@ -32,6 +32,10 @@ import (
 // Namespace is a unique identifier for a world.
 type Namespace string
 
+func (n Namespace) String() string {
+	return string(n)
+}
+
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
@@ -40,8 +44,8 @@ type World struct {
 	systemLoggers            []*ecslog.Logger
 	systemNames              []string
 	tick                     uint64
-	nameToComponent          map[string]IComponentType
-	registeredComponents     []IComponentType
+	nameToComponent          map[string]component_metadata.IComponentMetaData
+	registeredComponents     []component_metadata.IComponentMetaData
 	registeredTransactions   []transaction.ITransaction
 	registeredQueries        []IQuery
 	isComponentsRegistered   bool
@@ -62,7 +66,7 @@ type World struct {
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
 
-	nextComponentID component.TypeID
+	nextComponentID component_metadata.TypeID
 }
 
 var (
@@ -74,6 +78,10 @@ var (
 
 func (w *World) IsRecovering() bool {
 	return w.isRecovering
+}
+
+func (w *World) Namespace() Namespace {
+	return w.namespace
 }
 
 func (w *World) StoreManager() store.IManager {
@@ -110,7 +118,7 @@ func (w *World) AddSystems(s ...System) {
 	}
 }
 
-func RegisterComponent[T component.IAbstractComponent](world *World) error {
+func RegisterComponent[T component_metadata.Component](world *World) error {
 	if world.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
@@ -119,7 +127,7 @@ func RegisterComponent[T component.IAbstractComponent](world *World) error {
 	if err == nil {
 		return fmt.Errorf("component with name '%s' is already registered", t.Name())
 	}
-	c := NewComponentType[T]()
+	c := component_metadata.NewComponentMetadata[T]()
 	err = c.SetID(world.nextComponentID)
 	if err != nil {
 		return err
@@ -131,14 +139,14 @@ func RegisterComponent[T component.IAbstractComponent](world *World) error {
 	return nil
 }
 
-func MustRegisterComponent[T component.IAbstractComponent](world *World) {
+func MustRegisterComponent[T component_metadata.Component](world *World) {
 	err := RegisterComponent[T](world)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (w *World) GetComponentByName(name string) (IComponentType, error) {
+func (w *World) GetComponentByName(name string) (component_metadata.IComponentMetaData, error) {
 	componentType, exists := w.nameToComponent[name]
 	if !exists {
 		return nil, fmt.Errorf("Component with name %s not found. Must register component before using", name)
@@ -219,7 +227,7 @@ func NewWorld(s storage.WorldStorage, sm store.IManager, opts ...Option) (*World
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
-		nameToComponent:   make(map[string]IComponentType),
+		nameToComponent:   make(map[string]component_metadata.IComponentMetaData),
 		txQueue:           transaction.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
@@ -460,7 +468,7 @@ func (w *World) LoadGameState() error {
 	return nil
 }
 
-func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []IComponentType) error {
+func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []component_metadata.IComponentMetaData) error {
 	buf, ok, err := w.store.StateStore.Load(key)
 	if !ok {
 		// There is no saved data for this key
@@ -475,7 +483,7 @@ func (w *World) nextEntity() (entity.ID, error) {
 	return w.store.EntityMgr.NewEntity()
 }
 
-func (w *World) insertArchetype(comps []IComponentType) archetype.ID {
+func (w *World) insertArchetype(comps []component_metadata.IComponentMetaData) archetype.ID {
 	w.store.ArchCompIdxStore.Push(comps)
 	archID := archetype.ID(w.store.ArchAccessor.Count())
 
@@ -501,7 +509,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	defer func() {
 		w.isRecovering = false
 	}()
-	namespace := w.Namespace()
+	namespace := w.Namespace().String()
 	var nextKey []byte
 	for {
 		res, err := w.chain.QueryTransactions(ctx, &types.QueryTransactionsRequest{
@@ -591,11 +599,6 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 	return itx
 }
 
-// Namespace returns the world's namespace.
-func (w *World) Namespace() string {
-	return string(w.namespace)
-}
-
 func (w *World) GetNonce(signerAddress string) (uint64, error) {
 	return w.store.NonceStore.GetNonce(signerAddress)
 }
@@ -624,7 +627,7 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, e
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) GetComponents() []IComponentType {
+func (w *World) GetComponents() []component_metadata.IComponentMetaData {
 	return w.registeredComponents
 }
 

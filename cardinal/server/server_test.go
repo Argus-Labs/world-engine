@@ -303,7 +303,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	assert.NilError(t, err)
 	payload := &sign.SignedPayload{
 		PersonaTag: "meow",
-		Namespace:  w.Namespace(),
+		Namespace:  w.Namespace().String(),
 		Nonce:      40,
 		Signature:  "doesnt matter what goes in here",
 		Body:       bz,
@@ -594,7 +594,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 		SignerAddress: signerAddr,
 	}
 
-	signedPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace(), 100, createPersonaTx)
+	signedPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace().String(), 100, createPersonaTx)
 	assert.NilError(t, err)
 
 	bz, err := signedPayload.Marshal()
@@ -671,7 +671,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// The namespace now matches the world
-	sigPayload, err = sign.NewSystemSignedPayload(privateKey, world.Namespace(), 100, createPersonaTx)
+	sigPayload, err = sign.NewSystemSignedPayload(privateKey, world.Namespace().String(), 100, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -691,7 +691,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 
 	personaTag := "some_dude"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	namespace := world.Namespace()
+	namespace := world.Namespace().String()
 
 	createPersonaTx := ecs.CreatePersonaTransaction{
 		PersonaTag:    personaTag,
@@ -1070,7 +1070,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 
 	personaTag := "clifford_the_big_red_dog"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	namespace := world.Namespace()
+	namespace := world.Namespace().String()
 	nonce := uint64(99)
 
 	createPersonaTx := ecs.CreatePersonaTransaction{
@@ -1151,7 +1151,7 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	assert.NilError(t, err)
 	personaTag := "clifford_the_big_red_dog"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	sigPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace(), 1, ecs.CreatePersonaTransaction{
+	sigPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace().String(), 1, ecs.CreatePersonaTransaction{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	})
@@ -1164,7 +1164,7 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, adapter.called, 1)
 
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, world.Namespace(), 2, MoveTx{Direction: "up"})
+	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, world.Namespace().String(), 2, MoveTx{Direction: "up"})
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -1193,7 +1193,7 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 	assert.NilError(t, err)
 	personaTag := "clifford_the_big_red_dog"
 
-	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, world.Namespace(), 2, MoveTx{Direction: "up"})
+	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, world.Namespace().String(), 2, MoveTx{Direction: "up"})
 	assert.NilError(t, err)
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)

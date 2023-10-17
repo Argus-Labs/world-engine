@@ -123,14 +123,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 			}
 
 			for _, c := range components {
-				var getter ecs.IGettableRawJsonFromEntityId
-				getter, ok = c.(ecs.IGettableRawJsonFromEntityId)
-				if !ok {
-					err = fmt.Errorf("%s is not serializeable to json", c.Name())
-					return false
-				}
-				var data json.RawMessage
-				data, err = getter.GetRawJson(handler.w, id)
+				data, err := ecs.GetRawJsonOfComponent(handler.w, c, id)
 				if err != nil {
 					return false
 				}

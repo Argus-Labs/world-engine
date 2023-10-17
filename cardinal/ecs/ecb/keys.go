@@ -4,12 +4,12 @@ import (
 	"fmt"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
 // redisComponentKey is the key that maps an entity ID and a specific component ID to the value of that component.
-func redisComponentKey(typeID component.TypeID, id entity.ID) string {
+func redisComponentKey(typeID component_metadata.TypeID, id entity.ID) string {
 	return fmt.Sprintf("ECB:COMPONENT-VALUE:TYPE-ID-%d:ENTITY-ID-%d", typeID, id)
 }
 
@@ -34,7 +34,7 @@ func redisActiveEntityIDKey(archID archetype.ID) string {
 }
 
 // redisArchIDsToCompTypesKey is the key that stores the map of archetype IDs to its relevant set of component types
-// (in the form of []component.ID). To recover the actual IComponentType information, a slice of active IComponentType
+// (in the form of []component.ID). To recover the actual IComponentMetaData information, a slice of active IComponentMetaData
 // must be used.
 func redisArchIDsToCompTypesKey() string {
 	return "ECB:ARCHETYPE-ID-TO-COMPONENT-TYPES"

@@ -54,7 +54,7 @@ func TestSystemExecutionOrder(t *testing.T) {
 func TestSetNamespace(t *testing.T) {
 	id := "foo"
 	w := ecs.NewTestWorld(t, ecs.WithNamespace(id))
-	assert.Equal(t, w.Namespace(), id)
+	assert.Equal(t, w.Namespace().String(), id)
 }
 
 func TestWithoutRegistration(t *testing.T) {

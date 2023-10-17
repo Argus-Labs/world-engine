@@ -6,7 +6,9 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -58,8 +60,8 @@ func UpdateEnergySystem(w *ecs.World, tq *transaction.TxQueue, _ *log.Logger) er
 }
 
 var (
-	Energy  = ecs.NewComponentType[EnergyComponent]()
-	Ownable = ecs.NewComponentType[OwnableComponent]()
+	Energy  = component_metadata.NewComponentMetadata[EnergyComponent]()
+	Ownable = component_metadata.NewComponentMetadata[OwnableComponent]()
 )
 
 func TestECS(t *testing.T) {
