@@ -26,7 +26,7 @@ type receiptNotifier struct {
 	// txHashToTargetInto maps a specific transaction hash to a user ID. A timestamp is also tracked so "stale" transaction
 	// can be cleaned up.
 	txHashToTargetInfo map[string]targetInfo
-	// newTxHash is a channel that takes in txHash/userID tuples. An item on this channel signalts to the receiptNotifier
+	// newTxHash is a channel that takes in txHash/userID tuples. An item on this channel signals to the receiptNotifier
 	// that the given user ID must be informed about the given transaction.
 	newTxHash chan txHashAndUser
 	// staleDuration is how much time has to pass before an undelivered notification is treated as stale.
