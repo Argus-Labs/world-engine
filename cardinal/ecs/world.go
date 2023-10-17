@@ -32,6 +32,10 @@ import (
 // Namespace is a unique identifier for a world.
 type Namespace string
 
+func (n Namespace) String() string {
+	return string(n)
+}
+
 type World struct {
 	namespace                Namespace
 	store                    storage.WorldStorage
@@ -505,7 +509,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	defer func() {
 		w.isRecovering = false
 	}()
-	namespace := w.NamespaceAsString()
+	namespace := w.Namespace().String()
 	var nextKey []byte
 	for {
 		res, err := w.chain.QueryTransactions(ctx, &types.QueryTransactionsRequest{
@@ -593,11 +597,6 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 		}
 	}
 	return itx
-}
-
-// Namespace returns the world's namespace.
-func (w *World) NamespaceAsString() string {
-	return string(w.namespace)
 }
 
 func (w *World) GetNonce(signerAddress string) (uint64, error) {

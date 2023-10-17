@@ -45,8 +45,8 @@ func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, i
 	///////////////////////////////////////////////
 
 	// Check that the namespace is correct
-	if sp.Namespace != handler.w.NamespaceAsString() {
-		return nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, handler.w.NamespaceAsString())
+	if sp.Namespace != handler.w.Namespace().String() {
+		return nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, handler.w.Namespace().String())
 	}
 	if isSystemTransaction && !sp.IsSystemPayload() {
 		return nil, ErrorSystemTransactionRequired
