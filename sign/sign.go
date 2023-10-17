@@ -27,12 +27,12 @@ var (
 const SystemPersonaTag = "SystemPersonaTag"
 
 type SignedPayload struct {
-	PersonaTag string
-	Namespace  string
-	Nonce      uint64
-	Signature  string          // hex encoded string
-	Hash       common.Hash     `mapstructure:",omitempty"`
-	Body       json.RawMessage // json string
+	PersonaTag string          `json:"personaTag"`
+	Namespace  string          `json:"namespace"`
+	Nonce      uint64          `json:"nonce"`
+	Signature  string          `json:"signature"` // hex encoded string
+	Hash       common.Hash     `json:"hash"mapstructure:",omitempty"`
+	Body       json.RawMessage `json:"body"` // json string
 }
 
 func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
@@ -66,24 +66,24 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 func MappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error) {
 	s := new(SignedPayload)
 	signedPayloadKeys := map[string]bool{
-		"PersonaTag": true,
-		"Namespace":  true,
-		"Signature":  true,
-		"Nonce":      true,
-		"Body":       true,
-		"Hash":       true,
+		"personaTag": true,
+		"namespace":  true,
+		"signature":  true,
+		"nonce":      true,
+		"body":       true,
+		"hash":       true,
 	}
 	for key, _ := range payload {
 		if !signedPayloadKeys[key] {
 			return nil, errors.New(fmt.Sprintf("invalid field: %s in body", key))
 		}
 	}
-	serializedBody, err := json.Marshal(payload["Body"])
+	serializedBody, err := json.Marshal(payload["body"])
 	if err != nil {
 		return nil, err
 	}
-	delete(payload, "Hash")
-	delete(payload, "Body")
+	delete(payload, "hash")
+	delete(payload, "body")
 	err = mapstructure.Decode(payload, s)
 	if err != nil {
 		return nil, err

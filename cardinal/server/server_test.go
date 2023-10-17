@@ -138,7 +138,7 @@ func TestHealthEndpoint(t *testing.T) {
 	resp, err := http.Get("http://localhost:4040/health")
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
-	var healthResponse HealthResponse
+	var healthResponse HealthReply
 	err = json.NewDecoder(resp.Body).Decode(&healthResponse)
 	assert.NilError(t, err)
 	assert.Assert(t, healthResponse.IsServerRunning)
@@ -258,7 +258,7 @@ func TestCanListTransactionEndpoints(t *testing.T) {
 		"/tx/game/gamma": false,
 	}
 
-	for _, e := range gotEndpoints["tx_endpoints"] {
+	for _, e := range gotEndpoints["txEndpoints"] {
 		if _, ok := foundEndpoints[e]; ok {
 			foundEndpoints[e] = true
 		}
@@ -776,8 +776,8 @@ func TestCanListQueries(t *testing.T) {
 		"/query/receipt/list",
 		"/query/game/cql",
 	}
-	assert.Equal(t, len(endpoints), len(gotEndpoints["query_endpoints"]))
-	for i, e := range gotEndpoints["query_endpoints"] {
+	assert.Equal(t, len(endpoints), len(gotEndpoints["queryEndpoints"]))
+	for i, e := range gotEndpoints["queryEndpoints"] {
 		assert.Equal(t, e, endpoints[i])
 	}
 }
