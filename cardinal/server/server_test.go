@@ -1254,8 +1254,6 @@ func TestEvents(t *testing.T) {
 	for i, dialer := range dialers {
 		_ = i
 		for j := 0; j < numberToTest; j++ {
-			//err := dialer.SetReadDeadline(time.Now().Add(3 * time.Second))
-			//assert.NilError(t, err)
 			mode, message, err := dialer.ReadMessage()
 			assert.NilError(t, err)
 			assert.Equal(t, mode, websocket.TextMessage)
@@ -1263,5 +1261,5 @@ func TestEvents(t *testing.T) {
 			fmt.Println(string(message))
 		}
 	}
-	//txh.eventHub.Shutdown <- true
+	txh.eventHub.Shutdown <- true
 }
