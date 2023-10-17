@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
@@ -99,13 +100,13 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
 func (w *World) CreateMany(num int, components ...component_metadata.Component) ([]EntityID, error) {
-	return ecs.CreateMany(w.implWorld, num, components...)
+	return component.CreateMany(w.implWorld, num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
 func (w *World) Create(components ...component_metadata.Component) (EntityID, error) {
-	return ecs.Create(w.implWorld, components...)
+	return component.Create(w.implWorld, components...)
 }
 
 // Remove removes the given entity id from the world.

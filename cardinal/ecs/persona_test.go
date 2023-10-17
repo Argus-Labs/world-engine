@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/sign"
 
@@ -40,7 +41,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	assert.NilError(t, err)
 	q.Each(world, func(id entity.ID) bool {
 		count++
-		sc, err := ecs.GetComponent[ecs.SignerComponent](world, id)
+		sc, err := component.GetComponent[ecs.SignerComponent](world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantAddress)
@@ -144,7 +145,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	assert.NilError(t, err)
 	q.Each(world, func(id entity.ID) bool {
 		count++
-		sc, err := ecs.GetComponent[ecs.SignerComponent](world, id)
+		sc, err := component.GetComponent[ecs.SignerComponent](world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantSigner)

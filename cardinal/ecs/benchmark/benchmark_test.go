@@ -10,6 +10,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/rs/zerolog"
+	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -59,10 +60,10 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 			q, err := world.NewSearch(ecs.Contains(Health{}))
 			assert.NilError(t, err)
 			q.Each(w, func(id entity.ID) bool {
-				health, err := ecs.GetComponent[Health](w, id)
+				health, err := component.GetComponent[Health](w, id)
 				assert.NilError(t, err)
 				health.Value++
-				assert.NilError(t, ecs.SetComponent[Health](w, id, health))
+				assert.NilError(t, component.SetComponent[Health](w, id, health))
 				return true
 			})
 			return nil
@@ -71,7 +72,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 
 	assert.NilError(t, ecs.RegisterComponent[Health](world))
 	assert.NilError(t, world.LoadGameState())
-	_, err := ecs.CreateMany(world, numOfEntities, Health{})
+	_, err := component.CreateMany(world, numOfEntities, Health{})
 	assert.NilError(t, err)
 	// Perform a game tick to ensure the newly created entities have been committed to the DB
 	ctx := context.Background()

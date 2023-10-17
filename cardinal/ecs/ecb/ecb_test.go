@@ -7,6 +7,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
+	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
@@ -293,11 +294,11 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Power](world))
 	assert.NilError(t, world.LoadGameState())
 
-	justHealthIDs, err := ecs.CreateMany(world, 8, Health{})
+	justHealthIDs, err := component.CreateMany(world, 8, Health{})
 	assert.NilError(t, err)
-	justPowerIDs, err := ecs.CreateMany(world, 9, Power{})
+	justPowerIDs, err := component.CreateMany(world, 9, Power{})
 	assert.NilError(t, err)
-	healthAndPowerIDs, err := ecs.CreateMany(world, 10, Health{}, Power{})
+	healthAndPowerIDs, err := component.CreateMany(world, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
 	testCases := []struct {
