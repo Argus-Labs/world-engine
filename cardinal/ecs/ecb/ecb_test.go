@@ -328,7 +328,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 
 	for _, tc := range testCases {
 		found := map[entity.ID]bool{}
-		q, err := world.NewQuery(tc.filter)
+		q, err := world.NewSearch(tc.filter)
 		assert.NilError(t, err)
 		q.Each(world, func(id entity.ID) bool {
 			found[id] = true

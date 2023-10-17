@@ -1,115 +1,213 @@
 package ecs
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"reflect"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/invopop/jsonschema"
 )
 
-type cache struct {
-	archetypes []archetype.ID
-	seen       int
+type IQuery interface {
+	// Name returns the name of the query.
+	Name() string
+	// HandleQuery handles queries with concrete types, rather than encoded bytes.
+	HandleQuery(*World, any) (any, error)
+	// HandleQueryRaw is given a reference to the world, json encoded bytes that represent a query request
+	// and is expected to return a json encoded response struct.
+	HandleQueryRaw(*World, []byte) ([]byte, error)
+	// Schema returns the json schema of the query request.
+	Schema() (request, reply *jsonschema.Schema)
+	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
+	DecodeEVMRequest([]byte) (any, error)
+	// EncodeEVMReply encodes the reply as an abi encoded struct.
+	EncodeEVMReply(any) ([]byte, error)
+	// DecodeEVMReply decodes EVM reply bytes, into the concrete go reply type.
+	DecodeEVMReply([]byte) (any, error)
+	// EncodeAsABI encodes a go struct in abi format. This is mostly used for testing.
+	EncodeAsABI(any) ([]byte, error)
 }
 
-// Query represents a query for entities.
-// It is used to filter entities based on their components.
-// It receives arbitrary filters that are used to filter entities.
-// It contains a cache that is used to avoid re-evaluating the query.
-// So it is not recommended to create a new query every time you want
-// to filter entities with the same query.
-type Query struct {
-	archMatches map[Namespace]*cache
-	filter      filter.ComponentFilter
+type QueryType[Request any, Reply any] struct {
+	name       string
+	handler    func(world *World, req Request) (Reply, error)
+	requestABI *abi.Type
+	replyABI   *abi.Type
 }
 
-// NewQuery creates a new query.
-// It receives arbitrary filters that are used to filter entities.
-func NewQuery(filter filter.ComponentFilter) *Query {
-	return &Query{
-		archMatches: make(map[Namespace]*cache),
-		filter:      filter,
-	}
-}
-
-type QueryCallBackFn func(entity.ID) bool
-
-// Each iterates over all entities that match the query.
-// If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (q *Query) Each(w *World, callback QueryCallBackFn) error {
-	result := q.evaluateQuery(w.Namespace(), w.StoreManager())
-	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
-	for iter.HasNext() {
-		entities, err := iter.Next()
+func WithQueryEVMSupport[Request, Reply any]() func(transactionType *QueryType[Request, Reply]) {
+	return func(query *QueryType[Request, Reply]) {
+		var req Request
+		var rep Reply
+		reqABI, err := GenerateABIType(req)
 		if err != nil {
-			return err
+			panic(err)
 		}
-		for _, id := range entities {
-			cont := callback(id)
-			if !cont {
-				return nil
-			}
+		repABI, err := GenerateABIType(rep)
+		if err != nil {
+			panic(err)
 		}
+		query.requestABI = reqABI
+		query.replyABI = repABI
 	}
+}
+
+var _ IQuery = NewQueryType[struct{}, struct{}]("", nil)
+
+func NewQueryType[Request any, Reply any](
+	name string,
+	handler func(world *World, req Request) (Reply, error),
+	opts ...func() func(queryType *QueryType[Request, Reply]),
+) *QueryType[Request, Reply] {
+	var req Request
+	var rep Reply
+	reqType := reflect.TypeOf(req)
+	reqKind := reqType.Kind()
+	reqValid := false
+	if (reqKind == reflect.Pointer && reqType.Elem().Kind() == reflect.Struct) || reqKind == reflect.Struct {
+		reqValid = true
+	}
+	repType := reflect.TypeOf(rep)
+	repKind := reqType.Kind()
+	repValid := false
+	if (repKind == reflect.Pointer && repType.Elem().Kind() == reflect.Struct) || repKind == reflect.Struct {
+		repValid = true
+	}
+
+	if !repValid || !reqValid {
+		panic(fmt.Sprintf("Invalid QueryType: %s: The Request and Reply must be both structs", name))
+	}
+	r := &QueryType[Request, Reply]{
+		name:    name,
+		handler: handler,
+	}
+	for _, opt := range opts {
+		opt()(r)
+	}
+	return r
+}
+
+func (r *QueryType[Request, Reply]) generateABIBindings() error {
+	var req Request
+	reqABI, err := GenerateABIType(req)
+	if err != nil {
+		return fmt.Errorf("error generating request ABI binding: %w", err)
+	}
+	var rep Reply
+	repABI, err := GenerateABIType(rep)
+	if err != nil {
+		return fmt.Errorf("error generating reply ABI binding: %w", err)
+	}
+	r.requestABI = reqABI
+	r.replyABI = repABI
 	return nil
 }
 
-// Count returns the number of entities that match the query.
-func (q *Query) Count(w *World) (int, error) {
-	result := q.evaluateQuery(w.Namespace(), w.StoreManager())
-	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
-	ret := 0
-	for iter.HasNext() {
-		entities, err := iter.Next()
-		if err != nil {
-			return 0, err
-		}
-		ret += len(entities)
-	}
-	return ret, nil
+func (r *QueryType[req, rep]) Name() string {
+	return r.name
 }
 
-// First returns the first entity that matches the query.
-func (q *Query) First(w *World) (id entity.ID, err error) {
-	result := q.evaluateQuery(w.Namespace(), w.StoreManager())
-	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
-	if !iter.HasNext() {
-		return storage.BadID, err
-	}
-	for iter.HasNext() {
-		entities, err := iter.Next()
-		if err != nil {
-			return 0, err
-		}
-		if len(entities) > 0 {
-			return entities[0], nil
-		}
-	}
-	return storage.BadID, err
+func (r *QueryType[req, rep]) Schema() (request, reply *jsonschema.Schema) {
+	return jsonschema.Reflect(new(req)), jsonschema.Reflect(new(rep))
 }
 
-func (q *Query) MustFirst(w *World) entity.ID {
-	id, err := q.First(w)
+func (r *QueryType[req, rep]) HandleQuery(world *World, a any) (any, error) {
+	request, ok := a.(req)
+	if !ok {
+		return nil, fmt.Errorf("cannot cast %T to this query request type %T", a, new(req))
+	}
+	reply, err := r.handler(world, request)
+	return reply, err
+}
+
+func (r *QueryType[req, rep]) HandleQueryRaw(w *World, bz []byte) ([]byte, error) {
+	request := new(req)
+	err := json.Unmarshal(bz, request)
 	if err != nil {
-		panic(fmt.Sprintf("no entity matches the query."))
+		return nil, fmt.Errorf("unable to unmarshal query request into type %T: %w", *request, err)
 	}
-	return id
+	res, err := r.handler(w, *request)
+	if err != nil {
+		return nil, err
+	}
+	bz, err = json.Marshal(res)
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal response %T: %w", res, err)
+	}
+	return bz, nil
 }
 
-func (q *Query) evaluateQuery(namespace Namespace, sm store.IManager) []archetype.ID {
-	if _, ok := q.archMatches[namespace]; !ok {
-		q.archMatches[namespace] = &cache{
-			archetypes: make([]archetype.ID, 0),
-			seen:       0,
-		}
+func (r *QueryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
+	if r.requestABI == nil {
+		return nil, ErrEVMTypeNotSet
 	}
-	cache := q.archMatches[namespace]
-	for it := sm.SearchFrom(q.filter, cache.seen); it.HasNext(); {
-		cache.archetypes = append(cache.archetypes, it.Next())
+	args := abi.Arguments{{Type: *r.requestABI}}
+	unpacked, err := args.Unpack(bz)
+	if err != nil {
+		return nil, err
 	}
-	cache.seen = sm.ArchetypeCount()
-	return cache.archetypes
+	if len(unpacked) < 1 {
+		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
+	}
+	request, err := SerdeInto[req](unpacked[0])
+	if err != nil {
+		return nil, err
+	}
+	return request, nil
+}
+
+func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
+	if r.replyABI == nil {
+		return nil, ErrEVMTypeNotSet
+	}
+	args := abi.Arguments{{Type: *r.replyABI}}
+	unpacked, err := args.Unpack(bz)
+	if err != nil {
+		return nil, err
+	}
+	if len(unpacked) < 1 {
+		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
+	}
+	reply, err := SerdeInto[rep](unpacked[0])
+	if err != nil {
+		return nil, err
+	}
+	return reply, nil
+}
+
+func (r *QueryType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
+	if r.replyABI == nil {
+		return nil, ErrEVMTypeNotSet
+	}
+	args := abi.Arguments{{Type: *r.replyABI}}
+	bz, err := args.Pack(a)
+	return bz, err
+}
+
+func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
+	if r.requestABI == nil || r.replyABI == nil {
+		return nil, ErrEVMTypeNotSet
+	}
+
+	var args abi.Arguments
+	var in any
+	switch input.(type) {
+	case Request:
+		in = input.(Request)
+		args = abi.Arguments{{Type: *r.requestABI}}
+	case Reply:
+		in = input.(Reply)
+		args = abi.Arguments{{Type: *r.replyABI}}
+	default:
+		return nil, fmt.Errorf("expected the input struct to be either %T or %T, but got %T",
+			new(Request), new(Reply), input)
+	}
+
+	bz, err := args.Pack(in)
+	if err != nil {
+		return nil, err
+	}
+	return bz, nil
 }

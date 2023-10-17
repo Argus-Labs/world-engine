@@ -222,7 +222,7 @@ func TestCanReloadState(t *testing.T) {
 	oneAlphaNum, err := alphaWorld.GetComponentByName(oneAlphaNumComp{}.Name())
 	assert.NilError(t, err)
 	alphaWorld.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		q, err := w.NewQuery(ecs.Contains(oneAlphaNum))
+		q, err := w.NewSearch(ecs.Contains(oneAlphaNum))
 		if err != nil {
 			return err
 		}
@@ -245,7 +245,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, betaWorld.LoadGameState())
 
 	count := 0
-	q, err := betaWorld.NewQuery(ecs.Contains(OneBetaNum{}))
+	q, err := betaWorld.NewSearch(ecs.Contains(OneBetaNum{}))
 	assert.NilError(t, err)
 	q.Each(betaWorld, func(id entity.ID) bool {
 		count++

@@ -36,7 +36,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	count := 0
-	q, err := world.NewQuery(ecs.Exact(ecs.SignerComponent{}))
+	q, err := world.NewSearch(ecs.Exact(ecs.SignerComponent{}))
 	assert.NilError(t, err)
 	q.Each(world, func(id entity.ID) bool {
 		count++
@@ -140,7 +140,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	count := 0
-	q, err := world.NewQuery(ecs.Exact(ecs.SignerComponent{}))
+	q, err := world.NewSearch(ecs.Exact(ecs.SignerComponent{}))
 	assert.NilError(t, err)
 	q.Each(world, func(id entity.ID) bool {
 		count++
