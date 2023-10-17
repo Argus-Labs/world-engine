@@ -14,8 +14,8 @@ func toITransactionType(ins []AnyTransaction) []transaction.ITransaction {
 	return out
 }
 
-func toIReadType(ins []AnyReadType) []ecs.IRead {
-	out := make([]ecs.IRead, 0, len(ins))
+func toIQueryType(ins []AnyQueryType) []ecs.IQuery {
+	out := make([]ecs.IQuery, 0, len(ins))
 	for _, r := range ins {
 		out = append(out, r.Convert())
 	}
