@@ -1,24 +1,23 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 )
 
-// AnyComponent is implemented by the return value of NewComponentType and is used in RegisterComponents; any
-// component created by NewComponentType can be registered with a World object via RegisterComponents.
+// AnyComponent is implemented by the return value of NewComponentMetadata and is used in RegisterComponents; any
+// component created by NewComponentMetadata can be registered with a World object via RegisterComponents.
 type AnyComponentType interface {
-	Convert() component.IComponentType
+	Convert() component_metadata.IComponentMetaData
 	Name() string
 }
 
 // ComponentType represents an accessor that can get and set a specific kind of data (T) using an EntityID.
 type ComponentType[T any] struct {
-	impl *ecs.ComponentType[T]
+	impl *component_metadata.ComponentMetaData[T]
 }
 
-func toIComponentType(ins []AnyComponentType) []component.IComponentType {
-	out := make([]component.IComponentType, 0, len(ins))
+func toIComponentType(ins []AnyComponentType) []component_metadata.IComponentMetaData {
+	out := make([]component_metadata.IComponentMetaData, 0, len(ins))
 	for _, c := range ins {
 		out = append(out, c.Convert())
 	}
@@ -32,6 +31,6 @@ func (c *ComponentType[T]) Name() string {
 
 // Convert implements the AnyComponentType interface which allows a ComponentType to be registered
 // with a World via RegisterComponents.
-func (c *ComponentType[T]) Convert() component.IComponentType {
+func (c *ComponentType[T]) Convert() component_metadata.IComponentMetaData {
 	return c.impl
 }

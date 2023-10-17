@@ -62,9 +62,6 @@ func TestCanFilterByArchetype(t *testing.T) {
 	assert.Equal(t, count, subsetCount)
 }
 
-// TestExactVsContains ensures the Exact filter will return a subset of a Contains filter when called
-// with the same parameters.
-
 type Alpha struct{}
 
 func (Alpha) Name() string { return "alpha" }
