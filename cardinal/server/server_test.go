@@ -1257,7 +1257,7 @@ func TestEvents(t *testing.T) {
 			assert.NilError(t, err)
 			assert.Equal(t, mode, websocket.TextMessage)
 			assert.Equal(t, string(message)[:4], "test")
-			fmt.Println(string(message))
+			//fmt.Println(string(message))
 		}
 	}
 	txh.eventHub.Shutdown <- true
