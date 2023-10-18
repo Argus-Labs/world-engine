@@ -51,6 +51,7 @@ Loop:
 		case conn := <-h.Unregister:
 			unregisterConnection(conn)
 		case message := <-h.Broadcast:
+			counter := make(chan bool)
 			for conn := range h.websocketConnections {
 
 				err := conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
@@ -59,12 +60,20 @@ Loop:
 					log.Logger.Error().Err(err)
 					break Loop
 				}
-				err = conn.WriteMessage(websocket.TextMessage, message)
-				if err != nil {
-					unregisterConnection(conn)
-					log.Logger.Error().Err(err)
-				}
+				conn := conn
+				go func() {
+					err = conn.WriteMessage(websocket.TextMessage, message)
+					if err != nil {
+						unregisterConnection(conn)
+						log.Logger.Error().Err(err)
+					}
+					counter <- true
+				}()
+			}
 
+			//block until all messages sent
+			for range h.websocketConnections {
+				<-counter
 			}
 		case <-h.Shutdown:
 			for conn, _ := range h.websocketConnections {
