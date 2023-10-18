@@ -13,8 +13,8 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -117,14 +117,14 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	oneWorld := testutil.InitWorldWithRedis(t, rs)
 	assert.NilError(t, ecs.RegisterComponent[onePowerComponent](oneWorld))
 
-	id, err := cardinal.Create(oneWorld, onePowerComponent{})
+	id, err := component.Create(oneWorld, onePowerComponent{})
 	assert.NilError(t, err)
 
 	errorSystem := errors.New("3 power? That's too much, man!")
 
 	// In this test, our "buggy" system fails once Power reaches 3
 	oneWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		p, err := cardinal.GetComponent[onePowerComponent](world, id)
+		p, err := component.GetComponent[onePowerComponent](world, id)
 		//p, err := onePower.Get(world, id)
 		if err != nil {
 			return err
@@ -133,7 +133,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 		if p.Power >= 3 {
 			return errorSystem
 		}
-		return cardinal.SetComponent[onePowerComponent](world, id, p)
+		return component.SetComponent[onePowerComponent](world, id, p)
 	})
 	assert.NilError(t, oneWorld.LoadGameState())
 
@@ -151,24 +151,24 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	// this is our fixed system that can handle Power levels of 3 and higher
 	twoWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		p, err := cardinal.GetComponent[onePowerComponent](world, id)
+		p, err := component.GetComponent[onePowerComponent](world, id)
 		//p, err := onePower.Get(world, id)
 		if err != nil {
 			return err
 		}
 		p.Power++
-		return cardinal.SetComponent[onePowerComponent](world, id, p)
+		return component.SetComponent[onePowerComponent](world, id, p)
 	})
 
 	// Loading a game state with the fixed system should automatically finish the previous tick.
 	assert.NilError(t, twoWorld.LoadGameState())
-	p, err := cardinal.GetComponent[onePowerComponent](twoWorld, id)
+	p, err := component.GetComponent[onePowerComponent](twoWorld, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 3, p.Power)
 
 	// Just for fun, tick one last time to make sure power is still being incremented.
 	assert.NilError(t, twoWorld.Tick(context.Background()))
-	p1, err := cardinal.GetComponent[onePowerComponent](twoWorld, id)
+	p1, err := component.GetComponent[onePowerComponent](twoWorld, id)
 	//p, err = onePower.Get(twoWorld, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 4, p1.Power)
@@ -197,12 +197,12 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[ScalarComponentBeta](world))
 	assert.NilError(t, world.LoadGameState())
 
-	wantID, err := cardinal.Create(world, ScalarComponentAlpha{})
+	wantID, err := component.Create(world, ScalarComponentAlpha{})
 	assert.NilError(t, err)
 
 	wantScalar := ScalarComponentAlpha{99}
 
-	assert.NilError(t, cardinal.SetComponent[ScalarComponentAlpha](world, wantID, &wantScalar))
+	assert.NilError(t, component.SetComponent[ScalarComponentAlpha](world, wantID, &wantScalar))
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
@@ -213,7 +213,7 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 		assert.Equal(t, wantID, gotID)
 
 		// Make sure the associated component is correct
-		gotScalar, err := cardinal.GetComponent[ScalarComponentAlpha](world, wantID)
+		gotScalar, err := component.GetComponent[ScalarComponentAlpha](world, wantID)
 		assert.NilError(t, err)
 		assert.Equal(t, wantScalar, *gotScalar)
 	}
@@ -222,11 +222,11 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 	verifyCanFindEntity()
 
 	// Add on the beta component
-	assert.NilError(t, cardinal.AddComponentTo[Beta](world, wantID))
+	assert.NilError(t, component.AddComponentTo[Beta](world, wantID))
 	verifyCanFindEntity()
 
 	// Remove the beta component
-	assert.NilError(t, cardinal.RemoveComponentFrom[Beta](world, wantID))
+	assert.NilError(t, component.RemoveComponentFrom[Beta](world, wantID))
 	verifyCanFindEntity()
 }
 
@@ -255,7 +255,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		assert.NilError(t, ecs.RegisterComponent[ScalarComponentToggle](world))
 
 		if firstWorldIteration {
-			_, err := cardinal.Create(world, ScalarComponentStatic{})
+			_, err := component.Create(world, ScalarComponentStatic{})
 			assert.NilError(t, err)
 		}
 
@@ -267,15 +267,15 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			id, err := q.First(w)
 			assert.NilError(t, err)
 
-			s, err := cardinal.GetComponent[ScalarComponentStatic](w, id)
+			s, err := component.GetComponent[ScalarComponentStatic](w, id)
 			//s, err := static.Get(w, id)
 			assert.NilError(t, err)
 			s.Val++
-			assert.NilError(t, cardinal.SetComponent[ScalarComponentStatic](w, id, s))
+			assert.NilError(t, component.SetComponent[ScalarComponentStatic](w, id, s))
 			if s.Val%2 == 1 {
-				assert.NilError(t, cardinal.AddComponentTo[ScalarComponentToggle](w, id))
+				assert.NilError(t, component.AddComponentTo[ScalarComponentToggle](w, id))
 			} else {
-				assert.NilError(t, cardinal.RemoveComponentFrom[ScalarComponentToggle](w, id))
+				assert.NilError(t, component.RemoveComponentFrom[ScalarComponentToggle](w, id))
 			}
 
 			if firstWorldIteration && s.Val == 5 {
@@ -295,7 +295,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 				assert.NilError(t, world.Tick(context.Background()))
 			}
 			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
-			_, err := cardinal.GetComponent[ScalarComponentToggle](world, id)
+			_, err := component.GetComponent[ScalarComponentToggle](world, id)
 			//_, err := toggle.Get(world, id)
 			assert.ErrorIs(t, storage.ErrorComponentNotOnEntity, err)
 
@@ -304,11 +304,11 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		} else {
 			// At this second iteration, the errorToggleComponent bug has been fixed. static.Val should be 5
 			// and toggle should have just been added to the entity.
-			_, err := cardinal.GetComponent[ScalarComponentToggle](world, id)
+			_, err := component.GetComponent[ScalarComponentToggle](world, id)
 			//_, err := toggle.Get(world, id)
 			assert.NilError(t, err)
 
-			s, err := cardinal.GetComponent[ScalarComponentStatic](world, id)
+			s, err := component.GetComponent[ScalarComponentStatic](world, id)
 
 			//s, err := static.Get(world, id)
 			assert.NilError(t, err)
@@ -341,13 +341,13 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			q, err := w.NewSearch(ecs.Contains(PowerComp{}))
 			assert.NilError(t, err)
 			id := q.MustFirst(w)
-			entityPower, err := cardinal.GetComponent[PowerComp](w, id)
+			entityPower, err := component.GetComponent[PowerComp](w, id)
 			assert.NilError(t, err)
 
 			changes := powerTx.In(queue)
 			assert.Equal(t, 1, len(changes))
 			entityPower.Val += changes[0].Value.Val
-			assert.NilError(t, cardinal.SetComponent[PowerComp](w, id, entityPower))
+			assert.NilError(t, component.SetComponent[PowerComp](w, id, entityPower))
 
 			if isBuggyIteration && changes[0].Value.Val == 666 {
 				return errorBadPowerChange
@@ -358,7 +358,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		// Only create the entity for the first iteration
 		if isBuggyIteration {
-			_, err := cardinal.Create(world, PowerComp{})
+			_, err := component.Create(world, PowerComp{})
 			assert.NilError(t, err)
 		}
 
@@ -368,7 +368,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			assert.NilError(t, err)
 			id, err := q.First(world)
 			assert.NilError(t, err)
-			power, err := cardinal.GetComponent[PowerComp](world, id)
+			power, err := component.GetComponent[PowerComp](world, id)
 			//power, err := powerComp.Get(world, id)
 			assert.NilError(t, err)
 			return power.Val

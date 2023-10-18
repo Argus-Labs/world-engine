@@ -5,8 +5,8 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
@@ -26,7 +26,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	total := 10
 	count := 0
 	stop := 5
-	_, err := cardinal.CreateMany(world, total, FooComponent{})
+	_, err := component.CreateMany(world, total, FooComponent{})
 	assert.NilError(t, err)
 	q, err := world.NewSearch(ecs.Exact(FooComponent{}))
 	assert.NilError(t, err)

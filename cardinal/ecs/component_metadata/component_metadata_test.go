@@ -5,10 +5,10 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -120,9 +120,9 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	ecs.MustRegisterComponent[foundComp](world)
 	ecs.MustRegisterComponent[notFoundComp](world)
 
-	id, err := cardinal.Create(world, foundComp{})
+	id, err := component.Create(world, foundComp{})
 	assert.NilError(t, err)
-	_, err = cardinal.GetComponent[notFoundComp](world, id)
+	_, err = component.GetComponent[notFoundComp](world, id)
 	//_, err = notFound.Get(world, id)
 	assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
 }
@@ -140,18 +140,18 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent](world))
 
-	id, err := cardinal.Create(world, ValueComponent{})
+	id, err := component.Create(world, ValueComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, cardinal.SetComponent[ValueComponent](world, id, &ValueComponent{99}))
+	assert.NilError(t, component.SetComponent[ValueComponent](world, id, &ValueComponent{99}))
 
-	val, err := cardinal.GetComponent[ValueComponent](world, id)
+	val, err := component.GetComponent[ValueComponent](world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
-	_, err = cardinal.Create(world, ValueComponent{})
+	_, err = component.Create(world, ValueComponent{})
 
-	val, err = cardinal.GetComponent[ValueComponent](world, id)
+	val, err = component.GetComponent[ValueComponent](world, id)
 	//val, err = valComp.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)

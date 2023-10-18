@@ -7,8 +7,8 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/alicebob/miniredis/v2"
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -65,7 +65,7 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[OneAlphaNum](oneWorld))
 	assert.NilError(t, oneWorld.LoadGameState())
 
-	_, err := cardinal.Create(oneWorld, OneAlphaNum{})
+	_, err := component.Create(oneWorld, OneAlphaNum{})
 	assert.NilError(t, err)
 
 	assert.NilError(t, oneWorld.Tick(context.Background()))
@@ -93,7 +93,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[NumberComponent](oneWorld))
 	assert.NilError(t, oneWorld.LoadGameState())
 
-	_, err := cardinal.Create(oneWorld, NumberComponent{})
+	_, err := component.Create(oneWorld, NumberComponent{})
 	assert.NilError(t, err)
 	oneNum, err := oneWorld.GetComponentByName(NumberComponent{}.Name())
 	assert.NilError(t, err)
@@ -129,11 +129,11 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[OneBetaNum](oneWorld))
 	assert.NilError(t, oneWorld.LoadGameState())
 
-	_, err := cardinal.Create(oneWorld, OneAlphaNum{})
+	_, err := component.Create(oneWorld, OneAlphaNum{})
 	assert.NilError(t, err)
-	_, err = cardinal.Create(oneWorld, OneBetaNum{})
+	_, err = component.Create(oneWorld, OneBetaNum{})
 	assert.NilError(t, err)
-	_, err = cardinal.Create(oneWorld, OneAlphaNum{}, OneBetaNum{})
+	_, err = component.Create(oneWorld, OneAlphaNum{}, OneBetaNum{})
 	assert.NilError(t, err)
 	oneAlphaNum, err := oneWorld.GetComponentByName(OneAlphaNum{}.Name())
 	assert.NilError(t, err)
@@ -218,7 +218,7 @@ func TestCanReloadState(t *testing.T) {
 	alphaWorld := testutil.InitWorldWithRedis(t, redisStore)
 	assert.NilError(t, ecs.RegisterComponent[oneAlphaNumComp](alphaWorld))
 
-	_, err := cardinal.CreateMany(alphaWorld, 10, oneAlphaNumComp{})
+	_, err := component.CreateMany(alphaWorld, 10, oneAlphaNumComp{})
 	assert.NilError(t, err)
 	oneAlphaNum, err := alphaWorld.GetComponentByName(oneAlphaNumComp{}.Name())
 	assert.NilError(t, err)
@@ -228,7 +228,7 @@ func TestCanReloadState(t *testing.T) {
 			return err
 		}
 		q.Each(w, func(id entity.ID) bool {
-			err := cardinal.SetComponent[oneAlphaNumComp](w, id, &oneAlphaNumComp{int(id)})
+			err := component.SetComponent[oneAlphaNumComp](w, id, &oneAlphaNumComp{int(id)})
 			//err := oneAlphaNum.Set(w, id, oneAlphaNumComp{int(id)})
 			assert.Check(t, err == nil)
 			return true
@@ -250,7 +250,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, err)
 	q.Each(betaWorld, func(id entity.ID) bool {
 		count++
-		num, err := cardinal.GetComponent[OneBetaNum](betaWorld, id)
+		num, err := component.GetComponent[OneBetaNum](betaWorld, id)
 		//num, err := oneBetaNum.Get(betaWorld, id)
 		assert.NilError(t, err)
 		assert.Equal(t, int(id), num.Num)

@@ -10,7 +10,7 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 
@@ -43,12 +43,12 @@ func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error 
 		return err
 	}
 	q.Each(w, func(entityId entity.ID) bool {
-		energyPlanet, err := cardinal.GetComponent[EnergyComp](w, entityId)
+		energyPlanet, err := component.GetComponent[EnergyComp](w, entityId)
 		if err != nil {
 			return false
 		}
 		energyPlanet.value += 10 // bs whatever
-		err = cardinal.SetComponent[EnergyComp](w, entityId, energyPlanet)
+		err = component.SetComponent[EnergyComp](w, entityId, energyPlanet)
 		//err = energy.Set(w, entityId, energyPlanet)
 		if err != nil {
 			return false
@@ -106,7 +106,7 @@ func TestWorldLogger(t *testing.T) {
 	energy, err := w.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
 	components := []component_metadata.IComponentMetaData{energy}
-	entityId, err := cardinal.Create(w, EnergyComp{})
+	entityId, err := component.Create(w, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `
@@ -219,7 +219,7 @@ func TestWorldLogger(t *testing.T) {
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
-	_, err = cardinal.CreateMany(w, 2, EnergyComp{})
+	_, err = component.CreateMany(w, 2, EnergyComp{})
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `

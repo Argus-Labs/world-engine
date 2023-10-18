@@ -8,6 +8,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -98,14 +99,14 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func (w *World) CreateMany(num int, components ...component_metadata.Component) ([]EntityID, error) {
-	return CreateMany(w.implWorld, num, components...)
+func CreateMany(w *World, num int, components ...component_metadata.Component) ([]EntityID, error) {
+	return component.CreateMany(w.implWorld, num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func (w *World) Create(components ...component_metadata.Component) (EntityID, error) {
-	return Create(w.implWorld, components...)
+func Create(w *World, components ...component_metadata.Component) (EntityID, error) {
+	return component.Create(w.implWorld, components...)
 }
 
 // Remove removes the given entity id from the world.
@@ -161,10 +162,7 @@ func (w *World) ShutDown() error {
 	return nil
 }
 
-// RegisterSystems allows for the adding of multiple systems in a single call. See AddSystem for more details.
-// RegisterSystems adds the given system(s) to the world object so that the system will be executed at every
-// game tick. This Register method can be called multiple times.
-func (w *World) RegisterSystems(systems ...System) {
+func RegisterSystems(w *World, systems ...System) {
 	for _, system := range systems {
 		w.implWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecslog.Logger) error {
 			return system(&World{implWorld: world}, &TransactionQueue{queue}, &Logger{logger})
@@ -178,13 +176,13 @@ func RegisterComponent[T component_metadata.Component](world *World) error {
 
 // RegisterTransactions adds the given transactions to the game world. HTTP endpoints to queue up/execute these
 // transaction will automatically be created when StartGame is called. This Register method must only be called once.
-func (w *World) RegisterTransactions(txs ...AnyTransaction) error {
+func RegisterTransactions(w *World, txs ...AnyTransaction) error {
 	return w.implWorld.RegisterTransactions(toITransactionType(txs)...)
 }
 
 // RegisterQueries adds the given query capabilities to the game world. HTTP endpoints to use these queries
 // will automatically be created when StartGame is called. This Register method must only be called once.
-func (w *World) RegisterQueries(queries ...AnyQueryType) error {
+func RegisterQueries(w *World, queries ...AnyQueryType) error {
 	return w.implWorld.RegisterQueries(toIQueryType(queries)...)
 }
 
