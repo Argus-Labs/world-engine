@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/go-openapi/runtime/middleware"
@@ -51,7 +52,7 @@ Loop:
 		case conn := <-h.Unregister:
 			unregisterConnection(conn)
 		case message := <-h.Broadcast:
-			counter := make(chan bool)
+			var waitGroup sync.WaitGroup = sync.WaitGroup{}
 			for conn := range h.websocketConnections {
 
 				err := conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
@@ -61,20 +62,17 @@ Loop:
 					break Loop
 				}
 				conn := conn
+				waitGroup.Add(1)
 				go func() {
+					defer waitGroup.Done()
 					err = conn.WriteMessage(websocket.TextMessage, message)
 					if err != nil {
 						unregisterConnection(conn)
 						log.Logger.Error().Err(err)
 					}
-					counter <- true
 				}()
 			}
-
-			//block until all messages sent
-			for range h.websocketConnections {
-				<-counter
-			}
+			waitGroup.Wait()
 		case <-h.Shutdown:
 			for conn, _ := range h.websocketConnections {
 				unregisterConnection(conn)
