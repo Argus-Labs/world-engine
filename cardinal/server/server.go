@@ -21,10 +21,10 @@ import (
 // Handler is a type that contains endpoints for transactions and queries in a given ecs world.
 type Handler struct {
 	w                      *ecs.World
-	mux                    *http.ServeMux
+	Mux                    *http.ServeMux
 	server                 *http.Server
 	disableSigVerification bool
-	port                   string
+	Port                   string
 
 	// plugins
 	adapter shard.WriteAdapter
@@ -39,8 +39,8 @@ var (
 // NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
 // transactions and queries registered with the given world are automatically created. The server runs on a default port
 // of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
-func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
-	h, err := newSwaggerHandlerEmbed(w, opts...)
+func NewHandler(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
+	h, err := newSwaggerHandlerEmbed(w, builder, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,10 +50,10 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 //go:embed swagger.yml
 var swaggerData []byte
 
-func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
+func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	th := &Handler{
 		w:   w,
-		mux: http.NewServeMux(),
+		Mux: http.NewServeMux(),
 	}
 	for _, opt := range opts {
 		opt(th)
@@ -78,14 +78,19 @@ func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
 		return nil, err
 	}
 
+	//This is here to meet the swagger spec. Actual /events will be intercepted before this route.
+	api.RegisterOperation("GET", "/events", runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		return struct{}{}, nil
+	}))
+
 	if err := api.Validate(); err != nil {
 		return nil, err
 	}
 
 	app := middleware.NewContext(specDoc, api, nil)
 
-	th.mux.Handle("/", app.APIHandler(nil))
-	th.initialize()
+	th.Mux.Handle("/", app.APIHandler(builder))
+	th.Initialize()
 
 	return th, nil
 }
@@ -129,8 +134,8 @@ func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
 
 // EndpointsResult result struct for /query/http/endpoints
 type EndpointsResult struct {
-	TxEndpoints    []string `json:"tx_endpoints"`
-	QueryEndpoints []string `json:"query_endpoints"`
+	TxEndpoints    []string `json:"txEndpoints"`
+	QueryEndpoints []string `json:"queryEndpoints"`
 }
 
 func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
@@ -162,21 +167,21 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 	}, nil
 }
 
-// initialize initializes the server. It firsts checks for a port set on the handler via options.
+// Initialize initializes the server. It firsts checks for a port set on the handler via options.
 // if no port is found, or a bad port was passed into the option, it falls back to an environment variable,
 // CARDINAL_PORT. If not set, it falls back to a default port of 4040.
-func (handler *Handler) initialize() {
-	if _, err := strconv.Atoi(handler.port); err != nil || len(handler.port) == 0 {
+func (handler *Handler) Initialize() {
+	if _, err := strconv.Atoi(handler.Port); err != nil || len(handler.Port) == 0 {
 		envPort := os.Getenv("CARDINAL_PORT")
 		if _, err := strconv.Atoi(envPort); err == nil {
-			handler.port = envPort
+			handler.Port = envPort
 		} else {
-			handler.port = "4040"
+			handler.Port = "4040"
 		}
 	}
 	handler.server = &http.Server{
-		Addr:    fmt.Sprintf(":%s", handler.port),
-		Handler: handler.mux,
+		Addr:    fmt.Sprintf(":%s", handler.Port),
+		Handler: handler.Mux,
 	}
 }
 

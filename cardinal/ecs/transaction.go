@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
+	"pkg.world.dev/world-engine/cardinal/ecs/abi"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
@@ -23,21 +24,21 @@ type TransactionType[In, Out any] struct {
 	id         transaction.TypeID
 	isIDSet    bool
 	name       string
-	inEVMType  *abi.Type
-	outEVMType *abi.Type
+	inEVMType  *ethereumAbi.Type
+	outEVMType *ethereumAbi.Type
 }
 
 func WithTxEVMSupport[In, Out any]() func(transactionType *TransactionType[In, Out]) {
 	return func(txt *TransactionType[In, Out]) {
 		var in In
-		abiType, err := GenerateABIType(in)
+		abiType, err := abi.GenerateABIType(in)
 		if err != nil {
 			panic(err)
 		}
 		txt.inEVMType = abiType
 
 		var out Out
-		abiType, err = GenerateABIType(out)
+		abiType, err = abi.GenerateABIType(out)
 		if err != nil {
 			panic(err)
 		}
@@ -187,15 +188,15 @@ func (t *TransactionType[In, Out]) ABIEncode(v any) ([]byte, error) {
 		return nil, ErrEVMTypeNotSet
 	}
 
-	var args abi.Arguments
+	var args ethereumAbi.Arguments
 	var input any
 	switch v.(type) {
-	case Out:
-		input = v.(Out)
-		args = abi.Arguments{{Type: *t.outEVMType}}
 	case In:
 		input = v.(In)
-		args = abi.Arguments{{Type: *t.inEVMType}}
+		args = ethereumAbi.Arguments{{Type: *t.inEVMType}}
+	case Out:
+		input = v.(Out)
+		args = ethereumAbi.Arguments{{Type: *t.outEVMType}}
 	default:
 		return nil, fmt.Errorf("expected input to be of type %T or %T, got %T", new(In), new(Out), v)
 	}
@@ -208,7 +209,7 @@ func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
 	if t.inEVMType == nil {
 		return nil, ErrEVMTypeNotSet
 	}
-	args := abi.Arguments{{Type: *t.inEVMType}}
+	args := ethereumAbi.Arguments{{Type: *t.inEVMType}}
 	unpacked, err := args.Unpack(bz)
 	if err != nil {
 		return nil, err
@@ -216,7 +217,7 @@ func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, fmt.Errorf("error decoding EVM bytes: no values could be unpacked into the abi type")
 	}
-	input, err := SerdeInto[In](unpacked[0])
+	input, err := abi.SerdeInto[In](unpacked[0])
 	if err != nil {
 		return nil, err
 	}

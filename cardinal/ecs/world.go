@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -717,4 +718,8 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 		return nil, err
 	}
 	return NewSearch(componentFilter), nil
+}
+
+func GetRawJsonOfComponent(w *World, component component_metadata.IComponentMetaData, id entity.ID) (json.RawMessage, error) {
+	return w.StoreManager().GetComponentForEntityInRawJson(component, id)
 }

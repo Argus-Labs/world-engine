@@ -73,7 +73,12 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	}
 
 	if err := initReceiptMatch(ctx, logger, db, nk, initializer); err != nil {
-		return fmt.Errorf("unable to init matches for receipt streaming")
+		return fmt.Errorf("unable to init match for receipt streaming: %w", err)
+	}
+
+	notifier, err := newReceiptNotifier(logger, nk)
+	if err != nil {
+		return fmt.Errorf("unable to init receipt notifier: %w", err)
 	}
 
 	if err := initPrivateKey(ctx, logger, nk); err != nil {
@@ -89,11 +94,11 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 		return fmt.Errorf("failed to init persona tag verifier: %w", err)
 	}
 
-	if err := initPersonaTagEndpoints(logger, initializer, ptv); err != nil {
+	if err := initPersonaTagEndpoints(logger, initializer, ptv, notifier); err != nil {
 		return fmt.Errorf("failed to init persona tag endpoints: %w", err)
 	}
 
-	if err := initCardinalEndpoints(logger, initializer); err != nil {
+	if err := initCardinalEndpoints(logger, initializer, notifier); err != nil {
 		return fmt.Errorf("failed to init cardinal endpoints: %w", err)
 	}
 
@@ -164,8 +169,13 @@ func initPersonaTagAssignmentMap(ctx context.Context, logger runtime.Logger, nk 
 }
 
 // initPersonaEndpoints sets up the nakame RPC endpoints that are used to claim a persona tag and display a persona tag.
-func initPersonaTagEndpoints(logger runtime.Logger, initializer runtime.Initializer, ptv *personaTagVerifier) error {
-	if err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(ptv)); err != nil {
+func initPersonaTagEndpoints(
+	logger runtime.Logger,
+	initializer runtime.Initializer,
+	ptv *personaTagVerifier,
+	notifier *receiptNotifier) error {
+
+	if err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(ptv, notifier)); err != nil {
 		return err
 	}
 	if err := initializer.RegisterRpc("nakama/show-persona", handleShowPersona); err != nil {
@@ -188,7 +198,7 @@ func getUserID(ctx context.Context) (string, error) {
 type nakamaRPCHandler func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error)
 
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
-func handleClaimPersona(ptv *personaTagVerifier) nakamaRPCHandler {
+func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) nakamaRPCHandler {
 	return func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 		if ptr, err := loadPersonaTagStorageObj(ctx, nk); err != nil && err != ErrorPersonaTagStorageObjNotFound {
 			return logError(logger, "unable to get persona tag storage object: %w", err)
@@ -235,6 +245,7 @@ func handleClaimPersona(ptv *personaTagVerifier) nakamaRPCHandler {
 		if err != nil {
 			return logError(logger, "unable to make create persona request to cardinal: %v", err)
 		}
+		notifier.AddTxHashToPendingNotifications(txHash, userID)
 
 		ptr.Tick = tick
 		ptr.TxHash = txHash
@@ -272,7 +283,7 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 
 // initCardinalEndpoints queries the cardinal server to find the list of existing endpoints, and attempts to
 // set up RPC wrappers around each one.
-func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initializer) error {
+func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initializer, notify *receiptNotifier) error {
 	txEndpoints, queryEndpoints, err := cardinalGetEndpointsStruct()
 	if err != nil {
 		return err
@@ -332,6 +343,17 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				if err != nil {
 					return logError(logger, "can't read body: %w", err)
 				}
+				var asTx txResponse
+
+				if err = json.Unmarshal(bodyStr, &asTx); err != nil {
+					return logError(logger, "can't decode body as tx response: %w", err)
+				}
+				userID, err := getUserID(ctx)
+				if err != nil {
+					return logError(logger, "unable to get user id: %w", err)
+				}
+				notify.AddTxHashToPendingNotifications(asTx.TxHash, userID)
+
 				return string(bodyStr), nil
 			})
 			if err != nil {

@@ -48,10 +48,10 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	wantNumOfEntities := 10
-	_, err = world.CreateMany(wantNumOfEntities, Foo{})
+	_, err = cardinal.CreateMany(world, wantNumOfEntities, Foo{})
 	assert.NilError(t, err)
 	gotNumOfEntities := 0
-	world.RegisterSystems(func(world *cardinal.World, queue *cardinal.TransactionQueue, logger *cardinal.Logger) error {
+	cardinal.RegisterSystems(world, func(world *cardinal.World, queue *cardinal.TransactionQueue, logger *cardinal.Logger) error {
 		q, err := world.NewSearch(ecs.Exact(Foo{}))
 		assert.NilError(t, err)
 		q.Each(world, func(cardinal.EntityID) bool {
