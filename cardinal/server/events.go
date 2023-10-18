@@ -54,7 +54,7 @@ Loop:
 			counter := make(chan bool)
 			for conn := range h.websocketConnections {
 
-				err := conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
+				err := conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 				if err != nil {
 					unregisterConnection(conn)
 					log.Logger.Error().Err(err)
