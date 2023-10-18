@@ -8,7 +8,7 @@ import (
 	"net"
 	"os"
 
-	"pkg.world.dev/world-engine/cardinal/component"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -164,7 +164,7 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.S
 	}
 	q.Each(s.world, func(id entity.ID) bool {
 		var signerComp *ecs.SignerComponent
-		signerComp, err = component.GetComponent[ecs.SignerComponent](s.world, id)
+		signerComp, err = cardinal.GetComponent[ecs.SignerComponent](s.world, id)
 		if err != nil {
 			return false
 		}

@@ -8,7 +8,6 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
-	"pkg.world.dev/world-engine/cardinal/component"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -124,7 +123,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 			}
 
 			for _, c := range components {
-				data, err := component.GetRawJsonOfComponent(handler.w, c, id)
+				data, err := ecs.GetRawJsonOfComponent(handler.w, c, id)
 				if err != nil {
 					return false
 				}

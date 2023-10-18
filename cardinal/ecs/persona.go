@@ -247,6 +247,7 @@ func setComponent[T component_metadata.Component](w *World, id entity.ID, compon
 
 // TODO private component function used to temporarily remove circular dependency until we replace components.
 // TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
 func updateComponent[T component_metadata.Component](w *World, id entity.ID, fn func(*T) *T) error {
 	var t T
 	name := t.Name()
@@ -267,6 +268,7 @@ func updateComponent[T component_metadata.Component](w *World, id entity.ID, fn 
 
 // TODO private component function used to temporarily remove circular dependency until we replace components.
 // TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
 func createMany(world *World, num int, components ...component_metadata.Component) ([]entity.ID, error) {
 	acc := make([]component_metadata.IComponentMetaData, 0, len(components))
 	for _, comp := range components {
@@ -297,6 +299,7 @@ func createMany(world *World, num int, components ...component_metadata.Componen
 
 // TODO private component function used to temporarily remove circular dependency until we replace components.
 // TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
 func create(world *World, components ...component_metadata.Component) (entity.ID, error) {
 	entities, err := createMany(world, 1, components...)
 	if err != nil {

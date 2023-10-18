@@ -5,13 +5,13 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/component"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 
-	storage2 "pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 func TestComponents(t *testing.T) {
@@ -19,11 +19,11 @@ func TestComponents(t *testing.T) {
 		ID string
 	}
 	var (
-		ca = storage2.NewMockComponentType(ComponentData{}, ComponentData{ID: "foo"})
-		cb = storage2.NewMockComponentType(ComponentData{}, ComponentData{ID: "bar"})
+		ca = storage.NewMockComponentType(ComponentData{}, ComponentData{ID: "foo"})
+		cb = storage.NewMockComponentType(ComponentData{}, ComponentData{ID: "bar"})
 	)
 
-	components := storage2.NewComponents(storage2.NewComponentsSliceStorage(), storage2.NewComponentIndexMap())
+	components := storage.NewComponents(storage.NewComponentsSliceStorage(), storage.NewComponentIndexMap())
 
 	tests := []*struct {
 		comps   []component_metadata.IComponentMetaData
@@ -120,11 +120,11 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	ecs.MustRegisterComponent[foundComp](world)
 	ecs.MustRegisterComponent[notFoundComp](world)
 
-	id, err := component.Create(world, foundComp{})
+	id, err := cardinal.Create(world, foundComp{})
 	assert.NilError(t, err)
-	_, err = component.GetComponent[notFoundComp](world, id)
+	_, err = cardinal.GetComponent[notFoundComp](world, id)
 	//_, err = notFound.Get(world, id)
-	assert.ErrorIs(t, err, storage2.ErrorComponentNotOnEntity)
+	assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
 }
 
 type ValueComponent struct {
@@ -140,18 +140,18 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent](world))
 
-	id, err := component.Create(world, ValueComponent{})
+	id, err := cardinal.Create(world, ValueComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, component.SetComponent[ValueComponent](world, id, &ValueComponent{99}))
+	assert.NilError(t, cardinal.SetComponent[ValueComponent](world, id, &ValueComponent{99}))
 
-	val, err := component.GetComponent[ValueComponent](world, id)
+	val, err := cardinal.GetComponent[ValueComponent](world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
-	_, err = component.Create(world, ValueComponent{})
+	_, err = cardinal.Create(world, ValueComponent{})
 
-	val, err = component.GetComponent[ValueComponent](world, id)
+	val, err = cardinal.GetComponent[ValueComponent](world, id)
 	//val, err = valComp.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
