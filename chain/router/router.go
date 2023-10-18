@@ -119,17 +119,20 @@ func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 		"msg_id", msg.MessageId,
 	)
 
-	res, err := client.SendMessage(context.Background(), msg)
-	if err != nil {
+	// send the message in a new goroutine. we do this so that we don't make tx inclusion slower.
+	go func() {
+		res, err := client.SendMessage(context.Background(), msg)
+		if err != nil {
+			// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
+			// this error in the callback storage module.
+			r.logger.Error("failed to send message to game shard", "error", err)
+			return
+		}
+		r.logger.Debug("successfully sent message to game shard")
 		// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
-		// this error in the callback storage module.
-		r.logger.Error("failed to send message to game shard", "error", err)
-		return
-	}
-	r.logger.Debug("successfully sent message to game shard")
-	// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
-	// the result in the callback storage module.
-	r.results.SetResult(res)
+		// the result in the callback storage module.
+		r.results.SetResult(res)
+	}()
 }
 
 func (r *routerImpl) SendMessage(_ context.Context, namespace, sender string, msgID uint64, msg []byte) error {
