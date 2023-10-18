@@ -26,9 +26,9 @@ type History struct {
 
 // Receipt contains a transaction hash, an arbitrary result, and a list of errors.
 type Receipt struct {
-	TxHash transaction.TxHash
-	Result any
-	Errs   []error
+	TxHash transaction.TxHash `json:"txHash"`
+	Result any                `json:"result"`
+	Errs   []error            `json:"errs"`
 }
 
 // NewHistory creates a object that can track transaction receipts over a number of ticks.

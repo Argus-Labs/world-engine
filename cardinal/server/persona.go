@@ -16,8 +16,8 @@ const (
 
 // QueryPersonaSignerRequest is the desired request body for the query-persona-signer endpoint.
 type QueryPersonaSignerRequest struct {
-	PersonaTag string
-	Tick       uint64
+	PersonaTag string `json:"personaTag"`
+	Tick       uint64 `json:"tick"`
 }
 
 // QueryPersonaSignerResponse is used as the response body for the query-persona-signer endpoint. Status can be:
@@ -25,8 +25,8 @@ type QueryPersonaSignerRequest struct {
 // "unknown": The game tick has not advanced far enough to know what the signer address. SignerAddress will be empty.
 // "available": The game tick has advanced, and no signer address has been assigned. SignerAddress will be empty.
 type QueryPersonaSignerResponse struct {
-	Status        string
-	SignerAddress string
+	Status        string `json:"status"`
+	SignerAddress string `json:"signerAddress"`
 }
 
 func (handler *Handler) getPersonaSignerResponse(req *QueryPersonaSignerRequest) (*QueryPersonaSignerResponse, error) {

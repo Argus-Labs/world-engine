@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
+	"pkg.world.dev/world-engine/cardinal/ecs/abi"
 )
 
 type IQuery interface {
@@ -33,19 +34,19 @@ type IQuery interface {
 type QueryType[Request any, Reply any] struct {
 	name       string
 	handler    func(world *World, req Request) (Reply, error)
-	requestABI *abi.Type
-	replyABI   *abi.Type
+	requestABI *ethereumAbi.Type
+	replyABI   *ethereumAbi.Type
 }
 
 func WithQueryEVMSupport[Request, Reply any]() func(transactionType *QueryType[Request, Reply]) {
 	return func(query *QueryType[Request, Reply]) {
 		var req Request
 		var rep Reply
-		reqABI, err := GenerateABIType(req)
+		reqABI, err := abi.GenerateABIType(req)
 		if err != nil {
 			panic(err)
 		}
-		repABI, err := GenerateABIType(rep)
+		repABI, err := abi.GenerateABIType(rep)
 		if err != nil {
 			panic(err)
 		}
@@ -91,12 +92,12 @@ func NewQueryType[Request any, Reply any](
 
 func (r *QueryType[Request, Reply]) generateABIBindings() error {
 	var req Request
-	reqABI, err := GenerateABIType(req)
+	reqABI, err := abi.GenerateABIType(req)
 	if err != nil {
 		return fmt.Errorf("error generating request ABI binding: %w", err)
 	}
 	var rep Reply
-	repABI, err := GenerateABIType(rep)
+	repABI, err := abi.GenerateABIType(rep)
 	if err != nil {
 		return fmt.Errorf("error generating reply ABI binding: %w", err)
 	}
@@ -143,7 +144,7 @@ func (r *QueryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if r.requestABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
-	args := abi.Arguments{{Type: *r.requestABI}}
+	args := ethereumAbi.Arguments{{Type: *r.requestABI}}
 	unpacked, err := args.Unpack(bz)
 	if err != nil {
 		return nil, err
@@ -151,7 +152,7 @@ func (r *QueryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	request, err := SerdeInto[req](unpacked[0])
+	request, err := abi.SerdeInto[req](unpacked[0])
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +163,7 @@ func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if r.replyABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
-	args := abi.Arguments{{Type: *r.replyABI}}
+	args := ethereumAbi.Arguments{{Type: *r.replyABI}}
 	unpacked, err := args.Unpack(bz)
 	if err != nil {
 		return nil, err
@@ -170,7 +171,7 @@ func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
 	}
-	reply, err := SerdeInto[rep](unpacked[0])
+	reply, err := abi.SerdeInto[rep](unpacked[0])
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +182,7 @@ func (r *QueryType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	if r.replyABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
-	args := abi.Arguments{{Type: *r.replyABI}}
+	args := ethereumAbi.Arguments{{Type: *r.replyABI}}
 	bz, err := args.Pack(a)
 	return bz, err
 }
@@ -191,15 +192,15 @@ func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 		return nil, ErrEVMTypeNotSet
 	}
 
-	var args abi.Arguments
+	var args ethereumAbi.Arguments
 	var in any
 	switch input.(type) {
 	case Request:
 		in = input.(Request)
-		args = abi.Arguments{{Type: *r.requestABI}}
+		args = ethereumAbi.Arguments{{Type: *r.requestABI}}
 	case Reply:
 		in = input.(Reply)
-		args = abi.Arguments{{Type: *r.replyABI}}
+		args = ethereumAbi.Arguments{{Type: *r.replyABI}}
 	default:
 		return nil, fmt.Errorf("expected the input struct to be either %T or %T, but got %T",
 			new(Request), new(Reply), input)

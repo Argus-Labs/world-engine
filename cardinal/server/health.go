@@ -5,14 +5,14 @@ import (
 	"github.com/go-openapi/runtime/middleware/untyped"
 )
 
-type HealthResponse struct {
-	IsServerRunning   bool `json:"is_server_running"`
-	IsGameLoopRunning bool `json:"is_game_loop_running"`
+type HealthReply struct {
+	IsServerRunning   bool `json:"isServerRunning"`
+	IsGameLoopRunning bool `json:"isGameLoopRunning"`
 }
 
 func (handler *Handler) registerHealthHandlerSwagger(api *untyped.API) error {
 	healthHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		res := HealthResponse{
+		res := HealthReply{
 			true, //see http://ismycomputeron.com/
 			handler.w.IsGameLoopRunning()}
 		return res, nil

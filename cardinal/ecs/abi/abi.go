@@ -1,13 +1,14 @@
-package ecs
+package abi
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
 )
 
 const (

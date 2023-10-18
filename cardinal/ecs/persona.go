@@ -13,12 +13,12 @@ import (
 
 // CreatePersonaTransaction allows for the associating of a persona tag with a signer address.
 type CreatePersonaTransaction struct {
-	PersonaTag    string
-	SignerAddress string
+	PersonaTag    string `json:"personaTag"`
+	SignerAddress string `json:"signerAddress"`
 }
 
 type CreatePersonaTransactionResult struct {
-	Success bool
+	Success bool `json:"success"`
 }
 
 // CreatePersonaTx is a concrete ECS transaction.
