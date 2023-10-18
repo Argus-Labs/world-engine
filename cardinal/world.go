@@ -73,7 +73,7 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	for _, opt := range cardinalOptions {
 		opt(world)
 	}
-	txh, err := server.NewHandler(world.implWorld, world.serverOptions...)
+	txh, err := server.NewHandler(world.implWorld, nil, world.serverOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +129,7 @@ func (w *World) StartGame() error {
 		w.tickChannel = time.Tick(time.Second)
 	}
 	w.implWorld.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
-	txh, err := server.NewHandler(w.implWorld, w.serverOptions...)
+	txh, err := server.NewHandler(w.implWorld, nil, w.serverOptions...)
 	if err != nil {
 		return err
 	}

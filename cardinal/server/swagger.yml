@@ -8,9 +8,19 @@ produces:
     - application/json
 schemes:
     - http
+    - ws
 swagger: "2.0"
 
 paths:
+    /events:
+        get:
+            summary: Endpoint for events
+            description: websocket connection for events.
+            produces:
+                - application/json
+            responses:
+                '101':
+                    description: switch protocol to ws
     /health:
         get:
             summary: Get information on status of world-engine
