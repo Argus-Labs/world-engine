@@ -7,6 +7,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
@@ -95,6 +96,11 @@ func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, e
 	personaTagToAddress := map[string]personaTagComponentData{}
 	var errs []error
 	q, err := world.NewSearch(Exact(SignerComponent{}))
+	c, err := world.GetComponentByName(SignerComponent{}.Name())
+	if err != nil {
+		return nil, err
+	}
+	filter.Exact(c)
 	if err != nil {
 		return nil, err
 	}

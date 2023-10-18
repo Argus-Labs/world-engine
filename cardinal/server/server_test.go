@@ -42,8 +42,9 @@ type SendEnergyTxResult struct{}
 // testTransactionHandler is a helper struct that can start an HTTP server on port 4040 with the given world.
 type testTransactionHandler struct {
 	*server.Handler
-	t    *testing.T
-	host string
+	t        *testing.T
+	host     string
+	eventHub *server.EventHub
 }
 
 func (t *testTransactionHandler) makeHttpURL(path string) string {
@@ -66,7 +67,12 @@ func (t *testTransactionHandler) post(path string, payload any) *http.Response {
 func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.Option) *testTransactionHandler {
 	port := "4040"
 	opts = append(opts, server.WithPort(port))
-	txh, err := server.NewHandler(world, opts...)
+	eventHub := server.CreateEventHub()
+	go func() {
+		eventHub.Run()
+	}()
+	eventBuilder := server.CreateNewWebSocketBuilder("/events", server.CreateWebSocketEventHandler(eventHub))
+	txh, err := server.NewHandler(world, eventBuilder, opts...)
 	assert.NilError(t, err)
 
 	//add test websocket handler.
@@ -104,9 +110,10 @@ func makeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.O
 	}
 
 	return &testTransactionHandler{
-		Handler: txh,
-		t:       t,
-		host:    host,
+		Handler:  txh,
+		t:        t,
+		host:     host,
+		eventHub: eventHub,
 	}
 }
 
@@ -218,7 +225,7 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, world.RegisterTransactions(alphaTx))
-	txh, err := server.NewHandler(world, server.DisableSignatureVerification())
+	txh, err := server.NewHandler(world, nil, server.DisableSignatureVerification())
 	assert.NilError(t, err)
 	t.Cleanup(func() {
 		assert.NilError(t, txh.Close())
@@ -1223,4 +1230,36 @@ func TestWebSocket(t *testing.T) {
 	assert.Equal(t, string(message), messageToSend)
 	err = dial.Close()
 	assert.NilError(t, err)
+}
+
+func TestEvents(t *testing.T) {
+	//broadcast 5 messages to 5 clients means 25 messages received.
+	numberToTest := 5
+	w := ecs.NewTestWorld(t)
+	assert.NilError(t, w.LoadGameState())
+	txh := makeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	url := txh.makeWebSocketURL("events")
+	dialers := make([]*websocket.Conn, numberToTest, numberToTest)
+	for i, _ := range dialers {
+		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
+		assert.NilError(t, err)
+		dialers[i] = dial
+	}
+	for i := 0; i < numberToTest; i++ {
+		i := i
+		go func() {
+			txh.eventHub.Broadcast <- []byte(fmt.Sprintf("test%d", i))
+		}()
+	}
+
+	for _, dialer := range dialers {
+		for j := 0; j < numberToTest; j++ {
+			mode, message, err := dialer.ReadMessage()
+			assert.NilError(t, err)
+			assert.Equal(t, mode, websocket.TextMessage)
+			assert.Equal(t, string(message)[:4], "test")
+			//fmt.Println(string(message))
+		}
+	}
+	txh.eventHub.Shutdown <- true
 }

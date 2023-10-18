@@ -39,8 +39,8 @@ var (
 // NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
 // transactions and queries registered with the given world are automatically created. The server runs on a default port
 // of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
-func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
-	h, err := newSwaggerHandlerEmbed(w, opts...)
+func NewHandler(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
+	h, err := newSwaggerHandlerEmbed(w, builder, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -50,7 +50,7 @@ func NewHandler(w *ecs.World, opts ...Option) (*Handler, error) {
 //go:embed swagger.yml
 var swaggerData []byte
 
-func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
+func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	th := &Handler{
 		w:   w,
 		Mux: http.NewServeMux(),
@@ -78,13 +78,18 @@ func newSwaggerHandlerEmbed(w *ecs.World, opts ...Option) (*Handler, error) {
 		return nil, err
 	}
 
+	//This is here to meet the swagger spec. Actual /events will be intercepted before this route.
+	api.RegisterOperation("GET", "/events", runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+		return struct{}{}, nil
+	}))
+
 	if err := api.Validate(); err != nil {
 		return nil, err
 	}
 
 	app := middleware.NewContext(specDoc, api, nil)
 
-	th.Mux.Handle("/", app.APIHandler(nil))
+	th.Mux.Handle("/", app.APIHandler(builder))
 	th.Initialize()
 
 	return th, nil
