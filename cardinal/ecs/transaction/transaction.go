@@ -66,7 +66,8 @@ func (t *TxQueue) CopyTransactions() *TxQueue {
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	cpy := &TxQueue{
-		m: t.m,
+		m:          t.m,
+		txsInQueue: t.txsInQueue,
 	}
 	t.reset()
 	return cpy
