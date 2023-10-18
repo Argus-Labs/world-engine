@@ -8,35 +8,15 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/test_utils"
 )
-
-// TODO this function needs to be moved to a utils package above cardinal to prevent circulars.
-func setTestTimeout(t *testing.T, timeout time.Duration) {
-	if _, ok := t.Deadline(); ok {
-		// A deadline has already been set. Don't add an additional deadline.
-		return
-	}
-	success := make(chan bool)
-	t.Cleanup(func() {
-		success <- true
-	})
-	go func() {
-		select {
-		case <-success:
-			// test was successful. Do nothing
-		case <-time.After(timeout):
-			//assert.Check(t, false, "test timed out")
-			panic("test timed out")
-		}
-	}()
-}
 
 type Foo struct{}
 
 func (Foo) Name() string { return "foo" }
 
 func TestCanQueryInsideSystem(t *testing.T) {
-	setTestTimeout(t, 10*time.Second)
+	test_utils.SetTestTimeout(t, 10*time.Second)
 
 	nextTickCh := make(chan time.Time)
 	tickDoneCh := make(chan uint64)

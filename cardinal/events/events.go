@@ -1,4 +1,4 @@
-package server
+package events
 
 import (
 	"net/http"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-openapi/runtime/middleware"
-
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 )
