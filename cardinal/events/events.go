@@ -44,11 +44,15 @@ type EventHub struct {
 }
 
 func (eh *EventHub) BroadcastEvent(event *Event) {
-	eh.Broadcast <- event
+	go func() {
+		eh.Broadcast <- event
+	}()
 }
 
 func (eh *EventHub) FlushEvents() {
-	eh.Flush <- true
+	go func() {
+		eh.Flush <- true
+	}()
 }
 
 func (eh *EventHub) RegisterConnection(ws *websocket.Conn) {
