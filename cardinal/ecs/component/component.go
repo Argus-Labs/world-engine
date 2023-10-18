@@ -46,6 +46,7 @@ func CreateMany(world *ecs.World, num int, components ...component_metadata.Comp
 	return entityIds, nil
 }
 
+// Removes a component from an entity
 func RemoveComponentFrom[T component_metadata.Component](w *ecs.World, id entity.ID) error {
 	var t T
 	name := t.Name()
@@ -111,6 +112,7 @@ func SetComponent[T component_metadata.Component](w *ecs.World, id entity.ID, co
 	return nil
 }
 
+// Updates a component on an entity
 func UpdateComponent[T component_metadata.Component](w *ecs.World, id entity.ID, fn func(*T) *T) error {
 	val, err := GetComponent[T](w, id)
 	if err != nil {

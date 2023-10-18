@@ -109,6 +109,31 @@ func Create(w *World, components ...component_metadata.Component) (EntityID, err
 	return component.Create(w.implWorld, components...)
 }
 
+// SetComponent Set sets component data to the entity.
+func SetComponent[T component_metadata.Component](w *World, id entity.ID, comp *T) error {
+	return component.SetComponent[T](w.implWorld, id, comp)
+}
+
+// GetComponent Get returns component data from the entity.
+func GetComponent[T component_metadata.Component](w *World, id entity.ID) (comp *T, err error) {
+	return component.GetComponent[T](w.implWorld, id)
+}
+
+// UpdateComponent Updates a component on an entity
+func UpdateComponent[T component_metadata.Component](w *World, id entity.ID, fn func(*T) *T) error {
+	return component.UpdateComponent[T](w.implWorld, id, fn)
+}
+
+// AddComponentTo Adds a component on an entity
+func AddComponentTo[T component_metadata.Component](w *World, id entity.ID) error {
+	return component.AddComponentTo[T](w.implWorld, id)
+}
+
+// RemoveComponentFrom Removes a component from an entity
+func RemoveComponentFrom[T component_metadata.Component](w *World, id entity.ID) error {
+	return component.RemoveComponentFrom[T](w.implWorld, id)
+}
+
 // Remove removes the given entity id from the world.
 func (w *World) Remove(id EntityID) error {
 	return w.implWorld.Remove(id)
