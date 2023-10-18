@@ -40,7 +40,7 @@ type routerImpl struct {
 	logger       log.Logger
 	queue        *msgQueue
 
-	results *resultStorage
+	resultStore *resultStorage
 
 	// opts
 	creds credentials.TransportCredentials
@@ -75,7 +75,7 @@ func NewRouter(cardinalAddr string, logger log.Logger, opts ...Option) Router {
 		logger:       logger,
 		creds:        insecure.NewCredentials(),
 		queue:        new(msgQueue),
-		results:      NewResultStorage(10 * time.Minute),
+		resultStore:  NewResultStorage(10 * time.Minute),
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -98,6 +98,11 @@ func (r *routerImpl) HandleDispatch(tx *types.Transaction, result *core.Executio
 	}
 }
 
+const (
+	CodeConnectionError = iota + 100
+	CodeServerError
+)
+
 func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 	defer r.queue.Clear()
 	msg := r.queue.msg
@@ -106,8 +111,7 @@ func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 
 	client, err := r.getConnectionForNamespace(namespace)
 	if err != nil {
-		// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
-		// this error in the callback storage module.
+		r.resultStore.SetResult(&routerv1.SendMessageResponse{EvmTxHash: msg.EvmTxHash, Code: CodeConnectionError, Errs: "error getting game shard gRPC connection"})
 		r.logger.Error("error getting game shard gRPC connection", "error", err)
 		return
 	}
@@ -123,15 +127,12 @@ func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 	go func() {
 		res, err := client.SendMessage(context.Background(), msg)
 		if err != nil {
-			// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
-			// this error in the callback storage module.
+			r.resultStore.SetResult(&routerv1.SendMessageResponse{EvmTxHash: msg.EvmTxHash, Code: CodeServerError, Errs: err.Error()})
 			r.logger.Error("failed to send message to game shard", "error", err)
 			return
 		}
 		r.logger.Debug("successfully sent message to game shard")
-		// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
-		// the result in the callback storage module.
-		r.results.SetResult(res)
+		r.resultStore.SetResult(res)
 	}()
 }
 
@@ -150,9 +151,9 @@ func (r *routerImpl) SendMessage(_ context.Context, namespace, sender string, ms
 }
 
 func (r *routerImpl) MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error) {
-	res, ok := r.results.GetResult(evmTxHash)
+	res, ok := r.resultStore.GetResult(evmTxHash)
 	if !ok {
-		return nil, "", 0, fmt.Errorf("no results found")
+		return nil, "", 0, fmt.Errorf("no resultStore found")
 	}
 	return res.Result, res.Errs, res.Code, nil
 }

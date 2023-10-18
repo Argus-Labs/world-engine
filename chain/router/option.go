@@ -17,6 +17,6 @@ func WithCredentials(credPath string) Option {
 
 func WithResultsKeepAlive(d time.Duration) Option {
 	return func(r *routerImpl) {
-		r.results.keepAlive = d
+		r.resultStore.keepAlive = d
 	}
 }
