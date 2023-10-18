@@ -3,6 +3,7 @@ package transaction_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/sign"
 	"testing"
 	"time"
 
@@ -548,4 +549,17 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	gotResult, ok := r.Result.(TxOut)
 	assert.Check(t, ok)
 	assert.Equal(t, secondResult, gotResult)
+}
+
+func TestCopyTransactions(t *testing.T) {
+	type FooTx struct {
+		X int
+	}
+	txq := transaction.NewTxQueue()
+	txq.AddTransaction(1, FooTx{X: 3}, &sign.SignedPayload{PersonaTag: "foo"})
+	txq.AddTransaction(2, FooTx{X: 4}, &sign.SignedPayload{PersonaTag: "bar"})
+
+	copyTxq := txq.CopyTransactions()
+	assert.Equal(t, copyTxq.GetAmountOfTxs(), 2)
+	assert.Equal(t, txq.GetAmountOfTxs(), 0)
 }

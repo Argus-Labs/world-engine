@@ -47,8 +47,6 @@ type msgServerImpl struct {
 	queryMap queryByName
 	world    *ecs.World
 
-	receiptChan chan ecs.EVMTxReceipt
-
 	// opts
 	creds credentials.TransportCredentials
 	port  string

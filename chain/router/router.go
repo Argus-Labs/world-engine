@@ -40,7 +40,7 @@ type routerImpl struct {
 	logger       log.Logger
 	queue        *msgQueue
 
-	results resultStorage
+	results *resultStorage
 
 	// opts
 	creds credentials.TransportCredentials

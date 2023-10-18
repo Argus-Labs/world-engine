@@ -19,8 +19,8 @@ type resultStorage struct {
 	results   map[string]result
 }
 
-func NewResultStorage(keepAlive time.Duration) resultStorage {
-	return resultStorage{
+func NewResultStorage(keepAlive time.Duration) *resultStorage {
+	return &resultStorage{
 		keepAlive: keepAlive,
 		results:   make(map[string]result),
 	}

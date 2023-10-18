@@ -23,6 +23,8 @@ func (t *TxQueue) GetAmountOfTxs() int {
 	return t.txsInQueue
 }
 
+// GetEVMTxs gets all the txs in the queue that originated from the EVM.
+// NOTE: this is called ONLY in the copied tx queue in world.Tick, so we do not need to use the mutex here.
 func (t *TxQueue) GetEVMTxs() []TxAny {
 	transactions := make([]TxAny, 0)
 	for _, txs := range t.m {
@@ -62,15 +64,13 @@ func (t *TxQueue) addTransaction(id TypeID, v any, sig *sign.SignedPayload, evmT
 	return txHash
 }
 
+// CopyTransactions returns a copy of the TxQueue, and resets the state to 0 values.
 func (t *TxQueue) CopyTransactions() *TxQueue {
 	t.mux.Lock()
 	defer t.mux.Unlock()
-	cpy := &TxQueue{
-		m:          t.m,
-		txsInQueue: t.txsInQueue,
-	}
+	cpy := *t
 	t.reset()
-	return cpy
+	return &cpy
 }
 
 func (t *TxQueue) reset() {
