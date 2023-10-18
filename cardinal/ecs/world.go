@@ -52,6 +52,8 @@ type World struct {
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
 
+	evmTxReceipts map[string]EVMTxReceipt
+
 	txQueue *transaction.TxQueue
 
 	receiptHistory *receipt.History
@@ -233,6 +235,7 @@ func NewWorld(s storage.WorldStorage, sm store.IManager, opts ...Option) (*World
 		isGameLoopRunning: atomic.Bool{},
 		endGameLoopCh:     make(chan bool),
 		nextComponentID:   1,
+		evmTxReceipts:     make(map[string]EVMTxReceipt),
 	}
 	w.isGameLoopRunning.Store(false)
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
@@ -269,6 +272,14 @@ func (w *World) Len() (int, error) {
 // Remove removes the given Entity from the world
 func (w *World) Remove(id entity.ID) error {
 	return w.StoreManager().RemoveEntity(id)
+}
+
+// ConsumeEVMTxResult consumes a tx result from an EVM originated Cardinal transaction.
+// It will fetch the receipt from the map, and then delete ('consume') it from the map.
+func (w *World) ConsumeEVMTxResult(evmTxHash string) (EVMTxReceipt, bool) {
+	r, ok := w.evmTxReceipts[evmTxHash]
+	delete(w.evmTxReceipts, evmTxHash)
+	return r, ok
 }
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
@@ -350,32 +361,30 @@ type EVMTxReceipt struct {
 	EVMTxHash string
 }
 
-func (w *World) dispatchEvmResults(txs []transaction.TxAny) error {
+func (w *World) dispatchEvmResults(txs []transaction.TxAny) {
 	// iterate over all EVM originated transactions
 	for _, tx := range txs {
-		// see if tx has a receipt (sometimes it won't because:
+		// see if tx has a receipt. sometimes it won't because:
 		// The system isn't using TxIterators && never explicitly called SetResult.
 		rec, ok := w.receiptHistory.GetReceipt(tx.TxHash)
 		if !ok {
 			continue
 		}
-		if rec.Result == nil && (len(rec.Errs) == 0) {
-
-		} else {
+		// check that the receipt has any data at all
+		if !(rec.Result == nil || (len(rec.Errs) == 0)) {
 			itx := w.getITx(tx.TxID)
 			abiBz, err := itx.ABIEncode(rec.Result)
 			if err != nil {
-				// TODO: should we notify the EVM of this?
-				return err
+				rec.Errs = append(rec.Errs, err)
 			}
-			rec := EVMTxReceipt{
+			evmRec := EVMTxReceipt{
 				ABIResult: abiBz,
 				Errs:      rec.Errs,
 				EVMTxHash: tx.EVMSourceTxHash,
 			}
+			w.evmTxReceipts[evmRec.EVMTxHash] = evmRec
 		}
 	}
-	return nil
 }
 
 func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
@@ -420,6 +429,24 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 		}
 		w.isGameLoopRunning.Store(false)
 	}()
+}
+
+func (w *World) WaitForNextTick() bool {
+	current := w.CurrentTick()
+	timeout := time.After(5 * time.Second)
+
+	for {
+		if w.CurrentTick() > current {
+			return true
+		}
+
+		select {
+		case <-timeout:
+			return false // Timeout reached
+		default:
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
 }
 
 func (w *World) IsGameLoopRunning() bool {

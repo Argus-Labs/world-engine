@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 
@@ -10,6 +11,20 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
+
+func TestWaitForNextTick(t *testing.T) {
+	w := ecs.NewTestWorld(t)
+	doneCh := make(chan struct{})
+	go func() {
+		tick := w.CurrentTick()
+		w.WaitForNextTick()
+		assert.Check(t, w.CurrentTick() > tick)
+		doneCh <- struct{}{}
+	}()
+	assert.NilError(t, w.LoadGameState())
+	w.StartGameLoop(context.Background(), time.Tick(100*time.Millisecond), nil)
+	<-doneCh
+}
 
 func TestAddSystems(t *testing.T) {
 	count := 0

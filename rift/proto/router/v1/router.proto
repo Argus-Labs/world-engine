@@ -5,7 +5,7 @@ package world.engine.router.v1;
 option go_package = "github.com/argus-labs/world-engine/router/v1";
 
 service Msg {
-  rpc SendMessage(stream SendMessageRequest) returns (stream SendMessageResponse);
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
   rpc QueryShard(QueryShardRequest) returns (QueryShardResponse);
 }
 
@@ -33,6 +33,10 @@ message SendMessageResponse {
 
   // evm_tx_hash is the tx hash of the evm transaction that triggered the request.
   string evm_tx_hash = 3;
+
+  // code is an arbitrary code that represents the result of the message execution. Refer to game shard documentation
+  // for code definitions.
+  uint32 code = 4;
 }
 
 message QueryShardRequest {

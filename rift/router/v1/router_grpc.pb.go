@@ -27,7 +27,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type MsgClient interface {
-	SendMessage(ctx context.Context, opts ...grpc.CallOption) (Msg_SendMessageClient, error)
+	SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error)
 	QueryShard(ctx context.Context, in *QueryShardRequest, opts ...grpc.CallOption) (*QueryShardResponse, error)
 }
 
@@ -39,35 +39,13 @@ func NewMsgClient(cc grpc.ClientConnInterface) MsgClient {
 	return &msgClient{cc}
 }
 
-func (c *msgClient) SendMessage(ctx context.Context, opts ...grpc.CallOption) (Msg_SendMessageClient, error) {
-	stream, err := c.cc.NewStream(ctx, &Msg_ServiceDesc.Streams[0], Msg_SendMessage_FullMethodName, opts...)
+func (c *msgClient) SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error) {
+	out := new(SendMessageResponse)
+	err := c.cc.Invoke(ctx, Msg_SendMessage_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &msgSendMessageClient{stream}
-	return x, nil
-}
-
-type Msg_SendMessageClient interface {
-	Send(*SendMessageRequest) error
-	Recv() (*SendMessageResponse, error)
-	grpc.ClientStream
-}
-
-type msgSendMessageClient struct {
-	grpc.ClientStream
-}
-
-func (x *msgSendMessageClient) Send(m *SendMessageRequest) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *msgSendMessageClient) Recv() (*SendMessageResponse, error) {
-	m := new(SendMessageResponse)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
+	return out, nil
 }
 
 func (c *msgClient) QueryShard(ctx context.Context, in *QueryShardRequest, opts ...grpc.CallOption) (*QueryShardResponse, error) {
@@ -83,7 +61,7 @@ func (c *msgClient) QueryShard(ctx context.Context, in *QueryShardRequest, opts 
 // All implementations must embed UnimplementedMsgServer
 // for forward compatibility
 type MsgServer interface {
-	SendMessage(Msg_SendMessageServer) error
+	SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error)
 	QueryShard(context.Context, *QueryShardRequest) (*QueryShardResponse, error)
 	mustEmbedUnimplementedMsgServer()
 }
@@ -92,8 +70,8 @@ type MsgServer interface {
 type UnimplementedMsgServer struct {
 }
 
-func (UnimplementedMsgServer) SendMessage(Msg_SendMessageServer) error {
-	return status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
+func (UnimplementedMsgServer) SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
 }
 func (UnimplementedMsgServer) QueryShard(context.Context, *QueryShardRequest) (*QueryShardResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryShard not implemented")
@@ -111,30 +89,22 @@ func RegisterMsgServer(s grpc.ServiceRegistrar, srv MsgServer) {
 	s.RegisterService(&Msg_ServiceDesc, srv)
 }
 
-func _Msg_SendMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(MsgServer).SendMessage(&msgSendMessageServer{stream})
-}
-
-type Msg_SendMessageServer interface {
-	Send(*SendMessageResponse) error
-	Recv() (*SendMessageRequest, error)
-	grpc.ServerStream
-}
-
-type msgSendMessageServer struct {
-	grpc.ServerStream
-}
-
-func (x *msgSendMessageServer) Send(m *SendMessageResponse) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *msgSendMessageServer) Recv() (*SendMessageRequest, error) {
-	m := new(SendMessageRequest)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
+func _Msg_SendMessage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SendMessageRequest)
+	if err := dec(in); err != nil {
 		return nil, err
 	}
-	return m, nil
+	if interceptor == nil {
+		return srv.(MsgServer).SendMessage(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Msg_SendMessage_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MsgServer).SendMessage(ctx, req.(*SendMessageRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Msg_QueryShard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -163,17 +133,14 @@ var Msg_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "SendMessage",
+			Handler:    _Msg_SendMessage_Handler,
+		},
+		{
 			MethodName: "QueryShard",
 			Handler:    _Msg_QueryShard_Handler,
 		},
 	},
-	Streams: []grpc.StreamDesc{
-		{
-			StreamName:    "SendMessage",
-			Handler:       _Msg_SendMessage_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-	},
+	Streams:  []grpc.StreamDesc{},
 	Metadata: "router/v1/router.proto",
 }
