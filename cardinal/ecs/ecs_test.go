@@ -8,6 +8,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -40,13 +41,13 @@ func UpdateEnergySystem(w *ecs.World, tq *transaction.TxQueue, _ *log.Logger) er
 	q, err := w.NewSearch(ecs.Contains(EnergyComponent{}))
 	errs = append(errs, err)
 	q.Each(w, func(ent entity.ID) bool {
-		energyPlanet, err := ecs.GetComponent[EnergyComponent](w, ent)
+		energyPlanet, err := component.GetComponent[EnergyComponent](w, ent)
 		//energyPlanet, err := Energy.Get(w, ent)
 		if err != nil {
 			errs = append(errs, err)
 		}
 		energyPlanet.Amt += 10 // bs whatever
-		err = ecs.SetComponent[EnergyComponent](w, ent, energyPlanet)
+		err = component.SetComponent[EnergyComponent](w, ent, energyPlanet)
 		//err = Energy.Set(w, ent, *energyPlanet)
 		if err != nil {
 			errs = append(errs, err)
@@ -71,11 +72,11 @@ func TestECS(t *testing.T) {
 
 	// create a bunch of planets!
 	numPlanets := 5
-	_, err := ecs.CreateMany(world, numPlanets, EnergyComponent{}, OwnableComponent{})
+	_, err := component.CreateMany(world, numPlanets, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 
 	numEnergyOnly := 10
-	_, err = ecs.CreateMany(world, numEnergyOnly, EnergyComponent{})
+	_, err = component.CreateMany(world, numEnergyOnly, EnergyComponent{})
 	assert.NilError(t, err)
 
 	world.AddSystem(UpdateEnergySystem)
@@ -85,7 +86,7 @@ func TestECS(t *testing.T) {
 	query, err := world.NewSearch(ecs.Contains(EnergyComponent{}))
 	assert.NilError(t, err)
 	query.Each(world, func(id entity.ID) bool {
-		energyPlanet, err := ecs.GetComponent[EnergyComponent](world, id)
+		energyPlanet, err := component.GetComponent[EnergyComponent](world, id)
 		//energyPlanet, err := Energy.Get(world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, int64(10), energyPlanet.Amt)
@@ -125,27 +126,27 @@ func TestVelocitySimulation(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Vel](world))
 	assert.NilError(t, world.LoadGameState())
 
-	shipID, err := ecs.Create(world, Pos{}, Vel{})
+	shipID, err := component.Create(world, Pos{}, Vel{})
 	assert.NilError(t, err)
-	assert.NilError(t, ecs.SetComponent[Pos](world, shipID, &Pos{1, 2}))
-	assert.NilError(t, ecs.SetComponent[Vel](world, shipID, &Vel{3, 4}))
+	assert.NilError(t, component.SetComponent[Pos](world, shipID, &Pos{1, 2}))
+	assert.NilError(t, component.SetComponent[Vel](world, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
 	velocityQuery, err := world.NewSearch(ecs.Contains(&Vel{}))
 	assert.NilError(t, err)
 	velocityQuery.Each(world, func(id entity.ID) bool {
-		vel, err := ecs.GetComponent[Vel](world, id)
+		vel, err := component.GetComponent[Vel](world, id)
 		//vel, err := Velocity.Get(world, id)
 		assert.NilError(t, err)
-		pos, err := ecs.GetComponent[Pos](world, id)
+		pos, err := component.GetComponent[Pos](world, id)
 		//pos, err := Position.Get(world, id)
 		assert.NilError(t, err)
 		newPos := Pos{pos.X + vel.DX, pos.Y + vel.DY}
-		assert.NilError(t, ecs.SetComponent[Pos](world, id, &newPos))
+		assert.NilError(t, component.SetComponent[Pos](world, id, &newPos))
 		return true
 	})
 
-	finalPos, err := ecs.GetComponent[Pos](world, shipID)
+	finalPos, err := component.GetComponent[Pos](world, shipID)
 	//finalPos, err := Position.Get(world, shipID)
 	assert.NilError(t, err)
 	assert.Equal(t, wantPos, *finalPos)
@@ -169,20 +170,20 @@ func TestCanSetDefaultValue(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Owner](world))
 	assert.NilError(t, world.LoadGameState())
 
-	alphaEntity, err := ecs.Create(world, wantOwner)
+	alphaEntity, err := component.Create(world, wantOwner)
 	assert.NilError(t, err)
 
 	//alphaOwner, err := owner.Get(world, alpha)
-	alphaOwner, err := ecs.GetComponent[Owner](world, alphaEntity)
+	alphaOwner, err := component.GetComponent[Owner](world, alphaEntity)
 	assert.NilError(t, err)
 	assert.Equal(t, *alphaOwner, wantOwner)
 
 	alphaOwner.MyName = "Bob"
 	//assert.NilError(t, owner.Set(world, alpha, *alphaOwner))
-	assert.NilError(t, ecs.SetComponent[Owner](world, alphaEntity, alphaOwner))
+	assert.NilError(t, component.SetComponent[Owner](world, alphaEntity, alphaOwner))
 
 	//newOwner, err := owner.Get(world, alpha)
-	newOwner, err := ecs.GetComponent[Owner](world, alphaEntity)
+	newOwner, err := component.GetComponent[Owner](world, alphaEntity)
 	assert.NilError(t, err)
 	assert.Equal(t, newOwner.MyName, "Bob")
 }
@@ -201,7 +202,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Tuple](world))
 	assert.NilError(t, world.LoadGameState())
 
-	entities, err := ecs.CreateMany(world, 2, Tuple{})
+	entities, err := component.CreateMany(world, 2, Tuple{})
 	assert.NilError(t, err)
 
 	// Make sure we find exactly 2 entries
@@ -209,7 +210,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	q, err := world.NewSearch(ecs.Contains(Tuple{}))
 	assert.NilError(t, err)
 	q.Each(world, func(id entity.ID) bool {
-		_, err := ecs.GetComponent[Tuple](world, id)
+		_, err := component.GetComponent[Tuple](world, id)
 		//_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
@@ -223,7 +224,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	// Now we should only find 1 entity
 	count = 0
 	q.Each(world, func(id entity.ID) bool {
-		_, err := ecs.GetComponent[Tuple](world, id)
+		_, err := component.GetComponent[Tuple](world, id)
 		//_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
@@ -240,7 +241,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.NilError(t, err)
 	count = 0
 	q.Each(world, func(id entity.ID) bool {
-		_, err := ecs.GetComponent[Tuple](world, id)
+		_, err := component.GetComponent[Tuple](world, id)
 		//_, err := tuple.Get(world, id)
 		assert.NilError(t, err)
 		count++
@@ -267,7 +268,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[CountComponent](world))
 	assert.NilError(t, world.LoadGameState())
 
-	_, err := ecs.CreateMany(world, 10, CountComponent{})
+	_, err := component.CreateMany(world, 10, CountComponent{})
 	assert.NilError(t, err)
 
 	// Pre-populate all the entities with their own IDs. This will help
@@ -275,7 +276,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	// of a problem
 	q, err := world.NewSearch(ecs.Contains(CountComponent{}))
 	q.Each(world, func(id entity.ID) bool {
-		assert.NilError(t, ecs.SetComponent[CountComponent](world, id, &CountComponent{int(id)}))
+		assert.NilError(t, component.SetComponent[CountComponent](world, id, &CountComponent{int(id)}))
 		//assert.NilError(t, Count.Set(world, id, CountComponent{int(id)}))
 		return true
 	})
@@ -294,7 +295,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 
 	seen := map[int]int{}
 	q.Each(world, func(id entity.ID) bool {
-		c, err := ecs.GetComponent[CountComponent](world, id)
+		c, err := component.GetComponent[CountComponent](world, id)
 		//c, err := Count.Get(world, id)
 		assert.NilError(t, err)
 		seen[c.Val]++
@@ -313,9 +314,9 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](world))
 	assert.NilError(t, world.LoadGameState())
 
-	ent, err := ecs.Create(world, EnergyComponent{})
+	ent, err := component.Create(world, EnergyComponent{})
 	assert.NilError(t, err)
-	assert.ErrorIs(t, ecs.AddComponentTo[EnergyComponent](world, ent), storage.ErrorComponentAlreadyOnEntity)
+	assert.ErrorIs(t, component.AddComponentTo[EnergyComponent](world, ent), storage.ErrorComponentAlreadyOnEntity)
 }
 
 type ReactorEnergy struct {
@@ -341,11 +342,11 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[ReactorEnergy](world))
 	assert.NilError(t, ecs.RegisterComponent[WeaponEnergy](world))
 	assert.NilError(t, world.LoadGameState())
-	ent, err := ecs.Create(world, ReactorEnergy{})
+	ent, err := component.Create(world, ReactorEnergy{})
 	assert.NilError(t, err)
 
 	//assert.ErrorIs(t, weaponsEnergy.RemoveFrom(world, ent), storage.ErrorComponentNotOnEntity)
-	assert.ErrorIs(t, ecs.RemoveComponentFrom[WeaponEnergy](world, ent), storage.ErrorComponentNotOnEntity)
+	assert.ErrorIs(t, component.RemoveComponentFrom[WeaponEnergy](world, ent), storage.ErrorComponentNotOnEntity)
 }
 
 type Foo struct{}
@@ -374,13 +375,13 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 		assert.NilError(t, err)
 		return archID
 	}
-	entity, err := ecs.Create(world, Foo{}, Bar{})
+	entity, err := component.Create(world, Foo{}, Bar{})
 	assert.NilError(t, err)
 
 	archIDBefore := getArchIDForEntityID(entity)
 
 	// The entity should now be in a different archetype
-	assert.NilError(t, ecs.RemoveComponentFrom[Foo](world, entity))
+	assert.NilError(t, component.RemoveComponentFrom[Foo](world, entity))
 
 	archIDAfter := getArchIDForEntityID(entity)
 	assert.Check(t, archIDBefore != archIDAfter)
@@ -416,7 +417,7 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 
 	assert.NilError(t, world.LoadGameState())
 
-	entIDs, err := ecs.CreateMany(world, 3, Alpha{}, Beta{})
+	entIDs, err := component.CreateMany(world, 3, Alpha{}, Beta{})
 	assert.NilError(t, err)
 
 	// count and countAgain are helpers that simplify the counting of how many
@@ -441,14 +442,14 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	gammaQuery.Each(world, countAgain())
 	assert.Equal(t, 0, count)
 
-	assert.NilError(t, ecs.RemoveComponentFrom[Alpha](world, entIDs[0]))
+	assert.NilError(t, component.RemoveComponentFrom[Alpha](world, entIDs[0]))
 
 	// alpha has been removed from entity[0], so only 2 entities should now have alpha
 	alphaQuery.Each(world, countAgain())
 	assert.Equal(t, 2, count)
 
 	// Add gamma to an entity. Now 1 entity should have gamma.
-	assert.NilError(t, ecs.AddComponentTo[Gamma](world, entIDs[1]))
+	assert.NilError(t, component.AddComponentTo[Gamma](world, entIDs[1]))
 	gammaQuery.Each(world, countAgain())
 	assert.Equal(t, 1, count)
 
@@ -484,10 +485,10 @@ func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponentBeta](world))
 	assert.NilError(t, world.LoadGameState())
 
-	id, err := ecs.Create(world, EnergyComponentAlpha{})
+	id, err := component.Create(world, EnergyComponentAlpha{})
 	assert.NilError(t, err)
 
-	err = ecs.SetComponent[EnergyComponentBeta](world, id, &EnergyComponentBeta{100, 200})
+	err = component.SetComponent[EnergyComponentBeta](world, id, &EnergyComponentBeta{100, 200})
 	//err = beta.Set(world, id, EnergyComponentBeta{100, 200})
 	assert.Check(t, err != nil)
 }
@@ -511,11 +512,11 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 
 	assert.NilError(t, world.LoadGameState())
 
-	ab, err := ecs.Create(world, A{}, B{})
+	ab, err := component.Create(world, A{}, B{})
 	assert.NilError(t, err)
-	cd, err := ecs.Create(world, C{}, D{})
+	cd, err := component.Create(world, C{}, D{})
 	assert.NilError(t, err)
-	_, err = ecs.Create(world, B{}, D{})
+	_, err = component.Create(world, B{}, D{})
 	assert.NilError(t, err)
 
 	// Only one entity has the components a and b
@@ -566,10 +567,10 @@ func TestUpdateWithPointerType(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[HealthComponent](world))
 	assert.NilError(t, world.LoadGameState())
 
-	id, err := ecs.Create(world, HealthComponent{})
+	id, err := component.Create(world, HealthComponent{})
 	assert.NilError(t, err)
 
-	err = ecs.UpdateComponent[HealthComponent](world, id, func(h *HealthComponent) *HealthComponent {
+	err = component.UpdateComponent[HealthComponent](world, id, func(h *HealthComponent) *HealthComponent {
 		if h == nil {
 			h = &HealthComponent{}
 		}
@@ -578,7 +579,7 @@ func TestUpdateWithPointerType(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	hp, err := ecs.GetComponent[HealthComponent](world, id)
+	hp, err := component.GetComponent[HealthComponent](world, id)
 	//hp, err := hpComp.Get(world, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, hp.HP)
@@ -597,20 +598,20 @@ func TestCanRemoveFirstEntity(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent1](world))
 
-	ids, err := ecs.CreateMany(world, 3, ValueComponent1{})
+	ids, err := component.CreateMany(world, 3, ValueComponent1{})
 	assert.NilError(t, err)
-	assert.NilError(t, ecs.SetComponent[ValueComponent1](world, ids[0], &ValueComponent1{99}))
-	assert.NilError(t, ecs.SetComponent[ValueComponent1](world, ids[1], &ValueComponent1{100}))
-	assert.NilError(t, ecs.SetComponent[ValueComponent1](world, ids[2], &ValueComponent1{101}))
+	assert.NilError(t, component.SetComponent[ValueComponent1](world, ids[0], &ValueComponent1{99}))
+	assert.NilError(t, component.SetComponent[ValueComponent1](world, ids[1], &ValueComponent1{100}))
+	assert.NilError(t, component.SetComponent[ValueComponent1](world, ids[2], &ValueComponent1{101}))
 
 	assert.NilError(t, world.Remove(ids[0]))
 
-	val, err := ecs.GetComponent[ValueComponent1](world, ids[1])
+	val, err := component.GetComponent[ValueComponent1](world, ids[1])
 	//val, err := valComp.Get(world, ids[1])
 	assert.NilError(t, err)
 	assert.Equal(t, 100, val.Val)
 
-	val, err = ecs.GetComponent[ValueComponent1](world, ids[2])
+	val, err = component.GetComponent[ValueComponent1](world, ids[2])
 	//val, err = valComp.Get(world, ids[2])
 	assert.NilError(t, err)
 	assert.Equal(t, 101, val.Val)
@@ -637,20 +638,20 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](world))
 	assert.NilError(t, ecs.RegisterComponent[OtherComponent](world))
 
-	ids, err := ecs.CreateMany(world, 3, ValueComponent2{})
+	ids, err := component.CreateMany(world, 3, ValueComponent2{})
 	assert.NilError(t, err)
-	assert.NilError(t, ecs.SetComponent[ValueComponent2](world, ids[0], &ValueComponent2{99}))
-	assert.NilError(t, ecs.SetComponent[ValueComponent2](world, ids[1], &ValueComponent2{100}))
-	assert.NilError(t, ecs.SetComponent[ValueComponent2](world, ids[2], &ValueComponent2{101}))
+	assert.NilError(t, component.SetComponent[ValueComponent2](world, ids[0], &ValueComponent2{99}))
+	assert.NilError(t, component.SetComponent[ValueComponent2](world, ids[1], &ValueComponent2{100}))
+	assert.NilError(t, component.SetComponent[ValueComponent2](world, ids[2], &ValueComponent2{101}))
 
-	assert.NilError(t, ecs.AddComponentTo[OtherComponent](world, ids[0]))
+	assert.NilError(t, component.AddComponentTo[OtherComponent](world, ids[0]))
 
-	val, err := ecs.GetComponent[ValueComponent2](world, ids[1])
+	val, err := component.GetComponent[ValueComponent2](world, ids[1])
 	//val, err := valComp.Get(world, ids[1])
 	assert.NilError(t, err)
 	assert.Equal(t, 100, val.Val)
 
-	val, err = ecs.GetComponent[ValueComponent2](world, ids[2])
+	val, err = component.GetComponent[ValueComponent2](world, ids[2])
 	//val, err = valComp.Get(world, ids[2])
 	assert.NilError(t, err)
 	assert.Equal(t, 101, val.Val)
@@ -661,12 +662,12 @@ func TestEntityCreationAndSetting(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](world))
 	assert.NilError(t, ecs.RegisterComponent[OtherComponent](world))
 
-	ids, err := ecs.CreateMany(world, 300, ValueComponent2{999}, OtherComponent{999})
+	ids, err := component.CreateMany(world, 300, ValueComponent2{999}, OtherComponent{999})
 	assert.NilError(t, err)
 	for _, id := range ids {
-		x, err := ecs.GetComponent[ValueComponent2](world, id)
+		x, err := component.GetComponent[ValueComponent2](world, id)
 		assert.NilError(t, err)
-		y, err := ecs.GetComponent[OtherComponent](world, id)
+		y, err := component.GetComponent[OtherComponent](world, id)
 		assert.NilError(t, err)
 		assert.Equal(t, x.Val, 999)
 		assert.Equal(t, y.Val, 999)

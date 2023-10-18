@@ -34,7 +34,7 @@ type EventHub struct {
 	Shutdown             chan bool
 }
 
-func (h *EventHub) run() {
+func (h *EventHub) Run() {
 	unregisterConnection := func(conn *websocket.Conn) {
 		if _, ok := h.websocketConnections[conn]; ok {
 			delete(h.websocketConnections, conn)

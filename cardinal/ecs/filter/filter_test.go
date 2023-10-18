@@ -7,6 +7,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -39,10 +40,10 @@ func TestCanFilterByArchetype(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	subsetCount := 50
-	_, err := ecs.CreateMany(world, subsetCount, Alpha{}, Beta{})
+	_, err := component.CreateMany(world, subsetCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some entities that have all 3 component.
-	_, err = ecs.CreateMany(world, 20, Alpha{}, Beta{}, Gamma{})
+	_, err = component.CreateMany(world, 20, Alpha{}, Beta{}, Gamma{})
 	assert.NilError(t, err)
 
 	count := 0
@@ -53,7 +54,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 	q.Each(world, func(id entity.ID) bool {
 		count++
 		// Make sure the gamma component is not on this entity
-		_, err := ecs.GetComponent[gammaComponent](world, id)
+		_, err := component.GetComponent[gammaComponent](world, id)
 		//_, err := gamma.Get(world, id)
 		assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
 		return true
@@ -80,10 +81,10 @@ func TestExactVsContains(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Beta](world))
 
 	alphaCount := 75
-	_, err := ecs.CreateMany(world, alphaCount, Alpha{})
+	_, err := component.CreateMany(world, alphaCount, Alpha{})
 	assert.NilError(t, err)
 	bothCount := 100
-	_, err = ecs.CreateMany(world, bothCount, Alpha{}, Beta{})
+	_, err = component.CreateMany(world, bothCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	count := 0
 	// Contains(alpha) should return all entities
@@ -186,11 +187,11 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	wantCount := 50
-	ids, err := ecs.CreateMany(world, wantCount, Alpha{}, Beta{})
+	ids, err := component.CreateMany(world, wantCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some extra entities that will be ignored. Our query later
 	// should NOT contain these entities
-	_, err = ecs.CreateMany(world, 20, Alpha{})
+	_, err = component.CreateMany(world, 20, Alpha{})
 	assert.NilError(t, err)
 	id := ids[0]
 	comps, err := world.StoreManager().GetComponentTypesForEntity(id)
@@ -229,7 +230,7 @@ func BenchmarkEntityCreation(b *testing.B) {
 		world := ecs.NewTestWorld(b)
 		assert.NilError(b, ecs.RegisterComponent[Alpha](world))
 		assert.NilError(b, world.LoadGameState())
-		_, err := ecs.CreateMany(world, 100000, Alpha{})
+		_, err := component.CreateMany(world, 100000, Alpha{})
 		assert.NilError(b, err)
 	}
 }
@@ -253,9 +254,9 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	assert.NilError(b, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(b, ecs.RegisterComponent[Beta](world))
 	assert.NilError(b, world.LoadGameState())
-	_, err := ecs.CreateMany(world, relevantCount, Alpha{}, Beta{})
+	_, err := component.CreateMany(world, relevantCount, Alpha{}, Beta{})
 	assert.NilError(b, err)
-	_, err = ecs.CreateMany(world, ignoreCount, Alpha{})
+	_, err = component.CreateMany(world, ignoreCount, Alpha{})
 	assert.NilError(b, err)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
