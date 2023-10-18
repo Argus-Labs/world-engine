@@ -301,7 +301,7 @@ func (w *World) AddEVMTransaction(id transaction.TypeID, v any, sig *sign.Signed
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
-func (w *World) Tick(ctx context.Context) error {
+func (w *World) Tick(_ context.Context) error {
 	nullSystemName := "No system is running."
 	nameOfCurrentRunningSystem := nullSystemName
 	defer func() {
@@ -335,7 +335,7 @@ func (w *World) Tick(ctx context.Context) error {
 	if err := w.TickStore().FinalizeTick(); err != nil {
 		return err
 	}
-	w.dispatchEvmResults(txQueue.GetEVMTxs())
+	w.setEvmResults(txQueue.GetEVMTxs())
 	w.tick++
 	w.receiptHistory.NextTick()
 	elapsedTime := time.Since(startTime)
@@ -361,7 +361,7 @@ type EVMTxReceipt struct {
 	EVMTxHash string
 }
 
-func (w *World) dispatchEvmResults(txs []transaction.TxAny) {
+func (w *World) setEvmResults(txs []transaction.TxAny) {
 	// iterate over all EVM originated transactions
 	for _, tx := range txs {
 		// see if tx has a receipt. sometimes it won't because:
@@ -370,20 +370,19 @@ func (w *World) dispatchEvmResults(txs []transaction.TxAny) {
 		if !ok {
 			continue
 		}
-		// check that the receipt has any data at all
-		if !(rec.Result == nil || (len(rec.Errs) == 0)) {
-			itx := w.getITx(tx.TxID)
+		evmRec := EVMTxReceipt{EVMTxHash: tx.EVMSourceTxHash}
+		itx := w.getITx(tx.TxID)
+		if rec.Result != nil {
 			abiBz, err := itx.ABIEncode(rec.Result)
 			if err != nil {
 				rec.Errs = append(rec.Errs, err)
 			}
-			evmRec := EVMTxReceipt{
-				ABIResult: abiBz,
-				Errs:      rec.Errs,
-				EVMTxHash: tx.EVMSourceTxHash,
-			}
-			w.evmTxReceipts[evmRec.EVMTxHash] = evmRec
+			evmRec.ABIResult = abiBz
 		}
+		if len(rec.Errs) > 0 {
+			evmRec.Errs = rec.Errs
+		}
+		w.evmTxReceipts[evmRec.EVMTxHash] = evmRec
 	}
 }
 
@@ -431,6 +430,11 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 	}()
 }
 
+// WaitForNextTick waits for the next tick. It returns true if it successfully waited for the next tick.
+// Returns false if we hit the timout threshold (5s).
+//
+// TODO: we probably want to make this timeout related to the actual tick hz.
+// If a game has 10s ticks, this wouldn't work.
 func (w *World) WaitForNextTick() bool {
 	current := w.CurrentTick()
 	timeout := time.After(5 * time.Second)
@@ -439,11 +443,11 @@ func (w *World) WaitForNextTick() bool {
 		if w.CurrentTick() > current {
 			return true
 		}
-
 		select {
 		case <-timeout:
 			return false // Timeout reached
 		default:
+			// TODO: sleep time should be a factor of the tick hz itself.
 			time.Sleep(500 * time.Millisecond)
 		}
 	}

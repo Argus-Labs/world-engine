@@ -2,6 +2,8 @@ package ecs_test
 
 import (
 	"context"
+	"errors"
+	"pkg.world.dev/world-engine/sign"
 	"testing"
 	"time"
 
@@ -24,6 +26,60 @@ func TestWaitForNextTick(t *testing.T) {
 	assert.NilError(t, w.LoadGameState())
 	w.StartGameLoop(context.Background(), time.Tick(100*time.Millisecond), nil)
 	<-doneCh
+}
+
+func TestEVMTxConsume(t *testing.T) {
+	ctx := context.Background()
+	type FooIn struct {
+		X uint32
+	}
+	type FooOut struct {
+		Y string
+	}
+	w := ecs.NewTestWorld(t)
+	fooTx := ecs.NewTransactionType[FooIn, FooOut]("foo", ecs.WithTxEVMSupport[FooIn, FooOut])
+	w.RegisterTransactions(fooTx)
+	var returnVal FooOut
+	var returnErr error
+	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *log.Logger) error {
+		fooTx.ForEach(world, queue, func(t ecs.TxData[FooIn]) (FooOut, error) {
+			return returnVal, returnErr
+		})
+		return nil
+	})
+	assert.NilError(t, w.LoadGameState())
+
+	// add tx to queue
+	evmTxHash := "0xFooBar"
+	w.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.SignedPayload{PersonaTag: "foo"}, evmTxHash)
+
+	// lets check against a system that returns a result and no error
+	returnVal = FooOut{Y: "hi"}
+	returnErr = nil
+	assert.NilError(t, w.Tick(ctx))
+	evmTxReceipt, ok := w.ConsumeEVMTxResult(evmTxHash)
+	assert.Equal(t, ok, true)
+	assert.Check(t, len(evmTxReceipt.ABIResult) > 0)
+	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
+	assert.Equal(t, len(evmTxReceipt.Errs), 0)
+	// shouldn't be able to consume it again.
+	_, ok = w.ConsumeEVMTxResult(evmTxHash)
+	assert.Equal(t, ok, false)
+
+	// lets check against a system that returns an error
+	returnVal = FooOut{}
+	returnErr = errors.New("omg error")
+	w.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.SignedPayload{PersonaTag: "foo"}, evmTxHash)
+	assert.NilError(t, w.Tick(ctx))
+	evmTxReceipt, ok = w.ConsumeEVMTxResult(evmTxHash)
+
+	assert.Equal(t, ok, true)
+	assert.Equal(t, len(evmTxReceipt.ABIResult), 0)
+	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
+	assert.Equal(t, len(evmTxReceipt.Errs), 1)
+	// shouldn't be able to consume it again.
+	_, ok = w.ConsumeEVMTxResult(evmTxHash)
+	assert.Equal(t, ok, false)
 }
 
 func TestAddSystems(t *testing.T) {

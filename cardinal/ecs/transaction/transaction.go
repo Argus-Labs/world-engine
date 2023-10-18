@@ -28,7 +28,7 @@ func (t *TxQueue) GetEVMTxs() []TxAny {
 		}
 		for _, tx := range txs {
 			if tx.EVMSourceTxHash != "" {
-				transactions = append(transactions)
+				transactions = append(transactions, tx)
 			}
 		}
 	}

@@ -168,11 +168,13 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 			Code:      CodeUnauthorized,
 		}, nil
 	}
-	// since we are injecting directly, all we need is the persona tag in the signed payload. the sig checking happens
-	// in the server's Handler, not in `World`.
+
+	// since we are injecting the tx directly, all we need is the persona tag in the signed payload.
+	// the sig checking happens in the server's Handler, not in ecs.World.
 	sig := &sign.SignedPayload{PersonaTag: sc.PersonaTag}
-	// add transaction to the world queue
 	s.world.AddEVMTransaction(itx.ID(), tx, sig, msg.EvmTxHash)
+
+	// wait for the next tick so the tx gets processed
 	timedOut := s.world.WaitForNextTick()
 	if timedOut {
 		return &routerv1.SendMessageResponse{
@@ -180,6 +182,8 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 			Code:      CodeServerUnresponsive,
 		}, nil
 	}
+
+	// check for the tx receipt.
 	receipt, ok := s.world.ConsumeEVMTxResult(msg.EvmTxHash)
 	if !ok {
 		return &routerv1.SendMessageResponse{
@@ -187,11 +191,11 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 			Code:      CodeNoResult,
 		}, nil
 	}
-	// convert error slice to string
+
+	// we got a receipt, so lets clean it up and return it.
 	var errStr string
 	code := CodeSuccess
-	retErr := errors.Join(receipt.Errs...)
-	if retErr != nil {
+	if retErr := errors.Join(receipt.Errs...); retErr != nil {
 		code = CodeTxFailed
 		errStr = retErr.Error()
 	}
