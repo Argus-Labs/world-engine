@@ -14,7 +14,8 @@ import (
 func CreateEventHub() *EventHub {
 	res := EventHub{
 		websocketConnections: map[*websocket.Conn]bool{},
-		Broadcast:            make(chan []byte),
+		Broadcast:            make(chan *Event),
+		Flush:                make(chan bool),
 		Register:             make(chan *websocket.Conn),
 		Unregister:           make(chan *websocket.Conn),
 		Shutdown:             make(chan bool),
@@ -23,21 +24,39 @@ func CreateEventHub() *EventHub {
 }
 
 type Event struct {
-	message string
+	Message string
 }
 
 type EventHub struct {
 	websocketConnections map[*websocket.Conn]bool
-	Broadcast            chan []byte
+	Broadcast            chan *Event
+	Flush                chan bool
 	Unregister           chan *websocket.Conn
 	Register             chan *websocket.Conn
 	Shutdown             chan bool
+	eventQueue           []*Event
 }
 
-func (h *EventHub) Run() {
+func (eh *EventHub) BroadcastEvent(event *Event) {
+	eh.Broadcast <- event
+}
+
+func (eh *EventHub) FlushEvents() {
+	eh.Flush <- true
+}
+
+func (eh *EventHub) RegisterConnection(ws *websocket.Conn) {
+	eh.Register <- ws
+}
+
+func (eh *EventHub) UnregisterConnection(ws *websocket.Conn) {
+	eh.Unregister <- ws
+}
+
+func (eh *EventHub) Run() {
 	unregisterConnection := func(conn *websocket.Conn) {
-		if _, ok := h.websocketConnections[conn]; ok {
-			delete(h.websocketConnections, conn)
+		if _, ok := eh.websocketConnections[conn]; ok {
+			delete(eh.websocketConnections, conn)
 			err := conn.Close()
 			if err != nil {
 				log.Logger.Error().Err(err)
@@ -47,34 +66,43 @@ func (h *EventHub) Run() {
 Loop:
 	for {
 		select {
-		case conn := <-h.Register:
-			h.websocketConnections[conn] = true
-		case conn := <-h.Unregister:
+		case conn := <-eh.Register:
+			eh.websocketConnections[conn] = true
+		case conn := <-eh.Unregister:
 			unregisterConnection(conn)
-		case message := <-h.Broadcast:
-			var waitGroup sync.WaitGroup = sync.WaitGroup{}
-			for conn := range h.websocketConnections {
-
-				err := conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if err != nil {
-					unregisterConnection(conn)
-					log.Logger.Error().Err(err)
-					break Loop
-				}
-				conn := conn
+		case event := <-eh.Broadcast:
+			eh.eventQueue = append(eh.eventQueue, event)
+		case <-eh.Flush:
+			var waitGroup sync.WaitGroup
+			for conn := range eh.websocketConnections {
 				waitGroup.Add(1)
+				conn := conn
 				go func() {
 					defer waitGroup.Done()
-					err = conn.WriteMessage(websocket.TextMessage, message)
-					if err != nil {
-						unregisterConnection(conn)
-						log.Logger.Error().Err(err)
+					for _, event := range eh.eventQueue {
+						err := conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+						if err != nil {
+							go func() {
+								eh.UnregisterConnection(conn)
+							}()
+							log.Logger.Error().Err(err)
+							break
+						}
+						err = conn.WriteMessage(websocket.TextMessage, []byte(event.Message))
+						if err != nil {
+							go func() {
+								eh.UnregisterConnection(conn)
+							}()
+							log.Logger.Error().Err(err)
+							break
+						}
 					}
 				}()
 			}
 			waitGroup.Wait()
-		case <-h.Shutdown:
-			for conn, _ := range h.websocketConnections {
+			eh.eventQueue = eh.eventQueue[:0]
+		case <-eh.Shutdown:
+			for conn, _ := range eh.websocketConnections {
 				unregisterConnection(conn)
 			}
 			break Loop
@@ -126,8 +154,7 @@ func CreateNewWebSocketBuilder(path string, websocketConnectionHandler func(conn
 
 func CreateWebSocketEventHandler(hub *EventHub) func(conn *websocket.Conn) error {
 	return func(conn *websocket.Conn) error {
-		hub.Register <- conn
-
+		hub.RegisterConnection(conn)
 		return nil
 	}
 }

@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"reflect"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -1245,21 +1246,34 @@ func TestEvents(t *testing.T) {
 		assert.NilError(t, err)
 		dialers[i] = dial
 	}
+	var wg sync.WaitGroup
 	for i := 0; i < numberToTest; i++ {
 		i := i
+		wg.Add(1)
 		go func() {
-			txh.eventHub.Broadcast <- []byte(fmt.Sprintf("test%d", i))
+			defer wg.Done()
+			//txh.eventHub.Broadcast <- []byte(fmt.Sprintf("test%d", i))
+			txh.eventHub.BroadcastEvent(&server.Event{Message: fmt.Sprintf("test%d", i)})
 		}()
 	}
-
+	wg.Wait()
+	go func() {
+		txh.eventHub.FlushEvents()
+	}()
 	for _, dialer := range dialers {
-		for j := 0; j < numberToTest; j++ {
-			mode, message, err := dialer.ReadMessage()
-			assert.NilError(t, err)
-			assert.Equal(t, mode, websocket.TextMessage)
-			assert.Equal(t, string(message)[:4], "test")
-			//fmt.Println(string(message))
-		}
+		wg.Add(1)
+		dialer := dialer
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numberToTest; j++ {
+				mode, message, err := dialer.ReadMessage()
+				assert.NilError(t, err)
+				assert.Equal(t, mode, websocket.TextMessage)
+				assert.Equal(t, string(message)[:4], "test")
+				//fmt.Println(string(message))
+			}
+		}()
 	}
+	wg.Wait()
 	txh.eventHub.Shutdown <- true
 }
