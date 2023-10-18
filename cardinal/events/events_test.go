@@ -3,6 +3,7 @@ package events_test
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -41,6 +42,8 @@ func TestEvents(t *testing.T) {
 	go func() {
 		txh.EventHub.FlushEvents()
 	}()
+	var count atomic.Int32
+	count.Store(0)
 	for _, dialer := range dialers {
 		wg.Add(1)
 		dialer := dialer
@@ -52,9 +55,11 @@ func TestEvents(t *testing.T) {
 				assert.Equal(t, mode, websocket.TextMessage)
 				assert.Equal(t, string(message)[:4], "test")
 				//fmt.Println(string(message))
+				count.Add(1)
 			}
 		}()
 	}
 	wg.Wait()
-	txh.EventHub.Shutdown <- true
+	txh.EventHub.ShutdownEventHub()
+	assert.Equal(t, count.Load(), int32(numberToTest*numberToTest))
 }
