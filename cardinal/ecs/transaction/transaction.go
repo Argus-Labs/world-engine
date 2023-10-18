@@ -19,6 +19,10 @@ func NewTxQueue() *TxQueue {
 	}
 }
 
+func (t *TxQueue) GetAmountOfTxs() int {
+	return t.txsInQueue
+}
+
 func (t *TxQueue) GetEVMTxs() []TxAny {
 	transactions := make([]TxAny, 0)
 	for _, txs := range t.m {
@@ -33,10 +37,6 @@ func (t *TxQueue) GetEVMTxs() []TxAny {
 		}
 	}
 	return transactions
-}
-
-func (t *TxQueue) GetAmountOfTxs() int {
-	return t.txsInQueue
 }
 
 func (t *TxQueue) AddTransaction(id TypeID, v any, sig *sign.SignedPayload) TxHash {
