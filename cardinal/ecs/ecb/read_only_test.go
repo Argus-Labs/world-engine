@@ -17,7 +17,7 @@ func TestReadOnly_CanGetComponent(t *testing.T) {
 	_, err = manager.GetComponentForEntity(fooComp, id)
 	assert.NilError(t, err)
 
-	roStore := manager.NewReadOnlyStore()
+	roStore := manager.ToReadOnly()
 
 	// A read-only operation here should NOT find the entity (because it hasn't been commited yet)
 	_, err = roStore.GetComponentForEntity(fooComp, id)
@@ -55,7 +55,7 @@ func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 		assert.NilError(t, err)
 		assert.NilError(t, manager.CommitPending())
 
-		roStore := manager.NewReadOnlyStore()
+		roStore := manager.ToReadOnly()
 
 		gotComps, err := roStore.GetComponentTypesForEntity(id)
 		assert.NilError(t, err)
@@ -99,7 +99,7 @@ func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 		},
 	}
 
-	roManager := manager.NewReadOnlyStore()
+	roManager := manager.ToReadOnly()
 	for _, tc := range testCases {
 		ids, err := manager.CreateManyEntities(tc.idsToCreate, tc.comps...)
 		assert.NilError(t, err)
@@ -123,7 +123,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	fooArchID, err := manager.GetArchIDForComponents([]component_metadata.IComponentMetaData{fooComp})
 	assert.NilError(t, err)
 
-	roManager := manager.NewReadOnlyStore()
+	roManager := manager.ToReadOnly()
 
 	gotIDs, err := roManager.GetEntitiesForArchID(fooArchID)
 	assert.NilError(t, err)
@@ -149,7 +149,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 
 func TestReadOnly_ArchetypeCount(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	roManager := manager.NewReadOnlyStore()
+	roManager := manager.ToReadOnly()
 
 	// No archetypes have been created yet
 	assert.Equal(t, 0, roManager.ArchetypeCount())

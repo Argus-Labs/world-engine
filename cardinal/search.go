@@ -25,18 +25,18 @@ type SearchCallBackFn func(EntityID) bool
 
 // Each executes the given callback function on every EntityID that matches this search. If any call to callback returns
 // falls, no more entities will be processed.
-func (q *Search) Each(w *World, callback SearchCallBackFn) error {
-	return q.impl.Each(w.implWorld, func(eid entity.ID) bool {
+func (q *Search) Each(wCtx ECSWorldContext, callback SearchCallBackFn) error {
+	return q.impl.Each(wCtx, func(eid entity.ID) bool {
 		return callback(eid)
 	})
 }
 
 // Count returns the number of entities that match this search.
-func (q *Search) Count(w *World) (int, error) {
-	return q.impl.Count(w.implWorld)
+func (q *Search) Count(wCtx ECSWorldContext) (int, error) {
+	return q.impl.Count(wCtx)
 }
 
 // First returns the first entity that matches this search.
-func (q *Search) First(w *World) (id EntityID, err error) {
-	return q.impl.First(w.implWorld)
+func (q *Search) First(wCtx ECSWorldContext) (id EntityID, err error) {
+	return q.impl.First(wCtx)
 }

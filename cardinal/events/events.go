@@ -1,4 +1,4 @@
-package server
+package events
 
 import (
 	"net/http"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-openapi/runtime/middleware"
-
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog/log"
 )
@@ -14,30 +13,49 @@ import (
 func CreateEventHub() *EventHub {
 	res := EventHub{
 		websocketConnections: map[*websocket.Conn]bool{},
-		Broadcast:            make(chan []byte),
-		Register:             make(chan *websocket.Conn),
-		Unregister:           make(chan *websocket.Conn),
-		Shutdown:             make(chan bool),
+		broadcast:            make(chan *Event),
+		flush:                make(chan bool),
+		register:             make(chan *websocket.Conn),
+		unregister:           make(chan *websocket.Conn),
+		shutdown:             make(chan bool),
 	}
 	return &res
 }
 
 type Event struct {
-	message string
+	Message string
 }
 
 type EventHub struct {
 	websocketConnections map[*websocket.Conn]bool
-	Broadcast            chan []byte
-	Unregister           chan *websocket.Conn
-	Register             chan *websocket.Conn
-	Shutdown             chan bool
+	broadcast            chan *Event
+	flush                chan bool
+	unregister           chan *websocket.Conn
+	register             chan *websocket.Conn
+	shutdown             chan bool
+	eventQueue           []*Event
 }
 
-func (h *EventHub) Run() {
+func (eh *EventHub) EmitEvent(event *Event) {
+	eh.broadcast <- event
+}
+
+func (eh *EventHub) FlushEvents() {
+	eh.flush <- true
+}
+
+func (eh *EventHub) RegisterConnection(ws *websocket.Conn) {
+	eh.register <- ws
+}
+
+func (eh *EventHub) UnregisterConnection(ws *websocket.Conn) {
+	eh.unregister <- ws
+}
+
+func (eh *EventHub) Run() {
 	unregisterConnection := func(conn *websocket.Conn) {
-		if _, ok := h.websocketConnections[conn]; ok {
-			delete(h.websocketConnections, conn)
+		if _, ok := eh.websocketConnections[conn]; ok {
+			delete(eh.websocketConnections, conn)
 			err := conn.Close()
 			if err != nil {
 				log.Logger.Error().Err(err)
@@ -47,34 +65,43 @@ func (h *EventHub) Run() {
 Loop:
 	for {
 		select {
-		case conn := <-h.Register:
-			h.websocketConnections[conn] = true
-		case conn := <-h.Unregister:
+		case conn := <-eh.register:
+			eh.websocketConnections[conn] = true
+		case conn := <-eh.unregister:
 			unregisterConnection(conn)
-		case message := <-h.Broadcast:
-			var waitGroup sync.WaitGroup = sync.WaitGroup{}
-			for conn := range h.websocketConnections {
-
-				err := conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-				if err != nil {
-					unregisterConnection(conn)
-					log.Logger.Error().Err(err)
-					break Loop
-				}
-				conn := conn
+		case event := <-eh.broadcast:
+			eh.eventQueue = append(eh.eventQueue, event)
+		case <-eh.flush:
+			var waitGroup sync.WaitGroup
+			for conn := range eh.websocketConnections {
 				waitGroup.Add(1)
+				conn := conn
 				go func() {
 					defer waitGroup.Done()
-					err = conn.WriteMessage(websocket.TextMessage, message)
-					if err != nil {
-						unregisterConnection(conn)
-						log.Logger.Error().Err(err)
+					for _, event := range eh.eventQueue {
+						err := conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+						if err != nil {
+							go func() {
+								eh.UnregisterConnection(conn)
+							}()
+							log.Logger.Error().Err(err)
+							break
+						}
+						err = conn.WriteMessage(websocket.TextMessage, []byte(event.Message))
+						if err != nil {
+							go func() {
+								eh.UnregisterConnection(conn)
+							}()
+							log.Logger.Error().Err(err)
+							break
+						}
 					}
 				}()
 			}
 			waitGroup.Wait()
-		case <-h.Shutdown:
-			for conn, _ := range h.websocketConnections {
+			eh.eventQueue = eh.eventQueue[:0]
+		case <-eh.shutdown:
+			for conn, _ := range eh.websocketConnections {
 				unregisterConnection(conn)
 			}
 			break Loop
@@ -126,8 +153,7 @@ func CreateNewWebSocketBuilder(path string, websocketConnectionHandler func(conn
 
 func CreateWebSocketEventHandler(hub *EventHub) func(conn *websocket.Conn) error {
 	return func(conn *websocket.Conn) error {
-		hub.Register <- conn
-
+		hub.RegisterConnection(conn)
 		return nil
 	}
 }

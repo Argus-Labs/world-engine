@@ -7,35 +7,15 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/test_utils"
 )
-
-// TODO this function needs to be moved to a utils package above cardinal to prevent circulars.
-func setTestTimeout(t *testing.T, timeout time.Duration) {
-	if _, ok := t.Deadline(); ok {
-		// A deadline has already been set. Don't add an additional deadline.
-		return
-	}
-	success := make(chan bool)
-	t.Cleanup(func() {
-		success <- true
-	})
-	go func() {
-		select {
-		case <-success:
-			// test was successful. Do nothing
-		case <-time.After(timeout):
-			//assert.Check(t, false, "test timed out")
-			panic("test timed out")
-		}
-	}()
-}
 
 type Foo struct{}
 
 func (Foo) Name() string { return "foo" }
 
 func TestCanQueryInsideSystem(t *testing.T) {
-	setTestTimeout(t, 10*time.Second)
+	test_utils.SetTestTimeout(t, 10*time.Second)
 
 	nextTickCh := make(chan time.Time)
 	tickDoneCh := make(chan uint64)
@@ -47,13 +27,15 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	wantNumOfEntities := 10
-	_, err = cardinal.CreateMany(world, wantNumOfEntities, Foo{})
-	assert.NilError(t, err)
-	gotNumOfEntities := 0
-	cardinal.RegisterSystems(world, func(world *cardinal.World, queue *cardinal.TransactionQueue, logger *cardinal.Logger) error {
-		q, err := world.NewSearch(cardinal.Exact(Foo{}))
+	world.Init(func(wCtx cardinal.ECSWorldContext) {
+		_, err = cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
 		assert.NilError(t, err)
-		err = q.Each(world, func(cardinal.EntityID) bool {
+	})
+	gotNumOfEntities := 0
+	cardinal.RegisterSystems(world, func(wCtx cardinal.ECSWorldContext) error {
+		q, err := wCtx.NewSearch(cardinal.Exact(Foo{}))
+		assert.NilError(t, err)
+		err = q.Each(wCtx, func(cardinal.EntityID) bool {
 			gotNumOfEntities++
 			return true
 		})

@@ -16,7 +16,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 // newWorldWithRealRedis returns an *ecs.World that is connected to a redis DB hosted at localhost:6379. The target
@@ -56,14 +55,14 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 	disabledLogger := world.Logger.Level(zerolog.Disabled)
 	world.InjectLogger(&ecslog.Logger{&disabledLogger})
 	if enableHealthSystem {
-		world.AddSystem(func(w *ecs.World, queue *transaction.TxQueue, logger *ecslog.Logger) error {
+		world.AddSystem(func(wCtx ecs.WorldContext) error {
 			q, err := world.NewSearch(ecs.Contains(Health{}))
 			assert.NilError(t, err)
-			q.Each(w, func(id entity.ID) bool {
-				health, err := component.GetComponent[Health](w, id)
+			q.Each(wCtx, func(id entity.ID) bool {
+				health, err := component.GetComponent[Health](wCtx, id)
 				assert.NilError(t, err)
 				health.Value++
-				assert.NilError(t, component.SetComponent[Health](w, id, health))
+				assert.NilError(t, component.SetComponent[Health](wCtx, id, health))
 				return true
 			})
 			return nil
@@ -72,7 +71,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 
 	assert.NilError(t, ecs.RegisterComponent[Health](world))
 	assert.NilError(t, world.LoadGameState())
-	_, err := component.CreateMany(world, numOfEntities, Health{})
+	_, err := component.CreateMany(ecs.NewWorldContext(world), numOfEntities, Health{})
 	assert.NilError(t, err)
 	// Perform a game tick to ensure the newly created entities have been committed to the DB
 	ctx := context.Background()
