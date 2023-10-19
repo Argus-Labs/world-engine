@@ -32,7 +32,8 @@ type Router interface {
 }
 
 var (
-	_ Router = &routerImpl{}
+	defaultStorageTimeout        = 10 * time.Minute
+	_                     Router = &routerImpl{}
 )
 
 type routerImpl struct {
@@ -75,7 +76,7 @@ func NewRouter(cardinalAddr string, logger log.Logger, opts ...Option) Router {
 		logger:       logger,
 		creds:        insecure.NewCredentials(),
 		queue:        new(msgQueue),
-		resultStore:  NewResultStorage(10 * time.Minute),
+		resultStore:  newResultsStorage(defaultStorageTimeout),
 	}
 	for _, opt := range opts {
 		opt(r)
@@ -125,7 +126,8 @@ func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 
 	// send the message in a new goroutine. we do this so that we don't make tx inclusion slower.
 	go func() {
-		res, err := client.SendMessage(context.Background(), msg)
+		var res *routerv1.SendMessageResponse
+		res, err = client.SendMessage(context.Background(), msg)
 		if err != nil {
 			r.resultStore.SetResult(&routerv1.SendMessageResponse{EvmTxHash: msg.EvmTxHash, Code: CodeServerError, Errs: err.Error()})
 			r.logger.Error("failed to send message to game shard", "error", err)
