@@ -43,7 +43,7 @@ type EventHub struct {
 	running              atomic.Bool
 }
 
-func (eh *EventHub) BroadcastEvent(event *Event) {
+func (eh *EventHub) EmitEvent(event *Event) {
 	go func() {
 		eh.broadcast <- event
 	}()

@@ -36,7 +36,7 @@ func TestEvents(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			//txh.eventHub.Broadcast <- []byte(fmt.Sprintf("test%d", i))
-			txh.EventHub.BroadcastEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
+			txh.EventHub.EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
 		}()
 	}
 	wg.Wait()

@@ -85,7 +85,7 @@ func (w *World) SetEventHub(eventHub *events.EventHub) {
 }
 
 func (w *World) BroadCastEvent(event *events.Event) {
-	w.eventHub.BroadcastEvent(event)
+	w.eventHub.EmitEvent(event)
 }
 
 func (w *World) IsRecovering() bool {
