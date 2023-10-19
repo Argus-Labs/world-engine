@@ -11,8 +11,8 @@ type Search struct {
 }
 
 // NewSearch creates a new Search.
-func (w *World) NewSearch(filter ecs.Filterable) (*Search, error) {
-	q, err := w.implWorld.NewSearch(filter)
+func (w *World) NewSearch(filter CardinalFilter) (*Search, error) {
+	q, err := w.implWorld.NewSearch(filter.ConvertToFilterable())
 	if err != nil {
 		return nil, err
 	}
@@ -25,8 +25,8 @@ type SearchCallBackFn func(EntityID) bool
 
 // Each executes the given callback function on every EntityID that matches this search. If any call to callback returns
 // falls, no more entities will be processed.
-func (q *Search) Each(w *World, callback SearchCallBackFn) {
-	q.impl.Each(w.implWorld, func(eid entity.ID) bool {
+func (q *Search) Each(w *World, callback SearchCallBackFn) error {
+	return q.impl.Each(w.implWorld, func(eid entity.ID) bool {
 		return callback(eid)
 	})
 }
