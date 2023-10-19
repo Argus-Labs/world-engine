@@ -112,7 +112,8 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 
 		result := make([]cql.QueryResponse, 0)
 
-		ecs.NewSearch(resultFilter).Each(handler.w, func(id entity.ID) bool {
+		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
+		ecs.NewSearch(resultFilter).Each(wCtx, func(id entity.ID) bool {
 			components, err := handler.w.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false

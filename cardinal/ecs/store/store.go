@@ -31,6 +31,10 @@ func NewStoreManager(store storage.WorldStorage, logger *log.Logger) *Manager {
 	}
 }
 
+func (s *Manager) ToReadOnly() Reader {
+	return s
+}
+
 func (s *Manager) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error) {
 	return s.store.ArchAccessor.Archetype(archID).Entities(), nil
 }
