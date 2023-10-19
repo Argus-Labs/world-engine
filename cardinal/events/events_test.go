@@ -11,8 +11,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/test_utils"
@@ -94,8 +92,8 @@ func TestEventsThroughSystems(t *testing.T) {
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
 	for i := 0; i < numberToTest; i++ {
-		w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-			world.BroadCastEvent(&events.Event{Message: "test"})
+		w.AddSystem(func(wCtx ecs.WorldContext) error {
+			wCtx.GetWorld().BroadCastEvent(&events.Event{Message: "test"})
 			counter1.Add(1)
 			return nil
 		})
@@ -112,10 +110,10 @@ func TestEventsThroughSystems(t *testing.T) {
 		dialers[i] = dial
 	}
 	ctx := context.Background()
-	waitForTick := sync.WaitGroup{}
-	waitForTick.Add(1)
+	waitForTicks := sync.WaitGroup{}
+	waitForTicks.Add(1)
 	go func() {
-		defer waitForTick.Done()
+		defer waitForTicks.Done()
 		for i := 0; i < numberToTest; i++ {
 			fmt.Printf("start tick! %d\n", i)
 			err := w.Tick(ctx)
@@ -124,14 +122,14 @@ func TestEventsThroughSystems(t *testing.T) {
 		}
 	}()
 
-	waitForRead := sync.WaitGroup{}
+	waitForDialersToRead := sync.WaitGroup{}
 	counter2 := atomic.Int32{}
 	counter2.Store(0)
 	for _, dialer := range dialers {
 		dialer := dialer
-		waitForRead.Add(1)
+		waitForDialersToRead.Add(1)
 		go func() {
-			defer waitForRead.Done()
+			defer waitForDialersToRead.Done()
 			for i := 0; i < numberToTest; i++ {
 				mode, message, err := dialer.ReadMessage()
 				assert.NilError(t, err)
@@ -141,8 +139,8 @@ func TestEventsThroughSystems(t *testing.T) {
 			}
 		}()
 	}
-	waitForRead.Wait()
-	waitForTick.Wait()
+	waitForDialersToRead.Wait()
+	waitForTicks.Wait()
 
 	assert.Equal(t, counter1.Load(), int32(numberToTest*numberToTest))
 	assert.Equal(t, counter2.Load(), int32(numberToTest*numberToTest))

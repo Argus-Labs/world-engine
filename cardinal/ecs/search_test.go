@@ -26,25 +26,26 @@ func TestSearchEarlyTermination(t *testing.T) {
 	total := 10
 	count := 0
 	stop := 5
-	_, err := component.CreateMany(world, total, FooComponent{})
+	wCtx := ecs.NewWorldContext(world)
+	_, err := component.CreateMany(wCtx, total, FooComponent{})
 	assert.NilError(t, err)
 	q, err := world.NewSearch(ecs.Exact(FooComponent{}))
 	assert.NilError(t, err)
-	q.Each(world, func(id entity.ID) bool {
+	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		if count == stop {
 			return false
 		}
 		return true
-	})
+	}))
 	assert.Equal(t, count, stop)
 
 	count = 0
 	q, err = world.NewSearch(ecs.Exact(FooComponent{}))
 	assert.NilError(t, err)
-	q.Each(world, func(id entity.ID) bool {
+	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		return true
-	})
+	}))
 	assert.Equal(t, count, total)
 }

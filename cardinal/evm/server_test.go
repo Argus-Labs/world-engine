@@ -7,8 +7,6 @@ import (
 
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -54,12 +52,12 @@ func TestServer_SendMessage(t *testing.T) {
 	enabled := false
 
 	// add a system that checks that they are submitted properly to the world.
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
+	w.AddSystem(func(wCtx ecs.WorldContext) error {
 		if !enabled {
 			return nil
 		}
-		inFooTxs := FooTx.In(queue)
-		inBarTxs := BarTx.In(queue)
+		inFooTxs := FooTx.In(wCtx)
+		inBarTxs := BarTx.In(wCtx)
 		assert.Equal(t, len(inFooTxs), len(fooTxs))
 		assert.Equal(t, len(inBarTxs), len(barTxs))
 		for i, tx := range inFooTxs {
@@ -128,7 +126,7 @@ func TestServer_Query(t *testing.T) {
 		Y uint64
 	}
 	// set up a query that simply returns the FooReq.X
-	query := ecs.NewQueryType[FooReq, FooReply]("foo", func(world *ecs.World, req FooReq) (FooReply, error) {
+	query := ecs.NewQueryType[FooReq, FooReply]("foo", func(wCtx ecs.WorldContext, req FooReq) (FooReply, error) {
 		return FooReply{Y: req.X}, nil
 	}, ecs.WithQueryEVMSupport[FooReq, FooReply])
 	w := ecs.NewTestWorld(t)

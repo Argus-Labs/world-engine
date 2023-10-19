@@ -320,7 +320,8 @@ func (w *World) Tick(ctx context.Context) error {
 
 	for i, sys := range w.systems {
 		nameOfCurrentRunningSystem = w.systemNames[i]
-		err := sys(w, txQueue, w.systemLoggers[i])
+		wCtx := NewWorldContextForTick(w, txQueue, w.systemLoggers[i])
+		err := sys(wCtx)
 		nameOfCurrentRunningSystem = nullSystemName
 		if err != nil {
 			return err

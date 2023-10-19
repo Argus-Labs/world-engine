@@ -8,13 +8,11 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 func TestAddSystems(t *testing.T) {
 	count := 0
-	sys := func(w *ecs.World, txq *transaction.TxQueue, _ *log.Logger) error {
+	sys := func(ecs.WorldContext) error {
 		count++
 		return nil
 	}
@@ -33,13 +31,13 @@ func TestAddSystems(t *testing.T) {
 func TestSystemExecutionOrder(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	order := make([]int, 0, 3)
-	w.AddSystems(func(world *ecs.World, queue *transaction.TxQueue, logger *log.Logger) error {
+	w.AddSystems(func(ecs.WorldContext) error {
 		order = append(order, 1)
 		return nil
-	}, func(world *ecs.World, queue *transaction.TxQueue, logger *log.Logger) error {
+	}, func(ecs.WorldContext) error {
 		order = append(order, 2)
 		return nil
-	}, func(world *ecs.World, queue *transaction.TxQueue, logger *log.Logger) error {
+	}, func(ecs.WorldContext) error {
 		order = append(order, 3)
 		return nil
 	})
@@ -60,16 +58,17 @@ func TestSetNamespace(t *testing.T) {
 
 func TestWithoutRegistration(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	id, err := component.Create(world, EnergyComponent{}, OwnableComponent{})
+	wCtx := ecs.NewWorldContext(world)
+	id, err := component.Create(wCtx, EnergyComponent{}, OwnableComponent{})
 	assert.Assert(t, err != nil)
 
-	err = component.UpdateComponent[EnergyComponent](world, id, func(component *EnergyComponent) *EnergyComponent {
+	err = component.UpdateComponent[EnergyComponent](wCtx, id, func(component *EnergyComponent) *EnergyComponent {
 		component.Amt += 50
 		return component
 	})
 	assert.Assert(t, err != nil)
 
-	err = component.SetComponent[EnergyComponent](world, id, &EnergyComponent{
+	err = component.SetComponent[EnergyComponent](wCtx, id, &EnergyComponent{
 		Amt: 0,
 		Cap: 0,
 	})
@@ -78,14 +77,14 @@ func TestWithoutRegistration(t *testing.T) {
 
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](world))
 	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](world))
-	id, err = component.Create(world, EnergyComponent{}, OwnableComponent{})
+	id, err = component.Create(wCtx, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
-	err = component.UpdateComponent[EnergyComponent](world, id, func(component *EnergyComponent) *EnergyComponent {
+	err = component.UpdateComponent[EnergyComponent](wCtx, id, func(component *EnergyComponent) *EnergyComponent {
 		component.Amt += 50
 		return component
 	})
 	assert.NilError(t, err)
-	err = component.SetComponent[EnergyComponent](world, id, &EnergyComponent{
+	err = component.SetComponent[EnergyComponent](wCtx, id, &EnergyComponent{
 		Amt: 0,
 		Cap: 0,
 	})

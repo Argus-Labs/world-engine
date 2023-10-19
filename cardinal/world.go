@@ -12,7 +12,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/events"
@@ -32,13 +31,14 @@ type World struct {
 type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
-	EntityID = entity.ID
-	TxHash   = transaction.TxHash
+	EntityID     = entity.ID
+	TxHash       = transaction.TxHash
+	WorldContext = ecs.WorldContext
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
 	// with a world using AddSystem or AddSystems.
-	System func(*World, *TransactionQueue, *Logger) error
+	System func(WorldContext) error
 )
 
 // NewWorld creates a new World object using Redis as the storage layer.
@@ -107,39 +107,39 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func CreateMany(w *World, num int, components ...component_metadata.Component) ([]EntityID, error) {
-	return component.CreateMany(w.implWorld, num, components...)
+func CreateMany(wCtx WorldContext, num int, components ...component_metadata.Component) ([]EntityID, error) {
+	return component.CreateMany(wCtx, num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func Create(w *World, components ...component_metadata.Component) (EntityID, error) {
-	return component.Create(w.implWorld, components...)
+func Create(wCtx WorldContext, components ...component_metadata.Component) (EntityID, error) {
+	return component.Create(wCtx, components...)
 }
 
 // SetComponent Set sets component data to the entity.
-func SetComponent[T component_metadata.Component](w *World, id entity.ID, comp *T) error {
-	return component.SetComponent[T](w.implWorld, id, comp)
+func SetComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, comp *T) error {
+	return component.SetComponent[T](wCtx, id, comp)
 }
 
 // GetComponent Get returns component data from the entity.
-func GetComponent[T component_metadata.Component](w *World, id entity.ID) (comp *T, err error) {
-	return component.GetComponent[T](w.implWorld, id)
+func GetComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
+	return component.GetComponent[T](wCtx, id)
 }
 
 // UpdateComponent Updates a component on an entity
-func UpdateComponent[T component_metadata.Component](w *World, id entity.ID, fn func(*T) *T) error {
-	return component.UpdateComponent[T](w.implWorld, id, fn)
+func UpdateComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
+	return component.UpdateComponent[T](wCtx, id, fn)
 }
 
 // AddComponentTo Adds a component on an entity
-func AddComponentTo[T component_metadata.Component](w *World, id entity.ID) error {
-	return component.AddComponentTo[T](w.implWorld, id)
+func AddComponentTo[T component_metadata.Component](wCtx WorldContext, id entity.ID) error {
+	return component.AddComponentTo[T](wCtx, id)
 }
 
 // RemoveComponentFrom Removes a component from an entity
-func RemoveComponentFrom[T component_metadata.Component](w *World, id entity.ID) error {
-	return component.RemoveComponentFrom[T](w.implWorld, id)
+func RemoveComponentFrom[T component_metadata.Component](wCtx WorldContext, id entity.ID) error {
+	return component.RemoveComponentFrom[T](wCtx, id)
 }
 
 // Remove removes the given entity id from the world.
@@ -197,8 +197,8 @@ func (w *World) ShutDown() error {
 
 func RegisterSystems(w *World, systems ...System) {
 	for _, system := range systems {
-		w.implWorld.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *ecslog.Logger) error {
-			return system(&World{implWorld: world}, &TransactionQueue{queue}, &Logger{logger})
+		w.implWorld.AddSystem(func(wCtx WorldContext) error {
+			return system(wCtx)
 		})
 	}
 }
@@ -225,4 +225,9 @@ func (w *World) CurrentTick() uint64 {
 
 func (w *World) Tick(ctx context.Context) error {
 	return w.implWorld.Tick(ctx)
+}
+
+func (w *World) Init(fn func(WorldContext)) {
+	ecsWorldCtx := ecs.NewWorldContext(w.implWorld)
+	fn(ecsWorldCtx)
 }

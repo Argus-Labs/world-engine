@@ -158,13 +158,14 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
 	var err error
-	q, err := s.world.NewSearch(ecs.Exact(ecs.SignerComponent{}))
+	wCtx := ecs.NewReadOnlyWorldContext(s.world)
+	q, err := wCtx.NewSearch(ecs.Exact(ecs.SignerComponent{}))
 	if err != nil {
 		return nil, err
 	}
-	q.Each(s.world, func(id entity.ID) bool {
+	q.Each(wCtx, func(id entity.ID) bool {
 		var signerComp *ecs.SignerComponent
-		signerComp, err = component.GetComponent[ecs.SignerComponent](s.world, id)
+		signerComp, err = component.GetComponent[ecs.SignerComponent](wCtx, id)
 		if err != nil {
 			return false
 		}
@@ -194,7 +195,7 @@ func (s *msgServerImpl) QueryShard(ctx context.Context, req *routerv1.QueryShard
 	if err != nil {
 		return nil, err
 	}
-	reply, err := query.HandleQuery(s.world, ecsRequest)
+	reply, err := query.HandleQuery(ecs.NewReadOnlyWorldContext(s.world), ecsRequest)
 	if err != nil {
 		return nil, err
 	}

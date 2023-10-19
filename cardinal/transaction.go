@@ -58,13 +58,13 @@ func (t *TransactionType[Msg, Result]) SetResult(world *World, hash TxHash, resu
 
 // GetReceipt returns the result (if any) and errors (if any) associated with the given hash. If false is returned,
 // the hash is not recognized, so the returned result and errors will be empty.
-func (t *TransactionType[Msg, Result]) GetReceipt(world *World, hash TxHash) (r Result, errs []error, ok bool) {
-	return t.impl.GetReceipt(world.implWorld, hash)
+func (t *TransactionType[Msg, Result]) GetReceipt(wCtx WorldContext, hash TxHash) (r Result, errs []error, ok bool) {
+	return t.impl.GetReceipt(wCtx, hash)
 }
 
 // In returns the transactions in the given transaction queue that match this transaction's type.
-func (t *TransactionType[Msg, Result]) In(tq *TransactionQueue) []TxData[Msg] {
-	ecsTxData := t.impl.In(tq.impl)
+func (t *TransactionType[Msg, Result]) In(wCtx WorldContext) []TxData[Msg] {
+	ecsTxData := t.impl.In(wCtx)
 	out := make([]TxData[Msg], 0, len(ecsTxData))
 	for _, tx := range ecsTxData {
 		out = append(out, TxData[Msg]{

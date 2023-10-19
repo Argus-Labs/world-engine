@@ -10,14 +10,12 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
-
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 )
 
@@ -36,19 +34,19 @@ func (EnergyComp) Name() string {
 	return "EnergyComp"
 }
 
-func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error {
-	logger.Log().Msg("test")
-	q, err := w.NewSearch(ecs.Contains(EnergyComp{}))
+func testSystem(wCtx ecs.WorldContext) error {
+	wCtx.Logger().Log().Msg("test")
+	q, err := wCtx.NewSearch(ecs.Contains(EnergyComp{}))
 	if err != nil {
 		return err
 	}
-	q.Each(w, func(entityId entity.ID) bool {
-		energyPlanet, err := component.GetComponent[EnergyComp](w, entityId)
+	q.Each(wCtx, func(entityId entity.ID) bool {
+		energyPlanet, err := component.GetComponent[EnergyComp](wCtx, entityId)
 		if err != nil {
 			return false
 		}
-		energyPlanet.value += 10 // bs whatever
-		err = component.SetComponent[EnergyComp](w, entityId, energyPlanet)
+		energyPlanet.value += 10 // bs whatevewCtxr
+		err = component.SetComponent[EnergyComp](wCtx, entityId, energyPlanet)
 		//err = energy.Set(w, entityId, energyPlanet)
 		if err != nil {
 			return false
@@ -59,9 +57,9 @@ func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error 
 	return nil
 }
 
-func testSystemWarningTrigger(w *ecs.World, tx *transaction.TxQueue, logger *log.Logger) error {
+func testSystemWarningTrigger(wCtx ecs.WorldContext) error {
 	time.Sleep(time.Millisecond * 400)
-	return testSystem(w, tx, logger)
+	return testSystem(wCtx)
 }
 
 func TestWorldLogger(t *testing.T) {
@@ -106,7 +104,8 @@ func TestWorldLogger(t *testing.T) {
 	energy, err := w.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
 	components := []component_metadata.IComponentMetaData{energy}
-	entityId, err := component.Create(w, EnergyComp{})
+	wCtx := ecs.NewWorldContext(w)
+	entityId, err := component.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `
@@ -175,7 +174,8 @@ func TestWorldLogger(t *testing.T) {
 				"entity_id":"0",
 				"component_name":"EnergyComp",
 				"component_id":2,
-				"message":"entity updated"
+				"message":"entity updated",
+				"system":"log_test.testSystemWarningTrigger"
 			}`, logStrings[2])
 	// test tick end
 	buf.Reset()
@@ -219,7 +219,7 @@ func TestWorldLogger(t *testing.T) {
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
-	_, err = component.CreateMany(w, 2, EnergyComp{})
+	_, err = component.CreateMany(wCtx, 2, EnergyComp{})
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `
