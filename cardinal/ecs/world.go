@@ -84,7 +84,7 @@ func (w *World) SetEventHub(eventHub *events.EventHub) {
 	w.eventHub = eventHub
 }
 
-func (w *World) BroadCastEvent(event *events.Event) {
+func (w *World) EmitEvent(event *events.Event) {
 	w.eventHub.EmitEvent(event)
 }
 

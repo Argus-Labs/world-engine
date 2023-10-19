@@ -93,7 +93,7 @@ func TestEventsThroughSystems(t *testing.T) {
 	counter1.Store(0)
 	for i := 0; i < numberToTest; i++ {
 		w.AddSystem(func(wCtx ecs.WorldContext) error {
-			wCtx.GetWorld().BroadCastEvent(&events.Event{Message: "test"})
+			wCtx.GetWorld().EmitEvent(&events.Event{Message: "test"})
 			counter1.Add(1)
 			return nil
 		})
