@@ -44,6 +44,10 @@ func NewTransactionTypeWithEVMSupport[Msg, Result any](name string) *Transaction
 	}
 }
 
+func (t *TransactionType[Msg, Result]) AddToQueue(world *World, data Msg, sigs ...*sign.SignedPayload) {
+	world.implWorld.AddToQueue(t, data, sigs...)
+}
+
 // AddError adds the given error to the transaction identified by the given hash. Multiple errors can be
 // added to the same transaction hash.
 func (t *TransactionType[Msg, Result]) AddError(world *World, hash TxHash, err error) {
