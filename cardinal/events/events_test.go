@@ -56,5 +56,6 @@ func TestEvents(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	txh.EventHub.shutdown <- true
+	err := txh.Shutdown()
+	assert.NilError(t, err)
 }
