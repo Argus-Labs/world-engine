@@ -36,7 +36,7 @@ type EventHub struct {
 	eventQueue           []*Event
 }
 
-func (eh *EventHub) BroadcastEvent(event *Event) {
+func (eh *EventHub) EmitEvent(event *Event) {
 	eh.Broadcast <- event
 }
 
