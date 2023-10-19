@@ -13,11 +13,11 @@ import (
 func CreateEventHub() *EventHub {
 	res := EventHub{
 		websocketConnections: map[*websocket.Conn]bool{},
-		Broadcast:            make(chan *Event),
-		Flush:                make(chan bool),
-		Register:             make(chan *websocket.Conn),
-		Unregister:           make(chan *websocket.Conn),
-		Shutdown:             make(chan bool),
+		broadcast:            make(chan *Event),
+		flush:                make(chan bool),
+		register:             make(chan *websocket.Conn),
+		unregister:           make(chan *websocket.Conn),
+		shutdown:             make(chan bool),
 	}
 	return &res
 }
@@ -28,28 +28,28 @@ type Event struct {
 
 type EventHub struct {
 	websocketConnections map[*websocket.Conn]bool
-	Broadcast            chan *Event
-	Flush                chan bool
-	Unregister           chan *websocket.Conn
-	Register             chan *websocket.Conn
-	Shutdown             chan bool
+	broadcast            chan *Event
+	flush                chan bool
+	unregister           chan *websocket.Conn
+	register             chan *websocket.Conn
+	shutdown             chan bool
 	eventQueue           []*Event
 }
 
 func (eh *EventHub) EmitEvent(event *Event) {
-	eh.Broadcast <- event
+	eh.broadcast <- event
 }
 
 func (eh *EventHub) FlushEvents() {
-	eh.Flush <- true
+	eh.flush <- true
 }
 
 func (eh *EventHub) RegisterConnection(ws *websocket.Conn) {
-	eh.Register <- ws
+	eh.register <- ws
 }
 
 func (eh *EventHub) UnregisterConnection(ws *websocket.Conn) {
-	eh.Unregister <- ws
+	eh.unregister <- ws
 }
 
 func (eh *EventHub) Run() {
@@ -65,13 +65,13 @@ func (eh *EventHub) Run() {
 Loop:
 	for {
 		select {
-		case conn := <-eh.Register:
+		case conn := <-eh.register:
 			eh.websocketConnections[conn] = true
-		case conn := <-eh.Unregister:
+		case conn := <-eh.unregister:
 			unregisterConnection(conn)
-		case event := <-eh.Broadcast:
+		case event := <-eh.broadcast:
 			eh.eventQueue = append(eh.eventQueue, event)
-		case <-eh.Flush:
+		case <-eh.flush:
 			var waitGroup sync.WaitGroup
 			for conn := range eh.websocketConnections {
 				waitGroup.Add(1)
@@ -100,7 +100,7 @@ Loop:
 			}
 			waitGroup.Wait()
 			eh.eventQueue = eh.eventQueue[:0]
-		case <-eh.Shutdown:
+		case <-eh.shutdown:
 			for conn, _ := range eh.websocketConnections {
 				unregisterConnection(conn)
 			}

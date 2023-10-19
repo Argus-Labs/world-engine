@@ -33,7 +33,7 @@ func TestEvents(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			//txh.eventHub.Broadcast <- []byte(fmt.Sprintf("test%d", i))
+			//txh.eventHub.broadcast <- []byte(fmt.Sprintf("test%d", i))
 			txh.EventHub.EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
 		}()
 	}
@@ -56,5 +56,5 @@ func TestEvents(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	txh.EventHub.Shutdown <- true
+	txh.EventHub.shutdown <- true
 }
