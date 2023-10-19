@@ -29,6 +29,8 @@ type IQuery interface {
 	DecodeEVMReply([]byte) (any, error)
 	// EncodeAsABI encodes a go struct in abi format. This is mostly used for testing.
 	EncodeAsABI(any) ([]byte, error)
+	// IsEVMCompatible reports if the query is able to be sent from the EVM.
+	IsEVMCompatible() bool
 }
 
 type QueryType[Request any, Reply any] struct {
@@ -88,6 +90,10 @@ func NewQueryType[Request any, Reply any](
 		opt()(r)
 	}
 	return r
+}
+
+func (r *QueryType[Request, Reply]) IsEVMCompatible() bool {
+	return r.requestABI != nil && r.replyABI != nil
 }
 
 func (r *QueryType[Request, Reply]) generateABIBindings() error {

@@ -25,7 +25,9 @@ var (
 
 	defaultPort = "9020"
 
-	cardinalEvmPortEnv = "CARDINAL_EVM_PORT"
+	cardinalEvmPortEnv    = "CARDINAL_EVM_PORT"
+	serverCertFilePathEnv = "SERVER_CERT_PATH"
+	serverKeyFilePathEnv  = "SERVER_KEY_PATH"
 )
 
 type Server interface {
@@ -64,13 +66,17 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	}
 	it := make(txByID, len(txs))
 	for _, tx := range txs {
-		it[tx.ID()] = tx
+		if tx.IsEVMCompatible() {
+			it[tx.ID()] = tx
+		}
 	}
 
 	queries := w.ListQueries()
 	ir := make(queryByName, len(queries))
 	for _, q := range queries {
-		ir[q.Name()] = q
+		if q.IsEVMCompatible() {
+			ir[q.Name()] = q
+		}
 	}
 
 	s := &msgServerImpl{txMap: it, queryMap: ir, world: w, port: defaultPort}
@@ -83,9 +89,34 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 			s.port = port
 		}
 	}
+	w.Logger.Debug().Msgf("EVM listener running on port %s", s.port)
+	if s.creds == nil {
+		s.creds, err = tryLoadCredentials()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if s.creds == nil {
+		w.Logger.Warn().Msg("running EVM server without credentials. if running on production, please " +
+			"shut down and supply the proper credentials for the EVM server")
+	}
 	return s, nil
 }
 
+// tryLoadCredentials will attempt to load the server cert and key file paths from env.
+// if the envs are not set, this is a noop and will return nil,nil.
+func tryLoadCredentials() (credentials.TransportCredentials, error) {
+	cert := os.Getenv(serverCertFilePathEnv)
+	if cert != "" {
+		key := os.Getenv(serverKeyFilePathEnv)
+		if key != "" {
+			return loadCredentials(cert, key)
+		}
+	}
+	return nil, nil
+}
+
+// loadCredentials loads the TLS credentials for the server from the given file paths.
 func loadCredentials(serverCertPath, serverKeyPath string) (credentials.TransportCredentials, error) {
 	// Load server's certificate and private key
 	sc, err := os.ReadFile(serverCertPath)
@@ -142,7 +173,8 @@ func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessa
 	itx, ok := s.txMap[transaction.TypeID(msg.MessageId)]
 	if !ok {
 		return &routerv1.SendMessageResponse{
-			Errs:      fmt.Errorf("no transaction with ID %d is registerd in this world", msg.MessageId).Error(),
+			Errs: fmt.Errorf("transaction with id %d either does not exist, or did not have EVM support "+
+				"enabled", msg.MessageId).Error(),
 			EvmTxHash: msg.EvmTxHash,
 			Code:      CodeUnsupportedTransaction,
 		}, nil

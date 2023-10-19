@@ -108,4 +108,6 @@ type ITransaction interface {
 	// ABIEncode encodes the given type in ABI encoding, given that the input is the transaction types input or output
 	// type.
 	ABIEncode(any) ([]byte, error)
+	// IsEVMCompatible reports if this tx can be sent from the EVM.
+	IsEVMCompatible() bool
 }
