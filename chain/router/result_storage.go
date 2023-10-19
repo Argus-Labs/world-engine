@@ -11,7 +11,7 @@ type result struct {
 }
 
 func (r *result) expired(expiryRange time.Duration) bool {
-	return r.timeEntered.Add(expiryRange).After(time.Now())
+	return time.Now().After(r.timeEntered.Add(expiryRange))
 }
 
 type resultStorage struct {
@@ -28,7 +28,7 @@ func newResultsStorage(keepAlive time.Duration) *resultStorage {
 
 func (r *resultStorage) GetResult(hash string) (result, bool) {
 	res, ok := r.results[hash]
-	r.ClearStaleEntries()
+	r.clearStaleEntries()
 	return res, ok
 }
 
@@ -39,7 +39,7 @@ func (r *resultStorage) SetResult(msg *routerv1.SendMessageResponse) {
 	}
 }
 
-func (r *resultStorage) ClearStaleEntries() {
+func (r *resultStorage) clearStaleEntries() {
 	for key, res := range r.results {
 		if res.expired(r.keepAlive) {
 			delete(r.results, key)
