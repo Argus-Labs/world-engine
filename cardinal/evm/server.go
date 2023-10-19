@@ -30,6 +30,10 @@ var (
 	serverKeyFilePathEnv  = "SERVER_KEY_PATH"
 )
 
+var (
+	ErrNoEVMTypes = errors.New("no evm types were given to the server")
+)
+
 type Server interface {
 	routerv1.MsgServer
 	// Serve serves the application in a new go routine.
@@ -59,10 +63,9 @@ type msgServerImpl struct {
 // the EVM. It runs on a default port of 9020, but a custom port can be set using options, or by setting an env variable
 // with key CARDINAL_EVM_PORT.
 //
-// NewServer will return nil,nil if no transactions OR queries were given with EVM support.
+// NewServer will return ErrNoEvmTypes if no transactions OR queries were given with EVM support.
 func NewServer(w *ecs.World, opts ...Option) (Server, error) {
-	// shouldRun signals if this server should run (it has EVM txs OR queries to work with).
-	shouldRun := false
+	hasEVMTxsOrQueries := false
 
 	txs, err := w.ListTransactions()
 	if err != nil {
@@ -71,7 +74,7 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	it := make(txByID, len(txs))
 	for _, tx := range txs {
 		if tx.IsEVMCompatible() {
-			shouldRun = true
+			hasEVMTxsOrQueries = true
 			it[tx.ID()] = tx
 		}
 	}
@@ -80,14 +83,13 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	ir := make(queryByName, len(queries))
 	for _, q := range queries {
 		if q.IsEVMCompatible() {
-			shouldRun = true
+			hasEVMTxsOrQueries = true
 			ir[q.Name()] = q
 		}
 	}
 
-	// if no EVM txs or queries were registered, just return nil,nil.
-	if !shouldRun {
-		return nil, nil
+	if !hasEVMTxsOrQueries {
+		return nil, ErrNoEVMTypes
 	}
 
 	s := &msgServerImpl{txMap: it, queryMap: ir, world: w, port: defaultPort}

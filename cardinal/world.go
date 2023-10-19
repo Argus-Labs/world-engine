@@ -157,13 +157,16 @@ func (w *World) StartGame() error {
 	var err error
 	w.evmServer, err = evm.NewServer(w.implWorld)
 	if err != nil {
-		return err
-	}
-	if w.evmServer != nil {
-		w.implWorld.Logger.Debug().Msg("running world with EVM server")
-		w.evmServer.Serve()
-	} else {
+		if !errors.Is(err, evm.ErrNoEVMTypes) {
+			return err
+		}
 		w.implWorld.Logger.Debug().Msg("no EVM transactions or queries specified. EVM server will not run")
+	} else {
+		w.implWorld.Logger.Debug().Msg("running world with EVM server")
+		err = w.evmServer.Serve()
+		if err != nil {
+			return err
+		}
 	}
 
 	if w.tickChannel == nil {
