@@ -112,25 +112,26 @@ func TestEventsThroughSystems(t *testing.T) {
 		dialers[i] = dial
 	}
 	ctx := context.Background()
-	wg1 := sync.WaitGroup{}
-	wg1.Add(1)
+	waitForTick := sync.WaitGroup{}
+	waitForTick.Add(1)
 	go func() {
-		defer wg1.Done()
+		defer waitForTick.Done()
 		for i := 0; i < numberToTest; i++ {
+			fmt.Printf("start tick! %d\n", i)
 			err := w.Tick(ctx)
+			fmt.Printf("end tick! %d\n", i)
 			assert.NilError(t, err)
 		}
 	}()
-	wg1.Wait()
-	assert.Equal(t, counter1.Load(), int32(numberToTest*numberToTest))
 
-	wg := sync.WaitGroup{}
+	waitForRead := sync.WaitGroup{}
 	counter2 := atomic.Int32{}
 	counter2.Store(0)
 	for _, dialer := range dialers {
-		wg.Add(1)
+		dialer := dialer
+		waitForRead.Add(1)
 		go func() {
-			defer wg.Done()
+			defer waitForRead.Done()
 			for i := 0; i < numberToTest; i++ {
 				mode, message, err := dialer.ReadMessage()
 				assert.NilError(t, err)
@@ -140,7 +141,9 @@ func TestEventsThroughSystems(t *testing.T) {
 			}
 		}()
 	}
-	wg.Wait()
+	waitForRead.Wait()
+	waitForTick.Wait()
+
 	assert.Equal(t, counter1.Load(), int32(numberToTest*numberToTest))
 	assert.Equal(t, counter2.Load(), int32(numberToTest*numberToTest))
 }
