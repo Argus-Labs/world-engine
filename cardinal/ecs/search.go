@@ -39,9 +39,10 @@ type SearchCallBackFn func(entity.ID) bool
 
 // Each iterates over all entities that match the search.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (q *Search) Each(w *World, callback SearchCallBackFn) error {
-	result := q.evaluateSearch(w.namespace, w.StoreManager())
-	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
+func (q *Search) Each(wCtx WorldContext, callback SearchCallBackFn) error {
+	reader := wCtx.StoreReader()
+	result := q.evaluateSearch(wCtx.GetWorld().Namespace(), reader)
+	iter := storage.NewEntityIterator(0, reader, result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -58,9 +59,11 @@ func (q *Search) Each(w *World, callback SearchCallBackFn) error {
 }
 
 // Count returns the number of entities that match the search.
-func (q *Search) Count(w *World) (int, error) {
-	result := q.evaluateSearch(w.namespace, w.StoreManager())
-	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
+func (q *Search) Count(wCtx WorldContext) (int, error) {
+	namespace := wCtx.GetWorld().Namespace()
+	reader := wCtx.StoreReader()
+	result := q.evaluateSearch(namespace, reader)
+	iter := storage.NewEntityIterator(0, reader, result)
 	ret := 0
 	for iter.HasNext() {
 		entities, err := iter.Next()
@@ -73,9 +76,11 @@ func (q *Search) Count(w *World) (int, error) {
 }
 
 // First returns the first entity that matches the search.
-func (q *Search) First(w *World) (id entity.ID, err error) {
-	result := q.evaluateSearch(w.namespace, w.StoreManager())
-	iter := storage.NewEntityIterator(0, w.StoreManager(), result)
+func (q *Search) First(wCtx WorldContext) (id entity.ID, err error) {
+	namespace := wCtx.GetWorld().Namespace()
+	reader := wCtx.StoreReader()
+	result := q.evaluateSearch(namespace, reader)
+	iter := storage.NewEntityIterator(0, reader, result)
 	if !iter.HasNext() {
 		return storage.BadID, err
 	}
@@ -91,15 +96,15 @@ func (q *Search) First(w *World) (id entity.ID, err error) {
 	return storage.BadID, err
 }
 
-func (q *Search) MustFirst(w *World) entity.ID {
-	id, err := q.First(w)
+func (q *Search) MustFirst(wCtx WorldContext) entity.ID {
+	id, err := q.First(wCtx)
 	if err != nil {
 		panic(fmt.Sprintf("no entity matches the search."))
 	}
 	return id
 }
 
-func (q *Search) evaluateSearch(namespace Namespace, sm store.IManager) []archetype.ID {
+func (q *Search) evaluateSearch(namespace Namespace, sm store.Reader) []archetype.ID {
 	if _, ok := q.archMatches[namespace]; !ok {
 		q.archMatches[namespace] = &cache{
 			archetypes: make([]archetype.ID, 0),

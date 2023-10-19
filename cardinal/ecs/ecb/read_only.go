@@ -28,7 +28,7 @@ type readOnlyManager struct {
 	archIDToComps   map[archetype.ID][]component_metadata.IComponentMetaData
 }
 
-func (m *Manager) NewReadOnlyStore() store.Reader {
+func (m *Manager) ToReadOnly() store.Reader {
 	return &readOnlyManager{
 		client:          m.client,
 		typeToComponent: m.typeToComponent,
@@ -67,7 +67,9 @@ func (r *readOnlyManager) getComponentsForArchID(archID archetype.ID) ([]compone
 	if comps, ok := r.archIDToComps[archID]; ok {
 		return comps, nil
 	}
-	r.refreshArchIDToCompTypes()
+	if err := r.refreshArchIDToCompTypes(); err != nil {
+		return nil, err
+	}
 	comps, ok := r.archIDToComps[archID]
 	if !ok {
 		return nil, fmt.Errorf("unable to find components for arch ID %d", archID)
@@ -138,6 +140,9 @@ func (r *readOnlyManager) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID
 
 func (r *readOnlyManager) SearchFrom(filter filter.ComponentFilter, start int) *storage.ArchetypeIterator {
 	itr := &storage.ArchetypeIterator{}
+	if err := r.refreshArchIDToCompTypes(); err != nil {
+		return itr
+	}
 	for i := start; i < len(r.archIDToComps); i++ {
 		archID := archetype.ID(i)
 		if !filter.MatchesComponents(r.archIDToComps[archID]) {

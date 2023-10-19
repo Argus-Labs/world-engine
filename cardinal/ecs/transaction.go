@@ -124,15 +124,16 @@ type TxData[In any] struct {
 	Sig    *sign.SignedPayload
 }
 
-func (t *TransactionType[In, Out]) AddError(world *World, hash transaction.TxHash, err error) {
-	world.AddTransactionError(hash, err)
+func (t *TransactionType[In, Out]) AddError(wCtx WorldContext, hash transaction.TxHash, err error) {
+	wCtx.GetWorld().AddTransactionError(hash, err)
 }
 
-func (t *TransactionType[In, Out]) SetResult(world *World, hash transaction.TxHash, result Out) {
-	world.SetTransactionResult(hash, result)
+func (t *TransactionType[In, Out]) SetResult(wCtx WorldContext, hash transaction.TxHash, result Out) {
+	wCtx.GetWorld().SetTransactionResult(hash, result)
 }
 
-func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxHash) (v Out, errs []error, ok bool) {
+func (t *TransactionType[In, Out]) GetReceipt(wCtx WorldContext, hash transaction.TxHash) (v Out, errs []error, ok bool) {
+	world := wCtx.GetWorld()
 	iface, errs, ok := world.GetTransactionReceipt(hash)
 	if !ok {
 		return v, nil, false
@@ -148,18 +149,19 @@ func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxH
 	return value, errs, true
 }
 
-func (t *TransactionType[In, Out]) ForEach(world *World, tq *transaction.TxQueue, fn func(TxData[In]) (Out, error)) {
-	for _, tx := range t.In(tq) {
+func (t *TransactionType[In, Out]) ForEach(wCtx WorldContext, fn func(TxData[In]) (Out, error)) {
+	for _, tx := range t.In(wCtx) {
 		if result, err := fn(tx); err != nil {
-			t.AddError(world, tx.TxHash, err)
+			t.AddError(wCtx, tx.TxHash, err)
 		} else {
-			t.SetResult(world, tx.TxHash, result)
+			t.SetResult(wCtx, tx.TxHash, result)
 		}
 	}
 }
 
 // In extracts all the transactions in the transaction queue that match this TransactionType's ID.
-func (t *TransactionType[In, Out]) In(tq *transaction.TxQueue) []TxData[In] {
+func (t *TransactionType[In, Out]) In(wCtx WorldContext) []TxData[In] {
+	tq := wCtx.GetTxQueue()
 	var txs []TxData[In]
 	for _, tx := range tq.ForID(t.ID()) {
 		if val, ok := tx.Value.(In); ok {

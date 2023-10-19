@@ -37,11 +37,12 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	count := 0
-	q, err := world.NewSearch(ecs.Exact(ecs.SignerComponent{}))
+	wCtx := ecs.NewWorldContext(world)
+	q, err := wCtx.NewSearch(ecs.Exact(ecs.SignerComponent{}))
 	assert.NilError(t, err)
-	q.Each(world, func(id entity.ID) bool {
+	q.Each(wCtx, func(id entity.ID) bool {
 		count++
-		sc, err := component.GetComponent[ecs.SignerComponent](world, id)
+		sc, err := component.GetComponent[ecs.SignerComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantAddress)
@@ -143,9 +144,10 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	count := 0
 	q, err := world.NewSearch(ecs.Exact(ecs.SignerComponent{}))
 	assert.NilError(t, err)
-	q.Each(world, func(id entity.ID) bool {
+	wCtx := ecs.NewWorldContext(world)
+	q.Each(wCtx, func(id entity.ID) bool {
 		count++
-		sc, err := component.GetComponent[ecs.SignerComponent](world, id)
+		sc, err := component.GetComponent[ecs.SignerComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantSigner)

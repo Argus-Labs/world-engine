@@ -18,23 +18,21 @@ type QueryType[Request, Reply any] struct {
 // in the given handler function.
 func NewQueryType[Request any, Reply any](
 	name string,
-	handler func(*World, Request) (Reply, error),
+	handler func(WorldContext, Request) (Reply, error),
 ) *QueryType[Request, Reply] {
 	return &QueryType[Request, Reply]{
-		impl: ecs.NewQueryType[Request, Reply](name, func(world *ecs.World, req Request) (Reply, error) {
-			outerWorld := &World{implWorld: world}
-			return handler(outerWorld, req)
+		impl: ecs.NewQueryType[Request, Reply](name, func(wCtx ecs.WorldContext, req Request) (Reply, error) {
+			return handler(wCtx, req)
 		}),
 	}
 }
 
 // NewQueryTypeWithEVMSupport creates a new instance of a QueryType with EVM support, allowing this query to be called from
 // the EVM base shard. The World state must not be changed in the given handler function.
-func NewQueryTypeWithEVMSupport[Request, Reply any](name string, handler func(*World, Request) (Reply, error)) *QueryType[Request, Reply] {
+func NewQueryTypeWithEVMSupport[Request, Reply any](name string, handler func(WorldContext, Request) (Reply, error)) *QueryType[Request, Reply] {
 	return &QueryType[Request, Reply]{
-		impl: ecs.NewQueryType[Request, Reply](name, func(world *ecs.World, req Request) (Reply, error) {
-			outerWorld := &World{implWorld: world}
-			return handler(outerWorld, req)
+		impl: ecs.NewQueryType[Request, Reply](name, func(wCtx ecs.WorldContext, req Request) (Reply, error) {
+			return handler(wCtx, req)
 		}, ecs.WithQueryEVMSupport[Request, Reply]),
 	}
 }

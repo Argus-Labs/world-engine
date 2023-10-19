@@ -26,8 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -192,7 +190,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
+	w.AddSystem(func(ecs.WorldContext) error {
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -291,8 +289,8 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
 	count := 0
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		txs := sendTx.In(queue)
+	w.AddSystem(func(wCtx ecs.WorldContext) error {
+		txs := sendTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
 		assert.Equal(t, tx.Value.From, "me")
@@ -348,17 +346,18 @@ func TestHandleSwaggerServer(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
+	w.AddSystem(func(ecs.WorldContext) error {
 		return nil
 	})
 
 	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](w))
 	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](w))
 	alphaCount := 75
-	_, err := component.CreateMany(w, alphaCount, garbageStructAlpha{})
+	wCtx := ecs.NewWorldContext(w)
+	_, err := component.CreateMany(wCtx, alphaCount, garbageStructAlpha{})
 	assert.NilError(t, err)
 	bothCount := 100
-	_, err = component.CreateMany(w, bothCount, garbageStructAlpha{}, garbageStructBeta{})
+	_, err = component.CreateMany(wCtx, bothCount, garbageStructAlpha{}, garbageStructBeta{})
 	assert.NilError(t, err)
 
 	// Queue up a CreatePersonaTx
@@ -388,7 +387,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooQuery := ecs.NewQueryType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+	fooQuery := ecs.NewQueryType[FooRequest, FooReply]("foo", func(wCtx ecs.WorldContext, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
 	})
 	assert.NilError(t, w.RegisterQueries(fooQuery))
@@ -544,8 +543,8 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		txs := sendTx.In(queue)
+	w.AddSystem(func(wCtx ecs.WorldContext) error {
+		txs := sendTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
 		assert.Equal(t, tx.Value.From, "me")
@@ -754,14 +753,14 @@ func TestCanListQueries(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 
-	fooQuery := ecs.NewQueryType[FooRequest, FooResponse]("foo", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+	fooQuery := ecs.NewQueryType[FooRequest, FooResponse]("foo", func(wCtx ecs.WorldContext, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
-	barQuery := ecs.NewQueryType[FooRequest, FooResponse]("bar", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+	barQuery := ecs.NewQueryType[FooRequest, FooResponse]("bar", func(wCtx ecs.WorldContext, req FooRequest) (FooResponse, error) {
 
 		return FooResponse{Meow: req.Meow}, nil
 	})
-	bazQuery := ecs.NewQueryType[FooRequest, FooResponse]("baz", func(world *ecs.World, req FooRequest) (FooResponse, error) {
+	bazQuery := ecs.NewQueryType[FooRequest, FooResponse]("baz", func(wCtx ecs.WorldContext, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
 
@@ -805,7 +804,7 @@ func TestQueryEncodeDecode(t *testing.T) {
 	type FooResponse struct {
 		Meow string `json:"meow,omitempty"`
 	}
-	fq := ecs.NewQueryType[FooRequest, FooResponse](endpoint, func(world *ecs.World, req FooRequest) (FooResponse, error) {
+	fq := ecs.NewQueryType[FooRequest, FooResponse](endpoint, func(wCtx ecs.WorldContext, req FooRequest) (FooResponse, error) {
 		return FooResponse{Meow: req.Meow}, nil
 	})
 
@@ -950,18 +949,18 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
-	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		for _, tx := range incTx.In(queue) {
-			incTx.SetResult(world, tx.TxHash, IncReply{
+	world.AddSystem(func(wCtx ecs.WorldContext) error {
+		for _, tx := range incTx.In(wCtx) {
+			incTx.SetResult(wCtx, tx.TxHash, IncReply{
 				Number: tx.Value.Number + 1,
 			})
 		}
 		return nil
 	})
 	// System to handle duplicating strings
-	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		for _, tx := range dupeTx.In(queue) {
-			dupeTx.SetResult(world, tx.TxHash, DupeReply{
+	world.AddSystem(func(wCtx ecs.WorldContext) error {
+		for _, tx := range dupeTx.In(wCtx) {
+			dupeTx.SetResult(wCtx, tx.TxHash, DupeReply{
 				Str: tx.Value.Str + tx.Value.Str,
 			})
 		}
@@ -969,10 +968,10 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	})
 	wantError := errors.New("some error")
 	// System to handle error production
-	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, _ *log.Logger) error {
-		for _, tx := range errTx.In(queue) {
-			errTx.AddError(world, tx.TxHash, wantError)
-			errTx.AddError(world, tx.TxHash, wantError)
+	world.AddSystem(func(wCtx ecs.WorldContext) error {
+		for _, tx := range errTx.In(wCtx) {
+			errTx.AddError(wCtx, tx.TxHash, wantError)
+			errTx.AddError(wCtx, tx.TxHash, wantError)
 		}
 		return nil
 	})
