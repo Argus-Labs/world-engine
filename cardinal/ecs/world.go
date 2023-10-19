@@ -436,6 +436,7 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 //
 // TODO: we probably want to make this timeout related to the actual tick hz.
 // If a game has 10s ticks, this wouldn't work.
+// ticket: https://linear.app/arguslabs/issue/WORLD-430/make-waitfornextticks-timeout-and-sleep-duration-a-factor-of-the
 func (w *World) WaitForNextTick() bool {
 	current := w.CurrentTick()
 	timeout := time.After(5 * time.Second)
