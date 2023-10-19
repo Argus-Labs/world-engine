@@ -60,7 +60,8 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		if err != nil {
 			return nil, err
 		}
-		rawJsonReply, err := outputType.HandleQueryRaw(handler.w, rawJsonBody)
+		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
+		rawJsonReply, err := outputType.HandleQueryRaw(wCtx, rawJsonBody)
 		if err != nil {
 			return nil, err
 		}
