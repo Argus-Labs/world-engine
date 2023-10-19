@@ -112,7 +112,12 @@ func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 
 	client, err := r.getConnectionForNamespace(namespace)
 	if err != nil {
-		r.resultStore.SetResult(&routerv1.SendMessageResponse{EvmTxHash: msg.EvmTxHash, Code: CodeConnectionError, Errs: "error getting game shard gRPC connection"})
+		r.resultStore.SetResult(
+			&routerv1.SendMessageResponse{
+				EvmTxHash: msg.EvmTxHash,
+				Code:      CodeConnectionError,
+				Errs:      "error getting game shard gRPC connection"},
+		)
 		r.logger.Error("error getting game shard gRPC connection", "error", err)
 		return
 	}
@@ -129,7 +134,12 @@ func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 		var res *routerv1.SendMessageResponse
 		res, err = client.SendMessage(context.Background(), msg)
 		if err != nil {
-			r.resultStore.SetResult(&routerv1.SendMessageResponse{EvmTxHash: msg.EvmTxHash, Code: CodeServerError, Errs: err.Error()})
+			r.resultStore.SetResult(
+				&routerv1.SendMessageResponse{
+					EvmTxHash: msg.EvmTxHash,
+					Code:      CodeServerError,
+					Errs:      err.Error()},
+			)
 			r.logger.Error("failed to send message to game shard", "error", err)
 			return
 		}
