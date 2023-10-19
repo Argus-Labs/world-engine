@@ -120,10 +120,10 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	ecs.MustRegisterComponent[foundComp](world)
 	ecs.MustRegisterComponent[notFoundComp](world)
 
-	id, err := component.Create(world, foundComp{})
+	wCtx := ecs.NewWorldContext(world)
+	id, err := component.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
-	_, err = component.GetComponent[notFoundComp](world, id)
-	//_, err = notFound.Get(world, id)
+	_, err = component.GetComponent[notFoundComp](wCtx, id)
 	assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
 }
 
@@ -140,19 +140,19 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent](world))
 
-	id, err := component.Create(world, ValueComponent{})
+	wCtx := ecs.NewWorldContext(world)
+	id, err := component.Create(wCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, component.SetComponent[ValueComponent](world, id, &ValueComponent{99}))
+	assert.NilError(t, component.SetComponent[ValueComponent](wCtx, id, &ValueComponent{99}))
 
-	val, err := component.GetComponent[ValueComponent](world, id)
+	val, err := component.GetComponent[ValueComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
-	_, err = component.Create(world, ValueComponent{})
+	_, err = component.Create(wCtx, ValueComponent{})
 
-	val, err = component.GetComponent[ValueComponent](world, id)
-	//val, err = valComp.Get(world, id)
+	val, err = component.GetComponent[ValueComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 }

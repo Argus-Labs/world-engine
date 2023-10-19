@@ -294,11 +294,12 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Power](world))
 	assert.NilError(t, world.LoadGameState())
 
-	justHealthIDs, err := component.CreateMany(world, 8, Health{})
+	wCtx := ecs.NewWorldContext(world)
+	justHealthIDs, err := component.CreateMany(wCtx, 8, Health{})
 	assert.NilError(t, err)
-	justPowerIDs, err := component.CreateMany(world, 9, Power{})
+	justPowerIDs, err := component.CreateMany(wCtx, 9, Power{})
 	assert.NilError(t, err)
-	healthAndPowerIDs, err := component.CreateMany(world, 10, Health{}, Power{})
+	healthAndPowerIDs, err := component.CreateMany(wCtx, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
 	testCases := []struct {
@@ -331,7 +332,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		found := map[entity.ID]bool{}
 		q, err := world.NewSearch(tc.filter)
 		assert.NilError(t, err)
-		q.Each(world, func(id entity.ID) bool {
+		q.Each(wCtx, func(id entity.ID) bool {
 			found[id] = true
 			return true
 		})
