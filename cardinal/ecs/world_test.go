@@ -25,7 +25,8 @@ func TestWaitForNextTick(t *testing.T) {
 		doneCh <- struct{}{}
 	}()
 	assert.NilError(t, w.LoadGameState())
-	w.StartGameLoop(context.Background(), time.Tick(100*time.Millisecond), nil)
+	tickDone := make(chan uint64)
+	w.StartGameLoop(context.Background(), time.Tick(100*time.Millisecond), tickDone)
 	<-doneCh
 }
 
