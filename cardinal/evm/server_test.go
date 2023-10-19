@@ -126,7 +126,7 @@ func TestServer_Query(t *testing.T) {
 		Y uint64
 	}
 	// set up a query that simply returns the FooReq.X
-	query := ecs.NewQueryType[FooReq, FooReply]("foo", func(world *ecs.World, req FooReq) (FooReply, error) {
+	query := ecs.NewQueryType[FooReq, FooReply]("foo", func(wCtx ecs.WorldContext, req FooReq) (FooReply, error) {
 		return FooReply{Y: req.X}, nil
 	}, ecs.WithQueryEVMSupport[FooReq, FooReply])
 	w := ecs.NewTestWorld(t)

@@ -30,7 +30,7 @@ func TestQueryTypeNotStructs(t *testing.T) {
 		// test should trigger a panic.
 		panicValue := recover()
 		assert.Assert(t, panicValue != nil)
-		ecs.NewQueryType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+		ecs.NewQueryType[FooRequest, FooReply]("foo", func(wCtx ecs.WorldContext, req FooRequest) (FooReply, error) {
 			return expectedReply, nil
 		})
 		defer func() {
@@ -40,7 +40,7 @@ func TestQueryTypeNotStructs(t *testing.T) {
 		}()
 	}()
 
-	ecs.NewQueryType[string, string]("foo", func(world *ecs.World, req string) (string, error) {
+	ecs.NewQueryType[string, string]("foo", func(wCtx ecs.WorldContext, req string) (string, error) {
 		return "blah", nil
 	})
 }
@@ -59,7 +59,7 @@ func TestQueryEVM(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooQuery := ecs.NewQueryType[FooRequest, FooReply]("foo", func(world *ecs.World, req FooRequest) (FooReply, error) {
+	fooQuery := ecs.NewQueryType[FooRequest, FooReply]("foo", func(wCtx ecs.WorldContext, req FooRequest) (FooReply, error) {
 		return expectedReply, nil
 	}, ecs.WithQueryEVMSupport[FooRequest, FooReply])
 
