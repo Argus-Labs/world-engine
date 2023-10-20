@@ -649,7 +649,7 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 	return NewSearch(componentFilter), nil
 }
 
-func (w *World) AddToQueue(t *TransactionType[In, Out], data any, sigs ...*sign.SignedPayload) {
+func AddToQueue[In, Out any](w *World, t *TransactionType[In, Out], data In, sigs ...*sign.SignedPayload) {
 	t.AddToQueue(w, data, sigs...)
 }
 
