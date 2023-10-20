@@ -103,7 +103,7 @@ func TestEventsThroughSystems(t *testing.T) {
 	assert.NilError(t, w.LoadGameState())
 	txh := test_utils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
 	url := txh.MakeWebSocketURL("events")
-	dialers := make([]*websocket.Conn, numberToTest, numberToTest)
+	dialers := make([]*websocket.Conn, numberToTest)
 	for i, _ := range dialers {
 		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
 		assert.NilError(t, err)
