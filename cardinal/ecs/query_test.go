@@ -7,6 +7,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/evm"
 
 	"gotest.tools/v3/assert"
+
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"

@@ -7,30 +7,20 @@ import (
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/world_context"
 )
 
 type WorldContext interface {
-	ECSSpecificWorldContextMethods
-	CurrentTick() uint64
-	Logger() *zerolog.Logger
-	GetTxQueue() *transaction.TxQueue
-	IsReadOnly() bool
-	StoreReader() store.Reader
-	StoreManager() store.IManager
+	worldContextECSMethods
+	world_context.WorldContext
 }
 
-type ECSSpecificWorldContextMethods interface {
+type worldContextECSMethods interface {
 	NewSearch(filter Filterable) (*Search, error)
 	GetWorld() *World
-}
-
-type GeneralWorldContextMethods interface {
-	CurrentTick() uint64
-	Logger() *zerolog.Logger
-	GetTxQueue() *transaction.TxQueue
-	IsReadOnly() bool
 	StoreReader() store.Reader
 	StoreManager() store.IManager
+	GetTxQueue() *transaction.TxQueue
 }
 
 var (

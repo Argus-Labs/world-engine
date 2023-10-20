@@ -3,18 +3,17 @@ package cardinal
 import (
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/world_context"
 )
 
-type CardinalSpecificWorldContextMethods interface {
+type WorldContextSpecificMethods interface {
 	NewSearch(filter CardinalFilter) (*Search, error)
 	getECSWorldContext() ECSWorldContext
 }
 
 type WorldContext interface {
-	CardinalSpecificWorldContextMethods
-	ecs.GeneralWorldContextMethods
+	WorldContextSpecificMethods
+	world_context.WorldContext
 }
 
 type ConcreteWorldContext struct {
@@ -23,18 +22,6 @@ type ConcreteWorldContext struct {
 
 func (wCtx *ConcreteWorldContext) IsReadOnly() bool {
 	return wCtx.IsReadOnly()
-}
-
-func (wCtx *ConcreteWorldContext) GetTxQueue() *transaction.TxQueue {
-	return wCtx.GetTxQueue()
-}
-
-func (wCtx *ConcreteWorldContext) StoreReader() store.Reader {
-	return wCtx.StoreReader()
-}
-
-func (wCtx *ConcreteWorldContext) StoreManager() store.IManager {
-	return wCtx.implContext.StoreManager()
 }
 
 func (wCtx *ConcreteWorldContext) CurrentTick() uint64 {

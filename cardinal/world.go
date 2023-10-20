@@ -110,28 +110,28 @@ func Create(wCtx WorldContext, components ...component_metadata.Component) (Enti
 }
 
 // SetComponent Set sets component data to the entity.
-func SetComponent[T component_metadata.Component](wCtx ECSWorldContext, id entity.ID, comp *T) error {
-	return component.SetComponent[T](wCtx, id, comp)
+func SetComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, comp *T) error {
+	return component.SetComponent[T](wCtx.getECSWorldContext(), id, comp)
 }
 
 // GetComponent Get returns component data from the entity.
-func GetComponent[T component_metadata.Component](wCtx ECSWorldContext, id entity.ID) (comp *T, err error) {
-	return component.GetComponent[T](wCtx, id)
+func GetComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
+	return component.GetComponent[T](wCtx.getECSWorldContext(), id)
 }
 
 // UpdateComponent Updates a component on an entity
-func UpdateComponent[T component_metadata.Component](wCtx ECSWorldContext, id entity.ID, fn func(*T) *T) error {
-	return component.UpdateComponent[T](wCtx, id, fn)
+func UpdateComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
+	return component.UpdateComponent[T](wCtx.getECSWorldContext(), id, fn)
 }
 
 // AddComponentTo Adds a component on an entity
-func AddComponentTo[T component_metadata.Component](wCtx ECSWorldContext, id entity.ID) error {
-	return component.AddComponentTo[T](wCtx, id)
+func AddComponentTo[T component_metadata.Component](wCtx WorldContext, id entity.ID) error {
+	return component.AddComponentTo[T](wCtx.getECSWorldContext(), id)
 }
 
 // RemoveComponentFrom Removes a component from an entity
-func RemoveComponentFrom[T component_metadata.Component](wCtx ECSWorldContext, id entity.ID) error {
-	return component.RemoveComponentFrom[T](wCtx, id)
+func RemoveComponentFrom[T component_metadata.Component](wCtx WorldContext, id entity.ID) error {
+	return component.RemoveComponentFrom[T](wCtx.getECSWorldContext(), id)
 }
 
 // Remove removes the given entity id from the world.
