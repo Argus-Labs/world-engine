@@ -100,13 +100,13 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
 func CreateMany(wCtx WorldContext, num int, components ...component_metadata.Component) ([]EntityID, error) {
-	return component.CreateMany(wCtx.GetECSWorldContext(), num, components...)
+	return component.CreateMany(wCtx.getECSWorldContext(), num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
 func Create(wCtx WorldContext, components ...component_metadata.Component) (EntityID, error) {
-	return component.Create(wCtx.GetECSWorldContext(), components...)
+	return component.Create(wCtx.getECSWorldContext(), components...)
 }
 
 // SetComponent Set sets component data to the entity.

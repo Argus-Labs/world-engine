@@ -30,7 +30,7 @@ func ExampleTransactionType() {
 	}
 
 	cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
-		for _, tx := range MoveTx.In(wCtx.GetECSWorldContext()) {
+		for _, tx := range MoveTx.In(wCtx) {
 			msg := tx.Value()
 			// handle the transaction
 			// ...

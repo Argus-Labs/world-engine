@@ -9,7 +9,7 @@ import (
 
 type CardinalSpecificWorldContextMethods interface {
 	NewSearch(filter CardinalFilter) (*Search, error)
-	GetECSWorldContext() ECSWorldContext
+	getECSWorldContext() ECSWorldContext
 }
 
 type WorldContext interface {
@@ -53,6 +53,6 @@ func (wCtx *ConcreteWorldContext) NewSearch(filter CardinalFilter) (*Search, err
 	return &Search{impl: ecsSearch}, nil
 }
 
-func (wCtx *ConcreteWorldContext) GetECSWorldContext() ECSWorldContext {
+func (wCtx *ConcreteWorldContext) getECSWorldContext() ECSWorldContext {
 	return wCtx.implContext
 }
