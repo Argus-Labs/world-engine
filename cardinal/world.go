@@ -37,7 +37,7 @@ type (
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
 	// with a world using AddSystem or AddSystems.
-	System func(ECSWorldContext) error
+	System func(WorldContext) error
 )
 
 // NewWorld creates a new World object using Redis as the storage layer.
@@ -190,7 +190,7 @@ func (w *World) ShutDown() error {
 func RegisterSystems(w *World, systems ...System) {
 	for _, system := range systems {
 		w.implWorld.AddSystem(func(wCtx ECSWorldContext) error {
-			return system(wCtx)
+			return system(convertEcsWorldContextToCardinalWorldContext(wCtx))
 		})
 	}
 }

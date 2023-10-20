@@ -29,8 +29,8 @@ func ExampleTransactionType() {
 		panic(err)
 	}
 
-	cardinal.RegisterSystems(world, func(wCtx cardinal.ECSWorldContext) error {
-		for _, tx := range MoveTx.In(wCtx) {
+	cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
+		for _, tx := range MoveTx.In(wCtx.GetECSWorldContext()) {
 			msg := tx.Value()
 			// handle the transaction
 			// ...
