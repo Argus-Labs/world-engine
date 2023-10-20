@@ -3,6 +3,7 @@ package events
 import (
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-openapi/runtime/middleware"
@@ -18,7 +19,12 @@ func CreateEventHub() *EventHub {
 		register:             make(chan *websocket.Conn),
 		unregister:           make(chan *websocket.Conn),
 		shutdown:             make(chan bool),
+		running:              atomic.Bool{},
 	}
+	res.running.Store(false)
+	go func() {
+		res.Run()
+	}()
 	return &res
 }
 
@@ -34,14 +40,19 @@ type EventHub struct {
 	register             chan *websocket.Conn
 	shutdown             chan bool
 	eventQueue           []*Event
+	running              atomic.Bool
 }
 
 func (eh *EventHub) EmitEvent(event *Event) {
-	eh.broadcast <- event
+	go func() {
+		eh.broadcast <- event
+	}()
 }
 
 func (eh *EventHub) FlushEvents() {
-	eh.flush <- true
+	go func() {
+		eh.flush <- true
+	}()
 }
 
 func (eh *EventHub) RegisterConnection(ws *websocket.Conn) {
@@ -52,7 +63,15 @@ func (eh *EventHub) UnregisterConnection(ws *websocket.Conn) {
 	eh.unregister <- ws
 }
 
+func (eh *EventHub) ShutdownEventHub() {
+	eh.shutdown <- true
+}
+
 func (eh *EventHub) Run() {
+	if eh.running.Load() {
+		return
+	}
+	eh.running.Store(true)
 	unregisterConnection := func(conn *websocket.Conn) {
 		if _, ok := eh.websocketConnections[conn]; ok {
 			delete(eh.websocketConnections, conn)
@@ -63,7 +82,7 @@ func (eh *EventHub) Run() {
 		}
 	}
 Loop:
-	for {
+	for eh.running.Load() {
 		select {
 		case conn := <-eh.register:
 			eh.websocketConnections[conn] = true
@@ -107,6 +126,7 @@ Loop:
 			break Loop
 		}
 	}
+	eh.running.Store(false)
 }
 
 type webSocketHandler struct {

@@ -25,6 +25,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
@@ -70,6 +71,8 @@ type World struct {
 	isGameLoopRunning atomic.Bool
 
 	nextComponentID component_metadata.TypeID
+
+	eventHub *events.EventHub
 }
 
 var (
@@ -78,6 +81,14 @@ var (
 	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
 	ErrorDuplicateQueryName                    = errors.New("query names must be unique")
 )
+
+func (w *World) SetEventHub(eventHub *events.EventHub) {
+	w.eventHub = eventHub
+}
+
+func (w *World) EmitEvent(event *events.Event) {
+	w.eventHub.EmitEvent(event)
+}
 
 func (w *World) IsRecovering() bool {
 	return w.isRecovering
@@ -333,7 +344,10 @@ func (w *World) Tick(_ context.Context) error {
 			return err
 		}
 	}
-
+	if w.eventHub != nil {
+		// world can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
+		w.eventHub.FlushEvents()
+	}
 	if err := w.TickStore().FinalizeTick(); err != nil {
 		return err
 	}

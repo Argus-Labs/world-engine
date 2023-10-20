@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
+	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
@@ -40,5 +41,11 @@ func WithPrettyLog() Option {
 func WithStoreManager(s store.IManager) Option {
 	return func(w *World) {
 		w.storeManager = s
+	}
+}
+
+func WithEventHub(eventHub *events.EventHub) Option {
+	return func(w *World) {
+		w.eventHub = eventHub
 	}
 }

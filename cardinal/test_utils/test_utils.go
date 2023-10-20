@@ -18,9 +18,7 @@ func MakeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.O
 	port := "4040"
 	opts = append(opts, server.WithPort(port))
 	eventHub := events.CreateEventHub()
-	go func() {
-		eventHub.Run()
-	}()
+	world.SetEventHub(eventHub)
 	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
 	txh, err := server.NewHandler(world, eventBuilder, opts...)
 	assert.NilError(t, err)

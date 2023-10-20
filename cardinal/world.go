@@ -15,6 +15,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
+	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
@@ -63,6 +64,10 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	eventHub := events.CreateEventHub()
+	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
+
 	ecsWorld, err := ecs.NewWorld(worldStorage, storeManager, ecsOptions...)
 	if err != nil {
 		return nil, err
@@ -76,7 +81,8 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	for _, opt := range cardinalOptions {
 		opt(world)
 	}
-	handler, err := server.NewHandler(world.implWorld, nil, world.serverOptions...)
+	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
+	handler, err := server.NewHandler(world.implWorld, eventBuilder, world.serverOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +94,8 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 // This is only suitable for local development.
 func NewMockWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
+	eventHub := events.CreateEventHub()
+	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
 	world := &World{
 		implWorld:     ecs.NewMockWorld(ecsOptions...),
 		serverOptions: serverOptions,
