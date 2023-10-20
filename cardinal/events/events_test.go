@@ -1,6 +1,7 @@
 package events_test
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"sync"
@@ -10,7 +11,9 @@ import (
 	"gotest.tools/v3/assert"
 
 	"github.com/gorilla/websocket"
+	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/test_utils"
@@ -115,9 +118,7 @@ func TestEventsThroughSystems(t *testing.T) {
 	go func() {
 		defer waitForTicks.Done()
 		for i := 0; i < numberToTest; i++ {
-			fmt.Printf("start tick! %d\n", i)
 			err := w.Tick(ctx)
-			fmt.Printf("end tick! %d\n", i)
 			assert.NilError(t, err)
 		}
 	}()
@@ -144,4 +145,38 @@ func TestEventsThroughSystems(t *testing.T) {
 
 	assert.Equal(t, counter1.Load(), int32(numberToTest*numberToTest))
 	assert.Equal(t, counter2.Load(), int32(numberToTest*numberToTest))
+}
+
+func TestEventHubLogger(t *testing.T) {
+	//replaces internal Logger with one that logs to the buf variable above.
+	var buf bytes.Buffer
+	bufLogger := zerolog.New(&buf)
+	cardinalLogger := ecslog.Logger{
+		&bufLogger,
+	}
+	w := ecs.NewTestWorld(t, ecs.WithLoggingEventHub(&cardinalLogger))
+	numberToTest := 5
+	for i := 0; i < numberToTest; i++ {
+		w.AddSystem(func(wCtx ecs.WorldContext) error {
+			wCtx.GetWorld().EmitEvent(&events.Event{Message: "test"})
+			return nil
+		})
+	}
+	assert.NilError(t, w.LoadGameState())
+	ctx := context.Background()
+	waitForTicks := sync.WaitGroup{}
+	waitForTicks.Add(1)
+	go func() {
+		defer waitForTicks.Done()
+		for i := 0; i < numberToTest; i++ {
+			err := w.Tick(ctx)
+			assert.NilError(t, err)
+		}
+	}()
+	waitForTicks.Wait()
+	testString := "{\"level\":\"info\",\"message\":\"test\"}\n"
+	acc := ""
+	for i := 0; i < numberToTest*numberToTest; i++ {
+		acc += testString
+	}
 }

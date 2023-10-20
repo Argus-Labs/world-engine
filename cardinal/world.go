@@ -3,9 +3,10 @@ package cardinal
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/evm"
 	"sync/atomic"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/evm"
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -65,8 +66,8 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 		return nil, err
 	}
 
-	eventHub := events.CreateEventHub()
-	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
+	eventHub := events.CreateWebSocketEventHub()
+	ecsOptions = append(ecsOptions, ecs.WithWebSocketEventHub(eventHub))
 
 	ecsWorld, err := ecs.NewWorld(worldStorage, storeManager, ecsOptions...)
 	if err != nil {
@@ -94,8 +95,8 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 // This is only suitable for local development.
 func NewMockWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
-	eventHub := events.CreateEventHub()
-	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
+	eventHub := events.CreateWebSocketEventHub()
+	ecsOptions = append(ecsOptions, ecs.WithWebSocketEventHub(eventHub))
 	world := &World{
 		implWorld:     ecs.NewMockWorld(ecsOptions...),
 		serverOptions: serverOptions,

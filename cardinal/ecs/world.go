@@ -72,7 +72,7 @@ type World struct {
 
 	nextComponentID component_metadata.TypeID
 
-	eventHub *events.EventHub
+	eventHub events.EventHub
 }
 
 var (
@@ -82,7 +82,7 @@ var (
 	ErrorDuplicateQueryName                    = errors.New("query names must be unique")
 )
 
-func (w *World) SetEventHub(eventHub *events.EventHub) {
+func (w *World) SetEventHub(eventHub *events.WebSocketEventHub) {
 	w.eventHub = eventHub
 }
 
