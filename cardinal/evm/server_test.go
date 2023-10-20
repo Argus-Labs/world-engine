@@ -2,7 +2,7 @@ package evm
 
 import (
 	"context"
-	"fmt"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -178,10 +178,12 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 	assert.NilError(t, err)
 
 	sender := "hello"
-	_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
+	// server will never error. always returns it in the result.
+	res, _ := server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 		Sender:    sender,
 		Message:   fooTxBz,
 		MessageId: uint64(FooTx.ID()),
 	})
-	assert.Error(t, err, fmt.Sprintf("address %s does not have a linked persona tag", sender))
+	assert.Equal(t, res.Code, uint32(CodeUnauthorized))
+	assert.Check(t, strings.Contains(res.Errs, "failed to authorize"))
 }

@@ -83,6 +83,10 @@ func (t *TransactionType[In, Out]) Name() string {
 	return t.name
 }
 
+func (t *TransactionType[In, Out]) IsEVMCompatible() bool {
+	return t.inEVMType != nil && t.outEVMType != nil
+}
+
 func (t *TransactionType[In, Out]) ID() transaction.TypeID {
 	if !t.isIDSet {
 		panic(fmt.Sprintf("id on %v is not set", t))

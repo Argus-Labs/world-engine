@@ -15,3 +15,7 @@ help:
 # Rule to setup the project. This is a special case because it's not a Mage target.
 setup:
 	@go run magefiles/setup/setup.go
+
+rift:
+	cd rift/proto && buf generate
+.PHONY: rift

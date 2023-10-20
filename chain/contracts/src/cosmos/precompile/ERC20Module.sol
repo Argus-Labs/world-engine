@@ -80,8 +80,8 @@ interface IERC20Module {
      * @param amount the amount of coins to transfer
      */
     function transferCoinToERC20From(string calldata denom, address owner, address recipient, uint256 amount)
-    external
-    returns (bool);
+        external
+        returns (bool);
 
     /**
      * @dev transferCoinToERC20To transfers `amount` SDK coins to ERC20 tokens from `msg.sender` to
@@ -108,8 +108,8 @@ interface IERC20Module {
      * @param amount the amount of tokens to transfer
      */
     function transferERC20ToCoinFrom(IERC20 token, address owner, address recipient, uint256 amount)
-    external
-    returns (bool);
+        external
+        returns (bool);
 
     /**
      * @dev transferERC20ToCoinTo transfers `amount` ERC20 tokens to SDK coins from `msg.sender` to

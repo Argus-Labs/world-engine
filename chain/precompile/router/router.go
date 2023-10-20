@@ -34,10 +34,17 @@ func (c *Contract) SendMessage(
 	message []byte,
 	messageID uint64,
 	namespace string,
-) ([]byte, error) {
+) (bool, error) {
 	pCtx := vm.UnwrapPolarContext(ctx)
-	_, err := c.rtr.SendMessage(ctx, namespace, pCtx.MsgSender().String(), messageID, message)
-	return nil, err
+	err := c.rtr.SendMessage(ctx, namespace, pCtx.MsgSender().String(), messageID, message)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (c *Contract) MessageResult(ctx context.Context, evmTxHash string) ([]byte, string, uint32, error) {
+	return c.rtr.MessageResult(ctx, evmTxHash)
 }
 
 func (c *Contract) Query(
