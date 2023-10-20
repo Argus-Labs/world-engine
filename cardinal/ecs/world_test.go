@@ -39,7 +39,7 @@ func TestEVMTxConsume(t *testing.T) {
 	}
 	w := ecs.NewTestWorld(t)
 	fooTx := ecs.NewTransactionType[FooIn, FooOut]("foo", ecs.WithTxEVMSupport[FooIn, FooOut])
-	w.RegisterTransactions(fooTx)
+	assert.NilError(t, w.RegisterTransactions(fooTx))
 	var returnVal FooOut
 	var returnErr error
 	w.AddSystem(func(wCtx ecs.WorldContext) error {
@@ -54,7 +54,7 @@ func TestEVMTxConsume(t *testing.T) {
 	evmTxHash := "0xFooBar"
 	w.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.SignedPayload{PersonaTag: "foo"}, evmTxHash)
 
-	// lets check against a system that returns a result and no error
+	// let's check against a system that returns a result and no error
 	returnVal = FooOut{Y: "hi"}
 	returnErr = nil
 	assert.NilError(t, w.Tick(ctx))
