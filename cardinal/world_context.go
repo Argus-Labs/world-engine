@@ -16,23 +16,23 @@ type WorldContext interface {
 	world_context.WorldContext
 }
 
-type ConcreteWorldContext struct {
+type worldContext struct {
 	implContext ecs.WorldContext
 }
 
-func (wCtx *ConcreteWorldContext) IsReadOnly() bool {
+func (wCtx *worldContext) IsReadOnly() bool {
 	return wCtx.IsReadOnly()
 }
 
-func (wCtx *ConcreteWorldContext) CurrentTick() uint64 {
+func (wCtx *worldContext) CurrentTick() uint64 {
 	return wCtx.implContext.CurrentTick()
 }
 
-func (wCtx *ConcreteWorldContext) Logger() *zerolog.Logger {
+func (wCtx *worldContext) Logger() *zerolog.Logger {
 	return wCtx.implContext.Logger()
 }
 
-func (wCtx *ConcreteWorldContext) NewSearch(filter CardinalFilter) (*Search, error) {
+func (wCtx *worldContext) NewSearch(filter CardinalFilter) (*Search, error) {
 	ecsSearch, err := wCtx.implContext.NewSearch(filter.ConvertToFilterable())
 	if err != nil {
 		return nil, err
@@ -40,6 +40,6 @@ func (wCtx *ConcreteWorldContext) NewSearch(filter CardinalFilter) (*Search, err
 	return &Search{impl: ecsSearch}, nil
 }
 
-func (wCtx *ConcreteWorldContext) getECSWorldContext() ECSWorldContext {
+func (wCtx *worldContext) getECSWorldContext() ECSWorldContext {
 	return wCtx.implContext
 }
