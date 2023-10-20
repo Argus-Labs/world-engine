@@ -74,17 +74,17 @@ interface IStakingModule {
      * @dev Returns a list of all active validators.
      */
     function getValidators(Cosmos.PageRequest calldata pagination)
-    external
-    view
-    returns (Validator[] memory, Cosmos.PageResponse memory);
+        external
+        view
+        returns (Validator[] memory, Cosmos.PageResponse memory);
 
     /**
      * @dev Returns a list of bonded validator (operator) addresses.
      */
     function getBondedValidators(Cosmos.PageRequest calldata pagination)
-    external
-    view
-    returns (address[] memory, Cosmos.PageResponse memory);
+        external
+        view
+        returns (address[] memory, Cosmos.PageResponse memory);
 
     /**
      * @dev Returns a list of bonded validator (operator) addresses, sorted by power (stake) in
@@ -101,18 +101,18 @@ interface IStakingModule {
      * @dev Returns all the validators delegated to by the given delegator.
      */
     function getDelegatorValidators(address delegatorAddress, Cosmos.PageRequest calldata pagination)
-    external
-    view
-    returns (Validator[] memory, Cosmos.PageResponse memory);
+        external
+        view
+        returns (Validator[] memory, Cosmos.PageResponse memory);
 
     /**
      * @dev Returns all the delegations delegated to the given validator.
      * Note: if pagination is not a valid page request, it will execute without pagination
      */
     function getValidatorDelegations(address validatorAddress, Cosmos.PageRequest calldata pagination)
-    external
-    view
-    returns (Delegation[] memory, Cosmos.PageResponse memory);
+        external
+        view
+        returns (Delegation[] memory, Cosmos.PageResponse memory);
 
     /**
      * @dev Returns the `amount` of tokens currently delegated by `delegatorAddress` to
@@ -125,17 +125,17 @@ interface IStakingModule {
      * `delegatorAddress` and `validatorAddress`
      */
     function getUnbondingDelegation(address delegatorAddress, address validatorAddress)
-    external
-    view
-    returns (UnbondingDelegationEntry[] memory);
+        external
+        view
+        returns (UnbondingDelegationEntry[] memory);
 
     /**
      * @dev Returns a list of all unbonding delegations for a given delegator
      */
     function getDelegatorUnbondingDelegations(address delegatorAddress, Cosmos.PageRequest calldata pagination)
-    external
-    view
-    returns (UnbondingDelegation[] memory, Cosmos.PageResponse memory);
+        external
+        view
+        returns (UnbondingDelegation[] memory, Cosmos.PageResponse memory);
 
     /**
      * @dev Returns a list of `delegatorAddress`'s redelegating bonds from `srcValidator` to
@@ -164,9 +164,9 @@ interface IStakingModule {
      * @dev msg.sender redelegates the `amount` of tokens from `srcValidator` to `validtorDstAddr`
      */
     function beginRedelegate(address srcValidator, address dstValidator, uint256 amount)
-    external
-    payable
-    returns (bool);
+        external
+        payable
+        returns (bool);
 
     /**
      * @dev Cancels msg.sender's unbonding delegation with `validatorAddress` and delegates the
@@ -175,9 +175,9 @@ interface IStakingModule {
      * Provide the `creationHeight` of the original unbonding delegation
      */
     function cancelUnbondingDelegation(address validatorAddress, uint256 amount, int64 creationHeight)
-    external
-    payable
-    returns (bool);
+        external
+        payable
+        returns (bool);
 
     //////////////////////////////////////////// UTILS ////////////////////////////////////////////
 
