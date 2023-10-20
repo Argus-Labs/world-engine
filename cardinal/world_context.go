@@ -6,13 +6,13 @@ import (
 	"pkg.world.dev/world-engine/cardinal/world_context"
 )
 
-type WorldContextSpecificMethods interface {
+type worldContextCardinalSpecificMethods interface {
 	NewSearch(filter CardinalFilter) (*Search, error)
 	getECSWorldContext() ECSWorldContext
 }
 
 type WorldContext interface {
-	WorldContextSpecificMethods
+	worldContextCardinalSpecificMethods
 	world_context.WorldContext
 }
 
