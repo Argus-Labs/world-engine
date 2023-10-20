@@ -99,14 +99,14 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func CreateMany(wCtx ECSWorldContext, num int, components ...component_metadata.Component) ([]EntityID, error) {
-	return component.CreateMany(wCtx, num, components...)
+func CreateMany(wCtx WorldContext, num int, components ...component_metadata.Component) ([]EntityID, error) {
+	return component.CreateMany(wCtx.GetECSWorldContext(), num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func Create(wCtx ECSWorldContext, components ...component_metadata.Component) (EntityID, error) {
-	return component.Create(wCtx, components...)
+func Create(wCtx WorldContext, components ...component_metadata.Component) (EntityID, error) {
+	return component.Create(wCtx.GetECSWorldContext(), components...)
 }
 
 // SetComponent Set sets component data to the entity.
@@ -190,7 +190,7 @@ func (w *World) ShutDown() error {
 func RegisterSystems(w *World, systems ...System) {
 	for _, system := range systems {
 		w.implWorld.AddSystem(func(wCtx ECSWorldContext) error {
-			return system(&CardinalWorldContext{
+			return system(&ConcreteWorldContext{
 				implContext: wCtx,
 			})
 		})
@@ -221,7 +221,7 @@ func (w *World) Tick(ctx context.Context) error {
 	return w.implWorld.Tick(ctx)
 }
 
-func (w *World) Init(fn func(ECSWorldContext)) {
+func (w *World) Init(fn func(WorldContext)) {
 	ecsWorldCtx := ecs.NewWorldContext(w.implWorld)
-	fn(ecsWorldCtx)
+	fn(&ConcreteWorldContext{implContext: ecsWorldCtx})
 }

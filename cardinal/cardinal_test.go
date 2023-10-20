@@ -27,7 +27,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	wantNumOfEntities := 10
-	world.Init(func(wCtx cardinal.ECSWorldContext) {
+	world.Init(func(wCtx cardinal.WorldContext) {
 		_, err = cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
 		assert.NilError(t, err)
 	})
