@@ -53,6 +53,8 @@ type World struct {
 	isTransactionsRegistered bool
 	stateIsLoaded            bool
 
+	evmTxReceipts map[string]EVMTxReceipt
+
 	txQueue *transaction.TxQueue
 
 	receiptHistory *receipt.History
@@ -234,6 +236,7 @@ func NewWorld(s storage.WorldStorage, sm store.IManager, opts ...Option) (*World
 		isGameLoopRunning: atomic.Bool{},
 		endGameLoopCh:     make(chan bool),
 		nextComponentID:   1,
+		evmTxReceipts:     make(map[string]EVMTxReceipt),
 	}
 	w.isGameLoopRunning.Store(false)
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
@@ -272,6 +275,14 @@ func (w *World) Remove(id entity.ID) error {
 	return w.StoreManager().RemoveEntity(id)
 }
 
+// ConsumeEVMTxResult consumes a tx result from an EVM originated Cardinal transaction.
+// It will fetch the receipt from the map, and then delete ('consume') it from the map.
+func (w *World) ConsumeEVMTxResult(evmTxHash string) (EVMTxReceipt, bool) {
+	r, ok := w.evmTxReceipts[evmTxHash]
+	delete(w.evmTxReceipts, evmTxHash)
+	return r, ok
+}
+
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
@@ -283,10 +294,16 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPay
 	return tick, txHash
 }
 
+func (w *World) AddEVMTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload, evmTxHash string) (tick uint64, txHash transaction.TxHash) {
+	tick = w.CurrentTick()
+	txHash = w.txQueue.AddEVMTransaction(id, v, sig, evmTxHash)
+	return tick, txHash
+}
+
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
-func (w *World) Tick(ctx context.Context) error {
-	nullSystemName := "No system  is running."
+func (w *World) Tick(_ context.Context) error {
+	nullSystemName := "No system is running."
 	nameOfCurrentRunningSystem := nullSystemName
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
@@ -301,7 +318,7 @@ func (w *World) Tick(ctx context.Context) error {
 	if !w.stateIsLoaded {
 		return errors.New("must load state before first tick")
 	}
-	txQueue := w.txQueue.CopyTransaction()
+	txQueue := w.txQueue.CopyTransactions()
 
 	if err := w.TickStore().StartNextTick(w.registeredTransactions, txQueue); err != nil {
 		return err
@@ -320,7 +337,7 @@ func (w *World) Tick(ctx context.Context) error {
 	if err := w.TickStore().FinalizeTick(); err != nil {
 		return err
 	}
-
+	w.setEvmResults(txQueue.GetEVMTxs())
 	w.tick++
 	w.receiptHistory.NextTick()
 	elapsedTime := time.Since(startTime)
@@ -338,6 +355,37 @@ func (w *World) Tick(ctx context.Context) error {
 		Str("tick", tickAsString).
 		Msg(message)
 	return nil
+}
+
+type EVMTxReceipt struct {
+	ABIResult []byte
+	Errs      []error
+	EVMTxHash string
+}
+
+func (w *World) setEvmResults(txs []transaction.TxAny) {
+	// iterate over all EVM originated transactions
+	for _, tx := range txs {
+		// see if tx has a receipt. sometimes it won't because:
+		// The system isn't using TxIterators && never explicitly called SetResult.
+		rec, ok := w.receiptHistory.GetReceipt(tx.TxHash)
+		if !ok {
+			continue
+		}
+		evmRec := EVMTxReceipt{EVMTxHash: tx.EVMSourceTxHash}
+		itx := w.getITx(tx.TxID)
+		if rec.Result != nil {
+			abiBz, err := itx.ABIEncode(rec.Result)
+			if err != nil {
+				rec.Errs = append(rec.Errs, err)
+			}
+			evmRec.ABIResult = abiBz
+		}
+		if len(rec.Errs) > 0 {
+			evmRec.Errs = rec.Errs
+		}
+		w.evmTxReceipts[evmRec.EVMTxHash] = evmRec
+	}
 }
 
 func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
@@ -382,6 +430,30 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 		}
 		w.isGameLoopRunning.Store(false)
 	}()
+}
+
+// WaitForNextTick waits for the next tick. It returns true if it successfully waited for the next tick.
+// Returns false if we hit the timout threshold (5s).
+//
+// TODO: we probably want to make this timeout related to the actual tick hz.
+// If a game has 10s ticks, this wouldn't work.
+// ticket: https://linear.app/arguslabs/issue/WORLD-430/make-waitfornextticks-timeout-and-sleep-duration-a-factor-of-the
+func (w *World) WaitForNextTick() bool {
+	current := w.CurrentTick()
+	timeout := time.After(5 * time.Second)
+
+	for {
+		if w.CurrentTick() > current {
+			return true
+		}
+		select {
+		case <-timeout:
+			return false // Timeout reached
+		default:
+			// TODO: sleep time should be a factor of the tick hz itself.
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
 }
 
 func (w *World) IsGameLoopRunning() bool {

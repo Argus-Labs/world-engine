@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"os"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
+	"time"
 
 	"pkg.berachain.dev/polaris/eth/core"
 	"pkg.berachain.dev/polaris/eth/core/types"
@@ -18,29 +19,30 @@ import (
 	"cosmossdk.io/log"
 )
 
-type Result struct {
-	Code    uint64
-	Message []byte
-}
-
 type Router interface {
-	// SendMessage sends the msg payload to the game shard indicated by the namespace, if such namespace exists on chain.
-	SendMessage(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error)
+	// SendMessage queues a message to be sent to a game shard.
+	SendMessage(_ context.Context, namespace string, sender string, msgID uint64, msg []byte) error
 	// Query queries a game shard.
 	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
+	// MessageResult gets the game shard transaction result that originated from an EVM tx.
+	MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error)
 	// HandleDispatch implements the polaris EVM PostTxProcessing hook. It runs after an EVM tx execution has finished
 	// processing.
 	HandleDispatch(_ *types.Transaction, result *core.ExecutionResult)
 }
 
 var (
-	_ Router = &routerImpl{}
+	defaultStorageTimeout        = 10 * time.Minute
+	_                     Router = &routerImpl{}
 )
 
 type routerImpl struct {
 	cardinalAddr string
 	logger       log.Logger
 	queue        *msgQueue
+
+	resultStore *resultStorage
+
 	// opts
 	creds credentials.TransportCredentials
 }
@@ -69,7 +71,13 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 // TODO(technicallyty): its a bit unclear how im going to query the state machine here, so routerImpl is just going to
 // take the cardinal address directly for now...
 func NewRouter(cardinalAddr string, logger log.Logger, opts ...Option) Router {
-	r := &routerImpl{cardinalAddr: cardinalAddr, logger: logger, creds: insecure.NewCredentials(), queue: new(msgQueue)}
+	r := &routerImpl{
+		cardinalAddr: cardinalAddr,
+		logger:       logger,
+		creds:        insecure.NewCredentials(),
+		queue:        new(msgQueue),
+		resultStore:  newResultsStorage(defaultStorageTimeout),
+	}
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -91,18 +99,25 @@ func (r *routerImpl) HandleDispatch(tx *types.Transaction, result *core.Executio
 	}
 }
 
+const (
+	CodeConnectionError = iota + 100
+	CodeServerError
+)
+
 func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 	defer r.queue.Clear()
 	msg := r.queue.msg
 	msg.EvmTxHash = txHash.String()
 	namespace := r.queue.namespace
-	// we do not need to pass in a namespace, since we just default to a given cardinal addr anyways.
-	// this will eventually need to update to have a proper mapping of namespace -> game shard EVM grpc address.
-	// https://linear.app/arguslabs/issue/WORLD-13/update-router-to-look-up-the-correct-namespace-mapping
+
 	client, err := r.getConnectionForNamespace(namespace)
 	if err != nil {
-		// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
-		// this error in the callback storage module.
+		r.resultStore.SetResult(
+			&routerv1.SendMessageResponse{
+				EvmTxHash: msg.EvmTxHash,
+				Code:      CodeConnectionError,
+				Errs:      "error getting game shard gRPC connection"},
+		)
 		r.logger.Error("error getting game shard gRPC connection", "error", err)
 		return
 	}
@@ -114,22 +129,26 @@ func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 		"msg_id", msg.MessageId,
 	)
 
-	res, err := client.SendMessage(context.Background(), msg)
-	if err != nil {
-		// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
-		// this error in the callback storage module.
-		r.logger.Error("failed to send message to game shard", "error", err)
-		return
-	}
-	r.logger.Debug("successfully sent message to game shard")
-	// TODO: once we implement https://linear.app/arguslabs/issue/WORLD-8/implement-evm-callbacks, we need to store
-	// the result in the callback storage module.
-	_ = res
+	// send the message in a new goroutine. we do this so that we don't make tx inclusion slower.
+	go func() {
+		var res *routerv1.SendMessageResponse
+		res, err = client.SendMessage(context.Background(), msg)
+		if err != nil {
+			r.resultStore.SetResult(
+				&routerv1.SendMessageResponse{
+					EvmTxHash: msg.EvmTxHash,
+					Code:      CodeServerError,
+					Errs:      err.Error()},
+			)
+			r.logger.Error("failed to send message to game shard", "error", err)
+			return
+		}
+		r.logger.Debug("successfully sent message to game shard")
+		r.resultStore.SetResult(res)
+	}()
 }
 
-func (r *routerImpl) SendMessage(_ context.Context, namespace, sender string, msgID uint64, msg []byte) (
-	*Result, error,
-) {
+func (r *routerImpl) SendMessage(_ context.Context, namespace, sender string, msgID uint64, msg []byte) error {
 	req := &routerv1.SendMessageRequest{
 		Sender:    sender,
 		MessageId: msgID,
@@ -137,13 +156,18 @@ func (r *routerImpl) SendMessage(_ context.Context, namespace, sender string, ms
 	}
 	if r.queue.IsSet() {
 		// this should never happen, but let's catch it anyway.
-		return nil, fmt.Errorf("INTERNAL ERROR: message queue was not cleared")
+		return fmt.Errorf("INTERNAL ERROR: message queue was not cleared")
 	}
 	r.queue.Set(namespace, req)
-	return &Result{
-		Code:    0,
-		Message: []byte("message queued"),
-	}, nil
+	return nil
+}
+
+func (r *routerImpl) MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error) {
+	res, ok := r.resultStore.GetResult(evmTxHash)
+	if !ok {
+		return nil, "", 0, fmt.Errorf("no resultStore found")
+	}
+	return res.Result, res.Errs, res.Code, nil
 }
 
 func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error) {

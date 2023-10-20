@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/evm"
 	"sync/atomic"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 type World struct {
 	implWorld       *ecs.World
 	server          *server.Handler
+	evmServer       evm.Server
 	gameManager     *server.GameManager
 	isGameRunning   atomic.Bool
 	tickChannel     <-chan time.Time
@@ -74,11 +76,11 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	for _, opt := range cardinalOptions {
 		opt(world)
 	}
-	txh, err := server.NewHandler(world.implWorld, nil, world.serverOptions...)
+	handler, err := server.NewHandler(world.implWorld, nil, world.serverOptions...)
 	if err != nil {
 		return nil, err
 	}
-	world.server = txh
+	world.server = handler
 	return world, nil
 }
 
@@ -151,6 +153,22 @@ func (w *World) StartGame() error {
 	if err := w.implWorld.LoadGameState(); err != nil {
 		return err
 	}
+
+	var err error
+	w.evmServer, err = evm.NewServer(w.implWorld)
+	if err != nil {
+		if !errors.Is(err, evm.ErrNoEVMTypes) {
+			return err
+		}
+		w.implWorld.Logger.Debug().Msg("no EVM transactions or queries specified. EVM server will not run")
+	} else {
+		w.implWorld.Logger.Debug().Msg("running world with EVM server")
+		err = w.evmServer.Serve()
+		if err != nil {
+			return err
+		}
+	}
+
 	if w.tickChannel == nil {
 		w.tickChannel = time.Tick(time.Second)
 	}

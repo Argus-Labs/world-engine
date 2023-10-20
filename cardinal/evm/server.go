@@ -3,11 +3,11 @@ package evm
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"os"
-
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -25,7 +25,13 @@ var (
 
 	defaultPort = "9020"
 
-	cardinalEvmPortEnv = "CARDINAL_EVM_PORT"
+	cardinalEvmPortEnv    = "CARDINAL_EVM_PORT"
+	serverCertFilePathEnv = "SERVER_CERT_PATH"
+	serverKeyFilePathEnv  = "SERVER_KEY_PATH"
+)
+
+var (
+	ErrNoEVMTypes = errors.New("no evm types were given to the server")
 )
 
 type Server interface {
@@ -56,21 +62,34 @@ type msgServerImpl struct {
 // NewServer returns a new EVM connection server. This server is responsible for handling requests originating from
 // the EVM. It runs on a default port of 9020, but a custom port can be set using options, or by setting an env variable
 // with key CARDINAL_EVM_PORT.
+//
+// NewServer will return ErrNoEvmTypes if no transactions OR queries were given with EVM support.
 func NewServer(w *ecs.World, opts ...Option) (Server, error) {
-	// setup txs
+	hasEVMTxsOrQueries := false
+
 	txs, err := w.ListTransactions()
 	if err != nil {
 		return nil, err
 	}
 	it := make(txByID, len(txs))
 	for _, tx := range txs {
-		it[tx.ID()] = tx
+		if tx.IsEVMCompatible() {
+			hasEVMTxsOrQueries = true
+			it[tx.ID()] = tx
+		}
 	}
 
 	queries := w.ListQueries()
 	ir := make(queryByName, len(queries))
 	for _, q := range queries {
-		ir[q.Name()] = q
+		if q.IsEVMCompatible() {
+			hasEVMTxsOrQueries = true
+			ir[q.Name()] = q
+		}
+	}
+
+	if !hasEVMTxsOrQueries {
+		return nil, ErrNoEVMTypes
 	}
 
 	s := &msgServerImpl{txMap: it, queryMap: ir, world: w, port: defaultPort}
@@ -83,9 +102,34 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 			s.port = port
 		}
 	}
+	w.Logger.Debug().Msgf("EVM listener running on port %s", s.port)
+	if s.creds == nil {
+		s.creds, err = tryLoadCredentials()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if s.creds == nil {
+		w.Logger.Warn().Msg("running EVM server without credentials. if running on production, please " +
+			"shut down and supply the proper credentials for the EVM server")
+	}
 	return s, nil
 }
 
+// tryLoadCredentials will attempt to load the server cert and key file paths from env.
+// if the envs are not set, this is a noop and will return nil,nil.
+func tryLoadCredentials() (credentials.TransportCredentials, error) {
+	cert := os.Getenv(serverCertFilePathEnv)
+	if cert != "" {
+		key := os.Getenv(serverKeyFilePathEnv)
+		if key != "" {
+			return loadCredentials(cert, key)
+		}
+	}
+	return nil, nil
+}
+
+// loadCredentials loads the TLS credentials for the server from the given file paths.
 func loadCredentials(serverCertPath, serverKeyPath string) (credentials.TransportCredentials, error) {
 	// Load server's certificate and private key
 	sc, err := os.ReadFile(serverCertPath)
@@ -127,30 +171,84 @@ func (s *msgServerImpl) Serve() error {
 	return nil
 }
 
-func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessageRequest,
-) (*routerv1.SendMessageResponse, error) {
+const (
+	CodeSuccess = iota
+	CodeTxFailed
+	CodeNoResult
+	CodeServerUnresponsive
+	CodeUnauthorized
+	CodeUnsupportedTransaction
+	CodeInvalidFormat
+)
+
+func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessageRequest) (*routerv1.SendMessageResponse, error) {
 	// first we check if we can extract the transaction associated with the id
 	itx, ok := s.txMap[transaction.TypeID(msg.MessageId)]
 	if !ok {
-		return nil, fmt.Errorf("no transaction with ID %d is registerd in this world", msg.MessageId)
+		return &routerv1.SendMessageResponse{
+			Errs: fmt.Errorf("transaction with id %d either does not exist, or did not have EVM support "+
+				"enabled", msg.MessageId).Error(),
+			EvmTxHash: msg.EvmTxHash,
+			Code:      CodeUnsupportedTransaction,
+		}, nil
 	}
+
 	// decode the evm bytes into the transaction
 	tx, err := itx.DecodeEVMBytes(msg.Message)
 	if err != nil {
-		return nil, err
+		return &routerv1.SendMessageResponse{
+			Errs:      fmt.Errorf("failed to decode ABI encoded bytes into ABI type: %w", err).Error(),
+			EvmTxHash: msg.EvmTxHash,
+			Code:      CodeInvalidFormat,
+		}, nil
 	}
 
 	// check if the sender has a linked persona address. if not don't process the transaction.
 	sc, err := s.getSignerComponentForAuthorizedAddr(msg.Sender)
 	if err != nil {
-		return nil, err
+		return &routerv1.SendMessageResponse{
+			Errs:      fmt.Errorf("failed to authorize EVM address with persona tag: %w", err).Error(),
+			EvmTxHash: msg.EvmTxHash,
+			Code:      CodeUnauthorized,
+		}, nil
 	}
-	// since we are injecting directly, all we need is the persona tag in the signed payload. the sig checking happens
-	// in the server's Handler, not in `World`.
+
+	// since we are injecting the tx directly, all we need is the persona tag in the signed payload.
+	// the sig checking happens in the server's Handler, not in ecs.World.
 	sig := &sign.SignedPayload{PersonaTag: sc.PersonaTag}
-	// add transaction to the world queue
-	s.world.AddTransaction(itx.ID(), tx, sig)
-	return &routerv1.SendMessageResponse{}, nil
+	s.world.AddEVMTransaction(itx.ID(), tx, sig, msg.EvmTxHash)
+
+	// wait for the next tick so the tx gets processed
+	timedOut := s.world.WaitForNextTick()
+	if timedOut {
+		return &routerv1.SendMessageResponse{
+			EvmTxHash: msg.EvmTxHash,
+			Code:      CodeServerUnresponsive,
+		}, nil
+	}
+
+	// check for the tx receipt.
+	receipt, ok := s.world.ConsumeEVMTxResult(msg.EvmTxHash)
+	if !ok {
+		return &routerv1.SendMessageResponse{
+			EvmTxHash: msg.EvmTxHash,
+			Code:      CodeNoResult,
+		}, nil
+	}
+
+	// we got a receipt, so lets clean it up and return it.
+	var errStr string
+	code := CodeSuccess
+	if retErr := errors.Join(receipt.Errs...); retErr != nil {
+		code = CodeTxFailed
+		errStr = retErr.Error()
+	}
+	return &routerv1.SendMessageResponse{
+		Errs:      errStr,
+		Result:    receipt.ABIResult,
+		EvmTxHash: receipt.EVMTxHash,
+		Code:      uint32(code),
+	}, nil
 }
 
 // getSignerComponentForAuthorizedAddr attempts to find a stored SignerComponent which contains the provided `addr`
