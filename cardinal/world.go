@@ -190,7 +190,9 @@ func (w *World) ShutDown() error {
 func RegisterSystems(w *World, systems ...System) {
 	for _, system := range systems {
 		w.implWorld.AddSystem(func(wCtx ECSWorldContext) error {
-			return system(convertEcsWorldContextToCardinalWorldContext(wCtx))
+			return system(&CardinalWorldContext{
+				implContext: wCtx,
+			})
 		})
 	}
 }

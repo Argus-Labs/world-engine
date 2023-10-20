@@ -17,36 +17,36 @@ type WorldContext interface {
 	ecs.GeneralWorldContextMethods
 }
 
-type CardinalWorldContextStruct struct {
+type CardinalWorldContext struct {
 	implWorld   *World
 	implContext ecs.WorldContext
 }
 
-func (wCtx *CardinalWorldContextStruct) IsReadOnly() bool {
+func (wCtx *CardinalWorldContext) IsReadOnly() bool {
 	return wCtx.IsReadOnly()
 }
 
-func (wCtx *CardinalWorldContextStruct) GetTxQueue() *transaction.TxQueue {
+func (wCtx *CardinalWorldContext) GetTxQueue() *transaction.TxQueue {
 	return wCtx.GetTxQueue()
 }
 
-func (wCtx *CardinalWorldContextStruct) StoreReader() store.Reader {
+func (wCtx *CardinalWorldContext) StoreReader() store.Reader {
 	return wCtx.StoreReader()
 }
 
-func (wCtx *CardinalWorldContextStruct) StoreManager() store.IManager {
+func (wCtx *CardinalWorldContext) StoreManager() store.IManager {
 	return wCtx.implContext.StoreManager()
 }
 
-func (wCtx *CardinalWorldContextStruct) CurrentTick() uint64 {
+func (wCtx *CardinalWorldContext) CurrentTick() uint64 {
 	return wCtx.implContext.CurrentTick()
 }
 
-func (wCtx *CardinalWorldContextStruct) Logger() *zerolog.Logger {
+func (wCtx *CardinalWorldContext) Logger() *zerolog.Logger {
 	return wCtx.implContext.Logger()
 }
 
-func (wCtx *CardinalWorldContextStruct) NewSearch(filter CardinalFilter) (*Search, error) {
+func (wCtx *CardinalWorldContext) NewSearch(filter CardinalFilter) (*Search, error) {
 	ecsSearch, err := wCtx.implContext.NewSearch(filter.ConvertToFilterable())
 	if err != nil {
 		return nil, err
@@ -54,12 +54,6 @@ func (wCtx *CardinalWorldContextStruct) NewSearch(filter CardinalFilter) (*Searc
 	return &Search{impl: ecsSearch}, nil
 }
 
-func (wCtx *CardinalWorldContextStruct) GetECSWorldContext() ECSWorldContext {
+func (wCtx *CardinalWorldContext) GetECSWorldContext() ECSWorldContext {
 	return wCtx.implContext
-}
-
-func convertEcsWorldContextToCardinalWorldContext(ecsWorldContext ECSWorldContext) WorldContext {
-	return &CardinalWorldContextStruct{
-		implContext: ecsWorldContext,
-	}
 }
