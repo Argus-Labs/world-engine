@@ -3,9 +3,10 @@ package ecs_test
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/sign"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/sign"
 
 	"gotest.tools/v3/assert"
 
@@ -41,8 +42,8 @@ func TestEVMTxConsume(t *testing.T) {
 	w.RegisterTransactions(fooTx)
 	var returnVal FooOut
 	var returnErr error
-	w.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *log.Logger) error {
-		fooTx.ForEach(world, queue, func(t ecs.TxData[FooIn]) (FooOut, error) {
+	w.AddSystem(func(wCtx ecs.WorldContext) error {
+		fooTx.ForEach(wCtx, func(t ecs.TxData[FooIn]) (FooOut, error) {
 			return returnVal, returnErr
 		})
 		return nil
