@@ -159,7 +159,6 @@ func TestEventHubLogger(t *testing.T) {
 	w := ecs.NewTestWorld(t, ecs.WithLoggingEventHub(&cardinalLogger))
 	numberToTest := 5
 	for i := 0; i < numberToTest; i++ {
-		//i := i
 		w.AddSystem(func(wCtx ecs.WorldContext) error {
 			wCtx.GetWorld().EmitEvent(&events.Event{Message: fmt.Sprintf("test")})
 			return nil

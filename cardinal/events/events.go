@@ -30,15 +30,11 @@ type LoggingEventHub struct {
 }
 
 func (eh *LoggingEventHub) EmitEvent(event *Event) {
-	//go func() {
 	eh.broadcast <- event
-	//}()
 }
 
 func (eh *LoggingEventHub) FlushEvents() {
-	//go func() {
 	eh.flush <- true
-	//}()
 }
 
 func (eh *LoggingEventHub) Run() {
@@ -123,15 +119,11 @@ type WebSocketEventHub struct {
 }
 
 func (eh *WebSocketEventHub) EmitEvent(event *Event) {
-	//go func() {
 	eh.broadcast <- event
-	//}()
 }
 
 func (eh *WebSocketEventHub) FlushEvents() {
-	//go func() {
 	eh.flush <- true
-	//}()
 }
 
 func (eh *WebSocketEventHub) RegisterConnection(ws *websocket.Conn) {
