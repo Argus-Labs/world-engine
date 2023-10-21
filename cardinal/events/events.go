@@ -1,6 +1,7 @@
 package events
 
 import (
+	"fmt"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -29,15 +30,15 @@ type LoggingEventHub struct {
 }
 
 func (eh *LoggingEventHub) EmitEvent(event *Event) {
-	go func() {
-		eh.broadcast <- event
-	}()
+	//go func() {
+	eh.broadcast <- event
+	//}()
 }
 
 func (eh *LoggingEventHub) FlushEvents() {
-	go func() {
-		eh.flush <- true
-	}()
+	//go func() {
+	eh.flush <- true
+	//}()
 }
 
 func (eh *LoggingEventHub) Run() {
@@ -54,12 +55,15 @@ func (eh *LoggingEventHub) Run() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
+				acc := 0
 				for _, event := range eh.eventQueue {
-					event := event
 					eh.logger.Info().Msg(event.Message)
+					acc += 1
 				}
+				fmt.Printf("called %d times\n", acc)
 			}() //a goroutine is not technically necessary here but this imitates the websocket eventhub as much as possible.
 			wg.Wait()
+			eh.eventQueue = eh.eventQueue[:0]
 		case <-eh.shutdown:
 			eh.running.Store(false)
 		}
@@ -119,15 +123,15 @@ type WebSocketEventHub struct {
 }
 
 func (eh *WebSocketEventHub) EmitEvent(event *Event) {
-	go func() {
-		eh.broadcast <- event
-	}()
+	//go func() {
+	eh.broadcast <- event
+	//}()
 }
 
 func (eh *WebSocketEventHub) FlushEvents() {
-	go func() {
-		eh.flush <- true
-	}()
+	//go func() {
+	eh.flush <- true
+	//}()
 }
 
 func (eh *WebSocketEventHub) RegisterConnection(ws *websocket.Conn) {

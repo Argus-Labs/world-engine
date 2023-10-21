@@ -90,6 +90,10 @@ func (w *World) EmitEvent(event *events.Event) {
 	w.eventHub.EmitEvent(event)
 }
 
+func (w *World) FlushEvents() {
+	w.eventHub.FlushEvents()
+}
+
 func (w *World) IsRecovering() bool {
 	return w.isRecovering
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/events"
@@ -157,8 +159,9 @@ func TestEventHubLogger(t *testing.T) {
 	w := ecs.NewTestWorld(t, ecs.WithLoggingEventHub(&cardinalLogger))
 	numberToTest := 5
 	for i := 0; i < numberToTest; i++ {
+		//i := i
 		w.AddSystem(func(wCtx ecs.WorldContext) error {
-			wCtx.GetWorld().EmitEvent(&events.Event{Message: "test"})
+			wCtx.GetWorld().EmitEvent(&events.Event{Message: fmt.Sprintf("test")})
 			return nil
 		})
 	}
@@ -175,8 +178,11 @@ func TestEventHubLogger(t *testing.T) {
 	}()
 	waitForTicks.Wait()
 	testString := "{\"level\":\"info\",\"message\":\"test\"}\n"
-	acc := ""
-	for i := 0; i < numberToTest*numberToTest; i++ {
-		acc += testString
+	eventsLogs := buf.String()
+	splitLogs := strings.Split(eventsLogs, "\n")
+	splitLogs = splitLogs[:len(splitLogs)-1]
+	assert.Equal(t, 25, len(splitLogs))
+	for _, logEntry := range splitLogs {
+		require.JSONEq(t, testString, logEntry)
 	}
 }
