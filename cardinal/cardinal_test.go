@@ -7,7 +7,6 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/test_utils"
 )
 
@@ -34,12 +33,13 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	})
 	gotNumOfEntities := 0
 	cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
-		q, err := wCtx.NewSearch(ecs.Exact(Foo{}))
+		q, err := wCtx.NewSearch(cardinal.Exact(Foo{}))
 		assert.NilError(t, err)
-		q.Each(wCtx, func(cardinal.EntityID) bool {
+		err = q.Each(wCtx, func(cardinal.EntityID) bool {
 			gotNumOfEntities++
 			return true
 		})
+		assert.NilError(t, err)
 		return nil
 	})
 	go func() {

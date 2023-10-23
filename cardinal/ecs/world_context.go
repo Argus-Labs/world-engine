@@ -14,12 +14,12 @@ type WorldContext interface {
 	Logger() *zerolog.Logger
 	NewSearch(filter Filterable) (*Search, error)
 
-	// Meant for internal ECS access only
+	// For internal use.
 	GetWorld() *World
-	GetTxQueue() *transaction.TxQueue
-	IsReadOnly() bool
 	StoreReader() store.Reader
 	StoreManager() store.IManager
+	GetTxQueue() *transaction.TxQueue
+	IsReadOnly() bool
 }
 
 var (

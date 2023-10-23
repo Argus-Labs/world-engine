@@ -7,9 +7,10 @@ import (
 	"testing"
 
 	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
-	"github.com/cometbft/cometbft/libs/rand"
 	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
+
+	"github.com/cometbft/cometbft/libs/rand"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"

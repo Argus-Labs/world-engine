@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"

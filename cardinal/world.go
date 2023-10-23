@@ -3,9 +3,10 @@ package cardinal
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/evm"
 	"sync/atomic"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/evm"
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -33,9 +34,8 @@ type World struct {
 type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
-	EntityID     = entity.ID
-	TxHash       = transaction.TxHash
-	WorldContext = ecs.WorldContext
+	EntityID = entity.ID
+	TxHash   = transaction.TxHash
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
@@ -110,38 +110,38 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
 func CreateMany(wCtx WorldContext, num int, components ...component_metadata.Component) ([]EntityID, error) {
-	return component.CreateMany(wCtx, num, components...)
+	return component.CreateMany(wCtx.getECSWorldContext(), num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
 func Create(wCtx WorldContext, components ...component_metadata.Component) (EntityID, error) {
-	return component.Create(wCtx, components...)
+	return component.Create(wCtx.getECSWorldContext(), components...)
 }
 
 // SetComponent Set sets component data to the entity.
 func SetComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, comp *T) error {
-	return component.SetComponent[T](wCtx, id, comp)
+	return component.SetComponent[T](wCtx.getECSWorldContext(), id, comp)
 }
 
 // GetComponent Get returns component data from the entity.
 func GetComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
-	return component.GetComponent[T](wCtx, id)
+	return component.GetComponent[T](wCtx.getECSWorldContext(), id)
 }
 
 // UpdateComponent Updates a component on an entity
 func UpdateComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
-	return component.UpdateComponent[T](wCtx, id, fn)
+	return component.UpdateComponent[T](wCtx.getECSWorldContext(), id, fn)
 }
 
 // AddComponentTo Adds a component on an entity
 func AddComponentTo[T component_metadata.Component](wCtx WorldContext, id entity.ID) error {
-	return component.AddComponentTo[T](wCtx, id)
+	return component.AddComponentTo[T](wCtx.getECSWorldContext(), id)
 }
 
 // RemoveComponentFrom Removes a component from an entity
 func RemoveComponentFrom[T component_metadata.Component](wCtx WorldContext, id entity.ID) error {
-	return component.RemoveComponentFrom[T](wCtx, id)
+	return component.RemoveComponentFrom[T](wCtx.getECSWorldContext(), id)
 }
 
 // Remove removes the given entity id from the world.
@@ -215,8 +215,10 @@ func (w *World) ShutDown() error {
 
 func RegisterSystems(w *World, systems ...System) {
 	for _, system := range systems {
-		w.implWorld.AddSystem(func(wCtx WorldContext) error {
-			return system(wCtx)
+		w.implWorld.AddSystem(func(wCtx ecs.WorldContext) error {
+			return system(&worldContext{
+				implContext: wCtx,
+			})
 		})
 	}
 }
@@ -247,5 +249,5 @@ func (w *World) Tick(ctx context.Context) error {
 
 func (w *World) Init(fn func(WorldContext)) {
 	ecsWorldCtx := ecs.NewWorldContext(w.implWorld)
-	fn(ecsWorldCtx)
+	fn(&worldContext{implContext: ecsWorldCtx})
 }

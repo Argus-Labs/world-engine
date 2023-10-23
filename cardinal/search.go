@@ -11,8 +11,8 @@ type Search struct {
 }
 
 // NewSearch creates a new Search.
-func (w *World) NewSearch(filter ecs.Filterable) (*Search, error) {
-	q, err := w.implWorld.NewSearch(filter)
+func (w *World) NewSearch(filter Filter) (*Search, error) {
+	q, err := w.implWorld.NewSearch(filter.convertToFilterable())
 	if err != nil {
 		return nil, err
 	}
@@ -25,18 +25,18 @@ type SearchCallBackFn func(EntityID) bool
 
 // Each executes the given callback function on every EntityID that matches this search. If any call to callback returns
 // falls, no more entities will be processed.
-func (q *Search) Each(wCtx WorldContext, callback SearchCallBackFn) {
-	q.impl.Each(wCtx, func(eid entity.ID) bool {
+func (q *Search) Each(wCtx WorldContext, callback SearchCallBackFn) error {
+	return q.impl.Each(wCtx.getECSWorldContext(), func(eid entity.ID) bool {
 		return callback(eid)
 	})
 }
 
 // Count returns the number of entities that match this search.
 func (q *Search) Count(wCtx WorldContext) (int, error) {
-	return q.impl.Count(wCtx)
+	return q.impl.Count(wCtx.getECSWorldContext())
 }
 
 // First returns the first entity that matches this search.
 func (q *Search) First(wCtx WorldContext) (id EntityID, err error) {
-	return q.impl.First(wCtx)
+	return q.impl.First(wCtx.getECSWorldContext())
 }
