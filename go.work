@@ -4,9 +4,9 @@ use (
 	cardinal
 	chain
 	chain/contracts
-	e2e
-	e2e/tester/cardinal
-	e2e/tester/nakama
+	internal/e2e
+	internal/e2e/tester/cardinal
+	internal/e2e/tester/nakama
 	magefiles
 	relay/nakama
 	rift

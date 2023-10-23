@@ -1,10 +1,10 @@
-package read
+package query
 
 import (
 	"fmt"
 	"github.com/argus-labs/world-engine/example/tester/comp"
 	"github.com/argus-labs/world-engine/example/tester/sys"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 type LocationRequest struct {
@@ -15,12 +15,12 @@ type LocationReply struct {
 	X, Y int64
 }
 
-var Location = ecs.NewReadType[LocationRequest, LocationReply]("location", func(world *ecs.World, req LocationRequest) (LocationReply, error) {
+var Location = cardinal.NewQueryTypeWithEVMSupport[LocationRequest, LocationReply]("location", func(ctx cardinal.WorldContext, req LocationRequest) (LocationReply, error) {
 	playerEntityID, ok := sys.PlayerEntityID[req.ID]
 	if !ok {
 		return LocationReply{}, fmt.Errorf("player does not exist")
 	}
-	loc, err := comp.LocationComponent.Get(world, playerEntityID)
+	loc, err := cardinal.GetComponent[comp.Location](ctx, playerEntityID)
 	if err != nil {
 		return LocationReply{}, err
 	}
@@ -28,4 +28,4 @@ var Location = ecs.NewReadType[LocationRequest, LocationReply]("location", func(
 		X: loc.Y,
 		Y: loc.X,
 	}, nil
-}, ecs.WithReadEVMSupport[LocationRequest, LocationReply])
+})
