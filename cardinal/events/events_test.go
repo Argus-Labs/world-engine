@@ -166,16 +166,10 @@ func TestEventHubLogger(t *testing.T) {
 	}
 	assert.NilError(t, w.LoadGameState())
 	ctx := context.Background()
-	waitForTicks := sync.WaitGroup{}
-	waitForTicks.Add(1)
-	go func() {
-		defer waitForTicks.Done()
-		for i := 0; i < numberToTest; i++ {
-			err := w.Tick(ctx)
-			assert.NilError(t, err)
-		}
-	}()
-	waitForTicks.Wait()
+	for i := 0; i < numberToTest; i++ {
+		err := w.Tick(ctx)
+		assert.NilError(t, err)
+	}
 	testString := "{\"level\":\"info\",\"message\":\"test\"}\n"
 	eventsLogs := buf.String()
 	splitLogs := strings.Split(eventsLogs, "\n")
