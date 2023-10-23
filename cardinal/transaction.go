@@ -63,7 +63,11 @@ func (t *TransactionType[Msg, Result]) GetReceipt(wCtx WorldContext, hash TxHash
 }
 
 func (t *TransactionType[Msg, Result]) ForEach(wCtx WorldContext, fn func(TxData[Msg]) (Result, error)) {
-	t.impl.ForEach(wCtx.getECSWorldContext(), fn)
+	adapterFn := func(ecsTxData ecs.TxData[Msg]) (Result, error) {
+		adaptedTx := TxData[Msg]{impl: ecsTxData}
+		return fn(adaptedTx)
+	}
+	t.impl.ForEach(wCtx.getECSWorldContext(), adapterFn)
 }
 
 // In returns the transactions in the given transaction queue that match this transaction's type.
