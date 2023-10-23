@@ -3,17 +3,14 @@ package cardinal
 import (
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/world_context"
 )
 
-type worldContextCardinalSpecificMethods interface {
+type WorldContext interface {
 	NewSearch(filter CardinalFilter) (*Search, error)
 	getECSWorldContext() ECSWorldContext
-}
-
-type WorldContext interface {
-	worldContextCardinalSpecificMethods
-	world_context.WorldContext
+	CurrentTick() uint64
+	Logger() *zerolog.Logger
+	IsReadOnly() bool
 }
 
 type worldContext struct {
