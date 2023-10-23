@@ -20,7 +20,7 @@ type EventHub interface {
 	Run()
 }
 
-type LoggingEventHub struct {
+type loggingEventHub struct {
 	logger     *ecslog.Logger
 	eventQueue []*Event
 	running    atomic.Bool
@@ -29,15 +29,15 @@ type LoggingEventHub struct {
 	flush      chan bool
 }
 
-func (eh *LoggingEventHub) EmitEvent(event *Event) {
+func (eh *loggingEventHub) EmitEvent(event *Event) {
 	eh.broadcast <- event
 }
 
-func (eh *LoggingEventHub) FlushEvents() {
+func (eh *loggingEventHub) FlushEvents() {
 	eh.flush <- true
 }
 
-func (eh *LoggingEventHub) Run() {
+func (eh *loggingEventHub) Run() {
 	if eh.running.Load() {
 		return
 	}
@@ -66,12 +66,12 @@ func (eh *LoggingEventHub) Run() {
 	}
 }
 
-func (eh *LoggingEventHub) ShutdownEventHub() {
+func (eh *loggingEventHub) ShutdownEventHub() {
 	eh.shutdown <- true
 }
 
-func CreateLoggingEventHub(logger *ecslog.Logger) *LoggingEventHub {
-	res := LoggingEventHub{
+func CreateLoggingEventHub(logger *ecslog.Logger) *loggingEventHub {
+	res := loggingEventHub{
 		eventQueue: make([]*Event, 0),
 		running:    atomic.Bool{},
 		broadcast:  make(chan *Event),
