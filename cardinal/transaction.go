@@ -44,6 +44,11 @@ func NewTransactionTypeWithEVMSupport[Msg, Result any](name string) *Transaction
 	}
 }
 
+// AddToQueue is not meant to be used in production whatsoever, it is exposed here for usage in tests.
+func (t *TransactionType[Msg, Result]) AddToQueue(world *World, data Msg, sigs ...*sign.SignedPayload) {
+	t.impl.AddToQueue(world.implWorld, data, sigs...)
+}
+
 // AddError adds the given error to the transaction identified by the given hash. Multiple errors can be
 // added to the same transaction hash.
 func (t *TransactionType[Msg, Result]) AddError(world *World, hash TxHash, err error) {
@@ -60,6 +65,14 @@ func (t *TransactionType[Msg, Result]) SetResult(world *World, hash TxHash, resu
 // the hash is not recognized, so the returned result and errors will be empty.
 func (t *TransactionType[Msg, Result]) GetReceipt(wCtx WorldContext, hash TxHash) (r Result, errs []error, ok bool) {
 	return t.impl.GetReceipt(wCtx.getECSWorldContext(), hash)
+}
+
+func (t *TransactionType[Msg, Result]) ForEach(wCtx WorldContext, fn func(TxData[Msg]) (Result, error)) {
+	adapterFn := func(ecsTxData ecs.TxData[Msg]) (Result, error) {
+		adaptedTx := TxData[Msg]{impl: ecsTxData}
+		return fn(adaptedTx)
+	}
+	t.impl.ForEach(wCtx.getECSWorldContext(), adapterFn)
 }
 
 // In returns the transactions in the given transaction queue that match this transaction's type.
