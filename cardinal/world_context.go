@@ -6,19 +6,14 @@ import (
 )
 
 type WorldContext interface {
-	NewSearch(filter CardinalFilter) (*Search, error)
-	getECSWorldContext() ECSWorldContext
+	NewSearch(filter Filter) (*Search, error)
+	getECSWorldContext() ecs.WorldContext
 	CurrentTick() uint64
 	Logger() *zerolog.Logger
-	IsReadOnly() bool
 }
 
 type worldContext struct {
 	implContext ecs.WorldContext
-}
-
-func (wCtx *worldContext) IsReadOnly() bool {
-	return wCtx.IsReadOnly()
 }
 
 func (wCtx *worldContext) CurrentTick() uint64 {
@@ -29,14 +24,14 @@ func (wCtx *worldContext) Logger() *zerolog.Logger {
 	return wCtx.implContext.Logger()
 }
 
-func (wCtx *worldContext) NewSearch(filter CardinalFilter) (*Search, error) {
-	ecsSearch, err := wCtx.implContext.NewSearch(filter.ConvertToFilterable())
+func (wCtx *worldContext) NewSearch(filter Filter) (*Search, error) {
+	ecsSearch, err := wCtx.implContext.NewSearch(filter.convertToFilterable())
 	if err != nil {
 		return nil, err
 	}
 	return &Search{impl: ecsSearch}, nil
 }
 
-func (wCtx *worldContext) getECSWorldContext() ECSWorldContext {
+func (wCtx *worldContext) getECSWorldContext() ecs.WorldContext {
 	return wCtx.implContext
 }

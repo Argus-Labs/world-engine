@@ -12,9 +12,9 @@ import (
 type WorldContext interface {
 	CurrentTick() uint64
 	Logger() *zerolog.Logger
+	NewSearch(filter Filterable) (*Search, error)
 
 	// For internal use.
-	NewSearch(filter Filterable) (*Search, error)
 	GetWorld() *World
 	StoreReader() store.Reader
 	StoreManager() store.IManager

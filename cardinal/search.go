@@ -11,8 +11,8 @@ type Search struct {
 }
 
 // NewSearch creates a new Search.
-func (w *World) NewSearch(filter CardinalFilter) (*Search, error) {
-	q, err := w.implWorld.NewSearch(filter.ConvertToFilterable())
+func (w *World) NewSearch(filter Filter) (*Search, error) {
+	q, err := w.implWorld.NewSearch(filter.convertToFilterable())
 	if err != nil {
 		return nil, err
 	}

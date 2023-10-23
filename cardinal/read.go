@@ -21,7 +21,7 @@ func NewQueryType[Request any, Reply any](
 	handler func(WorldContext, Request) (Reply, error),
 ) *QueryType[Request, Reply] {
 	return &QueryType[Request, Reply]{
-		impl: ecs.NewQueryType[Request, Reply](name, func(wCtx ECSWorldContext, req Request) (Reply, error) {
+		impl: ecs.NewQueryType[Request, Reply](name, func(wCtx ecs.WorldContext, req Request) (Reply, error) {
 			return handler(&worldContext{implContext: wCtx}, req)
 		}),
 	}
@@ -31,7 +31,7 @@ func NewQueryType[Request any, Reply any](
 // the EVM base shard. The World state must not be changed in the given handler function.
 func NewQueryTypeWithEVMSupport[Request, Reply any](name string, handler func(WorldContext, Request) (Reply, error)) *QueryType[Request, Reply] {
 	return &QueryType[Request, Reply]{
-		impl: ecs.NewQueryType[Request, Reply](name, func(wCtx ECSWorldContext, req Request) (Reply, error) {
+		impl: ecs.NewQueryType[Request, Reply](name, func(wCtx ecs.WorldContext, req Request) (Reply, error) {
 			return handler(&worldContext{implContext: wCtx}, req)
 		}, ecs.WithQueryEVMSupport[Request, Reply]),
 	}

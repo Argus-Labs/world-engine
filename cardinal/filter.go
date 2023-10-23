@@ -5,20 +5,20 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 )
 
-type CardinalFilter interface {
-	ConvertToFilterable() ecs.Filterable
+type Filter interface {
+	convertToFilterable() ecs.Filterable
 }
 
 type and struct {
-	filters []CardinalFilter
+	filters []Filter
 }
 
 type or struct {
-	filters []CardinalFilter
+	filters []Filter
 }
 
 type not struct {
-	filter CardinalFilter
+	filter Filter
 }
 
 type contains struct {
@@ -29,54 +29,54 @@ type exact struct {
 	components []component_metadata.Component
 }
 
-func And(filters ...CardinalFilter) CardinalFilter {
+func And(filters ...Filter) Filter {
 	return &and{filters: filters}
 }
 
-func Or(filters ...CardinalFilter) CardinalFilter {
+func Or(filters ...Filter) Filter {
 	return &or{filters: filters}
 }
 
-func Not(filter CardinalFilter) CardinalFilter {
+func Not(filter Filter) Filter {
 	return &not{filter: filter}
 }
 
-func Contains(components ...component_metadata.Component) CardinalFilter {
+func Contains(components ...component_metadata.Component) Filter {
 	return &contains{components: components}
 }
 
-func Exact(components ...component_metadata.Component) CardinalFilter {
+func Exact(components ...component_metadata.Component) Filter {
 	return &exact{components: components}
 }
 
-func (s or) ConvertToFilterable() ecs.Filterable {
+func (s or) convertToFilterable() ecs.Filterable {
 	acc := make([]ecs.Filterable, 0, len(s.filters))
 	for _, internalFilter := range s.filters {
-		f := internalFilter.ConvertToFilterable()
+		f := internalFilter.convertToFilterable()
 		acc = append(acc, f)
 	}
 	return ecs.Or(acc...)
 }
 
-func (s and) ConvertToFilterable() ecs.Filterable {
+func (s and) convertToFilterable() ecs.Filterable {
 	acc := make([]ecs.Filterable, 0, len(s.filters))
 	for _, internalFilter := range s.filters {
-		f := internalFilter.ConvertToFilterable()
+		f := internalFilter.convertToFilterable()
 		acc = append(acc, f)
 	}
 	return ecs.And(acc...)
 }
 
-func (s not) ConvertToFilterable() ecs.Filterable {
-	f := s.filter.ConvertToFilterable()
+func (s not) convertToFilterable() ecs.Filterable {
+	f := s.filter.convertToFilterable()
 	return ecs.Not(f)
 
 }
 
-func (s contains) ConvertToFilterable() ecs.Filterable {
+func (s contains) convertToFilterable() ecs.Filterable {
 	return ecs.Contains(s.components...)
 }
 
-func (s exact) ConvertToFilterable() ecs.Filterable {
+func (s exact) convertToFilterable() ecs.Filterable {
 	return ecs.Exact(s.components...)
 }

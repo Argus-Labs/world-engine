@@ -3,9 +3,10 @@ package cardinal
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/evm"
 	"sync/atomic"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/evm"
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -32,9 +33,8 @@ type World struct {
 type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
-	EntityID        = entity.ID
-	TxHash          = transaction.TxHash
-	ECSWorldContext = ecs.WorldContext
+	EntityID = entity.ID
+	TxHash   = transaction.TxHash
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
@@ -207,7 +207,7 @@ func (w *World) ShutDown() error {
 
 func RegisterSystems(w *World, systems ...System) {
 	for _, system := range systems {
-		w.implWorld.AddSystem(func(wCtx ECSWorldContext) error {
+		w.implWorld.AddSystem(func(wCtx ecs.WorldContext) error {
 			return system(&worldContext{
 				implContext: wCtx,
 			})
