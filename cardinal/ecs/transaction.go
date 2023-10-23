@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
+	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
+	"pkg.world.dev/world-engine/cardinal/ecs/abi"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
@@ -23,21 +24,21 @@ type TransactionType[In, Out any] struct {
 	id         transaction.TypeID
 	isIDSet    bool
 	name       string
-	inEVMType  *abi.Type
-	outEVMType *abi.Type
+	inEVMType  *ethereumAbi.Type
+	outEVMType *ethereumAbi.Type
 }
 
 func WithTxEVMSupport[In, Out any]() func(transactionType *TransactionType[In, Out]) {
 	return func(txt *TransactionType[In, Out]) {
 		var in In
-		abiType, err := GenerateABIType(in)
+		abiType, err := abi.GenerateABIType(in)
 		if err != nil {
 			panic(err)
 		}
 		txt.inEVMType = abiType
 
 		var out Out
-		abiType, err = GenerateABIType(out)
+		abiType, err = abi.GenerateABIType(out)
 		if err != nil {
 			panic(err)
 		}
@@ -82,6 +83,10 @@ func (t *TransactionType[In, Out]) Name() string {
 	return t.name
 }
 
+func (t *TransactionType[In, Out]) IsEVMCompatible() bool {
+	return t.inEVMType != nil && t.outEVMType != nil
+}
+
 func (t *TransactionType[In, Out]) ID() transaction.TypeID {
 	if !t.isIDSet {
 		panic(fmt.Sprintf("id on %v is not set", t))
@@ -123,15 +128,16 @@ type TxData[In any] struct {
 	Sig    *sign.SignedPayload
 }
 
-func (t *TransactionType[In, Out]) AddError(world *World, hash transaction.TxHash, err error) {
-	world.AddTransactionError(hash, err)
+func (t *TransactionType[In, Out]) AddError(wCtx WorldContext, hash transaction.TxHash, err error) {
+	wCtx.GetWorld().AddTransactionError(hash, err)
 }
 
-func (t *TransactionType[In, Out]) SetResult(world *World, hash transaction.TxHash, result Out) {
-	world.SetTransactionResult(hash, result)
+func (t *TransactionType[In, Out]) SetResult(wCtx WorldContext, hash transaction.TxHash, result Out) {
+	wCtx.GetWorld().SetTransactionResult(hash, result)
 }
 
-func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxHash) (v Out, errs []error, ok bool) {
+func (t *TransactionType[In, Out]) GetReceipt(wCtx WorldContext, hash transaction.TxHash) (v Out, errs []error, ok bool) {
+	world := wCtx.GetWorld()
 	iface, errs, ok := world.GetTransactionReceipt(hash)
 	if !ok {
 		return v, nil, false
@@ -147,18 +153,19 @@ func (t *TransactionType[In, Out]) GetReceipt(world *World, hash transaction.TxH
 	return value, errs, true
 }
 
-func (t *TransactionType[In, Out]) ForEach(world *World, tq *transaction.TxQueue, fn func(TxData[In]) (Out, error)) {
-	for _, tx := range t.In(tq) {
+func (t *TransactionType[In, Out]) ForEach(wCtx WorldContext, fn func(TxData[In]) (Out, error)) {
+	for _, tx := range t.In(wCtx) {
 		if result, err := fn(tx); err != nil {
-			t.AddError(world, tx.TxHash, err)
+			t.AddError(wCtx, tx.TxHash, err)
 		} else {
-			t.SetResult(world, tx.TxHash, result)
+			t.SetResult(wCtx, tx.TxHash, result)
 		}
 	}
 }
 
 // In extracts all the transactions in the transaction queue that match this TransactionType's ID.
-func (t *TransactionType[In, Out]) In(tq *transaction.TxQueue) []TxData[In] {
+func (t *TransactionType[In, Out]) In(wCtx WorldContext) []TxData[In] {
+	tq := wCtx.GetTxQueue()
 	var txs []TxData[In]
 	for _, tx := range tq.ForID(t.ID()) {
 		if val, ok := tx.Value.(In); ok {
@@ -187,15 +194,15 @@ func (t *TransactionType[In, Out]) ABIEncode(v any) ([]byte, error) {
 		return nil, ErrEVMTypeNotSet
 	}
 
-	var args abi.Arguments
+	var args ethereumAbi.Arguments
 	var input any
 	switch v.(type) {
 	case In:
 		input = v.(In)
-		args = abi.Arguments{{Type: *t.inEVMType}}
+		args = ethereumAbi.Arguments{{Type: *t.inEVMType}}
 	case Out:
 		input = v.(Out)
-		args = abi.Arguments{{Type: *t.outEVMType}}
+		args = ethereumAbi.Arguments{{Type: *t.outEVMType}}
 	default:
 		return nil, fmt.Errorf("expected input to be of type %T or %T, got %T", new(In), new(Out), v)
 	}
@@ -208,7 +215,7 @@ func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
 	if t.inEVMType == nil {
 		return nil, ErrEVMTypeNotSet
 	}
-	args := abi.Arguments{{Type: *t.inEVMType}}
+	args := ethereumAbi.Arguments{{Type: *t.inEVMType}}
 	unpacked, err := args.Unpack(bz)
 	if err != nil {
 		return nil, err
@@ -216,7 +223,7 @@ func (t *TransactionType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
 	if len(unpacked) < 1 {
 		return nil, fmt.Errorf("error decoding EVM bytes: no values could be unpacked into the abi type")
 	}
-	input, err := SerdeInto[In](unpacked[0])
+	input, err := abi.SerdeInto[In](unpacked[0])
 	if err != nil {
 		return nil, err
 	}

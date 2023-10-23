@@ -5,20 +5,19 @@ import (
 	"fmt"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/sign"
 
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	// Verify that the CreatePersonaTransaction is automatically created and registered with a world.
 	world := ecs.NewTestWorld(t)
-	err := world.RegisterComponents()
-	assert.NilError(t, err)
+	//assert.NilError(t, ecs.RegisterComponent[ecs.SignerComponent](world))
 	assert.NilError(t, world.LoadGameState())
 
 	wantTag := "CoolMage"
@@ -38,9 +37,12 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	count := 0
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id entity.ID) bool {
+	wCtx := ecs.NewWorldContext(world)
+	q, err := wCtx.NewSearch(ecs.Exact(ecs.SignerComponent{}))
+	assert.NilError(t, err)
+	q.Each(wCtx, func(id entity.ID) bool {
 		count++
-		sc, err := ecs.SignerComp.Get(world, id)
+		sc, err := component.GetComponent[ecs.SignerComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantAddress)
@@ -51,8 +53,6 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 
 func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	err := world.RegisterComponents()
-	assert.NilError(t, err)
 	assert.NilError(t, world.LoadGameState())
 	ctx := context.Background()
 
@@ -61,7 +61,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 		assert.NilError(t, world.Tick(ctx))
 	}
 
-	_, err = world.GetSignerForPersonaTag("missing_persona", 1)
+	_, err := world.GetSignerForPersonaTag("missing_persona", 1)
 	assert.ErrorIs(t, err, ecs.ErrorPersonaTagHasNoSigner)
 
 	// Queue up a CreatePersonaTx
@@ -142,9 +142,12 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	count := 0
-	ecs.NewQuery(filter.Exact(ecs.SignerComp)).Each(world, func(id entity.ID) bool {
+	q, err := world.NewSearch(ecs.Exact(ecs.SignerComponent{}))
+	assert.NilError(t, err)
+	wCtx := ecs.NewWorldContext(world)
+	q.Each(wCtx, func(id entity.ID) bool {
 		count++
-		sc, err := ecs.SignerComp.Get(world, id)
+		sc, err := component.GetComponent[ecs.SignerComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantSigner)

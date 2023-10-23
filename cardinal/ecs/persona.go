@@ -3,21 +3,20 @@ package ecs
 import (
 	"errors"
 	"fmt"
+	"strconv"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 // CreatePersonaTransaction allows for the associating of a persona tag with a signer address.
 type CreatePersonaTransaction struct {
-	PersonaTag    string
-	SignerAddress string
+	PersonaTag    string `json:"personaTag"`
+	SignerAddress string `json:"signerAddress"`
 }
 
 type CreatePersonaTransactionResult struct {
-	Success bool
+	Success bool `json:"success"`
 }
 
 // CreatePersonaTx is a concrete ECS transaction.
@@ -42,46 +41,36 @@ var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, Auth
 // AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
-func AuthorizePersonaAddressSystem(world *World, queue *transaction.TxQueue, _ *log.Logger) error {
-	txs := AuthorizePersonaAddressTx.In(queue)
-	if len(txs) == 0 {
-		return nil
-	}
-	personaTagToAddress, err := buildPersonaTagMapping(world)
+func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
+	personaTagToAddress, err := buildPersonaTagMapping(wCtx)
 	if err != nil {
 		return err
 	}
-	for _, tx := range txs {
-		if tx.Sig.PersonaTag != tx.Value.PersonaTag {
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, fmt.Errorf("signer does not match request"))
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
+	AuthorizePersonaAddressTx.ForEach(wCtx, func(tx TxData[AuthorizePersonaAddress]) (AuthorizePersonaAddressResult, error) {
+		val, sig := tx.Value, tx.Sig
+		result := AuthorizePersonaAddressResult{Success: false}
+		if sig.PersonaTag != val.PersonaTag {
+			return AuthorizePersonaAddressResult{Success: false}, fmt.Errorf("sigher does not match request")
 		}
 		data, ok := personaTagToAddress[tx.Value.PersonaTag]
 		if !ok {
-			// This PersonaTag has not been registered.
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, fmt.Errorf("persona does not exist"))
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
+			return result, fmt.Errorf("persona does not exist")
 		}
-		err = SignerComp.Update(world, data.EntityID, func(component SignerComponent) SignerComponent {
-			// check if this address already exists
-			for _, addr := range component.AuthorizedAddresses {
-				// if its already in the authorized addresses slice, just return the component.
-				if addr == tx.Value.Address {
-					return component
+		err = updateComponent[SignerComponent](wCtx, data.EntityID, func(s *SignerComponent) *SignerComponent {
+			for _, addr := range s.AuthorizedAddresses {
+				if addr == val.Address {
+					return s
 				}
 			}
-			component.AuthorizedAddresses = append(component.AuthorizedAddresses, tx.Value.Address)
-			return component
+			s.AuthorizedAddresses = append(s.AuthorizedAddresses, val.Address)
+			return s
 		})
 		if err != nil {
-			AuthorizePersonaAddressTx.AddError(world, tx.TxHash, err)
-			AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: false})
-			continue
+			return result, fmt.Errorf("unable to update signer component with address: %w", err)
 		}
-		AuthorizePersonaAddressTx.SetResult(world, tx.TxHash, AuthorizePersonaAddressResult{Success: true})
-	}
+		result.Success = true
+		return result, nil
+	})
 	return nil
 }
 
@@ -91,19 +80,24 @@ type SignerComponent struct {
 	AuthorizedAddresses []string
 }
 
-// SignerComp is the concrete ECS component that pairs a persona tag to a signer address.
-var SignerComp = NewComponentType[SignerComponent]("SignerComponent")
+func (SignerComponent) Name() string {
+	return "SignerComponent"
+}
 
 type personaTagComponentData struct {
 	SignerAddress string
 	EntityID      entity.ID
 }
 
-func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, error) {
+func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentData, error) {
 	personaTagToAddress := map[string]personaTagComponentData{}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(world, func(id entity.ID) bool {
-		sc, err := SignerComp.Get(world, id)
+	q, err := wCtx.NewSearch(Exact(SignerComponent{}))
+	if err != nil {
+		return nil, err
+	}
+	q.Each(wCtx, func(id entity.ID) bool {
+		sc, err := getComponent[SignerComponent](wCtx, id)
 		if err != nil {
 			errs = append(errs, err)
 			return true
@@ -122,12 +116,12 @@ func buildPersonaTagMapping(world *World) (map[string]personaTagComponentData, e
 
 // RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *log.Logger) error {
-	createTxs := CreatePersonaTx.In(queue)
+func RegisterPersonaSystem(wCtx WorldContext) error {
+	createTxs := CreatePersonaTx.In(wCtx)
 	if len(createTxs) == 0 {
 		return nil
 	}
-	personaTagToAddress, err := buildPersonaTagMapping(world)
+	personaTagToAddress, err := buildPersonaTagMapping(wCtx)
 	if err != nil {
 		return err
 	}
@@ -137,23 +131,23 @@ func RegisterPersonaSystem(world *World, queue *transaction.TxQueue, _ *log.Logg
 			// This PersonaTag has already been registered. Don't do anything
 			continue
 		}
-		id, err := world.StoreManager().CreateEntity(SignerComp)
+		id, err := create(wCtx, SignerComponent{})
 		if err != nil {
-			CreatePersonaTx.AddError(world, txData.TxHash, err)
+			CreatePersonaTx.AddError(wCtx, txData.TxHash, err)
 			continue
 		}
-		if err := SignerComp.Set(world, id, SignerComponent{
+		if err := setComponent[SignerComponent](wCtx, id, &SignerComponent{
 			PersonaTag:    tx.PersonaTag,
 			SignerAddress: tx.SignerAddress,
 		}); err != nil {
-			CreatePersonaTx.AddError(world, txData.TxHash, err)
+			CreatePersonaTx.AddError(wCtx, txData.TxHash, err)
 			continue
 		}
 		personaTagToAddress[tx.PersonaTag] = personaTagComponentData{
 			SignerAddress: tx.SignerAddress,
 			EntityID:      id,
 		}
-		CreatePersonaTx.SetResult(world, txData.TxHash, CreatePersonaTransactionResult{
+		CreatePersonaTx.SetResult(wCtx, txData.TxHash, CreatePersonaTransactionResult{
 			Success: true,
 		})
 	}
@@ -174,8 +168,14 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 		return "", ErrorCreatePersonaTxsNotProcessed
 	}
 	var errs []error
-	NewQuery(filter.Exact(SignerComp)).Each(w, func(id entity.ID) bool {
-		sc, err := SignerComp.Get(w, id)
+	q, err := w.NewSearch(Exact(SignerComponent{}))
+	if err != nil {
+		return "", err
+	}
+	wCtx := NewReadOnlyWorldContext(w)
+	err = q.Each(wCtx, func(id entity.ID) bool {
+		sc, err := getComponent[SignerComponent](wCtx, id)
+		//sc, err := SignerComp.Get(w, id)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -185,12 +185,123 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 		}
 		return true
 	})
-	if len(errs) > 0 {
-		return "", errors.Join(errs...)
-	}
-
+	errs = append(errs, err)
 	if addr == "" {
 		return "", ErrorPersonaTagHasNoSigner
 	}
-	return addr, nil
+	return addr, errors.Join(errs...)
+}
+
+// TODO private component function used to temporarily remove circular dependency until we replace components.
+// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// Get returns component data from the entity.
+// GetComponent returns component data from the entity.
+func getComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
+	var t T
+	name := t.Name()
+	c, err := wCtx.GetWorld().GetComponentByName(name)
+	if err != nil {
+		return nil, errors.New("Must register component")
+	}
+	value, err := wCtx.StoreReader().GetComponentForEntity(c, id)
+	if err != nil {
+		return nil, err
+	}
+	t, ok := value.(T)
+	if !ok {
+		comp, ok = value.(*T)
+		if !ok {
+			return nil, fmt.Errorf("type assertion for component failed: %v to %v", value, c)
+		}
+	} else {
+		comp = &t
+	}
+
+	return comp, nil
+}
+
+// TODO private component function used to temporarily remove circular dependency until we replace components.
+// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// Set sets component data to the entity.
+func setComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, component *T) error {
+	if wCtx.IsReadOnly() {
+		return ErrorCannotModifyStateWithReadOnlyContext
+	}
+	var t T
+	name := t.Name()
+	c, err := wCtx.GetWorld().GetComponentByName(name)
+	if err != nil {
+		return fmt.Errorf("%s is not registered, please register it before updating", t.Name())
+	}
+	err = wCtx.StoreManager().SetComponentForEntity(c, id, component)
+	if err != nil {
+		return err
+	}
+	wCtx.Logger().Debug().
+		Str("entity_id", strconv.FormatUint(uint64(id), 10)).
+		Str("component_name", c.Name()).
+		Int("component_id", int(c.ID())).
+		Msg("entity updated")
+	return nil
+}
+
+// TODO private component function used to temporarily remove circular dependency until we replace components.
+// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
+func updateComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
+	if wCtx.IsReadOnly() {
+		return ErrorCannotModifyStateWithReadOnlyContext
+	}
+	val, err := getComponent[T](wCtx, id)
+	if err != nil {
+		return err
+	}
+	updatedVal := fn(val)
+	return setComponent[T](wCtx, id, updatedVal)
+}
+
+// TODO private component function used to temporarily remove circular dependency until we replace components.
+// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
+func createMany(wCtx WorldContext, num int, components ...component_metadata.Component) ([]entity.ID, error) {
+	if wCtx.IsReadOnly() {
+		return nil, ErrorCannotModifyStateWithReadOnlyContext
+	}
+	world := wCtx.GetWorld()
+	acc := make([]component_metadata.IComponentMetaData, 0, len(components))
+	for _, comp := range components {
+		c, err := world.GetComponentByName(comp.Name())
+		if err != nil {
+			return nil, err
+		}
+		acc = append(acc, c)
+	}
+	entityIds, err := world.StoreManager().CreateManyEntities(num, acc...)
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range entityIds {
+		for _, comp := range components {
+			c, err := world.GetComponentByName(comp.Name())
+			if err != nil {
+				return nil, errors.New("Must register component before creating an entity")
+			}
+			err = world.StoreManager().SetComponentForEntity(c, id, comp)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return entityIds, nil
+}
+
+// TODO private component function used to temporarily remove circular dependency until we replace components.
+// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
+func create(wCtx WorldContext, components ...component_metadata.Component) (entity.ID, error) {
+	entities, err := createMany(wCtx, 1, components...)
+	if err != nil {
+		return 0, err
+	}
+	return entities[0], nil
 }

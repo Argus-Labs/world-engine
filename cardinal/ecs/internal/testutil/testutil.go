@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -35,7 +36,9 @@ func InitWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
 		DB:       0,  // use default DB
 	}, "in-memory-world")
 	worldStorage := storage.NewWorldStorage(&rs)
-	w, err := ecs.NewWorld(worldStorage)
+	sm, err := ecb.NewManager(rs.Client)
+	assert.NilError(t, err)
+	w, err := ecs.NewWorld(worldStorage, sm)
 	assert.NilError(t, err)
 	return w
 }

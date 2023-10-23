@@ -147,8 +147,8 @@ contract PolarisERC20 is IERC20 {
     //////////////////////////////////////////////////////////////*/
 
     function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
-    public
-    virtual
+        public
+        virtual
     {
         require(deadline >= block.timestamp, "PERMIT_DEADLINE_EXPIRED");
 

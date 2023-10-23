@@ -10,13 +10,12 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
-
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 )
 
@@ -31,17 +30,24 @@ type EnergyComp struct {
 	value int
 }
 
-var energy = ecs.NewComponentType[EnergyComp]("EnergyComp")
+func (EnergyComp) Name() string {
+	return "EnergyComp"
+}
 
-func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error {
-	logger.Log().Msg("test")
-	energy.Each(w, func(entityId entity.ID) bool {
-		energyPlanet, err := energy.Get(w, entityId)
+func testSystem(wCtx ecs.WorldContext) error {
+	wCtx.Logger().Log().Msg("test")
+	q, err := wCtx.NewSearch(ecs.Contains(EnergyComp{}))
+	if err != nil {
+		return err
+	}
+	q.Each(wCtx, func(entityId entity.ID) bool {
+		energyPlanet, err := component.GetComponent[EnergyComp](wCtx, entityId)
 		if err != nil {
 			return false
 		}
-		energyPlanet.value += 10 // bs whatever
-		err = energy.Set(w, entityId, energyPlanet)
+		energyPlanet.value += 10 // bs whatevewCtxr
+		err = component.SetComponent[EnergyComp](wCtx, entityId, energyPlanet)
+		//err = energy.Set(w, entityId, energyPlanet)
 		if err != nil {
 			return false
 		}
@@ -51,9 +57,9 @@ func testSystem(w *ecs.World, _ *transaction.TxQueue, logger *log.Logger) error 
 	return nil
 }
 
-func testSystemWarningTrigger(w *ecs.World, tx *transaction.TxQueue, logger *log.Logger) error {
+func testSystemWarningTrigger(wCtx ecs.WorldContext) error {
 	time.Sleep(time.Millisecond * 400)
-	return testSystem(w, tx, logger)
+	return testSystem(wCtx)
 }
 
 func TestWorldLogger(t *testing.T) {
@@ -68,8 +74,7 @@ func TestWorldLogger(t *testing.T) {
 	w.InjectLogger(&cardinalLogger)
 	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, w.RegisterTransactions(alphaTx))
-	err := w.RegisterComponents(energy)
-	assert.NilError(t, err)
+	assert.NilError(t, ecs.RegisterComponent[EnergyComp](w))
 	cardinalLogger.LogWorld(w, zerolog.InfoLevel)
 	jsonWorldInfoString := `{
 					"level":"info",
@@ -94,27 +99,37 @@ func TestWorldLogger(t *testing.T) {
 				}
 `
 	//require.JSONEq compares json strings for equality.
-	require.JSONEq(t, buf.String(), jsonWorldInfoString)
+	require.JSONEq(t, jsonWorldInfoString, buf.String())
 	buf.Reset()
-	archetypeId, err := w.StoreManager().GetArchIDForComponents([]component.IComponentType{energy})
+	energy, err := w.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
-	archetype_creations_json_string := buf.String()
+	components := []component_metadata.IComponentMetaData{energy}
+	wCtx := ecs.NewWorldContext(w)
+	entityId, err := component.Create(wCtx, EnergyComp{})
+	assert.NilError(t, err)
+	logStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `
 			{
 				"level":"debug",
 				"archetype_id":0,
 				"message":"created"
-			}`, archetype_creations_json_string)
-	components := w.StoreManager().GetComponentTypesForArchID(archetypeId)
-	entityId, err := w.Create(components...)
-	assert.NilError(t, err)
+			}`, logStrings[0])
+	require.JSONEq(t, `
+			{
+				"level":"debug",
+				"components":[{
+					"component_id":2,
+					"component_name":"EnergyComp"
+				}],
+				"entity_id":0,"archetype_id":0
+			}`, logStrings[1])
+
 	buf.Reset()
 
-	entity, err := w.StoreManager().GetEntity(entityId)
-	assert.NilError(t, err)
-
 	// test log entity
-	cardinalLogger.LogEntity(zerolog.DebugLevel, entity, components)
+	archetypeId, err := w.StoreManager().GetArchIDForComponents(components)
+	assert.NilError(t, err)
+	cardinalLogger.LogEntity(zerolog.DebugLevel, entityId, archetypeId, components)
 	jsonEntityInfoString := `
 		{
 			"level":"debug",
@@ -138,8 +153,7 @@ func TestWorldLogger(t *testing.T) {
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
 	err = w.Tick(ctx)
 	assert.NilError(t, err)
-	logString := buf.String()
-	logStrings := strings.Split(logString, "\n")[:4]
+	logStrings = strings.Split(buf.String(), "\n")[:4]
 	// test tick start
 	require.JSONEq(t, `
 			{
@@ -160,7 +174,8 @@ func TestWorldLogger(t *testing.T) {
 				"entity_id":"0",
 				"component_name":"EnergyComp",
 				"component_id":2,
-				"message":"entity updated"
+				"message":"entity updated",
+				"system":"log_test.testSystemWarningTrigger"
 			}`, logStrings[2])
 	// test tick end
 	buf.Reset()
@@ -204,7 +219,7 @@ func TestWorldLogger(t *testing.T) {
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
-	_, err = w.CreateMany(2, []component.IComponentType{energy}...)
+	_, err = component.CreateMany(wCtx, 2, EnergyComp{})
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `

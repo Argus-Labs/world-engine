@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
 type Loggable interface {
-	GetComponents() []component.IComponentType
+	GetComponents() []component_metadata.IComponentMetaData
 	GetSystemNames() []string
 }
 
@@ -17,7 +18,7 @@ type Logger struct {
 	*zerolog.Logger
 }
 
-func (_ *Logger) loadComponentIntoArrayLogger(component component.IComponentType, arrayLogger *zerolog.Array) *zerolog.Array {
+func (_ *Logger) loadComponentIntoArrayLogger(component component_metadata.IComponentMetaData, arrayLogger *zerolog.Array) *zerolog.Array {
 	dictLogger := zerolog.Dict()
 	dictLogger = dictLogger.Int("component_id", int(component.ID()))
 	dictLogger = dictLogger.Str("component_name", component.Name())
@@ -46,14 +47,14 @@ func (l *Logger) loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, target Logg
 	return zeroLoggerEvent.Array("systems", arrayLogger)
 }
 
-func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, entity entity.Entity, components []component.IComponentType) (*zerolog.Event, error) {
+func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, entityID entity.ID, archID archetype.ID, components []component_metadata.IComponentMetaData) (*zerolog.Event, error) {
 	arrayLogger := zerolog.Arr()
 	for _, _component := range components {
 		arrayLogger = l.loadComponentIntoArrayLogger(_component, arrayLogger)
 	}
 	zeroLoggerEvent.Array("components", arrayLogger)
-	zeroLoggerEvent.Int("entity_id", int(entity.EntityID()))
-	return zeroLoggerEvent.Int("archetype_id", int(entity.Loc.ArchID)), nil
+	zeroLoggerEvent.Int("entity_id", int(entityID))
+	return zeroLoggerEvent.Int("archetype_id", int(archID)), nil
 }
 
 // LogComponents logs all component info related to the world
@@ -71,12 +72,12 @@ func (l *Logger) LogSystem(target Loggable, level zerolog.Level) {
 }
 
 // LogEntity logs entity info given an entityID
-func (l *Logger) LogEntity(level zerolog.Level, entity entity.Entity, components []component.IComponentType) {
+func (l *Logger) LogEntity(level zerolog.Level, entityID entity.ID, archID archetype.ID, components []component_metadata.IComponentMetaData) {
 	zeroLoggerEvent := l.WithLevel(level)
 	var err error = nil
-	zeroLoggerEvent, err = l.loadEntityIntoEvent(zeroLoggerEvent, entity, components)
+	zeroLoggerEvent, err = l.loadEntityIntoEvent(zeroLoggerEvent, entityID, archID, components)
 	if err != nil {
-		l.Err(err).Msg(fmt.Sprintf("Error in Logger when retrieving entity with id %d", entity.EntityID()))
+		l.Err(err).Msg(fmt.Sprintf("Error in Logger when retrieving entity with id %d", entityID))
 	} else {
 		zeroLoggerEvent.Send()
 	}

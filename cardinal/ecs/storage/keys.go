@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
@@ -38,7 +38,7 @@ define keys for redis storage
 	Hash set of signature address to uint64 nonce
 */
 
-func (r *RedisStorage) componentDataKey(archID archetype.ID, compID component.TypeID) string {
+func (r *RedisStorage) componentDataKey(archID archetype.ID, compID component_metadata.TypeID) string {
 	return fmt.Sprintf("COMPD:WORLD-%s:CID-%d:A-%d", r.WorldID, compID, archID)
 }
 

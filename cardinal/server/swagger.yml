@@ -8,9 +8,19 @@ produces:
     - application/json
 schemes:
     - http
+    - ws
 swagger: "2.0"
 
 paths:
+    /events:
+        get:
+            summary: Endpoint for events
+            description: websocket connection for events.
+            produces:
+                - application/json
+            responses:
+                '101':
+                    description: switch protocol to ws
     /health:
         get:
             summary: Get information on status of world-engine
@@ -116,7 +126,7 @@ paths:
                   schema:
                       $ref: '#/definitions/CQLRequest'
 
-    /query/game/{readType}:
+    /query/game/{queryType}:
         post:
             summary: Query the ecs
             description: Query the ecs
@@ -124,23 +134,23 @@ paths:
                 - application/json
             produces:
                 - application/json
-            operationId: read
+            operationId: query
             parameters:
-                - name: readType
+                - name: queryType
                   in: path
-                  description: The read type
+                  description: The query type
                   required: true
                   type: string
-                - name: readBody
+                - name: queryBody
                   required: true
                   in: body
                   schema: {}
             responses:
                 '200':
-                    description: read response
+                    description: query response
                     schema: {}
                 '400':
-                    description: Invalid read request
+                    description: Invalid query request
     /query/persona/signer:
         post:
             summary: Get persona data from cardinal
@@ -149,20 +159,20 @@ paths:
                 - application/json
             produces:
                 - application/json
-            operationId: read
+            operationId: query
             parameters:
-                - name: ReadPersonaSignerRequest
+                - name: QueryPersonaSignerRequest
                   required: true
                   in: body
                   schema:
-                      $ref: '#/definitions/ReadPersonaSignerRequest'
+                      $ref: '#/definitions/QueryPersonaSignerRequest'
             responses:
                 '200':
-                    description: read response
+                    description: query response
                     schema:
-                        $ref: '#/definitions/ReadPersonaSignerResponse'
+                        $ref: '#/definitions/QueryPersonaSignerResponse'
                 '400':
-                    description: Invalid read request
+                    description: Invalid query request
     /query/http/endpoints:
         post:
             summary: Get all http endpoints from cardinal
@@ -171,14 +181,14 @@ paths:
                 - application/json
             produces:
                 - application/json
-            operationId: read
+            operationId: query
             responses:
                 '200':
-                    description: list of read endpoints
+                    description: list of query endpoints
                     schema:
-                        $ref: '#/definitions/ReadListEndpoints'
+                        $ref: '#/definitions/QueryListEndpoints'
                 '400':
-                    description: Invalid read request
+                    description: Invalid query request
     /query/receipts/list:
         post:
             summary: Get transaction receipts from Cardinal
@@ -206,12 +216,12 @@ definitions:
     HealthReply:
         type: object
         required:
-            - is_server_running
-            - is_game_loop_running
+            - isServerRunning
+            - isGameLoopRunning
         properties:
-            is_server_running:
+            isServerRunning:
                 type: boolean
-            is_game_loop_running:
+            isGameLoopRunning:
                 type: boolean
     CQLResponse:
         type: array
@@ -237,75 +247,75 @@ definitions:
                 example: "(EXACT(energyComponent) | CONTAINS(healthComponent)) & CONTAINS(goodGuyComponent)"
     TxRequestWithCreatePersona:
         required:
-            - PersonaTag
-            - Namespace
-            - Nonce
-            - Signature
-            - Body
+            - personaTag
+            - namespace
+            - nonce
+            - signature
+            - body
         type: object
         properties:
-            PersonaTag:
+            personaTag:
                 type: string
                 example: CoolMage
-            Namespace:
+            namespace:
                 type: string
                 example: agar-shooter
-            Nonce:
+            nonce:
                 type: integer
                 format: int64
-            Signature:
+            signature:
                 type: string
-            Body:
+            body:
                 $ref: '#/definitions/CreatePersonaTransaction'
     CreatePersonaTransaction:
         type: object
         required:
-            - PersonaTag
-            - SignerAddress
+            - personaTag
+            - signerAddress
         properties:
-            PersonaTag:
+            personaTag:
                 type: string
-            SignerAddress:
+            signerAddress:
                 type: string
     CreatePersonaTransactionResult:
         type: object
         required:
-            - Success
+            - success
         properties:
-            Success:
+            success:
                 type: boolean
-    ReadPersonaSignerRequest:
+    QueryPersonaSignerRequest:
         type: object
         required:
-            - PersonaTag
-            - Tick
+            - personaTag
+            - tick
         properties:
-            PersonaTag:
+            personaTag:
                 type: string
-            Tick:
+            tick:
                 type: integer
                 format: int64
-    ReadPersonaSignerResponse:
+    QueryPersonaSignerResponse:
         type: object
         required:
-            - Status
-            - SignerAddress
+            - status
+            - signerAddress
         properties:
-            Status:
+            status:
                 type: string
-            SignerAddress:
+            signerAddress:
                 type: string
-    ReadListEndpoints:
+    QueryListEndpoints:
         type: object
         required:
-            - tx_endpoints
-            - query_endpoints
+            - txEndpoints
+            - queryEndpoints
         properties:
-            tx_endpoints:
+            txEndpoints:
                 type: array
                 items:
                     type: string
-            query_endpoints:
+            queryEndpoints:
                 type: array
                 items:
                     type: string
@@ -313,56 +323,56 @@ definitions:
             type: string
     TxReply:
         required:
-            - tx_hash
+            - txHash
             - tick
         type: object
         properties:
-            tx_hash:
+            txHash:
                 type: string
             tick:
                 type: integer
                 format: int64
     TxRequest:
         required:
-            - PersonaTag
-            - Namespace
-            - Nonce
-            - Signature
-            - Body
+            - personaTag
+            - namespace
+            - nonce
+            - signature
+            - body
         type: object
         properties:
-            PersonaTag:
+            personaTag:
                 type: string
                 example: CoolMage
-            Namespace:
+            namespace:
                 type: string
                 example: agar-shooter
-            Nonce:
+            nonce:
                 type: integer
                 format: int64
-            Signature:
+            signature:
                 type: string
-            Body:
+            body:
                 type: object
     ListTxReceiptsRequest:
         required:
-            - start_tick
+            - startTick
         type: object
         properties:
-            start_tick:
+            startTick:
                 type: integer
                 format: int64
     ListTxReceiptsReply:
         required:
-            - start_tick
-            - end_tick
+            - startTick
+            - endTick
             - receipts
         type: object
         properties:
-            start_tick:
+            startTick:
                 type: integer
                 format: int64
-            end_tick:
+            endTick:
                 type: integer
                 format: int64
             receipts:
@@ -371,13 +381,13 @@ definitions:
                     $ref: '#/definitions/Receipts'
     Receipts:
         required:
-            - tx_hash
+            - txHash
             - tick
             - result
             - errors
         type: object
         properties:
-            tx_hash:
+            txHash:
                 type: string
             tick:
                 type: integer

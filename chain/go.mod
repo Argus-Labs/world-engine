@@ -1,6 +1,6 @@
 module pkg.world.dev/world-engine/chain
 
-go 1.21
+go 1.21.0
 
 replace (
 	// cosmossdk.io/x/evidence => github.com/rollkit/cosmos-sdk/x/evidence v0.0.0-20230721012257-443317a43b03
@@ -12,7 +12,9 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	// github.com/tendermint/tendermint => github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121
-	pkg.berachain.dev/polaris/cosmos => github.com/gupadhyaya/polaris/cosmos v0.0.0-20230831212102-b8c5e9173f58
+	pkg.berachain.dev/polaris/cosmos => github.com/argus-labs/polaris/cosmos v0.0.1
+	pkg.berachain.dev/polaris/eth => github.com/argus-labs/polaris/eth v0.0.1
+
 )
 
 // internal replacements
@@ -53,7 +55,7 @@ require (
 	github.com/stretchr/testify v1.8.4
 	github.com/zyedidia/generic v1.2.1
 	google.golang.org/genproto/googleapis/api v0.0.0-20230726155614-23370e0ffb3e
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.31.0
 	gotest.tools v2.2.0+incompatible
 	gotest.tools/v3 v3.5.1
@@ -61,6 +63,7 @@ require (
 	pkg.berachain.dev/polaris/cosmos v0.0.0-20230830221145-a6c6454d3697
 	pkg.berachain.dev/polaris/eth v0.0.0-20230827184022-e3cec7a2c178
 	pkg.berachain.dev/polaris/lib v0.0.0-20230827184022-e3cec7a2c178
+	pkg.world.dev/world-engine/rift v0.0.1
 )
 
 require (
@@ -359,7 +362,7 @@ require (
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.15.0 // indirect
-	golang.org/x/oauth2 v0.8.0 // indirect
+	golang.org/x/oauth2 v0.10.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
 	golang.org/x/sys v0.12.0 // indirect
 	golang.org/x/term v0.12.0 // indirect

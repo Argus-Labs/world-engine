@@ -57,8 +57,8 @@ interface IGovernanceModule {
      * @param metadata The metadata to attach to the vote.
      */
     function voteWeighted(uint64 proposalId, WeightedVoteOption[] calldata options, string calldata metadata)
-    external
-    returns (bool);
+        external
+        returns (bool);
 
     ////////////////////////////////////////// Read Methods /////////////////////////////////////////////
 
@@ -76,18 +76,18 @@ interface IGovernanceModule {
      * @dev Get the deposits of the proposal with the given id and depositor.
      */
     function getProposalDepositsByDepositor(uint64 proposalId, address depositor)
-    external
-    view
-    returns (Cosmos.Coin[] memory);
+        external
+        view
+        returns (Cosmos.Coin[] memory);
 
     /**
      * @dev Get proposals with a given status.
      * @param proposalStatus The status of the proposals to get.
      */
     function getProposals(int32 proposalStatus, Cosmos.PageRequest calldata pagination)
-    external
-    view
-    returns (Proposal[] memory, Cosmos.PageResponse memory);
+        external
+        view
+        returns (Proposal[] memory, Cosmos.PageResponse memory);
 
     /**
      * @dev Get the proposal tally result with the given id.
@@ -98,9 +98,9 @@ interface IGovernanceModule {
      * @dev Get the proposal votes with the given id.
      */
     function getProposalVotes(uint64 proposalId, Cosmos.PageRequest calldata pagination)
-    external
-    view
-    returns (Vote[] memory, Cosmos.PageResponse memory);
+        external
+        view
+        returns (Vote[] memory, Cosmos.PageResponse memory);
 
     /**
      * @dev Get the proposal vote information with the given id and voter.

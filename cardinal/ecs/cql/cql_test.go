@@ -7,10 +7,13 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
+
+type EmptyComponent struct{}
+
+func (EmptyComponent) Name() string { return "emptyComponent" }
 
 func TestParser(t *testing.T) {
 	term, err := internalCQLParser.ParseString("", "!(EXACT(a, b) & EXACT(a)) | CONTAINS(b)")
@@ -60,9 +63,9 @@ func TestParser(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, *term, testTerm)
 
-	emptyComponent := ecs.NewComponentType[struct{}]("emptyComponent")
-	stringToComponent := func(_ string) (component.IComponentType, bool) {
-		return emptyComponent, true
+	emptyComponent := component_metadata.NewComponentMetadata[EmptyComponent]()
+	stringToComponent := func(_ string) (component_metadata.IComponentMetaData, error) {
+		return emptyComponent, nil
 	}
 	filterResult, err := termToComponentFilter(term, stringToComponent)
 	assert.NilError(t, err)

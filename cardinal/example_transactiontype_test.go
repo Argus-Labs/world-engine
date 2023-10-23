@@ -24,13 +24,13 @@ func ExampleTransactionType() {
 		panic(err)
 	}
 
-	err = world.RegisterTransactions(MoveTx)
+	err = cardinal.RegisterTransactions(world, MoveTx)
 	if err != nil {
 		panic(err)
 	}
 
-	world.RegisterSystems(func(world *cardinal.World, queue *cardinal.TransactionQueue, logger *cardinal.Logger) error {
-		for _, tx := range MoveTx.In(queue) {
+	cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
+		for _, tx := range MoveTx.In(wCtx) {
 			msg := tx.Value()
 			// handle the transaction
 			// ...

@@ -5,7 +5,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
+	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 )
 
 type (
@@ -19,7 +19,7 @@ func TestMatchesComponents(t *testing.T) {
 		cb = storage.NewMockComponentType(componentB{}, nil)
 	)
 
-	components := []component.IComponentType{ca, cb}
+	components := []component_metadata.IComponentMetaData{ca, cb}
 	archetype := storage.NewArchetype(0, components)
 	if !archetype.ComponentsMatch(components) {
 		t.Errorf("archetype should match the components")
@@ -32,7 +32,7 @@ func TestPushEntity(t *testing.T) {
 		cb = storage.NewMockComponentType(struct{}{}, nil)
 	)
 
-	components := []component.IComponentType{ca, cb}
+	components := []component_metadata.IComponentMetaData{ca, cb}
 	archetype := storage.NewArchetype(0, components)
 
 	archetype.PushEntity(0)

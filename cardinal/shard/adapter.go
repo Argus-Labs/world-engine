@@ -20,7 +20,7 @@ import (
 // Adapter is a type that helps facilitate communication with the EVM base shard.
 type Adapter interface {
 	WriteAdapter
-	ReadAdapter
+	QueryAdapter
 }
 
 // WriteAdapter provides the functionality to send transactions to the EVM base shard.
@@ -30,8 +30,8 @@ type WriteAdapter interface {
 	Submit(ctx context.Context, p *sign.SignedPayload, txID, epoch uint64) error
 }
 
-// ReadAdapter provides the functionality to read transactions from the EVM base shard.
-type ReadAdapter interface {
+// QueryAdapter provides the functionality to query transactions from the EVM base shard.
+type QueryAdapter interface {
 	// QueryTransactions queries transactions stored on-chain. This is primarily used to rebuild state during world
 	// recovery.
 	QueryTransactions(

@@ -1,36 +1,47 @@
 package router
 
 import (
-	"buf.build/gen/go/argus-labs/world-engine/grpc/go/router/v1/routerv1grpc"
-	v1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/router/v1"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"os"
+	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
+	"time"
+
+	"pkg.berachain.dev/polaris/eth/core"
+	"pkg.berachain.dev/polaris/eth/core/types"
+
+	"cosmossdk.io/log"
 )
 
-type Result struct {
-	Code    uint64
-	Message []byte
-}
-
-//go:generate mockgen -source=router.go -package mocks -destination mocks/router.go
 type Router interface {
-	// SendMessage sends the msg payload to the game shard indicated by the namespace, if such namespace exists on chain.
-	SendMessage(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error)
+	// SendMessage queues a message to be sent to a game shard.
+	SendMessage(_ context.Context, namespace string, sender string, msgID uint64, msg []byte) error
+	// Query queries a game shard.
 	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
+	// MessageResult gets the game shard transaction result that originated from an EVM tx.
+	MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error)
+	// HandleDispatch implements the polaris EVM PostTxProcessing hook. It runs after an EVM tx execution has finished
+	// processing.
+	HandleDispatch(_ *types.Transaction, result *core.ExecutionResult)
 }
 
 var (
-	_ Router = &router{}
+	defaultStorageTimeout        = 10 * time.Minute
+	_                     Router = &routerImpl{}
 )
 
-type router struct {
+type routerImpl struct {
 	cardinalAddr string
+	logger       log.Logger
+	queue        *msgQueue
+
+	resultStore *resultStorage
 
 	// opts
 	creds credentials.TransportCredentials
@@ -56,43 +67,115 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 	return credentials.NewTLS(config), nil
 }
 
-// NewRouter returns a new router instance with a connection to a single cardinal shard instance.
-// TODO(technicallyty): its a bit unclear how im going to query the state machine here, so router is just going to
+// NewRouter returns a new routerImpl instance with a connection to a single cardinal shard instance.
+// TODO(technicallyty): its a bit unclear how im going to query the state machine here, so routerImpl is just going to
 // take the cardinal address directly for now...
-func NewRouter(cardinalAddr string, opts ...Option) Router {
-	r := &router{cardinalAddr: cardinalAddr, creds: insecure.NewCredentials()}
+func NewRouter(cardinalAddr string, logger log.Logger, opts ...Option) Router {
+	r := &routerImpl{
+		cardinalAddr: cardinalAddr,
+		logger:       logger,
+		creds:        insecure.NewCredentials(),
+		queue:        new(msgQueue),
+		resultStore:  newResultsStorage(defaultStorageTimeout),
+	}
 	for _, opt := range opts {
 		opt(r)
 	}
 	return r
 }
 
-func (r *router) SendMessage(ctx context.Context, namespace, sender string, msgID uint64, msg []byte) (*Result, error) {
+func (r *routerImpl) HandleDispatch(tx *types.Transaction, result *core.ExecutionResult) {
+	// no-op if nothing was queued after an evm tx.
+	if !r.queue.IsSet() {
+		return
+	}
+	// if tx failed, just clear the queue, we're not going to send the message.
+	if result.Failed() {
+		r.logger.Debug("EVM Execution Failed, clearing the message queue")
+		r.queue.Clear()
+	} else {
+		r.logger.Debug("Dispatching EVM transaction to game shard...")
+		r.dispatchMessage(tx.Hash())
+	}
+}
+
+const (
+	CodeConnectionError = iota + 100
+	CodeServerError
+)
+
+func (r *routerImpl) dispatchMessage(txHash common.Hash) {
+	defer r.queue.Clear()
+	msg := r.queue.msg
+	msg.EvmTxHash = txHash.String()
+	namespace := r.queue.namespace
+
 	client, err := r.getConnectionForNamespace(namespace)
 	if err != nil {
-		return nil, err
+		r.resultStore.SetResult(
+			&routerv1.SendMessageResponse{
+				EvmTxHash: msg.EvmTxHash,
+				Code:      CodeConnectionError,
+				Errs:      "error getting game shard gRPC connection"},
+		)
+		r.logger.Error("error getting game shard gRPC connection", "error", err)
+		return
 	}
-	req := &v1.SendMessageRequest{
+
+	r.logger.Debug("Sending tx to game shard",
+		"evm_tx_hash", txHash.String(),
+		"game_shard_namespace", namespace,
+		"sender", msg.Sender,
+		"msg_id", msg.MessageId,
+	)
+
+	// send the message in a new goroutine. we do this so that we don't make tx inclusion slower.
+	go func() {
+		var res *routerv1.SendMessageResponse
+		res, err = client.SendMessage(context.Background(), msg)
+		if err != nil {
+			r.resultStore.SetResult(
+				&routerv1.SendMessageResponse{
+					EvmTxHash: msg.EvmTxHash,
+					Code:      CodeServerError,
+					Errs:      err.Error()},
+			)
+			r.logger.Error("failed to send message to game shard", "error", err)
+			return
+		}
+		r.logger.Debug("successfully sent message to game shard")
+		r.resultStore.SetResult(res)
+	}()
+}
+
+func (r *routerImpl) SendMessage(_ context.Context, namespace, sender string, msgID uint64, msg []byte) error {
+	req := &routerv1.SendMessageRequest{
 		Sender:    sender,
 		MessageId: msgID,
 		Message:   msg,
 	}
-	res, err := client.SendMessage(ctx, req)
-	if err != nil {
-		return nil, err
+	if r.queue.IsSet() {
+		// this should never happen, but let's catch it anyway.
+		return fmt.Errorf("INTERNAL ERROR: message queue was not cleared")
 	}
-	return &Result{
-		Code:    res.Code,
-		Message: res.Message,
-	}, nil
+	r.queue.Set(namespace, req)
+	return nil
 }
 
-func (r *router) Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error) {
+func (r *routerImpl) MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error) {
+	res, ok := r.resultStore.GetResult(evmTxHash)
+	if !ok {
+		return nil, "", 0, fmt.Errorf("no resultStore found")
+	}
+	return res.Result, res.Errs, res.Code, nil
+}
+
+func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error) {
 	client, err := r.getConnectionForNamespace(namespace)
 	if err != nil {
 		return nil, err
 	}
-	res, err := client.QueryShard(ctx, &v1.QueryShardRequest{
+	res, err := client.QueryShard(ctx, &routerv1.QueryShardRequest{
 		Resource: resource,
 		Request:  request,
 	})
@@ -102,13 +185,16 @@ func (r *router) Query(ctx context.Context, request []byte, resource, namespace 
 	return res.Response, nil
 }
 
-func (r *router) getConnectionForNamespace(ns string) (routerv1grpc.MsgClient, error) {
+// TODO: we eventually want this to work via namespace mappings by registered game shards.
+// https://linear.app/arguslabs/issue/WORLD-13/update-router-to-look-up-the-correct-namespace-mapping
+// https://linear.app/arguslabs/issue/WORLD-370/register-game-shard-on-base-shard
+func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
 	conn, err := grpc.Dial(
 		r.cardinalAddr,
 		grpc.WithTransportCredentials(r.creds),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to %s address for namespace %s", r.cardinalAddr, ns)
+		return nil, fmt.Errorf("error connecting to '%s' for namespace '%s'", r.cardinalAddr, ns)
 	}
-	return routerv1grpc.NewMsgClient(conn), nil
+	return routerv1.NewMsgClient(conn), nil
 }

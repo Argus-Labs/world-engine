@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
@@ -24,8 +24,8 @@ func TestForEachTransaction(t *testing.T) {
 	someTx := ecs.NewTransactionType[SomeTxRequest, SomeTxResponse]("some_tx")
 	assert.NilError(t, world.RegisterTransactions(someTx))
 
-	world.AddSystem(func(world *ecs.World, queue *transaction.TxQueue, logger *log.Logger) error {
-		someTx.ForEach(world, queue, func(t ecs.TxData[SomeTxRequest]) (result SomeTxResponse, err error) {
+	world.AddSystem(func(wCtx ecs.WorldContext) error {
+		someTx.ForEach(wCtx, func(t ecs.TxData[SomeTxRequest]) (result SomeTxResponse, err error) {
 			if t.Value.GenerateError {
 				return result, errors.New("some error")
 			}

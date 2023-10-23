@@ -16,15 +16,15 @@ help:
 setup:
 	@go run magefiles/setup/setup.go
 
-
+rift:
+	cd rift/proto && buf generate
+.PHONY: rift
 
 rollup:
 	./chain/scripts/start.sh --build
 
-
 game:
 	@docker compose up game nakama
-
 
 kill:
 	docker kill $$(docker ps -q)
