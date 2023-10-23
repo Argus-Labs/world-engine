@@ -44,8 +44,9 @@ func NewTransactionTypeWithEVMSupport[Msg, Result any](name string) *Transaction
 	}
 }
 
+// AddToQueue is not meant to be used in production whatsoever, it is exposed here for usage in tests.
 func (t *TransactionType[Msg, Result]) AddToQueue(world *World, data Msg, sigs ...*sign.SignedPayload) {
-	ecs.AddToQueue[Msg, Result](world.implWorld, t.impl, data, sigs...)
+	t.impl.AddToQueue(world.implWorld, data, sigs...)
 }
 
 // AddError adds the given error to the transaction identified by the given hash. Multiple errors can be

@@ -649,10 +649,6 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 	return NewSearch(componentFilter), nil
 }
 
-func AddToQueue[In, Out any](w *World, t *TransactionType[In, Out], data In, sigs ...*sign.SignedPayload) {
-	t.AddToQueue(w, data, sigs...)
-}
-
 func GetRawJsonOfComponent(w *World, component component_metadata.IComponentMetaData, id entity.ID) (json.RawMessage, error) {
 	return w.StoreManager().GetComponentForEntityInRawJson(component, id)
 }
