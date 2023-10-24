@@ -7,9 +7,9 @@ import (
 
 type WorldContext interface {
 	NewSearch(filter Filter) (*Search, error)
-	getECSWorldContext() ecs.WorldContext
 	CurrentTick() uint64
 	Logger() *zerolog.Logger
+	getECSWorldContext() ecs.WorldContext
 }
 
 type worldContext struct {
@@ -34,4 +34,13 @@ func (wCtx *worldContext) NewSearch(filter Filter) (*Search, error) {
 
 func (wCtx *worldContext) getECSWorldContext() ecs.WorldContext {
 	return wCtx.implContext
+}
+
+func (w *worldContext) TestOnlyGetECSWorld() *ecs.World {
+	return w.implContext.GetWorld()
+}
+
+func TestOnlyGetECSWorld(worldCtx WorldContext) *ecs.World {
+	w := worldCtx.(*worldContext)
+	return w.implContext.GetWorld()
 }
