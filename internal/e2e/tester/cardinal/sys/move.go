@@ -9,12 +9,13 @@ import (
 
 func Move(ctx cardinal.WorldContext) error {
 	logger := ctx.Logger()
-	for _, mtx := range tx.MoveTx.In(ctx) {
+	tx.MoveTx.ForEach(ctx, func(mtx cardinal.TxData[tx.MoveInput]) (tx.MoveOutput, error) {
 		logger.Info().Msgf("got move transaction from: %s", mtx.Sig().PersonaTag)
 		playerEntityID, ok := PlayerEntityID[mtx.Sig().PersonaTag]
 		if !ok {
-			tx.MoveTx.AddError(ctx, mtx.TxHash, fmt.Errorf("player %s has not joined yet", mtx.Sig.PersonaTag))
+			return tx.MoveOutput{}, fmt.Errorf("player %s has not joined yet", mtx.Sig().PersonaTag)
 		}
+		var resultingLoc comp.Location
 		err := cardinal.UpdateComponent[comp.Location](ctx, playerEntityID, func(location *comp.Location) *comp.Location {
 			switch mtx.Value().Direction {
 			case "up":
@@ -26,11 +27,13 @@ func Move(ctx cardinal.WorldContext) error {
 			case "right":
 				location.X += 1
 			}
+			resultingLoc = *location
 			return location
 		})
 		if err != nil {
-			tx.MoveTx.AddError(ctx, mtx.TxHash, err)
+			return tx.MoveOutput{}, err
 		}
-	}
+		return tx.MoveOutput{X: resultingLoc.X, Y: resultingLoc.Y}, err
+	})
 	return nil
 }

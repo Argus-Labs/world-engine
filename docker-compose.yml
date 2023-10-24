@@ -23,10 +23,9 @@ services:
       - world-engine
 
   nakama:
-    image: us-docker.pkg.dev/argus-labs/world-engine/relay/nakama@sha256:bdac6f715ac7349c804404b8609631f65d8e85a907ea4273c6288a5d13168587
     container_name: test_nakama
     platform: linux/amd64
-    build: ./internal/e2e/tester/nakama
+    build: ./relay/nakama
     depends_on:
       - postgres
       - game

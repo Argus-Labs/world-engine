@@ -6,7 +6,6 @@ use (
 	chain/contracts
 	internal/e2e
 	internal/e2e/tester/cardinal
-	internal/e2e/tester/nakama
 	magefiles
 	relay/nakama
 	rift
