@@ -18,6 +18,8 @@ github.com/heroiclabs/nakama-common v1.27.0 h1:f1MT78rq7R6+rc8l48LtYvFfxyrLvQ426
 github.com/heroiclabs/nakama-common v1.27.0/go.mod h1:/znXrt+yd+i7WHvizD3SNeA4tTLl9PvVckHafUnLAi0=
 github.com/holiman/uint256 v1.2.3 h1:K8UWO1HUJpRMXBxbmaY1Y8IAMZC/RsKB+ArEnnK4l5o=
 github.com/holiman/uint256 v1.2.3/go.mod h1:SC8Ryt4n+UBbPbIBKaG9zbbDlp4jOru9xFZmPzLUTxw=
+github.com/mitchellh/mapstructure v1.5.0 h1:jeMsZIYE/09sWLaz43PL7Gy6RuMjD2eJVyuac5Z2hdY=
+github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RRV2QTWOzhPopBRo=
 golang.org/x/crypto v0.13.0 h1:mvySKfSWJ+UKUii46M40LOvyWfN0s2U+46/jDd0e6Ck=
 golang.org/x/crypto v0.13.0/go.mod h1:y6Z2r+Rw4iayiXXAIxJIDAJ1zMW4yaTpebo8fPOliYc=
 golang.org/x/sys v0.12.0 h1:CM0HF96J0hcLAwsHPJZjfdNzs0gftsLfgKt57wWHJ0o=
@@ -28,5 +30,5 @@ google.golang.org/protobuf v1.31.0 h1:g0LDEJHgrBl9N9r17Ru3sqWhkIx2NB67okBHPwC7hs
 google.golang.org/protobuf v1.31.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 gotest.tools/v3 v3.5.1 h1:EENdUnS3pdur5nybKYIh2Vfgc8IUNBjxDPSjtiJcOzU=
 gotest.tools/v3 v3.5.1/go.mod h1:isy3WKz7GK6uNw/sbHzfKBLvlvXwUyV06n6brMxxopU=
-pkg.world.dev/world-engine/sign v0.1.7-alpha h1:7Oaoc0OUBP0fAPGna+/fw5fbrNw88sIVzr0SujY0wgQ=
-pkg.world.dev/world-engine/sign v0.1.7-alpha/go.mod h1:JcKXhdeYvCPRAgsCUSFEDcAJgf67VgMWWrA2Y2VZJSg=
+pkg.world.dev/world-engine/sign v0.1.9-alpha h1:aNF6SqB8btPtZHYo/39t4e+mCmNQHc1qW80veEZo+MI=
+pkg.world.dev/world-engine/sign v0.1.9-alpha/go.mod h1:Fd+52+2VelCuzi8wbU14/eWGyYL6+suibX3sIx8MSAM=

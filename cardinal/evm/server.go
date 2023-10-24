@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -104,6 +105,7 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	}
 	w.Logger.Debug().Msgf("EVM listener running on port %s", s.port)
 	if s.creds == nil {
+		var err error
 		s.creds, err = tryLoadCredentials()
 		if err != nil {
 			return nil, err

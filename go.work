@@ -1,5 +1,11 @@
 go 1.21.0
 
 use (
-cardinal
+	cardinal
+	chain
+	chain/contracts
+	magefiles
+	relay/nakama
+	rift
+	sign
 )
