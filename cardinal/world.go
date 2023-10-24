@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"sync/atomic"
 	"time"
 
@@ -36,6 +37,7 @@ type (
 	// one or more components.
 	EntityID = entity.ID
 	TxHash   = transaction.TxHash
+	Receipt  = receipt.Receipt
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
@@ -250,4 +252,8 @@ func (w *World) Tick(ctx context.Context) error {
 func (w *World) Init(fn func(WorldContext)) {
 	ecsWorldCtx := ecs.NewWorldContext(w.implWorld)
 	fn(&worldContext{implContext: ecsWorldCtx})
+}
+
+func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]Receipt, error) {
+	return w.implWorld.GetTransactionReceiptsForTick(tick)
 }
