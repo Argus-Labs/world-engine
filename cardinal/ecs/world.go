@@ -72,7 +72,7 @@ type World struct {
 
 	nextComponentID component_metadata.TypeID
 
-	eventHub *events.EventHub
+	eventHub events.EventHub
 }
 
 var (
@@ -82,12 +82,16 @@ var (
 	ErrorDuplicateQueryName                    = errors.New("query names must be unique")
 )
 
-func (w *World) SetEventHub(eventHub *events.EventHub) {
+func (w *World) SetEventHub(eventHub events.EventHub) {
 	w.eventHub = eventHub
 }
 
 func (w *World) EmitEvent(event *events.Event) {
 	w.eventHub.EmitEvent(event)
+}
+
+func (w *World) FlushEvents() {
+	w.eventHub.FlushEvents()
 }
 
 func (w *World) IsRecovering() bool {
