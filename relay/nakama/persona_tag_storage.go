@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/rs/zerolog/log"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -73,6 +74,7 @@ func storageObjToPersonaTagStorageObj(obj *api.StorageObject) (*personaTagStorag
 // attemptToUpdatePending attempts to change the given personaTagStorageObj's Status from "pending" to either "accepted"
 // or "rejected" by using cardinal as the source of truth. If the Status is not "pending", this call is a no-op.
 func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk runtime.NakamaModule) (*personaTagStorageObj, error) {
+	log.Logger.Info().Msg("attempting to update persona tag")
 	if p.Status != personaTagStatusPending {
 		return p, nil
 	}

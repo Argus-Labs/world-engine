@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"io"
 	"net/http"
 	"os"
@@ -40,7 +41,7 @@ const (
 type receiptChan chan *Receipt
 
 const (
-	EnvCardinalAddr      = "CARDINAL_ADDR"
+	EnvCardinalAddr      "CARDINAL_ADDR"
 	EnvCardinalNamespace = "CARDINAL_NAMESPACE"
 
 	cardinalCollection = "cardinal_collection"
@@ -59,7 +60,7 @@ var (
 )
 
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, initializer runtime.Initializer) error {
-
+	log.Info().Msg("initializing module...")
 	if err := initCardinalAddress(); err != nil {
 		return fmt.Errorf("failed to init cardinal address: %w", err)
 	}
