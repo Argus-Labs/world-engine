@@ -36,13 +36,13 @@ func ExampleTransactionType() {
 			// ...
 
 			// save the result
-			MoveTx.SetResult(world, tx.Hash(), MovePlayerResult{
+			MoveTx.SetResult(wCtx, tx.Hash(), MovePlayerResult{
 				FinalX: msg.DeltaX,
 				FinalY: msg.DeltaY,
 			})
 
 			// optionally, add an error to the transaction
-			MoveTx.AddError(world, tx.Hash(), errors.New("some error"))
+			MoveTx.AddError(wCtx, tx.Hash(), errors.New("some error"))
 		}
 		return nil
 	})
