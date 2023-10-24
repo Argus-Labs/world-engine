@@ -5,6 +5,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
@@ -44,8 +45,18 @@ func WithStoreManager(s store.IManager) Option {
 	}
 }
 
-func WithEventHub(eventHub *events.EventHub) Option {
+func WithEventHub(eventHub events.EventHub) Option {
 	return func(w *World) {
 		w.eventHub = eventHub
+	}
+}
+
+func WithLoggingEventHub(logger *ecslog.Logger) Option {
+	return func(w *World) {
+		//because the logging event hub is for testing purposes it will only register itself if there isn't
+		//already another eventhub used by world.
+		if w.eventHub == nil {
+			w.eventHub = events.CreateLoggingEventHub(logger)
+		}
 	}
 }

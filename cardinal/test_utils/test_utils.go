@@ -17,7 +17,7 @@ import (
 func MakeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.Option) *TestTransactionHandler {
 	port := "4040"
 	opts = append(opts, server.WithPort(port))
-	eventHub := events.CreateEventHub()
+	eventHub := events.CreateWebSocketEventHub()
 	world.SetEventHub(eventHub)
 	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
 	txh, err := server.NewHandler(world, eventBuilder, opts...)
@@ -70,7 +70,7 @@ type TestTransactionHandler struct {
 	*server.Handler
 	T        *testing.T
 	Host     string
-	EventHub *events.EventHub
+	EventHub events.EventHub
 }
 
 func (t *TestTransactionHandler) MakeHttpURL(path string) string {
