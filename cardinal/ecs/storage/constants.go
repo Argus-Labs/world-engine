@@ -8,8 +8,7 @@ import (
 )
 
 var (
-	BadID     entity.ID     = math.MaxUint64
-	BadEntity entity.Entity = entity.Entity{BadID, entity.Location{}}
+	BadID entity.ID = math.MaxUint64
 
 	ErrorComponentAlreadyOnEntity          = errors.New("component already on entity")
 	ErrorComponentNotOnEntity              = errors.New("component not on entity")
