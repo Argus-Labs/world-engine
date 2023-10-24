@@ -13,7 +13,7 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
-require pkg.world.dev/world-engine/cardinal v0.1.40-alpha
+require pkg.world.dev/world-engine/cardinal v0.1.42-alpha.0.20231024191511-549662f0318f
 
 require (
 	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230808004839-11a21a99bf62.1 // indirect
