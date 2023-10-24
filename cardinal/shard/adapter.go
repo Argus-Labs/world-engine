@@ -41,10 +41,10 @@ type QueryAdapter interface {
 
 type AdapterConfig struct {
 	// ShardSequencerAddr is the address to submit transactions to the EVM base shard's game shard sequencer server.
-	ShardSequencerAddr string `json:"shard_receiver_addr,omitempty"`
+	ShardSequencerAddr string
 
 	// EVMBaseShardAddr is the address to query the EVM base shard's shard storage cosmos module.
-	EVMBaseShardAddr string `json:"evm_base_shard_addr"`
+	EVMBaseShardAddr string
 }
 
 var (
