@@ -137,8 +137,8 @@ func RemoveComponentFrom[T component_metadata.Component](wCtx WorldContext, id e
 }
 
 // Remove removes the given entity id from the world.
-func (w *World) Remove(id EntityID) error {
-	return w.implWorld.Remove(id)
+func Remove(wCtx WorldContext, id EntityID) error {
+	return wCtx.getECSWorldContext().GetWorld().Remove(id)
 }
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is attempted.
