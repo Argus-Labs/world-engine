@@ -139,10 +139,7 @@ type EndpointsResult struct {
 }
 
 func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
-	txs, err := world.ListTransactions()
-	if err != nil {
-		return nil, err
-	}
+	txs := world.ListTransactions()
 	txEndpoints := make([]string, 0, len(txs))
 	for _, tx := range txs {
 		if tx.Name() != ecs.CreatePersonaTx.Name() && tx.Name() != ecs.AuthorizePersonaAddressTx.Name() {

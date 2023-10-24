@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -67,10 +68,7 @@ type msgServerImpl struct {
 func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	hasEVMTxsOrQueries := false
 
-	txs, err := w.ListTransactions()
-	if err != nil {
-		return nil, err
-	}
+	txs := w.ListTransactions()
 	it := make(txByID, len(txs))
 	for _, tx := range txs {
 		if tx.IsEVMCompatible() {
@@ -104,6 +102,7 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	}
 	w.Logger.Debug().Msgf("EVM listener running on port %s", s.port)
 	if s.creds == nil {
+		var err error
 		s.creds, err = tryLoadCredentials()
 		if err != nil {
 			return nil, err

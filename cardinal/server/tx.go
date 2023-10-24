@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
@@ -67,10 +68,7 @@ func (handler *Handler) getBodyAndSigFromParams(
 // register transaction handlers on swagger server
 func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 	world := handler.w
-	txs, err := world.ListTransactions()
-	if err != nil {
-		return err
-	}
+	txs := world.ListTransactions()
 
 	txNameToTx := make(map[string]transaction.ITransaction)
 	for _, tx := range txs {
