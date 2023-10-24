@@ -68,7 +68,10 @@ type msgServerImpl struct {
 func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	hasEVMTxsOrQueries := false
 
-	txs := w.ListTransactions()
+	txs, err := w.ListTransactions()
+	if err != nil {
+		return nil, err
+	}
 	it := make(txByID, len(txs))
 	for _, tx := range txs {
 		if tx.IsEVMCompatible() {

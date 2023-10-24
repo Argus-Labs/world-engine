@@ -226,8 +226,11 @@ func (w *World) ListQueries() []IQuery {
 	return w.registeredQueries
 }
 
-func (w *World) ListTransactions() []transaction.ITransaction {
-	return w.registeredTransactions
+func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
+	if !w.isTransactionsRegistered {
+		return nil, errors.New("cannot list transactions until transaction registration occurs")
+	}
+	return w.registeredTransactions, nil
 }
 
 // NewWorld creates a new world.

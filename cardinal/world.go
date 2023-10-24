@@ -65,7 +65,6 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 		return nil, err
 	}
 
-
 	ecsWorld, err := ecs.NewWorld(worldStorage, storeManager, ecsOptions...)
 	if err != nil {
 		return nil, err
@@ -151,6 +150,10 @@ func (w *World) StartGame() error {
 	if w.IsGameRunning() {
 		return errors.New("game already running")
 	}
+
+	if err := w.implWorld.LoadGameState(); err != nil {
+		return err
+	}
 	eventHub := events.CreateWebSocketEventHub()
 	w.implWorld.SetEventHub(eventHub)
 	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
@@ -159,10 +162,6 @@ func (w *World) StartGame() error {
 		return err
 	}
 	w.server = handler
-
-	if err := w.implWorld.LoadGameState(); err != nil {
-		return err
-	}
 
 	w.evmServer, err = evm.NewServer(w.implWorld)
 	if err != nil {

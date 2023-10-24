@@ -68,7 +68,10 @@ func (handler *Handler) getBodyAndSigFromParams(
 // register transaction handlers on swagger server
 func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 	world := handler.w
-	txs := world.ListTransactions()
+	txs, err := world.ListTransactions()
+	if err != nil {
+		return err
+	}
 
 	txNameToTx := make(map[string]transaction.ITransaction)
 	for _, tx := range txs {
