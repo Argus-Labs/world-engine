@@ -115,11 +115,7 @@ func SetTestTimeout(t *testing.T, timeout time.Duration) {
 }
 
 func WorldToWorldContext(world *cardinal.World) cardinal.WorldContext {
-	var stolenContext cardinal.WorldContext
-	world.Init(func(worldCtx cardinal.WorldContext) {
-		stolenContext = worldCtx
-	})
-	return stolenContext
+	return cardinal.TestingWorldToWorldContext(world)
 }
 
 var (
@@ -147,20 +143,7 @@ func uniqueSignature() *sign.SignedPayload {
 
 func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx cardinal.AnyTransaction, value any) {
 	worldCtx := WorldToWorldContext(world)
-	var ecsWorld *ecs.World
-
-	// There are two options for converting a cardinal.World into an ecs.World.
-
-	// Option A: Use a public method on the worldCtx object. This has the advantage that the "TestOnlyGetECSWorld"
-	// method does NOT show up in the godoc, however the type assertion is convoluted.
-	type HasTestOnlyGetECSWorld interface {
-		TestOnlyGetECSWorld() *ecs.World
-	}
-	ecsWorld = worldCtx.(HasTestOnlyGetECSWorld).TestOnlyGetECSWorld()
-
-	// Option B: Just make the conversion method a top level function. This method (and implementation details) are more
-	// direct, however this means the "TestOnlyGetECSWorld" method will appear in the godoc.
-	ecsWorld = cardinal.TestOnlyGetECSWorld(worldCtx)
+	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
 
 	txs, err := ecsWorld.ListTransactions()
 	if err != nil {
