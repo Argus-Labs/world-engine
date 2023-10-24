@@ -6,6 +6,6 @@ use (
 	chain/contracts
 	magefiles
 	relay/nakama
-	sign
 	rift
+	sign
 )

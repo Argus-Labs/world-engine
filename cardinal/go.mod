@@ -34,7 +34,7 @@ require (
 	gotest.tools/v3 v3.5.0
 	pkg.world.dev/world-engine/chain v0.1.11-alpha
 	pkg.world.dev/world-engine/rift v0.0.1
-	pkg.world.dev/world-engine/sign v0.1.8-alpha
+	pkg.world.dev/world-engine/sign v0.1.9-alpha
 )
 
 require (
