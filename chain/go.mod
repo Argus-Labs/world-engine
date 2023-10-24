@@ -63,7 +63,7 @@ require (
 	pkg.berachain.dev/polaris/cosmos v0.0.0-20230830221145-a6c6454d3697
 	pkg.berachain.dev/polaris/eth v0.0.0-20230827184022-e3cec7a2c178
 	pkg.berachain.dev/polaris/lib v0.0.0-20230827184022-e3cec7a2c178
-	pkg.world.dev/world-engine/rift v0.0.1
+	pkg.world.dev/world-engine/rift v0.0.2
 )
 
 require (
