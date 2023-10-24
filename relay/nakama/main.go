@@ -41,7 +41,7 @@ const (
 type receiptChan chan *Receipt
 
 const (
-	EnvCardinalAddr      "CARDINAL_ADDR"
+	EnvCardinalAddr      = "CARDINAL_ADDR"
 	EnvCardinalNamespace = "CARDINAL_NAMESPACE"
 
 	cardinalCollection = "cardinal_collection"

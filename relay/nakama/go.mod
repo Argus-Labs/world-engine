@@ -21,3 +21,9 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 )
+
+replace (
+	golang.org/x/crypto => golang.org/x/crypto v0.11.0
+	golang.org/x/sys => golang.org/x/sys v0.10.0
+	google.golang.org/protobuf => google.golang.org/protobuf v1.28.1
+)

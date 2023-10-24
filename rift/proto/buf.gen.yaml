@@ -10,12 +10,13 @@ managed:
     except:
       - buf.build/googleapis/googleapis
 plugins:
-  - plugin: buf.build/grpc/go:v1.3.0
+  - plugin: buf.build/grpc/go:v1.2.0
+    revision: 3
     out: ../
     opt:
       - paths=source_relative
-  # dependencies
-  - plugin: buf.build/protocolbuffers/go
+  - plugin: buf.build/protocolbuffers/go:v1.28.1
+    revision: 3
     out: ../
     opt:
       - paths=source_relative
