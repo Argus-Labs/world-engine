@@ -16,6 +16,7 @@ func (app *App) setPlugins(logger log.Logger) {
 		logger.Info("running shard sequencer without SSL certs")
 		app.ShardSequencer = shard.NewShardSequencer()
 	} else {
+		logger.Info("running shard sequencer with SSL certs")
 		app.ShardSequencer = shard.NewShardSequencer(shard.WithCredentials(certPath, keyPath))
 	}
 
@@ -23,8 +24,16 @@ func (app *App) setPlugins(logger log.Logger) {
 
 	cardinalShardAddr := os.Getenv("CARDINAL_EVM_LISTENER_ADDR")
 	if cardinalShardAddr != "" {
+		var opts []router.Option
 		clientCert := os.Getenv("CLIENT_CERT_PATH")
-		app.Router = router.NewRouter(cardinalShardAddr, logger, router.WithCredentials(clientCert))
+		if clientCert != "" {
+			logger.Info("running router client with client certification")
+			opts = append(opts, router.WithCredentials(clientCert))
+		} else {
+			logger.Info("WARNING: running router client without client certification. this will cause issues if " +
+				"the cardinal instance uses SSL credentials")
+		}
+		app.Router = router.NewRouter(cardinalShardAddr, logger, opts...)
 	} else {
 		logger.Info("router is not running")
 	}

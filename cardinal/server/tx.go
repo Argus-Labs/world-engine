@@ -7,6 +7,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
+	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -135,10 +136,13 @@ func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction
 		if handler.w.IsRecovering() {
 			return nil, errors.New("unable to submit transactions: game world is recovering state")
 		}
+		log.Info().Msgf("TX %d: tick %d: hash %s: submitted to base shard", tx.ID(), txReply.Tick, txReply.TxHash)
 		err := handler.adapter.Submit(context.Background(), sp, uint64(tx.ID()), txReply.Tick)
 		if err != nil {
 			return nil, fmt.Errorf("error submitting transaction to blockchain: %w", err)
 		}
+	} else {
+		log.Info().Msg("not submitting transaction to base shard")
 	}
 	return txReply, nil
 }

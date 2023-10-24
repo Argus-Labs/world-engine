@@ -1,13 +1,5 @@
 go 1.21.0
 
 use (
-	cardinal
-	chain
-	chain/contracts
-	internal/e2e
-	internal/e2e/tester/cardinal
-	magefiles
-	relay/nakama
-	rift
-	sign
+cardinal
 )

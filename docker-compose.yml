@@ -65,6 +65,7 @@ services:
       ## Env vars reference: https://github.com/Argus-Labs/world-engine/blob/main/chain/README.md
       ## Get AUTH_TOKEN from celestia_devnet container: `docker logs celestia_devnet 2>&1 | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1`
       - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-}
+      - CARDINAL_EVM_LISTENER_ADDR=game:9020
     build:
       context: chain
       dockerfile: Dockerfile
@@ -110,6 +111,7 @@ services:
     ports:
       - "4040:4040"
       - "3333:3333"
+      - "9020:9020"
     depends_on:
       - redis
     networks:
