@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"sync/atomic"
 	"time"
 
@@ -37,6 +38,7 @@ type (
 	// one or more components.
 	EntityID = entity.ID
 	TxHash   = transaction.TxHash
+	Receipt  = receipt.Receipt
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
@@ -140,8 +142,8 @@ func RemoveComponentFrom[T component_metadata.Component](wCtx WorldContext, id e
 }
 
 // Remove removes the given entity id from the world.
-func (w *World) Remove(id EntityID) error {
-	return w.implWorld.Remove(id)
+func Remove(wCtx WorldContext, id EntityID) error {
+	return wCtx.getECSWorldContext().GetWorld().Remove(id)
 }
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is attempted.
@@ -259,12 +261,4 @@ func (w *World) Tick(ctx context.Context) error {
 func (w *World) Init(fn func(WorldContext)) {
 	ecsWorldCtx := ecs.NewWorldContext(w.implWorld)
 	fn(&worldContext{implContext: ecsWorldCtx})
-}
-
-// The following type and function are exported temporarily pending a refactor of
-// how Persona works with the different components of Cardinal
-type CreatePersonaTransaction = ecs.CreatePersonaTransaction
-
-func (w *World) AddCreatePersonaTxToQueue(data CreatePersonaTransaction) {
-	ecs.CreatePersonaTx.AddToQueue(w.implWorld, data)
 }
