@@ -35,10 +35,9 @@ func InitWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, "in-memory-world")
-	worldStorage := storage.NewWorldStorage(&rs)
 	sm, err := ecb.NewManager(rs.Client)
 	assert.NilError(t, err)
-	w, err := ecs.NewWorld(worldStorage, sm)
+	w, err := ecs.NewWorld(&rs, sm)
 	assert.NilError(t, err)
 	return w
 }

@@ -17,7 +17,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
@@ -40,8 +39,8 @@ func (n Namespace) String() string {
 
 type World struct {
 	namespace                Namespace
-	store                    storage.WorldStorage
-	storeManager             store.IManager
+	nonceStore               storage.NonceStorage
+	entityStore              store.IManager
 	systems                  []System
 	systemLoggers            []*ecslog.Logger
 	systemNames              []string
@@ -103,14 +102,11 @@ func (w *World) Namespace() Namespace {
 }
 
 func (w *World) StoreManager() store.IManager {
-	return w.storeManager
+	return w.entityStore
 }
 
 func (w *World) TickStore() storage.TickStorage {
-	if ts, ok := w.StoreManager().(storage.TickStorage); ok {
-		return ts
-	}
-	return w.store.TickStore
+	return w.entityStore
 }
 
 func (w *World) GetTxQueueAmount() int {
@@ -234,14 +230,14 @@ func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
 }
 
 // NewWorld creates a new world.
-func NewWorld(s storage.WorldStorage, sm store.IManager, opts ...Option) (*World, error) {
+func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts ...Option) (*World, error) {
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}
-	sm.InjectLogger(logger)
+	entityStore.InjectLogger(logger)
 	w := &World{
-		store:             s,
-		storeManager:      sm,
+		nonceStore:        nonceStore,
+		entityStore:       entityStore,
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
@@ -274,15 +270,6 @@ func (w *World) CurrentTick() uint64 {
 
 func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
-}
-
-// Len return the number of entities in this world
-func (w *World) Len() (int, error) {
-	l, err := w.store.EntityLocStore.Len()
-	if err != nil {
-		return 0, err
-	}
-	return l, nil
 }
 
 // Remove removes the given Entity from the world
@@ -532,20 +519,13 @@ func (w *World) LoadGameState() error {
 		}
 	}
 
-	if err := w.storeManager.RegisterComponents(w.registeredComponents); err != nil {
+	if err := w.entityStore.RegisterComponents(w.registeredComponents); err != nil {
 		return err
 	}
 
 	w.stateIsLoaded = true
 	recoveredTxs, err := w.recoverGameState()
 	if err != nil {
-		return err
-	}
-
-	if err := w.loadFromKey(storeArchetypeAccessorKey, w.store.ArchAccessor, w.registeredComponents); err != nil {
-		return err
-	}
-	if err := w.loadFromKey(storeArchetypeCompIdxKey, w.store.ArchCompIdxStore, w.registeredComponents); err != nil {
 		return err
 	}
 
@@ -558,30 +538,6 @@ func (w *World) LoadGameState() error {
 	w.receiptHistory.SetTick(w.tick)
 
 	return nil
-}
-
-func (w *World) loadFromKey(key string, cm storage.ComponentMarshaler, comps []component_metadata.IComponentMetaData) error {
-	buf, ok, err := w.store.StateStore.Load(key)
-	if !ok {
-		// There is no saved data for this key
-		return nil
-	} else if err != nil {
-		return err
-	}
-	return cm.UnmarshalWithComps(buf, comps)
-}
-
-func (w *World) nextEntity() (entity.ID, error) {
-	return w.store.EntityMgr.NewEntity()
-}
-
-func (w *World) insertArchetype(comps []component_metadata.IComponentMetaData) archetype.ID {
-	w.store.ArchCompIdxStore.Push(comps)
-	archID := archetype.ID(w.store.ArchAccessor.Count())
-
-	w.store.ArchAccessor.PushArchetype(archID, comps)
-	w.Logger.Debug().Int("archetype_id", int(archID)).Msg("created")
-	return archID
 }
 
 // RecoverFromChain will attempt to recover the state of the world based on historical transaction data.
@@ -692,11 +648,11 @@ func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
 }
 
 func (w *World) GetNonce(signerAddress string) (uint64, error) {
-	return w.store.NonceStore.GetNonce(signerAddress)
+	return w.nonceStore.GetNonce(signerAddress)
 }
 
 func (w *World) SetNonce(signerAddress string, nonce uint64) error {
-	return w.store.NonceStore.SetNonce(signerAddress, nonce)
+	return w.nonceStore.SetNonce(signerAddress, nonce)
 }
 
 func (w *World) AddTransactionError(id transaction.TxHash, err error) {

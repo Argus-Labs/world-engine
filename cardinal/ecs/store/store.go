@@ -17,8 +17,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
-var _ IManager = &Manager{}
-
 type Manager struct {
 	store  storage.WorldStorage
 	logger *log.Logger

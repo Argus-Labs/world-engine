@@ -27,11 +27,10 @@ func newWorldWithRealRedis(t testing.TB) *ecs.World {
 		DB:       0,
 	}, "real-world")
 	assert.NilError(t, rs.Client.FlushDB(context.Background()).Err())
-	ws := storage.NewWorldStorage(&rs)
 
 	sm, err := ecb.NewManager(rs.Client)
 	assert.NilError(t, err)
-	world, err := ecs.NewWorld(ws, sm)
+	world, err := ecs.NewWorld(&rs, sm)
 
 	assert.NilError(t, err)
 	return world

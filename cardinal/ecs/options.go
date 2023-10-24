@@ -41,7 +41,7 @@ func WithPrettyLog() Option {
 
 func WithStoreManager(s store.IManager) Option {
 	return func(w *World) {
-		w.storeManager = s
+		w.entityStore = s
 	}
 }
 
