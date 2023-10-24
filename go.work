@@ -1,8 +1,8 @@
 go 1.21.0
 
 use (
+	cardinal
 	internal/e2e
 	internal/e2e/tester/cardinal
-	cardinal
 	relay/nakama
 )

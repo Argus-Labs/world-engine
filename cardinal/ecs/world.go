@@ -489,7 +489,7 @@ func (w *World) EndGameLoop() {
 }
 
 type TxBatch struct {
-	TxID transaction.TypeID `json:"tx_id,omitempty"`
+	TxID transaction.TypeID `json:"txId,omitempty"`
 	Txs  []any              `json:"txs,omitempty"`
 }
 

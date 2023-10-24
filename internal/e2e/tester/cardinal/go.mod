@@ -136,7 +136,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 	pkg.world.dev/world-engine/chain v0.1.11-alpha // indirect
-	pkg.world.dev/world-engine/rift v0.0.1 // indirect
-	pkg.world.dev/world-engine/sign v0.1.8-alpha // indirect
+	pkg.world.dev/world-engine/rift v0.0.2 // indirect
+	pkg.world.dev/world-engine/sign v0.1.9-alpha // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

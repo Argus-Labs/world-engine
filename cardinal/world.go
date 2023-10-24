@@ -251,3 +251,11 @@ func (w *World) Init(fn func(WorldContext)) {
 	ecsWorldCtx := ecs.NewWorldContext(w.implWorld)
 	fn(&worldContext{implContext: ecsWorldCtx})
 }
+
+// The following type and function are exported temporarily pending a refactor of
+// how Persona works with the different components of Cardinal
+type CreatePersonaTransaction = ecs.CreatePersonaTransaction
+
+func (w *World) AddCreatePersonaTxToQueue(data CreatePersonaTransaction) {
+	ecs.CreatePersonaTx.AddToQueue(w.implWorld, data)
+}

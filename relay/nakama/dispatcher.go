@@ -96,7 +96,7 @@ func (r *receiptsDispatcher) streamBatchOfReceipts(log runtime.Logger, startTick
 }
 
 type txReceiptRequest struct {
-	StartTick uint64 `json:"start_tick"`
+	StartTick uint64 `json:"startTick"`
 }
 
 func (r *receiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (reply *TransactionReceiptsReply, err error) {
