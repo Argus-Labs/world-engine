@@ -105,7 +105,7 @@ func (w *World) StoreManager() store.IManager {
 	return w.entityStore
 }
 
-func (w *World) TickStore() storage.TickStorage {
+func (w *World) TickStore() store.TickStorage {
 	return w.entityStore
 }
 
