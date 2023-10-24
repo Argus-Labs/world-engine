@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -38,6 +39,7 @@ type Server interface {
 	routerv1.MsgServer
 	// Serve serves the application in a new go routine.
 	Serve() error
+	Shutdown()
 }
 
 // txByID maps transaction type ID's to transaction types.
@@ -57,6 +59,8 @@ type msgServerImpl struct {
 	// opts
 	creds credentials.TransportCredentials
 	port  string
+
+	shutdown func()
 }
 
 // NewServer returns a new EVM connection server. This server is responsible for handling requests originating from
@@ -168,7 +172,14 @@ func (s *msgServerImpl) Serve() error {
 			log.Fatal(err)
 		}
 	}()
+	s.shutdown = server.GracefulStop
 	return nil
+}
+
+func (s *msgServerImpl) Shutdown() {
+	if s.shutdown != nil {
+		s.shutdown()
+	}
 }
 
 const (
