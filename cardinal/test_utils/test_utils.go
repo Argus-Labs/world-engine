@@ -70,7 +70,7 @@ type TestTransactionHandler struct {
 	*server.Handler
 	T        *testing.T
 	Host     string
-	EventHub *events.WebSocketEventHub
+	EventHub events.EventHub
 }
 
 func (t *TestTransactionHandler) MakeHttpURL(path string) string {

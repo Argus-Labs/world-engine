@@ -1,7 +1,6 @@
 package events
 
 import (
-	"fmt"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -18,6 +17,8 @@ type EventHub interface {
 	FlushEvents()
 	ShutdownEventHub()
 	Run()
+	UnregisterConnection(ws *websocket.Conn)
+	RegisterConnection(ws *websocket.Conn)
 }
 
 type loggingEventHub struct {
@@ -37,6 +38,14 @@ func (eh *loggingEventHub) FlushEvents() {
 	eh.flush <- true
 }
 
+func (eh *loggingEventHub) UnregisterConnection(_ *websocket.Conn) {
+	return
+}
+
+func (eh *loggingEventHub) RegisterConnection(_ *websocket.Conn) {
+	return
+}
+
 func (eh *loggingEventHub) Run() {
 	if eh.running.Load() {
 		return
@@ -51,12 +60,9 @@ func (eh *loggingEventHub) Run() {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				acc := 0
 				for _, event := range eh.eventQueue {
-					eh.logger.Info().Msg(event.Message)
-					acc += 1
+					eh.logger.Info().Msg("EVENT: " + event.Message)
 				}
-				fmt.Printf("called %d times\n", acc)
 			}() //a goroutine is not technically necessary here but this imitates the websocket eventhub as much as possible.
 			wg.Wait()
 			eh.eventQueue = eh.eventQueue[:0]
@@ -70,7 +76,7 @@ func (eh *loggingEventHub) ShutdownEventHub() {
 	eh.shutdown <- true
 }
 
-func CreateLoggingEventHub(logger *ecslog.Logger) *loggingEventHub {
+func CreateLoggingEventHub(logger *ecslog.Logger) EventHub {
 	res := loggingEventHub{
 		eventQueue: make([]*Event, 0),
 		running:    atomic.Bool{},
@@ -86,8 +92,8 @@ func CreateLoggingEventHub(logger *ecslog.Logger) *loggingEventHub {
 	return &res
 }
 
-func CreateWebSocketEventHub() *WebSocketEventHub {
-	res := WebSocketEventHub{
+func CreateWebSocketEventHub() EventHub {
+	res := webSocketEventHub{
 		websocketConnections: map[*websocket.Conn]bool{},
 		broadcast:            make(chan *Event),
 		flush:                make(chan bool),
@@ -107,7 +113,7 @@ type Event struct {
 	Message string
 }
 
-type WebSocketEventHub struct {
+type webSocketEventHub struct {
 	websocketConnections map[*websocket.Conn]bool
 	broadcast            chan *Event
 	flush                chan bool
@@ -118,27 +124,27 @@ type WebSocketEventHub struct {
 	running              atomic.Bool
 }
 
-func (eh *WebSocketEventHub) EmitEvent(event *Event) {
+func (eh *webSocketEventHub) EmitEvent(event *Event) {
 	eh.broadcast <- event
 }
 
-func (eh *WebSocketEventHub) FlushEvents() {
+func (eh *webSocketEventHub) FlushEvents() {
 	eh.flush <- true
 }
 
-func (eh *WebSocketEventHub) RegisterConnection(ws *websocket.Conn) {
+func (eh *webSocketEventHub) RegisterConnection(ws *websocket.Conn) {
 	eh.register <- ws
 }
 
-func (eh *WebSocketEventHub) UnregisterConnection(ws *websocket.Conn) {
+func (eh *webSocketEventHub) UnregisterConnection(ws *websocket.Conn) {
 	eh.unregister <- ws
 }
 
-func (eh *WebSocketEventHub) ShutdownEventHub() {
+func (eh *webSocketEventHub) ShutdownEventHub() {
 	eh.shutdown <- true
 }
 
-func (eh *WebSocketEventHub) Run() {
+func (eh *webSocketEventHub) Run() {
 	if eh.running.Load() {
 		return
 	}
@@ -242,7 +248,7 @@ func CreateNewWebSocketBuilder(path string, websocketConnectionHandler func(conn
 	}
 }
 
-func CreateWebSocketEventHandler(hub *WebSocketEventHub) func(conn *websocket.Conn) error {
+func CreateWebSocketEventHandler(hub EventHub) func(conn *websocket.Conn) error {
 	return func(conn *websocket.Conn) error {
 		hub.RegisterConnection(conn)
 		return nil

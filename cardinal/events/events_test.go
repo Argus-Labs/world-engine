@@ -170,7 +170,7 @@ func TestEventHubLogger(t *testing.T) {
 		err := w.Tick(ctx)
 		assert.NilError(t, err)
 	}
-	testString := "{\"level\":\"info\",\"message\":\"test\"}\n"
+	testString := "{\"level\":\"info\",\"message\":\"EVENT: test\"}\n"
 	eventsLogs := buf.String()
 	splitLogs := strings.Split(eventsLogs, "\n")
 	splitLogs = splitLogs[:len(splitLogs)-1]

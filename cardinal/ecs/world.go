@@ -82,7 +82,7 @@ var (
 	ErrorDuplicateQueryName                    = errors.New("query names must be unique")
 )
 
-func (w *World) SetEventHub(eventHub *events.WebSocketEventHub) {
+func (w *World) SetEventHub(eventHub events.EventHub) {
 	w.eventHub = eventHub
 }
 

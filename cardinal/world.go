@@ -67,7 +67,7 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	}
 
 	eventHub := events.CreateWebSocketEventHub()
-	ecsOptions = append(ecsOptions, ecs.WithWebSocketEventHub(eventHub))
+	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
 
 	ecsWorld, err := ecs.NewWorld(worldStorage, storeManager, ecsOptions...)
 	if err != nil {
@@ -96,7 +96,7 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 func NewMockWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
 	eventHub := events.CreateWebSocketEventHub()
-	ecsOptions = append(ecsOptions, ecs.WithWebSocketEventHub(eventHub))
+	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
 	world := &World{
 		implWorld:     ecs.NewMockWorld(ecsOptions...),
 		serverOptions: serverOptions,
