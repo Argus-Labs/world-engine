@@ -7,6 +7,7 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/test_utils"
 )
 
 type Foo struct{}
@@ -14,7 +15,7 @@ type Foo struct{}
 func (Foo) Name() string { return "foo" }
 
 func TestCanQueryInsideSystem(t *testing.T) {
-	//test_utils.SetTestTimeout(t, 10*time.Second)
+	test_utils.SetTestTimeout(t, 10*time.Second)
 
 	nextTickCh := make(chan time.Time)
 	tickDoneCh := make(chan uint64)
