@@ -13,7 +13,7 @@ func TestingWorldContextToECSWorld(worldCtx WorldContext) *ecs.World {
 	return worldCtx.getECSWorldContext().GetWorld()
 }
 
-func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]Receipt, error) {
+func (w *World) TestingGetTransactionReceiptsForTick(tick uint64) ([]Receipt, error) {
 	return w.implWorld.GetTransactionReceiptsForTick(tick)
 }
 
@@ -21,6 +21,6 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]Receipt, error) {
 // how Persona works with the different components of Cardinal
 type CreatePersonaTransaction = ecs.CreatePersonaTransaction
 
-func (w *World) AddCreatePersonaTxToQueue(data CreatePersonaTransaction) {
+func (w *World) TestingAddCreatePersonaTxToQueue(data CreatePersonaTransaction) {
 	ecs.CreatePersonaTx.AddToQueue(w.implWorld, data)
 }
