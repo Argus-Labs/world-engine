@@ -65,7 +65,6 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 		return nil, err
 	}
 
-	//ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
 
 	ecsWorld, err := ecs.NewWorld(worldStorage, storeManager, ecsOptions...)
 	if err != nil {
@@ -88,7 +87,7 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 // This is only suitable for local development.
 func NewMockWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
-	eventHub := events.CreateEventHub()
+	eventHub := events.CreateWebSocketEventHub()
 	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
 	world := &World{
 		implWorld:     ecs.NewMockWorld(ecsOptions...),
@@ -152,7 +151,7 @@ func (w *World) StartGame() error {
 	if w.IsGameRunning() {
 		return errors.New("game already running")
 	}
-	eventHub := events.CreateEventHub()
+	eventHub := events.CreateWebSocketEventHub()
 	w.implWorld.SetEventHub(eventHub)
 	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
 	handler, err := server.NewHandler(w.implWorld, eventBuilder, w.serverOptions...)
