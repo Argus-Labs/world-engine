@@ -72,15 +72,15 @@ func TestServer_SendMessage(t *testing.T) {
 	assert.NilError(t, w.LoadGameState())
 
 	sender := "0xHelloThere"
+	personaTag := "foo"
 	// create authorized addresses for the evm transaction's msg sender.
 	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
-		PersonaTag:    "foo",
+		PersonaTag:    personaTag,
 		SignerAddress: "bar",
 	})
 	ecs.AuthorizePersonaAddressTx.AddToQueue(w, ecs.AuthorizePersonaAddress{
-		PersonaTag: "foo",
-		Address:    sender,
-	}, &sign.SignedPayload{PersonaTag: "foo"})
+		Address: sender,
+	}, &sign.SignedPayload{PersonaTag: personaTag})
 	err := w.Tick(context.Background())
 	assert.NilError(t, err)
 

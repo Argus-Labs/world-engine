@@ -26,8 +26,7 @@ var CreatePersonaTx = NewTransactionType[CreatePersonaTransaction, CreatePersona
 )
 
 type AuthorizePersonaAddress struct {
-	PersonaTag string `json:"personaTag"`
-	Address    string `json:"address"`
+	Address string `json:"address"`
 }
 
 type AuthorizePersonaAddressResult struct {
@@ -49,13 +48,11 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 	AuthorizePersonaAddressTx.ForEach(wCtx, func(tx TxData[AuthorizePersonaAddress]) (AuthorizePersonaAddressResult, error) {
 		val, sig := tx.Value, tx.Sig
 		result := AuthorizePersonaAddressResult{Success: false}
-		if sig.PersonaTag != val.PersonaTag {
-			return AuthorizePersonaAddressResult{Success: false}, fmt.Errorf("signer does not match request")
-		}
-		data, ok := personaTagToAddress[tx.Value.PersonaTag]
+		data, ok := personaTagToAddress[sig.PersonaTag]
 		if !ok {
-			return result, fmt.Errorf("persona does not exist")
+			return result, fmt.Errorf("persona %s does not exist", sig.PersonaTag)
 		}
+
 		err = updateComponent[SignerComponent](wCtx, data.EntityID, func(s *SignerComponent) *SignerComponent {
 			for _, addr := range s.AuthorizedAddresses {
 				if addr == val.Address {
