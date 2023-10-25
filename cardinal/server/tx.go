@@ -123,6 +123,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 
 // submitTransaction submits a transaction to the game world, as well as the blockchain.
 func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.SignedPayload) (*TransactionReply, error) {
+	log.Info().Msgf("submitting transaction %d: %v", tx.ID(), txVal)
 	tick, txHash := handler.w.AddTransaction(tx.ID(), txVal, sp)
 	txReply := &TransactionReply{
 		TxHash: string(txHash),
