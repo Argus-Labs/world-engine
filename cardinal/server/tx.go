@@ -123,7 +123,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 
 // submitTransaction submits a transaction to the game world, as well as the blockchain.
 func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.SignedPayload) (*TransactionReply, error) {
-	log.Info().Msgf("submitting transaction %d: %v", tx.ID(), txVal)
+	log.Debug().Msgf("submitting transaction %d: %v", tx.ID(), txVal)
 	tick, txHash := handler.w.AddTransaction(tx.ID(), txVal, sp)
 	txReply := &TransactionReply{
 		TxHash: string(txHash),
@@ -135,13 +135,13 @@ func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction
 		if handler.w.IsRecovering() {
 			return nil, errors.New("unable to submit transactions: game world is recovering state")
 		}
-		log.Info().Msgf("TX %d: tick %d: hash %s: submitted to base shard", tx.ID(), txReply.Tick, txReply.TxHash)
+		log.Debug().Msgf("TX %d: tick %d: hash %s: submitted to base shard", tx.ID(), txReply.Tick, txReply.TxHash)
 		err := handler.adapter.Submit(context.Background(), sp, uint64(tx.ID()), txReply.Tick)
 		if err != nil {
-			return nil, fmt.Errorf("error submitting transaction to blockchain: %w", err)
+			return nil, fmt.Errorf("error submitting transaction to base shard: %w", err)
 		}
 	} else {
-		log.Info().Msg("not submitting transaction to base shard")
+		log.Debug().Msg("not submitting transaction to base shard")
 	}
 	return txReply, nil
 }

@@ -20,7 +20,7 @@ func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
 	if auth == "" {
 		auth = authtypes.NewModuleAddress(shard.Name).String()
 		if strings.Contains(auth, "cosmos") {
-			log.Fatal("address was cosmos based. bad bad not good")
+			log.Fatal("address had 'cosmos' bech32 prefix, should be 'world'")
 		}
 	}
 	k := &Keeper{storeService: ss, auth: auth}
