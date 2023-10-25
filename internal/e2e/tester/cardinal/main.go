@@ -39,7 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cardinal.RegisterSystems(world, sys.Move, sys.Join)
+	cardinal.RegisterSystems(world, sys.Join, sys.Move)
 
 	world.StartGame()
 }
