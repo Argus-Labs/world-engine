@@ -59,7 +59,6 @@ var (
 )
 
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, initializer runtime.Initializer) error {
-
 	if err := initCardinalAddress(); err != nil {
 		return fmt.Errorf("failed to init cardinal address: %w", err)
 	}
@@ -221,18 +220,23 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			return logCode(logger, INVALID_ARGUMENT, "persona_tag field must not be empty")
 		}
 
+		userID, err := getUserID(ctx)
+		if err != nil {
+			return logError(logger, "unable to get userID: %w", err)
+		}
+		txHash, tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
+		if err != nil {
+			return logError(logger, "unable to make create persona request to cardinal: %v", err)
+		}
+		notifier.AddTxHashToPendingNotifications(txHash, userID)
+
 		ptr.Status = personaTagStatusPending
 		if err := ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
 			return logError(logger, "unable to set persona tag storage object: %w", err)
 		}
 
-		userID, err := getUserID(ctx)
-		if err != nil {
-			return logError(logger, "unable to get userID: %w", err)
-		}
-
 		// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
-		// user having the persona tag. This assignment still needs to be checked with cardinal.
+		// user having the persona tag.
 		if ok := setPersonaTagAssignment(ptr.PersonaTag, userID); !ok {
 			ptr.Status = personaTagStatusRejected
 			if err := ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
@@ -240,12 +244,6 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			}
 			return logCode(logger, ALREADY_EXISTS, "persona tag %q is not available", ptr.PersonaTag)
 		}
-
-		txHash, tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
-		if err != nil {
-			return logError(logger, "unable to make create persona request to cardinal: %v", err)
-		}
-		notifier.AddTxHashToPendingNotifications(txHash, userID)
 
 		ptr.Tick = tick
 		ptr.TxHash = txHash
@@ -284,7 +282,7 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 // initCardinalEndpoints queries the cardinal server to find the list of existing endpoints, and attempts to
 // set up RPC wrappers around each one.
 func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initializer, notify *receiptNotifier) error {
-	txEndpoints, queryEndpoints, err := cardinalGetEndpointsStruct()
+	txEndpoints, queryEndpoints, err := getCardinalEndpoints()
 	if err != nil {
 		return err
 	}
@@ -337,7 +335,7 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				}
 				if resp.StatusCode != 200 {
 					body, _ := io.ReadAll(resp.Body)
-					return logError(logger, "bad status code: %w: %s", resp.Status, body)
+					return logError(logger, "bad status code: %s: %s", resp.Status, body)
 				}
 				bodyStr, err := io.ReadAll(resp.Body)
 				if err != nil {

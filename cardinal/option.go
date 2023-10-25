@@ -19,7 +19,8 @@ type WorldOption struct {
 // transaction retrieval for state rebuilding purposes.
 func WithAdapter(adapter shard.Adapter) WorldOption {
 	return WorldOption{
-		ecsOption: ecs.WithAdapter(adapter),
+		ecsOption:    ecs.WithAdapter(adapter),
+		serverOption: server.WithAdapter(adapter),
 	}
 }
 

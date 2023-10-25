@@ -21,6 +21,7 @@
 package app
 
 import (
+	"github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"io"
 	"os"
@@ -153,7 +154,7 @@ func NewApp(
 		ethTxMempool = evmmempool.NewPolarisEthereumTxPool()
 		// merge the Config and other configuration in one config
 		appConfig = depinject.Configs(
-			Config,
+			MakeAppConfig("world"),
 			depinject.Provide(evmtypes.ProvideEthereumTransactionGetSigners),
 			depinject.Supply(
 				// supply the application options
@@ -216,39 +217,8 @@ func NewApp(
 		panic(err)
 	}
 
-	// Below we could construct and set an application specific mempool and
-	// ABCI 1.0 PrepareProposal and ProcessProposal handlers. These defaults are
-	// already set in the SDK's BaseApp, this shows an example of how to override
-	// them.
-	//
-	// Example:
-	//
-	// app.App = appBuilder.Build(...)
-	// nonceMempool := mempool.NewSenderNonceMempool()
-	// abciPropHandler := NewDefaultProposalHandler(nonceMempool, app.App.BaseApp)
-	//
-	// app.App.BaseApp.SetMempool(nonceMempool)
-	// app.App.BaseApp.SetPrepareProposal(abciPropHandler.PrepareProposalHandler())
-	// app.App.BaseApp.SetProcessProposal(abciPropHandler.ProcessProposalHandler())
-	//
-	// Alternatively, you can construct BaseApp options, append those to
-	// baseAppOptions and pass them to the appBuilder.
-	//
-	// Example:
-	//
-	// prepareOpt = func(app *baseapp.BaseApp) {
-	// 	abciPropHandler := baseapp.NewDefaultProposalHandler(nonceMempool, app)
-	// 	app.SetPrepareProposal(abciPropHandler.PrepareProposalHandler())
-	// }
-	// baseAppOptions = append(baseAppOptions, prepareOpt)
-
 	app.App = appBuilder.Build(db, traceStore, append(baseAppOptions, baseapp.SetMempool(ethTxMempool))...)
 
-	// TODO: MOVE EVM SETUP
-	// ----- BEGIN EVM SETUP ----------------------------------------------
-	// TODO: reenable offchain
-	// offchainKey := storetypes.NewKVStoreKey("offchain-evm")
-	// app.MountStore(offchainKey, storetypes.StoreTypeDB)
 	homePath, ok := appOpts.Get(flags.FlagHome).(string)
 	if !ok || homePath == "" {
 		homePath = DefaultNodeHome
@@ -257,7 +227,6 @@ func NewApp(
 	app.EVMKeeper.Setup(
 		nil,
 		app.CreateQueryContext,
-		// TODO: clean this up.
 		homePath+"/config/world.toml",
 		homePath+"/data/world",
 		logger,
@@ -307,13 +276,29 @@ func NewApp(
 
 	app.sm.RegisterStoreDecoders()
 
-	app.App.SetEndBlocker(app.EndBlock)
+	app.SetPreFinalizeBlockHook(app.FinalizeBlockHook)
 
 	if err = app.Load(loadLatest); err != nil {
 		panic(err)
 	}
 
 	return app
+}
+
+func (app *App) FinalizeBlockHook(ctx sdk.Context, _ *types.RequestFinalizeBlock) error {
+	app.Logger().Info("running finalize block")
+	txs := app.ShardSequencer.FlushMessages()
+	if len(txs) > 0 {
+		app.Logger().Info("flushed messages from game shard. Executing...")
+		handler := app.MsgServiceRouter().Handler(txs[0])
+		for _, tx := range txs {
+			_, err := handler(ctx, tx)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // Name returns the name of the App.
@@ -343,22 +328,6 @@ func (app *App) InterfaceRegistry() codectypes.InterfaceRegistry {
 // TxConfig returns App's TxConfig.
 func (app *App) TxConfig() client.TxConfig {
 	return app.txConfig
-}
-
-// EndBlock implements abci.EndBlocker. In addition to running each module's EndBlock function,
-// it flushes messages received from game shards and passes them to the shard handler, storing them on chain.
-func (app *App) EndBlock(ctx sdk.Context) (sdk.EndBlock, error) {
-	txs := app.ShardSequencer.FlushMessages()
-	if txs != nil {
-		handler := app.MsgServiceRouter().Handler(txs[0])
-		for _, tx := range txs {
-			_, err := handler(ctx, tx)
-			if err != nil {
-				return sdk.EndBlock{}, err
-			}
-		}
-	}
-	return app.ModuleManager.EndBlock(ctx)
 }
 
 // GetKey returns the KVStoreKey for the provided store key.

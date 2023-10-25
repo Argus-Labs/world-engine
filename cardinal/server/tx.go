@@ -8,6 +8,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
+	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
@@ -95,13 +96,10 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 		if err != nil {
 			if errors.Is(err, ErrorInvalidSignature) || errors.Is(err, ErrorSystemTransactionRequired) {
 				return middleware.Error(401, err), nil
-			} else {
-				return nil, err
 			}
-		}
-		if err != nil {
 			return nil, err
 		}
+
 		txReply, err := handler.generateCreatePersonaResponseFromPayload(payload, sp, ecs.CreatePersonaTx)
 		if err != nil {
 			return nil, err
@@ -125,6 +123,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 
 // submitTransaction submits a transaction to the game world, as well as the blockchain.
 func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.SignedPayload) (*TransactionReply, error) {
+	log.Debug().Msgf("submitting transaction %d: %v", tx.ID(), txVal)
 	tick, txHash := handler.w.AddTransaction(tx.ID(), txVal, sp)
 	txReply := &TransactionReply{
 		TxHash: string(txHash),
@@ -136,10 +135,13 @@ func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction
 		if handler.w.IsRecovering() {
 			return nil, errors.New("unable to submit transactions: game world is recovering state")
 		}
+		log.Debug().Msgf("TX %d: tick %d: hash %s: submitted to base shard", tx.ID(), txReply.Tick, txReply.TxHash)
 		err := handler.adapter.Submit(context.Background(), sp, uint64(tx.ID()), txReply.Tick)
 		if err != nil {
-			return nil, fmt.Errorf("error submitting transaction to blockchain: %w", err)
+			return nil, fmt.Errorf("error submitting transaction to base shard: %w", err)
 		}
+	} else {
+		log.Debug().Msg("not submitting transaction to base shard")
 	}
 	return txReply, nil
 }

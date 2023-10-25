@@ -13,13 +13,13 @@ import (
 )
 
 type TransactionReceiptsReply struct {
-	StartTick uint64     `json:"start_tick"`
-	EndTick   uint64     `json:"end_tick"`
+	StartTick uint64     `json:"startTick"`
+	EndTick   uint64     `json:"endTickick"`
 	Receipts  []*Receipt `json:"receipts"`
 }
 
 type Receipt struct {
-	TxHash string         `json:"tx_hash"`
+	TxHash string         `json:"txHash"`
 	Result map[string]any `json:"result"`
 	Errors []string       `json:"errors"`
 }

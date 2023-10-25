@@ -40,11 +40,11 @@ type QueryAdapter interface {
 }
 
 type AdapterConfig struct {
-	// ShardSequencerAddr is the address of the base shard's game tx sequencer.
-	ShardSequencerAddr string `json:"shard_sequencer_addr"`
+	// ShardSequencerAddr is the address to submit transactions to the EVM base shard's game shard sequencer server.
+	ShardSequencerAddr string
 
-	// EVMBaseShardAddr is the address of the EVM base shard's cosmos gRPC server
-	EVMBaseShardAddr string `json:"evm_base_shard_addr"`
+	// EVMBaseShardAddr is the address to query the EVM base shard's shard storage cosmos module.
+	EVMBaseShardAddr string
 }
 
 var (
@@ -85,12 +85,15 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	for _, opt := range opts {
 		opt(a)
 	}
+
+	// we need secure comms here because only this connection should be able to send stuff to the shard receiver.
 	conn, err := grpc.Dial(cfg.ShardSequencerAddr, grpc.WithTransportCredentials(a.creds))
 	if err != nil {
 		return nil, err
 	}
 	a.ShardSequencer = shardgrpc.NewShardHandlerClient(conn)
 
+	// we don't need secure comms for this connection, cause we're just querying cosmos public RPC endpoints.
 	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err

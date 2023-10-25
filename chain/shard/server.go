@@ -7,10 +7,10 @@ import (
 	"crypto/tls"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/proto"
-	"log"
 	"net"
 	"os"
 	"strconv"
@@ -97,12 +97,12 @@ func (s *Sequencer) Serve() {
 	}
 	listener, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatal(err)
+		zerolog.Fatal().Err(err).Msg("game shard sequencer failed to open listener")
 	}
 	go func() {
 		err = grpcServer.Serve(listener)
 		if err != nil {
-			log.Fatal(err)
+			zerolog.Fatal().Err(err).Msg("game shard sequencer failed to serve grpc server")
 		}
 	}()
 }
@@ -115,6 +115,7 @@ func (s *Sequencer) FlushMessages() []*types.SubmitShardTxRequest {
 // SubmitShardTx appends the game shard tx submission to the tx queue.
 func (s *Sequencer) SubmitShardTx(_ context.Context, req *shard.SubmitShardTxRequest) (
 	*shard.SubmitShardTxResponse, error) {
+	zerolog.Logger.Info().Msgf("got transaction from shard: %s", req.Tx.Namespace)
 	bz, err := proto.Marshal(req.Tx)
 	if err != nil {
 		return nil, err

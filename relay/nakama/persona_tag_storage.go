@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 )
@@ -12,10 +11,10 @@ import (
 // personaTagStorageObj contains persona tag information for a specific user, and keeps track of whether the
 // persona tag has been successfully registered with cardinal.
 type personaTagStorageObj struct {
-	PersonaTag string           `json:"persona_tag"`
+	PersonaTag string           `json:"personaTag"`
 	Status     personaTagStatus `json:"status"`
 	Tick       uint64           `json:"tick"`
-	TxHash     string           `json:"tx_hash"`
+	TxHash     string           `json:"txHash"`
 	// version is used with Nakama storage layer to allow for optimistic locking. Saving this storage
 	// object succeeds only if the passed in version matches the version in the storage layer.
 	// see https://heroiclabs.com/docs/nakama/concepts/storage/collections/#conditional-writes for more info.

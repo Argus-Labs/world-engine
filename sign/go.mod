@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/mitchellh/mapstructure v1.5.0
-	gotest.tools/v3 v3.5.0
+	gotest.tools/v3 v3.5.1
 )
 
 require (

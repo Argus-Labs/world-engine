@@ -13,8 +13,8 @@ var _ types.MsgServer = &Keeper{}
 func (k *Keeper) SubmitShardTx(ctx context.Context, msg *types.SubmitShardTxRequest,
 ) (*types.SubmitShardTxResponse, error) {
 	if msg.Sender != k.auth {
-		return nil, sdkerrors.ErrUnauthorized.Wrap("SubmitShardTx is a system function and cannot be called " +
-			"externally.")
+		return nil, sdkerrors.ErrUnauthorized.Wrapf("SubmitShardTx is a system function and cannot be called "+
+			"externally. expected %s, got %s", k.auth, msg.Sender)
 	}
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 

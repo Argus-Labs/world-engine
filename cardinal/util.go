@@ -29,9 +29,11 @@ func separateOptions(opts []WorldOption) (ecsOptions []ecs.Option, serverOptions
 	for _, opt := range opts {
 		if opt.ecsOption != nil {
 			ecsOptions = append(ecsOptions, opt.ecsOption)
-		} else if opt.serverOption != nil {
+		}
+		if opt.serverOption != nil {
 			serverOptions = append(serverOptions, opt.serverOption)
-		} else if opt.cardinalOption != nil {
+		}
+		if opt.cardinalOption != nil {
 			cardinalOptions = append(cardinalOptions, opt.cardinalOption)
 		}
 	}
