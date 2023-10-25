@@ -26,12 +26,12 @@ var CreatePersonaTx = NewTransactionType[CreatePersonaTransaction, CreatePersona
 )
 
 type AuthorizePersonaAddress struct {
-	PersonaTag string
-	Address    string
+	PersonaTag string `json:"personaTag"`
+	Address    string `json:"address"`
 }
 
 type AuthorizePersonaAddressResult struct {
-	Success bool
+	Success bool `json:"success"`
 }
 
 var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, AuthorizePersonaAddressResult](

@@ -81,29 +81,6 @@ paths:
                         $ref: '#/definitions/CreatePersonaTransactionResult'
                 '400':
                     description: Invalid transaction request
-    /tx/persona/authorize-persona-address:
-        post:
-            summary: Create a Persona transaction to Cardinal
-            description: Submit a Persona transaction to Cardinal
-            consumes:
-                - application/json
-            produces:
-                - application/json
-            parameters:
-                - name: txBody
-                  in: body
-                  description: Transaction details
-                  required: true
-                  schema:
-                      $ref: '#/definitions/TxRequest'
-            responses:
-                '200':
-                    description: successful operation
-                    schema:
-                        $ref: '#/definitions/TxReply'
-                '400':
-                    description: Invalid transaction request
-
     /query/game/cql:
         post:
             summary: Query the ecs with CQL (cardinal query language)

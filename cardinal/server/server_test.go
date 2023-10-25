@@ -316,7 +316,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 
 	//Test /query/http/endpoints
 	expectedEndpointResult := server.EndpointsResult{
-		TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/persona/authorize-persona-address", "/tx/game/send-energy"},
+		TxEndpoints:    []string{"/tx/persona/create-persona", "/tx/game/authorize-persona-address", "/tx/game/send-energy"},
 		QueryEndpoints: []string{"/query/game/foo", "/query/http/endpoints", "/query/persona/signer", "/query/receipt/list", "/query/game/cql"},
 	}
 	resp1, err := http.Post(txh.MakeHttpURL("query/http/endpoints"), "application/json", nil)
@@ -391,7 +391,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 		Tick:   1,
 	}
 	gotTxReply := server.TransactionReply{}
-	resp4, err := http.Post(txh.MakeHttpURL("tx/persona/authorize-persona-address"), "application/json", bytes.NewBuffer(signedTxJson))
+	resp4, err := http.Post(txh.MakeHttpURL("tx/game/authorize-persona-address"), "application/json", bytes.NewBuffer(signedTxJson))
 	assert.NilError(t, err)
 	err = json.NewDecoder(resp4.Body).Decode(&gotTxReply)
 	assert.NilError(t, err)

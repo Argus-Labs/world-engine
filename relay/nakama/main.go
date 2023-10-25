@@ -217,7 +217,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			return logError(logger, "unable to marshal payload: %w", err)
 		}
 		if ptr.PersonaTag == "" {
-			return logCode(logger, INVALID_ARGUMENT, "persona_tag field must not be empty")
+			return logCode(logger, INVALID_ARGUMENT, "personaTag field must not be empty")
 		}
 
 		userID, err := getUserID(ctx)
