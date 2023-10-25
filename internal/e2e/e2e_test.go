@@ -14,7 +14,7 @@ const (
 )
 
 type ClaimPersonaTx struct {
-	PersonaTag string `json:"persona_tag"`
+	PersonaTag string `json:"personaTag"`
 }
 
 type Empty struct{}
@@ -22,12 +22,12 @@ type Empty struct{}
 var emptyStruct = Empty{}
 
 type MoveTx struct {
-	Direction string `json:"Direction"`
+	Direction string `json:"direction"`
 }
 
 func TestTransactionStoredOnChain(t *testing.T) {
 	t.Skip("cannot run this test unless the docker containers for base shard, game shard, nakama, and " +
-		"celestia are running")
+		"celestia are running. to run the stack, run `make game` and `make rollup`. wait for startup and run this test")
 	c := newClient(t)
 	chain := newChainClient(t)
 	user := "foo"
@@ -49,12 +49,12 @@ func TestTransactionStoredOnChain(t *testing.T) {
 	assert.Equal(t, 200, res.StatusCode, "show persona failed with code %d: body: %v", res.StatusCode, res.Body)
 	time.Sleep(time.Second * 3)
 
-	res, err = c.rpc("tx-join", emptyStruct)
+	res, err = c.rpc("tx/game/join", emptyStruct)
 	assert.NilError(t, err)
 	assert.Equal(t, 200, res.StatusCode, "tx-join failed with code %d: body %v", res.StatusCode, res.Body)
 	time.Sleep(2 * time.Second)
 
-	res, err = c.rpc("tx-move", MoveTx{Direction: "up"})
+	res, err = c.rpc("tx/game/move", MoveTx{Direction: "up"})
 	assert.NilError(t, err)
 	assert.Equal(t, 200, res.StatusCode, "tx- failed with code %d: body %v", res.StatusCode, res.Body)
 	time.Sleep(2 * time.Second)

@@ -86,10 +86,3 @@ func (c *nakamaClient) rpc(path string, body any) (*http.Response, error) {
 	}
 	return resp, nil
 }
-
-func copyBody(r *http.Response) string {
-	buf, err := io.ReadAll(r.Body)
-	msg := fmt.Sprintf("response body is:\n%v\nReadAll error is:%v", string(buf), err)
-	r.Body = io.NopCloser(bytes.NewReader(buf))
-	return msg
-}
