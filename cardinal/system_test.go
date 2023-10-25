@@ -62,3 +62,22 @@ func TestSystemExample(t *testing.T) {
 		assert.Equal(t, 5, health.Value)
 	}
 }
+
+func TestCanRegisterMultipleSystem(t *testing.T) {
+	world, doTick := test_utils.MakeWorldAndTicker(t)
+	var firstSystemCalled bool
+	var secondSystemCalled bool
+
+	cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+		firstSystemCalled = true
+		return nil
+	}, func(context cardinal.WorldContext) error {
+		secondSystemCalled = true
+		return nil
+	})
+
+	doTick()
+
+	assert.Check(t, firstSystemCalled)
+	assert.Check(t, secondSystemCalled)
+}
