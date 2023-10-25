@@ -5,6 +5,7 @@ import (
 )
 
 type JoinInput struct {
+	Player string `json:"player"`
 }
 
 type JoinOutput struct{}

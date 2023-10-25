@@ -33,6 +33,7 @@ func Move(ctx cardinal.WorldContext) error {
 		if err != nil {
 			return tx.MoveOutput{}, err
 		}
+		logger.Info().Msgf("player %s now at (%d, %d)", resultingLoc.X, resultingLoc.Y)
 		return tx.MoveOutput{X: resultingLoc.X, Y: resultingLoc.Y}, err
 	})
 	return nil

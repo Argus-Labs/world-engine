@@ -5,7 +5,7 @@ import (
 )
 
 type MoveInput struct {
-	Direction string
+	Direction string `json:"direction"`
 }
 
 type MoveOutput struct {
