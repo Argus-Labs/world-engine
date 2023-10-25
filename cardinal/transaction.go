@@ -53,13 +53,13 @@ func (t *TransactionType[Msg, Result]) AddToQueue(world *World, data Msg, sigs .
 // AddError adds the given error to the transaction identified by the given hash. Multiple errors can be
 // added to the same transaction hash.
 func (t *TransactionType[Msg, Result]) AddError(wCtx WorldContext, hash TxHash, err error) {
-	t.AddError(wCtx, hash, err)
+	t.impl.AddError(wCtx.getECSWorldContext(), hash, err)
 }
 
 // SetResult sets the result of the transaction identified by the given hash. Only one result may be associated
 // with a transaction hash, so calling this multiple times will clobber previously set results.
 func (t *TransactionType[Msg, Result]) SetResult(wCtx WorldContext, hash TxHash, result Result) {
-	t.SetResult(wCtx, hash, result)
+	t.impl.SetResult(wCtx.getECSWorldContext(), hash, result)
 }
 
 // GetReceipt returns the result (if any) and errors (if any) associated with the given hash. If false is returned,
