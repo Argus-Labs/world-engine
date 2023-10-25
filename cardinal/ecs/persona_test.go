@@ -135,8 +135,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 
 	wantAddr := "0xfoobar"
 	ecs.AuthorizePersonaAddressTx.AddToQueue(world, ecs.AuthorizePersonaAddress{
-		PersonaTag: wantTag,
-		Address:    wantAddr,
+		Address: wantAddr,
 	}, &sign.SignedPayload{PersonaTag: wantTag})
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
 	assert.NilError(t, world.Tick(context.Background()))

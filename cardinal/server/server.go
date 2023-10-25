@@ -36,6 +36,11 @@ var (
 	ErrorInvalidSignature = errors.New("invalid signature")
 )
 
+const (
+	gameQueryPrefix = "/query/game/"
+	gameTxPrefix    = "/tx/game/"
+)
+
 // NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
 // transactions and queries registered with the given world are automatically created. The server runs on a default port
 // of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
@@ -145,22 +150,24 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 	}
 	txEndpoints := make([]string, 0, len(txs))
 	for _, tx := range txs {
-		if tx.Name() != ecs.CreatePersonaTx.Name() && tx.Name() != ecs.AuthorizePersonaAddressTx.Name() {
-			txEndpoints = append(txEndpoints, "/tx/game/"+tx.Name())
-		} else {
+		if tx.Name() == ecs.CreatePersonaTx.Name() {
 			txEndpoints = append(txEndpoints, "/tx/persona/"+tx.Name())
+		} else {
+			txEndpoints = append(txEndpoints, gameTxPrefix+tx.Name())
 		}
 	}
 
 	queries := world.ListQueries()
 	queryEndpoints := make([]string, 0, len(queries)+3)
 	for _, query := range queries {
-		queryEndpoints = append(queryEndpoints, "/query/game/"+query.Name())
+		queryEndpoints = append(queryEndpoints, gameQueryPrefix+query.Name())
 	}
-	queryEndpoints = append(queryEndpoints, "/query/http/endpoints")
-	queryEndpoints = append(queryEndpoints, "/query/persona/signer")
-	queryEndpoints = append(queryEndpoints, "/query/receipt/list")
-	queryEndpoints = append(queryEndpoints, "/query/game/cql")
+	queryEndpoints = append(queryEndpoints,
+		"/query/http/endpoints",
+		"/query/persona/signer",
+		"/query/receipt/list",
+		"/query/game/cql",
+	)
 	return &EndpointsResult{
 		TxEndpoints:    txEndpoints,
 		QueryEndpoints: queryEndpoints,

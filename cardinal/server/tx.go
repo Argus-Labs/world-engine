@@ -107,16 +107,8 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 		return &txReply, nil
 	})
 
-	authorizePersonaAddressHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		rawPayload, signedPayload, err := handler.getBodyAndSigFromParams(params, false)
-		if err != nil {
-			return nil, err
-		}
-		return handler.processTransaction(ecs.AuthorizePersonaAddressTx, rawPayload, signedPayload)
-	})
 	api.RegisterOperation("POST", "/tx/game/{txType}", gameHandler)
 	api.RegisterOperation("POST", "/tx/persona/create-persona", createPersonaHandler)
-	api.RegisterOperation("POST", "/tx/persona/authorize-persona-address", authorizePersonaAddressHandler)
 
 	return nil
 }
