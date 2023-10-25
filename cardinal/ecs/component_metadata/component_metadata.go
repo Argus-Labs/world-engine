@@ -9,9 +9,6 @@ import (
 )
 
 type (
-	// Index represents the Index of component in an archetype.
-	Index int
-
 	TypeID int
 
 	// IComponentMetaData is a high level representation of a user defined component struct.

@@ -46,16 +46,15 @@ func NewTestWorld(t testing.TB, opts ...Option) *World {
 }
 
 func newMockWorld(s *miniredis.Miniredis, opts ...Option) (*World, error) {
-	rs := storage.NewRedisStorage(storage.Options{
+	redisStore := storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, "in-memory-world")
-	worldStorage := storage.NewWorldStorage(&rs)
-	sm, err := ecb.NewManager(rs.Client)
+	entityStore, err := ecb.NewManager(redisStore.Client)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewWorld(worldStorage, sm, opts...)
+	return NewWorld(&redisStore, entityStore, opts...)
 }
