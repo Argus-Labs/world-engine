@@ -1912,6 +1912,8 @@ pkg.world.dev/world-engine/cardinal v0.1.42-alpha.0.20231024223215-0123af870b1e 
 pkg.world.dev/world-engine/cardinal v0.1.42-alpha.0.20231024223215-0123af870b1e/go.mod h1:wVVKGOBCtwqbqCRyDawucoZhMty9Nbw5S6ZRfgKXJM4=
 pkg.world.dev/world-engine/cardinal v0.1.42-alpha.0.20231025043634-185efc1b3bed h1:/JhnAV1OLWu0AKBgSoxUOTxsInLjw/UjArwyuXPAVGo=
 pkg.world.dev/world-engine/cardinal v0.1.42-alpha.0.20231025043634-185efc1b3bed/go.mod h1:DqpoAfc6MiZcoBYlx3IektVkB9djIXHL7tRxw+T4tAA=
+pkg.world.dev/world-engine/cardinal v0.1.42-alpha.0.20231025183300-7c4e5e35119e h1:l6M46ibNdWpYWTo68SX4X7ZxPFa40WmWPuPtsG4qdi4=
+pkg.world.dev/world-engine/cardinal v0.1.42-alpha.0.20231025183300-7c4e5e35119e/go.mod h1:MBrEr9e5+LiMqMuwzo+VTEnaEk4zD5YkBCQoP1NsrRM=
 pkg.world.dev/world-engine/chain v0.1.11-alpha h1:a+a+eZUIG2XuO+PL5WBr+IgQZoGRnm8plk5bP1KKoR4=
 pkg.world.dev/world-engine/chain v0.1.11-alpha/go.mod h1:qpm1QXHj2RyXIiwkEolaZMMqeNVcMX+hH4OQ9nE0/5M=
 pkg.world.dev/world-engine/rift v0.0.2 h1:VppH2/9lawYrR9IeZLWHvPOqhyfHC/73KIGMriLhIls=
