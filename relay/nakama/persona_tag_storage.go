@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/rs/zerolog/log"
-
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 )
@@ -13,10 +11,10 @@ import (
 // personaTagStorageObj contains persona tag information for a specific user, and keeps track of whether the
 // persona tag has been successfully registered with cardinal.
 type personaTagStorageObj struct {
-	PersonaTag string           `json:"persona_tag"`
+	PersonaTag string           `json:"personaTag"`
 	Status     personaTagStatus `json:"status"`
 	Tick       uint64           `json:"tick"`
-	TxHash     string           `json:"tx_hash"`
+	TxHash     string           `json:"txHash"`
 	// version is used with Nakama storage layer to allow for optimistic locking. Saving this storage
 	// object succeeds only if the passed in version matches the version in the storage layer.
 	// see https://heroiclabs.com/docs/nakama/concepts/storage/collections/#conditional-writes for more info.
@@ -74,7 +72,6 @@ func storageObjToPersonaTagStorageObj(obj *api.StorageObject) (*personaTagStorag
 // attemptToUpdatePending attempts to change the given personaTagStorageObj's Status from "pending" to either "accepted"
 // or "rejected" by using cardinal as the source of truth. If the Status is not "pending", this call is a no-op.
 func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk runtime.NakamaModule) (*personaTagStorageObj, error) {
-	log.Logger.Info().Msg("attempting to update persona tag")
 	if p.Status != personaTagStatusPending {
 		return p, nil
 	}

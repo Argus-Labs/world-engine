@@ -50,7 +50,7 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 		val, sig := tx.Value, tx.Sig
 		result := AuthorizePersonaAddressResult{Success: false}
 		if sig.PersonaTag != val.PersonaTag {
-			return AuthorizePersonaAddressResult{Success: false}, fmt.Errorf("sigher does not match request")
+			return AuthorizePersonaAddressResult{Success: false}, fmt.Errorf("signer does not match request")
 		}
 		data, ok := personaTagToAddress[tx.Value.PersonaTag]
 		if !ok {

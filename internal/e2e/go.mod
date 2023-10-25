@@ -1,12 +1,12 @@
 module github.com/argus-labs/world-engine/e2e
 
-go 1.21
+go 1.21.0
 
 require (
 	github.com/cosmos/cosmos-sdk v0.51.0
 	google.golang.org/grpc v1.58.3
 	gotest.tools/v3 v3.5.1
-	pkg.world.dev/world-engine/chain v0.1.11-alpha
+	pkg.world.dev/world-engine/chain v0.1.11-alpha.0.20231024230958-41d9706c8863
 )
 
 require (

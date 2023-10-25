@@ -97,9 +97,9 @@ func (r *receiptNotifier) handleReceipt(receipt *Receipt) error {
 	delete(r.txHashToTargetInfo, receipt.TxHash)
 
 	data := map[string]any{
-		"tx_hash": receipt.TxHash,
-		"result":  receipt.Result,
-		"errors":  receipt.Errors,
+		"txHash": receipt.TxHash,
+		"result": receipt.Result,
+		"errors": receipt.Errors,
 	}
 
 	if err := r.nk.NotificationSend(ctx, target.userID, "subject", data, 1, "", false); err != nil {
