@@ -5,14 +5,14 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 
 // The world tick must be updated in the same atomic transaction as all the state changes
 // associated with that tick. This means the manager here must also implement the TickStore interface.
-var _ storage.TickStorage = &Manager{}
+var _ store.TickStorage = &Manager{}
 
 // GetTickNumbers returns the last tick that was started and the last tick that was ended. If start == end, it means
 // the last tick that was attempted completed successfully. If start != end, it means a tick was started but did not

@@ -118,7 +118,7 @@ var (
 	}
 )
 
-// MakeAppConfig makes the application configuration with the given bech32 prefix for accounts
+// MakeAppConfig makes the application config with the given bech32 prefix for accounts.
 //
 //nolint:funlen
 func MakeAppConfig(bech32prefix string) depinject.Config {

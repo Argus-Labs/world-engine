@@ -9,6 +9,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 type Reader interface {
@@ -50,9 +51,17 @@ type Writer interface {
 	RegisterComponents([]component_metadata.IComponentMetaData) error
 }
 
+type TickStorage interface {
+	GetTickNumbers() (start, end uint64, err error)
+	StartNextTick(txs []transaction.ITransaction, queues *transaction.TxQueue) error
+	FinalizeTick() error
+	Recover(txs []transaction.ITransaction) (*transaction.TxQueue, error)
+}
+
 // IManager represents all the methods required to track Component, Entity, and Archetype information
 // which powers the ECS storage layer.
 type IManager interface {
+	TickStorage
 	Reader
 	Writer
 	ToReadOnly() Reader

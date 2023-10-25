@@ -30,7 +30,6 @@ type World struct {
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
-	cleanup         func()
 }
 
 type (
@@ -57,18 +56,17 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 		log.Log().Msg("Redis password is not set, make sure to set up redis with password in prod")
 	}
 
-	rs := storage.NewRedisStorage(storage.Options{
+	redisStore := storage.NewRedisStorage(storage.Options{
 		Addr:     addr,
 		Password: password, // make sure to set this in prod
 		DB:       0,        // use default DB
 	}, "world")
-	worldStorage := storage.NewWorldStorage(&rs)
-	storeManager, err := ecb.NewManager(rs.Client)
+	storeManager, err := ecb.NewManager(redisStore.Client)
 	if err != nil {
 		return nil, err
 	}
 
-	ecsWorld, err := ecs.NewWorld(worldStorage, storeManager, ecsOptions...)
+	ecsWorld, err := ecs.NewWorld(&redisStore, storeManager, ecsOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -91,11 +89,9 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
 	eventHub := events.CreateWebSocketEventHub()
 	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
-	implWorld, mockWorldCleanup := ecs.NewMockWorld(ecsOptions...)
 	world := &World{
-		implWorld:     implWorld,
+		implWorld:     ecs.NewMockWorld(ecsOptions...),
 		serverOptions: serverOptions,
-		cleanup:       mockWorldCleanup,
 	}
 	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {
@@ -207,12 +203,6 @@ func (w *World) IsGameRunning() bool {
 }
 
 func (w *World) ShutDown() error {
-	if w.cleanup != nil {
-		w.cleanup()
-	}
-	if w.evmServer != nil {
-		w.evmServer.Shutdown()
-	}
 	if !w.IsGameRunning() {
 		return errors.New("game is not running")
 	}

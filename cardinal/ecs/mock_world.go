@@ -16,7 +16,7 @@ import (
 // NewMockWorld creates an ecs.World that uses a mock redis DB as the storage
 // layer. This is only suitable for local development. If you are creating an ecs.World for
 // unit tests, use NewTestWorld.
-func NewMockWorld(opts ...Option) (world *World, cleanup func()) {
+func NewMockWorld(opts ...Option) *World {
 	// We manually set the start address to make the port deterministic
 	s := miniredis.NewMiniRedis()
 	err := s.StartAddr(":12345")
@@ -30,9 +30,7 @@ func NewMockWorld(opts ...Option) (world *World, cleanup func()) {
 		panic(fmt.Errorf("unable to initialize world: %w", err))
 	}
 
-	return w, func() {
-		s.Close()
-	}
+	return w
 }
 
 // NewTestWorld creates an ecs.World suitable for running in tests. Relevant resources
@@ -48,16 +46,15 @@ func NewTestWorld(t testing.TB, opts ...Option) *World {
 }
 
 func newMockWorld(s *miniredis.Miniredis, opts ...Option) (*World, error) {
-	rs := storage.NewRedisStorage(storage.Options{
+	redisStore := storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, "in-memory-world")
-	worldStorage := storage.NewWorldStorage(&rs)
-	sm, err := ecb.NewManager(rs.Client)
+	entityStore, err := ecb.NewManager(redisStore.Client)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewWorld(worldStorage, sm, opts...)
+	return NewWorld(&redisStore, entityStore, opts...)
 }
