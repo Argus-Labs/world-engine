@@ -118,6 +118,9 @@ var (
 	}
 )
 
+// MakeAppConfig makes the application configuration with the given bech32 prefix for accounts
+//
+//nolint:funlen
 func MakeAppConfig(bech32prefix string) depinject.Config {
 	if bech32prefix == "" {
 		bech32prefix = "world"
