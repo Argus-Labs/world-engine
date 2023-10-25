@@ -3,11 +3,8 @@ package cardinal
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"sync/atomic"
 	"time"
-
-	"pkg.world.dev/world-engine/cardinal/evm"
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -15,9 +12,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/events"
+	"pkg.world.dev/world-engine/cardinal/evm"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
@@ -30,6 +29,7 @@ type World struct {
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
+	cleanup         func()
 }
 
 type (
@@ -90,9 +90,11 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
 	eventHub := events.CreateWebSocketEventHub()
 	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
+	implWorld, mockWorldCleanup := ecs.NewMockWorld(ecsOptions...)
 	world := &World{
-		implWorld:     ecs.NewMockWorld(ecsOptions...),
+		implWorld:     implWorld,
 		serverOptions: serverOptions,
+		cleanup:       mockWorldCleanup,
 	}
 	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {
@@ -204,14 +206,19 @@ func (w *World) IsGameRunning() bool {
 }
 
 func (w *World) ShutDown() error {
-	if !w.IsGameRunning() {
-		return errors.New("game is not running")
+	if w.cleanup != nil {
+		w.cleanup()
 	}
-	err := w.gameManager.Shutdown()
-	if err != nil {
-		return err
+	if w.evmServer != nil {
+		w.evmServer.Shutdown()
 	}
-	w.isGameRunning.Store(false)
+	if w.IsGameRunning() {
+		err := w.gameManager.Shutdown()
+		if err != nil {
+			return err
+		}
+		w.isGameRunning.Store(false)
+	}
 	return nil
 }
 

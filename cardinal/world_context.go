@@ -7,9 +7,9 @@ import (
 
 type WorldContext interface {
 	NewSearch(filter Filter) (*Search, error)
-	getECSWorldContext() ecs.WorldContext
 	CurrentTick() uint64
 	Logger() *zerolog.Logger
+	getECSWorldContext() ecs.WorldContext
 }
 
 type worldContext struct {
