@@ -30,7 +30,6 @@ type World struct {
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
-	cleanup         func()
 }
 
 type (
@@ -91,11 +90,9 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
 	eventHub := events.CreateWebSocketEventHub()
 	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
-	implWorld, mockWorldCleanup := ecs.NewMockWorld(ecsOptions...)
 	world := &World{
-		implWorld:     implWorld,
+		implWorld:     ecs.NewMockWorld(ecsOptions...),
 		serverOptions: serverOptions,
-		cleanup:       mockWorldCleanup,
 	}
 	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {
@@ -207,12 +204,6 @@ func (w *World) IsGameRunning() bool {
 }
 
 func (w *World) ShutDown() error {
-	if w.cleanup != nil {
-		w.cleanup()
-	}
-	if w.evmServer != nil {
-		w.evmServer.Shutdown()
-	}
 	if !w.IsGameRunning() {
 		return errors.New("game is not running")
 	}
