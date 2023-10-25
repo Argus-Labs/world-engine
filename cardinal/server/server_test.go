@@ -374,7 +374,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	assert.DeepEqual(t, actualFooReply, expectedReply)
 	personaAddressJson, err := json.Marshal(authorizedPersonaAddress)
 	assert.NilError(t, err)
-	// tx/persona/authorize-persona-address
+	// tx/game/authorize-persona-address
 	signedTxPayload := sign.SignedPayload{
 		PersonaTag: personaTag,
 		Namespace:  "some_namespace",
