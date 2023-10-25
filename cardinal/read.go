@@ -42,12 +42,3 @@ func NewQueryTypeWithEVMSupport[Request, Reply any](name string, handler func(Wo
 func (r *QueryType[Request, Reply]) Convert() ecs.IQuery {
 	return r.impl
 }
-
-func (q *QueryType[Request, Reply]) DoQuery(worldCtx WorldContext, req Request) (reply Reply, err error) {
-	iface, err := q.impl.HandleQuery(worldCtx.getECSWorldContext(), req)
-	if err != nil {
-		return reply, err
-	}
-	reply = iface.(Reply)
-	return reply, nil
-}
