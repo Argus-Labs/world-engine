@@ -226,8 +226,9 @@ func (w *World) ShutDown() error {
 
 func RegisterSystems(w *World, systems ...System) {
 	for _, system := range systems {
+		sys := system
 		w.implWorld.AddSystem(func(wCtx ecs.WorldContext) error {
-			return system(&worldContext{
+			return sys(&worldContext{
 				implContext: wCtx,
 			})
 		})
