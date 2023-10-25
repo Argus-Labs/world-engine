@@ -49,7 +49,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/onsi/ginkgo/v2 v2.11.0
 	github.com/onsi/gomega v1.27.10
-	github.com/rs/zerolog v1.30.0
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
 	github.com/stretchr/testify v1.8.4
@@ -58,12 +57,12 @@ require (
 	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.31.0
 	gotest.tools v2.2.0+incompatible
-	gotest.tools/v3 v3.5.1
+	gotest.tools/v3 v3.5.0
 	pkg.berachain.dev/polaris/contracts v0.0.0-20230827184022-e3cec7a2c178
 	pkg.berachain.dev/polaris/cosmos v0.0.0-20230830221145-a6c6454d3697
 	pkg.berachain.dev/polaris/eth v0.0.0-20230827184022-e3cec7a2c178
 	pkg.berachain.dev/polaris/lib v0.0.0-20230827184022-e3cec7a2c178
-	pkg.world.dev/world-engine/rift v0.0.2
+	pkg.world.dev/world-engine/rift v0.0.4
 )
 
 require (
@@ -318,6 +317,7 @@ require (
 	github.com/rollkit/celestia-openrpc v0.2.0 // indirect
 	github.com/rollkit/rollkit v0.11.0-rc1 // indirect
 	github.com/rs/cors v1.9.0 // indirect
+	github.com/rs/zerolog v1.30.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect

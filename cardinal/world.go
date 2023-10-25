@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"sync/atomic"
 	"time"
 
@@ -29,6 +30,7 @@ type World struct {
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
+	cleanup         func()
 }
 
 type (
@@ -36,6 +38,7 @@ type (
 	// one or more components.
 	EntityID = entity.ID
 	TxHash   = transaction.TxHash
+	Receipt  = receipt.Receipt
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
@@ -88,9 +91,11 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
 	eventHub := events.CreateWebSocketEventHub()
 	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
+	implWorld, mockWorldCleanup := ecs.NewMockWorld(ecsOptions...)
 	world := &World{
-		implWorld:     ecs.NewMockWorld(ecsOptions...),
+		implWorld:     implWorld,
 		serverOptions: serverOptions,
+		cleanup:       mockWorldCleanup,
 	}
 	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {
@@ -137,8 +142,8 @@ func RemoveComponentFrom[T component_metadata.Component](wCtx WorldContext, id e
 }
 
 // Remove removes the given entity id from the world.
-func (w *World) Remove(id EntityID) error {
-	return w.implWorld.Remove(id)
+func Remove(wCtx WorldContext, id EntityID) error {
+	return wCtx.getECSWorldContext().GetWorld().Remove(id)
 }
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is attempted.
@@ -202,6 +207,12 @@ func (w *World) IsGameRunning() bool {
 }
 
 func (w *World) ShutDown() error {
+	if w.cleanup != nil {
+		w.cleanup()
+	}
+	if w.evmServer != nil {
+		w.evmServer.Shutdown()
+	}
 	if !w.IsGameRunning() {
 		return errors.New("game is not running")
 	}
@@ -215,8 +226,9 @@ func (w *World) ShutDown() error {
 
 func RegisterSystems(w *World, systems ...System) {
 	for _, system := range systems {
+		sys := system
 		w.implWorld.AddSystem(func(wCtx ecs.WorldContext) error {
-			return system(&worldContext{
+			return sys(&worldContext{
 				implContext: wCtx,
 			})
 		})
@@ -250,12 +262,4 @@ func (w *World) Tick(ctx context.Context) error {
 func (w *World) Init(fn func(WorldContext)) {
 	ecsWorldCtx := ecs.NewWorldContext(w.implWorld)
 	fn(&worldContext{implContext: ecsWorldCtx})
-}
-
-// The following type and function are exported temporarily pending a refactor of
-// how Persona works with the different components of Cardinal
-type CreatePersonaTransaction = ecs.CreatePersonaTransaction
-
-func (w *World) AddCreatePersonaTxToQueue(data CreatePersonaTransaction) {
-	ecs.CreatePersonaTx.AddToQueue(w.implWorld, data)
 }
