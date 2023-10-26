@@ -3,6 +3,9 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"sync/atomic"
 	"time"
 
@@ -223,12 +226,13 @@ func (w *World) ShutDown() error {
 
 func RegisterSystems(w *World, systems ...System) {
 	for _, system := range systems {
+		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
 		sys := system
-		w.implWorld.AddSystem(func(wCtx ecs.WorldContext) error {
+		w.implWorld.AddSystemWithName(func(wCtx ecs.WorldContext) error {
 			return sys(&worldContext{
 				implContext: wCtx,
 			})
-		})
+		}, functionName)
 	}
 }
 

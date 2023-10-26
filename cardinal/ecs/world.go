@@ -114,22 +114,30 @@ func (w *World) GetTxQueueAmount() int {
 }
 
 func (w *World) AddSystem(s System) {
-	w.AddSystems(s)
+	w.AddSystemWithName(s, "")
 }
 
-func (w *World) AddSystems(s ...System) {
+func (w *World) AddSystems(systems ...System) {
 	if w.stateIsLoaded {
 		panic("cannot register systems after loading game state")
 	}
-	for _, system := range s {
-		// retrieves function name from system using a reflection trick
-		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
-		sysLogger := w.Logger.CreateSystemLogger(functionName)
-		w.systemLoggers = append(w.systemLoggers, &sysLogger)
-		w.systemNames = append(w.systemNames, functionName)
-		// appends registeredSystem into the member system list in world.
-		w.systems = append(w.systems, system)
+	for _, system := range systems {
+		w.AddSystemWithName(system, "")
 	}
+}
+
+func (w *World) AddSystemWithName(system System, functionName string) {
+	if w.stateIsLoaded {
+		panic("cannot register systems after loading game state")
+	}
+	if functionName == "" {
+		functionName = filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
+	}
+	sysLogger := w.Logger.CreateSystemLogger(functionName)
+	w.systemLoggers = append(w.systemLoggers, &sysLogger)
+	w.systemNames = append(w.systemNames, functionName)
+	// appends registeredSystem into the member system list in world.
+	w.systems = append(w.systems, system)
 }
 
 func RegisterComponent[T component_metadata.Component](world *World) error {
