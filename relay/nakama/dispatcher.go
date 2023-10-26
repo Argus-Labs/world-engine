@@ -14,7 +14,7 @@ import (
 
 type TransactionReceiptsReply struct {
 	StartTick uint64     `json:"startTick"`
-	EndTick   uint64     `json:"endTickick"`
+	EndTick   uint64     `json:"endTick"`
 	Receipts  []*Receipt `json:"receipts"`
 }
 
