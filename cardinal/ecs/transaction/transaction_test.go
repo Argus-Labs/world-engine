@@ -3,6 +3,7 @@ package transaction_test
 import (
 	"context"
 	"errors"
+	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
 
@@ -561,4 +562,11 @@ func TestCopyTransactions(t *testing.T) {
 	copyTxq := txq.CopyTransactions()
 	assert.Equal(t, copyTxq.GetAmountOfTxs(), 2)
 	assert.Equal(t, txq.GetAmountOfTxs(), 0)
+}
+
+func TestNewTransactionPanicsIfNoName(t *testing.T) {
+	type Foo struct{}
+	require.Panics(t, func() {
+		ecs.NewTransactionType[Foo, Foo]("")
+	})
 }

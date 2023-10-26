@@ -57,13 +57,19 @@ func WithQueryEVMSupport[Request, Reply any]() func(transactionType *QueryType[R
 	}
 }
 
-var _ IQuery = NewQueryType[struct{}, struct{}]("", nil)
+var _ IQuery = &QueryType[struct{}, struct{}]{}
 
 func NewQueryType[Request any, Reply any](
 	name string,
 	handler func(wCtx WorldContext, req Request) (Reply, error),
 	opts ...func() func(queryType *QueryType[Request, Reply]),
 ) *QueryType[Request, Reply] {
+	if name == "" {
+		panic("cannot create query without name")
+	}
+	if handler == nil {
+		panic("cannot create query without handler")
+	}
 	var req Request
 	var rep Reply
 	reqType := reflect.TypeOf(req)
