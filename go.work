@@ -5,7 +5,9 @@ use (
 	chain
 	chain/contracts
 	magefiles
+	relay/nakama
 	rift
 	sign
-	relay/nakama
+	internal/e2e
+	internal/e2e/tester/cardinal
 )
