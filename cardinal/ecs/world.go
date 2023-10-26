@@ -480,11 +480,6 @@ func (w *World) EndGameLoop() {
 	}
 }
 
-type TxBatch struct {
-	TxID transaction.TypeID `json:"txId,omitempty"`
-	Txs  []any              `json:"txs,omitempty"`
-}
-
 const (
 	storeArchetypeCompIdxKey  = "arch_component_index"
 	storeArchetypeAccessorKey = "arch_accessor"
