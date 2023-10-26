@@ -118,9 +118,6 @@ func (w *World) AddSystem(s System) {
 }
 
 func (w *World) AddSystems(systems ...System) {
-	if w.stateIsLoaded {
-		panic("cannot register systems after loading game state")
-	}
 	for _, system := range systems {
 		w.AddSystemWithName(system, "")
 	}
