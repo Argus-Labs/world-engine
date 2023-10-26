@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/heroiclabs/nakama-common/api"
@@ -45,6 +46,8 @@ const (
 
 	cardinalCollection = "cardinal_collection"
 	personaTagKey      = "persona_tag"
+
+	transactionEndpointPrefix = "/tx"
 )
 
 var (
@@ -341,16 +344,18 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				if err != nil {
 					return logError(logger, "can't read body: %w", err)
 				}
-				var asTx txResponse
+				if strings.HasPrefix(currEndpoint, transactionEndpointPrefix) {
+					var asTx txResponse
 
-				if err = json.Unmarshal(bodyStr, &asTx); err != nil {
-					return logError(logger, "can't decode body as tx response: %w", err)
+					if err = json.Unmarshal(bodyStr, &asTx); err != nil {
+						return logError(logger, "can't decode body as tx response: %w", err)
+					}
+					userID, err := getUserID(ctx)
+					if err != nil {
+						return logError(logger, "unable to get user id: %w", err)
+					}
+					notify.AddTxHashToPendingNotifications(asTx.TxHash, userID)
 				}
-				userID, err := getUserID(ctx)
-				if err != nil {
-					return logError(logger, "unable to get user id: %w", err)
-				}
-				notify.AddTxHashToPendingNotifications(asTx.TxHash, userID)
 
 				return string(bodyStr), nil
 			})
