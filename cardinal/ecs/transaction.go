@@ -16,7 +16,7 @@ var (
 	ErrEVMTypeNotSet = errors.New("EVM type is not set")
 )
 
-var _ transaction.ITransaction = NewTransactionType[struct{}, struct{}]("")
+var _ transaction.ITransaction = &TransactionType[struct{}, struct{}]{}
 
 // TransactionType helps manage adding transactions (aka events) to the world transaction queue. It also assists
 // in the using of transactions inside of System functions.
@@ -50,7 +50,9 @@ func NewTransactionType[In, Out any](
 	name string,
 	opts ...func() func(*TransactionType[In, Out]),
 ) *TransactionType[In, Out] {
-
+	if name == "" {
+		panic("cannot create transaction without name")
+	}
 	var in In
 	var out Out
 	inType := reflect.TypeOf(in)
