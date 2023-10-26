@@ -171,12 +171,8 @@ func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx car
 // end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
 func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *cardinal.World, doTick func()) {
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
-	options := make([]cardinal.WorldOption, 0)
-	options = append(opts,
-		cardinal.WithTickChannel(startTickCh),
-		cardinal.WithTickDoneChannel(doneTickCh),
-	)
-	world, err := cardinal.NewMockWorld(options...)
+	opts = append(opts, cardinal.WithTickChannel(startTickCh), cardinal.WithTickDoneChannel(doneTickCh))
+	world, err := cardinal.NewMockWorld(opts...)
 	if err != nil {
 		t.Fatalf("unable to make mock world: %v", err)
 	}
