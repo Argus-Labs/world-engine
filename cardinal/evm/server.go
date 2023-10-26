@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"log"
+	zerolog "github.com/rs/zerolog/log"
 	"net"
 	"os"
 
@@ -128,9 +128,12 @@ func tryLoadCredentials() (credentials.TransportCredentials, error) {
 	if cert != "" {
 		key := os.Getenv(serverKeyFilePathEnv)
 		if key != "" {
+			zerolog.Debug().Msg("running EVM server with SSL credentials")
 			return loadCredentials(cert, key)
 		}
 	}
+	zerolog.Debug().Msg("running EVM server without SSL credentials. if this is a production application, " +
+		"please set provide SSL credentials")
 	return nil, nil
 }
 
@@ -170,7 +173,7 @@ func (s *msgServerImpl) Serve() error {
 	go func() {
 		err = server.Serve(listener)
 		if err != nil {
-			log.Fatal(err)
+			zerolog.Fatal().Err(err).Msg("")
 		}
 	}()
 	s.shutdown = server.GracefulStop
