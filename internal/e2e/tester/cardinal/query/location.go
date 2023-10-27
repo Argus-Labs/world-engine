@@ -2,6 +2,7 @@ package query
 
 import (
 	"fmt"
+
 	"github.com/argus-labs/world-engine/example/tester/comp"
 	"github.com/argus-labs/world-engine/example/tester/sys"
 	"pkg.world.dev/world-engine/cardinal"
@@ -29,7 +30,7 @@ var Location = cardinal.NewQueryTypeWithEVMSupport[LocationRequest, LocationRepl
 		return LocationReply{}, err
 	}
 	return LocationReply{
-		X: loc.Y,
-		Y: loc.X,
+		X: loc.X,
+		Y: loc.Y,
 	}, nil
 })
