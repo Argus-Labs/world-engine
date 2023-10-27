@@ -187,11 +187,6 @@ func (w *World) StartGame() error {
 		w.tickChannel = time.Tick(time.Second)
 	}
 	w.implWorld.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
-	txh, err := server.NewHandler(w.implWorld, nil, w.serverOptions...)
-	if err != nil {
-		return err
-	}
-	w.server = txh
 	gameManager := server.NewGameManager(w.implWorld, w.server)
 	w.gameManager = &gameManager
 	go func() {
