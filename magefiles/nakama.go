@@ -24,13 +24,16 @@ func (n Nakama) Test() error {
 		"ENABLE_ADAPTER": "false",
 	}
 
-	return sh.RunWithV(env, "docker", "compose", "up", "--build", "--abort-on-container-exit", "--exit-code-from", "test_nakama", "--attach", "test_nakama")
+	return sh.RunWithV(env, "docker", "compose", "up",
+		"--build", "--abort-on-container-exit",
+		"--exit-code-from", "test_nakama",
+		"--attach", "test_nakama")
 }
 
 func prepareDirs(dirs ...string) error {
 	for _, d := range dirs {
 		if err := prepareDir(d); err != nil {
-			return fmt.Errorf("failed to prepare dir %d: %w", d, err)
+			return fmt.Errorf("failed to prepare dir %s: %w", d, err)
 		}
 	}
 	return nil
@@ -41,20 +44,17 @@ func prepareDir(dir string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.Chdir(dir); err != nil {
+	if err = os.Chdir(dir); err != nil {
 		return err
 	}
-	if err := sh.Rm("./vendor"); err != nil {
+	if err = sh.Rm("./vendor"); err != nil {
 		return err
 	}
-	if err := sh.Run("go", "mod", "tidy"); err != nil {
+	if err = sh.Run("go", "mod", "tidy"); err != nil {
 		return err
 	}
-	if err := sh.Run("go", "mod", "vendor"); err != nil {
+	if err = sh.Run("go", "mod", "vendor"); err != nil {
 		return err
 	}
-	if err := os.Chdir(originDir); err != nil {
-		return err
-	}
-	return nil
+	return os.Chdir(originDir)
 }
