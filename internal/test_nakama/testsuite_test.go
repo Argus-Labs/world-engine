@@ -65,7 +65,7 @@ func TestEvents(t *testing.T) {
 	for i := 1; i < amountOfPlayers+1; i++ {
 		message, ok := results[strconv.Itoa(i)]
 		assert.Equal(t, ok, true)
-		assert.Equal(t, message, fmt.Sprintf("%d player: %d created, %d/%d", i, i, i, amountOfPlayers))
+		assert.Equal(t, message, fmt.Sprintf("%d player: %d created, %d", i, i, i))
 	}
 }
 
