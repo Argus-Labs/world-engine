@@ -132,7 +132,7 @@ func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModu
 		return err
 	}
 	go func() {
-		_ = eventHub.dispatch(log)
+		err := eventHub.dispatch(log)
 		if err != nil {
 			log.Error("error initializing eventHub: %s", err.Error())
 		}
