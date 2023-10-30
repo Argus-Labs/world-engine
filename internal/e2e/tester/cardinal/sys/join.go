@@ -1,6 +1,8 @@
 package sys
 
 import (
+	"fmt"
+
 	"github.com/argus-labs/world-engine/example/tester/comp"
 	"github.com/argus-labs/world-engine/example/tester/tx"
 	"pkg.world.dev/world-engine/cardinal"
@@ -26,6 +28,7 @@ func Join(ctx cardinal.WorldContext) error {
 		}
 		PlayerEntityID[jtx.Sig().PersonaTag] = entityID
 		logger.Info().Msgf("player %s successfully joined", jtx.Sig().PersonaTag)
+		ctx.EmitEvent(fmt.Sprintf("%d player: %d created, %d/%d", i+1, id, i+1, len(createTxs)))
 		return tx.JoinOutput{}, nil
 	})
 	return nil

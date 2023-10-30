@@ -13,9 +13,60 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"gotest.tools/v3/assert"
+
+	"github.com/ethereum/go-ethereum/crypto"
 )
+
+func TestEvents(t *testing.T) {
+	//Test persona
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+	username, deviceID, personaTag := triple(randomString())
+	c := newClient(t)
+	assert.NilError(t, c.registerDevice(username, deviceID))
+
+	resp, err := c.rpc("nakama/claim-persona", map[string]any{
+		"personaTag":    personaTag,
+		"signerAddress": signerAddr,
+	})
+	assert.NilError(t, err, "claim-persona failed")
+	assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
+
+	assert.NilError(t, waitForAcceptedPersonaTag(c))
+	type CreatePlayerTxMsg struct {
+		Nickname string `json:"nickname"`
+	}
+	payload := CreatePlayerTxMsg{"Bob"}
+
+	//create three players.
+	amountOfPlayers := 3
+	for i := 0; i < amountOfPlayers; i++ {
+		resp, err = c.rpc("tx/game/create-player", payload) //should emit an event.
+		assert.NilError(t, err)
+		body := copyBody(resp)
+		assert.Equal(t, 200, resp.StatusCode, body)
+	}
+
+	notifications, err := c.listKNotifications(amountOfPlayers)
+	assert.NilError(t, err)
+	for len(notifications) != amountOfPlayers { //loop until notification sent.
+		time.Sleep(1 * time.Second)
+		notifications, err = c.listKNotifications(amountOfPlayers)
+		assert.NilError(t, err)
+	}
+	assert.Equal(t, len(notifications), amountOfPlayers)
+	results := make(map[string]string)
+	for i := 0; i < amountOfPlayers; i++ {
+		results[string([]byte{notifications[i].Message[0]})] = notifications[i].Message
+	}
+	for i := 1; i < amountOfPlayers+1; i++ {
+		message, ok := results[strconv.Itoa(i)]
+		assert.Equal(t, ok, true)
+		assert.Equal(t, message, fmt.Sprintf("%d player: %d created, %d/%d", i, i, i, amountOfPlayers))
+	}
+}
 
 func TestTransactionAndCQLAndRead(t *testing.T) {
 
