@@ -1105,7 +1105,6 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 	holdChan := make(chan bool)
 	adapter := adapterMock{hold: holdChan}
 	world := ecs.NewTestWorld(t, ecs.WithAdapter(&adapter))
-	assert.NilError(t, world.Tick(context.Background()))
 	go func() {
 		err := world.RecoverFromChain(context.Background())
 		assert.NilError(t, err)

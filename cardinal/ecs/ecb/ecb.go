@@ -220,13 +220,12 @@ func (m *Manager) GetComponentForEntity(cType metadata.ComponentMetadata, id ent
 
 	bz, err := m.client.Get(ctx, redisKey).Bytes()
 	if err != nil {
-		if errors.Is(err, redis.Nil) {
-			// This value has never been set. Make a default value.
-			bz, err = cType.New()
-			if err != nil {
-				return nil, err
-			}
-		} else {
+		if !errors.Is(err, redis.Nil) {
+			return nil, err
+		}
+		// This value has never been set. Make a default value.
+		bz, err = cType.New()
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -404,10 +403,10 @@ func (m *Manager) nextEntityID() (entity.ID, error) {
 		ctx := context.Background()
 		nextID, err := m.client.Get(ctx, redisNextEntityIDKey()).Uint64()
 		if err != nil {
-			// redis.Nil means there's no value at this key. Start with an ID of 0
 			if !errors.Is(err, redis.Nil) {
 				return 0, err
 			}
+			// redis.Nil means there's no value at this key. Start with an ID of 0
 			nextID = 0
 		}
 		m.nextEntityIDSaved = nextID
@@ -453,8 +452,10 @@ func (m *Manager) getActiveEntities(archID archetype.ID) (activeEntities, error)
 				return active, err
 			}
 		} else {
-			_, err = codec.Decode[[]entity.ID](bz)
-			return active, err
+			ids, err = codec.Decode[[]entity.ID](bz)
+			if err != nil {
+				return active, err
+			}
 		}
 
 		m.activeEntities[archID] = activeEntities{
