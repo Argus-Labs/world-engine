@@ -56,15 +56,6 @@ jobs:
           key: ${{ runner.os }}-golang-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-golang-
-      - name: Install Go Tools
-        run: |
-          go run magefiles/setup/setup.go
-      - name: Run ${{ matrix.args }}
-        uses: magefile/mage-action@v2
-        with:
-          version: latest
-          args: ${{ matrix.args }}
-
       - name: Upload Coverage Report
         uses: codecov/codecov-action@v3
         with:
