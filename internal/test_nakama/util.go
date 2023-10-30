@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 )
 
 const (
@@ -15,8 +16,9 @@ const (
 )
 
 type nakamaClient struct {
-	addr       string
-	authHeader string
+	addr               string
+	authHeader         string
+	notificationCursor string
 }
 
 func newClient(t *testing.T) *nakamaClient {
@@ -28,6 +30,65 @@ func newClient(t *testing.T) *nakamaClient {
 		addr: host,
 	}
 	return h
+}
+
+type NotificationItem struct {
+	ID         string    `json:"id"`
+	Subject    string    `json:"subject"`
+	Content    string    `json:"content"`
+	Code       int       `json:"code"`
+	CreateTime time.Time `json:"create_time"`
+	Persistent bool      `json:"persistent"`
+}
+
+type Content struct {
+	Message string `json:"message"`
+}
+
+type NotificationCollection struct {
+	Notifications   []NotificationItem `json:"notifications"`
+	CacheableCursor string             `json:"cacheable_cursor"`
+}
+
+func (c *nakamaClient) listKNotifications(k int) ([]*Content, error) {
+	path := "v2/notification"
+	options := fmt.Sprintf("limit=%d&cursor=%s", k, c.notificationCursor)
+	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", c.authHeader)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	bodyData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	data := NotificationCollection{
+		Notifications:   make([]NotificationItem, 0),
+		CacheableCursor: "",
+	}
+	err = json.Unmarshal(bodyData, &data)
+	if err != nil {
+		return nil, err
+	}
+	c.notificationCursor = data.CacheableCursor
+	acc := make([]*Content, 0)
+	for _, item := range data.Notifications {
+		content := Content{}
+		err := json.Unmarshal([]byte(item.Content), &content)
+		if err != nil {
+			return nil, err
+		}
+		if item.Subject == "event" {
+			acc = append(acc, &content)
+		}
+	}
+	return acc, nil
 }
 
 func (c *nakamaClient) registerDevice(username, deviceID string) error {

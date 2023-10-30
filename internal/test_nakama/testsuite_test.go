@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"strconv"
+
 	"gotest.tools/v3/assert"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -35,15 +37,14 @@ func TestEvents(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
 
 	assert.NilError(t, waitForAcceptedPersonaTag(c))
-	type CreatePlayerTxMsg struct {
-		Nickname string `json:"nickname"`
+	type JointInput struct {
 	}
-	payload := CreatePlayerTxMsg{"Bob"}
+	payload := JointInput{}
 
 	//create three players.
 	amountOfPlayers := 3
 	for i := 0; i < amountOfPlayers; i++ {
-		resp, err = c.rpc("tx/game/create-player", payload) //should emit an event.
+		resp, err = c.rpc("tx/game/join", payload) //should emit an event.
 		assert.NilError(t, err)
 		body := copyBody(resp)
 		assert.Equal(t, 200, resp.StatusCode, body)

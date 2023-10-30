@@ -28,7 +28,7 @@ func Join(ctx cardinal.WorldContext) error {
 		}
 		PlayerEntityID[jtx.Sig().PersonaTag] = entityID
 		logger.Info().Msgf("player %s successfully joined", jtx.Sig().PersonaTag)
-		ctx.EmitEvent(fmt.Sprintf("%d player: %d created, %d/%d", i+1, id, i+1, len(createTxs)))
+		ctx.EmitEvent(fmt.Sprintf("%d player: %d created, %d/%d", entityID, entityID, entityID, 3))
 		return tx.JoinOutput{}, nil
 	})
 	return nil
