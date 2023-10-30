@@ -51,7 +51,18 @@ func setupAdapter() shard.Adapter {
 		ShardSequencerAddr: shardReceiverAddr,
 		EVMBaseShardAddr:   baseShardAddr,
 	}
-	adapter, err := shard.NewAdapter(cfg)
+
+	var opts []shard.Option
+	clientCert := os.Getenv("CLIENT_CERT_PATH")
+	if clientCert != "" {
+		log.Print("running shard client with client certification")
+		opts = append(opts, shard.WithCredentials(clientCert))
+	} else {
+		log.Print("WARNING: running shard client without client certification. this will cause issues if " +
+			"the chain instance uses SSL credentials")
+	}
+
+	adapter, err := shard.NewAdapter(cfg, opts...)
 	if err != nil {
 		panic(err)
 	}
