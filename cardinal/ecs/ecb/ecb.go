@@ -222,7 +222,7 @@ func (m *Manager) GetComponentForEntity(cType metadata.ComponentMetadata, id ent
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			// This value has never been set. Make a default value.
-			bz, err = cType.New() //nolint:ineffassign,staticcheck,wastedassign // false pos.
+			bz, err = cType.New()
 			if err != nil {
 				return nil, err
 			}

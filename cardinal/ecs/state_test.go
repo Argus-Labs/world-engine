@@ -2,7 +2,6 @@ package ecs_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -251,7 +250,6 @@ func TestCanReloadState(t *testing.T) {
 	betaWorldCtx := ecs.NewWorldContext(betaWorld)
 	assert.NilError(t, q.Each(betaWorldCtx, func(id entity.ID) bool {
 		count++
-		fmt.Println("entity ID : ", id)
 		var num *OneBetaNum
 		num, err = component.GetComponent[OneBetaNum](betaWorldCtx, id)
 		assert.NilError(t, err)
