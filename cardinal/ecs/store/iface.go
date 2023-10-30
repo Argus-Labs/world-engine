@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
@@ -15,7 +15,7 @@ import (
 type Reader interface {
 	// One Component One Entity
 	GetComponentForEntity(cType component_metadata.IComponentMetaData, id entity.ID) (any, error)
-	GetComponentForEntityInRawJson(cType component_metadata.IComponentMetaData, id entity.ID) (json.RawMessage, error)
+	GetComponentForEntityInRawJSON(cType component_metadata.IComponentMetaData, id entity.ID) (json.RawMessage, error)
 
 	// Many Components One Entity
 	GetComponentTypesForEntity(id entity.ID) ([]component_metadata.IComponentMetaData, error)

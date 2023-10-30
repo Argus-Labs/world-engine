@@ -8,7 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -141,7 +141,7 @@ func (m *Manager) addPendingArchIDsToPipe(ctx context.Context, pipe redis.Pipeli
 // addActiveEntityIDsToPipe adds information about which entities are assigned to which archetype IDs to the reids pipe.
 func (m *Manager) addActiveEntityIDsToPipe(ctx context.Context, pipe redis.Pipeliner) error {
 	for archID, active := range m.activeEntities {
-		if active.modified == false {
+		if !active.modified {
 			continue
 		}
 		bz, err := codec.Encode(active.ids)
@@ -169,11 +169,13 @@ func (m *Manager) encodeArchIDToCompTypes() ([]byte, error) {
 	return codec.Encode(forStorage)
 }
 
-func getArchIDToCompTypesFromRedis(client *redis.Client, typeToComp map[component_metadata.TypeID]component_metadata.IComponentMetaData) (m map[archetype.ID][]component_metadata.IComponentMetaData, ok bool, err error) {
+func getArchIDToCompTypesFromRedis(client *redis.Client,
+	typeToComp map[component_metadata.TypeID]component_metadata.IComponentMetaData,
+) (m map[archetype.ID][]component_metadata.IComponentMetaData, ok bool, err error) {
 	ctx := context.Background()
 	key := redisArchIDsToCompTypesKey()
 	bz, err := client.Get(ctx, key).Bytes()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return nil, false, nil
 	} else if err != nil {
 		return nil, false, err
@@ -189,9 +191,9 @@ func getArchIDToCompTypesFromRedis(client *redis.Client, typeToComp map[componen
 	for archID, compTypeIDs := range fromStorage {
 		currComps := []component_metadata.IComponentMetaData{}
 		for _, compTypeID := range compTypeIDs {
-			currComp, ok := typeToComp[compTypeID]
-			if !ok {
-				return nil, false, storage.ErrorComponentMismatchWithSavedState
+			currComp, found := typeToComp[compTypeID]
+			if !found {
+				return nil, false, storage.ErrComponentMismatchWithSavedState
 			}
 			currComps = append(currComps, currComp)
 		}

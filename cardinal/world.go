@@ -12,7 +12,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
@@ -123,21 +123,21 @@ func SetComponent[T component_metadata.Component](wCtx WorldContext, id entity.I
 }
 
 // GetComponent Get returns component data from the entity.
-func GetComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
+func GetComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID) (*T, error) {
 	return component.GetComponent[T](wCtx.getECSWorldContext(), id)
 }
 
-// UpdateComponent Updates a component on an entity
+// UpdateComponent Updates a component on an entity.
 func UpdateComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
 	return component.UpdateComponent[T](wCtx.getECSWorldContext(), id, fn)
 }
 
-// AddComponentTo Adds a component on an entity
+// AddComponentTo Adds a component on an entity.
 func AddComponentTo[T component_metadata.Component](wCtx WorldContext, id entity.ID) error {
 	return component.AddComponentTo[T](wCtx.getECSWorldContext(), id)
 }
 
-// RemoveComponentFrom Removes a component from an entity
+// RemoveComponentFrom Removes a component from an entity.
 func RemoveComponentFrom[T component_metadata.Component](wCtx WorldContext, id entity.ID) error {
 	return component.RemoveComponentFrom[T](wCtx.getECSWorldContext(), id)
 }
@@ -147,8 +147,8 @@ func Remove(wCtx WorldContext, id EntityID) error {
 	return wCtx.getECSWorldContext().GetWorld().Remove(id)
 }
 
-// StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is attempted.
-// In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
+// StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
+// attempted. In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
 // to this world. After StartGame is called, RegisterComponent, RegisterTransactions, RegisterQueries, and AddSystem may
 // not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
@@ -184,14 +184,14 @@ func (w *World) StartGame() error {
 	}
 
 	if w.tickChannel == nil {
-		w.tickChannel = time.Tick(time.Second)
+		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
 	w.implWorld.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
 	gameManager := server.NewGameManager(w.implWorld, w.server)
 	w.gameManager = &gameManager
 	go func() {
 		w.isGameRunning.Store(true)
-		if err := w.server.Serve(); err != nil {
+		if err = w.server.Serve(); err != nil {
 			log.Fatal().Err(err)
 		}
 	}()

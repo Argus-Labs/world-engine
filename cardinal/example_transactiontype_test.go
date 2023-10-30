@@ -1,3 +1,4 @@
+//nolint:testableexamples // can figure this out later.
 package cardinal_test
 
 import (
@@ -52,5 +53,4 @@ func ExampleTransactionType() {
 	if err != nil {
 		panic(err)
 	}
-
 }

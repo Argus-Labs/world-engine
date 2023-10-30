@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrorSystemTransactionRequired  = errors.New("system transaction required")
-	ErrorSystemTransactionForbidden = errors.New("system transaction forbidden")
+	ErrSystemTransactionRequired  = errors.New("system transaction required")
+	ErrSystemTransactionForbidden = errors.New("system transaction forbidden")
 )
 
 func decode[T any](buf []byte) (T, error) {
@@ -33,7 +33,8 @@ func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
 	return createPersonaTx.SignerAddress, nil
 }
 
-func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, isSystemTransaction bool) (sig *sign.SignedPayload, err error) {
+func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, isSystemTransaction bool,
+) (sig *sign.SignedPayload, err error) {
 	if sp.PersonaTag == "" {
 		return nil, errors.New("PersonaTag must not be empty")
 	}
@@ -46,12 +47,13 @@ func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, i
 
 	// Check that the namespace is correct
 	if sp.Namespace != handler.w.Namespace().String() {
-		return nil, fmt.Errorf("%w: got namespace %q but it must be %q", ErrorInvalidSignature, sp.Namespace, handler.w.Namespace().String())
+		return nil, fmt.Errorf("%w: got namespace %q but it must be %q",
+			ErrInvalidSignature, sp.Namespace, handler.w.Namespace().String())
 	}
 	if isSystemTransaction && !sp.IsSystemPayload() {
-		return nil, ErrorSystemTransactionRequired
+		return nil, ErrSystemTransactionRequired
 	} else if !isSystemTransaction && sp.IsSystemPayload() {
-		return nil, ErrorSystemTransactionForbidden
+		return nil, ErrSystemTransactionForbidden
 	}
 
 	var signerAddress string
@@ -74,21 +76,22 @@ func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, i
 	}
 	if sp.Nonce <= nonce {
 		return nil, fmt.Errorf("%w: got nonce %d, but must be greater than %d",
-			ErrorInvalidSignature, sp.Nonce, nonce)
+			ErrInvalidSignature, sp.Nonce, nonce)
 	}
 
 	// Verify signature
-	if err := sp.Verify(signerAddress); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrorInvalidSignature, err)
+	if err = sp.Verify(signerAddress); err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrInvalidSignature, err)
 	}
 	// Update nonce
-	if err := handler.w.SetNonce(signerAddress, sp.Nonce); err != nil {
+	if err = handler.w.SetNonce(signerAddress, sp.Nonce); err != nil {
 		return nil, err
 	}
 	return sp, nil
 }
 
-func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool) (payload []byte, sig *sign.SignedPayload, err error) {
+func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool,
+) (payload []byte, sig *sign.SignedPayload, err error) {
 	sp, err := sign.MappedSignedPayload(request)
 	if err != nil {
 		return nil, nil, err
@@ -98,12 +101,13 @@ func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface
 		return nil, nil, err
 	}
 	if len(sp.Body) == 0 {
-		buf, err := json.Marshal(request)
+		var buf []byte
+		buf, err = json.Marshal(request)
 		if err != nil {
 			return nil, nil, err
 		}
 		return buf, sp, nil
-	} else {
-		return sig.Body, sig, nil
 	}
+
+	return sig.Body, sig, nil
 }

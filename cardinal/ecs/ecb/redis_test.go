@@ -12,7 +12,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -29,12 +29,13 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 	type Beta struct{ Value int }
 	alphaComp := storage.NewMockComponentType[Alpha](Alpha{}, Alpha{})
 	betaComp := storage.NewMockComponentType[Beta](Beta{}, Beta{})
-	alphaComp.SetID(77)
-	betaComp.SetID(88)
+	assert.NilError(t, alphaComp.SetID(77))
+	assert.NilError(t, betaComp.SetID(88))
 
 	manager, err := NewManager(client)
 	assert.NilError(t, err)
-	manager.RegisterComponents([]component_metadata.IComponentMetaData{alphaComp, betaComp})
+	err = manager.RegisterComponents([]component_metadata.IComponentMetaData{alphaComp, betaComp})
+	assert.NilError(t, err)
 
 	id, err := manager.CreateEntity(alphaComp, betaComp)
 	assert.NilError(t, err)

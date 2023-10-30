@@ -38,9 +38,8 @@ func TestTickHappyPath(t *testing.T) {
 	assert.Equal(t, uint64(10), twoWorld.CurrentTick())
 }
 func TestIfPanicMessageLogged(t *testing.T) {
-
 	w := ecs.NewTestWorld(t)
-	//replaces internal Logger with one that logs to the buf variable above.
+	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
 	cardinalLogger := log.Logger{
@@ -57,7 +56,7 @@ func TestIfPanicMessageLogged(t *testing.T) {
 
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
-			//This test should swallow a panic
+			// This test should swallow a panic
 			lastjson, err := findLastJSON(buf.Bytes())
 			assert.NilError(t, err)
 			values := map[string]string{}
@@ -70,7 +69,7 @@ func TestIfPanicMessageLogged(t *testing.T) {
 			assert.Assert(t, ok)
 			assert.Equal(t, panicString, errorTxt)
 		} else {
-			assert.Assert(t, false) //This test should create a panic.
+			assert.Assert(t, false) // This test should create a panic.
 		}
 	}()
 
@@ -82,7 +81,7 @@ func findLastJSON(buf []byte) (json.RawMessage, error) {
 	dec := json.NewDecoder(bytes.NewReader(buf))
 	var lastVal json.RawMessage
 	for {
-		if err := dec.Decode(&lastVal); err == io.EOF {
+		if err := dec.Decode(&lastVal); errors.Is(err, io.EOF) {
 			break
 		} else if err != nil {
 			return nil, err
@@ -111,7 +110,6 @@ func (twoPowerComponent) Name() string {
 }
 
 func TestCanIdentifyAndFixSystemError(t *testing.T) {
-
 	rs := miniredis.RunT(t)
 	oneWorld := testutil.InitWorldWithRedis(t, rs)
 	assert.NilError(t, ecs.RegisterComponent[onePowerComponent](oneWorld))
@@ -119,12 +117,12 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	id, err := component.Create(ecs.NewWorldContext(oneWorld), onePowerComponent{})
 	assert.NilError(t, err)
 
-	errorSystem := errors.New("3 power? That's too much, man!")
+	errorSystem := errors.New("3 power? That's too much, man")
 
 	// In this test, our "buggy" system fails once Power reaches 3
 	oneWorld.AddSystem(func(wCtx ecs.WorldContext) error {
-		p, err := component.GetComponent[onePowerComponent](wCtx, id)
-		//p, err := onePower.Get(world, id)
+		var p *onePowerComponent
+		p, err = component.GetComponent[onePowerComponent](wCtx, id)
 		if err != nil {
 			return err
 		}
@@ -150,8 +148,8 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	// this is our fixed system that can handle Power levels of 3 and higher
 	twoWorld.AddSystem(func(wCtx ecs.WorldContext) error {
-		p, err := component.GetComponent[onePowerComponent](wCtx, id)
-		//p, err := onePower.Get(world, id)
+		var p *onePowerComponent
+		p, err = component.GetComponent[onePowerComponent](wCtx, id)
 		if err != nil {
 			return err
 		}
@@ -169,7 +167,6 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	// Just for fun, tick one last time to make sure power is still being incremented.
 	assert.NilError(t, twoWorld.Tick(context.Background()))
 	p1, err := component.GetComponent[onePowerComponent](twoWorldCtx, id)
-	//p, err = onePower.Get(twoWorld, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 4, p1.Power)
 }
@@ -191,7 +188,6 @@ func (ScalarComponentBeta) Name() string {
 }
 
 func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
-
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, ecs.RegisterComponent[ScalarComponentAlpha](world))
 	assert.NilError(t, ecs.RegisterComponent[ScalarComponentBeta](world))
@@ -207,7 +203,8 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
-		q, err := world.NewSearch(ecs.Contains(ScalarComponentAlpha{}))
+		var q *ecs.Search
+		q, err = world.NewSearch(ecs.Contains(ScalarComponentAlpha{}))
 		assert.NilError(t, err)
 		gotID, err := q.First(wCtx)
 		assert.NilError(t, err)
@@ -248,7 +245,6 @@ func (ScalarComponentToggle) Name() string {
 }
 
 func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
-
 	rs := miniredis.RunT(t)
 	for _, firstWorldIteration := range []bool{true, false} {
 		world := testutil.InitWorldWithRedis(t, rs)
@@ -296,22 +292,20 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 				assert.NilError(t, world.Tick(context.Background()))
 			}
 			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
-			_, err := component.GetComponent[ScalarComponentToggle](wCtx, id)
-			//_, err := toggle.Get(world, id)
-			assert.ErrorIs(t, storage.ErrorComponentNotOnEntity, err)
+			_, err = component.GetComponent[ScalarComponentToggle](wCtx, id)
+			assert.ErrorIs(t, storage.ErrComponentNotOnEntity, err)
 
 			// Ticking again should result in an error
 			assert.ErrorIs(t, errorToggleComponent, world.Tick(context.Background()))
 		} else {
 			// At this second iteration, the errorToggleComponent bug has been fixed. static.Val should be 5
 			// and toggle should have just been added to the entity.
-			_, err := component.GetComponent[ScalarComponentToggle](wCtx, id)
-			//_, err := toggle.Get(world, id)
+			_, err = component.GetComponent[ScalarComponentToggle](wCtx, id)
 			assert.NilError(t, err)
 
-			s, err := component.GetComponent[ScalarComponentStatic](wCtx, id)
+			var s *ScalarComponentStatic
+			s, err = component.GetComponent[ScalarComponentStatic](wCtx, id)
 
-			//s, err := static.Get(world, id)
 			assert.NilError(t, err)
 			assert.Equal(t, 5, s.Val)
 		}
@@ -327,7 +321,6 @@ func (PowerComp) Name() string {
 }
 
 func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
-
 	rs := miniredis.RunT(t)
 	errorBadPowerChange := errors.New("bad power change transaction")
 	for _, isBuggyIteration := range []bool{true, false} {
@@ -371,7 +364,6 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			id, err := q.First(wCtx)
 			assert.NilError(t, err)
 			power, err := component.GetComponent[PowerComp](wCtx, id)
-			//power, err := powerComp.Get(world, id)
 			assert.NilError(t, err)
 			return power.Val
 		}

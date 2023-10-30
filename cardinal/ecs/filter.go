@@ -1,7 +1,7 @@
 package ecs
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
@@ -79,7 +79,6 @@ func (s not) ConvertToComponentFilter(world *World) (filter.ComponentFilter, err
 		return nil, err
 	}
 	return filter.Not(f), nil
-
 }
 
 func (s contains) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {

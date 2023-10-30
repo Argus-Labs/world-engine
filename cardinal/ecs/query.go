@@ -42,18 +42,10 @@ type QueryType[Request any, Reply any] struct {
 
 func WithQueryEVMSupport[Request, Reply any]() func(transactionType *QueryType[Request, Reply]) {
 	return func(query *QueryType[Request, Reply]) {
-		var req Request
-		var rep Reply
-		reqABI, err := abi.GenerateABIType(req)
+		err := query.generateABIBindings()
 		if err != nil {
 			panic(err)
 		}
-		repABI, err := abi.GenerateABIType(rep)
-		if err != nil {
-			panic(err)
-		}
-		query.requestABI = reqABI
-		query.replyABI = repABI
 	}
 }
 
@@ -206,12 +198,13 @@ func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 
 	var args ethereumAbi.Arguments
 	var in any
-	switch input.(type) {
+	//nolint:gocritic // its fine.
+	switch ty := input.(type) {
 	case Request:
-		in = input.(Request)
+		in = ty
 		args = ethereumAbi.Arguments{{Type: *r.requestABI}}
 	case Reply:
-		in = input.(Reply)
+		in = ty
 		args = ethereumAbi.Arguments{{Type: *r.replyABI}}
 	default:
 		return nil, fmt.Errorf("expected the input struct to be either %T or %T, but got %T",

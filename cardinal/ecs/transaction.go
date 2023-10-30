@@ -138,7 +138,9 @@ func (t *TransactionType[In, Out]) SetResult(wCtx WorldContext, hash transaction
 	wCtx.GetWorld().SetTransactionResult(hash, result)
 }
 
-func (t *TransactionType[In, Out]) GetReceipt(wCtx WorldContext, hash transaction.TxHash) (v Out, errs []error, ok bool) {
+func (t *TransactionType[In, Out]) GetReceipt(wCtx WorldContext, hash transaction.TxHash) (
+	v Out, errs []error, ok bool,
+) {
 	world := wCtx.GetWorld()
 	iface, errs, ok := world.GetTransactionReceipt(hash)
 	if !ok {
@@ -198,13 +200,14 @@ func (t *TransactionType[In, Out]) ABIEncode(v any) ([]byte, error) {
 
 	var args ethereumAbi.Arguments
 	var input any
-	switch v.(type) {
-	case In:
-		input = v.(In)
-		args = ethereumAbi.Arguments{{Type: *t.inEVMType}}
+	//nolint:gocritic // its fine.
+	switch in := v.(type) {
 	case Out:
-		input = v.(Out)
+		input = in
 		args = ethereumAbi.Arguments{{Type: *t.outEVMType}}
+	case In:
+		input = in
+		args = ethereumAbi.Arguments{{Type: *t.inEVMType}}
 	default:
 		return nil, fmt.Errorf("expected input to be of type %T or %T, got %T", new(In), new(Out), v)
 	}

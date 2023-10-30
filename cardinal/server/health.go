@@ -10,13 +10,12 @@ type HealthReply struct {
 	IsGameLoopRunning bool `json:"isGameLoopRunning"`
 }
 
-func (handler *Handler) registerHealthHandlerSwagger(api *untyped.API) error {
+func (handler *Handler) registerHealthHandlerSwagger(api *untyped.API) {
 	healthHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		res := HealthReply{
-			true, //see http://ismycomputeron.com/
+			true, // see http://ismycomputeron.com/
 			handler.w.IsGameLoopRunning()}
 		return res, nil
 	})
 	api.RegisterOperation("GET", "/health", healthHandler)
-	return nil
 }

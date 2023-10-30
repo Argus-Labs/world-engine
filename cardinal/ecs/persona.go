@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
@@ -45,7 +45,8 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 	if err != nil {
 		return err
 	}
-	AuthorizePersonaAddressTx.ForEach(wCtx, func(tx TxData[AuthorizePersonaAddress]) (AuthorizePersonaAddressResult, error) {
+	AuthorizePersonaAddressTx.ForEach(wCtx, func(tx TxData[AuthorizePersonaAddress],
+	) (AuthorizePersonaAddressResult, error) {
 		val, sig := tx.Value, tx.Sig
 		result := AuthorizePersonaAddressResult{Success: false}
 		data, ok := personaTagToAddress[sig.PersonaTag]
@@ -93,8 +94,9 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 	if err != nil {
 		return nil, err
 	}
-	q.Each(wCtx, func(id entity.ID) bool {
-		sc, err := getComponent[SignerComponent](wCtx, id)
+	err = q.Each(wCtx, func(id entity.ID) bool {
+		var sc *SignerComponent
+		sc, err = getComponent[SignerComponent](wCtx, id)
 		if err != nil {
 			errs = append(errs, err)
 			return true
@@ -105,6 +107,9 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 		}
 		return true
 	})
+	if err != nil {
+		return nil, err
+	}
 	if len(errs) != 0 {
 		return nil, errors.Join(errs...)
 	}
@@ -128,12 +133,13 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 			// This PersonaTag has already been registered. Don't do anything
 			continue
 		}
-		id, err := create(wCtx, SignerComponent{})
+		var id entity.ID
+		id, err = create(wCtx, SignerComponent{})
 		if err != nil {
 			CreatePersonaTx.AddError(wCtx, txData.TxHash, err)
 			continue
 		}
-		if err := setComponent[SignerComponent](wCtx, id, &SignerComponent{
+		if err = setComponent[SignerComponent](wCtx, id, &SignerComponent{
 			PersonaTag:    tx.PersonaTag,
 			SignerAddress: tx.SignerAddress,
 		}); err != nil {
@@ -153,16 +159,16 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 }
 
 var (
-	ErrorPersonaTagHasNoSigner        = errors.New("persona tag does not have a signer")
-	ErrorCreatePersonaTxsNotProcessed = errors.New("create persona txs have not been processed for the given tick")
+	ErrPersonaTagHasNoSigner        = errors.New("persona tag does not have a signer")
+	ErrCreatePersonaTxsNotProcessed = errors.New("create persona txs have not been processed for the given tick")
 )
 
 // GetSignerForPersonaTag returns the signer address that has been registered for the given persona tag after the
-// given tick. If the world's tick is less than or equal to the given tick, ErrorCreatePersonaTXsNotProcessed is returned.
-// If the given personaTag has no signer address, ErrorPersonaTagHasNoSigner is returned.
+// given tick. If the world's tick is less than or equal to the given tick, ErrorCreatePersonaTXsNotProcessed is
+// returned. If the given personaTag has no signer address, ErrPersonaTagHasNoSigner is returned.
 func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
 	if tick >= w.tick {
-		return "", ErrorCreatePersonaTxsNotProcessed
+		return "", ErrCreatePersonaTxsNotProcessed
 	}
 	var errs []error
 	q, err := w.NewSearch(Exact(SignerComponent{}))
@@ -171,8 +177,8 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 	}
 	wCtx := NewReadOnlyWorldContext(w)
 	err = q.Each(wCtx, func(id entity.ID) bool {
-		sc, err := getComponent[SignerComponent](wCtx, id)
-		//sc, err := SignerComp.Get(w, id)
+		var sc *SignerComponent
+		sc, err = getComponent[SignerComponent](wCtx, id)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -184,21 +190,22 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 	})
 	errs = append(errs, err)
 	if addr == "" {
-		return "", ErrorPersonaTagHasNoSigner
+		return "", ErrPersonaTagHasNoSigner
 	}
 	return addr, errors.Join(errs...)
 }
 
 // TODO private component function used to temporarily remove circular dependency until we replace components.
-// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
+// plugins.
 // Get returns component data from the entity.
 // GetComponent returns component data from the entity.
-func getComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
+func getComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
 	var t T
 	name := t.Name()
 	c, err := wCtx.GetWorld().GetComponentByName(name)
 	if err != nil {
-		return nil, errors.New("Must register component")
+		return nil, errors.New("must register component")
 	}
 	value, err := wCtx.StoreReader().GetComponentForEntity(c, id)
 	if err != nil {
@@ -217,12 +224,14 @@ func getComponent[T component_metadata.Component](wCtx WorldContext, id entity.I
 	return comp, nil
 }
 
+// setComponent sets component data to the entity.
+//
 // TODO private component function used to temporarily remove circular dependency until we replace components.
-// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
-// Set sets component data to the entity.
-func setComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, component *T) error {
+// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
+// plugins.
+func setComponent[T metadata.Component](wCtx WorldContext, id entity.ID, component *T) error {
 	if wCtx.IsReadOnly() {
-		return ErrorCannotModifyStateWithReadOnlyContext
+		return ErrCannotModifyStateWithReadOnlyContext
 	}
 	var t T
 	name := t.Name()
@@ -243,11 +252,12 @@ func setComponent[T component_metadata.Component](wCtx WorldContext, id entity.I
 }
 
 // TODO private component function used to temporarily remove circular dependency until we replace components.
-// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
+// plugins.
 // https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
-func updateComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
+func updateComponent[T metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
 	if wCtx.IsReadOnly() {
-		return ErrorCannotModifyStateWithReadOnlyContext
+		return ErrCannotModifyStateWithReadOnlyContext
 	}
 	val, err := getComponent[T](wCtx, id)
 	if err != nil {
@@ -258,14 +268,15 @@ func updateComponent[T component_metadata.Component](wCtx WorldContext, id entit
 }
 
 // TODO private component function used to temporarily remove circular dependency until we replace components.
-// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
+// plugins.
 // https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
-func createMany(wCtx WorldContext, num int, components ...component_metadata.Component) ([]entity.ID, error) {
+func createMany(wCtx WorldContext, num int, components ...metadata.Component) ([]entity.ID, error) {
 	if wCtx.IsReadOnly() {
-		return nil, ErrorCannotModifyStateWithReadOnlyContext
+		return nil, ErrCannotModifyStateWithReadOnlyContext
 	}
 	world := wCtx.GetWorld()
-	acc := make([]component_metadata.IComponentMetaData, 0, len(components))
+	acc := make([]metadata.IComponentMetaData, 0, len(components))
 	for _, comp := range components {
 		c, err := world.GetComponentByName(comp.Name())
 		if err != nil {
@@ -279,9 +290,10 @@ func createMany(wCtx WorldContext, num int, components ...component_metadata.Com
 	}
 	for _, id := range entityIds {
 		for _, comp := range components {
-			c, err := world.GetComponentByName(comp.Name())
+			var c metadata.IComponentMetaData
+			c, err = world.GetComponentByName(comp.Name())
 			if err != nil {
-				return nil, errors.New("Must register component before creating an entity")
+				return nil, errors.New("must register component before creating an entity")
 			}
 			err = world.StoreManager().SetComponentForEntity(c, id, comp)
 			if err != nil {
@@ -293,9 +305,10 @@ func createMany(wCtx WorldContext, num int, components ...component_metadata.Com
 }
 
 // TODO private component function used to temporarily remove circular dependency until we replace components.
-// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with plugins.
+// TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
+// plugins.
 // https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
-func create(wCtx WorldContext, components ...component_metadata.Component) (entity.ID, error) {
+func create(wCtx WorldContext, components ...metadata.Component) (entity.ID, error) {
 	entities, err := createMany(wCtx, 1, components...)
 	if err != nil {
 		return 0, err

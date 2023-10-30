@@ -14,17 +14,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
-type alphaComponent struct{}
-type betaComponent struct{}
 type gammaComponent struct{}
-
-func (alphaComponent) Name() string {
-	return "alpha"
-}
-
-func (betaComponent) Name() string {
-	return "beta"
-}
 
 func (gammaComponent) Name() string {
 	return "gamma"
@@ -52,15 +42,14 @@ func TestCanFilterByArchetype(t *testing.T) {
 	// only be subsetCount entities.
 	q, err := wCtx.NewSearch(ecs.Exact(Alpha{}, Beta{}))
 	assert.NilError(t, err)
-	q.Each(wCtx, func(id entity.ID) bool {
+	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		// Make sure the gamma component is not on this entity
-		_, err := component.GetComponent[gammaComponent](wCtx, id)
-		//_, err := gamma.Get(wCtx, id)
-		assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
+		_, err = component.GetComponent[gammaComponent](wCtx, id)
+		assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 		return true
 	})
-
+	assert.NilError(t, err)
 	assert.Equal(t, count, subsetCount)
 }
 
@@ -92,93 +81,103 @@ func TestExactVsContains(t *testing.T) {
 	// Contains(alpha) should return all entities
 	q, err := world.NewSearch(ecs.Contains(Alpha{}))
 	assert.NilError(t, err)
-	q.Each(wCtx, func(id entity.ID) bool {
+	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, count, alphaCount+bothCount)
 	count2 := 0
-	sameQuery, err := cql.CQLParse("CONTAINS(alpha)", world.GetComponentByName)
+	sameQuery, err := cql.Parse("CONTAINS(alpha)", world.GetComponentByName)
 	assert.NilError(t, err)
-	ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
+	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
 		count2++
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, count2, alphaCount+bothCount)
 
 	count = 0
 	// Contains(beta) should only return the entities that have both components
 	q, err = world.NewSearch(ecs.Contains(Beta{}))
 	assert.NilError(t, err)
-	q.Each(wCtx, func(id entity.ID) bool {
+	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
-	sameQuery, err = cql.CQLParse("CONTAINS(beta)", world.GetComponentByName)
+	sameQuery, err = cql.Parse("CONTAINS(beta)", world.GetComponentByName)
 	assert.NilError(t, err)
-	ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
+	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
 		count2++
 		return true
 	})
+	assert.NilError(t, err)
 
 	count = 0
 	// Exact(alpha) should not return the entities that have both alpha and beta
 	q, err = world.NewSearch(ecs.Exact(Alpha{}))
 	assert.NilError(t, err)
-	q.Each(wCtx, func(id entity.ID) bool {
+	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, count, alphaCount)
 
 	count2 = 0
-	sameQuery, err = cql.CQLParse("EXACT(alpha)", world.GetComponentByName)
+	sameQuery, err = cql.Parse("EXACT(alpha)", world.GetComponentByName)
 	assert.NilError(t, err)
-	ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
+	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
 		count2++
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, count2, alphaCount)
 
 	count = 0
 	// Exact(alpha, beta) should not return the entities that only have alpha
 	q, err = world.NewSearch(ecs.Exact(Alpha{}, Beta{}))
 	assert.NilError(t, err)
-	q.Each(wCtx, func(id entity.ID) bool {
+	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
-	sameQuery, err = cql.CQLParse("EXACT(alpha, beta)", world.GetComponentByName)
+	sameQuery, err = cql.Parse("EXACT(alpha, beta)", world.GetComponentByName)
 	assert.NilError(t, err)
-	ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
+	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
 		count2++
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
 	count = 0
 	// Make sure the order of alpha/beta doesn't matter
 	q, err = world.NewSearch(ecs.Exact(Beta{}, Alpha{}))
 	assert.NilError(t, err)
-	q.Each(wCtx, func(id entity.ID) bool {
+	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
-	sameQuery, err = cql.CQLParse("EXACT(beta, alpha)", world.GetComponentByName)
+	sameQuery, err = cql.Parse("EXACT(beta, alpha)", world.GetComponentByName)
 	assert.NilError(t, err)
-	ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
+	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
 		count2++
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 }
 
@@ -201,10 +200,11 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	assert.NilError(t, err)
 
 	count := 0
-	ecs.NewSearch(filter.Exact(comps...)).Each(wCtx, func(id entity.ID) bool {
+	err = ecs.NewSearch(filter.Exact(comps...)).Each(wCtx, func(id entity.ID) bool {
 		count++
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, count, wantCount)
 
 	count2 := 0
@@ -218,14 +218,14 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	}
 	queryString += ")"
 
-	sameQuery, err := cql.CQLParse(queryString, world.GetComponentByName)
+	sameQuery, err := cql.Parse(queryString, world.GetComponentByName)
 	assert.NilError(t, err)
-	ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
+	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
 		count2++
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, count2, wantCount)
-
 }
 
 func BenchmarkEntityCreation(b *testing.B) {
@@ -266,12 +266,14 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		count := 0
-		q, err := world.NewSearch(ecs.Exact(Alpha{}, Beta{}))
+		var q *ecs.Search
+		q, err = world.NewSearch(ecs.Exact(Alpha{}, Beta{}))
 		assert.NilError(b, err)
-		q.Each(wCtx, func(id entity.ID) bool {
+		err = q.Each(wCtx, func(id entity.ID) bool {
 			count++
 			return true
 		})
+		assert.NilError(b, err)
 		assert.Equal(b, count, relevantCount)
 	}
 }

@@ -44,17 +44,12 @@ func (r *receiptsDispatcher) subscribe(session string, ch receiptChan) {
 	r.m.Store(session, ch)
 }
 
-// unsubscribe stops sending receipt information to the channle associated with the session string.
-func (r *receiptsDispatcher) unsubscribe(session string) {
-	r.m.Delete(session)
-}
-
 // dispatch continually drains r.ch (receipts from cardinal) and sends copies to all subscribed channels.
 // This function is meant to be called in a goroutine. Pushed receipts will not block when sending.
 func (r *receiptsDispatcher) dispatch(log runtime.Logger) {
 	for receipt := range r.ch {
 		r.m.Range(func(key, value any) bool {
-			ch := value.(receiptChan)
+			ch, _ := value.(receiptChan)
 			// avoid blocking r.ch by making a best-effort delivery here.
 			select {
 			case ch <- receipt:
@@ -82,7 +77,9 @@ func (r *receiptsDispatcher) pollReceipts(log runtime.Logger) {
 	}
 }
 
-func (r *receiptsDispatcher) streamBatchOfReceipts(log runtime.Logger, startTick uint64) (newStartTick uint64, err error) {
+func (r *receiptsDispatcher) streamBatchOfReceipts(_ runtime.Logger, startTick uint64) (
+	newStartTick uint64, err error,
+) {
 	newStartTick = startTick
 	reply, err := r.getBatchOfReceiptsFromCardinal(startTick)
 	if err != nil {
@@ -99,7 +96,8 @@ type txReceiptRequest struct {
 	StartTick uint64 `json:"startTick"`
 }
 
-func (r *receiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (reply *TransactionReceiptsReply, err error) {
+func (r *receiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (
+	reply *TransactionReceiptsReply, err error) {
 	request := txReceiptRequest{
 		StartTick: startTick,
 	}
@@ -109,7 +107,7 @@ func (r *receiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (r
 	}
 	ctx := context.Background()
 	url := makeURL(transactionReceiptsEndpoint)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(buf))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}
@@ -118,10 +116,11 @@ func (r *receiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (r
 	if err != nil {
 		return nil, fmt.Errorf("failed to query %q: %w", url, err)
 	}
+	defer resp.Body.Close()
 
 	reply = &TransactionReceiptsReply{}
 
-	if err := json.NewDecoder(resp.Body).Decode(reply); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(reply); err != nil {
 		return nil, err
 	}
 	return reply, nil

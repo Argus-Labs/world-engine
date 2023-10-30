@@ -1,11 +1,9 @@
-package component_metadata
+package metadata
 
 import (
 	"fmt"
-	"reflect"
-	"unsafe"
-
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
+	"reflect"
 )
 
 type (
@@ -91,8 +89,12 @@ func (c *ComponentMetaData[T]) ID() TypeID {
 
 func (c *ComponentMetaData[T]) New() ([]byte, error) {
 	var comp T
+	var ok bool
 	if c.defaultVal != nil {
-		comp = c.defaultVal.(T)
+		comp, ok = c.defaultVal.(T)
+		if !ok {
+			return nil, fmt.Errorf("could not convert %T to %T", c.defaultVal, new(T))
+		}
 	}
 	return codec.Encode(comp)
 }
@@ -103,11 +105,6 @@ func (c *ComponentMetaData[T]) Encode(v any) ([]byte, error) {
 
 func (c *ComponentMetaData[T]) Decode(bz []byte) (any, error) {
 	return codec.Decode[T](bz)
-}
-
-func (c *ComponentMetaData[T]) setDefaultVal(ptr unsafe.Pointer) {
-	v := reflect.Indirect(reflect.ValueOf(c.defaultVal))
-	reflect.NewAt(c.typ, ptr).Elem().Set(v)
 }
 
 func (c *ComponentMetaData[T]) validateDefaultVal() {
@@ -132,10 +129,10 @@ func newComponentType[T any](s T, name string, defaultVal interface{}) *Componen
 }
 
 // ComponentOption is a type that can be passed to NewComponentMetadata to augment the creation
-// of the component type
+// of the component type.
 type ComponentOption[T any] func(c *ComponentMetaData[T])
 
-// WithDefault updated the created ComponentMetaData with a default value
+// WithDefault updated the created ComponentMetaData with a default value.
 func WithDefault[T any](defaultVal T) ComponentOption[T] {
 	return func(c *ComponentMetaData[T]) {
 		c.defaultVal = defaultVal

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
@@ -15,7 +16,8 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-func (handler *Handler) processTransaction(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload) (*TransactionReply, error) {
+func (handler *Handler) processTransaction(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload,
+) (*TransactionReply, error) {
 	txVal, err := tx.Decode(payload)
 	if err != nil {
 		return nil, fmt.Errorf("unable to decode transaction: %w", err)
@@ -23,7 +25,8 @@ func (handler *Handler) processTransaction(tx transaction.ITransaction, payload 
 	return handler.submitTransaction(txVal, tx, sp)
 }
 
-func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string]transaction.ITransaction) (transaction.ITransaction, error) {
+func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string]transaction.ITransaction,
+) (transaction.ITransaction, error) {
 	mappedParams, ok := params.(map[string]interface{})
 	if !ok {
 		return nil, errors.New("params not readable")
@@ -38,7 +41,7 @@ func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string
 	}
 	tx, ok := txNameToTx[txTypeString]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("could not locate transaction type: %s", txTypeString))
+		return nil, fmt.Errorf("could not locate transaction type: %s", txTypeString)
 	}
 	return tx, nil
 }
@@ -57,7 +60,6 @@ func (handler *Handler) getBodyAndSigFromParams(
 	txBodyMap, ok := txBody.(map[string]interface{})
 	if !ok {
 		return nil, nil, errors.New("txBody needs to be a json object in the body")
-
 	}
 	payload, sp, err := handler.verifySignatureOfMapRequest(txBodyMap, isSystemTransaction)
 	if err != nil {
@@ -66,7 +68,7 @@ func (handler *Handler) getBodyAndSigFromParams(
 	return payload, sp, nil
 }
 
-// register transaction handlers on swagger server
+// register transaction handlers on swagger server.
 func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 	world := handler.w
 	txs, err := world.ListTransactions()
@@ -80,22 +82,28 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 	}
 
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		payload, sp, err := handler.getBodyAndSigFromParams(params, false)
+		var payload []byte
+		var sp *sign.SignedPayload
+		payload, sp, err = handler.getBodyAndSigFromParams(params, false)
 		if err != nil {
 			return nil, err
 		}
-		tx, err := getTxFromParams("txType", params, txNameToTx)
+		var tx transaction.ITransaction
+		tx, err = getTxFromParams("txType", params, txNameToTx)
 		if err != nil {
-			return middleware.Error(404, err), nil
+			//nolint:nilerr // its ok.
+			return middleware.Error(http.StatusNotFound, err), nil
 		}
 		return handler.processTransaction(tx, payload, sp)
 	})
 
 	createPersonaHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		payload, sp, err := handler.getBodyAndSigFromParams(params, true)
+		var payload []byte
+		var sp *sign.SignedPayload
+		payload, sp, err = handler.getBodyAndSigFromParams(params, true)
 		if err != nil {
-			if errors.Is(err, ErrorInvalidSignature) || errors.Is(err, ErrorSystemTransactionRequired) {
-				return middleware.Error(401, err), nil
+			if errors.Is(err, ErrInvalidSignature) || errors.Is(err, ErrSystemTransactionRequired) {
+				return middleware.Error(http.StatusUnauthorized, err), nil
 			}
 			return nil, err
 		}
@@ -114,7 +122,8 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 }
 
 // submitTransaction submits a transaction to the game world, as well as the blockchain.
-func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.SignedPayload) (*TransactionReply, error) {
+func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.SignedPayload,
+) (*TransactionReply, error) {
 	log.Debug().Msgf("submitting transaction %d: %v", tx.ID(), txVal)
 	tick, txHash := handler.w.AddTransaction(tx.ID(), txVal, sp)
 	txReply := &TransactionReply{

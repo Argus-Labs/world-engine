@@ -19,13 +19,13 @@ func Move(ctx cardinal.WorldContext) error {
 		err := cardinal.UpdateComponent[comp.Location](ctx, playerEntityID, func(location *comp.Location) *comp.Location {
 			switch mtx.Value().Direction {
 			case "up":
-				location.Y += 1
+				location.Y++
 			case "down":
-				location.Y -= 1
+				location.Y--
 			case "left":
-				location.X -= 1
+				location.X--
 			case "right":
-				location.X += 1
+				location.X++
 			}
 			resultingLoc = *location
 			return location
@@ -33,7 +33,7 @@ func Move(ctx cardinal.WorldContext) error {
 		if err != nil {
 			return tx.MoveOutput{}, err
 		}
-		logger.Info().Msgf("player %s now at (%d, %d)", resultingLoc.X, resultingLoc.Y)
+		logger.Info().Msgf("player %s now at (%d, %d)", mtx.Sig().PersonaTag, resultingLoc.X, resultingLoc.Y)
 		return tx.MoveOutput{X: resultingLoc.X, Y: resultingLoc.Y}, err
 	})
 	return nil

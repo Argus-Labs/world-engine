@@ -1,11 +1,11 @@
 package cardinal_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/test_utils"
 )
 
 type Alpha struct{}
@@ -21,12 +21,12 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 func TestSearchExample(t *testing.T) {
-	world, _ := test_utils.MakeWorldAndTicker(t)
+	world, _ := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
 
-	worldCtx := test_utils.WorldToWorldContext(world)
+	worldCtx := testutils.WorldToWorldContext(world)
 	_, err := cardinal.CreateMany(worldCtx, 10, Alpha{})
 	assert.NilError(t, err)
 	_, err = cardinal.CreateMany(worldCtx, 10, Beta{})
@@ -73,9 +73,11 @@ func TestSearchExample(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		msg := "problem with " + tc.name
-		q, err := worldCtx.NewSearch(tc.filter)
+		var q *cardinal.Search
+		q, err = worldCtx.NewSearch(tc.filter)
 		assert.NilError(t, err, msg)
-		count, err := q.Count(worldCtx)
+		var count int
+		count, err = q.Count(worldCtx)
 		assert.NilError(t, err, msg)
 		assert.Equal(t, tc.want, count, msg)
 	}

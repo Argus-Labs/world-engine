@@ -19,7 +19,6 @@ func (FooComponent) Name() string {
 }
 
 func TestSearchEarlyTermination(t *testing.T) {
-
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, ecs.RegisterComponent[FooComponent](world))
 
@@ -33,10 +32,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
 		count++
-		if count == stop {
-			return false
-		}
-		return true
+		return count != stop
 	}))
 	assert.Equal(t, count, stop)
 

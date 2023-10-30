@@ -1,6 +1,6 @@
 package filter
 
-import "pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+import component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 
 func Not(filter ComponentFilter) ComponentFilter {
 	return &not{filter: filter}

@@ -1,6 +1,6 @@
 package filter
 
-import "pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+import component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 
 type contains struct {
 	components []component_metadata.IComponentMetaData

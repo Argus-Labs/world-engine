@@ -5,7 +5,7 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 )
 
 func TestReadOnly_CanGetComponent(t *testing.T) {
@@ -19,7 +19,7 @@ func TestReadOnly_CanGetComponent(t *testing.T) {
 
 	roStore := manager.ToReadOnly()
 
-	// A read-only operation here should NOT find the entity (because it hasn't been commited yet)
+	// A read-only operation here should NOT find the entity (because it hasn't been committed yet)
 	_, err = roStore.GetComponentForEntity(fooComp, id)
 	assert.Check(t, err != nil)
 
@@ -168,9 +168,4 @@ func TestReadOnly_ArchetypeCount(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, manager.CommitPending())
 	assert.Equal(t, 2, roManager.ArchetypeCount())
-}
-
-func TestReadOnly_CanBeUsedInQuery(t *testing.T) {
-	// TODO: The read-only version of SearchFrom is not tested because it would be best to test it
-	// using a proper query and filter, but those method require a store.IManager, not a store.IReader
 }

@@ -33,24 +33,20 @@ type ModifyScoreTx struct {
 type EmptyTxResult struct{}
 
 func TestReadTypeNotStructs(t *testing.T) {
-
 	defer func() {
 		// test should trigger a panic. it is swallowed here.
 		panicValue := recover()
 		assert.Assert(t, panicValue != nil)
 
 		defer func() {
-			//defered function should not fail
-			panicValue := recover()
+			// deferred function should not fail
+			panicValue = recover()
 			assert.Assert(t, panicValue == nil)
 		}()
 
 		ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score2")
-
 	}()
-
 	ecs.NewTransactionType[string, string]("modify_score1")
-
 }
 
 func TestCanQueueTransactions(t *testing.T) {
@@ -70,7 +66,7 @@ func TestCanQueueTransactions(t *testing.T) {
 		modifyScore := modifyScoreTx.In(wCtx)
 		for _, txData := range modifyScore {
 			ms := txData.Value
-			err := component.UpdateComponent[ScoreComponent](wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
+			err = component.UpdateComponent[ScoreComponent](wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 				s.Score += ms.Amount
 				return s
 			})
@@ -183,14 +179,16 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 
 	for i, id := range ids {
 		wantScore := 0
-		if i == 5 {
+		switch i {
+		case 5:
 			wantScore = 105
-		} else if i == 10 {
+		case 10:
 			wantScore = 110
-		} else if i == 50 {
+		case 50:
 			wantScore = 150
 		}
-		s, err := component.GetComponent[ScoreComponent](wCtx, id)
+		var s *ScoreComponent
+		s, err = component.GetComponent[ScoreComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, wantScore, s.Score)
 	}
@@ -210,7 +208,6 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	world.AddSystem(func(ecs.WorldContext) error {
 		<-inSystemCh
 		select {}
-		return nil
 	})
 	assert.NilError(t, world.LoadGameState())
 
@@ -311,7 +308,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 }
 
 // TestIdenticallyTypedTransactionCanBeDistinguished verifies that two transactions of the same type
-// can be distinguished if they were added with different TransactionType[T]s
+// can be distinguished if they were added with different TransactionType[T]s.
 func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	type NewOwner struct {
@@ -327,12 +324,12 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 
 	world.AddSystem(func(wCtx ecs.WorldContext) error {
 		newNames := alpha.In(wCtx)
-		assert.Check(t, 1 == len(newNames), "expected 1 transaction, not %d", len(newNames))
-		assert.Check(t, "alpha" == newNames[0].Value.Name)
+		assert.Check(t, len(newNames) == 1, "expected 1 transaction, not %d", len(newNames))
+		assert.Check(t, newNames[0].Value.Name == "alpha")
 
 		newNames = beta.In(wCtx)
-		assert.Check(t, 1 == len(newNames), "expected 1 transaction, not %d", len(newNames))
-		assert.Check(t, "beta" == newNames[0].Value.Name)
+		assert.Check(t, len(newNames) == 1, "expected 1 transaction, not %d", len(newNames))
+		assert.Check(t, newNames[0].Value.Name == "beta")
 		return nil
 	})
 	assert.NilError(t, world.LoadGameState())
@@ -393,7 +390,7 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	alphaTx := ecs.NewTransactionType[SomeTx, EmptyTxResult]("name_match")
 	betaTx := ecs.NewTransactionType[OtherTx, EmptyTxResult]("name_match")
-	assert.ErrorIs(t, world.RegisterTransactions(alphaTx, betaTx), ecs.ErrorDuplicateTransactionName)
+	assert.ErrorIs(t, world.RegisterTransactions(alphaTx, betaTx), ecs.ErrDuplicateTransactionName)
 }
 
 func TestCanGetTransactionErrorsAndResults(t *testing.T) {

@@ -23,7 +23,7 @@ type WorldContext interface {
 }
 
 var (
-	ErrorCannotModifyStateWithReadOnlyContext = errors.New("cannot modify state with read only context")
+	ErrCannotModifyStateWithReadOnlyContext = errors.New("cannot modify state with read only context")
 )
 
 type worldContext struct {

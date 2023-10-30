@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 )
@@ -40,19 +40,19 @@ func testSystem(wCtx ecs.WorldContext) error {
 	if err != nil {
 		return err
 	}
-	q.Each(wCtx, func(entityId entity.ID) bool {
-		energyPlanet, err := component.GetComponent[EnergyComp](wCtx, entityId)
+	err = q.Each(wCtx, func(entityId entity.ID) bool {
+		var energyPlanet *EnergyComp
+		energyPlanet, err = component.GetComponent[EnergyComp](wCtx, entityId)
 		if err != nil {
 			return false
 		}
-		energyPlanet.value += 10 // bs whatevewCtxr
+		energyPlanet.value += 10
 		err = component.SetComponent[EnergyComp](wCtx, entityId, energyPlanet)
-		//err = energy.Set(w, entityId, energyPlanet)
-		if err != nil {
-			return false
-		}
-		return true
+		return err == nil
 	})
+	if err != nil {
+		panic(err)
+	}
 
 	return nil
 }
@@ -63,9 +63,8 @@ func testSystemWarningTrigger(wCtx ecs.WorldContext) error {
 }
 
 func TestWorldLogger(t *testing.T) {
-
 	w := ecs.NewTestWorld(t)
-	//replaces internal Logger with one that logs to the buf variable above.
+	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
 	cardinalLogger := log.Logger{
@@ -98,14 +97,13 @@ func TestWorldLogger(t *testing.T) {
 						]
 				}
 `
-	//require.JSONEq compares json strings for equality.
 	require.JSONEq(t, jsonWorldInfoString, buf.String())
 	buf.Reset()
 	energy, err := w.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
 	components := []component_metadata.IComponentMetaData{energy}
 	wCtx := ecs.NewWorldContext(w)
-	entityId, err := component.Create(wCtx, EnergyComp{})
+	entityID, err := component.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `
@@ -127,9 +125,9 @@ func TestWorldLogger(t *testing.T) {
 	buf.Reset()
 
 	// test log entity
-	archetypeId, err := w.StoreManager().GetArchIDForComponents(components)
+	archetypeID, err := w.StoreManager().GetArchIDForComponents(components)
 	assert.NilError(t, err)
-	cardinalLogger.LogEntity(zerolog.DebugLevel, entityId, archetypeId, components)
+	cardinalLogger.LogEntity(zerolog.DebugLevel, entityID, archetypeID, components)
 	jsonEntityInfoString := `
 		{
 			"level":"debug",
@@ -143,7 +141,7 @@ func TestWorldLogger(t *testing.T) {
 		}`
 	require.JSONEq(t, buf.String(), jsonEntityInfoString)
 
-	//create a system for logging.
+	// create a system for logging.
 	buf.Reset()
 	w.AddSystems(testSystemWarningTrigger)
 	err = w.LoadGameState()
@@ -179,21 +177,21 @@ func TestWorldLogger(t *testing.T) {
 			}`, logStrings[2])
 	// test tick end
 	buf.Reset()
-	sanitizeJsonBytes := func(json []byte) []byte {
-		json = bytes.Replace(json, []byte("\t"), []byte(""), -1)
-		json = bytes.Replace(json, []byte("\n"), []byte(""), -1)
-		json = bytes.Replace(json, []byte("\r"), []byte(""), -1)
+	sanitizedJSON := func(json []byte) []byte {
+		json = bytes.ReplaceAll(json, []byte("\t"), []byte(""))
+		json = bytes.ReplaceAll(json, []byte("\n"), []byte(""))
+		json = bytes.ReplaceAll(json, []byte("\r"), []byte(""))
 		return json
 	}
 	var map1, map2 map[string]interface{}
-	//tick execution time is not tested.
+	// tick execution time is not tested.
 	json1 := []byte(`{
 				 "level":"warn",
 				 "tick":"0",
 				 "tick_execution_time": 0, 
 				 "message":"tick ended, (warning: tick exceeded 100ms)"
 			 }`)
-	json1 = sanitizeJsonBytes(json1)
+	json1 = sanitizedJSON(json1)
 	if err = json.Unmarshal(json1, &map1); err != nil {
 		t.Fatalf("Error unmarshalling json1: %v", err)
 	}
@@ -210,9 +208,8 @@ func TestWorldLogger(t *testing.T) {
 		if !ok {
 			t.Errorf("Should be a value in %s", name)
 		}
-		if name == "tick_execution_time" {
-			//time is not deterministic in the context of unit tests, therefore it is not unit testable.
-		} else {
+		// time is not deterministic in the context of unit tests, therefore it is not unit testable.
+		if name != "tick_execution_time" {
 			assert.Equal(t, v1, v2)
 		}
 	}

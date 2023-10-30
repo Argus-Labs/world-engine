@@ -4,7 +4,6 @@ use (
 	cardinal
 	chain
 	chain/contracts
-	magefiles
 	relay/nakama
 	rift
 	sign

@@ -18,7 +18,7 @@ func main() {
 	adapter := setupAdapter()
 	world, err := cardinal.NewWorld(redisAddr, "",
 		cardinal.WithNamespace(namespace),
-		cardinal.WithReceiptHistorySize(10),
+		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
 		cardinal.WithAdapter(adapter),
 	)
 	if err != nil {
@@ -41,7 +41,10 @@ func main() {
 	}
 	cardinal.RegisterSystems(world, sys.Join, sys.Move)
 
-	world.StartGame()
+	err = world.StartGame()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func setupAdapter() shard.Adapter {

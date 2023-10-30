@@ -16,7 +16,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-const WorldId string = "1"
+const WorldID string = "1"
 
 func GetRedisStorage(t *testing.T) storage.RedisStorage {
 	s := miniredis.RunT(t)
@@ -24,7 +24,7 @@ func GetRedisStorage(t *testing.T) storage.RedisStorage {
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
-	}, WorldId)
+	}, WorldID)
 }
 
 // InitWorldWithRedis sets up an ecs.World using the given redis DB. ecs.NewECSWorldForTest is not used
@@ -60,22 +60,24 @@ func DumpRedis(t *testing.T, r *miniredis.Miniredis, label any) {
 	assert.NilError(t, err)
 	for _, key := range keys {
 		t.Log(key)
-		str, err := client.Get(ctx, key).Result()
-		if err == nil {
-			t.Log("  ", str)
-		} else if strings.Contains(err.Error(), "WRONGTYPE") {
-			// This is a list. Dump each item in the list
-			count, err := client.LLen(ctx, key).Result()
-			assert.NilError(t, err)
-			for i := int64(0); i < count; i++ {
-				str, err := client.LIndex(ctx, key, i).Result()
+		var str string
+		str, err = client.Get(ctx, key).Result()
+		if err != nil {
+			if strings.Contains(err.Error(), "WRONGTYPE") {
+				// This is a list. Dump each item in the list
+				var count int64
+				count, err = client.LLen(ctx, key).Result()
 				assert.NilError(t, err)
-				t.Logf("  item:%d: %v", i, str)
+				for i := int64(0); i < count; i++ {
+					str, err = client.LIndex(ctx, key, i).Result()
+					assert.NilError(t, err)
+					t.Logf("  item:%d: %v", i, str)
+				}
+			} else {
+				assert.NilError(t, err)
 			}
-
-		} else if err != nil {
-			assert.NilError(t, err)
 		}
+		t.Log("  ", str)
 	}
 }
 
@@ -84,6 +86,7 @@ var (
 	privateKey *ecdsa.PrivateKey
 )
 
+//nolint:gochecknoinits // its for a test, its ok.
 func init() {
 	var err error
 	privateKey, err = crypto.GenerateKey()

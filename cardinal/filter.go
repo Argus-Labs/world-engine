@@ -2,7 +2,7 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 )
 
 type Filter interface {
@@ -70,7 +70,6 @@ func (s and) convertToFilterable() ecs.Filterable {
 func (s not) convertToFilterable() ecs.Filterable {
 	f := s.filter.convertToFilterable()
 	return ecs.Not(f)
-
 }
 
 func (s contains) convertToFilterable() ecs.Filterable {

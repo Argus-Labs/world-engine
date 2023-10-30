@@ -34,6 +34,7 @@ type txHashAndUserID struct {
 	userID string
 }
 
+//nolint:gosec // its ok
 const personaVerifierSessionName = "persona_verifier_session"
 
 func (p *personaTagVerifier) addPendingPersonaTag(userID, txHash string) {
@@ -43,17 +44,19 @@ func (p *personaTagVerifier) addPendingPersonaTag(userID, txHash string) {
 	}
 }
 
-func initPersonaTagVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *receiptsDispatcher) (*personaTagVerifier, error) {
+func initPersonaTagVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *receiptsDispatcher,
+) *personaTagVerifier {
+	channelLimit := 100
 	ptv := &personaTagVerifier{
 		txHashToPending: map[string]pendingPersonaTagRequest{},
-		receiptCh:       make(receiptChan, 100),
+		receiptCh:       make(receiptChan, channelLimit),
 		pendingCh:       make(chan txHashAndUserID),
 		nk:              nk,
 		logger:          logger,
 	}
 	rd.subscribe(personaVerifierSessionName, ptv.receiptCh)
 	go ptv.consume()
-	return ptv, nil
+	return ptv
 }
 
 func (p *personaTagVerifier) consume() {
@@ -122,7 +125,7 @@ func (p *personaTagVerifier) attemptVerification(txHash string) error {
 	}
 	// We have both a user ID and a success message. Save this success/failure to nakama's storage system
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, runtime.RUNTIME_CTX_USER_ID, pending.userID)
+	ctx = context.WithValue(ctx, runtime.RUNTIME_CTX_USER_ID, pending.userID) //nolint:staticcheck // its fine.
 	ptr, err := loadPersonaTagStorageObj(ctx, p.nk)
 	if err != nil {
 		return fmt.Errorf("unable to get persona tag storage obj: %w", err)
@@ -131,7 +134,7 @@ func (p *personaTagVerifier) attemptVerification(txHash string) error {
 		return fmt.Errorf("expected a pending persona tag status but got %q", ptr.Status)
 	}
 	ptr.Status = pending.status
-	if err := ptr.savePersonaTagStorageObj(ctx, p.nk); err != nil {
+	if err = ptr.savePersonaTagStorageObj(ctx, p.nk); err != nil {
 		return fmt.Errorf("unable to set persona tag storage object: %w", err)
 	}
 	delete(p.txHashToPending, txHash)

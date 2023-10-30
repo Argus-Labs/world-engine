@@ -2,6 +2,7 @@ package ecb
 
 import (
 	"context"
+	"errors"
 
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
@@ -21,13 +22,13 @@ var _ store.TickStorage = &Manager{}
 func (m *Manager) GetTickNumbers() (start, end uint64, err error) {
 	ctx := context.Background()
 	start, err = m.client.Get(ctx, redisStartTickKey()).Uint64()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		start = 0
 	} else if err != nil {
 		return 0, 0, err
 	}
 	end, err = m.client.Get(ctx, redisEndTickKey()).Uint64()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		end = 0
 	} else if err != nil {
 		return 0, 0, err
@@ -36,7 +37,7 @@ func (m *Manager) GetTickNumbers() (start, end uint64, err error) {
 }
 
 // StartNextTick saves the given transactions to the DB and sets the tick trackers to indicate we are in the middle
-// of a tick. While transactions are saved to the DB, no state changes take palce at this time.
+// of a tick. While transactions are saved to the DB, no state changes take place at this time.
 func (m *Manager) StartNextTick(txs []transaction.ITransaction, queue *transaction.TxQueue) error {
 	ctx := context.Background()
 	pipe := m.client.TxPipeline()
@@ -88,7 +89,8 @@ func (m *Manager) Recover(txs []transaction.ITransaction) (*transaction.TxQueue,
 	txQueue := transaction.NewTxQueue()
 	for _, p := range pending {
 		tx := idToTx[p.TypeID]
-		txData, err := tx.Decode(p.Data)
+		var txData any
+		txData, err = tx.Decode(p.Data)
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +106,8 @@ type pendingTransaction struct {
 	Sig    *sign.SignedPayload
 }
 
-func addPendingTransactionToPipe(ctx context.Context, pipe redis.Pipeliner, txs []transaction.ITransaction, queue *transaction.TxQueue) error {
+func addPendingTransactionToPipe(ctx context.Context, pipe redis.Pipeliner, txs []transaction.ITransaction,
+	queue *transaction.TxQueue) error {
 	var pending []pendingTransaction
 	for _, tx := range txs {
 		currList := queue.ForID(tx.ID())

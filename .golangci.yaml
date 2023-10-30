@@ -167,7 +167,7 @@ linters-settings:
       shadow:
         # Whether to be strict about shadowing; can be noisy.
         # Default: false
-        strict: true
+        strict: false
 
   # max line length, lines longer will be reported. Default is 120.
   # '\t' is counted as 1 character by default, and can be changed with the tab-width option
@@ -255,7 +255,6 @@ linters:
     - nilnil # checks that there is no simultaneous return of nil error and an invalid value
     - noctx # finds sending http request without context.Context
     - nolintlint # reports ill-formed or insufficient nolint directives
-    - nonamedreturns # reports all named returns
     - nosprintfhostport # checks for misuse of Sprintf to construct a host with port in a URL
     - predeclared # finds code that shadows one of Go's predeclared identifiers
     - prealloc # [premature optimization, but can be used in some cases] finds slice declarations that could potentially be preallocated
@@ -348,3 +347,5 @@ issues:
         - gosec
         - noctx
         - wrapcheck
+    - text: 'shadow: declaration of "(err|ctx)" shadows declaration at'
+      linters: [ govet ]

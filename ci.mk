@@ -8,7 +8,7 @@ golangci-install:
 	@echo "--> Installing golangci-lint $(golangci_version)"
 	@go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(golangci_version)
 
-golangci:
+lint:
 	@$(MAKE) golangci-install
 	@echo "--> Running linter"
 	@go list -f '{{.Dir}}/...' -m | xargs golangci-lint run  --timeout=10m --concurrency 8 -v
