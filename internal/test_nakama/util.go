@@ -47,7 +47,7 @@ type Content struct {
 
 type NotificationCollection struct {
 	Notifications   []NotificationItem `json:"notifications"`
-	CacheableCursor string             `json:"cacheable_cursor"`
+	CacheableCursor string             `json:"cacheableCursor"`
 }
 
 func (c *nakamaClient) listKNotifications(k int) ([]*Content, error) {
