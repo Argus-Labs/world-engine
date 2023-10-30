@@ -3,17 +3,23 @@ package cardinal
 import (
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/events"
 )
 
 type WorldContext interface {
 	NewSearch(filter Filter) (*Search, error)
 	CurrentTick() uint64
+	EmitEvent(event string)
 	Logger() *zerolog.Logger
 	getECSWorldContext() ecs.WorldContext
 }
 
 type worldContext struct {
 	implContext ecs.WorldContext
+}
+
+func (wCtx *worldContext) EmitEvent(event string) {
+	wCtx.getECSWorldContext().GetWorld().EmitEvent(&events.Event{Message: event})
 }
 
 func (wCtx *worldContext) CurrentTick() uint64 {

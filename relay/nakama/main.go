@@ -45,7 +45,7 @@ const (
 	EnvCardinalNamespace = "CARDINAL_NAMESPACE"
 
 	cardinalCollection = "cardinal_collection"
-	personaTagKey      = "persona_tag"
+	personaTagKey      = "personaTag"
 
 	transactionEndpointPrefix = "/tx"
 )
@@ -77,6 +77,10 @@ func InitModule(
 	}
 
 	initReceiptDispatcher(logger)
+
+	if err := initEventHub(ctx, logger, nk); err != nil {
+		return fmt.Errorf("failed to init event hub: %w", err)
+	}
 
 	if err := initReceiptMatch(ctx, logger, db, nk, initializer); err != nil {
 		return fmt.Errorf("unable to init match for receipt streaming: %w", err)
@@ -117,6 +121,32 @@ func initReceiptDispatcher(log runtime.Logger) {
 	globalReceiptsDispatcher = newReceiptsDispatcher()
 	go globalReceiptsDispatcher.pollReceipts(log)
 	go globalReceiptsDispatcher.dispatch(log)
+}
+
+func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModule) error {
+	eventHub, err := createEventHub(log)
+	if err != nil {
+		return err
+	}
+	go func() {
+		err := eventHub.dispatch(log)
+		if err != nil {
+			log.Error("error initializing eventHub: %s", err.Error())
+		}
+	}()
+
+	// for now send to everybody via notifications.
+	go func() {
+		channel := eventHub.subscribe("main")
+		for event := range channel {
+			err := nk.NotificationSendAll(ctx, "event", map[string]interface{}{"message": event.message}, 1, true)
+			if err != nil {
+				log.Error("error sending notifications: %s", err.Error())
+			}
+		}
+	}()
+
+	return nil
 }
 
 func initReceiptMatch(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule,
@@ -328,14 +358,12 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 					return logError(logger, "unable to make payload: %w", err)
 				}
 
-				var req *http.Request
-				req, err = http.NewRequestWithContext(ctx, http.MethodPost, makeURL(currEndpoint), resultPayload)
+				req, err := http.NewRequestWithContext(ctx, http.MethodPost, makeHTTPURL(currEndpoint), resultPayload)
 				req.Header.Set("Content-Type", "application/json")
 				if err != nil {
 					return logError(logger, "request setup failed for endpoint %q: %w", currEndpoint, err)
 				}
-				var resp *http.Response
-				resp, err = http.DefaultClient.Do(req)
+				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
 					return logError(logger, "request failed for endpoint %q: %w", currEndpoint, err)
 				}
@@ -344,8 +372,7 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 					body, _ := io.ReadAll(resp.Body)
 					return logError(logger, "bad status code: %s: %s", resp.Status, body)
 				}
-				var bz []byte
-				bz, err = io.ReadAll(resp.Body)
+				bz, err := io.ReadAll(resp.Body)
 				if err != nil {
 					return logError(logger, "can't read body: %w", err)
 				}
@@ -355,8 +382,7 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 					if err = json.Unmarshal(bz, &asTx); err != nil {
 						return logError(logger, "can't decode body as tx response: %w", err)
 					}
-					var userID string
-					userID, err = getUserID(ctx)
+					userID, err := getUserID(ctx)
 					if err != nil {
 						return logError(logger, "unable to get user id: %w", err)
 					}

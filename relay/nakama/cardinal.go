@@ -21,6 +21,7 @@ var (
 	createPersonaEndpoint       = "tx/persona/create-persona"
 	readPersonaSignerEndpoint   = "query/persona/signer"
 	transactionReceiptsEndpoint = "query/receipts/list"
+	eventEndpoint               = "events"
 
 	readPersonaSignerStatusUnknown   = "unknown"
 	readPersonaSignerStatusAvailable = "available"
@@ -44,8 +45,12 @@ func initCardinalAddress() error {
 	return nil
 }
 
-func makeURL(resource string) string {
-	return fmt.Sprintf("%s/%s", globalCardinalAddress, resource)
+func makeHTTPURL(resource string) string {
+	return fmt.Sprintf("http://%s/%s", globalCardinalAddress, resource)
+}
+
+func makeWebSocketURL(resource string) string {
+	return fmt.Sprintf("ws://%s/%s", globalCardinalAddress, resource)
 }
 
 type endpoints struct {
@@ -55,7 +60,7 @@ type endpoints struct {
 
 func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err error) {
 	var resp *http.Response
-	url := makeURL(listEndpoints)
+	url := makeHTTPURL(listEndpoints)
 	//nolint:gosec,noctx // its ok. maybe revisit.
 	resp, err = http.Post(url, "", nil)
 	if err != nil {
@@ -119,7 +124,7 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, fmt.Errorf("unable to marshal signed payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, makeURL(createPersonaEndpoint), bytes.NewReader(buf))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, makeHTTPURL(createPersonaEndpoint), bytes.NewReader(buf))
 	if err != nil {
 		return "", 0, fmt.Errorf("unable to make request to %q: %w", createPersonaEndpoint, err)
 	}
@@ -159,7 +164,7 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uin
 	if err != nil {
 		return "", err
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, makeURL(readPersonaSignerEndpoint),
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, makeHTTPURL(readPersonaSignerEndpoint),
 		bytes.NewReader(buf))
 	if err != nil {
 		return "", err
@@ -172,8 +177,8 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uin
 	defer httpResp.Body.Close()
 
 	var resp struct {
-		Status        string
-		SignerAddress string
+		Status        string `json:"status"`
+		SignerAddress string `json:"signerAddress"`
 	}
 	if err = json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
 		return "", err

@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -442,26 +442,27 @@ func (m *Manager) getOrMakeArchIDForComponents(comps []metadata.ComponentMetadat
 func (m *Manager) getActiveEntities(archID archetype.ID) (activeEntities, error) {
 	active, ok := m.activeEntities[archID]
 	// The active entities for this archetype ID has not yet been loaded from storage
-	if !ok {
-		ctx := context.Background()
-		key := redisActiveEntityIDKey(archID)
-		bz, err := m.client.Get(ctx, key).Bytes()
-		var ids []entity.ID
+	if ok {
+		return m.activeEntities[archID], nil
+	}
+	ctx := context.Background()
+	key := redisActiveEntityIDKey(archID)
+	bz, err := m.client.Get(ctx, key).Bytes()
+	var ids []entity.ID
+	if err != nil {
+		if !errors.Is(err, redis.Nil) {
+			return active, err
+		}
+	} else {
+		ids, err = codec.Decode[[]entity.ID](bz)
 		if err != nil {
-			if !errors.Is(err, redis.Nil) {
-				return active, err
-			}
-		} else {
-			ids, err = codec.Decode[[]entity.ID](bz)
-			if err != nil {
-				return active, err
-			}
+			return active, err
 		}
+	}
 
-		m.activeEntities[archID] = activeEntities{
-			ids:      ids,
-			modified: false,
-		}
+	m.activeEntities[archID] = activeEntities{
+		ids:      ids,
+		modified: false,
 	}
 	return m.activeEntities[archID], nil
 }

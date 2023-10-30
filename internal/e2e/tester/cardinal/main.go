@@ -2,12 +2,13 @@ package main
 
 import (
 	"errors"
+	"log"
+	"os"
+
 	"github.com/argus-labs/world-engine/example/tester/comp"
 	"github.com/argus-labs/world-engine/example/tester/query"
 	"github.com/argus-labs/world-engine/example/tester/sys"
 	"github.com/argus-labs/world-engine/example/tester/tx"
-	"log"
-	"os"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
@@ -15,12 +16,17 @@ import (
 func main() {
 	redisAddr := os.Getenv("REDIS_ADDR")
 	namespace := os.Getenv("NAMESPACE")
-	adapter := setupAdapter()
-	world, err := cardinal.NewWorld(redisAddr, "",
+	options := []cardinal.WorldOption{
 		cardinal.WithNamespace(namespace),
 		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
-		cardinal.WithAdapter(adapter),
-	)
+	}
+	if os.Getenv("ENABLE_ADAPTER") == "false" {
+		log.Println("Skipping adapter")
+	} else {
+		options = append(options, cardinal.WithAdapter(setupAdapter()))
+	}
+
+	world, err := cardinal.NewWorld(redisAddr, "", options...)
 	if err != nil {
 		log.Fatal(err)
 	}

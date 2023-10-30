@@ -9,4 +9,5 @@ use (
 	sign
 	internal/e2e
 	internal/e2e/tester/cardinal
+	internal/nakama
 )
