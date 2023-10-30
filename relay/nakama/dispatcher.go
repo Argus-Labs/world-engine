@@ -108,7 +108,7 @@ func (r *receiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (r
 		return nil, err
 	}
 	ctx := context.Background()
-	url := makeURL(transactionReceiptsEndpoint)
+	url := makeHTTPURL(transactionReceiptsEndpoint)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(buf))
 	if err != nil {
 		return nil, err

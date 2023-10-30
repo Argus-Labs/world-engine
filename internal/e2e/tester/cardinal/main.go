@@ -47,7 +47,10 @@ func main() {
 	}
 	cardinal.RegisterSystems(world, sys.Join, sys.Move)
 
-	world.StartGame()
+	err = world.StartGame()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func setupAdapter() shard.Adapter {

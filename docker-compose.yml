@@ -30,7 +30,7 @@ services:
       - postgres
       - game
     environment:
-      - CARDINAL_ADDR=http://game:4040
+      - CARDINAL_ADDR=game:4040
       - CARDINAL_NAMESPACE=TESTGAME
     entrypoint:
       - "/bin/sh"
@@ -109,6 +109,9 @@ services:
       context: internal/e2e/tester/cardinal
       dockerfile: Dockerfile
     restart: unless-stopped
+    expose:
+      - "3333"
+      - "4040"
     ports:
       - "4040:4040"
       - "3333:3333"
