@@ -168,8 +168,7 @@ func (m *Manager) CreateManyEntities(num int, comps ...metadata.ComponentMetadat
 		return nil, err
 	}
 	for i := range ids {
-		var currID entity.ID
-		currID, err = m.nextEntityID()
+		currID, err := m.nextEntityID()
 		if err != nil {
 			return nil, err
 		}
@@ -227,8 +226,9 @@ func (m *Manager) GetComponentForEntity(cType metadata.ComponentMetadata, id ent
 			if err != nil {
 				return nil, err
 			}
+		} else {
+			return nil, err
 		}
-		return nil, err
 	}
 	value, err = cType.Decode(bz)
 	if err != nil {
