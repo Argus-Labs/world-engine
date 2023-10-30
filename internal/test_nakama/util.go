@@ -37,7 +37,7 @@ type NotificationItem struct {
 	Subject    string    `json:"subject"`
 	Content    string    `json:"content"`
 	Code       int       `json:"code"`
-	CreateTime time.Time `json:"create_time"`
+	CreateTime time.Time `json:"createTime"`
 	Persistent bool      `json:"persistent"`
 }
 
