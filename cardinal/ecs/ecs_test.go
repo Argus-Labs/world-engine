@@ -10,7 +10,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
@@ -59,8 +59,8 @@ func UpdateEnergySystem(wCtx ecs.WorldContext) error {
 }
 
 var (
-	Energy  = component_metadata.NewComponentMetadata[EnergyComponent]()
-	Ownable = component_metadata.NewComponentMetadata[OwnableComponent]()
+	Energy  = metadata.NewComponentMetadata[EnergyComponent]()
+	Ownable = metadata.NewComponentMetadata[OwnableComponent]()
 )
 
 func TestECS(t *testing.T) {

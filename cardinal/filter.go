@@ -2,7 +2,7 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 )
 
 type Filter interface {
@@ -22,11 +22,11 @@ type not struct {
 }
 
 type contains struct {
-	components []component_metadata.Component
+	components []metadata.Component
 }
 
 type exact struct {
-	components []component_metadata.Component
+	components []metadata.Component
 }
 
 func And(filters ...Filter) Filter {
@@ -41,11 +41,11 @@ func Not(filter Filter) Filter {
 	return &not{filter: filter}
 }
 
-func Contains(components ...component_metadata.Component) Filter {
+func Contains(components ...metadata.Component) Filter {
 	return &contains{components: components}
 }
 
-func Exact(components ...component_metadata.Component) Filter {
+func Exact(components ...metadata.Component) Filter {
 	return &exact{components: components}
 }
 

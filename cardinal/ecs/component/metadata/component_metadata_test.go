@@ -10,7 +10,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
@@ -38,19 +38,19 @@ func TestComponents(t *testing.T) {
 	assert.NilError(t, err)
 
 	tests := []*struct {
-		comps    []component_metadata.ComponentMetadata
+		comps    []metadata.ComponentMetadata
 		archID   archetype.ID
 		entityID entity.ID
 		Value    string
 	}{
 		{
-			[]component_metadata.ComponentMetadata{ca},
+			[]metadata.ComponentMetadata{ca},
 			0,
 			0,
 			"a",
 		},
 		{
-			[]component_metadata.ComponentMetadata{ca, cb},
+			[]metadata.ComponentMetadata{ca, cb},
 			1,
 			0,
 			"b",

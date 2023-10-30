@@ -10,7 +10,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
@@ -20,7 +20,7 @@ import (
 // comps reduces the typing needed to create a slice of IComponentTypes
 // []component.ComponentMetadata{a, b, c} becomes:
 // comps(a, b, c).
-func comps(cs ...component_metadata.ComponentMetadata) []component_metadata.ComponentMetadata {
+func comps(cs ...metadata.ComponentMetadata) []metadata.ComponentMetadata {
 	return cs
 }
 

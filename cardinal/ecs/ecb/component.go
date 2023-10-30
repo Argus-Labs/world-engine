@@ -4,20 +4,20 @@ import (
 	"errors"
 	"sort"
 
-	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
 // compKey is a tuple of a component TypeID and an entity ID. It used as a map key to keep
 // track of component data in-memory.
 type compKey struct {
-	typeID   component_metadata.TypeID
+	typeID   metadata.TypeID
 	entityID entity.ID
 }
 
 // sortComponentSet re-orders the given components so their IDs are strictly increasing. If any component is duplicated
 // an error is returned.
-func sortComponentSet(components []component_metadata.ComponentMetadata) error {
+func sortComponentSet(components []metadata.ComponentMetadata) error {
 	sort.Slice(components, func(i, j int) bool {
 		return components[i].ID() < components[j].ID()
 	})
@@ -30,7 +30,7 @@ func sortComponentSet(components []component_metadata.ComponentMetadata) error {
 	return nil
 }
 
-func isComponentSetMatch(a, b []component_metadata.ComponentMetadata) bool {
+func isComponentSetMatch(a, b []metadata.ComponentMetadata) bool {
 	if len(a) != len(b) {
 		return false
 	}

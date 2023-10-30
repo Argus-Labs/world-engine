@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 )
@@ -101,7 +101,7 @@ func TestWorldLogger(t *testing.T) {
 	buf.Reset()
 	energy, err := w.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
-	components := []component_metadata.ComponentMetadata{energy}
+	components := []metadata.ComponentMetadata{energy}
 	wCtx := ecs.NewWorldContext(w)
 	entityID, err := component.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)

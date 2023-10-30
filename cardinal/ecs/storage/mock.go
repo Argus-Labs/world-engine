@@ -3,16 +3,16 @@ package storage
 import (
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"reflect"
 )
 
 var (
-	nextMockComponentTypeID component_metadata.TypeID = 1
+	nextMockComponentTypeID metadata.TypeID = 1
 )
 
 type MockComponentType[T any] struct {
-	id         component_metadata.TypeID
+	id         metadata.TypeID
 	typ        reflect.Type
 	defaultVal interface{}
 }
@@ -27,12 +27,12 @@ func NewMockComponentType[T any](t T, defaultVal interface{}) *MockComponentType
 	return m
 }
 
-func (m *MockComponentType[T]) SetID(id component_metadata.TypeID) error {
+func (m *MockComponentType[T]) SetID(id metadata.TypeID) error {
 	m.id = id
 	return nil
 }
 
-func (m *MockComponentType[T]) ID() component_metadata.TypeID {
+func (m *MockComponentType[T]) ID() metadata.TypeID {
 	return m.id
 }
 
@@ -48,7 +48,7 @@ func (m *MockComponentType[T]) Name() string {
 	return fmt.Sprintf("%s[%s]", reflect.TypeOf(m).Name(), m.typ.Name())
 }
 
-var _ component_metadata.ComponentMetadata = &MockComponentType[int]{}
+var _ metadata.ComponentMetadata = &MockComponentType[int]{}
 
 func (m *MockComponentType[T]) Decode(bytes []byte) (any, error) {
 	return codec.Decode[T](bytes)

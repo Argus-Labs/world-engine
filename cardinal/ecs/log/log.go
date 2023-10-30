@@ -3,7 +3,7 @@ package log
 import (
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
