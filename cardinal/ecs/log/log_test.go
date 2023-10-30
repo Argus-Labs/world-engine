@@ -101,7 +101,7 @@ func TestWorldLogger(t *testing.T) {
 	buf.Reset()
 	energy, err := w.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
-	components := []component_metadata.IComponentMetaData{energy}
+	components := []component_metadata.ComponentMetadata{energy}
 	wCtx := ecs.NewWorldContext(w)
 	entityID, err := component.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)

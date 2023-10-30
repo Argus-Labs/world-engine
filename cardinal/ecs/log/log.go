@@ -8,7 +8,7 @@ import (
 )
 
 type Loggable interface {
-	GetComponents() []metadata.IComponentMetaData
+	GetComponents() []metadata.ComponentMetadata
 	GetSystemNames() []string
 }
 
@@ -17,7 +17,7 @@ type Logger struct {
 }
 
 func (*Logger) loadComponentIntoArrayLogger(
-	component metadata.IComponentMetaData,
+	component metadata.ComponentMetadata,
 	arrayLogger *zerolog.Array,
 ) *zerolog.Array {
 	dictLogger := zerolog.Dict()
@@ -49,7 +49,7 @@ func (l *Logger) loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, target Logg
 }
 
 func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, entityID entity.ID, archID archetype.ID,
-	components []metadata.IComponentMetaData) *zerolog.Event {
+	components []metadata.ComponentMetadata) *zerolog.Event {
 	arrayLogger := zerolog.Arr()
 	for _, _component := range components {
 		arrayLogger = l.loadComponentIntoArrayLogger(_component, arrayLogger)
@@ -75,7 +75,7 @@ func (l *Logger) LogSystem(target Loggable, level zerolog.Level) {
 
 // LogEntity logs entity info given an entityID.
 func (l *Logger) LogEntity(level zerolog.Level, entityID entity.ID, archID archetype.ID,
-	components []metadata.IComponentMetaData) {
+	components []metadata.ComponentMetadata) {
 	zeroLoggerEvent := l.WithLevel(level)
 	l.loadEntityIntoEvent(zeroLoggerEvent, entityID, archID, components).Send()
 }

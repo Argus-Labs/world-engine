@@ -48,7 +48,7 @@ func (m *MockComponentType[T]) Name() string {
 	return fmt.Sprintf("%s[%s]", reflect.TypeOf(m).Name(), m.typ.Name())
 }
 
-var _ component_metadata.IComponentMetaData = &MockComponentType[int]{}
+var _ component_metadata.ComponentMetadata = &MockComponentType[int]{}
 
 func (m *MockComponentType[T]) Decode(bytes []byte) (any, error) {
 	return codec.Decode[T](bytes)

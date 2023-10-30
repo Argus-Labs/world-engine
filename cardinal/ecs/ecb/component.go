@@ -17,7 +17,7 @@ type compKey struct {
 
 // sortComponentSet re-orders the given components so their IDs are strictly increasing. If any component is duplicated
 // an error is returned.
-func sortComponentSet(components []component_metadata.IComponentMetaData) error {
+func sortComponentSet(components []component_metadata.ComponentMetadata) error {
 	sort.Slice(components, func(i, j int) bool {
 		return components[i].ID() < components[j].ID()
 	})
@@ -30,7 +30,7 @@ func sortComponentSet(components []component_metadata.IComponentMetaData) error 
 	return nil
 }
 
-func isComponentSetMatch(a, b []component_metadata.IComponentMetaData) bool {
+func isComponentSetMatch(a, b []component_metadata.ComponentMetadata) bool {
 	if len(a) != len(b) {
 		return false
 	}

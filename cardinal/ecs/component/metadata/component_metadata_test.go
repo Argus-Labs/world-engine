@@ -38,19 +38,19 @@ func TestComponents(t *testing.T) {
 	assert.NilError(t, err)
 
 	tests := []*struct {
-		comps    []component_metadata.IComponentMetaData
+		comps    []component_metadata.ComponentMetadata
 		archID   archetype.ID
 		entityID entity.ID
 		Value    string
 	}{
 		{
-			[]component_metadata.IComponentMetaData{ca},
+			[]component_metadata.ComponentMetadata{ca},
 			0,
 			0,
 			"a",
 		},
 		{
-			[]component_metadata.IComponentMetaData{ca, cb},
+			[]component_metadata.ComponentMetadata{ca, cb},
 			1,
 			0,
 			"b",

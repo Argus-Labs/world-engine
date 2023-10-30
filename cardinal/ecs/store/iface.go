@@ -14,15 +14,15 @@ import (
 
 type Reader interface {
 	// One Component One Entity
-	GetComponentForEntity(cType component_metadata.IComponentMetaData, id entity.ID) (any, error)
-	GetComponentForEntityInRawJSON(cType component_metadata.IComponentMetaData, id entity.ID) (json.RawMessage, error)
+	GetComponentForEntity(cType component_metadata.ComponentMetadata, id entity.ID) (any, error)
+	GetComponentForEntityInRawJSON(cType component_metadata.ComponentMetadata, id entity.ID) (json.RawMessage, error)
 
 	// Many Components One Entity
-	GetComponentTypesForEntity(id entity.ID) ([]component_metadata.IComponentMetaData, error)
+	GetComponentTypesForEntity(id entity.ID) ([]component_metadata.ComponentMetadata, error)
 
 	// One Archetype Many Components
-	GetComponentTypesForArchID(archID archetype.ID) []component_metadata.IComponentMetaData
-	GetArchIDForComponents(components []component_metadata.IComponentMetaData) (archetype.ID, error)
+	GetComponentTypesForArchID(archID archetype.ID) []component_metadata.ComponentMetadata
+	GetArchIDForComponents(components []component_metadata.ComponentMetadata) (archetype.ID, error)
 
 	// One Archetype Many Entities
 	GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error)
@@ -37,18 +37,18 @@ type Writer interface {
 	RemoveEntity(id entity.ID) error
 
 	// Many Components
-	CreateEntity(comps ...component_metadata.IComponentMetaData) (entity.ID, error)
-	CreateManyEntities(num int, comps ...component_metadata.IComponentMetaData) ([]entity.ID, error)
+	CreateEntity(comps ...component_metadata.ComponentMetadata) (entity.ID, error)
+	CreateManyEntities(num int, comps ...component_metadata.ComponentMetadata) ([]entity.ID, error)
 
 	// One Component One Entity
-	SetComponentForEntity(cType component_metadata.IComponentMetaData, id entity.ID, value any) error
-	AddComponentToEntity(cType component_metadata.IComponentMetaData, id entity.ID) error
-	RemoveComponentFromEntity(cType component_metadata.IComponentMetaData, id entity.ID) error
+	SetComponentForEntity(cType component_metadata.ComponentMetadata, id entity.ID, value any) error
+	AddComponentToEntity(cType component_metadata.ComponentMetadata, id entity.ID) error
+	RemoveComponentFromEntity(cType component_metadata.ComponentMetadata, id entity.ID) error
 
 	// Misc
 	InjectLogger(logger *ecslog.Logger)
 	Close() error
-	RegisterComponents([]component_metadata.IComponentMetaData) error
+	RegisterComponents([]component_metadata.ComponentMetadata) error
 }
 
 type TickStorage interface {

@@ -23,7 +23,7 @@ func CreateMany(wCtx ecs.WorldContext, num int, components ...metadata.Component
 		return nil, ecs.ErrCannotModifyStateWithReadOnlyContext
 	}
 	world := wCtx.GetWorld()
-	acc := make([]metadata.IComponentMetaData, 0, len(components))
+	acc := make([]metadata.ComponentMetadata, 0, len(components))
 	for _, comp := range components {
 		c, err := world.GetComponentByName(comp.Name())
 		if err != nil {
@@ -37,7 +37,7 @@ func CreateMany(wCtx ecs.WorldContext, num int, components ...metadata.Component
 	}
 	for _, id := range entityIds {
 		for _, comp := range components {
-			var c metadata.IComponentMetaData
+			var c metadata.ComponentMetadata
 			c, err = world.GetComponentByName(comp.Name())
 			if err != nil {
 				return nil, errors.New("must register component before creating an entity")
@@ -105,7 +105,7 @@ func GetComponent[T metadata.Component](wCtx ecs.WorldContext, id entity.ID) (co
 	return comp, nil
 }
 
-// Set sets component data to the entity.
+// SetComponent sets component data to the entity.
 func SetComponent[T metadata.Component](wCtx ecs.WorldContext, id entity.ID, component *T) error {
 	if wCtx.IsReadOnly() {
 		return ecs.ErrCannotModifyStateWithReadOnlyContext

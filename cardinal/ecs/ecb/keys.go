@@ -35,8 +35,8 @@ func redisActiveEntityIDKey(archID archetype.ID) string {
 }
 
 // redisArchIDsToCompTypesKey is the key that stores the map of archetype IDs to its relevant set of component types
-// (in the form of []component.ID). To recover the actual IComponentMetaData information, a slice of active
-// IComponentMetaData must be used.
+// (in the form of []component.ID). To recover the actual ComponentMetadata information, a slice of active
+// ComponentMetadata must be used.
 func redisArchIDsToCompTypesKey() string {
 	return "ECB:ARCHETYPE-ID-TO-COMPONENT-TYPES"
 }

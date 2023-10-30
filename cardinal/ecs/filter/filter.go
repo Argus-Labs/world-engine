@@ -5,5 +5,5 @@ import component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/met
 // ComponentFilter is a filter that filters entities based on their components.
 type ComponentFilter interface {
 	// MatchesComponents returns true if the entity matches the filter.
-	MatchesComponents(components []component_metadata.IComponentMetaData) bool
+	MatchesComponents(components []component_metadata.ComponentMetadata) bool
 }

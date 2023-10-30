@@ -18,7 +18,7 @@ func (m *Manager) makePipeOfRedisCommands(ctx context.Context) (redis.Pipeliner,
 	pipe := m.client.TxPipeline()
 
 	if m.typeToComponent == nil {
-		// component.TypeID -> IComponentMetaData mappings are required to serialized data for the DB
+		// component.TypeID -> ComponentMetadata mappings are required to serialized data for the DB
 		return nil, errors.New("must call RegisterComponents before flushing to DB")
 	}
 
@@ -170,8 +170,8 @@ func (m *Manager) encodeArchIDToCompTypes() ([]byte, error) {
 }
 
 func getArchIDToCompTypesFromRedis(client *redis.Client,
-	typeToComp map[component_metadata.TypeID]component_metadata.IComponentMetaData,
-) (m map[archetype.ID][]component_metadata.IComponentMetaData, ok bool, err error) {
+	typeToComp map[component_metadata.TypeID]component_metadata.ComponentMetadata,
+) (m map[archetype.ID][]component_metadata.ComponentMetadata, ok bool, err error) {
 	ctx := context.Background()
 	key := redisArchIDsToCompTypesKey()
 	bz, err := client.Get(ctx, key).Bytes()
@@ -187,9 +187,9 @@ func getArchIDToCompTypesFromRedis(client *redis.Client,
 	}
 
 	// result is the mapping of Arch ID -> IComponent sets
-	result := map[archetype.ID][]component_metadata.IComponentMetaData{}
+	result := map[archetype.ID][]component_metadata.ComponentMetadata{}
 	for archID, compTypeIDs := range fromStorage {
-		currComps := []component_metadata.IComponentMetaData{}
+		currComps := []component_metadata.ComponentMetadata{}
 		for _, compTypeID := range compTypeIDs {
 			currComp, found := typeToComp[compTypeID]
 			if !found {

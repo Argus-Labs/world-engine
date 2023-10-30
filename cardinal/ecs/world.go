@@ -17,7 +17,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
@@ -45,8 +45,8 @@ type World struct {
 	systemLoggers            []*ecslog.Logger
 	systemNames              []string
 	tick                     uint64
-	nameToComponent          map[string]component_metadata.IComponentMetaData
-	registeredComponents     []component_metadata.IComponentMetaData
+	nameToComponent          map[string]metadata.ComponentMetadata
+	registeredComponents     []metadata.ComponentMetadata
 	registeredTransactions   []transaction.ITransaction
 	registeredQueries        []IQuery
 	isComponentsRegistered   bool
@@ -69,7 +69,7 @@ type World struct {
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
 
-	nextComponentID component_metadata.TypeID
+	nextComponentID metadata.TypeID
 
 	eventHub events.EventHub
 }
@@ -141,7 +141,7 @@ func (w *World) AddSystemWithName(system System, functionName string) {
 	w.systems = append(w.systems, system)
 }
 
-func RegisterComponent[T component_metadata.Component](world *World) error {
+func RegisterComponent[T metadata.Component](world *World) error {
 	if world.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
@@ -150,7 +150,7 @@ func RegisterComponent[T component_metadata.Component](world *World) error {
 	if err == nil {
 		return fmt.Errorf("component with name '%s' is already registered", t.Name())
 	}
-	c := component_metadata.NewComponentMetadata[T]()
+	c := metadata.NewComponentMetadata[T]()
 	err = c.SetID(world.nextComponentID)
 	if err != nil {
 		return err
@@ -162,14 +162,14 @@ func RegisterComponent[T component_metadata.Component](world *World) error {
 	return nil
 }
 
-func MustRegisterComponent[T component_metadata.Component](world *World) {
+func MustRegisterComponent[T metadata.Component](world *World) {
 	err := RegisterComponent[T](world)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (w *World) GetComponentByName(name string) (component_metadata.IComponentMetaData, error) {
+func (w *World) GetComponentByName(name string) (metadata.ComponentMetadata, error) {
 	componentType, exists := w.nameToComponent[name]
 	if !exists {
 		return nil, fmt.Errorf("component with name %s not found. Must register component before using", name)
@@ -250,7 +250,7 @@ func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts 
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
-		nameToComponent:   make(map[string]component_metadata.IComponentMetaData),
+		nameToComponent:   make(map[string]metadata.ComponentMetadata),
 		txQueue:           transaction.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
@@ -686,7 +686,7 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, e
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) GetComponents() []component_metadata.IComponentMetaData {
+func (w *World) GetComponents() []metadata.ComponentMetadata {
 	return w.registeredComponents
 }
 
@@ -707,7 +707,7 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 	return NewSearch(componentFilter), nil
 }
 
-func GetRawJSONOfComponent(w *World, component component_metadata.IComponentMetaData, id entity.ID) (
+func GetRawJSONOfComponent(w *World, component metadata.ComponentMetadata, id entity.ID) (
 	json.RawMessage, error) {
 	return w.StoreManager().GetComponentForEntityInRawJSON(component, id)
 }

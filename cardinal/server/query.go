@@ -122,7 +122,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 
 		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
 		err = ecs.NewSearch(resultFilter).Each(wCtx, func(id entity.ID) bool {
-			var components []metadata.IComponentMetaData
+			var components []metadata.ComponentMetadata
 			components, err = handler.w.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false

@@ -58,7 +58,7 @@ func (Bar) Name() string {
 var (
 	fooComp       = component_metadata.NewComponentMetadata[Foo]()
 	barComp       = component_metadata.NewComponentMetadata[Bar]()
-	allComponents = []component_metadata.IComponentMetaData{fooComp, barComp}
+	allComponents = []component_metadata.ComponentMetadata{fooComp, barComp}
 )
 
 //nolint:gochecknoinits // its for testing.
@@ -388,9 +388,9 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 	_, err = manager.CreateManyEntities(startEntityCount, fooComp, barComp)
 	assert.NilError(t, err)
 
-	fooArchID, err := manager.GetArchIDForComponents([]component_metadata.IComponentMetaData{fooComp})
+	fooArchID, err := manager.GetArchIDForComponents([]component_metadata.ComponentMetadata{fooComp})
 	assert.NilError(t, err)
-	bothArchID, err := manager.GetArchIDForComponents([]component_metadata.IComponentMetaData{barComp, fooComp})
+	bothArchID, err := manager.GetArchIDForComponents([]component_metadata.ComponentMetadata{barComp, fooComp})
 	assert.NilError(t, err)
 
 	// Make sure there are the correct number of ids in each archetype to start

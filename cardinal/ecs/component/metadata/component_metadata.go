@@ -9,8 +9,8 @@ import (
 type (
 	TypeID int
 
-	// IComponentMetaData is a high level representation of a user defined component struct.
-	IComponentMetaData interface {
+	// ComponentMetadata is a high level representation of a user defined component struct.
+	ComponentMetadata interface {
 		// SetID sets the ID of this component. It must only be set once
 		SetID(TypeID) error
 		// ID returns the ID of the component.
@@ -31,7 +31,7 @@ type (
 
 // NewComponentMetadata creates a new component type.
 // The function is used to create a new component of the type.
-func NewComponentMetadata[T Component](opts ...ComponentOption[T]) *ComponentMetaData[T] {
+func NewComponentMetadata[T Component](opts ...ComponentOption[T]) ComponentMetadata {
 	var t T
 	comp := newComponentType(t, t.Name(), nil)
 	for _, opt := range opts {
@@ -40,9 +40,9 @@ func NewComponentMetadata[T Component](opts ...ComponentOption[T]) *ComponentMet
 	return comp
 }
 
-// ComponentMetaData represents a type of component. It is used to identify
+// componentMetadata represents a type of component. It is used to identify
 // a component when getting or setting the component of an entity.
-type ComponentMetaData[T any] struct {
+type componentMetadata[T any] struct {
 	isIDSet    bool
 	id         TypeID
 	typ        reflect.Type
@@ -51,7 +51,7 @@ type ComponentMetaData[T any] struct {
 }
 
 // SetID set's this component's ID. It must be unique across the world object.
-func (c *ComponentMetaData[T]) SetID(id TypeID) error {
+func (c *componentMetadata[T]) SetID(id TypeID) error {
 	if c.isIDSet {
 		// In games implemented with Cardinal, components will only be initialized one time (on startup).
 		// In tests, it's often useful to use the same component in multiple worlds. This check will allow for the
@@ -67,27 +67,21 @@ func (c *ComponentMetaData[T]) SetID(id TypeID) error {
 }
 
 // String returns the component type name.
-func (c *ComponentMetaData[T]) String() string {
+func (c *componentMetadata[T]) String() string {
 	return c.name
 }
 
-// SetName sets the component type name.
-func (c *ComponentMetaData[T]) SetName(name string) *ComponentMetaData[T] {
-	c.name = name
-	return c
-}
-
 // Name returns the component type name.
-func (c *ComponentMetaData[T]) Name() string {
+func (c *componentMetadata[T]) Name() string {
 	return c.name
 }
 
 // ID returns the component type id.
-func (c *ComponentMetaData[T]) ID() TypeID {
+func (c *componentMetadata[T]) ID() TypeID {
 	return c.id
 }
 
-func (c *ComponentMetaData[T]) New() ([]byte, error) {
+func (c *componentMetadata[T]) New() ([]byte, error) {
 	var comp T
 	var ok bool
 	if c.defaultVal != nil {
@@ -99,15 +93,15 @@ func (c *ComponentMetaData[T]) New() ([]byte, error) {
 	return codec.Encode(comp)
 }
 
-func (c *ComponentMetaData[T]) Encode(v any) ([]byte, error) {
+func (c *componentMetadata[T]) Encode(v any) ([]byte, error) {
 	return codec.Encode(v)
 }
 
-func (c *ComponentMetaData[T]) Decode(bz []byte) (any, error) {
+func (c *componentMetadata[T]) Decode(bz []byte) (any, error) {
 	return codec.Decode[T](bz)
 }
 
-func (c *ComponentMetaData[T]) validateDefaultVal() {
+func (c *componentMetadata[T]) validateDefaultVal() {
 	if !reflect.TypeOf(c.defaultVal).AssignableTo(c.typ) {
 		err := fmt.Sprintf("default value is not assignable to component type: %s", c.name)
 		panic(err)
@@ -116,8 +110,8 @@ func (c *ComponentMetaData[T]) validateDefaultVal() {
 
 // newComponentType creates a new component type.
 // The argument is a struct that represents a data of the component.
-func newComponentType[T any](s T, name string, defaultVal interface{}) *ComponentMetaData[T] {
-	componentType := &ComponentMetaData[T]{
+func newComponentType[T any](s T, name string, defaultVal interface{}) *componentMetadata[T] {
+	componentType := &componentMetadata[T]{
 		typ:        reflect.TypeOf(s),
 		name:       name,
 		defaultVal: defaultVal,
@@ -130,11 +124,11 @@ func newComponentType[T any](s T, name string, defaultVal interface{}) *Componen
 
 // ComponentOption is a type that can be passed to NewComponentMetadata to augment the creation
 // of the component type.
-type ComponentOption[T any] func(c *ComponentMetaData[T])
+type ComponentOption[T any] func(c *componentMetadata[T])
 
-// WithDefault updated the created ComponentMetaData with a default value.
+// WithDefault updated the created componentMetadata with a default value.
 func WithDefault[T any](defaultVal T) ComponentOption[T] {
-	return func(c *ComponentMetaData[T]) {
+	return func(c *componentMetadata[T]) {
 		c.defaultVal = defaultVal
 		c.validateDefaultVal()
 	}

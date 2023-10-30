@@ -6,7 +6,7 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	component_metadata "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
@@ -61,8 +61,8 @@ func TestParser(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, *term, testTerm)
 
-	emptyComponent := component_metadata.NewComponentMetadata[EmptyComponent]()
-	stringToComponent := func(_ string) (component_metadata.IComponentMetaData, error) {
+	emptyComponent := metadata.NewComponentMetadata[EmptyComponent]()
+	stringToComponent := func(_ string) (metadata.ComponentMetadata, error) {
 		return emptyComponent, nil
 	}
 	filterResult, err := termToComponentFilter(term, stringToComponent)

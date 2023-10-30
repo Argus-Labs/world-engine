@@ -24,8 +24,8 @@ var (
 
 type readOnlyManager struct {
 	client          *redis.Client
-	typeToComponent map[component_metadata.TypeID]component_metadata.IComponentMetaData
-	archIDToComps   map[archetype.ID][]component_metadata.IComponentMetaData
+	typeToComponent map[component_metadata.TypeID]component_metadata.ComponentMetadata
+	archIDToComps   map[archetype.ID][]component_metadata.ComponentMetadata
 }
 
 func (m *Manager) ToReadOnly() store.Reader {
@@ -35,7 +35,7 @@ func (m *Manager) ToReadOnly() store.Reader {
 	}
 }
 
-// refreshArchIDToCompTypes loads the map of archetype IDs to []IComponentMetaData from redis. This mapping is write
+// refreshArchIDToCompTypes loads the map of archetype IDs to []ComponentMetadata from redis. This mapping is write
 // only, i.e. if an archetype ID is in this map, it will ALWAYS refer to the same set of components. It's ok to save
 // this to memory instead of reading from redit each time. If an archetype ID is not found in this map.
 func (r *readOnlyManager) refreshArchIDToCompTypes() error {
@@ -49,7 +49,7 @@ func (r *readOnlyManager) refreshArchIDToCompTypes() error {
 	return nil
 }
 
-func (r *readOnlyManager) GetComponentForEntity(cType component_metadata.IComponentMetaData, id entity.ID,
+func (r *readOnlyManager) GetComponentForEntity(cType component_metadata.ComponentMetadata, id entity.ID,
 ) (any, error) {
 	bz, err := r.GetComponentForEntityInRawJSON(cType, id)
 	if err != nil {
@@ -58,14 +58,14 @@ func (r *readOnlyManager) GetComponentForEntity(cType component_metadata.ICompon
 	return cType.Decode(bz)
 }
 
-func (r *readOnlyManager) GetComponentForEntityInRawJSON(cType component_metadata.IComponentMetaData, id entity.ID,
+func (r *readOnlyManager) GetComponentForEntityInRawJSON(cType component_metadata.ComponentMetadata, id entity.ID,
 ) (json.RawMessage, error) {
 	ctx := context.Background()
 	key := redisComponentKey(cType.ID(), id)
 	return r.client.Get(ctx, key).Bytes()
 }
 
-func (r *readOnlyManager) getComponentsForArchID(archID archetype.ID) ([]component_metadata.IComponentMetaData, error) {
+func (r *readOnlyManager) getComponentsForArchID(archID archetype.ID) ([]component_metadata.ComponentMetadata, error) {
 	if comps, ok := r.archIDToComps[archID]; ok {
 		return comps, nil
 	}
@@ -79,7 +79,7 @@ func (r *readOnlyManager) getComponentsForArchID(archID archetype.ID) ([]compone
 	return comps, nil
 }
 
-func (r *readOnlyManager) GetComponentTypesForEntity(id entity.ID) ([]component_metadata.IComponentMetaData, error) {
+func (r *readOnlyManager) GetComponentTypesForEntity(id entity.ID) ([]component_metadata.ComponentMetadata, error) {
 	ctx := context.Background()
 
 	archIDKey := redisArchetypeIDForEntityID(id)
@@ -92,7 +92,7 @@ func (r *readOnlyManager) GetComponentTypesForEntity(id entity.ID) ([]component_
 	return r.getComponentsForArchID(archID)
 }
 
-func (r *readOnlyManager) GetComponentTypesForArchID(archID archetype.ID) []component_metadata.IComponentMetaData {
+func (r *readOnlyManager) GetComponentTypesForArchID(archID archetype.ID) []component_metadata.ComponentMetadata {
 	comps, err := r.getComponentsForArchID(archID)
 	if err != nil {
 		panic(err)
@@ -100,7 +100,7 @@ func (r *readOnlyManager) GetComponentTypesForArchID(archID archetype.ID) []comp
 	return comps
 }
 
-func (r *readOnlyManager) GetArchIDForComponents(components []component_metadata.IComponentMetaData,
+func (r *readOnlyManager) GetArchIDForComponents(components []component_metadata.ComponentMetadata,
 ) (archetype.ID, error) {
 	if err := sortComponentSet(components); err != nil {
 		return 0, err
