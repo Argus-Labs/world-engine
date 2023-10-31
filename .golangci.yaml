@@ -324,6 +324,10 @@ issues:
   max-same-issues: 50
 
   exclude-rules:
+    - path: cardinal/ecs/cql/
+      text: "not compatible with reflect.StructTag.Get"
+      linters:
+        - govet
     - path: "mock/.*\\.go"
       linters: [funlen]
     - path: "build"

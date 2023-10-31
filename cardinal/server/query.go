@@ -110,7 +110,6 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		}
 		resultFilter, err := cql.Parse(cqlString, handler.w.GetComponentByName)
 		if err != nil {
-			//nolint:nilerr // its fine.
 			return middleware.Error(http.StatusUnprocessableEntity, err), nil
 		}
 

@@ -88,7 +88,6 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 		}
 		tx, err := getTxFromParams("txType", params, txNameToTx)
 		if err != nil {
-			//nolint:nilerr // its ok.
 			return middleware.Error(http.StatusNotFound, err), nil
 		}
 		return handler.processTransaction(tx, payload, sp)

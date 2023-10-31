@@ -39,36 +39,36 @@ type cqlComponent struct {
 }
 
 type cqlNot struct {
-	SubExpression *cqlValue `"!" @@` //nolint:govet // its fine.
+	SubExpression *cqlValue `"!" @@`
 }
 
 type cqlExact struct {
-	Components []*cqlComponent `"EXACT""(" (@@",")* @@ ")"` //nolint:govet // its fine.
+	Components []*cqlComponent `"EXACT""(" (@@",")* @@ ")"`
 }
 
 type cqlContains struct {
-	Components []*cqlComponent `"CONTAINS" "(" (@@",")* @@ ")"` //nolint:govet // its fine.
+	Components []*cqlComponent `"CONTAINS" "(" (@@",")* @@ ")"`
 }
 
 type cqlValue struct {
-	Exact         *cqlExact    `@@`           //nolint:govet // its fine.
-	Contains      *cqlContains `| @@`         //nolint:govet // its fine.
-	Not           *cqlNot      `| @@`         //nolint:govet // its fine.
-	Subexpression *cqlTerm     `| "(" @@ ")"` //nolint:govet // its fine.
+	Exact         *cqlExact    `@@`
+	Contains      *cqlContains `| @@`
+	Not           *cqlNot      `| @@`
+	Subexpression *cqlTerm     `| "(" @@ ")"`
 }
 
 type cqlFactor struct {
-	Base *cqlValue `@@` //nolint:govet // its fine.
+	Base *cqlValue `@@`
 }
 
 type cqlOpFactor struct {
-	Operator cqlOperator `@("&" | "|")` //nolint:govet // its fine.
-	Factor   *cqlFactor  `@@`           //nolint:govet // its fine.
+	Operator cqlOperator `@("&" | "|")`
+	Factor   *cqlFactor  `@@`
 }
 
 type cqlTerm struct {
-	Left  *cqlFactor     `@@`  //nolint:govet // its fine.
-	Right []*cqlOpFactor `@@*` //nolint:govet // its fine.
+	Left  *cqlFactor     `@@`
+	Right []*cqlOpFactor `@@*`
 }
 
 // Display
