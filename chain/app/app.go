@@ -232,7 +232,7 @@ func NewApp(
 		homePath+"/config/world.toml",
 		homePath+"/data/world",
 		logger,
-		app.Router.HandleDispatch,
+		//app.Router.HandleDispatch,
 	)
 	opt := ante.HandlerOptions{
 		AccountKeeper:   app.AccountKeeper,
@@ -261,7 +261,7 @@ func NewApp(
 	app.ModuleManager.RegisterInvariants(app.CrisisKeeper)
 
 	// RegisterUpgradeHandlers is used for registering any on-chain upgrades.
-	app.RegisterUpgradeHandlers()
+	// app.RegisterUpgradeHandlers()
 
 	// add test gRPC service for testing gRPC queries in isolation
 	testdata_pulsar.RegisterQueryServer(app.GRPCQueryRouter(), testdata_pulsar.QueryImpl{})

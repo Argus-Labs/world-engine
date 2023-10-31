@@ -10,9 +10,9 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 
-	pkg.berachain.dev/polaris/cosmos => github.com/argus-labs/polaris/cosmos v0.0.1
-	pkg.berachain.dev/polaris/eth => github.com/argus-labs/polaris/eth v0.0.1
-	pkg.berachain.dev/polaris/lib => github.com/argus-labs/polaris/lib v0.0.1
+	pkg.berachain.dev/polaris/cosmos => github.com/argus-labs/polaris/cosmos v0.0.0-20230831212102-b8c5e9173f58
+	pkg.berachain.dev/polaris/eth => github.com/argus-labs/polaris/eth v0.0.0-20230831212102-b8c5e9173f58
+	pkg.berachain.dev/polaris/lib => github.com/argus-labs/polaris/lib v0.0.0-20230831212102-b8c5e9173f58
 )
 
 // internal replacements
