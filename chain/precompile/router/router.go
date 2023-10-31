@@ -6,7 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
 	"pkg.berachain.dev/polaris/eth/core/vm"
-	generated "pkg.world.dev/world-engine/chain/contracts/bindings/cosmos/precompile/router"
+	generated "pkg.world.dev/world-engine/chain/precompile/contracts/bindings/cosmos/precompile/router"
 	"pkg.world.dev/world-engine/chain/router"
 )
 

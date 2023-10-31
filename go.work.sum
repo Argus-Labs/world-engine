@@ -1332,6 +1332,7 @@ github.com/gtank/merlin v0.1.1 h1:eQ90iG7K9pOhtereWsmyRJ6RAwcP4tHTDBHXNg+u5is=
 github.com/gtank/merlin v0.1.1/go.mod h1:T86dnYJhcGOh5BjZFCJWTDeTK7XW8uE+E21Cy/bIQ+s=
 github.com/gtank/ristretto255 v0.1.2 h1:JEqUCPA1NvLq5DwYtuzigd7ss8fwbYay9fi4/5uMzcc=
 github.com/gtank/ristretto255 v0.1.2/go.mod h1:Ph5OpO6c7xKUGROZfWVLiJf9icMDwUeIvY4OmlYW69o=
+github.com/gupadhyaya/polaris/contracts v0.0.0-20231031215807-539fc2ece1e4/go.mod h1:7egdVXsvyRMs9LspooyQCSDHtpPORRypbzI7OT0lKys=
 github.com/gupadhyaya/polaris/cosmos v0.0.0-20230831212102-b8c5e9173f58/go.mod h1:EyxJntRJdJuIT9KaL6iqPhbBv/MT3gebFmMVIbTzz8A=
 github.com/gupadhyaya/polaris/eth v0.0.0-20230831212102-b8c5e9173f58/go.mod h1:Ry+Ldr32oNPMJVVfDCMYymqA2BlXsL5oyrZTVLxIT1A=
 github.com/gupadhyaya/polaris/lib v0.0.0-20230831212102-b8c5e9173f58/go.mod h1:+3IkGuGJ/kV2d90ImTqPSrI9g+M6nV0eX1MAmtIfFZA=

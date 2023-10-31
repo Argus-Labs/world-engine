@@ -10,6 +10,7 @@ replace (
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	pkg.berachain.dev/polaris/contracts => github.com/gupadhyaya/polaris/contracts v0.0.0-20231031215807-539fc2ece1e4
 
 	pkg.berachain.dev/polaris/cosmos => github.com/gupadhyaya/polaris/cosmos v0.0.0-20231031215807-539fc2ece1e4
 	pkg.berachain.dev/polaris/eth => github.com/gupadhyaya/polaris/eth v0.0.0-20231031215807-539fc2ece1e4
@@ -24,7 +25,6 @@ require (
 	cosmossdk.io/core v0.10.0
 	cosmossdk.io/depinject v1.0.0-alpha.4
 	cosmossdk.io/log v1.2.1
-	cosmossdk.io/math v1.1.2
 	cosmossdk.io/store v1.0.0-rc.0
 	cosmossdk.io/tools/confix v0.0.0-20230615173548-5385116abac4
 	cosmossdk.io/x/evidence v0.0.0-20230818115413-c402c51a1508
@@ -37,7 +37,6 @@ require (
 	github.com/cosmos/cosmos-sdk v0.51.0
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/ethereum/go-ethereum v1.12.0
-	github.com/golang/mock v1.6.0
 	github.com/golang/protobuf v1.5.3
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/onsi/ginkgo/v2 v2.12.0
@@ -52,7 +51,6 @@ require (
 	google.golang.org/protobuf v1.31.0
 	gotest.tools v2.2.0+incompatible
 	gotest.tools/v3 v3.5.1
-	pkg.berachain.dev/polaris/contracts v0.0.0-20230830221145-a6c6454d3697
 	pkg.berachain.dev/polaris/cosmos v0.0.0-20230830221145-a6c6454d3697
 	pkg.berachain.dev/polaris/eth v0.0.0-20230830221145-a6c6454d3697
 	pkg.berachain.dev/polaris/lib v0.0.0-20230830221145-a6c6454d3697
@@ -67,6 +65,7 @@ require (
 	cloud.google.com/go/storage v1.30.1 // indirect
 	cosmossdk.io/collections v0.4.0 // indirect
 	cosmossdk.io/errors v1.0.0 // indirect
+	cosmossdk.io/math v1.1.2 // indirect
 	cosmossdk.io/x/tx v0.9.1 // indirect
 	filippo.io/edwards25519 v1.0.0 // indirect
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
@@ -170,6 +169,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/glog v1.1.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/snappy v0.0.5-0.20220116011046-fa5810519dcb // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/flatbuffers v2.0.8+incompatible // indirect
@@ -378,6 +378,7 @@ require (
 	lukechampine.com/blake3 v1.2.1 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 	pgregory.net/rapid v1.1.0 // indirect
+	pkg.berachain.dev/polaris/contracts v0.0.0-20230830221145-a6c6454d3697 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

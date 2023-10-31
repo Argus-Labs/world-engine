@@ -1221,6 +1221,8 @@ github.com/grpc-ecosystem/grpc-gateway/v2 v2.7.0/go.mod h1:hgWBS7lorOAVIJEQMi4Zs
 github.com/grpc-ecosystem/grpc-gateway/v2 v2.11.3/go.mod h1:o//XUCC/F+yRGJoPO/VU0GSB0f8Nhgmxx0VIRUvaC0w=
 github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c h1:6rhixN/i8ZofjG1Y75iExal34USq5p+wiN1tpie8IrU=
 github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c/go.mod h1:NMPJylDgVpX0MLRlPy15sqSwOFv/U1GZ2m21JhFfek0=
+github.com/gupadhyaya/polaris/contracts v0.0.0-20231031215807-539fc2ece1e4 h1:ys3GPDaXlznUhfTLWLp9h+4/JJXUS0cdN92QqgN2aR0=
+github.com/gupadhyaya/polaris/contracts v0.0.0-20231031215807-539fc2ece1e4/go.mod h1:7egdVXsvyRMs9LspooyQCSDHtpPORRypbzI7OT0lKys=
 github.com/gupadhyaya/polaris/cosmos v0.0.0-20231031215807-539fc2ece1e4 h1:2q0rlxRVAq28iYpyuTEHafMsoHBBIiq9xEWfovJKak4=
 github.com/gupadhyaya/polaris/cosmos v0.0.0-20231031215807-539fc2ece1e4/go.mod h1:g6e6xNwa2m4Uw/twrg+Pk41Q5V8A1FYrmQLMdxnLiGc=
 github.com/gupadhyaya/polaris/eth v0.0.0-20231031215807-539fc2ece1e4 h1:VFsCy+6ilJPzG3mBRl+4IgDj3Rg6ERcpfno2xnmmTwA=
