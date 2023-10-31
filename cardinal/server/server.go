@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/runtime"
@@ -31,14 +32,16 @@ type Handler struct {
 }
 
 var (
-	// ErrorInvalidSignature is returned when a signature is incorrect in some way (e.g. namespace mismatch, nonce invalid,
+	// ErrInvalidSignature is returned when a signature is incorrect in some way (e.g. namespace mismatch, nonce invalid,
 	// the actual Verify fails). Other failures (e.g. Redis is down) should not wrap this error.
-	ErrorInvalidSignature = errors.New("invalid signature")
+	ErrInvalidSignature = errors.New("invalid signature")
 )
 
 const (
 	gameQueryPrefix = "/query/game/"
 	gameTxPrefix    = "/tx/game/"
+
+	readHeaderTimeout = 5 * time.Second
 )
 
 // NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
@@ -78,17 +81,14 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Op
 	if err != nil {
 		return nil, err
 	}
-	err = th.registerHealthHandlerSwagger(api)
-	if err != nil {
-		return nil, err
-	}
+	th.registerHealthHandlerSwagger(api)
 
-	//This is here to meet the swagger spec. Actual /events will be intercepted before this route.
+	// This is here to meet the swagger spec. Actual /events will be intercepted before this route.
 	api.RegisterOperation("GET", "/events", runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		return struct{}{}, nil
 	}))
 
-	if err := api.Validate(); err != nil {
+	if err = api.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -101,11 +101,12 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Op
 }
 
 // utility function to create a swagger handler from a request name, request constructor, request to response function.
-func createSwaggerQueryHandler[Request any, Response any](requestName string, requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
+func createSwaggerQueryHandler[Request any, Response any](requestName string,
+	requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
 	return func(params interface{}) (interface{}, error) {
 		request, ok := getValueFromParams[Request](params, requestName)
 		if !ok {
-			return middleware.Error(404, fmt.Errorf("%s not found", requestName)), nil
+			return middleware.Error(http.StatusNotFound, fmt.Errorf("%s not found", requestName)), nil
 		}
 		resp, err := requestHandler(request)
 		if err != nil {
@@ -115,7 +116,7 @@ func createSwaggerQueryHandler[Request any, Response any](requestName string, re
 	}
 }
 
-// utility function to extract parameters from swagger handlers
+// getValueFromParams extracts parameters from swagger handlers.
 func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
 	data, ok := params.(map[string]interface{})
 	if !ok {
@@ -137,7 +138,7 @@ func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
 	return value, true
 }
 
-// EndpointsResult result struct for /query/http/endpoints
+// EndpointsResult result struct for /query/http/endpoints.
 type EndpointsResult struct {
 	TxEndpoints    []string `json:"txEndpoints"`
 	QueryEndpoints []string `json:"queryEndpoints"`
@@ -158,7 +159,7 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 	}
 
 	queries := world.ListQueries()
-	queryEndpoints := make([]string, 0, len(queries)+3)
+	queryEndpoints := make([]string, 0, len(queries))
 	for _, query := range queries {
 		queryEndpoints = append(queryEndpoints, gameQueryPrefix+query.Name())
 	}
@@ -180,15 +181,16 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 func (handler *Handler) Initialize() {
 	if _, err := strconv.Atoi(handler.Port); err != nil || len(handler.Port) == 0 {
 		envPort := os.Getenv("CARDINAL_PORT")
-		if _, err := strconv.Atoi(envPort); err == nil {
+		if _, err = strconv.Atoi(envPort); err == nil {
 			handler.Port = envPort
 		} else {
 			handler.Port = "4040"
 		}
 	}
 	handler.server = &http.Server{
-		Addr:    fmt.Sprintf(":%s", handler.Port),
-		Handler: handler.Mux,
+		Addr:              fmt.Sprintf(":%s", handler.Port),
+		Handler:           handler.Mux,
+		ReadHeaderTimeout: readHeaderTimeout,
 	}
 }
 

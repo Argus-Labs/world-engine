@@ -21,6 +21,11 @@ type EventHub interface {
 	RegisterConnection(ws *websocket.Conn)
 }
 
+const (
+	writeDeadline = 5 * time.Second
+	bufferSize    = 1024
+)
+
 type loggingEventHub struct {
 	logger     *ecslog.Logger
 	eventQueue []*Event
@@ -38,13 +43,9 @@ func (eh *loggingEventHub) FlushEvents() {
 	eh.flush <- true
 }
 
-func (eh *loggingEventHub) UnregisterConnection(_ *websocket.Conn) {
-	return
-}
+func (eh *loggingEventHub) UnregisterConnection(_ *websocket.Conn) {}
 
-func (eh *loggingEventHub) RegisterConnection(_ *websocket.Conn) {
-	return
-}
+func (eh *loggingEventHub) RegisterConnection(_ *websocket.Conn) {}
 
 func (eh *loggingEventHub) Run() {
 	if eh.running.Load() {
@@ -63,7 +64,7 @@ func (eh *loggingEventHub) Run() {
 				for _, event := range eh.eventQueue {
 					eh.logger.Info().Msg("EVENT: " + event.Message)
 				}
-			}() //a goroutine is not technically necessary here but this imitates the websocket eventhub as much as possible.
+			}() // a goroutine is not technically necessary here but this imitates the websocket eventhub as much as possible.
 			wg.Wait()
 			eh.eventQueue = eh.eventQueue[:0]
 		case <-eh.shutdown:
@@ -152,6 +153,7 @@ func (eh *webSocketEventHub) ShutdownEventHub() {
 	}
 }
 
+//nolint:gocognit
 func (eh *webSocketEventHub) Run() {
 	if eh.running.Load() {
 		return
@@ -183,7 +185,7 @@ Loop:
 				go func() {
 					defer waitGroup.Done()
 					for _, event := range eh.eventQueue {
-						err := conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+						err := conn.SetWriteDeadline(time.Now().Add(writeDeadline))
 						if err != nil {
 							go func() {
 								eh.UnregisterConnection(conn)
@@ -205,7 +207,7 @@ Loop:
 			waitGroup.Wait()
 			eh.eventQueue = eh.eventQueue[:0]
 		case <-eh.shutdown:
-			for conn, _ := range eh.websocketConnections {
+			for conn := range eh.websocketConnections {
 				unregisterConnection(conn)
 			}
 			break Loop
@@ -224,15 +226,15 @@ type webSocketHandler struct {
 var upgrader = websocket.Upgrader{}
 
 func (w *webSocketHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
+	//nolint:nestif // its ok
 	if request.URL.Path == w.path {
 		ws, err := w.upgrader.Upgrade(responseWriter, request, nil)
 		if err != nil {
-			//Do some error.
-			responseWriter.WriteHeader(500)
+			responseWriter.WriteHeader(http.StatusInternalServerError)
 		} else {
 			err = w.internalServe(ws)
 			if err != nil {
-				responseWriter.WriteHeader(500)
+				responseWriter.WriteHeader(http.StatusInternalServerError)
 			}
 		}
 	} else {
@@ -240,17 +242,18 @@ func (w *webSocketHandler) ServeHTTP(responseWriter http.ResponseWriter, request
 	}
 }
 
-func CreateNewWebSocketBuilder(path string, websocketConnectionHandler func(conn *websocket.Conn) error) middleware.Builder {
+func CreateNewWebSocketBuilder(path string, websocketConnectionHandler func(conn *websocket.Conn) error,
+) middleware.Builder {
 	return func(handler http.Handler) http.Handler {
-		upgrader := websocket.Upgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
+		up := websocket.Upgrader{
+			ReadBufferSize:  bufferSize,
+			WriteBufferSize: bufferSize,
 		}
 		res := webSocketHandler{
 			internalServe: websocketConnectionHandler,
 			path:          path,
 			parentHandler: handler,
-			upgrader:      upgrader,
+			upgrader:      up,
 		}
 		return &res
 	}
@@ -283,12 +286,17 @@ func Echo(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
-		w.WriteHeader(500)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 	err = WebSocketEchoHandler(c)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	err = c.Close()
 	if err != nil {
-		w.WriteHeader(500)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
-
 }

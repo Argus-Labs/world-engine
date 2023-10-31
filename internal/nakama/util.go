@@ -1,7 +1,8 @@
-package test_nakama
+package nakama
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,7 +22,7 @@ type nakamaClient struct {
 	notificationCursor string
 }
 
-func newClient(t *testing.T) *nakamaClient {
+func newClient(_ *testing.T) *nakamaClient {
 	host := os.Getenv(envNakamaAddress)
 	if host == "" {
 		host = "http://127.0.0.1:7350"
@@ -50,11 +51,11 @@ type NotificationCollection struct {
 	CacheableCursor string             `json:"cacheableCursor"`
 }
 
-func (c *nakamaClient) listKNotifications(k int) ([]*Content, error) {
+func (c *nakamaClient) listNotifications(k int) ([]*Content, error) {
 	path := "v2/notification"
 	options := fmt.Sprintf("limit=%d&cursor=%s", k, c.notificationCursor)
 	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +64,7 @@ func (c *nakamaClient) listKNotifications(k int) ([]*Content, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer resp.Body.Close()
 
 	bodyData, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -103,7 +105,7 @@ func (c *nakamaClient) registerDevice(username, deviceID string) error {
 		return err
 	}
 	reader := bytes.NewReader(buf)
-	req, err := http.NewRequest("POST", url, reader)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, reader)
 	if err != nil {
 		return err
 	}
@@ -117,7 +119,8 @@ func (c *nakamaClient) registerDevice(username, deviceID string) error {
 	if err != nil {
 		return err
 	}
-	if 200 != resp.StatusCode {
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
 		buf, err := io.ReadAll(resp.Body)
 		return fmt.Errorf("request failed with status code %d. body is:\n%v\nerror:%w", resp.StatusCode, string(buf), err)
 	}
@@ -135,7 +138,7 @@ func (c *nakamaClient) rpc(path string, body any) (*http.Response, error) {
 		return nil, err
 	}
 	url := fmt.Sprintf("%s/v2/rpc/%s?unwrap", c.addr, path)
-	req, err := http.NewRequest("POST", url, bytes.NewReader(buf))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}

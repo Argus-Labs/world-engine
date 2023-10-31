@@ -11,7 +11,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/test_utils"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type Foo struct{}
@@ -19,9 +19,9 @@ type Foo struct{}
 func (Foo) Name() string { return "foo" }
 
 func TestCanQueryInsideSystem(t *testing.T) {
-	test_utils.SetTestTimeout(t, 10*time.Second)
+	testutils.SetTestTimeout(t, 10*time.Second)
 
-	world, doTick := test_utils.MakeWorldAndTicker(t)
+	world, doTick := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	wantNumOfEntities := 10
@@ -49,7 +49,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 }
 
 func TestShutdownViaSignal(t *testing.T) {
-	//test_utils.SetTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
+	testutils.SetTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
 	world, err := cardinal.NewMockWorld()
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	assert.NilError(t, err)

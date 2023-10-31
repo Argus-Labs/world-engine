@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"os"
 
 	"github.com/redis/go-redis/v9"
@@ -25,7 +26,8 @@ import (
 // We need to consider if this needs to be stored in a backend at all. We _should_ be able to build archetypes from
 // system restarts as they don't really contain any information about the location of anything stored in a backend.
 //
-// Something to consider -> we should do something i.e. RegisterComponents, and have it deterministically assign TypeID's to components.
+// Something to consider -> we should do something i.e. RegisterComponents, and have it deterministically assign
+// TypeID's to components.
 // We could end up with some issues (needs to be determined).
 
 type RedisStorage struct {
@@ -56,13 +58,13 @@ var _ NonceStorage = &RedisStorage{}
 func (r *RedisStorage) GetNonce(signerAddress string) (uint64, error) {
 	ctx := context.Background()
 	n, err := r.Client.HGet(ctx, r.nonceKey(), signerAddress).Uint64()
-	if err == redis.Nil {
-		return 0, nil
-	} else if err != nil {
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return 0, nil
+		}
 		return 0, err
 	}
 	return n, nil
-
 }
 
 // SetNonce saves the given nonce value with the given signer address. Any string can be used for the signer address,

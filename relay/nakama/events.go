@@ -18,21 +18,20 @@ type Event struct {
 
 type EventHub struct {
 	inputConnection *websocket.Conn
-	channels        *sync.Map //map[string]chan *Event
+	channels        *sync.Map // map[string]chan *Event
 	didShutdown     atomic.Bool
 }
 
 func createEventHub(logger runtime.Logger) (*EventHub, error) {
 	url := makeWebSocketURL(eventEndpoint)
-	fmt.Println(url)
-	webSocketConnection, _, err := websocket.DefaultDialer.Dial(url, nil)
+	webSocketConnection, _, err := websocket.DefaultDialer.Dial(url, nil) //nolint:bodyclose // no need.
 	for err != nil {
 		if errors.Is(err, &net.DNSError{}) {
-			//sleep a little try again...
+			// sleep a little try again...
 			logger.Info("No host found.")
 			logger.Info(err.Error())
-			time.Sleep(2 * time.Second)
-			webSocketConnection, _, err = websocket.DefaultDialer.Dial(url, nil)
+			time.Sleep(2 * time.Second)                                          //nolint: gomnd // its ok.
+			webSocketConnection, _, err = websocket.DefaultDialer.Dial(url, nil) //nolint:bodyclose // no need.
 		} else {
 			return nil, err
 		}
@@ -75,7 +74,7 @@ func (eh *EventHub) Shutdown() {
 func (eh *EventHub) Dispatch(log runtime.Logger) error {
 	var err error
 	for !eh.didShutdown.Load() {
-		messageType, message, err := eh.inputConnection.ReadMessage() //will block
+		messageType, message, err := eh.inputConnection.ReadMessage() // will block
 		if err != nil {
 			eh.Shutdown()
 			continue

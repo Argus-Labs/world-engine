@@ -2,12 +2,12 @@ package e2e
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"testing"
 )
 
 const (
@@ -19,7 +19,7 @@ type nakamaClient struct {
 	authHeader string
 }
 
-func newClient(t *testing.T) *nakamaClient {
+func newClient() *nakamaClient {
 	host := os.Getenv(envNakamaAddress)
 	if host == "" {
 		host = "http://127.0.0.1:7350"
@@ -42,7 +42,7 @@ func (c *nakamaClient) registerDevice(username, deviceID string) error {
 		return err
 	}
 	reader := bytes.NewReader(buf)
-	req, err := http.NewRequest("POST", url, reader)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, reader)
 	if err != nil {
 		return err
 	}
@@ -52,16 +52,16 @@ func (c *nakamaClient) registerDevice(username, deviceID string) error {
 	req.SetBasicAuth("defaultkey", "")
 
 	resp, err := http.DefaultClient.Do(req)
-	//	resp, err := http.Post(url, "application/json", reader)
 	if err != nil {
 		return err
 	}
-	if 200 != resp.StatusCode {
-		buf, err := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		buf, err = io.ReadAll(resp.Body)
 		return fmt.Errorf("request failed with status code %d. body is:\n%v\nerror:%w", resp.StatusCode, string(buf), err)
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return fmt.Errorf("failed to decode body: %w", err)
 	}
 	c.authHeader = fmt.Sprintf("Bearer %s", body["token"].(string))
@@ -74,7 +74,7 @@ func (c *nakamaClient) rpc(path string, body any) (*http.Response, error) {
 		return nil, err
 	}
 	url := fmt.Sprintf("%s/v2/rpc/%s?unwrap", c.addr, path)
-	req, err := http.NewRequest("POST", url, bytes.NewReader(buf))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}

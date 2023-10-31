@@ -17,7 +17,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
@@ -45,8 +45,8 @@ type World struct {
 	systemLoggers            []*ecslog.Logger
 	systemNames              []string
 	tick                     uint64
-	nameToComponent          map[string]component_metadata.IComponentMetaData
-	registeredComponents     []component_metadata.IComponentMetaData
+	nameToComponent          map[string]metadata.ComponentMetadata
+	registeredComponents     []metadata.ComponentMetadata
 	registeredTransactions   []transaction.ITransaction
 	registeredQueries        []IQuery
 	isComponentsRegistered   bool
@@ -69,16 +69,20 @@ type World struct {
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
 
-	nextComponentID component_metadata.TypeID
+	nextComponentID metadata.TypeID
 
 	eventHub events.EventHub
 }
 
 var (
-	ErrorTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
-	ErrorStoreStateInvalid                     = errors.New("saved world state is not valid")
-	ErrorDuplicateTransactionName              = errors.New("transaction names must be unique")
-	ErrorDuplicateQueryName                    = errors.New("query names must be unique")
+	ErrTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
+	ErrStoreStateInvalid                     = errors.New("saved world state is not valid")
+	ErrDuplicateTransactionName              = errors.New("transaction names must be unique")
+	ErrDuplicateQueryName                    = errors.New("query names must be unique")
+)
+
+const (
+	defaultReceiptHistorySize = 10
 )
 
 func (w *World) SetEventHub(eventHub events.EventHub) {
@@ -137,7 +141,7 @@ func (w *World) AddSystemWithName(system System, functionName string) {
 	w.systems = append(w.systems, system)
 }
 
-func RegisterComponent[T component_metadata.Component](world *World) error {
+func RegisterComponent[T metadata.Component](world *World) error {
 	if world.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
@@ -146,29 +150,29 @@ func RegisterComponent[T component_metadata.Component](world *World) error {
 	if err == nil {
 		return fmt.Errorf("component with name '%s' is already registered", t.Name())
 	}
-	c := component_metadata.NewComponentMetadata[T]()
+	c := metadata.NewComponentMetadata[T]()
 	err = c.SetID(world.nextComponentID)
 	if err != nil {
 		return err
 	}
 	world.registeredComponents = append(world.registeredComponents, c)
-	world.nextComponentID += 1
+	world.nextComponentID++
 	world.nameToComponent[t.Name()] = c
 	world.isComponentsRegistered = true
 	return nil
 }
 
-func MustRegisterComponent[T component_metadata.Component](world *World) {
+func MustRegisterComponent[T metadata.Component](world *World) {
 	err := RegisterComponent[T](world)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (w *World) GetComponentByName(name string) (component_metadata.IComponentMetaData, error) {
+func (w *World) GetComponentByName(name string) (metadata.ComponentMetadata, error) {
 	componentType, exists := w.nameToComponent[name]
 	if !exists {
-		return nil, fmt.Errorf("Component with name %s not found. Must register component before using", name)
+		return nil, fmt.Errorf("component with name %s not found. Must register component before using", name)
 	}
 	return componentType, nil
 }
@@ -182,7 +186,7 @@ func (w *World) RegisterQueries(queries ...IQuery) error {
 	for _, t := range w.registeredQueries {
 		name := t.Name()
 		if _, ok := seenQueryNames[name]; ok {
-			return fmt.Errorf("duplicate query %q: %w", name, ErrorDuplicateQueryName)
+			return fmt.Errorf("duplicate query %q: %w", name, ErrDuplicateQueryName)
 		}
 		seenQueryNames[name] = struct{}{}
 	}
@@ -194,7 +198,7 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 		panic("cannot register transactions after loading game state")
 	}
 	if w.isTransactionsRegistered {
-		return ErrorTransactionRegistrationMustHappenOnce
+		return ErrTransactionRegistrationMustHappenOnce
 	}
 	w.isTransactionsRegistered = true
 	w.registerInternalTransactions()
@@ -204,7 +208,7 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 	for i, t := range w.registeredTransactions {
 		name := t.Name()
 		if seenTxNames[name] {
-			return fmt.Errorf("duplicate tx %q: %w", name, ErrorDuplicateTransactionName)
+			return fmt.Errorf("duplicate tx %q: %w", name, ErrDuplicateTransactionName)
 		}
 		seenTxNames[name] = true
 
@@ -246,7 +250,7 @@ func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts 
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
-		nameToComponent:   make(map[string]component_metadata.IComponentMetaData),
+		nameToComponent:   make(map[string]metadata.ComponentMetadata),
 		txQueue:           transaction.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
@@ -264,7 +268,7 @@ func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts 
 		opt(w)
 	}
 	if w.receiptHistory == nil {
-		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), 10)
+		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), defaultReceiptHistorySize)
 	}
 	return w, nil
 }
@@ -277,7 +281,7 @@ func (w *World) ReceiptHistorySize() uint64 {
 	return w.receiptHistory.Size()
 }
 
-// Remove removes the given Entity from the world
+// Remove removes the given Entity from the world.
 func (w *World) Remove(id entity.ID) error {
 	return w.StoreManager().RemoveEntity(id)
 }
@@ -293,7 +297,9 @@ func (w *World) ConsumeEVMTxResult(evmTxHash string) (EVMTxReceipt, bool) {
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (tick uint64, txHash transaction.TxHash) {
+func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (
+	tick uint64, txHash transaction.TxHash,
+) {
 	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
 	// transaction is actually added to the returned tick.
 	tick = w.CurrentTick()
@@ -301,11 +307,17 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPay
 	return tick, txHash
 }
 
-func (w *World) AddEVMTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload, evmTxHash string) (tick uint64, txHash transaction.TxHash) {
+func (w *World) AddEVMTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload, evmTxHash string) (
+	tick uint64, txHash transaction.TxHash,
+) {
 	tick = w.CurrentTick()
 	txHash = w.txQueue.AddEVMTransaction(id, v, sig, evmTxHash)
 	return tick, txHash
 }
+
+const (
+	warningThreshold = 100 * time.Millisecond
+)
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
@@ -319,7 +331,6 @@ func (w *World) Tick(_ context.Context) error {
 		}
 	}()
 	startTime := time.Now()
-	warningThreshold := 100 * time.Millisecond
 	tickAsString := strconv.FormatUint(w.tick, 10)
 	w.Logger.Info().Str("tick", tickAsString).Msg("Tick started")
 	if !w.stateIsLoaded {
@@ -356,7 +367,7 @@ func (w *World) Tick(_ context.Context) error {
 	message := "tick ended"
 	if elapsedTime > warningThreshold {
 		logEvent = w.Logger.Warn()
-		message = message + fmt.Sprintf(", (warning: tick exceeded %dms)", warningThreshold.Milliseconds())
+		message += fmt.Sprintf(", (warning: tick exceeded %dms)", warningThreshold.Milliseconds())
 	} else {
 		logEvent = w.Logger.Info()
 	}
@@ -433,7 +444,7 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 				tickTheWorld()
 			case <-w.endGameLoopCh:
 				if w.GetTxQueueAmount() > 0 {
-					tickTheWorld() //immediately tick if queue is not empty to process all txs if queue is not empty.
+					tickTheWorld() // immediately tick if queue is not empty to process all txs if queue is not empty.
 				}
 				break loop
 			}
@@ -450,7 +461,7 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 // ticket: https://linear.app/arguslabs/issue/WORLD-430/make-waitfornextticks-timeout-and-sleep-duration-a-factor-of-the
 func (w *World) WaitForNextTick() bool {
 	current := w.CurrentTick()
-	timeout := time.After(5 * time.Second)
+	timeout := time.After(5 * time.Second) //nolint:gomnd // fine for now.
 
 	for {
 		if w.CurrentTick() > current {
@@ -461,7 +472,7 @@ func (w *World) WaitForNextTick() bool {
 			return false // Timeout reached
 		default:
 			// TODO: sleep time should be a factor of the tick hz itself.
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(500 * time.Millisecond) //nolint:gomnd // fine for now.
 		}
 	}
 }
@@ -475,18 +486,13 @@ func (w *World) Shutdown() {
 		return
 	}
 	w.endGameLoopCh <- true
-	for w.IsGameLoopRunning() { //Block until loop stops.
-		time.Sleep(100 * time.Millisecond)
+	for w.IsGameLoopRunning() { // Block until loop stops.
+		time.Sleep(100 * time.Millisecond) //nolint:gomnd // its ok.
 	}
 	if w.eventHub != nil {
 		w.eventHub.ShutdownEventHub()
 	}
 }
-
-const (
-	storeArchetypeCompIdxKey  = "arch_component_index"
-	storeArchetypeAccessorKey = "arch_accessor"
-)
 
 // recoverGameState checks the status of the last game tick. If the tick was incomplete (indicating
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
@@ -500,6 +506,7 @@ func (w *World) recoverGameState() (recoveredTxs *transaction.TxQueue, err error
 	w.tick = end
 	// We successfully completed the last tick. Everything is fine
 	if start == end {
+		//nolint:nilnil // its ok.
 		return nil, nil
 	}
 	return w.TickStore().Recover(w.registeredTransactions)
@@ -534,7 +541,7 @@ func (w *World) LoadGameState() error {
 
 	if recoveredTxs != nil {
 		w.txQueue = recoveredTxs
-		if err := w.Tick(context.Background()); err != nil {
+		if err = w.Tick(context.Background()); err != nil {
 			return err
 		}
 	}
@@ -546,6 +553,8 @@ func (w *World) LoadGameState() error {
 // RecoverFromChain will attempt to recover the state of the world based on historical transaction data.
 // The function puts the world in a recovery state, and then queries all transaction batches under the world's
 // namespace. The function will continuously ask the EVM base shard for batches, and run ticks for each batch returned.
+//
+//nolint:gocognit
 func (w *World) RecoverFromChain(ctx context.Context) error {
 	if w.chain == nil {
 		return fmt.Errorf("chain adapter was nil. " +
@@ -579,7 +588,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				return fmt.Errorf("got tx for tick %d, but world is at tick %d", target, w.CurrentTick())
 			}
 			for current := w.CurrentTick(); current != target; {
-				if err := w.Tick(ctx); err != nil {
+				if err = w.Tick(ctx); err != nil {
 					return err
 				}
 				current = w.CurrentTick()
@@ -602,7 +611,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				w.AddTransaction(transaction.TypeID(tx.TxId), v, w.protoSignedPayloadToGo(sp))
 			}
 			// run the tick for this batch
-			if err := w.Tick(ctx); err != nil {
+			if err = w.Tick(ctx); err != nil {
 				return err
 			}
 		}
@@ -678,7 +687,7 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, e
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) GetComponents() []component_metadata.IComponentMetaData {
+func (w *World) GetComponents() []metadata.ComponentMetadata {
 	return w.registeredComponents
 }
 
@@ -699,6 +708,7 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 	return NewSearch(componentFilter), nil
 }
 
-func GetRawJsonOfComponent(w *World, component component_metadata.IComponentMetaData, id entity.ID) (json.RawMessage, error) {
-	return w.StoreManager().GetComponentForEntityInRawJson(component, id)
+func GetRawJSONOfComponent(w *World, component metadata.ComponentMetadata, id entity.ID) (
+	json.RawMessage, error) {
+	return w.StoreManager().GetComponentForEntityInRawJSON(component, id)
 }

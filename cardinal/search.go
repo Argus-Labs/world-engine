@@ -37,6 +37,6 @@ func (q *Search) Count(wCtx WorldContext) (int, error) {
 }
 
 // First returns the first entity that matches this search.
-func (q *Search) First(wCtx WorldContext) (id EntityID, err error) {
+func (q *Search) First(wCtx WorldContext) (EntityID, error) {
 	return q.impl.First(wCtx.getECSWorldContext())
 }

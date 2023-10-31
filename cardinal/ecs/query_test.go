@@ -36,8 +36,8 @@ func TestQueryTypeNotStructs(t *testing.T) {
 			return expectedReply, nil
 		})
 		defer func() {
-			//defered function should not fail
-			panicValue := recover()
+			// deferred function should not fail
+			panicValue = recover()
 			assert.Assert(t, panicValue == nil)
 		}()
 	}()
@@ -61,12 +61,14 @@ func TestQueryEVM(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooQuery := ecs.NewQueryType[FooRequest, FooReply]("foo", func(wCtx ecs.WorldContext, req FooRequest) (FooReply, error) {
+	fooQuery := ecs.NewQueryType[FooRequest, FooReply]("foo", func(wCtx ecs.WorldContext, req FooRequest,
+	) (FooReply, error) {
 		return expectedReply, nil
 	}, ecs.WithQueryEVMSupport[FooRequest, FooReply])
 
 	w := ecs.NewTestWorld(t)
 	err := w.RegisterQueries(fooQuery)
+	assert.NilError(t, err)
 	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)
 	s, err := evm.NewServer(w)

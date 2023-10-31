@@ -9,7 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -56,14 +56,15 @@ func (Bar) Name() string {
 }
 
 var (
-	fooComp       = component_metadata.NewComponentMetadata[Foo]()
-	barComp       = component_metadata.NewComponentMetadata[Bar]()
-	allComponents = []component_metadata.IComponentMetaData{fooComp, barComp}
+	fooComp       = metadata.NewComponentMetadata[Foo]()
+	barComp       = metadata.NewComponentMetadata[Bar]()
+	allComponents = []metadata.ComponentMetadata{fooComp, barComp}
 )
 
+//nolint:gochecknoinits // its for testing.
 func init() {
-	fooComp.SetID(1)
-	barComp.SetID(2)
+	_ = fooComp.SetID(1) //notlint:errcheck
+	_ = barComp.SetID(2) //notlint:errcheck
 }
 
 func TestCanCreateEntityAndSetComponent(t *testing.T) {
@@ -204,7 +205,7 @@ func TestCannotGetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 	// barComp has not been assigned to this entity
 	_, err = manager.GetComponentForEntity(barComp, id)
-	assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
+	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 }
 
 func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
@@ -213,7 +214,7 @@ func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 	// barComp has not been assigned to this entity
 	err = manager.SetComponentForEntity(barComp, id, Bar{100})
-	assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
+	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 }
 
 func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testing.T) {
@@ -221,7 +222,7 @@ func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testi
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	err = manager.RemoveComponentFromEntity(barComp, id)
-	assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
+	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 }
 
 func TestCanAddAComponentToAnEntity(t *testing.T) {
@@ -267,7 +268,7 @@ func TestCannotAddComponentToEntityThatAlreadyHasTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 
 	err = manager.AddComponentToEntity(fooComp, id)
-	assert.ErrorIs(t, err, storage.ErrorComponentAlreadyOnEntity)
+	assert.ErrorIs(t, err, storage.ErrComponentAlreadyOnEntity)
 }
 
 type Health struct {
@@ -330,18 +331,19 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 
 	for _, tc := range testCases {
 		found := map[entity.ID]bool{}
-		q, err := world.NewSearch(tc.filter)
+		var q *ecs.Search
+		q, err = world.NewSearch(tc.filter)
 		assert.NilError(t, err)
-		q.Each(wCtx, func(id entity.ID) bool {
+		err = q.Each(wCtx, func(id entity.ID) bool {
 			found[id] = true
 			return true
 		})
+		assert.NilError(t, err)
 		assert.Equal(t, len(tc.wantIDs), len(found))
 		for _, id := range tc.wantIDs {
 			assert.Check(t, found[id], "id is missing from query result")
 		}
 	}
-
 }
 
 func TestEntityCanBeRemoved(t *testing.T) {
@@ -386,9 +388,9 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 	_, err = manager.CreateManyEntities(startEntityCount, fooComp, barComp)
 	assert.NilError(t, err)
 
-	fooArchID, err := manager.GetArchIDForComponents([]component_metadata.IComponentMetaData{fooComp})
+	fooArchID, err := manager.GetArchIDForComponents([]metadata.ComponentMetadata{fooComp})
 	assert.NilError(t, err)
-	bothArchID, err := manager.GetArchIDForComponents([]component_metadata.IComponentMetaData{barComp, fooComp})
+	bothArchID, err := manager.GetArchIDForComponents([]metadata.ComponentMetadata{barComp, fooComp})
 	assert.NilError(t, err)
 
 	// Make sure there are the correct number of ids in each archetype to start
@@ -435,7 +437,6 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 		}
 	}
 	assert.Check(t, !found)
-
 }
 
 func TestCanGetArchetypeCount(t *testing.T) {

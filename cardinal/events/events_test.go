@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -18,18 +19,17 @@ import (
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server"
-	"pkg.world.dev/world-engine/cardinal/test_utils"
 )
 
 func TestEvents(t *testing.T) {
-	//broadcast 5 messages to 5 clients means 25 messages received.
+	// broadcast 5 messages to 5 clients means 25 messages received.
 	numberToTest := 5
 	w := ecs.NewTestWorld(t)
 	assert.NilError(t, w.LoadGameState())
-	txh := test_utils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
 	url := txh.MakeWebSocketURL("events")
-	dialers := make([]*websocket.Conn, numberToTest, numberToTest)
-	for i, _ := range dialers {
+	dialers := make([]*websocket.Conn, numberToTest)
+	for i := range dialers {
 		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
 		assert.NilError(t, err)
 		dialers[i] = dial
@@ -40,7 +40,6 @@ func TestEvents(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			//txh.eventHub.Broadcast <- []byte(fmt.Sprintf("test%d", i))
 			txh.EventHub.EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
 		}()
 	}
@@ -60,7 +59,6 @@ func TestEvents(t *testing.T) {
 				assert.NilError(t, err)
 				assert.Equal(t, mode, websocket.TextMessage)
 				assert.Equal(t, string(message)[:4], "test")
-				//fmt.Println(string(message))
 				count.Add(1)
 			}
 		}()
@@ -106,10 +104,10 @@ func TestEventsThroughSystems(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](w))
 	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](w))
 	assert.NilError(t, w.LoadGameState())
-	txh := test_utils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
 	url := txh.MakeWebSocketURL("events")
 	dialers := make([]*websocket.Conn, numberToTest)
-	for i, _ := range dialers {
+	for i := range dialers {
 		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
 		assert.NilError(t, err)
 		dialers[i] = dial
@@ -150,7 +148,7 @@ func TestEventsThroughSystems(t *testing.T) {
 }
 
 func TestEventHubLogger(t *testing.T) {
-	//replaces internal Logger with one that logs to the buf variable above.
+	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
 	cardinalLogger := ecslog.Logger{
@@ -160,7 +158,7 @@ func TestEventHubLogger(t *testing.T) {
 	numberToTest := 5
 	for i := 0; i < numberToTest; i++ {
 		w.AddSystem(func(wCtx ecs.WorldContext) error {
-			wCtx.GetWorld().EmitEvent(&events.Event{Message: fmt.Sprintf("test")})
+			wCtx.GetWorld().EmitEvent(&events.Event{Message: "test"})
 			return nil
 		})
 	}

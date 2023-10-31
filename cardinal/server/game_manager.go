@@ -16,13 +16,12 @@ type GameManager struct {
 }
 
 func NewGameManager(world *ecs.World, handler *Handler) GameManager {
-
 	manager := GameManager{
 		handler: handler,
 		world:   world,
 	}
 
-	//handle shutdown via a signal
+	// handle shutdown via a signal
 	signalChannel := make(chan os.Signal, 1)
 	go func() {
 		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)

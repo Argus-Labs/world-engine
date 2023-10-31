@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
@@ -25,7 +25,7 @@ type Manager struct {
 
 	compValues         map[compKey]any
 	compValuesToDelete map[compKey]bool
-	typeToComponent    map[component_metadata.TypeID]component_metadata.IComponentMetaData
+	typeToComponent    map[metadata.TypeID]metadata.ComponentMetadata
 
 	activeEntities map[archetype.ID]activeEntities
 
@@ -38,14 +38,14 @@ type Manager struct {
 	entityIDToArchID       map[entity.ID]archetype.ID
 	entityIDToOriginArchID map[entity.ID]archetype.ID
 
-	archIDToComps  map[archetype.ID][]component_metadata.IComponentMetaData
+	archIDToComps  map[archetype.ID][]metadata.ComponentMetadata
 	pendingArchIDs []archetype.ID
 
 	logger *ecslog.Logger
 }
 
 var (
-	errorArchIDNotFound     = errors.New("archetype for components not found")
+	ErrArchetypeNotFound    = errors.New("archetype for components not found")
 	doesNotExistArchetypeID = archetype.ID(-1)
 )
 
@@ -58,7 +58,7 @@ func NewManager(client *redis.Client) (*Manager, error) {
 		compValuesToDelete: map[compKey]bool{},
 
 		activeEntities: map[archetype.ID]activeEntities{},
-		archIDToComps:  map[archetype.ID][]component_metadata.IComponentMetaData{},
+		archIDToComps:  map[archetype.ID][]metadata.ComponentMetadata{},
 
 		entityIDToArchID:       map[entity.ID]archetype.ID{},
 		entityIDToOriginArchID: map[entity.ID]archetype.ID{},
@@ -74,8 +74,8 @@ func NewManager(client *redis.Client) (*Manager, error) {
 	return m, nil
 }
 
-func (m *Manager) RegisterComponents(comps []component_metadata.IComponentMetaData) error {
-	m.typeToComponent = map[component_metadata.TypeID]component_metadata.IComponentMetaData{}
+func (m *Manager) RegisterComponents(comps []metadata.ComponentMetadata) error {
+	m.typeToComponent = map[metadata.TypeID]metadata.ComponentMetadata{}
 	for _, comp := range comps {
 		m.typeToComponent[comp.ID()] = comp
 	}
@@ -147,7 +147,7 @@ func (m *Manager) RemoveEntity(idToRemove entity.ID) error {
 }
 
 // CreateEntity creates a single entity with the given set of components.
-func (m *Manager) CreateEntity(comps ...component_metadata.IComponentMetaData) (entity.ID, error) {
+func (m *Manager) CreateEntity(comps ...metadata.ComponentMetadata) (entity.ID, error) {
 	ids, err := m.CreateManyEntities(1, comps...)
 	if err != nil {
 		return 0, err
@@ -156,7 +156,7 @@ func (m *Manager) CreateEntity(comps ...component_metadata.IComponentMetaData) (
 }
 
 // CreateManyEntities creates many entities with the given set of components.
-func (m *Manager) CreateManyEntities(num int, comps ...component_metadata.IComponentMetaData) ([]entity.ID, error) {
+func (m *Manager) CreateManyEntities(num int, comps ...metadata.ComponentMetadata) ([]entity.ID, error) {
 	archID, err := m.getOrMakeArchIDForComponents(comps)
 	if err != nil {
 		return nil, err
@@ -184,13 +184,13 @@ func (m *Manager) CreateManyEntities(num int, comps ...component_metadata.ICompo
 }
 
 // SetComponentForEntity sets the given entity's component data to the given value.
-func (m *Manager) SetComponentForEntity(cType component_metadata.IComponentMetaData, id entity.ID, value any) error {
+func (m *Manager) SetComponentForEntity(cType metadata.ComponentMetadata, id entity.ID, value any) error {
 	comps, err := m.GetComponentTypesForEntity(id)
 	if err != nil {
 		return err
 	}
 	if !filter.MatchComponentMetaData(comps, cType) {
-		return storage.ErrorComponentNotOnEntity
+		return storage.ErrComponentNotOnEntity
 	}
 
 	key := compKey{cType.ID(), id}
@@ -199,7 +199,7 @@ func (m *Manager) SetComponentForEntity(cType component_metadata.IComponentMetaD
 }
 
 // GetComponentForEntity returns the saved component data for the given entity.
-func (m *Manager) GetComponentForEntity(cType component_metadata.IComponentMetaData, id entity.ID) (any, error) {
+func (m *Manager) GetComponentForEntity(cType metadata.ComponentMetadata, id entity.ID) (any, error) {
 	key := compKey{cType.ID(), id}
 	value, ok := m.compValues[key]
 	if ok {
@@ -211,20 +211,23 @@ func (m *Manager) GetComponentForEntity(cType component_metadata.IComponentMetaD
 		return nil, err
 	}
 	if !filter.MatchComponentMetaData(comps, cType) {
-		return nil, storage.ErrorComponentNotOnEntity
+		return nil, storage.ErrComponentNotOnEntity
 	}
 
 	// Fetch the value from redis
 	redisKey := redisComponentKey(cType.ID(), id)
 	ctx := context.Background()
+
 	bz, err := m.client.Get(ctx, redisKey).Bytes()
-	if err == redis.Nil {
-		// This value has never been set. Make a default value.
-		if bz, err = cType.New(); err != nil {
+	if err != nil {
+		if !errors.Is(err, redis.Nil) {
 			return nil, err
 		}
-	} else if err != nil {
-		return nil, err
+		// This value has never been set. Make a default value.
+		bz, err = cType.New()
+		if err != nil {
+			return nil, err
+		}
 	}
 	value, err = cType.Decode(bz)
 	if err != nil {
@@ -234,8 +237,9 @@ func (m *Manager) GetComponentForEntity(cType component_metadata.IComponentMetaD
 	return value, nil
 }
 
-// GetComponentForEntityInRawJson returns the saved component data as JSON encoded bytes for the given entity.
-func (m *Manager) GetComponentForEntityInRawJson(cType component_metadata.IComponentMetaData, id entity.ID) (json.RawMessage, error) {
+// GetComponentForEntityInRawJSON returns the saved component data as JSON encoded bytes for the given entity.
+func (m *Manager) GetComponentForEntityInRawJSON(cType metadata.ComponentMetadata, id entity.ID) (
+	json.RawMessage, error) {
 	value, err := m.GetComponentForEntity(cType, id)
 	if err != nil {
 		return nil, err
@@ -244,16 +248,16 @@ func (m *Manager) GetComponentForEntityInRawJson(cType component_metadata.ICompo
 }
 
 // AddComponentToEntity adds the given component to the given entity. An error is returned if the entity
-// already has this component
-func (m *Manager) AddComponentToEntity(cType component_metadata.IComponentMetaData, id entity.ID) error {
+// already has this component.
+func (m *Manager) AddComponentToEntity(cType metadata.ComponentMetadata, id entity.ID) error {
 	fromComps, err := m.GetComponentTypesForEntity(id)
 	if err != nil {
 		return err
 	}
 	if filter.MatchComponentMetaData(fromComps, cType) {
-		return storage.ErrorComponentAlreadyOnEntity
+		return storage.ErrComponentAlreadyOnEntity
 	}
-	toComps := append(fromComps, cType)
+	toComps := append(fromComps, cType) //nolint:gocritic // easier this way.
 	if err = sortComponentSet(toComps); err != nil {
 		return err
 	}
@@ -271,12 +275,12 @@ func (m *Manager) AddComponentToEntity(cType component_metadata.IComponentMetaDa
 
 // RemoveComponentFromEntity removes the given component from the given entity. An error is returned if the entity
 // does not have the component.
-func (m *Manager) RemoveComponentFromEntity(cType component_metadata.IComponentMetaData, id entity.ID) error {
+func (m *Manager) RemoveComponentFromEntity(cType metadata.ComponentMetadata, id entity.ID) error {
 	comps, err := m.GetComponentTypesForEntity(id)
 	if err != nil {
 		return err
 	}
-	var newCompSet []component_metadata.IComponentMetaData
+	newCompSet := make([]metadata.ComponentMetadata, 0, len(comps)-1)
 	found := false
 	for _, comp := range comps {
 		if comp.ID() == cType.ID() {
@@ -286,10 +290,10 @@ func (m *Manager) RemoveComponentFromEntity(cType component_metadata.IComponentM
 		newCompSet = append(newCompSet, comp)
 	}
 	if !found {
-		return storage.ErrorComponentNotOnEntity
+		return storage.ErrComponentNotOnEntity
 	}
 	if len(newCompSet) == 0 {
-		return storage.ErrorEntityMustHaveAtLeastOneComponent
+		return storage.ErrEntityMustHaveAtLeastOneComponent
 	}
 	key := compKey{cType.ID(), id}
 	delete(m.compValues, key)
@@ -307,7 +311,7 @@ func (m *Manager) RemoveComponentFromEntity(cType component_metadata.IComponentM
 
 // GetComponentTypesForEntity returns all the component types that are currently on the given entity. Only types
 // are returned. To get the actual component data, use GetComponentForEntity.
-func (m *Manager) GetComponentTypesForEntity(id entity.ID) ([]component_metadata.IComponentMetaData, error) {
+func (m *Manager) GetComponentTypesForEntity(id entity.ID) ([]metadata.ComponentMetadata, error) {
 	archID, err := m.getArchetypeForEntity(id)
 	if err != nil {
 		return nil, err
@@ -317,13 +321,13 @@ func (m *Manager) GetComponentTypesForEntity(id entity.ID) ([]component_metadata
 }
 
 // GetComponentTypesForArchID returns the set of components that are associated with the given archetype id.
-func (m *Manager) GetComponentTypesForArchID(archID archetype.ID) []component_metadata.IComponentMetaData {
+func (m *Manager) GetComponentTypesForArchID(archID archetype.ID) []metadata.ComponentMetadata {
 	return m.archIDToComps[archID]
 }
 
 // GetArchIDForComponents returns the archetype ID that has been assigned to this set of components.
 // If this set of components does not have an archetype ID assigned to it, an error is returned.
-func (m *Manager) GetArchIDForComponents(components []component_metadata.IComponentMetaData) (archetype.ID, error) {
+func (m *Manager) GetArchIDForComponents(components []metadata.ComponentMetadata) (archetype.ID, error) {
 	if len(components) == 0 {
 		return 0, errors.New("must provide at least 1 component")
 	}
@@ -335,7 +339,7 @@ func (m *Manager) GetArchIDForComponents(components []component_metadata.ICompon
 			return archID, nil
 		}
 	}
-	return 0, errorArchIDNotFound
+	return 0, ErrArchetypeNotFound
 }
 
 // GetEntitiesForArchID returns all the entities that currently belong to the given archetype ID.
@@ -404,11 +408,12 @@ func (m *Manager) nextEntityID() (entity.ID, error) {
 		// The next valid entity ID needs to be loaded from storage.
 		ctx := context.Background()
 		nextID, err := m.client.Get(ctx, redisNextEntityIDKey()).Uint64()
-		if err == redis.Nil {
+		if err != nil {
+			if !errors.Is(err, redis.Nil) {
+				return 0, err
+			}
 			// redis.Nil means there's no value at this key. Start with an ID of 0
 			nextID = 0
-		} else if err != nil {
-			return 0, err
 		}
 		m.nextEntityIDSaved = nextID
 		m.pendingEntityIDs = 0
@@ -421,14 +426,14 @@ func (m *Manager) nextEntityID() (entity.ID, error) {
 }
 
 // getOrMakeArchIDForComponents converts the given set of components into an archetype ID. If the set of components
-// has already been assigned an archetype ID, that ID is returned. If this is a new set of components, an archetype ID is
-// generated.
-func (m *Manager) getOrMakeArchIDForComponents(comps []component_metadata.IComponentMetaData) (archetype.ID, error) {
+// has already been assigned an archetype ID, that ID is returned. If this is a new set of components, an archetype ID
+// is generated.
+func (m *Manager) getOrMakeArchIDForComponents(comps []metadata.ComponentMetadata) (archetype.ID, error) {
 	archID, err := m.GetArchIDForComponents(comps)
 	if err == nil {
 		return archID, nil
 	}
-	if err != errorArchIDNotFound {
+	if !errors.Is(err, ErrArchetypeNotFound) {
 		return 0, err
 	}
 	// An archetype ID was not found. Create a pending arch ID
@@ -443,25 +448,27 @@ func (m *Manager) getOrMakeArchIDForComponents(comps []component_metadata.ICompo
 func (m *Manager) getActiveEntities(archID archetype.ID) (activeEntities, error) {
 	active, ok := m.activeEntities[archID]
 	// The active entities for this archetype ID has not yet been loaded from storage
-	if !ok {
-		ctx := context.Background()
-		key := redisActiveEntityIDKey(archID)
-		bz, err := m.client.Get(ctx, key).Bytes()
-		var ids []entity.ID
-		if err == redis.Nil {
-			// Nothing has been saved to this key yet
-		} else if err != nil {
+	if ok {
+		return m.activeEntities[archID], nil
+	}
+	ctx := context.Background()
+	key := redisActiveEntityIDKey(archID)
+	bz, err := m.client.Get(ctx, key).Bytes()
+	var ids []entity.ID
+	if err != nil {
+		if !errors.Is(err, redis.Nil) {
 			return active, err
-		} else {
-			ids, err = codec.Decode[[]entity.ID](bz)
-			if err != nil {
-				return active, err
-			}
 		}
-		m.activeEntities[archID] = activeEntities{
-			ids:      ids,
-			modified: false,
+	} else {
+		ids, err = codec.Decode[[]entity.ID](bz)
+		if err != nil {
+			return active, err
 		}
+	}
+
+	m.activeEntities[archID] = activeEntities{
+		ids:      ids,
+		modified: false,
 	}
 	return m.activeEntities[archID], nil
 }

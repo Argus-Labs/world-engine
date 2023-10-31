@@ -1,4 +1,4 @@
-package component_metadata_test
+package metadata_test
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
@@ -38,19 +38,19 @@ func TestComponents(t *testing.T) {
 	assert.NilError(t, err)
 
 	tests := []*struct {
-		comps    []component_metadata.IComponentMetaData
+		comps    []metadata.ComponentMetadata
 		archID   archetype.ID
 		entityID entity.ID
 		Value    string
 	}{
 		{
-			[]component_metadata.IComponentMetaData{ca},
+			[]metadata.ComponentMetadata{ca},
 			0,
 			0,
 			"a",
 		},
 		{
-			[]component_metadata.IComponentMetaData{ca, cb},
+			[]metadata.ComponentMetadata{ca, cb},
 			1,
 			0,
 			"b",
@@ -71,7 +71,7 @@ func TestComponents(t *testing.T) {
 		for _, comp := range tt.comps {
 			ok := filter.MatchComponentMetaData(componentsForArchID, comp)
 			if !ok {
-				t.Errorf("the archtype ID %d shoudl contain the component %dd", tt.archID, comp.ID())
+				t.Errorf("the archetype ID %d should contain the component %d", tt.archID, comp.ID())
 			}
 			iface, err := storeManager.GetComponentForEntity(comp, tt.entityID)
 			assert.NilError(t, err)
@@ -121,11 +121,11 @@ func TestComponents(t *testing.T) {
 type foundComp struct{}
 type notFoundComp struct{}
 
-func (_ foundComp) Name() string {
+func (foundComp) Name() string {
 	return "foundComp"
 }
 
-func (_ notFoundComp) Name() string {
+func (notFoundComp) Name() string {
 	return "notFoundComp"
 }
 
@@ -138,7 +138,7 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	id, err := component.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
 	_, err = component.GetComponent[notFoundComp](wCtx, id)
-	assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
+	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 }
 
 type ValueComponent struct {
@@ -150,7 +150,6 @@ func (ValueComponent) Name() string {
 }
 
 func TestMultipleCallsToCreateSupported(t *testing.T) {
-
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent](world))
 
@@ -165,6 +164,7 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	assert.Equal(t, 99, val.Val)
 
 	_, err = component.Create(wCtx, ValueComponent{})
+	assert.NilError(t, err)
 
 	val, err = component.GetComponent[ValueComponent](wCtx, id)
 	assert.NilError(t, err)

@@ -15,12 +15,12 @@ func (l *Logger) LogComponents(world *World, level zerolog.Level) {
 	l.impl.LogComponents(world.implWorld, level)
 }
 
-// LogSystem logs all system info related to the world
+// LogSystem logs all system info related to the world.
 func (l *Logger) LogSystem(world *World, level zerolog.Level) {
 	l.impl.LogSystem(world.implWorld, level)
 }
 
-// LogEntity logs entity info given an entityID
+// LogEntity logs entity info given an entityID.
 func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID EntityID) {
 	components, err := world.implWorld.StoreManager().GetComponentTypesForEntity(entityID)
 	if err != nil {
@@ -36,12 +36,12 @@ func (l *Logger) LogEntity(world *World, level zerolog.Level, entityID EntityID)
 	l.impl.LogEntity(level, entityID, archID, components)
 }
 
-// LogWorld Logs everything about the world (components and Systems)
+// LogWorld Logs everything about the world (components and Systems).
 func (l *Logger) LogWorld(world *World, level zerolog.Level) {
 	l.impl.LogWorld(world.implWorld, level)
 }
 
-// CreateSystemLogger creates a Sub logger with the entry {"system" : systemName}
+// CreateSystemLogger creates a Sub logger with the entry {"system" : systemName}.
 func (l *Logger) CreateSystemLogger(systemName string) Logger {
 	log := l.impl.CreateSystemLogger(systemName)
 	return Logger{
@@ -50,6 +50,6 @@ func (l *Logger) CreateSystemLogger(systemName string) Logger {
 }
 
 // CreateTraceLogger Creates a trace logger. Using a single id you can use this logger to follow and log a data path.
-func (l *Logger) CreateTraceLogger(traceId string) zerolog.Logger {
-	return l.impl.CreateTraceLogger(traceId)
+func (l *Logger) CreateTraceLogger(traceID string) zerolog.Logger {
+	return l.impl.CreateTraceLogger(traceID)
 }

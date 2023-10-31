@@ -18,8 +18,8 @@ import (
 )
 
 var (
-	ErrorNoStorageObjectFound       = errors.New("no storage object found")
-	ErrorTooManyStorageObjectsFound = errors.New("too many storage objects found")
+	ErrNoStorageObjectFound       = errors.New("no storage object found")
+	ErrTooManyStorageObjectsFound = errors.New("too many storage objects found")
 
 	// globalPrivateKey stores Nakama's private key, so it does not have to be periodically fetched from the StorageObject
 	// system. This pattern should have a security pass. See:
@@ -53,12 +53,12 @@ func getOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key string
 		return "", err
 	}
 	if len(objs) > 1 {
-		return "", ErrorTooManyStorageObjectsFound
+		return "", ErrTooManyStorageObjectsFound
 	} else if len(objs) == 0 {
-		return "", ErrorNoStorageObjectFound
+		return "", ErrNoStorageObjectFound
 	}
 	var pkObj privateKeyStorageObj
-	if err := json.Unmarshal([]byte(objs[0].Value), &pkObj); err != nil {
+	if err = json.Unmarshal([]byte(objs[0].Value), &pkObj); err != nil {
 		return "", err
 	}
 	return pkObj.Value, nil
@@ -110,20 +110,21 @@ func setNonce(ctx context.Context, nk runtime.NakamaModule, n uint64) error {
 func initPrivateKey(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) error {
 	privateKeyHex, err := getPrivateKeyHex(ctx, nk)
 	if err != nil {
-		if !errors.Is(err, ErrorNoStorageObjectFound) {
+		if !errors.Is(err, ErrNoStorageObjectFound) {
 			return fmt.Errorf("failed to get private key: %w", err)
 		}
 		logger.Debug("no private key found; creating a new one")
 		// No private key found. Let's generate one.
-		privateKey, err := crypto.GenerateKey()
+		var privateKey *ecdsa.PrivateKey
+		privateKey, err = crypto.GenerateKey()
 		if err != nil {
 			return err
 		}
 		privateKeyHex = hex.EncodeToString(crypto.FromECDSA(privateKey))
-		if err := setPrivateKeyHex(ctx, nk, privateKeyHex); err != nil {
+		if err = setPrivateKeyHex(ctx, nk, privateKeyHex); err != nil {
 			return err
 		}
-		if err := setNonce(ctx, nk, 1); err != nil {
+		if err = setNonce(ctx, nk, 1); err != nil {
 			return err
 		}
 	}
@@ -148,7 +149,7 @@ func incrementNonce(ctx context.Context, nk runtime.NakamaModule) (nonce uint64,
 		return 0, err
 	}
 	newNonce := nonce + 1
-	if err := setNonce(ctx, nk, newNonce); err != nil {
+	if err = setNonce(ctx, nk, newNonce); err != nil {
 		return 0, err
 	}
 	return nonce, nil

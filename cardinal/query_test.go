@@ -1,11 +1,11 @@
 package cardinal_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/test_utils"
 )
 
 type QueryHealthRequest struct {
@@ -23,7 +23,8 @@ func handleQueryHealth(worldCtx cardinal.WorldContext, request *QueryHealthReque
 	}
 	resp := &QueryHealthResponse{}
 	err = q.Each(worldCtx, func(id cardinal.EntityID) bool {
-		health, err := cardinal.GetComponent[Health](worldCtx, id)
+		var health *Health
+		health, err = cardinal.GetComponent[Health](worldCtx, id)
 		if err != nil {
 			return true
 		}
@@ -42,11 +43,11 @@ func handleQueryHealth(worldCtx cardinal.WorldContext, request *QueryHealthReque
 var queryHealth = cardinal.NewQueryType[*QueryHealthRequest, *QueryHealthResponse]("query_health", handleQueryHealth)
 
 func TestQueryExample(t *testing.T) {
-	world, _ := test_utils.MakeWorldAndTicker(t)
+	world, _ := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(t, cardinal.RegisterQueries(world, queryHealth))
 
-	worldCtx := test_utils.WorldToWorldContext(world)
+	worldCtx := testutils.WorldToWorldContext(world)
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
 	assert.NilError(t, err)
 	// Give each new entity health based on the ever-increasing index

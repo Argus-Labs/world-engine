@@ -35,6 +35,7 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 	return &at, nil
 }
 
+//nolint:gocognit
 func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
 	args := make([]abi.ArgumentMarshaling, 0, rt.NumField())
 	for i := 0; i < rt.NumField(); i++ {
@@ -136,7 +137,6 @@ func goTypeToSolidityType(t string, tag string) (string, error) {
 		return "", errors.New("cannot use uint/int without specifying size (i.e. uint64, int8, etc)")
 	}
 	return t, nil
-
 }
 
 // SerdeInto takes an interface with JSON tags, serializes it to JSON, then deserializes it to the specified type param.

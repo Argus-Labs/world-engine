@@ -15,7 +15,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
@@ -110,38 +110,38 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func CreateMany(wCtx WorldContext, num int, components ...component_metadata.Component) ([]EntityID, error) {
+func CreateMany(wCtx WorldContext, num int, components ...metadata.Component) ([]EntityID, error) {
 	return component.CreateMany(wCtx.getECSWorldContext(), num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func Create(wCtx WorldContext, components ...component_metadata.Component) (EntityID, error) {
+func Create(wCtx WorldContext, components ...metadata.Component) (EntityID, error) {
 	return component.Create(wCtx.getECSWorldContext(), components...)
 }
 
 // SetComponent Set sets component data to the entity.
-func SetComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, comp *T) error {
+func SetComponent[T metadata.Component](wCtx WorldContext, id entity.ID, comp *T) error {
 	return component.SetComponent[T](wCtx.getECSWorldContext(), id, comp)
 }
 
 // GetComponent Get returns component data from the entity.
-func GetComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
+func GetComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (*T, error) {
 	return component.GetComponent[T](wCtx.getECSWorldContext(), id)
 }
 
-// UpdateComponent Updates a component on an entity
-func UpdateComponent[T component_metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
+// UpdateComponent Updates a component on an entity.
+func UpdateComponent[T metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
 	return component.UpdateComponent[T](wCtx.getECSWorldContext(), id, fn)
 }
 
-// AddComponentTo Adds a component on an entity
-func AddComponentTo[T component_metadata.Component](wCtx WorldContext, id entity.ID) error {
+// AddComponentTo Adds a component on an entity.
+func AddComponentTo[T metadata.Component](wCtx WorldContext, id entity.ID) error {
 	return component.AddComponentTo[T](wCtx.getECSWorldContext(), id)
 }
 
-// RemoveComponentFrom Removes a component from an entity
-func RemoveComponentFrom[T component_metadata.Component](wCtx WorldContext, id entity.ID) error {
+// RemoveComponentFrom Removes a component from an entity.
+func RemoveComponentFrom[T metadata.Component](wCtx WorldContext, id entity.ID) error {
 	return component.RemoveComponentFrom[T](wCtx.getECSWorldContext(), id)
 }
 
@@ -150,8 +150,8 @@ func Remove(wCtx WorldContext, id EntityID) error {
 	return wCtx.getECSWorldContext().GetWorld().Remove(id)
 }
 
-// StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is attempted.
-// In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
+// StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
+// attempted. In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
 // to this world. After StartGame is called, RegisterComponent, RegisterTransactions, RegisterQueries, and AddSystem may
 // not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
@@ -187,14 +187,14 @@ func (w *World) StartGame() error {
 	}
 
 	if w.tickChannel == nil {
-		w.tickChannel = time.Tick(time.Second)
+		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
 	w.implWorld.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
 	gameManager := server.NewGameManager(w.implWorld, w.server)
 	w.gameManager = &gameManager
 	go func() {
 		w.isGameRunning.Store(true)
-		if err := w.server.Serve(); err != nil {
+		if err = w.server.Serve(); err != nil {
 			log.Fatal().Err(err)
 		}
 	}()
@@ -249,7 +249,7 @@ func RegisterSystems(w *World, systems ...System) {
 	}
 }
 
-func RegisterComponent[T component_metadata.Component](world *World) error {
+func RegisterComponent[T metadata.Component](world *World) error {
 	return ecs.RegisterComponent[T](world.implWorld)
 }
 

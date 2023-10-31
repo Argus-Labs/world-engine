@@ -29,7 +29,7 @@ func (t *TxQueue) GetEVMTxs() []TxAny {
 	transactions := make([]TxAny, 0)
 	for _, txs := range t.m {
 		// skip if theres nothing
-		if txs == nil || len(txs) == 0 {
+		if len(txs) == 0 {
 			continue
 		}
 		for _, tx := range txs {

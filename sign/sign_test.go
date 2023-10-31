@@ -34,7 +34,7 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	assert.Equal(t, toBeVerified.Namespace, wantNamespace)
 	assert.Equal(t, toBeVerified.Nonce, wantNonce)
 	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
-	assert.Error(t, toBeVerified.Verify(badAddressHex), ErrorSignatureValidationFailed.Error())
+	assert.Error(t, toBeVerified.Verify(badAddressHex), ErrSignatureValidationFailed.Error())
 }
 
 func TestFailsIfFieldsMissing(t *testing.T) {
@@ -58,14 +58,14 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 			payload: func() (*SignedPayload, error) {
 				return NewSignedPayload(goodKey, "", "ns", 20, "{}")
 			},
-			expErr: ErrorInvalidPersonaTag,
+			expErr: ErrInvalidPersonaTag,
 		},
 		{
 			name: "missing namespace",
 			payload: func() (*SignedPayload, error) {
 				return NewSignedPayload(goodKey, "fop", "", 20, "{}")
 			},
-			expErr: ErrorInvalidNamespace,
+			expErr: ErrInvalidNamespace,
 		},
 		{
 			name: "system signed payload",
@@ -78,13 +78,15 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			payload, err := tc.payload()
+			var payload *SignedPayload
+			payload, err = tc.payload()
 			if tc.expErr != nil {
 				assert.ErrorIs(t, tc.expErr, err)
 				return
 			}
 			assert.NilError(t, err, "in test case %q", tc.name)
-			bz, err := payload.Marshal()
+			var bz []byte
+			bz, err = payload.Marshal()
 			assert.NilError(t, err)
 			_, err = UnmarshalSignedPayload(bz)
 			assert.NilError(t, err)
@@ -112,12 +114,14 @@ func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		sp, err := NewSignedPayload(key, "coolmage", "world", 100, tc)
+		var sp *SignedPayload
+		sp, err = NewSignedPayload(key, "coolmage", "world", 100, tc)
 		assert.NilError(t, err)
-
-		buf, err := sp.Marshal()
+		var buf []byte
+		buf, err = sp.Marshal()
 		assert.NilError(t, err)
-		gotSP, err := UnmarshalSignedPayload(buf)
+		var gotSP *SignedPayload
+		gotSP, err = UnmarshalSignedPayload(buf)
 		assert.NilError(t, err)
 		var gotStruct SomeStruct
 		assert.NilError(t, json.Unmarshal(gotSP.Body, &gotStruct))

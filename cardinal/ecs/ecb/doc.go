@@ -14,10 +14,12 @@ AtomicFn was called).
 
 If the passed in function returns an error, all pending state changes will be discarded.
 
-If the passed in function returns no error, all pending state changes will be committed to Redis in an atomic transaction.
+If the passed in function returns no error, all pending state changes will be committed to Redis in an atomic
+transaction.
 
 Alternatively, Manager can be used outside an AtomicFn context. State changes are stored as pending operations. Read
-operations will report the pending state. Note, no changes to Redis are applied while pending operations are accumulated.
+operations will report the pending state. Note, no changes to Redis are applied while pending operations are
+accumulated.
 
 Pending changes can be discarded with Manager.DiscardPending. A subsequent read will return identical data to the data
 stored in Redis.
@@ -44,8 +46,8 @@ key:	fmt.Sprintf("ECB:ARCHETYPE-ID:ENTITY-ID-%d", entityID)
 value: 	An integer that represents the archetype ID that the matching entityID has been assigned to.
 
 key: 	fmt.Sprintf("ECB:ACTIVE-ENTITY-IDS:ARCHETYPE-ID-%d", archetypeID)
-value:	JSON serialized bytes that can be deserialized to a slice of integers. The integers represent the entity IDs that
-currently belong to the matching archetypeID. Note, this is a reverse mapping of the previous key.
+value:	JSON serialized bytes that can be deserialized to a slice of integers. The integers represent the entity IDs
+that currently belong to the matching archetypeID. Note, this is a reverse mapping of the previous key.
 
 key:	"ECB:ARCHETYPE-ID-TO-COMPONENT-TYPES"
 value:	JSON serialized bytes that can be deserialized to a map of archetype.ID to []component.ID. This field represents

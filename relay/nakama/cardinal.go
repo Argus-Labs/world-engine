@@ -25,12 +25,11 @@ var (
 
 	readPersonaSignerStatusUnknown   = "unknown"
 	readPersonaSignerStatusAvailable = "available"
-	readPersonaSignerStatusAssigned  = "assigned"
 
 	globalCardinalAddress string
 
-	ErrorPersonaSignerAvailable = errors.New("persona signer is available")
-	ErrorPersonaSignerUnknown   = errors.New("persona signer is unknown.")
+	ErrPersonaSignerAvailable = errors.New("persona signer is available")
+	ErrPersonaSignerUnknown   = errors.New("persona signer is unknown")
 )
 
 type txResponse struct {
@@ -60,40 +59,47 @@ type endpoints struct {
 }
 
 func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err error) {
-	err = nil
 	var resp *http.Response
 	url := makeHTTPURL(listEndpoints)
+	//nolint:gosec,noctx // its ok. maybe revisit.
 	resp, err = http.Post(url, "", nil)
 	if err != nil {
-		return
+		return txEndpoints, queryEndpoints, err
 	}
-	if resp.StatusCode != 200 {
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
 		buf, _ := io.ReadAll(resp.Body)
-		err = fmt.Errorf("list endpoints (at %q) failed with status code %d: %v", url, resp.StatusCode, string(buf))
-		return
+		err = fmt.Errorf("list endpoints (at %q) failed with status code %d: %v",
+			url, resp.StatusCode, string(buf))
+		return txEndpoints, queryEndpoints, err
 	}
 	dec := json.NewDecoder(resp.Body)
 	var ep endpoints
 	if err = dec.Decode(&ep); err != nil {
-		return
+		return txEndpoints, queryEndpoints, err
 	}
 	txEndpoints = ep.TxEndpoints
 	queryEndpoints = ep.QueryEndpoints
-	return
+	return txEndpoints, queryEndpoints, err
 }
 
 func doRequest(req *http.Request) (*http.Response, error) {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request to %q failed: %w", req.URL, err)
-	} else if resp.StatusCode != 200 {
-		buf, err := io.ReadAll(resp.Body)
+	} else if resp.StatusCode != http.StatusOK {
+		var buf []byte
+		buf, _ = io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("got response of %d: %v, %w", resp.StatusCode, string(buf), err)
 	}
 	return resp, nil
 }
 
-func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, personaTag string) (txHash string, tick uint64, err error) {
+func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, personaTag string) (
+	txHash string,
+	tick uint64,
+	err error,
+) {
 	signerAddress := getSignerAddress()
 	createPersonaTx := struct {
 		PersonaTag    string `json:"personaTag"`
@@ -118,7 +124,7 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, fmt.Errorf("unable to marshal signed payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", makeHTTPURL(createPersonaEndpoint), bytes.NewReader(buf))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, makeHTTPURL(createPersonaEndpoint), bytes.NewReader(buf))
 	if err != nil {
 		return "", 0, fmt.Errorf("unable to make request to %q: %w", createPersonaEndpoint, err)
 	}
@@ -128,14 +134,15 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 	if err != nil {
 		return "", 0, err
 	}
-	if code := resp.StatusCode; code != 200 {
-		buf, err := io.ReadAll(resp.Body)
-		return "", 0, fmt.Errorf("create persona response is not 200. code %v, body: %v, err: %v", code, string(buf), err)
-
+	defer resp.Body.Close()
+	if code := resp.StatusCode; code != http.StatusOK {
+		buf, err = io.ReadAll(resp.Body)
+		return "", 0, fmt.Errorf("create persona response is not 200. code %v, body: %v, err: "+
+			"%w", code, string(buf), err)
 	}
 	var createPersonaResponse txResponse
 
-	if err := json.NewDecoder(resp.Body).Decode(&createPersonaResponse); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&createPersonaResponse); err != nil {
 		return "", 0, fmt.Errorf("unable to decode response: %w", err)
 	}
 	if createPersonaResponse.TxHash == "" {
@@ -157,7 +164,8 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uin
 	if err != nil {
 		return "", err
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", makeHTTPURL(readPersonaSignerEndpoint), bytes.NewReader(buf))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, makeHTTPURL(readPersonaSignerEndpoint),
+		bytes.NewReader(buf))
 	if err != nil {
 		return "", err
 	}
@@ -166,18 +174,19 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uin
 	if err != nil {
 		return "", err
 	}
+	defer httpResp.Body.Close()
 
 	var resp struct {
 		Status        string `json:"status"`
 		SignerAddress string `json:"signerAddress"`
 	}
-	if err := json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
+	if err = json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
 		return "", err
 	}
 	if resp.Status == readPersonaSignerStatusUnknown {
-		return "", ErrorPersonaSignerUnknown
+		return "", ErrPersonaSignerUnknown
 	} else if resp.Status == readPersonaSignerStatusAvailable {
-		return "", ErrorPersonaSignerAvailable
+		return "", ErrPersonaSignerAvailable
 	}
 	return resp.SignerAddress, nil
 }

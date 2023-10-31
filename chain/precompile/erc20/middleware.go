@@ -127,8 +127,7 @@ func (c *Contract) transferCoinToERC20(
 		// subesequent occurrence of Polaris coins
 
 		// convert ERC20 token bech32 address to common.Address
-		var token common.Address
-		token, err = cosmlib.EthAdressFromAccString(resp.Token)
+		token, err := cosmlib.EthAdressFromAccString(resp.Token)
 		if err != nil {
 			return err
 		}
