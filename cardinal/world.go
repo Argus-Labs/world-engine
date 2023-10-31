@@ -155,6 +155,22 @@ func Remove(wCtx WorldContext, id EntityID) error {
 	return wCtx.getECSWorldContext().GetWorld().Remove(id)
 }
 
+func handleShutdown(w *World) {
+	signalChannel := make(chan os.Signal, 1)
+	go func() {
+		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
+		for sig := range signalChannel {
+			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+				err := w.ShutDown()
+				if err != nil {
+					log.Err(err).Msgf("There was an error during shutdown.")
+				}
+				return
+			}
+		}
+	}()
+}
+
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
 // attempted. In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
 // to this world. After StartGame is called, RegisterComponent, RegisterTransactions, RegisterQueries, and AddSystem may
@@ -204,20 +220,8 @@ func (w *World) StartGame() error {
 		}
 	}()
 
-	//handle shutdown via a signal
-	signalChannel := make(chan os.Signal, 1)
-	go func() {
-		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
-		for sig := range signalChannel {
-			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
-				err := w.ShutDown()
-				if err != nil {
-					log.Err(err).Msgf("There was an error during shutdown.")
-				}
-				return
-			}
-		}
-	}()
+	// handle shutdown via a signal
+	handleShutdown(w)
 	<-w.endStartGame
 	return err
 }

@@ -151,7 +151,6 @@ func (eh *webSocketEventHub) ShutdownEventHub() {
 			break
 		}
 		time.Sleep(shutdownPollInterval * time.Millisecond)
-
 	}
 }
 
