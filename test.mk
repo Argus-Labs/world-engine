@@ -17,18 +17,13 @@ e2e-nakama:
 #   unit tests	#
 #################
 
-unit-test-cardinal:
-	cd cardinal && go test ./...
+.PHONY: unit-test
 
-
-unit-test-sign:
-	cd sign && go test ./...
-
-unit-test-chain:
-	cd chain && go test ./...
-
+unit-test:
+	cd $(filter-out $@,$(MAKECMDGOALS)) && go test ./...
 
 unit-test-all:
-	$(MAKE) unit-test-cardinal
-	$(MAKE) unit-test-sign
-	$(MAKE) unit-test-chain
+	$(MAKE) unit-test cardinal
+	$(MAKE) unit-test chain
+	$(MAKE) unit-test sign
+
