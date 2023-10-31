@@ -470,13 +470,16 @@ func (w *World) IsGameLoopRunning() bool {
 	return w.isGameLoopRunning.Load()
 }
 
-func (w *World) EndGameLoop() {
+func (w *World) Shutdown() {
 	if !w.IsGameLoopRunning() {
 		return
 	}
 	w.endGameLoopCh <- true
 	for w.IsGameLoopRunning() { //Block until loop stops.
 		time.Sleep(100 * time.Millisecond)
+	}
+	if w.eventHub != nil {
+		w.eventHub.ShutdownEventHub()
 	}
 }
 

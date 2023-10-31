@@ -50,7 +50,7 @@ func (s *GameManager) Shutdown() error {
 	}
 	log.Info().Msg("Server successfully shutdown.")
 	log.Info().Msg("Shutting down game loop.")
-	s.world.EndGameLoop()
+	s.world.Shutdown()
 	err = s.world.StoreManager().Close()
 	if err != nil {
 		return err

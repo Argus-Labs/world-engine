@@ -142,6 +142,14 @@ func (eh *webSocketEventHub) UnregisterConnection(ws *websocket.Conn) {
 
 func (eh *webSocketEventHub) ShutdownEventHub() {
 	eh.shutdown <- true
+	//block until the loop fully exits.
+	for {
+		if eh.running.Load() == false {
+			break
+		} else {
+			time.Sleep(200 * time.Millisecond)
+		}
+	}
 }
 
 func (eh *webSocketEventHub) Run() {

@@ -3,10 +3,13 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -193,6 +196,21 @@ func (w *World) StartGame() error {
 		w.isGameRunning.Store(true)
 		if err := w.server.Serve(); err != nil {
 			log.Fatal().Err(err)
+		}
+	}()
+
+	//handle shutdown via a signal
+	signalChannel := make(chan os.Signal, 1)
+	go func() {
+		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
+		for sig := range signalChannel {
+			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+				err := w.ShutDown()
+				if err != nil {
+					log.Err(err).Msgf("There was an error during shutdown.")
+				}
+				return
+			}
 		}
 	}()
 	select {}
