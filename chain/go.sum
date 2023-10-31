@@ -520,10 +520,12 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0 h1:axGnT1gRIfimI7gJifB699GoE/oq+F2MU7Dml6nw9rQ=
 github.com/apapsch/go-jsonmerge/v2 v2.0.0/go.mod h1:lvDnEdqiQrp0O42VQGgmlKpxL1AP2+08jFMw88y4klk=
-github.com/argus-labs/polaris/cosmos v0.0.1 h1:EaqquqoiRaCO5Ng84sQH2lyOtorZ+cfrvAn2xat/i/U=
-github.com/argus-labs/polaris/cosmos v0.0.1/go.mod h1:963UjDzpcqsEDKwlz/v/f+ssx1JD3mqdPO2PCqvURDY=
-github.com/argus-labs/polaris/eth v0.0.1 h1:Yb8cWuVYghvMLIZ5VRJ9vTRxoHjDAeY1sjxogVigykA=
-github.com/argus-labs/polaris/eth v0.0.1/go.mod h1:Ry+Ldr32oNPMJVVfDCMYymqA2BlXsL5oyrZTVLxIT1A=
+github.com/argus-labs/polaris/cosmos v0.0.0-20230831212102-b8c5e9173f58 h1:kotZfreouULIuN4w6j99UWuxCSk47hce14bMnr8gZ5w=
+github.com/argus-labs/polaris/cosmos v0.0.0-20230831212102-b8c5e9173f58/go.mod h1:EyxJntRJdJuIT9KaL6iqPhbBv/MT3gebFmMVIbTzz8A=
+github.com/argus-labs/polaris/eth v0.0.0-20230831212102-b8c5e9173f58 h1:9uVSWPgCJSka2RMJB2MgzSOvzCP8P0aKdRdMp4JKyhQ=
+github.com/argus-labs/polaris/eth v0.0.0-20230831212102-b8c5e9173f58/go.mod h1:Ry+Ldr32oNPMJVVfDCMYymqA2BlXsL5oyrZTVLxIT1A=
+github.com/argus-labs/polaris/lib v0.0.0-20230831212102-b8c5e9173f58 h1:PgRYINeZVoEeseqcYHR6fXFt3eskfTNUZqUfmlltV4E=
+github.com/argus-labs/polaris/lib v0.0.0-20230831212102-b8c5e9173f58/go.mod h1:+3IkGuGJ/kV2d90ImTqPSrI9g+M6nV0eX1MAmtIfFZA=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6/go.mod h1:grANhF5doyWs3UAsr3K4I6qtAmlQcZDesFNEHPZAzj8=
 github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmVTwzkszR9V5SSuryQ31EELlFMUz1kKyl939pY=
@@ -3321,6 +3323,7 @@ gotest.tools v2.2.0+incompatible/go.mod h1:DsYFclhRJ6vuDpmuTbkuFWG+y2sxOXAzmJt81
 gotest.tools/v3 v3.0.2/go.mod h1:3SzNCllyD9/Y+b5r9JIKQ474KzkZyqLqEfYqMsX94Bk=
 gotest.tools/v3 v3.2.0/go.mod h1:Mcr9QNxkg0uMvy/YElmo4SpXgJKWgQvYrT7Kw5RzJ1A=
 gotest.tools/v3 v3.5.1 h1:EENdUnS3pdur5nybKYIh2Vfgc8IUNBjxDPSjtiJcOzU=
+gotest.tools/v3 v3.5.1/go.mod h1:isy3WKz7GK6uNw/sbHzfKBLvlvXwUyV06n6brMxxopU=
 grpc.go4.org v0.0.0-20170609214715-11d0a25b4919/go.mod h1:77eQGdRu53HpSqPFJFmuJdjuHRquDANNeA4x7B8WQ9o=
 honnef.co/go/tools v0.0.0-20180728063816-88497007e858/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
 honnef.co/go/tools v0.0.0-20190102054323-c2f93a96b099/go.mod h1:rf3lG4BRIbNafJWhAfAdb/ePZxsR/4RtNHQocxwk9r4=
@@ -3346,8 +3349,6 @@ nullprogram.com/x/optparse v1.0.0/go.mod h1:KdyPE+Igbe0jQUrVfMqDMeJQIJZEuyV7pjYm
 pgregory.net/rapid v0.4.8/go.mod h1:Z5PbWqjvWR1I3UGjvboUuan4fe4ZYEYNLNQLExzCoUs=
 pgregory.net/rapid v1.1.0 h1:CMa0sjHSru3puNx+J0MIAuiiEV4N0qj8/cMWGBBCsjw=
 pgregory.net/rapid v1.1.0/go.mod h1:PY5XlDGj0+V1FCq0o192FdRhpKHGTRIWBgqjDBTrq04=
-pkg.berachain.dev/polaris/lib v0.0.0-20230827184022-e3cec7a2c178 h1:A+7mk8r9a5jEq3Xp/AZoP6i0mFTJFn/zqSxcDntdak0=
-pkg.berachain.dev/polaris/lib v0.0.0-20230827184022-e3cec7a2c178/go.mod h1:+3IkGuGJ/kV2d90ImTqPSrI9g+M6nV0eX1MAmtIfFZA=
 pkg.world.dev/world-engine/rift v0.0.4 h1:c7lyRK/V/vZUNVQGhkcYuXDR/3vNN+zGpDWpFh7Igq4=
 pkg.world.dev/world-engine/rift v0.0.4/go.mod h1:RHasfPKE1pDLm7cJ/AjqbP2O3m/8ldkybHyUjmTSEAw=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=

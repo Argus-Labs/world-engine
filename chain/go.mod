@@ -3,18 +3,16 @@ module pkg.world.dev/world-engine/chain
 go 1.21.0
 
 replace (
-	// cosmossdk.io/x/evidence => github.com/rollkit/cosmos-sdk/x/evidence v0.0.0-20230721012257-443317a43b03
-	// github.com/cometbft/cometbft => github.com/rollkit/cometbft v0.0.0-20230614163111-d6a8d2c98cc0
 	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.50.0-rc.0-rollkit-v0.11.0-rc1-no-fraud-proofs
-	//v0.46.0-beta2.0.20230721012257-443317a43b03
-	// Required for stateful precompiles and supporting the Ethereum JSON-RPC API.
+
 	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20230824153638-497f3de05c05
+
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-	// github.com/tendermint/tendermint => github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121
+
 	pkg.berachain.dev/polaris/cosmos => github.com/argus-labs/polaris/cosmos v0.0.1
 	pkg.berachain.dev/polaris/eth => github.com/argus-labs/polaris/eth v0.0.1
-
+	pkg.berachain.dev/polaris/lib => github.com/argus-labs/polaris/lib v0.0.1
 )
 
 // internal replacements
