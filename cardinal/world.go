@@ -36,6 +36,7 @@ type World struct {
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
 	cleanup         func()
+	endStartGame    chan bool
 }
 
 type (
@@ -194,7 +195,7 @@ func (w *World) StartGame() error {
 	w.gameManager = &gameManager
 	go func() {
 		w.isGameRunning.Store(true)
-		if err = w.server.Serve(); err != nil {
+		if err := w.server.Serve(); err != nil {
 			log.Fatal().Err(err)
 		}
 	}()
@@ -213,7 +214,8 @@ func (w *World) StartGame() error {
 			}
 		}
 	}()
-	select {}
+	<-w.endStartGame
+	return err
 }
 
 func (w *World) IsGameRunning() bool {
@@ -234,6 +236,7 @@ func (w *World) ShutDown() error {
 		}
 		w.isGameRunning.Store(false)
 	}
+	w.endStartGame <- true
 	return nil
 }
 
