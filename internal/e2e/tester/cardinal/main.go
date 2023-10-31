@@ -18,7 +18,7 @@ func main() {
 	namespace := os.Getenv("NAMESPACE")
 	options := []cardinal.WorldOption{
 		cardinal.WithNamespace(namespace),
-		cardinal.WithReceiptHistorySize(10),
+		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
 	}
 	if os.Getenv("ENABLE_ADAPTER") == "false" {
 		log.Println("Skipping adapter")
@@ -49,7 +49,7 @@ func main() {
 
 	err = world.StartGame()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 

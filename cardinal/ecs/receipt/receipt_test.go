@@ -85,7 +85,6 @@ func TestCanReplaceResult(t *testing.T) {
 	got, ok := rec.Result.(toBeReplaced)
 	assert.Check(t, ok)
 	assert.Equal(t, want, got)
-
 }
 
 func TestMissingHashReturnsNotOK(t *testing.T) {
@@ -101,7 +100,7 @@ func TestErrorWhenGettingReceiptsInNonFinishedTick(t *testing.T) {
 	rh := NewHistory(currTick, 5)
 
 	_, err := rh.GetReceiptsForTick(currTick)
-	assert.ErrorIs(t, ErrorTickHasNotBeenProcessed, err)
+	assert.ErrorIs(t, ErrTickHasNotBeenProcessed, err)
 
 	rh.NextTick()
 
@@ -143,5 +142,5 @@ func TestOldTicksAreDiscarded(t *testing.T) {
 	// should no longer be stored
 	rh.NextTick()
 	_, err := rh.GetReceiptsForTick(tickToGet)
-	assert.ErrorIs(t, ErrorOldTickHasBeenDiscarded, err)
+	assert.ErrorIs(t, ErrOldTickHasBeenDiscarded, err)
 }

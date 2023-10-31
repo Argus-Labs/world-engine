@@ -133,7 +133,7 @@ services:
     restart: always
   test_nakama:
     container_name: test_nakama
-    build: ./internal/test_nakama
+    build: ./internal/nakama
     depends_on:
       nakama:
         condition: service_healthy

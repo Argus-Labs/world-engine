@@ -5,7 +5,7 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 )
 
 func TestReadOnly_CanGetComponent(t *testing.T) {
@@ -19,7 +19,7 @@ func TestReadOnly_CanGetComponent(t *testing.T) {
 
 	roStore := manager.ToReadOnly()
 
-	// A read-only operation here should NOT find the entity (because it hasn't been commited yet)
+	// A read-only operation here should NOT find the entity (because it hasn't been committed yet)
 	_, err = roStore.GetComponentForEntity(fooComp, id)
 	assert.Check(t, err != nil)
 
@@ -34,19 +34,19 @@ func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 
 	testCases := []struct {
 		name  string
-		comps []component_metadata.IComponentMetaData
+		comps []metadata.ComponentMetadata
 	}{
 		{
 			"just foo",
-			[]component_metadata.IComponentMetaData{fooComp},
+			[]metadata.ComponentMetadata{fooComp},
 		},
 		{
 			"just bar",
-			[]component_metadata.IComponentMetaData{barComp},
+			[]metadata.ComponentMetadata{barComp},
 		},
 		{
 			"foo and bar",
-			[]component_metadata.IComponentMetaData{fooComp, barComp},
+			[]metadata.ComponentMetadata{fooComp, barComp},
 		},
 	}
 
@@ -80,22 +80,22 @@ func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 	testCases := []struct {
 		name        string
 		idsToCreate int
-		comps       []component_metadata.IComponentMetaData
+		comps       []metadata.ComponentMetadata
 	}{
 		{
 			"only foo",
 			3,
-			[]component_metadata.IComponentMetaData{fooComp},
+			[]metadata.ComponentMetadata{fooComp},
 		},
 		{
 			"only bar",
 			4,
-			[]component_metadata.IComponentMetaData{barComp},
+			[]metadata.ComponentMetadata{barComp},
 		},
 		{
 			"foo and bar",
 			5,
-			[]component_metadata.IComponentMetaData{fooComp, barComp},
+			[]metadata.ComponentMetadata{fooComp, barComp},
 		},
 	}
 
@@ -120,7 +120,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, manager.CommitPending())
 
-	fooArchID, err := manager.GetArchIDForComponents([]component_metadata.IComponentMetaData{fooComp})
+	fooArchID, err := manager.GetArchIDForComponents([]metadata.ComponentMetadata{fooComp})
 	assert.NilError(t, err)
 
 	roManager := manager.ToReadOnly()
@@ -138,7 +138,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(gotIDs))
 
-	bothArchID, err := roManager.GetArchIDForComponents([]component_metadata.IComponentMetaData{fooComp, barComp})
+	bothArchID, err := roManager.GetArchIDForComponents([]metadata.ComponentMetadata{fooComp, barComp})
 	assert.NilError(t, err)
 
 	gotIDs, err = roManager.GetEntitiesForArchID(bothArchID)
@@ -168,9 +168,4 @@ func TestReadOnly_ArchetypeCount(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, manager.CommitPending())
 	assert.Equal(t, 2, roManager.ArchetypeCount())
-}
-
-func TestReadOnly_CanBeUsedInQuery(t *testing.T) {
-	// TODO: The read-only version of SearchFrom is not tested because it would be best to test it
-	// using a proper query and filter, but those method require a store.IManager, not a store.IReader
 }

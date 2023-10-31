@@ -13,9 +13,9 @@ type AnyTransaction interface {
 }
 
 // TransactionQueue contains the entire set of transactions that should be processed in a game tick. It is a parameter
-// to a System function. Access the transactions of a particular type by using TransactionType.In
+// to a System function. Access the transactions of a particular type by using TransactionType.In.
 type TransactionQueue struct {
-	impl *transaction.TxQueue
+	_ *transaction.TxQueue
 }
 
 // TxData represents a single transaction.
@@ -64,7 +64,7 @@ func (t *TransactionType[Msg, Result]) SetResult(wCtx WorldContext, hash TxHash,
 
 // GetReceipt returns the result (if any) and errors (if any) associated with the given hash. If false is returned,
 // the hash is not recognized, so the returned result and errors will be empty.
-func (t *TransactionType[Msg, Result]) GetReceipt(wCtx WorldContext, hash TxHash) (r Result, errs []error, ok bool) {
+func (t *TransactionType[Msg, Result]) GetReceipt(wCtx WorldContext, hash TxHash) (Result, []error, bool) {
 	return t.impl.GetReceipt(wCtx.getECSWorldContext(), hash)
 }
 

@@ -4,16 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
+	"net/http"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
-// register query endpoints for swagger server
+// register query endpoints for swagger server.
+//
+//nolint:funlen,gocognit
 func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 	queryNameToQueryType := make(map[string]ecs.IQuery)
 	for _, query := range handler.w.ListQueries() {
@@ -37,7 +39,8 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		}
 		outputType, ok := queryNameToQueryType[queryTypeString]
 		if !ok {
-			return middleware.Error(404, fmt.Errorf("queryType of type %s does not exist", queryTypeString)), nil
+			return middleware.Error(http.StatusNotFound, fmt.Errorf("queryType of type %s does not exist",
+				queryTypeString)), nil
 		}
 
 		bodyData, ok := mapStruct["queryBody"]
@@ -49,24 +52,23 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 			return nil, errors.New("data not convertable to map")
 		}
 
-		//Huge hack.
-		//the json body comes in as a map.
-		//go-swagger validates all the data and shoves it into a map
-		//I can't get the relevant Request Type associated with the Search here
-		//So I convert that map into raw json
-		//Then I have IQuery.HandleQueryRaw just output a rawJsonReply.
-		//I convert that into a json.RawMessage which go-swagger will validate.
-		rawJsonBody, err := json.Marshal(bodyDataAsMap)
+		// Huge hack.
+		// the json body comes in as a map.
+		// go-swagger validates all the data and shoves it into a map
+		// I can't get the relevant Request Type associated with the Search here
+		// So I convert that map into raw json
+		// Then I have IQuery.HandleQueryRaw just output a rawJSONReply.
+		// I convert that into a json.RawMessage which go-swagger will validate.
+		rawJSONBody, err := json.Marshal(bodyDataAsMap)
 		if err != nil {
 			return nil, err
 		}
 		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
-		rawJsonReply, err := outputType.HandleQueryRaw(wCtx, rawJsonBody)
+		rawJSONReply, err := outputType.HandleQueryRaw(wCtx, rawJSONBody)
 		if err != nil {
 			return nil, err
 		}
-		return json.RawMessage(rawJsonReply), nil
-
+		return json.RawMessage(rawJSONReply), nil
 	})
 	endpoints, err := createAllEndpoints(handler.w)
 	if err != nil {
@@ -96,41 +98,40 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		}
 		cqlRequest, ok := cqlRequestUntyped.(map[string]interface{})
 		if !ok {
-			return middleware.Error(422, fmt.Errorf("json is invalid")), nil
+			return middleware.Error(http.StatusUnprocessableEntity, fmt.Errorf("json is invalid")), nil
 		}
 		cqlStringUntyped, ok := cqlRequest["CQL"]
 		if !ok {
-			return middleware.Error(422, fmt.Errorf("json is invalid")), nil
+			return middleware.Error(http.StatusUnprocessableEntity, fmt.Errorf("json is invalid")), nil
 		}
 		cqlString, ok := cqlStringUntyped.(string)
 		if !ok {
-			return middleware.Error(422, fmt.Errorf("json is invalid")), nil
+			return middleware.Error(http.StatusUnprocessableEntity, fmt.Errorf("json is invalid")), nil
 		}
-		resultFilter, err := cql.CQLParse(cqlString, handler.w.GetComponentByName)
+		resultFilter, err := cql.Parse(cqlString, handler.w.GetComponentByName)
 		if err != nil {
-			return middleware.Error(422, err), nil
+			return middleware.Error(http.StatusUnprocessableEntity, err), nil
 		}
 
 		result := make([]cql.QueryResponse, 0)
 
 		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
-		ecs.NewSearch(resultFilter).Each(wCtx, func(id entity.ID) bool {
+		err = ecs.NewSearch(resultFilter).Each(wCtx, func(id entity.ID) bool {
 			components, err := handler.w.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false
 			}
 			resultElement := cql.QueryResponse{
-				id,
-				make([]json.RawMessage, 0),
+				ID:   id,
+				Data: make([]json.RawMessage, 0),
 			}
 
 			for _, c := range components {
-				data, err := ecs.GetRawJsonOfComponent(handler.w, c, id)
+				data, err := ecs.GetRawJSONOfComponent(handler.w, c, id)
 				if err != nil {
 					return false
 				}
 				resultElement.Data = append(resultElement.Data, data)
-
 			}
 			result = append(result, resultElement)
 			return true

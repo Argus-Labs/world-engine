@@ -2,7 +2,6 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"testing"
@@ -28,7 +27,7 @@ type MoveTx struct {
 func TestTransactionStoredOnChain(t *testing.T) {
 	t.Skip("do not run this test unless the docker containers for base shard, game shard, nakama, and " +
 		"celestia are running. to run the stack, run `make game` and `make rollup`. wait for startup and run this test")
-	c := newClient(t)
+	c := newClient()
 	chain := newChainClient(t)
 	user := "foo"
 	persona := "foobar"
@@ -38,14 +37,12 @@ func TestTransactionStoredOnChain(t *testing.T) {
 	res, err := c.rpc("nakama/claim-persona", ClaimPersonaTx{PersonaTag: persona})
 	assert.NilError(t, err)
 
-	fmt.Printf("%+v\n", res)
 	assert.Equal(t, 200, res.StatusCode, "claim persona failed with code %d: body: %v", res.StatusCode, res.Body)
 	time.Sleep(time.Second * 3)
 
 	res, err = c.rpc("nakama/show-persona", ClaimPersonaTx{PersonaTag: persona})
 	assert.NilError(t, err)
 
-	fmt.Printf("%+v\n", res)
 	assert.Equal(t, 200, res.StatusCode, "show persona failed with code %d: body: %v", res.StatusCode, res.Body)
 	time.Sleep(time.Second * 3)
 

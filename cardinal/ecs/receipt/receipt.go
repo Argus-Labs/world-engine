@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrorTickHasNotBeenProcessed = errors.New("tick is still in progress")
-	ErrorOldTickHasBeenDiscarded = errors.New("the requested tick has been discarded due to age")
+	ErrTickHasNotBeenProcessed = errors.New("tick is still in progress")
+	ErrOldTickHasBeenDiscarded = errors.New("the requested tick has been discarded due to age")
 )
 
 // History keeps track of transaction "receipts" (the result of a transaction and any associated errors) for some number
@@ -86,9 +86,9 @@ func (h *History) SetResult(hash transaction.TxHash, result any) {
 
 // GetReceipt gets the receipt (the transaction result and the list of errors) for the given transaction hash in the
 // current tick. To get receipts from previous ticks use GetReceiptsForTick.
-func (h *History) GetReceipt(hash transaction.TxHash) (rec Receipt, ok bool) {
+func (h *History) GetReceipt(hash transaction.TxHash) (Receipt, bool) {
 	tick := int(h.currTick.Load() % h.ticksToStore)
-	rec, ok = h.history[tick][hash]
+	rec, ok := h.history[tick][hash]
 	return rec, ok
 }
 
@@ -99,10 +99,10 @@ func (h *History) GetReceiptsForTick(tick uint64) ([]Receipt, error) {
 	// The requested tick is either in the future, or it is currently being processed. We don't yet know
 	// what the results of this tick will be.
 	if currTick <= tick {
-		return nil, ErrorTickHasNotBeenProcessed
+		return nil, ErrTickHasNotBeenProcessed
 	}
 	if currTick-tick >= h.ticksToStore {
-		return nil, ErrorOldTickHasBeenDiscarded
+		return nil, ErrOldTickHasBeenDiscarded
 	}
 	mod := tick % h.ticksToStore
 	recs := make([]Receipt, 0, len(h.history[mod]))

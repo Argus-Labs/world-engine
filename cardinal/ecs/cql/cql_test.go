@@ -1,13 +1,12 @@
 package cql
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
 
@@ -17,7 +16,6 @@ func (EmptyComponent) Name() string { return "emptyComponent" }
 
 func TestParser(t *testing.T) {
 	term, err := internalCQLParser.ParseString("", "!(EXACT(a, b) & EXACT(a)) | CONTAINS(b)")
-	fmt.Println(term.String())
 	testTerm := cqlTerm{
 		Left: &cqlFactor{Base: &cqlValue{
 			Exact:    nil,
@@ -63,8 +61,8 @@ func TestParser(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, *term, testTerm)
 
-	emptyComponent := component_metadata.NewComponentMetadata[EmptyComponent]()
-	stringToComponent := func(_ string) (component_metadata.IComponentMetaData, error) {
+	emptyComponent := metadata.NewComponentMetadata[EmptyComponent]()
+	stringToComponent := func(_ string) (metadata.ComponentMetadata, error) {
 		return emptyComponent, nil
 	}
 	filterResult, err := termToComponentFilter(term, stringToComponent)
@@ -78,7 +76,7 @@ func TestParser(t *testing.T) {
 		),
 		filter.Contains(emptyComponent),
 	)
-	//have to do the below because of unexported fields in ComponentFilter datastructures. .
+	// have to do the below because of unexported fields in ComponentFilter datastructures.
 	assert.Assert(t, reflect.DeepEqual(filterResult, testResult))
 	query := "CONTAINS(A) & CONTAINS(A, B) & CONTAINS(A, B, C) | EXACT(D)"
 	term, err = internalCQLParser.ParseString("", query)
@@ -95,5 +93,4 @@ func TestParser(t *testing.T) {
 			filter.Exact(emptyComponent),
 		)
 	assert.Assert(t, reflect.DeepEqual(testResult2, result))
-
 }

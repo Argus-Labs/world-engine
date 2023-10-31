@@ -31,10 +31,10 @@ func TestServer_SendMessage(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
-	BarTx := ecs.NewTransactionType[BarTransaction, TxReply]("bartx", ecs.WithTxEVMSupport[BarTransaction, TxReply])
+	fooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
+	barTx := ecs.NewTransactionType[BarTransaction, TxReply]("bartx", ecs.WithTxEVMSupport[BarTransaction, TxReply])
 
-	assert.NilError(t, w.RegisterTransactions(FooTx, BarTx))
+	assert.NilError(t, w.RegisterTransactions(fooTx, barTx))
 
 	// create some txs to submit
 
@@ -57,8 +57,8 @@ func TestServer_SendMessage(t *testing.T) {
 		if !enabled {
 			return nil
 		}
-		inFooTxs := FooTx.In(wCtx)
-		inBarTxs := BarTx.In(wCtx)
+		inFooTxs := fooTx.In(wCtx)
+		inBarTxs := barTx.In(wCtx)
 		assert.Equal(t, len(inFooTxs), len(fooTxs))
 		assert.Equal(t, len(inBarTxs), len(barTxs))
 		for i, tx := range inFooTxs {
@@ -92,22 +92,24 @@ func TestServer_SendMessage(t *testing.T) {
 
 	// marshal out the bytes to send from each list of transactions.
 	for _, tx := range fooTxs {
-		fooTxBz, err := FooTx.ABIEncode(tx)
+		var fooTxBz []byte
+		fooTxBz, err = fooTx.ABIEncode(tx)
 		assert.NilError(t, err)
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    sender,
 			Message:   fooTxBz,
-			MessageId: uint64(FooTx.ID()),
+			MessageId: uint64(fooTx.ID()),
 		})
 		assert.NilError(t, err)
 	}
 	for _, tx := range barTxs {
-		barTxBz, err := BarTx.ABIEncode(tx)
+		var barTxBz []byte
+		barTxBz, err = barTx.ABIEncode(tx)
 		assert.NilError(t, err)
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    sender,
 			Message:   barTxBz,
-			MessageId: uint64(BarTx.ID()),
+			MessageId: uint64(barTx.ID()),
 		})
 		assert.NilError(t, err)
 	}
@@ -149,7 +151,9 @@ func TestServer_Query(t *testing.T) {
 	assert.NilError(t, err)
 
 	gotAny, err := query.DecodeEVMReply(res.Response)
-	got := gotAny.(FooReply)
+	assert.NilError(t, err)
+	got, ok := gotAny.(FooReply)
+	assert.Equal(t, ok, true)
 	// Y should equal X here as we simply set reply's Y to request's X in the query handler above.
 	assert.Equal(t, got.Y, request.X)
 }
@@ -161,9 +165,9 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 
 	// create the ECS transactions
-	FooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
+	fooTxType := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
 
-	assert.NilError(t, w.RegisterTransactions(FooTx))
+	assert.NilError(t, w.RegisterTransactions(fooTxType))
 
 	// create some txs to submit
 
@@ -174,7 +178,7 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 	server, err := NewServer(w)
 	assert.NilError(t, err)
 
-	fooTxBz, err := FooTx.ABIEncode(fooTx)
+	fooTxBz, err := fooTxType.ABIEncode(fooTx)
 	assert.NilError(t, err)
 
 	sender := "hello"
@@ -182,7 +186,7 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 	res, _ := server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 		Sender:    sender,
 		Message:   fooTxBz,
-		MessageId: uint64(FooTx.ID()),
+		MessageId: uint64(fooTxType.ID()),
 	})
 	assert.Equal(t, res.Code, uint32(CodeUnauthorized))
 	assert.Check(t, strings.Contains(res.Errs, "failed to authorize"))

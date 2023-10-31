@@ -1,19 +1,19 @@
 package filter
 
-import "pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+import "pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 
 type exact struct {
-	components []component_metadata.IComponentMetaData
+	components []metadata.ComponentMetadata
 }
 
 // Exact matches archetypes that contain exactly the same components specified.
-func Exact(components ...component_metadata.IComponentMetaData) ComponentFilter {
+func Exact(components ...metadata.ComponentMetadata) ComponentFilter {
 	return exact{
 		components: components,
 	}
 }
 
-func (f exact) MatchesComponents(components []component_metadata.IComponentMetaData) bool {
+func (f exact) MatchesComponents(components []metadata.ComponentMetadata) bool {
 	if len(components) != len(f.components) {
 		return false
 	}

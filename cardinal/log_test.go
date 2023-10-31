@@ -2,6 +2,7 @@ package cardinal_test
 
 import (
 	"bytes"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"testing"
 
@@ -9,7 +10,6 @@ import (
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
-	"pkg.world.dev/world-engine/cardinal/test_utils"
 )
 
 const nameOfSystem = "SystemLogMyName"
@@ -20,7 +20,7 @@ func SystemLogMyName(worldCtx cardinal.WorldContext) error {
 }
 
 func TestSystemNamesAreCorrectInLogs(t *testing.T) {
-	world, doTick := test_utils.MakeWorldAndTicker(t)
+	world, doTick := testutils.MakeWorldAndTicker(t)
 	ecsWorld := cardinal.TestingWorldContextToECSWorld(cardinal.TestingWorldToWorldContext(world))
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)

@@ -1,6 +1,4 @@
-//go:build integration
-
-package test_nakama
+package nakama
 
 import (
 	"encoding/json"
@@ -21,7 +19,7 @@ import (
 )
 
 func TestEvents(t *testing.T) {
-	//Test persona
+	// Test persona
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -41,20 +39,20 @@ func TestEvents(t *testing.T) {
 	}
 	payload := JointInput{}
 
-	//create three players.
+	// create three players.
 	amountOfPlayers := 3
 	for i := 0; i < amountOfPlayers; i++ {
-		resp, err = c.rpc("tx/game/join", payload) //should emit an event.
+		resp, err = c.rpc("tx/game/join", payload) // should emit an event.
 		assert.NilError(t, err)
 		body := copyBody(resp)
 		assert.Equal(t, 200, resp.StatusCode, body)
 	}
 
-	notifications, err := c.listKNotifications(amountOfPlayers)
+	notifications, err := c.listNotifications(amountOfPlayers)
 	assert.NilError(t, err)
-	for len(notifications) != amountOfPlayers { //loop until notification sent.
+	for len(notifications) != amountOfPlayers { // loop until notification sent.
 		time.Sleep(1 * time.Second)
-		notifications, err = c.listKNotifications(amountOfPlayers)
+		notifications, err = c.listNotifications(amountOfPlayers)
 		assert.NilError(t, err)
 	}
 	assert.Equal(t, len(notifications), amountOfPlayers)
@@ -69,9 +67,9 @@ func TestEvents(t *testing.T) {
 	}
 }
 
+//nolint:gocognit
 func TestTransactionAndCQLAndRead(t *testing.T) {
-
-	//Test persona
+	// Test persona
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -106,21 +104,22 @@ func TestTransactionAndCQLAndRead(t *testing.T) {
 		ID   int              `json:"id"`
 		Data []map[string]any `json:"data"`
 	}
-	finalResults := []Item{}
-	currentTs := time.Now()
+	var finalResults []Item
+	currentTime := time.Now()
 	maxTime := 10 * time.Second
 
-	// hits the cql endpoint and eventually expects both the y coordinate and name to be matched in the same set of final results.
-	// Since the tests and http server move faster than the game loop, initial queries will happen before the game tick has executed.
-	// We spin on this check until we find the desired results or until we time out.
+	// hits the cql endpoint and eventually expects both the y coordinate and name to be matched in the same set of
+	// final results. Since the tests and http server move faster than the game loop, initial queries will happen before
+	// the game tick has executed. We spin on this check until we find the desired results or until we time out.
 	yAndNameNotFound := true
 	for yAndNameNotFound {
 		resp, err = c.rpc("query/game/cql", struct {
-			CQL string `json:CQL`
+			CQL string `json:"CQL"`
 		}{"CONTAINS(player)"})
 		assert.NilError(t, err)
 		assert.Equal(t, 200, resp.StatusCode)
 		results, err := io.ReadAll(resp.Body)
+		assert.NilError(t, err)
 
 		err = json.Unmarshal(results, &finalResults)
 		assert.NilError(t, err)
@@ -144,12 +143,12 @@ func TestTransactionAndCQLAndRead(t *testing.T) {
 				yAndNameNotFound = false
 			}
 		}
-		if time.Since(currentTs) > maxTime {
+		if time.Since(currentTime) > maxTime {
 			assert.Assert(t, false, "timeout occurred here, CQL query should return some results eventually")
 		}
 	}
 
-	//Test Read
+	// Test Read
 	type LocationRequest struct {
 		ID string
 	}
@@ -192,9 +191,9 @@ func TestDifferentUsersCannotClaimSamePersonaTag(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
 
-	userB, deviceB, ptB := triple(randomString())
+	userB, deviceB, _ := triple(randomString())
 	// user B will try to claim the same persona tag as user A
-	ptB = ptA
+	ptB := ptA
 	bClient := newClient(t)
 	assert.NilError(t, bClient.registerDevice(userB, deviceB))
 	resp, err = bClient.rpc("nakama/claim-persona", map[string]any{
@@ -275,7 +274,6 @@ func TestCannotClaimAdditionalPersonATag(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	assert.Equal(t, 409, resp.StatusCode)
-
 }
 
 func TestPersonaTagFieldCannotBeEmpty(t *testing.T) {
@@ -303,7 +301,7 @@ func waitForAcceptedPersonaTag(c *nakamaClient) error {
 		}
 		status, err := getStatusFromResponse(resp)
 		if err != nil {
-			return fmt.Errorf("unable to get 'status' field from response: %v", err)
+			return fmt.Errorf("unable to get 'status' field from response: %w", err)
 		}
 		if status == "accepted" {
 			break
@@ -322,7 +320,7 @@ func waitForAcceptedPersonaTag(c *nakamaClient) error {
 }
 
 func getStatusFromResponse(resp *http.Response) (string, error) {
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("got status code %d, want 200; response body: %v", resp.StatusCode, copyBody(resp))
 	}
 	m := map[string]any{}

@@ -16,21 +16,23 @@ type LocationReply struct {
 	X, Y int64
 }
 
-var Location = cardinal.NewQueryTypeWithEVMSupport[LocationRequest, LocationReply]("location", func(ctx cardinal.WorldContext, req LocationRequest) (LocationReply, error) {
-	playerEntityID, ok := sys.PlayerEntityID[req.ID]
-	if !ok {
-		ctx.Logger().Info().Msg("listing existing players...")
-		for playerID := range sys.PlayerEntityID {
-			ctx.Logger().Info().Msg(playerID)
+var Location = cardinal.NewQueryTypeWithEVMSupport[LocationRequest, LocationReply](
+	"location",
+	func(ctx cardinal.WorldContext, req LocationRequest) (LocationReply, error) {
+		playerEntityID, ok := sys.PlayerEntityID[req.ID]
+		if !ok {
+			ctx.Logger().Info().Msg("listing existing players...")
+			for playerID := range sys.PlayerEntityID {
+				ctx.Logger().Info().Msg(playerID)
+			}
+			return LocationReply{}, fmt.Errorf("player does not exist")
 		}
-		return LocationReply{}, fmt.Errorf("player does not exist")
-	}
-	loc, err := cardinal.GetComponent[comp.Location](ctx, playerEntityID)
-	if err != nil {
-		return LocationReply{}, err
-	}
-	return LocationReply{
-		X: loc.X,
-		Y: loc.Y,
-	}, nil
-})
+		loc, err := cardinal.GetComponent[comp.Location](ctx, playerEntityID)
+		if err != nil {
+			return LocationReply{}, err
+		}
+		return LocationReply{
+			X: loc.X,
+			Y: loc.Y,
+		}, nil
+	})

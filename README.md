@@ -3,9 +3,6 @@
 ![https://i.imgur.com/iNFuo81.jpeg](https://i.imgur.com/iNFuo81.jpeg)
 
 <div>
-  <a href="https://magefile.org" target="_blank">
-    <img alt="Built with Mage" src="https://magefile.org/badge.svg" />
-  </a>
   <a href="https://codecov.io/gh/Argus-Labs/world-engine" >
     <img src="https://codecov.io/gh/Argus-Labs/world-engine/branch/main/graph/badge.svg?token=XMH4P082HZ"/>
   </a>

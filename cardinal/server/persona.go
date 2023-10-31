@@ -32,9 +32,10 @@ type QueryPersonaSignerResponse struct {
 func (handler *Handler) getPersonaSignerResponse(req *QueryPersonaSignerRequest) (*QueryPersonaSignerResponse, error) {
 	var status string
 	addr, err := handler.w.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
-	if errors.Is(err, ecs.ErrorPersonaTagHasNoSigner) {
+	//nolint:gocritic // its ok.
+	if errors.Is(err, ecs.ErrPersonaTagHasNoSigner) {
 		status = getSignerForPersonaStatusAvailable
-	} else if errors.Is(err, ecs.ErrorCreatePersonaTxsNotProcessed) {
+	} else if errors.Is(err, ecs.ErrCreatePersonaTxsNotProcessed) {
 		status = getSignerForPersonaStatusUnknown
 	} else if err != nil {
 		return nil, err
@@ -49,7 +50,8 @@ func (handler *Handler) getPersonaSignerResponse(req *QueryPersonaSignerRequest)
 	return &res, nil
 }
 
-func (handler *Handler) generateCreatePersonaResponseFromPayload(payload []byte, sp *sign.SignedPayload, tx transaction.ITransaction) (*TransactionReply, error) {
+func (handler *Handler) generateCreatePersonaResponseFromPayload(payload []byte, sp *sign.SignedPayload,
+	tx transaction.ITransaction) (*TransactionReply, error) {
 	txVal, err := tx.Decode(payload)
 	if err != nil {
 		return nil, errors.New("unable to decode transaction")
