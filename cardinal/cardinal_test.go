@@ -49,7 +49,8 @@ func TestCanQueryInsideSystem(t *testing.T) {
 }
 
 func TestShutdownViaSignal(t *testing.T) {
-	testutils.SetTestTimeout(t, 10*time.Second) // If this test is frozen then it failed to shut down, create a failure with panic.
+	// If this test is frozen then it failed to shut down, create a failure with panic.
+	testutils.SetTestTimeout(t, 10*time.Second)
 	world, err := cardinal.NewMockWorld()
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	assert.NilError(t, err)
@@ -63,7 +64,7 @@ func TestShutdownViaSignal(t *testing.T) {
 		assert.NilError(t, err)
 	}()
 	for !world.IsGameRunning() {
-		//wait until game loop is running
+		// wait until game loop is running
 		time.Sleep(500 * time.Millisecond)
 	}
 
@@ -81,9 +82,8 @@ func TestShutdownViaSignal(t *testing.T) {
 	assert.NilError(t, err)
 
 	for world.IsGameRunning() {
-		//wait until game loop is not running
+		// wait until game loop is not running
 		time.Sleep(500 * time.Millisecond)
 	}
 	<-finish
-
 }
