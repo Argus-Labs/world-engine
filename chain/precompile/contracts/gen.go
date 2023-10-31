@@ -23,22 +23,6 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
-pragma solidity >=0.8.4;
+package contracts
 
-import {IERC20} from "../../lib/IERC20.sol";
-import {IERC20Module} from "../cosmos/precompile/ERC20Module.sol";
-
-// An example of calling a precompile from the contract's constructor.
-contract PrecompileConstructor {
-    IERC20Module public immutable erc20Module = IERC20Module(0x0000000000000000000000000000000000696969);
-    IERC20 public abera;
-    string public denom;
-
-    constructor() {
-        bool success = erc20Module.transferCoinToERC20From("abera", msg.sender, msg.sender, 123456789);
-        require(success, "failed to transfer abera");
-        abera = erc20Module.erc20AddressForCoinDenom("abera");
-        denom = erc20Module.coinDenomForERC20Address(abera);
-        require(keccak256(bytes(denom)) == keccak256(bytes("abera")), "returned the wrong denom");
-    }
-}
+//go:generate abigen --pkg router --abi ./out/router.sol/IRouter.abi.json --bin ./out/router.sol/IRouter.bin --out ./bindings/cosmos/precompile/router/IRouter.abigen.go --type router

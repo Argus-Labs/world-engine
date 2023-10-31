@@ -4,9 +4,9 @@ import (
 	"context"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
-	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/router"
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
 	"pkg.berachain.dev/polaris/eth/core/vm"
+	generated "pkg.world.dev/world-engine/chain/contracts/bindings/cosmos/precompile/router"
 	"pkg.world.dev/world-engine/chain/router"
 )
 
