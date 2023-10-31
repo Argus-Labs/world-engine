@@ -33,12 +33,11 @@ func (OwnableComponent) Name() string {
 }
 
 func UpdateEnergySystem(wCtx ecs.WorldContext) error {
-	errs := []error{}
+	var errs []error
 	q, err := wCtx.NewSearch(ecs.Contains(EnergyComponent{}))
 	errs = append(errs, err)
 	err = q.Each(wCtx, func(ent entity.ID) bool {
-		var energyPlanet *EnergyComponent
-		energyPlanet, err = component.GetComponent[EnergyComponent](wCtx, ent)
+		energyPlanet, err := component.GetComponent[EnergyComponent](wCtx, ent)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -85,8 +84,7 @@ func TestECS(t *testing.T) {
 	query, err := world.NewSearch(ecs.Contains(EnergyComponent{}))
 	assert.NilError(t, err)
 	err = query.Each(wCtx, func(id entity.ID) bool {
-		var energyPlanet *EnergyComponent
-		energyPlanet, err = component.GetComponent[EnergyComponent](wCtx, id)
+		energyPlanet, err := component.GetComponent[EnergyComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, int64(10), energyPlanet.Amt)
 		return true
@@ -136,8 +134,7 @@ func TestVelocitySimulation(t *testing.T) {
 	velocityQuery, err := world.NewSearch(ecs.Contains(&Vel{}))
 	assert.NilError(t, err)
 	err = velocityQuery.Each(wCtx, func(id entity.ID) bool {
-		var vel *Vel
-		vel, err = component.GetComponent[Vel](wCtx, id)
+		vel, err := component.GetComponent[Vel](wCtx, id)
 		assert.NilError(t, err)
 		pos, err := component.GetComponent[Pos](wCtx, id)
 		assert.NilError(t, err)
@@ -291,8 +288,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 
 	seen := map[int]int{}
 	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
-		var c *CountComponent
-		c, err = component.GetComponent[CountComponent](wCtx, id)
+		c, err := component.GetComponent[CountComponent](wCtx, id)
 		assert.NilError(t, err)
 		seen[c.Val]++
 		return true
@@ -666,11 +662,9 @@ func TestEntityCreationAndSetting(t *testing.T) {
 	ids, err := component.CreateMany(wCtx, 300, ValueComponent2{999}, OtherComponent{999})
 	assert.NilError(t, err)
 	for _, id := range ids {
-		var x *ValueComponent2
-		x, err = component.GetComponent[ValueComponent2](wCtx, id)
+		x, err := component.GetComponent[ValueComponent2](wCtx, id)
 		assert.NilError(t, err)
-		var y *OtherComponent
-		y, err = component.GetComponent[OtherComponent](wCtx, id)
+		y, err := component.GetComponent[OtherComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, x.Val, 999)
 		assert.Equal(t, y.Val, 999)

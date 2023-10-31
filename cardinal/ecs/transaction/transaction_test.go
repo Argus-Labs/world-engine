@@ -187,8 +187,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		case 50:
 			wantScore = 150
 		}
-		var s *ScoreComponent
-		s, err = component.GetComponent[ScoreComponent](wCtx, id)
+		s, err := component.GetComponent[ScoreComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, wantScore, s.Score)
 	}

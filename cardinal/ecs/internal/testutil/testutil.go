@@ -60,13 +60,11 @@ func DumpRedis(t *testing.T, r *miniredis.Miniredis, label any) {
 	assert.NilError(t, err)
 	for _, key := range keys {
 		t.Log(key)
-		var str string
-		str, err = client.Get(ctx, key).Result()
+		str, err := client.Get(ctx, key).Result()
 		if err != nil {
 			if strings.Contains(err.Error(), "WRONGTYPE") {
 				// This is a list. Dump each item in the list
-				var count int64
-				count, err = client.LLen(ctx, key).Result()
+				count, err := client.LLen(ctx, key).Result()
 				assert.NilError(t, err)
 				for i := int64(0); i < count; i++ {
 					str, err = client.LIndex(ctx, key, i).Result()

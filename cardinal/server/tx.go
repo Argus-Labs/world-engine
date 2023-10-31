@@ -82,14 +82,11 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 	}
 
 	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		var payload []byte
-		var sp *sign.SignedPayload
-		payload, sp, err = handler.getBodyAndSigFromParams(params, false)
+		payload, sp, err := handler.getBodyAndSigFromParams(params, false)
 		if err != nil {
 			return nil, err
 		}
-		var tx transaction.ITransaction
-		tx, err = getTxFromParams("txType", params, txNameToTx)
+		tx, err := getTxFromParams("txType", params, txNameToTx)
 		if err != nil {
 			//nolint:nilerr // its ok.
 			return middleware.Error(http.StatusNotFound, err), nil
@@ -98,9 +95,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 	})
 
 	createPersonaHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		var payload []byte
-		var sp *sign.SignedPayload
-		payload, sp, err = handler.getBodyAndSigFromParams(params, true)
+		payload, sp, err := handler.getBodyAndSigFromParams(params, true)
 		if err != nil {
 			if errors.Is(err, ErrInvalidSignature) || errors.Is(err, ErrSystemTransactionRequired) {
 				return middleware.Error(http.StatusUnauthorized, err), nil

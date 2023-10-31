@@ -4,13 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
+	"net/http"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -111,8 +108,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		if !ok {
 			return middleware.Error(http.StatusUnprocessableEntity, fmt.Errorf("json is invalid")), nil
 		}
-		var resultFilter filter.ComponentFilter
-		resultFilter, err = cql.Parse(cqlString, handler.w.GetComponentByName)
+		resultFilter, err := cql.Parse(cqlString, handler.w.GetComponentByName)
 		if err != nil {
 			//nolint:nilerr // its fine.
 			return middleware.Error(http.StatusUnprocessableEntity, err), nil
@@ -122,8 +118,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 
 		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
 		err = ecs.NewSearch(resultFilter).Each(wCtx, func(id entity.ID) bool {
-			var components []metadata.ComponentMetadata
-			components, err = handler.w.StoreManager().GetComponentTypesForEntity(id)
+			components, err := handler.w.StoreManager().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false
 			}
@@ -133,8 +128,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 			}
 
 			for _, c := range components {
-				var data json.RawMessage
-				data, err = ecs.GetRawJSONOfComponent(handler.w, c, id)
+				data, err := ecs.GetRawJSONOfComponent(handler.w, c, id)
 				if err != nil {
 					return false
 				}

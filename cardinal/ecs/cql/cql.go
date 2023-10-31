@@ -35,7 +35,7 @@ func (o *cqlOperator) Capture(s []string) error {
 }
 
 type cqlComponent struct {
-	Name string `@Ident` //nolint:govet // its fine.
+	Name string `@Ident`
 }
 
 type cqlNot struct {
@@ -211,9 +211,7 @@ func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (metada
 		return nil, err
 	}
 	for _, opFactor := range term.Right {
-		var operator *cqlOperator
-		var resultFilter filter.ComponentFilter
-		operator, resultFilter, err = opFactorToComponentFilter(opFactor, stringToComponent)
+		operator, resultFilter, err := opFactorToComponentFilter(opFactor, stringToComponent)
 		if err != nil {
 			return nil, err
 		}

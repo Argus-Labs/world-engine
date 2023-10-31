@@ -41,8 +41,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	assert.NilError(t, err)
 	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
-		var sc *ecs.SignerComponent
-		sc, err = component.GetComponent[ecs.SignerComponent](wCtx, id)
+		sc, err := component.GetComponent[ecs.SignerComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantAddress)
@@ -147,8 +146,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	wCtx := ecs.NewWorldContext(world)
 	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
-		var sc *ecs.SignerComponent
-		sc, err = component.GetComponent[ecs.SignerComponent](wCtx, id)
+		sc, err := component.GetComponent[ecs.SignerComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantSigner)

@@ -131,8 +131,7 @@ func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 
 	// send the message in a new goroutine. we do this so that we don't make tx inclusion slower.
 	go func() {
-		var res *routerv1.SendMessageResponse
-		res, err = client.SendMessage(context.Background(), msg)
+		res, err := client.SendMessage(context.Background(), msg)
 		if err != nil {
 			r.resultStore.SetResult(
 				&routerv1.SendMessageResponse{

@@ -416,8 +416,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 		{cql: "!CONTAINS(alpha) & CONTAINS(beta)", expectedStatus: 200, amount: 0},
 	} {
 		jsonQuery := struct{ CQL string }{v.cql}
-		var jsonQueryBytes []byte
-		jsonQueryBytes, err = json.Marshal(jsonQuery)
+		jsonQueryBytes, err := json.Marshal(jsonQuery)
 		assert.NilError(t, err)
 		resp7, err := http.Post(txh.MakeHTTPURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
 		assert.NilError(t, err)

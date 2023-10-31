@@ -95,8 +95,7 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 		return nil, err
 	}
 	err = q.Each(wCtx, func(id entity.ID) bool {
-		var sc *SignerComponent
-		sc, err = getComponent[SignerComponent](wCtx, id)
+		sc, err := getComponent[SignerComponent](wCtx, id)
 		if err != nil {
 			errs = append(errs, err)
 			return true
@@ -133,8 +132,7 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 			// This PersonaTag has already been registered. Don't do anything
 			continue
 		}
-		var id entity.ID
-		id, err = create(wCtx, SignerComponent{})
+		id, err := create(wCtx, SignerComponent{})
 		if err != nil {
 			CreatePersonaTx.AddError(wCtx, txData.TxHash, err)
 			continue
@@ -177,8 +175,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 	}
 	wCtx := NewReadOnlyWorldContext(w)
 	err = q.Each(wCtx, func(id entity.ID) bool {
-		var sc *SignerComponent
-		sc, err = getComponent[SignerComponent](wCtx, id)
+		sc, err := getComponent[SignerComponent](wCtx, id)
 		if err != nil {
 			errs = append(errs, err)
 		}
@@ -290,8 +287,7 @@ func createMany(wCtx WorldContext, num int, components ...metadata.Component) ([
 	}
 	for _, id := range entityIds {
 		for _, comp := range components {
-			var c metadata.ComponentMetadata
-			c, err = world.GetComponentByName(comp.Name())
+			c, err := world.GetComponentByName(comp.Name())
 			if err != nil {
 				return nil, errors.New("must register component before creating an entity")
 			}

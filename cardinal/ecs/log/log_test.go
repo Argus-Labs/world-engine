@@ -41,8 +41,7 @@ func testSystem(wCtx ecs.WorldContext) error {
 		return err
 	}
 	err = q.Each(wCtx, func(entityId entity.ID) bool {
-		var energyPlanet *EnergyComp
-		energyPlanet, err = component.GetComponent[EnergyComp](wCtx, entityId)
+		energyPlanet, err := component.GetComponent[EnergyComp](wCtx, entityId)
 		if err != nil {
 			return false
 		}

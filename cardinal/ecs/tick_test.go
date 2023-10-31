@@ -121,8 +121,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	// In this test, our "buggy" system fails once Power reaches 3
 	oneWorld.AddSystem(func(wCtx ecs.WorldContext) error {
-		var p *onePowerComponent
-		p, err = component.GetComponent[onePowerComponent](wCtx, id)
+		p, err := component.GetComponent[onePowerComponent](wCtx, id)
 		if err != nil {
 			return err
 		}
@@ -148,8 +147,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	// this is our fixed system that can handle Power levels of 3 and higher
 	twoWorld.AddSystem(func(wCtx ecs.WorldContext) error {
-		var p *onePowerComponent
-		p, err = component.GetComponent[onePowerComponent](wCtx, id)
+		p, err := component.GetComponent[onePowerComponent](wCtx, id)
 		if err != nil {
 			return err
 		}
@@ -203,8 +201,7 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
-		var q *ecs.Search
-		q, err = world.NewSearch(ecs.Contains(ScalarComponentAlpha{}))
+		q, err := world.NewSearch(ecs.Contains(ScalarComponentAlpha{}))
 		assert.NilError(t, err)
 		gotID, err := q.First(wCtx)
 		assert.NilError(t, err)
@@ -303,8 +300,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			_, err = component.GetComponent[ScalarComponentToggle](wCtx, id)
 			assert.NilError(t, err)
 
-			var s *ScalarComponentStatic
-			s, err = component.GetComponent[ScalarComponentStatic](wCtx, id)
+			s, err := component.GetComponent[ScalarComponentStatic](wCtx, id)
 
 			assert.NilError(t, err)
 			assert.Equal(t, 5, s.Val)

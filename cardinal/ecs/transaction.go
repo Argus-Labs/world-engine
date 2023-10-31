@@ -31,18 +31,17 @@ type TransactionType[In, Out any] struct {
 func WithTxEVMSupport[In, Out any]() func(transactionType *TransactionType[In, Out]) {
 	return func(txt *TransactionType[In, Out]) {
 		var in In
-		abiType, err := abi.GenerateABIType(in)
+		var err error
+		txt.inEVMType, err = abi.GenerateABIType(in)
 		if err != nil {
 			panic(err)
 		}
-		txt.inEVMType = abiType
 
 		var out Out
-		abiType, err = abi.GenerateABIType(out)
+		txt.outEVMType, err = abi.GenerateABIType(out)
 		if err != nil {
 			panic(err)
 		}
-		txt.outEVMType = abiType
 	}
 }
 

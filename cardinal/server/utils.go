@@ -101,8 +101,7 @@ func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface
 		return nil, nil, err
 	}
 	if len(sp.Body) == 0 {
-		var buf []byte
-		buf, err = json.Marshal(request)
+		buf, err := json.Marshal(request)
 		if err != nil {
 			return nil, nil, err
 		}

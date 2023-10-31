@@ -56,8 +56,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 			q, err := world.NewSearch(ecs.Contains(Health{}))
 			assert.NilError(t, err)
 			err = q.Each(wCtx, func(id entity.ID) bool {
-				var health *Health
-				health, err = component.GetComponent[Health](wCtx, id)
+				health, err := component.GetComponent[Health](wCtx, id)
 				assert.NilError(t, err)
 				health.Value++
 				assert.NilError(t, component.SetComponent[Health](wCtx, id, health))

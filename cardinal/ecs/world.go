@@ -593,8 +593,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			// we've now reached target. we need to inject the transactions and tick.
 			transactions := tickedTxs.Txs
 			for _, tx := range transactions {
-				var sp *shardv1.SignedPayload
-				sp, err = w.decodeTransaction(tx.SignedPayload)
+				sp, err := w.decodeTransaction(tx.SignedPayload)
 				if err != nil {
 					return err
 				}
@@ -602,8 +601,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if itx == nil {
 					return fmt.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
 				}
-				var v any
-				v, err = itx.Decode(sp.Body)
+				v, err := itx.Decode(sp.Body)
 				if err != nil {
 					return err
 				}

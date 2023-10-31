@@ -59,8 +59,7 @@ func TestComponents(t *testing.T) {
 
 	storeManager := world.StoreManager()
 	for _, tt := range tests {
-		var entityID entity.ID
-		entityID, err = storeManager.CreateEntity(tt.comps...)
+		entityID, err := storeManager.CreateEntity(tt.comps...)
 		assert.NilError(t, err)
 		tt.entityID = entityID
 		tt.archID, err = storeManager.GetArchIDForComponents(tt.comps)
@@ -74,8 +73,7 @@ func TestComponents(t *testing.T) {
 			if !ok {
 				t.Errorf("the archetype ID %d should contain the component %d", tt.archID, comp.ID())
 			}
-			var iface any
-			iface, err = storeManager.GetComponentForEntity(comp, tt.entityID)
+			iface, err := storeManager.GetComponentForEntity(comp, tt.entityID)
 			assert.NilError(t, err)
 
 			switch component := iface.(type) {
