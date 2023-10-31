@@ -46,13 +46,13 @@ func createEventHub(logger runtime.Logger) (*EventHub, error) {
 	return &res, nil
 }
 
-func (eh *EventHub) subscribe(session string) chan *Event {
+func (eh *EventHub) Subscribe(session string) chan *Event {
 	channel := make(chan *Event)
 	eh.channels.Store(session, channel)
 	return channel
 }
 
-func (eh *EventHub) unsubscribe(session string) {
+func (eh *EventHub) Unsubscribe(session string) {
 	eventChannelUntyped, ok := eh.channels.Load(session)
 	if !ok {
 		panic(errors.New("session not found"))
@@ -65,40 +65,42 @@ func (eh *EventHub) unsubscribe(session string) {
 	eh.channels.Delete(session)
 }
 
-func (eh *EventHub) shutdown() {
+func (eh *EventHub) Shutdown() {
 	eh.didShutdown.Store(true)
 }
 
 // dispatch continually drains eh.inputConnection (events from cardinal) and sends copies to all subscribed channels.
 // This function is meant to be called in a goroutine.
-func (eh *EventHub) dispatch(log runtime.Logger) error {
+func (eh *EventHub) Dispatch(log runtime.Logger) error {
 	var err error
 	for !eh.didShutdown.Load() {
 		messageType, message, err := eh.inputConnection.ReadMessage() // will block
 		if err != nil {
-			break
+			eh.Shutdown()
+			continue
 		}
 		if messageType != websocket.TextMessage {
-			break
+			eh.Shutdown()
+			continue
 		}
 		eh.channels.Range(func(key any, value any) bool {
 			channel, ok := value.(chan *Event)
 			if !ok {
 				err = errors.New("not a channel")
+				eh.Shutdown()
 				return false
 			}
 			channel <- &Event{message: string(message)}
 			return true
 		})
 		if err != nil {
-			break
+			eh.Shutdown()
+			continue
 		}
 	}
-	eh.didShutdown.Store(true)
 	eh.channels.Range(func(key any, value any) bool {
 		log.Info(fmt.Sprintf("shutting down: %s", key.(string)))
-		channel, _ := value.(chan *Event)
-		close(channel)
+		eh.Unsubscribe(key.(string))
 		return true
 	})
 	err = errors.Join(eh.inputConnection.Close(), err)

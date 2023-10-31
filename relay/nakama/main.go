@@ -129,7 +129,7 @@ func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModu
 		return err
 	}
 	go func() {
-		err := eventHub.dispatch(log)
+		err := eventHub.Dispatch(log)
 		if err != nil {
 			log.Error("error initializing eventHub: %s", err.Error())
 		}
@@ -137,7 +137,7 @@ func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModu
 
 	// for now send to everybody via notifications.
 	go func() {
-		channel := eventHub.subscribe("main")
+		channel := eventHub.Subscribe("main")
 		for event := range channel {
 			err := nk.NotificationSendAll(ctx, "event", map[string]interface{}{"message": event.message}, 1, true)
 			if err != nil {
