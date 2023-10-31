@@ -12,6 +12,8 @@ import (
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 )
 
+const shutdownPollInterval = 200
+
 type EventHub interface {
 	EmitEvent(event *Event)
 	FlushEvents()
@@ -143,12 +145,12 @@ func (eh *webSocketEventHub) UnregisterConnection(ws *websocket.Conn) {
 
 func (eh *webSocketEventHub) ShutdownEventHub() {
 	eh.shutdown <- true
-	//block until the loop fully exits.
+	// block until the loop fully exits.
 	for {
 		if !eh.running.Load() {
 			break
 		}
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(shutdownPollInterval * time.Millisecond)
 
 	}
 }
