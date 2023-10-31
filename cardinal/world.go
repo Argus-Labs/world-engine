@@ -26,6 +26,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
+const STARTGAME_SHUTDOWN_CHANNEL_SIZE = 5
+
 type World struct {
 	implWorld       *ecs.World
 	server          *server.Handler
@@ -81,7 +83,7 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	world := &World{
 		implWorld:     ecsWorld,
 		serverOptions: serverOptions,
-		endStartGame:  make(chan bool, 5),
+		endStartGame:  make(chan bool, STARTGAME_SHUTDOWN_CHANNEL_SIZE),
 	}
 	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {
@@ -102,7 +104,7 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 		implWorld:     implWorld,
 		serverOptions: serverOptions,
 		cleanup:       mockWorldCleanup,
-		endStartGame:  make(chan bool, 5),
+		endStartGame:  make(chan bool, STARTGAME_SHUTDOWN_CHANNEL_SIZE),
 	}
 	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {

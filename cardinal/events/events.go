@@ -145,11 +145,11 @@ func (eh *webSocketEventHub) ShutdownEventHub() {
 	eh.shutdown <- true
 	//block until the loop fully exits.
 	for {
-		if eh.running.Load() == false {
+		if !eh.running.Load() {
 			break
-		} else {
-			time.Sleep(200 * time.Millisecond)
 		}
+		time.Sleep(200 * time.Millisecond)
+
 	}
 }
 
