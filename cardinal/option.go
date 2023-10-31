@@ -25,7 +25,7 @@ func WithAdapter(adapter shard.Adapter) WorldOption {
 }
 
 // WithReceiptHistorySize specifies how many ticks worth of transaction receipts should be kept in memory. The default
-// is 10. A smaller number uses less memory, but limits the
+// is 10. A smaller number uses less memory, but limits the amount of historical receipts available.
 func WithReceiptHistorySize(size int) WorldOption {
 	return WorldOption{
 		ecsOption: ecs.WithReceiptHistorySize(size),

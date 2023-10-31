@@ -17,7 +17,6 @@ import (
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	// Verify that the CreatePersonaTransaction is automatically created and registered with a world.
 	world := ecs.NewTestWorld(t)
-	//assert.NilError(t, ecs.RegisterComponent[ecs.SignerComponent](world))
 	assert.NilError(t, world.LoadGameState())
 
 	wantTag := "CoolMage"
@@ -40,7 +39,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	wCtx := ecs.NewWorldContext(world)
 	q, err := wCtx.NewSearch(ecs.Exact(ecs.SignerComponent{}))
 	assert.NilError(t, err)
-	q.Each(wCtx, func(id entity.ID) bool {
+	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		sc, err := component.GetComponent[ecs.SignerComponent](wCtx, id)
 		assert.NilError(t, err)
@@ -48,6 +47,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 		assert.Equal(t, sc.SignerAddress, wantAddress)
 		return true
 	})
+	assert.NilError(t, err)
 	assert.Equal(t, 1, count)
 }
 
@@ -62,7 +62,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	}
 
 	_, err := world.GetSignerForPersonaTag("missing_persona", 1)
-	assert.ErrorIs(t, err, ecs.ErrorPersonaTagHasNoSigner)
+	assert.ErrorIs(t, err, ecs.ErrPersonaTagHasNoSigner)
 
 	// Queue up a CreatePersonaTx
 	personaTag := "foobar"
@@ -75,7 +75,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	// originally got the CreatePersonaTx.
 	tick := world.CurrentTick()
 	_, err = world.GetSignerForPersonaTag(personaTag, tick)
-	assert.ErrorIs(t, err, ecs.ErrorCreatePersonaTxsNotProcessed)
+	assert.ErrorIs(t, err, ecs.ErrCreatePersonaTxsNotProcessed)
 
 	assert.NilError(t, world.Tick(ctx))
 	// The CreatePersonaTx has now been processed
@@ -144,7 +144,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	q, err := world.NewSearch(ecs.Exact(ecs.SignerComponent{}))
 	assert.NilError(t, err)
 	wCtx := ecs.NewWorldContext(world)
-	q.Each(wCtx, func(id entity.ID) bool {
+	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		sc, err := component.GetComponent[ecs.SignerComponent](wCtx, id)
 		assert.NilError(t, err)
@@ -154,6 +154,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 		assert.Equal(t, sc.AuthorizedAddresses[0], wantAddr)
 		return true
 	})
+	assert.NilError(t, err)
 	// verify that the query was even ran. if for some reason there were no SignerComponents in the state,
 	// this test would still pass (false positive).
 	assert.Equal(t, count, 1)

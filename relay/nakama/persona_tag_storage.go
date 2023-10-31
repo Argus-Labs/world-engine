@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 )
@@ -24,7 +26,6 @@ type personaTagStorageObj struct {
 type personaTagStatus string
 
 const (
-	personaTagStatusUnknown  personaTagStatus = "unknown"
 	personaTagStatusPending  personaTagStatus = "pending"
 	personaTagStatusAccepted personaTagStatus = "accepted"
 	personaTagStatusRejected personaTagStatus = "rejected"
@@ -48,7 +49,7 @@ func loadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*pe
 		return nil, err
 	}
 	if len(storeObjs) == 0 {
-		return nil, ErrorPersonaTagStorageObjNotFound
+		return nil, ErrPersonaTagStorageObjNotFound
 	} else if len(storeObjs) > 1 {
 		return nil, fmt.Errorf("expected 1 storage object, got %d with values %v", len(storeObjs), storeObjs)
 	}
@@ -71,13 +72,14 @@ func storageObjToPersonaTagStorageObj(obj *api.StorageObject) (*personaTagStorag
 
 // attemptToUpdatePending attempts to change the given personaTagStorageObj's Status from "pending" to either "accepted"
 // or "rejected" by using cardinal as the source of truth. If the Status is not "pending", this call is a no-op.
-func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk runtime.NakamaModule) (*personaTagStorageObj, error) {
+func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk runtime.NakamaModule,
+) (*personaTagStorageObj, error) {
 	if p.Status != personaTagStatusPending {
 		return p, nil
 	}
 
 	verified, err := p.verifyPersonaTag(ctx)
-	if err == ErrorPersonaSignerUnknown {
+	if errors.Is(err, ErrPersonaSignerUnknown) {
 		// Leave the Status as pending.
 		return p, nil
 	} else if err != nil {
@@ -90,14 +92,14 @@ func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk ru
 	}
 	// Attempt to save the updated Status to Nakama. One reason this can fail is that the underlying record was
 	// updated while this processing was going on. Whatever the reason, re-fetch this record from Nakama's storage.
-	if err := p.savePersonaTagStorageObj(ctx, nk); err != nil {
+	if err = p.savePersonaTagStorageObj(ctx, nk); err != nil {
 		return loadPersonaTagStorageObj(ctx, nk)
 	}
 	return p, nil
 }
 
 // verifyPersonaTag queries cardinal to see if the signer address for the given persona tag matches Nakama's signer
-// address
+// address.
 func (p *personaTagStorageObj) verifyPersonaTag(ctx context.Context) (verified bool, err error) {
 	gameSignerAddress, err := cardinalQueryPersonaSigner(ctx, p.PersonaTag, p.Tick)
 	if err != nil {

@@ -109,8 +109,7 @@ func (c *Contract) GetBondedValidators(
 	// Iterate over all validators and return their addresses.
 	addrs := make([]common.Address, 0, len(res.Validators))
 	for _, val := range res.Validators {
-		var valAddr common.Address
-		valAddr, err = cosmlib.EthAddressFromString(c.vs.ValidatorAddressCodec(), val.OperatorAddress)
+		valAddr, err := cosmlib.EthAddressFromString(c.vs.ValidatorAddressCodec(), val.OperatorAddress)
 		if err != nil {
 			return nil, cbindings.CosmosPageResponse{}, err
 		}
@@ -134,8 +133,7 @@ func (c *Contract) GetBondedValidatorsByPower(
 	iteratorErr := c.vs.IterateBondedValidatorsByPower(
 		ctx,
 		func(_ int64, validator stakingtypes.ValidatorI) bool {
-			var valOperAddr common.Address
-			valOperAddr, err = cosmlib.EthAddressFromString(
+			valOperAddr, err := cosmlib.EthAddressFromString(
 				c.vs.ValidatorAddressCodec(), validator.GetOperator(),
 			)
 			if err != nil {
@@ -252,8 +250,7 @@ func (c *Contract) GetValidatorDelegations(
 
 	delegations := make([]generated.IStakingModuleDelegation, 0)
 	for _, d := range res.GetDelegationResponses() {
-		var delegator common.Address
-		delegator, err = cosmlib.EthAdressFromAccString(d.Delegation.DelegatorAddress)
+		delegator, err := cosmlib.EthAdressFromAccString(d.Delegation.DelegatorAddress)
 		if err != nil {
 			return nil, cbindings.CosmosPageResponse{}, err
 		}

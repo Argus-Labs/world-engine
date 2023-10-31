@@ -37,7 +37,7 @@ type receiptNotifier struct {
 	logger runtime.Logger
 }
 
-func newReceiptNotifier(logger runtime.Logger, nk runtime.NakamaModule) (*receiptNotifier, error) {
+func newReceiptNotifier(logger runtime.Logger, nk runtime.NakamaModule) *receiptNotifier {
 	rd := globalReceiptsDispatcher
 	ch := make(chan *Receipt)
 	rd.subscribe("notifications", ch)
@@ -51,7 +51,7 @@ func newReceiptNotifier(logger runtime.Logger, nk runtime.NakamaModule) (*receip
 
 	go notifier.sendNotifications(ch)
 
-	return notifier, nil
+	return notifier
 }
 
 // AddTxHashToPendingNotifications adds the given user ID and tx hash to pending notifications. When this system
@@ -108,8 +108,8 @@ func (r *receiptNotifier) handleReceipt(receipt *Receipt) error {
 	return nil
 }
 
-// cleanupStaleTransactions identifies any transactions that have been pending for too long see receiptNotifier.staleDuration)
-// and deletes them.
+// cleanupStaleTransactions identifies any transactions that have been pending for too long (see
+// receiptNotifier.staleDuration) and deletes them.
 func (r *receiptNotifier) cleanupStaleTransactions() {
 	for txHash, info := range r.txHashToTargetInfo {
 		if time.Since(info.createdAt) > r.staleDuration {

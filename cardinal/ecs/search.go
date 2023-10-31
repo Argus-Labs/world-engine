@@ -1,8 +1,6 @@
 package ecs
 
 import (
-	"fmt"
-
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -85,7 +83,8 @@ func (q *Search) First(wCtx WorldContext) (id entity.ID, err error) {
 		return storage.BadID, err
 	}
 	for iter.HasNext() {
-		entities, err := iter.Next()
+		var entities []entity.ID
+		entities, err = iter.Next()
 		if err != nil {
 			return 0, err
 		}
@@ -99,7 +98,7 @@ func (q *Search) First(wCtx WorldContext) (id entity.ID, err error) {
 func (q *Search) MustFirst(wCtx WorldContext) entity.ID {
 	id, err := q.First(wCtx)
 	if err != nil {
-		panic(fmt.Sprintf("no entity matches the search."))
+		panic("no entity matches the search")
 	}
 	return id
 }

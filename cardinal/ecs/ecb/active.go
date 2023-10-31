@@ -6,7 +6,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
-// activeEntities represents a group of entities, and
+// activeEntities represents a group of entities.
 type activeEntities struct {
 	ids      []entity.ID
 	modified bool

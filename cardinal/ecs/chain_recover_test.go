@@ -23,7 +23,7 @@ type DummyAdapter struct {
 	txs map[uint64][]*types.Transaction
 }
 
-func (d *DummyAdapter) Submit(ctx context.Context, p *sign.SignedPayload, txID, tick uint64) error {
+func (d *DummyAdapter) Submit(_ context.Context, p *sign.SignedPayload, txID, tick uint64) error {
 	sp := &shardv1.SignedPayload{
 		PersonaTag: p.PersonaTag,
 		Namespace:  p.Namespace,
@@ -45,7 +45,8 @@ func (d *DummyAdapter) Submit(ctx context.Context, p *sign.SignedPayload, txID, 
 	return nil
 }
 
-func (d *DummyAdapter) QueryTransactions(ctx context.Context, request *types.QueryTransactionsRequest) (*types.QueryTransactionsResponse, error) {
+func (d *DummyAdapter) QueryTransactions(_ context.Context, request *types.QueryTransactionsRequest,
+) (*types.QueryTransactionsResponse, error) {
 	tickedTxs := make([]*types.Epoch, 0, len(d.txs))
 	for tick, txs := range d.txs {
 		tickedTxs = append(tickedTxs, &types.Epoch{
@@ -90,8 +91,8 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
 	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
-	SendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
-	err := w.RegisterTransactions(SendEnergyTx)
+	sendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
+	err := w.RegisterTransactions(sendEnergyTx)
 	assert.NilError(t, err)
 
 	sysRuns := uint64(0)
@@ -99,7 +100,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// send energy system
 	w.AddSystem(func(wCtx ecs.WorldContext) error {
 		sysRuns++
-		txs := SendEnergyTx.In(wCtx)
+		txs := sendEnergyTx.In(wCtx)
 		if len(txs) > 0 {
 			timesSendEnergyRan++
 		}
@@ -109,9 +110,9 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	payloads := make([]*sign.SignedPayload, 0, 10)
 	var finalTick uint64 = 20
 	for i := 0; i <= 10; i++ {
-		payload := generateRandomTransaction(t, namespace, SendEnergyTx)
+		payload := generateRandomTransaction(t, namespace, sendEnergyTx)
 		payloads = append(payloads, payload)
-		err := adapter.Submit(ctx, payload, uint64(SendEnergyTx.ID()), uint64(i+i)) // final tick should be 10+10 = 20
+		err = adapter.Submit(ctx, payload, uint64(sendEnergyTx.ID()), uint64(i+i)) // final tick should be 10+10 = 20
 		assert.NilError(t, err)
 	}
 
@@ -124,7 +125,8 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	assert.Equal(t, len(payloads), timesSendEnergyRan)
 }
 
-func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]) *sign.SignedPayload {
+func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[SendEnergyTransaction,
+	SendEnergyTransactionResponse]) *sign.SignedPayload {
 	tx1 := SendEnergyTransaction{
 		To:     rand.Str(5),
 		From:   rand.Str(4),

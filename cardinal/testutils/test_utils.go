@@ -1,9 +1,10 @@
-package test_utils
+package testutils
 
 import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sync"
@@ -28,7 +29,7 @@ func MakeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.O
 	txh, err := server.NewHandler(world, eventBuilder, opts...)
 	assert.NilError(t, err)
 
-	//add test websocket handler.
+	// add test websocket handler.
 	txh.Mux.HandleFunc("/echo", events.Echo)
 
 	healthPath := "/health"
@@ -40,7 +41,7 @@ func MakeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.O
 		err = txh.Serve()
 		// ErrServerClosed is returned from txh.Serve after txh.Close is called. This is
 		// normal.
-		if err != http.ErrServerClosed {
+		if !errors.Is(err, http.ErrServerClosed) {
 			assert.NilError(t, err)
 		}
 	}()
@@ -54,12 +55,13 @@ func MakeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.O
 	start := time.Now()
 	for {
 		assert.Check(t, time.Since(start) < time.Second, "timeout while waiting for a healthy server")
-
+		//nolint:noctx // its for a test.
 		resp, err := http.Get("http://" + healthURL)
 		if err == nil && resp.StatusCode == 200 {
 			// the health check endpoint was successfully queried.
 			break
 		}
+		resp.Body.Close()
 	}
 
 	return &TestTransactionHandler{
@@ -78,7 +80,7 @@ type TestTransactionHandler struct {
 	EventHub events.EventHub
 }
 
-func (t *TestTransactionHandler) MakeHttpURL(path string) string {
+func (t *TestTransactionHandler) MakeHTTPURL(path string) string {
 	return "http://" + t.Host + "/" + path
 }
 
@@ -89,8 +91,8 @@ func (t *TestTransactionHandler) MakeWebSocketURL(path string) string {
 func (t *TestTransactionHandler) Post(path string, payload any) *http.Response {
 	bz, err := json.Marshal(payload)
 	assert.NilError(t.T, err)
-
-	res, err := http.Post(t.MakeHttpURL(path), "application/json", bytes.NewReader(bz))
+	//nolint:noctx // its for a test its ok.
+	res, err := http.Post(t.MakeHTTPURL(path), "application/json", bytes.NewReader(bz))
 	assert.NilError(t.T, err)
 	return res
 }
@@ -109,7 +111,6 @@ func SetTestTimeout(t *testing.T, timeout time.Duration) {
 		case <-success:
 			// test was successful. Do nothing
 		case <-time.After(timeout):
-			//assert.Check(t, false, "test timed out")
 			panic("test timed out")
 		}
 	}()
@@ -159,7 +160,8 @@ func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx car
 		}
 	}
 	if !found {
-		panic(fmt.Sprintf("cannot find transaction %q in registered transactinos. did you register it?", cardinalTx.Convert().Name()))
+		panic(fmt.Sprintf("cannot find transaction %q in registered transactions. Did you register it?",
+			cardinalTx.Convert().Name()))
 	}
 	// uniqueSignature is copied from
 	sig := uniqueSignature()
@@ -169,18 +171,17 @@ func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx car
 // MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
 // will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
 // end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
-func MakeWorldAndTicker(t *testing.T) (world *cardinal.World, doTick func()) {
+func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *cardinal.World, doTick func()) {
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
-	world, err := cardinal.NewMockWorld(
-		cardinal.WithTickChannel(startTickCh),
-		cardinal.WithTickDoneChannel(doneTickCh))
+	opts = append(opts, cardinal.WithTickChannel(startTickCh), cardinal.WithTickDoneChannel(doneTickCh))
+	world, err := cardinal.NewMockWorld(opts...)
 	if err != nil {
 		t.Fatalf("unable to make mock world: %v", err)
 	}
 
 	// Shutdown any world resources. This will be called whether the world has been started or not.
 	t.Cleanup(func() {
-		if err := world.ShutDown(); err != nil {
+		if err = world.ShutDown(); err != nil {
 			t.Fatalf("unable to shut down world: %v", err)
 		}
 	})
@@ -188,7 +189,7 @@ func MakeWorldAndTicker(t *testing.T) (world *cardinal.World, doTick func()) {
 	startGameOnce := sync.Once{}
 	// Create a function that will do a single game tick, making sure to start the game world the first time it is called.
 	doTick = func() {
-		timeout := time.After(5 * time.Second)
+		timeout := time.After(5 * time.Second) //nolint:gomnd // fine for now.
 		startGameOnce.Do(func() {
 			startupError := make(chan error)
 			go func() {
@@ -200,12 +201,12 @@ func MakeWorldAndTicker(t *testing.T) (world *cardinal.World, doTick func()) {
 			}()
 			for !world.IsGameRunning() {
 				select {
-				case err := <-startupError:
+				case err = <-startupError:
 					t.Fatalf("startup error: %v", err)
 				case <-timeout:
 					t.Fatal("timeout while waiting for game to start")
 				default:
-					time.Sleep(10 * time.Millisecond)
+					time.Sleep(10 * time.Millisecond) //nolint:gomnd // its for testing its ok.
 				}
 			}
 		})

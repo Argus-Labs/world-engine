@@ -1,16 +1,14 @@
 package log
 
 import (
-	"fmt"
-
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
 type Loggable interface {
-	GetComponents() []component_metadata.IComponentMetaData
+	GetComponents() []metadata.ComponentMetadata
 	GetSystemNames() []string
 }
 
@@ -18,7 +16,10 @@ type Logger struct {
 	*zerolog.Logger
 }
 
-func (_ *Logger) loadComponentIntoArrayLogger(component component_metadata.IComponentMetaData, arrayLogger *zerolog.Array) *zerolog.Array {
+func (*Logger) loadComponentIntoArrayLogger(
+	component metadata.ComponentMetadata,
+	arrayLogger *zerolog.Array,
+) *zerolog.Array {
 	dictLogger := zerolog.Dict()
 	dictLogger = dictLogger.Int("component_id", int(component.ID()))
 	dictLogger = dictLogger.Str("component_name", component.Name())
@@ -34,7 +35,7 @@ func (l *Logger) loadComponentsToEvent(zeroLoggerEvent *zerolog.Event, target Lo
 	return zeroLoggerEvent.Array("components", arrayLogger)
 }
 
-func (_ *Logger) loadSystemIntoArrayLogger(name string, arrayLogger *zerolog.Array) *zerolog.Array {
+func (*Logger) loadSystemIntoArrayLogger(name string, arrayLogger *zerolog.Array) *zerolog.Array {
 	return arrayLogger.Str(name)
 }
 
@@ -47,43 +48,39 @@ func (l *Logger) loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, target Logg
 	return zeroLoggerEvent.Array("systems", arrayLogger)
 }
 
-func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, entityID entity.ID, archID archetype.ID, components []component_metadata.IComponentMetaData) (*zerolog.Event, error) {
+func (l *Logger) loadEntityIntoEvent(zeroLoggerEvent *zerolog.Event, entityID entity.ID, archID archetype.ID,
+	components []metadata.ComponentMetadata) *zerolog.Event {
 	arrayLogger := zerolog.Arr()
 	for _, _component := range components {
 		arrayLogger = l.loadComponentIntoArrayLogger(_component, arrayLogger)
 	}
 	zeroLoggerEvent.Array("components", arrayLogger)
 	zeroLoggerEvent.Int("entity_id", int(entityID))
-	return zeroLoggerEvent.Int("archetype_id", int(archID)), nil
+	return zeroLoggerEvent.Int("archetype_id", int(archID))
 }
 
-// LogComponents logs all component info related to the world
+// LogComponents logs all component info related to the world.
 func (l *Logger) LogComponents(target Loggable, level zerolog.Level) {
 	zeroLoggerEvent := l.WithLevel(level)
 	zeroLoggerEvent = l.loadComponentsToEvent(zeroLoggerEvent, target)
 	zeroLoggerEvent.Send()
 }
 
-// LogSystem logs all system info related to the world
+// LogSystem logs all system info related to the world.
 func (l *Logger) LogSystem(target Loggable, level zerolog.Level) {
 	zeroLoggerEvent := l.WithLevel(level)
 	zeroLoggerEvent = l.loadSystemIntoEvent(zeroLoggerEvent, target)
 	zeroLoggerEvent.Send()
 }
 
-// LogEntity logs entity info given an entityID
-func (l *Logger) LogEntity(level zerolog.Level, entityID entity.ID, archID archetype.ID, components []component_metadata.IComponentMetaData) {
+// LogEntity logs entity info given an entityID.
+func (l *Logger) LogEntity(level zerolog.Level, entityID entity.ID, archID archetype.ID,
+	components []metadata.ComponentMetadata) {
 	zeroLoggerEvent := l.WithLevel(level)
-	var err error = nil
-	zeroLoggerEvent, err = l.loadEntityIntoEvent(zeroLoggerEvent, entityID, archID, components)
-	if err != nil {
-		l.Err(err).Msg(fmt.Sprintf("Error in Logger when retrieving entity with id %d", entityID))
-	} else {
-		zeroLoggerEvent.Send()
-	}
+	l.loadEntityIntoEvent(zeroLoggerEvent, entityID, archID, components).Send()
 }
 
-// LogWorld Logs everything about the world (components and Systems)
+// LogWorld Logs everything about the world (components and Systems).
 func (l *Logger) LogWorld(target Loggable, level zerolog.Level) {
 	zeroLoggerEvent := l.WithLevel(level)
 	zeroLoggerEvent = l.loadComponentsToEvent(zeroLoggerEvent, target)
@@ -91,7 +88,7 @@ func (l *Logger) LogWorld(target Loggable, level zerolog.Level) {
 	zeroLoggerEvent.Send()
 }
 
-// CreateSystemLogger creates a Sub Logger with the entry {"system" : systemName}
+// CreateSystemLogger creates a Sub Logger with the entry {"system" : systemName}.
 func (l *Logger) CreateSystemLogger(systemName string) Logger {
 	zeroLogger := l.Logger.With().
 		Str("system", systemName).Logger()
@@ -101,8 +98,8 @@ func (l *Logger) CreateSystemLogger(systemName string) Logger {
 }
 
 // CreateTraceLogger Creates a trace Logger. Using a single id you can use this Logger to follow and log a data path.
-func (l *Logger) CreateTraceLogger(traceId string) zerolog.Logger {
+func (l *Logger) CreateTraceLogger(traceID string) zerolog.Logger {
 	return l.Logger.With().
-		Str("trace_id", traceId).
+		Str("trace_id", traceID).
 		Logger()
 }

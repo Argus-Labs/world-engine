@@ -73,7 +73,6 @@ func TestComponentSetsAreRememberedFromPreviousDB(t *testing.T) {
 	assert.NilError(t, manager.CommitPending())
 
 	assert.NilError(t, err)
-	manager = nil
 
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
 	id, err := manager.CreateEntity(fooComp)
@@ -151,7 +150,9 @@ func TestEntitiesCanBeFetchedAfterReload(t *testing.T) {
 	assert.Equal(t, 10, len(ids))
 
 	comps, err := manager.GetComponentTypesForEntity(ids[0])
+	assert.NilError(t, err)
 	archID, err := manager.GetArchIDForComponents(comps)
+	assert.NilError(t, err)
 
 	ids, err = manager.GetEntitiesForArchID(archID)
 	assert.NilError(t, err)
@@ -223,7 +224,6 @@ func TestTheRemovalOfEntitiesIsRememberedAfterReload(t *testing.T) {
 			assert.NilError(t, err)
 		}
 	}
-
 }
 
 func TestRemovedComponentDataCanBeRecovered(t *testing.T) {
@@ -243,7 +243,7 @@ func TestRemovedComponentDataCanBeRecovered(t *testing.T) {
 
 	// Make sure we can no longer get the foo component
 	_, err = manager.GetComponentForEntity(fooComp, id)
-	assert.ErrorIs(t, err, storage.ErrorComponentNotOnEntity)
+	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 	// But uhoh, there was a problem. This means the removal of the Foo component
 	// will be undone, and the original value can be found
 	manager.DiscardPending()

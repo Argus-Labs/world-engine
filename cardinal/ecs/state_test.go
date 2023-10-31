@@ -9,7 +9,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/component_metadata"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
@@ -17,9 +17,9 @@ import (
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
-// []component.IComponentMetaData{a, b, c} becomes:
-// comps(a, b, c)
-func comps(cs ...component_metadata.IComponentMetaData) []component_metadata.IComponentMetaData {
+// []component.ComponentMetadata{a, b, c} becomes:
+// comps(a, b, c).
+func comps(cs ...metadata.ComponentMetadata) []metadata.ComponentMetadata {
 	return cs
 }
 
@@ -71,7 +71,7 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	// Too few components registered
 	twoWorld := testutil.InitWorldWithRedis(t, redisStore)
 	err = twoWorld.LoadGameState()
-	assert.ErrorContains(t, err, storage.ErrorComponentMismatchWithSavedState.Error())
+	assert.ErrorContains(t, err, storage.ErrComponentMismatchWithSavedState.Error())
 
 	// It's ok to register extra components.
 	threeWorld := testutil.InitWorldWithRedis(t, redisStore)
@@ -227,8 +227,7 @@ func TestCanReloadState(t *testing.T) {
 			return err
 		}
 		assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
-			err := component.SetComponent[oneAlphaNumComp](wCtx, id, &oneAlphaNumComp{int(id)})
-			//err := oneAlphaNum.Set(w, id, oneAlphaNumComp{int(id)})
+			err = component.SetComponent[oneAlphaNumComp](wCtx, id, &oneAlphaNumComp{int(id)})
 			assert.Check(t, err == nil)
 			return true
 		}))
@@ -251,7 +250,6 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, q.Each(betaWorldCtx, func(id entity.ID) bool {
 		count++
 		num, err := component.GetComponent[OneBetaNum](betaWorldCtx, id)
-		//num, err := oneBetaNum.Get(betaWorld, id)
 		assert.NilError(t, err)
 		assert.Equal(t, int(id), num.Num)
 		return true

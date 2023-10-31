@@ -1,6 +1,9 @@
 package cardinal
 
-import "pkg.world.dev/world-engine/cardinal/ecs"
+import (
+	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+)
 
 // AnyQueryType is implemented by the return value of NewQueryType and is used in RegisterQueries; any
 // query operation creates by NewQueryType can be registered with a World object via RegisterQueries.
@@ -27,9 +30,10 @@ func NewQueryType[Request any, Reply any](
 	}
 }
 
-// NewQueryTypeWithEVMSupport creates a new instance of a QueryType with EVM support, allowing this query to be called from
-// the EVM base shard. The World state must not be changed in the given handler function.
-func NewQueryTypeWithEVMSupport[Request, Reply any](name string, handler func(WorldContext, Request) (Reply, error)) *QueryType[Request, Reply] {
+// NewQueryTypeWithEVMSupport creates a new instance of a QueryType with EVM support, allowing this query to be called
+// from the EVM base shard. The World state must not be changed in the given handler function.
+func NewQueryTypeWithEVMSupport[Request, Reply any](name string, handler func(WorldContext, Request) (Reply, error),
+) *QueryType[Request, Reply] {
 	return &QueryType[Request, Reply]{
 		impl: ecs.NewQueryType[Request, Reply](name, func(wCtx ecs.WorldContext, req Request) (Reply, error) {
 			return handler(&worldContext{implContext: wCtx}, req)
@@ -39,15 +43,19 @@ func NewQueryTypeWithEVMSupport[Request, Reply any](name string, handler func(Wo
 
 // Convert implements the AnyQueryType interface which allows a QueryType to be registered
 // with a World via RegisterQueries.
-func (r *QueryType[Request, Reply]) Convert() ecs.IQuery {
-	return r.impl
+func (q *QueryType[Request, Reply]) Convert() ecs.IQuery {
+	return q.impl
 }
 
-func (q *QueryType[Request, Reply]) DoQuery(worldCtx WorldContext, req Request) (reply Reply, err error) {
+func (q *QueryType[Request, Reply]) DoQuery(worldCtx WorldContext, req Request) (Reply, error) {
+	var reply Reply
 	iface, err := q.impl.HandleQuery(worldCtx.getECSWorldContext(), req)
 	if err != nil {
 		return reply, err
 	}
-	reply = iface.(Reply)
+	reply, ok := iface.(Reply)
+	if !ok {
+		return reply, fmt.Errorf("could not convert %T to %T", iface, reply)
+	}
 	return reply, nil
 }

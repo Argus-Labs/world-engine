@@ -84,7 +84,6 @@ cd $HOME
 git clone https://github.com/berachain/polaris
 cd polaris
 git checkout main
-go run magefiles/setup/setup.go
 ```
 
 **Step 3: Build the Node Software**
@@ -92,7 +91,7 @@ go run magefiles/setup/setup.go
 Run the following command to install `world` to your `GOPATH` and build the node. `world` is the node daemon and CLI for interacting with a polaris node.
 
 ```bash
-mage install
+make install
 ```
 
 **Step 4: Verify your installation**

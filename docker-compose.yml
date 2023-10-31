@@ -23,14 +23,14 @@ services:
       - world-engine
 
   nakama:
-    container_name: test_nakama
+    container_name: relay_nakama
     platform: linux/amd64
     build: ./relay/nakama
     depends_on:
       - postgres
       - game
     environment:
-      - CARDINAL_ADDR=http://game:4040
+      - CARDINAL_ADDR=game:4040
       - CARDINAL_NAMESPACE=TESTGAME
     entrypoint:
       - "/bin/sh"
@@ -105,10 +105,14 @@ services:
       - NAMESPACE=TESTGAME
       - SHARD_SEQUENCER_ADDR=chain:9601
       - BASE_SHARD_ADDR=chain:9090
+      - ENABLE_ADAPTER=${ENABLE_ADAPTER:-true}
     build:
       context: internal/e2e/tester/cardinal
       dockerfile: Dockerfile
     restart: unless-stopped
+    expose:
+      - "3333"
+      - "4040"
     ports:
       - "4040:4040"
       - "3333:3333"
@@ -128,6 +132,16 @@ services:
     networks:
       - world-engine
     restart: always
+  test_nakama:
+    container_name: test_nakama
+    build: ./internal/nakama
+    depends_on:
+      nakama:
+        condition: service_healthy
+    environment:
+      - NAKAMA_ADDRESS=http://nakama:7350
+    networks:
+      - world-engine
 
 volumes:
   data:

@@ -1,12 +1,12 @@
 package cardinal_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 	"time"
 
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/test_utils"
 )
 
 type Foo struct{}
@@ -14,9 +14,9 @@ type Foo struct{}
 func (Foo) Name() string { return "foo" }
 
 func TestCanQueryInsideSystem(t *testing.T) {
-	test_utils.SetTestTimeout(t, 10*time.Second)
+	testutils.SetTestTimeout(t, 10*time.Second)
 
-	world, doTick := test_utils.MakeWorldAndTicker(t)
+	world, doTick := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	wantNumOfEntities := 10

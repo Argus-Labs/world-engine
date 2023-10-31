@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	// ErrorSignatureValidationFailed is returned when a signature is not valid.
-	ErrorSignatureValidationFailed = errors.New("signature validation failed")
-	ErrorCannotSignEmptyBody       = errors.New("cannot sign empty body")
-	ErrorInvalidPersonaTag         = errors.New("invalid persona tag")
-	ErrorInvalidNamespace          = errors.New("invalid namespace")
+	// ErrSignatureValidationFailed is returned when a signature is not valid.
+	ErrSignatureValidationFailed = errors.New("signature validation failed")
+	ErrCannotSignEmptyBody       = errors.New("cannot sign empty body")
+	ErrInvalidPersonaTag         = errors.New("invalid persona tag")
+	ErrInvalidNamespace          = errors.New("invalid namespace")
 )
 
 // SystemPersonaTag is a reserved persona tag for transaction. It is used in transactions when a PersonaTag
@@ -31,7 +31,7 @@ type SignedPayload struct {
 	Namespace  string          `json:"namespace"`
 	Nonce      uint64          `json:"nonce"`
 	Signature  string          `json:"signature"` // hex encoded string
-	Hash       common.Hash     `json:"hash"mapstructure:",omitempty"`
+	Hash       common.Hash     `json:"hash,omitempty"`
 	Body       json.RawMessage `json:"body"` // json string
 }
 
@@ -62,7 +62,7 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 	return s, nil
 }
 
-// MappedSignedPayload Identical to UnmarshalSignedPayload but takes a payload in the form of map[string]any
+// MappedSignedPayload Identical to UnmarshalSignedPayload but takes a payload in the form of map[string]any.
 func MappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error) {
 	s := new(SignedPayload)
 	signedPayloadKeys := map[string]bool{
@@ -73,9 +73,9 @@ func MappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error)
 		"body":       true,
 		"hash":       true,
 	}
-	for key, _ := range payload {
+	for key := range payload {
 		if !signedPayloadKeys[key] {
-			return nil, errors.New(fmt.Sprintf("invalid field: %s in body", key))
+			return nil, fmt.Errorf("invalid field: %s in body", key)
 		}
 	}
 	serializedBody, err := json.Marshal(payload["body"])
@@ -113,7 +113,7 @@ func normalizeJSON(data any) ([]byte, error) {
 	var asBuf []byte
 	if v, ok := data.(string); ok {
 		asBuf = []byte(v)
-	} else if v, ok := data.([]byte); ok {
+	} else if v, ok2 := data.([]byte); ok2 {
 		asBuf = v
 	}
 	if asBuf == nil {
@@ -140,17 +140,17 @@ func normalizeJSON(data any) ([]byte, error) {
 // newSignedAny uses the given private key to sign the personaTag, namespace, nonce, and data.
 func newSignedAny(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
 	if data == nil || reflect.ValueOf(data).IsZero() {
-		return nil, ErrorCannotSignEmptyBody
+		return nil, ErrCannotSignEmptyBody
 	}
 	if len(namespace) == 0 {
-		return nil, ErrorInvalidNamespace
+		return nil, ErrInvalidNamespace
 	}
 	bz, err := normalizeJSON(data)
 	if err != nil {
 		return nil, err
 	}
 	if len(bz) == 0 {
-		return nil, ErrorCannotSignEmptyBody
+		return nil, ErrCannotSignEmptyBody
 	}
 	sp := &SignedPayload{
 		PersonaTag: personaTag,
@@ -165,18 +165,22 @@ func newSignedAny(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint
 	}
 	sp.Signature = common.Bytes2Hex(buf)
 	return sp, nil
-
 }
 
-// NewSystemSignedPayload signs a given body, and nonce with the given private key using the SystemPersonaTag
+// NewSystemSignedPayload signs a given body, and nonce with the given private key using the SystemPersonaTag.
 func NewSystemSignedPayload(pk *ecdsa.PrivateKey, namespace string, nonce uint64, data any) (*SignedPayload, error) {
 	return newSignedAny(pk, SystemPersonaTag, namespace, nonce, data)
 }
 
 // NewSignedPayload signs a given body, tag, and nonce with the given private key.
-func NewSignedPayload(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
+func NewSignedPayload(pk *ecdsa.PrivateKey,
+	personaTag,
+	namespace string,
+	nonce uint64,
+	data any,
+) (*SignedPayload, error) {
 	if len(personaTag) == 0 || personaTag == SystemPersonaTag {
-		return nil, ErrorInvalidPersonaTag
+		return nil, ErrInvalidPersonaTag
 	}
 	return newSignedAny(pk, personaTag, namespace, nonce, data)
 }
@@ -190,7 +194,7 @@ func (s *SignedPayload) Marshal() ([]byte, error) {
 	return json.Marshal(s)
 }
 
-// HashHex return a hex encoded hash of the signature
+// HashHex return a hex encoded hash of the signature.
 func (s *SignedPayload) HashHex() string {
 	if len(s.Hash) == 0 {
 		s.populateHash()
@@ -214,7 +218,7 @@ func (s *SignedPayload) Verify(hexAddress string) error {
 	}
 	signerAddr := crypto.PubkeyToAddress(*signerPubKey)
 	if signerAddr != addr {
-		return ErrorSignatureValidationFailed
+		return ErrSignatureValidationFailed
 	}
 	return nil
 }

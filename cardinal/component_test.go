@@ -1,11 +1,11 @@
 package cardinal_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/test_utils"
 )
 
 type Height struct {
@@ -27,13 +27,13 @@ type Age struct {
 func (Age) Name() string { return "age" }
 
 func TestComponentExample(t *testing.T) {
-	world, _ := test_utils.MakeWorldAndTicker(t)
+	world, _ := testutils.MakeWorldAndTicker(t)
 
 	assert.NilError(t, cardinal.RegisterComponent[Height](world))
 	assert.NilError(t, cardinal.RegisterComponent[Weight](world))
 	assert.NilError(t, cardinal.RegisterComponent[Age](world))
 
-	testWorldCtx := test_utils.WorldToWorldContext(world)
+	testWorldCtx := testutils.WorldToWorldContext(world)
 	startHeight := 72
 	startWeight := 200
 	startAge := 30
@@ -79,7 +79,8 @@ func TestComponentExample(t *testing.T) {
 	assert.NilError(t, cardinal.AddComponentTo[Age](testWorldCtx, targetID))
 
 	for _, id := range peopleIDs {
-		weight, err := cardinal.GetComponent[Weight](testWorldCtx, id)
+		var weight *Weight
+		weight, err = cardinal.GetComponent[Weight](testWorldCtx, id)
 		assert.NilError(t, err)
 		if id == targetID {
 			assert.Equal(t, heavyWeight, weight.Pounds)

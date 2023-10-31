@@ -2,12 +2,13 @@ package main
 
 import (
 	"errors"
+	"log"
+	"os"
+
 	"github.com/argus-labs/world-engine/example/tester/comp"
 	"github.com/argus-labs/world-engine/example/tester/query"
 	"github.com/argus-labs/world-engine/example/tester/sys"
 	"github.com/argus-labs/world-engine/example/tester/tx"
-	"log"
-	"os"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
@@ -15,12 +16,17 @@ import (
 func main() {
 	redisAddr := os.Getenv("REDIS_ADDR")
 	namespace := os.Getenv("NAMESPACE")
-	adapter := setupAdapter()
-	world, err := cardinal.NewWorld(redisAddr, "",
+	options := []cardinal.WorldOption{
 		cardinal.WithNamespace(namespace),
-		cardinal.WithReceiptHistorySize(10),
-		cardinal.WithAdapter(adapter),
-	)
+		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
+	}
+	if os.Getenv("ENABLE_ADAPTER") == "false" {
+		log.Println("Skipping adapter")
+	} else {
+		options = append(options, cardinal.WithAdapter(setupAdapter()))
+	}
+
+	world, err := cardinal.NewWorld(redisAddr, "", options...)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +47,10 @@ func main() {
 	}
 	cardinal.RegisterSystems(world, sys.Join, sys.Move)
 
-	world.StartGame()
+	err = world.StartGame()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func setupAdapter() shard.Adapter {
@@ -51,7 +60,18 @@ func setupAdapter() shard.Adapter {
 		ShardSequencerAddr: shardReceiverAddr,
 		EVMBaseShardAddr:   baseShardAddr,
 	}
-	adapter, err := shard.NewAdapter(cfg)
+
+	var opts []shard.Option
+	clientCert := os.Getenv("CLIENT_CERT_PATH")
+	if clientCert != "" {
+		log.Print("running shard client with client certification")
+		opts = append(opts, shard.WithCredentials(clientCert))
+	} else {
+		log.Print("WARNING: running shard client without client certification. this will cause issues if " +
+			"the chain instance uses SSL credentials")
+	}
+
+	adapter, err := shard.NewAdapter(cfg, opts...)
 	if err != nil {
 		panic(err)
 	}

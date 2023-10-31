@@ -162,5 +162,4 @@ func TestWithoutRegistration(t *testing.T) {
 		Cap: 0,
 	})
 	assert.NilError(t, err)
-
 }

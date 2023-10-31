@@ -44,26 +44,25 @@ func (Health) Name() string {
 	return "health"
 }
 
-// setupWorld creates a new *ecs.World and initializes the world to have numOfEntities already created. If enableHealthSystem
-// is set, a System will be added to the world that increments every entity's "health" by 1 every tick.
+// setupWorld creates a new *ecs.World and initializes the world to have numOfEntities already created. If
+// enableHealthSystem is set, a System will be added to the world that increments every entity's "health" by 1 every
+// tick.
 func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.World {
-
-	//world := ecs.NewTestWorld(t)
 	world := newWorldWithRealRedis(t)
-
 	disabledLogger := world.Logger.Level(zerolog.Disabled)
 	world.InjectLogger(&ecslog.Logger{&disabledLogger})
 	if enableHealthSystem {
 		world.AddSystem(func(wCtx ecs.WorldContext) error {
 			q, err := world.NewSearch(ecs.Contains(Health{}))
 			assert.NilError(t, err)
-			q.Each(wCtx, func(id entity.ID) bool {
+			err = q.Each(wCtx, func(id entity.ID) bool {
 				health, err := component.GetComponent[Health](wCtx, id)
 				assert.NilError(t, err)
 				health.Value++
 				assert.NilError(t, component.SetComponent[Health](wCtx, id, health))
 				return true
 			})
+			assert.NilError(t, err)
 			return nil
 		})
 	}
@@ -86,8 +85,8 @@ func BenchmarkWorld_TickNoSystems(b *testing.B) {
 		world := setupWorld(b, i, enableHealthSystem)
 		name := fmt.Sprintf("%d entities", i)
 		b.Run(name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				world.Tick(context.Background())
+			for j := 0; j < b.N; j++ {
+				assert.NilError(b, world.Tick(context.Background()))
 			}
 		})
 	}
@@ -101,8 +100,8 @@ func BenchmarkWorld_TickWithSystem(b *testing.B) {
 		world := setupWorld(b, i, enableHealthSystem)
 		name := fmt.Sprintf("%d entities", i)
 		b.Run(name, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				world.Tick(context.Background())
+			for j := 0; j < b.N; j++ {
+				assert.NilError(b, world.Tick(context.Background()))
 			}
 		})
 	}

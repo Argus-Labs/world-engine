@@ -45,7 +45,7 @@ type Server interface {
 // txByID maps transaction type ID's to transaction types.
 type txByID map[transaction.TypeID]transaction.ITransaction
 
-// queryByName maps query resource names to the underlying IQuery
+// queryByName maps query resource names to the underlying IQuery.
 type queryByName map[string]ecs.IQuery
 
 type msgServerImpl struct {
@@ -108,7 +108,6 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	}
 	w.Logger.Debug().Msgf("EVM listener running on port %s", s.port)
 	if s.creds == nil {
-		var err error
 		s.creds, err = tryLoadCredentials()
 		if err != nil {
 			return nil, err
@@ -196,7 +195,9 @@ const (
 	CodeInvalidFormat
 )
 
-func (s *msgServerImpl) SendMessage(ctx context.Context, msg *routerv1.SendMessageRequest) (*routerv1.SendMessageResponse, error) {
+func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessageRequest) (
+	*routerv1.SendMessageResponse, error,
+) {
 	// first we check if we can extract the transaction associated with the id
 	itx, ok := s.txMap[transaction.TypeID(msg.MessageId)]
 	if !ok {
@@ -276,7 +277,7 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.S
 	if err != nil {
 		return nil, err
 	}
-	q.Each(wCtx, func(id entity.ID) bool {
+	err = q.Each(wCtx, func(id entity.ID) bool {
 		var signerComp *ecs.SignerComponent
 		signerComp, err = component.GetComponent[ecs.SignerComponent](wCtx, id)
 		if err != nil {
@@ -299,7 +300,9 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.S
 	return sc, nil
 }
 
-func (s *msgServerImpl) QueryShard(ctx context.Context, req *routerv1.QueryShardRequest) (*routerv1.QueryShardResponse, error) {
+func (s *msgServerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardRequest) (
+	*routerv1.QueryShardResponse, error,
+) {
 	query, ok := s.queryMap[req.Resource]
 	if !ok {
 		return nil, fmt.Errorf("no query with name %s found", req.Resource)
