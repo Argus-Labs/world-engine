@@ -56,13 +56,12 @@ func MakeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.O
 	start := time.Now()
 	for {
 		assert.Check(t, time.Since(start) < time.Second, "timeout while waiting for a healthy server")
-		//nolint:noctx // its for a test.
+		//nolint:noctx,bodyclose // its for a test.
 		resp, err := http.Get("http://" + healthURL)
 		if err == nil && resp.StatusCode == 200 {
 			// the health check endpoint was successfully queried.
 			break
 		}
-		resp.Body.Close()
 	}
 
 	return &TestTransactionHandler{

@@ -27,8 +27,10 @@ services:
     platform: linux/amd64
     build: ./relay/nakama
     depends_on:
-      - postgres
-      - game
+      postgres:
+        condition: service_healthy
+      game:
+        condition: service_started
     environment:
       - CARDINAL_ADDR=game:4040
       - CARDINAL_NAMESPACE=TESTGAME
@@ -38,19 +40,15 @@ services:
       - >
         /nakama/nakama migrate up --database.address postgres:localdb@postgres:5432/nakama &&
         exec /nakama/nakama --config /nakama/data/local.yml --database.address postgres:localdb@postgres:5432/nakama
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     expose:
       - "7349"
       - "7350"
       - "7351"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7350/"]
-      interval: 10s
-      timeout: 5s
+      interval: 20s
+      timeout: 10s
       retries: 5
-    links:
-      - "postgres:db"
     ports:
       - "7349:7349"
       - "7350:7350"
@@ -132,6 +130,7 @@ services:
     networks:
       - world-engine
     restart: always
+
   test_nakama:
     container_name: test_nakama
     build: ./internal/nakama
