@@ -37,7 +37,7 @@ jobs:
           key: docker-${{ runner.os }}-${{ hashFiles('internal/e2e/tester/cardinal/Dockerfile') }}
       - name: E2E Test Nakama
         run: make e2e-nakama
-      - name: E2E docker compose logs last status
+      - name: E2E docker compose -f docker-compose-integration-test.yml logs last status
         if: success() || failure()
         run: |
           docker compose logs
