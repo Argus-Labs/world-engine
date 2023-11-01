@@ -203,11 +203,7 @@ func (handler *Handler) Serve() error {
 		return err
 	}
 	log.Info().Msg(fmt.Sprintf("serving cardinal at %s:%s", hostname, handler.Port))
-	err = handler.server.ListenAndServe()
-	if err != nil {
-		return err
-	}
-	return nil
+	return handler.server.ListenAndServe()
 }
 
 func (handler *Handler) Close() error {
