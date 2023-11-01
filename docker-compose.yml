@@ -27,8 +27,10 @@ services:
     platform: linux/amd64
     build: ./relay/nakama
     depends_on:
-      - postgres
-      - game
+      postgres:
+        condition: service_healthy
+      game:
+        condition: service_healthy
     environment:
       - CARDINAL_ADDR=game:4040
       - CARDINAL_NAMESPACE=TESTGAME
@@ -49,8 +51,6 @@ services:
       interval: 20s
       timeout: 10s
       retries: 5
-    # links:
-    #   - "postgres:db"
     ports:
       - "7349:7349"
       - "7350:7350"
