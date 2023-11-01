@@ -6,7 +6,7 @@ rollup:
 	./chain/scripts/start.sh --build
 
 game:
-	@docker compose -f docker-compose-integration-test.yml up game nakama
+	@docker compose up game nakama
 
 forge-build: |
 	@forge build --extra-output-files bin --extra-output-files abi  --root chain/contracts
