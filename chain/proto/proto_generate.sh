@@ -29,7 +29,7 @@
 set -e
 
 echo "Generating gogo proto code"
-cd chain/proto
+cd proto
 proto_dirs=$(find ./ -path -prune -o -name '*.proto' -print0 | xargs -0 -n1 dirname | sort | uniq)
 for dir in $proto_dirs; do
   for file in $(find "${dir}" -maxdepth 1 -name '*.proto'); do
@@ -44,9 +44,9 @@ for dir in $proto_dirs; do
 done
 
 # move proto files to the right places
-cp -r pkg.berachain.dev/polaris/cosmos/* ../
-rm -rf pkg.berachain.dev
+cp -r pkg.world.dev/world-engine/chain/* ../
+rm -rf pkg.world.dev
 
 cd ../
 
-./scripts/proto_generate_pulsar.sh
+./proto/proto_generate_pulsar.sh

@@ -1,4 +1,4 @@
-package router
+package namespace
 
 import (
 	"cosmossdk.io/core/appmodule"
@@ -7,8 +7,8 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 
-	v1 "pkg.world.dev/world-engine/chain/api/router/module/v1"
-	"pkg.world.dev/world-engine/chain/x/router/keeper"
+	v1 "pkg.world.dev/world-engine/chain/api/namespace/module/v1"
+	"pkg.world.dev/world-engine/chain/x/namespace/keeper"
 )
 
 //nolint:gochecknoinits // GRRRR fix later.

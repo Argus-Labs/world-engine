@@ -86,7 +86,6 @@ import (
 	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side-effects
 
 	routermodule "pkg.world.dev/world-engine/chain/api/router/module/v1"
-	"pkg.world.dev/world-engine/chain/x/router"
 )
 
 var (
@@ -175,7 +174,7 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 						vestingtypes.ModuleName,
 						consensustypes.ModuleName,
 						evmtypes.ModuleName,
-						router.ModuleName,
+						namespace.ModuleName,
 						shardmodule.ModuleName,
 					},
 					// When ExportGenesis is not specified, the export genesis module order
@@ -262,7 +261,7 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 				Config: appconfig.WrapAny(&evmmodulev1alpha1.Module{}),
 			},
 			{
-				Name:   router.ModuleName,
+				Name:   namespace.ModuleName,
 				Config: appconfig.WrapAny(&routermodule.Module{}),
 			},
 			{

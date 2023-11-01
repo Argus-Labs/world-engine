@@ -1,13 +1,13 @@
 syntax = "proto3";
 
-package router.v1;
+package namespace.v1;
 
 import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
-import "router/v1/query.proto";
+import "namespace/v1/query.proto";
 
-option go_package = "pkg.world.dev/world-engine/chain/x/router/types";
+option go_package = "pkg.world.dev/world-engine/chain/x/namespace/types";
 
 service Msg {
   option (cosmos.msg.v1.service) = true;

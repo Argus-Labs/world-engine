@@ -5,7 +5,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	"pkg.world.dev/world-engine/chain/x/router/types"
+	"pkg.world.dev/world-engine/chain/x/namespace/types"
 )
 
 var _ types.QueryServiceServer = &Keeper{}

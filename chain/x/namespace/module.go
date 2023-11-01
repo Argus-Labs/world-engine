@@ -1,4 +1,4 @@
-package router
+package namespace
 
 import (
 	"context"
@@ -16,12 +16,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/spf13/cobra"
 
-	"pkg.world.dev/world-engine/chain/x/router/keeper"
-	routertypes "pkg.world.dev/world-engine/chain/x/router/types"
+	"pkg.world.dev/world-engine/chain/x/namespace/keeper"
+	routertypes "pkg.world.dev/world-engine/chain/x/namespace/types"
 )
 
 const (
-	ModuleName       = "router"
+	ModuleName       = "namespace"
 	ConsensusVersion = 1
 )
 
