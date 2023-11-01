@@ -125,7 +125,7 @@ var (
 	privateKey *ecdsa.PrivateKey
 )
 
-func uniqueSignature() *sign.SignedPayload {
+func UniqueSignature() *sign.SignedPayload {
 	if privateKey == nil {
 		var err error
 		privateKey, err = crypto.GenerateKey()
@@ -143,7 +143,7 @@ func uniqueSignature() *sign.SignedPayload {
 	return sig
 }
 
-func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx cardinal.AnyTransaction, value any) {
+func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx cardinal.AnyTransaction, value any, signedPayload ...*sign.SignedPayload) {
 	worldCtx := WorldToWorldContext(world)
 	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
 
@@ -163,8 +163,16 @@ func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx car
 		panic(fmt.Sprintf("cannot find transaction %q in registered transactions. Did you register it?",
 			cardinalTx.Convert().Name()))
 	}
-	// uniqueSignature is copied from
-	sig := uniqueSignature()
+
+	var sig *sign.SignedPayload
+	if len(signedPayload) == 0 {
+		// UniqueSignature is copied from
+		sig = UniqueSignature()
+	} else if len(signedPayload) == 1 {
+		sig = signedPayload[0]
+	} else {
+		panic("AddTransactionToWorldByAnyTransaction only takes one optional parameter for signed payload")
+	}
 	_, _ = ecsWorld.AddTransaction(txID, value, sig)
 }
 
