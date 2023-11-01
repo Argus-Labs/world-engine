@@ -95,7 +95,6 @@ $(BUILD_TARGETS): go.sum $(BUILDDIR)/
 $(BUILDDIR)/:
 	mkdir -p $(BUILDDIR)/
 
-
 ###############################################################################
 ###                                Protobuf                                 ###
 ###############################################################################
@@ -106,4 +105,4 @@ protoImage=$(DOCKER) run --rm -v $(CURDIR):/workspace --workdir /workspace $(pro
 
 proto-gen:
 	@echo "Generating Protobuf files"
-	@$(protoImage) sh ./proto/proto_generate.sh
+	@docker run --rm -v $(CURDIR):/workspace --workdir /workspace $(protoImageName) sh ./proto/proto_generate.sh
