@@ -30,7 +30,6 @@ services:
       postgres:
         condition: service_healthy
       game:
-        condition: service_healthy
     environment:
       - CARDINAL_ADDR=game:4040
       - CARDINAL_NAMESPACE=TESTGAME
@@ -40,8 +39,6 @@ services:
       - >
         /nakama/nakama migrate up --database.address postgres:localdb@postgres:5432/nakama &&
         exec /nakama/nakama --config /nakama/data/local.yml --database.address postgres:localdb@postgres:5432/nakama
-    # extra_hosts:
-    #   - "host.docker.internal:host-gateway"
     expose:
       - "7349"
       - "7350"
@@ -131,6 +128,7 @@ services:
     networks:
       - world-engine
     restart: always
+
   test_nakama:
     container_name: test_nakama
     build: ./internal/nakama

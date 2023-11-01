@@ -42,7 +42,7 @@ jobs:
         run: |
           docker compose logs
   unit-test-coverage:
-    name: Unit Test - Coverage
+    name: Unit Test & Coverage
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -62,3 +62,10 @@ jobs:
             ${{ runner.os }}-golang-
       - name: Run Unit Test
         run: make unit-test-all
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          fail_ci_if_error: true
+          directory: "./"
