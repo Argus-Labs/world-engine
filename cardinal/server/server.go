@@ -198,11 +198,11 @@ func (handler *Handler) Initialize() {
 // Serve serves the application, blocking the calling thread.
 // Call this in a new go routine to prevent blocking.
 func (handler *Handler) Serve() error {
+	log.Info().Msg(fmt.Sprintf("serving cardinal at %s", handler.server.Addr))
 	err := handler.server.ListenAndServe()
 	if err != nil {
 		return err
 	}
-	log.Info().Msg(fmt.Sprintf("serving cardinal at %s", handler.server.Addr))
 	return nil
 }
 
