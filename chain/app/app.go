@@ -72,7 +72,7 @@ import (
 	evmmempool "pkg.berachain.dev/polaris/cosmos/x/evm/plugins/txpool/mempool"
 
 	"pkg.world.dev/world-engine/chain/router"
-	routerkeeper "pkg.world.dev/world-engine/chain/x/router/keeper"
+	routerkeeper "pkg.world.dev/world-engine/chain/x/namespace/keeper"
 	shardkeeper "pkg.world.dev/world-engine/chain/x/shard/keeper"
 )
 

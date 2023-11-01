@@ -45,6 +45,7 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	shardmodulev1 "pkg.world.dev/world-engine/chain/api/shard/module/v1"
 	"pkg.world.dev/world-engine/chain/shard"
+	"pkg.world.dev/world-engine/chain/x/namespace"
 	shardmodule "pkg.world.dev/world-engine/chain/x/shard"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -85,7 +86,7 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/staking"        // import for side-effects
 	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side-effects
 
-	routermodule "pkg.world.dev/world-engine/chain/api/router/module/v1"
+	routermodule "pkg.world.dev/world-engine/chain/api/namespace/module/v1"
 )
 
 var (
