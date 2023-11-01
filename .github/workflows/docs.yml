@@ -1,4 +1,4 @@
-name: World Engine - Docs
+name: Docs
 env:
   VERCEL_ORG_ID: ${{ secrets.DOCS_VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.DOCS_VERCEL_PROJECT_ID }}
@@ -16,6 +16,7 @@ on:
       - main
 jobs:
   deploy-preview:
+    name: Deploy Docs Preview
     if: ${{ github.ref != 'refs/heads/main' }}
     strategy:
       matrix:
@@ -64,6 +65,7 @@ jobs:
             ${{ steps.vercel-deploy-results.outputs.DEPLOY_OUTPUT }}
 
   deploy-production:
+    name: Deploy Docs Production
     if: ${{ github.ref == 'refs/heads/main' }}
     strategy:
       matrix:
