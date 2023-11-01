@@ -842,8 +842,8 @@ github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDN
 github.com/rogpeppe/go-internal v1.11.0/go.mod h1:ddIwULY96R17DhadqLgMfk9H9tvdUzkipdSkR5nkCZA=
 github.com/rollkit/celestia-openrpc v0.3.0 h1:jMLsdLNQ7T20yiNDlisBhlyurFOpN1gZ6vC068FPrQA=
 github.com/rollkit/celestia-openrpc v0.3.0/go.mod h1:2ZhU01YF2hsHIROWzxfMZOYM09Kgyy4roH5JWoNJzp0=
-github.com/rollkit/cosmos-sdk v0.50.0-rc.0-rollkit-v0.11.0-rc2-no-fraud-proofs h1:lw94w99kZdUa2Ve8llYLadzsqjXtm7xiw/Hwjq0BBCk=
-github.com/rollkit/cosmos-sdk v0.50.0-rc.0-rollkit-v0.11.0-rc2-no-fraud-proofs/go.mod h1:9ityGu51zyF2IIfj4CmIfK+W+iNl1cwCmKjZbpDAyS8=
+github.com/rollkit/cosmos-sdk v0.50.0-rc.0-rollkit-v0.11.0-rc2-no-fraud-proofs-polaris h1:VERHUd4s0hdogAR29daOISEZVtT9ViQwa1+JNVGNakA=
+github.com/rollkit/cosmos-sdk v0.50.0-rc.0-rollkit-v0.11.0-rc2-no-fraud-proofs-polaris/go.mod h1:9ityGu51zyF2IIfj4CmIfK+W+iNl1cwCmKjZbpDAyS8=
 github.com/rollkit/rollkit v0.11.0-rc2 h1:a4tCmrWnUOPweEerj5bH4w4vCRPx8ACKmSWNYExRj7M=
 github.com/rollkit/rollkit v0.11.0-rc2/go.mod h1:HP99tiFSjXcaidbHTp/Pucog7sA2N9qlIV4VAgIGdHE=
 github.com/rs/cors v1.7.0/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=
