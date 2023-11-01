@@ -155,7 +155,7 @@ func Remove(wCtx WorldContext, id EntityID) error {
 	return wCtx.getECSWorldContext().GetWorld().Remove(id)
 }
 
-func handleShutdown(w *World) {
+func (w *World) handleShutdown() {
 	signalChannel := make(chan os.Signal, 1)
 	go func() {
 		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
@@ -221,7 +221,7 @@ func (w *World) StartGame() error {
 	}()
 
 	// handle shutdown via a signal
-	handleShutdown(w)
+	w.handleShutdown()
 	<-w.endStartGame
 	return err
 }
