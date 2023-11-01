@@ -159,6 +159,8 @@ func (t *TransactionType[In, Out]) GetReceipt(wCtx WorldContext, hash transactio
 func (t *TransactionType[In, Out]) ForEach(wCtx WorldContext, fn func(TxData[In]) (Out, error)) {
 	for _, tx := range t.In(wCtx) {
 		if result, err := fn(tx); err != nil {
+			wCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with tx=%+v", tx.TxHash,
+				tx.Sig.PersonaTag, tx.Value)
 			t.AddError(wCtx, tx.TxHash, err)
 		} else {
 			t.SetResult(wCtx, tx.TxHash, result)
