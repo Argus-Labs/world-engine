@@ -59,9 +59,11 @@ func TestShutdownViaSignal(t *testing.T) {
 		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities, Foo{})
 		assert.NilError(t, err)
 	})
+	otherFinish := make(chan bool)
 	go func() {
 		err = world.StartGame()
 		assert.NilError(t, err)
+		otherFinish <- true
 	}()
 	for !world.IsGameRunning() {
 		// wait until game loop is running
@@ -86,4 +88,5 @@ func TestShutdownViaSignal(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 	}
 	<-finish
+	<-otherFinish
 }

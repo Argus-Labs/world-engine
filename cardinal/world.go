@@ -26,8 +26,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
-const startGameShutdownChannelSize = 5
-
 type World struct {
 	implWorld       *ecs.World
 	server          *server.Handler
@@ -57,12 +55,12 @@ type (
 // NewWorld creates a new World object using Redis as the storage layer.
 func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
-	log.Log().Msg("Running in normal mode, using external Redis")
+	log.Info().Msg("Running in normal mode, using external Redis")
 	if addr == "" {
 		return nil, errors.New("redis address is required")
 	}
 	if password == "" {
-		log.Log().Msg("Redis password is not set, make sure to set up redis with password in prod")
+		log.Info().Msg("Redis password is not set, make sure to set up redis with password in prod")
 	}
 
 	redisStore := storage.NewRedisStorage(storage.Options{
@@ -83,7 +81,7 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	world := &World{
 		implWorld:     ecsWorld,
 		serverOptions: serverOptions,
-		endStartGame:  make(chan bool, startGameShutdownChannelSize),
+		endStartGame:  make(chan bool),
 	}
 	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {
@@ -104,7 +102,7 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 		implWorld:     implWorld,
 		serverOptions: serverOptions,
 		cleanup:       mockWorldCleanup,
-		endStartGame:  make(chan bool, startGameShutdownChannelSize),
+		endStartGame:  make(chan bool),
 	}
 	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {
@@ -244,7 +242,9 @@ func (w *World) ShutDown() error {
 		}
 		w.isGameRunning.Store(false)
 	}
-	w.endStartGame <- true
+	go func() {
+		w.endStartGame <- true
+	}()
 	return nil
 }
 
