@@ -15,6 +15,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"github.com/mitchellh/mapstructure"
+	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
@@ -198,7 +199,11 @@ func (handler *Handler) Initialize() {
 // Call this in a new go routine to prevent blocking.
 func (handler *Handler) Serve() error {
 	err := handler.server.ListenAndServe()
-	return err
+	if err != nil {
+		return err
+	}
+	log.Info().Msg(fmt.Sprintf("serving cardinal at %s", handler.server.Addr))
+	return nil
 }
 
 func (handler *Handler) Close() error {
