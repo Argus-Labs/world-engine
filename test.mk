@@ -20,7 +20,7 @@ e2e-nakama:
 .PHONY: unit-test
 
 unit-test:
-	cd $(filter-out $@,$(MAKECMDGOALS)) && go test ./... -coverprofile=coverage-$(filter-out $@,$(MAKECMDGOALS)).out -covermode=count -skip ".*integration" -v
+	cd $(filter-out $@,$(MAKECMDGOALS)) && go test ./... -coverprofile=coverage-$(filter-out $@,$(MAKECMDGOALS)).out -covermode=count -v
 
 unit-test-all:
 	$(MAKE) unit-test cardinal
