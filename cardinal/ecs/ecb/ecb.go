@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 
 	"github.com/redis/go-redis/v9"
@@ -377,7 +378,13 @@ func (m *Manager) InjectLogger(logger *ecslog.Logger) {
 
 // Close closes the manager.
 func (m *Manager) Close() error {
-	return m.client.Close()
+	err := m.client.Close()
+	if errors.Is(err, redis.ErrClosed) {
+		// if redis is already closed that means another shutdown pathway got to it first.
+		// There are multiple modules that will try to shutdown redis, if it is already shutdown it is not an error.
+		return nil
+	}
+	return err
 }
 
 // getArchetypeForEntity returns the archetype ID for the given entity ID.

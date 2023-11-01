@@ -3,10 +3,13 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"reflect"
 	"runtime"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -23,6 +26,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
+const startGameShutdownChannelSize = 5
+
 type World struct {
 	implWorld       *ecs.World
 	server          *server.Handler
@@ -33,6 +38,7 @@ type World struct {
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
 	cleanup         func()
+	endStartGame    chan bool
 }
 
 type (
@@ -77,6 +83,7 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	world := &World{
 		implWorld:     ecsWorld,
 		serverOptions: serverOptions,
+		endStartGame:  make(chan bool, startGameShutdownChannelSize),
 	}
 	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {
@@ -97,6 +104,7 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 		implWorld:     implWorld,
 		serverOptions: serverOptions,
 		cleanup:       mockWorldCleanup,
+		endStartGame:  make(chan bool, startGameShutdownChannelSize),
 	}
 	world.isGameRunning.Store(false)
 	for _, opt := range cardinalOptions {
@@ -147,6 +155,22 @@ func Remove(wCtx WorldContext, id EntityID) error {
 	return wCtx.getECSWorldContext().GetWorld().Remove(id)
 }
 
+func (w *World) handleShutdown() {
+	signalChannel := make(chan os.Signal, 1)
+	go func() {
+		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
+		for sig := range signalChannel {
+			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+				err := w.ShutDown()
+				if err != nil {
+					log.Err(err).Msgf("There was an error during shutdown.")
+				}
+				return
+			}
+		}
+	}()
+}
+
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
 // attempted. In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
 // to this world. After StartGame is called, RegisterComponent, RegisterTransactions, RegisterQueries, and AddSystem may
@@ -191,11 +215,15 @@ func (w *World) StartGame() error {
 	w.gameManager = &gameManager
 	go func() {
 		w.isGameRunning.Store(true)
-		if err = w.server.Serve(); err != nil {
+		if err := w.server.Serve(); err != nil {
 			log.Fatal().Err(err)
 		}
 	}()
-	select {}
+
+	// handle shutdown via a signal
+	w.handleShutdown()
+	<-w.endStartGame
+	return err
 }
 
 func (w *World) IsGameRunning() bool {
@@ -216,6 +244,7 @@ func (w *World) ShutDown() error {
 		}
 		w.isGameRunning.Store(false)
 	}
+	w.endStartGame <- true
 	return nil
 }
 
