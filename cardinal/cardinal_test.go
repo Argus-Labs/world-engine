@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -50,6 +51,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 
 func TestShutdownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
+	var wg sync.WaitGroup
 	testutils.SetTestTimeout(t, 10*time.Second)
 	world, err := cardinal.NewMockWorld()
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
@@ -59,9 +61,11 @@ func TestShutdownViaSignal(t *testing.T) {
 		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities, Foo{})
 		assert.NilError(t, err)
 	})
+	wg.Add(1)
 	go func() {
 		err = world.StartGame()
 		assert.NilError(t, err)
+		wg.Done()
 	}()
 	for !world.IsGameRunning() {
 		// wait until game loop is running
@@ -70,11 +74,11 @@ func TestShutdownViaSignal(t *testing.T) {
 
 	conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:4040/events", nil)
 	assert.NilError(t, err)
-	finish := make(chan bool)
+	wg.Add(1)
 	go func() {
 		_, _, err := conn.ReadMessage()
 		assert.Assert(t, websocket.IsCloseError(err, websocket.CloseAbnormalClosure))
-		finish <- true
+		wg.Done()
 	}()
 	// Send a SIGINT signal.
 	cmd := exec.Command("kill", "-INT", strconv.Itoa(os.Getpid()))
@@ -85,5 +89,5 @@ func TestShutdownViaSignal(t *testing.T) {
 		// wait until game loop is not running
 		time.Sleep(500 * time.Millisecond)
 	}
-	<-finish
+	wg.Wait()
 }
