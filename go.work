@@ -1,5 +1,12 @@
 go 1.21.0
 
 use (
+	cardinal
 	chain
+	relay/nakama
+	rift
+	sign
+	internal/e2e
+	internal/e2e/tester/cardinal
+	internal/nakama
 )
