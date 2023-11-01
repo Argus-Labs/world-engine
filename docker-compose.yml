@@ -78,6 +78,7 @@ services:
       - "26657:26657"
       - "9090:9090"
       - "9601:9601"
+      - "8545:8545"
     networks:
       - world-engine
     depends_on:

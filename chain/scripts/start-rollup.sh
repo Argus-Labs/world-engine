@@ -14,8 +14,8 @@ fi
 VALIDATOR_NAME=validator1
 CHAIN_ID=argus_90000-1
 KEY_NAME=argus-key
-TOKEN_AMOUNT="10000000000000000000000000eth"
-STAKING_AMOUNT="1000000000eth"
+TOKEN_AMOUNT="10000000000000000000000000ether"
+STAKING_AMOUNT="1000000000ether"
 
 # DA related variables/configuration
 DA_BASE_URL="${DA_BASE_URL:-"http://celestia-devnet:26658"}"
@@ -50,6 +50,6 @@ sed -i'.bak' 's#"localhost:9090"#"0.0.0.0:9090"#g' /root/.world/config/app.toml
 # Cosmos SDK API server listener
 sed -i'.bak' 's#localhost:1317#0.0.0.0:1317#g' /root/.world/config/app.toml
 
-sed -i 's/"stake"/"eth"/g' /root/.world/config/genesis.json
+sed -i 's/"stake"/"ether"/g' /root/.world/config/genesis.json
 
 world start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.block_time $BLOCK_TIME --minimum-gas-prices 0eth

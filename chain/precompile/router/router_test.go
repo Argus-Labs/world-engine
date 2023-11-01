@@ -25,10 +25,10 @@ import (
 	"testing"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/router"
 	"pkg.berachain.dev/polaris/eth/accounts/abi"
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
 	"pkg.berachain.dev/polaris/lib/utils"
+	generated "pkg.world.dev/world-engine/chain/precompile/contracts/bindings/cosmos/precompile/router"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

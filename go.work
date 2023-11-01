@@ -3,7 +3,6 @@ go 1.21.0
 use (
 	cardinal
 	chain
-	chain/contracts
 	relay/nakama
 	rift
 	sign
