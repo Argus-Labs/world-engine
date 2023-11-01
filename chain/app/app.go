@@ -229,7 +229,7 @@ func NewApp(
 		homePath+"/config/world.toml",
 		homePath+"/data/world",
 		logger,
-		//app.Router.HandleDispatch,
+		// app.Router.HandleDispatch, <- re-enable this after we upgrade polaris with rebased rollkit and stuff.
 	)
 	opt := ante.HandlerOptions{
 		AccountKeeper:   app.AccountKeeper,
