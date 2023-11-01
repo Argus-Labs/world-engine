@@ -22,6 +22,7 @@ package cmd_test
 
 import (
 	"fmt"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"os"
 	"testing"
 
@@ -37,6 +38,7 @@ import (
 )
 
 func TestCmd(t *testing.T) {
+	sdk.GetConfig().SetBech32PrefixForAccount("world", "world")
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "chain/cmd/world/cmd:integration")
 }
