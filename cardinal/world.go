@@ -3,7 +3,6 @@ package cardinal
 import (
 	"context"
 	"errors"
-	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -69,7 +68,7 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 		Password: password, // make sure to set this in prod
 		DB:       0,        // use default DB
 	}, "world")
-	log.Info().Msg(fmt.Sprintf("redis address: %s", addr))
+	log.Info().Msgf("redis address: %s", addr)
 	storeManager, err := ecb.NewManager(redisStore.Client)
 	if err != nil {
 		return nil, err
