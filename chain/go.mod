@@ -12,9 +12,9 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	pkg.berachain.dev/polaris/contracts => github.com/gupadhyaya/polaris/contracts v0.0.0-20231031215807-539fc2ece1e4
 
-	pkg.berachain.dev/polaris/cosmos => github.com/argus-labs/polaris/cosmos v0.0.1
-	pkg.berachain.dev/polaris/eth => github.com/argus-labs/polaris/eth v0.0.1
-	pkg.berachain.dev/polaris/lib => github.com/argus-labs/polaris/lib v0.0.1
+	pkg.berachain.dev/polaris/cosmos => github.com/gupadhyaya/polaris/cosmos v0.0.0-20231031215807-539fc2ece1e4
+	pkg.berachain.dev/polaris/eth => github.com/gupadhyaya/polaris/eth v0.0.0-20231031215807-539fc2ece1e4
+	pkg.berachain.dev/polaris/lib => github.com/gupadhyaya/polaris/lib v0.0.0-20231031215807-539fc2ece1e4
 )
 
 require (
