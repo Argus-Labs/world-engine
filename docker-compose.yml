@@ -30,6 +30,7 @@ services:
       postgres:
         condition: service_healthy
       game:
+        condition: service_started
     environment:
       - CARDINAL_ADDR=game:4040
       - CARDINAL_NAMESPACE=TESTGAME
