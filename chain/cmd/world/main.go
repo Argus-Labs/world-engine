@@ -44,9 +44,9 @@ func main() {
 
 func getDefaultConfig() config.WorldEngineConfig {
 	return config.WorldEngineConfig{
-		DisplayDenom:    "ether",
-		BaseDenom:       "gwei",
-		Bech32Prefix:    "world",
-		RouterAuthority: "",
+		DisplayDenom:       "ether",
+		BaseDenom:          "gwei",
+		Bech32Prefix:       "world",
+		NamespaceAuthority: "",
 	}
 }

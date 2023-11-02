@@ -21,7 +21,7 @@ func (k *Keeper) getAddressForNamespace(ctx sdk.Context, ns string) (string, err
 	store := k.getNamespaceStore(ctx)
 	addr := store.Get([]byte(ns))
 	if addr == nil {
-		return "", fmt.Errorf("address for name %s does not exist", ns)
+		return "", fmt.Errorf("address for namespace %s does not exist", ns)
 	}
 	return string(addr), nil
 }

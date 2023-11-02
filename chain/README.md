@@ -182,6 +182,10 @@ contract SomeGame {
 ## Environment Variables
 The following env variables must be set for the following features.
 
+## Router
+- ROUTER_AUTHORITY_ADDR=<world engine address>
+  - the address of the account you want to be able to update namespace mappings with.
+
 ### Secure gRPC Connections
 For production environments, you'll likely want to setup secure connections between gRPC servers handling system transactions.
 To make use of these, set the following environment variables to the path of your SSL certification files:

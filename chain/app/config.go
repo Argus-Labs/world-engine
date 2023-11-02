@@ -43,6 +43,7 @@ import (
 	"cosmossdk.io/depinject"
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+	"os"
 	shardmodulev1 "pkg.world.dev/world-engine/chain/api/shard/module/v1"
 	"pkg.world.dev/world-engine/chain/shard"
 	"pkg.world.dev/world-engine/chain/x/namespace"
@@ -86,7 +87,7 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/staking"        // import for side-effects
 	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side-effects
 
-	routermodule "pkg.world.dev/world-engine/chain/api/namespace/module/v1"
+	namespacemodule "pkg.world.dev/world-engine/chain/api/namespace/module/v1"
 )
 
 var (
@@ -118,6 +119,7 @@ var (
 //
 //nolint:funlen
 func MakeAppConfig(bech32prefix string) depinject.Config {
+	namespaceAuth := os.Getenv("NAMESPACE_AUTHORITY_ADDR")
 	if bech32prefix == "" {
 		bech32prefix = "world"
 	}
@@ -262,8 +264,10 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 				Config: appconfig.WrapAny(&evmmodulev1alpha1.Module{}),
 			},
 			{
-				Name:   namespace.ModuleName,
-				Config: appconfig.WrapAny(&routermodule.Module{}),
+				Name: namespace.ModuleName,
+				Config: appconfig.WrapAny(&namespacemodule.Module{
+					Authority: namespaceAuth,
+				}),
 			},
 			{
 				Name:   shardmodule.ModuleName,

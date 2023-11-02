@@ -5,11 +5,13 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"os"
+	namespacetypes "pkg.world.dev/world-engine/chain/x/namespace/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"time"
 
@@ -19,17 +21,22 @@ import (
 	"cosmossdk.io/log"
 )
 
+// Router defines the methods required to interact with a game shard. The methods are invoked from EVM smart contracts.
 type Router interface {
 	// SendMessage queues a message to be sent to a game shard.
 	SendMessage(_ context.Context, namespace string, sender string, msgID uint64, msg []byte) error
 	// Query queries a game shard.
 	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
-	// MessageResult gets the game shard transaction result that originated from an EVM tx.
+	// MessageResult gets the game shard transaction Result that originated from an EVM tx.
 	MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error)
 	// HandleDispatch implements the polaris EVM PostTxProcessing hook. It runs after an EVM tx execution has finished
 	// processing.
 	HandleDispatch(_ *types.Transaction, result *core.ExecutionResult)
 }
+
+type GetQueryCtxFn func(height int64, prove bool) (sdk.Context, error)
+
+type GetAddressFn func(ctx context.Context, request *namespacetypes.AddressRequest) (*namespacetypes.AddressResponse, error)
 
 var (
 	defaultStorageTimeout        = 10 * time.Minute
@@ -37,11 +44,13 @@ var (
 )
 
 type routerImpl struct {
-	cardinalAddr string
-	logger       log.Logger
-	queue        *msgQueue
+	logger log.Logger
+	queue  *msgQueue
 
-	resultStore *resultStorage
+	resultStore ResultStorage
+
+	getQueryCtx GetQueryCtxFn
+	getAddr     GetAddressFn
 
 	// opts
 	creds credentials.TransportCredentials
@@ -67,21 +76,25 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 	return credentials.NewTLS(config), nil
 }
 
-// NewRouter returns a new routerImpl instance with a connection to a single cardinal shard instance.
-// TODO(technicallyty): its a bit unclear how im going to query the state machine here, so routerImpl is just going to
-// take the cardinal address directly for now...
-func NewRouter(cardinalAddr string, logger log.Logger, opts ...Option) Router {
+// NewRouter returns a Router.
+func NewRouter(logger log.Logger, ctxGetter GetQueryCtxFn, addrGetter GetAddressFn, opts ...Option) Router {
 	r := &routerImpl{
-		cardinalAddr: cardinalAddr,
-		logger:       logger,
-		creds:        insecure.NewCredentials(),
-		queue:        new(msgQueue),
-		resultStore:  newResultsStorage(defaultStorageTimeout),
+		logger:      logger,
+		creds:       insecure.NewCredentials(),
+		queue:       new(msgQueue),
+		resultStore: NewMemoryResultStorage(defaultStorageTimeout),
+		getQueryCtx: ctxGetter,
+		getAddr:     addrGetter,
 	}
 	for _, opt := range opts {
 		opt(r)
 	}
 	return r
+}
+
+func (r *routerImpl) getSDKCtx() sdk.Context {
+	ctx, _ := r.getQueryCtx(0, false)
+	return ctx
 }
 
 func (r *routerImpl) HandleDispatch(tx *types.Transaction, result *core.ExecutionResult) {
@@ -162,7 +175,7 @@ func (r *routerImpl) SendMessage(_ context.Context, namespace, sender string, ms
 }
 
 func (r *routerImpl) MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error) {
-	res, ok := r.resultStore.GetResult(evmTxHash)
+	res, ok := r.resultStore.Result(evmTxHash)
 	if !ok {
 		return nil, "", 0, fmt.Errorf("no resultStore found")
 	}
@@ -188,12 +201,17 @@ func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namesp
 // https://linear.app/arguslabs/issue/WORLD-13/update-router-to-look-up-the-correct-namespace-mapping
 // https://linear.app/arguslabs/issue/WORLD-370/register-game-shard-on-base-shard
 func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
+	ctx := r.getSDKCtx()
+	res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
+	if err != nil {
+		return nil, err
+	}
 	conn, err := grpc.Dial(
-		r.cardinalAddr,
+		res.Address,
 		grpc.WithTransportCredentials(r.creds),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to '%s' for namespace '%s'", r.cardinalAddr, ns)
+		return nil, fmt.Errorf("error connecting to '%s' for namespace '%s'", res.Address, ns)
 	}
 	return routerv1.NewMsgClient(conn), nil
 }
