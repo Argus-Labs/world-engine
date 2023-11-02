@@ -125,16 +125,7 @@ var (
 	privateKey *ecdsa.PrivateKey
 )
 
-func UniqueSignature(optionalPersonaTagName ...string) *sign.SignedPayload {
-	var personaTagName string
-	switch len(optionalPersonaTagName) {
-	case 0:
-		personaTagName = "some-persona-tag"
-	case 1:
-		personaTagName = optionalPersonaTagName[0]
-	default:
-		panic("UniqueSignature only takes one optional string as a personaTagName")
-	}
+func UniqueSignatureWithName(name string) *sign.SignedPayload {
 	if privateKey == nil {
 		var err error
 		privateKey, err = crypto.GenerateKey()
@@ -145,11 +136,15 @@ func UniqueSignature(optionalPersonaTagName ...string) *sign.SignedPayload {
 	nonce++
 	// We only verify signatures when hitting the HTTP server, and in tests we're likely just adding transactions
 	// directly to the World queue. It's OK if the signature does not match the payload.
-	sig, err := sign.NewSignedPayload(privateKey, personaTagName, "namespace", nonce, `{"some":"data"}`)
+	sig, err := sign.NewSignedPayload(privateKey, name, "namespace", nonce, `{"some":"data"}`)
 	if err != nil {
 		panic(err)
 	}
 	return sig
+}
+
+func UniqueSignature() *sign.SignedPayload {
+	return UniqueSignatureWithName("some-persona-tag")
 }
 
 func AddTransactionToWorldByAnyTransaction(
