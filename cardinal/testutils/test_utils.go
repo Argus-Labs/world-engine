@@ -179,7 +179,7 @@ func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx car
 // MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
 // will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
 // end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
-func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *cardinal.World, doTick func()) {
+func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *cardinal.World, doTick func(timeoutTime ...int)) {
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
 	opts = append(opts, cardinal.WithTickChannel(startTickCh), cardinal.WithTickDoneChannel(doneTickCh))
 	world, err := cardinal.NewMockWorld(opts...)
@@ -196,8 +196,13 @@ func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *card
 
 	startGameOnce := sync.Once{}
 	// Create a function that will do a single game tick, making sure to start the game world the first time it is called.
-	doTick = func() {
+	doTick = func(timeoutTime ...int) {
 		timeout := time.After(5 * time.Second) //nolint:gomnd // fine for now.
+		if len(timeoutTime) == 1 {
+			timeout = time.After(time.Duration(timeoutTime[0]) * time.Second)
+		} else if len(timeoutTime) > 1 {
+			panic("Ticker function only takes one optional parameter for the amount of delay to wait before unblocking")
+		}
 		startGameOnce.Do(func() {
 			startupError := make(chan error)
 			go func() {
