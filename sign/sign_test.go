@@ -73,6 +73,7 @@ func TestCanGetHashHex(t *testing.T) {
 	wantNonce := uint64(100)
 
 	sp, err := NewSignedPayload(goodKey, wantPersonaTag, wantNamespace, wantNonce, wantBody)
+	assert.NilError(t, err)
 	wantHash := sp.HashHex()
 
 	sp.Hash = common.Hash{}
