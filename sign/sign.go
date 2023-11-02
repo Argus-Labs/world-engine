@@ -20,6 +20,8 @@ var (
 	ErrCannotSignEmptyBody       = errors.New("cannot sign empty body")
 	ErrInvalidPersonaTag         = errors.New("invalid persona tag")
 	ErrInvalidNamespace          = errors.New("invalid namespace")
+
+	zeroHashHex = common.Hash{}.Hex()
 )
 
 // SystemPersonaTag is a reserved persona tag for transaction. It is used in transactions when a PersonaTag
@@ -77,6 +79,10 @@ func MappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error)
 		if !signedPayloadKeys[key] {
 			return nil, fmt.Errorf("invalid field: %s in body", key)
 		}
+	}
+	// json.Marshal will encode an empty body to "null", so verify the body exists before attempting to Marshal it.
+	if _, ok := payload["body"]; !ok {
+		return nil, errors.New("SignerPayload must contain Body field")
 	}
 	serializedBody, err := json.Marshal(payload["body"])
 	if err != nil {
@@ -194,9 +200,13 @@ func (s *SignedPayload) Marshal() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+func isZeroHash(hash common.Hash) bool {
+	return hash.Hex() == zeroHashHex
+}
+
 // HashHex return a hex encoded hash of the signature.
 func (s *SignedPayload) HashHex() string {
-	if len(s.Hash) == 0 {
+	if isZeroHash(s.Hash) {
 		s.populateHash()
 	}
 	return s.Hash.Hex()
@@ -209,7 +219,7 @@ func (s *SignedPayload) HashHex() string {
 func (s *SignedPayload) Verify(hexAddress string) error {
 	addr := common.HexToAddress(hexAddress)
 
-	if len(s.Hash) == 0 {
+	if isZeroHash(s.Hash) {
 		s.populateHash()
 	}
 	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), common.Hex2Bytes(s.Signature))
