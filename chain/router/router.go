@@ -21,7 +21,7 @@ import (
 
 type Router interface {
 	// SendMessage queues a message to be sent to a game shard.
-	SendMessage(_ context.Context, namespace string, sender string, msgID uint64, msg []byte) error
+	SendMessage(_ context.Context, namespace string, sender string, msgID string, msg []byte) error
 	// Query queries a game shard.
 	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
 	// MessageResult gets the game shard transaction result that originated from an EVM tx.
@@ -147,7 +147,7 @@ func (r *routerImpl) dispatchMessage(txHash common.Hash) {
 	}()
 }
 
-func (r *routerImpl) SendMessage(_ context.Context, namespace, sender string, msgID uint64, msg []byte) error {
+func (r *routerImpl) SendMessage(_ context.Context, namespace, sender string, msgID string, msg []byte) error {
 	req := &routerv1.SendMessageRequest{
 		Sender:    sender,
 		MessageId: msgID,

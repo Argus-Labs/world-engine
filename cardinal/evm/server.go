@@ -42,8 +42,8 @@ type Server interface {
 	Shutdown()
 }
 
-// txByID maps transaction type ID's to transaction types.
-type txByID map[transaction.TypeID]transaction.ITransaction
+// txByName maps transaction type ID's to transaction types.
+type txByName map[string]transaction.ITransaction
 
 // queryByName maps query resource names to the underlying IQuery.
 type queryByName map[string]ecs.IQuery
@@ -52,7 +52,7 @@ type msgServerImpl struct {
 	// required embed
 	routerv1.UnimplementedMsgServer
 
-	txMap    txByID
+	txMap    txByName
 	queryMap queryByName
 	world    *ecs.World
 
@@ -75,11 +75,11 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	it := make(txByID, len(txs))
+	it := make(txByName, len(txs))
 	for _, tx := range txs {
 		if tx.IsEVMCompatible() {
 			hasEVMTxsOrQueries = true
-			it[tx.ID()] = tx
+			it[tx.Name()] = tx
 		}
 	}
 
@@ -199,10 +199,10 @@ func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessage
 	*routerv1.SendMessageResponse, error,
 ) {
 	// first we check if we can extract the transaction associated with the id
-	itx, ok := s.txMap[transaction.TypeID(msg.MessageId)]
+	itx, ok := s.txMap[msg.MessageId]
 	if !ok {
 		return &routerv1.SendMessageResponse{
-			Errs: fmt.Errorf("transaction with id %d either does not exist, or did not have EVM support "+
+			Errs: fmt.Errorf("transaction with name %s either does not exist, or did not have EVM support "+
 				"enabled", msg.MessageId).Error(),
 			EvmTxHash: msg.EvmTxHash,
 			Code:      CodeUnsupportedTransaction,

@@ -98,7 +98,7 @@ func TestServer_SendMessage(t *testing.T) {
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    sender,
 			Message:   fooTxBz,
-			MessageId: uint64(fooTx.ID()),
+			MessageId: fooTx.Name(),
 		})
 		assert.NilError(t, err)
 	}
@@ -109,7 +109,7 @@ func TestServer_SendMessage(t *testing.T) {
 		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 			Sender:    sender,
 			Message:   barTxBz,
-			MessageId: uint64(barTx.ID()),
+			MessageId: barTx.Name(),
 		})
 		assert.NilError(t, err)
 	}
@@ -186,7 +186,7 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 	res, _ := server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 		Sender:    sender,
 		Message:   fooTxBz,
-		MessageId: uint64(fooTxType.ID()),
+		MessageId: fooTxType.Name(),
 	})
 	assert.Equal(t, res.Code, uint32(CodeUnauthorized))
 	assert.Check(t, strings.Contains(res.Errs, "failed to authorize"))
