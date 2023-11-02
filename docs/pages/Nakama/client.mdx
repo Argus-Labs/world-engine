@@ -19,7 +19,7 @@ While `AuthenticateDevice` is the easiest way to connect to Nakama for testing, 
 A game client must use the `/nakama/create-persona` endpoint to claim a Persona Tag. The payload should be:
 
 ```json
-{"persona_tag": "some-random-persona-tag"}
+{"personaTag": "some-random-persona-tag"}
 ```
 
 Verify the claim Persona Tag request was successful with the `nakama/show-persona` endpoint. Look for the field `"status":"accepted"` in the body the request was successful.

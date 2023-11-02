@@ -16,8 +16,8 @@ import (
 )
 
 func main() {
-    redisAddr := os.Getenv("redis_address")
-    redisPassword := os.Getenv("redis_password")
+    redisAddr := os.Getenv("REDIS_ADDR")
+    redisPassword := os.Getenv("REDIS_PASSWORD")
 
     world, err := cardinal.NewWorld(
 		redisAddr,
