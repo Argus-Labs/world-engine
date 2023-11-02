@@ -4,9 +4,9 @@ import (
 	"context"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
-	generated "pkg.berachain.dev/polaris/contracts/bindings/cosmos/precompile/router"
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
 	"pkg.berachain.dev/polaris/eth/core/vm"
+	generated "pkg.world.dev/world-engine/chain/precompile/contracts/bindings/cosmos/precompile/router"
 	"pkg.world.dev/world-engine/chain/router"
 )
 
@@ -32,7 +32,7 @@ func NewPrecompileContract(r router.Router) *Contract {
 func (c *Contract) SendMessage(
 	ctx context.Context,
 	message []byte,
-	messageID uint64,
+	messageID string,
 	namespace string,
 ) (bool, error) {
 	pCtx := vm.UnwrapPolarContext(ctx)

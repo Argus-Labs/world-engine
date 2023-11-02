@@ -67,9 +67,7 @@ import (
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
-	erc20modulev1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/erc20/module/v1alpha1"
 	evmmodulev1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/module/v1alpha1"
-	erc20types "pkg.berachain.dev/polaris/cosmos/x/erc20/types"
 	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
 
 	_ "cosmossdk.io/x/evidence"                       // import for side-effects
@@ -85,7 +83,6 @@ import (
 	_ "github.com/cosmos/cosmos-sdk/x/params"         // import for side-effects
 	_ "github.com/cosmos/cosmos-sdk/x/slashing"       // import for side-effects
 	_ "github.com/cosmos/cosmos-sdk/x/staking"        // import for side-effects
-	_ "pkg.berachain.dev/polaris/cosmos/x/erc20"      // import for side-effects
 	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side-effects
 
 	routermodule "pkg.world.dev/world-engine/chain/api/router/module/v1"
@@ -102,7 +99,6 @@ var (
 		{Account: stakingtypes.NotBondedPoolName, Permissions: []string{authtypes.Burner, stakingtypes.ModuleName}},
 		{Account: govtypes.ModuleName, Permissions: []string{authtypes.Burner}},
 		{Account: evmtypes.ModuleName, Permissions: []string{authtypes.Minter, authtypes.Burner}},
-		{Account: erc20types.ModuleName, Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		{Account: shard.Name},
 	}
 
@@ -179,7 +175,6 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 						vestingtypes.ModuleName,
 						consensustypes.ModuleName,
 						evmtypes.ModuleName,
-						erc20types.ModuleName,
 						router.ModuleName,
 						shardmodule.ModuleName,
 					},
@@ -265,10 +260,6 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 			{
 				Name:   evmtypes.ModuleName,
 				Config: appconfig.WrapAny(&evmmodulev1alpha1.Module{}),
-			},
-			{
-				Name:   erc20types.ModuleName,
-				Config: appconfig.WrapAny(&erc20modulev1alpha1.Module{}),
 			},
 			{
 				Name:   router.ModuleName,

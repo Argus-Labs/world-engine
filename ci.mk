@@ -17,3 +17,9 @@ golangci-fix:
 	@$(MAKE) golangci-install
 	@echo "--> Running linter"
 	@go list -f '{{.Dir}}/...' -m | xargs golangci-lint run  --timeout=10m --fix --concurrency 8 -v
+
+
+.PHONY: tidy
+
+tidy:
+	cd $(filter-out $@,$(MAKECMDGOALS)) && go mod tidy

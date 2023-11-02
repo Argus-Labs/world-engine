@@ -1,6 +1,8 @@
 package router
 
-import v1 "pkg.world.dev/world-engine/rift/router/v1"
+import (
+	v1 "pkg.world.dev/world-engine/rift/router/v1"
+)
 
 type msgQueue struct {
 	// the message to send to the game shard.
