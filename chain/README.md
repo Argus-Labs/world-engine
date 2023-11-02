@@ -182,8 +182,8 @@ contract SomeGame {
 ## Environment Variables
 The following env variables must be set for the following features.
 
-## Router
-- ROUTER_AUTHORITY_ADDR=<world engine address>
+## x/namespace
+- NAMESPACE_AUTHORITY_ADDR=<world engine address>
   - the address of the account you want to be able to update namespace mappings with.
 
 ### Secure gRPC Connections
