@@ -3,7 +3,6 @@ package keeper_test
 import (
 	"cosmossdk.io/core/header"
 	storetypes "cosmossdk.io/store/types"
-	"fmt"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
@@ -20,12 +19,11 @@ import (
 type TestSuite struct {
 	suite.Suite
 
-	ctx          sdk.Context
-	addrs        []sdk.AccAddress
-	authority    sdk.AccAddress
-	encodedAddrs []string
-	queryClient  namespacetypes.QueryServiceClient
-	keeper       *keeper.Keeper
+	ctx         sdk.Context
+	addrs       []sdk.AccAddress
+	authority   sdk.AccAddress
+	queryClient namespacetypes.QueryServiceClient
+	keeper      *keeper.Keeper
 
 	encCfg moduletestutil.TestEncodingConfig
 }
@@ -71,7 +69,6 @@ func (s *TestSuite) TestGetAndSetNamespace() {
 	// no bueno path
 	notExistsNs := "hello_world"
 	_, err = s.keeper.Address(s.ctx, &namespacetypes.AddressRequest{Namespace: notExistsNs})
-	fmt.Println(err)
 	s.Require().EqualError(err, "address for namespace "+notExistsNs+" does not exist")
 }
 
@@ -91,10 +88,11 @@ func (s *TestSuite) TestGetAllNamespaces() {
 		},
 	}
 	for _, ns := range namespaces {
-		s.keeper.UpdateNamespace(s.ctx, &namespacetypes.UpdateNamespaceRequest{
+		_, err := s.keeper.UpdateNamespace(s.ctx, &namespacetypes.UpdateNamespaceRequest{
 			Authority: s.authority.String(),
 			Namespace: ns,
 		})
+		s.Require().NoError(err)
 	}
 
 	res, err := s.keeper.Namespaces(s.ctx, &namespacetypes.NamespacesRequest{})

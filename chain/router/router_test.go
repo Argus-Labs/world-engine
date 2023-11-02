@@ -15,10 +15,11 @@ import (
 	"cosmossdk.io/log"
 )
 
-func mockQueryCtx(height int64, prove bool) (sdk.Context, error) {
+func mockQueryCtx(_ int64, _ bool) (sdk.Context, error) {
 	return sdk.Context{}, nil
 }
-func mockGetAddr(ctx context.Context, request *namespacetypes.AddressRequest) (*namespacetypes.AddressResponse, error) {
+
+func mockGetAddr(_ context.Context, _ *namespacetypes.AddressRequest) (*namespacetypes.AddressResponse, error) {
 	return &namespacetypes.AddressResponse{Address: "localhost:9090"}, nil
 }
 

@@ -36,7 +36,10 @@ type Router interface {
 
 type GetQueryCtxFn func(height int64, prove bool) (sdk.Context, error)
 
-type GetAddressFn func(ctx context.Context, request *namespacetypes.AddressRequest) (*namespacetypes.AddressResponse, error)
+type GetAddressFn func(
+	ctx context.Context,
+	request *namespacetypes.AddressRequest,
+) (*namespacetypes.AddressResponse, error)
 
 var (
 	defaultStorageTimeout        = 10 * time.Minute
