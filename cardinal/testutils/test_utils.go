@@ -125,7 +125,7 @@ var (
 	privateKey *ecdsa.PrivateKey
 )
 
-func uniqueSignature() *sign.SignedPayload {
+func UniqueSignatureWithName(name string) *sign.SignedPayload {
 	if privateKey == nil {
 		var err error
 		privateKey, err = crypto.GenerateKey()
@@ -136,14 +136,22 @@ func uniqueSignature() *sign.SignedPayload {
 	nonce++
 	// We only verify signatures when hitting the HTTP server, and in tests we're likely just adding transactions
 	// directly to the World queue. It's OK if the signature does not match the payload.
-	sig, err := sign.NewSignedPayload(privateKey, "some-persona-tag", "namespace", nonce, `{"some":"data"}`)
+	sig, err := sign.NewSignedPayload(privateKey, name, "namespace", nonce, `{"some":"data"}`)
 	if err != nil {
 		panic(err)
 	}
 	return sig
 }
 
-func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx cardinal.AnyTransaction, value any) {
+func UniqueSignature() *sign.SignedPayload {
+	return UniqueSignatureWithName("some-persona-tag")
+}
+
+func AddTransactionToWorldByAnyTransaction(
+	world *cardinal.World,
+	cardinalTx cardinal.AnyTransaction,
+	value any,
+	signedPayload *sign.SignedPayload) {
 	worldCtx := WorldToWorldContext(world)
 	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
 
@@ -163,15 +171,17 @@ func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx car
 		panic(fmt.Sprintf("cannot find transaction %q in registered transactions. Did you register it?",
 			cardinalTx.Convert().Name()))
 	}
-	// uniqueSignature is copied from
-	sig := uniqueSignature()
-	_, _ = ecsWorld.AddTransaction(txID, value, sig)
+
+	_, _ = ecsWorld.AddTransaction(txID, value, signedPayload)
 }
 
 // MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
 // will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
 // end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
-func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *cardinal.World, doTick func()) {
+func MakeWorldAndTicker(t *testing.T,
+	opts ...cardinal.WorldOption) (
+	world *cardinal.World,
+	doTick func()) {
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
 	opts = append(opts, cardinal.WithTickChannel(startTickCh), cardinal.WithTickDoneChannel(doneTickCh))
 	world, err := cardinal.NewMockWorld(opts...)
@@ -211,16 +221,8 @@ func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *card
 			}
 		})
 
-		select {
-		case startTickCh <- time.Now():
-		case <-timeout:
-			t.Fatal("timeout while waiting for tick start")
-		}
-		select {
-		case <-doneTickCh:
-		case <-timeout:
-			t.Fatal("timeout while waiting for tick end")
-		}
+		startTickCh <- time.Now()
+		<-doneTickCh
 	}
 
 	return world, doTick
