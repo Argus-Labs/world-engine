@@ -221,12 +221,8 @@ func MakeWorldAndTicker(t *testing.T,
 			}
 		})
 
-		select {
-		case startTickCh <- time.Now():
-		}
-		select {
-		case <-doneTickCh:
-		}
+		startTickCh <- time.Now()
+		<-doneTickCh
 	}
 
 	return world, doTick
