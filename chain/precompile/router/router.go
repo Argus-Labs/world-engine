@@ -32,7 +32,7 @@ func NewPrecompileContract(r router.Router) *Contract {
 func (c *Contract) SendMessage(
 	ctx context.Context,
 	message []byte,
-	messageID uint64,
+	messageID string,
 	namespace string,
 ) (bool, error) {
 	pCtx := vm.UnwrapPolarContext(ctx)

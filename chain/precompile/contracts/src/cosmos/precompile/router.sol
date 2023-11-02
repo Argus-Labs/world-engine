@@ -1,11 +1,11 @@
 pragma solidity ^0.8.4;
 
 interface IRouter {
-    function sendMessage(bytes calldata message, uint64 messageID, string calldata namespace) external returns (bool);
+    function sendMessage(bytes memory message, string memory messageID, string memory namespace) external returns (bool);
 
-    function messageResult(string calldata txHash) external returns (bytes memory, string memory, uint32);
+    function messageResult(string memory txHash) external returns (bytes memory, string memory, uint32);
 
-    function query(bytes calldata request, string calldata resource, string calldata namespace)
+    function query(bytes memory request, string memory resource, string memory namespace)
         external
         returns (bytes memory);
 }
