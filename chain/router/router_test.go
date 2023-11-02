@@ -18,7 +18,7 @@ func TestRouter(t *testing.T) {
 	router, ok := r.(*routerImpl)
 	assert.Equal(t, ok, true)
 
-	namespace, sender, msgID, msg := "cardinal", "foo", uint64(5), []byte("hello")
+	namespace, sender, msgID, msg := "cardinal", "foo", "tx1", []byte("hello")
 	// queue a message
 	err := router.SendMessage(context.Background(), namespace, sender, msgID, msg)
 	assert.NilError(t, err)
