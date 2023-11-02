@@ -165,12 +165,12 @@ func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx car
 	}
 
 	var sig *sign.SignedPayload
-	if len(signedPayload) == 0 {
-		// UniqueSignature is copied from
+	switch len(signedPayload) {
+	case 0:
 		sig = UniqueSignature()
-	} else if len(signedPayload) == 1 {
+	case 1:
 		sig = signedPayload[0]
-	} else {
+	default:
 		panic("AddTransactionToWorldByAnyTransaction only takes one optional parameter for signed payload")
 	}
 	_, _ = ecsWorld.AddTransaction(txID, value, sig)
