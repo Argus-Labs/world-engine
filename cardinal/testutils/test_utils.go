@@ -126,7 +126,6 @@ var (
 )
 
 func UniqueSignature(optionalPersonaTagName ...string) *sign.SignedPayload {
-
 	var personaTagName string
 	switch len(optionalPersonaTagName) {
 	case 0:
