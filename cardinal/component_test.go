@@ -1,15 +1,26 @@
 package cardinal_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/testutils"
+	"fmt"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal"
 )
 
 type Height struct {
 	Inches int
+}
+
+type Number struct {
+	num int
+}
+
+func (Number) Name() string {
+	return "number"
 }
 
 func (Height) Name() string { return "height" }
@@ -32,11 +43,24 @@ func TestComponentExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Height](world))
 	assert.NilError(t, cardinal.RegisterComponent[Weight](world))
 	assert.NilError(t, cardinal.RegisterComponent[Age](world))
+	assert.NilError(t, cardinal.RegisterComponent[Number](world))
 
 	testWorldCtx := testutils.WorldToWorldContext(world)
 	startHeight := 72
 	startWeight := 200
 	startAge := 30
+	numberId, err := cardinal.Create(testWorldCtx, &Number{})
+	assert.NilError(t, err)
+	err = cardinal.SetComponent[Number](testWorldCtx, numberId, &Number{num: 42})
+	assert.NilError(t, err)
+	newNum, err := cardinal.GetComponent[Number](testWorldCtx, numberId)
+	assert.NilError(t, err)
+	assert.Equal(t, newNum.num, 42)
+	err = cardinal.Remove(testWorldCtx, numberId)
+	assert.NilError(t, err)
+	blah, err := cardinal.GetComponent[Number](testWorldCtx, numberId)
+	fmt.Println(blah)
+	assert.NilError(t, err)
 
 	peopleIDs, err := cardinal.CreateMany(testWorldCtx, 10, Height{startHeight}, Weight{startWeight}, Age{startAge})
 	assert.NilError(t, err)

@@ -43,7 +43,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	})
 
 	doTick()
-
+	assert.Equal(t, world.CurrentTick(), uint64(1))
 	err := world.ShutDown()
 	assert.Assert(t, err)
 	assert.Equal(t, gotNumOfEntities, wantNumOfEntities)
