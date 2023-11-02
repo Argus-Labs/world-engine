@@ -35,6 +35,7 @@ func TestRunSuite(t *testing.T) {
 }
 
 func (s *TestSuite) SetupTest() {
+	sdk.GetConfig().SetBech32PrefixForAccount("world", "world")
 	// suite setup
 	s.addrs = simtestutil.CreateIncrementalAccounts(3)
 	s.authority = s.addrs[0]
@@ -108,8 +109,10 @@ func (s *TestSuite) TestGetAllNamespaces() {
 }
 
 func (s *TestSuite) TestUpdateNamespace_Unauthorized() {
-	s.keeper.UpdateNamespace(s.ctx, &namespacetypes.UpdateNamespaceRequest{
-		Authority: "",
+	notAuth := s.addrs[1].String()
+	_, err := s.keeper.UpdateNamespace(s.ctx, &namespacetypes.UpdateNamespaceRequest{
+		Authority: notAuth,
 		Namespace: nil,
 	})
+	s.Require().ErrorContains(err, notAuth+" is not allowed to update namespaces")
 }
