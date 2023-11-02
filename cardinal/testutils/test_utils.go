@@ -143,7 +143,11 @@ func UniqueSignature() *sign.SignedPayload {
 	return sig
 }
 
-func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx cardinal.AnyTransaction, value any, signedPayload ...*sign.SignedPayload) {
+func AddTransactionToWorldByAnyTransaction(
+	world *cardinal.World,
+	cardinalTx cardinal.AnyTransaction,
+	value any,
+	signedPayload ...*sign.SignedPayload) {
 	worldCtx := WorldToWorldContext(world)
 	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
 
@@ -179,7 +183,10 @@ func AddTransactionToWorldByAnyTransaction(world *cardinal.World, cardinalTx car
 // MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
 // will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
 // end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
-func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *cardinal.World, doTick func(timeoutTime ...int)) {
+func MakeWorldAndTicker(t *testing.T,
+	opts ...cardinal.WorldOption) (
+	world *cardinal.World,
+	doTick func(timeoutTime ...int)) {
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
 	opts = append(opts, cardinal.WithTickChannel(startTickCh), cardinal.WithTickDoneChannel(doneTickCh))
 	world, err := cardinal.NewMockWorld(opts...)
