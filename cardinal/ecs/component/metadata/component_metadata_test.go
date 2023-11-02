@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
@@ -26,6 +27,14 @@ type ComponentDataB struct {
 }
 
 func (ComponentDataB) Name() string { return "b" }
+
+func getNameOfComponent(c metadata.Component) string {
+	return c.Name()
+}
+
+func TestComponentInterfaceSignature(t *testing.T) {
+	assert.Equal(t, getNameOfComponent(&ComponentDataA{}), "a")
+}
 
 func TestComponents(t *testing.T) {
 	world := ecs.NewTestWorld(t)
