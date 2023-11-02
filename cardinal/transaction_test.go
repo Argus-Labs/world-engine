@@ -1,10 +1,12 @@
 package cardinal_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal"
 )
 
@@ -40,10 +42,10 @@ func TestTransactionExample(t *testing.T) {
 	// Queue up the transaction.
 	idToModify := ids[3]
 	amountToModify := 20
-
+	payload := testutils.UniqueSignature()
 	testutils.AddTransactionToWorldByAnyTransaction(
 		world, addHealthToEntity,
-		AddHealthToEntityTx{idToModify, amountToModify},
+		AddHealthToEntityTx{idToModify, amountToModify}, payload,
 	)
 
 	// The health change should be applied during this tick
