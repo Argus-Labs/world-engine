@@ -33,6 +33,8 @@ func getNameOfComponent(c metadata.Component) string {
 }
 
 func TestComponentInterfaceSignature(t *testing.T) {
+	// The purpose of this test is to maintain api compatibility.
+	// It is to prevent the interface signature of metadata.Component from changing.
 	assert.Equal(t, getNameOfComponent(&ComponentDataA{}), "a")
 }
 
