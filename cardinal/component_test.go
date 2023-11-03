@@ -45,6 +45,9 @@ func TestComponentExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Number](world))
 
 	testWorldCtx := testutils.WorldToWorldContext(world)
+	assert.Equal(t, testWorldCtx.CurrentTick(), uint64(0))
+	testWorldCtx.Logger().Info().Msg("test") // Check for compile errors.
+	testWorldCtx.EmitEvent("test")           // test for compiler errors, a check for this lives in e2e tests.
 	startHeight := 72
 	startWeight := 200
 	startAge := 30
@@ -84,6 +87,9 @@ func TestComponentExample(t *testing.T) {
 	count, err = search.Count(testWorldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, len(peopleIDs)-1, count)
+	first, err := search.First(testWorldCtx)
+	assert.NilError(t, err)
+	assert.Equal(t, first, cardinal.EntityID(0))
 
 	// Age does not exist on the target ID, so this should result in an error
 	err = cardinal.UpdateComponent[Age](testWorldCtx, targetID, func(a *Age) *Age {

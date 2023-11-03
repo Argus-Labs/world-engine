@@ -1,10 +1,13 @@
 package cardinal_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/testutils"
+	"errors"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal"
 )
 
@@ -38,6 +41,24 @@ func handleQueryHealth(worldCtx cardinal.WorldContext, request *QueryHealthReque
 		return nil, err
 	}
 	return resp, nil
+}
+
+func TestNewQueryTypeWithEVMSupport(_ *testing.T) {
+	// This test just makes sure that NeQueryTypeWithEVMSupport maintains api compatibility.
+	// it is mainly here to check for compiler errors.
+	type FooReq struct {
+		X uint64
+	}
+	type FooReply struct {
+		Y uint64
+	}
+	cardinal.NewQueryTypeWithEVMSupport[FooReq, FooReply](
+		"query_health",
+		func(
+			_ cardinal.WorldContext,
+			_ FooReq) (FooReply, error) {
+			return FooReply{}, errors.New("this function should never get called")
+		})
 }
 
 var queryHealth = cardinal.NewQueryType[*QueryHealthRequest, *QueryHealthResponse]("query_health", handleQueryHealth)
