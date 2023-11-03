@@ -3,6 +3,7 @@ rift:
 .PHONY: rift
 
 rollup:
+	cd chain && go mod vendor
 	./chain/scripts/start.sh --build
 
 game:

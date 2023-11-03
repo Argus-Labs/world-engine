@@ -1,15 +1,13 @@
 # Compile the argus binary
 FROM golang:1.21-bullseye AS argusd-builder
 WORKDIR /src/app/
-COPY go.mod go.sum* ./
 COPY . .
-RUN go mod download
 ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3
 RUN CGO_ENABLED=1 make install
 
 # build on ubuntu
 FROM ubuntu:18.04
-COPY --from=argusd-builder /go/bin/world /usr/local/bin/
+COPY --from=argusd-builder /go/bin/world-evm /usr/local/bin/
 EXPOSE 26656 26657 1317 9090 8546 8545 9601
 
 USER 0
