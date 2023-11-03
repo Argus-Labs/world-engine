@@ -13,4 +13,5 @@ forge-build: |
 	@forge build --extra-output-files bin --extra-output-files abi  --root chain/precompile/contracts
 
 rollup-build:
+	cd chain && go mod vendor
 	cd chain && docker compose build
