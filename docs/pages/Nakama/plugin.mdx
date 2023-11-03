@@ -53,7 +53,7 @@ Specifically, Nakama:
 1) Attempts to associate the Persona Tag with the Nakama user.
     - If some other user has already claimed this Persona Tag, Nakama will fail the request.
     - Alternatively, if the active user has already successfully claimed a Persona Tag, Nakama will fail the request.
-2) Saves that association to Nakama's storage layer under "cardinal_collection"/"persona_tag" storage object.
+2) Saves that association to Nakama's storage layer under "cardinalCollection"/"personaTag" storage object.
     - The User ID to Persona Tag association starts off as "pending" and will later be updated to either "accepted" or "rejected"
 3) Creates a signed System level transaction using `sign.NewSystemSignedPayload`.
     - The System signature indicated to Cardinal that there is not a previously-registered Persona Tag generating this transaction.
@@ -66,7 +66,7 @@ The RPC endpoints related to setting up Persona Tags in Cardinal are `nakama/cla
 The `nakama/claim-persona` endpoint should be called with a body of:
 
 ```json
-{"persona_tag": "the-persona-tag-you-want-to-claim"}
+{"personaTag": "the-persona-tag-you-want-to-claim"}
 ```
 
 ### Persona Tag Storage Object
@@ -77,8 +77,8 @@ If the claiming of the Persona Tag was successful, the storage object in Nakama 
 {
   "tick": 245,
   "status": "accepted",
-  "tx_hash": "0xba57f759722cfd42be659665e46883c6f46e6e0d54430a472c50313915d458ae",
-  "persona_tag": "cool-mage"
+  "txHash": "0xba57f759722cfd42be659665e46883c6f46e6e0d54430a472c50313915d458ae",
+  "personaTag": "cool-mage"
 }
 ```
 
@@ -89,8 +89,8 @@ The meaning of each field:
     - `pending`: Cardinal has not yet had a chance to process this claim Persona Tag request.
     - `rejected`: Nakama or Cardinal decided to not allocate this Persona Tag to the user.
     - `accepted`: Nakama and Cardinal agree that this Persona Tag is associated with the user.
-- `tx_hash`: The transaction hash that uniquely identifies the original `claim-persona` request
-- `persona_tag`: The actual Persona Tag that was requested
+- `txHash`: The transaction hash that uniquely identifies the original `claim-persona` request
+- `personaTag`: The actual Persona Tag that was requested
 
 ## Transaction Hashes and Receipts
 
@@ -99,13 +99,13 @@ When submitting a transaction to Cardinal, the transaction is not processed righ
 ```json
 {
   "tick": 245,
-  "tx_hash": "0xba57f759722cfd42be659665e46883c6f46e6e0d54430a472c50313915d458ae"
+  "txHash": "0xba57f759722cfd42be659665e46883c6f46e6e0d54430a472c50313915d458ae"
 }
 ```
 
 Eventually the transaction will be processed and a "Receipt" will be generated. A Receipt consists of:
 
-1) A tx_hash to identify it
+1) A txHash to identify it
 2) A single result that was generated for this transaction.
 3) A list of errors that were generated while processing this transaction
 
@@ -117,7 +117,7 @@ Nakama periodically gets a list of completed transaction receipts by sending a p
 
 ```json
 {
-  "start_tick": 245,
+  "startTick": 245,
 }
 ```
 
@@ -125,11 +125,11 @@ To the `/transaction-receipts` endpoint. Cardinal responds with something like:
 
 ```json
 {
-  "start_tick": 245,
-  "end_tick": 301,
+  "startTick": 245,
+  "endTick": 301,
   "receipts": [
     {
-      "tx_hash": "0xba57f759722cfd42be659665e46883c6f46e6e0d54430a472c50313915d458ae",
+      "txHash": "0xba57f759722cfd42be659665e46883c6f46e6e0d54430a472c50313915d458ae",
       "tick": 250,
       "result": {
         // Some JSON body specific to this particluar transaction.
@@ -140,7 +140,7 @@ To the `/transaction-receipts` endpoint. Cardinal responds with something like:
       ]
     },
     {
-      "tx_hash": "0xc6f46e6e0d54430a472c50313915d458a5ba57f759722cfd42be659665e46883",
+      "txHash": "0xc6f46e6e0d54430a472c50313915d458a5ba57f759722cfd42be659665e46883",
       "tick": 251,
       "result": {
         // Some JSON body specific to this particluar transaction.
@@ -169,7 +169,7 @@ Would result in a transaction receipt like:
 
 ```json
     {
-      "tx_hash": "0xc6f46e6e0d54430a472c50313915d458a5ba57f759722cfd42be659665e46883",
+      "txHash": "0xc6f46e6e0d54430a472c50313915d458a5ba57f759722cfd42be659665e46883",
       "tick": 251,
       "result": {
         "FinalX": 100,
