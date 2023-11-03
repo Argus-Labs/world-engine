@@ -1,10 +1,12 @@
 package cardinal_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal"
 )
 
@@ -69,6 +71,12 @@ func TestSearchExample(t *testing.T) {
 			"not alpha",
 			cardinal.Not(cardinal.Exact(Alpha{})),
 			60,
+		},
+		{
+			"alpha and beta",
+			cardinal.And(cardinal.Contains(Alpha{}),
+				cardinal.Contains(Beta{}),
+			), 20,
 		},
 	}
 	for _, tc := range testCases {
