@@ -1,6 +1,7 @@
 package cardinal_test
 
 import (
+	"errors"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -19,11 +20,24 @@ type AddHealthToEntityResult struct{}
 
 var addHealthToEntity = cardinal.NewTransactionType[AddHealthToEntityTx, AddHealthToEntityResult]("add_health")
 
+func TestApis(t *testing.T) {
+	// this test just makes sure certain signatures remain the same.
+	// If they change this test will trigger a compiler error.
+	x := cardinal.TxData[Alpha]{}
+	x.Sig()
+	x.Hash()
+	assert.Equal(t, x.Value().Name(), "alpha")
+	type randoTx struct{}
+	type randoTxResult struct{}
+	cardinal.NewTransactionTypeWithEVMSupport[randoTx, randoTxResult]("rando_with_evm")
+}
+
 func TestTransactionExample(t *testing.T) {
 	world, doTick := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(t, cardinal.RegisterTransactions(world, addHealthToEntity))
 	cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
+		//test In method
 		for _, tx := range addHealthToEntity.In(worldCtx) {
 			targetID := tx.Value().TargetID
 			err := cardinal.UpdateComponent[Health](worldCtx, targetID, func(h *Health) *Health {
@@ -32,6 +46,25 @@ func TestTransactionExample(t *testing.T) {
 			})
 			assert.Check(t, err == nil)
 		}
+		//test same as above but with for each
+		addHealthToEntity.ForEach(worldCtx, func(tx cardinal.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
+			targetID := tx.Value().TargetID
+			err := cardinal.UpdateComponent[Health](worldCtx, targetID, func(h *Health) *Health {
+				h.Value = tx.Value().Amount
+				return h
+			})
+			assert.Check(t, err == nil)
+			addHealthToEntity.AddError(worldCtx, tx.Hash(), errors.New("test error"))
+			// redundant but for testing purposes
+			addHealthToEntity.SetResult(worldCtx, tx.Hash(), AddHealthToEntityResult{})
+			_, errs, ok := addHealthToEntity.GetReceipt(worldCtx, tx.Hash()) // check if receipts are working.
+			assert.Assert(t, ok)
+			assert.Equal(t, len(errs), 1)
+			return AddHealthToEntityResult{}, nil
+		})
+
+		addHealthToEntity.Convert() // Check for compilation error
+
 		return nil
 	})
 
