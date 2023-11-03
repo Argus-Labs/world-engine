@@ -104,8 +104,8 @@ func NewRootCmd() *cobra.Command {
 		WithKeyringOptions(keyring.EthSecp256k1Option())
 
 	rootCmd := &cobra.Command{
-		Use:   "world",
-		Short: "world engine application",
+		Use:   "world-evm",
+		Short: "world engine EVM base shard",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			// set the default command outputs
 			cmd.SetOut(cmd.OutOrStdout())
