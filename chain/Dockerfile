@@ -1,7 +1,9 @@
 # Compile the argus binary
-FROM golang:1.21-bullseye AS argusd-builder
+FROM golang:1.21.0-bullseye AS argusd-builder
 WORKDIR /src/app/
+COPY go.mod go.sum* ./
 COPY . .
+RUN go mod download
 ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3
 RUN CGO_ENABLED=1 make install
 
