@@ -1,10 +1,12 @@
 package cardinal_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal"
 )
 
@@ -34,6 +36,9 @@ func TestComponentExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Age](world))
 
 	testWorldCtx := testutils.WorldToWorldContext(world)
+	assert.Equal(t, testWorldCtx.CurrentTick(), uint64(0))
+	testWorldCtx.Logger().Info().Msg("test") // Check for compile errors.
+	testWorldCtx.EmitEvent("test")           // test for compiler errors, a check for this lives in e2e tests.
 	startHeight := 72
 	startWeight := 200
 	startAge := 30
