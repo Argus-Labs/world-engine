@@ -12,5 +12,8 @@
   },
   "cql": {
     "title": "Cardinal Query Language (CQL)"
+  },
+  "events": {
+    "title": "Events"
   }
 }
