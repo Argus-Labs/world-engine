@@ -131,7 +131,7 @@ func init() {
 		panic(err)
 	}
 
-	DefaultNodeHome = filepath.Join(userHomeDir, ".world")
+	DefaultNodeHome = filepath.Join(userHomeDir, ".world-evm")
 }
 
 // NewApp returns a reference to an initialized App.
