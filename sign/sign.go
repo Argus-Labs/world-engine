@@ -222,7 +222,13 @@ func (s *SignedPayload) Verify(hexAddress string) error {
 	if isZeroHash(s.Hash) {
 		s.populateHash()
 	}
-	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), common.Hex2Bytes(s.Signature))
+
+	sig := common.Hex2Bytes(s.Signature)
+	if sig[crypto.RecoveryIDOffset] == 27 || sig[crypto.RecoveryIDOffset] == 28 {
+		sig[crypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
+	}
+
+	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), sig)
 	if err != nil {
 		return err
 	}
