@@ -37,7 +37,7 @@ func TestTransactionExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(t, cardinal.RegisterTransactions(world, addHealthToEntity))
 	cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
-		//test In method
+		// test "In" method
 		for _, tx := range addHealthToEntity.In(worldCtx) {
 			targetID := tx.Value().TargetID
 			err := cardinal.UpdateComponent[Health](worldCtx, targetID, func(h *Health) *Health {
@@ -46,7 +46,7 @@ func TestTransactionExample(t *testing.T) {
 			})
 			assert.Check(t, err == nil)
 		}
-		//test same as above but with for each
+		// test same as above but with forEach
 		addHealthToEntity.ForEach(worldCtx, func(tx cardinal.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
 			targetID := tx.Value().TargetID
 			err := cardinal.UpdateComponent[Health](worldCtx, targetID, func(h *Health) *Health {
