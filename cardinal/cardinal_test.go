@@ -19,6 +19,12 @@ type Foo struct{}
 
 func (Foo) Name() string { return "foo" }
 
+func TestNewWorld(t *testing.T) {
+	// should fail, this test should generate a compile error if the function signature changes.
+	_, err := cardinal.NewWorld("", "", cardinal.WithNamespace("testnamespace"))
+	assert.Assert(t, err != nil)
+}
+
 func TestCanQueryInsideSystem(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
 
