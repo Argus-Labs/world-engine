@@ -31,25 +31,25 @@ echo "DA_NAMESPACE_ID: $DA_NAMESPACE_ID"
 echo "DA_CONFIG: $DA_CONFIG"
 
 # World Engine Chain Config & Init
-world comet unsafe-reset-all
-rm -rf /root/.world/
+world-evm comet unsafe-reset-all
+rm -rf /root/.world-evm/
 
-world init $VALIDATOR_NAME --chain-id $CHAIN_ID
+world-evm init $VALIDATOR_NAME --chain-id $CHAIN_ID
 
-printf "enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll\n\n" | world keys add $KEY_NAME --keyring-backend="test" --algo="eth_secp256k1" -i
-world genesis add-genesis-account $KEY_NAME $TOKEN_AMOUNT --keyring-backend test
-world genesis gentx $KEY_NAME $STAKING_AMOUNT --chain-id $CHAIN_ID --keyring-backend test
-world genesis collect-gentxs
+printf "enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll\n\n" | world-evm keys add $KEY_NAME --keyring-backend="test" --algo="eth_secp256k1" -i
+world-evm genesis add-genesis-account $KEY_NAME $TOKEN_AMOUNT --keyring-backend test
+world-evm genesis gentx $KEY_NAME $STAKING_AMOUNT --chain-id $CHAIN_ID --keyring-backend test
+world-evm genesis collect-gentxs
 
-sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' /root/.world/config/config.toml
+sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' /root/.world-evm/config/config.toml
 
-sed -i '/api\]/,/\[/ s/enable = false/enable = true/' /root/.world/config/app.toml
+sed -i '/api\]/,/\[/ s/enable = false/enable = true/' /root/.world-evm/config/app.toml
 
 # Cosmos SDK gRPC listener
-sed -i'.bak' 's#"localhost:9090"#"0.0.0.0:9090"#g' /root/.world/config/app.toml
+sed -i'.bak' 's#"localhost:9090"#"0.0.0.0:9090"#g' /root/.world-evm/config/app.toml
 # Cosmos SDK API server listener
-sed -i'.bak' 's#localhost:1317#0.0.0.0:1317#g' /root/.world/config/app.toml
+sed -i'.bak' 's#localhost:1317#0.0.0.0:1317#g' /root/.world-evm/config/app.toml
 
-sed -i 's/"stake"/"ether"/g' /root/.world/config/genesis.json
+sed -i 's/"stake"/"ether"/g' /root/.world-evm/config/genesis.json
 
-world start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.block_time $BLOCK_TIME --minimum-gas-prices 0eth
+world-evm start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.block_time $BLOCK_TIME --minimum-gas-prices 0eth
