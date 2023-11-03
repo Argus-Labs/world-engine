@@ -89,7 +89,7 @@ func TestComponentExample(t *testing.T) {
 	assert.Equal(t, len(peopleIDs)-1, count)
 	first, err := search.First(testWorldCtx)
 	assert.NilError(t, err)
-	assert.Equal(t, first, cardinal.EntityID(0))
+	assert.Equal(t, first, cardinal.EntityID(1))
 
 	// Age does not exist on the target ID, so this should result in an error
 	err = cardinal.UpdateComponent[Age](testWorldCtx, targetID, func(a *Age) *Age {
