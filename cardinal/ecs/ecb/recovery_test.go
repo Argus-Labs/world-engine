@@ -271,3 +271,23 @@ func TestArchetypeCountTracksDiscardedChanges(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 1, manager.ArchetypeCount())
 }
+
+func TestCannotFetchComponentOnRemovedEntityAfterCommit(t *testing.T) {
+	manager := newCmdBufferForTest(t)
+
+	id, err := manager.CreateEntity(fooComp, barComp)
+	assert.NilError(t, err)
+	_, err = manager.GetComponentForEntity(fooComp, id)
+	assert.NilError(t, err)
+	assert.NilError(t, manager.RemoveEntity(id))
+
+	// The entity has been removed. Trying to get a component for the entity should fail.
+	_, err = manager.GetComponentForEntity(fooComp, id)
+	assert.Check(t, err != nil)
+
+	assert.NilError(t, manager.CommitPending())
+
+	// Trying to get the same component after committing to the DB should also fail.
+	_, err = manager.GetComponentForEntity(fooComp, id)
+	assert.Check(t, err != nil)
+}
