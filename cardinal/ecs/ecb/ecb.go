@@ -144,6 +144,14 @@ func (m *Manager) RemoveEntity(idToRemove entity.ID) error {
 		m.entityIDToOriginArchID[idToRemove] = archID
 	}
 	delete(m.entityIDToArchID, idToRemove)
+
+	comps := m.GetComponentTypesForArchID(archID)
+	for _, comp := range comps {
+		key := compKey{comp.ID(), idToRemove}
+		delete(m.compValues, key)
+		m.compValuesToDelete[key] = true
+	}
+
 	return nil
 }
 
