@@ -13,3 +13,7 @@ forge-build: |
 
 rollup-build:
 	cd chain && docker compose build
+
+
+rollup-install:
+	cd chain && $(MAKE) install

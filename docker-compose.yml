@@ -64,6 +64,7 @@ services:
       ## Get AUTH_TOKEN from celestia_devnet container: `docker logs celestia_devnet 2>&1 | grep CELESTIA_NODE_AUTH_TOKEN -A 5 | tail -n 1`
       - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-}
       - CARDINAL_EVM_LISTENER_ADDR=game:9020
+      - NAMESPACE_AUTHORITY_ADDR:world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5
     build:
       context: chain
       dockerfile: Dockerfile
