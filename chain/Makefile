@@ -15,7 +15,7 @@ endif
 
 CMTVERSION := $(shell go list -m github.com/cometbft/cometbft | sed 's:.* ::')
 BUILDDIR ?= $(CURDIR)/build
-ARGUS_CMD := $(CURDIR)/cmd/world
+ARGUS_CMD := $(CURDIR)/cmd/world-evm
 
 export GO111MODULE = on
 

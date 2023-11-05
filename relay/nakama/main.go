@@ -44,7 +44,7 @@ const (
 	EnvCardinalAddr      = "CARDINAL_ADDR"
 	EnvCardinalNamespace = "CARDINAL_NAMESPACE"
 
-	cardinalCollection = "cardinal_collection"
+	cardinalCollection = "cardinalCollection"
 	personaTagKey      = "personaTag"
 
 	transactionEndpointPrefix = "/tx"

@@ -10,15 +10,6 @@ type Search struct {
 	impl *ecs.Search
 }
 
-// NewSearch creates a new Search.
-func (w *World) NewSearch(filter Filter) (*Search, error) {
-	q, err := w.implWorld.NewSearch(filter.convertToFilterable())
-	if err != nil {
-		return nil, err
-	}
-	return &Search{q}, nil
-}
-
 // SearchCallBackFn represents a function that can operate on a single EntityID, and returns whether the next EntityID
 // should be processed.
 type SearchCallBackFn func(EntityID) bool
