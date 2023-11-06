@@ -3,33 +3,33 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"testing"
 
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 )
 
 func TestForEachTransaction(t *testing.T) {
 	world := ecs.NewTestWorld(t)
-	type SomeTxRequest struct {
+	type SomeMsgRequest struct {
 		GenerateError bool
 	}
-	type SomeTxResponse struct {
+	type SomeMsgResponse struct {
 		Successful bool
 	}
 
-	someTx := ecs.NewTransactionType[SomeTxRequest, SomeTxResponse]("some_tx")
-	assert.NilError(t, world.RegisterTransactions(someTx))
+	someMsg := ecs.NewMessageType[SomeMsgRequest, SomeMsgResponse]("some_msg")
+	assert.NilError(t, world.RegisterMessages(someMsg))
 
 	world.AddSystem(func(wCtx ecs.WorldContext) error {
-		someTx.ForEach(wCtx, func(t ecs.TxData[SomeTxRequest]) (result SomeTxResponse, err error) {
-			if t.Value.GenerateError {
+		someMsg.ForEach(wCtx, func(t ecs.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
+			if t.Msg.GenerateError {
 				return result, errors.New("some error")
 			}
-			return SomeTxResponse{
+			return SomeMsgResponse{
 				Successful: true,
 			}, nil
 		})
@@ -38,10 +38,10 @@ func TestForEachTransaction(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	// Add 10 transactions to the tx queue and keep track of the hashes that we just created
-	knownTxHashes := map[transaction.TxHash]SomeTxRequest{}
+	knownTxHashes := map[message.MsgHash]SomeMsgRequest{}
 	for i := 0; i < 10; i++ {
-		req := SomeTxRequest{GenerateError: i%2 == 0}
-		txHash := someTx.AddToQueue(world, req, testutil.UniqueSignature(t))
+		req := SomeMsgRequest{GenerateError: i%2 == 0}
+		txHash := someMsg.AddToQueue(world, req, testutil.UniqueSignature(t))
 		knownTxHashes[txHash] = req
 	}
 
@@ -59,7 +59,7 @@ func TestForEachTransaction(t *testing.T) {
 			assert.Check(t, len(receipt.Errs) > 0)
 		} else {
 			assert.Equal(t, 0, len(receipt.Errs))
-			assert.Equal(t, receipt.Result.(SomeTxResponse), SomeTxResponse{Successful: true})
+			assert.Equal(t, receipt.Result.(SomeMsgResponse), SomeMsgResponse{Successful: true})
 		}
 	}
 }

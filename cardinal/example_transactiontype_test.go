@@ -17,7 +17,7 @@ type MovePlayerResult struct {
 	FinalY int
 }
 
-var MoveTx = cardinal.NewTransactionType[MovePlayerMsg, MovePlayerResult]("move-player")
+var MoveTx = cardinal.NewMessageType[MovePlayerMsg, MovePlayerResult]("move-player")
 
 func ExampleTransactionType() {
 	world, err := cardinal.NewMockWorld()
@@ -32,7 +32,7 @@ func ExampleTransactionType() {
 
 	cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
 		for _, tx := range MoveTx.In(wCtx) {
-			msg := tx.Value()
+			msg := tx.Msg()
 			// handle the transaction
 			// ...
 

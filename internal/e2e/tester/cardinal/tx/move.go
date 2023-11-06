@@ -12,4 +12,4 @@ type MoveOutput struct {
 	X, Y int64
 }
 
-var MoveTx = cardinal.NewTransactionTypeWithEVMSupport[MoveInput, MoveOutput]("move")
+var MoveTx = cardinal.NewMessageTypeWithEVMSupport[MoveInput, MoveOutput]("move")

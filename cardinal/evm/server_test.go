@@ -31,10 +31,10 @@ func TestServer_SendMessage(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 
 	// create the ECS transactions
-	fooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
-	barTx := ecs.NewTransactionType[BarTransaction, TxReply]("bartx", ecs.WithTxEVMSupport[BarTransaction, TxReply])
+	fooTx := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
+	barTx := ecs.NewMessageType[BarTransaction, TxReply]("bartx", ecs.WithMsgEVMSupport[BarTransaction, TxReply])
 
-	assert.NilError(t, w.RegisterTransactions(fooTx, barTx))
+	assert.NilError(t, w.RegisterMessages(fooTx, barTx))
 
 	// create some txs to submit
 
@@ -62,10 +62,10 @@ func TestServer_SendMessage(t *testing.T) {
 		assert.Equal(t, len(inFooTxs), len(fooTxs))
 		assert.Equal(t, len(inBarTxs), len(barTxs))
 		for i, tx := range inFooTxs {
-			assert.DeepEqual(t, tx.Value, fooTxs[i])
+			assert.DeepEqual(t, tx.Msg, fooTxs[i])
 		}
 		for i, tx := range inBarTxs {
-			assert.DeepEqual(t, tx.Value, barTxs[i])
+			assert.DeepEqual(t, tx.Msg, barTxs[i])
 		}
 		return nil
 	})
@@ -74,11 +74,11 @@ func TestServer_SendMessage(t *testing.T) {
 	sender := "0xHelloThere"
 	personaTag := "foo"
 	// create authorized addresses for the evm transaction's msg sender.
-	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaMsg.AddToQueue(w, ecs.CreatePersonaTransaction{
 		PersonaTag:    personaTag,
 		SignerAddress: "bar",
 	})
-	ecs.AuthorizePersonaAddressTx.AddToQueue(w, ecs.AuthorizePersonaAddress{
+	ecs.AuthorizePersonaAddressMsg.AddToQueue(w, ecs.AuthorizePersonaAddress{
 		Address: sender,
 	}, &sign.Transaction{PersonaTag: personaTag})
 	err := w.Tick(context.Background())
@@ -135,7 +135,7 @@ func TestServer_Query(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	err := w.RegisterQueries(query)
 	assert.NilError(t, err)
-	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("nothing"))
+	err = w.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("nothing"))
 	assert.NilError(t, err)
 	s, err := NewServer(w)
 	assert.NilError(t, err)
@@ -165,9 +165,9 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 
 	// create the ECS transactions
-	fooTxType := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
+	fooTxType := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
 
-	assert.NilError(t, w.RegisterTransactions(fooTxType))
+	assert.NilError(t, w.RegisterMessages(fooTxType))
 
 	// create some txs to submit
 

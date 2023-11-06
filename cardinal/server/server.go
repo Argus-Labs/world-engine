@@ -146,13 +146,13 @@ type EndpointsResult struct {
 }
 
 func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
-	txs, err := world.ListTransactions()
+	txs, err := world.ListMessages()
 	if err != nil {
 		return nil, err
 	}
 	txEndpoints := make([]string, 0, len(txs))
 	for _, tx := range txs {
-		if tx.Name() == ecs.CreatePersonaTx.Name() {
+		if tx.Name() == ecs.CreatePersonaMsg.Name() {
 			txEndpoints = append(txEndpoints, "/tx/persona/"+tx.Name())
 		} else {
 			txEndpoints = append(txEndpoints, gameTxPrefix+tx.Name())

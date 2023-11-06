@@ -10,14 +10,14 @@ import (
 func Move(ctx cardinal.WorldContext) error {
 	logger := ctx.Logger()
 	tx.MoveTx.ForEach(ctx, func(mtx cardinal.TxData[tx.MoveInput]) (tx.MoveOutput, error) {
-		logger.Info().Msgf("got move transaction from: %s", mtx.Sig().PersonaTag)
-		playerEntityID, ok := PlayerEntityID[mtx.Sig().PersonaTag]
+		logger.Info().Msgf("got move transaction from: %s", mtx.Tx().PersonaTag)
+		playerEntityID, ok := PlayerEntityID[mtx.Tx().PersonaTag]
 		if !ok {
-			return tx.MoveOutput{}, fmt.Errorf("player %s has not joined yet", mtx.Sig().PersonaTag)
+			return tx.MoveOutput{}, fmt.Errorf("player %s has not joined yet", mtx.Tx().PersonaTag)
 		}
 		var resultingLoc comp.Location
 		err := cardinal.UpdateComponent[comp.Location](ctx, playerEntityID, func(location *comp.Location) *comp.Location {
-			switch mtx.Value().Direction {
+			switch mtx.Msg().Direction {
 			case "up":
 				location.Y++
 			case "down":
@@ -33,7 +33,7 @@ func Move(ctx cardinal.WorldContext) error {
 		if err != nil {
 			return tx.MoveOutput{}, err
 		}
-		logger.Info().Msgf("player %s now at (%d, %d)", mtx.Sig().PersonaTag, resultingLoc.X, resultingLoc.Y)
+		logger.Info().Msgf("player %s now at (%d, %d)", mtx.Tx().PersonaTag, resultingLoc.X, resultingLoc.Y)
 		return tx.MoveOutput{X: resultingLoc.X, Y: resultingLoc.Y}, err
 	})
 	return nil

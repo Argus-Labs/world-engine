@@ -19,10 +19,10 @@ type CreatePersonaTransactionResult struct {
 	Success bool `json:"success"`
 }
 
-// CreatePersonaTx is a concrete ECS transaction.
-var CreatePersonaTx = NewTransactionType[CreatePersonaTransaction, CreatePersonaTransactionResult](
+// CreatePersonaMsg is a concrete ECS transaction.
+var CreatePersonaMsg = NewMessageType[CreatePersonaTransaction, CreatePersonaTransactionResult](
 	"create-persona",
-	WithTxEVMSupport[CreatePersonaTransaction, CreatePersonaTransactionResult],
+	WithMsgEVMSupport[CreatePersonaTransaction, CreatePersonaTransactionResult],
 )
 
 type AuthorizePersonaAddress struct {
@@ -33,7 +33,7 @@ type AuthorizePersonaAddressResult struct {
 	Success bool `json:"success"`
 }
 
-var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, AuthorizePersonaAddressResult](
+var AuthorizePersonaAddressMsg = NewMessageType[AuthorizePersonaAddress, AuthorizePersonaAddressResult](
 	"authorize-persona-address",
 )
 
@@ -45,9 +45,9 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 	if err != nil {
 		return err
 	}
-	AuthorizePersonaAddressTx.ForEach(wCtx, func(tx TxData[AuthorizePersonaAddress],
+	AuthorizePersonaAddressMsg.ForEach(wCtx, func(tx TxData[AuthorizePersonaAddress],
 	) (AuthorizePersonaAddressResult, error) {
-		val, sig := tx.Value, tx.Sig
+		val, sig := tx.Msg, tx.Tx
 		result := AuthorizePersonaAddressResult{Success: false}
 		data, ok := personaTagToAddress[sig.PersonaTag]
 		if !ok {
@@ -118,7 +118,7 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 // RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
 func RegisterPersonaSystem(wCtx WorldContext) error {
-	createTxs := CreatePersonaTx.In(wCtx)
+	createTxs := CreatePersonaMsg.In(wCtx)
 	if len(createTxs) == 0 {
 		return nil
 	}
@@ -127,28 +127,28 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 		return err
 	}
 	for _, txData := range createTxs {
-		tx := txData.Value
+		tx := txData.Msg
 		if _, ok := personaTagToAddress[tx.PersonaTag]; ok {
 			// This PersonaTag has already been registered. Don't do anything
 			continue
 		}
 		id, err := create(wCtx, SignerComponent{})
 		if err != nil {
-			CreatePersonaTx.AddError(wCtx, txData.TxHash, err)
+			CreatePersonaMsg.AddError(wCtx, txData.MsgHash, err)
 			continue
 		}
 		if err = setComponent[SignerComponent](wCtx, id, &SignerComponent{
 			PersonaTag:    tx.PersonaTag,
 			SignerAddress: tx.SignerAddress,
 		}); err != nil {
-			CreatePersonaTx.AddError(wCtx, txData.TxHash, err)
+			CreatePersonaMsg.AddError(wCtx, txData.MsgHash, err)
 			continue
 		}
 		personaTagToAddress[tx.PersonaTag] = personaTagComponentData{
 			SignerAddress: tx.SignerAddress,
 			EntityID:      id,
 		}
-		CreatePersonaTx.SetResult(wCtx, txData.TxHash, CreatePersonaTransactionResult{
+		CreatePersonaMsg.SetResult(wCtx, txData.MsgHash, CreatePersonaTransactionResult{
 			Success: true,
 		})
 	}

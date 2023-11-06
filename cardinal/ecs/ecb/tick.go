@@ -7,7 +7,6 @@ import (
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -38,7 +37,7 @@ func (m *Manager) GetTickNumbers() (start, end uint64, err error) {
 
 // StartNextTick saves the given transactions to the DB and sets the tick trackers to indicate we are in the middle
 // of a tick. While transactions are saved to the DB, no state changes take place at this time.
-func (m *Manager) StartNextTick(txs []transaction.ITransaction, queue *transaction.TxQueue) error {
+func (m *Manager) StartNextTick(txs []message.ITransaction, queue *message.TxQueue) error {
 	ctx := context.Background()
 	pipe := m.client.TxPipeline()
 	if err := addPendingTransactionToPipe(ctx, pipe, txs, queue); err != nil {
@@ -70,7 +69,7 @@ func (m *Manager) FinalizeTick() error {
 
 // Recover fetches the pending transactions for an incomplete tick. This should only be called if GetTickNumbers
 // indicates that the previous tick was started, but never completed.
-func (m *Manager) Recover(txs []transaction.ITransaction) (*transaction.TxQueue, error) {
+func (m *Manager) Recover(txs []message.ITransaction) (*message.TxQueue, error) {
 	ctx := context.Background()
 	key := redisPendingTransactionKey()
 	bz, err := m.client.Get(ctx, key).Bytes()
@@ -81,12 +80,12 @@ func (m *Manager) Recover(txs []transaction.ITransaction) (*transaction.TxQueue,
 	if err != nil {
 		return nil, err
 	}
-	idToTx := map[transaction.TypeID]transaction.ITransaction{}
+	idToTx := map[message.TypeID]message.ITransaction{}
 	for _, tx := range txs {
 		idToTx[tx.ID()] = tx
 	}
 
-	txQueue := transaction.NewTxQueue()
+	txQueue := message.NewTxQueue()
 	for _, p := range pending {
 		tx := idToTx[p.TypeID]
 		var txData any
@@ -100,14 +99,14 @@ func (m *Manager) Recover(txs []transaction.ITransaction) (*transaction.TxQueue,
 }
 
 type pendingTransaction struct {
-	TypeID transaction.TypeID
-	TxHash transaction.TxHash
+	TypeID message.TypeID
+	TxHash message.TxHash
 	Data   []byte
 	Sig    *sign.Transaction
 }
 
-func addPendingTransactionToPipe(ctx context.Context, pipe redis.Pipeliner, txs []transaction.ITransaction,
-	queue *transaction.TxQueue) error {
+func addPendingTransactionToPipe(ctx context.Context, pipe redis.Pipeliner, txs []message.ITransaction,
+	queue *message.TxQueue) error {
 	var pending []pendingTransaction
 	for _, tx := range txs {
 		currList := queue.ForID(tx.ID())

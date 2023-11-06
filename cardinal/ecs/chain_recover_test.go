@@ -91,8 +91,8 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
 	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
-	sendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
-	err := w.RegisterTransactions(sendEnergyTx)
+	sendEnergyTx := ecs.NewMessageType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
+	err := w.RegisterMessages(sendEnergyTx)
 	assert.NilError(t, err)
 
 	sysRuns := uint64(0)
@@ -125,7 +125,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	assert.Equal(t, len(payloads), timesSendEnergyRan)
 }
 
-func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[SendEnergyTransaction,
+func generateRandomTransaction(t *testing.T, ns string, tx *ecs.MessageType[SendEnergyTransaction,
 	SendEnergyTransactionResponse]) *sign.Transaction {
 	tx1 := SendEnergyTransaction{
 		To:     rand.Str(5),

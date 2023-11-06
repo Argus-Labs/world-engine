@@ -18,18 +18,18 @@ type AddHealthToEntityTx struct {
 
 type AddHealthToEntityResult struct{}
 
-var addHealthToEntity = cardinal.NewTransactionType[AddHealthToEntityTx, AddHealthToEntityResult]("add_health")
+var addHealthToEntity = cardinal.NewMessageType[AddHealthToEntityTx, AddHealthToEntityResult]("add_health")
 
 func TestApis(t *testing.T) {
 	// this test just makes sure certain signatures remain the same.
 	// If they change this test will trigger a compiler error.
 	x := cardinal.TxData[Alpha]{}
-	x.Sig()
+	x.Tx()
 	x.Hash()
-	assert.Equal(t, x.Value().Name(), "alpha")
+	assert.Equal(t, x.Msg().Name(), "alpha")
 	type randoTx struct{}
 	type randoTxResult struct{}
-	cardinal.NewTransactionTypeWithEVMSupport[randoTx, randoTxResult]("rando_with_evm")
+	cardinal.NewMessageTypeWithEVMSupport[randoTx, randoTxResult]("rando_with_evm")
 }
 
 func TestTransactionExample(t *testing.T) {
@@ -39,18 +39,18 @@ func TestTransactionExample(t *testing.T) {
 	cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
 		// test "In" method
 		for _, tx := range addHealthToEntity.In(worldCtx) {
-			targetID := tx.Value().TargetID
+			targetID := tx.Msg().TargetID
 			err := cardinal.UpdateComponent[Health](worldCtx, targetID, func(h *Health) *Health {
-				h.Value = tx.Value().Amount
+				h.Value = tx.Msg().Amount
 				return h
 			})
 			assert.Check(t, err == nil)
 		}
 		// test same as above but with forEach
 		addHealthToEntity.ForEach(worldCtx, func(tx cardinal.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
-			targetID := tx.Value().TargetID
+			targetID := tx.Msg().TargetID
 			err := cardinal.UpdateComponent[Health](worldCtx, targetID, func(h *Health) *Health {
-				h.Value = tx.Value().Amount
+				h.Value = tx.Msg().Amount
 				return h
 			})
 			assert.Check(t, err == nil)

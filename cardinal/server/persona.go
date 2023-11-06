@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -51,7 +50,7 @@ func (handler *Handler) getPersonaSignerResponse(req *QueryPersonaSignerRequest)
 }
 
 func (handler *Handler) generateCreatePersonaResponseFromPayload(payload []byte, sp *sign.Transaction,
-	tx transaction.ITransaction) (*TransactionReply, error) {
+	tx message.ITransaction) (*TransactionReply, error) {
 	txVal, err := tx.Decode(payload)
 	if err != nil {
 		return nil, errors.New("unable to decode transaction")

@@ -324,8 +324,8 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		assert.NilError(t, ecs.RegisterComponent[PowerComp](world))
 
-		powerTx := ecs.NewTransactionType[PowerComp, PowerComp]("change_power")
-		assert.NilError(t, world.RegisterTransactions(powerTx))
+		powerTx := ecs.NewMessageType[PowerComp, PowerComp]("change_power")
+		assert.NilError(t, world.RegisterMessages(powerTx))
 
 		world.AddSystem(func(wCtx ecs.WorldContext) error {
 			q, err := wCtx.NewSearch(ecs.Contains(PowerComp{}))
@@ -336,10 +336,10 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 			changes := powerTx.In(wCtx)
 			assert.Equal(t, 1, len(changes))
-			entityPower.Val += changes[0].Value.Val
+			entityPower.Val += changes[0].Msg.Val
 			assert.NilError(t, component.SetComponent[PowerComp](wCtx, id, entityPower))
 
-			if isBuggyIteration && changes[0].Value.Val == 666 {
+			if isBuggyIteration && changes[0].Msg.Val == 666 {
 				return errorBadPowerChange
 			}
 			return nil

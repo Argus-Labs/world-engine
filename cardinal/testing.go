@@ -22,5 +22,5 @@ func (w *World) TestingGetTransactionReceiptsForTick(tick uint64) ([]Receipt, er
 type CreatePersonaTransaction = ecs.CreatePersonaTransaction
 
 func (w *World) TestingAddCreatePersonaTxToQueue(data CreatePersonaTransaction) {
-	ecs.CreatePersonaTx.AddToQueue(w.implWorld, data)
+	ecs.CreatePersonaMsg.AddToQueue(w.implWorld, data)
 }

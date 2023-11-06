@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -23,7 +24,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
@@ -38,24 +38,24 @@ func (n Namespace) String() string {
 }
 
 type World struct {
-	namespace                Namespace
-	nonceStore               storage.NonceStorage
-	entityStore              store.IManager
-	systems                  []System
-	systemLoggers            []*ecslog.Logger
-	systemNames              []string
-	tick                     uint64
-	nameToComponent          map[string]metadata.ComponentMetadata
-	registeredComponents     []metadata.ComponentMetadata
-	registeredTransactions   []transaction.ITransaction
-	registeredQueries        []IQuery
-	isComponentsRegistered   bool
-	isTransactionsRegistered bool
-	stateIsLoaded            bool
+	namespace              Namespace
+	nonceStore             storage.NonceStorage
+	entityStore            store.IManager
+	systems                []System
+	systemLoggers          []*ecslog.Logger
+	systemNames            []string
+	tick                   uint64
+	nameToComponent        map[string]metadata.ComponentMetadata
+	registeredComponents   []metadata.ComponentMetadata
+	registeredMessages     []message.Message
+	registeredQueries      []IQuery
+	isComponentsRegistered bool
+	isMessagesRegistered   bool
+	stateIsLoaded          bool
 
 	evmTxReceipts map[string]EVMTxReceipt
 
-	txQueue *transaction.TxQueue
+	txQueue *message.TxQueue
 
 	receiptHistory *receipt.History
 
@@ -75,10 +75,10 @@ type World struct {
 }
 
 var (
-	ErrTransactionRegistrationMustHappenOnce = errors.New("transaction registration must happen exactly 1 time")
-	ErrStoreStateInvalid                     = errors.New("saved world state is not valid")
-	ErrDuplicateTransactionName              = errors.New("transaction names must be unique")
-	ErrDuplicateQueryName                    = errors.New("query names must be unique")
+	ErrMessageRegistrationMustHappenOnce = errors.New("message registration must happen exactly 1 time")
+	ErrStoreStateInvalid                 = errors.New("saved world state is not valid")
+	ErrDuplicateMessageName              = errors.New("message names must be unique")
+	ErrDuplicateQueryName                = errors.New("query names must be unique")
 )
 
 const (
@@ -193,26 +193,26 @@ func (w *World) RegisterQueries(queries ...IQuery) error {
 	return nil
 }
 
-func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
+func (w *World) RegisterMessages(txs ...message.Message) error {
 	if w.stateIsLoaded {
-		panic("cannot register transactions after loading game state")
+		panic("cannot register messages after loading game state")
 	}
-	if w.isTransactionsRegistered {
-		return ErrTransactionRegistrationMustHappenOnce
+	if w.isMessagesRegistered {
+		return ErrMessageRegistrationMustHappenOnce
 	}
-	w.isTransactionsRegistered = true
-	w.registerInternalTransactions()
-	w.registeredTransactions = append(w.registeredTransactions, txs...)
+	w.isMessagesRegistered = true
+	w.registerInternalMessages()
+	w.registeredMessages = append(w.registeredMessages, txs...)
 
 	seenTxNames := map[string]bool{}
-	for i, t := range w.registeredTransactions {
+	for i, t := range w.registeredMessages {
 		name := t.Name()
 		if seenTxNames[name] {
-			return fmt.Errorf("duplicate tx %q: %w", name, ErrDuplicateTransactionName)
+			return fmt.Errorf("duplicate tx %q: %w", name, ErrDuplicateMessageName)
 		}
 		seenTxNames[name] = true
 
-		id := transaction.TypeID(i + 1)
+		id := message.TypeID(i + 1)
 		if err := t.SetID(id); err != nil {
 			return err
 		}
@@ -220,10 +220,10 @@ func (w *World) RegisterTransactions(txs ...transaction.ITransaction) error {
 	return nil
 }
 
-func (w *World) registerInternalTransactions() {
-	w.registeredTransactions = append(w.registeredTransactions,
-		CreatePersonaTx,
-		AuthorizePersonaAddressTx,
+func (w *World) registerInternalMessages() {
+	w.registeredMessages = append(w.registeredMessages,
+		CreatePersonaMsg,
+		AuthorizePersonaAddressMsg,
 	)
 }
 
@@ -231,11 +231,11 @@ func (w *World) ListQueries() []IQuery {
 	return w.registeredQueries
 }
 
-func (w *World) ListTransactions() ([]transaction.ITransaction, error) {
-	if !w.isTransactionsRegistered {
-		return nil, errors.New("cannot list transactions until transaction registration occurs")
+func (w *World) ListMessages() ([]message.Message, error) {
+	if !w.isMessagesRegistered {
+		return nil, errors.New("cannot list messages until message registration occurs")
 	}
-	return w.registeredTransactions, nil
+	return w.registeredMessages, nil
 }
 
 // NewWorld creates a new world.
@@ -251,7 +251,7 @@ func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts 
 		tick:              0,
 		systems:           make([]System, 0),
 		nameToComponent:   make(map[string]metadata.ComponentMetadata),
-		txQueue:           transaction.NewTxQueue(),
+		txQueue:           message.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
 		endGameLoopCh:     make(chan bool),
@@ -286,19 +286,19 @@ func (w *World) Remove(id entity.ID) error {
 	return w.StoreManager().RemoveEntity(id)
 }
 
-// ConsumeEVMTxResult consumes a tx result from an EVM originated Cardinal transaction.
+// ConsumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
 // It will fetch the receipt from the map, and then delete ('consume') it from the map.
-func (w *World) ConsumeEVMTxResult(evmTxHash string) (EVMTxReceipt, bool) {
+func (w *World) ConsumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
 	r, ok := w.evmTxReceipts[evmTxHash]
 	delete(w.evmTxReceipts, evmTxHash)
 	return r, ok
 }
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
-// Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
+// Instead, use a MessageType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.Transaction) (
-	tick uint64, txHash transaction.TxHash,
+func (w *World) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) (
+	tick uint64, txHash message.MsgHash,
 ) {
 	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
 	// transaction is actually added to the returned tick.
@@ -307,8 +307,8 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.Transacti
 	return tick, txHash
 }
 
-func (w *World) AddEVMTransaction(id transaction.TypeID, v any, sig *sign.Transaction, evmTxHash string) (
-	tick uint64, txHash transaction.TxHash,
+func (w *World) AddEVMTransaction(id message.TypeID, v any, sig *sign.Transaction, evmTxHash string) (
+	tick uint64, txHash message.MsgHash,
 ) {
 	tick = w.CurrentTick()
 	txHash = w.txQueue.AddEVMTransaction(id, v, sig, evmTxHash)
@@ -338,7 +338,7 @@ func (w *World) Tick(_ context.Context) error {
 	}
 	txQueue := w.txQueue.CopyTransactions()
 
-	if err := w.TickStore().StartNextTick(w.registeredTransactions, txQueue); err != nil {
+	if err := w.TickStore().StartNextTick(w.registeredMessages, txQueue); err != nil {
 		return err
 	}
 
@@ -384,17 +384,17 @@ type EVMTxReceipt struct {
 	EVMTxHash string
 }
 
-func (w *World) setEvmResults(txs []transaction.TxAny) {
+func (w *World) setEvmResults(txs []message.TxData) {
 	// iterate over all EVM originated transactions
 	for _, tx := range txs {
 		// see if tx has a receipt. sometimes it won't because:
 		// The system isn't using TxIterators && never explicitly called SetResult.
-		rec, ok := w.receiptHistory.GetReceipt(tx.TxHash)
+		rec, ok := w.receiptHistory.GetReceipt(tx.MsgHash)
 		if !ok {
 			continue
 		}
 		evmRec := EVMTxReceipt{EVMTxHash: tx.EVMSourceTxHash}
-		itx := w.getITx(tx.TxID)
+		itx := w.getITx(tx.MsgID)
 		if rec.Result != nil {
 			abiBz, err := itx.ABIEncode(rec.Result)
 			if err != nil {
@@ -416,8 +416,8 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 	if !w.isComponentsRegistered {
 		w.Logger.Warn().Msg("No components registered.")
 	}
-	if !w.isTransactionsRegistered {
-		w.Logger.Warn().Msg("No transactions registered.")
+	if !w.isMessagesRegistered {
+		w.Logger.Warn().Msg("No messages registered.")
 	}
 	if len(w.registeredQueries) == 0 {
 		w.Logger.Warn().Msg("No queries registered.")
@@ -498,7 +498,7 @@ func (w *World) Shutdown() {
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
 // transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
 // transactions that need to be processed because the last tick was successful.
-func (w *World) recoverGameState() (recoveredTxs *transaction.TxQueue, err error) {
+func (w *World) recoverGameState() (recoveredTxs *message.TxQueue, err error) {
 	start, end, err := w.TickStore().GetTickNumbers()
 	if err != nil {
 		return nil, err
@@ -509,15 +509,15 @@ func (w *World) recoverGameState() (recoveredTxs *transaction.TxQueue, err error
 		//nolint:nilnil // its ok.
 		return nil, nil
 	}
-	return w.TickStore().Recover(w.registeredTransactions)
+	return w.TickStore().Recover(w.registeredMessages)
 }
 
 func (w *World) LoadGameState() error {
 	if w.stateIsLoaded {
 		return errors.New("cannot load game state multiple times")
 	}
-	if !w.isTransactionsRegistered {
-		if err := w.RegisterTransactions(); err != nil {
+	if !w.isMessagesRegistered {
+		if err := w.RegisterMessages(); err != nil {
 			return err
 		}
 	}
@@ -600,7 +600,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				itx := w.getITx(transaction.TypeID(tx.TxId))
+				itx := w.getITx(message.TypeID(tx.TxId))
 				if itx == nil {
 					return fmt.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
 				}
@@ -608,7 +608,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				w.AddTransaction(transaction.TypeID(tx.TxId), v, w.protoTransactionToGo(sp))
+				w.AddTransaction(message.TypeID(tx.TxId), v, w.protoTransactionToGo(sp))
 			}
 			// run the tick for this batch
 			if err = w.Tick(ctx); err != nil {
@@ -647,16 +647,15 @@ func (w *World) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
 	return payload, err
 }
 
-// getITx iterates over the registered transactions and returns the ITransaction associated with the TypeID.
-func (w *World) getITx(id transaction.TypeID) transaction.ITransaction {
-	var itx transaction.ITransaction
-	for _, tx := range w.registeredTransactions {
-		if id == tx.ID() {
-			itx = tx
-			break
+// getITx iterates over the registered all message.Message and returns the message.Message associated with the
+// message.TypeID.
+func (w *World) getITx(id message.TypeID) message.Message {
+	for _, msg := range w.registeredMessages {
+		if id == msg.ID() {
+			return msg
 		}
 	}
-	return itx
+	return nil
 }
 
 func (w *World) GetNonce(signerAddress string) (uint64, error) {
@@ -667,15 +666,15 @@ func (w *World) SetNonce(signerAddress string, nonce uint64) error {
 	return w.nonceStore.SetNonce(signerAddress, nonce)
 }
 
-func (w *World) AddTransactionError(id transaction.TxHash, err error) {
+func (w *World) AddMessageError(id message.MsgHash, err error) {
 	w.receiptHistory.AddError(id, err)
 }
 
-func (w *World) SetTransactionResult(id transaction.TxHash, a any) {
+func (w *World) SetMessageResult(id message.MsgHash, a any) {
 	w.receiptHistory.SetResult(id, a)
 }
 
-func (w *World) GetTransactionReceipt(id transaction.TxHash) (any, []error, bool) {
+func (w *World) GetTransactionReceipt(id message.MsgHash) (any, []error, bool) {
 	rec, ok := w.receiptHistory.GetReceipt(id)
 	if !ok {
 		return nil, nil, false

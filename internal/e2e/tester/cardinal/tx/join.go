@@ -9,4 +9,4 @@ type JoinInput struct {
 
 type JoinOutput struct{}
 
-var JoinTx = cardinal.NewTransactionTypeWithEVMSupport[JoinInput, JoinOutput]("join")
+var JoinTx = cardinal.NewMessageTypeWithEVMSupport[JoinInput, JoinOutput]("join")

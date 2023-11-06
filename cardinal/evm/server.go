@@ -12,7 +12,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
@@ -43,7 +42,7 @@ type Server interface {
 }
 
 // txByName maps transaction type ID's to transaction types.
-type txByName map[string]transaction.ITransaction
+type txByName map[string]message.ITransaction
 
 // queryByName maps query resource names to the underlying IQuery.
 type queryByName map[string]ecs.IQuery
@@ -71,7 +70,7 @@ type msgServerImpl struct {
 func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	hasEVMTxsOrQueries := false
 
-	txs, err := w.ListTransactions()
+	txs, err := w.ListMessages()
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +243,7 @@ func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessage
 	}
 
 	// check for the tx receipt.
-	receipt, ok := s.world.ConsumeEVMTxResult(msg.EvmTxHash)
+	receipt, ok := s.world.ConsumeEVMMsgResult(msg.EvmTxHash)
 	if !ok {
 		return &routerv1.SendMessageResponse{
 			EvmTxHash: msg.EvmTxHash,
