@@ -30,18 +30,18 @@ func initAllowlist(_ runtime.Logger, initializer runtime.Initializer) error {
 	enabledStr := os.Getenv(allowlistEnabledEnvVar)
 	if enabledStr == "" {
 		return nil
-	} else {
-		var err error
-		allowlistEnabled, err = strconv.ParseBool(enabledStr)
-		if err != nil {
-			return fmt.Errorf("the ENABLE_ALLOWLIST flag was set, however the variable %q was an invalid "+
-				"boolean: %w", enabledStr, err)
-		}
 	}
+	var err error
+	allowlistEnabled, err = strconv.ParseBool(enabledStr)
+	if err != nil {
+		return fmt.Errorf("the ENABLE_ALLOWLIST flag was set, however the variable %q was an invalid "+
+			"boolean: %w", enabledStr, err)
+	}
+
 	if !allowlistEnabled {
 		return nil
 	}
-	err := initializer.RegisterRpc("generate-beta-keys", allowListRPC)
+	err = initializer.RegisterRpc("generate-beta-keys", allowListRPC)
 	if err != nil {
 		return err
 	}
@@ -64,12 +64,16 @@ type GenKeysResponse struct {
 type KeyStorage struct {
 	Key    string
 	UsedBy string
-	//UsedOn time.Time
-	Used bool
+	Used   bool
 }
 
-func allowListRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+func allowListRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
+	string, error,
+) {
 	id, err := getUserID(ctx)
+	if err != nil {
+		return "", err
+	}
 	if id != adminAccountID {
 		return "", fmt.Errorf("unauthorized: only admin may call this RPC")
 	}
@@ -83,10 +87,6 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk run
 	keys, err := generateBetaKeys(msg.Amount)
 	if err != nil {
 		return "", fmt.Errorf("error generating beta keys: %w", err)
-	}
-
-	if err != nil {
-		return "", err
 	}
 
 	writes := make([]*runtime.StorageWrite, 0, len(keys))
@@ -131,7 +131,9 @@ type ClaimKeyRes struct {
 	Success bool `json:"success"`
 }
 
-func claimKeyRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+func claimKeyRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
+	string, error,
+) {
 	userID, err := getUserID(ctx)
 	if err != nil {
 		return "", err
@@ -219,7 +221,7 @@ func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStor
 	if err != nil {
 		return nil, fmt.Errorf("error reading storage object for key: %w", err)
 	}
-	if objs == nil || len(objs) == 0 {
+	if len(objs) == 0 {
 		return nil, ErrInvalidBetaKey
 	}
 
@@ -283,9 +285,10 @@ func generateRandomBytes(n int) ([]byte, error) {
 }
 
 func generateBetaKeys(n int) ([]string, error) {
+	const bzLen = 16
 	keys := make([]string, 0, n)
 	for i := 0; i < n; i++ {
-		randomBytes, err := generateRandomBytes(16) // 16 bytes for the desired format
+		randomBytes, err := generateRandomBytes(bzLen) // 16 bytes for the desired format
 		if err != nil {
 			return nil, err
 		}
