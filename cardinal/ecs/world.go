@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"google.golang.org/protobuf/proto"
+	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -596,7 +596,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			// we've now reached target. we need to inject the transactions and tick.
 			transactions := tickedTxs.Txs
 			for _, tx := range transactions {
-				sp, err := w.decodeTransaction(tx.SignedPayload)
+				sp, err := w.decodeTransaction(tx.GameShardTransaction)
 				if err != nil {
 					return err
 				}
@@ -608,7 +608,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				w.AddTransaction(transaction.TypeID(tx.TxId), v, w.protoSignedPayloadToGo(sp))
+				w.AddTransaction(transaction.TypeID(tx.TxId), v, w.protoTransactionToGo(sp))
 			}
 			// run the tick for this batch
 			if err = w.Tick(ctx); err != nil {
@@ -631,7 +631,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	return nil
 }
 
-func (w *World) protoSignedPayloadToGo(sp *shardv1.SignedPayload) *sign.Transaction {
+func (w *World) protoTransactionToGo(sp *shardv1.Transaction) *sign.Transaction {
 	return &sign.Transaction{
 		PersonaTag: sp.PersonaTag,
 		Namespace:  sp.Namespace,
@@ -641,8 +641,8 @@ func (w *World) protoSignedPayloadToGo(sp *shardv1.SignedPayload) *sign.Transact
 	}
 }
 
-func (w *World) decodeTransaction(bz []byte) (*shardv1.SignedPayload, error) {
-	payload := new(shardv1.SignedPayload)
+func (w *World) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
+	payload := new(shardv1.Transaction)
 	err := proto.Unmarshal(bz, payload)
 	return payload, err
 }

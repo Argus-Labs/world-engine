@@ -151,7 +151,7 @@ func AddTransactionToWorldByAnyTransaction(
 	world *cardinal.World,
 	cardinalTx cardinal.AnyTransaction,
 	value any,
-	signedPayload *sign.Transaction) {
+	tx *sign.Transaction) {
 	worldCtx := WorldToWorldContext(world)
 	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
 
@@ -172,7 +172,7 @@ func AddTransactionToWorldByAnyTransaction(
 			cardinalTx.Convert().Name()))
 	}
 
-	_, _ = ecsWorld.AddTransaction(txID, value, signedPayload)
+	_, _ = ecsWorld.AddTransaction(txID, value, tx)
 }
 
 // MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World

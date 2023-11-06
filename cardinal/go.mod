@@ -14,15 +14,13 @@ replace (
 )
 
 require (
-	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230808004839-11a21a99bf62.1
-	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230808004839-11a21a99bf62.1
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/cometbft/cometbft v0.38.0-rc3
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.26.0
-	github.com/google/uuid v1.3.0
+	github.com/google/uuid v1.3.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/invopop/jsonschema v0.7.0
 	github.com/mitchellh/mapstructure v1.5.0
@@ -32,8 +30,8 @@ require (
 	google.golang.org/grpc v1.58.3
 	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.1
-	pkg.world.dev/world-engine/chain v0.1.11-alpha
-	pkg.world.dev/world-engine/rift v0.0.5-0.20231101203803-499e27c9ed1a
+	pkg.world.dev/world-engine/chain v0.1.12-alpha
+	pkg.world.dev/world-engine/rift v0.0.5
 	pkg.world.dev/world-engine/sign v0.1.10-alpha
 )
 
@@ -73,7 +71,6 @@ require (
 	github.com/dgryski/go-farm v0.0.0-20200201041132-a6ae2369ad13 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/emicklei/dot v1.6.0 // indirect
 	github.com/getsentry/sentry-go v0.23.0 // indirect
 	github.com/go-kit/kit v0.13.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
@@ -115,7 +112,6 @@ require (
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20230110094441-db37f07504ce // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
-	github.com/onsi/gomega v1.27.10 // indirect
 	github.com/petermattis/goid v0.0.0-20230808133559-b036b712a89b // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect

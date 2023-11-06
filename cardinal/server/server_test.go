@@ -500,10 +500,10 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 		SignerAddress: signerAddr,
 	}
 
-	signedPayload, err := sign.NewSystemTransaction(privateKey, world.Namespace().String(), 100, createPersonaTx)
+	systemTx, err := sign.NewSystemTransaction(privateKey, world.Namespace().String(), 100, createPersonaTx)
 	assert.NilError(t, err)
 
-	bz, err := signedPayload.Marshal()
+	bz, err := systemTx.Marshal()
 	assert.NilError(t, err)
 
 	resp, err := http.Post(txh.MakeHTTPURL(urlSet[0]), "application/json", bytes.NewReader(bz))

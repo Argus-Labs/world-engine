@@ -33,7 +33,7 @@ func getSignerAddressFromPayload(sp sign.Transaction) (string, error) {
 	return createPersonaTx.SignerAddress, nil
 }
 
-func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.Transaction, isSystemTransaction bool,
+func (handler *Handler) verifySignature(sp *sign.Transaction, isSystemTransaction bool,
 ) (sig *sign.Transaction, err error) {
 	if sp.PersonaTag == "" {
 		return nil, errors.New("PersonaTag must not be empty")
@@ -96,7 +96,7 @@ func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface
 	if err != nil {
 		return nil, nil, err
 	}
-	sig, err = handler.verifySignatureOfSignedPayload(sp, isSystemTransaction)
+	sig, err = handler.verifySignature(sp, isSystemTransaction)
 	if err != nil {
 		return nil, nil, err
 	}

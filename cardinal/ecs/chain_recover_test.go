@@ -6,9 +6,9 @@ import (
 	"sort"
 	"testing"
 
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
+	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 
 	"github.com/cometbft/cometbft/libs/rand"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -24,7 +24,7 @@ type DummyAdapter struct {
 }
 
 func (d *DummyAdapter) Submit(_ context.Context, p *sign.Transaction, txID, tick uint64) error {
-	sp := &shardv1.SignedPayload{
+	sp := &shardv1.Transaction{
 		PersonaTag: p.PersonaTag,
 		Namespace:  p.Namespace,
 		Nonce:      p.Nonce,
@@ -39,8 +39,8 @@ func (d *DummyAdapter) Submit(_ context.Context, p *sign.Transaction, txID, tick
 		d.txs[tick] = make([]*types.Transaction, 0)
 	}
 	d.txs[tick] = append(d.txs[tick], &types.Transaction{
-		TxId:          txID,
-		SignedPayload: bz,
+		TxId:                 txID,
+		GameShardTransaction: bz,
 	})
 	return nil
 }
