@@ -6,7 +6,7 @@ rollup:
 	./chain/scripts/start.sh --build
 
 game:
-	@docker compose up game nakama
+	@docker compose up game nakama --abort-on-container-exit postgres redis
 
 forge-build: |
 	@forge build --extra-output-files bin --extra-output-files abi  --root chain/precompile/contracts

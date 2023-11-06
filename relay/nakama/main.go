@@ -106,6 +106,10 @@ func InitModule(
 		return fmt.Errorf("failed to init cardinal endpoints: %w", err)
 	}
 
+	if err := initAllowlist(logger, initializer); err != nil {
+		return fmt.Errorf("failed to init allowlist endpoints: %w", err)
+	}
+
 	return nil
 }
 
@@ -233,6 +237,17 @@ type nakamaRPCHandler func(ctx context.Context, logger runtime.Logger, db *sql.D
 func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) nakamaRPCHandler {
 	return func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (
 		string, error) {
+		userID, err := getUserID(ctx)
+		if err != nil {
+			return logError(logger, "unable to get userID: %w", err)
+		}
+
+		// check if the user is verified. this requires them to input a valid beta key.
+		err = checkVerified(ctx, nk, userID)
+		if err != nil {
+			return "", fmt.Errorf("unable to claim a persona tag: %w", err)
+		}
+
 		if ptr, err := loadPersonaTagStorageObj(ctx, nk); err != nil && !errors.Is(err, ErrPersonaTagStorageObjNotFound) {
 			return logError(logger, "unable to get persona tag storage object: %w", err)
 		} else if err == nil {
@@ -256,10 +271,6 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			return logCode(logger, InvalidArgument, "personaTag field must not be empty")
 		}
 
-		userID, err := getUserID(ctx)
-		if err != nil {
-			return logError(logger, "unable to get userID: %w", err)
-		}
 		txHash, tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
 		if err != nil {
 			return logError(logger, "unable to make create persona request to cardinal: %v", err)
