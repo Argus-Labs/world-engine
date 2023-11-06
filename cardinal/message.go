@@ -18,7 +18,7 @@ type TxData[T any] struct {
 }
 
 // MessageType represents a type of message that can be executed on the World object. The Msg struct represents
-// the input for a specific transaction, and the Result struct represents the result of processing the transaction.
+// the input, and the Result struct represents the result of processing the message.
 type MessageType[Msg, Result any] struct {
 	impl *ecs.MessageType[Msg, Result]
 }
@@ -30,8 +30,8 @@ func NewMessageType[Msg, Result any](name string) *MessageType[Msg, Result] {
 	}
 }
 
-// NewMessageTypeWithEVMSupport creates a new instance of a MessageType, with EVM transactions enabled.
-// This allows this transaction to be sent from EVM smart contracts on the EVM base shard.
+// NewMessageTypeWithEVMSupport creates a new instance of a MessageType, with EVM messages enabled.
+// This allows this message to be sent from EVM smart contracts on the EVM base shard.
 func NewMessageTypeWithEVMSupport[Msg, Result any](name string) *MessageType[Msg, Result] {
 	return &MessageType[Msg, Result]{
 		impl: ecs.NewMessageType[Msg, Result](name, ecs.WithMsgEVMSupport[Msg, Result]),
