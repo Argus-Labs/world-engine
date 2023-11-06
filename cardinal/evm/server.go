@@ -231,7 +231,7 @@ func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessage
 
 	// since we are injecting the tx directly, all we need is the persona tag in the signed payload.
 	// the sig checking happens in the server's Handler, not in ecs.World.
-	sig := &sign.SignedPayload{PersonaTag: sc.PersonaTag}
+	sig := &sign.Transaction{PersonaTag: sc.PersonaTag}
 	s.world.AddEVMTransaction(itx.ID(), tx, sig, msg.EvmTxHash)
 
 	// wait for the next tick so the tx gets processed

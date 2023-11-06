@@ -211,7 +211,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	}
 	bz, err := json.Marshal(tx)
 	assert.NilError(t, err)
-	payload := &sign.SignedPayload{
+	payload := &sign.Transaction{
 		PersonaTag: "meow",
 		Namespace:  w.Namespace().String(),
 		Nonce:      40,
@@ -273,7 +273,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	authorizedPersonaAddress := ecs.AuthorizePersonaAddress{
 		Address: signerAddress,
 	}
-	ecs.AuthorizePersonaAddressTx.AddToQueue(w, authorizedPersonaAddress, &sign.SignedPayload{PersonaTag: personaTag})
+	ecs.AuthorizePersonaAddressTx.AddToQueue(w, authorizedPersonaAddress, &sign.Transaction{PersonaTag: personaTag})
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
 
 	// create readers
@@ -373,7 +373,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	personaAddressJSON, err := json.Marshal(authorizedPersonaAddress)
 	assert.NilError(t, err)
 	// tx/game/authorize-persona-address
-	signedTxPayload := sign.SignedPayload{
+	signedTxPayload := sign.Transaction{
 		PersonaTag: personaTag,
 		Namespace:  "some_namespace",
 		Nonce:      100,
@@ -460,7 +460,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	}
 	bz, err := json.Marshal(tx)
 	assert.NilError(t, err)
-	signedTx := sign.SignedPayload{
+	signedTx := sign.Transaction{
 		PersonaTag: "some_persona",
 		Namespace:  "some_namespace",
 		Nonce:      100,
@@ -500,10 +500,10 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 		SignerAddress: signerAddr,
 	}
 
-	signedPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace().String(), 100, createPersonaTx)
+	systemTx, err := sign.NewSystemTransaction(privateKey, world.Namespace().String(), 100, createPersonaTx)
 	assert.NilError(t, err)
 
-	bz, err := signedPayload.Marshal()
+	bz, err := systemTx.Marshal()
 	assert.NilError(t, err)
 
 	resp, err := http.Post(txh.MakeHTTPURL(urlSet[0]), "application/json", bytes.NewReader(bz))
@@ -567,7 +567,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
-	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, "bad_namespace", 100, createPersonaTx)
+	sigPayload, err := sign.NewTransaction(privateKey, personaTag, "bad_namespace", 100, createPersonaTx)
 	assert.NilError(t, err)
 
 	bz, err := sigPayload.Marshal()
@@ -578,7 +578,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// The namespace now matches the world
-	sigPayload, err = sign.NewSystemSignedPayload(privateKey, world.Namespace().String(), 100, createPersonaTx)
+	sigPayload, err = sign.NewSystemTransaction(privateKey, world.Namespace().String(), 100, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -605,7 +605,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
-	sigPayload, err := sign.NewSystemSignedPayload(privateKey, namespace, 100, createPersonaTx)
+	sigPayload, err := sign.NewSystemTransaction(privateKey, namespace, 100, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -621,7 +621,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// Using an old nonce should fail
-	sigPayload, err = sign.NewSystemSignedPayload(privateKey, namespace, 50, createPersonaTx)
+	sigPayload, err = sign.NewSystemTransaction(privateKey, namespace, 50, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -630,7 +630,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// But increasing the nonce should work
-	sigPayload, err = sign.NewSystemSignedPayload(privateKey, namespace, 101, createPersonaTx)
+	sigPayload, err = sign.NewSystemTransaction(privateKey, namespace, 101, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -907,9 +907,9 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	nonce := uint64(0)
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
-	nextSig := func() *sign.SignedPayload {
-		var sig *sign.SignedPayload
-		sig, err = sign.NewSignedPayload(privateKey, "my-persona-tag", "namespace", nonce,
+	nextSig := func() *sign.Transaction {
+		var sig *sign.Transaction
+		sig, err = sign.NewTransaction(privateKey, "my-persona-tag", "namespace", nonce,
 			`{"data": "stuff"}`)
 		assert.NilError(t, err)
 		nonce++
@@ -994,7 +994,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 		SignerAddress: signerAddr,
 	}
 
-	sigPayload, err := sign.NewSystemSignedPayload(privateKey, namespace, nonce, createPersonaTx)
+	sigPayload, err := sign.NewSystemTransaction(privateKey, namespace, nonce, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -1016,7 +1016,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	// Also check to make sure transaction IDs are returned for other kinds of transactions
 	nonce++
 	emptyData := map[string]any{}
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, nonce, emptyData)
+	sigPayload, err = sign.NewTransaction(privateKey, personaTag, namespace, nonce, emptyData)
 	assert.NilError(t, err)
 
 	bz, err = sigPayload.Marshal()
@@ -1041,7 +1041,7 @@ type adapterMock struct {
 	hold   chan bool
 }
 
-func (a *adapterMock) Submit(_ context.Context, _ *sign.SignedPayload, _, _ uint64) error {
+func (a *adapterMock) Submit(_ context.Context, _ *sign.Transaction, _, _ uint64) error {
 	a.called++
 	return nil
 }
@@ -1071,7 +1071,7 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	assert.NilError(t, err)
 	personaTag := "clifford_the_big_red_dog"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	sigPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace().String(), 1,
+	sigPayload, err := sign.NewSystemTransaction(privateKey, world.Namespace().String(), 1,
 		ecs.CreatePersonaTransaction{
 			PersonaTag:    personaTag,
 			SignerAddress: signerAddr,
@@ -1085,7 +1085,7 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, adapter.called, 1)
 
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, world.Namespace().String(), 2,
+	sigPayload, err = sign.NewTransaction(privateKey, personaTag, world.Namespace().String(), 2,
 		MoveTx{Direction: "up"})
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
@@ -1119,7 +1119,7 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 	assert.NilError(t, err)
 	personaTag := "clifford_the_big_red_dog"
 
-	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, world.Namespace().String(), 2,
+	sigPayload, err := sign.NewTransaction(privateKey, personaTag, world.Namespace().String(), 2,
 		MoveTx{Direction: "up"})
 	assert.NilError(t, err)
 	bz, err := sigPayload.Marshal()

@@ -1,8 +1,6 @@
 package shard
 
 import (
-	shardgrpc "buf.build/gen/go/argus-labs/world-engine/grpc/go/shard/v1/shardv1grpc"
-	shard "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
 	"crypto/tls"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -13,6 +11,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"net"
 	"os"
+	shard "pkg.world.dev/world-engine/rift/shard/v1"
 	"strconv"
 	"sync"
 
@@ -24,12 +23,13 @@ const (
 )
 
 var (
-	Name                              = "shard_sequencer"
-	_    shardgrpc.ShardHandlerServer = &Sequencer{}
+	Name                          = "shard_sequencer"
+	_    shard.ShardHandlerServer = &Sequencer{}
 )
 
 // Sequencer handles sequencing game shard transactions.
 type Sequencer struct {
+	shard.UnimplementedShardHandlerServer
 	moduleAddr sdk.AccAddress
 	tq         *TxQueue
 
@@ -87,7 +87,7 @@ func loadCredentials(certPath, keyPath string) (credentials.TransportCredentials
 // Serve serves the server in a new go routine.
 func (s *Sequencer) Serve() {
 	grpcServer := grpc.NewServer(grpc.Creds(s.creds))
-	shardgrpc.RegisterShardHandlerServer(grpcServer, s)
+	shard.RegisterShardHandlerServer(grpcServer, s)
 	port := defaultPort
 	// check if a custom port was set
 	if setPort := os.Getenv("SHARD_SEQUENCER_PORT"); setPort != "" {

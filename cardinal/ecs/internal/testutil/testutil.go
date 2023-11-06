@@ -93,9 +93,9 @@ func init() {
 	}
 }
 
-func UniqueSignature(t *testing.T) *sign.SignedPayload {
+func UniqueSignature(t *testing.T) *sign.Transaction {
 	nonce++
-	sig, err := sign.NewSignedPayload(privateKey, "some-persona-tag", "namespace", nonce, `{"some":"data"}`)
+	sig, err := sign.NewTransaction(privateKey, "some-persona-tag", "namespace", nonce, `{"some":"data"}`)
 	assert.NilError(t, err)
 	return sig
 }
