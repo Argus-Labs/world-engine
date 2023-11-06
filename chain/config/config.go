@@ -9,8 +9,8 @@ type WorldEngineConfig struct {
 	// Bech32Prefix is the prefix that all accounts on the chain will have. (i.e. cosmos, akash, evmos...).
 	Bech32Prefix string `json:"bech32Prefix" yaml:"bech32Prefix"`
 
-	// RouterAuthority is the address that will be able to update the shard namespace mapping.
+	// NamespaceAuthority is the address that will be able to update the shard namespace mapping.
 	// If left blank, the governance module address will be used, and router namespaces will be updated via
 	// chain governance.
-	RouterAuthority string `json:"routerAuthority" yaml:"routerAuthority"`
+	NamespaceAuthority string `json:"routerAuthority" yaml:"routerAuthority"`
 }

@@ -43,6 +43,7 @@ for dir in $proto_dirs; do
   done
 done
 
+# move proto files to the right places
 cp -r pkg.world.dev/world-engine/chain/* ../
 rm -rf pkg.world.dev
 

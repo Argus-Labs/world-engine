@@ -1,0 +1,10 @@
+syntax = "proto3";
+package namespace.v1;
+import "namespace/v1/query.proto";
+
+option go_package = "pkg.world.dev/world-engine/chain/x/namespace/types";
+
+
+message Genesis {
+  repeated Namespace namespaces = 1;
+}
