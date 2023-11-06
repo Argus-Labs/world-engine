@@ -292,7 +292,7 @@ func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 		assert.NilError(t, world.RegisterMessages(someTx))
 		world.AddSystem(func(wCtx ecs.WorldContext) error {
 			for _, tx := range someTx.In(wCtx) {
-				someTx.SetResult(wCtx, tx.MsgHash, Result{})
+				someTx.SetResult(wCtx, tx.Hash, Result{})
 			}
 			return nil
 		})

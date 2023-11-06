@@ -126,9 +126,9 @@ func (t *MessageType[In, Out]) SetID(id message.TypeID) error {
 }
 
 type TxData[In any] struct {
-	MsgHash message.Hash
-	Msg     In
-	Tx      *sign.Transaction
+	Hash message.Hash
+	Msg  In
+	Tx   *sign.Transaction
 }
 
 func (t *MessageType[In, Out]) AddError(wCtx WorldContext, hash message.Hash, err error) {
@@ -162,13 +162,13 @@ func (t *MessageType[In, Out]) ForEach(wCtx WorldContext, fn func(TxData[In]) (O
 	for _, txData := range t.In(wCtx) {
 		if result, err := fn(txData); err != nil {
 			wCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v",
-				txData.MsgHash,
+				txData.Hash,
 				txData.Tx.PersonaTag,
 				txData.Msg,
 			)
-			t.AddError(wCtx, txData.MsgHash, err)
+			t.AddError(wCtx, txData.Hash, err)
 		} else {
-			t.SetResult(wCtx, txData.MsgHash, result)
+			t.SetResult(wCtx, txData.Hash, result)
 		}
 	}
 }
@@ -180,9 +180,9 @@ func (t *MessageType[In, Out]) In(wCtx WorldContext) []TxData[In] {
 	for _, txData := range tq.ForID(t.ID()) {
 		if val, ok := txData.Msg.(In); ok {
 			txs = append(txs, TxData[In]{
-				MsgHash: txData.MsgHash,
-				Msg:     val,
-				Tx:      txData.Tx,
+				Hash: txData.MsgHash,
+				Msg:  val,
+				Tx:   txData.Tx,
 			})
 		}
 	}

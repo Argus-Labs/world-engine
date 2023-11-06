@@ -33,7 +33,7 @@ func ExampleTransactionType() {
 	cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
 		for _, tx := range MoveTx.In(wCtx) {
 			msg := tx.Msg()
-			// handle the transaction
+			// handle the msg
 			// ...
 
 			// save the result
@@ -42,7 +42,7 @@ func ExampleTransactionType() {
 				FinalY: msg.DeltaY,
 			})
 
-			// optionally, add an error to the transaction
+			// optionally, add an error
 			MoveTx.AddError(wCtx, tx.Hash(), errors.New("some error"))
 		}
 		return nil

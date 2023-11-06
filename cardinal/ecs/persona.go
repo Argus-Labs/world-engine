@@ -134,21 +134,21 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 		}
 		id, err := create(wCtx, SignerComponent{})
 		if err != nil {
-			CreatePersonaMsg.AddError(wCtx, txData.MsgHash, err)
+			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
 			continue
 		}
 		if err = setComponent[SignerComponent](wCtx, id, &SignerComponent{
 			PersonaTag:    tx.PersonaTag,
 			SignerAddress: tx.SignerAddress,
 		}); err != nil {
-			CreatePersonaMsg.AddError(wCtx, txData.MsgHash, err)
+			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
 			continue
 		}
 		personaTagToAddress[tx.PersonaTag] = personaTagComponentData{
 			SignerAddress: tx.SignerAddress,
 			EntityID:      id,
 		}
-		CreatePersonaMsg.SetResult(wCtx, txData.MsgHash, CreatePersonaResult{
+		CreatePersonaMsg.SetResult(wCtx, txData.Hash, CreatePersonaResult{
 			Success: true,
 		})
 	}

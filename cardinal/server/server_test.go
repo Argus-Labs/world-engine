@@ -855,7 +855,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	// System to handle incrementing numbers
 	world.AddSystem(func(wCtx ecs.WorldContext) error {
 		for _, tx := range incTx.In(wCtx) {
-			incTx.SetResult(wCtx, tx.MsgHash, IncReply{
+			incTx.SetResult(wCtx, tx.Hash, IncReply{
 				Number: tx.Msg.Number + 1,
 			})
 		}
@@ -864,7 +864,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	// System to handle duplicating strings
 	world.AddSystem(func(wCtx ecs.WorldContext) error {
 		for _, tx := range dupeTx.In(wCtx) {
-			dupeTx.SetResult(wCtx, tx.MsgHash, DupeReply{
+			dupeTx.SetResult(wCtx, tx.Hash, DupeReply{
 				Str: tx.Msg.Str + tx.Msg.Str,
 			})
 		}
@@ -874,8 +874,8 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	// System to handle error production
 	world.AddSystem(func(wCtx ecs.WorldContext) error {
 		for _, tx := range errTx.In(wCtx) {
-			errTx.AddError(wCtx, tx.MsgHash, wantError)
-			errTx.AddError(wCtx, tx.MsgHash, wantError)
+			errTx.AddError(wCtx, tx.Hash, wantError)
+			errTx.AddError(wCtx, tx.Hash, wantError)
 		}
 		return nil
 	})

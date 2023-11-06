@@ -91,7 +91,7 @@ func (t *MessageType[Msg, Result]) Convert() message.Message {
 // Hash returns the hash of a specific message, which is used to associated results and errors with a specific
 // message.
 func (t *TxData[T]) Hash() MsgHash {
-	return t.impl.MsgHash
+	return t.impl.Hash
 }
 
 // Msg returns the input value of a message.

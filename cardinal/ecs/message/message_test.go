@@ -424,12 +424,12 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 
 		// AddError will associate an error with the tx.Hash. Multiple errors can be
 		// associated with a transaction.
-		moveMsg.AddError(wCtx, tx.MsgHash, wantFirstError)
-		moveMsg.AddError(wCtx, tx.MsgHash, wantSecondError)
+		moveMsg.AddError(wCtx, tx.Hash, wantFirstError)
+		moveMsg.AddError(wCtx, tx.Hash, wantSecondError)
 
 		// SetResult sets the output for the transaction. Only one output can be set
 		// for a tx.Hash (the last assigned result will clobber other results)
-		moveMsg.SetResult(wCtx, tx.MsgHash, MoveMsgResult{42, 42})
+		moveMsg.SetResult(wCtx, tx.Hash, MoveMsgResult{42, 42})
 		return nil
 	})
 	assert.NilError(t, world.LoadGameState())
@@ -467,7 +467,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 		systemCalls++
 		txs := numTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
-		hash := txs[0].MsgHash
+		hash := txs[0].Hash
 		_, _, ok := numTx.GetReceipt(wCtx, hash)
 		assert.Check(t, !ok)
 		numTx.AddError(wCtx, hash, wantErr)
@@ -478,7 +478,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 		systemCalls++
 		txs := numTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
-		hash := txs[0].MsgHash
+		hash := txs[0].Hash
 		_, errs, ok := numTx.GetReceipt(wCtx, hash)
 		assert.Check(t, ok)
 		assert.Equal(t, 1, len(errs))
@@ -511,7 +511,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 		systemCalls++
 		txs := numTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
-		hash := txs[0].MsgHash
+		hash := txs[0].Hash
 		_, _, ok := numTx.GetReceipt(wCtx, hash)
 		assert.Check(t, !ok)
 		numTx.SetResult(wCtx, hash, firstResult)
@@ -522,7 +522,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 		systemCalls++
 		txs := numTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
-		hash := txs[0].MsgHash
+		hash := txs[0].Hash
 		out, errs, ok := numTx.GetReceipt(wCtx, hash)
 		assert.Check(t, ok)
 		assert.Equal(t, 0, len(errs))
