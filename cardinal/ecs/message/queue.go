@@ -40,18 +40,18 @@ func (t *TxQueue) GetEVMTxs() []TxData {
 	return transactions
 }
 
-func (t *TxQueue) AddTransaction(id TypeID, v any, sig *sign.Transaction) MsgHash {
+func (t *TxQueue) AddTransaction(id TypeID, v any, sig *sign.Transaction) Hash {
 	return t.addTransaction(id, v, sig, "")
 }
 
-func (t *TxQueue) AddEVMTransaction(id TypeID, v any, sig *sign.Transaction, evmTxHash string) MsgHash {
+func (t *TxQueue) AddEVMTransaction(id TypeID, v any, sig *sign.Transaction, evmTxHash string) Hash {
 	return t.addTransaction(id, v, sig, evmTxHash)
 }
 
-func (t *TxQueue) addTransaction(id TypeID, v any, sig *sign.Transaction, evmTxHash string) MsgHash {
+func (t *TxQueue) addTransaction(id TypeID, v any, sig *sign.Transaction, evmTxHash string) Hash {
 	t.mux.Lock()
 	defer t.mux.Unlock()
-	txHash := MsgHash(sig.HashHex())
+	txHash := Hash(sig.HashHex())
 	t.m[id] = append(t.m[id], TxData{
 		MsgID:           id,
 		MsgHash:         txHash,
@@ -86,7 +86,7 @@ type txMap map[TypeID][]TxData
 type TxData struct {
 	MsgID   TypeID
 	Msg     any
-	MsgHash MsgHash
+	MsgHash Hash
 	Tx      *sign.Transaction
 	// EVMSourceTxHash is the tx hash of the EVM tx that triggered this tx.
 	EVMSourceTxHash string

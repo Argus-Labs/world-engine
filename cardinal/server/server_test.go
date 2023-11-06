@@ -263,10 +263,10 @@ func TestHandleSwaggerServer(t *testing.T) {
 	_, err = component.CreateMany(wCtx, bothCount, garbageStructAlpha{}, garbageStructBeta{})
 	assert.NilError(t, err)
 
-	// Queue up a CreatePersonaMsg
+	// Queue up a CreatePersona
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
-	ecs.CreatePersonaMsg.AddToQueue(w, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaMsg.AddToQueue(w, ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddress,
 	})
@@ -495,7 +495,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
@@ -563,7 +563,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	personaTag := "some_dude"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
@@ -601,7 +601,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 	namespace := world.Namespace().String()
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
@@ -989,7 +989,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	namespace := world.Namespace().String()
 	nonce := uint64(99)
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
@@ -1072,7 +1072,7 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	personaTag := "clifford_the_big_red_dog"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 	sigPayload, err := sign.NewSystemTransaction(privateKey, world.Namespace().String(), 1,
-		ecs.CreatePersonaTransaction{
+		ecs.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: signerAddr,
 		})

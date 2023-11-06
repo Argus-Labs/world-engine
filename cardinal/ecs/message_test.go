@@ -38,7 +38,7 @@ func TestForEachTransaction(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	// Add 10 transactions to the tx queue and keep track of the hashes that we just created
-	knownTxHashes := map[message.MsgHash]SomeMsgRequest{}
+	knownTxHashes := map[message.Hash]SomeMsgRequest{}
 	for i := 0; i < 10; i++ {
 		req := SomeMsgRequest{GenerateError: i%2 == 0}
 		txHash := someMsg.AddToQueue(world, req, testutil.UniqueSignature(t))

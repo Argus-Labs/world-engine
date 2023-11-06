@@ -15,19 +15,19 @@ import (
 )
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
-	// Verify that the CreatePersonaTransaction is automatically created and registered with a world.
+	// Verify that the CreatePersona is automatically created and registered with a world.
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.LoadGameState())
 
 	wantTag := "CoolMage"
 	wantAddress := "123-456"
-	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersona{
 		PersonaTag:    wantTag,
 		SignerAddress: wantAddress,
 	})
-	// This CreatePersonaMsg has the same persona tag, but it shouldn't be registered because
+	// This CreatePersona has the same persona tag, but it shouldn't be registered because
 	// it comes second.
-	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersona{
 		PersonaTag:    wantTag,
 		SignerAddress: "some-other-address",
 	})
@@ -64,21 +64,21 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	_, err := world.GetSignerForPersonaTag("missing_persona", 1)
 	assert.ErrorIs(t, err, ecs.ErrPersonaTagHasNoSigner)
 
-	// Queue up a CreatePersonaMsg
+	// Queue up a CreatePersona
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
-	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddress,
 	})
-	// This CreatePersonaMsg will not be processed until the world.CurrentTick() is greater than the tick that
-	// originally got the CreatePersonaMsg.
+	// This CreatePersona will not be processed until the world.CurrentTick() is greater than the tick that
+	// originally got the CreatePersona.
 	tick := world.CurrentTick()
 	_, err = world.GetSignerForPersonaTag(personaTag, tick)
 	assert.ErrorIs(t, err, ecs.ErrCreatePersonaTxsNotProcessed)
 
 	assert.NilError(t, world.Tick(ctx))
-	// The CreatePersonaMsg has now been processed
+	// The CreatePersona has now been processed
 	addr, err := world.GetSignerForPersonaTag(personaTag, tick)
 	assert.NilError(t, err)
 	assert.Equal(t, addr, signerAddress)
@@ -92,7 +92,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		// Attempt to register many different signer addresses with the same persona tag.
-		ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersonaTransaction{
+		ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: fmt.Sprintf("address-%d", i),
 		})
@@ -109,7 +109,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 	// Attempt to register this persona tag again in a different tick. We should still maintain the original
 	// signer address.
-	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: "some-other-address",
 	})
@@ -122,13 +122,13 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 }
 
 func TestCanAuthorizeAddress(t *testing.T) {
-	// Verify that the CreatePersonaTransaction is automatically created and registered with a world.
+	// Verify that the CreatePersona is automatically created and registered with a world.
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.LoadGameState())
 
 	wantTag := "CoolMage"
 	wantSigner := "123-456"
-	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersona{
 		PersonaTag:    wantTag,
 		SignerAddress: wantSigner,
 	})

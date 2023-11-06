@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
@@ -15,7 +16,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-func (handler *Handler) processTransaction(tx message.ITransaction, payload []byte, sp *sign.Transaction,
+func (handler *Handler) processTransaction(tx message.Message, payload []byte, sp *sign.Transaction,
 ) (*TransactionReply, error) {
 	txVal, err := tx.Decode(payload)
 	if err != nil {
@@ -24,8 +25,8 @@ func (handler *Handler) processTransaction(tx message.ITransaction, payload []by
 	return handler.submitTransaction(txVal, tx, sp)
 }
 
-func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string]message.ITransaction,
-) (message.ITransaction, error) {
+func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string]message.Message,
+) (message.Message, error) {
 	mappedParams, ok := params.(map[string]interface{})
 	if !ok {
 		return nil, errors.New("params not readable")
@@ -75,7 +76,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 		return err
 	}
 
-	txNameToTx := make(map[string]message.ITransaction)
+	txNameToTx := make(map[string]message.Message)
 	for _, tx := range txs {
 		txNameToTx[tx.Name()] = tx
 	}
@@ -115,7 +116,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 }
 
 // submitTransaction submits a transaction to the game world, as well as the blockchain.
-func (handler *Handler) submitTransaction(txVal any, tx message.ITransaction, sp *sign.Transaction,
+func (handler *Handler) submitTransaction(txVal any, tx message.Message, sp *sign.Transaction,
 ) (*TransactionReply, error) {
 	log.Debug().Msgf("submitting transaction %d: %v", tx.ID(), txVal)
 	tick, txHash := handler.w.AddTransaction(tx.ID(), txVal, sp)

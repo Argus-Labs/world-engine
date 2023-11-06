@@ -39,26 +39,26 @@ func NewMessageTypeWithEVMSupport[Msg, Result any](name string) *MessageType[Msg
 }
 
 // AddToQueue is not meant to be used in production whatsoever, it is exposed here for usage in tests.
-func (t *MessageType[Msg, Result]) AddToQueue(world *World, data Msg, sigs ...*sign.Transaction) TxHash {
+func (t *MessageType[Msg, Result]) AddToQueue(world *World, data Msg, sigs ...*sign.Transaction) MsgHash {
 	txHash := t.impl.AddToQueue(world.implWorld, data, sigs...)
 	return txHash
 }
 
 // AddError adds the given error to the transaction identified by the given hash. Multiple errors can be
 // added to the same message hash.
-func (t *MessageType[Msg, Result]) AddError(wCtx WorldContext, hash TxHash, err error) {
+func (t *MessageType[Msg, Result]) AddError(wCtx WorldContext, hash MsgHash, err error) {
 	t.impl.AddError(wCtx.getECSWorldContext(), hash, err)
 }
 
 // SetResult sets the result of the message identified by the given hash. Only one result may be associated
 // with a message hash, so calling this multiple times will clobber previously set results.
-func (t *MessageType[Msg, Result]) SetResult(wCtx WorldContext, hash TxHash, result Result) {
+func (t *MessageType[Msg, Result]) SetResult(wCtx WorldContext, hash MsgHash, result Result) {
 	t.impl.SetResult(wCtx.getECSWorldContext(), hash, result)
 }
 
 // GetReceipt returns the result (if any) and errors (if any) associated with the given hash. If false is returned,
 // the hash is not recognized, so the returned result and errors will be empty.
-func (t *MessageType[Msg, Result]) GetReceipt(wCtx WorldContext, hash TxHash) (Result, []error, bool) {
+func (t *MessageType[Msg, Result]) GetReceipt(wCtx WorldContext, hash MsgHash) (Result, []error, bool) {
 	return t.impl.GetReceipt(wCtx.getECSWorldContext(), hash)
 }
 
@@ -83,14 +83,14 @@ func (t *MessageType[Msg, Result]) In(wCtx WorldContext) []TxData[Msg] {
 }
 
 // Convert implements the AnyMessageType interface which allows a MessageType to be registered
-// with a World via RegisterTransactions.
+// with a World via RegisterMessages.
 func (t *MessageType[Msg, Result]) Convert() message.Message {
 	return t.impl
 }
 
 // Hash returns the hash of a specific message, which is used to associated results and errors with a specific
 // message.
-func (t *TxData[T]) Hash() TxHash {
+func (t *TxData[T]) Hash() MsgHash {
 	return t.impl.MsgHash
 }
 

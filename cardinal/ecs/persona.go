@@ -9,20 +9,20 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
-// CreatePersonaTransaction allows for the associating of a persona tag with a signer address.
-type CreatePersonaTransaction struct {
+// CreatePersona allows for the associating of a persona tag with a signer address.
+type CreatePersona struct {
 	PersonaTag    string `json:"personaTag"`
 	SignerAddress string `json:"signerAddress"`
 }
 
-type CreatePersonaTransactionResult struct {
+type CreatePersonaResult struct {
 	Success bool `json:"success"`
 }
 
-// CreatePersonaMsg is a concrete ECS transaction.
-var CreatePersonaMsg = NewMessageType[CreatePersonaTransaction, CreatePersonaTransactionResult](
+// CreatePersonaMsg is a message that
+var CreatePersonaMsg = NewMessageType[CreatePersona, CreatePersonaResult](
 	"create-persona",
-	WithMsgEVMSupport[CreatePersonaTransaction, CreatePersonaTransactionResult],
+	WithMsgEVMSupport[CreatePersona, CreatePersonaResult],
 )
 
 type AuthorizePersonaAddress struct {
@@ -45,22 +45,22 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 	if err != nil {
 		return err
 	}
-	AuthorizePersonaAddressMsg.ForEach(wCtx, func(tx TxData[AuthorizePersonaAddress],
+	AuthorizePersonaAddressMsg.ForEach(wCtx, func(txData TxData[AuthorizePersonaAddress],
 	) (AuthorizePersonaAddressResult, error) {
-		val, sig := tx.Msg, tx.Tx
+		msg, tx := txData.Msg, txData.Tx
 		result := AuthorizePersonaAddressResult{Success: false}
-		data, ok := personaTagToAddress[sig.PersonaTag]
+		data, ok := personaTagToAddress[tx.PersonaTag]
 		if !ok {
-			return result, fmt.Errorf("persona %s does not exist", sig.PersonaTag)
+			return result, fmt.Errorf("persona %s does not exist", tx.PersonaTag)
 		}
 
 		err = updateComponent[SignerComponent](wCtx, data.EntityID, func(s *SignerComponent) *SignerComponent {
 			for _, addr := range s.AuthorizedAddresses {
-				if addr == val.Address {
+				if addr == msg.Address {
 					return s
 				}
 			}
-			s.AuthorizedAddresses = append(s.AuthorizedAddresses, val.Address)
+			s.AuthorizedAddresses = append(s.AuthorizedAddresses, msg.Address)
 			return s
 		})
 		if err != nil {
@@ -148,7 +148,7 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 			SignerAddress: tx.SignerAddress,
 			EntityID:      id,
 		}
-		CreatePersonaMsg.SetResult(wCtx, txData.MsgHash, CreatePersonaTransactionResult{
+		CreatePersonaMsg.SetResult(wCtx, txData.MsgHash, CreatePersonaResult{
 			Success: true,
 		})
 	}

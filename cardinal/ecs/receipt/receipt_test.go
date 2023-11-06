@@ -2,16 +2,17 @@ package receipt
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"testing"
 
 	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 )
 
-func txHash(t *testing.T) message.TxHash {
+func txHash(t *testing.T) message.Hash {
 	id, err := uuid.NewUUID()
 	assert.NilError(t, err)
-	return message.TxHash(id.String())
+	return message.Hash(id.String())
 }
 
 func TestCanSaveAndGetAnError(t *testing.T) {

@@ -74,7 +74,7 @@ func TestServer_SendMessage(t *testing.T) {
 	sender := "0xHelloThere"
 	personaTag := "foo"
 	// create authorized addresses for the evm transaction's msg sender.
-	ecs.CreatePersonaMsg.AddToQueue(w, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaMsg.AddToQueue(w, ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: "bar",
 	})

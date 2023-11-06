@@ -8,6 +8,7 @@ import (
 	zerolog "github.com/rs/zerolog/log"
 	"net"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -42,7 +43,7 @@ type Server interface {
 }
 
 // txByName maps transaction type ID's to transaction types.
-type txByName map[string]message.ITransaction
+type txByName map[string]message.Message
 
 // queryByName maps query resource names to the underlying IQuery.
 type queryByName map[string]ecs.IQuery

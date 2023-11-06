@@ -20,7 +20,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
-// Handler is a type that contains endpoints for transactions and queries in a given ecs world.
+// Handler is a type that contains endpoints for messages and queries in a given ecs world.
 type Handler struct {
 	w                      *ecs.World
 	Mux                    *http.ServeMux
@@ -46,7 +46,7 @@ const (
 )
 
 // NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
-// transactions and queries registered with the given world are automatically created. The server runs on a default port
+// messages and queries registered with the given world are automatically created. The server runs on a default port
 // of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
 func NewHandler(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	h, err := newSwaggerHandlerEmbed(w, builder, opts...)

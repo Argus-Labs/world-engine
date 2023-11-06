@@ -35,7 +35,7 @@ func TestApis(t *testing.T) {
 func TestTransactionExample(t *testing.T) {
 	world, doTick := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
-	assert.NilError(t, cardinal.RegisterTransactions(world, addHealthToEntity))
+	assert.NilError(t, cardinal.RegisterMessages(world, addHealthToEntity))
 	cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
 		// test "In" method
 		for _, tx := range addHealthToEntity.In(worldCtx) {

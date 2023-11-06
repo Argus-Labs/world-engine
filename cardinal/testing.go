@@ -19,7 +19,7 @@ func (w *World) TestingGetTransactionReceiptsForTick(tick uint64) ([]Receipt, er
 
 // The following type and function are exported temporarily pending a refactor of
 // how Persona works with the different components of Cardinal.
-type CreatePersonaTransaction = ecs.CreatePersonaTransaction
+type CreatePersonaTransaction = ecs.CreatePersona
 
 func (w *World) TestingAddCreatePersonaTxToQueue(data CreatePersonaTransaction) {
 	ecs.CreatePersonaMsg.AddToQueue(w.implWorld, data)

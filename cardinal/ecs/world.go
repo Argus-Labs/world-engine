@@ -298,7 +298,7 @@ func (w *World) ConsumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
 // Instead, use a MessageType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
 func (w *World) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) (
-	tick uint64, txHash message.MsgHash,
+	tick uint64, txHash message.Hash,
 ) {
 	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
 	// transaction is actually added to the returned tick.
@@ -308,7 +308,7 @@ func (w *World) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) 
 }
 
 func (w *World) AddEVMTransaction(id message.TypeID, v any, sig *sign.Transaction, evmTxHash string) (
-	tick uint64, txHash message.MsgHash,
+	tick uint64, txHash message.Hash,
 ) {
 	tick = w.CurrentTick()
 	txHash = w.txQueue.AddEVMTransaction(id, v, sig, evmTxHash)
@@ -666,15 +666,15 @@ func (w *World) SetNonce(signerAddress string, nonce uint64) error {
 	return w.nonceStore.SetNonce(signerAddress, nonce)
 }
 
-func (w *World) AddMessageError(id message.MsgHash, err error) {
+func (w *World) AddMessageError(id message.Hash, err error) {
 	w.receiptHistory.AddError(id, err)
 }
 
-func (w *World) SetMessageResult(id message.MsgHash, a any) {
+func (w *World) SetMessageResult(id message.Hash, a any) {
 	w.receiptHistory.SetResult(id, a)
 }
 
-func (w *World) GetTransactionReceipt(id message.MsgHash) (any, []error, bool) {
+func (w *World) GetTransactionReceipt(id message.Hash) (any, []error, bool) {
 	rec, ok := w.receiptHistory.GetReceipt(id)
 	if !ok {
 		return nil, nil, false

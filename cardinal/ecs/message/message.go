@@ -1,7 +1,8 @@
 package message
 
-type MsgHash string
+type Hash string
 
+// TypeID represents a message's ID. ID's are assigned to messages when they are registered in a World object.
 type TypeID int
 
 type Message interface {

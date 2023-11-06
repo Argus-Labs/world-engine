@@ -25,7 +25,7 @@ func ExampleTransactionType() {
 		panic(err)
 	}
 
-	err = cardinal.RegisterTransactions(world, MoveTx)
+	err = cardinal.RegisterMessages(world, MoveTx)
 	if err != nil {
 		panic(err)
 	}

@@ -101,7 +101,7 @@ var emptyTx = &sign.Transaction{}
 
 // AddToQueue adds a message with the given data to the world. The message will be executed
 // at the next game tick. An optional sign.Transaction can be associated with this message.
-func (t *MessageType[In, Out]) AddToQueue(world *World, data In, sigs ...*sign.Transaction) message.MsgHash {
+func (t *MessageType[In, Out]) AddToQueue(world *World, data In, sigs ...*sign.Transaction) message.Hash {
 	sig := emptyTx
 	if len(sigs) > 0 {
 		sig = sigs[0]
@@ -126,20 +126,20 @@ func (t *MessageType[In, Out]) SetID(id message.TypeID) error {
 }
 
 type TxData[In any] struct {
-	MsgHash message.MsgHash
+	MsgHash message.Hash
 	Msg     In
 	Tx      *sign.Transaction
 }
 
-func (t *MessageType[In, Out]) AddError(wCtx WorldContext, hash message.MsgHash, err error) {
+func (t *MessageType[In, Out]) AddError(wCtx WorldContext, hash message.Hash, err error) {
 	wCtx.GetWorld().AddMessageError(hash, err)
 }
 
-func (t *MessageType[In, Out]) SetResult(wCtx WorldContext, hash message.MsgHash, result Out) {
+func (t *MessageType[In, Out]) SetResult(wCtx WorldContext, hash message.Hash, result Out) {
 	wCtx.GetWorld().SetMessageResult(hash, result)
 }
 
-func (t *MessageType[In, Out]) GetReceipt(wCtx WorldContext, hash message.MsgHash) (
+func (t *MessageType[In, Out]) GetReceipt(wCtx WorldContext, hash message.Hash) (
 	v Out, errs []error, ok bool,
 ) {
 	world := wCtx.GetWorld()

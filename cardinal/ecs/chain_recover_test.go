@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"encoding/binary"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"sort"
 	"testing"
 
@@ -77,12 +78,12 @@ func (d *DummyAdapter) QueryTransactions(_ context.Context, request *types.Query
 	}, nil
 }
 
-type SendEnergyTransaction struct {
+type SendEnergyMsg struct {
 	To, From string
 	Amount   uint64
 }
 
-type SendEnergyTransactionResponse struct{}
+type SendEnergyResult struct{}
 
 // TestWorld_RecoverFromChain tests that after submitting transactions to the chain, they can be queried, re-ran,
 // and end up with the same game state as before.
@@ -91,7 +92,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
 	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
-	sendEnergyTx := ecs.NewMessageType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
+	sendEnergyTx := ecs.NewMessageType[SendEnergyMsg, SendEnergyResult]("send_energy")
 	err := w.RegisterMessages(sendEnergyTx)
 	assert.NilError(t, err)
 
@@ -125,14 +126,13 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	assert.Equal(t, len(payloads), timesSendEnergyRan)
 }
 
-func generateRandomTransaction(t *testing.T, ns string, tx *ecs.MessageType[SendEnergyTransaction,
-	SendEnergyTransactionResponse]) *sign.Transaction {
-	tx1 := SendEnergyTransaction{
+func generateRandomTransaction(t *testing.T, ns string, msg message.Message) *sign.Transaction {
+	tx1 := SendEnergyMsg{
 		To:     rand.Str(5),
 		From:   rand.Str(4),
 		Amount: rand.Uint64(),
 	}
-	bz, err := tx.Encode(tx1)
+	bz, err := msg.Encode(tx1)
 	assert.NilError(t, err)
 	return &sign.Transaction{
 		PersonaTag: rand.Str(5),
@@ -144,7 +144,6 @@ func generateRandomTransaction(t *testing.T, ns string, tx *ecs.MessageType[Send
 }
 
 func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
-	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{}
 	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
