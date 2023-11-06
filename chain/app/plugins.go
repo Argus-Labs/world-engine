@@ -22,6 +22,7 @@ func (app *App) setPlugins(logger log.Logger) {
 
 	app.ShardSequencer.Serve()
 
+	// TODO: we dont need cardinal addr anymore. we're gonna get it from state machine.
 	cardinalShardAddr := os.Getenv("CARDINAL_EVM_LISTENER_ADDR")
 	if cardinalShardAddr != "" {
 		var opts []router.Option
@@ -33,7 +34,7 @@ func (app *App) setPlugins(logger log.Logger) {
 			logger.Info("WARNING: running router client without client certification. this will cause issues if " +
 				"the cardinal instance uses SSL credentials")
 		}
-		app.Router = router.NewRouter(cardinalShardAddr, logger, opts...)
+		app.Router = router.NewRouter(logger, app.CreateQueryContext, app.NamespaceKeeper.Address, opts...)
 	} else {
 		logger.Info("router is not running")
 	}

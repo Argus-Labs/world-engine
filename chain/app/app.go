@@ -72,7 +72,7 @@ import (
 	evmmempool "pkg.berachain.dev/polaris/cosmos/x/evm/plugins/txpool/mempool"
 
 	"pkg.world.dev/world-engine/chain/router"
-	routerkeeper "pkg.world.dev/world-engine/chain/x/router/keeper"
+	namespacekeeper "pkg.world.dev/world-engine/chain/x/namespace/keeper"
 	shardkeeper "pkg.world.dev/world-engine/chain/x/shard/keeper"
 )
 
@@ -113,8 +113,8 @@ type App struct {
 	EVMKeeper *evmkeeper.Keeper
 
 	// world engine keepers
-	RouterKeeper *routerkeeper.Keeper
-	ShardKeeper  *shardkeeper.Keeper
+	NamespaceKeeper *namespacekeeper.Keeper
+	ShardKeeper     *shardkeeper.Keeper
 
 	// plugins
 	Router         router.Router
@@ -146,7 +146,6 @@ func NewApp(
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
 	app := &App{}
-	app.setPlugins(logger)
 	var (
 		appBuilder   *runtime.AppBuilder
 		ethTxMempool = evmmempool.NewPolarisEthereumTxPool()
@@ -208,7 +207,7 @@ func NewApp(
 		&app.EvidenceKeeper,
 		&app.ConsensusParamsKeeper,
 		&app.EVMKeeper,
-		&app.RouterKeeper,
+		&app.NamespaceKeeper,
 		&app.ShardKeeper,
 	); err != nil {
 		panic(err)
@@ -275,6 +274,8 @@ func NewApp(
 	if err = app.Load(loadLatest); err != nil {
 		panic(err)
 	}
+
+	app.setPlugins(logger)
 
 	return app
 }

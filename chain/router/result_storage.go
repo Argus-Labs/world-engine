@@ -2,47 +2,55 @@ package router
 
 import (
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
+	"sync"
 	"time"
 )
 
-type result struct {
+type ResultStorage interface {
+	Result(key string) (Result, bool)
+	SetResult(msg *routerv1.SendMessageResponse)
+}
+
+type Result struct {
 	*routerv1.SendMessageResponse
 	timeEntered time.Time
 }
 
-func (r *result) expired(expiryRange time.Duration) bool {
+func (r Result) expired(expiryRange time.Duration) bool {
 	return time.Now().After(r.timeEntered.Add(expiryRange))
 }
 
-type resultStorage struct {
+type resultStorageMemory struct {
 	keepAlive time.Duration
-	results   map[string]result
+	results   *sync.Map // map[string]Result
 }
 
-func newResultsStorage(keepAlive time.Duration) *resultStorage {
-	return &resultStorage{
+func NewMemoryResultStorage(keepAlive time.Duration) ResultStorage {
+	return &resultStorageMemory{
 		keepAlive: keepAlive,
-		results:   make(map[string]result),
+		results:   new(sync.Map),
 	}
 }
 
-func (r *resultStorage) GetResult(hash string) (result, bool) {
-	res, ok := r.results[hash]
+func (r *resultStorageMemory) Result(hash string) (Result, bool) {
+	res, ok := r.results.Load(hash)
 	r.clearStaleEntries()
-	return res, ok
-}
-
-func (r *resultStorage) SetResult(msg *routerv1.SendMessageResponse) {
-	r.results[msg.EvmTxHash] = result{
-		SendMessageResponse: msg,
-		timeEntered:         time.Now(),
+	if !ok {
+		return Result{}, ok
 	}
+	return res.(Result), ok
 }
 
-func (r *resultStorage) clearStaleEntries() {
-	for key, res := range r.results {
+func (r *resultStorageMemory) SetResult(msg *routerv1.SendMessageResponse) {
+	r.results.Store(msg.EvmTxHash, Result{msg, time.Now()})
+}
+
+func (r *resultStorageMemory) clearStaleEntries() {
+	r.results.Range(func(key, value any) bool {
+		res, _ := value.(Result)
 		if res.expired(r.keepAlive) {
-			delete(r.results, key)
+			r.results.Delete(key)
 		}
-	}
+		return true
+	})
 }
