@@ -316,18 +316,18 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 		return err
 	}
 
-	createSignedPayload := func(payload string, endpoint string, nk runtime.NakamaModule, ctx context.Context,
+	createTransaction := func(payload string, endpoint string, nk runtime.NakamaModule, ctx context.Context,
 	) (io.Reader, error) {
 		logger.Debug("The %s endpoint requires a signed payload", endpoint)
-		var signedPayload io.Reader
-		signedPayload, err = makeSignedPayload(ctx, nk, payload)
+		var transaction io.Reader
+		transaction, err = makeTransaction(ctx, nk, payload)
 		if err != nil {
 			return nil, err
 		}
-		return signedPayload, nil
+		return transaction, nil
 	}
 
-	createUnsignedPayload := func(payload string, endpoint string, _ runtime.NakamaModule, _ context.Context,
+	createUnsignedTransaction := func(payload string, endpoint string, _ runtime.NakamaModule, _ context.Context,
 	) (io.Reader, error) {
 		payloadBytes := []byte(payload)
 		formattedPayloadBuffer := bytes.NewBuffer([]byte{})
@@ -398,11 +398,11 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 		return nil
 	}
 
-	err = registerEndpoints(txEndpoints, createSignedPayload)
+	err = registerEndpoints(txEndpoints, createTransaction)
 	if err != nil {
 		return err
 	}
-	err = registerEndpoints(queryEndpoints, createUnsignedPayload)
+	err = registerEndpoints(queryEndpoints, createUnsignedTransaction)
 	if err != nil {
 		return err
 	}
@@ -432,7 +432,7 @@ func setPersonaTagAssignment(personaTag, userID string) (ok bool) {
 	return gotUserID == userID
 }
 
-func makeSignedPayload(ctx context.Context, nk runtime.NakamaModule, payload string) (io.Reader, error) {
+func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload string) (io.Reader, error) {
 	ptr, err := loadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
 		return nil, err
@@ -450,7 +450,7 @@ func makeSignedPayload(ctx context.Context, nk runtime.NakamaModule, payload str
 	if err != nil {
 		return nil, err
 	}
-	sp, err := sign.NewSignedPayload(pk, personaTag, globalNamespace, nonce, payload)
+	sp, err := sign.NewTransaction(pk, personaTag, globalNamespace, nonce, payload)
 	if err != nil {
 		return nil, err
 	}
