@@ -18,13 +18,13 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	wantNamespace := "my-namespace"
 	wantNonce := uint64(100)
 
-	sp, err := NewSignedPayload(goodKey, wantPersonaTag, wantNamespace, wantNonce, wantBody)
+	sp, err := NewTransaction(goodKey, wantPersonaTag, wantNamespace, wantNonce, wantBody)
 	assert.NilError(t, err)
 
 	buf, err := sp.Marshal()
 	assert.NilError(t, err)
 
-	toBeVerified, err := UnmarshalSignedPayload(buf)
+	toBeVerified, err := UnmarshalTransaction(buf)
 	assert.NilError(t, err)
 
 	goodAddressHex := crypto.PubkeyToAddress(goodKey.PublicKey).Hex()
@@ -49,28 +49,28 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 		{
 			name: "valid",
 			payload: func() (*Transaction, error) {
-				return NewSignedPayload(goodKey, "tag", "namespace", 40, "{}")
+				return NewTransaction(goodKey, "tag", "namespace", 40, "{}")
 			},
 			expErr: nil,
 		},
 		{
 			name: "missing persona tag",
 			payload: func() (*Transaction, error) {
-				return NewSignedPayload(goodKey, "", "ns", 20, "{}")
+				return NewTransaction(goodKey, "", "ns", 20, "{}")
 			},
 			expErr: ErrInvalidPersonaTag,
 		},
 		{
 			name: "missing namespace",
 			payload: func() (*Transaction, error) {
-				return NewSignedPayload(goodKey, "fop", "", 20, "{}")
+				return NewTransaction(goodKey, "fop", "", 20, "{}")
 			},
 			expErr: ErrInvalidNamespace,
 		},
 		{
-			name: "system signed payload",
+			name: "system transaction",
 			payload: func() (*Transaction, error) {
-				return NewSystemSignedPayload(goodKey, "some-namespace", 25, "{}")
+				return NewSystemTransaction(goodKey, "some-namespace", 25, "{}")
 			},
 			expErr: nil,
 		},
@@ -88,7 +88,7 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 			var bz []byte
 			bz, err = payload.Marshal()
 			assert.NilError(t, err)
-			_, err = UnmarshalSignedPayload(bz)
+			_, err = UnmarshalTransaction(bz)
 			assert.NilError(t, err)
 		})
 	}
@@ -115,13 +115,13 @@ func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
 
 	for _, tc := range testCases {
 		var sp *Transaction
-		sp, err = NewSignedPayload(key, "coolmage", "world", 100, tc)
+		sp, err = NewTransaction(key, "coolmage", "world", 100, tc)
 		assert.NilError(t, err)
 		var buf []byte
 		buf, err = sp.Marshal()
 		assert.NilError(t, err)
 		var gotSP *Transaction
-		gotSP, err = UnmarshalSignedPayload(buf)
+		gotSP, err = UnmarshalTransaction(buf)
 		assert.NilError(t, err)
 		var gotStruct SomeStruct
 		assert.NilError(t, json.Unmarshal(gotSP.Body, &gotStruct))
