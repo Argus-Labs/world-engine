@@ -34,7 +34,7 @@ services:
     environment:
       - CARDINAL_ADDR=game:4040
       - CARDINAL_NAMESPACE=TESTGAME
-      - ENABLE_ALLOWLIST=false
+      - ENABLE_ALLOWLIST=${ENABLE_ALLOWLIST:-false}
     entrypoint:
       - "/bin/sh"
       - "-ecx"
