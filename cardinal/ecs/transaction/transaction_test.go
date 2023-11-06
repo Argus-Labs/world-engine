@@ -552,8 +552,8 @@ func TestCopyTransactions(t *testing.T) {
 		X int
 	}
 	txq := transaction.NewTxQueue()
-	txq.AddTransaction(1, FooTx{X: 3}, &sign.SignedPayload{PersonaTag: "foo"})
-	txq.AddTransaction(2, FooTx{X: 4}, &sign.SignedPayload{PersonaTag: "bar"})
+	txq.AddTransaction(1, FooTx{X: 3}, &sign.Transaction{PersonaTag: "foo"})
+	txq.AddTransaction(2, FooTx{X: 4}, &sign.Transaction{PersonaTag: "bar"})
 
 	copyTxq := txq.CopyTransactions()
 	assert.Equal(t, copyTxq.GetAmountOfTxs(), 2)

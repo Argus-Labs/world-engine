@@ -52,7 +52,7 @@ func TestEVMTxConsume(t *testing.T) {
 
 	// add tx to queue
 	evmTxHash := "0xFooBar"
-	w.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.SignedPayload{PersonaTag: "foo"}, evmTxHash)
+	w.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 
 	// let's check against a system that returns a result and no error
 	returnVal = FooOut{Y: "hi"}
@@ -70,7 +70,7 @@ func TestEVMTxConsume(t *testing.T) {
 	// lets check against a system that returns an error
 	returnVal = FooOut{}
 	returnErr = errors.New("omg error")
-	w.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.SignedPayload{PersonaTag: "foo"}, evmTxHash)
+	w.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 	assert.NilError(t, w.Tick(ctx))
 	evmTxReceipt, ok = w.ConsumeEVMTxResult(evmTxHash)
 

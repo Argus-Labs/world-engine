@@ -16,7 +16,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-func (handler *Handler) processTransaction(tx transaction.ITransaction, payload []byte, sp *sign.SignedPayload,
+func (handler *Handler) processTransaction(tx transaction.ITransaction, payload []byte, sp *sign.Transaction,
 ) (*TransactionReply, error) {
 	txVal, err := tx.Decode(payload)
 	if err != nil {
@@ -48,7 +48,7 @@ func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string
 
 func (handler *Handler) getBodyAndSigFromParams(
 	params interface{},
-	isSystemTransaction bool) ([]byte, *sign.SignedPayload, error) {
+	isSystemTransaction bool) ([]byte, *sign.Transaction, error) {
 	mappedParams, ok := params.(map[string]interface{})
 	if !ok {
 		return nil, nil, errors.New("params not readable")
@@ -116,7 +116,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 }
 
 // submitTransaction submits a transaction to the game world, as well as the blockchain.
-func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.SignedPayload,
+func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.Transaction,
 ) (*TransactionReply, error) {
 	log.Debug().Msgf("submitting transaction %d: %v", tx.ID(), txVal)
 	tick, txHash := handler.w.AddTransaction(tx.ID(), txVal, sp)

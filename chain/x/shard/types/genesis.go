@@ -19,7 +19,7 @@ func (g *GenesisState) Validate() error {
 				return fmt.Errorf("no transactions for epoch %d in namespace %s", epochTxs.Epoch, nstx.Namespace)
 			}
 			for j, tx := range epochTxs.Txs {
-				if tx.SignedPayload == nil {
+				if tx.GameShardTransaction == nil {
 					return fmt.Errorf("no transaction data for tx %d in epoch %d in namespace %s", j,
 						epochTxs.Epoch, nstx.Namespace)
 				}

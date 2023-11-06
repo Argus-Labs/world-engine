@@ -1,10 +1,10 @@
 package keeper_test
 
 import (
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/chain/x/shard"
+	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 	"testing"
 
 	storetypes "cosmossdk.io/store/types"
@@ -45,24 +45,24 @@ func (s *TestSuite) SetupTest() {
 
 func (s *TestSuite) TestSubmitTransactions() {
 	epoch := uint64(2)
-	sp := &shardv1.SignedPayload{
+	tx := &shardv1.Transaction{
 		PersonaTag: "meow",
 		Namespace:  "darkforest-west1",
 		Nonce:      1,
 		Signature:  "0xfooooooooo",
 		Body:       []byte("transaction"),
 	}
-	signedPayloadBz, err := proto.Marshal(sp)
+	txBz, err := proto.Marshal(tx)
 	s.Require().NoError(err)
 	txs := []*types.Transaction{
-		{3, signedPayloadBz},
-		{4, signedPayloadBz},
+		{3, txBz},
+		{4, txBz},
 	}
 	_, err = s.keeper.SubmitShardTx(
 		s.ctx,
 		&types.SubmitShardTxRequest{
 			Sender:    s.auth,
-			Namespace: sp.Namespace,
+			Namespace: tx.Namespace,
 			Epoch:     epoch,
 			Txs:       txs,
 		},
@@ -77,14 +77,14 @@ func (s *TestSuite) TestSubmitTransactions() {
 			Namespace: "foo",
 			Epoch:     epoch,
 			Txs: []*types.Transaction{
-				{3, signedPayloadBz},
-				{4, signedPayloadBz},
+				{3, txBz},
+				{4, txBz},
 			},
 		},
 	)
 	s.Require().NoError(err)
 
-	res, err := s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{Namespace: sp.Namespace})
+	res, err := s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{Namespace: tx.Namespace})
 	s.Require().NoError(err)
 	// we only submitted transactions for 1 epoch, so there should only be 1.
 	s.Require().Len(res.Epochs, 1)

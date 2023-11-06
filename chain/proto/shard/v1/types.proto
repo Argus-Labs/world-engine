@@ -10,9 +10,8 @@ message Transaction {
   // to unmarshal the payload.Body into.
   uint64 tx_id = 1;
 
-  // signed_payload is a proto encoded SignedPayload
-  // (https://buf.build/argus-labs/world-engine/file/main:shard/v1/shard.proto#L21).
-  bytes signed_payload = 2;
+  // game_shard_transaction is a proto encoded Transaction. (see rift package)
+  bytes game_shard_transaction = 2;
 }
 
 // Epoch contains an epoch number, and the transactions that occurred in that epoch.

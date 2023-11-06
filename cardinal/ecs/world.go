@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"google.golang.org/protobuf/proto"
+	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -297,7 +297,7 @@ func (w *World) ConsumeEVMTxResult(evmTxHash string) (EVMTxReceipt, bool) {
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (
+func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.Transaction) (
 	tick uint64, txHash transaction.TxHash,
 ) {
 	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
@@ -307,7 +307,7 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPay
 	return tick, txHash
 }
 
-func (w *World) AddEVMTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload, evmTxHash string) (
+func (w *World) AddEVMTransaction(id transaction.TypeID, v any, sig *sign.Transaction, evmTxHash string) (
 	tick uint64, txHash transaction.TxHash,
 ) {
 	tick = w.CurrentTick()
@@ -596,7 +596,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			// we've now reached target. we need to inject the transactions and tick.
 			transactions := tickedTxs.Txs
 			for _, tx := range transactions {
-				sp, err := w.decodeTransaction(tx.SignedPayload)
+				sp, err := w.decodeTransaction(tx.GameShardTransaction)
 				if err != nil {
 					return err
 				}
@@ -608,7 +608,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				w.AddTransaction(transaction.TypeID(tx.TxId), v, w.protoSignedPayloadToGo(sp))
+				w.AddTransaction(transaction.TypeID(tx.TxId), v, w.protoTransactionToGo(sp))
 			}
 			// run the tick for this batch
 			if err = w.Tick(ctx); err != nil {
@@ -631,8 +631,8 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	return nil
 }
 
-func (w *World) protoSignedPayloadToGo(sp *shardv1.SignedPayload) *sign.SignedPayload {
-	return &sign.SignedPayload{
+func (w *World) protoTransactionToGo(sp *shardv1.Transaction) *sign.Transaction {
+	return &sign.Transaction{
 		PersonaTag: sp.PersonaTag,
 		Namespace:  sp.Namespace,
 		Nonce:      sp.Nonce,
@@ -641,8 +641,8 @@ func (w *World) protoSignedPayloadToGo(sp *shardv1.SignedPayload) *sign.SignedPa
 	}
 }
 
-func (w *World) decodeTransaction(bz []byte) (*shardv1.SignedPayload, error) {
-	payload := new(shardv1.SignedPayload)
+func (w *World) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
+	payload := new(shardv1.Transaction)
 	err := proto.Unmarshal(bz, payload)
 	return payload, err
 }
