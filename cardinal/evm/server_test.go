@@ -80,7 +80,7 @@ func TestServer_SendMessage(t *testing.T) {
 	})
 	ecs.AuthorizePersonaAddressTx.AddToQueue(w, ecs.AuthorizePersonaAddress{
 		Address: sender,
-	}, &sign.SignedPayload{PersonaTag: personaTag})
+	}, &sign.Transaction{PersonaTag: personaTag})
 	err := w.Tick(context.Background())
 	assert.NilError(t, err)
 

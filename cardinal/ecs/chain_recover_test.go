@@ -23,7 +23,7 @@ type DummyAdapter struct {
 	txs map[uint64][]*types.Transaction
 }
 
-func (d *DummyAdapter) Submit(_ context.Context, p *sign.SignedPayload, txID, tick uint64) error {
+func (d *DummyAdapter) Submit(_ context.Context, p *sign.Transaction, txID, tick uint64) error {
 	sp := &shardv1.SignedPayload{
 		PersonaTag: p.PersonaTag,
 		Namespace:  p.Namespace,
@@ -107,7 +107,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		return nil
 	})
 	namespace := "game1"
-	payloads := make([]*sign.SignedPayload, 0, 10)
+	payloads := make([]*sign.Transaction, 0, 10)
 	var finalTick uint64 = 20
 	for i := 0; i <= 10; i++ {
 		payload := generateRandomTransaction(t, namespace, sendEnergyTx)
@@ -126,7 +126,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 }
 
 func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[SendEnergyTransaction,
-	SendEnergyTransactionResponse]) *sign.SignedPayload {
+	SendEnergyTransactionResponse]) *sign.Transaction {
 	tx1 := SendEnergyTransaction{
 		To:     rand.Str(5),
 		From:   rand.Str(4),
@@ -134,7 +134,7 @@ func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[
 	}
 	bz, err := tx.Encode(tx1)
 	assert.NilError(t, err)
-	return &sign.SignedPayload{
+	return &sign.Transaction{
 		PersonaTag: rand.Str(5),
 		Namespace:  ns,
 		Nonce:      rand.Uint64(),

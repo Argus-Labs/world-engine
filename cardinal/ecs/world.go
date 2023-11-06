@@ -297,7 +297,7 @@ func (w *World) ConsumeEVMTxResult(evmTxHash string) (EVMTxReceipt, bool) {
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a TransactionType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload) (
+func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.Transaction) (
 	tick uint64, txHash transaction.TxHash,
 ) {
 	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
@@ -307,7 +307,7 @@ func (w *World) AddTransaction(id transaction.TypeID, v any, sig *sign.SignedPay
 	return tick, txHash
 }
 
-func (w *World) AddEVMTransaction(id transaction.TypeID, v any, sig *sign.SignedPayload, evmTxHash string) (
+func (w *World) AddEVMTransaction(id transaction.TypeID, v any, sig *sign.Transaction, evmTxHash string) (
 	tick uint64, txHash transaction.TxHash,
 ) {
 	tick = w.CurrentTick()
@@ -631,8 +631,8 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	return nil
 }
 
-func (w *World) protoSignedPayloadToGo(sp *shardv1.SignedPayload) *sign.SignedPayload {
-	return &sign.SignedPayload{
+func (w *World) protoSignedPayloadToGo(sp *shardv1.SignedPayload) *sign.Transaction {
+	return &sign.Transaction{
 		PersonaTag: sp.PersonaTag,
 		Namespace:  sp.Namespace,
 		Nonce:      sp.Nonce,

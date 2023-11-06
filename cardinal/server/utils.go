@@ -25,7 +25,7 @@ func decode[T any](buf []byte) (T, error) {
 	return val, nil
 }
 
-func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
+func getSignerAddressFromPayload(sp sign.Transaction) (string, error) {
 	createPersonaTx, err := decode[ecs.CreatePersonaTransaction](sp.Body)
 	if err != nil {
 		return "", err
@@ -33,8 +33,8 @@ func getSignerAddressFromPayload(sp sign.SignedPayload) (string, error) {
 	return createPersonaTx.SignerAddress, nil
 }
 
-func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, isSystemTransaction bool,
-) (sig *sign.SignedPayload, err error) {
+func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.Transaction, isSystemTransaction bool,
+) (sig *sign.Transaction, err error) {
 	if sp.PersonaTag == "" {
 		return nil, errors.New("PersonaTag must not be empty")
 	}
@@ -50,14 +50,14 @@ func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, i
 		return nil, fmt.Errorf("%w: got namespace %q but it must be %q",
 			ErrInvalidSignature, sp.Namespace, handler.w.Namespace().String())
 	}
-	if isSystemTransaction && !sp.IsSystemPayload() {
+	if isSystemTransaction && !sp.IsSystemTransaction() {
 		return nil, ErrSystemTransactionRequired
-	} else if !isSystemTransaction && sp.IsSystemPayload() {
+	} else if !isSystemTransaction && sp.IsSystemTransaction() {
 		return nil, ErrSystemTransactionForbidden
 	}
 
 	var signerAddress string
-	if sp.IsSystemPayload() {
+	if sp.IsSystemTransaction() {
 		// For system transactions, just use the signed address that is include in the signature.
 		signerAddress, err = getSignerAddressFromPayload(*sp)
 	} else {
@@ -91,8 +91,8 @@ func (handler *Handler) verifySignatureOfSignedPayload(sp *sign.SignedPayload, i
 }
 
 func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool,
-) (payload []byte, sig *sign.SignedPayload, err error) {
-	sp, err := sign.MappedSignedPayload(request)
+) (payload []byte, sig *sign.Transaction, err error) {
+	sp, err := sign.MappedTransaction(request)
 	if err != nil {
 		return nil, nil, err
 	}

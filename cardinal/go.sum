@@ -1919,8 +1919,8 @@ pkg.world.dev/world-engine/chain v0.1.11-alpha h1:a+a+eZUIG2XuO+PL5WBr+IgQZoGRnm
 pkg.world.dev/world-engine/chain v0.1.11-alpha/go.mod h1:qpm1QXHj2RyXIiwkEolaZMMqeNVcMX+hH4OQ9nE0/5M=
 pkg.world.dev/world-engine/rift v0.0.5-0.20231101203803-499e27c9ed1a h1:z0tJYCNBE3YS+gmG8yyWY66Y0p0jG/9R1bdBNnEYTI8=
 pkg.world.dev/world-engine/rift v0.0.5-0.20231101203803-499e27c9ed1a/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
-pkg.world.dev/world-engine/sign v0.1.9-alpha h1:aNF6SqB8btPtZHYo/39t4e+mCmNQHc1qW80veEZo+MI=
-pkg.world.dev/world-engine/sign v0.1.9-alpha/go.mod h1:Fd+52+2VelCuzi8wbU14/eWGyYL6+suibX3sIx8MSAM=
+pkg.world.dev/world-engine/sign v0.1.10-alpha h1:UEkMfsPrhtncVI9n5UWsUSwE0sVwGLZ7b1Go6Zk9Shw=
+pkg.world.dev/world-engine/sign v0.1.10-alpha/go.mod h1:MOwYe8JeB8qAXZnp+jlJnAjYgfzru/S6pllQCrNoMZw=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=

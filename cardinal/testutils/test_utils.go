@@ -125,7 +125,7 @@ var (
 	privateKey *ecdsa.PrivateKey
 )
 
-func UniqueSignatureWithName(name string) *sign.SignedPayload {
+func UniqueSignatureWithName(name string) *sign.Transaction {
 	if privateKey == nil {
 		var err error
 		privateKey, err = crypto.GenerateKey()
@@ -136,14 +136,14 @@ func UniqueSignatureWithName(name string) *sign.SignedPayload {
 	nonce++
 	// We only verify signatures when hitting the HTTP server, and in tests we're likely just adding transactions
 	// directly to the World queue. It's OK if the signature does not match the payload.
-	sig, err := sign.NewSignedPayload(privateKey, name, "namespace", nonce, `{"some":"data"}`)
+	sig, err := sign.NewTransaction(privateKey, name, "namespace", nonce, `{"some":"data"}`)
 	if err != nil {
 		panic(err)
 	}
 	return sig
 }
 
-func UniqueSignature() *sign.SignedPayload {
+func UniqueSignature() *sign.Transaction {
 	return UniqueSignatureWithName("some-persona-tag")
 }
 
@@ -151,7 +151,7 @@ func AddTransactionToWorldByAnyTransaction(
 	world *cardinal.World,
 	cardinalTx cardinal.AnyTransaction,
 	value any,
-	signedPayload *sign.SignedPayload) {
+	signedPayload *sign.Transaction) {
 	worldCtx := WorldToWorldContext(world)
 	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
 

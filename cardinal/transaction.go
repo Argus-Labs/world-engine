@@ -39,7 +39,7 @@ func NewTransactionTypeWithEVMSupport[Msg, Result any](name string) *Transaction
 }
 
 // AddToQueue is not meant to be used in production whatsoever, it is exposed here for usage in tests.
-func (t *TransactionType[Msg, Result]) AddToQueue(world *World, data Msg, sigs ...*sign.SignedPayload) TxHash {
+func (t *TransactionType[Msg, Result]) AddToQueue(world *World, data Msg, sigs ...*sign.Transaction) TxHash {
 	txHash := t.impl.AddToQueue(world.implWorld, data, sigs...)
 	return txHash
 }
@@ -100,6 +100,6 @@ func (t *TxData[T]) Value() T {
 }
 
 // Sig returns the signature that was used to sign this transaction.
-func (t *TxData[T]) Sig() *sign.SignedPayload {
+func (t *TxData[T]) Sig() *sign.Transaction {
 	return t.impl.Sig
 }

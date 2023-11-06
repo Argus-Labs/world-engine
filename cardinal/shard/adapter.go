@@ -27,7 +27,7 @@ type Adapter interface {
 type WriteAdapter interface {
 	// Submit submits a transaction to the EVM base shard's game tx sequencer, where the tx data will be sequenced and
 	// stored on chain.
-	Submit(ctx context.Context, p *sign.SignedPayload, txID, epoch uint64) error
+	Submit(ctx context.Context, p *sign.Transaction, txID, epoch uint64) error
 }
 
 // QueryAdapter provides the functionality to query transactions from the EVM base shard.
@@ -102,7 +102,7 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	return a, nil
 }
 
-func (a adapterImpl) Submit(ctx context.Context, sp *sign.SignedPayload, txID uint64, epoch uint64) error {
+func (a adapterImpl) Submit(ctx context.Context, sp *sign.Transaction, txID uint64, epoch uint64) error {
 	req := &shardv1.SubmitShardTxRequest{Tx: signedPayloadToProto(sp), Epoch: epoch, TxId: txID}
 	_, err := a.ShardSequencer.SubmitShardTx(ctx, req)
 	return err
@@ -118,7 +118,7 @@ func (a adapterImpl) QueryTransactions(
 	return a.ShardQuerier.Transactions(ctx, req)
 }
 
-func signedPayloadToProto(sp *sign.SignedPayload) *shardv1.SignedPayload {
+func signedPayloadToProto(sp *sign.Transaction) *shardv1.SignedPayload {
 	return &shardv1.SignedPayload{
 		PersonaTag: sp.PersonaTag,
 		Namespace:  sp.Namespace,
