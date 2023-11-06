@@ -55,7 +55,7 @@ Specifically, Nakama:
     - Alternatively, if the active user has already successfully claimed a Persona Tag, Nakama will fail the request.
 2) Saves that association to Nakama's storage layer under "cardinalCollection"/"personaTag" storage object.
     - The User ID to Persona Tag association starts off as "pending" and will later be updated to either "accepted" or "rejected"
-3) Creates a signed System level transaction using `sign.NewSystemSignedPayload`.
+3) Creates a signed System level transaction using `sign.NewSystemTransaction`.
     - The System signature indicated to Cardinal that there is not a previously-registered Persona Tag generating this transaction.
 4) Sends a request to Cardinal's `/tx/persona/create-persona`/`/tx-create-persona` endpoint.
     - This gives Cardinal a chance to decide if the Persona Tag truly is up for grabs, or if someone has already claimed it.
