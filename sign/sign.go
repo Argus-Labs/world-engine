@@ -26,7 +26,7 @@ var (
 // does not actually exist (e.g. during the PersonaTag creation process).
 const SystemPersonaTag = "SystemPersonaTag"
 
-type SignedPayload struct {
+type Transaction struct {
 	PersonaTag string          `json:"personaTag"`
 	Namespace  string          `json:"namespace"`
 	Nonce      uint64          `json:"nonce"`
@@ -35,13 +35,13 @@ type SignedPayload struct {
 	Body       json.RawMessage `json:"body"` // json string
 }
 
-func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
-	s := new(SignedPayload)
+func UnmarshalSignedPayload(bz []byte) (*Transaction, error) {
+	s := new(Transaction)
 	dec := json.NewDecoder(bytes.NewBuffer(bz))
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(s); err != nil {
-		return nil, fmt.Errorf("error decoding SignedPayload: %w", err)
+		return nil, fmt.Errorf("error decoding Transaction: %w", err)
 	}
 
 	// ensure that all fields are present. we could do this via reflection, but checking directly is faster than
@@ -63,8 +63,8 @@ func UnmarshalSignedPayload(bz []byte) (*SignedPayload, error) {
 }
 
 // MappedSignedPayload Identical to UnmarshalSignedPayload but takes a payload in the form of map[string]any.
-func MappedSignedPayload(payload map[string]interface{}) (*SignedPayload, error) {
-	s := new(SignedPayload)
+func MappedSignedPayload(payload map[string]interface{}) (*Transaction, error) {
+	s := new(Transaction)
 	signedPayloadKeys := map[string]bool{
 		"personaTag": true,
 		"namespace":  true,
@@ -138,7 +138,7 @@ func normalizeJSON(data any) ([]byte, error) {
 }
 
 // newSignedAny uses the given private key to sign the personaTag, namespace, nonce, and data.
-func newSignedAny(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*SignedPayload, error) {
+func newSignedAny(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data any) (*Transaction, error) {
 	if data == nil || reflect.ValueOf(data).IsZero() {
 		return nil, ErrCannotSignEmptyBody
 	}
@@ -152,7 +152,7 @@ func newSignedAny(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint
 	if len(bz) == 0 {
 		return nil, ErrCannotSignEmptyBody
 	}
-	sp := &SignedPayload{
+	sp := &Transaction{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
 		Nonce:      nonce,
@@ -168,7 +168,7 @@ func newSignedAny(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint
 }
 
 // NewSystemSignedPayload signs a given body, and nonce with the given private key using the SystemPersonaTag.
-func NewSystemSignedPayload(pk *ecdsa.PrivateKey, namespace string, nonce uint64, data any) (*SignedPayload, error) {
+func NewSystemSignedPayload(pk *ecdsa.PrivateKey, namespace string, nonce uint64, data any) (*Transaction, error) {
 	return newSignedAny(pk, SystemPersonaTag, namespace, nonce, data)
 }
 
@@ -178,35 +178,35 @@ func NewSignedPayload(pk *ecdsa.PrivateKey,
 	namespace string,
 	nonce uint64,
 	data any,
-) (*SignedPayload, error) {
+) (*Transaction, error) {
 	if len(personaTag) == 0 || personaTag == SystemPersonaTag {
 		return nil, ErrInvalidPersonaTag
 	}
 	return newSignedAny(pk, personaTag, namespace, nonce, data)
 }
 
-func (s *SignedPayload) IsSystemPayload() bool {
+func (s *Transaction) IsSystemPayload() bool {
 	return s.PersonaTag == SystemPersonaTag
 }
 
-// Marshal serializes this SignedPayload to bytes, which can then be passed in to Unmarshal.
-func (s *SignedPayload) Marshal() ([]byte, error) {
+// Marshal serializes this Transaction to bytes, which can then be passed in to Unmarshal.
+func (s *Transaction) Marshal() ([]byte, error) {
 	return json.Marshal(s)
 }
 
 // HashHex return a hex encoded hash of the signature.
-func (s *SignedPayload) HashHex() string {
+func (s *Transaction) HashHex() string {
 	if len(s.Hash) == 0 {
 		s.populateHash()
 	}
 	return s.Hash.Hex()
 }
 
-// Verify verifies this SignedPayload has a valid signature. If nil is returned, the signature is valid.
+// Verify verifies this Transaction has a valid signature. If nil is returned, the signature is valid.
 // Signature verification follows the pattern in crypto.TestSign:
 // https://github.com/ethereum/go-ethereum/blob/master/crypto/crypto_test.go#L94
 // TODO: Review this signature verification, and compare it to geth's sig verification
-func (s *SignedPayload) Verify(hexAddress string) error {
+func (s *Transaction) Verify(hexAddress string) error {
 	addr := common.HexToAddress(hexAddress)
 
 	if len(s.Hash) == 0 {
@@ -223,7 +223,7 @@ func (s *SignedPayload) Verify(hexAddress string) error {
 	return nil
 }
 
-func (s *SignedPayload) populateHash() {
+func (s *Transaction) populateHash() {
 	s.Hash = crypto.Keccak256Hash(
 		[]byte(s.PersonaTag),
 		[]byte(s.Namespace),

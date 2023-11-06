@@ -43,33 +43,33 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 
 	testCases := []struct {
 		name    string
-		payload func() (*SignedPayload, error)
+		payload func() (*Transaction, error)
 		expErr  error
 	}{
 		{
 			name: "valid",
-			payload: func() (*SignedPayload, error) {
+			payload: func() (*Transaction, error) {
 				return NewSignedPayload(goodKey, "tag", "namespace", 40, "{}")
 			},
 			expErr: nil,
 		},
 		{
 			name: "missing persona tag",
-			payload: func() (*SignedPayload, error) {
+			payload: func() (*Transaction, error) {
 				return NewSignedPayload(goodKey, "", "ns", 20, "{}")
 			},
 			expErr: ErrInvalidPersonaTag,
 		},
 		{
 			name: "missing namespace",
-			payload: func() (*SignedPayload, error) {
+			payload: func() (*Transaction, error) {
 				return NewSignedPayload(goodKey, "fop", "", 20, "{}")
 			},
 			expErr: ErrInvalidNamespace,
 		},
 		{
 			name: "system signed payload",
-			payload: func() (*SignedPayload, error) {
+			payload: func() (*Transaction, error) {
 				return NewSystemSignedPayload(goodKey, "some-namespace", 25, "{}")
 			},
 			expErr: nil,
@@ -78,7 +78,7 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			var payload *SignedPayload
+			var payload *Transaction
 			payload, err = tc.payload()
 			if tc.expErr != nil {
 				assert.ErrorIs(t, tc.expErr, err)
@@ -114,13 +114,13 @@ func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		var sp *SignedPayload
+		var sp *Transaction
 		sp, err = NewSignedPayload(key, "coolmage", "world", 100, tc)
 		assert.NilError(t, err)
 		var buf []byte
 		buf, err = sp.Marshal()
 		assert.NilError(t, err)
-		var gotSP *SignedPayload
+		var gotSP *Transaction
 		gotSP, err = UnmarshalSignedPayload(buf)
 		assert.NilError(t, err)
 		var gotStruct SomeStruct
