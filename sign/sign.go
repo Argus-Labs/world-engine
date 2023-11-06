@@ -20,8 +20,6 @@ var (
 	ErrCannotSignEmptyBody       = errors.New("cannot sign empty body")
 	ErrInvalidPersonaTag         = errors.New("invalid persona tag")
 	ErrInvalidNamespace          = errors.New("invalid namespace")
-
-	zeroHashHex = common.Hash{}.Hex()
 )
 
 // SystemPersonaTag is a reserved persona tag for transaction. It is used in transactions when a PersonaTag
@@ -201,7 +199,7 @@ func (s *SignedPayload) Marshal() ([]byte, error) {
 }
 
 func isZeroHash(hash common.Hash) bool {
-	return hash.Hex() == zeroHashHex
+	return hash == common.Hash{}
 }
 
 // HashHex return a hex encoded hash of the signature.
