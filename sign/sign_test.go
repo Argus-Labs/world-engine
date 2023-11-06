@@ -43,7 +43,7 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	assert.ErrorIs(t, toBeVerified.Verify(badAddressHex), ErrSignatureValidationFailed)
 }
 
-func TestCanParseAMappedSignedPayload(t *testing.T) {
+func TestCanParseAMappedTransaction(t *testing.T) {
 	goodKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	body := `{"msg": "this is a request body"}`
@@ -51,14 +51,14 @@ func TestCanParseAMappedSignedPayload(t *testing.T) {
 	namespace := "my-namespace"
 	nonce := uint64(100)
 
-	sp, err := NewSignedPayload(goodKey, personaTag, namespace, nonce, body)
+	sp, err := NewTransaction(goodKey, personaTag, namespace, nonce, body)
 	assert.NilError(t, err)
 	bz, err := json.Marshal(sp)
 	assert.NilError(t, err)
 	asMap := map[string]any{}
 	assert.NilError(t, json.Unmarshal(bz, &asMap))
 
-	gotSP, err := MappedSignedPayload(asMap)
+	gotSP, err := MappedTransaction(asMap)
 	assert.NilError(t, err)
 
 	assert.DeepEqual(t, sp, gotSP)
@@ -72,7 +72,7 @@ func TestCanGetHashHex(t *testing.T) {
 	wantNamespace := "my-namespace"
 	wantNonce := uint64(100)
 
-	sp, err := NewSignedPayload(goodKey, wantPersonaTag, wantNamespace, wantNonce, wantBody)
+	sp, err := NewTransaction(goodKey, wantPersonaTag, wantNamespace, wantNonce, wantBody)
 	assert.NilError(t, err)
 	wantHash := sp.HashHex()
 
@@ -90,13 +90,13 @@ func TestIsSignedSystemPayload(t *testing.T) {
 	namespace := "my-namespace"
 	nonce := uint64(100)
 
-	sp, err := NewSignedPayload(goodKey, personaTag, namespace, nonce, body)
+	sp, err := NewTransaction(goodKey, personaTag, namespace, nonce, body)
 	assert.NilError(t, err)
-	assert.Check(t, !sp.IsSystemPayload())
+	assert.Check(t, !sp.IsSystemTransaction())
 
-	sp, err = NewSystemSignedPayload(goodKey, namespace, nonce, body)
+	sp, err = NewSystemTransaction(goodKey, namespace, nonce, body)
 	assert.NilError(t, err)
-	assert.Check(t, sp.IsSystemPayload())
+	assert.Check(t, sp.IsSystemTransaction())
 }
 
 func TestFailsIfFieldsMissing(t *testing.T) {
@@ -138,15 +138,15 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 		},
 		{
 			name: "signed payload with SystemPersonaTag",
-			payload: func() (*SignedPayload, error) {
-				return NewSignedPayload(goodKey, SystemPersonaTag, "some-namespace", 25, "{}")
+			payload: func() (*Transaction, error) {
+				return NewTransaction(goodKey, SystemPersonaTag, "some-namespace", 25, "{}")
 			},
 			expErr: ErrInvalidPersonaTag,
 		},
 		{
 			name: "empty body",
-			payload: func() (*SignedPayload, error) {
-				return NewSystemSignedPayload(goodKey, "some-namespace", 25, "")
+			payload: func() (*Transaction, error) {
+				return NewSystemTransaction(goodKey, "some-namespace", 25, "")
 			},
 			expErr: ErrCannotSignEmptyBody,
 		},
@@ -212,17 +212,17 @@ func TestRejectInvalidSignatures(t *testing.T) {
 	type Payload struct {
 		Value int
 	}
-	_, err = NewSignedPayload(key, "", "namespace", 100, Payload{100})
+	_, err = NewTransaction(key, "", "namespace", 100, Payload{100})
 	assert.ErrorIs(t, err, ErrInvalidPersonaTag)
-	_, err = NewSignedPayload(key, "persona_tag", "", 100, Payload{100})
+	_, err = NewTransaction(key, "persona_tag", "", 100, Payload{100})
 	assert.ErrorIs(t, err, ErrInvalidNamespace)
-	_, err = NewSignedPayload(key, "persona_tag", "", 100, nil)
+	_, err = NewTransaction(key, "persona_tag", "", 100, nil)
 	assert.ErrorIs(t, err, ErrCannotSignEmptyBody)
 }
 
 func TestRejectInvalidJSON(t *testing.T) {
 	data := `{"personaTag":"jeff", "namespace": {{{`
-	_, err := UnmarshalSignedPayload([]byte(data))
+	_, err := UnmarshalTransaction([]byte(data))
 	assert.Check(t, err != nil)
 }
 
@@ -237,15 +237,15 @@ func TestRejectSignatureWithExtraField(t *testing.T) {
 
 	bz, err := json.Marshal(data)
 	assert.NilError(t, err)
-	_, err = UnmarshalSignedPayload(bz)
+	_, err = UnmarshalTransaction(bz)
 	assert.NilError(t, err)
 	data["extra_field"] = "hello"
 	bz, err = json.Marshal(data)
 	assert.NilError(t, err)
-	_, err = UnmarshalSignedPayload(bz)
+	_, err = UnmarshalTransaction(bz)
 	assert.Check(t, err != nil)
 
-	_, err = MappedSignedPayload(data)
+	_, err = MappedTransaction(data)
 	assert.Check(t, err != nil)
 }
 
@@ -261,7 +261,7 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 	// Make sure the valid data can actually be unmarshalled
 	bz, err := json.Marshal(validData)
 	assert.NilError(t, err)
-	_, err = UnmarshalSignedPayload(bz)
+	_, err = UnmarshalTransaction(bz)
 	assert.NilError(t, err)
 
 	fieldsToOmit := []string{"personaTag", "namespace", "signature", "body"}
@@ -280,10 +280,10 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 		delete(currData, field)
 		bz, err = json.Marshal(currData)
 		assert.NilError(t, err)
-		_, err = UnmarshalSignedPayload(bz)
-		assert.Check(t, err != nil, "in UnmarshalSignedPayload want error when field %q is missing", field)
+		_, err = UnmarshalTransaction(bz)
+		assert.Check(t, err != nil, "in UnmarshalTransaction want error when field %q is missing", field)
 
-		_, err = MappedSignedPayload(currData)
-		assert.Check(t, err != nil, "in MappedSignedPayload: want error when field %q is missing", field)
+		_, err = MappedTransaction(currData)
+		assert.Check(t, err != nil, "in MappedTransaction: want error when field %q is missing", field)
 	}
 }
