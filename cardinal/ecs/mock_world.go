@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog/log"
-	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
