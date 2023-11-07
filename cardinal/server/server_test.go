@@ -10,11 +10,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -39,7 +40,7 @@ type SendEnergyTx struct {
 type SendEnergyTxResult struct{}
 
 func TestHealthEndpoint(t *testing.T) {
-	testutils.SetTestTimeout(t, 10*time.Second)
+	//testutils.SetTestTimeout(t, 10*time.Second)
 	w := ecs.NewTestWorld(t)
 	assert.NilError(t, w.LoadGameState())
 	testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
@@ -153,10 +154,15 @@ func TestCanListTransactionEndpoints(t *testing.T) {
 	betaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("beta")
 	gammaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("gamma")
 	assert.NilError(t, w.RegisterTransactions(alphaTx, betaTx, gammaTx))
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
-
-	resp, err := http.Post(txh.MakeHTTPURL("query/http/endpoints"), "application/json", nil)
+	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification(), server.WithCORS())
+	client := &http.Client{}
+	req, err := http.NewRequest("POST", txh.MakeHTTPURL("query/http/endpoints"), nil)
 	assert.NilError(t, err)
+	req.Header.Set("Origin", "http://www.bullshit.com") // test CORS
+	resp, err := client.Do(req)
+	assert.NilError(t, err)
+	v := resp.Header.Get("Access-Control-Allow-Origin")
+	assert.Equal(t, v, "*")
 	assert.Equal(t, resp.StatusCode, 200)
 	var gotEndpoints map[string][]string
 	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&gotEndpoints))

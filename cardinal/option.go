@@ -82,3 +82,9 @@ func WithPrettyLog() WorldOption {
 		ecsOption: ecs.WithPrettyLog(),
 	}
 }
+
+func WithCORS() WorldOption {
+	return WorldOption{
+		serverOption: nil,
+	}
+}
