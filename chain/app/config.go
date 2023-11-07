@@ -46,8 +46,10 @@ import (
 	"os"
 	shardmodulev1 "pkg.world.dev/world-engine/chain/api/shard/module/v1"
 	"pkg.world.dev/world-engine/chain/shard"
-	"pkg.world.dev/world-engine/chain/x/namespace"
 	shardmodule "pkg.world.dev/world-engine/chain/x/shard"
+
+	namespacemodule "pkg.world.dev/world-engine/chain/api/namespace/module/v1"
+	namespacetypes "pkg.world.dev/world-engine/chain/x/namespace/types"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -72,22 +74,21 @@ import (
 	evmmodulev1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/module/v1alpha1"
 	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
 
-	_ "cosmossdk.io/x/evidence"                       // import for side-effects
-	_ "cosmossdk.io/x/upgrade"                        // import for side-effects
-	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side-effects
-	_ "github.com/cosmos/cosmos-sdk/x/auth/vesting"   // import for side-effects
-	_ "github.com/cosmos/cosmos-sdk/x/authz/module"   // import for side-effects
-	_ "github.com/cosmos/cosmos-sdk/x/bank"           // import for side-effects
-	_ "github.com/cosmos/cosmos-sdk/x/consensus"      // import for side-effects
-	_ "github.com/cosmos/cosmos-sdk/x/crisis"         // import for side-effects
-	_ "github.com/cosmos/cosmos-sdk/x/distribution"   // import for side-effects
-	_ "github.com/cosmos/cosmos-sdk/x/mint"           // import for side-effects
-	_ "github.com/cosmos/cosmos-sdk/x/params"         // import for side-effects
-	_ "github.com/cosmos/cosmos-sdk/x/slashing"       // import for side-effects
-	_ "github.com/cosmos/cosmos-sdk/x/staking"        // import for side-effects
-	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side-effects
-
-	namespacemodule "pkg.world.dev/world-engine/chain/api/namespace/module/v1"
+	_ "cosmossdk.io/x/evidence"                       // import for side effects
+	_ "cosmossdk.io/x/upgrade"                        // import for side effects
+	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side effects
+	_ "github.com/cosmos/cosmos-sdk/x/auth/vesting"   // import for side effects
+	_ "github.com/cosmos/cosmos-sdk/x/authz/module"   // import for side effects
+	_ "github.com/cosmos/cosmos-sdk/x/bank"           // import for side effects
+	_ "github.com/cosmos/cosmos-sdk/x/consensus"      // import for side effects
+	_ "github.com/cosmos/cosmos-sdk/x/crisis"         // import for side effects
+	_ "github.com/cosmos/cosmos-sdk/x/distribution"   // import for side effects
+	_ "github.com/cosmos/cosmos-sdk/x/mint"           // import for side effects
+	_ "github.com/cosmos/cosmos-sdk/x/params"         // import for side effects
+	_ "github.com/cosmos/cosmos-sdk/x/slashing"       // import for side effects
+	_ "github.com/cosmos/cosmos-sdk/x/staking"        // import for side effects
+	_ "pkg.berachain.dev/polaris/cosmos/x/evm"        // import for side effects
+	_ "pkg.world.dev/world-engine/chain/x/namespace"  // import for side effects
 )
 
 var (
@@ -101,6 +102,7 @@ var (
 		{Account: govtypes.ModuleName, Permissions: []string{authtypes.Burner}},
 		{Account: evmtypes.ModuleName, Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		{Account: shard.Name},
+		{Account: namespacetypes.ModuleName},
 	}
 
 	// blocked account addresses.
@@ -119,7 +121,7 @@ var (
 //
 //nolint:funlen
 func MakeAppConfig(bech32prefix string) depinject.Config {
-	namespaceAuth := os.Getenv("NAMESPACE_AUTHORITY_ADDR")
+	namespaceAuthAddr := os.Getenv("NAMESPACE_AUTHORITY_ADDR")
 	if bech32prefix == "" {
 		bech32prefix = "world"
 	}
@@ -177,7 +179,7 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 						vestingtypes.ModuleName,
 						consensustypes.ModuleName,
 						evmtypes.ModuleName,
-						namespace.ModuleName,
+						namespacetypes.ModuleName,
 						shardmodule.ModuleName,
 					},
 					// When ExportGenesis is not specified, the export genesis module order
@@ -264,14 +266,14 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 				Config: appconfig.WrapAny(&evmmodulev1alpha1.Module{}),
 			},
 			{
-				Name: namespace.ModuleName,
-				Config: appconfig.WrapAny(&namespacemodule.Module{
-					Authority: namespaceAuth,
-				}),
-			},
-			{
 				Name:   shardmodule.ModuleName,
 				Config: appconfig.WrapAny(&shardmodulev1.Module{}),
+			},
+			{
+				Name: namespacetypes.ModuleName,
+				Config: appconfig.WrapAny(&namespacemodule.Module{
+					Authority: namespaceAuthAddr,
+				}),
 			},
 		},
 	}),
