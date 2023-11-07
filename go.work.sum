@@ -4,7 +4,9 @@
 4d63.com/gochecknoglobals v0.2.1/go.mod h1:KRE8wtJB3CXCsb1xy421JfTHIIbmT3U5ruxw2Qu8fSU=
 bitbucket.org/creachadair/shell v0.0.6 h1:reJflDbKqnlnqb4Oo2pQ1/BqmY/eCWcNGHrIUO8qIzc=
 buf.build/gen/go/argus-labs/cardinal/grpc/go v1.2.0-20230419204405-6273c6504412.4/go.mod h1:P6Hq7NMh0HM0S0p13UMWB7aT1swECD7BXP8vgGIrxws=
+buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230808004839-11a21a99bf62.1 h1:KTKofmwG4LXiPZXN18ZFFEzc4kaaNs/1u4+6xBxmriY=
 buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230808004839-11a21a99bf62.1/go.mod h1:An45ezFccbEA0RBZH0YmSymWoANevLOQwdAHhcV7slE=
+buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230808004839-11a21a99bf62.1 h1:R3aZLWrmuvNk1OaRdbcTPyqvgv24u3d7porxedyV8XI=
 buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230808004839-11a21a99bf62.1/go.mod h1:znJrAqamygZMR7LrV3nDqY7HQcgUnFxDiqidxu1nh8A=
 buf.build/gen/go/cosmos/cosmos-proto/grpc/go v1.2.0-20211202220400-1935555c206d.4/go.mod h1:4BLD3qB5/QzdNdFnviF26v7IPBEbVXhl717CSs/x1SE=
 buf.build/gen/go/cosmos/cosmos-proto/grpc/go v1.3.0-20211202220400-1935555c206d.1 h1:lMoezaY7PUlR3DxGjRuUAzHQnnhwuaX21eJNURRCq9U=
