@@ -85,6 +85,6 @@ func WithPrettyLog() WorldOption {
 
 func WithCORS() WorldOption {
 	return WorldOption{
-		serverOption: nil,
+		serverOption: server.WithCORS(),
 	}
 }
