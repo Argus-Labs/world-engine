@@ -394,9 +394,9 @@ func (w *World) setEvmResults(txs []message.TxData) {
 			continue
 		}
 		evmRec := EVMTxReceipt{EVMTxHash: tx.EVMSourceTxHash}
-		itx := w.getITx(tx.MsgID)
+		msg := w.getMessage(tx.MsgID)
 		if rec.Result != nil {
-			abiBz, err := itx.ABIEncode(rec.Result)
+			abiBz, err := msg.ABIEncode(rec.Result)
 			if err != nil {
 				rec.Errs = append(rec.Errs, err)
 			}
@@ -600,11 +600,11 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				itx := w.getITx(message.TypeID(tx.TxId))
-				if itx == nil {
+				msg := w.getMessage(message.TypeID(tx.TxId))
+				if msg == nil {
 					return fmt.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
 				}
-				v, err := itx.Decode(sp.Body)
+				v, err := msg.Decode(sp.Body)
 				if err != nil {
 					return err
 				}
@@ -647,9 +647,9 @@ func (w *World) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
 	return payload, err
 }
 
-// getITx iterates over the registered all message.Message and returns the message.Message associated with the
+// getMessage iterates over the all registered messages and returns the message.Message associated with the
 // message.TypeID.
-func (w *World) getITx(id message.TypeID) message.Message {
+func (w *World) getMessage(id message.TypeID) message.Message {
 	for _, msg := range w.registeredMessages {
 		if id == msg.ID() {
 			return msg
