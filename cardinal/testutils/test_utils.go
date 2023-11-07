@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
@@ -93,6 +94,16 @@ func (t *TestTransactionHandler) Post(path string, payload any) *http.Response {
 	assert.NilError(t.T, err)
 	//nolint:noctx // its for a test its ok.
 	res, err := http.Post(t.MakeHTTPURL(path), "application/json", bytes.NewReader(bz))
+	assert.NilError(t.T, err)
+	return res
+}
+
+func (t *TestTransactionHandler) Get(path string) *http.Response {
+	url := t.MakeHTTPURL(path)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	assert.NilError(t.T, err)
+	res, err := http.DefaultClient.Do(req)
 	assert.NilError(t.T, err)
 	return res
 }
