@@ -14,7 +14,7 @@ func NewQueryCmd() *cobra.Command {
 		Use:                        types.ModuleName,
 		Short:                      "Namespace query subcommands",
 		DisableFlagParsing:         true,
-		SuggestionsMinimumDistance: 2,
+		SuggestionsMinimumDistance: 2, //nolint:gomnd // not needed
 		RunE:                       client.ValidateCmd,
 	}
 
