@@ -9,10 +9,10 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func txHash(t *testing.T) message.Hash {
+func txHash(t *testing.T) message.TxHash {
 	id, err := uuid.NewUUID()
 	assert.NilError(t, err)
-	return message.Hash(id.String())
+	return message.TxHash(id.String())
 }
 
 func TestCanSaveAndGetAnError(t *testing.T) {

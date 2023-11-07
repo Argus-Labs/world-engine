@@ -1,6 +1,6 @@
 package message
 
-type Hash string
+type TxHash string
 
 // TypeID represents a message's ID. ID's are assigned to messages when they are registered in a World object.
 type TypeID int

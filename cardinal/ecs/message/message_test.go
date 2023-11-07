@@ -422,13 +422,13 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 		assert.Equal(t, wantDeltaX, tx.Msg.DeltaX)
 		assert.Equal(t, wantDeltaY, tx.Msg.DeltaY)
 
-		// AddError will associate an error with the tx.Hash. Multiple errors can be
+		// AddError will associate an error with the tx.TxHash. Multiple errors can be
 		// associated with a transaction.
 		moveMsg.AddError(wCtx, tx.Hash, wantFirstError)
 		moveMsg.AddError(wCtx, tx.Hash, wantSecondError)
 
 		// SetResult sets the output for the transaction. Only one output can be set
-		// for a tx.Hash (the last assigned result will clobber other results)
+		// for a tx.TxHash (the last assigned result will clobber other results)
 		moveMsg.SetResult(wCtx, tx.Hash, MoveMsgResult{42, 42})
 		return nil
 	})

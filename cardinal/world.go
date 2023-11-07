@@ -43,7 +43,7 @@ type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
 	EntityID = entity.ID
-	MsgHash  = message.Hash
+	TxHash   = message.TxHash
 	Receipt  = receipt.Receipt
 
 	// System is a function that process the transaction in the given transaction queue.

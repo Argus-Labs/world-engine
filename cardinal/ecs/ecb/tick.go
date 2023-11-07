@@ -101,7 +101,7 @@ func (m *Manager) Recover(txs []message.Message) (*message.TxQueue, error) {
 
 type pendingTransaction struct {
 	TypeID message.TypeID
-	TxHash message.Hash
+	TxHash message.TxHash
 	Data   []byte
 	Tx     *sign.Transaction
 }
@@ -118,7 +118,7 @@ func addPendingTransactionToPipe(ctx context.Context, pipe redis.Pipeliner, txs 
 			}
 			currItem := pendingTransaction{
 				TypeID: tx.ID(),
-				TxHash: txData.MsgHash,
+				TxHash: txData.TxHash,
 				Tx:     txData.Tx,
 				Data:   buf,
 			}

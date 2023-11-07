@@ -281,7 +281,7 @@ func TestWorldTickAndHistoryTickMatch(t *testing.T) {
 func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 	type Msg struct{}
 	type Result struct{}
-	someTx := ecs.NewMessageType[Msg, Result]("some-tx")
+	someTx := ecs.NewMessageType[Msg, Result]("some-msg")
 	redisStore := miniredis.RunT(t)
 	ctx := context.Background()
 
