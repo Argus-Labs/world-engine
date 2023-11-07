@@ -85,6 +85,7 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Op
 	if err != nil {
 		return nil, err
 	}
+	th.registerDebugHandlerSwagger(api)
 	th.registerHealthHandlerSwagger(api)
 
 	// This is here to meet the swagger spec. Actual /events will be intercepted before this route.
@@ -111,9 +112,19 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Op
 func createSwaggerQueryHandler[Request any, Response any](requestName string,
 	requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
 	return func(params interface{}) (interface{}, error) {
-		request, ok := getValueFromParams[Request](params, requestName)
-		if !ok {
-			return middleware.Error(http.StatusNotFound, fmt.Errorf("%s not found", requestName)), nil
+		isEmpty, err := isParamsEmpty(params)
+		if err != nil {
+			return nil, err
+		}
+		var request *Request
+		var ok bool
+		if !isEmpty {
+			request, ok = getValueFromParams[Request](params, requestName)
+			if !ok {
+				return middleware.Error(http.StatusNotFound, fmt.Errorf("%s not found", requestName)), nil
+			}
+		} else {
+			request = nil
 		}
 		resp, err := requestHandler(request)
 		if err != nil {
@@ -121,6 +132,14 @@ func createSwaggerQueryHandler[Request any, Response any](requestName string,
 		}
 		return resp, nil
 	}
+}
+
+func isParamsEmpty(params interface{}) (bool, error) {
+	data, ok := params.(map[string]interface{})
+	if !ok {
+		return false, errors.New("params data structure must be a map[string]interface{}")
+	}
+	return len(data) == 0, nil
 }
 
 // getValueFromParams extracts parameters from swagger handlers.
@@ -149,6 +168,7 @@ func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
 type EndpointsResult struct {
 	TxEndpoints    []string `json:"txEndpoints"`
 	QueryEndpoints []string `json:"queryEndpoints"`
+	DebugEndpoints []string `json:"debugEndpoints"`
 }
 
 func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
@@ -176,6 +196,8 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 		"/query/receipt/list",
 		"/query/game/cql",
 	)
+	debugEndpoints := make([]string, 1)
+	debugEndpoints[0] = "/debug/state"
 	return &EndpointsResult{
 		TxEndpoints:    txEndpoints,
 		QueryEndpoints: queryEndpoints,
