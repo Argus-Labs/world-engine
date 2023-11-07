@@ -10,7 +10,7 @@ import (
 
 func TestResultStorage(t *testing.T) {
 	t.Parallel()
-	rs := newResultsStorage(1 * time.Second)
+	rs := NewMemoryResultStorage(1 * time.Second)
 	hash := "baz"
 	res := &routerv1.SendMessageResponse{
 		Errs:      "foo",
@@ -19,16 +19,16 @@ func TestResultStorage(t *testing.T) {
 		Code:      4,
 	}
 	rs.SetResult(res)
-	gotRes, ok := rs.GetResult(hash)
+	gotRes, ok := rs.Result(hash)
 	assert.Equal(t, ok, true)
 	assert.Check(t, proto.Equal(gotRes, res))
 	time.Sleep(1 * time.Second)
 
-	// get the result again, which will now trigger its expiry and delete it.
-	_, ok = rs.GetResult(hash)
+	// get the Result again, which will now trigger its expiry and delete it.
+	_, ok = rs.Result(hash)
 	assert.Equal(t, ok, true)
 
-	// should no longer have the result
-	_, ok = rs.GetResult(hash)
+	// should no longer have the Result
+	_, ok = rs.Result(hash)
 	assert.Equal(t, ok, false)
 }

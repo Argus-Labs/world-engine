@@ -50,7 +50,7 @@ func (handler *Handler) getPersonaSignerResponse(req *QueryPersonaSignerRequest)
 	return &res, nil
 }
 
-func (handler *Handler) generateCreatePersonaResponseFromPayload(payload []byte, sp *sign.SignedPayload,
+func (handler *Handler) generateCreatePersonaResponseFromPayload(payload []byte, sp *sign.Transaction,
 	tx transaction.ITransaction) (*TransactionReply, error) {
 	txVal, err := tx.Decode(payload)
 	if err != nil {

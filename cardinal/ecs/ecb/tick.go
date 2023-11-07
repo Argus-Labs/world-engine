@@ -103,7 +103,7 @@ type pendingTransaction struct {
 	TypeID transaction.TypeID
 	TxHash transaction.TxHash
 	Data   []byte
-	Sig    *sign.SignedPayload
+	Sig    *sign.Transaction
 }
 
 func addPendingTransactionToPipe(ctx context.Context, pipe redis.Pipeliner, txs []transaction.ITransaction,

@@ -68,8 +68,8 @@ func (tc *TxQueue) AddTx(namespace string, epoch, txID uint64, payload []byte) {
 
 	// append the transaction data for this epoch.
 	tc.ntx[namespace].txs[epoch].Txs = append(tc.ntx[namespace].txs[epoch].Txs, &types.Transaction{
-		TxId:          txID,
-		SignedPayload: payload,
+		TxId:                 txID,
+		GameShardTransaction: payload,
 	})
 }
 

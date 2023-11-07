@@ -6,9 +6,9 @@ import (
 	"sort"
 	"testing"
 
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
+	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 
 	"github.com/cometbft/cometbft/libs/rand"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -23,8 +23,8 @@ type DummyAdapter struct {
 	txs map[uint64][]*types.Transaction
 }
 
-func (d *DummyAdapter) Submit(_ context.Context, p *sign.SignedPayload, txID, tick uint64) error {
-	sp := &shardv1.SignedPayload{
+func (d *DummyAdapter) Submit(_ context.Context, p *sign.Transaction, txID, tick uint64) error {
+	sp := &shardv1.Transaction{
 		PersonaTag: p.PersonaTag,
 		Namespace:  p.Namespace,
 		Nonce:      p.Nonce,
@@ -39,8 +39,8 @@ func (d *DummyAdapter) Submit(_ context.Context, p *sign.SignedPayload, txID, ti
 		d.txs[tick] = make([]*types.Transaction, 0)
 	}
 	d.txs[tick] = append(d.txs[tick], &types.Transaction{
-		TxId:          txID,
-		SignedPayload: bz,
+		TxId:                 txID,
+		GameShardTransaction: bz,
 	})
 	return nil
 }
@@ -107,7 +107,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		return nil
 	})
 	namespace := "game1"
-	payloads := make([]*sign.SignedPayload, 0, 10)
+	payloads := make([]*sign.Transaction, 0, 10)
 	var finalTick uint64 = 20
 	for i := 0; i <= 10; i++ {
 		payload := generateRandomTransaction(t, namespace, sendEnergyTx)
@@ -126,7 +126,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 }
 
 func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[SendEnergyTransaction,
-	SendEnergyTransactionResponse]) *sign.SignedPayload {
+	SendEnergyTransactionResponse]) *sign.Transaction {
 	tx1 := SendEnergyTransaction{
 		To:     rand.Str(5),
 		From:   rand.Str(4),
@@ -134,7 +134,7 @@ func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[
 	}
 	bz, err := tx.Encode(tx1)
 	assert.NilError(t, err)
-	return &sign.SignedPayload{
+	return &sign.Transaction{
 		PersonaTag: rand.Str(5),
 		Namespace:  ns,
 		Nonce:      rand.Uint64(),

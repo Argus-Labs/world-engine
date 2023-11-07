@@ -1,9 +1,9 @@
 package shard
 
 import (
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"context"
 	"gotest.tools/v3/assert"
+	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 	"testing"
 )
 
@@ -13,7 +13,7 @@ func TestServer(t *testing.T) {
 	_, err := s.SubmitShardTx(ctx, &shardv1.SubmitShardTxRequest{
 		Epoch: 1,
 		TxId:  1,
-		Tx: &shardv1.SignedPayload{
+		Tx: &shardv1.Transaction{
 			PersonaTag: "hi",
 			Namespace:  "foobar",
 			Nonce:      4,
@@ -25,7 +25,7 @@ func TestServer(t *testing.T) {
 	_, err = s.SubmitShardTx(ctx, &shardv1.SubmitShardTxRequest{
 		Epoch: 1,
 		TxId:  2,
-		Tx: &shardv1.SignedPayload{
+		Tx: &shardv1.Transaction{
 			PersonaTag: "hi",
 			Namespace:  "foobar",
 			Nonce:      5,
@@ -37,7 +37,7 @@ func TestServer(t *testing.T) {
 	_, err = s.SubmitShardTx(ctx, &shardv1.SubmitShardTxRequest{
 		Epoch: 40,
 		TxId:  2,
-		Tx: &shardv1.SignedPayload{
+		Tx: &shardv1.Transaction{
 			PersonaTag: "hi",
 			Namespace:  "barfoo",
 			Nonce:      5,
@@ -55,7 +55,7 @@ func TestServer(t *testing.T) {
 	_, err = s.SubmitShardTx(ctx, &shardv1.SubmitShardTxRequest{
 		Epoch: 4,
 		TxId:  2,
-		Tx: &shardv1.SignedPayload{
+		Tx: &shardv1.Transaction{
 			PersonaTag: "hi",
 			Namespace:  "foobar",
 			Nonce:      5,

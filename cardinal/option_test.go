@@ -11,7 +11,7 @@ import (
 
 type DummyAdapter struct{}
 
-func (d *DummyAdapter) Submit(_ context.Context, _ *sign.SignedPayload, _, _ uint64) error {
+func (d *DummyAdapter) Submit(_ context.Context, _ *sign.Transaction, _, _ uint64) error {
 	return nil
 }
 

@@ -95,11 +95,11 @@ func (t *TransactionType[In, Out]) ID() transaction.TypeID {
 	return t.id
 }
 
-var emptySignature = &sign.SignedPayload{}
+var emptySignature = &sign.Transaction{}
 
 // AddToQueue adds a transaction with the given data to the world object. The transaction will be executed
-// at the next game tick. An optional sign.SignedPayload can be associated with this transaction.
-func (t *TransactionType[In, Out]) AddToQueue(world *World, data In, sigs ...*sign.SignedPayload) transaction.TxHash {
+// at the next game tick. An optional sign.Transaction can be associated with this transaction.
+func (t *TransactionType[In, Out]) AddToQueue(world *World, data In, sigs ...*sign.Transaction) transaction.TxHash {
 	sig := emptySignature
 	if len(sigs) > 0 {
 		sig = sigs[0]
@@ -126,7 +126,7 @@ func (t *TransactionType[In, Out]) SetID(id transaction.TypeID) error {
 type TxData[In any] struct {
 	TxHash transaction.TxHash
 	Value  In
-	Sig    *sign.SignedPayload
+	Sig    *sign.Transaction
 }
 
 func (t *TransactionType[In, Out]) AddError(wCtx WorldContext, hash transaction.TxHash, err error) {

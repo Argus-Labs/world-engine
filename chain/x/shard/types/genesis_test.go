@@ -37,7 +37,7 @@ func TestGenesisValidate(t *testing.T) {
 			err: "no transactions for epoch 0 in namespace foo",
 		},
 		{
-			name: "empty signed payload",
+			name: "empty transaction",
 			mutate: func(state *GenesisState) {
 				state.NamespaceTransactions[0].Epochs[0].Txs = []*Transaction{{}}
 			},

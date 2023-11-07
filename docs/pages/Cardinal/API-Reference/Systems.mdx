@@ -31,7 +31,7 @@ func AttackSystem(world *World, queue *TransactionQueue, logger *Logger) error {
 type TxData[Msg any] struct {
     ID    transaction.TxHash     // unique transaction hash
     Value Msg                   // transaction input
-    Sig   *sign.SignedPayload  // optional transaction signature
+    Sig   *sign.Transaction     // Transaction data (signature, hash, message data)
 }
 ```
 
