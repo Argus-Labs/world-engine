@@ -10,11 +10,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -64,6 +65,55 @@ func TestHealthEndpoint(t *testing.T) {
 		assert.Assert(t, healthResponse.IsServerRunning)
 		isGameLoopRunning = healthResponse.IsGameLoopRunning
 	}
+}
+
+type Alpha struct{}
+
+func (Alpha) Name() string { return "alpha" }
+
+type Beta struct{}
+
+func (Beta) Name() string { return "beta" }
+
+type Gamma struct{}
+
+func (Gamma) Name() string { return "gamma" }
+
+func TestDebugEndpoint(t *testing.T) {
+	world := ecs.NewTestWorld(t)
+
+	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
+	assert.NilError(t, ecs.RegisterComponent[Beta](world))
+	assert.NilError(t, ecs.RegisterComponent[Gamma](world))
+
+	assert.NilError(t, world.LoadGameState())
+	ctx := context.Background()
+	worldCtx := ecs.NewWorldContext(world)
+	_, err := component.CreateMany(worldCtx, 10, Alpha{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Beta{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Gamma{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Beta{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Gamma{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Beta{}, Gamma{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Beta{}, Gamma{})
+	assert.NilError(t, err)
+	err = world.Tick(ctx)
+	assert.NilError(t, err)
+	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+	resp := txh.Get("debug/state")
+	assert.Equal(t, resp.StatusCode, 200)
+	bz, err := io.ReadAll(resp.Body)
+	assert.NilError(t, err)
+	data := make([]json.RawMessage, 0)
+	err = json.Unmarshal(bz, &data)
+	assert.NilError(t, err)
+	assert.Equal(t, len(data), 10*7)
 }
 
 func TestShutDownViaMethod(t *testing.T) {
