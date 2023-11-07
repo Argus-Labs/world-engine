@@ -40,7 +40,7 @@ type SendEnergyTx struct {
 type SendEnergyTxResult struct{}
 
 func TestHealthEndpoint(t *testing.T) {
-	//testutils.SetTestTimeout(t, 10*time.Second)
+	testutils.SetTestTimeout(t, 10*time.Second)
 	w := ecs.NewTestWorld(t)
 	assert.NilError(t, w.LoadGameState())
 	testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
@@ -205,7 +205,7 @@ func TestCanListTransactionEndpoints(t *testing.T) {
 	assert.NilError(t, w.RegisterTransactions(alphaTx, betaTx, gammaTx))
 	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification(), server.WithCORS())
 	client := &http.Client{}
-	req, err := http.NewRequest("POST", txh.MakeHTTPURL("query/http/endpoints"), nil)
+	req, err := http.NewRequest(http.MethodPost, txh.MakeHTTPURL("query/http/endpoints"), nil)
 	assert.NilError(t, err)
 	req.Header.Set("Origin", "http://www.bullshit.com") // test CORS
 	resp, err := client.Do(req)
