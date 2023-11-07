@@ -3,12 +3,12 @@ import { Callout } from 'nextra/components'
 
 import Link from 'next/link'
 
-# Reads
+# Queries
 
-Reads enable Cardinal to handle requests for data from game state.
+Queries enable Cardinal to handle requests for data from game state.
 
 ```go
-package read
+package query
 
 import "pkg.world.dev/world-engine/cardinal"
 
@@ -24,9 +24,9 @@ type PlanetInfoReply struct {
 	Silver  uint64
 }
 
-var PlanetInfo = cardinal.NewReadType[PlanetInfoRequest, PlanetInfoReply](
+var PlanetInfo = cardinal.NewQueryType[PlanetInfoRequest, PlanetInfoReply](
 	"planet-info",
-	func(w *cardinal.World, req PlanetInfoRequest) (PlanetInfoReply, error) {
+	func(worldCtx cardinal.WorldContext, req PlanetInfoRequest) (PlanetInfoReply, error) {
 		// do some query stuff...
 		reply, err := doSomeQueryLogic(req)
 		return reply, err
@@ -34,19 +34,19 @@ var PlanetInfo = cardinal.NewReadType[PlanetInfoRequest, PlanetInfoReply](
 )
 ```
 
-## NewReadType
+## NewQueryType
 
-`NewReadType` creates a new `ReadType`. `ReadType`s wrap around a request and reply type. The request specifies the data needed for the read request. The reply type represents the data requested. Reads also require a function that implements the read.
+`NewQueryType` creates a new `QueryType`. `QueryType`s wrap around a request and reply type. The request specifies the data needed for the query request. The reply type represents the data requested. Queries also require a function that implements the query.
 
 <Callout type={"warning"}>
-    Read handler functions should NOT modify state. State should only be modified in <Link href="/Cardinal/API-Reference/Systems">Systems</Link>.
+    Query handler functions can NOT modify state. State can only be modified in <Link href="/Cardinal/API-Reference/Systems">Systems</Link>. Attempts to modify state in a Query handler will result in an error.
 </Callout>
 
 ```go
-func NewReadType[Request any, Reply any](
+func NewQueryType[Request any, Reply any](
 	name string,
-	handler func(world *World, req Request) (Reply, error),
-) *ReadType[Request, Reply]
+	handler func(worldCtx WorldContext, req Request) (Reply, error),
+) *QueryType[Request, Reply]
 ```
 
 ### Type Parameters
@@ -60,29 +60,29 @@ func NewReadType[Request any, Reply any](
 
 | Parameter   | Type                                          | Description                                                                                        |
 |-------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------|
-| name        | string                                        | The name of the new read type.                                                                    |
-| handler     | func(world *World, req Request) (Reply, error) | The handler function for processing requests and generating a reply.                            |
+| name        | string                                        | The name of the new query type.                                                                    |
+| handler     | func(worldCtx WorldContext, req Request) (Reply, error) | The handler function for processing requests and generating a reply.                            |
 
 
 ### Return Value
 
 | Return Type             | Description                                                             |
 |-------------------------|-------------------------------------------------------------------------|
-| *ReadType[Request, Reply] | A pointer to a new instance of ReadType[Request, Reply].                |
+| *QueryType[Request, Reply] | A pointer to a new instance of QueryType[Request, Reply].                |
 
 
-## NewReadTypeWithEVMSupport
+## NewQueryTypeWithEVMSupport
 
-`NewReadTypeWithEVMSupport` creates a new `ReadType` with EVM support, allowing this read to handle requests originating from EVM smart contracts.
+`NewQueryTypeWithEVMSupport` creates a new `QueryType` with EVM support, allowing this query to handle requests originating from EVM smart contracts.
 <Callout type={"warning"}>
-    Not all Go types are supported when using EVM supported reads. <Link href="/Cardinal/API-Reference/evm-support">Read More</Link>
+    Not all Go types are supported when using EVM supported queries. <Link href="/Cardinal/API-Reference/evm-support">Read More</Link>
 </Callout>
 
 ```go
-func NewReadTypeWithEVMSupport[Request any, Reply any](
+func NewQueryTypeWithEVMSupport[Request any, Reply any](
 	name string,
-	handler func(world *World, req Request) (Reply, error),
-) *ReadType[Request, Reply]
+	handler func(worldCtx WorldContext, req Request) (Reply, error),
+) *QueryType[Request, Reply]
 ```
 
 ### Type Parameters
@@ -96,14 +96,14 @@ func NewReadTypeWithEVMSupport[Request any, Reply any](
 
 | Parameter   | Type                                          | Description                                                                                        |
 |-------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------|
-| name        | string                                        | The name of the new read type.                                                                    |
-| handler     | func(world *World, req Request) (Reply, error) | The handler function for processing requests and generating a reply.                            |
+| name        | string                                        | The name of the new query type.                                                                    |
+| handler     | func(worldCtx WorldContext, req Request) (Reply, error) | The handler function for processing requests and generating a reply.                            |
 
 
 ### Return Value
 
 | Return Type             | Description                                                             |
 |-------------------------|-------------------------------------------------------------------------|
-| *ReadType[Request, Reply] | A pointer to a new instance of ReadType[Request, Reply].                |
+| *QueryType[Request, Reply] | A pointer to a new instance of QueryType[Request, Reply].                |
 
 

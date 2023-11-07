@@ -99,14 +99,14 @@ func NewTransactionTypeWithEVMSupport[Msg, Result any](
 `AddError` adds an error to a specific transaction that signifies an issue has occurred with the transaction's execution.
 
 ```go
-func (t *TransactionType[Msg, Result]) AddError(world *World, hash TxHash, err error)
+func (t *TransactionType[Msg, Result]) AddError(worldCrx WorldContext, hash TxHash, err error)
 ```
 
 #### Example
 
 ```go
 AttackTx.AddError(
-	w,
+	worldCtx,
 	txHash,
 	fmt.Errorf("player does with id %d does not exist", txID),
 )
@@ -114,11 +114,11 @@ AttackTx.AddError(
 
 #### Parameters
 
-| Parameter   | Type                 | Description                                           |
-|-------------|----------------------|-------------------------------------------------------|
-| world       | *World               | A pointer to a World instance.  |
-| hash        | TxHash             | The hash of the transaction.         |
-| err         | error                | The error to be associated with the transaction.     |
+| Parameter   | Type             | Description                                                |
+|-------------|------------------|------------------------------------------------------------|
+| worldCtx    | WorldContext     | A WorldContext object passed in to your System definition  |
+| hash        | TxHash           | The hash of the transaction.                               |
+| err         | error            | The error to be associated with the transaction.           |
 
 ### SetResult
 
@@ -126,7 +126,7 @@ AttackTx.AddError(
 
 ```go
 func (t *TransactionType[Msg, Result]) SetResult(
-	world *World,
+	worldCtx WorldContext,
 	hash TxHash,
 	result Result,
 )
@@ -135,14 +135,14 @@ func (t *TransactionType[Msg, Result]) SetResult(
 #### Example
 
 ```go
-AttackTx.SetResult(w, txHash, AttackResult{Success: true})
+AttackTx.SetResult(worldCtx, txHash, AttackResult{Success: true})
 ```
 
 #### Parameters
 
 | Parameter   | Type                 | Description                                           |
 |-------------|----------------------|-------------------------------------------------------|
-| world       | *World               | A pointer to a World instance.  |
+| worldCtx    | WorldContext         | A WorldContext object passed in to your System definition |
 | hash        | TxHash               | The hash of the transaction.       |
 | result      | Result               | The result to be associated with the transaction.    |
 
@@ -153,22 +153,22 @@ AttackTx.SetResult(w, txHash, AttackResult{Success: true})
 
 ```go
 func (t *TransactionType[Msg, Result]) GetReceipt(
-	world *World,
+	worldCtx WorldContext
 	hash TxHash,
 ) (r Result, errs []error, ok bool)
 ```
 
 #### Example
 ```go
-result, errs, ok := AttackTx.GetReceipt(w, txHash)
+result, errs, ok := AttackTx.GetReceipt(worldCtx, txHash)
 ```
 
 #### Parameters
 
 | Parameter   | Type                 | Description                                         |
 |-------------|----------------------|-----------------------------------------------------|
-| world       | *World               | A pointer to a World instance.  |
-| hash          | TxHash    | The hash of the transaction.    |
+| worldCtx    | WorldContext         | A WorldContext object passed in to your System definition |
+| hash        | TxHash               | The hash of the transaction.    |
 
 #### Return Values
 
@@ -184,14 +184,14 @@ result, errs, ok := AttackTx.GetReceipt(w, txHash)
 
 ```go
 func (t *TransactionType[Msg, Result]) In(
-	tq *TransactionQueue,
+	worldCtx WorldContext
 ) []TxData[In]
 ```
 
 #### Example
 
 ```go
-txs := AttackTx.In(tq)
+txs := AttackTx.In(worldCtx)
 for _, tx := range txs {
 	// ... do something with each tx
 	txVal := tx.Value()
@@ -204,7 +204,7 @@ for _, tx := range txs {
 
 | Parameter   | Type                 | Description                                           |
 |-------------|----------------------|-------------------------------------------------------|
-| tq          | *TransactionQueue    | A pointer to a TransactionQueue containing transactions. |
+| worldCtx    | WorldContext         | A WorldContext object passed in to your System        |
 
 
 #### Return Value

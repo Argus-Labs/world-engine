@@ -5,7 +5,7 @@
   },
   "Transactions":{
   },
-  "Reads": {},
+  "Query": {},
   "World": {},
   "evm-support": {
     "title": "EVM Support"
