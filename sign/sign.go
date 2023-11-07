@@ -90,6 +90,10 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 			return nil, fmt.Errorf("invalid field: %s in body", key)
 		}
 	}
+	// json.Marshal will encode an empty body to "null", so verify the body exists before attempting to Marshal it.
+	if _, ok := tx["body"]; !ok {
+		return nil, ErrNoBodyField
+	}
 	serializedBody, err := json.Marshal(tx["body"])
 	if err != nil {
 		return nil, err
@@ -195,9 +199,13 @@ func (s *Transaction) Marshal() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+func isZeroHash(hash common.Hash) bool {
+	return hash == common.Hash{}
+}
+
 // HashHex return a hex encoded hash of the signature.
 func (s *Transaction) HashHex() string {
-	if len(s.Hash) == 0 {
+	if isZeroHash(s.Hash) {
 		s.populateHash()
 	}
 	return s.Hash.Hex()
@@ -210,10 +218,16 @@ func (s *Transaction) HashHex() string {
 func (s *Transaction) Verify(hexAddress string) error {
 	addr := common.HexToAddress(hexAddress)
 
-	if len(s.Hash) == 0 {
+	if isZeroHash(s.Hash) {
 		s.populateHash()
 	}
-	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), common.Hex2Bytes(s.Signature))
+
+	sig := common.Hex2Bytes(s.Signature)
+	if sig[crypto.RecoveryIDOffset] == 27 || sig[crypto.RecoveryIDOffset] == 28 {
+		sig[crypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
+	}
+
+	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), sig)
 	if err != nil {
 		return err
 	}
