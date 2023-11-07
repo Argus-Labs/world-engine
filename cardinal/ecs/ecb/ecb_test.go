@@ -503,3 +503,24 @@ func TestOrderOfComponentsDoesNotMatterWhenCreatingEntities(t *testing.T) {
 		assert.Equal(t, compsA[i].ID(), compsB[i].ID())
 	}
 }
+
+func TestCannotSaveStateBeforeRegisteringComponents(t *testing.T) {
+	// Don't use newCmdBufferForTest because that automatically registers some components.
+	s := miniredis.RunT(t)
+	options := redis.Options{
+		Addr:     s.Addr(),
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}
+
+	client := redis.NewClient(&options)
+	manager, err := ecb.NewManager(client)
+	assert.NilError(t, err)
+
+	// RegisterComponents must be called before attempting to save the state
+	err = manager.CommitPending()
+	assert.Check(t, err != nil)
+
+	assert.NilError(t, manager.RegisterComponents(allComponents))
+	assert.NilError(t, manager.CommitPending())
+}
