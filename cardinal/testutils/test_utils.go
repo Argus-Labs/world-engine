@@ -160,13 +160,13 @@ func UniqueSignature() *sign.Transaction {
 
 func AddTransactionToWorldByAnyTransaction(
 	world *cardinal.World,
-	cardinalTx cardinal.AnyTransaction,
+	cardinalTx cardinal.AnyMessage,
 	value any,
 	tx *sign.Transaction) {
 	worldCtx := WorldToWorldContext(world)
 	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
 
-	txs, err := ecsWorld.ListTransactions()
+	txs, err := ecsWorld.ListMessages()
 	if err != nil {
 		panic(err)
 	}

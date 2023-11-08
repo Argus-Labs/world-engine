@@ -17,33 +17,33 @@ type MovePlayerResult struct {
 	FinalY int
 }
 
-var MoveTx = cardinal.NewTransactionType[MovePlayerMsg, MovePlayerResult]("move-player")
+var MoveMsg = cardinal.NewMessageType[MovePlayerMsg, MovePlayerResult]("move-player")
 
-func ExampleTransactionType() {
+func ExampleMessageType() {
 	world, err := cardinal.NewMockWorld()
 	if err != nil {
 		panic(err)
 	}
 
-	err = cardinal.RegisterTransactions(world, MoveTx)
+	err = cardinal.RegisterMessages(world, MoveMsg)
 	if err != nil {
 		panic(err)
 	}
 
 	cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
-		for _, tx := range MoveTx.In(wCtx) {
-			msg := tx.Value()
-			// handle the transaction
+		for _, tx := range MoveMsg.In(wCtx) {
+			msg := tx.Msg()
+			// handle the msg
 			// ...
 
 			// save the result
-			MoveTx.SetResult(wCtx, tx.Hash(), MovePlayerResult{
+			MoveMsg.SetResult(wCtx, tx.Hash(), MovePlayerResult{
 				FinalX: msg.DeltaX,
 				FinalY: msg.DeltaY,
 			})
 
-			// optionally, add an error to the transaction
-			MoveTx.AddError(wCtx, tx.Hash(), errors.New("some error"))
+			// optionally, add an error
+			MoveMsg.AddError(wCtx, tx.Hash(), errors.New("some error"))
 		}
 		return nil
 	})

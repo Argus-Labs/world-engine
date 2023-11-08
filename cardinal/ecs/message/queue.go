@@ -1,9 +1,8 @@
-package transaction
+package message
 
 import (
-	"sync"
-
 	"pkg.world.dev/world-engine/sign"
+	"sync"
 )
 
 type TxQueue struct {
@@ -25,8 +24,8 @@ func (t *TxQueue) GetAmountOfTxs() int {
 
 // GetEVMTxs gets all the txs in the queue that originated from the EVM.
 // NOTE: this is called ONLY in the copied tx queue in world.Tick, so we do not need to use the mutex here.
-func (t *TxQueue) GetEVMTxs() []TxAny {
-	transactions := make([]TxAny, 0)
+func (t *TxQueue) GetEVMTxs() []TxData {
+	transactions := make([]TxData, 0)
 	for _, txs := range t.m {
 		// skip if theres nothing
 		if len(txs) == 0 {
@@ -53,11 +52,11 @@ func (t *TxQueue) addTransaction(id TypeID, v any, sig *sign.Transaction, evmTxH
 	t.mux.Lock()
 	defer t.mux.Unlock()
 	txHash := TxHash(sig.HashHex())
-	t.m[id] = append(t.m[id], TxAny{
-		TxID:            id,
+	t.m[id] = append(t.m[id], TxData{
+		MsgID:           id,
 		TxHash:          txHash,
-		Value:           v,
-		Sig:             sig,
+		Msg:             v,
+		Tx:              sig,
 		EVMSourceTxHash: evmTxHash,
 	})
 	t.txsInQueue++
@@ -78,36 +77,17 @@ func (t *TxQueue) reset() {
 	t.txsInQueue = 0
 }
 
-func (t *TxQueue) ForID(id TypeID) []TxAny {
+func (t *TxQueue) ForID(id TypeID) []TxData {
 	return t.m[id]
 }
 
-type txMap map[TypeID][]TxAny
+type txMap map[TypeID][]TxData
 
-type TxAny struct {
-	TxID   TypeID
-	Value  any
+type TxData struct {
+	MsgID  TypeID
+	Msg    any
 	TxHash TxHash
-	Sig    *sign.Transaction
+	Tx     *sign.Transaction
 	// EVMSourceTxHash is the tx hash of the EVM tx that triggered this tx.
 	EVMSourceTxHash string
-}
-
-type TxHash string
-
-type TypeID int
-
-type ITransaction interface {
-	SetID(TypeID) error
-	Name() string
-	ID() TypeID
-	Encode(any) ([]byte, error)
-	Decode([]byte) (any, error)
-	// DecodeEVMBytes decodes ABI encoded bytes into the transactions input type.
-	DecodeEVMBytes([]byte) (any, error)
-	// ABIEncode encodes the given type in ABI encoding, given that the input is the transaction types input or output
-	// type.
-	ABIEncode(any) ([]byte, error)
-	// IsEVMCompatible reports if this tx can be sent from the EVM.
-	IsEVMCompatible() bool
 }
