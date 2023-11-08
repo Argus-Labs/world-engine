@@ -20,6 +20,36 @@ func (gammaComponent) Name() string {
 	return "gamma"
 }
 
+func TestGetEverythingFilter(t *testing.T) {
+	world := ecs.NewTestWorld(t)
+
+	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
+	assert.NilError(t, ecs.RegisterComponent[Beta](world))
+	assert.NilError(t, ecs.RegisterComponent[Gamma](world))
+
+	assert.NilError(t, world.LoadGameState())
+
+	subsetCount := 50
+	wCtx := ecs.NewWorldContext(world)
+	_, err := component.CreateMany(wCtx, subsetCount, Alpha{}, Beta{})
+	assert.NilError(t, err)
+	// Make some entities that have all 3 component.
+	_, err = component.CreateMany(wCtx, 20, Alpha{}, Beta{}, Gamma{})
+	assert.NilError(t, err)
+
+	count := 0
+	// Loop over every entity. There should
+	// only be 50 + 20 entities.
+	q, err := wCtx.NewSearch(ecs.All())
+	assert.NilError(t, err)
+	err = q.Each(wCtx, func(id entity.ID) bool {
+		count++
+		return true
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, count, subsetCount+20)
+}
+
 func TestCanFilterByArchetype(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 

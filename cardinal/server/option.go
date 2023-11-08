@@ -21,3 +21,9 @@ func WithAdapter(a shard.Adapter) Option {
 		th.adapter = a
 	}
 }
+
+func WithCORS() Option {
+	return func(th *Handler) {
+		th.withCORS = true
+	}
+}

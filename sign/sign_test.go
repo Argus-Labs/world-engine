@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"gotest.tools/v3/assert"
 )
@@ -34,7 +35,68 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	assert.Equal(t, toBeVerified.Namespace, wantNamespace)
 	assert.Equal(t, toBeVerified.Nonce, wantNonce)
 	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
-	assert.Error(t, toBeVerified.Verify(badAddressHex), ErrSignatureValidationFailed.Error())
+	// Make sure an empty hash is regenerated
+	toBeVerified.Hash = common.Hash{}
+	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
+
+	// Verify signature verification can fail
+	assert.ErrorIs(t, toBeVerified.Verify(badAddressHex), ErrSignatureValidationFailed)
+}
+
+func TestCanParseAMappedTransaction(t *testing.T) {
+	goodKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	body := `{"msg": "this is a request body"}`
+	personaTag := "my-tag"
+	namespace := "my-namespace"
+	nonce := uint64(100)
+
+	sp, err := NewTransaction(goodKey, personaTag, namespace, nonce, body)
+	assert.NilError(t, err)
+	bz, err := json.Marshal(sp)
+	assert.NilError(t, err)
+	asMap := map[string]any{}
+	assert.NilError(t, json.Unmarshal(bz, &asMap))
+
+	gotSP, err := MappedTransaction(asMap)
+	assert.NilError(t, err)
+
+	assert.DeepEqual(t, sp, gotSP)
+}
+
+func TestCanGetHashHex(t *testing.T) {
+	goodKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	wantBody := `{"msg": "this is a request body"}`
+	wantPersonaTag := "my-tag"
+	wantNamespace := "my-namespace"
+	wantNonce := uint64(100)
+
+	sp, err := NewTransaction(goodKey, wantPersonaTag, wantNamespace, wantNonce, wantBody)
+	assert.NilError(t, err)
+	wantHash := sp.HashHex()
+
+	sp.Hash = common.Hash{}
+	// Make sure the hex is regenerated
+	gotHash := sp.HashHex()
+	assert.Equal(t, wantHash, gotHash)
+}
+
+func TestIsSignedSystemPayload(t *testing.T) {
+	goodKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	body := `{"msg": "this is a request body"}`
+	personaTag := "my-tag"
+	namespace := "my-namespace"
+	nonce := uint64(100)
+
+	sp, err := NewTransaction(goodKey, personaTag, namespace, nonce, body)
+	assert.NilError(t, err)
+	assert.Check(t, !sp.IsSystemTransaction())
+
+	sp, err = NewSystemTransaction(goodKey, namespace, nonce, body)
+	assert.NilError(t, err)
+	assert.Check(t, sp.IsSystemTransaction())
 }
 
 func TestFailsIfFieldsMissing(t *testing.T) {
@@ -73,6 +135,20 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 				return NewSystemTransaction(goodKey, "some-namespace", 25, "{}")
 			},
 			expErr: nil,
+		},
+		{
+			name: "signed payload with SystemPersonaTag",
+			payload: func() (*Transaction, error) {
+				return NewTransaction(goodKey, SystemPersonaTag, "some-namespace", 25, "{}")
+			},
+			expErr: ErrInvalidPersonaTag,
+		},
+		{
+			name: "empty body",
+			payload: func() (*Transaction, error) {
+				return NewSystemTransaction(goodKey, "some-namespace", 25, "")
+			},
+			expErr: ErrCannotSignEmptyBody,
 		},
 	}
 
@@ -128,4 +204,120 @@ func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
 		assert.Equal(t, "a-string", gotStruct.Str)
 		assert.Equal(t, 99, gotStruct.Num)
 	}
+}
+
+func TestRejectInvalidSignatures(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	type Payload struct {
+		Value int
+	}
+	_, err = NewTransaction(key, "", "namespace", 100, Payload{100})
+	assert.ErrorIs(t, err, ErrInvalidPersonaTag)
+	_, err = NewTransaction(key, "persona_tag", "", 100, Payload{100})
+	assert.ErrorIs(t, err, ErrInvalidNamespace)
+	_, err = NewTransaction(key, "persona_tag", "", 100, nil)
+	assert.ErrorIs(t, err, ErrCannotSignEmptyBody)
+}
+
+func TestRejectInvalidJSON(t *testing.T) {
+	data := `{"personaTag":"jeff", "namespace": {{{`
+	_, err := UnmarshalTransaction([]byte(data))
+	assert.Check(t, err != nil)
+}
+
+func TestRejectSignatureWithExtraField(t *testing.T) {
+	data := map[string]any{
+		"personaTag": "persona-tag",
+		"namespace":  "namespace",
+		"nonce":      100,
+		"signature":  "xyzzy",
+		"body":       "bar",
+	}
+
+	bz, err := json.Marshal(data)
+	assert.NilError(t, err)
+	_, err = UnmarshalTransaction(bz)
+	assert.NilError(t, err)
+	data["extra_field"] = "hello"
+	bz, err = json.Marshal(data)
+	assert.NilError(t, err)
+	_, err = UnmarshalTransaction(bz)
+	assert.Check(t, err != nil)
+
+	_, err = MappedTransaction(data)
+	assert.Check(t, err != nil)
+}
+
+func TestRejectBadSerializedSignatures(t *testing.T) {
+	validData := map[string]any{
+		"personaTag": "persona-tag",
+		"namespace":  "namespace",
+		"nonce":      100,
+		"signature":  "xyzzy",
+		"body":       "bar",
+	}
+
+	// Make sure the valid data can actually be unmarshalled
+	bz, err := json.Marshal(validData)
+	assert.NilError(t, err)
+	_, err = UnmarshalTransaction(bz)
+	assert.NilError(t, err)
+
+	fieldsToOmit := []string{"personaTag", "namespace", "signature", "body"}
+
+	copyValidData := func() map[string]any {
+		cpy := map[string]any{}
+		for k, v := range validData {
+			cpy[k] = v
+		}
+		return cpy
+	}
+
+	// Take out each field one at a time to ensure the Unmarshaling of incomplete signatures fails
+	for _, field := range fieldsToOmit {
+		currData := copyValidData()
+		delete(currData, field)
+		bz, err = json.Marshal(currData)
+		assert.NilError(t, err)
+		_, err = UnmarshalTransaction(bz)
+		assert.Check(t, err != nil, "in UnmarshalTransaction want error when field %q is missing", field)
+
+		_, err = MappedTransaction(currData)
+		assert.Check(t, err != nil, "in MappedTransaction: want error when field %q is missing", field)
+	}
+}
+
+func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+
+	// This is valid JSON, however the fields are not sorted. The hash for this body will be different from a
+	// hash generated from a swagger endpoint (because the body becomes a map[string]any{}). This test ensures
+	// unsorted JSON bodies and the corresponding map[string]any bodies can be consistently signed.
+	bodyStr := `{
+					"omega":2,
+					"alpha":1
+				}`
+
+	tx, err := NewTransaction(key, "persona-tag", "namespace", 100, bodyStr)
+	assert.NilError(t, err)
+
+	body := map[string]any{
+		"alpha": 1,
+		"omega": 2,
+	}
+
+	dataAsMap := map[string]any{
+		"personaTag": "persona-tag",
+		"namespace":  "namespace",
+		"nonce":      100,
+		"signature":  tx.Signature,
+		"body":       body,
+	}
+	gotTx, err := MappedTransaction(dataAsMap)
+	assert.NilError(t, err)
+	addr := crypto.PubkeyToAddress(key.PublicKey).Hex()
+
+	assert.NilError(t, gotTx.Verify(addr))
 }

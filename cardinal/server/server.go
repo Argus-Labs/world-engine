@@ -15,6 +15,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"github.com/mitchellh/mapstructure"
+	"github.com/rs/cors"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -27,6 +28,7 @@ type Handler struct {
 	server                 *http.Server
 	disableSigVerification bool
 	Port                   string
+	withCORS               bool
 
 	// plugins
 	adapter shard.WriteAdapter
@@ -61,8 +63,9 @@ var swaggerData []byte
 
 func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	th := &Handler{
-		w:   w,
-		Mux: http.NewServeMux(),
+		w:        w,
+		Mux:      http.NewServeMux(),
+		withCORS: false,
 	}
 	for _, opt := range opts {
 		opt(th)
@@ -82,6 +85,7 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Op
 	if err != nil {
 		return nil, err
 	}
+	th.registerDebugHandlerSwagger(api)
 	th.registerHealthHandlerSwagger(api)
 
 	// This is here to meet the swagger spec. Actual /events will be intercepted before this route.
@@ -94,8 +98,11 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Op
 	}
 
 	app := middleware.NewContext(specDoc, api, nil)
-
-	th.Mux.Handle("/", app.APIHandler(builder))
+	var handler = app.APIHandler(builder)
+	if th.withCORS {
+		handler = cors.AllowAll().Handler(handler)
+	}
+	th.Mux.Handle("/", handler)
 	th.Initialize()
 
 	return th, nil
@@ -105,9 +112,19 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Op
 func createSwaggerQueryHandler[Request any, Response any](requestName string,
 	requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
 	return func(params interface{}) (interface{}, error) {
-		request, ok := getValueFromParams[Request](params, requestName)
-		if !ok {
-			return middleware.Error(http.StatusNotFound, fmt.Errorf("%s not found", requestName)), nil
+		isEmpty, err := isParamsEmpty(params)
+		if err != nil {
+			return nil, err
+		}
+		var request *Request
+		var ok bool
+		if !isEmpty {
+			request, ok = getValueFromParams[Request](params, requestName)
+			if !ok {
+				return middleware.Error(http.StatusNotFound, fmt.Errorf("%s not found", requestName)), nil
+			}
+		} else {
+			request = nil
 		}
 		resp, err := requestHandler(request)
 		if err != nil {
@@ -115,6 +132,14 @@ func createSwaggerQueryHandler[Request any, Response any](requestName string,
 		}
 		return resp, nil
 	}
+}
+
+func isParamsEmpty(params interface{}) (bool, error) {
+	data, ok := params.(map[string]interface{})
+	if !ok {
+		return false, errors.New("params data structure must be a map[string]interface{}")
+	}
+	return len(data) == 0, nil
 }
 
 // getValueFromParams extracts parameters from swagger handlers.
@@ -143,6 +168,7 @@ func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
 type EndpointsResult struct {
 	TxEndpoints    []string `json:"txEndpoints"`
 	QueryEndpoints []string `json:"queryEndpoints"`
+	DebugEndpoints []string `json:"debugEndpoints"`
 }
 
 func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
@@ -170,6 +196,8 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 		"/query/receipt/list",
 		"/query/game/cql",
 	)
+	debugEndpoints := make([]string, 1)
+	debugEndpoints[0] = "/debug/state"
 	return &EndpointsResult{
 		TxEndpoints:    txEndpoints,
 		QueryEndpoints: queryEndpoints,

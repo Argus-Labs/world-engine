@@ -90,6 +90,10 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 			return nil, fmt.Errorf("invalid field: %s in body", key)
 		}
 	}
+	// json.Marshal will encode an empty body to "null", so verify the body exists before attempting to Marshal it.
+	if _, ok := tx["body"]; !ok {
+		return nil, ErrNoBodyField
+	}
 	serializedBody, err := json.Marshal(tx["body"])
 	if err != nil {
 		return nil, err
@@ -122,20 +126,22 @@ func normalizeJSON(data any) ([]byte, error) {
 		return json.Marshal(data)
 	}
 
-	if !json.Valid(asBuf) {
+	asMap := map[string]any{}
+
+	// The swagger endpoints end up processing the transaction body as a map[string]any{}. When this map is
+	// marshalled, the resulting JSON blob has keys in sorted order. If the original JSON blob did NOT have
+	// sorted keys, the resulting hashes will be different and the signature will fail.
+	// For this reason, we must Unmarshal/Marshal any pre-built JSON bodies to ensure the resulting hashes during
+	// signing match the hash during verification
+	if err := json.Unmarshal(asBuf, &asMap); err != nil {
 		return nil, fmt.Errorf("data %q is not valid json", string(asBuf))
 	}
 
-	dst := &bytes.Buffer{}
-
-	// JSON strings need to be compacted (insignificant whitespace removed).
-	// This is required because when the Transaction is serialized/deserialized those spaces will also
-	// be lost. If they are not removed beforehand, the hashes of the message before serialization and after
-	// will be different.
-	if err := json.Compact(dst, asBuf); err != nil {
-		return nil, err
+	normalizedBz, err := json.Marshal(asMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate compact json: %w", err)
 	}
-	return dst.Bytes(), nil
+	return normalizedBz, nil
 }
 
 // sign uses the given private key to sign the personaTag, namespace, nonce, and data.
@@ -195,9 +201,13 @@ func (s *Transaction) Marshal() ([]byte, error) {
 	return json.Marshal(s)
 }
 
+func isZeroHash(hash common.Hash) bool {
+	return hash == common.Hash{}
+}
+
 // HashHex return a hex encoded hash of the signature.
 func (s *Transaction) HashHex() string {
-	if len(s.Hash) == 0 {
+	if isZeroHash(s.Hash) {
 		s.populateHash()
 	}
 	return s.Hash.Hex()
@@ -210,10 +220,16 @@ func (s *Transaction) HashHex() string {
 func (s *Transaction) Verify(hexAddress string) error {
 	addr := common.HexToAddress(hexAddress)
 
-	if len(s.Hash) == 0 {
+	if isZeroHash(s.Hash) {
 		s.populateHash()
 	}
-	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), common.Hex2Bytes(s.Signature))
+
+	sig := common.Hex2Bytes(s.Signature)
+	if sig[crypto.RecoveryIDOffset] == 27 || sig[crypto.RecoveryIDOffset] == 28 {
+		sig[crypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
+	}
+
+	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), sig)
 	if err != nil {
 		return err
 	}

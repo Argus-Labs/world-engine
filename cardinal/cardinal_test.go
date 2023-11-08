@@ -1,6 +1,7 @@
 package cardinal_test
 
 import (
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -28,9 +29,8 @@ func TestNewWorld(t *testing.T) {
 func TestCanQueryInsideSystem(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
 
-	world, doTick := testutils.MakeWorldAndTicker(t)
+	world, doTick := testutils.MakeWorldAndTicker(t, cardinal.WithCORS())
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
-
 	wantNumOfEntities := 10
 	world.Init(func(worldCtx cardinal.WorldContext) {
 		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities, Foo{})
@@ -59,7 +59,7 @@ func TestShutdownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	var wg sync.WaitGroup
 	testutils.SetTestTimeout(t, 10*time.Second)
-	world, err := cardinal.NewMockWorld()
+	world, err := cardinal.NewMockWorld(cardinal.WithCORS())
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	assert.NilError(t, err)
 	wantNumOfEntities := 10
@@ -77,6 +77,16 @@ func TestShutdownViaSignal(t *testing.T) {
 		// wait until game loop is running
 		time.Sleep(500 * time.Millisecond)
 	}
+	// test CORS with cardinal
+	client := &http.Client{}
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:4040/query/http/endpoints", nil)
+	assert.NilError(t, err)
+	req.Header.Set("Origin", "http://www.bullshit.com") // test CORS
+	resp, err := client.Do(req)
+	assert.NilError(t, err)
+	v := resp.Header.Get("Access-Control-Allow-Origin")
+	assert.Equal(t, v, "*")
+	assert.Equal(t, resp.StatusCode, 200)
 
 	conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:4040/events", nil)
 	assert.NilError(t, err)
