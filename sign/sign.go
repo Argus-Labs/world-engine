@@ -126,20 +126,22 @@ func normalizeJSON(data any) ([]byte, error) {
 		return json.Marshal(data)
 	}
 
-	if !json.Valid(asBuf) {
+	asMap := map[string]any{}
+
+	// The swagger endpoints end up processing the transaction body as a map[string]any{}. When this map is
+	// marshalled, the resulting JSON blob has keys in sorted order. If the original JSON blob did NOT have
+	// sorted keys, the resulting hashes will be different and the signature will fail.
+	// For this reason, we must Unmarshal/Marshal any pre-built JSON bodies to ensure the resulting hashes during
+	// signing match the hash during verification
+	if err := json.Unmarshal(asBuf, &asMap); err != nil {
 		return nil, fmt.Errorf("data %q is not valid json", string(asBuf))
 	}
 
-	dst := &bytes.Buffer{}
-
-	// JSON strings need to be compacted (insignificant whitespace removed).
-	// This is required because when the Transaction is serialized/deserialized those spaces will also
-	// be lost. If they are not removed beforehand, the hashes of the message before serialization and after
-	// will be different.
-	if err := json.Compact(dst, asBuf); err != nil {
-		return nil, err
+	normalizedBz, err := json.Marshal(asMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate compact json: %w", err)
 	}
-	return dst.Bytes(), nil
+	return normalizedBz, nil
 }
 
 // sign uses the given private key to sign the personaTag, namespace, nonce, and data.
