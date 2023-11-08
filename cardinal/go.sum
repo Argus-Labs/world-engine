@@ -971,7 +971,7 @@ pkg.world.dev/world-engine/chain v0.1.12-alpha h1:5iHYDJoJKYJ6kC/gxhC+UIOqeQMq+z
 pkg.world.dev/world-engine/chain v0.1.12-alpha/go.mod h1:1b70VXbEdiX10x/SShSAm65Rg2VF7TkluAMFPVEaSXs=
 pkg.world.dev/world-engine/rift v0.0.5 h1:nRoIIyilio+i5jqflroKcwlLDUa7+8FpWkLI3+za/Cg=
 pkg.world.dev/world-engine/rift v0.0.5/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
-pkg.world.dev/world-engine/sign v0.1.10-alpha h1:UEkMfsPrhtncVI9n5UWsUSwE0sVwGLZ7b1Go6Zk9Shw=
-pkg.world.dev/world-engine/sign v0.1.10-alpha/go.mod h1:MOwYe8JeB8qAXZnp+jlJnAjYgfzru/S6pllQCrNoMZw=
+pkg.world.dev/world-engine/sign v0.1.11-alpha h1:DrjbCE12xNQ/ayLrmG/PHBDWLD9+/m6QjevmzrpOzvM=
+pkg.world.dev/world-engine/sign v0.1.11-alpha/go.mod h1:MOwYe8JeB8qAXZnp+jlJnAjYgfzru/S6pllQCrNoMZw=
 sigs.k8s.io/yaml v1.3.0 h1:a2VclLzOGrwOHDiV8EfBGhvjHvP46CtW5j6POvhYGGo=
 sigs.k8s.io/yaml v1.3.0/go.mod h1:GeOyir5tyXNByN85N/dRIT9es5UQNerPYEKK56eTBm8=
