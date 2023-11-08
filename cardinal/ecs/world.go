@@ -6,14 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"reflect"
 	"runtime"
 	"strconv"
 	"sync/atomic"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
+
 	"google.golang.org/protobuf/proto"
+
 	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 
 	"github.com/rs/zerolog"
@@ -43,6 +45,8 @@ type World struct {
 	entityStore            store.IManager
 	systems                []System
 	systemLoggers          []*ecslog.Logger
+	initSystem             System
+	initSystemLogger       *ecslog.Logger
 	systemNames            []string
 	tick                   uint64
 	nameToComponent        map[string]metadata.ComponentMetadata
@@ -139,6 +143,12 @@ func (w *World) AddSystemWithName(system System, functionName string) {
 	w.systemNames = append(w.systemNames, functionName)
 	// appends registeredSystem into the member system list in world.
 	w.systems = append(w.systems, system)
+}
+
+func (w *World) AddInitSystem(system System) {
+	logger := w.Logger.CreateSystemLogger("InitSystem")
+	w.initSystemLogger = &logger
+	w.initSystem = system
 }
 
 func RegisterComponent[T metadata.Component](world *World) error {
@@ -250,6 +260,7 @@ func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts 
 		namespace:         "world",
 		tick:              0,
 		systems:           make([]System, 0),
+		initSystem:        func(_ WorldContext) error { return nil },
 		nameToComponent:   make(map[string]metadata.ComponentMetadata),
 		txQueue:           message.NewTxQueue(),
 		Logger:            logger,
@@ -340,6 +351,14 @@ func (w *World) Tick(_ context.Context) error {
 
 	if err := w.TickStore().StartNextTick(w.registeredMessages, txQueue); err != nil {
 		return err
+	}
+
+	if w.CurrentTick() == 0 {
+		wCtx := NewWorldContextForTick(w, txQueue, w.initSystemLogger)
+		err := w.initSystem(wCtx)
+		if err != nil {
+			return err
+		}
 	}
 
 	for i, sys := range w.systems {
