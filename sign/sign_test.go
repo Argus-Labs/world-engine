@@ -287,3 +287,37 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 		assert.Check(t, err != nil, "in MappedTransaction: want error when field %q is missing", field)
 	}
 }
+
+func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+
+	// This is valid JSON, however the fields are not sorted. The hash for this body will be different from a
+	// hash generated from a swagger endpoint (because the body becomes a map[string]any{}). This test ensures
+	// unsorted JSON bodies and the corresponding map[string]any bodies can be consistently signed.
+	bodyStr := `{
+					"omega":2,
+					"alpha":1
+				}`
+
+	tx, err := NewTransaction(key, "persona-tag", "namespace", 100, bodyStr)
+	assert.NilError(t, err)
+
+	body := map[string]any{
+		"alpha": 1,
+		"omega": 2,
+	}
+
+	dataAsMap := map[string]any{
+		"personaTag": "persona-tag",
+		"namespace":  "namespace",
+		"nonce":      100,
+		"signature":  tx.Signature,
+		"body":       body,
+	}
+	gotTx, err := MappedTransaction(dataAsMap)
+	assert.NilError(t, err)
+	addr := crypto.PubkeyToAddress(key.PublicKey).Hex()
+
+	assert.NilError(t, gotTx.Verify(addr))
+}

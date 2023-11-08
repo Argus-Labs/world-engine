@@ -2755,6 +2755,7 @@ pkg.berachain.dev/polaris/lib v0.0.0-20230717165123-80a30c3435c3/go.mod h1:JZtnd
 pkg.berachain.dev/polaris/lib v0.0.0-20230830221145-a6c6454d3697 h1:wgvK5vI7UlQYBs3kB2wZBgsxUjYK1lCV0LFJ4YF2u/4=
 pkg.berachain.dev/polaris/lib v0.0.0-20230830221145-a6c6454d3697/go.mod h1:+3IkGuGJ/kV2d90ImTqPSrI9g+M6nV0eX1MAmtIfFZA=
 pkg.world.dev/world-engine/sign v0.1.5-alpha/go.mod h1:JcKXhdeYvCPRAgsCUSFEDcAJgf67VgMWWrA2Y2VZJSg=
+pkg.world.dev/world-engine/sign v0.1.11-alpha/go.mod h1:MOwYe8JeB8qAXZnp+jlJnAjYgfzru/S6pllQCrNoMZw=
 rsc.io/binaryregexp v0.2.0 h1:HfqmD5MEmC0zvwBuF187nq9mdnXjXsSivRiXN7SmRkE=
 rsc.io/pdf v0.1.1 h1:k1MczvYDUvJBe93bYd7wrZLLUEcLZAuF824/I4e5Xr4=
 rsc.io/quote/v3 v3.1.0 h1:9JKUTTIUgS6kzR9mK1YuGKv6Nl+DijDNIc0ghT58FaY=
