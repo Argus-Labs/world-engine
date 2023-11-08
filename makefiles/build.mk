@@ -6,6 +6,7 @@ rollup:
 	./chain/scripts/start.sh --build
 
 game:
+	cd internal/e2e/tester/cardinal && go mod vendor
 	@docker compose up game nakama --abort-on-container-exit postgres redis
 
 forge-build: |
