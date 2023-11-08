@@ -32,7 +32,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	world, doTick := testutils.MakeWorldAndTicker(t, cardinal.WithCORS())
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	wantNumOfEntities := 10
-	world.Init(func(worldCtx cardinal.WorldContext) {
+	world.RunInContextOfWorldContext(func(worldCtx cardinal.WorldContext) {
 		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities, Foo{})
 		assert.NilError(t, err)
 	})
@@ -63,9 +63,12 @@ func TestShutdownViaSignal(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	assert.NilError(t, err)
 	wantNumOfEntities := 10
-	world.Init(func(worldCtx cardinal.WorldContext) {
-		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities, Foo{})
-		assert.NilError(t, err)
+	world.Init(func(worldCtx cardinal.WorldContext) error {
+		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities/2, Foo{})
+		if err != nil {
+			return err
+		}
+		return nil
 	})
 	wg.Add(1)
 	go func() {
@@ -77,6 +80,10 @@ func TestShutdownViaSignal(t *testing.T) {
 		// wait until game loop is running
 		time.Sleep(500 * time.Millisecond)
 	}
+	world.RunInContextOfWorldContext(func(worldCtx cardinal.WorldContext) {
+		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities/2, Foo{})
+		assert.NilError(t, err)
+	})
 	// test CORS with cardinal
 	client := &http.Client{}
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:4040/query/http/endpoints", nil)
