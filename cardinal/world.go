@@ -286,11 +286,6 @@ func (w *World) Tick(ctx context.Context) error {
 	return w.implWorld.Tick(ctx)
 }
 
-func (w *World) RunInContextOfWorldContext(fn func(WorldContext)) {
-	ecsWorldCtx := ecs.NewWorldContext(w.implWorld)
-	fn(&worldContext{implContext: ecsWorldCtx})
-}
-
 // Init Registers a system that only runs once on a new game before tick 0.
 func (w *World) Init(system System) {
 	w.implWorld.AddInitSystem(func(ecsWctx ecs.WorldContext) error {
