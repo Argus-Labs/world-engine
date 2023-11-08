@@ -9,17 +9,17 @@ The `World` object is the manager of everything happening in the game. It deals 
 package main
 
 import (
-    "log"
-    "time"
+	"log"
+	"time"
 
-    "pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    redisAddr := os.Getenv("REDIS_ADDR")
-    redisPassword := os.Getenv("REDIS_PASSWORD")
+	redisAddr := os.Getenv("REDIS_ADDR")
+	redisPassword := os.Getenv("REDIS_PASSWORD")
 
-    world, err := cardinal.NewWorld(
+	world, err := cardinal.NewWorld(
 		redisAddr,
 		redisPassword,
 		cardinal.WithNamespace("my-world"),
@@ -27,9 +27,9 @@ func main() {
 		cardinal.WithTickInterval(500 * time.Millisecond),
 		cardinal.WithPort("4001"),
 	)
-    if err != nil {
-        log.Fatal(err)
-    }
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 
@@ -152,18 +152,18 @@ func RegisterSystems(w *World, s ...System)
 package main
 
 import (
-    "github.com/my-username/my-world-engine-project/systems"
-    "pkg.world.dev/world-engine/cardinal"
+	"github.com/my-username/my-world-engine-project/systems"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
 	// Systems will run in order in which they are added:
 	// 1. MoveSystem
 	// 2. HealthRegenSystem
 	// 3. AttackSystem
-    cardinal.RegisterSystems(world, systems.MoveSystem, systems.HealthRegenSystem, systems.AttackSystem)
+	cardinal.RegisterSystems(world, systems.MoveSystem, systems.HealthRegenSystem, systems.AttackSystem)
 }
 ```
 
@@ -193,13 +193,13 @@ func RegisterComponent[T metadata.Component](world *World) error
 package main
 
 import (
-    "log"
-    "github.com/my-username/my-world-engine-project/component"
-    "pkg.world.dev/world-engine/cardinal"
+	"log"
+	"github.com/my-username/my-world-engine-project/component"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
 	err := cardinal.RegisterComponent[LocationComponet](world)
 	if err != nil {
@@ -216,10 +216,10 @@ func main() {
 
 	// Alternative RegisterComponent pattern with less error checking:
 	err = errors.Join(
-        cardinal.RegisterComponent[LocationComponet](world),
-        cardinal.RegisterComponent[AttackPowerComponent](world),
-        cardinal.RegisterComponent[HealthComponent](world),
-    )
+		cardinal.RegisterComponent[LocationComponet](world),
+		cardinal.RegisterComponent[AttackPowerComponent](world),
+		cardinal.RegisterComponent[HealthComponent](world),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -254,16 +254,16 @@ func RegisterQueries(w *World, queries ...AnyQueryType) error
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/my-username/my-world-engine-project/query"
-    "pkg.world.dev/world-engine/cardinal"
+	"github.com/my-username/my-world-engine-project/query"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
-    err := cardinal.RegisterQueries(world,
+	err := cardinal.RegisterQueries(world,
 		query.QueryLocation,
 		query.QueryHealth,
 		query.QueryAttackPower,
@@ -302,16 +302,16 @@ func RegisterMessages(w *World, msgs ...AnyMessage) error
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/my-username/my-world-engine-project/msg"
-    "pkg.world.dev/world-engine/cardinal"
+	"github.com/my-username/my-world-engine-project/msg"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
-    err := cardinal.RegisterMessages(world,
+	err := cardinal.RegisterMessages(world,
 		msg.Move,
 		msg.Attack,
 	)
@@ -346,17 +346,17 @@ func CreateMany(wCtx WorldContext, num int, components ...metadata.Component) ([
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/my-username/my-world-engine-project/components"
-    "pkg.world.dev/world-engine/cardinal"
+	"github.com/my-username/my-world-engine-project/components"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
 	// create 10 entities with the location and health component.
-    entityIDs, err := cardinal.CreateMany(worldCtx,
+	entityIDs, err := cardinal.CreateMany(worldCtx,
 		10,
 		components.Location{},
 		components.Health{},
@@ -395,17 +395,17 @@ func Create(wCtx WorldContext, components ...metadata.Component) (EntityID, erro
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/my-username/my-world-engine-project/components"
-    "pkg.world.dev/world-engine/cardinal"
+	"github.com/my-username/my-world-engine-project/components"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
 	// create an entity with the location and health component.
-    entityID, err := cardinal.Create(worldCtx
+	entityID, err := cardinal.Create(worldCtx
 		components.Location{},
 		components.Health{},
 	)
@@ -442,17 +442,17 @@ func Remove(wCtx WorldContext, id EntityID) error
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/my-username/my-world-engine-project/components"
-    "pkg.world.dev/world-engine/cardinal"
+	"github.com/my-username/my-world-engine-project/components"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
 	// create an entity with the location and health component.
-    entityID, err := cardinal.Create(worldCtx,
+	entityID, err := cardinal.Create(worldCtx,
 		components.Location{},
 		components.Health{},
 	)
