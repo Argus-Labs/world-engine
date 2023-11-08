@@ -77,7 +77,7 @@ func TestShutdownViaSignal(t *testing.T) {
 		// wait until game loop is running
 		time.Sleep(500 * time.Millisecond)
 	}
-	//test CORS with cardinal
+	// test CORS with cardinal
 	client := &http.Client{}
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:4040/query/http/endpoints", nil)
 	assert.NilError(t, err)
