@@ -90,8 +90,8 @@ type SendEnergyTxResult struct{}
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
 	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
-	assert.NilError(t, w.RegisterTransactions(sendTx))
+	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
+	assert.NilError(t, w.RegisterMessages(sendTx))
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
 	for i := 0; i < numberToTest; i++ {

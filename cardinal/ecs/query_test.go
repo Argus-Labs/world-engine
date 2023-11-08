@@ -69,7 +69,7 @@ func TestQueryEVM(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	err := w.RegisterQueries(fooQuery)
 	assert.NilError(t, err)
-	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("blah"))
+	err = w.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)
 	s, err := evm.NewServer(w)
 	assert.NilError(t, err)
