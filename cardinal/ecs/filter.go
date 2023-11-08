@@ -9,6 +9,9 @@ type Filterable interface {
 	ConvertToComponentFilter(world *World) (filter.ComponentFilter, error)
 }
 
+type all struct {
+}
+
 type and struct {
 	filters []Filterable
 }
@@ -27,6 +30,10 @@ type contains struct {
 
 type exact struct {
 	components []metadata.Component
+}
+
+func All() Filterable {
+	return &all{}
 }
 
 func And(filters ...Filterable) Filterable {
@@ -103,4 +110,8 @@ func (s exact) ConvertToComponentFilter(world *World) (filter.ComponentFilter, e
 		acc = append(acc, c)
 	}
 	return filter.Exact(acc...), nil
+}
+
+func (a all) ConvertToComponentFilter(_ *World) (filter.ComponentFilter, error) {
+	return filter.All(), nil
 }

@@ -17,3 +17,6 @@ rollup-build:
 
 rollup-install:
 	cd chain && $(MAKE) install
+
+rollup-proto-gen:
+	cd chain && $(MAKE) proto-gen

@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
-
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 )
 
@@ -168,4 +169,39 @@ func TestReadOnly_ArchetypeCount(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, manager.CommitPending())
 	assert.Equal(t, 2, roManager.ArchetypeCount())
+}
+
+func TestReadOnly_SearchFrom(t *testing.T) {
+	manager := newCmdBufferForTest(t)
+
+	world := ecs.NewTestWorld(t, ecs.WithStoreManager(manager))
+	assert.NilError(t, ecs.RegisterComponent[Health](world))
+	assert.NilError(t, ecs.RegisterComponent[Power](world))
+	assert.NilError(t, world.LoadGameState())
+
+	wCtx := ecs.NewWorldContext(world)
+	_, err := component.CreateMany(wCtx, 8, Health{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(wCtx, 9, Power{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(wCtx, 10, Health{}, Power{})
+	assert.NilError(t, err)
+
+	filter := ecs.Contains(Health{})
+	componentFilter, err := filter.ConvertToComponentFilter(world)
+	assert.NilError(t, err)
+
+	roManager := manager.ToReadOnly()
+
+	// Before CommitPending is called, there should be no archetypes available to the read-only
+	// manager
+	archetypeIter := roManager.SearchFrom(componentFilter, 0)
+	assert.Equal(t, 0, len(archetypeIter.Values))
+
+	// Commit the archetypes to the DB
+	assert.NilError(t, manager.CommitPending())
+
+	// Exactly 2 archetypes contain the Health component
+	archetypeIter = roManager.SearchFrom(componentFilter, 0)
+	assert.Equal(t, 2, len(archetypeIter.Values))
 }
