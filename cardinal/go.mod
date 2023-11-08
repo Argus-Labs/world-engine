@@ -33,7 +33,7 @@ require (
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/chain v0.1.12-alpha
 	pkg.world.dev/world-engine/rift v0.0.5
-	pkg.world.dev/world-engine/sign v0.1.10-alpha
+	pkg.world.dev/world-engine/sign v0.1.11-alpha
 )
 
 require (
