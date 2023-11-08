@@ -15,6 +15,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"github.com/mitchellh/mapstructure"
+	"github.com/rs/cors"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -27,6 +28,7 @@ type Handler struct {
 	server                 *http.Server
 	disableSigVerification bool
 	Port                   string
+	withCORS               bool
 
 	// plugins
 	adapter shard.WriteAdapter
@@ -61,8 +63,9 @@ var swaggerData []byte
 
 func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	th := &Handler{
-		w:   w,
-		Mux: http.NewServeMux(),
+		w:        w,
+		Mux:      http.NewServeMux(),
+		withCORS: false,
 	}
 	for _, opt := range opts {
 		opt(th)
@@ -95,8 +98,11 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Op
 	}
 
 	app := middleware.NewContext(specDoc, api, nil)
-
-	th.Mux.Handle("/", app.APIHandler(builder))
+	var handler = app.APIHandler(builder)
+	if th.withCORS {
+		handler = cors.AllowAll().Handler(handler)
+	}
+	th.Mux.Handle("/", handler)
 	th.Initialize()
 
 	return th, nil

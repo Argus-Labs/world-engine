@@ -25,6 +25,7 @@ require (
 	github.com/invopop/jsonschema v0.7.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/redis/go-redis/v9 v9.0.2
+	github.com/rs/cors v1.10.1
 	github.com/rs/zerolog v1.30.0
 	github.com/stretchr/testify v1.8.4
 	google.golang.org/grpc v1.58.3
