@@ -99,7 +99,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 }
 
 // NewMockWorld creates a World object that uses miniredis as the storage layer suitable for local development.
-// If you are creating an ecs.World for unit tests, use NewTestWorld.
+// If you are creating a World for unit tests, use NewTestWorld.
 func NewMockWorld(opts ...WorldOption) (*World, error) {
 	world, err := NewWorld(withMockRedis(), opts...)
 	if err != nil {
