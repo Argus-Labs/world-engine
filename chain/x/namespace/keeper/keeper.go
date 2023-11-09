@@ -4,7 +4,7 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	routertypes "pkg.world.dev/world-engine/chain/x/namespace/types"
+	namespacetypes "pkg.world.dev/world-engine/chain/x/namespace/types"
 )
 
 type Keeper struct {
@@ -20,13 +20,13 @@ func NewKeeper(storeKey *storetypes.KVStoreKey, auth string) *Keeper {
 	}
 }
 
-func (k *Keeper) InitGenesis(ctx sdk.Context, gen *routertypes.Genesis) {
+func (k *Keeper) InitGenesis(ctx sdk.Context, gen *namespacetypes.Genesis) {
 	for _, ns := range gen.Namespaces {
 		k.setNamespace(ctx, ns)
 	}
 }
 
-func (k *Keeper) ExportGenesis(ctx sdk.Context) *routertypes.Genesis {
+func (k *Keeper) ExportGenesis(ctx sdk.Context) *namespacetypes.Genesis {
 	nameSpaces := k.getAllNamespaces(ctx)
-	return &routertypes.Genesis{Namespaces: nameSpaces}
+	return &namespacetypes.Genesis{Namespaces: nameSpaces}
 }

@@ -46,4 +46,4 @@ done
 echo "starting rollup..."
 
 # Run the command with or without the --build flag based on the build_flag
-docker compose up $build_flag chain
+docker compose up $build_flag chain --exit-code-from celestia-devnet
