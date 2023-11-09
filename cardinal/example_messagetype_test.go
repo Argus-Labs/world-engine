@@ -30,7 +30,7 @@ func ExampleMessageType() {
 		panic(err)
 	}
 
-	cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
+	err = cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
 		for _, tx := range MoveMsg.In(wCtx) {
 			msg := tx.Msg()
 			// handle the msg
@@ -47,6 +47,9 @@ func ExampleMessageType() {
 		}
 		return nil
 	})
+	if err != nil {
+		panic(err)
+	}
 	// The above system will be called during each game tick.
 
 	err = world.StartGame()
