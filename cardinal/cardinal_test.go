@@ -21,7 +21,6 @@ type Foo struct{}
 func (Foo) Name() string { return "foo" }
 
 func TestNewWorld(t *testing.T) {
-	// should fail, this test should generate a compile error if the function signature changes.
 	_, err := cardinal.NewWorld(cardinal.WithNamespace("testnamespace"))
 	assert.NilError(t, err)
 }

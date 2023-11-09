@@ -14,7 +14,6 @@ import (
 )
 
 func main() {
-	redisAddr := os.Getenv("REDIS_ADDR")
 	namespace := os.Getenv("NAMESPACE")
 	options := []cardinal.WorldOption{
 		cardinal.WithNamespace(namespace),
@@ -26,7 +25,7 @@ func main() {
 		options = append(options, cardinal.WithAdapter(setupAdapter()))
 	}
 
-	world, err := cardinal.NewWorld(redisAddr, "", options...)
+	world, err := cardinal.NewWorld(options...)
 	if err != nil {
 		log.Fatal(err)
 	}
