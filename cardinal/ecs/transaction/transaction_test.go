@@ -62,7 +62,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Set up a system that allows for the modification of a player's score
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		modifyScore := modifyScoreTx.In(wCtx)
 		for _, txData := range modifyScore {
 			ms := txData.Value
@@ -120,7 +120,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	wCtx := ecs.NewWorldContext(world)
 	id, err := component.Create(wCtx, CounterComponent{})
 	assert.NilError(t, err)
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		return component.UpdateComponent[CounterComponent](wCtx, id, func(c *CounterComponent) *CounterComponent {
 			c.Count++
 			return c
@@ -144,7 +144,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	modifyScoreTx := ecs.NewTransactionType[*ModifyScoreTx, *EmptyTxResult]("modify_score")
 	assert.NilError(t, world.RegisterTransactions(modifyScoreTx))
 
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		modifyScores := modifyScoreTx.In(wCtx)
 		for _, msData := range modifyScores {
 			ms := msData.Value
@@ -204,7 +204,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	inSystemCh := make(chan struct{})
 	// This system will block forever. This will give us a never-ending game tick that we can use
 	// to verify that the addition of more transactions doesn't block.
-	world.AddSystem(func(ecs.WorldContext) error {
+	world.RegisterSystem(func(ecs.WorldContext) error {
 		<-inSystemCh
 		select {}
 	})
@@ -252,13 +252,13 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	// transaction queue. These counts should be the same for each tick. modScoreCountCh is an unbuffered channel
 	// so these systems will block while writing to modScoreCountCh. This allows the test to ensure that we can run
 	// commands mid-tick.
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		modScores := modScoreTx.In(wCtx)
 		modScoreCountCh <- len(modScores)
 		return nil
 	})
 
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		modScores := modScoreTx.In(wCtx)
 		modScoreCountCh <- len(modScores)
 		return nil
@@ -321,7 +321,7 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 	alpha.AddToQueue(world, NewOwner{"alpha"})
 	beta.AddToQueue(world, NewOwner{"beta"})
 
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		newNames := alpha.In(wCtx)
 		assert.Check(t, len(newNames) == 1, "expected 1 transaction, not %d", len(newNames))
 		assert.Check(t, newNames[0].Value.Name == "alpha")
@@ -409,7 +409,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	wantSecondError := errors.New("another transaction error")
 	wantDeltaX, wantDeltaY := 99, 100
 
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		// This new TxsIn function returns a triplet of information:
 		// 1) The transaction input
 		// 2) An ID that uniquely identifies this specific transaction
@@ -463,7 +463,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	assert.NilError(t, world.RegisterTransactions(numTx))
 	wantErr := errors.New("some transaction error")
 	systemCalls := 0
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		systemCalls++
 		txs := numTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
@@ -474,7 +474,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 		return nil
 	})
 
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		systemCalls++
 		txs := numTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
@@ -507,7 +507,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 
 	firstResult := TxOut{1234}
 	secondResult := TxOut{5678}
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		systemCalls++
 		txs := numTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
@@ -518,7 +518,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 		return nil
 	})
 
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		systemCalls++
 		txs := numTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))

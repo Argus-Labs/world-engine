@@ -95,7 +95,7 @@ func TestEventsThroughSystems(t *testing.T) {
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
 	for i := 0; i < numberToTest; i++ {
-		w.AddSystem(func(wCtx ecs.WorldContext) error {
+		w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 			wCtx.GetWorld().EmitEvent(&events.Event{Message: "test"})
 			counter1.Add(1)
 			return nil
@@ -157,7 +157,7 @@ func TestEventHubLogger(t *testing.T) {
 	w := ecs.NewTestWorld(t, ecs.WithLoggingEventHub(&cardinalLogger))
 	numberToTest := 5
 	for i := 0; i < numberToTest; i++ {
-		w.AddSystem(func(wCtx ecs.WorldContext) error {
+		w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 			wCtx.GetWorld().EmitEvent(&events.Event{Message: "test"})
 			return nil
 		})

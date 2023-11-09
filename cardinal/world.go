@@ -3,16 +3,10 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"github.com/rs/zerolog/log"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"reflect"
-	"runtime"
-	"sync/atomic"
-	"syscall"
-	"time"
-
-	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
@@ -24,6 +18,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/evm"
 	"pkg.world.dev/world-engine/cardinal/server"
+	"reflect"
+	"runtime"
+	"sync/atomic"
+	"syscall"
+	"time"
 )
 
 type World struct {
@@ -48,7 +47,7 @@ type (
 
 	// System is a function that process the transaction in the given transaction queue.
 	// Systems are automatically called during a world tick, and they must be registered
-	// with a world using AddSystem or AddSystems.
+	// with a world using RegisterSystems.
 	System func(WorldContext) error
 )
 
@@ -172,7 +171,7 @@ func (w *World) handleShutdown() {
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
 // attempted. In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
-// to this world. After StartGame is called, RegisterComponent, RegisterTransactions, RegisterQueries, and AddSystem may
+// to this world. After StartGame is called, RegisterComponent, RegisterTransactions, RegisterQueries, and RegisterSystems may
 // not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {
@@ -249,16 +248,20 @@ func (w *World) ShutDown() error {
 	return nil
 }
 
-func RegisterSystems(w *World, systems ...System) {
+func RegisterSystems(w *World, systems ...System) error {
 	for _, system := range systems {
 		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
 		sys := system
-		w.implWorld.AddSystemWithName(func(wCtx ecs.WorldContext) error {
+		err := w.implWorld.RegisterSystemWithName(func(wCtx ecs.WorldContext) error {
 			return sys(&worldContext{
 				implContext: wCtx,
 			})
 		}, functionName)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func RegisterComponent[T metadata.Component](world *World) error {

@@ -142,7 +142,7 @@ func TestWorldLogger(t *testing.T) {
 
 	// create a system for logging.
 	buf.Reset()
-	w.AddSystems(testSystemWarningTrigger)
+	w.RegisterSystems(testSystemWarningTrigger)
 	err = w.LoadGameState()
 	assert.NilError(t, err)
 	ctx := context.Background()
