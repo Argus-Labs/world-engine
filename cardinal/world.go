@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
+
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -20,7 +22,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/evm"
 	"pkg.world.dev/world-engine/cardinal/server"
@@ -43,7 +44,7 @@ type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
 	// one or more components.
 	EntityID = entity.ID
-	TxHash   = transaction.TxHash
+	TxHash   = message.TxHash
 	Receipt  = receipt.Receipt
 
 	// System is a function that process the transaction in the given transaction queue.
@@ -171,8 +172,8 @@ func (w *World) handleShutdown() {
 }
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
-// attempted. In addition, an HTTP server (listening on the given port) is created so that game transactions can be sent
-// to this world. After StartGame is called, RegisterComponent, RegisterTransactions, RegisterQueries, and AddSystem may
+// attempted. In addition, an HTTP server (listening on the given port) is created so that game messages can be sent
+// to this world. After StartGame is called, RegisterComponent, RegisterMessages, RegisterQueries, and AddSystem may
 // not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {
@@ -197,7 +198,7 @@ func (w *World) StartGame() error {
 		if !errors.Is(err, evm.ErrNoEVMTypes) {
 			return err
 		}
-		w.implWorld.Logger.Debug().Msg("no EVM transactions or queries specified. EVM server will not run")
+		w.implWorld.Logger.Debug().Msg("no EVM messages or queries specified. EVM server will not run")
 	} else {
 		w.implWorld.Logger.Debug().Msg("running world with EVM server")
 		err = w.evmServer.Serve()
@@ -265,10 +266,10 @@ func RegisterComponent[T metadata.Component](world *World) error {
 	return ecs.RegisterComponent[T](world.implWorld)
 }
 
-// RegisterTransactions adds the given transactions to the game world. HTTP endpoints to queue up/execute these
-// transaction will automatically be created when StartGame is called. This Register method must only be called once.
-func RegisterTransactions(w *World, txs ...AnyTransaction) error {
-	return w.implWorld.RegisterTransactions(toITransactionType(txs)...)
+// RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
+// messages will automatically be created when StartGame is called. This Register method must only be called once.
+func RegisterMessages(w *World, msgs ...AnyMessage) error {
+	return w.implWorld.RegisterMessages(toMessageType(msgs)...)
 }
 
 // RegisterQueries adds the given query capabilities to the game world. HTTP endpoints to use these queries
@@ -285,7 +286,9 @@ func (w *World) Tick(ctx context.Context) error {
 	return w.implWorld.Tick(ctx)
 }
 
-func (w *World) Init(fn func(WorldContext)) {
-	ecsWorldCtx := ecs.NewWorldContext(w.implWorld)
-	fn(&worldContext{implContext: ecsWorldCtx})
+// Init Registers a system that only runs once on a new game before tick 0.
+func (w *World) Init(system System) {
+	w.implWorld.AddInitSystem(func(ecsWctx ecs.WorldContext) error {
+		return system(&worldContext{implContext: ecsWctx})
+	})
 }

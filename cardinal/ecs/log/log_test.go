@@ -70,8 +70,8 @@ func TestWorldLogger(t *testing.T) {
 		&bufLogger,
 	}
 	w.InjectLogger(&cardinalLogger)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	assert.NilError(t, w.RegisterTransactions(alphaTx))
+	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	assert.NilError(t, w.RegisterMessages(alphaTx))
 	assert.NilError(t, ecs.RegisterComponent[EnergyComp](w))
 	cardinalLogger.LogWorld(w, zerolog.InfoLevel)
 	jsonWorldInfoString := `{

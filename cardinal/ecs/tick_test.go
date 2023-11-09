@@ -318,14 +318,14 @@ func (PowerComp) Name() string {
 
 func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 	rs := miniredis.RunT(t)
-	errorBadPowerChange := errors.New("bad power change transaction")
+	errorBadPowerChange := errors.New("bad power change message")
 	for _, isBuggyIteration := range []bool{true, false} {
 		world := testutil.InitWorldWithRedis(t, rs)
 
 		assert.NilError(t, ecs.RegisterComponent[PowerComp](world))
 
-		powerTx := ecs.NewTransactionType[PowerComp, PowerComp]("change_power")
-		assert.NilError(t, world.RegisterTransactions(powerTx))
+		powerTx := ecs.NewMessageType[PowerComp, PowerComp]("change_power")
+		assert.NilError(t, world.RegisterMessages(powerTx))
 
 		world.AddSystem(func(wCtx ecs.WorldContext) error {
 			q, err := wCtx.NewSearch(ecs.Contains(PowerComp{}))
@@ -336,10 +336,10 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 			changes := powerTx.In(wCtx)
 			assert.Equal(t, 1, len(changes))
-			entityPower.Val += changes[0].Value.Val
+			entityPower.Val += changes[0].Msg.Val
 			assert.NilError(t, component.SetComponent[PowerComp](wCtx, id, entityPower))
 
-			if isBuggyIteration && changes[0].Value.Val == 666 {
+			if isBuggyIteration && changes[0].Msg.Val == 666 {
 				return errorBadPowerChange
 			}
 			return nil
@@ -379,7 +379,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			powerTx.AddToQueue(world, PowerComp{666})
 			assert.ErrorIs(t, errorBadPowerChange, world.Tick(context.Background()))
 		} else {
-			// Loading the game state above should successfully re-process that final 666 transactions.
+			// Loading the game state above should successfully re-process that final 666 messages.
 			assert.Equal(t, float64(3666), fetchPower())
 
 			// One more tick for good measure

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
@@ -12,11 +13,10 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 
-func (handler *Handler) processTransaction(tx transaction.ITransaction, payload []byte, sp *sign.Transaction,
+func (handler *Handler) processTransaction(tx message.Message, payload []byte, sp *sign.Transaction,
 ) (*TransactionReply, error) {
 	txVal, err := tx.Decode(payload)
 	if err != nil {
@@ -25,8 +25,8 @@ func (handler *Handler) processTransaction(tx transaction.ITransaction, payload 
 	return handler.submitTransaction(txVal, tx, sp)
 }
 
-func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string]transaction.ITransaction,
-) (transaction.ITransaction, error) {
+func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string]message.Message,
+) (message.Message, error) {
 	mappedParams, ok := params.(map[string]interface{})
 	if !ok {
 		return nil, errors.New("params not readable")
@@ -71,12 +71,12 @@ func (handler *Handler) getBodyAndSigFromParams(
 // register transaction handlers on swagger server.
 func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 	world := handler.w
-	txs, err := world.ListTransactions()
+	txs, err := world.ListMessages()
 	if err != nil {
 		return err
 	}
 
-	txNameToTx := make(map[string]transaction.ITransaction)
+	txNameToTx := make(map[string]message.Message)
 	for _, tx := range txs {
 		txNameToTx[tx.Name()] = tx
 	}
@@ -102,7 +102,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 			return nil, err
 		}
 
-		txReply, err := handler.generateCreatePersonaResponseFromPayload(payload, sp, ecs.CreatePersonaTx)
+		txReply, err := handler.generateCreatePersonaResponseFromPayload(payload, sp, ecs.CreatePersonaMsg)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +116,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 }
 
 // submitTransaction submits a transaction to the game world, as well as the blockchain.
-func (handler *Handler) submitTransaction(txVal any, tx transaction.ITransaction, sp *sign.Transaction,
+func (handler *Handler) submitTransaction(txVal any, tx message.Message, sp *sign.Transaction,
 ) (*TransactionReply, error) {
 	log.Debug().Msgf("submitting transaction %d: %v", tx.ID(), txVal)
 	tick, txHash := handler.w.AddTransaction(tx.ID(), txVal, sp)
