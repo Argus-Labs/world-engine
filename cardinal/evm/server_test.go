@@ -4,9 +4,10 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
-
+	"gotest.tools/v3/assert/cmp"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"
@@ -48,24 +49,28 @@ func TestServer_SendMessage(t *testing.T) {
 		{Y: 400, Z: false},
 	}
 
-	// need the system to tick for adding the persona + authorized address. so wrapping the test system below
-	// in an enabled block to prevent it from checking test cases until the persona transactions are handled.
-	enabled := false
+	currFooIndex := 0
+	currBarIndex := 0
 
-	// add a system that checks that they are submitted properly to the world.
+	// add a system that checks that they are submitted properly to the world in the correct order.
 	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		if !enabled {
-			return nil
-		}
 		inFooTxs := fooTx.In(wCtx)
 		inBarTxs := barTx.In(wCtx)
-		assert.Equal(t, len(inFooTxs), len(fooTxs))
-		assert.Equal(t, len(inBarTxs), len(barTxs))
-		for i, tx := range inFooTxs {
-			assert.DeepEqual(t, tx.Msg, fooTxs[i])
+		if len(inFooTxs) == 0 && len(inBarTxs) == 0 {
+			return nil
 		}
-		for i, tx := range inBarTxs {
-			assert.DeepEqual(t, tx.Msg, barTxs[i])
+		// Make sure we're only dealing with 1 transaction
+		assert.Equal(t, 1, len(inFooTxs)+len(inBarTxs))
+
+		if len(inFooTxs) > 0 {
+			assert.Check(t, cmp.DeepEqual(inFooTxs[0].Msg, fooTxs[currFooIndex]))
+			currFooIndex++
+		} else {
+			assert.Check(t, cmp.DeepEqual(inBarTxs[0].Msg, barTxs[currBarIndex]))
+			currBarIndex++
+
+			// Make sure we process the bar transaction AFTER all the foo transactions
+			assert.Check(t, len(fooTxs) == currFooIndex, "%d is not %d", len(inFooTxs), currFooIndex)
 		}
 		return nil
 	})
@@ -81,44 +86,57 @@ func TestServer_SendMessage(t *testing.T) {
 	ecs.AuthorizePersonaAddressMsg.AddToQueue(w, ecs.AuthorizePersonaAddress{
 		Address: sender,
 	}, &sign.Transaction{PersonaTag: personaTag})
-	err := w.Tick(context.Background())
-	assert.NilError(t, err)
-
-	// now that the persona transactions are handled, we can flip enabled to true, allowing the test system to run.
-	enabled = true
+	tickStartCh := make(chan time.Time)
+	tickDoneCh := make(chan uint64)
+	w.StartGameLoop(context.Background(), tickStartCh, tickDoneCh)
+	// Process an initial tick so the CreatePersona transaction will be processed
+	tickStartCh <- time.Now()
+	<-tickDoneCh
 
 	server, err := NewServer(w)
 	assert.NilError(t, err)
 
-	// marshal out the bytes to send from each list of transactions.
-	for _, tx := range fooTxs {
-		var fooTxBz []byte
-		fooTxBz, err = fooTx.ABIEncode(tx)
-		assert.NilError(t, err)
-		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
-			Sender:    sender,
-			Message:   fooTxBz,
-			MessageId: fooTx.Name(),
-		})
-		assert.NilError(t, err)
-	}
-	for _, tx := range barTxs {
-		var barTxBz []byte
-		barTxBz, err = barTx.ABIEncode(tx)
-		assert.NilError(t, err)
-		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
-			Sender:    sender,
-			Message:   barTxBz,
-			MessageId: barTx.Name(),
-		})
-		assert.NilError(t, err)
-	}
+	txSequenceDone := make(chan struct{})
+	// Send in each transaction one at a time
+	go func() {
+		// marshal out the bytes to send from each list of transactions.
+		for _, tx := range fooTxs {
+			var fooTxBz []byte
+			fooTxBz, err = fooTx.ABIEncode(tx)
+			assert.NilError(t, err)
+			_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
+				Sender:    sender,
+				Message:   fooTxBz,
+				MessageId: fooTx.Name(),
+			})
+			assert.NilError(t, err)
+		}
+		for _, tx := range barTxs {
+			var barTxBz []byte
+			barTxBz, err = barTx.ABIEncode(tx)
+			assert.NilError(t, err)
+			_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
+				Sender:    sender,
+				Message:   barTxBz,
+				MessageId: barTx.Name(),
+			})
+			assert.NilError(t, err)
+		}
+		close(txSequenceDone)
+	}()
 
-	// we already sent the transactions through to the server, which should pipe them into the transaction queue.
-	// all we need to do now is tick so the system can run, which will check that we got the transactions we just
-	// piped through above.
-	err = w.Tick(context.Background())
-	assert.NilError(t, err)
+loop:
+	for {
+		select {
+		case tickStartCh <- time.Now():
+			<-tickDoneCh
+		case <-txSequenceDone:
+			break loop
+		}
+	}
+	// Make sure we saw the correct number of foo and bar transactions
+	assert.Equal(t, len(fooTxs), currFooIndex)
+	assert.Equal(t, len(barTxs), currBarIndex)
 }
 
 func TestServer_Query(t *testing.T) {
