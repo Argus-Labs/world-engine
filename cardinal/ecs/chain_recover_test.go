@@ -3,7 +3,9 @@ package ecs_test
 import (
 	"context"
 	"encoding/binary"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"sort"
 	"testing"
 
@@ -91,7 +93,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
-	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
+	w := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
 	sendEnergyTx := ecs.NewMessageType[SendEnergyMsg, SendEnergyResult]("send_energy")
 	err := w.RegisterMessages(sendEnergyTx)
 	assert.NilError(t, err)
@@ -146,7 +148,7 @@ func generateRandomTransaction(t *testing.T, ns string, msg message.Message) *si
 func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
 	ctx := context.Background()
 	adapter := &DummyAdapter{}
-	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
+	w := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
 	assert.NilError(t, w.LoadGameState())
 	assert.NilError(t, w.Tick(ctx))
 

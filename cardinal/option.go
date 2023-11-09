@@ -1,6 +1,11 @@
 package cardinal
 
 import (
+	"github.com/alicebob/miniredis/v2"
+	"github.com/rs/zerolog/log"
+	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/store"
+	"pkg.world.dev/world-engine/cardinal/events"
 	"time"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -86,5 +91,43 @@ func WithPrettyLog() WorldOption {
 func WithCORS() WorldOption {
 	return WorldOption{
 		serverOption: server.WithCORS(),
+	}
+}
+
+func WithStoreManager(s store.IManager) WorldOption {
+	return WorldOption{
+		ecsOption: ecs.WithStoreManager(s),
+	}
+}
+
+func WithEventHub(eventHub events.EventHub) WorldOption {
+	return WorldOption{
+		ecsOption: ecs.WithEventHub(eventHub),
+	}
+}
+
+func WithLoggingEventHub(logger *ecslog.Logger) WorldOption {
+	return WorldOption{
+		ecsOption: ecs.WithLoggingEventHub(logger),
+	}
+}
+
+func withMockRedis() WorldOption {
+	// We manually set the start address to make the port deterministic
+	s := miniredis.NewMiniRedis()
+	err := s.StartAddr(":6379")
+	if err != nil {
+		panic("Unable to start miniredis. Make sure there is no other redis instance running on port 6379")
+	}
+	log.Logger.Debug().Msgf("miniredis started at %s", s.Addr())
+
+	return WorldOption{
+		cardinalOption: func(world *World) {
+			world.cleanup = func() {
+				log.Logger.Debug().Msg("miniredis shutting down")
+				s.Close()
+				log.Logger.Debug().Msg("miniredis shutdown successful")
+			}
+		},
 	}
 }

@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ import (
 )
 
 func TestCanWaitForNextTick(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
 	assert.NilError(t, w.LoadGameState())
@@ -46,7 +47,7 @@ func TestCanWaitForNextTick(t *testing.T) {
 }
 
 func TestWaitForNextTickReturnsFalseWhenWorldIsShutDown(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
 	assert.NilError(t, w.LoadGameState())
@@ -87,7 +88,7 @@ func TestWaitForNextTickReturnsFalseWhenWorldIsShutDown(t *testing.T) {
 }
 
 func TestCannotWaitForNextTickAfterWorldIsShutDown(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
 	assert.NilError(t, w.LoadGameState())
@@ -113,7 +114,7 @@ func TestEVMTxConsume(t *testing.T) {
 	type FooOut struct {
 		Y string
 	}
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	fooTx := ecs.NewMessageType[FooIn, FooOut]("foo", ecs.WithMsgEVMSupport[FooIn, FooOut])
 	assert.NilError(t, w.RegisterMessages(fooTx))
 	var returnVal FooOut
@@ -166,8 +167,8 @@ func TestAddSystems(t *testing.T) {
 		return nil
 	}
 
-	w := ecs.NewTestWorld(t)
-	w.RegisterSystems(sys, sys, sys)
+	w := testutils.NewTestWorld(t).Instance()
+	w.RegiterSystems(sys, sys, sys)
 	err := w.LoadGameState()
 	assert.NilError(t, err)
 
@@ -178,7 +179,7 @@ func TestAddSystems(t *testing.T) {
 }
 
 func TestSystemExecutionOrder(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	order := make([]int, 0, 3)
 	w.RegisterSystems(func(ecs.WorldContext) error {
 		order = append(order, 1)
@@ -200,13 +201,14 @@ func TestSystemExecutionOrder(t *testing.T) {
 }
 
 func TestSetNamespace(t *testing.T) {
-	id := "foo"
-	w := ecs.NewTestWorld(t, ecs.WithNamespace(id))
-	assert.Equal(t, w.Namespace().String(), id)
+	namespace := "test"
+	t.Setenv("CARDINAL_NAMESPACE", namespace)
+	w := testutils.NewTestWorld(t).Instance()
+	assert.Equal(t, w.Namespace().String(), namespace)
 }
 
 func TestWithoutRegistration(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	wCtx := ecs.NewWorldContext(world)
 	id, err := component.Create(wCtx, EnergyComponent{}, OwnableComponent{})
 	assert.Assert(t, err != nil)

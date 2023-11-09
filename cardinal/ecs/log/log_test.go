@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"testing"
 	"time"
@@ -77,7 +78,7 @@ func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
 }
 
 func TestWorldLogger(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)

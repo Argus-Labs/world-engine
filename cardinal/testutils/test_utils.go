@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 	"sync"
 	"testing"
 	"time"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/sign"
@@ -189,20 +189,15 @@ func AddTransactionToWorldByAnyTransaction(
 // MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
 // will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
 // end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
-func MakeWorldAndTicker(t *testing.T,
-	opts ...cardinal.WorldOption) (
-	world *cardinal.World,
-	doTick func()) {
+func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *cardinal.World, doTick func()) {
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
-	opts = append(opts, cardinal.WithTickChannel(startTickCh), cardinal.WithTickDoneChannel(doneTickCh))
-	world, err := cardinal.NewMockWorld(opts...)
-	if err != nil {
-		t.Fatalf("unable to make mock world: %v", err)
-	}
+	eventHub := events.CreateWebSocketEventHub()
+	opts = append(opts, cardinal.WithTickChannel(startTickCh), cardinal.WithTickDoneChannel(doneTickCh), cardinal.WithEventHub(eventHub))
+	world = NewTestWorld(t, opts...)
 
 	// Shutdown any world resources. This will be called whether the world has been started or not.
 	t.Cleanup(func() {
-		if err = world.ShutDown(); err != nil {
+		if err := world.ShutDown(); err != nil {
 			t.Fatalf("unable to shut down world: %v", err)
 		}
 	})
@@ -222,7 +217,7 @@ func MakeWorldAndTicker(t *testing.T,
 			}()
 			for !world.IsGameRunning() {
 				select {
-				case err = <-startupError:
+				case err := <-startupError:
 					t.Fatalf("startup error: %v", err)
 				case <-timeout:
 					t.Fatal("timeout while waiting for game to start")

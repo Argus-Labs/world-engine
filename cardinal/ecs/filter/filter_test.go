@@ -2,6 +2,7 @@ package filter_test
 
 import (
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"github.com/rs/zerolog"
 	"testing"
 
@@ -22,7 +23,7 @@ func (gammaComponent) Name() string {
 }
 
 func TestGetEverythingFilter(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(t, ecs.RegisterComponent[Beta](world))
@@ -52,7 +53,7 @@ func TestGetEverythingFilter(t *testing.T) {
 }
 
 func TestCanFilterByArchetype(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(t, ecs.RegisterComponent[Beta](world))
@@ -97,7 +98,7 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 func TestExactVsContains(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(t, ecs.RegisterComponent[Beta](world))
 
@@ -213,7 +214,7 @@ func TestExactVsContains(t *testing.T) {
 }
 
 func TestCanGetArchetypeFromEntity(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(t, ecs.RegisterComponent[Beta](world))
 	assert.NilError(t, world.LoadGameState())
@@ -262,7 +263,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 func BenchmarkEntityCreation(b *testing.B) {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	for i := 0; i < b.N; i++ {
-		world := ecs.NewTestWorld(b)
+		world := testutils.NewTestWorld(b).Instance()
 		assert.NilError(b, ecs.RegisterComponent[Alpha](world))
 		assert.NilError(b, world.LoadGameState())
 		wCtx := ecs.NewWorldContext(world)
@@ -287,7 +288,7 @@ func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 
 func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StopTimer()
-	world := ecs.NewTestWorld(b)
+	world := testutils.NewTestWorld(b).Instance()
 	assert.NilError(b, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(b, ecs.RegisterComponent[Beta](world))
 	assert.NilError(b, world.LoadGameState())

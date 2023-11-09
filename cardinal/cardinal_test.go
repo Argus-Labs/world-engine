@@ -22,8 +22,8 @@ func (Foo) Name() string { return "foo" }
 
 func TestNewWorld(t *testing.T) {
 	// should fail, this test should generate a compile error if the function signature changes.
-	_, err := cardinal.NewWorld("", "", cardinal.WithNamespace("testnamespace"))
-	assert.Assert(t, err != nil)
+	_, err := cardinal.NewWorld(cardinal.WithNamespace("testnamespace"))
+	assert.NilError(t, err)
 }
 
 func TestCanQueryInsideSystem(t *testing.T) {
@@ -59,9 +59,8 @@ func TestShutdownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	var wg sync.WaitGroup
 	testutils.SetTestTimeout(t, 10*time.Second)
-	world, err := cardinal.NewMockWorld(cardinal.WithCORS())
+	world := testutils.NewTestWorld(t, cardinal.WithCORS())
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
-	assert.NilError(t, err)
 	wantNumOfEntities := 10
 	world.Init(func(worldCtx cardinal.WorldContext) error {
 		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities/2, Foo{})
@@ -72,7 +71,7 @@ func TestShutdownViaSignal(t *testing.T) {
 	})
 	wg.Add(1)
 	go func() {
-		err = world.StartGame()
+		err := world.StartGame()
 		assert.NilError(t, err)
 		wg.Done()
 	}()
@@ -81,7 +80,7 @@ func TestShutdownViaSignal(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 	}
 	wCtx := cardinal.TestingWorldToWorldContext(world)
-	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
+	_, err := cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
 	assert.NilError(t, err)
 	// test CORS with cardinal
 	client := &http.Client{}
