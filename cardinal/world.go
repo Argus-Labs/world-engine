@@ -6,12 +6,13 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"reflect"
 	"runtime"
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -285,7 +286,9 @@ func (w *World) Tick(ctx context.Context) error {
 	return w.implWorld.Tick(ctx)
 }
 
-func (w *World) Init(fn func(WorldContext)) {
-	ecsWorldCtx := ecs.NewWorldContext(w.implWorld)
-	fn(&worldContext{implContext: ecsWorldCtx})
+// Init Registers a system that only runs once on a new game before tick 0.
+func (w *World) Init(system System) {
+	w.implWorld.AddInitSystem(func(ecsWctx ecs.WorldContext) error {
+		return system(&worldContext{implContext: ecsWctx})
+	})
 }

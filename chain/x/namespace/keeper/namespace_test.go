@@ -38,7 +38,7 @@ func (s *TestSuite) SetupTest() {
 	s.addrs = simtestutil.CreateIncrementalAccounts(3)
 	s.authority = s.addrs[0]
 	s.encCfg = moduletestutil.MakeTestEncodingConfig(namespace.AppModuleBasic{})
-	key := storetypes.NewKVStoreKey(namespace.ModuleName)
+	key := storetypes.NewKVStoreKey(namespacetypes.ModuleName)
 	testCtx := testutil.DefaultContextWithDB(s.T(), key, storetypes.NewTransientStoreKey("transient_test"))
 	s.ctx = testCtx.Ctx.WithHeaderInfo(header.Info{Time: time.Now().Round(0).UTC()})
 
