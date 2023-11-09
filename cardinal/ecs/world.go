@@ -76,6 +76,9 @@ type World struct {
 	nextComponentID metadata.TypeID
 
 	eventHub events.EventHub
+
+	// addChannelWaitingForNextTick accepts a channel which will be closed after a tick has been completed.
+	addChannelWaitingForNextTick chan chan struct{}
 }
 
 var (
@@ -268,6 +271,8 @@ func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts 
 		endGameLoopCh:     make(chan bool),
 		nextComponentID:   1,
 		evmTxReceipts:     make(map[string]EVMTxReceipt),
+
+		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 	w.isGameLoopRunning.Store(false)
 	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
@@ -446,54 +451,66 @@ func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 	}
 
 	go func() {
-		tickTheWorld := func() {
-			currTick := w.CurrentTick()
-			if err := w.Tick(ctx); err != nil {
-				w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
-			}
-			if tickDone != nil {
-				tickDone <- currTick
-			}
-		}
+		var waitingChs []chan struct{}
 		w.isGameLoopRunning.Store(true)
 	loop:
 		for {
 			select {
 			case <-tickStart:
-				tickTheWorld()
+				w.tickTheWorld(ctx, tickDone)
+				closeAllChannels(waitingChs)
+				waitingChs = waitingChs[:0]
 			case <-w.endGameLoopCh:
+				w.drainChannelsWaitingForNextTick()
+				closeAllChannels(waitingChs)
 				if w.GetTxQueueAmount() > 0 {
-					tickTheWorld() // immediately tick if queue is not empty to process all txs if queue is not empty.
+					// immediately tick if queue is not empty to process all txs if queue is not empty.
+					w.tickTheWorld(ctx, tickDone)
 				}
 				break loop
+			case ch := <-w.addChannelWaitingForNextTick:
+				waitingChs = append(waitingChs, ch)
 			}
 		}
 		w.isGameLoopRunning.Store(false)
 	}()
 }
 
-// WaitForNextTick waits for the next tick. It returns true if it successfully waited for the next tick.
-// Returns false if we hit the timout threshold (5s).
-//
-// TODO: we probably want to make this timeout related to the actual tick hz.
-// If a game has 10s ticks, this wouldn't work.
-// ticket: https://linear.app/arguslabs/issue/WORLD-430/make-waitfornextticks-timeout-and-sleep-duration-a-factor-of-the
-func (w *World) WaitForNextTick() bool {
-	current := w.CurrentTick()
-	timeout := time.After(5 * time.Second) //nolint:gomnd // fine for now.
-
-	for {
-		if w.CurrentTick() > current {
-			return true
-		}
-		select {
-		case <-timeout:
-			return false // Timeout reached
-		default:
-			// TODO: sleep time should be a factor of the tick hz itself.
-			time.Sleep(500 * time.Millisecond) //nolint:gomnd // fine for now.
-		}
+func closeAllChannels(chs []chan struct{}) {
+	for _, ch := range chs {
+		close(ch)
 	}
+}
+
+func (w *World) tickTheWorld(ctx context.Context, tickDone chan<- uint64) {
+	currTick := w.CurrentTick()
+	if err := w.Tick(ctx); err != nil {
+		w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
+	}
+	if tickDone != nil {
+		tickDone <- currTick
+	}
+}
+
+// drainChannelsWaitingForNextTick continually closes any channels that are added to the
+// addChannelWaitingForNextTick channel. This is used when the world is shut down; it ensures
+// any calls to WaitForNextTick that happen after a shutdown will not block.
+func (w *World) drainChannelsWaitingForNextTick() {
+	go func() {
+		for ch := range w.addChannelWaitingForNextTick {
+			close(ch)
+		}
+	}()
+}
+
+// WaitForNextTick blocks until at least one game tick has completed. It returns true if it successfully waited for a
+// tick. False may be returned if the world was shut down while waiting for the next tick to complete.
+func (w *World) WaitForNextTick() (success bool) {
+	startTick := w.CurrentTick()
+	ch := make(chan struct{})
+	w.addChannelWaitingForNextTick <- ch
+	<-ch
+	return w.CurrentTick() > startTick
 }
 
 func (w *World) IsGameLoopRunning() bool {
@@ -579,7 +596,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		return fmt.Errorf("chain adapter was nil. " +
 			"be sure to use the `WithAdapter` option when creating the world")
 	}
-	if w.tick > 0 {
+	if w.CurrentTick() > 0 {
 		return fmt.Errorf("world recovery should not occur in a world with existing state. please verify all " +
 			"state has been cleared before running recovery")
 	}

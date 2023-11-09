@@ -14,19 +14,95 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
 
-func TestWaitForNextTick(t *testing.T) {
+func TestCanWaitForNextTick(t *testing.T) {
 	w := ecs.NewTestWorld(t)
-	doneCh := make(chan struct{})
-	go func() {
-		tick := w.CurrentTick()
-		w.WaitForNextTick()
-		assert.Check(t, w.CurrentTick() > tick)
-		doneCh <- struct{}{}
-	}()
+	startTickCh := make(chan time.Time)
+	doneTickCh := make(chan uint64)
 	assert.NilError(t, w.LoadGameState())
-	tickDone := make(chan uint64)
-	w.StartGameLoop(context.Background(), time.Tick(100*time.Millisecond), tickDone)
-	<-doneCh
+	w.StartGameLoop(context.Background(), startTickCh, doneTickCh)
+
+	// Make sure the game can tick
+	startTickCh <- time.Now()
+	<-doneTickCh
+
+	waitForNextTickDone := make(chan struct{})
+	go func() {
+		for i := 0; i < 10; i++ {
+			success := w.WaitForNextTick()
+			assert.Check(t, success)
+		}
+		close(waitForNextTickDone)
+	}()
+
+	for {
+		select {
+		case startTickCh <- time.Now():
+			<-doneTickCh
+		case <-waitForNextTickDone:
+			// The above goroutine successfully waited multiple times
+			return
+		}
+	}
+}
+
+func TestWaitForNextTickReturnsFalseWhenWorldIsShutDown(t *testing.T) {
+	w := ecs.NewTestWorld(t)
+	startTickCh := make(chan time.Time)
+	doneTickCh := make(chan uint64)
+	assert.NilError(t, w.LoadGameState())
+	w.StartGameLoop(context.Background(), startTickCh, doneTickCh)
+
+	// Make sure the game can tick
+	startTickCh <- time.Now()
+	<-doneTickCh
+
+	waitForNextTickDone := make(chan struct{})
+	go func() {
+		// continually spin here waiting for next tick. One of these must fail before
+		// the test times out for this test to pass
+		for w.WaitForNextTick() {
+		}
+		close(waitForNextTickDone)
+	}()
+
+	// Shutdown the world at some point in the near future
+	time.AfterFunc(100*time.Millisecond, func() {
+		w.Shutdown()
+	})
+	// testTimeout will cause the test to fail if we have to wait too long for a WaitForNextTick failure
+	testTimeout := time.After(5 * time.Second)
+	for {
+		select {
+		case startTickCh <- time.Now():
+			time.Sleep(10 * time.Millisecond)
+			<-doneTickCh
+		case <-testTimeout:
+			assert.Check(t, false, "test timeout")
+			return
+		case <-waitForNextTickDone:
+			// WaitForNextTick failed, meaning this test was successful
+			return
+		}
+	}
+}
+
+func TestCannotWaitForNextTickAfterWorldIsShutDown(t *testing.T) {
+	w := ecs.NewTestWorld(t)
+	startTickCh := make(chan time.Time)
+	doneTickCh := make(chan uint64)
+	assert.NilError(t, w.LoadGameState())
+	w.StartGameLoop(context.Background(), startTickCh, doneTickCh)
+
+	// Make sure the game can tick
+	startTickCh <- time.Now()
+	<-doneTickCh
+
+	w.Shutdown()
+
+	for i := 0; i < 10; i++ {
+		// After a world is shut down, WaitForNextTick should never block and always fail
+		assert.Check(t, !w.WaitForNextTick())
+	}
 }
 
 func TestEVMTxConsume(t *testing.T) {
