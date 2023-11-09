@@ -50,6 +50,7 @@ type World struct {
 	systemNames            []string
 	tick                   uint64
 	nameToComponent        map[string]metadata.ComponentMetadata
+	nameToQuery            map[string]IQuery
 	registeredComponents   []metadata.ComponentMetadata
 	registeredMessages     []message.Message
 	registeredQueries      []IQuery
@@ -208,20 +209,37 @@ func (w *World) GetComponentByName(name string) (metadata.ComponentMetadata, err
 	return componentType, nil
 }
 
-func (w *World) RegisterQueries(queries ...IQuery) error {
-	if w.stateIsLoaded {
+func RegisterQuery[Request any, Reply any](
+	world *World,
+	name string,
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+	opts ...func() func(queryType *Query[Request, Reply]),
+) error {
+	if world.stateIsLoaded {
 		panic("cannot register queries after loading game state")
 	}
-	w.registeredQueries = append(w.registeredQueries, queries...)
-	seenQueryNames := map[string]struct{}{}
-	for _, t := range w.registeredQueries {
-		name := t.Name()
-		if _, ok := seenQueryNames[name]; ok {
-			return fmt.Errorf("duplicate query %q: %w", name, ErrDuplicateQueryName)
-		}
-		seenQueryNames[name] = struct{}{}
+
+	if _, ok := world.nameToQuery[name]; ok {
+		return fmt.Errorf("query with name %s is already registered", name)
 	}
+
+	q, err := NewQueryType[Request, Reply](name, handler, opts...)
+	if err != nil {
+		return err
+	}
+
+	world.registeredQueries = append(world.registeredQueries, q)
+	world.nameToQuery[q.Name()] = q
+
 	return nil
+}
+
+func (w *World) GetQueryByName(name string) (IQuery, error) {
+	if q, ok := w.nameToQuery[name]; ok {
+		return q, nil
+	} else {
+		return nil, fmt.Errorf("query with name %s not found", name)
+	}
 }
 
 func (w *World) RegisterMessages(txs ...message.Message) error {
@@ -288,6 +306,7 @@ func NewWorld(
 		systems:           make([]System, 0),
 		initSystem:        func(_ WorldContext) error { return nil },
 		nameToComponent:   make(map[string]metadata.ComponentMetadata),
+		nameToQuery:       make(map[string]IQuery),
 		txQueue:           message.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},

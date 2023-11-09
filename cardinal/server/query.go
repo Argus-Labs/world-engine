@@ -17,11 +17,6 @@ import (
 //
 //nolint:funlen,gocognit
 func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
-	queryNameToQueryType := make(map[string]ecs.IQuery)
-	for _, query := range handler.w.ListQueries() {
-		queryNameToQueryType[query.Name()] = query
-	}
-
 	// query/game/{queryType} is a dynamic route that must dynamically handle things thus it can't use
 	// the createSwaggerQueryHandler utility function below as the Request and Reply types are dynamic.
 	queryHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
@@ -37,10 +32,10 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		if !ok {
 			return nil, fmt.Errorf("queryType was the wrong type, it should be a string from the path")
 		}
-		outputType, ok := queryNameToQueryType[queryTypeString]
-		if !ok {
-			return middleware.Error(http.StatusNotFound, fmt.Errorf("queryType of type %s does not exist",
-				queryTypeString)), nil
+
+		q, err := handler.w.GetQueryByName(queryTypeString)
+		if err != nil {
+			return middleware.Error(http.StatusNotFound, fmt.Errorf("query %s not found", queryTypeString)), nil
 		}
 
 		bodyData, ok := mapStruct["queryBody"]
@@ -64,7 +59,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 			return nil, err
 		}
 		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
-		rawJSONReply, err := outputType.HandleQueryRaw(wCtx, rawJSONBody)
+		rawJSONReply, err := q.HandleQueryRaw(wCtx, rawJSONBody)
 		if err != nil {
 			return nil, err
 		}

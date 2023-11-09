@@ -2,7 +2,7 @@ package ecs_test
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
@@ -11,41 +11,14 @@ import (
 	"gotest.tools/v3/assert"
 
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
-
-	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
 func TestQueryTypeNotStructs(t *testing.T) {
-	type FooRequest struct {
-		ID string
-	}
-	type FooReply struct {
-		Name string
-		Age  uint64
-	}
-
-	expectedReply := FooReply{
-		Name: "Chad",
-		Age:  22,
-	}
-
-	defer func() {
-		// test should trigger a panic.
-		panicValue := recover()
-		assert.Assert(t, panicValue != nil)
-		ecs.NewQueryType[FooRequest, FooReply]("foo", func(wCtx ecs.WorldContext, req FooRequest) (FooReply, error) {
-			return expectedReply, nil
-		})
-		defer func() {
-			// deferred function should not fail
-			panicValue = recover()
-			assert.Assert(t, panicValue == nil)
-		}()
-	}()
-
-	ecs.NewQueryType[string, string]("foo", func(wCtx ecs.WorldContext, req string) (string, error) {
-		return "blah", nil
+	str := "blah"
+	err := ecs.RegisterQuery[string, string](testutils.NewTestWorld(t).Instance(), "foo", func(wCtx ecs.WorldContext, req *string) (*string, error) {
+		return &str, nil
 	})
+	assert.Assert(t, err != nil)
 }
 
 func TestQueryEVM(t *testing.T) {
@@ -62,13 +35,13 @@ func TestQueryEVM(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooQuery := ecs.NewQueryType[FooRequest, FooReply]("foo", func(wCtx ecs.WorldContext, req FooRequest,
-	) (FooReply, error) {
-		return expectedReply, nil
-	}, ecs.WithQueryEVMSupport[FooRequest, FooReply])
 
 	w := testutils.NewTestWorld(t).Instance()
-	err := w.RegisterQueries(fooQuery)
+	err := ecs.RegisterQuery[FooRequest, FooReply](w, "foo", func(wCtx ecs.WorldContext, req *FooRequest,
+	) (*FooReply, error) {
+		return &expectedReply, nil
+	}, ecs.WithQueryEVMSupport[FooRequest, FooReply])
+
 	assert.NilError(t, err)
 	err = w.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)
@@ -76,6 +49,8 @@ func TestQueryEVM(t *testing.T) {
 	assert.NilError(t, err)
 
 	// create the abi encoded bytes that the EVM would send.
+	fooQuery, err := w.GetQueryByName("foo")
+	assert.NilError(t, err)
 	bz, err := fooQuery.EncodeAsABI(FooRequest{ID: "foo"})
 	assert.NilError(t, err)
 
@@ -101,31 +76,32 @@ func TestPanicsOnNoNameOrHandler(t *testing.T) {
 	type foo struct{}
 	testCases := []struct {
 		name        string
-		createQuery func()
-		shouldPanic bool
+		createQuery func() error
+		shouldErr   bool
 	}{
 		{
 			name: "panic on no name",
-			createQuery: func() {
-				ecs.NewQueryType[foo, foo]("", nil)
+			createQuery: func() error {
+				return ecs.RegisterQuery[foo, foo](testutils.NewTestWorld(t).Instance(), "", nil)
 			},
-			shouldPanic: true,
+			shouldErr: true,
 		},
 		{
 			name: "panic on no handler",
-			createQuery: func() {
-				ecs.NewQueryType[foo, foo]("foo", nil)
+			createQuery: func() error {
+				return ecs.RegisterQuery[foo, foo](testutils.NewTestWorld(t).Instance(), "foo", nil)
 			},
-			shouldPanic: true,
+			shouldErr: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.shouldPanic {
-				require.Panics(t, tc.createQuery)
+			if tc.shouldErr {
+				err := tc.createQuery()
+				assert.Assert(t, err != nil)
 			} else {
-				require.NotPanics(t, tc.createQuery)
+				assert.NilError(t, tc.createQuery())
 			}
 		})
 	}

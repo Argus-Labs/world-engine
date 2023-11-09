@@ -2,6 +2,7 @@ package evm_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/evm"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
@@ -149,18 +150,21 @@ func TestServer_Query(t *testing.T) {
 		Y uint64
 	}
 	// set up a query that simply returns the FooReq.X
-	query := ecs.NewQueryType[FooReq, FooReply]("foo", func(wCtx ecs.WorldContext, req FooReq) (FooReply, error) {
-		return FooReply{Y: req.X}, nil
-	}, ecs.WithQueryEVMSupport[FooReq, FooReply])
-	w := testutils.NewTestWorld(t).Instance()
-	err := w.RegisterQueries(query)
+	handleFooQuery := func(wCtx cardinal.WorldContext, req *FooReq) (*FooReply, error) {
+		return &FooReply{Y: req.X}, nil
+	}
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+	err := cardinal.RegisterQueryWithEVMSupport[FooReq, FooReply](w, "foo", handleFooQuery)
 	assert.NilError(t, err)
-	err = w.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("nothing"))
+	err = world.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("nothing"))
 	assert.NilError(t, err)
-	s, err := evm.NewServer(w)
+	s, err := evm.NewServer(world)
 	assert.NilError(t, err)
 
 	request := FooReq{X: 3000}
+	query, err := world.GetQueryByName("foo")
+	assert.NilError(t, err)
 	bz, err := query.EncodeAsABI(request)
 	assert.NilError(t, err)
 
