@@ -2,6 +2,7 @@ package testutils
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
@@ -97,6 +98,16 @@ func (t *TestTransactionHandler) Post(path string, payload any) *http.Response {
 	return res
 }
 
+func (t *TestTransactionHandler) Get(path string) *http.Response {
+	url := t.MakeHTTPURL(path)
+	ctx := context.Background()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	assert.NilError(t.T, err)
+	res, err := http.DefaultClient.Do(req)
+	assert.NilError(t.T, err)
+	return res
+}
+
 func SetTestTimeout(t *testing.T, timeout time.Duration) {
 	if _, ok := t.Deadline(); ok {
 		// A deadline has already been set. Don't add an additional deadline.
@@ -149,13 +160,13 @@ func UniqueSignature() *sign.Transaction {
 
 func AddTransactionToWorldByAnyTransaction(
 	world *cardinal.World,
-	cardinalTx cardinal.AnyTransaction,
+	cardinalTx cardinal.AnyMessage,
 	value any,
 	tx *sign.Transaction) {
 	worldCtx := WorldToWorldContext(world)
 	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
 
-	txs, err := ecsWorld.ListTransactions()
+	txs, err := ecsWorld.ListMessages()
 	if err != nil {
 		panic(err)
 	}

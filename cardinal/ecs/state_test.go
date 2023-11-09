@@ -281,7 +281,7 @@ func TestWorldTickAndHistoryTickMatch(t *testing.T) {
 func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 	type Msg struct{}
 	type Result struct{}
-	someTx := ecs.NewTransactionType[Msg, Result]("some-tx")
+	someTx := ecs.NewMessageType[Msg, Result]("some-msg")
 	redisStore := miniredis.RunT(t)
 	ctx := context.Background()
 
@@ -289,10 +289,10 @@ func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 	// in a tick, and then find those transactions in the tx receipt history.
 	for reload := 0; reload < 5; reload++ {
 		world := testutil.InitWorldWithRedis(t, redisStore)
-		assert.NilError(t, world.RegisterTransactions(someTx))
+		assert.NilError(t, world.RegisterMessages(someTx))
 		world.AddSystem(func(wCtx ecs.WorldContext) error {
 			for _, tx := range someTx.In(wCtx) {
-				someTx.SetResult(wCtx, tx.TxHash, Result{})
+				someTx.SetResult(wCtx, tx.Hash, Result{})
 			}
 			return nil
 		})

@@ -38,8 +38,8 @@ func TestEVMTxConsume(t *testing.T) {
 		Y string
 	}
 	w := ecs.NewTestWorld(t)
-	fooTx := ecs.NewTransactionType[FooIn, FooOut]("foo", ecs.WithTxEVMSupport[FooIn, FooOut])
-	assert.NilError(t, w.RegisterTransactions(fooTx))
+	fooTx := ecs.NewMessageType[FooIn, FooOut]("foo", ecs.WithMsgEVMSupport[FooIn, FooOut])
+	assert.NilError(t, w.RegisterMessages(fooTx))
 	var returnVal FooOut
 	var returnErr error
 	w.AddSystem(func(wCtx ecs.WorldContext) error {
@@ -58,13 +58,13 @@ func TestEVMTxConsume(t *testing.T) {
 	returnVal = FooOut{Y: "hi"}
 	returnErr = nil
 	assert.NilError(t, w.Tick(ctx))
-	evmTxReceipt, ok := w.ConsumeEVMTxResult(evmTxHash)
+	evmTxReceipt, ok := w.ConsumeEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, true)
 	assert.Check(t, len(evmTxReceipt.ABIResult) > 0)
 	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
 	assert.Equal(t, len(evmTxReceipt.Errs), 0)
 	// shouldn't be able to consume it again.
-	_, ok = w.ConsumeEVMTxResult(evmTxHash)
+	_, ok = w.ConsumeEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, false)
 
 	// lets check against a system that returns an error
@@ -72,14 +72,14 @@ func TestEVMTxConsume(t *testing.T) {
 	returnErr = errors.New("omg error")
 	w.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 	assert.NilError(t, w.Tick(ctx))
-	evmTxReceipt, ok = w.ConsumeEVMTxResult(evmTxHash)
+	evmTxReceipt, ok = w.ConsumeEVMMsgResult(evmTxHash)
 
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(evmTxReceipt.ABIResult), 0)
 	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
 	assert.Equal(t, len(evmTxReceipt.Errs), 1)
 	// shouldn't be able to consume it again.
-	_, ok = w.ConsumeEVMTxResult(evmTxHash)
+	_, ok = w.ConsumeEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, false)
 }
 

@@ -1,0 +1,202 @@
+import { Callout } from 'nextra/components'
+import Link from 'next/link'
+
+# Messages
+
+Messages enable Cardinal to handle state mutating requests in systems.
+
+```go
+package msg
+
+import "pkg.world.dev/world-engine/cardinal"
+
+
+// AttackInput is the input for the Attack message.
+type AttackInput struct {
+	TargetID uint64
+}
+
+// AttackResult is the result of the Attack message.
+type AttackResult struct {
+	Success bool
+}
+
+// Attack is an attack message.
+var Attack = cardinal.NewMessageType[AttackInput, AttackResult]("attack")
+```
+
+## NewMessageType
+
+`NewMessageType` creates a new `MessageType`. `MessageType`s wrap around an `Input` and `Result` type. The `Input` specifies the input for a message and the `Result` represents the result of the message's execution.
+
+```go
+func NewMessageType[Input, Result any](name string) *MessageType[Input, Result]
+```
+
+### Type Parameters
+
+| Type Parameter | Type | Description                                     |
+|----------------|------|-------------------------------------------------|
+| Input             | any  | The input type of the message.              |
+| Result            | any  | The result type of the message.             |
+
+
+### Parameters
+
+| Parameter | Type                                  | Description                                         |
+|-----------|---------------------------------------|-----------------------------------------------------|
+| name      | string                                | The name of the message.|
+
+### Return Value
+
+| Type                  | Description                                       |
+|-----------------------|---------------------------------------------------|
+| *MessageType[Msg, Result]    | A pointer to a new instance of MessageType[Msg, Result].  |
+
+## NewMessageTypeWithEVMSupport
+
+`NewMessageTypeWithEVMSupport` creates a new `MessageType` with EVM support. This adds additional configuration to the message which enables it to handle requests originating from EVM smart contracts.
+
+<Callout type={"warning"}>
+    Not all Go types are supported when using EVM supported messages. <Link href="/Cardinal/API-Reference/evm-support">Read More</Link>
+</Callout>
+
+```go
+func NewMessageTypeWithEVMSupport[Msg, Result any](name string) *MessageType[Msg, Result]
+```
+
+### Type Parameters
+
+| Type Parameter | Type | Description                                     |
+|----------------|------|-------------------------------------------------|
+| Input             | any  | The input type of the message.              |
+| Result            | any  | The result type of the message.             |
+
+
+### Parameters
+
+| Parameter | Type                                  | Description                                         |
+|-----------|---------------------------------------|-----------------------------------------------------|
+| name      | string                                | The name of the message. |
+
+### Return Value
+
+| Type                 | Description                                       |
+|----------------------|---------------------------------------------------|
+| *MessageType[Input, Result]    | A pointer to a new instance of MessageType[Input, Result].  |
+
+## Methods
+
+### AddError
+
+`AddError` adds an error to a specific message that signifies an issue has occurred with the message's execution.
+
+```go
+func (t *MessageType[Msg, Result]) AddError(world *World, hash TxHash, err error)
+```
+
+#### Example
+
+```go
+Attack.AddError(
+	w,
+	txHash,
+	errors.New("attack failed"),
+)
+```
+
+#### Parameters
+
+| Parameter   | Type                 | Description                                           |
+|-------------|----------------------|-------------------------------------------------------|
+| world       | *World               | A pointer to a World instance.  |
+| hash        | TxHash             | The hash of the transaction data.         |
+| err         | error                | The error to be associated with the message.     |
+
+### SetResult
+
+`SetResult` sets the result for a message's execution. `SetResult` requires the message type's output data structure for the result data.
+
+```go
+func (t *MessageType[Input, Result]) SetResult(
+	world *World,
+	hash TxHash,
+	result Result,
+)
+```
+
+#### Example
+
+```go
+Attack.SetResult(w, txHash, AttackResult{Success: true})
+```
+
+#### Parameters
+
+| Parameter   | Type                 | Description                                           |
+|-------------|----------------------|-------------------------------------------------------|
+| world       | *World               | A pointer to a World instance.  |
+| hash        | TxHash               | The hash of the transaction data.       |
+| result      | Result               | The result to be associated with the message.    |
+
+
+### GetReceipt
+
+`GetReceipt` gets the result and errors, if any, associated with a specific message type.
+
+```go
+func (t *MessageType[Msg, Result]) GetReceipt(world *World, hash TxHash) (r Result, errs []error, ok bool)
+```
+
+#### Example
+```go
+result, errs, ok := Attack.GetReceipt(w, txHash)
+```
+
+#### Parameters
+
+| Parameter   | Type                 | Description                                         |
+|-------------|----------------------|-----------------------------------------------------|
+| world       | *World               | A pointer to a World instance.  |
+| hash          | TxHash    | The hash of the transaction data.    |
+
+#### Return Values
+
+| Type        | Description                                                     |
+|--------------------|-----------------------------------------------------------------|
+| Result              | The result of the message associated with the transaction hash.  |
+| []error               | Any errors that may have occurred with the message associated with the transaction hash.         |
+| bool                 | A boolean indicating if a receipt was found for the message associated with the transaction hash.  |
+
+### In
+
+`In` is a method primarily used in Systems that retrieves all messages of the `MessageType` from the `World`'s `TransactionQueue`.
+
+```go
+func (t *MessageType[Msg, Result]) In(tq *TransactionQueue) []TxData[In]
+```
+
+#### Example
+
+```go
+txs := AttackTx.In(tq)
+for _, tx := range txs {
+	// ... do something with each msg
+	msg := tx.Msg()
+	hash := tx.Hash()
+	txData := tx.Tx()
+}
+```
+
+#### Parameters
+
+| Parameter   | Type                 | Description                                           |
+|-------------|----------------------|-------------------------------------------------------|
+| tq          | *TransactionQueue    | A pointer to a TransactionQueue containing transaction data and messages. |
+
+
+#### Return Value
+
+| Type        | Description                                                     |
+|--------------------|-----------------------------------------------------------------|
+| []TxData[Msg]       | A slice of TxData - containing Transaction data and Message value.|

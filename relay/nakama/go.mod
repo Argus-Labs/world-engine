@@ -6,7 +6,7 @@ require (
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/gorilla/websocket v1.5.0
 	github.com/heroiclabs/nakama-common v1.27.0
-	pkg.world.dev/world-engine/sign v0.1.10-alpha
+	pkg.world.dev/world-engine/sign v0.1.11-alpha
 )
 
 require (

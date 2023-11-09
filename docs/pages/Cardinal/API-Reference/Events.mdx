@@ -14,12 +14,12 @@ func exampleSystem(ctx cardinal.WorldContext) {
 
 ## Emit Events
 
-The `EmitEvent` method on `cardinal.WorldContext` will emit event to all clients under the subject "event".
+The `EmitEvent` method on `cardinal.WorldContext` will emit events to all clients under the subject "event".
 
 To see how to receive notifications go here: https://heroiclabs.com/docs/nakama/concepts/notifications/#receive-notifications (Unity)
 
 ```go
-func (wCtx *worldContext) EmitEvent(event string)
+func (wCtx *WorldContext) EmitEvent(event string)
 ```
 
 ### Parameters

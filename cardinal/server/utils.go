@@ -26,11 +26,11 @@ func decode[T any](buf []byte) (T, error) {
 }
 
 func getSignerAddressFromPayload(sp sign.Transaction) (string, error) {
-	createPersonaTx, err := decode[ecs.CreatePersonaTransaction](sp.Body)
+	msg, err := decode[ecs.CreatePersona](sp.Body)
 	if err != nil {
 		return "", err
 	}
-	return createPersonaTx.SignerAddress, nil
+	return msg.SignerAddress, nil
 }
 
 func (handler *Handler) verifySignature(sp *sign.Transaction, isSystemTransaction bool,

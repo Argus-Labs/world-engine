@@ -2,9 +2,9 @@ package server
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/transaction"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -50,11 +50,14 @@ func (handler *Handler) getPersonaSignerResponse(req *QueryPersonaSignerRequest)
 	return &res, nil
 }
 
-func (handler *Handler) generateCreatePersonaResponseFromPayload(payload []byte, sp *sign.Transaction,
-	tx transaction.ITransaction) (*TransactionReply, error) {
-	txVal, err := tx.Decode(payload)
+func (handler *Handler) generateCreatePersonaResponseFromPayload(
+	payload []byte,
+	sp *sign.Transaction,
+	msg message.Message,
+) (*TransactionReply, error) {
+	msgVal, err := msg.Decode(payload)
 	if err != nil {
-		return nil, errors.New("unable to decode transaction")
+		return nil, errors.New("unable to decode message in transaction")
 	}
-	return handler.submitTransaction(txVal, tx, sp)
+	return handler.submitTransaction(msgVal, msg, sp)
 }

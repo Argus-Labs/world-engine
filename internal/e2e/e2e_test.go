@@ -12,7 +12,7 @@ const (
 	adminNakamaID = "00000000-0000-0000-0000-000000000000"
 )
 
-type ClaimPersonaTx struct {
+type ClaimPersona struct {
 	PersonaTag string `json:"personaTag"`
 }
 
@@ -34,13 +34,13 @@ func TestTransactionStoredOnChain(t *testing.T) {
 	err := c.registerDevice(user, adminNakamaID)
 	assert.NilError(t, err)
 
-	res, err := c.rpc("nakama/claim-persona", ClaimPersonaTx{PersonaTag: persona})
+	res, err := c.rpc("nakama/claim-persona", ClaimPersona{PersonaTag: persona})
 	assert.NilError(t, err)
 
 	assert.Equal(t, 200, res.StatusCode, "claim persona failed with code %d: body: %v", res.StatusCode, res.Body)
 	time.Sleep(time.Second * 3)
 
-	res, err = c.rpc("nakama/show-persona", ClaimPersonaTx{PersonaTag: persona})
+	res, err = c.rpc("nakama/show-persona", ClaimPersona{PersonaTag: persona})
 	assert.NilError(t, err)
 
 	assert.Equal(t, 200, res.StatusCode, "show persona failed with code %d: body: %v", res.StatusCode, res.Body)

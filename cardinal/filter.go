@@ -9,6 +9,9 @@ type Filter interface {
 	convertToFilterable() ecs.Filterable
 }
 
+type all struct {
+}
+
 type and struct {
 	filters []Filter
 }
@@ -27,6 +30,10 @@ type contains struct {
 
 type exact struct {
 	components []metadata.Component
+}
+
+func All() Filter {
+	return &all{}
 }
 
 func And(filters ...Filter) Filter {
@@ -78,4 +85,8 @@ func (s contains) convertToFilterable() ecs.Filterable {
 
 func (s exact) convertToFilterable() ecs.Filterable {
 	return ecs.Exact(s.components...)
+}
+
+func (a all) convertToFilterable() ecs.Filterable {
+	return ecs.All()
 }

@@ -1,375 +1,405 @@
 consumes:
-    - application/json
+  - application/json
 info:
-    description: Backend server for World Engine
-    title: Cardinal
-    version: 0.0.1
+  description: Backend server for World Engine
+  title: Cardinal
+  version: 0.0.1
 produces:
-    - application/json
+  - application/json
 schemes:
-    - http
-    - ws
+  - http
+  - ws
 swagger: "2.0"
 
 paths:
-    /events:
-        get:
-            summary: Endpoint for events
-            description: websocket connection for events.
-            produces:
-                - application/json
-            responses:
-                '101':
-                    description: switch protocol to ws
-    /health:
-        get:
-            summary: Get information on status of world-engine
-            description: Displays information on http server and world game loop
-            produces:
-                - application/json
-            responses:
-                '200':
-                    description: successful operation
-                    schema:
-                        $ref: '#/definitions/HealthReply'
-    /tx/game/{txType}:
-        post:
-            summary: Submit a transaction to Cardinal
-            description: Submit a transaction to Cardinal
-            consumes:
-                - application/json
-            produces:
-                - application/json
-            parameters:
-                - name: txType
-                  in: path
-                  description: label of the transaction that wants to be submitted
-                  required: true
-                  type: string
-                - name: txBody
-                  in: body
-                  description: Transaction details
-                  required: true
-                  schema:
-                      $ref: '#/definitions/TxRequest'
-            responses:
-                '200':
-                    description: successful operation
-                    schema:
-                        $ref: '#/definitions/TxReply'
-                '400':
-                    description: Invalid transaction request
-    /tx/persona/create-persona:
-        post:
-            summary: Create a Persona transaction to Cardinal
-            description: Create a Persona transaction to Cardinal
-            consumes:
-                - application/json
-            produces:
-                - application/json
-            parameters:
-                - name: txBody
-                  in: body
-                  description: Transaction details
-                  required: true
-                  schema:
-                      $ref: '#/definitions/TxRequestWithCreatePersona'
-            responses:
-                '200':
-                    description: successful operation
-                    schema:
-                        $ref: '#/definitions/TxReply'
-                '400':
-                    description: Invalid transaction request
-    /query/game/cql:
-        post:
-            summary: Query the ecs with CQL (cardinal query language)
-            description: Query the ecs with CQL (cardinal query language)
-            consumes:
-                - application/json
-            produces:
-                - application/json
-            operationId: cql
-            responses:
-                200:
-                    description: cql results
-                    schema:
-                        $ref: '#/definitions/CQLResponse'
-            parameters:
-                - name: cql
-                  description: cql (cardinal query language)
-                  in: body
-                  required: true
-                  schema:
-                      $ref: '#/definitions/CQLRequest'
+  /debug/state:
+    get:
+      summary: Get information on all entities and components in world-engine
+      description: Displays the entire game state.
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/DebugStateResponse'
+  /events:
+    get:
+      summary: Endpoint for events
+      description: websocket connection for events.
+      produces:
+        - application/json
+      responses:
+        '101':
+          description: switch protocol to ws
+  /health:
+    get:
+      summary: Get information on status of world-engine
+      description: Displays information on http server and world game loop
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/HealthReply'
+  /tx/game/{txType}:
+    post:
+      summary: Submit a transaction to Cardinal
+      description: Submit a transaction to Cardinal
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: txType
+          in: path
+          description: label of the transaction that wants to be submitted
+          required: true
+          type: string
+        - name: txBody
+          in: body
+          description: Transaction details
+          required: true
+          schema:
+            $ref: '#/definitions/TxRequest'
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/TxReply'
+        '400':
+          description: Invalid transaction request
+  /tx/persona/create-persona:
+    post:
+      summary: Create a Persona transaction to Cardinal
+      description: Create a Persona transaction to Cardinal
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - name: txBody
+          in: body
+          description: Transaction details
+          required: true
+          schema:
+            $ref: '#/definitions/TxRequestWithCreatePersona'
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/TxReply'
+        '400':
+          description: Invalid transaction request
+  /query/game/cql:
+    post:
+      summary: Query the ecs with CQL (cardinal query language)
+      description: Query the ecs with CQL (cardinal query language)
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      operationId: cql
+      responses:
+        200:
+          description: cql results
+          schema:
+            $ref: '#/definitions/CQLResponse'
+      parameters:
+        - name: cql
+          description: cql (cardinal query language)
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/CQLRequest'
 
-    /query/game/{queryType}:
-        post:
-            summary: Query the ecs
-            description: Query the ecs
-            consumes:
-                - application/json
-            produces:
-                - application/json
-            operationId: query
-            parameters:
-                - name: queryType
-                  in: path
-                  description: The query type
-                  required: true
-                  type: string
-                - name: queryBody
-                  required: true
-                  in: body
-                  schema: {}
-            responses:
-                '200':
-                    description: query response
-                    schema: {}
-                '400':
-                    description: Invalid query request
-    /query/persona/signer:
-        post:
-            summary: Get persona data from cardinal
-            description: Get persona data from cardinal
-            consumes:
-                - application/json
-            produces:
-                - application/json
-            operationId: query
-            parameters:
-                - name: QueryPersonaSignerRequest
-                  required: true
-                  in: body
-                  schema:
-                      $ref: '#/definitions/QueryPersonaSignerRequest'
-            responses:
-                '200':
-                    description: query response
-                    schema:
-                        $ref: '#/definitions/QueryPersonaSignerResponse'
-                '400':
-                    description: Invalid query request
-    /query/http/endpoints:
-        post:
-            summary: Get all http endpoints from cardinal
-            description: Get all http endpoints from cardinal
-            consumes:
-                - application/json
-            produces:
-                - application/json
-            operationId: query
-            responses:
-                '200':
-                    description: list of query endpoints
-                    schema:
-                        $ref: '#/definitions/QueryListEndpoints'
-                '400':
-                    description: Invalid query request
-    /query/receipts/list:
-        post:
-            summary: Get transaction receipts from Cardinal
-            description: Get transaction receipts from Cardinal
-            consumes:
-                - application/json
-            produces:
-                - application/json
-            operationId: receipts
-            parameters:
-                - name: ListTxReceiptsRequest
-                  required: true
-                  in: body
-                  schema:
-                      $ref: '#/definitions/ListTxReceiptsRequest'
-            responses:
-                '200':
-                    description: successful operation
-                    schema:
-                        $ref: '#/definitions/ListTxReceiptsReply'
-                '400':
-                    description: Invalid transaction request
+  /query/game/{queryType}:
+    post:
+      summary: Query the ecs
+      description: Query the ecs
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      operationId: query
+      parameters:
+        - name: queryType
+          in: path
+          description: The query type
+          required: true
+          type: string
+        - name: queryBody
+          required: true
+          in: body
+          schema: { }
+      responses:
+        '200':
+          description: query response
+          schema: { }
+        '400':
+          description: Invalid query request
+  /query/persona/signer:
+    post:
+      summary: Get persona data from cardinal
+      description: Get persona data from cardinal
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      operationId: query
+      parameters:
+        - name: QueryPersonaSignerRequest
+          required: true
+          in: body
+          schema:
+            $ref: '#/definitions/QueryPersonaSignerRequest'
+      responses:
+        '200':
+          description: query response
+          schema:
+            $ref: '#/definitions/QueryPersonaSignerResponse'
+        '400':
+          description: Invalid query request
+  /query/http/endpoints:
+    post:
+      summary: Get all http endpoints from cardinal
+      description: Get all http endpoints from cardinal
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      operationId: query
+      responses:
+        '200':
+          description: list of query endpoints
+          schema:
+            $ref: '#/definitions/QueryListEndpoints'
+        '400':
+          description: Invalid query request
+  /query/receipts/list:
+    post:
+      summary: Get transaction receipts from Cardinal
+      description: Get transaction receipts from Cardinal
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      operationId: receipts
+      parameters:
+        - name: ListTxReceiptsRequest
+          required: true
+          in: body
+          schema:
+            $ref: '#/definitions/ListTxReceiptsRequest'
+      responses:
+        '200':
+          description: successful operation
+          schema:
+            $ref: '#/definitions/ListTxReceiptsReply'
+        '400':
+          description: Invalid transaction request
 
 definitions:
-    HealthReply:
-        type: object
-        required:
-            - isServerRunning
-            - isGameLoopRunning
-        properties:
-            isServerRunning:
-                type: boolean
-            isGameLoopRunning:
-                type: boolean
-    CQLResponse:
+  DebugStateResponse:
+    type: array
+    items:
+      $ref: "#/definitions/DebugStateResponseElement"
+  DebugStateResponseElement:
+    type: object
+    required:
+      - id
+      - data
+    properties:
+      id:
+        type: string
+      data:
+        type: array
+  HealthReply:
+    type: object
+    required:
+      - isServerRunning
+      - isGameLoopRunning
+    properties:
+      isServerRunning:
+        type: boolean
+      isGameLoopRunning:
+        type: boolean
+  CQLResponse:
+    type: array
+    items:
+      - $ref: "#/definitions/CQLResponseElement"
+  CQLResponseElement:
+    type: object
+    required:
+      - id
+      - data
+    properties:
+      id:
+        type: integer
+      data:
+        type: array
+  CQLRequest:
+    type: object
+    required:
+      - CQL
+    properties:
+      CQL:
+        type: string
+        example: "(EXACT(energyComponent) | CONTAINS(healthComponent)) & CONTAINS(goodGuyComponent)"
+  TxRequestWithCreatePersona:
+    required:
+      - personaTag
+      - namespace
+      - nonce
+      - signature
+      - body
+    type: object
+    properties:
+      personaTag:
+        type: string
+        example: CoolMage
+      namespace:
+        type: string
+        example: agar-shooter
+      nonce:
+        type: integer
+        format: int64
+      signature:
+        type: string
+      body:
+        $ref: '#/definitions/CreatePersonaTransaction'
+  CreatePersonaTransaction:
+    type: object
+    required:
+      - personaTag
+      - signerAddress
+    properties:
+      personaTag:
+        type: string
+      signerAddress:
+        type: string
+  CreatePersonaTransactionResult:
+    type: object
+    required:
+      - success
+    properties:
+      success:
+        type: boolean
+  QueryPersonaSignerRequest:
+    type: object
+    required:
+      - personaTag
+      - tick
+    properties:
+      personaTag:
+        type: string
+      tick:
+        type: integer
+        format: int64
+  QueryPersonaSignerResponse:
+    type: object
+    required:
+      - status
+      - signerAddress
+    properties:
+      status:
+        type: string
+      signerAddress:
+        type: string
+  QueryListEndpoints:
+    type: object
+    required:
+      - txEndpoints
+      - queryEndpoints
+      - debugEndpoints
+    properties:
+      txEndpoints:
         type: array
         items:
-            - $ref: "#/definitions/CQLResponseElement"
-    CQLResponseElement:
-        type: object
-        required:
-            - id
-            - data
-        properties:
-            id:
-                type: integer
-            data:
-                type: array
-    CQLRequest:
-        type: object
-        required:
-            - CQL
-        properties:
-            CQL:
-                type: string
-                example: "(EXACT(energyComponent) | CONTAINS(healthComponent)) & CONTAINS(goodGuyComponent)"
-    TxRequestWithCreatePersona:
-        required:
-            - personaTag
-            - namespace
-            - nonce
-            - signature
-            - body
-        type: object
-        properties:
-            personaTag:
-                type: string
-                example: CoolMage
-            namespace:
-                type: string
-                example: agar-shooter
-            nonce:
-                type: integer
-                format: int64
-            signature:
-                type: string
-            body:
-                $ref: '#/definitions/CreatePersonaTransaction'
-    CreatePersonaTransaction:
-        type: object
-        required:
-            - personaTag
-            - signerAddress
-        properties:
-            personaTag:
-                type: string
-            signerAddress:
-                type: string
-    CreatePersonaTransactionResult:
-        type: object
-        required:
-            - success
-        properties:
-            success:
-                type: boolean
-    QueryPersonaSignerRequest:
-        type: object
-        required:
-            - personaTag
-            - tick
-        properties:
-            personaTag:
-                type: string
-            tick:
-                type: integer
-                format: int64
-    QueryPersonaSignerResponse:
-        type: object
-        required:
-            - status
-            - signerAddress
-        properties:
-            status:
-                type: string
-            signerAddress:
-                type: string
-    QueryListEndpoints:
-        type: object
-        required:
-            - txEndpoints
-            - queryEndpoints
-        properties:
-            txEndpoints:
-                type: array
-                items:
-                    type: string
-            queryEndpoints:
-                type: array
-                items:
-                    type: string
+          type: string
+      queryEndpoints:
+        type: array
         items:
-            type: string
-    TxReply:
-        required:
-            - txHash
-            - tick
+          type: string
+      debugEndpoints:
+        type: array
+        items:
+          type: string
+    items:
+      type: string
+  TxReply:
+    required:
+      - txHash
+      - tick
+    type: object
+    properties:
+      txHash:
+        type: string
+      tick:
+        type: integer
+        format: int64
+  TxRequest:
+    required:
+      - personaTag
+      - namespace
+      - nonce
+      - signature
+      - body
+    type: object
+    properties:
+      personaTag:
+        type: string
+        example: CoolMage
+      namespace:
+        type: string
+        example: agar-shooter
+      nonce:
+        type: integer
+        format: int64
+      signature:
+        type: string
+      body:
         type: object
-        properties:
-            txHash:
-                type: string
-            tick:
-                type: integer
-                format: int64
-    TxRequest:
-        required:
-            - personaTag
-            - namespace
-            - nonce
-            - signature
-            - body
-        type: object
-        properties:
-            personaTag:
-                type: string
-                example: CoolMage
-            namespace:
-                type: string
-                example: agar-shooter
-            nonce:
-                type: integer
-                format: int64
-            signature:
-                type: string
-            body:
-                type: object
-    ListTxReceiptsRequest:
-        required:
-            - startTick
-        type: object
-        properties:
-            startTick:
-                type: integer
-                format: int64
-    ListTxReceiptsReply:
-        required:
-            - startTick
-            - endTick
-            - receipts
-        type: object
-        properties:
-            startTick:
-                type: integer
-                format: int64
-            endTick:
-                type: integer
-                format: int64
-            receipts:
-                type: array
-                items:
-                    $ref: '#/definitions/Receipts'
-    Receipts:
-        required:
-            - txHash
-            - tick
-            - result
-            - errors
-        type: object
-        properties:
-            txHash:
-                type: string
-            tick:
-                type: integer
-            result: {}
-            errors:
-                type: array
-                items:
-                    type: string
+  ListTxReceiptsRequest:
+    required:
+      - startTick
+    type: object
+    properties:
+      startTick:
+        type: integer
+        format: int64
+  ListTxReceiptsReply:
+    required:
+      - startTick
+      - endTick
+      - receipts
+    type: object
+    properties:
+      startTick:
+        type: integer
+        format: int64
+      endTick:
+        type: integer
+        format: int64
+      receipts:
+        type: array
+        items:
+          $ref: '#/definitions/Receipts'
+  Receipts:
+    required:
+      - txHash
+      - tick
+      - result
+      - errors
+    type: object
+    properties:
+      txHash:
+        type: string
+      tick:
+        type: integer
+      result: { }
+      errors:
+        type: array
+        items:
+          type: string
