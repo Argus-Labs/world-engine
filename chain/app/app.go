@@ -24,6 +24,8 @@ import (
 	"github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"io"
+	"math"
+	"math/big"
 	"os"
 	"path/filepath"
 	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
@@ -119,6 +121,8 @@ type App struct {
 	// plugins
 	Router         router.Router
 	ShardSequencer *shard.Sequencer
+
+	faucetAddr sdk.AccAddress
 
 	// simulation manager
 	sm *module.SimulationManager
@@ -292,6 +296,9 @@ func (app *App) FinalizeBlockHook(ctx sdk.Context, _ *types.RequestFinalizeBlock
 				return err
 			}
 		}
+	}
+	if app.faucetAddr != nil {
+		app.EVMKeeper.SetBalance(ctx, app.faucetAddr, big.NewInt(math.MaxInt64))
 	}
 	return nil
 }

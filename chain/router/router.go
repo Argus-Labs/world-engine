@@ -200,9 +200,6 @@ func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namesp
 	return res.Response, nil
 }
 
-// TODO: we eventually want this to work via namespace mappings by registered game shards.
-// https://linear.app/arguslabs/issue/WORLD-13/update-router-to-look-up-the-correct-namespace-mapping
-// https://linear.app/arguslabs/issue/WORLD-370/register-game-shard-on-base-shard
 func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
 	ctx := r.getSDKCtx()
 	res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
