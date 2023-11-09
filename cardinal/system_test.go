@@ -34,6 +34,10 @@ func HealthSystem(worldCtx cardinal.WorldContext) error {
 	return err
 }
 
+func NilSystem(worldCtx cardinal.WorldContext) error {
+	return nil
+}
+
 func TestSystemExample(t *testing.T) {
 	world, doTick := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
@@ -82,4 +86,10 @@ func TestCanRegisterMultipleSystem(t *testing.T) {
 
 	assert.Check(t, firstSystemCalled)
 	assert.Check(t, secondSystemCalled)
+}
+
+func TestCannotRegisterSameSystemTwice(t *testing.T) {
+	world, _ := testutils.MakeWorldAndTicker(t)
+	err := cardinal.RegisterSystems(world, HealthSystem, NilSystem, HealthSystem)
+	assert.ErrorContains(t, err, "found duplicate system registered")
 }

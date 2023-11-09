@@ -53,7 +53,7 @@ func TestServer_SendMessage(t *testing.T) {
 	enabled := false
 
 	// add a system that checks that they are submitted properly to the world.
-	w.AddSystem(func(wCtx ecs.WorldContext) error {
+	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		if !enabled {
 			return nil
 		}

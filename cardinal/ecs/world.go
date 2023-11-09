@@ -121,17 +121,17 @@ func (w *World) GetTxQueueAmount() int {
 	return w.txQueue.GetAmountOfTxs()
 }
 
-func (w *World) AddSystem(s System) {
-	w.AddSystemWithName(s, "")
+func (w *World) RegisterSystem(s System) {
+	w.RegisterSystemWithName(s, "")
 }
 
-func (w *World) AddSystems(systems ...System) {
+func (w *World) RegisterSystems(systems ...System) {
 	for _, system := range systems {
-		w.AddSystemWithName(system, "")
+		w.RegisterSystemWithName(system, "")
 	}
 }
 
-func (w *World) AddSystemWithName(system System, functionName string) {
+func (w *World) RegisterSystemWithName(system System, functionName string) error {
 	if w.stateIsLoaded {
 		panic("cannot register systems after loading game state")
 	}
@@ -143,6 +143,24 @@ func (w *World) AddSystemWithName(system System, functionName string) {
 	w.systemNames = append(w.systemNames, functionName)
 	// appends registeredSystem into the member system list in world.
 	w.systems = append(w.systems, system)
+	return w.checkDuplicateSystemName()
+}
+
+func (w *World) checkDuplicateSystemName() error {
+	mappedNames := make(map[string]struct{}, len(w.systemNames))
+	for _, sysName := range w.systemNames {
+		if sysName != "" {
+			mappedNames[sysName] = struct{}{}
+		}
+	}
+	for _, sysName := range w.systemNames {
+		if sysName != "" {
+			if _, ok := mappedNames[sysName]; ok {
+				return fmt.Errorf("found duplicate system registered: %s", sysName)
+			}
+		}
+	}
+	return nil
 }
 
 func (w *World) AddInitSystem(system System) {
@@ -270,7 +288,7 @@ func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts 
 		evmTxReceipts:     make(map[string]EVMTxReceipt),
 	}
 	w.isGameLoopRunning.Store(false)
-	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	w.RegisterSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
 	err := RegisterComponent[SignerComponent](w)
 	if err != nil {
 		return nil, err
