@@ -42,7 +42,7 @@ func (app *App) setPlugins(logger log.Logger) {
 
 	addr := os.Getenv("FAUCET_ADDR")
 	if addr != "" {
-		logger.Info("Setting up faucet address", "address string", addr)
+		logger.Info("setting up faucet address", "address string", addr)
 		acc, err := sdk.AccAddressFromBech32(addr)
 		if err != nil {
 			panic(err)
