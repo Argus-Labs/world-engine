@@ -131,7 +131,7 @@ func (w *World) RegisterSystems(systems ...System) {
 	}
 }
 
-func (w *World) RegisterSystemWithName(system System, functionName string) error {
+func (w *World) RegisterSystemWithName(system System, functionName string) {
 	if w.stateIsLoaded {
 		panic("cannot register systems after loading game state")
 	}
@@ -143,24 +143,19 @@ func (w *World) RegisterSystemWithName(system System, functionName string) error
 	w.systemNames = append(w.systemNames, functionName)
 	// appends registeredSystem into the member system list in world.
 	w.systems = append(w.systems, system)
-	return w.checkDuplicateSystemName()
+	w.checkDuplicateSystemName()
 }
 
-func (w *World) checkDuplicateSystemName() error {
-	mappedNames := make(map[string]struct{}, len(w.systemNames))
+func (w *World) checkDuplicateSystemName() {
+	mappedNames := make(map[string]int, len(w.systemNames))
 	for _, sysName := range w.systemNames {
 		if sysName != "" {
-			mappedNames[sysName] = struct{}{}
-		}
-	}
-	for _, sysName := range w.systemNames {
-		if sysName != "" {
-			if _, ok := mappedNames[sysName]; ok {
-				return fmt.Errorf("found duplicate system registered: %s", sysName)
+			mappedNames[sysName]++
+			if mappedNames[sysName] > 1 {
+				w.Logger.Warn().Msgf("duplicate system registered: %s", sysName)
 			}
 		}
 	}
-	return nil
 }
 
 func (w *World) AddInitSystem(system System) {

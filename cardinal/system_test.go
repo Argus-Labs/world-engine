@@ -87,9 +87,3 @@ func TestCanRegisterMultipleSystem(t *testing.T) {
 	assert.Check(t, firstSystemCalled)
 	assert.Check(t, secondSystemCalled)
 }
-
-func TestCannotRegisterSameSystemTwice(t *testing.T) {
-	world, _ := testutils.MakeWorldAndTicker(t)
-	err := cardinal.RegisterSystems(world, HealthSystem, NilSystem, HealthSystem)
-	assert.ErrorContains(t, err, "found duplicate system registered")
-}

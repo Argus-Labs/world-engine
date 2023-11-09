@@ -254,14 +254,11 @@ func RegisterSystems(w *World, systems ...System) error {
 	for _, system := range systems {
 		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
 		sys := system
-		err := w.implWorld.RegisterSystemWithName(func(wCtx ecs.WorldContext) error {
+		w.implWorld.RegisterSystemWithName(func(wCtx ecs.WorldContext) error {
 			return sys(&worldContext{
 				implContext: wCtx,
 			})
 		}, functionName)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
