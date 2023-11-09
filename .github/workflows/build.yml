@@ -8,8 +8,8 @@ on:
     branches:
       - main
 jobs:
-  chain:
-    name: Build Chain
+  evm:
+    name: Build EVM
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
