@@ -3,7 +3,7 @@ name: Build
 on:
   pull_request:
     paths:
-      - chain/**
+      - evm/**
   push:
     branches:
       - main
@@ -21,8 +21,8 @@ jobs:
       # - name: Cache Docker images
       #   uses: ScribeMD/docker-cache@0.3.4
       #   with:
-      #     key: docker-${{ runner.os }}-${{ hashFiles('chain/Dockerfile') }}
-      - name: Forge Build chain/contracts
+      #     key: docker-${{ runner.os }}-${{ hashFiles('evm/Dockerfile') }}
+      - name: Forge Build evm/contracts
         run: make forge-build
       - name: Build Rollup
         run: make rollup-build
