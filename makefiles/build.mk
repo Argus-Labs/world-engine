@@ -14,7 +14,7 @@ forge-build: |
 	@forge build --extra-output-files bin --extra-output-files abi  --root evm/precompile/contracts
 
 rollup-build:
-	@docker build chain
+	@docker build evm
 
 
 rollup-install:
