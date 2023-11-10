@@ -1,7 +1,7 @@
 version: '3'
 services:
   cockroachdb:
-    # Use cockroachdb single-node clusters for non-production testing
+    # Only use cockroachdb single-node clusters for non-production environment
     image: cockroachdb/cockroach:latest-v23.1
     command: start-single-node --insecure --store=attrs=ssd,path=/var/lib/cockroach/,size=20%
     restart: "no"
