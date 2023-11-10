@@ -28,7 +28,7 @@ func TestNewWorld(t *testing.T) {
 func TestCanQueryInsideSystem(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
 
-	world, doTick := testutils.MakeWorldAndTicker(t, cardinal.WithCORS())
+	world, doTick := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	wantNumOfEntities := 10
 	wCtx := cardinal.TestingWorldToWorldContext(world)
@@ -58,7 +58,7 @@ func TestShutdownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	var wg sync.WaitGroup
 	testutils.SetTestTimeout(t, 10*time.Second)
-	world := testutils.NewTestWorld(t, cardinal.WithCORS())
+	world := testutils.NewTestWorld(t)
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	wantNumOfEntities := 10
 	world.Init(func(worldCtx cardinal.WorldContext) error {

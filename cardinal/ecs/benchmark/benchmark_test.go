@@ -29,7 +29,7 @@ func newWorldWithRealRedis(t testing.TB) *ecs.World {
 
 	sm, err := ecb.NewManager(rs.Client)
 	assert.NilError(t, err)
-	world, err := ecs.NewWorld(&rs, sm)
+	world, err := ecs.NewWorld(&rs, sm, ecs.Namespace("world-1"))
 
 	assert.NilError(t, err)
 	return world

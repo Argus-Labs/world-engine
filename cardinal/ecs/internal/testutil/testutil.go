@@ -16,7 +16,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-const WorldID string = "1"
+const Namespace ecs.Namespace = "world"
 
 func GetRedisStorage(t *testing.T) storage.RedisStorage {
 	s := miniredis.RunT(t)
@@ -24,7 +24,7 @@ func GetRedisStorage(t *testing.T) storage.RedisStorage {
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
-	}, WorldID)
+	}, Namespace)
 }
 
 // InitWorldWithRedis sets up an ecs.World using the given redis DB. ecs.NewECSWorldForTest is not used
@@ -34,10 +34,10 @@ func InitWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
-	}, "in-memory-world")
+	}, Namespace)
 	sm, err := ecb.NewManager(rs.Client)
 	assert.NilError(t, err)
-	w, err := ecs.NewWorld(&rs, sm)
+	w, err := ecs.NewWorld(&rs, sm, Namespace)
 	assert.NilError(t, err)
 	return w
 }
@@ -95,7 +95,13 @@ func init() {
 
 func UniqueSignature(t *testing.T) *sign.Transaction {
 	nonce++
-	sig, err := sign.NewTransaction(privateKey, "some-persona-tag", "namespace", nonce, `{"some":"data"}`)
+	sig, err := sign.NewTransaction(
+		privateKey,
+		"some-persona-tag",
+		"namespace",
+		nonce,
+		`{"some":"data"}`,
+	)
 	assert.NilError(t, err)
 	return sig
 }

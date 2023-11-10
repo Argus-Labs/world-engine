@@ -5,6 +5,8 @@ import (
 	"errors"
 	"os"
 
+	"pkg.world.dev/world-engine/cardinal/ecs"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 )
@@ -31,18 +33,18 @@ import (
 // We could end up with some issues (needs to be determined).
 
 type RedisStorage struct {
-	WorldID string
-	Client  *redis.Client
-	Log     zerolog.Logger
+	Namespace ecs.Namespace
+	Client    *redis.Client
+	Log       zerolog.Logger
 }
 
 type Options = redis.Options
 
-func NewRedisStorage(options Options, worldID string) RedisStorage {
+func NewRedisStorage(options Options, namespace ecs.Namespace) RedisStorage {
 	return RedisStorage{
-		WorldID: worldID,
-		Client:  redis.NewClient(&options),
-		Log:     zerolog.New(os.Stdout),
+		Namespace: namespace,
+		Client:    redis.NewClient(&options),
+		Log:       zerolog.New(os.Stdout),
 	}
 }
 

@@ -57,30 +57,42 @@ type (
 func NewWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
 
+	// Load config. Fallback value is used if it's not set.
 	cfg := GetWorldConfig()
 
-	if cfg.CardinalDeployMode == "production" {
+	// Sane default options
+	serverOptions = append(serverOptions, server.WithCORS())
+
+	if cfg.CardinalDeployMode == CardinalModeProd {
 		log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
-		if cfg.RedisPassword == "" {
+		if cfg.RedisPassword == DefaultRedisPassword {
 			return nil, errors.New("redis password is required in production")
 		}
-	} else {
-		if cfg.CardinalDeployMode != "development" {
-			log.Logger.Warn().Msg("CARDINAL_DEPLOY_MODE is unrecognized. Defaulting to development mode")
+		if cfg.CardinalNamespace == DefaultCardinalNamespace {
+			return nil, errors.New(
+				"cardinal namespace can't be the default value in production to avoid replay attack",
+			)
 		}
+	} else {
 		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
+		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 	}
+
 	redisStore := storage.NewRedisStorage(storage.Options{
 		Addr:     cfg.RedisAddress,
 		Password: cfg.RedisPassword,
 		DB:       0, // use default DB
-	}, cfg.CardinalWorldId)
+	}, ecs.Namespace(cfg.CardinalNamespace))
 	storeManager, err := ecb.NewManager(redisStore.Client)
 	if err != nil {
 		return nil, err
 	}
 
-	ecsWorld, err := ecs.NewWorld(&redisStore, storeManager, ecsOptions...)
+	ecsWorld, err := ecs.NewWorld(
+		&redisStore,
+		storeManager,
+		ecs.Namespace(cfg.CardinalNamespace),
+		ecsOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -91,6 +103,8 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		endStartGame:  make(chan bool),
 	}
 	world.isGameRunning.Store(false)
+
+	// Apply options
 	for _, opt := range cardinalOptions {
 		opt(world)
 	}
@@ -101,7 +115,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 // NewMockWorld creates a World object that uses miniredis as the storage layer suitable for local development.
 // If you are creating a World for unit tests, use NewTestWorld.
 func NewMockWorld(opts ...WorldOption) (*World, error) {
-	world, err := NewWorld(withMockRedis(), opts...)
+	world, err := NewWorld(append(opts, withMockRedis())...)
 	if err != nil {
 		return world, err
 	}
@@ -181,7 +195,10 @@ func (w *World) StartGame() error {
 	}
 	eventHub := events.CreateWebSocketEventHub()
 	w.instance.SetEventHub(eventHub)
-	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
+	eventBuilder := events.CreateNewWebSocketBuilder(
+		"/events",
+		events.CreateWebSocketEventHandler(eventHub),
+	)
 	handler, err := server.NewHandler(w.instance, eventBuilder, w.serverOptions...)
 	if err != nil {
 		return err
@@ -193,7 +210,8 @@ func (w *World) StartGame() error {
 		if !errors.Is(err, evm.ErrNoEVMTypes) {
 			return err
 		}
-		w.instance.Logger.Debug().Msg("no EVM messages or queries specified. EVM server will not run")
+		w.instance.Logger.Debug().
+			Msg("no EVM messages or queries specified. EVM server will not run")
 	} else {
 		w.instance.Logger.Debug().Msg("running world with EVM server")
 		err = w.evmServer.Serve()

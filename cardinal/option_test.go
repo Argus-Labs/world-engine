@@ -28,5 +28,4 @@ func TestOptionFunctionSignatures(_ *testing.T) {
 	WithNamespace("blah")
 	WithPort("4040")
 	WithDisableSignatureVerification() //nolint:staticcheck //this test just looks for compile errors
-	WithPrettyLog()                    //nolint:staticcheck //this test just looks for compile errors
 }
