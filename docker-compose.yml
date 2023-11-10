@@ -3,7 +3,7 @@ services:
   cockroachdb:
     # Use cockroachdb single-node clusters for non-production testing
     image: cockroachdb/cockroach:latest-v23.1
-    command: start-single-node --insecure --store=attrs=ssd,path=/var/lib/cockroach/
+    command: start-single-node --insecure --store=attrs=ssd,path=/var/lib/cockroach/,size=20%
     restart: "no"
     environment:
       - COCKROACH_DATABASE=nakama
