@@ -17,7 +17,7 @@ jobs:
           go-version: "stable"
       # Run benchmark with `go test -bench` and stores the output to a file
       - name: Run benchmark
-        run: go test -v ./cardinal/... -bench=. -benchmem | tee output.txt
+        run: go test -v ./cardinal/... -bench=. -benchmem -run ^$ | tee output.txt
       # Download previous benchmark result from cache (if exists)
       - name: Download previous benchmark data
         uses: actions/cache@v1
