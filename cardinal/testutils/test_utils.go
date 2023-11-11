@@ -28,8 +28,6 @@ func MakeTestTransactionHandler(
 	world *ecs.World,
 	opts ...server.Option,
 ) *TestTransactionHandler {
-	port := "4040"
-	opts = append(opts, server.WithPort(port))
 	eventHub := events.CreateWebSocketEventHub()
 	world.SetEventHub(eventHub)
 	eventBuilder := events.CreateNewWebSocketBuilder(
@@ -60,7 +58,7 @@ func MakeTestTransactionHandler(
 		_ = gameObject.Shutdown()
 	})
 
-	host := "localhost:" + port
+	host := "localhost:4040"
 	healthURL := host + healthPath
 	start := time.Now()
 	for {

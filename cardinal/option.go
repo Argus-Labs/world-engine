@@ -38,22 +38,6 @@ func WithReceiptHistorySize(size int) WorldOption {
 	}
 }
 
-// WithNamespace sets the World's namespace. The default is "world". The namespace is used in the transaction
-// signing process.
-func WithNamespace(namespace string) WorldOption {
-	return WorldOption{
-		ecsOption: ecs.WithNamespace(namespace),
-	}
-}
-
-// WithPort specifies the port for the World's HTTP server. If omitted, the environment variable CARDINAL_PORT
-// will be used, and if that is unset, port 4040 will be used.
-func WithPort(port string) WorldOption {
-	return WorldOption{
-		serverOption: server.WithPort(port),
-	}
-}
-
 // WithDisableSignatureVerification disables signature verification for the HTTP server. This should only be
 // used for local development.
 func WithDisableSignatureVerification() WorldOption {

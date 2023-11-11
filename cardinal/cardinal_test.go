@@ -21,8 +21,16 @@ type Foo struct{}
 func (Foo) Name() string { return "foo" }
 
 func TestNewWorld(t *testing.T) {
-	_, err := cardinal.NewWorld(cardinal.WithNamespace("testnamespace"))
+	world, err := cardinal.NewWorld()
 	assert.NilError(t, err)
+	assert.Equal(t, world.Instance().Namespace(), cardinal.DefaultCardinalNamespace)
+}
+
+func TestNewWorldWithCustomNamespace(t *testing.T) {
+	t.Setenv("CARDINAL_NAMESPACE", "custom-namespace")
+	world, err := cardinal.NewWorld()
+	assert.NilError(t, err)
+	assert.Equal(t, world.Instance().Namespace(), "custom-namespace")
 }
 
 func TestCanQueryInsideSystem(t *testing.T) {
