@@ -2,13 +2,13 @@ name: Lint
 
 on:
   pull_request:
-    types: [opened, synchronized, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
       - main
 jobs:
-  Lint:
-    name: golangci-lint
+  go-lint:
+    name: Go
     runs-on: ubuntu-latest
     env:
       GO_VERSION: 1.21.0
