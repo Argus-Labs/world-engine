@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog"
 	"net/http"
 	"sync"
 	"testing"
@@ -23,6 +24,7 @@ import (
 )
 
 func MakeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.Option) *TestTransactionHandler {
+	zerolog.SetGlobalLevel(zerolog.WarnLevel)
 	port := "4040"
 	opts = append(opts, server.WithPort(port))
 	eventHub := events.CreateWebSocketEventHub()
