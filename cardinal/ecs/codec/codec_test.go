@@ -1,17 +1,18 @@
 package codec_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 )
 
-// Define a dummy struct for benchmarking
+// Define a dummy struct for benchmarking.
 type ExampleStruct struct {
 	ID   int
 	Name string
 }
 
-// Benchmark the Decode function
+// Benchmark the Decode function.
 func BenchmarkDecode(b *testing.B) {
 	// Prepare a byte slice to decode
 	data := []byte(`{"ID": 1, "Name": "Example"}`)
@@ -27,7 +28,7 @@ func BenchmarkDecode(b *testing.B) {
 	}
 }
 
-// Benchmark the Encode function
+// Benchmark the Encode function.
 func BenchmarkEncode(b *testing.B) {
 	// Prepare an example struct to encode
 	example := ExampleStruct{
