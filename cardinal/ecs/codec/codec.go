@@ -1,29 +1,22 @@
 package codec
 
 import (
-	"bytes"
-	"encoding/json"
+	"github.com/goccy/go-json"
 )
 
 func Decode[T any](bz []byte) (T, error) {
-	var buf bytes.Buffer
-	buf.Write(bz)
-	dec := json.NewDecoder(&buf)
 	comp := new(T)
-	err := dec.Decode(comp)
-	var t T
+	err := json.Unmarshal(bz, comp)
 	if err != nil {
-		return t, err
+		return *comp, err
 	}
 	return *comp, nil
 }
 
 func Encode(comp any) ([]byte, error) {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	err := enc.Encode(comp)
+	bz, err := json.Marshal(comp)
 	if err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return bz, nil
 }
