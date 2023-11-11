@@ -19,7 +19,10 @@ type QueryHealthResponse struct {
 	IDs []cardinal.EntityID
 }
 
-func handleQueryHealth(worldCtx cardinal.WorldContext, request *QueryHealthRequest) (*QueryHealthResponse, error) {
+func handleQueryHealth(
+	worldCtx cardinal.WorldContext,
+	request *QueryHealthRequest,
+) (*QueryHealthResponse, error) {
 	q, err := worldCtx.NewSearch(cardinal.Exact(Health{}))
 	if err != nil {
 		return nil, err
@@ -65,7 +68,14 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 func TestQueryExample(t *testing.T) {
 	world, _ := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
-	assert.NilError(t, cardinal.RegisterQuery[QueryHealthRequest, QueryHealthResponse](world, "query_health", handleQueryHealth))
+	assert.NilError(
+		t,
+		cardinal.RegisterQuery[QueryHealthRequest, QueryHealthResponse](
+			world,
+			"query_health",
+			handleQueryHealth,
+		),
+	)
 
 	worldCtx := testutils.WorldToWorldContext(world)
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})

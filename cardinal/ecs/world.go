@@ -237,9 +237,8 @@ func RegisterQuery[Request any, Reply any](
 func (w *World) GetQueryByName(name string) (Query, error) {
 	if q, ok := w.nameToQuery[name]; ok {
 		return q, nil
-	} else {
-		return nil, fmt.Errorf("query with name %s not found", name)
 	}
+	return nil, fmt.Errorf("query with name %s not found", name)
 }
 
 func (w *World) RegisterMessages(txs ...message.Message) error {
@@ -649,8 +648,10 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			"be sure to use the `WithAdapter` option when creating the world")
 	}
 	if w.CurrentTick() > 0 {
-		return fmt.Errorf("world recovery should not occur in a world with existing state. please verify all " +
-			"state has been cleared before running recovery")
+		return fmt.Errorf(
+			"world recovery should not occur in a world with existing state. please verify all " +
+				"state has been cleared before running recovery",
+		)
 	}
 
 	w.isRecovering = true

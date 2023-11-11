@@ -41,7 +41,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 			return middleware.Error(
 				http.StatusNotFound,
 				fmt.Errorf("query %s not found", queryTypeString),
-			), nil
+			), nil //lint:ignore nilerr this is a middleware error that should 404
 		}
 
 		bodyData, ok := mapStruct["queryBody"]

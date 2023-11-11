@@ -229,11 +229,9 @@ func validateQuery[Request any, Reply any](
 	}
 
 	if !repValid || !reqValid {
-		return errors.New(
-			fmt.Sprintf(
-				"invalid query: %s: the Request and Reply generics must be both structs",
-				name,
-			),
+		return fmt.Errorf(
+			"invalid query: %s: the Request and Reply generics must be both structs",
+			name,
 		)
 	}
 	return nil
