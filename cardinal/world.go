@@ -82,7 +82,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		Addr:     cfg.RedisAddress,
 		Password: cfg.RedisPassword,
 		DB:       0, // use default DB
-	}, ecs.Namespace(cfg.CardinalNamespace))
+	}, cfg.CardinalNamespace)
 	storeManager, err := ecb.NewManager(redisStore.Client)
 	if err != nil {
 		return nil, err

@@ -16,7 +16,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-const Namespace ecs.Namespace = "world"
+const Namespace string = "world"
 
 func GetRedisStorage(t *testing.T) storage.RedisStorage {
 	s := miniredis.RunT(t)
@@ -37,7 +37,7 @@ func InitWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
 	}, Namespace)
 	sm, err := ecb.NewManager(rs.Client)
 	assert.NilError(t, err)
-	w, err := ecs.NewWorld(&rs, sm, Namespace)
+	w, err := ecs.NewWorld(&rs, sm, ecs.Namespace(Namespace))
 	assert.NilError(t, err)
 	return w
 }
