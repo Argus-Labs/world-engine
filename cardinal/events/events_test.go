@@ -156,6 +156,10 @@ func TestEventHubLogger(t *testing.T) {
 		&bufLogger,
 	}
 	w := testutils.NewTestWorld(t, cardinal.WithLoggingEventHub(&cardinalLogger)).Instance()
+
+	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
 	numberToTest := 5
 	for i := 0; i < numberToTest; i++ {
 		w.RegisterSystem(func(wCtx ecs.WorldContext) error {

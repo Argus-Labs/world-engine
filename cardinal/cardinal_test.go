@@ -23,14 +23,14 @@ func (Foo) Name() string { return "foo" }
 func TestNewWorld(t *testing.T) {
 	world, err := cardinal.NewWorld()
 	assert.NilError(t, err)
-	assert.Equal(t, world.Instance().Namespace(), cardinal.DefaultCardinalNamespace)
+	assert.Equal(t, string(world.Instance().Namespace()), cardinal.DefaultCardinalNamespace)
 }
 
 func TestNewWorldWithCustomNamespace(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", "custom-namespace")
 	world, err := cardinal.NewWorld()
 	assert.NilError(t, err)
-	assert.Equal(t, world.Instance().Namespace(), "custom-namespace")
+	assert.Equal(t, string(world.Instance().Namespace()), "custom-namespace")
 }
 
 func TestCanQueryInsideSystem(t *testing.T) {

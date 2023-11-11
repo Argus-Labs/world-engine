@@ -79,6 +79,10 @@ func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
 
 func TestWorldLogger(t *testing.T) {
 	w := testutils.NewTestWorld(t).Instance()
+
+	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
