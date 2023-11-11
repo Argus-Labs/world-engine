@@ -63,7 +63,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	// Sane default options
 	serverOptions = append(serverOptions, server.WithCORS())
 
-	if cfg.CardinalDeployMode == CardinalModeProd {
+	if cfg.CardinalMode == CardinalModeProd {
 		log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
 		if cfg.RedisPassword == DefaultRedisPassword {
 			return nil, errors.New("redis password is required in production")

@@ -8,10 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"sync"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/ecs"
 
 	"gotest.tools/v3/assert"
 
@@ -22,12 +23,19 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-func MakeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.Option) *TestTransactionHandler {
+func MakeTestTransactionHandler(
+	t *testing.T,
+	world *ecs.World,
+	opts ...server.Option,
+) *TestTransactionHandler {
 	port := "4040"
 	opts = append(opts, server.WithPort(port))
 	eventHub := events.CreateWebSocketEventHub()
 	world.SetEventHub(eventHub)
-	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
+	eventBuilder := events.CreateNewWebSocketBuilder(
+		"/events",
+		events.CreateWebSocketEventHandler(eventHub),
+	)
 	txh, err := server.NewHandler(world, eventBuilder, opts...)
 	assert.NilError(t, err)
 
@@ -56,7 +64,11 @@ func MakeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.O
 	healthURL := host + healthPath
 	start := time.Now()
 	for {
-		assert.Check(t, time.Since(start) < time.Second, "timeout while waiting for a healthy server")
+		assert.Check(
+			t,
+			time.Since(start) < time.Second,
+			"timeout while waiting for a healthy server",
+		)
 		//nolint:noctx,bodyclose // its for a test.
 		resp, err := http.Get("http://" + healthURL)
 		if err == nil && resp.StatusCode == 200 {
@@ -179,8 +191,12 @@ func AddTransactionToWorldByAnyTransaction(
 		}
 	}
 	if !found {
-		panic(fmt.Sprintf("cannot find transaction %q in registered transactions. Did you register it?",
-			cardinalTx.Convert().Name()))
+		panic(
+			fmt.Sprintf(
+				"cannot find transaction %q in registered transactions. Did you register it?",
+				cardinalTx.Convert().Name(),
+			),
+		)
 	}
 
 	_, _ = ecsWorld.AddTransaction(txID, value, tx)
@@ -189,10 +205,18 @@ func AddTransactionToWorldByAnyTransaction(
 // MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
 // will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
 // end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
-func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *cardinal.World, doTick func()) {
+func MakeWorldAndTicker(
+	t *testing.T,
+	opts ...cardinal.WorldOption,
+) (world *cardinal.World, doTick func()) {
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
 	eventHub := events.CreateWebSocketEventHub()
-	opts = append(opts, cardinal.WithTickChannel(startTickCh), cardinal.WithTickDoneChannel(doneTickCh), cardinal.WithEventHub(eventHub))
+	opts = append(
+		opts,
+		cardinal.WithTickChannel(startTickCh),
+		cardinal.WithTickDoneChannel(doneTickCh),
+		cardinal.WithEventHub(eventHub),
+	)
 	world = NewTestWorld(t, opts...)
 
 	// Shutdown any world resources. This will be called whether the world has been started or not.
