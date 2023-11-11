@@ -25,7 +25,7 @@ func main() {
 		options = append(options, cardinal.WithAdapter(setupAdapter()))
 	}
 
-	world, err := cardinal.NewWorld(options...)
+	world, err := cardinal.NewWorld(os.Getenv("REDIS_ADDR"), "", options...)
 	if err != nil {
 		log.Fatal(err)
 	}
