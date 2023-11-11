@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
-	"net/http"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -30,12 +31,17 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		}
 		queryTypeString, ok := queryTypeUntyped.(string)
 		if !ok {
-			return nil, fmt.Errorf("queryType was the wrong type, it should be a string from the path")
+			return nil, fmt.Errorf(
+				"queryType was the wrong type, it should be a string from the path",
+			)
 		}
 
 		q, err := handler.w.GetQueryByName(queryTypeString)
 		if err != nil {
-			return middleware.Error(http.StatusNotFound, fmt.Errorf("query %s not found", queryTypeString)), nil
+			return middleware.Error(
+				http.StatusNotFound,
+				fmt.Errorf("query %s not found", queryTypeString),
+			), nil
 		}
 
 		bodyData, ok := mapStruct["queryBody"]
@@ -52,7 +58,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		// go-swagger validates all the data and shoves it into a map
 		// I can't get the relevant Request Type associated with the Search here
 		// So I convert that map into raw json
-		// Then I have IQuery.HandleQueryRaw just output a rawJSONReply.
+		// Then I have Query.HandleQueryRaw just output a rawJSONReply.
 		// I convert that into a json.RawMessage which go-swagger will validate.
 		rawJSONBody, err := json.Marshal(bodyDataAsMap)
 		if err != nil {
@@ -75,7 +81,8 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 
 	personaHandler := createSwaggerQueryHandler[QueryPersonaSignerRequest, QueryPersonaSignerResponse](
 		"QueryPersonaSignerRequest",
-		handler.getPersonaSignerResponse)
+		handler.getPersonaSignerResponse,
+	)
 
 	receiptsHandler := createSwaggerQueryHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
 		"ListTxReceiptsRequest",
@@ -93,15 +100,24 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		}
 		cqlRequest, ok := cqlRequestUntyped.(map[string]interface{})
 		if !ok {
-			return middleware.Error(http.StatusUnprocessableEntity, fmt.Errorf("json is invalid")), nil
+			return middleware.Error(
+				http.StatusUnprocessableEntity,
+				fmt.Errorf("json is invalid"),
+			), nil
 		}
 		cqlStringUntyped, ok := cqlRequest["CQL"]
 		if !ok {
-			return middleware.Error(http.StatusUnprocessableEntity, fmt.Errorf("json is invalid")), nil
+			return middleware.Error(
+				http.StatusUnprocessableEntity,
+				fmt.Errorf("json is invalid"),
+			), nil
 		}
 		cqlString, ok := cqlStringUntyped.(string)
 		if !ok {
-			return middleware.Error(http.StatusUnprocessableEntity, fmt.Errorf("json is invalid")), nil
+			return middleware.Error(
+				http.StatusUnprocessableEntity,
+				fmt.Errorf("json is invalid"),
+			), nil
 		}
 		resultFilter, err := cql.Parse(cqlString, handler.w.GetComponentByName)
 		if err != nil {

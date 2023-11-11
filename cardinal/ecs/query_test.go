@@ -2,9 +2,10 @@ package ecs_test
 
 import (
 	"context"
+	"testing"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/evm"
 
@@ -15,10 +16,14 @@ import (
 
 func TestQueryTypeNotStructs(t *testing.T) {
 	str := "blah"
-	err := ecs.RegisterQuery[string, string](testutils.NewTestWorld(t).Instance(), "foo", func(wCtx ecs.WorldContext, req *string) (*string, error) {
-		return &str, nil
-	})
-	assert.Assert(t, err != nil)
+	err := ecs.RegisterQuery[string, string](
+		testutils.NewTestWorld(t).Instance(),
+		"foo",
+		func(wCtx ecs.WorldContext, req *string) (*string, error) {
+			return &str, nil
+		},
+	)
+	assert.ErrorContains(t, err, "the Request and Reply generics must be both structs")
 }
 
 func TestQueryEVM(t *testing.T) {
@@ -37,10 +42,15 @@ func TestQueryEVM(t *testing.T) {
 	}
 
 	w := testutils.NewTestWorld(t).Instance()
-	err := ecs.RegisterQuery[FooRequest, FooReply](w, "foo", func(wCtx ecs.WorldContext, req *FooRequest,
-	) (*FooReply, error) {
-		return &expectedReply, nil
-	}, ecs.WithQueryEVMSupport[FooRequest, FooReply])
+	err := ecs.RegisterQuery[FooRequest, FooReply](
+		w,
+		"foo",
+		func(wCtx ecs.WorldContext, req *FooRequest,
+		) (*FooReply, error) {
+			return &expectedReply, nil
+		},
+		ecs.WithQueryEVMSupport[FooRequest, FooReply],
+	)
 
 	assert.NilError(t, err)
 	err = w.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("blah"))
@@ -72,7 +82,7 @@ func TestQueryEVM(t *testing.T) {
 	assert.Equal(t, reply, expectedReply)
 }
 
-func TestPanicsOnNoNameOrHandler(t *testing.T) {
+func TestErrOnNoNameOrHandler(t *testing.T) {
 	type foo struct{}
 	testCases := []struct {
 		name        string

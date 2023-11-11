@@ -50,10 +50,10 @@ type World struct {
 	systemNames            []string
 	tick                   uint64
 	nameToComponent        map[string]metadata.ComponentMetadata
-	nameToQuery            map[string]IQuery
+	nameToQuery            map[string]Query
 	registeredComponents   []metadata.ComponentMetadata
 	registeredMessages     []message.Message
-	registeredQueries      []IQuery
+	registeredQueries      []Query
 	isComponentsRegistered bool
 	isMessagesRegistered   bool
 	stateIsLoaded          bool
@@ -213,7 +213,7 @@ func RegisterQuery[Request any, Reply any](
 	world *World,
 	name string,
 	handler func(wCtx WorldContext, req *Request) (*Reply, error),
-	opts ...func() func(queryType *Query[Request, Reply]),
+	opts ...func() func(queryType *QueryType[Request, Reply]),
 ) error {
 	if world.stateIsLoaded {
 		panic("cannot register queries after loading game state")
@@ -234,7 +234,7 @@ func RegisterQuery[Request any, Reply any](
 	return nil
 }
 
-func (w *World) GetQueryByName(name string) (IQuery, error) {
+func (w *World) GetQueryByName(name string) (Query, error) {
 	if q, ok := w.nameToQuery[name]; ok {
 		return q, nil
 	} else {
@@ -276,7 +276,7 @@ func (w *World) registerInternalMessages() {
 	)
 }
 
-func (w *World) ListQueries() []IQuery {
+func (w *World) ListQueries() []Query {
 	return w.registeredQueries
 }
 
@@ -306,7 +306,7 @@ func NewWorld(
 		systems:           make([]System, 0),
 		initSystem:        func(_ WorldContext) error { return nil },
 		nameToComponent:   make(map[string]metadata.ComponentMetadata),
-		nameToQuery:       make(map[string]IQuery),
+		nameToQuery:       make(map[string]Query),
 		txQueue:           message.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},

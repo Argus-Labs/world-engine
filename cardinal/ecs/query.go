@@ -11,7 +11,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
 )
 
-type IQuery interface {
+type Query interface {
 	// Name returns the name of the query.
 	Name() string
 	// HandleQuery handles queries with concrete types, rather than encoded bytes.
@@ -33,15 +33,15 @@ type IQuery interface {
 	IsEVMCompatible() bool
 }
 
-type Query[Request any, Reply any] struct {
+type QueryType[Request any, Reply any] struct {
 	name       string
 	handler    func(wCtx WorldContext, req *Request) (*Reply, error)
 	requestABI *ethereumAbi.Type
 	replyABI   *ethereumAbi.Type
 }
 
-func WithQueryEVMSupport[Request, Reply any]() func(transactionType *Query[Request, Reply]) {
-	return func(query *Query[Request, Reply]) {
+func WithQueryEVMSupport[Request, Reply any]() func(transactionType *QueryType[Request, Reply]) {
+	return func(query *QueryType[Request, Reply]) {
 		err := query.generateABIBindings()
 		if err != nil {
 			panic(err)
@@ -49,17 +49,19 @@ func WithQueryEVMSupport[Request, Reply any]() func(transactionType *Query[Reque
 	}
 }
 
+var _ Query = &QueryType[struct{}, struct{}]{}
+
 func NewQueryType[Request any, Reply any](
 	name string,
 	handler func(wCtx WorldContext, req *Request) (*Reply, error),
-	opts ...func() func(queryType *Query[Request, Reply]),
-) (IQuery, error) {
+	opts ...func() func(queryType *QueryType[Request, Reply]),
+) (Query, error) {
 	err := validateQuery[Request, Reply](name, handler)
 	if err != nil {
 		return nil, err
 	}
 
-	r := &Query[Request, Reply]{
+	r := &QueryType[Request, Reply]{
 		name:    name,
 		handler: handler,
 	}
@@ -70,11 +72,11 @@ func NewQueryType[Request any, Reply any](
 	return r, nil
 }
 
-func (r *Query[Request, Reply]) IsEVMCompatible() bool {
+func (r *QueryType[Request, Reply]) IsEVMCompatible() bool {
 	return r.requestABI != nil && r.replyABI != nil
 }
 
-func (r *Query[Request, Reply]) generateABIBindings() error {
+func (r *QueryType[Request, Reply]) generateABIBindings() error {
 	var req Request
 	reqABI, err := abi.GenerateABIType(req)
 	if err != nil {
@@ -90,15 +92,15 @@ func (r *Query[Request, Reply]) generateABIBindings() error {
 	return nil
 }
 
-func (r *Query[req, rep]) Name() string {
+func (r *QueryType[req, rep]) Name() string {
 	return r.name
 }
 
-func (r *Query[req, rep]) Schema() (request, reply *jsonschema.Schema) {
+func (r *QueryType[req, rep]) Schema() (request, reply *jsonschema.Schema) {
 	return jsonschema.Reflect(new(req)), jsonschema.Reflect(new(rep))
 }
 
-func (r *Query[req, rep]) HandleQuery(wCtx WorldContext, a any) (any, error) {
+func (r *QueryType[req, rep]) HandleQuery(wCtx WorldContext, a any) (any, error) {
 	request, ok := a.(req)
 	if !ok {
 		return nil, fmt.Errorf("cannot cast %T to this query request type %T", a, new(req))
@@ -107,7 +109,7 @@ func (r *Query[req, rep]) HandleQuery(wCtx WorldContext, a any) (any, error) {
 	return reply, err
 }
 
-func (r *Query[req, rep]) HandleQueryRaw(wCtx WorldContext, bz []byte) ([]byte, error) {
+func (r *QueryType[req, rep]) HandleQueryRaw(wCtx WorldContext, bz []byte) ([]byte, error) {
 	request := new(req)
 	err := json.Unmarshal(bz, request)
 	if err != nil {
@@ -124,7 +126,7 @@ func (r *Query[req, rep]) HandleQueryRaw(wCtx WorldContext, bz []byte) ([]byte, 
 	return bz, nil
 }
 
-func (r *Query[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
+func (r *QueryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if r.requestABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
@@ -143,7 +145,7 @@ func (r *Query[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	return request, nil
 }
 
-func (r *Query[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
+func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if r.replyABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
@@ -162,7 +164,7 @@ func (r *Query[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	return reply, nil
 }
 
-func (r *Query[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
+func (r *QueryType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	if r.replyABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
@@ -171,7 +173,7 @@ func (r *Query[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	return bz, err
 }
 
-func (r *Query[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
+func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 	if r.requestABI == nil || r.replyABI == nil {
 		return nil, ErrEVMTypeNotSet
 	}
@@ -198,7 +200,10 @@ func (r *Query[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 	return bz, nil
 }
 
-func validateQuery[Request any, Reply any](name string, handler func(wCtx WorldContext, req *Request) (*Reply, error)) error {
+func validateQuery[Request any, Reply any](
+	name string,
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+) error {
 	if name == "" {
 		return errors.New("cannot create query without name")
 	}
@@ -211,18 +216,25 @@ func validateQuery[Request any, Reply any](name string, handler func(wCtx WorldC
 	reqType := reflect.TypeOf(req)
 	reqKind := reqType.Kind()
 	reqValid := false
-	if (reqKind == reflect.Pointer && reqType.Elem().Kind() == reflect.Struct) || reqKind == reflect.Struct {
+	if (reqKind == reflect.Pointer && reqType.Elem().Kind() == reflect.Struct) ||
+		reqKind == reflect.Struct {
 		reqValid = true
 	}
 	repType := reflect.TypeOf(rep)
 	repKind := reqType.Kind()
 	repValid := false
-	if (repKind == reflect.Pointer && repType.Elem().Kind() == reflect.Struct) || repKind == reflect.Struct {
+	if (repKind == reflect.Pointer && repType.Elem().Kind() == reflect.Struct) ||
+		repKind == reflect.Struct {
 		repValid = true
 	}
 
 	if !repValid || !reqValid {
-		return errors.New(fmt.Sprintf("Invalid Query: %s: The Request and Reply must be both structs", name))
+		return errors.New(
+			fmt.Sprintf(
+				"invalid query: %s: the Request and Reply generics must be both structs",
+				name,
+			),
+		)
 	}
 	return nil
 }
