@@ -50,7 +50,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 	world := newWorldWithRealRedis(t)
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	if enableHealthSystem {
-		world.AddSystem(func(wCtx ecs.WorldContext) error {
+		world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 			q, err := world.NewSearch(ecs.Contains(Health{}))
 			assert.NilError(t, err)
 			err = q.Each(wCtx, func(id entity.ID) bool {
