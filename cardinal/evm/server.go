@@ -5,9 +5,10 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	zerolog "github.com/rs/zerolog/log"
 	"net"
 	"os"
+
+	zerolog "github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -45,8 +46,8 @@ type Server interface {
 // txByName maps transaction type ID's to transaction types.
 type txByName map[string]message.Message
 
-// queryByName maps query resource names to the underlying IQuery.
-type queryByName map[string]ecs.IQuery
+// queryByName maps query resource names to the underlying Query.
+type queryByName map[string]ecs.Query
 
 type msgServerImpl struct {
 	// required embed
@@ -114,8 +115,9 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 		}
 	}
 	if s.creds == nil {
-		w.Logger.Warn().Msg("running EVM server without credentials. if running on production, please " +
-			"shut down and supply the proper credentials for the EVM server")
+		w.Logger.Warn().
+			Msg("running EVM server without credentials. if running on production, please " +
+				"shut down and supply the proper credentials for the EVM server")
 	}
 	return s, nil
 }
@@ -131,13 +133,16 @@ func tryLoadCredentials() (credentials.TransportCredentials, error) {
 			return loadCredentials(cert, key)
 		}
 	}
-	zerolog.Debug().Msg("running EVM server without SSL credentials. if this is a production application, " +
-		"please set provide SSL credentials")
+	zerolog.Debug().
+		Msg("running EVM server without SSL credentials. if this is a production application, " +
+			"please set provide SSL credentials")
 	return nil, nil
 }
 
 // loadCredentials loads the TLS credentials for the server from the given file paths.
-func loadCredentials(serverCertPath, serverKeyPath string) (credentials.TransportCredentials, error) {
+func loadCredentials(
+	serverCertPath, serverKeyPath string,
+) (credentials.TransportCredentials, error) {
 	// Load server's certificate and private key
 	sc, err := os.ReadFile(serverCertPath)
 	if err != nil {
@@ -203,7 +208,8 @@ func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessage
 	if !ok {
 		return &routerv1.SendMessageResponse{
 			Errs: fmt.Errorf("transaction with name %s either does not exist, or did not have EVM support "+
-				"enabled", msg.MessageId).Error(),
+				"enabled", msg.MessageId).
+				Error(),
 			EvmTxHash: msg.EvmTxHash,
 			Code:      CodeUnsupportedTransaction,
 		}, nil
@@ -213,7 +219,8 @@ func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessage
 	tx, err := itx.DecodeEVMBytes(msg.Message)
 	if err != nil {
 		return &routerv1.SendMessageResponse{
-			Errs:      fmt.Errorf("failed to decode ABI encoded bytes into ABI type: %w", err).Error(),
+			Errs: fmt.Errorf("failed to decode ABI encoded bytes into ABI type: %w", err).
+				Error(),
 			EvmTxHash: msg.EvmTxHash,
 			Code:      CodeInvalidFormat,
 		}, nil
@@ -223,7 +230,8 @@ func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessage
 	sc, err := s.getSignerComponentForAuthorizedAddr(msg.Sender)
 	if err != nil {
 		return &routerv1.SendMessageResponse{
-			Errs:      fmt.Errorf("failed to authorize EVM address with persona tag: %w", err).Error(),
+			Errs: fmt.Errorf("failed to authorize EVM address with persona tag: %w", err).
+				Error(),
 			EvmTxHash: msg.EvmTxHash,
 			Code:      CodeUnauthorized,
 		}, nil
@@ -269,7 +277,9 @@ func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessage
 
 // getSignerComponentForAuthorizedAddr attempts to find a stored SignerComponent which contains the provided `addr`
 // within its authorized addresses slice.
-func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(addr string) (*ecs.SignerComponent, error) {
+func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
+	addr string,
+) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
 	var err error
 	wCtx := ecs.NewReadOnlyWorldContext(s.world)

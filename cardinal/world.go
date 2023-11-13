@@ -125,43 +125,43 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
 func CreateMany(wCtx WorldContext, num int, components ...metadata.Component) ([]EntityID, error) {
-	return component.CreateMany(wCtx.getECSWorldContext(), num, components...)
+	return component.CreateMany(wCtx.Instance(), num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
 func Create(wCtx WorldContext, components ...metadata.Component) (EntityID, error) {
-	return component.Create(wCtx.getECSWorldContext(), components...)
+	return component.Create(wCtx.Instance(), components...)
 }
 
 // SetComponent Set sets component data to the entity.
 func SetComponent[T metadata.Component](wCtx WorldContext, id entity.ID, comp *T) error {
-	return component.SetComponent[T](wCtx.getECSWorldContext(), id, comp)
+	return component.SetComponent[T](wCtx.Instance(), id, comp)
 }
 
 // GetComponent Get returns component data from the entity.
 func GetComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (*T, error) {
-	return component.GetComponent[T](wCtx.getECSWorldContext(), id)
+	return component.GetComponent[T](wCtx.Instance(), id)
 }
 
 // UpdateComponent Updates a component on an entity.
 func UpdateComponent[T metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
-	return component.UpdateComponent[T](wCtx.getECSWorldContext(), id, fn)
+	return component.UpdateComponent[T](wCtx.Instance(), id, fn)
 }
 
 // AddComponentTo Adds a component on an entity.
 func AddComponentTo[T metadata.Component](wCtx WorldContext, id entity.ID) error {
-	return component.AddComponentTo[T](wCtx.getECSWorldContext(), id)
+	return component.AddComponentTo[T](wCtx.Instance(), id)
 }
 
 // RemoveComponentFrom Removes a component from an entity.
 func RemoveComponentFrom[T metadata.Component](wCtx WorldContext, id entity.ID) error {
-	return component.RemoveComponentFrom[T](wCtx.getECSWorldContext(), id)
+	return component.RemoveComponentFrom[T](wCtx.Instance(), id)
 }
 
 // Remove removes the given entity id from the world.
 func Remove(wCtx WorldContext, id EntityID) error {
-	return wCtx.getECSWorldContext().GetWorld().Remove(id)
+	return wCtx.Instance().GetWorld().Remove(id)
 }
 
 func (w *World) handleShutdown() {
@@ -268,7 +268,7 @@ func RegisterSystems(w *World, systems ...System) error {
 		sys := system
 		w.instance.RegisterSystemWithName(func(wCtx ecs.WorldContext) error {
 			return sys(&worldContext{
-				implContext: wCtx,
+				instance: wCtx,
 			})
 		}, functionName)
 	}
@@ -285,10 +285,46 @@ func RegisterMessages(w *World, msgs ...AnyMessage) error {
 	return w.instance.RegisterMessages(toMessageType(msgs)...)
 }
 
-// RegisterQueries adds the given query capabilities to the game world. HTTP endpoints to use these queries
+// RegisterQuery adds the given query to the game world. HTTP endpoints to use these queries
+// will automatically be created when StartGame is called. This function does not add EVM support to the query.
+func RegisterQuery[Request any, Reply any](
+	world *World,
+	name string,
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+) error {
+	err := ecs.RegisterQuery[Request, Reply](
+		world.instance,
+		name,
+		func(wCtx ecs.WorldContext, req *Request) (*Reply, error) {
+			return handler(&worldContext{instance: wCtx}, req)
+		},
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// RegisterQueryWithEVMSupport adds the given query to the game world. HTTP endpoints to use these queries
 // will automatically be created when StartGame is called. This Register method must only be called once.
-func RegisterQueries(w *World, queries ...AnyQueryType) error {
-	return w.instance.RegisterQueries(toIQueryType(queries)...)
+// This function also adds EVM support to the query.
+func RegisterQueryWithEVMSupport[Request any, Reply any](
+	world *World,
+	name string,
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+) error {
+	err := ecs.RegisterQuery[Request, Reply](
+		world.instance,
+		name,
+		func(wCtx ecs.WorldContext, req *Request) (*Reply, error) {
+			return handler(&worldContext{instance: wCtx}, req)
+		},
+		ecs.WithQueryEVMSupport[Request, Reply],
+	)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (w *World) Instance() *ecs.World {
@@ -306,6 +342,6 @@ func (w *World) Tick(ctx context.Context) error {
 // Init Registers a system that only runs once on a new game before tick 0.
 func (w *World) Init(system System) {
 	w.instance.AddInitSystem(func(ecsWctx ecs.WorldContext) error {
-		return system(&worldContext{implContext: ecsWctx})
+		return system(&worldContext{instance: ecsWctx})
 	})
 }

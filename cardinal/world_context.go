@@ -32,34 +32,34 @@ type WorldContext interface {
 	// Logger returns a zerolog.Logger. Additional metadata information is often attached to
 	// this logger (e.g. the name of the active System).
 	Logger() *zerolog.Logger
-
-	getECSWorldContext() ecs.WorldContext
+	
+	Instance() ecs.WorldContext
 }
 
 type worldContext struct {
-	implContext ecs.WorldContext
+	instance ecs.WorldContext
 }
 
 func (wCtx *worldContext) EmitEvent(event string) {
-	wCtx.getECSWorldContext().GetWorld().EmitEvent(&events.Event{Message: event})
+	wCtx.instance.GetWorld().EmitEvent(&events.Event{Message: event})
 }
 
 func (wCtx *worldContext) CurrentTick() uint64 {
-	return wCtx.implContext.CurrentTick()
+	return wCtx.instance.CurrentTick()
 }
 
 func (wCtx *worldContext) Logger() *zerolog.Logger {
-	return wCtx.implContext.Logger()
+	return wCtx.instance.Logger()
 }
 
 func (wCtx *worldContext) NewSearch(filter Filter) (*Search, error) {
-	ecsSearch, err := wCtx.implContext.NewSearch(filter.convertToFilterable())
+	ecsSearch, err := wCtx.instance.NewSearch(filter.convertToFilterable())
 	if err != nil {
 		return nil, err
 	}
 	return &Search{impl: ecsSearch}, nil
 }
 
-func (wCtx *worldContext) getECSWorldContext() ecs.WorldContext {
-	return wCtx.implContext
+func (wCtx *worldContext) Instance() ecs.WorldContext {
+	return wCtx.instance
 }

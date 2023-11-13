@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
-	"net/http"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -17,11 +18,6 @@ import (
 //
 //nolint:funlen,gocognit
 func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
-	queryNameToQueryType := make(map[string]ecs.IQuery)
-	for _, query := range handler.w.ListQueries() {
-		queryNameToQueryType[query.Name()] = query
-	}
-
 	// query/game/{queryType} is a dynamic route that must dynamically handle things thus it can't use
 	// the createSwaggerQueryHandler utility function below as the Request and Reply types are dynamic.
 	queryHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
@@ -35,12 +31,17 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		}
 		queryTypeString, ok := queryTypeUntyped.(string)
 		if !ok {
-			return nil, fmt.Errorf("queryType was the wrong type, it should be a string from the path")
+			return nil, fmt.Errorf(
+				"queryType was the wrong type, it should be a string from the path",
+			)
 		}
-		outputType, ok := queryNameToQueryType[queryTypeString]
-		if !ok {
-			return middleware.Error(http.StatusNotFound, fmt.Errorf("queryType of type %s does not exist",
-				queryTypeString)), nil
+
+		q, err := handler.w.GetQueryByName(queryTypeString)
+		if err != nil {
+			return middleware.Error(
+				http.StatusNotFound,
+				fmt.Errorf("query %s not found", queryTypeString),
+			), nil //lint:ignore nilerr this is a middleware error that should 404
 		}
 
 		bodyData, ok := mapStruct["queryBody"]
@@ -57,14 +58,14 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		// go-swagger validates all the data and shoves it into a map
 		// I can't get the relevant Request Type associated with the Search here
 		// So I convert that map into raw json
-		// Then I have IQuery.HandleQueryRaw just output a rawJSONReply.
+		// Then I have Query.HandleQueryRaw just output a rawJSONReply.
 		// I convert that into a json.RawMessage which go-swagger will validate.
 		rawJSONBody, err := json.Marshal(bodyDataAsMap)
 		if err != nil {
 			return nil, err
 		}
 		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
-		rawJSONReply, err := outputType.HandleQueryRaw(wCtx, rawJSONBody)
+		rawJSONReply, err := q.HandleQueryRaw(wCtx, rawJSONBody)
 		if err != nil {
 			return nil, err
 		}
@@ -80,7 +81,8 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 
 	personaHandler := createSwaggerQueryHandler[QueryPersonaSignerRequest, QueryPersonaSignerResponse](
 		"QueryPersonaSignerRequest",
-		handler.getPersonaSignerResponse)
+		handler.getPersonaSignerResponse,
+	)
 
 	receiptsHandler := createSwaggerQueryHandler[ListTxReceiptsRequest, ListTxReceiptsReply](
 		"ListTxReceiptsRequest",
@@ -98,15 +100,24 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		}
 		cqlRequest, ok := cqlRequestUntyped.(map[string]interface{})
 		if !ok {
-			return middleware.Error(http.StatusUnprocessableEntity, fmt.Errorf("json is invalid")), nil
+			return middleware.Error(
+				http.StatusUnprocessableEntity,
+				fmt.Errorf("json is invalid"),
+			), nil
 		}
 		cqlStringUntyped, ok := cqlRequest["CQL"]
 		if !ok {
-			return middleware.Error(http.StatusUnprocessableEntity, fmt.Errorf("json is invalid")), nil
+			return middleware.Error(
+				http.StatusUnprocessableEntity,
+				fmt.Errorf("json is invalid"),
+			), nil
 		}
 		cqlString, ok := cqlStringUntyped.(string)
 		if !ok {
-			return middleware.Error(http.StatusUnprocessableEntity, fmt.Errorf("json is invalid")), nil
+			return middleware.Error(
+				http.StatusUnprocessableEntity,
+				fmt.Errorf("json is invalid"),
+			), nil
 		}
 		resultFilter, err := cql.Parse(cqlString, handler.w.GetComponentByName)
 		if err != nil {

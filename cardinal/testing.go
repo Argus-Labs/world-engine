@@ -6,11 +6,11 @@ import "pkg.world.dev/world-engine/cardinal/ecs"
 
 func TestingWorldToWorldContext(world *World) WorldContext {
 	ecsWorldCtx := ecs.NewWorldContext(world.instance)
-	return &worldContext{implContext: ecsWorldCtx}
+	return &worldContext{instance: ecsWorldCtx}
 }
 
 func TestingWorldContextToECSWorld(worldCtx WorldContext) *ecs.World {
-	return worldCtx.getECSWorldContext().GetWorld()
+	return worldCtx.Instance().GetWorld()
 }
 
 func (w *World) TestingGetTransactionReceiptsForTick(tick uint64) ([]Receipt, error) {

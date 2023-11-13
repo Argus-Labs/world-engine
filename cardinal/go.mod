@@ -20,6 +20,7 @@ require (
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.26.0
+	github.com/goccy/go-json v0.10.2
 	github.com/google/uuid v1.3.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/invopop/jsonschema v0.7.0

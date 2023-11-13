@@ -302,17 +302,19 @@ type garbageStructBeta struct {
 func (garbageStructBeta) Name() string { return "beta" }
 
 func TestHandleSwaggerServer(t *testing.T) {
-	w := testutils.NewTestWorld(t).Instance()
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
-	assert.NilError(t, w.RegisterMessages(sendTx))
-	w.RegisterSystem(func(ecs.WorldContext) error {
+	assert.NilError(t, world.RegisterMessages(sendTx))
+	world.RegisterSystem(func(ecs.WorldContext) error {
 		return nil
 	})
 
-	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](w))
-	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](w))
+	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](world))
+	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](world))
 	alphaCount := 75
-	wCtx := ecs.NewWorldContext(w)
+	wCtx := ecs.NewWorldContext(world)
 	_, err := component.CreateMany(wCtx, alphaCount, garbageStructAlpha{})
 	assert.NilError(t, err)
 	bothCount := 100
@@ -322,14 +324,14 @@ func TestHandleSwaggerServer(t *testing.T) {
 	// Queue up a CreatePersona
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
-	ecs.CreatePersonaMsg.AddToQueue(w, ecs.CreatePersona{
+	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddress,
 	})
 	authorizedPersonaAddress := ecs.AuthorizePersonaAddress{
 		Address: signerAddress,
 	}
-	ecs.AuthorizePersonaAddressMsg.AddToQueue(w, authorizedPersonaAddress, &sign.Transaction{PersonaTag: personaTag})
+	ecs.AuthorizePersonaAddressMsg.AddToQueue(world, authorizedPersonaAddress, &sign.Transaction{PersonaTag: personaTag})
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
 
 	// create readers
@@ -345,15 +347,13 @@ func TestHandleSwaggerServer(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooQuery := ecs.NewQueryType[FooRequest, FooReply](
-		"foo",
-		func(wCtx ecs.WorldContext, req FooRequest,
-		) (FooReply, error) {
-			return expectedReply, nil
-		})
-	assert.NilError(t, w.RegisterQueries(fooQuery))
+	fooQueryHandler := func(wCtx cardinal.WorldContext, req *FooRequest,
+	) (*FooReply, error) {
+		return &expectedReply, nil
+	}
+	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooReply](w, "foo", fooQueryHandler))
 
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
 
 	// Test /query/http/endpoints
 	expectedEndpointResult := server.EndpointsResult{
@@ -395,9 +395,9 @@ func TestHandleSwaggerServer(t *testing.T) {
 	req.Header.Set("Accept", "application/json")
 	client := http.Client{}
 	ctx := context.Background()
-	err = w.LoadGameState()
+	err = world.LoadGameState()
 	assert.NilError(t, err)
-	err = w.Tick(ctx)
+	err = world.Tick(ctx)
 	assert.NilError(t, err)
 	resp2, err := client.Do(req)
 	assert.NilError(t, err)
@@ -700,7 +700,8 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 
 // TestCanListQueries tests that we can list the available queries in the handler.
 func TestCanListQueries(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
 	type FooRequest struct {
 		Foo  int    `json:"foo,omitempty"`
 		Meow string `json:"bar,omitempty"`
@@ -710,20 +711,22 @@ func TestCanListQueries(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 
-	fooQuery := ecs.NewQueryType[FooRequest, FooResponse]("foo", func(wCtx ecs.WorldContext, req FooRequest,
-	) (FooResponse, error) {
-		return FooResponse{Meow: req.Meow}, nil
-	})
-	barQuery := ecs.NewQueryType[FooRequest, FooResponse]("bar", func(wCtx ecs.WorldContext, req FooRequest,
-	) (FooResponse, error) {
-		return FooResponse{Meow: req.Meow}, nil
-	})
-	bazQuery := ecs.NewQueryType[FooRequest, FooResponse]("baz", func(wCtx ecs.WorldContext, req FooRequest,
-	) (FooResponse, error) {
-		return FooResponse{Meow: req.Meow}, nil
-	})
+	handleFooQuery := func(wCtx cardinal.WorldContext, req *FooRequest,
+	) (*FooResponse, error) {
+		return &FooResponse{Meow: req.Meow}, nil
+	}
+	handleBarQuery := func(wCtx cardinal.WorldContext, req *FooRequest,
+	) (*FooResponse, error) {
+		return &FooResponse{Meow: req.Meow}, nil
+	}
+	handleBazQuery := func(wCtx cardinal.WorldContext, req *FooRequest,
+	) (*FooResponse, error) {
+		return &FooResponse{Meow: req.Meow}, nil
+	}
 
-	assert.NilError(t, world.RegisterQueries(fooQuery, barQuery, bazQuery))
+	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "foo", handleFooQuery))
+	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "bar", handleBarQuery))
+	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "baz", handleBazQuery))
 	assert.NilError(t, world.LoadGameState())
 
 	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
@@ -755,24 +758,23 @@ func TestCanListQueries(t *testing.T) {
 // work.
 func TestQueryEncodeDecode(t *testing.T) {
 	// setup this read business stuff
-	endpoint := "foo"
 	type FooRequest struct {
 		Foo  int    `json:"foo,omitempty"`
 		Meow string `json:"bar,omitempty"`
 	}
-
 	type FooResponse struct {
 		Meow string `json:"meow,omitempty"`
 	}
-	fq := ecs.NewQueryType[FooRequest, FooResponse](endpoint, func(wCtx ecs.WorldContext, req FooRequest,
-	) (FooResponse, error) {
-		return FooResponse{Meow: req.Meow}, nil
-	})
 
-	url := "query/game/" + endpoint
+	handleFooQuery := func(wCtx cardinal.WorldContext, req *FooRequest) (*FooResponse, error) {
+		return &FooResponse{Meow: req.Meow}, nil
+	}
+
+	url := "query/game/" + "foo"
 	// set up the world, register the queries, load.
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.RegisterQueries(fq))
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "foo", handleFooQuery))
 	assert.NilError(t, world.LoadGameState())
 
 	// make our test tx handler
