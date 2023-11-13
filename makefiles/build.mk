@@ -8,7 +8,7 @@ rollup:
 
 game:
 	cd internal/e2e/tester/cardinal && go mod vendor
-	@docker compose up game nakama --abort-on-container-exit postgres redis
+	@docker compose up game nakama --abort-on-container-exit cockroachdb redis
 
 forge-build: |
 	@forge build --extra-output-files bin --extra-output-files abi  --root evm/precompile/contracts

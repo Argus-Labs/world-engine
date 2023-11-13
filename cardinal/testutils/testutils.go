@@ -12,22 +12,28 @@ import (
 	"testing"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal/ecs"
+
 	"gotest.tools/v3/assert"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/sign"
 )
 
-func MakeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.Option) *TestTransactionHandler {
-	port := "4040"
-	opts = append(opts, server.WithPort(port))
+func MakeTestTransactionHandler(
+	t *testing.T,
+	world *ecs.World,
+	opts ...server.Option,
+) *TestTransactionHandler {
 	eventHub := events.CreateWebSocketEventHub()
 	world.SetEventHub(eventHub)
-	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
+	eventBuilder := events.CreateNewWebSocketBuilder(
+		"/events",
+		events.CreateWebSocketEventHandler(eventHub),
+	)
 	txh, err := server.NewHandler(world, eventBuilder, opts...)
 	assert.NilError(t, err)
 
@@ -52,11 +58,15 @@ func MakeTestTransactionHandler(t *testing.T, world *ecs.World, opts ...server.O
 		_ = gameObject.Shutdown()
 	})
 
-	host := "localhost:" + port
+	host := "localhost:4040"
 	healthURL := host + healthPath
 	start := time.Now()
 	for {
-		assert.Check(t, time.Since(start) < time.Second, "timeout while waiting for a healthy server")
+		assert.Check(
+			t,
+			time.Since(start) < time.Second,
+			"timeout while waiting for a healthy server",
+		)
 		//nolint:noctx,bodyclose // its for a test.
 		resp, err := http.Get("http://" + healthURL)
 		if err == nil && resp.StatusCode == 200 {
@@ -179,8 +189,12 @@ func AddTransactionToWorldByAnyTransaction(
 		}
 	}
 	if !found {
-		panic(fmt.Sprintf("cannot find transaction %q in registered transactions. Did you register it?",
-			cardinalTx.Convert().Name()))
+		panic(
+			fmt.Sprintf(
+				"cannot find transaction %q in registered transactions. Did you register it?",
+				cardinalTx.Convert().Name(),
+			),
+		)
 	}
 
 	_, _ = ecsWorld.AddTransaction(txID, value, tx)
@@ -189,20 +203,23 @@ func AddTransactionToWorldByAnyTransaction(
 // MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
 // will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
 // end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
-func MakeWorldAndTicker(t *testing.T,
-	opts ...cardinal.WorldOption) (
-	world *cardinal.World,
-	doTick func()) {
+func MakeWorldAndTicker(
+	t *testing.T,
+	opts ...cardinal.WorldOption,
+) (world *cardinal.World, doTick func()) {
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
-	opts = append(opts, cardinal.WithTickChannel(startTickCh), cardinal.WithTickDoneChannel(doneTickCh))
-	world, err := cardinal.NewMockWorld(opts...)
-	if err != nil {
-		t.Fatalf("unable to make mock world: %v", err)
-	}
+	eventHub := events.CreateWebSocketEventHub()
+	opts = append(
+		opts,
+		cardinal.WithTickChannel(startTickCh),
+		cardinal.WithTickDoneChannel(doneTickCh),
+		cardinal.WithEventHub(eventHub),
+	)
+	world = NewTestWorld(t, opts...)
 
 	// Shutdown any world resources. This will be called whether the world has been started or not.
 	t.Cleanup(func() {
-		if err = world.ShutDown(); err != nil {
+		if err := world.ShutDown(); err != nil {
 			t.Fatalf("unable to shut down world: %v", err)
 		}
 	})
@@ -222,7 +239,7 @@ func MakeWorldAndTicker(t *testing.T,
 			}()
 			for !world.IsGameRunning() {
 				select {
-				case err = <-startupError:
+				case err := <-startupError:
 					t.Fatalf("startup error: %v", err)
 				case <-timeout:
 					t.Fatal("timeout while waiting for game to start")

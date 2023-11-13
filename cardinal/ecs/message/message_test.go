@@ -15,6 +15,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"pkg.world.dev/world-engine/sign"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 )
 
 type ScoreComponent struct {
@@ -50,7 +52,7 @@ func TestReadTypeNotStructs(t *testing.T) {
 }
 
 func TestCanQueueTransactions(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	// Create an entity with a score component
 	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](world))
@@ -113,7 +115,7 @@ func (CounterComponent) Name() string {
 }
 
 func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	assert.NilError(t, ecs.RegisterComponent[CounterComponent](world))
 
@@ -142,7 +144,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 }
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](world))
 
 	modifyScoreMsg := ecs.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
@@ -200,7 +202,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 // TestAddToQueueDuringTickDoesNotTimeout verifies that we can add a transaction to the transaction
 // queue during a game tick, and the call does not block.
 func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	modScore := ecs.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_Score")
 	assert.NilError(t, world.RegisterMessages(modScore))
@@ -242,7 +244,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 // TestTransactionsAreExecutedAtNextTick verifies that while a game tick is taking place, new transactions
 // are added to some queue that is not processed until the NEXT tick.
 func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	modScoreMsg := ecs.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
 	assert.NilError(t, world.RegisterMessages(modScoreMsg))
 	ctx := context.Background()
@@ -313,7 +315,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 // TestIdenticallyTypedTransactionCanBeDistinguished verifies that two transactions of the same type
 // can be distinguished if they were added with different MessageType[T]s.
 func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	type NewOwner struct {
 		Name string
 	}
@@ -342,13 +344,13 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 
 func TestCannotRegisterDuplicateTransaction(t *testing.T) {
 	msg := ecs.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.Check(t, nil != world.RegisterMessages(msg, msg))
 }
 
 func TestCannotCallRegisterTransactionsMultipleTimes(t *testing.T) {
 	msg := ecs.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, world.RegisterMessages(msg))
 	assert.Check(t, nil != world.RegisterMessages(msg))
 }
@@ -390,7 +392,7 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	type OtherMsg struct {
 		Alpha, Beta string
 	}
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	alphaMsg := ecs.NewMessageType[SomeMsg, EmptyMsgResult]("name_match")
 	betaMsg := ecs.NewMessageType[OtherMsg, EmptyMsgResult]("name_match")
 	assert.ErrorIs(t, world.RegisterMessages(alphaMsg, betaMsg), ecs.ErrDuplicateMessageName)
@@ -403,7 +405,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	type MoveMsgResult struct {
 		EndX, EndY int
 	}
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	// Each transaction now needs an input and an output
 	moveMsg := ecs.NewMessageType[MoveMsg, MoveMsgResult]("move")
@@ -462,7 +464,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	type MsgOut struct {
 		Number int
 	}
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	numTx := ecs.NewMessageType[MsgIn, MsgOut]("number")
 	assert.NilError(t, world.RegisterMessages(numTx))
 	wantErr := errors.New("some transaction error")
@@ -504,7 +506,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	type MsgOut struct {
 		Number int
 	}
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	numTx := ecs.NewMessageType[MsgIn, MsgOut]("number")
 	assert.NilError(t, world.RegisterMessages(numTx))
 	systemCalls := 0

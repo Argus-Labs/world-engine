@@ -3,6 +3,12 @@ package cardinal
 import (
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/rs/zerolog/log"
+	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/store"
+	"pkg.world.dev/world-engine/cardinal/events"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -29,22 +35,6 @@ func WithAdapter(adapter shard.Adapter) WorldOption {
 func WithReceiptHistorySize(size int) WorldOption {
 	return WorldOption{
 		ecsOption: ecs.WithReceiptHistorySize(size),
-	}
-}
-
-// WithNamespace sets the World's namespace. The default is "world". The namespace is used in the transaction
-// signing process.
-func WithNamespace(namespace string) WorldOption {
-	return WorldOption{
-		ecsOption: ecs.WithNamespace(namespace),
-	}
-}
-
-// WithPort specifies the port for the World's HTTP server. If omitted, the environment variable CARDINAL_PORT
-// will be used, and if that is unset, port 4040 will be used.
-func WithPort(port string) WorldOption {
-	return WorldOption{
-		serverOption: server.WithPort(port),
 	}
 }
 
@@ -77,14 +67,42 @@ func WithTickDoneChannel(ch chan<- uint64) WorldOption {
 	}
 }
 
-func WithPrettyLog() WorldOption {
+func WithStoreManager(s store.IManager) WorldOption {
 	return WorldOption{
-		ecsOption: ecs.WithPrettyLog(),
+		ecsOption: ecs.WithStoreManager(s),
 	}
 }
 
-func WithCORS() WorldOption {
+func WithEventHub(eventHub events.EventHub) WorldOption {
 	return WorldOption{
-		serverOption: server.WithCORS(),
+		ecsOption: ecs.WithEventHub(eventHub),
+	}
+}
+
+func WithLoggingEventHub(logger *ecslog.Logger) WorldOption {
+	return WorldOption{
+		ecsOption: ecs.WithLoggingEventHub(logger),
+	}
+}
+
+func withMockRedis() WorldOption {
+	// We manually set the start address to make the port deterministic
+	s := miniredis.NewMiniRedis()
+	err := s.StartAddr(":6379")
+	if err != nil {
+		panic(
+			"Unable to start miniredis. Make sure there is no other redis instance running on port 6379",
+		)
+	}
+	log.Logger.Debug().Msgf("miniredis started at %s", s.Addr())
+
+	return WorldOption{
+		cardinalOption: func(world *World) {
+			world.cleanup = func() {
+				log.Logger.Debug().Msg("miniredis shutting down")
+				s.Close()
+				log.Logger.Debug().Msg("miniredis shutdown successful")
+			}
+		},
 	}
 }

@@ -11,7 +11,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
 )
 
-type IQuery interface {
+type Query interface {
 	// Name returns the name of the query.
 	Name() string
 	// HandleQuery handles queries with concrete types, rather than encoded bytes.
@@ -35,7 +35,7 @@ type IQuery interface {
 
 type QueryType[Request any, Reply any] struct {
 	name       string
-	handler    func(wCtx WorldContext, req Request) (Reply, error)
+	handler    func(wCtx WorldContext, req *Request) (*Reply, error)
 	requestABI *ethereumAbi.Type
 	replyABI   *ethereumAbi.Type
 }
@@ -49,37 +49,18 @@ func WithQueryEVMSupport[Request, Reply any]() func(transactionType *QueryType[R
 	}
 }
 
-var _ IQuery = &QueryType[struct{}, struct{}]{}
+var _ Query = &QueryType[struct{}, struct{}]{}
 
 func NewQueryType[Request any, Reply any](
 	name string,
-	handler func(wCtx WorldContext, req Request) (Reply, error),
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
 	opts ...func() func(queryType *QueryType[Request, Reply]),
-) *QueryType[Request, Reply] {
-	if name == "" {
-		panic("cannot create query without name")
-	}
-	if handler == nil {
-		panic("cannot create query without handler")
-	}
-	var req Request
-	var rep Reply
-	reqType := reflect.TypeOf(req)
-	reqKind := reqType.Kind()
-	reqValid := false
-	if (reqKind == reflect.Pointer && reqType.Elem().Kind() == reflect.Struct) || reqKind == reflect.Struct {
-		reqValid = true
-	}
-	repType := reflect.TypeOf(rep)
-	repKind := reqType.Kind()
-	repValid := false
-	if (repKind == reflect.Pointer && repType.Elem().Kind() == reflect.Struct) || repKind == reflect.Struct {
-		repValid = true
+) (Query, error) {
+	err := validateQuery[Request, Reply](name, handler)
+	if err != nil {
+		return nil, err
 	}
 
-	if !repValid || !reqValid {
-		panic(fmt.Sprintf("Invalid QueryType: %s: The Request and Reply must be both structs", name))
-	}
 	r := &QueryType[Request, Reply]{
 		name:    name,
 		handler: handler,
@@ -87,7 +68,8 @@ func NewQueryType[Request any, Reply any](
 	for _, opt := range opts {
 		opt()(r)
 	}
-	return r
+
+	return r, nil
 }
 
 func (r *QueryType[Request, Reply]) IsEVMCompatible() bool {
@@ -123,7 +105,7 @@ func (r *QueryType[req, rep]) HandleQuery(wCtx WorldContext, a any) (any, error)
 	if !ok {
 		return nil, fmt.Errorf("cannot cast %T to this query request type %T", a, new(req))
 	}
-	reply, err := r.handler(wCtx, request)
+	reply, err := r.handler(wCtx, &request)
 	return reply, err
 }
 
@@ -133,7 +115,7 @@ func (r *QueryType[req, rep]) HandleQueryRaw(wCtx WorldContext, bz []byte) ([]by
 	if err != nil {
 		return nil, fmt.Errorf("unable to unmarshal query request into type %T: %w", *request, err)
 	}
-	res, err := r.handler(wCtx, *request)
+	res, err := r.handler(wCtx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -216,4 +198,41 @@ func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 		return nil, err
 	}
 	return bz, nil
+}
+
+func validateQuery[Request any, Reply any](
+	name string,
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+) error {
+	if name == "" {
+		return errors.New("cannot create query without name")
+	}
+	if handler == nil {
+		return errors.New("cannot create query without handler")
+	}
+
+	var req Request
+	var rep Reply
+	reqType := reflect.TypeOf(req)
+	reqKind := reqType.Kind()
+	reqValid := false
+	if (reqKind == reflect.Pointer && reqType.Elem().Kind() == reflect.Struct) ||
+		reqKind == reflect.Struct {
+		reqValid = true
+	}
+	repType := reflect.TypeOf(rep)
+	repKind := reqType.Kind()
+	repValid := false
+	if (repKind == reflect.Pointer && repType.Elem().Kind() == reflect.Struct) ||
+		repKind == reflect.Struct {
+		repValid = true
+	}
+
+	if !repValid || !reqValid {
+		return fmt.Errorf(
+			"invalid query: %s: the Request and Reply generics must be both structs",
+			name,
+		)
+	}
+	return nil
 }

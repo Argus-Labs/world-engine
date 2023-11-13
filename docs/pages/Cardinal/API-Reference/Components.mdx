@@ -1,129 +1,116 @@
+import Link from 'next/link'
+
 # Components
 
-Reference documentation for Cardinal Components.
+Any simple struct that provides a Name method can be used as a component. The name you give to a component must be unique within your game.
 
 ```go
 package components
-
-import "pkg.world.dev/world-engine/cardinal"
 
 type Health struct {
     Amount      uint64
     Capacity    uint64
 }
 
-var HealthComponent = cardinal.NewComponentType[Health]()
+func (Health) Name() string {
+	return "health"
+}
 ```
 
-## NewComponentType
+## Registering Components
 
-`NewComponentType` creates a new `ComponentType`. `ComponentType`s wrap around your component data types and provide uniform methods to mutate and read component data.
+Before Components can be used to create or modify entities, they must be registered with the world object. See <Link href="/Cardinal/API-Reference/World#registercomponents">Register Components</Link> for more details
 
 ```go
-func NewComponentType[T any]() *ComponentType[T]
+import "pkg.world.dev/world-engine/cardinal"
+
+err := cardinal.RegisterComponent[Health](world)
+if err != nil {
+    log.Fatal(err)
+}
 ```
 
-### Type Parameter
-
-| Type Parameter | Type | Description                                     |
-|----------------|------|-------------------------------------------------|
-| `T`             | `any`  | The data structure for the component.             |
-
-### Return Value
-
-| Type                 | Description                                       |
-|----------------------|---------------------------------------------------|
-| `*ComponentType[T]`    | A pointer to a new instance of ComponentType[T].  |
-
-
-## NewComponentTypeWithDefault
-
-`NewComponentTypeWithDefault` creates a `ComponentType` with a default value that is applied to newly created entities with the component.
-
+Checking each returned error can be verbose; multiple components can be registered in a single statement with this pattern:
 ```go
-func NewComponentTypeWithDefault[T any](defaultVal T) *ComponentType[T]
+import "pkg.world.dev/world-engine/cardinal"
+
+err := errors.Join(
+	cardinal.RegisterComponent[Health](world),
+	cardinal.RegisterComponent[Power](world),
+	cardinal.RegisterComponent[Strength](world),
+	cardinal.RegisterComponent[Agility](world),
+	...
+	)
+if err != nil {
+    log.Fatal(err)
+}
 ```
-
-### Type Parameter
-
-| Type Parameter | Type | Description                                     |
-|----------------|------|-------------------------------------------------|
-| `T`             | `any`  | The data structure for the component.             |
-
-### Parameters
-
-| Parameter   | Type          | Description                                                                  |
-|-------------|---------------|------------------------------------------------------------------------------|
-| `defaultVal`         | `T`      | The default value for this component.                                                          |
-
-#### Return Value
-
-| Type                 | Description                                       |
-|----------------------|---------------------------------------------------|
-| `*ComponentType[T]`    | A pointer to a new instance of ComponentType[T].  |
-
-
 
 ## Methods
 
-### Get
+### GetComponent
 
-`Get` retrieves the underlying component data for a given entity.
+`GetComponent` retrieves the underlying component data for a given entity.
 
 ```go
-func (c *ComponentType[T]) Get(w *World, id EntityID) (comp T, err error)
+func GetComponent[T metadata.Component](worldContext WorldContext, id entity.ID) (*T, error)
 ```
 
 #### Example
 
 ```go
-health, err := HealthComponent.Get(w, id)
+import "pkg.world.dev/world-engine/cardinal"
+
+health, err := cardinal.GetComponent[Health](worldCtx, id)
 ```
 
 #### Parameters
 
-| Parameter   | Type          | Description                                    |
-|-------------|---------------|------------------------------------------------|
-| `w`         | `*World`      | A pointer to the ECS world object.             |
-| `id`        | `EntityID` | The ID of the entity from which to retrieve the component data. |
+| Parameter  | Type             | Description                                                        |
+|------------|------------------|--------------------------------------------------------------------|
+| `T`        | `type parameter` | A registered component struct that implements the Name method      |
+| `worldCtx` | `WorldContext`   | A WorldContext object passed in to your System or Query definition |
+| `id`       | `EntityID`       | The ID of the entity from which to retrieve the component data.    |
 
 #### Return Values
-| Type          | Description                                    |
-|---------------|------------------------------------------------|
-|`T`           | The retrieved component data.                  |
-| `error`       | An error indicating any issues during retrieval. |
 
+| Type    | Description                                      |
+|---------|--------------------------------------------------|
+| `T`     | The retrieved component data.                    |
+| `error` | An error indicating any issues during retrieval. |
 
-### Set
+### SetComponent
 
-`Set` sets the component data for a given entity.
+`SetComponent` sets the component data for a given entity.
 
 ```go
-func (c *ComponentType[T]) Set(w *World, id EntityID, component T) error
+func SetComponent[T metadata.Component](worldCtx WorldContext, id entity.ID, component *T) error
 ```
 
 #### Example
 
 ```go
+import "pkg.world.dev/world-engine/cardinal"
+
 newHealth := Health{Amount: 45, Capacity: 100}
-err := HealthComponent.Set(w, id, newHealth)
+err := cardinal.SetComponent[Health](worldCtx, id, newHealth)
 ```
 
 #### Parameters
 
-| Parameter    | Type                     | Description                                    |
-|--------------|--------------------------|------------------------------------------------|
-| `w`          | `*World`                 | A pointer to the ECS world object.             |
-| `id`         | `EntityID`       | Entity ID of the entity to set the component data for.   |
-| `component`  | `T`                      | Component value to set for the entity.          |
+| Parameter   | Type              | Description                                                        |
+|-------------|-------------------|--------------------------------------------------------------------|
+| `T`         | `type parameter`  | A registered component struct that implements the Name method      |
+| `worldCtx`  | `WorldContext`    | A WorldContext object passed in to your System or Query definition |
+| `id`        | `EntityID`        | Entity ID of the entity to set the component data for.             |
+| `component` | `T`               | Component value to set for the entity.                             |
 
 
 #### Return Value
 
-| Type          | Description                                    |
-|---------------|------------------------------------------------|
+| Type          | Description                                          |
+|---------------|------------------------------------------------------|
 | `error`       | An error indicating any issues during the operation. |
-
 
 
 ### Update
@@ -131,13 +118,15 @@ err := HealthComponent.Set(w, id, newHealth)
 `Update` enables modification of the underlying component data in a single function call. `Update` uses `Get` and `Set` under the hood.
 
 ```go
-func (c *ComponentType[T]) Update(w *World, id EntityID, fn func(T) T) error
+func UpdateComponent[T metadata.Component](worldCtx WorldContext, id entity.ID, fn func(*T) *T) error
 ```
 
 #### Example
 
 ```go
-err := HealthComponent.Update(w, id, func(h Health) Health {
+import "pkg.world.dev/world-engine/cardinal"
+
+err := cardinal.UpdateComponent[Health](worldCtx, id, func(h *Health) *Health {
 	h.Amount -= 10 // take away 10 health
 	return r
 })
@@ -145,16 +134,17 @@ err := HealthComponent.Update(w, id, func(h Health) Health {
 
 #### Parameters
 
-| Parameter    | Type             | Description                                              |
-|--------------|------------------|----------------------------------------------------------|
-| `w`          | `*World`         | Pointer to the ECS world object.                         |
-| `id`         | `EntityID` | ID of the entity to perform the component update on. |
-| `fn`         | `func(T) T`      | Function that modifies the component's value.            |
+| Parameter    | Type             | Description                                                         |
+|--------------|------------------|---------------------------------------------------------------------|
+| `T`          | `type parameter` | A registered component struct that implements the Name method       |
+| `worldCtx`   | `WorldContext`   | A WorldContext object passed in to your System or Query definition  |
+| `id`         | `EntityID`       | ID of the entity to perform the component update on.                |
+| `fn`         | `func(*T) *T`    | Function that modifies the component's value.                       |
 
 #### Return Value
 
-| Type | Description                                       |
-|-------------|---------------------------------------------------|
+| Type        | Description                                          |
+|-------------|------------------------------------------------------|
 | `error`     | An error indicating any issues during the operation. |
 
 ### RemoveFrom
@@ -162,49 +152,55 @@ err := HealthComponent.Update(w, id, func(h Health) Health {
 `RemoveFrom` removes the component from the given entity. An error will be returned if the entity does not have the component.
 
 ```go
-func (c *ComponentType[T]) RemoveFrom(w *World, id EntityID) error
+func RemoveComponentFrom[T metadata.Component](wCtx WorldContext, id entity.ID) error
 ```
 
 #### Example
 
 ```go
+import "pkg.world.dev/world-engine/cardinal"
+
 target := EntityID(10)
-err := HealthComponent.RemoveFrom(w, target)
+err := cardinal.RemoveComponentFrom[Health](worldCtx, target)
 ```
 
 #### Parameters
-| Parameter | Type                 | Description                                      |
-|-----------|----------------------|--------------------------------------------------|
-| `w`       | `*World`             | Pointer to the ECS world object.                 |
-| `id`      | `EntityID`   | Entity ID of the entity to remove the component from. |
+| Parameter  | Type             | Description                                                        |
+|------------|------------------|--------------------------------------------------------------------|
+| `T`        | `type parameter` | A registered component struct that implements the Name method      |
+| `worldCtx` | `WorldContext`   | A WorldContext object passed in to your System or Query definition |
+| `id`       | `EntityID`       | Entity ID of the entity to remove the component from.              |
 
 #### Return Value
 
-| Type | Description                                          |
-|-------------|------------------------------------------------------|
+| Type        | Description                  |
+|-------------|--------------------------------------------------------|
 | `error`     | Returns an error if the operation encounters an issue. |
 
 
 ### AddTo
 
-`AddTo` adds the component to a given entity. An error will be returned if the entity already has the component.
+`AddComponentTo` adds the component to a given entity. An error will be returned if the entity already has the component.
 
 ```go
-func (c *ComponentType[T]) AddTo(w *World, id EntityID) error
+func AddComponentTo[T metadata.Component](wCtx WorldContext, id entity.ID) error
 ```
 
 #### Example
 
 ```go
+import "pkg.world.dev/world-engine/cardinal"
+
 target := EntityID(40)
-err := HealthComponent.AddTo(w, target)
+err := cardinal.AddComponentTo[Health](worldCtx, target)
 ```
 
 #### Parameters
-| Parameter | Type                 | Description                                      |
-|-----------|----------------------|--------------------------------------------------|
-| `w`       | `*World`             | Pointer to the ECS world object.                 |
-| `id`      | `EntityID`   | Entity ID of the entity to add the component to. |
+| Parameter  | Type             | Description                                                        |
+|------------|------------------|--------------------------------------------------------------------|
+| `T`        | `type parameter` | A registered component struct that implements the Name method      |
+| `worldCtx` | `WorldContext`   | A WorldContext object passed in to your System or Query definition |
+| `id`       | `EntityID`       | Entity ID of the entity to add the component to.                   |
 
 #### Return Value
 

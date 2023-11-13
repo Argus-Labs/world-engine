@@ -9,17 +9,17 @@ The `World` object is the manager of everything happening in the game. It deals 
 package main
 
 import (
-    "log"
-    "time"
+	"log"
+	"time"
 
-    "pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    redisAddr := os.Getenv("REDIS_ADDR")
-    redisPassword := os.Getenv("REDIS_PASSWORD")
+	redisAddr := os.Getenv("REDIS_ADDR")
+	redisPassword := os.Getenv("REDIS_PASSWORD")
 
-    world, err := cardinal.NewWorld(
+	world, err := cardinal.NewWorld(
 		redisAddr,
 		redisPassword,
 		cardinal.WithNamespace("my-world"),
@@ -27,9 +27,9 @@ func main() {
 		cardinal.WithTickInterval(500 * time.Millisecond),
 		cardinal.WithPort("4001"),
 	)
-    if err != nil {
-        log.Fatal(err)
-    }
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 ```
 
@@ -42,10 +42,11 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error)
 ```
 
 ### Parameters
-| Parameter | Type                        | Description                                               |
-|-----------|-----------------------------|-----------------------------------------------------------|
-| s         | storage.WorldStorage       | The storage backend to be used for the world.             |
-| opts      | ...WorldOption                  | Options for configuring the world.  |
+| Parameter | Type            | Description                                      |
+|-----------|-----------------|--------------------------------------------------|
+| addr      | string          | The address of the redis DB to use for storage.  |
+| password  | string          | The password of the redis DB to use for storage. |
+| opts      | ...WorldOption  | Options for configuring the world.               |
 
 ### Return Values
 
@@ -70,7 +71,7 @@ func WithAdapter(adapter shard.Adapter) Option
 
 #### WithReceiptHistorySize
 
-The `WithReceiptHistorySize` option informs the `World` object on how many ticks the `World` should keep receipts for. For example, if we are on tick 40, and have a receipt history size of 5, the `World` will have receipts for ticks 35-39. On tick 41, the `World` will have receipts for ticks 36-40.
+The `WithReceiptHistorySize` option informs the `World` object on how many ticks the `World` should keep receipts for. For example, if we are on tick 40, and have a receipt history size of 5, the `World` will have receipts for ticks 35-39. On tick 41, the `World` will have receipts for ticks 36-40. If this option is not set, a default history size of 10 will be used.
 
 ```go
 func WithReceiptHistorySize(size int) Option
@@ -115,24 +116,24 @@ func WithDisableSignatureVerification() WorldOption
 ```
 This method has no parameters.
 
-#### WithLoopInterval
+#### WithTickChannel
 
-The `WithLoopInterval` sets the tick intervals of the World. If unset, a tick will occur every 1 second.
+The `WithTickChannel` sets the channel that will be used to initiate ticks. If unset, ticks will be executed once every second.
 
 ```go
-func WithLoopInterval(interval time.Duration) WorldOption {
+func WithTickChannel(ch <-chan time.Time) WorldOption
 ```
 
-| Parameter | Type    | Description                                   |
-|-----------|---------|-----------------------------------------------|
-| interval        | time.Duration  | The interval of time for each tick. |
+| Parameter | Type             | Description                                      |
+|-----------|------------------|--------------------------------------------------|
+| ch        | `<-chan time.Time` | The tick channel that will begin each game tick. |
 
 
 ##### Example
 
 ```go
 // option to make ticks happen every 500 milliseconds.
-opt := WithLoopInterval(500 * time.Millisecond)
+opt := WithLoopInterval(time.Tick(500*time.Millisecond))
 ```
 
 ## Methods
@@ -142,7 +143,7 @@ opt := WithLoopInterval(500 * time.Millisecond)
 `RegisterSystems` registers one or more systems to the `World`. Systems are executed in the order of which they were added to the world.
 
 ```go
-func (w *World) RegisterSystems(s ...System)
+func RegisterSystems(w *World, s ...System)
 ```
 
 #### Example
@@ -151,17 +152,18 @@ func (w *World) RegisterSystems(s ...System)
 package main
 
 import (
-    "github.com/my-username/my-world-engine-project/systems"
+	"github.com/my-username/my-world-engine-project/systems"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
 	// Systems will run in order in which they are added:
 	// 1. MoveSystem
 	// 2. HealthRegenSystem
 	// 3. AttackSystem
-    world.RegisterSystems(systems.MoveSystem, systems.HealthRegenSystem, systems.AttackSystem)
+	cardinal.RegisterSystems(world, systems.MoveSystem, systems.HealthRegenSystem, systems.AttackSystem)
 }
 ```
 
@@ -169,8 +171,8 @@ func main() {
 
 | Parameter | Type         | Description                                             |
 |-----------|--------------|---------------------------------------------------------|
+| world     | *World       | A pointer to a World instance.  |
 | s         | ...System    | Variadic parameter for systems to be added to the World. |
-
 
 ### RegisterComponents
 
@@ -183,7 +185,7 @@ func main() {
 
 
 ```go
-func (w *World) RegisterComponents(components ...AnyComponentType) error
+func RegisterComponent[T metadata.Component](world *World) error
 ```
 #### Example
 
@@ -191,23 +193,33 @@ func (w *World) RegisterComponents(components ...AnyComponentType) error
 package main
 
 import (
-"log"
-"github.com/my-username/my-world-engine-project/component"
-"pkg.world.dev/world-engine/cardinal/ecs"
+	"log"
+	"github.com/my-username/my-world-engine-project/component"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
-	err := ecs.RegisterComponent[LocationComponet](world)
+	err := cardinal.RegisterComponent[LocationComponet](world)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ecs.RegisterComponent[AttackPowerComponent](world)
+	err = cardinal.RegisterComponent[AttackPowerComponent](world)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = ecs.RegisterComponent[HealthComponent](world)
+	err = cardinal.RegisterComponent[HealthComponent](world)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Alternative RegisterComponent pattern with less error checking:
+	err = errors.Join(
+		cardinal.RegisterComponent[LocationComponet](world),
+		cardinal.RegisterComponent[AttackPowerComponent](world),
+		cardinal.RegisterComponent[HealthComponent](world),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -216,14 +228,15 @@ func main() {
 
 #### Parameters
 
-| Parameter    | Type                    | Description                                                    |
-|--------------|-------------------------|----------------------------------------------------------------|
-| components   | ...AnyComponentType | Variadic parameter for components to be registered with the World. |
+| Parameter    | Type               | Description                                         |
+|--------------|--------------------|-----------------------------------------------------|
+| `T`          | `type parameter`   | A component struct that implements the Name method. |
+| world        | *World             | A pointer to a World instance.                      |
 
 #### Return Value
 
-| Type | Description                                                                  |
-|-------------|------------------------------------------------------------------------------|
+| Type        | Description                                                                     |
+|-------------|---------------------------------------------------------------------------------|
 | error       | An error indicating any issues that occurred during the component registration. |
 
 
@@ -232,23 +245,25 @@ func main() {
 `RegisterQueries` registers the queries in the `World`. This allows the `Query` endpoints to be automatically generated.
 
 ```go
-func (w *World) RegisterQueries(queries ...AnyQueryType) error
+func RegisterQueries(w *World, queries ...AnyQueryType) error
 ```
+
 #### Example
 
 ```go
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/my-username/my-world-engine-project/query"
+	"github.com/my-username/my-world-engine-project/query"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
-    err := world.RegisterQueries(
+	err := cardinal.RegisterQueries(world,
 		query.QueryLocation,
 		query.QueryHealth,
 		query.QueryAttackPower,
@@ -261,6 +276,7 @@ func main() {
 #### Parameters
 | Parameter      | Type            | Description                                                    |
 |----------------|-----------------|----------------------------------------------------------------|
+| world          | *World          | A pointer to a World instance.                                 |
 | queries        | ...AnyQueryType | Variadic parameter for IQuery instances to be registered.      |
 
 
@@ -278,7 +294,7 @@ func main() {
 </Callout>
 
 ```go
-func (w *World) RegisterMessages(msgs ...AnyMessage) error
+func RegisterMessages(w *World, msgs ...AnyMessage) error
 ```
 
 #### Example
@@ -286,15 +302,16 @@ func (w *World) RegisterMessages(msgs ...AnyMessage) error
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/my-username/my-world-engine-project/msg"
+	"github.com/my-username/my-world-engine-project/msg"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
-    err := world.RegisterMessages(
+	err := cardinal.RegisterMessages(world,
 		msg.Move,
 		msg.Attack,
 	)
@@ -307,6 +324,7 @@ func main() {
 #### Parameters
 | Parameter        | Type                | Description                                                    |
 |------------------|---------------------|----------------------------------------------------------------|
+| world            | *World              | A pointer to a World instance.                                  |
 | msgs              | ...AnyMessage                 | Variadic parameter for Message instances to be registered. |
 
 #### Return Value
@@ -320,7 +338,7 @@ func main() {
 `CreateMany` creates a specified amount of entities with a specified set of components.
 
 ```go
-func (w *World) CreateMany(num int, components ...AnyComponentType) ([]EntityID, error)
+func CreateMany(wCtx WorldContext, num int, components ...metadata.Component) ([]EntityID, error)
 ```
 
 #### Example
@@ -328,19 +346,20 @@ func (w *World) CreateMany(num int, components ...AnyComponentType) ([]EntityID,
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/my-username/my-world-engine-project/components"
+	"github.com/my-username/my-world-engine-project/components"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
 	// create 10 entities with the location and health component.
-    entityIDs, err := world.CreateMany(
+	entityIDs, err := cardinal.CreateMany(worldCtx,
 		10,
-		components.LocationComponent,
-		components.HealthComponent,
+		components.Location{},
+		components.Health{},
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -350,16 +369,17 @@ func main() {
 
 #### Parameters
 
-| Parameter    | Type                | Description                                                                                               |
-|--------------|---------------------|-----------------------------------------------------------------------------------------------------------|
-| num          | int                 | The number of entities to create.                                                                        |
-| components   | ...AnyComponentType | Variadic parameter for components to associate with the created entities.                             |
+| Parameter    | Type                  | Description                                                                |
+|--------------|-----------------------|----------------------------------------------------------------------------|
+| worldCtx     | WorldContext          | A WorldContext object passed in to your System.                            |
+| num          | int                   | The number of entities to create.                                          |
+| components   | ...metadata.Component | Variadic parameter for components to associate with the created entities.  |
 
 #### Return Values
 
-| Type             | Description                                                                   |
-|------------------|-------------------------------------------------------------------------------|
-| []EntityID | A slice of EntityID representing the IDs of the created entities.    |
+| Type             | Description                                                                |
+|------------------|----------------------------------------------------------------------------|
+| []EntityID       | A slice of EntityID representing the IDs of the created entities.          |
 | error            | An error indicating any issues that occurred during the creation process.  |
 
 ### Create
@@ -367,7 +387,7 @@ func main() {
 `Create` creates a single entity with a given set of components.
 
 ```go
-func (w *World) Create(components ...AnyComponentType) (EntityID, error)
+func Create(wCtx WorldContext, components ...metadata.Component) (EntityID, error)
 ```
 
 #### Example
@@ -375,18 +395,19 @@ func (w *World) Create(components ...AnyComponentType) (EntityID, error)
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/my-username/my-world-engine-project/components"
+	"github.com/my-username/my-world-engine-project/components"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
 	// create an entity with the location and health component.
-    entityID, err := world.Create(
-		components.LocationComponent,
-		components.HealthComponent,
+	entityID, err := cardinal.Create(worldCtx
+		components.Location{},
+		components.Health{},
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -395,16 +416,17 @@ func main() {
 ```
 
 #### Parameters
-| Parameter    | Type                | Description                                                                                               |
-|--------------|---------------------|-----------------------------------------------------------------------------------------------------------|
-| components   | ...AnyComponentType | Variadic parameter for components to associate with the created entity.                               |
+| Parameter    | Type                  | Description                                                                |
+|--------------|-----------------------|----------------------------------------------------------------------------|
+| worldCtx     | WorldContext          | A WorldContext object passed in to your System.                            |
+| components   | ...metadata.Component | Variadic parameter for components to associate with the created entity.    |
 
 
 #### Return Values
-| Type             | Description                                                                   |
-|------------------|-------------------------------------------------------------------------------|
+| Type     | Description                                                                   |
+|----------|-------------------------------------------------------------------------------|
 | EntityID | The ID of the created entity.                                                 |
-| error            | An error indicating any issues that occurred during the creation process.  |
+| error    | An error indicating any issues that occurred during the creation process.     |
 
 
 ### Remove
@@ -412,7 +434,7 @@ func main() {
 `Remove` removes a given entity from the `World`.
 
 ```go
-func (w *World) Remove(id entity.ID) error
+func Remove(wCtx WorldContext, id EntityID) error
 ```
 
 #### Example
@@ -420,26 +442,27 @@ func (w *World) Remove(id entity.ID) error
 package main
 
 import (
-    "log"
+	"log"
 
-    "github.com/my-username/my-world-engine-project/components"
+	"github.com/my-username/my-world-engine-project/components"
+	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {
-    // ... world setup ...
+	// ... world setup ...
 
 	// create an entity with the location and health component.
-    entityID, err := world.Create(
-		components.LocationComponent,
-		components.HealthComponent,
+	entityID, err := cardinal.Create(worldCtx,
+		components.Location{},
+		components.Health{},
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	// remove the entity we just created
-	err = world.Remove(entityID)
-		if err != nil {
+	err = cardinal.Remove(worldCtx, entityID)
+	if err != nil {
 		log.Fatal(err)
 	}
 }
@@ -448,13 +471,14 @@ func main() {
 #### Parameters
 | Parameter    | Type                   | Description                                      |
 |--------------|------------------------|--------------------------------------------------|
-| id           | entity.ID              | The entity ID to be removed from the world.     |
+| worldCtx     | WorldContext           | A WorldContext object passed in to your System.  |
+| id           | entity.ID              | The entity ID to be removed from the world.      |
 
 
 #### Return Value
-| Type   | Description                                                                                   |
-|--------|-----------------------------------------------------------------------------------------------|
-| error  | An error indicating any issues that occurred during the removal process.                   |
+| Type   | Description                                                               |
+|--------|---------------------------------------------------------------------------|
+| error  | An error indicating any issues that occurred during the removal process.  |
 
 ### StartGame
 
@@ -465,6 +489,6 @@ func (w *World) StartGame() error
 ```
 
 #### Return Value
-| Type   | Description                                                                                   |
-|--------|-----------------------------------------------------------------------------------------------|
-| error  | An error indicating any issues when starting the game.                   |
+| Type   | Description                                              |
+|--------|----------------------------------------------------------|
+| error  | An error indicating any issues when starting the game.   |

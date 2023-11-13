@@ -40,26 +40,26 @@ func NewMessageTypeWithEVMSupport[Input, Result any](name string) *MessageType[I
 
 // AddToQueue is not meant to be used in production whatsoever, it is exposed here for usage in tests.
 func (t *MessageType[Input, Result]) AddToQueue(world *World, data Input, sigs ...*sign.Transaction) TxHash {
-	txHash := t.impl.AddToQueue(world.implWorld, data, sigs...)
+	txHash := t.impl.AddToQueue(world.instance, data, sigs...)
 	return txHash
 }
 
 // AddError adds the given error to the transaction identified by the given hash. Multiple errors can be
 // added to the same message hash.
 func (t *MessageType[Input, Result]) AddError(wCtx WorldContext, hash TxHash, err error) {
-	t.impl.AddError(wCtx.getECSWorldContext(), hash, err)
+	t.impl.AddError(wCtx.Instance(), hash, err)
 }
 
 // SetResult sets the result of the message identified by the given hash. Only one result may be associated
 // with a message hash, so calling this multiple times will clobber previously set results.
 func (t *MessageType[Input, Result]) SetResult(wCtx WorldContext, hash TxHash, result Result) {
-	t.impl.SetResult(wCtx.getECSWorldContext(), hash, result)
+	t.impl.SetResult(wCtx.Instance(), hash, result)
 }
 
 // GetReceipt returns the result (if any) and errors (if any) associated with the given hash. If false is returned,
 // the hash is not recognized, so the returned result and errors will be empty.
 func (t *MessageType[Input, Result]) GetReceipt(wCtx WorldContext, hash TxHash) (Result, []error, bool) {
-	return t.impl.GetReceipt(wCtx.getECSWorldContext(), hash)
+	return t.impl.GetReceipt(wCtx.Instance(), hash)
 }
 
 func (t *MessageType[Input, Result]) ForEach(wCtx WorldContext, fn func(TxData[Input]) (Result, error)) {
@@ -67,12 +67,12 @@ func (t *MessageType[Input, Result]) ForEach(wCtx WorldContext, fn func(TxData[I
 		adaptedTx := TxData[Input]{impl: ecsTxData}
 		return fn(adaptedTx)
 	}
-	t.impl.ForEach(wCtx.getECSWorldContext(), adapterFn)
+	t.impl.ForEach(wCtx.Instance(), adapterFn)
 }
 
 // In returns the TxData in the given transaction queue that match this message's type.
 func (t *MessageType[Input, Result]) In(wCtx WorldContext) []TxData[Input] {
-	ecsTxData := t.impl.In(wCtx.getECSWorldContext())
+	ecsTxData := t.impl.In(wCtx.Instance())
 	out := make([]TxData[Input], 0, len(ecsTxData))
 	for _, tx := range ecsTxData {
 		out = append(out, TxData[Input]{

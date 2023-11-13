@@ -1,7 +1,10 @@
-package evm
+package evm_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/evm"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"testing"
 	"time"
@@ -29,7 +32,7 @@ type TxReply struct{}
 // the world, and executed in systems.
 func TestServer_SendMessage(t *testing.T) {
 	// setup the world
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 
 	// create the ECS transactions
 	fooTx := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
@@ -93,7 +96,7 @@ func TestServer_SendMessage(t *testing.T) {
 	tickStartCh <- time.Now()
 	<-tickDoneCh
 
-	server, err := NewServer(w)
+	server, err := evm.NewServer(w)
 	assert.NilError(t, err)
 
 	txSequenceDone := make(chan struct{})
@@ -147,18 +150,21 @@ func TestServer_Query(t *testing.T) {
 		Y uint64
 	}
 	// set up a query that simply returns the FooReq.X
-	query := ecs.NewQueryType[FooReq, FooReply]("foo", func(wCtx ecs.WorldContext, req FooReq) (FooReply, error) {
-		return FooReply{Y: req.X}, nil
-	}, ecs.WithQueryEVMSupport[FooReq, FooReply])
-	w := ecs.NewTestWorld(t)
-	err := w.RegisterQueries(query)
+	handleFooQuery := func(wCtx cardinal.WorldContext, req *FooReq) (*FooReply, error) {
+		return &FooReply{Y: req.X}, nil
+	}
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+	err := cardinal.RegisterQueryWithEVMSupport[FooReq, FooReply](w, "foo", handleFooQuery)
 	assert.NilError(t, err)
-	err = w.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("nothing"))
+	err = world.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("nothing"))
 	assert.NilError(t, err)
-	s, err := NewServer(w)
+	s, err := evm.NewServer(world)
 	assert.NilError(t, err)
 
 	request := FooReq{X: 3000}
+	query, err := world.GetQueryByName("foo")
+	assert.NilError(t, err)
 	bz, err := query.EncodeAsABI(request)
 	assert.NilError(t, err)
 
@@ -180,7 +186,7 @@ func TestServer_Query(t *testing.T) {
 // Authorized address for the sender, an error occurs.
 func TestServer_UnauthorizedAddress(t *testing.T) {
 	// setup the world
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 
 	// create the ECS transactions
 	fooTxType := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
@@ -193,7 +199,7 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 
 	assert.NilError(t, w.LoadGameState())
 
-	server, err := NewServer(w)
+	server, err := evm.NewServer(w)
 	assert.NilError(t, err)
 
 	fooTxBz, err := fooTxType.ABIEncode(fooTx)
@@ -206,6 +212,6 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 		Message:   fooTxBz,
 		MessageId: fooTxType.Name(),
 	})
-	assert.Equal(t, res.Code, uint32(CodeUnauthorized))
+	assert.Equal(t, res.Code, uint32(evm.CodeUnauthorized))
 	assert.Check(t, strings.Contains(res.Errs, "failed to authorize"))
 }

@@ -52,9 +52,10 @@ type World struct {
 	systemNames            []string
 	tick                   uint64
 	nameToComponent        map[string]metadata.ComponentMetadata
+	nameToQuery            map[string]Query
 	registeredComponents   []metadata.ComponentMetadata
 	registeredMessages     []message.Message
-	registeredQueries      []IQuery
+	registeredQueries      []Query
 	isComponentsRegistered bool
 	isEntitiesCreated      bool
 	isMessagesRegistered   bool
@@ -85,10 +86,12 @@ type World struct {
 }
 
 var (
-	ErrMessageRegistrationMustHappenOnce = errors.New("message registration must happen exactly 1 time")
-	ErrStoreStateInvalid                 = errors.New("saved world state is not valid")
-	ErrDuplicateMessageName              = errors.New("message names must be unique")
-	ErrDuplicateQueryName                = errors.New("query names must be unique")
+	ErrMessageRegistrationMustHappenOnce = errors.New(
+		"message registration must happen exactly 1 time",
+	)
+	ErrStoreStateInvalid    = errors.New("saved world state is not valid")
+	ErrDuplicateMessageName = errors.New("message names must be unique")
+	ErrDuplicateQueryName   = errors.New("query names must be unique")
 )
 
 const (
@@ -209,25 +212,44 @@ func MustRegisterComponent[T metadata.Component](world *World) {
 func (w *World) GetComponentByName(name string) (metadata.ComponentMetadata, error) {
 	componentType, exists := w.nameToComponent[name]
 	if !exists {
-		return nil, fmt.Errorf("component with name %s not found. Must register component before using", name)
+		return nil, fmt.Errorf(
+			"component with name %s not found. Must register component before using",
+			name,
+		)
 	}
 	return componentType, nil
 }
 
-func (w *World) RegisterQueries(queries ...IQuery) error {
-	if w.stateIsLoaded {
+func RegisterQuery[Request any, Reply any](
+	world *World,
+	name string,
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+	opts ...func() func(queryType *QueryType[Request, Reply]),
+) error {
+	if world.stateIsLoaded {
 		panic("cannot register queries after loading game state")
 	}
-	w.registeredQueries = append(w.registeredQueries, queries...)
-	seenQueryNames := map[string]struct{}{}
-	for _, t := range w.registeredQueries {
-		name := t.Name()
-		if _, ok := seenQueryNames[name]; ok {
-			return fmt.Errorf("duplicate query %q: %w", name, ErrDuplicateQueryName)
-		}
-		seenQueryNames[name] = struct{}{}
+
+	if _, ok := world.nameToQuery[name]; ok {
+		return fmt.Errorf("query with name %s is already registered", name)
 	}
+
+	q, err := NewQueryType[Request, Reply](name, handler, opts...)
+	if err != nil {
+		return err
+	}
+
+	world.registeredQueries = append(world.registeredQueries, q)
+	world.nameToQuery[q.Name()] = q
+
 	return nil
+}
+
+func (w *World) GetQueryByName(name string) (Query, error) {
+	if q, ok := w.nameToQuery[name]; ok {
+		return q, nil
+	}
+	return nil, fmt.Errorf("query with name %s not found", name)
 }
 
 func (w *World) RegisterMessages(txs ...message.Message) error {
@@ -264,7 +286,7 @@ func (w *World) registerInternalMessages() {
 	)
 }
 
-func (w *World) ListQueries() []IQuery {
+func (w *World) ListQueries() []Query {
 	return w.registeredQueries
 }
 
@@ -276,7 +298,12 @@ func (w *World) ListMessages() ([]message.Message, error) {
 }
 
 // NewWorld creates a new world.
-func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts ...Option) (*World, error) {
+func NewWorld(
+	nonceStore storage.NonceStorage,
+	entityStore store.IManager,
+	namespace Namespace,
+	opts ...Option,
+) (*World, error) {
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}
@@ -284,11 +311,12 @@ func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts 
 	w := &World{
 		nonceStore:        nonceStore,
 		entityStore:       entityStore,
-		namespace:         "world",
+		namespace:         namespace,
 		tick:              0,
 		systems:           make([]System, 0),
 		initSystem:        func(_ WorldContext) error { return nil },
 		nameToComponent:   make(map[string]metadata.ComponentMetadata),
+		nameToQuery:       make(map[string]Query),
 		txQueue:           message.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
@@ -348,7 +376,12 @@ func (w *World) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) 
 	return tick, txHash
 }
 
-func (w *World) AddEVMTransaction(id message.TypeID, v any, sig *sign.Transaction, evmTxHash string) (
+func (w *World) AddEVMTransaction(
+	id message.TypeID,
+	v any,
+	sig *sign.Transaction,
+	evmTxHash string,
+) (
 	tick uint64, txHash message.TxHash,
 ) {
 	tick = w.CurrentTick()
@@ -367,7 +400,8 @@ func (w *World) Tick(_ context.Context) error {
 	nameOfCurrentRunningSystem := nullSystemName
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
-			w.Logger.Error().Msgf("Tick: %d, Current running system: %s", w.tick, nameOfCurrentRunningSystem)
+			w.Logger.Error().
+				Msgf("Tick: %d, Current running system: %s", w.tick, nameOfCurrentRunningSystem)
 			panic(panicValue)
 		}
 	}()
@@ -458,7 +492,11 @@ func (w *World) setEvmResults(txs []message.TxData) {
 	}
 }
 
-func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
+func (w *World) StartGameLoop(
+	ctx context.Context,
+	tickStart <-chan time.Time,
+	tickDone chan<- uint64,
+) {
 	w.Logger.Info().Msg("Game loop started")
 	w.Logger.LogWorld(w, zerolog.InfoLevel)
 	//todo: add links to docs related to each warning
@@ -625,8 +663,10 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			"be sure to use the `WithAdapter` option when creating the world")
 	}
 	if w.CurrentTick() > 0 {
-		return fmt.Errorf("world recovery should not occur in a world with existing state. please verify all " +
-			"state has been cleared before running recovery")
+		return fmt.Errorf(
+			"world recovery should not occur in a world with existing state. please verify all " +
+				"state has been cleared before running recovery",
+		)
 	}
 
 	w.isRecovering = true
@@ -649,7 +689,11 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			target := tickedTxs.Epoch
 			// tick up to target
 			if target < w.CurrentTick() {
-				return fmt.Errorf("got tx for tick %d, but world is at tick %d", target, w.CurrentTick())
+				return fmt.Errorf(
+					"got tx for tick %d, but world is at tick %d",
+					target,
+					w.CurrentTick(),
+				)
 			}
 			for current := w.CurrentTick(); current != target; {
 				if err = w.Tick(ctx); err != nil {

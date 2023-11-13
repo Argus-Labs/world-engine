@@ -6,10 +6,6 @@ While the Nakama console is helpful with testing, debugging, and managing your b
 
 [Nakama has several different client libraries](https://heroiclabs.com/docs/nakama/client-libraries/) that can be used to communicate with a Nakama instance.
 
-## Simple JS Client
-
-The [starter-game-template has a simple node JS client](https://github.com/Argus-Labs/starter-game-template/tree/main/.jsclient) that simply joins the global receipt-broadcasting match and prints those receipts directly to the standard output.
-
 ## Account Creation
 
 While `AuthenticateDevice` is the easiest way to connect to Nakama for testing, other authentication methods are supported. [See the Nakama authentication documentation](https://heroiclabs.com/docs/nakama/concepts/authentication/) for more options.
@@ -23,13 +19,3 @@ A game client must use the `/nakama/create-persona` endpoint to claim a Persona 
 ```
 
 Verify the claim Persona Tag request was successful with the `nakama/show-persona` endpoint. Look for the field `"status":"accepted"` in the body the request was successful.
-
-## Streaming Transaction Receipts
-
-Receipts can be streamed to the client by listening to broadcasted match messages. To join a match, a client must:
-
-1) [List available matches](https://heroiclabs.com/docs/nakama/client-libraries/unity/#listing-matches)
-2) [Join the match](https://heroiclabs.com/docs/nakama/client-libraries/unity/#joining-matches)
-3) [Handle received match state events](https://heroiclabs.com/docs/nakama/client-libraries/unity/#receiving-match-state)
-
-It's not possible to join matches directly from the Nakama console; the [JS client in the starter-game-template](https://github.com/Argus-Labs/starter-game-template/tree/main/.jsclient) will join the global match and then emit receipts as they come in.

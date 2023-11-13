@@ -14,14 +14,6 @@ func toMessageType(ins []AnyMessage) []message.Message {
 	return out
 }
 
-func toIQueryType(ins []AnyQueryType) []ecs.IQuery {
-	out := make([]ecs.IQuery, 0, len(ins))
-	for _, r := range ins {
-		out = append(out, r.Convert())
-	}
-	return out
-}
-
 // separateOptions separates the given options into ecs options, server options, and cardinal (this package) options.
 // The different options are all grouped together to simplify the end user's experience, but under the hood different
 // options are meant for different sub-systems.

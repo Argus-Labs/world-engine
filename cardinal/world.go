@@ -30,7 +30,7 @@ import (
 var ErrEntitiesCreatedBeforeStartGame = errors.New("entities should not be created before start game")
 
 type World struct {
-	implWorld       *ecs.World
+	instance        *ecs.World
 	server          *server.Handler
 	evmServer       evm.Server
 	gameManager     *server.GameManager
@@ -56,38 +56,57 @@ type (
 )
 
 // NewWorld creates a new World object using Redis as the storage layer.
-func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
+func NewWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
-	log.Info().Msg("Running in normal mode, using external Redis")
-	if addr == "" {
-		return nil, errors.New("redis address is required")
-	}
-	if password == "" {
-		log.Info().Msg("Redis password is not set, make sure to set up redis with password in prod")
+
+	// Load config. Fallback value is used if it's not set.
+	cfg := GetWorldConfig()
+
+	// Sane default options
+	serverOptions = append(serverOptions, server.WithCORS())
+
+	if cfg.CardinalMode == ModeProd {
+		log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
+		if cfg.RedisPassword == DefaultRedisPassword {
+			return nil, errors.New("redis password is required in production")
+		}
+		if cfg.CardinalNamespace == DefaultNamespace {
+			return nil, errors.New(
+				"cardinal namespace can't be the default value in production to avoid replay attack",
+			)
+		}
+	} else {
+		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
+		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 	}
 
 	redisStore := storage.NewRedisStorage(storage.Options{
-		Addr:     addr,
-		Password: password, // make sure to set this in prod
-		DB:       0,        // use default DB
-	}, "world")
-	log.Info().Msgf("redis address: %s", addr)
+		Addr:     cfg.RedisAddress,
+		Password: cfg.RedisPassword,
+		DB:       0, // use default DB
+	}, cfg.CardinalNamespace)
 	storeManager, err := ecb.NewManager(redisStore.Client)
 	if err != nil {
 		return nil, err
 	}
 
-	ecsWorld, err := ecs.NewWorld(&redisStore, storeManager, ecsOptions...)
+	ecsWorld, err := ecs.NewWorld(
+		&redisStore,
+		storeManager,
+		ecs.Namespace(cfg.CardinalNamespace),
+		ecsOptions...)
 	if err != nil {
 		return nil, err
 	}
 
 	world := &World{
-		implWorld:     ecsWorld,
+		instance:      ecsWorld,
 		serverOptions: serverOptions,
 		endStartGame:  make(chan bool),
 	}
 	world.isGameRunning.Store(false)
+
+	// Apply options
 	for _, opt := range cardinalOptions {
 		opt(world)
 	}
@@ -95,22 +114,12 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	return world, nil
 }
 
-// NewMockWorld creates a World that uses an in-memory redis DB as the storage layer.
-// This is only suitable for local development.
+// NewMockWorld creates a World object that uses miniredis as the storage layer suitable for local development.
+// If you are creating a World for unit tests, use NewTestWorld.
 func NewMockWorld(opts ...WorldOption) (*World, error) {
-	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
-	eventHub := events.CreateWebSocketEventHub()
-	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
-	implWorld, mockWorldCleanup := ecs.NewMockWorld(ecsOptions...)
-	world := &World{
-		implWorld:     implWorld,
-		serverOptions: serverOptions,
-		cleanup:       mockWorldCleanup,
-		endStartGame:  make(chan bool),
-	}
-	world.isGameRunning.Store(false)
-	for _, opt := range cardinalOptions {
-		opt(world)
+	world, err := NewWorld(append(opts, withMockRedis())...)
+	if err != nil {
+		return world, err
 	}
 	return world, nil
 }
@@ -118,43 +127,43 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
 func CreateMany(wCtx WorldContext, num int, components ...metadata.Component) ([]EntityID, error) {
-	return component.CreateMany(wCtx.getECSWorldContext(), num, components...)
+	return component.CreateMany(wCtx.Instance(), num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
 func Create(wCtx WorldContext, components ...metadata.Component) (EntityID, error) {
-	return component.Create(wCtx.getECSWorldContext(), components...)
+	return component.Create(wCtx.Instance(), components...)
 }
 
 // SetComponent Set sets component data to the entity.
 func SetComponent[T metadata.Component](wCtx WorldContext, id entity.ID, comp *T) error {
-	return component.SetComponent[T](wCtx.getECSWorldContext(), id, comp)
+	return component.SetComponent[T](wCtx.Instance(), id, comp)
 }
 
 // GetComponent Get returns component data from the entity.
 func GetComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (*T, error) {
-	return component.GetComponent[T](wCtx.getECSWorldContext(), id)
+	return component.GetComponent[T](wCtx.Instance(), id)
 }
 
 // UpdateComponent Updates a component on an entity.
 func UpdateComponent[T metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
-	return component.UpdateComponent[T](wCtx.getECSWorldContext(), id, fn)
+	return component.UpdateComponent[T](wCtx.Instance(), id, fn)
 }
 
 // AddComponentTo Adds a component on an entity.
 func AddComponentTo[T metadata.Component](wCtx WorldContext, id entity.ID) error {
-	return component.AddComponentTo[T](wCtx.getECSWorldContext(), id)
+	return component.AddComponentTo[T](wCtx.Instance(), id)
 }
 
 // RemoveComponentFrom Removes a component from an entity.
 func RemoveComponentFrom[T metadata.Component](wCtx WorldContext, id entity.ID) error {
-	return component.RemoveComponentFrom[T](wCtx.getECSWorldContext(), id)
+	return component.RemoveComponentFrom[T](wCtx.Instance(), id)
 }
 
 // Remove removes the given entity id from the world.
 func Remove(wCtx WorldContext, id EntityID) error {
-	return wCtx.getECSWorldContext().GetWorld().Remove(id)
+	return wCtx.Instance().GetWorld().Remove(id)
 }
 
 func (w *World) handleShutdown() {
@@ -183,29 +192,33 @@ func (w *World) StartGame() error {
 		return errors.New("game already running")
 	}
 
-	if err := w.implWorld.LoadGameState(); err != nil {
+	if err := w.instance.LoadGameState(); err != nil {
 		if errors.Is(err, ecs.ErrEntitiesCreatedBeforeLoadingGameState) {
 			return ErrEntitiesCreatedBeforeStartGame
 		}
 		return err
 	}
 	eventHub := events.CreateWebSocketEventHub()
-	w.implWorld.SetEventHub(eventHub)
-	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
-	handler, err := server.NewHandler(w.implWorld, eventBuilder, w.serverOptions...)
+	w.instance.SetEventHub(eventHub)
+	eventBuilder := events.CreateNewWebSocketBuilder(
+		"/events",
+		events.CreateWebSocketEventHandler(eventHub),
+	)
+	handler, err := server.NewHandler(w.instance, eventBuilder, w.serverOptions...)
 	if err != nil {
 		return err
 	}
 	w.server = handler
 
-	w.evmServer, err = evm.NewServer(w.implWorld)
+	w.evmServer, err = evm.NewServer(w.instance)
 	if err != nil {
 		if !errors.Is(err, evm.ErrNoEVMTypes) {
 			return err
 		}
-		w.implWorld.Logger.Debug().Msg("no EVM messages or queries specified. EVM server will not run")
+		w.instance.Logger.Debug().
+			Msg("no EVM messages or queries specified. EVM server will not run")
 	} else {
-		w.implWorld.Logger.Debug().Msg("running world with EVM server")
+		w.instance.Logger.Debug().Msg("running world with EVM server")
 		err = w.evmServer.Serve()
 		if err != nil {
 			return err
@@ -215,8 +228,8 @@ func (w *World) StartGame() error {
 	if w.tickChannel == nil {
 		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
-	w.implWorld.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
-	gameManager := server.NewGameManager(w.implWorld, w.server)
+	w.instance.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
+	gameManager := server.NewGameManager(w.instance, w.server)
 	w.gameManager = &gameManager
 	go func() {
 		w.isGameRunning.Store(true)
@@ -259,9 +272,9 @@ func RegisterSystems(w *World, systems ...System) error {
 	for _, system := range systems {
 		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
 		sys := system
-		w.implWorld.RegisterSystemWithName(func(wCtx ecs.WorldContext) error {
+		w.instance.RegisterSystemWithName(func(wCtx ecs.WorldContext) error {
 			return sys(&worldContext{
-				implContext: wCtx,
+				instance: wCtx,
 			})
 		}, functionName)
 	}
@@ -269,32 +282,72 @@ func RegisterSystems(w *World, systems ...System) error {
 }
 
 func RegisterComponent[T metadata.Component](world *World) error {
-	return ecs.RegisterComponent[T](world.implWorld)
+	return ecs.RegisterComponent[T](world.instance)
 }
 
 // RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
 // messages will automatically be created when StartGame is called. This Register method must only be called once.
 func RegisterMessages(w *World, msgs ...AnyMessage) error {
-	return w.implWorld.RegisterMessages(toMessageType(msgs)...)
+	return w.instance.RegisterMessages(toMessageType(msgs)...)
 }
 
-// RegisterQueries adds the given query capabilities to the game world. HTTP endpoints to use these queries
+// RegisterQuery adds the given query to the game world. HTTP endpoints to use these queries
+// will automatically be created when StartGame is called. This function does not add EVM support to the query.
+func RegisterQuery[Request any, Reply any](
+	world *World,
+	name string,
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+) error {
+	err := ecs.RegisterQuery[Request, Reply](
+		world.instance,
+		name,
+		func(wCtx ecs.WorldContext, req *Request) (*Reply, error) {
+			return handler(&worldContext{instance: wCtx}, req)
+		},
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// RegisterQueryWithEVMSupport adds the given query to the game world. HTTP endpoints to use these queries
 // will automatically be created when StartGame is called. This Register method must only be called once.
-func RegisterQueries(w *World, queries ...AnyQueryType) error {
-	return w.implWorld.RegisterQueries(toIQueryType(queries)...)
+// This function also adds EVM support to the query.
+func RegisterQueryWithEVMSupport[Request any, Reply any](
+	world *World,
+	name string,
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+) error {
+	err := ecs.RegisterQuery[Request, Reply](
+		world.instance,
+		name,
+		func(wCtx ecs.WorldContext, req *Request) (*Reply, error) {
+			return handler(&worldContext{instance: wCtx}, req)
+		},
+		ecs.WithQueryEVMSupport[Request, Reply],
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *World) Instance() *ecs.World {
+	return w.instance
 }
 
 func (w *World) CurrentTick() uint64 {
-	return w.implWorld.CurrentTick()
+	return w.instance.CurrentTick()
 }
 
 func (w *World) Tick(ctx context.Context) error {
-	return w.implWorld.Tick(ctx)
+	return w.instance.Tick(ctx)
 }
 
 // Init Registers a system that only runs once on a new game before tick 0.
 func (w *World) Init(system System) {
-	w.implWorld.AddInitSystem(func(ecsWctx ecs.WorldContext) error {
-		return system(&worldContext{implContext: ecsWctx})
+	w.instance.AddInitSystem(func(ecsWctx ecs.WorldContext) error {
+		return system(&worldContext{instance: ecsWctx})
 	})
 }
