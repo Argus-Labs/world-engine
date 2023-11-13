@@ -2,7 +2,7 @@ name: Lint
 
 on:
   pull_request:
-    types: [opened, edited, reopened]
+    types: [opened, synchronize, edited, reopened]
 
 jobs:
   pr-lint:
