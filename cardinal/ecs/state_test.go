@@ -217,8 +217,6 @@ func TestCanReloadState(t *testing.T) {
 	alphaWorld := testutil.InitWorldWithRedis(t, redisStore)
 	assert.NilError(t, ecs.RegisterComponent[oneAlphaNumComp](alphaWorld))
 
-	_, err := component.CreateMany(ecs.NewWorldContext(alphaWorld), 10, oneAlphaNumComp{})
-	assert.NilError(t, err)
 	oneAlphaNum, err := alphaWorld.GetComponentByName(oneAlphaNumComp{}.Name())
 	assert.NilError(t, err)
 	alphaWorld.AddSystem(func(wCtx ecs.WorldContext) error {
@@ -234,6 +232,8 @@ func TestCanReloadState(t *testing.T) {
 		return nil
 	})
 	assert.NilError(t, alphaWorld.LoadGameState())
+	_, err = component.CreateMany(ecs.NewWorldContext(alphaWorld), 10, oneAlphaNumComp{})
+	assert.NilError(t, err)
 
 	// Start a tick with executes the above system which initializes the number components.
 	assert.NilError(t, alphaWorld.Tick(context.Background()))

@@ -114,13 +114,13 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	oneWorld := testutil.InitWorldWithRedis(t, rs)
 	assert.NilError(t, ecs.RegisterComponent[onePowerComponent](oneWorld))
 
-	id, err := component.Create(ecs.NewWorldContext(oneWorld), onePowerComponent{})
-	assert.NilError(t, err)
-
 	errorSystem := errors.New("3 power? That's too much, man")
 
 	// In this test, our "buggy" system fails once Power reaches 3
 	oneWorld.AddSystem(func(wCtx ecs.WorldContext) error {
+		search, err := wCtx.NewSearch(ecs.Exact(onePowerComponent{}))
+		assert.NilError(t, err)
+		id := search.MustFirst(wCtx)
 		p, err := component.GetComponent[onePowerComponent](wCtx, id)
 		if err != nil {
 			return err
@@ -132,6 +132,8 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 		return component.SetComponent[onePowerComponent](wCtx, id, p)
 	})
 	assert.NilError(t, oneWorld.LoadGameState())
+	id, err := component.Create(ecs.NewWorldContext(oneWorld), onePowerComponent{})
+	assert.NilError(t, err)
 
 	// Power is set to 1
 	assert.NilError(t, oneWorld.Tick(context.Background()))
@@ -249,10 +251,6 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		assert.NilError(t, ecs.RegisterComponent[ScalarComponentToggle](world))
 
 		wCtx := ecs.NewWorldContext(world)
-		if firstWorldIteration {
-			_, err := component.Create(wCtx, ScalarComponentStatic{})
-			assert.NilError(t, err)
-		}
 
 		errorToggleComponent := errors.New("problem with toggle component")
 		world.AddSystem(func(wCtx ecs.WorldContext) error {
@@ -279,6 +277,10 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			return nil
 		})
 		assert.NilError(t, world.LoadGameState())
+		if firstWorldIteration {
+			_, err := component.Create(wCtx, ScalarComponentStatic{})
+			assert.NilError(t, err)
+		}
 		q, err := world.NewSearch(ecs.Contains(ScalarComponentStatic{}))
 		assert.NilError(t, err)
 		id, err := q.First(wCtx)

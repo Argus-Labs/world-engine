@@ -310,13 +310,6 @@ func TestHandleSwaggerServer(t *testing.T) {
 
 	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](w))
 	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](w))
-	alphaCount := 75
-	wCtx := ecs.NewWorldContext(w)
-	_, err := component.CreateMany(wCtx, alphaCount, garbageStructAlpha{})
-	assert.NilError(t, err)
-	bothCount := 100
-	_, err = component.CreateMany(wCtx, bothCount, garbageStructAlpha{}, garbageStructBeta{})
-	assert.NilError(t, err)
 
 	// Queue up a CreatePersona
 	personaTag := "foobar"
@@ -396,6 +389,15 @@ func TestHandleSwaggerServer(t *testing.T) {
 	ctx := context.Background()
 	err = w.LoadGameState()
 	assert.NilError(t, err)
+
+	wCtx := ecs.NewWorldContext(w)
+	alphaCount := 75
+	_, err = component.CreateMany(wCtx, alphaCount, garbageStructAlpha{})
+	assert.NilError(t, err)
+	bothCount := 100
+	_, err = component.CreateMany(wCtx, bothCount, garbageStructAlpha{}, garbageStructBeta{})
+	assert.NilError(t, err)
+
 	err = w.Tick(ctx)
 	assert.NilError(t, err)
 	resp2, err := client.Do(req)

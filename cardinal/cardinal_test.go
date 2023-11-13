@@ -31,10 +31,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 
 	world, doTick := testutils.MakeWorldAndTicker(t, cardinal.WithCORS())
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
-	wantNumOfEntities := 10
-	wCtx := cardinal.TestingWorldToWorldContext(world)
-	_, err := cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
-	assert.NilError(t, err)
+
 	gotNumOfEntities := 0
 	cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
 		q, err := worldCtx.NewSearch(cardinal.Exact(Foo{}))
@@ -46,9 +43,13 @@ func TestCanQueryInsideSystem(t *testing.T) {
 		assert.NilError(t, err)
 		return nil
 	})
-
 	doTick()
-	assert.Equal(t, world.CurrentTick(), uint64(1))
+	wantNumOfEntities := 10
+	wCtx := cardinal.TestingWorldToWorldContext(world)
+	_, err := cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
+	assert.NilError(t, err)
+	doTick()
+	assert.Equal(t, world.CurrentTick(), uint64(2))
 	err = world.ShutDown()
 	assert.Assert(t, err)
 	assert.Equal(t, gotNumOfEntities, wantNumOfEntities)

@@ -102,6 +102,9 @@ func TestWorldLogger(t *testing.T) {
 	assert.NilError(t, err)
 	components := []metadata.ComponentMetadata{energy}
 	wCtx := ecs.NewWorldContext(w)
+	w.AddSystems(testSystemWarningTrigger)
+	err = w.LoadGameState()
+	assert.NilError(t, err)
 	entityID, err := component.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:2]
@@ -142,9 +145,6 @@ func TestWorldLogger(t *testing.T) {
 
 	// create a system for logging.
 	buf.Reset()
-	w.AddSystems(testSystemWarningTrigger)
-	err = w.LoadGameState()
-	assert.NilError(t, err)
 	ctx := context.Background()
 
 	// testing output of logging a tick. Should log the system log and tick start and end strings.

@@ -70,15 +70,14 @@ func TestECS(t *testing.T) {
 	// create a bunch of planets!
 	numPlanets := 5
 	wCtx := ecs.NewWorldContext(world)
-	_, err := component.CreateMany(wCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
-	assert.NilError(t, err)
-
-	numEnergyOnly := 10
-	_, err = component.CreateMany(wCtx, numEnergyOnly, EnergyComponent{})
-	assert.NilError(t, err)
 
 	world.AddSystem(UpdateEnergySystem)
 	assert.NilError(t, world.LoadGameState())
+	numEnergyOnly := 10
+	_, err := component.CreateMany(wCtx, numEnergyOnly, EnergyComponent{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(wCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
+	assert.NilError(t, err)
 
 	assert.NilError(t, world.Tick(context.Background()))
 	query, err := world.NewSearch(ecs.Contains(EnergyComponent{}))
