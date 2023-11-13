@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -13,7 +14,7 @@ import (
 )
 
 func TestForEachTransaction(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	type SomeMsgRequest struct {
 		GenerateError bool
 	}

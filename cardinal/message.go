@@ -40,7 +40,7 @@ func NewMessageTypeWithEVMSupport[Input, Result any](name string) *MessageType[I
 
 // AddToQueue is not meant to be used in production whatsoever, it is exposed here for usage in tests.
 func (t *MessageType[Input, Result]) AddToQueue(world *World, data Input, sigs ...*sign.Transaction) TxHash {
-	txHash := t.impl.AddToQueue(world.implWorld, data, sigs...)
+	txHash := t.impl.AddToQueue(world.instance, data, sigs...)
 	return txHash
 }
 

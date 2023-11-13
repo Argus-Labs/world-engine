@@ -1,6 +1,8 @@
 package ecb_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -290,7 +292,7 @@ func (Power) Name() string {
 func TestStorageCanBeUsedInQueries(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
-	world := ecs.NewTestWorld(t, ecs.WithStoreManager(manager))
+	world := testutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Instance()
 	assert.NilError(t, ecs.RegisterComponent[Health](world))
 	assert.NilError(t, ecs.RegisterComponent[Power](world))
 	assert.NilError(t, world.LoadGameState())

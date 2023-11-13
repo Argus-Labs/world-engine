@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -16,7 +17,7 @@ import (
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	// Verify that the CreatePersona is automatically created and registered with a world.
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, world.LoadGameState())
 
 	wantTag := "CoolMage"
@@ -52,7 +53,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 }
 
 func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, world.LoadGameState())
 	ctx := context.Background()
 
@@ -85,7 +86,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 }
 
 func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, world.LoadGameState())
 
 	personaTag := "jeff"
@@ -123,7 +124,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 func TestCanAuthorizeAddress(t *testing.T) {
 	// Verify that the CreatePersona is automatically created and registered with a world.
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, world.LoadGameState())
 
 	wantTag := "CoolMage"

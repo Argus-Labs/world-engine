@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"pkg.world.dev/world-engine/cardinal"
 	"reflect"
 	"strconv"
 	"testing"
@@ -41,7 +42,7 @@ type SendEnergyTxResult struct{}
 
 func TestHealthEndpoint(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, w.LoadGameState())
 	testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
 	resp, err := http.Get("http://localhost:4040/health")
@@ -80,7 +81,7 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 func TestDebugEndpoint(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(t, ecs.RegisterComponent[Beta](world))
@@ -119,7 +120,7 @@ func TestDebugEndpoint(t *testing.T) {
 func TestShutDownViaMethod(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, w.LoadGameState())
 	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
 	resp, err := http.Get("http://localhost:4040/health")
@@ -142,7 +143,7 @@ func TestShutDownViaMethod(t *testing.T) {
 func TestShutDownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterMessages(sendTx))
 	w.RegisterSystem(func(ecs.WorldContext) error {
@@ -175,7 +176,7 @@ func TestShutDownViaSignal(t *testing.T) {
 }
 
 func TestIfServeSetEnvVarForPort(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, world.RegisterMessages(alphaTx))
 	txh, err := server.NewHandler(world, nil, server.DisableSignatureVerification())
@@ -198,7 +199,7 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 }
 
 func TestCanListTransactionEndpoints(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	betaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("beta")
 	gammaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("gamma")
@@ -243,7 +244,7 @@ func mustReadBody(t *testing.T, resp *http.Response) string {
 func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	endpoint := "move"
 	url := "tx/game/" + endpoint
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterMessages(sendTx))
 	count := 0
@@ -301,7 +302,7 @@ type garbageStructBeta struct {
 func (garbageStructBeta) Name() string { return "beta" }
 
 func TestHandleSwaggerServer(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterMessages(sendTx))
 	w.RegisterSystem(func(ecs.WorldContext) error {
@@ -494,7 +495,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	endpoint := "move"
 	url := fmt.Sprintf("tx/game/%s", endpoint)
 	count := 0
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterMessages(sendTx))
 	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
@@ -538,7 +539,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 
 func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	urlSet := []string{"tx/persona/create-persona", "query/persona/signer"}
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	tx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("some_tx")
 	assert.NilError(t, world.RegisterMessages(tx))
 	assert.NilError(t, world.LoadGameState())
@@ -608,7 +609,8 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 
 func TestSigVerificationChecksNamespace(t *testing.T) {
 	url := "tx/persona/create-persona"
-	world := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
 	assert.NilError(t, world.LoadGameState())
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
@@ -645,7 +647,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 
 func TestSigVerificationChecksNonce(t *testing.T) {
 	url := "tx/persona/create-persona"
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, world.LoadGameState())
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
@@ -698,7 +700,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 
 // TestCanListQueries tests that we can list the available queries in the handler.
 func TestCanListQueries(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	type FooRequest struct {
 		Foo  int    `json:"foo,omitempty"`
 		Meow string `json:"bar,omitempty"`
@@ -769,7 +771,7 @@ func TestQueryEncodeDecode(t *testing.T) {
 
 	url := "query/game/" + endpoint
 	// set up the world, register the queries, load.
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, world.RegisterQueries(fq))
 	assert.NilError(t, world.LoadGameState())
 
@@ -798,7 +800,7 @@ func TestQueryEncodeDecode(t *testing.T) {
 
 func TestMalformedRequestToGetTransactionReceiptsProducesError(t *testing.T) {
 	url := "query/receipts/list"
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, world.LoadGameState())
 	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
 	res := txh.Post(url, map[string]any{
@@ -813,7 +815,8 @@ func TestTransactionReceiptReturnCorrectTickWindows(t *testing.T) {
 	url := "query/receipts/list"
 
 	historySize := uint64(10)
-	world := ecs.NewTestWorld(t, ecs.WithReceiptHistorySize(int(historySize)))
+	world := testutils.NewTestWorld(t, cardinal.WithReceiptHistorySize(int(historySize))).Instance()
+
 	assert.NilError(t, world.LoadGameState())
 	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
 
@@ -905,7 +908,8 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	dupeTx := ecs.NewMessageType[DupeRequest, DupeReply]("duplicate")
 	errTx := ecs.NewMessageType[ErrRequest, ErrReply]("error")
 
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
+
 	assert.NilError(t, world.RegisterMessages(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
 	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
@@ -1028,7 +1032,10 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	swaggerUrls := []string{swaggerCreatePersonURL, "tx/game/move"}
 	urls := swaggerUrls
 	type MoveTx struct{}
-	world := ecs.NewTestWorld(t)
+
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+
 	moveTx := ecs.NewMessageType[MoveTx, MoveTx]("move")
 	assert.NilError(t, world.RegisterMessages(moveTx))
 	assert.NilError(t, world.LoadGameState())
@@ -1114,7 +1121,9 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	type MoveTx struct {
 		Direction string
 	}
-	world := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+
 	moveTx := ecs.NewMessageType[MoveTx, MoveTx]("move")
 	assert.NilError(t, world.RegisterMessages(moveTx))
 	assert.NilError(t, world.LoadGameState())
@@ -1158,7 +1167,9 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 	}
 	holdChan := make(chan bool)
 	adapter := adapterMock{hold: holdChan}
-	world := ecs.NewTestWorld(t, ecs.WithAdapter(&adapter))
+	w := testutils.NewTestWorld(t, cardinal.WithAdapter(&adapter))
+	world := w.Instance()
+
 	go func() {
 		err := world.RecoverFromChain(context.Background())
 		assert.NilError(t, err)
@@ -1188,9 +1199,10 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 }
 
 func TestWebSocket(t *testing.T) {
-	w := ecs.NewTestWorld(t)
-	assert.NilError(t, w.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+	assert.NilError(t, w.Instance().LoadGameState())
+	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
 	url := txh.MakeWebSocketURL("echo")
 	dial, _, err := websocket.DefaultDialer.Dial(url, nil)
 	assert.NilError(t, err)
