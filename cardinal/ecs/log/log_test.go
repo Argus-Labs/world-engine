@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"testing"
 	"time"
@@ -62,7 +63,8 @@ func testSystemWarningTrigger(wCtx ecs.WorldContext) error {
 }
 
 func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
@@ -77,7 +79,11 @@ func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
 }
 
 func TestWorldLogger(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
+
+	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)

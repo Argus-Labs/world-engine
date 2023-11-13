@@ -1,7 +1,9 @@
-package evm
+package evm_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/evm"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"testing"
 	"time"
@@ -29,7 +31,7 @@ type TxReply struct{}
 // the world, and executed in systems.
 func TestServer_SendMessage(t *testing.T) {
 	// setup the world
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 
 	// create the ECS transactions
 	fooTx := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
@@ -93,7 +95,7 @@ func TestServer_SendMessage(t *testing.T) {
 	tickStartCh <- time.Now()
 	<-tickDoneCh
 
-	server, err := NewServer(w)
+	server, err := evm.NewServer(w)
 	assert.NilError(t, err)
 
 	txSequenceDone := make(chan struct{})
@@ -150,12 +152,12 @@ func TestServer_Query(t *testing.T) {
 	query := ecs.NewQueryType[FooReq, FooReply]("foo", func(wCtx ecs.WorldContext, req FooReq) (FooReply, error) {
 		return FooReply{Y: req.X}, nil
 	}, ecs.WithQueryEVMSupport[FooReq, FooReply])
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	err := w.RegisterQueries(query)
 	assert.NilError(t, err)
 	err = w.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("nothing"))
 	assert.NilError(t, err)
-	s, err := NewServer(w)
+	s, err := evm.NewServer(w)
 	assert.NilError(t, err)
 
 	request := FooReq{X: 3000}
@@ -180,7 +182,7 @@ func TestServer_Query(t *testing.T) {
 // Authorized address for the sender, an error occurs.
 func TestServer_UnauthorizedAddress(t *testing.T) {
 	// setup the world
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 
 	// create the ECS transactions
 	fooTxType := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
@@ -193,7 +195,7 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 
 	assert.NilError(t, w.LoadGameState())
 
-	server, err := NewServer(w)
+	server, err := evm.NewServer(w)
 	assert.NilError(t, err)
 
 	fooTxBz, err := fooTxType.ABIEncode(fooTx)
@@ -206,6 +208,6 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 		Message:   fooTxBz,
 		MessageId: fooTxType.Name(),
 	})
-	assert.Equal(t, res.Code, uint32(CodeUnauthorized))
+	assert.Equal(t, res.Code, uint32(evm.CodeUnauthorized))
 	assert.Check(t, strings.Contains(res.Errs, "failed to authorize"))
 }

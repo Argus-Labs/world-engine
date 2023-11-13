@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/rs/zerolog"
+	"pkg.world.dev/world-engine/cardinal"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -29,7 +30,7 @@ func newWorldWithRealRedis(t testing.TB) *ecs.World {
 
 	sm, err := ecb.NewManager(rs.Client)
 	assert.NilError(t, err)
-	world, err := ecs.NewWorld(&rs, sm)
+	world, err := ecs.NewWorld(&rs, sm, cardinal.DefaultNamespace)
 
 	assert.NilError(t, err)
 	return world

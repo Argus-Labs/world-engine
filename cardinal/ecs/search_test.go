@@ -1,6 +1,7 @@
 package ecs_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -19,7 +20,7 @@ func (FooComponent) Name() string {
 }
 
 func TestSearchEarlyTermination(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[FooComponent](world))
 
 	total := 10
