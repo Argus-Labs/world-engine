@@ -2,6 +2,7 @@ package filter_test
 
 import (
 	"fmt"
+	"github.com/rs/zerolog"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -259,6 +260,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 }
 
 func BenchmarkEntityCreation(b *testing.B) {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 	for i := 0; i < b.N; i++ {
 		world := ecs.NewTestWorld(b)
 		assert.NilError(b, ecs.RegisterComponent[Alpha](world))
@@ -274,6 +276,7 @@ func BenchmarkEntityCreation(b *testing.B) {
 // total number of entities that have been created.
 func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 	relevantCount := 100
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 	for i := 10; i <= 10000; i *= 10 {
 		ignoreCount := i
 		b.Run(fmt.Sprintf("IgnoreCount:%d", ignoreCount), func(b *testing.B) {

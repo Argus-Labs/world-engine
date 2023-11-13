@@ -1,34 +1,34 @@
-## What is the purpose of the change
+Closes: WORLD-XXX
 
-> Add a description of the overall background and high-level changes that this PR introduces
+## Overview
 
-_(E.g.: This pull request improves documation of area A by adding ...._
+> Description of the overall background and high-level changes that this PR introduces
+
+<!---
+Example: This pull request improves documentation of area A by adding ...
+--->
 
 ## Brief Changelog
 
-_(for example:)_
-
-- _The metadata is stored in the blob store on job creation time as a persistent artifact_
-- _Deployments RPC transmits only the blob storage reference_
-- _Daemons retrieve the RPC data from the blob cache_
+<!---
+Example:
+- The metadata is stored in the blob store on job creation time as a persistent artifact
+- Deployments RPC transmits only the blob storage reference
+- Daemons retrieve the RPC data from the blob cache
+--->
 
 ## Testing and Verifying
 
-_(Please pick one of the following options)_
+<!---
+Pick one of the following options:
 
-This change is a trivial rework/code cleanup without any test coverage.
+- This change is a trivial rework/code cleanup without any test coverage.
 
-_(or)_
+- This change is already covered by existing tests, such as <describe test>.
 
-This change is already covered by existing tests, such as _(please describe tests)_.
-
-_(or)_
-
-This change added tests and can be verified as follows:
-
-_(example:)_
-
-- _Added unit test that validates ..._
-- _Added integration tests for end-to-end deployment with ..._
-- _Extended integration test for ..._
-- _Manually verified the change by ..._
+- This change added tests and can be verified as follows:
+    - Added unit test that validates ...
+    - Added integration tests for end-to-end deployment with ...
+    - Extended integration test for ...
+    - Manually verified the change by ...
+--->
