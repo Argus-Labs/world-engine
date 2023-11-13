@@ -11,7 +11,7 @@ env:
 
 jobs:
   e2e:
-    name: E2E Test
+    name: E2E
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -42,7 +42,7 @@ jobs:
         run: |
           docker compose logs
   unit-test-coverage:
-    name: Unit Test & Coverage
+    name: Unit & Coverage
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

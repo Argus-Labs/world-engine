@@ -32,12 +32,11 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	world, doTick := testutils.MakeWorldAndTicker(t, cardinal.WithCORS())
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	wantNumOfEntities := 10
-	world.Init(func(worldCtx cardinal.WorldContext) {
-		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities, Foo{})
-		assert.NilError(t, err)
-	})
+	wCtx := cardinal.TestingWorldToWorldContext(world)
+	_, err := cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
+	assert.NilError(t, err)
 	gotNumOfEntities := 0
-	cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
+	err = cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
 		q, err := worldCtx.NewSearch(cardinal.Exact(Foo{}))
 		assert.NilError(t, err)
 		err = q.Each(worldCtx, func(cardinal.EntityID) bool {
@@ -47,10 +46,11 @@ func TestCanQueryInsideSystem(t *testing.T) {
 		assert.NilError(t, err)
 		return nil
 	})
+	assert.NilError(t, err)
 
 	doTick()
 	assert.Equal(t, world.CurrentTick(), uint64(1))
-	err := world.ShutDown()
+	err = world.ShutDown()
 	assert.Assert(t, err)
 	assert.Equal(t, gotNumOfEntities, wantNumOfEntities)
 }
@@ -63,9 +63,12 @@ func TestShutdownViaSignal(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	assert.NilError(t, err)
 	wantNumOfEntities := 10
-	world.Init(func(worldCtx cardinal.WorldContext) {
-		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities, Foo{})
-		assert.NilError(t, err)
+	world.Init(func(worldCtx cardinal.WorldContext) error {
+		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities/2, Foo{})
+		if err != nil {
+			return err
+		}
+		return nil
 	})
 	wg.Add(1)
 	go func() {
@@ -77,6 +80,9 @@ func TestShutdownViaSignal(t *testing.T) {
 		// wait until game loop is running
 		time.Sleep(500 * time.Millisecond)
 	}
+	wCtx := cardinal.TestingWorldToWorldContext(world)
+	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
+	assert.NilError(t, err)
 	// test CORS with cardinal
 	client := &http.Client{}
 	req, err := http.NewRequest(http.MethodPost, "http://localhost:4040/query/http/endpoints", nil)

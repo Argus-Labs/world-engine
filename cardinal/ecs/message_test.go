@@ -24,7 +24,7 @@ func TestForEachTransaction(t *testing.T) {
 	someMsg := ecs.NewMessageType[SomeMsgRequest, SomeMsgResponse]("some_msg")
 	assert.NilError(t, world.RegisterMessages(someMsg))
 
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		someMsg.ForEach(wCtx, func(t ecs.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
 			if t.Msg.GenerateError {
 				return result, errors.New("some error")
