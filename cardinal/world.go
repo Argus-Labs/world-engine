@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"github.com/rs/zerolog/log"
@@ -194,7 +195,7 @@ func (w *World) StartGame() error {
 
 	if err := w.instance.LoadGameState(); err != nil {
 		if errors.Is(err, ecs.ErrEntitiesCreatedBeforeLoadingGameState) {
-			return ErrEntitiesCreatedBeforeStartGame
+			return eris.Wrap(ErrEntitiesCreatedBeforeStartGame, "")
 		}
 		return err
 	}
