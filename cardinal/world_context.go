@@ -7,10 +7,32 @@ import (
 )
 
 type WorldContext interface {
+	// NewSearch creates a new Search object that can iterate over entities that match
+	// a given Component filter.
+	//
+	// For example:
+	// search, err := worldCtx.NewSearch(cardinal.Exact(Health{}))
+	// if err != nil {
+	// 		return err
+	// }
+	// err = search.Each(worldCtx, func(id cardinal.EntityID) bool {
+	// 		...process each entity id...
+	// }
+	// if err != nil {
+	// 		return err
+	// }
 	NewSearch(filter Filter) (*Search, error)
+
+	// CurrentTick returns the current game tick of the world.
 	CurrentTick() uint64
+
+	// EmitEvent broadcasts an event message to all subscribed clients.
 	EmitEvent(event string)
+
+	// Logger returns a zerolog.Logger. Additional metadata information is often attached to
+	// this logger (e.g. the name of the active System).
 	Logger() *zerolog.Logger
+
 	getECSWorldContext() ecs.WorldContext
 }
 

@@ -82,10 +82,12 @@ type World struct {
 }
 
 var (
-	ErrMessageRegistrationMustHappenOnce = errors.New("message registration must happen exactly 1 time")
-	ErrStoreStateInvalid                 = errors.New("saved world state is not valid")
-	ErrDuplicateMessageName              = errors.New("message names must be unique")
-	ErrDuplicateQueryName                = errors.New("query names must be unique")
+	ErrMessageRegistrationMustHappenOnce = errors.New(
+		"message registration must happen exactly 1 time",
+	)
+	ErrStoreStateInvalid    = errors.New("saved world state is not valid")
+	ErrDuplicateMessageName = errors.New("message names must be unique")
+	ErrDuplicateQueryName   = errors.New("query names must be unique")
 )
 
 const (
@@ -209,7 +211,10 @@ func MustRegisterComponent[T metadata.Component](world *World) {
 func (w *World) GetComponentByName(name string) (metadata.ComponentMetadata, error) {
 	componentType, exists := w.nameToComponent[name]
 	if !exists {
-		return nil, fmt.Errorf("component with name %s not found. Must register component before using", name)
+		return nil, fmt.Errorf(
+			"component with name %s not found. Must register component before using",
+			name,
+		)
 	}
 	return componentType, nil
 }
@@ -276,7 +281,12 @@ func (w *World) ListMessages() ([]message.Message, error) {
 }
 
 // NewWorld creates a new world.
-func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts ...Option) (*World, error) {
+func NewWorld(
+	nonceStore storage.NonceStorage,
+	entityStore store.IManager,
+	namespace Namespace,
+	opts ...Option,
+) (*World, error) {
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}
@@ -284,7 +294,7 @@ func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts 
 	w := &World{
 		nonceStore:        nonceStore,
 		entityStore:       entityStore,
-		namespace:         "world",
+		namespace:         namespace,
 		tick:              0,
 		systems:           make([]System, 0),
 		initSystem:        func(_ WorldContext) error { return nil },
@@ -348,7 +358,12 @@ func (w *World) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) 
 	return tick, txHash
 }
 
-func (w *World) AddEVMTransaction(id message.TypeID, v any, sig *sign.Transaction, evmTxHash string) (
+func (w *World) AddEVMTransaction(
+	id message.TypeID,
+	v any,
+	sig *sign.Transaction,
+	evmTxHash string,
+) (
 	tick uint64, txHash message.TxHash,
 ) {
 	tick = w.CurrentTick()
@@ -367,7 +382,8 @@ func (w *World) Tick(_ context.Context) error {
 	nameOfCurrentRunningSystem := nullSystemName
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
-			w.Logger.Error().Msgf("Tick: %d, Current running system: %s", w.tick, nameOfCurrentRunningSystem)
+			w.Logger.Error().
+				Msgf("Tick: %d, Current running system: %s", w.tick, nameOfCurrentRunningSystem)
 			panic(panicValue)
 		}
 	}()
@@ -458,7 +474,11 @@ func (w *World) setEvmResults(txs []message.TxData) {
 	}
 }
 
-func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
+func (w *World) StartGameLoop(
+	ctx context.Context,
+	tickStart <-chan time.Time,
+	tickDone chan<- uint64,
+) {
 	w.Logger.Info().Msg("Game loop started")
 	w.Logger.LogWorld(w, zerolog.InfoLevel)
 	//todo: add links to docs related to each warning
@@ -646,7 +666,11 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			target := tickedTxs.Epoch
 			// tick up to target
 			if target < w.CurrentTick() {
-				return fmt.Errorf("got tx for tick %d, but world is at tick %d", target, w.CurrentTick())
+				return fmt.Errorf(
+					"got tx for tick %d, but world is at tick %d",
+					target,
+					w.CurrentTick(),
+				)
 			}
 			for current := w.CurrentTick(); current != target; {
 				if err = w.Tick(ctx); err != nil {

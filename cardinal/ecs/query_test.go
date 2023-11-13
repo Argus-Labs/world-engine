@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"github.com/stretchr/testify/require"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/evm"
@@ -66,7 +67,7 @@ func TestQueryEVM(t *testing.T) {
 		return expectedReply, nil
 	}, ecs.WithQueryEVMSupport[FooRequest, FooReply])
 
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	err := w.RegisterQueries(fooQuery)
 	assert.NilError(t, err)
 	err = w.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("blah"))

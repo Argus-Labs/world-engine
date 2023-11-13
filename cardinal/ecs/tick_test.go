@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -38,7 +39,7 @@ func TestTickHappyPath(t *testing.T) {
 	assert.Equal(t, uint64(10), twoWorld.CurrentTick())
 }
 func TestIfPanicMessageLogged(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
@@ -186,7 +187,7 @@ func (ScalarComponentBeta) Name() string {
 }
 
 func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[ScalarComponentAlpha](world))
 	assert.NilError(t, ecs.RegisterComponent[ScalarComponentBeta](world))
 	assert.NilError(t, world.LoadGameState())

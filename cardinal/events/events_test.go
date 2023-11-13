@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"sync"
@@ -24,7 +25,7 @@ import (
 func TestEvents(t *testing.T) {
 	// broadcast 5 messages to 5 clients means 25 messages received.
 	numberToTest := 5
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, w.LoadGameState())
 	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
 	url := txh.MakeWebSocketURL("events")
@@ -89,7 +90,7 @@ type SendEnergyTxResult struct{}
 
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterMessages(sendTx))
 	counter1 := atomic.Int32{}
@@ -154,7 +155,11 @@ func TestEventHubLogger(t *testing.T) {
 	cardinalLogger := ecslog.Logger{
 		&bufLogger,
 	}
-	w := ecs.NewTestWorld(t, ecs.WithLoggingEventHub(&cardinalLogger))
+	w := testutils.NewTestWorld(t, cardinal.WithLoggingEventHub(&cardinalLogger)).Instance()
+
+	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
 	numberToTest := 5
 	for i := 0; i < numberToTest; i++ {
 		w.RegisterSystem(func(wCtx ecs.WorldContext) error {

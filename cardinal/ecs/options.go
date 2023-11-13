@@ -26,12 +26,6 @@ func WithReceiptHistorySize(size int) Option {
 	}
 }
 
-func WithNamespace(ns string) Option {
-	return func(w *World) {
-		w.namespace = Namespace(ns)
-	}
-}
-
 func WithPrettyLog() Option {
 	return func(world *World) {
 		prettyLogger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})

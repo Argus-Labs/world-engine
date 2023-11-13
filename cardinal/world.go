@@ -28,7 +28,7 @@ import (
 )
 
 type World struct {
-	implWorld       *ecs.World
+	instance        *ecs.World
 	server          *server.Handler
 	evmServer       evm.Server
 	gameManager     *server.GameManager
@@ -54,38 +54,57 @@ type (
 )
 
 // NewWorld creates a new World object using Redis as the storage layer.
-func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
+func NewWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
-	log.Info().Msg("Running in normal mode, using external Redis")
-	if addr == "" {
-		return nil, errors.New("redis address is required")
-	}
-	if password == "" {
-		log.Info().Msg("Redis password is not set, make sure to set up redis with password in prod")
+
+	// Load config. Fallback value is used if it's not set.
+	cfg := GetWorldConfig()
+
+	// Sane default options
+	serverOptions = append(serverOptions, server.WithCORS())
+
+	if cfg.CardinalMode == ModeProd {
+		log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
+		if cfg.RedisPassword == DefaultRedisPassword {
+			return nil, errors.New("redis password is required in production")
+		}
+		if cfg.CardinalNamespace == DefaultNamespace {
+			return nil, errors.New(
+				"cardinal namespace can't be the default value in production to avoid replay attack",
+			)
+		}
+	} else {
+		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
+		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 	}
 
 	redisStore := storage.NewRedisStorage(storage.Options{
-		Addr:     addr,
-		Password: password, // make sure to set this in prod
-		DB:       0,        // use default DB
-	}, "world")
-	log.Info().Msgf("redis address: %s", addr)
+		Addr:     cfg.RedisAddress,
+		Password: cfg.RedisPassword,
+		DB:       0, // use default DB
+	}, cfg.CardinalNamespace)
 	storeManager, err := ecb.NewManager(redisStore.Client)
 	if err != nil {
 		return nil, err
 	}
 
-	ecsWorld, err := ecs.NewWorld(&redisStore, storeManager, ecsOptions...)
+	ecsWorld, err := ecs.NewWorld(
+		&redisStore,
+		storeManager,
+		ecs.Namespace(cfg.CardinalNamespace),
+		ecsOptions...)
 	if err != nil {
 		return nil, err
 	}
 
 	world := &World{
-		implWorld:     ecsWorld,
+		instance:      ecsWorld,
 		serverOptions: serverOptions,
 		endStartGame:  make(chan bool),
 	}
 	world.isGameRunning.Store(false)
+
+	// Apply options
 	for _, opt := range cardinalOptions {
 		opt(world)
 	}
@@ -93,20 +112,12 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 	return world, nil
 }
 
-// NewMockWorld creates a World that uses an in-memory redis DB as the storage layer.
-// This is only suitable for local development.
+// NewMockWorld creates a World object that uses miniredis as the storage layer suitable for local development.
+// If you are creating a World for unit tests, use NewTestWorld.
 func NewMockWorld(opts ...WorldOption) (*World, error) {
-	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
-	implWorld, mockWorldCleanup := ecs.NewMockWorld(ecsOptions...)
-	world := &World{
-		implWorld:     implWorld,
-		serverOptions: serverOptions,
-		cleanup:       mockWorldCleanup,
-		endStartGame:  make(chan bool),
-	}
-	world.isGameRunning.Store(false)
-	for _, opt := range cardinalOptions {
-		opt(world)
+	world, err := NewWorld(append(opts, withMockRedis())...)
+	if err != nil {
+		return world, err
 	}
 	return world, nil
 }
@@ -179,28 +190,29 @@ func (w *World) StartGame() error {
 		return errors.New("game already running")
 	}
 
-	if err := w.implWorld.LoadGameState(); err != nil {
+	if err := w.instance.LoadGameState(); err != nil {
 		return err
 	}
-	if !w.implWorld.DoesWorldHaveAnEventHub() {
-		w.implWorld.SetEventHub(events.CreateWebSocketEventHub())
+	if !w.instance.DoesWorldHaveAnEventHub() {
+		w.instance.SetEventHub(events.CreateWebSocketEventHub())
 	}
-	eventHub := w.implWorld.GetEventHub()
+	eventHub := w.instance.GetEventHub()
 	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
-	handler, err := server.NewHandler(w.implWorld, eventBuilder, w.serverOptions...)
+	handler, err := server.NewHandler(w.instance, eventBuilder, w.serverOptions...)
 	if err != nil {
 		return err
 	}
 	w.server = handler
 
-	w.evmServer, err = evm.NewServer(w.implWorld)
+	w.evmServer, err = evm.NewServer(w.instance)
 	if err != nil {
 		if !errors.Is(err, evm.ErrNoEVMTypes) {
 			return err
 		}
-		w.implWorld.Logger.Debug().Msg("no EVM messages or queries specified. EVM server will not run")
+		w.instance.Logger.Debug().
+			Msg("no EVM messages or queries specified. EVM server will not run")
 	} else {
-		w.implWorld.Logger.Debug().Msg("running world with EVM server")
+		w.instance.Logger.Debug().Msg("running world with EVM server")
 		err = w.evmServer.Serve()
 		if err != nil {
 			return err
@@ -210,8 +222,8 @@ func (w *World) StartGame() error {
 	if w.tickChannel == nil {
 		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
-	w.implWorld.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
-	gameManager := server.NewGameManager(w.implWorld, w.server)
+	w.instance.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
+	gameManager := server.NewGameManager(w.instance, w.server)
 	w.gameManager = &gameManager
 	go func() {
 		w.isGameRunning.Store(true)
@@ -254,7 +266,7 @@ func RegisterSystems(w *World, systems ...System) error {
 	for _, system := range systems {
 		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
 		sys := system
-		w.implWorld.RegisterSystemWithName(func(wCtx ecs.WorldContext) error {
+		w.instance.RegisterSystemWithName(func(wCtx ecs.WorldContext) error {
 			return sys(&worldContext{
 				implContext: wCtx,
 			})
@@ -264,32 +276,36 @@ func RegisterSystems(w *World, systems ...System) error {
 }
 
 func RegisterComponent[T metadata.Component](world *World) error {
-	return ecs.RegisterComponent[T](world.implWorld)
+	return ecs.RegisterComponent[T](world.instance)
 }
 
 // RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
 // messages will automatically be created when StartGame is called. This Register method must only be called once.
 func RegisterMessages(w *World, msgs ...AnyMessage) error {
-	return w.implWorld.RegisterMessages(toMessageType(msgs)...)
+	return w.instance.RegisterMessages(toMessageType(msgs)...)
 }
 
 // RegisterQueries adds the given query capabilities to the game world. HTTP endpoints to use these queries
 // will automatically be created when StartGame is called. This Register method must only be called once.
 func RegisterQueries(w *World, queries ...AnyQueryType) error {
-	return w.implWorld.RegisterQueries(toIQueryType(queries)...)
+	return w.instance.RegisterQueries(toIQueryType(queries)...)
+}
+
+func (w *World) Instance() *ecs.World {
+	return w.instance
 }
 
 func (w *World) CurrentTick() uint64 {
-	return w.implWorld.CurrentTick()
+	return w.instance.CurrentTick()
 }
 
 func (w *World) Tick(ctx context.Context) error {
-	return w.implWorld.Tick(ctx)
+	return w.instance.Tick(ctx)
 }
 
 // Init Registers a system that only runs once on a new game before tick 0.
 func (w *World) Init(system System) {
-	w.implWorld.AddInitSystem(func(ecsWctx ecs.WorldContext) error {
+	w.instance.AddInitSystem(func(ecsWctx ecs.WorldContext) error {
 		return system(&worldContext{implContext: ecsWctx})
 	})
 }
