@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
+
+	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"gotest.tools/v3/assert"
 
@@ -21,6 +23,23 @@ import (
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
+
+func TestEventError(t *testing.T) {
+	err := events.WebSocketEchoHandler(nil)
+	fmt.Println(eris.ToString(err, true))
+	mappedJson := eris.ToJSON(err, true)
+	fmt.Println(mappedJson)
+	v, ok := mappedJson["root"]
+	assert.Assert(t, ok)
+	v1, ok := v.(map[string]interface{})
+	assert.Assert(t, ok)
+	v2, ok := v1["stack"]
+	assert.Assert(t, ok)
+	v3, ok := v2.([]string)
+	assert.Assert(t, ok)
+	assert.Assert(t, len(v3) > 0)
+
+}
 
 func TestEvents(t *testing.T) {
 	// broadcast 5 messages to 5 clients means 25 messages received.
