@@ -29,6 +29,8 @@ var Attack = cardinal.NewMessageType[AttackInput, AttackResult]("attack")
 
 `NewMessageType` creates a new `MessageType`. `MessageType`s wrap around an `Input` and `Result` type. The `Input` specifies the input for a message and the `Result` represents the result of the message's execution.
 
+The given name of the message will be used to generate a message endpoint. For example, if NewMessageType is called with "attack", the http endpoint `/tx/game/attack` will be created. The "/tx" prefix in this context is short for "Transaction". A Transaction is the combination of a cardinal Message along with a cryptographic signature.
+
 ```go
 func NewMessageType[Input, Result any](name string) *MessageType[Input, Result]
 ```
@@ -92,14 +94,14 @@ func NewMessageTypeWithEVMSupport[Msg, Result any](name string) *MessageType[Msg
 `AddError` adds an error to a specific message that signifies an issue has occurred with the message's execution.
 
 ```go
-func (t *MessageType[Msg, Result]) AddError(world *World, hash TxHash, err error)
+func (t *MessageType[Msg, Result]) AddError(worldCtx WorldContext, hash TxHash, err error)
 ```
 
 #### Example
 
 ```go
 Attack.AddError(
-	w,
+	worldCtx,
 	txHash,
 	errors.New("attack failed"),
 )
@@ -107,11 +109,11 @@ Attack.AddError(
 
 #### Parameters
 
-| Parameter   | Type                 | Description                                           |
-|-------------|----------------------|-------------------------------------------------------|
-| world       | *World               | A pointer to a World instance.  |
-| hash        | TxHash             | The hash of the transaction data.         |
-| err         | error                | The error to be associated with the message.     |
+| Parameter   | Type                 | Description                                                |
+|-------------|----------------------|------------------------------------------------------------|
+| worldCtx    | WorldContext         | A WorldContext object passed in to your System definition  |
+| hash        | TxHash               | The hash of the transaction data.                          |
+| err         | error                | The error to be associated with the message.               |
 
 ### SetResult
 
@@ -119,7 +121,7 @@ Attack.AddError(
 
 ```go
 func (t *MessageType[Input, Result]) SetResult(
-	world *World,
+	worldCtx WorldContext,
 	hash TxHash,
 	result Result,
 )
@@ -128,16 +130,16 @@ func (t *MessageType[Input, Result]) SetResult(
 #### Example
 
 ```go
-Attack.SetResult(w, txHash, AttackResult{Success: true})
+Attack.SetResult(worldCtx, txHash, AttackResult{Success: true})
 ```
 
 #### Parameters
 
-| Parameter   | Type                 | Description                                           |
-|-------------|----------------------|-------------------------------------------------------|
-| world       | *World               | A pointer to a World instance.  |
-| hash        | TxHash               | The hash of the transaction data.       |
-| result      | Result               | The result to be associated with the message.    |
+| Parameter   | Type                 | Description                                                |
+|-------------|----------------------|------------------------------------------------------------|
+| worldCtx    | WorldContext         | A WorldContext object passed in to your System definition. |
+| hash        | TxHash               | The hash of the transaction data.                          |
+| result      | Result               | The result to be associated with the message.              |
 
 
 ### GetReceipt
@@ -145,20 +147,20 @@ Attack.SetResult(w, txHash, AttackResult{Success: true})
 `GetReceipt` gets the result and errors, if any, associated with a specific message type.
 
 ```go
-func (t *MessageType[Msg, Result]) GetReceipt(world *World, hash TxHash) (r Result, errs []error, ok bool)
+func (t *MessageType[Msg, Result]) GetReceipt(worldCtx WorldContext, hash TxHash) (r Result, errs []error, ok bool)
 ```
 
 #### Example
 ```go
-result, errs, ok := Attack.GetReceipt(w, txHash)
+result, errs, ok := Attack.GetReceipt(worldCtx, txHash)
 ```
 
 #### Parameters
 
-| Parameter   | Type                 | Description                                         |
-|-------------|----------------------|-----------------------------------------------------|
-| world       | *World               | A pointer to a World instance.  |
-| hash          | TxHash    | The hash of the transaction data.    |
+| Parameter   | Type                 | Description                                                |
+|-------------|----------------------|------------------------------------------------------------|
+| worldCtx    | WorldContext         | A WorldContext object passed in to your System definition. |
+| hash        | TxHash               | The hash of the transaction data.                          |
 
 #### Return Values
 
@@ -173,13 +175,13 @@ result, errs, ok := Attack.GetReceipt(w, txHash)
 `In` is a method primarily used in Systems that retrieves all messages of the `MessageType` from the `World`'s `TransactionQueue`.
 
 ```go
-func (t *MessageType[Msg, Result]) In(tq *TransactionQueue) []TxData[In]
+func (t *MessageType[Msg, Result]) In(worldCtx WorldContext) []TxData[In]
 ```
 
 #### Example
 
 ```go
-txs := AttackTx.In(tq)
+txs := AttackTx.In(worldCtx)
 for _, tx := range txs {
 	// ... do something with each msg
 	msg := tx.Msg()
@@ -192,7 +194,7 @@ for _, tx := range txs {
 
 | Parameter   | Type                 | Description                                           |
 |-------------|----------------------|-------------------------------------------------------|
-| tq          | *TransactionQueue    | A pointer to a TransactionQueue containing transaction data and messages. |
+| worldCtx    | WorldContext         | A WorldContext object passed in to your System        |
 
 
 #### Return Value
