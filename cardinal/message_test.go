@@ -36,7 +36,7 @@ func TestTransactionExample(t *testing.T) {
 	world, doTick := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(t, cardinal.RegisterMessages(world, addHealthToEntity))
-	cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
+	err := cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
 		// test "In" method
 		for _, tx := range addHealthToEntity.In(worldCtx) {
 			targetID := tx.Msg().TargetID
@@ -67,6 +67,7 @@ func TestTransactionExample(t *testing.T) {
 
 		return nil
 	})
+	assert.NilError(t, err)
 
 	testWorldCtx := testutils.WorldToWorldContext(world)
 	ids, err := cardinal.CreateMany(testWorldCtx, 10, Health{})

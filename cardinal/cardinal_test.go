@@ -36,7 +36,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	_, err := cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
 	assert.NilError(t, err)
 	gotNumOfEntities := 0
-	cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
+	err = cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
 		q, err := worldCtx.NewSearch(cardinal.Exact(Foo{}))
 		assert.NilError(t, err)
 		err = q.Each(worldCtx, func(cardinal.EntityID) bool {
@@ -46,6 +46,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 		assert.NilError(t, err)
 		return nil
 	})
+	assert.NilError(t, err)
 
 	doTick()
 	assert.Equal(t, world.CurrentTick(), uint64(1))

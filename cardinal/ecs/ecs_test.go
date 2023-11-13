@@ -77,7 +77,7 @@ func TestECS(t *testing.T) {
 	_, err = component.CreateMany(wCtx, numEnergyOnly, EnergyComponent{})
 	assert.NilError(t, err)
 
-	world.AddSystem(UpdateEnergySystem)
+	world.RegisterSystem(UpdateEnergySystem)
 	assert.NilError(t, world.LoadGameState())
 
 	assert.NilError(t, world.Tick(context.Background()))
