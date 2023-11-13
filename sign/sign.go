@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mitchellh/mapstructure"
+	"github.com/rotisserie/eris"
 )
 
 var (
@@ -45,7 +46,7 @@ func UnmarshalTransaction(bz []byte) (*Transaction, error) {
 	dec := json.NewDecoder(bytes.NewBuffer(bz))
 	dec.DisallowUnknownFields()
 
-	if err := dec.Decode(s); err != nil {
+	if err := eris.Wrap(dec.Decode(s), ""); err != nil {
 		return nil, fmt.Errorf("error decoding Transaction: %w", err)
 	}
 
@@ -60,16 +61,16 @@ func UnmarshalTransaction(bz []byte) (*Transaction, error) {
 // faster than using reflection.
 func (s *Transaction) checkRequiredFields() error {
 	if s.PersonaTag == "" {
-		return ErrNoPersonaTagField
+		return eris.Wrap(ErrNoPersonaTagField, "")
 	}
 	if s.Namespace == "" {
-		return ErrNoNamespaceField
+		return eris.Wrap(ErrNoNamespaceField, "")
 	}
 	if s.Signature == "" {
-		return ErrNoSignatureField
+		return eris.Wrap(ErrNoSignatureField, "")
 	}
 	if len(s.Body) == 0 {
-		return ErrNoBodyField
+		return eris.Wrap(ErrNoBodyField, "")
 	}
 	return nil
 }
@@ -100,7 +101,7 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 	}
 	delete(tx, "hash")
 	delete(tx, "body")
-	err = mapstructure.Decode(tx, s)
+	err = eris.Wrap(mapstructure.Decode(tx, s), "")
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +124,9 @@ func normalizeJSON(data any) ([]byte, error) {
 	}
 	if asBuf == nil {
 		// The given data was neither a string nor a []byte. Just json.Marshal it.
-		return json.Marshal(data)
+		res, err := json.Marshal(data)
+		err = eris.Wrap(err, "")
+		return res, err
 	}
 
 	asMap := map[string]any{}
@@ -133,13 +136,14 @@ func normalizeJSON(data any) ([]byte, error) {
 	// sorted keys, the resulting hashes will be different and the signature will fail.
 	// For this reason, we must Unmarshal/Marshal any pre-built JSON bodies to ensure the resulting hashes during
 	// signing match the hash during verification
-	if err := json.Unmarshal(asBuf, &asMap); err != nil {
+	if err := eris.Wrap(json.Unmarshal(asBuf, &asMap), ""); err != nil {
 		return nil, fmt.Errorf("data %q is not valid json", string(asBuf))
 	}
 
 	normalizedBz, err := json.Marshal(asMap)
+	err = eris.Wrap(err, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate compact json: %w", err)
+		return nil, eris.Wrapf(err, "failed to generate compact json")
 	}
 	return normalizedBz, nil
 }
@@ -167,6 +171,7 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data
 	}
 	sp.populateHash()
 	buf, err := crypto.Sign(sp.Hash.Bytes(), pk)
+	err = eris.Wrap(err, "")
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +203,9 @@ func (s *Transaction) IsSystemTransaction() bool {
 
 // Marshal serializes this Transaction to bytes, which can then be passed in to Unmarshal.
 func (s *Transaction) Marshal() ([]byte, error) {
-	return json.Marshal(s)
+	res, err := json.Marshal(s)
+	err = eris.Wrap(err, "")
+	return res, err
 }
 
 func isZeroHash(hash common.Hash) bool {
@@ -230,12 +237,13 @@ func (s *Transaction) Verify(hexAddress string) error {
 	}
 
 	signerPubKey, err := crypto.SigToPub(s.Hash.Bytes(), sig)
+	err = eris.Wrap(err, "")
 	if err != nil {
 		return err
 	}
 	signerAddr := crypto.PubkeyToAddress(*signerPubKey)
 	if signerAddr != addr {
-		return ErrSignatureValidationFailed
+		return eris.Wrap(ErrSignatureValidationFailed, "")
 	}
 	return nil
 }
