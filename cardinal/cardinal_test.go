@@ -23,7 +23,7 @@ func (Foo) Name() string { return "foo" }
 func TestNewWorld(t *testing.T) {
 	world, err := cardinal.NewWorld()
 	assert.NilError(t, err)
-	assert.Equal(t, string(world.Instance().Namespace()), cardinal.DefaultCardinalNamespace)
+	assert.Equal(t, string(world.Instance().Namespace()), cardinal.DefaultNamespace)
 }
 
 func TestNewWorldWithCustomNamespace(t *testing.T) {

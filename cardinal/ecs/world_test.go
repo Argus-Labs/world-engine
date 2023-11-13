@@ -168,7 +168,7 @@ func TestAddSystems(t *testing.T) {
 	}
 
 	w := testutils.NewTestWorld(t).Instance()
-	w.RegiterSystems(sys, sys, sys)
+	w.RegisterSystems(sys, sys, sys)
 	err := w.LoadGameState()
 	assert.NilError(t, err)
 

@@ -63,12 +63,12 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	// Sane default options
 	serverOptions = append(serverOptions, server.WithCORS())
 
-	if cfg.CardinalMode == CardinalModeProd {
+	if cfg.CardinalMode == ModeProd {
 		log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
 		if cfg.RedisPassword == DefaultRedisPassword {
 			return nil, errors.New("redis password is required in production")
 		}
-		if cfg.CardinalNamespace == DefaultCardinalNamespace {
+		if cfg.CardinalNamespace == DefaultNamespace {
 			return nil, errors.New(
 				"cardinal namespace can't be the default value in production to avoid replay attack",
 			)
