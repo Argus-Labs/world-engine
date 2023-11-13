@@ -97,8 +97,6 @@ func NewWorld(addr, password string, opts ...WorldOption) (*World, error) {
 // This is only suitable for local development.
 func NewMockWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
-	eventHub := events.CreateWebSocketEventHub()
-	ecsOptions = append(ecsOptions, ecs.WithEventHub(eventHub))
 	implWorld, mockWorldCleanup := ecs.NewMockWorld(ecsOptions...)
 	world := &World{
 		implWorld:     implWorld,
@@ -184,8 +182,10 @@ func (w *World) StartGame() error {
 	if err := w.implWorld.LoadGameState(); err != nil {
 		return err
 	}
-	eventHub := events.CreateWebSocketEventHub()
-	w.implWorld.SetEventHub(eventHub)
+	if !w.implWorld.DoesWorldHaveAnEventHub() {
+		w.implWorld.SetEventHub(events.CreateWebSocketEventHub())
+	}
+	eventHub := w.implWorld.GetEventHub()
 	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
 	handler, err := server.NewHandler(w.implWorld, eventBuilder, w.serverOptions...)
 	if err != nil {

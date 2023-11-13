@@ -92,6 +92,17 @@ const (
 	defaultReceiptHistorySize = 10
 )
 
+func (w *World) DoesWorldHaveAnEventHub() bool {
+	if w.eventHub != nil {
+		return true
+	}
+	return false
+}
+
+func (w *World) GetEventHub() events.EventHub {
+	return w.eventHub
+}
+
 func (w *World) SetEventHub(eventHub events.EventHub) {
 	w.eventHub = eventHub
 }
@@ -293,6 +304,7 @@ func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts 
 	if err != nil {
 		return nil, err
 	}
+	opts = append([]Option{WithEventHub(events.CreateWebSocketEventHub())}, opts...)
 	for _, opt := range opts {
 		opt(w)
 	}
