@@ -53,7 +53,7 @@ func TestServer_SendMessage(t *testing.T) {
 	currBarIndex := 0
 
 	// add a system that checks that they are submitted properly to the world in the correct order.
-	w.AddSystem(func(wCtx ecs.WorldContext) error {
+	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		inFooTxs := fooTx.In(wCtx)
 		inBarTxs := barTx.In(wCtx)
 		if len(inFooTxs) == 0 && len(inBarTxs) == 0 {

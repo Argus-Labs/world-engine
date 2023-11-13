@@ -61,6 +61,21 @@ func testSystemWarningTrigger(wCtx ecs.WorldContext) error {
 	return testSystem(wCtx)
 }
 
+func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
+	w := ecs.NewTestWorld(t)
+	// replaces internal Logger with one that logs to the buf variable above.
+	var buf bytes.Buffer
+	bufLogger := zerolog.New(&buf)
+	cardinalLogger := log.Logger{
+		Logger: &bufLogger,
+	}
+	w.InjectLogger(&cardinalLogger)
+	sysName := "foo"
+	w.RegisterSystemWithName(testSystem, sysName)
+	w.RegisterSystemWithName(testSystem, sysName)
+	assert.Check(t, strings.Contains(buf.String(), "duplicate system registered: "+sysName))
+}
+
 func TestWorldLogger(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	// replaces internal Logger with one that logs to the buf variable above.
@@ -102,7 +117,7 @@ func TestWorldLogger(t *testing.T) {
 	assert.NilError(t, err)
 	components := []metadata.ComponentMetadata{energy}
 	wCtx := ecs.NewWorldContext(w)
-	w.AddSystems(testSystemWarningTrigger)
+	w.RegisterSystem(testSystemWarningTrigger)
 	err = w.LoadGameState()
 	assert.NilError(t, err)
 	entityID, err := component.Create(wCtx, EnergyComp{})

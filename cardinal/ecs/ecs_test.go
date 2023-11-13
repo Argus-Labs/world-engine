@@ -71,7 +71,7 @@ func TestECS(t *testing.T) {
 	numPlanets := 5
 	wCtx := ecs.NewWorldContext(world)
 
-	world.AddSystem(UpdateEnergySystem)
+	world.RegisterSystem(UpdateEnergySystem)
 	assert.NilError(t, world.LoadGameState())
 	numEnergyOnly := 10
 	_, err := component.CreateMany(wCtx, numEnergyOnly, EnergyComponent{})

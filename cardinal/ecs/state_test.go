@@ -219,7 +219,7 @@ func TestCanReloadState(t *testing.T) {
 
 	oneAlphaNum, err := alphaWorld.GetComponentByName(oneAlphaNumComp{}.Name())
 	assert.NilError(t, err)
-	alphaWorld.AddSystem(func(wCtx ecs.WorldContext) error {
+	alphaWorld.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		q, err := wCtx.NewSearch(ecs.Contains(oneAlphaNum))
 		if err != nil {
 			return err
@@ -290,7 +290,7 @@ func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 	for reload := 0; reload < 5; reload++ {
 		world := testutil.InitWorldWithRedis(t, redisStore)
 		assert.NilError(t, world.RegisterMessages(someTx))
-		world.AddSystem(func(wCtx ecs.WorldContext) error {
+		world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 			for _, tx := range someTx.In(wCtx) {
 				someTx.SetResult(wCtx, tx.Hash, Result{})
 			}

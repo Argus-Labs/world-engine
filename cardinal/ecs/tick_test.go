@@ -48,7 +48,7 @@ func TestIfPanicMessageLogged(t *testing.T) {
 	w.InjectLogger(&cardinalLogger)
 	// In this test, our "buggy" system fails once Power reaches 3
 	errorTxt := "BIG ERROR OH NO"
-	w.AddSystem(func(ecs.WorldContext) error {
+	w.RegisterSystem(func(ecs.WorldContext) error {
 		panic(errorTxt)
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -117,7 +117,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	errorSystem := errors.New("3 power? That's too much, man")
 
 	// In this test, our "buggy" system fails once Power reaches 3
-	oneWorld.AddSystem(func(wCtx ecs.WorldContext) error {
+	oneWorld.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		search, err := wCtx.NewSearch(ecs.Exact(onePowerComponent{}))
 		assert.NilError(t, err)
 		id := search.MustFirst(wCtx)
@@ -148,7 +148,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[twoPowerComponent](twoWorld))
 
 	// this is our fixed system that can handle Power levels of 3 and higher
-	twoWorld.AddSystem(func(wCtx ecs.WorldContext) error {
+	twoWorld.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		p, err := component.GetComponent[onePowerComponent](wCtx, id)
 		if err != nil {
 			return err
@@ -253,7 +253,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		wCtx := ecs.NewWorldContext(world)
 
 		errorToggleComponent := errors.New("problem with toggle component")
-		world.AddSystem(func(wCtx ecs.WorldContext) error {
+		world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 			// Get the one and only entity ID
 			q, err := wCtx.NewSearch(ecs.Contains(ScalarComponentStatic{}))
 			assert.NilError(t, err)
@@ -329,7 +329,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		powerTx := ecs.NewMessageType[PowerComp, PowerComp]("change_power")
 		assert.NilError(t, world.RegisterMessages(powerTx))
 
-		world.AddSystem(func(wCtx ecs.WorldContext) error {
+		world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 			q, err := wCtx.NewSearch(ecs.Contains(PowerComp{}))
 			assert.NilError(t, err)
 			id := q.MustFirst(wCtx)

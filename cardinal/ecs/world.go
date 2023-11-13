@@ -135,17 +135,17 @@ func (w *World) GetTxQueueAmount() int {
 	return w.txQueue.GetAmountOfTxs()
 }
 
-func (w *World) AddSystem(s System) {
-	w.AddSystemWithName(s, "")
+func (w *World) RegisterSystem(s System) {
+	w.RegisterSystemWithName(s, "")
 }
 
-func (w *World) AddSystems(systems ...System) {
+func (w *World) RegisterSystems(systems ...System) {
 	for _, system := range systems {
-		w.AddSystemWithName(system, "")
+		w.RegisterSystemWithName(system, "")
 	}
 }
 
-func (w *World) AddSystemWithName(system System, functionName string) {
+func (w *World) RegisterSystemWithName(system System, functionName string) {
 	if w.stateIsLoaded {
 		panic("cannot register systems after loading game state")
 	}
@@ -157,6 +157,19 @@ func (w *World) AddSystemWithName(system System, functionName string) {
 	w.systemNames = append(w.systemNames, functionName)
 	// appends registeredSystem into the member system list in world.
 	w.systems = append(w.systems, system)
+	w.checkDuplicateSystemName()
+}
+
+func (w *World) checkDuplicateSystemName() {
+	mappedNames := make(map[string]int, len(w.systemNames))
+	for _, sysName := range w.systemNames {
+		if sysName != "" {
+			mappedNames[sysName]++
+			if mappedNames[sysName] > 1 {
+				w.Logger.Warn().Msgf("duplicate system registered: %s", sysName)
+			}
+		}
+	}
 }
 
 func (w *World) AddInitSystem(system System) {
@@ -287,7 +300,7 @@ func NewWorld(nonceStore storage.NonceStorage, entityStore store.IManager, opts 
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 	w.isGameLoopRunning.Store(false)
-	w.AddSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	w.RegisterSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
 	err := RegisterComponent[SignerComponent](w)
 	if err != nil {
 		return nil, err

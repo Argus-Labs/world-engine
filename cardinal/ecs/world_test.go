@@ -118,7 +118,7 @@ func TestEVMTxConsume(t *testing.T) {
 	assert.NilError(t, w.RegisterMessages(fooTx))
 	var returnVal FooOut
 	var returnErr error
-	w.AddSystem(func(wCtx ecs.WorldContext) error {
+	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		fooTx.ForEach(wCtx, func(t ecs.TxData[FooIn]) (FooOut, error) {
 			return returnVal, returnErr
 		})
@@ -167,7 +167,7 @@ func TestAddSystems(t *testing.T) {
 	}
 
 	w := ecs.NewTestWorld(t)
-	w.AddSystems(sys, sys, sys)
+	w.RegisterSystems(sys, sys, sys)
 	err := w.LoadGameState()
 	assert.NilError(t, err)
 
@@ -180,7 +180,7 @@ func TestAddSystems(t *testing.T) {
 func TestSystemExecutionOrder(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	order := make([]int, 0, 3)
-	w.AddSystems(func(ecs.WorldContext) error {
+	w.RegisterSystems(func(ecs.WorldContext) error {
 		order = append(order, 1)
 		return nil
 	}, func(ecs.WorldContext) error {

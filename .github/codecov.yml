@@ -46,4 +46,4 @@ ignore:
   - "**/proto"
   - "build/"
   - "cmd/"
-  - "chain/precompile"
+  - "evm/precompile"

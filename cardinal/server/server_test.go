@@ -145,7 +145,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, w.RegisterMessages(sendTx))
-	w.AddSystem(func(ecs.WorldContext) error {
+	w.RegisterSystem(func(ecs.WorldContext) error {
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -247,7 +247,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterMessages(sendTx))
 	count := 0
-	w.AddSystem(func(wCtx ecs.WorldContext) error {
+	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		txs := sendTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -304,7 +304,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, w.RegisterMessages(sendTx))
-	w.AddSystem(func(ecs.WorldContext) error {
+	w.RegisterSystem(func(ecs.WorldContext) error {
 		return nil
 	})
 
@@ -499,7 +499,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	w := ecs.NewTestWorld(t)
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, w.RegisterMessages(sendTx))
-	w.AddSystem(func(wCtx ecs.WorldContext) error {
+	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		txs := sendTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
@@ -910,7 +910,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	world := ecs.NewTestWorld(t)
 	assert.NilError(t, world.RegisterMessages(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		for _, tx := range incTx.In(wCtx) {
 			incTx.SetResult(wCtx, tx.Hash, IncReply{
 				Number: tx.Msg.Number + 1,
@@ -919,7 +919,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 		return nil
 	})
 	// System to handle duplicating strings
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		for _, tx := range dupeTx.In(wCtx) {
 			dupeTx.SetResult(wCtx, tx.Hash, DupeReply{
 				Str: tx.Msg.Str + tx.Msg.Str,
@@ -929,7 +929,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	})
 	wantError := errors.New("some error")
 	// System to handle error production
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		for _, tx := range errTx.In(wCtx) {
 			errTx.AddError(wCtx, tx.Hash, wantError)
 			errTx.AddError(wCtx, tx.Hash, wantError)

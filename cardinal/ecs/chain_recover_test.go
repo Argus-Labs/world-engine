@@ -99,7 +99,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	sysRuns := uint64(0)
 	timesSendEnergyRan := 0
 	// send energy system
-	w.AddSystem(func(wCtx ecs.WorldContext) error {
+	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		sysRuns++
 		txs := sendEnergyTx.In(wCtx)
 		if len(txs) > 0 {
