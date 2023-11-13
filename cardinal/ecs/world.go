@@ -96,10 +96,7 @@ const (
 )
 
 func (w *World) DoesWorldHaveAnEventHub() bool {
-	if w.eventHub != nil {
-		return true
-	}
-	return false
+	return w.eventHub != nil
 }
 
 func (w *World) GetEventHub() events.EventHub {
