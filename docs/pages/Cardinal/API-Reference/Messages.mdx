@@ -29,6 +29,8 @@ var Attack = cardinal.NewMessageType[AttackInput, AttackResult]("attack")
 
 `NewMessageType` creates a new `MessageType`. `MessageType`s wrap around an `Input` and `Result` type. The `Input` specifies the input for a message and the `Result` represents the result of the message's execution.
 
+The given name of the message will be used to generate a message endpoint. For example, if NewMessageType is called with "attack", the http endpoint `/tx/game/attack` will be created. The "/tx" prefix in this context is short for "Transaction". A Transaction is the combination of a cardinal Message along with a cryptographic signature.
+
 ```go
 func NewMessageType[Input, Result any](name string) *MessageType[Input, Result]
 ```

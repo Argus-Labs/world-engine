@@ -53,7 +53,7 @@ if err != nil {
 `GetComponent` retrieves the underlying component data for a given entity.
 
 ```go
-func GetComponent[T metadata.Component](worldCcontext WorldContext, id entity.ID) (*T, error)
+func GetComponent[T metadata.Component](worldContext WorldContext, id entity.ID) (*T, error)
 ```
 
 #### Example
@@ -192,7 +192,7 @@ func AddComponentTo[T metadata.Component](wCtx WorldContext, id entity.ID) error
 import "pkg.world.dev/world-engine/cardinal"
 
 target := EntityID(40)
-err := cardinal.AddComponenTo[Health](worldCtx, target)
+err := cardinal.AddComponentTo[Health](worldCtx, target)
 ```
 
 #### Parameters

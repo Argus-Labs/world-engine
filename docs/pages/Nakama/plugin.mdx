@@ -6,19 +6,19 @@ The Nakama plugin bundled with the starter-game-template is general purpose, and
 
 ## RPC Endpoints
 
-Transactions and Queries registered with a `cardinal.World` object will automatically get Nakama RPC endpoints created for them. For example, if you set up a Transaction and a Query with the following code:
+Messages and Queries registered with a `cardinal.World` object will automatically get Nakama RPC endpoints created for them. For example, if you set up a Message and a Query with the following code:
 
 ```go
-var MoveTx = cardinal.NewTransactionType[MoveMsg, MoveResult]("move-a-player")
+var MoveMsg = cardinal.NewMessageType[MoveMsg, MoveResult]("move-a-player")
 var PositionRead = cardinal.NewQueryType[PositionRequest, PositionReply]("position", handlePositionRead)
 ```
 
-And register those objects with `world.RegisterTransactions` and `world.RegisterQueries`, the following set of RPC endpoints will be created in Nakama:
+And register those objects with `world.RegisterMessages` and `world.RegisterQueries`, the following set of RPC endpoints will be created in Nakama:
 
 - /tx/game/move-a-player
 - /query/game/position
 
-RPC requests to those Nakama endpoints will be passed along to your Cardinal implementation.
+RPC requests to those Nakama endpoints will be passed along to your Cardinal implementation. Messages must be processed via the transaction endpoint. The Transaction contains both the underlying message (a client intention to modify game state) and a cryptographic signature (verifying the client is allowed to submit the message).
 
 **Transactions** (prefixed with `/tx`) are added to the transaction queue, and a transaction hash is immediately returned. The transaction will be processed at the next game tick, and the transaction hash can be used to identify the results of previously submitted transactions. See [Transaction Hashes and Receipts](/Nakama/plugin#transaction-hashes-and-receipts) and [Streaming Transaction Receipts](/Nakama/plugin#streaming-transaction-receipts) for more details.
 

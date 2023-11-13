@@ -5,7 +5,15 @@ import Link from 'next/link'
 
 # Queries
 
-Queries enable Cardinal to handle requests for data from game state.
+Queries enable Cardinal to handle requests for data from game state. Queries are read-only operations. Attempts to modify the game state from within a query will return an error.
+
+## Query Data Guarantees
+
+A game tick consists of running all registered Systems in a deterministic order. A System may attempt to update the game state, and subsequent Systems will see these pending state changes and can act accordingly. The pending game state changes are not committed to the storage DB until all registered Systems execute error free. Put another way, if Systems A, B, and C are executed in order, an error from System C will undo any state changes that Systems A and B attempted. This mid-tick data is intermediate data that Systems have access to, but has not yet been stored in the DB.
+
+Queries do NOT have access to this mid-tick data. Queries always collect game state data directly from the storage DB, so they will never see mid-tick game state.
+
+While Queries will never see mid-tick data, the data collected in a Query is not guaranteed to come from the same tick. For example, if you collect the component data from 50 entities, some of the returned data may come from tick 99, and some data may come from tick 100.
 
 ```go
 package query
