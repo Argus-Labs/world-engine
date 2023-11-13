@@ -50,9 +50,10 @@ type World struct {
 	systemNames            []string
 	tick                   uint64
 	nameToComponent        map[string]metadata.ComponentMetadata
+	nameToQuery            map[string]Query
 	registeredComponents   []metadata.ComponentMetadata
 	registeredMessages     []message.Message
-	registeredQueries      []IQuery
+	registeredQueries      []Query
 	isComponentsRegistered bool
 	isMessagesRegistered   bool
 	stateIsLoaded          bool
@@ -208,20 +209,36 @@ func (w *World) GetComponentByName(name string) (metadata.ComponentMetadata, err
 	return componentType, nil
 }
 
-func (w *World) RegisterQueries(queries ...IQuery) error {
-	if w.stateIsLoaded {
+func RegisterQuery[Request any, Reply any](
+	world *World,
+	name string,
+	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+	opts ...func() func(queryType *QueryType[Request, Reply]),
+) error {
+	if world.stateIsLoaded {
 		panic("cannot register queries after loading game state")
 	}
-	w.registeredQueries = append(w.registeredQueries, queries...)
-	seenQueryNames := map[string]struct{}{}
-	for _, t := range w.registeredQueries {
-		name := t.Name()
-		if _, ok := seenQueryNames[name]; ok {
-			return fmt.Errorf("duplicate query %q: %w", name, ErrDuplicateQueryName)
-		}
-		seenQueryNames[name] = struct{}{}
+
+	if _, ok := world.nameToQuery[name]; ok {
+		return fmt.Errorf("query with name %s is already registered", name)
 	}
+
+	q, err := NewQueryType[Request, Reply](name, handler, opts...)
+	if err != nil {
+		return err
+	}
+
+	world.registeredQueries = append(world.registeredQueries, q)
+	world.nameToQuery[q.Name()] = q
+
 	return nil
+}
+
+func (w *World) GetQueryByName(name string) (Query, error) {
+	if q, ok := w.nameToQuery[name]; ok {
+		return q, nil
+	}
+	return nil, fmt.Errorf("query with name %s not found", name)
 }
 
 func (w *World) RegisterMessages(txs ...message.Message) error {
@@ -258,7 +275,7 @@ func (w *World) registerInternalMessages() {
 	)
 }
 
-func (w *World) ListQueries() []IQuery {
+func (w *World) ListQueries() []Query {
 	return w.registeredQueries
 }
 
@@ -288,6 +305,7 @@ func NewWorld(
 		systems:           make([]System, 0),
 		initSystem:        func(_ WorldContext) error { return nil },
 		nameToComponent:   make(map[string]metadata.ComponentMetadata),
+		nameToQuery:       make(map[string]Query),
 		txQueue:           message.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
@@ -630,8 +648,10 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			"be sure to use the `WithAdapter` option when creating the world")
 	}
 	if w.CurrentTick() > 0 {
-		return fmt.Errorf("world recovery should not occur in a world with existing state. please verify all " +
-			"state has been cleared before running recovery")
+		return fmt.Errorf(
+			"world recovery should not occur in a world with existing state. please verify all " +
+				"state has been cleared before running recovery",
+		)
 	}
 
 	w.isRecovering = true
