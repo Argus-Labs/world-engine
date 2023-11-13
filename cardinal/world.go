@@ -27,7 +27,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
-var EntitiesCreatedBeforeStartGameError = errors.New("entities should not be created before start game")
+var ErrEntitiesCreatedBeforeStartGame = errors.New("entities should not be created before start game")
 
 type World struct {
 	implWorld       *ecs.World
@@ -184,8 +184,8 @@ func (w *World) StartGame() error {
 	}
 
 	if err := w.implWorld.LoadGameState(); err != nil {
-		if errors.Is(err, ecs.EntitiesCreatedBeforeLoadingGameStateError) {
-			return EntitiesCreatedBeforeStartGameError
+		if errors.Is(err, ecs.ErrEntitiesCreatedBeforeLoadingGameState) {
+			return ErrEntitiesCreatedBeforeStartGame
 		}
 		return err
 	}

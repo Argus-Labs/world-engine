@@ -39,7 +39,7 @@ func (n Namespace) String() string {
 	return string(n)
 }
 
-var EntitiesCreatedBeforeLoadingGameStateError = errors.New("cannot create entities before loading game state")
+var ErrEntitiesCreatedBeforeLoadingGameState = errors.New("cannot create entities before loading game state")
 
 type World struct {
 	namespace              Namespace
@@ -575,7 +575,7 @@ func (w *World) recoverGameState() (recoveredTxs *message.TxQueue, err error) {
 
 func (w *World) LoadGameState() error {
 	if w.IsEntitiesCreated() {
-		return EntitiesCreatedBeforeLoadingGameStateError
+		return ErrEntitiesCreatedBeforeLoadingGameState
 	}
 	if w.stateIsLoaded {
 		return errors.New("cannot load game state multiple times")
