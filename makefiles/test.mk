@@ -24,5 +24,5 @@ unit-test:
 
 unit-test-all:
 	$(MAKE) unit-test cardinal
-	$(MAKE) unit-test chain
+	$(MAKE) unit-test evm
 	$(MAKE) unit-test sign
