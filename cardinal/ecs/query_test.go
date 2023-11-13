@@ -90,14 +90,14 @@ func TestErrOnNoNameOrHandler(t *testing.T) {
 		shouldErr   bool
 	}{
 		{
-			name: "panic on no name",
+			name: "error on no name",
 			createQuery: func() error {
 				return ecs.RegisterQuery[foo, foo](testutils.NewTestWorld(t).Instance(), "", nil)
 			},
 			shouldErr: true,
 		},
 		{
-			name: "panic on no handler",
+			name: "error on no handler",
 			createQuery: func() error {
 				return ecs.RegisterQuery[foo, foo](testutils.NewTestWorld(t).Instance(), "foo", nil)
 			},
