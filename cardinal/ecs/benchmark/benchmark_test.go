@@ -5,16 +5,15 @@ package benchmark_test
 import (
 	"context"
 	"fmt"
+	"github.com/rs/zerolog"
 	"testing"
 
 	"gotest.tools/v3/assert"
 
-	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -49,8 +48,7 @@ func (Health) Name() string {
 // tick.
 func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.World {
 	world := newWorldWithRealRedis(t)
-	disabledLogger := world.Logger.Level(zerolog.Disabled)
-	world.InjectLogger(&ecslog.Logger{&disabledLogger})
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 	if enableHealthSystem {
 		world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 			q, err := world.NewSearch(ecs.Contains(Health{}))

@@ -3,7 +3,8 @@ rift:
 .PHONY: rift
 
 rollup:
-	./chain/scripts/start.sh --build
+	@. ${CURDIR}/chain/scripts/start-celestia-devnet.sh && \
+	docker compose up chain --build --exit-code-from celestia-devnet
 
 game:
 	cd internal/e2e/tester/cardinal && go mod vendor
