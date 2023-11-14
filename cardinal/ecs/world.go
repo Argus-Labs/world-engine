@@ -98,6 +98,14 @@ const (
 	defaultReceiptHistorySize = 10
 )
 
+func (w *World) DoesWorldHaveAnEventHub() bool {
+	return w.eventHub != nil
+}
+
+func (w *World) GetEventHub() events.EventHub {
+	return w.eventHub
+}
+
 func (w *World) IsEntitiesCreated() bool {
 	return w.isEntitiesCreated
 }
@@ -333,6 +341,7 @@ func NewWorld(
 	if err != nil {
 		return nil, err
 	}
+	opts = append([]Option{WithEventHub(events.CreateWebSocketEventHub())}, opts...)
 	for _, opt := range opts {
 		opt(w)
 	}
