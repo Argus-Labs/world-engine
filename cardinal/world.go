@@ -201,12 +201,11 @@ func (w *World) StartGame() error {
 		}
 		return err
 	}
-	eventHub := events.CreateWebSocketEventHub()
-	w.instance.SetEventHub(eventHub)
-	eventBuilder := events.CreateNewWebSocketBuilder(
-		"/events",
-		events.CreateWebSocketEventHandler(eventHub),
-	)
+	if !w.instance.DoesWorldHaveAnEventHub() {
+		w.instance.SetEventHub(events.CreateWebSocketEventHub())
+	}
+	eventHub := w.instance.GetEventHub()
+	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
 	handler, err := server.NewHandler(w.instance, eventBuilder, w.serverOptions...)
 	if err != nil {
 		return err
