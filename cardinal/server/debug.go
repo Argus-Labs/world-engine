@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -25,8 +26,8 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 				result := make(DebugStateResponse, 0)
 				search := ecs.NewSearch(filter.All())
 				wCtx := ecs.NewReadOnlyWorldContext(handler.w)
-
-				err := search.Each(wCtx, func(id entity.ID) bool {
+				var err error
+				err = errors.Join(err, search.Each(wCtx, func(id entity.ID) bool {
 					components, err := handler.w.StoreManager().GetComponentTypesForEntity(id)
 					if err != nil {
 						return false
@@ -44,7 +45,7 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 					}
 					result = append(result, &resultElement)
 					return true
-				})
+				}))
 				if err != nil {
 					return nil, err
 				}
