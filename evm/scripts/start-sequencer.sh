@@ -28,7 +28,7 @@ DA_BLOCK_HEIGHT=${DA_BLOCK_HEIGHT:-0}
 BLOCK_TIME="${BLOCK_TIME:-"10s"}"
 # Use 10 bytes hex encoded value (generate random value: `openssl rand -hex 10`)
 DA_NAMESPACE_ID="${DA_NAMESPACE_ID:-"67480c4a88c4d12935d4"}"
-DA_CONFIG=${DA_CONFIG:-'{"base_url":"'$DA_BASE_URL'","timeout":60000000000,"fee":6000,"gas_limit":6000000,"fee":600000,"auth_token":"'$DA_AUTH_TOKEN'"}'}
+DA_CONFIG=${DA_CONFIG:-'{"base_url":"'$DA_BASE_URL'","timeout":60000000000,"gas_limit":6000000,"fee":600000,"auth_token":"'$DA_AUTH_TOKEN'"}'}
 
 echo "DA_NAMESPACE_ID: $DA_NAMESPACE_ID"
 echo "DA_CONFIG: $DA_CONFIG"
@@ -55,4 +55,4 @@ sed -i'.bak' 's#"localhost:9090"#"0.0.0.0:9090"#g' /root/.world-evm/config/app.t
 sed -i'.bak' 's#localhost:1317#0.0.0.0:1317#g' /root/.world-evm/config/app.toml
 
 # start the node.
-world-evm start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.block_time $BLOCK_TIME --minimum-gas-prices $MIN_GAS_PRICE
+world-evm start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.block_time $BLOCK_TIME --minimum-gas-prices $MIN_GAS_PRICE --rpc.laddr tcp://127.0.0.1:36657 --p2p.laddr "0.0.0.0:36656"
