@@ -561,7 +561,7 @@ func (w *World) drainChannelsWaitingForNextTick() {
 
 func (w *World) drainEndLoopChannels() {
 	go func() {
-		for range w.endGameLoopCh {
+		for range w.endGameLoopCh { //nolint:revive // This pattern drains the channel until closed
 		}
 	}()
 }
