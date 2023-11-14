@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"sync/atomic"
 	"syscall"
 	"time"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/gamestage"
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -40,17 +40,9 @@ type World struct {
 	cleanup         func()
 
 	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc)
-	gameSequenceStage atomic.Int32
+	gameSequenceStage gamestage.Atomic
 	endStartGame      chan bool
 }
-
-const (
-	sequencePreStart int32 = iota
-	sequenceStarting
-	sequenceRunning
-	sequenceShuttingDown
-	sequenceShutDown
-)
 
 type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
@@ -110,11 +102,11 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	world := &World{
-		instance:      ecsWorld,
-		serverOptions: serverOptions,
-		endStartGame:  make(chan bool),
+		instance:          ecsWorld,
+		serverOptions:     serverOptions,
+		endStartGame:      make(chan bool),
+		gameSequenceStage: gamestage.NewAtomic(),
 	}
-	world.gameSequenceStage.Store(sequencePreStart)
 
 	// Apply options
 	for _, opt := range cardinalOptions {
@@ -198,7 +190,7 @@ func (w *World) handleShutdown() {
 // may not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {
-	ok := w.gameSequenceStage.CompareAndSwap(sequencePreStart, sequenceStarting)
+	ok := w.gameSequenceStage.CompareAndSwap(gamestage.StagePreStart, gamestage.StageStarting)
 	if !ok {
 		return errors.New("game has already been started")
 	}
@@ -243,7 +235,7 @@ func (w *World) StartGame() error {
 	gameManager := server.NewGameManager(w.instance, w.server)
 	w.gameManager = &gameManager
 	go func() {
-		ok := w.gameSequenceStage.CompareAndSwap(sequenceStarting, sequenceRunning)
+		ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageStarting, gamestage.StageRunning)
 		if !ok {
 			log.Fatal().Err(errors.New("game was started prematurely"))
 		}
@@ -259,11 +251,11 @@ func (w *World) StartGame() error {
 }
 
 func (w *World) IsGameRunning() bool {
-	return w.gameSequenceStage.Load() == sequenceRunning
+	return w.gameSequenceStage.Load() == gamestage.StageRunning
 }
 
 func (w *World) ShutDown() error {
-	ok := w.gameSequenceStage.CompareAndSwap(sequenceRunning, sequenceShuttingDown)
+	ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageRunning, gamestage.StageShuttingDown)
 	if !ok {
 		// Either the world hasn't been started, or we've already shut down.
 		return nil
@@ -271,7 +263,7 @@ func (w *World) ShutDown() error {
 	// The CompareAndSwap returned true, so this call is responsible for actually
 	// shutting down the game.
 	defer func() {
-		w.gameSequenceStage.Store(sequenceShutDown)
+		w.gameSequenceStage.Store(gamestage.StageShutDown)
 	}()
 	if w.cleanup != nil {
 		w.cleanup()
