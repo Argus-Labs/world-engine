@@ -141,7 +141,6 @@ func normalizeJSON(data any) ([]byte, error) {
 	}
 
 	normalizedBz, err := json.Marshal(asMap)
-	err = eris.Wrap(err, "")
 	if err != nil {
 		return nil, eris.Wrapf(err, "failed to generate compact json")
 	}
