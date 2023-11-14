@@ -47,10 +47,6 @@ func WithEventHub(eventHub events.EventHub) Option {
 
 func WithLoggingEventHub(logger *ecslog.Logger) Option {
 	return func(w *World) {
-		// because the logging event hub is for testing purposes it will only register itself if there isn't
-		// already another eventhub used by world.
-		if w.eventHub == nil {
-			w.eventHub = events.CreateLoggingEventHub(logger)
-		}
+		w.eventHub = events.CreateLoggingEventHub(logger)
 	}
 }
