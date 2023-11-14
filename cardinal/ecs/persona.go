@@ -165,7 +165,7 @@ var (
 // given tick. If the world's tick is less than or equal to the given tick, ErrorCreatePersonaTXsNotProcessed is
 // returned. If the given personaTag has no signer address, ErrPersonaTagHasNoSigner is returned.
 func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
-	if tick >= w.tick {
+	if tick >= w.CurrentTick() {
 		return "", ErrCreatePersonaTxsNotProcessed
 	}
 	var errs []error
