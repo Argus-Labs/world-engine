@@ -27,6 +27,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
+var ErrEntitiesCreatedBeforeStartGame = errors.New("entities should not be created before start game")
+
 type World struct {
 	instance        *ecs.World
 	server          *server.Handler
@@ -202,6 +204,9 @@ func (w *World) StartGame() error {
 	}
 
 	if err := w.instance.LoadGameState(); err != nil {
+		if errors.Is(err, ecs.ErrEntitiesCreatedBeforeLoadingGameState) {
+			return ErrEntitiesCreatedBeforeStartGame
+		}
 		return err
 	}
 	eventHub := events.CreateWebSocketEventHub()

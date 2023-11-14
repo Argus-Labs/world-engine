@@ -2,10 +2,12 @@ package cardinal_test
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal"
 )
 
@@ -41,6 +43,7 @@ func TestSystemExample(t *testing.T) {
 	assert.NilError(t, err)
 
 	worldCtx := testutils.WorldToWorldContext(world)
+	doTick()
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
 	assert.NilError(t, err)
 

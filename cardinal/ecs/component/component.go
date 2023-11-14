@@ -48,6 +48,7 @@ func CreateMany(wCtx ecs.WorldContext, num int, components ...metadata.Component
 			}
 		}
 	}
+	wCtx.GetWorld().SetEntitiesCreated(true)
 	return entityIds, nil
 }
 
