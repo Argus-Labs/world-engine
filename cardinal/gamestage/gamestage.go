@@ -5,10 +5,10 @@ import "sync/atomic"
 type Stage int32
 
 type Atomic interface {
-	CompareAndSwap(old, new Stage) (swapped bool)
+	CompareAndSwap(oldStage, newStage Stage) (swapped bool)
 	Load() Stage
 	Store(val Stage)
-	Swap(new Stage) (old Stage)
+	Swap(newStage Stage) (oldStage Stage)
 }
 
 const (
@@ -31,8 +31,8 @@ func NewAtomic() Atomic {
 	return a
 }
 
-func (a *atomicStage) CompareAndSwap(old, new Stage) (swapped bool) {
-	return a.value.CompareAndSwap(old, new)
+func (a *atomicStage) CompareAndSwap(oldStage, newStage Stage) (swapped bool) {
+	return a.value.CompareAndSwap(oldStage, newStage)
 }
 
 func (a *atomicStage) Load() Stage {
@@ -43,6 +43,6 @@ func (a *atomicStage) Store(val Stage) {
 	a.value.Store(val)
 }
 
-func (a *atomicStage) Swap(new Stage) (old Stage) {
-	return a.value.Swap(new).(Stage)
+func (a *atomicStage) Swap(newStage Stage) (oldStage Stage) {
+	return a.value.Swap(newStage).(Stage)
 }
