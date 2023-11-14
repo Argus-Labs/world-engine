@@ -32,13 +32,23 @@ type World struct {
 	server          *server.Handler
 	evmServer       evm.Server
 	gameManager     *server.GameManager
-	isGameRunning   atomic.Bool
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
 	cleanup         func()
-	endStartGame    chan bool
+
+	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc)
+	gameSequenceStage atomic.Int32
+	endStartGame      chan bool
 }
+
+const (
+	sequencePreStart int32 = iota
+	sequenceStarting
+	sequenceRunning
+	sequenceShuttingDown
+	sequenceShutDown
+)
 
 type (
 	// EntityID represents a single entity in the World. An EntityID is tied to
@@ -102,7 +112,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		serverOptions: serverOptions,
 		endStartGame:  make(chan bool),
 	}
-	world.isGameRunning.Store(false)
+	world.gameSequenceStage.Store(sequencePreStart)
 
 	// Apply options
 	for _, opt := range cardinalOptions {
@@ -186,8 +196,9 @@ func (w *World) handleShutdown() {
 // may not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {
-	if w.IsGameRunning() {
-		return errors.New("game already running")
+	ok := w.gameSequenceStage.CompareAndSwap(sequencePreStart, sequenceStarting)
+	if !ok {
+		return errors.New("game has already been started")
 	}
 
 	if err := w.instance.LoadGameState(); err != nil {
@@ -227,7 +238,10 @@ func (w *World) StartGame() error {
 	gameManager := server.NewGameManager(w.instance, w.server)
 	w.gameManager = &gameManager
 	go func() {
-		w.isGameRunning.Store(true)
+		ok := w.gameSequenceStage.CompareAndSwap(sequenceStarting, sequenceRunning)
+		if !ok {
+			log.Fatal().Err(errors.New("game was started prematurely"))
+		}
 		if err := w.server.Serve(); err != nil {
 			log.Fatal().Err(err)
 		}
@@ -240,26 +254,31 @@ func (w *World) StartGame() error {
 }
 
 func (w *World) IsGameRunning() bool {
-	return w.isGameRunning.Load()
+	return w.gameSequenceStage.Load() == sequenceRunning
 }
 
 func (w *World) ShutDown() error {
+	ok := w.gameSequenceStage.CompareAndSwap(sequenceRunning, sequenceShuttingDown)
+	if !ok {
+		// Either the world hasn't been started, or we've already shut down.
+		return nil
+	}
+	// The CompareAndSwap returned true, so this call is responsible for actually
+	// shutting down the game.
+	defer func() {
+		w.gameSequenceStage.Store(sequenceShutDown)
+	}()
 	if w.cleanup != nil {
 		w.cleanup()
 	}
 	if w.evmServer != nil {
 		w.evmServer.Shutdown()
 	}
-	if w.IsGameRunning() {
-		err := w.gameManager.Shutdown()
-		if err != nil {
-			return err
-		}
-		w.isGameRunning.Store(false)
+	close(w.endStartGame)
+	err := w.gameManager.Shutdown()
+	if err != nil {
+		return err
 	}
-	go func() {
-		w.endStartGame <- true
-	}()
 	return nil
 }
 

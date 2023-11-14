@@ -208,6 +208,11 @@ Loop:
 			waitGroup.Wait()
 			eh.eventQueue = eh.eventQueue[:0]
 		case <-eh.shutdown:
+			// Toss out any future signals to shut down
+			go func() {
+				for range eh.shutdown {
+				}
+			}()
 			for conn := range eh.websocketConnections {
 				unregisterConnection(conn)
 			}

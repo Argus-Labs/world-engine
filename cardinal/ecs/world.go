@@ -502,8 +502,12 @@ func (w *World) StartGameLoop(
 	}
 
 	go func() {
+		ok := w.isGameLoopRunning.CompareAndSwap(false, true)
+		if !ok {
+			// The game has already started
+			return
+		}
 		var waitingChs []chan struct{}
-		w.isGameLoopRunning.Store(true)
 	loop:
 		for {
 			select {
@@ -513,6 +517,7 @@ func (w *World) StartGameLoop(
 				waitingChs = waitingChs[:0]
 			case <-w.endGameLoopCh:
 				w.drainChannelsWaitingForNextTick()
+				w.drainEndLoopChannels()
 				closeAllChannels(waitingChs)
 				if w.GetTxQueueAmount() > 0 {
 					// immediately tick if queue is not empty to process all txs if queue is not empty.
@@ -550,6 +555,13 @@ func (w *World) drainChannelsWaitingForNextTick() {
 	go func() {
 		for ch := range w.addChannelWaitingForNextTick {
 			close(ch)
+		}
+	}()
+}
+
+func (w *World) drainEndLoopChannels() {
+	go func() {
+		for range w.endGameLoopCh {
 		}
 	}()
 }

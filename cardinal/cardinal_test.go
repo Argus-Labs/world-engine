@@ -84,7 +84,7 @@ func TestShutdownViaSignal(t *testing.T) {
 	}()
 	for !world.IsGameRunning() {
 		// wait until game loop is running
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 	wCtx := cardinal.TestingWorldToWorldContext(world)
 	_, err := cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
@@ -115,7 +115,7 @@ func TestShutdownViaSignal(t *testing.T) {
 
 	for world.IsGameRunning() {
 		// wait until game loop is not running
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
 	}
 	wg.Wait()
 }
