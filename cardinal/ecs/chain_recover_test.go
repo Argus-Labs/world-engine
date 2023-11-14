@@ -3,12 +3,15 @@ package ecs_test
 import (
 	"context"
 	"encoding/binary"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"sort"
 	"testing"
 
-	shardv1 "buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go/shard/v1"
 	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
+	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 
 	"github.com/cometbft/cometbft/libs/rand"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -23,8 +26,8 @@ type DummyAdapter struct {
 	txs map[uint64][]*types.Transaction
 }
 
-func (d *DummyAdapter) Submit(_ context.Context, p *sign.SignedPayload, txID, tick uint64) error {
-	sp := &shardv1.SignedPayload{
+func (d *DummyAdapter) Submit(_ context.Context, p *sign.Transaction, txID, tick uint64) error {
+	sp := &shardv1.Transaction{
 		PersonaTag: p.PersonaTag,
 		Namespace:  p.Namespace,
 		Nonce:      p.Nonce,
@@ -39,8 +42,8 @@ func (d *DummyAdapter) Submit(_ context.Context, p *sign.SignedPayload, txID, ti
 		d.txs[tick] = make([]*types.Transaction, 0)
 	}
 	d.txs[tick] = append(d.txs[tick], &types.Transaction{
-		TxId:          txID,
-		SignedPayload: bz,
+		TxId:                 txID,
+		GameShardTransaction: bz,
 	})
 	return nil
 }
@@ -77,12 +80,12 @@ func (d *DummyAdapter) QueryTransactions(_ context.Context, request *types.Query
 	}, nil
 }
 
-type SendEnergyTransaction struct {
+type SendEnergyMsg struct {
 	To, From string
 	Amount   uint64
 }
 
-type SendEnergyTransactionResponse struct{}
+type SendEnergyResult struct{}
 
 // TestWorld_RecoverFromChain tests that after submitting transactions to the chain, they can be queried, re-ran,
 // and end up with the same game state as before.
@@ -90,15 +93,15 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
-	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
-	sendEnergyTx := ecs.NewTransactionType[SendEnergyTransaction, SendEnergyTransactionResponse]("send_energy")
-	err := w.RegisterTransactions(sendEnergyTx)
+	w := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
+	sendEnergyTx := ecs.NewMessageType[SendEnergyMsg, SendEnergyResult]("send_energy")
+	err := w.RegisterMessages(sendEnergyTx)
 	assert.NilError(t, err)
 
 	sysRuns := uint64(0)
 	timesSendEnergyRan := 0
 	// send energy system
-	w.AddSystem(func(wCtx ecs.WorldContext) error {
+	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		sysRuns++
 		txs := sendEnergyTx.In(wCtx)
 		if len(txs) > 0 {
@@ -107,7 +110,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		return nil
 	})
 	namespace := "game1"
-	payloads := make([]*sign.SignedPayload, 0, 10)
+	payloads := make([]*sign.Transaction, 0, 10)
 	var finalTick uint64 = 20
 	for i := 0; i <= 10; i++ {
 		payload := generateRandomTransaction(t, namespace, sendEnergyTx)
@@ -125,16 +128,15 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	assert.Equal(t, len(payloads), timesSendEnergyRan)
 }
 
-func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[SendEnergyTransaction,
-	SendEnergyTransactionResponse]) *sign.SignedPayload {
-	tx1 := SendEnergyTransaction{
+func generateRandomTransaction(t *testing.T, ns string, msg message.Message) *sign.Transaction {
+	tx1 := SendEnergyMsg{
 		To:     rand.Str(5),
 		From:   rand.Str(4),
 		Amount: rand.Uint64(),
 	}
-	bz, err := tx.Encode(tx1)
+	bz, err := msg.Encode(tx1)
 	assert.NilError(t, err)
-	return &sign.SignedPayload{
+	return &sign.Transaction{
 		PersonaTag: rand.Str(5),
 		Namespace:  ns,
 		Nonce:      rand.Uint64(),
@@ -144,10 +146,9 @@ func generateRandomTransaction(t *testing.T, ns string, tx *ecs.TransactionType[
 }
 
 func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
-	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{}
-	w := ecs.NewTestWorld(t, ecs.WithAdapter(adapter))
+	w := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
 	assert.NilError(t, w.LoadGameState())
 	assert.NilError(t, w.Tick(ctx))
 

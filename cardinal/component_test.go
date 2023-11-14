@@ -1,15 +1,25 @@
 package cardinal_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal"
 )
 
 type Height struct {
 	Inches int
+}
+
+type Number struct {
+	num int
+}
+
+func (Number) Name() string {
+	return "number"
 }
 
 func (Height) Name() string { return "height" }
@@ -32,11 +42,27 @@ func TestComponentExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Height](world))
 	assert.NilError(t, cardinal.RegisterComponent[Weight](world))
 	assert.NilError(t, cardinal.RegisterComponent[Age](world))
+	assert.NilError(t, cardinal.RegisterComponent[Number](world))
 
 	testWorldCtx := testutils.WorldToWorldContext(world)
+	assert.Equal(t, testWorldCtx.CurrentTick(), uint64(0))
+	testWorldCtx.Logger().Info().Msg("test") // Check for compile errors.
+	testWorldCtx.EmitEvent("test")           // test for compiler errors, a check for this lives in e2e tests.
 	startHeight := 72
 	startWeight := 200
 	startAge := 30
+	numberID, err := cardinal.Create(testWorldCtx, &Number{})
+	assert.NilError(t, err)
+	err = cardinal.SetComponent[Number](testWorldCtx, numberID, &Number{num: 42})
+	assert.NilError(t, err)
+	newNum, err := cardinal.GetComponent[Number](testWorldCtx, numberID)
+	assert.NilError(t, err)
+	assert.Equal(t, newNum.num, 42)
+	err = cardinal.Remove(testWorldCtx, numberID)
+	assert.NilError(t, err)
+	shouldBeNil, err := cardinal.GetComponent[Number](testWorldCtx, numberID)
+	assert.Assert(t, err != nil)
+	assert.Assert(t, shouldBeNil == nil)
 
 	peopleIDs, err := cardinal.CreateMany(testWorldCtx, 10, Height{startHeight}, Weight{startWeight}, Age{startAge})
 	assert.NilError(t, err)
@@ -61,6 +87,9 @@ func TestComponentExample(t *testing.T) {
 	count, err = search.Count(testWorldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, len(peopleIDs)-1, count)
+	first, err := search.First(testWorldCtx)
+	assert.NilError(t, err)
+	assert.Equal(t, first, cardinal.EntityID(1))
 
 	// Age does not exist on the target ID, so this should result in an error
 	err = cardinal.UpdateComponent[Age](testWorldCtx, targetID, func(a *Age) *Age {

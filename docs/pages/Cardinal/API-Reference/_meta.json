@@ -3,14 +3,17 @@
   },
   "Systems":{
   },
-  "Transactions":{
+  "Messages":{
   },
-  "Reads": {},
+  "Query": {},
   "World": {},
   "evm-support": {
     "title": "EVM Support"
   },
   "cql": {
     "title": "Cardinal Query Language (CQL)"
+  },
+  "Events": {
+    "title": "Events"
   }
 }

@@ -7,21 +7,21 @@ on:
     branches:
       - main
     tags:
-      - 'chain/v*.*.*'
+      - 'evm/v*.*.*'
       - 'relay/nakama/v*.*.*'
 
 env:
   REGISTRY_URL: us-docker.pkg.dev
 
 jobs:
-  chain-release:
-    name: Chain Image Release
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/chain/v')
+  evm-release:
+    name: EVM Image Release
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/evm/v')
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
-        working-directory: chain
+        working-directory: evm
     # Add "id-token" with the intended permissions.
     permissions:
       contents: 'read'
@@ -34,7 +34,7 @@ jobs:
       - name: Cache Docker images
         uses: ScribeMD/docker-cache@0.3.4
         with:
-          key: docker-${{ runner.os }}-${{ hashFiles('chain/Dockerfile') }}
+          key: docker-${{ runner.os }}-${{ hashFiles('evm/Dockerfile') }}
       - name: GCP auth
         id: auth
         uses: google-github-actions/auth@v1
@@ -50,21 +50,21 @@ jobs:
           gcloud auth configure-docker ${{ env.REGISTRY_URL }}
       - name: Docker - Build
         run: |
-          docker build -t chain-local-build:latest .
+          docker build -t evm-local-build:latest .
       - name: Docker - Publish Image
         run: |
           ## Construct image_id
-          IMAGE_ID_CHAIN=${{ env.REGISTRY_URL }}/${{ github.repository_owner }}/${{ github.event.repository.name }}/chain
-          IMAGE_ID_CHAIN=$(echo $IMAGE_ID_CHAIN | tr '[A-Z]' '[a-z]')
+          IMAGE_ID_EVM=${{ env.REGISTRY_URL }}/${{ github.repository_owner }}/${{ github.event.repository.name }}/evm
+          IMAGE_ID_EVM=$(echo $IMAGE_ID_EVM | tr '[A-Z]' '[a-z]')
 
-          ## Get version from tag name (ex: chain/v0.0.0 --> registry/chain:v0.0.0)
+          ## Get version from tag name (ex: evm/v0.0.0 --> registry/evm:v0.0.0)
           ## Or use 'latest' when on main branch
           VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
           [ "$VERSION" == "main" ] && VERSION=latest
-          echo "Image to push: $IMAGE_ID_CHAIN:$VERSION"
+          echo "Image to push: $IMAGE_ID_EVM:$VERSION"
 
-          docker tag chain-local-build:latest $IMAGE_ID_CHAIN:$VERSION
-          docker push $IMAGE_ID_CHAIN:$VERSION
+          docker tag evm-local-build:latest $IMAGE_ID_EVM:$VERSION
+          docker push $IMAGE_ID_EVM:$VERSION
   nakama-release:
     name: Nakama Image Release
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/relay/nakama/v')

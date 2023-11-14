@@ -3,13 +3,13 @@ name: Build
 on:
   pull_request:
     paths:
-      - chain/**
+      - evm/**
   push:
     branches:
       - main
 jobs:
-  chain:
-    name: Build Chain
+  evm:
+    name: Build EVM
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -18,11 +18,11 @@ jobs:
         uses: foundry-rs/foundry-toolchain@v1
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      - name: Cache Docker images
-        uses: ScribeMD/docker-cache@0.3.4
-        with:
-          key: docker-${{ runner.os }}-${{ hashFiles('chain/Dockerfile') }}
-      - name: Forge Build chain/contracts
+      # - name: Cache Docker images
+      #   uses: ScribeMD/docker-cache@0.3.4
+      #   with:
+      #     key: docker-${{ runner.os }}-${{ hashFiles('evm/Dockerfile') }}
+      - name: Forge Build evm/contracts
         run: make forge-build
       - name: Build Rollup
         run: make rollup-build

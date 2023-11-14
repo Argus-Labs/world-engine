@@ -11,7 +11,7 @@ import (
 
 type DummyAdapter struct{}
 
-func (d *DummyAdapter) Submit(_ context.Context, _ *sign.SignedPayload, _, _ uint64) error {
+func (d *DummyAdapter) Submit(_ context.Context, _ *sign.Transaction, _, _ uint64) error {
 	return nil
 }
 
@@ -25,8 +25,10 @@ func TestOptionFunctionSignatures(_ *testing.T) {
 	// public facing functions was changed.
 	WithAdapter(&DummyAdapter{})
 	WithReceiptHistorySize(1)
-	WithNamespace("blah")
-	WithPort("4040")
+	WithTickChannel(nil)
+	WithTickDoneChannel(nil)
+	WithStoreManager(nil)
+	WithEventHub(nil)
+	WithLoggingEventHub(nil)
 	WithDisableSignatureVerification() //nolint:staticcheck //this test just looks for compile errors
-	WithPrettyLog()                    //nolint:staticcheck //this test just looks for compile errors
 }

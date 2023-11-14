@@ -1,6 +1,7 @@
 package metadata_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -39,7 +40,7 @@ func TestComponentInterfaceSignature(t *testing.T) {
 }
 
 func TestComponents(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	ecs.MustRegisterComponent[ComponentDataA](world)
 	ecs.MustRegisterComponent[ComponentDataB](world)
 
@@ -141,7 +142,7 @@ func (notFoundComp) Name() string {
 }
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	ecs.MustRegisterComponent[foundComp](world)
 	ecs.MustRegisterComponent[notFoundComp](world)
 
@@ -161,7 +162,7 @@ func (ValueComponent) Name() string {
 }
 
 func TestMultipleCallsToCreateSupported(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent](world))
 
 	wCtx := ecs.NewWorldContext(world)

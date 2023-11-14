@@ -1,6 +1,8 @@
 package ecb_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -290,7 +292,7 @@ func (Power) Name() string {
 func TestStorageCanBeUsedInQueries(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
-	world := ecs.NewTestWorld(t, ecs.WithStoreManager(manager))
+	world := testutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Instance()
 	assert.NilError(t, ecs.RegisterComponent[Health](world))
 	assert.NilError(t, ecs.RegisterComponent[Power](world))
 	assert.NilError(t, world.LoadGameState())
@@ -502,4 +504,25 @@ func TestOrderOfComponentsDoesNotMatterWhenCreatingEntities(t *testing.T) {
 	for i := range compsA {
 		assert.Equal(t, compsA[i].ID(), compsB[i].ID())
 	}
+}
+
+func TestCannotSaveStateBeforeRegisteringComponents(t *testing.T) {
+	// Don't use newCmdBufferForTest because that automatically registers some components.
+	s := miniredis.RunT(t)
+	options := redis.Options{
+		Addr:     s.Addr(),
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}
+
+	client := redis.NewClient(&options)
+	manager, err := ecb.NewManager(client)
+	assert.NilError(t, err)
+
+	// RegisterComponents must be called before attempting to save the state
+	err = manager.CommitPending()
+	assert.Check(t, err != nil)
+
+	assert.NilError(t, manager.RegisterComponents(allComponents))
+	assert.NilError(t, manager.CommitPending())
 }

@@ -139,7 +139,7 @@ func (t *cqlTerm) String() string {
 
 var internalCQLParser = participle.MustBuild[cqlTerm]()
 
-// TODO: Value is sum type is represented as a product type. There is a case where multiple properties are filled out.
+// TODO: Msg is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
 // be checked.
 func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (metadata.ComponentMetadata, error)) (

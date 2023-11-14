@@ -1,10 +1,13 @@
 package cardinal_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/testutils"
+	"errors"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal"
 )
 
@@ -16,7 +19,10 @@ type QueryHealthResponse struct {
 	IDs []cardinal.EntityID
 }
 
-func handleQueryHealth(worldCtx cardinal.WorldContext, request *QueryHealthRequest) (*QueryHealthResponse, error) {
+func handleQueryHealth(
+	worldCtx cardinal.WorldContext,
+	request *QueryHealthRequest,
+) (*QueryHealthResponse, error) {
 	q, err := worldCtx.NewSearch(cardinal.Exact(Health{}))
 	if err != nil {
 		return nil, err
@@ -40,12 +46,36 @@ func handleQueryHealth(worldCtx cardinal.WorldContext, request *QueryHealthReque
 	return resp, nil
 }
 
-var queryHealth = cardinal.NewQueryType[*QueryHealthRequest, *QueryHealthResponse]("query_health", handleQueryHealth)
+func TestNewQueryTypeWithEVMSupport(t *testing.T) {
+	// This test just makes sure that NeQueryTypeWithEVMSupport maintains api compatibility.
+	// it is mainly here to check for compiler errors.
+	type FooReq struct {
+		X uint64
+	}
+	type FooReply struct {
+		Y uint64
+	}
+	_ = cardinal.RegisterQueryWithEVMSupport[FooReq, FooReply](
+		testutils.NewTestWorld(t),
+		"query_health",
+		func(
+			_ cardinal.WorldContext,
+			_ *FooReq) (*FooReply, error) {
+			return &FooReply{}, errors.New("this function should never get called")
+		})
+}
 
 func TestQueryExample(t *testing.T) {
 	world, _ := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
-	assert.NilError(t, cardinal.RegisterQueries(world, queryHealth))
+	assert.NilError(
+		t,
+		cardinal.RegisterQuery[QueryHealthRequest, QueryHealthResponse](
+			world,
+			"query_health",
+			handleQueryHealth,
+		),
+	)
 
 	worldCtx := testutils.WorldToWorldContext(world)
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
@@ -59,17 +89,20 @@ func TestQueryExample(t *testing.T) {
 	}
 
 	// No entities should have health over a million.
-	resp, err := queryHealth.DoQuery(worldCtx, &QueryHealthRequest{1_000_000})
+	q, err := world.Instance().GetQueryByName("query_health")
 	assert.NilError(t, err)
-	assert.Equal(t, 0, len(resp.IDs))
+
+	resp, err := q.HandleQuery(worldCtx.Instance(), QueryHealthRequest{1_000_000})
+	assert.NilError(t, err)
+	assert.Equal(t, 0, len(resp.(*QueryHealthResponse).IDs))
 
 	// All entities should have health over -100
-	resp, err = queryHealth.DoQuery(worldCtx, &QueryHealthRequest{-100})
+	resp, err = q.HandleQuery(worldCtx.Instance(), QueryHealthRequest{-100})
 	assert.NilError(t, err)
-	assert.Equal(t, 100, len(resp.IDs))
+	assert.Equal(t, 100, len(resp.(*QueryHealthResponse).IDs))
 
 	// Exactly 10 entities should have health at or above 90
-	resp, err = queryHealth.DoQuery(worldCtx, &QueryHealthRequest{90})
+	resp, err = q.HandleQuery(worldCtx.Instance(), QueryHealthRequest{90})
 	assert.NilError(t, err)
-	assert.Equal(t, 10, len(resp.IDs))
+	assert.Equal(t, 10, len(resp.(*QueryHealthResponse).IDs))
 }

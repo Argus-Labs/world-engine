@@ -31,18 +31,18 @@ import (
 // We could end up with some issues (needs to be determined).
 
 type RedisStorage struct {
-	WorldID string
-	Client  *redis.Client
-	Log     zerolog.Logger
+	Namespace string
+	Client    *redis.Client
+	Log       zerolog.Logger
 }
 
 type Options = redis.Options
 
-func NewRedisStorage(options Options, worldID string) RedisStorage {
+func NewRedisStorage(options Options, namespace string) RedisStorage {
 	return RedisStorage{
-		WorldID: worldID,
-		Client:  redis.NewClient(&options),
-		Log:     zerolog.New(os.Stdout),
+		Namespace: namespace,
+		Client:    redis.NewClient(&options),
+		Log:       zerolog.New(os.Stdout),
 	}
 }
 

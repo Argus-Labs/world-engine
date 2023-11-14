@@ -13,11 +13,9 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
-require pkg.world.dev/world-engine/cardinal v0.1.47-alpha.0.20231027233932-e499c1f032cd
+require pkg.world.dev/world-engine/cardinal v0.1.47-alpha.0.20231106232923-a4d2b1526011
 
 require (
-	buf.build/gen/go/argus-labs/world-engine/grpc/go v1.3.0-20230808004839-11a21a99bf62.1 // indirect
-	buf.build/gen/go/argus-labs/world-engine/protocolbuffers/go v1.31.0-20230808004839-11a21a99bf62.1 // indirect
 	cosmossdk.io/api v0.7.0 // indirect
 	cosmossdk.io/collections v0.4.0 // indirect
 	cosmossdk.io/core v0.10.0 // indirect
@@ -135,8 +133,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
-	pkg.world.dev/world-engine/chain v0.1.11-alpha // indirect
-	pkg.world.dev/world-engine/rift v0.0.4 // indirect
-	pkg.world.dev/world-engine/sign v0.1.9-alpha // indirect
+	pkg.world.dev/world-engine/chain v0.1.12-alpha // indirect
+	pkg.world.dev/world-engine/rift v0.0.5 // indirect
+	pkg.world.dev/world-engine/sign v0.1.10-alpha // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

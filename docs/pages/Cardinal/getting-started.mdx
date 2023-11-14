@@ -8,11 +8,9 @@ git clone https://github.com/Argus-Labs/starter-game-template
 
 ## Anatomy of the Starter Game Template
 
-The starter game template has 4 directories, but you will only need to worry about 2 of them (cardinal and nakama).
+The starter game template has 2 directories, but you will only need to worry about the cardinal directory.
 
 - [cardinal](https://github.com/Argus-Labs/starter-game-template/tree/main/cardinal): code for your game server.
-- [magefiles](https://github.com/Argus-Labs/starter-game-template/tree/main/magefiles): utility scripts that utilize the `mage` build tool (an alternative to `make`)
-- [nakama](https://github.com/Argus-Labs/starter-game-template/tree/main/nakama): code for the relayer/account abstraction layer.
 - [testsuite](https://github.com/Argus-Labs/starter-game-template/tree/main/testsuite): e2e tests for the whole stack.
 
 ### Cardinal
@@ -21,11 +19,10 @@ Cardinal is where the game logic lives. We recommend the following directory str
 
 - `component`: component definitions
 - `system`: system functions implementations
-- `read`: read (query) implementations for your game state (used by external clients)
+- `query`: query implementations for your game state (used by external clients)
 - `tx`: transaction definitions
 
-The starter game template comes with some existing code in these directories, so you can get a feel for how things
-should be organized and implemented.
+The starter game template comes with some existing code in these directories, so you can get a feel for how things should be organized and implemented.
 
 ### Nakama
 
@@ -36,3 +33,13 @@ which comes with a few benefits:
 - Handle account abstraction and persona tags (similar to gamer-tags)
 - Allows for account authentication using a third party account such as Google, Facebook, or Steam
 - Allows for non-chain interactions with backend Cardinal systems for easy testing and development
+
+### Docker Compose
+
+The starter-game-template contains a [Docker Compose](https://docs.docker.com/compose/) configuration that can run several cardinal related services locally.
+
+- cardinal: The aforementioned cardinal based game server
+- nakama: A pre-build Nakama image that can communicate with the game server
+- postgres: The storage layer that Nakama depends on
+- redis: The storage layer that Cardinal depends on
+- testsuite: Some sample integration tests that verify Nakama and Cardinal are communicating correctly

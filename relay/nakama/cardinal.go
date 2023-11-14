@@ -114,12 +114,12 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, fmt.Errorf("unable to get the private key or a nonce: %w", err)
 	}
 
-	signedPayload, err := sign.NewSystemSignedPayload(key, globalNamespace, nonce, createPersonaTx)
+	transaction, err := sign.NewSystemTransaction(key, globalNamespace, nonce, createPersonaTx)
 	if err != nil {
 		return "", 0, fmt.Errorf("unable to create signed payload: %w", err)
 	}
 
-	buf, err := signedPayload.Marshal()
+	buf, err := transaction.Marshal()
 	if err != nil {
 		return "", 0, fmt.Errorf("unable to marshal signed payload: %w", err)
 	}

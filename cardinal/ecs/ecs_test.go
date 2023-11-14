@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -63,22 +64,21 @@ var (
 )
 
 func TestECS(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](world))
 	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](world))
 
 	// create a bunch of planets!
 	numPlanets := 5
 	wCtx := ecs.NewWorldContext(world)
-	_, err := component.CreateMany(wCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
-	assert.NilError(t, err)
 
-	numEnergyOnly := 10
-	_, err = component.CreateMany(wCtx, numEnergyOnly, EnergyComponent{})
-	assert.NilError(t, err)
-
-	world.AddSystem(UpdateEnergySystem)
+	world.RegisterSystem(UpdateEnergySystem)
 	assert.NilError(t, world.LoadGameState())
+	numEnergyOnly := 10
+	_, err := component.CreateMany(wCtx, numEnergyOnly, EnergyComponent{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(wCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
+	assert.NilError(t, err)
 
 	assert.NilError(t, world.Tick(context.Background()))
 	query, err := world.NewSearch(ecs.Contains(EnergyComponent{}))
@@ -117,7 +117,7 @@ func (Vel) Name() string {
 }
 
 func TestVelocitySimulation(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	// These components are a mix of concrete types and pointer types to make sure they both work
 	assert.NilError(t, ecs.RegisterComponent[Pos](world))
@@ -159,7 +159,7 @@ func (Owner) Name() string {
 }
 
 func TestCanSetDefaultValue(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	wantOwner := Owner{"Jeff"}
 
@@ -191,7 +191,7 @@ func (Tuple) Name() string {
 }
 
 func TestCanRemoveEntity(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	assert.NilError(t, ecs.RegisterComponent[Tuple](world))
 	assert.NilError(t, world.LoadGameState())
@@ -255,7 +255,7 @@ func (CountComponent) Name() string {
 }
 
 func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	assert.NilError(t, ecs.RegisterComponent[CountComponent](world))
 	assert.NilError(t, world.LoadGameState())
@@ -302,7 +302,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 }
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](world))
 	assert.NilError(t, world.LoadGameState())
 
@@ -331,7 +331,7 @@ func (WeaponEnergy) Name() string {
 }
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[ReactorEnergy](world))
 	assert.NilError(t, ecs.RegisterComponent[WeaponEnergy](world))
 	assert.NilError(t, world.LoadGameState())
@@ -354,7 +354,7 @@ func (Bar) Name() string {
 }
 
 func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	assert.NilError(t, ecs.RegisterComponent[Foo](world))
 	assert.NilError(t, ecs.RegisterComponent[Bar](world))
@@ -404,7 +404,7 @@ func (Gamma) Name() string {
 }
 
 func TestEntriesCanChangeTheirArchetype(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(t, ecs.RegisterComponent[Beta](world))
 	assert.NilError(t, ecs.RegisterComponent[Gamma](world))
@@ -479,7 +479,7 @@ func (e EnergyComponentBeta) Name() string {
 }
 
 func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponentAlpha](world))
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponentBeta](world))
@@ -504,7 +504,7 @@ func (C) Name() string { return "c" }
 func (D) Name() string { return "d" }
 
 func TestQueriesAndFiltersWorks(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[A](world))
 	assert.NilError(t, ecs.RegisterComponent[B](world))
 	assert.NilError(t, ecs.RegisterComponent[C](world))
@@ -563,7 +563,7 @@ func (HealthComponent) Name() string {
 }
 
 func TestUpdateWithPointerType(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[HealthComponent](world))
 	assert.NilError(t, world.LoadGameState())
 
@@ -594,7 +594,7 @@ func (ValueComponent1) Name() string {
 }
 
 func TestCanRemoveFirstEntity(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent1](world))
 
 	wCtx := ecs.NewWorldContext(world)
@@ -631,7 +631,7 @@ func (OtherComponent) Name() string {
 }
 
 func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](world))
 	assert.NilError(t, ecs.RegisterComponent[OtherComponent](world))
 
@@ -654,7 +654,7 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 }
 
 func TestEntityCreationAndSetting(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](world))
 	assert.NilError(t, ecs.RegisterComponent[OtherComponent](world))
 

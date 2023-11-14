@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"testing"
 	"time"
@@ -61,8 +62,28 @@ func testSystemWarningTrigger(wCtx ecs.WorldContext) error {
 	return testSystem(wCtx)
 }
 
+func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
+	w := testutils.NewTestWorld(t).Instance()
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	// replaces internal Logger with one that logs to the buf variable above.
+	var buf bytes.Buffer
+	bufLogger := zerolog.New(&buf)
+	cardinalLogger := log.Logger{
+		Logger: &bufLogger,
+	}
+	w.InjectLogger(&cardinalLogger)
+	sysName := "foo"
+	w.RegisterSystemWithName(testSystem, sysName)
+	w.RegisterSystemWithName(testSystem, sysName)
+	assert.Check(t, strings.Contains(buf.String(), "duplicate system registered: "+sysName))
+}
+
 func TestWorldLogger(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
+
+	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
@@ -70,8 +91,8 @@ func TestWorldLogger(t *testing.T) {
 		&bufLogger,
 	}
 	w.InjectLogger(&cardinalLogger)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	assert.NilError(t, w.RegisterTransactions(alphaTx))
+	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	assert.NilError(t, w.RegisterMessages(alphaTx))
 	assert.NilError(t, ecs.RegisterComponent[EnergyComp](w))
 	cardinalLogger.LogWorld(w, zerolog.InfoLevel)
 	jsonWorldInfoString := `{
@@ -102,6 +123,9 @@ func TestWorldLogger(t *testing.T) {
 	assert.NilError(t, err)
 	components := []metadata.ComponentMetadata{energy}
 	wCtx := ecs.NewWorldContext(w)
+	w.RegisterSystem(testSystemWarningTrigger)
+	err = w.LoadGameState()
+	assert.NilError(t, err)
 	entityID, err := component.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:2]
@@ -142,9 +166,6 @@ func TestWorldLogger(t *testing.T) {
 
 	// create a system for logging.
 	buf.Reset()
-	w.AddSystems(testSystemWarningTrigger)
-	err = w.LoadGameState()
-	assert.NilError(t, err)
 	ctx := context.Background()
 
 	// testing output of logging a tick. Should log the system log and tick start and end strings.

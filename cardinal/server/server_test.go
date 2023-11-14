@@ -10,11 +10,14 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal"
+
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -40,7 +43,7 @@ type SendEnergyTxResult struct{}
 
 func TestHealthEndpoint(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, w.LoadGameState())
 	testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
 	resp, err := http.Get("http://localhost:4040/health")
@@ -66,10 +69,59 @@ func TestHealthEndpoint(t *testing.T) {
 	}
 }
 
+type Alpha struct{}
+
+func (Alpha) Name() string { return "alpha" }
+
+type Beta struct{}
+
+func (Beta) Name() string { return "beta" }
+
+type Gamma struct{}
+
+func (Gamma) Name() string { return "gamma" }
+
+func TestDebugEndpoint(t *testing.T) {
+	world := testutils.NewTestWorld(t).Instance()
+
+	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
+	assert.NilError(t, ecs.RegisterComponent[Beta](world))
+	assert.NilError(t, ecs.RegisterComponent[Gamma](world))
+
+	assert.NilError(t, world.LoadGameState())
+	ctx := context.Background()
+	worldCtx := ecs.NewWorldContext(world)
+	_, err := component.CreateMany(worldCtx, 10, Alpha{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Beta{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Gamma{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Beta{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Gamma{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Beta{}, Gamma{})
+	assert.NilError(t, err)
+	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Beta{}, Gamma{})
+	assert.NilError(t, err)
+	err = world.Tick(ctx)
+	assert.NilError(t, err)
+	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+	resp := txh.Get("debug/state")
+	assert.Equal(t, resp.StatusCode, 200)
+	bz, err := io.ReadAll(resp.Body)
+	assert.NilError(t, err)
+	data := make([]json.RawMessage, 0)
+	err = json.Unmarshal(bz, &data)
+	assert.NilError(t, err)
+	assert.Equal(t, len(data), 10*7)
+}
+
 func TestShutDownViaMethod(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, w.LoadGameState())
 	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
 	resp, err := http.Get("http://localhost:4040/health")
@@ -92,10 +144,10 @@ func TestShutDownViaMethod(t *testing.T) {
 func TestShutDownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
-	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("sendTx")
-	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(ecs.WorldContext) error {
+	w := testutils.NewTestWorld(t).Instance()
+	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("sendTx")
+	assert.NilError(t, w.RegisterMessages(sendTx))
+	w.RegisterSystem(func(ecs.WorldContext) error {
 		return nil
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -125,9 +177,9 @@ func TestShutDownViaSignal(t *testing.T) {
 }
 
 func TestIfServeSetEnvVarForPort(t *testing.T) {
-	world := ecs.NewTestWorld(t)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	assert.NilError(t, world.RegisterTransactions(alphaTx))
+	world := testutils.NewTestWorld(t).Instance()
+	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	assert.NilError(t, world.RegisterMessages(alphaTx))
 	txh, err := server.NewHandler(world, nil, server.DisableSignatureVerification())
 	assert.NilError(t, err)
 	t.Cleanup(func() {
@@ -148,15 +200,20 @@ func TestIfServeSetEnvVarForPort(t *testing.T) {
 }
 
 func TestCanListTransactionEndpoints(t *testing.T) {
-	w := ecs.NewTestWorld(t)
-	alphaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	betaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("beta")
-	gammaTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("gamma")
-	assert.NilError(t, w.RegisterTransactions(alphaTx, betaTx, gammaTx))
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
-
-	resp, err := http.Post(txh.MakeHTTPURL("query/http/endpoints"), "application/json", nil)
+	w := testutils.NewTestWorld(t).Instance()
+	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	betaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("beta")
+	gammaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("gamma")
+	assert.NilError(t, w.RegisterMessages(alphaTx, betaTx, gammaTx))
+	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification(), server.WithCORS())
+	client := &http.Client{}
+	req, err := http.NewRequest(http.MethodPost, txh.MakeHTTPURL("query/http/endpoints"), nil)
 	assert.NilError(t, err)
+	req.Header.Set("Origin", "http://www.bullshit.com") // test CORS
+	resp, err := client.Do(req)
+	assert.NilError(t, err)
+	v := resp.Header.Get("Access-Control-Allow-Origin")
+	assert.Equal(t, v, "*")
 	assert.Equal(t, resp.StatusCode, 200)
 	var gotEndpoints map[string][]string
 	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&gotEndpoints))
@@ -188,17 +245,17 @@ func mustReadBody(t *testing.T, resp *http.Response) string {
 func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	endpoint := "move"
 	url := "tx/game/" + endpoint
-	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
-	assert.NilError(t, w.RegisterTransactions(sendTx))
+	w := testutils.NewTestWorld(t).Instance()
+	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult](endpoint)
+	assert.NilError(t, w.RegisterMessages(sendTx))
 	count := 0
-	w.AddSystem(func(wCtx ecs.WorldContext) error {
+	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		txs := sendTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
-		assert.Equal(t, tx.Value.From, "me")
-		assert.Equal(t, tx.Value.To, "you")
-		assert.Equal(t, tx.Value.Amount, uint64(420))
+		assert.Equal(t, tx.Msg.From, "me")
+		assert.Equal(t, tx.Msg.To, "you")
+		assert.Equal(t, tx.Msg.Amount, uint64(420))
 		count++
 		return nil
 	})
@@ -211,7 +268,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	}
 	bz, err := json.Marshal(tx)
 	assert.NilError(t, err)
-	payload := &sign.SignedPayload{
+	payload := &sign.Transaction{
 		PersonaTag: "meow",
 		Namespace:  w.Namespace().String(),
 		Nonce:      40,
@@ -246,34 +303,29 @@ type garbageStructBeta struct {
 func (garbageStructBeta) Name() string { return "beta" }
 
 func TestHandleSwaggerServer(t *testing.T) {
-	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("send-energy")
-	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(ecs.WorldContext) error {
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+
+	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
+	assert.NilError(t, world.RegisterMessages(sendTx))
+	world.RegisterSystem(func(ecs.WorldContext) error {
 		return nil
 	})
 
-	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](w))
-	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](w))
-	alphaCount := 75
-	wCtx := ecs.NewWorldContext(w)
-	_, err := component.CreateMany(wCtx, alphaCount, garbageStructAlpha{})
-	assert.NilError(t, err)
-	bothCount := 100
-	_, err = component.CreateMany(wCtx, bothCount, garbageStructAlpha{}, garbageStructBeta{})
-	assert.NilError(t, err)
+	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](world))
+	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](world))
 
-	// Queue up a CreatePersonaTx
+	// Queue up a CreatePersona
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
-	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaMsg.AddToQueue(world, ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddress,
 	})
 	authorizedPersonaAddress := ecs.AuthorizePersonaAddress{
 		Address: signerAddress,
 	}
-	ecs.AuthorizePersonaAddressTx.AddToQueue(w, authorizedPersonaAddress, &sign.SignedPayload{PersonaTag: personaTag})
+	ecs.AuthorizePersonaAddressMsg.AddToQueue(world, authorizedPersonaAddress, &sign.Transaction{PersonaTag: personaTag})
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
 
 	// create readers
@@ -289,15 +341,13 @@ func TestHandleSwaggerServer(t *testing.T) {
 		Name: "Chad",
 		Age:  22,
 	}
-	fooQuery := ecs.NewQueryType[FooRequest, FooReply](
-		"foo",
-		func(wCtx ecs.WorldContext, req FooRequest,
-		) (FooReply, error) {
-			return expectedReply, nil
-		})
-	assert.NilError(t, w.RegisterQueries(fooQuery))
+	fooQueryHandler := func(wCtx cardinal.WorldContext, req *FooRequest,
+	) (*FooReply, error) {
+		return &expectedReply, nil
+	}
+	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooReply](w, "foo", fooQueryHandler))
 
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
 
 	// Test /query/http/endpoints
 	expectedEndpointResult := server.EndpointsResult{
@@ -339,9 +389,18 @@ func TestHandleSwaggerServer(t *testing.T) {
 	req.Header.Set("Accept", "application/json")
 	client := http.Client{}
 	ctx := context.Background()
-	err = w.LoadGameState()
+	err = world.LoadGameState()
 	assert.NilError(t, err)
-	err = w.Tick(ctx)
+
+	wCtx := ecs.NewWorldContext(world)
+	alphaCount := 75
+	_, err = component.CreateMany(wCtx, alphaCount, garbageStructAlpha{})
+	assert.NilError(t, err)
+	bothCount := 100
+	_, err = component.CreateMany(wCtx, bothCount, garbageStructAlpha{}, garbageStructBeta{})
+	assert.NilError(t, err)
+
+	err = world.Tick(ctx)
 	assert.NilError(t, err)
 	resp2, err := client.Do(req)
 	assert.NilError(t, err)
@@ -373,7 +432,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	personaAddressJSON, err := json.Marshal(authorizedPersonaAddress)
 	assert.NilError(t, err)
 	// tx/game/authorize-persona-address
-	signedTxPayload := sign.SignedPayload{
+	signedTxPayload := sign.Transaction{
 		PersonaTag: personaTag,
 		Namespace:  "some_namespace",
 		Nonce:      100,
@@ -439,16 +498,16 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	endpoint := "move"
 	url := fmt.Sprintf("tx/game/%s", endpoint)
 	count := 0
-	w := ecs.NewTestWorld(t)
-	sendTx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult](endpoint)
-	assert.NilError(t, w.RegisterTransactions(sendTx))
-	w.AddSystem(func(wCtx ecs.WorldContext) error {
+	w := testutils.NewTestWorld(t).Instance()
+	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult](endpoint)
+	assert.NilError(t, w.RegisterMessages(sendTx))
+	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		txs := sendTx.In(wCtx)
 		assert.Equal(t, 1, len(txs))
 		tx := txs[0]
-		assert.Equal(t, tx.Value.From, "me")
-		assert.Equal(t, tx.Value.To, "you")
-		assert.Equal(t, tx.Value.Amount, uint64(420))
+		assert.Equal(t, tx.Msg.From, "me")
+		assert.Equal(t, tx.Msg.To, "you")
+		assert.Equal(t, tx.Msg.Amount, uint64(420))
 		count++
 		return nil
 	})
@@ -460,7 +519,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	}
 	bz, err := json.Marshal(tx)
 	assert.NilError(t, err)
-	signedTx := sign.SignedPayload{
+	signedTx := sign.Transaction{
 		PersonaTag: "some_persona",
 		Namespace:  "some_namespace",
 		Nonce:      100,
@@ -483,9 +542,9 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 
 func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	urlSet := []string{"tx/persona/create-persona", "query/persona/signer"}
-	world := ecs.NewTestWorld(t)
-	tx := ecs.NewTransactionType[SendEnergyTx, SendEnergyTxResult]("some_tx")
-	assert.NilError(t, world.RegisterTransactions(tx))
+	world := testutils.NewTestWorld(t).Instance()
+	tx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("some_tx")
+	assert.NilError(t, world.RegisterMessages(tx))
 	assert.NilError(t, world.LoadGameState())
 	assert.NilError(t, world.Tick(context.Background()))
 	txh := testutils.MakeTestTransactionHandler(t, world)
@@ -495,15 +554,15 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
 
-	signedPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace().String(), 100, createPersonaTx)
+	systemTx, err := sign.NewSystemTransaction(privateKey, world.Namespace().String(), 100, createPersonaTx)
 	assert.NilError(t, err)
 
-	bz, err := signedPayload.Marshal()
+	bz, err := systemTx.Marshal()
 	assert.NilError(t, err)
 
 	resp, err := http.Post(txh.MakeHTTPURL(urlSet[0]), "application/json", bytes.NewReader(bz))
@@ -553,7 +612,8 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 
 func TestSigVerificationChecksNamespace(t *testing.T) {
 	url := "tx/persona/create-persona"
-	world := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
 	assert.NilError(t, world.LoadGameState())
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
@@ -563,11 +623,11 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	personaTag := "some_dude"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
-	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, "bad_namespace", 100, createPersonaTx)
+	sigPayload, err := sign.NewTransaction(privateKey, personaTag, "bad_namespace", 100, createPersonaTx)
 	assert.NilError(t, err)
 
 	bz, err := sigPayload.Marshal()
@@ -578,7 +638,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// The namespace now matches the world
-	sigPayload, err = sign.NewSystemSignedPayload(privateKey, world.Namespace().String(), 100, createPersonaTx)
+	sigPayload, err = sign.NewSystemTransaction(privateKey, world.Namespace().String(), 100, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -590,7 +650,7 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 
 func TestSigVerificationChecksNonce(t *testing.T) {
 	url := "tx/persona/create-persona"
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, world.LoadGameState())
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
@@ -601,11 +661,11 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 	namespace := world.Namespace().String()
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
-	sigPayload, err := sign.NewSystemSignedPayload(privateKey, namespace, 100, createPersonaTx)
+	sigPayload, err := sign.NewSystemTransaction(privateKey, namespace, 100, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -621,7 +681,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// Using an old nonce should fail
-	sigPayload, err = sign.NewSystemSignedPayload(privateKey, namespace, 50, createPersonaTx)
+	sigPayload, err = sign.NewSystemTransaction(privateKey, namespace, 50, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -630,7 +690,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// But increasing the nonce should work
-	sigPayload, err = sign.NewSystemSignedPayload(privateKey, namespace, 101, createPersonaTx)
+	sigPayload, err = sign.NewSystemTransaction(privateKey, namespace, 101, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -643,7 +703,8 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 
 // TestCanListQueries tests that we can list the available queries in the handler.
 func TestCanListQueries(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
 	type FooRequest struct {
 		Foo  int    `json:"foo,omitempty"`
 		Meow string `json:"bar,omitempty"`
@@ -653,20 +714,22 @@ func TestCanListQueries(t *testing.T) {
 		Meow string `json:"meow,omitempty"`
 	}
 
-	fooQuery := ecs.NewQueryType[FooRequest, FooResponse]("foo", func(wCtx ecs.WorldContext, req FooRequest,
-	) (FooResponse, error) {
-		return FooResponse{Meow: req.Meow}, nil
-	})
-	barQuery := ecs.NewQueryType[FooRequest, FooResponse]("bar", func(wCtx ecs.WorldContext, req FooRequest,
-	) (FooResponse, error) {
-		return FooResponse{Meow: req.Meow}, nil
-	})
-	bazQuery := ecs.NewQueryType[FooRequest, FooResponse]("baz", func(wCtx ecs.WorldContext, req FooRequest,
-	) (FooResponse, error) {
-		return FooResponse{Meow: req.Meow}, nil
-	})
+	handleFooQuery := func(wCtx cardinal.WorldContext, req *FooRequest,
+	) (*FooResponse, error) {
+		return &FooResponse{Meow: req.Meow}, nil
+	}
+	handleBarQuery := func(wCtx cardinal.WorldContext, req *FooRequest,
+	) (*FooResponse, error) {
+		return &FooResponse{Meow: req.Meow}, nil
+	}
+	handleBazQuery := func(wCtx cardinal.WorldContext, req *FooRequest,
+	) (*FooResponse, error) {
+		return &FooResponse{Meow: req.Meow}, nil
+	}
 
-	assert.NilError(t, world.RegisterQueries(fooQuery, barQuery, bazQuery))
+	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "foo", handleFooQuery))
+	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "bar", handleBarQuery))
+	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "baz", handleBazQuery))
 	assert.NilError(t, world.LoadGameState())
 
 	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
@@ -698,24 +761,23 @@ func TestCanListQueries(t *testing.T) {
 // work.
 func TestQueryEncodeDecode(t *testing.T) {
 	// setup this read business stuff
-	endpoint := "foo"
 	type FooRequest struct {
 		Foo  int    `json:"foo,omitempty"`
 		Meow string `json:"bar,omitempty"`
 	}
-
 	type FooResponse struct {
 		Meow string `json:"meow,omitempty"`
 	}
-	fq := ecs.NewQueryType[FooRequest, FooResponse](endpoint, func(wCtx ecs.WorldContext, req FooRequest,
-	) (FooResponse, error) {
-		return FooResponse{Meow: req.Meow}, nil
-	})
 
-	url := "query/game/" + endpoint
+	handleFooQuery := func(wCtx cardinal.WorldContext, req *FooRequest) (*FooResponse, error) {
+		return &FooResponse{Meow: req.Meow}, nil
+	}
+
+	url := "query/game/" + "foo"
 	// set up the world, register the queries, load.
-	world := ecs.NewTestWorld(t)
-	assert.NilError(t, world.RegisterQueries(fq))
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "foo", handleFooQuery))
 	assert.NilError(t, world.LoadGameState())
 
 	// make our test tx handler
@@ -743,7 +805,7 @@ func TestQueryEncodeDecode(t *testing.T) {
 
 func TestMalformedRequestToGetTransactionReceiptsProducesError(t *testing.T) {
 	url := "query/receipts/list"
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, world.LoadGameState())
 	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
 	res := txh.Post(url, map[string]any{
@@ -758,7 +820,8 @@ func TestTransactionReceiptReturnCorrectTickWindows(t *testing.T) {
 	url := "query/receipts/list"
 
 	historySize := uint64(10)
-	world := ecs.NewTestWorld(t, ecs.WithReceiptHistorySize(int(historySize)))
+	world := testutils.NewTestWorld(t, cardinal.WithReceiptHistorySize(int(historySize))).Instance()
+
 	assert.NilError(t, world.LoadGameState())
 	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
 
@@ -846,36 +909,37 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	type ErrRequest struct{}
 	type ErrReply struct{}
 
-	incTx := ecs.NewTransactionType[IncRequest, IncReply]("increment")
-	dupeTx := ecs.NewTransactionType[DupeRequest, DupeReply]("duplicate")
-	errTx := ecs.NewTransactionType[ErrRequest, ErrReply]("error")
+	incTx := ecs.NewMessageType[IncRequest, IncReply]("increment")
+	dupeTx := ecs.NewMessageType[DupeRequest, DupeReply]("duplicate")
+	errTx := ecs.NewMessageType[ErrRequest, ErrReply]("error")
 
-	world := ecs.NewTestWorld(t)
-	assert.NilError(t, world.RegisterTransactions(incTx, dupeTx, errTx))
+	world := testutils.NewTestWorld(t).Instance()
+
+	assert.NilError(t, world.RegisterMessages(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		for _, tx := range incTx.In(wCtx) {
-			incTx.SetResult(wCtx, tx.TxHash, IncReply{
-				Number: tx.Value.Number + 1,
+			incTx.SetResult(wCtx, tx.Hash, IncReply{
+				Number: tx.Msg.Number + 1,
 			})
 		}
 		return nil
 	})
 	// System to handle duplicating strings
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		for _, tx := range dupeTx.In(wCtx) {
-			dupeTx.SetResult(wCtx, tx.TxHash, DupeReply{
-				Str: tx.Value.Str + tx.Value.Str,
+			dupeTx.SetResult(wCtx, tx.Hash, DupeReply{
+				Str: tx.Msg.Str + tx.Msg.Str,
 			})
 		}
 		return nil
 	})
 	wantError := errors.New("some error")
 	// System to handle error production
-	world.AddSystem(func(wCtx ecs.WorldContext) error {
+	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		for _, tx := range errTx.In(wCtx) {
-			errTx.AddError(wCtx, tx.TxHash, wantError)
-			errTx.AddError(wCtx, tx.TxHash, wantError)
+			errTx.AddError(wCtx, tx.Hash, wantError)
+			errTx.AddError(wCtx, tx.Hash, wantError)
 		}
 		return nil
 	})
@@ -907,9 +971,9 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	nonce := uint64(0)
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
-	nextSig := func() *sign.SignedPayload {
-		var sig *sign.SignedPayload
-		sig, err = sign.NewSignedPayload(privateKey, "my-persona-tag", "namespace", nonce,
+	nextSig := func() *sign.Transaction {
+		var sig *sign.Transaction
+		sig, err = sign.NewTransaction(privateKey, "my-persona-tag", "namespace", nonce,
 			`{"data": "stuff"}`)
 		assert.NilError(t, err)
 		nonce++
@@ -973,9 +1037,12 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	swaggerUrls := []string{swaggerCreatePersonURL, "tx/game/move"}
 	urls := swaggerUrls
 	type MoveTx struct{}
-	world := ecs.NewTestWorld(t)
-	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
-	assert.NilError(t, world.RegisterTransactions(moveTx))
+
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+
+	moveTx := ecs.NewMessageType[MoveTx, MoveTx]("move")
+	assert.NilError(t, world.RegisterMessages(moveTx))
 	assert.NilError(t, world.LoadGameState())
 	ctx := context.Background()
 	// Preemptive tick so the tick isn't the zero value
@@ -989,12 +1056,12 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	namespace := world.Namespace().String()
 	nonce := uint64(99)
 
-	createPersonaTx := ecs.CreatePersonaTransaction{
+	createPersonaTx := ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
 
-	sigPayload, err := sign.NewSystemSignedPayload(privateKey, namespace, nonce, createPersonaTx)
+	sigPayload, err := sign.NewSystemTransaction(privateKey, namespace, nonce, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -1016,7 +1083,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	// Also check to make sure transaction IDs are returned for other kinds of transactions
 	nonce++
 	emptyData := map[string]any{}
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, namespace, nonce, emptyData)
+	sigPayload, err = sign.NewTransaction(privateKey, personaTag, namespace, nonce, emptyData)
 	assert.NilError(t, err)
 
 	bz, err = sigPayload.Marshal()
@@ -1041,7 +1108,7 @@ type adapterMock struct {
 	hold   chan bool
 }
 
-func (a *adapterMock) Submit(_ context.Context, _ *sign.SignedPayload, _, _ uint64) error {
+func (a *adapterMock) Submit(_ context.Context, _ *sign.Transaction, _, _ uint64) error {
 	a.called++
 	return nil
 }
@@ -1059,9 +1126,11 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	type MoveTx struct {
 		Direction string
 	}
-	world := ecs.NewTestWorld(t)
-	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
-	assert.NilError(t, world.RegisterTransactions(moveTx))
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+
+	moveTx := ecs.NewMessageType[MoveTx, MoveTx]("move")
+	assert.NilError(t, world.RegisterMessages(moveTx))
 	assert.NilError(t, world.LoadGameState())
 	adapter := adapterMock{}
 	txh := testutils.MakeTestTransactionHandler(t, world, server.WithAdapter(&adapter),
@@ -1071,8 +1140,8 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	assert.NilError(t, err)
 	personaTag := "clifford_the_big_red_dog"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	sigPayload, err := sign.NewSystemSignedPayload(privateKey, world.Namespace().String(), 1,
-		ecs.CreatePersonaTransaction{
+	sigPayload, err := sign.NewSystemTransaction(privateKey, world.Namespace().String(), 1,
+		ecs.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: signerAddr,
 		})
@@ -1085,7 +1154,7 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, adapter.called, 1)
 
-	sigPayload, err = sign.NewSignedPayload(privateKey, personaTag, world.Namespace().String(), 2,
+	sigPayload, err = sign.NewTransaction(privateKey, personaTag, world.Namespace().String(), 2,
 		MoveTx{Direction: "up"})
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
@@ -1103,13 +1172,15 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 	}
 	holdChan := make(chan bool)
 	adapter := adapterMock{hold: holdChan}
-	world := ecs.NewTestWorld(t, ecs.WithAdapter(&adapter))
+	w := testutils.NewTestWorld(t, cardinal.WithAdapter(&adapter))
+	world := w.Instance()
+
 	go func() {
 		err := world.RecoverFromChain(context.Background())
 		assert.NilError(t, err)
 	}()
-	moveTx := ecs.NewTransactionType[MoveTx, MoveTx]("move")
-	err := world.RegisterTransactions(moveTx)
+	moveTx := ecs.NewMessageType[MoveTx, MoveTx]("move")
+	err := world.RegisterMessages(moveTx)
 	assert.NilError(t, err)
 	assert.NilError(t, world.LoadGameState())
 	txh := testutils.MakeTestTransactionHandler(t, world, server.WithAdapter(&adapter),
@@ -1119,7 +1190,7 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 	assert.NilError(t, err)
 	personaTag := "clifford_the_big_red_dog"
 
-	sigPayload, err := sign.NewSignedPayload(privateKey, personaTag, world.Namespace().String(), 2,
+	sigPayload, err := sign.NewTransaction(privateKey, personaTag, world.Namespace().String(), 2,
 		MoveTx{Direction: "up"})
 	assert.NilError(t, err)
 	bz, err := sigPayload.Marshal()
@@ -1133,9 +1204,10 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 }
 
 func TestWebSocket(t *testing.T) {
-	w := ecs.NewTestWorld(t)
-	assert.NilError(t, w.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+	assert.NilError(t, w.Instance().LoadGameState())
+	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
 	url := txh.MakeWebSocketURL("echo")
 	dial, _, err := websocket.DefaultDialer.Dial(url, nil)
 	assert.NilError(t, err)

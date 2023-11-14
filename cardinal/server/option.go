@@ -4,12 +4,6 @@ import "pkg.world.dev/world-engine/cardinal/shard"
 
 type Option func(th *Handler)
 
-func WithPort(port string) Option {
-	return func(th *Handler) {
-		th.Port = port
-	}
-}
-
 func DisableSignatureVerification() Option {
 	return func(th *Handler) {
 		th.disableSigVerification = true
@@ -19,5 +13,11 @@ func DisableSignatureVerification() Option {
 func WithAdapter(a shard.Adapter) Option {
 	return func(th *Handler) {
 		th.adapter = a
+	}
+}
+
+func WithCORS() Option {
+	return func(th *Handler) {
+		th.withCORS = true
 	}
 }

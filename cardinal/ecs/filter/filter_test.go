@@ -2,6 +2,8 @@ package filter_test
 
 import (
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+	"github.com/rs/zerolog"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -20,8 +22,38 @@ func (gammaComponent) Name() string {
 	return "gamma"
 }
 
+func TestGetEverythingFilter(t *testing.T) {
+	world := testutils.NewTestWorld(t).Instance()
+
+	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
+	assert.NilError(t, ecs.RegisterComponent[Beta](world))
+	assert.NilError(t, ecs.RegisterComponent[Gamma](world))
+
+	assert.NilError(t, world.LoadGameState())
+
+	subsetCount := 50
+	wCtx := ecs.NewWorldContext(world)
+	_, err := component.CreateMany(wCtx, subsetCount, Alpha{}, Beta{})
+	assert.NilError(t, err)
+	// Make some entities that have all 3 component.
+	_, err = component.CreateMany(wCtx, 20, Alpha{}, Beta{}, Gamma{})
+	assert.NilError(t, err)
+
+	count := 0
+	// Loop over every entity. There should
+	// only be 50 + 20 entities.
+	q, err := wCtx.NewSearch(ecs.All())
+	assert.NilError(t, err)
+	err = q.Each(wCtx, func(id entity.ID) bool {
+		count++
+		return true
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, count, subsetCount+20)
+}
+
 func TestCanFilterByArchetype(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 
 	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(t, ecs.RegisterComponent[Beta](world))
@@ -66,7 +98,7 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 func TestExactVsContains(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(t, ecs.RegisterComponent[Beta](world))
 
@@ -182,7 +214,7 @@ func TestExactVsContains(t *testing.T) {
 }
 
 func TestCanGetArchetypeFromEntity(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(t, ecs.RegisterComponent[Beta](world))
 	assert.NilError(t, world.LoadGameState())
@@ -229,8 +261,9 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 }
 
 func BenchmarkEntityCreation(b *testing.B) {
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 	for i := 0; i < b.N; i++ {
-		world := ecs.NewTestWorld(b)
+		world := testutils.NewTestWorld(b).Instance()
 		assert.NilError(b, ecs.RegisterComponent[Alpha](world))
 		assert.NilError(b, world.LoadGameState())
 		wCtx := ecs.NewWorldContext(world)
@@ -244,6 +277,7 @@ func BenchmarkEntityCreation(b *testing.B) {
 // total number of entities that have been created.
 func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 	relevantCount := 100
+	zerolog.SetGlobalLevel(zerolog.Disabled)
 	for i := 10; i <= 10000; i *= 10 {
 		ignoreCount := i
 		b.Run(fmt.Sprintf("IgnoreCount:%d", ignoreCount), func(b *testing.B) {
@@ -254,7 +288,7 @@ func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 
 func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StopTimer()
-	world := ecs.NewTestWorld(b)
+	world := testutils.NewTestWorld(b).Instance()
 	assert.NilError(b, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(b, ecs.RegisterComponent[Beta](world))
 	assert.NilError(b, world.LoadGameState())

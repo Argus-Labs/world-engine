@@ -78,6 +78,11 @@ func TestSearchExample(t *testing.T) {
 				cardinal.Contains(Beta{}),
 			), 20,
 		},
+		{
+			"all",
+			cardinal.All(),
+			70,
+		},
 	}
 	for _, tc := range testCases {
 		msg := "problem with " + tc.name

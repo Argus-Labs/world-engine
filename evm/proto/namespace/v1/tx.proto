@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package namespace.v1;
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+import "namespace/v1/query.proto";
+
+option go_package = "pkg.world.dev/world-engine/chain/x/namespace/types";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc UpdateNamespace(UpdateNamespaceRequest) returns (UpdateNamespaceResponse);
+}
+
+// `UpdateNamespaceRequest` is the Msg/UpdateNamespace request type.
+message UpdateNamespaceRequest {
+  option (cosmos.msg.v1.signer) = "authority";
+
+  // authority is the address that controls the module (defaults to x/gov unless overwritten).
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+  Namespace namespace = 2;
+}
+
+// `UpdateNamespaceResponse` defines the response structure for executing a UpdateNamespaceResponse message.
+message UpdateNamespaceResponse {}

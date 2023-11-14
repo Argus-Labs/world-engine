@@ -2,19 +2,18 @@ package main
 
 import (
 	"errors"
+	"github.com/argus-labs/world-engine/example/tester/msg"
 	"log"
 	"os"
 
 	"github.com/argus-labs/world-engine/example/tester/comp"
 	"github.com/argus-labs/world-engine/example/tester/query"
 	"github.com/argus-labs/world-engine/example/tester/sys"
-	"github.com/argus-labs/world-engine/example/tester/tx"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 func main() {
-	redisAddr := os.Getenv("REDIS_ADDR")
 	namespace := os.Getenv("NAMESPACE")
 	options := []cardinal.WorldOption{
 		cardinal.WithNamespace(namespace),
@@ -26,7 +25,7 @@ func main() {
 		options = append(options, cardinal.WithAdapter(setupAdapter()))
 	}
 
-	world, err := cardinal.NewWorld(redisAddr, "", options...)
+	world, err := cardinal.NewWorld(os.Getenv("REDIS_ADDR"), "", options...)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,7 +36,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = cardinal.RegisterTransactions(world, tx.JoinTx, tx.MoveTx)
+	err = cardinal.RegisterMessages(world, msg.JoinMsg, msg.MoveMsg)
 	if err != nil {
 		log.Fatal(err)
 	}

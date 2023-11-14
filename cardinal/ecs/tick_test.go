@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -38,7 +39,7 @@ func TestTickHappyPath(t *testing.T) {
 	assert.Equal(t, uint64(10), twoWorld.CurrentTick())
 }
 func TestIfPanicMessageLogged(t *testing.T) {
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
@@ -48,7 +49,7 @@ func TestIfPanicMessageLogged(t *testing.T) {
 	w.InjectLogger(&cardinalLogger)
 	// In this test, our "buggy" system fails once Power reaches 3
 	errorTxt := "BIG ERROR OH NO"
-	w.AddSystem(func(ecs.WorldContext) error {
+	w.RegisterSystem(func(ecs.WorldContext) error {
 		panic(errorTxt)
 	})
 	assert.NilError(t, w.LoadGameState())
@@ -114,13 +115,13 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	oneWorld := testutil.InitWorldWithRedis(t, rs)
 	assert.NilError(t, ecs.RegisterComponent[onePowerComponent](oneWorld))
 
-	id, err := component.Create(ecs.NewWorldContext(oneWorld), onePowerComponent{})
-	assert.NilError(t, err)
-
 	errorSystem := errors.New("3 power? That's too much, man")
 
 	// In this test, our "buggy" system fails once Power reaches 3
-	oneWorld.AddSystem(func(wCtx ecs.WorldContext) error {
+	oneWorld.RegisterSystem(func(wCtx ecs.WorldContext) error {
+		search, err := wCtx.NewSearch(ecs.Exact(onePowerComponent{}))
+		assert.NilError(t, err)
+		id := search.MustFirst(wCtx)
 		p, err := component.GetComponent[onePowerComponent](wCtx, id)
 		if err != nil {
 			return err
@@ -132,6 +133,8 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 		return component.SetComponent[onePowerComponent](wCtx, id, p)
 	})
 	assert.NilError(t, oneWorld.LoadGameState())
+	id, err := component.Create(ecs.NewWorldContext(oneWorld), onePowerComponent{})
+	assert.NilError(t, err)
 
 	// Power is set to 1
 	assert.NilError(t, oneWorld.Tick(context.Background()))
@@ -146,7 +149,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[twoPowerComponent](twoWorld))
 
 	// this is our fixed system that can handle Power levels of 3 and higher
-	twoWorld.AddSystem(func(wCtx ecs.WorldContext) error {
+	twoWorld.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		p, err := component.GetComponent[onePowerComponent](wCtx, id)
 		if err != nil {
 			return err
@@ -186,7 +189,7 @@ func (ScalarComponentBeta) Name() string {
 }
 
 func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
-	world := ecs.NewTestWorld(t)
+	world := testutils.NewTestWorld(t).Instance()
 	assert.NilError(t, ecs.RegisterComponent[ScalarComponentAlpha](world))
 	assert.NilError(t, ecs.RegisterComponent[ScalarComponentBeta](world))
 	assert.NilError(t, world.LoadGameState())
@@ -249,13 +252,9 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		assert.NilError(t, ecs.RegisterComponent[ScalarComponentToggle](world))
 
 		wCtx := ecs.NewWorldContext(world)
-		if firstWorldIteration {
-			_, err := component.Create(wCtx, ScalarComponentStatic{})
-			assert.NilError(t, err)
-		}
 
 		errorToggleComponent := errors.New("problem with toggle component")
-		world.AddSystem(func(wCtx ecs.WorldContext) error {
+		world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 			// Get the one and only entity ID
 			q, err := wCtx.NewSearch(ecs.Contains(ScalarComponentStatic{}))
 			assert.NilError(t, err)
@@ -279,6 +278,10 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			return nil
 		})
 		assert.NilError(t, world.LoadGameState())
+		if firstWorldIteration {
+			_, err := component.Create(wCtx, ScalarComponentStatic{})
+			assert.NilError(t, err)
+		}
 		q, err := world.NewSearch(ecs.Contains(ScalarComponentStatic{}))
 		assert.NilError(t, err)
 		id, err := q.First(wCtx)
@@ -318,16 +321,16 @@ func (PowerComp) Name() string {
 
 func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 	rs := miniredis.RunT(t)
-	errorBadPowerChange := errors.New("bad power change transaction")
+	errorBadPowerChange := errors.New("bad power change message")
 	for _, isBuggyIteration := range []bool{true, false} {
 		world := testutil.InitWorldWithRedis(t, rs)
 
 		assert.NilError(t, ecs.RegisterComponent[PowerComp](world))
 
-		powerTx := ecs.NewTransactionType[PowerComp, PowerComp]("change_power")
-		assert.NilError(t, world.RegisterTransactions(powerTx))
+		powerTx := ecs.NewMessageType[PowerComp, PowerComp]("change_power")
+		assert.NilError(t, world.RegisterMessages(powerTx))
 
-		world.AddSystem(func(wCtx ecs.WorldContext) error {
+		world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 			q, err := wCtx.NewSearch(ecs.Contains(PowerComp{}))
 			assert.NilError(t, err)
 			id := q.MustFirst(wCtx)
@@ -336,10 +339,10 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 			changes := powerTx.In(wCtx)
 			assert.Equal(t, 1, len(changes))
-			entityPower.Val += changes[0].Value.Val
+			entityPower.Val += changes[0].Msg.Val
 			assert.NilError(t, component.SetComponent[PowerComp](wCtx, id, entityPower))
 
-			if isBuggyIteration && changes[0].Value.Val == 666 {
+			if isBuggyIteration && changes[0].Msg.Val == 666 {
 				return errorBadPowerChange
 			}
 			return nil
@@ -379,7 +382,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 			powerTx.AddToQueue(world, PowerComp{666})
 			assert.ErrorIs(t, errorBadPowerChange, world.Tick(context.Background()))
 		} else {
-			// Loading the game state above should successfully re-process that final 666 transactions.
+			// Loading the game state above should successfully re-process that final 666 messages.
 			assert.Equal(t, float64(3666), fetchPower())
 
 			// One more tick for good measure

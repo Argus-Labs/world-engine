@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package namespace.v1;
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+option go_package = "pkg.world.dev/world-engine/chain/x/namespace/types";
+
+// `QueryService` provides defines the gRPC querier service.
+service QueryService {
+
+  // Namespaces returns all the namespace:address pairs.
+  rpc Namespaces(NamespacesRequest) returns (NamespacesResponse) {
+    option (google.api.http).get = "/world_engine/namespace/v1/namespaces";
+  }
+
+  // Address returns the address for a given namespace.
+  rpc Address(AddressRequest) returns (AddressResponse) {
+    option (google.api.http).get = "/world_engine/namespace/v1/namespaces/{namespace}";
+
+  }
+}
+
+message Namespace {
+  // shard_name is the name of the shard (i.e. darkforest1)
+  string shard_name = 1;
+
+  // shard_address is the gRPC address the shard runs at (i.e. 127.0.0.1:51835)
+  string shard_address = 2;
+}
+
+message NamespacesRequest {}
+
+message NamespacesResponse {
+  repeated Namespace namespaces = 1;
+}
+
+message AddressRequest {
+  string namespace = 1;
+}
+
+message AddressResponse {
+  string address = 1;
+}

@@ -2,11 +2,11 @@ import { Callout } from 'nextra/components'
 
 # EVM Support
 
-Transactions and Reads can be sent from smart contracts in the EVM. This is by an opt-in basis, so you'll need to pass in the corresponding option when instantiating your transactions and reads to enable EVM support.
+Messages and Reads can be sent from smart contracts in the EVM. This is by an opt-in basis, so you'll need to use the EVM message/query constructors when instantiating your messages and queries to enable EVM support.
 
 ## Supported Types
 
-Below are the Go types available to use in struct fields when utilizing the `EVMSupport` options.
+Below are the Go types available to use in struct fields when utilizing using EVM supported messages and queries.
 
 - []byte (resolves to `bytes` in ABI encoding)
 - string

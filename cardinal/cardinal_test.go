@@ -1,6 +1,7 @@
 package cardinal_test
 
 import (
+	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
@@ -19,19 +20,27 @@ type Foo struct{}
 
 func (Foo) Name() string { return "foo" }
 
+func TestNewWorld(t *testing.T) {
+	world, err := cardinal.NewWorld()
+	assert.NilError(t, err)
+	assert.Equal(t, string(world.Instance().Namespace()), cardinal.DefaultNamespace)
+}
+
+func TestNewWorldWithCustomNamespace(t *testing.T) {
+	t.Setenv("CARDINAL_NAMESPACE", "custom-namespace")
+	world, err := cardinal.NewWorld()
+	assert.NilError(t, err)
+	assert.Equal(t, string(world.Instance().Namespace()), "custom-namespace")
+}
+
 func TestCanQueryInsideSystem(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
 
 	world, doTick := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
-	wantNumOfEntities := 10
-	world.Init(func(worldCtx cardinal.WorldContext) {
-		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities, Foo{})
-		assert.NilError(t, err)
-	})
 	gotNumOfEntities := 0
-	cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
+	err := cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
 		q, err := worldCtx.NewSearch(cardinal.Exact(Foo{}))
 		assert.NilError(t, err)
 		err = q.Each(worldCtx, func(cardinal.EntityID) bool {
@@ -41,10 +50,16 @@ func TestCanQueryInsideSystem(t *testing.T) {
 		assert.NilError(t, err)
 		return nil
 	})
+	assert.NilError(t, err)
 
 	doTick()
-
-	err := world.ShutDown()
+	wantNumOfEntities := 10
+	wCtx := cardinal.TestingWorldToWorldContext(world)
+	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
+	assert.NilError(t, err)
+	doTick()
+	assert.Equal(t, world.CurrentTick(), uint64(2))
+	err = world.ShutDown()
 	assert.Assert(t, err)
 	assert.Equal(t, gotNumOfEntities, wantNumOfEntities)
 }
@@ -53,17 +68,19 @@ func TestShutdownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	var wg sync.WaitGroup
 	testutils.SetTestTimeout(t, 10*time.Second)
-	world, err := cardinal.NewMockWorld()
+	world := testutils.NewTestWorld(t)
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
-	assert.NilError(t, err)
 	wantNumOfEntities := 10
-	world.Init(func(worldCtx cardinal.WorldContext) {
-		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities, Foo{})
-		assert.NilError(t, err)
+	world.Init(func(worldCtx cardinal.WorldContext) error {
+		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities/2, Foo{})
+		if err != nil {
+			return err
+		}
+		return nil
 	})
 	wg.Add(1)
 	go func() {
-		err = world.StartGame()
+		err := world.StartGame()
 		assert.NilError(t, err)
 		wg.Done()
 	}()
@@ -71,6 +88,19 @@ func TestShutdownViaSignal(t *testing.T) {
 		// wait until game loop is running
 		time.Sleep(500 * time.Millisecond)
 	}
+	wCtx := cardinal.TestingWorldToWorldContext(world)
+	_, err := cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
+	assert.NilError(t, err)
+	// test CORS with cardinal
+	client := &http.Client{}
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:4040/query/http/endpoints", nil)
+	assert.NilError(t, err)
+	req.Header.Set("Origin", "http://www.bullshit.com") // test CORS
+	resp, err := client.Do(req)
+	assert.NilError(t, err)
+	v := resp.Header.Get("Access-Control-Allow-Origin")
+	assert.Equal(t, v, "*")
+	assert.Equal(t, resp.StatusCode, 200)
 
 	conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:4040/events", nil)
 	assert.NilError(t, err)

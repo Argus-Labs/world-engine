@@ -2,10 +2,12 @@ package cardinal_test
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal"
 )
 
@@ -37,9 +39,11 @@ func HealthSystem(worldCtx cardinal.WorldContext) error {
 func TestSystemExample(t *testing.T) {
 	world, doTick := testutils.MakeWorldAndTicker(t)
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
-	cardinal.RegisterSystems(world, HealthSystem)
+	err := cardinal.RegisterSystems(world, HealthSystem)
+	assert.NilError(t, err)
 
 	worldCtx := testutils.WorldToWorldContext(world)
+	doTick()
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
 	assert.NilError(t, err)
 
@@ -70,13 +74,14 @@ func TestCanRegisterMultipleSystem(t *testing.T) {
 	var firstSystemCalled bool
 	var secondSystemCalled bool
 
-	cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
 		firstSystemCalled = true
 		return nil
 	}, func(context cardinal.WorldContext) error {
 		secondSystemCalled = true
 		return nil
 	})
+	assert.NilError(t, err)
 
 	doTick()
 

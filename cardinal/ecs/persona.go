@@ -9,20 +9,20 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
-// CreatePersonaTransaction allows for the associating of a persona tag with a signer address.
-type CreatePersonaTransaction struct {
+// CreatePersona allows for the associating of a persona tag with a signer address.
+type CreatePersona struct {
 	PersonaTag    string `json:"personaTag"`
 	SignerAddress string `json:"signerAddress"`
 }
 
-type CreatePersonaTransactionResult struct {
+type CreatePersonaResult struct {
 	Success bool `json:"success"`
 }
 
-// CreatePersonaTx is a concrete ECS transaction.
-var CreatePersonaTx = NewTransactionType[CreatePersonaTransaction, CreatePersonaTransactionResult](
+// CreatePersonaMsg is a message that facilitates the creation of a persona tag.
+var CreatePersonaMsg = NewMessageType[CreatePersona, CreatePersonaResult](
 	"create-persona",
-	WithTxEVMSupport[CreatePersonaTransaction, CreatePersonaTransactionResult],
+	WithMsgEVMSupport[CreatePersona, CreatePersonaResult],
 )
 
 type AuthorizePersonaAddress struct {
@@ -33,7 +33,7 @@ type AuthorizePersonaAddressResult struct {
 	Success bool `json:"success"`
 }
 
-var AuthorizePersonaAddressTx = NewTransactionType[AuthorizePersonaAddress, AuthorizePersonaAddressResult](
+var AuthorizePersonaAddressMsg = NewMessageType[AuthorizePersonaAddress, AuthorizePersonaAddressResult](
 	"authorize-persona-address",
 )
 
@@ -45,22 +45,22 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 	if err != nil {
 		return err
 	}
-	AuthorizePersonaAddressTx.ForEach(wCtx, func(tx TxData[AuthorizePersonaAddress],
+	AuthorizePersonaAddressMsg.ForEach(wCtx, func(txData TxData[AuthorizePersonaAddress],
 	) (AuthorizePersonaAddressResult, error) {
-		val, sig := tx.Value, tx.Sig
+		msg, tx := txData.Msg, txData.Tx
 		result := AuthorizePersonaAddressResult{Success: false}
-		data, ok := personaTagToAddress[sig.PersonaTag]
+		data, ok := personaTagToAddress[tx.PersonaTag]
 		if !ok {
-			return result, fmt.Errorf("persona %s does not exist", sig.PersonaTag)
+			return result, fmt.Errorf("persona %s does not exist", tx.PersonaTag)
 		}
 
 		err = updateComponent[SignerComponent](wCtx, data.EntityID, func(s *SignerComponent) *SignerComponent {
 			for _, addr := range s.AuthorizedAddresses {
-				if addr == val.Address {
+				if addr == msg.Address {
 					return s
 				}
 			}
-			s.AuthorizedAddresses = append(s.AuthorizedAddresses, val.Address)
+			s.AuthorizedAddresses = append(s.AuthorizedAddresses, msg.Address)
 			return s
 		})
 		if err != nil {
@@ -118,7 +118,7 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 // RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
 func RegisterPersonaSystem(wCtx WorldContext) error {
-	createTxs := CreatePersonaTx.In(wCtx)
+	createTxs := CreatePersonaMsg.In(wCtx)
 	if len(createTxs) == 0 {
 		return nil
 	}
@@ -127,28 +127,28 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 		return err
 	}
 	for _, txData := range createTxs {
-		tx := txData.Value
+		tx := txData.Msg
 		if _, ok := personaTagToAddress[tx.PersonaTag]; ok {
 			// This PersonaTag has already been registered. Don't do anything
 			continue
 		}
 		id, err := create(wCtx, SignerComponent{})
 		if err != nil {
-			CreatePersonaTx.AddError(wCtx, txData.TxHash, err)
+			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
 			continue
 		}
 		if err = setComponent[SignerComponent](wCtx, id, &SignerComponent{
 			PersonaTag:    tx.PersonaTag,
 			SignerAddress: tx.SignerAddress,
 		}); err != nil {
-			CreatePersonaTx.AddError(wCtx, txData.TxHash, err)
+			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
 			continue
 		}
 		personaTagToAddress[tx.PersonaTag] = personaTagComponentData{
 			SignerAddress: tx.SignerAddress,
 			EntityID:      id,
 		}
-		CreatePersonaTx.SetResult(wCtx, txData.TxHash, CreatePersonaTransactionResult{
+		CreatePersonaMsg.SetResult(wCtx, txData.Hash, CreatePersonaResult{
 			Success: true,
 		})
 	}

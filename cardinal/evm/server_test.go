@@ -1,12 +1,16 @@
-package evm
+package evm_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/evm"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
-
+	"gotest.tools/v3/assert/cmp"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"
@@ -28,13 +32,13 @@ type TxReply struct{}
 // the world, and executed in systems.
 func TestServer_SendMessage(t *testing.T) {
 	// setup the world
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 
 	// create the ECS transactions
-	fooTx := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
-	barTx := ecs.NewTransactionType[BarTransaction, TxReply]("bartx", ecs.WithTxEVMSupport[BarTransaction, TxReply])
+	fooTx := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
+	barTx := ecs.NewMessageType[BarTransaction, TxReply]("bartx", ecs.WithMsgEVMSupport[BarTransaction, TxReply])
 
-	assert.NilError(t, w.RegisterTransactions(fooTx, barTx))
+	assert.NilError(t, w.RegisterMessages(fooTx, barTx))
 
 	// create some txs to submit
 
@@ -48,24 +52,28 @@ func TestServer_SendMessage(t *testing.T) {
 		{Y: 400, Z: false},
 	}
 
-	// need the system to tick for adding the persona + authorized address. so wrapping the test system below
-	// in an enabled block to prevent it from checking test cases until the persona transactions are handled.
-	enabled := false
+	currFooIndex := 0
+	currBarIndex := 0
 
-	// add a system that checks that they are submitted properly to the world.
-	w.AddSystem(func(wCtx ecs.WorldContext) error {
-		if !enabled {
-			return nil
-		}
+	// add a system that checks that they are submitted properly to the world in the correct order.
+	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		inFooTxs := fooTx.In(wCtx)
 		inBarTxs := barTx.In(wCtx)
-		assert.Equal(t, len(inFooTxs), len(fooTxs))
-		assert.Equal(t, len(inBarTxs), len(barTxs))
-		for i, tx := range inFooTxs {
-			assert.DeepEqual(t, tx.Value, fooTxs[i])
+		if len(inFooTxs) == 0 && len(inBarTxs) == 0 {
+			return nil
 		}
-		for i, tx := range inBarTxs {
-			assert.DeepEqual(t, tx.Value, barTxs[i])
+		// Make sure we're only dealing with 1 transaction
+		assert.Equal(t, 1, len(inFooTxs)+len(inBarTxs))
+
+		if len(inFooTxs) > 0 {
+			assert.Check(t, cmp.DeepEqual(inFooTxs[0].Msg, fooTxs[currFooIndex]))
+			currFooIndex++
+		} else {
+			assert.Check(t, cmp.DeepEqual(inBarTxs[0].Msg, barTxs[currBarIndex]))
+			currBarIndex++
+
+			// Make sure we process the bar transaction AFTER all the foo transactions
+			assert.Check(t, len(fooTxs) == currFooIndex, "%d is not %d", len(inFooTxs), currFooIndex)
 		}
 		return nil
 	})
@@ -74,51 +82,64 @@ func TestServer_SendMessage(t *testing.T) {
 	sender := "0xHelloThere"
 	personaTag := "foo"
 	// create authorized addresses for the evm transaction's msg sender.
-	ecs.CreatePersonaTx.AddToQueue(w, ecs.CreatePersonaTransaction{
+	ecs.CreatePersonaMsg.AddToQueue(w, ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: "bar",
 	})
-	ecs.AuthorizePersonaAddressTx.AddToQueue(w, ecs.AuthorizePersonaAddress{
+	ecs.AuthorizePersonaAddressMsg.AddToQueue(w, ecs.AuthorizePersonaAddress{
 		Address: sender,
-	}, &sign.SignedPayload{PersonaTag: personaTag})
-	err := w.Tick(context.Background())
+	}, &sign.Transaction{PersonaTag: personaTag})
+	tickStartCh := make(chan time.Time)
+	tickDoneCh := make(chan uint64)
+	w.StartGameLoop(context.Background(), tickStartCh, tickDoneCh)
+	// Process an initial tick so the CreatePersona transaction will be processed
+	tickStartCh <- time.Now()
+	<-tickDoneCh
+
+	server, err := evm.NewServer(w)
 	assert.NilError(t, err)
 
-	// now that the persona transactions are handled, we can flip enabled to true, allowing the test system to run.
-	enabled = true
+	txSequenceDone := make(chan struct{})
+	// Send in each transaction one at a time
+	go func() {
+		// marshal out the bytes to send from each list of transactions.
+		for _, tx := range fooTxs {
+			var fooTxBz []byte
+			fooTxBz, err = fooTx.ABIEncode(tx)
+			assert.NilError(t, err)
+			_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
+				Sender:    sender,
+				Message:   fooTxBz,
+				MessageId: fooTx.Name(),
+			})
+			assert.NilError(t, err)
+		}
+		for _, tx := range barTxs {
+			var barTxBz []byte
+			barTxBz, err = barTx.ABIEncode(tx)
+			assert.NilError(t, err)
+			_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
+				Sender:    sender,
+				Message:   barTxBz,
+				MessageId: barTx.Name(),
+			})
+			assert.NilError(t, err)
+		}
+		close(txSequenceDone)
+	}()
 
-	server, err := NewServer(w)
-	assert.NilError(t, err)
-
-	// marshal out the bytes to send from each list of transactions.
-	for _, tx := range fooTxs {
-		var fooTxBz []byte
-		fooTxBz, err = fooTx.ABIEncode(tx)
-		assert.NilError(t, err)
-		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
-			Sender:    sender,
-			Message:   fooTxBz,
-			MessageId: fooTx.Name(),
-		})
-		assert.NilError(t, err)
+loop:
+	for {
+		select {
+		case tickStartCh <- time.Now():
+			<-tickDoneCh
+		case <-txSequenceDone:
+			break loop
+		}
 	}
-	for _, tx := range barTxs {
-		var barTxBz []byte
-		barTxBz, err = barTx.ABIEncode(tx)
-		assert.NilError(t, err)
-		_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
-			Sender:    sender,
-			Message:   barTxBz,
-			MessageId: barTx.Name(),
-		})
-		assert.NilError(t, err)
-	}
-
-	// we already sent the transactions through to the server, which should pipe them into the transaction queue.
-	// all we need to do now is tick so the system can run, which will check that we got the transactions we just
-	// piped through above.
-	err = w.Tick(context.Background())
-	assert.NilError(t, err)
+	// Make sure we saw the correct number of foo and bar transactions
+	assert.Equal(t, len(fooTxs), currFooIndex)
+	assert.Equal(t, len(barTxs), currBarIndex)
 }
 
 func TestServer_Query(t *testing.T) {
@@ -129,18 +150,21 @@ func TestServer_Query(t *testing.T) {
 		Y uint64
 	}
 	// set up a query that simply returns the FooReq.X
-	query := ecs.NewQueryType[FooReq, FooReply]("foo", func(wCtx ecs.WorldContext, req FooReq) (FooReply, error) {
-		return FooReply{Y: req.X}, nil
-	}, ecs.WithQueryEVMSupport[FooReq, FooReply])
-	w := ecs.NewTestWorld(t)
-	err := w.RegisterQueries(query)
+	handleFooQuery := func(wCtx cardinal.WorldContext, req *FooReq) (*FooReply, error) {
+		return &FooReply{Y: req.X}, nil
+	}
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+	err := cardinal.RegisterQueryWithEVMSupport[FooReq, FooReply](w, "foo", handleFooQuery)
 	assert.NilError(t, err)
-	err = w.RegisterTransactions(ecs.NewTransactionType[struct{}, struct{}]("nothing"))
+	err = world.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("nothing"))
 	assert.NilError(t, err)
-	s, err := NewServer(w)
+	s, err := evm.NewServer(world)
 	assert.NilError(t, err)
 
 	request := FooReq{X: 3000}
+	query, err := world.GetQueryByName("foo")
+	assert.NilError(t, err)
 	bz, err := query.EncodeAsABI(request)
 	assert.NilError(t, err)
 
@@ -162,12 +186,12 @@ func TestServer_Query(t *testing.T) {
 // Authorized address for the sender, an error occurs.
 func TestServer_UnauthorizedAddress(t *testing.T) {
 	// setup the world
-	w := ecs.NewTestWorld(t)
+	w := testutils.NewTestWorld(t).Instance()
 
 	// create the ECS transactions
-	fooTxType := ecs.NewTransactionType[FooTransaction, TxReply]("footx", ecs.WithTxEVMSupport[FooTransaction, TxReply])
+	fooTxType := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
 
-	assert.NilError(t, w.RegisterTransactions(fooTxType))
+	assert.NilError(t, w.RegisterMessages(fooTxType))
 
 	// create some txs to submit
 
@@ -175,7 +199,7 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 
 	assert.NilError(t, w.LoadGameState())
 
-	server, err := NewServer(w)
+	server, err := evm.NewServer(w)
 	assert.NilError(t, err)
 
 	fooTxBz, err := fooTxType.ABIEncode(fooTx)
@@ -188,6 +212,6 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 		Message:   fooTxBz,
 		MessageId: fooTxType.Name(),
 	})
-	assert.Equal(t, res.Code, uint32(CodeUnauthorized))
+	assert.Equal(t, res.Code, uint32(evm.CodeUnauthorized))
 	assert.Check(t, strings.Contains(res.Errs, "failed to authorize"))
 }
