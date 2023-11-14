@@ -173,7 +173,7 @@ func (s *msgServerImpl) Serve() error {
 	routerv1.RegisterMsgServer(server, s)
 	listener, err := net.Listen("tcp", ":"+s.port)
 	if err != nil {
-		return eris.Wrapf(err, "error listening to port %d", s.port)
+		return eris.Wrapf(err, "error listening to port %s", s.port)
 	}
 	go func() {
 		err = eris.Wrap(server.Serve(listener), "error serving server")
