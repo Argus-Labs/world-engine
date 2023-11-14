@@ -209,6 +209,10 @@ Loop:
 			waitGroup.Wait()
 			eh.eventQueue = eh.eventQueue[:0]
 		case <-eh.shutdown:
+			go func() {
+				for range eh.shutdown { //nolint:revive // This pattern drains the channel until closed
+				}
+			}()
 			for conn := range eh.websocketConnections {
 				unregisterConnection(conn)
 			}
