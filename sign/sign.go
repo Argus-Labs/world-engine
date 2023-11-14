@@ -135,8 +135,8 @@ func normalizeJSON(data any) ([]byte, error) {
 	// sorted keys, the resulting hashes will be different and the signature will fail.
 	// For this reason, we must Unmarshal/Marshal any pre-built JSON bodies to ensure the resulting hashes during
 	// signing match the hash during verification
-	if err := eris.Wrap(json.Unmarshal(asBuf, &asMap), ""); err != nil {
-		return nil, fmt.Errorf("data %q is not valid json", string(asBuf))
+	if err := json.Unmarshal(asBuf, &asMap); err != nil {
+		return nil, eris.Errorf("data %q is not valid json", string(asBuf))
 	}
 
 	normalizedBz, err := json.Marshal(asMap)
