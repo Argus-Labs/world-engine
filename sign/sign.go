@@ -125,8 +125,7 @@ func normalizeJSON(data any) ([]byte, error) {
 	if asBuf == nil {
 		// The given data was neither a string nor a []byte. Just json.Marshal it.
 		res, err := json.Marshal(data)
-		err = eris.Wrap(err, "")
-		return res, err
+		return res, eris.Wrap(err, "")
 	}
 
 	asMap := map[string]any{}
