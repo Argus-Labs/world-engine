@@ -46,8 +46,8 @@ func UnmarshalTransaction(bz []byte) (*Transaction, error) {
 	dec := json.NewDecoder(bytes.NewBuffer(bz))
 	dec.DisallowUnknownFields()
 
-	if err := eris.Wrap(dec.Decode(s), ""); err != nil {
-		return nil, fmt.Errorf("error decoding Transaction: %w", err)
+	if err := dec.Decode(s); err != nil {
+		return nil, eris.Wrap(err, "error decoding Transaction")
 	}
 
 	if err := s.checkRequiredFields(); err != nil {
@@ -101,9 +101,9 @@ func MappedTransaction(tx map[string]interface{}) (*Transaction, error) {
 	}
 	delete(tx, "hash")
 	delete(tx, "body")
-	err = eris.Wrap(mapstructure.Decode(tx, s), "")
+	err = mapstructure.Decode(tx, s)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "error decoding map structure")
 	}
 	s.Body = serializedBody
 	if err := s.checkRequiredFields(); err != nil {
@@ -169,9 +169,8 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data
 	}
 	sp.populateHash()
 	buf, err := crypto.Sign(sp.Hash.Bytes(), pk)
-	err = eris.Wrap(err, "")
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "error signing hash")
 	}
 	sp.Signature = common.Bytes2Hex(buf)
 	return sp, nil
