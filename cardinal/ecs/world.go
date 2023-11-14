@@ -50,7 +50,7 @@ type World struct {
 	initSystem             System
 	initSystemLogger       *ecslog.Logger
 	systemNames            []string
-	tick                   uint64
+	tick                   *atomic.Uint64
 	nameToComponent        map[string]metadata.ComponentMetadata
 	nameToQuery            map[string]Query
 	registeredComponents   []metadata.ComponentMetadata
@@ -320,7 +320,7 @@ func NewWorld(
 		nonceStore:        nonceStore,
 		entityStore:       entityStore,
 		namespace:         namespace,
-		tick:              0,
+		tick:              &atomic.Uint64{},
 		systems:           make([]System, 0),
 		initSystem:        func(_ WorldContext) error { return nil },
 		nameToComponent:   make(map[string]metadata.ComponentMetadata),
@@ -352,7 +352,7 @@ func NewWorld(
 }
 
 func (w *World) CurrentTick() uint64 {
-	return w.tick
+	return w.tick.Load()
 }
 
 func (w *World) ReceiptHistorySize() uint64 {
@@ -410,12 +410,12 @@ func (w *World) Tick(_ context.Context) error {
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
 			w.Logger.Error().
-				Msgf("Tick: %d, Current running system: %s", w.tick, nameOfCurrentRunningSystem)
+				Msgf("Tick: %d, Current running system: %s", w.CurrentTick(), nameOfCurrentRunningSystem)
 			panic(panicValue)
 		}
 	}()
 	startTime := time.Now()
-	tickAsString := strconv.FormatUint(w.tick, 10)
+	tickAsString := strconv.FormatUint(w.CurrentTick(), 10)
 	w.Logger.Info().Str("tick", tickAsString).Msg("Tick started")
 	if !w.stateIsLoaded {
 		return errors.New("must load state before first tick")
@@ -451,7 +451,7 @@ func (w *World) Tick(_ context.Context) error {
 		return err
 	}
 	w.setEvmResults(txQueue.GetEVMTxs())
-	w.tick++
+	w.tick.Add(1)
 	w.receiptHistory.NextTick()
 	elapsedTime := time.Since(startTime)
 
@@ -523,8 +523,12 @@ func (w *World) StartGameLoop(
 	}
 
 	go func() {
+		ok := w.isGameLoopRunning.CompareAndSwap(false, true)
+		if !ok {
+			// The game has already started
+			return
+		}
 		var waitingChs []chan struct{}
-		w.isGameLoopRunning.Store(true)
 	loop:
 		for {
 			select {
@@ -534,6 +538,7 @@ func (w *World) StartGameLoop(
 				waitingChs = waitingChs[:0]
 			case <-w.endGameLoopCh:
 				w.drainChannelsWaitingForNextTick()
+				w.drainEndLoopChannels()
 				closeAllChannels(waitingChs)
 				if w.GetTxQueueAmount() > 0 {
 					// immediately tick if queue is not empty to process all txs if queue is not empty.
@@ -575,6 +580,13 @@ func (w *World) drainChannelsWaitingForNextTick() {
 	}()
 }
 
+func (w *World) drainEndLoopChannels() {
+	go func() {
+		for range w.endGameLoopCh { //nolint:revive // This pattern drains the channel until closed
+		}
+	}()
+}
+
 // WaitForNextTick blocks until at least one game tick has completed. It returns true if it successfully waited for a
 // tick. False may be returned if the world was shut down while waiting for the next tick to complete.
 func (w *World) WaitForNextTick() (success bool) {
@@ -611,7 +623,7 @@ func (w *World) recoverGameState() (recoveredTxs *message.TxQueue, err error) {
 	if err != nil {
 		return nil, err
 	}
-	w.tick = end
+	w.tick.Store(end)
 	// We successfully completed the last tick. Everything is fine
 	if start == end {
 		//nolint:nilnil // its ok.
@@ -656,7 +668,7 @@ func (w *World) LoadGameState() error {
 			return err
 		}
 	}
-	w.receiptHistory.SetTick(w.tick)
+	w.receiptHistory.SetTick(w.CurrentTick())
 
 	return nil
 }
