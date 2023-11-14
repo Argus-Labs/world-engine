@@ -39,6 +39,8 @@ func (n Namespace) String() string {
 	return string(n)
 }
 
+var ErrEntitiesCreatedBeforeLoadingGameState = errors.New("cannot create entities before loading game state")
+
 type World struct {
 	namespace              Namespace
 	nonceStore             storage.NonceStorage
@@ -55,6 +57,7 @@ type World struct {
 	registeredMessages     []message.Message
 	registeredQueries      []Query
 	isComponentsRegistered bool
+	isEntitiesCreated      bool
 	isMessagesRegistered   bool
 	stateIsLoaded          bool
 
@@ -101,6 +104,14 @@ func (w *World) DoesWorldHaveAnEventHub() bool {
 
 func (w *World) GetEventHub() events.EventHub {
 	return w.eventHub
+}
+
+func (w *World) IsEntitiesCreated() bool {
+	return w.isEntitiesCreated
+}
+
+func (w *World) SetEntitiesCreated(value bool) {
+	w.isEntitiesCreated = value
 }
 
 func (w *World) SetEventHub(eventHub events.EventHub) {
@@ -317,6 +328,7 @@ func NewWorld(
 		txQueue:           message.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
+		isEntitiesCreated: false,
 		endGameLoopCh:     make(chan bool),
 		nextComponentID:   1,
 		evmTxReceipts:     make(map[string]EVMTxReceipt),
@@ -609,6 +621,9 @@ func (w *World) recoverGameState() (recoveredTxs *message.TxQueue, err error) {
 }
 
 func (w *World) LoadGameState() error {
+	if w.IsEntitiesCreated() {
+		return ErrEntitiesCreatedBeforeLoadingGameState
+	}
 	if w.stateIsLoaded {
 		return errors.New("cannot load game state multiple times")
 	}

@@ -3,19 +3,20 @@ package message_test
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 	"time"
 
-	"pkg.world.dev/world-engine/sign"
+	"github.com/stretchr/testify/require"
 
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/sign"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 )
 
 type ScoreComponent struct {
@@ -59,15 +60,13 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, world.RegisterMessages(modifyScoreMsg))
 
 	wCtx := ecs.NewWorldContext(world)
-	id, err := component.Create(wCtx, ScoreComponent{})
-	assert.NilError(t, err)
 
 	// Set up a system that allows for the modification of a player's score
 	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		modifyScore := modifyScoreMsg.In(wCtx)
 		for _, txData := range modifyScore {
 			ms := txData.Msg
-			err = component.UpdateComponent[ScoreComponent](wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
+			err := component.UpdateComponent[ScoreComponent](wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 				s.Score += ms.Amount
 				return s
 			})
@@ -78,6 +77,8 @@ func TestCanQueueTransactions(t *testing.T) {
 		return nil
 	})
 	assert.NilError(t, world.LoadGameState())
+	id, err := component.Create(wCtx, ScoreComponent{})
+	assert.NilError(t, err)
 
 	modifyScoreMsg.AddToQueue(world, &ModifyScoreMsg{id, 100})
 
@@ -119,15 +120,19 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[CounterComponent](world))
 
 	wCtx := ecs.NewWorldContext(world)
-	id, err := component.Create(wCtx, CounterComponent{})
-	assert.NilError(t, err)
+
 	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
+		search, err := wCtx.NewSearch(ecs.Exact(CounterComponent{}))
+		assert.NilError(t, err)
+		id := search.MustFirst(wCtx)
 		return component.UpdateComponent[CounterComponent](wCtx, id, func(c *CounterComponent) *CounterComponent {
 			c.Count++
 			return c
 		})
 	})
 	assert.NilError(t, world.LoadGameState())
+	id, err := component.Create(wCtx, CounterComponent{})
+	assert.NilError(t, err)
 
 	for i := 0; i < 10; i++ {
 		assert.NilError(t, world.Tick(context.Background()))

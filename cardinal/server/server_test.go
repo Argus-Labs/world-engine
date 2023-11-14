@@ -10,11 +10,12 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"pkg.world.dev/world-engine/cardinal"
 	"reflect"
 	"strconv"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -313,13 +314,6 @@ func TestHandleSwaggerServer(t *testing.T) {
 
 	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](world))
 	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](world))
-	alphaCount := 75
-	wCtx := ecs.NewWorldContext(world)
-	_, err := component.CreateMany(wCtx, alphaCount, garbageStructAlpha{})
-	assert.NilError(t, err)
-	bothCount := 100
-	_, err = component.CreateMany(wCtx, bothCount, garbageStructAlpha{}, garbageStructBeta{})
-	assert.NilError(t, err)
 
 	// Queue up a CreatePersona
 	personaTag := "foobar"
@@ -397,6 +391,15 @@ func TestHandleSwaggerServer(t *testing.T) {
 	ctx := context.Background()
 	err = world.LoadGameState()
 	assert.NilError(t, err)
+
+	wCtx := ecs.NewWorldContext(world)
+	alphaCount := 75
+	_, err = component.CreateMany(wCtx, alphaCount, garbageStructAlpha{})
+	assert.NilError(t, err)
+	bothCount := 100
+	_, err = component.CreateMany(wCtx, bothCount, garbageStructAlpha{}, garbageStructBeta{})
+	assert.NilError(t, err)
+
 	err = world.Tick(ctx)
 	assert.NilError(t, err)
 	resp2, err := client.Do(req)

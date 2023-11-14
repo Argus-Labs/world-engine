@@ -70,6 +70,7 @@ func TestTransactionExample(t *testing.T) {
 	assert.NilError(t, err)
 
 	testWorldCtx := testutils.WorldToWorldContext(world)
+	doTick()
 	ids, err := cardinal.CreateMany(testWorldCtx, 10, Health{})
 	assert.NilError(t, err)
 
