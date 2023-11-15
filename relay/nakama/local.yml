@@ -1,2 +1,36 @@
+# Nakama configuration file refrenece: https://heroiclabs.com/docs/nakama/getting-started/configuration/
+
+name: nakama
+data_dir: "./data/"
+
+session:
+  # Set a session duration of about 2-3 times the length of game’s average play session
+  token_expiry_sec: 60
+  refresh_token_expiry_sec: 3600
+
 logger:
-    level: DEBUG
+  stdout: true
+  level: "debug"
+
+database:
+  conn_max_lifetime_ms: 0 # indefinite, always reuse conn
+  max_open_conns: 250
+  max_idle_conns: 100
+
+socket:
+  port: 7350
+  protocol: tcp
+  read_timeout_ms: 10000
+  write_timeout_ms: 30000
+  idle_timeout_ms: 60000
+  outgoing_queue_size: 32
+
+console:
+  port: 7351
+  username: "admin"
+  password: "password"
+
+metrics:
+  reporting_freq_sec: 60
+  namespace: ""
+  prometheus_port: 7354
