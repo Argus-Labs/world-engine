@@ -267,6 +267,8 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 				return logCode(logger, AlreadyExists, "persona tag %q is pending for this account", tag.PersonaTag)
 			case personaTagStatusAccepted:
 				return logCode(logger, AlreadyExists, "persona tag %q already associated with this account", tag.PersonaTag)
+			case personaTagStatusRejected:
+				// if the tag was rejected, don't do anything. let the user try to claim another tag.
 			}
 		}
 
