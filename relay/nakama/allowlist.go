@@ -154,6 +154,7 @@ func claimKeyRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.Na
 	if ck.Key == "" {
 		return "", eris.Errorf("no beta key specified in request")
 	}
+	ck.Key = strings.ToUpper(ck.Key)
 	err = claimKey(ctx, nk, ck.Key, userID)
 	if err != nil {
 		return "", err
