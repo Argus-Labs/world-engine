@@ -1,5 +1,7 @@
 package shard
 
+import "github.com/rotisserie/eris"
+
 type Option func(adapter *adapterImpl)
 
 func WithCredentials(credPath string) Option {
@@ -9,7 +11,7 @@ func WithCredentials(credPath string) Option {
 		}
 		creds, err := loadClientCredentials(credPath)
 		if err != nil {
-			panic(err)
+			panic(eris.ToString(err, true))
 		}
 		a.creds = creds
 	}
