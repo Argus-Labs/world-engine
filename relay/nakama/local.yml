@@ -5,8 +5,8 @@ data_dir: "./data/"
 
 session:
   # Set a session duration of about 2-3 times the length of game’s average play session
-  token_expiry_sec: 60
-  refresh_token_expiry_sec: 3600
+  token_expiry_sec: 3600 # 1 hour
+  refresh_token_expiry_sec: 86400 # 1 day
   # Must change before you deploy Nakama to your live production environment
   encryption_key: "defaultencryptionkey"
   refresh_encryption_key: "defaultrefreshencryptionkey"
