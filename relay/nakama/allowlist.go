@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/heroiclabs/nakama-common/runtime"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
 )
 
 var (
@@ -34,8 +36,7 @@ func initAllowlist(_ runtime.Logger, initializer runtime.Initializer) error {
 	var err error
 	allowlistEnabled, err = strconv.ParseBool(enabledStr)
 	if err != nil {
-		return fmt.Errorf("the ENABLE_ALLOWLIST flag was set, however the variable %q was an invalid "+
-			"boolean: %w", enabledStr, err)
+		return eris.Wrapf(err, "the ENABLE_ALLOWLIST flag was set, however the variable %q was an invalid ", enabledStr)
 	}
 
 	if !allowlistEnabled {
@@ -43,12 +44,12 @@ func initAllowlist(_ runtime.Logger, initializer runtime.Initializer) error {
 	}
 	err = initializer.RegisterRpc("generate-beta-keys", allowListRPC)
 	if err != nil {
-		return err
+		return eris.Wrap(err, "failed to register rpc")
 	}
 
 	err = initializer.RegisterRpc("claim-key", claimKeyRPC)
 	if err != nil {
-		return err
+		return eris.Wrap(err, "failed to register rpc")
 	}
 	return nil
 }
@@ -75,18 +76,18 @@ func allowListRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.N
 		return "", err
 	}
 	if id != adminAccountID {
-		return "", fmt.Errorf("unauthorized: only admin may call this RPC")
+		return "", eris.Errorf("unauthorized: only admin may call this RPC")
 	}
 
 	var msg GenKeysMsg
 	err = json.Unmarshal([]byte(payload), &msg)
 	if err != nil {
-		return "", fmt.Errorf(`error unmarshaling payload: expected form {"amount": <int>}: %w`, err)
+		return "", eris.Wrap(err, `error unmarshaling payload: expected form {"amount": <int>}`)
 	}
 
 	keys, err := generateBetaKeys(msg.Amount)
 	if err != nil {
-		return "", fmt.Errorf("error generating beta keys: %w", err)
+		return "", eris.Wrap(err, "error generating beta keys")
 	}
 
 	writes := make([]*runtime.StorageWrite, 0, len(keys))
@@ -98,7 +99,7 @@ func allowListRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.N
 		}
 		bz, err := json.Marshal(obj)
 		if err != nil {
-			return "", err
+			return "", eris.Wrap(err, "")
 		}
 		writes = append(writes, &runtime.StorageWrite{
 			Collection:      allowlistKeyCollection,
@@ -113,12 +114,12 @@ func allowListRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.N
 
 	_, err = nk.StorageWrite(ctx, writes)
 	if err != nil {
-		return "", fmt.Errorf("error writing keys to storage: %w", err)
+		return "", eris.Wrap(err, "error writing keys to storage")
 	}
 
 	response, err := json.Marshal(GenKeysResponse{Keys: keys})
 	if err != nil {
-		return "", err
+		return "", eris.Wrap(err, "")
 	}
 	return string(response), nil
 }
@@ -142,16 +143,16 @@ func claimKeyRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.Na
 	// if this user is already verified,
 	err = checkVerified(ctx, nk, userID)
 	if err == nil {
-		return "", ErrAlreadyVerified
+		return "", eris.Wrap(errors.Join(ErrAlreadyVerified, err), "")
 	}
 
 	var ck ClaimKeyMsg
 	err = json.Unmarshal([]byte(payload), &ck)
 	if err != nil {
-		return "", err
+		return "", eris.Wrap(err, "")
 	}
 	if ck.Key == "" {
-		return "", fmt.Errorf("no beta key specified in request")
+		return "", eris.Errorf("no beta key specified in request")
 	}
 	err = claimKey(ctx, nk, ck.Key, userID)
 	if err != nil {
@@ -164,7 +165,7 @@ func claimKeyRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.Na
 
 	bz, err := json.Marshal(ClaimKeyRes{Success: true})
 	if err != nil {
-		return "", err
+		return "", eris.Wrap(err, "")
 	}
 	return string(bz), nil
 }
@@ -174,7 +175,7 @@ func writeVerified(ctx context.Context, nk runtime.NakamaModule, userID string) 
 	}
 	bz, err := json.Marshal(verified{})
 	if err != nil {
-		return err
+		return eris.Wrap(err, "")
 	}
 	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{
 		{
@@ -202,10 +203,10 @@ func checkVerified(ctx context.Context, nk runtime.NakamaModule, userID string) 
 		},
 	})
 	if err != nil {
-		return err
+		return eris.Wrap(err, "")
 	}
 	if len(objs) == 0 {
-		return ErrNotAllowlisted
+		return eris.Wrap(ErrNotAllowlisted, "")
 	}
 	return nil
 }
@@ -219,17 +220,17 @@ func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStor
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error reading storage object for key: %w", err)
+		return nil, eris.Wrap(err, "error reading storage object for key")
 	}
 	if len(objs) == 0 {
-		return nil, ErrInvalidBetaKey
+		return nil, eris.Wrap(ErrInvalidBetaKey, "")
 	}
 
 	obj := objs[0]
 	var ks KeyStorage
 	err = json.Unmarshal([]byte(obj.Value), &ks)
 	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal storage object into %T: %w", ks, err)
+		return nil, eris.Wrapf(err, "could not unmarshal storage object into %T", ks)
 	}
 	return &ks, nil
 }
@@ -237,7 +238,7 @@ func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStor
 func writeKey(ctx context.Context, nk runtime.NakamaModule, ks *KeyStorage) error {
 	bz, err := json.Marshal(ks)
 	if err != nil {
-		return fmt.Errorf("could not marshal KeyStorage object: %w", err)
+		return eris.Wrapf(err, "could not marshal KeyStorage object")
 	}
 	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{
 		{
@@ -251,7 +252,7 @@ func writeKey(ctx context.Context, nk runtime.NakamaModule, ks *KeyStorage) erro
 		},
 	})
 	if err != nil {
-		return fmt.Errorf("could not write KeyObject back to storage: %w", err)
+		return eris.Wrapf(err, "could not write KeyObject back to storage")
 	}
 	return nil
 }
@@ -262,7 +263,7 @@ func claimKey(ctx context.Context, nk runtime.NakamaModule, key, userID string) 
 		return err
 	}
 	if ks.Used {
-		return ErrBetaKeyAlreadyUsed
+		return eris.Wrap(ErrBetaKeyAlreadyUsed, "")
 	}
 	ks.Used = true
 	ks.UsedBy = userID
@@ -279,7 +280,7 @@ func generateRandomBytes(n int) ([]byte, error) {
 	bytes := make([]byte, n)
 	_, err := rand.Read(bytes)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	return bytes, nil
 }
