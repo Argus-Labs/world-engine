@@ -7,8 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
+
+	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"gotest.tools/v3/assert"
 
@@ -293,7 +295,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			}
 			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
 			_, err = component.GetComponent[ScalarComponentToggle](wCtx, id)
-			assert.ErrorIs(t, storage.ErrComponentNotOnEntity, err)
+			assert.ErrorIs(t, storage.ErrComponentNotOnEntity, eris.Cause(err))
 
 			// Ticking again should result in an error
 			assert.ErrorIs(t, errorToggleComponent, world.Tick(context.Background()))
