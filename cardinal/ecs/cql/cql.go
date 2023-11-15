@@ -2,11 +2,11 @@ package cql
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/alecthomas/participle/v2"
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -24,11 +24,11 @@ var operatorMap = map[string]cqlOperator{"&": opAnd, "|": opOr}
 // Capture basically tells the parser library how to transform a string token that's parsed into the operator type.
 func (o *cqlOperator) Capture(s []string) error {
 	if len(s) == 0 {
-		return errors.New("invalid operator")
+		return eris.New("invalid operator")
 	}
 	operator, ok := operatorMap[s[0]]
 	if !ok {
-		return errors.New("invalid operator")
+		return eris.New("invalid operator")
 	}
 	*o = operator
 	return nil
@@ -153,26 +153,26 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (met
 		return filter.Not(resultFilter), nil
 	} else if value.Exact != nil {
 		if len(value.Exact.Components) == 0 {
-			return nil, errors.New("EXACT cannot have zero parameters")
+			return nil, eris.New("EXACT cannot have zero parameters")
 		}
 		components := make([]metadata.ComponentMetadata, 0, len(value.Exact.Components))
 		for _, componentName := range value.Exact.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {
-				return nil, err
+				return nil, eris.Wrap(err, "")
 			}
 			components = append(components, comp)
 		}
 		return filter.Exact(components...), nil
 	} else if value.Contains != nil {
 		if len(value.Contains.Components) == 0 {
-			return nil, errors.New("CONTAINS cannot have zero parameters")
+			return nil, eris.New("CONTAINS cannot have zero parameters")
 		}
 		components := make([]metadata.ComponentMetadata, 0, len(value.Contains.Components))
 		for _, componentName := range value.Contains.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {
-				return nil, err
+				return nil, eris.Wrap(err, "")
 			}
 			components = append(components, comp)
 		}
@@ -180,7 +180,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (met
 	} else if value.Subexpression != nil {
 		return termToComponentFilter(value.Subexpression, stringToComponent)
 	} else {
-		return nil, errors.New("unknown error during conversion from CQL AST to ComponentFilter")
+		return nil, eris.New("unknown error during conversion from CQL AST to ComponentFilter")
 	}
 }
 
@@ -204,7 +204,7 @@ func opFactorToComponentFilter(
 func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (metadata.ComponentMetadata, error),
 ) (filter.ComponentFilter, error) {
 	if term.Left == nil {
-		return nil, errors.New("not enough values in expression")
+		return nil, eris.New("not enough values in expression")
 	}
 	acc, err := factorToComponentFilter(term.Left, stringToComponent)
 	if err != nil {
@@ -221,7 +221,7 @@ func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (metada
 		case opOr:
 			acc = filter.Or(acc, resultFilter)
 		default:
-			return nil, errors.New("invalid operator")
+			return nil, eris.New("invalid operator")
 		}
 	}
 	return acc, nil
@@ -231,7 +231,7 @@ func Parse(cqlText string, stringToComponent func(string) (metadata.ComponentMet
 ) (filter.ComponentFilter, error) {
 	term, err := internalCQLParser.ParseString("", cqlText)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	resultFilter, err := termToComponentFilter(term, stringToComponent)
 	if err != nil {
