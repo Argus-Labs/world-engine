@@ -7,8 +7,6 @@ import (
 	"pkg.world.dev/world-engine/evm/x/namespace/cli/query"
 	"pkg.world.dev/world-engine/evm/x/namespace/cli/tx"
 
-	abci "github.com/cometbft/cometbft/abci/types"
-
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -27,10 +25,9 @@ const (
 )
 
 var (
-	_ module.HasServices      = AppModule{}
-	_ module.AppModuleBasic   = AppModuleBasic{}
-	_ module.AppModuleGenesis = AppModule{}
-	_ module.HasGenesis       = AppModule{}
+	_ module.HasServices    = AppModule{}
+	_ module.AppModuleBasic = AppModuleBasic{}
+	_ module.HasGenesis     = AppModule{}
 )
 
 // ==============================================================================
@@ -103,11 +100,10 @@ func (am AppModule) InitGenesis(
 	ctx sdk.Context,
 	cdc codec.JSONCodec,
 	bz json.RawMessage,
-) []abci.ValidatorUpdate {
+) {
 	var g namespacetypes.Genesis
 	cdc.MustUnmarshalJSON(bz, &g)
 	am.keeper.InitGenesis(ctx, &g)
-	return []abci.ValidatorUpdate{}
 }
 
 func (am AppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) json.RawMessage {

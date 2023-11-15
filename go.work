@@ -1,9 +1,5 @@
 go 1.21.0
 
 use (
-	cardinal
 	evm
-	relay/nakama
-	rift
-	sign
 )

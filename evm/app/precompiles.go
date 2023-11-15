@@ -55,6 +55,7 @@ func PrecompilesToInject(app *App, customPcs ...ethprecompile.Registrable) func(
 				app.AccountKeeper,
 				govkeeper.NewMsgServerImpl(app.GovKeeper),
 				govkeeper.NewQueryServer(app.GovKeeper),
+				app.interfaceRegistry,
 			),
 			stakingprecompile.NewPrecompileContract(app.AccountKeeper, app.StakingKeeper),
 			router.NewPrecompileContract(app.Router),

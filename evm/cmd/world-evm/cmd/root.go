@@ -23,14 +23,15 @@ package cmd
 
 import (
 	"errors"
-	"io"
-	"os"
-	evmmempool "pkg.berachain.dev/polaris/cosmos/x/evm/plugins/txpool/mempool"
-	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
-
 	dbm "github.com/cosmos/cosmos-db"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"io"
+	"os"
+	evmv1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/v1alpha1"
+	evmconfig "pkg.berachain.dev/polaris/cosmos/config"
+	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
 
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/depinject"
@@ -81,8 +82,15 @@ func NewRootCmd() *cobra.Command {
 	if err := depinject.Inject(
 		depinject.Configs(
 			app.MakeAppConfig("world"),
-			depinject.Supply(evmmempool.NewPolarisEthereumTxPool(), log.NewNopLogger()),
-			depinject.Provide(evmtypes.ProvideEthereumTransactionGetSigners),
+			depinject.Supply(
+				app.PolarisConfigFn(evmconfig.DefaultConfig()),
+				app.QueryContextFn((&app.App{})),
+				log.NewNopLogger(),
+				simtestutil.NewAppOptionsWithFlagHome(tempDir()),
+			),
+			depinject.Provide(
+				signinglib.ProvideNoopGetSigners[*evmv1alpha1.WrappedEthereumTransaction],
+				signinglib.ProvideNoopGetSigners[*evmv1alpha1.WrappedPayloadEnvelope]),
 		),
 		&interfaceRegistry,
 		&appCodec,
@@ -94,8 +102,6 @@ func NewRootCmd() *cobra.Command {
 		panic(err)
 	}
 
-	ethcryptocodec.RegisterInterfaces(interfaceRegistry)
-
 	initClientCtx := client.Context{}.
 		WithCodec(appCodec).
 		WithInterfaceRegistry(interfaceRegistry).
@@ -103,8 +109,10 @@ func NewRootCmd() *cobra.Command {
 		WithInput(os.Stdin).
 		WithAccountRetriever(types.AccountRetriever{}).
 		WithHomeDir(app.DefaultNodeHome).
-		WithViper(""). // In simapp, we don't use any prefix for env variables.
-		WithKeyringOptions(keyring.EthSecp256k1Option())
+		WithKeyringOptions(keyring.OnlyEthSecp256k1Option()).
+		WithViper("") // In simapp, we don't use any prefix for env variables.
+
+	ethcryptocodec.RegisterInterfaces(interfaceRegistry)
 
 	rootCmd := &cobra.Command{
 		Use:   "world-evm",
@@ -253,7 +261,6 @@ func txCommand() *cobra.Command {
 		authcmd.GetBroadcastCommand(),
 		authcmd.GetEncodeCommand(),
 		authcmd.GetDecodeCommand(),
-		authcmd.GetAuxToFeeCommand(),
 	)
 
 	return cmd
@@ -314,4 +321,14 @@ func appExport(
 	}
 
 	return testApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)
+}
+
+func tempDir() string {
+	dir, err := os.MkdirTemp("", "world-evm")
+	if err != nil {
+		dir = app.DefaultNodeHome
+	}
+	defer os.RemoveAll(dir)
+
+	return dir
 }
