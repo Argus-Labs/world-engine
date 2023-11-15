@@ -8,8 +8,8 @@ session:
   token_expiry_sec: 60
   refresh_token_expiry_sec: 3600
   # Must change before you deploy Nakama to your live production environment
-  encryption_key: "default-world-engine-encryption-key"
-  refresh_encryption_key: "default-world-engine-refresh-encryption-key"
+  encryption_key: "defaultencryptionkey"
+  refresh_encryption_key: "defaultrefreshencryptionkey"
 
 logger:
   stdout: true
@@ -22,7 +22,7 @@ database:
 
 runtime:
   # Must change before you deploy Nakama to your live production environment
-  http_key: "default-world-engine-http-key"
+  http_key: "defaulthttpkey"
 
 socket:
   port: 7350
@@ -32,7 +32,7 @@ socket:
   idle_timeout_ms: 60000
   outgoing_queue_size: 32
   # Must change before you deploy Nakama to your live production environment
-  server_key: "default-world-engine-key"
+  server_key: "defaultkey"
 
 console:
   port: 7351
