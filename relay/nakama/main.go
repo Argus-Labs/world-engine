@@ -248,27 +248,26 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			return "", fmt.Errorf("unable to claim a persona tag: %w", err)
 		}
 
-		if ptr, err := loadPersonaTagStorageObj(ctx, nk); err != nil && !errors.Is(err, ErrPersonaTagStorageObjNotFound) {
-			return logError(logger, "unable to get persona tag storage object: %w", err)
-		} else if err == nil {
-			switch ptr.Status {
-			case personaTagStatusPending:
-				return logCode(logger, AlreadyExists, "persona tag %q is pending for this account", ptr.PersonaTag)
-			case personaTagStatusAccepted:
-				return logCode(logger, AlreadyExists, "persona tag %q already associated with this account", ptr.PersonaTag)
-			case personaTagStatusRejected:
-				return logCode(logger, AlreadyExists, "persona tag %q rejected", ptr.PersonaTag)
-			default:
-				// In other cases, allow the user to claim a persona tag.
-			}
-		}
-
 		ptr := &personaTagStorageObj{}
 		if err := json.Unmarshal([]byte(payload), ptr); err != nil {
 			return logError(logger, "unable to marshal payload: %w", err)
 		}
 		if ptr.PersonaTag == "" {
 			return logCode(logger, InvalidArgument, "personaTag field must not be empty")
+		}
+
+		tag, err := loadPersonaTagStorageObj(ctx, nk)
+		if err != nil {
+			if !errors.Is(err, ErrPersonaTagStorageObjNotFound) {
+				return logError(logger, "unable to get persona tag storage object: %w", err)
+			}
+		} else {
+			switch tag.Status {
+			case personaTagStatusPending:
+				return logCode(logger, AlreadyExists, "persona tag %q is pending for this account", tag.PersonaTag)
+			case personaTagStatusAccepted:
+				return logCode(logger, AlreadyExists, "persona tag %q already associated with this account", tag.PersonaTag)
+			}
 		}
 
 		txHash, tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
