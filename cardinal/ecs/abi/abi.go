@@ -2,13 +2,12 @@ package abi
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/rotisserie/eris"
 )
 
 const (
@@ -22,7 +21,7 @@ var (
 func GenerateABIType(goStruct any) (*abi.Type, error) {
 	rt := reflect.TypeOf(goStruct)
 	if rt.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("expected input to be of type struct, got %T", goStruct)
+		return nil, eris.Errorf("expected input to be of type struct, got %T", goStruct)
 	}
 	args, err := getArgumentsForType(rt)
 	if err != nil {
@@ -30,7 +29,7 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 	}
 	at, err := abi.NewType("tuple", "", args)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	return &at, nil
 }
@@ -113,7 +112,7 @@ func goTypeToSolidityType(t string, tag string) (string, error) {
 	// are expected to use a special `solidity` struct tag to indicate the type they want to use here.
 	if t == "*big.Int" {
 		if tag == "" {
-			return "", fmt.Errorf("when using *big.Int, you MUST use the `%s` struct tag to indicate which "+
+			return "", eris.Errorf("when using *big.Int, you MUST use the `%s` struct tag to indicate which "+
 				"underlying evm integer type you wish to resolve to (i.e. uint256, int128, etc)", bigIntStructTag)
 		}
 		return tag, nil
@@ -129,12 +128,12 @@ func goTypeToSolidityType(t string, tag string) (string, error) {
 
 	// the final type we can support is int/uint, so if we don't have that by here, we error.
 	if !strings.Contains(t, "int") {
-		return "", fmt.Errorf("unsupported type %s", t)
+		return "", eris.Errorf("unsupported type %s", t)
 	}
 
 	// finally, check if the uint/int passed contains a size. uint/int without size does not work in ABI->Go.
 	if !hasNumbers.MatchString(t) {
-		return "", errors.New("cannot use uint/int without specifying size (i.e. uint64, int8, etc)")
+		return "", eris.New("cannot use uint/int without specifying size (i.e. uint64, int8, etc)")
 	}
 	return t, nil
 }
@@ -144,9 +143,9 @@ func SerdeInto[T any](iface interface{}) (T, error) {
 	v := new(T)
 	bz, err := json.Marshal(iface)
 	if err != nil {
-		return *v, err
+		return *v, eris.Wrap(err, "")
 	}
 
 	err = json.Unmarshal(bz, v)
-	return *v, err
+	return *v, eris.Wrap(err, "")
 }
