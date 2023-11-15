@@ -36,6 +36,7 @@ socket:
 
 console:
   port: 7351
+  # Must change before you deploy Nakama to your live production environment
   username: "admin"
   password: "password"
 
