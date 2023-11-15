@@ -3,6 +3,7 @@ package cardinal_test
 
 import (
 	"errors"
+	"fmt"
 
 	"pkg.world.dev/world-engine/cardinal"
 )
@@ -31,20 +32,23 @@ func ExampleMessageType() {
 	}
 
 	err = cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
-		for _, tx := range MoveMsg.In(wCtx) {
-			msg := tx.Msg()
-			// handle the msg
+		MoveMsg.ForEach(wCtx, func(txData cardinal.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
+			// handle the transaction
 			// ...
 
-			// save the result
-			MoveMsg.SetResult(wCtx, tx.Hash(), MovePlayerResult{
-				FinalX: msg.DeltaX,
-				FinalY: msg.DeltaY,
-			})
+			if err := errors.New("some error from a function"); err != nil {
+				// A returned non-nil error will be appended to this transaction's list of errors. Any existing
+				// transaction result will not be modified.
+				return MovePlayerResult{}, fmt.Errorf("problem processing transaction: %w", err)
+			}
 
-			// optionally, add an error
-			MoveMsg.AddError(wCtx, tx.Hash(), errors.New("some error"))
-		}
+			// Returning a nil error implies this transaction handling was successful, so this transaction result
+			// will be saved to the transaction receipt.
+			return MovePlayerResult{
+				FinalX: txData.Msg().DeltaX,
+				FinalY: txData.Msg().DeltaY,
+			}, nil
+		})
 		return nil
 	})
 	if err != nil {
