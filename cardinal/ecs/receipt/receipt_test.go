@@ -2,11 +2,14 @@ package receipt
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"testing"
 
-	"github.com/google/uuid"
+	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
+
 	"gotest.tools/v3/assert"
+
+	"github.com/google/uuid"
 )
 
 func txHash(t *testing.T) message.TxHash {
@@ -100,7 +103,7 @@ func TestErrorWhenGettingReceiptsInNonFinishedTick(t *testing.T) {
 	rh := NewHistory(currTick, 5)
 
 	_, err := rh.GetReceiptsForTick(currTick)
-	assert.ErrorIs(t, ErrTickHasNotBeenProcessed, err)
+	assert.ErrorIs(t, ErrTickHasNotBeenProcessed, eris.Cause(err))
 
 	rh.NextTick()
 
@@ -142,5 +145,5 @@ func TestOldTicksAreDiscarded(t *testing.T) {
 	// should no longer be stored
 	rh.NextTick()
 	_, err := rh.GetReceiptsForTick(tickToGet)
-	assert.ErrorIs(t, ErrOldTickHasBeenDiscarded, err)
+	assert.ErrorIs(t, ErrOldTickHasBeenDiscarded, eris.Cause(err))
 }
