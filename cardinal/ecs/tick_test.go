@@ -295,7 +295,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			}
 			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
 			_, err = component.GetComponent[ScalarComponentToggle](wCtx, id)
-			assert.ErrorIs(t, storage.ErrComponentNotOnEntity, err)
+			assert.ErrorIs(t, storage.ErrComponentNotOnEntity, eris.Cause(err))
 
 			// Ticking again should result in an error
 			assert.ErrorIs(t, errorToggleComponent, eris.Cause(world.Tick(context.Background())))
