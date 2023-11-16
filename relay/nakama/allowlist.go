@@ -137,7 +137,7 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 ) {
 	userID, err := getUserID(ctx)
 	if err != nil {
-		return logCode(logger, Internal, "unable to get userID")
+		return logCode(logger, Internal, "unable to get userID: %v", err)
 	}
 
 	// if this user is already verified,
@@ -149,7 +149,7 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 	var ck ClaimKeyMsg
 	err = json.Unmarshal([]byte(payload), &ck)
 	if err != nil {
-		return logCode(logger, Internal, "unable to unmarshal payload")
+		return logCode(logger, InvalidArgument, "unable to unmarshal payload: %v", err)
 	}
 	if ck.Key == "" {
 		return logCode(logger, InvalidArgument, "no key provided in request")
@@ -157,16 +157,16 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 	ck.Key = strings.ToUpper(ck.Key)
 	err = claimKey(ctx, nk, ck.Key, userID)
 	if err != nil {
-		return logCode(logger, Internal, fmt.Sprintf("unable to claim key: %s", err.Error()))
+		return logCode(logger, Internal, fmt.Sprintf("unable to claim key: %v", err))
 	}
 	err = writeVerified(ctx, nk, userID)
 	if err != nil {
-		return logCode(logger, Internal, fmt.Sprintf("server could not save user verification entry. please try again: %s", err.Error()))
+		return logCode(logger, Internal, fmt.Sprintf("server could not save user verification entry. please try again: %v", err))
 	}
 
 	bz, err := json.Marshal(ClaimKeyRes{Success: true})
 	if err != nil {
-		return logCode(logger, Internal, "unable to marshal response")
+		return logCode(logger, Internal, "unable to marshal response: %v", err)
 	}
 	return string(bz), nil
 }
