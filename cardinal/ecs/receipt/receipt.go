@@ -4,8 +4,10 @@ package receipt
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"sync/atomic"
+
+	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
 )
 
 var (
@@ -97,10 +99,10 @@ func (h *History) GetReceiptsForTick(tick uint64) ([]Receipt, error) {
 	// The requested tick is either in the future, or it is currently being processed. We don't yet know
 	// what the results of this tick will be.
 	if currTick <= tick {
-		return nil, ErrTickHasNotBeenProcessed
+		return nil, eris.Wrap(ErrTickHasNotBeenProcessed, "")
 	}
 	if currTick-tick >= h.ticksToStore {
-		return nil, ErrOldTickHasBeenDiscarded
+		return nil, eris.Wrap(ErrOldTickHasBeenDiscarded, "")
 	}
 	mod := tick % h.ticksToStore
 	recs := make([]Receipt, 0, len(h.history[mod]))
