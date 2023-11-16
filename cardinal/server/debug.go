@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 )
@@ -28,7 +29,8 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 				wCtx := ecs.NewReadOnlyWorldContext(handler.w)
 				var err error
 				err = errors.Join(err, search.Each(wCtx, func(id entity.ID) bool {
-					components, err := handler.w.StoreManager().GetComponentTypesForEntity(id)
+					var components []metadata.ComponentMetadata
+					components, err = handler.w.StoreManager().GetComponentTypesForEntity(id)
 					if err != nil {
 						return false
 					}
@@ -37,7 +39,8 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 						Data: make([]json.RawMessage, 0),
 					}
 					for _, c := range components {
-						data, err := ecs.GetRawJSONOfComponent(handler.w, c, id)
+						var data json.RawMessage
+						data, err = ecs.GetRawJSONOfComponent(handler.w, c, id)
 						if err != nil {
 							return false
 						}
