@@ -1,5 +1,10 @@
 Closes: WORLD-XXX
 
+<!---
+Add a prefix to indicate what kind of release this pull request corresponds to:
+  feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+--->
+
 ## Overview
 
 > Description of the overall background and high-level changes that this PR introduces

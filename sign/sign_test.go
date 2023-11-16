@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"gotest.tools/v3/assert"
+	"github.com/rotisserie/eris"
 )
 
 func TestCanSignAndVerifyPayload(t *testing.T) {
@@ -40,7 +42,9 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
 
 	// Verify signature verification can fail
-	assert.ErrorIs(t, toBeVerified.Verify(badAddressHex), ErrSignatureValidationFailed)
+	errorWithStackTrace := toBeVerified.Verify(badAddressHex)
+	err = eris.Unwrap(errorWithStackTrace)
+	assert.ErrorIs(t, err, ErrSignatureValidationFailed)
 }
 
 func TestCanParseAMappedTransaction(t *testing.T) {
