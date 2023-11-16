@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
 )
 
 type TransactionReceiptsReply struct {
@@ -71,7 +71,7 @@ func (r *receiptsDispatcher) pollReceipts(log runtime.Logger) {
 	for {
 		startTick, err = r.streamBatchOfReceipts(log, startTick)
 		if err != nil {
-			log.Error("problem when fetching batch of receipts: %v", err)
+			log.Error("problem when fetching batch of receipts: %v", eris.ToString(eris.Wrap(err, ""), true))
 		}
 		time.Sleep(timeBetweenBatched)
 	}
@@ -103,25 +103,25 @@ func (r *receiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (
 	}
 	buf, err := json.Marshal(request)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	ctx := context.Background()
 	url := makeHTTPURL(transactionReceiptsEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := doRequest(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query %q: %w", url, err)
+		return nil, eris.Wrapf(err, "failed to query %q", url)
 	}
 	defer resp.Body.Close()
 
 	reply = &TransactionReceiptsReply{}
 
 	if err = json.NewDecoder(resp.Body).Decode(reply); err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	return reply, nil
 }

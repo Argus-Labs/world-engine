@@ -15,6 +15,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
 )
 
 var (
@@ -50,16 +51,16 @@ func getOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key string
 		Key:        key,
 	}})
 	if err != nil {
-		return "", err
+		return "", eris.Wrap(err, "")
 	}
 	if len(objs) > 1 {
-		return "", ErrTooManyStorageObjectsFound
+		return "", eris.Wrap(ErrTooManyStorageObjectsFound, "")
 	} else if len(objs) == 0 {
-		return "", ErrNoStorageObjectFound
+		return "", eris.Wrap(ErrNoStorageObjectFound, "")
 	}
 	var pkObj privateKeyStorageObj
 	if err = json.Unmarshal([]byte(objs[0].Value), &pkObj); err != nil {
-		return "", err
+		return "", eris.Wrap(err, "")
 	}
 	return pkObj.Value, nil
 }
@@ -71,7 +72,7 @@ func setOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key, value
 	}
 	buf, err := json.Marshal(pkObj)
 	if err != nil {
-		return err
+		return eris.Wrap(err, "")
 	}
 	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{{
 		Collection:      privateKeyCollection,
@@ -98,7 +99,8 @@ func getNonce(ctx context.Context, nk runtime.NakamaModule) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return strconv.ParseUint(value, 10, 64)
+	res, err := strconv.ParseUint(value, 10, 64)
+	return res, eris.Wrap(err, "")
 }
 
 func setNonce(ctx context.Context, nk runtime.NakamaModule, n uint64) error {
@@ -110,8 +112,8 @@ func setNonce(ctx context.Context, nk runtime.NakamaModule, n uint64) error {
 func initPrivateKey(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) error {
 	privateKeyHex, err := getPrivateKeyHex(ctx, nk)
 	if err != nil {
-		if !errors.Is(err, ErrNoStorageObjectFound) {
-			return fmt.Errorf("failed to get private key: %w", err)
+		if !eris.Is(eris.Cause(err), ErrNoStorageObjectFound) {
+			return eris.Wrap(err, "failed to get private key")
 		}
 		logger.Debug("no private key found; creating a new one")
 		// No private key found. Let's generate one.
@@ -131,7 +133,7 @@ func initPrivateKey(ctx context.Context, logger runtime.Logger, nk runtime.Nakam
 	// We've either loaded the existing private key, or initialized a new one
 	globalPrivateKey, err = crypto.HexToECDSA(privateKeyHex)
 	if err != nil {
-		return err
+		return eris.Wrap(err, "")
 	}
 	globalSignerAddress = crypto.PubkeyToAddress(globalPrivateKey.PublicKey).Hex()
 	return nil
