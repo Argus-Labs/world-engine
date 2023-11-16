@@ -18,3 +18,8 @@ include makefiles/build.mk
 
 kill:
 	docker kill $$(docker ps -q)
+
+clear:
+	docker compose down
+	docker volume rm $$(docker volume ls -q)
+	docker rm -f $$(docker ps -a -q)
