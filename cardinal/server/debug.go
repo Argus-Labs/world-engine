@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
 
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -27,11 +26,11 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 				result := make(DebugStateResponse, 0)
 				search := ecs.NewSearch(filter.All())
 				wCtx := ecs.NewReadOnlyWorldContext(handler.w)
-				var err error
-				err = errors.Join(err, search.Each(wCtx, func(id entity.ID) bool {
+				var eachClosureErr error
+				searchEachErr := search.Each(wCtx, func(id entity.ID) bool {
 					var components []metadata.ComponentMetadata
-					components, err = handler.w.StoreManager().GetComponentTypesForEntity(id)
-					if err != nil {
+					components, eachClosureErr = handler.w.StoreManager().GetComponentTypesForEntity(id)
+					if eachClosureErr != nil {
 						return false
 					}
 					resultElement := DebugStateElement{
@@ -40,17 +39,20 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 					}
 					for _, c := range components {
 						var data json.RawMessage
-						data, err = ecs.GetRawJSONOfComponent(handler.w, c, id)
-						if err != nil {
+						data, eachClosureErr = ecs.GetRawJSONOfComponent(handler.w, c, id)
+						if eachClosureErr != nil {
 							return false
 						}
 						resultElement.Data = append(resultElement.Data, data)
 					}
 					result = append(result, &resultElement)
 					return true
-				}))
-				if err != nil {
-					return nil, err
+				})
+				if eachClosureErr != nil {
+					return nil, eachClosureErr
+				}
+				if searchEachErr != nil {
+					return nil, searchEachErr
 				}
 
 				return &result, nil
