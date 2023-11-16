@@ -3,8 +3,10 @@ package ecs
 import (
 	"errors"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"reflect"
+
+	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
@@ -118,7 +120,7 @@ func (t *MessageType[In, Out]) SetID(id message.TypeID) error {
 		if id == t.id {
 			return nil
 		}
-		return fmt.Errorf("id on message %q is already set to %d and cannot change to %d", t.name, t.id, id)
+		return eris.Errorf("id on message %q is already set to %d and cannot change to %d", t.name, t.id, id)
 	}
 	t.id = id
 	t.isIDSet = true
@@ -161,10 +163,12 @@ func (t *MessageType[In, Out]) GetReceipt(wCtx WorldContext, hash message.TxHash
 func (t *MessageType[In, Out]) ForEach(wCtx WorldContext, fn func(TxData[In]) (Out, error)) {
 	for _, txData := range t.In(wCtx) {
 		if result, err := fn(txData); err != nil {
-			wCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v",
+			err = eris.Wrap(err, "")
+			wCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v and stack trace:\n %s",
 				txData.Hash,
 				txData.Tx.PersonaTag,
 				txData.Msg,
+				eris.ToString(err, true),
 			)
 			t.AddError(wCtx, txData.Hash, err)
 		} else {
@@ -201,7 +205,7 @@ func (t *MessageType[In, Out]) Decode(bytes []byte) (any, error) {
 // evm types, an error is returned.
 func (t *MessageType[In, Out]) ABIEncode(v any) ([]byte, error) {
 	if t.inEVMType == nil || t.outEVMType == nil {
-		return nil, ErrEVMTypeNotSet
+		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
 	}
 
 	var args ethereumAbi.Arguments
@@ -215,7 +219,7 @@ func (t *MessageType[In, Out]) ABIEncode(v any) ([]byte, error) {
 		input = in
 		args = ethereumAbi.Arguments{{Type: *t.inEVMType}}
 	default:
-		return nil, fmt.Errorf("expected input to be of type %T or %T, got %T", new(In), new(Out), v)
+		return nil, eris.Errorf("expected input to be of type %T or %T, got %T", new(In), new(Out), v)
 	}
 
 	return args.Pack(input)
@@ -228,11 +232,12 @@ func (t *MessageType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
 	}
 	args := ethereumAbi.Arguments{{Type: *t.inEVMType}}
 	unpacked, err := args.Unpack(bz)
+	err = eris.Wrap(err, "")
 	if err != nil {
 		return nil, err
 	}
 	if len(unpacked) < 1 {
-		return nil, fmt.Errorf("error decoding EVM bytes: no values could be unpacked into the abi type")
+		return nil, eris.Errorf("error decoding EVM bytes: no values could be unpacked into the abi type")
 	}
 	input, err := abi.SerdeInto[In](unpacked[0])
 	if err != nil {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
@@ -43,7 +43,7 @@ func (r *readOnlyManager) refreshArchIDToCompTypes() error {
 	if err != nil {
 		return err
 	} else if !ok {
-		return ErrNoArchIDMappingFound
+		return eris.Wrap(ErrNoArchIDMappingFound, "")
 	}
 	r.archIDToComps = archIDToComps
 	return nil
@@ -62,7 +62,8 @@ func (r *readOnlyManager) GetComponentForEntityInRawJSON(cType metadata.Componen
 ) (json.RawMessage, error) {
 	ctx := context.Background()
 	key := redisComponentKey(cType.ID(), id)
-	return r.client.Get(ctx, key).Bytes()
+	res, err := r.client.Get(ctx, key).Bytes()
+	return res, eris.Wrap(err, "")
 }
 
 func (r *readOnlyManager) getComponentsForArchID(archID archetype.ID) ([]metadata.ComponentMetadata, error) {
@@ -74,7 +75,7 @@ func (r *readOnlyManager) getComponentsForArchID(archID archetype.ID) ([]metadat
 	}
 	comps, ok := r.archIDToComps[archID]
 	if !ok {
-		return nil, fmt.Errorf("unable to find components for arch ID %d", archID)
+		return nil, eris.Errorf("unable to find components for arch ID %d", archID)
 	}
 	return comps, nil
 }
@@ -85,7 +86,7 @@ func (r *readOnlyManager) GetComponentTypesForEntity(id entity.ID) ([]metadata.C
 	archIDKey := redisArchetypeIDForEntityID(id)
 	num, err := r.client.Get(ctx, archIDKey).Int()
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	archID := archetype.ID(num)
 
@@ -95,7 +96,7 @@ func (r *readOnlyManager) GetComponentTypesForEntity(id entity.ID) ([]metadata.C
 func (r *readOnlyManager) GetComponentTypesForArchID(archID archetype.ID) []metadata.ComponentMetadata {
 	comps, err := r.getComponentsForArchID(archID)
 	if err != nil {
-		panic(err)
+		panic(eris.ToString(err, true))
 	}
 	return comps
 }
@@ -122,7 +123,7 @@ func (r *readOnlyManager) GetArchIDForComponents(components []metadata.Component
 			}
 		}
 	}
-	return 0, errors.New("arch ID for components not found")
+	return 0, eris.New("arch ID for components not found")
 }
 
 func (r *readOnlyManager) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error) {
@@ -131,7 +132,7 @@ func (r *readOnlyManager) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID
 	bz, err := r.client.Get(ctx, key).Bytes()
 	if err != nil {
 		// No entities were found for this archetype ID
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	ids, err := codec.Decode[[]entity.ID](bz)
 	if err != nil {

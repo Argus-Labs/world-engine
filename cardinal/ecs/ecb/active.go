@@ -1,8 +1,7 @@
 package ecb
 
 import (
-	"fmt"
-
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
 
@@ -25,7 +24,7 @@ func (a *activeEntities) swapRemove(idToRemove entity.ID) error {
 		}
 	}
 	if indexOfID == -1 {
-		return fmt.Errorf("cannot find entity id %d", idToRemove)
+		return eris.Errorf("cannot find entity id %d", idToRemove)
 	}
 	lastIndex := len(a.ids) - 1
 	if indexOfID < lastIndex {

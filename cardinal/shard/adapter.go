@@ -4,13 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
+	"os"
+
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
-	"os"
+
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
+
 	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 
 	shardtypes "pkg.world.dev/world-engine/chain/x/shard/types"
@@ -63,12 +66,12 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 	// Load certificate of the CA who signed server's certificate
 	pemServerCA, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 
 	certPool := x509.NewCertPool()
 	if !certPool.AppendCertsFromPEM(pemServerCA) {
-		return nil, fmt.Errorf("failed to add server CA's certificate")
+		return nil, eris.Errorf("failed to add server CA's certificate")
 	}
 
 	// Create the credentials and return it
@@ -88,14 +91,14 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	// we need secure comms here because only this connection should be able to send stuff to the shard receiver.
 	conn, err := grpc.Dial(cfg.ShardSequencerAddr, grpc.WithTransportCredentials(a.creds))
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	a.ShardSequencer = shardv1.NewShardHandlerClient(conn)
 
 	// we don't need secure comms for this connection, cause we're just querying cosmos public RPC endpoints.
 	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	a.ShardQuerier = shardtypes.NewQueryClient(conn2)
 	return a, nil
@@ -104,7 +107,7 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 func (a adapterImpl) Submit(ctx context.Context, sp *sign.Transaction, txID uint64, epoch uint64) error {
 	req := &shardv1.SubmitShardTxRequest{Tx: transactionToProto(sp), Epoch: epoch, TxId: txID}
 	_, err := a.ShardSequencer.SubmitShardTx(ctx, req)
-	return err
+	return eris.Wrap(err, "")
 }
 
 func (a adapterImpl) QueryTransactions(
@@ -114,7 +117,8 @@ func (a adapterImpl) QueryTransactions(
 	*shardtypes.QueryTransactionsResponse,
 	error,
 ) {
-	return a.ShardQuerier.Transactions(ctx, req)
+	res, err := a.ShardQuerier.Transactions(ctx, req)
+	return res, eris.Wrap(err, "")
 }
 
 func transactionToProto(sp *sign.Transaction) *shardv1.Transaction {
