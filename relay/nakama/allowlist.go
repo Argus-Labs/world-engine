@@ -132,41 +132,41 @@ type ClaimKeyRes struct {
 	Success bool `json:"success"`
 }
 
-func claimKeyRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
+func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
 	string, error,
 ) {
 	userID, err := getUserID(ctx)
 	if err != nil {
-		return "", err
+		return logCode(logger, Internal, "unable to get userID")
 	}
 
 	// if this user is already verified,
 	err = checkVerified(ctx, nk, userID)
 	if err == nil {
-		return "", eris.Wrap(errors.Join(ErrAlreadyVerified, err), "")
+		return logCode(logger, AlreadyExists, "user already verified with beta key")
 	}
 
 	var ck ClaimKeyMsg
 	err = json.Unmarshal([]byte(payload), &ck)
 	if err != nil {
-		return "", eris.Wrap(err, "")
+		return logCode(logger, Internal, "unable to unmarshal payload")
 	}
 	if ck.Key == "" {
-		return "", eris.Errorf("no beta key specified in request")
+		return logCode(logger, InvalidArgument, "no key provided in request")
 	}
 	ck.Key = strings.ToUpper(ck.Key)
 	err = claimKey(ctx, nk, ck.Key, userID)
 	if err != nil {
-		return "", err
+		return logCode(logger, Internal, fmt.Sprintf("unable to claim key: %s", err.Error()))
 	}
 	err = writeVerified(ctx, nk, userID)
 	if err != nil {
-		return "", err
+		return logCode(logger, Internal, "server could not save user verification entry. please try again"+err.Error())
 	}
 
 	bz, err := json.Marshal(ClaimKeyRes{Success: true})
 	if err != nil {
-		return "", eris.Wrap(err, "")
+		return logCode(logger, Internal, "unable to marshal response")
 	}
 	return string(bz), nil
 }

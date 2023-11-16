@@ -19,23 +19,23 @@ import (
 )
 
 const (
-	OK                 = 0
-	Cancelled          = 1
-	Unknown            = 2
-	InvalidArgument    = 3
-	DeadlineExceeded   = 4
-	NotFound           = 5
-	AlreadyExists      = 6
-	PermissionDenied   = 7
-	ResourceExhausted  = 8
-	FailedPrecondition = 9
-	Aborted            = 10
-	OutOfRange         = 11
-	Unimplemented      = 12
-	Internal           = 13
-	Unavailable        = 14
-	DataLoss           = 15
-	Unauthenticated    = 16
+	OK = iota
+	Cancelled
+	Unknown
+	InvalidArgument
+	DeadlineExceeded
+	NotFound
+	AlreadyExists
+	PermissionDenied
+	ResourceExhausted
+	FailedPrecondition
+	Aborted
+	OutOfRange
+	Unimplemented
+	Internal
+	Unavailable
+	DataLoss
+	Unauthenticated
 )
 
 type receiptChan chan *Receipt
@@ -246,7 +246,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		// check if the user is verified. this requires them to input a valid beta key.
 		err = checkVerified(ctx, nk, userID)
 		if err != nil {
-			return "", eris.Wrap(err, "unable to claim a persona tag")
+			return logCode(logger, AlreadyExists, "unable to claim persona tag")
 		}
 
 		ptr := &personaTagStorageObj{}
