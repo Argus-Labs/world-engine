@@ -2,7 +2,8 @@ package ecb
 
 import (
 	"context"
-	"errors"
+
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"github.com/redis/go-redis/v9"
@@ -22,13 +23,15 @@ var _ store.TickStorage = &Manager{}
 func (m *Manager) GetTickNumbers() (start, end uint64, err error) {
 	ctx := context.Background()
 	start, err = m.client.Get(ctx, redisStartTickKey()).Uint64()
-	if errors.Is(err, redis.Nil) {
+	err = eris.Wrap(err, "")
+	if eris.Is(eris.Cause(err), redis.Nil) {
 		start = 0
 	} else if err != nil {
 		return 0, 0, err
 	}
 	end, err = m.client.Get(ctx, redisEndTickKey()).Uint64()
-	if errors.Is(err, redis.Nil) {
+	err = eris.Wrap(err, "")
+	if eris.Is(eris.Cause(err), redis.Nil) {
 		end = 0
 	} else if err != nil {
 		return 0, 0, err
@@ -46,11 +49,11 @@ func (m *Manager) StartNextTick(txs []message.Message, queue *message.TxQueue) e
 	}
 
 	if err := pipe.Incr(ctx, redisStartTickKey()).Err(); err != nil {
-		return err
+		return eris.Wrap(err, "")
 	}
 
 	_, err := pipe.Exec(ctx)
-	return err
+	return eris.Wrap(err, "")
 }
 
 // FinalizeTick combines all pending state changes into a single multi/exec redis transactions and commits them
@@ -62,10 +65,10 @@ func (m *Manager) FinalizeTick() error {
 		return err
 	}
 	if err = pipe.Incr(context.Background(), redisEndTickKey()).Err(); err != nil {
-		return err
+		return eris.Wrap(err, "")
 	}
 	_, err = pipe.Exec(ctx)
-	return err
+	return eris.Wrap(err, "")
 }
 
 // Recover fetches the pending transactions for an incomplete tick. This should only be called if GetTickNumbers
@@ -75,7 +78,7 @@ func (m *Manager) Recover(txs []message.Message) (*message.TxQueue, error) {
 	key := redisPendingTransactionKey()
 	bz, err := m.client.Get(ctx, key).Bytes()
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	pending, err := codec.Decode[[]pendingTransaction](bz)
 	if err != nil {
@@ -130,5 +133,5 @@ func addPendingTransactionToPipe(ctx context.Context, pipe redis.Pipeliner, txs 
 		return err
 	}
 	key := redisPendingTransactionKey()
-	return pipe.Set(ctx, key, buf, 0).Err()
+	return eris.Wrap(pipe.Set(ctx, key, buf, 0).Err(), "")
 }
