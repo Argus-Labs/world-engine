@@ -1,11 +1,11 @@
 package server
 
 import (
-	"errors"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )
@@ -29,7 +29,7 @@ func NewGameManager(world *ecs.World, handler *Handler) GameManager {
 			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
 				err := manager.Shutdown()
 				if err != nil {
-					log.Err(err).Msgf("There was an error during shutdown.")
+					log.Err(err).Msgf(eris.ToString(err, true))
 				}
 				return
 			}
@@ -41,7 +41,7 @@ func NewGameManager(world *ecs.World, handler *Handler) GameManager {
 func (s *GameManager) Shutdown() error {
 	log.Info().Msg("Shutting down server.")
 	if s.handler == nil {
-		return errors.New("game manager has no server, can't shutdown")
+		return eris.New("game manager has no server, can't shutdown")
 	}
 	err := s.handler.Shutdown()
 	if err != nil {
