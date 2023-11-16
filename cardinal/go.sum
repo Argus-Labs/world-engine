@@ -670,6 +670,8 @@ github.com/rollkit/cosmos-sdk v0.50.0-rc.0-rollkit-v0.11.0-rc2-no-fraud-proofs-p
 github.com/rollkit/cosmos-sdk v0.50.0-rc.0-rollkit-v0.11.0-rc2-no-fraud-proofs-polaris/go.mod h1:9ityGu51zyF2IIfj4CmIfK+W+iNl1cwCmKjZbpDAyS8=
 github.com/rollkit/rollkit v0.11.0-rc2 h1:a4tCmrWnUOPweEerj5bH4w4vCRPx8ACKmSWNYExRj7M=
 github.com/rollkit/rollkit v0.11.0-rc2/go.mod h1:HP99tiFSjXcaidbHTp/Pucog7sA2N9qlIV4VAgIGdHE=
+github.com/rotisserie/eris v0.5.4 h1:Il6IvLdAapsMhvuOahHWiBnl1G++Q0/L5UIkI5mARSk=
+github.com/rotisserie/eris v0.5.4/go.mod h1:Z/kgYTJiJtocxCbFfvRmO+QejApzG6zpyky9G1A4g9s=
 github.com/rs/cors v1.10.1 h1:L0uuZVXIKlI1SShY2nhFfo44TYvDPQ1w4oFkUJNfhyo=
 github.com/rs/cors v1.10.1/go.mod h1:XyqrcTp5zjWr1wsJ8PIRZssZ8b/WMcMf71DJnit4EMU=
 github.com/rs/xid v1.5.0/go.mod h1:trrq9SKmegXys3aeAKXMUTdJsYXVwGY3RLcfgqegfbg=

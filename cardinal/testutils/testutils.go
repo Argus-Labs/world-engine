@@ -5,13 +5,13 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 
 	"gotest.tools/v3/assert"
@@ -49,7 +49,7 @@ func MakeTestTransactionHandler(
 		err = txh.Serve()
 		// ErrServerClosed is returned from txh.Serve after txh.Close is called. This is
 		// normal.
-		if !errors.Is(err, http.ErrServerClosed) {
+		if !eris.Is(eris.Cause(err), http.ErrServerClosed) {
 			assert.NilError(t, err)
 		}
 	}()

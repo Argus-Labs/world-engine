@@ -10,6 +10,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
 )
 
 type Event struct {
@@ -33,7 +34,7 @@ func createEventHub(logger runtime.Logger) (*EventHub, error) {
 			time.Sleep(2 * time.Second)                                          //nolint: gomnd // its ok.
 			webSocketConnection, _, err = websocket.DefaultDialer.Dial(url, nil) //nolint:bodyclose // no need.
 		} else {
-			return nil, err
+			return nil, eris.Wrap(err, "")
 		}
 	}
 	channelMap := sync.Map{}
@@ -55,11 +56,11 @@ func (eh *EventHub) Subscribe(session string) chan *Event {
 func (eh *EventHub) Unsubscribe(session string) {
 	eventChannelUntyped, ok := eh.channels.Load(session)
 	if !ok {
-		panic(errors.New("session not found"))
+		panic(eris.New("session not found"))
 	}
 	eventChannel, ok := eventChannelUntyped.(chan *Event)
 	if !ok {
-		panic(errors.New("found object that was not a event channel in event hub"))
+		panic(eris.New("found object that was not a event channel in event hub"))
 	}
 	close(eventChannel)
 	eh.channels.Delete(session)
@@ -76,6 +77,7 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 	for !eh.didShutdown.Load() {
 		messageType, message, err := eh.inputConnection.ReadMessage() // will block
 		if err != nil {
+			err = eris.Wrap(err, "")
 			eh.Shutdown()
 			continue
 		}
@@ -86,7 +88,7 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 		eh.channels.Range(func(key any, value any) bool {
 			channel, ok := value.(chan *Event)
 			if !ok {
-				err = errors.New("not a channel")
+				err = eris.New("not a channel")
 				eh.Shutdown()
 				return false
 			}
@@ -103,6 +105,6 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 		eh.Unsubscribe(key.(string))
 		return true
 	})
-	err = errors.Join(eh.inputConnection.Close(), err)
+	err = errors.Join(eris.Wrap(eh.inputConnection.Close(), ""), err)
 	return err
 }
