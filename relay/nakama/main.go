@@ -427,13 +427,13 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 func logCode(logger runtime.Logger, code int, format string, v ...interface{}) (string, error) {
 	err := eris.Errorf(format, v...)
 	logger.Error(eris.ToString(err, true))
-	return "", runtime.NewError(eris.ToString(err, true), code)
+	return "", runtime.NewError(err.Error(), code)
 }
 
 func logError(logger runtime.Logger, err error, format string, v ...interface{}) (string, error) {
 	err = eris.Wrapf(err, format, v...)
 	logger.Error(eris.ToString(err, true))
-	return "", runtime.NewError(eris.ToString(err, true), Internal)
+	return "", runtime.NewError(err.Error(), Internal)
 }
 
 // setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns
