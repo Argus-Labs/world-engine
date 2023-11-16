@@ -282,16 +282,17 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 	addr string,
 ) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
-	var err error
 	wCtx := ecs.NewReadOnlyWorldContext(s.world)
 	q, err := wCtx.NewSearch(ecs.Exact(ecs.SignerComponent{}))
 	if err != nil {
 		return nil, eris.Wrap(err, "error creating search")
 	}
-	err = errors.Join(err, q.Each(wCtx, func(id entity.ID) bool {
+	var getComponentErr error
+	searchIterationErr := eris.Wrap(q.Each(wCtx, func(id entity.ID) bool {
 		var signerComp *ecs.SignerComponent
-		signerComp, err = component.GetComponent[ecs.SignerComponent](wCtx, id)
-		if err != nil {
+		signerComp, getComponentErr = component.GetComponent[ecs.SignerComponent](wCtx, id)
+		getComponentErr = eris.Wrap(getComponentErr, "")
+		if getComponentErr != nil {
 			return false
 		}
 		for _, authAddr := range signerComp.AuthorizedAddresses {
@@ -301,9 +302,12 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 			}
 		}
 		return true
-	}))
-	if err != nil {
-		return nil, eris.Wrap(err, "error iterating through search results")
+	}), "")
+	if getComponentErr != nil {
+		return nil, getComponentErr
+	}
+	if searchIterationErr != nil {
+		return nil, searchIterationErr
 	}
 	if sc == nil {
 		return nil, eris.Errorf("address %s does not have a linked persona tag", addr)
