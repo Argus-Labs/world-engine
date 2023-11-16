@@ -291,7 +291,6 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 	err = errors.Join(err, q.Each(wCtx, func(id entity.ID) bool {
 		var signerComp *ecs.SignerComponent
 		signerComp, err = component.GetComponent[ecs.SignerComponent](wCtx, id)
-		err = eris.Wrapf(err, "error getting signer component with id %d", id)
 		if err != nil {
 			return false
 		}
