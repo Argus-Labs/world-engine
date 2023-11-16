@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"google.golang.org/protobuf/proto"
@@ -38,8 +39,6 @@ type Namespace string
 func (n Namespace) String() string {
 	return string(n)
 }
-
-var ErrEntitiesCreatedBeforeLoadingGameState = errors.New("cannot create entities before loading game state")
 
 type World struct {
 	namespace              Namespace
@@ -86,7 +85,8 @@ type World struct {
 }
 
 var (
-	ErrMessageRegistrationMustHappenOnce = errors.New(
+	ErrEntitiesCreatedBeforeLoadingGameState = errors.New("cannot create entities before loading game state")
+	ErrMessageRegistrationMustHappenOnce     = errors.New(
 		"message registration must happen exactly 1 time",
 	)
 	ErrStoreStateInvalid    = errors.New("saved world state is not valid")
@@ -196,7 +196,7 @@ func RegisterComponent[T metadata.Component](world *World) error {
 	var t T
 	_, err := world.GetComponentByName(t.Name())
 	if err == nil {
-		return fmt.Errorf("component with name '%s' is already registered", t.Name())
+		return eris.Errorf("component with name '%s' is already registered", t.Name())
 	}
 	c := metadata.NewComponentMetadata[T]()
 	err = c.SetID(world.nextComponentID)
@@ -220,7 +220,7 @@ func MustRegisterComponent[T metadata.Component](world *World) {
 func (w *World) GetComponentByName(name string) (metadata.ComponentMetadata, error) {
 	componentType, exists := w.nameToComponent[name]
 	if !exists {
-		return nil, fmt.Errorf(
+		return nil, eris.Errorf(
 			"component with name %s not found. Must register component before using",
 			name,
 		)
@@ -239,7 +239,7 @@ func RegisterQuery[Request any, Reply any](
 	}
 
 	if _, ok := world.nameToQuery[name]; ok {
-		return fmt.Errorf("query with name %s is already registered", name)
+		return eris.Errorf("query with name %s is already registered", name)
 	}
 
 	q, err := NewQueryType[Request, Reply](name, handler, opts...)
@@ -257,7 +257,7 @@ func (w *World) GetQueryByName(name string) (Query, error) {
 	if q, ok := w.nameToQuery[name]; ok {
 		return q, nil
 	}
-	return nil, fmt.Errorf("query with name %s not found", name)
+	return nil, eris.Errorf("query with name %s not found", name)
 }
 
 func (w *World) RegisterMessages(txs ...message.Message) error {
@@ -265,7 +265,7 @@ func (w *World) RegisterMessages(txs ...message.Message) error {
 		panic("cannot register messages after loading game state")
 	}
 	if w.isMessagesRegistered {
-		return ErrMessageRegistrationMustHappenOnce
+		return eris.Wrap(ErrMessageRegistrationMustHappenOnce, "")
 	}
 	w.isMessagesRegistered = true
 	w.registerInternalMessages()
@@ -275,7 +275,7 @@ func (w *World) RegisterMessages(txs ...message.Message) error {
 	for i, t := range w.registeredMessages {
 		name := t.Name()
 		if seenTxNames[name] {
-			return fmt.Errorf("duplicate tx %q: %w", name, ErrDuplicateMessageName)
+			return eris.Wrapf(ErrDuplicateMessageName, "duplicate tx %q", name)
 		}
 		seenTxNames[name] = true
 
@@ -300,7 +300,7 @@ func (w *World) ListQueries() []Query {
 
 func (w *World) ListMessages() ([]message.Message, error) {
 	if !w.isMessagesRegistered {
-		return nil, errors.New("cannot list messages until message registration occurs")
+		return nil, eris.New("cannot list messages until message registration occurs")
 	}
 	return w.registeredMessages, nil
 }
@@ -418,7 +418,7 @@ func (w *World) Tick(_ context.Context) error {
 	tickAsString := strconv.FormatUint(w.CurrentTick(), 10)
 	w.Logger.Info().Str("tick", tickAsString).Msg("Tick started")
 	if !w.stateIsLoaded {
-		return errors.New("must load state before first tick")
+		return eris.New("must load state before first tick")
 	}
 	txQueue := w.txQueue.CopyTransactions()
 
@@ -437,7 +437,7 @@ func (w *World) Tick(_ context.Context) error {
 	for i, sys := range w.systems {
 		nameOfCurrentRunningSystem = w.systemNames[i]
 		wCtx := NewWorldContextForTick(w, txQueue, w.systemLoggers[i])
-		err := sys(wCtx)
+		err := eris.Wrapf(sys(wCtx), "system %s generated an error", nameOfCurrentRunningSystem)
 		nameOfCurrentRunningSystem = nullSystemName
 		if err != nil {
 			return err
@@ -561,8 +561,15 @@ func closeAllChannels(chs []chan struct{}) {
 
 func (w *World) tickTheWorld(ctx context.Context, tickDone chan<- uint64) {
 	currTick := w.CurrentTick()
+	// this is the final point where errors bubble up and hit a panic. There are other places where this occurs
+	// but this is the highest terminal point.
+	// the panic may point you to here, (or the tick function) but the real stack trace is in the error message.
 	if err := w.Tick(ctx); err != nil {
-		w.Logger.Panic().Err(err).Msg("Error running Tick in Game Loop.")
+		bytes, err := json.Marshal(eris.ToJSON(err, true))
+		if err != nil {
+			panic(err)
+		}
+		w.Logger.Panic().Err(err).Str("tickError", "Error running Tick in Game Loop.").RawJSON("error", bytes)
 	}
 	if tickDone != nil {
 		tickDone <- currTick
@@ -634,10 +641,10 @@ func (w *World) recoverGameState() (recoveredTxs *message.TxQueue, err error) {
 
 func (w *World) LoadGameState() error {
 	if w.IsEntitiesCreated() {
-		return ErrEntitiesCreatedBeforeLoadingGameState
+		return eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
 	}
 	if w.stateIsLoaded {
-		return errors.New("cannot load game state multiple times")
+		return eris.New("cannot load game state multiple times")
 	}
 	if !w.isMessagesRegistered {
 		if err := w.RegisterMessages(); err != nil {
@@ -680,11 +687,11 @@ func (w *World) LoadGameState() error {
 //nolint:gocognit
 func (w *World) RecoverFromChain(ctx context.Context) error {
 	if w.chain == nil {
-		return fmt.Errorf("chain adapter was nil. " +
+		return eris.Errorf("chain adapter was nil. " +
 			"be sure to use the `WithAdapter` option when creating the world")
 	}
 	if w.CurrentTick() > 0 {
-		return fmt.Errorf(
+		return eris.Errorf(
 			"world recovery should not occur in a world with existing state. please verify all " +
 				"state has been cleared before running recovery",
 		)
@@ -710,7 +717,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 			target := tickedTxs.Epoch
 			// tick up to target
 			if target < w.CurrentTick() {
-				return fmt.Errorf(
+				return eris.Errorf(
 					"got tx for tick %d, but world is at tick %d",
 					target,
 					w.CurrentTick(),
@@ -731,7 +738,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				}
 				msg := w.getMessage(message.TypeID(tx.TxId))
 				if msg == nil {
-					return fmt.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
+					return eris.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
 				}
 				v, err := msg.Decode(sp.Body)
 				if err != nil {
@@ -773,7 +780,7 @@ func (w *World) protoTransactionToGo(sp *shardv1.Transaction) *sign.Transaction 
 func (w *World) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
 	payload := new(shardv1.Transaction)
 	err := proto.Unmarshal(bz, payload)
-	return payload, err
+	return payload, eris.Wrap(err, "")
 }
 
 // getMessage iterates over the all registered messages and returns the message.Message associated with the
