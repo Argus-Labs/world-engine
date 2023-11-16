@@ -2,10 +2,10 @@ package storage
 
 import (
 	"context"
-	"errors"
 	"os"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 )
 
@@ -58,8 +58,9 @@ var _ NonceStorage = &RedisStorage{}
 func (r *RedisStorage) GetNonce(signerAddress string) (uint64, error) {
 	ctx := context.Background()
 	n, err := r.Client.HGet(ctx, r.nonceKey(), signerAddress).Uint64()
+	err = eris.Wrap(err, "")
 	if err != nil {
-		if errors.Is(err, redis.Nil) {
+		if eris.Is(eris.Cause(err), redis.Nil) {
 			return 0, nil
 		}
 		return 0, err
@@ -71,13 +72,13 @@ func (r *RedisStorage) GetNonce(signerAddress string) (uint64, error) {
 // and no nonce verification takes place.
 func (r *RedisStorage) SetNonce(signerAddress string, nonce uint64) error {
 	ctx := context.Background()
-	return r.Client.HSet(ctx, r.nonceKey(), signerAddress, nonce).Err()
+	return eris.Wrap(r.Client.HSet(ctx, r.nonceKey(), signerAddress, nonce).Err(), "")
 }
 
 func (r *RedisStorage) Close() error {
 	err := r.Client.Close()
 	if err != nil {
-		return err
+		return eris.Wrap(err, "")
 	}
 	return nil
 }
