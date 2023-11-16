@@ -44,18 +44,6 @@ func (t *MessageType[Input, Result]) AddToQueue(world *World, data Input, sigs .
 	return txHash
 }
 
-// AddError adds the given error to the transaction identified by the given hash. Multiple errors can be
-// added to the same message hash.
-func (t *MessageType[Input, Result]) AddError(wCtx WorldContext, hash TxHash, err error) {
-	t.impl.AddError(wCtx.Instance(), hash, err)
-}
-
-// SetResult sets the result of the message identified by the given hash. Only one result may be associated
-// with a message hash, so calling this multiple times will clobber previously set results.
-func (t *MessageType[Input, Result]) SetResult(wCtx WorldContext, hash TxHash, result Result) {
-	t.impl.SetResult(wCtx.Instance(), hash, result)
-}
-
 // GetReceipt returns the result (if any) and errors (if any) associated with the given hash. If false is returned,
 // the hash is not recognized, so the returned result and errors will be empty.
 func (t *MessageType[Input, Result]) GetReceipt(wCtx WorldContext, hash TxHash) (Result, []error, bool) {

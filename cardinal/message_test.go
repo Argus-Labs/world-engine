@@ -54,13 +54,7 @@ func TestTransactionExample(t *testing.T) {
 				return h
 			})
 			assert.Check(t, err == nil)
-			addHealthToEntity.AddError(worldCtx, tx.Hash(), errors.New("test error"))
-			// redundant but for testing purposes
-			addHealthToEntity.SetResult(worldCtx, tx.Hash(), AddHealthToEntityResult{})
-			_, errs, ok := addHealthToEntity.GetReceipt(worldCtx, tx.Hash()) // check if receipts are working.
-			assert.Assert(t, ok)
-			assert.Equal(t, len(errs), 1)
-			return AddHealthToEntityResult{}, nil
+			return AddHealthToEntityResult{}, errors.New("fake tx error")
 		})
 
 		addHealthToEntity.Convert() // Check for compilation error
@@ -97,4 +91,10 @@ func TestTransactionExample(t *testing.T) {
 			assert.Equal(t, 0, health.Value)
 		}
 	}
+	// Make sure transaction errors are recorded in the receipt
+	ecsWorld := cardinal.TestingWorldContextToECSWorld(testWorldCtx)
+	receipts, err := ecsWorld.GetTransactionReceiptsForTick(ecsWorld.CurrentTick() - 1)
+	assert.NilError(t, err)
+	assert.Equal(t, 1, len(receipts))
+	assert.Equal(t, 1, len(receipts[0].Errs))
 }
