@@ -161,7 +161,7 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 	}
 	err = writeVerified(ctx, nk, userID)
 	if err != nil {
-		return logCode(logger, Internal, "server could not save user verification entry. please try again"+err.Error())
+		return logCode(logger, Internal, fmt.Sprintf("server could not save user verification entry. please try again: %s", err.Error()))
 	}
 
 	bz, err := json.Marshal(ClaimKeyRes{Success: true})
