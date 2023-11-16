@@ -157,7 +157,7 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 	ck.Key = strings.ToUpper(ck.Key)
 	err = claimKey(ctx, nk, ck.Key, userID)
 	if err != nil {
-		return logCode(logger, Internal, fmt.Sprintf("unable to claim key: %v", err))
+		return logCode(logger, InvalidArgument, fmt.Sprintf("unable to claim key: %v", err))
 	}
 	err = writeVerified(ctx, nk, userID)
 	if err != nil {
