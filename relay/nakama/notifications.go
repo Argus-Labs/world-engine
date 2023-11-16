@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
 )
 
 // targetInfo contains information about who should receive a notification. It contains a user ID as well as
@@ -92,7 +92,7 @@ func (r *receiptNotifier) handleReceipt(receipt *Receipt) error {
 	ctx := context.Background()
 	target, ok := r.txHashToTargetInfo[receipt.TxHash]
 	if !ok {
-		return fmt.Errorf("unable to find user for tx hash %q", receipt.TxHash)
+		return eris.Errorf("unable to find user for tx hash %q", receipt.TxHash)
 	}
 	delete(r.txHashToTargetInfo, receipt.TxHash)
 
@@ -103,7 +103,7 @@ func (r *receiptNotifier) handleReceipt(receipt *Receipt) error {
 	}
 
 	if err := r.nk.NotificationSend(ctx, target.userID, "subject", data, 1, "", false); err != nil {
-		return fmt.Errorf("unable to send tx hash %q to user %q: %w", receipt.TxHash, target.userID, err)
+		return eris.Wrapf(err, "unable to send tx hash %q to user %q", receipt.TxHash, target.userID)
 	}
 	return nil
 }
