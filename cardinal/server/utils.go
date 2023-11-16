@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -20,7 +20,7 @@ func decode[T any](buf []byte) (T, error) {
 	dec.DisallowUnknownFields()
 	var val T
 	if err := dec.Decode(&val); err != nil {
-		return val, err
+		return val, eris.Wrap(err, "error decoding")
 	}
 	return val, nil
 }
@@ -47,13 +47,13 @@ func (handler *Handler) verifySignature(sp *sign.Transaction, isSystemTransactio
 
 	// Check that the namespace is correct
 	if sp.Namespace != handler.w.Namespace().String() {
-		return nil, fmt.Errorf("%w: got namespace %q but it must be %q",
-			ErrInvalidSignature, sp.Namespace, handler.w.Namespace().String())
+		return nil, eris.Wrapf(ErrInvalidSignature, "got namespace %q but it must be %q",
+			sp.Namespace, handler.w.Namespace().String())
 	}
 	if isSystemTransaction && !sp.IsSystemTransaction() {
-		return nil, ErrSystemTransactionRequired
+		return nil, eris.Wrap(ErrSystemTransactionRequired, "")
 	} else if !isSystemTransaction && sp.IsSystemTransaction() {
-		return nil, ErrSystemTransactionForbidden
+		return nil, eris.Wrap(ErrSystemTransactionForbidden, "")
 	}
 
 	var signerAddress string
@@ -75,13 +75,13 @@ func (handler *Handler) verifySignature(sp *sign.Transaction, isSystemTransactio
 		return nil, err
 	}
 	if sp.Nonce <= nonce {
-		return nil, fmt.Errorf("%w: got nonce %d, but must be greater than %d",
-			ErrInvalidSignature, sp.Nonce, nonce)
+		return nil, eris.Wrapf(ErrInvalidSignature, "got nonce %d, but must be greater than %d",
+			sp.Nonce, nonce)
 	}
 
 	// Verify signature
 	if err = sp.Verify(signerAddress); err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrInvalidSignature, err)
+		return nil, eris.Wrap(errors.Join(ErrInvalidSignature, err), "")
 	}
 	// Update nonce
 	if err = handler.w.SetNonce(signerAddress, sp.Nonce); err != nil {
@@ -103,7 +103,7 @@ func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface
 	if len(sp.Body) == 0 {
 		buf, err := json.Marshal(request)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, eris.Wrap(err, "error marshalling json")
 		}
 		return buf, sp, nil
 	}
