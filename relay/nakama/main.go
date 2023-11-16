@@ -39,6 +39,12 @@ const (
 )
 
 type receiptChan chan *Receipt
+type DevMode int
+
+const (
+	Debug DevMode = iota
+	Prod
+)
 
 const (
 	EnvCardinalAddr      = "CARDINAL_ADDR"
@@ -50,7 +56,19 @@ const (
 	transactionEndpointPrefix = "/tx"
 )
 
+func stringToDevMode(input string) DevMode {
+	switch strings.ToLower(input) {
+	case "debug":
+		return Debug
+	case "prod":
+		return Prod
+	default:
+		return Prod
+	}
+}
+
 var (
+	DEVMODE                         = Prod
 	ErrPersonaTagStorageObjNotFound = errors.New("persona tag storage object not found")
 	ErrNoPersonaTagForUser          = errors.New("user does not have a verified persona tag")
 
@@ -68,6 +86,9 @@ func InitModule(
 	nk runtime.NakamaModule,
 	initializer runtime.Initializer,
 ) error {
+	devModeString := os.Getenv("DEV_MODE")
+	DEVMODE = stringToDevMode(devModeString)
+
 	if err := initCardinalAddress(); err != nil {
 		return eris.Wrap(err, "failed to init cardinal address")
 	}
@@ -240,34 +261,42 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		string, error) {
 		userID, err := getUserID(ctx)
 		if err != nil {
-			return logError(logger, err, "unable to get userID")
+			return logErrorWithMessage(logger, err, "unable to get userID")
 		}
 
 		// check if the user is verified. this requires them to input a valid beta key.
 		err = checkVerified(ctx, nk, userID)
 		if err != nil {
-			return logCode(logger, AlreadyExists, "unable to claim persona tag")
+			return logErrorWithMessageAndCode(logger, AlreadyExists, "unable to claim persona tag")
 		}
 
 		ptr := &personaTagStorageObj{}
 		if err := eris.Wrap(json.Unmarshal([]byte(payload), ptr), ""); err != nil {
-			return logError(logger, err, "unable to marshal payload")
+			return logErrorWithMessage(logger, err, "unable to marshal payload")
 		}
 		if ptr.PersonaTag == "" {
-			return logCode(logger, InvalidArgument, "personaTag field must not be empty")
+			return logErrorWithMessageAndCode(logger, InvalidArgument, "personaTag field must not be empty")
 		}
 
 		tag, err := loadPersonaTagStorageObj(ctx, nk)
 		if err != nil {
 			if !errors.Is(err, ErrPersonaTagStorageObjNotFound) {
-				return logError(logger, err, "unable to get persona tag storage object")
+				return logErrorWithMessage(logger, err, "unable to get persona tag storage object")
 			}
 		} else {
 			switch tag.Status {
 			case personaTagStatusPending:
-				return logCode(logger, AlreadyExists, "persona tag %q is pending for this account", tag.PersonaTag)
+				return logErrorWithMessageAndCode(
+					logger,
+					AlreadyExists,
+					"persona tag %q is pending for this account",
+					tag.PersonaTag)
 			case personaTagStatusAccepted:
-				return logCode(logger, AlreadyExists, "persona tag %q already associated with this account", tag.PersonaTag)
+				return logErrorWithMessageAndCode(
+					logger,
+					AlreadyExists,
+					"persona tag %q already associated with this account",
+					tag.PersonaTag)
 			case personaTagStatusRejected:
 				// if the tag was rejected, don't do anything. let the user try to claim another tag.
 			}
@@ -275,13 +304,13 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 
 		txHash, tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
 		if err != nil {
-			return logError(logger, err, "unable to make create persona request to cardinal")
+			return logErrorWithMessage(logger, err, "unable to make create persona request to cardinal")
 		}
 		notifier.AddTxHashToPendingNotifications(txHash, userID)
 
 		ptr.Status = personaTagStatusPending
 		if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
-			return logError(logger, err, "unable to set persona tag storage object")
+			return logErrorWithMessage(logger, err, "unable to set persona tag storage object")
 		}
 
 		// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
@@ -289,15 +318,15 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		if ok := setPersonaTagAssignment(ptr.PersonaTag, userID); !ok {
 			ptr.Status = personaTagStatusRejected
 			if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
-				return logError(logger, err, "unable to set persona tag storage object")
+				return logErrorWithMessage(logger, err, "unable to set persona tag storage object")
 			}
-			return logCode(logger, AlreadyExists, "persona tag %q is not available", ptr.PersonaTag)
+			return logErrorWithMessageAndCode(logger, AlreadyExists, "persona tag %q is not available", ptr.PersonaTag)
 		}
 
 		ptr.Tick = tick
 		ptr.TxHash = txHash
 		if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
-			return logError(logger, err, "unable to save persona tag storage object")
+			return logErrorWithMessage(logger, err, "unable to save persona tag storage object")
 		}
 		ptv.addPendingPersonaTag(userID, ptr.TxHash)
 		res, err := ptr.toJSON()
@@ -309,13 +338,13 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 ) (string, error) {
 	ptr, err := loadPersonaTagStorageObj(ctx, nk)
 	if eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
-		return logError(logger, err, "no persona tag found")
+		return logErrorWithMessage(logger, err, "no persona tag found")
 	} else if err != nil {
-		return logError(logger, err, "unable to get persona tag storage object")
+		return logErrorWithMessage(logger, err, "unable to get persona tag storage object")
 	}
 	ptr, err = ptr.attemptToUpdatePending(ctx, nk)
 	if err != nil {
-		return logError(logger, err, "unable to update pending state")
+		return logErrorWithMessage(logger, err, "unable to update pending state")
 	}
 	res, err := ptr.toJSON()
 	return res, eris.Wrap(err, "")
@@ -370,36 +399,36 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				var resultPayload io.Reader
 				resultPayload, err = createPayload(payload, currEndpoint, nk, ctx)
 				if err != nil {
-					return logError(logger, err, "unable to make payload")
+					return logErrorWithMessage(logger, err, "unable to make payload")
 				}
 
 				req, err := http.NewRequestWithContext(ctx, http.MethodPost, makeHTTPURL(currEndpoint), resultPayload)
 				req.Header.Set("Content-Type", "application/json")
 				if err != nil {
-					return logError(logger, err, "request setup failed for endpoint %q", currEndpoint)
+					return logErrorWithMessage(logger, err, "request setup failed for endpoint %q", currEndpoint)
 				}
 				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
-					return logError(logger, err, "request failed for endpoint %q", currEndpoint)
+					return logErrorWithMessage(logger, err, "request failed for endpoint %q", currEndpoint)
 				}
 				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusOK {
 					body, err := io.ReadAll(resp.Body)
-					return logError(logger, err, "bad status code: %s: %s", resp.Status, body)
+					return logErrorWithMessage(logger, err, "bad status code: %s: %s", resp.Status, body)
 				}
 				bz, err := io.ReadAll(resp.Body)
 				if err != nil {
-					return logError(logger, err, "can't read body")
+					return logErrorWithMessage(logger, err, "can't read body")
 				}
 				if strings.HasPrefix(currEndpoint, transactionEndpointPrefix) {
 					var asTx txResponse
 
 					if err = json.Unmarshal(bz, &asTx); err != nil {
-						return logError(logger, err, "can't decode body as tx response")
+						return logErrorWithMessage(logger, err, "can't decode body as tx response")
 					}
 					userID, err := getUserID(ctx)
 					if err != nil {
-						return logError(logger, err, "unable to get user id")
+						return logErrorWithMessage(logger, err, "unable to get user id")
 					}
 					notify.AddTxHashToPendingNotifications(asTx.TxHash, userID)
 				}
@@ -424,16 +453,30 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 	return nil
 }
 
-func logCode(logger runtime.Logger, code int, format string, v ...interface{}) (string, error) {
+func logErrorWithMessageAndCode(logger runtime.Logger, code int, format string, v ...interface{}) (string, error) {
 	err := eris.Errorf(format, v...)
-	logger.Error(eris.ToString(err, true))
-	return "", runtime.NewError(err.Error(), code)
+	return logError(logger, err, code)
 }
 
-func logError(logger runtime.Logger, err error, format string, v ...interface{}) (string, error) {
+func logErrorWithMessage(logger runtime.Logger, err error, format string, v ...interface{}) (string, error) {
 	err = eris.Wrapf(err, format, v...)
+	return logErrorInternal(logger, err)
+}
+
+func logError(logger runtime.Logger, err error, code int) (string, error) {
 	logger.Error(eris.ToString(err, true))
-	return "", runtime.NewError(err.Error(), Internal)
+	return "", errToNakamaError(err, code)
+}
+
+func logErrorInternal(logger runtime.Logger, err error) (string, error) {
+	return logError(logger, err, Internal)
+}
+
+func errToNakamaError(err error, code int) error {
+	if DEVMODE == Debug {
+		return runtime.NewError(eris.ToString(err, true), code)
+	}
+	return runtime.NewError(err.Error(), code)
 }
 
 // setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns
