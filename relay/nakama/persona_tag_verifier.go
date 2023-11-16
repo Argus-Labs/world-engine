@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
 )
 
 // personaTagVerifier is a helper struct that asynchronously collects both persona tag registration requests (from
@@ -75,7 +75,7 @@ func (p *personaTagVerifier) consume() {
 			continue
 		}
 		if err := p.attemptVerification(currTxHash); err != nil {
-			p.logger.Error("failed to verify persona tag: %v", err)
+			p.logger.Error("failed to verify persona tag: %s", eris.ToString(err, true))
 		}
 	}
 }
@@ -128,14 +128,14 @@ func (p *personaTagVerifier) attemptVerification(txHash string) error {
 	ctx = context.WithValue(ctx, runtime.RUNTIME_CTX_USER_ID, pending.userID) //nolint:staticcheck // its fine.
 	ptr, err := loadPersonaTagStorageObj(ctx, p.nk)
 	if err != nil {
-		return fmt.Errorf("unable to get persona tag storage obj: %w", err)
+		return eris.Wrap(err, "unable to get persona tag storage obj")
 	}
 	if ptr.Status != personaTagStatusPending {
-		return fmt.Errorf("expected a pending persona tag status but got %q", ptr.Status)
+		return eris.Errorf("expected a pending persona tag status but got %q", ptr.Status)
 	}
 	ptr.Status = pending.status
 	if err = ptr.savePersonaTagStorageObj(ctx, p.nk); err != nil {
-		return fmt.Errorf("unable to set persona tag storage object: %w", err)
+		return eris.Wrap(err, "unable to set persona tag storage object")
 	}
 	delete(p.txHashToPending, txHash)
 	p.logger.Debug("result of associating user %q with persona tag %q: %v", pending.userID, ptr.PersonaTag, pending.status)
