@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 
 	"github.com/redis/go-redis/v9"
@@ -94,7 +95,7 @@ func (m *Manager) CommitPending() error {
 	}
 	_, err = pipe.Exec(ctx)
 	if err != nil {
-		return err
+		return eris.Wrap(err, "")
 	}
 
 	m.pendingArchIDs = nil
@@ -199,7 +200,7 @@ func (m *Manager) SetComponentForEntity(cType metadata.ComponentMetadata, id ent
 		return err
 	}
 	if !filter.MatchComponentMetaData(comps, cType) {
-		return storage.ErrComponentNotOnEntity
+		return eris.Wrap(storage.ErrComponentNotOnEntity, "")
 	}
 
 	key := compKey{cType.ID(), id}
@@ -220,7 +221,7 @@ func (m *Manager) GetComponentForEntity(cType metadata.ComponentMetadata, id ent
 		return nil, err
 	}
 	if !filter.MatchComponentMetaData(comps, cType) {
-		return nil, storage.ErrComponentNotOnEntity
+		return nil, eris.Wrap(storage.ErrComponentNotOnEntity, "")
 	}
 
 	// Fetch the value from redis
@@ -264,7 +265,7 @@ func (m *Manager) AddComponentToEntity(cType metadata.ComponentMetadata, id enti
 		return err
 	}
 	if filter.MatchComponentMetaData(fromComps, cType) {
-		return storage.ErrComponentAlreadyOnEntity
+		return eris.Wrap(storage.ErrComponentAlreadyOnEntity, "")
 	}
 	toComps := append(fromComps, cType) //nolint:gocritic // easier this way.
 	if err = sortComponentSet(toComps); err != nil {
@@ -299,10 +300,10 @@ func (m *Manager) RemoveComponentFromEntity(cType metadata.ComponentMetadata, id
 		newCompSet = append(newCompSet, comp)
 	}
 	if !found {
-		return storage.ErrComponentNotOnEntity
+		return eris.Wrap(storage.ErrComponentNotOnEntity, "")
 	}
 	if len(newCompSet) == 0 {
-		return storage.ErrEntityMustHaveAtLeastOneComponent
+		return eris.Wrap(storage.ErrEntityMustHaveAtLeastOneComponent, "")
 	}
 	key := compKey{cType.ID(), id}
 	delete(m.compValues, key)
@@ -338,7 +339,7 @@ func (m *Manager) GetComponentTypesForArchID(archID archetype.ID) []metadata.Com
 // If this set of components does not have an archetype ID assigned to it, an error is returned.
 func (m *Manager) GetArchIDForComponents(components []metadata.ComponentMetadata) (archetype.ID, error) {
 	if len(components) == 0 {
-		return 0, errors.New("must provide at least 1 component")
+		return 0, eris.New("must provide at least 1 component")
 	}
 	if err := sortComponentSet(components); err != nil {
 		return 0, err
@@ -348,7 +349,7 @@ func (m *Manager) GetArchIDForComponents(components []metadata.ComponentMetadata
 			return archID, nil
 		}
 	}
-	return 0, ErrArchetypeNotFound
+	return 0, eris.Wrap(ErrArchetypeNotFound, "")
 }
 
 // GetEntitiesForArchID returns all the entities that currently belong to the given archetype ID.
@@ -386,8 +387,8 @@ func (m *Manager) InjectLogger(logger *ecslog.Logger) {
 
 // Close closes the manager.
 func (m *Manager) Close() error {
-	err := m.client.Close()
-	if errors.Is(err, redis.ErrClosed) {
+	err := eris.Wrap(m.client.Close(), "")
+	if eris.Is(eris.Cause(err), redis.ErrClosed) {
 		// if redis is already closed that means another shutdown pathway got to it first.
 		// There are multiple modules that will try to shutdown redis, if it is already shutdown it is not an error.
 		return nil
@@ -404,7 +405,7 @@ func (m *Manager) getArchetypeForEntity(id entity.ID) (archetype.ID, error) {
 	key := redisArchetypeIDForEntityID(id)
 	num, err := m.client.Get(context.Background(), key).Int()
 	if err != nil {
-		return 0, err
+		return 0, eris.Wrap(err, "")
 	}
 	archID = archetype.ID(num)
 	m.entityIDToArchID[id] = archID
@@ -417,8 +418,9 @@ func (m *Manager) nextEntityID() (entity.ID, error) {
 		// The next valid entity ID needs to be loaded from storage.
 		ctx := context.Background()
 		nextID, err := m.client.Get(ctx, redisNextEntityIDKey()).Uint64()
+		err = eris.Wrap(err, "")
 		if err != nil {
-			if !errors.Is(err, redis.Nil) {
+			if !eris.Is(eris.Cause(err), redis.Nil) {
 				return 0, err
 			}
 			// redis.Nil means there's no value at this key. Start with an ID of 0
@@ -442,7 +444,7 @@ func (m *Manager) getOrMakeArchIDForComponents(comps []metadata.ComponentMetadat
 	if err == nil {
 		return archID, nil
 	}
-	if !errors.Is(err, ErrArchetypeNotFound) {
+	if !eris.Is(eris.Cause(err), ErrArchetypeNotFound) {
 		return 0, err
 	}
 	// An archetype ID was not found. Create a pending arch ID
@@ -463,9 +465,10 @@ func (m *Manager) getActiveEntities(archID archetype.ID) (activeEntities, error)
 	ctx := context.Background()
 	key := redisActiveEntityIDKey(archID)
 	bz, err := m.client.Get(ctx, key).Bytes()
+	err = eris.Wrap(err, "")
 	var ids []entity.ID
 	if err != nil {
-		if !errors.Is(err, redis.Nil) {
+		if !eris.Is(eris.Cause(err), redis.Nil) {
 			return active, err
 		}
 	} else {
