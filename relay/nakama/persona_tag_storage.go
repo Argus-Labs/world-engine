@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
 )
 
 // personaTagStorageObj contains persona tag information for a specific user, and keeps track of whether the
@@ -46,12 +45,12 @@ func loadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*pe
 		},
 	})
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	if len(storeObjs) == 0 {
-		return nil, ErrPersonaTagStorageObjNotFound
+		return nil, eris.Wrap(ErrPersonaTagStorageObjNotFound, "")
 	} else if len(storeObjs) > 1 {
-		return nil, fmt.Errorf("expected 1 storage object, got %d with values %v", len(storeObjs), storeObjs)
+		return nil, eris.Errorf("expected 1 storage object, got %d with values %v", len(storeObjs), storeObjs)
 	}
 	ptr, err := storageObjToPersonaTagStorageObj(storeObjs[0])
 	if err != nil {
@@ -64,7 +63,7 @@ func loadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*pe
 func storageObjToPersonaTagStorageObj(obj *api.StorageObject) (*personaTagStorageObj, error) {
 	var ptr personaTagStorageObj
 	if err := json.Unmarshal([]byte(obj.Value), &ptr); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal persona tag storage obj: %w", err)
+		return nil, eris.Wrap(err, "unable to unmarshal persona tag storage obj")
 	}
 	ptr.version = obj.Version
 	return &ptr, nil
@@ -79,7 +78,7 @@ func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk ru
 	}
 
 	verified, err := p.verifyPersonaTag(ctx)
-	if errors.Is(err, ErrPersonaSignerUnknown) {
+	if eris.Is(eris.Cause(err), ErrPersonaSignerUnknown) {
 		// Leave the Status as pending.
 		return p, nil
 	} else if err != nil {
@@ -113,11 +112,11 @@ func (p *personaTagStorageObj) verifyPersonaTag(ctx context.Context) (verified b
 func (p *personaTagStorageObj) savePersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) error {
 	userID, err := getUserID(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to get user ID: %w", err)
+		return eris.Wrap(err, "unable to get user ID")
 	}
 	buf, err := json.Marshal(p)
 	if err != nil {
-		return fmt.Errorf("unable to marshal persona tag storage object: %w", err)
+		return eris.Wrap(err, "unable to marshal persona tag storage object")
 	}
 	write := &runtime.StorageWrite{
 		Collection:      cardinalCollection,
@@ -131,12 +130,12 @@ func (p *personaTagStorageObj) savePersonaTagStorageObj(ctx context.Context, nk 
 
 	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{write})
 	if err != nil {
-		return err
+		return eris.Wrap(err, "")
 	}
 	return nil
 }
 
 func (p *personaTagStorageObj) toJSON() (string, error) {
 	buf, err := json.Marshal(p)
-	return string(buf), err
+	return string(buf), eris.Wrap(err, "")
 }
