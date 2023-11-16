@@ -2,12 +2,11 @@ package ecs
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"reflect"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/invopop/jsonschema"
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
 )
 
@@ -80,12 +79,12 @@ func (r *QueryType[Request, Reply]) generateABIBindings() error {
 	var req Request
 	reqABI, err := abi.GenerateABIType(req)
 	if err != nil {
-		return fmt.Errorf("error generating request ABI binding: %w", err)
+		return eris.Wrap(err, "error generating request ABI binding")
 	}
 	var rep Reply
 	repABI, err := abi.GenerateABIType(rep)
 	if err != nil {
-		return fmt.Errorf("error generating reply ABI binding: %w", err)
+		return eris.Wrap(err, "error generating reply ABI binding")
 	}
 	r.requestABI = reqABI
 	r.replyABI = repABI
@@ -103,7 +102,7 @@ func (r *QueryType[req, rep]) Schema() (request, reply *jsonschema.Schema) {
 func (r *QueryType[req, rep]) HandleQuery(wCtx WorldContext, a any) (any, error) {
 	request, ok := a.(req)
 	if !ok {
-		return nil, fmt.Errorf("cannot cast %T to this query request type %T", a, new(req))
+		return nil, eris.Errorf("cannot cast %T to this query request type %T", a, new(req))
 	}
 	reply, err := r.handler(wCtx, &request)
 	return reply, err
@@ -113,7 +112,7 @@ func (r *QueryType[req, rep]) HandleQueryRaw(wCtx WorldContext, bz []byte) ([]by
 	request := new(req)
 	err := json.Unmarshal(bz, request)
 	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal query request into type %T: %w", *request, err)
+		return nil, eris.Wrapf(err, "unable to unmarshal query request into type %T", *request)
 	}
 	res, err := r.handler(wCtx, request)
 	if err != nil {
@@ -121,22 +120,22 @@ func (r *QueryType[req, rep]) HandleQueryRaw(wCtx WorldContext, bz []byte) ([]by
 	}
 	bz, err = json.Marshal(res)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal response %T: %w", res, err)
+		return nil, eris.Wrapf(err, "unable to marshal response %T", res)
 	}
 	return bz, nil
 }
 
 func (r *QueryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if r.requestABI == nil {
-		return nil, ErrEVMTypeNotSet
+		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
 	}
 	args := ethereumAbi.Arguments{{Type: *r.requestABI}}
 	unpacked, err := args.Unpack(bz)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	if len(unpacked) < 1 {
-		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
+		return nil, eris.New("error decoding EVM bytes: no values could be unpacked")
 	}
 	request, err := abi.SerdeInto[req](unpacked[0])
 	if err != nil {
@@ -147,7 +146,7 @@ func (r *QueryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 
 func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if r.replyABI == nil {
-		return nil, ErrEVMTypeNotSet
+		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
 	}
 	args := ethereumAbi.Arguments{{Type: *r.replyABI}}
 	unpacked, err := args.Unpack(bz)
@@ -155,7 +154,7 @@ func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 		return nil, err
 	}
 	if len(unpacked) < 1 {
-		return nil, errors.New("error decoding EVM bytes: no values could be unpacked")
+		return nil, eris.New("error decoding EVM bytes: no values could be unpacked")
 	}
 	reply, err := abi.SerdeInto[rep](unpacked[0])
 	if err != nil {
@@ -166,16 +165,16 @@ func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 
 func (r *QueryType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	if r.replyABI == nil {
-		return nil, ErrEVMTypeNotSet
+		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
 	}
 	args := ethereumAbi.Arguments{{Type: *r.replyABI}}
 	bz, err := args.Pack(a)
-	return bz, err
+	return bz, eris.Wrap(err, "")
 }
 
 func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 	if r.requestABI == nil || r.replyABI == nil {
-		return nil, ErrEVMTypeNotSet
+		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
 	}
 
 	var args ethereumAbi.Arguments
@@ -189,13 +188,13 @@ func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 		in = ty
 		args = ethereumAbi.Arguments{{Type: *r.replyABI}}
 	default:
-		return nil, fmt.Errorf("expected the input struct to be either %T or %T, but got %T",
+		return nil, eris.Errorf("expected the input struct to be either %T or %T, but got %T",
 			new(Request), new(Reply), input)
 	}
 
 	bz, err := args.Pack(in)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	return bz, nil
 }
@@ -205,10 +204,10 @@ func validateQuery[Request any, Reply any](
 	handler func(wCtx WorldContext, req *Request) (*Reply, error),
 ) error {
 	if name == "" {
-		return errors.New("cannot create query without name")
+		return eris.New("cannot create query without name")
 	}
 	if handler == nil {
-		return errors.New("cannot create query without handler")
+		return eris.New("cannot create query without handler")
 	}
 
 	var req Request
@@ -229,7 +228,7 @@ func validateQuery[Request any, Reply any](
 	}
 
 	if !repValid || !reqValid {
-		return fmt.Errorf(
+		return eris.Errorf(
 			"invalid query: %s: the Request and Reply generics must be both structs",
 			name,
 		)

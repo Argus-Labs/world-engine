@@ -2,9 +2,9 @@ package ecs
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
@@ -51,7 +51,7 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 		result := AuthorizePersonaAddressResult{Success: false}
 		data, ok := personaTagToAddress[tx.PersonaTag]
 		if !ok {
-			return result, fmt.Errorf("persona %s does not exist", tx.PersonaTag)
+			return result, eris.Errorf("persona %s does not exist", tx.PersonaTag)
 		}
 
 		err = updateComponent[SignerComponent](wCtx, data.EntityID, func(s *SignerComponent) *SignerComponent {
@@ -64,7 +64,7 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 			return s
 		})
 		if err != nil {
-			return result, fmt.Errorf("unable to update signer component with address: %w", err)
+			return result, eris.Wrap(err, "unable to update signer component with address")
 		}
 		result.Success = true
 		return result, nil
@@ -202,7 +202,7 @@ func getComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (comp *
 	name := t.Name()
 	c, err := wCtx.GetWorld().GetComponentByName(name)
 	if err != nil {
-		return nil, errors.New("must register component")
+		return nil, eris.Wrap(err, "must register component")
 	}
 	value, err := wCtx.StoreReader().GetComponentForEntity(c, id)
 	if err != nil {
@@ -212,7 +212,7 @@ func getComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (comp *
 	if !ok {
 		comp, ok = value.(*T)
 		if !ok {
-			return nil, fmt.Errorf("type assertion for component failed: %v to %v", value, c)
+			return nil, eris.Errorf("type assertion for component failed: %v to %v", value, c)
 		}
 	} else {
 		comp = &t
@@ -228,13 +228,13 @@ func getComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (comp *
 // plugins.
 func setComponent[T metadata.Component](wCtx WorldContext, id entity.ID, component *T) error {
 	if wCtx.IsReadOnly() {
-		return ErrCannotModifyStateWithReadOnlyContext
+		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
 	var t T
 	name := t.Name()
 	c, err := wCtx.GetWorld().GetComponentByName(name)
 	if err != nil {
-		return fmt.Errorf("%s is not registered, please register it before updating", t.Name())
+		return eris.Wrapf(err, "%s is not registered, please register it before updating", t.Name())
 	}
 	err = wCtx.StoreManager().SetComponentForEntity(c, id, component)
 	if err != nil {
@@ -254,7 +254,7 @@ func setComponent[T metadata.Component](wCtx WorldContext, id entity.ID, compone
 // https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
 func updateComponent[T metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
 	if wCtx.IsReadOnly() {
-		return ErrCannotModifyStateWithReadOnlyContext
+		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
 	val, err := getComponent[T](wCtx, id)
 	if err != nil {
@@ -270,7 +270,7 @@ func updateComponent[T metadata.Component](wCtx WorldContext, id entity.ID, fn f
 // https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
 func createMany(wCtx WorldContext, num int, components ...metadata.Component) ([]entity.ID, error) {
 	if wCtx.IsReadOnly() {
-		return nil, ErrCannotModifyStateWithReadOnlyContext
+		return nil, eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
 	world := wCtx.GetWorld()
 	acc := make([]metadata.ComponentMetadata, 0, len(components))
@@ -289,7 +289,7 @@ func createMany(wCtx WorldContext, num int, components ...metadata.Component) ([
 		for _, comp := range components {
 			c, err := world.GetComponentByName(comp.Name())
 			if err != nil {
-				return nil, errors.New("must register component before creating an entity")
+				return nil, eris.Wrap(err, "must register component before creating an entity")
 			}
 			err = world.StoreManager().SetComponentForEntity(c, id, comp)
 			if err != nil {
