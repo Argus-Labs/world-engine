@@ -45,7 +45,7 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 	if err != nil {
 		return err
 	}
-	AuthorizePersonaAddressMsg.ForEach(wCtx, func(txData TxData[AuthorizePersonaAddress],
+	AuthorizePersonaAddressMsg.Each(wCtx, func(txData TxData[AuthorizePersonaAddress],
 	) (AuthorizePersonaAddressResult, error) {
 		msg, tx := txData.Msg, txData.Tx
 		result := AuthorizePersonaAddressResult{Success: false}
