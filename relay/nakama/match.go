@@ -87,7 +87,7 @@ func (m *ReceiptMatch) MatchLoop(_ context.Context, logger runtime.Logger, _ *sq
 		}
 		err = dispatcher.BroadcastMessage(receiptOpCode, buf, nil, nil, true)
 		if err != nil {
-			_, _ = logError(logger, err, "error broadcasting message")
+			_, _ = logErrorWithMessage(logger, err, "error broadcasting message")
 		}
 	}
 
