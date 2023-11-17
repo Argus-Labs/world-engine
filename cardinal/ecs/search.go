@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -80,7 +81,7 @@ func (q *Search) First(wCtx WorldContext) (id entity.ID, err error) {
 	result := q.evaluateSearch(namespace, reader)
 	iter := storage.NewEntityIterator(0, reader, result)
 	if !iter.HasNext() {
-		return storage.BadID, err
+		return storage.BadID, eris.Wrap(err, "")
 	}
 	for iter.HasNext() {
 		var entities []entity.ID
@@ -92,7 +93,7 @@ func (q *Search) First(wCtx WorldContext) (id entity.ID, err error) {
 			return entities[0], nil
 		}
 	}
-	return storage.BadID, err
+	return storage.BadID, eris.Wrap(err, "")
 }
 
 func (q *Search) MustFirst(wCtx WorldContext) entity.ID {

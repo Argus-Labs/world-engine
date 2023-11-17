@@ -2,8 +2,10 @@ package metadata
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"reflect"
+
+	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 )
 
 type (
@@ -59,7 +61,7 @@ func (c *componentMetadata[T]) SetID(id TypeID) error {
 		if id == c.id {
 			return nil
 		}
-		return fmt.Errorf("id for component %v is already set to %v, cannot change to %v", c, c.id, id)
+		return eris.Errorf("id for component %v is already set to %v, cannot change to %v", c, c.id, id)
 	}
 	c.id = id
 	c.isIDSet = true
@@ -87,7 +89,7 @@ func (c *componentMetadata[T]) New() ([]byte, error) {
 	if c.defaultVal != nil {
 		comp, ok = c.defaultVal.(T)
 		if !ok {
-			return nil, fmt.Errorf("could not convert %T to %T", c.defaultVal, new(T))
+			return nil, eris.Errorf("could not convert %T to %T", c.defaultVal, new(T))
 		}
 	}
 	return codec.Encode(comp)
@@ -103,8 +105,8 @@ func (c *componentMetadata[T]) Decode(bz []byte) (any, error) {
 
 func (c *componentMetadata[T]) validateDefaultVal() {
 	if !reflect.TypeOf(c.defaultVal).AssignableTo(c.typ) {
-		err := fmt.Sprintf("default value is not assignable to component type: %s", c.name)
-		panic(err)
+		errString := fmt.Sprintf("default value is not assignable to component type: %s", c.name)
+		panic(errString)
 	}
 }
 

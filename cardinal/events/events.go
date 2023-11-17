@@ -1,6 +1,7 @@
 package events
 
 import (
+	"encoding/json"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/gorilla/websocket"
+	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 )
@@ -163,9 +165,9 @@ func (eh *webSocketEventHub) Run() {
 	unregisterConnection := func(conn *websocket.Conn) {
 		if _, ok := eh.websocketConnections[conn]; ok {
 			delete(eh.websocketConnections, conn)
-			err := conn.Close()
+			err := eris.Wrap(conn.Close(), "")
 			if err != nil {
-				log.Logger.Error().Err(err)
+				log.Logger.Error().Err(err).Msg(eris.ToString(err, true))
 			}
 		}
 	}
@@ -186,20 +188,20 @@ Loop:
 				go func() {
 					defer waitGroup.Done()
 					for _, event := range eh.eventQueue {
-						err := conn.SetWriteDeadline(time.Now().Add(writeDeadline))
+						err := eris.Wrap(conn.SetWriteDeadline(time.Now().Add(writeDeadline)), "")
 						if err != nil {
 							go func() {
 								eh.UnregisterConnection(conn)
 							}()
-							log.Logger.Error().Err(err)
+							log.Logger.Error().Err(err).Msg(eris.ToString(err, true))
 							break
 						}
-						err = conn.WriteMessage(websocket.TextMessage, []byte(event.Message))
+						err = eris.Wrap(conn.WriteMessage(websocket.TextMessage, []byte(event.Message)), "")
 						if err != nil {
 							go func() {
 								eh.UnregisterConnection(conn)
 							}()
-							log.Logger.Error().Err(err)
+							log.Logger.Error().Err(err).Msg(eris.ToString(err, true))
 							break
 						}
 					}
@@ -234,12 +236,19 @@ func (w *webSocketHandler) ServeHTTP(responseWriter http.ResponseWriter, request
 	//nolint:nestif // its ok
 	if request.URL.Path == w.path {
 		ws, err := w.upgrader.Upgrade(responseWriter, request, nil)
+		err = eris.Wrap(err, "")
 		if err != nil {
-			responseWriter.WriteHeader(http.StatusInternalServerError)
-		} else {
-			err = w.internalServe(ws)
+			err = sendError(responseWriter, err)
 			if err != nil {
-				responseWriter.WriteHeader(http.StatusInternalServerError)
+				panic(err)
+			}
+		} else {
+			err = eris.Wrap(w.internalServe(ws), "")
+			if err != nil {
+				err = sendError(responseWriter, err)
+				if err != nil {
+					panic(err)
+				}
 			}
 		}
 	} else {
@@ -272,36 +281,57 @@ func CreateWebSocketEventHandler(hub EventHub) func(conn *websocket.Conn) error 
 }
 
 func WebSocketEchoHandler(ws *websocket.Conn) error {
+	if ws == nil {
+		return eris.New("websocket connection cannot be nil")
+	}
 	for {
 		mt, message, err := ws.ReadMessage()
 		if err != nil {
-			log.Print("read:", err)
-			return err
+			return eris.Wrap(err, "")
 		}
 		log.Printf("recv: %s", message)
 		err = ws.WriteMessage(mt, message)
 		if err != nil {
-			log.Print("write:", err)
-			return err
+			return eris.Wrap(err, "")
 		}
 	}
 }
 
+func sendError(w http.ResponseWriter, erisError error) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusInternalServerError)
+	err := json.NewEncoder(w).Encode(eris.ToJSON(erisError, true))
+	if err != nil {
+		return eris.Wrap(err, "")
+	}
+	return nil
+}
+
 func Echo(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
+	err = eris.Wrap(err, "")
 	if err != nil {
-		log.Print("upgrade:", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Print("upgrade:", eris.ToString(err, true))
+		err = sendError(w, err)
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 	err = WebSocketEchoHandler(c)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		err = sendError(w, err)
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
-	err = c.Close()
+	err = eris.Wrap(c.Close(), "")
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		err = sendError(w, err)
+		if err != nil {
+			panic(err)
+		}
 		return
 	}
 }
