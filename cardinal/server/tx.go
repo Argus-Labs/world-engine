@@ -2,9 +2,9 @@ package server
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"net/http"
+
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"github.com/go-openapi/runtime"
@@ -20,7 +20,7 @@ func (handler *Handler) processTransaction(tx message.Message, payload []byte, s
 ) (*TransactionReply, error) {
 	txVal, err := tx.Decode(payload)
 	if err != nil {
-		return nil, fmt.Errorf("unable to decode transaction: %w", err)
+		return nil, eris.Wrap(err, "unable to decode transaction")
 	}
 	return handler.submitTransaction(txVal, tx, sp)
 }
@@ -29,19 +29,19 @@ func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string
 ) (message.Message, error) {
 	mappedParams, ok := params.(map[string]interface{})
 	if !ok {
-		return nil, errors.New("params not readable")
+		return nil, eris.New("params not readable")
 	}
 	txType, ok := mappedParams[pathParam]
 	if !ok {
-		return nil, errors.New("params do not contain txType from the path /tx/game/{txType}")
+		return nil, eris.New("params do not contain txType from the path /tx/game/{txType}")
 	}
 	txTypeString, ok := txType.(string)
 	if !ok {
-		return nil, errors.New("txType needs to be a string from path")
+		return nil, eris.New("txType needs to be a string from path")
 	}
 	tx, ok := txNameToTx[txTypeString]
 	if !ok {
-		return nil, fmt.Errorf("could not locate transaction type: %s", txTypeString)
+		return nil, eris.Errorf("could not locate transaction type: %s", txTypeString)
 	}
 	return tx, nil
 }
@@ -51,19 +51,19 @@ func (handler *Handler) getBodyAndSigFromParams(
 	isSystemTransaction bool) ([]byte, *sign.Transaction, error) {
 	mappedParams, ok := params.(map[string]interface{})
 	if !ok {
-		return nil, nil, errors.New("params not readable")
+		return nil, nil, eris.New("params not readable")
 	}
 	txBody, ok := mappedParams["txBody"]
 	if !ok {
-		return nil, nil, errors.New("params do not contain txBody from the body of the http request")
+		return nil, nil, eris.New("params do not contain txBody from the body of the http request")
 	}
 	txBodyMap, ok := txBody.(map[string]interface{})
 	if !ok {
-		return nil, nil, errors.New("txBody needs to be a json object in the body")
+		return nil, nil, eris.New("txBody needs to be a json object in the body")
 	}
 	payload, sp, err := handler.verifySignatureOfMapRequest(txBodyMap, isSystemTransaction)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, eris.Wrap(err, "error verifying signature of map request")
 	}
 	return payload, sp, nil
 }
@@ -96,7 +96,7 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 	createPersonaHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		payload, sp, err := handler.getBodyAndSigFromParams(params, true)
 		if err != nil {
-			if errors.Is(err, ErrInvalidSignature) || errors.Is(err, ErrSystemTransactionRequired) {
+			if eris.Is(err, eris.Cause(ErrInvalidSignature)) || eris.Is(err, eris.Cause(ErrSystemTransactionRequired)) {
 				return middleware.Error(http.StatusUnauthorized, err), nil
 			}
 			return nil, err
@@ -128,12 +128,12 @@ func (handler *Handler) submitTransaction(txVal any, tx message.Message, sp *sig
 	if handler.adapter != nil {
 		// if the world is recovering via adapter, we shouldn't accept transactions.
 		if handler.w.IsRecovering() {
-			return nil, errors.New("unable to submit transactions: game world is recovering state")
+			return nil, eris.New("unable to submit transactions: game world is recovering state")
 		}
 		log.Debug().Msgf("TX %d: tick %d: hash %s: submitted to base shard", tx.ID(), txReply.Tick, txReply.TxHash)
 		err := handler.adapter.Submit(context.Background(), sp, uint64(tx.ID()), txReply.Tick)
 		if err != nil {
-			return nil, fmt.Errorf("error submitting transaction to base shard: %w", err)
+			return nil, eris.Wrap(err, "error submitting transaction to base shard")
 		}
 	} else {
 		log.Debug().Msg("not submitting transaction to base shard")

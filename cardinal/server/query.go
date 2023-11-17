@@ -2,13 +2,12 @@ package server
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
@@ -23,15 +22,15 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 	queryHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		mapStruct, ok := params.(map[string]interface{})
 		if !ok {
-			return nil, errors.New("invalid parameter input, map could not be created")
+			return nil, eris.New("invalid parameter input, map could not be created")
 		}
 		queryTypeUntyped, ok := mapStruct["queryType"]
 		if !ok {
-			return nil, errors.New("queryType parameter not found")
+			return nil, eris.New("queryType parameter not found")
 		}
 		queryTypeString, ok := queryTypeUntyped.(string)
 		if !ok {
-			return nil, fmt.Errorf(
+			return nil, eris.Errorf(
 				"queryType was the wrong type, it should be a string from the path",
 			)
 		}
@@ -40,17 +39,17 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		if err != nil {
 			return middleware.Error(
 				http.StatusNotFound,
-				fmt.Errorf("query %s not found", queryTypeString),
+				eris.Errorf("query %s not found", queryTypeString),
 			), nil //lint:ignore nilerr this is a middleware error that should 404
 		}
 
 		bodyData, ok := mapStruct["queryBody"]
 		if !ok {
-			return nil, errors.New("queryBody parameter not found")
+			return nil, eris.New("queryBody parameter not found")
 		}
 		bodyDataAsMap, ok := bodyData.(map[string]interface{})
 		if !ok {
-			return nil, errors.New("data not convertable to map")
+			return nil, eris.New("data not convertable to map")
 		}
 
 		// Huge hack.
@@ -62,7 +61,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 		// I convert that into a json.RawMessage which go-swagger will validate.
 		rawJSONBody, err := json.Marshal(bodyDataAsMap)
 		if err != nil {
-			return nil, err
+			return nil, eris.Wrap(err, "could not unmarshal data into map")
 		}
 		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
 		rawJSONReply, err := q.HandleQueryRaw(wCtx, rawJSONBody)
@@ -92,31 +91,31 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 	cqlHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
 		mapStruct, ok := params.(map[string]interface{})
 		if !ok {
-			return nil, errors.New("invalid parameter input, map could not be created")
+			return nil, eris.New("invalid parameter input, map could not be created")
 		}
 		cqlRequestUntyped, ok := mapStruct["cql"]
 		if !ok {
-			return nil, errors.New("cql body parameter could not be found")
+			return nil, eris.New("cql body parameter could not be found")
 		}
 		cqlRequest, ok := cqlRequestUntyped.(map[string]interface{})
 		if !ok {
 			return middleware.Error(
 				http.StatusUnprocessableEntity,
-				fmt.Errorf("json is invalid"),
+				eris.Errorf("json is invalid"),
 			), nil
 		}
 		cqlStringUntyped, ok := cqlRequest["CQL"]
 		if !ok {
 			return middleware.Error(
 				http.StatusUnprocessableEntity,
-				fmt.Errorf("json is invalid"),
+				eris.Errorf("json is invalid"),
 			), nil
 		}
 		cqlString, ok := cqlStringUntyped.(string)
 		if !ok {
 			return middleware.Error(
 				http.StatusUnprocessableEntity,
-				fmt.Errorf("json is invalid"),
+				eris.Errorf("json is invalid"),
 			), nil
 		}
 		resultFilter, err := cql.Parse(cqlString, handler.w.GetComponentByName)
