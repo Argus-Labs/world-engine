@@ -1072,8 +1072,8 @@ github.com/bufbuild/connect-go v1.0.0/go.mod h1:9iNvh/NOsfhNBUH5CtvXeVUskQO1xsrE
 github.com/bufbuild/connect-go v1.5.2 h1:G4EZd5gF1U1ZhhbVJXplbuUnfKpBZ5j5izqIwu2g2W8=
 github.com/bufbuild/connect-go v1.5.2/go.mod h1:GmMJYR6orFqD0Y6ZgX8pwQ8j9baizDrIQMm1/a6LnHk=
 github.com/bufbuild/protocompile v0.4.0/go.mod h1:3v93+mbWn/v3xzN+31nwkJfrEpAUwp+BagBSZWx+TP8=
-github.com/bufbuild/protocompile v0.5.1 h1:mixz5lJX4Hiz4FpqFREJHIXLfaLBntfaJv1h+/jS+Qg=
-github.com/bufbuild/protocompile v0.5.1/go.mod h1:G5iLmavmF4NsYtpZFvE3B/zFch2GIY8+wjsYLR/lc40=
+github.com/bufbuild/protocompile v0.6.0 h1:Uu7WiSQ6Yj9DbkdnOe7U4mNKp58y9WDMKDn28/ZlunY=
+github.com/bufbuild/protocompile v0.6.0/go.mod h1:YNP35qEYoYGme7QMtz5SBCoN4kL4g12jTtjuzRNdjpE=
 github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23 h1:D21IyuvjDCshj1/qq+pCNd3VZOAEI9jy6Bi131YlXgI=
 github.com/butuzov/ireturn v0.1.1 h1:QvrO2QF2+/Cx1WA/vETCIYBKtRjc30vesdoPUNo1EbY=
 github.com/bwesterb/go-ristretto v1.2.0/go.mod h1:fUIoIZaG73pV5biE2Blr2xEzDoMj7NFEuV9ekS419A0=
@@ -1156,8 +1156,6 @@ github.com/cockroachdb/pebble v0.0.0-20230309163202-51422ae2d449/go.mod h1:9lRMC
 github.com/cockroachdb/pebble v0.0.0-20230525220056-bb4fc9527b3b/go.mod h1:TkdVsGYRqtULUppt2RbC+YaKtTHnHoWa2apfFrSKABw=
 github.com/cockroachdb/pebble v0.0.0-20230606152911-c4be581b807f/go.mod h1:TkdVsGYRqtULUppt2RbC+YaKtTHnHoWa2apfFrSKABw=
 github.com/cockroachdb/pebble v0.0.0-20230819001538-1798fbf5956c/go.mod h1:EDjiaAXc0FXiRmxDzcu1wIEJ093ohHMUWxrI6iku0XA=
-github.com/cockroachdb/pebble v0.0.0-20230928194634-aa077af62593 h1:aPEJyR4rPBvDmeyi+l/FS/VtA00IWvjeFvjen1m1l1A=
-github.com/cockroachdb/pebble v0.0.0-20230928194634-aa077af62593/go.mod h1:6hk1eMY/u5t+Cf18q5lFMUA1Rc+Sm5I6Ra1QuPyxXCo=
 github.com/cockroachdb/redact v1.0.8/go.mod h1:BVNblN9mBWFyMyqK1k3AAiSxhvhfK2oOZZ2lK+dpvRg=
 github.com/cockroachdb/redact v1.1.3/go.mod h1:BVNblN9mBWFyMyqK1k3AAiSxhvhfK2oOZZ2lK+dpvRg=
 github.com/cockroachdb/sentry-go v0.6.1-cockroachdb.2 h1:IKgmqgMQlVJIZj19CdocBeSfSaiCbEBZGKODaixqtHM=
@@ -2420,6 +2418,8 @@ github.com/rollkit/cometbft v0.0.0-20230524013001-2968c8b8b121/go.mod h1:Xc6G7GT
 github.com/rollkit/cosmos-sdk v0.46.0-beta2.0.20230608151552-9b9e319d1abc h1:IX7JL+2UV3/glESjliEcO9wjuof0jvbj96S0k/Lj4NM=
 github.com/rollkit/cosmos-sdk v0.46.7-rollkit-v0.6.0-no-fraud-proofs h1:JpAS6pozs9TJCDuDmDPxsypGM9aXTclS8qTZuzwl2XM=
 github.com/rollkit/cosmos-sdk v0.46.7-rollkit-v0.6.0-no-fraud-proofs/go.mod h1:8sp92Gf6kayyVpdkn0aQ8a+kr5QpUpStqnp+JbseW98=
+github.com/rollkit/cosmos-sdk v0.50.0-rc.1-rollkit-v0.11.2-no-fraud-proofs h1:1kGbjQBXoAU1hOMIdEeymF4WiwiMgxZwg70F3aNLke0=
+github.com/rollkit/cosmos-sdk v0.50.0-rc.1-rollkit-v0.11.2-no-fraud-proofs/go.mod h1:thMPn5JAkCeWhPW/WQTRV6qkxYw1yyTKltMpM/TsTrM=
 github.com/rollkit/rollkit v0.6.0 h1:q0iNzyQy7shEauxGdcMe1BFfptQS0dwbaheS/FkA3lk=
 github.com/rollkit/rollkit v0.8.2-0.20230714162741-29ca23911928/go.mod h1:EPTMIptsd27JIvZx2UPwBZtFg2QUy3rNwY/e9KJu8vw=
 github.com/rs/cors v1.7.0 h1:+88SsELBHx5r+hZ8TCkggzSstaWNbDvThkVK8H6f9ik=

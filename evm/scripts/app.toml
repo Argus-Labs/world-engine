@@ -115,13 +115,13 @@ global-labels = []
 [api]
 
 # Enable defines if the API server should be enabled.
-enable = false
+enable = true
 
 # Swagger defines if swagger documentation should automatically be registered.
-swagger = false
+swagger = true
 
 # Address defines the API server to listen on.
-address = "tcp://localhost:1317"
+address = "tcp://0.0.0.0:1317"
 
 # MaxOpenConnections defines the number of maximum open connections.
 max-open-connections = 1000
@@ -148,7 +148,7 @@ enabled-unsafe-cors = false
 enable = true
 
 # Address defines the gRPC server address to bind to.
-address = "localhost:9090"
+address = "0.0.0.0:9090"
 
 # MaxRecvMsgSize defines the max message size in bytes the server can receive.
 # The default value is 10MB.
@@ -242,7 +242,7 @@ rpc-tx-fee-cap = "1"
 
 # Chain config
 [polaris.polar.chain]
-chain-id = "2061"
+chain-id = "2020"
 
 # Homestead switch block
 homestead-block = "0"
