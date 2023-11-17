@@ -26,8 +26,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"pkg.berachain.dev/polaris/eth/accounts"
-
-	"pkg.world.dev/world-engine/evm/config"
 )
 
 var (
@@ -48,11 +46,11 @@ var (
 var initConfig sync.Once
 
 // SetupCosmosConfig sets up the Cosmos SDK configuration to be compatible with the semantics of etheruem.
-func SetupCosmosConfig(wCfg config.WorldEngineConfig) {
+func SetupCosmosConfig(bech32Prefix string) {
 	initConfig.Do(func() {
 		// set the address prefixes
 		sdkCfg := sdk.GetConfig()
-		SetBech32Prefixes(sdkCfg, wCfg.Bech32Prefix)
+		SetBech32Prefixes(sdkCfg, bech32Prefix)
 		SetBip44CoinType(sdkCfg)
 		sdkCfg.Seal()
 	})
