@@ -12,8 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"google.golang.org/grpc/codes"
-
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 )
@@ -78,7 +76,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 		return "", err
 	}
 	if id != adminAccountID {
-		return logError(logger, eris.Errorf("unauthorized: only admin may call this RPC"), codes.PermissionDenied)
+		return logError(logger, eris.Errorf("unauthorized: only admin may call this RPC"), PermissionDenied)
 	}
 
 	var msg GenKeysMsg
@@ -87,7 +85,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 		return logError(
 			logger,
 			eris.Wrap(err, `error unmarshaling payload: expected form {"amount": <int>}`),
-			codes.InvalidArgument)
+			InvalidArgument)
 	}
 
 	keys, err := generateBetaKeys(msg.Amount)
@@ -142,43 +140,45 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 ) {
 	userID, err := getUserID(ctx)
 	if err != nil {
-		return logErrorWithMessageAndCode(logger, codes.NotFound, "unable to get userID: %v", err)
+		return logErrorWithMessageAndCode(logger, err, NotFound, "unable to get userID: %v", err)
 	}
 
 	// if this user is already verified,
 	err = checkVerified(ctx, nk, userID)
 	if err == nil {
-		return logErrorWithMessageAndCode(logger, codes.AlreadyExists, "user already verified with beta key")
+		return logErrorWithMessageAndCode(logger, err, AlreadyExists, "user already verified with beta key")
 	}
 
 	var ck ClaimKeyMsg
 	err = json.Unmarshal([]byte(payload), &ck)
 	if err != nil {
-		return logErrorWithMessageAndCode(logger, codes.InvalidArgument, "unable to unmarshal payload: %v", err)
+		return logErrorWithMessageAndCode(logger, err, InvalidArgument, "unable to unmarshal payload: %v", err)
 	}
 	if ck.Key == "" {
-		return logErrorWithMessageAndCode(logger, codes.InvalidArgument, "no key provided in request")
+		return logErrorWithMessageAndCode(logger, err, InvalidArgument, "no key provided in request")
 	}
 	ck.Key = strings.ToUpper(ck.Key)
 	err = claimKey(ctx, nk, ck.Key, userID)
 	if err != nil {
 		return logErrorWithMessageAndCode(
 			logger,
-			codes.NotFound,
+			err,
+			NotFound,
 			fmt.Sprintf("unable to claim key: %v", err))
 	}
 	err = writeVerified(ctx, nk, userID)
 	if err != nil {
 		return logErrorWithMessageAndCode(
 			logger,
-			codes.NotFound,
+			err,
+			NotFound,
 			fmt.Sprintf("server could not save user verification entry. please "+
 				"try again: %v", err))
 	}
 
 	bz, err := json.Marshal(ClaimKeyRes{Success: true})
 	if err != nil {
-		return logErrorWithMessageAndCode(logger, codes.NotFound, "unable to marshal response: %v", err)
+		return logErrorWithMessageAndCode(logger, err, NotFound, "unable to marshal response: %v", err)
 	}
 	return string(bz), nil
 }
