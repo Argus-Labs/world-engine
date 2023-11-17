@@ -19,6 +19,8 @@ import (
 )
 
 func TestEvents(t *testing.T) {
+	// Note if this test is failing it could be because redis is not refreshed
+	// This test assumes that your redis is brand new and empty.
 	// Test persona
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
