@@ -12,30 +12,12 @@ import (
 	"strings"
 	"sync"
 
+	"google.golang.org/grpc/codes"
+
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/sign"
-)
-
-const (
-	OK = iota
-	Cancelled
-	Unknown
-	InvalidArgument
-	DeadlineExceeded
-	NotFound
-	AlreadyExists
-	PermissionDenied
-	ResourceExhausted
-	FailedPrecondition
-	Aborted
-	OutOfRange
-	Unimplemented
-	Internal
-	Unavailable
-	DataLoss
-	Unauthenticated
 )
 
 type receiptChan chan *Receipt
@@ -267,7 +249,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		// check if the user is verified. this requires them to input a valid beta key.
 		err = checkVerified(ctx, nk, userID)
 		if err != nil {
-			return logErrorWithMessageAndCode(logger, AlreadyExists, "unable to claim persona tag")
+			return logErrorWithMessageAndCode(logger, codes.AlreadyExists, "unable to claim persona tag")
 		}
 
 		ptr := &personaTagStorageObj{}
@@ -275,7 +257,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			return logErrorWithMessage(logger, err, "unable to marshal payload")
 		}
 		if ptr.PersonaTag == "" {
-			return logErrorWithMessageAndCode(logger, InvalidArgument, "personaTag field must not be empty")
+			return logErrorWithMessageAndCode(logger, codes.InvalidArgument, "personaTag field must not be empty")
 		}
 
 		tag, err := loadPersonaTagStorageObj(ctx, nk)
@@ -288,13 +270,13 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			case personaTagStatusPending:
 				return logErrorWithMessageAndCode(
 					logger,
-					AlreadyExists,
+					codes.AlreadyExists,
 					"persona tag %q is pending for this account",
 					tag.PersonaTag)
 			case personaTagStatusAccepted:
 				return logErrorWithMessageAndCode(
 					logger,
-					AlreadyExists,
+					codes.AlreadyExists,
 					"persona tag %q already associated with this account",
 					tag.PersonaTag)
 			case personaTagStatusRejected:
@@ -320,7 +302,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
 				return logErrorWithMessage(logger, err, "unable to set persona tag storage object")
 			}
-			return logErrorWithMessageAndCode(logger, AlreadyExists, "persona tag %q is not available", ptr.PersonaTag)
+			return logErrorWithMessageAndCode(logger, codes.AlreadyExists, "persona tag %q is not available", ptr.PersonaTag)
 		}
 
 		ptr.Tick = tick
@@ -453,30 +435,33 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 	return nil
 }
 
-func logErrorWithMessageAndCode(logger runtime.Logger, code int, format string, v ...interface{}) (string, error) {
+func logErrorWithMessageAndCode(logger runtime.Logger, code codes.Code, format string, v ...interface{}) (string, error) {
 	err := eris.Errorf(format, v...)
 	return logError(logger, err, code)
 }
 
 func logErrorWithMessage(logger runtime.Logger, err error, format string, v ...interface{}) (string, error) {
 	err = eris.Wrapf(err, format, v...)
-	return logErrorInternal(logger, err)
+	return logErrorNotFound(logger, err)
 }
 
-func logError(logger runtime.Logger, err error, code int) (string, error) {
+func logError(logger runtime.Logger, err error, code codes.Code) (string, error) {
 	logger.Error(eris.ToString(err, true))
 	return "", errToNakamaError(err, code)
 }
 
-func logErrorInternal(logger runtime.Logger, err error) (string, error) {
-	return logError(logger, err, Internal)
+// Using this function will crash unity clients.
+// Internal will make nakama rpc calls return http 500 which unity clients cannot handle
+// this will cause unity clients to crash.
+func logErrorNotFound(logger runtime.Logger, err error) (string, error) {
+	return logError(logger, err, codes.NotFound)
 }
 
-func errToNakamaError(err error, code int) error {
+func errToNakamaError(err error, code codes.Code) error {
 	if DEVMODE == Debug {
-		return runtime.NewError(eris.ToString(err, true), code)
+		return runtime.NewError(eris.ToString(err, true), int(code))
 	}
-	return runtime.NewError(err.Error(), code)
+	return runtime.NewError(err.Error(), int(code))
 }
 
 // setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns
