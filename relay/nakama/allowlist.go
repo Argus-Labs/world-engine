@@ -163,7 +163,7 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 		return logErrorWithMessageAndCode(
 			logger,
 			err,
-			NotFound,
+			InvalidArgument,
 			fmt.Sprintf("unable to claim key: %v", err))
 	}
 	err = writeVerified(ctx, nk, userID)
