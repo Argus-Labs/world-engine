@@ -39,12 +39,6 @@ const (
 )
 
 type receiptChan chan *Receipt
-type DevMode int
-
-const (
-	Debug DevMode = iota
-	Prod
-)
 
 const (
 	EnvCardinalAddr      = "CARDINAL_ADDR"
@@ -56,21 +50,21 @@ const (
 	transactionEndpointPrefix = "/tx"
 )
 
-func stringToDevMode(input string) DevMode {
+func stringToDevMode(input string) bool {
 	switch strings.ToLower(input) {
 	case "debug":
-		return Debug
+		return true
 	case "prod":
-		return Prod
+		return false
 	default:
-		return Prod
+		return false
 	}
 }
 
 var (
-	DEVMODE                         = Prod
-	ErrPersonaTagStorageObjNotFound = errors.New("persona tag storage object not found")
-	ErrNoPersonaTagForUser          = errors.New("user does not have a verified persona tag")
+	DebugEnabled                    bool = false
+	ErrPersonaTagStorageObjNotFound      = errors.New("persona tag storage object not found")
+	ErrNoPersonaTagForUser               = errors.New("user does not have a verified persona tag")
 
 	globalNamespace string
 
@@ -87,7 +81,7 @@ func InitModule(
 	initializer runtime.Initializer,
 ) error {
 	devModeString := os.Getenv("DEV_MODE")
-	DEVMODE = stringToDevMode(devModeString)
+	DebugEnabled = stringToDevMode(devModeString)
 
 	if err := initCardinalAddress(); err != nil {
 		return eris.Wrap(err, "failed to init cardinal address")
@@ -496,7 +490,7 @@ func logErrorNotFound(
 func errToNakamaError(
 	err error,
 	code int) error {
-	if DEVMODE == Debug {
+	if DebugEnabled {
 		return runtime.NewError(eris.ToString(err, true), code)
 	}
 	return runtime.NewError(err.Error(), code)
