@@ -450,9 +450,6 @@ func logError(logger runtime.Logger, err error, code codes.Code) (string, error)
 	return "", errToNakamaError(err, code)
 }
 
-// Using this function will crash unity clients.
-// Internal will make nakama rpc calls return http 500 which unity clients cannot handle
-// this will cause unity clients to crash.
 func logErrorNotFound(logger runtime.Logger, err error) (string, error) {
 	return logError(logger, err, codes.NotFound)
 }
