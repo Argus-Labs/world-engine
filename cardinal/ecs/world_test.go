@@ -3,9 +3,10 @@ package ecs_test
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/sign"
 
@@ -120,7 +121,7 @@ func TestEVMTxConsume(t *testing.T) {
 	var returnVal FooOut
 	var returnErr error
 	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		fooTx.ForEach(wCtx, func(t ecs.TxData[FooIn]) (FooOut, error) {
+		fooTx.Each(wCtx, func(t ecs.TxData[FooIn]) (FooOut, error) {
 			return returnVal, returnErr
 		})
 		return nil

@@ -7,11 +7,10 @@ import (
 
 	"gotest.tools/v3/assert"
 
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
-
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 func TestForEachTransaction(t *testing.T) {
@@ -27,7 +26,7 @@ func TestForEachTransaction(t *testing.T) {
 	assert.NilError(t, world.RegisterMessages(someMsg))
 
 	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		someMsg.ForEach(wCtx, func(t ecs.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
+		someMsg.Each(wCtx, func(t ecs.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
 			if t.Msg.GenerateError {
 				return result, errors.New("some error")
 			}

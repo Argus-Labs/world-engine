@@ -50,12 +50,12 @@ func (t *MessageType[Input, Result]) GetReceipt(wCtx WorldContext, hash TxHash) 
 	return t.impl.GetReceipt(wCtx.Instance(), hash)
 }
 
-func (t *MessageType[Input, Result]) ForEach(wCtx WorldContext, fn func(TxData[Input]) (Result, error)) {
+func (t *MessageType[Input, Result]) Each(wCtx WorldContext, fn func(TxData[Input]) (Result, error)) {
 	adapterFn := func(ecsTxData ecs.TxData[Input]) (Result, error) {
 		adaptedTx := TxData[Input]{impl: ecsTxData}
 		return fn(adaptedTx)
 	}
-	t.impl.ForEach(wCtx.Instance(), adapterFn)
+	t.impl.Each(wCtx.Instance(), adapterFn)
 }
 
 // In returns the TxData in the given transaction queue that match this message's type.
