@@ -16,10 +16,10 @@ CHAIN_ID=${CHAIN_ID:-"world-1"}
 KEY_NAME=${KEY_NAME:-"world_admin"}
 KEY_MNEMONIC=${KEY_MNEMONIC:-"enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll"}
 KEY_BACKEND=${KEY_BACKEND:-"test"}
-TOKEN_AMOUNT=${TOKEN_AMOUNT:-"100ether"}
-STAKING_AMOUNT=${STAKING_AMOUNT:-"10ether"}
-MIN_GAS_PRICE=${MIN_GAS_PRICE:-"0ether"}
-TOKEN_DENOM=${TOKEN_DENOM:-"ether"}
+TOKEN_AMOUNT=${TOKEN_AMOUNT:-"100world"}
+STAKING_AMOUNT=${STAKING_AMOUNT:-"10world"}
+MIN_GAS_PRICE=${MIN_GAS_PRICE:-"0world"}
+TOKEN_DENOM=${TOKEN_DENOM:-"world"}
 FAUCET_ADDR=${FAUCET_ADDR:-"world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5"}
 
 # DA related variables/configuration

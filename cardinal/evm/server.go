@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 
+	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
@@ -94,7 +95,7 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	}
 
 	if !hasEVMTxsOrQueries {
-		return nil, ErrNoEVMTypes
+		return nil, eris.Wrap(ErrNoEVMTypes, "no evm txs or queries")
 	}
 
 	s := &msgServerImpl{txMap: it, queryMap: ir, world: w, port: defaultPort}
@@ -146,15 +147,15 @@ func loadCredentials(
 	// Load server's certificate and private key
 	sc, err := os.ReadFile(serverCertPath)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrapf(err, "error reading %s", serverCertPath)
 	}
 	sk, err := os.ReadFile(serverKeyPath)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrapf(err, "error reading %s", serverKeyPath)
 	}
 	serverCert, err := tls.X509KeyPair(sc, sk)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "error creating serverCert")
 	}
 
 	// Create the credentials and return it
@@ -172,12 +173,12 @@ func (s *msgServerImpl) Serve() error {
 	routerv1.RegisterMsgServer(server, s)
 	listener, err := net.Listen("tcp", ":"+s.port)
 	if err != nil {
-		return err
+		return eris.Wrapf(err, "error listening to port %s", s.port)
 	}
 	go func() {
-		err = server.Serve(listener)
+		err = eris.Wrap(server.Serve(listener), "error serving server")
 		if err != nil {
-			zerolog.Fatal().Err(err).Msg("")
+			zerolog.Fatal().Err(err).Msg(eris.ToString(err, true))
 		}
 	}()
 	s.shutdown = server.GracefulStop
@@ -281,16 +282,17 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 	addr string,
 ) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
-	var err error
 	wCtx := ecs.NewReadOnlyWorldContext(s.world)
 	q, err := wCtx.NewSearch(ecs.Exact(ecs.SignerComponent{}))
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "error creating search")
 	}
-	err = q.Each(wCtx, func(id entity.ID) bool {
+	var getComponentErr error
+	searchIterationErr := eris.Wrap(q.Each(wCtx, func(id entity.ID) bool {
 		var signerComp *ecs.SignerComponent
-		signerComp, err = component.GetComponent[ecs.SignerComponent](wCtx, id)
-		if err != nil {
+		signerComp, getComponentErr = component.GetComponent[ecs.SignerComponent](wCtx, id)
+		getComponentErr = eris.Wrap(getComponentErr, "")
+		if getComponentErr != nil {
 			return false
 		}
 		for _, authAddr := range signerComp.AuthorizedAddresses {
@@ -300,12 +302,15 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 			}
 		}
 		return true
-	})
-	if err != nil {
-		return nil, err
+	}), "")
+	if getComponentErr != nil {
+		return nil, getComponentErr
+	}
+	if searchIterationErr != nil {
+		return nil, searchIterationErr
 	}
 	if sc == nil {
-		return nil, fmt.Errorf("address %s does not have a linked persona tag", addr)
+		return nil, eris.Errorf("address %s does not have a linked persona tag", addr)
 	}
 	return sc, nil
 }
@@ -315,7 +320,7 @@ func (s *msgServerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardRe
 ) {
 	query, ok := s.queryMap[req.Resource]
 	if !ok {
-		return nil, fmt.Errorf("no query with name %s found", req.Resource)
+		return nil, eris.Errorf("no query with name %s found", req.Resource)
 	}
 	ecsRequest, err := query.DecodeEVMRequest(req.Request)
 	if err != nil {

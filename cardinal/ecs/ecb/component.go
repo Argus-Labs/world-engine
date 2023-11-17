@@ -1,9 +1,9 @@
 package ecb
 
 import (
-	"errors"
 	"sort"
 
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 )
@@ -23,7 +23,7 @@ func sortComponentSet(components []metadata.ComponentMetadata) error {
 	})
 	for i := 1; i < len(components); i++ {
 		if components[i] == components[i-1] {
-			return errors.New("duplicate components is not allowed")
+			return eris.New("duplicate components is not allowed")
 		}
 	}
 

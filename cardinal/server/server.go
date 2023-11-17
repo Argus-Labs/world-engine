@@ -15,6 +15,7 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"github.com/mitchellh/mapstructure"
+	"github.com/rotisserie/eris"
 	"github.com/rs/cors"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -72,7 +73,7 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Op
 	}
 	specDoc, err := loads.Analyzed(swaggerData, "")
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "error loading swagger spec")
 	}
 	api := untyped.NewAPI(specDoc).WithoutJSONDefaults()
 	api.RegisterConsumer("application/json", runtime.JSONConsumer())
@@ -94,7 +95,7 @@ func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Op
 	}))
 
 	if err = api.Validate(); err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "error validating api against spec")
 	}
 
 	app := middleware.NewContext(specDoc, api, nil)
@@ -137,7 +138,7 @@ func createSwaggerQueryHandler[Request any, Response any](requestName string,
 func isParamsEmpty(params interface{}) (bool, error) {
 	data, ok := params.(map[string]interface{})
 	if !ok {
-		return false, errors.New("params data structure must be a map[string]interface{}")
+		return false, eris.New("params data structure must be a map[string]interface{}")
 	}
 	return len(data) == 0, nil
 }
@@ -228,17 +229,17 @@ func (handler *Handler) Initialize() {
 func (handler *Handler) Serve() error {
 	hostname, err := os.Hostname()
 	if err != nil {
-		return err
+		return eris.Wrap(err, "error getting hostname")
 	}
 	log.Info().Msgf("serving cardinal at %s:%s", hostname, handler.Port)
-	return handler.server.ListenAndServe()
+	return eris.Wrap(handler.server.ListenAndServe(), "error listening and serving")
 }
 
 func (handler *Handler) Close() error {
-	return handler.server.Close()
+	return eris.Wrap(handler.server.Close(), "error closing server")
 }
 
 func (handler *Handler) Shutdown() error {
 	ctx := context.Background()
-	return handler.server.Shutdown(ctx)
+	return eris.Wrap(handler.server.Shutdown(ctx), "error shutting down http server")
 }

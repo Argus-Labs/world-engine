@@ -28,25 +28,14 @@ import (
 
 	simapp "pkg.world.dev/world-engine/evm/app"
 	"pkg.world.dev/world-engine/evm/cmd/world-evm/cmd"
-	"pkg.world.dev/world-engine/evm/config"
 	"pkg.world.dev/world-engine/evm/types"
 )
 
 func main() {
-	cfg := getDefaultConfig()
-	types.SetupCosmosConfig(cfg)
+	types.SetupCosmosConfig("world")
 	rootCmd := cmd.NewRootCmd()
 	if err := svrcmd.Execute(rootCmd, "", simapp.DefaultNodeHome); err != nil {
 		log.NewLogger(rootCmd.OutOrStderr()).Error("failure when running app", "err", err)
 		os.Exit(1)
-	}
-}
-
-func getDefaultConfig() config.WorldEngineConfig {
-	return config.WorldEngineConfig{
-		DisplayDenom:       "ether",
-		BaseDenom:          "gwei",
-		Bech32Prefix:       "world",
-		NamespaceAuthority: "",
 	}
 }

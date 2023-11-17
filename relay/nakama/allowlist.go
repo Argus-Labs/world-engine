@@ -68,7 +68,7 @@ type KeyStorage struct {
 	Used   bool
 }
 
-func allowListRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
+func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
 	string, error,
 ) {
 	id, err := getUserID(ctx)
@@ -76,18 +76,21 @@ func allowListRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.N
 		return "", err
 	}
 	if id != adminAccountID {
-		return "", eris.Errorf("unauthorized: only admin may call this RPC")
+		return logError(logger, eris.Errorf("unauthorized: only admin may call this RPC"), PermissionDenied)
 	}
 
 	var msg GenKeysMsg
 	err = json.Unmarshal([]byte(payload), &msg)
 	if err != nil {
-		return "", eris.Wrap(err, `error unmarshaling payload: expected form {"amount": <int>}`)
+		return logError(
+			logger,
+			eris.Wrap(err, `error unmarshaling payload: expected form {"amount": <int>}`),
+			InvalidArgument)
 	}
 
 	keys, err := generateBetaKeys(msg.Amount)
 	if err != nil {
-		return "", eris.Wrap(err, "error generating beta keys")
+		return logErrorNotFound(logger, eris.Wrap(err, "error generating beta keys"))
 	}
 
 	writes := make([]*runtime.StorageWrite, 0, len(keys))
@@ -114,12 +117,12 @@ func allowListRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.N
 
 	_, err = nk.StorageWrite(ctx, writes)
 	if err != nil {
-		return "", eris.Wrap(err, "error writing keys to storage")
+		return logErrorNotFound(logger, eris.Wrap(err, "error writing keys to storage"))
 	}
 
 	response, err := json.Marshal(GenKeysResponse{Keys: keys})
 	if err != nil {
-		return "", eris.Wrap(err, "")
+		return logErrorNotFound(logger, eris.Wrap(err, ""))
 	}
 	return string(response), nil
 }
@@ -132,41 +135,50 @@ type ClaimKeyRes struct {
 	Success bool `json:"success"`
 }
 
-func claimKeyRPC(ctx context.Context, _ runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
+func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
 	string, error,
 ) {
 	userID, err := getUserID(ctx)
 	if err != nil {
-		return "", err
+		return logErrorWithMessageAndCode(logger, err, NotFound, "unable to get userID: %v", err)
 	}
 
 	// if this user is already verified,
 	err = checkVerified(ctx, nk, userID)
 	if err == nil {
-		return "", eris.Wrap(errors.Join(ErrAlreadyVerified, err), "")
+		return logErrorWithMessageAndCode(logger, err, AlreadyExists, "user already verified with beta key")
 	}
 
 	var ck ClaimKeyMsg
 	err = json.Unmarshal([]byte(payload), &ck)
 	if err != nil {
-		return "", eris.Wrap(err, "")
+		return logErrorWithMessageAndCode(logger, err, InvalidArgument, "unable to unmarshal payload: %v", err)
 	}
 	if ck.Key == "" {
-		return "", eris.Errorf("no beta key specified in request")
+		return logErrorWithMessageAndCode(logger, err, InvalidArgument, "no key provided in request")
 	}
 	ck.Key = strings.ToUpper(ck.Key)
 	err = claimKey(ctx, nk, ck.Key, userID)
 	if err != nil {
-		return "", err
+		return logErrorWithMessageAndCode(
+			logger,
+			err,
+			InvalidArgument,
+			fmt.Sprintf("unable to claim key: %v", err))
 	}
 	err = writeVerified(ctx, nk, userID)
 	if err != nil {
-		return "", err
+		return logErrorWithMessageAndCode(
+			logger,
+			err,
+			NotFound,
+			fmt.Sprintf("server could not save user verification entry. please "+
+				"try again: %v", err))
 	}
 
 	bz, err := json.Marshal(ClaimKeyRes{Success: true})
 	if err != nil {
-		return "", eris.Wrap(err, "")
+		return logErrorWithMessageAndCode(logger, err, NotFound, "unable to marshal response: %v", err)
 	}
 	return string(bz), nil
 }
