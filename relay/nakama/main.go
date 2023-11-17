@@ -50,11 +50,12 @@ const (
 	transactionEndpointPrefix = "/tx"
 )
 
-func stringToDevMode(input string) bool {
-	switch strings.ToLower(input) {
-	case "debug":
+func getDebugModeFromEnvironment() bool {
+	devModeString := os.Getenv("ENABLE_DEBUG")
+	switch strings.ToLower(devModeString) {
+	case "true":
 		return true
-	case "prod":
+	case "false":
 		return false
 	default:
 		return false
@@ -62,9 +63,9 @@ func stringToDevMode(input string) bool {
 }
 
 var (
-	DebugEnabled                    bool = false
-	ErrPersonaTagStorageObjNotFound      = errors.New("persona tag storage object not found")
-	ErrNoPersonaTagForUser               = errors.New("user does not have a verified persona tag")
+	DebugEnabled                    = false
+	ErrPersonaTagStorageObjNotFound = errors.New("persona tag storage object not found")
+	ErrNoPersonaTagForUser          = errors.New("user does not have a verified persona tag")
 
 	globalNamespace string
 
@@ -80,8 +81,7 @@ func InitModule(
 	nk runtime.NakamaModule,
 	initializer runtime.Initializer,
 ) error {
-	devModeString := os.Getenv("DEV_MODE")
-	DebugEnabled = stringToDevMode(devModeString)
+	DebugEnabled = getDebugModeFromEnvironment()
 
 	if err := initCardinalAddress(); err != nil {
 		return eris.Wrap(err, "failed to init cardinal address")
