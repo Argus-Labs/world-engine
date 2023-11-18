@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-
 	"pkg.world.dev/world-engine/sign"
 
 	"gotest.tools/v3/assert"
@@ -17,10 +17,10 @@ import (
 )
 
 func TestCanWaitForNextTick(t *testing.T) {
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
-	assert.NilError(t, w.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, w.LoadGameState())
 	w.StartGameLoop(context.Background(), startTickCh, doneTickCh)
 
 	// Make sure the game can tick
@@ -48,10 +48,10 @@ func TestCanWaitForNextTick(t *testing.T) {
 }
 
 func TestWaitForNextTickReturnsFalseWhenWorldIsShutDown(t *testing.T) {
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
-	assert.NilError(t, w.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, w.LoadGameState())
 	w.StartGameLoop(context.Background(), startTickCh, doneTickCh)
 
 	// Make sure the game can tick
@@ -89,10 +89,10 @@ func TestWaitForNextTickReturnsFalseWhenWorldIsShutDown(t *testing.T) {
 }
 
 func TestCannotWaitForNextTickAfterWorldIsShutDown(t *testing.T) {
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
-	assert.NilError(t, w.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, w.LoadGameState())
 	w.StartGameLoop(context.Background(), startTickCh, doneTickCh)
 
 	// Make sure the game can tick
@@ -115,9 +115,9 @@ func TestEVMTxConsume(t *testing.T) {
 	type FooOut struct {
 		Y string
 	}
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 	fooTx := ecs.NewMessageType[FooIn, FooOut]("foo", ecs.WithMsgEVMSupport[FooIn, FooOut])
-	assert.NilError(t, w.RegisterMessages(fooTx))
+	testutils.AssertNilErrorWithTrace(t, w.RegisterMessages(fooTx))
 	var returnVal FooOut
 	var returnErr error
 	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
@@ -126,7 +126,7 @@ func TestEVMTxConsume(t *testing.T) {
 		})
 		return nil
 	})
-	assert.NilError(t, w.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, w.LoadGameState())
 
 	// add tx to queue
 	evmTxHash := "0xFooBar"
@@ -135,7 +135,7 @@ func TestEVMTxConsume(t *testing.T) {
 	// let's check against a system that returns a result and no error
 	returnVal = FooOut{Y: "hi"}
 	returnErr = nil
-	assert.NilError(t, w.Tick(ctx))
+	testutils.AssertNilErrorWithTrace(t, w.Tick(ctx))
 	evmTxReceipt, ok := w.ConsumeEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, true)
 	assert.Check(t, len(evmTxReceipt.ABIResult) > 0)
@@ -149,7 +149,7 @@ func TestEVMTxConsume(t *testing.T) {
 	returnVal = FooOut{}
 	returnErr = errors.New("omg error")
 	w.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
-	assert.NilError(t, w.Tick(ctx))
+	testutils.AssertNilErrorWithTrace(t, w.Tick(ctx))
 	evmTxReceipt, ok = w.ConsumeEVMMsgResult(evmTxHash)
 
 	assert.Equal(t, ok, true)
@@ -168,19 +168,19 @@ func TestAddSystems(t *testing.T) {
 		return nil
 	}
 
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 	w.RegisterSystems(sys, sys, sys)
 	err := w.LoadGameState()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	err = w.Tick(context.Background())
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	assert.Equal(t, count, 3)
 }
 
 func TestSystemExecutionOrder(t *testing.T) {
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 	order := make([]int, 0, 3)
 	w.RegisterSystems(func(ecs.WorldContext) error {
 		order = append(order, 1)
@@ -193,8 +193,8 @@ func TestSystemExecutionOrder(t *testing.T) {
 		return nil
 	})
 	err := w.LoadGameState()
-	assert.NilError(t, err)
-	assert.NilError(t, w.Tick(context.Background()))
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, w.Tick(context.Background()))
 	expectedOrder := []int{1, 2, 3}
 	for i, elem := range order {
 		assert.Equal(t, elem, expectedOrder[i])
@@ -204,12 +204,12 @@ func TestSystemExecutionOrder(t *testing.T) {
 func TestSetNamespace(t *testing.T) {
 	namespace := "test"
 	t.Setenv("CARDINAL_NAMESPACE", namespace)
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 	assert.Equal(t, w.Namespace().String(), namespace)
 }
 
 func TestWithoutRegistration(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := cardinaltestutils.NewTestWorld(t).Instance()
 	wCtx := ecs.NewWorldContext(world)
 	id, err := component.Create(wCtx, EnergyComponent{}, OwnableComponent{})
 	assert.Assert(t, err != nil)
@@ -227,18 +227,18 @@ func TestWithoutRegistration(t *testing.T) {
 
 	assert.Assert(t, err != nil)
 
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](world))
-	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[EnergyComponent](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[OwnableComponent](world))
 	id, err = component.Create(wCtx, EnergyComponent{}, OwnableComponent{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	err = component.UpdateComponent[EnergyComponent](wCtx, id, func(component *EnergyComponent) *EnergyComponent {
 		component.Amt += 50
 		return component
 	})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	err = component.SetComponent[EnergyComponent](wCtx, id, &EnergyComponent{
 		Amt: 0,
 		Cap: 0,
 	})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 }

@@ -3,11 +3,11 @@ package cardinal_test
 import (
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type Alpha struct{}
@@ -23,26 +23,26 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 func TestSearchExample(t *testing.T) {
-	world, _ := testutils.MakeWorldAndTicker(t)
-	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
-	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
-	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
+	world, _ := cardinaltestutils.MakeWorldAndTicker(t)
+	testutils.AssertNilErrorWithTrace(t, cardinal.RegisterComponent[Alpha](world))
+	testutils.AssertNilErrorWithTrace(t, cardinal.RegisterComponent[Beta](world))
+	testutils.AssertNilErrorWithTrace(t, cardinal.RegisterComponent[Gamma](world))
 
-	worldCtx := testutils.WorldToWorldContext(world)
+	worldCtx := cardinaltestutils.WorldToWorldContext(world)
 	_, err := cardinal.CreateMany(worldCtx, 10, Alpha{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = cardinal.CreateMany(worldCtx, 10, Beta{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = cardinal.CreateMany(worldCtx, 10, Gamma{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = cardinal.CreateMany(worldCtx, 10, Alpha{}, Beta{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = cardinal.CreateMany(worldCtx, 10, Alpha{}, Gamma{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = cardinal.CreateMany(worldCtx, 10, Beta{}, Gamma{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = cardinal.CreateMany(worldCtx, 10, Alpha{}, Beta{}, Gamma{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	testCases := []struct {
 		name   string
@@ -88,10 +88,10 @@ func TestSearchExample(t *testing.T) {
 		msg := "problem with " + tc.name
 		var q *cardinal.Search
 		q, err = worldCtx.NewSearch(tc.filter)
-		assert.NilError(t, err, msg)
+		testutils.AssertNilErrorWithTrace(t, err, msg)
 		var count int
 		count, err = q.Count(worldCtx)
-		assert.NilError(t, err, msg)
+		testutils.AssertNilErrorWithTrace(t, err, msg)
 		assert.Equal(t, tc.want, count, msg)
 	}
 }

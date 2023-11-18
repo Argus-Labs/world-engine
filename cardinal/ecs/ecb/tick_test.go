@@ -1,12 +1,15 @@
 package ecb_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/ecstestutils"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 )
 
 func TestCanSaveAndRecoverTransactions(t *testing.T) {
@@ -19,27 +22,27 @@ func TestCanSaveAndRecoverTransactions(t *testing.T) {
 
 	msgAlpha := ecs.NewMessageType[MsgIn, MsgOut]("alpha")
 	msgBeta := ecs.NewMessageType[MsgIn, MsgOut]("beta")
-	assert.NilError(t, msgAlpha.SetID(16))
-	assert.NilError(t, msgBeta.SetID(32))
+	testutils.AssertNilErrorWithTrace(t, msgAlpha.SetID(16))
+	testutils.AssertNilErrorWithTrace(t, msgBeta.SetID(32))
 	msgs := []message.Message{msgAlpha, msgBeta}
 
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
 	originalQueue := message.NewTxQueue()
-	sig := testutil.UniqueSignature(t)
+	sig := ecstestutils.UniqueSignature(t)
 	_ = originalQueue.AddTransaction(msgAlpha.ID(), MsgIn{100}, sig)
 
-	assert.NilError(t, manager.StartNextTick(msgs, originalQueue))
+	testutils.AssertNilErrorWithTrace(t, manager.StartNextTick(msgs, originalQueue))
 
 	// Pretend some problem was encountered here. Make sure we can recover the transactions from redis.
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
 	gotQueue, err := manager.Recover(msgs)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	assert.Equal(t, gotQueue.GetAmountOfTxs(), originalQueue.GetAmountOfTxs())
 
 	// Make sure we can finalize the tick
-	assert.NilError(t, manager.StartNextTick(msgs, gotQueue))
-	assert.NilError(t, manager.FinalizeTick())
+	testutils.AssertNilErrorWithTrace(t, manager.StartNextTick(msgs, gotQueue))
+	testutils.AssertNilErrorWithTrace(t, manager.FinalizeTick())
 }
 
 func TestErrorWhenRecoveringNoTransactions(t *testing.T) {

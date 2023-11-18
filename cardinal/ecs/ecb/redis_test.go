@@ -14,6 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
@@ -29,34 +30,34 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 	type Beta struct{ Value int }
 	alphaComp := storage.NewMockComponentType[Alpha](Alpha{}, Alpha{})
 	betaComp := storage.NewMockComponentType[Beta](Beta{}, Beta{})
-	assert.NilError(t, alphaComp.SetID(77))
-	assert.NilError(t, betaComp.SetID(88))
+	testutils.AssertNilErrorWithTrace(t, alphaComp.SetID(77))
+	testutils.AssertNilErrorWithTrace(t, betaComp.SetID(88))
 
 	manager, err := NewManager(client)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	err = manager.RegisterComponents([]metadata.ComponentMetadata{alphaComp, betaComp})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	id, err := manager.CreateEntity(alphaComp, betaComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	startValue := Alpha{99}
-	assert.NilError(t, manager.SetComponentForEntity(alphaComp, id, startValue))
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, manager.SetComponentForEntity(alphaComp, id, startValue))
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
 	key := redisComponentKey(alphaComp.ID(), id)
 	// Make sure the value actually made it to the redis DB.
 	ctx := context.Background()
 	bz, err := client.Get(ctx, key).Bytes()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	gotValue, err := alphaComp.Decode(bz)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, startValue, gotValue.(Alpha))
 
 	// Now remove the alpha component from the entity.
-	assert.NilError(t, manager.RemoveComponentFromEntity(alphaComp, id))
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, manager.RemoveComponentFromEntity(alphaComp, id))
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
 	// Verify the component in question no longer exists in the DB
 	err = client.Get(ctx, key).Err()

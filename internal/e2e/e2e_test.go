@@ -2,10 +2,12 @@ package e2e
 
 import (
 	"context"
-	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"testing"
 	"time"
+
+	"gotest.tools/v3/assert"
+
+	"pkg.world.dev/world-engine/chain/x/shard/types"
 )
 
 const (

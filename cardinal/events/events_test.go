@@ -11,6 +11,7 @@ import (
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"gotest.tools/v3/assert"
@@ -42,14 +43,14 @@ func TestEventError(t *testing.T) {
 func TestEvents(t *testing.T) {
 	// broadcast 5 messages to 5 clients means 25 messages received.
 	numberToTest := 5
-	w := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, w.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	w := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, w.LoadGameState())
+	txh := cardinaltestutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
 	url := txh.MakeWebSocketURL("events")
 	dialers := make([]*websocket.Conn, numberToTest)
 	for i := range dialers {
 		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		dialers[i] = dial
 	}
 	var wg sync.WaitGroup
@@ -74,7 +75,7 @@ func TestEvents(t *testing.T) {
 			defer wg.Done()
 			for j := 0; j < numberToTest; j++ {
 				mode, message, err := dialer.ReadMessage()
-				assert.NilError(t, err)
+				testutils.AssertNilErrorWithTrace(t, err)
 				assert.Equal(t, mode, websocket.TextMessage)
 				assert.Equal(t, string(message)[:4], "test")
 				count.Add(1)
@@ -107,9 +108,9 @@ type SendEnergyTxResult struct{}
 
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
-	assert.NilError(t, w.RegisterMessages(sendTx))
+	testutils.AssertNilErrorWithTrace(t, w.RegisterMessages(sendTx))
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
 	for i := 0; i < numberToTest; i++ {
@@ -119,15 +120,15 @@ func TestEventsThroughSystems(t *testing.T) {
 			return nil
 		})
 	}
-	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](w))
-	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](w))
-	assert.NilError(t, w.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[garbageStructAlpha](w))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[garbageStructBeta](w))
+	testutils.AssertNilErrorWithTrace(t, w.LoadGameState())
+	txh := cardinaltestutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
 	url := txh.MakeWebSocketURL("events")
 	dialers := make([]*websocket.Conn, numberToTest)
 	for i := range dialers {
 		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		dialers[i] = dial
 	}
 	ctx := context.Background()
@@ -137,7 +138,7 @@ func TestEventsThroughSystems(t *testing.T) {
 		defer waitForTicks.Done()
 		for i := 0; i < numberToTest; i++ {
 			err := w.Tick(ctx)
-			assert.NilError(t, err)
+			testutils.AssertNilErrorWithTrace(t, err)
 		}
 	}()
 
@@ -151,7 +152,7 @@ func TestEventsThroughSystems(t *testing.T) {
 			defer waitForDialersToRead.Done()
 			for i := 0; i < numberToTest; i++ {
 				mode, message, err := dialer.ReadMessage()
-				assert.NilError(t, err)
+				testutils.AssertNilErrorWithTrace(t, err)
 				assert.Equal(t, mode, websocket.TextMessage)
 				assert.Equal(t, string(message), "test")
 				counter2.Add(1)
@@ -172,7 +173,7 @@ func TestEventHubLogger(t *testing.T) {
 	cardinalLogger := ecslog.Logger{
 		&bufLogger,
 	}
-	w := testutils.NewTestWorld(t, cardinal.WithLoggingEventHub(&cardinalLogger)).Instance()
+	w := cardinaltestutils.NewTestWorld(t, cardinal.WithLoggingEventHub(&cardinalLogger)).Instance()
 
 	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
@@ -184,11 +185,11 @@ func TestEventHubLogger(t *testing.T) {
 			return nil
 		})
 	}
-	assert.NilError(t, w.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, w.LoadGameState())
 	ctx := context.Background()
 	for i := 0; i < numberToTest; i++ {
 		err := w.Tick(ctx)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 	}
 	testString := "{\"level\":\"info\",\"message\":\"EVENT: test\"}\n"
 	eventsLogs := buf.String()

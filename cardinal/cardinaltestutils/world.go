@@ -1,11 +1,12 @@
-package testutils
+package cardinaltestutils
 
 import (
+	"testing"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog"
-	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"testing"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 // NewTestWorld creates a World object suitable for unit tests.
@@ -21,6 +22,6 @@ func NewTestWorld(t testing.TB, opts ...cardinal.WorldOption) *cardinal.World {
 	if err != nil {
 		t.Fatalf("Unable to initialize test world: %v", err)
 	}
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	return world
 }

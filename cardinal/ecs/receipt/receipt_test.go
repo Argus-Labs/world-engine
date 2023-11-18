@@ -6,6 +6,7 @@ import (
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"gotest.tools/v3/assert"
 
@@ -14,7 +15,7 @@ import (
 
 func txHash(t *testing.T) message.TxHash {
 	id, err := uuid.NewUUID()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	return message.TxHash(id.String())
 }
 
@@ -108,7 +109,7 @@ func TestErrorWhenGettingReceiptsInNonFinishedTick(t *testing.T) {
 	rh.NextTick()
 
 	recs, err := rh.GetReceiptsForTick(currTick)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 0, len(recs))
 }
 
@@ -131,7 +132,7 @@ func TestOldTicksAreDiscarded(t *testing.T) {
 	for i := 0; i < historyLength; i++ {
 		rh.NextTick()
 		recs, err := rh.GetReceiptsForTick(tickToGet)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		assert.Equal(t, 1, len(recs), "failed to get receipts in step %d", i)
 		rec := recs[0]
 		assert.Equal(t, 1, len(rec.Errs))

@@ -2,15 +2,18 @@ package evm_test
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/evm"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"testing"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
+	"pkg.world.dev/world-engine/cardinal/evm"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"
@@ -32,13 +35,13 @@ type TxReply struct{}
 // the world, and executed in systems.
 func TestServer_SendMessage(t *testing.T) {
 	// setup the world
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 
 	// create the ECS transactions
 	fooTx := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
 	barTx := ecs.NewMessageType[BarTransaction, TxReply]("bartx", ecs.WithMsgEVMSupport[BarTransaction, TxReply])
 
-	assert.NilError(t, w.RegisterMessages(fooTx, barTx))
+	testutils.AssertNilErrorWithTrace(t, w.RegisterMessages(fooTx, barTx))
 
 	// create some txs to submit
 
@@ -77,7 +80,7 @@ func TestServer_SendMessage(t *testing.T) {
 		}
 		return nil
 	})
-	assert.NilError(t, w.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, w.LoadGameState())
 
 	sender := "0xHelloThere"
 	personaTag := "foo"
@@ -97,7 +100,7 @@ func TestServer_SendMessage(t *testing.T) {
 	<-tickDoneCh
 
 	server, err := evm.NewServer(w)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	txSequenceDone := make(chan struct{})
 	// Send in each transaction one at a time
@@ -106,24 +109,24 @@ func TestServer_SendMessage(t *testing.T) {
 		for _, tx := range fooTxs {
 			var fooTxBz []byte
 			fooTxBz, err = fooTx.ABIEncode(tx)
-			assert.NilError(t, err)
+			testutils.AssertNilErrorWithTrace(t, err)
 			_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 				Sender:    sender,
 				Message:   fooTxBz,
 				MessageId: fooTx.Name(),
 			})
-			assert.NilError(t, err)
+			testutils.AssertNilErrorWithTrace(t, err)
 		}
 		for _, tx := range barTxs {
 			var barTxBz []byte
 			barTxBz, err = barTx.ABIEncode(tx)
-			assert.NilError(t, err)
+			testutils.AssertNilErrorWithTrace(t, err)
 			_, err = server.SendMessage(context.Background(), &routerv1.SendMessageRequest{
 				Sender:    sender,
 				Message:   barTxBz,
 				MessageId: barTx.Name(),
 			})
-			assert.NilError(t, err)
+			testutils.AssertNilErrorWithTrace(t, err)
 		}
 		close(txSequenceDone)
 	}()
@@ -153,29 +156,29 @@ func TestServer_Query(t *testing.T) {
 	handleFooQuery := func(wCtx cardinal.WorldContext, req *FooReq) (*FooReply, error) {
 		return &FooReply{Y: req.X}, nil
 	}
-	w := testutils.NewTestWorld(t)
+	w := cardinaltestutils.NewTestWorld(t)
 	world := w.Instance()
 	err := cardinal.RegisterQueryWithEVMSupport[FooReq, FooReply](w, "foo", handleFooQuery)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	err = world.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("nothing"))
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	s, err := evm.NewServer(world)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	request := FooReq{X: 3000}
 	query, err := world.GetQueryByName("foo")
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	bz, err := query.EncodeAsABI(request)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	res, err := s.QueryShard(context.Background(), &routerv1.QueryShardRequest{
 		Resource: "foo",
 		Request:  bz,
 	})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	gotAny, err := query.DecodeEVMReply(res.Response)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	got, ok := gotAny.(FooReply)
 	assert.Equal(t, ok, true)
 	// Y should equal X here as we simply set reply's Y to request's X in the query handler above.
@@ -186,24 +189,24 @@ func TestServer_Query(t *testing.T) {
 // Authorized address for the sender, an error occurs.
 func TestServer_UnauthorizedAddress(t *testing.T) {
 	// setup the world
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 
 	// create the ECS transactions
 	fooTxType := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
 
-	assert.NilError(t, w.RegisterMessages(fooTxType))
+	testutils.AssertNilErrorWithTrace(t, w.RegisterMessages(fooTxType))
 
 	// create some txs to submit
 
 	fooTx := FooTransaction{X: 420, Y: "world"}
 
-	assert.NilError(t, w.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, w.LoadGameState())
 
 	server, err := evm.NewServer(w)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	fooTxBz, err := fooTxType.ABIEncode(fooTx)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	sender := "hello"
 	// server will never error. always returns it in the result.

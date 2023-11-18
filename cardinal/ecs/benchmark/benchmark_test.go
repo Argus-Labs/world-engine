@@ -5,11 +5,11 @@ package benchmark_test
 import (
 	"context"
 	"fmt"
-	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal"
 	"testing"
 
-	"gotest.tools/v3/assert"
+	"github.com/rs/zerolog"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
@@ -26,13 +26,13 @@ func newWorldWithRealRedis(t testing.TB) *ecs.World {
 		Password: "",
 		DB:       0,
 	}, "real-world")
-	assert.NilError(t, rs.Client.FlushDB(context.Background()).Err())
+	testutils.AssertNilErrorWithTrace(t, rs.Client.FlushDB(context.Background()).Err())
 
 	sm, err := ecb.NewManager(rs.Client)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	world, err := ecs.NewWorld(&rs, sm, cardinal.DefaultNamespace)
 
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	return world
 }
 
@@ -53,26 +53,26 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 	if enableHealthSystem {
 		world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 			q, err := world.NewSearch(ecs.Contains(Health{}))
-			assert.NilError(t, err)
+			testutils.AssertNilErrorWithTrace(t, err)
 			err = q.Each(wCtx, func(id entity.ID) bool {
 				health, err := component.GetComponent[Health](wCtx, id)
-				assert.NilError(t, err)
+				testutils.AssertNilErrorWithTrace(t, err)
 				health.Value++
-				assert.NilError(t, component.SetComponent[Health](wCtx, id, health))
+				testutils.AssertNilErrorWithTrace(t, component.SetComponent[Health](wCtx, id, health))
 				return true
 			})
-			assert.NilError(t, err)
+			testutils.AssertNilErrorWithTrace(t, err)
 			return nil
 		})
 	}
 
-	assert.NilError(t, ecs.RegisterComponent[Health](world))
-	assert.NilError(t, world.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Health](world))
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 	_, err := component.CreateMany(ecs.NewWorldContext(world), numOfEntities, Health{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	// Perform a game tick to ensure the newly created entities have been committed to the DB
 	ctx := context.Background()
-	assert.NilError(t, world.Tick(ctx))
+	testutils.AssertNilErrorWithTrace(t, world.Tick(ctx))
 	return world
 }
 
@@ -85,7 +85,7 @@ func BenchmarkWorld_TickNoSystems(b *testing.B) {
 		name := fmt.Sprintf("%d entities", i)
 		b.Run(name, func(b *testing.B) {
 			for j := 0; j < b.N; j++ {
-				assert.NilError(b, world.Tick(context.Background()))
+				testutils.AssertNilErrorWithTrace(b, world.Tick(context.Background()))
 			}
 		})
 	}
@@ -100,7 +100,7 @@ func BenchmarkWorld_TickWithSystem(b *testing.B) {
 		name := fmt.Sprintf("%d entities", i)
 		b.Run(name, func(b *testing.B) {
 			for j := 0; j < b.N; j++ {
-				assert.NilError(b, world.Tick(context.Background()))
+				testutils.AssertNilErrorWithTrace(b, world.Tick(context.Background()))
 			}
 		})
 	}

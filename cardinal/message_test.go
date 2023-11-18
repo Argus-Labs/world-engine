@@ -4,11 +4,11 @@ import (
 	"errors"
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type AddHealthToEntityTx struct {
@@ -33,9 +33,9 @@ func TestApis(t *testing.T) {
 }
 
 func TestTransactionExample(t *testing.T) {
-	world, doTick := testutils.MakeWorldAndTicker(t)
-	assert.NilError(t, cardinal.RegisterComponent[Health](world))
-	assert.NilError(t, cardinal.RegisterMessages(world, addHealthToEntity))
+	world, doTick := cardinaltestutils.MakeWorldAndTicker(t)
+	testutils.AssertNilErrorWithTrace(t, cardinal.RegisterComponent[Health](world))
+	testutils.AssertNilErrorWithTrace(t, cardinal.RegisterMessages(world, addHealthToEntity))
 	err := cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
 		// test "In" method
 		for _, tx := range addHealthToEntity.In(worldCtx) {
@@ -61,18 +61,18 @@ func TestTransactionExample(t *testing.T) {
 
 		return nil
 	})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
-	testWorldCtx := testutils.WorldToWorldContext(world)
+	testWorldCtx := cardinaltestutils.WorldToWorldContext(world)
 	doTick()
 	ids, err := cardinal.CreateMany(testWorldCtx, 10, Health{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	// Queue up the transaction.
 	idToModify := ids[3]
 	amountToModify := 20
-	payload := testutils.UniqueSignature()
-	testutils.AddTransactionToWorldByAnyTransaction(
+	payload := cardinaltestutils.UniqueSignature()
+	cardinaltestutils.AddTransactionToWorldByAnyTransaction(
 		world, addHealthToEntity,
 		AddHealthToEntityTx{idToModify, amountToModify}, payload,
 	)
@@ -84,7 +84,7 @@ func TestTransactionExample(t *testing.T) {
 	for _, id := range ids {
 		var health *Health
 		health, err = cardinal.GetComponent[Health](testWorldCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		if id == idToModify {
 			assert.Equal(t, amountToModify, health.Value)
 		} else {
@@ -94,7 +94,7 @@ func TestTransactionExample(t *testing.T) {
 	// Make sure transaction errors are recorded in the receipt
 	ecsWorld := cardinal.TestingWorldContextToECSWorld(testWorldCtx)
 	receipts, err := ecsWorld.GetTransactionReceiptsForTick(ecsWorld.CurrentTick() - 1)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, len(receipts))
 	assert.Equal(t, 1, len(receipts[0].Errs))
 }

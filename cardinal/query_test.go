@@ -4,11 +4,11 @@ import (
 	"errors"
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type QueryHealthRequest struct {
@@ -56,7 +56,7 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 		Y uint64
 	}
 	_ = cardinal.RegisterQueryWithEVMSupport[FooReq, FooReply](
-		testutils.NewTestWorld(t),
+		cardinaltestutils.NewTestWorld(t),
 		"query_health",
 		func(
 			_ cardinal.WorldContext,
@@ -66,9 +66,9 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 }
 
 func TestQueryExample(t *testing.T) {
-	world, _ := testutils.MakeWorldAndTicker(t)
-	assert.NilError(t, cardinal.RegisterComponent[Health](world))
-	assert.NilError(
+	world, _ := cardinaltestutils.MakeWorldAndTicker(t)
+	testutils.AssertNilErrorWithTrace(t, cardinal.RegisterComponent[Health](world))
+	testutils.AssertNilErrorWithTrace(
 		t,
 		cardinal.RegisterQuery[QueryHealthRequest, QueryHealthResponse](
 			world,
@@ -77,12 +77,12 @@ func TestQueryExample(t *testing.T) {
 		),
 	)
 
-	worldCtx := testutils.WorldToWorldContext(world)
+	worldCtx := cardinaltestutils.WorldToWorldContext(world)
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	// Give each new entity health based on the ever-increasing index
 	for i, id := range ids {
-		assert.NilError(t, cardinal.UpdateComponent[Health](worldCtx, id, func(h *Health) *Health {
+		testutils.AssertNilErrorWithTrace(t, cardinal.UpdateComponent[Health](worldCtx, id, func(h *Health) *Health {
 			h.Value = i
 			return h
 		}))
@@ -90,19 +90,19 @@ func TestQueryExample(t *testing.T) {
 
 	// No entities should have health over a million.
 	q, err := world.Instance().GetQueryByName("query_health")
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	resp, err := q.HandleQuery(worldCtx.Instance(), QueryHealthRequest{1_000_000})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 0, len(resp.(*QueryHealthResponse).IDs))
 
 	// All entities should have health over -100
 	resp, err = q.HandleQuery(worldCtx.Instance(), QueryHealthRequest{-100})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 100, len(resp.(*QueryHealthResponse).IDs))
 
 	// Exactly 10 entities should have health at or above 90
 	resp, err = q.HandleQuery(worldCtx.Instance(), QueryHealthRequest{90})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 10, len(resp.(*QueryHealthResponse).IDs))
 }

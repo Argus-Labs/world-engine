@@ -1,4 +1,4 @@
-package testutil
+package ecstestutils
 
 import (
 	"context"
@@ -9,10 +9,10 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/redis/go-redis/v9"
-	"gotest.tools/v3/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -36,9 +36,9 @@ func InitWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
 		DB:       0,  // use default DB
 	}, Namespace)
 	sm, err := ecb.NewManager(rs.Client)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	w, err := ecs.NewWorld(&rs, sm, ecs.Namespace(Namespace))
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	return w
 }
 
@@ -57,7 +57,7 @@ func DumpRedis(t *testing.T, r *miniredis.Miniredis, label any) {
 	ctx := context.Background()
 
 	keys, err := client.Keys(ctx, "*").Result()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	for _, key := range keys {
 		t.Log(key)
 		str, err := client.Get(ctx, key).Result()
@@ -65,14 +65,14 @@ func DumpRedis(t *testing.T, r *miniredis.Miniredis, label any) {
 			if strings.Contains(err.Error(), "WRONGTYPE") {
 				// This is a list. Dump each item in the list
 				count, err := client.LLen(ctx, key).Result()
-				assert.NilError(t, err)
+				testutils.AssertNilErrorWithTrace(t, err)
 				for i := int64(0); i < count; i++ {
 					str, err = client.LIndex(ctx, key, i).Result()
-					assert.NilError(t, err)
+					testutils.AssertNilErrorWithTrace(t, err)
 					t.Logf("  item:%d: %v", i, str)
 				}
 			} else {
-				assert.NilError(t, err)
+				testutils.AssertNilErrorWithTrace(t, err)
 			}
 		}
 		t.Log("  ", str)
@@ -102,6 +102,6 @@ func UniqueSignature(t *testing.T) *sign.Transaction {
 		nonce,
 		`{"some":"data"}`,
 	)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	return sig
 }

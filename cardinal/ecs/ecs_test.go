@@ -3,17 +3,18 @@ package ecs_test
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
 
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type EnergyComponent struct {
@@ -64,40 +65,40 @@ var (
 )
 
 func TestECS(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](world))
-	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](world))
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[EnergyComponent](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[OwnableComponent](world))
 
 	// create a bunch of planets!
 	numPlanets := 5
 	wCtx := ecs.NewWorldContext(world)
 
 	world.RegisterSystem(UpdateEnergySystem)
-	assert.NilError(t, world.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 	numEnergyOnly := 10
 	_, err := component.CreateMany(wCtx, numEnergyOnly, EnergyComponent{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = component.CreateMany(wCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
-	assert.NilError(t, world.Tick(context.Background()))
+	testutils.AssertNilErrorWithTrace(t, world.Tick(context.Background()))
 	query, err := world.NewSearch(ecs.Contains(EnergyComponent{}))
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	err = query.Each(wCtx, func(id entity.ID) bool {
 		energyPlanet, err := component.GetComponent[EnergyComponent](wCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		assert.Equal(t, int64(10), energyPlanet.Amt)
 		return true
 	})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	q, err := world.NewSearch(ecs.Or(ecs.Contains(EnergyComponent{}), ecs.Contains(OwnableComponent{})))
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	amt, err := q.Count(wCtx)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
 	comp, err := world.GetComponentByName("EnergyComponent")
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, comp.Name(), Energy.Name())
 }
 
@@ -117,35 +118,35 @@ func (Vel) Name() string {
 }
 
 func TestVelocitySimulation(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := cardinaltestutils.NewTestWorld(t).Instance()
 
 	// These components are a mix of concrete types and pointer types to make sure they both work
-	assert.NilError(t, ecs.RegisterComponent[Pos](world))
-	assert.NilError(t, ecs.RegisterComponent[Vel](world))
-	assert.NilError(t, world.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Pos](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Vel](world))
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	shipID, err := component.Create(wCtx, Pos{}, Vel{})
-	assert.NilError(t, err)
-	assert.NilError(t, component.SetComponent[Pos](wCtx, shipID, &Pos{1, 2}))
-	assert.NilError(t, component.SetComponent[Vel](wCtx, shipID, &Vel{3, 4}))
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, component.SetComponent[Pos](wCtx, shipID, &Pos{1, 2}))
+	testutils.AssertNilErrorWithTrace(t, component.SetComponent[Vel](wCtx, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
 	velocityQuery, err := world.NewSearch(ecs.Contains(&Vel{}))
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	err = velocityQuery.Each(wCtx, func(id entity.ID) bool {
 		vel, err := component.GetComponent[Vel](wCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		pos, err := component.GetComponent[Pos](wCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		newPos := Pos{pos.X + vel.DX, pos.Y + vel.DY}
-		assert.NilError(t, component.SetComponent[Pos](wCtx, id, &newPos))
+		testutils.AssertNilErrorWithTrace(t, component.SetComponent[Pos](wCtx, id, &newPos))
 		return true
 	})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	finalPos, err := component.GetComponent[Pos](wCtx, shipID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, wantPos, *finalPos)
 }
 
@@ -159,26 +160,26 @@ func (Owner) Name() string {
 }
 
 func TestCanSetDefaultValue(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := cardinaltestutils.NewTestWorld(t).Instance()
 
 	wantOwner := Owner{"Jeff"}
 
-	assert.NilError(t, ecs.RegisterComponent[Owner](world))
-	assert.NilError(t, world.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Owner](world))
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	alphaEntity, err := component.Create(wCtx, wantOwner)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	alphaOwner, err := component.GetComponent[Owner](wCtx, alphaEntity)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, *alphaOwner, wantOwner)
 
 	alphaOwner.MyName = "Bob"
-	assert.NilError(t, component.SetComponent[Owner](wCtx, alphaEntity, alphaOwner))
+	testutils.AssertNilErrorWithTrace(t, component.SetComponent[Owner](wCtx, alphaEntity, alphaOwner))
 
 	newOwner, err := component.GetComponent[Owner](wCtx, alphaEntity)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, newOwner.MyName, "Bob")
 }
 
@@ -191,35 +192,35 @@ func (Tuple) Name() string {
 }
 
 func TestCanRemoveEntity(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := cardinaltestutils.NewTestWorld(t).Instance()
 
-	assert.NilError(t, ecs.RegisterComponent[Tuple](world))
-	assert.NilError(t, world.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Tuple](world))
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	entities, err := component.CreateMany(wCtx, 2, Tuple{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	// Make sure we find exactly 2 entries
 	count := 0
 	q, err := world.NewSearch(ecs.Contains(Tuple{}))
-	assert.NilError(t, err)
-	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, q.Each(wCtx, func(id entity.ID) bool {
 		_, err = component.GetComponent[Tuple](wCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		count++
 		return true
 	}))
 
 	assert.Equal(t, count, 2)
 	err = world.Remove(entities[0])
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	// Now we should only find 1 entity
 	count = 0
-	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
+	testutils.AssertNilErrorWithTrace(t, q.Each(wCtx, func(id entity.ID) bool {
 		_, err = component.GetComponent[Tuple](wCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		count++
 		return true
 	}))
@@ -231,11 +232,11 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Remove the other entity
 	err = world.Remove(entities[1])
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	count = 0
-	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
+	testutils.AssertNilErrorWithTrace(t, q.Each(wCtx, func(id entity.ID) bool {
 		_, err = component.GetComponent[Tuple](wCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		count++
 		return true
 	}))
@@ -255,30 +256,30 @@ func (CountComponent) Name() string {
 }
 
 func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := cardinaltestutils.NewTestWorld(t).Instance()
 
-	assert.NilError(t, ecs.RegisterComponent[CountComponent](world))
-	assert.NilError(t, world.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[CountComponent](world))
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	_, err := component.CreateMany(wCtx, 10, CountComponent{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	// Pre-populate all the entities with their own IDs. This will help
 	// us keep track of which component belongs to which entity in the case
 	// of a problem
 	q, err := world.NewSearch(ecs.Contains(CountComponent{}))
-	assert.NilError(t, err)
-	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
-		assert.NilError(t, component.SetComponent[CountComponent](wCtx, id, &CountComponent{int(id)}))
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, q.Each(wCtx, func(id entity.ID) bool {
+		testutils.AssertNilErrorWithTrace(t, component.SetComponent[CountComponent](wCtx, id, &CountComponent{int(id)}))
 		return true
 	}))
 
 	// Remove the even entries
 	itr := 0
-	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
+	testutils.AssertNilErrorWithTrace(t, q.Each(wCtx, func(id entity.ID) bool {
 		if itr%2 == 0 {
-			assert.NilError(t, world.Remove(id))
+			testutils.AssertNilErrorWithTrace(t, world.Remove(id))
 		}
 		itr++
 		return true
@@ -287,9 +288,9 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	assert.Equal(t, 10, itr)
 
 	seen := map[int]int{}
-	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
+	testutils.AssertNilErrorWithTrace(t, q.Each(wCtx, func(id entity.ID) bool {
 		c, err := component.GetComponent[CountComponent](wCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		seen[c.Val]++
 		return true
 	}))
@@ -302,13 +303,13 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 }
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](world))
-	assert.NilError(t, world.LoadGameState())
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[EnergyComponent](world))
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	ent, err := component.Create(wCtx, EnergyComponent{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.ErrorIs(t, component.AddComponentTo[EnergyComponent](wCtx, ent), storage.ErrComponentAlreadyOnEntity)
 }
 
@@ -331,13 +332,13 @@ func (WeaponEnergy) Name() string {
 }
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[ReactorEnergy](world))
-	assert.NilError(t, ecs.RegisterComponent[WeaponEnergy](world))
-	assert.NilError(t, world.LoadGameState())
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[ReactorEnergy](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[WeaponEnergy](world))
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 	wCtx := ecs.NewWorldContext(world)
 	ent, err := component.Create(wCtx, ReactorEnergy{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	assert.ErrorIs(t, component.RemoveComponentFrom[WeaponEnergy](wCtx, ent), storage.ErrComponentNotOnEntity)
 }
@@ -354,28 +355,28 @@ func (Bar) Name() string {
 }
 
 func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := cardinaltestutils.NewTestWorld(t).Instance()
 
-	assert.NilError(t, ecs.RegisterComponent[Foo](world))
-	assert.NilError(t, ecs.RegisterComponent[Bar](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Foo](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Bar](world))
 
-	assert.NilError(t, world.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	getArchIDForEntityID := func(id entity.ID) archetype.ID {
 		components, err := world.StoreManager().GetComponentTypesForEntity(id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		archID, err := world.StoreManager().GetArchIDForComponents(components)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		return archID
 	}
 	wCtx := ecs.NewWorldContext(world)
 	entity, err := component.Create(wCtx, Foo{}, Bar{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	archIDBefore := getArchIDForEntityID(entity)
 
 	// The entity should now be in a different archetype
-	assert.NilError(t, component.RemoveComponentFrom[Foo](wCtx, entity))
+	testutils.AssertNilErrorWithTrace(t, component.RemoveComponentFrom[Foo](wCtx, entity))
 
 	archIDAfter := getArchIDForEntityID(entity)
 	assert.Check(t, archIDBefore != archIDAfter)
@@ -404,16 +405,16 @@ func (Gamma) Name() string {
 }
 
 func TestEntriesCanChangeTheirArchetype(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
-	assert.NilError(t, ecs.RegisterComponent[Beta](world))
-	assert.NilError(t, ecs.RegisterComponent[Gamma](world))
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Alpha](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Beta](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Gamma](world))
 
-	assert.NilError(t, world.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	entIDs, err := component.CreateMany(wCtx, 3, Alpha{}, Beta{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	// count and countAgain are helpers that simplify the counting of how many
 	// entities have a particular component.
@@ -427,29 +428,29 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	}
 	// 3 entities have alpha
 	alphaQuery, err := world.NewSearch(ecs.Contains(Alpha{}))
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	err = alphaQuery.Each(wCtx, countAgain())
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 3, count)
 
 	// 0 entities have gamma
 	gammaQuery, err := world.NewSearch(ecs.Contains(Gamma{}))
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	err = gammaQuery.Each(wCtx, countAgain())
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 0, count)
 
-	assert.NilError(t, component.RemoveComponentFrom[Alpha](wCtx, entIDs[0]))
+	testutils.AssertNilErrorWithTrace(t, component.RemoveComponentFrom[Alpha](wCtx, entIDs[0]))
 
 	// alpha has been removed from entity[0], so only 2 entities should now have alpha
 	err = alphaQuery.Each(wCtx, countAgain())
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 2, count)
 
 	// Add gamma to an entity. Now 1 entity should have gamma.
-	assert.NilError(t, component.AddComponentTo[Gamma](wCtx, entIDs[1]))
+	testutils.AssertNilErrorWithTrace(t, component.AddComponentTo[Gamma](wCtx, entIDs[1]))
 	err = gammaQuery.Each(wCtx, countAgain())
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, count)
 
 	// Make sure the one ent that has gamma is entIDs[1]
@@ -457,7 +458,7 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 		assert.Equal(t, id, entIDs[1])
 		return true
 	})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 }
 
 type EnergyComponentAlpha struct {
@@ -479,15 +480,15 @@ func (e EnergyComponentBeta) Name() string {
 }
 
 func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := cardinaltestutils.NewTestWorld(t).Instance()
 
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponentAlpha](world))
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponentBeta](world))
-	assert.NilError(t, world.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[EnergyComponentAlpha](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[EnergyComponentBeta](world))
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	id, err := component.Create(wCtx, EnergyComponentAlpha{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	err = component.SetComponent[EnergyComponentBeta](wCtx, id, &EnergyComponentBeta{100, 200})
 	assert.Check(t, err != nil)
@@ -504,53 +505,53 @@ func (C) Name() string { return "c" }
 func (D) Name() string { return "d" }
 
 func TestQueriesAndFiltersWorks(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[A](world))
-	assert.NilError(t, ecs.RegisterComponent[B](world))
-	assert.NilError(t, ecs.RegisterComponent[C](world))
-	assert.NilError(t, ecs.RegisterComponent[D](world))
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[A](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[B](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[C](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[D](world))
 
-	assert.NilError(t, world.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	ab, err := component.Create(wCtx, A{}, B{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	cd, err := component.Create(wCtx, C{}, D{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = component.Create(wCtx, B{}, D{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	// Only one entity has the components a and b
 	abFilter := ecs.Contains(A{}, B{})
 	q, err := world.NewSearch(abFilter)
-	assert.NilError(t, err)
-	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, q.Each(wCtx, func(id entity.ID) bool {
 		assert.Equal(t, id, ab)
 		return true
 	}))
 	q, err = world.NewSearch(abFilter)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	num, err := q.Count(wCtx)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, num, 1)
 
 	cdFilter := ecs.Contains(C{}, D{})
 	q, err = world.NewSearch(cdFilter)
-	assert.NilError(t, err)
-	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, q.Each(wCtx, func(id entity.ID) bool {
 		assert.Equal(t, id, cd)
 		return true
 	}))
 	q, err = world.NewSearch(abFilter)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	num, err = q.Count(wCtx)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, num, 1)
 
 	q, err = world.NewSearch(ecs.Or(ecs.Contains(A{}), ecs.Contains(D{})))
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	allCount, err := q.Count(wCtx)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, allCount, 3)
 }
 
@@ -563,13 +564,13 @@ func (HealthComponent) Name() string {
 }
 
 func TestUpdateWithPointerType(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[HealthComponent](world))
-	assert.NilError(t, world.LoadGameState())
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[HealthComponent](world))
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	id, err := component.Create(wCtx, HealthComponent{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	err = component.UpdateComponent[HealthComponent](wCtx, id, func(h *HealthComponent) *HealthComponent {
 		if h == nil {
@@ -578,10 +579,10 @@ func TestUpdateWithPointerType(t *testing.T) {
 		h.HP += 100
 		return h
 	})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	hp, err := component.GetComponent[HealthComponent](wCtx, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 100, hp.HP)
 }
 
@@ -594,24 +595,24 @@ func (ValueComponent1) Name() string {
 }
 
 func TestCanRemoveFirstEntity(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[ValueComponent1](world))
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[ValueComponent1](world))
 
 	wCtx := ecs.NewWorldContext(world)
 	ids, err := component.CreateMany(wCtx, 3, ValueComponent1{})
-	assert.NilError(t, err)
-	assert.NilError(t, component.SetComponent[ValueComponent1](wCtx, ids[0], &ValueComponent1{99}))
-	assert.NilError(t, component.SetComponent[ValueComponent1](wCtx, ids[1], &ValueComponent1{100}))
-	assert.NilError(t, component.SetComponent[ValueComponent1](wCtx, ids[2], &ValueComponent1{101}))
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, component.SetComponent[ValueComponent1](wCtx, ids[0], &ValueComponent1{99}))
+	testutils.AssertNilErrorWithTrace(t, component.SetComponent[ValueComponent1](wCtx, ids[1], &ValueComponent1{100}))
+	testutils.AssertNilErrorWithTrace(t, component.SetComponent[ValueComponent1](wCtx, ids[2], &ValueComponent1{101}))
 
-	assert.NilError(t, world.Remove(ids[0]))
+	testutils.AssertNilErrorWithTrace(t, world.Remove(ids[0]))
 
 	val, err := component.GetComponent[ValueComponent1](wCtx, ids[1])
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 100, val.Val)
 
 	val, err = component.GetComponent[ValueComponent1](wCtx, ids[2])
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 101, val.Val)
 }
 
@@ -631,41 +632,41 @@ func (OtherComponent) Name() string {
 }
 
 func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](world))
-	assert.NilError(t, ecs.RegisterComponent[OtherComponent](world))
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[ValueComponent2](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[OtherComponent](world))
 
 	wCtx := ecs.NewWorldContext(world)
 	ids, err := component.CreateMany(wCtx, 3, ValueComponent2{})
-	assert.NilError(t, err)
-	assert.NilError(t, component.SetComponent[ValueComponent2](wCtx, ids[0], &ValueComponent2{99}))
-	assert.NilError(t, component.SetComponent[ValueComponent2](wCtx, ids[1], &ValueComponent2{100}))
-	assert.NilError(t, component.SetComponent[ValueComponent2](wCtx, ids[2], &ValueComponent2{101}))
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, component.SetComponent[ValueComponent2](wCtx, ids[0], &ValueComponent2{99}))
+	testutils.AssertNilErrorWithTrace(t, component.SetComponent[ValueComponent2](wCtx, ids[1], &ValueComponent2{100}))
+	testutils.AssertNilErrorWithTrace(t, component.SetComponent[ValueComponent2](wCtx, ids[2], &ValueComponent2{101}))
 
-	assert.NilError(t, component.AddComponentTo[OtherComponent](wCtx, ids[0]))
+	testutils.AssertNilErrorWithTrace(t, component.AddComponentTo[OtherComponent](wCtx, ids[0]))
 
 	val, err := component.GetComponent[ValueComponent2](wCtx, ids[1])
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 100, val.Val)
 
 	val, err = component.GetComponent[ValueComponent2](wCtx, ids[2])
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 101, val.Val)
 }
 
 func TestEntityCreationAndSetting(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](world))
-	assert.NilError(t, ecs.RegisterComponent[OtherComponent](world))
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[ValueComponent2](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[OtherComponent](world))
 
 	wCtx := ecs.NewWorldContext(world)
 	ids, err := component.CreateMany(wCtx, 300, ValueComponent2{999}, OtherComponent{999})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	for _, id := range ids {
 		x, err := component.GetComponent[ValueComponent2](wCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		y, err := component.GetComponent[OtherComponent](wCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		assert.Equal(t, x.Val, 999)
 		assert.Equal(t, y.Val, 999)
 	}

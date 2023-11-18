@@ -4,28 +4,30 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 func TestCanRemoveEntity(t *testing.T) {
-	world, _ := testutils.MakeWorldAndTicker(t)
+	world, _ := cardinaltestutils.MakeWorldAndTicker(t)
 
-	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
+	testutils.AssertNilErrorWithTrace(t, cardinal.RegisterComponent[Alpha](world))
 
-	testWorldCtx := testutils.WorldToWorldContext(world)
+	testWorldCtx := cardinaltestutils.WorldToWorldContext(world)
 	ids, err := cardinal.CreateMany(testWorldCtx, 2, Alpha{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	removeID := ids[0]
 	keepID := ids[1]
 
-	assert.NilError(t, cardinal.Remove(testWorldCtx, removeID))
+	testutils.AssertNilErrorWithTrace(t, cardinal.Remove(testWorldCtx, removeID))
 
 	search, err := testWorldCtx.NewSearch(cardinal.Exact(Alpha{}))
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	count := 0
-	assert.NilError(t, search.Each(testWorldCtx, func(id cardinal.EntityID) bool {
+	testutils.AssertNilErrorWithTrace(t, search.Each(testWorldCtx, func(id cardinal.EntityID) bool {
 		assert.Equal(t, id, keepID)
 		count++
 		return true

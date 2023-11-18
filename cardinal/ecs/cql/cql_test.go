@@ -8,6 +8,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type EmptyComponent struct{}
@@ -27,16 +28,16 @@ func TestParser(t *testing.T) {
 				Subexpression: &cqlTerm{
 					Left: &cqlFactor{Base: &cqlValue{
 						Exact: &cqlExact{Components: []*cqlComponent{
-							&cqlComponent{Name: "a"},
-							&cqlComponent{Name: "b"}}},
+							{Name: "a"},
+							{Name: "b"}}},
 						Contains:      nil,
 						Not:           nil,
 						Subexpression: nil,
 					}},
-					Right: []*cqlOpFactor{&cqlOpFactor{
+					Right: []*cqlOpFactor{{
 						Operator: opAnd,
 						Factor: &cqlFactor{Base: &cqlValue{
-							Exact:         &cqlExact{Components: []*cqlComponent{&cqlComponent{Name: "a"}}},
+							Exact:         &cqlExact{Components: []*cqlComponent{{Name: "a"}}},
 							Contains:      nil,
 							Not:           nil,
 							Subexpression: nil,
@@ -47,18 +48,18 @@ func TestParser(t *testing.T) {
 			Subexpression: nil,
 		}},
 		Right: []*cqlOpFactor{
-			&cqlOpFactor{
+			{
 				Operator: opOr,
 				Factor: &cqlFactor{Base: &cqlValue{
 					Exact:         nil,
-					Contains:      &cqlContains{Components: []*cqlComponent{&cqlComponent{Name: "b"}}},
+					Contains:      &cqlContains{Components: []*cqlComponent{{Name: "b"}}},
 					Not:           nil,
 					Subexpression: nil,
 				}},
 			},
 		},
 	}
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.DeepEqual(t, *term, testTerm)
 
 	emptyComponent := metadata.NewComponentMetadata[EmptyComponent]()
@@ -66,7 +67,7 @@ func TestParser(t *testing.T) {
 		return emptyComponent, nil
 	}
 	filterResult, err := termToComponentFilter(term, stringToComponent)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	testResult := filter.Or(
 		filter.Not(
 			filter.And(
@@ -80,9 +81,9 @@ func TestParser(t *testing.T) {
 	assert.Assert(t, reflect.DeepEqual(filterResult, testResult))
 	query := "CONTAINS(A) & CONTAINS(A, B) & CONTAINS(A, B, C) | EXACT(D)"
 	term, err = internalCQLParser.ParseString("", query)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	result, err := termToComponentFilter(term, stringToComponent)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	testResult2 :=
 		filter.Or(
 			filter.And(

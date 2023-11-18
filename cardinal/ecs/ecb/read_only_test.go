@@ -2,10 +2,13 @@ package ecb_test
 
 import (
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"testing"
 
 	"gotest.tools/v3/assert"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
@@ -15,10 +18,10 @@ func TestReadOnly_CanGetComponent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
 	id, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	_, err = manager.GetComponentForEntity(fooComp, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	roStore := manager.ToReadOnly()
 
@@ -26,10 +29,10 @@ func TestReadOnly_CanGetComponent(t *testing.T) {
 	_, err = roStore.GetComponentForEntity(fooComp, id)
 	assert.Check(t, err != nil)
 
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
 	_, err = roStore.GetComponentForEntity(fooComp, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 }
 
 func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
@@ -55,22 +58,22 @@ func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 
 	for _, tc := range testCases {
 		id, err := manager.CreateEntity(tc.comps...)
-		assert.NilError(t, err)
-		assert.NilError(t, manager.CommitPending())
+		testutils.AssertNilErrorWithTrace(t, err)
+		testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
 		roStore := manager.ToReadOnly()
 
 		gotComps, err := roStore.GetComponentTypesForEntity(id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		assert.Equal(t, len(gotComps), len(tc.comps))
 		for i := range gotComps {
 			assert.Equal(t, gotComps[i].ID(), tc.comps[i].ID(), "component mismatch for test case %q", tc.name)
 		}
 
 		archID, err := roStore.GetArchIDForComponents(gotComps)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		gotComps = roStore.GetComponentTypesForArchID(archID)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		assert.Equal(t, len(gotComps), len(tc.comps))
 		for i := range gotComps {
 			assert.Equal(t, gotComps[i].ID(), tc.comps[i].ID(), "component mismatch for test case %q", tc.name)
@@ -105,14 +108,14 @@ func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 	roManager := manager.ToReadOnly()
 	for _, tc := range testCases {
 		ids, err := manager.CreateManyEntities(tc.idsToCreate, tc.comps...)
-		assert.NilError(t, err)
-		assert.NilError(t, manager.CommitPending())
+		testutils.AssertNilErrorWithTrace(t, err)
+		testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
 		archID, err := roManager.GetArchIDForComponents(tc.comps)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 
 		gotIDs, err := roManager.GetEntitiesForArchID(archID)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		assert.DeepEqual(t, ids, gotIDs)
 	}
 }
@@ -120,32 +123,32 @@ func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	id, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
 	fooArchID, err := manager.GetArchIDForComponents([]metadata.ComponentMetadata{fooComp})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	roManager := manager.ToReadOnly()
 
 	gotIDs, err := roManager.GetEntitiesForArchID(fooArchID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, len(gotIDs))
 	assert.Equal(t, gotIDs[0], id)
 
-	assert.NilError(t, manager.AddComponentToEntity(barComp, id))
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, manager.AddComponentToEntity(barComp, id))
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
 	// There should be no more entities with JUST the foo componnet
 	gotIDs, err = roManager.GetEntitiesForArchID(fooArchID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 0, len(gotIDs))
 
 	bothArchID, err := roManager.GetArchIDForComponents([]metadata.ComponentMetadata{fooComp, barComp})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	gotIDs, err = roManager.GetEntitiesForArchID(bothArchID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, len(gotIDs))
 	assert.Equal(t, gotIDs[0], id)
 }
@@ -158,40 +161,40 @@ func TestReadOnly_ArchetypeCount(t *testing.T) {
 	assert.Equal(t, 0, roManager.ArchetypeCount())
 
 	_, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	// The manager knows about the new archetype
 	assert.Equal(t, 1, manager.ArchetypeCount())
 	// but the read-only manager is not aware of it yet
 	assert.Equal(t, 0, roManager.ArchetypeCount())
 
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 	assert.Equal(t, 1, roManager.ArchetypeCount())
 
 	_, err = manager.CreateEntity(fooComp, barComp)
-	assert.NilError(t, err)
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 	assert.Equal(t, 2, roManager.ArchetypeCount())
 }
 
 func TestReadOnly_SearchFrom(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
-	world := testutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Instance()
-	assert.NilError(t, ecs.RegisterComponent[Health](world))
-	assert.NilError(t, ecs.RegisterComponent[Power](world))
-	assert.NilError(t, world.LoadGameState())
+	world := cardinaltestutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Health](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Power](world))
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	_, err := component.CreateMany(wCtx, 8, Health{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = component.CreateMany(wCtx, 9, Power{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = component.CreateMany(wCtx, 10, Health{}, Power{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	filter := ecs.Contains(Health{})
 	componentFilter, err := filter.ConvertToComponentFilter(world)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	roManager := manager.ToReadOnly()
 
@@ -201,7 +204,7 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 	assert.Equal(t, 0, len(archetypeIter.Values))
 
 	// Commit the archetypes to the DB
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
 	// Exactly 2 archetypes contain the Health component
 	archetypeIter = roManager.SearchFrom(componentFilter, 0)

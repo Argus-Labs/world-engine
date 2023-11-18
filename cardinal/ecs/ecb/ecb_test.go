@@ -2,7 +2,9 @@ package ecb_test
 
 import (
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -36,8 +38,8 @@ func newCmdBufferAndRedisClientForTest(t *testing.T, client *redis.Client) (*ecb
 		client = redis.NewClient(&options)
 	}
 	manager, err := ecb.NewManager(client)
-	assert.NilError(t, err)
-	assert.NilError(t, manager.RegisterComponents(allComponents))
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, manager.RegisterComponents(allComponents))
 	return manager, client
 }
 
@@ -74,20 +76,20 @@ func TestCanCreateEntityAndSetComponent(t *testing.T) {
 	wantValue := Foo{99}
 
 	id, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = manager.GetComponentForEntity(fooComp, id)
-	assert.NilError(t, err)
-	assert.NilError(t, manager.SetComponentForEntity(fooComp, id, wantValue))
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, manager.SetComponentForEntity(fooComp, id, wantValue))
 	gotValue, err := manager.GetComponentForEntity(fooComp, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, wantValue, gotValue)
 
 	// Commit the pending changes
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
 	// Data should not change after a successful commit
 	gotValue, err = manager.GetComponentForEntity(fooComp, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, wantValue, gotValue)
 }
 
@@ -96,27 +98,27 @@ func TestDiscardedComponentChangeRevertsToOriginalValue(t *testing.T) {
 	wantValue := Foo{99}
 
 	id, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
-	assert.NilError(t, manager.SetComponentForEntity(fooComp, id, wantValue))
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, manager.SetComponentForEntity(fooComp, id, wantValue))
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
 	// Verify the component is what we expect
 	gotValue, err := manager.GetComponentForEntity(fooComp, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, wantValue, gotValue)
 
 	badValue := Foo{666}
-	assert.NilError(t, manager.SetComponentForEntity(fooComp, id, badValue))
+	testutils.AssertNilErrorWithTrace(t, manager.SetComponentForEntity(fooComp, id, badValue))
 	// The (pending) value should be in the 'bad' state
 	gotValue, err = manager.GetComponentForEntity(fooComp, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, badValue, gotValue)
 
 	// Calling LayerDiscard will discard all changes since the last Layer* call
 	manager.DiscardPending()
 	// The value should not be the original 'wantValue'
 	gotValue, err = manager.GetComponentForEntity(fooComp, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, wantValue, gotValue)
 }
 
@@ -124,14 +126,14 @@ func TestDiscardedEntityIDsWillBeAssignedAgain(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
 	ids, err := manager.CreateManyEntities(10, fooComp)
-	assert.NilError(t, err)
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, err)
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 	// This is the next ID we should expect to be assigned
 	nextID := ids[len(ids)-1] + 1
 
 	// Create a new entity. It should have nextID as the ID
 	gotID, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, nextID, gotID)
 	// But uhoh, there's a problem. Returning an error here means the entity creation
 	// will be undone
@@ -140,24 +142,24 @@ func TestDiscardedEntityIDsWillBeAssignedAgain(t *testing.T) {
 	// Create an entity again. We should get nextID assigned again.
 	// Create a new entity. It should have nextID as the ID
 	gotID, err = manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, nextID, gotID)
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
 	// Now that nextID has been assigned, creating a new entity should give us a new entity ID
 	gotID, err = manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, gotID, nextID+1)
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 }
 
 func TestCanGetComponentsForEntity(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	id, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	comps, err := manager.GetComponentTypesForEntity(id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, len(comps))
 	assert.Equal(t, comps[0].ID(), fooComp.ID())
 }
@@ -172,14 +174,14 @@ func TestComponentSetsCanBeDiscarded(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
 	firstID, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	comps, err := manager.GetComponentTypesForEntity(firstID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, len(comps))
 	assert.Equal(t, comps[0].ID(), fooComp.ID())
 	// Discard this entity creation
 	firstArchID, err := manager.GetArchIDForComponents(comps)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	// Discard the above changes
 	manager.DiscardPending()
@@ -187,16 +189,16 @@ func TestComponentSetsCanBeDiscarded(t *testing.T) {
 	// Repeat the above operation. We should end up with the same entity ID, and it should
 	// end up containing a different set of components
 	gotID, err := manager.CreateEntity(fooComp, barComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	// The assigned entity ID should be reused
 	assert.Equal(t, gotID, firstID)
 	comps, err = manager.GetComponentTypesForEntity(gotID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 2, len(comps))
 	assert.Equal(t, comps[0].ID(), fooComp.ID())
 
 	gotArchID, err := manager.GetArchIDForComponents(comps)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	// The archetype ID should be reused
 	assert.Equal(t, firstArchID, gotArchID)
 }
@@ -204,7 +206,7 @@ func TestComponentSetsCanBeDiscarded(t *testing.T) {
 func TestCannotGetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	id, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	// barComp has not been assigned to this entity
 	_, err = manager.GetComponentForEntity(barComp, id)
 	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
@@ -213,7 +215,7 @@ func TestCannotGetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	id, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	// barComp has not been assigned to this entity
 	err = manager.SetComponentForEntity(barComp, id, Bar{100})
 	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
@@ -222,7 +224,7 @@ func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	id, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	err = manager.RemoveComponentFromEntity(barComp, id)
 	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 }
@@ -231,17 +233,17 @@ func TestCanAddAComponentToAnEntity(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
 	id, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	comps, err := manager.GetComponentTypesForEntity(id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, len(comps))
 	assert.Equal(t, comps[0].ID(), fooComp.ID())
 	// Commit this entity creation
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 
-	assert.NilError(t, manager.AddComponentToEntity(barComp, id))
+	testutils.AssertNilErrorWithTrace(t, manager.AddComponentToEntity(barComp, id))
 	comps, err = manager.GetComponentTypesForEntity(id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 2, len(comps))
 	assert.Equal(t, comps[0].ID(), fooComp.ID())
 	assert.Equal(t, comps[1].ID(), barComp.ID())
@@ -250,16 +252,16 @@ func TestCanAddAComponentToAnEntity(t *testing.T) {
 func TestCanRemoveAComponentFromAnEntity(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	id, err := manager.CreateEntity(fooComp, barComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	comps, err := manager.GetComponentTypesForEntity(id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 2, len(comps))
 
-	assert.NilError(t, manager.RemoveComponentFromEntity(fooComp, id))
+	testutils.AssertNilErrorWithTrace(t, manager.RemoveComponentFromEntity(fooComp, id))
 	// Only the barComp should be left
 	comps, err = manager.GetComponentTypesForEntity(id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, len(comps))
 	assert.Equal(t, comps[0].ID(), barComp.ID())
 }
@@ -267,7 +269,7 @@ func TestCanRemoveAComponentFromAnEntity(t *testing.T) {
 func TestCannotAddComponentToEntityThatAlreadyHasTheComponent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	id, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	err = manager.AddComponentToEntity(fooComp, id)
 	assert.ErrorIs(t, err, storage.ErrComponentAlreadyOnEntity)
@@ -292,18 +294,18 @@ func (Power) Name() string {
 func TestStorageCanBeUsedInQueries(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
-	world := testutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Instance()
-	assert.NilError(t, ecs.RegisterComponent[Health](world))
-	assert.NilError(t, ecs.RegisterComponent[Power](world))
-	assert.NilError(t, world.LoadGameState())
+	world := cardinaltestutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Health](world))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[Power](world))
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	justHealthIDs, err := component.CreateMany(wCtx, 8, Health{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	justPowerIDs, err := component.CreateMany(wCtx, 9, Power{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	healthAndPowerIDs, err := component.CreateMany(wCtx, 10, Health{}, Power{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	testCases := []struct {
 		filter  ecs.Filterable
@@ -335,12 +337,12 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		found := map[entity.ID]bool{}
 		var q *ecs.Search
 		q, err = world.NewSearch(tc.filter)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		err = q.Each(wCtx, func(id entity.ID) bool {
 			found[id] = true
 			return true
 		})
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		assert.Equal(t, len(tc.wantIDs), len(found))
 		for _, id := range tc.wantIDs {
 			assert.Check(t, found[id], "id is missing from query result")
@@ -352,21 +354,21 @@ func TestEntityCanBeRemoved(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
 	ids, err := manager.CreateManyEntities(10, fooComp, barComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 10, len(ids))
 	for i := range ids {
 		if i%2 == 0 {
-			assert.NilError(t, manager.RemoveEntity(ids[i]))
+			testutils.AssertNilErrorWithTrace(t, manager.RemoveEntity(ids[i]))
 		}
 	}
 
 	comps, err := manager.GetComponentTypesForEntity(ids[1])
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	archID, err := manager.GetArchIDForComponents(comps)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	gotIDs, err := manager.GetEntitiesForArchID(archID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 5, len(gotIDs))
 
 	// Only the ids at odd indices should be findable
@@ -374,7 +376,7 @@ func TestEntityCanBeRemoved(t *testing.T) {
 		valid := i%2 == 1
 		_, err = manager.GetComponentTypesForEntity(id)
 		if valid {
-			assert.NilError(t, err)
+			testutils.AssertNilErrorWithTrace(t, err)
 		} else {
 			assert.Check(t, err != nil)
 		}
@@ -385,31 +387,31 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
 	id, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	startEntityCount := 10
 	_, err = manager.CreateManyEntities(startEntityCount, fooComp, barComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	fooArchID, err := manager.GetArchIDForComponents([]metadata.ComponentMetadata{fooComp})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	bothArchID, err := manager.GetArchIDForComponents([]metadata.ComponentMetadata{barComp, fooComp})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	// Make sure there are the correct number of ids in each archetype to start
 	ids, err := manager.GetEntitiesForArchID(fooArchID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, len(ids))
 	ids, err = manager.GetEntitiesForArchID(bothArchID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, startEntityCount, len(ids))
 
-	assert.NilError(t, manager.AddComponentToEntity(barComp, id))
+	testutils.AssertNilErrorWithTrace(t, manager.AddComponentToEntity(barComp, id))
 
 	ids, err = manager.GetEntitiesForArchID(fooArchID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 0, len(ids))
 	ids, err = manager.GetEntitiesForArchID(bothArchID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, startEntityCount+1, len(ids))
 
 	// make sure the target id is in the new list of ids.
@@ -423,12 +425,12 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 	assert.Check(t, found)
 
 	// Also make sure we can remove the archetype
-	assert.NilError(t, manager.RemoveComponentFromEntity(barComp, id))
+	testutils.AssertNilErrorWithTrace(t, manager.RemoveComponentFromEntity(barComp, id))
 	ids, err = manager.GetEntitiesForArchID(fooArchID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, len(ids))
 	ids, err = manager.GetEntitiesForArchID(bothArchID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, startEntityCount, len(ids))
 
 	// Make sure the target id is NOT in the 'both' group
@@ -444,41 +446,41 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 func TestCanGetArchetypeCount(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	_, err := manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, manager.ArchetypeCount())
 
 	// This archetype has already been created, so it shouldn't change the count
 	_, err = manager.CreateEntity(fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, manager.ArchetypeCount())
 
 	_, err = manager.CreateEntity(barComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 2, manager.ArchetypeCount())
 
 	_, err = manager.CreateEntity(fooComp, barComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 3, manager.ArchetypeCount())
 }
 
 func TestClearComponentWhenAnEntityMovesAwayFromAnArchetypeThenBackToTheArchetype(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	id, err := manager.CreateEntity(fooComp, barComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	startValue := Foo{100}
 
-	assert.NilError(t, manager.SetComponentForEntity(fooComp, id, startValue))
+	testutils.AssertNilErrorWithTrace(t, manager.SetComponentForEntity(fooComp, id, startValue))
 	gotValue, err := manager.GetComponentForEntity(fooComp, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, startValue, gotValue.(Foo))
 
 	// Removing fooComp, then re-adding it should zero out the component.
-	assert.NilError(t, manager.RemoveComponentFromEntity(fooComp, id))
-	assert.NilError(t, manager.AddComponentToEntity(fooComp, id))
+	testutils.AssertNilErrorWithTrace(t, manager.RemoveComponentFromEntity(fooComp, id))
+	testutils.AssertNilErrorWithTrace(t, manager.AddComponentToEntity(fooComp, id))
 
 	gotValue, err = manager.GetComponentForEntity(fooComp, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, Foo{}, gotValue.(Foo))
 }
 
@@ -491,14 +493,14 @@ func TestCannotCreateEntityWithDuplicateComponents(t *testing.T) {
 func TestOrderOfComponentsDoesNotMatterWhenCreatingEntities(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	idA, err := manager.CreateEntity(fooComp, barComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	idB, err := manager.CreateEntity(barComp, fooComp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	compsA, err := manager.GetComponentTypesForEntity(idA)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	compsB, err := manager.GetComponentTypesForEntity(idB)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	assert.Equal(t, len(compsA), len(compsB))
 	for i := range compsA {
@@ -517,12 +519,12 @@ func TestCannotSaveStateBeforeRegisteringComponents(t *testing.T) {
 
 	client := redis.NewClient(&options)
 	manager, err := ecb.NewManager(client)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	// RegisterComponents must be called before attempting to save the state
 	err = manager.CommitPending()
 	assert.Check(t, err != nil)
 
-	assert.NilError(t, manager.RegisterComponents(allComponents))
-	assert.NilError(t, manager.CommitPending())
+	testutils.AssertNilErrorWithTrace(t, manager.RegisterComponents(allComponents))
+	testutils.AssertNilErrorWithTrace(t, manager.CommitPending())
 }

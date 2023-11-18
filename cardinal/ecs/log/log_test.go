@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"testing"
 	"time"
@@ -13,11 +12,13 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 type SendEnergyTx struct {
@@ -63,7 +64,7 @@ func testSystemWarningTrigger(wCtx ecs.WorldContext) error {
 }
 
 func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
@@ -79,7 +80,7 @@ func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
 }
 
 func TestWorldLogger(t *testing.T) {
-	w := testutils.NewTestWorld(t).Instance()
+	w := cardinaltestutils.NewTestWorld(t).Instance()
 
 	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
@@ -92,8 +93,8 @@ func TestWorldLogger(t *testing.T) {
 	}
 	w.InjectLogger(&cardinalLogger)
 	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	assert.NilError(t, w.RegisterMessages(alphaTx))
-	assert.NilError(t, ecs.RegisterComponent[EnergyComp](w))
+	testutils.AssertNilErrorWithTrace(t, w.RegisterMessages(alphaTx))
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[EnergyComp](w))
 	cardinalLogger.LogWorld(w, zerolog.InfoLevel)
 	jsonWorldInfoString := `{
 					"level":"info",
@@ -120,14 +121,14 @@ func TestWorldLogger(t *testing.T) {
 	require.JSONEq(t, jsonWorldInfoString, buf.String())
 	buf.Reset()
 	energy, err := w.GetComponentByName(EnergyComp{}.Name())
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	components := []metadata.ComponentMetadata{energy}
 	wCtx := ecs.NewWorldContext(w)
 	w.RegisterSystem(testSystemWarningTrigger)
 	err = w.LoadGameState()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	entityID, err := component.Create(wCtx, EnergyComp{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `
 			{
@@ -149,7 +150,7 @@ func TestWorldLogger(t *testing.T) {
 
 	// test log entity
 	archetypeID, err := w.StoreManager().GetArchIDForComponents(components)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	cardinalLogger.LogEntity(zerolog.DebugLevel, entityID, archetypeID, components)
 	jsonEntityInfoString := `
 		{
@@ -170,7 +171,7 @@ func TestWorldLogger(t *testing.T) {
 
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
 	err = w.Tick(ctx)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	logStrings = strings.Split(buf.String(), "\n")[:4]
 	// test tick start
 	require.JSONEq(t, `
@@ -237,7 +238,7 @@ func TestWorldLogger(t *testing.T) {
 	// testing log output for the creation of two entities.
 	buf.Reset()
 	_, err = component.CreateMany(wCtx, 2, EnergyComp{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(t, `
 			{

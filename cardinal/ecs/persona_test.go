@@ -3,11 +3,12 @@ package ecs_test
 import (
 	"context"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/sign"
 
 	"gotest.tools/v3/assert"
@@ -17,8 +18,8 @@ import (
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	// Verify that the CreatePersona is automatically created and registered with a world.
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.LoadGameState())
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wantTag := "CoolMage"
 	wantAddress := "123-456"
@@ -34,32 +35,32 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	})
 
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	testutils.AssertNilErrorWithTrace(t, world.Tick(context.Background()))
 
 	count := 0
 	wCtx := ecs.NewWorldContext(world)
 	q, err := wCtx.NewSearch(ecs.Exact(ecs.SignerComponent{}))
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		sc, err := component.GetComponent[ecs.SignerComponent](wCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantAddress)
 		return true
 	})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 1, count)
 }
 
 func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.LoadGameState())
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 	ctx := context.Background()
 
 	// Tick the game forward a bit to simulate a game that has been running for a bit of time.
 	for i := 0; i < 10; i++ {
-		assert.NilError(t, world.Tick(ctx))
+		testutils.AssertNilErrorWithTrace(t, world.Tick(ctx))
 	}
 
 	_, err := world.GetSignerForPersonaTag("missing_persona", 1)
@@ -78,16 +79,16 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	_, err = world.GetSignerForPersonaTag(personaTag, tick)
 	assert.ErrorIs(t, err, ecs.ErrCreatePersonaTxsNotProcessed)
 
-	assert.NilError(t, world.Tick(ctx))
+	testutils.AssertNilErrorWithTrace(t, world.Tick(ctx))
 	// The CreatePersona has now been processed
 	addr, err := world.GetSignerForPersonaTag(personaTag, tick)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, addr, signerAddress)
 }
 
 func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.LoadGameState())
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	personaTag := "jeff"
 
@@ -101,10 +102,10 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 	tick := world.CurrentTick()
 
 	ctx := context.Background()
-	assert.NilError(t, world.Tick(ctx))
+	testutils.AssertNilErrorWithTrace(t, world.Tick(ctx))
 
 	addr, err := world.GetSignerForPersonaTag(personaTag, tick)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	// Only the first address should be associated with the user
 	assert.Equal(t, addr, "address-0")
 
@@ -115,17 +116,17 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 		SignerAddress: "some-other-address",
 	})
 
-	assert.NilError(t, world.Tick(ctx))
+	testutils.AssertNilErrorWithTrace(t, world.Tick(ctx))
 	addr, err = world.GetSignerForPersonaTag(personaTag, tick)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	// The saved address should be unchanged
 	assert.Equal(t, addr, "address-0")
 }
 
 func TestCanAuthorizeAddress(t *testing.T) {
 	// Verify that the CreatePersona is automatically created and registered with a world.
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.LoadGameState())
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	wantTag := "CoolMage"
 	wantSigner := "123-456"
@@ -139,23 +140,23 @@ func TestCanAuthorizeAddress(t *testing.T) {
 		Address: wantAddr,
 	}, &sign.Transaction{PersonaTag: wantTag})
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	testutils.AssertNilErrorWithTrace(t, world.Tick(context.Background()))
 
 	count := 0
 	q, err := world.NewSearch(ecs.Exact(ecs.SignerComponent{}))
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	wCtx := ecs.NewWorldContext(world)
 	err = q.Each(wCtx, func(id entity.ID) bool {
 		count++
 		sc, err := component.GetComponent[ecs.SignerComponent](wCtx, id)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		assert.Equal(t, sc.PersonaTag, wantTag)
 		assert.Equal(t, sc.SignerAddress, wantSigner)
 		assert.Equal(t, len(sc.AuthorizedAddresses), 1)
 		assert.Equal(t, sc.AuthorizedAddresses[0], wantAddr)
 		return true
 	})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	// verify that the query was even ran. if for some reason there were no SignerComponents in the state,
 	// this test would still pass (false positive).
 	assert.Equal(t, count, 1)

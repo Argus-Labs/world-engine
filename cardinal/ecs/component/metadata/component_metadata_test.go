@@ -1,13 +1,14 @@
 package metadata_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"gotest.tools/v3/assert"
 
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
@@ -40,14 +41,14 @@ func TestComponentInterfaceSignature(t *testing.T) {
 }
 
 func TestComponents(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := cardinaltestutils.NewTestWorld(t).Instance()
 	ecs.MustRegisterComponent[ComponentDataA](world)
 	ecs.MustRegisterComponent[ComponentDataB](world)
 
 	ca, err := world.GetComponentByName("a")
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	cb, err := world.GetComponentByName("b")
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	tests := []*struct {
 		comps    []metadata.ComponentMetadata
@@ -72,10 +73,10 @@ func TestComponents(t *testing.T) {
 	storeManager := world.StoreManager()
 	for _, tt := range tests {
 		entityID, err := storeManager.CreateEntity(tt.comps...)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		tt.entityID = entityID
 		tt.archID, err = storeManager.GetArchIDForComponents(tt.comps)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 	}
 
 	for _, tt := range tests {
@@ -86,15 +87,15 @@ func TestComponents(t *testing.T) {
 				t.Errorf("the archetype ID %d should contain the component %d", tt.archID, comp.ID())
 			}
 			iface, err := storeManager.GetComponentForEntity(comp, tt.entityID)
-			assert.NilError(t, err)
+			testutils.AssertNilErrorWithTrace(t, err)
 
 			switch component := iface.(type) {
 			case ComponentDataA:
 				component.Value = tt.Value
-				assert.NilError(t, storeManager.SetComponentForEntity(ca, tt.entityID, component))
+				testutils.AssertNilErrorWithTrace(t, storeManager.SetComponentForEntity(ca, tt.entityID, component))
 			case ComponentDataB:
 				component.Value = tt.Value
-				assert.NilError(t, storeManager.SetComponentForEntity(cb, tt.entityID, component))
+				testutils.AssertNilErrorWithTrace(t, storeManager.SetComponentForEntity(cb, tt.entityID, component))
 			default:
 				assert.Check(t, false, "unknown component type: %v", iface)
 			}
@@ -106,24 +107,24 @@ func TestComponents(t *testing.T) {
 	srcArchIdx := target.archID
 	var dstArchIdx archetype.ID = 1
 
-	assert.NilError(t, storeManager.AddComponentToEntity(cb, target.entityID))
+	testutils.AssertNilErrorWithTrace(t, storeManager.AddComponentToEntity(cb, target.entityID))
 
 	gotComponents, err := storeManager.GetComponentTypesForEntity(target.entityID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	gotArchID, err := storeManager.GetArchIDForComponents(gotComponents)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Check(t, gotArchID != srcArchIdx, "the archetype ID should be different after adding a component")
 
 	gotIDs, err := storeManager.GetEntitiesForArchID(srcArchIdx)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 0, len(gotIDs), "there should be no entities in the archetype ID %d", srcArchIdx)
 
 	gotIDs, err = storeManager.GetEntitiesForArchID(dstArchIdx)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 2, len(gotIDs), "there should be 2 entities in the archetype ID %d", dstArchIdx)
 
 	iface, err := storeManager.GetComponentForEntity(ca, target.entityID)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	got, ok := iface.(ComponentDataA)
 	assert.Check(t, ok, "component %v is of wrong type", iface)
@@ -142,13 +143,13 @@ func (notFoundComp) Name() string {
 }
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := cardinaltestutils.NewTestWorld(t).Instance()
 	ecs.MustRegisterComponent[foundComp](world)
 	ecs.MustRegisterComponent[notFoundComp](world)
 
 	wCtx := ecs.NewWorldContext(world)
 	id, err := component.Create(wCtx, foundComp{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = component.GetComponent[notFoundComp](wCtx, id)
 	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 }
@@ -162,23 +163,23 @@ func (ValueComponent) Name() string {
 }
 
 func TestMultipleCallsToCreateSupported(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[ValueComponent](world))
+	world := cardinaltestutils.NewTestWorld(t).Instance()
+	testutils.AssertNilErrorWithTrace(t, ecs.RegisterComponent[ValueComponent](world))
 
 	wCtx := ecs.NewWorldContext(world)
 	id, err := component.Create(wCtx, ValueComponent{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
-	assert.NilError(t, component.SetComponent[ValueComponent](wCtx, id, &ValueComponent{99}))
+	testutils.AssertNilErrorWithTrace(t, component.SetComponent[ValueComponent](wCtx, id, &ValueComponent{99}))
 
 	val, err := component.GetComponent[ValueComponent](wCtx, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 99, val.Val)
 
 	_, err = component.Create(wCtx, ValueComponent{})
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	val, err = component.GetComponent[ValueComponent](wCtx, id)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, 99, val.Val)
 }

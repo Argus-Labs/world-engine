@@ -3,14 +3,17 @@ package ecs_test
 import (
 	"context"
 	"encoding/binary"
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"sort"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"google.golang.org/protobuf/proto"
 	"gotest.tools/v3/assert"
+
 	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 
 	"github.com/cometbft/cometbft/libs/rand"
@@ -93,10 +96,10 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	// setup world and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
-	w := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
+	w := cardinaltestutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
 	sendEnergyTx := ecs.NewMessageType[SendEnergyMsg, SendEnergyResult]("send_energy")
 	err := w.RegisterMessages(sendEnergyTx)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	sysRuns := uint64(0)
 	timesSendEnergyRan := 0
@@ -116,13 +119,13 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		payload := generateRandomTransaction(t, namespace, sendEnergyTx)
 		payloads = append(payloads, payload)
 		err = adapter.Submit(ctx, payload, uint64(sendEnergyTx.ID()), uint64(i+i)) // final tick should be 10+10 = 20
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 	}
 
 	err = w.LoadGameState()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	err = w.RecoverFromChain(ctx)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, finalTick, w.CurrentTick()-1) // the current tick should be 1 minus the last tick processed.
 	assert.Equal(t, sysRuns, w.CurrentTick())
 	assert.Equal(t, len(payloads), timesSendEnergyRan)
@@ -135,7 +138,7 @@ func generateRandomTransaction(t *testing.T, ns string, msg message.Message) *si
 		Amount: rand.Uint64(),
 	}
 	bz, err := msg.Encode(tx1)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	return &sign.Transaction{
 		PersonaTag: rand.Str(5),
 		Namespace:  ns,
@@ -148,9 +151,9 @@ func generateRandomTransaction(t *testing.T, ns string, msg message.Message) *si
 func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
 	ctx := context.Background()
 	adapter := &DummyAdapter{}
-	w := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
-	assert.NilError(t, w.LoadGameState())
-	assert.NilError(t, w.Tick(ctx))
+	w := cardinaltestutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
+	testutils.AssertNilErrorWithTrace(t, w.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, w.Tick(ctx))
 
 	err := w.RecoverFromChain(ctx)
 	assert.ErrorContains(t, err, "world recovery should not occur in a world with existing state")

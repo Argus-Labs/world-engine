@@ -9,26 +9,27 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 func TestCanSignAndVerifyPayload(t *testing.T) {
 	goodKey, err := crypto.GenerateKey()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	badKey, err := crypto.GenerateKey()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	wantBody := `{"msg": "this is a request body"}`
 	wantPersonaTag := "my-tag"
 	wantNamespace := "my-namespace"
 	wantNonce := uint64(100)
 
 	sp, err := NewTransaction(goodKey, wantPersonaTag, wantNamespace, wantNonce, wantBody)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	buf, err := sp.Marshal()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	toBeVerified, err := UnmarshalTransaction(buf)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	goodAddressHex := crypto.PubkeyToAddress(goodKey.PublicKey).Hex()
 	badAddressHex := crypto.PubkeyToAddress(badKey.PublicKey).Hex()
@@ -36,10 +37,10 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	assert.Equal(t, toBeVerified.PersonaTag, wantPersonaTag)
 	assert.Equal(t, toBeVerified.Namespace, wantNamespace)
 	assert.Equal(t, toBeVerified.Nonce, wantNonce)
-	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
+	testutils.AssertNilErrorWithTrace(t, toBeVerified.Verify(goodAddressHex))
 	// Make sure an empty hash is regenerated
 	toBeVerified.Hash = common.Hash{}
-	assert.NilError(t, toBeVerified.Verify(goodAddressHex))
+	testutils.AssertNilErrorWithTrace(t, toBeVerified.Verify(goodAddressHex))
 
 	// Verify signature verification can fail
 	errorWithStackTrace := toBeVerified.Verify(badAddressHex)
@@ -49,35 +50,35 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 
 func TestCanParseAMappedTransaction(t *testing.T) {
 	goodKey, err := crypto.GenerateKey()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	body := `{"msg": "this is a request body"}`
 	personaTag := "my-tag"
 	namespace := "my-namespace"
 	nonce := uint64(100)
 
 	sp, err := NewTransaction(goodKey, personaTag, namespace, nonce, body)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	bz, err := json.Marshal(sp)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	asMap := map[string]any{}
-	assert.NilError(t, json.Unmarshal(bz, &asMap))
+	testutils.AssertNilErrorWithTrace(t, json.Unmarshal(bz, &asMap))
 
 	gotSP, err := MappedTransaction(asMap)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	assert.DeepEqual(t, sp, gotSP)
 }
 
 func TestCanGetHashHex(t *testing.T) {
 	goodKey, err := crypto.GenerateKey()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	wantBody := `{"msg": "this is a request body"}`
 	wantPersonaTag := "my-tag"
 	wantNamespace := "my-namespace"
 	wantNonce := uint64(100)
 
 	sp, err := NewTransaction(goodKey, wantPersonaTag, wantNamespace, wantNonce, wantBody)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	wantHash := sp.HashHex()
 
 	sp.Hash = common.Hash{}
@@ -88,24 +89,24 @@ func TestCanGetHashHex(t *testing.T) {
 
 func TestIsSignedSystemPayload(t *testing.T) {
 	goodKey, err := crypto.GenerateKey()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	body := `{"msg": "this is a request body"}`
 	personaTag := "my-tag"
 	namespace := "my-namespace"
 	nonce := uint64(100)
 
 	sp, err := NewTransaction(goodKey, personaTag, namespace, nonce, body)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Check(t, !sp.IsSystemTransaction())
 
 	sp, err = NewSystemTransaction(goodKey, namespace, nonce, body)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Check(t, sp.IsSystemTransaction())
 }
 
 func TestFailsIfFieldsMissing(t *testing.T) {
 	goodKey, err := crypto.GenerateKey()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	testCases := []struct {
 		name    string
@@ -164,19 +165,19 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 				assert.ErrorIs(t, tc.expErr, err)
 				return
 			}
-			assert.NilError(t, err, "in test case %q", tc.name)
+			testutils.AssertNilErrorWithTrace(t, err, "in test case %q", tc.name)
 			var bz []byte
 			bz, err = payload.Marshal()
-			assert.NilError(t, err)
+			testutils.AssertNilErrorWithTrace(t, err)
 			_, err = UnmarshalTransaction(bz)
-			assert.NilError(t, err)
+			testutils.AssertNilErrorWithTrace(t, err)
 		})
 	}
 }
 
 func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
 	key, err := crypto.GenerateKey()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	type SomeStruct struct {
 		Str string
@@ -196,15 +197,15 @@ func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
 	for _, tc := range testCases {
 		var sp *Transaction
 		sp, err = NewTransaction(key, "coolmage", "world", 100, tc)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		var buf []byte
 		buf, err = sp.Marshal()
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		var gotSP *Transaction
 		gotSP, err = UnmarshalTransaction(buf)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		var gotStruct SomeStruct
-		assert.NilError(t, json.Unmarshal(gotSP.Body, &gotStruct))
+		testutils.AssertNilErrorWithTrace(t, json.Unmarshal(gotSP.Body, &gotStruct))
 		assert.Equal(t, "a-string", gotStruct.Str)
 		assert.Equal(t, 99, gotStruct.Num)
 	}
@@ -212,7 +213,7 @@ func TestStringsBytesAndStructsCanBeSigned(t *testing.T) {
 
 func TestRejectInvalidSignatures(t *testing.T) {
 	key, err := crypto.GenerateKey()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	type Payload struct {
 		Value int
 	}
@@ -240,12 +241,12 @@ func TestRejectSignatureWithExtraField(t *testing.T) {
 	}
 
 	bz, err := json.Marshal(data)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = UnmarshalTransaction(bz)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	data["extra_field"] = "hello"
 	bz, err = json.Marshal(data)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = UnmarshalTransaction(bz)
 	assert.Check(t, err != nil)
 
@@ -264,9 +265,9 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 
 	// Make sure the valid data can actually be unmarshalled
 	bz, err := json.Marshal(validData)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = UnmarshalTransaction(bz)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	fieldsToOmit := []string{"personaTag", "namespace", "signature", "body"}
 
@@ -283,7 +284,7 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 		currData := copyValidData()
 		delete(currData, field)
 		bz, err = json.Marshal(currData)
-		assert.NilError(t, err)
+		testutils.AssertNilErrorWithTrace(t, err)
 		_, err = UnmarshalTransaction(bz)
 		assert.Check(t, err != nil, "in UnmarshalTransaction want error when field %q is missing", field)
 
@@ -294,7 +295,7 @@ func TestRejectBadSerializedSignatures(t *testing.T) {
 
 func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
 	key, err := crypto.GenerateKey()
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	// This is valid JSON, however the fields are not sorted. The hash for this body will be different from a
 	// hash generated from a swagger endpoint (because the body becomes a map[string]any{}). This test ensures
@@ -305,7 +306,7 @@ func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
 				}`
 
 	tx, err := NewTransaction(key, "persona-tag", "namespace", 100, bodyStr)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 
 	body := map[string]any{
 		"alpha": 1,
@@ -320,8 +321,8 @@ func TestUnsortedJSONBlobsCanBeSignedAndVerified(t *testing.T) {
 		"body":       body,
 	}
 	gotTx, err := MappedTransaction(dataAsMap)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	addr := crypto.PubkeyToAddress(key.PublicKey).Hex()
 
-	assert.NilError(t, gotTx.Verify(addr))
+	testutils.AssertNilErrorWithTrace(t, gotTx.Verify(addr))
 }

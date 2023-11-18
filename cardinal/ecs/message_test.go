@@ -7,14 +7,15 @@ import (
 
 	"gotest.tools/v3/assert"
 
+	"pkg.world.dev/world-engine/cardinal/cardinaltestutils"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/ecstestutils"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 func TestForEachTransaction(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := cardinaltestutils.NewTestWorld(t).Instance()
 	type SomeMsgRequest struct {
 		GenerateError bool
 	}
@@ -23,7 +24,7 @@ func TestForEachTransaction(t *testing.T) {
 	}
 
 	someMsg := ecs.NewMessageType[SomeMsgRequest, SomeMsgResponse]("some_msg")
-	assert.NilError(t, world.RegisterMessages(someMsg))
+	testutils.AssertNilErrorWithTrace(t, world.RegisterMessages(someMsg))
 
 	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
 		someMsg.Each(wCtx, func(t ecs.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
@@ -36,22 +37,22 @@ func TestForEachTransaction(t *testing.T) {
 		})
 		return nil
 	})
-	assert.NilError(t, world.LoadGameState())
+	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())
 
 	// Add 10 transactions to the tx queue and keep track of the hashes that we just created
 	knownTxHashes := map[message.TxHash]SomeMsgRequest{}
 	for i := 0; i < 10; i++ {
 		req := SomeMsgRequest{GenerateError: i%2 == 0}
-		txHash := someMsg.AddToQueue(world, req, testutil.UniqueSignature(t))
+		txHash := someMsg.AddToQueue(world, req, ecstestutils.UniqueSignature(t))
 		knownTxHashes[txHash] = req
 	}
 
 	// Perform a world tick
-	assert.NilError(t, world.Tick(context.Background()))
+	testutils.AssertNilErrorWithTrace(t, world.Tick(context.Background()))
 
 	// Verify the receipts for the previous tick are what we expect
 	receipts, err := world.GetTransactionReceiptsForTick(world.CurrentTick() - 1)
-	assert.NilError(t, err)
+	testutils.AssertNilErrorWithTrace(t, err)
 	assert.Equal(t, len(knownTxHashes), len(receipts))
 	for _, receipt := range receipts {
 		request, ok := knownTxHashes[receipt.TxHash]
