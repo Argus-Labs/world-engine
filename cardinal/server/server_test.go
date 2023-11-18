@@ -610,7 +610,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-func TestSigVerificationChecksNamespace(t *testing.T) {
+func TestSigVerificationChecksNamespaceAndSignature(t *testing.T) {
 	url := "tx/persona/create-persona"
 	w := testutils.NewTestWorld(t)
 	world := w.Instance()
@@ -637,14 +637,42 @@ func TestSigVerificationChecksNamespace(t *testing.T) {
 	// This should fail because the namespace does not match the world's namespace
 	assert.Equal(t, resp.StatusCode, 401)
 
+	sigPayload.Namespace = ""
+	bz, err = sigPayload.Marshal()
+	assert.NilError(t, err)
+	resp, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+	// This should fail because the namespace field was empty
+	assert.Equal(t, resp.StatusCode, 401)
+
 	// The namespace now matches the world
 	sigPayload, err = sign.NewSystemTransaction(privateKey, world.Namespace().String(), 100, createPersonaTx)
 	assert.NilError(t, err)
+
+	validSignature := sigPayload.Signature
+	sigPayload.Signature = ""
+	bz, err = sigPayload.Marshal()
+	assert.NilError(t, err)
+	resp, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+	// This should fail because the signature field is empty
+	assert.Equal(t, resp.StatusCode, 401)
+
+	sigPayload.Signature = "this is not a good signature"
+	bz, err = sigPayload.Marshal()
+	assert.NilError(t, err)
+	resp, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+	assert.NilError(t, err)
+	// This should fail because the signature field is wrong
+	assert.Equal(t, resp.StatusCode, 401)
+
+	sigPayload.Signature = validSignature
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
 	resp, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
+
 	txh.Close()
 }
 
@@ -1163,6 +1191,66 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.Equal(t, adapter.called, 2)
+}
+
+func TestEmptyFieldsAreOKForDisabledSignatureVerification(t *testing.T) {
+	w := testutils.NewTestWorld(t).Instance()
+
+	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("sendTx")
+	assert.NilError(t, w.RegisterMessages(sendTx))
+	assert.NilError(t, w.LoadGameState())
+
+	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	defer txh.Close()
+
+	tx := SendEnergyTx{
+		From:   "me",
+		To:     "you",
+		Amount: 999,
+	}
+	bz, err := json.Marshal(tx)
+	assert.NilError(t, err)
+	payload := &sign.Transaction{
+		PersonaTag: "meow",
+		Namespace:  w.Namespace().String(),
+		Nonce:      40,
+		Signature:  "doesnt matter what goes in here",
+		Body:       bz,
+	}
+
+	verifyTransaction := func(name string) {
+		bz, err = json.Marshal(payload)
+		assert.NilError(t, err)
+		resp, err := http.Post(txh.MakeHTTPURL("tx/game/sendTx"), "application/json", bytes.NewReader(bz))
+		assert.NilError(t, err)
+		assert.Equal(t, 200, resp.StatusCode, "in %q request failed with body: %v", name, mustReadBody(t, resp))
+	}
+
+	// Verify the unmodified payload works just fine
+	verifyTransaction("happy path")
+
+	// Verify we can have an empty namespace
+	payload.Namespace = ""
+	verifyTransaction("empty namespace")
+
+	// Verify including the wrong namespace is ok
+	payload.Namespace = w.Namespace().String() + "-wrong-namespace"
+	verifyTransaction("wrong namespace")
+	payload.Namespace = w.Namespace().String()
+
+	// verify an empty signature is ok
+	payload.Signature = ""
+	verifyTransaction("empty signature")
+	payload.Signature = "some signature"
+
+	payload.Nonce = 0
+	verifyTransaction("zero nonce")
+	payload.Nonce = 40
+
+	payload.Namespace = ""
+	payload.Signature = ""
+	payload.Nonce = 0
+	verifyTransaction("empty everything")
 }
 
 func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {

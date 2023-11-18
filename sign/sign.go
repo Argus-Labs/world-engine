@@ -229,6 +229,9 @@ func (s *Transaction) Verify(hexAddress string) error {
 	}
 
 	sig := common.Hex2Bytes(s.Signature)
+	if len(sig) < crypto.RecoveryIDOffset {
+		return eris.Wrap(ErrSignatureValidationFailed, "hex to bytes failed")
+	}
 	if sig[crypto.RecoveryIDOffset] == 27 || sig[crypto.RecoveryIDOffset] == 28 {
 		sig[crypto.RecoveryIDOffset] -= 27 // Transform yellow paper V from 27/28 to 0/1
 	}
