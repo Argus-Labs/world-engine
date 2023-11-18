@@ -144,7 +144,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	// Power is set to 2
 	testutils.AssertNilErrorWithTrace(t, oneWorld.Tick(context.Background()))
 	// Power is set to 3, then the System fails
-	testutils.AssertErrorIsWithTrace(t, oneWorld.Tick(context.Background())), errorSystem)
+	testutils.AssertErrorIsWithTrace(t, oneWorld.Tick(context.Background()), errorSystem)
 
 	// Set up a new world using the same storage layer
 	twoWorld := ecstestutils.InitWorldWithRedis(t, rs)
