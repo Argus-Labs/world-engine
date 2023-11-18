@@ -4,7 +4,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -104,7 +103,7 @@ func TestErrorWhenGettingReceiptsInNonFinishedTick(t *testing.T) {
 	rh := NewHistory(currTick, 5)
 
 	_, err := rh.GetReceiptsForTick(currTick)
-	testutils.AssertErrorIsWithTrace(t, ErrTickHasNotBeenProcessed, eris.Cause(err))
+	testutils.AssertErrorIsWithTrace(t, err, ErrTickHasNotBeenProcessed)
 
 	rh.NextTick()
 
@@ -146,5 +145,5 @@ func TestOldTicksAreDiscarded(t *testing.T) {
 	// should no longer be stored
 	rh.NextTick()
 	_, err := rh.GetReceiptsForTick(tickToGet)
-	testutils.AssertErrorIsWithTrace(t, ErrOldTickHasBeenDiscarded, eris.Cause(err))
+	testutils.AssertErrorIsWithTrace(t, err, ErrOldTickHasBeenDiscarded)
 }
