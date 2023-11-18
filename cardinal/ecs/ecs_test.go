@@ -310,7 +310,10 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 	wCtx := ecs.NewWorldContext(world)
 	ent, err := component.Create(wCtx, EnergyComponent{})
 	testutils.AssertNilErrorWithTrace(t, err)
-	testutils.AssertErrorIsWithTrace(t, component.AddComponentTo[EnergyComponent](wCtx, ent), storage.ErrComponentAlreadyOnEntity)
+	testutils.AssertErrorIsWithTrace(
+		t,
+		component.AddComponentTo[EnergyComponent](wCtx, ent),
+		storage.ErrComponentAlreadyOnEntity)
 }
 
 type ReactorEnergy struct {
@@ -340,7 +343,10 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 	ent, err := component.Create(wCtx, ReactorEnergy{})
 	testutils.AssertNilErrorWithTrace(t, err)
 
-	testutils.AssertErrorIsWithTrace(t, component.RemoveComponentFrom[WeaponEnergy](wCtx, ent), storage.ErrComponentNotOnEntity)
+	testutils.AssertErrorIsWithTrace(
+		t,
+		component.RemoveComponentFrom[WeaponEnergy](wCtx, ent),
+		storage.ErrComponentNotOnEntity)
 }
 
 type Foo struct{}
