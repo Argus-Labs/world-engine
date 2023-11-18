@@ -135,7 +135,9 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 	if err != nil {
 		return "", 0, err
 	}
-	defer resp.Body.Close()
+	if resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if code := resp.StatusCode; code != http.StatusOK {
 		buf, err = io.ReadAll(resp.Body)
 		return "", 0, eris.Wrapf(err, "create persona response is not 200. code %v, body: %v", code, string(buf))

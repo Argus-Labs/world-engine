@@ -9,7 +9,7 @@ import (
 
 func Move(ctx cardinal.WorldContext) error {
 	logger := ctx.Logger()
-	msg.MoveMsg.ForEach(ctx, func(mtx cardinal.TxData[msg.MoveInput]) (msg.MoveOutput, error) {
+	msg.MoveMsg.Each(ctx, func(mtx cardinal.TxData[msg.MoveInput]) (msg.MoveOutput, error) {
 		logger.Info().Msgf("got move transaction from: %s", mtx.Tx().PersonaTag)
 		playerEntityID, ok := PlayerEntityID[mtx.Tx().PersonaTag]
 		if !ok {

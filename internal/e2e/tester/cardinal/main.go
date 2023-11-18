@@ -2,21 +2,18 @@ package main
 
 import (
 	"errors"
-	"github.com/argus-labs/world-engine/example/tester/msg"
-	"log"
-	"os"
-
 	"github.com/argus-labs/world-engine/example/tester/comp"
+	"github.com/argus-labs/world-engine/example/tester/msg"
 	"github.com/argus-labs/world-engine/example/tester/query"
 	"github.com/argus-labs/world-engine/example/tester/sys"
+	"log"
+	"os"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 func main() {
-	namespace := os.Getenv("NAMESPACE")
 	options := []cardinal.WorldOption{
-		cardinal.WithNamespace(namespace),
 		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
 	}
 	if os.Getenv("ENABLE_ADAPTER") == "false" {
@@ -25,7 +22,7 @@ func main() {
 		options = append(options, cardinal.WithAdapter(setupAdapter()))
 	}
 
-	world, err := cardinal.NewWorld(os.Getenv("REDIS_ADDR"), "", options...)
+	world, err := cardinal.NewWorld(options...)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,7 +37,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = cardinal.RegisterQueries(world, query.Location)
+	err = cardinal.RegisterQuery[query.LocationRequest, query.LocationReply](world, "location", query.Location)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -37,9 +37,9 @@ func TestEvents(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
 
 	assert.NilError(t, waitForAcceptedPersonaTag(c))
-	type JointInput struct {
+	type joinInput struct {
 	}
-	payload := JointInput{}
+	payload := joinInput{}
 
 	// create three players.
 	amountOfPlayers := 3
