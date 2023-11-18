@@ -47,7 +47,7 @@ func TestTransactionExample(t *testing.T) {
 			assert.Check(t, err == nil)
 		}
 		// test same as above but with forEach
-		addHealthToEntity.ForEach(worldCtx, func(tx cardinal.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
+		addHealthToEntity.Each(worldCtx, func(tx cardinal.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
 			targetID := tx.Msg().TargetID
 			err := cardinal.UpdateComponent[Health](worldCtx, targetID, func(h *Health) *Health {
 				h.Value = tx.Msg().Amount

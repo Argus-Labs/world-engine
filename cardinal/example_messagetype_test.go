@@ -32,7 +32,7 @@ func ExampleMessageType() {
 	}
 
 	err = cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
-		MoveMsg.ForEach(wCtx, func(txData cardinal.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
+		MoveMsg.Each(wCtx, func(txData cardinal.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
 			// handle the transaction
 			// ...
 
