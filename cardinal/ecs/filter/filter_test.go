@@ -81,7 +81,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 		count++
 		// Make sure the gamma component is not on this entity
 		_, err = component.GetComponent[gammaComponent](wCtx, id)
-		assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+		testutils.AssertErrorIsWithTrace(t, err, storage.ErrComponentNotOnEntity)
 		return true
 	})
 	testutils.AssertNilErrorWithTrace(t, err)

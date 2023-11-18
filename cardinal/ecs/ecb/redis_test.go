@@ -61,5 +61,5 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 
 	// Verify the component in question no longer exists in the DB
 	err = client.Get(ctx, key).Err()
-	assert.ErrorIs(t, err, redis.Nil)
+	testutils.AssertErrorIsWithTrace(t, err, redis.Nil)
 }

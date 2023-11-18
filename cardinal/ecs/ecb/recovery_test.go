@@ -245,7 +245,7 @@ func TestRemovedComponentDataCanBeRecovered(t *testing.T) {
 
 	// Make sure we can no longer get the foo component
 	_, err = manager.GetComponentForEntity(fooComp, id)
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	testutils.AssertErrorIsWithTrace(t, err, storage.ErrComponentNotOnEntity)
 	// But uhoh, there was a problem. This means the removal of the Foo component
 	// will be undone, and the original value can be found
 	manager.DiscardPending()

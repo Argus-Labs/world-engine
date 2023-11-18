@@ -209,7 +209,7 @@ func TestCannotGetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	testutils.AssertNilErrorWithTrace(t, err)
 	// barComp has not been assigned to this entity
 	_, err = manager.GetComponentForEntity(barComp, id)
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	testutils.AssertErrorIsWithTrace(t, err, storage.ErrComponentNotOnEntity)
 }
 
 func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
@@ -218,7 +218,7 @@ func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	testutils.AssertNilErrorWithTrace(t, err)
 	// barComp has not been assigned to this entity
 	err = manager.SetComponentForEntity(barComp, id, Bar{100})
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	testutils.AssertErrorIsWithTrace(t, err, storage.ErrComponentNotOnEntity)
 }
 
 func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testing.T) {
@@ -226,7 +226,7 @@ func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testi
 	id, err := manager.CreateEntity(fooComp)
 	testutils.AssertNilErrorWithTrace(t, err)
 	err = manager.RemoveComponentFromEntity(barComp, id)
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	testutils.AssertErrorIsWithTrace(t, err, storage.ErrComponentNotOnEntity)
 }
 
 func TestCanAddAComponentToAnEntity(t *testing.T) {
@@ -272,7 +272,7 @@ func TestCannotAddComponentToEntityThatAlreadyHasTheComponent(t *testing.T) {
 	testutils.AssertNilErrorWithTrace(t, err)
 
 	err = manager.AddComponentToEntity(fooComp, id)
-	assert.ErrorIs(t, err, storage.ErrComponentAlreadyOnEntity)
+	testutils.AssertErrorIsWithTrace(t, err, storage.ErrComponentAlreadyOnEntity)
 }
 
 type Health struct {

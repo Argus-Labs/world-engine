@@ -8,6 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 // TestNoTagPanics tests that it panics when a struct field is of type *big.Int and does not have a `solidity` struct
@@ -17,14 +18,14 @@ func TestNoTagPanics(t *testing.T) {
 		Large *big.Int
 	}
 	_, err := abi.GenerateABIType(FooReadBroken{})
-	assert.Error(t, err)
+	testutils.AssertErrorWithTrace(t, err)
 
 	type FooReadBrokenSlice struct {
 		SliceBig []*big.Int
 	}
 
 	_, err = abi.GenerateABIType(FooReadBrokenSlice{})
-	assert.Error(t, err)
+	testutils.AssertErrorWithTrace(t, err)
 }
 
 func TestGenerateABIType_AllValidTypes(t *testing.T) {
@@ -115,7 +116,7 @@ func TestGenerateABIType_PanicOnImportedTypes(t *testing.T) {
 		X common.Decimal
 	}
 	_, err := abi.GenerateABIType(InvalidType{})
-	assert.Error(t, err)
+	testutils.AssertErrorWithTrace(t, err)
 }
 
 func TestGenerateABIType_NoSizeOnInt(t *testing.T) {
@@ -128,10 +129,10 @@ func TestGenerateABIType_NoSizeOnInt(t *testing.T) {
 	}
 
 	_, err := abi.GenerateABIType(InvalidUint{})
-	assert.Error(t, err)
+	testutils.AssertErrorWithTrace(t, err)
 
 	_, err = abi.GenerateABIType(InvalidInt{})
-	assert.Error(t, err)
+	testutils.AssertErrorWithTrace(t, err)
 }
 
 func TestGenerateABIType_StructInStruct(t *testing.T) {

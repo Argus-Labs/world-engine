@@ -382,7 +382,7 @@ func TestCannotDecodeEVMBeforeSetEVM(t *testing.T) {
 	type foo struct{}
 	msg := ecs.NewMessageType[foo, EmptyMsgResult]("foo")
 	_, err := msg.DecodeEVMBytes([]byte{})
-	assert.ErrorIs(t, err, ecs.ErrEVMTypeNotSet)
+	testutils.AssertErrorIsWithTrace(t, err, ecs.ErrEVMTypeNotSet)
 }
 
 func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
@@ -395,7 +395,7 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	world := cardinaltestutils.NewTestWorld(t).Instance()
 	alphaMsg := ecs.NewMessageType[SomeMsg, EmptyMsgResult]("name_match")
 	betaMsg := ecs.NewMessageType[OtherMsg, EmptyMsgResult]("name_match")
-	assert.ErrorIs(t, world.RegisterMessages(alphaMsg, betaMsg), ecs.ErrDuplicateMessageName)
+	testutils.AssertErrorIsWithTrace(t, world.RegisterMessages(alphaMsg, betaMsg), ecs.ErrDuplicateMessageName)
 }
 
 func TestCanGetTransactionErrorsAndResults(t *testing.T) {
@@ -450,8 +450,8 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	assert.Equal(t, 1, len(receipts))
 	r := receipts[0]
 	assert.Equal(t, 2, len(r.Errs))
-	assert.ErrorIs(t, wantFirstError, r.Errs[0])
-	assert.ErrorIs(t, wantSecondError, r.Errs[1])
+	testutils.AssertErrorIsWithTrace(t, wantFirstError, r.Errs[0])
+	testutils.AssertErrorIsWithTrace(t, wantSecondError, r.Errs[1])
 	got, ok := r.Result.(MoveMsgResult)
 	assert.Check(t, ok)
 	assert.Equal(t, MoveMsgResult{42, 42}, got)
@@ -488,7 +488,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 		_, errs, ok := numTx.GetReceipt(wCtx, hash)
 		assert.Check(t, ok)
 		assert.Equal(t, 1, len(errs))
-		assert.ErrorIs(t, wantErr, errs[0])
+		testutils.AssertErrorIsWithTrace(t, wantErr, errs[0])
 		return nil
 	})
 	testutils.AssertNilErrorWithTrace(t, world.LoadGameState())

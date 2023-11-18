@@ -144,7 +144,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	// Power is set to 2
 	testutils.AssertNilErrorWithTrace(t, oneWorld.Tick(context.Background()))
 	// Power is set to 3, then the System fails
-	assert.ErrorIs(t, errorSystem, eris.Cause(oneWorld.Tick(context.Background())))
+	testutils.AssertErrorIsWithTrace(t, errorSystem, eris.Cause(oneWorld.Tick(context.Background())))
 
 	// Set up a new world using the same storage layer
 	twoWorld := ecstestutils.InitWorldWithRedis(t, rs)
@@ -296,10 +296,10 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			}
 			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
 			_, err = component.GetComponent[ScalarComponentToggle](wCtx, id)
-			assert.ErrorIs(t, storage.ErrComponentNotOnEntity, eris.Cause(err))
+			testutils.AssertErrorIsWithTrace(t, storage.ErrComponentNotOnEntity, eris.Cause(err))
 
 			// Ticking again should result in an error
-			assert.ErrorIs(t, errorToggleComponent, eris.Cause(world.Tick(context.Background())))
+			testutils.AssertErrorIsWithTrace(t, errorToggleComponent, eris.Cause(world.Tick(context.Background())))
 		} else {
 			// At this second iteration, the errorToggleComponent bug has been fixed. static.Val should be 5
 			// and toggle should have just been added to the entity.
@@ -383,7 +383,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 			// In this "buggy" iteration, the above system cannot handle a power of 666.
 			powerTx.AddToQueue(world, PowerComp{666})
-			assert.ErrorIs(t, errorBadPowerChange, eris.Cause(world.Tick(context.Background())))
+			testutils.AssertErrorIsWithTrace(t, errorBadPowerChange, eris.Cause(world.Tick(context.Background())))
 		} else {
 			// Loading the game state above should successfully re-process that final 666 messages.
 			assert.Equal(t, float64(3666), fetchPower())

@@ -45,7 +45,7 @@ func TestCanSignAndVerifyPayload(t *testing.T) {
 	// Verify signature verification can fail
 	errorWithStackTrace := toBeVerified.Verify(badAddressHex)
 	err = eris.Unwrap(errorWithStackTrace)
-	assert.ErrorIs(t, err, ErrSignatureValidationFailed)
+	testutils.AssertErrorIsWithTrace(t, err, ErrSignatureValidationFailed)
 }
 
 func TestCanParseAMappedTransaction(t *testing.T) {
@@ -162,7 +162,7 @@ func TestFailsIfFieldsMissing(t *testing.T) {
 			var payload *Transaction
 			payload, err = tc.payload()
 			if tc.expErr != nil {
-				assert.ErrorIs(t, tc.expErr, err)
+				testutils.AssertErrorIsWithTrace(t, err, tc.expErr)
 				return
 			}
 			testutils.AssertNilErrorWithTrace(t, err, "in test case %q", tc.name)
@@ -218,11 +218,11 @@ func TestRejectInvalidSignatures(t *testing.T) {
 		Value int
 	}
 	_, err = NewTransaction(key, "", "namespace", 100, Payload{100})
-	assert.ErrorIs(t, err, ErrInvalidPersonaTag)
+	testutils.AssertErrorIsWithTrace(t, err, ErrInvalidPersonaTag)
 	_, err = NewTransaction(key, "persona_tag", "", 100, Payload{100})
-	assert.ErrorIs(t, err, ErrInvalidNamespace)
+	testutils.AssertErrorIsWithTrace(t, err, ErrInvalidNamespace)
 	_, err = NewTransaction(key, "persona_tag", "", 100, nil)
-	assert.ErrorIs(t, err, ErrCannotSignEmptyBody)
+	testutils.AssertErrorIsWithTrace(t, err, ErrCannotSignEmptyBody)
 }
 
 func TestRejectInvalidJSON(t *testing.T) {

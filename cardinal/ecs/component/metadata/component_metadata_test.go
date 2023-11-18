@@ -151,7 +151,7 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	id, err := component.Create(wCtx, foundComp{})
 	testutils.AssertNilErrorWithTrace(t, err)
 	_, err = component.GetComponent[notFoundComp](wCtx, id)
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	testutils.AssertErrorIsWithTrace(t, err, storage.ErrComponentNotOnEntity)
 }
 
 type ValueComponent struct {

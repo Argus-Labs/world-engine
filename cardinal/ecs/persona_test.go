@@ -64,7 +64,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	}
 
 	_, err := world.GetSignerForPersonaTag("missing_persona", 1)
-	assert.ErrorIs(t, err, ecs.ErrPersonaTagHasNoSigner)
+	testutils.AssertErrorIsWithTrace(t, err, ecs.ErrPersonaTagHasNoSigner)
 
 	// Queue up a CreatePersona
 	personaTag := "foobar"
@@ -77,7 +77,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	// originally got the CreatePersona.
 	tick := world.CurrentTick()
 	_, err = world.GetSignerForPersonaTag(personaTag, tick)
-	assert.ErrorIs(t, err, ecs.ErrCreatePersonaTxsNotProcessed)
+	testutils.AssertErrorIsWithTrace(t, err, ecs.ErrCreatePersonaTxsNotProcessed)
 
 	testutils.AssertNilErrorWithTrace(t, world.Tick(ctx))
 	// The CreatePersona has now been processed

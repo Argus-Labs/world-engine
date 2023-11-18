@@ -29,7 +29,7 @@ func TestCanSaveAndGetAnError(t *testing.T) {
 	rec, ok := rh.GetReceipt(hash)
 	assert.Check(t, ok)
 	assert.Equal(t, 1, len(rec.Errs))
-	assert.ErrorIs(t, wantError, rec.Errs[0])
+	testutils.AssertErrorIsWithTrace(t, wantError, rec.Errs[0])
 	assert.Equal(t, nil, rec.Result)
 }
 
@@ -42,8 +42,8 @@ func TestCanSaveAndGetManyErrors(t *testing.T) {
 	rec, ok := rh.GetReceipt(hash)
 	assert.Check(t, ok)
 	assert.Equal(t, 2, len(rec.Errs))
-	assert.ErrorIs(t, errA, rec.Errs[0])
-	assert.ErrorIs(t, errB, rec.Errs[1])
+	testutils.AssertErrorIsWithTrace(t, errA, rec.Errs[0])
+	testutils.AssertErrorIsWithTrace(t, errB, rec.Errs[1])
 	assert.Equal(t, nil, rec.Result)
 }
 
@@ -104,7 +104,7 @@ func TestErrorWhenGettingReceiptsInNonFinishedTick(t *testing.T) {
 	rh := NewHistory(currTick, 5)
 
 	_, err := rh.GetReceiptsForTick(currTick)
-	assert.ErrorIs(t, ErrTickHasNotBeenProcessed, eris.Cause(err))
+	testutils.AssertErrorIsWithTrace(t, ErrTickHasNotBeenProcessed, eris.Cause(err))
 
 	rh.NextTick()
 
@@ -136,7 +136,7 @@ func TestOldTicksAreDiscarded(t *testing.T) {
 		assert.Equal(t, 1, len(recs), "failed to get receipts in step %d", i)
 		rec := recs[0]
 		assert.Equal(t, 1, len(rec.Errs))
-		assert.ErrorIs(t, wantError, rec.Errs[0])
+		testutils.AssertErrorIsWithTrace(t, wantError, rec.Errs[0])
 		gotResult, ok := rec.Result.(MyStruct)
 		assert.Check(t, ok)
 		assert.Equal(t, wantResult, gotResult)
@@ -146,5 +146,5 @@ func TestOldTicksAreDiscarded(t *testing.T) {
 	// should no longer be stored
 	rh.NextTick()
 	_, err := rh.GetReceiptsForTick(tickToGet)
-	assert.ErrorIs(t, ErrOldTickHasBeenDiscarded, eris.Cause(err))
+	testutils.AssertErrorIsWithTrace(t, ErrOldTickHasBeenDiscarded, eris.Cause(err))
 }
