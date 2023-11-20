@@ -160,7 +160,7 @@ func (t *MessageType[In, Out]) GetReceipt(wCtx WorldContext, hash message.TxHash
 	return value, errs, true
 }
 
-func (t *MessageType[In, Out]) ForEach(wCtx WorldContext, fn func(TxData[In]) (Out, error)) {
+func (t *MessageType[In, Out]) Each(wCtx WorldContext, fn func(TxData[In]) (Out, error)) {
 	for _, txData := range t.In(wCtx) {
 		if result, err := fn(txData); err != nil {
 			err = eris.Wrap(err, "")

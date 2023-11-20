@@ -11,13 +11,13 @@ if [ -z "${DA_AUTH_TOKEN:-}" ]; then
 fi
 
 # Cosmos-SDK related vars
-VALIDATOR_NAME=${VALIDATOR_NAME:-"testingValidator"}
+NODE_NAME=${NODE_NAME:-"world-engine"}
 CHAIN_ID=${CHAIN_ID:-"world-1"}
 KEY_NAME=${KEY_NAME:-"world_admin"}
 KEY_MNEMONIC=${KEY_MNEMONIC:-"enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll"}
 KEY_BACKEND=${KEY_BACKEND:-"test"}
-TOKEN_AMOUNT=${TOKEN_AMOUNT:-"10000000000000000000000000world"}
-STAKING_AMOUNT=${STAKING_AMOUNT:-"1000000000world"}
+TOKEN_AMOUNT=${TOKEN_AMOUNT:-"100world"}
+STAKING_AMOUNT=${STAKING_AMOUNT:-"10world"}
 MIN_GAS_PRICE=${MIN_GAS_PRICE:-"0world"}
 TOKEN_DENOM=${TOKEN_DENOM:-"world"}
 FAUCET_ADDR=${FAUCET_ADDR:-"world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5"}
@@ -38,7 +38,7 @@ world-evm comet unsafe-reset-all
 rm -rf /root/.world-evm/
 
 # Initialize node
-world-evm init $VALIDATOR_NAME --chain-id $CHAIN_ID --default-denom $TOKEN_DENOM
+world-evm init $NODE_NAME --chain-id $CHAIN_ID --default-denom $TOKEN_DENOM
 
 printf "%s\n\n" "${KEY_MNEMONIC}" | world-evm keys add $KEY_NAME --keyring-backend=$KEY_BACKEND --algo="eth_secp256k1" -i
 world-evm genesis add-genesis-account $KEY_NAME $TOKEN_AMOUNT --keyring-backend=$KEY_BACKEND
