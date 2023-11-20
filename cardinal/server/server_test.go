@@ -619,6 +619,7 @@ func TestSigVerificationChecksNamespaceAndSignature(t *testing.T) {
 	assert.NilError(t, err)
 
 	txh := testutils.MakeTestTransactionHandler(t, world)
+	defer txh.Close()
 
 	personaTag := "some_dude"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -627,53 +628,58 @@ func TestSigVerificationChecksNamespaceAndSignature(t *testing.T) {
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
-	sigPayload, err := sign.NewTransaction(privateKey, personaTag, "bad_namespace", 100, createPersonaTx)
+	goodTx, err := sign.NewSystemTransaction(privateKey, world.Namespace().String(), 100, createPersonaTx)
 	assert.NilError(t, err)
 
-	bz, err := sigPayload.Marshal()
-	assert.NilError(t, err)
-	resp, err := http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-	// This should fail because the namespace does not match the world's namespace
-	assert.Equal(t, resp.StatusCode, 401)
+	testCases := []struct {
+		name           string
+		modifyTx       func(tx *sign.Transaction)
+		wantStatusCode int
+	}{
+		{
+			name: "wrong namespace",
+			modifyTx: func(tx *sign.Transaction) {
+				tx.Namespace = "bad-namespace"
+			},
+			wantStatusCode: 401,
+		},
+		{
+			name: "empty namespace",
+			modifyTx: func(tx *sign.Transaction) {
+				tx.Namespace = ""
+			},
+			wantStatusCode: 401,
+		},
+		{
+			name: "empty signature",
+			modifyTx: func(tx *sign.Transaction) {
+				tx.Signature = ""
+			},
+			wantStatusCode: 401,
+		},
+		{
+			name: "bad signature",
+			modifyTx: func(tx *sign.Transaction) {
+				tx.Namespace = "this is not a good signature"
+			},
+			wantStatusCode: 401,
+		},
+		{
+			name:           "valid tx",
+			modifyTx:       func(*sign.Transaction) {},
+			wantStatusCode: 200,
+		},
+	}
 
-	sigPayload.Namespace = ""
-	bz, err = sigPayload.Marshal()
-	assert.NilError(t, err)
-	resp, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-	// This should fail because the namespace field was empty
-	assert.Equal(t, resp.StatusCode, 401)
-
-	// The namespace now matches the world
-	sigPayload, err = sign.NewSystemTransaction(privateKey, world.Namespace().String(), 100, createPersonaTx)
-	assert.NilError(t, err)
-
-	validSignature := sigPayload.Signature
-	sigPayload.Signature = ""
-	bz, err = sigPayload.Marshal()
-	assert.NilError(t, err)
-	resp, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-	// This should fail because the signature field is empty
-	assert.Equal(t, resp.StatusCode, 401)
-
-	sigPayload.Signature = "this is not a good signature"
-	bz, err = sigPayload.Marshal()
-	assert.NilError(t, err)
-	resp, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-	// This should fail because the signature field is wrong
-	assert.Equal(t, resp.StatusCode, 401)
-
-	sigPayload.Signature = validSignature
-	bz, err = sigPayload.Marshal()
-	assert.NilError(t, err)
-	resp, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-	assert.Equal(t, resp.StatusCode, 200)
-
-	txh.Close()
+	for _, tc := range testCases {
+		txCopy := *goodTx
+		tc.modifyTx(&txCopy)
+		bz, err := txCopy.Marshal()
+		assert.NilError(t, err)
+		resp, err := http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+		assert.NilError(t, err)
+		assert.Equal(t, tc.wantStatusCode, resp.StatusCode, "test case %q: status code mismatch", tc.name)
+	}
 }
 
 func TestSigVerificationChecksNonce(t *testing.T) {
