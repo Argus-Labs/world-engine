@@ -90,15 +90,27 @@ func (handler *Handler) verifySignature(sp *sign.Transaction, isSystemTransactio
 	return sp, nil
 }
 
+func populatePlaceholderFields(request map[string]interface{}) {
+	if request["namespace"] == "" {
+		request["namespace"] = "placeholder-namespace"
+	}
+	if request["signature"] == "" {
+		request["signature"] = "placeholder-signature"
+	}
+}
+
 func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool,
 ) (payload []byte, sig *sign.Transaction, err error) {
+	if handler.disableSigVerification {
+		populatePlaceholderFields(request)
+	}
 	sp, err := sign.MappedTransaction(request)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, eris.Wrap(err, ErrInvalidSignature.Error())
 	}
 	sig, err = handler.verifySignature(sp, isSystemTransaction)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, eris.Wrapf(err, ErrInvalidSignature.Error())
 	}
 	if len(sp.Body) == 0 {
 		buf, err := json.Marshal(request)
