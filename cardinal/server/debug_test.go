@@ -101,7 +101,7 @@ func TestDebugEndpointMustAccessReadOnlyData(t *testing.T) {
 		resp := txh.Get("debug/state")
 		assert.Equal(t, resp.StatusCode, 200)
 		var data []struct {
-			Id   int
+			ID   int
 			Data []Delta
 		}
 		err = json.NewDecoder(resp.Body).Decode(&data)
