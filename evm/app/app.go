@@ -201,6 +201,10 @@ func NewApp(
 
 	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
 
+	app.SetEndBlocker(app.endBlocker)
+
+	app.setPlugins(logger)
+
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
@@ -211,10 +215,6 @@ func NewApp(
 	); err != nil {
 		panic(err)
 	}
-
-	app.SetEndBlocker(app.endBlocker)
-
-	app.setPlugins(logger)
 
 	return app
 }
