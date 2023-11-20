@@ -331,7 +331,10 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		}
 		ptv.addPendingPersonaTag(userID, ptr.TxHash)
 		res, err := ptr.toJSON()
-		return res, eris.Wrap(err, "")
+		if err != nil {
+			return logErrorWithMessage(logger, err, "unable to marshal response")
+		}
+		return res, nil
 	}
 }
 
@@ -348,7 +351,10 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 		return logErrorWithMessage(logger, err, "unable to update pending state")
 	}
 	res, err := ptr.toJSON()
-	return res, eris.Wrap(err, "")
+	if err != nil {
+		return logErrorWithMessage(logger, err, "unable to marshal response")
+	}
+	return res, nil
 }
 
 // initCardinalEndpoints queries the cardinal server to find the list of existing endpoints, and attempts to
@@ -412,7 +418,9 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				if err != nil {
 					return logErrorWithMessage(logger, err, "request failed for endpoint %q", currEndpoint)
 				}
-				defer resp.Body.Close()
+				if resp.Body != nil {
+					defer resp.Body.Close()
+				}
 				if resp.StatusCode != http.StatusOK {
 					body, err := io.ReadAll(resp.Body)
 					return logErrorWithMessage(logger, err, "bad status code: %s: %s", resp.Status, body)
