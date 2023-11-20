@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -63,13 +64,13 @@ func TestDebugEndpointMustAccessReadOnlyData(t *testing.T) {
 		// This system increments Delta.Value by 50 twice. /debug/state should see Delta.Value = 0 OR Delta.Value = 100,
 		// But never Delta.Value = 50.
 		assert.Check(t, nil == component.UpdateComponent[Delta](worldCtx, targetID, func(d *Delta) *Delta {
-			d.Value += 50
+			d.DeltaValue += 50
 			return d
 		}))
 		<-midTickCh
 		<-midTickCh
 		assert.Check(t, nil == component.UpdateComponent[Delta](worldCtx, targetID, func(d *Delta) *Delta {
-			d.Value += 50
+			d.DeltaValue += 50
 			return d
 		}))
 		return nil
@@ -81,15 +82,18 @@ func TestDebugEndpointMustAccessReadOnlyData(t *testing.T) {
 	targetID, err = component.Create(worldCtx, Delta{})
 	assert.NilError(t, err)
 
+	startNextTick := make(chan struct{})
+	defer func() {
+		close(startNextTick)
+	}()
 	go func() {
 		// Ignore errors from these ticks. This tests is focused on making sure we're reading from the write places.
 		ctx := context.Background()
 		// Tick one: Make sure the entity is created
 		_ = world.Tick(ctx)
-		// Tick two: Call /debug/state mid-tick and verify Delta.Value is 100
-		_ = world.Tick(ctx)
-		// Tick three: Call /debug/state mid-tick and verify Delta.Value is 200
-		_ = world.Tick(ctx)
+		for range startNextTick {
+			_ = world.Tick(ctx)
+		}
 	}()
 
 	// Don't check anything for the first tick.
@@ -97,27 +101,49 @@ func TestDebugEndpointMustAccessReadOnlyData(t *testing.T) {
 	midTickCh <- struct{}{}
 
 	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
-	getDeltaValue := func() int {
-		resp := txh.Get("debug/state")
-		assert.Equal(t, resp.StatusCode, 200)
+	defer txh.Close()
+	testCases := []struct {
+		name            string
+		makeHTTPRequest func() *http.Response
+	}{
+		{
+			name: "use /debug/state",
+			makeHTTPRequest: func() *http.Response {
+				return txh.Get("debug/state")
+			},
+		},
+		{
+			name: "use cql",
+			makeHTTPRequest: func() *http.Response {
+				return txh.Post("query/game/cql", map[string]string{
+					"CQL": "EXACT(delta)",
+				})
+			},
+		},
+	}
+
+	// This test assumes /debug/state and cql return data in the same format.
+	for _, tc := range testCases {
+		startNextTick <- struct{}{}
+		midTickCh <- struct{}{}
+		// We're now paused in the middle of the tick
+
+		resp := tc.makeHTTPRequest()
+		assert.Equal(t, 200, resp.StatusCode, tc.name)
 		var data []struct {
 			ID   int
 			Data []Delta
 		}
 		err = json.NewDecoder(resp.Body).Decode(&data)
-		assert.NilError(t, err)
-		assert.Equal(t, len(data), 1)
-		return data[0].Data[0].Value
-	}
+		assert.NilError(t, err, tc.name)
+		assert.Equal(t, len(data), 1, tc.name)
+		assert.Equal(t, len(data[0].Data), 1, tc.name)
+		value := data[0].Data[0].DeltaValue
+		// Each system increments Delta.Value by 50 two times, so value%100 should
+		// always be 0. If it's ever 50, we know we're looking at mid-tick data.
+		assert.Equal(t, 0, value%100, tc.name)
 
-	// Pause in the middle of the second tick
-	midTickCh <- struct{}{}
-	assert.Equal(t, 100, getDeltaValue())
-	// Let the second tick finish
-	midTickCh <- struct{}{}
-	// Pause in the middle of the third tick
-	midTickCh <- struct{}{}
-	assert.Equal(t, 200, getDeltaValue())
-	// Let the third tick finish
-	midTickCh <- struct{}{}
+		// Allow the tick to complete
+		midTickCh <- struct{}{}
+	}
 }

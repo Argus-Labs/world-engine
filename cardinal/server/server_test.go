@@ -82,7 +82,7 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 type Delta struct {
-	Value int
+	DeltaValue int
 }
 
 func (Delta) Name() string { return "delta" }
