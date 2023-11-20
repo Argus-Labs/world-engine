@@ -24,7 +24,6 @@ import (
 	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
 	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
 
-	"github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"io"
 	"os"
@@ -53,15 +52,12 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	consensuskeeper "github.com/cosmos/cosmos-sdk/x/consensus/keeper"
 	crisiskeeper "github.com/cosmos/cosmos-sdk/x/crisis/keeper"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
-	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
-	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
@@ -102,8 +98,6 @@ type App struct {
 	GovKeeper             *govkeeper.Keeper
 	CrisisKeeper          *crisiskeeper.Keeper
 	UpgradeKeeper         *upgradekeeper.Keeper
-	ParamsKeeper          paramskeeper.Keeper
-	AuthzKeeper           authzkeeper.Keeper
 	EvidenceKeeper        evidencekeeper.Keeper
 	ConsensusParamsKeeper consensuskeeper.Keeper
 
@@ -139,6 +133,7 @@ func NewApp(
 	db dbm.DB,
 	traceStore io.Writer,
 	loadLatest bool,
+	bech32Prefix string,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -147,7 +142,7 @@ func NewApp(
 		appBuilder *runtime.AppBuilder
 		// merge the Config and other configuration in one config
 		appConfig = depinject.Configs(
-			MakeAppConfig("world"),
+			MakeAppConfig(bech32Prefix),
 			depinject.Provide(
 				signinglib.ProvideNoopGetSigners[*evmv1alpha1.WrappedEthereumTransaction],
 				signinglib.ProvideNoopGetSigners[*evmv1alpha1.WrappedPayloadEnvelope],
@@ -162,8 +157,7 @@ func NewApp(
 		)
 	)
 
-	var err error
-	if err = depinject.Inject(appConfig,
+	if err := depinject.Inject(appConfig,
 		&appBuilder,
 		&app.appCodec,
 		&app.legacyAmino,
@@ -178,8 +172,6 @@ func NewApp(
 		&app.GovKeeper,
 		&app.CrisisKeeper,
 		&app.UpgradeKeeper,
-		&app.ParamsKeeper,
-		&app.AuthzKeeper,
 		&app.EvidenceKeeper,
 		&app.ConsensusParamsKeeper,
 		&app.EVMKeeper,
@@ -194,22 +186,22 @@ func NewApp(
 	app.Polaris = polarruntime.New(
 		evmconfig.MustReadConfigFromAppOpts(appOpts), app.Logger(), app.EVMKeeper.Host, nil,
 	)
+
 	// Setup Polaris Runtime.
 	if err := app.Polaris.Build(app, app.EVMKeeper, miner.DefaultAllowedMsgs); err != nil {
 		panic(err)
 	}
-	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
-
 	// register streaming services
-	if err = app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
+	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
 	}
 
 	/****  Module Options ****/
-
 	app.ModuleManager.RegisterInvariants(app.CrisisKeeper)
 
-	if err = app.Load(loadLatest); err != nil {
+	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
+
+	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
 
@@ -220,28 +212,31 @@ func NewApp(
 		panic(err)
 	}
 
+	app.SetEndBlocker(app.endBlocker)
+
 	app.setPlugins(logger)
 
 	return app
 }
 
-func (app *App) finalizeBlockHook(ctx sdk.Context, _ *types.RequestFinalizeBlock) error {
+func (app *App) endBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 	app.Logger().Info("running finalize block")
 	txs := app.ShardSequencer.FlushMessages()
+	endBlock := sdk.EndBlock{}
 	if len(txs) > 0 {
 		app.Logger().Info("flushed messages from game shard. Executing...")
 		handler := app.MsgServiceRouter().Handler(txs[0])
 		for _, tx := range txs {
 			_, err := handler(ctx, tx)
 			if err != nil {
-				return err
+				return sdk.EndBlock{}, err
 			}
 		}
 	}
 	if app.faucetAddr != nil {
 		// app.EVMKeeper.SetBalance(ctx, app.faucetAddr, big.NewInt(math.MaxInt64))
 	}
-	return nil
+	return endBlock, nil
 }
 
 // Name returns the name of the App.
@@ -296,14 +291,6 @@ func (app *App) kvStoreKeys() map[string]*storetypes.KVStoreKey {
 	return keys
 }
 
-// GetSubspace returns a param subspace for a given module name.
-//
-// NOTE: This is solely to be used for testing purposes.
-func (app *App) GetSubspace(moduleName string) paramstypes.Subspace {
-	subspace, _ := app.ParamsKeeper.GetSubspace(moduleName)
-	return subspace
-}
-
 // SimulationManager implements the SimulationApp interface. We don't use simulations.
 func (app *App) SimulationManager() *module.SimulationManager {
 	return nil
@@ -314,7 +301,13 @@ func (app *App) SimulationManager() *module.SimulationManager {
 func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
 	// register swagger API in app.go so that other applications can override easily
-	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {
+	if err := server.RegisterSwaggerAPI(
+		apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger,
+	); err != nil {
+		panic(err)
+	}
+
+	if err := app.Polaris.SetupServices(apiSvr.ClientCtx); err != nil {
 		panic(err)
 	}
 }

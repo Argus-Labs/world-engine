@@ -135,23 +135,26 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 					// there is nothing left over in the validator fee pool, so as to keep the
 					// CanWithdrawInvariant invariant.
 					// NOTE: staking module is required if HistoricalEntries param > 0
-					BeginBlockers: []string{
+					PrepareCheckStaters: []string{
+						evmtypes.ModuleName,
+					},
+					PreBlockers: []string{
 						upgradetypes.ModuleName,
+					},
+					BeginBlockers: []string{
 						minttypes.ModuleName,
 						distrtypes.ModuleName,
 						slashingtypes.ModuleName,
 						evidencetypes.ModuleName,
 						stakingtypes.ModuleName,
 						genutiltypes.ModuleName,
-						authz.ModuleName,
-						evmtypes.ModuleName,
 					},
 					EndBlockers: []string{
+						evmtypes.ModuleName,
 						crisistypes.ModuleName,
 						govtypes.ModuleName,
 						stakingtypes.ModuleName,
 						genutiltypes.ModuleName,
-						evmtypes.ModuleName,
 					},
 					OverrideStoreKeys: []*runtimev1alpha1.StoreKeyConfig{
 						{
@@ -161,7 +164,8 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 					},
 					// NOTE: The genutils module must occur after staking so that pools are
 					// properly initialized with tokens from genesis accounts.
-					// NOTE: The genutils module must also occur after auth so that it can access the params from auth.
+					// NOTE: The genutils module must also occur after auth so that
+					// it can access the params from auth.
 					InitGenesis: []string{
 						authtypes.ModuleName,
 						banktypes.ModuleName,
@@ -173,8 +177,6 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 						crisistypes.ModuleName,
 						genutiltypes.ModuleName,
 						evidencetypes.ModuleName,
-						authz.ModuleName,
-						paramstypes.ModuleName,
 						upgradetypes.ModuleName,
 						vestingtypes.ModuleName,
 						consensustypes.ModuleName,

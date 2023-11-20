@@ -4,30 +4,24 @@ go 1.21.0
 
 replace (
 	github.com/cockroachdb/pebble => github.com/cockroachdb/pebble v0.0.0-20230928194634-aa077af62593
-	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.50.0-rc.1-rollkit-v0.11.2-no-fraud-proofs
 
+	github.com/cosmos/cosmos-sdk => github.com/rollkit/cosmos-sdk v0.50.0-rc.1-rollkit-v0.11.2-no-fraud-proofs
 	github.com/ethereum/go-ethereum => github.com/berachain/polaris-geth v0.0.0-20231105185655-b78967bb230f
 
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
-
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-
-	pkg.berachain.dev/polaris/contracts => pkg.berachain.dev/polaris/contracts v0.0.0-20231114061423-56afb639fe27
-	pkg.berachain.dev/polaris/cosmos => pkg.berachain.dev/polaris/cosmos v0.0.0-20231114061423-56afb639fe27
-	pkg.berachain.dev/polaris/eth => pkg.berachain.dev/polaris/eth v0.0.0-20231114061423-56afb639fe27
-	pkg.berachain.dev/polaris/lib => pkg.berachain.dev/polaris/lib v0.0.0-20231114061423-56afb639fe27
 )
 
 require (
 	cosmossdk.io/api v0.7.2
-	cosmossdk.io/client/v2 v2.0.0-20230719143845-dff6b0e26aa4
+	cosmossdk.io/client/v2 v2.0.0-20230818115413-c402c51a1508
 	cosmossdk.io/core v0.11.0
 	cosmossdk.io/depinject v1.0.0-alpha.4
 	cosmossdk.io/log v1.2.1
 	cosmossdk.io/store v1.0.0
-	cosmossdk.io/tools/confix v0.0.0-20230615173548-5385116abac4
+	cosmossdk.io/tools/confix v0.0.0-20230818115413-c402c51a1508
 	cosmossdk.io/x/evidence v0.0.0-20230818115413-c402c51a1508
-	cosmossdk.io/x/upgrade v0.0.0-20230704191127-8d80df8e3c5a
+	cosmossdk.io/x/upgrade v0.0.0-20230915171831-2196edacb99d
 	github.com/JeremyLoy/config v1.5.0
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/cometbft/cometbft v0.38.0
@@ -50,9 +44,9 @@ require (
 	google.golang.org/protobuf v1.31.0
 	gotest.tools v2.2.0+incompatible
 	gotest.tools/v3 v3.5.1
-	pkg.berachain.dev/polaris/cosmos v0.0.0-20230830221145-a6c6454d3697
-	pkg.berachain.dev/polaris/eth v0.0.0-20231104204753-faadca38b64d
-	pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d
+	pkg.berachain.dev/polaris/cosmos v0.0.0-20231114061423-56afb639fe27
+	pkg.berachain.dev/polaris/eth v0.0.0-20231106013048-594360df8f05
+	pkg.berachain.dev/polaris/lib v0.0.0-20231106144135-7dd800f4a948
 	pkg.world.dev/world-engine/rift v0.0.5
 )
 

@@ -66,9 +66,11 @@ import (
 	"pkg.world.dev/world-engine/evm/app"
 )
 
-// NewRootCmd creates a new root command for simd. It is called once in the main function.
-//
+const (
+	bech32Prefix = "world"
+)
 
+// NewRootCmd creates a new root command for simd. It is called once in the main function.
 func NewRootCmd() *cobra.Command {
 	var (
 		interfaceRegistry  codectypes.InterfaceRegistry
@@ -81,7 +83,7 @@ func NewRootCmd() *cobra.Command {
 
 	if err := depinject.Inject(
 		depinject.Configs(
-			app.MakeAppConfig("world"),
+			app.MakeAppConfig(bech32Prefix),
 			depinject.Supply(
 				app.PolarisConfigFn(evmconfig.DefaultConfig()),
 				app.QueryContextFn((&app.App{})),
@@ -276,7 +278,11 @@ func newApp(
 	baseappOptions := server.DefaultBaseappOptions(appOpts)
 
 	return app.NewApp(
-		logger, db, traceStore, true,
+		logger,
+		db,
+		traceStore,
+		true,
+		bech32Prefix,
 		appOpts,
 		baseappOptions...,
 	)
@@ -311,13 +317,13 @@ func appExport(
 
 	var testApp *app.App
 	if height != -1 {
-		testApp = app.NewApp(logger, db, traceStore, false, appOpts)
+		testApp = app.NewApp(logger, db, traceStore, false, bech32Prefix, appOpts)
 
 		if err := testApp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		testApp = app.NewApp(logger, db, traceStore, true, appOpts)
+		testApp = app.NewApp(logger, db, traceStore, true, bech32Prefix, appOpts)
 	}
 
 	return testApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)
