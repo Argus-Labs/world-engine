@@ -29,7 +29,7 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 				var eachClosureErr error
 				searchEachErr := search.Each(wCtx, func(id entity.ID) bool {
 					var components []metadata.ComponentMetadata
-					components, eachClosureErr = handler.w.StoreManager().GetComponentTypesForEntity(id)
+					components, eachClosureErr = wCtx.StoreManager().GetComponentTypesForEntity(id)
 					if eachClosureErr != nil {
 						return false
 					}
@@ -39,7 +39,7 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 					}
 					for _, c := range components {
 						var data json.RawMessage
-						data, eachClosureErr = ecs.GetRawJSONOfComponent(handler.w, c, id)
+						data, eachClosureErr = wCtx.StoreReader().GetComponentForEntityInRawJSON(c, id)
 						if eachClosureErr != nil {
 							return false
 						}
