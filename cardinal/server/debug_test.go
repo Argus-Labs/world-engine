@@ -52,7 +52,7 @@ func TestDebugEndpoint(t *testing.T) {
 	assert.Equal(t, len(data), 10*7)
 }
 
-func TestDebugEndpointMustAccessReadOnlyData(t *testing.T) {
+func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	world := testutils.NewTestWorld(t).Instance()
 
 	// midTickCh is used to ensure the /debug/state call starts and ends in the middle of a System tick.
