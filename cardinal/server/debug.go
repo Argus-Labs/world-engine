@@ -29,7 +29,7 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 				var eachClosureErr error
 				searchEachErr := search.Each(wCtx, func(id entity.ID) bool {
 					var components []metadata.ComponentMetadata
-					components, eachClosureErr = wCtx.StoreManager().GetComponentTypesForEntity(id)
+					components, eachClosureErr = wCtx.StoreReader().GetComponentTypesForEntity(id)
 					if eachClosureErr != nil {
 						return false
 					}
