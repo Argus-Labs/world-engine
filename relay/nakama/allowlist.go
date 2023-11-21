@@ -73,7 +73,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 ) {
 	id, err := getUserID(ctx)
 	if err != nil {
-		return "", err
+		return logErrorNotFound(logger, err)
 	}
 	if id != adminAccountID {
 		return logError(logger, eris.Errorf("unauthorized: only admin may call this RPC"), PermissionDenied)
@@ -102,7 +102,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 		}
 		bz, err := json.Marshal(obj)
 		if err != nil {
-			return "", eris.Wrap(err, "")
+			return logErrorWithMessage(logger, err, "unable to marshal generated key")
 		}
 		writes = append(writes, &runtime.StorageWrite{
 			Collection:      allowlistKeyCollection,
