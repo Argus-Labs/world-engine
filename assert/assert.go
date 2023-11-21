@@ -19,7 +19,7 @@ func Check(t gotest.TestingT, comparison gotest.BoolOrComparison, msgAndArgs ...
 }
 
 func NilError(t gotest.TestingT, err error, msgAndArgs ...interface{}) {
-	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs)
+	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs...)
 	gotest.NilError(t, err, msgAndArgs...)
 }
 
@@ -32,21 +32,21 @@ func DeepEqual(t gotest.TestingT, x, y interface{}, opts ...gocmp.Option) {
 }
 
 func Error(t gotest.TestingT, err error, expected string, msgAndArgs ...interface{}) {
-	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs)
+	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs...)
 	gotest.Error(t, eris.Cause(err), expected, msgAndArgs...)
 }
 
 func ErrorContains(t gotest.TestingT, err error, substring string, msgAndArgs ...interface{}) {
-	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs)
+	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs...)
 	gotest.ErrorContains(t, eris.Cause(err), substring, msgAndArgs...)
 }
 
 func ErrorIs(t gotest.TestingT, err error, expected error, msgAndArgs ...interface{}) {
-	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs)
+	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs...)
 	gotest.ErrorIs(t, eris.Cause(err), eris.Cause(expected), msgAndArgs...)
 }
 
-//testify tests
+// testify assert wrappers
 
 func FailNow(t testify.TestingT, failureMessage string, msgAndArgs ...interface{}) bool {
 	return testify.FailNow(t, failureMessage, msgAndArgs...)
@@ -69,7 +69,7 @@ func NotSame(t testify.TestingT, expected, actual interface{}, msgAndArgs ...int
 }
 
 func EqualValues(t testify.TestingT, expected, actual interface{}, msgAndArgs ...interface{}) bool {
-	return testify.EqualValues(t, expected, actual, msgAndArgs)
+	return testify.EqualValues(t, expected, actual, msgAndArgs...)
 }
 
 func EqualExportedValues(t testify.TestingT, expected, actual interface{}, msgAndArgs ...interface{}) bool {
@@ -89,7 +89,7 @@ func Nil(t testify.TestingT, object interface{}, msgAndArgs ...interface{}) bool
 }
 
 func Empty(t testify.TestingT, object interface{}, msgAndArgs ...interface{}) bool {
-	return testify.Empty(t, object, msgAndArgs)
+	return testify.Empty(t, object, msgAndArgs...)
 }
 
 func NotEmpty(t testify.TestingT, object interface{}, msgAndArgs ...interface{}) bool {
@@ -133,7 +133,7 @@ func NotSubset(t testify.TestingT, list, subset interface{}, msgAndArgs ...inter
 }
 
 func ElementsMatch(t testify.TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
-	return testify.ElementsMatch(t, listA, listB, msgAndArgs)
+	return testify.ElementsMatch(t, listA, listB, msgAndArgs...)
 }
 
 func Condition(t testify.TestingT, comp testify.Comparison, msgAndArgs ...interface{}) bool {
@@ -144,7 +144,8 @@ func Panics(t testify.TestingT, f testify.PanicTestFunc, msgAndArgs ...interface
 	return testify.Panics(t, f, msgAndArgs...)
 }
 
-func PanicsWithValue(t testify.TestingT, expected interface{}, f testify.PanicTestFunc, msgAndArgs ...interface{}) bool {
+func PanicsWithValue(
+	t testify.TestingT, expected interface{}, f testify.PanicTestFunc, msgAndArgs ...interface{}) bool {
 	return testify.PanicsWithValue(t, expected, f, msgAndArgs...)
 }
 
@@ -156,7 +157,8 @@ func NotPanics(t testify.TestingT, f testify.PanicTestFunc, msgAndArgs ...interf
 	return testify.NotPanics(t, f, msgAndArgs...)
 }
 
-func WithinDuration(t testify.TestingT, expected, actual time.Time, delta time.Duration, msgAndArgs ...interface{}) bool {
+func WithinDuration(
+	t testify.TestingT, expected, actual time.Time, delta time.Duration, msgAndArgs ...interface{}) bool {
 	return testify.WithinDuration(t, expected, actual, delta, msgAndArgs...)
 }
 
@@ -186,13 +188,13 @@ func InEpsilonSlice(t testify.TestingT, expected, actual interface{}, epsilon fl
 
 func NoError(t testify.TestingT, err error, msgAndArgs ...interface{}) bool {
 	if err != nil {
-		msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs)
+		msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs...)
 	}
 	return testify.NoError(t, err, msgAndArgs...)
 }
 
 func EqualError(t testify.TestingT, theError error, errString string, msgAndArgs ...interface{}) bool {
-	msgAndArgs = append([]interface{}{eris.ToString(theError, true)}, msgAndArgs)
+	msgAndArgs = append([]interface{}{eris.ToString(theError, true)}, msgAndArgs...)
 	return testify.EqualError(t, eris.Cause(theError), errString, msgAndArgs...)
 }
 
@@ -236,25 +238,33 @@ func YAMLEq(t testify.TestingT, expected string, actual string, msgAndArgs ...in
 	return testify.YAMLEq(t, expected, actual, msgAndArgs...)
 }
 
-func Eventually(t testify.TestingT, condition func() bool, waitFor time.Duration, tick time.Duration, msgAndArgs ...interface{}) bool {
+func Eventually(
+	t testify.TestingT,
+	condition func() bool,
+	waitFor time.Duration, tick time.Duration, msgAndArgs ...interface{}) bool {
 	return testify.Eventually(t, condition, waitFor, tick, msgAndArgs...)
 }
 
-func EventuallyWithT(t testify.TestingT, condition func(collect *testify.CollectT), waitFor time.Duration, tick time.Duration, msgAndArgs ...interface{}) bool {
+func EventuallyWithT(
+	t testify.TestingT,
+	condition func(collect *testify.CollectT),
+	waitFor time.Duration, tick time.Duration, msgAndArgs ...interface{}) bool {
 	return testify.EventuallyWithT(t, condition, waitFor, tick, msgAndArgs...)
 }
 
-func Never(t testify.TestingT, condition func() bool, waitFor time.Duration, tick time.Duration, msgAndArgs ...interface{}) bool {
+func Never(
+	t testify.TestingT,
+	condition func() bool, waitFor time.Duration, tick time.Duration, msgAndArgs ...interface{}) bool {
 	return testify.Never(t, condition, waitFor, tick, msgAndArgs...)
 }
 
 func NotErrorIs(t testify.TestingT, err, target error, msgAndArgs ...interface{}) bool {
-	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs)
+	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs...)
 	return testify.NotErrorIs(t, eris.Cause(err), eris.Cause(target), msgAndArgs...)
 }
 
 func IsError(t testify.TestingT, err error, msgAndArgs ...interface{}) bool {
-	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs)
+	msgAndArgs = append([]interface{}{eris.ToString(err, true)}, msgAndArgs...)
 	return testify.Error(t, err, msgAndArgs...)
 }
 
@@ -265,8 +275,8 @@ func IsEqual(t testify.TestingT, expected, actual interface{}, msgAndArgs ...int
 // this is covered by gotest and is duplicated by testify
 // some signatures are slightly different but overall everything should be covered.
 
-//func Equal(t TestingT, expected, actual interface{}, msgAndArgs ...interface{}) bool //renamed IsEqual above.
-//func Error(t TestingT, err error, msgAndArgs ...interface{}) bool //renamed to IsError above.
-//func ErrorContains(t TestingT, theError error, contains string, msgAndArgs ...interface{}) bool
-//func ErrorIs(t TestingT, err, target error, msgAndArgs ...interface{}) bool {
-//func ErrorAs(t TestingT, err error, target interface{}, msgAndArgs ...interface{}) bool {
+// func Equal(t TestingT, expected, actual interface{}, msgAndArgs ...interface{}) bool //renamed IsEqual above.
+// func Error(t TestingT, err error, msgAndArgs ...interface{}) bool //renamed to IsError above.
+// func ErrorContains(t TestingT, theError error, contains string, msgAndArgs ...interface{}) bool
+// func ErrorIs(t TestingT, err, target error, msgAndArgs ...interface{}) bool {
+// func ErrorAs(t TestingT, err error, target interface{}, msgAndArgs ...interface{}) bool {
