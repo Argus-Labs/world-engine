@@ -4,7 +4,7 @@ WORKDIR /src/app/
 COPY go.mod go.sum* ./
 COPY . .
 RUN go mod download
-ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3
+ENV PACKAGES curl make git libc-dev bash gcc linux-headers eudev-dev python3 jq
 RUN CGO_ENABLED=1 make install
 
 # build on ubuntu

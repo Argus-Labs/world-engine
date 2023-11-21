@@ -48,6 +48,10 @@ world-evm genesis collect-gentxs
 
 mv app.toml /root/.world-evm/config/app.toml
 
+
+jq '.app_state.evm.alloc["aa9288F88233Eb887d194fF2215Cf1776a6FEE41"].balance = "0x7fffffffffffffff"' /root/.world-evm/config/genesis.json > /root/.world-evm/config/temp.json && mv /root/.world-evm/config/temp.json /root/.world-evm/config/genesis.json
+
+
 # Comet Rest API
 #sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' /root/.world-evm/config/config.toml
 # Cosmos SDK enable API server
