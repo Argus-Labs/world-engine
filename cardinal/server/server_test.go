@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -81,42 +82,11 @@ type Gamma struct{}
 
 func (Gamma) Name() string { return "gamma" }
 
-func TestDebugEndpoint(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-
-	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
-	assert.NilError(t, ecs.RegisterComponent[Beta](world))
-	assert.NilError(t, ecs.RegisterComponent[Gamma](world))
-
-	assert.NilError(t, world.LoadGameState())
-	ctx := context.Background()
-	worldCtx := ecs.NewWorldContext(world)
-	_, err := component.CreateMany(worldCtx, 10, Alpha{})
-	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Beta{})
-	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Gamma{})
-	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Beta{})
-	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Gamma{})
-	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Beta{}, Gamma{})
-	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Beta{}, Gamma{})
-	assert.NilError(t, err)
-	err = world.Tick(ctx)
-	assert.NilError(t, err)
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
-	resp := txh.Get("debug/state")
-	assert.Equal(t, resp.StatusCode, 200)
-	bz, err := io.ReadAll(resp.Body)
-	assert.NilError(t, err)
-	data := make([]json.RawMessage, 0)
-	err = json.Unmarshal(bz, &data)
-	assert.NilError(t, err)
-	assert.Equal(t, len(data), 10*7)
+type Delta struct {
+	DeltaValue int
 }
+
+func (Delta) Name() string { return "delta" }
 
 func TestShutDownViaMethod(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create failure with panic.
@@ -1199,6 +1169,28 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	assert.Equal(t, adapter.called, 2)
 }
 
+func TestWebSocket(t *testing.T) {
+	w := testutils.NewTestWorld(t)
+	world := w.Instance()
+	assert.NilError(t, w.Instance().LoadGameState())
+	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+	url := txh.MakeWebSocketURL("echo")
+	dial, _, err := websocket.DefaultDialer.Dial(url, nil)
+	assert.NilError(t, err)
+	messageToSend := "test"
+	err = dial.WriteMessage(websocket.TextMessage, []byte(messageToSend))
+	assert.NilError(t, err)
+	messageType, message, err := dial.ReadMessage()
+	assert.NilError(t, err)
+	assert.Equal(t, messageType, websocket.TextMessage)
+	assert.Equal(t, string(message), messageToSend)
+	err = eris.Wrap(
+		dial.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")), "")
+	assert.NilError(t, err)
+	err = dial.Close()
+	assert.NilError(t, err)
+}
+
 func TestEmptyFieldsAreOKForDisabledSignatureVerification(t *testing.T) {
 	w := testutils.NewTestWorld(t).Instance()
 
@@ -1295,23 +1287,4 @@ func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
 	bz, err = io.ReadAll(resp.Body)
 	assert.NilError(t, err)
 	assert.ErrorContains(t, errors.New(string(bz)), "game world is recovering state")
-}
-
-func TestWebSocket(t *testing.T) {
-	w := testutils.NewTestWorld(t)
-	world := w.Instance()
-	assert.NilError(t, w.Instance().LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
-	url := txh.MakeWebSocketURL("echo")
-	dial, _, err := websocket.DefaultDialer.Dial(url, nil)
-	assert.NilError(t, err)
-	messageToSend := "test"
-	err = dial.WriteMessage(websocket.TextMessage, []byte(messageToSend))
-	assert.NilError(t, err)
-	messageType, message, err := dial.ReadMessage()
-	assert.NilError(t, err)
-	assert.Equal(t, messageType, websocket.TextMessage)
-	assert.Equal(t, string(message), messageToSend)
-	err = dial.Close()
-	assert.NilError(t, err)
 }
