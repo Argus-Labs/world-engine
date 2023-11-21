@@ -45,21 +45,10 @@ world-evm genesis add-genesis-account $KEY_NAME $TOKEN_AMOUNT --keyring-backend=
 world-evm genesis gentx $KEY_NAME $STAKING_AMOUNT --chain-id $CHAIN_ID --keyring-backend=$KEY_BACKEND
 world-evm genesis collect-gentxs
 
-
 mv app.toml /root/.world-evm/config/app.toml
 
-
-jq '.app_state.evm.alloc["aa9288F88233Eb887d194fF2215Cf1776a6FEE41"].balance = "0x7fffffffffffffff"' /root/.world-evm/config/genesis.json > /root/.world-evm/config/temp.json && mv /root/.world-evm/config/temp.json /root/.world-evm/config/genesis.json
-
-
-# Comet Rest API
-#sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' /root/.world-evm/config/config.toml
-# Cosmos SDK enable API server
-#sed -i '/api\]/,/\[/ s/enable = false/enable = true/' /root/.world-evm/config/app.toml
-# Cosmos SDK gRPC listener
-#sed -i'.bak' 's#"localhost:9090"#"0.0.0.0:9090"#g' /root/.world-evm/config/app.toml
-# Cosmos SDK API server listener
-#sed -i'.bak' 's#localhost:1317#0.0.0.0:1317#g' /root/.world-evm/config/app.toml
+sed -i'.bak' 's#"20f33ce90a13a4b5e7697e3544c3083b8f8a51d4"#"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"#g' /root/.world-evm/config/genesis.json
+sed -i'.bak' 's#"0x1b1ae4d6e2ef500000"#"0x7fffffffffffffff"#g' /root/.world-evm/config/genesis.json
 
 # start the node.
 world-evm start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.block_time $BLOCK_TIME --minimum-gas-prices $MIN_GAS_PRICE --api.enable --api.swagger
