@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/assert"
 
 	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/cardinal"

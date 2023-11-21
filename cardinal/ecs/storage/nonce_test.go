@@ -2,10 +2,11 @@ package storage_test
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"testing"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
+
+	"pkg.world.dev/world-engine/assert"
 )
 
 func TestSetAndGetNonce(t *testing.T) {

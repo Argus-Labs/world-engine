@@ -3,7 +3,7 @@ package ecb_test
 import (
 	"testing"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"

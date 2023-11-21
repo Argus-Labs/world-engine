@@ -14,7 +14,7 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/assert"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/cardinal"

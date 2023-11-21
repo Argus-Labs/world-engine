@@ -6,7 +6,7 @@ import (
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/stretchr/testify/assert"
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
 )
 
@@ -17,14 +17,14 @@ func TestNoTagPanics(t *testing.T) {
 		Large *big.Int
 	}
 	_, err := abi.GenerateABIType(FooReadBroken{})
-	assert.Error(t, err)
+	assert.IsError(t, err)
 
 	type FooReadBrokenSlice struct {
 		SliceBig []*big.Int
 	}
 
 	_, err = abi.GenerateABIType(FooReadBrokenSlice{})
-	assert.Error(t, err)
+	assert.IsError(t, err)
 }
 
 func TestGenerateABIType_AllValidTypes(t *testing.T) {
@@ -107,7 +107,7 @@ func TestGenerateABIType_AllValidTypes(t *testing.T) {
 
 	got, err := abi.SerdeInto[BigType](unpacked[0])
 	assert.Nil(t, err)
-	assert.Equal(t, got, b)
+	assert.IsEqual(t, got, b)
 }
 
 func TestGenerateABIType_PanicOnImportedTypes(t *testing.T) {
@@ -115,7 +115,7 @@ func TestGenerateABIType_PanicOnImportedTypes(t *testing.T) {
 		X common.Decimal
 	}
 	_, err := abi.GenerateABIType(InvalidType{})
-	assert.Error(t, err)
+	assert.IsError(t, err)
 }
 
 func TestGenerateABIType_NoSizeOnInt(t *testing.T) {
@@ -128,10 +128,10 @@ func TestGenerateABIType_NoSizeOnInt(t *testing.T) {
 	}
 
 	_, err := abi.GenerateABIType(InvalidUint{})
-	assert.Error(t, err)
+	assert.IsError(t, err)
 
 	_, err = abi.GenerateABIType(InvalidInt{})
-	assert.Error(t, err)
+	assert.IsError(t, err)
 }
 
 func TestGenerateABIType_StructInStruct(t *testing.T) {
@@ -183,5 +183,5 @@ func TestGenerateABIType_SliceOfStructInStruct(t *testing.T) {
 	underlyingFoo, err := abi.SerdeInto[Foo](unpacked[0])
 	assert.Nil(t, err)
 
-	assert.Equal(t, underlyingFoo, foo)
+	assert.IsEqual(t, underlyingFoo, foo)
 }

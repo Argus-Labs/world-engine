@@ -1,10 +1,11 @@
 package metadata_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
+	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
