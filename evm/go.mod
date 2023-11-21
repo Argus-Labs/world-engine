@@ -27,7 +27,7 @@ require (
 	github.com/cometbft/cometbft v0.38.0
 	github.com/cosmos/cosmos-db v1.0.0
 	github.com/cosmos/cosmos-proto v1.0.0-beta.3
-	github.com/cosmos/cosmos-sdk v0.51.0
+	github.com/cosmos/cosmos-sdk v0.50.0-rc.1.0.20231103111158-e83a20081ced
 	github.com/cosmos/gogoproto v1.4.11
 	github.com/ethereum/go-ethereum v1.13.4
 	github.com/golang/protobuf v1.5.3
@@ -46,7 +46,7 @@ require (
 	gotest.tools/v3 v3.5.1
 	pkg.berachain.dev/polaris/cosmos v0.0.0-20231114061423-56afb639fe27
 	pkg.berachain.dev/polaris/eth v0.0.0-20231106013048-594360df8f05
-	pkg.berachain.dev/polaris/lib v0.0.0-20231106144135-7dd800f4a948
+	pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d
 	pkg.world.dev/world-engine/rift v0.0.5
 )
 
@@ -73,7 +73,7 @@ require (
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.1.1-0.20220910012023-760eaf8b6816 // indirect
 	github.com/bits-and-blooms/bitset v1.11.0 // indirect
-	github.com/btcsuite/btcd v0.23.4 // indirect
+	github.com/btcsuite/btcd v0.23.2 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.3 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.0.2 // indirect

@@ -361,8 +361,8 @@ github.com/btcsuite/btcd v0.22.0-beta/go.mod h1:9n5ntfhhHQBIhUvlhDvD3Qg6fRUj4jkN
 github.com/btcsuite/btcd v0.22.0-beta.0.20220111032746-97732e52810c/go.mod h1:tjmYdS6MLJ5/s0Fj4DbLgSbDHbEqLJrtnHecBFkdz5M=
 github.com/btcsuite/btcd v0.22.1/go.mod h1:wqgTSL29+50LRkmOVknEdmt8ZojIzhuWvgu/iptuN7Y=
 github.com/btcsuite/btcd v0.23.0/go.mod h1:0QJIIN1wwIXF/3G/m87gIwGniDMDQqjVn4SZgnFpsYY=
-github.com/btcsuite/btcd v0.23.4 h1:IzV6qqkfwbItOS/sg/aDfPDsjPP8twrCOE2R93hxMlQ=
-github.com/btcsuite/btcd v0.23.4/go.mod h1:0QJIIN1wwIXF/3G/m87gIwGniDMDQqjVn4SZgnFpsYY=
+github.com/btcsuite/btcd v0.23.2 h1:/YOgUp25sdCnP5ho6Hl3s0E438zlX+Kak7E6TgBgoT0=
+github.com/btcsuite/btcd v0.23.2/go.mod h1:0QJIIN1wwIXF/3G/m87gIwGniDMDQqjVn4SZgnFpsYY=
 github.com/btcsuite/btcd/btcec/v2 v2.1.0/go.mod h1:2VzYrv4Gm4apmbVVsSq5bqf1Ec8v56E48Vt0Y/umPgA=
 github.com/btcsuite/btcd/btcec/v2 v2.1.3/go.mod h1:ctjw4H1kknNJmRN4iP1R7bTQ+v3GJkZBd6mui8ZsAZE=
 github.com/btcsuite/btcd/btcec/v2 v2.3.2 h1:5n0X6hX0Zk+6omWcihdYvdAlGf2DfasC0GMf7DClJ3U=
@@ -3101,8 +3101,8 @@ pkg.berachain.dev/polaris/cosmos v0.0.0-20231114061423-56afb639fe27 h1:1DAwTjfmh
 pkg.berachain.dev/polaris/cosmos v0.0.0-20231114061423-56afb639fe27/go.mod h1:TZiZK/WGG9Hl4QzW9vjBn7u75QjvoTZId+FUhUFDeAQ=
 pkg.berachain.dev/polaris/eth v0.0.0-20231106013048-594360df8f05 h1:09v9iMKb9ceBq1vrjiJ+nTdSwYzlfv0J2G6Z+WcX9dk=
 pkg.berachain.dev/polaris/eth v0.0.0-20231106013048-594360df8f05/go.mod h1:CH0uJJxVi6Sx9mTfBu2u9rwl7frH1fnSuc098wTPCPk=
-pkg.berachain.dev/polaris/lib v0.0.0-20231106144135-7dd800f4a948 h1:wj8k+JAtKEGpOeRlhP+upq/wOGpcBma1vZOFjGMTajU=
-pkg.berachain.dev/polaris/lib v0.0.0-20231106144135-7dd800f4a948/go.mod h1:F2yNC6QtOpNXXr1RZVTJ6LurK29BovpP9O4Bx3zX15A=
+pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d h1:LMuJ+fYqzSbzUHdBY1ZtFr1CK1yaiMxBCdnhx9654i0=
+pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d/go.mod h1:6w+5Axb6GV66PLllrYf7h1G3x8Pwu5nvd7ZiibiI3HM=
 pkg.world.dev/world-engine/rift v0.0.5 h1:nRoIIyilio+i5jqflroKcwlLDUa7+8FpWkLI3+za/Cg=
 pkg.world.dev/world-engine/rift v0.0.5/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
