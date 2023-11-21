@@ -502,7 +502,7 @@ func errToNakamaError(
 	if DebugEnabled {
 		return runtime.NewError(eris.ToString(err, true), code)
 	}
-	return runtime.NewError(err.Error(), code)
+	return runtime.NewError(eris.Errorf("error: %w", err).Error(), code)
 }
 
 // setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns
