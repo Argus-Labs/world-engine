@@ -318,7 +318,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			}
 			return logErrorWithMessageAndCode(
 				logger,
-				eris.Wrap(err, "could not set personaTag assignment"),
+				eris.New("could not set personaTag assignment"),
 				AlreadyExists,
 				"persona tag %q is not available",
 				ptr.PersonaTag)
