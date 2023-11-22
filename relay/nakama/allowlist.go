@@ -73,7 +73,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 ) {
 	id, err := getUserID(ctx)
 	if err != nil {
-		return logErrorNotFound(logger, err)
+		return logErrorFailedPrecondition(logger, err)
 	}
 	if id != adminAccountID {
 		return logError(logger, eris.Errorf("unauthorized: only admin may call this RPC"), PermissionDenied)
@@ -90,7 +90,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 
 	keys, err := generateBetaKeys(msg.Amount)
 	if err != nil {
-		return logErrorNotFound(logger, eris.Wrap(err, "error generating beta keys"))
+		return logErrorFailedPrecondition(logger, eris.Wrap(err, "error generating beta keys"))
 	}
 
 	writes := make([]*runtime.StorageWrite, 0, len(keys))
@@ -102,7 +102,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 		}
 		bz, err := json.Marshal(obj)
 		if err != nil {
-			return logErrorWithMessage(logger, err, "unable to marshal generated key")
+			return logErrorMessageFailedPrecondition(logger, err, "unable to marshal generated key")
 		}
 		writes = append(writes, &runtime.StorageWrite{
 			Collection:      allowlistKeyCollection,
@@ -117,12 +117,12 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 
 	_, err = nk.StorageWrite(ctx, writes)
 	if err != nil {
-		return logErrorNotFound(logger, eris.Wrap(err, "error writing keys to storage"))
+		return logErrorFailedPrecondition(logger, eris.Wrap(err, "error writing keys to storage"))
 	}
 
 	response, err := json.Marshal(GenKeysResponse{Keys: keys})
 	if err != nil {
-		return logErrorNotFound(logger, eris.Wrap(err, ""))
+		return logErrorFailedPrecondition(logger, eris.Wrap(err, ""))
 	}
 	return string(response), nil
 }
