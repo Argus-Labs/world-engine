@@ -2,6 +2,7 @@ package sys
 
 import (
 	"fmt"
+
 	"github.com/argus-labs/world-engine/example/tester/msg"
 
 	"github.com/argus-labs/world-engine/example/tester/comp"
@@ -13,7 +14,7 @@ var PlayerEntityID = make(map[string]entity.ID)
 
 func Join(ctx cardinal.WorldContext) error {
 	logger := ctx.Logger()
-	msg.JoinMsg.ForEach(ctx, func(jtx cardinal.TxData[msg.JoinInput]) (msg.JoinOutput, error) {
+	msg.JoinMsg.Each(ctx, func(jtx cardinal.TxData[msg.JoinInput]) (msg.JoinOutput, error) {
 		logger.Info().Msgf("got join transaction from: %s", jtx.Tx().PersonaTag)
 		entityID, err := cardinal.Create(ctx, comp.Location{}, comp.Player{})
 		if err != nil {

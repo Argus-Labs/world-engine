@@ -8,5 +8,6 @@ use (
 	sign
 	assert
 	internal/e2e
-	internal/e2e/tester/cardinal
+	internal/e2e/tester/game
+	internal/nakama
 )

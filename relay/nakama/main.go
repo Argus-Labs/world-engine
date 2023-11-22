@@ -297,8 +297,9 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 				// if the tag was rejected, don't do anything. let the user try to claim another tag.
 			}
 		}
-
+		//return logErrorWithMessage(logger, errors.New("test"), "got here")
 		txHash, tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
+
 		if err != nil {
 			return logErrorWithMessage(logger, err, "unable to make create persona request to cardinal")
 		}
@@ -308,7 +309,6 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
 			return logErrorWithMessage(logger, err, "unable to set persona tag storage object")
 		}
-
 		// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
 		// user having the persona tag.
 		if ok := setPersonaTagAssignment(ptr.PersonaTag, userID); !ok {
@@ -490,10 +490,7 @@ func logErrorNotFound(
 func errToNakamaError(
 	err error,
 	code int) error {
-	if DebugEnabled {
-		return runtime.NewError(eris.ToString(err, true), code)
-	}
-	return runtime.NewError(err.Error(), code)
+	return runtime.NewError(eris.ToString(err, true), code)
 }
 
 // setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns

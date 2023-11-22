@@ -272,7 +272,7 @@ func IsEqual(t testify.TestingT, expected, actual interface{}, msgAndArgs ...int
 	return testify.Equal(t, expected, actual, msgAndArgs...)
 }
 
-// this is covered by gotest and is duplicated by testify
+// the following below is covered by gotest and is duplicated by testify
 // some signatures are slightly different but overall everything should be covered.
 
 // func Equal(t TestingT, expected, actual interface{}, msgAndArgs ...interface{}) bool //renamed IsEqual above.

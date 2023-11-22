@@ -107,13 +107,13 @@ services:
     container_name: test_game
     environment:
       - REDIS_ADDR=redis:6379
-      - NAMESPACE=TESTGAME
+      - CARDINAL_NAMESPACE=TESTGAME
       - SHARD_SEQUENCER_ADDR=chain:9601
       - BASE_SHARD_ADDR=chain:9090
       - ENABLE_ADAPTER=${ENABLE_ADAPTER:-true}
     build:
-      context: internal/e2e/tester/cardinal
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: internal/e2e/tester/game/Dockerfile
     restart: unless-stopped
     expose:
       - "3333"

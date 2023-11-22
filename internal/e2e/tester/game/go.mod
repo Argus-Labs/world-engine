@@ -13,7 +13,9 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
-require pkg.world.dev/world-engine/cardinal v0.1.47-alpha.0.20231106232923-a4d2b1526011
+replace pkg.world.dev/world-engine/cardinal => ../../../../cardinal
+
+require pkg.world.dev/world-engine/cardinal v0.1.49-alpha
 
 require (
 	cosmossdk.io/api v0.7.0 // indirect
@@ -69,6 +71,7 @@ require (
 	github.com/go-openapi/strfmt v0.21.7 // indirect
 	github.com/go-openapi/swag v0.22.4 // indirect
 	github.com/go-openapi/validate v0.22.1 // indirect
+	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/gogo/protobuf v1.3.3 // indirect
 	github.com/golang/glog v1.1.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
@@ -109,6 +112,8 @@ require (
 	github.com/prometheus/procfs v0.11.1 // indirect
 	github.com/redis/go-redis/v9 v9.0.2 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
+	github.com/rotisserie/eris v0.5.4 // indirect
+	github.com/rs/cors v1.10.1 // indirect
 	github.com/rs/zerolog v1.30.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
@@ -132,9 +137,8 @@ require (
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gotest.tools/v3 v3.5.1 // indirect
 	pkg.world.dev/world-engine/chain v0.1.12-alpha // indirect
 	pkg.world.dev/world-engine/rift v0.0.5 // indirect
-	pkg.world.dev/world-engine/sign v0.1.10-alpha // indirect
+	pkg.world.dev/world-engine/sign v0.1.11-alpha // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

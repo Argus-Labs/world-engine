@@ -89,9 +89,17 @@ func doRequest(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, eris.Wrapf(err, "request to %q failed", req.URL)
 	} else if resp.StatusCode != http.StatusOK {
+		statusCode := resp.StatusCode
 		var buf []byte
-		buf, _ = io.ReadAll(resp.Body)
-		return nil, eris.Wrapf(err, "got response of %d: %v", resp.StatusCode, string(buf))
+		buf, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, eris.Wrapf(err, "failed reading body in resp, status code: %d", statusCode)
+		}
+		reqBuf, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, eris.Wrapf(err, "failed reading body in request, status code: %d", statusCode)
+		}
+		return nil, eris.Errorf("error to url: %s, with body: %s, got response of %d: %s", req.URL, statusCode, string(reqBuf), string(buf))
 	}
 	return resp, nil
 }
@@ -101,7 +109,17 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 	tick uint64,
 	err error,
 ) {
+	defer func() {
+		if r := recover(); r != nil {
+			txHash = ""
+			tick = 0
+			err = eris.Errorf("a panic occured in nakama in the function, cardinalCreatePersona:, %s", r)
+		}
+	}()
+
 	signerAddress := getSignerAddress()
+	//goodKey, err := crypto.GenerateKey()
+	//signerAddress := crypto.PubkeyToAddress(goodKey.PublicKey).Hex()
 	createPersonaTx := struct {
 		PersonaTag    string `json:"personaTag"`
 		SignerAddress string `json:"signerAddress"`
@@ -115,7 +133,9 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, eris.Wrapf(err, "unable to get the private key or a nonce")
 	}
 
+	//transaction, err := sign.NewSystemTransaction(goodKey, globalNamespace, uint64(100), createPersonaTx)
 	transaction, err := sign.NewSystemTransaction(key, globalNamespace, nonce, createPersonaTx)
+
 	if err != nil {
 		return "", 0, eris.Wrapf(err, "unable to create signed payload")
 	}
@@ -130,16 +150,18 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, eris.Wrapf(err, "unable to make request to %q", createPersonaEndpoint)
 	}
 	req.Header.Set("Content-Type", "application/json")
-
 	resp, err := doRequest(req)
 	if err != nil {
 		return "", 0, err
 	}
+
 	defer resp.Body.Close()
+
 	if code := resp.StatusCode; code != http.StatusOK {
 		buf, err = io.ReadAll(resp.Body)
 		return "", 0, eris.Wrapf(err, "create persona response is not 200. code %v, body: %v", code, string(buf))
 	}
+
 	var createPersonaResponse txResponse
 
 	if err = json.NewDecoder(resp.Body).Decode(&createPersonaResponse); err != nil {

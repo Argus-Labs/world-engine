@@ -2,9 +2,12 @@ package main
 
 import (
 	"errors"
-	"github.com/argus-labs/world-engine/example/tester/msg"
+	"fmt"
 	"log"
 	"os"
+
+	"github.com/argus-labs/world-engine/example/tester/msg"
+	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/example/tester/comp"
 	"github.com/argus-labs/world-engine/example/tester/query"
@@ -14,41 +17,64 @@ import (
 )
 
 func main() {
-	namespace := os.Getenv("NAMESPACE")
 	options := []cardinal.WorldOption{
-		cardinal.WithNamespace(namespace),
 		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
 	}
-	if os.Getenv("ENABLE_ADAPTER") == "false" {
+	//if os.Getenv("ENABLE_ADAPTER") == "false" {
+	if true { //uncomment above to enable adapter from env.
 		log.Println("Skipping adapter")
 	} else {
 		options = append(options, cardinal.WithAdapter(setupAdapter()))
 	}
-
-	world, err := cardinal.NewWorld(os.Getenv("REDIS_ADDR"), "", options...)
+	world, err := cardinal.NewWorld(options...)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, eris.ToString(err, true))
 	}
 	err = errors.Join(
 		cardinal.RegisterComponent[comp.Location](world),
 		cardinal.RegisterComponent[comp.Player](world),
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, eris.ToString(err, true))
 	}
 	err = cardinal.RegisterMessages(world, msg.JoinMsg, msg.MoveMsg)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, eris.ToString(err, true))
 	}
-	err = cardinal.RegisterQueries(world, query.Location)
+
+	err = cardinal.RegisterQueryWithEVMSupport[query.LocationRequest, query.LocationReply](
+		world,
+		"location",
+		func(ctx cardinal.WorldContext, req *query.LocationRequest) (*query.LocationReply, error) {
+			playerEntityID, ok := sys.PlayerEntityID[req.ID]
+			if !ok {
+				ctx.Logger().Info().Msg("listing existing players...")
+				for playerID := range sys.PlayerEntityID {
+					ctx.Logger().Info().Msg(playerID)
+				}
+				return &query.LocationReply{}, fmt.Errorf("player does not exist")
+			}
+			loc, err := cardinal.GetComponent[comp.Location](ctx, playerEntityID)
+			if err != nil {
+				return &query.LocationReply{}, err
+			}
+			return &query.LocationReply{
+				X: loc.X,
+				Y: loc.Y,
+			}, nil
+		})
+
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, eris.ToString(err, true))
 	}
-	cardinal.RegisterSystems(world, sys.Join, sys.Move)
+	err = cardinal.RegisterSystems(world, sys.Join, sys.Move)
+	if err != nil {
+		log.Fatal(err, eris.ToString(err, true))
+	}
 
 	err = world.StartGame()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, eris.ToString(err, true))
 	}
 }
 

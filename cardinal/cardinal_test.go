@@ -1,6 +1,8 @@
 package cardinal_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"os"
 	"os/exec"
@@ -9,16 +11,58 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/assert"
 
 	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/sign"
 )
 
 type Foo struct{}
 
 func (Foo) Name() string { return "foo" }
+
+type Rawbodytx struct {
+	PersonaTag    string `json:"personaTag"`
+	SignerAddress string `json:"signerAddress"`
+}
+
+func TestCreatePersona(t *testing.T) {
+	var wg sync.WaitGroup
+	namespace := "custom-namespace"
+	t.Setenv("CARDINAL_NAMESPACE", namespace)
+	world := testutils.NewTestWorld(t)
+	wg.Add(1)
+	go func() {
+		err := world.StartGame()
+		assert.NilError(t, err)
+		wg.Done()
+	}()
+	for !world.IsGameRunning() {
+		// wait until game loop is running
+		time.Sleep(50 * time.Millisecond)
+	}
+	goodKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	body := Rawbodytx{
+		PersonaTag:    "a",
+		SignerAddress: crypto.PubkeyToAddress(goodKey.PublicKey).Hex(),
+	}
+	wantBody, err := json.Marshal(body)
+	assert.NilError(t, err)
+	wantNonce := uint64(100)
+	sp, err := sign.NewSystemTransaction(goodKey, namespace, wantNonce, wantBody)
+	bodyBytes, err := json.Marshal(sp)
+	assert.NilError(t, err)
+	client := &http.Client{}
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:4040/tx/persona/create-persona", bytes.NewBuffer(bodyBytes))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	assert.NilError(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+}
 
 func TestNewWorld(t *testing.T) {
 	world, err := cardinal.NewWorld()

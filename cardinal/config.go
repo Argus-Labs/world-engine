@@ -12,6 +12,7 @@ const (
 	DefaultMode          = ModeDev
 	DefaultNamespace     = "world-1"
 	DefaultRedisPassword = ""
+	DefaultRedisAddress  = "redis:6379"
 )
 
 type WorldConfig struct {
@@ -24,7 +25,7 @@ type WorldConfig struct {
 
 func GetWorldConfig() WorldConfig {
 	return WorldConfig{
-		RedisAddress:      getEnv("REDIS_ADDRESS", "localhost:6379"),
+		RedisAddress:      getEnv("REDIS_ADDRESS", DefaultRedisAddress),
 		RedisPassword:     getEnv("REDIS_PASSWORD", DefaultRedisPassword),
 		CardinalNamespace: getEnv("CARDINAL_NAMESPACE", DefaultNamespace),
 		CardinalPort:      getEnv("CARDINAL_PORT", "4040"),
