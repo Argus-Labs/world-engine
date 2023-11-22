@@ -21,10 +21,11 @@
 package app
 
 import (
+	"os"
+
 	runtimev1alpha1 "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
 	appv1alpha1 "cosmossdk.io/api/cosmos/app/v1alpha1"
 	authmodulev1 "cosmossdk.io/api/cosmos/auth/module/v1"
-	authzmodulev1 "cosmossdk.io/api/cosmos/authz/module/v1"
 	bankmodulev1 "cosmossdk.io/api/cosmos/bank/module/v1"
 	consensusmodulev1 "cosmossdk.io/api/cosmos/consensus/module/v1"
 	crisismodulev1 "cosmossdk.io/api/cosmos/crisis/module/v1"
@@ -43,7 +44,7 @@ import (
 	"cosmossdk.io/depinject"
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"os"
+
 	shardmodulev1 "pkg.world.dev/world-engine/evm/api/shard/module/v1"
 	"pkg.world.dev/world-engine/evm/shard"
 	shardmodule "pkg.world.dev/world-engine/evm/x/shard"
@@ -55,7 +56,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
-	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	crisistypes "github.com/cosmos/cosmos-sdk/x/crisis/types"
@@ -74,11 +74,11 @@ import (
 	evmmodulev1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/module/v1alpha1"
 	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
 
-	_ "cosmossdk.io/x/evidence"                       // import for side effects
-	_ "cosmossdk.io/x/upgrade"                        // import for side effects
+	_ "cosmossdk.io/x/evidence" // import for side effects
+	_ "cosmossdk.io/x/upgrade"  // import for side effects
+
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/auth/vesting"   // import for side effects
-	_ "github.com/cosmos/cosmos-sdk/x/authz/module"   // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/bank"           // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/consensus"      // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/crisis"         // import for side effects
@@ -135,23 +135,26 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 					// there is nothing left over in the validator fee pool, so as to keep the
 					// CanWithdrawInvariant invariant.
 					// NOTE: staking module is required if HistoricalEntries param > 0
-					BeginBlockers: []string{
+					PrepareCheckStaters: []string{
+						evmtypes.ModuleName,
+					},
+					PreBlockers: []string{
 						upgradetypes.ModuleName,
+					},
+					BeginBlockers: []string{
 						minttypes.ModuleName,
 						distrtypes.ModuleName,
 						slashingtypes.ModuleName,
 						evidencetypes.ModuleName,
 						stakingtypes.ModuleName,
 						genutiltypes.ModuleName,
-						authz.ModuleName,
-						evmtypes.ModuleName,
 					},
 					EndBlockers: []string{
+						evmtypes.ModuleName,
 						crisistypes.ModuleName,
 						govtypes.ModuleName,
 						stakingtypes.ModuleName,
 						genutiltypes.ModuleName,
-						evmtypes.ModuleName,
 					},
 					OverrideStoreKeys: []*runtimev1alpha1.StoreKeyConfig{
 						{
@@ -161,7 +164,8 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 					},
 					// NOTE: The genutils module must occur after staking so that pools are
 					// properly initialized with tokens from genesis accounts.
-					// NOTE: The genutils module must also occur after auth so that it can access the params from auth.
+					// NOTE: The genutils module must also occur after auth so that
+					// it can access the params from auth.
 					InitGenesis: []string{
 						authtypes.ModuleName,
 						banktypes.ModuleName,
@@ -173,8 +177,6 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 						crisistypes.ModuleName,
 						genutiltypes.ModuleName,
 						evidencetypes.ModuleName,
-						authz.ModuleName,
-						paramstypes.ModuleName,
 						upgradetypes.ModuleName,
 						vestingtypes.ModuleName,
 						consensustypes.ModuleName,
@@ -228,10 +230,6 @@ func MakeAppConfig(bech32prefix string) depinject.Config {
 			{
 				Name:   genutiltypes.ModuleName,
 				Config: appconfig.WrapAny(&genutilmodulev1.Module{}),
-			},
-			{
-				Name:   authz.ModuleName,
-				Config: appconfig.WrapAny(&authzmodulev1.Module{}),
 			},
 			{
 				Name:   upgradetypes.ModuleName,

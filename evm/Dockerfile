@@ -16,6 +16,7 @@ USER 0
 
 COPY scripts/start-sequencer.sh start-sequencer.sh
 RUN chmod +x start-sequencer.sh
+COPY scripts/app.toml app.toml
 
 HEALTHCHECK --interval=5s --timeout=80s CMD curl --fail http://localhost:26657 || exit 1
 

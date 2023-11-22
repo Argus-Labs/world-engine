@@ -3,14 +3,16 @@ package router
 import (
 	"context"
 	"errors"
+	"math/big"
+	"testing"
+
+	"gotest.tools/v3/assert"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
-	"gotest.tools/v3/assert"
-	"math/big"
-	"pkg.berachain.dev/polaris/eth/core"
+	"github.com/ethereum/go-ethereum/core"
 	"pkg.berachain.dev/polaris/eth/core/types"
 	namespacetypes "pkg.world.dev/world-engine/evm/x/namespace/types"
-	"testing"
 
 	"cosmossdk.io/log"
 )

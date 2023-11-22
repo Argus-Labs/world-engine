@@ -25,17 +25,20 @@ import (
 	"errors"
 	"io"
 	"os"
-	evmmempool "pkg.berachain.dev/polaris/cosmos/x/evm/plugins/txpool/mempool"
-	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
 
 	dbm "github.com/cosmos/cosmos-db"
+	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	evmv1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/v1alpha1"
+	evmconfig "pkg.berachain.dev/polaris/cosmos/config"
+	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
 
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
+
 	cmtcfg "github.com/cometbft/cometbft/config"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -65,9 +68,11 @@ import (
 	"pkg.world.dev/world-engine/evm/app"
 )
 
-// NewRootCmd creates a new root command for simd. It is called once in the main function.
-//
+const (
+	bech32Prefix = "world"
+)
 
+// NewRootCmd creates a new root command for simd. It is called once in the main function.
 func NewRootCmd() *cobra.Command {
 	var (
 		interfaceRegistry  codectypes.InterfaceRegistry
@@ -80,9 +85,16 @@ func NewRootCmd() *cobra.Command {
 
 	if err := depinject.Inject(
 		depinject.Configs(
-			app.MakeAppConfig("world"),
-			depinject.Supply(evmmempool.NewPolarisEthereumTxPool(), log.NewNopLogger()),
-			depinject.Provide(evmtypes.ProvideEthereumTransactionGetSigners),
+			app.MakeAppConfig(bech32Prefix),
+			depinject.Supply(
+				app.PolarisConfigFn(evmconfig.DefaultConfig()),
+				app.QueryContextFn((&app.App{})),
+				log.NewNopLogger(),
+				simtestutil.NewAppOptionsWithFlagHome(tempDir()),
+			),
+			depinject.Provide(
+				signinglib.ProvideNoopGetSigners[*evmv1alpha1.WrappedEthereumTransaction],
+				signinglib.ProvideNoopGetSigners[*evmv1alpha1.WrappedPayloadEnvelope]),
 		),
 		&interfaceRegistry,
 		&appCodec,
@@ -94,8 +106,6 @@ func NewRootCmd() *cobra.Command {
 		panic(err)
 	}
 
-	ethcryptocodec.RegisterInterfaces(interfaceRegistry)
-
 	initClientCtx := client.Context{}.
 		WithCodec(appCodec).
 		WithInterfaceRegistry(interfaceRegistry).
@@ -103,8 +113,10 @@ func NewRootCmd() *cobra.Command {
 		WithInput(os.Stdin).
 		WithAccountRetriever(types.AccountRetriever{}).
 		WithHomeDir(app.DefaultNodeHome).
-		WithViper(""). // In simapp, we don't use any prefix for env variables.
-		WithKeyringOptions(keyring.EthSecp256k1Option())
+		WithKeyringOptions(keyring.OnlyEthSecp256k1Option()).
+		WithViper("") // In simapp, we don't use any prefix for env variables.
+
+	ethcryptocodec.RegisterInterfaces(interfaceRegistry)
 
 	rootCmd := &cobra.Command{
 		Use:   "world-evm",
@@ -253,7 +265,6 @@ func txCommand() *cobra.Command {
 		authcmd.GetBroadcastCommand(),
 		authcmd.GetEncodeCommand(),
 		authcmd.GetDecodeCommand(),
-		authcmd.GetAuxToFeeCommand(),
 	)
 
 	return cmd
@@ -269,7 +280,11 @@ func newApp(
 	baseappOptions := server.DefaultBaseappOptions(appOpts)
 
 	return app.NewApp(
-		logger, db, traceStore, true,
+		logger,
+		db,
+		traceStore,
+		true,
+		bech32Prefix,
 		appOpts,
 		baseappOptions...,
 	)
@@ -304,14 +319,24 @@ func appExport(
 
 	var testApp *app.App
 	if height != -1 {
-		testApp = app.NewApp(logger, db, traceStore, false, appOpts)
+		testApp = app.NewApp(logger, db, traceStore, false, bech32Prefix, appOpts)
 
 		if err := testApp.LoadHeight(height); err != nil {
 			return servertypes.ExportedApp{}, err
 		}
 	} else {
-		testApp = app.NewApp(logger, db, traceStore, true, appOpts)
+		testApp = app.NewApp(logger, db, traceStore, true, bech32Prefix, appOpts)
 	}
 
 	return testApp.ExportAppStateAndValidators(forZeroHeight, jailAllowedAddrs, modulesToExport)
+}
+
+func tempDir() string {
+	dir, err := os.MkdirTemp("", "world-evm")
+	if err != nil {
+		dir = app.DefaultNodeHome
+	}
+	defer os.RemoveAll(dir)
+
+	return dir
 }
