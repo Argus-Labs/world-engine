@@ -318,7 +318,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			}
 			return logErrorWithMessageAndCode(
 				logger,
-				err,
+				eris.New("could not set personaTag assignment"),
 				AlreadyExists,
 				"persona tag %q is not available",
 				ptr.PersonaTag)
@@ -331,7 +331,10 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		}
 		ptv.addPendingPersonaTag(userID, ptr.TxHash)
 		res, err := ptr.toJSON()
-		return res, eris.Wrap(err, "")
+		if err != nil {
+			return logErrorWithMessage(logger, err, "unable to marshal response")
+		}
+		return res, nil
 	}
 }
 
@@ -348,7 +351,10 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 		return logErrorWithMessage(logger, err, "unable to update pending state")
 	}
 	res, err := ptr.toJSON()
-	return res, eris.Wrap(err, "")
+	if err != nil {
+		return logErrorWithMessage(logger, err, "unable to marshal response")
+	}
+	return res, nil
 }
 
 // initCardinalEndpoints queries the cardinal server to find the list of existing endpoints, and attempts to
@@ -412,7 +418,9 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				if err != nil {
 					return logErrorWithMessage(logger, err, "request failed for endpoint %q", currEndpoint)
 				}
-				defer resp.Body.Close()
+				if resp.Body != nil {
+					defer resp.Body.Close()
+				}
 				if resp.StatusCode != http.StatusOK {
 					body, err := io.ReadAll(resp.Body)
 					return logErrorWithMessage(logger, err, "bad status code: %s: %s", resp.Status, body)
@@ -459,7 +467,8 @@ func logErrorWithMessageAndCode(
 	err error,
 	code int,
 	format string,
-	v ...interface{}) (string, error) {
+	v ...interface{},
+) (string, error) {
 	err = eris.Wrapf(err, format, v...)
 	return logError(logger, err, code)
 }
@@ -493,7 +502,7 @@ func errToNakamaError(
 	if DebugEnabled {
 		return runtime.NewError(eris.ToString(err, true), code)
 	}
-	return runtime.NewError(err.Error(), code)
+	return runtime.NewError(eris.Errorf("error: %v", err).Error(), code)
 }
 
 // setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns

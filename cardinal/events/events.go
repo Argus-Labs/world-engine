@@ -320,18 +320,17 @@ func Echo(w http.ResponseWriter, r *http.Request) {
 	}
 	err = WebSocketEchoHandler(c)
 	if err != nil {
-		err = sendError(w, err)
-		if err != nil {
-			panic(err)
+		errClose, ok :=
+			eris.Cause(err).(*websocket.CloseError) //nolint: errorlint // errorAs doesn't work. eris.Cause fixes it.
+
+		if ok && errClose.Code == websocket.CloseNormalClosure {
+			// the library creates an error here but it's actually a normal closure. It is Expected.
+			return
 		}
-		return
+		panic(eris.ToString(err, true))
 	}
 	err = eris.Wrap(c.Close(), "")
 	if err != nil {
-		err = sendError(w, err)
-		if err != nil {
-			panic(err)
-		}
-		return
+		panic(eris.ToString(err, true))
 	}
 }
