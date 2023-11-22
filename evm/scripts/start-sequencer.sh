@@ -45,7 +45,7 @@ world-evm genesis add-genesis-account $KEY_NAME $TOKEN_AMOUNT --keyring-backend=
 world-evm genesis gentx $KEY_NAME $STAKING_AMOUNT --chain-id $CHAIN_ID --keyring-backend=$KEY_BACKEND
 world-evm genesis collect-gentxs
 
-mv app.toml /root/.world-evm/config/app.toml
+cp app.toml /root/.world-evm/config/app.toml
 
 sed -i'.bak' 's#"20f33ce90a13a4b5e7697e3544c3083b8f8a51d4"#"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"#g' /root/.world-evm/config/genesis.json
 sed -i'.bak' 's#"0x1b1ae4d6e2ef500000"#"0x7fffffffffffffff"#g' /root/.world-evm/config/genesis.json

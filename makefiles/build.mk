@@ -2,6 +2,13 @@ rift:
 	cd rift/proto && buf generate
 .PHONY: rift
 
+start-da:
+	@. ${CURDIR}/evm/scripts/start-celestia-devnet.sh
+
+
+start-evm:
+	@docker compose up chain --build --abort-on-container-exit
+
 rollup:
 	@. ${CURDIR}/evm/scripts/start-celestia-devnet.sh && \
 	docker compose up chain --build --abort-on-container-exit --exit-code-from celestia-devnet
