@@ -111,8 +111,6 @@ type App struct {
 	// plugins
 	Router         router.Router
 	ShardSequencer *shard.Sequencer
-
-	faucetAddr sdk.AccAddress
 }
 
 //nolint:gochecknoinits // from sdk.
@@ -126,8 +124,6 @@ func init() {
 }
 
 // NewApp returns a reference to an initialized App.
-//
-//nolint:funlen // from sdk.
 func NewApp(
 	logger log.Logger,
 	db dbm.DB,
@@ -232,9 +228,6 @@ func (app *App) endBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 				return sdk.EndBlock{}, err
 			}
 		}
-	}
-	if app.faucetAddr != nil {
-		// app.EVMKeeper.SetBalance(ctx, app.faucetAddr, big.NewInt(math.MaxInt64))
 	}
 	return endBlock, nil
 }

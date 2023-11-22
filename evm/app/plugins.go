@@ -1,7 +1,6 @@
 package app
 
 import (
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"os"
 	"pkg.world.dev/world-engine/evm/router"
 	"pkg.world.dev/world-engine/evm/shard"
@@ -38,17 +37,5 @@ func (app *App) setPlugins(logger log.Logger) {
 		app.Router = router.NewRouter(logger, app.CreateQueryContext, app.NamespaceKeeper.Address, opts...)
 	} else {
 		logger.Info("router is not running")
-	}
-
-	addr := os.Getenv("FAUCET_ADDR")
-	if addr != "" {
-		logger.Info("setting up faucet address", "address string", addr)
-		acc, err := sdk.AccAddressFromBech32(addr)
-		if err != nil {
-			panic(err)
-		}
-		app.faucetAddr = acc
-	} else {
-		logger.Info("no faucet address provided")
 	}
 }
