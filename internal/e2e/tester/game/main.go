@@ -2,15 +2,14 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"os"
 
 	"github.com/argus-labs/world-engine/example/tester/msg"
+	"github.com/argus-labs/world-engine/example/tester/query"
 	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/example/tester/comp"
-	"github.com/argus-labs/world-engine/example/tester/query"
 	"github.com/argus-labs/world-engine/example/tester/sys"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -41,29 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
-
-	err = cardinal.RegisterQueryWithEVMSupport[query.LocationRequest, query.LocationReply](
-		world,
-		"location",
-		func(ctx cardinal.WorldContext, req *query.LocationRequest) (*query.LocationReply, error) {
-			playerEntityID, ok := sys.PlayerEntityID[req.ID]
-			if !ok {
-				ctx.Logger().Info().Msg("listing existing players...")
-				for playerID := range sys.PlayerEntityID {
-					ctx.Logger().Info().Msg(playerID)
-				}
-				return &query.LocationReply{}, fmt.Errorf("player does not exist")
-			}
-			loc, err := cardinal.GetComponent[comp.Location](ctx, playerEntityID)
-			if err != nil {
-				return &query.LocationReply{}, err
-			}
-			return &query.LocationReply{
-				X: loc.X,
-				Y: loc.Y,
-			}, nil
-		})
-
+	err = query.RegisterLocationQuery(world)
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
