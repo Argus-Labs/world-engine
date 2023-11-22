@@ -2,6 +2,7 @@ module pkg.world.dev/world-engine/evm
 
 go 1.21.0
 
+// external, necessary replacements
 replace (
 	github.com/cockroachdb/pebble => github.com/cockroachdb/pebble v0.0.0-20230928194634-aa077af62593
 
