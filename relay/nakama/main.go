@@ -297,9 +297,8 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 				// if the tag was rejected, don't do anything. let the user try to claim another tag.
 			}
 		}
-		//return logErrorWithMessage(logger, errors.New("test"), "got here")
-		txHash, tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
 
+		txHash, tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
 		if err != nil {
 			return logErrorWithMessage(logger, err, "unable to make create persona request to cardinal")
 		}
@@ -309,6 +308,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
 			return logErrorWithMessage(logger, err, "unable to set persona tag storage object")
 		}
+
 		// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
 		// user having the persona tag.
 		if ok := setPersonaTagAssignment(ptr.PersonaTag, userID); !ok {
@@ -318,7 +318,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			}
 			return logErrorWithMessageAndCode(
 				logger,
-				err,
+				eris.Wrap(err, "could not set personaTag assignment"),
 				AlreadyExists,
 				"persona tag %q is not available",
 				ptr.PersonaTag)
@@ -331,7 +331,10 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		}
 		ptv.addPendingPersonaTag(userID, ptr.TxHash)
 		res, err := ptr.toJSON()
-		return res, eris.Wrap(err, "")
+		if err != nil {
+			return logErrorWithMessage(logger, err, "unable to marshal response")
+		}
+		return res, nil
 	}
 }
 
@@ -348,7 +351,10 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 		return logErrorWithMessage(logger, err, "unable to update pending state")
 	}
 	res, err := ptr.toJSON()
-	return res, eris.Wrap(err, "")
+	if err != nil {
+		return logErrorWithMessage(logger, err, "unable to marshal response")
+	}
+	return res, nil
 }
 
 // initCardinalEndpoints queries the cardinal server to find the list of existing endpoints, and attempts to
@@ -459,7 +465,8 @@ func logErrorWithMessageAndCode(
 	err error,
 	code int,
 	format string,
-	v ...interface{}) (string, error) {
+	v ...interface{},
+) (string, error) {
 	err = eris.Wrapf(err, format, v...)
 	return logError(logger, err, code)
 }
@@ -490,7 +497,10 @@ func logErrorNotFound(
 func errToNakamaError(
 	err error,
 	code int) error {
-	return runtime.NewError(eris.ToString(err, true), code)
+	if DebugEnabled {
+		return runtime.NewError(eris.ToString(err, true), code)
+	}
+	return runtime.NewError(eris.Errorf("error: %v", err).Error(), code)
 }
 
 // setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns

@@ -127,7 +127,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 
 		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
 		err = ecs.NewSearch(resultFilter).Each(wCtx, func(id entity.ID) bool {
-			components, err := handler.w.StoreManager().GetComponentTypesForEntity(id)
+			components, err := wCtx.StoreReader().GetComponentTypesForEntity(id)
 			if err != nil {
 				return false
 			}
@@ -137,7 +137,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 			}
 
 			for _, c := range components {
-				data, err := ecs.GetRawJSONOfComponent(handler.w, c, id)
+				data, err := wCtx.StoreReader().GetComponentForEntityInRawJSON(c, id)
 				if err != nil {
 					return false
 				}

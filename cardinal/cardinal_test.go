@@ -54,14 +54,19 @@ func TestCreatePersona(t *testing.T) {
 	assert.NilError(t, err)
 	wantNonce := uint64(100)
 	sp, err := sign.NewSystemTransaction(goodKey, namespace, wantNonce, wantBody)
+	assert.NilError(t, err)
 	bodyBytes, err := json.Marshal(sp)
 	assert.NilError(t, err)
 	client := &http.Client{}
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:4040/tx/persona/create-persona", bytes.NewBuffer(bodyBytes))
+	req, err := http.NewRequest(
+		http.MethodPost, "http://localhost:4040/tx/persona/create-persona", bytes.NewBuffer(bodyBytes))
+	assert.NilError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
+	err = world.ShutDown()
+	assert.NilError(t, err)
 }
 
 func TestNewWorld(t *testing.T) {

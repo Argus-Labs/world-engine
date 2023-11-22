@@ -99,7 +99,13 @@ func doRequest(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			return nil, eris.Wrapf(err, "failed reading body in request, status code: %d", statusCode)
 		}
-		return nil, eris.Errorf("error to url: %s, with body: %s, got response of %d: %s", req.URL, statusCode, string(reqBuf), string(buf))
+		return nil,
+			eris.Errorf(
+				"error to url: %s, with request body: %s, got response of %d: %s",
+				req.URL,
+				string(reqBuf),
+				statusCode,
+				string(buf))
 	}
 	return resp, nil
 }
@@ -113,13 +119,11 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		if r := recover(); r != nil {
 			txHash = ""
 			tick = 0
-			err = eris.Errorf("a panic occured in nakama in the function, cardinalCreatePersona:, %s", r)
+			err = eris.Errorf("a panic occurred in nakama in the function, cardinalCreatePersona:, %s", r)
 		}
 	}()
 
 	signerAddress := getSignerAddress()
-	//goodKey, err := crypto.GenerateKey()
-	//signerAddress := crypto.PubkeyToAddress(goodKey.PublicKey).Hex()
 	createPersonaTx := struct {
 		PersonaTag    string `json:"personaTag"`
 		SignerAddress string `json:"signerAddress"`
@@ -133,7 +137,6 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, eris.Wrapf(err, "unable to get the private key or a nonce")
 	}
 
-	//transaction, err := sign.NewSystemTransaction(goodKey, globalNamespace, uint64(100), createPersonaTx)
 	transaction, err := sign.NewSystemTransaction(key, globalNamespace, nonce, createPersonaTx)
 
 	if err != nil {

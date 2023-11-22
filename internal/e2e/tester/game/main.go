@@ -20,8 +20,8 @@ func main() {
 	options := []cardinal.WorldOption{
 		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
 	}
-	//if os.Getenv("ENABLE_ADAPTER") == "false" {
-	if true { //uncomment above to enable adapter from env.
+	// if os.Getenv("ENABLE_ADAPTER") == "false" {
+	if true { // uncomment above to enable adapter from env.
 		log.Println("Skipping adapter")
 	} else {
 		options = append(options, cardinal.WithAdapter(setupAdapter()))
