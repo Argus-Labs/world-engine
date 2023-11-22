@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
+	"github.com/wI2L/jsondiff"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 )
 
@@ -134,4 +136,25 @@ func WithDefault[T any](defaultVal T) ComponentOption[T] {
 		c.defaultVal = defaultVal
 		c.validateDefaultVal()
 	}
+}
+
+func SerializeComponentSchema(component Component) ([]byte, error) {
+	componentSchema := jsonschema.Reflect(component)
+	return componentSchema.MarshalJSON()
+}
+
+func IsComponentValid(component Component, jsonSchemaBytes []byte) (bool, error) {
+	componentSchema := jsonschema.Reflect(component)
+	componentSchemaBytes, err := componentSchema.MarshalJSON()
+	if err != nil {
+		return false, eris.Wrap(err, "")
+	}
+	patch, err := jsondiff.CompareJSON(componentSchemaBytes, jsonSchemaBytes)
+	if err != nil {
+		return false, eris.Wrap(err, "")
+	}
+	if patch.String() == "" {
+		return true, nil
+	}
+	return false, nil
 }

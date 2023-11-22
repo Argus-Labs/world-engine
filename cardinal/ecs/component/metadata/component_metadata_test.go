@@ -1,8 +1,9 @@
 package metadata_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"gotest.tools/v3/assert"
 
@@ -29,8 +30,23 @@ type ComponentDataB struct {
 
 func (ComponentDataB) Name() string { return "b" }
 
+type ComponentDataC struct {
+	Value int
+}
+
 func getNameOfComponent(c metadata.Component) string {
 	return c.Name()
+}
+
+func TestComponentSchemaValidation(t *testing.T) {
+	componentASchemaBytes, err := metadata.SerializeComponentSchema(ComponentDataA{Value: "test"})
+	assert.NilError(t, err)
+	valid, err := metadata.IsComponentValid(ComponentDataA{Value: "anything"}, componentASchemaBytes)
+	assert.NilError(t, err)
+	assert.Assert(t, valid)
+	valid, err = metadata.IsComponentValid(ComponentDataB{Value: "blah"}, componentASchemaBytes)
+	assert.NilError(t, err)
+	assert.Assert(t, !valid)
 }
 
 func TestComponentInterfaceSignature(t *testing.T) {
