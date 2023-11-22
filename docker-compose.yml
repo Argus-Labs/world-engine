@@ -106,7 +106,7 @@ services:
   game:
     container_name: test_game
     environment:
-      - REDIS_ADDR=redis:6379
+      - REDIS_ADDRESS=redis:6379
       - CARDINAL_NAMESPACE=TESTGAME
       - SHARD_SEQUENCER_ADDR=chain:9601
       - BASE_SHARD_ADDR=chain:9090

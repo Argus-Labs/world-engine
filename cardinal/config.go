@@ -12,7 +12,7 @@ const (
 	DefaultMode          = ModeDev
 	DefaultNamespace     = "world-1"
 	DefaultRedisPassword = ""
-	DefaultRedisAddress  = "redis:6379"
+	DefaultRedisAddress  = "localhost:6379"
 )
 
 type WorldConfig struct {
