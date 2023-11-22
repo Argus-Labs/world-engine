@@ -93,14 +93,14 @@ services:
 
   celestia-devnet:
     container_name: celestia_devnet
-    image: ghcr.io/rollkit/local-celestia-devnet:v0.11.0-rc12
+    image: ghcr.io/rollkit/local-celestia-devnet:v0.12.1
     networks:
       - world-engine
     restart: on-failure
     ports:
       - "26657"
-      - "26658"
-      - "26659"
+      - "26658:26658"
+      - "26659:26659"
       - "9090"
 
   game:
