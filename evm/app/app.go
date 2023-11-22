@@ -21,16 +21,18 @@
 package app
 
 import (
-	"github.com/cometbft/cometbft/abci/types"
+	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
+	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"io"
-	"math"
-	"math/big"
 	"os"
 	"path/filepath"
-	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
+	evmv1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/v1alpha1"
+	evmconfig "pkg.berachain.dev/polaris/cosmos/config"
 
 	dbm "github.com/cosmos/cosmos-db"
+	polarruntime "pkg.berachain.dev/polaris/cosmos/runtime"
 	"pkg.world.dev/world-engine/evm/shard"
 
 	"cosmossdk.io/depinject"
@@ -41,7 +43,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -49,29 +50,19 @@ import (
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
-	testdata_pulsar "github.com/cosmos/cosmos-sdk/testutil/testdata/testpb"
 	"github.com/cosmos/cosmos-sdk/types/module"
-	"github.com/cosmos/cosmos-sdk/x/auth"
-	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
-	authsims "github.com/cosmos/cosmos-sdk/x/auth/simulation"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
-	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 	consensuskeeper "github.com/cosmos/cosmos-sdk/x/consensus/keeper"
 	crisiskeeper "github.com/cosmos/cosmos-sdk/x/crisis/keeper"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
-	paramskeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
-	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
 	ethcryptocodec "pkg.berachain.dev/polaris/cosmos/crypto/codec"
-	evmante "pkg.berachain.dev/polaris/cosmos/x/evm/ante"
 	evmkeeper "pkg.berachain.dev/polaris/cosmos/x/evm/keeper"
-	evmmempool "pkg.berachain.dev/polaris/cosmos/x/evm/plugins/txpool/mempool"
 
 	"pkg.world.dev/world-engine/evm/router"
 	namespacekeeper "pkg.world.dev/world-engine/evm/x/namespace/keeper"
@@ -90,6 +81,7 @@ var (
 // They are exported for convenience in creating helper functions, as object
 // capabilities aren't needed for testing.
 type App struct {
+	*polarruntime.Polaris
 	*runtime.App
 	legacyAmino       *codec.LegacyAmino
 	appCodec          codec.Codec
@@ -106,8 +98,6 @@ type App struct {
 	GovKeeper             *govkeeper.Keeper
 	CrisisKeeper          *crisiskeeper.Keeper
 	UpgradeKeeper         *upgradekeeper.Keeper
-	ParamsKeeper          paramskeeper.Keeper
-	AuthzKeeper           authzkeeper.Keeper
 	EvidenceKeeper        evidencekeeper.Keeper
 	ConsensusParamsKeeper consensuskeeper.Keeper
 
@@ -121,11 +111,6 @@ type App struct {
 	// plugins
 	Router         router.Router
 	ShardSequencer *shard.Sequencer
-
-	faucetAddr sdk.AccAddress
-
-	// simulation manager
-	sm *module.SimulationManager
 }
 
 //nolint:gochecknoinits // from sdk.
@@ -139,59 +124,36 @@ func init() {
 }
 
 // NewApp returns a reference to an initialized App.
-//
-//nolint:funlen // from sdk.
 func NewApp(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
 	loadLatest bool,
+	bech32Prefix string,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
 	app := &App{}
 	var (
-		appBuilder   *runtime.AppBuilder
-		ethTxMempool = evmmempool.NewPolarisEthereumTxPool()
+		appBuilder *runtime.AppBuilder
 		// merge the Config and other configuration in one config
 		appConfig = depinject.Configs(
-			MakeAppConfig("world"),
-			depinject.Provide(evmtypes.ProvideEthereumTransactionGetSigners),
+			MakeAppConfig(bech32Prefix),
+			depinject.Provide(
+				signinglib.ProvideNoopGetSigners[*evmv1alpha1.WrappedEthereumTransaction],
+				signinglib.ProvideNoopGetSigners[*evmv1alpha1.WrappedPayloadEnvelope],
+			),
 			depinject.Supply(
-				// supply the application options
 				appOpts,
-				// supply the logger
 				logger,
-				// supply the mempool
-				ethTxMempool,
-				// ADVANCED CONFIGURATION
+				PolarisConfigFn(evmconfig.MustReadConfigFromAppOpts(appOpts)),
 				PrecompilesToInject(app),
-				//
-				// AUTH
-				//
-				// For providing a custom function required in auth to generate custom account types
-				// add it below. By default the auth module uses simulation.RandomGenesisAccounts.
-				//
-				// authtypes.RandomGenesisAccountsFn(simulation.RandomGenesisAccounts),
-
-				// For providing a custom a base account type add it below.
-				// By default the auth module uses authtypes.ProtoBaseAccount().
-				//
-				// func() sdk.AccountI { return authtypes.ProtoBaseAccount() },
-
-				//
-				// MINT
-				//
-
-				// For providing a custom inflation function for x/mint add here your
-				// custom function that implements the minttypes.InflationCalculationFn
-				// interface.
+				QueryContextFn(app),
 			),
 		)
 	)
 
-	var err error
-	if err = depinject.Inject(appConfig,
+	if err := depinject.Inject(appConfig,
 		&appBuilder,
 		&app.appCodec,
 		&app.legacyAmino,
@@ -206,8 +168,6 @@ func NewApp(
 		&app.GovKeeper,
 		&app.CrisisKeeper,
 		&app.UpgradeKeeper,
-		&app.ParamsKeeper,
-		&app.AuthzKeeper,
 		&app.EvidenceKeeper,
 		&app.ConsensusParamsKeeper,
 		&app.EVMKeeper,
@@ -217,90 +177,59 @@ func NewApp(
 		panic(err)
 	}
 
-	app.App = appBuilder.Build(db, traceStore, append(baseAppOptions, baseapp.SetMempool(ethTxMempool))...)
+	// Build the app using the app builder.
+	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
+	app.Polaris = polarruntime.New(
+		evmconfig.MustReadConfigFromAppOpts(appOpts), app.Logger(), app.EVMKeeper.Host, nil,
+	)
 
-	homePath, ok := appOpts.Get(flags.FlagHome).(string)
-	if !ok || homePath == "" {
-		homePath = DefaultNodeHome
+	// Setup Polaris Runtime.
+	if err := app.Polaris.Build(app, app.EVMKeeper, miner.DefaultAllowedMsgs); err != nil {
+		panic(err)
 	}
-	// setup evm keeper and all of its plugins.
-	app.EVMKeeper.Setup(
-		nil,
-		app.CreateQueryContext,
-		homePath+"/config/world.toml",
-		homePath+"/data/world",
-		logger,
-		// app.Router.HandleDispatch, <- re-enable this after we upgrade polaris with rebased rollkit and stuff.
-	)
-	opt := ante.HandlerOptions{
-		AccountKeeper:   app.AccountKeeper,
-		BankKeeper:      app.BankKeeper,
-		SignModeHandler: app.TxConfig().SignModeHandler(),
-		FeegrantKeeper:  nil,
-		SigGasConsumer:  evmante.SigVerificationGasConsumer,
-	}
-	ch, _ := evmante.NewAnteHandler(
-		opt,
-	)
-	app.SetAnteHandler(
-		ch,
-	)
-	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
-
-	// ----- END EVM SETUP -------------------------------------------------
-
 	// register streaming services
-	if err = app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
+	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
 	}
 
 	/****  Module Options ****/
-
 	app.ModuleManager.RegisterInvariants(app.CrisisKeeper)
 
-	// add test gRPC service for testing gRPC queries in isolation
-	testdata_pulsar.RegisterQueryServer(app.GRPCQueryRouter(), testdata_pulsar.QueryImpl{})
+	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
 
-	// create the simulation manager and define the order of the modules for deterministic simulations
-	//
-	// NOTE: this is not required apps that don't use the simulator for fuzz testing
-	// transactions
-	overrideModules := map[string]module.AppModuleSimulation{
-		authtypes.ModuleName: auth.NewAppModule(app.appCodec,
-			app.AccountKeeper, authsims.RandomGenesisAccounts, app.GetSubspace(authtypes.ModuleName)),
-	}
-	app.sm = module.NewSimulationManagerFromAppModules(app.ModuleManager.Modules, overrideModules)
+	app.SetEndBlocker(app.endBlocker)
 
-	app.sm.RegisterStoreDecoders()
+	app.setPlugins(logger)
 
-	app.SetPreFinalizeBlockHook(app.FinalizeBlockHook)
-
-	if err = app.Load(loadLatest); err != nil {
+	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
 
-	app.setPlugins(logger)
+	// Load the last state of the polaris evm.
+	if err := app.Polaris.LoadLastState(
+		app.CommitMultiStore(), uint64(app.LastBlockHeight()),
+	); err != nil {
+		panic(err)
+	}
 
 	return app
 }
 
-func (app *App) FinalizeBlockHook(ctx sdk.Context, _ *types.RequestFinalizeBlock) error {
+func (app *App) endBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 	app.Logger().Info("running finalize block")
 	txs := app.ShardSequencer.FlushMessages()
+	endBlock := sdk.EndBlock{}
 	if len(txs) > 0 {
 		app.Logger().Info("flushed messages from game shard. Executing...")
 		handler := app.MsgServiceRouter().Handler(txs[0])
 		for _, tx := range txs {
 			_, err := handler(ctx, tx)
 			if err != nil {
-				return err
+				return sdk.EndBlock{}, err
 			}
 		}
 	}
-	if app.faucetAddr != nil {
-		app.EVMKeeper.SetBalance(ctx, app.faucetAddr, big.NewInt(math.MaxInt64))
-	}
-	return nil
+	return endBlock, nil
 }
 
 // Name returns the name of the App.
@@ -355,17 +284,9 @@ func (app *App) kvStoreKeys() map[string]*storetypes.KVStoreKey {
 	return keys
 }
 
-// GetSubspace returns a param subspace for a given module name.
-//
-// NOTE: This is solely to be used for testing purposes.
-func (app *App) GetSubspace(moduleName string) paramstypes.Subspace {
-	subspace, _ := app.ParamsKeeper.GetSubspace(moduleName)
-	return subspace
-}
-
-// SimulationManager implements the SimulationApp interface.
+// SimulationManager implements the SimulationApp interface. We don't use simulations.
 func (app *App) SimulationManager() *module.SimulationManager {
-	return app.sm
+	return nil
 }
 
 // RegisterAPIRoutes registers all application module routes with the provided
@@ -373,37 +294,36 @@ func (app *App) SimulationManager() *module.SimulationManager {
 func (app *App) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
 	// register swagger API in app.go so that other applications can override easily
-	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {
+	if err := server.RegisterSwaggerAPI(
+		apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger,
+	); err != nil {
 		panic(err)
 	}
-	app.EVMKeeper.SetClientCtx(apiSvr.ClientCtx)
+
+	if err := app.Polaris.SetupServices(apiSvr.ClientCtx); err != nil {
+		panic(err)
+	}
 }
 
-// GetMaccPerms returns a copy of the module account permissions
-//
-// NOTE: This is solely to be used for testing purposes.
-func GetMaccPerms() map[string][]string {
-	dup := make(map[string][]string)
-	for _, perms := range moduleAccPerms {
-		dup[perms.Account] = perms.Permissions
+// PolarisConfigFn returns a function that provides the initialization of the standard
+// set of precompiles.
+func PolarisConfigFn(cfg *evmconfig.Config) func() *evmconfig.Config {
+	return func() *evmconfig.Config {
+		return cfg
 	}
-
-	return dup
 }
 
-// BlockedAddresses returns all the app's blocked account addresses.
-func BlockedAddresses() map[string]bool {
-	result := make(map[string]bool)
-
-	if len(blockAccAddrs) > 0 {
-		for _, addr := range blockAccAddrs {
-			result[addr] = true
-		}
-	} else {
-		for addr := range GetMaccPerms() {
-			result[addr] = true
-		}
+// QueryContextFn returns a context for query requests.
+func QueryContextFn(app *App) func() func(height int64, prove bool) (sdk.Context, error) {
+	return func() func(height int64, prove bool) (sdk.Context, error) {
+		return app.BaseApp.CreateQueryContext
 	}
+}
 
-	return result
+// Close shuts down the application.
+func (app *App) Close() error {
+	if pl := app.Polaris; pl != nil {
+		return pl.Close()
+	}
+	return app.BaseApp.Close()
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -15,7 +16,6 @@ import (
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"time"
 
-	"pkg.berachain.dev/polaris/eth/core"
 	"pkg.berachain.dev/polaris/eth/core/types"
 
 	"cosmossdk.io/log"
