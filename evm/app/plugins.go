@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+
 	"pkg.world.dev/world-engine/evm/router"
 	"pkg.world.dev/world-engine/evm/shard"
 

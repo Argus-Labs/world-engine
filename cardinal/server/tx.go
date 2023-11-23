@@ -97,9 +97,9 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 		payload, sp, err := handler.getBodyAndSigFromParams(params, true)
 		if err != nil {
 			if eris.Is(err, eris.Cause(ErrInvalidSignature)) || eris.Is(err, eris.Cause(ErrSystemTransactionRequired)) {
-				return middleware.Error(http.StatusUnauthorized, err), nil
+				return middleware.Error(http.StatusUnauthorized, eris.ToString(err, true)), nil
 			}
-			return nil, err
+			return middleware.Error(http.StatusInternalServerError, eris.ToJSON(err, true)), nil
 		}
 
 		txReply, err := handler.generateCreatePersonaResponseFromPayload(payload, sp, ecs.CreatePersonaMsg)

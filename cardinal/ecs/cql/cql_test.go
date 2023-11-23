@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -27,16 +27,16 @@ func TestParser(t *testing.T) {
 				Subexpression: &cqlTerm{
 					Left: &cqlFactor{Base: &cqlValue{
 						Exact: &cqlExact{Components: []*cqlComponent{
-							&cqlComponent{Name: "a"},
-							&cqlComponent{Name: "b"}}},
+							{Name: "a"},
+							{Name: "b"}}},
 						Contains:      nil,
 						Not:           nil,
 						Subexpression: nil,
 					}},
-					Right: []*cqlOpFactor{&cqlOpFactor{
+					Right: []*cqlOpFactor{{
 						Operator: opAnd,
 						Factor: &cqlFactor{Base: &cqlValue{
-							Exact:         &cqlExact{Components: []*cqlComponent{&cqlComponent{Name: "a"}}},
+							Exact:         &cqlExact{Components: []*cqlComponent{{Name: "a"}}},
 							Contains:      nil,
 							Not:           nil,
 							Subexpression: nil,
@@ -47,11 +47,11 @@ func TestParser(t *testing.T) {
 			Subexpression: nil,
 		}},
 		Right: []*cqlOpFactor{
-			&cqlOpFactor{
+			{
 				Operator: opOr,
 				Factor: &cqlFactor{Base: &cqlValue{
 					Exact:         nil,
-					Contains:      &cqlContains{Components: []*cqlComponent{&cqlComponent{Name: "b"}}},
+					Contains:      &cqlContains{Components: []*cqlComponent{{Name: "b"}}},
 					Not:           nil,
 					Subexpression: nil,
 				}},

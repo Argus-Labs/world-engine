@@ -149,5 +149,6 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	pkg.world.dev/world-engine/assert v0.0.0-00010101000000-000000000000 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

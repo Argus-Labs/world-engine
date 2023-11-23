@@ -82,7 +82,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
 		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 	}
-
 	redisStore := storage.NewRedisStorage(storage.Options{
 		Addr:     cfg.RedisAddress,
 		Password: cfg.RedisPassword,

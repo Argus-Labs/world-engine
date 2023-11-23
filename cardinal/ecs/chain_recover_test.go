@@ -3,14 +3,16 @@ package ecs_test
 import (
 	"context"
 	"encoding/binary"
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"sort"
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
 	"google.golang.org/protobuf/proto"
-	"gotest.tools/v3/assert"
+
+	"pkg.world.dev/world-engine/assert"
 	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 
 	"github.com/cometbft/cometbft/libs/rand"

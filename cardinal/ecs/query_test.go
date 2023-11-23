@@ -9,7 +9,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/evm"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/assert"
 
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 )
