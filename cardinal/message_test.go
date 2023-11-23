@@ -6,7 +6,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal"
 )

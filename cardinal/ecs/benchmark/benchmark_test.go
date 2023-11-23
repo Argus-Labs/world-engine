@@ -5,11 +5,12 @@ package benchmark_test
 import (
 	"context"
 	"fmt"
-	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal"
 	"testing"
 
-	"gotest.tools/v3/assert"
+	"github.com/rs/zerolog"
+	"pkg.world.dev/world-engine/cardinal"
+
+	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"

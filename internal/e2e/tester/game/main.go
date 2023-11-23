@@ -2,53 +2,56 @@ package main
 
 import (
 	"errors"
-	"github.com/argus-labs/world-engine/example/tester/msg"
 	"log"
 	"os"
 
-	"github.com/argus-labs/world-engine/example/tester/comp"
+	"github.com/argus-labs/world-engine/example/tester/msg"
 	"github.com/argus-labs/world-engine/example/tester/query"
+	"github.com/rotisserie/eris"
+
+	"github.com/argus-labs/world-engine/example/tester/comp"
 	"github.com/argus-labs/world-engine/example/tester/sys"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 func main() {
-	namespace := os.Getenv("NAMESPACE")
 	options := []cardinal.WorldOption{
-		cardinal.WithNamespace(namespace),
 		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
 	}
-	if os.Getenv("ENABLE_ADAPTER") == "false" {
+	// if os.Getenv("ENABLE_ADAPTER") == "false" {
+	if true { // uncomment above to enable adapter from env.
 		log.Println("Skipping adapter")
 	} else {
 		options = append(options, cardinal.WithAdapter(setupAdapter()))
 	}
-
-	world, err := cardinal.NewWorld(os.Getenv("REDIS_ADDR"), "", options...)
+	world, err := cardinal.NewWorld(options...)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, eris.ToString(err, true))
 	}
 	err = errors.Join(
 		cardinal.RegisterComponent[comp.Location](world),
 		cardinal.RegisterComponent[comp.Player](world),
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, eris.ToString(err, true))
 	}
 	err = cardinal.RegisterMessages(world, msg.JoinMsg, msg.MoveMsg)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, eris.ToString(err, true))
 	}
-	err = cardinal.RegisterQueries(world, query.Location)
+	err = query.RegisterLocationQuery(world)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, eris.ToString(err, true))
 	}
-	cardinal.RegisterSystems(world, sys.Join, sys.Move)
+	err = cardinal.RegisterSystems(world, sys.Join, sys.Move)
+	if err != nil {
+		log.Fatal(err, eris.ToString(err, true))
+	}
 
 	err = world.StartGame()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(err, eris.ToString(err, true))
 	}
 }
 

@@ -3,7 +3,7 @@ package gamestage
 import (
 	"testing"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/assert"
 )
 
 func TestCanOperateOnZeroValue(t *testing.T) {

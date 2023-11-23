@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"pkg.world.dev/world-engine/evm/x/namespace/cli/query"
 	"pkg.world.dev/world-engine/evm/x/namespace/cli/tx"
 
