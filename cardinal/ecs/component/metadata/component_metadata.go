@@ -153,8 +153,5 @@ func IsComponentValid(component Component, jsonSchemaBytes []byte) (bool, error)
 	if err != nil {
 		return false, eris.Wrap(err, "")
 	}
-	if patch.String() == "" {
-		return true, nil
-	}
-	return false, nil
+	return patch.String() == "", nil
 }
