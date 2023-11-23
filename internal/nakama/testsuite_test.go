@@ -13,7 +13,7 @@ import (
 
 	"strconv"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/assert"
 
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -202,7 +202,7 @@ func TestDifferentUsersCannotClaimSamePersonaTag(t *testing.T) {
 		"personaTag": ptB,
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, 409, resp.StatusCode, copyBody(resp))
+	assert.Equal(t, http.StatusConflict, resp.StatusCode, copyBody(resp))
 }
 
 func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {

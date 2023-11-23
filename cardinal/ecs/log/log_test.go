@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"strings"
 	"testing"
 	"time"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
+	"pkg.world.dev/world-engine/assert"
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"

@@ -3,14 +3,15 @@ package ecs_test
 import (
 	"context"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/sign"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )

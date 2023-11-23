@@ -2,11 +2,12 @@ package filter_test
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/testutils"
-	"github.com/rs/zerolog"
 	"testing"
 
-	"gotest.tools/v3/assert"
+	"github.com/rs/zerolog"
+	"pkg.world.dev/world-engine/cardinal/testutils"
+
+	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"

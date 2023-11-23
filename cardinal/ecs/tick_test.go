@@ -12,7 +12,7 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
-	"gotest.tools/v3/assert"
+	"pkg.world.dev/world-engine/assert"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog"

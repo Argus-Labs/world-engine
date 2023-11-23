@@ -418,9 +418,7 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				if err != nil {
 					return logErrorMessageFailedPrecondition(logger, err, "request failed for endpoint %q", currEndpoint)
 				}
-				if resp.Body != nil {
-					defer resp.Body.Close()
-				}
+				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusOK {
 					body, err := io.ReadAll(resp.Body)
 					return logErrorMessageFailedPrecondition(logger, err, "bad status code: %s: %s", resp.Status, body)

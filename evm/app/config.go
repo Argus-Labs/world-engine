@@ -21,6 +21,8 @@
 package app
 
 import (
+	"os"
+
 	runtimev1alpha1 "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
 	appv1alpha1 "cosmossdk.io/api/cosmos/app/v1alpha1"
 	authmodulev1 "cosmossdk.io/api/cosmos/auth/module/v1"
@@ -42,7 +44,7 @@ import (
 	"cosmossdk.io/depinject"
 	evidencetypes "cosmossdk.io/x/evidence/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"os"
+
 	shardmodulev1 "pkg.world.dev/world-engine/evm/api/shard/module/v1"
 	"pkg.world.dev/world-engine/evm/shard"
 	shardmodule "pkg.world.dev/world-engine/evm/x/shard"
@@ -72,8 +74,9 @@ import (
 	evmmodulev1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/module/v1alpha1"
 	evmtypes "pkg.berachain.dev/polaris/cosmos/x/evm/types"
 
-	_ "cosmossdk.io/x/evidence"                       // import for side effects
-	_ "cosmossdk.io/x/upgrade"                        // import for side effects
+	_ "cosmossdk.io/x/evidence" // import for side effects
+	_ "cosmossdk.io/x/upgrade"  // import for side effects
+
 	_ "github.com/cosmos/cosmos-sdk/x/auth/tx/config" // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/auth/vesting"   // import for side effects
 	_ "github.com/cosmos/cosmos-sdk/x/bank"           // import for side effects
