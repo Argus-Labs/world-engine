@@ -2,11 +2,11 @@ package ecb
 
 import (
 	"context"
+	"github.com/goccy/go-json"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
@@ -137,15 +137,15 @@ func (m *Manager) addPendingArchIDsToPipe(ctx context.Context, pipe redis.Pipeli
 	return eris.Wrap(pipe.Set(ctx, redisArchIDsToCompTypesKey(), bz, 0).Err(), "")
 }
 
-// addActiveEntityIDsToPipe adds information about which entities are assigned to which archetype IDs to the reids pipe.
+// addActiveEntityIDsToPipe adds information about which entities are assigned to which archetype IDs to the redis pipe.
 func (m *Manager) addActiveEntityIDsToPipe(ctx context.Context, pipe redis.Pipeliner) error {
 	for archID, active := range m.activeEntities {
 		if !active.modified {
 			continue
 		}
-		bz, err := codec.Encode(active.ids)
+		bz, err := json.Marshal(active.ids)
 		if err != nil {
-			return err
+			return eris.Wrap(err, "")
 		}
 		key := redisActiveEntityIDKey(archID)
 		err = pipe.Set(ctx, key, bz, 0).Err()
@@ -165,10 +165,16 @@ func (m *Manager) encodeArchIDToCompTypes() ([]byte, error) {
 		}
 		forStorage[archID] = typeIDs
 	}
-	return codec.Encode(forStorage)
+
+	bz, err := json.Marshal(forStorage)
+	if err != nil {
+		return nil, eris.Wrap(err, "")
+	}
+	return bz, nil
 }
 
-func getArchIDToCompTypesFromRedis(client *redis.Client,
+func getArchIDToCompTypesFromRedis(
+	client *redis.Client,
 	typeToComp map[metadata.TypeID]metadata.ComponentMetadata,
 ) (m map[archetype.ID][]metadata.ComponentMetadata, ok bool, err error) {
 	ctx := context.Background()
@@ -181,14 +187,15 @@ func getArchIDToCompTypesFromRedis(client *redis.Client,
 		return nil, false, err
 	}
 
-	fromStorage, err := codec.Decode[map[archetype.ID][]metadata.TypeID](bz)
+	fromStorage := new(map[archetype.ID][]metadata.TypeID)
+	err = json.Unmarshal(bz, fromStorage)
 	if err != nil {
-		return nil, false, err
+		return nil, false, eris.Wrap(err, "")
 	}
 
 	// result is the mapping of Arch ID -> IComponent sets
 	result := map[archetype.ID][]metadata.ComponentMetadata{}
-	for archID, compTypeIDs := range fromStorage {
+	for archID, compTypeIDs := range *fromStorage {
 		currComps := []metadata.ComponentMetadata{}
 		for _, compTypeID := range compTypeIDs {
 			currComp, found := typeToComp[compTypeID]
