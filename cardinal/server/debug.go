@@ -6,8 +6,8 @@ import (
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 type DebugStateElement struct {
@@ -27,27 +27,29 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 				search := ecs.NewSearch(filter.All())
 				wCtx := ecs.NewReadOnlyWorldContext(handler.w)
 				var eachClosureErr error
-				searchEachErr := search.Each(wCtx, func(id entity.ID) bool {
-					var components []metadata.ComponentMetadata
-					components, eachClosureErr = wCtx.StoreReader().GetComponentTypesForEntity(id)
-					if eachClosureErr != nil {
-						return false
-					}
-					resultElement := DebugStateElement{
-						ID:   id,
-						Data: make([]json.RawMessage, 0),
-					}
-					for _, c := range components {
-						var data json.RawMessage
-						data, eachClosureErr = wCtx.StoreReader().GetComponentForEntityInRawJSON(c, id)
+				searchEachErr := search.Each(
+					wCtx, func(id entity.ID) bool {
+						var components []metadata.ComponentMetadata
+						components, eachClosureErr = wCtx.StoreReader().GetComponentTypesForEntity(id)
 						if eachClosureErr != nil {
 							return false
 						}
-						resultElement.Data = append(resultElement.Data, data)
-					}
-					result = append(result, &resultElement)
-					return true
-				})
+						resultElement := DebugStateElement{
+							ID:   id,
+							Data: make([]json.RawMessage, 0),
+						}
+						for _, c := range components {
+							var data json.RawMessage
+							data, eachClosureErr = wCtx.StoreReader().GetComponentForEntityInRawJSON(c, id)
+							if eachClosureErr != nil {
+								return false
+							}
+							resultElement.Data = append(resultElement.Data, data)
+						}
+						result = append(result, &resultElement)
+						return true
+					},
+				)
 				if eachClosureErr != nil {
 					return nil, eachClosureErr
 				}
@@ -56,7 +58,8 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 				}
 
 				return &result, nil
-			})
+			},
+		)
 
 	api.RegisterOperation("GET", "/debug/state", debugStateHandler)
 }

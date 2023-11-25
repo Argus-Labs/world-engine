@@ -6,7 +6,7 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 func Create(wCtx ecs.WorldContext, components ...metadata.Component) (entity.ID, error) {

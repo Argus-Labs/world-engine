@@ -14,8 +14,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 func newCmdBufferForTest(t *testing.T) *ecb.Manager {
@@ -337,10 +337,12 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		var q *ecs.Search
 		q, err = world.NewSearch(tc.filter)
 		assert.NilError(t, err)
-		err = q.Each(wCtx, func(id entity.ID) bool {
-			found[id] = true
-			return true
-		})
+		err = q.Each(
+			wCtx, func(id entity.ID) bool {
+				found[id] = true
+				return true
+			},
+		)
 		assert.NilError(t, err)
 		assert.Equal(t, len(tc.wantIDs), len(found))
 		for _, id := range tc.wantIDs {

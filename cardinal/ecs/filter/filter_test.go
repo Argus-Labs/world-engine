@@ -12,9 +12,9 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 type gammaComponent struct{}
@@ -45,10 +45,12 @@ func TestGetEverythingFilter(t *testing.T) {
 	// only be 50 + 20 entities.
 	q, err := wCtx.NewSearch(ecs.All())
 	assert.NilError(t, err)
-	err = q.Each(wCtx, func(id entity.ID) bool {
-		count++
-		return true
-	})
+	err = q.Each(
+		wCtx, func(id entity.ID) bool {
+			count++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count, subsetCount+20)
 }
@@ -75,13 +77,15 @@ func TestCanFilterByArchetype(t *testing.T) {
 	// only be subsetCount entities.
 	q, err := wCtx.NewSearch(ecs.Exact(Alpha{}, Beta{}))
 	assert.NilError(t, err)
-	err = q.Each(wCtx, func(id entity.ID) bool {
-		count++
-		// Make sure the gamma component is not on this entity
-		_, err = component.GetComponent[gammaComponent](wCtx, id)
-		assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
-		return true
-	})
+	err = q.Each(
+		wCtx, func(id entity.ID) bool {
+			count++
+			// Make sure the gamma component is not on this entity
+			_, err = component.GetComponent[gammaComponent](wCtx, id)
+			assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count, subsetCount)
 }
@@ -114,19 +118,23 @@ func TestExactVsContains(t *testing.T) {
 	// Contains(alpha) should return all entities
 	q, err := world.NewSearch(ecs.Contains(Alpha{}))
 	assert.NilError(t, err)
-	err = q.Each(wCtx, func(id entity.ID) bool {
-		count++
-		return true
-	})
+	err = q.Each(
+		wCtx, func(id entity.ID) bool {
+			count++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count, alphaCount+bothCount)
 	count2 := 0
 	sameQuery, err := cql.Parse("CONTAINS(alpha)", world.GetComponentByName)
 	assert.NilError(t, err)
-	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
-		count2++
-		return true
-	})
+	err = ecs.NewSearch(sameQuery).Each(
+		wCtx, func(id entity.ID) bool {
+			count2++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count2, alphaCount+bothCount)
 
@@ -134,40 +142,48 @@ func TestExactVsContains(t *testing.T) {
 	// Contains(beta) should only return the entities that have both components
 	q, err = world.NewSearch(ecs.Contains(Beta{}))
 	assert.NilError(t, err)
-	err = q.Each(wCtx, func(id entity.ID) bool {
-		count++
-		return true
-	})
+	err = q.Each(
+		wCtx, func(id entity.ID) bool {
+			count++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
 	sameQuery, err = cql.Parse("CONTAINS(beta)", world.GetComponentByName)
 	assert.NilError(t, err)
-	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
-		count2++
-		return true
-	})
+	err = ecs.NewSearch(sameQuery).Each(
+		wCtx, func(id entity.ID) bool {
+			count2++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 
 	count = 0
 	// Exact(alpha) should not return the entities that have both alpha and beta
 	q, err = world.NewSearch(ecs.Exact(Alpha{}))
 	assert.NilError(t, err)
-	err = q.Each(wCtx, func(id entity.ID) bool {
-		count++
-		return true
-	})
+	err = q.Each(
+		wCtx, func(id entity.ID) bool {
+			count++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count, alphaCount)
 
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(alpha)", world.GetComponentByName)
 	assert.NilError(t, err)
-	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
-		count2++
-		return true
-	})
+	err = ecs.NewSearch(sameQuery).Each(
+		wCtx, func(id entity.ID) bool {
+			count2++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count2, alphaCount)
 
@@ -175,20 +191,24 @@ func TestExactVsContains(t *testing.T) {
 	// Exact(alpha, beta) should not return the entities that only have alpha
 	q, err = world.NewSearch(ecs.Exact(Alpha{}, Beta{}))
 	assert.NilError(t, err)
-	err = q.Each(wCtx, func(id entity.ID) bool {
-		count++
-		return true
-	})
+	err = q.Each(
+		wCtx, func(id entity.ID) bool {
+			count++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(alpha, beta)", world.GetComponentByName)
 	assert.NilError(t, err)
-	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
-		count2++
-		return true
-	})
+	err = ecs.NewSearch(sameQuery).Each(
+		wCtx, func(id entity.ID) bool {
+			count2++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
@@ -196,20 +216,24 @@ func TestExactVsContains(t *testing.T) {
 	// Make sure the order of alpha/beta doesn't matter
 	q, err = world.NewSearch(ecs.Exact(Beta{}, Alpha{}))
 	assert.NilError(t, err)
-	err = q.Each(wCtx, func(id entity.ID) bool {
-		count++
-		return true
-	})
+	err = q.Each(
+		wCtx, func(id entity.ID) bool {
+			count++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(beta, alpha)", world.GetComponentByName)
 	assert.NilError(t, err)
-	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
-		count2++
-		return true
-	})
+	err = ecs.NewSearch(sameQuery).Each(
+		wCtx, func(id entity.ID) bool {
+			count2++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 }
@@ -233,10 +257,12 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	assert.NilError(t, err)
 
 	count := 0
-	err = ecs.NewSearch(filter.Exact(comps...)).Each(wCtx, func(id entity.ID) bool {
-		count++
-		return true
-	})
+	err = ecs.NewSearch(filter.Exact(comps...)).Each(
+		wCtx, func(id entity.ID) bool {
+			count++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count, wantCount)
 
@@ -253,10 +279,12 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 
 	sameQuery, err := cql.Parse(queryString, world.GetComponentByName)
 	assert.NilError(t, err)
-	err = ecs.NewSearch(sameQuery).Each(wCtx, func(id entity.ID) bool {
-		count2++
-		return true
-	})
+	err = ecs.NewSearch(sameQuery).Each(
+		wCtx, func(id entity.ID) bool {
+			count2++
+			return true
+		},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, count2, wantCount)
 }
@@ -281,9 +309,11 @@ func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	for i := 10; i <= 10000; i *= 10 {
 		ignoreCount := i
-		b.Run(fmt.Sprintf("IgnoreCount:%d", ignoreCount), func(b *testing.B) {
-			helperArchetypeFilter(b, relevantCount, ignoreCount)
-		})
+		b.Run(
+			fmt.Sprintf("IgnoreCount:%d", ignoreCount), func(b *testing.B) {
+				helperArchetypeFilter(b, relevantCount, ignoreCount)
+			},
+		)
 	}
 }
 
@@ -304,10 +334,12 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 		var q *ecs.Search
 		q, err = world.NewSearch(ecs.Exact(Alpha{}, Beta{}))
 		assert.NilError(b, err)
-		err = q.Each(wCtx, func(id entity.ID) bool {
-			count++
-			return true
-		})
+		err = q.Each(
+			wCtx, func(id entity.ID) bool {
+				count++
+				return true
+			},
+		)
 		assert.NilError(b, err)
 		assert.Equal(b, count, relevantCount)
 	}
