@@ -6,9 +6,9 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
+	"pkg.world.dev/world-engine/cardinal/types/component"
 )
 
 // pipeFlushToRedis return a pipeliner with all pending state changes to redis ready to be committed in an atomic
@@ -157,9 +157,9 @@ func (m *Manager) addActiveEntityIDsToPipe(ctx context.Context, pipe redis.Pipel
 }
 
 func (m *Manager) encodeArchIDToCompTypes() ([]byte, error) {
-	forStorage := map[archetype.ID][]metadata.TypeID{}
+	forStorage := map[archetype.ID][]component.TypeID{}
 	for archID, comps := range m.archIDToComps {
-		typeIDs := []metadata.TypeID{}
+		typeIDs := []component.TypeID{}
 		for _, comp := range comps {
 			typeIDs = append(typeIDs, comp.ID())
 		}
@@ -175,8 +175,8 @@ func (m *Manager) encodeArchIDToCompTypes() ([]byte, error) {
 
 func getArchIDToCompTypesFromRedis(
 	client *redis.Client,
-	typeToComp map[metadata.TypeID]metadata.ComponentMetadata,
-) (m map[archetype.ID][]metadata.ComponentMetadata, ok bool, err error) {
+	typeToComp map[component.TypeID]component.ComponentMetadata,
+) (m map[archetype.ID][]component.ComponentMetadata, ok bool, err error) {
 	ctx := context.Background()
 	key := redisArchIDsToCompTypesKey()
 	bz, err := client.Get(ctx, key).Bytes()
@@ -187,16 +187,16 @@ func getArchIDToCompTypesFromRedis(
 		return nil, false, err
 	}
 
-	fromStorage := new(map[archetype.ID][]metadata.TypeID)
+	fromStorage := new(map[archetype.ID][]component.TypeID)
 	err = json.Unmarshal(bz, fromStorage)
 	if err != nil {
 		return nil, false, eris.Wrap(err, "")
 	}
 
 	// result is the mapping of Arch ID -> IComponent sets
-	result := map[archetype.ID][]metadata.ComponentMetadata{}
+	result := map[archetype.ID][]component.ComponentMetadata{}
 	for archID, compTypeIDs := range *fromStorage {
-		currComps := []metadata.ComponentMetadata{}
+		currComps := []component.ComponentMetadata{}
 		for _, compTypeID := range compTypeIDs {
 			currComp, found := typeToComp[compTypeID]
 			if !found {
