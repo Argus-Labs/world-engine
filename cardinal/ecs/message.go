@@ -3,6 +3,7 @@ package ecs
 import (
 	"errors"
 	"fmt"
+	"github.com/goccy/go-json"
 	"reflect"
 
 	"github.com/rotisserie/eris"
@@ -10,7 +11,6 @@ import (
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -164,7 +164,8 @@ func (t *MessageType[In, Out]) Each(wCtx WorldContext, fn func(TxData[In]) (Out,
 	for _, txData := range t.In(wCtx) {
 		if result, err := fn(txData); err != nil {
 			err = eris.Wrap(err, "")
-			wCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v and stack trace:\n %s",
+			wCtx.Logger().Err(err).Msgf(
+				"tx %s from %s encountered an error with message=%+v and stack trace:\n %s",
 				txData.Hash,
 				txData.Tx.PersonaTag,
 				txData.Msg,
@@ -183,22 +184,33 @@ func (t *MessageType[In, Out]) In(wCtx WorldContext) []TxData[In] {
 	var txs []TxData[In]
 	for _, txData := range tq.ForID(t.ID()) {
 		if val, ok := txData.Msg.(In); ok {
-			txs = append(txs, TxData[In]{
-				Hash: txData.TxHash,
-				Msg:  val,
-				Tx:   txData.Tx,
-			})
+			txs = append(
+				txs, TxData[In]{
+					Hash: txData.TxHash,
+					Msg:  val,
+					Tx:   txData.Tx,
+				},
+			)
 		}
 	}
 	return txs
 }
 
 func (t *MessageType[In, Out]) Encode(a any) ([]byte, error) {
-	return codec.Encode(a)
+	bz, err := json.Marshal(a)
+	if err != nil {
+		return nil, eris.Wrap(err, "")
+	}
+	return bz, nil
 }
 
-func (t *MessageType[In, Out]) Decode(bytes []byte) (any, error) {
-	return codec.Decode[In](bytes)
+func (t *MessageType[In, Out]) Decode(bz []byte) (any, error) {
+	in := new(In)
+	err := json.Unmarshal(bz, in)
+	if err != nil {
+		return *in, eris.Wrap(err, "")
+	}
+	return *in, nil
 }
 
 // ABIEncode encodes the input to the message's matching evm type. If the input is not either of the message's
