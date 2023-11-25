@@ -3,9 +3,9 @@ package ecb
 import (
 	"fmt"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/types/archetype"
 )
 
 // redisComponentKey is the key that maps an entity ID and a specific component ID to the value of that component.
