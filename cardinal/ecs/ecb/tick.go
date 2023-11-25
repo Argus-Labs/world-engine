@@ -2,12 +2,12 @@ package ecb
 
 import (
 	"context"
+	"github.com/goccy/go-json"
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"github.com/redis/go-redis/v9"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -80,9 +80,11 @@ func (m *Manager) Recover(txs []message.Message) (*message.TxQueue, error) {
 	if err != nil {
 		return nil, eris.Wrap(err, "")
 	}
-	pending, err := codec.Decode[[]pendingTransaction](bz)
+
+	var pending []pendingTransaction
+	err = json.Unmarshal(bz, &pending)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "")
 	}
 	idToTx := map[message.TypeID]message.Message{}
 	for _, tx := range txs {
@@ -109,8 +111,10 @@ type pendingTransaction struct {
 	Tx     *sign.Transaction
 }
 
-func addPendingTransactionToPipe(ctx context.Context, pipe redis.Pipeliner, txs []message.Message,
-	queue *message.TxQueue) error {
+func addPendingTransactionToPipe(
+	ctx context.Context, pipe redis.Pipeliner, txs []message.Message,
+	queue *message.TxQueue,
+) error {
 	var pending []pendingTransaction
 	for _, tx := range txs {
 		currList := queue.ForID(tx.ID())
@@ -128,9 +132,9 @@ func addPendingTransactionToPipe(ctx context.Context, pipe redis.Pipeliner, txs 
 			pending = append(pending, currItem)
 		}
 	}
-	buf, err := codec.Encode(pending)
+	buf, err := json.Marshal(pending)
 	if err != nil {
-		return err
+		return eris.Wrap(err, "")
 	}
 	key := redisPendingTransactionKey()
 	return eris.Wrap(pipe.Set(ctx, key, buf, 0).Err(), "")
