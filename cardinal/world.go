@@ -17,13 +17,13 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/evm"
 	"pkg.world.dev/world-engine/cardinal/server"
+	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
@@ -130,38 +130,38 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func CreateMany(wCtx WorldContext, num int, components ...metadata.Component) ([]EntityID, error) {
+func CreateMany(wCtx WorldContext, num int, components ...component.Component) ([]EntityID, error) {
 	return ecs.CreateMany(wCtx.Instance(), num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func Create(wCtx WorldContext, components ...metadata.Component) (EntityID, error) {
+func Create(wCtx WorldContext, components ...component.Component) (EntityID, error) {
 	return ecs.Create(wCtx.Instance(), components...)
 }
 
 // SetComponent Set sets component data to the entity.
-func SetComponent[T metadata.Component](wCtx WorldContext, id entity.ID, comp *T) error {
+func SetComponent[T component.Component](wCtx WorldContext, id entity.ID, comp *T) error {
 	return ecs.SetComponent[T](wCtx.Instance(), id, comp)
 }
 
 // GetComponent Get returns component data from the entity.
-func GetComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (*T, error) {
+func GetComponent[T component.Component](wCtx WorldContext, id entity.ID) (*T, error) {
 	return ecs.GetComponent[T](wCtx.Instance(), id)
 }
 
 // UpdateComponent Updates a component on an entity.
-func UpdateComponent[T metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
+func UpdateComponent[T component.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
 	return ecs.UpdateComponent[T](wCtx.Instance(), id, fn)
 }
 
 // AddComponentTo Adds a component on an entity.
-func AddComponentTo[T metadata.Component](wCtx WorldContext, id entity.ID) error {
+func AddComponentTo[T component.Component](wCtx WorldContext, id entity.ID) error {
 	return ecs.AddComponentTo[T](wCtx.Instance(), id)
 }
 
 // RemoveComponentFrom Removes a component from an entity.
-func RemoveComponentFrom[T metadata.Component](wCtx WorldContext, id entity.ID) error {
+func RemoveComponentFrom[T component.Component](wCtx WorldContext, id entity.ID) error {
 	return ecs.RemoveComponentFrom[T](wCtx.Instance(), id)
 }
 
@@ -297,7 +297,7 @@ func RegisterSystems(w *World, systems ...System) error {
 	return nil
 }
 
-func RegisterComponent[T metadata.Component](world *World) error {
+func RegisterComponent[T component.Component](world *World) error {
 	return ecs.RegisterComponent[T](world.instance)
 }
 

@@ -1,4 +1,4 @@
-package metadata_test
+package component_test
 
 import (
 	"testing"
@@ -11,8 +11,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
+	"pkg.world.dev/world-engine/cardinal/types/component"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
@@ -33,17 +33,17 @@ type ComponentDataC struct {
 	Value int
 }
 
-func getNameOfComponent(c metadata.Component) string {
+func getNameOfComponent(c component.Component) string {
 	return c.Name()
 }
 
 func TestComponentSchemaValidation(t *testing.T) {
-	componentASchemaBytes, err := metadata.SerializeComponentSchema(ComponentDataA{Value: "test"})
+	componentASchemaBytes, err := component.SerializeComponentSchema(ComponentDataA{Value: "test"})
 	assert.NilError(t, err)
-	valid, err := metadata.IsComponentValid(ComponentDataA{Value: "anything"}, componentASchemaBytes)
+	valid, err := component.IsComponentValid(ComponentDataA{Value: "anything"}, componentASchemaBytes)
 	assert.NilError(t, err)
 	assert.Assert(t, valid)
-	valid, err = metadata.IsComponentValid(ComponentDataB{Value: "blah"}, componentASchemaBytes)
+	valid, err = component.IsComponentValid(ComponentDataB{Value: "blah"}, componentASchemaBytes)
 	assert.NilError(t, err)
 	assert.Assert(t, !valid)
 }
@@ -65,19 +65,19 @@ func TestComponents(t *testing.T) {
 	assert.NilError(t, err)
 
 	tests := []*struct {
-		comps    []metadata.ComponentMetadata
+		comps    []component.ComponentMetadata
 		archID   archetype.ID
 		entityID entity.ID
 		Value    string
 	}{
 		{
-			[]metadata.ComponentMetadata{ca},
+			[]component.ComponentMetadata{ca},
 			0,
 			0,
 			"a",
 		},
 		{
-			[]metadata.ComponentMetadata{ca, cb},
+			[]component.ComponentMetadata{ca, cb},
 			1,
 			0,
 			"b",
