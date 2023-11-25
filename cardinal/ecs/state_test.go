@@ -10,10 +10,10 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
@@ -219,18 +219,24 @@ func TestCanReloadState(t *testing.T) {
 
 	oneAlphaNum, err := alphaWorld.GetComponentByName(oneAlphaNumComp{}.Name())
 	assert.NilError(t, err)
-	alphaWorld.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		q, err := wCtx.NewSearch(ecs.Contains(oneAlphaNum))
-		if err != nil {
-			return err
-		}
-		assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
-			err = component.SetComponent[oneAlphaNumComp](wCtx, id, &oneAlphaNumComp{int(id)})
-			assert.Check(t, err == nil)
-			return true
-		}))
-		return nil
-	})
+	alphaWorld.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			q, err := wCtx.NewSearch(ecs.Contains(oneAlphaNum))
+			if err != nil {
+				return err
+			}
+			assert.NilError(
+				t, q.Each(
+					wCtx, func(id entity.ID) bool {
+						err = component.SetComponent[oneAlphaNumComp](wCtx, id, &oneAlphaNumComp{int(id)})
+						assert.Check(t, err == nil)
+						return true
+					},
+				),
+			)
+			return nil
+		},
+	)
 	assert.NilError(t, alphaWorld.LoadGameState())
 	_, err = component.CreateMany(ecs.NewWorldContext(alphaWorld), 10, oneAlphaNumComp{})
 	assert.NilError(t, err)
@@ -247,13 +253,17 @@ func TestCanReloadState(t *testing.T) {
 	q, err := betaWorld.NewSearch(ecs.Contains(OneBetaNum{}))
 	assert.NilError(t, err)
 	betaWorldCtx := ecs.NewWorldContext(betaWorld)
-	assert.NilError(t, q.Each(betaWorldCtx, func(id entity.ID) bool {
-		count++
-		num, err := component.GetComponent[OneBetaNum](betaWorldCtx, id)
-		assert.NilError(t, err)
-		assert.Equal(t, int(id), num.Num)
-		return true
-	}))
+	assert.NilError(
+		t, q.Each(
+			betaWorldCtx, func(id entity.ID) bool {
+				count++
+				num, err := component.GetComponent[OneBetaNum](betaWorldCtx, id)
+				assert.NilError(t, err)
+				assert.Equal(t, int(id), num.Num)
+				return true
+			},
+		),
+	)
 	// Make sure we actually have 10 entities
 	assert.Equal(t, 10, count)
 }
@@ -290,12 +300,14 @@ func TestCanFindTransactionsAfterReloadingWorld(t *testing.T) {
 	for reload := 0; reload < 5; reload++ {
 		world := testutil.InitWorldWithRedis(t, redisStore)
 		assert.NilError(t, world.RegisterMessages(someTx))
-		world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-			for _, tx := range someTx.In(wCtx) {
-				someTx.SetResult(wCtx, tx.Hash, Result{})
-			}
-			return nil
-		})
+		world.RegisterSystem(
+			func(wCtx ecs.WorldContext) error {
+				for _, tx := range someTx.In(wCtx) {
+					someTx.SetResult(wCtx, tx.Hash, Result{})
+				}
+				return nil
+			},
+		)
 		assert.NilError(t, world.LoadGameState())
 
 		relevantTick := world.CurrentTick()

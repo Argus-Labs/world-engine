@@ -2,7 +2,7 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 // Search allowed for the querying of entities within a World.
@@ -17,9 +17,11 @@ type SearchCallBackFn func(EntityID) bool
 // Each executes the given callback function on every EntityID that matches this search. If any call to callback returns
 // falls, no more entities will be processed.
 func (q *Search) Each(wCtx WorldContext, callback SearchCallBackFn) error {
-	return q.impl.Each(wCtx.Instance(), func(eid entity.ID) bool {
-		return callback(eid)
-	})
+	return q.impl.Each(
+		wCtx.Instance(), func(eid entity.ID) bool {
+			return callback(eid)
+		},
+	)
 }
 
 // Count returns the number of entities that match this search.

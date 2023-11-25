@@ -3,8 +3,8 @@ package log
 import (
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 type Loggable interface {
