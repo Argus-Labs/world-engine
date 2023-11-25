@@ -8,7 +8,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 )
 
@@ -183,11 +182,11 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
-	_, err := component.CreateMany(wCtx, 8, Health{})
+	_, err := ecs.CreateMany(wCtx, 8, Health{})
 	assert.NilError(t, err)
-	_, err = component.CreateMany(wCtx, 9, Power{})
+	_, err = ecs.CreateMany(wCtx, 9, Power{})
 	assert.NilError(t, err)
-	_, err = component.CreateMany(wCtx, 10, Health{}, Power{})
+	_, err = ecs.CreateMany(wCtx, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
 	filter := ecs.Contains(Health{})

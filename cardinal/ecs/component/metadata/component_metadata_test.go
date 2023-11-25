@@ -11,7 +11,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 
@@ -163,9 +162,9 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	ecs.MustRegisterComponent[notFoundComp](world)
 
 	wCtx := ecs.NewWorldContext(world)
-	id, err := component.Create(wCtx, foundComp{})
+	id, err := ecs.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
-	_, err = component.GetComponent[notFoundComp](wCtx, id)
+	_, err = ecs.GetComponent[notFoundComp](wCtx, id)
 	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 }
 
@@ -182,19 +181,19 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent](world))
 
 	wCtx := ecs.NewWorldContext(world)
-	id, err := component.Create(wCtx, ValueComponent{})
+	id, err := ecs.Create(wCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, component.SetComponent[ValueComponent](wCtx, id, &ValueComponent{99}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent](wCtx, id, &ValueComponent{99}))
 
-	val, err := component.GetComponent[ValueComponent](wCtx, id)
+	val, err := ecs.GetComponent[ValueComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
-	_, err = component.Create(wCtx, ValueComponent{})
+	_, err = ecs.Create(wCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	val, err = component.GetComponent[ValueComponent](wCtx, id)
+	val, err = ecs.GetComponent[ValueComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 }
