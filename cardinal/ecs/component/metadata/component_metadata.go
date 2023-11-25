@@ -2,12 +2,12 @@ package metadata
 
 import (
 	"fmt"
+	"github.com/goccy/go-json"
 	"reflect"
 
 	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
 	"github.com/wI2L/jsondiff"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 )
 
 type (
@@ -94,15 +94,24 @@ func (c *componentMetadata[T]) New() ([]byte, error) {
 			return nil, eris.Errorf("could not convert %T to %T", c.defaultVal, new(T))
 		}
 	}
-	return codec.Encode(comp)
+	return c.Encode(comp)
 }
 
 func (c *componentMetadata[T]) Encode(v any) ([]byte, error) {
-	return codec.Encode(v)
+	bz, err := json.Marshal(v)
+	if err != nil {
+		return nil, eris.Wrap(err, "")
+	}
+	return bz, nil
 }
 
 func (c *componentMetadata[T]) Decode(bz []byte) (any, error) {
-	return codec.Decode[T](bz)
+	comp := new(T)
+	err := json.Unmarshal(bz, comp)
+	if err != nil {
+		return *comp, eris.Wrap(err, "")
+	}
+	return *comp, nil
 }
 
 func (c *componentMetadata[T]) validateDefaultVal() {
