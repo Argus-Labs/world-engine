@@ -2,7 +2,8 @@ package storage
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
+	"github.com/goccy/go-json"
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"reflect"
 )
@@ -41,7 +42,7 @@ func (m *MockComponentType[T]) New() ([]byte, error) {
 	if m.defaultVal != nil {
 		comp, _ = m.defaultVal.(T)
 	}
-	return codec.Encode(comp)
+	return m.Encode(comp)
 }
 
 func (m *MockComponentType[T]) Name() string {
@@ -50,10 +51,19 @@ func (m *MockComponentType[T]) Name() string {
 
 var _ metadata.ComponentMetadata = &MockComponentType[int]{}
 
-func (m *MockComponentType[T]) Decode(bytes []byte) (any, error) {
-	return codec.Decode[T](bytes)
+func (m *MockComponentType[T]) Decode(bz []byte) (any, error) {
+	comp := new(T)
+	err := json.Unmarshal(bz, comp)
+	if err != nil {
+		return *comp, eris.Wrap(err, "")
+	}
+	return *comp, nil
 }
 
-func (m *MockComponentType[T]) Encode(a any) ([]byte, error) {
-	return codec.Encode(a)
+func (m *MockComponentType[T]) Encode(v any) ([]byte, error) {
+	bz, err := json.Marshal(v)
+	if err != nil {
+		return nil, eris.Wrap(err, "")
+	}
+	return bz, nil
 }
