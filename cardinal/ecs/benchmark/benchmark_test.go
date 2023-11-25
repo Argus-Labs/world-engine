@@ -13,7 +13,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -60,10 +59,10 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 				assert.NilError(t, err)
 				err = q.Each(
 					wCtx, func(id entity.ID) bool {
-						health, err := component.GetComponent[Health](wCtx, id)
+						health, err := ecs.GetComponent[Health](wCtx, id)
 						assert.NilError(t, err)
 						health.Value++
-						assert.NilError(t, component.SetComponent[Health](wCtx, id, health))
+						assert.NilError(t, ecs.SetComponent[Health](wCtx, id, health))
 						return true
 					},
 				)
@@ -75,7 +74,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 
 	assert.NilError(t, ecs.RegisterComponent[Health](world))
 	assert.NilError(t, world.LoadGameState())
-	_, err := component.CreateMany(ecs.NewWorldContext(world), numOfEntities, Health{})
+	_, err := ecs.CreateMany(ecs.NewWorldContext(world), numOfEntities, Health{})
 	assert.NilError(t, err)
 	// Perform a game tick to ensure the newly created entities have been committed to the DB
 	ctx := context.Background()

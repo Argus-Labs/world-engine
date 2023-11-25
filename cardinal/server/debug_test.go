@@ -10,7 +10,6 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -26,19 +25,19 @@ func TestDebugEndpoint(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 	ctx := context.Background()
 	worldCtx := ecs.NewWorldContext(world)
-	_, err := component.CreateMany(worldCtx, 10, Alpha{})
+	_, err := ecs.CreateMany(worldCtx, 10, Alpha{})
 	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Beta{})
+	_, err = ecs.CreateMany(worldCtx, 10, Beta{})
 	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Gamma{})
+	_, err = ecs.CreateMany(worldCtx, 10, Gamma{})
 	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Beta{})
+	_, err = ecs.CreateMany(worldCtx, 10, Alpha{}, Beta{})
 	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Gamma{})
+	_, err = ecs.CreateMany(worldCtx, 10, Alpha{}, Gamma{})
 	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Beta{}, Gamma{})
+	_, err = ecs.CreateMany(worldCtx, 10, Beta{}, Gamma{})
 	assert.NilError(t, err)
-	_, err = component.CreateMany(worldCtx, 10, Alpha{}, Beta{}, Gamma{})
+	_, err = ecs.CreateMany(worldCtx, 10, Alpha{}, Beta{}, Gamma{})
 	assert.NilError(t, err)
 	err = world.Tick(ctx)
 	assert.NilError(t, err)
@@ -66,7 +65,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 			// This system increments Delta.Value by 50 twice. /debug/state should see Delta.Value = 0 OR Delta.Value = 100,
 			// But never Delta.Value = 50.
 			assert.Check(
-				t, nil == component.UpdateComponent[Delta](
+				t, nil == ecs.UpdateComponent[Delta](
 					worldCtx, targetID, func(d *Delta) *Delta {
 						d.DeltaValue += 50
 						return d
@@ -76,7 +75,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 			<-midTickCh
 			<-midTickCh
 			assert.Check(
-				t, nil == component.UpdateComponent[Delta](
+				t, nil == ecs.UpdateComponent[Delta](
 					worldCtx, targetID, func(d *Delta) *Delta {
 						d.DeltaValue += 50
 						return d
@@ -90,7 +89,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 	worldCtx := ecs.NewWorldContext(world)
 	var err error
-	targetID, err = component.Create(worldCtx, Delta{})
+	targetID, err = ecs.Create(worldCtx, Delta{})
 	assert.NilError(t, err)
 
 	startNextTick := make(chan struct{})

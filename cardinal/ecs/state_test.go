@@ -8,7 +8,6 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
@@ -63,7 +62,7 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[OneAlphaNum](oneWorld))
 	assert.NilError(t, oneWorld.LoadGameState())
 
-	_, err := component.Create(ecs.NewWorldContext(oneWorld), OneAlphaNum{})
+	_, err := ecs.Create(ecs.NewWorldContext(oneWorld), OneAlphaNum{})
 	assert.NilError(t, err)
 
 	assert.NilError(t, oneWorld.Tick(context.Background()))
@@ -91,7 +90,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[NumberComponent](oneWorld))
 	assert.NilError(t, oneWorld.LoadGameState())
 
-	_, err := component.Create(ecs.NewWorldContext(oneWorld), NumberComponent{})
+	_, err := ecs.Create(ecs.NewWorldContext(oneWorld), NumberComponent{})
 	assert.NilError(t, err)
 	oneNum, err := oneWorld.GetComponentByName(NumberComponent{}.Name())
 	assert.NilError(t, err)
@@ -128,11 +127,11 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	assert.NilError(t, oneWorld.LoadGameState())
 
 	oneWorldCtx := ecs.NewWorldContext(oneWorld)
-	_, err := component.Create(oneWorldCtx, OneAlphaNum{})
+	_, err := ecs.Create(oneWorldCtx, OneAlphaNum{})
 	assert.NilError(t, err)
-	_, err = component.Create(oneWorldCtx, OneBetaNum{})
+	_, err = ecs.Create(oneWorldCtx, OneBetaNum{})
 	assert.NilError(t, err)
-	_, err = component.Create(oneWorldCtx, OneAlphaNum{}, OneBetaNum{})
+	_, err = ecs.Create(oneWorldCtx, OneAlphaNum{}, OneBetaNum{})
 	assert.NilError(t, err)
 	oneAlphaNum, err := oneWorld.GetComponentByName(OneAlphaNum{}.Name())
 	assert.NilError(t, err)
@@ -228,7 +227,7 @@ func TestCanReloadState(t *testing.T) {
 			assert.NilError(
 				t, q.Each(
 					wCtx, func(id entity.ID) bool {
-						err = component.SetComponent[oneAlphaNumComp](wCtx, id, &oneAlphaNumComp{int(id)})
+						err = ecs.SetComponent[oneAlphaNumComp](wCtx, id, &oneAlphaNumComp{int(id)})
 						assert.Check(t, err == nil)
 						return true
 					},
@@ -238,7 +237,7 @@ func TestCanReloadState(t *testing.T) {
 		},
 	)
 	assert.NilError(t, alphaWorld.LoadGameState())
-	_, err = component.CreateMany(ecs.NewWorldContext(alphaWorld), 10, oneAlphaNumComp{})
+	_, err = ecs.CreateMany(ecs.NewWorldContext(alphaWorld), 10, oneAlphaNumComp{})
 	assert.NilError(t, err)
 
 	// Start a tick with executes the above system which initializes the number components.
@@ -257,7 +256,7 @@ func TestCanReloadState(t *testing.T) {
 		t, q.Each(
 			betaWorldCtx, func(id entity.ID) bool {
 				count++
-				num, err := component.GetComponent[OneBetaNum](betaWorldCtx, id)
+				num, err := ecs.GetComponent[OneBetaNum](betaWorldCtx, id)
 				assert.NilError(t, err)
 				assert.Equal(t, int(id), num.Num)
 				return true
