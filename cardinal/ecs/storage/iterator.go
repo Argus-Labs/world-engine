@@ -1,8 +1,8 @@
 package storage
 
 import (
-	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/types/archetype"
 )
 
 type HasEntitiesForArchetype interface {
