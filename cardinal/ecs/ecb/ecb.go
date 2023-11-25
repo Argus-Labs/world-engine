@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-
 	"github.com/redis/go-redis/v9"
+	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
@@ -249,7 +247,8 @@ func (m *Manager) GetComponentForEntity(cType metadata.ComponentMetadata, id ent
 
 // GetComponentForEntityInRawJSON returns the saved component data as JSON encoded bytes for the given entity.
 func (m *Manager) GetComponentForEntityInRawJSON(cType metadata.ComponentMetadata, id entity.ID) (
-	json.RawMessage, error) {
+	json.RawMessage, error,
+) {
 	value, err := m.GetComponentForEntity(cType, id)
 	if err != nil {
 		return nil, err
@@ -472,9 +471,9 @@ func (m *Manager) getActiveEntities(archID archetype.ID) (activeEntities, error)
 			return active, err
 		}
 	} else {
-		ids, err = codec.Decode[[]entity.ID](bz)
+		err := json.Unmarshal(bz, &ids)
 		if err != nil {
-			return active, err
+			return active, eris.Wrap(err, "")
 		}
 	}
 
@@ -486,7 +485,7 @@ func (m *Manager) getActiveEntities(archID archetype.ID) (activeEntities, error)
 }
 
 // setActiveEntities sets the entities that are associated with the given archetype ID and marks
-// the information as modified so it can later be pushed to the storage layer.
+// the information as modified, so it can later be pushed to the storage layer.
 func (m *Manager) setActiveEntities(archID archetype.ID, active activeEntities) {
 	active.modified = true
 	m.activeEntities[archID] = active
