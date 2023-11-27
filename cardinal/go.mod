@@ -34,6 +34,7 @@ require (
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
 	gotest.tools/v3 v3.5.1
+	pkg.world.dev/world-engine/assert v1.0.1-0.20231127015827-7181fc4e75ba
 	pkg.world.dev/world-engine/chain v0.1.12-alpha
 	pkg.world.dev/world-engine/rift v0.0.5
 	pkg.world.dev/world-engine/sign v0.1.11-alpha
@@ -149,6 +150,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231016165738-49dd2c1f3d0b // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	pkg.world.dev/world-engine/assert v0.0.1 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
