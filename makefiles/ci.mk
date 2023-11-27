@@ -23,3 +23,14 @@ golangci-fix:
 
 tidy:
 	cd $(filter-out $@,$(MAKECMDGOALS)) && go mod tidy
+
+
+GO_DIRS := $(shell find . -name "go.mod" -exec dirname {} \;)
+
+.PHONY: tidy-all
+
+tidy-all:
+	@for dir in $(GO_DIRS); do \
+		echo "Running go mod tidy in $$dir"; \
+		(cd $$dir && go mod tidy); \
+	done
