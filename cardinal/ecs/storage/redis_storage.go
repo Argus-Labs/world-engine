@@ -7,6 +7,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
+	redis2 "pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 )
 
 // Archetypes can just be stored in program memory. It just a structure that allows us to quickly
@@ -47,11 +48,10 @@ func NewRedisStorage(options Options, namespace string) RedisStorage {
 }
 
 // ---------------------------------------------------------------------------
-//
 //	Schema Storage
-//
 // ---------------------------------------------------------------------------
-var _ SchemaStorage = &RedisStorage{}
+
+var _ redis2.SchemaStorage = &RedisStorage{}
 
 func (r *RedisStorage) GetSchema(componentName string) ([]byte, error) {
 	ctx := context.Background()
@@ -72,7 +72,7 @@ func (r *RedisStorage) SetSchema(componentName string, schemaData []byte) error 
 //							Nonce Storage
 // ---------------------------------------------------------------------------
 
-var _ NonceStorage = &RedisStorage{}
+var _ redis2.NonceStorage = &RedisStorage{}
 
 // GetNonce returns the saved nonce for the given signer address. While signer address will generally be a
 // go-ethereum/common.Address, no verification happens at the redis storage level. Any string can be used for the

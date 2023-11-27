@@ -15,6 +15,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 
 	"google.golang.org/protobuf/proto"
 
@@ -26,7 +27,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -43,8 +43,8 @@ func (n Namespace) String() string {
 
 type World struct {
 	namespace              Namespace
-	schemaStore            storage.SchemaStorage
-	nonceStore             storage.NonceStorage
+	schemaStore            redis.SchemaStorage
+	nonceStore             redis.NonceStorage
 	entityStore            store.IManager
 	systems                []System
 	systemLoggers          []*ecslog.Logger
@@ -334,7 +334,7 @@ func (w *World) ListMessages() ([]message.Message, error) {
 
 // NewWorld creates a new world.
 func NewWorld(
-	schemaAndNonceStore storage.SchemaAndNonceStorage,
+	schemaAndNonceStore redis.EngineStorage,
 	entityStore store.IManager,
 	namespace Namespace,
 	opts ...Option,
@@ -342,11 +342,11 @@ func NewWorld(
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}
-	nonceStore, ok := schemaAndNonceStore.(storage.NonceStorage)
+	nonceStore, ok := schemaAndNonceStore.(redis.NonceStorage)
 	if !ok {
 		return nil, eris.New("object must implement storage.NonceStorage")
 	}
-	schemaStore, ok := schemaAndNonceStore.(storage.SchemaStorage)
+	schemaStore, ok := schemaAndNonceStore.(redis.SchemaStorage)
 	if !ok {
 		return nil, eris.New("object must implement storage.SchemaStorage")
 	}

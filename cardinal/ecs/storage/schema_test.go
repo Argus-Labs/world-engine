@@ -28,6 +28,7 @@ func TestSetAndGetSchema(t *testing.T) {
 	testComponent1 := TestComponent1{number: 2}
 	testComponent := TestComponent{word: "hello"}
 	schema1, err := metadata.SerializeComponentSchema(testComponent1)
+	assert.NilError(t, err)
 	schema, err := metadata.SerializeComponentSchema(testComponent)
 	assert.NilError(t, err)
 	rs := testutil.GetRedisStorage(t)
