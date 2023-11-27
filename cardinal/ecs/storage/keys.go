@@ -8,3 +8,7 @@ package storage
 func (r *RedisStorage) nonceKey() string {
 	return "ADDRESS_TO_NONCE"
 }
+
+func (r *RedisStorage) schemaStorageKey() string {
+	return "COMPONENT_NAME_TO_SCHEMA_DATA"
+}

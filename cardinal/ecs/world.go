@@ -42,6 +42,7 @@ func (n Namespace) String() string {
 
 type World struct {
 	namespace              Namespace
+	schemaStore            storage.SchemaStorage
 	nonceStore             storage.NonceStorage
 	entityStore            store.IManager
 	systems                []System
@@ -307,7 +308,7 @@ func (w *World) ListMessages() ([]message.Message, error) {
 
 // NewWorld creates a new world.
 func NewWorld(
-	nonceStore storage.NonceStorage,
+	schemaAndNonceStore storage.SchemaAndNonceStorage,
 	entityStore store.IManager,
 	namespace Namespace,
 	opts ...Option,
@@ -315,9 +316,18 @@ func NewWorld(
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}
+	nonceStore, ok := schemaAndNonceStore.(storage.NonceStorage)
+	if !ok {
+		return nil, eris.New("object must implement storage.NonceStorage")
+	}
+	schemaStore, ok := schemaAndNonceStore.(storage.SchemaStorage)
+	if !ok {
+		return nil, eris.New("object must implement storage.SchemaStorage")
+	}
 	entityStore.InjectLogger(logger)
 	w := &World{
 		nonceStore:        nonceStore,
+		schemaStore:       schemaStore,
 		entityStore:       entityStore,
 		namespace:         namespace,
 		tick:              &atomic.Uint64{},
@@ -841,9 +851,4 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 		return nil, err
 	}
 	return NewSearch(componentFilter), nil
-}
-
-func GetRawJSONOfComponent(w *World, component metadata.ComponentMetadata, id entity.ID) (
-	json.RawMessage, error) {
-	return w.StoreManager().GetComponentForEntityInRawJSON(component, id)
 }
