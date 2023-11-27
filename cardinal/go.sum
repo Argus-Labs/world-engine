@@ -666,10 +666,10 @@ github.com/rogpeppe/go-internal v1.11.0 h1:cWPaGQEPrBb5/AsnsZesgZZ9yb1OQ+GOISoDN
 github.com/rogpeppe/go-internal v1.11.0/go.mod h1:ddIwULY96R17DhadqLgMfk9H9tvdUzkipdSkR5nkCZA=
 github.com/rollkit/celestia-openrpc v0.3.0 h1:jMLsdLNQ7T20yiNDlisBhlyurFOpN1gZ6vC068FPrQA=
 github.com/rollkit/celestia-openrpc v0.3.0/go.mod h1:2ZhU01YF2hsHIROWzxfMZOYM09Kgyy4roH5JWoNJzp0=
-github.com/rollkit/cosmos-sdk v0.50.0-rc.1-rollkit-v0.11.2-no-fraud-proofs h1:1kGbjQBXoAU1hOMIdEeymF4WiwiMgxZwg70F3aNLke0=
-github.com/rollkit/cosmos-sdk v0.50.0-rc.1-rollkit-v0.11.2-no-fraud-proofs/go.mod h1:thMPn5JAkCeWhPW/WQTRV6qkxYw1yyTKltMpM/TsTrM=
-github.com/rollkit/rollkit v0.11.2 h1:L1/l5EM4sPvG5YPh7XxrHskpNB8sBv7qpISM5M6N6ps=
-github.com/rollkit/rollkit v0.11.2/go.mod h1:8J++BryR/EJVqNzWY8+mblM0WptVwUOVqUKgifHqaEw=
+github.com/rollkit/cosmos-sdk v0.50.0-rc.1-rollkit-v0.11.4-no-fraud-proofs h1:ZJBFSePJukQ+pjDZ6rB8sihkloZrZAEvdJ+zGE8y2uQ=
+github.com/rollkit/cosmos-sdk v0.50.0-rc.1-rollkit-v0.11.4-no-fraud-proofs/go.mod h1:50Y1seGFhqSD85fuBODlCqP7PXOn4AZHZJy+5Dv3phc=
+github.com/rollkit/rollkit v0.11.4 h1:eLFV9pqUzB0l7gc04nKe0vMD8Cb2HEmMj+fKJtyvFp0=
+github.com/rollkit/rollkit v0.11.4/go.mod h1:8J++BryR/EJVqNzWY8+mblM0WptVwUOVqUKgifHqaEw=
 github.com/rotisserie/eris v0.5.4 h1:Il6IvLdAapsMhvuOahHWiBnl1G++Q0/L5UIkI5mARSk=
 github.com/rotisserie/eris v0.5.4/go.mod h1:Z/kgYTJiJtocxCbFfvRmO+QejApzG6zpyky9G1A4g9s=
 github.com/rs/cors v1.10.1 h1:L0uuZVXIKlI1SShY2nhFfo44TYvDPQ1w4oFkUJNfhyo=
