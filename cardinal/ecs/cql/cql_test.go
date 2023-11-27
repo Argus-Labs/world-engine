@@ -61,7 +61,8 @@ func TestParser(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, *term, testTerm)
 
-	emptyComponent := metadata.NewComponentMetadata[EmptyComponent]()
+	emptyComponent, err := metadata.NewComponentMetadata[EmptyComponent]()
+	assert.NilError(t, err)
 	stringToComponent := func(_ string) (metadata.ComponentMetadata, error) {
 		return emptyComponent, nil
 	}

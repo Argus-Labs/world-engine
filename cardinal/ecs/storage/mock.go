@@ -2,9 +2,10 @@ package storage
 
 import (
 	"fmt"
+	"reflect"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"reflect"
 )
 
 var (
@@ -15,16 +16,22 @@ type MockComponentType[T any] struct {
 	id         metadata.TypeID
 	typ        reflect.Type
 	defaultVal interface{}
+	schema     []byte
 }
 
-func NewMockComponentType[T any](t T, defaultVal interface{}) *MockComponentType[T] {
+func NewMockComponentType[T metadata.Component](t T, defaultVal interface{}) (*MockComponentType[T], error) {
+	schema, err := metadata.SerializeComponentSchema(t)
+	if err != nil {
+		return nil, err
+	}
 	m := &MockComponentType[T]{
 		id:         nextMockComponentTypeID,
 		typ:        reflect.TypeOf(t),
 		defaultVal: defaultVal,
+		schema:     schema,
 	}
 	nextMockComponentTypeID++
-	return m
+	return m, nil
 }
 
 func (m *MockComponentType[T]) SetID(id metadata.TypeID) error {
@@ -56,4 +63,8 @@ func (m *MockComponentType[T]) Decode(bytes []byte) (any, error) {
 
 func (m *MockComponentType[T]) Encode(a any) ([]byte, error) {
 	return codec.Encode(a)
+}
+
+func (m *MockComponentType[T]) GetSchema() []byte {
+	return m.schema
 }

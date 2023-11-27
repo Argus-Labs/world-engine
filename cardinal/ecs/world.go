@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
@@ -199,12 +200,37 @@ func RegisterComponent[T metadata.Component](world *World) error {
 	if err == nil {
 		return eris.Errorf("component with name '%s' is already registered", t.Name())
 	}
-	c := metadata.NewComponentMetadata[T]()
+	c, err := metadata.NewComponentMetadata[T]()
+	if err != nil {
+		return eris.Wrap(err, "")
+	}
 	err = c.SetID(world.nextComponentID)
 	if err != nil {
 		return err
 	}
 	world.registeredComponents = append(world.registeredComponents, c)
+
+	storedSchema, err := world.schemaStore.GetSchema(c.Name())
+
+	// if error is redis.Nil that means schema does not exist in the db, continue
+	if err != nil {
+		if !eris.Is(eris.Cause(err), redis.Nil) {
+			return err
+		}
+	} else {
+		valid, err := metadata.IsComponentValid(t, storedSchema)
+		if err != nil {
+			return err
+		}
+		if !valid {
+			return eris.Errorf("Component: %s does not match the type stored in the db", c.Name())
+		}
+	}
+
+	err = world.schemaStore.SetSchema(c.Name(), c.GetSchema())
+	if err != nil {
+		return err
+	}
 	world.nextComponentID++
 	world.nameToComponent[t.Name()] = c
 	world.isComponentsRegistered = true
@@ -647,6 +673,29 @@ func (w *World) recoverGameState() (recoveredTxs *message.TxQueue, err error) {
 		return nil, nil
 	}
 	return w.TickStore().Recover(w.registeredMessages)
+}
+
+func (w *World) CheckComponentSchemas() error {
+	var diffErr error = nil
+	for _, componentMetadata := range w.registeredComponents {
+		storedSchema, err := w.schemaStore.GetSchema(componentMetadata.Name())
+		if err != nil {
+			if eris.Is(eris.Cause(err), redis.Nil) {
+				// No component schemas have been saved, skip this operation return nil error.
+				return nil
+			}
+			return err
+		}
+		currentSchema := componentMetadata.GetSchema()
+		valid, err := metadata.IsSchemaValid(currentSchema, storedSchema)
+		if err != nil {
+			return err
+		}
+		if !valid {
+			diffErr = errors.Join(diffErr, fmt.Errorf("%s has changed and does not match with the previous component", componentMetadata.Name()))
+		}
+	}
+	return eris.Wrap(diffErr, "")
 }
 
 func (w *World) LoadGameState() error {
