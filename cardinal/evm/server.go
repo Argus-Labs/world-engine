@@ -13,7 +13,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/sign"
 
@@ -298,7 +297,7 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 		q.Each(
 			wCtx, func(id entity.ID) bool {
 				var signerComp *ecs.SignerComponent
-				signerComp, getComponentErr = component.GetComponent[ecs.SignerComponent](wCtx, id)
+				signerComp, getComponentErr = ecs.GetComponent[ecs.SignerComponent](wCtx, id)
 				getComponentErr = eris.Wrap(getComponentErr, "")
 				if getComponentErr != nil {
 					return false

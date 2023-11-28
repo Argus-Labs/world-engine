@@ -11,7 +11,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -66,7 +65,7 @@ func TestCanQueueTransactions(t *testing.T) {
 			modifyScore := modifyScoreMsg.In(wCtx)
 			for _, txData := range modifyScore {
 				ms := txData.Msg
-				err := component.UpdateComponent[ScoreComponent](
+				err := ecs.UpdateComponent[ScoreComponent](
 					wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 						s.Score += ms.Amount
 						return s
@@ -80,15 +79,15 @@ func TestCanQueueTransactions(t *testing.T) {
 		},
 	)
 	assert.NilError(t, world.LoadGameState())
-	id, err := component.Create(wCtx, ScoreComponent{})
+	id, err := ecs.Create(wCtx, ScoreComponent{})
 	assert.NilError(t, err)
 
 	modifyScoreMsg.AddToQueue(world, &ModifyScoreMsg{id, 100})
 
-	assert.NilError(t, component.SetComponent[ScoreComponent](wCtx, id, &ScoreComponent{}))
+	assert.NilError(t, ecs.SetComponent[ScoreComponent](wCtx, id, &ScoreComponent{}))
 
 	// Verify the score is 0
-	s, err := component.GetComponent[ScoreComponent](wCtx, id)
+	s, err := ecs.GetComponent[ScoreComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 0, s.Score)
 
@@ -96,7 +95,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	// Verify the score was updated
-	s, err = component.GetComponent[ScoreComponent](wCtx, id)
+	s, err = ecs.GetComponent[ScoreComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, s.Score)
 
@@ -104,7 +103,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	// Verify the score hasn't changed
-	s, err = component.GetComponent[ScoreComponent](wCtx, id)
+	s, err = ecs.GetComponent[ScoreComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, s.Score)
 }
@@ -129,7 +128,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 			search, err := wCtx.NewSearch(ecs.Exact(CounterComponent{}))
 			assert.NilError(t, err)
 			id := search.MustFirst(wCtx)
-			return component.UpdateComponent[CounterComponent](
+			return ecs.UpdateComponent[CounterComponent](
 				wCtx, id, func(c *CounterComponent) *CounterComponent {
 					c.Count++
 					return c
@@ -138,14 +137,14 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 		},
 	)
 	assert.NilError(t, world.LoadGameState())
-	id, err := component.Create(wCtx, CounterComponent{})
+	id, err := ecs.Create(wCtx, CounterComponent{})
 	assert.NilError(t, err)
 
 	for i := 0; i < 10; i++ {
 		assert.NilError(t, world.Tick(context.Background()))
 	}
 
-	c, err := component.GetComponent[CounterComponent](wCtx, id)
+	c, err := ecs.GetComponent[CounterComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 10, c.Count)
 }
@@ -162,7 +161,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 			modifyScores := modifyScoreMsg.In(wCtx)
 			for _, msData := range modifyScores {
 				ms := msData.Msg
-				err := component.UpdateComponent[ScoreComponent](
+				err := ecs.UpdateComponent[ScoreComponent](
 					wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 						s.Score += ms.Amount
 						return s
@@ -176,7 +175,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
-	ids, err := component.CreateMany(wCtx, 100, ScoreComponent{})
+	ids, err := ecs.CreateMany(wCtx, 100, ScoreComponent{})
 	assert.NilError(t, err)
 	// Entities at index 5, 10 and 50 will be updated with some values
 	modifyScoreMsg.AddToQueue(
@@ -210,7 +209,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		case 50:
 			wantScore = 150
 		}
-		s, err := component.GetComponent[ScoreComponent](wCtx, id)
+		s, err := ecs.GetComponent[ScoreComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, wantScore, s.Score)
 	}

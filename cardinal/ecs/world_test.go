@@ -13,7 +13,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 )
 
 func TestCanWaitForNextTick(t *testing.T) {
@@ -68,9 +67,11 @@ func TestWaitForNextTickReturnsFalseWhenWorldIsShutDown(t *testing.T) {
 	}()
 
 	// Shutdown the world at some point in the near future
-	time.AfterFunc(100*time.Millisecond, func() {
-		w.Shutdown()
-	})
+	time.AfterFunc(
+		100*time.Millisecond, func() {
+			w.Shutdown()
+		},
+	)
 	// testTimeout will cause the test to fail if we have to wait too long for a WaitForNextTick failure
 	testTimeout := time.After(5 * time.Second)
 	for {
@@ -120,12 +121,16 @@ func TestEVMTxConsume(t *testing.T) {
 	assert.NilError(t, w.RegisterMessages(fooTx))
 	var returnVal FooOut
 	var returnErr error
-	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		fooTx.Each(wCtx, func(t ecs.TxData[FooIn]) (FooOut, error) {
-			return returnVal, returnErr
-		})
-		return nil
-	})
+	w.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			fooTx.Each(
+				wCtx, func(t ecs.TxData[FooIn]) (FooOut, error) {
+					return returnVal, returnErr
+				},
+			)
+			return nil
+		},
+	)
 	assert.NilError(t, w.LoadGameState())
 
 	// add tx to queue
@@ -182,16 +187,18 @@ func TestAddSystems(t *testing.T) {
 func TestSystemExecutionOrder(t *testing.T) {
 	w := testutils.NewTestWorld(t).Instance()
 	order := make([]int, 0, 3)
-	w.RegisterSystems(func(ecs.WorldContext) error {
-		order = append(order, 1)
-		return nil
-	}, func(ecs.WorldContext) error {
-		order = append(order, 2)
-		return nil
-	}, func(ecs.WorldContext) error {
-		order = append(order, 3)
-		return nil
-	})
+	w.RegisterSystems(
+		func(ecs.WorldContext) error {
+			order = append(order, 1)
+			return nil
+		}, func(ecs.WorldContext) error {
+			order = append(order, 2)
+			return nil
+		}, func(ecs.WorldContext) error {
+			order = append(order, 3)
+			return nil
+		},
+	)
 	err := w.LoadGameState()
 	assert.NilError(t, err)
 	assert.NilError(t, w.Tick(context.Background()))
@@ -211,34 +218,42 @@ func TestSetNamespace(t *testing.T) {
 func TestWithoutRegistration(t *testing.T) {
 	world := testutils.NewTestWorld(t).Instance()
 	wCtx := ecs.NewWorldContext(world)
-	id, err := component.Create(wCtx, EnergyComponent{}, OwnableComponent{})
+	id, err := ecs.Create(wCtx, EnergyComponent{}, OwnableComponent{})
 	assert.Assert(t, err != nil)
 
-	err = component.UpdateComponent[EnergyComponent](wCtx, id, func(component *EnergyComponent) *EnergyComponent {
-		component.Amt += 50
-		return component
-	})
+	err = ecs.UpdateComponent[EnergyComponent](
+		wCtx, id, func(component *EnergyComponent) *EnergyComponent {
+			component.Amt += 50
+			return component
+		},
+	)
 	assert.Assert(t, err != nil)
 
-	err = component.SetComponent[EnergyComponent](wCtx, id, &EnergyComponent{
-		Amt: 0,
-		Cap: 0,
-	})
+	err = ecs.SetComponent[EnergyComponent](
+		wCtx, id, &EnergyComponent{
+			Amt: 0,
+			Cap: 0,
+		},
+	)
 
 	assert.Assert(t, err != nil)
 
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](world))
 	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](world))
-	id, err = component.Create(wCtx, EnergyComponent{}, OwnableComponent{})
+	id, err = ecs.Create(wCtx, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
-	err = component.UpdateComponent[EnergyComponent](wCtx, id, func(component *EnergyComponent) *EnergyComponent {
-		component.Amt += 50
-		return component
-	})
+	err = ecs.UpdateComponent[EnergyComponent](
+		wCtx, id, func(component *EnergyComponent) *EnergyComponent {
+			component.Amt += 50
+			return component
+		},
+	)
 	assert.NilError(t, err)
-	err = component.SetComponent[EnergyComponent](wCtx, id, &EnergyComponent{
-		Amt: 0,
-		Cap: 0,
-	})
+	err = ecs.SetComponent[EnergyComponent](
+		wCtx, id, &EnergyComponent{
+			Amt: 0,
+			Cap: 0,
+		},
+	)
 	assert.NilError(t, err)
 }

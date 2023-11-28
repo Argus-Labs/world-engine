@@ -10,7 +10,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -34,10 +33,10 @@ func TestGetEverythingFilter(t *testing.T) {
 
 	subsetCount := 50
 	wCtx := ecs.NewWorldContext(world)
-	_, err := component.CreateMany(wCtx, subsetCount, Alpha{}, Beta{})
+	_, err := ecs.CreateMany(wCtx, subsetCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some entities that have all 3 component.
-	_, err = component.CreateMany(wCtx, 20, Alpha{}, Beta{}, Gamma{})
+	_, err = ecs.CreateMany(wCtx, 20, Alpha{}, Beta{}, Gamma{})
 	assert.NilError(t, err)
 
 	count := 0
@@ -66,10 +65,10 @@ func TestCanFilterByArchetype(t *testing.T) {
 
 	subsetCount := 50
 	wCtx := ecs.NewWorldContext(world)
-	_, err := component.CreateMany(wCtx, subsetCount, Alpha{}, Beta{})
+	_, err := ecs.CreateMany(wCtx, subsetCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some entities that have all 3 component.
-	_, err = component.CreateMany(wCtx, 20, Alpha{}, Beta{}, Gamma{})
+	_, err = ecs.CreateMany(wCtx, 20, Alpha{}, Beta{}, Gamma{})
 	assert.NilError(t, err)
 
 	count := 0
@@ -81,7 +80,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 		wCtx, func(id entity.ID) bool {
 			count++
 			// Make sure the gamma component is not on this entity
-			_, err = component.GetComponent[gammaComponent](wCtx, id)
+			_, err = ecs.GetComponent[gammaComponent](wCtx, id)
 			assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 			return true
 		},
@@ -109,10 +108,10 @@ func TestExactVsContains(t *testing.T) {
 
 	alphaCount := 75
 	wCtx := ecs.NewWorldContext(world)
-	_, err := component.CreateMany(wCtx, alphaCount, Alpha{})
+	_, err := ecs.CreateMany(wCtx, alphaCount, Alpha{})
 	assert.NilError(t, err)
 	bothCount := 100
-	_, err = component.CreateMany(wCtx, bothCount, Alpha{}, Beta{})
+	_, err = ecs.CreateMany(wCtx, bothCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	count := 0
 	// Contains(alpha) should return all entities
@@ -246,11 +245,11 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 
 	wantCount := 50
 	wCtx := ecs.NewWorldContext(world)
-	ids, err := component.CreateMany(wCtx, wantCount, Alpha{}, Beta{})
+	ids, err := ecs.CreateMany(wCtx, wantCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some extra entities that will be ignored. Our query later
 	// should NOT contain these entities
-	_, err = component.CreateMany(wCtx, 20, Alpha{})
+	_, err = ecs.CreateMany(wCtx, 20, Alpha{})
 	assert.NilError(t, err)
 	id := ids[0]
 	comps, err := world.StoreManager().GetComponentTypesForEntity(id)
@@ -296,7 +295,7 @@ func BenchmarkEntityCreation(b *testing.B) {
 		assert.NilError(b, ecs.RegisterComponent[Alpha](world))
 		assert.NilError(b, world.LoadGameState())
 		wCtx := ecs.NewWorldContext(world)
-		_, err := component.CreateMany(wCtx, 100000, Alpha{})
+		_, err := ecs.CreateMany(wCtx, 100000, Alpha{})
 		assert.NilError(b, err)
 	}
 }
@@ -324,9 +323,9 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	assert.NilError(b, ecs.RegisterComponent[Beta](world))
 	assert.NilError(b, world.LoadGameState())
 	wCtx := ecs.NewWorldContext(world)
-	_, err := component.CreateMany(wCtx, relevantCount, Alpha{}, Beta{})
+	_, err := ecs.CreateMany(wCtx, relevantCount, Alpha{}, Beta{})
 	assert.NilError(b, err)
-	_, err = component.CreateMany(wCtx, ignoreCount, Alpha{})
+	_, err = ecs.CreateMany(wCtx, ignoreCount, Alpha{})
 	assert.NilError(b, err)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
