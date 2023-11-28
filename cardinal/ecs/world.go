@@ -42,8 +42,7 @@ func (n Namespace) String() string {
 
 type World struct {
 	namespace              Namespace
-	schemaStore            redis.SchemaStorage
-	nonceStore             redis.NonceStorage
+	redisStorage           *redis.Storage
 	entityStore            store.IManager
 	systems                []System
 	systemLoggers          []*ecslog.Logger
@@ -308,7 +307,7 @@ func (w *World) ListMessages() ([]message.Message, error) {
 
 // NewWorld creates a new world.
 func NewWorld(
-	schemaAndNonceStore redis.EngineStorage,
+	storage *redis.Storage,
 	entityStore store.IManager,
 	namespace Namespace,
 	opts ...Option,
@@ -316,33 +315,23 @@ func NewWorld(
 	logger := &ecslog.Logger{
 		&log.Logger,
 	}
-	nonceStore, ok := schemaAndNonceStore.(redis.NonceStorage)
-	if !ok {
-		return nil, eris.New("object must implement storage.NonceStorage")
-	}
-	schemaStore, ok := schemaAndNonceStore.(redis.SchemaStorage)
-	if !ok {
-		return nil, eris.New("object must implement storage.SchemaStorage")
-	}
 	entityStore.InjectLogger(logger)
 	w := &World{
-		nonceStore:        nonceStore,
-		schemaStore:       schemaStore,
-		entityStore:       entityStore,
-		namespace:         namespace,
-		tick:              &atomic.Uint64{},
-		systems:           make([]System, 0),
-		initSystem:        func(_ WorldContext) error { return nil },
-		nameToComponent:   make(map[string]metadata.ComponentMetadata),
-		nameToQuery:       make(map[string]Query),
-		txQueue:           message.NewTxQueue(),
-		Logger:            logger,
-		isGameLoopRunning: atomic.Bool{},
-		isEntitiesCreated: false,
-		endGameLoopCh:     make(chan bool),
-		nextComponentID:   1,
-		evmTxReceipts:     make(map[string]EVMTxReceipt),
-
+		redisStorage:                 storage,
+		entityStore:                  entityStore,
+		namespace:                    namespace,
+		tick:                         &atomic.Uint64{},
+		systems:                      make([]System, 0),
+		initSystem:                   func(_ WorldContext) error { return nil },
+		nameToComponent:              make(map[string]metadata.ComponentMetadata),
+		nameToQuery:                  make(map[string]Query),
+		txQueue:                      message.NewTxQueue(),
+		Logger:                       logger,
+		isGameLoopRunning:            atomic.Bool{},
+		isEntitiesCreated:            false,
+		endGameLoopCh:                make(chan bool),
+		nextComponentID:              1,
+		evmTxReceipts:                make(map[string]EVMTxReceipt),
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 	w.isGameLoopRunning.Store(false)
@@ -805,11 +794,11 @@ func (w *World) getMessage(id message.TypeID) message.Message {
 }
 
 func (w *World) GetNonce(signerAddress string) (uint64, error) {
-	return w.nonceStore.GetNonce(signerAddress)
+	return w.redisStorage.Nonce.GetNonce(signerAddress)
 }
 
 func (w *World) SetNonce(signerAddress string, nonce uint64) error {
-	return w.nonceStore.SetNonce(signerAddress, nonce)
+	return w.redisStorage.Nonce.SetNonce(signerAddress, nonce)
 }
 
 func (w *World) AddMessageError(id message.TxHash, err error) {

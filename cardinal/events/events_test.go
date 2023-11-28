@@ -168,6 +168,7 @@ func TestEventsThroughSystems(t *testing.T) {
 func TestEventHubLogger(t *testing.T) {
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
+
 	bufLogger := zerolog.New(&buf)
 	cardinalLogger := ecslog.Logger{
 		&bufLogger,

@@ -3,15 +3,21 @@ package redis
 import (
 	"context"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 )
 
-type SchemaStorage interface {
-	GetSchema(componentName string) ([]byte, error)
-	SetSchema(componentName string, schemaData []byte) error
+type SchemaStorage struct {
+	Client *redis.Client
 }
 
-func (r *Storage) GetSchema(componentName string) ([]byte, error) {
+func NewSchemaStorage(client *redis.Client) SchemaStorage {
+	return SchemaStorage{
+		Client: client,
+	}
+}
+
+func (r *SchemaStorage) GetSchema(componentName string) ([]byte, error) {
 	ctx := context.Background()
 	schemaBytes, err := r.Client.HGet(ctx, r.schemaStorageKey(), componentName).Bytes()
 	err = eris.Wrap(err, "")
@@ -21,9 +27,7 @@ func (r *Storage) GetSchema(componentName string) ([]byte, error) {
 	return schemaBytes, nil
 }
 
-func (r *Storage) SetSchema(componentName string, schemaData []byte) error {
+func (r *SchemaStorage) SetSchema(componentName string, schemaData []byte) error {
 	ctx := context.Background()
 	return eris.Wrap(r.Client.HSet(ctx, r.schemaStorageKey(), componentName, schemaData).Err(), "")
 }
-
-var _ NonceStorage = &Storage{}
