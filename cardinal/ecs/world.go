@@ -22,13 +22,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -288,7 +288,8 @@ func (w *World) RegisterMessages(txs ...message.Message) error {
 }
 
 func (w *World) registerInternalMessages() {
-	w.registeredMessages = append(w.registeredMessages,
+	w.registeredMessages = append(
+		w.registeredMessages,
 		CreatePersonaMsg,
 		AuthorizePersonaAddressMsg,
 	)
@@ -687,8 +688,10 @@ func (w *World) LoadGameState() error {
 //nolint:gocognit
 func (w *World) RecoverFromChain(ctx context.Context) error {
 	if w.chain == nil {
-		return eris.Errorf("chain adapter was nil. " +
-			"be sure to use the `WithAdapter` option when creating the world")
+		return eris.Errorf(
+			"chain adapter was nil. " +
+				"be sure to use the `WithAdapter` option when creating the world",
+		)
 	}
 	if w.CurrentTick() > 0 {
 		return eris.Errorf(
@@ -704,12 +707,14 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	namespace := w.Namespace().String()
 	var nextKey []byte
 	for {
-		res, err := w.chain.QueryTransactions(ctx, &types.QueryTransactionsRequest{
-			Namespace: namespace,
-			Page: &types.PageRequest{
-				Key: nextKey,
+		res, err := w.chain.QueryTransactions(
+			ctx, &types.QueryTransactionsRequest{
+				Namespace: namespace,
+				Page: &types.PageRequest{
+					Key: nextKey,
+				},
 			},
-		})
+		)
 		if err != nil {
 			return err
 		}
@@ -844,6 +849,7 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 }
 
 func GetRawJSONOfComponent(w *World, component metadata.ComponentMetadata, id entity.ID) (
-	json.RawMessage, error) {
+	json.RawMessage, error,
+) {
 	return w.StoreManager().GetComponentForEntityInRawJSON(component, id)
 }

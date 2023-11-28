@@ -12,9 +12,9 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -61,20 +61,24 @@ func TestCanQueueTransactions(t *testing.T) {
 	wCtx := ecs.NewWorldContext(world)
 
 	// Set up a system that allows for the modification of a player's score
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		modifyScore := modifyScoreMsg.In(wCtx)
-		for _, txData := range modifyScore {
-			ms := txData.Msg
-			err := component.UpdateComponent[ScoreComponent](wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
-				s.Score += ms.Amount
-				return s
-			})
-			if err != nil {
-				return err
+	world.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			modifyScore := modifyScoreMsg.In(wCtx)
+			for _, txData := range modifyScore {
+				ms := txData.Msg
+				err := component.UpdateComponent[ScoreComponent](
+					wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
+						s.Score += ms.Amount
+						return s
+					},
+				)
+				if err != nil {
+					return err
+				}
 			}
-		}
-		return nil
-	})
+			return nil
+		},
+	)
 	assert.NilError(t, world.LoadGameState())
 	id, err := component.Create(wCtx, ScoreComponent{})
 	assert.NilError(t, err)
@@ -120,15 +124,19 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 
 	wCtx := ecs.NewWorldContext(world)
 
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		search, err := wCtx.NewSearch(ecs.Exact(CounterComponent{}))
-		assert.NilError(t, err)
-		id := search.MustFirst(wCtx)
-		return component.UpdateComponent[CounterComponent](wCtx, id, func(c *CounterComponent) *CounterComponent {
-			c.Count++
-			return c
-		})
-	})
+	world.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			search, err := wCtx.NewSearch(ecs.Exact(CounterComponent{}))
+			assert.NilError(t, err)
+			id := search.MustFirst(wCtx)
+			return component.UpdateComponent[CounterComponent](
+				wCtx, id, func(c *CounterComponent) *CounterComponent {
+					c.Count++
+					return c
+				},
+			)
+		},
+	)
 	assert.NilError(t, world.LoadGameState())
 	id, err := component.Create(wCtx, CounterComponent{})
 	assert.NilError(t, err)
@@ -149,36 +157,46 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	modifyScoreMsg := ecs.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
 	assert.NilError(t, world.RegisterMessages(modifyScoreMsg))
 
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		modifyScores := modifyScoreMsg.In(wCtx)
-		for _, msData := range modifyScores {
-			ms := msData.Msg
-			err := component.UpdateComponent[ScoreComponent](wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
-				s.Score += ms.Amount
-				return s
-			})
-			assert.Check(t, err == nil)
-		}
-		return nil
-	})
+	world.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			modifyScores := modifyScoreMsg.In(wCtx)
+			for _, msData := range modifyScores {
+				ms := msData.Msg
+				err := component.UpdateComponent[ScoreComponent](
+					wCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
+						s.Score += ms.Amount
+						return s
+					},
+				)
+				assert.Check(t, err == nil)
+			}
+			return nil
+		},
+	)
 	assert.NilError(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
 	ids, err := component.CreateMany(wCtx, 100, ScoreComponent{})
 	assert.NilError(t, err)
 	// Entities at index 5, 10 and 50 will be updated with some values
-	modifyScoreMsg.AddToQueue(world, &ModifyScoreMsg{
-		PlayerID: ids[5],
-		Amount:   105,
-	})
-	modifyScoreMsg.AddToQueue(world, &ModifyScoreMsg{
-		PlayerID: ids[10],
-		Amount:   110,
-	})
-	modifyScoreMsg.AddToQueue(world, &ModifyScoreMsg{
-		PlayerID: ids[50],
-		Amount:   150,
-	})
+	modifyScoreMsg.AddToQueue(
+		world, &ModifyScoreMsg{
+			PlayerID: ids[5],
+			Amount:   105,
+		},
+	)
+	modifyScoreMsg.AddToQueue(
+		world, &ModifyScoreMsg{
+			PlayerID: ids[10],
+			Amount:   110,
+		},
+	)
+	modifyScoreMsg.AddToQueue(
+		world, &ModifyScoreMsg{
+			PlayerID: ids[50],
+			Amount:   150,
+		},
+	)
 
 	assert.NilError(t, world.Tick(context.Background()))
 
@@ -209,10 +227,12 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	inSystemCh := make(chan struct{})
 	// This system will block forever. This will give us a never-ending game tick that we can use
 	// to verify that the addition of more transactions doesn't block.
-	world.RegisterSystem(func(ecs.WorldContext) error {
-		<-inSystemCh
-		select {}
-	})
+	world.RegisterSystem(
+		func(ecs.WorldContext) error {
+			<-inSystemCh
+			select {}
+		},
+	)
 	assert.NilError(t, world.LoadGameState())
 
 	modScore.AddToQueue(world, &ModifyScoreMsg{})
@@ -257,17 +277,21 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	// transaction queue. These counts should be the same for each tick. modScoreCountCh is an unbuffered channel
 	// so these systems will block while writing to modScoreCountCh. This allows the test to ensure that we can run
 	// commands mid-tick.
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		modScores := modScoreMsg.In(wCtx)
-		modScoreCountCh <- len(modScores)
-		return nil
-	})
+	world.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			modScores := modScoreMsg.In(wCtx)
+			modScoreCountCh <- len(modScores)
+			return nil
+		},
+	)
 
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		modScores := modScoreMsg.In(wCtx)
-		modScoreCountCh <- len(modScores)
-		return nil
-	})
+	world.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			modScores := modScoreMsg.In(wCtx)
+			modScoreCountCh <- len(modScores)
+			return nil
+		},
+	)
 	assert.NilError(t, world.LoadGameState())
 
 	modScoreMsg.AddToQueue(world, &ModifyScoreMsg{})
@@ -326,16 +350,18 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 	alpha.AddToQueue(world, NewOwner{"alpha"})
 	beta.AddToQueue(world, NewOwner{"beta"})
 
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		newNames := alpha.In(wCtx)
-		assert.Check(t, len(newNames) == 1, "expected 1 transaction, not %d", len(newNames))
-		assert.Check(t, newNames[0].Msg.Name == "alpha")
+	world.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			newNames := alpha.In(wCtx)
+			assert.Check(t, len(newNames) == 1, "expected 1 transaction, not %d", len(newNames))
+			assert.Check(t, newNames[0].Msg.Name == "alpha")
 
-		newNames = beta.In(wCtx)
-		assert.Check(t, len(newNames) == 1, "expected 1 transaction, not %d", len(newNames))
-		assert.Check(t, newNames[0].Msg.Name == "beta")
-		return nil
-	})
+			newNames = beta.In(wCtx)
+			assert.Check(t, len(newNames) == 1, "expected 1 transaction, not %d", len(newNames))
+			assert.Check(t, newNames[0].Msg.Name == "beta")
+			return nil
+		},
+	)
 	assert.NilError(t, world.LoadGameState())
 
 	assert.NilError(t, world.Tick(context.Background()))
@@ -414,29 +440,31 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	wantSecondError := errors.New("another transaction error")
 	wantDeltaX, wantDeltaY := 99, 100
 
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		// This new In function returns a triplet of information:
-		// 1) The transaction input
-		// 2) An ID that uniquely identifies this specific transaction
-		// 3) The signature
-		// This function would replace both "In" and "TxsAndSigsIn"
-		txData := moveMsg.In(wCtx)
-		assert.Equal(t, 1, len(txData), "expected 1 move transaction")
-		tx := txData[0]
-		// The input for the transaction is found at tx.Val
-		assert.Equal(t, wantDeltaX, tx.Msg.DeltaX)
-		assert.Equal(t, wantDeltaY, tx.Msg.DeltaY)
+	world.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			// This new In function returns a triplet of information:
+			// 1) The transaction input
+			// 2) An ID that uniquely identifies this specific transaction
+			// 3) The signature
+			// This function would replace both "In" and "TxsAndSigsIn"
+			txData := moveMsg.In(wCtx)
+			assert.Equal(t, 1, len(txData), "expected 1 move transaction")
+			tx := txData[0]
+			// The input for the transaction is found at tx.Val
+			assert.Equal(t, wantDeltaX, tx.Msg.DeltaX)
+			assert.Equal(t, wantDeltaY, tx.Msg.DeltaY)
 
-		// AddError will associate an error with the tx.TxHash. Multiple errors can be
-		// associated with a transaction.
-		moveMsg.AddError(wCtx, tx.Hash, wantFirstError)
-		moveMsg.AddError(wCtx, tx.Hash, wantSecondError)
+			// AddError will associate an error with the tx.TxHash. Multiple errors can be
+			// associated with a transaction.
+			moveMsg.AddError(wCtx, tx.Hash, wantFirstError)
+			moveMsg.AddError(wCtx, tx.Hash, wantSecondError)
 
-		// SetResult sets the output for the transaction. Only one output can be set
-		// for a tx.TxHash (the last assigned result will clobber other results)
-		moveMsg.SetResult(wCtx, tx.Hash, MoveMsgResult{42, 42})
-		return nil
-	})
+			// SetResult sets the output for the transaction. Only one output can be set
+			// for a tx.TxHash (the last assigned result will clobber other results)
+			moveMsg.SetResult(wCtx, tx.Hash, MoveMsgResult{42, 42})
+			return nil
+		},
+	)
 	assert.NilError(t, world.LoadGameState())
 	_ = moveMsg.AddToQueue(world, MoveMsg{99, 100})
 
@@ -468,28 +496,32 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	assert.NilError(t, world.RegisterMessages(numTx))
 	wantErr := errors.New("some transaction error")
 	systemCalls := 0
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		systemCalls++
-		txs := numTx.In(wCtx)
-		assert.Equal(t, 1, len(txs))
-		hash := txs[0].Hash
-		_, _, ok := numTx.GetReceipt(wCtx, hash)
-		assert.Check(t, !ok)
-		numTx.AddError(wCtx, hash, wantErr)
-		return nil
-	})
+	world.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			systemCalls++
+			txs := numTx.In(wCtx)
+			assert.Equal(t, 1, len(txs))
+			hash := txs[0].Hash
+			_, _, ok := numTx.GetReceipt(wCtx, hash)
+			assert.Check(t, !ok)
+			numTx.AddError(wCtx, hash, wantErr)
+			return nil
+		},
+	)
 
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		systemCalls++
-		txs := numTx.In(wCtx)
-		assert.Equal(t, 1, len(txs))
-		hash := txs[0].Hash
-		_, errs, ok := numTx.GetReceipt(wCtx, hash)
-		assert.Check(t, ok)
-		assert.Equal(t, 1, len(errs))
-		assert.ErrorIs(t, wantErr, errs[0])
-		return nil
-	})
+	world.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			systemCalls++
+			txs := numTx.In(wCtx)
+			assert.Equal(t, 1, len(txs))
+			hash := txs[0].Hash
+			_, errs, ok := numTx.GetReceipt(wCtx, hash)
+			assert.Check(t, ok)
+			assert.Equal(t, 1, len(errs))
+			assert.ErrorIs(t, wantErr, errs[0])
+			return nil
+		},
+	)
 	assert.NilError(t, world.LoadGameState())
 
 	_ = numTx.AddToQueue(world, MsgIn{100})
@@ -512,29 +544,33 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 
 	firstResult := MsgOut{1234}
 	secondResult := MsgOut{5678}
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		systemCalls++
-		txs := numTx.In(wCtx)
-		assert.Equal(t, 1, len(txs))
-		hash := txs[0].Hash
-		_, _, ok := numTx.GetReceipt(wCtx, hash)
-		assert.Check(t, !ok)
-		numTx.SetResult(wCtx, hash, firstResult)
-		return nil
-	})
+	world.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			systemCalls++
+			txs := numTx.In(wCtx)
+			assert.Equal(t, 1, len(txs))
+			hash := txs[0].Hash
+			_, _, ok := numTx.GetReceipt(wCtx, hash)
+			assert.Check(t, !ok)
+			numTx.SetResult(wCtx, hash, firstResult)
+			return nil
+		},
+	)
 
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		systemCalls++
-		txs := numTx.In(wCtx)
-		assert.Equal(t, 1, len(txs))
-		hash := txs[0].Hash
-		out, errs, ok := numTx.GetReceipt(wCtx, hash)
-		assert.Check(t, ok)
-		assert.Equal(t, 0, len(errs))
-		assert.Equal(t, MsgOut{1234}, out)
-		numTx.SetResult(wCtx, hash, secondResult)
-		return nil
-	})
+	world.RegisterSystem(
+		func(wCtx ecs.WorldContext) error {
+			systemCalls++
+			txs := numTx.In(wCtx)
+			assert.Equal(t, 1, len(txs))
+			hash := txs[0].Hash
+			out, errs, ok := numTx.GetReceipt(wCtx, hash)
+			assert.Check(t, ok)
+			assert.Equal(t, 0, len(errs))
+			assert.Equal(t, MsgOut{1234}, out)
+			numTx.SetResult(wCtx, hash, secondResult)
+			return nil
+		},
+	)
 	assert.NilError(t, world.LoadGameState())
 
 	_ = numTx.AddToQueue(world, MsgIn{100})
@@ -567,7 +603,9 @@ func TestCopyTransactions(t *testing.T) {
 
 func TestNewTransactionPanicsIfNoName(t *testing.T) {
 	type Foo struct{}
-	require.Panics(t, func() {
-		ecs.NewMessageType[Foo, Foo]("")
-	})
+	require.Panics(
+		t, func() {
+			ecs.NewMessageType[Foo, Foo]("")
+		},
+	)
 }

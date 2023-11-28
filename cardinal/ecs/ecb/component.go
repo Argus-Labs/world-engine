@@ -5,7 +5,7 @@ import (
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 // compKey is a tuple of a component TypeID and an entity ID. It used as a map key to keep
@@ -18,9 +18,11 @@ type compKey struct {
 // sortComponentSet re-orders the given components so their IDs are strictly increasing. If any component is duplicated
 // an error is returned.
 func sortComponentSet(components []metadata.ComponentMetadata) error {
-	sort.Slice(components, func(i, j int) bool {
-		return components[i].ID() < components[j].ID()
-	})
+	sort.Slice(
+		components, func(i, j int) bool {
+			return components[i].ID() < components[j].ID()
+		},
+	)
 	for i := 1; i < len(components); i++ {
 		if components[i] == components[i-1] {
 			return eris.New("duplicate components is not allowed")
