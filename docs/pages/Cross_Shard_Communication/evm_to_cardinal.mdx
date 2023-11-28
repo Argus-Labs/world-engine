@@ -1,0 +1,145 @@
+import { Callout } from 'nextra/components'
+
+<Callout type={"warning"}>
+    EVM to Cardinal communication is an experimental feature. The API is not final and bugs are expected to be encountered.
+</Callout>
+
+
+# EVM To Cardinal Communication
+
+The EVM base shard provides a precompile, called Router, that enables smart contracts to read data from a Cardinal game shard, as well as send transactions to Cardinal game shards.
+
+## Precompile Address
+
+The address of the Router precompile is: `0x356833c4666fFB6bFccbF8D600fa7282290dE073`
+
+## Precompile Interface
+
+Below is the interface for the `IRouter` precompile, which provides the functionality to read and write to game shards. Note that there is a separate method for acquiring the result of a message. This is due to the asynchronous nature of World Engine game shards.
+
+```solidity
+interface IRouter {
+    function sendMessage(bytes memory message, string memory messageID, string memory namespace) external returns (bool);
+
+    function messageResult(string memory txHash) external returns (bytes memory, string memory, uint32);
+
+    function query(bytes memory request, string memory resource, string memory namespace)
+        external
+        returns (bytes memory);
+}
+```
+
+## Method Reference
+
+### sendMessage
+
+The `sendMessage` Router method enables smart contracts to send messages to the game shard specified by the given namespace.
+
+#### Parameters
+
+| Parameter   | Type           | Description                                      |
+|-------------|----------------|--------------------------------------------------|
+| `message`   | `bytes` | ABI encoded message struct.                    |
+| `messageID` | `string` | An identifier for the message.                    |
+| `namespace` | `string` | The namespace of the game shard to send the message to.        |
+
+To construct the message parameter, you must first start with a struct that has the exact same fields as the message is defined on the game shard.
+
+For example, consider the following Cardinal game shard message:
+
+```go
+type SendEnergyMsg struct {
+    PlanetTo    string
+    PlanetFrom  string
+    Amount      uint64
+}
+```
+
+To send this message from a smart contract written in Solidity, define the same struct:
+
+```solidity
+struct SendEnergy {
+    string PlanetTo;
+    string PlanetFrom;
+    uint64 Amount;
+}
+```
+
+To generate the bytes to supply to the `sendMessage` method, use Solidity's built in `abi.encode` function.
+
+```solidity
+
+function sendTheEnergy() {
+    SendEnergy memory sendEnergymsg = SendEnergy("planet1", "planet2", 100);
+    bytes memory encoded = abi.encode(sendEnergymsg);
+    bool ok = router.sendMessage(encoded, SendEnergyID, Namespace);
+    if (!ok) {
+        revert("router failed to send the message");
+    }
+}
+```
+
+The `messageID` parameter refers to the name given to the message in Cardinal. For example, the messageID for the message below would be "send-energy".
+
+```go
+var SendEnergy = cardinal.NewMessageTypeWithEVMSupport[SendEnergyMsg, SendEnergyReply]("send-energy")
+```
+
+### messageResult
+
+The `messageResult` method enables smart contracts to retrieve the result of a cross-shard message.
+
+#### Parameters
+
+| Parameter | Description                                    |
+|-----------|------------------------------------------------|
+| `txHash`  | The transaction hash for the message.          |
+
+
+#### Return Values
+
+| Type   | Description                                    |
+|--------|------------------------------------------------|
+| `bytes`| The result data associated with the message.    |
+| `string`| Error string, if any. Empty string means no error.            |
+| `uint32`| A numeric value representing the result status.|
+
+#### Codes
+
+| Code                  | Value | Meaning                                           |
+|-----------------------|-------|---------------------------------------------------|
+| `Success`            | `0`   | Transaction executed successfully.               |
+| `TxFailed`           | `1`   | Transaction execution failed.                    |
+| `NoResult`           | `2`   | No result available for the operation.           |
+| `ServerUnresponsive` | `3`   | Game Shard is unresponsive.                      |
+| `Unauthorized`       | `4`   | Unauthorized access or action.                   |
+| `UnsupportedTransaction`| `5`| Transaction type is not supported.               |
+| `InvalidFormat`      | `6`   | Data or format is invalid.                       |
+| `ConnectionError`    | `100` | Error in establishing or maintaining a connection.|
+| `ServerError`        | `101` | Internal error with the game shard.               |
+
+
+Decoding the response is done similarly to encoding a message.
+
+
+```go
+type SendEnergyResponse struct {
+    Success bool
+}
+```
+
+```solidity
+
+struct SendEnergyResult {
+    bool Success;
+}
+
+function getSendEnergyResult(string memory txHash) public returns (SendEnergyResult memory, string memory, uint32) {
+    (bytes memory txResult, string memory errMsg, uint32 code) =  router.messageResult(txHash);
+    SendEnergyResult memory res = abi.decode(txResult, (SendEnergyResult));
+    return (res, errMsg, code);
+}
+```
+
+### query
+
