@@ -5,8 +5,8 @@ import (
 
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
@@ -29,7 +29,7 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 				var eachClosureErr error
 				searchEachErr := search.Each(
 					wCtx, func(id entity.ID) bool {
-						var components []metadata.ComponentMetadata
+						var components []component.ComponentMetadata
 						components, eachClosureErr = wCtx.StoreReader().GetComponentTypesForEntity(id)
 						if eachClosureErr != nil {
 							return false

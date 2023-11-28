@@ -15,9 +15,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
@@ -44,12 +43,12 @@ func testSystem(wCtx ecs.WorldContext) error {
 	}
 	err = q.Each(
 		wCtx, func(entityId entity.ID) bool {
-			energyPlanet, err := component.GetComponent[EnergyComp](wCtx, entityId)
+			energyPlanet, err := ecs.GetComponent[EnergyComp](wCtx, entityId)
 			if err != nil {
 				return false
 			}
 			energyPlanet.value += 10
-			err = component.SetComponent[EnergyComp](wCtx, entityId, energyPlanet)
+			err = ecs.SetComponent[EnergyComp](wCtx, entityId, energyPlanet)
 			return err == nil
 		},
 	)
@@ -124,12 +123,12 @@ func TestWorldLogger(t *testing.T) {
 	buf.Reset()
 	energy, err := w.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
-	components := []metadata.ComponentMetadata{energy}
+	components := []component.ComponentMetadata{energy}
 	wCtx := ecs.NewWorldContext(w)
 	w.RegisterSystem(testSystemWarningTrigger)
 	err = w.LoadGameState()
 	assert.NilError(t, err)
-	entityID, err := component.Create(wCtx, EnergyComp{})
+	entityID, err := ecs.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(
@@ -249,7 +248,7 @@ func TestWorldLogger(t *testing.T) {
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
-	_, err = component.CreateMany(wCtx, 2, EnergyComp{})
+	_, err = ecs.CreateMany(wCtx, 2, EnergyComp{})
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(

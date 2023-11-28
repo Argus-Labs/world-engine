@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
+	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
@@ -210,7 +210,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 // plugins.
 // Get returns component data from the entity.
 // GetComponent returns component data from the entity.
-func getComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
+func getComponent[T component.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
 	var t T
 	name := t.Name()
 	c, err := wCtx.GetWorld().GetComponentByName(name)
@@ -239,7 +239,7 @@ func getComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (comp *
 // TODO private component function used to temporarily remove circular dependency until we replace components.
 // TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
 // plugins.
-func setComponent[T metadata.Component](wCtx WorldContext, id entity.ID, component *T) error {
+func setComponent[T component.Component](wCtx WorldContext, id entity.ID, component *T) error {
 	if wCtx.IsReadOnly() {
 		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
@@ -265,7 +265,7 @@ func setComponent[T metadata.Component](wCtx WorldContext, id entity.ID, compone
 // TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
 // plugins.
 // https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
-func updateComponent[T metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
+func updateComponent[T component.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
 	if wCtx.IsReadOnly() {
 		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
@@ -281,12 +281,12 @@ func updateComponent[T metadata.Component](wCtx WorldContext, id entity.ID, fn f
 // TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
 // plugins.
 // https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
-func createMany(wCtx WorldContext, num int, components ...metadata.Component) ([]entity.ID, error) {
+func createMany(wCtx WorldContext, num int, components ...component.Component) ([]entity.ID, error) {
 	if wCtx.IsReadOnly() {
 		return nil, eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
 	world := wCtx.GetWorld()
-	acc := make([]metadata.ComponentMetadata, 0, len(components))
+	acc := make([]component.ComponentMetadata, 0, len(components))
 	for _, comp := range components {
 		c, err := world.GetComponentByName(comp.Name())
 		if err != nil {
@@ -317,7 +317,7 @@ func createMany(wCtx WorldContext, num int, components ...metadata.Component) ([
 // TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
 // plugins.
 // https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
-func create(wCtx WorldContext, components ...metadata.Component) (entity.ID, error) {
+func create(wCtx WorldContext, components ...component.Component) (entity.ID, error) {
 	entities, err := createMany(wCtx, 1, components...)
 	if err != nil {
 		return 0, err

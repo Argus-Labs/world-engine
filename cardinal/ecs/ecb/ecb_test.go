@@ -11,10 +11,9 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
@@ -59,9 +58,9 @@ func (Bar) Name() string {
 }
 
 var (
-	fooComp       = metadata.NewComponentMetadata[Foo]()
-	barComp       = metadata.NewComponentMetadata[Bar]()
-	allComponents = []metadata.ComponentMetadata{fooComp, barComp}
+	fooComp       = component.NewComponentMetadata[Foo]()
+	barComp       = component.NewComponentMetadata[Bar]()
+	allComponents = []component.ComponentMetadata{fooComp, barComp}
 )
 
 //nolint:gochecknoinits // its for testing.
@@ -299,11 +298,11 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
-	justHealthIDs, err := component.CreateMany(wCtx, 8, Health{})
+	justHealthIDs, err := ecs.CreateMany(wCtx, 8, Health{})
 	assert.NilError(t, err)
-	justPowerIDs, err := component.CreateMany(wCtx, 9, Power{})
+	justPowerIDs, err := ecs.CreateMany(wCtx, 9, Power{})
 	assert.NilError(t, err)
-	healthAndPowerIDs, err := component.CreateMany(wCtx, 10, Health{}, Power{})
+	healthAndPowerIDs, err := ecs.CreateMany(wCtx, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
 	testCases := []struct {
@@ -393,9 +392,9 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 	_, err = manager.CreateManyEntities(startEntityCount, fooComp, barComp)
 	assert.NilError(t, err)
 
-	fooArchID, err := manager.GetArchIDForComponents([]metadata.ComponentMetadata{fooComp})
+	fooArchID, err := manager.GetArchIDForComponents([]component.ComponentMetadata{fooComp})
 	assert.NilError(t, err)
-	bothArchID, err := manager.GetArchIDForComponents([]metadata.ComponentMetadata{barComp, fooComp})
+	bothArchID, err := manager.GetArchIDForComponents([]component.ComponentMetadata{barComp, fooComp})
 	assert.NilError(t, err)
 
 	// Make sure there are the correct number of ids in each archetype to start
