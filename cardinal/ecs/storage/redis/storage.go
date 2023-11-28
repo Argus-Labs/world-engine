@@ -13,7 +13,7 @@ type EngineStorage interface {
 	SchemaStorage
 }
 
-type RedisStorage struct {
+type Storage struct {
 	Namespace string
 	Client    *redis.Client
 	Log       zerolog.Logger
@@ -21,17 +21,17 @@ type RedisStorage struct {
 
 type Options = redis.Options
 
-func NewRedisStorage(options Options, namespace string) RedisStorage {
-	return RedisStorage{
+func NewRedisStorage(options Options, namespace string) Storage {
+	return Storage{
 		Namespace: namespace,
 		Client:    redis.NewClient(&options),
 		Log:       zerolog.New(os.Stdout),
 	}
 }
 
-var _ SchemaStorage = &RedisStorage{}
+var _ SchemaStorage = &Storage{}
 
-func (r *RedisStorage) Close() error {
+func (r *Storage) Close() error {
 	err := r.Client.Close()
 	if err != nil {
 		return eris.Wrap(err, "")

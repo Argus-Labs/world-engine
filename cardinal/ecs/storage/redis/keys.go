@@ -5,10 +5,10 @@ package redis
 	Hash set of signature address to uint64 nonce
 */
 
-func (r *RedisStorage) nonceKey() string {
+func (r *Storage) nonceKey() string {
 	return "ADDRESS_TO_NONCE"
 }
 
-func (r *RedisStorage) schemaStorageKey() string {
+func (r *Storage) schemaStorageKey() string {
 	return "COMPONENT_NAME_TO_SCHEMA_DATA"
 }

@@ -18,7 +18,7 @@ import (
 
 const Namespace string = "world"
 
-func GetRedisStorage(t *testing.T) storage.RedisStorage {
+func GetRedisStorage(t *testing.T) storage.Storage {
 	s := miniredis.RunT(t)
 	return storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
