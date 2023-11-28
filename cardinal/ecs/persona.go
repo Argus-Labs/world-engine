@@ -2,7 +2,11 @@ package ecs
 
 import (
 	"errors"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
@@ -51,9 +55,18 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 		) (AuthorizePersonaAddressResult, error) {
 			msg, tx := txData.Msg, txData.Tx
 			result := AuthorizePersonaAddressResult{Success: false}
+
+			// Check if the Persona Tag exists
 			data, ok := personaTagToAddress[tx.PersonaTag]
 			if !ok {
 				return result, eris.Errorf("persona %s does not exist", tx.PersonaTag)
+			}
+
+			// Check that the ETH Address is valid
+			msg.Address = strings.ToLower(msg.Address)
+			valid := common.IsHexAddress(msg.Address)
+			if !valid {
+				return result, eris.Errorf("eth address %s is invalid", msg.Address)
 			}
 
 			err = updateComponent[SignerComponent](
@@ -135,6 +148,13 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 	}
 	for _, txData := range createTxs {
 		tx := txData.Msg
+
+		if valid := isAlphanumericWithUnderscore(tx.PersonaTag); !valid {
+			err = fmt.Errorf("persona tag %s is not valid, must be alphanumeric with underscores also allowed", tx.PersonaTag)
+			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
+			continue
+		}
+
 		if _, ok := personaTagToAddress[tx.PersonaTag]; ok {
 			// This PersonaTag has already been registered. Don't do anything
 			continue
@@ -165,6 +185,17 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 	}
 
 	return nil
+}
+
+func isAlphanumericWithUnderscore(s string) bool {
+	// Regular expression pattern for alphanumeric with underscore
+	pattern := "^[a-zA-Z0-9_]+$"
+
+	// Compile the regular expression
+	regexpObj := regexp.MustCompile(pattern)
+
+	// Use the MatchString method to check if the string matches the pattern
+	return regexpObj.MatchString(s)
 }
 
 var (
