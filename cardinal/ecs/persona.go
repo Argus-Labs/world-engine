@@ -148,11 +148,11 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 	}
 
 	CreatePersonaMsg.Each(wCtx, func(txData TxData[CreatePersona]) (CreatePersonaResult, error) {
-		msg, tx := txData.Msg, txData.Tx
+		msg := txData.Msg
 		result := CreatePersonaResult{Success: false}
 
 		if valid := IsAlphanumericWithUnderscore(msg.PersonaTag); !valid {
-			err = fmt.Errorf("persona tag %s is not valid, must be alphanumeric with underscores also allowed", tx.PersonaTag)
+			err = fmt.Errorf("persona tag %s is not valid, must be alphanumeric with underscores also allowed", msg.PersonaTag)
 			return result, err
 		}
 
@@ -173,7 +173,7 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 		); err != nil {
 			return result, eris.Wrap(err, "")
 		}
-		personaTagToAddress[tx.PersonaTag] = personaTagComponentData{
+		personaTagToAddress[msg.PersonaTag] = personaTagComponentData{
 			SignerAddress: msg.SignerAddress,
 			EntityID:      id,
 		}
