@@ -20,7 +20,7 @@ func TestIsAlphanumericWithUnderscore(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
-			result := IsAlphanumericWithUnderscore(test.input)
+			result := isAlphanumericWithUnderscore(test.input)
 			if result != test.expected {
 				t.Errorf("Expected %v, but got %v", test.expected, result)
 			}

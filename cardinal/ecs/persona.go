@@ -151,7 +151,7 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 		msg := txData.Msg
 		result := CreatePersonaResult{Success: false}
 
-		if valid := IsAlphanumericWithUnderscore(msg.PersonaTag); !valid {
+		if valid := isAlphanumericWithUnderscore(msg.PersonaTag); !valid {
 			err = fmt.Errorf("persona tag %s is not valid, must be alphanumeric with underscores also allowed", msg.PersonaTag)
 			return result, err
 		}
@@ -184,7 +184,7 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 	return nil
 }
 
-func IsAlphanumericWithUnderscore(s string) bool {
+func isAlphanumericWithUnderscore(s string) bool {
 	// Regular expression pattern for alphanumeric with underscore
 	pattern := "^[a-zA-Z0-9_]+$"
 
