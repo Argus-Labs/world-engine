@@ -676,7 +676,7 @@ func (w *World) recoverGameState() (recoveredTxs *message.TxQueue, err error) {
 }
 
 func (w *World) CheckComponentSchemas() error {
-	var diffErr error = nil
+	var diffErr error
 	for _, componentMetadata := range w.registeredComponents {
 		storedSchema, err := w.schemaStore.GetSchema(componentMetadata.Name())
 		if err != nil {
@@ -692,7 +692,9 @@ func (w *World) CheckComponentSchemas() error {
 			return err
 		}
 		if !valid {
-			diffErr = errors.Join(diffErr, fmt.Errorf("%s has changed and does not match with the previous component", componentMetadata.Name()))
+			diffErr = errors.Join(
+				diffErr,
+				fmt.Errorf("%s has changed and does not match with the previous component", componentMetadata.Name()))
 		}
 	}
 	return eris.Wrap(diffErr, "")

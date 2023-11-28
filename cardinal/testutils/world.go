@@ -19,7 +19,10 @@ func NewTestWorld(t testing.TB, opts ...cardinal.WorldOption) *cardinal.World {
 	return NewTestWorldWithCustomRedis(t, s, opts...)
 }
 
-func NewTestWorldWithCustomRedis(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardinal.WorldOption) *cardinal.World {
+func NewTestWorldWithCustomRedis(
+	t testing.TB,
+	miniRedis *miniredis.Miniredis,
+	opts ...cardinal.WorldOption) *cardinal.World {
 	t.Setenv("CARDINAL_DEPLOY_MODE", "development")
 	t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
 	opts = append([]cardinal.WorldOption{cardinal.WithCustomMockRedis(miniRedis)}, opts...)
