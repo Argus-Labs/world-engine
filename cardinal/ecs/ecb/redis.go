@@ -5,10 +5,10 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/types/archetype"
 )
 
 // pipeFlushToRedis return a pipeliner with all pending state changes to redis ready to be committed in an atomic

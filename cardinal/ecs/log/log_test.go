@@ -17,8 +17,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 type SendEnergyTx struct {
@@ -42,15 +42,17 @@ func testSystem(wCtx ecs.WorldContext) error {
 	if err != nil {
 		return err
 	}
-	err = q.Each(wCtx, func(entityId entity.ID) bool {
-		energyPlanet, err := component.GetComponent[EnergyComp](wCtx, entityId)
-		if err != nil {
-			return false
-		}
-		energyPlanet.value += 10
-		err = component.SetComponent[EnergyComp](wCtx, entityId, energyPlanet)
-		return err == nil
-	})
+	err = q.Each(
+		wCtx, func(entityId entity.ID) bool {
+			energyPlanet, err := component.GetComponent[EnergyComp](wCtx, entityId)
+			if err != nil {
+				return false
+			}
+			energyPlanet.value += 10
+			err = component.SetComponent[EnergyComp](wCtx, entityId, energyPlanet)
+			return err == nil
+		},
+	)
 	if err != nil {
 		panic(err)
 	}
@@ -130,13 +132,16 @@ func TestWorldLogger(t *testing.T) {
 	entityID, err := component.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:2]
-	require.JSONEq(t, `
+	require.JSONEq(
+		t, `
 			{
 				"level":"debug",
 				"archetype_id":0,
 				"message":"created"
-			}`, logStrings[0])
-	require.JSONEq(t, `
+			}`, logStrings[0],
+	)
+	require.JSONEq(
+		t, `
 			{
 				"level":"debug",
 				"components":[{
@@ -144,7 +149,8 @@ func TestWorldLogger(t *testing.T) {
 					"component_name":"EnergyComp"
 				}],
 				"entity_id":0,"archetype_id":0
-			}`, logStrings[1])
+			}`, logStrings[1],
+	)
 
 	buf.Reset()
 
@@ -174,20 +180,25 @@ func TestWorldLogger(t *testing.T) {
 	assert.NilError(t, err)
 	logStrings = strings.Split(buf.String(), "\n")[:4]
 	// test tick start
-	require.JSONEq(t, `
+	require.JSONEq(
+		t, `
 			{
 				"level":"info",
 				"tick":"0",
 				"message":"Tick started"
-			}`, logStrings[0])
+			}`, logStrings[0],
+	)
 	// test if system name recorded in log
-	require.JSONEq(t, `
+	require.JSONEq(
+		t, `
 			{
 				"system":"log_test.testSystemWarningTrigger",
 				"message":"test"
-			}`, logStrings[1])
+			}`, logStrings[1],
+	)
 	// test if updating component worked
-	require.JSONEq(t, `
+	require.JSONEq(
+		t, `
 			{
 				"level":"debug",
 				"entity_id":"0",
@@ -195,7 +206,8 @@ func TestWorldLogger(t *testing.T) {
 				"component_id":2,
 				"message":"entity updated",
 				"system":"log_test.testSystemWarningTrigger"
-			}`, logStrings[2])
+			}`, logStrings[2],
+	)
 	// test tick end
 	buf.Reset()
 	sanitizedJSON := func(json []byte) []byte {
@@ -240,7 +252,8 @@ func TestWorldLogger(t *testing.T) {
 	_, err = component.CreateMany(wCtx, 2, EnergyComp{})
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
-	require.JSONEq(t, `
+	require.JSONEq(
+		t, `
 			{
 				"level":"debug",
 				"components":
@@ -252,8 +265,10 @@ func TestWorldLogger(t *testing.T) {
 					],
 				"entity_id":1,
 				"archetype_id":0
-			}`, entityCreationStrings[0])
-	require.JSONEq(t, `
+			}`, entityCreationStrings[0],
+	)
+	require.JSONEq(
+		t, `
 			{
 				"level":"debug",
 				"components":
@@ -265,5 +280,6 @@ func TestWorldLogger(t *testing.T) {
 					],
 				"entity_id":2,
 				"archetype_id":0
-			}`, entityCreationStrings[1])
+			}`, entityCreationStrings[1],
+	)
 }

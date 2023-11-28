@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/archetype"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/types/archetype"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 func TestLoadingFromRedisShouldNotRepeatEntityIDs(t *testing.T) {

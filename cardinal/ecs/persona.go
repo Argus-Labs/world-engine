@@ -6,7 +6,7 @@ import (
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 // CreatePersona allows for the associating of a persona tag with a signer address.
@@ -45,30 +45,35 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 	if err != nil {
 		return err
 	}
-	AuthorizePersonaAddressMsg.Each(wCtx, func(txData TxData[AuthorizePersonaAddress],
-	) (AuthorizePersonaAddressResult, error) {
-		msg, tx := txData.Msg, txData.Tx
-		result := AuthorizePersonaAddressResult{Success: false}
-		data, ok := personaTagToAddress[tx.PersonaTag]
-		if !ok {
-			return result, eris.Errorf("persona %s does not exist", tx.PersonaTag)
-		}
-
-		err = updateComponent[SignerComponent](wCtx, data.EntityID, func(s *SignerComponent) *SignerComponent {
-			for _, addr := range s.AuthorizedAddresses {
-				if addr == msg.Address {
-					return s
-				}
+	AuthorizePersonaAddressMsg.Each(
+		wCtx, func(
+			txData TxData[AuthorizePersonaAddress],
+		) (AuthorizePersonaAddressResult, error) {
+			msg, tx := txData.Msg, txData.Tx
+			result := AuthorizePersonaAddressResult{Success: false}
+			data, ok := personaTagToAddress[tx.PersonaTag]
+			if !ok {
+				return result, eris.Errorf("persona %s does not exist", tx.PersonaTag)
 			}
-			s.AuthorizedAddresses = append(s.AuthorizedAddresses, msg.Address)
-			return s
-		})
-		if err != nil {
-			return result, eris.Wrap(err, "unable to update signer component with address")
-		}
-		result.Success = true
-		return result, nil
-	})
+
+			err = updateComponent[SignerComponent](
+				wCtx, data.EntityID, func(s *SignerComponent) *SignerComponent {
+					for _, addr := range s.AuthorizedAddresses {
+						if addr == msg.Address {
+							return s
+						}
+					}
+					s.AuthorizedAddresses = append(s.AuthorizedAddresses, msg.Address)
+					return s
+				},
+			)
+			if err != nil {
+				return result, eris.Wrap(err, "unable to update signer component with address")
+			}
+			result.Success = true
+			return result, nil
+		},
+	)
 	return nil
 }
 
@@ -94,18 +99,20 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 	if err != nil {
 		return nil, err
 	}
-	err = q.Each(wCtx, func(id entity.ID) bool {
-		sc, err := getComponent[SignerComponent](wCtx, id)
-		if err != nil {
-			errs = append(errs, err)
+	err = q.Each(
+		wCtx, func(id entity.ID) bool {
+			sc, err := getComponent[SignerComponent](wCtx, id)
+			if err != nil {
+				errs = append(errs, err)
+				return true
+			}
+			personaTagToAddress[sc.PersonaTag] = personaTagComponentData{
+				SignerAddress: sc.SignerAddress,
+				EntityID:      id,
+			}
 			return true
-		}
-		personaTagToAddress[sc.PersonaTag] = personaTagComponentData{
-			SignerAddress: sc.SignerAddress,
-			EntityID:      id,
-		}
-		return true
-	})
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -137,10 +144,12 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
 			continue
 		}
-		if err = setComponent[SignerComponent](wCtx, id, &SignerComponent{
-			PersonaTag:    tx.PersonaTag,
-			SignerAddress: tx.SignerAddress,
-		}); err != nil {
+		if err = setComponent[SignerComponent](
+			wCtx, id, &SignerComponent{
+				PersonaTag:    tx.PersonaTag,
+				SignerAddress: tx.SignerAddress,
+			},
+		); err != nil {
 			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
 			continue
 		}
@@ -148,9 +157,11 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 			SignerAddress: tx.SignerAddress,
 			EntityID:      id,
 		}
-		CreatePersonaMsg.SetResult(wCtx, txData.Hash, CreatePersonaResult{
-			Success: true,
-		})
+		CreatePersonaMsg.SetResult(
+			wCtx, txData.Hash, CreatePersonaResult{
+				Success: true,
+			},
+		)
 	}
 
 	return nil
@@ -174,17 +185,19 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 		return "", err
 	}
 	wCtx := NewReadOnlyWorldContext(w)
-	err = q.Each(wCtx, func(id entity.ID) bool {
-		sc, err := getComponent[SignerComponent](wCtx, id)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if sc.PersonaTag == personaTag {
-			addr = sc.SignerAddress
-			return false
-		}
-		return true
-	})
+	err = q.Each(
+		wCtx, func(id entity.ID) bool {
+			sc, err := getComponent[SignerComponent](wCtx, id)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			if sc.PersonaTag == personaTag {
+				addr = sc.SignerAddress
+				return false
+			}
+			return true
+		},
+	)
 	errs = append(errs, err)
 	if addr == "" {
 		return "", ErrPersonaTagHasNoSigner

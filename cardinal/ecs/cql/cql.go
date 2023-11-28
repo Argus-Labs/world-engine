@@ -8,8 +8,8 @@ import (
 	"github.com/alecthomas/participle/v2"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 type cqlOperator int
@@ -201,7 +201,8 @@ func opFactorToComponentFilter(
 	return &opFactor.Operator, resultFilter, nil
 }
 
-func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (metadata.ComponentMetadata, error),
+func termToComponentFilter(
+	term *cqlTerm, stringToComponent func(string) (metadata.ComponentMetadata, error),
 ) (filter.ComponentFilter, error) {
 	if term.Left == nil {
 		return nil, eris.New("not enough values in expression")
@@ -227,7 +228,8 @@ func termToComponentFilter(term *cqlTerm, stringToComponent func(string) (metada
 	return acc, nil
 }
 
-func Parse(cqlText string, stringToComponent func(string) (metadata.ComponentMetadata, error),
+func Parse(
+	cqlText string, stringToComponent func(string) (metadata.ComponentMetadata, error),
 ) (filter.ComponentFilter, error) {
 	term, err := internalCQLParser.ParseString("", cqlText)
 	if err != nil {
