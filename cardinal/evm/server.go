@@ -13,8 +13,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
@@ -117,8 +116,10 @@ func NewServer(w *ecs.World, opts ...Option) (Server, error) {
 	}
 	if s.creds == nil {
 		w.Logger.Warn().
-			Msg("running EVM server without credentials. if running on production, please " +
-				"shut down and supply the proper credentials for the EVM server")
+			Msg(
+				"running EVM server without credentials. if running on production, please " +
+					"shut down and supply the proper credentials for the EVM server",
+			)
 	}
 	return s, nil
 }
@@ -135,8 +136,10 @@ func tryLoadCredentials() (credentials.TransportCredentials, error) {
 		}
 	}
 	zerolog.Debug().
-		Msg("running EVM server without SSL credentials. if this is a production application, " +
-			"please set provide SSL credentials")
+		Msg(
+			"running EVM server without SSL credentials. if this is a production application, " +
+				"please set provide SSL credentials",
+		)
 	return nil, nil
 }
 
@@ -208,8 +211,10 @@ func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessage
 	itx, ok := s.txMap[msg.MessageId]
 	if !ok {
 		return &routerv1.SendMessageResponse{
-			Errs: fmt.Errorf("transaction with name %s either does not exist, or did not have EVM support "+
-				"enabled", msg.MessageId).
+			Errs: fmt.Errorf(
+				"transaction with name %s either does not exist, or did not have EVM support "+
+					"enabled", msg.MessageId,
+			).
 				Error(),
 			EvmTxHash: msg.EvmTxHash,
 			Code:      CodeUnsupportedTransaction,
@@ -288,21 +293,25 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 		return nil, eris.Wrap(err, "error creating search")
 	}
 	var getComponentErr error
-	searchIterationErr := eris.Wrap(q.Each(wCtx, func(id entity.ID) bool {
-		var signerComp *ecs.SignerComponent
-		signerComp, getComponentErr = component.GetComponent[ecs.SignerComponent](wCtx, id)
-		getComponentErr = eris.Wrap(getComponentErr, "")
-		if getComponentErr != nil {
-			return false
-		}
-		for _, authAddr := range signerComp.AuthorizedAddresses {
-			if authAddr == addr {
-				sc = signerComp
-				return false
-			}
-		}
-		return true
-	}), "")
+	searchIterationErr := eris.Wrap(
+		q.Each(
+			wCtx, func(id entity.ID) bool {
+				var signerComp *ecs.SignerComponent
+				signerComp, getComponentErr = ecs.GetComponent[ecs.SignerComponent](wCtx, id)
+				getComponentErr = eris.Wrap(getComponentErr, "")
+				if getComponentErr != nil {
+					return false
+				}
+				for _, authAddr := range signerComp.AuthorizedAddresses {
+					if authAddr == addr {
+						sc = signerComp
+						return false
+					}
+				}
+				return true
+			},
+		), "",
+	)
 	if getComponentErr != nil {
 		return nil, getComponentErr
 	}

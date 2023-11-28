@@ -1,6 +1,6 @@
 package storage
 
-import "pkg.world.dev/world-engine/cardinal/ecs/archetype"
+import "pkg.world.dev/world-engine/cardinal/types/archetype"
 
 type ArchetypeIterator struct {
 	Current int

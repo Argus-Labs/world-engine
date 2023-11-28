@@ -22,13 +22,13 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/cardinal/types/component"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/chain/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -50,9 +50,9 @@ type World struct {
 	initSystemLogger       *ecslog.Logger
 	systemNames            []string
 	tick                   *atomic.Uint64
-	nameToComponent        map[string]metadata.ComponentMetadata
+	nameToComponent        map[string]component.ComponentMetadata
 	nameToQuery            map[string]Query
-	registeredComponents   []metadata.ComponentMetadata
+	registeredComponents   []component.ComponentMetadata
 	registeredMessages     []message.Message
 	registeredQueries      []Query
 	isComponentsRegistered bool
@@ -76,7 +76,7 @@ type World struct {
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
 
-	nextComponentID metadata.TypeID
+	nextComponentID component.TypeID
 
 	eventHub events.EventHub
 
@@ -189,7 +189,7 @@ func (w *World) AddInitSystem(system System) {
 	w.initSystem = system
 }
 
-func RegisterComponent[T metadata.Component](world *World) error {
+func RegisterComponent[T component.Component](world *World) error {
 	if world.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
@@ -198,7 +198,7 @@ func RegisterComponent[T metadata.Component](world *World) error {
 	if err == nil {
 		return eris.Errorf("component with name '%s' is already registered", t.Name())
 	}
-	c := metadata.NewComponentMetadata[T]()
+	c := component.NewComponentMetadata[T]()
 	err = c.SetID(world.nextComponentID)
 	if err != nil {
 		return err
@@ -210,14 +210,14 @@ func RegisterComponent[T metadata.Component](world *World) error {
 	return nil
 }
 
-func MustRegisterComponent[T metadata.Component](world *World) {
+func MustRegisterComponent[T component.Component](world *World) {
 	err := RegisterComponent[T](world)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (w *World) GetComponentByName(name string) (metadata.ComponentMetadata, error) {
+func (w *World) GetComponentByName(name string) (component.ComponentMetadata, error) {
 	componentType, exists := w.nameToComponent[name]
 	if !exists {
 		return nil, eris.Errorf(
@@ -288,7 +288,8 @@ func (w *World) RegisterMessages(txs ...message.Message) error {
 }
 
 func (w *World) registerInternalMessages() {
-	w.registeredMessages = append(w.registeredMessages,
+	w.registeredMessages = append(
+		w.registeredMessages,
 		CreatePersonaMsg,
 		AuthorizePersonaAddressMsg,
 	)
@@ -317,21 +318,22 @@ func NewWorld(
 	}
 	entityStore.InjectLogger(logger)
 	w := &World{
-		redisStorage:                 storage,
-		entityStore:                  entityStore,
-		namespace:                    namespace,
-		tick:                         &atomic.Uint64{},
-		systems:                      make([]System, 0),
-		initSystem:                   func(_ WorldContext) error { return nil },
-		nameToComponent:              make(map[string]metadata.ComponentMetadata),
-		nameToQuery:                  make(map[string]Query),
-		txQueue:                      message.NewTxQueue(),
-		Logger:                       logger,
-		isGameLoopRunning:            atomic.Bool{},
-		isEntitiesCreated:            false,
-		endGameLoopCh:                make(chan bool),
-		nextComponentID:              1,
-		evmTxReceipts:                make(map[string]EVMTxReceipt),
+		redisStorage:      storage,
+		entityStore:       entityStore,
+		namespace:         namespace,
+		tick:              &atomic.Uint64{},
+		systems:           make([]System, 0),
+		initSystem:        func(_ WorldContext) error { return nil },
+		nameToComponent:   make(map[string]component.ComponentMetadata),
+		nameToQuery:       make(map[string]Query),
+		txQueue:           message.NewTxQueue(),
+		Logger:            logger,
+		isGameLoopRunning: atomic.Bool{},
+		isEntitiesCreated: false,
+		endGameLoopCh:     make(chan bool),
+		nextComponentID:   1,
+		evmTxReceipts:     make(map[string]EVMTxReceipt),
+
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 	w.isGameLoopRunning.Store(false)
@@ -686,8 +688,10 @@ func (w *World) LoadGameState() error {
 //nolint:gocognit
 func (w *World) RecoverFromChain(ctx context.Context) error {
 	if w.chain == nil {
-		return eris.Errorf("chain adapter was nil. " +
-			"be sure to use the `WithAdapter` option when creating the world")
+		return eris.Errorf(
+			"chain adapter was nil. " +
+				"be sure to use the `WithAdapter` option when creating the world",
+		)
 	}
 	if w.CurrentTick() > 0 {
 		return eris.Errorf(
@@ -703,12 +707,14 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	namespace := w.Namespace().String()
 	var nextKey []byte
 	for {
-		res, err := w.chain.QueryTransactions(ctx, &types.QueryTransactionsRequest{
-			Namespace: namespace,
-			Page: &types.PageRequest{
-				Key: nextKey,
+		res, err := w.chain.QueryTransactions(
+			ctx, &types.QueryTransactionsRequest{
+				Namespace: namespace,
+				Page: &types.PageRequest{
+					Key: nextKey,
+				},
 			},
-		})
+		)
 		if err != nil {
 			return err
 		}
@@ -821,7 +827,7 @@ func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, e
 	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) GetComponents() []metadata.ComponentMetadata {
+func (w *World) GetComponents() []component.ComponentMetadata {
 	return w.registeredComponents
 }
 
