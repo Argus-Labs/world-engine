@@ -248,8 +248,9 @@ func (m *Manager) GetComponentForEntity(cType component.ComponentMetadata, id en
 }
 
 // GetComponentForEntityInRawJSON returns the saved component data as JSON encoded bytes for the given entity.
-func (m *Manager) GetComponentForEntityInRawJSON(cType metadata.ComponentMetadata, id entity.ID) (
-	json.RawMessage, error) {
+func (m *Manager) GetComponentForEntityInRawJSON(cType component.ComponentMetadata, id entity.ID) (
+	json.RawMessage, error,
+) {
 	value, err := m.GetComponentForEntity(cType, id)
 	if err != nil {
 		return nil, err

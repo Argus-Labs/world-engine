@@ -182,15 +182,15 @@ func getArchIDToCompTypesFromRedis(
 		return nil, false, err
 	}
 
-	fromStorage, err := codec.Decode[map[archetype.ID][]metadata.TypeID](bz)
+	fromStorage, err := codec.Decode[map[archetype.ID][]component.TypeID](bz)
 	if err != nil {
 		return nil, false, err
 	}
 
 	// result is the mapping of Arch ID -> IComponent sets
-	result := map[archetype.ID][]metadata.ComponentMetadata{}
+	result := map[archetype.ID][]component.ComponentMetadata{}
 	for archID, compTypeIDs := range fromStorage {
-		currComps := []metadata.ComponentMetadata{}
+		var currComps []component.ComponentMetadata
 		for _, compTypeID := range compTypeIDs {
 			currComp, found := typeToComp[compTypeID]
 			if !found {
