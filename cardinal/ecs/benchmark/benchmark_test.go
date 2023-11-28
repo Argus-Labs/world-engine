@@ -9,6 +9,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 
 	"pkg.world.dev/world-engine/assert"
 
@@ -16,13 +17,12 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/component"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 // newWorldWithRealRedis returns an *ecs.World that is connected to a redis DB hosted at localhost:6379. The target
 // database is CLEARED OF ALL DATA so that the *ecs.World object can start from a clean slate.
 func newWorldWithRealRedis(t testing.TB) *ecs.World {
-	rs := storage.NewRedisStorage(storage.Options{
+	rs := redis.NewRedisStorage(redis.Options{
 		Addr:     "127.0.0.1:6379",
 		Password: "",
 		DB:       0,

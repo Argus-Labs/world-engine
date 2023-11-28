@@ -1,4 +1,4 @@
-package storage
+package redis
 
 /*
 	NONCE STORAGE:      ADDRESS_TO_NONCE -> Nonce used for verifying signatures.

@@ -13,6 +13,7 @@ import (
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/gamestage"
 
 	"github.com/rs/zerolog/log"
@@ -22,7 +23,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/evm"
 	"pkg.world.dev/world-engine/cardinal/server"
@@ -82,7 +82,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
 		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 	}
-	redisStore := storage.NewRedisStorage(storage.Options{
+	redisStore := redis.NewRedisStorage(redis.Options{
 		Addr:     cfg.RedisAddress,
 		Password: cfg.RedisPassword,
 		DB:       0, // use default DB
