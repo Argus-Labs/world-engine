@@ -31,5 +31,9 @@ func NewTestWorldWithCustomRedis(
 		t.Fatalf("Unable to initialize test world: %v", err)
 	}
 	assert.NilError(t, err)
+	t.Cleanup(func() {
+		err = world.ShutDown()
+		assert.NilError(t, err)
+	})
 	return world
 }
