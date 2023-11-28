@@ -65,7 +65,8 @@ func (r *RedisStorage) GetSchema(componentName string) ([]byte, error) {
 
 func (r *RedisStorage) SetSchema(componentName string, schemaData []byte) error {
 	ctx := context.Background()
-	return eris.Wrap(r.Client.HSet(ctx, r.schemaStorageKey(), componentName, schemaData).Err(), "")
+	err := eris.Wrap(r.Client.HSet(ctx, r.schemaStorageKey(), componentName, schemaData).Err(), "")
+	return err
 }
 
 // ---------------------------------------------------------------------------
