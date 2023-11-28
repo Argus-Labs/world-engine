@@ -146,48 +146,45 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 	if err != nil {
 		return err
 	}
-	for _, txData := range createTxs {
-		tx := txData.Msg
 
-		if valid := isAlphanumericWithUnderscore(tx.PersonaTag); !valid {
+	CreatePersonaMsg.Each(wCtx, func(txData TxData[CreatePersona]) (CreatePersonaResult, error) {
+		msg, tx := txData.Msg, txData.Tx
+		result := CreatePersonaResult{Success: false}
+
+		if valid := IsAlphanumericWithUnderscore(msg.PersonaTag); !valid {
 			err = fmt.Errorf("persona tag %s is not valid, must be alphanumeric with underscores also allowed", tx.PersonaTag)
-			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
-			continue
+			return result, err
 		}
 
-		if _, ok := personaTagToAddress[tx.PersonaTag]; ok {
+		if _, ok := personaTagToAddress[msg.PersonaTag]; ok {
 			// This PersonaTag has already been registered. Don't do anything
-			continue
+			err = fmt.Errorf("persona tag %s has already been registered", msg.PersonaTag)
+			return result, err
 		}
 		id, err := create(wCtx, SignerComponent{})
 		if err != nil {
-			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
-			continue
+			return result, eris.Wrap(err, "")
 		}
 		if err = setComponent[SignerComponent](
 			wCtx, id, &SignerComponent{
-				PersonaTag:    tx.PersonaTag,
-				SignerAddress: tx.SignerAddress,
+				PersonaTag:    msg.PersonaTag,
+				SignerAddress: msg.SignerAddress,
 			},
 		); err != nil {
-			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
-			continue
+			return result, eris.Wrap(err, "")
 		}
 		personaTagToAddress[tx.PersonaTag] = personaTagComponentData{
-			SignerAddress: tx.SignerAddress,
+			SignerAddress: msg.SignerAddress,
 			EntityID:      id,
 		}
-		CreatePersonaMsg.SetResult(
-			wCtx, txData.Hash, CreatePersonaResult{
-				Success: true,
-			},
-		)
-	}
+		result = CreatePersonaResult{Success: true}
+		return result, nil
+	})
 
 	return nil
 }
 
-func isAlphanumericWithUnderscore(s string) bool {
+func IsAlphanumericWithUnderscore(s string) bool {
 	// Regular expression pattern for alphanumeric with underscore
 	pattern := "^[a-zA-Z0-9_]+$"
 
