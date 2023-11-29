@@ -7,7 +7,7 @@ import { Callout } from 'nextra/components'
 
 # EVM To Cardinal Communication
 
-The EVM base shard provides a precompile, called Router, that enables smart contracts to read data from a Cardinal game shard, as well as send transactions to Cardinal game shards.
+The EVM base shard provides a precompile, called Router, that enables smart contracts to read data from and send messages to Cardinal game shards.
 
 For messages, router operates asynchronously, which requires a callback mechanism to be used. Messages are only forwarded from Router's `sendMessage` method once the EVM transaction that called it successfully executes. Shortly after, the result will be available for consumption via Router's `messageResult` method.
 
@@ -15,7 +15,7 @@ Queries are synchronous and do not require a callback.
 
 ## Precompile Address
 
-The address of the Router precompile is: `0x356833c4666fFB6bFccbF8D600fa7282290dE073`
+`0x356833c4666fFB6bFccbF8D600fa7282290dE073`
 
 ## Precompile Interface
 
@@ -99,18 +99,17 @@ The `query` router method enables smart contracts to read data from a game shard
 
 #### Return Values
 
-| Type    | Description                     |
-|---------|---------------------------------|
-| `bytes` | ABI encoded query result struct |
+| Type    | Description                      |
+|---------|----------------------------------|
+| `bytes` | ABI encoded query result struct. |
 
 ## Structuring Messages and Query Requests
 
-The `query` and `sendMessage` Router methods both take in a paremter of `bytes`. These must be formed by ABI encoding a struct with the exact same field types as their Cardinal game shard defines them.
+The `query` and `sendMessage` Router methods both take in a parameter of type `bytes`. These bytes must be formed by ABI encoding a struct with the exact same field types as their Cardinal game shard counterparts.
 
 For example:
 
-Cardinal:
-
+If the Cardinal game shard defines this message input:
 ```go
 type SendEnergy struct {
     PlanetTo string
@@ -119,7 +118,7 @@ type SendEnergy struct {
 }
 ```
 
-Solidity:
+Then the Solidity counterpart should be exactly:
 
 ```solidity
 struct SendEnergy {
@@ -129,7 +128,7 @@ struct SendEnergy {
 }
 ```
 
-Full example of a solidity contract utilizing the router for messages, results, and queries:
+## Example
 
 ```solidity
 contract GameAgent {
