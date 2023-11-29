@@ -165,9 +165,26 @@ func TestEventsThroughSystems(t *testing.T) {
 	assert.Equal(t, counter2.Load(), int32(numberToTest*numberToTest))
 }
 
+type ThreadSafeBuffer struct {
+	internalBuffer bytes.Buffer
+	mutex          sync.Mutex
+}
+
+func (b *ThreadSafeBuffer) Write(p []byte) (n int, err error) {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	return b.internalBuffer.Write(p)
+}
+
+func (b *ThreadSafeBuffer) String() string {
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+	return b.internalBuffer.String()
+}
+
 func TestEventHubLogger(t *testing.T) {
 	// replaces internal Logger with one that logs to the buf variable above.
-	var buf bytes.Buffer
+	var buf ThreadSafeBuffer
 	bufLogger := zerolog.New(&buf)
 	cardinalLogger := ecslog.Logger{
 		&bufLogger,
