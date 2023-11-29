@@ -14,6 +14,7 @@ import (
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 
 	"google.golang.org/protobuf/proto"
 
@@ -23,7 +24,6 @@ import (
 	"github.com/rs/zerolog/log"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -42,7 +42,7 @@ func (n Namespace) String() string {
 
 type World struct {
 	namespace              Namespace
-	nonceStore             storage.NonceStorage
+	redisStorage           *redis.Storage
 	entityStore            store.IManager
 	systems                []System
 	systemLoggers          []*ecslog.Logger
@@ -308,7 +308,7 @@ func (w *World) ListMessages() ([]message.Message, error) {
 
 // NewWorld creates a new world.
 func NewWorld(
-	nonceStore storage.NonceStorage,
+	storage *redis.Storage,
 	entityStore store.IManager,
 	namespace Namespace,
 	opts ...Option,
@@ -318,7 +318,7 @@ func NewWorld(
 	}
 	entityStore.InjectLogger(logger)
 	w := &World{
-		nonceStore:        nonceStore,
+		redisStorage:      storage,
 		entityStore:       entityStore,
 		namespace:         namespace,
 		tick:              &atomic.Uint64{},
@@ -800,11 +800,11 @@ func (w *World) getMessage(id message.TypeID) message.Message {
 }
 
 func (w *World) GetNonce(signerAddress string) (uint64, error) {
-	return w.nonceStore.GetNonce(signerAddress)
+	return w.redisStorage.Nonce.GetNonce(signerAddress)
 }
 
 func (w *World) SetNonce(signerAddress string, nonce uint64) error {
-	return w.nonceStore.SetNonce(signerAddress, nonce)
+	return w.redisStorage.Nonce.SetNonce(signerAddress, nonce)
 }
 
 func (w *World) AddMessageError(id message.TxHash, err error) {
@@ -846,10 +846,4 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 		return nil, err
 	}
 	return NewSearch(componentFilter), nil
-}
-
-func GetRawJSONOfComponent(w *World, component component.ComponentMetadata, id entity.ID) (
-	json.RawMessage, error,
-) {
-	return w.StoreManager().GetComponentForEntityInRawJSON(component, id)
 }
