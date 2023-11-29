@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"errors"
-	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"regexp"
 	"strconv"
@@ -29,6 +28,8 @@ var CreatePersonaMsg = NewMessageType[CreatePersona, CreatePersonaResult](
 	WithMsgEVMSupport[CreatePersona, CreatePersonaResult],
 )
 
+var regexpObj = regexp.MustCompile("^[a-zA-Z0-9_]+$")
+
 type AuthorizePersonaAddress struct {
 	Address string `json:"address"`
 }
@@ -45,25 +46,26 @@ var AuthorizePersonaAddressMsg = NewMessageType[AuthorizePersonaAddress, Authori
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
 func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
-	personaTagToAddress, err := buildPersonaTagMapping(wCtx)
-	if err != nil {
-		return err
-	}
 	AuthorizePersonaAddressMsg.Each(
-		wCtx, func(
-			txData TxData[AuthorizePersonaAddress],
-		) (AuthorizePersonaAddressResult, error) {
+		wCtx, func(txData TxData[AuthorizePersonaAddress]) (result AuthorizePersonaAddressResult, err error) {
 			msg, tx := txData.Msg, txData.Tx
-			result := AuthorizePersonaAddressResult{Success: false}
+			result.Success = false
+
+			personaTagToAddress, err := buildPersonaTagMapping(wCtx)
+			if err != nil {
+				return result, eris.Wrap(err, "")
+			}
 
 			// Check if the Persona Tag exists
-			data, ok := personaTagToAddress[tx.PersonaTag]
+			lowerPersona := strings.ToLower(tx.PersonaTag)
+			data, ok := personaTagToAddress[lowerPersona]
 			if !ok {
 				return result, eris.Errorf("persona %s does not exist", tx.PersonaTag)
 			}
 
 			// Check that the ETH Address is valid
 			msg.Address = strings.ToLower(msg.Address)
+			msg.Address = strings.ReplaceAll(msg.Address, " ", "")
 			valid := common.IsHexAddress(msg.Address)
 			if !valid {
 				return result, eris.Errorf("eth address %s is invalid", msg.Address)
@@ -119,7 +121,8 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 				errs = append(errs, err)
 				return true
 			}
-			personaTagToAddress[sc.PersonaTag] = personaTagComponentData{
+			lowerPersona := strings.ToLower(sc.PersonaTag)
+			personaTagToAddress[lowerPersona] = personaTagComponentData{
 				SignerAddress: sc.SignerAddress,
 				EntityID:      id,
 			}
@@ -142,23 +145,26 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 	if len(createTxs) == 0 {
 		return nil
 	}
-	personaTagToAddress, err := buildPersonaTagMapping(wCtx)
-	if err != nil {
-		return err
-	}
 
-	CreatePersonaMsg.Each(wCtx, func(txData TxData[CreatePersona]) (CreatePersonaResult, error) {
+	CreatePersonaMsg.Each(wCtx, func(txData TxData[CreatePersona]) (result CreatePersonaResult, err error) {
 		msg := txData.Msg
-		result := CreatePersonaResult{Success: false}
+		result.Success = false
 
-		if valid := isAlphanumericWithUnderscore(msg.PersonaTag); !valid {
-			err = fmt.Errorf("persona tag %s is not valid, must be alphanumeric with underscores also allowed", msg.PersonaTag)
+		personaTagToAddress, err := buildPersonaTagMapping(wCtx)
+		if err != nil {
+			return result, eris.Wrap(err, "")
+		}
+
+		if !isAlphanumericWithUnderscore(msg.PersonaTag) {
+			err = eris.Errorf("persona tag %s is not valid, must be alphanumeric with underscores also allowed", msg.PersonaTag)
 			return result, err
 		}
 
-		if _, ok := personaTagToAddress[msg.PersonaTag]; ok {
+		// Temporarily convert tag to lowercase to check against mapping of lowercase tags
+		lowerPersona := strings.ToLower(msg.PersonaTag)
+		if _, ok := personaTagToAddress[lowerPersona]; ok {
 			// This PersonaTag has already been registered. Don't do anything
-			err = fmt.Errorf("persona tag %s has already been registered", msg.PersonaTag)
+			err = eris.Errorf("persona tag %s has already been registered", msg.PersonaTag)
 			return result, err
 		}
 		id, err := create(wCtx, SignerComponent{})
@@ -177,7 +183,7 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 			SignerAddress: msg.SignerAddress,
 			EntityID:      id,
 		}
-		result = CreatePersonaResult{Success: true}
+		result.Success = true
 		return result, nil
 	})
 
@@ -185,12 +191,6 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 }
 
 func isAlphanumericWithUnderscore(s string) bool {
-	// Regular expression pattern for alphanumeric with underscore
-	pattern := "^[a-zA-Z0-9_]+$"
-
-	// Compile the regular expression
-	regexpObj := regexp.MustCompile(pattern)
-
 	// Use the MatchString method to check if the string matches the pattern
 	return regexpObj.MatchString(s)
 }

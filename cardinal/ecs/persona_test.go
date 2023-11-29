@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"pkg.world.dev/world-engine/assert"
 	"testing"
 )
 
@@ -21,9 +22,7 @@ func TestIsAlphanumericWithUnderscore(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
 			result := isAlphanumericWithUnderscore(test.input)
-			if result != test.expected {
-				t.Errorf("Expected %v, but got %v", test.expected, result)
-			}
+			assert.Equal(t, result, test.expected)
 		})
 	}
 }
