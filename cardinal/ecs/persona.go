@@ -151,7 +151,7 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 		result.Success = false
 
 		if !isAlphanumericWithUnderscore(msg.PersonaTag) {
-			err = eris.Errorf("persona tag %s is not valid, must be alphanumeric with underscores also allowed", msg.PersonaTag)
+			err = eris.Errorf("persona tag %s is not valid: must only contain alphanumerics and underscores", msg.PersonaTag)
 			return result, err
 		}
 
