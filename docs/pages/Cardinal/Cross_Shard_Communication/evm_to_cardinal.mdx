@@ -39,11 +39,11 @@ The `sendMessage` method enables smart contracts to send messages to the game sh
 
 #### Parameters
 
-| Parameter   | Type     | Description                                             |
-|-------------|----------|---------------------------------------------------------|
-| `message`   | `bytes`  | ABI encoded message struct.                             |
-| `messageID` | `string` | An identifier for the message.                          |
-| `namespace` | `string` | The namespace of the game shard to send the message to. |
+| Parameter   | Type     | Description                                                                                |
+|-------------|----------|--------------------------------------------------------------------------------------------|
+| `message`   | `bytes`  | ABI encoded message struct.                                                                |
+| `messageID` | `string` | Message identifier. Usually the name passed into Cardinal's `NewMessageTypeWithEVMSupport` |
+| `namespace` | `string` | The namespace of the game shard to send the message to.                                    |
 
 #### Return Value
 
@@ -58,9 +58,9 @@ The `messageResult` method enables smart contracts to retrieve the result of a c
 
 #### Parameters
 
-| Parameter | Description                                                                            |
-|-----------|----------------------------------------------------------------------------------------|
-| `txHash`  | The EVM transaction hash of the EVM transaction that triggered the `sendMessage` call. |
+| Parameter | Description                                                            |
+|-----------|------------------------------------------------------------------------|
+| `txHash`  | The hash of the EVM transaction that triggered the `sendMessage` call. |
 
 
 #### Return Values
