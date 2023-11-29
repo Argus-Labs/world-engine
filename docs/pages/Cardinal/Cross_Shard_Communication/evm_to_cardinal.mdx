@@ -7,6 +7,10 @@ import { Callout } from 'nextra/components'
 
 # EVM To Cardinal Communication
 
+<Callout type="info" emoji="ℹ️">
+    This documentation assumes knowledge of the EVM and Solidity. If you are unfamiliar with these concepts, we recommend checking out the [Ethereum documentation on the EVM](https://ethereum.org/en/developers/docs/evm/) for a comprehensive overview. Familiarizing yourself with these fundamentals will enhance your understanding of the content provided here.
+</Callout>
+
 The EVM base shard provides a precompile, called Router, that enables smart contracts to read data from and send messages to Cardinal game shards.
 
 For messages, router operates asynchronously, which requires a callback mechanism to be used. Messages are only forwarded from Router's `sendMessage` method once the EVM transaction that called it successfully executes. Shortly after, the result will be available for consumption via Router's `messageResult` method.
@@ -21,9 +25,13 @@ Queries are synchronous and do not require a callback.
 
 ```solidity
 interface IRouter {
-    function sendMessage(bytes memory message, string memory messageID, string memory namespace) external returns (bool);
+    function sendMessage(bytes memory message, string memory messageID, string memory namespace)
+        external
+        returns (bool);
 
-    function messageResult(string memory txHash) external returns (bytes memory, string memory, uint32);
+    function messageResult(string memory txHash)
+        external
+        returns (bytes memory, string memory, uint32);
 
     function query(bytes memory request, string memory resource, string memory namespace)
         external
