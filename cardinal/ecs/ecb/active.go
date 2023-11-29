@@ -2,7 +2,7 @@ package ecb
 
 import (
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 // activeEntities represents a group of entities.

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 var (

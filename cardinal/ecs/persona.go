@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/types/component"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 // CreatePersona allows for the associating of a persona tag with a signer address.
@@ -45,30 +45,35 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 	if err != nil {
 		return err
 	}
-	AuthorizePersonaAddressMsg.Each(wCtx, func(txData TxData[AuthorizePersonaAddress],
-	) (AuthorizePersonaAddressResult, error) {
-		msg, tx := txData.Msg, txData.Tx
-		result := AuthorizePersonaAddressResult{Success: false}
-		data, ok := personaTagToAddress[tx.PersonaTag]
-		if !ok {
-			return result, eris.Errorf("persona %s does not exist", tx.PersonaTag)
-		}
-
-		err = updateComponent[SignerComponent](wCtx, data.EntityID, func(s *SignerComponent) *SignerComponent {
-			for _, addr := range s.AuthorizedAddresses {
-				if addr == msg.Address {
-					return s
-				}
+	AuthorizePersonaAddressMsg.Each(
+		wCtx, func(
+			txData TxData[AuthorizePersonaAddress],
+		) (AuthorizePersonaAddressResult, error) {
+			msg, tx := txData.Msg, txData.Tx
+			result := AuthorizePersonaAddressResult{Success: false}
+			data, ok := personaTagToAddress[tx.PersonaTag]
+			if !ok {
+				return result, eris.Errorf("persona %s does not exist", tx.PersonaTag)
 			}
-			s.AuthorizedAddresses = append(s.AuthorizedAddresses, msg.Address)
-			return s
-		})
-		if err != nil {
-			return result, eris.Wrap(err, "unable to update signer component with address")
-		}
-		result.Success = true
-		return result, nil
-	})
+
+			err = updateComponent[SignerComponent](
+				wCtx, data.EntityID, func(s *SignerComponent) *SignerComponent {
+					for _, addr := range s.AuthorizedAddresses {
+						if addr == msg.Address {
+							return s
+						}
+					}
+					s.AuthorizedAddresses = append(s.AuthorizedAddresses, msg.Address)
+					return s
+				},
+			)
+			if err != nil {
+				return result, eris.Wrap(err, "unable to update signer component with address")
+			}
+			result.Success = true
+			return result, nil
+		},
+	)
 	return nil
 }
 
@@ -94,18 +99,20 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 	if err != nil {
 		return nil, err
 	}
-	err = q.Each(wCtx, func(id entity.ID) bool {
-		sc, err := getComponent[SignerComponent](wCtx, id)
-		if err != nil {
-			errs = append(errs, err)
+	err = q.Each(
+		wCtx, func(id entity.ID) bool {
+			sc, err := getComponent[SignerComponent](wCtx, id)
+			if err != nil {
+				errs = append(errs, err)
+				return true
+			}
+			personaTagToAddress[sc.PersonaTag] = personaTagComponentData{
+				SignerAddress: sc.SignerAddress,
+				EntityID:      id,
+			}
 			return true
-		}
-		personaTagToAddress[sc.PersonaTag] = personaTagComponentData{
-			SignerAddress: sc.SignerAddress,
-			EntityID:      id,
-		}
-		return true
-	})
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -137,10 +144,12 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
 			continue
 		}
-		if err = setComponent[SignerComponent](wCtx, id, &SignerComponent{
-			PersonaTag:    tx.PersonaTag,
-			SignerAddress: tx.SignerAddress,
-		}); err != nil {
+		if err = setComponent[SignerComponent](
+			wCtx, id, &SignerComponent{
+				PersonaTag:    tx.PersonaTag,
+				SignerAddress: tx.SignerAddress,
+			},
+		); err != nil {
 			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
 			continue
 		}
@@ -148,9 +157,11 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 			SignerAddress: tx.SignerAddress,
 			EntityID:      id,
 		}
-		CreatePersonaMsg.SetResult(wCtx, txData.Hash, CreatePersonaResult{
-			Success: true,
-		})
+		CreatePersonaMsg.SetResult(
+			wCtx, txData.Hash, CreatePersonaResult{
+				Success: true,
+			},
+		)
 	}
 
 	return nil
@@ -174,17 +185,19 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 		return "", err
 	}
 	wCtx := NewReadOnlyWorldContext(w)
-	err = q.Each(wCtx, func(id entity.ID) bool {
-		sc, err := getComponent[SignerComponent](wCtx, id)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if sc.PersonaTag == personaTag {
-			addr = sc.SignerAddress
-			return false
-		}
-		return true
-	})
+	err = q.Each(
+		wCtx, func(id entity.ID) bool {
+			sc, err := getComponent[SignerComponent](wCtx, id)
+			if err != nil {
+				errs = append(errs, err)
+			}
+			if sc.PersonaTag == personaTag {
+				addr = sc.SignerAddress
+				return false
+			}
+			return true
+		},
+	)
 	errs = append(errs, err)
 	if addr == "" {
 		return "", ErrPersonaTagHasNoSigner
@@ -197,7 +210,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 // plugins.
 // Get returns component data from the entity.
 // GetComponent returns component data from the entity.
-func getComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
+func getComponent[T component.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
 	var t T
 	name := t.Name()
 	c, err := wCtx.GetWorld().GetComponentByName(name)
@@ -226,7 +239,7 @@ func getComponent[T metadata.Component](wCtx WorldContext, id entity.ID) (comp *
 // TODO private component function used to temporarily remove circular dependency until we replace components.
 // TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
 // plugins.
-func setComponent[T metadata.Component](wCtx WorldContext, id entity.ID, component *T) error {
+func setComponent[T component.Component](wCtx WorldContext, id entity.ID, component *T) error {
 	if wCtx.IsReadOnly() {
 		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
@@ -252,7 +265,7 @@ func setComponent[T metadata.Component](wCtx WorldContext, id entity.ID, compone
 // TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
 // plugins.
 // https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
-func updateComponent[T metadata.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
+func updateComponent[T component.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
 	if wCtx.IsReadOnly() {
 		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
@@ -268,12 +281,12 @@ func updateComponent[T metadata.Component](wCtx WorldContext, id entity.ID, fn f
 // TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
 // plugins.
 // https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
-func createMany(wCtx WorldContext, num int, components ...metadata.Component) ([]entity.ID, error) {
+func createMany(wCtx WorldContext, num int, components ...component.Component) ([]entity.ID, error) {
 	if wCtx.IsReadOnly() {
 		return nil, eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
 	world := wCtx.GetWorld()
-	acc := make([]metadata.ComponentMetadata, 0, len(components))
+	acc := make([]component.ComponentMetadata, 0, len(components))
 	for _, comp := range components {
 		c, err := world.GetComponentByName(comp.Name())
 		if err != nil {
@@ -304,7 +317,7 @@ func createMany(wCtx WorldContext, num int, components ...metadata.Component) ([
 // TODO this function is intended only for use with persona.go and is to be removed with persona when we replace with
 // plugins.
 // https://linear.app/arguslabs/issue/WORLD-423/ecs-plugin-feature
-func create(wCtx WorldContext, components ...metadata.Component) (entity.ID, error) {
+func create(wCtx WorldContext, components ...component.Component) (entity.ID, error) {
 	entities, err := createMany(wCtx, 1, components...)
 	if err != nil {
 		return 0, err

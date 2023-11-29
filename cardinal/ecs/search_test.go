@@ -8,8 +8,7 @@ import (
 	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 type FooComponent struct {
@@ -28,22 +27,30 @@ func TestSearchEarlyTermination(t *testing.T) {
 	count := 0
 	stop := 5
 	wCtx := ecs.NewWorldContext(world)
-	_, err := component.CreateMany(wCtx, total, FooComponent{})
+	_, err := ecs.CreateMany(wCtx, total, FooComponent{})
 	assert.NilError(t, err)
 	q, err := world.NewSearch(ecs.Exact(FooComponent{}))
 	assert.NilError(t, err)
-	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
-		count++
-		return count != stop
-	}))
+	assert.NilError(
+		t, q.Each(
+			wCtx, func(id entity.ID) bool {
+				count++
+				return count != stop
+			},
+		),
+	)
 	assert.Equal(t, count, stop)
 
 	count = 0
 	q, err = world.NewSearch(ecs.Exact(FooComponent{}))
 	assert.NilError(t, err)
-	assert.NilError(t, q.Each(wCtx, func(id entity.ID) bool {
-		count++
-		return true
-	}))
+	assert.NilError(
+		t, q.Each(
+			wCtx, func(id entity.ID) bool {
+				count++
+				return true
+			},
+		),
+	)
 	assert.Equal(t, count, total)
 }
