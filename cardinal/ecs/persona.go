@@ -2,7 +2,10 @@ package ecs
 
 import (
 	"errors"
+	"github.com/ethereum/go-ethereum/common"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/types/component"
@@ -25,6 +28,8 @@ var CreatePersonaMsg = NewMessageType[CreatePersona, CreatePersonaResult](
 	WithMsgEVMSupport[CreatePersona, CreatePersonaResult],
 )
 
+var regexpObj = regexp.MustCompile("^[a-zA-Z0-9_]+$")
+
 type AuthorizePersonaAddress struct {
 	Address string `json:"address"`
 }
@@ -45,15 +50,25 @@ func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
 	if err != nil {
 		return err
 	}
+
 	AuthorizePersonaAddressMsg.Each(
-		wCtx, func(
-			txData TxData[AuthorizePersonaAddress],
-		) (AuthorizePersonaAddressResult, error) {
+		wCtx, func(txData TxData[AuthorizePersonaAddress]) (result AuthorizePersonaAddressResult, err error) {
 			msg, tx := txData.Msg, txData.Tx
-			result := AuthorizePersonaAddressResult{Success: false}
-			data, ok := personaTagToAddress[tx.PersonaTag]
+			result.Success = false
+
+			// Check if the Persona Tag exists
+			lowerPersona := strings.ToLower(tx.PersonaTag)
+			data, ok := personaTagToAddress[lowerPersona]
 			if !ok {
 				return result, eris.Errorf("persona %s does not exist", tx.PersonaTag)
+			}
+
+			// Check that the ETH Address is valid
+			msg.Address = strings.ToLower(msg.Address)
+			msg.Address = strings.ReplaceAll(msg.Address, " ", "")
+			valid := common.IsHexAddress(msg.Address)
+			if !valid {
+				return result, eris.Errorf("eth address %s is invalid", msg.Address)
 			}
 
 			err = updateComponent[SignerComponent](
@@ -106,7 +121,8 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 				errs = append(errs, err)
 				return true
 			}
-			personaTagToAddress[sc.PersonaTag] = personaTagComponentData{
+			lowerPersona := strings.ToLower(sc.PersonaTag)
+			personaTagToAddress[lowerPersona] = personaTagComponentData{
 				SignerAddress: sc.SignerAddress,
 				EntityID:      id,
 			}
@@ -125,46 +141,53 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 // RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
 func RegisterPersonaSystem(wCtx WorldContext) error {
-	createTxs := CreatePersonaMsg.In(wCtx)
-	if len(createTxs) == 0 {
-		return nil
-	}
 	personaTagToAddress, err := buildPersonaTagMapping(wCtx)
 	if err != nil {
 		return err
 	}
-	for _, txData := range createTxs {
-		tx := txData.Msg
-		if _, ok := personaTagToAddress[tx.PersonaTag]; ok {
+
+	CreatePersonaMsg.Each(wCtx, func(txData TxData[CreatePersona]) (result CreatePersonaResult, err error) {
+		msg := txData.Msg
+		result.Success = false
+
+		if !isAlphanumericWithUnderscore(msg.PersonaTag) {
+			err = eris.Errorf("persona tag %s is not valid: must only contain alphanumerics and underscores", msg.PersonaTag)
+			return result, err
+		}
+
+		// Temporarily convert tag to lowercase to check against mapping of lowercase tags
+		lowerPersona := strings.ToLower(msg.PersonaTag)
+		if _, ok := personaTagToAddress[lowerPersona]; ok {
 			// This PersonaTag has already been registered. Don't do anything
-			continue
+			err = eris.Errorf("persona tag %s has already been registered", msg.PersonaTag)
+			return result, err
 		}
 		id, err := create(wCtx, SignerComponent{})
 		if err != nil {
-			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
-			continue
+			return result, eris.Wrap(err, "")
 		}
 		if err = setComponent[SignerComponent](
 			wCtx, id, &SignerComponent{
-				PersonaTag:    tx.PersonaTag,
-				SignerAddress: tx.SignerAddress,
+				PersonaTag:    msg.PersonaTag,
+				SignerAddress: msg.SignerAddress,
 			},
 		); err != nil {
-			CreatePersonaMsg.AddError(wCtx, txData.Hash, err)
-			continue
+			return result, eris.Wrap(err, "")
 		}
-		personaTagToAddress[tx.PersonaTag] = personaTagComponentData{
-			SignerAddress: tx.SignerAddress,
+		personaTagToAddress[lowerPersona] = personaTagComponentData{
+			SignerAddress: msg.SignerAddress,
 			EntityID:      id,
 		}
-		CreatePersonaMsg.SetResult(
-			wCtx, txData.Hash, CreatePersonaResult{
-				Success: true,
-			},
-		)
-	}
+		result.Success = true
+		return result, nil
+	})
 
 	return nil
+}
+
+func isAlphanumericWithUnderscore(s string) bool {
+	// Use the MatchString method to check if the string matches the pattern
+	return regexpObj.MatchString(s)
 }
 
 var (

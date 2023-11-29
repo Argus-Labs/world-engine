@@ -97,7 +97,7 @@ func UniqueSignature(t *testing.T) *sign.Transaction {
 	nonce++
 	sig, err := sign.NewTransaction(
 		privateKey,
-		"some-persona-tag",
+		"some_persona_tag",
 		"namespace",
 		nonce,
 		`{"some":"data"}`,
