@@ -39,7 +39,7 @@ func WithStoreManager(s store.IManager) Option {
 	}
 }
 
-func WithEventHub(eventHub events.EventHub) Option {
+func WithWebSocketEventHub(eventHub events.WebSocketEventHub) Option {
 	return func(w *World) {
 		w.eventHub = eventHub
 	}

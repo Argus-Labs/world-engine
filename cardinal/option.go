@@ -5,6 +5,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/cardinal/counter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
@@ -73,9 +74,17 @@ func WithStoreManager(s store.IManager) WorldOption {
 	}
 }
 
-func WithEventHub(eventHub events.EventHub) WorldOption {
+func WithWebSocketEventHub(eventHub events.WebSocketEventHub) WorldOption {
 	return WorldOption{
-		ecsOption: ecs.WithEventHub(eventHub),
+		ecsOption: ecs.WithWebSocketEventHub(eventHub),
+	}
+}
+
+func WithMetricCounter(counter *counter.Counter) WorldOption {
+	return WorldOption{
+		cardinalOption: func(w *World) {
+
+		},
 	}
 }
 

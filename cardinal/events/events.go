@@ -16,13 +16,40 @@ import (
 
 const shutdownPollInterval = 200
 
-type EventHub interface {
+type BaseEventHub interface {
 	EmitEvent(event *Event)
+}
+
+type QueuedEventHubMixin interface {
 	FlushEvents()
+}
+
+type RunningEventHubMixin interface {
 	ShutdownEventHub()
 	Run()
+}
+
+type WebSocketEventHubMixin interface {
 	UnregisterConnection(ws *websocket.Conn)
 	RegisterConnection(ws *websocket.Conn)
+}
+
+type EventHub interface {
+	BaseEventHub
+	QueuedEventHubMixin
+	RunningEventHubMixin
+}
+
+type WebSocketEventHub interface {
+	BaseEventHub
+	QueuedEventHubMixin
+	RunningEventHubMixin
+	WebSocketEventHubMixin
+}
+
+type CallbackEventHub interface {
+	BaseEventHub
+	QueuedEventHubMixin
 }
 
 const (
@@ -81,7 +108,9 @@ func (eh *loggingEventHub) ShutdownEventHub() {
 	eh.shutdown <- true
 }
 
-func CreateLoggingEventHub(logger *ecslog.Logger) EventHub {
+// right now logging event hub is used as a mock for WebSocketEventHub
+// this can be changed int he future. More accurately this should return EventHub
+func CreateLoggingEventHub(logger *ecslog.Logger) WebSocketEventHub {
 	res := loggingEventHub{
 		eventQueue: make([]*Event, 0),
 		running:    atomic.Bool{},
@@ -97,7 +126,7 @@ func CreateLoggingEventHub(logger *ecslog.Logger) EventHub {
 	return &res
 }
 
-func CreateWebSocketEventHub() EventHub {
+func CreateWebSocketEventHub() WebSocketEventHub {
 	res := webSocketEventHub{
 		websocketConnections: map[*websocket.Conn]bool{},
 		broadcast:            make(chan *Event),
@@ -115,7 +144,36 @@ func CreateWebSocketEventHub() EventHub {
 }
 
 type Event struct {
+	Key     string
 	Message string
+}
+
+type callbackEventHub struct {
+	callback func(event *Event)
+	events   []*Event
+	mutex    sync.Mutex
+}
+
+func CreateCustomEventHub(callback func(event *Event)) CallbackEventHub {
+	return &callbackEventHub{
+		callback: callback,
+		events:   []*Event{},
+		mutex:    sync.Mutex{},
+	}
+}
+
+func (eh *callbackEventHub) EmitEvent(event *Event) {
+	eh.mutex.Lock()
+	defer eh.mutex.Unlock()
+	eh.events = append(eh.events, event)
+}
+
+func (eh *callbackEventHub) FlushEvents() {
+	eh.mutex.Lock()
+	defer eh.mutex.Unlock()
+	for _, event := range eh.events {
+		eh.callback(event)
+	}
 }
 
 type webSocketEventHub struct {
@@ -273,7 +331,7 @@ func CreateNewWebSocketBuilder(path string, websocketConnectionHandler func(conn
 	}
 }
 
-func CreateWebSocketEventHandler(hub EventHub) func(conn *websocket.Conn) error {
+func CreateWebSocketEventHandler(hub WebSocketEventHub) func(conn *websocket.Conn) error {
 	return func(conn *websocket.Conn) error {
 		hub.RegisterConnection(conn)
 		return nil

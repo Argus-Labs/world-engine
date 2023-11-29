@@ -114,7 +114,7 @@ func (w *World) SetEntitiesCreated(value bool) {
 	w.isEntitiesCreated = value
 }
 
-func (w *World) SetEventHub(eventHub events.EventHub) {
+func (w *World) SetEventHub(eventHub events.WebSocketEventHub) {
 	w.eventHub = eventHub
 }
 
@@ -342,7 +342,7 @@ func NewWorld(
 	if err != nil {
 		return nil, err
 	}
-	opts = append([]Option{WithEventHub(events.CreateWebSocketEventHub())}, opts...)
+	opts = append([]Option{WithWebSocketEventHub(events.CreateWebSocketEventHub())}, opts...)
 	for _, opt := range opts {
 		opt(w)
 	}

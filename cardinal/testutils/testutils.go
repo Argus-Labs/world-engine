@@ -88,7 +88,7 @@ type TestTransactionHandler struct {
 	*server.Handler
 	T        *testing.T
 	Host     string
-	EventHub events.EventHub
+	EventHub events.WebSocketEventHub
 }
 
 func (t *TestTransactionHandler) MakeHTTPURL(path string) string {
@@ -213,7 +213,7 @@ func MakeWorldAndTicker(
 		opts,
 		cardinal.WithTickChannel(startTickCh),
 		cardinal.WithTickDoneChannel(doneTickCh),
-		cardinal.WithEventHub(eventHub),
+		cardinal.WithWebSocketEventHub(eventHub),
 	)
 	world = NewTestWorld(t, opts...)
 

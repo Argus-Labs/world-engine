@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"pkg.world.dev/world-engine/cardinal/gamestage"
@@ -38,6 +40,7 @@ type World struct {
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
 	cleanup         func()
+	counter         events.EventHub
 
 	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc)
 	gameSequenceStage gamestage.Atomic
@@ -207,7 +210,14 @@ func (w *World) StartGame() error {
 		w.instance.SetEventHub(events.CreateWebSocketEventHub())
 	}
 	eventHub := w.instance.GetEventHub()
-	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
+	var eventBuilder middleware.Builder
+	if websocketEventHub, ok := eventHub.(events.WebSocketEventHub); ok {
+		eventBuilder = events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(websocketEventHub))
+	} else {
+		eventBuilder = func(handler http.Handler) http.Handler {
+			return handler
+		}
+	}
 	handler, err := server.NewHandler(w.instance, eventBuilder, w.serverOptions...)
 	if err != nil {
 		return err

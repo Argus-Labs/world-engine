@@ -28,7 +28,7 @@ func TestOptionFunctionSignatures(_ *testing.T) {
 	WithTickChannel(nil)
 	WithTickDoneChannel(nil)
 	WithStoreManager(nil)
-	WithEventHub(nil)
+	WithWebSocketEventHub(nil)
 	WithLoggingEventHub(nil)
 	WithDisableSignatureVerification() //nolint:staticcheck //this test just looks for compile errors
 }
