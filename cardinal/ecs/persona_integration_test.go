@@ -230,5 +230,6 @@ func getSigners(t *testing.T, world *ecs.World) []*ecs.SignerComponent {
 			return true
 		},
 	)
+	assert.NilError(t, err)
 	return signers
 }
