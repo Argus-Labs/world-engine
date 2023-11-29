@@ -3,6 +3,7 @@ package ecb_test
 import (
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/tx_queue"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"pkg.world.dev/world-engine/assert"
@@ -25,7 +26,7 @@ func TestCanSaveAndRecoverTransactions(t *testing.T) {
 	msgs := []message.Message{msgAlpha, msgBeta}
 
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
-	originalQueue := message.NewTxQueue()
+	originalQueue := tx_queue.NewTxQueue()
 	sig := testutil.UniqueSignature(t)
 	_ = originalQueue.AddTransaction(msgAlpha.ID(), MsgIn{100}, sig)
 

@@ -3,7 +3,7 @@ package ecs
 import (
 	"errors"
 
-	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/cardinal/tx_queue"
 
 	"github.com/rs/zerolog"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
@@ -19,7 +19,7 @@ type WorldContext interface {
 	GetWorld() *World
 	StoreReader() store.Reader
 	StoreManager() store.IManager
-	GetTxQueue() *message.TxQueue
+	GetTxQueue() *tx_queue.TxQueue
 	IsReadOnly() bool
 }
 
@@ -29,12 +29,12 @@ var (
 
 type worldContext struct {
 	world    *World
-	txQueue  *message.TxQueue
+	txQueue  *tx_queue.TxQueue
 	logger   *ecslog.Logger
 	readOnly bool
 }
 
-func NewWorldContextForTick(world *World, queue *message.TxQueue, logger *ecslog.Logger) WorldContext {
+func NewWorldContextForTick(world *World, queue *tx_queue.TxQueue, logger *ecslog.Logger) WorldContext {
 	return &worldContext{
 		world:    world,
 		txQueue:  queue,
@@ -73,7 +73,7 @@ func (w *worldContext) GetWorld() *World {
 	return w.world
 }
 
-func (w *worldContext) GetTxQueue() *message.TxQueue {
+func (w *worldContext) GetTxQueue() *tx_queue.TxQueue {
 	return w.txQueue
 }
 
