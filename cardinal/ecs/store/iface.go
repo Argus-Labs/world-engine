@@ -2,7 +2,8 @@ package store
 
 import (
 	"encoding/json"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
+
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"

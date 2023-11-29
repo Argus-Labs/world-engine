@@ -1,8 +1,9 @@
 package message
 
 import (
-	"pkg.world.dev/world-engine/sign"
 	"sync"
+
+	"pkg.world.dev/world-engine/sign"
 )
 
 type TxQueue struct {

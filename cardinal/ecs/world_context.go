@@ -2,7 +2,8 @@ package ecs
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
+
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"github.com/rs/zerolog"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"

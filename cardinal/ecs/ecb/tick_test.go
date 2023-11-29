@@ -3,7 +3,7 @@ package ecb_test
 import (
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"

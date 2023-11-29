@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"

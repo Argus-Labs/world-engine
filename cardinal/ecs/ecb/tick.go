@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"

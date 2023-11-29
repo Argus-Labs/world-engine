@@ -10,7 +10,7 @@ import (
 
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
