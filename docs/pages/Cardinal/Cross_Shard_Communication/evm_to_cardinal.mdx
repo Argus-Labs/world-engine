@@ -11,7 +11,7 @@ import { Callout } from 'nextra/components'
     This documentation assumes knowledge of the EVM and Solidity. If you are unfamiliar with these concepts, we recommend checking out the [Ethereum documentation on the EVM](https://ethereum.org/en/developers/docs/evm/) for a comprehensive overview. Familiarizing yourself with these fundamentals will enhance your understanding of the content provided here.
 </Callout>
 
-The EVM base shard provides a precompile, called Router, that enables smart contracts to read data from and send messages to Cardinal game shards.
+The EVM base shard provides a [precompile](https://polaris.berachain.dev/docs/building-precompiles/intro-to-precompiles), called Router, that enables smart contracts to read data from and send messages to Cardinal game shards.
 
 For messages, Router operates asynchronously, which requires a callback mechanism to be used. Messages are only forwarded from Router's `sendMessage` method once the EVM transaction that called it successfully executes. Shortly after, the result will be available for consumption via Router's `messageResult` method.
 
