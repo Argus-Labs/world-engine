@@ -1,4 +1,4 @@
-package tx_queue
+package txqueue
 
 import (
 	"sync"

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"pkg.world.dev/world-engine/cardinal/tx_queue"
+	"pkg.world.dev/world-engine/cardinal/txqueue"
 
 	"pkg.world.dev/world-engine/assert"
 
@@ -591,7 +591,7 @@ func TestCopyTransactions(t *testing.T) {
 	type FooMsg struct {
 		X int
 	}
-	txq := tx_queue.NewTxQueue()
+	txq := txqueue.NewTxQueue()
 	txq.AddTransaction(1, FooMsg{X: 3}, &sign.Transaction{PersonaTag: "foo"})
 	txq.AddTransaction(2, FooMsg{X: 4}, &sign.Transaction{PersonaTag: "bar"})
 
