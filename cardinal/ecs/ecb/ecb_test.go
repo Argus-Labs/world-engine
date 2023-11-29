@@ -11,11 +11,10 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/component/metadata"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
-	"pkg.world.dev/world-engine/cardinal/ecs/entity"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/types/component"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 func newCmdBufferForTest(t *testing.T) *ecb.Manager {
@@ -59,9 +58,9 @@ func (Bar) Name() string {
 }
 
 var (
-	fooComp, errForFooCompGlobal = metadata.NewComponentMetadata[Foo]()
-	barComp, errForBarCompGlobal = metadata.NewComponentMetadata[Bar]()
-	allComponents                = []metadata.ComponentMetadata{fooComp, barComp}
+	fooComp, errForFooCompGlobal = component.NewComponentMetadata[Foo]()
+	barComp, errForBarCompGlobal = component.NewComponentMetadata[Bar]()
+	allComponents                = []component.ComponentMetadata{fooComp, barComp}
 )
 
 func TestGlobals(t *testing.T) {
@@ -304,11 +303,11 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	wCtx := ecs.NewWorldContext(world)
-	justHealthIDs, err := component.CreateMany(wCtx, 8, Health{})
+	justHealthIDs, err := ecs.CreateMany(wCtx, 8, Health{})
 	assert.NilError(t, err)
-	justPowerIDs, err := component.CreateMany(wCtx, 9, Power{})
+	justPowerIDs, err := ecs.CreateMany(wCtx, 9, Power{})
 	assert.NilError(t, err)
-	healthAndPowerIDs, err := component.CreateMany(wCtx, 10, Health{}, Power{})
+	healthAndPowerIDs, err := ecs.CreateMany(wCtx, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
 	testCases := []struct {
@@ -342,10 +341,12 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		var q *ecs.Search
 		q, err = world.NewSearch(tc.filter)
 		assert.NilError(t, err)
-		err = q.Each(wCtx, func(id entity.ID) bool {
-			found[id] = true
-			return true
-		})
+		err = q.Each(
+			wCtx, func(id entity.ID) bool {
+				found[id] = true
+				return true
+			},
+		)
 		assert.NilError(t, err)
 		assert.Equal(t, len(tc.wantIDs), len(found))
 		for _, id := range tc.wantIDs {
@@ -396,9 +397,9 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 	_, err = manager.CreateManyEntities(startEntityCount, fooComp, barComp)
 	assert.NilError(t, err)
 
-	fooArchID, err := manager.GetArchIDForComponents([]metadata.ComponentMetadata{fooComp})
+	fooArchID, err := manager.GetArchIDForComponents([]component.ComponentMetadata{fooComp})
 	assert.NilError(t, err)
-	bothArchID, err := manager.GetArchIDForComponents([]metadata.ComponentMetadata{barComp, fooComp})
+	bothArchID, err := manager.GetArchIDForComponents([]component.ComponentMetadata{barComp, fooComp})
 	assert.NilError(t, err)
 
 	// Make sure there are the correct number of ids in each archetype to start

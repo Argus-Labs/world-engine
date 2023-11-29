@@ -8,28 +8,26 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type EngineStorage interface {
-	NonceStorage
-	SchemaStorage
-}
-
 type Storage struct {
 	Namespace string
 	Client    *redis.Client
 	Log       zerolog.Logger
+	Nonce     NonceStorage
+	Schema    SchemaStorage
 }
 
 type Options = redis.Options
 
 func NewRedisStorage(options Options, namespace string) Storage {
+	client := redis.NewClient(&options)
 	return Storage{
 		Namespace: namespace,
-		Client:    redis.NewClient(&options),
+		Client:    client,
 		Log:       zerolog.New(os.Stdout),
+		Nonce:     NewNonceStorage(client),
+		Schema:    NewSchemaStorage(client),
 	}
 }
-
-var _ SchemaStorage = &Storage{}
 
 func (r *Storage) Close() error {
 	err := r.Client.Close()
