@@ -1,4 +1,4 @@
-package metadata
+package component
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ type (
 	TypeID int
 
 	// ComponentMetadata is a high level representation of a user defined component struct.
-	ComponentMetadata interface {
+	ComponentMetadata interface { //revive:disable-line:exported
 		// SetID sets the ID of this component. It must only be set once
 		SetID(TypeID) error
 		// ID returns the ID of the component.
@@ -128,7 +128,7 @@ func newComponentType[T any](s T, name string, defaultVal interface{}) *componen
 
 // ComponentOption is a type that can be passed to NewComponentMetadata to augment the creation
 // of the component type.
-type ComponentOption[T any] func(c *componentMetadata[T])
+type ComponentOption[T any] func(c *componentMetadata[T]) //revive:disable-line:exported
 
 // WithDefault updated the created componentMetadata with a default value.
 func WithDefault[T any](defaultVal T) ComponentOption[T] {
