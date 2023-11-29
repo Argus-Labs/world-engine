@@ -69,7 +69,7 @@ type World struct {
 	chain shard.QueryAdapter
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
-	isRecovering atomic.Int32
+	isRecovering atomic.Bool
 
 	Logger *ecslog.Logger
 
@@ -127,7 +127,7 @@ func (w *World) FlushEvents() {
 }
 
 func (w *World) IsRecovering() bool {
-	return w.isRecovering.Load() > 0
+	return w.isRecovering.Load()
 }
 
 func (w *World) Namespace() Namespace {
@@ -700,9 +700,9 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		)
 	}
 
-	w.isRecovering.Add(1)
+	w.isRecovering.Store(true)
 	defer func() {
-		w.isRecovering.Add(-1)
+		w.isRecovering.Store(false)
 	}()
 	namespace := w.Namespace().String()
 	var nextKey []byte
