@@ -46,15 +46,15 @@ var AuthorizePersonaAddressMsg = NewMessageType[AuthorizePersonaAddress, Authori
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
 func AuthorizePersonaAddressSystem(wCtx WorldContext) error {
+	personaTagToAddress, err := buildPersonaTagMapping(wCtx)
+	if err != nil {
+		return err
+	}
+
 	AuthorizePersonaAddressMsg.Each(
 		wCtx, func(txData TxData[AuthorizePersonaAddress]) (result AuthorizePersonaAddressResult, err error) {
 			msg, tx := txData.Msg, txData.Tx
 			result.Success = false
-
-			personaTagToAddress, err := buildPersonaTagMapping(wCtx)
-			if err != nil {
-				return result, eris.Wrap(err, "")
-			}
 
 			// Check if the Persona Tag exists
 			lowerPersona := strings.ToLower(tx.PersonaTag)
@@ -141,19 +141,14 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 // RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
 func RegisterPersonaSystem(wCtx WorldContext) error {
-	createTxs := CreatePersonaMsg.In(wCtx)
-	if len(createTxs) == 0 {
-		return nil
+	personaTagToAddress, err := buildPersonaTagMapping(wCtx)
+	if err != nil {
+		return err
 	}
 
 	CreatePersonaMsg.Each(wCtx, func(txData TxData[CreatePersona]) (result CreatePersonaResult, err error) {
 		msg := txData.Msg
 		result.Success = false
-
-		personaTagToAddress, err := buildPersonaTagMapping(wCtx)
-		if err != nil {
-			return result, eris.Wrap(err, "")
-		}
 
 		if !isAlphanumericWithUnderscore(msg.PersonaTag) {
 			err = eris.Errorf("persona tag %s is not valid, must be alphanumeric with underscores also allowed", msg.PersonaTag)
@@ -179,7 +174,7 @@ func RegisterPersonaSystem(wCtx WorldContext) error {
 		); err != nil {
 			return result, eris.Wrap(err, "")
 		}
-		personaTagToAddress[msg.PersonaTag] = personaTagComponentData{
+		personaTagToAddress[lowerPersona] = personaTagComponentData{
 			SignerAddress: msg.SignerAddress,
 			EntityID:      id,
 		}

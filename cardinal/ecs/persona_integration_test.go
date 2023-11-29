@@ -144,6 +144,35 @@ func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 	assert.Equal(t, count, 0) // Assert that no signer components were found
 }
 
+func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
+	// Verify that the CreatePersona is automatically created and registered with a world.
+	world := testutils.NewTestWorld(t).Instance()
+	assert.NilError(t, world.LoadGameState())
+
+	ecs.CreatePersonaMsg.AddToQueue(
+		world, ecs.CreatePersona{
+			PersonaTag:    "WowTag",
+			SignerAddress: "123_456",
+		},
+	)
+
+	// This one should fail because it is the same tag with different casing!
+	ecs.CreatePersonaMsg.AddToQueue(
+		world, ecs.CreatePersona{
+			PersonaTag:    "wowtag",
+			SignerAddress: "123_456",
+		},
+	)
+
+	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
+	assert.NilError(t, world.Tick(context.Background()))
+
+	signers := getSigners(t, world)
+	count := len(signers)
+	assert.Equal(t, count, 1) // Assert that only one signer component was found and it was the first one
+	assert.Equal(t, signers[0].PersonaTag, "WowTag")
+}
+
 func TestCanAuthorizeAddress(t *testing.T) {
 	// Verify that the CreatePersona is automatically created and registered with a world.
 	world := testutils.NewTestWorld(t).Instance()
