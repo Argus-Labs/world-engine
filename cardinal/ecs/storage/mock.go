@@ -2,9 +2,10 @@ package storage
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"reflect"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/codec"
+	"pkg.world.dev/world-engine/cardinal/types/component"
 )
 
 var (
