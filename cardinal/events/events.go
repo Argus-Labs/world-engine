@@ -109,7 +109,7 @@ func (eh *loggingEventHub) ShutdownEventHub() {
 }
 
 // right now logging event hub is used as a mock for WebSocketEventHub.
-// this can be changed int he future. More accurately this should return EventHub.
+// this can be changed in he future. More accurately this should return EventHub.
 func CreateLoggingEventHub(logger *ecslog.Logger) WebSocketEventHub {
 	res := loggingEventHub{
 		eventQueue: make([]*Event, 0),
