@@ -9,7 +9,6 @@ on:
     tags:
       - 'evm/v*.*.*'
       - 'relay/nakama/v*.*.*'
-  #test
   pull_request:
 
 env:
@@ -36,7 +35,7 @@ jobs:
   evm-release:
     name: EVM Image Release
     needs: dir-changes
-    if: (needs.dir-changes.outputs.evm == 'true') || startsWith(github.ref, 'refs/tags/evm/v')
+    if: (github.ref == 'refs/heads/main' && needs.dir-changes.outputs.evm == 'true') || startsWith(github.ref, 'refs/tags/evm/v')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -88,7 +87,7 @@ jobs:
   nakama-release:
     name: Nakama Image Release
     needs: dir-changes
-    if: (needs.dir-changes.outputs.nakama == 'true') || startsWith(github.ref, 'refs/tags/relay/nakama/v')
+    if: (github.ref == 'refs/heads/main' && needs.dir-changes.outputs.nakama == 'true') || startsWith(github.ref, 'refs/tags/relay/nakama/v')
     runs-on: ubuntu-latest
     defaults:
       run:
