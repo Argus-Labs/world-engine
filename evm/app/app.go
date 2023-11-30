@@ -184,8 +184,10 @@ func NewApp(
 		evmconfig.MustReadConfigFromAppOpts(appOpts), app.Logger(), app.EVMKeeper.Host, nil,
 	)
 
+	app.setPlugins(logger)
+
 	// Setup Polaris Runtime.
-	if err := app.Polaris.Build(app, app.EVMKeeper, miner.DefaultAllowedMsgs); err != nil {
+	if err := app.Polaris.Build(app, app.EVMKeeper, miner.DefaultAllowedMsgs, app.Router.DispatchQueue); err != nil {
 		panic(err)
 	}
 	// register streaming services
@@ -199,8 +201,6 @@ func NewApp(
 	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
 
 	app.SetEndBlocker(app.endBlocker)
-
-	app.setPlugins(logger)
 
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)

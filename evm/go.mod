@@ -11,6 +11,9 @@ replace (
 
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+
+	pkg.berachain.dev/polaris/cosmos => github.com/argus-labs/polaris/cosmos v1.0.0-hooks
+	pkg.berachain.dev/polaris/eth => github.com/argus-labs/polaris/eth v1.0.0-hooks
 )
 
 require (
@@ -35,6 +38,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/onsi/ginkgo/v2 v2.13.0
 	github.com/onsi/gomega v1.27.10
+	github.com/rotisserie/eris v0.5.4
 	github.com/rs/zerolog v1.31.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.17.0
