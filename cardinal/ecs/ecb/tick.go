@@ -4,7 +4,8 @@ import (
 	"context"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
@@ -41,7 +42,7 @@ func (m *Manager) GetTickNumbers() (start, end uint64, err error) {
 
 // StartNextTick saves the given transactions to the DB and sets the tick trackers to indicate we are in the middle
 // of a tick. While transactions are saved to the DB, no state changes take place at this time.
-func (m *Manager) StartNextTick(txs []message.Message, queue *message.TxQueue) error {
+func (m *Manager) StartNextTick(txs []message.Message, queue *txpool.TxQueue) error {
 	ctx := context.Background()
 	pipe := m.client.TxPipeline()
 	if err := addPendingTransactionToPipe(ctx, pipe, txs, queue); err != nil {
@@ -73,7 +74,7 @@ func (m *Manager) FinalizeTick() error {
 
 // Recover fetches the pending transactions for an incomplete tick. This should only be called if GetTickNumbers
 // indicates that the previous tick was started, but never completed.
-func (m *Manager) Recover(txs []message.Message) (*message.TxQueue, error) {
+func (m *Manager) Recover(txs []message.Message) (*txpool.TxQueue, error) {
 	ctx := context.Background()
 	key := redisPendingTransactionKey()
 	bz, err := m.client.Get(ctx, key).Bytes()
@@ -89,7 +90,7 @@ func (m *Manager) Recover(txs []message.Message) (*message.TxQueue, error) {
 		idToTx[tx.ID()] = tx
 	}
 
-	txQueue := message.NewTxQueue()
+	txQueue := txpool.NewTxQueue()
 	for _, p := range pending {
 		tx := idToTx[p.TypeID]
 		var txData any
@@ -110,7 +111,7 @@ type pendingTransaction struct {
 }
 
 func addPendingTransactionToPipe(ctx context.Context, pipe redis.Pipeliner, txs []message.Message,
-	queue *message.TxQueue) error {
+	queue *txpool.TxQueue) error {
 	var pending []pendingTransaction
 	for _, tx := range txs {
 		currList := queue.ForID(tx.ID())

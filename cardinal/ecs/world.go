@@ -13,7 +13,9 @@ import (
 	"time"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"google.golang.org/protobuf/proto"
 
@@ -23,7 +25,6 @@ import (
 	"github.com/rs/zerolog/log"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -42,7 +43,7 @@ func (n Namespace) String() string {
 
 type World struct {
 	namespace              Namespace
-	nonceStore             storage.NonceStorage
+	redisStorage           *redis.Storage
 	entityStore            store.IManager
 	systems                []System
 	systemLoggers          []*ecslog.Logger
@@ -62,7 +63,7 @@ type World struct {
 
 	evmTxReceipts map[string]EVMTxReceipt
 
-	txQueue *message.TxQueue
+	txQueue *txpool.TxQueue
 
 	receiptHistory *receipt.History
 
@@ -308,7 +309,7 @@ func (w *World) ListMessages() ([]message.Message, error) {
 
 // NewWorld creates a new world.
 func NewWorld(
-	nonceStore storage.NonceStorage,
+	storage *redis.Storage,
 	entityStore store.IManager,
 	namespace Namespace,
 	opts ...Option,
@@ -318,7 +319,7 @@ func NewWorld(
 	}
 	entityStore.InjectLogger(logger)
 	w := &World{
-		nonceStore:        nonceStore,
+		redisStorage:      storage,
 		entityStore:       entityStore,
 		namespace:         namespace,
 		tick:              &atomic.Uint64{},
@@ -326,7 +327,7 @@ func NewWorld(
 		initSystem:        func(_ WorldContext) error { return nil },
 		nameToComponent:   make(map[string]component.ComponentMetadata),
 		nameToQuery:       make(map[string]Query),
-		txQueue:           message.NewTxQueue(),
+		txQueue:           txpool.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
 		isEntitiesCreated: false,
@@ -477,7 +478,7 @@ type EVMTxReceipt struct {
 	EVMTxHash string
 }
 
-func (w *World) setEvmResults(txs []message.TxData) {
+func (w *World) setEvmResults(txs []txpool.TxData) {
 	// iterate over all EVM originated transactions
 	for _, tx := range txs {
 		// see if tx has a receipt. sometimes it won't because:
@@ -626,7 +627,7 @@ func (w *World) Shutdown() {
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
 // transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
 // transactions that need to be processed because the last tick was successful.
-func (w *World) recoverGameState() (recoveredTxs *message.TxQueue, err error) {
+func (w *World) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
 	start, end, err := w.TickStore().GetTickNumbers()
 	if err != nil {
 		return nil, err
@@ -800,11 +801,11 @@ func (w *World) getMessage(id message.TypeID) message.Message {
 }
 
 func (w *World) GetNonce(signerAddress string) (uint64, error) {
-	return w.nonceStore.GetNonce(signerAddress)
+	return w.redisStorage.Nonce.GetNonce(signerAddress)
 }
 
 func (w *World) SetNonce(signerAddress string, nonce uint64) error {
-	return w.nonceStore.SetNonce(signerAddress, nonce)
+	return w.redisStorage.Nonce.SetNonce(signerAddress, nonce)
 }
 
 func (w *World) AddMessageError(id message.TxHash, err error) {
@@ -846,10 +847,4 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 		return nil, err
 	}
 	return NewSearch(componentFilter), nil
-}
-
-func GetRawJSONOfComponent(w *World, component component.ComponentMetadata, id entity.ID) (
-	json.RawMessage, error,
-) {
-	return w.StoreManager().GetComponentForEntityInRawJSON(component, id)
 }
