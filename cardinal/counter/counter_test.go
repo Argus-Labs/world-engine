@@ -59,7 +59,6 @@ func TestCounter(t *testing.T) {
 	v, ok = results["blah"]
 	assert.Assert(t, ok)
 	assert.Equal(t, v, uint64(3))
-
 }
 
 func TestCounterWithEventHub(t *testing.T) {
