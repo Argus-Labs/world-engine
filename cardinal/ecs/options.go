@@ -5,6 +5,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/cardinal/counter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
@@ -48,5 +49,13 @@ func WithWebSocketEventHub(eventHub events.WebSocketEventHub) Option {
 func WithLoggingEventHub(logger *ecslog.Logger) Option {
 	return func(w *World) {
 		w.eventHub = events.CreateLoggingEventHub(logger)
+	}
+}
+
+func WithCounter(counter *counter.Counter) Option {
+	return func(w *World) {
+		w.counter = events.CreateCustomEventHub(func(event *events.Event) {
+			counter.Add(event.Key)
+		})
 	}
 }

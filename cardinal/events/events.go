@@ -174,6 +174,7 @@ func (eh *callbackEventHub) FlushEvents() {
 	for _, event := range eh.events {
 		eh.callback(event)
 	}
+	eh.events = []*Event{}
 }
 
 type webSocketEventHub struct {

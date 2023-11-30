@@ -59,6 +59,7 @@ type World struct {
 	isEntitiesCreated      bool
 	isMessagesRegistered   bool
 	stateIsLoaded          bool
+	counter                events.CallbackEventHub
 
 	evmTxReceipts map[string]EVMTxReceipt
 
@@ -97,6 +98,11 @@ var (
 const (
 	defaultReceiptHistorySize = 10
 )
+
+func (w *World) Count(event *events.Event) {
+	w.counter.EmitEvent(event)
+	w.counter.FlushEvents()
+}
 
 func (w *World) DoesWorldHaveAnEventHub() bool {
 	return w.eventHub != nil

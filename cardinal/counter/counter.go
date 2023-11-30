@@ -7,66 +7,44 @@ import (
 )
 
 type Counter struct {
-	items sync.Map
+	items map[string]uint64
+	mutex sync.Mutex
+}
+
+func NewCounter() Counter {
+	return Counter{
+		items: make(map[string]uint64),
+		mutex: sync.Mutex{},
+	}
 }
 
 func (c *Counter) GetCount(key string) (uint64, error) {
-	amount, ok := c.items.Load(key)
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	res, ok := c.items[key]
 	if !ok {
 		return 0, eris.Errorf("key: %s does not exist", key)
 	}
-	amountInt, ok := amount.(uint64)
-	if !ok {
-		return 0, eris.Errorf("stored type for %s is not uint64", key)
-	}
-	return amountInt, nil
+	return res, nil
 }
 
 func (c *Counter) GetAllCounts() (map[string]uint64, error) {
-	result := map[string]uint64{}
-	var err error
-	c.items.Range(func(key any, value any) bool {
-		valueInt, ok := value.(uint64)
-		if !ok {
-			err = eris.Errorf("stored type for key %s is not uint64", key)
-			return false
-		}
-		keyString, ok := key.(string)
-		if !ok {
-			err = eris.New("stored key is not a string")
-			return false
-		}
-		result[keyString] = valueInt
-		return true
-	})
-
-	return result, err
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	res := make(map[string]uint64)
+	for key, value := range c.items {
+		res[key] = value
+	}
+	return res, nil
 }
 
-func (c *Counter) Add(key string) error {
-	var ok bool
-	var v any
-	var vint uint64
-	f := func() error {
-		v, ok = c.items.Load(key)
-		if !ok {
-			return eris.Errorf("key: %s does not exist", key)
-		}
-		vint, ok = v.(uint64)
-		if !ok {
-			return eris.Errorf("stored type for key %s is not uint64", key)
-		}
-		return nil
+func (c *Counter) Add(key string) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	v, ok := c.items[key]
+	if !ok {
+		c.items[key] = uint64(1)
+		return
 	}
-	if err := f(); err != nil {
-		return err
-	}
-
-	// might starve
-	for c.items.CompareAndSwap(key, vint, vint+1) {
-		if err := f(); err != nil {
-			return err
-		}
-	}
-	return nil
+	c.items[key] = v + 1
 }

@@ -40,7 +40,6 @@ type World struct {
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
 	cleanup         func()
-	counter         events.EventHub
 
 	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc)
 	gameSequenceStage gamestage.Atomic

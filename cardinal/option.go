@@ -82,9 +82,7 @@ func WithWebSocketEventHub(eventHub events.WebSocketEventHub) WorldOption {
 
 func WithMetricCounter(counter *counter.Counter) WorldOption {
 	return WorldOption{
-		cardinalOption: func(w *World) {
-
-		},
+		ecsOption: ecs.WithCounter(counter),
 	}
 }
 
