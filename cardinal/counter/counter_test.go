@@ -68,13 +68,13 @@ func TestCounterWithEventHub(t *testing.T) {
 	testKeys := []string{
 		"hello",
 		"world",
-		//"blah",
-		//"world",
-		//"hello",
-		//"blah",
-		//"world",
-		//"blah",
-		//"world",
+		"blah",
+		"world",
+		"hello",
+		"blah",
+		"world",
+		"blah",
+		"world",
 	}
 	for _, key := range testKeys {
 		world.Instance().Count(&events.Event{
@@ -86,11 +86,11 @@ func TestCounterWithEventHub(t *testing.T) {
 	assert.NilError(t, err)
 	v, ok := results["hello"]
 	assert.Assert(t, ok)
-	assert.Equal(t, v, uint64(1))
+	assert.Equal(t, v, uint64(2))
 	v, ok = results["world"]
 	assert.Assert(t, ok)
-	assert.Equal(t, v, uint64(1))
-	//v, ok = results["blah"]
-	//assert.Assert(t, ok)
-	//assert.Equal(t, v, uint64(3))
+	assert.Equal(t, v, uint64(4))
+	v, ok = results["blah"]
+	assert.Assert(t, ok)
+	assert.Equal(t, v, uint64(3))
 }
