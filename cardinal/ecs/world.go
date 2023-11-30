@@ -613,10 +613,12 @@ func (w *World) Shutdown() {
 	if !w.IsGameLoopRunning() {
 		return
 	}
+	log.Info().Msg("Shutting down game loop.")
 	w.endGameLoopCh <- true
 	for w.IsGameLoopRunning() { // Block until loop stops.
 		time.Sleep(100 * time.Millisecond) //nolint:gomnd // its ok.
 	}
+	log.Info().Msg("Successfully shut down game loop.")
 	if w.eventHub != nil {
 		w.eventHub.ShutdownEventHub()
 	}
