@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/gamestage"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"

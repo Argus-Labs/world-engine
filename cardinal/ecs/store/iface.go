@@ -3,7 +3,8 @@ package store
 import (
 	"encoding/json"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
@@ -54,9 +55,9 @@ type Writer interface {
 
 type TickStorage interface {
 	GetTickNumbers() (start, end uint64, err error)
-	StartNextTick(txs []message.Message, queues *message.TxQueue) error
+	StartNextTick(txs []message.Message, queues *txpool.TxQueue) error
 	FinalizeTick() error
-	Recover(txs []message.Message) (*message.TxQueue, error)
+	Recover(txs []message.Message) (*txpool.TxQueue, error)
 }
 
 // IManager represents all the methods required to track Component, Entity, and Archetype information

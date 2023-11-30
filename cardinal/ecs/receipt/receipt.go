@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 )
 
 var (
