@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"

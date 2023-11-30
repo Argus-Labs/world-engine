@@ -165,7 +165,7 @@ func UniqueSignatureWithName(name string) *sign.Transaction {
 }
 
 func UniqueSignature() *sign.Transaction {
-	return UniqueSignatureWithName("some-persona-tag")
+	return UniqueSignatureWithName("some_persona_tag")
 }
 
 func AddTransactionToWorldByAnyTransaction(

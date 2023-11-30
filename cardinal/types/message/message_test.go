@@ -7,11 +7,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/txpool"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/sign"
@@ -591,7 +590,7 @@ func TestCopyTransactions(t *testing.T) {
 	type FooMsg struct {
 		X int
 	}
-	txq := message.NewTxQueue()
+	txq := txpool.NewTxQueue()
 	txq.AddTransaction(1, FooMsg{X: 3}, &sign.Transaction{PersonaTag: "foo"})
 	txq.AddTransaction(2, FooMsg{X: 4}, &sign.Transaction{PersonaTag: "bar"})
 
