@@ -14,9 +14,27 @@ env:
   REGISTRY_URL: us-docker.pkg.dev
 
 jobs:
+  dir-changes:
+    name: Check directory/path changes
+    runs-on: ubuntu-latest
+    outputs:
+      evm: ${{ steps.changes.outputs.evm }}
+      nakama: ${{ steps.changes.outputs.nakama }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - uses: dorny/paths-filter@v2
+      id: changes
+      with:
+        filters: |
+          evm:
+            - 'evm/**'
+          nakama:
+            - 'relay/nakama/**'
   evm-release:
     name: EVM Image Release
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/evm/v')
+    needs: dir-changes
+    if: (github.ref == 'refs/heads/main' && ${{ needs.dir-changes.outputs.evm == 'true' }}) || startsWith(github.ref, 'refs/tags/evm/v')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -67,7 +85,8 @@ jobs:
           docker push $IMAGE_ID_EVM:$VERSION
   nakama-release:
     name: Nakama Image Release
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/relay/nakama/v')
+    needs: dir-changes
+    if: (github.ref == 'refs/heads/main' && ${{ needs.dir-changes.outputs.nakama == 'true' }}) || startsWith(github.ref, 'refs/tags/relay/nakama/v')
     runs-on: ubuntu-latest
     defaults:
       run:
