@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/txqueue"
+	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"google.golang.org/protobuf/proto"
@@ -63,7 +63,7 @@ type World struct {
 
 	evmTxReceipts map[string]EVMTxReceipt
 
-	txQueue *txqueue.TxQueue
+	txQueue *txpool.TxQueue
 
 	receiptHistory *receipt.History
 
@@ -327,7 +327,7 @@ func NewWorld(
 		initSystem:        func(_ WorldContext) error { return nil },
 		nameToComponent:   make(map[string]component.ComponentMetadata),
 		nameToQuery:       make(map[string]Query),
-		txQueue:           txqueue.NewTxQueue(),
+		txQueue:           txpool.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
 		isEntitiesCreated: false,
@@ -478,7 +478,7 @@ type EVMTxReceipt struct {
 	EVMTxHash string
 }
 
-func (w *World) setEvmResults(txs []txqueue.TxData) {
+func (w *World) setEvmResults(txs []txpool.TxData) {
 	// iterate over all EVM originated transactions
 	for _, tx := range txs {
 		// see if tx has a receipt. sometimes it won't because:
@@ -627,7 +627,7 @@ func (w *World) Shutdown() {
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
 // transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
 // transactions that need to be processed because the last tick was successful.
-func (w *World) recoverGameState() (recoveredTxs *txqueue.TxQueue, err error) {
+func (w *World) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
 	start, end, err := w.TickStore().GetTickNumbers()
 	if err != nil {
 		return nil, err
