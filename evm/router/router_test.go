@@ -32,7 +32,7 @@ func TestRouter(t *testing.T) {
 
 	namespace, sender, msgID, msg := "cardinal", "foo", "tx1", []byte("hello")
 	// queue a message
-	err := router.SendMessage(context.Background(), namespace, sender, msgID, msg)
+	err := router.QueueMessage(context.Background(), namespace, sender, msgID, msg)
 	assert.NilError(t, err)
 	// make sure its set in the queue
 	assert.Equal(t, router.queue.IsSet(), true)
@@ -45,15 +45,15 @@ func TestRouter(t *testing.T) {
 		[]byte("hello"),
 	)
 	// test dispatch when there is a successful tx
-	router.HandleDispatch(tx, &core.ExecutionResult{Err: nil})
+	router.DispatchQueue(tx, &core.ExecutionResult{Err: nil})
 	// queue should be cleared after dispatching
 	assert.Equal(t, router.queue.IsSet(), false)
 
 	// queue another message
-	err = router.SendMessage(context.Background(), namespace, sender, msgID, msg)
+	err = router.QueueMessage(context.Background(), namespace, sender, msgID, msg)
 	assert.NilError(t, err)
 
 	// this time, lets check when the execution Result is failed, we still clear the queue.
-	router.HandleDispatch(tx, &core.ExecutionResult{Err: errors.New("some error")})
+	router.DispatchQueue(tx, &core.ExecutionResult{Err: errors.New("some error")})
 	assert.Equal(t, router.queue.IsSet(), false)
 }

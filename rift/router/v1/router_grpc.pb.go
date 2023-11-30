@@ -36,7 +36,7 @@ func NewMsgClient(cc grpc.ClientConnInterface) MsgClient {
 
 func (c *msgClient) SendMessage(ctx context.Context, in *SendMessageRequest, opts ...grpc.CallOption) (*SendMessageResponse, error) {
 	out := new(SendMessageResponse)
-	err := c.cc.Invoke(ctx, "/world.engine.router.v1.Msg/SendMessage", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/world.engine.router.v1.Msg/QueueMessage", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ type UnimplementedMsgServer struct {
 }
 
 func (UnimplementedMsgServer) SendMessage(context.Context, *SendMessageRequest) (*SendMessageResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendMessage not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method QueueMessage not implemented")
 }
 func (UnimplementedMsgServer) QueryShard(context.Context, *QueryShardRequest) (*QueryShardResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method QueryShard not implemented")
@@ -94,7 +94,7 @@ func _Msg_SendMessage_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/world.engine.router.v1.Msg/SendMessage",
+		FullMethod: "/world.engine.router.v1.Msg/QueueMessage",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(MsgServer).SendMessage(ctx, req.(*SendMessageRequest))
@@ -128,7 +128,7 @@ var Msg_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*MsgServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SendMessage",
+			MethodName: "QueueMessage",
 			Handler:    _Msg_SendMessage_Handler,
 		},
 		{

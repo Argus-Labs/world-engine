@@ -36,7 +36,7 @@ func (c *Contract) SendMessage(
 	namespace string,
 ) (bool, error) {
 	pCtx := vm.UnwrapPolarContext(ctx)
-	err := c.rtr.SendMessage(ctx, namespace, pCtx.MsgSender().String(), messageID, message)
+	err := c.rtr.QueueMessage(ctx, namespace, pCtx.MsgSender().String(), messageID, message)
 	if err != nil {
 		return false, err
 	}
