@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"google.golang.org/protobuf/proto"
 
