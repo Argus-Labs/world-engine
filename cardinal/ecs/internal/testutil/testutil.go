@@ -12,13 +12,13 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	storage "pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/sign"
 )
 
 const Namespace string = "world"
 
-func GetRedisStorage(t *testing.T) storage.RedisStorage {
+func GetRedisStorage(t *testing.T) storage.Storage {
 	s := miniredis.RunT(t)
 	return storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
