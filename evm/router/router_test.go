@@ -32,7 +32,7 @@ func TestRouter(t *testing.T) {
 
 	namespace, sender, msgID, msg := "cardinal", "foo", "tx1", []byte("hello")
 	// queue a message
-	err := router.QueueMessage(context.Background(), namespace, sender, msgID, msg)
+	err := router.SendMessage(context.Background(), namespace, sender, msgID, msg)
 	assert.NilError(t, err)
 	// make sure its set in the queue
 	assert.Equal(t, router.queue.IsSet(), true)
@@ -50,7 +50,7 @@ func TestRouter(t *testing.T) {
 	assert.Equal(t, router.queue.IsSet(), false)
 
 	// queue another message
-	err = router.QueueMessage(context.Background(), namespace, sender, msgID, msg)
+	err = router.SendMessage(context.Background(), namespace, sender, msgID, msg)
 	assert.NilError(t, err)
 
 	// this time, lets check when the execution Result is failed, we still clear the queue.

@@ -26,7 +26,7 @@ import (
 // Router defines the methods required to interact with a game shard. The methods are invoked from EVM smart contracts.
 type Router interface {
 	// QueueMessage queues a message to be sent to a game shard.
-	QueueMessage(_ context.Context, namespace string, sender string, msgID string, msg []byte) error
+	SendMessage(_ context.Context, namespace string, sender string, msgID string, msg []byte) error
 	// Query queries a game shard.
 	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
 	// MessageResult gets the game shard transaction Result that originated from an EVM tx.
@@ -152,7 +152,7 @@ func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) 
 	}()
 }
 
-func (r *routerImpl) QueueMessage(_ context.Context, namespace, sender, msgID string, msg []byte) error {
+func (r *routerImpl) SendMessage(_ context.Context, namespace, sender, msgID string, msg []byte) error {
 	req := &routerv1.SendMessageRequest{
 		Sender:    sender,
 		MessageId: msgID,

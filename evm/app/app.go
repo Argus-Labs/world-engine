@@ -201,7 +201,6 @@ func NewApp(
 	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
 
 	app.SetEndBlocker(app.endBlocker)
-
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}

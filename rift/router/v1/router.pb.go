@@ -355,9 +355,9 @@ var file_router_v1_router_proto_goTypes = []interface{}{
 	(*QueryShardResponse)(nil),  // 3: world.engine.router.v1.QueryShardResponse
 }
 var file_router_v1_router_proto_depIdxs = []int32{
-	0, // 0: world.engine.router.v1.Msg.QueueMessage:input_type -> world.engine.router.v1.SendMessageRequest
+	0, // 0: world.engine.router.v1.Msg.SendMessage:input_type -> world.engine.router.v1.SendMessageRequest
 	2, // 1: world.engine.router.v1.Msg.QueryShard:input_type -> world.engine.router.v1.QueryShardRequest
-	1, // 2: world.engine.router.v1.Msg.QueueMessage:output_type -> world.engine.router.v1.SendMessageResponse
+	1, // 2: world.engine.router.v1.Msg.SendMessage:output_type -> world.engine.router.v1.SendMessageResponse
 	3, // 3: world.engine.router.v1.Msg.QueryShard:output_type -> world.engine.router.v1.QueryShardResponse
 	2, // [2:4] is the sub-list for method output_type
 	0, // [0:2] is the sub-list for method input_type

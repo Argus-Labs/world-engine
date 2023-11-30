@@ -14,7 +14,7 @@ rollup:
 	docker compose up chain --build --abort-on-container-exit --exit-code-from celestia-devnet
 
 game:
-	cd internal/e2e/tester/cardinal && go mod vendor
+	cd internal/e2e/tester/game && go mod vendor
 	@docker compose up game nakama --build --abort-on-container-exit cockroachdb redis
 
 forge-build: |

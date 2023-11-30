@@ -5,6 +5,7 @@ import (
 )
 
 type JoinInput struct {
+	Ok bool
 }
 
 type JoinOutput struct{}
