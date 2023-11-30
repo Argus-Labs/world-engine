@@ -6,6 +6,10 @@ on:
   push:
     branches:
       - main
+
+permissions:
+  contents: read
+
 jobs:
   go-lint:
     name: Go
@@ -28,5 +32,9 @@ jobs:
           key: ${{ runner.os }}-golang-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-golang-
-      - name: Make Lint
-        run: make lint
+      ## Equivalent to 'make lint' arguments
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: --timeout=10m --concurrency 8 -v
