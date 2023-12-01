@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/rotisserie/eris"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )
@@ -15,10 +16,19 @@ type GameManager struct {
 	world   *ecs.World
 }
 
-func NewGameManager(world *ecs.World, handler *Handler) GameManager {
+type GameManagerOptions = func(g *GameManager)
+
+func WithGameManagerPrettyPrint(_ *GameManager) {
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+}
+
+func NewGameManager(world *ecs.World, handler *Handler, options ...GameManagerOptions) GameManager {
 	manager := GameManager{
 		handler: handler,
 		world:   world,
+	}
+	for _, option := range options {
+		option(&manager)
 	}
 
 	// handle shutdown via a signal

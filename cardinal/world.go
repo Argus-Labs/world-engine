@@ -30,14 +30,15 @@ import (
 var ErrEntitiesCreatedBeforeStartGame = errors.New("entities should not be created before start game")
 
 type World struct {
-	instance        *ecs.World
-	server          *server.Handler
-	evmServer       evm.Server
-	gameManager     *server.GameManager
-	tickChannel     <-chan time.Time
-	tickDoneChannel chan<- uint64
-	serverOptions   []server.Option
-	cleanup         func()
+	instance           *ecs.World
+	server             *server.Handler
+	evmServer          evm.Server
+	gameManager        *server.GameManager
+	tickChannel        <-chan time.Time
+	tickDoneChannel    chan<- uint64
+	serverOptions      []server.Option
+	gameManagerOptions []server.GameManagerOptions
+	cleanup            func()
 
 	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc)
 	gameSequenceStage gamestage.Atomic
@@ -66,6 +67,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Sane default options
 	serverOptions = append(serverOptions, server.WithCORS())
+	gameManagerOptions := []server.GameManagerOptions{} // not exposed in NewWorld Yet
 
 	if cfg.CardinalMode == ModeProd {
 		log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
@@ -80,6 +82,8 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	} else {
 		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
 		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
+		serverOptions = append(serverOptions, server.WithPrettyPrint())
+		gameManagerOptions = append(gameManagerOptions, server.WithGameManagerPrettyPrint)
 	}
 	redisStore := redis.NewRedisStorage(redis.Options{
 		Addr:     cfg.RedisAddress,
