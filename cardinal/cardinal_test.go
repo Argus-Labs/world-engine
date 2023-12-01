@@ -70,16 +70,20 @@ func TestCreatePersona(t *testing.T) {
 }
 
 func TestNewWorld(t *testing.T) {
-	world, err := cardinal.NewWorld()
+	world, err := cardinal.NewMockWorld()
 	assert.NilError(t, err)
 	assert.Equal(t, string(world.Instance().Namespace()), cardinal.DefaultNamespace)
+	err = world.ShutDown()
+	assert.NilError(t, err)
 }
 
 func TestNewWorldWithCustomNamespace(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", "custom-namespace")
-	world, err := cardinal.NewWorld()
+	world, err := cardinal.NewMockWorld()
 	assert.NilError(t, err)
 	assert.Equal(t, string(world.Instance().Namespace()), "custom-namespace")
+	err = world.ShutDown()
+	assert.NilError(t, err)
 }
 
 func TestCanQueryInsideSystem(t *testing.T) {
