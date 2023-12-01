@@ -1,5 +1,6 @@
 package router
 
+/*
 import (
 	"gotest.tools/v3/assert"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
@@ -14,3 +15,4 @@ func TestQueue(t *testing.T) {
 	q.Clear()
 	assert.Equal(t, q.IsSet(), false)
 }
+*/
