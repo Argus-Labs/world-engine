@@ -106,10 +106,11 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	world := &World{
-		instance:          ecsWorld,
-		serverOptions:     serverOptions,
-		endStartGame:      make(chan bool),
-		gameSequenceStage: gamestage.NewAtomic(),
+		instance:           ecsWorld,
+		serverOptions:      serverOptions,
+		gameManagerOptions: gameManagerOptions,
+		endStartGame:       make(chan bool),
+		gameSequenceStage:  gamestage.NewAtomic(),
 	}
 
 	// Apply options
@@ -235,7 +236,7 @@ func (w *World) StartGame() error {
 		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
 	w.instance.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
-	gameManager := server.NewGameManager(w.instance, w.server)
+	gameManager := server.NewGameManager(w.instance, w.server, w.gameManagerOptions...)
 	w.gameManager = &gameManager
 	go func() {
 		ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageStarting, gamestage.StageRunning)
