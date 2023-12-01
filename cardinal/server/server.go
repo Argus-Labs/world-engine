@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -32,6 +33,7 @@ type Handler struct {
 	Port                   string
 	withCORS               bool
 	running                atomic.Bool
+	shutdownMutex          sync.Mutex
 
 	// plugins
 	adapter shard.WriteAdapter
@@ -251,6 +253,8 @@ func (handler *Handler) Close() error {
 }
 
 func (handler *Handler) Shutdown() error {
+	handler.shutdownMutex.Lock()
+	defer handler.shutdownMutex.Unlock()
 	displayLogs := false
 	if !handler.running.Load() {
 		// handler.running tracks whether the server is running.

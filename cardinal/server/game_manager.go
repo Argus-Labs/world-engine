@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -56,7 +55,6 @@ func (g *GameManager) Shutdown() error {
 	if err != nil {
 		return err
 	}
-	log.Logger.Info().Msg(fmt.Sprintf("game loop: %d", g.world.IsGameLoopRunning()))
 	if !g.IsRunning() {
 		log.Info().Msg("Successfully shutdown server and game loop.")
 	}
