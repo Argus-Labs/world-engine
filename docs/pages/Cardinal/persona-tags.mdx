@@ -1,0 +1,52 @@
+# Persona Tags
+
+Persona Tags represents authorized actors that can manipulate your games state. State manipulation must be done via [Messages](/Cardinal/API-Reference/Messages). While a single Message represents an intention to manipulate the game state, the Message will only be processed by a System if the Message is signed. Signed messages are called "Transactions" and can be processed in your custom Systems. See [Getting Transactions](/Cardinal/API-Reference/Systems#getting-transactions) for more details on how to use Transactions.
+
+Your Cardinal instance will only process Transactions that have been signed by a Persona Tag that has been previously registered with your Cardinal instance. Registering a Persona Tag ensures other people or smart contracts cannot act on your behalf when interacting with the Cardinal backend.
+
+## ECS Integration
+
+Persona Tag management is automatically included with Cardinal games. A system (called AuthorizePersonaAddressSystem) is registered with your world on startup, and a MessageType (called AuthorizePersonaAddressMsg) is used to track new Persona Tag creation requests. This registration happens automatically so nothing extra needs to be done to start processing Persona Tag creation requests.
+
+While custom [MessageTypes](/Cardinal/API-Reference/Messages#newmessagetype) create Cardinal endpoints with the pattern `/tx/game/<message-name>`, the Persona Tag message creates a Cardinal endpoint of `/tx/persona/create-persona`. This endpoint is used to initially register Persona Tags with a Cardinal game.
+
+
+## Persona Tags in Systems
+
+Within a System, you can loop over transactions of a particular type (See [Getting Transactions](/Cardinal/API-Reference/Systems#getting-transactions)). These transactions (called [TxData](https://world.dev/Cardinal/API-Reference/Systems#txdata)) contain some fields.
+
+The `Msg` field is custom message data that you set up when you initially called NewMessageType.
+
+The `Tx` field contains signature information, including the Persona Tag that was used to sign the transaction.
+
+In this sample code, an "attack" message type is created, as well as a System that simply logs the Persona Tag of each incoming Attack message.
+
+```go
+type AttackInput struct {
+	// game specific field
+}
+
+type AttackOutput struct {
+	// game specific fields
+}
+
+var AttackMessage = cardinal.NewMessageType[AttackInput, AttackOutput]("attack")
+
+func AttackSystem(worldCtx cardinal.WorldContext) {
+	AttackMessage.Each(worldCtx, func(attack cardinal.TxData[AttackInput]) (AttackOutput, error) {
+		personaTag := attack.Tx().PersonaTag
+		worldCtx.Logger().Debug().Msgf("The persona tag is %q", personaTag)
+		return AttackOutput{}, nil
+	})
+}
+```
+
+## Nakama
+
+The easiest way to set up a Persona Tag with your cardinal game it to use Nakama. The `/nakama/claim-persona` RPC endpoint takes a request with a body of:
+
+```json
+{"personaTag": "the-persona-tag-you-want-to-claim"}
+```
+
+and registers that persona with your Cardinal backend. For more details about what Nakama is specifically doing under the hood, see the [Persona Tag](/Nakama/plugin#local-userid-to-personatag) section of the Nakama plugin documentation.
