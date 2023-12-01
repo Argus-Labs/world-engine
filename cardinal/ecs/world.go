@@ -666,31 +666,6 @@ func (w *World) recoverGameState() (recoveredTxs *message.TxQueue, err error) {
 	return w.TickStore().Recover(w.registeredMessages)
 }
 
-func (w *World) CheckComponentSchemas() error {
-	var diffErr error
-	for _, componentMetadata := range w.registeredComponents {
-		storedSchema, err := w.redisStorage.Schema.GetSchema(componentMetadata.Name())
-		if err != nil {
-			if eris.Is(eris.Cause(err), redis.Nil) {
-				// No component schemas have been saved, skip this operation return nil error.
-				return nil
-			}
-			return err
-		}
-		currentSchema := componentMetadata.GetSchema()
-		valid, err := component.IsSchemaValid(currentSchema, storedSchema)
-		if err != nil {
-			return err
-		}
-		if !valid {
-			diffErr = errors.Join(
-				diffErr,
-				fmt.Errorf("%s has changed and does not match with the previous component", componentMetadata.Name()))
-		}
-	}
-	return eris.Wrap(diffErr, "")
-}
-
 func (w *World) LoadGameState() error {
 	if w.IsEntitiesCreated() {
 		return eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
