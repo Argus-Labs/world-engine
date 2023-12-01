@@ -187,7 +187,7 @@ func NewApp(
 	app.setPlugins(logger)
 
 	// Setup Polaris Runtime.
-	if err := app.Polaris.Build(app, app.EVMKeeper, miner.DefaultAllowedMsgs, app.Router.DispatchQueue); err != nil {
+	if err := app.Polaris.Build(app, app.EVMKeeper, miner.DefaultAllowedMsgs, app.Router.PostBlockHook); err != nil {
 		panic(err)
 	}
 	// register streaming services

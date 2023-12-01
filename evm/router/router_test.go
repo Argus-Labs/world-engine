@@ -45,7 +45,7 @@ func TestRouter(t *testing.T) {
 		[]byte("hello"),
 	)
 	// test dispatch when there is a successful tx
-	router.DispatchQueue(tx, &core.ExecutionResult{Err: nil})
+	router.PostBlockHook(tx, &core.ExecutionResult{Err: nil})
 	// queue should be cleared after dispatching
 	assert.Equal(t, router.queue.IsSet(), false)
 
@@ -54,6 +54,6 @@ func TestRouter(t *testing.T) {
 	assert.NilError(t, err)
 
 	// this time, lets check when the execution Result is failed, we still clear the queue.
-	router.DispatchQueue(tx, &core.ExecutionResult{Err: errors.New("some error")})
+	router.PostBlockHook(tx, &core.ExecutionResult{Err: errors.New("some error")})
 	assert.Equal(t, router.queue.IsSet(), false)
 }

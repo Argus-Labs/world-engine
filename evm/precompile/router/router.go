@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"fmt"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
@@ -36,15 +37,19 @@ func (c *Contract) SendMessage(
 	messageID string,
 	namespace string,
 ) (bool, error) {
-	log.Logger.Debug().Msg("SendMessagePrecompile called")
+	log.Logger.Debug().Msg("inside SendMessage precompile function called")
 	pCtx := vm.UnwrapPolarContext(ctx)
-	err := c.rtr.SendMessage(ctx, namespace, pCtx.MsgSender().String(), messageID, message)
-	if err != nil {
-		log.Logger.Err(err).Msg("failed to queue message in router")
-		return false, err
+	if c.rtr != nil {
+		err := c.rtr.SendMessage(ctx, namespace, pCtx.MsgSender().String(), messageID, message)
+		if err != nil {
+			log.Logger.Err(err).Msg("failed to queue message in router")
+			return false, err
+		}
+		log.Logger.Debug().Msgf("successfully queued message to %s from %s", namespace, pCtx.MsgSender().String())
+		return true, nil
 	}
-	log.Logger.Debug().Msgf("successfully queued message to %s from %s", namespace, pCtx.MsgSender().String())
-	return true, nil
+	log.Logger.Debug().Msg("the precompile had a nil Router")
+	return false, fmt.Errorf("nil router")
 }
 
 func (c *Contract) MessageResult(ctx context.Context, evmTxHash string) ([]byte, string, uint32, error) {

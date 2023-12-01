@@ -31,9 +31,9 @@ type Router interface {
 	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
 	// MessageResult gets the game shard transaction Result that originated from an EVM tx.
 	MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error)
-	// DispatchQueue implements the polaris EVM PostBlock hook. It runs after an EVM tx execution has finished
+	// PostBlockHook implements the polaris EVM PostBlock hook. It runs after an EVM tx execution has finished
 	// processing.
-	DispatchQueue(types.Transactions, types.Receipts, types.Signer)
+	PostBlockHook(types.Transactions, types.Receipts, types.Signer)
 }
 
 type GetQueryCtxFn func(height int64, prove bool) (sdk.Context, error)
@@ -82,21 +82,31 @@ func (r *routerImpl) getSDKCtx() sdk.Context {
 	return ctx
 }
 
-func (r *routerImpl) DispatchQueue(transactions types.Transactions, receipts types.Receipts, signer types.Signer) {
+func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts types.Receipts, signer types.Signer) {
+	r.logger.Info("running PostBlockHook",
+		"num_transactions", len(transactions),
+	)
 	for i, tx := range transactions {
+		r.logger.Info("working on transaction", "tx_hash", tx.Hash().String())
 		if tx.Hash().Cmp(receipts[i].TxHash) != 0 {
-			r.logger.Error("transaction and receipt mismatch",
+			r.logger.Error("transaction and receipt mismatch. this should NEVER happen",
 				"tx_hash", tx.Hash().String(),
 				"receipt_hash", receipts[i].TxHash.String(),
 			)
 		}
-		if receipts[i].Status == ethtypes.ReceiptStatusFailed {
+
+		// TODO: its entirely possible that a sender has NON cross-shard txs available.
+		// need a way to diff these...Probs not possible though. reee.
+		if receipts[i].Status == ethtypes.ReceiptStatusSuccessful {
+			r.logger.Info("tx was successful, attempting to dispatch")
 			sig, err := signer.Sender(tx)
 			if err != nil {
 				r.logger.Error("could not get signer for tx", "tx_hash", tx.Hash().String())
 				continue
 			}
 			r.dispatchMessage(sig, tx.Hash())
+		} else {
+			r.logger.Info("tx was unsuccessful, moving on to next tx")
 		}
 	}
 	r.queue.Clear()
@@ -113,11 +123,14 @@ func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) 
 		r.logger.Error("no message found in queue for sender", "sender", sender.String())
 		return
 	}
+	r.logger.Info("found cross-shard message in queue", "tx_hash", txHash.String())
 	msg := nsMsg.msg
 	namespace := nsMsg.namespace
 	msg.EvmTxHash = txHash.String()
+	r.logger.Info("attempting to get client connection")
 	client, err := r.getConnectionForNamespace(namespace)
 	if err != nil {
+		r.logger.Error("failed to get client connection")
 		r.resultStore.SetResult(
 			&routerv1.SendMessageResponse{
 				EvmTxHash: msg.EvmTxHash,
@@ -127,7 +140,7 @@ func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) 
 		r.logger.Error("error getting game shard gRPC connection", "error", err, "namespace", namespace)
 		return
 	}
-	r.logger.Debug("Sending tx to game shard",
+	r.logger.Info("Sending tx to game shard",
 		"evm_tx_hash", txHash.String(),
 		"namespace", namespace,
 		"sender", msg.Sender,
@@ -147,22 +160,25 @@ func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) 
 			r.logger.Error("failed to send message to game shard", "error", err)
 			return
 		}
-		r.logger.Debug("successfully sent message to game shard", "result", res.String())
+		r.logger.Info("successfully sent message to game shard", "result", res.String())
 		r.resultStore.SetResult(res)
 	}()
 }
 
 func (r *routerImpl) SendMessage(_ context.Context, namespace, sender, msgID string, msg []byte) error {
+	r.logger.Info("received SendMessage request",
+		"namespace", namespace,
+		"sender", sender,
+		"msgID", msgID,
+	)
 	req := &routerv1.SendMessageRequest{
 		Sender:    sender,
 		MessageId: msgID,
 		Message:   msg,
 	}
-	if r.queue.IsSet(common.HexToAddress(sender)) {
-		return fmt.Errorf("a message for addr %q is already queued. You may only queue one cross-shard tx per "+
-			"EVM block", sender)
-	}
+	r.logger.Info("attempting to set queue...")
 	r.queue.Set(common.HexToAddress(sender), namespace, req)
+	r.logger.Info("successfully set queue")
 	return nil
 }
 

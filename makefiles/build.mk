@@ -11,7 +11,7 @@ start-evm:
 
 rollup:
 	@. ${CURDIR}/evm/scripts/start-celestia-devnet.sh && \
-	docker compose up chain --build --abort-on-container-exit --exit-code-from celestia-devnet
+	docker compose up chain --abort-on-container-exit --exit-code-from celestia-devnet
 
 game:
 	cd internal/e2e/tester/game && go mod vendor

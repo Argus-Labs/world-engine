@@ -20,6 +20,7 @@ kill:
 	docker kill $$(docker ps -q)
 
 clear:
-	docker compose down
-	docker volume rm $$(docker volume ls -q)
-	docker rm -f $$(docker ps -a -q)
+	-docker compose down
+	-docker image rm $$(docker image ls -q)
+	-docker volume rm $$(docker volume ls -q)
+	-docker rm -f $$(docker ps -a -q)
