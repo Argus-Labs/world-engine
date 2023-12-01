@@ -235,12 +235,10 @@ func (handler *Handler) Serve() error {
 		return eris.Wrap(err, "error getting hostname")
 	}
 	log.Info().Msgf("serving cardinal at %s:%s", hostname, handler.Port)
-	err = eris.Wrap(handler.server.ListenAndServe(), "error listening and serving")
-	if err != nil {
-		return err
-	}
 	handler.running.Store(true)
-	return nil
+	err = eris.Wrap(handler.server.ListenAndServe(), "error listening and serving")
+	handler.running.Store(false)
+	return err
 }
 
 func (handler *Handler) Close() error {
