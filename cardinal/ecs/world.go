@@ -13,8 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 
@@ -26,6 +26,7 @@ import (
 	"github.com/rs/zerolog/log"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
+	storage "pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -44,7 +45,7 @@ func (n Namespace) String() string {
 
 type World struct {
 	namespace              Namespace
-	redisStorage           *redis.Storage
+	redisStorage           *storage.Storage
 	entityStore            store.IManager
 	systems                []System
 	systemLoggers          []*ecslog.Logger
@@ -202,12 +203,37 @@ func RegisterComponent[T component.Component](world *World) error {
 	if err == nil {
 		return eris.Errorf("component with name '%s' is already registered", t.Name())
 	}
-	c := component.NewComponentMetadata[T]()
+	c, err := component.NewComponentMetadata[T]()
+	if err != nil {
+		return err
+	}
 	err = c.SetID(world.nextComponentID)
 	if err != nil {
 		return err
 	}
 	world.registeredComponents = append(world.registeredComponents, c)
+
+	storedSchema, err := world.redisStorage.Schema.GetSchema(c.Name())
+
+	// if error is redis.Nil that means schema does not exist in the db, continue
+	if err != nil {
+		if !eris.Is(eris.Cause(err), redis.Nil) {
+			return err
+		}
+	} else {
+		valid, err := component.IsComponentValid(t, storedSchema)
+		if err != nil {
+			return err
+		}
+		if !valid {
+			return eris.Errorf("Component: %s does not match the type stored in the db", c.Name())
+		}
+	}
+
+	err = world.redisStorage.Schema.SetSchema(c.Name(), c.GetSchema())
+	if err != nil {
+		return err
+	}
 	world.nextComponentID++
 	world.nameToComponent[t.Name()] = c
 	world.isComponentsRegistered = true
@@ -312,7 +338,7 @@ func (w *World) ListMessages() ([]message.Message, error) {
 
 // NewWorld creates a new world.
 func NewWorld(
-	storage *redis.Storage,
+	storage *storage.Storage,
 	entityStore store.IManager,
 	namespace Namespace,
 	opts ...Option,
