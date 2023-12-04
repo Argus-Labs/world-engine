@@ -254,6 +254,9 @@ func (w *World) IsGameRunning() bool {
 }
 
 func (w *World) ShutDown() error {
+	if w.cleanup != nil {
+		w.cleanup()
+	}
 	ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageRunning, gamestage.StageShuttingDown)
 	if !ok {
 		// Either the world hasn't been started, or we've already shut down.
@@ -264,9 +267,6 @@ func (w *World) ShutDown() error {
 	defer func() {
 		w.gameSequenceStage.Store(gamestage.StageShutDown)
 	}()
-	if w.cleanup != nil {
-		w.cleanup()
-	}
 	if w.evmServer != nil {
 		w.evmServer.Shutdown()
 	}

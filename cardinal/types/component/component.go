@@ -25,6 +25,7 @@ type (
 		Encode(any) ([]byte, error)
 		Decode([]byte) (any, error)
 		Name() string
+		GetSchema() []byte
 	}
 
 	Component interface {
@@ -35,13 +36,16 @@ type (
 
 // NewComponentMetadata creates a new component type.
 // The function is used to create a new component of the type.
-func NewComponentMetadata[T Component](opts ...ComponentOption[T]) ComponentMetadata {
+func NewComponentMetadata[T Component](opts ...ComponentOption[T]) (ComponentMetadata, error) {
 	var t T
-	comp := newComponentType(t, t.Name(), nil)
+	comp, err := newComponentType(t, t.Name(), nil)
+	if err != nil {
+		return comp, err
+	}
 	for _, opt := range opts {
 		opt(comp)
 	}
-	return comp
+	return comp, nil
 }
 
 // componentMetadata represents a type of component. It is used to identify
@@ -52,6 +56,11 @@ type componentMetadata[T any] struct {
 	typ        reflect.Type
 	name       string
 	defaultVal interface{}
+	schema     []byte
+}
+
+func (c *componentMetadata[T]) GetSchema() []byte {
+	return c.schema
 }
 
 // SetID set's this component's ID. It must be unique across the world object.
@@ -114,16 +123,21 @@ func (c *componentMetadata[T]) validateDefaultVal() {
 
 // newComponentType creates a new component type.
 // The argument is a struct that represents a data of the component.
-func newComponentType[T any](s T, name string, defaultVal interface{}) *componentMetadata[T] {
+func newComponentType[T Component](s T, name string, defaultVal interface{}) (*componentMetadata[T], error) {
+	schema, err := SerializeComponentSchema(s)
+	if err != nil {
+		return nil, err
+	}
 	componentType := &componentMetadata[T]{
 		typ:        reflect.TypeOf(s),
 		name:       name,
 		defaultVal: defaultVal,
+		schema:     schema,
 	}
 	if defaultVal != nil {
 		componentType.validateDefaultVal()
 	}
-	return componentType
+	return componentType, nil
 }
 
 // ComponentOption is a type that can be passed to NewComponentMetadata to augment the creation
@@ -140,7 +154,11 @@ func WithDefault[T any](defaultVal T) ComponentOption[T] {
 
 func SerializeComponentSchema(component Component) ([]byte, error) {
 	componentSchema := jsonschema.Reflect(component)
-	return componentSchema.MarshalJSON()
+	schema, err := componentSchema.MarshalJSON()
+	if err != nil {
+		return nil, eris.Wrap(err, "component must be json serializable")
+	}
+	return schema, nil
 }
 
 func IsComponentValid(component Component, jsonSchemaBytes []byte) (bool, error) {
@@ -149,7 +167,11 @@ func IsComponentValid(component Component, jsonSchemaBytes []byte) (bool, error)
 	if err != nil {
 		return false, eris.Wrap(err, "")
 	}
-	patch, err := jsondiff.CompareJSON(componentSchemaBytes, jsonSchemaBytes)
+	return IsSchemaValid(componentSchemaBytes, jsonSchemaBytes)
+}
+
+func IsSchemaValid(jsonSchemaBytes1 []byte, jsonSchemaBytes2 []byte) (bool, error) {
+	patch, err := jsondiff.CompareJSON(jsonSchemaBytes1, jsonSchemaBytes2)
 	if err != nil {
 		return false, eris.Wrap(err, "")
 	}
