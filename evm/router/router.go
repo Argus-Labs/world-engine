@@ -78,12 +78,13 @@ func NewRouter(logger log.Logger, ctxGetter GetQueryCtxFn, addrGetter GetAddress
 	return r
 }
 
+//nolint:unused // will use this later once CLI is fixed.
 func (r *routerImpl) getSDKCtx() sdk.Context {
 	ctx, _ := r.getQueryCtx(0, false)
 	return ctx
 }
 
-func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts types.Receipts, signer types.Signer) {
+func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts types.Receipts, _ types.Signer) {
 	r.logger.Info("running PostBlockHook",
 		"num_transactions", len(transactions),
 	)

@@ -15,7 +15,8 @@ type gameShardMsg struct {
 }
 
 var (
-	ErrAlreadySet = errors.New("queue is already set for this address. only one cross-shard message may be queued per EVM block")
+	ErrAlreadySet = errors.New("queue is already set for this address. only one cross-shard message may be " +
+		"queued per EVM block")
 )
 
 func (m *msgQueue) Set(sender common.Address, namespace string, msg *v1.SendMessageRequest) error {
