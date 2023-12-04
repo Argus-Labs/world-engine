@@ -67,5 +67,6 @@ func (c *Contract) Query(
 	request []byte,
 	resource, namespace string,
 ) ([]byte, error) {
+	log.Debug().Msgf("got query request for %s", namespace)
 	return c.rtr.Query(ctx, request, resource, namespace)
 }

@@ -54,10 +54,12 @@ contract Game {
     }
 
     function getJoinResult(string calldata txHash) public returns (bool, string memory, uint32) {
-        (, string memory errMsg, uint32 code) =  router.messageResult(txHash);
-//         JoinResult memory res = abi.decode(txResult, (JoinResult));
-//        return (res.Success, errMsg, code);
-        return (true, errMsg, code);
+        (bytes memory txResult, string memory errMsg, uint32 code) =  router.messageResult(txHash);
+        if (code != 0) {
+            revert(errMsg);
+        }
+        JoinResult memory res = abi.decode(txResult, (JoinResult));
+        return (res.Success, errMsg, code);
     }
 
     function movePlayer(string calldata direction) public returns (bool) {

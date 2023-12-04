@@ -190,16 +190,21 @@ func (r *routerImpl) SendMessage(_ context.Context, namespace, sender, msgID str
 }
 
 func (r *routerImpl) MessageResult(_ context.Context, evmTxHash string) ([]byte, string, uint32, error) {
+	r.logger.Debug("fetching result", "tx_hash", evmTxHash)
 	res, ok := r.resultStore.Result(evmTxHash)
 	if !ok {
+		r.logger.Error("failed to fetch result")
 		return nil, "", 0, fmt.Errorf("no result found for tx %s", evmTxHash)
 	}
+	r.logger.Debug("found result", "code", res.Code)
 	return res.Result, res.Errs, res.Code, nil
 }
 
 func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error) {
+	r.logger.Debug("received query request", "namespace", namespace, "resource", resource)
 	client, err := r.getConnectionForNamespace(namespace)
 	if err != nil {
+		r.logger.Error("failed to get client connection", "error", err.Error())
 		return nil, err
 	}
 	res, err := client.QueryShard(ctx, &routerv1.QueryShardRequest{
@@ -207,8 +212,10 @@ func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namesp
 		Request:  request,
 	})
 	if err != nil {
+		r.logger.Error("failed to query game shard", "error", err.Error())
 		return nil, err
 	}
+	r.logger.Debug("successfully queried game shard")
 	return res.Response, nil
 }
 
