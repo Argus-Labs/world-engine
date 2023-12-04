@@ -1,8 +1,9 @@
 package ecs
 
 import (
-	"pkg.world.dev/world-engine/assert"
 	"testing"
+
+	"pkg.world.dev/world-engine/assert"
 )
 
 func TestIsAlphanumericWithUnderscore(t *testing.T) {

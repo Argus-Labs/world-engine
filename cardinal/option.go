@@ -96,11 +96,15 @@ func withMockRedis() WorldOption {
 	}
 	log.Logger.Debug().Msgf("miniredis started at %s", s.Addr())
 
+	return WithCustomMockRedis(s)
+}
+
+func WithCustomMockRedis(miniRedis *miniredis.Miniredis) WorldOption {
 	return WorldOption{
 		cardinalOption: func(world *World) {
 			world.cleanup = func() {
 				log.Logger.Debug().Msg("miniredis shutting down")
-				s.Close()
+				miniRedis.Close()
 				log.Logger.Debug().Msg("miniredis shutdown successful")
 			}
 		},

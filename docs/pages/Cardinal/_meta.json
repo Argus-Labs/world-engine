@@ -13,5 +13,8 @@
   },
   "Cross_Shard_Communication": {
     "title": "Cross Shard Communication"
+  },
+  "persona-tags": {
+    "title": "Persona Tags"
   }
 }

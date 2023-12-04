@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
@@ -22,6 +23,16 @@ type EnergyComponent struct {
 }
 
 func (EnergyComponent) Name() string {
+	return "EnergyComponent"
+}
+
+type AlteredEnergyComponent struct {
+	Amt        int64
+	Cap        int64
+	ExtraThing int64
+}
+
+func (AlteredEnergyComponent) Name() string {
 	return "EnergyComponent"
 }
 
@@ -61,9 +72,37 @@ func UpdateEnergySystem(wCtx ecs.WorldContext) error {
 }
 
 var (
-	Energy  = component.NewComponentMetadata[EnergyComponent]()
-	Ownable = component.NewComponentMetadata[OwnableComponent]()
+	Energy, errForEnergy   = component.NewComponentMetadata[EnergyComponent]()
+	Ownable, errForOwnable = component.NewComponentMetadata[OwnableComponent]()
 )
+
+func TestGlobals(t *testing.T) {
+	assert.NilError(t, errForEnergy)
+	assert.NilError(t, errForOwnable)
+}
+
+func TestSchemaChecking(t *testing.T) {
+	s := miniredis.NewMiniRedis()
+
+	err := s.StartAddr(":6379")
+	assert.NilError(t, err)
+	cardinalWorld := testutils.NewTestWorldWithCustomRedis(t, s)
+	ecsWorld := cardinalWorld.Instance()
+	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](ecsWorld))
+	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](ecsWorld))
+
+	assert.NilError(t, ecsWorld.LoadGameState())
+	assert.NilError(t, err)
+
+	cardinalWorld2 := testutils.NewTestWorldWithCustomRedis(t, s)
+	ecsWorld2 := cardinalWorld2.Instance()
+	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](ecsWorld2))
+	assert.Assert(t, ecs.RegisterComponent[AlteredEnergyComponent](ecsWorld2) != nil)
+	err = cardinalWorld2.ShutDown()
+	assert.NilError(t, err)
+	err = cardinalWorld.ShutDown()
+	assert.NilError(t, err)
+}
 
 func TestECS(t *testing.T) {
 	world := testutils.NewTestWorld(t).Instance()
