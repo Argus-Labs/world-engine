@@ -36,7 +36,7 @@ func NewMemoryResultStorage(keepAlive time.Duration) ResultStorage {
 func (r *resultStorageMemory) Result(hash string) (Result, bool) {
 	log.Debug().Msgf("attempting to get result for %q", hash)
 	res, ok := r.results.Load(hash)
-	r.clearStaleEntries()
+	defer r.clearStaleEntries()
 	if !ok {
 		log.Debug().Msg("no result found")
 		return Result{}, ok
