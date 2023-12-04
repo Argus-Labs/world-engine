@@ -16,6 +16,10 @@ type GameManager struct {
 	world   *ecs.World
 }
 
+func (g *GameManager) IsRunning() bool {
+	return g.handler.running.Load() && g.world.IsGameLoopRunning()
+}
+
 type GameManagerOptions = func(g *GameManager)
 
 func WithGameManagerPrettyPrint(_ *GameManager) {
@@ -48,22 +52,21 @@ func NewGameManager(world *ecs.World, handler *Handler, options ...GameManagerOp
 	return manager
 }
 
-func (s *GameManager) Shutdown() error {
-	log.Info().Msg("Shutting down server.")
-	if s.handler == nil {
+func (g *GameManager) Shutdown() error {
+	if g.handler == nil {
 		return eris.New("game manager has no server, can't shutdown")
 	}
-	err := s.handler.Shutdown()
+	err := g.handler.Shutdown()
 	if err != nil {
 		return err
 	}
-	log.Info().Msg("Server successfully shutdown.")
-	log.Info().Msg("Shutting down game loop.")
-	s.world.Shutdown()
-	err = s.world.StoreManager().Close()
+	g.world.Shutdown()
+	err = g.world.StoreManager().Close()
 	if err != nil {
 		return err
 	}
-	log.Info().Msg("Successfully shutdown server and game loop.")
+	if !g.IsRunning() {
+		log.Info().Msg("Successfully shutdown server and game loop.")
+	}
 	return nil
 }

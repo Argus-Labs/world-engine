@@ -58,10 +58,15 @@ func (Bar) Name() string {
 }
 
 var (
-	fooComp       = component.NewComponentMetadata[Foo]()
-	barComp       = component.NewComponentMetadata[Bar]()
-	allComponents = []component.ComponentMetadata{fooComp, barComp}
+	fooComp, errForFooCompGlobal = component.NewComponentMetadata[Foo]()
+	barComp, errForBarCompGlobal = component.NewComponentMetadata[Bar]()
+	allComponents                = []component.ComponentMetadata{fooComp, barComp}
 )
+
+func TestGlobals(t *testing.T) {
+	assert.NilError(t, errForFooCompGlobal)
+	assert.NilError(t, errForBarCompGlobal)
+}
 
 //nolint:gochecknoinits // its for testing.
 func init() {

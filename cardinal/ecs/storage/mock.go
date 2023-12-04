@@ -16,16 +16,22 @@ type MockComponentType[T any] struct {
 	id         component.TypeID
 	typ        reflect.Type
 	defaultVal interface{}
+	schema     []byte
 }
 
-func NewMockComponentType[T any](t T, defaultVal interface{}) *MockComponentType[T] {
+func NewMockComponentType[T component.Component](t T, defaultVal interface{}) (*MockComponentType[T], error) {
+	schema, err := component.SerializeComponentSchema(t)
+	if err != nil {
+		return nil, err
+	}
 	m := &MockComponentType[T]{
 		id:         nextMockComponentTypeID,
 		typ:        reflect.TypeOf(t),
 		defaultVal: defaultVal,
+		schema:     schema,
 	}
 	nextMockComponentTypeID++
-	return m
+	return m, nil
 }
 
 func (m *MockComponentType[T]) SetID(id component.TypeID) error {
@@ -57,4 +63,8 @@ func (m *MockComponentType[T]) Decode(bytes []byte) (any, error) {
 
 func (m *MockComponentType[T]) Encode(a any) ([]byte, error) {
 	return codec.Encode(a)
+}
+
+func (m *MockComponentType[T]) GetSchema() []byte {
+	return m.schema
 }

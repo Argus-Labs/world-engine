@@ -2,10 +2,11 @@ package ecs
 
 import (
 	"errors"
-	"github.com/ethereum/go-ethereum/common"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/types/component"
