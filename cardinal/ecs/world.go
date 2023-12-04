@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -84,6 +85,8 @@ type World struct {
 
 	// addChannelWaitingForNextTick accepts a channel which will be closed after a tick has been completed.
 	addChannelWaitingForNextTick chan chan struct{}
+
+	shutdownMutex sync.Mutex
 }
 
 var (
@@ -637,13 +640,17 @@ func (w *World) IsGameLoopRunning() bool {
 }
 
 func (w *World) Shutdown() {
+	w.shutdownMutex.Lock() // This queues up Shutdown calls so they happen one after the other.
+	defer w.shutdownMutex.Unlock()
 	if !w.IsGameLoopRunning() {
 		return
 	}
+	log.Info().Msg("Shutting down game loop.")
 	w.endGameLoopCh <- true
 	for w.IsGameLoopRunning() { // Block until loop stops.
 		time.Sleep(100 * time.Millisecond) //nolint:gomnd // its ok.
 	}
+	log.Info().Msg("Successfully shut down game loop.")
 	if w.eventHub != nil {
 		w.eventHub.ShutdownEventHub()
 	}

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-openapi/loads"
@@ -30,6 +32,8 @@ type Handler struct {
 	disableSigVerification bool
 	Port                   string
 	withCORS               bool
+	running                atomic.Bool
+	shutdownMutex          sync.Mutex
 
 	// plugins
 	adapter shard.WriteAdapter
@@ -53,6 +57,7 @@ const (
 // of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
 func NewHandler(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	h, err := newSwaggerHandlerEmbed(w, builder, opts...)
+	h.running.Store(false)
 	if err != nil {
 		return nil, err
 	}
@@ -232,14 +237,43 @@ func (handler *Handler) Serve() error {
 		return eris.Wrap(err, "error getting hostname")
 	}
 	log.Info().Msgf("serving cardinal at %s:%s", hostname, handler.Port)
-	return eris.Wrap(handler.server.ListenAndServe(), "error listening and serving")
+	handler.running.Store(true)
+	err = eris.Wrap(handler.server.ListenAndServe(), "error listening and serving")
+	handler.running.Store(false)
+	return err
 }
 
 func (handler *Handler) Close() error {
-	return eris.Wrap(handler.server.Close(), "error closing server")
+	err := eris.Wrap(handler.server.Close(), "error closing server")
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (handler *Handler) Shutdown() error {
+	handler.shutdownMutex.Lock()
+	defer handler.shutdownMutex.Unlock()
+	displayLogs := false
+	if handler.running.Load() {
+		// handler.running tracks whether the server is running.
+		// for safety allow shutdown to happen whenever this method is called
+		// EVEN if running reads that it is not running.
+		// However, only display the log message if expected running state is consistent.
+		// meaning that shutdown is called on a server where running is true.
+		displayLogs = true
+	}
+
+	if displayLogs {
+		log.Info().Msg("Shutting down server.")
+	}
 	ctx := context.Background()
-	return eris.Wrap(handler.server.Shutdown(ctx), "error shutting down http server")
+	err := eris.Wrap(handler.server.Shutdown(ctx), "error shutting down http server")
+	if err != nil {
+		return err
+	}
+	if displayLogs {
+		log.Info().Msg("Server successfully shutdown.")
+	}
+	return nil
 }
