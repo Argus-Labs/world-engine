@@ -6,14 +6,13 @@ Your Cardinal instance will only process Transactions that have been signed by a
 
 ## ECS Integration
 
-Persona Tag management is automatically included with Cardinal games. A system (called AuthorizePersonaAddressSystem) is registered with your world on startup, and a MessageType (called AuthorizePersonaAddressMsg) is used to track new Persona Tag creation requests. This registration happens automatically so nothing extra needs to be done to start processing Persona Tag creation requests.
+Persona Tag management is automatically included with Cardinal games. A system (called RegisterPersonaSystem) is registered with your world on startup, and a MessageType (called CreatePersonaMsg) is used to track new Persona Tag creation requests. This registration happens automatically so nothing extra needs to be done to start processing Persona Tag creation requests.
 
 While custom [MessageTypes](/Cardinal/API-Reference/Messages#newmessagetype) create Cardinal endpoints with the pattern `/tx/game/<message-name>`, the Persona Tag message creates a Cardinal endpoint of `/tx/persona/create-persona`. This endpoint is used to initially register Persona Tags with a Cardinal game.
 
-
 ## Persona Tags in Systems
 
-Within a System, you can loop over transactions of a particular type (See [Getting Transactions](/Cardinal/API-Reference/Systems#getting-transactions)). These transactions (called [TxData](https://world.dev/Cardinal/API-Reference/Systems#txdata)) contain some fields.
+Within a System, you can loop over transactions of a particular type (See [Getting Transactions](/Cardinal/API-Reference/Systems#getting-transactions)). These transactions (called [TxData](/Cardinal/API-Reference/Systems#txdata)) contain some fields.
 
 The `Msg` field is custom message data that you set up when you initially called NewMessageType.
 
@@ -43,7 +42,7 @@ func AttackSystem(worldCtx cardinal.WorldContext) {
 
 ## Nakama
 
-The easiest way to set up a Persona Tag with your cardinal game it to use Nakama. The `/nakama/claim-persona` RPC endpoint takes a request with a body of:
+The easiest way to set up a Persona Tag with your cardinal game it to use the [Cardinal plugin for Nakama](Nakama/plugin). The `/nakama/claim-persona` RPC endpoint takes a request with a body of:
 
 ```json
 {"personaTag": "the-persona-tag-you-want-to-claim"}
