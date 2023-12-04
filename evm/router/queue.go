@@ -3,7 +3,6 @@ package router
 import (
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 	v1 "pkg.world.dev/world-engine/rift/router/v1"
 )
@@ -20,13 +19,8 @@ var (
 )
 
 func (m *msgQueue) Set(sender common.Address, namespace string, msg *v1.SendMessageRequest) error {
-	log.Logger.Info().Msg("inside Set")
-	if m.IsSet(sender) {
-		log.Logger.Error().Msg("error: queue already set for this sender. only one cross-shard msg may be queued per-block.")
-		return eris.Wrap(ErrAlreadySet, sender.String())
-	}
 	m.queue[sender] = &gameShardMsg{msg, namespace}
-	log.Logger.Debug().Msg("in queue: msg queued")
+	log.Logger.Debug().Msgf("queued message to %q", namespace)
 	return nil
 }
 
@@ -40,9 +34,7 @@ func (m *msgQueue) Remove(sender common.Address) {
 }
 
 func (m *msgQueue) IsSet(address common.Address) bool {
-	log.Logger.Info().Msg("inside IsSet")
 	_, isSet := m.queue[address]
-	log.Logger.Info().Msg("returning from IsSet")
 	return isSet
 }
 

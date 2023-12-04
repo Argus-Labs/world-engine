@@ -603,6 +603,7 @@ func (w *World) WaitForNextTick() (success bool) {
 	ch := make(chan struct{})
 	w.addChannelWaitingForNextTick <- ch
 	<-ch
+	time.Sleep(500 * time.Millisecond)
 	return w.CurrentTick() > startTick
 }
 

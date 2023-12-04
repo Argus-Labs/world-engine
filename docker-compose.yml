@@ -71,6 +71,7 @@ services:
       - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-}
       - NAMESPACE_AUTHORITY_ADDR=${NAMESPACE_AUTHORITY_ADDR:-world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5}
       - FAUCET_ADDR=${FAUCET_ADDR:-world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5}
+      - GAME_SHARD_ADDR=${GAME_SHARD_ADDR:-game:9020}
     build:
       context: evm
       dockerfile: Dockerfile

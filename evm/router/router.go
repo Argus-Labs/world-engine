@@ -7,6 +7,7 @@ import (
 	"fmt"
 	ethtypes "github.com/ethereum/go-ethereum/core/types"
 	"os"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -25,7 +26,7 @@ import (
 
 // Router defines the methods required to interact with a game shard. The methods are invoked from EVM smart contracts.
 type Router interface {
-	// QueueMessage queues a message to be sent to a game shard.
+	// SendMessage queues a message to be sent to a game shard.
 	SendMessage(_ context.Context, namespace string, sender string, msgID string, msg []byte) error
 	// Query queries a game shard.
 	Query(ctx context.Context, request []byte, resource, namespace string) ([]byte, error)
@@ -86,27 +87,26 @@ func (r *routerImpl) PostBlockHook(transactions types.Transactions, receipts typ
 	r.logger.Info("running PostBlockHook",
 		"num_transactions", len(transactions),
 	)
+	// loop over all txs
 	for i, tx := range transactions {
 		r.logger.Info("working on transaction", "tx_hash", tx.Hash().String())
-		if tx.Hash().Cmp(receipts[i].TxHash) != 0 {
-			r.logger.Error("transaction and receipt mismatch. this should NEVER happen",
-				"tx_hash", tx.Hash().String(),
-				"receipt_hash", receipts[i].TxHash.String(),
-			)
-		}
-
-		// TODO: its entirely possible that a sender has NON cross-shard txs available.
-		// need a way to diff these...Probs not possible though. reee.
-		if receipts[i].Status == ethtypes.ReceiptStatusSuccessful {
-			r.logger.Info("tx was successful, attempting to dispatch")
-			sig, err := signer.Sender(tx)
-			if err != nil {
-				r.logger.Error("could not get signer for tx", "tx_hash", tx.Hash().String())
-				continue
+		// we check the `To` address because the precompile msg.Sender will be the contract address,
+		// NOT the tx.Origin address, or, more formally, the EOA address that triggered the tx.
+		if txTo := tx.To(); txTo != nil {
+			toAddr := *txTo
+			// check if theres a cross-shard tx queued from this address
+			if r.queue.IsSet(toAddr) {
+				receipt := receipts[i]
+				// ensure this tx was executed successfully. we don't want to send a tx to Cardinal if the
+				// EVM tx failed.
+				if receipt.Status == ethtypes.ReceiptStatusSuccessful {
+					r.logger.Debug("attempting to dispatch tx",
+						"sender", toAddr.String(),
+						"txHash", receipt.TxHash.String(),
+					)
+					r.dispatchMessage(toAddr, receipt.TxHash)
+				}
 			}
-			r.dispatchMessage(sig, tx.Hash())
-		} else {
-			r.logger.Info("tx was unsuccessful, moving on to next tx")
 		}
 	}
 	r.queue.Clear()
@@ -118,6 +118,7 @@ const (
 )
 
 func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) {
+	// get the message from the queue.
 	nsMsg, exists := r.queue.Message(sender)
 	if !exists {
 		r.logger.Error("no message found in queue for sender", "sender", sender.String())
@@ -125,6 +126,7 @@ func (r *routerImpl) dispatchMessage(sender common.Address, txHash common.Hash) 
 	}
 	r.logger.Info("found cross-shard message in queue", "tx_hash", txHash.String())
 	msg := nsMsg.msg
+	msg.Sender = strings.ToLower(msg.Sender) // normalize the request
 	namespace := nsMsg.namespace
 	msg.EvmTxHash = txHash.String()
 	r.logger.Info("attempting to get client connection")
@@ -177,7 +179,11 @@ func (r *routerImpl) SendMessage(_ context.Context, namespace, sender, msgID str
 		Message:   msg,
 	}
 	r.logger.Info("attempting to set queue...")
-	r.queue.Set(common.HexToAddress(sender), namespace, req)
+	err := r.queue.Set(common.HexToAddress(sender), namespace, req)
+	if err != nil {
+		r.logger.Error("failed to queue message", "error", err.Error())
+		return err
+	}
 	r.logger.Info("successfully set queue")
 	return nil
 }
@@ -206,17 +212,22 @@ func (r *routerImpl) Query(ctx context.Context, request []byte, resource, namesp
 }
 
 func (r *routerImpl) getConnectionForNamespace(ns string) (routerv1.MsgClient, error) {
-	ctx := r.getSDKCtx()
-	res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
-	if err != nil {
-		return nil, err
+	// CLI is currently brokne.
+	//ctx := r.getSDKCtx()
+	//res, err := r.getAddr(ctx, &namespacetypes.AddressRequest{Namespace: ns})
+	//if err != nil {
+	//	return nil, err
+	//}
+	addr := os.Getenv("GAME_SHARD_ADDR")
+	if addr == "" {
+		return nil, fmt.Errorf("no address set for router to dial")
 	}
 	conn, err := grpc.Dial(
-		res.Address,
+		addr,
 		grpc.WithTransportCredentials(r.creds),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to '%s' for namespace '%s'", res.Address, ns)
+		return nil, fmt.Errorf("error connecting to '%s' for namespace '%s'", addr, ns)
 	}
 	return routerv1.NewMsgClient(conn), nil
 }

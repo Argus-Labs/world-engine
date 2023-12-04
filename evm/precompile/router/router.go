@@ -53,7 +53,13 @@ func (c *Contract) SendMessage(
 }
 
 func (c *Contract) MessageResult(ctx context.Context, evmTxHash string) ([]byte, string, uint32, error) {
-	return c.rtr.MessageResult(ctx, evmTxHash)
+	resultBz, resultErr, resultCode, err := c.rtr.MessageResult(ctx, evmTxHash)
+	if err != nil {
+		log.Error().Err(err).Msgf("failed to get msg result")
+		return nil, "", 0, err
+	}
+	log.Debug().Msgf("successfully retrieved result: code %d, errors %q", resultCode, resultErr)
+	return resultBz, resultErr, resultCode, nil
 }
 
 func (c *Contract) Query(
