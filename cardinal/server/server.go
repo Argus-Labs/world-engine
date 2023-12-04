@@ -248,7 +248,6 @@ func (handler *Handler) Close() error {
 	if err != nil {
 		return err
 	}
-	handler.running.Store(false)
 	return nil
 }
 
@@ -256,7 +255,7 @@ func (handler *Handler) Shutdown() error {
 	handler.shutdownMutex.Lock()
 	defer handler.shutdownMutex.Unlock()
 	displayLogs := false
-	if !handler.running.Load() {
+	if handler.running.Load() {
 		// handler.running tracks whether the server is running.
 		// for safety allow shutdown to happen whenever this method is called
 		// EVEN if running reads that it is not running.
@@ -273,7 +272,6 @@ func (handler *Handler) Shutdown() error {
 	if err != nil {
 		return err
 	}
-	handler.running.Store(false)
 	if displayLogs {
 		log.Info().Msg("Server successfully shutdown.")
 	}
