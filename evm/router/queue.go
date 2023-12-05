@@ -1,7 +1,6 @@
 package router
 
 import (
-	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rs/zerolog/log"
 	v1 "pkg.world.dev/world-engine/rift/router/v1"
@@ -13,11 +12,6 @@ type gameShardMsg struct {
 	// the namespace of the game shard.
 	namespace string
 }
-
-var (
-	ErrAlreadySet = errors.New("queue is already set for this address. only one cross-shard message may be " +
-		"queued per EVM block")
-)
 
 func (m *msgQueue) Set(sender common.Address, namespace string, msg *v1.SendMessageRequest) error {
 	m.queue[sender] = &gameShardMsg{msg, namespace}
