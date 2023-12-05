@@ -23,6 +23,28 @@ For messages, Router operates asynchronously, which requires a callback mechanis
 
 Queries are synchronous and do not require a callback.
 
+## Prerequisite
+
+Before using the Router, a user must first authorize the contract address that will be utilizing the Router. This will let the linked address act on behalf of the persona tag. This process is done through the `AuthorizePersonaAddress` system, built into Cardinal.
+
+
+<Callout type="warning">
+    Be sure to add the proper guards to your Smart Contract when utilizing Router. Authorizing a contract address lets that contract control your account. Without proper guards, any user could interact with the contract and make game moves on your behalf.
+</Callout>
+
+### Endpoint
+
+`/tx/game/authorize-persona-address`
+
+
+### Input
+```
+{
+    "personaTag" : "cool_mage20"
+    "address" : "0xeF68bBDa508adF1FC4589f8620DaD9EDBBFfA0B0"
+}
+```
+
 ## Precompile Address
 
 `0x356833c4666fFB6bFccbF8D600fa7282290dE073`

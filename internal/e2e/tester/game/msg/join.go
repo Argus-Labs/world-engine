@@ -5,8 +5,11 @@ import (
 )
 
 type JoinInput struct {
+	Ok bool
 }
 
-type JoinOutput struct{}
+type JoinOutput struct {
+	Success bool
+}
 
 var JoinMsg = cardinal.NewMessageTypeWithEVMSupport[JoinInput, JoinOutput]("join")

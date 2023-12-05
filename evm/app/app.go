@@ -21,6 +21,7 @@
 package app
 
 import (
+	"github.com/cometbft/cometbft/abci/types"
 	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
 	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
 
@@ -184,8 +185,10 @@ func NewApp(
 		evmconfig.MustReadConfigFromAppOpts(appOpts), app.Logger(), app.EVMKeeper.Host, nil,
 	)
 
+	app.setPlugins(logger)
+
 	// Setup Polaris Runtime.
-	if err := app.Polaris.Build(app, app.EVMKeeper, miner.DefaultAllowedMsgs); err != nil {
+	if err := app.Polaris.Build(app, app.EVMKeeper, miner.DefaultAllowedMsgs, app.Router.PostBlockHook); err != nil {
 		panic(err)
 	}
 	// register streaming services
@@ -198,10 +201,7 @@ func NewApp(
 
 	ethcryptocodec.RegisterInterfaces(app.interfaceRegistry)
 
-	app.SetEndBlocker(app.endBlocker)
-
-	app.setPlugins(logger)
-
+	app.SetPreBlocker(app.preBlocker)
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
@@ -216,21 +216,28 @@ func NewApp(
 	return app
 }
 
-func (app *App) endBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
-	app.Logger().Info("running finalize block")
+func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
 	txs := app.ShardSequencer.FlushMessages()
-	endBlock := sdk.EndBlock{}
-	if len(txs) > 0 {
-		app.Logger().Info("flushed messages from game shard. Executing...")
+	numTxs := len(txs)
+	app.Logger().Debug("flushing game shard sequencer txs", "len_txs", numTxs)
+	resPreBlock := &sdk.ResponsePreBlock{}
+	if numTxs > 0 {
+		app.Logger().Info("sequencing game shard txs")
 		handler := app.MsgServiceRouter().Handler(txs[0])
 		for _, tx := range txs {
+			app.Logger().Debug("sequencing tx", "tx", tx.String())
 			_, err := handler(ctx, tx)
 			if err != nil {
-				return sdk.EndBlock{}, err
+				app.Logger().Error("error handling game shard tx",
+					"error", err.Error(),
+					"tx", tx.String(),
+				)
+				return resPreBlock, err
 			}
 		}
+		app.Logger().Debug("successfully sequenced game shard txs", "len_txs", numTxs)
 	}
-	return endBlock, nil
+	return resPreBlock, nil
 }
 
 // Name returns the name of the App.

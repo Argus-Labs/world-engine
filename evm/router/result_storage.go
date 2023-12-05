@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/rs/zerolog/log"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"sync"
 	"time"
@@ -33,22 +34,28 @@ func NewMemoryResultStorage(keepAlive time.Duration) ResultStorage {
 }
 
 func (r *resultStorageMemory) Result(hash string) (Result, bool) {
+	log.Debug().Msgf("attempting to get result for %q", hash)
 	res, ok := r.results.Load(hash)
-	r.clearStaleEntries()
+	defer r.clearStaleEntries()
 	if !ok {
+		log.Debug().Msg("no result found")
 		return Result{}, ok
 	}
+	log.Debug().Msg("result found")
 	return res.(Result), ok
 }
 
 func (r *resultStorageMemory) SetResult(msg *routerv1.SendMessageResponse) {
-	r.results.Store(msg.EvmTxHash, Result{msg, time.Now()})
+	result := Result{msg, time.Now()}
+	log.Debug().Msgf("storing result for tx %q: result: %s", msg.EvmTxHash, result.String())
+	r.results.Store(msg.EvmTxHash, result)
 }
 
 func (r *resultStorageMemory) clearStaleEntries() {
 	r.results.Range(func(key, value any) bool {
 		res, _ := value.(Result)
 		if res.expired(r.keepAlive) {
+			log.Debug().Msgf("result expired: deleting result for %v", key)
 			r.results.Delete(key)
 		}
 		return true

@@ -249,8 +249,8 @@ func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessage
 	s.world.AddEVMTransaction(itx.ID(), tx, sig, msg.EvmTxHash)
 
 	// wait for the next tick so the tx gets processed
-	timedOut := s.world.WaitForNextTick()
-	if timedOut {
+	success := s.world.WaitForNextTick()
+	if !success {
 		return &routerv1.SendMessageResponse{
 			EvmTxHash: msg.EvmTxHash,
 			Code:      CodeServerUnresponsive,
@@ -327,21 +327,27 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 func (s *msgServerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardRequest) (
 	*routerv1.QueryShardResponse, error,
 ) {
+	zerolog.Logger.Debug().Msgf("get request for %q", req.Resource)
 	query, ok := s.queryMap[req.Resource]
 	if !ok {
 		return nil, eris.Errorf("no query with name %s found", req.Resource)
 	}
 	ecsRequest, err := query.DecodeEVMRequest(req.Request)
 	if err != nil {
+		zerolog.Logger.Error().Err(err).Msg("failed to decode query request")
 		return nil, err
 	}
 	reply, err := query.HandleQuery(ecs.NewReadOnlyWorldContext(s.world), ecsRequest)
 	if err != nil {
+		zerolog.Logger.Error().Err(err).Msg("failed to handle query")
 		return nil, err
 	}
+	zerolog.Logger.Debug().Msg("successfully handled query")
 	bz, err := query.EncodeEVMReply(reply)
 	if err != nil {
+		zerolog.Logger.Error().Err(err).Msg("failed to encode query reply for EVM")
 		return nil, err
 	}
+	zerolog.Logger.Debug().Msgf("sending back reply: %v", reply)
 	return &routerv1.QueryShardResponse{Response: bz}, nil
 }
