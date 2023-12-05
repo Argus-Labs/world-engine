@@ -22,16 +22,16 @@ jobs:
       evm: ${{ steps.changes.outputs.evm }}
       nakama: ${{ steps.changes.outputs.nakama }}
     steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-    - uses: dorny/paths-filter@v2
-      id: changes
-      with:
-        filters: |
-          evm:
-            - 'evm/**'
-          nakama:
-            - 'relay/nakama/**'
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            evm:
+              - 'evm/**'
+            nakama:
+              - 'relay/nakama/**'
   evm-release:
     name: EVM Image Release
     needs: dir-changes
