@@ -20,7 +20,7 @@ func (g *GameManager) IsRunning() bool {
 	return g.handler.running.Load() && g.world.IsGameLoopRunning()
 }
 
-type GameManagerOptions = func(g *GameManager)
+type GameManagerOptions func(g *GameManager)
 
 func WithGameManagerPrettyPrint(_ *GameManager) {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
