@@ -48,7 +48,7 @@ world-evm genesis collect-gentxs
 cp app.toml /root/.world-evm/config/app.toml
 
 sed -i'.bak' 's#"20f33ce90a13a4b5e7697e3544c3083b8f8a51d4"#"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"#g' /root/.world-evm/config/genesis.json
-sed -i'.bak' 's#"0x1b1ae4d6e2ef500000"#"0x7fffffffffffffff"#g' /root/.world-evm/config/genesis.json
+sed -i'.bak' 's#"0x1b1ae4d6e2ef500000"#"0x3fffffffffffffff0000000000000001"#g' /root/.world-evm/config/genesis.json
 
 # start the node.
 world-evm start --rollkit.aggregator true --rollkit.da_layer celestia --rollkit.da_config=$DA_CONFIG --rollkit.namespace_id $DA_NAMESPACE_ID --rollkit.da_start_height $DA_BLOCK_HEIGHT --rollkit.block_time $BLOCK_TIME --minimum-gas-prices $MIN_GAS_PRICE --api.enable --api.swagger
