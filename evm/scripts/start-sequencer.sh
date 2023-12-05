@@ -20,7 +20,7 @@ TOKEN_AMOUNT=${TOKEN_AMOUNT:-"10000000000000000000000world"}
 STAKING_AMOUNT=${STAKING_AMOUNT:-"1000000world"}
 MIN_GAS_PRICE=${MIN_GAS_PRICE:-"0world"}
 TOKEN_DENOM=${TOKEN_DENOM:-"world"}
-FAUCET_ADDR=${FAUCET_ADDR:-"world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5"}
+FAUCET_ADDR=${FAUCET_ADDR:-"e66d1f367870950190fA3a07D36b26c187a2E578"}
 
 # DA related variables/configuration
 DA_BASE_URL="${DA_BASE_URL:-"http://celestia-devnet:26658"}"
@@ -47,7 +47,7 @@ world-evm genesis collect-gentxs
 
 cp app.toml /root/.world-evm/config/app.toml
 
-sed -i'.bak' 's#"20f33ce90a13a4b5e7697e3544c3083b8f8a51d4"#"aa9288F88233Eb887d194fF2215Cf1776a6FEE41"#g' /root/.world-evm/config/genesis.json
+sed -i'.bak' 's#"20f33ce90a13a4b5e7697e3544c3083b8f8a51d4"#"e66d1f367870950190fA3a07D36b26c187a2E578"#g' /root/.world-evm/config/genesis.json
 sed -i'.bak' 's#"0x1b1ae4d6e2ef500000"#"0x3fffffffffffffff0000000000000001"#g' /root/.world-evm/config/genesis.json
 
 # start the node.
