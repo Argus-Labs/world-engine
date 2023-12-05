@@ -72,19 +72,19 @@ func MakeTestTransactionHandler(
 	})
 
 	go func() {
-		logEvent(t, "starting serve")
+		LogEvent(t, "starting serve")
 		err = txh.Serve()
 		// ErrServerClosed is returned from txh.Serve after txh.Close is called. This is
 		// normal.
-		logEvent(t, fmt.Sprintf("returned from serve: %v", err))
+		LogEvent(t, fmt.Sprintf("returned from serve: %v", err))
 		if !eris.Is(eris.Cause(err), http.ErrServerClosed) {
-			logEvent(t, fmt.Sprintf("server ended poorly: %v", err))
+			LogEvent(t, fmt.Sprintf("server ended poorly: %v", err))
 			assert.NilError(t, err)
 		}
 	}()
 	gameObject := server.NewGameManager(world, txh)
 	t.Cleanup(func() {
-		logEvent(t, "cleanup: game object shutdown")
+		LogEvent(t, "cleanup: game object shutdown")
 		_ = gameObject.Shutdown()
 	})
 
@@ -92,7 +92,7 @@ func MakeTestTransactionHandler(
 	healthURL := host + healthPath
 	start := time.Now()
 	for {
-		logEvent(t, "server start loop: looping until server has started")
+		LogEvent(t, "server start loop: looping until server has started")
 		assert.Check(
 			t,
 			time.Since(start) < time.Second,
@@ -101,11 +101,11 @@ func MakeTestTransactionHandler(
 		//nolint:noctx,bodyclose // its for a test.
 		resp, err := http.Get("http://" + healthURL)
 		if err == nil && resp.StatusCode == 200 {
-			logEvent(t, "server start loop: server has started")
+			LogEvent(t, "server start loop: server has started")
 			// the health check endpoint was successfully queried.
 			break
 		}
-		logEvent(t, "server start loop: trying again")
+		LogEvent(t, "server start loop: trying again")
 	}
 
 	return &TestTransactionHandler{
