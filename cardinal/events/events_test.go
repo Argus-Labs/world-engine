@@ -24,7 +24,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
-func TestEventError(t *testing.T) {
+func TestXEventError(t *testing.T) {
 	err := events.WebSocketEchoHandler(nil)
 	// fmt.Println(eris.ToString(err, true))
 	mappedJSON := eris.ToJSON(err, true)
@@ -39,7 +39,7 @@ func TestEventError(t *testing.T) {
 	assert.Assert(t, len(v3) > 0)
 }
 
-func TestEvents(t *testing.T) {
+func TestEventsXX(t *testing.T) {
 	// broadcast 5 messages to 5 clients means 25 messages received.
 	numberToTest := 5
 	w := testutils.NewTestWorld(t).Instance()
@@ -61,9 +61,13 @@ func TestEvents(t *testing.T) {
 			txh.EventHub.EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
 		}()
 	}
+	testutils.LogEvent(t, "etest: waiting for first wait group")
 	wg.Wait()
+	testutils.LogEvent(t, "etest: done with first wait group")
 	go func() {
+		testutils.LogEvent(t, "etest: flush events")
 		txh.EventHub.FlushEvents()
+		testutils.LogEvent(t, "etest: done with flush events")
 	}()
 	var count atomic.Int32
 	count.Store(0)
@@ -81,9 +85,14 @@ func TestEvents(t *testing.T) {
 			}
 		}()
 	}
+	testutils.LogEvent(t, "etest: waiting for second wait group")
 	wg.Wait()
+	testutils.LogEvent(t, "etest: done with second wait group")
+	testutils.LogEvent(t, "etest: shutting down event hub")
 	txh.EventHub.ShutdownEventHub()
+	testutils.LogEvent(t, "etest: done with shutting down event hub")
 	assert.Equal(t, count.Load(), int32(numberToTest*numberToTest))
+	testutils.LogEvent(t, "etest: end of test")
 }
 
 type garbageStructAlpha struct {
@@ -105,7 +114,7 @@ type SendEnergyTx struct {
 
 type SendEnergyTxResult struct{}
 
-func TestEventsThroughSystems(t *testing.T) {
+func TestXEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
 	w := testutils.NewTestWorld(t).Instance()
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")

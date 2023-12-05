@@ -31,7 +31,7 @@ type serverEvent struct {
 
 var serverEventsChannel = make(chan serverEvent)
 
-func logEvent(t *testing.T, msg string) {
+func LogEvent(t *testing.T, msg string) {
 	serverEventsChannel <- serverEvent{
 		testName: t.Name(),
 		msg:      msg,
@@ -67,7 +67,7 @@ func MakeTestTransactionHandler(
 
 	healthPath := "/health"
 	t.Cleanup(func() {
-		logEvent(t, "cleanup: closing tx handler")
+		LogEvent(t, "cleanup: closing tx handler")
 		assert.NilError(t, txh.Close())
 	})
 
