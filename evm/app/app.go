@@ -233,7 +233,7 @@ func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk
 				return resPreBlock, err
 			}
 		}
-		zerolog.Debug().Msg("succesfully sequenced game shard txs")
+		zerolog.Debug().Msg("successfully sequenced game shard txs")
 	}
 	return resPreBlock, nil
 }
