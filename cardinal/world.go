@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -241,10 +242,12 @@ func (w *World) StartGame() error {
 	go func() {
 		ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageStarting, gamestage.StageRunning)
 		if !ok {
-			log.Fatal().Err(errors.New("game was started prematurely"))
+			log.Fatal().Msg("game was started prematurely")
 		}
-		if err := w.server.Serve(); err != nil {
-			log.Fatal().Err(err)
+		if err := w.server.Serve(); errors.Is(err, http.ErrServerClosed) {
+			log.Info().Err(err).Msg("the server has been closed")
+		} else if err != nil {
+			log.Fatal().Err(err).Msg("the server has failed")
 		}
 	}()
 
