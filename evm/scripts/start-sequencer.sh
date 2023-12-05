@@ -47,7 +47,7 @@ world-evm genesis collect-gentxs
 
 cp app.toml /root/.world-evm/config/app.toml
 
-sed -i'.bak' 's#"20f33ce90a13a4b5e7697e3544c3083b8f8a51d4"#"e66d1f367870950190fA3a07D36b26c187a2E578"#g' /root/.world-evm/config/genesis.json
+sed -i'.bak' "s#'20f33ce90a13a4b5e7697e3544c3083b8f8a51d4'#'$FAUCET_ADDR'#g" /root/.world-evm/config/genesis.json
 sed -i'.bak' 's#"0x1b1ae4d6e2ef500000"#"0x3fffffffffffffff0000000000000001"#g' /root/.world-evm/config/genesis.json
 
 # start the node.
