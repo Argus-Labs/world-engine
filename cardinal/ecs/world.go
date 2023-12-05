@@ -32,7 +32,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
 )
 
