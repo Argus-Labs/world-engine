@@ -19,9 +19,25 @@ scaling by spinning up another separate rollup.
 
 ## Getting Started
 
-The simplest way to get started with World Engine is to build a game shard using Cardinal.
-You can quickly get an instance of Cardinal and a game client relayer, Nakama, running by forking
-the [starter-game-template](https://github.com/Argus-Labs/starter-game-template)
+The simplest way to get started with World Engine is to build a game shard using Cardinal. Note, this repo is for the core development of the World Engine only, and should not be used for developing World Engine powered games.
+
+Using the world-cli, you can get started with your own Cardinal game shard. Please see [getting started](https://world.dev/Cardinal/getting-started) for more details.
+
+
+## Documentation
+
+To learn how to build your own World Engine powered game, visit our [documentation](http://world.dev).
+
+## Directory Structure
+<pre>
+◢ ✦ ◣ World Engine ◢ ✦ ◣
+├── <a href="./assert">assert</a>: Custom testing package that includes stack traces in errors.
+├── <a href="./cardinal">cardinal</a>: The first World Engine game shard implementation.
+├── <a href="./evm">evm</a>: Rollkit and Polaris integrated Base Shard rollup.
+├── <a href="./relay">relay</a>: Game Shard message relayer. Currently contains one implementation using Nakama.
+├── <a href="./rift">rift</a>: Protobuf definitions and generated Go code for the World Engine's cross shard messaging protocol.
+├── <a href="./sign">sign</a>: Library to facilitate message signing and verification.
+</pre>
 
 ## 🚧 WARNING: UNDER CONSTRUCTION 🚧
 

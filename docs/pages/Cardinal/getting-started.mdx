@@ -1,45 +1,75 @@
 # Getting Started
 
-The easiest way to get started with building a Cardinal game shard is via the [starter-game-template](https://github.com/Argus-Labs/starter-game-template). To get the template, run the following command in your preferred development directory:
+The easiest way to get started with building a Cardinal game shard is via the [world-cli](https://github.com/Argus-Labs/world-cli)
+
+## Installing World CLI
 
 ```zsh
-git clone https://github.com/Argus-Labs/starter-game-template
+curl https://install.world.dev/cli! | bash
 ```
 
-## Anatomy of the Starter Game Template
+Verify installation was successful:
 
-The starter game template has 2 directories, but you will only need to worry about the cardinal directory.
+```zsh
+world version
+```
 
-- [cardinal](https://github.com/Argus-Labs/starter-game-template/tree/main/cardinal): code for your game server.
-- [testsuite](https://github.com/Argus-Labs/starter-game-template/tree/main/testsuite): e2e tests for the whole stack.
+Verify dependencies are installed:
 
-### Cardinal
+```zsh
+world doctor
+```
 
-Cardinal is where the game logic lives. We recommend the following directory structure to organize your code:
+## Creating a Cardinal Game Shard
+
+```zsh
+world cardinal create
+```
+
+This will clone the `starter-game-template` in the directory of your game shard name.
+
+The `cardinal` directory is where the game logic lives. It contains the following sub-directories:
 
 - `component`: component definitions
 - `system`: system functions implementations
 - `query`: query implementations for your game state (used by external clients)
-- `tx`: transaction definitions
+- `msg`: message definitions
 
-The starter game template comes with some existing code in these directories, so you can get a feel for how things should be organized and implemented.
+The `starter-game-template` comes with some existing code in these directories, so you can get a feel for how things should be organized and implemented.
 
-### Nakama
+## Starting the Game Shard
 
-Nakama is where the relayer and account abstraction layer lives. We expect most people to use our version of Nakama,
-which comes with a few benefits:
+```zsh
+world cardinal dev
+```
 
-- Automatically set up RPC endpoints for game clients to hook into the Cardinal game world
-- Handle account abstraction and persona tags (similar to gamer-tags)
-- Allows for account authentication using a third party account such as Google, Facebook, or Steam
-- Allows for non-chain interactions with backend Cardinal systems for easy testing and development
+This will start the game shard in development mode, allowing you to interact with your game shard locally.
 
-### Docker Compose
 
-The starter-game-template contains a [Docker Compose](https://docs.docker.com/compose/) configuration that can run several cardinal related services locally.
+## Stopping the Game Shard
 
-- cardinal: The aforementioned cardinal based game server
-- nakama: A pre-build Nakama image that can communicate with the game server
-- postgres: The storage layer that Nakama depends on
-- redis: The storage layer that Cardinal depends on
-- testsuite: Some sample integration tests that verify Nakama and Cardinal are communicating correctly
+```zsh
+world cardinal stop
+```
+
+## Resetting the State
+
+If you need a clean reset of state for your game shard, run:
+
+```zsh
+world cardinal purge
+```
+
+## Running the EVM Base Shard
+
+To start the EVM base shard with a local celestia DA layer, run:
+
+```zsh
+world evm start --dev
+```
+
+To shut down the stack, run:
+
+```zsh
+world evm stop
+```
