@@ -130,7 +130,7 @@ func TestWorldLogger(t *testing.T) {
 	assert.NilError(t, err)
 	entityID, err := ecs.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)
-	logStrings := strings.Split(buf.String(), "\n")[:2]
+	logStrings := strings.Split(buf.String(), "\n")[:3]
 	require.JSONEq(
 		t, `
 			{
@@ -177,7 +177,7 @@ func TestWorldLogger(t *testing.T) {
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
 	err = w.Tick(ctx)
 	assert.NilError(t, err)
-	logStrings = strings.Split(buf.String(), "\n")[:4]
+	logStrings = strings.Split(buf.String(), "\n")[:5]
 	// test tick start
 	require.JSONEq(
 		t, `
@@ -215,24 +215,24 @@ func TestWorldLogger(t *testing.T) {
 		json = bytes.ReplaceAll(json, []byte("\r"), []byte(""))
 		return json
 	}
-	var map1, map2 map[string]interface{}
+	var expectedMap, map2 map[string]interface{}
 	// tick execution time is not tested.
 	json1 := []byte(`{
-				 "level":"warn",
+				 "level":"info",
 				 "tick":"0",
 				 "tick_execution_time": 0, 
-				 "message":"tick ended, (warning: tick exceeded 100ms)"
+				 "message":"tick ended"
 			 }`)
 	json1 = sanitizedJSON(json1)
-	if err = json.Unmarshal(json1, &map1); err != nil {
+	if err = json.Unmarshal(json1, &expectedMap); err != nil {
 		t.Fatalf("Error unmarshalling json1: %v", err)
 	}
-	if err = json.Unmarshal([]byte(logStrings[3]), &map2); err != nil {
+	if err = json.Unmarshal([]byte(logStrings[4]), &map2); err != nil {
 		t.Fatalf("Error unmarshalling buf: %v", err)
 	}
 	names := []string{"level", "tick", "tick_execution_time", "message"}
 	for _, name := range names {
-		v1, ok := map1[name]
+		v1, ok := expectedMap[name]
 		if !ok {
 			t.Errorf("Should be a value in %s", name)
 		}
