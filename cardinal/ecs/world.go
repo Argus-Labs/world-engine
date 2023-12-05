@@ -486,18 +486,13 @@ func (w *World) Tick(_ context.Context) error {
 	w.receiptHistory.NextTick()
 	elapsedTime := time.Since(startTime)
 
-	var logEvent *zerolog.Event
-	message := "tick ended"
 	if elapsedTime > warningThreshold {
-		logEvent = w.Logger.Warn()
-		message += fmt.Sprintf(", (warning: tick exceeded %dms)", warningThreshold.Milliseconds())
-	} else {
-		logEvent = w.Logger.Info()
+		w.Logger.Warn().Msg(fmt.Sprintf(", (warning: tick exceeded %dms)", warningThreshold.Milliseconds()))
 	}
-	logEvent.
+	w.Logger.Info().
 		Int("tick_execution_time", int(elapsedTime.Milliseconds())).
 		Str("tick", tickAsString).
-		Msg(message)
+		Msg("tick ended")
 	return nil
 }
 
