@@ -1861,8 +1861,6 @@ github.com/rollkit/cosmos-sdk v0.50.0-rc.1-rollkit-v0.11.4-no-fraud-proofs h1:ZJ
 github.com/rollkit/cosmos-sdk v0.50.0-rc.1-rollkit-v0.11.4-no-fraud-proofs/go.mod h1:50Y1seGFhqSD85fuBODlCqP7PXOn4AZHZJy+5Dv3phc=
 github.com/rollkit/rollkit v0.11.4 h1:eLFV9pqUzB0l7gc04nKe0vMD8Cb2HEmMj+fKJtyvFp0=
 github.com/rollkit/rollkit v0.11.4/go.mod h1:8J++BryR/EJVqNzWY8+mblM0WptVwUOVqUKgifHqaEw=
-github.com/rotisserie/eris v0.5.4 h1:Il6IvLdAapsMhvuOahHWiBnl1G++Q0/L5UIkI5mARSk=
-github.com/rotisserie/eris v0.5.4/go.mod h1:Z/kgYTJiJtocxCbFfvRmO+QejApzG6zpyky9G1A4g9s=
 github.com/rs/cors v1.7.0/go.mod h1:gFx+x8UowdsKA9AchylcLynDq+nNFfI8FkUZdN/jGCU=
 github.com/rs/cors v1.8.2/go.mod h1:XyqrcTp5zjWr1wsJ8PIRZssZ8b/WMcMf71DJnit4EMU=
 github.com/rs/cors v1.10.1 h1:L0uuZVXIKlI1SShY2nhFfo44TYvDPQ1w4oFkUJNfhyo=
@@ -3105,8 +3103,8 @@ pkg.berachain.dev/polaris/contracts v0.0.0-20231104204753-faadca38b64d h1:nhHvQs
 pkg.berachain.dev/polaris/contracts v0.0.0-20231104204753-faadca38b64d/go.mod h1:5Nz9qfw/JZGle4OtEsJBkgWDn9MNWCEZlCW/6pE5yZg=
 pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d h1:LMuJ+fYqzSbzUHdBY1ZtFr1CK1yaiMxBCdnhx9654i0=
 pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d/go.mod h1:6w+5Axb6GV66PLllrYf7h1G3x8Pwu5nvd7ZiibiI3HM=
-pkg.world.dev/world-engine/rift v0.0.5 h1:nRoIIyilio+i5jqflroKcwlLDUa7+8FpWkLI3+za/Cg=
-pkg.world.dev/world-engine/rift v0.0.5/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
+pkg.world.dev/world-engine/rift v1.0.0-beta h1:MmnOjkU0ps6CfsMtj3Dorv5L3kpHokc02ja+JoQS/X0=
+pkg.world.dev/world-engine/rift v1.0.0-beta/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=

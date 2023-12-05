@@ -38,7 +38,6 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/onsi/ginkgo/v2 v2.13.0
 	github.com/onsi/gomega v1.27.10
-	github.com/rotisserie/eris v0.5.4
 	github.com/rs/zerolog v1.31.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.17.0
@@ -52,7 +51,7 @@ require (
 	pkg.berachain.dev/polaris/cosmos v0.0.0-20231114061423-56afb639fe27
 	pkg.berachain.dev/polaris/eth v0.0.0-20231106013048-594360df8f05
 	pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d
-	pkg.world.dev/world-engine/rift v0.0.5
+	pkg.world.dev/world-engine/rift v1.0.0-beta
 )
 
 require (

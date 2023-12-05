@@ -7,7 +7,7 @@ require (
 	github.com/gorilla/websocket v1.5.0
 	github.com/heroiclabs/nakama-common v1.27.0
 	github.com/rotisserie/eris v0.5.4
-	pkg.world.dev/world-engine/sign v0.1.11-alpha
+	pkg.world.dev/world-engine/sign v1.0.0-beta
 )
 
 require (

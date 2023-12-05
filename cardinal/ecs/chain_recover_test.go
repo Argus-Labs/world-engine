@@ -18,7 +18,7 @@ import (
 	"github.com/cometbft/cometbft/libs/rand"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/shard"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"pkg.world.dev/world-engine/sign"
 )
 

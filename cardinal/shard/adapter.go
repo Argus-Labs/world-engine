@@ -16,7 +16,7 @@ import (
 
 	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 
-	shardtypes "pkg.world.dev/world-engine/chain/x/shard/types"
+	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 )
 
 // Adapter is a type that helps facilitate communication with the EVM base shard.
