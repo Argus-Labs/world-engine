@@ -268,11 +268,16 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		}
 
 		ptr := &personaTagStorageObj{}
-		if err := eris.Wrap(json.Unmarshal([]byte(payload), ptr), ""); err != nil {
-			return logErrorMessageFailedPrecondition(logger, err, "unable to marshal payload")
+		if err := json.Unmarshal([]byte(payload), ptr); err != nil {
+			return logErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "unable to marshal payload")
 		}
 		if ptr.PersonaTag == "" {
-			return logErrorWithMessageAndCode(logger, err, InvalidArgument, "personaTag field must not be empty")
+			return logErrorWithMessageAndCode(
+				logger,
+				eris.New("personaTag field was empty"),
+				InvalidArgument,
+				"personaTag field must not be empty",
+			)
 		}
 
 		tag, err := loadPersonaTagStorageObj(ctx, nk)
@@ -283,16 +288,16 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		} else {
 			switch tag.Status {
 			case personaTagStatusPending:
-				return logErrorWithMessageAndCode(
+				return logDebugWithMessageAndCode(
 					logger,
-					err,
+					eris.Errorf("persona tag %q is pending for this account", tag.PersonaTag),
 					AlreadyExists,
-					"persona tag %q is pending for this account",
-					tag.PersonaTag)
+					"persona tag %q is pending", tag.PersonaTag,
+				)
 			case personaTagStatusAccepted:
 				return logErrorWithMessageAndCode(
 					logger,
-					err,
+					eris.Errorf("persona tag %q already associated with this account", tag.PersonaTag),
 					AlreadyExists,
 					"persona tag %q already associated with this account",
 					tag.PersonaTag)
@@ -321,7 +326,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			}
 			return logErrorWithMessageAndCode(
 				logger,
-				eris.New("could not set personaTag assignment"),
+				eris.Errorf("persona tag %q is not available", ptr.PersonaTag),
 				AlreadyExists,
 				"persona tag %q is not available",
 				ptr.PersonaTag)
@@ -344,9 +349,10 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string,
 ) (string, error) {
 	ptr, err := loadPersonaTagStorageObj(ctx, nk)
-	if eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
-		return logErrorMessageFailedPrecondition(logger, err, "no persona tag found")
-	} else if err != nil {
+	if err != nil {
+		if eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
+			return logErrorMessageFailedPrecondition(logger, err, "no persona tag found")
+		}
 		return logErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
 	}
 	ptr, err = ptr.attemptToUpdatePending(ctx, nk)
@@ -424,7 +430,18 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusOK {
 					body, err := io.ReadAll(resp.Body)
-					return logErrorMessageFailedPrecondition(logger, err, "bad status code: %s: %s", resp.Status, body)
+					if err != nil {
+						return logErrorMessageFailedPrecondition(
+							logger,
+							eris.Wrap(err, "failed to read response body"),
+							"bad status code: %s: %s", resp.Status, body,
+						)
+					}
+					return logErrorMessageFailedPrecondition(
+						logger,
+						eris.Errorf("bad status code %d", resp.Status),
+						"bad status code: %s: %s", resp.Status, body,
+					)
 				}
 				bz, err := io.ReadAll(resp.Body)
 				if err != nil {
