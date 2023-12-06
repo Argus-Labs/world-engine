@@ -464,11 +464,14 @@ func (w *World) Tick(_ context.Context) error {
 			return err
 		}
 	}
-
+	systemTiming := make(map[string]int, len(w.systemNames))
 	for i, sys := range w.systems {
 		nameOfCurrentRunningSystem = w.systemNames[i]
 		wCtx := NewWorldContextForTick(w, txQueue, w.systemLoggers[i])
+		systemStartTime := time.Now()
 		err := eris.Wrapf(sys(wCtx), "system %s generated an error", nameOfCurrentRunningSystem)
+		systemElapsedTime := time.Since(systemStartTime)
+		systemTiming[nameOfCurrentRunningSystem] = int(systemElapsedTime.Milliseconds())
 		nameOfCurrentRunningSystem = nullSystemName
 		if err != nil {
 			return err
@@ -478,9 +481,12 @@ func (w *World) Tick(_ context.Context) error {
 		// world can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
 		w.eventHub.FlushEvents()
 	}
+	flushStartTime := time.Now()
 	if err := w.TickStore().FinalizeTick(); err != nil {
 		return err
 	}
+	flushElapsedTime := time.Since(flushStartTime)
+
 	w.setEvmResults(txQueue.GetEVMTxs())
 	w.tick.Add(1)
 	w.receiptHistory.NextTick()
@@ -489,10 +495,14 @@ func (w *World) Tick(_ context.Context) error {
 	if elapsedTime > warningThreshold {
 		w.Logger.Warn().Msg(fmt.Sprintf(", (warning: tick exceeded %dms)", warningThreshold.Milliseconds()))
 	}
-	w.Logger.Info().
+	event := w.Logger.Info().
+		Int("flush_time", int(flushElapsedTime.Milliseconds())).
 		Int("tick_execution_time", int(elapsedTime.Milliseconds())).
-		Str("tick", tickAsString).
-		Msg("tick ended")
+		Str("tick", tickAsString)
+	for systemName, milliseconds := range systemTiming {
+		event.Int("execution_time_of_"+systemName, milliseconds)
+	}
+	event.Msg("tick ended")
 	return nil
 }
 
