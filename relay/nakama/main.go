@@ -518,10 +518,13 @@ func logErrorFailedPrecondition(
 }
 
 func errToNakamaError(err error, code int) error {
-	if DebugEnabled {
-		return runtime.NewError(eris.ToString(err, true), code)
+	if err != nil {
+		if DebugEnabled {
+			return runtime.NewError(eris.ToString(err, true), code)
+		}
+		return runtime.NewError(err.Error(), code)
 	}
-	return runtime.NewError(err.Error(), code)
+	return nil
 }
 
 // setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns
