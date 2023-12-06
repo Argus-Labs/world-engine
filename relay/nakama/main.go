@@ -369,7 +369,7 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 // initCardinalEndpoints queries the cardinal server to find the list of existing endpoints, and attempts to
 // set up RPC wrappers around each one.
 //
-//nolint:gocognit
+//nolint:gocognit,funlen // its fine.
 func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initializer, notify *receiptNotifier) error {
 	txEndpoints, queryEndpoints, err := getCardinalEndpoints()
 	if err != nil {
@@ -439,7 +439,7 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 					}
 					return logErrorMessageFailedPrecondition(
 						logger,
-						eris.Errorf("bad status code %d", resp.Status),
+						eris.Errorf("bad status code %d", resp.StatusCode),
 						"bad status code: %s: %s", resp.Status, body,
 					)
 				}
