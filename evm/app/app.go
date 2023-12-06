@@ -22,6 +22,7 @@ package app
 
 import (
 	"github.com/cometbft/cometbft/abci/types"
+	zerolog "github.com/rs/zerolog/log"
 	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
 	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
 
@@ -219,23 +220,20 @@ func NewApp(
 func (app *App) preBlocker(ctx sdk.Context, _ *types.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
 	txs := app.ShardSequencer.FlushMessages()
 	numTxs := len(txs)
-	app.Logger().Debug("flushing game shard sequencer txs", "len_txs", numTxs)
+	zerolog.Debug().Msgf("flushed %d messages in PreBlocker", numTxs)
 	resPreBlock := &sdk.ResponsePreBlock{}
 	if numTxs > 0 {
-		app.Logger().Info("sequencing game shard txs")
+		zerolog.Debug().Msg("sequencing messages")
 		handler := app.MsgServiceRouter().Handler(txs[0])
 		for _, tx := range txs {
-			app.Logger().Debug("sequencing tx", "tx", tx.String())
+			zerolog.Debug().Msgf("sequencing tx %s", tx.String())
 			_, err := handler(ctx, tx)
 			if err != nil {
-				app.Logger().Error("error handling game shard tx",
-					"error", err.Error(),
-					"tx", tx.String(),
-				)
+				zerolog.Error().Err(err).Msgf("error sequencing game shard tx")
 				return resPreBlock, err
 			}
 		}
-		app.Logger().Debug("successfully sequenced game shard txs", "len_txs", numTxs)
+		zerolog.Debug().Msg("successfully sequenced game shard txs")
 	}
 	return resPreBlock, nil
 }
