@@ -261,7 +261,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		// check if the user is verified. this requires them to input a valid beta key.
 		err = checkVerified(ctx, nk, userID)
 		if err != nil {
-			return logErrorWithMessageAndCode(logger, err, AlreadyExists, "unable to claim persona tag")
+			return logDebugWithMessageAndCode(logger, err, AlreadyExists, "unable to claim persona tag")
 		}
 
 		ptr := &personaTagStorageObj{}
@@ -460,6 +460,17 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 	return nil
 }
 
+func logDebugWithMessageAndCode(
+	logger runtime.Logger,
+	err error,
+	code int,
+	format string,
+	v ...interface{},
+) (string, error) {
+	err = eris.Wrapf(err, format, v...)
+	return logDebug(logger, err, code)
+}
+
 func logErrorWithMessageAndCode(
 	logger runtime.Logger,
 	err error,
@@ -480,6 +491,15 @@ func logErrorMessageFailedPrecondition(
 	return logErrorFailedPrecondition(logger, err)
 }
 
+func logDebug(
+	logger runtime.Logger,
+	err error,
+	code int,
+) (string, error) {
+	logger.Debug(eris.ToString(err, true))
+	return "", errToNakamaError(err, code)
+}
+
 func logError(
 	logger runtime.Logger,
 	err error,
@@ -494,13 +514,11 @@ func logErrorFailedPrecondition(
 	return logError(logger, err, FailedPrecondition)
 }
 
-func errToNakamaError(
-	err error,
-	code int) error {
+func errToNakamaError(err error, code int) error {
 	if DebugEnabled {
 		return runtime.NewError(eris.ToString(err, true), code)
 	}
-	return runtime.NewError(eris.Errorf("error: %v", err).Error(), code)
+	return runtime.NewError(err.Error(), code)
 }
 
 // setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns
