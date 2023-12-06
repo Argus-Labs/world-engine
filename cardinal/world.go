@@ -220,11 +220,11 @@ func (w *World) StartGame() error {
 
 	w.evmServer, err = evm.NewServer(w.instance)
 	if err != nil {
-		if !errors.Is(err, evm.ErrNoEVMTypes) {
+		if !errors.Is(eris.Cause(err), evm.ErrNoEVMTypes) {
 			return err
 		}
 		w.instance.Logger.Debug().
-			Msg("no EVM messages or queries specified. EVM server will not run")
+			Msgf("no EVM messages or queries specified. EVM server will not run: %s", eris.ToString(err, true))
 	} else {
 		w.instance.Logger.Debug().Msg("running world with EVM server")
 		err = w.evmServer.Serve()
@@ -245,9 +245,9 @@ func (w *World) StartGame() error {
 			log.Fatal().Msg("game was started prematurely")
 		}
 		if err := w.server.Serve(); errors.Is(err, http.ErrServerClosed) {
-			log.Info().Err(err).Msg("the server has been closed")
+			log.Info().Err(err).Msgf("the server has been closed: %s", eris.ToString(err, true))
 		} else if err != nil {
-			log.Fatal().Err(err).Msg("the server has failed")
+			log.Fatal().Err(err).Msgf("the server has failed: %s", eris.ToString(err, true))
 		}
 	}()
 
