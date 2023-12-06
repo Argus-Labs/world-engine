@@ -261,7 +261,10 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		// check if the user is verified. this requires them to input a valid beta key.
 		err = checkVerified(ctx, nk, userID)
 		if err != nil {
-			return logDebugWithMessageAndCode(logger, err, AlreadyExists, "unable to claim persona tag")
+			if eris.Is(eris.Cause(err), ErrNotAllowlisted) {
+				return logDebugWithMessageAndCode(logger, err, AlreadyExists, "unable to claim persona tag")
+			}
+			return logErrorMessageFailedPrecondition(logger, err, "unable to claim persona tag")
 		}
 
 		ptr := &personaTagStorageObj{}
