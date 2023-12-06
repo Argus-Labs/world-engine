@@ -261,15 +261,23 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		// check if the user is verified. this requires them to input a valid beta key.
 		err = checkVerified(ctx, nk, userID)
 		if err != nil {
-			return logErrorWithMessageAndCode(logger, err, AlreadyExists, "unable to claim persona tag")
+			if eris.Is(eris.Cause(err), ErrNotAllowlisted) {
+				return logDebugWithMessageAndCode(logger, err, AlreadyExists, "unable to claim persona tag")
+			}
+			return logErrorMessageFailedPrecondition(logger, err, "unable to claim persona tag")
 		}
 
 		ptr := &personaTagStorageObj{}
-		if err := eris.Wrap(json.Unmarshal([]byte(payload), ptr), ""); err != nil {
-			return logErrorMessageFailedPrecondition(logger, err, "unable to marshal payload")
+		if err := json.Unmarshal([]byte(payload), ptr); err != nil {
+			return logErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "unable to marshal payload")
 		}
 		if ptr.PersonaTag == "" {
-			return logErrorWithMessageAndCode(logger, err, InvalidArgument, "personaTag field must not be empty")
+			return logErrorWithMessageAndCode(
+				logger,
+				eris.New("personaTag field was empty"),
+				InvalidArgument,
+				"personaTag field must not be empty",
+			)
 		}
 
 		tag, err := loadPersonaTagStorageObj(ctx, nk)
@@ -280,16 +288,16 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		} else {
 			switch tag.Status {
 			case personaTagStatusPending:
-				return logErrorWithMessageAndCode(
+				return logDebugWithMessageAndCode(
 					logger,
-					err,
+					eris.Errorf("persona tag %q is pending for this account", tag.PersonaTag),
 					AlreadyExists,
-					"persona tag %q is pending for this account",
-					tag.PersonaTag)
+					"persona tag %q is pending", tag.PersonaTag,
+				)
 			case personaTagStatusAccepted:
 				return logErrorWithMessageAndCode(
 					logger,
-					err,
+					eris.Errorf("persona tag %q already associated with this account", tag.PersonaTag),
 					AlreadyExists,
 					"persona tag %q already associated with this account",
 					tag.PersonaTag)
@@ -318,7 +326,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			}
 			return logErrorWithMessageAndCode(
 				logger,
-				eris.New("could not set personaTag assignment"),
+				eris.Errorf("persona tag %q is not available", ptr.PersonaTag),
 				AlreadyExists,
 				"persona tag %q is not available",
 				ptr.PersonaTag)
@@ -341,9 +349,10 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string,
 ) (string, error) {
 	ptr, err := loadPersonaTagStorageObj(ctx, nk)
-	if eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
-		return logErrorMessageFailedPrecondition(logger, err, "no persona tag found")
-	} else if err != nil {
+	if err != nil {
+		if eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
+			return logErrorMessageFailedPrecondition(logger, err, "no persona tag found")
+		}
 		return logErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
 	}
 	ptr, err = ptr.attemptToUpdatePending(ctx, nk)
@@ -360,7 +369,7 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 // initCardinalEndpoints queries the cardinal server to find the list of existing endpoints, and attempts to
 // set up RPC wrappers around each one.
 //
-//nolint:gocognit
+//nolint:gocognit,funlen // its fine.
 func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initializer, notify *receiptNotifier) error {
 	txEndpoints, queryEndpoints, err := getCardinalEndpoints()
 	if err != nil {
@@ -421,7 +430,18 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusOK {
 					body, err := io.ReadAll(resp.Body)
-					return logErrorMessageFailedPrecondition(logger, err, "bad status code: %s: %s", resp.Status, body)
+					if err != nil {
+						return logErrorMessageFailedPrecondition(
+							logger,
+							eris.Wrap(err, "failed to read response body"),
+							"bad status code: %s: %s", resp.Status, body,
+						)
+					}
+					return logErrorMessageFailedPrecondition(
+						logger,
+						eris.Errorf("bad status code %d", resp.StatusCode),
+						"bad status code: %s: %s", resp.Status, body,
+					)
 				}
 				bz, err := io.ReadAll(resp.Body)
 				if err != nil {
@@ -460,6 +480,17 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 	return nil
 }
 
+func logDebugWithMessageAndCode(
+	logger runtime.Logger,
+	err error,
+	code int,
+	format string,
+	v ...interface{},
+) (string, error) {
+	err = eris.Wrapf(err, format, v...)
+	return logDebug(logger, err, code)
+}
+
 func logErrorWithMessageAndCode(
 	logger runtime.Logger,
 	err error,
@@ -480,6 +511,15 @@ func logErrorMessageFailedPrecondition(
 	return logErrorFailedPrecondition(logger, err)
 }
 
+func logDebug(
+	logger runtime.Logger,
+	err error,
+	code int,
+) (string, error) {
+	logger.Debug(eris.ToString(err, true))
+	return "", errToNakamaError(err, code)
+}
+
 func logError(
 	logger runtime.Logger,
 	err error,
@@ -494,13 +534,14 @@ func logErrorFailedPrecondition(
 	return logError(logger, err, FailedPrecondition)
 }
 
-func errToNakamaError(
-	err error,
-	code int) error {
-	if DebugEnabled {
-		return runtime.NewError(eris.ToString(err, true), code)
+func errToNakamaError(err error, code int) error {
+	if err != nil {
+		if DebugEnabled {
+			return runtime.NewError(eris.ToString(err, true), code)
+		}
+		return runtime.NewError(err.Error(), code)
 	}
-	return runtime.NewError(eris.Errorf("error: %v", err).Error(), code)
+	return nil
 }
 
 // setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns
