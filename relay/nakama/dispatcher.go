@@ -54,7 +54,6 @@ func (r *receiptsDispatcher) dispatch(log runtime.Logger) {
 			select {
 			case ch <- receipt:
 			default:
-				log.Info("failed to deliver a receipt to session %q", key)
 			}
 			return true
 		})
