@@ -46,7 +46,7 @@ func (r *receiptsDispatcher) subscribe(session string, ch receiptChan) {
 
 // dispatch continually drains r.ch (receipts from cardinal) and sends copies to all subscribed channels.
 // This function is meant to be called in a goroutine. Pushed receipts will not block when sending.
-func (r *receiptsDispatcher) dispatch(log runtime.Logger) {
+func (r *receiptsDispatcher) dispatch(_ runtime.Logger) {
 	for receipt := range r.ch {
 		r.m.Range(func(key, value any) bool {
 			ch, _ := value.(receiptChan)
