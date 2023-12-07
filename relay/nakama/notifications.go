@@ -72,9 +72,8 @@ func (r *receiptNotifier) sendNotifications(ch chan *Receipt) {
 	for {
 		select {
 		case receipt := <-ch:
-			r.logger.Debug("i want to send a tx: %v", receipt)
 			if err := r.handleReceipt(receipt); err != nil {
-				r.logger.Warn("failed to handle receipt: %v", err)
+				r.logger.Debug("failed to send receipt %v: %v", receipt, err)
 			}
 		case <-ticker:
 			r.cleanupStaleTransactions()
