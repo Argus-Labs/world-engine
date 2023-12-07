@@ -452,7 +452,6 @@ func (w *World) Tick(_ context.Context) error {
 		return eris.New("must load state before first tick")
 	}
 	txQueue := w.txQueue.CopyTransactions()
-	w.Logger.Info().Msgf("amount of txs: %d\n", txQueue.GetAmountOfTxs())
 
 	if err := w.TickStore().StartNextTick(w.registeredMessages, txQueue); err != nil {
 		return err
@@ -503,6 +502,7 @@ func (w *World) Tick(_ context.Context) error {
 	for systemName, milliseconds := range systemTiming {
 		event.Int("execution_time_of_"+systemName, milliseconds)
 	}
+	event.Int("txs_amount", txQueue.GetAmountOfTxs())
 	event.Msg("tick ended")
 	return nil
 }
