@@ -2,6 +2,7 @@ package ecb
 
 import (
 	"context"
+	"time"
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/txpool"
@@ -68,7 +69,10 @@ func (m *Manager) FinalizeTick() error {
 	if err = pipe.Incr(context.Background(), redisEndTickKey()).Err(); err != nil {
 		return eris.Wrap(err, "")
 	}
+	flushStartTime := time.Now()
 	_, err = pipe.Exec(ctx)
+	elapsedTime := time.Since(flushStartTime)
+	m.logger.Logger.Info().Int("flush_time", int(elapsedTime.Milliseconds()))
 	return eris.Wrap(err, "")
 }
 
