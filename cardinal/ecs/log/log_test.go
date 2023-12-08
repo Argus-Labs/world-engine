@@ -220,7 +220,7 @@ func TestWorldLogger(t *testing.T) {
 	json1 := []byte(`{
 				 "level":"info",
 				 "tick":"0",
-				 "tick_execution_time": 0, 
+				 "tick_execution_time_ms": 0, 
 				 "message":"tick ended"
 			 }`)
 	json1 = sanitizedJSON(json1)
@@ -230,7 +230,7 @@ func TestWorldLogger(t *testing.T) {
 	if err = json.Unmarshal([]byte(logStrings[5]), &map2); err != nil {
 		t.Fatalf("Error unmarshalling buf: %v", err)
 	}
-	names := []string{"level", "tick", "tick_execution_time", "message"}
+	names := []string{"level", "tick", "tick_execution_time_ms", "message"}
 	for _, name := range names {
 		v1, ok := expectedMap[name]
 		if !ok {
@@ -241,7 +241,7 @@ func TestWorldLogger(t *testing.T) {
 			t.Errorf("Should be a value in %s", name)
 		}
 		// time is not deterministic in the context of unit tests, therefore it is not unit testable.
-		if name != "tick_execution_time" {
+		if name != "tick_execution_time_ms" {
 			assert.Equal(t, v1, v2)
 		}
 	}
