@@ -146,7 +146,7 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 	// if this user is already verified,
 	err = checkVerified(ctx, nk, userID)
 	if err == nil {
-		msg := fmt.Sprintf("user %q already verifiedeith beta key", userID)
+		msg := fmt.Sprintf("user %q already verified with a beta key", userID)
 		return logErrorWithMessageAndCode(logger, ErrAlreadyVerified, AlreadyExists, msg)
 	}
 
