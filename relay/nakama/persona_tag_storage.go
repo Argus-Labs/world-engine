@@ -78,17 +78,18 @@ func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk ru
 	}
 
 	verified, err := p.verifyPersonaTag(ctx)
-	if eris.Is(eris.Cause(err), ErrPersonaSignerUnknown) {
+	switch {
+	case eris.Is(eris.Cause(err), ErrPersonaSignerUnknown):
 		// Leave the Status as pending.
 		return p, nil
-	} else if eris.Is(eris.Cause(err), ErrPersonaSignerAvailable) {
+	case eris.Is(eris.Cause(err), ErrPersonaSignerAvailable):
 		// Somehow Nakama thinks this persona tag belongs to this user, but Cardinal doesn't think the persona tag
 		// belongs to anyone. Just reject this on Nakama's end so the user can try a different persona tag.
 		// Incidentally, trying the same persona tag might work.
 		p.Status = personaTagStatusRejected
-	} else if err != nil {
+	case err != nil:
 		return nil, eris.Wrap(err, "error when verifying persona tag; user may be stuck in pending")
-	} else {
+	default:
 		if verified {
 			p.Status = personaTagStatusAccepted
 		} else {

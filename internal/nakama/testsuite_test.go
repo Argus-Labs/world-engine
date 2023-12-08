@@ -306,7 +306,7 @@ func TestPersonaTagsShouldBeCaseInsensitive(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	waitForAcceptedPersonaTag(clientA)
+	assert.NilError(t, waitForAcceptedPersonaTag(clientA))
 
 	respA, err := clientA.rpc("nakama/show-persona", nil)
 	assert.NilError(t, err)
