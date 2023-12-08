@@ -502,6 +502,7 @@ func (w *World) Tick(_ context.Context) error {
 	for systemName, milliseconds := range systemTiming {
 		event.Int("execution_time_of_"+systemName, milliseconds)
 	}
+	event.Int("txs_amount", txQueue.GetAmountOfTxs())
 	event.Msg("tick ended")
 	return nil
 }
