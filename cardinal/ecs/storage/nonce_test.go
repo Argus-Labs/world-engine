@@ -5,39 +5,29 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 
 	"pkg.world.dev/world-engine/assert"
 )
 
-func TestSetAndGetNonce(t *testing.T) {
+func TestUseNonce(t *testing.T) {
 	rs := testutil.GetRedisStorage(t)
 	address := "some-address"
-	wantNonce := uint64(100)
-	assert.NilError(t, rs.Nonce.SetNonce(address, wantNonce))
-	gotNonce, err := rs.Nonce.GetNonce(address)
-	assert.NilError(t, err)
-	assert.Equal(t, gotNonce, wantNonce)
-}
-
-func TestMissingNonceIsZero(t *testing.T) {
-	rs := testutil.GetRedisStorage(t)
-
-	gotNonce, err := rs.Nonce.GetNonce("some-address-that-doesn't-exist")
-	assert.NilError(t, err)
-	assert.Equal(t, uint64(0), gotNonce)
+	nonce := uint64(100)
+	assert.NilError(t, rs.Nonce.UseNonce(address, nonce))
 }
 
 func TestCanStoreManyNonces(t *testing.T) {
 	rs := testutil.GetRedisStorage(t)
 	for i := uint64(10); i < 100; i++ {
 		addr := fmt.Sprintf("%d", i)
-		assert.NilError(t, rs.Nonce.SetNonce(addr, i))
+		assert.NilError(t, rs.Nonce.UseNonce(addr, i))
 	}
 
+	// These nonces can no longer be used
 	for i := uint64(10); i < 100; i++ {
 		addr := fmt.Sprintf("%d", i)
-		gotNonce, err := rs.Nonce.GetNonce(addr)
-		assert.NilError(t, err)
-		assert.Equal(t, i, gotNonce)
+		err := rs.Nonce.UseNonce(addr, i)
+		assert.ErrorIs(t, redis.ErrNonceHasAlreadyBeenUsed, err)
 	}
 }

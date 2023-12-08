@@ -694,7 +694,8 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 		PersonaTag:    personaTag,
 		SignerAddress: signerAddr,
 	}
-	sigPayload, err := sign.NewSystemTransaction(privateKey, namespace, 100, createPersonaTx)
+	firstNonce := uint64(100)
+	sigPayload, err := sign.NewSystemTransaction(privateKey, namespace, firstNonce, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -710,7 +711,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 401)
 
 	// Using an old nonce should fail
-	sigPayload, err = sign.NewSystemTransaction(privateKey, namespace, 50, createPersonaTx)
+	sigPayload, err = sign.NewSystemTransaction(privateKey, namespace, firstNonce, createPersonaTx)
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
@@ -728,6 +729,53 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 200)
 	err = txh.Close()
 	assert.NilError(t, err)
+}
+
+func TestOutOfOrderNonceIsOK(t *testing.T) {
+	url := "tx/persona/create-persona"
+	world := testutils.NewTestWorld(t).Instance()
+	assert.NilError(t, world.LoadGameState())
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+
+	txh := testutils.MakeTestTransactionHandler(t, world)
+
+	nextPersonaTagNumber := 0
+
+	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+	namespace := world.Namespace().String()
+	claimNewPersonaTagWithNonce := func(nonce uint64, wantSuccess bool) {
+		// Make sure each persona tag we claim is unique
+		personaTag := fmt.Sprintf("some-dude-%d", nextPersonaTagNumber)
+		nextPersonaTagNumber++
+		createPersonaTx := ecs.CreatePersona{
+			PersonaTag:    personaTag,
+			SignerAddress: signerAddr,
+		}
+		sigPayload, err := sign.NewSystemTransaction(privateKey, namespace, nonce, createPersonaTx)
+		assert.NilError(t, err)
+		bz, err := sigPayload.Marshal()
+		assert.NilError(t, err)
+
+		resp, err := http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+		assert.NilError(t, err)
+		if wantSuccess {
+			assert.Equal(t, resp.StatusCode, 200, "nonce %d failed with %d", nonce, resp.StatusCode)
+		} else {
+			assert.Equal(t, resp.StatusCode, 401)
+		}
+	}
+
+	// Using nonces out of order should be fine.
+	claimNewPersonaTagWithNonce(1, true)
+	claimNewPersonaTagWithNonce(6, true)
+	claimNewPersonaTagWithNonce(3, true)
+	claimNewPersonaTagWithNonce(4, true)
+	claimNewPersonaTagWithNonce(5, true)
+	claimNewPersonaTagWithNonce(2, true)
+
+	// This should fail
+	claimNewPersonaTagWithNonce(3, false)
 }
 
 // TestCanListQueries tests that we can list the available queries in the handler.
