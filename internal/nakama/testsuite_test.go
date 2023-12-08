@@ -7,15 +7,13 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"strconv"
-
-	"pkg.world.dev/world-engine/assert"
-
 	"github.com/ethereum/go-ethereum/crypto"
+	"pkg.world.dev/world-engine/assert"
 )
 
 func TestEvents(t *testing.T) {
@@ -288,6 +286,40 @@ func TestPersonaTagFieldCannotBeEmpty(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	assert.Equal(t, 400, resp.StatusCode, copyBody(resp))
+}
+
+func TestPersonaTagsShouldBeCaseInsensitive(t *testing.T) {
+	clientA, clientB := newClient(t), newClient(t)
+	userA, userB := randomString(), randomString()
+
+	assert.NilError(t, clientA.registerDevice(userA, userA))
+	assert.NilError(t, clientB.registerDevice(userB, userB))
+
+	lowerCase := "bbbb"
+	upperCase := "BBBB"
+	_, err := clientA.rpc("nakama/claim-persona", map[string]any{
+		"personaTag": lowerCase,
+	})
+	assert.NilError(t, err)
+	_, err = clientB.rpc("nakama/claim-persona", map[string]any{
+		"personaTag": upperCase,
+	})
+	assert.NilError(t, err)
+
+	assert.NilError(t, waitForAcceptedPersonaTag(clientA))
+
+	respA, err := clientA.rpc("nakama/show-persona", nil)
+	assert.NilError(t, err)
+	respB, err := clientB.rpc("nakama/show-persona", nil)
+	assert.NilError(t, err)
+
+	showA := map[string]any{}
+	showB := map[string]any{}
+	assert.NilError(t, json.NewDecoder(respA.Body).Decode(&showA))
+	assert.NilError(t, json.NewDecoder(respB.Body).Decode(&showB))
+
+	assert.Equal(t, showA["status"], "accepted")
+	assert.Equal(t, showB["status"], "rejected")
 }
 
 // waitForAcceptedPersonaTag periodically queries the show-persona endpoint until a previously claimed persona tag

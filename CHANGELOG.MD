@@ -47,6 +47,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Bug Fixes
 
+- (nakama) #WORLD-643: Reject a persona tag request if it seems like cardinal didn't actually get the corresponding transaction.
+
 ### Client Breaking
 
 ### API Breaking
