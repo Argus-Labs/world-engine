@@ -177,7 +177,7 @@ func TestWorldLogger(t *testing.T) {
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
 	err = w.Tick(ctx)
 	assert.NilError(t, err)
-	logStrings = strings.Split(buf.String(), "\n")[:5]
+	logStrings = strings.Split(buf.String(), "\n")[:6]
 	// test tick start
 	require.JSONEq(
 		t, `
@@ -227,7 +227,7 @@ func TestWorldLogger(t *testing.T) {
 	if err = json.Unmarshal(json1, &expectedMap); err != nil {
 		t.Fatalf("Error unmarshalling json1: %v", err)
 	}
-	if err = json.Unmarshal([]byte(logStrings[4]), &map2); err != nil {
+	if err = json.Unmarshal([]byte(logStrings[5]), &map2); err != nil {
 		t.Fatalf("Error unmarshalling buf: %v", err)
 	}
 	names := []string{"level", "tick", "tick_execution_time", "message"}
