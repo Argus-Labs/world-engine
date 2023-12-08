@@ -41,7 +41,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
-- Instead of making sure nonce values are strictly increasing, use a Redis set to track every used nonce.
+- (cardinal) #WORLD-643: Instead of making sure nonce values are strictly increasing, use a Redis set to track every used nonce.
 
 ### Deprecated
 
