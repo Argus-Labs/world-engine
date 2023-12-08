@@ -839,12 +839,8 @@ func (w *World) getMessage(id message.TypeID) message.Message {
 	return nil
 }
 
-func (w *World) GetNonce(signerAddress string) (uint64, error) {
-	return w.redisStorage.Nonce.GetNonce(signerAddress)
-}
-
-func (w *World) SetNonce(signerAddress string, nonce uint64) error {
-	return w.redisStorage.Nonce.SetNonce(signerAddress, nonce)
+func (w *World) UseNonce(signerAddress string, nonce uint64) error {
+	return w.redisStorage.Nonce.UseNonce(signerAddress, nonce)
 }
 
 func (w *World) AddMessageError(id message.TxHash, err error) {

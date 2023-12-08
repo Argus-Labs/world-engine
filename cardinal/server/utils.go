@@ -69,24 +69,16 @@ func (handler *Handler) verifySignature(sp *sign.Transaction, isSystemTransactio
 		return nil, err
 	}
 
-	// Check the nonce
-	nonce, err := handler.w.GetNonce(signerAddress)
-	if err != nil {
-		return nil, err
-	}
-	if sp.Nonce <= nonce {
-		return nil, eris.Wrapf(ErrInvalidSignature, "got nonce %d, but must be greater than %d",
-			sp.Nonce, nonce)
-	}
-
 	// Verify signature
 	if err = sp.Verify(signerAddress); err != nil {
 		return nil, eris.Wrap(errors.Join(ErrInvalidSignature, err), "")
 	}
-	// Update nonce
-	if err = handler.w.SetNonce(signerAddress, sp.Nonce); err != nil {
-		return nil, err
+
+	// The signature is valid. Verify and use the nonce in an atomic operation
+	if err = handler.w.UseNonce(signerAddress, sp.Nonce); err != nil {
+		return nil, eris.Wrap(err, "nonce verification failed")
 	}
+
 	return sp, nil
 }
 
