@@ -146,7 +146,8 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 	// if this user is already verified,
 	err = checkVerified(ctx, nk, userID)
 	if err == nil {
-		return logErrorWithMessageAndCode(logger, err, AlreadyExists, "user already verified with beta key")
+		msg := fmt.Sprintf("user %q already verifiedeith beta key", userID)
+		return logErrorWithMessageAndCode(logger, ErrAlreadyVerified, AlreadyExists, msg)
 	}
 
 	var ck ClaimKeyMsg
@@ -276,7 +277,7 @@ func claimKey(ctx context.Context, nk runtime.NakamaModule, key, userID string) 
 		return err
 	}
 	if ks.Used {
-		return eris.Wrap(ErrBetaKeyAlreadyUsed, "")
+		return eris.Wrapf(ErrBetaKeyAlreadyUsed, "user %q was unable to claim %q", userID, key)
 	}
 	ks.Used = true
 	ks.UsedBy = userID
