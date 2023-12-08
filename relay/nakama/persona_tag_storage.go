@@ -81,13 +81,19 @@ func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk ru
 	if eris.Is(eris.Cause(err), ErrPersonaSignerUnknown) {
 		// Leave the Status as pending.
 		return p, nil
-	} else if err != nil {
-		return nil, err
-	}
-	if verified {
-		p.Status = personaTagStatusAccepted
-	} else {
+	} else if eris.Is(eris.Cause(err), ErrPersonaSignerAvailable) {
+		// Somehow Nakama thinks this persona tag belongs to this user, but Cardinal doesn't think the persona tag
+		// belongs to anyone. Just reject this on Nakama's end so the user can try a different persona tag.
+		// Incidentally, trying the same persona tag might work.
 		p.Status = personaTagStatusRejected
+	} else if err != nil {
+		return nil, eris.Wrap(err, "error when verifying persona tag; user may be stuck in pending")
+	} else {
+		if verified {
+			p.Status = personaTagStatusAccepted
+		} else {
+			p.Status = personaTagStatusRejected
+		}
 	}
 	// Attempt to save the updated Status to Nakama. One reason this can fail is that the underlying record was
 	// updated while this processing was going on. Whatever the reason, re-fetch this record from Nakama's storage.
