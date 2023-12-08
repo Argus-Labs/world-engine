@@ -72,7 +72,7 @@ func (m *Manager) FinalizeTick() error {
 	flushStartTime := time.Now()
 	_, err = pipe.Exec(ctx)
 	elapsedTime := time.Since(flushStartTime)
-	m.logger.Logger.Info().Int("flush_time", int(elapsedTime.Milliseconds()))
+	m.logger.Logger.Info().Int("flush_time", int(elapsedTime.Milliseconds())).Msg("redis_flush")
 	return eris.Wrap(err, "")
 }
 
