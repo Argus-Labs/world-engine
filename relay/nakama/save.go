@@ -84,7 +84,9 @@ func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 		)
 	}
 
-	// get allowlist info
+	// check if the user is allowlisted. NOTE: checkVerified will return nil in two cases:
+	// case 1: if the allowlist is disabled (via ENABLE_ALLOWLIST env var).
+	// case 2: the user is actually allowlisted.
 	var verified bool
 	err = checkVerified(ctx, nk, userID)
 	if err != nil {
