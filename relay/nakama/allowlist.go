@@ -84,7 +84,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 	if err != nil {
 		return logError(
 			logger,
-			eris.Wrap(err, `error unmarshaling payload: expected form {"amount": <int>}`),
+			eris.Wrap(err, `error unmarshalling payload: expected form {"amount": <int>}`),
 			InvalidArgument)
 	}
 
