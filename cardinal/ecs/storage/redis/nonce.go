@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"errors"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
@@ -17,25 +18,20 @@ func NewNonceStorage(client *redis.Client) NonceStorage {
 	}
 }
 
-// GetNonce returns the saved nonce for the given signer address. While signer address will generally be a
-// go-ethereum/common.Address, no verification happens at the redis storage level. Any string can be used for the
-// signerAddress.
-func (r *NonceStorage) GetNonce(signerAddress string) (uint64, error) {
-	ctx := context.Background()
-	n, err := r.Client.HGet(ctx, r.nonceKey(), signerAddress).Uint64()
-	err = eris.Wrap(err, "")
-	if err != nil {
-		if eris.Is(eris.Cause(err), redis.Nil) {
-			return 0, nil
-		}
-		return 0, err
-	}
-	return n, nil
-}
+var ErrNonceHasAlreadyBeenUsed = errors.New("nonce has already been used")
 
-// SetNonce saves the given nonce value with the given signer address. Any string can be used for the signer address,
-// and no nonce verification takes place.
-func (r *NonceStorage) SetNonce(signerAddress string, nonce uint64) error {
+// UseNonce atomically marks the given nonce as used. The nonce is valid if nil is returned. A non-nil error means
+// there was an error verifying the nonce, or the nonce was already used.
+func (r *NonceStorage) UseNonce(signerAddress string, nonce uint64) error {
 	ctx := context.Background()
-	return eris.Wrap(r.Client.HSet(ctx, r.nonceKey(), signerAddress, nonce).Err(), "")
+	key := r.nonceSetKey(signerAddress)
+	added, err := r.Client.SAdd(ctx, key, nonce).Result()
+	if err != nil {
+		return err
+	}
+	// The nonce was already used
+	if added == 0 {
+		return eris.Wrapf(ErrNonceHasAlreadyBeenUsed, "signer %q has already used nonce %d", signerAddress, nonce)
+	}
+	return nil
 }

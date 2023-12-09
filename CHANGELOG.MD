@@ -41,9 +41,13 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+- (cardinal) #WORLD-643: Instead of making sure nonce values are strictly increasing, use a Redis set to track every used nonce.
+
 ### Deprecated
 
 ### Bug Fixes
+
+- (nakama) #WORLD-643: Reject a persona tag request if it seems like cardinal didn't actually get the corresponding transaction.
 
 ### Client Breaking
 

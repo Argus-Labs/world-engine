@@ -481,11 +481,11 @@ func (w *World) Tick(_ context.Context) error {
 		// world can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
 		w.eventHub.FlushEvents()
 	}
-	flushStartTime := time.Now()
+	finalizeTickStartTime := time.Now()
 	if err := w.TickStore().FinalizeTick(); err != nil {
 		return err
 	}
-	flushElapsedTime := time.Since(flushStartTime)
+	finalizeTickElapsedTime := time.Since(finalizeTickStartTime)
 
 	w.setEvmResults(txQueue.GetEVMTxs())
 	w.tick.Add(1)
@@ -496,12 +496,13 @@ func (w *World) Tick(_ context.Context) error {
 		w.Logger.Warn().Msg(fmt.Sprintf(", (warning: tick exceeded %dms)", warningThreshold.Milliseconds()))
 	}
 	event := w.Logger.Info().
-		Int("flush_time", int(flushElapsedTime.Milliseconds())).
-		Int("tick_execution_time", int(elapsedTime.Milliseconds())).
+		Int("finalize_tick_time_ms", int(finalizeTickElapsedTime.Milliseconds())).
+		Int("tick_execution_time_ms", int(elapsedTime.Milliseconds())).
 		Str("tick", tickAsString)
 	for systemName, milliseconds := range systemTiming {
-		event.Int("execution_time_of_"+systemName, milliseconds)
+		event.Int("ms_execution_time_of_"+systemName, milliseconds)
 	}
+	event.Int("txs_amount", txQueue.GetAmountOfTxs())
 	event.Msg("tick ended")
 	return nil
 }
@@ -838,12 +839,8 @@ func (w *World) getMessage(id message.TypeID) message.Message {
 	return nil
 }
 
-func (w *World) GetNonce(signerAddress string) (uint64, error) {
-	return w.redisStorage.Nonce.GetNonce(signerAddress)
-}
-
-func (w *World) SetNonce(signerAddress string, nonce uint64) error {
-	return w.redisStorage.Nonce.SetNonce(signerAddress, nonce)
+func (w *World) UseNonce(signerAddress string, nonce uint64) error {
+	return w.redisStorage.Nonce.UseNonce(signerAddress, nonce)
 }
 
 func (w *World) AddMessageError(id message.TxHash, err error) {
