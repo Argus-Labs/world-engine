@@ -88,7 +88,8 @@ func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 	var verified bool
 	err = checkVerified(ctx, nk, userID)
 	if err != nil {
-		// as long as the error isnt that they're not allowlisted, return the error
+		// as long as the error isn't that they're not allowlisted, return the error.
+		// we ignore the ErrNotAllowlisted, which will keep verified == false.
 		if !eris.Is(eris.Cause(err), ErrNotAllowlisted) {
 			return logErrorFailedPrecondition(logger, eris.Wrap(err, "could not read verification table"))
 		}
