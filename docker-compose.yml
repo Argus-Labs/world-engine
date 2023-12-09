@@ -38,7 +38,7 @@ services:
       - CARDINAL_ADDR=game:4040
       - ENABLE_DEBUG=TRUE
       - CARDINAL_NAMESPACE=TESTGAME
-      - ENABLE_ALLOWLIST=${ENABLE_ALLOWLIST:-true}
+      - ENABLE_ALLOWLIST=${ENABLE_ALLOWLIST:-false}
       - DB_PASSWORD=${DB_PASSWORD:-development}
     entrypoint:
       - "/bin/sh"
