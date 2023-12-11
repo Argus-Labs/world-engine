@@ -25,9 +25,9 @@ type SaveGameResponse struct {
 */
 
 type Save struct {
-	Data     string `json:"data"`
-	Persona  string `json:"persona"`
-	Verified bool   `json:"verified"`
+	Data        string `json:"data"`
+	Persona     string `json:"persona"`
+	Allowlisted bool   `json:"allowlisted"`
 }
 
 const (
@@ -36,7 +36,7 @@ const (
 
 func initSaveFileStorage(_ runtime.Logger, initializer runtime.Initializer) error {
 	err := initializer.RegisterRpc(
-		"save",
+		"nakama/save",
 		handleSaveGame,
 	)
 	if err != nil {
@@ -68,20 +68,19 @@ func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 		)
 	}
 
+	var personaTag string
 	// get the persona storage object.
 	persona, err := loadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
-		if eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
-			return "", eris.Wrap(err, "cannot save game: user has not yet claimed a persona tag")
+		// we ignore the error where the tag is not found.
+		// all other errors should be returned.
+		if !eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
+			return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to get persona for save"))
 		}
-		return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to get persona for save"))
-	}
-	// do not allow saving if they do not yet have an accepted tag.
-	if persona.Status != personaTagStatusAccepted {
-		return logErrorFailedPrecondition(
-			logger,
-			eris.Errorf("persona tag %q is not yet verified: cannot save", persona.PersonaTag),
-		)
+	} else {
+		if persona.Status == personaTagStatusAccepted {
+			personaTag = persona.PersonaTag
+		}
 	}
 
 	// check if the user is allowlisted. NOTE: checkVerified will return nil in two cases:
@@ -102,9 +101,9 @@ func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 	}
 
 	save := Save{
-		Data:     msg.Data,
-		Persona:  persona.PersonaTag,
-		Verified: verified,
+		Data:        msg.Data,
+		Persona:     personaTag,
+		Allowlisted: verified,
 	}
 	saveBz, err := json.Marshal(save)
 	if err != nil {
@@ -143,8 +142,8 @@ func writeSave(ctx context.Context, userID string, save string, nk runtime.Nakam
 
 func initSaveFileQuery(_ runtime.Logger, initializer runtime.Initializer) error {
 	err := initializer.RegisterRpc(
-		"get-save",
-		handleQueryGameSave,
+		"nakama/get-save",
+		handleGetSaveGame,
 	)
 	if err != nil {
 		return eris.Wrap(err, "")
@@ -152,7 +151,7 @@ func initSaveFileQuery(_ runtime.Logger, initializer runtime.Initializer) error 
 	return nil
 }
 
-func handleQueryGameSave(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string,
+func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string,
 ) (string, error) {
 	userID, err := getUserID(ctx)
 	if err != nil {
