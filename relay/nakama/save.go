@@ -144,28 +144,30 @@ func writeSave(ctx context.Context, userID string, save string, nk runtime.Nakam
 func initSaveFileQuery(_ runtime.Logger, initializer runtime.Initializer) error {
 	err := initializer.RegisterRpc(
 		"get-save",
-		func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string,
-		) (string, error) {
-			userID, err := getUserID(ctx)
-			if err != nil {
-				return logErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "failed to get user ID")
-			}
-
-			save, err := readSave(ctx, userID, nk)
-			if err != nil {
-				return logErrorMessageFailedPrecondition(
-					logger,
-					eris.Wrap(err, "failed to read save"),
-					"failed to read save for user %s", userID,
-				)
-			}
-			return save, nil
-		},
+		handleQueryGameSave,
 	)
 	if err != nil {
 		return eris.Wrap(err, "")
 	}
 	return nil
+}
+
+func handleQueryGameSave(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string,
+) (string, error) {
+	userID, err := getUserID(ctx)
+	if err != nil {
+		return logErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "failed to get user ID")
+	}
+
+	save, err := readSave(ctx, userID, nk)
+	if err != nil {
+		return logErrorMessageFailedPrecondition(
+			logger,
+			eris.Wrap(err, "failed to read save"),
+			"failed to read save for user %s", userID,
+		)
+	}
+	return save, nil
 }
 
 func readSave(ctx context.Context, userID string, nk runtime.NakamaModule) (string, error) {
