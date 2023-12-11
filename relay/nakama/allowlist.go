@@ -156,7 +156,7 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 		return logErrorWithMessageAndCode(logger, err, InvalidArgument, "unable to unmarshal payload: %v", err)
 	}
 	if ck.Key == "" {
-		return logErrorWithMessageAndCode(logger, err, InvalidArgument, "no key provided in request")
+		return logErrorWithMessageAndCode(logger, ErrInvalidBetaKey, InvalidArgument, "no key provided in request")
 	}
 	ck.Key = strings.ToUpper(ck.Key)
 	err = claimKey(ctx, nk, ck.Key, userID)
