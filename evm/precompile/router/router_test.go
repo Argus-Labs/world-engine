@@ -22,6 +22,7 @@ package router
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/stretchr/testify/suite"
 	"testing"
 
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -29,48 +30,43 @@ import (
 	ethprecompile "pkg.berachain.dev/polaris/eth/core/precompile"
 	"pkg.berachain.dev/polaris/lib/utils"
 	generated "pkg.world.dev/world-engine/evm/precompile/contracts/bindings/cosmos/precompile/router"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
 
-func TestRouterPrecompile(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "cosmos/precompile/router")
+type RouterTestSuite struct {
+	suite.Suite
+	sf       *ethprecompile.StatefulFactory
+	contract *Contract
 }
 
-var _ = Describe("Router Precompile", func() {
-	var contract *Contract
-	var sf *ethprecompile.StatefulFactory
-	BeforeEach(func() {
-		contract = utils.MustGetAs[*Contract](
-			NewPrecompileContract(
-				nil,
-			),
-		)
-		sf = ethprecompile.NewStatefulFactory()
-	})
+func TestRouter(t *testing.T) {
+	suite.Run(t, &RouterTestSuite{})
+}
 
-	It("should have static registry key", func() {
-		Expect(contract.RegistryKey()).To(Equal(
-			common.BytesToAddress(authtypes.NewModuleAddress(name))),
-		)
-	})
+func (r *RouterTestSuite) SetupTest() {
+	r.contract = utils.MustGetAs[*Contract](
+		NewPrecompileContract(
+			nil,
+		),
+	)
+	r.sf = ethprecompile.NewStatefulFactory()
+}
 
-	It("should have correct ABI methods", func() {
-		var cAbi abi.ABI
-		err := cAbi.UnmarshalJSON([]byte(generated.RouterMetaData.ABI))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(contract.ABIMethods()).To(Equal(cAbi.Methods))
-	})
+func (r *RouterTestSuite) TestStaticRegistryKey() {
+	r.Require().Equal(r.contract.RegistryKey(), common.BytesToAddress(authtypes.NewModuleAddress(name)))
+}
 
-	It("should match the precompile methods", func() {
-		_, err := sf.Build(contract, nil)
-		Expect(err).ToNot(HaveOccurred())
-	})
+func (r *RouterTestSuite) TestABIMethods() {
+	var contractABI abi.ABI
+	err := contractABI.UnmarshalJSON([]byte(generated.RouterMetaData.ABI))
+	r.Require().NoError(err)
+	r.Require().Equal(r.contract.ABIMethods(), contractABI.Methods)
+}
 
-	It("custom value decoder should be no-op", func() {
-		Expect(contract.CustomValueDecoders()).To(BeNil())
-	})
+func (r *RouterTestSuite) TestMatchPrecompileMethods() {
+	_, err := r.sf.Build(r.contract, nil)
+	r.Require().NoError(err)
+}
 
-})
+func (r *RouterTestSuite) TestCustomValueDecoderIsNoop() {
+	r.Require().Nil(r.contract.CustomValueDecoders())
+}

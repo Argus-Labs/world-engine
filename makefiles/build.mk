@@ -17,8 +17,10 @@ game:
 	cd internal/e2e/tester/game && go mod vendor
 	@docker compose up game nakama --build --abort-on-container-exit cockroachdb redis
 
-forge-build: |
+
+contracts:
 	@forge build --extra-output-files bin --extra-output-files abi  --root evm/precompile/contracts
+	cd evm/precompile/contracts && go generate
 
 rollup-build:
 	@docker build evm
