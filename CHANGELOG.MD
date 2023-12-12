@@ -39,6 +39,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Features
 
+- (cardinal) #WORLD-627: timestamps are now accessible via WorldContext.
+
 ### Improvements
 
 - (cardinal) #WORLD-643: Instead of making sure nonce values are strictly increasing, use a Redis set to track every used nonce.
