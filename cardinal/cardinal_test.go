@@ -130,13 +130,13 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 	assert.NilError(t, err)
 	err = world.Tick(context.Background())
 	assert.NilError(t, err)
-	lastTs := ts
+	lastTS := ts
 
 	time.Sleep(time.Second)
 	err = world.Tick(context.Background())
 	assert.NilError(t, err)
 
-	assert.Check(t, ts > lastTs)
+	assert.Check(t, ts > lastTS)
 }
 
 func TestShutdownViaSignal(t *testing.T) {
