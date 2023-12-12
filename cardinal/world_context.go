@@ -26,7 +26,7 @@ type WorldContext interface {
 	// CurrentTick returns the current game tick of the world.
 	CurrentTick() uint64
 
-	// Timestamp represents the timestamp of the previous tick.
+	// Timestamp represents the timestamp of the current tick.
 	Timestamp() uint64
 
 	// EmitEvent broadcasts an event message to all subscribed clients.

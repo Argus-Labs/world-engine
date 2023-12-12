@@ -58,8 +58,7 @@ func NewReadOnlyWorldContext(world *World) WorldContext {
 	}
 }
 
-// Timestamp returns the timestamp
-// TODO(tyler): implement.
+// Timestamp returns the UNIX timestamp of the tick.
 func (w *worldContext) Timestamp() uint64 {
 	return w.world.timestamp.Load()
 }
