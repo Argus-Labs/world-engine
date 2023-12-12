@@ -125,6 +125,14 @@ func InitModule(
 		return eris.Wrap(err, "failed to init allowlist endpoints")
 	}
 
+	if err := initSaveFileStorage(logger, initializer); err != nil {
+		return eris.Wrap(err, "failed to init save file storage endpoint")
+	}
+
+	if err := initSaveFileQuery(logger, initializer); err != nil {
+		return eris.Wrap(err, "failed to init save file query endpoint")
+	}
+
 	return nil
 }
 
