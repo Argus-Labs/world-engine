@@ -10,6 +10,7 @@ import (
 )
 
 type WorldContext interface {
+	Timestamp() uint64
 	CurrentTick() uint64
 	Logger() *zerolog.Logger
 	NewSearch(filter Filterable) (*Search, error)
@@ -55,6 +56,12 @@ func NewReadOnlyWorldContext(world *World) WorldContext {
 		txQueue:  nil,
 		readOnly: true,
 	}
+}
+
+// Timestamp returns the timestamp
+// TODO(tyler): implement.
+func (w *worldContext) Timestamp() uint64 {
+	return w.world.timestamp.Load()
 }
 
 func (w *worldContext) CurrentTick() uint64 {

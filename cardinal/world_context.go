@@ -26,13 +26,16 @@ type WorldContext interface {
 	// CurrentTick returns the current game tick of the world.
 	CurrentTick() uint64
 
+	// Timestamp represents the timestamp of the previous tick.
+	Timestamp() uint64
+
 	// EmitEvent broadcasts an event message to all subscribed clients.
 	EmitEvent(event string)
 
 	// Logger returns a zerolog.Logger. Additional metadata information is often attached to
 	// this logger (e.g. the name of the active System).
 	Logger() *zerolog.Logger
-	
+
 	Instance() ecs.WorldContext
 }
 
@@ -47,6 +50,8 @@ func (wCtx *worldContext) EmitEvent(event string) {
 func (wCtx *worldContext) CurrentTick() uint64 {
 	return wCtx.instance.CurrentTick()
 }
+
+func (wCtx *worldContext) Timestamp() uint64 { return wCtx.instance.Timestamp() }
 
 func (wCtx *worldContext) Logger() *zerolog.Logger {
 	return wCtx.instance.Logger()

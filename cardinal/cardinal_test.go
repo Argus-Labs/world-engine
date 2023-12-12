@@ -2,7 +2,9 @@ package cardinal_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -115,6 +117,28 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	err = world.ShutDown()
 	assert.Assert(t, err)
 	assert.Equal(t, gotNumOfEntities, wantNumOfEntities)
+}
+
+func TestCanGetTimestampFromWorldContext(t *testing.T) {
+	var ts uint64
+	world := testutils.NewTestWorld(t)
+	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+		fmt.Println("foobar")
+		ts = context.Timestamp()
+		return nil
+	})
+	assert.NilError(t, err)
+	err = world.Instance().LoadGameState()
+	assert.NilError(t, err)
+	err = world.Tick(context.Background())
+	assert.NilError(t, err)
+	lastTs := ts
+
+	time.Sleep(time.Second)
+	err = world.Tick(context.Background())
+	assert.NilError(t, err)
+
+	assert.Check(t, ts > lastTs)
 }
 
 func TestShutdownViaSignal(t *testing.T) {
