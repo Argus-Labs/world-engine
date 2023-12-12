@@ -220,17 +220,19 @@ func TestWorldLogger(t *testing.T) {
 	json1 := []byte(`{
 				 "level":"info",
 				 "tick":"0",
-				 "tick_execution_time_ms": 0, 
-				 "message":"tick ended"
+				 "tick_execution_time_ms": 0,
+                 "make_pipe_time_ms": 0,
+				 "exec_pipe_time_ms": 0,
+				 "message":"tick_ended"
 			 }`)
 	json1 = sanitizedJSON(json1)
 	if err = json.Unmarshal(json1, &expectedMap); err != nil {
 		t.Fatalf("Error unmarshalling json1: %v", err)
 	}
-	if err = json.Unmarshal([]byte(logStrings[5]), &map2); err != nil {
+	if err = json.Unmarshal([]byte(logStrings[4]), &map2); err != nil {
 		t.Fatalf("Error unmarshalling buf: %v", err)
 	}
-	names := []string{"level", "tick", "tick_execution_time_ms", "message"}
+	names := []string{"level", "tick", "tick_execution_time_ms", "message", "make_pipe_time_ms", "exec_pipe_time_ms"}
 	for _, name := range names {
 		v1, ok := expectedMap[name]
 		if !ok {
