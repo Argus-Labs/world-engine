@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -123,7 +122,6 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 	var ts uint64
 	world := testutils.NewTestWorld(t)
 	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
-		fmt.Println("foobar")
 		ts = context.Timestamp()
 		return nil
 	})
