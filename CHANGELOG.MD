@@ -41,6 +41,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 - (cardinal) #WORLD-627: timestamps are now accessible via WorldContext.
 
+- (nakama) #WORLD-651: Support saving game data to Nakama storage.
+
 ### Improvements
 
 - (cardinal) #WORLD-643: Instead of making sure nonce values are strictly increasing, use a Redis set to track every used nonce.
