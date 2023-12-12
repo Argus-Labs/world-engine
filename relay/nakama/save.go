@@ -27,9 +27,6 @@ type GetSaveReply struct {
 	Allowlisted bool   `json:"allowlisted"`
 }
 
-/*
-STORAGE MODEL
-*/
 const (
 	gameSaveCollection = "game_saves"
 )
