@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 )
@@ -20,16 +21,15 @@ type SaveGameResponse struct {
 	Success bool `json:"success"`
 }
 
-/*
-	STORAGE MODEL
-*/
-
-type Save struct {
+type GetSaveReply struct {
 	Data        string `json:"data"`
 	Persona     string `json:"persona"`
 	Allowlisted bool   `json:"allowlisted"`
 }
 
+/*
+STORAGE MODEL
+*/
 const (
 	gameSaveCollection = "game_saves"
 )
@@ -68,49 +68,7 @@ func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 		)
 	}
 
-	var personaTag string
-	// get the persona storage object.
-	persona, err := loadPersonaTagStorageObj(ctx, nk)
-	if err != nil {
-		// we ignore the error where the tag is not found.
-		// all other errors should be returned.
-		if !eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
-			return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to get persona for save"))
-		}
-	} else {
-		if persona.Status == personaTagStatusAccepted {
-			personaTag = persona.PersonaTag
-		}
-	}
-
-	// check if the user is allowlisted. NOTE: checkVerified will return nil in two cases:
-	// case 1: if the allowlist is disabled (via ENABLE_ALLOWLIST env var).
-	// case 2: the user is actually allowlisted.
-	var verified bool
-	err = checkVerified(ctx, nk, userID)
-	if err != nil {
-		// as long as the error isn't that they're not allowlisted, return the error.
-		// we ignore the ErrNotAllowlisted, which will keep verified == false.
-		if !eris.Is(eris.Cause(err), ErrNotAllowlisted) {
-			return logErrorFailedPrecondition(logger, eris.Wrap(err, "could not read verification table"))
-		}
-	} else {
-		// when err == nil, that means checkVerified passed, or that there is no allowlist enabled.
-		// so we just set verified to true.
-		verified = true
-	}
-
-	save := Save{
-		Data:        msg.Data,
-		Persona:     personaTag,
-		Allowlisted: verified,
-	}
-	saveBz, err := json.Marshal(save)
-	if err != nil {
-		return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to marshal save file"))
-	}
-
-	err = writeSave(ctx, userID, string(saveBz), nk)
+	err = writeSave(ctx, userID, payload, nk)
 	if err != nil {
 		return logErrorFailedPrecondition(
 			logger,
@@ -158,16 +116,67 @@ func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 		return logErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "failed to get user ID")
 	}
 
-	save, err := readSave(ctx, userID, nk)
+	var personaTag string
+	// get the persona storage object.
+	persona, err := loadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
-		return logErrorMessageFailedPrecondition(
-			logger,
-			eris.Wrap(err, "failed to read save"),
-			"failed to read save for user %s", userID,
-		)
+		// we ignore the error where the tag is not found.
+		// all other errors should be returned.
+		if !eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
+			return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to get persona for save"))
+		}
+	} else {
+		if persona.Status == personaTagStatusAccepted {
+			personaTag = persona.PersonaTag
+		}
 	}
-	return save, nil
+
+	// check if the user is allowlisted. NOTE: checkVerified will return nil in two cases:
+	// case 1: if the allowlist is disabled (via ENABLE_ALLOWLIST env var).
+	// case 2: the user is actually allowlisted.
+	var verified bool
+	err = checkVerified(ctx, nk, userID)
+	if err != nil {
+		// as long as the error isn't that they're not allowlisted, return the error.
+		// we ignore the ErrNotAllowlisted, which will keep verified == false.
+		if !eris.Is(eris.Cause(err), ErrNotAllowlisted) {
+			return logErrorFailedPrecondition(logger, eris.Wrap(err, "could not read verification table"))
+		}
+	} else {
+		// when err == nil, that means checkVerified passed, or that there is no allowlist enabled.
+		// so we just set verified to true.
+		verified = true
+	}
+
+	var dataStr string
+	data, err := readSave(ctx, userID, nk)
+	if err != nil {
+		// if no save is found, we just wanna return the empty string. so catch all other errors but that one.
+		if !eris.Is(eris.Cause(err), ErrNoSaveFound) {
+			return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to read save data"))
+		}
+	} else {
+		var dataMsg SaveGameRequest
+		err := json.Unmarshal([]byte(data), &dataMsg)
+		if err != nil {
+			return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to unmarshall save"))
+		}
+		dataStr = dataMsg.Data
+	}
+
+	saveData := GetSaveReply{
+		Data:        dataStr,
+		Persona:     personaTag,
+		Allowlisted: verified,
+	}
+	saveBz, err := json.Marshal(saveData)
+	if err != nil {
+		return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to marshal save file"))
+	}
+	return string(saveBz), nil
 }
+
+var ErrNoSaveFound = errors.New("no save found")
 
 func readSave(ctx context.Context, userID string, nk runtime.NakamaModule) (string, error) {
 	read := &runtime.StorageRead{
@@ -180,7 +189,7 @@ func readSave(ctx context.Context, userID string, nk runtime.NakamaModule) (stri
 		return "", err
 	}
 	if len(saves) == 0 {
-		return "", eris.New("save data not found")
+		return "", eris.Wrapf(ErrNoSaveFound, "")
 	}
 	if len(saves) != 1 {
 		return "", eris.Errorf("expected 1 save file, got %d", len(saves))

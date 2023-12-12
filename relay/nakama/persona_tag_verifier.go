@@ -123,7 +123,7 @@ func (p *personaTagVerifier) attemptVerification(txHash string) error {
 		// user to claim a persona tag.
 		return nil
 	}
-	// We have both a user ID and a success message. Save this success/failure to nakama's storage system
+	// We have both a user ID and a success message. GetSaveReply this success/failure to nakama's storage system
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, runtime.RUNTIME_CTX_USER_ID, pending.userID) //nolint:staticcheck // its fine.
 	ptr, err := loadPersonaTagStorageObj(ctx, p.nk)
