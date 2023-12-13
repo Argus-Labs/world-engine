@@ -4,17 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 
@@ -429,10 +428,6 @@ func (w *World) AddEVMTransaction(
 	return tick, txHash
 }
 
-const (
-	warningThreshold = 100 * time.Millisecond
-)
-
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick(_ context.Context) error {
@@ -446,8 +441,7 @@ func (w *World) Tick(_ context.Context) error {
 		}
 	}()
 	startTime := time.Now()
-	tickAsString := strconv.FormatUint(w.CurrentTick(), 10)
-	w.Logger.Info().Str("tick", tickAsString).Msg("Tick started")
+	w.Logger.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
 	if !w.stateIsLoaded {
 		return eris.New("must load state before first tick")
 	}
@@ -464,46 +458,38 @@ func (w *World) Tick(_ context.Context) error {
 			return err
 		}
 	}
-	systemTiming := make(map[string]int, len(w.systemNames))
+	allSystemsStartTime := time.Now()
 	for i, sys := range w.systems {
 		nameOfCurrentRunningSystem = w.systemNames[i]
 		wCtx := NewWorldContextForTick(w, txQueue, w.systemLoggers[i])
 		systemStartTime := time.Now()
 		err := eris.Wrapf(sys(wCtx), "system %s generated an error", nameOfCurrentRunningSystem)
-		systemElapsedTime := time.Since(systemStartTime)
-		systemTiming[nameOfCurrentRunningSystem] = int(systemElapsedTime.Milliseconds())
+		statsd.EmitTickStat(systemStartTime, nameOfCurrentRunningSystem)
 		nameOfCurrentRunningSystem = nullSystemName
 		if err != nil {
 			return err
 		}
 	}
+	statsd.EmitTickStat(allSystemsStartTime, "all_systems")
 	if w.eventHub != nil {
+		flushEventHubStartTime := time.Now()
 		// world can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
 		w.eventHub.FlushEvents()
+		statsd.EmitTickStat(flushEventHubStartTime, "flush_events")
 	}
 	finalizeTickStartTime := time.Now()
 	if err := w.TickStore().FinalizeTick(); err != nil {
 		return err
 	}
-	finalizeTickElapsedTime := time.Since(finalizeTickStartTime)
+	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
 	w.setEvmResults(txQueue.GetEVMTxs())
 	w.tick.Add(1)
 	w.receiptHistory.NextTick()
-	elapsedTime := time.Since(startTime)
-
-	if elapsedTime > warningThreshold {
-		w.Logger.Warn().Msg(fmt.Sprintf(", (warning: tick exceeded %dms)", warningThreshold.Milliseconds()))
+	statsd.EmitTickStat(startTime, "full_tick")
+	if err := statsd.Client().Count("num_of_txs", int64(txQueue.GetAmountOfTxs()), nil, 1); err != nil {
+		w.Logger.Warn().Msgf("failed to emit count stat:%v", err)
 	}
-	event := w.Logger.Info().
-		Int("finalize_tick_time_ms", int(finalizeTickElapsedTime.Milliseconds())).
-		Int("tick_execution_time_ms", int(elapsedTime.Milliseconds())).
-		Str("tick", tickAsString)
-	for systemName, milliseconds := range systemTiming {
-		event.Int("ms_execution_time_of_"+systemName, milliseconds)
-	}
-	event.Int("txs_amount", txQueue.GetAmountOfTxs())
-	event.Msg("tick ended")
 	return nil
 }
 

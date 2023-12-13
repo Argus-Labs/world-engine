@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 
@@ -62,6 +63,7 @@ func (m *Manager) StartNextTick(txs []message.Message, queue *txpool.TxQueue) er
 // to the DB.
 func (m *Manager) FinalizeTick() error {
 	ctx := context.Background()
+	makePipeStartTime := time.Now()
 	pipe, err := m.makePipeOfRedisCommands(ctx)
 	if err != nil {
 		return err
@@ -69,10 +71,10 @@ func (m *Manager) FinalizeTick() error {
 	if err = pipe.Incr(context.Background(), redisEndTickKey()).Err(); err != nil {
 		return eris.Wrap(err, "")
 	}
+	statsd.EmitTickStat(makePipeStartTime, "pipe_make")
 	flushStartTime := time.Now()
 	_, err = pipe.Exec(ctx)
-	elapsedTime := time.Since(flushStartTime)
-	m.logger.Logger.Debug().Int("flush_time_ms", int(elapsedTime.Milliseconds())).Msg("redis_flush")
+	statsd.EmitTickStat(flushStartTime, "pipe_exec")
 	return eris.Wrap(err, "")
 }
 

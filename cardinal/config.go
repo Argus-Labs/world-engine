@@ -13,6 +13,7 @@ const (
 	DefaultNamespace     = "world-1"
 	DefaultRedisPassword = ""
 	DefaultRedisAddress  = "localhost:6379"
+	DefaultStatsdEnabled = "localhost:8125"
 )
 
 type WorldConfig struct {
@@ -21,6 +22,7 @@ type WorldConfig struct {
 	CardinalNamespace string
 	CardinalPort      string
 	CardinalMode      string
+	StatsdAddress     string
 }
 
 func GetWorldConfig() WorldConfig {
@@ -30,6 +32,7 @@ func GetWorldConfig() WorldConfig {
 		CardinalNamespace: getEnv("CARDINAL_NAMESPACE", DefaultNamespace),
 		CardinalPort:      getEnv("CARDINAL_PORT", "4040"),
 		CardinalMode:      getEnv("CARDINAL_MODE", DefaultMode),
+		StatsdAddress:     getEnv("STATSD_ADDRESS", DefaultStatsdEnabled),
 	}
 }
 
