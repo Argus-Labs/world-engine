@@ -39,6 +39,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Features
 
+- (cardinal) #WORLD-671: Add support for exporting custom metrics
 - (nakama) #WORLD-651: Support saving game data to Nakama storage.
 
 ### Improvements
