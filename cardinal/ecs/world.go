@@ -484,8 +484,9 @@ func (w *World) Tick(_ context.Context) error {
 		// world can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
 		w.eventHub.FlushEvents()
 	}
+	event := w.Logger.Info()
 	finalizeTickStartTime := time.Now()
-	if err := w.TickStore().FinalizeTick(); err != nil {
+	if err := w.TickStore().FinalizeTick(event); err != nil {
 		return err
 	}
 	finalizeTickElapsedTime := time.Since(finalizeTickStartTime)
@@ -498,15 +499,14 @@ func (w *World) Tick(_ context.Context) error {
 	if elapsedTime > warningThreshold {
 		w.Logger.Warn().Msg(fmt.Sprintf(", (warning: tick exceeded %dms)", warningThreshold.Milliseconds()))
 	}
-	event := w.Logger.Info().
-		Int("finalize_tick_time_ms", int(finalizeTickElapsedTime.Milliseconds())).
+	event.Int("finalize_tick_time_ms", int(finalizeTickElapsedTime.Milliseconds())).
 		Int("tick_execution_time_ms", int(elapsedTime.Milliseconds())).
 		Str("tick", tickAsString)
 	for systemName, milliseconds := range systemTiming {
 		event.Int("ms_execution_time_of_"+systemName, milliseconds)
 	}
 	event.Int("txs_amount", txQueue.GetAmountOfTxs())
-	event.Msg("tick ended")
+	event.Msg("tick_ended")
 	return nil
 }
 

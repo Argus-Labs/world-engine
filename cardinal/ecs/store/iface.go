@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 
+	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 
@@ -56,7 +57,7 @@ type Writer interface {
 type TickStorage interface {
 	GetTickNumbers() (start, end uint64, err error)
 	StartNextTick(txs []message.Message, queues *txpool.TxQueue) error
-	FinalizeTick() error
+	FinalizeTick(event *zerolog.Event) error
 	Recover(txs []message.Message) (*txpool.TxQueue, error)
 }
 
