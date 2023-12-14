@@ -50,7 +50,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 			}
 			bodyDataAsMap, ok := bodyData.(map[string]interface{})
 			if !ok {
-				return nil, eris.New("data not convertable to map")
+				return nil, eris.New("data not convertible to map")
 			}
 
 			// Huge hack.
