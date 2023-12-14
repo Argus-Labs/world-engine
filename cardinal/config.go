@@ -7,12 +7,12 @@ import (
 type RunMode string
 
 const (
-	DeployModeProd RunMode = "production"
-	DeployModeDev  RunMode = "development"
+	RunModeProd RunMode = "production"
+	RunModeDev  RunMode = "development"
 )
 
 const (
-	DefaultMode                      = DeployModeDev
+	DefaultRunMode                   = RunModeDev
 	DefaultNamespace                 = "world-1"
 	DefaultRedisPassword             = ""
 	DefaultRedisAddress              = "localhost:6379"
@@ -33,12 +33,12 @@ var defaultConfig = WorldConfig{
 	RedisAddress:              DefaultRedisAddress,
 	RedisPassword:             DefaultRedisPassword,
 	CardinalNamespace:         DefaultNamespace,
-	CardinalMode:              DefaultMode,
+	CardinalMode:              DefaultRunMode,
 	BaseShardSequencerAddress: DefaultBaseShardSequencerAddress,
 	BaseShardQueryAddress:     DefaultBaseShardQueryAddress,
 }
 
-func GetWorldConfig() WorldConfig {
+func getWorldConfig() WorldConfig {
 	cfg := defaultConfig
 	err := config.FromEnv().To(&cfg)
 	if err != nil {

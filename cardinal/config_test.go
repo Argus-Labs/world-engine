@@ -6,7 +6,7 @@ import (
 )
 
 func TestConfigDefaults(t *testing.T) {
-	cfg := GetWorldConfig()
+	cfg := getWorldConfig()
 	assert.Equal(t, cfg, defaultConfig)
 }
 
@@ -15,7 +15,7 @@ func TestConfigLoadsFromEnv(t *testing.T) {
 		RedisAddress:              "foo",
 		RedisPassword:             "bar",
 		CardinalNamespace:         "baz",
-		CardinalMode:              DeployModeProd,
+		CardinalMode:              RunModeProd,
 		BaseShardSequencerAddress: "moo",
 	}
 	t.Setenv("REDIS_ADDRESS", wantCfg.RedisAddress)
@@ -24,7 +24,7 @@ func TestConfigLoadsFromEnv(t *testing.T) {
 	t.Setenv("CARDINAL_MODE", string(wantCfg.CardinalMode))
 	t.Setenv("BASE_SHARD_SEQUENCER_ADDRESS", wantCfg.BaseShardSequencerAddress)
 
-	gotCfg := GetWorldConfig()
+	gotCfg := getWorldConfig()
 
 	assert.Equal(t, wantCfg, gotCfg)
 }

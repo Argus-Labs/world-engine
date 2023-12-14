@@ -3,10 +3,12 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/shard"
 	"reflect"
 	"runtime"
 	"syscall"
@@ -64,13 +66,13 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
 
 	// Load config. Fallback value is used if it's not set.
-	cfg := GetWorldConfig()
+	cfg := getWorldConfig()
 
 	// Sane default options
 	serverOptions = append(serverOptions, server.WithCORS())
-	gameManagerOptions := []server.GameManagerOptions{} // not exposed in NewWorld Yet
+	var gameManagerOptions []server.GameManagerOptions // not exposed in NewWorld Yet
 
-	if cfg.CardinalMode == ModeProd {
+	if cfg.CardinalMode == RunModeProd {
 		log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
 		if cfg.RedisPassword == DefaultRedisPassword {
 			return nil, errors.New("redis password is required in production")
@@ -80,6 +82,17 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 				"cardinal namespace can't be the default value in production to avoid replay attack",
 			)
 		}
+		if cfg.BaseShardSequencerAddress == "" || cfg.BaseShardQueryAddress == "" {
+			return nil, errors.New("must supply base shard addresses for production mode Cardinal worlds")
+		}
+		adapter, err := shard.NewAdapter(shard.AdapterConfig{
+			ShardSequencerAddr: cfg.BaseShardSequencerAddress,
+			EVMBaseShardAddr:   cfg.BaseShardQueryAddress,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to instantiate adapter: %w", err)
+		}
+		ecsOptions = append(ecsOptions, ecs.WithAdapter(adapter))
 	} else {
 		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
 		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
