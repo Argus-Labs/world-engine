@@ -315,7 +315,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	// Start the next tick.
 	tickStart <- time.Now()
 
-	// This second tick shold find 2 ModifyScore transactions. They were added in the middle of the previous tick.
+	// This second tick should find 2 ModifyScore transactions. They were added in the middle of the previous tick.
 	count = <-modScoreCountCh
 	assert.Equal(t, 2, count)
 	count = <-modScoreCountCh
