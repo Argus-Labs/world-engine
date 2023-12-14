@@ -8,6 +8,7 @@ import (
 	"time"
 
 	ddstatsd "github.com/DataDog/datadog-go/v5/statsd"
+	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 )
 
@@ -27,7 +28,7 @@ func EmitTickStat(start time.Time, stage string) {
 
 func Init(address string, tags []string) error {
 	if address == "" {
-		return nil
+		return eris.New("address must not be empty")
 	}
 	opts := []ddstatsd.Option{
 		// The statsd namespace is the prefix of all metrics

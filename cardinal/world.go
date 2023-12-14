@@ -114,8 +114,12 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		metricTags = append(metricTags, cfg.CardinalNamespace)
 	}
 
-	if err = statsd.Init(cfg.StatsdAddress, metricTags); err != nil {
-		return nil, eris.Wrap(err, "unable to init statsd")
+	if cfg.StatsdAddress != "" {
+		if err = statsd.Init(cfg.StatsdAddress, metricTags); err != nil {
+			return nil, eris.Wrap(err, "unable to init statsd")
+		}
+	} else {
+		log.Logger.Warn().Msg("statsd is disabled")
 	}
 
 	world := &World{
