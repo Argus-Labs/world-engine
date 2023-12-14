@@ -1,49 +1,48 @@
 package cardinal
 
 import (
-	"os"
+	"github.com/JeremyLoy/config"
+)
 
-	"github.com/rs/zerolog/log"
+type RunMode string
+
+const (
+	DeployModeProd RunMode = "production"
+	DeployModeDev  RunMode = "development"
 )
 
 const (
-	ModeProd             = "production"
-	ModeDev              = "development"
-	DefaultMode          = ModeDev
-	DefaultNamespace     = "world-1"
-	DefaultRedisPassword = ""
-	DefaultRedisAddress  = "localhost:6379"
+	DefaultMode                      = DeployModeDev
+	DefaultNamespace                 = "world-1"
+	DefaultRedisPassword             = ""
+	DefaultRedisAddress              = "localhost:6379"
+	DefaultBaseShardSequencerAddress = ""
+	DefaultBaseShardQueryAddress     = ""
 )
 
 type WorldConfig struct {
-	RedisAddress      string
-	RedisPassword     string
-	CardinalNamespace string
-	CardinalPort      string
-	CardinalMode      string
+	RedisAddress              string  `config:"REDIS_ADDRESS"`
+	RedisPassword             string  `config:"REDIS_PASSWORD"`
+	CardinalNamespace         string  `config:"CARDINAL_NAMESPACE"`
+	CardinalMode              RunMode `config:"CARDINAL_MODE"`
+	BaseShardSequencerAddress string  `config:"BASE_SHARD_SEQUENCER_ADDRESS"`
+	BaseShardQueryAddress     string  `config:"BASE_SHARD_QUERY_ADDRESS"`
+}
+
+var defaultConfig = WorldConfig{
+	RedisAddress:              DefaultRedisAddress,
+	RedisPassword:             DefaultRedisPassword,
+	CardinalNamespace:         DefaultNamespace,
+	CardinalMode:              DefaultMode,
+	BaseShardSequencerAddress: DefaultBaseShardSequencerAddress,
+	BaseShardQueryAddress:     DefaultBaseShardQueryAddress,
 }
 
 func GetWorldConfig() WorldConfig {
-	return WorldConfig{
-		RedisAddress:      getEnv("REDIS_ADDRESS", DefaultRedisAddress),
-		RedisPassword:     getEnv("REDIS_PASSWORD", DefaultRedisPassword),
-		CardinalNamespace: getEnv("CARDINAL_NAMESPACE", DefaultNamespace),
-		CardinalPort:      getEnv("CARDINAL_PORT", "4040"),
-		CardinalMode:      getEnv("CARDINAL_MODE", DefaultMode),
+	cfg := defaultConfig
+	err := config.FromEnv().To(&cfg)
+	if err != nil {
+		panic(err)
 	}
-}
-
-func getEnv(key string, fallback string) string {
-	value, ok := os.LookupEnv(key)
-	if ok {
-		// Validate CARDINAL_DEPLOY_MODE
-		if key == "CARDINAL_MODE" && value != ModeProd && value != ModeDev {
-			log.Logger.Warn().
-				Msg("CARDINAL_DEPLOY_MODE is not set to [production/development]. Defaulting to development mode.")
-			return ModeDev
-		}
-		return value
-	}
-
-	return fallback
+	return cfg
 }
