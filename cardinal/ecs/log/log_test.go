@@ -99,7 +99,7 @@ func TestWorldLogger(t *testing.T) {
 	cardinalLogger.LogWorld(w, zerolog.InfoLevel)
 	jsonWorldInfoString := `{
 					"level":"info",
-					"total_components":2,
+					"total_components":3,
 					"components":
 						[
 							{
@@ -108,14 +108,19 @@ func TestWorldLogger(t *testing.T) {
 							},
 							{
 								"component_id":2,
+								"component_name":"GameUniqueIDComponent"
+							},
+							{
+								"component_id":3,
 								"component_name":"EnergyComp"
 							}
 						],
-					"total_systems":2,
+					"total_systems":3,
 					"systems":
 						[
 							"ecs.RegisterPersonaSystem",
-							"ecs.AuthorizePersonaAddressSystem"
+							"ecs.AuthorizePersonaAddressSystem",
+							"ecs.CreateGUIDSystem"
 						]
 				}
 `
@@ -144,7 +149,7 @@ func TestWorldLogger(t *testing.T) {
 			{
 				"level":"debug",
 				"components":[{
-					"component_id":2,
+					"component_id":3,
 					"component_name":"EnergyComp"
 				}],
 				"entity_id":0,"archetype_id":0
@@ -162,7 +167,7 @@ func TestWorldLogger(t *testing.T) {
 			"level":"debug",
 			"components":[
 				{
-					"component_id":2,
+					"component_id":3,
 					"component_name":"EnergyComp"
 				}],
 			"entity_id":0,
@@ -177,7 +182,7 @@ func TestWorldLogger(t *testing.T) {
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
 	err = w.Tick(ctx)
 	assert.NilError(t, err)
-	logStrings = strings.Split(buf.String(), "\n")[:6]
+	logStrings = strings.Split(buf.String(), "\n")[:8]
 	// test tick start
 	require.JSONEq(
 		t, `
@@ -193,7 +198,7 @@ func TestWorldLogger(t *testing.T) {
 			{
 				"system":"log_test.testSystemWarningTrigger",
 				"message":"test"
-			}`, logStrings[1],
+			}`, logStrings[3],
 	)
 	// test if updating component worked
 	require.JSONEq(
@@ -202,10 +207,10 @@ func TestWorldLogger(t *testing.T) {
 				"level":"debug",
 				"entity_id":"0",
 				"component_name":"EnergyComp",
-				"component_id":2,
+				"component_id":3,
 				"message":"entity updated",
 				"system":"log_test.testSystemWarningTrigger"
-			}`, logStrings[2],
+			}`, logStrings[4],
 	)
 	// test tick end
 	buf.Reset()
@@ -229,7 +234,7 @@ func TestWorldLogger(t *testing.T) {
 	if err = json.Unmarshal(json1, &expectedMap); err != nil {
 		t.Fatalf("Error unmarshalling json1: %v", err)
 	}
-	if err = json.Unmarshal([]byte(logStrings[4]), &map2); err != nil {
+	if err = json.Unmarshal([]byte(logStrings[6]), &map2); err != nil {
 		t.Fatalf("Error unmarshalling buf: %v", err)
 	}
 	names := []string{"level", "tick", "tick_execution_time_ms", "message", "make_pipe_time_ms", "exec_pipe_time_ms"}
@@ -260,11 +265,11 @@ func TestWorldLogger(t *testing.T) {
 				"components":
 					[
 						{
-							"component_id":2,
+							"component_id":3,
 							"component_name":"EnergyComp"
 						}
 					],
-				"entity_id":1,
+				"entity_id":2,
 				"archetype_id":0
 			}`, entityCreationStrings[0],
 	)
@@ -275,11 +280,11 @@ func TestWorldLogger(t *testing.T) {
 				"components":
 					[
 						{
-							"component_id":2,
+							"component_id":3,
 							"component_name":"EnergyComp"
 						}
 					],
-				"entity_id":2,
+				"entity_id":3,
 				"archetype_id":0
 			}`, entityCreationStrings[1],
 	)

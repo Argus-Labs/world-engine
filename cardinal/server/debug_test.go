@@ -49,7 +49,8 @@ func TestDebugEndpoint(t *testing.T) {
 	data := make([]json.RawMessage, 0)
 	err = json.Unmarshal(bz, &data)
 	assert.NilError(t, err)
-	assert.Equal(t, len(data), 10*7)
+	// +1 for the auto-generated guid
+	assert.Equal(t, len(data), 10*7+1)
 }
 
 func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
@@ -115,12 +116,15 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	testCases := []struct {
 		name            string
 		makeHTTPRequest func() *http.Response
+		wantCount       int
 	}{
 		{
 			name: "use /debug/state",
 			makeHTTPRequest: func() *http.Response {
 				return txh.Get("debug/state")
 			},
+			// The created entity and the default guid
+			wantCount: 2,
 		},
 		{
 			name: "use cql",
@@ -131,6 +135,8 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 					},
 				)
 			},
+			// The guid is not contained in this EXACT query
+			wantCount: 1,
 		},
 	}
 
@@ -148,7 +154,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 		}
 		err = json.NewDecoder(resp.Body).Decode(&data)
 		assert.NilError(t, err, tc.name)
-		assert.Equal(t, len(data), 1, tc.name)
+		assert.Equal(t, len(data), tc.wantCount, tc.name)
 		assert.Equal(t, len(data[0].Data), 1, tc.name)
 		value := data[0].Data[0].DeltaValue
 		// Each system increments Delta.Value by 50 two times, so value%100 should

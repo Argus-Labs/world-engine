@@ -369,10 +369,8 @@ func NewWorld(
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 	w.isGameLoopRunning.Store(false)
-	w.RegisterSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
-	err := RegisterComponent[SignerComponent](w)
-	if err != nil {
-		return nil, err
+	if err := setupDefaultPlugins(w); err != nil {
+		return nil, eris.Wrap(err, "failed to setup default plugins")
 	}
 	opts = append([]Option{WithEventHub(events.CreateWebSocketEventHub())}, opts...)
 	for _, opt := range opts {
@@ -382,6 +380,22 @@ func NewWorld(
 		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), defaultReceiptHistorySize)
 	}
 	return w, nil
+}
+
+// setupDefaultPlugins sets up default systems, components, queries, and transactions that will be included in
+// all cardinal games.
+func setupDefaultPlugins(world *World) error {
+	world.RegisterSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem, CreateGUIDSystem)
+	if err := RegisterComponent[SignerComponent](world); err != nil {
+		return eris.Wrap(err, "")
+	}
+	if err := RegisterComponent[GUIDComponent](world); err != nil {
+		return eris.Wrap(err, "")
+	}
+	if err := setupGUIDQuery(world); err != nil {
+		return eris.Wrap(err, "")
+	}
+	return nil
 }
 
 func (w *World) CurrentTick() uint64 {

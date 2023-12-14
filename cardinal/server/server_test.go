@@ -339,7 +339,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 			"/tx/persona/create-persona", "/tx/game/authorize-persona-address", "/tx/game/send-energy",
 		},
 		QueryEndpoints: []string{
-			"/query/game/foo", "/query/http/endpoints", "/query/persona/signer",
+			"/query/game/guid", "/query/game/foo", "/query/http/endpoints", "/query/persona/signer",
 			"/query/receipt/list", "/query/game/cql",
 		},
 	}
@@ -462,7 +462,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 		{cql: "CONTAINS(beta)", expectedStatus: 200, amount: bothCount},
 		{cql: "EXACT(alpha)", expectedStatus: 200, amount: alphaCount},
 		{cql: "EXACT(beta)", expectedStatus: 200, amount: 0},
-		{cql: "!(CONTAINS(alpha) | CONTAINS(beta))", expectedStatus: 200, amount: 1},
+		{cql: "!(CONTAINS(alpha) | CONTAINS(beta))", expectedStatus: 200, amount: 2},
 		{cql: "!CONTAINS(alpha) & CONTAINS(beta)", expectedStatus: 200, amount: 0},
 	} {
 		jsonQuery := struct{ CQL string }{v.cql}
@@ -821,6 +821,7 @@ func TestCanListQueries(t *testing.T) {
 	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&gotEndpoints))
 
 	endpoints := []string{
+		"/query/game/guid",
 		"/query/game/foo",
 		"/query/game/bar",
 		"/query/game/baz",
