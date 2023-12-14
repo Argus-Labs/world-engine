@@ -16,7 +16,7 @@ type EntityIterator struct {
 	indices      []archetype.ID
 }
 
-// NewEntityIterator returns an iterator for Entitys.
+// NewEntityIterator returns an iterator for Entities.
 func NewEntityIterator(current int, archAccessor HasEntitiesForArchetype, indices []archetype.ID) EntityIterator {
 	return EntityIterator{
 		current:      current,
