@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package world.engine.shard.v2;
+
+option go_package = "github.com/argus-labs/world-engine/shard/v2";
+
+// service TransactionHandler deals with transactions coming from game shards.
+service TransactionHandler {
+  // SubmitCardinalBatch handles receiving transactions from a game shard and persisting them to the chain.
+  rpc Submit(SubmitTransactionsRequest) returns (SubmitTransactionsResponse);
+}
+
+message SubmitTransactionsRequest {
+  // epoch is the period in which the transactions occurred. For loop driven runtimes, such as cardinal,
+  // this is often referred to as "tick number".
+  uint64 epoch = 1;
+  // namespace is the namespace of the game shard in which the transactions were executed in.
+  string namespace = 2;
+  // transactions is a mapping of game shard transaction ID's to the transactions themselves.
+  //  NOTE: if this message is being consumed via Golang, the transaction mapping MUST be converted to a
+  // slice with the transaction ID's sorted. Maps in Golang are NOT deterministic.
+  map<uint64, Transactions> transactions = 3;
+}
+
+message SubmitTransactionsResponse {}
+
+message Transactions {
+  repeated Transaction txs = 1;
+}
+
+message Transaction {
+  string PersonaTag = 1;
+  string Namespace = 2;
+  uint64 Nonce = 3;
+  string Signature = 4;
+  bytes Body = 5;
+}

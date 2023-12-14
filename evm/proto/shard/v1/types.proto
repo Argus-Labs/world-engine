@@ -10,7 +10,7 @@ message Transaction {
   // to unmarshal the payload.Body into.
   uint64 tx_id = 1;
 
-  // game_shard_transaction is a proto encoded Transaction. (see rift package)
+  // game_shard_transaction is an encoded game shard transaction.
   bytes game_shard_transaction = 2;
 }
 

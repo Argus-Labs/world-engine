@@ -8,10 +8,9 @@ import (
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/protobuf/proto"
 	"net"
 	"os"
-	shard "pkg.world.dev/world-engine/rift/shard/v1"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
 	"strconv"
 	"sync"
 
@@ -23,13 +22,13 @@ const (
 )
 
 var (
-	Name                          = "shard_sequencer"
-	_    shard.ShardHandlerServer = &Sequencer{}
+	Name                                = "shard_sequencer"
+	_    shard.TransactionHandlerServer = &Sequencer{}
 )
 
 // Sequencer handles sequencing game shard transactions.
 type Sequencer struct {
-	shard.UnimplementedShardHandlerServer
+	shard.UnimplementedTransactionHandlerServer
 	moduleAddr sdk.AccAddress
 	tq         *TxQueue
 
@@ -87,7 +86,7 @@ func loadCredentials(certPath, keyPath string) (credentials.TransportCredentials
 // Serve serves the server in a new go routine.
 func (s *Sequencer) Serve() {
 	grpcServer := grpc.NewServer(grpc.Creds(s.creds))
-	shard.RegisterShardHandlerServer(grpcServer, s)
+	shard.RegisterTransactionHandlerServer(grpcServer, s)
 	port := defaultPort
 	// check if a custom port was set
 	if setPort := os.Getenv("SHARD_SEQUENCER_PORT"); setPort != "" {
@@ -112,16 +111,9 @@ func (s *Sequencer) FlushMessages() []*types.SubmitShardTxRequest {
 	return s.tq.GetTxs()
 }
 
-// SubmitShardTx appends the game shard tx submission to the tx queue.
-func (s *Sequencer) SubmitShardTx(_ context.Context, req *shard.SubmitShardTxRequest) (
-	*shard.SubmitShardTxResponse, error) {
-	zerolog.Logger.Info().Msgf("got transaction from shard: %s", req.Tx.Namespace)
-	bz, err := proto.Marshal(req.Tx)
-	if err != nil {
-		return nil, err
-	}
-
-	s.tq.AddTx(req.Tx.Namespace, req.Epoch, req.TxId, bz)
-
-	return &shard.SubmitShardTxResponse{}, nil
+// Submit appends the game shard tx submission to the tx queue.
+func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsRequest) (
+	*shard.SubmitTransactionsResponse, error) {
+	zerolog.Logger.Info().Msgf("got transaction from shard: %s", req.Namespace)
+	return &shard.SubmitTransactionsResponse{}, nil
 }

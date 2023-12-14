@@ -34,7 +34,7 @@ func (tc *TxQueue) GetRequestForNamespaceEpoch(ns string, epoch uint64) *types.S
 func (tc *TxQueue) AddTx(namespace string, epoch, txID uint64, payload []byte) {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
-	// if we have a brand-new namespace submitting transactions, we setup a new queue for it.
+	// if we have a brand-new namespace submitting transactions, we set up a new queue for it.
 	if tc.ntx[namespace] == nil {
 		tc.ntx[namespace] = &txQueue{
 			epochQueue: queue.New[uint64](),
