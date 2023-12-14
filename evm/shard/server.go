@@ -5,17 +5,16 @@ import (
 	"crypto/tls"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/cosmos/gogoproto/proto"
+	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"net"
 	"os"
-	shard "pkg.world.dev/world-engine/rift/shard/v2"
-	"slices"
-	"strconv"
-	"sync"
-
 	"pkg.world.dev/world-engine/evm/x/shard/types"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
+	"strconv"
 )
 
 const (
@@ -47,12 +46,7 @@ func NewShardSequencer(opts ...Option) *Sequencer {
 	addr := authtypes.NewModuleAddress(Name)
 	s := &Sequencer{
 		moduleAddr: addr,
-		tq: &TxQueue{
-			lock:       sync.Mutex{},
-			ntx:        make(NamespacedTxs),
-			outbox:     make([]*types.SubmitShardTxRequest, 0),
-			moduleAddr: addr.String(),
-		},
+		tq:         NewTxQueue(addr.String()),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -116,16 +110,15 @@ func (s *Sequencer) FlushMessages() []*types.SubmitShardTxRequest {
 func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsRequest) (
 	*shard.SubmitTransactionsResponse, error) {
 	zerolog.Logger.Info().Msgf("got transaction from shard: %s", req.Namespace)
-	txIDs := make([]uint64, len(req.Transactions))
-	for id := range req.Transactions {
-		txIDs = append(txIDs, id)
-	}
-	slices.Sort(txIDs)
-
+	txIDs := sortMapKeys(req.Transactions)
 	for _, txID := range txIDs {
 		txs := req.Transactions[txID].Txs
 		for _, tx := range txs {
-			s.tq.AddTx(req.Namespace, req.Epoch, txID, nil)
+			bz, err := proto.Marshal(tx)
+			if err != nil {
+				return nil, eris.Wrap(err, "failed to marshal transaction")
+			}
+			s.tq.AddTx(req.Namespace, req.Epoch, txID, bz)
 		}
 
 	}

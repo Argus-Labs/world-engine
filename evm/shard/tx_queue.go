@@ -1,28 +1,31 @@
 package shard
 
 import (
-	"github.com/zyedidia/generic/queue"
+	"cmp"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
+	"slices"
 	"sync"
 )
 
 // TxQueue acts as a transaction queue. Transactions come in to the TxQueue with an epoch.
 type TxQueue struct {
 	lock       sync.Mutex
-	ntx        NamespacedTxs
-	outbox     []*types.SubmitShardTxRequest
+	ntx        map[string]*txQueue
 	moduleAddr string
 }
 
+func NewTxQueue(moduleAddr string) *TxQueue {
+	return &TxQueue{
+		lock:       sync.Mutex{},
+		ntx:        make(map[string]*txQueue),
+		moduleAddr: moduleAddr,
+	}
+}
+
 type txQueue struct {
-	// epochQueue are the epochs waiting to be submitted to the blockchain
-	epochQueue *queue.Queue[uint64]
 	// txs are the transaction requests, indexed by epoch.
 	txs map[uint64]*types.SubmitShardTxRequest
 }
-
-// NamespacedTxs maps namespaces to a transaction queue.
-type NamespacedTxs map[string]*txQueue
 
 func (tc *TxQueue) GetRequestForNamespaceEpoch(ns string, epoch uint64) *types.SubmitShardTxRequest {
 	return tc.ntx[ns].txs[epoch]
@@ -37,23 +40,8 @@ func (tc *TxQueue) AddTx(namespace string, epoch, txID uint64, payload []byte) {
 	// if we have a brand-new namespace submitting transactions, we set up a new queue for it.
 	if tc.ntx[namespace] == nil {
 		tc.ntx[namespace] = &txQueue{
-			epochQueue: queue.New[uint64](),
-			txs:        make(map[uint64]*types.SubmitShardTxRequest),
+			txs: make(map[uint64]*types.SubmitShardTxRequest),
 		}
-	}
-
-	// if the queue is empty, enqueue the epoch number.
-	if tc.ntx[namespace].epochQueue.Empty() {
-		tc.ntx[namespace].epochQueue.Enqueue(epoch)
-	} else if lastEpoch := tc.ntx[namespace].epochQueue.Peek(); lastEpoch != epoch {
-		// if the queue is not empty, and the submitting epoch is not the same as the last seen one:
-		// 1. enqueue the new epoch
-		// 2. dequeue the top epoch, and submit its transactions to the outbox.
-		// 3. delete the transactions from the map.
-		tc.ntx[namespace].epochQueue.Enqueue(epoch)
-		prev := tc.ntx[namespace].epochQueue.Dequeue()
-		tc.outbox = append(tc.outbox, tc.ntx[namespace].txs[prev])
-		delete(tc.ntx[namespace].txs, prev)
 	}
 
 	// if we don't have a request for this epoch yet, instantiate one.
@@ -77,10 +65,24 @@ func (tc *TxQueue) AddTx(namespace string, epoch, txID uint64, payload []byte) {
 func (tc *TxQueue) GetTxs() []*types.SubmitShardTxRequest {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
-	// copy the outbox.
-	outboxCopy := make([]*types.SubmitShardTxRequest, len(tc.outbox))
-	copy(outboxCopy, tc.outbox)
-	// clear outbox, retain capacity.
-	tc.outbox = tc.outbox[:0]
-	return outboxCopy
+	var reqs []*types.SubmitShardTxRequest
+	namespaces := sortMapKeys(tc.ntx)
+	for _, namespace := range namespaces {
+		txq := tc.ntx[namespace]
+		epochs := sortMapKeys(txq.txs)
+		for _, epoch := range epochs {
+			reqs = append(reqs, txq.txs[epoch])
+		}
+	}
+	clear(tc.ntx)
+	return reqs
+}
+
+func sortMapKeys[S map[K]V, K cmp.Ordered, V any](m S) []K {
+	keys := make([]K, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	return keys
 }
