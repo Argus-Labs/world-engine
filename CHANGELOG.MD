@@ -58,4 +58,6 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### API Breaking
 
+- (cardinal) #WORLD-676: Adapter instantiation is now automatic in production mode, and requires setting two new evn vars: `BASE_SHARD_SEQUENCER_ADDRESS` and `BASE_SHARD_QUERY_ADDRESS`.
+
 ### State Machine Breaking
