@@ -18,8 +18,10 @@ import (
 type WorldOption struct {
 	ecsOption      ecs.Option
 	serverOption   server.Option
-	cardinalOption func(*World)
+	cardinalOption Option
 }
+
+type Option func(*World)
 
 // WithAdapter provides the world with communicate channels to the EVM base shard, enabling transaction storage and
 // transaction retrieval for state rebuilding purposes.

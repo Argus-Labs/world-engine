@@ -73,26 +73,9 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	var gameManagerOptions []server.GameManagerOptions // not exposed in NewWorld Yet
 
 	if cfg.CardinalMode == RunModeProd {
-		log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
-		if cfg.RedisPassword == DefaultRedisPassword {
-			return nil, errors.New("redis password is required in production")
+		if err := applyProductionOptions(cfg, &ecsOptions); err != nil {
+			return nil, err
 		}
-		if cfg.CardinalNamespace == DefaultNamespace {
-			return nil, errors.New(
-				"cardinal namespace can't be the default value in production to avoid replay attack",
-			)
-		}
-		if cfg.BaseShardSequencerAddress == "" || cfg.BaseShardQueryAddress == "" {
-			return nil, errors.New("must supply base shard addresses for production mode Cardinal worlds")
-		}
-		adapter, err := shard.NewAdapter(shard.AdapterConfig{
-			ShardSequencerAddr: cfg.BaseShardSequencerAddress,
-			EVMBaseShardAddr:   cfg.BaseShardQueryAddress,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to instantiate adapter: %w", err)
-		}
-		ecsOptions = append(ecsOptions, ecs.WithAdapter(adapter))
 	} else {
 		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
 		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
@@ -133,6 +116,33 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	return world, nil
+}
+
+func applyProductionOptions(
+	cfg WorldConfig,
+	ecsOptions *[]ecs.Option,
+) error {
+	log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
+	if cfg.RedisPassword == DefaultRedisPassword {
+		return errors.New("redis password is required in production")
+	}
+	if cfg.CardinalNamespace == DefaultNamespace {
+		return errors.New(
+			"cardinal namespace can't be the default value in production to avoid replay attack",
+		)
+	}
+	if cfg.BaseShardSequencerAddress == "" || cfg.BaseShardQueryAddress == "" {
+		return errors.New("must supply base shard addresses for production mode Cardinal worlds")
+	}
+	adapter, err := shard.NewAdapter(shard.AdapterConfig{
+		ShardSequencerAddr: cfg.BaseShardSequencerAddress,
+		EVMBaseShardAddr:   cfg.BaseShardQueryAddress,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to instantiate adapter: %w", err)
+	}
+	*ecsOptions = append(*ecsOptions, ecs.WithAdapter(adapter))
+	return nil
 }
 
 // NewMockWorld creates a World object that uses miniredis as the storage layer suitable for local development.
