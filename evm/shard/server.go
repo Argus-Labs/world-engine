@@ -11,6 +11,7 @@ import (
 	"net"
 	"os"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
+	"slices"
 	"strconv"
 	"sync"
 
@@ -115,5 +116,18 @@ func (s *Sequencer) FlushMessages() []*types.SubmitShardTxRequest {
 func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsRequest) (
 	*shard.SubmitTransactionsResponse, error) {
 	zerolog.Logger.Info().Msgf("got transaction from shard: %s", req.Namespace)
+	txIDs := make([]uint64, len(req.Transactions))
+	for id := range req.Transactions {
+		txIDs = append(txIDs, id)
+	}
+	slices.Sort(txIDs)
+
+	for _, txID := range txIDs {
+		txs := req.Transactions[txID].Txs
+		for _, tx := range txs {
+			s.tq.AddTx(req.Namespace, req.Epoch, txID, nil)
+		}
+
+	}
 	return &shard.SubmitTransactionsResponse{}, nil
 }
