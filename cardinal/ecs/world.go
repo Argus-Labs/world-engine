@@ -52,6 +52,7 @@ type World struct {
 	initSystemLogger       *ecslog.Logger
 	systemNames            []string
 	tick                   *atomic.Uint64
+	timestamp              *atomic.Uint64
 	nameToComponent        map[string]component.ComponentMetadata
 	nameToQuery            map[string]Query
 	registeredComponents   []component.ComponentMetadata
@@ -351,6 +352,7 @@ func NewWorld(
 		entityStore:       entityStore,
 		namespace:         namespace,
 		tick:              &atomic.Uint64{},
+		timestamp:         new(atomic.Uint64),
 		systems:           make([]System, 0),
 		initSystem:        func(_ WorldContext) error { return nil },
 		nameToComponent:   make(map[string]component.ComponentMetadata),
@@ -458,6 +460,7 @@ func (w *World) Tick(_ context.Context) error {
 			return err
 		}
 	}
+	w.timestamp.Store(uint64(startTime.Unix()))
 	allSystemsStartTime := time.Now()
 	for i, sys := range w.systems {
 		nameOfCurrentRunningSystem = w.systemNames[i]
