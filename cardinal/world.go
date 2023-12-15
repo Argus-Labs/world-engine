@@ -137,6 +137,7 @@ func setLogLevel(levelStr string) error {
 		var exampleLogLevels = strings.Join([]string{
 			zerolog.DebugLevel.String(),
 			zerolog.InfoLevel.String(),
+			zerolog.WarnLevel.String(),
 			zerolog.ErrorLevel.String(),
 			zerolog.Disabled.String(),
 		}, ", ")
