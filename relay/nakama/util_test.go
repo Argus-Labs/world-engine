@@ -26,6 +26,7 @@ import (
 // ctxWithUserID saves the given user ID to the background context in a location that Nakama expects to find user IDs.
 func ctxWithUserID(userID string) context.Context {
 	ctx := context.Background()
+	//nolint:staticcheck // this is how Nakama reads userIDs from the context.
 	return context.WithValue(ctx, runtime.RUNTIME_CTX_USER_ID, userID)
 }
 
