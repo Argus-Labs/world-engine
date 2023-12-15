@@ -205,7 +205,7 @@ func initPersonaTagAssignmentMap(ctx context.Context, logger runtime.Logger, nk 
 	var err error
 	iterationLimit := 100
 	for {
-		objs, cursor, err = nk.StorageList(ctx, "", cardinalCollection, iterationLimit, cursor)
+		objs, cursor, err = nk.StorageList(ctx, "", "", cardinalCollection, iterationLimit, cursor)
 		if err != nil {
 			return eris.Wrap(err, "")
 		}

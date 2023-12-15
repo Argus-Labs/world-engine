@@ -1,0 +1,10 @@
+dir: vendor/github.com/heroiclabs/nakama-common/runtime/
+all: True
+dry-run: False
+outpkg: "mocks"
+packages:
+  github.com/heroiclabs/nakama-common/runtime:
+    config:
+      dir: mocks
+      mockname: "{{.InterfaceName}}"
+      recursive: False

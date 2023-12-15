@@ -45,7 +45,10 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 ### Improvements
 
+- (nakama) #WORLD-659: Bump nakama to version 1.30 (which includes go 1.21) and add unit tests based on mockery.
+
 - (cardinal) #WORLD-668: Log tick timing information into a single log line.
+
 - (cardinal) #WORLD-643: Instead of making sure nonce values are strictly increasing, use a Redis set to track every used nonce.
 
 ### Deprecated
