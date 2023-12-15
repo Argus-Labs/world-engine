@@ -37,7 +37,7 @@ func (a *AllowListTestSuite) TestUserIDRequired() {
 
 	_, err := claimKeyRPC(ctx, noopLogger(t), nil, nil, "")
 	// claimKeyRPC should fail because the userID cannot be found in the context
-	assert.Check(t, err != nil)
+	assert.IsError(t, err)
 }
 
 func (a *AllowListTestSuite) TestChecksCorrectStorageObject() {
