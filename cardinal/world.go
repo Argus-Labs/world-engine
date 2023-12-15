@@ -9,10 +9,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/rotisserie/eris"
+	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/gamestage"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -70,6 +72,10 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	serverOptions = append(serverOptions, server.WithCORS())
 	gameManagerOptions := []server.GameManagerOptions{} // not exposed in NewWorld Yet
 
+	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
+		return nil, eris.Wrap(err, "")
+	}
+
 	if cfg.CardinalMode == ModeProd {
 		log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
 		if cfg.RedisPassword == DefaultRedisPassword {
@@ -120,6 +126,24 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	return world, nil
+}
+
+func setLogLevel(levelStr string) error {
+	if levelStr == "" {
+		return eris.New("log level must not be empty")
+	}
+	level, err := zerolog.ParseLevel(levelStr)
+	if err != nil {
+		var exampleLogLevels = strings.Join([]string{
+			zerolog.DebugLevel.String(),
+			zerolog.InfoLevel.String(),
+			zerolog.ErrorLevel.String(),
+			zerolog.Disabled.String(),
+		}, ", ")
+		return eris.Errorf("log level %q is invalid, try one of: %v.", levelStr, exampleLogLevels)
+	}
+	zerolog.SetGlobalLevel(level)
+	return nil
 }
 
 // NewMockWorld creates a World object that uses miniredis as the storage layer suitable for local development.
