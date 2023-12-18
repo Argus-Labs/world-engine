@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/heroiclabs/nakama-common/api"
@@ -19,7 +18,6 @@ import (
 type AllowListTestSuite struct {
 	suite.Suite
 	originalAllowListEnabled bool
-	originalEnvVar           string
 }
 
 func TestAllowList(t *testing.T) {
@@ -29,14 +27,11 @@ func TestAllowList(t *testing.T) {
 func (a *AllowListTestSuite) SetupTest() {
 	a.originalAllowListEnabled = allowlistEnabled
 	allowlistEnabled = true
-	a.originalEnvVar = os.Getenv(allowlistEnabledEnvVar)
+	a.T().Setenv(allowlistEnabledEnvVar, "")
 }
 
 func (a *AllowListTestSuite) TearDownTest() {
 	allowlistEnabled = a.originalAllowListEnabled
-	if err := os.Setenv(allowlistEnabledEnvVar, a.originalEnvVar); err != nil {
-		panic(err)
-	}
 }
 
 func (a *AllowListTestSuite) TestUserIDRequired() {
@@ -104,20 +99,21 @@ func (a *AllowListTestSuite) TestBadKeyRequestsAreRejected() {
 }
 
 func (a *AllowListTestSuite) TestCanDisableAllowList() {
+	t := a.T()
 	testCases := []string{
 		"false",
 		"F",
 		"False",
 	}
 	for _, tc := range testCases {
-		os.Setenv(allowlistEnabledEnvVar, tc)
-		assert.NilError(a.T(), initAllowlist(nil, nil))
-		assert.Equal(a.T(), false, allowlistEnabled)
+		t.Setenv(allowlistEnabledEnvVar, tc)
+		assert.NilError(t, initAllowlist(nil, nil))
+		assert.Equal(t, false, allowlistEnabled)
 	}
 }
 
 func (a *AllowListTestSuite) TestRejectBadAllowListFlag() {
-	os.Setenv(allowlistEnabledEnvVar, "unclear-boolean-value")
+	a.T().Setenv(allowlistEnabledEnvVar, "unclear-boolean-value")
 	assert.IsError(a.T(), initAllowlist(nil, nil))
 }
 
@@ -128,7 +124,7 @@ func (a *AllowListTestSuite) TestCanEnableAllowList() {
 		"T",
 	}
 	for _, tc := range testCases {
-		os.Setenv(allowlistEnabledEnvVar, tc)
+		a.T().Setenv(allowlistEnabledEnvVar, tc)
 		initializer := mocks.NewInitializer(a.T())
 		initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
 			Return(nil)
@@ -142,7 +138,7 @@ func (a *AllowListTestSuite) TestCanEnableAllowList() {
 }
 
 func (a *AllowListTestSuite) TestAllowListFailsIfRPCRegistrationFails() {
-	os.Setenv(allowlistEnabledEnvVar, "true")
+	a.T().Setenv(allowlistEnabledEnvVar, "true")
 	initializer := mocks.NewInitializer(a.T())
 	initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
 		Return(errors.New("failed to register"))
@@ -299,5 +295,4 @@ func (a *AllowListTestSuite) TestClaimedBetaKeyCannotBeReclaimed() {
 	payload := `{"key": "xyzzy"}`
 	_, err := claimKeyRPC(ctx, noopLogger(t), nil, mockNK, payload)
 	assert.ErrorContains(t, err, ErrBetaKeyAlreadyUsed.Error())
-
 }
