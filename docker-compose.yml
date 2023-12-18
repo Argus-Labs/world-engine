@@ -51,7 +51,7 @@ services:
       - "7350"
       - "7351"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7350/"]
+      test: ["CMD", "/nakama/nakama", "healthcheck"]
       interval: 20s
       timeout: 10s
       retries: 5
