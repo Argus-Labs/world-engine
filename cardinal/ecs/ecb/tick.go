@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
+	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 
@@ -61,20 +61,20 @@ func (m *Manager) StartNextTick(txs []message.Message, queue *txpool.TxQueue) er
 
 // FinalizeTick combines all pending state changes into a single multi/exec redis transactions and commits them
 // to the DB.
-func (m *Manager) FinalizeTick(event *zerolog.Event) error {
+func (m *Manager) FinalizeTick() error {
 	ctx := context.Background()
-	startRedisPipe := time.Now()
+	makePipeStartTime := time.Now()
 	pipe, err := m.makePipeOfRedisCommands(ctx)
 	if err != nil {
 		return err
 	}
-	event.Int("make_pipe_time_ms", int(time.Since(startRedisPipe).Milliseconds()))
 	if err = pipe.Incr(context.Background(), redisEndTickKey()).Err(); err != nil {
 		return eris.Wrap(err, "")
 	}
+	statsd.EmitTickStat(makePipeStartTime, "pipe_make")
 	flushStartTime := time.Now()
 	_, err = pipe.Exec(ctx)
-	event.Int("exec_pipe_time_ms", int(time.Since(flushStartTime).Milliseconds()))
+	statsd.EmitTickStat(flushStartTime, "pipe_exec")
 	return eris.Wrap(err, "")
 }
 

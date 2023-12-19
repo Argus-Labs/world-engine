@@ -3,7 +3,6 @@ package log_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -177,23 +176,15 @@ func TestWorldLogger(t *testing.T) {
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
 	err = w.Tick(ctx)
 	assert.NilError(t, err)
-	logStrings = strings.Split(buf.String(), "\n")[:6]
+	logStrings = strings.Split(buf.String(), "\n")[:4]
 	// test tick start
 	require.JSONEq(
 		t, `
 			{
 				"level":"info",
-				"tick":"0",
+				"tick":0,
 				"message":"Tick started"
 			}`, logStrings[0],
-	)
-	// test if system name recorded in log
-	require.JSONEq(
-		t, `
-			{
-				"system":"log_test.testSystemWarningTrigger",
-				"message":"test"
-			}`, logStrings[1],
 	)
 	// test if updating component worked
 	require.JSONEq(
@@ -207,46 +198,6 @@ func TestWorldLogger(t *testing.T) {
 				"system":"log_test.testSystemWarningTrigger"
 			}`, logStrings[2],
 	)
-	// test tick end
-	buf.Reset()
-	sanitizedJSON := func(json []byte) []byte {
-		json = bytes.ReplaceAll(json, []byte("\t"), []byte(""))
-		json = bytes.ReplaceAll(json, []byte("\n"), []byte(""))
-		json = bytes.ReplaceAll(json, []byte("\r"), []byte(""))
-		return json
-	}
-	var expectedMap, map2 map[string]interface{}
-	// tick execution time is not tested.
-	json1 := []byte(`{
-				 "level":"info",
-				 "tick":"0",
-				 "tick_execution_time_ms": 0,
-                 "make_pipe_time_ms": 0,
-				 "exec_pipe_time_ms": 0,
-				 "message":"tick_ended"
-			 }`)
-	json1 = sanitizedJSON(json1)
-	if err = json.Unmarshal(json1, &expectedMap); err != nil {
-		t.Fatalf("Error unmarshalling json1: %v", err)
-	}
-	if err = json.Unmarshal([]byte(logStrings[4]), &map2); err != nil {
-		t.Fatalf("Error unmarshalling buf: %v", err)
-	}
-	names := []string{"level", "tick", "tick_execution_time_ms", "message", "make_pipe_time_ms", "exec_pipe_time_ms"}
-	for _, name := range names {
-		v1, ok := expectedMap[name]
-		if !ok {
-			t.Errorf("Should be a value in %s", name)
-		}
-		v2, ok := map2[name]
-		if !ok {
-			t.Errorf("Should be a value in %s", name)
-		}
-		// time is not deterministic in the context of unit tests, therefore it is not unit testable.
-		if name != "tick_execution_time_ms" {
-			assert.Equal(t, v1, v2)
-		}
-	}
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
