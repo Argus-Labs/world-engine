@@ -1,4 +1,4 @@
-package shard
+package sequencer
 
 import (
 	"cmp"
@@ -10,14 +10,14 @@ import (
 // TxQueue acts as a transaction queue. Transactions come in to the TxQueue with an epoch.
 type TxQueue struct {
 	lock       sync.Mutex
-	ntx        map[string]*txQueue
+	queues     map[string]map[uint64]*types.SubmitShardTxRequest
 	moduleAddr string
 }
 
 func NewTxQueue(moduleAddr string) *TxQueue {
 	return &TxQueue{
 		lock:       sync.Mutex{},
-		ntx:        make(map[string]*txQueue),
+		queues:     make(map[string]map[uint64]*types.SubmitShardTxRequest),
 		moduleAddr: moduleAddr,
 	}
 }
@@ -27,26 +27,18 @@ type txQueue struct {
 	txs map[uint64]*types.SubmitShardTxRequest
 }
 
-func (tc *TxQueue) GetRequestForNamespaceEpoch(ns string, epoch uint64) *types.SubmitShardTxRequest {
-	return tc.ntx[ns].txs[epoch]
-}
-
-// AddTx first checks if there are already transactions stored for the epoch in the request.
-// If there are, we simply append this request to txs.
-// If there aren't yet, we append the epoch number to epochQueue, then append to the txs map.
+// AddTx adds a transaction to the queue.
 func (tc *TxQueue) AddTx(namespace string, epoch, txID uint64, payload []byte) {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
-	// if we have a brand-new namespace submitting transactions, we set up a new queue for it.
-	if tc.ntx[namespace] == nil {
-		tc.ntx[namespace] = &txQueue{
-			txs: make(map[uint64]*types.SubmitShardTxRequest),
-		}
+
+	if tc.queues[namespace] == nil {
+		tc.queues[namespace] = make(map[uint64]*types.SubmitShardTxRequest)
 	}
 
 	// if we don't have a request for this epoch yet, instantiate one.
-	if tc.ntx[namespace].txs[epoch] == nil {
-		tc.ntx[namespace].txs[epoch] = &types.SubmitShardTxRequest{
+	if tc.queues[namespace][epoch] == nil {
+		tc.queues[namespace][epoch] = &types.SubmitShardTxRequest{
 			Sender:    tc.moduleAddr,
 			Namespace: namespace,
 			Epoch:     epoch,
@@ -55,26 +47,26 @@ func (tc *TxQueue) AddTx(namespace string, epoch, txID uint64, payload []byte) {
 	}
 
 	// append the transaction data for this epoch.
-	tc.ntx[namespace].txs[epoch].Txs = append(tc.ntx[namespace].txs[epoch].Txs, &types.Transaction{
+	tc.queues[namespace][epoch].Txs = append(tc.queues[namespace][epoch].Txs, &types.Transaction{
 		TxId:                 txID,
 		GameShardTransaction: payload,
 	})
 }
 
-// GetTxs simply copies the transactions in the outbox, clears the outbox, then returns the copy.
+// GetTxs gets all currently queued transactions sorted by namespace and by transaction ID, and then clears the queue.
 func (tc *TxQueue) GetTxs() []*types.SubmitShardTxRequest {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
 	var reqs []*types.SubmitShardTxRequest
-	namespaces := sortMapKeys(tc.ntx)
+	namespaces := sortMapKeys(tc.queues)
 	for _, namespace := range namespaces {
-		txq := tc.ntx[namespace]
-		epochs := sortMapKeys(txq.txs)
+		txq := tc.queues[namespace]
+		epochs := sortMapKeys(txq)
 		for _, epoch := range epochs {
-			reqs = append(reqs, txq.txs[epoch])
+			reqs = append(reqs, txq[epoch])
 		}
 	}
-	clear(tc.ntx)
+	clear(tc.queues)
 	return reqs
 }
 

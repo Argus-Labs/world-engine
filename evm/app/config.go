@@ -46,7 +46,6 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 
 	shardmodulev1 "pkg.world.dev/world-engine/evm/api/shard/module/v1"
-	"pkg.world.dev/world-engine/evm/shard"
 	shardmodule "pkg.world.dev/world-engine/evm/x/shard"
 
 	namespacemodule "pkg.world.dev/world-engine/evm/api/namespace/module/v1"
@@ -101,7 +100,7 @@ var (
 		{Account: stakingtypes.NotBondedPoolName, Permissions: []string{authtypes.Burner, stakingtypes.ModuleName}},
 		{Account: govtypes.ModuleName, Permissions: []string{authtypes.Burner}},
 		{Account: evmtypes.ModuleName, Permissions: []string{authtypes.Minter, authtypes.Burner}},
-		{Account: shard.Name},
+		{Account: sequencer.Name},
 		{Account: namespacetypes.ModuleName},
 	}
 
