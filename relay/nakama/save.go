@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 )
@@ -128,21 +129,12 @@ func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 		}
 	}
 
-	// check if the user is allowlisted. NOTE: checkVerified will return nil in two cases:
+	// check if the user is allowlisted. NOTE: checkVerified will return true in two cases:
 	// case 1: if the allowlist is disabled (via ENABLE_ALLOWLIST env var).
 	// case 2: the user is actually allowlisted.
-	var verified bool
-	err = checkVerified(ctx, nk, userID)
+	verified, err := isUserVerified(ctx, nk, userID)
 	if err != nil {
-		// as long as the error isn't that they're not allowlisted, return the error.
-		// we ignore the ErrNotAllowlisted, which will keep verified == false.
-		if !eris.Is(eris.Cause(err), ErrNotAllowlisted) {
-			return logErrorFailedPrecondition(logger, eris.Wrap(err, "could not read verification table"))
-		}
-	} else {
-		// when err == nil, that means checkVerified passed, or that there is no allowlist enabled.
-		// so we just set verified to true.
-		verified = true
+		return logErrorFailedPrecondition(logger, eris.Wrap(err, "could not read verification table"))
 	}
 
 	var dataStr string

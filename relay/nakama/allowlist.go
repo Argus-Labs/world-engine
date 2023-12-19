@@ -143,9 +143,9 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 		return logErrorWithMessageAndCode(logger, err, NotFound, "unable to get userID: %v", err)
 	}
 
-	// if this user is already verified,
-	err = checkVerified(ctx, nk, userID)
-	if err == nil {
+	if verified, err := isUserVerified(ctx, nk, userID); err != nil {
+		return logErrorMessageFailedPrecondition(logger, err, "failed to check beta key status")
+	} else if verified {
 		msg := fmt.Sprintf("user %q already verified with a beta key", userID)
 		return logErrorWithMessageAndCode(logger, ErrAlreadyVerified, AlreadyExists, msg)
 	}
@@ -205,9 +205,11 @@ func writeVerified(ctx context.Context, nk runtime.NakamaModule, userID string) 
 	return err
 }
 
-func checkVerified(ctx context.Context, nk runtime.NakamaModule, userID string) error {
+// isUserVerified returns true if the user has registered a beta key and false if they have not registered a beta key.
+func isUserVerified(ctx context.Context, nk runtime.NakamaModule, userID string) (verified bool, err error) {
 	if !allowlistEnabled {
-		return nil
+		// When allowlist is disabled, treat all users as if they were on the allowlist
+		return true, nil
 	}
 	objs, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{
@@ -217,12 +219,12 @@ func checkVerified(ctx context.Context, nk runtime.NakamaModule, userID string) 
 		},
 	})
 	if err != nil {
-		return eris.Wrap(err, "")
+		return false, eris.Wrap(err, "")
 	}
 	if len(objs) == 0 {
-		return eris.Wrap(ErrNotAllowlisted, "")
+		return false, nil
 	}
-	return nil
+	return true, nil
 }
 
 func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStorage, error) {

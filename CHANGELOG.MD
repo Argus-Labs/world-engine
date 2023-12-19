@@ -40,7 +40,9 @@ Ref: https://keepachangelog.com/en/1.0.0/
 ### Features
 
 - (cardinal) #WORLD-671: Add support for exporting custom metrics
-- 
+
+- (cardinal) #WORLD-642: Log level is settable via the CARDINAL_LOG_LEVEL environment variable.
+
 - (cardinal) #WORLD-627: timestamps are now accessible via WorldContext.
 
 - (nakama) #WORLD-651: Support saving game data to Nakama storage.
