@@ -14,6 +14,7 @@ replace (
 )
 
 require (
+	github.com/DataDog/datadog-go/v5 v5.4.0
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/cometbft/cometbft v0.38.0
@@ -50,7 +51,6 @@ require (
 	cosmossdk.io/math v1.1.3-rc.1 // indirect
 	cosmossdk.io/store v1.0.0 // indirect
 	cosmossdk.io/x/tx v0.12.0 // indirect
-	github.com/DataDog/datadog-go/v5 v5.4.0 // indirect
 	github.com/DataDog/zstd v1.5.5 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect

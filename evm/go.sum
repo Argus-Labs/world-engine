@@ -3105,6 +3105,8 @@ pkg.berachain.dev/polaris/contracts v0.0.0-20231104204753-faadca38b64d h1:nhHvQs
 pkg.berachain.dev/polaris/contracts v0.0.0-20231104204753-faadca38b64d/go.mod h1:5Nz9qfw/JZGle4OtEsJBkgWDn9MNWCEZlCW/6pE5yZg=
 pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d h1:LMuJ+fYqzSbzUHdBY1ZtFr1CK1yaiMxBCdnhx9654i0=
 pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d/go.mod h1:6w+5Axb6GV66PLllrYf7h1G3x8Pwu5nvd7ZiibiI3HM=
+pkg.world.dev/world-engine/rift v0.0.5 h1:nRoIIyilio+i5jqflroKcwlLDUa7+8FpWkLI3+za/Cg=
+pkg.world.dev/world-engine/rift v0.0.5/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
 pkg.world.dev/world-engine/rift v1.0.0-beta h1:MmnOjkU0ps6CfsMtj3Dorv5L3kpHokc02ja+JoQS/X0=
 pkg.world.dev/world-engine/rift v1.0.0-beta/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
