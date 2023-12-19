@@ -118,7 +118,7 @@ func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsReque
 			if err != nil {
 				return nil, eris.Wrap(err, "failed to marshal transaction")
 			}
-			s.tq.AddTx(req.Namespace, req.Epoch, txID, bz)
+			s.tq.AddTx(req.Namespace, req.Epoch, req.UnixTimestamp, txID, bz)
 		}
 	}
 	return &shard.SubmitTransactionsResponse{}, nil

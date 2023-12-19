@@ -14,12 +14,13 @@ message SubmitTransactionsRequest {
   // epoch is the period in which the transactions occurred. For loop driven runtimes, such as cardinal,
   // this is often referred to as "tick number".
   uint64 epoch = 1;
+  uint64 unix_timestamp = 2;
   // namespace is the namespace of the game shard in which the transactions were executed in.
-  string namespace = 2;
+  string namespace = 3;
   // transactions is a mapping of game shard transaction ID's to the transactions themselves.
   //  NOTE: if this message is being consumed via Golang, the transaction mapping MUST be converted to a
   // slice with the transaction ID's sorted. Maps in Golang are NOT deterministic.
-  map<uint64, Transactions> transactions = 3;
+  map<uint64, Transactions> transactions = 4;
 }
 
 message SubmitTransactionsResponse {}

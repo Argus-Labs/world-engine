@@ -17,5 +17,6 @@ message Transaction {
 // Epoch contains an epoch number, and the transactions that occurred in that epoch.
 message Epoch {
   uint64 epoch = 1;
-  repeated Transaction txs = 2;
+  uint64 unix_timestamp = 2;
+  repeated Transaction txs = 3;
 }

@@ -15,8 +15,9 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 	seq := NewShardSequencer()
 	namespace := "bruh"
 	req := shardv2.SubmitTransactionsRequest{
-		Epoch:     10,
-		Namespace: namespace,
+		Epoch:         10,
+		Namespace:     namespace,
+		UnixTimestamp: 400,
 		Transactions: map[uint64]*shardv2.Transactions{
 			44: {
 				Txs: []*shardv2.Transaction{

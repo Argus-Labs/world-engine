@@ -12,10 +12,10 @@ func TestAddTx(t *testing.T) {
 	namespace := "foobar"
 	epoch := uint64(3)
 	epoch2 := uint64(5)
-	txq.AddTx(namespace, epoch, 15, []byte("hi"))
-	txq.AddTx(namespace, epoch, 3, []byte("hello"))
-	txq.AddTx(namespace, epoch2, 2, []byte("bye"))
-	txq.AddTx("bogus", 40, 2, []byte("HI"))
+	txq.AddTx(namespace, epoch, 10, 15, []byte("hi"))
+	txq.AddTx(namespace, epoch, 10, 3, []byte("hello"))
+	txq.AddTx(namespace, epoch2, 20, 2, []byte("bye"))
+	txq.AddTx("bogus", 40, 20, 2, []byte("HI"))
 	txs := txq.GetTxs()
 	assert.Len(t, txs, 3) // should be 3 txs, as its partitioned by namespace and then by epoch
 

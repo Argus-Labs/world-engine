@@ -23,7 +23,7 @@ func NewTxQueue(moduleAddr string) *TxQueue {
 }
 
 // AddTx adds a transaction to the queue.
-func (tc *TxQueue) AddTx(namespace string, epoch, txID uint64, payload []byte) {
+func (tc *TxQueue) AddTx(namespace string, epoch, unixTimestamp, txID uint64, payload []byte) {
 	tc.lock.Lock()
 	defer tc.lock.Unlock()
 
@@ -34,10 +34,11 @@ func (tc *TxQueue) AddTx(namespace string, epoch, txID uint64, payload []byte) {
 	// if we don't have a request for this epoch yet, instantiate one.
 	if tc.queues[namespace][epoch] == nil {
 		tc.queues[namespace][epoch] = &types.SubmitShardTxRequest{
-			Sender:    tc.moduleAddr,
-			Namespace: namespace,
-			Epoch:     epoch,
-			Txs:       make([]*types.Transaction, 0),
+			Sender:        tc.moduleAddr,
+			Namespace:     namespace,
+			Epoch:         epoch,
+			UnixTimestamp: unixTimestamp,
+			Txs:           make([]*types.Transaction, 0),
 		}
 	}
 
