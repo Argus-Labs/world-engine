@@ -22,6 +22,7 @@ package app
 
 import (
 	"os"
+	"pkg.world.dev/world-engine/evm/sequencer"
 
 	runtimev1alpha1 "cosmossdk.io/api/cosmos/app/runtime/v1alpha1"
 	appv1alpha1 "cosmossdk.io/api/cosmos/app/v1alpha1"

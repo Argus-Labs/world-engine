@@ -25,6 +25,7 @@ import (
 	zerolog "github.com/rs/zerolog/log"
 	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
 	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
+	"pkg.world.dev/world-engine/evm/sequencer"
 
 	"io"
 	"os"

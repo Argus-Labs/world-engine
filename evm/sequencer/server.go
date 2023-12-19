@@ -120,7 +120,6 @@ func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsReque
 			}
 			s.tq.AddTx(req.Namespace, req.Epoch, txID, bz)
 		}
-
 	}
 	return &shard.SubmitTransactionsResponse{}, nil
 }

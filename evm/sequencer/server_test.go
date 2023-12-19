@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	"context"
 	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/assert"
 	shardv2 "pkg.world.dev/world-engine/rift/shard/v2"
@@ -41,7 +42,7 @@ func TestMessagesAreOrderedAndProtoMarshalled(t *testing.T) {
 			},
 		},
 	}
-	_, err := seq.Submit(nil, &req)
+	_, err := seq.Submit(context.Background(), &req)
 	assert.NilError(t, err)
 
 	flushedMessages := seq.FlushMessages()

@@ -2,6 +2,7 @@ package app
 
 import (
 	"os"
+	"pkg.world.dev/world-engine/evm/sequencer"
 
 	"cosmossdk.io/log"
 	"pkg.world.dev/world-engine/evm/router"

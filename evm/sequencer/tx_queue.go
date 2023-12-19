@@ -22,11 +22,6 @@ func NewTxQueue(moduleAddr string) *TxQueue {
 	}
 }
 
-type txQueue struct {
-	// txs are the transaction requests, indexed by epoch.
-	txs map[uint64]*types.SubmitShardTxRequest
-}
-
 // AddTx adds a transaction to the queue.
 func (tc *TxQueue) AddTx(namespace string, epoch, txID uint64, payload []byte) {
 	tc.lock.Lock()
