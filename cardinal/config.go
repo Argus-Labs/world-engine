@@ -14,7 +14,6 @@ const (
 	DefaultRedisPassword = ""
 	DefaultRedisAddress  = "localhost:6379"
 	DefaultLogLevel      = "info"
-	DefaultStatsdEnabled = "localhost:8125"
 )
 
 type WorldConfig struct {
@@ -25,6 +24,7 @@ type WorldConfig struct {
 	CardinalMode      string
 	CardinalLogLevel  string
 	StatsdAddress     string
+	TraceAddress      string
 }
 
 func GetWorldConfig() WorldConfig {
@@ -35,7 +35,8 @@ func GetWorldConfig() WorldConfig {
 		CardinalPort:      getEnv("CARDINAL_PORT", "4040"),
 		CardinalMode:      getEnv("CARDINAL_MODE", DefaultMode),
 		CardinalLogLevel:  getEnv("CARDINAL_LOG_LEVEL", DefaultLogLevel),
-		StatsdAddress:     getEnv("STATSD_ADDRESS", DefaultStatsdEnabled),
+		StatsdAddress:     getEnv("STATSD_ADDRESS", ""),
+		TraceAddress:      getEnv("TRACE_ADDRESS", ""),
 	}
 }
 
