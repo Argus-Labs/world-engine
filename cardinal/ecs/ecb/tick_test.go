@@ -1,6 +1,7 @@
 package ecb_test
 
 import (
+	"context"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/txpool"
@@ -41,7 +42,7 @@ func TestCanSaveAndRecoverTransactions(t *testing.T) {
 
 	// Make sure we can finalize the tick
 	assert.NilError(t, manager.StartNextTick(msgs, gotQueue))
-	assert.NilError(t, manager.FinalizeTick())
+	assert.NilError(t, manager.FinalizeTick(context.Background()))
 }
 
 func TestErrorWhenRecoveringNoTransactions(t *testing.T) {
