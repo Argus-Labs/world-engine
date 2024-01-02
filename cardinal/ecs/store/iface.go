@@ -3,15 +3,14 @@ package store
 import (
 	"encoding/json"
 
-	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/cardinal/types/message"
-
+	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 )
 
 type Reader interface {
@@ -48,7 +47,7 @@ type Writer interface {
 	RemoveComponentFromEntity(cType component.ComponentMetadata, id entity.ID) error
 
 	// Misc
-	InjectLogger(logger *ecslog.Logger)
+	InjectLogger(logger *zerolog.Logger)
 	Close() error
 	RegisterComponents([]component.ComponentMetadata) error
 }
