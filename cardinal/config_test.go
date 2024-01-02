@@ -17,6 +17,8 @@ func TestConfigLoadsFromEnv(t *testing.T) {
 		CardinalNamespace:         "baz",
 		CardinalMode:              RunModeProd,
 		BaseShardSequencerAddress: "moo",
+		CardinalLogLevel:          DefaultLogLevel,
+		StatsdAddress:             DefaultStatsdAddress,
 	}
 	t.Setenv("REDIS_ADDRESS", wantCfg.RedisAddress)
 	t.Setenv("REDIS_PASSWORD", wantCfg.RedisPassword)
