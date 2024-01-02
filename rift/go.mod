@@ -1,4 +1,4 @@
-module pkg.world.dev/world-engine/rift/v2
+module pkg.world.dev/world-engine/rift
 
 go 1.21.0
 
