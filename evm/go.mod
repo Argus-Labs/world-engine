@@ -38,11 +38,11 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/onsi/ginkgo/v2 v2.13.0
 	github.com/onsi/gomega v1.27.10
+	github.com/rotisserie/eris v0.5.4
 	github.com/rs/zerolog v1.31.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.17.0
 	github.com/stretchr/testify v1.8.4
-	github.com/zyedidia/generic v1.2.1
 	google.golang.org/genproto/googleapis/api v0.0.0-20231012201019-e917dd12ba7a
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
@@ -51,7 +51,8 @@ require (
 	pkg.berachain.dev/polaris/cosmos v0.0.0-20231114061423-56afb639fe27
 	pkg.berachain.dev/polaris/eth v0.0.0-20231106013048-594360df8f05
 	pkg.berachain.dev/polaris/lib v0.0.0-20231104204753-faadca38b64d
-	pkg.world.dev/world-engine/rift v0.0.5
+	pkg.world.dev/world-engine/assert v1.0.0
+	pkg.world.dev/world-engine/rift v1.0.2-beta
 )
 
 require (
@@ -307,7 +308,6 @@ require (
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/rollkit/celestia-openrpc v0.3.0 // indirect
 	github.com/rollkit/rollkit v0.11.4 // indirect
-	github.com/rotisserie/eris v0.5.4 // indirect
 	github.com/rs/cors v1.10.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.3.0 // indirect

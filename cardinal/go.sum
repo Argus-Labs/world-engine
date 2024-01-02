@@ -998,8 +998,8 @@ pkg.world.dev/world-engine/assert v1.0.0-beta h1:+Za05wYla/Rx6iBdzukY/b2EVEMj6Yg
 pkg.world.dev/world-engine/assert v1.0.0-beta/go.mod h1:bwA9YZ40+Tte6GUKibfqByxBLLt+54zjjFako8cpSuU=
 pkg.world.dev/world-engine/evm v1.0.0-beta h1:oYGpMkakm5JDS2Ys9Qi36lysQOXlaAoNaFW0oort5AQ=
 pkg.world.dev/world-engine/evm v1.0.0-beta/go.mod h1:cBMw+f6O7iIUVIFL+M8RZu4iP4QrXvq5LTkA2iO7ClY=
-pkg.world.dev/world-engine/rift v1.0.0-beta h1:MmnOjkU0ps6CfsMtj3Dorv5L3kpHokc02ja+JoQS/X0=
-pkg.world.dev/world-engine/rift v1.0.0-beta/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
+pkg.world.dev/world-engine/rift v1.0.2-beta h1:SQPlUlRgdnJMgHQ7c60Ew4hYPIyLOMq2xBp5J8gHpHw=
+pkg.world.dev/world-engine/rift v1.0.2-beta/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
 pkg.world.dev/world-engine/sign v1.0.0-beta h1:a+rn8gs6168xC87nWnYbuZBTsuC9VBixAsbvjYzpe2Q=
 pkg.world.dev/world-engine/sign v1.0.0-beta/go.mod h1:IKs311y2aGDr+A7Y6L/bXQPn/jdRhkm1x+7V3G+oeIs=
 sigs.k8s.io/yaml v1.3.0 h1:a2VclLzOGrwOHDiV8EfBGhvjHvP46CtW5j6POvhYGGo=
