@@ -47,6 +47,10 @@ world-evm genesis collect-gentxs
 
 cp app.toml /root/.world-evm/config/app.toml
 
+# CometBFT API
+sed -i'.bak' 's#"tcp://127.0.0.1:26657"#"tcp://0.0.0.0:26657"#g' /root/.world-evm/config/config.toml
+
+# Faucet setup. changes the default account to the provided account, then supplies it with tokens.
 sed -i'.bak' "s#'20f33ce90a13a4b5e7697e3544c3083b8f8a51d4'#'$FAUCET_ADDR'#g" /root/.world-evm/config/genesis.json
 sed -i'.bak' 's#"0x1b1ae4d6e2ef500000"#"0x3fffffffffffffff0000000000000001"#g' /root/.world-evm/config/genesis.json
 

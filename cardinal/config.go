@@ -18,6 +18,8 @@ const (
 	DefaultRedisAddress              = "localhost:6379"
 	DefaultBaseShardSequencerAddress = ""
 	DefaultBaseShardQueryAddress     = ""
+	DefaultLogLevel      = "info"
+	DefaultStatsdEnabled = "localhost:8125"
 )
 
 type WorldConfig struct {
@@ -27,6 +29,8 @@ type WorldConfig struct {
 	CardinalMode              RunMode `config:"CARDINAL_MODE"`
 	BaseShardSequencerAddress string  `config:"BASE_SHARD_SEQUENCER_ADDRESS"`
 	BaseShardQueryAddress     string  `config:"BASE_SHARD_QUERY_ADDRESS"`
+	CardinalLogLevel  string `config:"CARDINAL_LOG_LEVEL"`
+	StatsdAddress     string `config:"STATSD_ADDRESS"`
 }
 
 var defaultConfig = WorldConfig{
@@ -36,6 +40,8 @@ var defaultConfig = WorldConfig{
 	CardinalMode:              DefaultRunMode,
 	BaseShardSequencerAddress: DefaultBaseShardSequencerAddress,
 	BaseShardQueryAddress:     DefaultBaseShardQueryAddress,
+	CardinalLogLevel: DefaultLogLevel,
+	StatsdAddress: DefaultStatsdEnabled,
 }
 
 func getWorldConfig() WorldConfig {

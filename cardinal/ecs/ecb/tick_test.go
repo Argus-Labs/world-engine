@@ -41,7 +41,7 @@ func TestCanSaveAndRecoverTransactions(t *testing.T) {
 
 	// Make sure we can finalize the tick
 	assert.NilError(t, manager.StartNextTick(msgs, gotQueue))
-	assert.NilError(t, manager.FinalizeTick(nil))
+	assert.NilError(t, manager.FinalizeTick())
 }
 
 func TestErrorWhenRecoveringNoTransactions(t *testing.T) {

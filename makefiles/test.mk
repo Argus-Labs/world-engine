@@ -20,9 +20,10 @@ e2e-nakama:
 .PHONY: unit-test
 
 unit-test:
-	cd $(filter-out $@,$(MAKECMDGOALS)) && go test ./... -coverprofile=coverage-$(filter-out $@,$(MAKECMDGOALS)).out -covermode=count -v
+	cd $(filter-out $@,$(MAKECMDGOALS)) && go test ./... -coverprofile=coverage-$(shell basename $(PWD)).out -covermode=count -v
 
 unit-test-all:
 	$(MAKE) unit-test cardinal
 	$(MAKE) unit-test evm
 	$(MAKE) unit-test sign
+	$(MAKE) unit-test relay/nakama
