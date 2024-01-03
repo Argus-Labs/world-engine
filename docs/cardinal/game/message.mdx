@@ -3,7 +3,7 @@ title: 'Message'
 description: 'How to define and register a message'
 ---
 
-Messages are predefined user action that can be submitted to Cardinal and handled in the next tick within a system. A message is the primary way of representing possible user actions in the game. After a message is execute within a tick, it returns a `Reply` payload that can be read by the game client.
+Messages are predefined user actions that can be submitted to Cardinal and handled within a system. A message is the primary way of representing possible user actions in the game. After a message is executed within a tick, it returns a `Reply` payload that can be read by the game client.
 
 In Cardinal, transactions are defined using a pair of Go structs representing a `Message` and a `Reply`.
 
@@ -15,7 +15,7 @@ In Cardinal, transactions are defined using a pair of Go structs representing a 
 
 ## Defining Messages
 
-By convention, messages are defined in the `msg` directory in its own separate files.
+By convention, messages are defined in the `msg` directory, with each message definition in its own separate file.
 
 You can easily create a new message and register it to the world by following these steps:
 
@@ -37,7 +37,7 @@ You can easily create a new message and register it to the world by following th
         var AttackPlayer = cardinal.NewMessageType[AttackPlayerMsg, AttackPlayerMsgReply]("attack-player")
         ```
     </Step>
-    <Step title="Register the message in main.go">
+    <Step title="Register the message in the world">
         Messages must be registered in the world before they can be used. This is done by calling the `RegisterMessages` function.
 
         ```go main.go
