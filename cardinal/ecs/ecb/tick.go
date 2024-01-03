@@ -80,7 +80,13 @@ func (m *Manager) FinalizeTick(ctx context.Context) error {
 	flushStartTime := time.Now()
 	_, err = pipe.Exec(ctx)
 	statsd.EmitTickStat(flushStartTime, "pipe_exec")
-	return eris.Wrap(err, "")
+	if err != nil {
+		return eris.Wrap(err, "")
+	}
+
+	m.pendingArchIDs = nil
+	m.DiscardPending()
+	return nil
 }
 
 // Recover fetches the pending transactions for an incomplete tick. This should only be called if GetTickNumbers
