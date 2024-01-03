@@ -14,13 +14,13 @@ In contrast to the typical Ethereum account/address, Persona has the following s
 
 ## Persona In Systems
 
-Within a System, you can loop over transactions of a particular type (See [Getting Transactions](/Cardinal/API-Reference/Systems#getting-transactions)). These transactions (called [TxData](/Cardinal/API-Reference/Systems#txdata)) contain the following methods.
+Within a System, you can loop over transactions of a particular type (See [Getting Transactions](/Cardinal/API-Reference/Systems#getting-transactions)). These transactions (called [TxData](/Cardinal/API-Reference/Systems#txdata)) contain the following methods:
 
-The `Msg` method supplies the custom message data that you set up when you initially called NewMessageType.
+- `Msg` returns the custom message data that you set up when you initially called NewMessageType.
 
-The `Tx` method supplies the Transaction, which contains signature information, including the Persona that was used to sign the transaction.
+- `Tx` returns the Transaction, a struct containing signature information, including the Persona that was used to sign the transaction.
 
-THe `Hash` method supplies the hash of the transaction.
+- `Hash` returns the hash of the transaction.
 
 In this sample code, an "attack" message type is created, as well as a System that simply logs the Persona Tag of each incoming Attack message.
 
