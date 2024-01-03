@@ -1,6 +1,7 @@
 package ecb_test
 
 import (
+	"context"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal"
@@ -13,6 +14,7 @@ import (
 
 func TestReadOnly_CanGetComponent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
@@ -26,7 +28,7 @@ func TestReadOnly_CanGetComponent(t *testing.T) {
 	_, err = roStore.GetComponentForEntity(fooComp, id)
 	assert.Check(t, err != nil)
 
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	_, err = roStore.GetComponentForEntity(fooComp, id)
 	assert.NilError(t, err)
@@ -34,6 +36,7 @@ func TestReadOnly_CanGetComponent(t *testing.T) {
 
 func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 
 	testCases := []struct {
 		name  string
@@ -56,7 +59,7 @@ func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 	for _, tc := range testCases {
 		id, err := manager.CreateEntity(tc.comps...)
 		assert.NilError(t, err)
-		assert.NilError(t, manager.CommitPending())
+		assert.NilError(t, manager.FinalizeTick(ctx))
 
 		roStore := manager.ToReadOnly()
 
@@ -80,6 +83,7 @@ func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 
 func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 	testCases := []struct {
 		name        string
 		idsToCreate int
@@ -106,7 +110,7 @@ func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 	for _, tc := range testCases {
 		ids, err := manager.CreateManyEntities(tc.idsToCreate, tc.comps...)
 		assert.NilError(t, err)
-		assert.NilError(t, manager.CommitPending())
+		assert.NilError(t, manager.FinalizeTick(ctx))
 
 		archID, err := roManager.GetArchIDForComponents(tc.comps)
 		assert.NilError(t, err)
@@ -119,9 +123,10 @@ func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 
 func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	fooArchID, err := manager.GetArchIDForComponents([]component.ComponentMetadata{fooComp})
 	assert.NilError(t, err)
@@ -134,7 +139,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	assert.Equal(t, gotIDs[0], id)
 
 	assert.NilError(t, manager.AddComponentToEntity(barComp, id))
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	// There should be no more entities with JUST the foo componnet
 	gotIDs, err = roManager.GetEntitiesForArchID(fooArchID)
@@ -152,6 +157,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 
 func TestReadOnly_ArchetypeCount(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 	roManager := manager.ToReadOnly()
 
 	// No archetypes have been created yet
@@ -164,17 +170,18 @@ func TestReadOnly_ArchetypeCount(t *testing.T) {
 	// but the read-only manager is not aware of it yet
 	assert.Equal(t, 0, roManager.ArchetypeCount())
 
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 	assert.Equal(t, 1, roManager.ArchetypeCount())
 
 	_, err = manager.CreateEntity(fooComp, barComp)
 	assert.NilError(t, err)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 	assert.Equal(t, 2, roManager.ArchetypeCount())
 }
 
 func TestReadOnly_SearchFrom(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 
 	world := testutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Instance()
 	assert.NilError(t, ecs.RegisterComponent[Health](world))
@@ -195,13 +202,13 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 
 	roManager := manager.ToReadOnly()
 
-	// Before CommitPending is called, there should be no archetypes available to the read-only
+	// Before FinalizeTick is called, there should be no archetypes available to the read-only
 	// manager
 	archetypeIter := roManager.SearchFrom(componentFilter, 0)
 	assert.Equal(t, 0, len(archetypeIter.Values))
 
 	// Commit the archetypes to the DB
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	// Exactly 2 archetypes contain the Health component
 	archetypeIter = roManager.SearchFrom(componentFilter, 0)
