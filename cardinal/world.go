@@ -164,7 +164,7 @@ func applyProductionOptions(
 	serverOptions *[]server.Option,
 ) error {
 	log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
-	if cfg.RedisPassword == DefaultRedisPassword {
+	if cfg.RedisPassword == "" {
 		return eris.New("REDIS_PASSWORD is required in production")
 	}
 	if cfg.CardinalNamespace == DefaultNamespace {
