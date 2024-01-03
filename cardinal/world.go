@@ -165,15 +165,16 @@ func applyProductionOptions(
 ) error {
 	log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
 	if cfg.RedisPassword == DefaultRedisPassword {
-		return eris.New("redis password is required in production")
+		return eris.New("REDIS_PASSWORD is required in production")
 	}
 	if cfg.CardinalNamespace == DefaultNamespace {
 		return eris.New(
-			"cardinal namespace can't be the default value in production to avoid replay attack",
+			"CARDINAL_NAMESPACE cannot be the default value in production to avoid replay attack",
 		)
 	}
 	if cfg.BaseShardSequencerAddress == "" || cfg.BaseShardQueryAddress == "" {
-		return eris.New("must supply base shard addresses for production mode Cardinal worlds")
+		return eris.New("must supply BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_QUERY_ADDRESS for production " +
+			"mode Cardinal worlds")
 	}
 	adapter, err := shard.NewAdapter(shard.AdapterConfig{
 		ShardSequencerAddr: cfg.BaseShardSequencerAddress,
