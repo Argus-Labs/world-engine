@@ -274,7 +274,7 @@ func (w *World) StartGame() error {
 		return err
 	}
 	if !w.instance.DoesWorldHaveAnEventHub() {
-		w.instance.SetEventHub(events.CreateWebSocketEventHub())
+		w.instance.SetEventHub(events.NewWebSocketEventHub())
 	}
 	eventHub := w.instance.GetEventHub()
 	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))

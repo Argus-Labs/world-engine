@@ -28,7 +28,7 @@ func MakeTestTransactionHandler(
 	world *ecs.World,
 	opts ...server.Option,
 ) *TestTransactionHandler {
-	eventHub := events.CreateWebSocketEventHub()
+	eventHub := events.NewWebSocketEventHub()
 	world.SetEventHub(eventHub)
 	eventBuilder := events.CreateNewWebSocketBuilder(
 		"/events",
@@ -208,7 +208,7 @@ func MakeWorldAndTicker(
 	opts ...cardinal.WorldOption,
 ) (world *cardinal.World, doTick func()) {
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
-	eventHub := events.CreateWebSocketEventHub()
+	eventHub := events.NewWebSocketEventHub()
 	opts = append(
 		opts,
 		cardinal.WithTickChannel(startTickCh),

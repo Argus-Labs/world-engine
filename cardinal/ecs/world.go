@@ -374,7 +374,7 @@ func NewWorld(
 	if err != nil {
 		return nil, err
 	}
-	opts = append([]Option{WithEventHub(events.CreateWebSocketEventHub())}, opts...)
+	opts = append([]Option{WithEventHub(events.NewWebSocketEventHub())}, opts...)
 	for _, opt := range opts {
 		opt(w)
 	}
