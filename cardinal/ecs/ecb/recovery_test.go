@@ -1,6 +1,7 @@
 package ecb_test
 
 import (
+	"context"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -12,10 +13,11 @@ import (
 
 func TestLoadingFromRedisShouldNotRepeatEntityIDs(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
+	ctx := context.Background()
 
 	ids, err := manager.CreateManyEntities(50, fooComp)
 	assert.NilError(t, err)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	nextID := ids[len(ids)-1] + 1
 
@@ -29,10 +31,11 @@ func TestLoadingFromRedisShouldNotRepeatEntityIDs(t *testing.T) {
 
 func TestComponentSetsCanBeRecovered(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
+	ctx := context.Background()
 
 	firstID, err := manager.CreateEntity(barComp)
 	assert.NilError(t, err)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
 	assert.NilError(t, err)
@@ -64,13 +67,14 @@ func getArchIDForEntity(t *testing.T, m *ecb.Manager, id entity.ID) archetype.ID
 
 func TestComponentSetsAreRememberedFromPreviousDB(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
+	ctx := context.Background()
 
 	_, err := manager.CreateEntity(barComp)
 	assert.NilError(t, err)
 	firstID, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	firstArchID := getArchIDForEntity(t, manager, firstID)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	assert.NilError(t, err)
 
@@ -79,11 +83,12 @@ func TestComponentSetsAreRememberedFromPreviousDB(t *testing.T) {
 	assert.NilError(t, err)
 	gotArchID := getArchIDForEntity(t, manager, id)
 	assert.Equal(t, gotArchID, firstArchID)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 }
 
 func TestAddedComponentsCanBeDiscarded(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
@@ -92,7 +97,7 @@ func TestAddedComponentsCanBeDiscarded(t *testing.T) {
 	assert.Equal(t, 1, len(comps))
 	assert.Equal(t, comps[0].ID(), fooComp.ID())
 	// Commit this entity creation
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	assert.NilError(t, manager.AddComponentToEntity(barComp, id))
 	comps, err = manager.GetComponentTypesForEntity(id)
@@ -109,6 +114,7 @@ func TestAddedComponentsCanBeDiscarded(t *testing.T) {
 
 func TestCanGetComponentTypesAfterReload(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
+	ctx := context.Background()
 
 	var id entity.ID
 	_, err := manager.CreateEntity(fooComp)
@@ -116,7 +122,7 @@ func TestCanGetComponentTypesAfterReload(t *testing.T) {
 
 	id, err = manager.CreateEntity(fooComp, barComp)
 	assert.NilError(t, err)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
 
@@ -127,10 +133,11 @@ func TestCanGetComponentTypesAfterReload(t *testing.T) {
 
 func TestCanDiscardPreviouslyAddedComponent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	assert.NilError(t, manager.AddComponentToEntity(barComp, id))
 	manager.DiscardPending()
@@ -144,6 +151,7 @@ func TestCanDiscardPreviouslyAddedComponent(t *testing.T) {
 
 func TestEntitiesCanBeFetchedAfterReload(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
+	ctx := context.Background()
 
 	ids, err := manager.CreateManyEntities(10, fooComp, barComp)
 	assert.NilError(t, err)
@@ -158,7 +166,7 @@ func TestEntitiesCanBeFetchedAfterReload(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 10, len(ids))
 
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	// Create a new Manager instances and make sure the previously created entities can be found
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
@@ -169,6 +177,7 @@ func TestEntitiesCanBeFetchedAfterReload(t *testing.T) {
 
 func TestTheRemovalOfEntitiesCanBeDiscarded(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 
 	ids, err := manager.CreateManyEntities(10, fooComp)
 	assert.NilError(t, err)
@@ -180,7 +189,7 @@ func TestTheRemovalOfEntitiesCanBeDiscarded(t *testing.T) {
 	gotIDs, err := manager.GetEntitiesForArchID(archID)
 	assert.NilError(t, err)
 	assert.Equal(t, 10, len(gotIDs))
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	// Discard 3 entities
 	assert.NilError(t, manager.RemoveEntity(ids[0]))
@@ -201,15 +210,16 @@ func TestTheRemovalOfEntitiesCanBeDiscarded(t *testing.T) {
 
 func TestTheRemovalOfEntitiesIsRememberedAfterReload(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
+	ctx := context.Background()
 
 	startingIDs, err := manager.CreateManyEntities(10, fooComp, barComp)
 	assert.NilError(t, err)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	idToRemove := startingIDs[5]
 
 	assert.NilError(t, manager.RemoveEntity(idToRemove))
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	// Start a brand-new manager
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
@@ -228,6 +238,7 @@ func TestTheRemovalOfEntitiesIsRememberedAfterReload(t *testing.T) {
 
 func TestRemovedComponentDataCanBeRecovered(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 
 	id, err := manager.CreateEntity(fooComp, barComp)
 	assert.NilError(t, err)
@@ -237,7 +248,7 @@ func TestRemovedComponentDataCanBeRecovered(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, wantFoo, gotFoo.(Foo))
 
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	assert.NilError(t, manager.RemoveComponentFromEntity(fooComp, id))
 
@@ -255,11 +266,12 @@ func TestRemovedComponentDataCanBeRecovered(t *testing.T) {
 
 func TestArchetypeCountTracksDiscardedChanges(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 
 	_, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	assert.Equal(t, 1, manager.ArchetypeCount())
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	_, err = manager.CreateEntity(fooComp, barComp)
 	assert.NilError(t, err)
@@ -274,6 +286,7 @@ func TestArchetypeCountTracksDiscardedChanges(t *testing.T) {
 
 func TestCannotFetchComponentOnRemovedEntityAfterCommit(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 
 	id, err := manager.CreateEntity(fooComp, barComp)
 	assert.NilError(t, err)
@@ -285,7 +298,7 @@ func TestCannotFetchComponentOnRemovedEntityAfterCommit(t *testing.T) {
 	_, err = manager.GetComponentForEntity(fooComp, id)
 	assert.Check(t, err != nil)
 
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	// Trying to get the same component after committing to the DB should also fail.
 	_, err = manager.GetComponentForEntity(fooComp, id)

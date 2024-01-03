@@ -24,10 +24,10 @@ accumulated.
 Pending changes can be discarded with Manager.DiscardPending. A subsequent read will return identical data to the data
 stored in Redis.
 
-Pending changes can be committed to redis with Manager.CommitPending. All pending changes will be packaged into a single
+Pending changes can be committed to redis with Manager.FinalizeTick. All pending changes will be packaged into a single
 redis [multi/exec pipeline](https://redis.io/docs/interact/transactions/) and applied atomically. Reads to redis during
 this time will never return any pending state. For example, if a series of 100 commands increments some value from 0 to
-100, and then CommitPending is called, reading this value from the DB will only ever return 0 or 100 (depending on the
+100, and then FinalizeTick is called, reading this value from the DB will only ever return 0 or 100 (depending on the
 exact timing of the call).
 
 # Redis Storage Model
@@ -77,7 +77,7 @@ In redis, the ECB:ACTIVE-ENTITY-IDS and ECB:ARCHETYPE-ID:ENTITY-ID keys contains
 mapping of one another. The amount of data in redis, and the data written can likely be reduced if we abandon one of
 these keys and rebuild the other mapping in memory.
 
-In memory, compValues are written to redis during a CommitPending cycle. Components that were not actually changed (e.g.
+In memory, compValues are written to redis during a FinalizeTick cycle. Components that were not actually changed (e.g.
 only read operations were performed) are still written to the DB.
 */
 package ecb
