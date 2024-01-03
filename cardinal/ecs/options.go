@@ -46,6 +46,6 @@ func WithEventHub(eventHub events.EventHub) Option {
 
 func WithLoggingEventHub(logger *zerolog.Logger) Option {
 	return func(w *World) {
-		w.eventHub = events.CreateLoggingEventHub(logger)
+		w.eventHub = events.NewLoggingEventHub(logger)
 	}
 }

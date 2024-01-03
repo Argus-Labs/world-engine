@@ -81,7 +81,7 @@ func (eh *loggingEventHub) ShutdownEventHub() {
 	eh.shutdown <- true
 }
 
-func CreateLoggingEventHub(logger *zerolog.Logger) EventHub {
+func NewLoggingEventHub(logger *zerolog.Logger) EventHub {
 	res := loggingEventHub{
 		eventQueue: make([]*Event, 0),
 		running:    atomic.Bool{},
@@ -97,7 +97,7 @@ func CreateLoggingEventHub(logger *zerolog.Logger) EventHub {
 	return &res
 }
 
-func CreateWebSocketEventHub() EventHub {
+func NewWebSocketEventHub() EventHub {
 	res := webSocketEventHub{
 		websocketConnections: map[*websocket.Conn]bool{},
 		broadcast:            make(chan *Event),
