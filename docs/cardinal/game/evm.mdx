@@ -18,9 +18,9 @@ Below are the Go types available to use in struct fields when utilizing using EV
 
 Additionally, slices of all the above types work as well.
 
-<Callout type={"warning"}>
+<Warning>
     When using `*big.Int`, you MUST use a special "evm" struct tag to indicate which underlying evm integer type you want to resolve to. This is due to go-ethereum using `*big.Int` for any uint or int greater than 64 bits.
-</Callout>
+</Warning>
 
 **Example:**
 ```go

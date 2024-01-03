@@ -9,12 +9,12 @@ description: 'How to create and register a system'
     If you are unfamiliar with the concept of game loop and tick, we recommend reading [Loop-driven Runtime](/cardinal/loop) before proceeding.
 </Warning>
 
-System is how game logic is implemented in Cardinal. Each system is executed once at every tick and is responsible for handling messages and updating the state of the game. 
+Systems are where game logic is implemented in Cardinal. Each system is executed once at every tick and is responsible for handling messages and updating the state of the game.
 
 In Cardinal, systems are implemented as regular Go functions with the following signature:
 
 ```go
-func System(world cardinal.WorldContext) error {}
+func System(world cardinal.WorldContext) error
 ```
 
 **Example:**
@@ -31,26 +31,26 @@ Before we implement our systems, there are high-level concepts that you need to 
 In Cardinal, systems are executed once per tick regardless of whether there are user message/transactions. 
 
 <Tip>
-If you are coming from EVM development background, you might notice that this behavior is in stark contrast to how smart contract works. 
+If you are coming from EVM development background, you might notice that this behavior is in stark contrast to how smart contracts work.
     
-In smart contracts, game state can only be updated when a transaction calls a function of the contract. In Cardinal, game state is updated via system at every tick regardless of whether there are transactions.
+In smart contracts, game state can only be updated when a transaction calls a function of the contract. In Cardinal, game state is updated via systems at every tick regardless of whether there are transactions.
 
-This makes it easy to implement state updates that need to consistently happen at every time step/interval (e.g. regeneration, gravity, etc.) which EVM smart contracts are not able to do seamlessly.
+This makes it easy to implement state updates (e.g. regeneration, gravity, etc.) that need to consistently happen at every time step/interval which EVM smart contracts are not able to do seamlessly.
 </Tip>
 
-### All game states must be stored in components
+### All game state must be stored in components
 As a general rule of thumb, systems should not store any game state in global variables as it will not be persisted. Systems should only store & read game state to & from components.
 
 ---
 
 ## Creating Systems
 
-By convention, systems are defined in the `system` directory in its own separate files.
+By convention, systems are defined in the `system` directory, with each system being its own separate file.
 
 You can easily create a new system and register it to the world by following these steps:
 
 <Steps>
-    <Step title="Create the system function">
+    <Step title="Implement the system function">
         A system is defined as a Go function that takes in the `WorldContext` and returns an error (or nil, if there is none).
 
         ```go /system/system_regen.go
@@ -63,7 +63,7 @@ You can easily create a new system and register it to the world by following the
         ```
 
     </Step>
-    <Step title="Register the system in main.go">
+    <Step title="Register the system in the World">
         System must be registered in the world to be executed. This is done by calling the `RegisterSystems` function.
 
         ```go main.go
