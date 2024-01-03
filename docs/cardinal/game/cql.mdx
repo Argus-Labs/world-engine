@@ -8,7 +8,7 @@ You can use it by making a POST request to the `/query/game/cql` with the CQL qu
 
 ## Querying Entities
 
-CQL allows you to use the name of [Component](/cardinal/game/component) to specify the entities that you want to query in Cardinal.
+CQL allows you to use the name of [Components](/cardinal/game/component) to specify the entities you want to query in Cardinal.
 
 For example, let's say you have the following component definition:
 
@@ -16,7 +16,7 @@ For example, let's say you have the following component definition:
 package component
 
 type Health struct {
-    Current int,
+    Current int
     Max int
 }
 
@@ -33,7 +33,7 @@ func (Attack) Name() string {
 }
 ```
 
-You can query all entities that has a health and attack component by using the following query:
+You can query all entities that have a health and attack component by using the following query:
 
 ```
 CONTAINS(Health, Attack)

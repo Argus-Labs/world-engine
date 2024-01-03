@@ -7,19 +7,20 @@ Cardinal uses the concept of Persona to represent a game account. When submittin
 
 In contrast to the typical Ethereum account/address, Persona has the following superpowers:
 
-- **Persona tags are human readable** -- A persona tag is similar to a gamer tag or a username, you can use alphanumeric (a to z, 0 to 9, and symbols) to represent yourself. Unlike Ethereum accounts, they are not a 40 character hex string, making it easier to remember and share.
-- **You can have multiple personas per Ethereum account** -- This allows you to easily switch between multiple Persona using a single EVM account.
-- **You can authorize other Ethereum accounts to act on the behalf of your persona** -- In Ethereum, the only way to share access to your EOA account is to share your private key; this is impractical due to security reasons. In Cardinal, you can authorize other Ethereum accounts to use your persona, allowing them act on your behalf without sharing your private key. This is useful for smart contracts that need to act on behalf of a user, or for a user to delegate access to another user.
+- **Persona tags are human readable** -- A persona tag is similar to a gamer tag or a username, you can use alphanumeric (a to z, 0 to 9, and underscores) to represent yourself. Unlike Ethereum accounts, they are not a 40 character hex string, making it easier to remember and share.
+- **Multiple personas per Ethereum account** -- This allows you to easily switch between multiple Persona using a single EVM account.
+- **Authorize other Ethereum accounts to act on behalf of your persona** -- In Ethereum, the only way to share access to your EOA account is to share your private key; this is impractical due to security reasons. In Cardinal, you can authorize other Ethereum accounts to use your persona, allowing them to act on your behalf without sharing your private key. This is useful for smart contracts that need to act on behalf of a user, or for a user to delegate access to another user.
 
 
+## Persona In Systems
 
-## Persona In System
+Within a System, you can loop over transactions of a particular type (See [Getting Transactions](/Cardinal/API-Reference/Systems#getting-transactions)). These transactions (called [TxData](/Cardinal/API-Reference/Systems#txdata)) contain the following methods.
 
-Within a System, you can loop over transactions of a particular type (See [Getting Transactions](/Cardinal/API-Reference/Systems#getting-transactions)). These transactions (called [TxData](/Cardinal/API-Reference/Systems#txdata)) contain some fields.
+The `Msg` method supplies the custom message data that you set up when you initially called NewMessageType.
 
-The `Msg` field is custom message data that you set up when you initially called NewMessageType.
+The `Tx` method supplies the Transaction, which contains signature information, including the Persona that was used to sign the transaction.
 
-The `Tx` field contains signature information, including the Persona Tag that was used to sign the transaction.
+THe `Hash` method supplies the hash of the transaction.
 
 In this sample code, an "attack" message type is created, as well as a System that simply logs the Persona Tag of each incoming Attack message.
 
