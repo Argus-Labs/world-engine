@@ -18,7 +18,7 @@ func toMessageType(ins []AnyMessage) []message.Message {
 // The different options are all grouped together to simplify the end user's experience, but under the hood different
 // options are meant for different sub-systems.
 func separateOptions(opts []WorldOption) (ecsOptions []ecs.Option, serverOptions []server.Option,
-	cardinalOptions []func(*World)) {
+	cardinalOptions []Option) {
 	for _, opt := range opts {
 		if opt.ecsOption != nil {
 			ecsOptions = append(ecsOptions, opt.ecsOption)

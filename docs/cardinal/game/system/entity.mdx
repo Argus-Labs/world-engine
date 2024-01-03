@@ -1,0 +1,143 @@
+---
+title: 'Create/Remove Entity'
+---
+
+## Create
+
+`Create` creates a single entity with a given set of components.
+
+```go
+func Create(world WorldContext, components ...metadata.Component) (EntityID, error)
+```
+
+### Example
+```go
+package system
+
+func System(world cardinal.WorldContext) error {
+    // ...
+	
+	// Create an entity with the Location and Health component.
+	entityID, err := cardinal.Create(world,
+		component.Location{},
+		component.Health{},
+	)
+	if err != nil {
+		return err
+	}
+	
+	// ...
+	
+	return nil
+}
+```
+
+### Parameters
+| Parameter    | Type                  | Description                                                                |
+|--------------|-----------------------|----------------------------------------------------------------------------|
+| worldCtx     | WorldContext          | A WorldContext object passed in to your System.                            |
+| components   | ...metadata.Component | Variadic parameter for components to associate with the created entity.    |
+
+
+### Return Values
+| Type     | Description                                                                   |
+|----------|-------------------------------------------------------------------------------|
+| EntityID | The ID of the created entity.                                                 |
+| error    | An error indicating any issues that occurred during the creation process.     |
+
+
+
+## CreateMany
+
+`CreateMany` creates a specified amount of entities with a specified set of components.
+
+```go
+func CreateMany(world WorldContext, num int, components ...metadata.Component) ([]EntityID, error)
+```
+
+### Example
+```go
+package system
+
+func System(world cardinal.WorldContext) error {
+    // ...
+	
+	// Create 10 entities with the Location and Health component.
+	entityIDs, err := cardinal.CreateMany(world,
+		10,
+		component.Location{},
+		component.Health{},
+	)
+	if err != nil {
+		return err
+	}
+	
+	// ...
+	
+	return nil
+}
+```
+
+### Parameters
+
+| Parameter    | Type                  | Description                                                                |
+|--------------|-----------------------|----------------------------------------------------------------------------|
+| worldCtx     | WorldContext          | A WorldContext object passed in to your System.                            |
+| num          | int                   | The number of entities to create.                                          |
+| components   | ...metadata.Component | Variadic parameter for components to associate with the created entities.  |
+
+### Return Values
+
+| Type             | Description                                                                |
+|------------------|----------------------------------------------------------------------------|
+| []EntityID       | A slice of EntityID representing the IDs of the created entities.          |
+| error            | An error indicating any issues that occurred during the creation process.  |
+
+
+## Remove
+
+`Remove` removes a given entity from the `World`.
+
+```go
+func Remove(world WorldContext, id EntityID) error
+```
+
+### Example
+```go
+package system
+
+func System(world cardinal.WorldContext) error {
+    // ...
+
+	// Create an entity with the Location and Health component.
+	entityID, err := cardinal.Create(world,
+		component.Location{},
+		component.Health{},
+	)
+	if err != nil {
+		return err
+	}
+
+	// Remove the entity we just created
+	err = cardinal.Remove(worldCtx, entityID)
+	if err != nil {
+		return err
+	}
+	
+	// ...
+	
+	return nil
+}
+```
+
+### Parameters
+| Parameter    | Type                   | Description                                      |
+|--------------|------------------------|--------------------------------------------------|
+| worldCtx     | WorldContext           | A WorldContext object passed in to your System.  |
+| id           | entity.ID              | The entity ID to be removed from the world.      |
+
+
+### Return Value
+| Type   | Description                                                               |
+|--------|---------------------------------------------------------------------------|
+| error  | An error indicating any issues that occurred during the removal process.  |

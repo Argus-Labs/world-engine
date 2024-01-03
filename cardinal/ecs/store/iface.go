@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/rs/zerolog"
@@ -55,7 +56,7 @@ type Writer interface {
 type TickStorage interface {
 	GetTickNumbers() (start, end uint64, err error)
 	StartNextTick(txs []message.Message, queues *txpool.TxQueue) error
-	FinalizeTick() error
+	FinalizeTick(ctx context.Context) error
 	Recover(txs []message.Message) (*txpool.TxQueue, error)
 }
 

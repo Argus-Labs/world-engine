@@ -113,6 +113,8 @@ services:
       - SHARD_SEQUENCER_ADDR=chain:9601
       - BASE_SHARD_ADDR=chain:9090
       - ENABLE_ADAPTER=${ENABLE_ADAPTER:-true}
+      - STATSD_ADDRESS=${STATSD_ADDRESS}
+      - TRACE_ADDRESS=${TRACE_ADDRESS}
     build:
       context: ./
       dockerfile: internal/e2e/tester/game/Dockerfile

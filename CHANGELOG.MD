@@ -29,7 +29,8 @@ Types of changes (Stanzas):
 "Bug Fixes" for any bug fixes.
 "Client Breaking" for breaking API routes, gRPC routes, or Cardinal SDK code.
 "API Breaking" for breaking exported APIs used by developers building on World Engine.
-"State Machine Breaking" for any changes that result in a different AppState given same genesis state and tx list.
+"State Machine Breaking" for any changes that result in a different game state given same genesis state and tx list.
+"Runtime Breaking" for any changes that will cause the application to crash at runtime unless new changes are applied.
 Ref: https://keepachangelog.com/en/1.0.0/
 -->
 
@@ -66,3 +67,7 @@ Ref: https://keepachangelog.com/en/1.0.0/
 ### API Breaking
 
 ### State Machine Breaking
+
+### Runtime Breaking
+
+- (cardinal) #WORLD-676: Adapter instantiation is now automatic in production mode, and requires setting two new env vars: `BASE_SHARD_SEQUENCER_ADDRESS` and `BASE_SHARD_QUERY_ADDRESS`.

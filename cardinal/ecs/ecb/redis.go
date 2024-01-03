@@ -5,6 +5,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
@@ -21,22 +22,26 @@ func (m *Manager) makePipeOfRedisCommands(ctx context.Context) (redis.Pipeliner,
 		return nil, eris.New("must call RegisterComponents before flushing to DB")
 	}
 
-	if err := m.addComponentChangesToPipe(ctx, pipe); err != nil {
-		return nil, eris.Wrap(err, "failed to add component changes to pipe")
-	}
-	if err := m.addNextEntityIDToPipe(ctx, pipe); err != nil {
-		return nil, eris.Wrap(err, "failed to add entity id changes to pipe")
-	}
-	if err := m.addPendingArchIDsToPipe(ctx, pipe); err != nil {
-		return nil, eris.Wrap(err, "failed to add archID to component type map to pipe")
-	}
-	if err := m.addEntityIDToArchIDToPipe(ctx, pipe); err != nil {
-		return nil, eris.Wrap(err, "failed to add entity ID to archID mapping to pipe")
-	}
-	if err := m.addActiveEntityIDsToPipe(ctx, pipe); err != nil {
-		return nil, eris.Wrap(err, "failed to add changes to active entity ids to pipe")
+	operations := []struct {
+		name   string
+		method func(ctx context.Context, pipe redis.Pipeliner) error
+	}{
+		{"component_changes", m.addComponentChangesToPipe},
+		{"next_entity_id", m.addNextEntityIDToPipe},
+		{"pending_arch_ids", m.addPendingArchIDsToPipe},
+		{"entity_id_to_arch_id", m.addEntityIDToArchIDToPipe},
+		{"active_entity_ids", m.addActiveEntityIDsToPipe},
 	}
 
+	for _, operation := range operations {
+		var pipeSpan tracer.Span
+		pipeSpan, ctx = tracer.StartSpanFromContext(ctx, "tick.span."+operation.name)
+		if err := operation.method(ctx, pipe); err != nil {
+			pipeSpan.Finish(tracer.WithError(err))
+			return nil, eris.Wrapf(err, "failed to run step %q", operation.name)
+		}
+		pipeSpan.Finish()
+	}
 	return pipe, nil
 }
 

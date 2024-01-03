@@ -1,0 +1,50 @@
+---
+title: 'Persona (Game Account)'
+description: 'Cardinal game account system'
+---
+
+Cardinal uses the concept of Persona to represent a game account. When submitting a message to Cardinal, you provide a persona tag to identify who is sending the message and a cryptographic signature to prove that you are an authorized user of that persona.
+
+In contrast to the typical Ethereum account/address, Persona has the following superpowers:
+
+- **Persona tags are human readable** -- A persona tag is similar to a gamer tag or a username, you can use alphanumeric (a to z, 0 to 9, and symbols) to represent yourself. Unlike Ethereum accounts, they are not a 40 character hex string, making it easier to remember and share.
+- **You can have multiple personas per Ethereum account** -- This allows you to easily switch between multiple Persona using a single EVM account.
+- **You can authorize other Ethereum accounts to act on the behalf of your persona** -- In Ethereum, the only way to share access to your EOA account is to share your private key; this is impractical due to security reasons. In Cardinal, you can authorize other Ethereum accounts to use your persona, allowing them act on your behalf without sharing your private key. This is useful for smart contracts that need to act on behalf of a user, or for a user to delegate access to another user.
+
+
+
+## Persona In System
+
+Within a System, you can loop over transactions of a particular type (See [Getting Transactions](/Cardinal/API-Reference/Systems#getting-transactions)). These transactions (called [TxData](/Cardinal/API-Reference/Systems#txdata)) contain some fields.
+
+The `Msg` field is custom message data that you set up when you initially called NewMessageType.
+
+The `Tx` field contains signature information, including the Persona Tag that was used to sign the transaction.
+
+In this sample code, an "attack" message type is created, as well as a System that simply logs the Persona Tag of each incoming Attack message.
+
+```go
+package system
+
+func AttackSystem(world cardinal.WorldContext) {
+	// Iterate over all Attack messages
+	AttackMessage.Each(world, func(attack cardinal.TxData[AttackInput]) (AttackOutput, error) {
+		// Obtain the persona tag used to send the message/transaction
+		personaTag := attack.Tx().PersonaTag
+		
+		world.Logger().Debug().Msgf("The persona tag is %q", personaTag)
+		
+		return AttackOutput{}, nil
+	})
+}
+```
+
+## Nakama
+
+The easiest way to set up a Persona Tag with your cardinal game it to use the [Cardinal plugin for Nakama](/Nakama/plugin). The `/nakama/claim-persona` RPC endpoint takes a request with a body of:
+
+```json
+{"personaTag": "the-persona-tag-you-want-to-claim"}
+```
+
+and registers that persona with your Cardinal backend. For more details about what Nakama is specifically doing under the hood, see the [Persona Tag](/Nakama/plugin#local-userid-to-personatag) section of the Nakama plugin documentation.

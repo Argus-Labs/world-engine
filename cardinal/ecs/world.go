@@ -13,6 +13,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -430,7 +431,7 @@ func (w *World) AddEVMTransaction(
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
-func (w *World) Tick(_ context.Context) error {
+func (w *World) Tick(ctx context.Context) error {
 	nullSystemName := "No system is running."
 	nameOfCurrentRunningSystem := nullSystemName
 	defer func() {
@@ -439,6 +440,11 @@ func (w *World) Tick(_ context.Context) error {
 				Msgf("Tick: %d, Current running system: %s", w.CurrentTick(), nameOfCurrentRunningSystem)
 			panic(panicValue)
 		}
+	}()
+	var span tracer.Span
+	span, ctx = tracer.StartSpanFromContext(ctx, "cardinal.span.tick")
+	defer func() {
+		span.Finish()
 	}()
 	startTime := time.Now()
 	w.Logger.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
@@ -479,7 +485,7 @@ func (w *World) Tick(_ context.Context) error {
 		statsd.EmitTickStat(flushEventHubStartTime, "flush_events")
 	}
 	finalizeTickStartTime := time.Now()
-	if err := w.TickStore().FinalizeTick(); err != nil {
+	if err := w.TickStore().FinalizeTick(ctx); err != nil {
 		return err
 	}
 	statsd.EmitTickStat(finalizeTickStartTime, "finalize")

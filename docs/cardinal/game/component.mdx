@@ -1,0 +1,65 @@
+---
+title: 'Component'
+description: 'How to define and register a component'
+---
+
+<Warning>
+    If you are unfamiliar with Entity Component System (ECS), we recommend reading [Introduction to ECS](/cardinal/ecs) before proceeding.
+</Warning>
+
+Components are data attributes attached to an entity. They define the properties of an entity, but it does not implement logic or behavior. 
+
+In Cardinal, components are defined as Go structs.
+
+**Example:**
+- A `Position` component may contain the `x`, `y`, and `z` coordinates of an entity.
+- A `Health` component may contain the `current` and `max` health of an entity.
+
+---
+
+## Defining Components
+
+By convention, components are defined in the `component` directory in its own separate files. 
+
+You can easily create a new component and register it to the world by following these steps:
+
+<Steps>
+    <Step title="Define the component struct">
+        A component is defined as a Go struct. It must implement the `Name()` method which returns a unique name of the component. This is used to identify the component in the world.
+        
+        ```go /component/component_health.go
+        package component
+        
+        type Health struct {
+            Current int,
+            Max int
+        }
+
+        func (Health) Name() string {
+            return "Health"
+        }
+        ```
+    </Step>
+    <Step title="Register the component in main.go">
+        Components must be registered in the world before they can be used. This is done by calling the `RegisterComponent` function.
+        
+        ```go main.go
+        package main
+        
+        func main() {
+            w, err := cardinal.NewWorld()
+            if err != nil {
+                log.Fatal().Err(err).Msg("failed to create world")
+            }
+        
+            // Register components
+            err := cardinal.RegisterComponent[component.Health](w)
+            if err != nil {
+                log.Fatal().Err(err).Msg("failed to register component")
+            }
+        
+            // ...
+        }
+        ```
+    </Step>
+</Steps>

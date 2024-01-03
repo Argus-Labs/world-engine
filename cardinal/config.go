@@ -1,55 +1,54 @@
 package cardinal
 
 import (
-	"os"
-
-	"github.com/rs/zerolog/log"
+	"github.com/JeremyLoy/config"
 )
 
+type RunMode string
+
 const (
-	ModeProd             = "production"
-	ModeDev              = "development"
-	DefaultMode          = ModeDev
-	DefaultNamespace     = "world-1"
-	DefaultRedisPassword = ""
-	DefaultRedisAddress  = "localhost:6379"
-	DefaultLogLevel      = "info"
-	DefaultStatsdEnabled = "localhost:8125"
+	RunModeProd RunMode = "production"
+	RunModeDev  RunMode = "development"
 )
 
 type WorldConfig struct {
-	RedisAddress      string
-	RedisPassword     string
-	CardinalNamespace string
-	CardinalPort      string
-	CardinalMode      string
-	CardinalLogLevel  string
-	StatsdAddress     string
+	RedisAddress              string  `config:"REDIS_ADDRESS"`
+	RedisPassword             string  `config:"REDIS_PASSWORD"`
+	CardinalNamespace         string  `config:"CARDINAL_NAMESPACE"`
+	CardinalMode              RunMode `config:"CARDINAL_MODE"`
+	BaseShardSequencerAddress string  `config:"BASE_SHARD_SEQUENCER_ADDRESS"`
+	BaseShardQueryAddress     string  `config:"BASE_SHARD_QUERY_ADDRESS"`
+	CardinalLogLevel          string  `config:"CARDINAL_LOG_LEVEL"`
+	StatsdAddress             string  `config:"STATSD_ADDRESS"`
+	TraceAddress string `config:"TRACE_ADDRESS"`
 }
 
-func GetWorldConfig() WorldConfig {
-	return WorldConfig{
-		RedisAddress:      getEnv("REDIS_ADDRESS", DefaultRedisAddress),
-		RedisPassword:     getEnv("REDIS_PASSWORD", DefaultRedisPassword),
-		CardinalNamespace: getEnv("CARDINAL_NAMESPACE", DefaultNamespace),
-		CardinalPort:      getEnv("CARDINAL_PORT", "4040"),
-		CardinalMode:      getEnv("CARDINAL_MODE", DefaultMode),
-		CardinalLogLevel:  getEnv("CARDINAL_LOG_LEVEL", DefaultLogLevel),
-		StatsdAddress:     getEnv("STATSD_ADDRESS", DefaultStatsdEnabled),
-	}
+// Default configuration values.
+const (
+	DefaultRunMode                   = RunModeDev
+	DefaultNamespace                 = "world-1"
+	DefaultRedisAddress              = "localhost:6379"
+	DefaultLogLevel                  = "info"
+	DefaultStatsdAddress             = "localhost:8125"
+)
+
+var defaultConfig = WorldConfig{
+	RedisAddress:              DefaultRedisAddress,
+	RedisPassword:             "",
+	CardinalNamespace:         DefaultNamespace,
+	CardinalMode:              DefaultRunMode,
+	BaseShardSequencerAddress: "",
+	BaseShardQueryAddress:     "",
+	CardinalLogLevel:          DefaultLogLevel,
+	StatsdAddress:             DefaultStatsdAddress,
+	TraceAddress: "",
 }
 
-func getEnv(key string, fallback string) string {
-	value, ok := os.LookupEnv(key)
-	if ok {
-		// Validate CARDINAL_DEPLOY_MODE
-		if key == "CARDINAL_MODE" && value != ModeProd && value != ModeDev {
-			log.Logger.Warn().
-				Msg("CARDINAL_DEPLOY_MODE is not set to [production/development]. Defaulting to development mode.")
-			return ModeDev
-		}
-		return value
+func getWorldConfig() WorldConfig {
+	cfg := defaultConfig
+	err := config.FromEnv().To(&cfg)
+	if err != nil {
+		panic(err)
 	}
-
-	return fallback
+	return cfg
 }
