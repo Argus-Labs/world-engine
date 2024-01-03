@@ -167,5 +167,11 @@
   "footerSocials": {
     "twitter": "https://x.com/ArgusLabs_",
     "github": "https://github.com/argus-labs"
+  },
+  "analytics": {
+    "posthog": {
+      "apiKey": "phc_8py8fUWpEantdzhuP3dTEBBlsXstxTzeIu17NOd7A28",
+      "apiHost": "https://us.posthog.com"
+    }
   }
 }
