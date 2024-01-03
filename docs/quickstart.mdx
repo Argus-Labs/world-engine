@@ -1,0 +1,208 @@
+---
+title: 'Quickstart'
+description: 'Start developing your first World Engine game in under 5 minutes'
+---
+
+## Install dependencies and World CLI
+
+Learn how to install World Engine dependencies and the World CLI.
+
+<Warning>
+    **Note**: This quickstart assumes that you are using MacOS or Linux. If you are using Windows, we recommend you
+    use [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) to run World Engine.
+</Warning>
+
+<AccordionGroup>
+    <Accordion icon="golang" title="Install Go">
+        World Engine (WE) is built using [Go](https://golang.org), a performant, easy-to-learn, and expressive
+        programming language that is widely used in distributed systems.
+
+        To install Go, follow the instructions on the [Go website](https://golang.org/doc/install).
+
+        To verify that Go is installed, run the following command in your terminal:
+
+        ```bash
+        go version
+        ```
+
+        **Go beginner tip**: World Engine, combined with the simplicity of Go, makes it easy to get started with
+        your game with little to no experience in Go. If this is your first time writing a program in Go,
+        we recommend you follow the [Go tour](https://tour.golang.org/welcome/1) to familiarize yourself with
+        the language. However, you don't need to know any Go to complete this quickstart
+    </Accordion>
+    <Accordion icon="docker" title="Install Docker">
+        World Engine uses [Docker](https://docker.com) to make it easier to develop and deploy your rollup and game in
+        any operating system.
+
+        Docker is a containerization tool that allows you to run applications in a sandboxed
+        environment; it ensures
+        that the World Engine stack will run the same way on your machine as it will on production deployments.
+
+        To install Docker, follow the instructions on the [Docker website](https://docs.docker.com/get-docker/).
+
+        To verify that Docker is installed, run the following command in your terminal:
+
+        ```bash
+        docker version
+        ```
+    </Accordion>
+    <Accordion icon="rectangle-terminal" title="Install World CLI ">
+        [World CLI](https://github.com/argus-labs/world-cli) is a swiss army knife command-line tool for creating,
+        managing, and deploying World Engine projects.
+
+        **Important: World CLI will not work properly without Go and Docker**
+
+        To install World CLI, run the following command in your terminal:
+
+        ```bash
+        curl https://install.world.dev/cli! | bash
+        ```
+
+        **Advanced tip**: If you want to install a specific version of World CLI, you can run the following command:
+
+        ```bash
+        curl https://install.world.dev/cli@[release_tag]! | bash
+        ```
+    </Accordion>
+    <Accordion icon="planet-ringed" title="Install OrbStack (Optional — MacOS only)">
+        [OrbStack](https://orbstack.dev) is a tool that makes it easier to run Docker containers on MacOS. It is not
+        required to run World
+        Engine, but it is recommended for MacOS users as it provides a better performance and user experience than
+        Docker
+        Desktop.
+
+        The [Argus Labs](https://argus.gg) team uses OrbStack to develop and build on top of World Engine, and we
+        recommend it for MacOS
+        users.
+
+        To install OrbStack, follow the instructions on the [OrbStack website](https://orbstack.dev).
+    </Accordion>
+</AccordionGroup>
+
+## Create your first World Engine project
+
+### Scaffold a boilerplate project
+
+Once you have World CLI installed, you can scaffold your first World Engine game by running the following command in
+your terminal:
+
+```bash
+world cardinal create
+```
+
+<img
+    className="block"
+    src="/images/world-cardinal-create.png"
+    alt="CLI: world cardinal create"
+/>
+
+<Warning>
+    **Troubleshooting**
+
+    If you encountered `Error: dependency check "Docker daemon is running" failed`, make sure that you have
+    installed Docker and have Docker Desktop or OrbStack running.
+</Warning>
+
+
+### Start Cardinal in development mode
+
+Once you have scaffolded your project, you can start World Engine's game shard (Cardinal) in development mode by running
+the following command from your project directory in your terminal:
+
+```bash
+world cardinal dev
+```
+
+<Note>
+    The development mode is the easiest way to quickly iterate on your game shard code. In contrast to
+    `world cardinal start` it skips the Docker image builds process which can take a while.
+
+    Additionally, dev mode provides you with pretty logging that makes it easier to debug your game shard.
+    In production, pretty logging is disabled due to its performance drawback at high tickrate configuration where every
+    millisecond counts.
+</Note>
+
+### Submit a game transaction
+
+Now that you have Cardinal running in development mode, you can submit a game transaction to your game shard.
+
+A Cardinal transaction is a simple REST POST request to Cardinal to perform an action in your game shard. For example, in
+the boilerplate project, you can submit a transaction to create a new player in your game.
+
+To submit this transaction, run the following command in your terminal:
+
+```bash
+curl --request POST \
+  --url http://localhost:3333/tx/game/create-player \
+  --header 'Content-Type: application/json' \
+  --data '{
+	"personaTag": "CoolMage",
+	"namespace": "",
+	"nonce": 0,
+	"signature": "",
+	"body": {
+		"nickname": "CoolMage"
+	}
+  }'
+```
+
+<Tip>
+    **Tip**: You can also use a REST API tool such as [Insomnia](https://insomnia.rest) and
+    [Postman](https://www.postman.com/) to make it easier submit transactions to Cardinal.
+</Tip>
+
+<Note>
+    Notice that we don't provide a `namespace`, `nonce`, and `signature` for this transaction.
+
+    This is because the boilerplate plate runs with `DisableSignatureVerification()` option declared in `main.go`, which
+    means that it will accept any transaction without verifying its signature and relevant fields. In production, you
+    should never use this.
+</Note>
+
+### Inspect game state using Cardinal Editor
+
+Once you have started your game shard in development mode, you can inspect your game state using Cardinal Editor.
+
+To open Cardinal Editor, navigate to [https://editor.world.dev](https://editor.world.dev) in your browser.
+
+You should now be able to see the player you created in the previous step.
+If you submit another transaction, you can see more player entity appear automatically in the Cardinal Editor in real-time.
+
+
+<img
+    className="block"
+    src="/images/cardinal-editor.jpg"
+    alt="Cardinal Editor"
+    style={{borderRadius: '0.5rem'}}
+/>
+
+<Check>
+    **Congratulations! 🥳🥳🥳**
+
+    You have successfully created your first World Engine project, ran a boilerplate Cardinal game shard, and
+    submitted your first game transaction. Now you can start exploring the World Engine and build your own game!
+</Check>
+
+
+---
+
+## Next Steps
+
+Ready to build your game using the World Engine stack? Here are some resources.
+
+<CardGroup cols={2}>
+    <Card
+        title="Cardinal (Game Shard)"
+        icon="gamepad"
+        href="https://mintlify.com/docs/settings/global"
+    >
+        Build your fully onchain game using World Engine's Cardinal framework
+    </Card>
+    <Card
+        title="Game Engine/Client Integration"
+        icon="unity"
+        href="https://mintlify.com/docs/api-playground/openapi"
+    >
+        Integrate Unity, Unreal, or your game engine of choice with Cardinal
+    </Card>
+</CardGroup>

@@ -1,0 +1,45 @@
+---
+title: 'Introduction'
+---
+
+There are 2 ways to integrate your game client with the Cardinal game shard.
+
+<CardGroup cols={2}>
+    <Card
+        title="Nakama SDK (Recommended)"
+        icon="gamepad"
+        href="/client/nakama/overview"
+    >
+        Best way to integrate Cardinal with modern game engines (Unity, Unreal, Godot, etc).
+    </Card>
+    <Card
+        title="REST API"
+        icon="robot"
+        href="/client/rest/overview"
+    >
+        Great for simple use cases, analytics, or automations.
+    </Card>
+</CardGroup>
+
+---
+
+
+# Integrate via Nakama SDK (Recommended)
+
+Cardinal comes out of the box with a Nakama plugin that makes it easy for you to integrate with most modern game engine such as Unity, Unreal, Godot, etc.
+
+Additionally, Cardinal's Nakama plugin utilizes Cardinal's [Persona](/cardinal/game/persona) identity system to provide an account abstraction (AA) feature. By using account abstraction, players can use email/password or social login (Google, Facebook, etc) to play their fully onchain game; therefore, eliminating the crypto/web3 onboarding friction from having to install a wallet or store a private key.
+
+**Features:**
+
+- **Wide range of client libraries and SDKs** -- By using Nakama, you can integrate Cardinal with any of the client libraries and SDKs that Nakama supports. This includes Unity, Unreal, Godot, Javascript, Swift, C++, and more.
+- **Account abstraction with email/password & social login** -- Remove onboarding friction of having to download a crypto wallet and manage private keys by allowing your users to login with their email/password or social accounts (Google, Facebook, etc).
+
+Integrating with Nakama? [Start here](/client/nakama/overview).
+
+
+# Integrate via REST API
+
+If you need more control over your integration or if you just need a direct way to communicate with Cardinal, you can use Cardinal's REST API.
+
+Integrating with REST API? [Start here](/client/rest/overview).

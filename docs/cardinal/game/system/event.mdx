@@ -1,0 +1,37 @@
+---
+title: 'Event'
+description: 'How to use system events'
+---
+
+Events are a useful feature that can be used for Cardinal to notify the game client of a certain event or information.
+
+```go
+package systems
+
+import "pkg.world.dev/world-engine/cardinal"
+
+func AttackSystem(ctx cardinal.WorldContext) {
+	// Attack system logic
+	
+	// ...
+	
+	// Tell the client that the player have received damage
+    ctx.EmitEvent(fmt.Sprintf("player attacked: %s %d"), playerName, damage)
+}
+```
+
+## EmitEvent
+
+The `EmitEvent` method on `cardinal.WorldContext` will emit events to all clients under the subject "event".
+
+To see how to receive notifications go here: https://heroiclabs.com/docs/nakama/concepts/notifications/#receive-notifications (Unity)
+
+```go
+func (wCtx *WorldContext) EmitEvent(event string)
+```
+
+| Parameter   | Type                                          | Description                                                                                        |
+|-------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------|
+| event       | string                                        | The string to emit as an event                                                                     |
+
+

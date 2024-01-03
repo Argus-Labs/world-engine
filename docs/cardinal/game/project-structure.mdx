@@ -1,0 +1,24 @@
+---
+title: 'Project Structure'
+description: 'Best practice for structuring your Cardinal game shard code'
+---
+
+Once you have created the starter project using the [Quickstart](http://localhost:3000/quickstart) guide, you will see a `cardinal` directory with the following structure:
+<pre>
+    <strong style={{color: 'white'}}>starter-game</strong>
+    └── cardinal
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <a href={"https://github.com/Argus-Labs/starter-game-template/tree/main/cardinal/component"} style={{color: '#F5D64E'}}>component</a>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <a href={"https://github.com/Argus-Labs/starter-game-template/tree/main/cardinal/msg"} style={{color: '#F5D64E'}}>msg</a>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <a href={"https://github.com/Argus-Labs/starter-game-template/tree/main/cardinal/query"} style={{color: '#F5D64E'}}>query</a>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── <a href={"https://github.com/Argus-Labs/starter-game-template/tree/main/cardinal/system"} style={{color: '#F5D64E'}}>system</a>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── <a href={"https://github.com/Argus-Labs/starter-game-template/blob/main/cardinal/main.go"} style={{color: '#F5D64E'}}>main.go</a>
+</pre>
+
+This is the basic structure of a Cardinal project. The `component`, `msg`, `query`, and `system` directories are where you will be spending most of your time. The `main.go` file is where everything is wired up together and is the entry point to starting your game shard.
+
+<Tip>
+    While the `component`, `msg`, `query`, and `system` directories are not required, we encourage you to follow it as a best practice so your project is easier to organize navigate.
+</Tip>
+
+In the next page, you will learn what goes into each of these files and directories.
+

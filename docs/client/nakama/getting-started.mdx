@@ -1,0 +1,34 @@
+---
+title: 'Getting Started'
+description: 'Starting your client integration'
+---
+
+<Warning>
+    This guide assumes that you have completed the [Quickstart](/quickstart) guide and have World CLI installed. If you have not, please complete that guide first.
+</Warning>
+
+## Run Cardinal + Nakama
+
+To run your Cardinal game shard together with Nakama, you need to run the following command:
+
+```bash
+world cardinal start
+```
+
+<Warning>
+    When integrating using Nakama, do not use `world cardinal dev`. This command will run Cardinal game shard without Nakama.
+</Warning>
+
+By default, Nakama's http port will be running on `7350`. This will be the port that your game client will need to connect to for integration.
+
+## Install Nakama Client Library
+
+To install the Nakama client library, you can consult the [official documentation](https://heroiclabs.com/docs/nakama/client-libraries/).
+
+For your convenience, we have listed the most popular client libraries below:
+- [Unity](https://heroiclabs.com/docs/nakama/client-libraries/unity/index.html)
+- [Unreal](https://heroiclabs.com/docs/nakama/client-libraries/unreal/index.html)
+- [Godot 4](https://heroiclabs.com/docs/nakama/client-libraries/godot/index.html)
+- [Javascript](https://heroiclabs.com/docs/nakama/client-libraries/javascript/index.html)
+
+If you are using a different game engine/programming language, you can find the full list of client libraries [here](https://heroiclabs.com/docs/nakama/client-libraries/).
