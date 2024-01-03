@@ -15,6 +15,7 @@ replace (
 
 require (
 	github.com/DataDog/datadog-go/v5 v5.4.0
+	github.com/JeremyLoy/config v1.5.0
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/cometbft/cometbft v0.38.0
