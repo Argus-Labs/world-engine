@@ -1,0 +1,233 @@
+---
+title: 'Overview'
+description: 'How to create and register a system'
+---
+
+<Warning>
+    If you are unfamiliar with Entity Component System (ECS), we recommend reading [Introduction to ECS](/cardinal/ecs) before proceeding.
+    
+    If you are unfamiliar with the concept of game loop and tick, we recommend reading [Loop-driven Runtime](/cardinal/loop) before proceeding.
+</Warning>
+
+System is how game logic is implemented in Cardinal. Each system is executed once at every tick and is responsible for handling messages and updating the state of the game. 
+
+In Cardinal, systems are implemented as regular Go functions with the following signature:
+
+```go
+func System(world cardinal.WorldContext) error {}
+```
+
+**Example:**
+- A `RegenSystem` that increments the current health of all entities that have the `Health` component. 
+- An `AttackSystem` that handles the `AttackPlayerMsg` message and reduces the health of the target player.
+
+---
+
+## Key concepts and principles
+Before we implement our systems, there are high-level concepts that you need to know to write idiomatic systems in Cardinal.
+
+### Systems are always executed once per tick
+
+In Cardinal, systems are executed once per tick regardless of whether there are user message/transactions. 
+
+<Tip>
+If you are coming from EVM development background, you might notice that this behavior is in stark contrast to how smart contract works. 
+    
+In smart contracts, game state can only be updated when a transaction calls a function of the contract. In Cardinal, game state is updated via system at every tick regardless of whether there are transactions.
+
+This makes it easy to implement state updates that need to consistently happen at every time step/interval (e.g. regeneration, gravity, etc.) which EVM smart contracts are not able to do seamlessly.
+</Tip>
+
+### All game states must be stored in components
+As a general rule of thumb, systems should not store any game state in global variables as it will not be persisted. Systems should only store & read game state to & from components.
+
+---
+
+## Creating Systems
+
+By convention, systems are defined in the `system` directory in its own separate files.
+
+You can easily create a new system and register it to the world by following these steps:
+
+<Steps>
+    <Step title="Create the system function">
+        A system is defined as a Go function that takes in the `WorldContext` and returns an error (or nil, if there is none).
+
+        ```go /system/system_regen.go
+        package system
+        
+        func RegenSystem(world cardinal.WorldContext) error {
+            // ...
+            return nil
+        }
+        ```
+
+    </Step>
+    <Step title="Register the system in main.go">
+        System must be registered in the world to be executed. This is done by calling the `RegisterSystems` function.
+
+        ```go main.go
+        package main
+
+        func main() {
+            w, err := cardinal.NewWorld()
+            if err != nil {
+                log.Fatal().Err(err).Msg("failed to create world")
+            }
+
+            // Register systems
+            // Each system executes sequentially in the order they are added.
+            // NOTE: You must register your systems here for it to be executed.
+            err := cardinal.RegisterSystems(w, system.RegenSystem)
+            if err != nil {
+                log.Fatal().Err(err).Msg("failed to register system")
+            }
+
+            // ...
+        }
+        ```
+    </Step>
+</Steps>
+
+---
+
+## Common System Patterns
+
+### Creating Entities
+
+```go /system/system_enemy_spawner.go
+package system
+
+// MonsterSpawnerSystem spawns monster at every tick
+// This provides an example of a system that creates a new entity.
+func MonsterSpawnerSystem(world cardinal.WorldContext) error {
+    id, err := cardinal.Create(world,
+        component.Enemy{Nickname: "Scary Monster"},
+        component.Health{Current: 100, Maximum: 100},
+    )
+    if err != nil {
+        return err
+    }
+
+	return nil
+}
+```
+
+### Updating Components
+```go /system/system_regen.go
+package system
+
+// RegenSystem replenishes the player's HP at every tick.
+// This provides an example of a system that doesn't rely on a message to update a component.
+func RegenSystem(world cardinal.WorldContext) error {
+	// Searches for all entities that have the Player and Health component.
+	search, err := world.NewSearch(cardinal.Exact(component.Player{}, component.Health{}))
+	if err != nil {
+		return err
+	}
+
+	// Iterate through all entities that have the Player and Health component.
+	// Returning true from the callback function will continue the iteration.
+	// Returning false from the callback function will stop the iteration.
+	err = search.Each(world, func(id cardinal.EntityID) bool {
+		// Get the player's current Health component.
+		health, err := cardinal.GetComponent[component.Health](world, id)
+		if err != nil {
+			return true
+		}
+		
+		// Increment the player's HP by 1 if it is not at maximum.
+		if (health.Current + 1) <= health.Maximum {
+            health.Current += 1
+        } else {
+			return true
+        }
+		
+		// Update the player's Health component.
+		if err := cardinal.SetComponent[component.Health](world, id, health); err != nil {
+			return true
+		}
+		
+		return true
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+```
+
+### Handling Messages
+<CodeGroup>
+```go /system/system_attack.go
+package system    
+
+// AttackSystem inflict damage to player's HP based on `AttackPlayer` message.
+// This provides an example of a system that modifies the component of an entity based on a message.
+func AttackSystem(world cardinal.WorldContext) error {
+	// Iterate through all `AttackPlayer` messages.
+	msg.AttackPlayer.Each(world,
+		func(attack cardinal.TxData[msg.AttackPlayerMsg]) (msg.AttackPlayerMsgReply, error) {
+			// Get the target player's current Health component.
+			playerID, playerHealth, err := queryTargetPlayer(world, attack.Msg().TargetNickname)
+			if err != nil {
+				return msg.AttackPlayerMsgReply{}, err
+			}
+
+			// Inflict damage to the target player's HP.
+			playerHealth.HP -= AttackDamage
+			if err := cardinal.SetComponent[component.Health](world, playerID, playerHealth); err != nil {
+				return msg.AttackPlayerMsgReply{}, err
+			}
+
+			return msg.AttackPlayerMsgReply{Damage: AttackDamage}, nil
+		},
+	)
+	return nil
+}
+```
+
+```go /system/utils.go
+package system
+
+// queryTargetPlayer queries for the target player's entity ID and health component.
+func queryTargetPlayer(world cardinal.WorldContext, targetNickname string) (cardinal.EntityID, *comp.Health, error) {
+    search, err := world.NewSearch(cardinal.Exact(comp.Player{}, comp.Health{}))
+    if err != nil {
+        return 0, nil, err
+    }
+    
+    var playerID cardinal.EntityID
+    var playerHealth *comp.Health
+    err = search.Each(world, func(id cardinal.EntityID) bool {
+        player, err := cardinal.GetComponent[comp.Player](world, id)
+        if err != nil {
+            return false
+        }
+        
+        // Terminates the search if the player is found
+        if player.Nickname == targetNickname {
+            playerID = id
+            playerHealth, err = cardinal.GetComponent[comp.Health](world, id)
+            if err != nil {
+                return false
+            }
+            return false
+        }
+    
+        // Continue searching if the player is not the target player
+        return true
+    })
+    if err != nil {
+        return 0, nil, err
+    }
+    
+    if playerHealth == nil {
+        return 0, nil, fmt.Errorf("player %q does not exist", targetNickname)
+    }
+
+    return playerID, playerHealth, err
+}
+```
+</CodeGroup>

@@ -1,0 +1,634 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Cardinal",
+    "description": "REST API specification for World Engine Cardinal game shard",
+    "version": "0.0.1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3333"
+    }
+  ],
+  "paths": {
+    "/query/game/{queryType}": {
+      "post": {
+        "tags": [
+          "Query"
+        ],
+        "description": "Evaluate a custom pre-registered Cardinal query endpoint",
+        "operationId": "queryCustom",
+        "parameters": [
+          {
+            "name": "queryType",
+            "in": "path",
+            "description": "The query type",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "world-vars"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              },
+              "example": {
+                "key": "playerCount"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "playerCount": 0
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Error response due to invalid `queryType`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "x-codegen-request-body-name": "queryBody"
+      }
+    },
+    "/query/game/cql": {
+      "post": {
+        "tags": [
+          "Query"
+        ],
+        "description": "Query the Cardinal ECS state using Cardinal Query Language (CQL)",
+        "requestBody": {
+          "description": "This endpoint takes an input of a CQL (Cardinal Query Language) query that will be executed",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CQLRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CQLResponse"
+                },
+                "example": [
+                  {
+                    "id": 0,
+                    "data": [
+                      {
+                        "nickname": "CoolMage"
+                      },
+                      {
+                        "HP": 21316
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          "422": {
+            "description": "Error response due to an invalid CQL query",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "x-codegen-request-body-name": "cql"
+      }
+    },
+    "/query/persona/signer": {
+      "post": {
+        "tags": [
+          "Query"
+        ],
+        "description": "Get persona data from cardinal",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryPersonaSignerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryPersonaSignerResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query request",
+            "content": {}
+          }
+        },
+        "x-codegen-request-body-name": "QueryPersonaSignerRequest"
+      }
+    },
+    "/query/http/endpoints": {
+      "post": {
+        "tags": [
+          "Query"
+        ],
+        "description": "Get all http endpoints from Cardinal",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryListEndpoints"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid query request",
+            "content": {}
+          }
+        }
+      }
+    },
+    "/query/receipts/list": {
+      "post": {
+        "tags": [
+          "Query"
+        ],
+        "description": "Get transaction receipts from Cardinal",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListTxReceiptsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListTxReceiptsReply"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid transaction request",
+            "content": {}
+          }
+        },
+        "x-codegen-request-body-name": "ListTxReceiptsRequest"
+      }
+    },
+    "/tx/game/{txType}": {
+      "post": {
+        "tags": [
+          "Transaction"
+        ],
+        "description": "Submit a transaction to Cardinal",
+        "parameters": [
+          {
+            "name": "txType",
+            "in": "path",
+            "description": "label of the transaction that wants to be submitted",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Transaction details",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TxRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TxReply"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid transaction request",
+            "content": {}
+          }
+        },
+        "x-codegen-request-body-name": "txBody"
+      }
+    },
+    "/tx/persona/create-persona": {
+      "post": {
+        "tags": [
+          "Transaction"
+        ],
+        "description": "Create a Persona transaction to Cardinal",
+        "requestBody": {
+          "description": "Transaction details",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TxRequestWithCreatePersona"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TxReply"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid transaction request",
+            "content": {}
+          }
+        },
+        "x-codegen-request-body-name": "txBody"
+      }
+    },
+    "/debug/state": {
+      "get": {
+        "tags": [
+          "Misc"
+        ],
+        "description": "Displays the entire game state",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DebugStateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "tags": [
+          "Misc"
+        ],
+        "description": "Websocket connection for events.",
+        "responses": {
+          "101": {
+            "description": "Switch protocol to ws",
+            "content": {}
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Misc"
+        ],
+        "description": "Displays information on http server and world game loop",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthReply"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DebugStateResponse": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/DebugStateResponseElement"
+        }
+      },
+      "DebugStateResponseElement": {
+        "required": [
+          "data",
+          "id"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "HealthReply": {
+        "required": [
+          "isGameLoopRunning",
+          "isServerRunning"
+        ],
+        "type": "object",
+        "properties": {
+          "isServerRunning": {
+            "type": "boolean"
+          },
+          "isGameLoopRunning": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CQLResponse": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        }
+      },
+      "CQLRequest": {
+        "required": [
+          "CQL"
+        ],
+        "type": "object",
+        "properties": {
+          "CQL": {
+            "type": "string",
+            "example": "CONTAINS(Health)"
+          }
+        }
+      },
+      "TxRequestWithCreatePersona": {
+        "required": [
+          "body",
+          "namespace",
+          "nonce",
+          "personaTag",
+          "signature"
+        ],
+        "type": "object",
+        "properties": {
+          "personaTag": {
+            "type": "string",
+            "example": "CoolMage"
+          },
+          "namespace": {
+            "type": "string",
+            "example": "agar-shooter"
+          },
+          "nonce": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "body": {
+            "$ref": "#/components/schemas/CreatePersonaTransaction"
+          }
+        }
+      },
+      "CreatePersonaTransaction": {
+        "required": [
+          "personaTag",
+          "signerAddress"
+        ],
+        "type": "object",
+        "properties": {
+          "personaTag": {
+            "type": "string"
+          },
+          "signerAddress": {
+            "type": "string"
+          }
+        }
+      },
+      "QueryPersonaSignerRequest": {
+        "required": [
+          "personaTag",
+          "tick"
+        ],
+        "type": "object",
+        "properties": {
+          "personaTag": {
+            "type": "string"
+          },
+          "tick": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "QueryPersonaSignerResponse": {
+        "required": [
+          "signerAddress",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "signerAddress": {
+            "type": "string"
+          }
+        }
+      },
+      "QueryListEndpoints": {
+        "type": "array",
+        "properties": {
+          "txEndpoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "queryEndpoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "debugEndpoints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "items": {
+          "type": "string"
+        }
+      },
+      "TxReply": {
+        "required": [
+          "tick",
+          "txHash"
+        ],
+        "type": "object",
+        "properties": {
+          "txHash": {
+            "type": "string"
+          },
+          "tick": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "TxRequest": {
+        "required": [
+          "body",
+          "namespace",
+          "nonce",
+          "personaTag",
+          "signature"
+        ],
+        "type": "object",
+        "properties": {
+          "personaTag": {
+            "type": "string",
+            "example": "CoolMage"
+          },
+          "namespace": {
+            "type": "string",
+            "example": "agar-shooter"
+          },
+          "nonce": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "body": {
+            "type": "object",
+            "properties": {}
+          }
+        }
+      },
+      "ListTxReceiptsRequest": {
+        "required": [
+          "startTick"
+        ],
+        "type": "object",
+        "properties": {
+          "startTick": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "ListTxReceiptsReply": {
+        "required": [
+          "endTick",
+          "receipts",
+          "startTick"
+        ],
+        "type": "object",
+        "properties": {
+          "startTick": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "endTick": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "receipts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Receipts"
+            }
+          }
+        }
+      },
+      "Receipts": {
+        "required": [
+          "errors",
+          "result",
+          "tick",
+          "txHash"
+        ],
+        "type": "object",
+        "properties": {
+          "txHash": {
+            "type": "string"
+          },
+          "tick": {
+            "type": "integer"
+          },
+          "result": {
+            "type": "object"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-original-swagger-version": "2.0"
+}

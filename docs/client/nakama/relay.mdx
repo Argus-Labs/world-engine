@@ -1,0 +1,150 @@
+---
+title: 'Query & Transaction Relay'
+---
+
+Using Cardinal's Nakama integration, your client can submit transactions and queries to Nakama, which will then be transmitted to Cardinal. Nakama will handle the complexity of signing and submitting transactions to Cardinal, and will return the transaction receipts to your client once it's executed.
+
+## RPC (Remote Procedure Calls)
+
+Both Cardinal queries and transactions are submitted to Nakama via RPCs. The Nakama client libraries provide a simple interface for making RPC calls. You can consult the [official documentation (Unity example)](https://heroiclabs.com/docs/nakama/client-libraries/unity/#remote-procedure-calls) for a guide on how to do this on your game engine/programming language of choice.
+
+
+## Cardinal Query via Nakama RPC
+
+All Cardinal queries are automatically registered as a Nakama RPC endpoint with the same format as the REST API endpoint: `query/game/<query_name>`
+
+<Note>
+    The `query_name` is based on the name you passed in when registering the query on Cardinal's main.go file. For example, if you registered a query with the name `player-info`, the RPC endpoint will be `query/game/player-info`.
+</Note>
+
+
+### Example
+
+In this example, let's first register a query on Cardinal with the name `player-info`.
+
+```go /cardinal/main.go
+package main
+
+func main() {
+	w, err := cardinal.NewWorld()
+	if err != nil {
+		log.Fatal().Err(err).Msg("")
+	}
+	
+	// Register a query named "player-info"
+	err = cardinal.RegisterQuery[query.PlayerInfoReq, query.PlayerInfoResp](
+		w, "player-info", query.PlayerInfo, 
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("")
+	}
+
+	// ...
+}
+```
+
+We can then call this query via Nakama's RPC:
+
+```csharp Unity/C# Example
+var client = new Nakama.Client("http", "127.0.0.1", 7350, "defaultkey");
+
+try
+{
+    var payload = new Dictionary<string, string> {{ "username", "CoolMage" }};
+    var response = await client.RpcAsync(session, "query/game/player-info", payload.ToJson());
+    Debug.Log("player-info query result:", response);
+}
+catch (ApiResponseException ex)
+{
+    Debug.LogFormat("Error: {0}", ex.Message);
+}
+```
+
+## Cardinal Transaction via Nakama RPC
+
+
+Before you can submit a transaction to Cardinal, you need to complete 2 key steps:
+1. Create and authenticate a Nakama account
+2. Create a [Persona](/cardinal/game/persona) to attach to the Nakama account.
+
+### Authenticating with Nakama
+
+
+Nakama provides multiple authentication methods that you can easily setup with a few lines of code, such as email/password, device ID, Facebook, Google, etc. 
+    
+You can consult the [official documentation (Unity example)](https://heroiclabs.com/docs/nakama/client-libraries/unity/#authentication) for a guide on how to do this.
+
+### Creating a Persona
+
+Once your client is authenticated using a Nakama account, you can claim a persona and attach it to the account. This is done by calling the `nakama/claim-persona` RPC endpoint.
+
+The `nakama/claim-persona` RPC endpoint takes in a JSON payload with a single parameter `personaTag` that corresponds to the persona tag you want to claim.
+
+```
+{"personaTag": "the-persona-tag-you-want-to-claim"}
+```
+
+#### Example
+```csharp Unity/C# Example
+var client = new Nakama.Client("http", "127.0.0.1", 7350, "defaultkey");
+
+// Authenticate with the Nakama server using Device Authentication.
+var deviceId = PlayerPrefs.GetString("deviceId", SystemInfo.deviceUniqueIdentifier);
+var session = await client.AuthenticateDeviceAsync(deviceId);
+
+try
+{
+    var payload = new Dictionary<string, string> {{ "personaTag", "MyCoolPersonaTag" }};
+    var response = await client.RpcAsync(session, "nakama/claim-persona", payload.ToJson());
+}
+catch (ApiResponseException ex)
+{
+    Debug.LogFormat("Error: {0}", ex.Message);
+}
+```
+
+### Submitting a Transaction
+
+Now that you have authenticated with Nakama and have a persona attached to your account, you can submit a transaction to Cardinal.
+
+You don't have to worry about signing the transaction, as Nakama will handle this for you. You just need to provide the message payload and Nakama will take care of the rest.
+
+All Cardinal transactions/messages are automatically registered as a Nakama RPC endpoint with the same format as the REST API endpoint: `tx/game/<msg_name>`
+
+<Note>
+    The `msg_name` is based on the name you passed in when constructing the messaging using `NewMessageType` in Cardinal. For example, if you registered a message with the name `attack`, the RPC endpoint will be `tx/game/attack`.
+</Note>
+
+#### Example
+
+In this example, let's first define a message on Cardinal with the name `attack`.
+
+```go /cardinal/msg/msg_attack.go
+package msg
+
+type AttackMsg struct {
+	Target string
+}
+
+type AttackMsgReply struct {
+	Damage int
+}
+
+var Attack = cardinal.NewMessageType[AttackMsg, AttackMsgReply]("attack")
+```
+
+We can then submit this transaction/message via Nakama's RPC:
+
+```csharp Unity/C# Example
+var client = new Nakama.Client("http", "127.0.0.1", 7350, "defaultkey");
+
+try
+{
+    var payload = new Dictionary<string, string> {{ "Target", "CoolMage" }};
+    var response = await client.RpcAsync(session, "tx/game/attack", payload.ToJson());
+}
+catch (ApiResponseException ex)
+{
+    Debug.LogFormat("Error: {0}", ex.Message);
+}
+```

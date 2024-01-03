@@ -1,0 +1,70 @@
+---
+title: 'Query'
+description: 'How to define and register a query'
+---
+
+Queries are a predefined API endpoint that provides access to the game state data and other information that a game client might need.
+
+In Cardinal, queries are defined as a pair of Go structs representing `Request` and `Response` along with a handler function with the following signature:
+
+```go
+func Query(world cardinal.WorldContext, req *Request) (*Response, error) {}
+```
+
+**Example:**
+- A `WorldVars` query used to provide the client with game constants.
+- A `PlayerLocation` query used to provide the client with the location of the player.
+
+---
+
+## Defining Queries
+
+By convention, messages are defined in the `query` directory in its own separate files.
+
+You can easily create a new query and register it to the world by following these steps:
+
+<Steps>
+    <Step title="Define the request/response struct and the handler function">
+        A query is defined using a pair of Go structs and a handler function. You can write any arbitrary logic in the handler function and you also can access the game state using `cardinal.WorldContext`.
+
+        ```go /query/query_world_vars.go
+        type Request struct {
+            PlayerName string
+        }
+    
+        type Response struct {
+            X int,
+            Y int
+        }
+    
+        func PlayerLocation(world cardinal.WorldContext, req *Request) (*Response, error) {
+            // Handle WorldVarsRequest -> WorldVarsResponse here
+        }
+        ```
+    </Step>
+    <Step title="Register the query in main.go">
+        Queries must be registered in the world before they can be used. This is done by calling the `RegisterQuery` function and passing in the name of the endpoint and the function handler.
+
+        ```go main.go
+        package main
+
+        func main() {
+            w, err := cardinal.NewWorld()
+            if err != nil {
+                log.Fatal().Err(err).Msg("failed to create world")
+            }
+
+            // Register queries
+            // NOTE: You must register your queries here for it to be accessible.
+            err := cardinal.RegisterQuery[query.WorldVarsRequest, query.WorldVarsResponse](w, "world-vars", query.WorldVars))
+            if err != nil {
+                log.Fatal().Err(err).Msg("failed to register query")
+            }
+
+            // ...
+        }
+        ```
+    </Step>
+</Steps>
+
+--- 
