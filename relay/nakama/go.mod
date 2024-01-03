@@ -4,7 +4,7 @@ go 1.21.0
 
 require (
 	github.com/ethereum/go-ethereum v1.13.4
-	github.com/gorilla/websocket v1.5.1
+	github.com/gorilla/websocket v1.5.0
 	github.com/heroiclabs/nakama-common v1.30.0
 	github.com/rotisserie/eris v0.5.4
 	github.com/stretchr/testify v1.8.4
@@ -23,7 +23,6 @@ require (
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
 	github.com/stretchr/objx v0.5.1 // indirect
 	golang.org/x/crypto v0.14.0 // indirect
-	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
