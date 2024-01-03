@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/rs/zerolog"
-	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 )
@@ -30,11 +29,14 @@ var (
 type worldContext struct {
 	world    *World
 	txQueue  *txpool.TxQueue
-	logger   *ecslog.Logger
+	logger   *zerolog.Logger
 	readOnly bool
 }
 
-func NewWorldContextForTick(world *World, queue *txpool.TxQueue, logger *ecslog.Logger) WorldContext {
+func NewWorldContextForTick(world *World, queue *txpool.TxQueue, logger *zerolog.Logger) WorldContext {
+	if logger == nil {
+		logger = world.Logger
+	}
 	return &worldContext{
 		world:    world,
 		txQueue:  queue,
@@ -46,6 +48,7 @@ func NewWorldContextForTick(world *World, queue *txpool.TxQueue, logger *ecslog.
 func NewWorldContext(world *World) WorldContext {
 	return &worldContext{
 		world:    world,
+		logger:   world.Logger,
 		readOnly: false,
 	}
 }
@@ -54,6 +57,7 @@ func NewReadOnlyWorldContext(world *World) WorldContext {
 	return &worldContext{
 		world:    world,
 		txQueue:  nil,
+		logger:   world.Logger,
 		readOnly: true,
 	}
 }
@@ -68,10 +72,7 @@ func (w *worldContext) CurrentTick() uint64 {
 }
 
 func (w *worldContext) Logger() *zerolog.Logger {
-	if w.logger != nil {
-		return w.logger.Logger
-	}
-	return w.world.Logger.Logger
+	return w.logger
 }
 
 func (w *worldContext) GetWorld() *World {

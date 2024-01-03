@@ -5,7 +5,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
@@ -29,7 +28,7 @@ func WithReceiptHistorySize(size int) Option {
 func WithPrettyLog() Option {
 	return func(world *World) {
 		prettyLogger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-		world.Logger.Logger = &prettyLogger
+		world.Logger = &prettyLogger
 	}
 }
 
@@ -45,7 +44,7 @@ func WithEventHub(eventHub events.EventHub) Option {
 	}
 }
 
-func WithLoggingEventHub(logger *ecslog.Logger) Option {
+func WithLoggingEventHub(logger *zerolog.Logger) Option {
 	return func(w *World) {
 		w.eventHub = events.NewLoggingEventHub(logger)
 	}

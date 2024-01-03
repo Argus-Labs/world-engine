@@ -10,8 +10,8 @@ import (
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/gorilla/websocket"
 	"github.com/rotisserie/eris"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 )
 
 const shutdownPollInterval = 200
@@ -31,7 +31,7 @@ const (
 )
 
 type loggingEventHub struct {
-	logger     *ecslog.Logger
+	logger     *zerolog.Logger
 	eventQueue []*Event
 	running    atomic.Bool
 	broadcast  chan *Event
@@ -81,7 +81,7 @@ func (eh *loggingEventHub) ShutdownEventHub() {
 	eh.shutdown <- true
 }
 
-func NewLoggingEventHub(logger *ecslog.Logger) EventHub {
+func NewLoggingEventHub(logger *zerolog.Logger) EventHub {
 	res := loggingEventHub{
 		eventQueue: make([]*Event, 0),
 		running:    atomic.Bool{},
