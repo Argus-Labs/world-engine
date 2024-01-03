@@ -114,14 +114,14 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	var metricTags []string
 	if cfg.CardinalMode != "" {
-		metricTags = append(metricTags, cfg.CardinalMode)
+		metricTags = append(metricTags, "cardinal_mode:"+cfg.CardinalMode)
 	}
 	if cfg.CardinalNamespace != "" {
-		metricTags = append(metricTags, cfg.CardinalNamespace)
+		metricTags = append(metricTags, "cardinal_namespace:"+cfg.CardinalNamespace)
 	}
 
-	if cfg.StatsdAddress != "" {
-		if err = statsd.Init(cfg.StatsdAddress, metricTags); err != nil {
+	if cfg.StatsdAddress != "" || cfg.TraceAddress != "" {
+		if err = statsd.Init(cfg.StatsdAddress, cfg.TraceAddress, metricTags); err != nil {
 			return nil, eris.Wrap(err, "unable to init statsd")
 		}
 	} else {
