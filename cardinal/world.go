@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/shard"
 	"reflect"
 	"runtime"
 	"strings"
@@ -66,25 +67,19 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
 
 	// Load config. Fallback value is used if it's not set.
-	cfg := GetWorldConfig()
+	cfg := getWorldConfig()
 
 	// Sane default options
 	serverOptions = append(serverOptions, server.WithCORS())
-	gameManagerOptions := []server.GameManagerOptions{} // not exposed in NewWorld Yet
+	var gameManagerOptions []server.GameManagerOptions // not exposed in NewWorld Yet
 
 	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
 		return nil, eris.Wrap(err, "")
 	}
 
-	if cfg.CardinalMode == ModeProd {
-		log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
-		if cfg.RedisPassword == DefaultRedisPassword {
-			return nil, errors.New("redis password is required in production")
-		}
-		if cfg.CardinalNamespace == DefaultNamespace {
-			return nil, errors.New(
-				"cardinal namespace can't be the default value in production to avoid replay attack",
-			)
+	if cfg.CardinalMode == RunModeProd {
+		if err := applyProductionOptions(cfg, &ecsOptions, &serverOptions); err != nil {
+			return nil, err
 		}
 	} else {
 		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
@@ -114,7 +109,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	var metricTags []string
 	if cfg.CardinalMode != "" {
-		metricTags = append(metricTags, "cardinal_mode:"+cfg.CardinalMode)
+		metricTags = append(metricTags, string("cardinal_mode:"+cfg.CardinalMode))
 	}
 	if cfg.CardinalNamespace != "" {
 		metricTags = append(metricTags, "cardinal_namespace:"+cfg.CardinalNamespace)
@@ -160,6 +155,36 @@ func setLogLevel(levelStr string) error {
 		return eris.Errorf("log level %q is invalid, try one of: %v.", levelStr, exampleLogLevels)
 	}
 	zerolog.SetGlobalLevel(level)
+	return nil
+}
+
+func applyProductionOptions(
+	cfg WorldConfig,
+	ecsOptions *[]ecs.Option,
+	serverOptions *[]server.Option,
+) error {
+	log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
+	if cfg.RedisPassword == "" {
+		return eris.New("REDIS_PASSWORD is required in production")
+	}
+	if cfg.CardinalNamespace == DefaultNamespace {
+		return eris.New(
+			"CARDINAL_NAMESPACE cannot be the default value in production to avoid replay attack",
+		)
+	}
+	if cfg.BaseShardSequencerAddress == "" || cfg.BaseShardQueryAddress == "" {
+		return eris.New("must supply BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_QUERY_ADDRESS for production " +
+			"mode Cardinal worlds")
+	}
+	adapter, err := shard.NewAdapter(shard.AdapterConfig{
+		ShardSequencerAddr: cfg.BaseShardSequencerAddress,
+		EVMBaseShardAddr:   cfg.BaseShardQueryAddress,
+	})
+	if err != nil {
+		return eris.Wrapf(err, "failed to instantiate adapter")
+	}
+	*ecsOptions = append(*ecsOptions, ecs.WithAdapter(adapter))
+	*serverOptions = append(*serverOptions, server.WithAdapter(adapter))
 	return nil
 }
 

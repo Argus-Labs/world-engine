@@ -18,11 +18,16 @@ import (
 type WorldOption struct {
 	ecsOption      ecs.Option
 	serverOption   server.Option
-	cardinalOption func(*World)
+	cardinalOption Option
 }
+
+type Option func(*World)
 
 // WithAdapter provides the world with communicate channels to the EVM base shard, enabling transaction storage and
 // transaction retrieval for state rebuilding purposes.
+//
+// NOTE: WithAdapter is automatically injected when Cardinal is running in production mode.
+// This option should only be used for testing, or to stub in your own adapter implementation.
 func WithAdapter(adapter shard.Adapter) WorldOption {
 	return WorldOption{
 		ecsOption:    ecs.WithAdapter(adapter),
