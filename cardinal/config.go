@@ -20,29 +20,28 @@ type WorldConfig struct {
 	BaseShardQueryAddress     string  `config:"BASE_SHARD_QUERY_ADDRESS"`
 	CardinalLogLevel          string  `config:"CARDINAL_LOG_LEVEL"`
 	StatsdAddress             string  `config:"STATSD_ADDRESS"`
+	TraceAddress string `config:"TRACE_ADDRESS"`
 }
 
 // Default configuration values.
 const (
 	DefaultRunMode                   = RunModeDev
 	DefaultNamespace                 = "world-1"
-	DefaultRedisPassword             = ""
 	DefaultRedisAddress              = "localhost:6379"
-	DefaultBaseShardSequencerAddress = ""
-	DefaultBaseShardQueryAddress     = ""
 	DefaultLogLevel                  = "info"
 	DefaultStatsdAddress             = "localhost:8125"
 )
 
 var defaultConfig = WorldConfig{
 	RedisAddress:              DefaultRedisAddress,
-	RedisPassword:             DefaultRedisPassword,
+	RedisPassword:             "",
 	CardinalNamespace:         DefaultNamespace,
 	CardinalMode:              DefaultRunMode,
-	BaseShardSequencerAddress: DefaultBaseShardSequencerAddress,
-	BaseShardQueryAddress:     DefaultBaseShardQueryAddress,
+	BaseShardSequencerAddress: "",
+	BaseShardQueryAddress:     "",
 	CardinalLogLevel:          DefaultLogLevel,
 	StatsdAddress:             DefaultStatsdAddress,
+	TraceAddress: "",
 }
 
 func getWorldConfig() WorldConfig {

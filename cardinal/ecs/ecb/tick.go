@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rotisserie/eris"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -61,14 +62,18 @@ func (m *Manager) StartNextTick(txs []message.Message, queue *txpool.TxQueue) er
 
 // FinalizeTick combines all pending state changes into a single multi/exec redis transactions and commits them
 // to the DB.
-func (m *Manager) FinalizeTick() error {
-	ctx := context.Background()
+func (m *Manager) FinalizeTick(ctx context.Context) error {
+	var span tracer.Span
+	span, ctx = tracer.StartSpanFromContext(ctx, "tick.span.finalize")
+	defer func() {
+		span.Finish()
+	}()
 	makePipeStartTime := time.Now()
 	pipe, err := m.makePipeOfRedisCommands(ctx)
 	if err != nil {
 		return err
 	}
-	if err = pipe.Incr(context.Background(), redisEndTickKey()).Err(); err != nil {
+	if err = pipe.Incr(ctx, redisEndTickKey()).Err(); err != nil {
 		return eris.Wrap(err, "")
 	}
 	statsd.EmitTickStat(makePipeStartTime, "pipe_make")
