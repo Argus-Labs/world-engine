@@ -83,26 +83,6 @@ func (m *Manager) RegisterComponents(comps []component.ComponentMetadata) error 
 	return m.loadArchIDs()
 }
 
-// CommitPending commits any pending state changes to the DB. If an error is returned, there will be no changes
-// to the underlying DB.
-func (m *Manager) CommitPending() error {
-	ctx := context.Background()
-	pipe, err := m.makePipeOfRedisCommands(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = pipe.Exec(ctx)
-	if err != nil {
-		return eris.Wrap(err, "")
-	}
-
-	m.pendingArchIDs = nil
-
-	// All changes were just successfully committed to redis, so stop tracking them locally
-	m.DiscardPending()
-	return nil
-}
-
 // DiscardPending discards any pending state changes.
 func (m *Manager) DiscardPending() {
 	clear(m.compValues)
