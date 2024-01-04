@@ -25,11 +25,12 @@ func (handler *Handler) processTransaction(tx message.Message, payload []byte, s
 
 func getTxFromParams(c *fiber.Ctx, txNameToTx map[string]message.Message,
 ) (message.Message, error) {
-	txType := c.Params("txType")
+	txType := c.Params("{txType}")
 	if txType == "" {
 		return nil, eris.New("params do not contain txType from the path /tx/game/{txType}")
 	}
 	tx, ok := txNameToTx[txType]
+	fmt.Println(tx)
 	if !ok {
 		return nil, eris.Errorf("could not locate transaction type: %s", txType)
 	}
@@ -98,6 +99,7 @@ func (handler *Handler) registerTxHandler() error {
 		requestBody := c.Body()
 
 		body, sp, err := handler.getBodyAndSignedPayloadFromRequest(requestBody, false)
+		fmt.Println(sp)
 		fmt.Println(-3)
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, err.Error())
@@ -133,7 +135,7 @@ func (handler *Handler) registerTxHandler() error {
 		return c.JSON(&txReply)
 	}
 	fmt.Println(20)
-	handler.server.Post("/tx/game/{txType}", gameHandler)
+	handler.server.Post("/tx/game/:{txType}", gameHandler)
 	fmt.Println(30)
 	handler.server.Post("tx/persona/create-persona", createPersonaHandler)
 	return nil
