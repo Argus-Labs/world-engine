@@ -38,6 +38,17 @@ type cqlComponent struct {
 	Name string `@Ident`
 }
 
+type cqlAll struct{}
+
+func (a *cqlAll) Capture(values []string) error {
+	if values[0] == "ALL" && values[1] == "(" && values[2] == ")" {
+		*a = cqlAll{}
+	} else {
+		a = nil
+	}
+	return nil
+}
+
 type cqlNot struct {
 	SubExpression *cqlValue `"!" @@`
 }
@@ -51,7 +62,8 @@ type cqlContains struct {
 }
 
 type cqlValue struct {
-	Exact         *cqlExact    `@@`
+	All           *cqlAll      `@("ALL" "(" ")")`
+	Exact         *cqlExact    `| @@`
 	Contains      *cqlContains `| @@`
 	Not           *cqlNot      `| @@`
 	Subexpression *cqlTerm     `| "(" @@ ")"`
@@ -83,6 +95,10 @@ func (o cqlOperator) String() string {
 	panic("unsupported operator")
 }
 
+func (a *cqlAll) String() string {
+	return "ALL()"
+}
+
 func (e *cqlExact) String() string {
 	parameters := ""
 	for i, comp := range e.Components {
@@ -111,6 +127,8 @@ func (v *cqlValue) String() string {
 		return v.Exact.String()
 	} else if v.Contains != nil {
 		return v.Contains.String()
+	} else if v.All != nil {
+		return v.All.String()
 	} else if v.Not != nil {
 		return "!(" + v.Not.SubExpression.String() + ")"
 	} else if v.Subexpression != nil {
@@ -164,6 +182,8 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (com
 			components = append(components, comp)
 		}
 		return filter.Exact(components...), nil
+	} else if value.All != nil {
+		return filter.All(), nil
 	} else if value.Contains != nil {
 		if len(value.Contains.Components) == 0 {
 			return nil, eris.New("CONTAINS cannot have zero parameters")
