@@ -1,13 +1,13 @@
 go 1.21.0
 
 use (
+	assert
 	cardinal
 	evm
-	relay/nakama
-	rift
-	sign
-	assert
 	internal/e2e
 	internal/e2e/tester/game
 	internal/nakama
+	relay/nakama
+	rift
+	sign
 )
