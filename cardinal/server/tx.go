@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/rotisserie/eris"
@@ -123,20 +122,6 @@ func (handler *Handler) submitTransaction(txVal any, tx message.Message, sp *sig
 	txReply := &TransactionReply{
 		TxHash: string(txHash),
 		Tick:   tick,
-	}
-	// check if we have an adapter
-	if handler.adapter != nil {
-		// if the world is recovering via adapter, we shouldn't accept transactions.
-		if handler.w.IsRecovering() {
-			return nil, eris.New("unable to submit transactions: game world is recovering state")
-		}
-		log.Debug().Msgf("TX %d: tick %d: hash %s: submitted to base shard", tx.ID(), txReply.Tick, txReply.TxHash)
-		err := handler.adapter.Submit(context.Background(), sp, uint64(tx.ID()), txReply.Tick)
-		if err != nil {
-			return nil, eris.Wrap(err, "error submitting transaction to base shard")
-		}
-	} else {
-		log.Debug().Msg("not submitting transaction to base shard")
 	}
 	return txReply, nil
 }

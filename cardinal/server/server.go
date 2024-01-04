@@ -21,7 +21,6 @@ import (
 	"github.com/rs/cors"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 // Handler is a type that contains endpoints for messages and queries in a given ecs world.
@@ -34,9 +33,6 @@ type Handler struct {
 	withCORS               bool
 	running                atomic.Bool
 	shutdownMutex          sync.Mutex
-
-	// plugins
-	adapter shard.WriteAdapter
 }
 
 var (
