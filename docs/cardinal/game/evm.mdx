@@ -1,0 +1,30 @@
+---
+title: 'EVM+ Message and Query'
+---
+
+Messages and queries can be sent from smart contracts in the EVM. This is by an opt-in basis, so you'll need to use the EVM message/query constructors when instantiating your messages and queries to enable EVM support.
+
+## Supported Types
+
+Below are the Go types available to use in struct fields when utilizing using EVM supported messages and queries.
+
+- []byte (resolves to `bytes` in ABI encoding)
+- string
+- bool
+- int8 - int64
+- uint8 - uint64
+- github.com/ethereum/go-ethereum/common.Address (resolves to `address` in ABI encoding)
+- *math/big.Int (resolves to a specified int or uint above 64 bits i.e. uint128)
+
+Additionally, slices of all the above types work as well.
+
+<Warning>
+    When using `*big.Int`, you MUST use a special "evm" struct tag to indicate which underlying evm integer type you want to resolve to. This is due to go-ethereum using `*big.Int` for any uint or int greater than 64 bits.
+</Warning>
+
+**Example:**
+```go
+type Foo struct {
+    Num *big.Int `evm:"uint256"`
+}
+```

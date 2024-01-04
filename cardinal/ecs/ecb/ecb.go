@@ -43,7 +43,7 @@ type Manager struct {
 	archIDToComps  map[archetype.ID][]component.ComponentMetadata
 	pendingArchIDs []archetype.ID
 
-	logger *ecslog.Logger
+	logger *zerolog.Logger
 }
 
 var (
@@ -68,9 +68,7 @@ func NewManager(client *redis.Client) (*Manager, error) {
 		// This field cannot be set until RegisterComponents is called
 		typeToComponent: nil,
 
-		logger: &ecslog.Logger{
-			&log.Logger,
-		},
+		logger: &log.Logger,
 	}
 
 	return m, nil
@@ -83,26 +81,6 @@ func (m *Manager) RegisterComponents(comps []component.ComponentMetadata) error 
 	}
 
 	return m.loadArchIDs()
-}
-
-// CommitPending commits any pending state changes to the DB. If an error is returned, there will be no changes
-// to the underlying DB.
-func (m *Manager) CommitPending() error {
-	ctx := context.Background()
-	pipe, err := m.makePipeOfRedisCommands(ctx)
-	if err != nil {
-		return err
-	}
-	_, err = pipe.Exec(ctx)
-	if err != nil {
-		return eris.Wrap(err, "")
-	}
-
-	m.pendingArchIDs = nil
-
-	// All changes were just successfully committed to redis, so stop tracking them locally
-	m.DiscardPending()
-	return nil
 }
 
 // DiscardPending discards any pending state changes.
@@ -187,7 +165,7 @@ func (m *Manager) CreateManyEntities(num int, comps ...component.ComponentMetada
 		m.entityIDToOriginArchID[currID] = doesNotExistArchetypeID
 		active.ids = append(active.ids, currID)
 		active.modified = true
-		m.logger.LogEntity(zerolog.DebugLevel, currID, archID, comps)
+		ecslog.Entity(m.logger, zerolog.DebugLevel, currID, archID, comps)
 	}
 	m.setActiveEntities(archID, active)
 	return ids, nil
@@ -382,7 +360,7 @@ func (m *Manager) ArchetypeCount() int {
 }
 
 // InjectLogger sets the logger for the manager.
-func (m *Manager) InjectLogger(logger *ecslog.Logger) {
+func (m *Manager) InjectLogger(logger *zerolog.Logger) {
 	m.logger = logger
 }
 

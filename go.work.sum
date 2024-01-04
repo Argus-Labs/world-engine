@@ -1372,7 +1372,6 @@ github.com/ashanbrown/forbidigo v1.5.1/go.mod h1:Y8j9jy9ZYAEHXdu723cUlraTqbzjKF1
 github.com/ashanbrown/makezero v1.1.1 h1:iCQ87C0V0vSyO+M9E/FZYbu65auqH0lnsOkf5FcB28s=
 github.com/aws/aws-lambda-go v1.13.3 h1:SuCy7H3NLyp+1Mrfp+m80jcbi9KYWAs9/BXwppwRDzY=
 github.com/aws/aws-sdk-go v1.15.11/go.mod h1:mFuSZ37Z9YOHbQEwBWztmVzqXrEkub65tZoCYDt7FT0=
-github.com/aws/aws-sdk-go v1.44.327/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
 github.com/aws/aws-sdk-go-v2 v1.2.0 h1:BS+UYpbsElC82gB+2E2jiCBg36i8HlubTB/dO/moQ9c=
 github.com/aws/aws-sdk-go-v2 v1.2.0/go.mod h1:zEQs02YRBw1DjK0PoJv3ygDYOFTre1ejlJWl8FwAuQo=
 github.com/aws/aws-sdk-go-v2 v1.9.1 h1:ZbovGV/qo40nrOJ4q8G33AGICzaPI45FHQWJ9650pF4=
@@ -1511,7 +1510,6 @@ github.com/breml/bidichk v0.2.4/go.mod h1:7Zk0kRFt1LIZxtQdl9W9JwGAcLTTkOs+tN7wuE
 github.com/breml/errchkjson v0.3.1 h1:hlIeXuspTyt8Y/UmP5qy1JocGNR00KQHgfaNtRAjoxQ=
 github.com/breml/errchkjson v0.3.1/go.mod h1:XroxrzKjdiutFyW3nWhw34VGg7kiMsDQox73yWCGI2U=
 github.com/bshuster-repo/logrus-logstash-hook v0.4.1/go.mod h1:zsTqEiSzDgAa/8GZR7E1qaXrhYNDKBYy5/dWPTIflbk=
-github.com/btcsuite/btcd v0.23.4/go.mod h1:0QJIIN1wwIXF/3G/m87gIwGniDMDQqjVn4SZgnFpsYY=
 github.com/btcsuite/btcd/btcec/v2 v2.2.1/go.mod h1:9/CSmJxmuvqzX9Wh2fXMWToLOHhPd11lSPuIupwTkI8=
 github.com/btcsuite/btcd/btcutil v1.1.2/go.mod h1:UR7dsSJzJUfMmFiiLlIrMq1lS9jh9EdCV7FStZSnpi0=
 github.com/btcsuite/btclog v0.0.0-20170628155309-84c8d2346e9f h1:bAs4lUbRJpnnkd9VhRV3jjAVU7DJVjMaK+IsvSeZvFo=
@@ -4326,8 +4324,10 @@ pkg.berachain.dev/polaris/lib v0.0.0-20230717165123-80a30c3435c3/go.mod h1:JZtnd
 pkg.berachain.dev/polaris/lib v0.0.0-20230830221145-a6c6454d3697 h1:wgvK5vI7UlQYBs3kB2wZBgsxUjYK1lCV0LFJ4YF2u/4=
 pkg.berachain.dev/polaris/lib v0.0.0-20230830221145-a6c6454d3697/go.mod h1:+3IkGuGJ/kV2d90ImTqPSrI9g+M6nV0eX1MAmtIfFZA=
 pkg.world.dev/world-engine/cardinal v0.1.49-alpha/go.mod h1:LlEagoc0n+ASZF0hmgDWVvyjfoYyZinjqEuNy4jeKxk=
+pkg.world.dev/world-engine/cardinal v1.0.6-beta.0.20240104191834-89728d063830/go.mod h1:oZM0qayeRKXy574uyVS/B6T3by1fcBKFB/9RmN8RebQ=
 pkg.world.dev/world-engine/chain v0.1.12-alpha h1:5iHYDJoJKYJ6kC/gxhC+UIOqeQMq+zvP7yBx2q4t+GU=
 pkg.world.dev/world-engine/chain v0.1.12-alpha/go.mod h1:1b70VXbEdiX10x/SShSAm65Rg2VF7TkluAMFPVEaSXs=
+pkg.world.dev/world-engine/evm v1.0.2-beta/go.mod h1:z8FfFc35oYsDITh26rbQzXW8A+lqvvY8IjbD1Upp4iM=
 pkg.world.dev/world-engine/rift v0.0.5/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
 pkg.world.dev/world-engine/sign v0.1.5-alpha/go.mod h1:JcKXhdeYvCPRAgsCUSFEDcAJgf67VgMWWrA2Y2VZJSg=
 rsc.io/binaryregexp v0.2.0 h1:HfqmD5MEmC0zvwBuF187nq9mdnXjXsSivRiXN7SmRkE=

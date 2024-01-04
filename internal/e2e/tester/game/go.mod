@@ -15,7 +15,7 @@ replace (
 
 require (
 	github.com/rotisserie/eris v0.5.4
-	pkg.world.dev/world-engine/cardinal v1.0.6-tracetest
+	pkg.world.dev/world-engine/cardinal v1.0.6-beta.0.20240104191834-89728d063830
 )
 
 require (
@@ -36,6 +36,7 @@ require (
 	github.com/DataDog/go-tuf v1.0.2-0.5.2 // indirect
 	github.com/DataDog/sketches-go v1.4.2 // indirect
 	github.com/DataDog/zstd v1.5.5 // indirect
+	github.com/JeremyLoy/config v1.5.0 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/alecthomas/participle/v2 v2.1.0 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
@@ -45,7 +46,6 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
-	github.com/cockroachdb/datadriven v1.0.3-0.20230801171734-e384cf455877 // indirect
 	github.com/cockroachdb/errors v1.11.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/pebble v0.0.0-20231101195458-481da04154d6 // indirect
@@ -166,7 +166,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a // indirect
-	pkg.world.dev/world-engine/evm v1.0.0-beta // indirect
+	pkg.world.dev/world-engine/evm v1.0.2-beta // indirect
 	pkg.world.dev/world-engine/rift v1.0.2-beta // indirect
 	pkg.world.dev/world-engine/sign v1.0.0-beta // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect

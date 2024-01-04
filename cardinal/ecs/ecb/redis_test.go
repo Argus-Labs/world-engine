@@ -28,6 +28,7 @@ func (b Beta) Name() string {
 }
 
 func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
+	ctx := context.Background()
 	s := miniredis.RunT(t)
 	options := redis.Options{
 		Addr:     s.Addr(),
@@ -53,11 +54,10 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 
 	startValue := Alpha{99}
 	assert.NilError(t, manager.SetComponentForEntity(alphaComp, id, startValue))
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	key := redisComponentKey(alphaComp.ID(), id)
 	// Make sure the value actually made it to the redis DB.
-	ctx := context.Background()
 	bz, err := client.Get(ctx, key).Bytes()
 	assert.NilError(t, err)
 
@@ -67,7 +67,8 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 
 	// Now remove the alpha component from the entity.
 	assert.NilError(t, manager.RemoveComponentFromEntity(alphaComp, id))
-	assert.NilError(t, manager.CommitPending())
+
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	// Verify the component in question no longer exists in the DB
 	err = client.Get(ctx, key).Err()

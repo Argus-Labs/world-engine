@@ -1,0 +1,68 @@
+---
+title: 'Message'
+description: 'How to define and register a message'
+---
+
+Messages are predefined user actions that can be submitted to Cardinal and handled within a system. A message is the primary way of representing possible user actions in the game. After a message is executed within a tick, it returns a `Reply` payload that can be read by the game client.
+
+In Cardinal, transactions are defined using a pair of Go structs representing a `Message` and a `Reply`.
+
+**Example:**
+- An `AttackPlayerMsg` message may contain the `TargetNickname` of the player you want to attack.
+- A `MoveMsg` message may contain the `Direction` and `Distance` of the move.
+
+---
+
+## Defining Messages
+
+By convention, messages are defined in the `msg` directory, with each message definition in its own separate file.
+
+You can easily create a new message and register it to the world by following these steps:
+
+<Steps>
+    <Step title="Define the message and reply struct">
+        A message and its reply is defined as a Go struct. You also need to create a singleton message object using the `NewMessageType` function. 
+
+        ```go /msg/msg_attack_player.go
+        package msg
+        
+        type AttackPlayerMsg struct {
+            TargetNickname string
+        }
+
+        type AttackPlayerMsgReply struct {
+            Damage int
+        }
+
+        var AttackPlayer = cardinal.NewMessageType[AttackPlayerMsg, AttackPlayerMsgReply]("attack-player")
+        ```
+    </Step>
+    <Step title="Register the message in the world">
+        Messages must be registered in the world before they can be used. This is done by calling the `RegisterMessages` function.
+
+        ```go main.go
+        package main
+
+        func main() {
+            w, err := cardinal.NewWorld()
+            if err != nil {
+                log.Fatal().Err(err).Msg("failed to create world")
+            }
+    
+            // Register messages (user action)
+            // NOTE: You must register your transactions here for it to be executed.
+            err := cardinal.RegisterMessages(w,
+                msg.CreatePlayer,
+                msg.AttackPlayer,
+            )
+            if err != nil {
+                log.Fatal().Err(err).Msg("failed to register message")
+            }
+    
+            // ...
+        }
+        ```
+    </Step>
+</Steps>
+
+--- 

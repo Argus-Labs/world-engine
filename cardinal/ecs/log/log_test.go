@@ -69,10 +69,7 @@ func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
-	cardinalLogger := log.Logger{
-		Logger: &bufLogger,
-	}
-	w.InjectLogger(&cardinalLogger)
+	w.InjectLogger(&bufLogger)
 	sysName := "foo"
 	w.RegisterSystemWithName(testSystem, sysName)
 	w.RegisterSystemWithName(testSystem, sysName)
@@ -88,14 +85,11 @@ func TestWorldLogger(t *testing.T) {
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
-	cardinalLogger := log.Logger{
-		&bufLogger,
-	}
-	w.InjectLogger(&cardinalLogger)
+	w.InjectLogger(&bufLogger)
 	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, w.RegisterMessages(alphaTx))
 	assert.NilError(t, ecs.RegisterComponent[EnergyComp](w))
-	cardinalLogger.LogWorld(w, zerolog.InfoLevel)
+	log.World(&bufLogger, w, zerolog.InfoLevel)
 	jsonWorldInfoString := `{
 					"level":"info",
 					"total_components":2,
@@ -155,7 +149,7 @@ func TestWorldLogger(t *testing.T) {
 	// test log entity
 	archetypeID, err := w.StoreManager().GetArchIDForComponents(components)
 	assert.NilError(t, err)
-	cardinalLogger.LogEntity(zerolog.DebugLevel, entityID, archetypeID, components)
+	log.Entity(&bufLogger, zerolog.DebugLevel, entityID, archetypeID, components)
 	jsonEntityInfoString := `
 		{
 			"level":"debug",

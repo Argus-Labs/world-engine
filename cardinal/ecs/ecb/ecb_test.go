@@ -1,7 +1,10 @@
 package ecb_test
 
 import (
+	"context"
+	"runtime"
 	"testing"
+	"time"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -76,6 +79,7 @@ func init() {
 
 func TestCanCreateEntityAndSetComponent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 	wantValue := Foo{99}
 
 	id, err := manager.CreateEntity(fooComp)
@@ -88,7 +92,7 @@ func TestCanCreateEntityAndSetComponent(t *testing.T) {
 	assert.Equal(t, wantValue, gotValue)
 
 	// Commit the pending changes
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	// Data should not change after a successful commit
 	gotValue, err = manager.GetComponentForEntity(fooComp, id)
@@ -98,12 +102,13 @@ func TestCanCreateEntityAndSetComponent(t *testing.T) {
 
 func TestDiscardedComponentChangeRevertsToOriginalValue(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 	wantValue := Foo{99}
 
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	assert.NilError(t, manager.SetComponentForEntity(fooComp, id, wantValue))
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	// Verify the component is what we expect
 	gotValue, err := manager.GetComponentForEntity(fooComp, id)
@@ -127,10 +132,11 @@ func TestDiscardedComponentChangeRevertsToOriginalValue(t *testing.T) {
 
 func TestDiscardedEntityIDsWillBeAssignedAgain(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 
 	ids, err := manager.CreateManyEntities(10, fooComp)
 	assert.NilError(t, err)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 	// This is the next ID we should expect to be assigned
 	nextID := ids[len(ids)-1] + 1
 
@@ -147,13 +153,13 @@ func TestDiscardedEntityIDsWillBeAssignedAgain(t *testing.T) {
 	gotID, err = manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	assert.Equal(t, nextID, gotID)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	// Now that nextID has been assigned, creating a new entity should give us a new entity ID
 	gotID, err = manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	assert.Equal(t, gotID, nextID+1)
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 }
 
 func TestCanGetComponentsForEntity(t *testing.T) {
@@ -234,6 +240,7 @@ func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testi
 
 func TestCanAddAComponentToAnEntity(t *testing.T) {
 	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
 
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
@@ -242,7 +249,7 @@ func TestCanAddAComponentToAnEntity(t *testing.T) {
 	assert.Equal(t, 1, len(comps))
 	assert.Equal(t, comps[0].ID(), fooComp.ID())
 	// Commit this entity creation
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
 
 	assert.NilError(t, manager.AddComponentToEntity(barComp, id))
 	comps, err = manager.GetComponentTypesForEntity(id)
@@ -521,15 +528,77 @@ func TestCannotSaveStateBeforeRegisteringComponents(t *testing.T) {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}
+	ctx := context.Background()
 
 	client := redis.NewClient(&options)
 	manager, err := ecb.NewManager(client)
 	assert.NilError(t, err)
 
 	// RegisterComponents must be called before attempting to save the state
-	err = manager.CommitPending()
+	err = manager.FinalizeTick(ctx)
 	assert.Check(t, err != nil)
 
 	assert.NilError(t, manager.RegisterComponents(allComponents))
-	assert.NilError(t, manager.CommitPending())
+	assert.NilError(t, manager.FinalizeTick(ctx))
+}
+
+// TestFinalizeTickPerformanceIsConsistent ensures calls to FinalizeTick takes roughly the same amount of time and
+// resources when processing the same amount of data.
+func TestFinalizeTickPerformanceIsConsistent(t *testing.T) {
+	manager := newCmdBufferForTest(t)
+	ctx := context.Background()
+
+	// createAndFinalizeEntities creates some entities and then calls FinalizeTick. It returns the amount of time it took
+	// to execute FinalizeTick and how many bytes of memory were allocated during the call.
+	createAndFinalizeEntities := func() (duration time.Duration, allocations uint64) {
+		_, err := manager.CreateManyEntities(100, fooComp, barComp)
+		assert.NilError(t, err)
+
+		var memStats runtime.MemStats
+		runtime.ReadMemStats(&memStats)
+		startAlloc := memStats.TotalAlloc
+
+		startTime := time.Now()
+		err = manager.FinalizeTick(ctx)
+		deltaTime := time.Since(startTime)
+
+		runtime.ReadMemStats(&memStats)
+		deltaAlloc := memStats.TotalAlloc - startAlloc
+
+		// Make sure FinalizeTick didn't produce an error.
+		assert.NilError(t, err)
+		return deltaTime, deltaAlloc
+	}
+
+	// Collect a baseline for how much time FinalizeTick should take and how much memory it should allocate.
+	baselineDuration, baselineAlloc := createAndFinalizeEntities()
+
+	// Run FinalizeTick a bunch of times to exacerbate any memory leaks.
+	for i := 0; i < 100; i++ {
+		_, _ = createAndFinalizeEntities()
+	}
+
+	// Run FinalizeTick a final handful of times. We'll take the average of these final runs and compare them to
+	// the baseline. Averaging these runs is required to avoid any GC spikes that will cause a single run of
+	// FinalizeTick to be slow, or some background process that is allocating memory in bursts.
+	var totalDuration time.Duration
+	var totalAlloc uint64
+	const count = 10
+	for i := 0; i < count; i++ {
+		currDuration, currAlloc := createAndFinalizeEntities()
+		totalDuration += currDuration
+		totalAlloc += currAlloc
+	}
+
+	averageDuration := totalDuration / count
+	averageAlloc := totalAlloc / count
+
+	const maxFactor = 5
+	maxDuration := maxFactor * baselineDuration
+	maxAlloc := maxFactor * baselineAlloc
+
+	assert.Assert(t, averageDuration < maxDuration,
+		"FinalizeTick took an average of %v but must be less than %v", averageDuration, maxDuration)
+	assert.Assert(t, averageAlloc < maxAlloc,
+		"FinalizeTick allocated an average of %v but must be less than %v", averageAlloc, maxAlloc)
 }

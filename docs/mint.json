@@ -1,0 +1,177 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "World Engine",
+  "openapi": [
+    "/openapi.json"
+  ],
+  "logo": {
+    "dark": "/logo/logo-dark.svg",
+    "light": "/logo/logo-light.svg",
+    "href": "https://world.dev"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#D49338",
+    "light": "#F5D64E",
+    "dark": "#D49338",
+    "anchors": {
+      "from": "#D49338",
+      "to": "#F5D64E"
+    },
+    "background": {
+      "light": "#FEFEFA"
+    }
+  },
+  "modeToggle": {
+    "default": "light",
+    "isHidden": true
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "https://t.me/worldengine_dev"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "/quickstart"
+  },
+  "primaryTab": {
+    "name": "World Engine"
+  },
+  "tabs": [
+    {
+      "name": "Cardinal (Game Shard)",
+      "url": "cardinal"
+    },
+    {
+      "name": "Game Engine/Client Integration",
+      "url": "client"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/Argus-Labs/world-engine"
+    },
+    {
+      "name": "Twitter",
+      "icon": "twitter",
+      "url": "https://x.com/ArgusLabs_"
+    },
+    {
+      "name": "Telegram Dev Chat",
+      "icon": "telegram",
+      "url": "https://t.me/worldengine_dev"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart"
+      ]
+    },
+    {
+      "group": "Architecture",
+      "pages": [
+        "architecture-overview"
+      ]
+    },
+    {
+      "group": "Cardinal (Game Shard)",
+      "pages": [
+        "cardinal/introduction",
+        "cardinal/ecs",
+        "cardinal/loop"
+      ]
+    },
+    {
+      "group": "Building Your Game Shard",
+      "pages": [
+        "cardinal/game/project-structure",
+        {
+          "group": "World (main.go)",
+          "pages": [
+            "cardinal/game/world/overview",
+            "cardinal/game/world/api-reference"
+          ]
+        },
+        "cardinal/game/component",
+        {
+          "group": "System",
+          "pages": [
+            "cardinal/game/system/overview",
+            "cardinal/game/system/entity",
+            "cardinal/game/system/component",
+            "cardinal/game/system/event"
+          ]
+        },
+        "cardinal/game/message",
+        "cardinal/game/query",
+        "cardinal/game/cql",
+        "cardinal/game/evm",
+        "cardinal/game/persona"
+      ]
+    },
+    {
+      "group": "Inter-Shard Communication",
+      "pages": [
+        "cardinal/shard/evm-to-cardinal"
+      ]
+    },
+    {
+      "group": "REST API",
+      "pages": [
+        "cardinal/rest/query-game",
+        "cardinal/rest/query-game-cql",
+        "cardinal/rest/query-persona-signer",
+        "cardinal/rest/query-receipts-list",
+        "cardinal/rest/tx-game",
+        "cardinal/rest/tx-persona-create",
+        "cardinal/rest/debug-state",
+        "cardinal/rest/events"
+      ]
+    },
+    {
+      "group": "Client/Game Engine Integration",
+      "pages": [
+        "client/introduction"
+      ]
+    },
+    {
+      "group": "Integrate via Nakama SDK",
+      "pages": [
+        "client/nakama/introduction",
+        "client/nakama/getting-started",
+        "client/nakama/relay"
+      ]
+    },
+    {
+      "group": "Integrate via REST API",
+      "pages": [
+        "client/rest/overview",
+        "client/rest/query-game",
+        "client/rest/query-game-cql",
+        "client/rest/query-persona-signer",
+        "client/rest/query-receipts-list",
+        "client/rest/tx-game",
+        "client/rest/tx-persona-create",
+        "client/rest/debug-state",
+        "client/rest/events"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "twitter": "https://x.com/ArgusLabs_",
+    "github": "https://github.com/argus-labs"
+  },
+  "analytics": {
+    "posthog": {
+      "apiKey": "phc_8py8fUWpEantdzhuP3dTEBBlsXstxTzeIu17NOd7A28",
+      "apiHost": "https://us.posthog.com"
+    }
+  }
+}

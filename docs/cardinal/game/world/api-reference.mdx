@@ -1,0 +1,313 @@
+---
+title: 'API Reference'
+---
+
+## NewWorld
+
+`NewWorld` creates a new `World` object.
+
+```go
+func NewWorld(addr, password string, opts ...WorldOption) (*World, error)
+```
+
+### Parameters
+| Parameter | Type            | Description                                      |
+|-----------|-----------------|--------------------------------------------------|
+| addr      | string          | The address of the redis DB to use for storage.  |
+| password  | string          | The password of the redis DB to use for storage. |
+| opts      | ...WorldOption  | Options for configuring the world.               |
+
+### Return Values
+
+| Type  | Description                                      |
+|--------------|--------------------------------------------------|
+| *World       | A pointer to the newly created World instance.  |
+| error        | An error indicating any issues during creation. |
+
+### Options
+
+#### WithAdapter
+
+The `WithAdapter` world option enables `World` objects to read/write transactions to/from the sequencer (EVM base shard), and rebuild game state from those transactions. When running World Engine in production, the `WithAdapter` option must be used.
+
+```go
+func WithAdapter(adapter shard.Adapter) Option
+```
+
+| Parameter | Type              | Description                              |
+|-----------|-------------------|------------------------------------------|
+| adapter   | shard.Adapter     | The adapter to be associated with World. |
+
+#### WithReceiptHistorySize
+
+The `WithReceiptHistorySize` option informs the `World` object on how many ticks the `World` should keep receipts for. For example, if we are on tick 40, and have a receipt history size of 5, the `World` will have receipts for ticks 35-39. On tick 41, the `World` will have receipts for ticks 36-40. If this option is not set, a default history size of 10 will be used.
+
+```go
+func WithReceiptHistorySize(size int) Option
+```
+
+| Parameter | Type     | Description                                           |
+|-----------|----------|-------------------------------------------------------|
+| size      | int      | The size of the receipt history to be set for World. |
+
+
+#### WithNamespace
+
+The `WithNamespace` allows the `World` to have a custom Namespace. Namespaces are used to differentiate `World` objects that post data to the EVM base shard.
+
+```go
+func WithNamespace(id string) Option
+```
+| Parameter | Type    | Description                                   |
+|-----------|---------|-----------------------------------------------|
+| ns        | string  | The namespace to be set for World. |
+
+
+#### WithPort
+
+The `WithPort` option allows for a custom port to be set for the World's server. If this option is unset, Cardinal checks for a `CARDINAL_PORT` environment variable. If that is also unset, it uses a default port of 4040.
+
+```go
+func WithPort(port string) WorldOption
+```
+
+| Parameter | Type    | Description                                   |
+|-----------|---------|-----------------------------------------------|
+| port        | string  | The port number for the world's server. |
+
+
+#### WithDisableSignatureVerification
+
+The `WithDisableSignatureVerification` disables signature verification on the World's server. This should only be used for testing.
+
+```go
+func WithDisableSignatureVerification() WorldOption
+```
+This method has no parameters.
+
+#### WithTickChannel
+
+The `WithTickChannel` sets the channel that will be used to initiate ticks. If unset, ticks will be executed once every second.
+
+```go
+func WithTickChannel(ch <-chan time.Time) WorldOption
+```
+
+| Parameter | Type             | Description                                      |
+|-----------|------------------|--------------------------------------------------|
+| ch        | `<-chan time.Time` | The tick channel that will begin each game tick. |
+
+
+##### Example
+
+```go
+// option to make ticks happen every 500 milliseconds.
+opt := WithLoopInterval(time.Tick(500*time.Millisecond))
+```
+
+## RegisterSystems
+
+`RegisterSystems` registers one or more systems to the `World`. Systems are executed in the order of which they were added to the world.
+
+```go
+func RegisterSystems(w *World, s ...System)
+```
+
+### Example
+
+```go
+package main
+
+import (
+	"github.com/my-username/my-world-engine-project/systems"
+	"pkg.world.dev/world-engine/cardinal"
+)
+
+func main() {
+	// ... world setup ...
+
+	// Systems will run in order in which they are added:
+	// 1. MoveSystem
+	// 2. HealthRegenSystem
+	// 3. AttackSystem
+	cardinal.RegisterSystems(world, systems.MoveSystem, systems.HealthRegenSystem, systems.AttackSystem)
+}
+```
+
+### Parameters
+
+| Parameter | Type         | Description                                             |
+|-----------|--------------|---------------------------------------------------------|
+| world     | *World       | A pointer to a World instance.  |
+| s         | ...System    | Variadic parameter for systems to be added to the World. |
+
+## RegisterComponents
+
+`RegisterComponents` registers one or more components to the `World`. Upon registration, components are assigned an ID. IDs are assigned incrementally, starting from 0, in the order in which they were passed to the method.
+
+
+<Callout type={"warning"}>
+    `RegisterComponents` can be only be called once. Subsequent calls to the method will return an error.
+</Callout>
+
+
+```go
+func RegisterComponent[T metadata.Component](world *World) error
+```
+### Example
+
+```go
+package main
+
+import (
+	"log"
+	"github.com/my-username/my-world-engine-project/component"
+	"pkg.world.dev/world-engine/cardinal"
+)
+
+func main() {
+	// ... world setup ...
+
+	err := cardinal.RegisterComponent[LocationComponet](world)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = cardinal.RegisterComponent[AttackPowerComponent](world)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = cardinal.RegisterComponent[HealthComponent](world)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Alternative RegisterComponent pattern with less error checking:
+	err = errors.Join(
+		cardinal.RegisterComponent[LocationComponet](world),
+		cardinal.RegisterComponent[AttackPowerComponent](world),
+		cardinal.RegisterComponent[HealthComponent](world),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+```
+
+### Parameters
+
+| Parameter    | Type               | Description                                         |
+|--------------|--------------------|-----------------------------------------------------|
+| `T`          | `type parameter`   | A component struct that implements the Name method. |
+| world        | *World             | A pointer to a World instance.                      |
+
+### Return Value
+
+| Type        | Description                                                                     |
+|-------------|---------------------------------------------------------------------------------|
+| error       | An error indicating any issues that occurred during the component registration. |
+
+
+## RegisterQueries
+
+`RegisterQueries` registers the queries in the `World`. This allows the `Query` endpoints to be automatically generated.
+
+```go
+func RegisterQueries(w *World, queries ...AnyQueryType) error
+```
+
+### Example
+
+```go
+package main
+
+import (
+	"log"
+
+	"github.com/my-username/my-world-engine-project/query"
+	"pkg.world.dev/world-engine/cardinal"
+)
+
+func main() {
+	// ... world setup ...
+
+	err := cardinal.RegisterQueries(world,
+		query.QueryLocation,
+		query.QueryHealth,
+		query.QueryAttackPower,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+```
+### Parameters
+| Parameter      | Type            | Description                                                    |
+|----------------|-----------------|----------------------------------------------------------------|
+| world          | *World          | A pointer to a World instance.                                 |
+| queries        | ...AnyQueryType | Variadic parameter for IQuery instances to be registered.      |
+
+
+### Return Value
+| Type   | Description                                                                 |
+|--------|-----------------------------------------------------------------------------|
+| error  | An error indicating any issues that occurred during the query registration. |
+
+## RegisterMessages
+
+`RegisterMessages` registers messages in the `World`. This allows message endpoints to be automatically generated.
+
+<Callout type={"warning"}>
+    `RegisterMessages` can be only be called once. Subsequent calls to the method will return an error.
+</Callout>
+
+```go
+func RegisterMessages(w *World, msgs ...AnyMessage) error
+```
+
+### Example
+```go
+package main
+
+import (
+	"log"
+
+	"github.com/my-username/my-world-engine-project/msg"
+	"pkg.world.dev/world-engine/cardinal"
+)
+
+func main() {
+	// ... world setup ...
+
+	err := cardinal.RegisterMessages(world,
+		msg.Move,
+		msg.Attack,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+```
+
+### Parameters
+| Parameter        | Type                | Description                                                    |
+|------------------|---------------------|----------------------------------------------------------------|
+| world            | *World              | A pointer to a World instance.                                  |
+| msgs              | ...AnyMessage                 | Variadic parameter for Message instances to be registered. |
+
+### Return Value
+| Type   | Description                                                               |
+|--------|---------------------------------------------------------------------------|
+| error  | An error indicating any issues that occurred during the message registration. |
+
+## StartGame
+
+`StartGame` starts the game by loading any previously saved game state, spinning up the message/query handler, and starting the game ticks. This method blocks the main Go routine. If for whatever reason execution needs to continue after calling this method, it should be called in a separate go routine.
+
+```go
+func (w *World) StartGame() error
+```
+
+### Return Value
+| Type   | Description                                              |
+|--------|----------------------------------------------------------|
+| error  | An error indicating any issues when starting the game.   |
