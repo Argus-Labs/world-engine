@@ -1,4 +1,4 @@
-package server1_test
+package server_test
 
 import (
 	"bytes"
@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	server "pkg.world.dev/world-engine/cardinal/server2"
+
 	"reflect"
 	"strconv"
 	"testing"
@@ -18,7 +19,6 @@ import (
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal"
-
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"github.com/gorilla/websocket"
@@ -254,9 +254,9 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	assert.NilError(t, err)
 
 	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+
 	resp, err := http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bogusSignatureBz))
 	assert.NilError(t, err)
-	fmt.Println(resp)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %v", mustReadBody(t, resp))
 
 	assert.NilError(t, w.Tick(context.Background()))

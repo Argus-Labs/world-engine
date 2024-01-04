@@ -1,4 +1,4 @@
-package server1
+package server
 
 import (
 	"os"

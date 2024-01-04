@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	server "pkg.world.dev/world-engine/cardinal/server2"
 	"sync"
 	"testing"
 	"time"
@@ -19,7 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/events"
-	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -37,12 +37,13 @@ func MakeTestTransactionHandler(
 	txh, err := server.NewHandler(world, eventBuilder, opts...)
 	assert.NilError(t, err)
 
-	// add test websocket handler.
-	txh.Mux.HandleFunc("/echo", events.Echo)
+	// add test websocket handler
+	// TODO: Uncomment and fix
+	//txh.Mux.HandleFunc("/echo", events.Echo)
 
 	healthPath := "/health"
 	t.Cleanup(func() {
-		assert.NilError(t, txh.Close())
+		assert.NilError(t, txh.Shutdown())
 	})
 
 	go func() {
@@ -67,7 +68,7 @@ func MakeTestTransactionHandler(
 			time.Since(start) < time.Second,
 			"timeout while waiting for a healthy server",
 		)
-		//nolint:noctx,bodyclose // its for a test.
+		//nolint:noctx,bodyclose // it's for a test.
 		resp, err := http.Get("http://" + healthURL)
 		if err == nil && resp.StatusCode == 200 {
 			// the health check endpoint was successfully queried.

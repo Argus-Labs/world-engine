@@ -1,4 +1,4 @@
-package server2
+package server
 
 import (
 	"bytes"
@@ -34,26 +34,30 @@ func getSignerAddressFromPayload(sp sign.Transaction) (string, error) {
 }
 
 func (handler *Handler) verifySignature(sp *sign.Transaction, isSystemTransaction bool,
-) (sig *sign.Transaction, err error) {
+) (err error) {
+	// TODO: Check why we do this, this is from before via @jer
+	if handler.disableSigVerification {
+		populatePlaceholderFields(sp)
+	}
+
 	if sp.PersonaTag == "" {
-		return nil, errors.New("PersonaTag must not be empty")
+		return errors.New("PersonaTag must not be empty")
 	}
 
 	// Handle the case where signature is disabled
 	if handler.disableSigVerification {
-		return sp, nil
+		return nil
 	}
-	///////////////////////////////////////////////
 
 	// Check that the namespace is correct
 	if sp.Namespace != handler.w.Namespace().String() {
-		return nil, eris.Wrapf(ErrInvalidSignature, "got namespace %q but it must be %q",
+		return eris.Wrapf(ErrInvalidSignature, "got namespace %q but it must be %q",
 			sp.Namespace, handler.w.Namespace().String())
 	}
 	if isSystemTransaction && !sp.IsSystemTransaction() {
-		return nil, eris.Wrap(ErrSystemTransactionRequired, "")
+		return eris.Wrap(ErrSystemTransactionRequired, "")
 	} else if !isSystemTransaction && sp.IsSystemTransaction() {
-		return nil, eris.Wrap(ErrSystemTransactionForbidden, "")
+		return eris.Wrap(ErrSystemTransactionForbidden, "")
 	}
 
 	var signerAddress string
@@ -66,51 +70,52 @@ func (handler *Handler) verifySignature(sp *sign.Transaction, isSystemTransactio
 		signerAddress, err = handler.w.GetSignerForPersonaTag(sp.PersonaTag, 0)
 	}
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// Verify signature
 	if err = sp.Verify(signerAddress); err != nil {
-		return nil, eris.Wrap(errors.Join(ErrInvalidSignature, err), "")
+		return eris.Wrap(errors.Join(ErrInvalidSignature, err), "")
 	}
 
 	// The signature is valid. Verify and use the nonce in an atomic operation
 	if err = handler.w.UseNonce(signerAddress, sp.Nonce); err != nil {
-		return nil, eris.Wrap(err, "nonce verification failed")
+		return eris.Wrap(err, "nonce verification failed")
 	}
 
-	return sp, nil
+	return nil
 }
 
-func populatePlaceholderFields(request map[string]interface{}) {
-	if request["namespace"] == "" {
-		request["namespace"] = "placeholder-namespace"
+func populatePlaceholderFields(request *sign.Transaction) {
+	if request.Namespace == "" {
+		request.Namespace = "placeholder-namespace"
 	}
-	if request["signature"] == "" {
-		request["signature"] = "placeholder-signature"
+
+	if request.Signature == "" {
+		request.Signature = "placeholder-signature"
 	}
 }
 
-func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool,
-) (payload []byte, sig *sign.Transaction, err error) {
-	if handler.disableSigVerification {
-		populatePlaceholderFields(request)
-	}
-	sp, err := sign.MappedTransaction(request)
-	if err != nil {
-		return nil, nil, eris.Wrap(err, ErrInvalidSignature.Error())
-	}
-	sig, err = handler.verifySignature(sp, isSystemTransaction)
-	if err != nil {
-		return nil, nil, eris.Wrapf(err, ErrInvalidSignature.Error())
-	}
-	if len(sp.Body) == 0 {
-		buf, err := json.Marshal(request)
-		if err != nil {
-			return nil, nil, eris.Wrap(err, "error marshalling json")
-		}
-		return buf, sp, nil
-	}
-
-	return sig.Body, sig, nil
-}
+//func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool,
+//) (payload []byte, sig *sign.Transaction, err error) {
+//	if handler.disableSigVerification {
+//		populatePlaceholderFields(request)
+//	}
+//	sp, err := sign.MappedTransaction(request)
+//	if err != nil {
+//		return nil, nil, eris.Wrap(err, ErrInvalidSignature.Error())
+//	}
+//	sig, err = handler.verifySignature(sp, isSystemTransaction)
+//	if err != nil {
+//		return nil, nil, eris.Wrapf(err, ErrInvalidSignature.Error())
+//	}
+//	if len(sp.Body) == 0 {
+//		buf, err := json.Marshal(request)
+//		if err != nil {
+//			return nil, nil, eris.Wrap(err, "error marshalling json")
+//		}
+//		return buf, sp, nil
+//	}
+//
+//	return sig.Body, sig, nil
+//}

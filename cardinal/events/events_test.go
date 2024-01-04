@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	server "pkg.world.dev/world-engine/cardinal/server2"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -21,7 +22,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/events"
-	"pkg.world.dev/world-engine/cardinal/server"
 )
 
 func TestEventError(t *testing.T) {

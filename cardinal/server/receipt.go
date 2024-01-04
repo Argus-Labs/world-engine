@@ -1,4 +1,4 @@
-package server
+package server1
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"

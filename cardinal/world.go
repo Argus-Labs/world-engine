@@ -3,10 +3,12 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	server "pkg.world.dev/world-engine/cardinal/server2"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"reflect"
 	"runtime"
@@ -24,7 +26,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/evm"
 	"pkg.world.dev/world-engine/cardinal/gamestage"
-	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -262,6 +263,7 @@ func (w *World) handleShutdown() {
 // may not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {
+	fmt.Println("STRART GFAMEE")
 	ok := w.gameSequenceStage.CompareAndSwap(gamestage.StagePreStart, gamestage.StageStarting)
 	if !ok {
 		return errors.New("game has already been started")

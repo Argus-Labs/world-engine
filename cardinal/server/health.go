@@ -1,4 +1,4 @@
-package server
+package server1
 
 import (
 	"github.com/go-openapi/runtime"
