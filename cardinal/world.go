@@ -78,7 +78,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	if cfg.CardinalMode == RunModeProd {
-		if err := applyProductionOptions(cfg, &ecsOptions, &serverOptions); err != nil {
+		if err := applyProductionOptions(cfg, &ecsOptions); err != nil {
 			return nil, err
 		}
 	} else {
@@ -161,7 +161,6 @@ func setLogLevel(levelStr string) error {
 func applyProductionOptions(
 	cfg WorldConfig,
 	ecsOptions *[]ecs.Option,
-	serverOptions *[]server.Option,
 ) error {
 	log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
 	if cfg.RedisPassword == "" {
@@ -184,7 +183,6 @@ func applyProductionOptions(
 		return eris.Wrapf(err, "failed to instantiate adapter")
 	}
 	*ecsOptions = append(*ecsOptions, ecs.WithAdapter(adapter))
-	*serverOptions = append(*serverOptions, server.WithAdapter(adapter))
 	return nil
 }
 

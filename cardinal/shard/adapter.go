@@ -104,10 +104,7 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	return a, nil
 }
 
-func (a adapterImpl) Submit(ctx context.Context, sp *sign.Transaction, txID uint64, epoch uint64) error {
-	//req := &shardv2.SubmitTransactionsRequest{Tx: transactionToProto(sp), Epoch: epoch, TxId: txID}
-	//_, err := a.ShardSequencer.SubmitShardTx(ctx, req)
-	//return eris.Wrap(err, "")
+func (a adapterImpl) Submit(_ context.Context, _ *sign.Transaction, _ uint64, _ uint64) error {
 	return nil
 }
 
@@ -122,6 +119,7 @@ func (a adapterImpl) QueryTransactions(
 	return res, eris.Wrap(err, "")
 }
 
+//nolint:unused // will be used soon.. just refactoring things..
 func transactionToProto(sp *sign.Transaction) *shardv2.Transaction {
 	return &shardv2.Transaction{
 		PersonaTag: sp.PersonaTag,
