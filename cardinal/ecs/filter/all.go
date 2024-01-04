@@ -6,9 +6,9 @@ type all struct {
 }
 
 func All() ComponentFilter {
-	return all{}
+	return &all{}
 }
 
-func (f all) MatchesComponents(_ []component.ComponentMetadata) bool {
+func (f *all) MatchesComponents(_ []component.ComponentMetadata) bool {
 	return true
 }
