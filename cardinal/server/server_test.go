@@ -256,7 +256,6 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
 	resp, err := http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bogusSignatureBz))
 	assert.NilError(t, err)
-	fmt.Println(resp)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %v", mustReadBody(t, resp))
 
 	assert.NilError(t, w.Tick(context.Background()))
