@@ -144,7 +144,7 @@
     {
       "group": "Integrate via Nakama SDK",
       "pages": [
-        "client/nakama/introduction",
+        "client/nakama/overview",
         "client/nakama/getting-started",
         "client/nakama/relay"
       ]
