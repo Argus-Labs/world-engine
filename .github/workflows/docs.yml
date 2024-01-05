@@ -24,7 +24,7 @@ jobs:
       #   run: mintlify broken-links
       - name: Mintlify Check Build
         run: |
-          mintlify dev
+          mintlify dev &
           MPID=$!
-          sleep 5
+          sleep 10
           kill -int -$MPID
