@@ -49,7 +49,7 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 						result = append(result, &resultElement)
 						return true
 					},
-				)
+				).Commit()
 				if eachClosureErr != nil {
 					return nil, eachClosureErr
 				}

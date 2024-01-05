@@ -23,6 +23,7 @@ type cache struct {
 type Search struct {
 	archMatches map[Namespace]*cache
 	filter      filter.ComponentFilter
+	callbacks   []func() error
 }
 
 // NewSearch creates a new search.
@@ -34,27 +35,42 @@ func NewSearch(filter filter.ComponentFilter) *Search {
 	}
 }
 
+func (q *Search) Commit() error {
+	var err error = nil
+	for _, callback := range q.callbacks {
+		err = callback()
+		if err != nil {
+			break
+		}
+	}
+	q.callbacks = q.callbacks[:0]
+	return err
+}
+
 type SearchCallBackFn func(entity.ID) bool
 
 // Each iterates over all entities that match the search.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (q *Search) Each(wCtx WorldContext, callback SearchCallBackFn) error {
-	reader := wCtx.StoreReader()
-	result := q.evaluateSearch(wCtx.GetWorld().Namespace(), reader)
-	iter := storage.NewEntityIterator(0, reader, result)
-	for iter.HasNext() {
-		entities, err := iter.Next()
-		if err != nil {
-			return err
-		}
-		for _, id := range entities {
-			cont := callback(id)
-			if !cont {
-				return nil
+func (q *Search) Each(wCtx WorldContext, callback SearchCallBackFn) *Search {
+	q.callbacks = append(q.callbacks, func() error {
+		reader := wCtx.StoreReader()
+		result := q.evaluateSearch(wCtx.GetWorld().Namespace(), reader)
+		iter := storage.NewEntityIterator(0, reader, result)
+		for iter.HasNext() {
+			entities, err := iter.Next()
+			if err != nil {
+				return err
+			}
+			for _, id := range entities {
+				cont := callback(id)
+				if !cont {
+					return nil
+				}
 			}
 		}
-	}
-	return nil
+		return nil
+	})
+	return q
 }
 
 // Count returns the number of entities that match the search.

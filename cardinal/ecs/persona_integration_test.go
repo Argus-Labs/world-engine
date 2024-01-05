@@ -258,7 +258,7 @@ func getSigners(t *testing.T, world *ecs.World) []*ecs.SignerComponent {
 			signers = append(signers, sc)
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	return signers
 }

@@ -37,7 +37,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 				count++
 				return count != stop
 			},
-		),
+		).Commit(),
 	)
 	assert.Equal(t, count, stop)
 
@@ -50,7 +50,14 @@ func TestSearchEarlyTermination(t *testing.T) {
 				count++
 				return true
 			},
-		),
+		).Commit(),
 	)
 	assert.Equal(t, count, total)
+	doubleCount := 0
+	otherCounter := func(id entity.ID) bool {
+		doubleCount++
+		return true
+	}
+	assert.NilError(t, q.Each(wCtx, otherCounter).Each(wCtx, otherCounter).Commit())
+	assert.Equal(t, 2*count, doubleCount)
 }

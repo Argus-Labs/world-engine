@@ -152,7 +152,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 					result = append(result, resultElement)
 					return true
 				},
-			)
+			).Commit()
 			if err != nil {
 				return nil, err
 			}

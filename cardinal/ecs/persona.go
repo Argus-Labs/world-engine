@@ -129,7 +129,7 @@ func buildPersonaTagMapping(wCtx WorldContext) (map[string]personaTagComponentDa
 			}
 			return true
 		},
-	)
+	).Commit()
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +221,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 			}
 			return true
 		},
-	)
+	).Commit()
 	errs = append(errs, err)
 	if addr == "" {
 		return "", ErrPersonaTagHasNoSigner

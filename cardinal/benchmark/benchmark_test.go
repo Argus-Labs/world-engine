@@ -63,7 +63,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 						assert.NilError(t, ecs.SetComponent[Health](wCtx, id, health))
 						return true
 					},
-				)
+				).Commit()
 				assert.NilError(t, err)
 				return nil
 			},

@@ -50,7 +50,7 @@ func testSystem(wCtx ecs.WorldContext) error {
 			err = ecs.SetComponent[EnergyComp](wCtx, entityId, energyPlanet)
 			return err == nil
 		},
-	)
+	).Commit()
 	if err != nil {
 		panic(err)
 	}

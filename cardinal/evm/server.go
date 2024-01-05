@@ -310,7 +310,7 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 				}
 				return true
 			},
-		), "",
+		).Commit(), "",
 	)
 	if getComponentErr != nil {
 		return nil, getComponentErr

@@ -49,7 +49,7 @@ func TestGetEverythingFilter(t *testing.T) {
 			count++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count, subsetCount+20)
 }
@@ -84,7 +84,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 			assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count, subsetCount)
 }
@@ -122,7 +122,7 @@ func TestExactVsContains(t *testing.T) {
 			count++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count, alphaCount+bothCount)
 	count2 := 0
@@ -133,7 +133,7 @@ func TestExactVsContains(t *testing.T) {
 			count2++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count2, alphaCount+bothCount)
 
@@ -146,7 +146,7 @@ func TestExactVsContains(t *testing.T) {
 			count++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
@@ -158,7 +158,7 @@ func TestExactVsContains(t *testing.T) {
 			count2++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 
 	count = 0
@@ -170,7 +170,7 @@ func TestExactVsContains(t *testing.T) {
 			count++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count, alphaCount)
 
@@ -182,7 +182,7 @@ func TestExactVsContains(t *testing.T) {
 			count2++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count2, alphaCount)
 
@@ -195,7 +195,7 @@ func TestExactVsContains(t *testing.T) {
 			count++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
@@ -207,7 +207,7 @@ func TestExactVsContains(t *testing.T) {
 			count2++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
@@ -220,7 +220,7 @@ func TestExactVsContains(t *testing.T) {
 			count++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 
@@ -232,7 +232,7 @@ func TestExactVsContains(t *testing.T) {
 			count2++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count, bothCount)
 }
@@ -261,7 +261,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 			count++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count, wantCount)
 
@@ -283,7 +283,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 			count2++
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, count2, wantCount)
 }
@@ -338,7 +338,7 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 				count++
 				return true
 			},
-		)
+		).Commit()
 		assert.NilError(b, err)
 		assert.Equal(b, count, relevantCount)
 	}

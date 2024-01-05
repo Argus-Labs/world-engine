@@ -353,7 +353,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 				found[id] = true
 				return true
 			},
-		)
+		).Commit()
 		assert.NilError(t, err)
 		assert.Equal(t, len(tc.wantIDs), len(found))
 		for _, id := range tc.wantIDs {

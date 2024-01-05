@@ -61,7 +61,7 @@ func UpdateEnergySystem(wCtx ecs.WorldContext) error {
 			}
 			return true
 		},
-	)
+	).Commit()
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func TestECS(t *testing.T) {
 			assert.Equal(t, int64(10), energyPlanet.Amt)
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 
 	q, err := world.NewSearch(ecs.Or(ecs.Contains(EnergyComponent{}), ecs.Contains(OwnableComponent{})))
@@ -186,7 +186,7 @@ func TestVelocitySimulation(t *testing.T) {
 			assert.NilError(t, ecs.SetComponent[Pos](wCtx, id, &newPos))
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 
 	finalPos, err := ecs.GetComponent[Pos](wCtx, shipID)
@@ -257,7 +257,7 @@ func TestCanRemoveEntity(t *testing.T) {
 				count++
 				return true
 			},
-		),
+		).Commit(),
 	)
 
 	assert.Equal(t, count, 2)
@@ -274,7 +274,7 @@ func TestCanRemoveEntity(t *testing.T) {
 				count++
 				return true
 			},
-		),
+		).Commit(),
 	)
 	assert.Equal(t, count, 1)
 
@@ -294,7 +294,7 @@ func TestCanRemoveEntity(t *testing.T) {
 				count++
 				return true
 			},
-		),
+		).Commit(),
 	)
 	assert.Equal(t, count, 0)
 
@@ -332,7 +332,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 				assert.NilError(t, ecs.SetComponent[CountComponent](wCtx, id, &CountComponent{int(id)}))
 				return true
 			},
-		),
+		).Commit(),
 	)
 
 	// Remove the even entries
@@ -346,7 +346,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 				itr++
 				return true
 			},
-		),
+		).Commit(),
 	)
 	// Verify we did this Each the correct number of times
 	assert.Equal(t, 10, itr)
@@ -360,7 +360,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 				seen[c.Val]++
 				return true
 			},
-		),
+		).Commit(),
 	)
 
 	// Verify we're left with exactly 5 odd values between 1 and 9
@@ -497,27 +497,27 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	// 3 entities have alpha
 	alphaQuery, err := world.NewSearch(ecs.Contains(Alpha{}))
 	assert.NilError(t, err)
-	err = alphaQuery.Each(wCtx, countAgain())
+	err = alphaQuery.Each(wCtx, countAgain()).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, 3, count)
 
 	// 0 entities have gamma
 	gammaQuery, err := world.NewSearch(ecs.Contains(Gamma{}))
 	assert.NilError(t, err)
-	err = gammaQuery.Each(wCtx, countAgain())
+	err = gammaQuery.Each(wCtx, countAgain()).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, 0, count)
 
 	assert.NilError(t, ecs.RemoveComponentFrom[Alpha](wCtx, entIDs[0]))
 
 	// alpha has been removed from entity[0], so only 2 entities should now have alpha
-	err = alphaQuery.Each(wCtx, countAgain())
+	err = alphaQuery.Each(wCtx, countAgain()).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, 2, count)
 
 	// Add gamma to an entity. Now 1 entity should have gamma.
 	assert.NilError(t, ecs.AddComponentTo[Gamma](wCtx, entIDs[1]))
-	err = gammaQuery.Each(wCtx, countAgain())
+	err = gammaQuery.Each(wCtx, countAgain()).Commit()
 	assert.NilError(t, err)
 	assert.Equal(t, 1, count)
 
@@ -527,7 +527,7 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 			assert.Equal(t, id, entIDs[1])
 			return true
 		},
-	)
+	).Commit()
 	assert.NilError(t, err)
 }
 
@@ -601,7 +601,7 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 				assert.Equal(t, id, ab)
 				return true
 			},
-		),
+		).Commit(),
 	)
 	q, err = world.NewSearch(abFilter)
 	assert.NilError(t, err)
@@ -618,7 +618,7 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 				assert.Equal(t, id, cd)
 				return true
 			},
-		),
+		).Commit(),
 	)
 	q, err = world.NewSearch(abFilter)
 	assert.NilError(t, err)

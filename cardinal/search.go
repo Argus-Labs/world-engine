@@ -21,7 +21,7 @@ func (q *Search) Each(wCtx WorldContext, callback SearchCallBackFn) error {
 		wCtx.Instance(), func(eid entity.ID) bool {
 			return callback(eid)
 		},
-	)
+	).Commit()
 }
 
 // Count returns the number of entities that match this search.

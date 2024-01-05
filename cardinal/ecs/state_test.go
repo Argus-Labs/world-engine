@@ -231,7 +231,7 @@ func TestCanReloadState(t *testing.T) {
 						assert.Check(t, err == nil)
 						return true
 					},
-				),
+				).Commit(),
 			)
 			return nil
 		},
@@ -261,7 +261,7 @@ func TestCanReloadState(t *testing.T) {
 				assert.Equal(t, int(id), num.Num)
 				return true
 			},
-		),
+		).Commit(),
 	)
 	// Make sure we actually have 10 entities
 	assert.Equal(t, 10, count)
