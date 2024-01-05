@@ -164,3 +164,29 @@ func (handler *Handler) Shutdown() error {
 	}
 	return nil
 }
+
+func createQueryHandlerFromRequest[Request any, Response any](requestName string,
+	requestHandler func(*Request) (*Response, error)) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		requestBody := c.Body()
+
+		var request *Request
+		if len(requestBody) != 0 {
+			value := new(Request)
+			if err := c.BodyParser(&value); err != nil {
+				// Handle error if the body cannot be parsed
+				return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("body in query request did not match expected type: %s", err))
+			}
+		} else {
+			request = nil
+		}
+		resp, err := requestHandler(request)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(&fiber.Map{
+			"response": resp,
+			"error":    nil,
+		})
+	}
+}

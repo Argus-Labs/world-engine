@@ -37,7 +37,19 @@ func (handler *Handler) registerQueryHandlers() error {
 		return c.JSON(endpoints)
 	}
 
+	personaHandler := createQueryHandlerFromRequest[QueryPersonaSignerRequest, QueryPersonaSignerResponse](
+		"QueryPersonaSignerRequest",
+		handler.getPersonaSignerResponse,
+	)
+
+	receiptsHandler := createQueryHandlerFromRequest[ListTxReceiptsRequest, ListTxReceiptsReply](
+		"ListTxReceiptsRequest",
+		getListTxReceiptsReplyFromRequest(handler.w),
+	)
+
 	handler.server.Post("/query/game/{queryType}", queryHandler)
 	handler.server.Post("/query/http/endpoints", listHandler)
+	handler.server.Post("/query/persona/signer", personaHandler)
+	handler.server.Post("/query/receipts/list", receiptsHandler)
 	return nil
 }
