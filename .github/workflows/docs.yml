@@ -24,7 +24,4 @@ jobs:
       #   run: mintlify broken-links
       - name: Mintlify Check Build
         run: |
-          mintlify dev &
-          MPID=$!
-          sleep 10
-          kill -int -$MPID
+          timeout --preserve-status --kill-after=10 10s mintlify dev && echo ">> preview build run successfully"
