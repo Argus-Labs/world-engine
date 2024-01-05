@@ -17,10 +17,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'npm'
       - name: Install Mintlify CLI
         run: npm install --global mintlify
       - name: Mintlify Check Broken Link
