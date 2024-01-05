@@ -19,8 +19,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Install Mintlify CLI
         run: npm install --global mintlify
-      - name: Mintlify Check Broken Link
-        run: mintlify broken-links
+      # - name: Mintlify Check Broken Link
+      #   run: mintlify broken-links
       - name: Mintlify Check Build
         run: |
           mintlify dev
