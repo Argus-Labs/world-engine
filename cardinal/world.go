@@ -8,7 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	server "pkg.world.dev/world-engine/cardinal/server2"
+	server "pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"reflect"
 	"runtime"

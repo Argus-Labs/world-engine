@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	server "pkg.world.dev/world-engine/cardinal/server2"
+	server "pkg.world.dev/world-engine/cardinal/server"
 	"sync"
 	"testing"
 	"time"

@@ -1,43 +1,21 @@
-package server1
+package server
 
 import (
-	"context"
-	_ "embed"
 	"errors"
 	"fmt"
-	"net/http"
+	"github.com/go-openapi/runtime/middleware"
+	"github.com/gofiber/contrib/swagger"
+	"github.com/gofiber/fiber/v2"
+	"github.com/rotisserie/eris"
+	"github.com/rs/zerolog/log"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/shard"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/go-openapi/loads"
-	"github.com/go-openapi/runtime"
-	"github.com/go-openapi/runtime/middleware"
-	"github.com/go-openapi/runtime/middleware/untyped"
-	"github.com/mitchellh/mapstructure"
-	"github.com/rotisserie/eris"
-	"github.com/rs/cors"
-	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/shard"
 )
-
-// Handler is a type that contains endpoints for messages and queries in a given ecs world.
-type Handler struct {
-	w                      *ecs.World
-	Mux                    *http.ServeMux
-	server                 *http.Server
-	disableSigVerification bool
-	Port                   string
-	withCORS               bool
-	running                atomic.Bool
-	shutdownMutex          sync.Mutex
-
-	// plugins
-	adapter shard.WriteAdapter
-}
 
 var (
 	// ErrInvalidSignature is returned when a signature is incorrect in some way (e.g. namespace mismatch, nonce invalid,
@@ -52,11 +30,20 @@ const (
 	readHeaderTimeout = 5 * time.Second
 )
 
-// NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
-// messages and queries registered with the given world are automatically created. The server runs on a default port
-// of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
+type Handler struct {
+	w                      *ecs.World
+	server                 *fiber.App
+	disableSigVerification bool
+	withCORS               bool
+	running                atomic.Bool
+	Port                   string
+	shutdownMutex          sync.Mutex
+	// Plugins
+	adapter shard.WriteAdapter
+}
+
 func NewHandler(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
-	h, err := newSwaggerHandlerEmbed(w, builder, opts...)
+	h, err := newHandlerEmbed(w, builder, opts...)
 	h.running.Store(false)
 	if err != nil {
 		return nil, err
@@ -64,110 +51,33 @@ func NewHandler(w *ecs.World, builder middleware.Builder, opts ...Option) (*Hand
 	return h, nil
 }
 
-//go:embed swagger.yml
-var swaggerData []byte
-
-func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
-	th := &Handler{
-		w:        w,
-		Mux:      http.NewServeMux(),
-		withCORS: false,
+func newHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
+	handler := &Handler{
+		w: w,
 	}
+	handler.Initialize()
 	for _, opt := range opts {
-		opt(th)
+		opt(handler)
 	}
-	specDoc, err := loads.Analyzed(swaggerData, "")
-	if err != nil {
-		return nil, eris.Wrap(err, "error loading swagger spec")
+	// Setup swagger docs at /docs
+	cfg := swagger.Config{
+		FilePath: "./swagger.yml",
+		Title:    "World Engine API Docs",
 	}
-	api := untyped.NewAPI(specDoc).WithoutJSONDefaults()
-	api.RegisterConsumer("application/json", runtime.JSONConsumer())
-	api.RegisterProducer("application/json", runtime.JSONProducer())
-	err = th.registerTxHandlerSwagger(api)
-	if err != nil {
-		return nil, err
-	}
-	err = th.registerQueryHandlerSwagger(api)
+	handler.server.Use(swagger.New(cfg))
+
+	// Register handlers
+	err := handler.registerTxHandler()
 	if err != nil {
 		return nil, err
 	}
-	th.registerDebugHandlerSwagger(api)
-	th.registerHealthHandlerSwagger(api)
-
-	// This is here to meet the swagger spec. Actual /events will be intercepted before this route.
-	api.RegisterOperation("GET", "/events", runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		return struct{}{}, nil
-	}))
-
-	if err = api.Validate(); err != nil {
-		return nil, eris.Wrap(err, "error validating api against spec")
-	}
-
-	app := middleware.NewContext(specDoc, api, nil)
-	var handler = app.APIHandler(builder)
-	if th.withCORS {
-		handler = cors.AllowAll().Handler(handler)
-	}
-	th.Mux.Handle("/", handler)
-	th.Initialize()
-
-	return th, nil
-}
-
-// utility function to create a swagger handler from a request name, request constructor, request to response function.
-func createSwaggerQueryHandler[Request any, Response any](requestName string,
-	requestHandler func(*Request) (*Response, error)) runtime.OperationHandlerFunc {
-	return func(params interface{}) (interface{}, error) {
-		isEmpty, err := isParamsEmpty(params)
-		if err != nil {
-			return nil, err
-		}
-		var request *Request
-		var ok bool
-		if !isEmpty {
-			request, ok = getValueFromParams[Request](params, requestName)
-			if !ok {
-				return middleware.Error(http.StatusNotFound, fmt.Errorf("%s not found", requestName)), nil
-			}
-		} else {
-			request = nil
-		}
-		resp, err := requestHandler(request)
-		if err != nil {
-			return nil, err
-		}
-		return resp, nil
-	}
-}
-
-func isParamsEmpty(params interface{}) (bool, error) {
-	data, ok := params.(map[string]interface{})
-	if !ok {
-		return false, eris.New("params data structure must be a map[string]interface{}")
-	}
-	return len(data) == 0, nil
-}
-
-// getValueFromParams extracts parameters from swagger handlers.
-func getValueFromParams[T any](params interface{}, name string) (*T, bool) {
-	data, ok := params.(map[string]interface{})
-	if !ok {
-		return nil, ok
-	}
-	mappedStructUntyped, ok := data[name]
-	if !ok {
-		return nil, ok
-	}
-	mappedStruct, ok := mappedStructUntyped.(map[string]interface{})
-	if !ok {
-		return nil, ok
-	}
-	value := new(T)
-	err := mapstructure.Decode(mappedStruct, value)
+	err = handler.registerQueryHandlers()
 	if err != nil {
-		return nil, ok
+		return nil, err
 	}
-	return value, true
+	handler.registerHealthHandler()
+
+	return handler, nil
 }
 
 // EndpointsResult result struct for /query/http/endpoints.
@@ -222,11 +132,7 @@ func (handler *Handler) Initialize() {
 			handler.Port = "4040"
 		}
 	}
-	handler.server = &http.Server{
-		Addr:              fmt.Sprintf(":%s", handler.Port),
-		Handler:           handler.Mux,
-		ReadHeaderTimeout: readHeaderTimeout,
-	}
+	handler.server = fiber.New()
 }
 
 // Serve serves the application, blocking the calling thread.
@@ -236,44 +142,57 @@ func (handler *Handler) Serve() error {
 	if err != nil {
 		return eris.Wrap(err, "error getting hostname")
 	}
-	log.Info().Msgf("serving cardinal at %s:%s", hostname, handler.Port)
+	log.Info().Msgf("serving at %s:%s", hostname, handler.Port)
 	handler.running.Store(true)
-	err = eris.Wrap(handler.server.ListenAndServe(), "error listening and serving")
-	handler.running.Store(false)
-	return err
-}
-
-func (handler *Handler) Close() error {
-	err := eris.Wrap(handler.server.Close(), "error closing server")
+	err = handler.server.Listen(":" + handler.Port)
 	if err != nil {
-		return err
+		return eris.Wrap(err, "error starting Fiber server")
 	}
+	handler.running.Store(false)
 	return nil
 }
 
 func (handler *Handler) Shutdown() error {
 	handler.shutdownMutex.Lock()
 	defer handler.shutdownMutex.Unlock()
-	displayLogs := false
 	if handler.running.Load() {
-		// handler.running tracks whether the server is running.
-		// for safety allow shutdown to happen whenever this method is called
-		// EVEN if running reads that it is not running.
-		// However, only display the log message if expected running state is consistent.
-		// meaning that shutdown is called on a server where running is true.
-		displayLogs = true
-	}
-
-	if displayLogs {
 		log.Info().Msg("Shutting down server.")
-	}
-	ctx := context.Background()
-	err := eris.Wrap(handler.server.Shutdown(ctx), "error shutting down http server")
-	if err != nil {
-		return err
-	}
-	if displayLogs {
+		if err := handler.server.Shutdown(); err != nil {
+			return eris.Wrap(err, "error shutting down Fiber server")
+		}
+		handler.running.Store(false)
 		log.Info().Msg("Server successfully shutdown.")
+	} else {
+		log.Info().Msg("Server is not running or already shut down.")
 	}
 	return nil
+}
+
+// utility function to create a handler from a request name, request constructor, request to response function.
+func createQueryHandlerFromRequest[Request any, Response any](requestName string,
+	requestHandler func(*Request) (*Response, error)) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		requestBody := c.Body()
+
+		var request *Request
+		if len(requestBody) != 0 {
+			value := new(Request)
+			// TODO: Might need to do c.Body(), unmarshall, then grab `requestName` from that obj, check in tests
+			if err := c.BodyParser(&value); err != nil {
+				return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("body in query request did not match expected type: %s", err))
+			}
+		} else {
+			request = nil
+		}
+		resp, err := requestHandler(request)
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+
+		// TODO: Unsure whether to return error nil here or just the response, check in tests
+		return c.JSON(&fiber.Map{
+			"response": resp,
+			"error":    nil,
+		})
+	}
 }

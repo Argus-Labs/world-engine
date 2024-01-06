@@ -1,21 +1,19 @@
-package server1
+package server
 
-import (
-	"github.com/go-openapi/runtime"
-	"github.com/go-openapi/runtime/middleware/untyped"
-)
+import "github.com/gofiber/fiber/v2"
 
 type HealthReply struct {
 	IsServerRunning   bool `json:"isServerRunning"`
 	IsGameLoopRunning bool `json:"isGameLoopRunning"`
 }
 
-func (handler *Handler) registerHealthHandlerSwagger(api *untyped.API) {
-	healthHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
+func (handler *Handler) registerHealthHandler() {
+	handler.server.Get("/health", func(c *fiber.Ctx) error {
 		res := HealthReply{
-			true, // see http://ismycomputeron.com/
-			handler.w.IsGameLoopRunning()}
-		return res, nil
+			IsServerRunning:   true,
+			IsGameLoopRunning: handler.w.IsGameLoopRunning(), // Adapt this to your actual game loop check
+		}
+
+		return c.JSON(res)
 	})
-	api.RegisterOperation("GET", "/health", healthHandler)
 }

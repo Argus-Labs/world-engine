@@ -1,8 +1,9 @@
-package server1
+package server
 
 import (
 	"os"
 
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -24,6 +25,7 @@ func WithAdapter(a shard.Adapter) Option {
 
 func WithCORS() Option {
 	return func(th *Handler) {
+		th.server.Use(cors.New())
 		th.withCORS = true
 	}
 }

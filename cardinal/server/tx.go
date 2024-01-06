@@ -1,75 +1,17 @@
-package server1
+package server
 
 import (
 	"context"
-	"net/http"
-
+	"encoding/json"
+	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/types/message"
-
-	"github.com/go-openapi/runtime"
-	"github.com/go-openapi/runtime/middleware"
-	"github.com/go-openapi/runtime/middleware/untyped"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-
+	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
 )
 
-func (handler *Handler) processTransaction(tx message.Message, payload []byte, sp *sign.Transaction,
-) (*TransactionReply, error) {
-	txVal, err := tx.Decode(payload)
-	if err != nil {
-		return nil, eris.Wrap(err, "unable to decode transaction")
-	}
-	return handler.submitTransaction(txVal, tx, sp)
-}
-
-func getTxFromParams(pathParam string, params interface{}, txNameToTx map[string]message.Message,
-) (message.Message, error) {
-	mappedParams, ok := params.(map[string]interface{})
-	if !ok {
-		return nil, eris.New("params not readable")
-	}
-	txType, ok := mappedParams[pathParam]
-	if !ok {
-		return nil, eris.New("params do not contain txType from the path /tx/game/{txType}")
-	}
-	txTypeString, ok := txType.(string)
-	if !ok {
-		return nil, eris.New("txType needs to be a string from path")
-	}
-	tx, ok := txNameToTx[txTypeString]
-	if !ok {
-		return nil, eris.Errorf("could not locate transaction type: %s", txTypeString)
-	}
-	return tx, nil
-}
-
-func (handler *Handler) getBodyAndSigFromParams(
-	params interface{},
-	isSystemTransaction bool) ([]byte, *sign.Transaction, error) {
-	mappedParams, ok := params.(map[string]interface{})
-	if !ok {
-		return nil, nil, eris.New("params not readable")
-	}
-	txBody, ok := mappedParams["txBody"]
-	if !ok {
-		return nil, nil, eris.New("params do not contain txBody from the body of the http request")
-	}
-	txBodyMap, ok := txBody.(map[string]interface{})
-	if !ok {
-		return nil, nil, eris.New("txBody needs to be a json object in the body")
-	}
-	payload, sp, err := handler.verifySignatureOfMapRequest(txBodyMap, isSystemTransaction)
-	if err != nil {
-		return nil, nil, eris.Wrap(err, "error verifying signature of map request")
-	}
-	return payload, sp, nil
-}
-
-// register transaction handlers on swagger server.
-func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
+func (handler *Handler) registerTxHandler() error {
 	world := handler.w
 	txs, err := world.ListMessages()
 	if err != nil {
@@ -81,38 +23,86 @@ func (handler *Handler) registerTxHandlerSwagger(api *untyped.API) error {
 		txNameToTx[tx.Name()] = tx
 	}
 
-	gameHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		payload, sp, err := handler.getBodyAndSigFromParams(params, false)
-		if err != nil {
-			return nil, err
+	gameHandler := func(c *fiber.Ctx) error {
+		requestBody := c.Body()
+		if len(requestBody) == 0 {
+			return fiber.NewError(fiber.StatusBadRequest, "request body was empty")
 		}
-		tx, err := getTxFromParams("txType", params, txNameToTx)
+		body, sp, err := handler.getBodyAndSignedPayloadFromRequest(requestBody, false)
 		if err != nil {
-			return middleware.Error(http.StatusNotFound, err), nil
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
-		return handler.processTransaction(tx, payload, sp)
-	})
+		tx, err := getTxFromParams(c, txNameToTx)
+		if err != nil {
+			return fiber.NewError(fiber.StatusNotFound, err.Error())
+		}
+		// TODO: We want to return (TxReply, err), not sure what the best way to do that is here:
+		txReply, err := handler.processTransaction(tx, body, sp)
+		return c.JSON(&fiber.Map{
+			"txReply": txReply,
+			"err":     err,
+		})
+	}
 
-	createPersonaHandler := runtime.OperationHandlerFunc(func(params interface{}) (interface{}, error) {
-		payload, sp, err := handler.getBodyAndSigFromParams(params, true)
+	createPersonaHandler := func(c *fiber.Ctx) error {
+		requestBody := c.Body()
+		body, sp, err := handler.getBodyAndSignedPayloadFromRequest(requestBody, true)
 		if err != nil {
 			if eris.Is(err, eris.Cause(ErrInvalidSignature)) || eris.Is(err, eris.Cause(ErrSystemTransactionRequired)) {
-				return middleware.Error(http.StatusUnauthorized, eris.ToString(err, true)), nil
+				return fiber.NewError(fiber.StatusUnauthorized, eris.ToString(err, true))
 			}
-			return middleware.Error(http.StatusInternalServerError, eris.ToJSON(err, true)), nil
+			return fiber.NewError(fiber.StatusInternalServerError, eris.ToString(err, true))
 		}
 
-		txReply, err := handler.generateCreatePersonaResponseFromPayload(payload, sp, ecs.CreatePersonaMsg)
+		txReply, err := handler.generateCreatePersonaResponseFromPayload(body, sp, ecs.CreatePersonaMsg)
 		if err != nil {
-			return nil, err
+			return fiber.NewError(fiber.StatusBadRequest, err.Error())
 		}
-		return &txReply, nil
-	})
+		return c.JSON(&txReply)
+	}
 
-	api.RegisterOperation("POST", "/tx/game/{txType}", gameHandler)
-	api.RegisterOperation("POST", "/tx/persona/create-persona", createPersonaHandler)
-
+	handler.server.Post("/tx/game/:{txType}", gameHandler)
+	handler.server.Post("tx/persona/create-persona", createPersonaHandler)
 	return nil
+}
+
+func getTxFromParams(c *fiber.Ctx, txNameToTx map[string]message.Message,
+) (message.Message, error) {
+	txType := c.Params("{txType}")
+	if txType == "" {
+		return nil, eris.New("params do not contain txType from the path /tx/game/{txType}")
+	}
+	tx, ok := txNameToTx[txType]
+	if !ok {
+		return nil, eris.Errorf("could not locate transaction type: %s", txType)
+	}
+	return tx, nil
+}
+
+// TODO: Refactor this to unmarshall body to SignedPayload
+func (handler *Handler) getBodyAndSignedPayloadFromRequest(
+	request []byte,
+	isSystemTransaction bool) ([]byte, *sign.Transaction, error) {
+
+	var sp sign.Transaction
+	if err := json.Unmarshal(request, &sp); err != nil {
+		return nil, nil, eris.New("request body was not readable")
+	}
+
+	err := handler.verifySignature(&sp, isSystemTransaction)
+	if err != nil {
+		return nil, nil, eris.Wrap(err, "error verifying signature of tx request")
+	}
+	return sp.Body, &sp, nil
+}
+
+func (handler *Handler) processTransaction(tx message.Message, payload []byte, sp *sign.Transaction,
+) (*TransactionReply, error) {
+	txVal, err := tx.Decode(payload)
+	if err != nil {
+		return nil, eris.Wrap(err, "unable to decode transaction")
+	}
+	return handler.submitTransaction(txVal, tx, sp)
 }
 
 // submitTransaction submits a transaction to the game world, as well as the blockchain.

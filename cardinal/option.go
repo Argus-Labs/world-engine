@@ -10,7 +10,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/events"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	server "pkg.world.dev/world-engine/cardinal/server2"
+	server "pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
