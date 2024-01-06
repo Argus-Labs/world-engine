@@ -36,7 +36,7 @@ func NewSearch(filter filter.ComponentFilter) *Search {
 }
 
 func (q *Search) Commit() error {
-	var err error = nil
+	var err error
 	for _, callback := range q.callbacks {
 		err = callback()
 		if err != nil {
