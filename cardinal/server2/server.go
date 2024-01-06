@@ -71,8 +71,11 @@ func newHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (
 	if err != nil {
 		return nil, err
 	}
+	err = handler.registerQueryHandlers()
+	if err != nil {
+		return nil, err
+	}
 	handler.registerHealthHandler()
-	fmt.Println("no error")
 
 	return handler, nil
 }
