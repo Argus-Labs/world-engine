@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	server "pkg.world.dev/world-engine/cardinal/server"
+	server "pkg.world.dev/world-engine/cardinal/server2"
 	"strings"
 	"sync"
 	"sync/atomic"
