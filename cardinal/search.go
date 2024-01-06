@@ -16,12 +16,17 @@ type SearchCallBackFn func(EntityID) bool
 
 // Each executes the given callback function on every EntityID that matches this search. If any call to callback returns
 // falls, no more entities will be processed.
-func (q *Search) Each(wCtx WorldContext, callback SearchCallBackFn) error {
-	return q.impl.Each(
+func (q *Search) Each(wCtx WorldContext, callback SearchCallBackFn) *Search {
+	q.impl.Each(
 		wCtx.Instance(), func(eid entity.ID) bool {
 			return callback(eid)
 		},
-	).Commit()
+	)
+	return q
+}
+
+func (q *Search) Commit() error {
+	return q.impl.Commit()
 }
 
 // Count returns the number of entities that match this search.

@@ -29,7 +29,7 @@ func HealthSystem(worldCtx cardinal.WorldContext) error {
 			return h
 		}))
 		return true
-	}))
+	}).Commit())
 	if err = errors.Join(errs...); err != nil {
 		return err
 	}

@@ -94,13 +94,17 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	gotNumOfEntities := 0
+	gotNumOfEntities2 := 0
 	err := cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
 		q, err := worldCtx.NewSearch(cardinal.Exact(Foo{}))
 		assert.NilError(t, err)
 		err = q.Each(worldCtx, func(cardinal.EntityID) bool {
 			gotNumOfEntities++
 			return true
-		})
+		}).Each(worldCtx, func(id cardinal.EntityID) bool {
+			gotNumOfEntities2++
+			return true
+		}).Commit()
 		assert.NilError(t, err)
 		return nil
 	})
@@ -116,6 +120,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	err = world.ShutDown()
 	assert.Assert(t, err)
 	assert.Equal(t, gotNumOfEntities, wantNumOfEntities)
+	assert.Equal(t, gotNumOfEntities2, wantNumOfEntities)
 }
 
 func TestCanGetTimestampFromWorldContext(t *testing.T) {

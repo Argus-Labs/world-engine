@@ -39,7 +39,7 @@ func handleQueryHealth(
 		}
 		resp.IDs = append(resp.IDs, id)
 		return true
-	})
+	}).Commit()
 	if err != nil {
 		return nil, err
 	}

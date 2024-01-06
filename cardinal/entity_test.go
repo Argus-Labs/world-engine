@@ -29,7 +29,7 @@ func TestCanRemoveEntity(t *testing.T) {
 		assert.Equal(t, id, keepID)
 		count++
 		return true
-	}))
+	}).Commit())
 	assert.Equal(t, 1, count)
 
 	// We should not be able to find the component for the removed ID
