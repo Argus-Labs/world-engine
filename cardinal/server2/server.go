@@ -173,8 +173,8 @@ func createQueryHandlerFromRequest[Request any, Response any](requestName string
 		var request *Request
 		if len(requestBody) != 0 {
 			value := new(Request)
+			// TODO: Might need to do c.Body(), unmarshall, then grab `requestName` from that obj, check in tests
 			if err := c.BodyParser(&value); err != nil {
-				// Handle error if the body cannot be parsed
 				return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("body in query request did not match expected type: %s", err))
 			}
 		} else {
@@ -184,6 +184,8 @@ func createQueryHandlerFromRequest[Request any, Response any](requestName string
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
+
+		// TODO: Unsure whether to return error nil here or just the response, check in tests
 		return c.JSON(&fiber.Map{
 			"response": resp,
 			"error":    nil,

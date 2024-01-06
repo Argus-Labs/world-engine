@@ -66,6 +66,36 @@ func (handler *Handler) registerTxHandler() error {
 	return nil
 }
 
+func getTxFromParams(c *fiber.Ctx, txNameToTx map[string]message.Message,
+) (message.Message, error) {
+	txType := c.Params("{txType}")
+	if txType == "" {
+		return nil, eris.New("params do not contain txType from the path /tx/game/{txType}")
+	}
+	tx, ok := txNameToTx[txType]
+	if !ok {
+		return nil, eris.Errorf("could not locate transaction type: %s", txType)
+	}
+	return tx, nil
+}
+
+// TODO: Refactor this to unmarshall body to SignedPayload
+func (handler *Handler) getBodyAndSignedPayloadFromRequest(
+	request []byte,
+	isSystemTransaction bool) ([]byte, *sign.Transaction, error) {
+
+	var sp sign.Transaction
+	if err := json.Unmarshal(request, &sp); err != nil {
+		return nil, nil, eris.New("request body was not readable")
+	}
+
+	err := handler.verifySignature(&sp, isSystemTransaction)
+	if err != nil {
+		return nil, nil, eris.Wrap(err, "error verifying signature of tx request")
+	}
+	return sp.Body, &sp, nil
+}
+
 func (handler *Handler) processTransaction(tx message.Message, payload []byte, sp *sign.Transaction,
 ) (*TransactionReply, error) {
 	txVal, err := tx.Decode(payload)
@@ -99,34 +129,4 @@ func (handler *Handler) submitTransaction(txVal any, tx message.Message, sp *sig
 		log.Debug().Msg("not submitting transaction to base shard")
 	}
 	return txReply, nil
-}
-
-func getTxFromParams(c *fiber.Ctx, txNameToTx map[string]message.Message,
-) (message.Message, error) {
-	txType := c.Params("{txType}")
-	if txType == "" {
-		return nil, eris.New("params do not contain txType from the path /tx/game/{txType}")
-	}
-	tx, ok := txNameToTx[txType]
-	if !ok {
-		return nil, eris.Errorf("could not locate transaction type: %s", txType)
-	}
-	return tx, nil
-}
-
-// TODO: Refactor this to unmarshall body to SignedPayload
-func (handler *Handler) getBodyAndSignedPayloadFromRequest(
-	request []byte,
-	isSystemTransaction bool) ([]byte, *sign.Transaction, error) {
-
-	var sp sign.Transaction
-	if err := json.Unmarshal(request, &sp); err != nil {
-		return nil, nil, eris.New("request body was not readable")
-	}
-
-	err := handler.verifySignature(&sp, isSystemTransaction)
-	if err != nil {
-		return nil, nil, eris.Wrap(err, "error verifying signature of tx request")
-	}
-	return sp.Body, &sp, nil
 }
