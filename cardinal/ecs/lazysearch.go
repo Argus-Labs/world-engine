@@ -2,6 +2,8 @@ package ecs
 
 import "pkg.world.dev/world-engine/cardinal/types/entity"
 
+// LazySearch stores a LazyContainer of Search. It essentially delays the error created by instantiating search
+// so that the error happens on the method calls of Each, Count, First and MustFirst
 type LazySearch struct {
 	Container LazyContainer[*Search]
 }

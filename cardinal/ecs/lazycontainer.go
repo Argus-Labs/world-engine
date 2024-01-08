@@ -1,6 +1,6 @@
 package ecs
 
-// Lazy container can be moved to a package later.
+// Lazy container stores a closure that evaluates to T.
 type LazyContainer[T any] struct {
 	Unbox func() (T, error)
 }
