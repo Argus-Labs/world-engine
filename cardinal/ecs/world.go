@@ -11,9 +11,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -875,4 +876,10 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 		return nil, err
 	}
 	return NewSearch(componentFilter), nil
+}
+
+func (w *World) NewLazySearch(filter Filterable) *LazySearch {
+	return NewLazySearch(func() (*Search, error) {
+		return w.NewSearch(filter)
+	})
 }
