@@ -14,7 +14,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	shardv2 "pkg.world.dev/world-engine/rift/shard/v2"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
 
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 )
@@ -55,7 +55,7 @@ var (
 
 type adapterImpl struct {
 	cfg            AdapterConfig
-	ShardSequencer shardv2.TransactionHandlerClient
+	ShardSequencer shard.TransactionHandlerClient
 	ShardQuerier   shardtypes.QueryClient
 
 	// opts
@@ -93,7 +93,7 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	if err != nil {
 		return nil, eris.Wrap(err, "")
 	}
-	a.ShardSequencer = shardv2.NewTransactionHandlerClient(conn)
+	a.ShardSequencer = shard.NewTransactionHandlerClient(conn)
 
 	// we don't need secure comms for this connection, cause we're just querying cosmos public RPC endpoints.
 	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -120,8 +120,8 @@ func (a adapterImpl) QueryTransactions(
 }
 
 //nolint:unused // will be used soon.. just refactoring things..
-func transactionToProto(sp *sign.Transaction) *shardv2.Transaction {
-	return &shardv2.Transaction{
+func transactionToProto(sp *sign.Transaction) *shard.Transaction {
+	return &shard.Transaction{
 		PersonaTag: sp.PersonaTag,
 		Namespace:  sp.Namespace,
 		Nonce:      sp.Nonce,
