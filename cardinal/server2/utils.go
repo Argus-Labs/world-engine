@@ -13,6 +13,7 @@ import (
 var (
 	ErrSystemTransactionRequired  = errors.New("system transaction required")
 	ErrSystemTransactionForbidden = errors.New("system transaction forbidden")
+	ErrNonceVerificationFailed    = errors.New("nonce verification failed")
 )
 
 func decode[T any](buf []byte) (T, error) {
@@ -80,7 +81,7 @@ func (handler *Handler) verifySignature(sp *sign.Transaction, isSystemTransactio
 
 	// The signature is valid. Verify and use the nonce in an atomic operation
 	if err = handler.w.UseNonce(signerAddress, sp.Nonce); err != nil {
-		return eris.Wrap(err, "nonce verification failed")
+		return eris.Wrap(err, ErrNonceVerificationFailed.Error())
 	}
 
 	return nil

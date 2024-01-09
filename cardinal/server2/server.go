@@ -1,8 +1,8 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/go-openapi/runtime/middleware"
 	"github.com/gofiber/contrib/swagger"
 	"github.com/gofiber/fiber/v2"
@@ -174,23 +174,18 @@ func createQueryHandlerFromRequest[Request any, Response any](requestName string
 	return func(c *fiber.Ctx) error {
 		requestBody := c.Body()
 
-		var request *Request
+		var request Request
 		if len(requestBody) != 0 {
-			request = new(Request)
-			// TODO: Might need to do c.Body(), unmarshall, then grab `requestName` from that obj, check in tests
-			if err := c.BodyParser(&request); err != nil {
-				return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("body in query request did not match expected type: %s", err))
+			err := json.Unmarshal(requestBody, request)
+			if err != nil {
+				return fiber.NewError(fiber.StatusBadRequest, eris.Wrapf(err, "unable to unmarshal query request into type %T", request).Error())
 			}
-			fmt.Println(request)
-		} else {
-			request = nil
 		}
-		resp, err := requestHandler(request)
+		resp, err := requestHandler(&request)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
 
-		// TODO: Unsure whether to return error nil here or just the response, check in tests
 		return c.JSON(resp)
 	}
 }

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
@@ -48,6 +49,9 @@ func (handler *Handler) registerTxHandler() error {
 		body, sp, err := handler.getBodyAndSignedPayloadFromRequest(requestBody, true)
 		if err != nil {
 			if eris.Is(err, eris.Cause(ErrInvalidSignature)) || eris.Is(err, eris.Cause(ErrSystemTransactionRequired)) {
+				return fiber.NewError(fiber.StatusUnauthorized, eris.ToString(err, true))
+			}
+			if errors.Is(err, ErrNonceVerificationFailed) {
 				return fiber.NewError(fiber.StatusUnauthorized, eris.ToString(err, true))
 			}
 			return fiber.NewError(fiber.StatusInternalServerError, eris.ToString(err, true))
