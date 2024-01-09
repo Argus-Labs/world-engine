@@ -58,8 +58,13 @@ func (wCtx *worldContext) Logger() *zerolog.Logger {
 }
 
 func (wCtx *worldContext) NewSearch(filter Filter) *Search {
-	ecsLazySearch := wCtx.instance.NewLazySearch(filter.convertToFilterable())
-	return &Search{impl: ecsLazySearch}
+	return &Search{impl: NewLazyContainer[*ecs.Search](func() (*ecs.Search, error) {
+		ecsSearch, err := wCtx.instance.NewSearch(filter.convertToFilterable())
+		if err != nil {
+			return nil, err
+		}
+		return ecsSearch, nil
+	})}
 }
 
 func (wCtx *worldContext) Instance() ecs.WorldContext {

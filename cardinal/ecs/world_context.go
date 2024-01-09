@@ -13,7 +13,6 @@ type WorldContext interface {
 	CurrentTick() uint64
 	Logger() *zerolog.Logger
 	NewSearch(filter Filterable) (*Search, error)
-	NewLazySearch(filter Filterable) *LazySearch
 
 	// For internal use.
 	GetWorld() *World
@@ -102,8 +101,4 @@ func (w *worldContext) StoreReader() store.Reader {
 
 func (w *worldContext) NewSearch(filter Filterable) (*Search, error) {
 	return w.world.NewSearch(filter)
-}
-
-func (w *worldContext) NewLazySearch(filter Filterable) *LazySearch {
-	return w.world.NewLazySearch(filter)
 }

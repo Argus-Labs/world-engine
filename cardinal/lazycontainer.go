@@ -1,4 +1,4 @@
-package ecs
+package cardinal
 
 // Lazy container stores a closure that evaluates to T.
 type LazyContainer[T any] struct {

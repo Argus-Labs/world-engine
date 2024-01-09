@@ -877,9 +877,3 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 	}
 	return NewSearch(componentFilter), nil
 }
-
-func (w *World) NewLazySearch(filter Filterable) *LazySearch {
-	return NewLazySearch(func() (*Search, error) {
-		return w.NewSearch(filter)
-	})
-}
