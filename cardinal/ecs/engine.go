@@ -877,3 +877,9 @@ func (e *Engine) NewSearch(filter Filterable) (*Search, error) {
 	}
 	return NewSearch(componentFilter), nil
 }
+
+func (e *Engine) NewLazySearch(filter Filterable) *LazySearch {
+	return NewLazySearch(func() (*Search, error) {
+		return e.NewSearch(filter)
+	})
+}

@@ -7,7 +7,7 @@ import (
 
 // Search allowed for the querying of entities within a World.
 type Search struct {
-	impl *ecs.Search
+	impl *ecs.LazySearch
 }
 
 // SearchCallBackFn represents a function that can operate on a single EntityID, and returns whether the next EntityID

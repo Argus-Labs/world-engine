@@ -13,6 +13,7 @@ type EngineContext interface {
 	CurrentTick() uint64
 	Logger() *zerolog.Logger
 	NewSearch(filter Filterable) (*Search, error)
+	NewLazySearch(filter Filterable) *LazySearch
 
 	// For internal use.
 	GetEngine() *Engine
@@ -101,4 +102,8 @@ func (e *engineContext) StoreReader() store.Reader {
 
 func (e *engineContext) NewSearch(filter Filterable) (*Search, error) {
 	return e.engine.NewSearch(filter)
+}
+
+func (w *engineContext) NewLazySearch(filter Filterable) *LazySearch {
+	return w.engine.NewLazySearch(filter)
 }

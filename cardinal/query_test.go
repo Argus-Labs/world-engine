@@ -23,12 +23,9 @@ func handleQueryHealth(
 	worldCtx cardinal.WorldContext,
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
-	q, err := worldCtx.NewSearch(cardinal.Exact(Health{}))
-	if err != nil {
-		return nil, err
-	}
 	resp := &QueryHealthResponse{}
-	err = q.Each(worldCtx, func(id cardinal.EntityID) bool {
+	err := worldCtx.NewSearch(cardinal.Exact(Health{})).Each(worldCtx, func(id cardinal.EntityID) bool {
+		var err error
 		var health *Health
 		health, err = cardinal.GetComponent[Health](worldCtx, id)
 		if err != nil {
