@@ -86,11 +86,8 @@ func TestSearchExample(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		msg := "problem with " + tc.name
-		var q *cardinal.Search
-		q, err = worldCtx.NewSearch(tc.filter)
-		assert.NilError(t, err, msg)
 		var count int
-		count, err = q.Count(worldCtx)
+		count, err = worldCtx.NewSearch(tc.filter).Count(worldCtx)
 		assert.NilError(t, err, msg)
 		assert.Equal(t, tc.want, count, msg)
 	}

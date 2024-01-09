@@ -75,19 +75,15 @@ func TestComponentExample(t *testing.T) {
 	assert.NilError(t, cardinal.RemoveComponentFrom[Age](testWorldCtx, targetID))
 
 	// Age was removed form exactly 1 entity.
-	search, err := testWorldCtx.NewSearch(cardinal.Exact(Height{}, Weight{}))
-	assert.NilError(t, err)
-	count, err := search.Count(testWorldCtx)
+	count, err := testWorldCtx.NewSearch(cardinal.Exact(Height{}, Weight{})).Count(testWorldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, 1, count)
 
 	// The rest of the entities still have the Age field.
-	search, err = testWorldCtx.NewSearch(cardinal.Contains(Age{}))
-	assert.NilError(t, err)
-	count, err = search.Count(testWorldCtx)
+	count, err = testWorldCtx.NewSearch(cardinal.Contains(Age{})).Count(testWorldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, len(peopleIDs)-1, count)
-	first, err := search.First(testWorldCtx)
+	first, err := testWorldCtx.NewSearch(cardinal.Contains(Age{})).First(testWorldCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, first, cardinal.EntityID(1))
 
