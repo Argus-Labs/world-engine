@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/sign"
@@ -14,6 +13,7 @@ var (
 	ErrSystemTransactionRequired  = errors.New("system transaction required")
 	ErrSystemTransactionForbidden = errors.New("system transaction forbidden")
 	ErrNonceVerificationFailed    = errors.New("nonce verification failed")
+	ErrSignatureValidationFailed  = errors.New("hex to bytes failed: signature validation failed")
 )
 
 func decode[T any](buf []byte) (T, error) {
@@ -36,7 +36,6 @@ func getSignerAddressFromPayload(sp sign.Transaction) (string, error) {
 
 func (handler *Handler) verifySignature(sp *sign.Transaction, isSystemTransaction bool,
 ) (err error) {
-	// TODO: Check why we do this, this is from before via @jer
 	if handler.disableSigVerification {
 		populatePlaceholderFields(sp)
 	}
@@ -96,27 +95,3 @@ func populatePlaceholderFields(request *sign.Transaction) {
 		request.Signature = "placeholder-signature"
 	}
 }
-
-//func (handler *Handler) verifySignatureOfMapRequest(request map[string]interface{}, isSystemTransaction bool,
-//) (payload []byte, sig *sign.Transaction, err error) {
-//	if handler.disableSigVerification {
-//		populatePlaceholderFields(request)
-//	}
-//	sp, err := sign.MappedTransaction(request)
-//	if err != nil {
-//		return nil, nil, eris.Wrap(err, ErrInvalidSignature.Error())
-//	}
-//	sig, err = handler.verifySignature(sp, isSystemTransaction)
-//	if err != nil {
-//		return nil, nil, eris.Wrapf(err, ErrInvalidSignature.Error())
-//	}
-//	if len(sp.Body) == 0 {
-//		buf, err := json.Marshal(request)
-//		if err != nil {
-//			return nil, nil, eris.Wrap(err, "error marshalling json")
-//		}
-//		return buf, sp, nil
-//	}
-//
-//	return sig.Body, sig, nil
-//}

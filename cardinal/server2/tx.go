@@ -48,10 +48,8 @@ func (handler *Handler) registerTxHandler() error {
 		requestBody := c.Body()
 		body, sp, err := handler.getBodyAndSignedPayloadFromRequest(requestBody, true)
 		if err != nil {
-			if eris.Is(err, eris.Cause(ErrInvalidSignature)) || eris.Is(err, eris.Cause(ErrSystemTransactionRequired)) {
-				return fiber.NewError(fiber.StatusUnauthorized, eris.ToString(err, true))
-			}
-			if errors.Is(err, ErrNonceVerificationFailed) {
+			if eris.Is(err, eris.Cause(ErrInvalidSignature)) || eris.Is(err, eris.Cause(ErrSystemTransactionRequired)) ||
+				eris.Is(err, eris.Cause(ErrNonceVerificationFailed)) || eris.Is(err, eris.Wrap(errors.Join(ErrInvalidSignature, ErrSignatureValidationFailed), "")) {
 				return fiber.NewError(fiber.StatusUnauthorized, eris.ToString(err, true))
 			}
 			return fiber.NewError(fiber.StatusInternalServerError, eris.ToString(err, true))

@@ -887,7 +887,6 @@ func TestMalformedRequestToGetTransactionReceiptsProducesError(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
 
-	//tx := server.ListTxReceiptsRequest{StartTick: 0}
 	res := txh.Post(
 		url, map[string]any{
 			"missing_start_tick": 0,

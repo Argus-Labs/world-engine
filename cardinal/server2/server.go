@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"github.com/go-openapi/runtime/middleware"
@@ -176,7 +177,9 @@ func createQueryHandlerFromRequest[Request any, Response any](requestName string
 
 		var request Request
 		if len(requestBody) != 0 {
-			err := json.Unmarshal(requestBody, request)
+			decoder := json.NewDecoder(bytes.NewReader(requestBody))
+			decoder.DisallowUnknownFields()
+			err := decoder.Decode(&request)
 			if err != nil {
 				return fiber.NewError(fiber.StatusBadRequest, eris.Wrapf(err, "unable to unmarshal query request into type %T", request).Error())
 			}
@@ -185,7 +188,6 @@ func createQueryHandlerFromRequest[Request any, Response any](requestName string
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
 		}
-
 		return c.JSON(resp)
 	}
 }
