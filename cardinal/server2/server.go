@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"github.com/go-openapi/runtime/middleware"
@@ -22,6 +23,7 @@ var (
 	// ErrInvalidSignature is returned when a signature is incorrect in some way (e.g. namespace mismatch, nonce invalid,
 	// the actual Verify fails). Other failures (e.g. Redis is down) should not wrap this error.
 	ErrInvalidSignature = errors.New("invalid signature")
+	path                string
 )
 
 const (
@@ -30,6 +32,18 @@ const (
 
 	readHeaderTimeout = 5 * time.Second
 )
+
+func init() {
+	file, err := os.CreateTemp("", "")
+	if err != nil {
+		panic("could not create temp file for swaggerFile")
+	}
+	_, err = file.Write(swaggerData)
+	if err != nil {
+		panic("could not write swaggerFile to temp file")
+	}
+	path = file.Name()
+}
 
 type Handler struct {
 	w                      *ecs.Engine
@@ -52,6 +66,9 @@ func NewHandler(w *ecs.Engine, builder middleware.Builder, opts ...Option) (*Han
 	return h, nil
 }
 
+//go:embed swagger.yml
+var swaggerData []byte
+
 func newHandlerEmbed(w *ecs.Engine, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	handler := &Handler{
 		w: w,
@@ -60,9 +77,10 @@ func newHandlerEmbed(w *ecs.Engine, builder middleware.Builder, opts ...Option) 
 	for _, opt := range opts {
 		opt(handler)
 	}
+
 	// Setup swagger docs at /docs
 	cfg := swagger.Config{
-		FilePath: "./swagger.yml",
+		FilePath: path,
 		Title:    "World Engine API Docs",
 	}
 	handler.app.Use(swagger.New(cfg))

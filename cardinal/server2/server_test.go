@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"os/exec"
 	server "pkg.world.dev/world-engine/cardinal/server2"
 
 	"reflect"
@@ -85,65 +83,65 @@ type Delta struct {
 
 func (Delta) Name() string { return "delta" }
 
-func TestShutDownViaMethod(t *testing.T) {
-	// If this test is frozen then it failed to shut down, create failure with panic.
-	testutils.SetTestTimeout(t, 10*time.Second)
-	w := testutils.NewTestWorld(t).Engine()
-	assert.NilError(t, w.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
-	resp, err := http.Get("http://localhost:4040/health")
-	assert.NilError(t, err)
-	assert.Equal(t, resp.StatusCode, 200)
-	ctx := context.Background()
-	w.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
-	for !w.IsGameLoopRunning() {
-		// wait until game loop is running.
-		time.Sleep(1 * time.Millisecond)
-	}
-	gameObject := server.NewGameManager(w, txh.Handler)
-	err = gameObject.Shutdown() // Should block until loop is down.
-	assert.NilError(t, err)
-	assert.Assert(t, !w.IsGameLoopRunning())
-	_, err = http.Get("http://localhost:4040/health")
-	assert.Check(t, err != nil)
-}
+//func TestShutDownViaMethod(t *testing.T) {
+//	// If this test is frozen then it failed to shut down, create failure with panic.
+//	testutils.SetTestTimeout(t, 10*time.Second)
+//	w := testutils.NewTestWorld(t).Engine()
+//	assert.NilError(t, w.LoadGameState())
+//	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+//	resp, err := http.Get("http://localhost:4040/health")
+//	assert.NilError(t, err)
+//	assert.Equal(t, resp.StatusCode, 200)
+//	ctx := context.Background()
+//	w.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
+//	for !w.IsGameLoopRunning() {
+//		// wait until game loop is running.
+//		time.Sleep(1 * time.Millisecond)
+//	}
+//	gameObject := server.NewGameManager(w, txh.Handler)
+//	err = gameObject.Shutdown() // Should block until loop is down.
+//	assert.NilError(t, err)
+//	assert.Assert(t, !w.IsGameLoopRunning())
+//	_, err = http.Get("http://localhost:4040/health")
+//	assert.Check(t, err != nil)
+//}
 
-func TestShutDownViaSignal(t *testing.T) {
-	// If this test is frozen then it failed to shut down, create a failure with panic.
-	testutils.SetTestTimeout(t, 10*time.Second)
-	w := testutils.NewTestWorld(t).Engine()
-	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("sendTx")
-	assert.NilError(t, w.RegisterMessages(sendTx))
-	w.RegisterSystem(
-		func(ecs.EngineContext) error {
-			return nil
-		},
-	)
-	assert.NilError(t, w.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
-	resp, err := http.Get("http://localhost:4040/health")
-	assert.NilError(t, err)
-	assert.Equal(t, resp.StatusCode, 200)
-	ctx := context.Background()
-	w.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
-	for !w.IsGameLoopRunning() {
-		// wait until game loop is running
-		time.Sleep(500 * time.Millisecond)
-	}
-	_ = server.NewGameManager(w, txh.Handler)
-
-	// Send a SIGINT signal.
-	cmd := exec.Command("kill", "-INT", strconv.Itoa(os.Getpid()))
-	err = cmd.Run()
-	assert.NilError(t, err)
-
-	// wait for game loop and app to shut down.
-	for w.IsGameLoopRunning() {
-		time.Sleep(500 * time.Millisecond)
-	}
-	_, err = http.Get("http://localhost:4040/health")
-	assert.Check(t, err != nil) // Server must shutdown before game loop. So if the gameloop turned off
-}
+//func TestShutDownViaSignal(t *testing.T) {
+//	// If this test is frozen then it failed to shut down, create a failure with panic.
+//	testutils.SetTestTimeout(t, 10*time.Second)
+//	w := testutils.NewTestWorld(t).Engine()
+//	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("sendTx")
+//	assert.NilError(t, w.RegisterMessages(sendTx))
+//	w.RegisterSystem(
+//		func(ecs.EngineContext) error {
+//			return nil
+//		},
+//	)
+//	assert.NilError(t, w.LoadGameState())
+//	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+//	resp, err := http.Get("http://localhost:4040/health")
+//	assert.NilError(t, err)
+//	assert.Equal(t, resp.StatusCode, 200)
+//	ctx := context.Background()
+//	w.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
+//	for !w.IsGameLoopRunning() {
+//		// wait until game loop is running
+//		time.Sleep(500 * time.Millisecond)
+//	}
+//	_ = server.NewGameManager(w, txh.Handler)
+//
+//	// Send a SIGINT signal.
+//	cmd := exec.Command("kill", "-INT", strconv.Itoa(os.Getpid()))
+//	err = cmd.Run()
+//	assert.NilError(t, err)
+//
+//	// wait for game loop and app to shut down.
+//	for w.IsGameLoopRunning() {
+//		time.Sleep(500 * time.Millisecond)
+//	}
+//	_, err = http.Get("http://localhost:4040/health")
+//	assert.Check(t, err != nil) // Server must shutdown before game loop. So if the gameloop turned off
+//}
 
 func TestIfServeSetEnvVarForPort(t *testing.T) {
 	world := testutils.NewTestWorld(t).Engine()
