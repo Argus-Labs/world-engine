@@ -8,7 +8,7 @@ type HealthReply struct {
 }
 
 func (handler *Handler) registerHealthHandler() {
-	handler.server.Get("/health", func(c *fiber.Ctx) error {
+	handler.app.Get("/health", func(c *fiber.Ctx) error {
 		res := HealthReply{
 			IsServerRunning:   true,
 			IsGameLoopRunning: handler.w.IsGameLoopRunning(), // Adapt this to your actual game loop check

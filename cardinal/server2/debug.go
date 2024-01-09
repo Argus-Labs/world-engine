@@ -16,7 +16,7 @@ type DebugStateElement struct {
 
 type DebugStateResponse = []*DebugStateElement
 
-// register debug endpoints for swagger server.
+// register debug endpoints for swagger app.
 func (handler *Handler) registerDebugHandler() {
 	// request name not required. This handler doesn't use anything in the request.
 	debugStateHandler := createQueryHandlerFromRequest[interface{}, DebugStateResponse](
@@ -59,5 +59,5 @@ func (handler *Handler) registerDebugHandler() {
 		},
 	)
 
-	handler.server.Get("/debug/state", debugStateHandler)
+	handler.app.Get("/debug/state", debugStateHandler)
 }

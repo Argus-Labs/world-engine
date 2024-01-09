@@ -10,7 +10,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-// register query endpoints for swagger server.
+// register query endpoints for swagger app.
 //
 //nolint:funlen,gocognit
 func (handler *Handler) registerQueryHandlers() error {
@@ -105,10 +105,10 @@ func (handler *Handler) registerQueryHandlers() error {
 
 	// Note: /query/game/cql must be registered before /query/game/:{queryType} because the latter would catch the
 	// former's requests due to the wildcard parameter otherwise
-	handler.server.Post("/query/game/cql", cqlHandler)
-	handler.server.Post("/query/game/:{queryType}", queryHandler)
-	handler.server.Post("/query/http/endpoints", getEndpointsListHandler)
-	handler.server.Post("/query/persona/signer", getPersonaSignerHandler)
-	handler.server.Post("/query/receipts/list", getReceiptsListHandler)
+	handler.app.Post("/query/game/cql", cqlHandler)
+	handler.app.Post("/query/game/:{queryType}", queryHandler)
+	handler.app.Post("/query/http/endpoints", getEndpointsListHandler)
+	handler.app.Post("/query/persona/signer", getPersonaSignerHandler)
+	handler.app.Post("/query/receipts/list", getReceiptsListHandler)
 	return nil
 }

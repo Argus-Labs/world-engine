@@ -137,7 +137,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	err = cmd.Run()
 	assert.NilError(t, err)
 
-	// wait for game loop and server to shut down.
+	// wait for game loop and app to shut down.
 	for w.IsGameLoopRunning() {
 		time.Sleep(500 * time.Millisecond)
 	}
@@ -1273,7 +1273,7 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 //	w := testutils.NewTestWorld(t)
 //	world := w.Instance()
 //	assert.NilError(t, w.Instance().LoadGameState())
-//	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+//	txh := testutils.MakeTestTransactionHandler(t, world, app.DisableSignatureVerification())
 //	url := txh.MakeWebSocketURL("echo")
 //	dial, _, err := websocket.DefaultDialer.Dial(url, nil)
 //	assert.NilError(t, err)

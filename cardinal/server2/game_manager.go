@@ -54,7 +54,7 @@ func NewGameManager(world *ecs.World, handler *Handler, options ...GameManagerOp
 
 func (g *GameManager) Shutdown() error {
 	if g.handler == nil {
-		return eris.New("game manager has no server, can't shutdown")
+		return eris.New("game manager has no app, can't shutdown")
 	}
 	err := g.handler.Shutdown()
 	if err != nil {
@@ -66,7 +66,7 @@ func (g *GameManager) Shutdown() error {
 		return err
 	}
 	if !g.IsRunning() {
-		log.Info().Msg("Successfully shutdown server and game loop.")
+		log.Info().Msg("Successfully shutdown app and game loop.")
 	}
 	return nil
 }

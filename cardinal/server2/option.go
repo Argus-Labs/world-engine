@@ -25,7 +25,7 @@ func WithAdapter(a shard.Adapter) Option {
 
 func WithCORS() Option {
 	return func(th *Handler) {
-		th.server.Use(cors.New())
+		th.app.Use(cors.New())
 		th.withCORS = true
 	}
 }

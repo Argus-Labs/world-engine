@@ -62,8 +62,8 @@ func (handler *Handler) registerTxHandler() error {
 		return c.JSON(&txReply)
 	}
 
-	handler.server.Post("/tx/game/:{txType}", gameHandler)
-	handler.server.Post("tx/persona/create-persona", createPersonaHandler)
+	handler.app.Post("/tx/game/:{txType}", gameHandler)
+	handler.app.Post("tx/persona/create-persona", createPersonaHandler)
 	return nil
 }
 

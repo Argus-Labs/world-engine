@@ -33,7 +33,7 @@ const (
 
 type Handler struct {
 	w                      *ecs.World
-	server                 *fiber.App
+	app                    *fiber.App
 	disableSigVerification bool
 	withCORS               bool
 	running                atomic.Bool
@@ -65,7 +65,7 @@ func newHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (
 		FilePath: "./swagger.yml",
 		Title:    "World Engine API Docs",
 	}
-	handler.server.Use(swagger.New(cfg))
+	handler.app.Use(swagger.New(cfg))
 
 	// Register handlers
 	err := handler.registerTxHandler()
@@ -122,7 +122,7 @@ func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
 	}, nil
 }
 
-// Initialize initializes the server. It firsts checks for a port set on the handler via options.
+// Initialize initializes the app. It firsts checks for a port set on the handler via options.
 // if no port is found, or a bad port was passed into the option, it falls back to an environment variable,
 // CARDINAL_PORT. If not set, it falls back to a default port of 4040.
 func (handler *Handler) Initialize() {
@@ -134,7 +134,7 @@ func (handler *Handler) Initialize() {
 			handler.Port = "4040"
 		}
 	}
-	handler.server = fiber.New()
+	handler.app = fiber.New()
 }
 
 // Serve serves the application, blocking the calling thread.
@@ -146,9 +146,9 @@ func (handler *Handler) Serve() error {
 	}
 	log.Info().Msgf("serving at %s:%s", hostname, handler.Port)
 	handler.running.Store(true)
-	err = handler.server.Listen(":" + handler.Port)
+	err = handler.app.Listen(":" + handler.Port)
 	if err != nil {
-		return eris.Wrap(err, "error starting Fiber server")
+		return eris.Wrap(err, "error starting Fiber app")
 	}
 	handler.running.Store(false)
 	return nil
@@ -158,9 +158,9 @@ func (handler *Handler) Shutdown() error {
 	handler.shutdownMutex.Lock()
 	defer handler.shutdownMutex.Unlock()
 	if handler.running.Load() {
-		log.Info().Msg("Shutting down server.")
-		if err := handler.server.Shutdown(); err != nil {
-			return eris.Wrap(err, "error shutting down Fiber server")
+		log.Info().Msg("Shutting down app.")
+		if err := handler.app.Shutdown(); err != nil {
+			return eris.Wrap(err, "error shutting down Fiber app")
 		}
 		handler.running.Store(false)
 		log.Info().Msg("Server successfully shutdown.")
