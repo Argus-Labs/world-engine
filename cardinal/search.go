@@ -18,7 +18,7 @@ type SearchCallBackFn func(EntityID) bool
 // falls, no more entities will be processed.
 func (q *Search) Each(wCtx WorldContext, callback SearchCallBackFn) error {
 	return q.impl.Each(
-		wCtx.Instance(), func(eid entity.ID) bool {
+		wCtx.Engine(), func(eid entity.ID) bool {
 			return callback(eid)
 		},
 	)
@@ -26,10 +26,10 @@ func (q *Search) Each(wCtx WorldContext, callback SearchCallBackFn) error {
 
 // Count returns the number of entities that match this search.
 func (q *Search) Count(wCtx WorldContext) (int, error) {
-	return q.impl.Count(wCtx.Instance())
+	return q.impl.Count(wCtx.Engine())
 }
 
 // First returns the first entity that matches this search.
 func (q *Search) First(wCtx WorldContext) (EntityID, error) {
-	return q.impl.First(wCtx.Instance())
+	return q.impl.First(wCtx.Engine())
 }

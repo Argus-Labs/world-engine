@@ -8,36 +8,36 @@ type LazySearch struct {
 	Container LazyContainer[*Search]
 }
 
-func (q *LazySearch) Each(wCtx WorldContext, callback SearchCallBackFn) error {
+func (q *LazySearch) Each(eCtx EngineContext, callback SearchCallBackFn) error {
 	query, err := q.Container.Unbox()
 	if err != nil {
 		return err
 	}
-	return query.Each(wCtx, callback)
+	return query.Each(eCtx, callback)
 }
 
-func (q *LazySearch) Count(wCtx WorldContext) (int, error) {
+func (q *LazySearch) Count(eCtx EngineContext) (int, error) {
 	query, err := q.Container.Unbox()
 	if err != nil {
 		return 0, err
 	}
-	return query.Count(wCtx)
+	return query.Count(eCtx)
 }
 
-func (q *LazySearch) First(wCtx WorldContext) (id entity.ID, err error) {
+func (q *LazySearch) First(eCtx EngineContext) (id entity.ID, err error) {
 	query, err := q.Container.Unbox()
 	if err != nil {
 		return 0, err
 	}
-	return query.First(wCtx)
+	return query.First(eCtx)
 }
 
-func (q *LazySearch) MustFirst(wCtx WorldContext) entity.ID {
+func (q *LazySearch) MustFirst(eCtx EngineContext) entity.ID {
 	query, err := q.Container.Unbox()
 	if err != nil {
 		panic("error building query")
 	}
-	return query.MustFirst(wCtx)
+	return query.MustFirst(eCtx)
 }
 
 func NewLazySearch(callback func() (*Search, error)) *LazySearch {
