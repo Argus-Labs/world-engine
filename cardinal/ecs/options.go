@@ -11,41 +11,41 @@ import (
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
-type Option func(w *World)
+type Option func(e *Engine)
 
 func WithAdapter(adapter shard.Adapter) Option {
-	return func(w *World) {
-		w.chain = adapter
+	return func(e *Engine) {
+		e.chain = adapter
 	}
 }
 
 func WithReceiptHistorySize(size int) Option {
-	return func(w *World) {
-		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), size)
+	return func(e *Engine) {
+		e.receiptHistory = receipt.NewHistory(e.CurrentTick(), size)
 	}
 }
 
 func WithPrettyLog() Option {
-	return func(world *World) {
+	return func(engine *Engine) {
 		prettyLogger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-		world.Logger = &prettyLogger
+		engine.Logger = &prettyLogger
 	}
 }
 
 func WithStoreManager(s store.IManager) Option {
-	return func(w *World) {
-		w.entityStore = s
+	return func(e *Engine) {
+		e.entityStore = s
 	}
 }
 
 func WithEventHub(eventHub events.EventHub) Option {
-	return func(w *World) {
-		w.eventHub = eventHub
+	return func(e *Engine) {
+		e.eventHub = eventHub
 	}
 }
 
 func WithLoggingEventHub(logger *zerolog.Logger) Option {
-	return func(w *World) {
-		w.eventHub = events.NewLoggingEventHub(logger)
+	return func(e *Engine) {
+		e.eventHub = events.NewLoggingEventHub(logger)
 	}
 }

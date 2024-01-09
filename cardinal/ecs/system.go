@@ -1,3 +1,3 @@
 package ecs
 
-type System func(WorldContext) error
+type System func(EngineContext) error

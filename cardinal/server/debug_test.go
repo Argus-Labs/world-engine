@@ -16,15 +16,15 @@ import (
 )
 
 func TestDebugEndpoint(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	engine := testutils.NewTestWorld(t).Engine()
 
-	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
-	assert.NilError(t, ecs.RegisterComponent[Beta](world))
-	assert.NilError(t, ecs.RegisterComponent[Gamma](world))
+	assert.NilError(t, ecs.RegisterComponent[Alpha](engine))
+	assert.NilError(t, ecs.RegisterComponent[Beta](engine))
+	assert.NilError(t, ecs.RegisterComponent[Gamma](engine))
 
-	assert.NilError(t, world.LoadGameState())
+	assert.NilError(t, engine.LoadGameState())
 	ctx := context.Background()
-	worldCtx := ecs.NewWorldContext(world)
+	worldCtx := ecs.NewEngineContext(engine)
 	_, err := ecs.CreateMany(worldCtx, 10, Alpha{})
 	assert.NilError(t, err)
 	_, err = ecs.CreateMany(worldCtx, 10, Beta{})
@@ -39,9 +39,9 @@ func TestDebugEndpoint(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = ecs.CreateMany(worldCtx, 10, Alpha{}, Beta{}, Gamma{})
 	assert.NilError(t, err)
-	err = world.Tick(ctx)
+	err = engine.Tick(ctx)
 	assert.NilError(t, err)
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
 	resp := txh.Get("debug/state")
 	assert.Equal(t, resp.StatusCode, 200)
 	bz, err := io.ReadAll(resp.Body)
@@ -53,15 +53,15 @@ func TestDebugEndpoint(t *testing.T) {
 }
 
 func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	engine := testutils.NewTestWorld(t).Engine()
 
 	// midTickCh is used to ensure the /debug/state call starts and ends in the middle of a System tick.
 	midTickCh := make(chan struct{})
 
-	assert.NilError(t, ecs.RegisterComponent[Delta](world))
+	assert.NilError(t, ecs.RegisterComponent[Delta](engine))
 	var targetID entity.ID
-	world.RegisterSystem(
-		func(worldCtx ecs.WorldContext) error {
+	engine.RegisterSystem(
+		func(worldCtx ecs.EngineContext) error {
 			// This system increments Delta.Value by 50 twice. /debug/state should see Delta.Value = 0 OR Delta.Value = 100,
 			// But never Delta.Value = 50.
 			assert.Check(
@@ -86,8 +86,8 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 		},
 	)
 
-	assert.NilError(t, world.LoadGameState())
-	worldCtx := ecs.NewWorldContext(world)
+	assert.NilError(t, engine.LoadGameState())
+	worldCtx := ecs.NewEngineContext(engine)
 	var err error
 	targetID, err = ecs.Create(worldCtx, Delta{})
 	assert.NilError(t, err)
@@ -100,9 +100,9 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 		// Ignore errors from these ticks. This tests is focused on making sure we're reading from the write places.
 		ctx := context.Background()
 		// Tick one: Make sure the entity is created
-		_ = world.Tick(ctx)
+		_ = engine.Tick(ctx)
 		for range startNextTick {
-			_ = world.Tick(ctx)
+			_ = engine.Tick(ctx)
 		}
 	}()
 
@@ -110,7 +110,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	midTickCh <- struct{}{}
 	midTickCh <- struct{}{}
 
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
 	defer txh.Close()
 	testCases := []struct {
 		name            string

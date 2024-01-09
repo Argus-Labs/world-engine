@@ -41,9 +41,9 @@ func TestEventError(t *testing.T) {
 func TestEvents(t *testing.T) {
 	// broadcast 5 messages to 5 clients means 25 messages received.
 	numberToTest := 5
-	w := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, w.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, engine.LoadGameState())
+	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
 	url := txh.MakeWebSocketURL("events")
 	dialers := make([]*websocket.Conn, numberToTest)
 	for i := range dialers {
@@ -106,22 +106,22 @@ type SendEnergyTxResult struct{}
 
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
-	w := testutils.NewTestWorld(t).Instance()
+	engine := testutils.NewTestWorld(t).Engine()
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
-	assert.NilError(t, w.RegisterMessages(sendTx))
+	assert.NilError(t, engine.RegisterMessages(sendTx))
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
 	for i := 0; i < numberToTest; i++ {
-		w.RegisterSystem(func(wCtx ecs.WorldContext) error {
-			wCtx.GetWorld().EmitEvent(&events.Event{Message: "test"})
+		engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
+			eCtx.GetEngine().EmitEvent(&events.Event{Message: "test"})
 			counter1.Add(1)
 			return nil
 		})
 	}
-	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](w))
-	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](w))
-	assert.NilError(t, w.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, w, server.DisableSignatureVerification())
+	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](engine))
+	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](engine))
+	assert.NilError(t, engine.LoadGameState())
+	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
 	url := txh.MakeWebSocketURL("events")
 	dialers := make([]*websocket.Conn, numberToTest)
 	for i := range dialers {
@@ -135,7 +135,7 @@ func TestEventsThroughSystems(t *testing.T) {
 	go func() {
 		defer waitForTicks.Done()
 		for i := 0; i < numberToTest; i++ {
-			err := w.Tick(ctx)
+			err := engine.Tick(ctx)
 			assert.NilError(t, err)
 		}
 	}()
@@ -185,22 +185,22 @@ func TestEventHubLogger(t *testing.T) {
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf ThreadSafeBuffer
 	bufLogger := zerolog.New(&buf)
-	w := testutils.NewTestWorld(t, cardinal.WithLoggingEventHub(&bufLogger)).Instance()
+	engine := testutils.NewTestWorld(t, cardinal.WithLoggingEventHub(&bufLogger)).Engine()
 
 	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 
 	numberToTest := 5
 	for i := 0; i < numberToTest; i++ {
-		w.RegisterSystem(func(wCtx ecs.WorldContext) error {
-			wCtx.GetWorld().EmitEvent(&events.Event{Message: "test"})
+		engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
+			eCtx.GetEngine().EmitEvent(&events.Event{Message: "test"})
 			return nil
 		})
 	}
-	assert.NilError(t, w.LoadGameState())
+	assert.NilError(t, engine.LoadGameState())
 	ctx := context.Background()
 	for i := 0; i < numberToTest; i++ {
-		err := w.Tick(ctx)
+		err := engine.Tick(ctx)
 		assert.NilError(t, err)
 	}
 	testString := "{\"level\":\"info\",\"message\":\"EVENT: test\"}\n"

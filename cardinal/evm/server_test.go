@@ -33,14 +33,14 @@ type TxReply struct{}
 // TestServer_SendMessage tests that when sending messages through to the EVM receiver server, they get passed along to
 // the world, and executed in systems.
 func TestServer_SendMessage(t *testing.T) {
-	// setup the world
-	w := testutils.NewTestWorld(t).Instance()
+	// setup the engine
+	engine := testutils.NewTestWorld(t).Engine()
 
 	// create the ECS transactions
 	fooTx := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
 	barTx := ecs.NewMessageType[BarTransaction, TxReply]("bartx", ecs.WithMsgEVMSupport[BarTransaction, TxReply])
 
-	assert.NilError(t, w.RegisterMessages(fooTx, barTx))
+	assert.NilError(t, engine.RegisterMessages(fooTx, barTx))
 
 	// create some txs to submit
 
@@ -58,9 +58,9 @@ func TestServer_SendMessage(t *testing.T) {
 	currBarIndex := 0
 
 	// add a system that checks that they are submitted properly to the world in the correct order.
-	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		inFooTxs := fooTx.In(wCtx)
-		inBarTxs := barTx.In(wCtx)
+	engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
+		inFooTxs := fooTx.In(eCtx)
+		inBarTxs := barTx.In(eCtx)
 		if len(inFooTxs) == 0 && len(inBarTxs) == 0 {
 			return nil
 		}
@@ -79,26 +79,26 @@ func TestServer_SendMessage(t *testing.T) {
 		}
 		return nil
 	})
-	assert.NilError(t, w.LoadGameState())
+	assert.NilError(t, engine.LoadGameState())
 
 	sender := "0xd5e099c71b797516c10ed0f0d895f429c2781142"
 	personaTag := "foo"
 	// create authorized addresses for the evm transaction's msg sender.
-	ecs.CreatePersonaMsg.AddToQueue(w, ecs.CreatePersona{
+	ecs.CreatePersonaMsg.AddToQueue(engine, ecs.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: "bar",
 	})
-	ecs.AuthorizePersonaAddressMsg.AddToQueue(w, ecs.AuthorizePersonaAddress{
+	ecs.AuthorizePersonaAddressMsg.AddToQueue(engine, ecs.AuthorizePersonaAddress{
 		Address: sender,
 	}, &sign.Transaction{PersonaTag: personaTag})
 	tickStartCh := make(chan time.Time)
 	tickDoneCh := make(chan uint64)
-	w.StartGameLoop(context.Background(), tickStartCh, tickDoneCh)
+	engine.StartGameLoop(context.Background(), tickStartCh, tickDoneCh)
 	// Process an initial tick so the CreatePersona transaction will be processed
 	tickStartCh <- time.Now()
 	<-tickDoneCh
 
-	server, err := evm.NewServer(w)
+	server, err := evm.NewServer(engine)
 	assert.NilError(t, err)
 
 	txSequenceDone := make(chan struct{})
@@ -152,11 +152,11 @@ func TestServer_Query(t *testing.T) {
 		Y uint64
 	}
 	// set up a query that simply returns the FooReq.X
-	handleFooQuery := func(wCtx cardinal.WorldContext, req *FooReq) (*FooReply, error) {
+	handleFooQuery := func(eCtx cardinal.WorldContext, req *FooReq) (*FooReply, error) {
 		return &FooReply{Y: req.X}, nil
 	}
 	w := testutils.NewTestWorld(t)
-	world := w.Instance()
+	world := w.Engine()
 	err := cardinal.RegisterQueryWithEVMSupport[FooReq, FooReply](w, "foo", handleFooQuery)
 	assert.NilError(t, err)
 	err = world.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("nothing"))
@@ -188,20 +188,20 @@ func TestServer_Query(t *testing.T) {
 // Authorized address for the sender, an error occurs.
 func TestServer_UnauthorizedAddress(t *testing.T) {
 	// setup the world
-	w := testutils.NewTestWorld(t).Instance()
+	engine := testutils.NewTestWorld(t).Engine()
 
 	// create the ECS transactions
 	fooTxType := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
 
-	assert.NilError(t, w.RegisterMessages(fooTxType))
+	assert.NilError(t, engine.RegisterMessages(fooTxType))
 
 	// create some txs to submit
 
 	fooTx := FooTransaction{X: 420, Y: "world"}
 
-	assert.NilError(t, w.LoadGameState())
+	assert.NilError(t, engine.LoadGameState())
 
-	server, err := evm.NewServer(w)
+	server, err := evm.NewServer(engine)
 	assert.NilError(t, err)
 
 	fooTxBz, err := fooTxType.ABIEncode(fooTx)
