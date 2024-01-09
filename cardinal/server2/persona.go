@@ -2,7 +2,6 @@ package server
 
 import (
 	"errors"
-
 	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"

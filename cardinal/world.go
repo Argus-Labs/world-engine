@@ -3,7 +3,6 @@ package cardinal
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -263,7 +262,6 @@ func (w *World) handleShutdown() {
 // may not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {
-	fmt.Println("STRART GFAMEE")
 	ok := w.gameSequenceStage.CompareAndSwap(gamestage.StagePreStart, gamestage.StageStarting)
 	if !ok {
 		return errors.New("game has already been started")

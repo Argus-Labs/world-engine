@@ -29,7 +29,9 @@ func (handler *Handler) registerQueryHandlers() error {
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, eris.ToString(err, true))
 		}
-		return c.JSON(rawJSONReply)
+		// rawJSONReply is already a JSON-formatted []byte so we can write it directly to response
+		c.Set("Content-Type", "application/json")
+		return c.Send(rawJSONReply)
 	}
 
 	endpoints, err := createAllEndpoints(handler.w)
@@ -100,7 +102,7 @@ func (handler *Handler) registerQueryHandlers() error {
 		return c.JSON(result)
 	}
 
-	handler.server.Post("/query/game/{queryType}", queryHandler)
+	handler.server.Post("/query/game/:{queryType}", queryHandler)
 	handler.server.Post("/query/game/cql", cqlHandler)
 	handler.server.Post("/query/http/endpoints", getEndpointsListHandler)
 	handler.server.Post("/query/persona/signer", getPersonaSignerHandler)

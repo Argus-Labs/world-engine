@@ -38,10 +38,10 @@ func (handler *Handler) registerTxHandler() error {
 		}
 		// TODO: We want to return (TxReply, err), not sure what the best way to do that is here:
 		txReply, err := handler.processTransaction(tx, body, sp)
-		return c.JSON(&fiber.Map{
-			"txReply": txReply,
-			"err":     err,
-		})
+		if err != nil {
+			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
+		}
+		return c.JSON(txReply)
 	}
 
 	createPersonaHandler := func(c *fiber.Ctx) error {

@@ -76,6 +76,7 @@ func newHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (
 		return nil, err
 	}
 	handler.registerHealthHandler()
+	handler.registerDebugHandler()
 
 	return handler, nil
 }
@@ -175,9 +176,9 @@ func createQueryHandlerFromRequest[Request any, Response any](requestName string
 
 		var request *Request
 		if len(requestBody) != 0 {
-			value := new(Request)
+			request = new(Request)
 			// TODO: Might need to do c.Body(), unmarshall, then grab `requestName` from that obj, check in tests
-			if err := c.BodyParser(&value); err != nil {
+			if err := c.BodyParser(&request); err != nil {
 				return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("body in query request did not match expected type: %s", err))
 			}
 		} else {
