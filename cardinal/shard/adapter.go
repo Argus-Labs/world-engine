@@ -4,10 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"os"
-
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"os"
+	"pkg.world.dev/world-engine/cardinal/txpool"
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/sign"
@@ -29,7 +29,7 @@ type Adapter interface {
 type WriteAdapter interface {
 	// Submit submits a transaction to the EVM base shard's game tx sequencer, where the tx data will be sequenced and
 	// stored on chain.
-	Submit(ctx context.Context, p *sign.Transaction, txID, epoch uint64) error
+	Submit(ctx context.Context, txs txpool.TxMap, namespace string, epoch, unixTimestamp uint64) error
 }
 
 // QueryAdapter provides the functionality to query transactions from the EVM base shard.
@@ -104,8 +104,23 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	return a, nil
 }
 
-func (a adapterImpl) Submit(_ context.Context, _ *sign.Transaction, _ uint64, _ uint64) error {
-	return nil
+func (a adapterImpl) Submit(ctx context.Context, processedTxs txpool.TxMap, namespace string, epoch, unixTimestamp uint64) error {
+	messageIDtoTxs := make(map[uint64]*shardv2.Transactions, len(processedTxs))
+	for msgID, txs := range processedTxs {
+		protoTxs := make([]*shardv2.Transaction, len(txs))
+		for _, txData := range txs {
+			protoTxs = append(protoTxs, transactionToProto(txData.Tx))
+		}
+		messageIDtoTxs[uint64(msgID)] = &shardv2.Transactions{Txs: protoTxs}
+	}
+	req := shardv2.SubmitTransactionsRequest{
+		Epoch:         epoch,
+		UnixTimestamp: unixTimestamp,
+		Namespace:     namespace,
+		Transactions:  nil,
+	}
+	_, err := a.ShardSequencer.Submit(ctx, &req)
+	return err
 }
 
 func (a adapterImpl) QueryTransactions(

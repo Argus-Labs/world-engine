@@ -70,7 +70,7 @@ type World struct {
 
 	receiptHistory *receipt.History
 
-	chain shard.QueryAdapter
+	chain shard.Adapter
 	// isRecovering indicates that the world is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering atomic.Bool
@@ -491,6 +491,11 @@ func (w *World) Tick(ctx context.Context) error {
 	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
 	w.setEvmResults(txQueue.GetEVMTxs())
+	err := w.chain.Submit(ctx, txQueue.Transactions(), w.namespace.String(), w.tick.Load(), w.timestamp.Load())
+	if err != nil {
+		// TODO: do we shut down cardinal here? whats the vibe?
+	}
+
 	w.tick.Add(1)
 	w.receiptHistory.NextTick()
 	statsd.EmitTickStat(startTime, "full_tick")
