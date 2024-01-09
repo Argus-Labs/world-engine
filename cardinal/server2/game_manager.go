@@ -13,7 +13,7 @@ import (
 
 type GameManager struct {
 	handler *Handler
-	world   *ecs.World
+	world   *ecs.Engine
 }
 
 func (g *GameManager) IsRunning() bool {
@@ -26,7 +26,7 @@ func WithGameManagerPrettyPrint(_ *GameManager) {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 }
 
-func NewGameManager(world *ecs.World, handler *Handler, options ...GameManagerOptions) GameManager {
+func NewGameManager(world *ecs.Engine, handler *Handler, options ...GameManagerOptions) GameManager {
 	manager := GameManager{
 		handler: handler,
 		world:   world,

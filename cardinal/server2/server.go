@@ -32,7 +32,7 @@ const (
 )
 
 type Handler struct {
-	w                      *ecs.World
+	w                      *ecs.Engine
 	app                    *fiber.App
 	disableSigVerification bool
 	withCORS               bool
@@ -43,7 +43,7 @@ type Handler struct {
 	adapter shard.WriteAdapter
 }
 
-func NewHandler(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
+func NewHandler(w *ecs.Engine, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	h, err := newHandlerEmbed(w, builder, opts...)
 	h.running.Store(false)
 	if err != nil {
@@ -52,7 +52,7 @@ func NewHandler(w *ecs.World, builder middleware.Builder, opts ...Option) (*Hand
 	return h, nil
 }
 
-func newHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
+func newHandlerEmbed(w *ecs.Engine, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	handler := &Handler{
 		w: w,
 	}
@@ -89,7 +89,7 @@ type EndpointsResult struct {
 	DebugEndpoints []string `json:"debugEndpoints"`
 }
 
-func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
+func createAllEndpoints(world *ecs.Engine) (*EndpointsResult, error) {
 	txs, err := world.ListMessages()
 	if err != nil {
 		return nil, err

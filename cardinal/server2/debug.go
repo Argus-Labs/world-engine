@@ -23,7 +23,7 @@ func (handler *Handler) registerDebugHandler() {
 		"", func(i *interface{}) (*DebugStateResponse, error) {
 			result := make(DebugStateResponse, 0)
 			search := ecs.NewSearch(filter.All())
-			wCtx := ecs.NewReadOnlyWorldContext(handler.w)
+			wCtx := ecs.NewReadOnlyEngineContext(handler.w)
 			var eachClosureErr error
 			searchEachErr := search.Each(
 				wCtx, func(id entity.ID) bool {

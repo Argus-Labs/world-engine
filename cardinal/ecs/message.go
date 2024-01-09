@@ -101,21 +101,21 @@ func (t *MessageType[In, Out]) ID() message.TypeID {
 
 var emptyTx = &sign.Transaction{}
 
-// AddToQueue adds a message with the given data to the world. The message will be executed
+// AddToQueue adds a message with the given data to the engine. The message will be executed
 // at the next game tick. An optional sign.Transaction can be associated with this message.
-func (t *MessageType[In, Out]) AddToQueue(world *World, data In, sigs ...*sign.Transaction) message.TxHash {
+func (t *MessageType[In, Out]) AddToQueue(engine *Engine, data In, sigs ...*sign.Transaction) message.TxHash {
 	sig := emptyTx
 	if len(sigs) > 0 {
 		sig = sigs[0]
 	}
-	_, id := world.AddTransaction(t.ID(), data, sig)
+	_, id := engine.AddTransaction(t.ID(), data, sig)
 	return id
 }
 
 func (t *MessageType[In, Out]) SetID(id message.TypeID) error {
 	if t.isIDSet {
 		// In games implemented with Cardinal, messages will only be initialized one time (on startup).
-		// In tests, it's often useful to use the same message in multiple worlds. This check will allow for the
+		// In tests, it's often useful to use the same message in multiple engines. This check will allow for the
 		// re-initialization of messages, as long as the ID doesn't change.
 		if id == t.id {
 			return nil
@@ -133,19 +133,19 @@ type TxData[In any] struct {
 	Tx   *sign.Transaction
 }
 
-func (t *MessageType[In, Out]) AddError(wCtx WorldContext, hash message.TxHash, err error) {
-	wCtx.GetWorld().AddMessageError(hash, err)
+func (t *MessageType[In, Out]) AddError(eCtx EngineContext, hash message.TxHash, err error) {
+	eCtx.GetEngine().AddMessageError(hash, err)
 }
 
-func (t *MessageType[In, Out]) SetResult(wCtx WorldContext, hash message.TxHash, result Out) {
-	wCtx.GetWorld().SetMessageResult(hash, result)
+func (t *MessageType[In, Out]) SetResult(eCtx EngineContext, hash message.TxHash, result Out) {
+	eCtx.GetEngine().SetMessageResult(hash, result)
 }
 
-func (t *MessageType[In, Out]) GetReceipt(wCtx WorldContext, hash message.TxHash) (
+func (t *MessageType[In, Out]) GetReceipt(eCtx EngineContext, hash message.TxHash) (
 	v Out, errs []error, ok bool,
 ) {
-	world := wCtx.GetWorld()
-	iface, errs, ok := world.GetTransactionReceipt(hash)
+	engine := eCtx.GetEngine()
+	iface, errs, ok := engine.GetTransactionReceipt(hash)
 	if !ok {
 		return v, nil, false
 	}
@@ -160,26 +160,26 @@ func (t *MessageType[In, Out]) GetReceipt(wCtx WorldContext, hash message.TxHash
 	return value, errs, true
 }
 
-func (t *MessageType[In, Out]) Each(wCtx WorldContext, fn func(TxData[In]) (Out, error)) {
-	for _, txData := range t.In(wCtx) {
+func (t *MessageType[In, Out]) Each(eCtx EngineContext, fn func(TxData[In]) (Out, error)) {
+	for _, txData := range t.In(eCtx) {
 		if result, err := fn(txData); err != nil {
 			err = eris.Wrap(err, "")
-			wCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v and stack trace:\n %s",
+			eCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v and stack trace:\n %s",
 				txData.Hash,
 				txData.Tx.PersonaTag,
 				txData.Msg,
 				eris.ToString(err, true),
 			)
-			t.AddError(wCtx, txData.Hash, err)
+			t.AddError(eCtx, txData.Hash, err)
 		} else {
-			t.SetResult(wCtx, txData.Hash, result)
+			t.SetResult(eCtx, txData.Hash, result)
 		}
 	}
 }
 
 // In extracts all the TxData in the tx queue that match this MessageType's ID.
-func (t *MessageType[In, Out]) In(wCtx WorldContext) []TxData[In] {
-	tq := wCtx.GetTxQueue()
+func (t *MessageType[In, Out]) In(eCtx EngineContext) []TxData[In] {
+	tq := eCtx.GetTxQueue()
 	var txs []TxData[In]
 	for _, txData := range tq.ForID(t.ID()) {
 		if val, ok := txData.Msg.(In); ok {

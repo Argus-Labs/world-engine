@@ -16,7 +16,7 @@ import (
 )
 
 func TestDebugEndpoint(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := testutils.NewTestWorld(t).Engine()
 
 	assert.NilError(t, ecs.RegisterComponent[Alpha](world))
 	assert.NilError(t, ecs.RegisterComponent[Beta](world))
@@ -24,7 +24,7 @@ func TestDebugEndpoint(t *testing.T) {
 
 	assert.NilError(t, world.LoadGameState())
 	ctx := context.Background()
-	worldCtx := ecs.NewWorldContext(world)
+	worldCtx := ecs.NewEngineContext(world)
 	_, err := ecs.CreateMany(worldCtx, 10, Alpha{})
 	assert.NilError(t, err)
 	_, err = ecs.CreateMany(worldCtx, 10, Beta{})
@@ -53,7 +53,7 @@ func TestDebugEndpoint(t *testing.T) {
 }
 
 func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	world := testutils.NewTestWorld(t).Engine()
 
 	// midTickCh is used to ensure the /debug/state call starts and ends in the middle of a System tick.
 	midTickCh := make(chan struct{})
@@ -61,7 +61,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Delta](world))
 	var targetID entity.ID
 	world.RegisterSystem(
-		func(worldCtx ecs.WorldContext) error {
+		func(worldCtx ecs.EngineContext) error {
 			// This system increments Delta.Value by 50 twice. /debug/state should see Delta.Value = 0 OR Delta.Value = 100,
 			// But never Delta.Value = 50.
 			assert.Check(
@@ -87,7 +87,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	)
 
 	assert.NilError(t, world.LoadGameState())
-	worldCtx := ecs.NewWorldContext(world)
+	worldCtx := ecs.NewEngineContext(world)
 	var err error
 	targetID, err = ecs.Create(worldCtx, Delta{})
 	assert.NilError(t, err)

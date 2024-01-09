@@ -18,9 +18,9 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-// newWorldWithRealRedis returns an *ecs.World that is connected to a redis DB hosted at localhost:6379. The target
-// database is CLEARED OF ALL DATA so that the *ecs.World object can start from a clean slate.
-func newWorldWithRealRedis(t testing.TB) *ecs.World {
+// newWorldWithRealRedis returns an *ecs.Engine that is connected to a redis DB hosted at localhost:6379. The target
+// database is CLEARED OF ALL DATA so that the *ecs.Engine object can start from a clean slate.
+func newWorldWithRealRedis(t testing.TB) *ecs.Engine {
 	rs := redis.NewRedisStorage(redis.Options{
 		Addr:     "127.0.0.1:6379",
 		Password: "",
@@ -30,7 +30,7 @@ func newWorldWithRealRedis(t testing.TB) *ecs.World {
 
 	sm, err := ecb.NewManager(rs.Client)
 	assert.NilError(t, err)
-	world, err := ecs.NewWorld(&rs, sm, cardinal.DefaultNamespace)
+	world, err := ecs.NewEngine(&rs, sm, cardinal.DefaultNamespace)
 
 	assert.NilError(t, err)
 	return world
@@ -44,23 +44,23 @@ func (Health) Name() string {
 	return "health"
 }
 
-// setupWorld creates a new *ecs.World and initializes the world to have numOfEntities already created. If
+// setupWorld creates a new *ecs.Engine and initializes the world to have numOfEntities already created. If
 // enableHealthSystem is set, a System will be added to the world that increments every entity's "health" by 1 every
 // tick.
-func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.World {
+func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.Engine {
 	world := newWorldWithRealRedis(t)
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	if enableHealthSystem {
 		world.RegisterSystem(
-			func(wCtx ecs.WorldContext) error {
+			func(eCtx ecs.EngineContext) error {
 				q, err := world.NewSearch(ecs.Contains(Health{}))
 				assert.NilError(t, err)
 				err = q.Each(
-					wCtx, func(id entity.ID) bool {
-						health, err := ecs.GetComponent[Health](wCtx, id)
+					eCtx, func(id entity.ID) bool {
+						health, err := ecs.GetComponent[Health](eCtx, id)
 						assert.NilError(t, err)
 						health.Value++
-						assert.NilError(t, ecs.SetComponent[Health](wCtx, id, health))
+						assert.NilError(t, ecs.SetComponent[Health](eCtx, id, health))
 						return true
 					},
 				)
@@ -72,7 +72,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.W
 
 	assert.NilError(t, ecs.RegisterComponent[Health](world))
 	assert.NilError(t, world.LoadGameState())
-	_, err := ecs.CreateMany(ecs.NewWorldContext(world), numOfEntities, Health{})
+	_, err := ecs.CreateMany(ecs.NewEngineContext(world), numOfEntities, Health{})
 	assert.NilError(t, err)
 	// Perform a game tick to ensure the newly created entities have been committed to the DB
 	ctx := context.Background()

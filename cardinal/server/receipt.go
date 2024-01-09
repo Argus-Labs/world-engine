@@ -42,7 +42,7 @@ func errsToStringSlice(errs []error) []string {
 }
 
 // with world construct a function that takes a receipts request and returns a reply.
-func getListTxReceiptsReplyFromRequest(world *ecs.World) func(*ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
+func getListTxReceiptsReplyFromRequest(world *ecs.Engine) func(*ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
 	return func(req *ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
 		reply := ListTxReceiptsReply{}
 		reply.EndTick = world.CurrentTick()

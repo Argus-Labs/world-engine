@@ -8,12 +8,13 @@ import (
 	"os/signal"
 	"path/filepath"
 	server "pkg.world.dev/world-engine/cardinal/server2"
-	"pkg.world.dev/world-engine/cardinal/shard"
 	"reflect"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/shard"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -34,7 +35,7 @@ import (
 var ErrEntitiesCreatedBeforeStartGame = errors.New("entities should not be created before start game")
 
 type World struct {
-	instance           *ecs.World
+	instance           *ecs.Engine
 	server             *server.Handler
 	evmServer          evm.Server
 	gameManager        *server.GameManager
@@ -71,7 +72,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Sane default options
 	serverOptions = append(serverOptions, server.WithCORS())
-	var gameManagerOptions []server.GameManagerOptions // not exposed in NewWorld Yet
+	var gameManagerOptions []server.GameManagerOptions // not exposed in NewEngine Yet
 
 	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
 		return nil, eris.Wrap(err, "")
@@ -97,7 +98,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		return nil, err
 	}
 
-	ecsWorld, err := ecs.NewWorld(
+	ecsWorld, err := ecs.NewEngine(
 		&redisStore,
 		storeManager,
 		ecs.Namespace(cfg.CardinalNamespace),
@@ -201,43 +202,43 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
 func CreateMany(wCtx WorldContext, num int, components ...component.Component) ([]EntityID, error) {
-	return ecs.CreateMany(wCtx.Instance(), num, components...)
+	return ecs.CreateMany(wCtx.Engine(), num, components...)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
 func Create(wCtx WorldContext, components ...component.Component) (EntityID, error) {
-	return ecs.Create(wCtx.Instance(), components...)
+	return ecs.Create(wCtx.Engine(), components...)
 }
 
 // SetComponent Set sets component data to the entity.
 func SetComponent[T component.Component](wCtx WorldContext, id entity.ID, comp *T) error {
-	return ecs.SetComponent[T](wCtx.Instance(), id, comp)
+	return ecs.SetComponent[T](wCtx.Engine(), id, comp)
 }
 
 // GetComponent Get returns component data from the entity.
 func GetComponent[T component.Component](wCtx WorldContext, id entity.ID) (*T, error) {
-	return ecs.GetComponent[T](wCtx.Instance(), id)
+	return ecs.GetComponent[T](wCtx.Engine(), id)
 }
 
 // UpdateComponent Updates a component on an entity.
 func UpdateComponent[T component.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
-	return ecs.UpdateComponent[T](wCtx.Instance(), id, fn)
+	return ecs.UpdateComponent[T](wCtx.Engine(), id, fn)
 }
 
 // AddComponentTo Adds a component on an entity.
 func AddComponentTo[T component.Component](wCtx WorldContext, id entity.ID) error {
-	return ecs.AddComponentTo[T](wCtx.Instance(), id)
+	return ecs.AddComponentTo[T](wCtx.Engine(), id)
 }
 
 // RemoveComponentFrom Removes a component from an entity.
 func RemoveComponentFrom[T component.Component](wCtx WorldContext, id entity.ID) error {
-	return ecs.RemoveComponentFrom[T](wCtx.Instance(), id)
+	return ecs.RemoveComponentFrom[T](wCtx.Engine(), id)
 }
 
 // Remove removes the given entity id from the world.
 func Remove(wCtx WorldContext, id EntityID) error {
-	return wCtx.Instance().GetWorld().Remove(id)
+	return wCtx.Engine().GetEngine().Remove(id)
 }
 
 func (w *World) handleShutdown() {
@@ -273,7 +274,7 @@ func (w *World) StartGame() error {
 		}
 		return err
 	}
-	if !w.instance.DoesWorldHaveAnEventHub() {
+	if !w.instance.DoesEngineHaveAnEventHub() {
 		w.instance.SetEventHub(events.NewWebSocketEventHub())
 	}
 	eventHub := w.instance.GetEventHub()
@@ -357,10 +358,10 @@ func RegisterSystems(w *World, systems ...System) error {
 		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
 		sys := system
 		w.instance.RegisterSystemWithName(
-			func(wCtx ecs.WorldContext) error {
+			func(eCtx ecs.EngineContext) error {
 				return sys(
 					&worldContext{
-						instance: wCtx,
+						engine: eCtx,
 					},
 				)
 			}, functionName,
@@ -389,8 +390,8 @@ func RegisterQuery[Request any, Reply any](
 	err := ecs.RegisterQuery[Request, Reply](
 		world.instance,
 		name,
-		func(wCtx ecs.WorldContext, req *Request) (*Reply, error) {
-			return handler(&worldContext{instance: wCtx}, req)
+		func(wCtx ecs.EngineContext, req *Request) (*Reply, error) {
+			return handler(&worldContext{engine: wCtx}, req)
 		},
 	)
 	if err != nil {
@@ -410,8 +411,8 @@ func RegisterQueryWithEVMSupport[Request any, Reply any](
 	err := ecs.RegisterQuery[Request, Reply](
 		world.instance,
 		name,
-		func(wCtx ecs.WorldContext, req *Request) (*Reply, error) {
-			return handler(&worldContext{instance: wCtx}, req)
+		func(eCtx ecs.EngineContext, req *Request) (*Reply, error) {
+			return handler(&worldContext{engine: eCtx}, req)
 		},
 		ecs.WithQueryEVMSupport[Request, Reply],
 	)
@@ -421,7 +422,7 @@ func RegisterQueryWithEVMSupport[Request any, Reply any](
 	return nil
 }
 
-func (w *World) Instance() *ecs.World {
+func (w *World) Engine() *ecs.Engine {
 	return w.instance
 }
 
@@ -436,8 +437,8 @@ func (w *World) Tick(ctx context.Context) error {
 // Init Registers a system that only runs once on a new game before tick 0.
 func (w *World) Init(system System) {
 	w.instance.AddInitSystem(
-		func(ecsWctx ecs.WorldContext) error {
-			return system(&worldContext{instance: ecsWctx})
+		func(eCtx ecs.EngineContext) error {
+			return system(&worldContext{engine: eCtx})
 		},
 	)
 }

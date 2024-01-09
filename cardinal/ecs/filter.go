@@ -6,7 +6,7 @@ import (
 )
 
 type Filterable interface {
-	ConvertToComponentFilter(world *World) (filter.ComponentFilter, error)
+	ConvertToComponentFilter(engine *Engine) (filter.ComponentFilter, error)
 }
 
 type all struct {
@@ -56,10 +56,10 @@ func Exact(components ...component.Component) Filterable {
 	return &exact{components: components}
 }
 
-func (s or) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
+func (s or) ConvertToComponentFilter(engine *Engine) (filter.ComponentFilter, error) {
 	acc := make([]filter.ComponentFilter, 0, len(s.filters))
 	for _, internalFilter := range s.filters {
-		f, err := internalFilter.ConvertToComponentFilter(world)
+		f, err := internalFilter.ConvertToComponentFilter(engine)
 		if err != nil {
 			return nil, err
 		}
@@ -68,10 +68,10 @@ func (s or) ConvertToComponentFilter(world *World) (filter.ComponentFilter, erro
 	return filter.Or(acc...), nil
 }
 
-func (s and) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
+func (s and) ConvertToComponentFilter(engine *Engine) (filter.ComponentFilter, error) {
 	acc := make([]filter.ComponentFilter, 0, len(s.filters))
 	for _, internalFilter := range s.filters {
-		f, err := internalFilter.ConvertToComponentFilter(world)
+		f, err := internalFilter.ConvertToComponentFilter(engine)
 		if err != nil {
 			return nil, err
 		}
@@ -80,18 +80,18 @@ func (s and) ConvertToComponentFilter(world *World) (filter.ComponentFilter, err
 	return filter.And(acc...), nil
 }
 
-func (s not) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
-	f, err := s.filter.ConvertToComponentFilter(world)
+func (s not) ConvertToComponentFilter(engine *Engine) (filter.ComponentFilter, error) {
+	f, err := s.filter.ConvertToComponentFilter(engine)
 	if err != nil {
 		return nil, err
 	}
 	return filter.Not(f), nil
 }
 
-func (s contains) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
+func (s contains) ConvertToComponentFilter(engine *Engine) (filter.ComponentFilter, error) {
 	acc := make([]component.ComponentMetadata, 0, len(s.components))
 	for _, internalComponent := range s.components {
-		c, err := world.GetComponentByName(internalComponent.Name())
+		c, err := engine.GetComponentByName(internalComponent.Name())
 		if err != nil {
 			return nil, err
 		}
@@ -100,10 +100,10 @@ func (s contains) ConvertToComponentFilter(world *World) (filter.ComponentFilter
 	return filter.Contains(acc...), nil
 }
 
-func (s exact) ConvertToComponentFilter(world *World) (filter.ComponentFilter, error) {
+func (s exact) ConvertToComponentFilter(engine *Engine) (filter.ComponentFilter, error) {
 	acc := make([]component.ComponentMetadata, 0, len(s.components))
 	for _, internalComponent := range s.components {
-		c, err := world.GetComponentByName(internalComponent.Name())
+		c, err := engine.GetComponentByName(internalComponent.Name())
 		if err != nil {
 			return nil, err
 		}
@@ -112,6 +112,6 @@ func (s exact) ConvertToComponentFilter(world *World) (filter.ComponentFilter, e
 	return filter.Exact(acc...), nil
 }
 
-func (a all) ConvertToComponentFilter(_ *World) (filter.ComponentFilter, error) {
+func (a all) ConvertToComponentFilter(_ *Engine) (filter.ComponentFilter, error) {
 	return filter.All(), nil
 }

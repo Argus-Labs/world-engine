@@ -8,86 +8,86 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-func Create(wCtx WorldContext, components ...component.Component) (entity.ID, error) {
-	entities, err := CreateMany(wCtx, 1, components...)
+func Create(eCtx EngineContext, components ...component.Component) (entity.ID, error) {
+	entities, err := CreateMany(eCtx, 1, components...)
 	if err != nil {
 		return 0, err
 	}
 	return entities[0], nil
 }
 
-func CreateMany(wCtx WorldContext, num int, components ...component.Component) ([]entity.ID, error) {
-	if wCtx.IsReadOnly() {
+func CreateMany(eCtx EngineContext, num int, components ...component.Component) ([]entity.ID, error) {
+	if eCtx.IsReadOnly() {
 		return nil, eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
-	world := wCtx.GetWorld()
+	engine := eCtx.GetEngine()
 	acc := make([]component.ComponentMetadata, 0, len(components))
 	for _, comp := range components {
-		c, err := world.GetComponentByName(comp.Name())
+		c, err := engine.GetComponentByName(comp.Name())
 		if err != nil {
 			return nil, err
 		}
 		acc = append(acc, c)
 	}
-	entityIds, err := world.StoreManager().CreateManyEntities(num, acc...)
+	entityIds, err := engine.StoreManager().CreateManyEntities(num, acc...)
 	if err != nil {
 		return nil, err
 	}
 	for _, id := range entityIds {
 		for _, comp := range components {
 			var c component.ComponentMetadata
-			c, err = world.GetComponentByName(comp.Name())
+			c, err = engine.GetComponentByName(comp.Name())
 			if err != nil {
 				return nil, eris.Wrap(err, "must register component before creating an entity")
 			}
-			err = world.StoreManager().SetComponentForEntity(c, id, comp)
+			err = engine.StoreManager().SetComponentForEntity(c, id, comp)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
-	wCtx.GetWorld().SetEntitiesCreated(true)
+	eCtx.GetEngine().SetEntitiesCreated(true)
 	return entityIds, nil
 }
 
 // RemoveComponentFrom removes a component from an entity.
-func RemoveComponentFrom[T component.Component](wCtx WorldContext, id entity.ID) error {
-	if wCtx.IsReadOnly() {
+func RemoveComponentFrom[T component.Component](eCtx EngineContext, id entity.ID) error {
+	if eCtx.IsReadOnly() {
 		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
-	w := wCtx.GetWorld()
+	e := eCtx.GetEngine()
 	var t T
 	name := t.Name()
-	c, err := w.GetComponentByName(name)
+	c, err := e.GetComponentByName(name)
 	if err != nil {
 		return eris.Wrap(err, "must register component")
 	}
-	return w.StoreManager().RemoveComponentFromEntity(c, id)
+	return e.StoreManager().RemoveComponentFromEntity(c, id)
 }
 
-func AddComponentTo[T component.Component](wCtx WorldContext, id entity.ID) error {
-	if wCtx.IsReadOnly() {
+func AddComponentTo[T component.Component](eCtx EngineContext, id entity.ID) error {
+	if eCtx.IsReadOnly() {
 		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
-	w := wCtx.GetWorld()
+	e := eCtx.GetEngine()
 	var t T
 	name := t.Name()
-	c, err := w.GetComponentByName(name)
+	c, err := e.GetComponentByName(name)
 	if err != nil {
 		return eris.Wrap(err, "must register component")
 	}
-	return w.StoreManager().AddComponentToEntity(c, id)
+	return e.StoreManager().AddComponentToEntity(c, id)
 }
 
 // GetComponent returns component data from the entity.
-func GetComponent[T component.Component](wCtx WorldContext, id entity.ID) (comp *T, err error) {
+func GetComponent[T component.Component](eCtx EngineContext, id entity.ID) (comp *T, err error) {
 	var t T
 	name := t.Name()
-	c, err := wCtx.GetWorld().GetComponentByName(name)
+	c, err := eCtx.GetEngine().GetComponentByName(name)
 	if err != nil {
 		return nil, eris.Wrap(err, "must register component")
 	}
-	value, err := wCtx.StoreReader().GetComponentForEntity(c, id)
+	value, err := eCtx.StoreReader().GetComponentForEntity(c, id)
 	if err != nil {
 		return nil, err
 	}
@@ -105,21 +105,21 @@ func GetComponent[T component.Component](wCtx WorldContext, id entity.ID) (comp 
 }
 
 // SetComponent sets component data to the entity.
-func SetComponent[T component.Component](wCtx WorldContext, id entity.ID, component *T) error {
-	if wCtx.IsReadOnly() {
+func SetComponent[T component.Component](eCtx EngineContext, id entity.ID, component *T) error {
+	if eCtx.IsReadOnly() {
 		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
 	var t T
 	name := t.Name()
-	c, err := wCtx.GetWorld().GetComponentByName(name)
+	c, err := eCtx.GetEngine().GetComponentByName(name)
 	if err != nil {
 		return eris.Errorf("%s is not registered, please register it before updating", t.Name())
 	}
-	err = wCtx.StoreManager().SetComponentForEntity(c, id, component)
+	err = eCtx.StoreManager().SetComponentForEntity(c, id, component)
 	if err != nil {
 		return err
 	}
-	wCtx.Logger().Debug().
+	eCtx.Logger().Debug().
 		Str("entity_id", strconv.FormatUint(uint64(id), 10)).
 		Str("component_name", c.Name()).
 		Int("component_id", int(c.ID())).
@@ -127,14 +127,14 @@ func SetComponent[T component.Component](wCtx WorldContext, id entity.ID, compon
 	return nil
 }
 
-func UpdateComponent[T component.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
-	if wCtx.IsReadOnly() {
+func UpdateComponent[T component.Component](eCtx EngineContext, id entity.ID, fn func(*T) *T) error {
+	if eCtx.IsReadOnly() {
 		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
-	val, err := GetComponent[T](wCtx, id)
+	val, err := GetComponent[T](eCtx, id)
 	if err != nil {
 		return err
 	}
 	updatedVal := fn(val)
-	return SetComponent[T](wCtx, id, updatedVal)
+	return SetComponent[T](eCtx, id, updatedVal)
 }

@@ -24,7 +24,7 @@ func (handler *Handler) registerQueryHandlers() error {
 			return fiber.NewError(fiber.StatusNotFound, fmt.Sprintf("query %s not found", queryType))
 		}
 		queryBody := c.Body()
-		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
+		wCtx := ecs.NewReadOnlyEngineContext(handler.w)
 		rawJSONReply, err := q.HandleQueryRaw(wCtx, queryBody)
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, eris.ToString(err, true))
@@ -73,7 +73,7 @@ func (handler *Handler) registerQueryHandlers() error {
 
 		result := make([]cql.QueryResponse, 0)
 
-		wCtx := ecs.NewReadOnlyWorldContext(handler.w)
+		wCtx := ecs.NewReadOnlyEngineContext(handler.w)
 		err = ecs.NewSearch(resultFilter).Each(
 			wCtx, func(id entity.ID) bool {
 				components, err := wCtx.StoreReader().GetComponentTypesForEntity(id)

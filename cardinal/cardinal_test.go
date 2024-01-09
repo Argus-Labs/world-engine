@@ -73,7 +73,7 @@ func TestCreatePersona(t *testing.T) {
 func TestNewWorld(t *testing.T) {
 	world, err := cardinal.NewMockWorld()
 	assert.NilError(t, err)
-	assert.Equal(t, string(world.Instance().Namespace()), cardinal.DefaultNamespace)
+	assert.Equal(t, string(world.Engine().Namespace()), cardinal.DefaultNamespace)
 	err = world.ShutDown()
 	assert.NilError(t, err)
 }
@@ -82,7 +82,7 @@ func TestNewWorldWithCustomNamespace(t *testing.T) {
 	t.Setenv("CARDINAL_NAMESPACE", "custom-namespace")
 	world, err := cardinal.NewMockWorld()
 	assert.NilError(t, err)
-	assert.Equal(t, string(world.Instance().Namespace()), "custom-namespace")
+	assert.Equal(t, string(world.Engine().Namespace()), "custom-namespace")
 	err = world.ShutDown()
 	assert.NilError(t, err)
 }
@@ -124,7 +124,7 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 		return nil
 	})
 	assert.NilError(t, err)
-	err = world.Instance().LoadGameState()
+	err = world.Engine().LoadGameState()
 	assert.NilError(t, err)
 	err = world.Tick(context.Background())
 	assert.NilError(t, err)
