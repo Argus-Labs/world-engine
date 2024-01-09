@@ -57,14 +57,14 @@ func loadEntityIntoEvent(
 	return zeroLoggerEvent.Int("archetype_id", int(archID))
 }
 
-// Components logs all component info related to the world.
+// Components logs all component info related to the engine.
 func Components(logger *zerolog.Logger, target Loggable, level zerolog.Level) {
 	zeroLoggerEvent := logger.WithLevel(level)
 	zeroLoggerEvent = loadComponentsToEvent(zeroLoggerEvent, target)
 	zeroLoggerEvent.Send()
 }
 
-// System logs all system info related to the world.
+// System logs all system info related to the engine.
 func System(logger *zerolog.Logger, target Loggable, level zerolog.Level) {
 	zeroLoggerEvent := logger.WithLevel(level)
 	zeroLoggerEvent = loadSystemIntoEvent(zeroLoggerEvent, target)
@@ -81,8 +81,8 @@ func Entity(
 	loadEntityIntoEvent(zeroLoggerEvent, entityID, archID, components).Send()
 }
 
-// World Logs everything about the world (components and Systems).
-func World(logger *zerolog.Logger, target Loggable, level zerolog.Level) {
+// Engine Logs everything about the engine (components and Systems).
+func Engine(logger *zerolog.Logger, target Loggable, level zerolog.Level) {
 	zeroLoggerEvent := logger.WithLevel(level)
 	zeroLoggerEvent = loadComponentsToEvent(zeroLoggerEvent, target)
 	zeroLoggerEvent = loadSystemIntoEvent(zeroLoggerEvent, target)

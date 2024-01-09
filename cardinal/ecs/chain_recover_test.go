@@ -89,23 +89,23 @@ type SendEnergyMsg struct {
 
 type SendEnergyResult struct{}
 
-// TestWorld_RecoverFromChain tests that after submitting transactions to the chain, they can be queried, re-ran,
+// TestEngine_RecoverFromChain tests that after submitting transactions to the chain, they can be queried, re-ran,
 // and end up with the same game state as before.
-func TestWorld_RecoverFromChain(t *testing.T) {
-	// setup world and transactions
+func TestEngine_RecoverFromChain(t *testing.T) {
+	// setup engine and transactions
 	ctx := context.Background()
 	adapter := &DummyAdapter{txs: make(map[uint64][]*types.Transaction, 0)}
-	w := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
+	engine := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Engine()
 	sendEnergyTx := ecs.NewMessageType[SendEnergyMsg, SendEnergyResult]("send_energy")
-	err := w.RegisterMessages(sendEnergyTx)
+	err := engine.RegisterMessages(sendEnergyTx)
 	assert.NilError(t, err)
 
 	sysRuns := uint64(0)
 	timesSendEnergyRan := 0
 	// send energy system
-	w.RegisterSystem(func(wCtx ecs.WorldContext) error {
+	engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
 		sysRuns++
-		txs := sendEnergyTx.In(wCtx)
+		txs := sendEnergyTx.In(eCtx)
 		if len(txs) > 0 {
 			timesSendEnergyRan++
 		}
@@ -121,12 +121,12 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		assert.NilError(t, err)
 	}
 
-	err = w.LoadGameState()
+	err = engine.LoadGameState()
 	assert.NilError(t, err)
-	err = w.RecoverFromChain(ctx)
+	err = engine.RecoverFromChain(ctx)
 	assert.NilError(t, err)
-	assert.Equal(t, finalTick, w.CurrentTick()-1) // the current tick should be 1 minus the last tick processed.
-	assert.Equal(t, sysRuns, w.CurrentTick())
+	assert.Equal(t, finalTick, engine.CurrentTick()-1) // the current tick should be 1 minus the last tick processed.
+	assert.Equal(t, sysRuns, engine.CurrentTick())
 	assert.Equal(t, len(payloads), timesSendEnergyRan)
 }
 
@@ -147,13 +147,13 @@ func generateRandomTransaction(t *testing.T, ns string, msg message.Message) *si
 	}
 }
 
-func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
+func TestEngine_RecoverShouldErrorIfTickExists(t *testing.T) {
 	ctx := context.Background()
 	adapter := &DummyAdapter{}
-	w := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
-	assert.NilError(t, w.LoadGameState())
-	assert.NilError(t, w.Tick(ctx))
+	engine := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Engine()
+	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, engine.Tick(ctx))
 
-	err := w.RecoverFromChain(ctx)
+	err := engine.RecoverFromChain(ctx)
 	assert.ErrorContains(t, err, "world recovery should not occur in a world with existing state")
 }

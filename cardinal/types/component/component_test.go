@@ -55,13 +55,13 @@ func TestComponentInterfaceSignature(t *testing.T) {
 }
 
 func TestComponents(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	ecs.MustRegisterComponent[ComponentDataA](world)
-	ecs.MustRegisterComponent[ComponentDataB](world)
+	engine := testutils.NewTestWorld(t).Engine()
+	ecs.MustRegisterComponent[ComponentDataA](engine)
+	ecs.MustRegisterComponent[ComponentDataB](engine)
 
-	ca, err := world.GetComponentByName("a")
+	ca, err := engine.GetComponentByName("a")
 	assert.NilError(t, err)
-	cb, err := world.GetComponentByName("b")
+	cb, err := engine.GetComponentByName("b")
 	assert.NilError(t, err)
 
 	tests := []*struct {
@@ -84,7 +84,7 @@ func TestComponents(t *testing.T) {
 		},
 	}
 
-	storeManager := world.StoreManager()
+	storeManager := engine.StoreManager()
 	for _, tt := range tests {
 		entityID, err := storeManager.CreateEntity(tt.comps...)
 		assert.NilError(t, err)
@@ -157,11 +157,11 @@ func (notFoundComp) Name() string {
 }
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	ecs.MustRegisterComponent[foundComp](world)
-	ecs.MustRegisterComponent[notFoundComp](world)
+	engine := testutils.NewTestWorld(t).Engine()
+	ecs.MustRegisterComponent[foundComp](engine)
+	ecs.MustRegisterComponent[notFoundComp](engine)
 
-	wCtx := ecs.NewWorldContext(world)
+	wCtx := ecs.NewEngineContext(engine)
 	id, err := ecs.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
 	_, err = ecs.GetComponent[notFoundComp](wCtx, id)
@@ -177,23 +177,23 @@ func (ValueComponent) Name() string {
 }
 
 func TestMultipleCallsToCreateSupported(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[ValueComponent](world))
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, ecs.RegisterComponent[ValueComponent](engine))
 
-	wCtx := ecs.NewWorldContext(world)
-	id, err := ecs.Create(wCtx, ValueComponent{})
+	eCtx := ecs.NewEngineContext(engine)
+	id, err := ecs.Create(eCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, ecs.SetComponent[ValueComponent](wCtx, id, &ValueComponent{99}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent](eCtx, id, &ValueComponent{99}))
 
-	val, err := ecs.GetComponent[ValueComponent](wCtx, id)
+	val, err := ecs.GetComponent[ValueComponent](eCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
-	_, err = ecs.Create(wCtx, ValueComponent{})
+	_, err = ecs.Create(eCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	val, err = ecs.GetComponent[ValueComponent](wCtx, id)
+	val, err = ecs.GetComponent[ValueComponent](eCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 }

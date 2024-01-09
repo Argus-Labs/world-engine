@@ -17,9 +17,9 @@ import (
 func TestQueryTypeNotStructs(t *testing.T) {
 	str := "blah"
 	err := ecs.RegisterQuery[string, string](
-		testutils.NewTestWorld(t).Instance(),
+		testutils.NewTestWorld(t).Engine(),
 		"foo",
-		func(wCtx ecs.WorldContext, req *string) (*string, error) {
+		func(eCtx ecs.EngineContext, req *string) (*string, error) {
 			return &str, nil
 		},
 	)
@@ -41,11 +41,11 @@ func TestQueryEVM(t *testing.T) {
 		Age:  22,
 	}
 
-	w := testutils.NewTestWorld(t).Instance()
+	engine := testutils.NewTestWorld(t).Engine()
 	err := ecs.RegisterQuery[FooRequest, FooReply](
-		w,
+		engine,
 		"foo",
-		func(wCtx ecs.WorldContext, req *FooRequest,
+		func(eCtx ecs.EngineContext, req *FooRequest,
 		) (*FooReply, error) {
 			return &expectedReply, nil
 		},
@@ -53,13 +53,13 @@ func TestQueryEVM(t *testing.T) {
 	)
 
 	assert.NilError(t, err)
-	err = w.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("blah"))
+	err = engine.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)
-	s, err := evm.NewServer(w)
+	s, err := evm.NewServer(engine)
 	assert.NilError(t, err)
 
 	// create the abi encoded bytes that the EVM would send.
-	fooQuery, err := w.GetQueryByName("foo")
+	fooQuery, err := engine.GetQueryByName("foo")
 	assert.NilError(t, err)
 	bz, err := fooQuery.EncodeAsABI(FooRequest{ID: "foo"})
 	assert.NilError(t, err)
@@ -92,14 +92,14 @@ func TestErrOnNoNameOrHandler(t *testing.T) {
 		{
 			name: "error on no name",
 			createQuery: func() error {
-				return ecs.RegisterQuery[foo, foo](testutils.NewTestWorld(t).Instance(), "", nil)
+				return ecs.RegisterQuery[foo, foo](testutils.NewTestWorld(t).Engine(), "", nil)
 			},
 			shouldErr: true,
 		},
 		{
 			name: "error on no handler",
 			createQuery: func() error {
-				return ecs.RegisterQuery[foo, foo](testutils.NewTestWorld(t).Instance(), "foo", nil)
+				return ecs.RegisterQuery[foo, foo](testutils.NewTestWorld(t).Engine(), "foo", nil)
 			},
 			shouldErr: true,
 		},

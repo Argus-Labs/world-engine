@@ -16,6 +16,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
+// TODO: This should be changed to "engine" could have side effects with other apps though. Hold off.
 const Namespace string = "world"
 
 func GetRedisStorage(t *testing.T) storage.Storage {
@@ -27,9 +28,9 @@ func GetRedisStorage(t *testing.T) storage.Storage {
 	}, Namespace)
 }
 
-// InitWorldWithRedis sets up an ecs.World using the given redis DB. ecs.NewECSWorldForTest is not used
-// because the test will re-use the incoming miniredis instance to initialize multiple worlds.
-func InitWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
+// InitEngineWithRedis sets up an ecs.Engine using the given redis DB. ecs.NewECSEngineForTest is not used
+// because the test will re-use the incoming miniredis instance to initialize multiple engines.
+func InitEngineWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.Engine {
 	rs := storage.NewRedisStorage(storage.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
@@ -37,7 +38,7 @@ func InitWorldWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.World {
 	}, Namespace)
 	sm, err := ecb.NewManager(rs.Client)
 	assert.NilError(t, err)
-	w, err := ecs.NewWorld(&rs, sm, ecs.Namespace(Namespace))
+	w, err := ecs.NewEngine(&rs, sm, ecs.Namespace(Namespace))
 	assert.NilError(t, err)
 	return w
 }
