@@ -92,7 +92,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 
 	_, err := ecs.Create(ecs.NewEngineContext(oneEngine), NumberComponent{})
 	assert.NilError(t, err)
-	oneNum, err := oneEngine.GetComponentByName(NumberComponent{}.Name())
+	oneNum, err := oneEngine.GetComponentMetadataByName(NumberComponent{}.Name())
 	assert.NilError(t, err)
 	wantID, err := oneEngine.StoreManager().GetArchIDForComponents(comps(oneNum))
 	assert.NilError(t, err)
@@ -106,7 +106,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	twoEngine := testutil.InitEngineWithRedis(t, redisStore)
 	assert.NilError(t, ecs.RegisterComponent[NumberComponent](twoEngine))
 	assert.NilError(t, twoEngine.LoadGameState())
-	twoNum, err := twoEngine.GetComponentByName(NumberComponent{}.Name())
+	twoNum, err := twoEngine.GetComponentMetadataByName(NumberComponent{}.Name())
 	assert.NilError(t, err)
 	gotID, err := twoEngine.StoreManager().GetArchIDForComponents(comps(twoNum))
 	assert.NilError(t, err)
@@ -133,9 +133,9 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = ecs.Create(oneEngineCtx, OneAlphaNum{}, OneBetaNum{})
 	assert.NilError(t, err)
-	oneAlphaNum, err := oneEngine.GetComponentByName(OneAlphaNum{}.Name())
+	oneAlphaNum, err := oneEngine.GetComponentMetadataByName(OneAlphaNum{}.Name())
 	assert.NilError(t, err)
-	oneBetaNum, err := oneEngine.GetComponentByName(OneBetaNum{}.Name())
+	oneBetaNum, err := oneEngine.GetComponentMetadataByName(OneBetaNum{}.Name())
 	assert.NilError(t, err)
 	// At this point 3 archetypes exist:
 	// oneAlphaNum
@@ -216,7 +216,7 @@ func TestCanReloadState(t *testing.T) {
 	alphaEngine := testutil.InitEngineWithRedis(t, redisStore)
 	assert.NilError(t, ecs.RegisterComponent[oneAlphaNumComp](alphaEngine))
 
-	oneAlphaNum, err := alphaEngine.GetComponentByName(oneAlphaNumComp{}.Name())
+	oneAlphaNum, err := alphaEngine.GetComponentMetadataByName(oneAlphaNumComp{}.Name())
 	assert.NilError(t, err)
 	alphaEngine.RegisterSystem(
 		func(eCtx ecs.EngineContext) error {

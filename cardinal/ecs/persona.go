@@ -237,7 +237,7 @@ func (e *Engine) GetSignerForPersonaTag(personaTag string, tick uint64) (addr st
 func getComponent[T component.Component](eCtx EngineContext, id entity.ID) (comp *T, err error) {
 	var t T
 	name := t.Name()
-	c, err := eCtx.GetEngine().GetComponentByName(name)
+	c, err := eCtx.GetEngine().GetComponentMetadataByName(name)
 	if err != nil {
 		return nil, eris.Wrap(err, "must register component")
 	}
@@ -269,7 +269,7 @@ func setComponent[T component.Component](eCtx EngineContext, id entity.ID, compo
 	}
 	var t T
 	name := t.Name()
-	c, err := eCtx.GetEngine().GetComponentByName(name)
+	c, err := eCtx.GetEngine().GetComponentMetadataByName(name)
 	if err != nil {
 		return eris.Wrapf(err, "%s is not registered, please register it before updating", t.Name())
 	}
@@ -312,7 +312,7 @@ func createMany(eCtx EngineContext, num int, components ...component.Component) 
 	engine := eCtx.GetEngine()
 	acc := make([]component.ComponentMetadata, 0, len(components))
 	for _, comp := range components {
-		c, err := engine.GetComponentByName(comp.Name())
+		c, err := engine.GetComponentMetadataByName(comp.Name())
 		if err != nil {
 			return nil, err
 		}
@@ -324,7 +324,7 @@ func createMany(eCtx EngineContext, num int, components ...component.Component) 
 	}
 	for _, id := range entityIds {
 		for _, comp := range components {
-			c, err := engine.GetComponentByName(comp.Name())
+			c, err := engine.GetComponentMetadataByName(comp.Name())
 			if err != nil {
 				return nil, eris.Wrap(err, "must register component before creating an entity")
 			}

@@ -126,7 +126,7 @@ func TestExactVsContains(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, count, alphaCount+bothCount)
 	count2 := 0
-	sameQuery, err := cql.Parse("CONTAINS(alpha)", engine.GetComponentByName)
+	sameQuery, err := cql.Parse("CONTAINS(alpha)", engine.GetComponentMetadataByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
 		eCtx, func(id entity.ID) bool {
@@ -151,7 +151,7 @@ func TestExactVsContains(t *testing.T) {
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
-	sameQuery, err = cql.Parse("CONTAINS(beta)", engine.GetComponentByName)
+	sameQuery, err = cql.Parse("CONTAINS(beta)", engine.GetComponentMetadataByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
 		eCtx, func(id entity.ID) bool {
@@ -175,7 +175,7 @@ func TestExactVsContains(t *testing.T) {
 	assert.Equal(t, count, alphaCount)
 
 	count2 = 0
-	sameQuery, err = cql.Parse("EXACT(alpha)", engine.GetComponentByName)
+	sameQuery, err = cql.Parse("EXACT(alpha)", engine.GetComponentMetadataByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
 		eCtx, func(id entity.ID) bool {
@@ -200,7 +200,7 @@ func TestExactVsContains(t *testing.T) {
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
-	sameQuery, err = cql.Parse("EXACT(alpha, beta)", engine.GetComponentByName)
+	sameQuery, err = cql.Parse("EXACT(alpha, beta)", engine.GetComponentMetadataByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
 		eCtx, func(id entity.ID) bool {
@@ -225,7 +225,7 @@ func TestExactVsContains(t *testing.T) {
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
-	sameQuery, err = cql.Parse("EXACT(beta, alpha)", engine.GetComponentByName)
+	sameQuery, err = cql.Parse("EXACT(beta, alpha)", engine.GetComponentMetadataByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
 		eCtx, func(id entity.ID) bool {
@@ -276,7 +276,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	}
 	queryString += ")"
 
-	sameQuery, err := cql.Parse(queryString, engine.GetComponentByName)
+	sameQuery, err := cql.Parse(queryString, engine.GetComponentMetadataByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
 		eCtx, func(id entity.ID) bool {

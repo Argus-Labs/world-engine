@@ -23,7 +23,7 @@ func CreateMany(eCtx EngineContext, num int, components ...component.Component) 
 	engine := eCtx.GetEngine()
 	acc := make([]component.ComponentMetadata, 0, len(components))
 	for _, comp := range components {
-		c, err := engine.GetComponentByName(comp.Name())
+		c, err := engine.GetComponentMetadataByName(comp.Name())
 		if err != nil {
 			return nil, err
 		}
@@ -36,7 +36,7 @@ func CreateMany(eCtx EngineContext, num int, components ...component.Component) 
 	for _, id := range entityIds {
 		for _, comp := range components {
 			var c component.ComponentMetadata
-			c, err = engine.GetComponentByName(comp.Name())
+			c, err = engine.GetComponentMetadataByName(comp.Name())
 			if err != nil {
 				return nil, eris.Wrap(err, "must register component before creating an entity")
 			}
@@ -58,7 +58,7 @@ func RemoveComponentFrom[T component.Component](eCtx EngineContext, id entity.ID
 	e := eCtx.GetEngine()
 	var t T
 	name := t.Name()
-	c, err := e.GetComponentByName(name)
+	c, err := e.GetComponentMetadataByName(name)
 	if err != nil {
 		return eris.Wrap(err, "must register component")
 	}
@@ -72,7 +72,7 @@ func AddComponentTo[T component.Component](eCtx EngineContext, id entity.ID) err
 	e := eCtx.GetEngine()
 	var t T
 	name := t.Name()
-	c, err := e.GetComponentByName(name)
+	c, err := e.GetComponentMetadataByName(name)
 	if err != nil {
 		return eris.Wrap(err, "must register component")
 	}
@@ -83,7 +83,7 @@ func AddComponentTo[T component.Component](eCtx EngineContext, id entity.ID) err
 func GetComponent[T component.Component](eCtx EngineContext, id entity.ID) (comp *T, err error) {
 	var t T
 	name := t.Name()
-	c, err := eCtx.GetEngine().GetComponentByName(name)
+	c, err := eCtx.GetEngine().GetComponentMetadataByName(name)
 	if err != nil {
 		return nil, eris.Wrap(err, "must register component")
 	}
@@ -111,7 +111,7 @@ func SetComponent[T component.Component](eCtx EngineContext, id entity.ID, compo
 	}
 	var t T
 	name := t.Name()
-	c, err := eCtx.GetEngine().GetComponentByName(name)
+	c, err := eCtx.GetEngine().GetComponentMetadataByName(name)
 	if err != nil {
 		return eris.Errorf("%s is not registered, please register it before updating", t.Name())
 	}

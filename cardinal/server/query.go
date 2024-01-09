@@ -123,7 +123,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 					eris.Errorf("json is invalid"),
 				), nil
 			}
-			resultFilter, err := cql.Parse(cqlString, handler.w.GetComponentByName)
+			resultFilter, err := cql.Parse(cqlString, handler.w.GetComponentMetadataByName)
 			if err != nil {
 				return middleware.Error(http.StatusUnprocessableEntity, err), nil
 			}

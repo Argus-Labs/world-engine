@@ -45,25 +45,26 @@ func (n Namespace) String() string {
 }
 
 type Engine struct {
-	namespace              Namespace
-	redisStorage           *storage.Storage
-	entityStore            store.IManager
-	systems                []System
-	systemLoggers          []*zerolog.Logger
-	initSystem             System
-	initSystemLogger       *zerolog.Logger
-	systemNames            []string
-	tick                   *atomic.Uint64
-	timestamp              *atomic.Uint64
-	nameToComponent        map[string]component.ComponentMetadata
-	nameToQuery            map[string]Query
-	registeredComponents   []component.ComponentMetadata
-	registeredMessages     []message.Message
-	registeredQueries      []Query
-	isComponentsRegistered bool
-	isEntitiesCreated      bool
-	isMessagesRegistered   bool
-	stateIsLoaded          bool
+	namespace               Namespace
+	redisStorage            *storage.Storage
+	entityStore             store.IManager
+	systems                 []System
+	systemLoggers           []*zerolog.Logger
+	initSystem              System
+	initSystemLogger        *zerolog.Logger
+	systemNames             []string
+	tick                    *atomic.Uint64
+	timestamp               *atomic.Uint64
+	nameToComponentMetadata map[string]component.ComponentMetadata
+	nameToComponent         map[string]component.Component
+	nameToQuery             map[string]Query
+	registeredComponents    []component.ComponentMetadata
+	registeredMessages      []message.Message
+	registeredQueries       []Query
+	isComponentsRegistered  bool
+	isEntitiesCreated       bool
+	isMessagesRegistered    bool
+	stateIsLoaded           bool
 
 	evmTxReceipts map[string]EVMTxReceipt
 
@@ -201,7 +202,11 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 		panic("cannot register components after loading game state")
 	}
 	var t T
-	_, err := engine.GetComponentByName(t.Name())
+	_, err := engine.GetComponentMetadataByName(t.Name())
+	if err == nil {
+		return eris.Errorf("component with name '%s' is already registered", t.Name())
+	}
+	_, err = engine.GetComponentDataByName(t.Name())
 	if err == nil {
 		return eris.Errorf("component with name '%s' is already registered", t.Name())
 	}
@@ -237,7 +242,8 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 		return err
 	}
 	engine.nextComponentID++
-	engine.nameToComponent[t.Name()] = c
+	engine.nameToComponentMetadata[t.Name()] = c
+	engine.nameToComponent[t.Name()] = t
 	engine.isComponentsRegistered = true
 	return nil
 }
@@ -249,8 +255,8 @@ func MustRegisterComponent[T component.Component](engine *Engine) {
 	}
 }
 
-func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, error) {
-	componentType, exists := e.nameToComponent[name]
+func (e *Engine) GetComponentMetadataByName(name string) (component.ComponentMetadata, error) {
+	componentType, exists := e.nameToComponentMetadata[name]
 	if !exists {
 		return nil, eris.Errorf(
 			"component with name %s not found. Must register component before using",
@@ -258,6 +264,16 @@ func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, e
 		)
 	}
 	return componentType, nil
+}
+
+func (e *Engine) GetComponentDataByName(name string) (component.Component, error) {
+	componentObject, exists := e.nameToComponent[name]
+	if !exists {
+		return nil, eris.Errorf("component with name %s not found. Must register component before using",
+			name,
+		)
+	}
+	return componentObject, nil
 }
 
 func RegisterQuery[Request any, Reply any](
@@ -348,22 +364,23 @@ func NewEngine(
 	logger := &log.Logger
 	entityStore.InjectLogger(logger)
 	e := &Engine{
-		redisStorage:      storage,
-		entityStore:       entityStore,
-		namespace:         namespace,
-		tick:              &atomic.Uint64{},
-		timestamp:         new(atomic.Uint64),
-		systems:           make([]System, 0),
-		initSystem:        func(_ EngineContext) error { return nil },
-		nameToComponent:   make(map[string]component.ComponentMetadata),
-		nameToQuery:       make(map[string]Query),
-		txQueue:           txpool.NewTxQueue(),
-		Logger:            logger,
-		isGameLoopRunning: atomic.Bool{},
-		isEntitiesCreated: false,
-		endGameLoopCh:     make(chan bool),
-		nextComponentID:   1,
-		evmTxReceipts:     make(map[string]EVMTxReceipt),
+		redisStorage:            storage,
+		entityStore:             entityStore,
+		namespace:               namespace,
+		tick:                    &atomic.Uint64{},
+		timestamp:               new(atomic.Uint64),
+		systems:                 make([]System, 0),
+		initSystem:              func(_ EngineContext) error { return nil },
+		nameToComponentMetadata: make(map[string]component.ComponentMetadata),
+		nameToComponent:         make(map[string]component.Component),
+		nameToQuery:             make(map[string]Query),
+		txQueue:                 txpool.NewTxQueue(),
+		Logger:                  logger,
+		isGameLoopRunning:       atomic.Bool{},
+		isEntitiesCreated:       false,
+		endGameLoopCh:           make(chan bool),
+		nextComponentID:         1,
+		evmTxReceipts:           make(map[string]EVMTxReceipt),
 
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}

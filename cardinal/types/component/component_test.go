@@ -59,9 +59,9 @@ func TestComponents(t *testing.T) {
 	ecs.MustRegisterComponent[ComponentDataA](engine)
 	ecs.MustRegisterComponent[ComponentDataB](engine)
 
-	ca, err := engine.GetComponentByName("a")
+	ca, err := engine.GetComponentMetadataByName("a")
 	assert.NilError(t, err)
-	cb, err := engine.GetComponentByName("b")
+	cb, err := engine.GetComponentMetadataByName("b")
 	assert.NilError(t, err)
 
 	tests := []*struct {

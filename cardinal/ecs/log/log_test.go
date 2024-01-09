@@ -114,7 +114,7 @@ func TestEngineLogger(t *testing.T) {
 `
 	require.JSONEq(t, jsonEngineInfoString, buf.String())
 	buf.Reset()
-	energy, err := engine.GetComponentByName(EnergyComp{}.Name())
+	energy, err := engine.GetComponentMetadataByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
 	components := []component.ComponentMetadata{energy}
 	eCtx := ecs.NewEngineContext(engine)
