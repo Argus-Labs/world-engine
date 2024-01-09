@@ -117,7 +117,7 @@ func (a adapterImpl) Submit(ctx context.Context, processedTxs txpool.TxMap, name
 		Epoch:         epoch,
 		UnixTimestamp: unixTimestamp,
 		Namespace:     namespace,
-		Transactions:  nil,
+		Transactions:  messageIDtoTxs,
 	}
 	_, err := a.ShardSequencer.Submit(ctx, &req)
 	return err
