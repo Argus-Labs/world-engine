@@ -57,10 +57,12 @@ func (handler *Handler) registerQueryHandlers() error {
 
 		var cqlString string
 		if len(requestBody) != 0 {
-			// TODO: Might need to do c.Body(), unmarshall, then grab `CQL` from that obj, check in tests
-			if err := c.BodyParser(&cqlString); err != nil {
-				return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("body in CQL query request did not match expected type: %s", err))
+			request := new(cql.QueryRequest)
+			err := json.Unmarshal(requestBody, request)
+			if err != nil {
+				return fiber.NewError(fiber.StatusBadRequest, eris.Wrapf(err, "unable to unmarshal query request into type %T", *request).Error())
 			}
+			cqlString = request.CQL
 		} else {
 			return fiber.NewError(fiber.StatusBadRequest, "body in CQL query request was empty")
 		}
@@ -98,12 +100,13 @@ func (handler *Handler) registerQueryHandlers() error {
 			return fiber.NewError(fiber.StatusInternalServerError, fmt.Sprintf("unable to perform Search for CQL query: %s", err))
 		}
 
-		// TODO: Check if this matches expected response type using tests
 		return c.JSON(result)
 	}
 
-	handler.server.Post("/query/game/:{queryType}", queryHandler)
+	// Note: /query/game/cql must be registered before /query/game/:{queryType} because the latter would catch the
+	// former's requests due to the wildcard parameter otherwise
 	handler.server.Post("/query/game/cql", cqlHandler)
+	handler.server.Post("/query/game/:{queryType}", queryHandler)
 	handler.server.Post("/query/http/endpoints", getEndpointsListHandler)
 	handler.server.Post("/query/persona/signer", getPersonaSignerHandler)
 	handler.server.Post("/query/receipts/list", getReceiptsListHandler)

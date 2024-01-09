@@ -36,7 +36,6 @@ func (handler *Handler) registerTxHandler() error {
 		if err != nil {
 			return fiber.NewError(fiber.StatusNotFound, err.Error())
 		}
-		// TODO: We want to return (TxReply, err), not sure what the best way to do that is here:
 		txReply, err := handler.processTransaction(tx, body, sp)
 		if err != nil {
 			return fiber.NewError(fiber.StatusInternalServerError, err.Error())
@@ -79,7 +78,6 @@ func getTxFromParams(c *fiber.Ctx, txNameToTx map[string]message.Message,
 	return tx, nil
 }
 
-// TODO: Refactor this to unmarshall body to SignedPayload
 func (handler *Handler) getBodyAndSignedPayloadFromRequest(
 	request []byte,
 	isSystemTransaction bool) ([]byte, *sign.Transaction, error) {
