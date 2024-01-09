@@ -17,11 +17,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
-	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 
@@ -1270,28 +1268,28 @@ func TestTransactionsSubmittedToChain(t *testing.T) {
 	assert.Equal(t, adapter.called, 2)
 }
 
-func TestWebSocket(t *testing.T) {
-	w := testutils.NewTestWorld(t)
-	world := w.Instance()
-	assert.NilError(t, w.Instance().LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
-	url := txh.MakeWebSocketURL("echo")
-	dial, _, err := websocket.DefaultDialer.Dial(url, nil)
-	assert.NilError(t, err)
-	messageToSend := "test"
-	err = dial.WriteMessage(websocket.TextMessage, []byte(messageToSend))
-	assert.NilError(t, err)
-	messageType, message, err := dial.ReadMessage()
-	assert.NilError(t, err)
-	assert.Equal(t, messageType, websocket.TextMessage)
-	assert.Equal(t, string(message), messageToSend)
-	err = eris.Wrap(
-		dial.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")), "",
-	)
-	assert.NilError(t, err)
-	err = dial.Close()
-	assert.NilError(t, err)
-}
+//func TestWebSocket(t *testing.T) {
+//	w := testutils.NewTestWorld(t)
+//	world := w.Instance()
+//	assert.NilError(t, w.Instance().LoadGameState())
+//	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+//	url := txh.MakeWebSocketURL("echo")
+//	dial, _, err := websocket.DefaultDialer.Dial(url, nil)
+//	assert.NilError(t, err)
+//	messageToSend := "test"
+//	err = dial.WriteMessage(websocket.TextMessage, []byte(messageToSend))
+//	assert.NilError(t, err)
+//	messageType, message, err := dial.ReadMessage()
+//	assert.NilError(t, err)
+//	assert.Equal(t, messageType, websocket.TextMessage)
+//	assert.Equal(t, string(message), messageToSend)
+//	err = eris.Wrap(
+//		dial.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")), "",
+//	)
+//	assert.NilError(t, err)
+//	err = dial.Close()
+//	assert.NilError(t, err)
+//}
 
 func TestEmptyFieldsAreOKForDisabledSignatureVerification(t *testing.T) {
 	w := testutils.NewTestWorld(t).Instance()

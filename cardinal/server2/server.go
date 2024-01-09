@@ -181,6 +181,7 @@ func createQueryHandlerFromRequest[Request any, Response any](requestName string
 			if err := c.BodyParser(&request); err != nil {
 				return fiber.NewError(fiber.StatusBadRequest, fmt.Sprintf("body in query request did not match expected type: %s", err))
 			}
+			fmt.Println(request)
 		} else {
 			request = nil
 		}
@@ -190,9 +191,6 @@ func createQueryHandlerFromRequest[Request any, Response any](requestName string
 		}
 
 		// TODO: Unsure whether to return error nil here or just the response, check in tests
-		return c.JSON(&fiber.Map{
-			"response": resp,
-			"error":    nil,
-		})
+		return c.JSON(resp)
 	}
 }
