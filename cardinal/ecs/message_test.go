@@ -14,7 +14,7 @@ import (
 )
 
 func TestForEachTransaction(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
+	engine := testutils.NewTestWorld(t).Engine()
 	type SomeMsgRequest struct {
 		GenerateError bool
 	}
@@ -23,10 +23,10 @@ func TestForEachTransaction(t *testing.T) {
 	}
 
 	someMsg := ecs.NewMessageType[SomeMsgRequest, SomeMsgResponse]("some_msg")
-	assert.NilError(t, world.RegisterMessages(someMsg))
+	assert.NilError(t, engine.RegisterMessages(someMsg))
 
-	world.RegisterSystem(func(wCtx ecs.WorldContext) error {
-		someMsg.Each(wCtx, func(t ecs.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
+	engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
+		someMsg.Each(eCtx, func(t ecs.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
 			if t.Msg.GenerateError {
 				return result, errors.New("some error")
 			}
@@ -36,21 +36,21 @@ func TestForEachTransaction(t *testing.T) {
 		})
 		return nil
 	})
-	assert.NilError(t, world.LoadGameState())
+	assert.NilError(t, engine.LoadGameState())
 
 	// Add 10 transactions to the tx queue and keep track of the hashes that we just created
 	knownTxHashes := map[message.TxHash]SomeMsgRequest{}
 	for i := 0; i < 10; i++ {
 		req := SomeMsgRequest{GenerateError: i%2 == 0}
-		txHash := someMsg.AddToQueue(world, req, testutil.UniqueSignature(t))
+		txHash := someMsg.AddToQueue(engine, req, testutil.UniqueSignature(t))
 		knownTxHashes[txHash] = req
 	}
 
-	// Perform a world tick
-	assert.NilError(t, world.Tick(context.Background()))
+	// Perform a engine tick
+	assert.NilError(t, engine.Tick(context.Background()))
 
 	// Verify the receipts for the previous tick are what we expect
-	receipts, err := world.GetTransactionReceiptsForTick(world.CurrentTick() - 1)
+	receipts, err := engine.GetTransactionReceiptsForTick(engine.CurrentTick() - 1)
 	assert.NilError(t, err)
 	assert.Equal(t, len(knownTxHashes), len(receipts))
 	for _, receipt := range receipts {

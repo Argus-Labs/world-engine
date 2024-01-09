@@ -1,0 +1,27 @@
+name: Docs
+
+on:
+  pull_request:
+    paths:
+      - docs/**
+  push:
+    branches:
+      - main
+jobs:
+  mintlify-test:
+    name: Mintlify
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./docs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Mintlify CLI
+        run: npm install --global mintlify
+      - name: Mintlify Check Broken Link
+        run: mintlify broken-links
+      - name: Mintlify Check Build
+        run: |
+          timeout --preserve-status --kill-after=10 10s mintlify dev && echo ">> preview build run successfully"

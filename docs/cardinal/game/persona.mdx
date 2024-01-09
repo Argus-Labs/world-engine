@@ -14,7 +14,7 @@ In contrast to the typical Ethereum account/address, Persona has the following s
 
 ## Persona In Systems
 
-Within a System, you can loop over transactions of a particular type (See [Getting Transactions](/Cardinal/API-Reference/Systems#getting-transactions)). These transactions (called [TxData](/Cardinal/API-Reference/Systems#txdata)) contain the following methods:
+Within a System, you can loop over transactions of a particular type. These transactions called **TxData** contain the following methods:
 
 - `Msg` returns the custom message data that you set up when you initially called NewMessageType.
 
@@ -32,9 +32,9 @@ func AttackSystem(world cardinal.WorldContext) {
 	AttackMessage.Each(world, func(attack cardinal.TxData[AttackInput]) (AttackOutput, error) {
 		// Obtain the persona tag used to send the message/transaction
 		personaTag := attack.Tx().PersonaTag
-		
+
 		world.Logger().Debug().Msgf("The persona tag is %q", personaTag)
-		
+
 		return AttackOutput{}, nil
 	})
 }
@@ -42,10 +42,10 @@ func AttackSystem(world cardinal.WorldContext) {
 
 ## Nakama
 
-The easiest way to set up a Persona Tag with your cardinal game it to use the [Cardinal plugin for Nakama](/Nakama/plugin). The `/nakama/claim-persona` RPC endpoint takes a request with a body of:
+The easiest way to set up a Persona Tag with your cardinal game it to use the [Cardinal plugin for Nakama](/client/nakama/overview). The `/nakama/claim-persona` RPC endpoint takes a request with a body of:
 
 ```json
 {"personaTag": "the-persona-tag-you-want-to-claim"}
 ```
 
-and registers that persona with your Cardinal backend. For more details about what Nakama is specifically doing under the hood, see the [Persona Tag](/Nakama/plugin#local-userid-to-personatag) section of the Nakama plugin documentation.
+and registers that persona with your Cardinal backend. For more details about what Nakama is specifically doing under the hood, see the [Creating a Persona Tag](/client/nakama/relay#creating-a-persona) section of the Nakama plugin documentation.

@@ -23,12 +23,9 @@ func handleQueryHealth(
 	worldCtx cardinal.WorldContext,
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
-	q, err := worldCtx.NewSearch(cardinal.Exact(Health{}))
-	if err != nil {
-		return nil, err
-	}
 	resp := &QueryHealthResponse{}
-	err = q.Each(worldCtx, func(id cardinal.EntityID) bool {
+	err := worldCtx.NewSearch(cardinal.Exact(Health{})).Each(worldCtx, func(id cardinal.EntityID) bool {
+		var err error
 		var health *Health
 		health, err = cardinal.GetComponent[Health](worldCtx, id)
 		if err != nil {
@@ -89,20 +86,20 @@ func TestQueryExample(t *testing.T) {
 	}
 
 	// No entities should have health over a million.
-	q, err := world.Instance().GetQueryByName("query_health")
+	q, err := world.Engine().GetQueryByName("query_health")
 	assert.NilError(t, err)
 
-	resp, err := q.HandleQuery(worldCtx.Instance(), QueryHealthRequest{1_000_000})
+	resp, err := q.HandleQuery(worldCtx.Engine(), QueryHealthRequest{1_000_000})
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(resp.(*QueryHealthResponse).IDs))
 
 	// All entities should have health over -100
-	resp, err = q.HandleQuery(worldCtx.Instance(), QueryHealthRequest{-100})
+	resp, err = q.HandleQuery(worldCtx.Engine(), QueryHealthRequest{-100})
 	assert.NilError(t, err)
 	assert.Equal(t, 100, len(resp.(*QueryHealthResponse).IDs))
 
 	// Exactly 10 entities should have health at or above 90
-	resp, err = q.HandleQuery(worldCtx.Instance(), QueryHealthRequest{90})
+	resp, err = q.HandleQuery(worldCtx.Engine(), QueryHealthRequest{90})
 	assert.NilError(t, err)
 	assert.Equal(t, 10, len(resp.(*QueryHealthResponse).IDs))
 }

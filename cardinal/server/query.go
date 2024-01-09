@@ -64,8 +64,8 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 			if err != nil {
 				return nil, eris.Wrap(err, "could not unmarshal data into map")
 			}
-			wCtx := ecs.NewReadOnlyWorldContext(handler.w)
-			rawJSONReply, err := q.HandleQueryRaw(wCtx, rawJSONBody)
+			eCtx := ecs.NewReadOnlyEngineContext(handler.w)
+			rawJSONReply, err := q.HandleQueryRaw(eCtx, rawJSONBody)
 			if err != nil {
 				return nil, err
 			}
@@ -130,10 +130,10 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 
 			result := make([]cql.QueryResponse, 0)
 
-			wCtx := ecs.NewReadOnlyWorldContext(handler.w)
+			eCtx := ecs.NewReadOnlyEngineContext(handler.w)
 			err = ecs.NewSearch(resultFilter).Each(
-				wCtx, func(id entity.ID) bool {
-					components, err := wCtx.StoreReader().GetComponentTypesForEntity(id)
+				eCtx, func(id entity.ID) bool {
+					components, err := eCtx.StoreReader().GetComponentTypesForEntity(id)
 					if err != nil {
 						return false
 					}
@@ -143,7 +143,7 @@ func (handler *Handler) registerQueryHandlerSwagger(api *untyped.API) error {
 					}
 
 					for _, c := range components {
-						data, err := wCtx.StoreReader().GetComponentForEntityInRawJSON(c, id)
+						data, err := eCtx.StoreReader().GetComponentForEntityInRawJSON(c, id)
 						if err != nil {
 							return false
 						}

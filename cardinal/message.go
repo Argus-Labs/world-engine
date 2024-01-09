@@ -47,7 +47,7 @@ func (t *MessageType[Input, Result]) AddToQueue(world *World, data Input, sigs .
 // GetReceipt returns the result (if any) and errors (if any) associated with the given hash. If false is returned,
 // the hash is not recognized, so the returned result and errors will be empty.
 func (t *MessageType[Input, Result]) GetReceipt(wCtx WorldContext, hash TxHash) (Result, []error, bool) {
-	return t.impl.GetReceipt(wCtx.Instance(), hash)
+	return t.impl.GetReceipt(wCtx.Engine(), hash)
 }
 
 func (t *MessageType[Input, Result]) Each(wCtx WorldContext, fn func(TxData[Input]) (Result, error)) {
@@ -55,12 +55,12 @@ func (t *MessageType[Input, Result]) Each(wCtx WorldContext, fn func(TxData[Inpu
 		adaptedTx := TxData[Input]{impl: ecsTxData}
 		return fn(adaptedTx)
 	}
-	t.impl.Each(wCtx.Instance(), adapterFn)
+	t.impl.Each(wCtx.Engine(), adapterFn)
 }
 
 // In returns the TxData in the given transaction queue that match this message's type.
 func (t *MessageType[Input, Result]) In(wCtx WorldContext) []TxData[Input] {
-	ecsTxData := t.impl.In(wCtx.Instance())
+	ecsTxData := t.impl.In(wCtx.Engine())
 	out := make([]TxData[Input], 0, len(ecsTxData))
 	for _, tx := range ecsTxData {
 		out = append(out, TxData[Input]{

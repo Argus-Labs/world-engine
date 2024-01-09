@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/rotisserie/eris"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -16,7 +17,7 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-// The world tick must be updated in the same atomic transaction as all the state changes
+// The engine tick must be updated in the same atomic transaction as all the state changes
 // associated with that tick. This means the manager here must also implement the TickStore interface.
 var _ store.TickStorage = &Manager{}
 
