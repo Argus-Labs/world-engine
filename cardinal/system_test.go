@@ -18,21 +18,15 @@ type Health struct {
 func (Health) Name() string { return "health" }
 
 func HealthSystem(worldCtx cardinal.WorldContext) error {
-	q, err := worldCtx.NewSearch(cardinal.Exact(Health{}))
-	if err != nil {
-		return err
-	}
 	var errs []error
-	errs = append(errs, q.Each(worldCtx, func(id cardinal.EntityID) bool {
+	errs = append(errs, worldCtx.NewSearch(cardinal.Exact(Health{})).Each(worldCtx, func(id cardinal.EntityID) bool {
 		errs = append(errs, cardinal.UpdateComponent[Health](worldCtx, id, func(h *Health) *Health {
 			h.Value++
 			return h
 		}))
 		return true
 	}))
-	if err = errors.Join(errs...); err != nil {
-		return err
-	}
+	err := errors.Join(errs...)
 	return err
 }
 

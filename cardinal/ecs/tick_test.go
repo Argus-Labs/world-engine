@@ -18,7 +18,6 @@ import (
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
@@ -44,10 +43,7 @@ func TestIfPanicMessageLogged(t *testing.T) {
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
-	cardinalLogger := log.Logger{
-		&bufLogger,
-	}
-	w.InjectLogger(&cardinalLogger)
+	w.InjectLogger(&bufLogger)
 	// In this test, our "buggy" system fails once Power reaches 3
 	errorTxt := "BIG ERROR OH NO"
 	w.RegisterSystem(

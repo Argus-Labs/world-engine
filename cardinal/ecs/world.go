@@ -11,9 +11,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -48,9 +49,9 @@ type World struct {
 	redisStorage           *storage.Storage
 	entityStore            store.IManager
 	systems                []System
-	systemLoggers          []*ecslog.Logger
+	systemLoggers          []*zerolog.Logger
 	initSystem             System
-	initSystemLogger       *ecslog.Logger
+	initSystemLogger       *zerolog.Logger
 	systemNames            []string
 	tick                   *atomic.Uint64
 	timestamp              *atomic.Uint64
@@ -75,7 +76,7 @@ type World struct {
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering atomic.Bool
 
-	Logger *ecslog.Logger
+	Logger *zerolog.Logger
 
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
@@ -169,8 +170,8 @@ func (w *World) RegisterSystemWithName(system System, functionName string) {
 	if functionName == "" {
 		functionName = filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
 	}
-	sysLogger := w.Logger.CreateSystemLogger(functionName)
-	w.systemLoggers = append(w.systemLoggers, &sysLogger)
+	sysLogger := ecslog.CreateSystemLogger(w.Logger, functionName)
+	w.systemLoggers = append(w.systemLoggers, sysLogger)
 	w.systemNames = append(w.systemNames, functionName)
 	// appends registeredSystem into the member system list in world.
 	w.systems = append(w.systems, system)
@@ -190,8 +191,8 @@ func (w *World) checkDuplicateSystemName() {
 }
 
 func (w *World) AddInitSystem(system System) {
-	logger := w.Logger.CreateSystemLogger("InitSystem")
-	w.initSystemLogger = &logger
+	logger := ecslog.CreateSystemLogger(w.Logger, "InitSystem")
+	w.initSystemLogger = logger
 	w.initSystem = system
 }
 
@@ -344,9 +345,7 @@ func NewWorld(
 	namespace Namespace,
 	opts ...Option,
 ) (*World, error) {
-	logger := &ecslog.Logger{
-		&log.Logger,
-	}
+	logger := &log.Logger
 	entityStore.InjectLogger(logger)
 	w := &World{
 		redisStorage:      storage,
@@ -374,7 +373,7 @@ func NewWorld(
 	if err != nil {
 		return nil, err
 	}
-	opts = append([]Option{WithEventHub(events.CreateWebSocketEventHub())}, opts...)
+	opts = append([]Option{WithEventHub(events.NewWebSocketEventHub())}, opts...)
 	for _, opt := range opts {
 		opt(w)
 	}
@@ -539,7 +538,7 @@ func (w *World) StartGameLoop(
 	tickDone chan<- uint64,
 ) {
 	w.Logger.Info().Msg("Game loop started")
-	w.Logger.LogWorld(w, zerolog.InfoLevel)
+	ecslog.World(w.Logger, w, zerolog.InfoLevel)
 	//todo: add links to docs related to each warning
 	if !w.isComponentsRegistered {
 		w.Logger.Warn().Msg("No components registered.")
@@ -866,7 +865,7 @@ func (w *World) GetSystemNames() []string {
 	return w.systemNames
 }
 
-func (w *World) InjectLogger(logger *ecslog.Logger) {
+func (w *World) InjectLogger(logger *zerolog.Logger) {
 	w.Logger = logger
 	w.StoreManager().InjectLogger(logger)
 }
@@ -877,4 +876,10 @@ func (w *World) NewSearch(filter Filterable) (*Search, error) {
 		return nil, err
 	}
 	return NewSearch(componentFilter), nil
+}
+
+func (w *World) NewLazySearch(filter Filterable) *LazySearch {
+	return NewLazySearch(func() (*Search, error) {
+		return w.NewSearch(filter)
+	})
 }

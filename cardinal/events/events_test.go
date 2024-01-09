@@ -20,7 +20,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/events"
 )
 
@@ -186,10 +185,7 @@ func TestEventHubLogger(t *testing.T) {
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf ThreadSafeBuffer
 	bufLogger := zerolog.New(&buf)
-	cardinalLogger := ecslog.Logger{
-		&bufLogger,
-	}
-	w := testutils.NewTestWorld(t, cardinal.WithLoggingEventHub(&cardinalLogger)).Instance()
+	w := testutils.NewTestWorld(t, cardinal.WithLoggingEventHub(&bufLogger)).Instance()
 
 	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)

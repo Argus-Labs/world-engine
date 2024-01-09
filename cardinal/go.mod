@@ -15,6 +15,7 @@ replace (
 
 require (
 	github.com/DataDog/datadog-go/v5 v5.4.0
+	github.com/JeremyLoy/config v1.5.0
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/cometbft/cometbft v0.38.0
@@ -37,7 +38,7 @@ require (
 	gopkg.in/DataDog/dd-trace-go.v1 v1.58.0
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/assert v1.0.0-beta
-	pkg.world.dev/world-engine/evm v1.0.0-beta
+	pkg.world.dev/world-engine/evm v1.0.2-beta
 	pkg.world.dev/world-engine/rift v1.0.0-beta
 	pkg.world.dev/world-engine/sign v1.0.0-beta
 )
@@ -67,6 +68,7 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/cespare/xxhash v1.1.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cockroachdb/datadriven v1.0.3-0.20230801171734-e384cf455877 // indirect
 	github.com/cockroachdb/errors v1.11.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/pebble v0.0.0-20231101195458-481da04154d6 // indirect

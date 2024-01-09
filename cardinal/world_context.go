@@ -21,7 +21,7 @@ type WorldContext interface {
 	// if err != nil {
 	// 		return err
 	// }
-	NewSearch(filter Filter) (*Search, error)
+	NewSearch(filter Filter) *Search
 
 	// CurrentTick returns the current game tick of the world.
 	CurrentTick() uint64
@@ -57,12 +57,9 @@ func (wCtx *worldContext) Logger() *zerolog.Logger {
 	return wCtx.instance.Logger()
 }
 
-func (wCtx *worldContext) NewSearch(filter Filter) (*Search, error) {
-	ecsSearch, err := wCtx.instance.NewSearch(filter.convertToFilterable())
-	if err != nil {
-		return nil, err
-	}
-	return &Search{impl: ecsSearch}, nil
+func (wCtx *worldContext) NewSearch(filter Filter) *Search {
+	ecsLazySearch := wCtx.instance.NewLazySearch(filter.convertToFilterable())
+	return &Search{impl: ecsLazySearch}
 }
 
 func (wCtx *worldContext) Instance() ecs.WorldContext {
