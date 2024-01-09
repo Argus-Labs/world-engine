@@ -104,6 +104,6 @@ func (e *engineContext) NewSearch(filter Filterable) (*Search, error) {
 	return e.engine.NewSearch(filter)
 }
 
-func (w *engineContext) NewLazySearch(filter Filterable) *LazySearch {
-	return w.engine.NewLazySearch(filter)
+func (e *engineContext) NewLazySearch(filter Filterable) *LazySearch {
+	return e.engine.NewLazySearch(filter)
 }
