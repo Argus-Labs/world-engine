@@ -15,23 +15,23 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	storage2 "pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/statsd"
-	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/cardinal/types/message"
-	"google.golang.org/protobuf/proto"
-	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"google.golang.org/protobuf/proto"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
+	ecsstorage "pkg.world.dev/world-engine/cardinal/ecs/storage"
 	storage "pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/cardinal/statsd"
+	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
+	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -250,7 +250,7 @@ func MustRegisterComponent[T component.Component](engine *Engine) {
 func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, error) {
 	componentType, exists := e.nameToComponent[name]
 	if !exists {
-		return nil, eris.Wrapf(storage2.ErrMustRegisterComponent, "component %q must be registered before being used", name)
+		return nil, eris.Wrapf(ecsstorage.ErrMustRegisterComponent, "component %q must be registered before being used", name)
 	}
 	return componentType, nil
 }
