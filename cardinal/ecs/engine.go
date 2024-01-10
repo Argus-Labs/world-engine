@@ -250,7 +250,9 @@ func MustRegisterComponent[T component.Component](engine *Engine) {
 func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, error) {
 	componentType, exists := e.nameToComponent[name]
 	if !exists {
-		return nil, eris.Wrapf(ecsstorage.ErrMustRegisterComponent, "component %q must be registered before being used", name)
+		return nil, eris.Wrapf(
+			ecsstorage.ErrMustRegisterComponent,
+			"component %q must be registered before being used", name)
 	}
 	return componentType, nil
 }
