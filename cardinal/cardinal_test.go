@@ -25,6 +25,14 @@ type Foo struct{}
 
 func (Foo) Name() string { return "foo" }
 
+type Bar struct{}
+
+func (Bar) Name() string { return "bar" }
+
+type Qux struct{}
+
+func (Qux) Name() string { return "qux" }
+
 type Rawbodytx struct {
 	PersonaTag    string `json:"personaTag"`
 	SignerAddress string `json:"signerAddress"`
