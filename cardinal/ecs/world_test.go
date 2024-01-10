@@ -2,7 +2,14 @@ package ecs_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"testing"
 	"time"
 
@@ -255,5 +262,46 @@ func TestWithoutRegistration(t *testing.T) {
 			Cap: 0,
 		},
 	)
+	assert.NilError(t, err)
+}
+
+type dummyAdapter struct {
+}
+
+func (d dummyAdapter) Submit(ctx context.Context, txs txpool.TxMap, namespace string, epoch, unixTimestamp uint64) error {
+	fmt.Println("hi")
+	return nil
+}
+
+func (d dummyAdapter) QueryTransactions(ctx context.Context, request *types.QueryTransactionsRequest) (*types.QueryTransactionsResponse, error) {
+	return nil, nil
+}
+
+var _ shard.Adapter = dummyAdapter{}
+
+func TestTxsSubmittedToBaseShard(t *testing.T) {
+	world := testutils.NewTestWorld(t, cardinal.WithAdapter(&dummyAdapter{})).Instance()
+
+	world.RegisterSystem(func(worldContext ecs.WorldContext) error {
+		return nil
+	})
+	type FooMsg struct{}
+	type FooRes struct{}
+	FooMessage := ecs.NewMessageType[FooMsg, FooRes]("foo")
+	err := world.RegisterMessages(FooMessage)
+	assert.NilError(t, err)
+	err = world.LoadGameState()
+	assert.NilError(t, err)
+
+	FooMessage.AddToQueue(world, FooMsg{}, &sign.Transaction{
+		PersonaTag: "meow",
+		Namespace:  "foo",
+		Nonce:      22,
+		Signature:  "meow",
+		Hash:       common.Hash{},
+		Body:       json.RawMessage(`{}`),
+	})
+
+	err = world.Tick(context.Background())
 	assert.NilError(t, err)
 }
