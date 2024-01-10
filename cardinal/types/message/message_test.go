@@ -3,6 +3,7 @@ package message_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 	"time"
 
@@ -124,8 +125,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 
 	engine.RegisterSystem(
 		func(eCtx ecs.EngineContext) error {
-			search, err := eCtx.NewSearch(ecs.Exact(CounterComponent{}))
-			assert.NilError(t, err)
+			search := eCtx.NewSearch(filter.Exact(CounterComponent{}))
 			id := search.MustFirst(eCtx)
 			return ecs.UpdateComponent[CounterComponent](
 				eCtx, id, func(c *CounterComponent) *CounterComponent {

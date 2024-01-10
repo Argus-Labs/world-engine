@@ -5,6 +5,7 @@ package benchmark_test
 import (
 	"context"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -53,9 +54,8 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.E
 	if enableHealthSystem {
 		world.RegisterSystem(
 			func(eCtx ecs.EngineContext) error {
-				q, err := world.NewSearch(ecs.Contains(Health{}))
-				assert.NilError(t, err)
-				err = q.Each(
+				q := world.NewSearch(filter.Contains(Health{}))
+				err := q.Each(
 					eCtx, func(id entity.ID) bool {
 						health, err := ecs.GetComponent[Health](eCtx, id)
 						assert.NilError(t, err)
