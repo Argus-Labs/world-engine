@@ -177,7 +177,7 @@ func (m *Manager) SetComponentForEntity(cType component.ComponentMetadata, id en
 	if err != nil {
 		return err
 	}
-	if !filter.MatchComponentMetaData(comps, cType) {
+	if !filter.MatchComponentMetadata(comps, cType) {
 		return eris.Wrap(storage.ErrComponentNotOnEntity, "")
 	}
 
@@ -198,7 +198,7 @@ func (m *Manager) GetComponentForEntity(cType component.ComponentMetadata, id en
 	if err != nil {
 		return nil, err
 	}
-	if !filter.MatchComponentMetaData(comps, cType) {
+	if !filter.MatchComponentMetadata(comps, cType) {
 		return nil, eris.Wrap(storage.ErrComponentNotOnEntity, "")
 	}
 
@@ -243,7 +243,7 @@ func (m *Manager) AddComponentToEntity(cType component.ComponentMetadata, id ent
 	if err != nil {
 		return err
 	}
-	if filter.MatchComponentMetaData(fromComps, cType) {
+	if filter.MatchComponentMetadata(fromComps, cType) {
 		return eris.Wrap(storage.ErrComponentAlreadyOnEntity, "")
 	}
 	toComps := append(fromComps, cType) //nolint:gocritic // easier this way.
@@ -346,7 +346,7 @@ func (m *Manager) SearchFrom(filter filter.ComponentFilter, start int) *storage.
 	itr := &storage.ArchetypeIterator{}
 	for i := start; i < len(m.archIDToComps); i++ {
 		archID := archetype.ID(i)
-		if !filter.MatchesComponents(m.archIDToComps[archID]) {
+		if !filter.MatchesComponents(component.ConvertComponentMetadatasToComponents(m.archIDToComps[archID])) {
 			continue
 		}
 		itr.Values = append(itr.Values, archID)

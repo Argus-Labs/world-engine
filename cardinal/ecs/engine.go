@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"reflect"
 	"runtime"
 	"sync"
@@ -867,16 +868,6 @@ func (e *Engine) InjectLogger(logger *zerolog.Logger) {
 	e.StoreManager().InjectLogger(logger)
 }
 
-func (e *Engine) NewSearch(filter Filterable) (*Search, error) {
-	componentFilter, err := filter.ConvertToComponentFilter(e)
-	if err != nil {
-		return nil, err
-	}
-	return NewSearch(componentFilter), nil
-}
-
-func (e *Engine) NewLazySearch(filter Filterable) *LazySearch {
-	return NewLazySearch(func() (*Search, error) {
-		return e.NewSearch(filter)
-	})
+func (e *Engine) NewSearch(filter filter.ComponentFilter) *Search {
+	return NewSearch(filter)
 }

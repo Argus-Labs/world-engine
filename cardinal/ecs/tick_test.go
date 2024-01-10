@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 
 	"github.com/rotisserie/eris"
@@ -119,8 +120,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	// In this test, our "buggy" system fails once Power reaches 3
 	oneEngine.RegisterSystem(
 		func(eCtx ecs.EngineContext) error {
-			search, err := eCtx.NewSearch(ecs.Exact(onePowerComponent{}))
-			assert.NilError(t, err)
+			search := eCtx.NewSearch(filter.Exact(onePowerComponent{}))
 			id := search.MustFirst(eCtx)
 			p, err := ecs.GetComponent[onePowerComponent](eCtx, id)
 			if err != nil {
@@ -207,8 +207,7 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
-		q, err := engine.NewSearch(ecs.Contains(ScalarComponentAlpha{}))
-		assert.NilError(t, err)
+		q := engine.NewSearch(filter.Contains(ScalarComponentAlpha{}))
 		gotID, err := q.First(eCtx)
 		assert.NilError(t, err)
 		assert.Equal(t, wantID, gotID)
@@ -260,8 +259,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		engine.RegisterSystem(
 			func(eCtx ecs.EngineContext) error {
 				// Get the one and only entity ID
-				q, err := eCtx.NewSearch(ecs.Contains(ScalarComponentStatic{}))
-				assert.NilError(t, err)
+				q := eCtx.NewSearch(filter.Contains(ScalarComponentStatic{}))
 				id, err := q.First(eCtx)
 				assert.NilError(t, err)
 
@@ -287,8 +285,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			_, err := ecs.Create(eCtx, ScalarComponentStatic{})
 			assert.NilError(t, err)
 		}
-		q, err := engine.NewSearch(ecs.Contains(ScalarComponentStatic{}))
-		assert.NilError(t, err)
+		q := engine.NewSearch(filter.Contains(ScalarComponentStatic{}))
 		id, err := q.First(eCtx)
 		assert.NilError(t, err)
 
@@ -337,8 +334,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		engine.RegisterSystem(
 			func(eCtx ecs.EngineContext) error {
-				q, err := eCtx.NewSearch(ecs.Contains(PowerComp{}))
-				assert.NilError(t, err)
+				q := eCtx.NewSearch(filter.Contains(PowerComp{}))
 				id := q.MustFirst(eCtx)
 				entityPower, err := ecs.GetComponent[PowerComp](eCtx, id)
 				assert.NilError(t, err)
@@ -365,8 +361,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		// fetchPower is a small helper to get the power of the only entity in the engine
 		fetchPower := func() float64 {
-			q, err := engine.NewSearch(ecs.Contains(PowerComp{}))
-			assert.NilError(t, err)
+			q := engine.NewSearch(filter.Contains(PowerComp{}))
 			id, err := q.First(eCtx)
 			assert.NilError(t, err)
 			power, err := ecs.GetComponent[PowerComp](eCtx, id)

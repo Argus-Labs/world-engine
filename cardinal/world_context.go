@@ -3,6 +3,7 @@ package cardinal
 import (
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/events"
 )
 
@@ -21,7 +22,7 @@ type WorldContext interface {
 	// if err != nil {
 	// 		return err
 	// }
-	NewSearch(filter Filter) *Search
+	NewSearch(filter filter.ComponentFilter) *Search
 
 	// CurrentTick returns the current game tick of the world.
 	CurrentTick() uint64
@@ -57,9 +58,8 @@ func (wCtx *worldContext) Logger() *zerolog.Logger {
 	return wCtx.engine.Logger()
 }
 
-func (wCtx *worldContext) NewSearch(filter Filter) *Search {
-	ecsLazySearch := wCtx.Engine().NewLazySearch(filter.convertToFilterable())
-	return &Search{impl: ecsLazySearch}
+func (wCtx *worldContext) NewSearch(filter filter.ComponentFilter) *Search {
+	return &Search{impl: wCtx.Engine().NewSearch(filter)}
 }
 
 func (wCtx *worldContext) Engine() ecs.EngineContext {

@@ -10,29 +10,29 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 )
 
-type (
-	TypeID int
+type TypeID int
 
-	// ComponentMetadata is a high level representation of a user defined component struct.
-	ComponentMetadata interface { //revive:disable-line:exported
-		// SetID sets the ID of this component. It must only be set once
-		SetID(TypeID) error
-		// ID returns the ID of the component.
-		ID() TypeID
-		// New returns the marshaled bytes of the default value for the component struct.
-		New() ([]byte, error)
+// Component is the interface that the user needs to implement to create a new component type.
+type Component interface {
+	// Name returns the name of the component.
+	Name() string
+}
 
-		Encode(any) ([]byte, error)
-		Decode([]byte) (any, error)
-		Name() string
-		GetSchema() []byte
-	}
+// ComponentMetadata wraps the user-defined Component struct and provides functionalities that is used internally
+// in the engine.
+type ComponentMetadata interface { //revive:disable-line:exported
+	// SetID sets the ID of this component. It must only be set once
+	SetID(TypeID) error
+	// ID returns the ID of the component.
+	ID() TypeID
+	// New returns the marshaled bytes of the default value for the component struct.
+	New() ([]byte, error)
+	Encode(any) ([]byte, error)
+	Decode([]byte) (any, error)
+	GetSchema() []byte
 
-	Component interface {
-		// Name returns the name of the component.
-		Name() string
-	}
-)
+	Component
+}
 
 // NewComponentMetadata creates a new component type.
 // The function is used to create a new component of the type.
