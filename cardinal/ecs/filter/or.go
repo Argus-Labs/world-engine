@@ -10,7 +10,7 @@ func Or(filters ...ComponentFilter) ComponentFilter {
 	return &or{filters: filters}
 }
 
-func (f *or) MatchesComponents(components []component.ComponentMetadata) bool {
+func (f *or) MatchesComponents(components []component.Component) bool {
 	for _, filter := range f.filters {
 		if filter.MatchesComponents(components) {
 			return true

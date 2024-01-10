@@ -2,6 +2,7 @@ package filter_test
 
 import (
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/types/component"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -256,7 +257,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	assert.NilError(t, err)
 
 	count := 0
-	err = ecs.NewSearch(filter.Exact(comps...)).Each(
+	err = ecs.NewSearch(filter.Exact(component.ConvertComponentMetadatasToComponents(comps)...)).Each(
 		eCtx, func(id entity.ID) bool {
 			count++
 			return true
