@@ -36,7 +36,6 @@ var (
 	ErrEntitiesCreatedBeforeStartGame = errors.New("entities should not be created before start game")
 
 	ErrEntityDoesNotExist                = storage.ErrEntityDoesNotExist
-	ErrEntityHasNoComponents             = storage.ErrEntityMustHaveAtLeastOneComponent
 	ErrEntityMustHaveAtLeastOneComponent = storage.ErrEntityMustHaveAtLeastOneComponent
 	ErrComponentNotOnEntity              = storage.ErrComponentNotOnEntity
 	ErrComponentAlreadyOnEntity          = storage.ErrComponentAlreadyOnEntity
@@ -505,7 +504,7 @@ func (w *World) Init(system System) {
 	)
 }
 
-// logAndPanic logs the given error and panics. An error is returned to the syntax:
+// logAndPanic logs the given error and panics. An error is returned so the syntax:
 // return logAndPanic(wCtx, err)
 // can be used at the end of state-mutating methods. This method will never actually return.
 func logAndPanic(wCtx WorldContext, err error) error {

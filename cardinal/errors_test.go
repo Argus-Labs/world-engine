@@ -61,7 +61,7 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 				assert.Check(t, err == nil)
 				return cardinal.RemoveComponentFrom[Foo](worldCtx, id)
 			},
-			wantErr: cardinal.ErrEntityHasNoComponents,
+			wantErr: cardinal.ErrEntityMustHaveAtLeastOneComponent,
 		},
 		{
 			name: "GetComponent_BadEntity",
