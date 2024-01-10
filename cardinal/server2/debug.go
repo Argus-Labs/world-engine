@@ -20,7 +20,7 @@ type DebugStateResponse = []*DebugStateElement
 func (handler *Handler) registerDebugHandler() {
 	// request name not required. This handler doesn't use anything in the request.
 	debugStateHandler := createQueryHandlerFromRequest[interface{}, DebugStateResponse](
-		"", func(i *interface{}) (*DebugStateResponse, error) {
+		func(i *interface{}) (*DebugStateResponse, error) {
 			result := make(DebugStateResponse, 0)
 			search := ecs.NewSearch(filter.All())
 			wCtx := ecs.NewReadOnlyEngineContext(handler.w)

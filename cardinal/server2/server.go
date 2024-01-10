@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"time"
 )
 
 var (
@@ -29,8 +28,6 @@ var (
 const (
 	gameQueryPrefix = "/query/game/"
 	gameTxPrefix    = "/tx/game/"
-
-	readHeaderTimeout = 5 * time.Second
 )
 
 func init() {
@@ -188,8 +185,7 @@ func (handler *Handler) Shutdown() error {
 	return nil
 }
 
-func createQueryHandlerFromRequest[Request any, Response any](requestName string,
-	requestHandler func(*Request) (*Response, error)) fiber.Handler {
+func createQueryHandlerFromRequest[Request any, Response any](requestHandler func(*Request) (*Response, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		requestBody := c.Body()
 

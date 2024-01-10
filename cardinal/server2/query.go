@@ -43,12 +43,10 @@ func (handler *Handler) registerQueryHandlers() error {
 	}
 
 	getPersonaSignerHandler := createQueryHandlerFromRequest[QueryPersonaSignerRequest, QueryPersonaSignerResponse](
-		"QueryPersonaSignerRequest",
 		handler.getPersonaSignerResponse,
 	)
 
 	getReceiptsListHandler := createQueryHandlerFromRequest[ListTxReceiptsRequest, ListTxReceiptsReply](
-		"ListTxReceiptsRequest",
 		getListTxReceiptsReplyFromRequest(handler.w),
 	)
 
