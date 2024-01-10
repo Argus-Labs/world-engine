@@ -206,7 +206,6 @@ func makeWorldAndTicker(
 	miniRedis *miniredis.Miniredis,
 	opts ...cardinal.WorldOption,
 ) (world *cardinal.World, doTick func()) {
-
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
 	eventHub := events.NewWebSocketEventHub()
 	opts = append(

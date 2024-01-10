@@ -14,7 +14,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
-func TestWriteContextsReturnNonFatalErrors(t *testing.T) {
+// TestSystemsReturnNonFatalErrors ensures System will surface non-fatal read and write errors to the user.
+func TestSystemsReturnNonFatalErrors(t *testing.T) {
 	const nonExistentEntityID = 999
 	testCases := []struct {
 		name    string
@@ -133,10 +134,10 @@ func TestWriteContextsReturnNonFatalErrors(t *testing.T) {
 			world.Init(func(worldCtx cardinal.WorldContext) error {
 				defer func() {
 					// In Systems, Cardinal is designed to panic when a fatal error is encountered.
-					// This test is not supposed to panic, but if it does it happens in a non-main thread which
+					// This test is not supposed to panic, but if it does panic it happens in a non-main thread which
 					// makes it hard to track down where the panic actually came from.
 					// Recover here and complain about any non-nil panics to allow the remaining tests in this
-					// function to be executed.
+					// function to be executed and so the maintainer will know exactly which test failed.
 					err := recover()
 					assert.Check(t, err == nil, "got fatal error \"%v\"", err)
 				}()
@@ -155,17 +156,17 @@ type UnregisteredComp struct{}
 
 func (UnregisteredComp) Name() string { return "unregistered_comp" }
 
-// TestWriteContextsFailWhenComponentHasNotBeenRegistered ensures that state mutating method that encounter a component
-// that has not been registered will panic.
-func TestWriteContextsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
+// TestSystemPanicOnComponentHasNotBeenRegistered ensures Systems that encounter a component that has not been
+// registered will panic.
+func TestSystemsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 	testCases := []struct {
 		name string
 		// Every test is expected to panic, so no return error is needed
-		testFn func(cardinal.WorldContext)
+		panicFn func(cardinal.WorldContext)
 	}{
 		{
 			name: "AddComponentTo",
-			testFn: func(worldCtx cardinal.WorldContext) {
+			panicFn: func(worldCtx cardinal.WorldContext) {
 				id, err := cardinal.Create(worldCtx, Foo{})
 				assert.Check(t, err == nil)
 				_ = cardinal.AddComponentTo[UnregisteredComp](worldCtx, id)
@@ -173,7 +174,7 @@ func TestWriteContextsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 		},
 		{
 			name: "RemoveComponentFrom",
-			testFn: func(worldCtx cardinal.WorldContext) {
+			panicFn: func(worldCtx cardinal.WorldContext) {
 				id, err := cardinal.Create(worldCtx, Foo{}, Bar{})
 				assert.Check(t, err == nil)
 				_ = cardinal.RemoveComponentFrom[UnregisteredComp](worldCtx, id)
@@ -181,7 +182,7 @@ func TestWriteContextsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 		},
 		{
 			name: "GetComponent",
-			testFn: func(worldCtx cardinal.WorldContext) {
+			panicFn: func(worldCtx cardinal.WorldContext) {
 				id, err := cardinal.Create(worldCtx, Foo{})
 				assert.Check(t, err == nil)
 				_, _ = cardinal.GetComponent[UnregisteredComp](worldCtx, id)
@@ -189,7 +190,7 @@ func TestWriteContextsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 		},
 		{
 			name: "SetComponent",
-			testFn: func(worldCtx cardinal.WorldContext) {
+			panicFn: func(worldCtx cardinal.WorldContext) {
 				id, err := cardinal.Create(worldCtx, Foo{})
 				assert.Check(t, err == nil)
 				_ = cardinal.SetComponent[UnregisteredComp](worldCtx, id, &UnregisteredComp{})
@@ -197,7 +198,7 @@ func TestWriteContextsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 		},
 		{
 			name: "UpdateComponent",
-			testFn: func(worldCtx cardinal.WorldContext) {
+			panicFn: func(worldCtx cardinal.WorldContext) {
 				id, err := cardinal.Create(worldCtx, Foo{})
 				assert.Check(t, err == nil)
 				_ = cardinal.UpdateComponent[UnregisteredComp](worldCtx, id, func(u *UnregisteredComp) *UnregisteredComp {
@@ -207,14 +208,37 @@ func TestWriteContextsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 		},
 		{
 			name: "Create",
-			testFn: func(worldCtx cardinal.WorldContext) {
+			panicFn: func(worldCtx cardinal.WorldContext) {
 				_, _ = cardinal.Create(worldCtx, Foo{}, UnregisteredComp{})
 			},
 		},
 		{
 			name: "CreateMany",
-			testFn: func(worldCtx cardinal.WorldContext) {
+			panicFn: func(worldCtx cardinal.WorldContext) {
 				_, _ = cardinal.CreateMany(worldCtx, 10, Foo{}, UnregisteredComp{})
+			},
+		},
+		{
+			name: "SearchFirst",
+			panicFn: func(worldCtx cardinal.WorldContext) {
+				_, _ = worldCtx.NewSearch(cardinal.Exact(UnregisteredComp{})).
+					First(worldCtx)
+			},
+		},
+		{
+			name: "SearchCount",
+			panicFn: func(worldCtx cardinal.WorldContext) {
+				_, _ = worldCtx.NewSearch(cardinal.Exact(UnregisteredComp{})).
+					Count(worldCtx)
+			},
+		},
+		{
+			name: "SearchEach",
+			panicFn: func(worldCtx cardinal.WorldContext) {
+				_ = worldCtx.NewSearch(cardinal.Exact(UnregisteredComp{})).
+					Each(worldCtx, func(id cardinal.EntityID) bool {
+						return true
+					})
 			},
 		},
 	}
@@ -226,18 +250,19 @@ func TestWriteContextsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			world.Init(func(worldCtx cardinal.WorldContext) error {
 				defer func() {
 					err := recover()
+					// assert.Check is required here because this is happening in a non-main thread.
 					assert.Check(t, err != nil, "expected the state mutation to panic")
 					errStr, ok := err.(string)
 					assert.Check(t, ok, "expected the panic to be of type string")
-					isComponentNotRegistered := strings.Contains(errStr, cardinal.ErrComponentNotRegistered.Error())
-					assert.Check(t, isComponentNotRegistered,
+					isErrComponentNotRegistered := strings.Contains(errStr, cardinal.ErrComponentNotRegistered.Error())
+					assert.Check(t, isErrComponentNotRegistered,
 						fmt.Sprintf("expected error %q to contain %q",
 							errStr,
 							cardinal.ErrComponentNotRegistered.Error()))
 				}()
-				// This is expected to panic every time.
-				tc.testFn(worldCtx)
-				assert.Check(t, false, "should not reach this line; testFn should always panic")
+				// This should panic every time
+				tc.panicFn(worldCtx)
+				assert.Check(t, false, "should not reach this line")
 				return nil
 			})
 			tick()
@@ -248,24 +273,27 @@ func TestWriteContextsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 type QueryRequest struct{}
 type QueryResponse struct{}
 
-// TestReadContextsDoNotPanicOnComponentHasNotBeenRegistered ensures
-func TestReadContextsDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
-	// Read-only contexts should return "fatal" errors to the caller (i.e. it should not panic).
+// TestQueriesDoNotPanicOnComponentHasNotBeenRegistered ensures queries do not panic when a non-registered component
+// is encountered. Instead, the error should be returned to the user.
+func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 	testCases := []struct {
-		name string
-		// Every test is expected to panic, so no return error is needed
-		testFn func(cardinal.WorldContext, cardinal.EntityID) error
+		name   string
+		testFn func(cardinal.WorldContext) error
 	}{
 		{
 			name: "GetComponent",
-			testFn: func(worldCtx cardinal.WorldContext, id cardinal.EntityID) error {
-				_, err := cardinal.GetComponent[UnregisteredComp](worldCtx, id)
+			testFn: func(worldCtx cardinal.WorldContext) error {
+				// Get a valid entity to ensure the error we find is related to the component and NOT
+				// due to an invalid entity.
+				id, err := worldCtx.NewSearch(cardinal.Exact(Foo{})).First(worldCtx)
+				assert.Check(t, err == nil)
+				_, err = cardinal.GetComponent[UnregisteredComp](worldCtx, id)
 				return err
 			},
 		},
 		{
 			name: "SearchEach",
-			testFn: func(worldCtx cardinal.WorldContext, id cardinal.EntityID) error {
+			testFn: func(worldCtx cardinal.WorldContext) error {
 				return worldCtx.NewSearch(cardinal.Exact(UnregisteredComp{})).
 					Each(worldCtx, func(id cardinal.EntityID) bool {
 						return true
@@ -274,14 +302,14 @@ func TestReadContextsDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 		},
 		{
 			name: "SearchCount",
-			testFn: func(worldCtx cardinal.WorldContext, id cardinal.EntityID) error {
+			testFn: func(worldCtx cardinal.WorldContext) error {
 				_, err := worldCtx.NewSearch(cardinal.Exact(UnregisteredComp{})).Count(worldCtx)
 				return err
 			},
 		},
 		{
 			name: "SearchFirst",
-			testFn: func(worldCtx cardinal.WorldContext, id cardinal.EntityID) error {
+			testFn: func(worldCtx cardinal.WorldContext) error {
 				_, err := worldCtx.NewSearch(cardinal.Exact(UnregisteredComp{})).First(worldCtx)
 				return err
 			},
@@ -291,9 +319,8 @@ func TestReadContextsDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 	const queryName = "some_query"
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// In the happy path, this recover action isn't strictly necessary. These read-only contexts
-			// shouldn't ever panic. This recover is included here so that if we DO panic, only the failing test
-			// will be displayed in the failure logs.
+			// These queries shouldn't ever panic, but this recover is included here so that if we DO panic, only the
+			// failing test will be displayed in the failure logs.
 			defer func() {
 				err := recover()
 				assert.Check(t, err == nil, "expected no panic but got %q", err)
@@ -302,6 +329,7 @@ func TestReadContextsDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			world, tick := testutils.MakeWorldAndTicker(t)
 			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 			world.Init(func(worldCtx cardinal.WorldContext) error {
+				// Make an entity so the test functions are operating on a valid entity.
 				_, err := cardinal.Create(worldCtx, Foo{})
 				assert.Check(t, err == nil)
 				return nil
@@ -310,9 +338,7 @@ func TestReadContextsDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 				world,
 				queryName,
 				func(worldCtx cardinal.WorldContext, req *QueryRequest) (*QueryResponse, error) {
-					id, err := worldCtx.NewSearch(cardinal.Exact(Foo{})).First(worldCtx)
-					assert.Check(t, err == nil)
-					return nil, tc.testFn(worldCtx, id)
+					return nil, tc.testFn(worldCtx)
 				})
 			assert.Check(t, err == nil)
 
@@ -322,19 +348,21 @@ func TestReadContextsDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			query, err := world.Engine().GetQueryByName(queryName)
 			assert.Check(t, err == nil)
 
-			readOnlyWorldCtx := ecs.NewReadOnlyEngineContext(world.Engine())
-			_, err = query.HandleQuery(readOnlyWorldCtx, QueryRequest{})
+			readOnlyEngineCtx := ecs.NewReadOnlyEngineContext(world.Engine())
+			_, err = query.HandleQuery(readOnlyEngineCtx, QueryRequest{})
 			// Each test case is meant to generate a "ErrComponentNotRegistered" error
 			assert.Check(t, errors.Is(err, cardinal.ErrComponentNotRegistered),
 				"expected a component not registered error, got %v", err)
-
 		})
 	}
 }
 
-func TestWriteContextsPanicOnRedisError(t *testing.T) {
+// TestSystemsPanicOnRedisError ensures systems panic when there is a problem connecting to redis. In general, Systems
+// should panic on ANY fatal error, but this connection problem is how we'll simulate a non ecs state related error.
+func TestSystemsPanicOnRedisError(t *testing.T) {
 	testCases := []struct {
-		name   string
+		name string
+		// the failFn will be called at a time when the ECB is empty of cached data and redis is down.
 		failFn func(worldCtx cardinal.WorldContext, goodID cardinal.EntityID)
 	}{
 		{
@@ -382,7 +410,7 @@ func TestWriteContextsPanicOnRedisError(t *testing.T) {
 			// This system will be called 2 times. The first time, a single entity is created. The second time,
 			// the previously created entity is fetched, and then miniRedis is closed. Subsequent attempts to access
 			// data should panic.
-			cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
+			assert.NilError(t, cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
 				// Set up the entity in the first tick
 				if worldCtx.CurrentTick() == 0 {
 					_, err := cardinal.Create(worldCtx, Foo{}, Bar{})
@@ -406,7 +434,7 @@ func TestWriteContextsPanicOnRedisError(t *testing.T) {
 				tc.failFn(worldCtx, id)
 				assert.Check(t, false, "should never reach here")
 				return nil
-			})
+			}))
 			// The first tick sets up the entity
 			tick()
 			// The second tick calls the test case's failure function.
@@ -414,7 +442,7 @@ func TestWriteContextsPanicOnRedisError(t *testing.T) {
 		})
 	}
 }
-func TestGetComponentInReadContextDoesNotPanicOnRedisError(t *testing.T) {
+func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	miniRedis := miniredis.RunT(t)
 	world, tick := testutils.MakeWorldAndTickerWithRedis(t, miniRedis)
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
@@ -432,8 +460,6 @@ func TestGetComponentInReadContextDoesNotPanicOnRedisError(t *testing.T) {
 		func(worldCtx cardinal.WorldContext, req *QueryRequest) (*QueryResponse, error) {
 			id, err := worldCtx.NewSearch(cardinal.Exact(Foo{})).First(worldCtx)
 			assert.Check(t, err == nil)
-			miniRedis.Close()
-
 			_, err = cardinal.GetComponent[Foo](worldCtx, id)
 			return nil, err
 		}))
@@ -447,12 +473,12 @@ func TestGetComponentInReadContextDoesNotPanicOnRedisError(t *testing.T) {
 	// Uhoh, redis is now broken.
 	miniRedis.Close()
 
-	readOnlyWorldCtx := ecs.NewReadOnlyEngineContext(world.Engine())
-	// This will fail with a redis connection error, and since we're in a read-only context, we should NOT panic
+	readOnlyEngineCtx := ecs.NewReadOnlyEngineContext(world.Engine())
+	// This will fail with a redis connection error, and since we're in a Query, we should NOT panic
 	defer func() {
-		assert.Check(t, recover() == nil, "expected no panic in a read-only context")
+		assert.Check(t, recover() == nil, "expected no panic in a query")
 	}()
 
-	_, err = query.HandleQuery(readOnlyWorldCtx, QueryRequest{})
+	_, err = query.HandleQuery(readOnlyEngineCtx, QueryRequest{})
 	assert.ErrorContains(t, err, "connection refused", "expected a connection error")
 }
