@@ -2,6 +2,7 @@ package ecb_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"runtime"
 	"testing"
 	"time"
@@ -318,36 +319,34 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 	assert.NilError(t, err)
 
 	testCases := []struct {
-		filter  ecs.Filterable
+		filter  filter.ComponentFilter
 		wantIDs []entity.ID
 	}{
 		{
-			filter:  ecs.Contains(Health{}),
+			filter:  filter.Contains(Health{}),
 			wantIDs: append(justHealthIDs, healthAndPowerIDs...),
 		},
 		{
-			filter:  ecs.Contains(Power{}),
+			filter:  filter.Contains(Power{}),
 			wantIDs: append(justPowerIDs, healthAndPowerIDs...),
 		},
 		{
-			filter:  ecs.Exact(Health{}, Power{}),
+			filter:  filter.Exact(Health{}, Power{}),
 			wantIDs: healthAndPowerIDs,
 		},
 		{
-			filter:  ecs.Exact(Health{}),
+			filter:  filter.Exact(Health{}),
 			wantIDs: justHealthIDs,
 		},
 		{
-			filter:  ecs.Exact(Power{}),
+			filter:  filter.Exact(Power{}),
 			wantIDs: justPowerIDs,
 		},
 	}
 
 	for _, tc := range testCases {
 		found := map[entity.ID]bool{}
-		var q *ecs.Search
-		q, err = engine.NewSearch(tc.filter)
-		assert.NilError(t, err)
+		q := engine.NewSearch(tc.filter)
 		err = q.Each(
 			eCtx, func(id entity.ID) bool {
 				found[id] = true

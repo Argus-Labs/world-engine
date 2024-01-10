@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -46,9 +47,8 @@ func (OwnableComponent) Name() string {
 
 func UpdateEnergySystem(eCtx ecs.EngineContext) error {
 	var errs []error
-	q, err := eCtx.NewSearch(ecs.Contains(EnergyComponent{}))
-	errs = append(errs, err)
-	err = q.Each(
+	q := eCtx.NewSearch(filter.Contains(EnergyComponent{}))
+	err := q.Each(
 		eCtx, func(ent entity.ID) bool {
 			energyPlanet, err := ecs.GetComponent[EnergyComponent](eCtx, ent)
 			if err != nil {
@@ -122,8 +122,7 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.NilError(t, engine.Tick(context.Background()))
-	query, err := engine.NewSearch(ecs.Contains(EnergyComponent{}))
-	assert.NilError(t, err)
+	query := engine.NewSearch(filter.Contains(EnergyComponent{}))
 	err = query.Each(
 		eCtx, func(id entity.ID) bool {
 			energyPlanet, err := ecs.GetComponent[EnergyComponent](eCtx, id)
@@ -134,8 +133,7 @@ func TestECS(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	q, err := engine.NewSearch(ecs.Or(ecs.Contains(EnergyComponent{}), ecs.Contains(OwnableComponent{})))
-	assert.NilError(t, err)
+	q := engine.NewSearch(filter.Or(filter.Contains(EnergyComponent{}), filter.Contains(OwnableComponent{})))
 	amt, err := q.Count(eCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
@@ -174,8 +172,7 @@ func TestVelocitySimulation(t *testing.T) {
 	assert.NilError(t, ecs.SetComponent[Vel](eCtx, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
-	velocityQuery, err := engine.NewSearch(ecs.Contains(&Vel{}))
-	assert.NilError(t, err)
+	velocityQuery := engine.NewSearch(filter.Contains(&Vel{}))
 	err = velocityQuery.Each(
 		eCtx, func(id entity.ID) bool {
 			vel, err := ecs.GetComponent[Vel](eCtx, id)
@@ -247,8 +244,7 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	// Make sure we find exactly 2 entries
 	count := 0
-	q, err := engine.NewSearch(ecs.Contains(Tuple{}))
-	assert.NilError(t, err)
+	q := engine.NewSearch(filter.Contains(Tuple{}))
 	assert.NilError(
 		t, q.Each(
 			eCtx, func(id entity.ID) bool {
@@ -324,8 +320,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	// Pre-populate all the entities with their own IDs. This will help
 	// us keep track of which component belongs to which entity in the case
 	// of a problem
-	q, err := engine.NewSearch(ecs.Contains(CountComponent{}))
-	assert.NilError(t, err)
+	q := engine.NewSearch(filter.Contains(CountComponent{}))
 	assert.NilError(
 		t, q.Each(
 			eCtx, func(id entity.ID) bool {
@@ -495,15 +490,13 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 		}
 	}
 	// 3 entities have alpha
-	alphaQuery, err := engine.NewSearch(ecs.Contains(Alpha{}))
-	assert.NilError(t, err)
+	alphaQuery := engine.NewSearch(filter.Contains(Alpha{}))
 	err = alphaQuery.Each(eCtx, countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 3, count)
 
 	// 0 entities have gamma
-	gammaQuery, err := engine.NewSearch(ecs.Contains(Gamma{}))
-	assert.NilError(t, err)
+	gammaQuery := engine.NewSearch(filter.Contains(Gamma{}))
 	err = gammaQuery.Each(eCtx, countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 0, count)
@@ -592,9 +585,8 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Only one entity has the components a and b
-	abFilter := ecs.Contains(A{}, B{})
-	q, err := engine.NewSearch(abFilter)
-	assert.NilError(t, err)
+	abFilter := filter.Contains(A{}, B{})
+	q := engine.NewSearch(abFilter)
 	assert.NilError(
 		t, q.Each(
 			eCtx, func(id entity.ID) bool {
@@ -603,15 +595,13 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 			},
 		),
 	)
-	q, err = engine.NewSearch(abFilter)
-	assert.NilError(t, err)
+	q = engine.NewSearch(abFilter)
 	num, err := q.Count(eCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
-	cdFilter := ecs.Contains(C{}, D{})
-	q, err = engine.NewSearch(cdFilter)
-	assert.NilError(t, err)
+	cdFilter := filter.Contains(C{}, D{})
+	q = engine.NewSearch(cdFilter)
 	assert.NilError(
 		t, q.Each(
 			eCtx, func(id entity.ID) bool {
@@ -620,14 +610,12 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 			},
 		),
 	)
-	q, err = engine.NewSearch(abFilter)
-	assert.NilError(t, err)
+	q = engine.NewSearch(abFilter)
 	num, err = q.Count(eCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
-	q, err = engine.NewSearch(ecs.Or(ecs.Contains(A{}), ecs.Contains(D{})))
-	assert.NilError(t, err)
+	q = engine.NewSearch(filter.Or(filter.Contains(A{}), filter.Contains(D{})))
 	allCount, err := q.Count(eCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, allCount, 3)

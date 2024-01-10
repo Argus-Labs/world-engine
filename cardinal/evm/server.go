@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
@@ -288,10 +289,7 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 ) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
 	eCtx := ecs.NewReadOnlyEngineContext(s.world)
-	q, err := eCtx.NewSearch(ecs.Exact(ecs.SignerComponent{}))
-	if err != nil {
-		return nil, eris.Wrap(err, "error creating search")
-	}
+	q := eCtx.NewSearch(filter.Exact(ecs.SignerComponent{}))
 	var getComponentErr error
 	searchIterationErr := eris.Wrap(
 		q.Each(

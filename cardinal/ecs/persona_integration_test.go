@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -248,10 +249,9 @@ func getSigners(t *testing.T, engine *ecs.Engine) []*ecs.SignerComponent {
 	eCtx := ecs.NewEngineContext(engine)
 	var signers = make([]*ecs.SignerComponent, 0)
 
-	q, err := engine.NewSearch(ecs.Exact(ecs.SignerComponent{}))
-	assert.NilError(t, err)
+	q := engine.NewSearch(filter.Exact(ecs.SignerComponent{}))
 
-	err = q.Each(
+	err := q.Each(
 		eCtx, func(id entity.ID) bool {
 			sc, err := ecs.GetComponent[ecs.SignerComponent](eCtx, id)
 			assert.NilError(t, err)

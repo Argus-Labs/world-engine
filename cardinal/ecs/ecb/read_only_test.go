@@ -2,6 +2,7 @@ package ecb_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal"
@@ -196,9 +197,7 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 	_, err = ecs.CreateMany(eCtx, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
-	filter := ecs.Contains(Health{})
-	componentFilter, err := filter.ConvertToComponentFilter(engine)
-	assert.NilError(t, err)
+	componentFilter := filter.Contains(Health{})
 
 	roManager := manager.ToReadOnly()
 
