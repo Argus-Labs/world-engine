@@ -491,7 +491,7 @@ func (w *World) Tick(ctx context.Context) error {
 	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
 	w.setEvmResults(txQueue.GetEVMTxs())
-	if txQueue.GetAmountOfTxs() != 0 {
+	if txQueue.GetAmountOfTxs() != 0 && w.chain != nil {
 		err := w.chain.Submit(ctx, txQueue.Transactions(), w.namespace.String(), w.tick.Load(), w.timestamp.Load())
 		if err != nil {
 			// TODO: do we shut down cardinal here? whats the vibe?

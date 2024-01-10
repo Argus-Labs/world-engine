@@ -3,7 +3,7 @@ package e2e
 import (
 	"context"
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"testing"
 	"time"
 )
@@ -25,8 +25,8 @@ type MoveTx struct {
 }
 
 func TestTransactionStoredOnChain(t *testing.T) {
-	t.Skip("do not run this test unless the docker containers for base shard, game shard, nakama, and " +
-		"celestia are running. to run the stack, run `make game` and `make rollup`. wait for startup and run this test")
+	//t.Skip("do not run this test unless the docker containers for base shard, game shard, nakama, and " +
+	//	"celestia are running. to run the stack, run `make game` and `make rollup`. wait for startup and run this test")
 	c := newClient()
 	chain := newChainClient(t)
 	user := "foo"

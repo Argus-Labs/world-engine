@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"os"
@@ -91,6 +92,7 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	// we need secure comms here because only this connection should be able to send stuff to the shard receiver.
 	conn, err := grpc.Dial(cfg.ShardSequencerAddr, grpc.WithTransportCredentials(a.creds))
 	if err != nil {
+		fmt.Println("error dialing shard sequencer addr", cfg.ShardSequencerAddr)
 		return nil, eris.Wrap(err, "")
 	}
 	a.ShardSequencer = shardv2.NewTransactionHandlerClient(conn)
@@ -98,13 +100,20 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	// we don't need secure comms for this connection, cause we're just querying cosmos public RPC endpoints.
 	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
+		fmt.Println("error dialing evm base shard addr")
 		return nil, eris.Wrap(err, "")
 	}
 	a.ShardQuerier = shardtypes.NewQueryClient(conn2)
 	return a, nil
 }
 
-func (a adapterImpl) Submit(ctx context.Context, processedTxs txpool.TxMap, namespace string, epoch, unixTimestamp uint64) error {
+func (a adapterImpl) Submit(
+	ctx context.Context,
+	processedTxs txpool.TxMap,
+	namespace string,
+	epoch,
+	unixTimestamp uint64,
+) error {
 	messageIDtoTxs := make(map[uint64]*shardv2.Transactions, len(processedTxs))
 	for msgID, txs := range processedTxs {
 		protoTxs := make([]*shardv2.Transaction, len(txs))
@@ -120,13 +129,10 @@ func (a adapterImpl) Submit(ctx context.Context, processedTxs txpool.TxMap, name
 		Transactions:  messageIDtoTxs,
 	}
 	_, err := a.ShardSequencer.Submit(ctx, &req)
-	return err
+	return eris.Wrap(err, "")
 }
 
-func (a adapterImpl) QueryTransactions(
-	ctx context.Context,
-	req *shardtypes.QueryTransactionsRequest,
-) (
+func (a adapterImpl) QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
 	*shardtypes.QueryTransactionsResponse,
 	error,
 ) {
