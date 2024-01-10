@@ -201,6 +201,9 @@ func AddTransactionToWorldByAnyTransaction(
 	_, _ = ecsWorld.AddTransaction(txID, value, tx)
 }
 
+// makeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
+// will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
+// end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
 func makeWorldAndTicker(
 	t *testing.T,
 	miniRedis *miniredis.Miniredis,
@@ -266,9 +269,6 @@ func MakeWorldAndTickerWithRedis(t *testing.T,
 	return makeWorldAndTicker(t, miniRedis, opts...)
 }
 
-// MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
-// will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
-// end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
 func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *cardinal.World, doTick func()) {
 	return makeWorldAndTicker(t, nil, opts...)
 }
