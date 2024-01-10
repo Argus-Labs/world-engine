@@ -88,28 +88,12 @@ func (s not) ConvertToComponentFilter(engine *Engine) (filter.ComponentFilter, e
 	return filter.Not(f), nil
 }
 
-func (s contains) ConvertToComponentFilter(engine *Engine) (filter.ComponentFilter, error) {
-	acc := make([]component.ComponentMetadata, 0, len(s.components))
-	for _, internalComponent := range s.components {
-		c, err := engine.GetComponentByName(internalComponent.Name())
-		if err != nil {
-			return nil, err
-		}
-		acc = append(acc, c)
-	}
-	return filter.Contains(acc...), nil
+func (s contains) ConvertToComponentFilter(_ *Engine) (filter.ComponentFilter, error) {
+	return filter.Contains(s.components...), nil
 }
 
-func (s exact) ConvertToComponentFilter(engine *Engine) (filter.ComponentFilter, error) {
-	acc := make([]component.ComponentMetadata, 0, len(s.components))
-	for _, internalComponent := range s.components {
-		c, err := engine.GetComponentByName(internalComponent.Name())
-		if err != nil {
-			return nil, err
-		}
-		acc = append(acc, c)
-	}
-	return filter.Exact(acc...), nil
+func (s exact) ConvertToComponentFilter(_ *Engine) (filter.ComponentFilter, error) {
+	return filter.Exact(s.components...), nil
 }
 
 func (a all) ConvertToComponentFilter(_ *Engine) (filter.ComponentFilter, error) {

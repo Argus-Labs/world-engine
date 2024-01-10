@@ -10,6 +10,6 @@ type not struct {
 	filter ComponentFilter
 }
 
-func (f *not) MatchesComponents(components []component.ComponentMetadata) bool {
+func (f *not) MatchesComponents(components []component.Component) bool {
 	return !f.filter.MatchesComponents(components)
 }

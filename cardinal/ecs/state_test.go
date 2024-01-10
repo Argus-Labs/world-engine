@@ -98,7 +98,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	wantComps := oneEngine.StoreManager().GetComponentTypesForArchID(wantID)
 	assert.Equal(t, 1, len(wantComps))
-	assert.Check(t, filter.MatchComponentMetaData(wantComps, oneNum))
+	assert.Check(t, filter.MatchComponent(component.ConvertComponentMetadatasToComponents(wantComps), oneNum))
 
 	assert.NilError(t, oneEngine.Tick(context.Background()))
 
@@ -112,7 +112,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	gotComps := twoEngine.StoreManager().GetComponentTypesForArchID(gotID)
 	assert.Equal(t, 1, len(gotComps))
-	assert.Check(t, filter.MatchComponentMetaData(gotComps, twoNum))
+	assert.Check(t, filter.MatchComponent(component.ConvertComponentMetadatasToComponents(gotComps), twoNum))
 
 	// Archetype indices should be the same across save/load cycles
 	assert.Equal(t, wantID, gotID)
