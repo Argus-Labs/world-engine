@@ -177,6 +177,26 @@ func (t *MessageType[In, Out]) Each(eCtx EngineContext, fn func(TxData[In]) (Out
 	}
 }
 
+func (t *MessageType[In, Out]) AtomicEach(eCtx EngineContext, fn func(TxData[In]) (Out, error)) {
+	for _, txData := range t.In(eCtx) {
+		wrappedFn := func() (any, error) {
+			return fn(txData)
+		}
+		if result, err := eCtx.DoAtomic(wrappedFn); err != nil {
+			err = eris.Wrap(err, "")
+			eCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v and stack trace:\n %s",
+				txData.Hash,
+				txData.Tx.PersonaTag,
+				txData.Msg,
+				eris.ToString(err, true),
+			)
+			t.AddError(eCtx, txData.Hash, err)
+		} else {
+			t.SetResult(eCtx, txData.Hash, result)
+		}
+	}
+}
+
 // In extracts all the TxData in the tx queue that match this MessageType's ID.
 func (t *MessageType[In, Out]) In(eCtx EngineContext) []TxData[In] {
 	tq := eCtx.GetTxQueue()

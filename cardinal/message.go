@@ -58,6 +58,14 @@ func (t *MessageType[Input, Result]) Each(wCtx WorldContext, fn func(TxData[Inpu
 	t.impl.Each(wCtx.Engine(), adapterFn)
 }
 
+func (t *MessageType[Input, Result]) AtomicEach(wCtx WorldContext, fn func(TxData[Input]) (Result, error)) {
+	adapterFn := func(ecsTxData ecs.TxData[Input]) (Result, error) {
+		adaptedTx := TxData[Input]{impl: ecsTxData}
+		return fn(adaptedTx)
+	}
+	t.impl.AtomicEach(wCtx.Engine(), adapterFn)
+}
+
 // In returns the TxData in the given transaction queue that match this message's type.
 func (t *MessageType[Input, Result]) In(wCtx WorldContext) []TxData[Input] {
 	ecsTxData := t.impl.In(wCtx.Engine())

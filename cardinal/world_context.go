@@ -65,3 +65,24 @@ func (wCtx *worldContext) NewSearch(filter Filter) *Search {
 func (wCtx *worldContext) Engine() ecs.EngineContext {
 	return wCtx.engine
 }
+
+func (wCtx *worldContext) DoAtomic(atomicFn func(wCtx *worldContext) error) error {
+	engine := wCtx.Engine()
+	// Create a new ECB to store pending operations
+	err := engine.StoreManager().NewECB()
+	if err != nil {
+		return err
+	}
+	// Execute atomicFn, if there is an error, discard the pending state accrued
+	err = atomicFn(wCtx)
+	if err != nil {
+		engine.StoreManager().DiscardPending()
+		return err
+	}
+	// Close the newly created ECB and push it's pending state to it's predecessor
+	err = engine.StoreManager().CloseECB()
+	if err != nil {
+		return err
+	}
+	return nil
+}
