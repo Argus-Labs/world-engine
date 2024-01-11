@@ -5,8 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"

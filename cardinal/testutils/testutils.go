@@ -220,7 +220,7 @@ func makeWorldAndTicker(
 	if miniRedis == nil {
 		world = NewTestWorld(t, opts...)
 	} else {
-		world = NewTestWorldWithCustomRedis(t, miniRedis, opts...)
+		world, _ = NewTestWorldWithCustomRedis(t, miniRedis, opts...)
 	}
 
 	// Shutdown any world resources. This will be called whether the world has been started or not.
