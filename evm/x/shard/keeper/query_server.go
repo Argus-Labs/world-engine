@@ -2,7 +2,6 @@ package keeper
 
 import (
 	"context"
-	"fmt"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -14,7 +13,6 @@ var _ types.QueryServer = &Keeper{}
 
 func (k *Keeper) Transactions(ctx context.Context, req *types.QueryTransactionsRequest,
 ) (*types.QueryTransactionsResponse, error) {
-	fmt.Println("or we here")
 	if req.Namespace == "" {
 		return nil, sdkerrors.ErrInvalidRequest.Wrap("namespace required but not supplied")
 	}
@@ -37,7 +35,5 @@ func (k *Keeper) Transactions(ctx context.Context, req *types.QueryTransactionsR
 			return true
 		},
 	)
-	fmt.Println("we here")
-
 	return &res, nil
 }

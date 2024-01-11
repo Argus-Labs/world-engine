@@ -271,7 +271,12 @@ type dummyAdapter struct {
 	unixTimestamp uint64
 }
 
-func (d *dummyAdapter) Submit(ctx context.Context, txs txpool.TxMap, namespace string, epoch, unixTimestamp uint64) error {
+func (d *dummyAdapter) Submit(
+	_ context.Context,
+	txs txpool.TxMap,
+	namespace string,
+	epoch, unixTimestamp uint64,
+) error {
 	d.txs = txs
 	d.ns = namespace
 	d.epoch = epoch
@@ -279,8 +284,10 @@ func (d *dummyAdapter) Submit(ctx context.Context, txs txpool.TxMap, namespace s
 	return nil
 }
 
-func (d *dummyAdapter) QueryTransactions(ctx context.Context, request *types.QueryTransactionsRequest) (*types.QueryTransactionsResponse, error) {
-	return nil, nil
+func (d *dummyAdapter) QueryTransactions(_ context.Context, _ *types.QueryTransactionsRequest) (
+	*types.QueryTransactionsResponse, error,
+) {
+	return &types.QueryTransactionsResponse{}, nil
 }
 
 var _ shard.Adapter = &dummyAdapter{}
@@ -288,20 +295,18 @@ var _ shard.Adapter = &dummyAdapter{}
 // TestAdapterCalledAfterTick tests that when messages are executed in a tick, they are forwarded to the adapter.
 func TestAdapterCalledAfterTick(t *testing.T) {
 	adapter := &dummyAdapter{}
-	world := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
+	world := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Engine()
 
-	world.RegisterSystem(func(worldContext ecs.WorldContext) error {
+	world.RegisterSystem(func(worldContext ecs.EngineContext) error {
 		return nil
 	})
-	type FooMsg struct{}
-	type FooRes struct{}
-	FooMessage := ecs.NewMessageType[FooMsg, FooRes]("foo")
-	err := world.RegisterMessages(FooMessage)
+	fooMessage := ecs.NewMessageType[struct{}, struct{}]("foo")
+	err := world.RegisterMessages(fooMessage)
 	assert.NilError(t, err)
 	err = world.LoadGameState()
 	assert.NilError(t, err)
 
-	FooMessage.AddToQueue(world, FooMsg{}, &sign.Transaction{
+	fooMessage.AddToQueue(world, struct{}{}, &sign.Transaction{
 		PersonaTag: "meow",
 		Namespace:  "foo",
 		Nonce:      22,
@@ -309,7 +314,7 @@ func TestAdapterCalledAfterTick(t *testing.T) {
 		Hash:       common.Hash{},
 		Body:       json.RawMessage(`{}`),
 	})
-	FooMessage.AddToQueue(world, FooMsg{}, &sign.Transaction{
+	fooMessage.AddToQueue(world, struct{}{}, &sign.Transaction{
 		PersonaTag: "meow",
 		Namespace:  "foo",
 		Nonce:      23,
@@ -320,7 +325,7 @@ func TestAdapterCalledAfterTick(t *testing.T) {
 	err = world.Tick(context.Background())
 	assert.NilError(t, err)
 
-	assert.Len(t, adapter.txs[FooMessage.ID()], 2)
+	assert.Len(t, adapter.txs[fooMessage.ID()], 2)
 	assert.Equal(t, world.Namespace().String(), adapter.ns)
 	assert.Equal(t, world.CurrentTick()-1, adapter.epoch)
 }

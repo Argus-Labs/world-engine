@@ -432,11 +432,14 @@ func (e *Engine) AddEVMTransaction(
 	return tick, txHash
 }
 
+const (
+	unnamedSystem = "unnamed_system"
+)
+
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (e *Engine) Tick(ctx context.Context) error {
-	nullSystemName := "No system is running."
-	nameOfCurrentRunningSystem := nullSystemName
+	nameOfCurrentRunningSystem := unnamedSystem
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
 			e.Logger.Error().
@@ -468,30 +471,27 @@ func (e *Engine) Tick(ctx context.Context) error {
 		}
 	}
 	e.timestamp.Store(uint64(startTime.Unix()))
-	allSystemsStartTime := time.Now()
 	for i, sys := range e.systems {
 		nameOfCurrentRunningSystem = e.systemNames[i]
 		eCtx := NewEngineContextForTick(e, txQueue, e.systemLoggers[i])
 		systemStartTime := time.Now()
 		err := eris.Wrapf(sys(eCtx), "system %s generated an error", nameOfCurrentRunningSystem)
 		statsd.EmitTickStat(systemStartTime, nameOfCurrentRunningSystem)
-		nameOfCurrentRunningSystem = nullSystemName
+		nameOfCurrentRunningSystem = unnamedSystem
 		if err != nil {
 			return err
 		}
 	}
-	statsd.EmitTickStat(allSystemsStartTime, "all_systems")
+	statsd.EmitTickStat(startTime, "all_systems")
 	if e.eventHub != nil {
-		flushEventHubStartTime := time.Now()
 		// engine can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
 		e.eventHub.FlushEvents()
-		statsd.EmitTickStat(flushEventHubStartTime, "flush_events")
+		statsd.EmitTickStat(time.Now(), "flush_events")
 	}
-	finalizeTickStartTime := time.Now()
 	if err := e.TickStore().FinalizeTick(ctx); err != nil {
 		return err
 	}
-	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
+	statsd.EmitTickStat(time.Now(), "finalize")
 
 	e.setEvmResults(txQueue.GetEVMTxs())
 	if txQueue.GetAmountOfTxs() != 0 && e.chain != nil && !e.isRecovering.Load() {

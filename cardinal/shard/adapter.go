@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"os"
@@ -92,16 +91,14 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	// we need secure comms here because only this connection should be able to send stuff to the shard receiver.
 	conn, err := grpc.Dial(cfg.ShardSequencerAddr, grpc.WithTransportCredentials(a.creds))
 	if err != nil {
-		fmt.Println("error dialing shard sequencer addr", cfg.ShardSequencerAddr)
-		return nil, eris.Wrap(err, "")
+		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", cfg.ShardSequencerAddr)
 	}
 	a.ShardSequencer = shard.NewTransactionHandlerClient(conn)
 
 	// we don't need secure comms for this connection, cause we're just querying cosmos public RPC endpoints.
 	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		fmt.Println("error dialing evm base shard addr")
-		return nil, eris.Wrap(err, "")
+		return nil, eris.Wrapf(err, "error dialing evm base shard address at %q", cfg.EVMBaseShardAddr)
 	}
 	a.ShardQuerier = shardtypes.NewQueryClient(conn2)
 	return a, nil
@@ -114,9 +111,9 @@ func (a adapterImpl) Submit(
 	epoch,
 	unixTimestamp uint64,
 ) error {
-	messageIDtoTxs := make(map[uint64]*shard.Transactions, len(processedTxs))
+	messageIDtoTxs := make(map[uint64]*shard.Transactions)
 	for msgID, txs := range processedTxs {
-		protoTxs := make([]*shard.Transaction, len(txs))
+		protoTxs := make([]*shard.Transaction, 0, len(txs))
 		for _, txData := range txs {
 			protoTxs = append(protoTxs, transactionToProto(txData.Tx))
 		}
@@ -140,7 +137,6 @@ func (a adapterImpl) QueryTransactions(ctx context.Context, req *shardtypes.Quer
 	return res, eris.Wrap(err, "")
 }
 
-//nolint:unused // will be used soon.. just refactoring things..
 func transactionToProto(sp *sign.Transaction) *shard.Transaction {
 	return &shard.Transaction{
 		PersonaTag: sp.PersonaTag,
