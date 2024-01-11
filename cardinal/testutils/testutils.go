@@ -59,7 +59,7 @@ func MakeTestTransactionHandler(
 		_ = gameObject.Shutdown()
 	})
 
-	host := "localhost:4040"
+	host := "localhost:" + txh.Port
 	healthURL := host + healthPath
 	start := time.Now()
 	for {
@@ -84,7 +84,7 @@ func MakeTestTransactionHandler(
 	}
 }
 
-// TestTransactionHandler is a helper struct that can start an HTTP server on port 4040 with the given world.
+// TestTransactionHandler is a helper struct that can start an HTTP server on a random port with the given world.
 type TestTransactionHandler struct {
 	*server.Handler
 	T        *testing.T

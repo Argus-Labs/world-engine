@@ -8,12 +8,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"github.com/alicebob/miniredis/v2"
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
 	"pkg.world.dev/world-engine/assert"
-
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -83,23 +82,20 @@ func TestGlobals(t *testing.T) {
 }
 
 func TestSchemaChecking(t *testing.T) {
-	s := miniredis.NewMiniRedis()
+	s := miniredis.RunT(t)
 
-	err := s.StartAddr(":6379")
-	assert.NilError(t, err)
-	cardinalWorld := testutils.NewTestWorldWithCustomRedis(t, s)
+	cardinalWorld, _ := testutils.NewTestWorldWithCustomRedis(t, s)
 	engine := cardinalWorld.Engine()
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](engine))
 	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine))
 
 	assert.NilError(t, engine.LoadGameState())
-	assert.NilError(t, err)
 
-	cardinalWorld2 := testutils.NewTestWorldWithCustomRedis(t, s)
+	cardinalWorld2, _ := testutils.NewTestWorldWithCustomRedis(t, s)
 	engine2 := cardinalWorld2.Engine()
 	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine2))
 	assert.Assert(t, ecs.RegisterComponent[AlteredEnergyComponent](engine2) != nil)
-	err = cardinalWorld2.ShutDown()
+	err := cardinalWorld2.ShutDown()
 	assert.NilError(t, err)
 	err = cardinalWorld.ShutDown()
 	assert.NilError(t, err)

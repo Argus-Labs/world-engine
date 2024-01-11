@@ -35,11 +35,11 @@ require (
 	github.com/wI2L/jsondiff v0.5.0
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
-	gopkg.in/DataDog/dd-trace-go.v1 v1.58.0
+	gopkg.in/DataDog/dd-trace-go.v1 v1.58.1
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/assert v1.0.0-beta
 	pkg.world.dev/world-engine/evm v1.0.2-beta
-	pkg.world.dev/world-engine/rift v1.0.0-beta
+	pkg.world.dev/world-engine/rift v1.0.2-beta
 	pkg.world.dev/world-engine/sign v1.0.0-beta
 )
 

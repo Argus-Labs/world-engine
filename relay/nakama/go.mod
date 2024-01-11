@@ -3,7 +3,7 @@ module pkg.world.dev/world-engine/relay/nakama
 go 1.21.0
 
 require (
-	github.com/ethereum/go-ethereum v1.12.0
+	github.com/ethereum/go-ethereum v1.13.4
 	github.com/gorilla/websocket v1.5.0
 	github.com/heroiclabs/nakama-common v1.30.0
 	github.com/rotisserie/eris v0.5.4

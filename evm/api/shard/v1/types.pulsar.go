@@ -482,67 +482,69 @@ func (x *fastReflection_Transaction) ProtoMethods() *protoiface.Methods {
 	}
 }
 
-var _ protoreflect.List = (*_Epoch_2_list)(nil)
+var _ protoreflect.List = (*_Epoch_3_list)(nil)
 
-type _Epoch_2_list struct {
+type _Epoch_3_list struct {
 	list *[]*Transaction
 }
 
-func (x *_Epoch_2_list) Len() int {
+func (x *_Epoch_3_list) Len() int {
 	if x.list == nil {
 		return 0
 	}
 	return len(*x.list)
 }
 
-func (x *_Epoch_2_list) Get(i int) protoreflect.Value {
+func (x *_Epoch_3_list) Get(i int) protoreflect.Value {
 	return protoreflect.ValueOfMessage((*x.list)[i].ProtoReflect())
 }
 
-func (x *_Epoch_2_list) Set(i int, value protoreflect.Value) {
+func (x *_Epoch_3_list) Set(i int, value protoreflect.Value) {
 	valueUnwrapped := value.Message()
 	concreteValue := valueUnwrapped.Interface().(*Transaction)
 	(*x.list)[i] = concreteValue
 }
 
-func (x *_Epoch_2_list) Append(value protoreflect.Value) {
+func (x *_Epoch_3_list) Append(value protoreflect.Value) {
 	valueUnwrapped := value.Message()
 	concreteValue := valueUnwrapped.Interface().(*Transaction)
 	*x.list = append(*x.list, concreteValue)
 }
 
-func (x *_Epoch_2_list) AppendMutable() protoreflect.Value {
+func (x *_Epoch_3_list) AppendMutable() protoreflect.Value {
 	v := new(Transaction)
 	*x.list = append(*x.list, v)
 	return protoreflect.ValueOfMessage(v.ProtoReflect())
 }
 
-func (x *_Epoch_2_list) Truncate(n int) {
+func (x *_Epoch_3_list) Truncate(n int) {
 	for i := n; i < len(*x.list); i++ {
 		(*x.list)[i] = nil
 	}
 	*x.list = (*x.list)[:n]
 }
 
-func (x *_Epoch_2_list) NewElement() protoreflect.Value {
+func (x *_Epoch_3_list) NewElement() protoreflect.Value {
 	v := new(Transaction)
 	return protoreflect.ValueOfMessage(v.ProtoReflect())
 }
 
-func (x *_Epoch_2_list) IsValid() bool {
+func (x *_Epoch_3_list) IsValid() bool {
 	return x.list != nil
 }
 
 var (
-	md_Epoch       protoreflect.MessageDescriptor
-	fd_Epoch_epoch protoreflect.FieldDescriptor
-	fd_Epoch_txs   protoreflect.FieldDescriptor
+	md_Epoch                protoreflect.MessageDescriptor
+	fd_Epoch_epoch          protoreflect.FieldDescriptor
+	fd_Epoch_unix_timestamp protoreflect.FieldDescriptor
+	fd_Epoch_txs            protoreflect.FieldDescriptor
 )
 
 func init() {
 	file_shard_v1_types_proto_init()
 	md_Epoch = File_shard_v1_types_proto.Messages().ByName("Epoch")
 	fd_Epoch_epoch = md_Epoch.Fields().ByName("epoch")
+	fd_Epoch_unix_timestamp = md_Epoch.Fields().ByName("unix_timestamp")
 	fd_Epoch_txs = md_Epoch.Fields().ByName("txs")
 }
 
@@ -617,8 +619,14 @@ func (x *fastReflection_Epoch) Range(f func(protoreflect.FieldDescriptor, protor
 			return
 		}
 	}
+	if x.UnixTimestamp != uint64(0) {
+		value := protoreflect.ValueOfUint64(x.UnixTimestamp)
+		if !f(fd_Epoch_unix_timestamp, value) {
+			return
+		}
+	}
 	if len(x.Txs) != 0 {
-		value := protoreflect.ValueOfList(&_Epoch_2_list{list: &x.Txs})
+		value := protoreflect.ValueOfList(&_Epoch_3_list{list: &x.Txs})
 		if !f(fd_Epoch_txs, value) {
 			return
 		}
@@ -640,6 +648,8 @@ func (x *fastReflection_Epoch) Has(fd protoreflect.FieldDescriptor) bool {
 	switch fd.FullName() {
 	case "shard.v1.Epoch.epoch":
 		return x.Epoch != uint64(0)
+	case "shard.v1.Epoch.unix_timestamp":
+		return x.UnixTimestamp != uint64(0)
 	case "shard.v1.Epoch.txs":
 		return len(x.Txs) != 0
 	default:
@@ -660,6 +670,8 @@ func (x *fastReflection_Epoch) Clear(fd protoreflect.FieldDescriptor) {
 	switch fd.FullName() {
 	case "shard.v1.Epoch.epoch":
 		x.Epoch = uint64(0)
+	case "shard.v1.Epoch.unix_timestamp":
+		x.UnixTimestamp = uint64(0)
 	case "shard.v1.Epoch.txs":
 		x.Txs = nil
 	default:
@@ -681,11 +693,14 @@ func (x *fastReflection_Epoch) Get(descriptor protoreflect.FieldDescriptor) prot
 	case "shard.v1.Epoch.epoch":
 		value := x.Epoch
 		return protoreflect.ValueOfUint64(value)
+	case "shard.v1.Epoch.unix_timestamp":
+		value := x.UnixTimestamp
+		return protoreflect.ValueOfUint64(value)
 	case "shard.v1.Epoch.txs":
 		if len(x.Txs) == 0 {
-			return protoreflect.ValueOfList(&_Epoch_2_list{})
+			return protoreflect.ValueOfList(&_Epoch_3_list{})
 		}
-		listValue := &_Epoch_2_list{list: &x.Txs}
+		listValue := &_Epoch_3_list{list: &x.Txs}
 		return protoreflect.ValueOfList(listValue)
 	default:
 		if descriptor.IsExtension() {
@@ -709,9 +724,11 @@ func (x *fastReflection_Epoch) Set(fd protoreflect.FieldDescriptor, value protor
 	switch fd.FullName() {
 	case "shard.v1.Epoch.epoch":
 		x.Epoch = value.Uint()
+	case "shard.v1.Epoch.unix_timestamp":
+		x.UnixTimestamp = value.Uint()
 	case "shard.v1.Epoch.txs":
 		lv := value.List()
-		clv := lv.(*_Epoch_2_list)
+		clv := lv.(*_Epoch_3_list)
 		x.Txs = *clv.list
 	default:
 		if fd.IsExtension() {
@@ -737,10 +754,12 @@ func (x *fastReflection_Epoch) Mutable(fd protoreflect.FieldDescriptor) protoref
 		if x.Txs == nil {
 			x.Txs = []*Transaction{}
 		}
-		value := &_Epoch_2_list{list: &x.Txs}
+		value := &_Epoch_3_list{list: &x.Txs}
 		return protoreflect.ValueOfList(value)
 	case "shard.v1.Epoch.epoch":
 		panic(fmt.Errorf("field epoch of message shard.v1.Epoch is not mutable"))
+	case "shard.v1.Epoch.unix_timestamp":
+		panic(fmt.Errorf("field unix_timestamp of message shard.v1.Epoch is not mutable"))
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Epoch"))
@@ -756,9 +775,11 @@ func (x *fastReflection_Epoch) NewField(fd protoreflect.FieldDescriptor) protore
 	switch fd.FullName() {
 	case "shard.v1.Epoch.epoch":
 		return protoreflect.ValueOfUint64(uint64(0))
+	case "shard.v1.Epoch.unix_timestamp":
+		return protoreflect.ValueOfUint64(uint64(0))
 	case "shard.v1.Epoch.txs":
 		list := []*Transaction{}
-		return protoreflect.ValueOfList(&_Epoch_2_list{list: &list})
+		return protoreflect.ValueOfList(&_Epoch_3_list{list: &list})
 	default:
 		if fd.IsExtension() {
 			panic(fmt.Errorf("proto3 declared messages do not support extensions: shard.v1.Epoch"))
@@ -831,6 +852,9 @@ func (x *fastReflection_Epoch) ProtoMethods() *protoiface.Methods {
 		if x.Epoch != 0 {
 			n += 1 + runtime.Sov(uint64(x.Epoch))
 		}
+		if x.UnixTimestamp != 0 {
+			n += 1 + runtime.Sov(uint64(x.UnixTimestamp))
+		}
 		if len(x.Txs) > 0 {
 			for _, e := range x.Txs {
 				l = options.Size(e)
@@ -879,8 +903,13 @@ func (x *fastReflection_Epoch) ProtoMethods() *protoiface.Methods {
 				copy(dAtA[i:], encoded)
 				i = runtime.EncodeVarint(dAtA, i, uint64(len(encoded)))
 				i--
-				dAtA[i] = 0x12
+				dAtA[i] = 0x1a
 			}
+		}
+		if x.UnixTimestamp != 0 {
+			i = runtime.EncodeVarint(dAtA, i, uint64(x.UnixTimestamp))
+			i--
+			dAtA[i] = 0x10
 		}
 		if x.Epoch != 0 {
 			i = runtime.EncodeVarint(dAtA, i, uint64(x.Epoch))
@@ -956,6 +985,25 @@ func (x *fastReflection_Epoch) ProtoMethods() *protoiface.Methods {
 					}
 				}
 			case 2:
+				if wireType != 0 {
+					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field UnixTimestamp", wireType)
+				}
+				x.UnixTimestamp = 0
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, runtime.ErrIntOverflow
+					}
+					if iNdEx >= l {
+						return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					x.UnixTimestamp |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+			case 3:
 				if wireType != 2 {
 					return protoiface.UnmarshalOutput{NoUnkeyedLiterals: input.NoUnkeyedLiterals, Flags: input.Flags}, fmt.Errorf("proto: wrong wireType = %d for field Txs", wireType)
 				}
@@ -1045,7 +1093,7 @@ type Transaction struct {
 	// tx_id is the ID associated with the payloads below. This is needed so we know which transaction struct
 	// to unmarshal the payload.Body into.
 	TxId uint64 `protobuf:"varint,1,opt,name=tx_id,json=txId,proto3" json:"tx_id,omitempty"`
-	// game_shard_transaction is a proto encoded Transaction. (see rift package)
+	// game_shard_transaction is an encoded game shard transaction.
 	GameShardTransaction []byte `protobuf:"bytes,2,opt,name=game_shard_transaction,json=gameShardTransaction,proto3" json:"game_shard_transaction,omitempty"`
 }
 
@@ -1089,8 +1137,9 @@ type Epoch struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Epoch uint64         `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
-	Txs   []*Transaction `protobuf:"bytes,2,rep,name=txs,proto3" json:"txs,omitempty"`
+	Epoch         uint64         `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	UnixTimestamp uint64         `protobuf:"varint,2,opt,name=unix_timestamp,json=unixTimestamp,proto3" json:"unix_timestamp,omitempty"`
+	Txs           []*Transaction `protobuf:"bytes,3,rep,name=txs,proto3" json:"txs,omitempty"`
 }
 
 func (x *Epoch) Reset() {
@@ -1120,6 +1169,13 @@ func (x *Epoch) GetEpoch() uint64 {
 	return 0
 }
 
+func (x *Epoch) GetUnixTimestamp() uint64 {
+	if x != nil {
+		return x.UnixTimestamp
+	}
+	return 0
+}
+
 func (x *Epoch) GetTxs() []*Transaction {
 	if x != nil {
 		return x.Txs
@@ -1137,20 +1193,23 @@ var file_shard_v1_types_proto_rawDesc = []byte{
 	0x74, 0x78, 0x49, 0x64, 0x12, 0x34, 0x0a, 0x16, 0x67, 0x61, 0x6d, 0x65, 0x5f, 0x73, 0x68, 0x61,
 	0x72, 0x64, 0x5f, 0x74, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x18, 0x02,
 	0x20, 0x01, 0x28, 0x0c, 0x52, 0x14, 0x67, 0x61, 0x6d, 0x65, 0x53, 0x68, 0x61, 0x72, 0x64, 0x54,
-	0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x22, 0x46, 0x0a, 0x05, 0x45, 0x70,
+	0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x22, 0x6d, 0x0a, 0x05, 0x45, 0x70,
 	0x6f, 0x63, 0x68, 0x12, 0x14, 0x0a, 0x05, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x18, 0x01, 0x20, 0x01,
-	0x28, 0x04, 0x52, 0x05, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x12, 0x27, 0x0a, 0x03, 0x74, 0x78, 0x73,
-	0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x15, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76,
-	0x31, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63, 0x74, 0x69, 0x6f, 0x6e, 0x52, 0x03, 0x74,
-	0x78, 0x73, 0x42, 0x7e, 0x0a, 0x0c, 0x63, 0x6f, 0x6d, 0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e,
-	0x76, 0x31, 0x42, 0x0a, 0x54, 0x79, 0x70, 0x65, 0x73, 0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01,
-	0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73, 0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61,
-	0x70, 0x69, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f, 0x76, 0x31, 0x3b, 0x73, 0x68, 0x61, 0x72,
-	0x64, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58, 0xaa, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72,
-	0x64, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0xe2,
-	0x02, 0x14, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65,
-	0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09, 0x53, 0x68, 0x61, 0x72, 0x64, 0x3a, 0x3a,
-	0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x28, 0x04, 0x52, 0x05, 0x65, 0x70, 0x6f, 0x63, 0x68, 0x12, 0x25, 0x0a, 0x0e, 0x75, 0x6e, 0x69,
+	0x78, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70, 0x18, 0x02, 0x20, 0x01, 0x28,
+	0x04, 0x52, 0x0d, 0x75, 0x6e, 0x69, 0x78, 0x54, 0x69, 0x6d, 0x65, 0x73, 0x74, 0x61, 0x6d, 0x70,
+	0x12, 0x27, 0x0a, 0x03, 0x74, 0x78, 0x73, 0x18, 0x03, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x15, 0x2e,
+	0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x2e, 0x54, 0x72, 0x61, 0x6e, 0x73, 0x61, 0x63,
+	0x74, 0x69, 0x6f, 0x6e, 0x52, 0x03, 0x74, 0x78, 0x73, 0x42, 0x7e, 0x0a, 0x0c, 0x63, 0x6f, 0x6d,
+	0x2e, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x76, 0x31, 0x42, 0x0a, 0x54, 0x79, 0x70, 0x65, 0x73,
+	0x50, 0x72, 0x6f, 0x74, 0x6f, 0x50, 0x01, 0x5a, 0x21, 0x63, 0x6f, 0x73, 0x6d, 0x6f, 0x73, 0x73,
+	0x64, 0x6b, 0x2e, 0x69, 0x6f, 0x2f, 0x61, 0x70, 0x69, 0x2f, 0x73, 0x68, 0x61, 0x72, 0x64, 0x2f,
+	0x76, 0x31, 0x3b, 0x73, 0x68, 0x61, 0x72, 0x64, 0x76, 0x31, 0xa2, 0x02, 0x03, 0x53, 0x58, 0x58,
+	0xaa, 0x02, 0x08, 0x53, 0x68, 0x61, 0x72, 0x64, 0x2e, 0x56, 0x31, 0xca, 0x02, 0x08, 0x53, 0x68,
+	0x61, 0x72, 0x64, 0x5c, 0x56, 0x31, 0xe2, 0x02, 0x14, 0x53, 0x68, 0x61, 0x72, 0x64, 0x5c, 0x56,
+	0x31, 0x5c, 0x47, 0x50, 0x42, 0x4d, 0x65, 0x74, 0x61, 0x64, 0x61, 0x74, 0x61, 0xea, 0x02, 0x09,
+	0x53, 0x68, 0x61, 0x72, 0x64, 0x3a, 0x3a, 0x56, 0x31, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
+	0x33,
 }
 
 var (
