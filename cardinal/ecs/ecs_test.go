@@ -3,8 +3,9 @@ package ecs_test
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -619,32 +620,6 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 	allCount, err := q.Count(eCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, allCount, 3)
-}
-
-type Unregistered struct{}
-
-func (Unregistered) Name() string { return "unregistered" }
-
-func TestQueriesAndFiltersComplainAboutUnregisteredComponents(t *testing.T) {
-	t.Skip("WORLD-771: Return an error when searching for a component that has not been registered")
-	engine := testutils.NewTestWorld(t).Engine()
-	assert.NilError(t, ecs.RegisterComponent[A](engine))
-	assert.NilError(t, ecs.RegisterComponent[B](engine))
-	eCtx := ecs.NewEngineContext(engine)
-
-	q := engine.NewSearch(filter.Exact(Unregistered{}))
-
-	var err error
-	_, err = q.Count(eCtx)
-	assert.ErrorIs(t, err, storage.ErrMustRegisterComponent)
-
-	_, err = q.First(eCtx)
-	assert.ErrorIs(t, err, storage.ErrMustRegisterComponent)
-
-	err = q.Each(eCtx, func(id entity.ID) bool {
-		return true
-	})
-	assert.ErrorIs(t, err, storage.ErrMustRegisterComponent)
 }
 
 type HealthComponent struct {
