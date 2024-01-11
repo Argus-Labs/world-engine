@@ -4,7 +4,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"log"
-	"pkg.world.dev/world-engine/evm/shard"
+	"pkg.world.dev/world-engine/evm/sequencer"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"strings"
 
@@ -18,7 +18,7 @@ type Keeper struct {
 
 func NewKeeper(ss store.KVStoreService, auth string) *Keeper {
 	if auth == "" {
-		auth = authtypes.NewModuleAddress(shard.Name).String()
+		auth = authtypes.NewModuleAddress(sequencer.Name).String()
 		if strings.Contains(auth, "cosmos") {
 			log.Fatal("address had 'cosmos' bech32 prefix, should be 'world'")
 		}

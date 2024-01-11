@@ -1,21 +1,20 @@
-package shard
+package sequencer
 
 import (
 	"context"
 	"crypto/tls"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/cosmos/gogoproto/proto"
+	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/protobuf/proto"
 	"net"
 	"os"
-	shard "pkg.world.dev/world-engine/rift/shard/v1"
-	"strconv"
-	"sync"
-
 	"pkg.world.dev/world-engine/evm/x/shard/types"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
+	"strconv"
 )
 
 const (
@@ -23,13 +22,13 @@ const (
 )
 
 var (
-	Name                          = "shard_sequencer"
-	_    shard.ShardHandlerServer = &Sequencer{}
+	Name                                = "shard_sequencer"
+	_    shard.TransactionHandlerServer = &Sequencer{}
 )
 
 // Sequencer handles sequencing game shard transactions.
 type Sequencer struct {
-	shard.UnimplementedShardHandlerServer
+	shard.UnimplementedTransactionHandlerServer
 	moduleAddr sdk.AccAddress
 	tq         *TxQueue
 
@@ -47,12 +46,7 @@ func NewShardSequencer(opts ...Option) *Sequencer {
 	addr := authtypes.NewModuleAddress(Name)
 	s := &Sequencer{
 		moduleAddr: addr,
-		tq: &TxQueue{
-			lock:       sync.Mutex{},
-			ntx:        make(NamespacedTxs),
-			outbox:     make([]*types.SubmitShardTxRequest, 0),
-			moduleAddr: addr.String(),
-		},
+		tq:         NewTxQueue(addr.String()),
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -87,7 +81,7 @@ func loadCredentials(certPath, keyPath string) (credentials.TransportCredentials
 // Serve serves the server in a new go routine.
 func (s *Sequencer) Serve() {
 	grpcServer := grpc.NewServer(grpc.Creds(s.creds))
-	shard.RegisterShardHandlerServer(grpcServer, s)
+	shard.RegisterTransactionHandlerServer(grpcServer, s)
 	port := defaultPort
 	// check if a custom port was set
 	if setPort := os.Getenv("SHARD_SEQUENCER_PORT"); setPort != "" {
@@ -112,16 +106,20 @@ func (s *Sequencer) FlushMessages() []*types.SubmitShardTxRequest {
 	return s.tq.GetTxs()
 }
 
-// SubmitShardTx appends the game shard tx submission to the tx queue.
-func (s *Sequencer) SubmitShardTx(_ context.Context, req *shard.SubmitShardTxRequest) (
-	*shard.SubmitShardTxResponse, error) {
-	zerolog.Logger.Info().Msgf("got transaction from shard: %s", req.Tx.Namespace)
-	bz, err := proto.Marshal(req.Tx)
-	if err != nil {
-		return nil, err
+// Submit appends the game shard tx submission to the tx queue.
+func (s *Sequencer) Submit(_ context.Context, req *shard.SubmitTransactionsRequest) (
+	*shard.SubmitTransactionsResponse, error) {
+	zerolog.Logger.Info().Msgf("got transaction from shard: %s", req.Namespace)
+	txIDs := sortMapKeys(req.Transactions)
+	for _, txID := range txIDs {
+		txs := req.Transactions[txID].Txs
+		for _, tx := range txs {
+			bz, err := proto.Marshal(tx)
+			if err != nil {
+				return nil, eris.Wrap(err, "failed to marshal transaction")
+			}
+			s.tq.AddTx(req.Namespace, req.Epoch, req.UnixTimestamp, txID, bz)
+		}
 	}
-
-	s.tq.AddTx(req.Tx.Namespace, req.Epoch, req.TxId, bz)
-
-	return &shard.SubmitShardTxResponse{}, nil
+	return &shard.SubmitTransactionsResponse{}, nil
 }

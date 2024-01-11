@@ -29,8 +29,10 @@ message SubmitShardTxRequest {
   // this could be some general period of time.
   uint64 epoch = 3;
 
+  uint64 unix_timestamp = 4;
+
   // txs are the transactions that occurred in this tick.
-  repeated Transaction txs = 4;
+  repeated Transaction txs = 5;
 }
 
 message SubmitShardTxResponse {}

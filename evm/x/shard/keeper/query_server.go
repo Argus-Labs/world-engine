@@ -31,6 +31,7 @@ func (k *Keeper) Transactions(ctx context.Context, req *types.QueryTransactionsR
 				return false
 			}
 			res.Epochs = append(res.Epochs, e)
+			count++
 			return true
 		})
 

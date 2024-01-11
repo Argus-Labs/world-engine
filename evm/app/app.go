@@ -25,6 +25,7 @@ import (
 	zerolog "github.com/rs/zerolog/log"
 	signinglib "pkg.berachain.dev/polaris/cosmos/lib/signing"
 	"pkg.berachain.dev/polaris/cosmos/runtime/miner"
+	"pkg.world.dev/world-engine/evm/sequencer"
 
 	"io"
 	"os"
@@ -34,15 +35,13 @@ import (
 	evmv1alpha1 "pkg.berachain.dev/polaris/cosmos/api/polaris/evm/v1alpha1"
 	evmconfig "pkg.berachain.dev/polaris/cosmos/config"
 
-	dbm "github.com/cosmos/cosmos-db"
-	polarruntime "pkg.berachain.dev/polaris/cosmos/runtime"
-	"pkg.world.dev/world-engine/evm/shard"
-
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
 	evidencekeeper "cosmossdk.io/x/evidence/keeper"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
+	dbm "github.com/cosmos/cosmos-db"
+	polarruntime "pkg.berachain.dev/polaris/cosmos/runtime"
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -113,7 +112,7 @@ type App struct {
 
 	// plugins
 	Router         router.Router
-	ShardSequencer *shard.Sequencer
+	ShardSequencer *sequencer.Sequencer
 }
 
 //nolint:gochecknoinits // from sdk.
