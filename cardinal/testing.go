@@ -5,12 +5,12 @@ import "pkg.world.dev/world-engine/cardinal/ecs"
 // This file contains helper methods that should only be used in the context of running tests.
 
 func TestingWorldToWorldContext(world *World) WorldContext {
-	ecsWorldCtx := ecs.NewWorldContext(world.instance)
-	return &worldContext{instance: ecsWorldCtx}
+	ecsWorldCtx := ecs.NewEngineContext(world.instance)
+	return &worldContext{engine: ecsWorldCtx}
 }
 
-func TestingWorldContextToECSWorld(worldCtx WorldContext) *ecs.World {
-	return worldCtx.Instance().GetWorld()
+func TestingWorldContextToECSWorld(worldCtx WorldContext) *ecs.Engine {
+	return worldCtx.Engine().GetEngine()
 }
 
 func (w *World) TestingGetTransactionReceiptsForTick(tick uint64) ([]Receipt, error) {

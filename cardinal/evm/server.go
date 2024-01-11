@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"github.com/rotisserie/eris"
 	zerolog "github.com/rs/zerolog/log"
@@ -55,7 +56,7 @@ type msgServerImpl struct {
 
 	txMap    txByName
 	queryMap queryByName
-	world    *ecs.World
+	world    *ecs.Engine
 
 	// opts
 	creds credentials.TransportCredentials
@@ -69,7 +70,7 @@ type msgServerImpl struct {
 // with key CARDINAL_EVM_PORT.
 //
 // NewServer will return ErrNoEvmTypes if no transactions OR queries were given with EVM support.
-func NewServer(w *ecs.World, opts ...Option) (Server, error) {
+func NewServer(w *ecs.Engine, opts ...Option) (Server, error) {
 	hasEVMTxsOrQueries := false
 
 	txs, err := w.ListMessages()
@@ -244,7 +245,7 @@ func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessage
 	}
 
 	// since we are injecting the tx directly, all we need is the persona tag in the signed payload.
-	// the sig checking happens in the server's Handler, not in ecs.World.
+	// the sig checking happens in the server's Handler, not in ecs.Engine.
 	sig := &sign.Transaction{PersonaTag: sc.PersonaTag}
 	s.world.AddEVMTransaction(itx.ID(), tx, sig, msg.EvmTxHash)
 
@@ -287,17 +288,14 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 	addr string,
 ) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
-	wCtx := ecs.NewReadOnlyWorldContext(s.world)
-	q, err := wCtx.NewSearch(ecs.Exact(ecs.SignerComponent{}))
-	if err != nil {
-		return nil, eris.Wrap(err, "error creating search")
-	}
+	eCtx := ecs.NewReadOnlyEngineContext(s.world)
+	q := eCtx.NewSearch(filter.Exact(ecs.SignerComponent{}))
 	var getComponentErr error
 	searchIterationErr := eris.Wrap(
 		q.Each(
-			wCtx, func(id entity.ID) bool {
+			eCtx, func(id entity.ID) bool {
 				var signerComp *ecs.SignerComponent
-				signerComp, getComponentErr = ecs.GetComponent[ecs.SignerComponent](wCtx, id)
+				signerComp, getComponentErr = ecs.GetComponent[ecs.SignerComponent](eCtx, id)
 				getComponentErr = eris.Wrap(getComponentErr, "")
 				if getComponentErr != nil {
 					return false
@@ -337,7 +335,7 @@ func (s *msgServerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardRe
 		zerolog.Logger.Error().Err(err).Msg("failed to decode query request")
 		return nil, err
 	}
-	reply, err := query.HandleQuery(ecs.NewReadOnlyWorldContext(s.world), ecsRequest)
+	reply, err := query.HandleQuery(ecs.NewReadOnlyEngineContext(s.world), ecsRequest)
 	if err != nil {
 		zerolog.Logger.Error().Err(err).Msg("failed to handle query")
 		return nil, err

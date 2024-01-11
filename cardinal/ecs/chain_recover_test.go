@@ -101,15 +101,15 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	ticks = append(ticks, epoch1, epoch2)
 
 	adapter := newAdapter(ticks)
-	world := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
+	eng := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Engine()
 	increaseEnergyTx := ecs.NewMessageType[IncreaseEnergy, IncreaseEnergyResult]("send_energy")
-	err = world.RegisterMessages(increaseEnergyTx)
+	err = eng.RegisterMessages(increaseEnergyTx)
 	assert.NilError(t, err)
-	err = ecs.RegisterComponent[EnergyComp](world)
+	err = ecs.RegisterComponent[EnergyComp](eng)
 	assert.NilError(t, err)
 
 	var compID entity.ID = math.MaxUint64
-	sys := func(ctx ecs.WorldContext) error {
+	sys := func(ctx ecs.EngineContext) error {
 		increaseEnergyTx.Each(ctx, func(tx ecs.TxData[IncreaseEnergy]) (IncreaseEnergyResult, error) {
 			if compID == math.MaxUint64 {
 				id, err := ecs.Create(ctx, EnergyComp{tx.Msg.Amount})
@@ -126,28 +126,28 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 		})
 		return nil
 	}
-	world.RegisterSystem(sys)
+	eng.RegisterSystem(sys)
 
-	err = world.LoadGameState()
+	err = eng.LoadGameState()
 	assert.NilError(t, err)
-	err = world.RecoverFromChain(context.Background())
+	err = eng.RecoverFromChain(context.Background())
 	assert.NilError(t, err)
 
-	energy, err := ecs.GetComponent[EnergyComp](ecs.NewWorldContext(world), compID)
+	energy, err := ecs.GetComponent[EnergyComp](ecs.NewEngineContext(eng), compID)
 	assert.NilError(t, err)
 
 	// energy should be 15 since we the transactions that came in were 5 and 10.
 	assert.Equal(t, energy.Amount, uint64(15))
-	assert.Equal(t, world.CurrentTick(), uint64(3)) // current tick should be 3 as chain only returned up to 2.
+	assert.Equal(t, eng.CurrentTick(), uint64(3)) // current tick should be 3 as chain only returned up to 2.
 }
 
 func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
 	ctx := context.Background()
 	adapter := &DummyAdapter{}
-	w := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Instance()
-	assert.NilError(t, w.LoadGameState())
-	assert.NilError(t, w.Tick(ctx))
+	eng := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Engine()
+	assert.NilError(t, eng.LoadGameState())
+	assert.NilError(t, eng.Tick(ctx))
 
-	err := w.RecoverFromChain(ctx)
+	err := eng.RecoverFromChain(ctx)
 	assert.ErrorContains(t, err, "world recovery should not occur in a world with existing state")
 }

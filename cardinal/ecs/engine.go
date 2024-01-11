@@ -6,15 +6,17 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -37,14 +39,14 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-// Namespace is a unique identifier for a world.
+// Namespace is a unique identifier for a engine.
 type Namespace string
 
 func (n Namespace) String() string {
 	return string(n)
 }
 
-type World struct {
+type Engine struct {
 	namespace              Namespace
 	redisStorage           *storage.Storage
 	entityStore            store.IManager
@@ -72,7 +74,7 @@ type World struct {
 	receiptHistory *receipt.History
 
 	chain shard.Adapter
-	// isRecovering indicates that the world is recovering from the DA layer.
+	// isRecovering indicates that the engine is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering atomic.Bool
 
@@ -96,7 +98,7 @@ var (
 	ErrMessageRegistrationMustHappenOnce     = errors.New(
 		"message registration must happen exactly 1 time",
 	)
-	ErrStoreStateInvalid    = errors.New("saved world state is not valid")
+	ErrStoreStateInvalid    = errors.New("saved engine state is not valid")
 	ErrDuplicateMessageName = errors.New("message names must be unique")
 	ErrDuplicateQueryName   = errors.New("query names must be unique")
 )
@@ -105,103 +107,103 @@ const (
 	defaultReceiptHistorySize = 10
 )
 
-func (w *World) DoesWorldHaveAnEventHub() bool {
-	return w.eventHub != nil
+func (e *Engine) DoesEngineHaveAnEventHub() bool {
+	return e.eventHub != nil
 }
 
-func (w *World) GetEventHub() events.EventHub {
-	return w.eventHub
+func (e *Engine) GetEventHub() events.EventHub {
+	return e.eventHub
 }
 
-func (w *World) IsEntitiesCreated() bool {
-	return w.isEntitiesCreated
+func (e *Engine) IsEntitiesCreated() bool {
+	return e.isEntitiesCreated
 }
 
-func (w *World) SetEntitiesCreated(value bool) {
-	w.isEntitiesCreated = value
+func (e *Engine) SetEntitiesCreated(value bool) {
+	e.isEntitiesCreated = value
 }
 
-func (w *World) SetEventHub(eventHub events.EventHub) {
-	w.eventHub = eventHub
+func (e *Engine) SetEventHub(eventHub events.EventHub) {
+	e.eventHub = eventHub
 }
 
-func (w *World) EmitEvent(event *events.Event) {
-	w.eventHub.EmitEvent(event)
+func (e *Engine) EmitEvent(event *events.Event) {
+	e.eventHub.EmitEvent(event)
 }
 
-func (w *World) FlushEvents() {
-	w.eventHub.FlushEvents()
+func (e *Engine) FlushEvents() {
+	e.eventHub.FlushEvents()
 }
 
-func (w *World) IsRecovering() bool {
-	return w.isRecovering.Load()
+func (e *Engine) IsRecovering() bool {
+	return e.isRecovering.Load()
 }
 
-func (w *World) Namespace() Namespace {
-	return w.namespace
+func (e *Engine) Namespace() Namespace {
+	return e.namespace
 }
 
-func (w *World) StoreManager() store.IManager {
-	return w.entityStore
+func (e *Engine) StoreManager() store.IManager {
+	return e.entityStore
 }
 
-func (w *World) TickStore() store.TickStorage {
-	return w.entityStore
+func (e *Engine) TickStore() store.TickStorage {
+	return e.entityStore
 }
 
-func (w *World) GetTxQueueAmount() int {
-	return w.txQueue.GetAmountOfTxs()
+func (e *Engine) GetTxQueueAmount() int {
+	return e.txQueue.GetAmountOfTxs()
 }
 
-func (w *World) RegisterSystem(s System) {
-	w.RegisterSystemWithName(s, "")
+func (e *Engine) RegisterSystem(s System) {
+	e.RegisterSystemWithName(s, "")
 }
 
-func (w *World) RegisterSystems(systems ...System) {
+func (e *Engine) RegisterSystems(systems ...System) {
 	for _, system := range systems {
-		w.RegisterSystemWithName(system, "")
+		e.RegisterSystemWithName(system, "")
 	}
 }
 
-func (w *World) RegisterSystemWithName(system System, functionName string) {
-	if w.stateIsLoaded {
+func (e *Engine) RegisterSystemWithName(system System, functionName string) {
+	if e.stateIsLoaded {
 		panic("cannot register systems after loading game state")
 	}
 	if functionName == "" {
 		functionName = filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
 	}
-	sysLogger := ecslog.CreateSystemLogger(w.Logger, functionName)
-	w.systemLoggers = append(w.systemLoggers, sysLogger)
-	w.systemNames = append(w.systemNames, functionName)
-	// appends registeredSystem into the member system list in world.
-	w.systems = append(w.systems, system)
-	w.checkDuplicateSystemName()
+	sysLogger := ecslog.CreateSystemLogger(e.Logger, functionName)
+	e.systemLoggers = append(e.systemLoggers, sysLogger)
+	e.systemNames = append(e.systemNames, functionName)
+	// appends registeredSystem into the member system list in engine.
+	e.systems = append(e.systems, system)
+	e.checkDuplicateSystemName()
 }
 
-func (w *World) checkDuplicateSystemName() {
-	mappedNames := make(map[string]int, len(w.systemNames))
-	for _, sysName := range w.systemNames {
+func (e *Engine) checkDuplicateSystemName() {
+	mappedNames := make(map[string]int, len(e.systemNames))
+	for _, sysName := range e.systemNames {
 		if sysName != "" {
 			mappedNames[sysName]++
 			if mappedNames[sysName] > 1 {
-				w.Logger.Warn().Msgf("duplicate system registered: %s", sysName)
+				e.Logger.Warn().Msgf("duplicate system registered: %s", sysName)
 			}
 		}
 	}
 }
 
-func (w *World) AddInitSystem(system System) {
-	logger := ecslog.CreateSystemLogger(w.Logger, "InitSystem")
-	w.initSystemLogger = logger
-	w.initSystem = system
+func (e *Engine) AddInitSystem(system System) {
+	logger := ecslog.CreateSystemLogger(e.Logger, "InitSystem")
+	e.initSystemLogger = logger
+	e.initSystem = system
 }
 
-func RegisterComponent[T component.Component](world *World) error {
-	if world.stateIsLoaded {
+func RegisterComponent[T component.Component](engine *Engine) error {
+	if engine.stateIsLoaded {
 		panic("cannot register components after loading game state")
 	}
 	var t T
-	_, err := world.GetComponentByName(t.Name())
+	_, err := engine.GetComponentByName(t.Name())
 	if err == nil {
 		return eris.Errorf("component with name '%s' is already registered", t.Name())
 	}
@@ -209,13 +211,13 @@ func RegisterComponent[T component.Component](world *World) error {
 	if err != nil {
 		return err
 	}
-	err = c.SetID(world.nextComponentID)
+	err = c.SetID(engine.nextComponentID)
 	if err != nil {
 		return err
 	}
-	world.registeredComponents = append(world.registeredComponents, c)
+	engine.registeredComponents = append(engine.registeredComponents, c)
 
-	storedSchema, err := world.redisStorage.Schema.GetSchema(c.Name())
+	storedSchema, err := engine.redisStorage.Schema.GetSchema(c.Name())
 
 	// if error is redis.Nil that means schema does not exist in the db, continue
 	if err != nil {
@@ -232,25 +234,25 @@ func RegisterComponent[T component.Component](world *World) error {
 		}
 	}
 
-	err = world.redisStorage.Schema.SetSchema(c.Name(), c.GetSchema())
+	err = engine.redisStorage.Schema.SetSchema(c.Name(), c.GetSchema())
 	if err != nil {
 		return err
 	}
-	world.nextComponentID++
-	world.nameToComponent[t.Name()] = c
-	world.isComponentsRegistered = true
+	engine.nextComponentID++
+	engine.nameToComponent[t.Name()] = c
+	engine.isComponentsRegistered = true
 	return nil
 }
 
-func MustRegisterComponent[T component.Component](world *World) {
-	err := RegisterComponent[T](world)
+func MustRegisterComponent[T component.Component](engine *Engine) {
+	err := RegisterComponent[T](engine)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (w *World) GetComponentByName(name string) (component.ComponentMetadata, error) {
-	componentType, exists := w.nameToComponent[name]
+func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, error) {
+	componentType, exists := e.nameToComponent[name]
 	if !exists {
 		return nil, eris.Errorf(
 			"component with name %s not found. Must register component before using",
@@ -261,16 +263,16 @@ func (w *World) GetComponentByName(name string) (component.ComponentMetadata, er
 }
 
 func RegisterQuery[Request any, Reply any](
-	world *World,
+	engine *Engine,
 	name string,
-	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+	handler func(eCtx EngineContext, req *Request) (*Reply, error),
 	opts ...func() func(queryType *QueryType[Request, Reply]),
 ) error {
-	if world.stateIsLoaded {
+	if engine.stateIsLoaded {
 		panic("cannot register queries after loading game state")
 	}
 
-	if _, ok := world.nameToQuery[name]; ok {
+	if _, ok := engine.nameToQuery[name]; ok {
 		return eris.Errorf("query with name %s is already registered", name)
 	}
 
@@ -279,32 +281,32 @@ func RegisterQuery[Request any, Reply any](
 		return err
 	}
 
-	world.registeredQueries = append(world.registeredQueries, q)
-	world.nameToQuery[q.Name()] = q
+	engine.registeredQueries = append(engine.registeredQueries, q)
+	engine.nameToQuery[q.Name()] = q
 
 	return nil
 }
 
-func (w *World) GetQueryByName(name string) (Query, error) {
-	if q, ok := w.nameToQuery[name]; ok {
+func (e *Engine) GetQueryByName(name string) (Query, error) {
+	if q, ok := e.nameToQuery[name]; ok {
 		return q, nil
 	}
 	return nil, eris.Errorf("query with name %s not found", name)
 }
 
-func (w *World) RegisterMessages(txs ...message.Message) error {
-	if w.stateIsLoaded {
+func (e *Engine) RegisterMessages(txs ...message.Message) error {
+	if e.stateIsLoaded {
 		panic("cannot register messages after loading game state")
 	}
-	if w.isMessagesRegistered {
+	if e.isMessagesRegistered {
 		return eris.Wrap(ErrMessageRegistrationMustHappenOnce, "")
 	}
-	w.isMessagesRegistered = true
-	w.registerInternalMessages()
-	w.registeredMessages = append(w.registeredMessages, txs...)
+	e.isMessagesRegistered = true
+	e.registerInternalMessages()
+	e.registeredMessages = append(e.registeredMessages, txs...)
 
 	seenTxNames := map[string]bool{}
-	for i, t := range w.registeredMessages {
+	for i, t := range e.registeredMessages {
 		name := t.Name()
 		if seenTxNames[name] {
 			return eris.Wrapf(ErrDuplicateMessageName, "duplicate tx %q", name)
@@ -319,42 +321,42 @@ func (w *World) RegisterMessages(txs ...message.Message) error {
 	return nil
 }
 
-func (w *World) registerInternalMessages() {
-	w.registeredMessages = append(
-		w.registeredMessages,
+func (e *Engine) registerInternalMessages() {
+	e.registeredMessages = append(
+		e.registeredMessages,
 		CreatePersonaMsg,
 		AuthorizePersonaAddressMsg,
 	)
 }
 
-func (w *World) ListQueries() []Query {
-	return w.registeredQueries
+func (e *Engine) ListQueries() []Query {
+	return e.registeredQueries
 }
 
-func (w *World) ListMessages() ([]message.Message, error) {
-	if !w.isMessagesRegistered {
+func (e *Engine) ListMessages() ([]message.Message, error) {
+	if !e.isMessagesRegistered {
 		return nil, eris.New("cannot list messages until message registration occurs")
 	}
-	return w.registeredMessages, nil
+	return e.registeredMessages, nil
 }
 
-// NewWorld creates a new world.
-func NewWorld(
+// NewEngine creates a new engine.
+func NewEngine(
 	storage *storage.Storage,
 	entityStore store.IManager,
 	namespace Namespace,
 	opts ...Option,
-) (*World, error) {
+) (*Engine, error) {
 	logger := &log.Logger
 	entityStore.InjectLogger(logger)
-	w := &World{
+	e := &Engine{
 		redisStorage:      storage,
 		entityStore:       entityStore,
 		namespace:         namespace,
 		tick:              &atomic.Uint64{},
 		timestamp:         new(atomic.Uint64),
 		systems:           make([]System, 0),
-		initSystem:        func(_ WorldContext) error { return nil },
+		initSystem:        func(_ EngineContext) error { return nil },
 		nameToComponent:   make(map[string]component.ComponentMetadata),
 		nameToQuery:       make(map[string]Query),
 		txQueue:           txpool.NewTxQueue(),
@@ -367,57 +369,57 @@ func NewWorld(
 
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
-	w.isGameLoopRunning.Store(false)
-	w.RegisterSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
-	err := RegisterComponent[SignerComponent](w)
+	e.isGameLoopRunning.Store(false)
+	e.RegisterSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	err := RegisterComponent[SignerComponent](e)
 	if err != nil {
 		return nil, err
 	}
 	opts = append([]Option{WithEventHub(events.NewWebSocketEventHub())}, opts...)
 	for _, opt := range opts {
-		opt(w)
+		opt(e)
 	}
-	if w.receiptHistory == nil {
-		w.receiptHistory = receipt.NewHistory(w.CurrentTick(), defaultReceiptHistorySize)
+	if e.receiptHistory == nil {
+		e.receiptHistory = receipt.NewHistory(e.CurrentTick(), defaultReceiptHistorySize)
 	}
-	return w, nil
+	return e, nil
 }
 
-func (w *World) CurrentTick() uint64 {
-	return w.tick.Load()
+func (e *Engine) CurrentTick() uint64 {
+	return e.tick.Load()
 }
 
-func (w *World) ReceiptHistorySize() uint64 {
-	return w.receiptHistory.Size()
+func (e *Engine) ReceiptHistorySize() uint64 {
+	return e.receiptHistory.Size()
 }
 
-// Remove removes the given Entity from the world.
-func (w *World) Remove(id entity.ID) error {
-	return w.StoreManager().RemoveEntity(id)
+// Remove removes the given Entity from the engine.
+func (e *Engine) Remove(id entity.ID) error {
+	return e.StoreManager().RemoveEntity(id)
 }
 
 // ConsumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
 // It will fetch the receipt from the map, and then delete ('consume') it from the map.
-func (w *World) ConsumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
-	r, ok := w.evmTxReceipts[evmTxHash]
-	delete(w.evmTxReceipts, evmTxHash)
+func (e *Engine) ConsumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
+	r, ok := e.evmTxReceipts[evmTxHash]
+	delete(e.evmTxReceipts, evmTxHash)
 	return r, ok
 }
 
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a MessageType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) (
+func (e *Engine) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) (
 	tick uint64, txHash message.TxHash,
 ) {
 	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
 	// transaction is actually added to the returned tick.
-	tick = w.CurrentTick()
-	txHash = w.txQueue.AddTransaction(id, v, sig)
+	tick = e.CurrentTick()
+	txHash = e.txQueue.AddTransaction(id, v, sig)
 	return tick, txHash
 }
 
-func (w *World) AddEVMTransaction(
+func (e *Engine) AddEVMTransaction(
 	id message.TypeID,
 	v any,
 	sig *sign.Transaction,
@@ -425,20 +427,20 @@ func (w *World) AddEVMTransaction(
 ) (
 	tick uint64, txHash message.TxHash,
 ) {
-	tick = w.CurrentTick()
-	txHash = w.txQueue.AddEVMTransaction(id, v, sig, evmTxHash)
+	tick = e.CurrentTick()
+	txHash = e.txQueue.AddEVMTransaction(id, v, sig, evmTxHash)
 	return tick, txHash
 }
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
-func (w *World) Tick(ctx context.Context) error {
+func (e *Engine) Tick(ctx context.Context) error {
 	nullSystemName := "No system is running."
 	nameOfCurrentRunningSystem := nullSystemName
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
-			w.Logger.Error().
-				Msgf("Tick: %d, Current running system: %s", w.CurrentTick(), nameOfCurrentRunningSystem)
+			e.Logger.Error().
+				Msgf("Tick: %d, Current running system: %s", e.CurrentTick(), nameOfCurrentRunningSystem)
 			panic(panicValue)
 		}
 	}()
@@ -448,30 +450,30 @@ func (w *World) Tick(ctx context.Context) error {
 		span.Finish()
 	}()
 	startTime := time.Now()
-	w.Logger.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
-	if !w.stateIsLoaded {
+	e.Logger.Info().Int("tick", int(e.CurrentTick())).Msg("Tick started")
+	if !e.stateIsLoaded {
 		return eris.New("must load state before first tick")
 	}
-	txQueue := w.txQueue.CopyTransactions()
+	txQueue := e.txQueue.CopyTransactions()
 
-	if err := w.TickStore().StartNextTick(w.registeredMessages, txQueue); err != nil {
+	if err := e.TickStore().StartNextTick(e.registeredMessages, txQueue); err != nil {
 		return err
 	}
 
-	if w.CurrentTick() == 0 {
-		wCtx := NewWorldContextForTick(w, txQueue, w.initSystemLogger)
-		err := w.initSystem(wCtx)
+	if e.CurrentTick() == 0 {
+		eCtx := NewEngineContextForTick(e, txQueue, e.initSystemLogger)
+		err := e.initSystem(eCtx)
 		if err != nil {
 			return err
 		}
 	}
-	w.timestamp.Store(uint64(startTime.Unix()))
+	e.timestamp.Store(uint64(startTime.Unix()))
 	allSystemsStartTime := time.Now()
-	for i, sys := range w.systems {
-		nameOfCurrentRunningSystem = w.systemNames[i]
-		wCtx := NewWorldContextForTick(w, txQueue, w.systemLoggers[i])
+	for i, sys := range e.systems {
+		nameOfCurrentRunningSystem = e.systemNames[i]
+		eCtx := NewEngineContextForTick(e, txQueue, e.systemLoggers[i])
 		systemStartTime := time.Now()
-		err := eris.Wrapf(sys(wCtx), "system %s generated an error", nameOfCurrentRunningSystem)
+		err := eris.Wrapf(sys(eCtx), "system %s generated an error", nameOfCurrentRunningSystem)
 		statsd.EmitTickStat(systemStartTime, nameOfCurrentRunningSystem)
 		nameOfCurrentRunningSystem = nullSystemName
 		if err != nil {
@@ -479,31 +481,31 @@ func (w *World) Tick(ctx context.Context) error {
 		}
 	}
 	statsd.EmitTickStat(allSystemsStartTime, "all_systems")
-	if w.eventHub != nil {
+	if e.eventHub != nil {
 		flushEventHubStartTime := time.Now()
-		// world can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
-		w.eventHub.FlushEvents()
+		// engine can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
+		e.eventHub.FlushEvents()
 		statsd.EmitTickStat(flushEventHubStartTime, "flush_events")
 	}
 	finalizeTickStartTime := time.Now()
-	if err := w.TickStore().FinalizeTick(ctx); err != nil {
+	if err := e.TickStore().FinalizeTick(ctx); err != nil {
 		return err
 	}
 	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
-	w.setEvmResults(txQueue.GetEVMTxs())
-	if txQueue.GetAmountOfTxs() != 0 && w.chain != nil && !w.isRecovering.Load() {
-		err := w.chain.Submit(ctx, txQueue.Transactions(), w.namespace.String(), w.tick.Load(), w.timestamp.Load())
+	e.setEvmResults(txQueue.GetEVMTxs())
+	if txQueue.GetAmountOfTxs() != 0 && e.chain != nil && !e.isRecovering.Load() {
+		err := e.chain.Submit(ctx, txQueue.Transactions(), e.namespace.String(), e.tick.Load(), e.timestamp.Load())
 		if err != nil {
 			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
 		}
 	}
 
-	w.tick.Add(1)
-	w.receiptHistory.NextTick()
+	e.tick.Add(1)
+	e.receiptHistory.NextTick()
 	statsd.EmitTickStat(startTime, "full_tick")
 	if err := statsd.Client().Count("num_of_txs", int64(txQueue.GetAmountOfTxs()), nil, 1); err != nil {
-		w.Logger.Warn().Msgf("failed to emit count stat:%v", err)
+		e.Logger.Warn().Msgf("failed to emit count stat:%v", err)
 	}
 	return nil
 }
@@ -514,17 +516,17 @@ type EVMTxReceipt struct {
 	EVMTxHash string
 }
 
-func (w *World) setEvmResults(txs []txpool.TxData) {
+func (e *Engine) setEvmResults(txs []txpool.TxData) {
 	// iterate over all EVM originated transactions
 	for _, tx := range txs {
 		// see if tx has a receipt. sometimes it won't because:
 		// The system isn't using TxIterators && never explicitly called SetResult.
-		rec, ok := w.receiptHistory.GetReceipt(tx.TxHash)
+		rec, ok := e.receiptHistory.GetReceipt(tx.TxHash)
 		if !ok {
 			continue
 		}
 		evmRec := EVMTxReceipt{EVMTxHash: tx.EVMSourceTxHash}
-		msg := w.getMessage(tx.MsgID)
+		msg := e.getMessage(tx.MsgID)
 		if rec.Result != nil {
 			abiBz, err := msg.ABIEncode(rec.Result)
 			if err != nil {
@@ -535,33 +537,33 @@ func (w *World) setEvmResults(txs []txpool.TxData) {
 		if len(rec.Errs) > 0 {
 			evmRec.Errs = rec.Errs
 		}
-		w.evmTxReceipts[evmRec.EVMTxHash] = evmRec
+		e.evmTxReceipts[evmRec.EVMTxHash] = evmRec
 	}
 }
 
-func (w *World) StartGameLoop(
+func (e *Engine) StartGameLoop(
 	ctx context.Context,
 	tickStart <-chan time.Time,
 	tickDone chan<- uint64,
 ) {
-	w.Logger.Info().Msg("Game loop started")
-	ecslog.World(w.Logger, w, zerolog.InfoLevel)
+	e.Logger.Info().Msg("Game loop started")
+	ecslog.Engine(e.Logger, e, zerolog.InfoLevel)
 	//todo: add links to docs related to each warning
-	if !w.isComponentsRegistered {
-		w.Logger.Warn().Msg("No components registered.")
+	if !e.isComponentsRegistered {
+		e.Logger.Warn().Msg("No components registered.")
 	}
-	if !w.isMessagesRegistered {
-		w.Logger.Warn().Msg("No messages registered.")
+	if !e.isMessagesRegistered {
+		e.Logger.Warn().Msg("No messages registered.")
 	}
-	if len(w.registeredQueries) == 0 {
-		w.Logger.Warn().Msg("No queries registered.")
+	if len(e.registeredQueries) == 0 {
+		e.Logger.Warn().Msg("No queries registered.")
 	}
-	if len(w.systems) == 0 {
-		w.Logger.Warn().Msg("No systems registered.")
+	if len(e.systems) == 0 {
+		e.Logger.Warn().Msg("No systems registered.")
 	}
 
 	go func() {
-		ok := w.isGameLoopRunning.CompareAndSwap(false, true)
+		ok := e.isGameLoopRunning.CompareAndSwap(false, true)
 		if !ok {
 			// The game has already started
 			return
@@ -571,23 +573,23 @@ func (w *World) StartGameLoop(
 		for {
 			select {
 			case <-tickStart:
-				w.tickTheWorld(ctx, tickDone)
+				e.tickTheEngine(ctx, tickDone)
 				closeAllChannels(waitingChs)
 				waitingChs = waitingChs[:0]
-			case <-w.endGameLoopCh:
-				w.drainChannelsWaitingForNextTick()
-				w.drainEndLoopChannels()
+			case <-e.endGameLoopCh:
+				e.drainChannelsWaitingForNextTick()
+				e.drainEndLoopChannels()
 				closeAllChannels(waitingChs)
-				if w.GetTxQueueAmount() > 0 {
+				if e.GetTxQueueAmount() > 0 {
 					// immediately tick if queue is not empty to process all txs if queue is not empty.
-					w.tickTheWorld(ctx, tickDone)
+					e.tickTheEngine(ctx, tickDone)
 				}
 				break loop
-			case ch := <-w.addChannelWaitingForNextTick:
+			case ch := <-e.addChannelWaitingForNextTick:
 				waitingChs = append(waitingChs, ch)
 			}
 		}
-		w.isGameLoopRunning.Store(false)
+		e.isGameLoopRunning.Store(false)
 	}()
 }
 
@@ -597,17 +599,17 @@ func closeAllChannels(chs []chan struct{}) {
 	}
 }
 
-func (w *World) tickTheWorld(ctx context.Context, tickDone chan<- uint64) {
-	currTick := w.CurrentTick()
+func (e *Engine) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
+	currTick := e.CurrentTick()
 	// this is the final point where errors bubble up and hit a panic. There are other places where this occurs
 	// but this is the highest terminal point.
 	// the panic may point you to here, (or the tick function) but the real stack trace is in the error message.
-	if err := w.Tick(ctx); err != nil {
+	if err := e.Tick(ctx); err != nil {
 		bytes, err := json.Marshal(eris.ToJSON(err, true))
 		if err != nil {
 			panic(err)
 		}
-		w.Logger.Panic().Err(err).Str("tickError", "Error running Tick in Game Loop.").RawJSON("error", bytes)
+		e.Logger.Panic().Err(err).Str("tickError", "Error running Tick in Game Loop.").RawJSON("error", bytes)
 	}
 	if tickDone != nil {
 		tickDone <- currTick
@@ -615,51 +617,51 @@ func (w *World) tickTheWorld(ctx context.Context, tickDone chan<- uint64) {
 }
 
 // drainChannelsWaitingForNextTick continually closes any channels that are added to the
-// addChannelWaitingForNextTick channel. This is used when the world is shut down; it ensures
+// addChannelWaitingForNextTick channel. This is used when the engine is shut down; it ensures
 // any calls to WaitForNextTick that happen after a shutdown will not block.
-func (w *World) drainChannelsWaitingForNextTick() {
+func (e *Engine) drainChannelsWaitingForNextTick() {
 	go func() {
-		for ch := range w.addChannelWaitingForNextTick {
+		for ch := range e.addChannelWaitingForNextTick {
 			close(ch)
 		}
 	}()
 }
 
-func (w *World) drainEndLoopChannels() {
+func (e *Engine) drainEndLoopChannels() {
 	go func() {
-		for range w.endGameLoopCh { //nolint:revive // This pattern drains the channel until closed
+		for range e.endGameLoopCh { //nolint:revive // This pattern drains the channel until closed
 		}
 	}()
 }
 
 // WaitForNextTick blocks until at least one game tick has completed. It returns true if it successfully waited for a
-// tick. False may be returned if the world was shut down while waiting for the next tick to complete.
-func (w *World) WaitForNextTick() (success bool) {
-	startTick := w.CurrentTick()
+// tick. False may be returned if the engine was shut down while waiting for the next tick to complete.
+func (e *Engine) WaitForNextTick() (success bool) {
+	startTick := e.CurrentTick()
 	ch := make(chan struct{})
-	w.addChannelWaitingForNextTick <- ch
+	e.addChannelWaitingForNextTick <- ch
 	<-ch
-	return w.CurrentTick() > startTick
+	return e.CurrentTick() > startTick
 }
 
-func (w *World) IsGameLoopRunning() bool {
-	return w.isGameLoopRunning.Load()
+func (e *Engine) IsGameLoopRunning() bool {
+	return e.isGameLoopRunning.Load()
 }
 
-func (w *World) Shutdown() {
-	w.shutdownMutex.Lock() // This queues up Shutdown calls so they happen one after the other.
-	defer w.shutdownMutex.Unlock()
-	if !w.IsGameLoopRunning() {
+func (e *Engine) Shutdown() {
+	e.shutdownMutex.Lock() // This queues up Shutdown calls so they happen one after the other.
+	defer e.shutdownMutex.Unlock()
+	if !e.IsGameLoopRunning() {
 		return
 	}
 	log.Info().Msg("Shutting down game loop.")
-	w.endGameLoopCh <- true
-	for w.IsGameLoopRunning() { // Block until loop stops.
+	e.endGameLoopCh <- true
+	for e.IsGameLoopRunning() { // Block until loop stops.
 		time.Sleep(100 * time.Millisecond) //nolint:gomnd // its ok.
 	}
 	log.Info().Msg("Successfully shut down game loop.")
-	if w.eventHub != nil {
-		w.eventHub.ShutdownEventHub()
+	if e.eventHub != nil {
+		e.eventHub.ShutdownEventHub()
 	}
 }
 
@@ -667,88 +669,88 @@ func (w *World) Shutdown() {
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
 // transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
 // transactions that need to be processed because the last tick was successful.
-func (w *World) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
-	start, end, err := w.TickStore().GetTickNumbers()
+func (e *Engine) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
+	start, end, err := e.TickStore().GetTickNumbers()
 	if err != nil {
 		return nil, err
 	}
-	w.tick.Store(end)
+	e.tick.Store(end)
 	// We successfully completed the last tick. Everything is fine
 	if start == end {
 		//nolint:nilnil // its ok.
 		return nil, nil
 	}
-	return w.TickStore().Recover(w.registeredMessages)
+	return e.TickStore().Recover(e.registeredMessages)
 }
 
-func (w *World) LoadGameState() error {
-	if w.IsEntitiesCreated() {
+func (e *Engine) LoadGameState() error {
+	if e.IsEntitiesCreated() {
 		return eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
 	}
-	if w.stateIsLoaded {
+	if e.stateIsLoaded {
 		return eris.New("cannot load game state multiple times")
 	}
-	if !w.isMessagesRegistered {
-		if err := w.RegisterMessages(); err != nil {
+	if !e.isMessagesRegistered {
+		if err := e.RegisterMessages(); err != nil {
 			return err
 		}
 	}
 
-	if !w.isComponentsRegistered {
-		err := RegisterComponent[SignerComponent](w)
+	if !e.isComponentsRegistered {
+		err := RegisterComponent[SignerComponent](e)
 		if err != nil {
 			return err
 		}
 	}
 
-	if err := w.entityStore.RegisterComponents(w.registeredComponents); err != nil {
+	if err := e.entityStore.RegisterComponents(e.registeredComponents); err != nil {
 		return err
 	}
 
-	w.stateIsLoaded = true
-	recoveredTxs, err := w.recoverGameState()
+	e.stateIsLoaded = true
+	recoveredTxs, err := e.recoverGameState()
 	if err != nil {
 		return err
 	}
 
 	if recoveredTxs != nil {
-		w.txQueue = recoveredTxs
-		if err = w.Tick(context.Background()); err != nil {
+		e.txQueue = recoveredTxs
+		if err = e.Tick(context.Background()); err != nil {
 			return err
 		}
 	}
-	w.receiptHistory.SetTick(w.CurrentTick())
+	e.receiptHistory.SetTick(e.CurrentTick())
 
 	return nil
 }
 
-// RecoverFromChain will attempt to recover the state of the world based on historical transaction data.
-// The function puts the world in a recovery state, and then queries all transaction batches under the world's
+// RecoverFromChain will attempt to recover the state of the engine based on historical transaction data.
+// The function puts the engine in a recovery state, and then queries all transaction batches under the engine's
 // namespace. The function will continuously ask the EVM base shard for batches, and run ticks for each batch returned.
 //
 //nolint:gocognit
-func (w *World) RecoverFromChain(ctx context.Context) error {
-	if w.chain == nil {
+func (e *Engine) RecoverFromChain(ctx context.Context) error {
+	if e.chain == nil {
 		return eris.Errorf(
 			"chain adapter was nil. " +
 				"be sure to use the `WithAdapter` option when creating the world",
 		)
 	}
-	if w.CurrentTick() > 0 {
+	if e.CurrentTick() > 0 {
 		return eris.Errorf(
 			"world recovery should not occur in a world with existing state. please verify all " +
 				"state has been cleared before running recovery",
 		)
 	}
 
-	w.isRecovering.Store(true)
+	e.isRecovering.Store(true)
 	defer func() {
-		w.isRecovering.Store(false)
+		e.isRecovering.Store(false)
 	}()
-	namespace := w.Namespace().String()
+	namespace := e.Namespace().String()
 	var nextKey []byte
 	for {
-		res, err := w.chain.QueryTransactions(
+		res, err := e.chain.QueryTransactions(
 			ctx, &types.QueryTransactionsRequest{
 				Namespace: namespace,
 				Page: &types.PageRequest{
@@ -762,27 +764,27 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		for _, tickedTxs := range res.Epochs {
 			target := tickedTxs.Epoch
 			// tick up to target
-			if target < w.CurrentTick() {
+			if target < e.CurrentTick() {
 				return eris.Errorf(
 					"got tx for tick %d, but world is at tick %d",
 					target,
-					w.CurrentTick(),
+					e.CurrentTick(),
 				)
 			}
-			for current := w.CurrentTick(); current != target; {
-				if err = w.Tick(ctx); err != nil {
+			for current := e.CurrentTick(); current != target; {
+				if err = e.Tick(ctx); err != nil {
 					return err
 				}
-				current = w.CurrentTick()
+				current = e.CurrentTick()
 			}
 			// we've now reached target. we need to inject the transactions and tick.
 			transactions := tickedTxs.Txs
 			for _, tx := range transactions {
-				sp, err := w.decodeTransaction(tx.GameShardTransaction)
+				sp, err := e.decodeTransaction(tx.GameShardTransaction)
 				if err != nil {
 					return err
 				}
-				msg := w.getMessage(message.TypeID(tx.TxId))
+				msg := e.getMessage(message.TypeID(tx.TxId))
 				if msg == nil {
 					return eris.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
 				}
@@ -790,10 +792,10 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				w.AddTransaction(message.TypeID(tx.TxId), v, w.protoTransactionToGo(sp))
+				e.AddTransaction(message.TypeID(tx.TxId), v, e.protoTransactionToGo(sp))
 			}
 			// run the tick for this batch
-			if err = w.Tick(ctx); err != nil {
+			if err = e.Tick(ctx); err != nil {
 				return err
 			}
 		}
@@ -813,7 +815,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	return nil
 }
 
-func (w *World) protoTransactionToGo(sp *shardv1.Transaction) *sign.Transaction {
+func (e *Engine) protoTransactionToGo(sp *shardv1.Transaction) *sign.Transaction {
 	return &sign.Transaction{
 		PersonaTag: sp.PersonaTag,
 		Namespace:  sp.Namespace,
@@ -823,7 +825,7 @@ func (w *World) protoTransactionToGo(sp *shardv1.Transaction) *sign.Transaction 
 	}
 }
 
-func (w *World) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
+func (e *Engine) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
 	payload := new(shardv1.Transaction)
 	err := proto.Unmarshal(bz, payload)
 	return payload, eris.Wrap(err, "")
@@ -831,8 +833,8 @@ func (w *World) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
 
 // getMessage iterates over the all registered messages and returns the message.Message associated with the
 // message.TypeID.
-func (w *World) getMessage(id message.TypeID) message.Message {
-	for _, msg := range w.registeredMessages {
+func (e *Engine) getMessage(id message.TypeID) message.Message {
+	for _, msg := range e.registeredMessages {
 		if id == msg.ID() {
 			return msg
 		}
@@ -840,47 +842,43 @@ func (w *World) getMessage(id message.TypeID) message.Message {
 	return nil
 }
 
-func (w *World) UseNonce(signerAddress string, nonce uint64) error {
-	return w.redisStorage.Nonce.UseNonce(signerAddress, nonce)
+func (e *Engine) UseNonce(signerAddress string, nonce uint64) error {
+	return e.redisStorage.Nonce.UseNonce(signerAddress, nonce)
 }
 
-func (w *World) AddMessageError(id message.TxHash, err error) {
-	w.receiptHistory.AddError(id, err)
+func (e *Engine) AddMessageError(id message.TxHash, err error) {
+	e.receiptHistory.AddError(id, err)
 }
 
-func (w *World) SetMessageResult(id message.TxHash, a any) {
-	w.receiptHistory.SetResult(id, a)
+func (e *Engine) SetMessageResult(id message.TxHash, a any) {
+	e.receiptHistory.SetResult(id, a)
 }
 
-func (w *World) GetTransactionReceipt(id message.TxHash) (any, []error, bool) {
-	rec, ok := w.receiptHistory.GetReceipt(id)
+func (e *Engine) GetTransactionReceipt(id message.TxHash) (any, []error, bool) {
+	rec, ok := e.receiptHistory.GetReceipt(id)
 	if !ok {
 		return nil, nil, false
 	}
 	return rec.Result, rec.Errs, true
 }
 
-func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
-	return w.receiptHistory.GetReceiptsForTick(tick)
+func (e *Engine) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
+	return e.receiptHistory.GetReceiptsForTick(tick)
 }
 
-func (w *World) GetComponents() []component.ComponentMetadata {
-	return w.registeredComponents
+func (e *Engine) GetComponents() []component.ComponentMetadata {
+	return e.registeredComponents
 }
 
-func (w *World) GetSystemNames() []string {
-	return w.systemNames
+func (e *Engine) GetSystemNames() []string {
+	return e.systemNames
 }
 
-func (w *World) InjectLogger(logger *zerolog.Logger) {
-	w.Logger = logger
-	w.StoreManager().InjectLogger(logger)
+func (e *Engine) InjectLogger(logger *zerolog.Logger) {
+	e.Logger = logger
+	e.StoreManager().InjectLogger(logger)
 }
 
-func (w *World) NewSearch(filter Filterable) (*Search, error) {
-	componentFilter, err := filter.ConvertToComponentFilter(w)
-	if err != nil {
-		return nil, err
-	}
-	return NewSearch(componentFilter), nil
+func (e *Engine) NewSearch(filter filter.ComponentFilter) *Search {
+	return NewSearch(filter)
 }

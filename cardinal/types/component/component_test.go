@@ -55,13 +55,13 @@ func TestComponentInterfaceSignature(t *testing.T) {
 }
 
 func TestComponents(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	ecs.MustRegisterComponent[ComponentDataA](world)
-	ecs.MustRegisterComponent[ComponentDataB](world)
+	engine := testutils.NewTestWorld(t).Engine()
+	ecs.MustRegisterComponent[ComponentDataA](engine)
+	ecs.MustRegisterComponent[ComponentDataB](engine)
 
-	ca, err := world.GetComponentByName("a")
+	ca, err := engine.GetComponentByName("a")
 	assert.NilError(t, err)
-	cb, err := world.GetComponentByName("b")
+	cb, err := engine.GetComponentByName("b")
 	assert.NilError(t, err)
 
 	tests := []*struct {
@@ -84,7 +84,7 @@ func TestComponents(t *testing.T) {
 		},
 	}
 
-	storeManager := world.StoreManager()
+	storeManager := engine.StoreManager()
 	for _, tt := range tests {
 		entityID, err := storeManager.CreateEntity(tt.comps...)
 		assert.NilError(t, err)
@@ -96,20 +96,20 @@ func TestComponents(t *testing.T) {
 	for _, tt := range tests {
 		componentsForArchID := storeManager.GetComponentTypesForArchID(tt.archID)
 		for _, comp := range tt.comps {
-			ok := filter.MatchComponentMetaData(componentsForArchID, comp)
+			ok := filter.MatchComponent(component.ConvertComponentMetadatasToComponents(componentsForArchID), comp)
 			if !ok {
 				t.Errorf("the archetype ID %d should contain the component %d", tt.archID, comp.ID())
 			}
 			iface, err := storeManager.GetComponentForEntity(comp, tt.entityID)
 			assert.NilError(t, err)
 
-			switch component := iface.(type) {
+			switch comp := iface.(type) {
 			case ComponentDataA:
-				component.Value = tt.Value
-				assert.NilError(t, storeManager.SetComponentForEntity(ca, tt.entityID, component))
+				comp.Value = tt.Value
+				assert.NilError(t, storeManager.SetComponentForEntity(ca, tt.entityID, comp))
 			case ComponentDataB:
-				component.Value = tt.Value
-				assert.NilError(t, storeManager.SetComponentForEntity(cb, tt.entityID, component))
+				comp.Value = tt.Value
+				assert.NilError(t, storeManager.SetComponentForEntity(cb, tt.entityID, comp))
 			default:
 				assert.Check(t, false, "unknown component type: %v", iface)
 			}
@@ -157,11 +157,11 @@ func (notFoundComp) Name() string {
 }
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	ecs.MustRegisterComponent[foundComp](world)
-	ecs.MustRegisterComponent[notFoundComp](world)
+	engine := testutils.NewTestWorld(t).Engine()
+	ecs.MustRegisterComponent[foundComp](engine)
+	ecs.MustRegisterComponent[notFoundComp](engine)
 
-	wCtx := ecs.NewWorldContext(world)
+	wCtx := ecs.NewEngineContext(engine)
 	id, err := ecs.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
 	_, err = ecs.GetComponent[notFoundComp](wCtx, id)
@@ -177,23 +177,23 @@ func (ValueComponent) Name() string {
 }
 
 func TestMultipleCallsToCreateSupported(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[ValueComponent](world))
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, ecs.RegisterComponent[ValueComponent](engine))
 
-	wCtx := ecs.NewWorldContext(world)
-	id, err := ecs.Create(wCtx, ValueComponent{})
+	eCtx := ecs.NewEngineContext(engine)
+	id, err := ecs.Create(eCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, ecs.SetComponent[ValueComponent](wCtx, id, &ValueComponent{99}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent](eCtx, id, &ValueComponent{99}))
 
-	val, err := ecs.GetComponent[ValueComponent](wCtx, id)
+	val, err := ecs.GetComponent[ValueComponent](eCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
-	_, err = ecs.Create(wCtx, ValueComponent{})
+	_, err = ecs.Create(eCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	val, err = ecs.GetComponent[ValueComponent](wCtx, id)
+	val, err = ecs.GetComponent[ValueComponent](eCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 }

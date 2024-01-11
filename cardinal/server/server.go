@@ -25,7 +25,7 @@ import (
 
 // Handler is a type that contains endpoints for messages and queries in a given ecs world.
 type Handler struct {
-	w                      *ecs.World
+	w                      *ecs.Engine
 	Mux                    *http.ServeMux
 	server                 *http.Server
 	disableSigVerification bool
@@ -51,7 +51,7 @@ const (
 // NewHandler instantiates handler function for creating a swagger server that validates itself based on a swagger spec.
 // messages and queries registered with the given world are automatically created. The server runs on a default port
 // of 4040, but can be changed via options or by setting an environment variable with key CARDINAL_PORT.
-func NewHandler(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
+func NewHandler(w *ecs.Engine, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	h, err := newSwaggerHandlerEmbed(w, builder, opts...)
 	h.running.Store(false)
 	if err != nil {
@@ -63,7 +63,7 @@ func NewHandler(w *ecs.World, builder middleware.Builder, opts ...Option) (*Hand
 //go:embed swagger.yml
 var swaggerData []byte
 
-func newSwaggerHandlerEmbed(w *ecs.World, builder middleware.Builder, opts ...Option) (*Handler, error) {
+func newSwaggerHandlerEmbed(w *ecs.Engine, builder middleware.Builder, opts ...Option) (*Handler, error) {
 	th := &Handler{
 		w:        w,
 		Mux:      http.NewServeMux(),
@@ -173,7 +173,7 @@ type EndpointsResult struct {
 	DebugEndpoints []string `json:"debugEndpoints"`
 }
 
-func createAllEndpoints(world *ecs.World) (*EndpointsResult, error) {
+func createAllEndpoints(world *ecs.Engine) (*EndpointsResult, error) {
 	txs, err := world.ListMessages()
 	if err != nil {
 		return nil, err

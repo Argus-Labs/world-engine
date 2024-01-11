@@ -1,6 +1,7 @@
 package ecs_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -20,20 +21,19 @@ func (FooComponent) Name() string {
 }
 
 func TestSearchEarlyTermination(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, ecs.RegisterComponent[FooComponent](world))
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, ecs.RegisterComponent[FooComponent](engine))
 
 	total := 10
 	count := 0
 	stop := 5
-	wCtx := ecs.NewWorldContext(world)
-	_, err := ecs.CreateMany(wCtx, total, FooComponent{})
+	eCtx := ecs.NewEngineContext(engine)
+	_, err := ecs.CreateMany(eCtx, total, FooComponent{})
 	assert.NilError(t, err)
-	q, err := world.NewSearch(ecs.Exact(FooComponent{}))
-	assert.NilError(t, err)
+	q := engine.NewSearch(filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
-			wCtx, func(id entity.ID) bool {
+			eCtx, func(id entity.ID) bool {
 				count++
 				return count != stop
 			},
@@ -42,11 +42,10 @@ func TestSearchEarlyTermination(t *testing.T) {
 	assert.Equal(t, count, stop)
 
 	count = 0
-	q, err = world.NewSearch(ecs.Exact(FooComponent{}))
-	assert.NilError(t, err)
+	q = engine.NewSearch(filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
-			wCtx, func(id entity.ID) bool {
+			eCtx, func(id entity.ID) bool {
 				count++
 				return true
 			},

@@ -15,7 +15,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	shardv2 "pkg.world.dev/world-engine/rift/shard/v2"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
 
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 )
@@ -56,7 +56,7 @@ var (
 
 type adapterImpl struct {
 	cfg            AdapterConfig
-	ShardSequencer shardv2.TransactionHandlerClient
+	ShardSequencer shard.TransactionHandlerClient
 	ShardQuerier   shardtypes.QueryClient
 
 	// opts
@@ -95,7 +95,7 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 		fmt.Println("error dialing shard sequencer addr", cfg.ShardSequencerAddr)
 		return nil, eris.Wrap(err, "")
 	}
-	a.ShardSequencer = shardv2.NewTransactionHandlerClient(conn)
+	a.ShardSequencer = shard.NewTransactionHandlerClient(conn)
 
 	// we don't need secure comms for this connection, cause we're just querying cosmos public RPC endpoints.
 	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -114,15 +114,15 @@ func (a adapterImpl) Submit(
 	epoch,
 	unixTimestamp uint64,
 ) error {
-	messageIDtoTxs := make(map[uint64]*shardv2.Transactions, len(processedTxs))
+	messageIDtoTxs := make(map[uint64]*shard.Transactions, len(processedTxs))
 	for msgID, txs := range processedTxs {
-		protoTxs := make([]*shardv2.Transaction, len(txs))
+		protoTxs := make([]*shard.Transaction, len(txs))
 		for _, txData := range txs {
 			protoTxs = append(protoTxs, transactionToProto(txData.Tx))
 		}
-		messageIDtoTxs[uint64(msgID)] = &shardv2.Transactions{Txs: protoTxs}
+		messageIDtoTxs[uint64(msgID)] = &shard.Transactions{Txs: protoTxs}
 	}
-	req := shardv2.SubmitTransactionsRequest{
+	req := shard.SubmitTransactionsRequest{
 		Epoch:         epoch,
 		UnixTimestamp: unixTimestamp,
 		Namespace:     namespace,
@@ -141,8 +141,8 @@ func (a adapterImpl) QueryTransactions(ctx context.Context, req *shardtypes.Quer
 }
 
 //nolint:unused // will be used soon.. just refactoring things..
-func transactionToProto(sp *sign.Transaction) *shardv2.Transaction {
-	return &shardv2.Transaction{
+func transactionToProto(sp *sign.Transaction) *shard.Transaction {
+	return &shard.Transaction{
 		PersonaTag: sp.PersonaTag,
 		Namespace:  sp.Namespace,
 		Nonce:      sp.Nonce,

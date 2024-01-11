@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -16,14 +17,14 @@ import (
 )
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
-	// Verify that the CreatePersona is automatically created and registered with a world.
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.LoadGameState())
+	// Verify that the CreatePersona is automatically created and registered with a engine.
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, engine.LoadGameState())
 
 	wantTag := "CoolMage"
 	wantAddress := "123_456"
 	ecs.CreatePersonaMsg.AddToQueue(
-		world, ecs.CreatePersona{
+		engine, ecs.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: wantAddress,
 		},
@@ -31,16 +32,16 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	// This CreatePersona has the same persona tag, but it shouldn't be registered because
 	// it comes second.
 	ecs.CreatePersonaMsg.AddToQueue(
-		world, ecs.CreatePersona{
+		engine, ecs.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: "some_other_address",
 		},
 	)
 
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, engine.Tick(context.Background()))
 
-	signers := getSigners(t, world)
+	signers := getSigners(t, engine)
 	ourSigner := signers[0]
 	count := len(signers)
 	assert.Equal(t, ourSigner.PersonaTag, wantTag)
@@ -49,61 +50,61 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 }
 
 func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.LoadGameState())
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, engine.LoadGameState())
 	ctx := context.Background()
 
 	// Tick the game forward a bit to simulate a game that has been running for a bit of time.
 	for i := 0; i < 10; i++ {
-		assert.NilError(t, world.Tick(ctx))
+		assert.NilError(t, engine.Tick(ctx))
 	}
 
-	_, err := world.GetSignerForPersonaTag("missing_persona", 1)
+	_, err := engine.GetSignerForPersonaTag("missing_persona", 1)
 	assert.ErrorIs(t, err, ecs.ErrPersonaTagHasNoSigner)
 
 	// Queue up a CreatePersona
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
 	ecs.CreatePersonaMsg.AddToQueue(
-		world, ecs.CreatePersona{
+		engine, ecs.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: signerAddress,
 		},
 	)
-	// This CreatePersona will not be processed until the world.CurrentTick() is greater than the tick that
+	// This CreatePersona will not be processed until the engine.CurrentTick() is greater than the tick that
 	// originally got the CreatePersona.
-	tick := world.CurrentTick()
-	_, err = world.GetSignerForPersonaTag(personaTag, tick)
+	tick := engine.CurrentTick()
+	_, err = engine.GetSignerForPersonaTag(personaTag, tick)
 	assert.ErrorIs(t, err, ecs.ErrCreatePersonaTxsNotProcessed)
 
-	assert.NilError(t, world.Tick(ctx))
+	assert.NilError(t, engine.Tick(ctx))
 	// The CreatePersona has now been processed
-	addr, err := world.GetSignerForPersonaTag(personaTag, tick)
+	addr, err := engine.GetSignerForPersonaTag(personaTag, tick)
 	assert.NilError(t, err)
 	assert.Equal(t, addr, signerAddress)
 }
 
 func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.LoadGameState())
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, engine.LoadGameState())
 
 	personaTag := "jeff"
 
 	for i := 0; i < 10; i++ {
 		// Attempt to register many different signer addresses with the same persona tag.
 		ecs.CreatePersonaMsg.AddToQueue(
-			world, ecs.CreatePersona{
+			engine, ecs.CreatePersona{
 				PersonaTag:    personaTag,
 				SignerAddress: fmt.Sprintf("address_%d", i),
 			},
 		)
 	}
-	tick := world.CurrentTick()
+	tick := engine.CurrentTick()
 
 	ctx := context.Background()
-	assert.NilError(t, world.Tick(ctx))
+	assert.NilError(t, engine.Tick(ctx))
 
-	addr, err := world.GetSignerForPersonaTag(personaTag, tick)
+	addr, err := engine.GetSignerForPersonaTag(personaTag, tick)
 	assert.NilError(t, err)
 	// Only the first address should be associated with the user
 	assert.Equal(t, addr, "address_0")
@@ -111,46 +112,46 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 	// Attempt to register this persona tag again in a different tick. We should still maintain the original
 	// signer address.
 	ecs.CreatePersonaMsg.AddToQueue(
-		world, ecs.CreatePersona{
+		engine, ecs.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: "some_other_address",
 		},
 	)
 
-	assert.NilError(t, world.Tick(ctx))
-	addr, err = world.GetSignerForPersonaTag(personaTag, tick)
+	assert.NilError(t, engine.Tick(ctx))
+	addr, err = engine.GetSignerForPersonaTag(personaTag, tick)
 	assert.NilError(t, err)
 	// The saved address should be unchanged
 	assert.Equal(t, addr, "address_0")
 }
 
 func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
-	// Verify that the CreatePersona is automatically created and registered with a world.
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.LoadGameState())
+	// Verify that the CreatePersona is automatically created and registered with a engine.
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, engine.LoadGameState())
 
 	ecs.CreatePersonaMsg.AddToQueue(
-		world, ecs.CreatePersona{
+		engine, ecs.CreatePersona{
 			PersonaTag:    "INVALID PERSONA TAG WITH SPACES",
 			SignerAddress: "123_456",
 		},
 	)
 
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, engine.Tick(context.Background()))
 
-	signers := getSigners(t, world)
+	signers := getSigners(t, engine)
 	count := len(signers)
 	assert.Equal(t, count, 0) // Assert that no signer components were found
 }
 
 func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
-	// Verify that the CreatePersona is automatically created and registered with a world.
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.LoadGameState())
+	// Verify that the CreatePersona is automatically created and registered with a engine.
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, engine.LoadGameState())
 
 	ecs.CreatePersonaMsg.AddToQueue(
-		world, ecs.CreatePersona{
+		engine, ecs.CreatePersona{
 			PersonaTag:    "WowTag",
 			SignerAddress: "123_456",
 		},
@@ -158,30 +159,30 @@ func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 
 	// This one should fail because it is the same tag with different casing!
 	ecs.CreatePersonaMsg.AddToQueue(
-		world, ecs.CreatePersona{
+		engine, ecs.CreatePersona{
 			PersonaTag:    "wowtag",
 			SignerAddress: "123_456",
 		},
 	)
 
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, engine.Tick(context.Background()))
 
-	signers := getSigners(t, world)
+	signers := getSigners(t, engine)
 	count := len(signers)
 	assert.Equal(t, count, 1) // Assert that only one signer component was found and it was the first one
 	assert.Equal(t, signers[0].PersonaTag, "WowTag")
 }
 
 func TestCanAuthorizeAddress(t *testing.T) {
-	// Verify that the CreatePersona is automatically created and registered with a world.
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.LoadGameState())
+	// Verify that the CreatePersona is automatically created and registered with a engine.
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, engine.LoadGameState())
 
 	wantTag := "CoolMage"
 	wantSigner := "123_456"
 	ecs.CreatePersonaMsg.AddToQueue(
-		world, ecs.CreatePersona{
+		engine, ecs.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: wantSigner,
 		},
@@ -189,14 +190,14 @@ func TestCanAuthorizeAddress(t *testing.T) {
 
 	wantAddr := "0xd5e099c71b797516c10ed0f0d895f429c2781142"
 	ecs.AuthorizePersonaAddressMsg.AddToQueue(
-		world, ecs.AuthorizePersonaAddress{
+		engine, ecs.AuthorizePersonaAddress{
 			Address: wantAddr,
 		}, &sign.Transaction{PersonaTag: wantTag},
 	)
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, engine.Tick(context.Background()))
 
-	signers := getSigners(t, world)
+	signers := getSigners(t, engine)
 	ourSigner := signers[0]
 	count := len(signers)
 	assert.Equal(t, ourSigner.PersonaTag, wantTag)
@@ -210,14 +211,14 @@ func TestCanAuthorizeAddress(t *testing.T) {
 }
 
 func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
-	// Verify that the CreatePersona is automatically created and registered with a world.
-	world := testutils.NewTestWorld(t).Instance()
-	assert.NilError(t, world.LoadGameState())
+	// Verify that the CreatePersona is automatically created and registered with a engine.
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, engine.LoadGameState())
 
 	personaTag := "CoolMage"
 	invalidAddr := "123-456"
 	ecs.CreatePersonaMsg.AddToQueue(
-		world, ecs.CreatePersona{
+		engine, ecs.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: invalidAddr,
 		},
@@ -225,14 +226,14 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 
 	wantAddr := "INVALID ADDRESS"
 	ecs.AuthorizePersonaAddressMsg.AddToQueue(
-		world, ecs.AuthorizePersonaAddress{
+		engine, ecs.AuthorizePersonaAddress{
 			Address: wantAddr,
 		}, &sign.Transaction{PersonaTag: personaTag},
 	)
 	// PersonaTag registration doesn't take place until the relevant system is run during a game tick.
-	assert.NilError(t, world.Tick(context.Background()))
+	assert.NilError(t, engine.Tick(context.Background()))
 
-	signers := getSigners(t, world)
+	signers := getSigners(t, engine)
 	ourSigner := signers[0]
 	count := len(signers)
 	assert.Equal(t, ourSigner.PersonaTag, personaTag)
@@ -244,16 +245,15 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 	assert.Equal(t, count, 1)
 }
 
-func getSigners(t *testing.T, world *ecs.World) []*ecs.SignerComponent {
-	wCtx := ecs.NewWorldContext(world)
+func getSigners(t *testing.T, engine *ecs.Engine) []*ecs.SignerComponent {
+	eCtx := ecs.NewEngineContext(engine)
 	var signers = make([]*ecs.SignerComponent, 0)
 
-	q, err := world.NewSearch(ecs.Exact(ecs.SignerComponent{}))
-	assert.NilError(t, err)
+	q := engine.NewSearch(filter.Exact(ecs.SignerComponent{}))
 
-	err = q.Each(
-		wCtx, func(id entity.ID) bool {
-			sc, err := ecs.GetComponent[ecs.SignerComponent](wCtx, id)
+	err := q.Each(
+		eCtx, func(id entity.ID) bool {
+			sc, err := ecs.GetComponent[ecs.SignerComponent](eCtx, id)
 			assert.NilError(t, err)
 			signers = append(signers, sc)
 			return true

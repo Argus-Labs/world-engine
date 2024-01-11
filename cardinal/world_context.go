@@ -3,6 +3,7 @@ package cardinal
 import (
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/events"
 )
 
@@ -21,7 +22,7 @@ type WorldContext interface {
 	// if err != nil {
 	// 		return err
 	// }
-	NewSearch(filter Filter) (*Search, error)
+	NewSearch(filter filter.ComponentFilter) *Search
 
 	// CurrentTick returns the current game tick of the world.
 	CurrentTick() uint64
@@ -36,35 +37,31 @@ type WorldContext interface {
 	// this logger (e.g. the name of the active System).
 	Logger() *zerolog.Logger
 
-	Instance() ecs.WorldContext
+	Engine() ecs.EngineContext
 }
 
 type worldContext struct {
-	instance ecs.WorldContext
+	engine ecs.EngineContext
 }
 
 func (wCtx *worldContext) EmitEvent(event string) {
-	wCtx.instance.GetWorld().EmitEvent(&events.Event{Message: event})
+	wCtx.engine.GetEngine().EmitEvent(&events.Event{Message: event})
 }
 
 func (wCtx *worldContext) CurrentTick() uint64 {
-	return wCtx.instance.CurrentTick()
+	return wCtx.engine.CurrentTick()
 }
 
-func (wCtx *worldContext) Timestamp() uint64 { return wCtx.instance.Timestamp() }
+func (wCtx *worldContext) Timestamp() uint64 { return wCtx.engine.Timestamp() }
 
 func (wCtx *worldContext) Logger() *zerolog.Logger {
-	return wCtx.instance.Logger()
+	return wCtx.engine.Logger()
 }
 
-func (wCtx *worldContext) NewSearch(filter Filter) (*Search, error) {
-	ecsSearch, err := wCtx.instance.NewSearch(filter.convertToFilterable())
-	if err != nil {
-		return nil, err
-	}
-	return &Search{impl: ecsSearch}, nil
+func (wCtx *worldContext) NewSearch(filter filter.ComponentFilter) *Search {
+	return &Search{impl: wCtx.Engine().NewSearch(filter)}
 }
 
-func (wCtx *worldContext) Instance() ecs.WorldContext {
-	return wCtx.instance
+func (wCtx *worldContext) Engine() ecs.EngineContext {
+	return wCtx.engine
 }

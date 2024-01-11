@@ -2,6 +2,7 @@ package ecb_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"runtime"
 	"testing"
 	"time"
@@ -304,52 +305,50 @@ func (Power) Name() string {
 func TestStorageCanBeUsedInQueries(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
-	world := testutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Instance()
-	assert.NilError(t, ecs.RegisterComponent[Health](world))
-	assert.NilError(t, ecs.RegisterComponent[Power](world))
-	assert.NilError(t, world.LoadGameState())
+	engine := testutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Engine()
+	assert.NilError(t, ecs.RegisterComponent[Health](engine))
+	assert.NilError(t, ecs.RegisterComponent[Power](engine))
+	assert.NilError(t, engine.LoadGameState())
 
-	wCtx := ecs.NewWorldContext(world)
-	justHealthIDs, err := ecs.CreateMany(wCtx, 8, Health{})
+	eCtx := ecs.NewEngineContext(engine)
+	justHealthIDs, err := ecs.CreateMany(eCtx, 8, Health{})
 	assert.NilError(t, err)
-	justPowerIDs, err := ecs.CreateMany(wCtx, 9, Power{})
+	justPowerIDs, err := ecs.CreateMany(eCtx, 9, Power{})
 	assert.NilError(t, err)
-	healthAndPowerIDs, err := ecs.CreateMany(wCtx, 10, Health{}, Power{})
+	healthAndPowerIDs, err := ecs.CreateMany(eCtx, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
 	testCases := []struct {
-		filter  ecs.Filterable
+		filter  filter.ComponentFilter
 		wantIDs []entity.ID
 	}{
 		{
-			filter:  ecs.Contains(Health{}),
+			filter:  filter.Contains(Health{}),
 			wantIDs: append(justHealthIDs, healthAndPowerIDs...),
 		},
 		{
-			filter:  ecs.Contains(Power{}),
+			filter:  filter.Contains(Power{}),
 			wantIDs: append(justPowerIDs, healthAndPowerIDs...),
 		},
 		{
-			filter:  ecs.Exact(Health{}, Power{}),
+			filter:  filter.Exact(Health{}, Power{}),
 			wantIDs: healthAndPowerIDs,
 		},
 		{
-			filter:  ecs.Exact(Health{}),
+			filter:  filter.Exact(Health{}),
 			wantIDs: justHealthIDs,
 		},
 		{
-			filter:  ecs.Exact(Power{}),
+			filter:  filter.Exact(Power{}),
 			wantIDs: justPowerIDs,
 		},
 	}
 
 	for _, tc := range testCases {
 		found := map[entity.ID]bool{}
-		var q *ecs.Search
-		q, err = world.NewSearch(tc.filter)
-		assert.NilError(t, err)
+		q := engine.NewSearch(tc.filter)
 		err = q.Each(
-			wCtx, func(id entity.ID) bool {
+			eCtx, func(id entity.ID) bool {
 				found[id] = true
 				return true
 			},

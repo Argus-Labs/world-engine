@@ -2,6 +2,7 @@ package ecb_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal"
@@ -183,22 +184,20 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	ctx := context.Background()
 
-	world := testutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Instance()
-	assert.NilError(t, ecs.RegisterComponent[Health](world))
-	assert.NilError(t, ecs.RegisterComponent[Power](world))
-	assert.NilError(t, world.LoadGameState())
+	engine := testutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Engine()
+	assert.NilError(t, ecs.RegisterComponent[Health](engine))
+	assert.NilError(t, ecs.RegisterComponent[Power](engine))
+	assert.NilError(t, engine.LoadGameState())
 
-	wCtx := ecs.NewWorldContext(world)
-	_, err := ecs.CreateMany(wCtx, 8, Health{})
+	eCtx := ecs.NewEngineContext(engine)
+	_, err := ecs.CreateMany(eCtx, 8, Health{})
 	assert.NilError(t, err)
-	_, err = ecs.CreateMany(wCtx, 9, Power{})
+	_, err = ecs.CreateMany(eCtx, 9, Power{})
 	assert.NilError(t, err)
-	_, err = ecs.CreateMany(wCtx, 10, Health{}, Power{})
+	_, err = ecs.CreateMany(eCtx, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
-	filter := ecs.Contains(Health{})
-	componentFilter, err := filter.ConvertToComponentFilter(world)
-	assert.NilError(t, err)
+	componentFilter := filter.Contains(Health{})
 
 	roManager := manager.ToReadOnly()
 

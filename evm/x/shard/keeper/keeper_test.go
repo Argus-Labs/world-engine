@@ -92,6 +92,62 @@ func (s *TestSuite) TestSubmitTransactions() {
 	s.Require().Len(res.Epochs[0].Txs, len(txs))
 }
 
+func (s *TestSuite) TestPagedQueryTransactions() {
+	epoch := uint64(15)
+	tx := &shardv1.Transaction{
+		PersonaTag: "ffzz",
+		Namespace:  "somegame-west1",
+		Nonce:      3,
+		Signature:  "0xfooooooooo",
+		Body:       []byte("txtxtx"),
+	}
+	txBz, err := proto.Marshal(tx)
+	s.Require().NoError(err)
+	txs := []*types.Transaction{
+		{1, txBz},
+		{4, txBz},
+	}
+	_, err = s.keeper.SubmitShardTx(
+		s.ctx,
+		&types.SubmitShardTxRequest{
+			Sender:    s.auth,
+			Namespace: tx.Namespace,
+			Epoch:     epoch,
+			Txs:       txs,
+		},
+	)
+	s.Require().NoError(err)
+	_, err = s.keeper.SubmitShardTx(
+		s.ctx,
+		&types.SubmitShardTxRequest{
+			Sender:    s.auth,
+			Namespace: tx.Namespace,
+			Epoch:     epoch + 1,
+			Txs:       txs,
+		},
+	)
+	s.Require().NoError(err)
+
+	// ensure limiting works
+	res, err := s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{
+		Namespace: tx.Namespace,
+		Page: &types.PageRequest{
+			Key:   nil,
+			Limit: 1,
+		},
+	})
+	s.Require().NoError(err)
+	s.Require().Len(res.Epochs, 1)
+
+	// ensure that no page returns both epochs
+	res, err = s.keeper.Transactions(s.ctx, &types.QueryTransactionsRequest{
+		Namespace: tx.Namespace,
+		Page:      nil,
+	})
+	s.Require().NoError(err)
+	s.Require().Len(res.Epochs, 2)
+}
+
 func (s *TestSuite) TestSubmitBatch_Unauthorized() {
 	_, err := s.keeper.SubmitShardTx(s.ctx, &types.SubmitShardTxRequest{
 		Sender:    s.addrs[1].String(),

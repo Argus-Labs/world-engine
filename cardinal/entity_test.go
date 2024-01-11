@@ -22,10 +22,8 @@ func TestCanRemoveEntity(t *testing.T) {
 
 	assert.NilError(t, cardinal.Remove(testWorldCtx, removeID))
 
-	search, err := testWorldCtx.NewSearch(cardinal.Exact(Alpha{}))
-	assert.NilError(t, err)
 	count := 0
-	assert.NilError(t, search.Each(testWorldCtx, func(id cardinal.EntityID) bool {
+	assert.NilError(t, testWorldCtx.NewSearch(cardinal.Exact(Alpha{})).Each(testWorldCtx, func(id cardinal.EntityID) bool {
 		assert.Equal(t, id, keepID)
 		count++
 		return true
