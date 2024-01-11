@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -491,10 +492,10 @@ func (w *World) Tick(ctx context.Context) error {
 	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
 	w.setEvmResults(txQueue.GetEVMTxs())
-	if txQueue.GetAmountOfTxs() != 0 && w.chain != nil {
+	if txQueue.GetAmountOfTxs() != 0 && w.chain != nil && !w.isRecovering.Load() {
 		err := w.chain.Submit(ctx, txQueue.Transactions(), w.namespace.String(), w.tick.Load(), w.timestamp.Load())
 		if err != nil {
-			// TODO: do we shut down cardinal here? whats the vibe?
+			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
 		}
 	}
 
