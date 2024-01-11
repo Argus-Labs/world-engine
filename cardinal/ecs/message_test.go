@@ -64,3 +64,29 @@ func TestForEachTransaction(t *testing.T) {
 		}
 	}
 }
+
+func TestAtomicForEachTransaction(t *testing.T) {
+	engine := testutils.NewTestWorld(t).Engine()
+	type SomeMsgRequest struct {
+		GenerateError bool
+	}
+	type SomeMsgResponse struct {
+		Successful bool
+	}
+
+	someMsg := ecs.NewMessageType[SomeMsgRequest, SomeMsgResponse]("some_msg")
+	assert.NilError(t, engine.RegisterMessages(someMsg))
+
+	engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
+		someMsg.AtomicEach(eCtx, func(t ecs.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
+			if t.Msg.GenerateError {
+				return result, errors.New("some error")
+			}
+			return SomeMsgResponse{
+				Successful: true,
+			}, nil
+		})
+		return nil
+	})
+	assert.NilError(t, engine.LoadGameState())
+}
