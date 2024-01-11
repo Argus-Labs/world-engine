@@ -14,7 +14,6 @@ type EngineContext interface {
 	Logger() *zerolog.Logger
 	NewSearch(filter Filterable) (*Search, error)
 	NewLazySearch(filter Filterable) *LazySearch
-	DoAtomic(atomicFn func() (any, error)) (any, error)
 
 	// For internal use.
 	GetEngine() *Engine
@@ -107,24 +106,4 @@ func (e *engineContext) NewSearch(filter Filterable) (*Search, error) {
 
 func (e *engineContext) NewLazySearch(filter Filterable) *LazySearch {
 	return e.engine.NewLazySearch(filter)
-}
-
-func (e *engineContext) DoAtomic(atomicFn func() (any, error)) (any, error) {
-	// Create a new ECB to store pending operations
-	err := e.StoreManager().NewECB()
-	if err != nil {
-		return nil, err
-	}
-	// Execute atomicFn, if there is an error, discard the pending state accrued
-	result, err := atomicFn()
-	if err != nil {
-		e.StoreManager().DiscardPending()
-		return nil, err
-	}
-	// Close the newly created ECB and push it's pending state to it's predecessor
-	err = e.StoreManager().CloseECB()
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 }
