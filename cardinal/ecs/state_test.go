@@ -220,10 +220,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, err)
 	alphaEngine.RegisterSystem(
 		func(eCtx ecs.EngineContext) error {
-			q, err := eCtx.NewSearch(ecs.Contains(oneAlphaNum))
-			if err != nil {
-				return err
-			}
+			q := eCtx.NewSearch(filter.Contains(oneAlphaNum))
 			assert.NilError(
 				t, q.Each(
 					eCtx, func(id entity.ID) bool {
@@ -249,8 +246,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, betaEngine.LoadGameState())
 
 	count := 0
-	q, err := betaEngine.NewSearch(ecs.Contains(OneBetaNum{}))
-	assert.NilError(t, err)
+	q := betaEngine.NewSearch(filter.Contains(OneBetaNum{}))
 	betaEngineCtx := ecs.NewEngineContext(betaEngine)
 	assert.NilError(
 		t, q.Each(

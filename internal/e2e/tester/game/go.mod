@@ -11,6 +11,7 @@ replace (
 
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	pkg.world.dev/world-engine/cardinal => ../../../../cardinal
 )
 
 require (
@@ -162,12 +163,12 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231030173426-d783a09b4405 // indirect
 	google.golang.org/grpc v1.59.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
-	gopkg.in/DataDog/dd-trace-go.v1 v1.58.0 // indirect
+	gopkg.in/DataDog/dd-trace-go.v1 v1.58.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a // indirect
 	pkg.world.dev/world-engine/evm v1.0.2-beta // indirect
-	pkg.world.dev/world-engine/rift v1.0.0-beta // indirect
+	pkg.world.dev/world-engine/rift v1.0.2-beta // indirect
 	pkg.world.dev/world-engine/sign v1.0.0-beta // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

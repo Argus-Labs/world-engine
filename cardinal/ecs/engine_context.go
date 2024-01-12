@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
@@ -12,8 +13,7 @@ type EngineContext interface {
 	Timestamp() uint64
 	CurrentTick() uint64
 	Logger() *zerolog.Logger
-	NewSearch(filter Filterable) (*Search, error)
-	NewLazySearch(filter Filterable) *LazySearch
+	NewSearch(filter filter.ComponentFilter) *Search
 
 	// For internal use.
 	GetEngine() *Engine
@@ -100,10 +100,6 @@ func (e *engineContext) StoreReader() store.Reader {
 	return sm
 }
 
-func (e *engineContext) NewSearch(filter Filterable) (*Search, error) {
+func (e *engineContext) NewSearch(filter filter.ComponentFilter) *Search {
 	return e.engine.NewSearch(filter)
-}
-
-func (e *engineContext) NewLazySearch(filter Filterable) *LazySearch {
-	return e.engine.NewLazySearch(filter)
 }

@@ -3,6 +3,7 @@ package log_test
 import (
 	"bytes"
 	"context"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"strings"
 	"testing"
 	"time"
@@ -36,11 +37,8 @@ func (EnergyComp) Name() string {
 
 func testSystem(eCtx ecs.EngineContext) error {
 	eCtx.Logger().Log().Msg("test")
-	q, err := eCtx.NewSearch(ecs.Contains(EnergyComp{}))
-	if err != nil {
-		return err
-	}
-	err = q.Each(
+	q := eCtx.NewSearch(filter.Contains(EnergyComp{}))
+	err := q.Each(
 		eCtx, func(entityId entity.ID) bool {
 			energyPlanet, err := ecs.GetComponent[EnergyComp](eCtx, entityId)
 			if err != nil {

@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"regexp"
 	"strconv"
 	"strings"
@@ -111,11 +112,8 @@ type personaTagComponentData struct {
 func buildPersonaTagMapping(eCtx EngineContext) (map[string]personaTagComponentData, error) {
 	personaTagToAddress := map[string]personaTagComponentData{}
 	var errs []error
-	q, err := eCtx.NewSearch(Exact(SignerComponent{}))
-	if err != nil {
-		return nil, err
-	}
-	err = q.Each(
+	q := eCtx.NewSearch(filter.Exact(SignerComponent{}))
+	err := q.Each(
 		eCtx, func(id entity.ID) bool {
 			sc, err := getComponent[SignerComponent](eCtx, id)
 			if err != nil {
@@ -152,7 +150,8 @@ func RegisterPersonaSystem(eCtx EngineContext) error {
 		result.Success = false
 
 		if !isAlphanumericWithUnderscore(msg.PersonaTag) {
-			err = eris.Errorf("persona tag %s is not valid: must only contain alphanumerics and underscores", msg.PersonaTag)
+			err = eris.Errorf("persona tag %s is not valid: must only contain alphanumerics and underscores",
+				msg.PersonaTag)
 			return result, err
 		}
 
@@ -204,10 +203,7 @@ func (e *Engine) GetSignerForPersonaTag(personaTag string, tick uint64) (addr st
 		return "", ErrCreatePersonaTxsNotProcessed
 	}
 	var errs []error
-	q, err := e.NewSearch(Exact(SignerComponent{}))
-	if err != nil {
-		return "", err
-	}
+	q := e.NewSearch(filter.Exact(SignerComponent{}))
 	eCtx := NewReadOnlyEngineContext(e)
 	err = q.Each(
 		eCtx, func(id entity.ID) bool {
