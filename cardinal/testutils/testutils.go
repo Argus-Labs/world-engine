@@ -12,13 +12,12 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 
 	"pkg.world.dev/world-engine/assert"
-
-	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/sign"
@@ -201,10 +200,11 @@ func AddTransactionToWorldByAnyTransaction(
 	_, _ = ecsWorld.AddTransaction(txID, value, tx)
 }
 
-// makeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
+// MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
 // will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
-// end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
-func makeWorldAndTicker(
+// end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called. If a nil miniredis is passed
+// in a miniredis will be created.
+func MakeWorldAndTicker(
 	t *testing.T,
 	miniRedis *miniredis.Miniredis,
 	opts ...cardinal.WorldOption,
@@ -260,15 +260,4 @@ func makeWorldAndTicker(
 	}
 
 	return world, doTick
-}
-
-func MakeWorldAndTickerWithRedis(t *testing.T,
-	miniRedis *miniredis.Miniredis,
-	opts ...cardinal.WorldOption,
-) (world *cardinal.World, doTick func()) {
-	return makeWorldAndTicker(t, miniRedis, opts...)
-}
-
-func MakeWorldAndTicker(t *testing.T, opts ...cardinal.WorldOption) (world *cardinal.World, doTick func()) {
-	return makeWorldAndTicker(t, nil, opts...)
 }
