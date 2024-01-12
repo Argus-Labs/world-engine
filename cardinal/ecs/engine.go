@@ -5,24 +5,23 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
-
-	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	ecsstorage "pkg.world.dev/world-engine/cardinal/ecs/storage"
-	storage "pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
@@ -45,7 +44,7 @@ func (n Namespace) String() string {
 
 type Engine struct {
 	namespace              Namespace
-	redisStorage           *storage.Storage
+	redisStorage           *redis.Storage
 	entityStore            store.IManager
 	systems                []System
 	systemLoggers          []*zerolog.Logger
@@ -216,9 +215,9 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 
 	storedSchema, err := engine.redisStorage.Schema.GetSchema(c.Name())
 
-	// if error is redis.Nil that means schema does not exist in the db, continue
 	if err != nil {
-		if !eris.Is(eris.Cause(err), redis.Nil) {
+		// It's fine if the schema doesn't currently exist in the db. Any other errors are a problem.
+		if !eris.Is(err, redis.ErrNoSchemaFound) {
 			return err
 		}
 	} else {
@@ -252,7 +251,7 @@ func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, e
 	componentType, exists := e.nameToComponent[name]
 	if !exists {
 		return nil, eris.Wrapf(
-			ecsstorage.ErrMustRegisterComponent,
+			storage.ErrMustRegisterComponent,
 			"component %q must be registered before being used", name)
 	}
 	return componentType, nil
@@ -338,7 +337,7 @@ func (e *Engine) ListMessages() ([]message.Message, error) {
 
 // NewEngine creates a new engine.
 func NewEngine(
-	storage *storage.Storage,
+	storage *redis.Storage,
 	entityStore store.IManager,
 	namespace Namespace,
 	opts ...Option,
@@ -537,7 +536,7 @@ func (e *Engine) StartGameLoop(
 ) {
 	e.Logger.Info().Msg("Game loop started")
 	ecslog.Engine(e.Logger, e, zerolog.InfoLevel)
-	//todo: add links to docs related to each warning
+	// todo: add links to docs related to each warning
 	if !e.isComponentsRegistered {
 		e.Logger.Warn().Msg("No components registered.")
 	}
