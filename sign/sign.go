@@ -37,6 +37,7 @@ type Transaction struct {
 	Namespace  string          `json:"namespace"`
 	Nonce      uint64          `json:"nonce"`
 	Signature  string          `json:"signature"` // hex encoded string
+	PublicKey  string          `json:"publicKey"`
 	Hash       common.Hash     `json:"hash,omitempty"`
 	Body       json.RawMessage `json:"body"` // json string
 }
@@ -161,6 +162,11 @@ func sign(pk *ecdsa.PrivateKey, personaTag, namespace string, nonce uint64, data
 	if len(bz) == 0 {
 		return nil, ErrCannotSignEmptyBody
 	}
+	k, err := pk.PublicKey.ECDH()
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(k.Bytes()))
 	sp := &Transaction{
 		PersonaTag: personaTag,
 		Namespace:  namespace,
@@ -182,7 +188,8 @@ func NewSystemTransaction(pk *ecdsa.PrivateKey, namespace string, nonce uint64, 
 }
 
 // NewTransaction signs a given body, tag, and nonce with the given private key.
-func NewTransaction(pk *ecdsa.PrivateKey,
+func NewTransaction(
+	pk *ecdsa.PrivateKey,
 	personaTag,
 	namespace string,
 	nonce uint64,

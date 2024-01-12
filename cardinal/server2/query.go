@@ -11,8 +11,6 @@ import (
 )
 
 // register query endpoints for swagger app.
-//
-//nolint:funlen,gocognit
 func (handler *Handler) registerQueryHandlers() error {
 	queryHandler := func(c *fiber.Ctx) error {
 		queryType := c.Params("{queryType}")
