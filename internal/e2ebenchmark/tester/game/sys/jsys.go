@@ -1,6 +1,7 @@
 package sys
 
 import (
+	"log"
 	"math/rand"
 
 	"github.com/argus-labs/world-engine/example/tester_benchmark/comp"
@@ -30,6 +31,8 @@ func InitOneHundredEntities(wCtx cardinal.WorldContext) error {
 	return nil
 }
 
+var systemACounter = 100
+
 func SystemA(wCtx cardinal.WorldContext) error {
 	//wCtx.Logger().Info().Msgf("%d SYSTEMA!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!", len(TEN_THOUSAND_ENTITY_IDS))
 	for _, id := range TEN_THOUSAND_ENTITY_IDS {
@@ -44,8 +47,16 @@ func SystemA(wCtx cardinal.WorldContext) error {
 			return err
 		}
 	}
+	if systemACounter == 0 {
+		log.Fatalf("Force exit.")
+	} else {
+		systemACounter--
+		wCtx.Logger().Info().Msgf("System A counter at: %d", systemACounter)
+	}
 	return nil
 }
+
+var systemBCounter = systemACounter
 
 func SystemB(wCtx cardinal.WorldContext) error {
 	startIndex := rand.Int() % (1000 - 10)
@@ -62,8 +73,16 @@ func SystemB(wCtx cardinal.WorldContext) error {
 			}
 		}
 	}
+	if systemBCounter == 0 {
+		log.Fatalf("Force exit.")
+	} else {
+		systemBCounter--
+		wCtx.Logger().Info().Msgf("System B counter at: %d", systemBCounter)
+	}
 	return nil
 }
+
+var systemCCounter = systemACounter
 
 func SystemC(wCtx cardinal.WorldContext) error {
 	err := wCtx.NewSearch(cardinal.Exact(comp.SingleNumber{})).Each(wCtx, func(id entity.ID) bool {
@@ -72,8 +91,16 @@ func SystemC(wCtx cardinal.WorldContext) error {
 	if err != nil {
 		return err
 	}
+	if systemCCounter == 0 {
+		log.Fatalf("Force exit.")
+	} else {
+		systemCCounter--
+		wCtx.Logger().Info().Msgf("System C counter at: %d", systemCCounter)
+	}
 	return nil
 }
+
+var systemDCounter = systemACounter
 
 func SystemD(wCtx cardinal.WorldContext) error {
 	for _, id := range ONE_HUNDRED_ENTITY_IDS {
@@ -87,8 +114,16 @@ func SystemD(wCtx cardinal.WorldContext) error {
 			return nil
 		}
 	}
+	if systemDCounter == 0 {
+		log.Fatalf("Force exit.")
+	} else {
+		systemDCounter--
+		wCtx.Logger().Info().Msgf("System D counter at: %d", systemDCounter)
+	}
 	return nil
 }
+
+var systemECounter = systemACounter
 
 func SystemE(wCtx cardinal.WorldContext) error {
 	startIndex := rand.Int() % (100 - 10)
@@ -105,8 +140,16 @@ func SystemE(wCtx cardinal.WorldContext) error {
 			}
 		}
 	}
+	if systemECounter == 0 {
+		log.Fatalf("Force exit.")
+	} else {
+		systemECounter--
+		wCtx.Logger().Info().Msgf("System E counter at: %d", systemECounter)
+	}
 	return nil
 }
+
+var systemFCounter = systemACounter
 
 func SystemF(wCtx cardinal.WorldContext) error {
 	err := wCtx.NewSearch(cardinal.Exact(comp.ArrayComp{})).Each(wCtx, func(id entity.ID) bool {
@@ -115,13 +158,28 @@ func SystemF(wCtx cardinal.WorldContext) error {
 	if err != nil {
 		return err
 	}
+	if systemFCounter == 0 {
+		log.Fatalf("Force exit.")
+	} else {
+		systemFCounter--
+		wCtx.Logger().Info().Msgf("System F counter at: %d", systemFCounter)
+	}
 	return nil
 }
+
+var systemGCounter = systemACounter
 
 func SystemG(wCtx cardinal.WorldContext) error {
 	_, err := cardinal.CreateMany(wCtx, 1000, comp.SingleNumber{Number: 1}, comp.ArrayComp{Numbers: [100]int{1, 1, 1, 1, 1, 1}})
 	if err != nil {
 		return err
+	}
+	if systemGCounter == 0 {
+		log.Fatalf("Force exit.")
+
+	} else {
+		systemGCounter--
+		wCtx.Logger().Info().Msgf("System G counter at: %d", systemGCounter)
 	}
 	return nil
 }
