@@ -438,6 +438,8 @@ const (
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
+//
+//nolint:funlen // tick has a lot going on and doesn't really have a clear path to move things out.
 func (e *Engine) Tick(ctx context.Context) error {
 	nameOfCurrentRunningSystem := unnamedSystem
 	defer func() {
@@ -471,6 +473,7 @@ func (e *Engine) Tick(ctx context.Context) error {
 		}
 	}
 	e.timestamp.Store(uint64(startTime.Unix()))
+	allSystemStartTime := time.Now()
 	for i, sys := range e.systems {
 		nameOfCurrentRunningSystem = e.systemNames[i]
 		eCtx := NewEngineContextForTick(e, txQueue, e.systemLoggers[i])
@@ -482,16 +485,19 @@ func (e *Engine) Tick(ctx context.Context) error {
 			return err
 		}
 	}
-	statsd.EmitTickStat(startTime, "all_systems")
+	statsd.EmitTickStat(allSystemStartTime, "all_systems")
 	if e.eventHub != nil {
 		// engine can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
+		flushEventStart := time.Now()
 		e.eventHub.FlushEvents()
-		statsd.EmitTickStat(time.Now(), "flush_events")
+		statsd.EmitTickStat(flushEventStart, "flush_events")
 	}
+
+	finalizeTickStartTime := time.Now()
 	if err := e.TickStore().FinalizeTick(ctx); err != nil {
 		return err
 	}
-	statsd.EmitTickStat(time.Now(), "finalize")
+	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
 	e.setEvmResults(txQueue.GetEVMTxs())
 	if txQueue.GetAmountOfTxs() != 0 && e.chain != nil && !e.isRecovering.Load() {
