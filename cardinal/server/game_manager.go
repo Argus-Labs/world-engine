@@ -40,6 +40,7 @@ func NewGameManager(world *ecs.Engine, handler *Handler, options ...GameManagerO
 	go func() {
 		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
 		for sig := range signalChannel {
+			log.Print("SIGNAL RECIEVED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
 				err := manager.Shutdown()
 				if err != nil {
