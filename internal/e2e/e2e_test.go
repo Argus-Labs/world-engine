@@ -3,7 +3,7 @@ package e2e
 import (
 	"context"
 	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/chain/x/shard/types"
+	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"testing"
 	"time"
 )

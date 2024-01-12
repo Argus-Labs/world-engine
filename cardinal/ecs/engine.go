@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -69,7 +70,7 @@ type Engine struct {
 
 	receiptHistory *receipt.History
 
-	chain shard.QueryAdapter
+	chain shard.Adapter
 	// isRecovering indicates that the engine is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering atomic.Bool
@@ -427,11 +428,16 @@ func (e *Engine) AddEVMTransaction(
 	return tick, txHash
 }
 
+const (
+	unnamedSystem = "unnamed_system"
+)
+
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
+//
+//nolint:funlen // tick has a lot going on and doesn't really have a clear path to move things out.
 func (e *Engine) Tick(ctx context.Context) error {
-	nullSystemName := "No system is running."
-	nameOfCurrentRunningSystem := nullSystemName
+	nameOfCurrentRunningSystem := unnamedSystem
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
 			e.Logger.Error().
@@ -463,25 +469,26 @@ func (e *Engine) Tick(ctx context.Context) error {
 		}
 	}
 	e.timestamp.Store(uint64(startTime.Unix()))
-	allSystemsStartTime := time.Now()
+	allSystemStartTime := time.Now()
 	for i, sys := range e.systems {
 		nameOfCurrentRunningSystem = e.systemNames[i]
 		eCtx := NewEngineContextForTick(e, txQueue, e.systemLoggers[i])
 		systemStartTime := time.Now()
 		err := eris.Wrapf(sys(eCtx), "system %s generated an error", nameOfCurrentRunningSystem)
 		statsd.EmitTickStat(systemStartTime, nameOfCurrentRunningSystem)
-		nameOfCurrentRunningSystem = nullSystemName
+		nameOfCurrentRunningSystem = unnamedSystem
 		if err != nil {
 			return err
 		}
 	}
-	statsd.EmitTickStat(allSystemsStartTime, "all_systems")
+	statsd.EmitTickStat(allSystemStartTime, "all_systems")
 	if e.eventHub != nil {
-		flushEventHubStartTime := time.Now()
 		// engine can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
+		flushEventStart := time.Now()
 		e.eventHub.FlushEvents()
-		statsd.EmitTickStat(flushEventHubStartTime, "flush_events")
+		statsd.EmitTickStat(flushEventStart, "flush_events")
 	}
+
 	finalizeTickStartTime := time.Now()
 	if err := e.TickStore().FinalizeTick(ctx); err != nil {
 		return err
@@ -489,6 +496,13 @@ func (e *Engine) Tick(ctx context.Context) error {
 	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
 	e.setEvmResults(txQueue.GetEVMTxs())
+	if txQueue.GetAmountOfTxs() != 0 && e.chain != nil && !e.isRecovering.Load() {
+		err := e.chain.Submit(ctx, txQueue.Transactions(), e.namespace.String(), e.tick.Load(), e.timestamp.Load())
+		if err != nil {
+			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
+		}
+	}
+
 	e.tick.Add(1)
 	e.receiptHistory.NextTick()
 	statsd.EmitTickStat(startTime, "full_tick")
