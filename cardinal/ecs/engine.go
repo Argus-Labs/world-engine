@@ -319,6 +319,10 @@ func (e *Engine) RegisterMessages(txs ...message.Message) error {
 	return nil
 }
 
+func (e *Engine) registerInternalQueries() {
+
+}
+
 func (e *Engine) registerInternalMessages() {
 	e.registeredMessages = append(
 		e.registeredMessages,
