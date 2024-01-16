@@ -384,6 +384,9 @@ func (m *Manager) getArchetypeForEntity(id entity.ID) (archetype.ID, error) {
 	key := redisArchetypeIDForEntityID(id)
 	num, err := m.client.Get(context.Background(), key).Int()
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return 0, eris.Wrap(redis.Nil, storage.ErrEntityDoesNotExist.Error())
+		}
 		return 0, eris.Wrap(err, "")
 	}
 	archID = archetype.ID(num)

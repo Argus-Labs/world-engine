@@ -5,7 +5,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"gotest.tools/v3/assert"
-	shardtypes "pkg.world.dev/world-engine/chain/x/shard/types"
+	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	"testing"
 )
 

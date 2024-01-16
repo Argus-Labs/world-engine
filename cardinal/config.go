@@ -20,16 +20,16 @@ type WorldConfig struct {
 	BaseShardQueryAddress     string  `config:"BASE_SHARD_QUERY_ADDRESS"`
 	CardinalLogLevel          string  `config:"CARDINAL_LOG_LEVEL"`
 	StatsdAddress             string  `config:"STATSD_ADDRESS"`
-	TraceAddress string `config:"TRACE_ADDRESS"`
+	TraceAddress              string  `config:"TRACE_ADDRESS"`
 }
 
 // Default configuration values.
 const (
-	DefaultRunMode                   = RunModeDev
-	DefaultNamespace                 = "world-1"
-	DefaultRedisAddress              = "localhost:6379"
-	DefaultLogLevel                  = "info"
-	DefaultStatsdAddress             = "localhost:8125"
+	DefaultRunMode       = RunModeDev
+	DefaultNamespace     = "world-1"
+	DefaultRedisAddress  = "localhost:6379"
+	DefaultLogLevel      = "info"
+	DefaultStatsdAddress = "localhost:8125"
 )
 
 var defaultConfig = WorldConfig{
@@ -41,7 +41,7 @@ var defaultConfig = WorldConfig{
 	BaseShardQueryAddress:     "",
 	CardinalLogLevel:          DefaultLogLevel,
 	StatsdAddress:             DefaultStatsdAddress,
-	TraceAddress: "",
+	TraceAddress:              "",
 }
 
 func getWorldConfig() WorldConfig {

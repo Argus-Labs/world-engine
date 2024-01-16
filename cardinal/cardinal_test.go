@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"pkg.world.dev/world-engine/assert"
-
 	"github.com/gorilla/websocket"
+
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/sign"
@@ -24,6 +24,14 @@ import (
 type Foo struct{}
 
 func (Foo) Name() string { return "foo" }
+
+type Bar struct{}
+
+func (Bar) Name() string { return "bar" }
+
+type Qux struct{}
+
+func (Qux) Name() string { return "qux" }
 
 type Rawbodytx struct {
 	PersonaTag    string `json:"personaTag"`
@@ -90,7 +98,7 @@ func TestNewWorldWithCustomNamespace(t *testing.T) {
 func TestCanQueryInsideSystem(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
 
-	world, doTick := testutils.MakeWorldAndTicker(t)
+	world, doTick := testutils.MakeWorldAndTicker(t, nil)
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	gotNumOfEntities := 0

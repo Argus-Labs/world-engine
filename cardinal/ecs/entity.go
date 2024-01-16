@@ -113,11 +113,11 @@ func SetComponent[T component.Component](eCtx EngineContext, id entity.ID, compo
 	name := t.Name()
 	c, err := eCtx.GetEngine().GetComponentByName(name)
 	if err != nil {
-		return eris.Errorf("%s is not registered, please register it before updating", t.Name())
+		return eris.Wrap(err, "get component by name failed")
 	}
 	err = eCtx.StoreManager().SetComponentForEntity(c, id, component)
 	if err != nil {
-		return err
+		return eris.Wrap(err, "set component failed")
 	}
 	eCtx.Logger().Debug().
 		Str("entity_id", strconv.FormatUint(uint64(id), 10)).

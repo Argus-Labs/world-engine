@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 
 	"pkg.world.dev/world-engine/assert"
-
-	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/sign"
@@ -202,9 +202,11 @@ func AddTransactionToWorldByAnyTransaction(
 
 // MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
 // will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
-// end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
+// end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called. If a nil miniredis is passed
+// in a miniredis will be created.
 func MakeWorldAndTicker(
 	t *testing.T,
+	miniRedis *miniredis.Miniredis,
 	opts ...cardinal.WorldOption,
 ) (world *cardinal.World, doTick func()) {
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
@@ -215,7 +217,11 @@ func MakeWorldAndTicker(
 		cardinal.WithTickDoneChannel(doneTickCh),
 		cardinal.WithEventHub(eventHub),
 	)
-	world = NewTestWorld(t, opts...)
+	if miniRedis == nil {
+		world = NewTestWorld(t, opts...)
+	} else {
+		world, _ = NewTestWorldWithCustomRedis(t, miniRedis, opts...)
+	}
 
 	// Shutdown any world resources. This will be called whether the world has been started or not.
 	t.Cleanup(func() {
