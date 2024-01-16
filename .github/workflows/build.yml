@@ -22,7 +22,5 @@ jobs:
       #   uses: ScribeMD/docker-cache@0.3.4
       #   with:
       #     key: docker-${{ runner.os }}-${{ hashFiles('evm/Dockerfile') }}
-      - name: Forge Build evm/contracts
-        run: make forge-build
       - name: Build Rollup
         run: make rollup-build

@@ -2,11 +2,10 @@ package app
 
 import (
 	"os"
-
-	"pkg.world.dev/world-engine/evm/router"
-	"pkg.world.dev/world-engine/evm/shard"
+	"pkg.world.dev/world-engine/evm/sequencer"
 
 	"cosmossdk.io/log"
+	"pkg.world.dev/world-engine/evm/router"
 )
 
 func (app *App) setPlugins(logger log.Logger) {
@@ -14,10 +13,10 @@ func (app *App) setPlugins(logger log.Logger) {
 	keyPath := os.Getenv("SERVER_KEY_PATH")
 	if certPath == "" || keyPath == "" {
 		logger.Info("running shard sequencer without SSL certs")
-		app.ShardSequencer = shard.NewShardSequencer()
+		app.ShardSequencer = sequencer.NewShardSequencer()
 	} else {
 		logger.Info("running shard sequencer with SSL certs")
-		app.ShardSequencer = shard.NewShardSequencer(shard.WithCredentials(certPath, keyPath))
+		app.ShardSequencer = sequencer.NewShardSequencer(sequencer.WithCredentials(certPath, keyPath))
 	}
 
 	app.ShardSequencer.Serve()

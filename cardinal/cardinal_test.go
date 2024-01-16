@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"pkg.world.dev/world-engine/assert"
-
 	"github.com/gorilla/websocket"
+
+	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/sign"
@@ -24,6 +24,14 @@ import (
 type Foo struct{}
 
 func (Foo) Name() string { return "foo" }
+
+type Bar struct{}
+
+func (Bar) Name() string { return "bar" }
+
+type Qux struct{}
+
+func (Qux) Name() string { return "qux" }
 
 type Rawbodytx struct {
 	PersonaTag    string `json:"personaTag"`
@@ -34,7 +42,7 @@ func TestCreatePersona(t *testing.T) {
 	var wg sync.WaitGroup
 	namespace := "custom-namespace"
 	t.Setenv("CARDINAL_NAMESPACE", namespace)
-	world := testutils.NewTestWorld(t)
+	world, addr := testutils.NewTestWorldAndServerAddress(t)
 	wg.Add(1)
 	go func() {
 		err := world.StartGame()
@@ -60,7 +68,7 @@ func TestCreatePersona(t *testing.T) {
 	assert.NilError(t, err)
 	client := &http.Client{}
 	req, err := http.NewRequest(
-		http.MethodPost, "http://localhost:4040/tx/persona/create-persona", bytes.NewBuffer(bodyBytes))
+		http.MethodPost, "http://"+addr+"/tx/persona/create-persona", bytes.NewBuffer(bodyBytes))
 	assert.NilError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
@@ -90,7 +98,7 @@ func TestNewWorldWithCustomNamespace(t *testing.T) {
 func TestCanQueryInsideSystem(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
 
-	world, doTick := testutils.MakeWorldAndTicker(t)
+	world, doTick := testutils.MakeWorldAndTicker(t, nil)
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	gotNumOfEntities := 0
@@ -141,7 +149,9 @@ func TestShutdownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	var wg sync.WaitGroup
 	testutils.SetTestTimeout(t, 10*time.Second)
-	world := testutils.NewTestWorld(t)
+	world, addr := testutils.NewTestWorldAndServerAddress(t)
+	httpBaseURL := "http://" + addr
+	wsBaseURL := "ws://" + addr
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	wantNumOfEntities := 10
 	world.Init(func(worldCtx cardinal.WorldContext) error {
@@ -166,7 +176,7 @@ func TestShutdownViaSignal(t *testing.T) {
 	assert.NilError(t, err)
 	// test CORS with cardinal
 	client := &http.Client{}
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:4040/query/http/endpoints", nil)
+	req, err := http.NewRequest(http.MethodPost, httpBaseURL+"/query/http/endpoints", nil)
 	assert.NilError(t, err)
 	req.Header.Set("Origin", "http://www.bullshit.com") // test CORS
 	resp, err := client.Do(req)
@@ -175,7 +185,7 @@ func TestShutdownViaSignal(t *testing.T) {
 	assert.Equal(t, v, "*")
 	assert.Equal(t, resp.StatusCode, 200)
 
-	conn, _, err := websocket.DefaultDialer.Dial("ws://localhost:4040/events", nil)
+	conn, _, err := websocket.DefaultDialer.Dial(wsBaseURL+"/events", nil)
 	assert.NilError(t, err)
 	wg.Add(1)
 	go func() {

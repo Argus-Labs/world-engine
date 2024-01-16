@@ -3,17 +3,17 @@ package filter
 import "pkg.world.dev/world-engine/cardinal/types/component"
 
 type contains struct {
-	components []component.ComponentMetadata
+	components []component.Component
 }
 
 // Contains matches archetypes that contain all the components specified.
-func Contains(components ...component.ComponentMetadata) ComponentFilter {
+func Contains(components ...component.Component) ComponentFilter {
 	return &contains{components: components}
 }
 
-func (f *contains) MatchesComponents(components []component.ComponentMetadata) bool {
+func (f *contains) MatchesComponents(components []component.Component) bool {
 	for _, componentType := range f.components {
-		if !MatchComponentMetaData(components, componentType) {
+		if !MatchComponent(components, componentType) {
 			return false
 		}
 	}

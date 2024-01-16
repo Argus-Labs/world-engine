@@ -5,7 +5,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 type Option func(th *Handler)
@@ -13,12 +12,6 @@ type Option func(th *Handler)
 func DisableSignatureVerification() Option {
 	return func(th *Handler) {
 		th.disableSigVerification = true
-	}
-}
-
-func WithAdapter(a shard.Adapter) Option {
-	return func(th *Handler) {
-		th.adapter = a
 	}
 }
 

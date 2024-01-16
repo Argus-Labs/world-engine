@@ -30,8 +30,7 @@ type Option func(*World)
 // This option should only be used for testing, or to stub in your own adapter implementation.
 func WithAdapter(adapter shard.Adapter) WorldOption {
 	return WorldOption{
-		ecsOption:    ecs.WithAdapter(adapter),
-		serverOption: server.WithAdapter(adapter),
+		ecsOption: ecs.WithAdapter(adapter),
 	}
 }
 

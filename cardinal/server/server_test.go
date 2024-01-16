@@ -21,9 +21,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"github.com/gorilla/websocket"
-	"pkg.world.dev/world-engine/cardinal/shard"
-	"pkg.world.dev/world-engine/evm/x/shard/types"
-
 	"pkg.world.dev/world-engine/assert"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -41,12 +38,17 @@ type SendEnergyTx struct {
 
 type SendEnergyTxResult struct{}
 
+func healthURL(addr string) string {
+	return fmt.Sprintf("http://%s/health", addr)
+}
+
 func TestHealthEndpoint(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
-	engine := testutils.NewTestWorld(t).Engine()
+	world, addr := testutils.NewTestWorldAndServerAddress(t)
+	engine := world.Engine()
 	assert.NilError(t, engine.LoadGameState())
 	testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
-	resp, err := http.Get("http://localhost:4040/health")
+	resp, err := http.Get(healthURL(addr))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 	var healthResponse server.HealthReply
@@ -59,7 +61,7 @@ func TestHealthEndpoint(t *testing.T) {
 	isGameLoopRunning := false
 	for !isGameLoopRunning {
 		time.Sleep(200 * time.Millisecond)
-		resp, err = http.Get("http://localhost:4040/health")
+		resp, err = http.Get(healthURL(addr))
 		assert.NilError(t, err)
 		assert.Equal(t, resp.StatusCode, 200)
 		err = json.NewDecoder(resp.Body).Decode(&healthResponse)
@@ -90,10 +92,11 @@ func (Delta) Name() string { return "delta" }
 func TestShutDownViaMethod(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
-	engine := testutils.NewTestWorld(t).Engine()
+	world, addr := testutils.NewTestWorldAndServerAddress(t)
+	engine := world.Engine()
 	assert.NilError(t, engine.LoadGameState())
 	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
-	resp, err := http.Get("http://localhost:4040/health")
+	resp, err := http.Get(healthURL(addr))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 	ctx := context.Background()
@@ -106,14 +109,15 @@ func TestShutDownViaMethod(t *testing.T) {
 	err = gameObject.Shutdown() // Should block until loop is down.
 	assert.NilError(t, err)
 	assert.Assert(t, !engine.IsGameLoopRunning())
-	_, err = http.Get("http://localhost:4040/health")
+	_, err = http.Get(healthURL(addr))
 	assert.Check(t, err != nil)
 }
 
 func TestShutDownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
-	engine := testutils.NewTestWorld(t).Engine()
+	world, addr := testutils.NewTestWorldAndServerAddress(t)
+	engine := world.Engine()
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, engine.RegisterMessages(sendTx))
 	engine.RegisterSystem(
@@ -123,7 +127,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	)
 	assert.NilError(t, engine.LoadGameState())
 	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
-	resp, err := http.Get("http://localhost:4040/health")
+	resp, err := http.Get(healthURL(addr))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 	ctx := context.Background()
@@ -143,7 +147,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	for engine.IsGameLoopRunning() {
 		time.Sleep(500 * time.Millisecond)
 	}
-	_, err = http.Get("http://localhost:4040/health")
+	_, err = http.Get(healthURL(addr))
 	assert.Check(t, err != nil) // Server must shutdown before game loop. So if the gameloop turned off
 }
 
@@ -1199,77 +1203,6 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	txh.Close()
 }
 
-var _ shard.Adapter = &adapterMock{}
-
-type adapterMock struct {
-	called int
-	hold   chan bool
-}
-
-func (a *adapterMock) Submit(_ context.Context, _ *sign.Transaction, _, _ uint64) error {
-	a.called++
-	return nil
-}
-
-func (a *adapterMock) QueryTransactions(_ context.Context, _ *types.QueryTransactionsRequest) (
-	*types.QueryTransactionsResponse, error,
-) {
-	<-a.hold
-	//nolint:nilnil // its ok. its a mock.
-	return nil, nil
-}
-
-func TestTransactionsSubmittedToChain(t *testing.T) {
-	createPersonaEndpoint := "tx/persona/create-persona"
-	moveEndpoint := "tx/game/move"
-	type MoveTx struct {
-		Direction string
-	}
-	w := testutils.NewTestWorld(t)
-	world := w.Engine()
-
-	moveTx := ecs.NewMessageType[MoveTx, MoveTx]("move")
-	assert.NilError(t, world.RegisterMessages(moveTx))
-	assert.NilError(t, world.LoadGameState())
-	adapter := adapterMock{}
-	txh := testutils.MakeTestTransactionHandler(
-		t, world, server.WithAdapter(&adapter),
-		server.DisableSignatureVerification(),
-	)
-
-	privateKey, err := crypto.GenerateKey()
-	assert.NilError(t, err)
-	personaTag := "clifford_the_big_red_dog"
-	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	sigPayload, err := sign.NewSystemTransaction(
-		privateKey, world.Namespace().String(), 1,
-		ecs.CreatePersona{
-			PersonaTag:    personaTag,
-			SignerAddress: signerAddr,
-		},
-	)
-	assert.NilError(t, err)
-	bz, err := sigPayload.Marshal()
-	assert.NilError(t, err)
-
-	resp, err := http.Post(txh.MakeHTTPURL(createPersonaEndpoint), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
-	assert.Equal(t, adapter.called, 1)
-
-	sigPayload, err = sign.NewTransaction(
-		privateKey, personaTag, world.Namespace().String(), 2,
-		MoveTx{Direction: "up"},
-	)
-	assert.NilError(t, err)
-	bz, err = sigPayload.Marshal()
-	assert.NilError(t, err)
-	resp, err = http.Post(txh.MakeHTTPURL(moveEndpoint), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-	assert.Equal(t, 200, resp.StatusCode)
-	assert.Equal(t, adapter.called, 2)
-}
-
 func TestWebSocket(t *testing.T) {
 	w := testutils.NewTestWorld(t)
 	world := w.Engine()
@@ -1351,46 +1284,4 @@ func TestEmptyFieldsAreOKForDisabledSignatureVerification(t *testing.T) {
 	payload.Signature = ""
 	payload.Nonce = 0
 	verifyTransaction("empty everything")
-}
-
-func TestTransactionNotSubmittedWhenRecovering(t *testing.T) {
-	moveEndpoint := "tx/game/move"
-	type MoveTx struct {
-		Direction string
-	}
-	holdChan := make(chan bool)
-	adapter := adapterMock{hold: holdChan}
-	w := testutils.NewTestWorld(t, cardinal.WithAdapter(&adapter))
-	world := w.Engine()
-
-	go func() {
-		err := world.RecoverFromChain(context.Background())
-		assert.NilError(t, err)
-	}()
-	moveTx := ecs.NewMessageType[MoveTx, MoveTx]("move")
-	err := world.RegisterMessages(moveTx)
-	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(
-		t, world, server.WithAdapter(&adapter),
-		server.DisableSignatureVerification(),
-	)
-
-	privateKey, err := crypto.GenerateKey()
-	assert.NilError(t, err)
-	personaTag := "clifford_the_big_red_dog"
-
-	sigPayload, err := sign.NewTransaction(
-		privateKey, personaTag, world.Namespace().String(), 2,
-		MoveTx{Direction: "up"},
-	)
-	assert.NilError(t, err)
-	bz, err := sigPayload.Marshal()
-	assert.NilError(t, err)
-	resp, err := http.Post(txh.MakeHTTPURL(moveEndpoint), "application/json", bytes.NewReader(bz))
-	assert.NilError(t, err)
-	assert.Equal(t, 500, resp.StatusCode)
-	bz, err = io.ReadAll(resp.Body)
-	assert.NilError(t, err)
-	assert.ErrorContains(t, errors.New(string(bz)), "game world is recovering state")
 }

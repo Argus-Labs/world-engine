@@ -2,7 +2,13 @@ package ecs_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"github.com/ethereum/go-ethereum/common"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"testing"
 	"time"
 
@@ -256,4 +262,70 @@ func TestWithoutRegistration(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
+}
+
+type dummyAdapter struct {
+	txs           txpool.TxMap
+	ns            string
+	epoch         uint64
+	unixTimestamp uint64
+}
+
+func (d *dummyAdapter) Submit(
+	_ context.Context,
+	txs txpool.TxMap,
+	namespace string,
+	epoch, unixTimestamp uint64,
+) error {
+	d.txs = txs
+	d.ns = namespace
+	d.epoch = epoch
+	d.unixTimestamp = unixTimestamp
+	return nil
+}
+
+func (d *dummyAdapter) QueryTransactions(_ context.Context, _ *types.QueryTransactionsRequest) (
+	*types.QueryTransactionsResponse, error,
+) {
+	return &types.QueryTransactionsResponse{}, nil
+}
+
+var _ shard.Adapter = &dummyAdapter{}
+
+// TestAdapterCalledAfterTick tests that when messages are executed in a tick, they are forwarded to the adapter.
+func TestAdapterCalledAfterTick(t *testing.T) {
+	adapter := &dummyAdapter{}
+	world := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Engine()
+
+	world.RegisterSystem(func(worldContext ecs.EngineContext) error {
+		return nil
+	})
+	fooMessage := ecs.NewMessageType[struct{}, struct{}]("foo")
+	err := world.RegisterMessages(fooMessage)
+	assert.NilError(t, err)
+	err = world.LoadGameState()
+	assert.NilError(t, err)
+
+	fooMessage.AddToQueue(world, struct{}{}, &sign.Transaction{
+		PersonaTag: "meow",
+		Namespace:  "foo",
+		Nonce:      22,
+		Signature:  "meow",
+		Hash:       common.Hash{},
+		Body:       json.RawMessage(`{}`),
+	})
+	fooMessage.AddToQueue(world, struct{}{}, &sign.Transaction{
+		PersonaTag: "meow",
+		Namespace:  "foo",
+		Nonce:      23,
+		Signature:  "meow",
+		Hash:       common.Hash{},
+		Body:       json.RawMessage(`{}`),
+	})
+	err = world.Tick(context.Background())
+	assert.NilError(t, err)
+
+	assert.Len(t, adapter.txs[fooMessage.ID()], 2)
+	assert.Equal(t, world.Namespace().String(), adapter.ns)
+	assert.Equal(t, world.CurrentTick()-1, adapter.epoch)
 }

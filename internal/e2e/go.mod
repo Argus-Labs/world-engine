@@ -13,11 +13,14 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
+replace (
+	pkg.world.dev/world-engine/evm => ../../evm
+)
+
 require (
 	github.com/cosmos/cosmos-sdk v0.51.0
 	google.golang.org/grpc v1.59.0
 	gotest.tools/v3 v3.5.1
-	pkg.world.dev/world-engine/chain v0.1.11-alpha.0.20231025182833-f9ec29eab900
 )
 
 require (
@@ -173,5 +176,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 	pgregory.net/rapid v1.1.0 // indirect
+	pkg.world.dev/world-engine/evm v1.0.2-beta // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )

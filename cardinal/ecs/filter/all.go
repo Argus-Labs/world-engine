@@ -9,6 +9,6 @@ func All() ComponentFilter {
 	return &all{}
 }
 
-func (f *all) MatchesComponents(_ []component.ComponentMetadata) bool {
+func (f *all) MatchesComponents(_ []component.Component) bool {
 	return true
 }

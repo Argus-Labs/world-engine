@@ -173,7 +173,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (com
 		if len(value.Exact.Components) == 0 {
 			return nil, eris.New("EXACT cannot have zero parameters")
 		}
-		components := make([]component.ComponentMetadata, 0, len(value.Exact.Components))
+		components := make([]component.Component, 0, len(value.Exact.Components))
 		for _, componentName := range value.Exact.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {
@@ -188,7 +188,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (com
 		if len(value.Contains.Components) == 0 {
 			return nil, eris.New("CONTAINS cannot have zero parameters")
 		}
-		components := make([]component.ComponentMetadata, 0, len(value.Contains.Components))
+		components := make([]component.Component, 0, len(value.Contains.Components))
 		for _, componentName := range value.Contains.Components {
 			comp, err := stringToComponent(componentName.Name)
 			if err != nil {

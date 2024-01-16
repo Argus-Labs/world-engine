@@ -2,6 +2,7 @@ package filter_test
 
 import (
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/types/component"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -42,8 +43,7 @@ func TestGetEverythingFilter(t *testing.T) {
 	count := 0
 	// Loop over every entity. There should
 	// only be 50 + 20 entities.
-	q, err := eCtx.NewSearch(ecs.All())
-	assert.NilError(t, err)
+	q := eCtx.NewSearch(filter.All())
 	err = q.Each(
 		eCtx, func(id entity.ID) bool {
 			count++
@@ -74,8 +74,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 	count := 0
 	// Loop over every entity that has exactly the alpha and beta components. There should
 	// only be subsetCount entities.
-	q, err := eCtx.NewSearch(ecs.Exact(Alpha{}, Beta{}))
-	assert.NilError(t, err)
+	q := eCtx.NewSearch(filter.Exact(Alpha{}, Beta{}))
 	err = q.Each(
 		eCtx, func(id entity.ID) bool {
 			count++
@@ -115,8 +114,7 @@ func TestExactVsContains(t *testing.T) {
 	assert.NilError(t, err)
 	count := 0
 	// Contains(alpha) should return all entities
-	q, err := engine.NewSearch(ecs.Contains(Alpha{}))
-	assert.NilError(t, err)
+	q := engine.NewSearch(filter.Contains(Alpha{}))
 	err = q.Each(
 		eCtx, func(id entity.ID) bool {
 			count++
@@ -139,8 +137,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Contains(beta) should only return the entities that have both components
-	q, err = engine.NewSearch(ecs.Contains(Beta{}))
-	assert.NilError(t, err)
+	q = engine.NewSearch(filter.Contains(Beta{}))
 	err = q.Each(
 		eCtx, func(id entity.ID) bool {
 			count++
@@ -163,8 +160,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Exact(alpha) should not return the entities that have both alpha and beta
-	q, err = engine.NewSearch(ecs.Exact(Alpha{}))
-	assert.NilError(t, err)
+	q = engine.NewSearch(filter.Exact(Alpha{}))
 	err = q.Each(
 		eCtx, func(id entity.ID) bool {
 			count++
@@ -188,8 +184,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Exact(alpha, beta) should not return the entities that only have alpha
-	q, err = engine.NewSearch(ecs.Exact(Alpha{}, Beta{}))
-	assert.NilError(t, err)
+	q = engine.NewSearch(filter.Exact(Alpha{}, Beta{}))
 	err = q.Each(
 		eCtx, func(id entity.ID) bool {
 			count++
@@ -213,8 +208,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Make sure the order of alpha/beta doesn't matter
-	q, err = engine.NewSearch(ecs.Exact(Beta{}, Alpha{}))
-	assert.NilError(t, err)
+	q = engine.NewSearch(filter.Exact(Beta{}, Alpha{}))
 	err = q.Each(
 		eCtx, func(id entity.ID) bool {
 			count++
@@ -256,7 +250,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	assert.NilError(t, err)
 
 	count := 0
-	err = ecs.NewSearch(filter.Exact(comps...)).Each(
+	err = ecs.NewSearch(filter.Exact(component.ConvertComponentMetadatasToComponents(comps)...)).Each(
 		eCtx, func(id entity.ID) bool {
 			count++
 			return true
@@ -330,9 +324,7 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		count := 0
-		var q *ecs.Search
-		q, err = engine.NewSearch(ecs.Exact(Alpha{}, Beta{}))
-		assert.NilError(b, err)
+		q := engine.NewSearch(filter.Exact(Alpha{}, Beta{}))
 		err = q.Each(
 			eCtx, func(id entity.ID) bool {
 				count++
