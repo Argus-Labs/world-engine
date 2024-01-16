@@ -1,7 +1,7 @@
 package comp
 
 type ArrayComp struct {
-	Numbers [100]int
+	Numbers [10000]int
 }
 
 func (ArrayComp) Name() string {

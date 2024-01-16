@@ -22,10 +22,7 @@ e2e-benchmark:
 		cd $(ROOT_DIR); \
 	)
 
-	$(foreach letter, f, \
-    	docker compose -f docker-compose.benchmark.yml up --build; \
-    )
-#	@docker compose -f docker-compose.benchmark.yml up --build
+	@docker compose -f docker-compose.benchmark.yml up --build
 
 
 #################

@@ -18,7 +18,7 @@ import (
 func main() {
 	//This code is a bit redundant will change.
 	var testFlag = make(map[string]*bool)
-	var testKeys = []string{"a", "b", "c", "d", "e", "f", "g"}
+	var testKeys = []string{"a", "b", "c", "d", "e", "f", "g", "h"}
 	for _, key := range testKeys {
 		testFlag[key] = flag.Bool(key, false, "flag "+key)
 	}
@@ -31,7 +31,8 @@ func main() {
 		}
 	}
 	filename = prefix + filename
-	profileFile, err := os.Create("/profiles/" + filename)
+	fullFilename := "/profiles/" + filename
+	profileFile, err := os.Create(fullFilename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,19 +74,11 @@ func main() {
 	err = errors.Join(
 		cardinal.RegisterComponent[comp.ArrayComp](world),
 		cardinal.RegisterComponent[comp.SingleNumber](world),
+		cardinal.RegisterComponent[comp.Tree](world),
 	)
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
-
-	//err = cardinal.RegisterMessages(world, msg.JoinMsg, msg.MoveMsg)
-	//if err != nil {
-	//	log.Fatal(err, eris.ToString(err, true))
-	//}
-	//err = query.RegisterLocationQuery(world)
-	//if err != nil {
-	//	log.Fatal(err, eris.ToString(err, true))
-	//}
 
 	a := *testFlag[testKeys[0]]
 	b := *testFlag[testKeys[1]]
@@ -94,12 +87,15 @@ func main() {
 	e := *testFlag[testKeys[4]]
 	f := *testFlag[testKeys[5]]
 	g := *testFlag[testKeys[6]]
+	h := *testFlag[testKeys[7]]
 	if a || b || c || d {
-		//panic("INIT TEN THOUSAND ENTITIES")
 		initsystems = append(initsystems, sys.InitTenThousandEntities)
 	}
-	if d || e || f || g {
+	if d || e || f || g || h {
 		initsystems = append(initsystems, sys.InitOneHundredEntities)
+	}
+	if h {
+		initsystems = append(initsystems, sys.InitTreeEntities)
 	}
 	if a {
 		systems = append(systems, sys.SystemA)
@@ -122,16 +118,18 @@ func main() {
 	if g {
 		systems = append(systems, sys.SystemG)
 	}
+	if h {
+
+		systems = append(systems, sys.SystemH)
+	}
 
 	err = cardinal.RegisterSystems(world, systems...)
+	sys.ShutdownFunc = sys.CreateShutDownFunc(world)
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
 	world.Init(sumSystems(initsystems...))
-	log.Print("STARRRRTING GAME!!!!!!!!")
 	err = world.StartGame()
-	log.Print("ENDING GAME!!!!!!!!!!!!!!!!!!!")
-	log.Fatal(eris.Errorf("blah"), "ERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR!!!!!!!!!!!!")
 	if err != nil {
 		log.Fatal(err, eris.ToString(err, true))
 	}
