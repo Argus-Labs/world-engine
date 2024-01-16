@@ -414,7 +414,7 @@ func RegisterQueryWithEVMSupport[Request any, Reply any](
 		func(eCtx ecs.EngineContext, req *Request) (*Reply, error) {
 			return handler(&worldContext{engine: eCtx}, req)
 		},
-		ecs.WithQueryEVMSupport[Request, Reply],
+		ecs.WithQueryEVMSupport[Request, Reply](),
 	)
 	if err != nil {
 		return err

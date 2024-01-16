@@ -63,6 +63,7 @@ type Engine struct {
 	isComponentsRegistered bool
 	isEntitiesCreated      bool
 	isMessagesRegistered   bool
+	isQueriesRegistered    bool
 	stateIsLoaded          bool
 
 	evmTxReceipts map[string]EVMTxReceipt
@@ -264,7 +265,7 @@ func RegisterQuery[Request any, Reply any](
 	engine *Engine,
 	name string,
 	handler func(eCtx EngineContext, req *Request) (*Reply, error),
-	opts ...func() func(queryType *QueryType[Request, Reply]),
+	opts ...QueryOption[Request, Reply],
 ) error {
 	if engine.stateIsLoaded {
 		panic("cannot register queries after loading game state")
@@ -320,7 +321,14 @@ func (e *Engine) RegisterMessages(txs ...message.Message) error {
 }
 
 func (e *Engine) registerInternalQueries() {
-
+	signerQueryType, err := NewQueryType[QueryPersonaSignerRequest, QueryPersonaSignerResponse](
+		"signer",
+		querySigner,
+	)
+	if err != nil {
+		panic(err)
+	}
+	e.registeredQueries = append(e.registeredQueries, signerQueryType)
 }
 
 func (e *Engine) registerInternalMessages() {
@@ -373,6 +381,7 @@ func NewEngine(
 	}
 	e.isGameLoopRunning.Store(false)
 	e.RegisterSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	e.registerInternalQueries()
 	err := RegisterComponent[SignerComponent](e)
 	if err != nil {
 		return nil, err

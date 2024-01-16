@@ -34,17 +34,18 @@ type QueryPersonaSignerResponse struct {
 	SignerAddress string `json:"signerAddress"`
 }
 
-func querySigner(eCtx *engineContext, req *QueryPersonaSignerRequest) (*QueryPersonaSignerResponse, error) {
+func querySigner(eCtx EngineContext, req *QueryPersonaSignerRequest) (*QueryPersonaSignerResponse, error) {
 	var status string
 
-	addr, err := eCtx.engine.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
-	//nolint:gocritic // its ok.
-	if errors.Is(err, ErrPersonaTagHasNoSigner) {
-		status = getSignerForPersonaStatusAvailable
-	} else if errors.Is(err, ErrCreatePersonaTxsNotProcessed) {
-		status = getSignerForPersonaStatusUnknown
-	} else if err != nil {
-		return nil, err
+	addr, err := eCtx.GetEngine().GetSignerForPersonaTag(req.PersonaTag, req.Tick)
+	if err != nil {
+		if errors.Is(err, ErrPersonaTagHasNoSigner) {
+			status = getSignerForPersonaStatusAvailable
+		} else if errors.Is(err, ErrCreatePersonaTxsNotProcessed) {
+			status = getSignerForPersonaStatusUnknown
+		} else {
+			return nil, err
+		}
 	} else {
 		status = getSignerForPersonaStatusAssigned
 	}
