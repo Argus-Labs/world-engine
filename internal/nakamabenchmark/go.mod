@@ -1,4 +1,4 @@
-module github.com/argus-labs/world-engine/nakama_benchmark_test
+module github.com/argus-labs/world-engine/nakamabenchmark_test
 
 go 1.21.0
 

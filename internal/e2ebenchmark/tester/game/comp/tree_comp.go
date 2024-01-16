@@ -1,6 +1,9 @@
 package comp
 
-import "math/rand"
+import (
+	cryptorand "crypto/rand"
+	"math/big"
+)
 
 type Tree struct {
 	Nums  [10]int `json:"nums"`
@@ -15,23 +18,24 @@ func (Tree) Name() string {
 func (t *Tree) UpdateTree() {
 	if t == nil {
 		return
-	} else {
-		randomIndex := rand.Int() % 10
-		t.Nums[randomIndex] += 1
-		t.Left.UpdateTree()
-		t.Right.UpdateTree()
 	}
+	randomIndex, err := cryptorand.Int(cryptorand.Reader, big.NewInt(int64(len(t.Nums))))
+	if err != nil {
+		panic("error generating random number, check the code.")
+	}
+	t.Nums[randomIndex.Int64()]++
+	t.Left.UpdateTree()
+	t.Right.UpdateTree()
 }
 
 func CreateTree(depth int) *Tree {
 	if depth == 0 {
 		return nil
-	} else {
-		children := CreateTree(depth - 1)
-		return &Tree{
-			Nums:  [10]int{},
-			Left:  children,
-			Right: children,
-		}
+	}
+	children := CreateTree(depth - 1)
+	return &Tree{
+		Nums:  [10]int{},
+		Left:  children,
+		Right: children,
 	}
 }

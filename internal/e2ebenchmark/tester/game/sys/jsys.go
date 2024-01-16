@@ -1,30 +1,22 @@
 package sys
 
 import (
-	"math/rand"
+	cryptorand "crypto/rand"
+	"math/big"
 
 	"github.com/argus-labs/world-engine/example/tester_benchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-// Jeremy's requested tests.
-var TEN_THOUSAND_ENTITY_IDS = []entity.ID{}
-var ONE_HUNDRED_ENTITY_IDS = []entity.ID{}
-var TREE_ENTITY_IDS = []entity.ID{}
-
-func CreateShutDownFunc(world *cardinal.World) func(cardinal.WorldContext) {
-	return func(wCtx cardinal.WorldContext) {
-		wCtx.Logger().Info().Msgf("SHUTTING DOWN BENCHMARK")
-		world.ShutDown()
-	}
-}
-
-var ShutdownFunc = func(wCtx cardinal.WorldContext) {}
+var TenThousandEntityIds = []entity.ID{}
+var OneHundredEntityIds = []entity.ID{}
+var TreeEntityIds = []entity.ID{}
 
 func InitTenThousandEntities(wCtx cardinal.WorldContext) error {
 	var err error
-	TEN_THOUSAND_ENTITY_IDS, err = cardinal.CreateMany(wCtx, 10000, &comp.SingleNumber{Number: 1})
+	entityAmount := 10000
+	TenThousandEntityIds, err = cardinal.CreateMany(wCtx, entityAmount, &comp.SingleNumber{Number: 1})
 	if err != nil {
 		return err
 	}
@@ -33,7 +25,8 @@ func InitTenThousandEntities(wCtx cardinal.WorldContext) error {
 
 func InitOneHundredEntities(wCtx cardinal.WorldContext) error {
 	var err error
-	ONE_HUNDRED_ENTITY_IDS, err = cardinal.CreateMany(wCtx, 100, &comp.ArrayComp{Numbers: [10000]int{}})
+	entityAmount := 100
+	OneHundredEntityIds, err = cardinal.CreateMany(wCtx, entityAmount, &comp.ArrayComp{Numbers: [10000]int{}})
 	if err != nil {
 		return err
 	}
@@ -42,9 +35,11 @@ func InitOneHundredEntities(wCtx cardinal.WorldContext) error {
 
 func InitTreeEntities(wCtx cardinal.WorldContext) error {
 	var err error
-	wCtx.Logger().Ino().Msg("CREATING tree entity")
-	tree := comp.CreateTree(10)
-	TREE_ENTITY_IDS, err = cardinal.CreateMany(wCtx, 100, *tree)
+	var entityAmount = 100
+	var treeDepth = 10
+	wCtx.Logger().Info().Msg("CREATING tree entity")
+	tree := comp.CreateTree(treeDepth)
+	TreeEntityIds, err = cardinal.CreateMany(wCtx, entityAmount, *tree)
 	if err != nil {
 		wCtx.Logger().Info().Msg("ERROR CREATING tree entity")
 		wCtx.Logger().Info().Msg(err.Error())
@@ -54,13 +49,17 @@ func InitTreeEntities(wCtx cardinal.WorldContext) error {
 }
 
 func SystemA(wCtx cardinal.WorldContext) error {
-	for _, id := range TEN_THOUSAND_ENTITY_IDS {
-
+	for _, id := range TenThousandEntityIds {
 		gotcomp, err := cardinal.GetComponent[comp.SingleNumber](wCtx, id)
 		if err != nil {
 			return err
 		}
-		gotcomp.Number = rand.Int()
+		var maxRand int64 = 100
+		num, err := cryptorand.Int(cryptorand.Reader, big.NewInt(maxRand))
+		if err != nil {
+			return err
+		}
+		gotcomp.Number = int(num.Int64())
 		err = cardinal.SetComponent(wCtx, id, gotcomp)
 		if err != nil {
 			return err
@@ -70,14 +69,24 @@ func SystemA(wCtx cardinal.WorldContext) error {
 }
 
 func SystemB(wCtx cardinal.WorldContext) error {
-	startIndex := rand.Int() % (1000 - 10)
-	for _, id := range TEN_THOUSAND_ENTITY_IDS[startIndex : startIndex+10] {
+	var maxRand int64 = 1000 - 10
+	num, err := cryptorand.Int(cryptorand.Reader, big.NewInt(maxRand))
+	if err != nil {
+		return err
+	}
+	startIndex := int(num.Int64())
+	for _, id := range TenThousandEntityIds[startIndex : startIndex+10] {
 		for i := 0; i < 1000; i++ {
 			gotcomp, err := cardinal.GetComponent[comp.SingleNumber](wCtx, id)
 			if err != nil {
 				return err
 			}
-			gotcomp.Number = rand.Int()
+			var maxRand int64 = 100
+			num, err := cryptorand.Int(cryptorand.Reader, big.NewInt(maxRand))
+			if err != nil {
+				return err
+			}
+			gotcomp.Number = int(num.Int64())
 			err = cardinal.SetComponent(wCtx, id, gotcomp)
 			if err != nil {
 				return err
@@ -98,7 +107,7 @@ func SystemC(wCtx cardinal.WorldContext) error {
 }
 
 func SystemD(wCtx cardinal.WorldContext) error {
-	for _, id := range ONE_HUNDRED_ENTITY_IDS {
+	for _, id := range OneHundredEntityIds {
 		gotcomp, err := cardinal.GetComponent[comp.ArrayComp](wCtx, id)
 		if err != nil {
 			return err
@@ -106,15 +115,20 @@ func SystemD(wCtx cardinal.WorldContext) error {
 		gotcomp.Numbers = [10000]int{1, 1, 1, 1, 1, 1}
 		err = cardinal.SetComponent(wCtx, id, gotcomp)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 	return nil
 }
 
 func SystemE(wCtx cardinal.WorldContext) error {
-	startIndex := rand.Int() % (100 - 10)
-	for _, id := range ONE_HUNDRED_ENTITY_IDS[startIndex : startIndex+10] {
+	var maxRand int64 = 100 - 10
+	num, err := cryptorand.Int(cryptorand.Reader, big.NewInt(maxRand))
+	if err != nil {
+		return err
+	}
+	startIndex := int(num.Int64())
+	for _, id := range OneHundredEntityIds[startIndex : startIndex+10] {
 		for i := 0; i < 1000; i++ {
 			gotcomp, err := cardinal.GetComponent[comp.ArrayComp](wCtx, id)
 			if err != nil {
@@ -141,7 +155,11 @@ func SystemF(wCtx cardinal.WorldContext) error {
 }
 
 func SystemG(wCtx cardinal.WorldContext) error {
-	_, err := cardinal.CreateMany(wCtx, 100000, comp.SingleNumber{Number: 1}, comp.ArrayComp{Numbers: [10000]int{1, 1, 1, 1, 1, 1}})
+	entityAmount := 100000
+	_, err := cardinal.CreateMany(wCtx,
+		entityAmount,
+		comp.SingleNumber{Number: 1},
+		comp.ArrayComp{Numbers: [10000]int{1, 1, 1, 1, 1, 1}})
 	if err != nil {
 		return err
 	}
@@ -149,7 +167,7 @@ func SystemG(wCtx cardinal.WorldContext) error {
 }
 
 func SystemH(wCtx cardinal.WorldContext) error {
-	for _, id := range TREE_ENTITY_IDS {
+	for _, id := range TreeEntityIds {
 		gotcomp, err := cardinal.GetComponent[comp.Tree](wCtx, id)
 		if err != nil {
 			return err
@@ -157,7 +175,7 @@ func SystemH(wCtx cardinal.WorldContext) error {
 		gotcomp.UpdateTree()
 		err = cardinal.SetComponent(wCtx, id, gotcomp)
 		if err != nil {
-			return nil
+			return err
 		}
 	}
 	return nil

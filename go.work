@@ -9,7 +9,7 @@ use (
 	internal/e2ebenchmark
 	internal/e2ebenchmark/tester/game
 	internal/nakama
-	internal/nakama_benchmark
+	internal/nakamabenchmark
 	relay/nakama
 	rift
 	sign

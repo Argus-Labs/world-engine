@@ -1,28 +1,24 @@
-package nakama_benchmark
+package nakamabenchmark
 
 import (
-	"fmt"
-	"os"
 	"testing"
 	"time"
 )
 
-func TestDelay(t *testing.T) {
+func TestDelay(_ *testing.T) {
 	x := 60 * 3
 	for x >= 0 {
 		time.Sleep(time.Second)
 		x--
-		fmt.Fprintf(os.Stderr, "time left for benchmark: %ds", x)
-		fmt.Printf("time left for benchmark: %ds", x)
-		//This delays the benchmark by at 3 minutes, the benchmark should quit
-		//When all the tests are run
-		//This suite of tests is currently just a copy of the e2e tests
-		//We can modify these tests to work as part of benchmarking if needed.
+		// This delays the benchmark by at 3 minutes, Can be used to automatically quit the
+		// benchmark.
+		// This suite of tests is currently just a copy of the e2e tests
+		// We can modify these tests to work as part of benchmarking if needed.
 	}
 }
 
 //
-//func TestEvents(t *testing.T) {
+// func TestEvents(t *testing.T) {
 //	// Note if this test is failing it could be because redis is not refreshed
 //	// This test assumes that your redis is brand new and empty.
 //	// Test persona
@@ -74,7 +70,7 @@ func TestDelay(t *testing.T) {
 //}
 //
 ////nolint:gocognit
-//func TestTransactionAndCQLAndRead(t *testing.T) {
+// func TestTransactionAndCQLAndRead(t *testing.T) {
 //	// Test persona
 //	privateKey, err := crypto.GenerateKey()
 //	assert.NilError(t, err)
@@ -169,9 +165,9 @@ func TestDelay(t *testing.T) {
 //	err = json.Unmarshal(bodyBytes, &typedResp)
 //	assert.NilError(t, err)
 //	assert.Equal(t, typedResp.Y, 1)
-//}
+// }
 //
-//func TestCanShowPersona(t *testing.T) {
+// func TestCanShowPersona(t *testing.T) {
 //	username, deviceID, personaTag := triple(randomString())
 //	c := newClient(t)
 //	assert.NilError(t, c.registerDevice(username, deviceID))
@@ -183,9 +179,9 @@ func TestDelay(t *testing.T) {
 //	assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
 //
 //	assert.NilError(t, waitForAcceptedPersonaTag(c))
-//}
+// }
 //
-//func TestDifferentUsersCannotClaimSamePersonaTag(t *testing.T) {
+// func TestDifferentUsersCannotClaimSamePersonaTag(t *testing.T) {
 //	userA, deviceA, ptA := triple(randomString())
 //
 //	aClient := newClient(t)
@@ -207,9 +203,9 @@ func TestDelay(t *testing.T) {
 //	})
 //	assert.NilError(t, err)
 //	assert.Equal(t, http.StatusConflict, resp.StatusCode, copyBody(resp))
-//}
+// }
 //
-//func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
+// func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
 //	userCount := 10
 //	users := make([]string, userCount)
 //	for i := range users {
@@ -254,7 +250,7 @@ func TestDelay(t *testing.T) {
 //	assert.Equal(t, userCount-1, codeCount[409], "expected exactly %d failures", userCount-1)
 //}
 //
-//func TestCannotClaimAdditionalPersonATag(t *testing.T) {
+// func TestCannotClaimAdditionalPersonATag(t *testing.T) {
 //	user, device, tag := triple(randomString())
 //	c := newClient(t)
 //	assert.NilError(t, c.registerDevice(user, device))
@@ -280,9 +276,9 @@ func TestDelay(t *testing.T) {
 //	})
 //	assert.NilError(t, err)
 //	assert.Equal(t, 409, resp.StatusCode)
-//}
+// }
 //
-//func TestPersonaTagFieldCannotBeEmpty(t *testing.T) {
+// func TestPersonaTagFieldCannotBeEmpty(t *testing.T) {
 //	user, device, _ := triple(randomString())
 //	c := newClient(t)
 //	assert.NilError(t, c.registerDevice(user, device))
@@ -292,9 +288,9 @@ func TestDelay(t *testing.T) {
 //	})
 //	assert.NilError(t, err)
 //	assert.Equal(t, 400, resp.StatusCode, copyBody(resp))
-//}
+// }
 //
-//func TestPersonaTagsShouldBeCaseInsensitive(t *testing.T) {
+// func TestPersonaTagsShouldBeCaseInsensitive(t *testing.T) {
 //	clientA, clientB := newClient(t), newClient(t)
 //	userA, userB := randomString(), randomString()
 //
@@ -326,12 +322,12 @@ func TestDelay(t *testing.T) {
 //
 //	assert.Equal(t, showA["status"], "accepted")
 //	assert.Equal(t, showB["status"], "rejected")
-//}
+// }
 //
 //// waitForAcceptedPersonaTag periodically queries the show-persona endpoint until a previously claimed persona tag
 //// is "accepted". A response of "pending" will wait a short period of time, then repeat the request. After 1 second,
 //// this helper returns an error.
-//func waitForAcceptedPersonaTag(c *nakamaClient) error {
+// func waitForAcceptedPersonaTag(c *nakamaClient) error {
 //	timeout := time.After(2 * time.Second)
 //	retry := time.Tick(10 * time.Millisecond)
 //	for {
@@ -357,9 +353,9 @@ func TestDelay(t *testing.T) {
 //		}
 //	}
 //	return nil
-//}
+// }
 //
-//func getStatusFromResponse(resp *http.Response) (string, error) {
+// func getStatusFromResponse(resp *http.Response) (string, error) {
 //	if resp.StatusCode != http.StatusOK {
 //		return "", fmt.Errorf("got status code %d, want 200; response body: %v", resp.StatusCode, copyBody(resp))
 //	}
@@ -377,19 +373,19 @@ func TestDelay(t *testing.T) {
 //	}
 //
 //	return status, nil
-//}
+// }
 //
-//const chars = "abcdefghijklmnopqrstuvwxyz"
+// const chars = "abcdefghijklmnopqrstuvwxyz"
 //
-//func randomString() string {
+// func randomString() string {
 //	b := &strings.Builder{}
 //	for i := 0; i < 10; i++ {
 //		n := rand.Intn(len(chars))
 //		b.WriteString(chars[n : n+1])
 //	}
 //	return b.String()
-//}
+// }
 //
-//func triple(s string) (string, string, string) {
+// func triple(s string) (string, string, string) {
 //	return s, s, s
-//}
+// }

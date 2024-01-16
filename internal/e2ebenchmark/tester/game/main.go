@@ -7,79 +7,31 @@ import (
 	"os"
 	"runtime/pprof"
 
+	"github.com/argus-labs/world-engine/example/tester_benchmark/sys"
 	"github.com/rotisserie/eris"
 
 	"github.com/argus-labs/world-engine/example/tester_benchmark/comp"
-	"github.com/argus-labs/world-engine/example/tester_benchmark/sys"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
-func main() {
-	//This code is a bit redundant will change.
-	var testFlag = make(map[string]*bool)
-	var testKeys = []string{"a", "b", "c", "d", "e", "f", "g", "h"}
-	for _, key := range testKeys {
-		testFlag[key] = flag.Bool(key, false, "flag "+key)
-	}
-	flag.Parse()
-	filename := "cpu.prof"
-	prefix := ""
-	for _, key := range testKeys {
-		if *testFlag[key] {
-			prefix += key + "_"
-		}
-	}
-	filename = prefix + filename
-	fullFilename := "/profiles/" + filename
-	profileFile, err := os.Create(fullFilename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer profileFile.Close()
-
-	if err := pprof.StartCPUProfile(profileFile); err != nil {
-		log.Fatal("could not start CPU profile: ", err)
-	}
-	defer pprof.StopCPUProfile()
-
-	sumSystems := func(systems ...cardinal.System) cardinal.System {
-		return func(wCtx cardinal.WorldContext) error {
-			for _, system := range systems {
-				err := system(wCtx)
-				if err != nil {
-					return err
-				}
+func sumSystems(systems ...cardinal.System) cardinal.System {
+	return func(wCtx cardinal.WorldContext) error {
+		for _, system := range systems {
+			err := system(wCtx)
+			if err != nil {
+				return err
 			}
-			return nil
 		}
+		return nil
 	}
+}
 
-	initsystems := []cardinal.System{}
-	systems := []cardinal.System{}
-
-	options := []cardinal.WorldOption{
-		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
-	}
-	// if os.Getenv("ENABLE_ADAPTER") == "false" {
-	if true { // uncomment above to enable adapter from env.
-		log.Println("Skipping adapter")
-	} else {
-		options = append(options, cardinal.WithAdapter(setupAdapter()))
-	}
-	world, err := cardinal.NewWorld(options...)
-	if err != nil {
-		log.Fatal(err, eris.ToString(err, true))
-	}
-	err = errors.Join(
-		cardinal.RegisterComponent[comp.ArrayComp](world),
-		cardinal.RegisterComponent[comp.SingleNumber](world),
-		cardinal.RegisterComponent[comp.Tree](world),
-	)
-	if err != nil {
-		log.Fatal(err, eris.ToString(err, true))
-	}
-
+func initializeSystems(
+	testFlag map[string]*bool,
+	testKeys []string,
+	initSystems []cardinal.System,
+	systems []cardinal.System) ([]cardinal.System, []cardinal.System) {
 	a := *testFlag[testKeys[0]]
 	b := *testFlag[testKeys[1]]
 	c := *testFlag[testKeys[2]]
@@ -89,13 +41,13 @@ func main() {
 	g := *testFlag[testKeys[6]]
 	h := *testFlag[testKeys[7]]
 	if a || b || c || d {
-		initsystems = append(initsystems, sys.InitTenThousandEntities)
+		initSystems = append(initSystems, sys.InitTenThousandEntities)
 	}
 	if d || e || f || g || h {
-		initsystems = append(initsystems, sys.InitOneHundredEntities)
+		initSystems = append(initSystems, sys.InitOneHundredEntities)
 	}
 	if h {
-		initsystems = append(initsystems, sys.InitTreeEntities)
+		initSystems = append(initSystems, sys.InitTreeEntities)
 	}
 	if a {
 		systems = append(systems, sys.SystemA)
@@ -119,19 +71,74 @@ func main() {
 		systems = append(systems, sys.SystemG)
 	}
 	if h {
-
 		systems = append(systems, sys.SystemH)
 	}
+	return initSystems, systems
+}
+
+func main() {
+	// This code is a bit redundant will change.
+	var testFlag = make(map[string]*bool)
+	var testKeys = []string{"a", "b", "c", "d", "e", "f", "g", "h"}
+	for _, key := range testKeys {
+		testFlag[key] = flag.Bool(key, false, "flag "+key)
+	}
+	flag.Parse()
+	filename := "cpu.prof"
+	prefix := ""
+	for _, key := range testKeys {
+		if *testFlag[key] {
+			prefix += key + "_"
+		}
+	}
+	filename = prefix + filename
+	fullFilename := "/profiles/" + filename
+	profileFile, err := os.Create(fullFilename)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer profileFile.Close()
+
+	if err := pprof.StartCPUProfile(profileFile); err != nil {
+		panic("could not start CPU profile: " + err.Error())
+	}
+	defer pprof.StopCPUProfile()
+
+	initsystems := []cardinal.System{}
+	systems := []cardinal.System{}
+
+	options := []cardinal.WorldOption{
+		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
+	}
+	// if os.Getenv("ENABLE_ADAPTER") == "false" {
+	if true { // uncomment above to enable adapter from env.
+		log.Println("Skipping adapter")
+	} else {
+		options = append(options, cardinal.WithAdapter(setupAdapter()))
+	}
+	world, err := cardinal.NewWorld(options...)
+	if err != nil {
+		panic(eris.ToString(err, true))
+	}
+	err = errors.Join(
+		cardinal.RegisterComponent[comp.ArrayComp](world),
+		cardinal.RegisterComponent[comp.SingleNumber](world),
+		cardinal.RegisterComponent[comp.Tree](world),
+	)
+	if err != nil {
+		panic(eris.ToString(err, true))
+	}
+
+	initsystems, systems = initializeSystems(testFlag, testKeys, initsystems, systems)
 
 	err = cardinal.RegisterSystems(world, systems...)
-	sys.ShutdownFunc = sys.CreateShutDownFunc(world)
 	if err != nil {
-		log.Fatal(err, eris.ToString(err, true))
+		panic(eris.ToString(err, true))
 	}
 	world.Init(sumSystems(initsystems...))
 	err = world.StartGame()
 	if err != nil {
-		log.Fatal(err, eris.ToString(err, true))
+		panic(eris.ToString(err, true))
 	}
 }
 

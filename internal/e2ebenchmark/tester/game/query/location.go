@@ -1,6 +1,6 @@
 package query
 
-//import (
+// import (
 //	"fmt"
 //
 //	"github.com/argus-labs/world-engine/example/tester_benchmark/comp"
@@ -8,15 +8,15 @@ package query
 //	"pkg.world.dev/world-engine/cardinal"
 //)
 //
-//type LocationRequest struct {
+// type LocationRequest struct {
 //	ID string
 //}
 //
-//type LocationReply struct {
+// type LocationReply struct {
 //	X, Y int64
 //}
 //
-////func RegisterLocationQuery(world *cardinal.World) error {
+//// func RegisterLocationQuery(world *cardinal.World) error {
 ////	return cardinal.RegisterQueryWithEVMSupport[LocationRequest, LocationReply](
 ////		world,
 ////		"location",
@@ -38,4 +38,4 @@ package query
 ////				Y: loc.Y,
 ////			}, nil
 ////		})
-////}
+//// }
