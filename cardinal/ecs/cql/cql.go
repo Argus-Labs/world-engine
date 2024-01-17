@@ -43,8 +43,6 @@ type cqlAll struct{}
 func (a *cqlAll) Capture(values []string) error {
 	if values[0] == "ALL" && values[1] == "(" && values[2] == ")" {
 		*a = cqlAll{}
-	} else {
-		a = nil
 	}
 	return nil
 }
@@ -122,7 +120,7 @@ func (e *cqlContains) String() string {
 }
 
 func (v *cqlValue) String() string {
-	//nolint: gocritic // its ok.
+	//nolint: gocritic,nestif // its ok.
 	if v.Exact != nil {
 		return v.Exact.String()
 	} else if v.Contains != nil {

@@ -120,5 +120,4 @@ func TestParser(t *testing.T) {
 	assert.NilError(t, err)
 	testResult2 = filter.All()
 	assert.Assert(t, reflect.DeepEqual(result, testResult2))
-
 }
