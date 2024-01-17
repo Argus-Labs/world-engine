@@ -16,7 +16,7 @@ type GameManager struct {
 	world   *ecs.Engine
 }
 
-func (g *GameManager) IsRunning() bool {
+func (g *GameManager) isRunning() bool {
 	return g.handler.running.Load() && g.world.IsGameLoopRunning()
 }
 
@@ -65,7 +65,7 @@ func (g *GameManager) Shutdown() error {
 	if err != nil {
 		return err
 	}
-	if !g.IsRunning() {
+	if !g.isRunning() {
 		log.Info().Msg("Successfully shutdown app and game loop.")
 	}
 	return nil

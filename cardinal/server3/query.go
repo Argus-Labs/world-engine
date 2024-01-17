@@ -5,14 +5,14 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
-func (s *Server) registerQueryHandler() error {
+func (s *Server) registerQueryHandler(path string) error {
 	queries := s.eng.ListQueries()
 	queryNameToQuery := make(map[string]ecs.Query)
 	for _, q := range queries {
 		queryNameToQuery[q.Name()] = q
 	}
 
-	s.app.Post("/query/game/:{query_type}", func(ctx *fiber.Ctx) error {
+	s.app.Post(path, func(ctx *fiber.Ctx) error {
 		queryName := ctx.Route().Name
 		query, exists := queryNameToQuery[queryName]
 		if !exists {

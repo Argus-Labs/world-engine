@@ -22,7 +22,7 @@ type TransactionReply struct {
 	Tick   uint64
 }
 
-func (s *Server) registerTransactionHandler() error {
+func (s *Server) registerTransactionHandler(path string) error {
 	msgs, err := s.eng.ListMessages()
 	if err != nil {
 		return err
@@ -32,7 +32,7 @@ func (s *Server) registerTransactionHandler() error {
 		msgNameToMsg[msg.Name()] = msg
 	}
 
-	s.app.Post("/tx/game/:{tx_type}", func(ctx *fiber.Ctx) error {
+	s.app.Post(path, func(ctx *fiber.Ctx) error {
 		txType := ctx.Route().Name
 		msgType, exists := msgNameToMsg[txType]
 		if !exists {

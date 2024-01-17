@@ -18,6 +18,9 @@ type Server struct {
 
 	port string
 
+	txPrefix    string
+	queryPrefix string
+
 	disableSignatureVerification bool
 	withCORS                     bool
 
@@ -27,9 +30,11 @@ type Server struct {
 
 func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
 	s := &Server{
-		eng:  eng,
-		app:  fiber.New(),
-		port: defaultPort,
+		eng:         eng,
+		app:         fiber.New(),
+		txPrefix:    "/tx/game/",
+		queryPrefix: "/query/game/",
+		port:        defaultPort,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -40,7 +45,8 @@ func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
 
 func (s *Server) registerHandlers() error {
 	return errors.Join(
-		s.registerTransactionHandler(),
-		s.registerQueryHandler(),
+		s.registerTransactionHandler(s.txPrefix+":{tx_type}"),
+		s.registerQueryHandler(s.queryPrefix+":{query_type}"),
+		s.registerListEndpointsEndpoint("/query/http/endpoints"),
 	)
 }

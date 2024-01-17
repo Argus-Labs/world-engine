@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"errors"
-
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/txpool"

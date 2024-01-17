@@ -328,7 +328,31 @@ func (e *Engine) registerInternalQueries() {
 	if err != nil {
 		panic(err)
 	}
-	e.registeredQueries = append(e.registeredQueries, signerQueryType)
+
+	debugQueryType, err := NewQueryType[DebugRequest, DebugStateResponse](
+		"debug",
+		queryDebugState,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	cqlQueryType, err := NewQueryType[CQLQueryRequest, CQLQueryResponse]("cql", queryCQL)
+	if err != nil {
+		panic(err)
+	}
+
+	receiptQueryType, err := NewQueryType[ListTxReceiptsRequest, ListTxReceiptsReply]("receipt", receiptsQuery)
+	if err != nil {
+		panic(err)
+	}
+	e.registeredQueries = append(
+		e.registeredQueries,
+		signerQueryType,
+		debugQueryType,
+		cqlQueryType,
+		receiptQueryType,
+	)
 }
 
 func (e *Engine) registerInternalMessages() {
