@@ -8,22 +8,44 @@ import (
 func (s *Server) registerQueryHandler(path string) error {
 	queries := s.eng.ListQueries()
 	queryNameToQuery := make(map[string]ecs.Query)
+	customPathQuery := make(map[string]ecs.Query)
 	for _, q := range queries {
-		queryNameToQuery[q.Name()] = q
+		if q.Path() == "" {
+			queryNameToQuery[q.Name()] = q
+		} else {
+			customPathQuery[q.Path()] = q
+		}
 	}
 
-	s.app.Post(path, func(ctx *fiber.Ctx) error {
-		queryName := ctx.Route().Name
+	// all user generated queries. i.e. queries made from using cardinal.NewQueryType. Queries are retrieved by using
+	// the wildcard matcher.
+	s.app.Post(path, makeQueryHandler(queryNameToQuery, s.eng, func(ctx *fiber.Ctx) string {
+		return ctx.Route().Name
+	}))
+
+	// all custom path ECS queries. Queries are retrieved by using the full path.
+	for _, q := range customPathQuery {
+		s.app.Post(q.Path(), makeQueryHandler(customPathQuery, s.eng, func(ctx *fiber.Ctx) string {
+			return ctx.Route().Path
+		}))
+	}
+	return nil
+}
+
+type queryRetriever func(ctx *fiber.Ctx) string
+
+func makeQueryHandler(queryNameToQuery map[string]ecs.Query, eng *ecs.Engine, qr queryRetriever) func(ctx *fiber.Ctx) error {
+	return func(ctx *fiber.Ctx) error {
+		queryName := qr(ctx)
 		query, exists := queryNameToQuery[queryName]
 		if !exists {
 			return fiber.NewError(fiber.StatusNotFound, "no handler registered for "+queryName)
 		}
-		resBz, err := query.HandleQueryRaw(ecs.NewReadOnlyEngineContext(s.eng), ctx.Body())
+		resBz, err := query.HandleQueryRaw(ecs.NewReadOnlyEngineContext(eng), ctx.Body())
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "encountered an error in query: ", err.Error())
 		}
 		ctx.Set("Content-Type", "application/json")
 		return ctx.Send(resBz)
-	})
-	return nil
+	}
 }

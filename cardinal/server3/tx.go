@@ -42,7 +42,7 @@ func (s *Server) registerTransactionHandler(path string) error {
 		if len(body) == 0 {
 			return fiber.NewError(fiber.StatusBadRequest, "request body was empty")
 		}
-		tx, err := getTransactionFromBody(body)
+		tx, err := decodeTransaction(body)
 		if err != nil {
 			return err
 		}
@@ -100,7 +100,7 @@ func validateTransaction(tx *sign.Transaction, signerAddr, namespace string, sys
 	return nil
 }
 
-func getTransactionFromBody(bz []byte) (*sign.Transaction, error) {
+func decodeTransaction(bz []byte) (*sign.Transaction, error) {
 	tx := new(sign.Transaction)
 	err := json.Unmarshal(bz, tx)
 	return tx, err

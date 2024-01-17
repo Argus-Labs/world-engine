@@ -23,8 +23,13 @@ func (s *Server) registerListEndpointsEndpoint(path string) error {
 	for _, tx := range txs {
 		res.TxEndpoints = append(res.TxEndpoints, s.txPrefix+tx.Name())
 	}
+
 	for _, q := range qrys {
-		res.QueryEndpoints = append(res.QueryEndpoints, s.queryPrefix+q.Name())
+		if q.Path() == "" {
+			res.QueryEndpoints = append(res.QueryEndpoints, s.queryPrefix+q.Name())
+		} else {
+			res.QueryEndpoints = append(res.QueryEndpoints, q.Path())
+		}
 	}
 
 	s.app.Post(path, func(ctx *fiber.Ctx) error {

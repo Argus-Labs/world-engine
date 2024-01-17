@@ -14,9 +14,8 @@ type Query interface {
 	Name() string
 	// HandleQuery handles queries with concrete types, rather than encoded bytes.
 	HandleQuery(EngineContext, any) (any, error)
-	// Path returns the custom path for this query type. Normally a server would group all queries under a specified
-	// path. However, this path may be used to inform a server that this query type needs a separate path from the
-	// other query types.
+	// Path returns a custom path, if any, for the query. When supplied, the query will use this path as it's name
+	// AND endpoint in the server.
 	Path() string
 	// HandleQueryRaw is given a reference to the engine, json encoded bytes that represent a query request
 	// and is expected to return a json encoded response struct.
