@@ -585,6 +585,7 @@ func (e *Engine) StartGameLoop(
 				if e.GetTxQueueAmount() > 0 {
 					// immediately tick if queue is not empty to process all txs if queue is not empty.
 					e.tickTheEngine(ctx, tickDone)
+					close(tickDone)
 				}
 				break loop
 			case ch := <-e.addChannelWaitingForNextTick:
