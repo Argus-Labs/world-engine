@@ -1,0 +1,59 @@
+name: Starter Template Sync
+
+## workflow will trigger on below condition,
+## except image release that have jobs condition to trigger only on tagging
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - starter-game-template/**
+
+
+jobs:
+  dir-changes:
+    name: Check directory/path changes
+    runs-on: ubuntu-latest
+    outputs:
+      evm: ${{ steps.changes.outputs.evm }}
+      nakama: ${{ steps.changes.outputs.nakama }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            starter-game-template:
+              - 'starter-game-template/**'
+  git-repo-sync:
+    name: Starter-Game-Template Repo Sync
+    needs: dir-changes
+    if: (github.ref == 'refs/heads/main' && needs.dir-changes.outputs.starter-game-template == 'true')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: starter-game-template
+    # Add "id-token" with the intended permissions.
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          repository: 'Argus-Labs/starter-game-template'
+          path: 'starter-game-template-upstream'
+          ref: 'main'
+      - name: Copy starter-game-template data
+        run: |
+          cp -rf tarter-game-template starter-game-template-upstream
+      - name: WIP - Debug
+        run: |
+          ls -lah starter-game-template-upstream
+          git status
+      - name: WIP
+        run: |
+          git --no-pager config --list
