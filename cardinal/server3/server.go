@@ -1,8 +1,11 @@
 package server3
 
 import (
+	_ "embed"
 	"errors"
+	"github.com/gofiber/contrib/swagger"
 	"github.com/gofiber/fiber/v2"
+	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"sync"
 	"sync/atomic"
@@ -10,6 +13,11 @@ import (
 
 const (
 	defaultPort = "4040"
+)
+
+var (
+	//go:embed swagger.yml
+	swaggerData []byte
 )
 
 type Server struct {
@@ -39,8 +47,28 @@ func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
 	for _, opt := range opts {
 		opt(s)
 	}
+
+	s.setupSwagger()
+
 	err := s.registerHandlers()
 	return s, err
+}
+
+func (s *Server) setupSwagger() {
+	file, err := os.CreateTemp("", "")
+	if err != nil {
+		panic("could not create temp file for swaggerFile")
+	}
+	_, err = file.Write(swaggerData)
+	if err != nil {
+		panic("could not write swaggerFile to temp file")
+	}
+	// Setup swagger docs at /docs
+	cfg := swagger.Config{
+		FilePath: file.Name(),
+		Title:    "World Engine API Docs",
+	}
+	s.app.Use(swagger.New(cfg))
 }
 
 func (s *Server) registerHandlers() error {
