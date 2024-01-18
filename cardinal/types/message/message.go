@@ -9,6 +9,7 @@ type Message interface {
 	SetID(TypeID) error
 	Name() string
 	ID() TypeID
+	Path() string
 	Encode(any) ([]byte, error)
 	Decode([]byte) (any, error)
 	// DecodeEVMBytes decodes ABI encoded bytes into the message's input type.

@@ -49,6 +49,20 @@ func WithMsgEVMSupport[In, Out any]() MessageOption[In, Out] {
 	}
 }
 
+func WithCustomMessagePath[In, Out any](path string) MessageOption[In, Out] {
+	return func(mt *MessageType[In, Out]) {
+		// add leading slash
+		if path[0] != '/' {
+			path = "/" + path
+		}
+		// remove trailing slash
+		if path[len(path)-1] == '/' {
+			path = path[:len(path)-1]
+		}
+		mt.customPath = path
+	}
+}
+
 // NewMessageType creates a new message type. It accepts two generic type parameters: the first for the message input,
 // which defines the data needed to make a state transition, and the second for the message output, commonly used
 // for the results of a state transition.
@@ -86,6 +100,8 @@ func NewMessageType[In, Out any](
 	}
 	return msg
 }
+
+func (t *MessageType[In, Out]) Path() string { return t.customPath }
 
 func (t *MessageType[In, Out]) Name() string {
 	return t.name

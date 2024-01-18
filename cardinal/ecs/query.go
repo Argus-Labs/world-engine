@@ -48,7 +48,7 @@ func WithQueryEVMSupport[Request, Reply any]() QueryOption[Request, Reply] {
 	}
 }
 
-func WithCustomPath[Request, Reply any](path string) QueryOption[Request, Reply] {
+func WithCustomQueryPath[Request, Reply any](path string) QueryOption[Request, Reply] {
 	return func(qt *QueryType[Request, Reply]) {
 		// add leading slash
 		if path[0] != '/' {

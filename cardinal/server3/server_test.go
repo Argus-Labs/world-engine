@@ -2,9 +2,9 @@ package server3_test
 
 import (
 	"context"
-	"encoding/json"
+	"crypto/ecdsa"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
 	"io"
@@ -20,37 +20,44 @@ import (
 type ServerTestSuite struct {
 	suite.Suite
 
-	w *cardinal.World
-	e *ecs.Engine
+	w      *cardinal.World
+	e      *ecs.Engine
+	server *testutils.TestTransactionHandler
+
+	privateKey *ecdsa.PrivateKey
+	signerAddr string
+	nonce      uint64
 }
 
 func TestServer(t *testing.T) {
 	suite.Run(t, new(ServerTestSuite))
 }
 
-func (s *ServerTestSuite) TestSomething() {
-	s.setupWorld(cardinal.WithDisableSignatureVerification())
-	srvr := testutils.NewTestServer(s.T(), s.e, server.DisableSignatureVerification())
-	msg := &ecs.CreatePersona{PersonaTag: "tyler", SignerAddress: "0xfoobarbaz"}
-	msgBz, err := json.Marshal(msg)
+func (s *ServerTestSuite) SetupSuite() {
+	var err error
+	s.privateKey, err = crypto.GenerateKey()
 	s.Require().NoError(err)
-	tx := &sign.Transaction{
-		PersonaTag: "tyler",
-		Namespace:  cardinal.DefaultNamespace,
-		Nonce:      1,
-		Signature:  "sfosdf",
-		PublicKey:  "asdklgj",
-		Hash:       common.HexToHash("0xfoobar"),
-		Body:       msgBz,
+	s.signerAddr = crypto.PubkeyToAddress(s.privateKey.PublicKey).Hex()
+}
+
+func (s *ServerTestSuite) TestTransaction() {
+	s.setupWorld()
+	s.server = testutils.NewTestServer(s.T(), s.e, server.WithPrettyPrint())
+	s.createPersona("tyler")
+}
+
+func (s *ServerTestSuite) createPersona(personaTag string) {
+	createPersonaTx := ecs.CreatePersona{
+		PersonaTag:    personaTag,
+		SignerAddress: s.signerAddr,
 	}
-	res := srvr.Post("tx/game/"+ecs.CreatePersonaMsg.Name(), tx)
-	s.Require().Equal(res.StatusCode, fiber.StatusOK)
+	tx, err := sign.NewSystemTransaction(s.privateKey, s.e.Namespace().String(), s.nonce, createPersonaTx)
+	s.nonce++
+	s.Require().NoError(err)
+	res := s.server.Post(ecs.CreatePersonaMsg.Path(), tx)
+	s.Require().Equal(res.StatusCode, fiber.StatusOK, s.readBody(res.Body))
 	err = s.e.Tick(context.Background())
 	s.Require().NoError(err)
-	comp, err := ecs.GetComponent[ecs.SignerComponent](ecs.NewEngineContext(s.e), 0)
-	s.Require().NoError(err)
-	s.Require().Equal(comp.PersonaTag, msg.PersonaTag)
-	s.Require().Equal(comp.SignerAddress, msg.SignerAddress)
 }
 
 func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {

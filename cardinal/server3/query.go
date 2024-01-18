@@ -46,7 +46,7 @@ func makeQueryHandler(queryNameToQuery map[string]ecs.Query, eng *ecs.Engine, qr
 		resBz, err := query.HandleQueryRaw(ecs.NewReadOnlyEngineContext(eng), ctx.Body())
 		if err != nil {
 			fmt.Println(err.Error())
-			return fiber.NewError(fiber.StatusBadRequest, "encountered an error in query: ", err.Error())
+			return fiber.NewError(fiber.StatusBadRequest, "encountered an error in query: "+err.Error())
 		}
 		ctx.Set("Content-Type", "application/json")
 		return ctx.Send(resBz)

@@ -88,6 +88,9 @@ type TestTransactionHandler struct {
 }
 
 func (t *TestTransactionHandler) MakeHTTPURL(path string) string {
+	if path[0] == '/' {
+		path = path[1:]
+	}
 	return "http://" + t.Host + "/" + path
 }
 

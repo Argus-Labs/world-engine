@@ -28,16 +28,35 @@ func (s *Server) registerTransactionHandler(path string) error {
 		return err
 	}
 	msgNameToMsg := make(map[string]message.Message)
+	customPathToMsg := make(map[string]message.Message)
 	for _, msg := range msgs {
-		msgNameToMsg[msg.Name()] = msg
+		if msg.Path() == "" {
+			msgNameToMsg[msg.Name()] = msg
+		} else {
+			customPathToMsg[msg.Path()] = msg
+		}
 	}
 
-	s.app.Post(path, func(ctx *fiber.Ctx) error {
-		fmt.Println("hit tx endpoint")
-		txType := ctx.Params(s.txWildCard)
-		msgType, exists := msgNameToMsg[txType]
+	s.app.Post(path, s.handleTransaction(msgNameToMsg, func(ctx *fiber.Ctx) string {
+		return ctx.Params(s.txWildCard)
+	}))
+
+	for _, msg := range customPathToMsg {
+		m := msg
+		s.app.Post(m.Path(), s.handleTransaction(customPathToMsg, func(ctx *fiber.Ctx) string {
+			return ctx.Route().Path
+		}))
+	}
+
+	return nil
+}
+
+func (s *Server) handleTransaction(msgTypes map[string]message.Message, getMsgTypeName func(*fiber.Ctx) string) func(*fiber.Ctx) error {
+	return func(ctx *fiber.Ctx) error {
+		msgTypeName := getMsgTypeName(ctx)
+		msgType, exists := msgTypes[msgTypeName]
 		if !exists {
-			return fiber.NewError(fiber.StatusNotFound, "no handler registered for "+txType)
+			return fiber.NewError(fiber.StatusNotFound, "no handler registered for "+msgTypeName)
 		}
 		body := ctx.Body()
 		if len(body) == 0 {
@@ -45,7 +64,7 @@ func (s *Server) registerTransactionHandler(path string) error {
 		}
 		tx, err := decodeTransaction(body)
 		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "transaction data malformed: ", err.Error())
+			return fiber.NewError(fiber.StatusBadRequest, "transaction data malformed: "+err.Error())
 		}
 		msg, err := msgType.Decode(tx.Body)
 		if err != nil {
@@ -59,16 +78,17 @@ func (s *Server) registerTransactionHandler(path string) error {
 		} else {
 			signerAddress, err = s.eng.GetSignerForPersonaTag(tx.PersonaTag, 0)
 			if err != nil {
-				return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: ", err.Error())
+				return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: "+err.Error())
 			}
 		}
 		if !s.disableSignatureVerification {
 			err = validateTransaction(tx, signerAddress, s.eng.Namespace().String(), true) // TODO: need to deal with this somehow
 			if err != nil {
-				return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: ", err.Error())
+				fmt.Println("The error: ", err.Error())
+				return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
 			}
 			if err = s.eng.UseNonce(signerAddress, tx.Nonce); err != nil {
-				return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: ", err.Error())
+				return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: "+err.Error())
 			}
 		}
 
@@ -78,8 +98,7 @@ func (s *Server) registerTransactionHandler(path string) error {
 			TxHash: string(hash),
 			Tick:   tick,
 		})
-	})
-	return nil
+	}
 }
 
 func validateTransaction(tx *sign.Transaction, signerAddr, namespace string, systemTx bool) error {
