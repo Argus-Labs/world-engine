@@ -25,7 +25,7 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 func TestSearchExample(t *testing.T) {
-	world, _ := testutils.MakeWorldAndTicker(t, nil)
+	world := testutils.NewTestFixture(t, nil).World
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))

@@ -2,10 +2,11 @@ package ecb_test
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"runtime"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -305,7 +307,7 @@ func (Power) Name() string {
 func TestStorageCanBeUsedInQueries(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
-	engine := testutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Engine()
+	engine := testutils.NewTestFixture(t, nil, cardinal.WithStoreManager(manager)).Engine
 	assert.NilError(t, ecs.RegisterComponent[Health](engine))
 	assert.NilError(t, ecs.RegisterComponent[Power](engine))
 	assert.NilError(t, engine.LoadGameState())

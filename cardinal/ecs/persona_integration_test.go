@@ -3,8 +3,9 @@ package ecs_test
 import (
 	"context"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -18,7 +19,7 @@ import (
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	// Verify that the CreatePersona is automatically created and registered with a engine.
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, engine.LoadGameState())
 
 	wantTag := "CoolMage"
@@ -50,7 +51,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 }
 
 func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, engine.LoadGameState())
 	ctx := context.Background()
 
@@ -85,7 +86,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 }
 
 func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, engine.LoadGameState())
 
 	personaTag := "jeff"
@@ -127,7 +128,7 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 	// Verify that the CreatePersona is automatically created and registered with a engine.
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, engine.LoadGameState())
 
 	ecs.CreatePersonaMsg.AddToQueue(
@@ -147,7 +148,7 @@ func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 
 func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 	// Verify that the CreatePersona is automatically created and registered with a engine.
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, engine.LoadGameState())
 
 	ecs.CreatePersonaMsg.AddToQueue(
@@ -176,7 +177,7 @@ func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 
 func TestCanAuthorizeAddress(t *testing.T) {
 	// Verify that the CreatePersona is automatically created and registered with a engine.
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, engine.LoadGameState())
 
 	wantTag := "CoolMage"
@@ -212,7 +213,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 
 func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 	// Verify that the CreatePersona is automatically created and registered with a engine.
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, engine.LoadGameState())
 
 	personaTag := "CoolMage"
