@@ -41,7 +41,7 @@ jobs:
       id-token: 'write'
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
           repository: 'Argus-Labs/starter-game-template'
@@ -57,3 +57,16 @@ jobs:
       - name: WIP
         run: |
           git --no-pager config --list
+      - name: Pushes to another repository Test
+        id: push_directory
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+        with:
+          source-directory: output/
+          destination-github-username: 'Argus-Labs'
+          destination-repository-name: 'starter-game-template'
+          user-email: bot@argus.gg
+          commit-message: See ORIGIN_COMMIT from $GITHUB_REF
+          target-branch: test-update
+          create-target-branch-if-needed: true
