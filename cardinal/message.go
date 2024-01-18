@@ -34,7 +34,7 @@ func NewMessageType[Input, Result any](name string) *MessageType[Input, Result] 
 // This allows this message to be sent from EVM smart contracts on the EVM base shard.
 func NewMessageTypeWithEVMSupport[Input, Result any](name string) *MessageType[Input, Result] {
 	return &MessageType[Input, Result]{
-		impl: ecs.NewMessageType[Input, Result](name, ecs.WithMsgEVMSupport[Input, Result]),
+		impl: ecs.NewMessageType[Input, Result](name, ecs.WithMsgEVMSupport[Input, Result]()),
 	}
 }
 

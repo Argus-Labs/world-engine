@@ -1,5 +1,6 @@
 package server_test
 
+/*
 import (
 	"context"
 	"encoding/json"
@@ -41,7 +42,7 @@ func TestDebugEndpoint(t *testing.T) {
 	assert.NilError(t, err)
 	err = world.Tick(ctx)
 	assert.NilError(t, err)
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+	txh := testutils.NewTestServer(t, world, server.DisableSignatureVerification())
 	resp := txh.Get("debug/state")
 	assert.Equal(t, resp.StatusCode, 200)
 	bz, err := io.ReadAll(resp.Body)
@@ -110,7 +111,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	midTickCh <- struct{}{}
 	midTickCh <- struct{}{}
 
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+	txh := testutils.NewTestServer(t, world, server.DisableSignatureVerification())
 	defer txh.Shutdown()
 	testCases := []struct {
 		name            string
@@ -159,3 +160,4 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 		midTickCh <- struct{}{}
 	}
 }
+*/

@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	server "pkg.world.dev/world-engine/cardinal/server2"
+	server "pkg.world.dev/world-engine/cardinal/server3"
 	"reflect"
 	"runtime"
 	"strings"
@@ -35,15 +35,15 @@ import (
 var ErrEntitiesCreatedBeforeStartGame = errors.New("entities should not be created before start game")
 
 type World struct {
-	instance           *ecs.Engine
-	server             *server.Handler
-	evmServer          evm.Server
-	gameManager        *server.GameManager
-	tickChannel        <-chan time.Time
-	tickDoneChannel    chan<- uint64
-	serverOptions      []server.Option
-	gameManagerOptions []server.GameManagerOptions
-	cleanup            func()
+	instance  *ecs.Engine
+	server    *server.Server
+	evmServer evm.Server
+	// gameManager        *server.GameManager
+	tickChannel     <-chan time.Time
+	tickDoneChannel chan<- uint64
+	serverOptions   []server.Option
+	// gameManagerOptions []server.GameManagerOptions
+	cleanup func()
 
 	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc)
 	gameSequenceStage gamestage.Atomic
@@ -72,21 +72,21 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Sane default options
 	serverOptions = append(serverOptions, server.WithCORS())
-	var gameManagerOptions []server.GameManagerOptions // not exposed in NewEngine Yet
+	// var gameManagerOptions []server.GameManagerOptions // not exposed in NewEngine Yet
 
 	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
 		return nil, eris.Wrap(err, "")
 	}
 
 	if cfg.CardinalMode == RunModeProd {
-		if err := applyProductionOptions(cfg, &ecsOptions, &serverOptions); err != nil {
+		if err := applyProductionOptions(cfg, &ecsOptions); err != nil {
 			return nil, err
 		}
 	} else {
 		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
 		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
-		gameManagerOptions = append(gameManagerOptions, server.WithGameManagerPrettyPrint)
+		//	gameManagerOptions = append(gameManagerOptions, server.WithGameManagerPrettyPrint)
 	}
 	redisStore := redis.NewRedisStorage(redis.Options{
 		Addr:     cfg.RedisAddress,
@@ -125,11 +125,11 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	world := &World{
-		instance:           ecsWorld,
-		serverOptions:      serverOptions,
-		gameManagerOptions: gameManagerOptions,
-		endStartGame:       make(chan bool),
-		gameSequenceStage:  gamestage.NewAtomic(),
+		instance:      ecsWorld,
+		serverOptions: serverOptions,
+		//	gameManagerOptions: gameManagerOptions,
+		endStartGame:      make(chan bool),
+		gameSequenceStage: gamestage.NewAtomic(),
 	}
 
 	// Apply options
@@ -162,7 +162,6 @@ func setLogLevel(levelStr string) error {
 func applyProductionOptions(
 	cfg WorldConfig,
 	ecsOptions *[]ecs.Option,
-	serverOptions *[]server.Option,
 ) error {
 	log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
 	if cfg.RedisPassword == "" {
@@ -185,7 +184,6 @@ func applyProductionOptions(
 		return eris.Wrapf(err, "failed to instantiate adapter")
 	}
 	*ecsOptions = append(*ecsOptions, ecs.WithAdapter(adapter))
-	*serverOptions = append(*serverOptions, server.WithAdapter(adapter))
 	return nil
 }
 
@@ -277,13 +275,13 @@ func (w *World) StartGame() error {
 	if !w.instance.DoesEngineHaveAnEventHub() {
 		w.instance.SetEventHub(events.NewWebSocketEventHub())
 	}
-	eventHub := w.instance.GetEventHub()
-	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
-	handler, err := server.NewHandler(w.instance, eventBuilder, w.serverOptions...)
+	//  eventHub := w.instance.GetEventHub()
+	//	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
+	srvr, err := server.New(w.instance, w.serverOptions...)
 	if err != nil {
 		return err
 	}
-	w.server = handler
+	w.server = srvr
 
 	w.evmServer, err = evm.NewServer(w.instance)
 	if err != nil {
@@ -291,9 +289,9 @@ func (w *World) StartGame() error {
 			return err
 		}
 		w.instance.Logger.Debug().
-			Msgf("no EVM messages or queries specified. EVM server will not run: %s", eris.ToString(err, true))
+			Msgf("no EVM messages or queries specified. EVM srvr will not run: %s", eris.ToString(err, true))
 	} else {
-		w.instance.Logger.Debug().Msg("running world with EVM server")
+		w.instance.Logger.Debug().Msg("running world with EVM srvr")
 		err = w.evmServer.Serve()
 		if err != nil {
 			return err
@@ -304,17 +302,17 @@ func (w *World) StartGame() error {
 		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
 	w.instance.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
-	gameManager := server.NewGameManager(w.instance, w.server, w.gameManagerOptions...)
-	w.gameManager = &gameManager
+	//gameManager := srvr.NewGameManager(w.instance, w.srvr, w.gameManagerOptions...)
+	//w.gameManager = &gameManager
 	go func() {
 		ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageStarting, gamestage.StageRunning)
 		if !ok {
 			log.Fatal().Msg("game was started prematurely")
 		}
 		if err := w.server.Serve(); errors.Is(err, http.ErrServerClosed) {
-			log.Info().Err(err).Msgf("the server has been closed: %s", eris.ToString(err, true))
+			log.Info().Err(err).Msgf("the srvr has been closed: %s", eris.ToString(err, true))
 		} else if err != nil {
-			log.Fatal().Err(err).Msgf("the server has failed: %s", eris.ToString(err, true))
+			log.Fatal().Err(err).Msgf("the srvr has failed: %s", eris.ToString(err, true))
 		}
 	}()
 
@@ -346,10 +344,10 @@ func (w *World) ShutDown() error {
 		w.evmServer.Shutdown()
 	}
 	close(w.endStartGame)
-	err := w.gameManager.Shutdown()
-	if err != nil {
-		return err
-	}
+	//err := w.gameManager.Shutdown()
+	//if err != nil {
+	//	return err
+	//}
 	return nil
 }
 

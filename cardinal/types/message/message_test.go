@@ -387,7 +387,7 @@ func TestCanEncodeDecodeEVMTransactions(t *testing.T) {
 
 	msg := FooMsg{1, 2, "foo"}
 	// set up the Message.
-	iMsg := ecs.NewMessageType[FooMsg, EmptyMsgResult]("FooMsg", ecs.WithMsgEVMSupport[FooMsg, EmptyMsgResult])
+	iMsg := ecs.NewMessageType[FooMsg, EmptyMsgResult]("FooMsg", ecs.WithMsgEVMSupport[FooMsg, EmptyMsgResult]())
 	bz, err := iMsg.ABIEncode(msg)
 	assert.NilError(t, err)
 

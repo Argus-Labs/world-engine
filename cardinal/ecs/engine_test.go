@@ -117,7 +117,7 @@ func TestEVMTxConsume(t *testing.T) {
 		Y string
 	}
 	e := testutils.NewTestWorld(t).Engine()
-	fooTx := ecs.NewMessageType[FooIn, FooOut]("foo", ecs.WithMsgEVMSupport[FooIn, FooOut])
+	fooTx := ecs.NewMessageType[FooIn, FooOut]("foo", ecs.WithMsgEVMSupport[FooIn, FooOut]())
 	assert.NilError(t, e.RegisterMessages(fooTx))
 	var returnVal FooOut
 	var returnErr error

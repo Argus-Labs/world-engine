@@ -1,6 +1,7 @@
 package cardinal
 
 import (
+	"pkg.world.dev/world-engine/cardinal/server3"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
@@ -10,14 +11,13 @@ import (
 	"pkg.world.dev/world-engine/cardinal/events"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	server "pkg.world.dev/world-engine/cardinal/server2"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 // WorldOption represents an option that can be used to augment how the cardinal.World will be run.
 type WorldOption struct {
 	ecsOption      ecs.Option
-	serverOption   server.Option
+	serverOption   server3.Option
 	cardinalOption Option
 }
 
@@ -30,8 +30,7 @@ type Option func(*World)
 // This option should only be used for testing, or to stub in your own adapter implementation.
 func WithAdapter(adapter shard.Adapter) WorldOption {
 	return WorldOption{
-		ecsOption:    ecs.WithAdapter(adapter),
-		serverOption: server.WithAdapter(adapter),
+		ecsOption: ecs.WithAdapter(adapter),
 	}
 }
 
@@ -47,7 +46,7 @@ func WithReceiptHistorySize(size int) WorldOption {
 // used for local development.
 func WithDisableSignatureVerification() WorldOption {
 	return WorldOption{
-		serverOption: server.DisableSignatureVerification(),
+		serverOption: server3.DisableSignatureVerification(),
 	}
 }
 

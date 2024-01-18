@@ -41,7 +41,7 @@ func TestDebugEndpoint(t *testing.T) {
 	assert.NilError(t, err)
 	err = engine.Tick(ctx)
 	assert.NilError(t, err)
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
+	txh := testutils.NewTestServer(t, engine, server.DisableSignatureVerification())
 	resp := txh.Get("debug/state")
 	assert.Equal(t, resp.StatusCode, 200)
 	bz, err := io.ReadAll(resp.Body)
@@ -110,7 +110,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	midTickCh <- struct{}{}
 	midTickCh <- struct{}{}
 
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
+	txh := testutils.NewTestServer(t, engine, server.DisableSignatureVerification())
 	defer txh.Shutdown()
 	testCases := []struct {
 		name            string

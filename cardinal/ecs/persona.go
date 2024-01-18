@@ -70,7 +70,7 @@ type CreatePersonaResult struct {
 // CreatePersonaMsg is a message that facilitates the creation of a persona tag.
 var CreatePersonaMsg = NewMessageType[CreatePersona, CreatePersonaResult](
 	"create-persona",
-	WithMsgEVMSupport[CreatePersona, CreatePersonaResult],
+	WithMsgEVMSupport[CreatePersona, CreatePersonaResult](),
 )
 
 var regexpObj = regexp.MustCompile("^[a-zA-Z0-9_]+$")

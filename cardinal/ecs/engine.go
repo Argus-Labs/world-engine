@@ -333,7 +333,7 @@ func (e *Engine) registerInternalQueries() {
 	debugQueryType, err := NewQueryType[DebugRequest, DebugStateResponse](
 		"debug",
 		queryDebugState,
-		WithCustomPath[DebugRequest, DebugStateResponse]("/debug/state/"),
+		WithCustomPath[DebugRequest, DebugStateResponse]("/debug/state"),
 	)
 	if err != nil {
 		panic(err)

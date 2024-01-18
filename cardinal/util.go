@@ -2,7 +2,7 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	server "pkg.world.dev/world-engine/cardinal/server2"
+	"pkg.world.dev/world-engine/cardinal/server3"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 )
 
@@ -17,7 +17,7 @@ func toMessageType(ins []AnyMessage) []message.Message {
 // separateOptions separates the given options into ecs options, server options, and cardinal (this package) options.
 // The different options are all grouped together to simplify the end user's experience, but under the hood different
 // options are meant for different sub-systems.
-func separateOptions(opts []WorldOption) (ecsOptions []ecs.Option, serverOptions []server.Option,
+func separateOptions(opts []WorldOption) (ecsOptions []ecs.Option, serverOptions []server3.Option,
 	cardinalOptions []Option) {
 	for _, opt := range opts {
 		if opt.ecsOption != nil {

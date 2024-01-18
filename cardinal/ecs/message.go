@@ -25,11 +25,14 @@ type MessageType[In, Out any] struct {
 	id         message.TypeID
 	isIDSet    bool
 	name       string
+	customPath string
 	inEVMType  *ethereumAbi.Type
 	outEVMType *ethereumAbi.Type
 }
 
-func WithMsgEVMSupport[In, Out any]() func(messageType *MessageType[In, Out]) {
+type MessageOption[In, Out any] func(mt *MessageType[In, Out])
+
+func WithMsgEVMSupport[In, Out any]() MessageOption[In, Out] {
 	return func(msg *MessageType[In, Out]) {
 		var in In
 		var err error
@@ -51,7 +54,7 @@ func WithMsgEVMSupport[In, Out any]() func(messageType *MessageType[In, Out]) {
 // for the results of a state transition.
 func NewMessageType[In, Out any](
 	name string,
-	opts ...func() func(*MessageType[In, Out]),
+	opts ...MessageOption[In, Out],
 ) *MessageType[In, Out] {
 	if name == "" {
 		panic("cannot create message without name")
@@ -79,7 +82,7 @@ func NewMessageType[In, Out any](
 		name: name,
 	}
 	for _, opt := range opts {
-		opt()(msg)
+		opt(msg)
 	}
 	return msg
 }

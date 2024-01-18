@@ -37,8 +37,8 @@ func TestServer_SendMessage(t *testing.T) {
 	engine := testutils.NewTestWorld(t).Engine()
 
 	// create the ECS transactions
-	fooTx := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
-	barTx := ecs.NewMessageType[BarTransaction, TxReply]("bartx", ecs.WithMsgEVMSupport[BarTransaction, TxReply])
+	fooTx := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply]())
+	barTx := ecs.NewMessageType[BarTransaction, TxReply]("bartx", ecs.WithMsgEVMSupport[BarTransaction, TxReply]())
 
 	assert.NilError(t, engine.RegisterMessages(fooTx, barTx))
 
@@ -191,7 +191,7 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 	engine := testutils.NewTestWorld(t).Engine()
 
 	// create the ECS transactions
-	fooTxType := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
+	fooTxType := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply]())
 
 	assert.NilError(t, engine.RegisterMessages(fooTxType))
 

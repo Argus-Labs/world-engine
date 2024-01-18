@@ -6,8 +6,9 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"github.com/rs/zerolog/log"
 	"net/http"
-	server "pkg.world.dev/world-engine/cardinal/server2"
+	server "pkg.world.dev/world-engine/cardinal/server3"
 	"sync"
 	"testing"
 	"time"
@@ -23,51 +24,45 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-func MakeTestTransactionHandler(
+func NewTestServer(
 	t *testing.T,
 	world *ecs.Engine,
 	opts ...server.Option,
 ) *TestTransactionHandler {
 	eventHub := events.NewWebSocketEventHub()
 	world.SetEventHub(eventHub)
-	eventBuilder := events.CreateNewWebSocketBuilder(
-		"/events",
-		events.CreateWebSocketEventHandler(eventHub),
-	)
-	txh, err := server.NewHandler(world, eventBuilder, opts...)
+	//eventBuilder := events.CreateNewWebSocketBuilder(
+	//	"/events",
+	//	events.CreateWebSocketEventHandler(eventHub),
+	//)
+	srvr, err := server.New(world, opts...)
 	assert.NilError(t, err)
 
 	// add test websocket handler
 	// TODO: Uncomment and fix
-	//txh.Mux.HandleFunc("/echo", events.Echo)
+	//srvr.Mux.HandleFunc("/echo", events.Echo)
 
 	healthPath := "/health"
 	t.Cleanup(func() {
-		assert.NilError(t, txh.Shutdown())
+		srvr.Shutdown()
 	})
 
 	go func() {
-		err = txh.Serve()
-		// ErrServerClosed is returned from txh.Serve after txh.Close is called. This is
+		err = srvr.Serve()
+		// ErrServerClosed is returned from srvr.Serve after srvr.Close is called. This is
 		// normal.
 		if !eris.Is(eris.Cause(err), http.ErrServerClosed) {
 			assert.NilError(t, err)
 		}
 	}()
-	gameObject := server.NewGameManager(world, txh)
-	t.Cleanup(func() {
-		_ = gameObject.Shutdown()
-	})
 
 	host := "localhost:4040"
 	healthURL := host + healthPath
 	start := time.Now()
 	for {
-		assert.Check(
-			t,
-			time.Since(start) < time.Second,
-			"timeout while waiting for a healthy server",
-		)
+		if time.Since(start) > 3*time.Second {
+			t.Fatal("timeout while waiting for healthy server")
+		}
 		//nolint:noctx,bodyclose // it's for a test.
 		resp, err := http.Get("http://" + healthURL)
 		if err == nil && resp.StatusCode == 200 {
@@ -77,7 +72,7 @@ func MakeTestTransactionHandler(
 	}
 
 	return &TestTransactionHandler{
-		Handler:  txh,
+		Server:   srvr,
 		T:        t,
 		Host:     host,
 		EventHub: eventHub,
@@ -86,7 +81,7 @@ func MakeTestTransactionHandler(
 
 // TestTransactionHandler is a helper struct that can start an HTTP server on port 4040 with the given world.
 type TestTransactionHandler struct {
-	*server.Handler
+	*server.Server
 	T        *testing.T
 	Host     string
 	EventHub events.EventHub
@@ -104,7 +99,9 @@ func (t *TestTransactionHandler) Post(path string, payload any) *http.Response {
 	bz, err := json.Marshal(payload)
 	assert.NilError(t.T, err)
 	//nolint:noctx // its for a test its ok.
-	res, err := http.Post(t.MakeHTTPURL(path), "application/json", bytes.NewReader(bz))
+	url := t.MakeHTTPURL(path)
+	log.Info().Msgf("sending post request to %s with payload %s", url, string(bz))
+	res, err := http.Post(url, "application/json", bytes.NewReader(bz))
 	assert.NilError(t.T, err)
 	return res
 }

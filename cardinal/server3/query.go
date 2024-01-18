@@ -1,6 +1,7 @@
 package server3
 
 import (
+	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )
@@ -20,12 +21,13 @@ func (s *Server) registerQueryHandler(path string) error {
 	// all user generated queries. i.e. queries made from using cardinal.NewQueryType. Queries are retrieved by using
 	// the wildcard matcher.
 	s.app.Post(path, makeQueryHandler(queryNameToQuery, s.eng, func(ctx *fiber.Ctx) string {
-		return ctx.Route().Name
+		return ctx.Params(s.queryWildCard)
 	}))
 
 	// all custom path ECS queries. Queries are retrieved by using the full path.
 	for _, q := range customPathQuery {
-		s.app.Post(q.Path(), makeQueryHandler(customPathQuery, s.eng, func(ctx *fiber.Ctx) string {
+		qry := q
+		s.app.Post(qry.Path(), makeQueryHandler(customPathQuery, s.eng, func(ctx *fiber.Ctx) string {
 			return ctx.Route().Path
 		}))
 	}
@@ -43,6 +45,7 @@ func makeQueryHandler(queryNameToQuery map[string]ecs.Query, eng *ecs.Engine, qr
 		}
 		resBz, err := query.HandleQueryRaw(ecs.NewReadOnlyEngineContext(eng), ctx.Body())
 		if err != nil {
+			fmt.Println(err.Error())
 			return fiber.NewError(fiber.StatusBadRequest, "encountered an error in query: ", err.Error())
 		}
 		ctx.Set("Content-Type", "application/json")

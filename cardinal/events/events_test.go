@@ -39,7 +39,7 @@ func TestEventError(t *testing.T) {
 //	numberToTest := 5
 //	engine := testutils.NewTestWorld(t).Engine()
 //	assert.NilError(t, engine.LoadGameState())
-//	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
+//	txh := testutils.NewTestServer(t, engine, server.DisableSignatureVerification())
 //	url := txh.MakeWebSocketURL("events")
 //	dialers := make([]*websocket.Conn, numberToTest)
 //	for i := range dialers {
@@ -117,7 +117,7 @@ type SendEnergyTxResult struct{}
 //	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](engine))
 //	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](engine))
 //	assert.NilError(t, engine.LoadGameState())
-//	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
+//	txh := testutils.NewTestServer(t, engine, server.DisableSignatureVerification())
 //	url := txh.MakeWebSocketURL("events")
 //	dialers := make([]*websocket.Conn, numberToTest)
 //	for i := range dialers {

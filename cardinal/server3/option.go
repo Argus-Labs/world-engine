@@ -34,3 +34,9 @@ func WithPrettyPrint() Option {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
 }
+
+func WithDisableSwagger() Option {
+	return func(s *Server) {
+		s.disableSwagger = true
+	}
+}
