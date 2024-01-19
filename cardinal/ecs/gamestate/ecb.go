@@ -19,7 +19,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-var _ GameStateManager = &EntityComponentBuffer{}
+var _ Manager = &EntityComponentBuffer{}
 
 type EntityComponentBuffer struct {
 	client *redis.Client

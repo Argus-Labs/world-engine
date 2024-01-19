@@ -19,7 +19,7 @@ type EngineContext interface {
 	// For internal use.
 	GetEngine() *Engine
 	StoreReader() gamestate.Reader
-	StoreManager() gamestate.GameStateManager
+	StoreManager() gamestate.Manager
 	GetTxQueue() *txpool.TxQueue
 	IsReadOnly() bool
 }
@@ -89,7 +89,7 @@ func (e *engineContext) IsReadOnly() bool {
 	return e.readOnly
 }
 
-func (e *engineContext) StoreManager() gamestate.GameStateManager {
+func (e *engineContext) StoreManager() gamestate.Manager {
 	return e.engine.GameStateManager()
 }
 

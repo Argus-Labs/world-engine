@@ -60,9 +60,9 @@ type TickStorage interface {
 	Recover(txs []message.Message) (*txpool.TxQueue, error)
 }
 
-// GameStateManager represents all the methods required to track Component, Entity, and Archetype information
+// Manager represents all the methods required to track Component, Entity, and Archetype information
 // which powers the ECS storage layer.
-type GameStateManager interface {
+type Manager interface {
 	TickStorage
 	Reader
 	Writer

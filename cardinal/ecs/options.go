@@ -32,7 +32,7 @@ func WithPrettyLog() Option {
 	}
 }
 
-func WithStoreManager(s gamestate.GameStateManager) Option {
+func WithStoreManager(s gamestate.Manager) Option {
 	return func(e *Engine) {
 		e.entityStore = s
 	}

@@ -47,7 +47,7 @@ func (n Namespace) String() string {
 type Engine struct {
 	namespace              Namespace
 	redisStorage           *redis.Storage
-	entityStore            gamestate.GameStateManager
+	entityStore            gamestate.Manager
 	systems                []System
 	systemLoggers          []*zerolog.Logger
 	initSystem             System
@@ -141,7 +141,7 @@ func (e *Engine) Namespace() Namespace {
 	return e.namespace
 }
 
-func (e *Engine) GameStateManager() gamestate.GameStateManager {
+func (e *Engine) GameStateManager() gamestate.Manager {
 	return e.entityStore
 }
 
@@ -340,7 +340,7 @@ func (e *Engine) ListMessages() ([]message.Message, error) {
 // NewEngine creates a new engine.
 func NewEngine(
 	storage *redis.Storage,
-	entityStore gamestate.GameStateManager,
+	entityStore gamestate.Manager,
 	namespace Namespace,
 	opts ...Option,
 ) (*Engine, error) {

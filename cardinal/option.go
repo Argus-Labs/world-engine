@@ -71,7 +71,7 @@ func WithTickDoneChannel(ch chan<- uint64) WorldOption {
 	}
 }
 
-func WithStoreManager(s gamestate.GameStateManager) WorldOption {
+func WithStoreManager(s gamestate.Manager) WorldOption {
 	return WorldOption{
 		ecsOption: ecs.WithStoreManager(s),
 	}
