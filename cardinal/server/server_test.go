@@ -24,7 +24,7 @@ type ServerTestSuite struct {
 
 	world  *cardinal.World
 	engine *ecs.Engine
-	server *testutils.TestTransactionHandler
+	server *testutils.TestServer
 
 	privateKey *ecdsa.PrivateKey
 	signerAddr string

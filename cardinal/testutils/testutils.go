@@ -28,7 +28,7 @@ func NewTestServer(
 	t *testing.T,
 	world *ecs.Engine,
 	opts ...server.Option,
-) *TestTransactionHandler {
+) *TestServer {
 	eventHub := events.NewWebSocketEventHub()
 	world.SetEventHub(eventHub)
 	// eventBuilder := events.CreateNewWebSocketBuilder(
@@ -71,7 +71,7 @@ func NewTestServer(
 		}
 	}
 
-	return &TestTransactionHandler{
+	return &TestServer{
 		Server:   srvr,
 		T:        t,
 		Host:     host,
@@ -79,26 +79,26 @@ func NewTestServer(
 	}
 }
 
-// TestTransactionHandler is a helper struct that can start an HTTP server on a random port with the given world.
-type TestTransactionHandler struct {
+// TestServer is a helper struct that can start an HTTP server on a random port with the given world.
+type TestServer struct {
 	*server.Server
 	T        *testing.T
 	Host     string
 	EventHub events.EventHub
 }
 
-func (t *TestTransactionHandler) MakeHTTPURL(path string) string {
+func (t *TestServer) MakeHTTPURL(path string) string {
 	if path[0] == '/' {
 		path = path[1:]
 	}
 	return "http://" + t.Host + "/" + path
 }
 
-func (t *TestTransactionHandler) MakeWebSocketURL(path string) string {
+func (t *TestServer) MakeWebSocketURL(path string) string {
 	return "ws://" + t.Host + "/" + path
 }
 
-func (t *TestTransactionHandler) Post(path string, payload any) *http.Response {
+func (t *TestServer) Post(path string, payload any) *http.Response {
 	bz, err := json.Marshal(payload)
 	assert.NilError(t.T, err)
 	url := t.MakeHTTPURL(path)
@@ -108,7 +108,7 @@ func (t *TestTransactionHandler) Post(path string, payload any) *http.Response {
 	return res
 }
 
-func (t *TestTransactionHandler) Get(path string) *http.Response {
+func (t *TestServer) Get(path string) *http.Response {
 	url := t.MakeHTTPURL(path)
 	ctx := context.Background()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
