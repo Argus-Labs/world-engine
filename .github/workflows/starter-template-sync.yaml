@@ -26,7 +26,7 @@ jobs:
   git-repo-sync:
     name: Starter-Game-Template Repo Sync
     needs: dir-changes
-    if: (github.ref == 'refs/heads/main' && needs.dir-changes.outputs.starter-game-template == 'true')
+    if: (github.ref != 'refs/heads/main' && needs.dir-changes.outputs.starter-game-template == 'true')
     runs-on: ubuntu-latest
     defaults:
       run:
