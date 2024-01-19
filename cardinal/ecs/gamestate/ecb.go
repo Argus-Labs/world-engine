@@ -1,4 +1,4 @@
-package ecb
+package gamestate
 
 import (
 	"context"
@@ -12,17 +12,17 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate/store"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-var _ store.IManager = &Manager{}
+var _ store.IGameStateManager = &EntityComponentBuffer{}
 
-type Manager struct {
+type EntityComponentBuffer struct {
 	client *redis.Client
 
 	compValues         map[compKey]any
@@ -51,10 +51,10 @@ var (
 	doesNotExistArchetypeID = archetype.ID(-1)
 )
 
-// NewManager creates a new command buffer manager that is able to queue up a series of states changes and
+// NewEntityComponentBuffer creates a new command buffer manager that is able to queue up a series of states changes and
 // atomically commit them to the underlying redis storage layer.
-func NewManager(client *redis.Client) (*Manager, error) {
-	m := &Manager{
+func NewEntityComponentBuffer(client *redis.Client) (*EntityComponentBuffer, error) {
+	m := &EntityComponentBuffer{
 		client:             client,
 		compValues:         map[compKey]any{},
 		compValuesToDelete: map[compKey]bool{},
@@ -74,7 +74,7 @@ func NewManager(client *redis.Client) (*Manager, error) {
 	return m, nil
 }
 
-func (m *Manager) RegisterComponents(comps []component.ComponentMetadata) error {
+func (m *EntityComponentBuffer) RegisterComponents(comps []component.ComponentMetadata) error {
 	m.typeToComponent = map[component.TypeID]component.ComponentMetadata{}
 	for _, comp := range comps {
 		m.typeToComponent[comp.ID()] = comp
@@ -84,7 +84,7 @@ func (m *Manager) RegisterComponents(comps []component.ComponentMetadata) error 
 }
 
 // DiscardPending discards any pending state changes.
-func (m *Manager) DiscardPending() {
+func (m *EntityComponentBuffer) DiscardPending() {
 	clear(m.compValues)
 
 	// Any entity archetypes movements need to be undone
@@ -104,7 +104,7 @@ func (m *Manager) DiscardPending() {
 }
 
 // RemoveEntity removes the given entity from the ECS data model.
-func (m *Manager) RemoveEntity(idToRemove entity.ID) error {
+func (m *EntityComponentBuffer) RemoveEntity(idToRemove entity.ID) error {
 	archID, err := m.getArchetypeForEntity(idToRemove)
 	if err != nil {
 		return err
@@ -135,7 +135,7 @@ func (m *Manager) RemoveEntity(idToRemove entity.ID) error {
 }
 
 // CreateEntity creates a single entity with the given set of components.
-func (m *Manager) CreateEntity(comps ...component.ComponentMetadata) (entity.ID, error) {
+func (m *EntityComponentBuffer) CreateEntity(comps ...component.ComponentMetadata) (entity.ID, error) {
 	ids, err := m.CreateManyEntities(1, comps...)
 	if err != nil {
 		return 0, err
@@ -144,7 +144,7 @@ func (m *Manager) CreateEntity(comps ...component.ComponentMetadata) (entity.ID,
 }
 
 // CreateManyEntities creates many entities with the given set of components.
-func (m *Manager) CreateManyEntities(num int, comps ...component.ComponentMetadata) ([]entity.ID, error) {
+func (m *EntityComponentBuffer) CreateManyEntities(num int, comps ...component.ComponentMetadata) ([]entity.ID, error) {
 	archID, err := m.getOrMakeArchIDForComponents(comps)
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func (m *Manager) CreateManyEntities(num int, comps ...component.ComponentMetada
 }
 
 // SetComponentForEntity sets the given entity's component data to the given value.
-func (m *Manager) SetComponentForEntity(cType component.ComponentMetadata, id entity.ID, value any) error {
+func (m *EntityComponentBuffer) SetComponentForEntity(cType component.ComponentMetadata, id entity.ID, value any) error {
 	comps, err := m.GetComponentTypesForEntity(id)
 	if err != nil {
 		return err
@@ -187,7 +187,7 @@ func (m *Manager) SetComponentForEntity(cType component.ComponentMetadata, id en
 }
 
 // GetComponentForEntity returns the saved component data for the given entity.
-func (m *Manager) GetComponentForEntity(cType component.ComponentMetadata, id entity.ID) (any, error) {
+func (m *EntityComponentBuffer) GetComponentForEntity(cType component.ComponentMetadata, id entity.ID) (any, error) {
 	key := compKey{cType.ID(), id}
 	value, ok := m.compValues[key]
 	if ok {
@@ -226,7 +226,7 @@ func (m *Manager) GetComponentForEntity(cType component.ComponentMetadata, id en
 }
 
 // GetComponentForEntityInRawJSON returns the saved component data as JSON encoded bytes for the given entity.
-func (m *Manager) GetComponentForEntityInRawJSON(cType component.ComponentMetadata, id entity.ID) (
+func (m *EntityComponentBuffer) GetComponentForEntityInRawJSON(cType component.ComponentMetadata, id entity.ID) (
 	json.RawMessage, error,
 ) {
 	value, err := m.GetComponentForEntity(cType, id)
@@ -238,7 +238,7 @@ func (m *Manager) GetComponentForEntityInRawJSON(cType component.ComponentMetada
 
 // AddComponentToEntity adds the given component to the given entity. An error is returned if the entity
 // already has this component.
-func (m *Manager) AddComponentToEntity(cType component.ComponentMetadata, id entity.ID) error {
+func (m *EntityComponentBuffer) AddComponentToEntity(cType component.ComponentMetadata, id entity.ID) error {
 	fromComps, err := m.GetComponentTypesForEntity(id)
 	if err != nil {
 		return err
@@ -264,7 +264,7 @@ func (m *Manager) AddComponentToEntity(cType component.ComponentMetadata, id ent
 
 // RemoveComponentFromEntity removes the given component from the given entity. An error is returned if the entity
 // does not have the component.
-func (m *Manager) RemoveComponentFromEntity(cType component.ComponentMetadata, id entity.ID) error {
+func (m *EntityComponentBuffer) RemoveComponentFromEntity(cType component.ComponentMetadata, id entity.ID) error {
 	comps, err := m.GetComponentTypesForEntity(id)
 	if err != nil {
 		return err
@@ -300,7 +300,7 @@ func (m *Manager) RemoveComponentFromEntity(cType component.ComponentMetadata, i
 
 // GetComponentTypesForEntity returns all the component types that are currently on the given entity. Only types
 // are returned. To get the actual component data, use GetComponentForEntity.
-func (m *Manager) GetComponentTypesForEntity(id entity.ID) ([]component.ComponentMetadata, error) {
+func (m *EntityComponentBuffer) GetComponentTypesForEntity(id entity.ID) ([]component.ComponentMetadata, error) {
 	archID, err := m.getArchetypeForEntity(id)
 	if err != nil {
 		return nil, err
@@ -310,13 +310,13 @@ func (m *Manager) GetComponentTypesForEntity(id entity.ID) ([]component.Componen
 }
 
 // GetComponentTypesForArchID returns the set of components that are associated with the given archetype id.
-func (m *Manager) GetComponentTypesForArchID(archID archetype.ID) []component.ComponentMetadata {
+func (m *EntityComponentBuffer) GetComponentTypesForArchID(archID archetype.ID) []component.ComponentMetadata {
 	return m.archIDToComps[archID]
 }
 
 // GetArchIDForComponents returns the archetype ID that has been assigned to this set of components.
 // If this set of components does not have an archetype ID assigned to it, an error is returned.
-func (m *Manager) GetArchIDForComponents(components []component.ComponentMetadata) (archetype.ID, error) {
+func (m *EntityComponentBuffer) GetArchIDForComponents(components []component.ComponentMetadata) (archetype.ID, error) {
 	if len(components) == 0 {
 		return 0, eris.New("must provide at least 1 component")
 	}
@@ -332,7 +332,7 @@ func (m *Manager) GetArchIDForComponents(components []component.ComponentMetadat
 }
 
 // GetEntitiesForArchID returns all the entities that currently belong to the given archetype ID.
-func (m *Manager) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error) {
+func (m *EntityComponentBuffer) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error) {
 	active, err := m.getActiveEntities(archID)
 	if err != nil {
 		return nil, err
@@ -342,7 +342,7 @@ func (m *Manager) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error)
 
 // SearchFrom returns an ArchetypeIterator based on a component filter. The iterator will iterate over all archetypes
 // that match the given filter.
-func (m *Manager) SearchFrom(filter filter.ComponentFilter, start int) *storage.ArchetypeIterator {
+func (m *EntityComponentBuffer) SearchFrom(filter filter.ComponentFilter, start int) *storage.ArchetypeIterator {
 	itr := &storage.ArchetypeIterator{}
 	for i := start; i < len(m.archIDToComps); i++ {
 		archID := archetype.ID(i)
@@ -355,17 +355,17 @@ func (m *Manager) SearchFrom(filter filter.ComponentFilter, start int) *storage.
 }
 
 // ArchetypeCount returns the number of archetypes that have been generated.
-func (m *Manager) ArchetypeCount() int {
+func (m *EntityComponentBuffer) ArchetypeCount() int {
 	return len(m.archIDToComps)
 }
 
 // InjectLogger sets the logger for the manager.
-func (m *Manager) InjectLogger(logger *zerolog.Logger) {
+func (m *EntityComponentBuffer) InjectLogger(logger *zerolog.Logger) {
 	m.logger = logger
 }
 
 // Close closes the manager.
-func (m *Manager) Close() error {
+func (m *EntityComponentBuffer) Close() error {
 	err := eris.Wrap(m.client.Close(), "")
 	if eris.Is(eris.Cause(err), redis.ErrClosed) {
 		// if redis is already closed that means another shutdown pathway got to it first.
@@ -376,7 +376,7 @@ func (m *Manager) Close() error {
 }
 
 // getArchetypeForEntity returns the archetype ID for the given entity ID.
-func (m *Manager) getArchetypeForEntity(id entity.ID) (archetype.ID, error) {
+func (m *EntityComponentBuffer) getArchetypeForEntity(id entity.ID) (archetype.ID, error) {
 	archID, ok := m.entityIDToArchID[id]
 	if ok {
 		return archID, nil
@@ -395,7 +395,7 @@ func (m *Manager) getArchetypeForEntity(id entity.ID) (archetype.ID, error) {
 }
 
 // nextEntityID returns the next available entity ID.
-func (m *Manager) nextEntityID() (entity.ID, error) {
+func (m *EntityComponentBuffer) nextEntityID() (entity.ID, error) {
 	if !m.isEntityIDLoaded {
 		// The next valid entity ID needs to be loaded from storage.
 		ctx := context.Background()
@@ -421,7 +421,7 @@ func (m *Manager) nextEntityID() (entity.ID, error) {
 // getOrMakeArchIDForComponents converts the given set of components into an archetype ID. If the set of components
 // has already been assigned an archetype ID, that ID is returned. If this is a new set of components, an archetype ID
 // is generated.
-func (m *Manager) getOrMakeArchIDForComponents(comps []component.ComponentMetadata) (archetype.ID, error) {
+func (m *EntityComponentBuffer) getOrMakeArchIDForComponents(comps []component.ComponentMetadata) (archetype.ID, error) {
 	archID, err := m.GetArchIDForComponents(comps)
 	if err == nil {
 		return archID, nil
@@ -438,7 +438,7 @@ func (m *Manager) getOrMakeArchIDForComponents(comps []component.ComponentMetada
 }
 
 // getActiveEntities returns the entities that are currently assigned to the given archetype ID.
-func (m *Manager) getActiveEntities(archID archetype.ID) (activeEntities, error) {
+func (m *EntityComponentBuffer) getActiveEntities(archID archetype.ID) (activeEntities, error) {
 	active, ok := m.activeEntities[archID]
 	// The active entities for this archetype ID has not yet been loaded from storage
 	if ok {
@@ -469,13 +469,13 @@ func (m *Manager) getActiveEntities(archID archetype.ID) (activeEntities, error)
 
 // setActiveEntities sets the entities that are associated with the given archetype ID and marks
 // the information as modified so it can later be pushed to the storage layer.
-func (m *Manager) setActiveEntities(archID archetype.ID, active activeEntities) {
+func (m *EntityComponentBuffer) setActiveEntities(archID archetype.ID, active activeEntities) {
 	active.modified = true
 	m.activeEntities[archID] = active
 }
 
 // moveEntityByArchetype moves an entity ID from one archetype to another archetype.
-func (m *Manager) moveEntityByArchetype(fromArchID, toArchID archetype.ID, id entity.ID) error {
+func (m *EntityComponentBuffer) moveEntityByArchetype(fromArchID, toArchID archetype.ID, id entity.ID) error {
 	if _, ok := m.entityIDToOriginArchID[id]; !ok {
 		m.entityIDToOriginArchID[id] = fromArchID
 	}

@@ -1,9 +1,10 @@
-package ecb_test
+package gamestate_test
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"

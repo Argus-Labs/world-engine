@@ -270,7 +270,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 1)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = engine.StoreManager().GetComponentTypesForEntity(entities[0])
+	_, err = engine.GameStateManager().GetComponentTypesForEntity(entities[0])
 	assert.Check(t, err != nil)
 
 	// Remove the other entity
@@ -290,7 +290,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 0)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = engine.StoreManager().GetComponentTypesForEntity(entities[0])
+	_, err = engine.GameStateManager().GetComponentTypesForEntity(entities[0])
 	assert.Check(t, err != nil)
 }
 
@@ -421,9 +421,9 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 	assert.NilError(t, engine.LoadGameState())
 
 	getArchIDForEntityID := func(id entity.ID) archetype.ID {
-		components, err := engine.StoreManager().GetComponentTypesForEntity(id)
+		components, err := engine.GameStateManager().GetComponentTypesForEntity(id)
 		assert.NilError(t, err)
-		archID, err := engine.StoreManager().GetArchIDForComponents(components)
+		archID, err := engine.GameStateManager().GetArchIDForComponents(components)
 		assert.NilError(t, err)
 		return archID
 	}

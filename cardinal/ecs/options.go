@@ -5,8 +5,8 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate/store"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
 )
@@ -32,7 +32,7 @@ func WithPrettyLog() Option {
 	}
 }
 
-func WithStoreManager(s store.IManager) Option {
+func WithStoreManager(s store.IGameStateManager) Option {
 	return func(e *Engine) {
 		e.entityStore = s
 	}

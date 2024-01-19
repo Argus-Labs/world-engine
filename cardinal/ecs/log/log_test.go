@@ -3,10 +3,11 @@ package log_test
 import (
 	"bytes"
 	"context"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"strings"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -145,7 +146,7 @@ func TestEngineLogger(t *testing.T) {
 	buf.Reset()
 
 	// test log entity
-	archetypeID, err := engine.StoreManager().GetArchIDForComponents(components)
+	archetypeID, err := engine.GameStateManager().GetArchIDForComponents(components)
 	assert.NilError(t, err)
 	log.Entity(&bufLogger, zerolog.DebugLevel, entityID, archetypeID, components)
 	jsonEntityInfoString := `

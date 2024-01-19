@@ -12,18 +12,19 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
+	"github.com/rotisserie/eris"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate/store"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/cardinal/statsd"
@@ -46,7 +47,7 @@ func (n Namespace) String() string {
 type Engine struct {
 	namespace              Namespace
 	redisStorage           *redis.Storage
-	entityStore            store.IManager
+	entityStore            store.IGameStateManager
 	systems                []System
 	systemLoggers          []*zerolog.Logger
 	initSystem             System
@@ -140,7 +141,7 @@ func (e *Engine) Namespace() Namespace {
 	return e.namespace
 }
 
-func (e *Engine) StoreManager() store.IManager {
+func (e *Engine) GameStateManager() store.IGameStateManager {
 	return e.entityStore
 }
 
@@ -339,7 +340,7 @@ func (e *Engine) ListMessages() ([]message.Message, error) {
 // NewEngine creates a new engine.
 func NewEngine(
 	storage *redis.Storage,
-	entityStore store.IManager,
+	entityStore store.IGameStateManager,
 	namespace Namespace,
 	opts ...Option,
 ) (*Engine, error) {
@@ -391,7 +392,7 @@ func (e *Engine) ReceiptHistorySize() uint64 {
 
 // Remove removes the given Entity from the engine.
 func (e *Engine) Remove(id entity.ID) error {
-	return e.StoreManager().RemoveEntity(id)
+	return e.GameStateManager().RemoveEntity(id)
 }
 
 // ConsumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
@@ -878,7 +879,7 @@ func (e *Engine) GetSystemNames() []string {
 
 func (e *Engine) InjectLogger(logger *zerolog.Logger) {
 	e.Logger = logger
-	e.StoreManager().InjectLogger(logger)
+	e.GameStateManager().InjectLogger(logger)
 }
 
 func (e *Engine) NewSearch(filter filter.ComponentFilter) *Search {

@@ -17,7 +17,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
@@ -101,14 +101,14 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		Password: cfg.RedisPassword,
 		DB:       0, // use default DB
 	}, cfg.CardinalNamespace)
-	storeManager, err := ecb.NewManager(redisStore.Client)
+	entityComponentBuffer, err := gamestate.NewEntityComponentBuffer(redisStore.Client)
 	if err != nil {
 		return nil, err
 	}
 
 	ecsWorld, err := ecs.NewEngine(
 		&redisStore,
-		storeManager,
+		entityComponentBuffer,
 		ecs.Namespace(cfg.CardinalNamespace),
 		ecsOptions...,
 	)

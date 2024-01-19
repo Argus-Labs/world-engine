@@ -1,4 +1,4 @@
-package ecb
+package gamestate
 
 import (
 	"context"
@@ -9,8 +9,8 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate/store"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -28,7 +28,7 @@ type readOnlyManager struct {
 	archIDToComps   map[archetype.ID][]component.ComponentMetadata
 }
 
-func (m *Manager) ToReadOnly() store.Reader {
+func (m *EntityComponentBuffer) ToReadOnly() store.Reader {
 	return &readOnlyManager{
 		client:          m.client,
 		typeToComponent: m.typeToComponent,

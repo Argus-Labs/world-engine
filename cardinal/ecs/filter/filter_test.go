@@ -2,8 +2,9 @@ package filter_test
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/types/component"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/types/component"
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -246,7 +247,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	_, err = ecs.CreateMany(eCtx, 20, Alpha{})
 	assert.NilError(t, err)
 	id := ids[0]
-	comps, err := engine.StoreManager().GetComponentTypesForEntity(id)
+	comps, err := engine.GameStateManager().GetComponentTypesForEntity(id)
 	assert.NilError(t, err)
 
 	count := 0

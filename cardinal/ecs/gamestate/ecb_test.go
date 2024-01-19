@@ -1,11 +1,13 @@
-package ecb_test
+package gamestate_test
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"runtime"
 	"testing"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -15,20 +17,19 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-func newCmdBufferForTest(t *testing.T) *ecb.Manager {
+func newCmdBufferForTest(t *testing.T) *gamestate.EntityComponentBuffer {
 	manager, _ := newCmdBufferAndRedisClientForTest(t, nil)
 	return manager
 }
 
-// newCmdBufferAndRedisClientForTest creates a ecb.Manager using the given redis client. If the passed in redis
+// newCmdBufferAndRedisClientForTest creates a ecb.EntityComponentBuffer using the given redis client. If the passed in redis
 // client is nil, a redis client is created.
-func newCmdBufferAndRedisClientForTest(t *testing.T, client *redis.Client) (*ecb.Manager, *redis.Client) {
+func newCmdBufferAndRedisClientForTest(t *testing.T, client *redis.Client) (*gamestate.EntityComponentBuffer, *redis.Client) {
 	if client == nil {
 		s := miniredis.RunT(t)
 		options := redis.Options{
@@ -39,7 +40,7 @@ func newCmdBufferAndRedisClientForTest(t *testing.T, client *redis.Client) (*ecb
 
 		client = redis.NewClient(&options)
 	}
-	manager, err := ecb.NewManager(client)
+	manager, err := gamestate.NewEntityComponentBuffer(client)
 	assert.NilError(t, err)
 	assert.NilError(t, manager.RegisterComponents(allComponents))
 	return manager, client
@@ -530,7 +531,7 @@ func TestCannotSaveStateBeforeRegisteringComponents(t *testing.T) {
 	ctx := context.Background()
 
 	client := redis.NewClient(&options)
-	manager, err := ecb.NewManager(client)
+	manager, err := gamestate.NewEntityComponentBuffer(client)
 	assert.NilError(t, err)
 
 	// RegisterComponents must be called before attempting to save the state

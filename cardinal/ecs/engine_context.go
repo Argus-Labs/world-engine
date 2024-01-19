@@ -2,10 +2,11 @@ package ecs
 
 import (
 	"errors"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate/store"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 )
 
@@ -18,7 +19,7 @@ type EngineContext interface {
 	// For internal use.
 	GetEngine() *Engine
 	StoreReader() store.Reader
-	StoreManager() store.IManager
+	StoreManager() store.IGameStateManager
 	GetTxQueue() *txpool.TxQueue
 	IsReadOnly() bool
 }
@@ -88,8 +89,8 @@ func (e *engineContext) IsReadOnly() bool {
 	return e.readOnly
 }
 
-func (e *engineContext) StoreManager() store.IManager {
-	return e.engine.StoreManager()
+func (e *engineContext) StoreManager() store.IGameStateManager {
+	return e.engine.GameStateManager()
 }
 
 func (e *engineContext) StoreReader() store.Reader {

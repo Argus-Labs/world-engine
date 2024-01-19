@@ -6,7 +6,7 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate/store"
 	"pkg.world.dev/world-engine/cardinal/events"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -71,7 +71,7 @@ func WithTickDoneChannel(ch chan<- uint64) WorldOption {
 	}
 }
 
-func WithStoreManager(s store.IManager) WorldOption {
+func WithStoreManager(s store.IGameStateManager) WorldOption {
 	return WorldOption{
 		ecsOption: ecs.WithStoreManager(s),
 	}
