@@ -48,5 +48,4 @@ jobs:
           destination-repository-name: 'starter-game-template'
           user-email: github-bot@argus.gg
           commit-message: See ORIGIN_COMMIT from $GITHUB_REF
-          target-branch: debug/sync-test-world-engine
-          create-target-branch-if-needed: true
+          target-branch: main
