@@ -3,6 +3,8 @@ name: Starter Template Sync
 ## workflow will trigger on below condition,
 ## except image release that have jobs condition to trigger only on tagging
 on:
+  branches:
+      - main
   push:
     paths:
       - starter-game-template/**
@@ -25,7 +27,7 @@ jobs:
   git-repo-sync:
     name: Starter-Game-Template Repo Sync
     needs: dir-changes
-    if: (github.ref != 'refs/heads/main' && needs.dir-changes.outputs.starter-game-template == 'true')
+    if: (github.ref == 'refs/heads/main' && needs.dir-changes.outputs.starter-game-template == 'true')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -34,7 +36,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Pushes to another repository Test
+      - name: Sync starter-game-template content to upstream repo
         id: push_directory
         uses: cpina/github-action-push-to-another-repository@main
         env:
