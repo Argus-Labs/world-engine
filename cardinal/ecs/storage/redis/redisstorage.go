@@ -12,8 +12,8 @@ type Storage struct {
 	Namespace string
 	Client    *redis.Client
 	Log       zerolog.Logger
-	RedisNonceStorage
-	RedisSchemaStorage
+	NonceStorage
+	SchemaStorage
 }
 
 type Options = redis.Options
@@ -21,11 +21,11 @@ type Options = redis.Options
 func NewRedisStorage(options Options, namespace string) Storage {
 	client := redis.NewClient(&options)
 	return Storage{
-		Namespace:          namespace,
-		Client:             client,
-		Log:                zerolog.New(os.Stdout),
-		RedisNonceStorage:  NewRedisNonceStorage(client),
-		RedisSchemaStorage: NewRedisSchemaStorage(client),
+		Namespace:     namespace,
+		Client:        client,
+		Log:           zerolog.New(os.Stdout),
+		NonceStorage:  NewRedisNonceStorage(client),
+		SchemaStorage: NewRedisSchemaStorage(client),
 	}
 }
 

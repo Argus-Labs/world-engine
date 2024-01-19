@@ -7,10 +7,10 @@ import "fmt"
 	Hash set of signature address to uint64 nonce
 */
 
-func (r *RedisNonceStorage) nonceSetKey(str string) string {
+func (r *NonceStorage) nonceSetKey(str string) string {
 	return fmt.Sprintf("USED_NONCES_%s", str)
 }
 
-func (r *RedisSchemaStorage) schemaStorageKey() string {
+func (r *SchemaStorage) schemaStorageKey() string {
 	return "COMPONENT_NAME_TO_SCHEMA_DATA"
 }

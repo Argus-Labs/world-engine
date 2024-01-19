@@ -12,17 +12,17 @@ var (
 	ErrNoSchemaFound = errors.New("no schema found")
 )
 
-type RedisSchemaStorage struct {
+type SchemaStorage struct {
 	Client *redis.Client
 }
 
-func NewRedisSchemaStorage(client *redis.Client) RedisSchemaStorage {
-	return RedisSchemaStorage{
+func NewRedisSchemaStorage(client *redis.Client) SchemaStorage {
+	return SchemaStorage{
 		Client: client,
 	}
 }
 
-func (r *RedisSchemaStorage) GetSchema(componentName string) ([]byte, error) {
+func (r *SchemaStorage) GetSchema(componentName string) ([]byte, error) {
 	ctx := context.Background()
 	schemaBytes, err := r.Client.HGet(ctx, r.schemaStorageKey(), componentName).Bytes()
 	if eris.Is(err, redis.Nil) {
@@ -33,7 +33,7 @@ func (r *RedisSchemaStorage) GetSchema(componentName string) ([]byte, error) {
 	return schemaBytes, nil
 }
 
-func (r *RedisSchemaStorage) SetSchema(componentName string, schemaData []byte) error {
+func (r *SchemaStorage) SetSchema(componentName string, schemaData []byte) error {
 	ctx := context.Background()
 	return eris.Wrap(r.Client.HSet(ctx, r.schemaStorageKey(), componentName, schemaData).Err(), "")
 }
