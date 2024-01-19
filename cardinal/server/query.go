@@ -1,12 +1,11 @@
 package server
 
 import (
-	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
-func (s *Server) registerQueryHandler(path string) error {
+func (s *Server) registerQueryHandler(path string) {
 	queries := s.eng.ListQueries()
 	queryNameToQuery := make(map[string]ecs.Query)
 	customPathQuery := make(map[string]ecs.Query)
@@ -31,12 +30,15 @@ func (s *Server) registerQueryHandler(path string) error {
 			return ctx.Route().Path
 		}))
 	}
-	return nil
 }
 
 type queryRetriever func(ctx *fiber.Ctx) string
 
-func makeQueryHandler(queryNameToQuery map[string]ecs.Query, eng *ecs.Engine, qr queryRetriever) func(ctx *fiber.Ctx) error {
+func makeQueryHandler(
+	queryNameToQuery map[string]ecs.Query,
+	eng *ecs.Engine,
+	qr queryRetriever,
+) func(ctx *fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		queryName := qr(ctx)
 		query, exists := queryNameToQuery[queryName]
@@ -45,7 +47,6 @@ func makeQueryHandler(queryNameToQuery map[string]ecs.Query, eng *ecs.Engine, qr
 		}
 		resBz, err := query.HandleQueryRaw(ecs.NewReadOnlyEngineContext(eng), ctx.Body())
 		if err != nil {
-			fmt.Println(err.Error())
 			return fiber.NewError(fiber.StatusBadRequest, "encountered an error in query: "+err.Error())
 		}
 		ctx.Set("Content-Type", "application/json")

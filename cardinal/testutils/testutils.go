@@ -8,18 +8,18 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"net/http"
-	server "pkg.world.dev/world-engine/cardinal/server3"
+	"pkg.world.dev/world-engine/cardinal/server"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 
 	"pkg.world.dev/world-engine/assert"
-
-	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -31,16 +31,16 @@ func NewTestServer(
 ) *TestTransactionHandler {
 	eventHub := events.NewWebSocketEventHub()
 	world.SetEventHub(eventHub)
-	//eventBuilder := events.CreateNewWebSocketBuilder(
+	// eventBuilder := events.CreateNewWebSocketBuilder(
 	//	"/events",
 	//	events.CreateWebSocketEventHandler(eventHub),
-	//)
+	// )
 	srvr, err := server.New(world, opts...)
 	assert.NilError(t, err)
 
 	// add test websocket handler
 	// TODO: Uncomment and fix
-	//srvr.Mux.HandleFunc("/echo", events.Echo)
+	// srvr.Mux.HandleFunc("/echo", events.Echo)
 
 	healthPath := "/health"
 	t.Cleanup(func() {
@@ -56,7 +56,7 @@ func NewTestServer(
 		}
 	}()
 
-	host := "localhost:4040"
+	host := "localhost:" + srvr.Port()
 	healthURL := host + healthPath
 	start := time.Now()
 	for {
@@ -79,7 +79,7 @@ func NewTestServer(
 	}
 }
 
-// TestTransactionHandler is a helper struct that can start an HTTP server on port 4040 with the given world.
+// TestTransactionHandler is a helper struct that can start an HTTP server on a random port with the given world.
 type TestTransactionHandler struct {
 	*server.Server
 	T        *testing.T
@@ -101,10 +101,9 @@ func (t *TestTransactionHandler) MakeWebSocketURL(path string) string {
 func (t *TestTransactionHandler) Post(path string, payload any) *http.Response {
 	bz, err := json.Marshal(payload)
 	assert.NilError(t.T, err)
-	//nolint:noctx // its for a test its ok.
 	url := t.MakeHTTPURL(path)
 	log.Info().Msgf("sending post request to %s with payload %s", url, string(bz))
-	res, err := http.Post(url, "application/json", bytes.NewReader(bz))
+	res, err := http.Post(url, "application/json", bytes.NewReader(bz)) //nolint:gosec,noctx // its a test
 	assert.NilError(t.T, err)
 	return res
 }
@@ -203,9 +202,11 @@ func AddTransactionToWorldByAnyTransaction(
 
 // MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
 // will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
-// end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called.
+// end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called. If a nil miniredis is passed
+// in a miniredis will be created.
 func MakeWorldAndTicker(
 	t *testing.T,
+	miniRedis *miniredis.Miniredis,
 	opts ...cardinal.WorldOption,
 ) (world *cardinal.World, doTick func()) {
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
@@ -216,7 +217,11 @@ func MakeWorldAndTicker(
 		cardinal.WithTickDoneChannel(doneTickCh),
 		cardinal.WithEventHub(eventHub),
 	)
-	world = NewTestWorld(t, opts...)
+	if miniRedis == nil {
+		world = NewTestWorld(t, opts...)
+	} else {
+		world, _ = NewTestWorldWithCustomRedis(t, miniRedis, opts...)
+	}
 
 	// Shutdown any world resources. This will be called whether the world has been started or not.
 	t.Cleanup(func() {

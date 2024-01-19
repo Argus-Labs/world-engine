@@ -7,14 +7,11 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	server "pkg.world.dev/world-engine/cardinal/server3"
 	"reflect"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
-
-	"pkg.world.dev/world-engine/cardinal/shard"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -22,28 +19,37 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
+	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/evm"
 	"pkg.world.dev/world-engine/cardinal/gamestage"
+	"pkg.world.dev/world-engine/cardinal/server"
+	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 )
 
-var ErrEntitiesCreatedBeforeStartGame = errors.New("entities should not be created before start game")
+var (
+	ErrEntitiesCreatedBeforeStartGame = errors.New("entities should not be created before start game")
+
+	ErrEntityDoesNotExist                = storage.ErrEntityDoesNotExist
+	ErrEntityMustHaveAtLeastOneComponent = storage.ErrEntityMustHaveAtLeastOneComponent
+	ErrComponentNotOnEntity              = storage.ErrComponentNotOnEntity
+	ErrComponentAlreadyOnEntity          = storage.ErrComponentAlreadyOnEntity
+	ErrComponentNotRegistered            = storage.ErrMustRegisterComponent
+)
 
 type World struct {
-	instance  *ecs.Engine
-	server    *server.Server
-	evmServer evm.Server
-	// gameManager        *server.GameManager
+	instance        *ecs.Engine
+	server          *server.Server
+	evmServer       evm.Server
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
-	// gameManagerOptions []server.GameManagerOptions
-	cleanup func()
+	cleanup         func()
 
 	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc)
 	gameSequenceStage gamestage.Atomic
@@ -72,7 +78,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Sane default options
 	serverOptions = append(serverOptions, server.WithCORS())
-	// var gameManagerOptions []server.GameManagerOptions // not exposed in NewEngine Yet
 
 	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
 		return nil, eris.Wrap(err, "")
@@ -86,7 +91,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
 		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
-		//	gameManagerOptions = append(gameManagerOptions, server.WithGameManagerPrettyPrint)
 	}
 	redisStore := redis.NewRedisStorage(redis.Options{
 		Addr:     cfg.RedisAddress,
@@ -125,9 +129,8 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	world := &World{
-		instance:      ecsWorld,
-		serverOptions: serverOptions,
-		//	gameManagerOptions: gameManagerOptions,
+		instance:          ecsWorld,
+		serverOptions:     serverOptions,
 		endStartGame:      make(chan bool),
 		gameSequenceStage: gamestage.NewAtomic(),
 	}
@@ -200,38 +203,91 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
 func CreateMany(wCtx WorldContext, num int, components ...component.Component) ([]EntityID, error) {
-	return ecs.CreateMany(wCtx.Engine(), num, components...)
+	ids, err := ecs.CreateMany(wCtx.Engine(), num, components...)
+	if wCtx.Engine().IsReadOnly() || err == nil {
+		return ids, err
+	}
+	return nil, logAndPanic(wCtx, err)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
 func Create(wCtx WorldContext, components ...component.Component) (EntityID, error) {
-	return ecs.Create(wCtx.Engine(), components...)
+	id, err := ecs.Create(wCtx.Engine(), components...)
+	if wCtx.Engine().IsReadOnly() || err == nil {
+		return id, err
+	}
+	return 0, logAndPanic(wCtx, err)
 }
 
 // SetComponent Set sets component data to the entity.
 func SetComponent[T component.Component](wCtx WorldContext, id entity.ID, comp *T) error {
-	return ecs.SetComponent[T](wCtx.Engine(), id, comp)
+	err := ecs.SetComponent[T](wCtx.Engine(), id, comp)
+	if wCtx.Engine().IsReadOnly() || err == nil {
+		return err
+	}
+	if eris.Is(err, ErrEntityDoesNotExist) ||
+		eris.Is(err, ErrComponentNotOnEntity) {
+		return err
+	}
+	return logAndPanic(wCtx, err)
 }
 
 // GetComponent Get returns component data from the entity.
 func GetComponent[T component.Component](wCtx WorldContext, id entity.ID) (*T, error) {
-	return ecs.GetComponent[T](wCtx.Engine(), id)
+	result, err := ecs.GetComponent[T](wCtx.Engine(), id)
+	_ = result
+	if wCtx.Engine().IsReadOnly() || err == nil {
+		return result, err
+	}
+	if eris.Is(err, ErrEntityDoesNotExist) ||
+		eris.Is(err, ErrComponentNotOnEntity) {
+		return nil, err
+	}
+
+	return nil, logAndPanic(wCtx, err)
 }
 
 // UpdateComponent Updates a component on an entity.
 func UpdateComponent[T component.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
-	return ecs.UpdateComponent[T](wCtx.Engine(), id, fn)
+	err := ecs.UpdateComponent[T](wCtx.Engine(), id, fn)
+	if wCtx.Engine().IsReadOnly() || err == nil {
+		return err
+	}
+	if eris.Is(err, ErrEntityDoesNotExist) ||
+		eris.Is(err, ErrComponentNotOnEntity) {
+		return err
+	}
+
+	return logAndPanic(wCtx, err)
 }
 
 // AddComponentTo Adds a component on an entity.
 func AddComponentTo[T component.Component](wCtx WorldContext, id entity.ID) error {
-	return ecs.AddComponentTo[T](wCtx.Engine(), id)
+	err := ecs.AddComponentTo[T](wCtx.Engine(), id)
+	if wCtx.Engine().IsReadOnly() || err == nil {
+		return err
+	}
+	if eris.Is(err, ErrEntityDoesNotExist) ||
+		eris.Is(err, ErrComponentAlreadyOnEntity) {
+		return err
+	}
+
+	return logAndPanic(wCtx, err)
 }
 
 // RemoveComponentFrom Removes a component from an entity.
 func RemoveComponentFrom[T component.Component](wCtx WorldContext, id entity.ID) error {
-	return ecs.RemoveComponentFrom[T](wCtx.Engine(), id)
+	err := ecs.RemoveComponentFrom[T](wCtx.Engine(), id)
+	if wCtx.Engine().IsReadOnly() || err == nil {
+		return err
+	}
+	if eris.Is(err, ErrEntityDoesNotExist) ||
+		eris.Is(err, ErrComponentNotOnEntity) ||
+		eris.Is(err, ErrEntityMustHaveAtLeastOneComponent) {
+		return err
+	}
+	return logAndPanic(wCtx, err)
 }
 
 // Remove removes the given entity id from the world.
@@ -275,8 +331,6 @@ func (w *World) StartGame() error {
 	if !w.instance.DoesEngineHaveAnEventHub() {
 		w.instance.SetEventHub(events.NewWebSocketEventHub())
 	}
-	//  eventHub := w.instance.GetEventHub()
-	//	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
 	srvr, err := server.New(w.instance, w.serverOptions...)
 	if err != nil {
 		return err
@@ -289,9 +343,9 @@ func (w *World) StartGame() error {
 			return err
 		}
 		w.instance.Logger.Debug().
-			Msgf("no EVM messages or queries specified. EVM srvr will not run: %s", eris.ToString(err, true))
+			Msgf("no EVM messages or queries specified. EVM server will not run: %s", eris.ToString(err, true))
 	} else {
-		w.instance.Logger.Debug().Msg("running world with EVM srvr")
+		w.instance.Logger.Debug().Msg("running world with EVM server")
 		err = w.evmServer.Serve()
 		if err != nil {
 			return err
@@ -302,17 +356,15 @@ func (w *World) StartGame() error {
 		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
 	w.instance.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
-	//gameManager := srvr.NewGameManager(w.instance, w.srvr, w.gameManagerOptions...)
-	//w.gameManager = &gameManager
 	go func() {
 		ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageStarting, gamestage.StageRunning)
 		if !ok {
 			log.Fatal().Msg("game was started prematurely")
 		}
 		if err := w.server.Serve(); errors.Is(err, http.ErrServerClosed) {
-			log.Info().Err(err).Msgf("the srvr has been closed: %s", eris.ToString(err, true))
+			log.Info().Err(err).Msgf("the server has been closed: %s", eris.ToString(err, true))
 		} else if err != nil {
-			log.Fatal().Err(err).Msgf("the srvr has failed: %s", eris.ToString(err, true))
+			log.Fatal().Err(err).Msgf("the server has failed: %s", eris.ToString(err, true))
 		}
 	}()
 
@@ -344,10 +396,6 @@ func (w *World) ShutDown() error {
 		w.evmServer.Shutdown()
 	}
 	close(w.endStartGame)
-	//err := w.gameManager.Shutdown()
-	//if err != nil {
-	//	return err
-	//}
 	return nil
 }
 
@@ -439,4 +487,12 @@ func (w *World) Init(system System) {
 			return system(&worldContext{engine: eCtx})
 		},
 	)
+}
+
+// logAndPanic logs the given error and panics. An error is returned so the syntax:
+// return logAndPanic(wCtx, err)
+// can be used at the end of state-mutating methods. This method will never actually return.
+func logAndPanic(wCtx WorldContext, err error) error {
+	wCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
+	return err
 }

@@ -2,7 +2,6 @@ package server
 
 import (
 	_ "embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/gofiber/contrib/swagger"
@@ -11,7 +10,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"sync"
 	"sync/atomic"
 )
 
@@ -39,8 +37,7 @@ type Server struct {
 	withCORS                     bool
 	disableSwagger               bool
 
-	running       atomic.Bool
-	shutdownMutex sync.Mutex
+	running atomic.Bool
 }
 
 func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
@@ -62,10 +59,11 @@ func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
 	}
 
 	err := s.registerHandlers()
-	// Print the router stack in JSON format
-	data, _ := json.MarshalIndent(s.app.Stack(), "", "  ")
-	fmt.Println(string(data))
 	return s, err
+}
+
+func (s *Server) Port() string {
+	return s.port
 }
 
 // Serve serves the application, blocking the calling thread.
@@ -110,11 +108,11 @@ func (s *Server) setupSwagger() {
 }
 
 func (s *Server) registerHandlers() error {
+	s.registerQueryHandler(fmt.Sprintf("%s:%s", s.queryPrefix, s.queryWildCard))
+	s.registerHealthEndpoint("/health")
 
 	return errors.Join(
 		s.registerTransactionHandler(fmt.Sprintf("%s:%s", s.txPrefix, s.txWildCard)),
-		s.registerQueryHandler(fmt.Sprintf("%s:%s", s.queryPrefix, s.queryWildCard)),
 		s.registerListEndpointsEndpoint("/query/http/endpoints"),
-		s.registerHealthEndpoint("/health"),
 	)
 }

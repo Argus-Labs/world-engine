@@ -60,7 +60,6 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	var result server.EndpointsResult
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
-	fmt.Println(result)
 	msgs, err := s.engine.ListMessages()
 	s.Require().NoError(err)
 	queries := s.engine.ListQueries()
@@ -98,7 +97,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 func (s *ServerTestSuite) runTx(personaTag string, msg message.Message, payload any) {
 	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.engine.Namespace().String(), s.nonce, payload)
 	s.Require().NoError(err)
-	url := ""
+	var url string
 	if msg.Path() != "" {
 		url = msg.Path()
 	} else {

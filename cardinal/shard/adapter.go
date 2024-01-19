@@ -4,17 +4,17 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"os"
-
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"os"
+	"pkg.world.dev/world-engine/cardinal/txpool"
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/sign"
 
 	"google.golang.org/grpc"
 
-	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
 
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 )
@@ -29,7 +29,7 @@ type Adapter interface {
 type WriteAdapter interface {
 	// Submit submits a transaction to the EVM base shard's game tx sequencer, where the tx data will be sequenced and
 	// stored on chain.
-	Submit(ctx context.Context, p *sign.Transaction, txID, epoch uint64) error
+	Submit(ctx context.Context, txs txpool.TxMap, namespace string, epoch, unixTimestamp uint64) error
 }
 
 // QueryAdapter provides the functionality to query transactions from the EVM base shard.
@@ -55,7 +55,7 @@ var (
 
 type adapterImpl struct {
 	cfg            AdapterConfig
-	ShardSequencer shardv1.ShardHandlerClient
+	ShardSequencer shard.TransactionHandlerClient
 	ShardQuerier   shardtypes.QueryClient
 
 	// opts
@@ -91,29 +91,45 @@ func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
 	// we need secure comms here because only this connection should be able to send stuff to the shard receiver.
 	conn, err := grpc.Dial(cfg.ShardSequencerAddr, grpc.WithTransportCredentials(a.creds))
 	if err != nil {
-		return nil, eris.Wrap(err, "")
+		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", cfg.ShardSequencerAddr)
 	}
-	a.ShardSequencer = shardv1.NewShardHandlerClient(conn)
+	a.ShardSequencer = shard.NewTransactionHandlerClient(conn)
 
 	// we don't need secure comms for this connection, cause we're just querying cosmos public RPC endpoints.
 	conn2, err := grpc.Dial(cfg.EVMBaseShardAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		return nil, eris.Wrap(err, "")
+		return nil, eris.Wrapf(err, "error dialing evm base shard address at %q", cfg.EVMBaseShardAddr)
 	}
 	a.ShardQuerier = shardtypes.NewQueryClient(conn2)
 	return a, nil
 }
 
-func (a adapterImpl) Submit(ctx context.Context, sp *sign.Transaction, txID uint64, epoch uint64) error {
-	req := &shardv1.SubmitShardTxRequest{Tx: transactionToProto(sp), Epoch: epoch, TxId: txID}
-	_, err := a.ShardSequencer.SubmitShardTx(ctx, req)
+func (a adapterImpl) Submit(
+	ctx context.Context,
+	processedTxs txpool.TxMap,
+	namespace string,
+	epoch,
+	unixTimestamp uint64,
+) error {
+	messageIDtoTxs := make(map[uint64]*shard.Transactions)
+	for msgID, txs := range processedTxs {
+		protoTxs := make([]*shard.Transaction, 0, len(txs))
+		for _, txData := range txs {
+			protoTxs = append(protoTxs, transactionToProto(txData.Tx))
+		}
+		messageIDtoTxs[uint64(msgID)] = &shard.Transactions{Txs: protoTxs}
+	}
+	req := shard.SubmitTransactionsRequest{
+		Epoch:         epoch,
+		UnixTimestamp: unixTimestamp,
+		Namespace:     namespace,
+		Transactions:  messageIDtoTxs,
+	}
+	_, err := a.ShardSequencer.Submit(ctx, &req)
 	return eris.Wrap(err, "")
 }
 
-func (a adapterImpl) QueryTransactions(
-	ctx context.Context,
-	req *shardtypes.QueryTransactionsRequest,
-) (
+func (a adapterImpl) QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
 	*shardtypes.QueryTransactionsResponse,
 	error,
 ) {
@@ -121,8 +137,8 @@ func (a adapterImpl) QueryTransactions(
 	return res, eris.Wrap(err, "")
 }
 
-func transactionToProto(sp *sign.Transaction) *shardv1.Transaction {
-	return &shardv1.Transaction{
+func transactionToProto(sp *sign.Transaction) *shard.Transaction {
+	return &shard.Transaction{
 		PersonaTag: sp.PersonaTag,
 		Namespace:  sp.Namespace,
 		Nonce:      sp.Nonce,

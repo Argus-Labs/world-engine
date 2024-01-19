@@ -56,6 +56,8 @@ Ref: https://keepachangelog.com/en/1.0.0/
 
 - (cardinal) #WORLD-643: Instead of making sure nonce values are strictly increasing, use a Redis set to track every used nonce.
 
+- (cardinal) #WORLD-702: Cardinal's transactions are now sent at the end of a tick, instead of one by one at the server handler.
+
 ### Deprecated
 
 ### Bug Fixes

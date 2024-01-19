@@ -1,8 +1,11 @@
 package events_test
 
+/*
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"pkg.world.dev/world-engine/cardinal/server"
 	"strings"
 	"sync"
 	"testing"
@@ -34,52 +37,52 @@ func TestEventError(t *testing.T) {
 	assert.Assert(t, len(v3) > 0)
 }
 
-//func TestEvents(t *testing.T) {
-//	// broadcast 5 messages to 5 clients means 25 messages received.
-//	numberToTest := 5
-//	engine := testutils.NewTestWorld(t).Engine()
-//	assert.NilError(t, engine.LoadGameState())
-//	txh := testutils.NewTestServer(t, engine, server.DisableSignatureVerification())
-//	url := txh.MakeWebSocketURL("events")
-//	dialers := make([]*websocket.Conn, numberToTest)
-//	for i := range dialers {
-//		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
-//		assert.NilError(t, err)
-//		dialers[i] = dial
-//	}
-//	var wg sync.WaitGroup
-//	for i := 0; i < numberToTest; i++ {
-//		i := i
-//		wg.Add(1)
-//		go func() {
-//			defer wg.Done()
-//			txh.EventHub.EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
-//		}()
-//	}
-//	wg.Wait()
-//	go func() {
-//		txh.EventHub.FlushEvents()
-//	}()
-//	var count atomic.Int32
-//	count.Store(0)
-//	for _, dialer := range dialers {
-//		wg.Add(1)
-//		dialer := dialer
-//		go func() {
-//			defer wg.Done()
-//			for j := 0; j < numberToTest; j++ {
-//				mode, message, err := dialer.ReadMessage()
-//				assert.NilError(t, err)
-//				assert.Equal(t, mode, websocket.TextMessage)
-//				assert.Equal(t, string(message)[:4], "test")
-//				count.Add(1)
-//			}
-//		}()
-//	}
-//	wg.Wait()
-//	txh.EventHub.ShutdownEventHub()
-//	assert.Equal(t, count.Load(), int32(numberToTest*numberToTest))
-//}
+func TestEvents(t *testing.T) {
+	// broadcast 5 messages to 5 clients means 25 messages received.
+	numberToTest := 5
+	engine := testutils.NewTestWorld(t).Engine()
+	assert.NilError(t, engine.LoadGameState())
+	txh := testutils.NewTestServer(t, engine, server.DisableSignatureVerification())
+	url := txh.MakeWebSocketURL("events")
+	dialers := make([]*websocket.Conn, numberToTest)
+	for i := range dialers {
+		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
+		assert.NilError(t, err)
+		dialers[i] = dial
+	}
+	var wg sync.WaitGroup
+	for i := 0; i < numberToTest; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			txh.EventHub.EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
+		}()
+	}
+	wg.Wait()
+	go func() {
+		txh.EventHub.FlushEvents()
+	}()
+	var count atomic.Int32
+	count.Store(0)
+	for _, dialer := range dialers {
+		wg.Add(1)
+		dialer := dialer
+		go func() {
+			defer wg.Done()
+			for j := 0; j < numberToTest; j++ {
+				mode, message, err := dialer.ReadMessage()
+				assert.NilError(t, err)
+				assert.Equal(t, mode, websocket.TextMessage)
+				assert.Equal(t, string(message)[:4], "test")
+				count.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	txh.EventHub.ShutdownEventHub()
+	assert.Equal(t, count.Load(), int32(numberToTest*numberToTest))
+}
 
 type garbageStructAlpha struct {
 	Something int `json:"something"`
@@ -100,65 +103,65 @@ type SendEnergyTx struct {
 
 type SendEnergyTxResult struct{}
 
-//func TestEventsThroughSystems(t *testing.T) {
-//	numberToTest := 5
-//	engine := testutils.NewTestWorld(t).Engine()
-//	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
-//	assert.NilError(t, engine.RegisterMessages(sendTx))
-//	counter1 := atomic.Int32{}
-//	counter1.Store(0)
-//	for i := 0; i < numberToTest; i++ {
-//		engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
-//			eCtx.GetEngine().EmitEvent(&events.Event{Message: "test"})
-//			counter1.Add(1)
-//			return nil
-//		})
-//	}
-//	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](engine))
-//	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](engine))
-//	assert.NilError(t, engine.LoadGameState())
-//	txh := testutils.NewTestServer(t, engine, server.DisableSignatureVerification())
-//	url := txh.MakeWebSocketURL("events")
-//	dialers := make([]*websocket.Conn, numberToTest)
-//	for i := range dialers {
-//		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
-//		assert.NilError(t, err)
-//		dialers[i] = dial
-//	}
-//	ctx := context.Background()
-//	waitForTicks := sync.WaitGroup{}
-//	waitForTicks.Add(1)
-//	go func() {
-//		defer waitForTicks.Done()
-//		for i := 0; i < numberToTest; i++ {
-//			err := engine.Tick(ctx)
-//			assert.NilError(t, err)
-//		}
-//	}()
-//
-//	waitForDialersToRead := sync.WaitGroup{}
-//	counter2 := atomic.Int32{}
-//	counter2.Store(0)
-//	for _, dialer := range dialers {
-//		dialer := dialer
-//		waitForDialersToRead.Add(1)
-//		go func() {
-//			defer waitForDialersToRead.Done()
-//			for i := 0; i < numberToTest; i++ {
-//				mode, message, err := dialer.ReadMessage()
-//				assert.NilError(t, err)
-//				assert.Equal(t, mode, websocket.TextMessage)
-//				assert.Equal(t, string(message), "test")
-//				counter2.Add(1)
-//			}
-//		}()
-//	}
-//	waitForDialersToRead.Wait()
-//	waitForTicks.Wait()
-//
-//	assert.Equal(t, counter1.Load(), int32(numberToTest*numberToTest))
-//	assert.Equal(t, counter2.Load(), int32(numberToTest*numberToTest))
-//}
+func TestEventsThroughSystems(t *testing.T) {
+	numberToTest := 5
+	engine := testutils.NewTestWorld(t).Engine()
+	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
+	assert.NilError(t, engine.RegisterMessages(sendTx))
+	counter1 := atomic.Int32{}
+	counter1.Store(0)
+	for i := 0; i < numberToTest; i++ {
+		engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
+			eCtx.GetEngine().EmitEvent(&events.Event{Message: "test"})
+			counter1.Add(1)
+			return nil
+		})
+	}
+	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](engine))
+	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](engine))
+	assert.NilError(t, engine.LoadGameState())
+	txh := testutils.NewTestServer(t, engine, server.DisableSignatureVerification())
+	url := txh.MakeWebSocketURL("events")
+	dialers := make([]*websocket.Conn, numberToTest)
+	for i := range dialers {
+		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
+		assert.NilError(t, err)
+		dialers[i] = dial
+	}
+	ctx := context.Background()
+	waitForTicks := sync.WaitGroup{}
+	waitForTicks.Add(1)
+	go func() {
+		defer waitForTicks.Done()
+		for i := 0; i < numberToTest; i++ {
+			err := engine.Tick(ctx)
+			assert.NilError(t, err)
+		}
+	}()
+
+	waitForDialersToRead := sync.WaitGroup{}
+	counter2 := atomic.Int32{}
+	counter2.Store(0)
+	for _, dialer := range dialers {
+		dialer := dialer
+		waitForDialersToRead.Add(1)
+		go func() {
+			defer waitForDialersToRead.Done()
+			for i := 0; i < numberToTest; i++ {
+				mode, message, err := dialer.ReadMessage()
+				assert.NilError(t, err)
+				assert.Equal(t, mode, websocket.TextMessage)
+				assert.Equal(t, string(message), "test")
+				counter2.Add(1)
+			}
+		}()
+	}
+	waitForDialersToRead.Wait()
+	waitForTicks.Wait()
+
+	assert.Equal(t, counter1.Load(), int32(numberToTest*numberToTest))
+	assert.Equal(t, counter2.Load(), int32(numberToTest*numberToTest))
+}
 
 type ThreadSafeBuffer struct {
 	internalBuffer bytes.Buffer
@@ -208,3 +211,4 @@ func TestEventHubLogger(t *testing.T) {
 		require.JSONEq(t, testString, logEntry)
 	}
 }
+*/

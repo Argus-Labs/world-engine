@@ -26,3 +26,4 @@
 package contracts
 
 //go:generate abigen --pkg router --abi ./out/router.sol/IRouter.abi.json --bin ./out/router.sol/IRouter.bin --out ./bindings/cosmos/precompile/router/IRouter.abigen.go --type router
+//go:generate abigen --pkg namespace --abi ./out/namespace.sol/INamespace.abi.json --bin ./out/namespace.sol/INamespace.bin --out ./bindings/cosmos/precompile/namespace/INamespace.abigen.go --type namespace

@@ -1,6 +1,7 @@
 package cardinal
 
 import (
+	"pkg.world.dev/world-engine/cardinal/server"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"

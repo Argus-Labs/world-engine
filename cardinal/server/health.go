@@ -7,7 +7,7 @@ type HealthReply struct {
 	IsGameLoopRunning bool `json:"isGameLoopRunning"`
 }
 
-func (s *Server) registerHealthEndpoint(path string) error {
+func (s *Server) registerHealthEndpoint(path string) {
 	s.app.Get(path, func(c *fiber.Ctx) error {
 		res := HealthReply{
 			IsServerRunning:   true,
@@ -15,5 +15,4 @@ func (s *Server) registerHealthEndpoint(path string) error {
 		}
 		return c.JSON(res)
 	})
-	return nil
 }

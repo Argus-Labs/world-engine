@@ -19,8 +19,9 @@ func (k *Keeper) SubmitShardTx(ctx context.Context, msg *types.SubmitShardTxRequ
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 
 	err := k.saveTransactions(sdkCtx, msg.Namespace, &types.Epoch{
-		Epoch: msg.Epoch,
-		Txs:   msg.Txs,
+		Epoch:         msg.Epoch,
+		UnixTimestamp: msg.UnixTimestamp,
+		Txs:           msg.Txs,
 	})
 	if err != nil {
 		return nil, err

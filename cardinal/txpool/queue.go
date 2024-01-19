@@ -8,14 +8,14 @@ import (
 )
 
 type TxQueue struct {
-	m          txMap
+	m          TxMap
 	txsInQueue int
 	mux        *sync.Mutex
 }
 
 func NewTxQueue() *TxQueue {
 	return &TxQueue{
-		m:   txMap{},
+		m:   TxMap{},
 		mux: &sync.Mutex{},
 	}
 }
@@ -65,6 +65,10 @@ func (t *TxQueue) addTransaction(id message.TypeID, v any, sig *sign.Transaction
 	return txHash
 }
 
+func (t *TxQueue) Transactions() TxMap {
+	return t.m
+}
+
 // CopyTransactions returns a copy of the TxQueue, and resets the state to 0 values.
 func (t *TxQueue) CopyTransactions() *TxQueue {
 	t.mux.Lock()
@@ -75,7 +79,7 @@ func (t *TxQueue) CopyTransactions() *TxQueue {
 }
 
 func (t *TxQueue) reset() {
-	t.m = txMap{}
+	t.m = TxMap{}
 	t.txsInQueue = 0
 }
 
@@ -83,7 +87,7 @@ func (t *TxQueue) ForID(id message.TypeID) []TxData {
 	return t.m[id]
 }
 
-type txMap map[message.TypeID][]TxData
+type TxMap map[message.TypeID][]TxData
 
 type TxData struct {
 	MsgID  message.TypeID

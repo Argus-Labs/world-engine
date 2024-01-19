@@ -1053,8 +1053,8 @@ google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQ
 google.golang.org/protobuf v1.28.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
 google.golang.org/protobuf v1.31.0 h1:g0LDEJHgrBl9N9r17Ru3sqWhkIx2NB67okBHPwC7hs8=
 google.golang.org/protobuf v1.31.0/go.mod h1:HV8QOd/L58Z+nl8r43ehVNZIU/HEI6OcFqwMG9pJV4I=
-gopkg.in/DataDog/dd-trace-go.v1 v1.58.0 h1:ixIUarsu0RrOt7xfdrE5YSFvjgaWsP3cC3G342jTIuw=
-gopkg.in/DataDog/dd-trace-go.v1 v1.58.0/go.mod h1:SmnEjjV9ZQr4MWRSUYEpoPyNtmtRK5J6UuJdAma+Yxw=
+gopkg.in/DataDog/dd-trace-go.v1 v1.58.1 h1:zhVNyN5V9G7LVuDh44q3wkcbQwtjIsmmUCieayojNYo=
+gopkg.in/DataDog/dd-trace-go.v1 v1.58.1/go.mod h1:SmnEjjV9ZQr4MWRSUYEpoPyNtmtRK5J6UuJdAma+Yxw=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
@@ -1101,8 +1101,8 @@ pkg.world.dev/world-engine/assert v1.0.0-beta h1:+Za05wYla/Rx6iBdzukY/b2EVEMj6Yg
 pkg.world.dev/world-engine/assert v1.0.0-beta/go.mod h1:bwA9YZ40+Tte6GUKibfqByxBLLt+54zjjFako8cpSuU=
 pkg.world.dev/world-engine/evm v1.0.2-beta h1:wlKjKHSGPSdSusLM54a5jozlE4yzNR4mSaTgCOtiDfU=
 pkg.world.dev/world-engine/evm v1.0.2-beta/go.mod h1:z8FfFc35oYsDITh26rbQzXW8A+lqvvY8IjbD1Upp4iM=
-pkg.world.dev/world-engine/rift v1.0.0-beta h1:MmnOjkU0ps6CfsMtj3Dorv5L3kpHokc02ja+JoQS/X0=
-pkg.world.dev/world-engine/rift v1.0.0-beta/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
+pkg.world.dev/world-engine/rift v1.0.2-beta h1:SQPlUlRgdnJMgHQ7c60Ew4hYPIyLOMq2xBp5J8gHpHw=
+pkg.world.dev/world-engine/rift v1.0.2-beta/go.mod h1:SAo0qDI8C2yFC2WOD3t35H+h9j+RXdap9hDBzw21CWs=
 pkg.world.dev/world-engine/sign v1.0.0-beta h1:a+rn8gs6168xC87nWnYbuZBTsuC9VBixAsbvjYzpe2Q=
 pkg.world.dev/world-engine/sign v1.0.0-beta/go.mod h1:IKs311y2aGDr+A7Y6L/bXQPn/jdRhkm1x+7V3G+oeIs=
 sigs.k8s.io/yaml v1.3.0 h1:a2VclLzOGrwOHDiV8EfBGhvjHvP46CtW5j6POvhYGGo=

@@ -18,7 +18,6 @@ require (
 	github.com/JeremyLoy/config v1.5.0
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
-	github.com/cometbft/cometbft v0.38.0
 	github.com/ethereum/go-ethereum v1.13.4
 	github.com/go-openapi/loads v0.21.2
 	github.com/go-openapi/runtime v0.26.0
@@ -35,11 +34,11 @@ require (
 	github.com/wI2L/jsondiff v0.5.0
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
-	gopkg.in/DataDog/dd-trace-go.v1 v1.58.0
+	gopkg.in/DataDog/dd-trace-go.v1 v1.58.1
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/assert v1.0.0-beta
 	pkg.world.dev/world-engine/evm v1.0.2-beta
-	pkg.world.dev/world-engine/rift v1.0.0-beta
+	pkg.world.dev/world-engine/rift v1.0.2-beta
 	pkg.world.dev/world-engine/sign v1.0.0-beta
 )
 
@@ -74,6 +73,7 @@ require (
 	github.com/cockroachdb/pebble v0.0.0-20231101195458-481da04154d6 // indirect
 	github.com/cockroachdb/redact v1.1.5 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
+	github.com/cometbft/cometbft v0.38.0 // indirect
 	github.com/cometbft/cometbft-db v0.8.0 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/cosmos-db v1.0.0 // indirect

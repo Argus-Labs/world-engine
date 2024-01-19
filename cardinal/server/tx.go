@@ -51,29 +51,26 @@ func (s *Server) registerTransactionHandler(path string) error {
 	return nil
 }
 
-func (s *Server) handleTransaction(msgTypes map[string]message.Message, getMsgTypeName func(*fiber.Ctx) string) func(*fiber.Ctx) error {
+func (s *Server) handleTransaction(
+	msgTypes map[string]message.Message,
+	getMsgTypeName func(*fiber.Ctx) string,
+) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgTypeName := getMsgTypeName(ctx)
 		msgType, exists := msgTypes[msgTypeName]
 		if !exists {
 			return fiber.NewError(fiber.StatusNotFound, "no handler registered for "+msgTypeName)
 		}
-		body := ctx.Body()
-		if len(body) == 0 {
-			return fiber.NewError(fiber.StatusBadRequest, "request body was empty")
-		}
-		tx, err := decodeTransaction(body)
+
+		tx, msg, err := getMessageAndTx(ctx.Body(), msgType)
 		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "transaction data malformed: "+err.Error())
+			return err
 		}
-		msg, err := msgType.Decode(tx.Body)
-		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "failed to decode message from transaction body: "+err.Error())
-		}
+
 		var signerAddress string
 		if msgType.Name() == ecs.CreatePersonaMsg.Name() {
 			// don't need to check the cast bc we already validated this above
-			createPersonaMsg := msg.(ecs.CreatePersona)
+			createPersonaMsg, _ := msg.(ecs.CreatePersona)
 			signerAddress = createPersonaMsg.SignerAddress
 		} else {
 			signerAddress, err = s.eng.GetSignerForPersonaTag(tx.PersonaTag, 0)
@@ -82,9 +79,8 @@ func (s *Server) handleTransaction(msgTypes map[string]message.Message, getMsgTy
 			}
 		}
 		if !s.disableSignatureVerification {
-			err = validateTransaction(tx, signerAddress, s.eng.Namespace().String(), tx.IsSystemTransaction()) // TODO: need to deal with this somehow
+			err = validateTransaction(tx, signerAddress, s.eng.Namespace().String(), tx.IsSystemTransaction())
 			if err != nil {
-				fmt.Println("The error: ", err.Error())
 				return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
 			}
 			if err = s.eng.UseNonce(signerAddress, tx.Nonce); err != nil {
@@ -101,6 +97,25 @@ func (s *Server) handleTransaction(msgTypes map[string]message.Message, getMsgTy
 	}
 }
 
+func getMessageAndTx(body []byte, mt message.Message) (*sign.Transaction, any, error) {
+	if len(body) == 0 {
+		return nil, nil, fiber.NewError(fiber.StatusBadRequest, "request body was empty")
+	}
+	tx, err := decodeTransaction(body)
+	if err != nil {
+		return nil, nil, fiber.NewError(fiber.StatusBadRequest, "transaction data malformed: "+err.Error())
+	}
+	msg, err := mt.Decode(tx.Body)
+	if err != nil {
+		return nil, nil, fiber.NewError(
+			fiber.StatusBadRequest,
+			"failed to decode message from transaction body: "+err.Error(),
+		)
+	}
+
+	return tx, msg, nil
+}
+
 func validateTransaction(tx *sign.Transaction, signerAddr, namespace string, systemTx bool) error {
 	if tx.PersonaTag == "" {
 		return ErrNoPersonaTag
@@ -114,10 +129,7 @@ func validateTransaction(tx *sign.Transaction, signerAddr, namespace string, sys
 	if !systemTx && tx.IsSystemTransaction() {
 		return ErrSystemTransactionForbidden
 	}
-	if err := tx.Verify(signerAddr); err != nil {
-		return err
-	}
-	return nil
+	return tx.Verify(signerAddr)
 }
 
 func decodeTransaction(bz []byte) (*sign.Transaction, error) {

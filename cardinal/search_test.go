@@ -3,6 +3,8 @@ package cardinal_test
 import (
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
@@ -23,7 +25,7 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 func TestSearchExample(t *testing.T) {
-	world, _ := testutils.MakeWorldAndTicker(t)
+	world, _ := testutils.MakeWorldAndTicker(t, nil)
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
@@ -46,41 +48,41 @@ func TestSearchExample(t *testing.T) {
 
 	testCases := []struct {
 		name   string
-		filter cardinal.Filter
+		filter filter.ComponentFilter
 		want   int
 	}{
 		{
 			"exactly alpha",
-			cardinal.Exact(Alpha{}),
+			filter.Exact(Alpha{}),
 			10,
 		},
 		{
 			"contains alpha",
-			cardinal.Contains(Alpha{}),
+			filter.Contains(Alpha{}),
 			40,
 		},
 		{
 			"beta or gamma",
-			cardinal.Or(
-				cardinal.Exact(Beta{}),
-				cardinal.Exact(Gamma{}),
+			filter.Or(
+				filter.Exact(Beta{}),
+				filter.Exact(Gamma{}),
 			),
 			20,
 		},
 		{
 			"not alpha",
-			cardinal.Not(cardinal.Exact(Alpha{})),
+			filter.Not(filter.Exact(Alpha{})),
 			60,
 		},
 		{
 			"alpha and beta",
-			cardinal.And(cardinal.Contains(Alpha{}),
-				cardinal.Contains(Beta{}),
+			filter.And(filter.Contains(Alpha{}),
+				filter.Contains(Beta{}),
 			), 20,
 		},
 		{
 			"all",
-			cardinal.All(),
+			filter.All(),
 			70,
 		},
 	}

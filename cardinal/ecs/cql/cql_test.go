@@ -19,6 +19,7 @@ func TestParser(t *testing.T) {
 	testTerm := cqlTerm{
 		Left: &cqlFactor{
 			Base: &cqlValue{
+				All:      nil,
 				Exact:    nil,
 				Contains: nil,
 				Not: &cqlNot{
@@ -111,4 +112,12 @@ func TestParser(t *testing.T) {
 			filter.Exact(emptyComponent),
 		)
 	assert.Assert(t, reflect.DeepEqual(testResult2, result))
+
+	query = "ALL   (  )    "
+	term, err = internalCQLParser.ParseString("", query)
+	assert.NilError(t, err)
+	result, err = termToComponentFilter(term, stringToComponent)
+	assert.NilError(t, err)
+	testResult2 = filter.All()
+	assert.Assert(t, reflect.DeepEqual(result, testResult2))
 }

@@ -96,20 +96,20 @@ func TestComponents(t *testing.T) {
 	for _, tt := range tests {
 		componentsForArchID := storeManager.GetComponentTypesForArchID(tt.archID)
 		for _, comp := range tt.comps {
-			ok := filter.MatchComponentMetaData(componentsForArchID, comp)
+			ok := filter.MatchComponent(component.ConvertComponentMetadatasToComponents(componentsForArchID), comp)
 			if !ok {
 				t.Errorf("the archetype ID %d should contain the component %d", tt.archID, comp.ID())
 			}
 			iface, err := storeManager.GetComponentForEntity(comp, tt.entityID)
 			assert.NilError(t, err)
 
-			switch component := iface.(type) {
+			switch comp := iface.(type) {
 			case ComponentDataA:
-				component.Value = tt.Value
-				assert.NilError(t, storeManager.SetComponentForEntity(ca, tt.entityID, component))
+				comp.Value = tt.Value
+				assert.NilError(t, storeManager.SetComponentForEntity(ca, tt.entityID, comp))
 			case ComponentDataB:
-				component.Value = tt.Value
-				assert.NilError(t, storeManager.SetComponentForEntity(cb, tt.entityID, component))
+				comp.Value = tt.Value
+				assert.NilError(t, storeManager.SetComponentForEntity(cb, tt.entityID, comp))
 			default:
 				assert.Check(t, false, "unknown component type: %v", iface)
 			}

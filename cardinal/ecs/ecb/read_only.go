@@ -151,7 +151,7 @@ func (r *readOnlyManager) SearchFrom(filter filter.ComponentFilter, start int) *
 	}
 	for i := start; i < len(r.archIDToComps); i++ {
 		archID := archetype.ID(i)
-		if !filter.MatchesComponents(r.archIDToComps[archID]) {
+		if !filter.MatchesComponents(component.ConvertComponentMetadatasToComponents(r.archIDToComps[archID])) {
 			continue
 		}
 		itr.Values = append(itr.Values, archID)
