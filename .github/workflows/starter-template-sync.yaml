@@ -7,7 +7,6 @@ on:
     paths:
       - starter-game-template/**
 
-
 jobs:
   dir-changes:
     name: Check directory/path changes
@@ -32,28 +31,9 @@ jobs:
       run:
         shell: bash
         working-directory: starter-game-template
-    # Add "id-token" with the intended permissions.
-    permissions:
-      contents: 'read'
-      id-token: 'write'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      # - uses: actions/checkout@v4
-      #   with:
-      #     repository: 'Argus-Labs/starter-game-template'
-      #     path: 'starter-game-template-upstream'
-      #     ref: 'main'
-      # - name: Copy starter-game-template data
-      #   run: |
-      #     cp -rf tarter-game-template starter-game-template-upstream
-      - name: WIP - Debug
-        run: |
-          # ls -lah starter-game-template-upstream
-          git status
-      - name: WIP
-        run: |
-          git --no-pager config --list
       - name: Pushes to another repository Test
         id: push_directory
         uses: cpina/github-action-push-to-another-repository@main
