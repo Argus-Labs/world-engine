@@ -35,7 +35,7 @@ func WithPrettyPrint() Option {
 	}
 }
 
-func WithDisableSwagger() Option {
+func DisableSwagger() Option {
 	return func(s *Server) {
 		s.disableSwagger = true
 	}
