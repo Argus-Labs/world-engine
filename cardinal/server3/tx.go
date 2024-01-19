@@ -82,7 +82,7 @@ func (s *Server) handleTransaction(msgTypes map[string]message.Message, getMsgTy
 			}
 		}
 		if !s.disableSignatureVerification {
-			err = validateTransaction(tx, signerAddress, s.eng.Namespace().String(), true) // TODO: need to deal with this somehow
+			err = validateTransaction(tx, signerAddress, s.eng.Namespace().String(), tx.IsSystemTransaction()) // TODO: need to deal with this somehow
 			if err != nil {
 				fmt.Println("The error: ", err.Error())
 				return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())

@@ -32,7 +32,7 @@ func (s *Server) registerListEndpointsEndpoint(path string) error {
 		}
 	}
 
-	s.app.Post(path, func(ctx *fiber.Ctx) error {
+	s.app.Get(path, func(ctx *fiber.Ctx) error {
 		return ctx.JSON(res)
 	})
 

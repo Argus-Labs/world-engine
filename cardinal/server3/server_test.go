@@ -3,6 +3,7 @@ package server3_test
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gofiber/fiber/v2"
@@ -13,6 +14,7 @@ import (
 	server "pkg.world.dev/world-engine/cardinal/server3"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
 	"testing"
 )
@@ -20,8 +22,8 @@ import (
 type ServerTestSuite struct {
 	suite.Suite
 
-	w      *cardinal.World
-	e      *ecs.Engine
+	world  *cardinal.World
+	engine *ecs.Engine
 	server *testutils.TestTransactionHandler
 
 	privateKey *ecdsa.PrivateKey
@@ -38,12 +40,75 @@ func (s *ServerTestSuite) SetupSuite() {
 	s.privateKey, err = crypto.GenerateKey()
 	s.Require().NoError(err)
 	s.signerAddr = crypto.PubkeyToAddress(s.privateKey.PublicKey).Hex()
+	s.setupWorld()
 }
 
-func (s *ServerTestSuite) TestTransaction() {
-	s.setupWorld()
-	s.server = testutils.NewTestServer(s.T(), s.e, server.WithPrettyPrint())
+func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
+	s.server = testutils.NewTestServer(s.T(), s.engine, server.WithPrettyPrint())
 	s.createPersona("tyler")
+	s.runTx("tyler", MoveMessage, MoveMsgInput{Direction: "up"})
+	res := s.server.Post("query/game/location", QueryLocationRequest{Persona: "tyler"})
+	var loc LocationComponent
+	err := json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
+	s.Require().NoError(err)
+	s.Require().Equal(loc, LocationComponent{0, 1})
+}
+
+func (s *ServerTestSuite) TestCanListEndpoints() {
+	s.server = testutils.NewTestServer(s.T(), s.engine, server.WithPrettyPrint())
+	res := s.server.Get("/query/http/endpoints")
+	var result server.EndpointsResult
+	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
+	s.Require().NoError(err)
+	fmt.Println(result)
+	msgs, err := s.engine.ListMessages()
+	s.Require().NoError(err)
+	queries := s.engine.ListQueries()
+
+	s.Require().Len(msgs, len(result.TxEndpoints))
+	s.Require().Len(queries, len(result.QueryEndpoints))
+}
+
+func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
+	s.server = testutils.NewTestServer(s.T(), s.engine, server.DisableSignatureVerification(), server.WithPrettyPrint())
+	persona := "tyler"
+	s.createPersona(persona)
+	msg := MoveMsgInput{Direction: "up"}
+	msgBz, err := json.Marshal(msg)
+	s.Require().NoError(err)
+	tx := &sign.Transaction{
+		PersonaTag: persona,
+		Body:       msgBz,
+	}
+	url := "/tx/game/" + MoveMessage.Name()
+	res := s.server.Post(url, tx)
+	s.Require().Equal(res.StatusCode, fiber.StatusOK, s.readBody(res.Body))
+	err = s.engine.Tick(context.Background())
+	s.Require().NoError(err)
+	s.nonce++
+
+	// check the component was successfully updated, despite not using any signature data.
+	res = s.server.Post("query/game/location", QueryLocationRequest{Persona: "tyler"})
+	var loc LocationComponent
+	err = json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
+	s.Require().NoError(err)
+	s.Require().Equal(loc, LocationComponent{0, 1})
+}
+
+func (s *ServerTestSuite) runTx(personaTag string, msg message.Message, payload any) {
+	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.engine.Namespace().String(), s.nonce, payload)
+	s.Require().NoError(err)
+	url := ""
+	if msg.Path() != "" {
+		url = msg.Path()
+	} else {
+		url = "/tx/game/" + msg.Name()
+	}
+	res := s.server.Post(url, tx)
+	s.Require().Equal(res.StatusCode, fiber.StatusOK, s.readBody(res.Body))
+	err = s.engine.Tick(context.Background())
+	s.Require().NoError(err)
+	s.nonce++
 }
 
 func (s *ServerTestSuite) createPersona(personaTag string) {
@@ -51,24 +116,24 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 		PersonaTag:    personaTag,
 		SignerAddress: s.signerAddr,
 	}
-	tx, err := sign.NewSystemTransaction(s.privateKey, s.e.Namespace().String(), s.nonce, createPersonaTx)
-	s.nonce++
+	tx, err := sign.NewSystemTransaction(s.privateKey, s.engine.Namespace().String(), s.nonce, createPersonaTx)
 	s.Require().NoError(err)
 	res := s.server.Post(ecs.CreatePersonaMsg.Path(), tx)
 	s.Require().Equal(res.StatusCode, fiber.StatusOK, s.readBody(res.Body))
-	err = s.e.Tick(context.Background())
+	err = s.engine.Tick(context.Background())
 	s.Require().NoError(err)
+	s.nonce++
 }
 
 func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
-	s.w = testutils.NewTestWorld(s.T(), opts...)
-	s.e = s.w.Engine()
-	err := ecs.RegisterComponent[LocationComponent](s.e)
+	s.world = testutils.NewTestWorld(s.T(), opts...)
+	s.engine = s.world.Engine()
+	err := ecs.RegisterComponent[LocationComponent](s.engine)
 	s.Require().NoError(err)
-	err = s.e.RegisterMessages(MoveMessage)
+	err = s.engine.RegisterMessages(MoveMessage)
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]entity.ID)
-	s.e.RegisterSystem(func(context ecs.EngineContext) error {
+	s.engine.RegisterSystem(func(context ecs.EngineContext) error {
 		MoveMessage.Each(context, func(tx ecs.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
 			posID, exists := personaToPosition[tx.Tx.PersonaTag]
 			var loc LocationComponent
@@ -102,7 +167,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 		return nil
 	})
 	err = cardinal.RegisterQuery[QueryLocationRequest, QueryLocationResponse](
-		s.w,
+		s.world,
 		"location",
 		func(wCtx cardinal.WorldContext, req *QueryLocationRequest) (*QueryLocationResponse, error) {
 			locID, exists := personaToPosition[req.Persona]
@@ -115,7 +180,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 			return &QueryLocationResponse{*loc}, nil
 		},
 	)
-	s.Require().NoError(s.e.LoadGameState())
+	s.Require().NoError(s.engine.LoadGameState())
 }
 
 func (s *ServerTestSuite) readBody(body io.ReadCloser) string {
