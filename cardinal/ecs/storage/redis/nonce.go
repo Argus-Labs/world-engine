@@ -8,12 +8,12 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-type NonceStorage struct {
+type RedisNonceStorage struct {
 	Client *redis.Client
 }
 
-func NewNonceStorage(client *redis.Client) NonceStorage {
-	return NonceStorage{
+func NewRedisNonceStorage(client *redis.Client) RedisNonceStorage {
+	return RedisNonceStorage{
 		Client: client,
 	}
 }
@@ -22,7 +22,7 @@ var ErrNonceHasAlreadyBeenUsed = errors.New("nonce has already been used")
 
 // UseNonce atomically marks the given nonce as used. The nonce is valid if nil is returned. A non-nil error means
 // there was an error verifying the nonce, or the nonce was already used.
-func (r *NonceStorage) UseNonce(signerAddress string, nonce uint64) error {
+func (r *RedisNonceStorage) UseNonce(signerAddress string, nonce uint64) error {
 	ctx := context.Background()
 	key := r.nonceSetKey(signerAddress)
 	added, err := r.Client.SAdd(ctx, key, nonce).Result()
