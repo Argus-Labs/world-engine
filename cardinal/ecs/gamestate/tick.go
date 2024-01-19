@@ -13,13 +13,12 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/gamestate/store"
 	"pkg.world.dev/world-engine/sign"
 )
 
 // The engine tick must be updated in the same atomic transaction as all the state changes
 // associated with that tick. This means the manager here must also implement the TickStore interface.
-var _ store.TickStorage = &EntityComponentBuffer{}
+var _ TickStorage = &EntityComponentBuffer{}
 
 // GetTickNumbers returns the last tick that was started and the last tick that was ended. If start == end, it means
 // the last tick that was attempted completed successfully. If start != end, it means a tick was started but did not

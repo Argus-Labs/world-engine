@@ -9,14 +9,13 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/gamestate/store"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-var _ store.Reader = &readOnlyManager{}
+var _ Reader = &readOnlyManager{}
 
 var (
 	ErrNoArchIDMappingFound = errors.New("no mapping of archID to components found")
@@ -28,7 +27,7 @@ type readOnlyManager struct {
 	archIDToComps   map[archetype.ID][]component.ComponentMetadata
 }
 
-func (m *EntityComponentBuffer) ToReadOnly() store.Reader {
+func (m *EntityComponentBuffer) ToReadOnly() Reader {
 	return &readOnlyManager{
 		client:          m.client,
 		typeToComponent: m.typeToComponent,

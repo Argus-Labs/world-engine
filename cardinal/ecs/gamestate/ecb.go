@@ -12,7 +12,6 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/gamestate/store"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
@@ -20,7 +19,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-var _ store.IGameStateManager = &EntityComponentBuffer{}
+var _ GameStateManager = &EntityComponentBuffer{}
 
 type EntityComponentBuffer struct {
 	client *redis.Client

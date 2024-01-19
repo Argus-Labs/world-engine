@@ -6,7 +6,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/ecs/gamestate/store"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 )
 
@@ -18,8 +18,8 @@ type EngineContext interface {
 
 	// For internal use.
 	GetEngine() *Engine
-	StoreReader() store.Reader
-	StoreManager() store.IGameStateManager
+	StoreReader() gamestate.Reader
+	StoreManager() gamestate.GameStateManager
 	GetTxQueue() *txpool.TxQueue
 	IsReadOnly() bool
 }
@@ -89,11 +89,11 @@ func (e *engineContext) IsReadOnly() bool {
 	return e.readOnly
 }
 
-func (e *engineContext) StoreManager() store.IGameStateManager {
+func (e *engineContext) StoreManager() gamestate.GameStateManager {
 	return e.engine.GameStateManager()
 }
 
-func (e *engineContext) StoreReader() store.Reader {
+func (e *engineContext) StoreReader() gamestate.Reader {
 	sm := e.StoreManager()
 	if e.IsReadOnly() {
 		return sm.ToReadOnly()

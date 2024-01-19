@@ -20,7 +20,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/gamestate/store"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
@@ -47,7 +47,7 @@ func (n Namespace) String() string {
 type Engine struct {
 	namespace              Namespace
 	redisStorage           *redis.Storage
-	entityStore            store.IGameStateManager
+	entityStore            gamestate.GameStateManager
 	systems                []System
 	systemLoggers          []*zerolog.Logger
 	initSystem             System
@@ -141,11 +141,11 @@ func (e *Engine) Namespace() Namespace {
 	return e.namespace
 }
 
-func (e *Engine) GameStateManager() store.IGameStateManager {
+func (e *Engine) GameStateManager() gamestate.GameStateManager {
 	return e.entityStore
 }
 
-func (e *Engine) TickStore() store.TickStorage {
+func (e *Engine) TickStore() gamestate.TickStorage {
 	return e.entityStore
 }
 
@@ -340,7 +340,7 @@ func (e *Engine) ListMessages() ([]message.Message, error) {
 // NewEngine creates a new engine.
 func NewEngine(
 	storage *redis.Storage,
-	entityStore store.IGameStateManager,
+	entityStore gamestate.GameStateManager,
 	namespace Namespace,
 	opts ...Option,
 ) (*Engine, error) {
