@@ -44,7 +44,7 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 	assert.NilError(t, alphaComp.SetID(77))
 	assert.NilError(t, betaComp.SetID(88))
 
-	manager, err := NewEntityComponentBuffer(client)
+	manager, err := NewEntityCommandBuffer(client)
 	assert.NilError(t, err)
 	err = manager.RegisterComponents([]component.ComponentMetadata{alphaComp, betaComp})
 	assert.NilError(t, err)

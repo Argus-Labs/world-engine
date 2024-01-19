@@ -43,7 +43,7 @@ func newCmdBufferAndRedisClientForTest(
 
 		client = redis.NewClient(&options)
 	}
-	manager, err := gamestate.NewEntityComponentBuffer(client)
+	manager, err := gamestate.NewEntityCommandBuffer(client)
 	assert.NilError(t, err)
 	assert.NilError(t, manager.RegisterComponents(allComponents))
 	return manager, client
@@ -534,7 +534,7 @@ func TestCannotSaveStateBeforeRegisteringComponents(t *testing.T) {
 	ctx := context.Background()
 
 	client := redis.NewClient(&options)
-	manager, err := gamestate.NewEntityComponentBuffer(client)
+	manager, err := gamestate.NewEntityCommandBuffer(client)
 	assert.NilError(t, err)
 
 	// RegisterComponents must be called before attempting to save the state

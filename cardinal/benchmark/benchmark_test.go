@@ -30,7 +30,7 @@ func newWorldWithRealRedis(t testing.TB) *ecs.Engine {
 	}, "real-world")
 	assert.NilError(t, rs.Client.FlushDB(context.Background()).Err())
 
-	sm, err := gamestate.NewEntityComponentBuffer(rs.Client)
+	sm, err := gamestate.NewEntityCommandBuffer(rs.Client)
 	assert.NilError(t, err)
 	world, err := ecs.NewEngine(&rs, sm, cardinal.DefaultNamespace)
 

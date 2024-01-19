@@ -51,9 +51,9 @@ var (
 	doesNotExistArchetypeID = archetype.ID(-1)
 )
 
-// NewEntityComponentBuffer creates a new command buffer manager that is able to queue up a series of states changes and
+// NewEntityCommandBuffer creates a new command buffer manager that is able to queue up a series of states changes and
 // atomically commit them to the underlying redis storage layer.
-func NewEntityComponentBuffer(client *redis.Client) (*EntityComponentBuffer, error) {
+func NewEntityCommandBuffer(client *redis.Client) (*EntityComponentBuffer, error) {
 	m := &EntityComponentBuffer{
 		client:             client,
 		compValues:         map[compKey]any{},

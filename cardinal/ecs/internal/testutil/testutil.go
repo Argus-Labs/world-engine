@@ -36,7 +36,7 @@ func InitEngineWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.Engine {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, Namespace)
-	sm, err := gamestate.NewEntityComponentBuffer(rs.Client)
+	sm, err := gamestate.NewEntityCommandBuffer(rs.Client)
 	assert.NilError(t, err)
 	w, err := ecs.NewEngine(&rs, sm, ecs.Namespace(Namespace))
 	assert.NilError(t, err)

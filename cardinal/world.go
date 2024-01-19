@@ -101,14 +101,14 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		Password: cfg.RedisPassword,
 		DB:       0, // use default DB
 	}, cfg.CardinalNamespace)
-	entityComponentBuffer, err := gamestate.NewEntityComponentBuffer(redisStore.Client)
+	entityCommandBuffer, err := gamestate.NewEntityCommandBuffer(redisStore.Client)
 	if err != nil {
 		return nil, err
 	}
 
 	ecsWorld, err := ecs.NewEngine(
 		&redisStore,
-		entityComponentBuffer,
+		entityCommandBuffer,
 		ecs.Namespace(cfg.CardinalNamespace),
 		ecsOptions...,
 	)
