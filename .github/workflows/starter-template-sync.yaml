@@ -60,10 +60,11 @@ jobs:
         env:
           SSH_DEPLOY_KEY: ${{ secrets.STARTER_GAME_TEMPLATE_SSH_KEY }}
         with:
-          source-directory: output/
+          source-directory: starter-game-template
+          target-directory: /
           destination-github-username: 'Argus-Labs'
           destination-repository-name: 'starter-game-template'
-          user-email: bot@argus.gg
+          user-email: github-bot@argus.gg
           commit-message: See ORIGIN_COMMIT from $GITHUB_REF
-          target-branch: test-update
+          target-branch: debug/sync-test-world-engine
           create-target-branch-if-needed: true
