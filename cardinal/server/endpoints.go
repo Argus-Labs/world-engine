@@ -1,4 +1,4 @@
-package server3
+package server
 
 import "github.com/gofiber/fiber/v2"
 

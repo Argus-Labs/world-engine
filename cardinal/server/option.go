@@ -1,35 +1,42 @@
-package server1
+package server
 
 import (
-	"os"
-
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/shard"
+	"os"
+	"strconv"
 )
 
-type Option func(th *Handler)
+type Option func(s *Server)
 
-func DisableSignatureVerification() Option {
-	return func(th *Handler) {
-		th.disableSigVerification = true
+func WithPort(port uint) Option {
+	return func(s *Server) {
+		s.port = strconv.Itoa(int(port))
 	}
 }
 
-func WithAdapter(a shard.Adapter) Option {
-	return func(th *Handler) {
-		th.adapter = a
+func DisableSignatureVerification() Option {
+	return func(th *Server) {
+		th.disableSignatureVerification = true
 	}
 }
 
 func WithCORS() Option {
-	return func(th *Handler) {
+	return func(th *Server) {
+		th.app.Use(cors.New())
 		th.withCORS = true
 	}
 }
 
 func WithPrettyPrint() Option {
-	return func(_ *Handler) {
+	return func(_ *Server) {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	}
+}
+
+func WithDisableSwagger() Option {
+	return func(s *Server) {
+		s.disableSwagger = true
 	}
 }

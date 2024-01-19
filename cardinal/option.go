@@ -1,7 +1,6 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/server3"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
@@ -17,7 +16,7 @@ import (
 // WorldOption represents an option that can be used to augment how the cardinal.World will be run.
 type WorldOption struct {
 	ecsOption      ecs.Option
-	serverOption   server3.Option
+	serverOption   server.Option
 	cardinalOption Option
 }
 
@@ -46,7 +45,7 @@ func WithReceiptHistorySize(size int) WorldOption {
 // used for local development.
 func WithDisableSignatureVerification() WorldOption {
 	return WorldOption{
-		serverOption: server3.DisableSignatureVerification(),
+		serverOption: server.DisableSignatureVerification(),
 	}
 }
 
