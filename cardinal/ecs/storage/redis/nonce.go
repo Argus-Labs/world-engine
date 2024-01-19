@@ -12,7 +12,7 @@ type NonceStorage struct {
 	Client *redis.Client
 }
 
-func NewRedisNonceStorage(client *redis.Client) NonceStorage {
+func NewNonceStorage(client *redis.Client) NonceStorage {
 	return NonceStorage{
 		Client: client,
 	}

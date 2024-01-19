@@ -24,8 +24,8 @@ func NewRedisStorage(options Options, namespace string) Storage {
 		Namespace:     namespace,
 		Client:        client,
 		Log:           zerolog.New(os.Stdout),
-		NonceStorage:  NewRedisNonceStorage(client),
-		SchemaStorage: NewRedisSchemaStorage(client),
+		NonceStorage:  NewNonceStorage(client),
+		SchemaStorage: NewSchemaStorage(client),
 	}
 }
 

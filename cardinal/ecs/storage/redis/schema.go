@@ -16,7 +16,7 @@ type SchemaStorage struct {
 	Client *redis.Client
 }
 
-func NewRedisSchemaStorage(client *redis.Client) SchemaStorage {
+func NewSchemaStorage(client *redis.Client) SchemaStorage {
 	return SchemaStorage{
 		Client: client,
 	}
