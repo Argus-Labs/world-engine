@@ -27,9 +27,12 @@ func newCmdBufferForTest(t *testing.T) *gamestate.EntityComponentBuffer {
 	return manager
 }
 
-// newCmdBufferAndRedisClientForTest creates a ecb.EntityComponentBuffer using the given redis client. If the passed in redis
+// newCmdBufferAndRedisClientForTest creates a gamestate.EntityComponentBuffer using the given
+// redis client. If the passed in redis
 // client is nil, a redis client is created.
-func newCmdBufferAndRedisClientForTest(t *testing.T, client *redis.Client) (*gamestate.EntityComponentBuffer, *redis.Client) {
+func newCmdBufferAndRedisClientForTest(
+	t *testing.T,
+	client *redis.Client) (*gamestate.EntityComponentBuffer, *redis.Client) {
 	if client == nil {
 		s := miniredis.RunT(t)
 		options := redis.Options{

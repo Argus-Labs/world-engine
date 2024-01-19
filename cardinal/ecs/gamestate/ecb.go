@@ -172,7 +172,9 @@ func (m *EntityComponentBuffer) CreateManyEntities(num int, comps ...component.C
 }
 
 // SetComponentForEntity sets the given entity's component data to the given value.
-func (m *EntityComponentBuffer) SetComponentForEntity(cType component.ComponentMetadata, id entity.ID, value any) error {
+func (m *EntityComponentBuffer) SetComponentForEntity(
+	cType component.ComponentMetadata,
+	id entity.ID, value any) error {
 	comps, err := m.GetComponentTypesForEntity(id)
 	if err != nil {
 		return err
@@ -418,10 +420,11 @@ func (m *EntityComponentBuffer) nextEntityID() (entity.ID, error) {
 	return entity.ID(id), nil
 }
 
-// getOrMakeArchIDForComponents converts the given set of components into an archetype ID. If the set of components
-// has already been assigned an archetype ID, that ID is returned. If this is a new set of components, an archetype ID
-// is generated.
-func (m *EntityComponentBuffer) getOrMakeArchIDForComponents(comps []component.ComponentMetadata) (archetype.ID, error) {
+// getOrMakeArchIDForComponents converts the given set of components into an archetype ID.
+// If the set of components has already been assigned an archetype ID, that ID is returned.
+// If this is a new set of components, an archetype ID is generated.
+func (m *EntityComponentBuffer) getOrMakeArchIDForComponents(
+	comps []component.ComponentMetadata) (archetype.ID, error) {
 	archID, err := m.GetArchIDForComponents(comps)
 	if err == nil {
 		return archID, nil
