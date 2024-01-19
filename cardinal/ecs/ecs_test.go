@@ -9,7 +9,7 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
@@ -368,7 +368,7 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 	eCtx := ecs.NewEngineContext(engine)
 	ent, err := ecs.Create(eCtx, EnergyComponent{})
 	assert.NilError(t, err)
-	assert.ErrorIs(t, ecs.AddComponentTo[EnergyComponent](eCtx, ent), storage.ErrComponentAlreadyOnEntity)
+	assert.ErrorIs(t, ecs.AddComponentTo[EnergyComponent](eCtx, ent), iterators.ErrComponentAlreadyOnEntity)
 }
 
 type ReactorEnergy struct {
@@ -398,7 +398,7 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 	ent, err := ecs.Create(eCtx, ReactorEnergy{})
 	assert.NilError(t, err)
 
-	assert.ErrorIs(t, ecs.RemoveComponentFrom[WeaponEnergy](eCtx, ent), storage.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, ecs.RemoveComponentFrom[WeaponEnergy](eCtx, ent), iterators.ErrComponentNotOnEntity)
 }
 
 type Foo struct{}

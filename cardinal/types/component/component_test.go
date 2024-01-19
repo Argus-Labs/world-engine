@@ -3,6 +3,7 @@ package component_test
 import (
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
@@ -13,8 +14,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 )
 
 type ComponentDataA struct {
@@ -165,7 +164,7 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	id, err := ecs.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
 	_, err = ecs.GetComponent[notFoundComp](wCtx, id)
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 }
 
 type ValueComponent struct {

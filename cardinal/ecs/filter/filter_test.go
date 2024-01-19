@@ -2,8 +2,10 @@ package filter_test
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/types/component"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
+	"pkg.world.dev/world-engine/cardinal/types/component"
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -13,7 +15,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
@@ -80,7 +81,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 			count++
 			// Make sure the gamma component is not on this entity
 			_, err = ecs.GetComponent[gammaComponent](eCtx, id)
-			assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+			assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 			return true
 		},
 	)

@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 
 	"github.com/alicebob/miniredis/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
@@ -70,7 +70,7 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	// Too few components registered
 	twoEngine := testutil.InitEngineWithRedis(t, redisStore)
 	err = twoEngine.LoadGameState()
-	assert.ErrorContains(t, err, storage.ErrComponentMismatchWithSavedState.Error())
+	assert.ErrorContains(t, err, iterators.ErrComponentMismatchWithSavedState.Error())
 
 	// It's ok to register extra components.
 	threeEngine := testutil.InitEngineWithRedis(t, redisStore)
