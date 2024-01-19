@@ -3,9 +3,9 @@ name: Starter Template Sync
 ## workflow will trigger on below condition,
 ## except image release that have jobs condition to trigger only on tagging
 on:
-  branches:
-      - main
   push:
+    branches:
+      - main
     paths:
       - starter-game-template/**
 
