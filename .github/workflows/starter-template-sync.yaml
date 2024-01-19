@@ -4,8 +4,6 @@ name: Starter Template Sync
 ## except image release that have jobs condition to trigger only on tagging
 on:
   push:
-    branches:
-      - main
     paths:
       - starter-game-template/**
 
@@ -42,17 +40,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - uses: actions/checkout@v4
-        with:
-          repository: 'Argus-Labs/starter-game-template'
-          path: 'starter-game-template-upstream'
-          ref: 'main'
-      - name: Copy starter-game-template data
-        run: |
-          cp -rf tarter-game-template starter-game-template-upstream
+      # - uses: actions/checkout@v4
+      #   with:
+      #     repository: 'Argus-Labs/starter-game-template'
+      #     path: 'starter-game-template-upstream'
+      #     ref: 'main'
+      # - name: Copy starter-game-template data
+      #   run: |
+      #     cp -rf tarter-game-template starter-game-template-upstream
       - name: WIP - Debug
         run: |
-          ls -lah starter-game-template-upstream
+          # ls -lah starter-game-template-upstream
           git status
       - name: WIP
         run: |
@@ -61,7 +59,7 @@ jobs:
         id: push_directory
         uses: cpina/github-action-push-to-another-repository@main
         env:
-          SSH_DEPLOY_KEY: ${{ secrets.SSH_DEPLOY_KEY }}
+          SSH_DEPLOY_KEY: ${{ secrets.STARTER_GAME_TEMPLATE_SSH_KEY }}
         with:
           source-directory: output/
           destination-github-username: 'Argus-Labs'
