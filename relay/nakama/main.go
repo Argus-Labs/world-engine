@@ -97,10 +97,6 @@ func InitModule(
 		return eris.Wrap(err, "failed to init event hub")
 	}
 
-	if err := initReceiptMatch(ctx, logger, db, nk, initializer); err != nil {
-		return eris.Wrap(err, "unable to init match for receipt streaming")
-	}
-
 	notifier := newReceiptNotifier(logger, nk)
 
 	if err := initPrivateKey(ctx, logger, nk); err != nil {
@@ -173,26 +169,6 @@ func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModu
 		}
 	}()
 
-	return nil
-}
-
-func initReceiptMatch(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule,
-	initializer runtime.Initializer) error {
-	err := eris.Wrap(initializer.RegisterMatch("lobby", func(ctx context.Context, logger runtime.Logger, db *sql.DB,
-		nk runtime.NakamaModule) (runtime.Match, error) {
-		return &ReceiptMatch{}, nil
-	}), "")
-	if err != nil {
-		logger.Error("unable to register match: %s", eris.ToString(err, true))
-		return err
-	}
-	result, err := nk.MatchCreate(ctx, "lobby", map[string]any{})
-	err = eris.Wrap(err, "")
-	if err != nil {
-		logger.Error("unable to create match: %s", eris.ToString(err, true))
-		return err
-	}
-	logger.Debug("match create result is %q", result)
 	return nil
 }
 
