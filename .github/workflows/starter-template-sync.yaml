@@ -13,8 +13,7 @@ jobs:
     name: Check directory/path changes
     runs-on: ubuntu-latest
     outputs:
-      evm: ${{ steps.changes.outputs.evm }}
-      nakama: ${{ steps.changes.outputs.nakama }}
+      starter-game-template: ${{ steps.changes.outputs.starter-game-template }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
