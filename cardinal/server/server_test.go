@@ -76,6 +76,22 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 
 	s.Require().Len(msgs, len(result.TxEndpoints))
 	s.Require().Len(queries, len(result.QueryEndpoints))
+
+	for i, msg := range msgs {
+		if msg.Path() == "" {
+			s.Require().Equal(result.TxEndpoints[i], "/tx/game/"+msg.Name())
+		} else {
+			s.Require().Equal(result.TxEndpoints[i], msg.Path())
+		}
+	}
+
+	for i, query := range queries {
+		if query.Path() == "" {
+			s.Require().Equal(result.QueryEndpoints[i], "/query/game/"+query.Name())
+		} else {
+			s.Require().Equal(result.QueryEndpoints[i], query.Path())
+		}
+	}
 }
 
 // TestCanSendTxWithoutSigVerification tests that you can submit a tx with just a persona and body when sig verification
