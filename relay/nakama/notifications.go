@@ -32,7 +32,7 @@ type receiptNotifier struct {
 	// staleDuration is how much time has to pass before an undelivered notification is treated as stale.
 	staleDuration time.Duration
 
-	// Nakama specific strucst to log information and send transactions.
+	// Nakama specific structs to log information and send transactions.
 	nk     runtime.NakamaModule
 	logger runtime.Logger
 }
