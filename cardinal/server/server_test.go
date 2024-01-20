@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
 	"io"
+	"math/rand"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server"
@@ -17,6 +18,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
 	"testing"
+	"time"
 )
 
 type ServerTestSuite struct {
@@ -43,11 +45,15 @@ func (s *ServerTestSuite) SetupSuite() {
 	s.setupWorld()
 }
 
+func (s *ServerTestSuite) TearDownTest() {
+	s.server.Shutdown()
+}
+
 func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	s.server = testutils.NewTestServer(s.T(), s.engine, server.WithPrettyPrint())
-	s.createPersona("tyler")
-	s.runTx("tyler", MoveMessage, MoveMsgInput{Direction: "up"})
-	res := s.server.Post("query/game/location", QueryLocationRequest{Persona: "tyler"})
+	personaTag := s.createRandomPersona()
+	s.runTx(personaTag, MoveMessage, MoveMsgInput{Direction: "up"})
+	res := s.server.Post("query/game/location", QueryLocationRequest{Persona: personaTag})
 	var loc LocationComponent
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
@@ -70,7 +76,7 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 
 func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	s.server = testutils.NewTestServer(s.T(), s.engine, server.DisableSignatureVerification(), server.WithPrettyPrint())
-	persona := "tyler"
+	persona := s.createRandomPersona()
 	s.createPersona(persona)
 	msg := MoveMsgInput{Direction: "up"}
 	msgBz, err := json.Marshal(msg)
@@ -87,7 +93,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	s.nonce++
 
 	// check the component was successfully updated, despite not using any signature data.
-	res = s.server.Post("query/game/location", QueryLocationRequest{Persona: "tyler"})
+	res = s.server.Post("query/game/location", QueryLocationRequest{Persona: persona})
 	var loc LocationComponent
 	err = json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
@@ -186,6 +192,20 @@ func (s *ServerTestSuite) readBody(body io.ReadCloser) string {
 	buf, err := io.ReadAll(body)
 	s.Require().NoError(err)
 	return string(buf)
+}
+
+func (s *ServerTestSuite) createRandomPersona() string {
+	letterRunes := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	length := 5
+	result := make([]byte, length)
+	for i := 0; i < length; i++ {
+		result[i] = byte(letterRunes[r.Intn(len(letterRunes))])
+	}
+	persona := string(result)
+	s.createPersona(persona)
+	return persona
 }
 
 type LocationComponent struct {

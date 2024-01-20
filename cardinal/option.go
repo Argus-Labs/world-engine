@@ -23,6 +23,12 @@ type WorldOption struct {
 
 type Option func(*World)
 
+func WithPort(port string) WorldOption {
+	return WorldOption{
+		serverOption: server.WithPort(port),
+	}
+}
+
 // WithAdapter provides the world with communicate channels to the EVM base shard, enabling transaction storage and
 // transaction retrieval for state rebuilding purposes.
 //

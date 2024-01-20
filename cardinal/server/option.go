@@ -5,14 +5,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"os"
-	"strconv"
 )
 
 type Option func(s *Server)
 
-func WithPort(port uint) Option {
+func WithPort(port string) Option {
 	return func(s *Server) {
-		s.port = strconv.Itoa(int(port))
+		s.port = port
 	}
 }
 

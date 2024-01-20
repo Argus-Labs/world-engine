@@ -28,12 +28,13 @@ func NewTestWorldAndServerAddress(t testing.TB, opts ...cardinal.WorldOption) (w
 func NewTestWorldWithCustomRedis(
 	t testing.TB,
 	miniRedis *miniredis.Miniredis,
-	opts ...cardinal.WorldOption) (world *cardinal.World, url string) {
+	opts ...cardinal.WorldOption,
+) (world *cardinal.World, url string) {
 	port := getOpenPort(t)
 	t.Setenv("CARDINAL_DEPLOY_MODE", "development")
 	t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
-	t.Setenv("CARDINAL_PORT", port)
 	opts = append([]cardinal.WorldOption{cardinal.WithCustomMockRedis(miniRedis)}, opts...)
+	opts = append(opts, cardinal.WithPort(port))
 	world, err := cardinal.NewWorld(opts...)
 	if err != nil {
 		t.Fatalf("Unable to initialize test world: %v", err)
