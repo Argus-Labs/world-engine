@@ -129,10 +129,15 @@ func (s *ServerTestSuite) TestQueryCustomPathQuery() {
 	s.engine = s.world.Engine()
 	endpoint := "foo/bar/baz"
 	called := false
-	err := ecs.RegisterQuery[SomeRequest, SomeResponse](s.engine, "foo", func(eCtx ecs.EngineContext, req *SomeRequest) (*SomeResponse, error) {
-		called = true
-		return &SomeResponse{}, nil
-	}, ecs.WithCustomQueryPath[SomeRequest, SomeResponse](endpoint))
+	err := ecs.RegisterQuery[SomeRequest, SomeResponse](
+		s.engine,
+		"foo",
+		func(eCtx ecs.EngineContext, req *SomeRequest) (*SomeResponse, error) {
+			called = true
+			return &SomeResponse{}, nil
+		},
+		ecs.WithCustomQueryPath[SomeRequest, SomeResponse](endpoint),
+	)
 	s.Require().NoError(err)
 	s.Require().NoError(s.engine.LoadGameState())
 	s.server = testutils.NewTestServer(s.T(), s.engine)
