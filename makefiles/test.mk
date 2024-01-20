@@ -1,4 +1,4 @@
-DIRS = internal/nakama internal/e2e/tester/cardinal relay/nakama
+DIRS = internal/nakama internal/e2e/tester/game relay/nakama
 ROOT_DIR := $(shell pwd)
 
 export ENABLE_ADAPTER=false
