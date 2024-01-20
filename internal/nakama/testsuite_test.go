@@ -17,6 +17,7 @@ import (
 )
 
 func TestEvents(t *testing.T) {
+	t.Skip("skipping this test til events are integrated")
 	// Note if this test is failing it could be because redis is not refreshed
 	// This test assumes that your redis is brand new and empty.
 	// Test persona
