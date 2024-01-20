@@ -48,7 +48,7 @@ func (s *ServerTestSuite) SetupTest() {
 
 // TearDownTest runs after each test in the suite.
 func (s *ServerTestSuite) TearDownTest() {
-	s.server.Shutdown()
+	s.server.Shutdown() // shut it down! shut it down!
 }
 
 // TestCanClaimPersonaSendGameTxAndQueryGame tests that you can claim a persona, send a tx, and then query.
@@ -120,6 +120,26 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	err = json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
 	s.Require().Equal(loc, LocationComponent{0, 1})
+}
+
+func (s *ServerTestSuite) TestQueryCustomPathQuery() {
+	type SomeRequest struct{}
+	type SomeResponse struct{}
+	s.world = testutils.NewTestWorld(s.T())
+	s.engine = s.world.Engine()
+	endpoint := "foo/bar/baz"
+	called := false
+	err := ecs.RegisterQuery[SomeRequest, SomeResponse](s.engine, "foo", func(eCtx ecs.EngineContext, req *SomeRequest) (*SomeResponse, error) {
+		called = true
+		return &SomeResponse{}, nil
+	}, ecs.WithCustomQueryPath[SomeRequest, SomeResponse](endpoint))
+	s.Require().NoError(err)
+	s.Require().NoError(s.engine.LoadGameState())
+	s.server = testutils.NewTestServer(s.T(), s.engine)
+
+	res := s.server.Post(endpoint, SomeRequest{})
+	s.Require().Equal(res.StatusCode, fiber.StatusOK)
+	s.Require().True(called)
 }
 
 // creates a transaction with the given message, and runs it in a tick.
