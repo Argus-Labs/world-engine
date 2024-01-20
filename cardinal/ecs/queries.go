@@ -11,8 +11,8 @@ import (
 type DebugRequest struct{}
 
 type debugStateElement struct {
-	ID   entity.ID         `json:"id"`
-	Data []json.RawMessage `json:"data"`
+	ID         entity.ID         `json:"id"`
+	Components []json.RawMessage `json:"components"`
 }
 
 type DebugStateResponse []*debugStateElement
@@ -29,8 +29,8 @@ func queryDebugState(ctx EngineContext, _ *DebugRequest) (*DebugStateResponse, e
 				return false
 			}
 			resultElement := debugStateElement{
-				ID:   id,
-				Data: make([]json.RawMessage, 0),
+				ID:         id,
+				Components: make([]json.RawMessage, 0),
 			}
 			for _, c := range components {
 				var data json.RawMessage
@@ -38,7 +38,7 @@ func queryDebugState(ctx EngineContext, _ *DebugRequest) (*DebugStateResponse, e
 				if eachClosureErr != nil {
 					return false
 				}
-				resultElement.Data = append(resultElement.Data, data)
+				resultElement.Components = append(resultElement.Components, data)
 			}
 			result = append(result, &resultElement)
 			return true
