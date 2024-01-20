@@ -37,7 +37,8 @@ func TestServer(t *testing.T) {
 	suite.Run(t, new(ServerTestSuite))
 }
 
-func (s *ServerTestSuite) SetupSuite() {
+// SetupSuite runs before each test in the suite.
+func (s *ServerTestSuite) SetupTest() {
 	var err error
 	s.privateKey, err = crypto.GenerateKey()
 	s.Require().NoError(err)
@@ -45,10 +46,12 @@ func (s *ServerTestSuite) SetupSuite() {
 	s.setupWorld()
 }
 
+// TearDownTest runs after each test in the suite.
 func (s *ServerTestSuite) TearDownTest() {
 	s.server.Shutdown()
 }
 
+// TestCanClaimPersonaSendGameTxAndQueryGame tests that you can claim a persona, send a tx, and then query.
 func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	s.server = testutils.NewTestServer(s.T(), s.engine, server.WithPrettyPrint())
 	personaTag := s.createRandomPersona()
@@ -60,6 +63,7 @@ func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	s.Require().Equal(loc, LocationComponent{0, 1})
 }
 
+// TestCanListEndpoints tests the endpoints endpoint.
 func (s *ServerTestSuite) TestCanListEndpoints() {
 	s.server = testutils.NewTestServer(s.T(), s.engine, server.WithPrettyPrint())
 	res := s.server.Get("/query/http/endpoints")
@@ -74,6 +78,8 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	s.Require().Len(queries, len(result.QueryEndpoints))
 }
 
+// TestCanSendTxWithoutSigVerification tests that you can submit a tx with just a persona and body when sig verification
+// is disabled.
 func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	s.server = testutils.NewTestServer(s.T(), s.engine, server.DisableSignatureVerification(), server.WithPrettyPrint())
 	persona := s.createRandomPersona()
@@ -100,6 +106,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	s.Require().Equal(loc, LocationComponent{0, 1})
 }
 
+// creates a transaction with the given message, and runs it in a tick.
 func (s *ServerTestSuite) runTx(personaTag string, msg message.Message, payload any) {
 	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.engine.Namespace().String(), s.nonce, payload)
 	s.Require().NoError(err)
@@ -116,6 +123,7 @@ func (s *ServerTestSuite) runTx(personaTag string, msg message.Message, payload 
 	s.nonce++
 }
 
+// creates a persona with the specified tag.
 func (s *ServerTestSuite) createPersona(personaTag string) {
 	createPersonaTx := ecs.CreatePersona{
 		PersonaTag:    personaTag,
@@ -130,6 +138,7 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 	s.nonce++
 }
 
+// setupWorld sets up a world with a simple movement system, message, and query.
 func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.world = testutils.NewTestWorld(s.T(), opts...)
 	s.engine = s.world.Engine()
@@ -141,33 +150,29 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.engine.RegisterSystem(func(context ecs.EngineContext) error {
 		MoveMessage.Each(context, func(tx ecs.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
 			posID, exists := personaToPosition[tx.Tx.PersonaTag]
-			var loc LocationComponent
 			if !exists {
-				loc = LocationComponent{}
-				id, err := ecs.Create(context, loc)
+				id, err := ecs.Create(context, LocationComponent{})
 				s.Require().NoError(err)
 				personaToPosition[tx.Tx.PersonaTag] = id
 				posID = id
-			} else {
-				location, err := ecs.GetComponent[LocationComponent](context, posID)
-				s.Require().NoError(err)
-				loc = *location
 			}
-			switch tx.Msg.Direction {
-			case "up":
-				loc.Y++
-			case "down":
-				loc.Y--
-			case "right":
-				loc.X++
-			case "left":
-				loc.X--
-			}
-
-			err = ecs.SetComponent[LocationComponent](context, posID, &loc)
+			var resultLocation LocationComponent
+			err = ecs.UpdateComponent[LocationComponent](context, posID, func(loc *LocationComponent) *LocationComponent {
+				switch tx.Msg.Direction {
+				case "up":
+					loc.Y++
+				case "down":
+					loc.Y--
+				case "right":
+					loc.X++
+				case "left":
+					loc.X--
+				}
+				resultLocation = *loc
+				return loc
+			})
 			s.Require().NoError(err)
-
-			return MoveMessageOutput{}, nil
+			return MoveMessageOutput{resultLocation}, nil
 		})
 		return nil
 	})
@@ -188,12 +193,14 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.Require().NoError(s.engine.LoadGameState())
 }
 
+// returns the body of an http response as string.
 func (s *ServerTestSuite) readBody(body io.ReadCloser) string {
 	buf, err := io.ReadAll(body)
 	s.Require().NoError(err)
 	return string(buf)
 }
 
+// createRandomPersona creates a random persona and returns it as a string
 func (s *ServerTestSuite) createRandomPersona() string {
 	letterRunes := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))

@@ -40,6 +40,7 @@ type Server struct {
 	running atomic.Bool
 }
 
+// New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
 func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
 	s := &Server{
 		eng:           eng,
@@ -62,6 +63,7 @@ func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
 	return s, err
 }
 
+// Port returns the port the server will run on.
 func (s *Server) Port() string {
 	return s.port
 }
@@ -83,6 +85,7 @@ func (s *Server) Serve() error {
 	return nil
 }
 
+// Shutdown gracefully shuts down the server without interrupting any active connections.
 func (s *Server) Shutdown() {
 	err := s.app.Shutdown()
 	if err != nil {

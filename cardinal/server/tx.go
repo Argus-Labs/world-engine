@@ -17,6 +17,7 @@ var (
 	ErrSystemTransactionForbidden = errors.New("system transaction forbidden")
 )
 
+// TransactionReply is the type that is sent back to clients after a transaction is added to the queue.
 type TransactionReply struct {
 	TxHash string
 	Tick   uint64
@@ -27,6 +28,8 @@ func (s *Server) registerTransactionHandler(path string) error {
 	if err != nil {
 		return err
 	}
+
+	// some messages may have a custom path. we store them separately.
 	msgNameToMsg := make(map[string]message.Message)
 	customPathToMsg := make(map[string]message.Message)
 	for _, msg := range msgs {
@@ -37,10 +40,12 @@ func (s *Server) registerTransactionHandler(path string) error {
 		}
 	}
 
+	// for messages that do not have a custom handler path, we can handle all these under the wildcard path.
 	s.app.Post(path, s.handleTransaction(msgNameToMsg, func(ctx *fiber.Ctx) string {
 		return ctx.Params(s.txWildCard)
 	}))
 
+	// for messages with a custom handler path, we setup a separate handler for each.
 	for _, msg := range customPathToMsg {
 		m := msg
 		s.app.Post(m.Path(), s.handleTransaction(customPathToMsg, func(ctx *fiber.Ctx) string {

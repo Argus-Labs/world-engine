@@ -7,6 +7,8 @@ import (
 
 func (s *Server) registerQueryHandler(path string) {
 	queries := s.eng.ListQueries()
+
+	// separate the queries based on whether they have custom handlers or not.
 	queryNameToQuery := make(map[string]ecs.Query)
 	customPathQuery := make(map[string]ecs.Query)
 	for _, q := range queries {
@@ -17,13 +19,12 @@ func (s *Server) registerQueryHandler(path string) {
 		}
 	}
 
-	// all user generated queries. i.e. queries made from using cardinal.NewQueryType. Queries are retrieved by using
-	// the wildcard matcher.
+	// setup a post request to handle all queries under a single wildcard matcher.
 	s.app.Post(path, makeQueryHandler(queryNameToQuery, s.eng, func(ctx *fiber.Ctx) string {
 		return ctx.Params(s.queryWildCard)
 	}))
 
-	// all custom path ECS queries. Queries are retrieved by using the full path.
+	// setup a handler for each query with a custom path.
 	for _, q := range customPathQuery {
 		qry := q
 		s.app.Post(qry.Path(), makeQueryHandler(customPathQuery, s.eng, func(ctx *fiber.Ctx) string {
@@ -32,6 +33,7 @@ func (s *Server) registerQueryHandler(path string) {
 	}
 }
 
+// defines how a handler retrieves the query name from fiber context.
 type queryRetriever func(ctx *fiber.Ctx) string
 
 func makeQueryHandler(

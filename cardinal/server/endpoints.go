@@ -21,7 +21,11 @@ func (s *Server) registerListEndpointsEndpoint(path string) error {
 	}
 
 	for _, tx := range txs {
-		res.TxEndpoints = append(res.TxEndpoints, s.txPrefix+tx.Name())
+		if tx.Path() == "" {
+			res.TxEndpoints = append(res.TxEndpoints, s.txPrefix+tx.Name())
+		} else {
+			res.TxEndpoints = append(res.TxEndpoints, tx.Path())
+		}
 	}
 
 	for _, q := range qrys {
