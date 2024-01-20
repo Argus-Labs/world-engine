@@ -23,6 +23,7 @@ type WorldOption struct {
 
 type Option func(*World)
 
+// WithPort sets the port that the HTTP server will run on.
 func WithPort(port string) WorldOption {
 	return WorldOption{
 		serverOption: server.WithPort(port),
