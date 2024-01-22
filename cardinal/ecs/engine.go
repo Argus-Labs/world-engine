@@ -215,7 +215,7 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 	}
 	engine.registeredComponents = append(engine.registeredComponents, c)
 
-	storedSchema, err := engine.redisStorage.Schema.GetSchema(c.Name())
+	storedSchema, err := engine.redisStorage.GetSchema(c.Name())
 
 	if err != nil {
 		// It's fine if the schema doesn't currently exist in the db. Any other errors are a problem.
@@ -232,7 +232,7 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 		}
 	}
 
-	err = engine.redisStorage.Schema.SetSchema(c.Name(), c.GetSchema())
+	err = engine.redisStorage.SetSchema(c.Name(), c.GetSchema())
 	if err != nil {
 		return err
 	}
@@ -846,7 +846,7 @@ func (e *Engine) getMessage(id message.TypeID) message.Message {
 }
 
 func (e *Engine) UseNonce(signerAddress string, nonce uint64) error {
-	return e.redisStorage.Nonce.UseNonce(signerAddress, nonce)
+	return e.redisStorage.UseNonce(signerAddress, nonce)
 }
 
 func (e *Engine) AddMessageError(id message.TxHash, err error) {
