@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -51,14 +52,7 @@ func WithMsgEVMSupport[In, Out any]() MessageOption[In, Out] {
 
 func WithCustomMessagePath[In, Out any](path string) MessageOption[In, Out] {
 	return func(mt *MessageType[In, Out]) {
-		// add leading slash
-		if path[0] != '/' {
-			path = "/" + path
-		}
-		// remove trailing slash
-		if path[len(path)-1] == '/' {
-			path = path[:len(path)-1]
-		}
+		path = "/" + strings.Trim(path, "/")
 		mt.customPath = path
 	}
 }

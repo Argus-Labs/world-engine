@@ -3,6 +3,7 @@ package ecs
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rotisserie/eris"
@@ -50,14 +51,7 @@ func WithQueryEVMSupport[Request, Reply any]() QueryOption[Request, Reply] {
 
 func WithCustomQueryPath[Request, Reply any](path string) QueryOption[Request, Reply] {
 	return func(qt *QueryType[Request, Reply]) {
-		// add leading slash
-		if path[0] != '/' {
-			path = "/" + path
-		}
-		// remove trailing slash
-		if path[len(path)-1] == '/' {
-			path = path[:len(path)-1]
-		}
+		path = "/" + strings.Trim(path, "/")
 		qt.customPath = path
 	}
 }
