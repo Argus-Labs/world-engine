@@ -15,7 +15,7 @@ e2e-nakama:
 	@docker compose up --build --abort-on-container-exit --exit-code-from test_nakama --attach test_nakama
 
 e2e-benchmark:
-	$(foreach dir, $(DIRS_E2E), \
+	$(foreach dir, $(DIRS_E2E_BENCHMARK), \
 		cd $(dir) && \
 		go mod tidy && \
 		go mod vendor && \
