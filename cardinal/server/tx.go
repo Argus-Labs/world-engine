@@ -3,8 +3,8 @@ package server
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/gofiber/fiber/v2"
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
@@ -126,15 +126,15 @@ func validateTransaction(tx *sign.Transaction, signerAddr, namespace string, sys
 		return ErrNoPersonaTag
 	}
 	if tx.Namespace != namespace {
-		return fmt.Errorf("expected %q got %q: %w", namespace, tx.Namespace, ErrWrongNamespace)
+		return eris.Errorf("expected %q got %q: %w", namespace, tx.Namespace, ErrWrongNamespace)
 	}
 	if systemTx && !tx.IsSystemTransaction() {
-		return ErrSystemTransactionRequired
+		return eris.Wrap(ErrSystemTransactionRequired, "")
 	}
 	if !systemTx && tx.IsSystemTransaction() {
-		return ErrSystemTransactionForbidden
+		return eris.Wrap(ErrSystemTransactionForbidden, "")
 	}
-	return tx.Verify(signerAddr)
+	return eris.Wrap(tx.Verify(signerAddr), "")
 }
 
 func decodeTransaction(bz []byte) (*sign.Transaction, error) {
