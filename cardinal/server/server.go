@@ -57,7 +57,9 @@ func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
 	}
 
 	if !s.disableSwagger {
-		s.setupSwagger()
+		if err := s.setupSwagger(); err != nil {
+			return nil, err
+		}
 	}
 
 	err := s.registerHandlers()
@@ -91,14 +93,14 @@ func (s *Server) Shutdown() error {
 	return s.app.Shutdown()
 }
 
-func (s *Server) setupSwagger() {
+func (s *Server) setupSwagger() error {
 	file, err := os.CreateTemp("", "")
 	if err != nil {
-		panic("could not create temp file for swaggerFile")
+		return eris.Wrap(err, "failed to crate temp file for swagger")
 	}
 	_, err = file.Write(swaggerData)
 	if err != nil {
-		panic("could not write swaggerFile to temp file")
+		return eris.Wrap(err, "failed to write swagger data to file")
 	}
 	// Setup swagger docs at /docs
 	cfg := swagger.Config{
@@ -106,6 +108,11 @@ func (s *Server) setupSwagger() {
 		Title:    "World Engine API Docs",
 	}
 	s.app.Use(swagger.New(cfg))
+
+	if err := os.Remove(file.Name()); err != nil {
+		return eris.Wrap(err, "failed to remove swagger temp file")
+	}
+	return nil
 }
 
 func (s *Server) registerHandlers() error {
