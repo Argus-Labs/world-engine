@@ -2,6 +2,7 @@ package ecs_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -19,7 +20,7 @@ func TestQueryTypeNotStructs(t *testing.T) {
 	err := ecs.RegisterQuery[string, string](
 		testutils.NewTestWorld(t).Engine(),
 		"foo",
-		func(eCtx ecs.EngineContext, req *string) (*string, error) {
+		func(wCtx cardinal.WorldContext, req *string) (*string, error) {
 			return &str, nil
 		},
 	)
@@ -45,7 +46,8 @@ func TestQueryEVM(t *testing.T) {
 	err := ecs.RegisterQuery[FooRequest, FooReply](
 		engine,
 		"foo",
-		func(eCtx ecs.EngineContext, req *FooRequest,
+		func(
+			wCtx cardinal.WorldContext, req *FooRequest,
 		) (*FooReply, error) {
 			return &expectedReply, nil
 		},

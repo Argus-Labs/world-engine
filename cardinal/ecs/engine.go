@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal"
 	"reflect"
 	"runtime"
 	"sync"
@@ -261,7 +262,7 @@ func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, e
 func RegisterQuery[Request any, Reply any](
 	engine *Engine,
 	name string,
-	handler func(eCtx EngineContext, req *Request) (*Reply, error),
+	handler func(wCtx cardinal.WorldContext, req *Request) (*Reply, error),
 	opts ...func() func(queryType *QueryType[Request, Reply]),
 ) error {
 	if engine.stateIsLoaded {
@@ -336,6 +337,10 @@ func (e *Engine) ListMessages() ([]message.Message, error) {
 	return e.registeredMessages, nil
 }
 
+func (e *Engine) Timestamp() uint64 {
+	return e.timestamp.Load()
+}
+
 // NewEngine creates a new engine.
 func NewEngine(
 	storage *redis.Storage,
@@ -352,7 +357,7 @@ func NewEngine(
 		tick:              &atomic.Uint64{},
 		timestamp:         new(atomic.Uint64),
 		systems:           make([]System, 0),
-		initSystem:        func(_ EngineContext) error { return nil },
+		initSystem:        func(_ cardinal.WorldContext) error { return nil },
 		nameToComponent:   make(map[string]component.ComponentMetadata),
 		nameToQuery:       make(map[string]Query),
 		txQueue:           txpool.NewTxQueue(),
@@ -462,8 +467,8 @@ func (e *Engine) Tick(ctx context.Context) error {
 	}
 
 	if e.CurrentTick() == 0 {
-		eCtx := NewEngineContextForTick(e, txQueue, e.initSystemLogger)
-		err := e.initSystem(eCtx)
+		wCtx := cardinal.NewEngineContextForTick(e, txQueue, e.initSystemLogger)
+		err := e.initSystem(wCtx)
 		if err != nil {
 			return err
 		}
@@ -472,9 +477,9 @@ func (e *Engine) Tick(ctx context.Context) error {
 	allSystemStartTime := time.Now()
 	for i, sys := range e.systems {
 		nameOfCurrentRunningSystem = e.systemNames[i]
-		eCtx := NewEngineContextForTick(e, txQueue, e.systemLoggers[i])
+		wCtx := cardinal.NewEngineContextForTick(e, txQueue, e.systemLoggers[i])
 		systemStartTime := time.Now()
-		err := eris.Wrapf(sys(eCtx), "system %s generated an error", nameOfCurrentRunningSystem)
+		err := eris.Wrapf(sys(wCtx), "system %s generated an error", nameOfCurrentRunningSystem)
 		statsd.EmitTickStat(systemStartTime, nameOfCurrentRunningSystem)
 		nameOfCurrentRunningSystem = unnamedSystem
 		if err != nil {

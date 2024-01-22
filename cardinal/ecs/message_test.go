@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -25,8 +26,8 @@ func TestForEachTransaction(t *testing.T) {
 	someMsg := ecs.NewMessageType[SomeMsgRequest, SomeMsgResponse]("some_msg")
 	assert.NilError(t, engine.RegisterMessages(someMsg))
 
-	engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
-		someMsg.Each(eCtx, func(t ecs.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
+	engine.RegisterSystem(func(wCtx cardinal.WorldContext) error {
+		someMsg.Each(wCtx, func(t ecs.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
 			if t.Msg.GenerateError {
 				return result, errors.New("some error")
 			}

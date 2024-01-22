@@ -1,6 +1,7 @@
 package ecs_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 
@@ -27,13 +28,13 @@ func TestSearchEarlyTermination(t *testing.T) {
 	total := 10
 	count := 0
 	stop := 5
-	eCtx := ecs.NewEngineContext(engine)
-	_, err := ecs.CreateMany(eCtx, total, FooComponent{})
+	wCtx := cardinal.NewWorldContext(engine)
+	_, err := ecs.CreateMany(wCtx, total, FooComponent{})
 	assert.NilError(t, err)
 	q := engine.NewSearch(filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			wCtx, func(id entity.ID) bool {
 				count++
 				return count != stop
 			},
@@ -45,7 +46,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	q = engine.NewSearch(filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			wCtx, func(id entity.ID) bool {
 				count++
 				return true
 			},

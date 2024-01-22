@@ -58,9 +58,9 @@ func TestServer_SendMessage(t *testing.T) {
 	currBarIndex := 0
 
 	// add a system that checks that they are submitted properly to the world in the correct order.
-	engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
-		inFooTxs := fooTx.In(eCtx)
-		inBarTxs := barTx.In(eCtx)
+	engine.RegisterSystem(func(wCtx cardinal.WorldContext) error {
+		inFooTxs := fooTx.In(wCtx)
+		inBarTxs := barTx.In(wCtx)
 		if len(inFooTxs) == 0 && len(inBarTxs) == 0 {
 			return nil
 		}
@@ -152,7 +152,7 @@ func TestServer_Query(t *testing.T) {
 		Y uint64
 	}
 	// set up a query that simply returns the FooReq.X
-	handleFooQuery := func(eCtx cardinal.WorldContext, req *FooReq) (*FooReply, error) {
+	handleFooQuery := func(wCtx cardinal.WorldContext, req *FooReq) (*FooReply, error) {
 		return &FooReply{Y: req.X}, nil
 	}
 	w := testutils.NewTestWorld(t)

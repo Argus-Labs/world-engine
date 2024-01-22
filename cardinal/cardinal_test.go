@@ -114,7 +114,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 
 	doTick()
 	wantNumOfEntities := 10
-	wCtx := cardinal.TestingWorldToWorldContext(world)
+	wCtx := testutils.WorldToWorldContext(world)
 	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
 	assert.NilError(t, err)
 	doTick()
@@ -171,7 +171,7 @@ func TestShutdownViaSignal(t *testing.T) {
 		// wait until game loop is running
 		time.Sleep(50 * time.Millisecond)
 	}
-	wCtx := cardinal.TestingWorldToWorldContext(world)
+	wCtx := testutils.WorldToWorldContext(world)
 	_, err := cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
 	assert.NilError(t, err)
 	// test CORS with cardinal

@@ -10,7 +10,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
@@ -202,9 +201,10 @@ func TestSystemsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			panicFn: func(worldCtx cardinal.WorldContext) {
 				id, err := cardinal.Create(worldCtx, Foo{})
 				assert.Check(t, err == nil)
-				_ = cardinal.UpdateComponent[UnregisteredComp](worldCtx, id, func(u *UnregisteredComp) *UnregisteredComp {
-					return u
-				})
+				_ = cardinal.UpdateComponent[UnregisteredComp](worldCtx, id,
+					func(u *UnregisteredComp) *UnregisteredComp {
+						return u
+					})
 			},
 		},
 		{
@@ -303,8 +303,8 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			query, err := world.Engine().GetQueryByName(queryName)
 			assert.Check(t, err == nil)
 
-			readOnlyEngineCtx := ecs.NewReadOnlyEngineContext(world.Engine())
-			_, err = query.HandleQuery(readOnlyEngineCtx, QueryRequest{})
+			readOnlyEnginwCtx := cardinal.NewReadOnlyWorldContext(world.Engine())
+			_, err = query.HandleQuery(readOnlyEnginwCtx, QueryRequest{})
 			// Each test case is meant to generate a "ErrComponentNotRegistered" error
 			assert.Check(t, errors.Is(err, cardinal.ErrComponentNotRegistered),
 				"expected a component not registered error, got %v", err)
@@ -428,12 +428,12 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	// Uhoh, redis is now broken.
 	miniRedis.Close()
 
-	readOnlyEngineCtx := ecs.NewReadOnlyEngineContext(world.Engine())
+	readOnlyEnginwCtx := cardinal.NewReadOnlyWorldContext(world.Engine())
 	// This will fail with a redis connection error, and since we're in a Query, we should NOT panic
 	defer func() {
 		assert.Check(t, recover() == nil, "expected no panic in a query")
 	}()
 
-	_, err = query.HandleQuery(readOnlyEngineCtx, QueryRequest{})
+	_, err = query.HandleQuery(readOnlyEnginwCtx, QueryRequest{})
 	assert.ErrorContains(t, err, "connection refused", "expected a connection error")
 }

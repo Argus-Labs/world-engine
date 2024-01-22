@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -43,17 +44,17 @@ func (OwnableComponent) Name() string {
 	return "OwnableComponent"
 }
 
-func UpdateEnergySystem(eCtx ecs.EngineContext) error {
+func UpdateEnergySystem(wCtx cardinal.WorldContext) error {
 	var errs []error
-	q := eCtx.NewSearch(filter.Contains(EnergyComponent{}))
+	q := wCtx.NewSearch(filter.Contains(EnergyComponent{}))
 	err := q.Each(
-		eCtx, func(ent entity.ID) bool {
-			energyPlanet, err := ecs.GetComponent[EnergyComponent](eCtx, ent)
+		wCtx, func(ent entity.ID) bool {
+			energyPlanet, err := ecs.GetComponent[EnergyComponent](wCtx, ent)
 			if err != nil {
 				errs = append(errs, err)
 			}
 			energyPlanet.Amt += 10 // bs whatever
-			err = ecs.SetComponent[EnergyComponent](eCtx, ent, energyPlanet)
+			err = ecs.SetComponent[EnergyComponent](wCtx, ent, energyPlanet)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -106,21 +107,21 @@ func TestECS(t *testing.T) {
 
 	// create a bunch of planets!
 	numPlanets := 5
-	eCtx := ecs.NewEngineContext(engine)
+	wCtx := cardinal.NewWorldContext(engine)
 
 	engine.RegisterSystem(UpdateEnergySystem)
 	assert.NilError(t, engine.LoadGameState())
 	numEnergyOnly := 10
-	_, err := ecs.CreateMany(eCtx, numEnergyOnly, EnergyComponent{})
+	_, err := ecs.CreateMany(wCtx, numEnergyOnly, EnergyComponent{})
 	assert.NilError(t, err)
-	_, err = ecs.CreateMany(eCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
+	_, err = ecs.CreateMany(wCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 
 	assert.NilError(t, engine.Tick(context.Background()))
 	query := engine.NewSearch(filter.Contains(EnergyComponent{}))
 	err = query.Each(
-		eCtx, func(id entity.ID) bool {
-			energyPlanet, err := ecs.GetComponent[EnergyComponent](eCtx, id)
+		wCtx, func(id entity.ID) bool {
+			energyPlanet, err := ecs.GetComponent[EnergyComponent](wCtx, id)
 			assert.NilError(t, err)
 			assert.Equal(t, int64(10), energyPlanet.Amt)
 			return true
@@ -129,7 +130,7 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, err)
 
 	q := engine.NewSearch(filter.Or(filter.Contains(EnergyComponent{}), filter.Contains(OwnableComponent{})))
-	amt, err := q.Count(eCtx)
+	amt, err := q.Count(wCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
 	comp, err := engine.GetComponentByName("EnergyComponent")
@@ -160,28 +161,28 @@ func TestVelocitySimulation(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Vel](engine))
 	assert.NilError(t, engine.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
-	shipID, err := ecs.Create(eCtx, Pos{}, Vel{})
+	wCtx := cardinal.NewWorldContext(engine)
+	shipID, err := ecs.Create(wCtx, Pos{}, Vel{})
 	assert.NilError(t, err)
-	assert.NilError(t, ecs.SetComponent[Pos](eCtx, shipID, &Pos{1, 2}))
-	assert.NilError(t, ecs.SetComponent[Vel](eCtx, shipID, &Vel{3, 4}))
+	assert.NilError(t, ecs.SetComponent[Pos](wCtx, shipID, &Pos{1, 2}))
+	assert.NilError(t, ecs.SetComponent[Vel](wCtx, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
 	velocityQuery := engine.NewSearch(filter.Contains(&Vel{}))
 	err = velocityQuery.Each(
-		eCtx, func(id entity.ID) bool {
-			vel, err := ecs.GetComponent[Vel](eCtx, id)
+		wCtx, func(id entity.ID) bool {
+			vel, err := ecs.GetComponent[Vel](wCtx, id)
 			assert.NilError(t, err)
-			pos, err := ecs.GetComponent[Pos](eCtx, id)
+			pos, err := ecs.GetComponent[Pos](wCtx, id)
 			assert.NilError(t, err)
 			newPos := Pos{pos.X + vel.DX, pos.Y + vel.DY}
-			assert.NilError(t, ecs.SetComponent[Pos](eCtx, id, &newPos))
+			assert.NilError(t, ecs.SetComponent[Pos](wCtx, id, &newPos))
 			return true
 		},
 	)
 	assert.NilError(t, err)
 
-	finalPos, err := ecs.GetComponent[Pos](eCtx, shipID)
+	finalPos, err := ecs.GetComponent[Pos](wCtx, shipID)
 	assert.NilError(t, err)
 	assert.Equal(t, wantPos, *finalPos)
 }
@@ -203,18 +204,18 @@ func TestCanSetDefaultValue(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Owner](engine))
 	assert.NilError(t, engine.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
-	alphaEntity, err := ecs.Create(eCtx, wantOwner)
+	wCtx := cardinal.NewWorldContext(engine)
+	alphaEntity, err := ecs.Create(wCtx, wantOwner)
 	assert.NilError(t, err)
 
-	alphaOwner, err := ecs.GetComponent[Owner](eCtx, alphaEntity)
+	alphaOwner, err := ecs.GetComponent[Owner](wCtx, alphaEntity)
 	assert.NilError(t, err)
 	assert.Equal(t, *alphaOwner, wantOwner)
 
 	alphaOwner.MyName = "Bob"
-	assert.NilError(t, ecs.SetComponent[Owner](eCtx, alphaEntity, alphaOwner))
+	assert.NilError(t, ecs.SetComponent[Owner](wCtx, alphaEntity, alphaOwner))
 
-	newOwner, err := ecs.GetComponent[Owner](eCtx, alphaEntity)
+	newOwner, err := ecs.GetComponent[Owner](wCtx, alphaEntity)
 	assert.NilError(t, err)
 	assert.Equal(t, newOwner.MyName, "Bob")
 }
@@ -233,8 +234,8 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Tuple](engine))
 	assert.NilError(t, engine.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
-	entities, err := ecs.CreateMany(eCtx, 2, Tuple{})
+	wCtx := cardinal.NewWorldContext(engine)
+	entities, err := ecs.CreateMany(wCtx, 2, Tuple{})
 	assert.NilError(t, err)
 
 	// Make sure we find exactly 2 entries
@@ -242,8 +243,8 @@ func TestCanRemoveEntity(t *testing.T) {
 	q := engine.NewSearch(filter.Contains(Tuple{}))
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
-				_, err = ecs.GetComponent[Tuple](eCtx, id)
+			wCtx, func(id entity.ID) bool {
+				_, err = ecs.GetComponent[Tuple](wCtx, id)
 				assert.NilError(t, err)
 				count++
 				return true
@@ -259,8 +260,8 @@ func TestCanRemoveEntity(t *testing.T) {
 	count = 0
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
-				_, err = ecs.GetComponent[Tuple](eCtx, id)
+			wCtx, func(id entity.ID) bool {
+				_, err = ecs.GetComponent[Tuple](wCtx, id)
 				assert.NilError(t, err)
 				count++
 				return true
@@ -279,8 +280,8 @@ func TestCanRemoveEntity(t *testing.T) {
 	count = 0
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
-				_, err = ecs.GetComponent[Tuple](eCtx, id)
+			wCtx, func(id entity.ID) bool {
+				_, err = ecs.GetComponent[Tuple](wCtx, id)
 				assert.NilError(t, err)
 				count++
 				return true
@@ -308,8 +309,8 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[CountComponent](engine))
 	assert.NilError(t, engine.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
-	_, err := ecs.CreateMany(eCtx, 10, CountComponent{})
+	wCtx := cardinal.NewWorldContext(engine)
+	_, err := ecs.CreateMany(wCtx, 10, CountComponent{})
 	assert.NilError(t, err)
 
 	// Pre-populate all the entities with their own IDs. This will help
@@ -318,8 +319,8 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	q := engine.NewSearch(filter.Contains(CountComponent{}))
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
-				assert.NilError(t, ecs.SetComponent[CountComponent](eCtx, id, &CountComponent{int(id)}))
+			wCtx, func(id entity.ID) bool {
+				assert.NilError(t, ecs.SetComponent[CountComponent](wCtx, id, &CountComponent{int(id)}))
 				return true
 			},
 		),
@@ -329,7 +330,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	itr := 0
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			wCtx, func(id entity.ID) bool {
 				if itr%2 == 0 {
 					assert.NilError(t, engine.Remove(id))
 				}
@@ -344,8 +345,8 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	seen := map[int]int{}
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
-				c, err := ecs.GetComponent[CountComponent](eCtx, id)
+			wCtx, func(id entity.ID) bool {
+				c, err := ecs.GetComponent[CountComponent](wCtx, id)
 				assert.NilError(t, err)
 				seen[c.Val]++
 				return true
@@ -365,10 +366,10 @@ func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](engine))
 	assert.NilError(t, engine.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
-	ent, err := ecs.Create(eCtx, EnergyComponent{})
+	wCtx := cardinal.NewWorldContext(engine)
+	ent, err := ecs.Create(wCtx, EnergyComponent{})
 	assert.NilError(t, err)
-	assert.ErrorIs(t, ecs.AddComponentTo[EnergyComponent](eCtx, ent), storage.ErrComponentAlreadyOnEntity)
+	assert.ErrorIs(t, ecs.AddComponentTo[EnergyComponent](wCtx, ent), storage.ErrComponentAlreadyOnEntity)
 }
 
 type ReactorEnergy struct {
@@ -394,11 +395,11 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[ReactorEnergy](engine))
 	assert.NilError(t, ecs.RegisterComponent[WeaponEnergy](engine))
 	assert.NilError(t, engine.LoadGameState())
-	eCtx := ecs.NewEngineContext(engine)
-	ent, err := ecs.Create(eCtx, ReactorEnergy{})
+	wCtx := cardinal.NewWorldContext(engine)
+	ent, err := ecs.Create(wCtx, ReactorEnergy{})
 	assert.NilError(t, err)
 
-	assert.ErrorIs(t, ecs.RemoveComponentFrom[WeaponEnergy](eCtx, ent), storage.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, ecs.RemoveComponentFrom[WeaponEnergy](wCtx, ent), storage.ErrComponentNotOnEntity)
 }
 
 type Foo struct{}
@@ -427,14 +428,14 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 		assert.NilError(t, err)
 		return archID
 	}
-	eCtx := ecs.NewEngineContext(engine)
-	entity, err := ecs.Create(eCtx, Foo{}, Bar{})
+	wCtx := cardinal.NewWorldContext(engine)
+	entity, err := ecs.Create(wCtx, Foo{}, Bar{})
 	assert.NilError(t, err)
 
 	archIDBefore := getArchIDForEntityID(entity)
 
 	// The entity should now be in a different archetype
-	assert.NilError(t, ecs.RemoveComponentFrom[Foo](eCtx, entity))
+	assert.NilError(t, ecs.RemoveComponentFrom[Foo](wCtx, entity))
 
 	archIDAfter := getArchIDForEntityID(entity)
 	assert.Check(t, archIDBefore != archIDAfter)
@@ -470,8 +471,8 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 
 	assert.NilError(t, engine.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
-	entIDs, err := ecs.CreateMany(eCtx, 3, Alpha{}, Beta{})
+	wCtx := cardinal.NewWorldContext(engine)
+	entIDs, err := ecs.CreateMany(wCtx, 3, Alpha{}, Beta{})
 	assert.NilError(t, err)
 
 	// count and countAgain are helpers that simplify the counting of how many
@@ -486,32 +487,32 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	}
 	// 3 entities have alpha
 	alphaQuery := engine.NewSearch(filter.Contains(Alpha{}))
-	err = alphaQuery.Each(eCtx, countAgain())
+	err = alphaQuery.Each(wCtx, countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 3, count)
 
 	// 0 entities have gamma
 	gammaQuery := engine.NewSearch(filter.Contains(Gamma{}))
-	err = gammaQuery.Each(eCtx, countAgain())
+	err = gammaQuery.Each(wCtx, countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 0, count)
 
-	assert.NilError(t, ecs.RemoveComponentFrom[Alpha](eCtx, entIDs[0]))
+	assert.NilError(t, ecs.RemoveComponentFrom[Alpha](wCtx, entIDs[0]))
 
 	// alpha has been removed from entity[0], so only 2 entities should now have alpha
-	err = alphaQuery.Each(eCtx, countAgain())
+	err = alphaQuery.Each(wCtx, countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 2, count)
 
 	// Add gamma to an entity. Now 1 entity should have gamma.
-	assert.NilError(t, ecs.AddComponentTo[Gamma](eCtx, entIDs[1]))
-	err = gammaQuery.Each(eCtx, countAgain())
+	assert.NilError(t, ecs.AddComponentTo[Gamma](wCtx, entIDs[1]))
+	err = gammaQuery.Each(wCtx, countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 1, count)
 
 	// Make sure the one ent that has gamma is entIDs[1]
 	err = gammaQuery.Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			assert.Equal(t, id, entIDs[1])
 			return true
 		},
@@ -544,11 +545,11 @@ func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponentBeta](engine))
 	assert.NilError(t, engine.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
-	id, err := ecs.Create(eCtx, EnergyComponentAlpha{})
+	wCtx := cardinal.NewWorldContext(engine)
+	id, err := ecs.Create(wCtx, EnergyComponentAlpha{})
 	assert.NilError(t, err)
 
-	err = ecs.SetComponent[EnergyComponentBeta](eCtx, id, &EnergyComponentBeta{100, 200})
+	err = ecs.SetComponent[EnergyComponentBeta](wCtx, id, &EnergyComponentBeta{100, 200})
 	assert.Check(t, err != nil)
 }
 
@@ -571,12 +572,12 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 
 	assert.NilError(t, engine.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
-	ab, err := ecs.Create(eCtx, A{}, B{})
+	wCtx := cardinal.NewWorldContext(engine)
+	ab, err := ecs.Create(wCtx, A{}, B{})
 	assert.NilError(t, err)
-	cd, err := ecs.Create(eCtx, C{}, D{})
+	cd, err := ecs.Create(wCtx, C{}, D{})
 	assert.NilError(t, err)
-	_, err = ecs.Create(eCtx, B{}, D{})
+	_, err = ecs.Create(wCtx, B{}, D{})
 	assert.NilError(t, err)
 
 	// Only one entity has the components a and b
@@ -584,14 +585,14 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 	q := engine.NewSearch(abFilter)
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			wCtx, func(id entity.ID) bool {
 				assert.Equal(t, id, ab)
 				return true
 			},
 		),
 	)
 	q = engine.NewSearch(abFilter)
-	num, err := q.Count(eCtx)
+	num, err := q.Count(wCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
@@ -599,19 +600,19 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 	q = engine.NewSearch(cdFilter)
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			wCtx, func(id entity.ID) bool {
 				assert.Equal(t, id, cd)
 				return true
 			},
 		),
 	)
 	q = engine.NewSearch(abFilter)
-	num, err = q.Count(eCtx)
+	num, err = q.Count(wCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
 	q = engine.NewSearch(filter.Or(filter.Contains(A{}), filter.Contains(D{})))
-	allCount, err := q.Count(eCtx)
+	allCount, err := q.Count(wCtx)
 	assert.NilError(t, err)
 	assert.Equal(t, allCount, 3)
 }
@@ -629,12 +630,12 @@ func TestUpdateWithPointerType(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[HealthComponent](engine))
 	assert.NilError(t, engine.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
-	id, err := ecs.Create(eCtx, HealthComponent{})
+	wCtx := cardinal.NewWorldContext(engine)
+	id, err := ecs.Create(wCtx, HealthComponent{})
 	assert.NilError(t, err)
 
 	err = ecs.UpdateComponent[HealthComponent](
-		eCtx, id, func(h *HealthComponent) *HealthComponent {
+		wCtx, id, func(h *HealthComponent) *HealthComponent {
 			if h == nil {
 				h = &HealthComponent{}
 			}
@@ -644,7 +645,7 @@ func TestUpdateWithPointerType(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	hp, err := ecs.GetComponent[HealthComponent](eCtx, id)
+	hp, err := ecs.GetComponent[HealthComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, hp.HP)
 }
@@ -661,20 +662,20 @@ func TestCanRemoveFirstEntity(t *testing.T) {
 	engine := testutils.NewTestWorld(t).Engine()
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent1](engine))
 
-	eCtx := ecs.NewEngineContext(engine)
-	ids, err := ecs.CreateMany(eCtx, 3, ValueComponent1{})
+	wCtx := cardinal.NewWorldContext(engine)
+	ids, err := ecs.CreateMany(wCtx, 3, ValueComponent1{})
 	assert.NilError(t, err)
-	assert.NilError(t, ecs.SetComponent[ValueComponent1](eCtx, ids[0], &ValueComponent1{99}))
-	assert.NilError(t, ecs.SetComponent[ValueComponent1](eCtx, ids[1], &ValueComponent1{100}))
-	assert.NilError(t, ecs.SetComponent[ValueComponent1](eCtx, ids[2], &ValueComponent1{101}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent1](wCtx, ids[0], &ValueComponent1{99}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent1](wCtx, ids[1], &ValueComponent1{100}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent1](wCtx, ids[2], &ValueComponent1{101}))
 
 	assert.NilError(t, engine.Remove(ids[0]))
 
-	val, err := ecs.GetComponent[ValueComponent1](eCtx, ids[1])
+	val, err := ecs.GetComponent[ValueComponent1](wCtx, ids[1])
 	assert.NilError(t, err)
 	assert.Equal(t, 100, val.Val)
 
-	val, err = ecs.GetComponent[ValueComponent1](eCtx, ids[2])
+	val, err = ecs.GetComponent[ValueComponent1](wCtx, ids[2])
 	assert.NilError(t, err)
 	assert.Equal(t, 101, val.Val)
 }
@@ -699,20 +700,20 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](engine))
 	assert.NilError(t, ecs.RegisterComponent[OtherComponent](engine))
 
-	eCtx := ecs.NewEngineContext(engine)
-	ids, err := ecs.CreateMany(eCtx, 3, ValueComponent2{})
+	wCtx := cardinal.NewWorldContext(engine)
+	ids, err := ecs.CreateMany(wCtx, 3, ValueComponent2{})
 	assert.NilError(t, err)
-	assert.NilError(t, ecs.SetComponent[ValueComponent2](eCtx, ids[0], &ValueComponent2{99}))
-	assert.NilError(t, ecs.SetComponent[ValueComponent2](eCtx, ids[1], &ValueComponent2{100}))
-	assert.NilError(t, ecs.SetComponent[ValueComponent2](eCtx, ids[2], &ValueComponent2{101}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent2](wCtx, ids[0], &ValueComponent2{99}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent2](wCtx, ids[1], &ValueComponent2{100}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent2](wCtx, ids[2], &ValueComponent2{101}))
 
-	assert.NilError(t, ecs.AddComponentTo[OtherComponent](eCtx, ids[0]))
+	assert.NilError(t, ecs.AddComponentTo[OtherComponent](wCtx, ids[0]))
 
-	val, err := ecs.GetComponent[ValueComponent2](eCtx, ids[1])
+	val, err := ecs.GetComponent[ValueComponent2](wCtx, ids[1])
 	assert.NilError(t, err)
 	assert.Equal(t, 100, val.Val)
 
-	val, err = ecs.GetComponent[ValueComponent2](eCtx, ids[2])
+	val, err = ecs.GetComponent[ValueComponent2](wCtx, ids[2])
 	assert.NilError(t, err)
 	assert.Equal(t, 101, val.Val)
 }
@@ -722,13 +723,13 @@ func TestEntityCreationAndSetting(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](engine))
 	assert.NilError(t, ecs.RegisterComponent[OtherComponent](engine))
 
-	eCtx := ecs.NewEngineContext(engine)
-	ids, err := ecs.CreateMany(eCtx, 300, ValueComponent2{999}, OtherComponent{999})
+	wCtx := cardinal.NewWorldContext(engine)
+	ids, err := ecs.CreateMany(wCtx, 300, ValueComponent2{999}, OtherComponent{999})
 	assert.NilError(t, err)
 	for _, id := range ids {
-		x, err := ecs.GetComponent[ValueComponent2](eCtx, id)
+		x, err := ecs.GetComponent[ValueComponent2](wCtx, id)
 		assert.NilError(t, err)
-		y, err := ecs.GetComponent[OtherComponent](eCtx, id)
+		y, err := ecs.GetComponent[OtherComponent](wCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, x.Val, 999)
 		assert.Equal(t, y.Val, 999)

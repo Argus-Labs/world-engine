@@ -128,9 +128,9 @@ func TestEVMTxConsume(t *testing.T) {
 	var returnVal FooOut
 	var returnErr error
 	e.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+		func(wCtx cardinal.WorldContext) error {
 			fooTx.Each(
-				eCtx, func(t ecs.TxData[FooIn]) (FooOut, error) {
+				wCtx, func(t ecs.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
 			)
@@ -174,7 +174,7 @@ func TestEVMTxConsume(t *testing.T) {
 
 func TestAddSystems(t *testing.T) {
 	count := 0
-	sys := func(ecs.EngineContext) error {
+	sys := func(cardinal.WorldContext) error {
 		count++
 		return nil
 	}
@@ -194,13 +194,13 @@ func TestSystemExecutionOrder(t *testing.T) {
 	engine := testutils.NewTestWorld(t).Engine()
 	order := make([]int, 0, 3)
 	engine.RegisterSystems(
-		func(ecs.EngineContext) error {
+		func(cardinal.WorldContext) error {
 			order = append(order, 1)
 			return nil
-		}, func(ecs.EngineContext) error {
+		}, func(cardinal.WorldContext) error {
 			order = append(order, 2)
 			return nil
-		}, func(ecs.EngineContext) error {
+		}, func(cardinal.WorldContext) error {
 			order = append(order, 3)
 			return nil
 		},
@@ -223,12 +223,12 @@ func TestSetNamespace(t *testing.T) {
 
 func TestWithoutRegistration(t *testing.T) {
 	engine := testutils.NewTestWorld(t).Engine()
-	eCtx := ecs.NewEngineContext(engine)
-	id, err := ecs.Create(eCtx, EnergyComponent{}, OwnableComponent{})
+	wCtx := cardinal.NewWorldContext(engine)
+	id, err := ecs.Create(wCtx, EnergyComponent{}, OwnableComponent{})
 	assert.Assert(t, err != nil)
 
 	err = ecs.UpdateComponent[EnergyComponent](
-		eCtx, id, func(component *EnergyComponent) *EnergyComponent {
+		wCtx, id, func(component *EnergyComponent) *EnergyComponent {
 			component.Amt += 50
 			return component
 		},
@@ -236,7 +236,7 @@ func TestWithoutRegistration(t *testing.T) {
 	assert.Assert(t, err != nil)
 
 	err = ecs.SetComponent[EnergyComponent](
-		eCtx, id, &EnergyComponent{
+		wCtx, id, &EnergyComponent{
 			Amt: 0,
 			Cap: 0,
 		},
@@ -246,17 +246,17 @@ func TestWithoutRegistration(t *testing.T) {
 
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](engine))
 	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine))
-	id, err = ecs.Create(eCtx, EnergyComponent{}, OwnableComponent{})
+	id, err = ecs.Create(wCtx, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 	err = ecs.UpdateComponent[EnergyComponent](
-		eCtx, id, func(component *EnergyComponent) *EnergyComponent {
+		wCtx, id, func(component *EnergyComponent) *EnergyComponent {
 			component.Amt += 50
 			return component
 		},
 	)
 	assert.NilError(t, err)
 	err = ecs.SetComponent[EnergyComponent](
-		eCtx, id, &EnergyComponent{
+		wCtx, id, &EnergyComponent{
 			Amt: 0,
 			Cap: 0,
 		},
@@ -297,7 +297,7 @@ func TestAdapterCalledAfterTick(t *testing.T) {
 	adapter := &dummyAdapter{}
 	world := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Engine()
 
-	world.RegisterSystem(func(worldContext ecs.EngineContext) error {
+	world.RegisterSystem(func(worldContext cardinal.WorldContext) error {
 		return nil
 	})
 	fooMessage := ecs.NewMessageType[struct{}, struct{}]("foo")

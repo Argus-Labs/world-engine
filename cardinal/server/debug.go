@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"pkg.world.dev/world-engine/cardinal"
 
 	"github.com/go-openapi/runtime/middleware/untyped"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -25,12 +26,12 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 			"", func(i *interface{}) (*DebugStateResponse, error) {
 				result := make(DebugStateResponse, 0)
 				search := ecs.NewSearch(filter.All())
-				eCtx := ecs.NewReadOnlyEngineContext(handler.w)
+				wCtx := cardinal.NewReadOnlyWorldContext(handler.w)
 				var eachClosureErr error
 				searchEachErr := search.Each(
-					eCtx, func(id entity.ID) bool {
+					wCtx, func(id entity.ID) bool {
 						var components []component.ComponentMetadata
-						components, eachClosureErr = eCtx.StoreReader().GetComponentTypesForEntity(id)
+						components, eachClosureErr = wCtx.StoreReader().GetComponentTypesForEntity(id)
 						if eachClosureErr != nil {
 							return false
 						}
@@ -40,7 +41,7 @@ func (handler *Handler) registerDebugHandlerSwagger(api *untyped.API) {
 						}
 						for _, c := range components {
 							var data json.RawMessage
-							data, eachClosureErr = eCtx.StoreReader().GetComponentForEntityInRawJSON(c, id)
+							data, eachClosureErr = wCtx.StoreReader().GetComponentForEntityInRawJSON(c, id)
 							if eachClosureErr != nil {
 								return false
 							}

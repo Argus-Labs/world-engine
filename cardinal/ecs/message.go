@@ -3,6 +3,7 @@ package ecs
 import (
 	"errors"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal"
 	"reflect"
 
 	"github.com/rotisserie/eris"
@@ -133,18 +134,18 @@ type TxData[In any] struct {
 	Tx   *sign.Transaction
 }
 
-func (t *MessageType[In, Out]) AddError(eCtx EngineContext, hash message.TxHash, err error) {
-	eCtx.GetEngine().AddMessageError(hash, err)
+func (t *MessageType[In, Out]) AddError(wCtx cardinal.WorldContext, hash message.TxHash, err error) {
+	wCtx.GetEngine().AddMessageError(hash, err)
 }
 
-func (t *MessageType[In, Out]) SetResult(eCtx EngineContext, hash message.TxHash, result Out) {
-	eCtx.GetEngine().SetMessageResult(hash, result)
+func (t *MessageType[In, Out]) SetResult(wCtx cardinal.WorldContext, hash message.TxHash, result Out) {
+	wCtx.GetEngine().SetMessageResult(hash, result)
 }
 
-func (t *MessageType[In, Out]) GetReceipt(eCtx EngineContext, hash message.TxHash) (
+func (t *MessageType[In, Out]) GetReceipt(wCtx cardinal.WorldContext, hash message.TxHash) (
 	v Out, errs []error, ok bool,
 ) {
-	engine := eCtx.GetEngine()
+	engine := wCtx.GetEngine()
 	iface, errs, ok := engine.GetTransactionReceipt(hash)
 	if !ok {
 		return v, nil, false
@@ -160,26 +161,26 @@ func (t *MessageType[In, Out]) GetReceipt(eCtx EngineContext, hash message.TxHas
 	return value, errs, true
 }
 
-func (t *MessageType[In, Out]) Each(eCtx EngineContext, fn func(TxData[In]) (Out, error)) {
-	for _, txData := range t.In(eCtx) {
+func (t *MessageType[In, Out]) Each(wCtx cardinal.WorldContext, fn func(TxData[In]) (Out, error)) {
+	for _, txData := range t.In(wCtx) {
 		if result, err := fn(txData); err != nil {
 			err = eris.Wrap(err, "")
-			eCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v and stack trace:\n %s",
+			wCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v and stack trace:\n %s",
 				txData.Hash,
 				txData.Tx.PersonaTag,
 				txData.Msg,
 				eris.ToString(err, true),
 			)
-			t.AddError(eCtx, txData.Hash, err)
+			t.AddError(wCtx, txData.Hash, err)
 		} else {
-			t.SetResult(eCtx, txData.Hash, result)
+			t.SetResult(wCtx, txData.Hash, result)
 		}
 	}
 }
 
 // In extracts all the TxData in the tx queue that match this MessageType's ID.
-func (t *MessageType[In, Out]) In(eCtx EngineContext) []TxData[In] {
-	tq := eCtx.GetTxQueue()
+func (t *MessageType[In, Out]) In(wCtx cardinal.WorldContext) []TxData[In] {
+	tq := wCtx.GetTxQueue()
 	var txs []TxData[In]
 	for _, txData := range tq.ForID(t.ID()) {
 		if val, ok := txData.Msg.(In); ok {

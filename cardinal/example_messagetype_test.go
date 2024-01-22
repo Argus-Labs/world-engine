@@ -4,6 +4,7 @@ package cardinal_test
 import (
 	"errors"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 
 	"pkg.world.dev/world-engine/cardinal"
 )
@@ -18,7 +19,7 @@ type MovePlayerResult struct {
 	FinalY int
 }
 
-var MoveMsg = cardinal.NewMessageType[MovePlayerMsg, MovePlayerResult]("move-player")
+var MoveMsg = ecs.NewMessageType[MovePlayerMsg, MovePlayerResult]("move-player")
 
 func ExampleMessageType() {
 	world, err := cardinal.NewMockWorld()
@@ -32,7 +33,7 @@ func ExampleMessageType() {
 	}
 
 	err = cardinal.RegisterSystems(world, func(wCtx cardinal.WorldContext) error {
-		MoveMsg.Each(wCtx, func(txData cardinal.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
+		MoveMsg.Each(wCtx, func(txData ecs.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
 			// handle the transaction
 			// ...
 
@@ -45,8 +46,8 @@ func ExampleMessageType() {
 			// Returning a nil error implies this transaction handling was successful, so this transaction result
 			// will be saved to the transaction receipt.
 			return MovePlayerResult{
-				FinalX: txData.Msg().DeltaX,
-				FinalY: txData.Msg().DeltaY,
+				FinalX: txData.Msg.DeltaX,
+				FinalY: txData.Msg.DeltaY,
 			}, nil
 		})
 		return nil

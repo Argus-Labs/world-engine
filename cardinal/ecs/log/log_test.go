@@ -3,6 +3,7 @@ package log_test
 import (
 	"bytes"
 	"context"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"strings"
 	"testing"
@@ -35,17 +36,17 @@ func (EnergyComp) Name() string {
 	return "EnergyComp"
 }
 
-func testSystem(eCtx ecs.EngineContext) error {
-	eCtx.Logger().Log().Msg("test")
-	q := eCtx.NewSearch(filter.Contains(EnergyComp{}))
+func testSystem(wCtx cardinal.WorldContext) error {
+	wCtx.Logger().Log().Msg("test")
+	q := wCtx.NewSearch(filter.Contains(EnergyComp{}))
 	err := q.Each(
-		eCtx, func(entityId entity.ID) bool {
-			energyPlanet, err := ecs.GetComponent[EnergyComp](eCtx, entityId)
+		wCtx, func(entityId entity.ID) bool {
+			energyPlanet, err := ecs.GetComponent[EnergyComp](wCtx, entityId)
 			if err != nil {
 				return false
 			}
 			energyPlanet.value += 10
-			err = ecs.SetComponent[EnergyComp](eCtx, entityId, energyPlanet)
+			err = ecs.SetComponent[EnergyComp](wCtx, entityId, energyPlanet)
 			return err == nil
 		},
 	)
@@ -56,9 +57,9 @@ func testSystem(eCtx ecs.EngineContext) error {
 	return nil
 }
 
-func testSystemWarningTrigger(eCtx ecs.EngineContext) error {
+func testSystemWarningTrigger(wCtx cardinal.WorldContext) error {
 	time.Sleep(time.Millisecond * 400)
-	return testSystem(eCtx)
+	return testSystem(wCtx)
 }
 
 func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
@@ -115,11 +116,11 @@ func TestEngineLogger(t *testing.T) {
 	energy, err := engine.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
 	components := []component.ComponentMetadata{energy}
-	eCtx := ecs.NewEngineContext(engine)
+	wCtx := cardinal.NewWorldContext(engine)
 	engine.RegisterSystem(testSystemWarningTrigger)
 	err = engine.LoadGameState()
 	assert.NilError(t, err)
-	entityID, err := ecs.Create(eCtx, EnergyComp{})
+	entityID, err := ecs.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:3]
 	require.JSONEq(
@@ -193,7 +194,7 @@ func TestEngineLogger(t *testing.T) {
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
-	_, err = ecs.CreateMany(eCtx, 2, EnergyComp{})
+	_, err = ecs.CreateMany(wCtx, 2, EnergyComp{})
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(

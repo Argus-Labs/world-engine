@@ -1,3 +1,5 @@
 package ecs
 
-type System func(EngineContext) error
+import "pkg.world.dev/world-engine/cardinal"
+
+type System func(cardinal.WorldContext) error

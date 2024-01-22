@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 
@@ -246,14 +247,14 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 }
 
 func getSigners(t *testing.T, engine *ecs.Engine) []*ecs.SignerComponent {
-	eCtx := ecs.NewEngineContext(engine)
+	wCtx := cardinal.NewWorldContext(engine)
 	var signers = make([]*ecs.SignerComponent, 0)
 
 	q := engine.NewSearch(filter.Exact(ecs.SignerComponent{}))
 
 	err := q.Each(
-		eCtx, func(id entity.ID) bool {
-			sc, err := ecs.GetComponent[ecs.SignerComponent](eCtx, id)
+		wCtx, func(id entity.ID) bool {
+			sc, err := ecs.GetComponent[ecs.SignerComponent](wCtx, id)
 			assert.NilError(t, err)
 			signers = append(signers, sc)
 			return true

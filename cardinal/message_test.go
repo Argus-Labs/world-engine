@@ -2,6 +2,7 @@ package cardinal_test
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -18,19 +19,7 @@ type AddHealthToEntityTx struct {
 
 type AddHealthToEntityResult struct{}
 
-var addHealthToEntity = cardinal.NewMessageType[AddHealthToEntityTx, AddHealthToEntityResult]("add_health")
-
-func TestApis(t *testing.T) {
-	// this test just makes sure certain signatures remain the same.
-	// If they change this test will trigger a compiler error.
-	x := cardinal.TxData[Alpha]{}
-	x.Tx()
-	x.Hash()
-	assert.Equal(t, x.Msg().Name(), "alpha")
-	type randoTx struct{}
-	type randoTxResult struct{}
-	cardinal.NewMessageTypeWithEVMSupport[randoTx, randoTxResult]("rando_with_evm")
-}
+var addHealthToEntity = ecs.NewMessageType[AddHealthToEntityTx, AddHealthToEntityResult]("add_health")
 
 func TestTransactionExample(t *testing.T) {
 	world, doTick := testutils.MakeWorldAndTicker(t, nil)
@@ -39,25 +28,24 @@ func TestTransactionExample(t *testing.T) {
 	err := cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
 		// test "In" method
 		for _, tx := range addHealthToEntity.In(worldCtx) {
-			targetID := tx.Msg().TargetID
+			targetID := tx.Msg.TargetID
 			err := cardinal.UpdateComponent[Health](worldCtx, targetID, func(h *Health) *Health {
-				h.Value = tx.Msg().Amount
+				h.Value = tx.Msg.Amount
 				return h
 			})
 			assert.Check(t, err == nil)
 		}
 		// test same as above but with forEach
-		addHealthToEntity.Each(worldCtx, func(tx cardinal.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
-			targetID := tx.Msg().TargetID
-			err := cardinal.UpdateComponent[Health](worldCtx, targetID, func(h *Health) *Health {
-				h.Value = tx.Msg().Amount
-				return h
+		addHealthToEntity.Each(worldCtx,
+			func(tx ecs.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
+				targetID := tx.Msg.TargetID
+				err := cardinal.UpdateComponent[Health](worldCtx, targetID, func(h *Health) *Health {
+					h.Value = tx.Msg.Amount
+					return h
+				})
+				assert.Check(t, err == nil)
+				return AddHealthToEntityResult{}, errors.New("fake tx error")
 			})
-			assert.Check(t, err == nil)
-			return AddHealthToEntityResult{}, errors.New("fake tx error")
-		})
-
-		addHealthToEntity.Convert() // Check for compilation error
 
 		return nil
 	})
@@ -92,8 +80,8 @@ func TestTransactionExample(t *testing.T) {
 		}
 	}
 	// Make sure transaction errors are recorded in the receipt
-	ecsWorld := cardinal.TestingWorldContextToECSWorld(testWorldCtx)
-	receipts, err := ecsWorld.GetTransactionReceiptsForTick(ecsWorld.CurrentTick() - 1)
+	engine := testWorldCtx.GetEngine()
+	receipts, err := engine.GetTransactionReceiptsForTick(engine.CurrentTick() - 1)
 	assert.NilError(t, err)
 	assert.Equal(t, 1, len(receipts))
 	assert.Equal(t, 1, len(receipts[0].Errs))

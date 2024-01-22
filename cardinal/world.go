@@ -43,7 +43,7 @@ var (
 )
 
 type World struct {
-	instance           *ecs.Engine
+	engine             *ecs.Engine
 	server             *server.Handler
 	evmServer          evm.Server
 	gameManager        *server.GameManager
@@ -64,11 +64,6 @@ type (
 	EntityID = entity.ID
 	TxHash   = message.TxHash
 	Receipt  = receipt.Receipt
-
-	// System is a function that process the transaction in the given transaction queue.
-	// Systems are automatically called during a world tick, and they must be registered
-	// with a world using RegisterSystems.
-	System func(WorldContext) error
 )
 
 // NewWorld creates a new World object using Redis as the storage layer.
@@ -133,7 +128,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	world := &World{
-		instance:           ecsWorld,
+		engine:             ecsWorld,
 		serverOptions:      serverOptions,
 		gameManagerOptions: gameManagerOptions,
 		endStartGame:       make(chan bool),
@@ -208,8 +203,8 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
 func CreateMany(wCtx WorldContext, num int, components ...component.Component) ([]EntityID, error) {
-	ids, err := ecs.CreateMany(wCtx.Engine(), num, components...)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+	ids, err := ecs.CreateMany(wCtx, num, components...)
+	if wCtx.IsReadOnly() || err == nil {
 		return ids, err
 	}
 	return nil, logAndPanic(wCtx, err)
@@ -218,8 +213,8 @@ func CreateMany(wCtx WorldContext, num int, components ...component.Component) (
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
 func Create(wCtx WorldContext, components ...component.Component) (EntityID, error) {
-	id, err := ecs.Create(wCtx.Engine(), components...)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+	id, err := ecs.Create(wCtx, components...)
+	if wCtx.IsReadOnly() || err == nil {
 		return id, err
 	}
 	return 0, logAndPanic(wCtx, err)
@@ -227,8 +222,8 @@ func Create(wCtx WorldContext, components ...component.Component) (EntityID, err
 
 // SetComponent Set sets component data to the entity.
 func SetComponent[T component.Component](wCtx WorldContext, id entity.ID, comp *T) error {
-	err := ecs.SetComponent[T](wCtx.Engine(), id, comp)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+	err := ecs.SetComponent[T](wCtx, id, comp)
+	if wCtx.IsReadOnly() || err == nil {
 		return err
 	}
 	if eris.Is(err, ErrEntityDoesNotExist) ||
@@ -240,9 +235,9 @@ func SetComponent[T component.Component](wCtx WorldContext, id entity.ID, comp *
 
 // GetComponent Get returns component data from the entity.
 func GetComponent[T component.Component](wCtx WorldContext, id entity.ID) (*T, error) {
-	result, err := ecs.GetComponent[T](wCtx.Engine(), id)
+	result, err := ecs.GetComponent[T](wCtx, id)
 	_ = result
-	if wCtx.Engine().IsReadOnly() || err == nil {
+	if wCtx.IsReadOnly() || err == nil {
 		return result, err
 	}
 	if eris.Is(err, ErrEntityDoesNotExist) ||
@@ -255,8 +250,8 @@ func GetComponent[T component.Component](wCtx WorldContext, id entity.ID) (*T, e
 
 // UpdateComponent Updates a component on an entity.
 func UpdateComponent[T component.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
-	err := ecs.UpdateComponent[T](wCtx.Engine(), id, fn)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+	err := ecs.UpdateComponent[T](wCtx, id, fn)
+	if wCtx.IsReadOnly() || err == nil {
 		return err
 	}
 	if eris.Is(err, ErrEntityDoesNotExist) ||
@@ -269,8 +264,8 @@ func UpdateComponent[T component.Component](wCtx WorldContext, id entity.ID, fn 
 
 // AddComponentTo Adds a component on an entity.
 func AddComponentTo[T component.Component](wCtx WorldContext, id entity.ID) error {
-	err := ecs.AddComponentTo[T](wCtx.Engine(), id)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+	err := ecs.AddComponentTo[T](wCtx, id)
+	if wCtx.IsReadOnly() || err == nil {
 		return err
 	}
 	if eris.Is(err, ErrEntityDoesNotExist) ||
@@ -283,8 +278,8 @@ func AddComponentTo[T component.Component](wCtx WorldContext, id entity.ID) erro
 
 // RemoveComponentFrom Removes a component from an entity.
 func RemoveComponentFrom[T component.Component](wCtx WorldContext, id entity.ID) error {
-	err := ecs.RemoveComponentFrom[T](wCtx.Engine(), id)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+	err := ecs.RemoveComponentFrom[T](wCtx, id)
+	if wCtx.IsReadOnly() || err == nil {
 		return err
 	}
 	if eris.Is(err, ErrEntityDoesNotExist) ||
@@ -297,7 +292,7 @@ func RemoveComponentFrom[T component.Component](wCtx WorldContext, id entity.ID)
 
 // Remove removes the given entity id from the world.
 func Remove(wCtx WorldContext, id EntityID) error {
-	return wCtx.Engine().GetEngine().Remove(id)
+	return wCtx.GetEngine().Remove(id)
 }
 
 func (w *World) handleShutdown() {
@@ -327,32 +322,32 @@ func (w *World) StartGame() error {
 		return errors.New("game has already been started")
 	}
 
-	if err := w.instance.LoadGameState(); err != nil {
+	if err := w.engine.LoadGameState(); err != nil {
 		if errors.Is(err, ecs.ErrEntitiesCreatedBeforeLoadingGameState) {
 			return eris.Wrap(ErrEntitiesCreatedBeforeStartGame, "")
 		}
 		return err
 	}
-	if !w.instance.DoesEngineHaveAnEventHub() {
-		w.instance.SetEventHub(events.NewWebSocketEventHub())
+	if !w.engine.DoesEngineHaveAnEventHub() {
+		w.engine.SetEventHub(events.NewWebSocketEventHub())
 	}
-	eventHub := w.instance.GetEventHub()
+	eventHub := w.engine.GetEventHub()
 	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
-	handler, err := server.NewHandler(w.instance, eventBuilder, w.serverOptions...)
+	handler, err := server.NewHandler(w.engine, eventBuilder, w.serverOptions...)
 	if err != nil {
 		return err
 	}
 	w.server = handler
 
-	w.evmServer, err = evm.NewServer(w.instance)
+	w.evmServer, err = evm.NewServer(w.engine)
 	if err != nil {
 		if !errors.Is(eris.Cause(err), evm.ErrNoEVMTypes) {
 			return err
 		}
-		w.instance.Logger.Debug().
+		w.engine.Logger.Debug().
 			Msgf("no EVM messages or queries specified. EVM server will not run: %s", eris.ToString(err, true))
 	} else {
-		w.instance.Logger.Debug().Msg("running world with EVM server")
+		w.engine.Logger.Debug().Msg("running world with EVM server")
 		err = w.evmServer.Serve()
 		if err != nil {
 			return err
@@ -362,8 +357,8 @@ func (w *World) StartGame() error {
 	if w.tickChannel == nil {
 		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
-	w.instance.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
-	gameManager := server.NewGameManager(w.instance, w.server, w.gameManagerOptions...)
+	w.engine.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
+	gameManager := server.NewGameManager(w.engine, w.server, w.gameManagerOptions...)
 	w.gameManager = &gameManager
 	go func() {
 		ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageStarting, gamestage.StageRunning)
@@ -412,31 +407,23 @@ func (w *World) ShutDown() error {
 	return nil
 }
 
-func RegisterSystems(w *World, systems ...System) error {
+func RegisterSystems(w *World, systems ...ecs.System) error {
 	for _, system := range systems {
 		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
 		sys := system
-		w.instance.RegisterSystemWithName(
-			func(eCtx ecs.EngineContext) error {
-				return sys(
-					&worldContext{
-						engine: eCtx,
-					},
-				)
-			}, functionName,
-		)
+		w.engine.RegisterSystemWithName(sys, functionName)
 	}
 	return nil
 }
 
 func RegisterComponent[T component.Component](world *World) error {
-	return ecs.RegisterComponent[T](world.instance)
+	return ecs.RegisterComponent[T](world.engine)
 }
 
 // RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
 // messages will automatically be created when StartGame is called. This Register method must only be called once.
-func RegisterMessages(w *World, msgs ...AnyMessage) error {
-	return w.instance.RegisterMessages(toMessageType(msgs)...)
+func RegisterMessages(w *World, msgs ...message.Message) error {
+	return w.engine.RegisterMessages(msgs...)
 }
 
 // RegisterQuery adds the given query to the game world. HTTP endpoints to use these queries
@@ -446,13 +433,7 @@ func RegisterQuery[Request any, Reply any](
 	name string,
 	handler func(wCtx WorldContext, req *Request) (*Reply, error),
 ) error {
-	err := ecs.RegisterQuery[Request, Reply](
-		world.instance,
-		name,
-		func(wCtx ecs.EngineContext, req *Request) (*Reply, error) {
-			return handler(&worldContext{engine: wCtx}, req)
-		},
-	)
+	err := ecs.RegisterQuery[Request, Reply](world.engine, name, handler)
 	if err != nil {
 		return err
 	}
@@ -467,14 +448,7 @@ func RegisterQueryWithEVMSupport[Request any, Reply any](
 	name string,
 	handler func(wCtx WorldContext, req *Request) (*Reply, error),
 ) error {
-	err := ecs.RegisterQuery[Request, Reply](
-		world.instance,
-		name,
-		func(eCtx ecs.EngineContext, req *Request) (*Reply, error) {
-			return handler(&worldContext{engine: eCtx}, req)
-		},
-		ecs.WithQueryEVMSupport[Request, Reply],
-	)
+	err := ecs.RegisterQuery[Request, Reply](world.engine, name, handler, ecs.WithQueryEVMSupport[Request, Reply])
 	if err != nil {
 		return err
 	}
@@ -482,24 +456,20 @@ func RegisterQueryWithEVMSupport[Request any, Reply any](
 }
 
 func (w *World) Engine() *ecs.Engine {
-	return w.instance
+	return w.engine
 }
 
 func (w *World) CurrentTick() uint64 {
-	return w.instance.CurrentTick()
+	return w.engine.CurrentTick()
 }
 
 func (w *World) Tick(ctx context.Context) error {
-	return w.instance.Tick(ctx)
+	return w.engine.Tick(ctx)
 }
 
 // Init Registers a system that only runs once on a new game before tick 0.
-func (w *World) Init(system System) {
-	w.instance.AddInitSystem(
-		func(eCtx ecs.EngineContext) error {
-			return system(&worldContext{engine: eCtx})
-		},
-	)
+func (w *World) Init(system ecs.System) {
+	w.engine.AddInitSystem(system)
 }
 
 // logAndPanic logs the given error and panics. An error is returned so the syntax:

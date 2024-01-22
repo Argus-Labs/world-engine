@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"pkg.world.dev/world-engine/cardinal"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -24,7 +25,7 @@ func TestDebugEndpoint(t *testing.T) {
 
 	assert.NilError(t, engine.LoadGameState())
 	ctx := context.Background()
-	worldCtx := ecs.NewEngineContext(engine)
+	worldCtx := cardinal.NewWorldContext(engine)
 	_, err := ecs.CreateMany(worldCtx, 10, Alpha{})
 	assert.NilError(t, err)
 	_, err = ecs.CreateMany(worldCtx, 10, Beta{})
@@ -61,7 +62,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Delta](engine))
 	var targetID entity.ID
 	engine.RegisterSystem(
-		func(worldCtx ecs.EngineContext) error {
+		func(worldCtx cardinal.WorldContext) error {
 			// This system increments Delta.Value by 50 twice. /debug/state should see Delta.Value = 0 OR Delta.Value = 100,
 			// But never Delta.Value = 50.
 			assert.Check(
@@ -87,7 +88,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	)
 
 	assert.NilError(t, engine.LoadGameState())
-	worldCtx := ecs.NewEngineContext(engine)
+	worldCtx := cardinal.NewWorldContext(engine)
 	var err error
 	targetID, err = ecs.Create(worldCtx, Delta{})
 	assert.NilError(t, err)

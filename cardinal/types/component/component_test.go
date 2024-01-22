@@ -1,6 +1,7 @@
 package component_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -161,7 +162,7 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	ecs.MustRegisterComponent[foundComp](engine)
 	ecs.MustRegisterComponent[notFoundComp](engine)
 
-	wCtx := ecs.NewEngineContext(engine)
+	wCtx := cardinal.NewWorldContext(engine)
 	id, err := ecs.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
 	_, err = ecs.GetComponent[notFoundComp](wCtx, id)
@@ -180,20 +181,20 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	engine := testutils.NewTestWorld(t).Engine()
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent](engine))
 
-	eCtx := ecs.NewEngineContext(engine)
-	id, err := ecs.Create(eCtx, ValueComponent{})
+	wCtx := cardinal.NewWorldContext(engine)
+	id, err := ecs.Create(wCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, ecs.SetComponent[ValueComponent](eCtx, id, &ValueComponent{99}))
+	assert.NilError(t, ecs.SetComponent[ValueComponent](wCtx, id, &ValueComponent{99}))
 
-	val, err := ecs.GetComponent[ValueComponent](eCtx, id)
+	val, err := ecs.GetComponent[ValueComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
-	_, err = ecs.Create(eCtx, ValueComponent{})
+	_, err = ecs.Create(wCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	val, err = ecs.GetComponent[ValueComponent](eCtx, id)
+	val, err = ecs.GetComponent[ValueComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 }

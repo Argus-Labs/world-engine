@@ -33,7 +33,8 @@ func (d *DummyAdapter) Submit(_ context.Context, _ txpool.TxMap, _ string, _ uin
 	panic("not implemented")
 }
 
-func (d *DummyAdapter) QueryTransactions(_ context.Context, _ *types.QueryTransactionsRequest,
+func (d *DummyAdapter) QueryTransactions(
+	_ context.Context, _ *types.QueryTransactionsRequest,
 ) (*types.QueryTransactionsResponse, error) {
 	return &types.QueryTransactionsResponse{
 		Epochs: d.ticks,
@@ -109,7 +110,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	assert.NilError(t, err)
 
 	var compID entity.ID = math.MaxUint64
-	sys := func(ctx ecs.EngineContext) error {
+	sys := func(ctx cardinal.WorldContext) error {
 		increaseEnergyTx.Each(ctx, func(tx ecs.TxData[IncreaseEnergy]) (IncreaseEnergyResult, error) {
 			if compID == math.MaxUint64 {
 				id, err := ecs.Create(ctx, EnergyComp{tx.Msg.Amount})
@@ -133,7 +134,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	err = eng.RecoverFromChain(context.Background())
 	assert.NilError(t, err)
 
-	energy, err := ecs.GetComponent[EnergyComp](ecs.NewEngineContext(eng), compID)
+	energy, err := ecs.GetComponent[EnergyComp](cardinal.NewWorldContext(eng), compID)
 	assert.NilError(t, err)
 
 	// energy should be 15 since we the transactions that came in were 5 and 10.

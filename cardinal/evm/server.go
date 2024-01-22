@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"github.com/rotisserie/eris"
@@ -288,14 +289,14 @@ func (s *msgServerImpl) getSignerComponentForAuthorizedAddr(
 	addr string,
 ) (*ecs.SignerComponent, error) {
 	var sc *ecs.SignerComponent
-	eCtx := ecs.NewReadOnlyEngineContext(s.world)
-	q := eCtx.NewSearch(filter.Exact(ecs.SignerComponent{}))
+	wCtx := cardinal.NewReadOnlyWorldContext(s.world)
+	q := wCtx.NewSearch(filter.Exact(ecs.SignerComponent{}))
 	var getComponentErr error
 	searchIterationErr := eris.Wrap(
 		q.Each(
-			eCtx, func(id entity.ID) bool {
+			wCtx, func(id entity.ID) bool {
 				var signerComp *ecs.SignerComponent
-				signerComp, getComponentErr = ecs.GetComponent[ecs.SignerComponent](eCtx, id)
+				signerComp, getComponentErr = ecs.GetComponent[ecs.SignerComponent](wCtx, id)
 				getComponentErr = eris.Wrap(getComponentErr, "")
 				if getComponentErr != nil {
 					return false
@@ -335,7 +336,7 @@ func (s *msgServerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardRe
 		zerolog.Logger.Error().Err(err).Msg("failed to decode query request")
 		return nil, err
 	}
-	reply, err := query.HandleQuery(ecs.NewReadOnlyEngineContext(s.world), ecsRequest)
+	reply, err := query.HandleQuery(cardinal.NewReadOnlyWorldContext(s.world), ecsRequest)
 	if err != nil {
 		zerolog.Logger.Error().Err(err).Msg("failed to handle query")
 		return nil, err

@@ -2,6 +2,7 @@ package filter_test
 
 import (
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"testing"
 
@@ -33,19 +34,19 @@ func TestGetEverythingFilter(t *testing.T) {
 	assert.NilError(t, engine.LoadGameState())
 
 	subsetCount := 50
-	eCtx := ecs.NewEngineContext(engine)
-	_, err := ecs.CreateMany(eCtx, subsetCount, Alpha{}, Beta{})
+	wCtx := cardinal.NewWorldContext(engine)
+	_, err := ecs.CreateMany(wCtx, subsetCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some entities that have all 3 component.
-	_, err = ecs.CreateMany(eCtx, 20, Alpha{}, Beta{}, Gamma{})
+	_, err = ecs.CreateMany(wCtx, 20, Alpha{}, Beta{}, Gamma{})
 	assert.NilError(t, err)
 
 	count := 0
 	// Loop over every entity. There should
 	// only be 50 + 20 entities.
-	q := eCtx.NewSearch(filter.All())
+	q := wCtx.NewSearch(filter.All())
 	err = q.Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count++
 			return true
 		},
@@ -64,22 +65,22 @@ func TestCanFilterByArchetype(t *testing.T) {
 	assert.NilError(t, engine.LoadGameState())
 
 	subsetCount := 50
-	eCtx := ecs.NewEngineContext(engine)
-	_, err := ecs.CreateMany(eCtx, subsetCount, Alpha{}, Beta{})
+	wCtx := cardinal.NewWorldContext(engine)
+	_, err := ecs.CreateMany(wCtx, subsetCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some entities that have all 3 component.
-	_, err = ecs.CreateMany(eCtx, 20, Alpha{}, Beta{}, Gamma{})
+	_, err = ecs.CreateMany(wCtx, 20, Alpha{}, Beta{}, Gamma{})
 	assert.NilError(t, err)
 
 	count := 0
 	// Loop over every entity that has exactly the alpha and beta components. There should
 	// only be subsetCount entities.
-	q := eCtx.NewSearch(filter.Exact(Alpha{}, Beta{}))
+	q := wCtx.NewSearch(filter.Exact(Alpha{}, Beta{}))
 	err = q.Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count++
 			// Make sure the gamma component is not on this entity
-			_, err = ecs.GetComponent[gammaComponent](eCtx, id)
+			_, err = ecs.GetComponent[gammaComponent](wCtx, id)
 			assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
 			return true
 		},
@@ -106,17 +107,17 @@ func TestExactVsContains(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Beta](engine))
 
 	alphaCount := 75
-	eCtx := ecs.NewEngineContext(engine)
-	_, err := ecs.CreateMany(eCtx, alphaCount, Alpha{})
+	wCtx := cardinal.NewWorldContext(engine)
+	_, err := ecs.CreateMany(wCtx, alphaCount, Alpha{})
 	assert.NilError(t, err)
 	bothCount := 100
-	_, err = ecs.CreateMany(eCtx, bothCount, Alpha{}, Beta{})
+	_, err = ecs.CreateMany(wCtx, bothCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	count := 0
 	// Contains(alpha) should return all entities
 	q := engine.NewSearch(filter.Contains(Alpha{}))
 	err = q.Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count++
 			return true
 		},
@@ -127,7 +128,7 @@ func TestExactVsContains(t *testing.T) {
 	sameQuery, err := cql.Parse("CONTAINS(alpha)", engine.GetComponentByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count2++
 			return true
 		},
@@ -139,7 +140,7 @@ func TestExactVsContains(t *testing.T) {
 	// Contains(beta) should only return the entities that have both components
 	q = engine.NewSearch(filter.Contains(Beta{}))
 	err = q.Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count++
 			return true
 		},
@@ -151,7 +152,7 @@ func TestExactVsContains(t *testing.T) {
 	sameQuery, err = cql.Parse("CONTAINS(beta)", engine.GetComponentByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count2++
 			return true
 		},
@@ -162,7 +163,7 @@ func TestExactVsContains(t *testing.T) {
 	// Exact(alpha) should not return the entities that have both alpha and beta
 	q = engine.NewSearch(filter.Exact(Alpha{}))
 	err = q.Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count++
 			return true
 		},
@@ -174,7 +175,7 @@ func TestExactVsContains(t *testing.T) {
 	sameQuery, err = cql.Parse("EXACT(alpha)", engine.GetComponentByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count2++
 			return true
 		},
@@ -186,7 +187,7 @@ func TestExactVsContains(t *testing.T) {
 	// Exact(alpha, beta) should not return the entities that only have alpha
 	q = engine.NewSearch(filter.Exact(Alpha{}, Beta{}))
 	err = q.Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count++
 			return true
 		},
@@ -198,7 +199,7 @@ func TestExactVsContains(t *testing.T) {
 	sameQuery, err = cql.Parse("EXACT(alpha, beta)", engine.GetComponentByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count2++
 			return true
 		},
@@ -210,7 +211,7 @@ func TestExactVsContains(t *testing.T) {
 	// Make sure the order of alpha/beta doesn't matter
 	q = engine.NewSearch(filter.Exact(Beta{}, Alpha{}))
 	err = q.Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count++
 			return true
 		},
@@ -222,7 +223,7 @@ func TestExactVsContains(t *testing.T) {
 	sameQuery, err = cql.Parse("EXACT(beta, alpha)", engine.GetComponentByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count2++
 			return true
 		},
@@ -238,12 +239,12 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	assert.NilError(t, engine.LoadGameState())
 
 	wantCount := 50
-	eCtx := ecs.NewEngineContext(engine)
-	ids, err := ecs.CreateMany(eCtx, wantCount, Alpha{}, Beta{})
+	wCtx := cardinal.NewWorldContext(engine)
+	ids, err := ecs.CreateMany(wCtx, wantCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some extra entities that will be ignored. Our query later
 	// should NOT contain these entities
-	_, err = ecs.CreateMany(eCtx, 20, Alpha{})
+	_, err = ecs.CreateMany(wCtx, 20, Alpha{})
 	assert.NilError(t, err)
 	id := ids[0]
 	comps, err := engine.StoreManager().GetComponentTypesForEntity(id)
@@ -251,7 +252,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 
 	count := 0
 	err = ecs.NewSearch(filter.Exact(component.ConvertComponentMetadatasToComponents(comps)...)).Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count++
 			return true
 		},
@@ -273,7 +274,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	sameQuery, err := cql.Parse(queryString, engine.GetComponentByName)
 	assert.NilError(t, err)
 	err = ecs.NewSearch(sameQuery).Each(
-		eCtx, func(id entity.ID) bool {
+		wCtx, func(id entity.ID) bool {
 			count2++
 			return true
 		},
@@ -288,8 +289,8 @@ func BenchmarkEntityCreation(b *testing.B) {
 		engine := testutils.NewTestWorld(b).Engine()
 		assert.NilError(b, ecs.RegisterComponent[Alpha](engine))
 		assert.NilError(b, engine.LoadGameState())
-		eCtx := ecs.NewEngineContext(engine)
-		_, err := ecs.CreateMany(eCtx, 100000, Alpha{})
+		wCtx := cardinal.NewWorldContext(engine)
+		_, err := ecs.CreateMany(wCtx, 100000, Alpha{})
 		assert.NilError(b, err)
 	}
 }
@@ -316,17 +317,17 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	assert.NilError(b, ecs.RegisterComponent[Alpha](engine))
 	assert.NilError(b, ecs.RegisterComponent[Beta](engine))
 	assert.NilError(b, engine.LoadGameState())
-	eCtx := ecs.NewEngineContext(engine)
-	_, err := ecs.CreateMany(eCtx, relevantCount, Alpha{}, Beta{})
+	wCtx := cardinal.NewWorldContext(engine)
+	_, err := ecs.CreateMany(wCtx, relevantCount, Alpha{}, Beta{})
 	assert.NilError(b, err)
-	_, err = ecs.CreateMany(eCtx, ignoreCount, Alpha{})
+	_, err = ecs.CreateMany(wCtx, ignoreCount, Alpha{})
 	assert.NilError(b, err)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		count := 0
 		q := engine.NewSearch(filter.Exact(Alpha{}, Beta{}))
 		err = q.Each(
-			eCtx, func(id entity.ID) bool {
+			wCtx, func(id entity.ID) bool {
 				count++
 				return true
 			},

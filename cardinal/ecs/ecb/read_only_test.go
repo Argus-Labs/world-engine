@@ -189,12 +189,12 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[Power](engine))
 	assert.NilError(t, engine.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
-	_, err := ecs.CreateMany(eCtx, 8, Health{})
+	wCtx := cardinal.NewWorldContext(engine)
+	_, err := ecs.CreateMany(wCtx, 8, Health{})
 	assert.NilError(t, err)
-	_, err = ecs.CreateMany(eCtx, 9, Power{})
+	_, err = ecs.CreateMany(wCtx, 9, Power{})
 	assert.NilError(t, err)
-	_, err = ecs.CreateMany(eCtx, 10, Health{}, Power{})
+	_, err = ecs.CreateMany(wCtx, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
 	componentFilter := filter.Contains(Health{})

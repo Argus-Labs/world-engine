@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
@@ -38,9 +39,9 @@ type SearchCallBackFn func(entity.ID) bool
 
 // Each iterates over all entities that match the search.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (q *Search) Each(eCtx EngineContext, callback SearchCallBackFn) error {
-	reader := eCtx.StoreReader()
-	result := q.evaluateSearch(eCtx.GetEngine().Namespace(), reader)
+func (q *Search) Each(wCtx cardinal.WorldContext, callback SearchCallBackFn) error {
+	reader := wCtx.StoreReader()
+	result := q.evaluateSearch(wCtx.GetEngine().Namespace(), reader)
 	iter := storage.NewEntityIterator(0, reader, result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
@@ -58,9 +59,9 @@ func (q *Search) Each(eCtx EngineContext, callback SearchCallBackFn) error {
 }
 
 // Count returns the number of entities that match the search.
-func (q *Search) Count(eCtx EngineContext) (int, error) {
-	namespace := eCtx.GetEngine().Namespace()
-	reader := eCtx.StoreReader()
+func (q *Search) Count(wCtx cardinal.WorldContext) (int, error) {
+	namespace := wCtx.GetEngine().Namespace()
+	reader := wCtx.StoreReader()
 	result := q.evaluateSearch(namespace, reader)
 	iter := storage.NewEntityIterator(0, reader, result)
 	ret := 0
@@ -75,9 +76,9 @@ func (q *Search) Count(eCtx EngineContext) (int, error) {
 }
 
 // First returns the first entity that matches the search.
-func (q *Search) First(eCtx EngineContext) (id entity.ID, err error) {
-	namespace := eCtx.GetEngine().Namespace()
-	reader := eCtx.StoreReader()
+func (q *Search) First(wCtx cardinal.WorldContext) (id entity.ID, err error) {
+	namespace := wCtx.GetEngine().Namespace()
+	reader := wCtx.StoreReader()
 	result := q.evaluateSearch(namespace, reader)
 	iter := storage.NewEntityIterator(0, reader, result)
 	if !iter.HasNext() {
@@ -96,8 +97,8 @@ func (q *Search) First(eCtx EngineContext) (id entity.ID, err error) {
 	return storage.BadID, eris.Wrap(err, "")
 }
 
-func (q *Search) MustFirst(eCtx EngineContext) entity.ID {
-	id, err := q.First(eCtx)
+func (q *Search) MustFirst(wCtx cardinal.WorldContext) entity.ID {
+	id, err := q.First(wCtx)
 	if err != nil {
 		panic("no entity matches the search")
 	}

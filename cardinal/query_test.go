@@ -57,7 +57,8 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 		"query_health",
 		func(
 			_ cardinal.WorldContext,
-			_ *FooReq) (*FooReply, error) {
+			_ *FooReq,
+		) (*FooReply, error) {
 			return &FooReply{}, errors.New("this function should never get called")
 		})
 }
@@ -89,17 +90,17 @@ func TestQueryExample(t *testing.T) {
 	q, err := world.Engine().GetQueryByName("query_health")
 	assert.NilError(t, err)
 
-	resp, err := q.HandleQuery(worldCtx.Engine(), QueryHealthRequest{1_000_000})
+	resp, err := q.HandleQuery(worldCtx, QueryHealthRequest{1_000_000})
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(resp.(*QueryHealthResponse).IDs))
 
 	// All entities should have health over -100
-	resp, err = q.HandleQuery(worldCtx.Engine(), QueryHealthRequest{-100})
+	resp, err = q.HandleQuery(worldCtx, QueryHealthRequest{-100})
 	assert.NilError(t, err)
 	assert.Equal(t, 100, len(resp.(*QueryHealthResponse).IDs))
 
 	// Exactly 10 entities should have health at or above 90
-	resp, err = q.HandleQuery(worldCtx.Engine(), QueryHealthRequest{90})
+	resp, err = q.HandleQuery(worldCtx, QueryHealthRequest{90})
 	assert.NilError(t, err)
 	assert.Equal(t, 10, len(resp.(*QueryHealthResponse).IDs))
 }

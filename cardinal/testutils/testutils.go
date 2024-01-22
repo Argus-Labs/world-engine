@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 	"sync"
 	"testing"
 	"time"
@@ -138,7 +139,7 @@ func SetTestTimeout(t *testing.T, timeout time.Duration) {
 }
 
 func WorldToWorldContext(world *cardinal.World) cardinal.WorldContext {
-	return cardinal.TestingWorldToWorldContext(world)
+	return cardinal.NewWorldContext(world.Engine())
 }
 
 var (
@@ -170,17 +171,18 @@ func UniqueSignature() *sign.Transaction {
 
 func AddTransactionToWorldByAnyTransaction(
 	world *cardinal.World,
-	cardinalTx cardinal.AnyMessage,
+	cardinalTx message.Message,
 	value any,
-	tx *sign.Transaction) {
+	tx *sign.Transaction,
+) {
 	worldCtx := WorldToWorldContext(world)
-	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
+	engine := worldCtx.GetEngine()
 
-	txs, err := ecsWorld.ListMessages()
+	txs, err := engine.ListMessages()
 	if err != nil {
 		panic(err)
 	}
-	txID := cardinalTx.Convert().ID()
+	txID := cardinalTx.ID()
 	found := false
 	for _, tx := range txs {
 		if tx.ID() == txID {
@@ -192,12 +194,12 @@ func AddTransactionToWorldByAnyTransaction(
 		panic(
 			fmt.Sprintf(
 				"cannot find transaction %q in registered transactions. Did you register it?",
-				cardinalTx.Convert().Name(),
+				cardinalTx.Name(),
 			),
 		)
 	}
 
-	_, _ = ecsWorld.AddTransaction(txID, value, tx)
+	_, _ = engine.AddTransaction(txID, value, tx)
 }
 
 // MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World

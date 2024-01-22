@@ -112,8 +112,8 @@ func TestEventsThroughSystems(t *testing.T) {
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
 	for i := 0; i < numberToTest; i++ {
-		engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
-			eCtx.GetEngine().EmitEvent(&events.Event{Message: "test"})
+		engine.RegisterSystem(func(wCtx cardinal.WorldContext) error {
+			wCtx.GetEngine().EmitEvent(&events.Event{Message: "test"})
 			counter1.Add(1)
 			return nil
 		})
@@ -192,8 +192,8 @@ func TestEventHubLogger(t *testing.T) {
 
 	numberToTest := 5
 	for i := 0; i < numberToTest; i++ {
-		engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
-			eCtx.GetEngine().EmitEvent(&events.Event{Message: "test"})
+		engine.RegisterSystem(func(wCtx cardinal.WorldContext) error {
+			wCtx.GetEngine().EmitEvent(&events.Event{Message: "test"})
 			return nil
 		})
 	}

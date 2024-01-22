@@ -1,67 +1,112 @@
 package cardinal
 
 import (
-	"github.com/rs/zerolog"
+	"errors"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/events"
+
+	"github.com/rs/zerolog"
+	"pkg.world.dev/world-engine/cardinal/ecs/store"
+	"pkg.world.dev/world-engine/cardinal/txpool"
 )
 
 type WorldContext interface {
-	// NewSearch creates a new Search object that can iterate over entities that match
-	// a given Component filter.
-	//
-	// For example:
-	// search, err := worldCtx.NewSearch(cardinal.Exact(Health{}))
-	// if err != nil {
-	// 		return err
-	// }
-	// err = search.Each(worldCtx, func(id cardinal.EntityID) bool {
-	// 		...process each entity id...
-	// }
-	// if err != nil {
-	// 		return err
-	// }
-	NewSearch(filter filter.ComponentFilter) *Search
-
-	// CurrentTick returns the current game tick of the world.
-	CurrentTick() uint64
-
-	// Timestamp represents the timestamp of the current tick.
 	Timestamp() uint64
-
-	// EmitEvent broadcasts an event message to all subscribed clients.
-	EmitEvent(event string)
-
-	// Logger returns a zerolog.Logger. Additional metadata information is often attached to
-	// this logger (e.g. the name of the active System).
+	CurrentTick() uint64
 	Logger() *zerolog.Logger
+	NewSearch(filter filter.ComponentFilter) *ecs.Search
 
-	Engine() ecs.EngineContext
+	// For internal use.
+	GetEngine() *ecs.Engine
+	StoreReader() store.Reader
+	StoreManager() store.IManager
+	GetTxQueue() *txpool.TxQueue
+	IsReadOnly() bool
+	EmitEvent(event string)
 }
+
+var (
+	ErrCannotModifyStateWithReadOnlyContext = errors.New("cannot modify state with read only context")
+)
 
 type worldContext struct {
-	engine ecs.EngineContext
+	engine   *ecs.Engine
+	txQueue  *txpool.TxQueue
+	logger   *zerolog.Logger
+	readOnly bool
 }
 
-func (wCtx *worldContext) EmitEvent(event string) {
-	wCtx.engine.GetEngine().EmitEvent(&events.Event{Message: event})
+func NewEngineContextForTick(engine *ecs.Engine, queue *txpool.TxQueue, logger *zerolog.Logger) WorldContext {
+	if logger == nil {
+		logger = engine.Logger
+	}
+	return &worldContext{
+		engine:   engine,
+		txQueue:  queue,
+		logger:   logger,
+		readOnly: false,
+	}
 }
 
-func (wCtx *worldContext) CurrentTick() uint64 {
-	return wCtx.engine.CurrentTick()
+func NewWorldContext(engine *ecs.Engine) WorldContext {
+	return &worldContext{
+		engine:   engine,
+		logger:   engine.Logger,
+		readOnly: false,
+	}
 }
 
-func (wCtx *worldContext) Timestamp() uint64 { return wCtx.engine.Timestamp() }
-
-func (wCtx *worldContext) Logger() *zerolog.Logger {
-	return wCtx.engine.Logger()
+func NewReadOnlyWorldContext(engine *ecs.Engine) WorldContext {
+	return &worldContext{
+		engine:   engine,
+		txQueue:  nil,
+		logger:   engine.Logger,
+		readOnly: true,
+	}
 }
 
-func (wCtx *worldContext) NewSearch(filter filter.ComponentFilter) *Search {
-	return &Search{impl: wCtx.Engine().NewSearch(filter)}
+// Timestamp returns the UNIX timestamp of the tick.
+func (e *worldContext) Timestamp() uint64 {
+	return e.engine.Timestamp()
 }
 
-func (wCtx *worldContext) Engine() ecs.EngineContext {
-	return wCtx.engine
+func (e *worldContext) CurrentTick() uint64 {
+	return e.engine.CurrentTick()
+}
+
+func (e *worldContext) Logger() *zerolog.Logger {
+	return e.logger
+}
+
+func (e *worldContext) GetEngine() *ecs.Engine {
+	return e.engine
+}
+
+func (e *worldContext) GetTxQueue() *txpool.TxQueue {
+	return e.txQueue
+}
+
+func (e *worldContext) IsReadOnly() bool {
+	return e.readOnly
+}
+
+func (e *worldContext) StoreManager() store.IManager {
+	return e.engine.StoreManager()
+}
+
+func (e *worldContext) StoreReader() store.Reader {
+	sm := e.StoreManager()
+	if e.IsReadOnly() {
+		return sm.ToReadOnly()
+	}
+	return sm
+}
+
+func (e *worldContext) NewSearch(filter filter.ComponentFilter) *ecs.Search {
+	return e.engine.NewSearch(filter)
+}
+
+func (e *worldContext) EmitEvent(event string) {
+	e.engine.EmitEvent(&events.Event{Message: event})
 }

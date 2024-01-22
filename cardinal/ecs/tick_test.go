@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 
@@ -48,7 +49,7 @@ func TestIfPanicMessageLogged(t *testing.T) {
 	// In this test, our "buggy" system fails once Power reaches 3
 	errorTxt := "BIG ERROR OH NO"
 	engine.RegisterSystem(
-		func(ecs.EngineContext) error {
+		func(cardinal.WorldContext) error {
 			panic(errorTxt)
 		},
 	)
@@ -119,10 +120,10 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	// In this test, our "buggy" system fails once Power reaches 3
 	oneEngine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
-			search := eCtx.NewSearch(filter.Exact(onePowerComponent{}))
-			id := search.MustFirst(eCtx)
-			p, err := ecs.GetComponent[onePowerComponent](eCtx, id)
+		func(wCtx cardinal.WorldContext) error {
+			search := wCtx.NewSearch(filter.Exact(onePowerComponent{}))
+			id := search.MustFirst(wCtx)
+			p, err := ecs.GetComponent[onePowerComponent](wCtx, id)
 			if err != nil {
 				return err
 			}
@@ -130,11 +131,11 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 			if p.Power >= 3 {
 				return errorSystem
 			}
-			return ecs.SetComponent[onePowerComponent](eCtx, id, p)
+			return ecs.SetComponent[onePowerComponent](wCtx, id, p)
 		},
 	)
 	assert.NilError(t, oneEngine.LoadGameState())
-	id, err := ecs.Create(ecs.NewEngineContext(oneEngine), onePowerComponent{})
+	id, err := ecs.Create(cardinal.NewWorldContext(oneEngine), onePowerComponent{})
 	assert.NilError(t, err)
 
 	// Power is set to 1
@@ -151,26 +152,26 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 
 	// this is our fixed system that can handle Power levels of 3 and higher
 	twoEngine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
-			p, err := ecs.GetComponent[onePowerComponent](eCtx, id)
+		func(wCtx cardinal.WorldContext) error {
+			p, err := ecs.GetComponent[onePowerComponent](wCtx, id)
 			if err != nil {
 				return err
 			}
 			p.Power++
-			return ecs.SetComponent[onePowerComponent](eCtx, id, p)
+			return ecs.SetComponent[onePowerComponent](wCtx, id, p)
 		},
 	)
 
 	// Loading a game state with the fixed system should automatically finish the previous tick.
 	assert.NilError(t, twoEngine.LoadGameState())
-	twoEngineCtx := ecs.NewEngineContext(twoEngine)
-	p, err := ecs.GetComponent[onePowerComponent](twoEngineCtx, id)
+	twoEnginwCtx := cardinal.NewWorldContext(twoEngine)
+	p, err := ecs.GetComponent[onePowerComponent](twoEnginwCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 3, p.Power)
 
 	// Just for fun, tick one last time to make sure power is still being incremented.
 	assert.NilError(t, twoEngine.Tick(context.Background()))
-	p1, err := ecs.GetComponent[onePowerComponent](twoEngineCtx, id)
+	p1, err := ecs.GetComponent[onePowerComponent](twoEnginwCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 4, p1.Power)
 }
@@ -197,23 +198,23 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[ScalarComponentBeta](engine))
 	assert.NilError(t, engine.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
-	wantID, err := ecs.Create(eCtx, ScalarComponentAlpha{})
+	wCtx := cardinal.NewWorldContext(engine)
+	wantID, err := ecs.Create(wCtx, ScalarComponentAlpha{})
 	assert.NilError(t, err)
 
 	wantScalar := ScalarComponentAlpha{99}
 
-	assert.NilError(t, ecs.SetComponent[ScalarComponentAlpha](eCtx, wantID, &wantScalar))
+	assert.NilError(t, ecs.SetComponent[ScalarComponentAlpha](wCtx, wantID, &wantScalar))
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
 		q := engine.NewSearch(filter.Contains(ScalarComponentAlpha{}))
-		gotID, err := q.First(eCtx)
+		gotID, err := q.First(wCtx)
 		assert.NilError(t, err)
 		assert.Equal(t, wantID, gotID)
 
 		// Make sure the associated component is correct
-		gotScalar, err := ecs.GetComponent[ScalarComponentAlpha](eCtx, wantID)
+		gotScalar, err := ecs.GetComponent[ScalarComponentAlpha](wCtx, wantID)
 		assert.NilError(t, err)
 		assert.Equal(t, wantScalar, *gotScalar)
 	}
@@ -222,11 +223,11 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 	verifyCanFindEntity()
 
 	// Add on the beta component
-	assert.NilError(t, ecs.AddComponentTo[Beta](eCtx, wantID))
+	assert.NilError(t, ecs.AddComponentTo[Beta](wCtx, wantID))
 	verifyCanFindEntity()
 
 	// Remove the beta component
-	assert.NilError(t, ecs.RemoveComponentFrom[Beta](eCtx, wantID))
+	assert.NilError(t, ecs.RemoveComponentFrom[Beta](wCtx, wantID))
 	verifyCanFindEntity()
 }
 
@@ -253,24 +254,24 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		assert.NilError(t, ecs.RegisterComponent[ScalarComponentStatic](engine))
 		assert.NilError(t, ecs.RegisterComponent[ScalarComponentToggle](engine))
 
-		eCtx := ecs.NewEngineContext(engine)
+		wCtx := cardinal.NewWorldContext(engine)
 
 		errorToggleComponent := errors.New("problem with toggle component")
 		engine.RegisterSystem(
-			func(eCtx ecs.EngineContext) error {
+			func(wCtx cardinal.WorldContext) error {
 				// Get the one and only entity ID
-				q := eCtx.NewSearch(filter.Contains(ScalarComponentStatic{}))
-				id, err := q.First(eCtx)
+				q := wCtx.NewSearch(filter.Contains(ScalarComponentStatic{}))
+				id, err := q.First(wCtx)
 				assert.NilError(t, err)
 
-				s, err := ecs.GetComponent[ScalarComponentStatic](eCtx, id)
+				s, err := ecs.GetComponent[ScalarComponentStatic](wCtx, id)
 				assert.NilError(t, err)
 				s.Val++
-				assert.NilError(t, ecs.SetComponent[ScalarComponentStatic](eCtx, id, s))
+				assert.NilError(t, ecs.SetComponent[ScalarComponentStatic](wCtx, id, s))
 				if s.Val%2 == 1 {
-					assert.NilError(t, ecs.AddComponentTo[ScalarComponentToggle](eCtx, id))
+					assert.NilError(t, ecs.AddComponentTo[ScalarComponentToggle](wCtx, id))
 				} else {
-					assert.NilError(t, ecs.RemoveComponentFrom[ScalarComponentToggle](eCtx, id))
+					assert.NilError(t, ecs.RemoveComponentFrom[ScalarComponentToggle](wCtx, id))
 				}
 
 				if firstEngineIteration && s.Val == 5 {
@@ -282,11 +283,11 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		)
 		assert.NilError(t, engine.LoadGameState())
 		if firstEngineIteration {
-			_, err := ecs.Create(eCtx, ScalarComponentStatic{})
+			_, err := ecs.Create(wCtx, ScalarComponentStatic{})
 			assert.NilError(t, err)
 		}
 		q := engine.NewSearch(filter.Contains(ScalarComponentStatic{}))
-		id, err := q.First(eCtx)
+		id, err := q.First(wCtx)
 		assert.NilError(t, err)
 
 		if firstEngineIteration {
@@ -294,7 +295,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 				assert.NilError(t, engine.Tick(context.Background()))
 			}
 			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
-			_, err = ecs.GetComponent[ScalarComponentToggle](eCtx, id)
+			_, err = ecs.GetComponent[ScalarComponentToggle](wCtx, id)
 			assert.ErrorIs(t, storage.ErrComponentNotOnEntity, eris.Cause(err))
 
 			// Ticking again should result in an error
@@ -302,10 +303,10 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		} else {
 			// At this second iteration, the errorToggleComponent bug has been fixed. static.Val should be 5
 			// and toggle should have just been added to the entity.
-			_, err = ecs.GetComponent[ScalarComponentToggle](eCtx, id)
+			_, err = ecs.GetComponent[ScalarComponentToggle](wCtx, id)
 			assert.NilError(t, err)
 
-			s, err := ecs.GetComponent[ScalarComponentStatic](eCtx, id)
+			s, err := ecs.GetComponent[ScalarComponentStatic](wCtx, id)
 
 			assert.NilError(t, err)
 			assert.Equal(t, 5, s.Val)
@@ -333,16 +334,16 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		assert.NilError(t, engine.RegisterMessages(powerTx))
 
 		engine.RegisterSystem(
-			func(eCtx ecs.EngineContext) error {
-				q := eCtx.NewSearch(filter.Contains(PowerComp{}))
-				id := q.MustFirst(eCtx)
-				entityPower, err := ecs.GetComponent[PowerComp](eCtx, id)
+			func(wCtx cardinal.WorldContext) error {
+				q := wCtx.NewSearch(filter.Contains(PowerComp{}))
+				id := q.MustFirst(wCtx)
+				entityPower, err := ecs.GetComponent[PowerComp](wCtx, id)
 				assert.NilError(t, err)
 
-				changes := powerTx.In(eCtx)
+				changes := powerTx.In(wCtx)
 				assert.Equal(t, 1, len(changes))
 				entityPower.Val += changes[0].Msg.Val
-				assert.NilError(t, ecs.SetComponent[PowerComp](eCtx, id, entityPower))
+				assert.NilError(t, ecs.SetComponent[PowerComp](wCtx, id, entityPower))
 
 				if isBuggyIteration && changes[0].Msg.Val == 666 {
 					return errorBadPowerChange
@@ -352,19 +353,19 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		)
 		assert.NilError(t, engine.LoadGameState())
 
-		eCtx := ecs.NewEngineContext(engine)
+		wCtx := cardinal.NewWorldContext(engine)
 		// Only create the entity for the first iteration
 		if isBuggyIteration {
-			_, err := ecs.Create(eCtx, PowerComp{})
+			_, err := ecs.Create(wCtx, PowerComp{})
 			assert.NilError(t, err)
 		}
 
 		// fetchPower is a small helper to get the power of the only entity in the engine
 		fetchPower := func() float64 {
 			q := engine.NewSearch(filter.Contains(PowerComp{}))
-			id, err := q.First(eCtx)
+			id, err := q.First(wCtx)
 			assert.NilError(t, err)
-			power, err := ecs.GetComponent[PowerComp](eCtx, id)
+			power, err := ecs.GetComponent[PowerComp](wCtx, id)
 			assert.NilError(t, err)
 			return power.Val
 		}

@@ -2,6 +2,7 @@ package ecs_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -62,7 +63,7 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[OneAlphaNum](oneEngine))
 	assert.NilError(t, oneEngine.LoadGameState())
 
-	_, err := ecs.Create(ecs.NewEngineContext(oneEngine), OneAlphaNum{})
+	_, err := ecs.Create(cardinal.NewWorldContext(oneEngine), OneAlphaNum{})
 	assert.NilError(t, err)
 
 	assert.NilError(t, oneEngine.Tick(context.Background()))
@@ -90,7 +91,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[NumberComponent](oneEngine))
 	assert.NilError(t, oneEngine.LoadGameState())
 
-	_, err := ecs.Create(ecs.NewEngineContext(oneEngine), NumberComponent{})
+	_, err := ecs.Create(cardinal.NewWorldContext(oneEngine), NumberComponent{})
 	assert.NilError(t, err)
 	oneNum, err := oneEngine.GetComponentByName(NumberComponent{}.Name())
 	assert.NilError(t, err)
@@ -126,12 +127,12 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[OneBetaNum](oneEngine))
 	assert.NilError(t, oneEngine.LoadGameState())
 
-	oneEngineCtx := ecs.NewEngineContext(oneEngine)
-	_, err := ecs.Create(oneEngineCtx, OneAlphaNum{})
+	oneEnginwCtx := cardinal.NewWorldContext(oneEngine)
+	_, err := ecs.Create(oneEnginwCtx, OneAlphaNum{})
 	assert.NilError(t, err)
-	_, err = ecs.Create(oneEngineCtx, OneBetaNum{})
+	_, err = ecs.Create(oneEnginwCtx, OneBetaNum{})
 	assert.NilError(t, err)
-	_, err = ecs.Create(oneEngineCtx, OneAlphaNum{}, OneBetaNum{})
+	_, err = ecs.Create(oneEnginwCtx, OneAlphaNum{}, OneBetaNum{})
 	assert.NilError(t, err)
 	oneAlphaNum, err := oneEngine.GetComponentByName(OneAlphaNum{}.Name())
 	assert.NilError(t, err)
@@ -219,12 +220,12 @@ func TestCanReloadState(t *testing.T) {
 	oneAlphaNum, err := alphaEngine.GetComponentByName(oneAlphaNumComp{}.Name())
 	assert.NilError(t, err)
 	alphaEngine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
-			q := eCtx.NewSearch(filter.Contains(oneAlphaNum))
+		func(wCtx cardinal.WorldContext) error {
+			q := wCtx.NewSearch(filter.Contains(oneAlphaNum))
 			assert.NilError(
 				t, q.Each(
-					eCtx, func(id entity.ID) bool {
-						err = ecs.SetComponent[oneAlphaNumComp](eCtx, id, &oneAlphaNumComp{int(id)})
+					wCtx, func(id entity.ID) bool {
+						err = ecs.SetComponent[oneAlphaNumComp](wCtx, id, &oneAlphaNumComp{int(id)})
 						assert.Check(t, err == nil)
 						return true
 					},
@@ -234,7 +235,7 @@ func TestCanReloadState(t *testing.T) {
 		},
 	)
 	assert.NilError(t, alphaEngine.LoadGameState())
-	_, err = ecs.CreateMany(ecs.NewEngineContext(alphaEngine), 10, oneAlphaNumComp{})
+	_, err = ecs.CreateMany(cardinal.NewWorldContext(alphaEngine), 10, oneAlphaNumComp{})
 	assert.NilError(t, err)
 
 	// Start a tick with executes the above system which initializes the number components.
@@ -247,12 +248,12 @@ func TestCanReloadState(t *testing.T) {
 
 	count := 0
 	q := betaEngine.NewSearch(filter.Contains(OneBetaNum{}))
-	betaEngineCtx := ecs.NewEngineContext(betaEngine)
+	betaEnginwCtx := cardinal.NewWorldContext(betaEngine)
 	assert.NilError(
 		t, q.Each(
-			betaEngineCtx, func(id entity.ID) bool {
+			betaEnginwCtx, func(id entity.ID) bool {
 				count++
-				num, err := ecs.GetComponent[OneBetaNum](betaEngineCtx, id)
+				num, err := ecs.GetComponent[OneBetaNum](betaEnginwCtx, id)
 				assert.NilError(t, err)
 				assert.Equal(t, int(id), num.Num)
 				return true
@@ -296,9 +297,9 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		engine := testutil.InitEngineWithRedis(t, redisStore)
 		assert.NilError(t, engine.RegisterMessages(someTx))
 		engine.RegisterSystem(
-			func(eCtx ecs.EngineContext) error {
-				for _, tx := range someTx.In(eCtx) {
-					someTx.SetResult(eCtx, tx.Hash, Result{})
+			func(wCtx cardinal.WorldContext) error {
+				for _, tx := range someTx.In(wCtx) {
+					someTx.SetResult(wCtx, tx.Hash, Result{})
 				}
 				return nil
 			},

@@ -53,14 +53,14 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.E
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	if enableHealthSystem {
 		world.RegisterSystem(
-			func(eCtx ecs.EngineContext) error {
+			func(wCtx cardinal.WorldContext) error {
 				q := world.NewSearch(filter.Contains(Health{}))
 				err := q.Each(
-					eCtx, func(id entity.ID) bool {
-						health, err := ecs.GetComponent[Health](eCtx, id)
+					wCtx, func(id entity.ID) bool {
+						health, err := ecs.GetComponent[Health](wCtx, id)
 						assert.NilError(t, err)
 						health.Value++
-						assert.NilError(t, ecs.SetComponent[Health](eCtx, id, health))
+						assert.NilError(t, ecs.SetComponent[Health](wCtx, id, health))
 						return true
 					},
 				)
@@ -72,7 +72,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.E
 
 	assert.NilError(t, ecs.RegisterComponent[Health](world))
 	assert.NilError(t, world.LoadGameState())
-	_, err := ecs.CreateMany(ecs.NewEngineContext(world), numOfEntities, Health{})
+	_, err := ecs.CreateMany(cardinal.NewWorldContext(world), numOfEntities, Health{})
 	assert.NilError(t, err)
 	// Perform a game tick to ensure the newly created entities have been committed to the DB
 	ctx := context.Background()

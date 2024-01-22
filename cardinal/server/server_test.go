@@ -121,7 +121,7 @@ func TestShutDownViaSignal(t *testing.T) {
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, engine.RegisterMessages(sendTx))
 	engine.RegisterSystem(
-		func(ecs.EngineContext) error {
+		func(cardinal.WorldContext) error {
 			return nil
 		},
 	)
@@ -227,8 +227,8 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	assert.NilError(t, engine.RegisterMessages(sendTx))
 	count := 0
 	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
-			txs := sendTx.In(eCtx)
+		func(wCtx cardinal.WorldContext) error {
+			txs := sendTx.In(wCtx)
 			assert.Equal(t, 1, len(txs))
 			tx := txs[0]
 			assert.Equal(t, tx.Msg.From, "me")
@@ -288,7 +288,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, world.RegisterMessages(sendTx))
 	world.RegisterSystem(
-		func(ecs.EngineContext) error {
+		func(cardinal.WorldContext) error {
 			return nil
 		},
 	)
@@ -381,12 +381,12 @@ func TestHandleSwaggerServer(t *testing.T) {
 	err = world.LoadGameState()
 	assert.NilError(t, err)
 
-	eCtx := ecs.NewEngineContext(world)
+	wCtx := cardinal.NewWorldContext(world)
 	alphaCount := 75
-	_, err = ecs.CreateMany(eCtx, alphaCount, garbageStructAlpha{})
+	_, err = ecs.CreateMany(wCtx, alphaCount, garbageStructAlpha{})
 	assert.NilError(t, err)
 	bothCount := 100
-	_, err = ecs.CreateMany(eCtx, bothCount, garbageStructAlpha{}, garbageStructBeta{})
+	_, err = ecs.CreateMany(wCtx, bothCount, garbageStructAlpha{}, garbageStructBeta{})
 	assert.NilError(t, err)
 
 	err = world.Tick(ctx)
@@ -497,8 +497,8 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, engine.RegisterMessages(sendTx))
 	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
-			txs := sendTx.In(eCtx)
+		func(wCtx cardinal.WorldContext) error {
+			txs := sendTx.In(wCtx)
 			assert.Equal(t, 1, len(txs))
 			tx := txs[0]
 			assert.Equal(t, tx.Msg.From, "me")
@@ -1006,10 +1006,10 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	assert.NilError(t, world.RegisterMessages(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
 	world.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
-			for _, tx := range incTx.In(eCtx) {
+		func(wCtx cardinal.WorldContext) error {
+			for _, tx := range incTx.In(wCtx) {
 				incTx.SetResult(
-					eCtx, tx.Hash, IncReply{
+					wCtx, tx.Hash, IncReply{
 						Number: tx.Msg.Number + 1,
 					},
 				)
@@ -1019,10 +1019,10 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	)
 	// System to handle duplicating strings
 	world.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
-			for _, tx := range dupeTx.In(eCtx) {
+		func(wCtx cardinal.WorldContext) error {
+			for _, tx := range dupeTx.In(wCtx) {
 				dupeTx.SetResult(
-					eCtx, tx.Hash, DupeReply{
+					wCtx, tx.Hash, DupeReply{
 						Str: tx.Msg.Str + tx.Msg.Str,
 					},
 				)
@@ -1033,10 +1033,10 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	wantError := errors.New("some error")
 	// System to handle error production
 	world.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
-			for _, tx := range errTx.In(eCtx) {
-				errTx.AddError(eCtx, tx.Hash, wantError)
-				errTx.AddError(eCtx, tx.Hash, wantError)
+		func(wCtx cardinal.WorldContext) error {
+			for _, tx := range errTx.In(wCtx) {
+				errTx.AddError(wCtx, tx.Hash, wantError)
+				errTx.AddError(wCtx, tx.Hash, wantError)
 			}
 			return nil
 		},
