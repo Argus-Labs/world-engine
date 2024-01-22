@@ -2,7 +2,9 @@ version: "3"
 services:
   cardinal:
     container_name: cardinal
-    build: ./cardinal
+    build:
+      context: ./cardinal
+      target: runtime
     depends_on:
       - redis
     expose:
@@ -10,7 +12,34 @@ services:
     ports:
       - "3333:3333"
     environment:
-      - CARDINAL_PORT=${CARDINAL_PORT}
+      - CARDINAL_PORT=${CARDINAL_PORT:-3333}
+      - CARDINAL_NAMESPACE=${CARDINAL_NAMESPACE}
+      - CARDINAL_MODE=${CARDINAL_MODE}
+      - REDIS_ADDRESS=${REDIS_ADDRESS:-redis:6379}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_MODE=normal
+    restart: unless-stopped
+
+  cardinal-debug:
+    container_name: cardinal-debug
+    build:
+      context: ./cardinal
+      target: runtime-debug
+    ## Additional capabilities flag for debugging
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - "seccomp:unconfined"
+    depends_on:
+      - redis
+    expose:
+      - "3333"
+      - "40000"
+    ports:
+      - "3333:3333"
+      - "40000:40000"
+    environment:
+      - CARDINAL_PORT=${CARDINAL_PORT:-3333}
       - CARDINAL_NAMESPACE=${CARDINAL_NAMESPACE}
       - CARDINAL_MODE=${CARDINAL_MODE}
       - REDIS_ADDRESS=${REDIS_ADDRESS:-redis:6379}
@@ -21,13 +50,13 @@ services:
   evm:
     container_name: evm_base_shard
     environment:
-      # DA_AUTH_TOKEN is obtained from celestia client and passed in from world.toml. 
+      # DA_AUTH_TOKEN is obtained from celestia client and passed in from world.toml.
       # See https://docs.celestia.org/developers/node-tutorial#auth-token
-      - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-} 
+      - DA_AUTH_TOKEN=${DA_AUTH_TOKEN:-}
       - DA_BASE_URL=${DA_BASE_URL:-http://celestia-devnet:26658}
       - DA_NAMESPACE_ID=${DA_NAMESPACE_ID:-67480c4a88c4d12935d4}
       - CHAIN_ID=${CHAIN_ID:-world-engine}
-      # KEY_MNEMONIC is a test mnemonic and should not be used in production. 
+      # KEY_MNEMONIC is a test mnemonic and should not be used in production.
       # This mnemonic can be overwritten by setting the KEY_MNEMONIC environment variable.
       - KEY_MNEMONIC=${KEY_MNEMONIC:-enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll}
       - FAUCET_ADDR=${FAUCET_ADDR:-world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5}
@@ -54,10 +83,8 @@ services:
     depends_on:
       nakama-db:
         condition: service_healthy
-      cardinal:
-        condition: service_started
     environment:
-      - CARDINAL_ADDR=${CARDINAL_ADDR:-cardinal:4040}
+      - CARDINAL_ADDR=${CARDINAL_ADDR:-cardinal:3333}
       - CARDINAL_NAMESPACE=${CARDINAL_NAMESPACE}
       - DB_PASSWORD=${DB_PASSWORD:-very_unsafe_password_replace_me}
     entrypoint:
@@ -112,6 +139,7 @@ services:
       retries: 5
     volumes:
       - data:/var/lib/postgresql/data
+
 # Recommended: Use cockroachdb instead of postgres for production.
 #   container_name: nakama_db
 #   image: cockroachdb/cockroach:latest-v23.1
@@ -143,7 +171,7 @@ services:
     ports:
       - "6379:6379"
     restart: always
-  
+
   celestia-devnet:
     container_name: celestia_devnet
     image: ghcr.io/rollkit/local-celestia-devnet:v0.12.1
