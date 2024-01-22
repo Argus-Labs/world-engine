@@ -74,10 +74,12 @@ func queryCQL(ctx EngineContext, req *CQLQueryRequest) (*CQLQueryResponse, error
 		return nil, err
 	}
 	result := make([]cqlData, 0)
-	err = NewSearch(resultFilter).Each(
+	var eachError error
+	searchErr := NewSearch(resultFilter).Each(
 		ctx, func(id entity.ID) bool {
 			components, err := ctx.StoreReader().GetComponentTypesForEntity(id)
 			if err != nil {
+				eachError = err
 				return false
 			}
 			resultElement := cqlData{
@@ -88,6 +90,7 @@ func queryCQL(ctx EngineContext, req *CQLQueryRequest) (*CQLQueryResponse, error
 			for _, c := range components {
 				data, err := ctx.StoreReader().GetComponentForEntityInRawJSON(c, id)
 				if err != nil {
+					eachError = err
 					return false
 				}
 				resultElement.Data = append(resultElement.Data, data)
@@ -96,7 +99,10 @@ func queryCQL(ctx EngineContext, req *CQLQueryRequest) (*CQLQueryResponse, error
 			return true
 		},
 	)
-	if err != nil {
+	if searchErr != nil {
+		return nil, err
+	}
+	if eachError != nil {
 		return nil, err
 	}
 	return &CQLQueryResponse{Results: result}, nil
