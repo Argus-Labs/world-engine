@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -82,14 +83,14 @@ func TestGlobals(t *testing.T) {
 func TestSchemaChecking(t *testing.T) {
 	s := miniredis.RunT(t)
 
-	cardinalWorld, _ := testutils.NewTestWorldWithCustomRedis(t, s)
+	cardinalWorld := testutils.NewTestFixture(t, s).World
 	engine := cardinalWorld.Engine()
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](engine))
 	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine))
 
 	assert.NilError(t, engine.LoadGameState())
 
-	cardinalWorld2, _ := testutils.NewTestWorldWithCustomRedis(t, s)
+	cardinalWorld2 := testutils.NewTestFixture(t, s).World
 	engine2 := cardinalWorld2.Engine()
 	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine2))
 	assert.Assert(t, ecs.RegisterComponent[AlteredEnergyComponent](engine2) != nil)
@@ -100,7 +101,7 @@ func TestSchemaChecking(t *testing.T) {
 }
 
 func TestECS(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](engine))
 	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine))
 
@@ -153,7 +154,7 @@ func (Vel) Name() string {
 }
 
 func TestVelocitySimulation(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 
 	// These components are a mix of concrete types and pointer types to make sure they both work
 	assert.NilError(t, ecs.RegisterComponent[Pos](engine))
@@ -196,7 +197,7 @@ func (Owner) Name() string {
 }
 
 func TestCanSetDefaultValue(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 
 	wantOwner := Owner{"Jeff"}
 
@@ -228,7 +229,7 @@ func (Tuple) Name() string {
 }
 
 func TestCanRemoveEntity(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 
 	assert.NilError(t, ecs.RegisterComponent[Tuple](engine))
 	assert.NilError(t, engine.LoadGameState())
@@ -303,7 +304,7 @@ func (CountComponent) Name() string {
 }
 
 func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 
 	assert.NilError(t, ecs.RegisterComponent[CountComponent](engine))
 	assert.NilError(t, engine.LoadGameState())
@@ -361,7 +362,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 }
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](engine))
 	assert.NilError(t, engine.LoadGameState())
 
@@ -390,7 +391,7 @@ func (WeaponEnergy) Name() string {
 }
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 	assert.NilError(t, ecs.RegisterComponent[ReactorEnergy](engine))
 	assert.NilError(t, ecs.RegisterComponent[WeaponEnergy](engine))
 	assert.NilError(t, engine.LoadGameState())
@@ -413,7 +414,7 @@ func (Bar) Name() string {
 }
 
 func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 
 	assert.NilError(t, ecs.RegisterComponent[Foo](engine))
 	assert.NilError(t, ecs.RegisterComponent[Bar](engine))
@@ -463,7 +464,7 @@ func (Gamma) Name() string {
 }
 
 func TestEntriesCanChangeTheirArchetype(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 	assert.NilError(t, ecs.RegisterComponent[Alpha](engine))
 	assert.NilError(t, ecs.RegisterComponent[Beta](engine))
 	assert.NilError(t, ecs.RegisterComponent[Gamma](engine))
@@ -538,7 +539,7 @@ func (e EnergyComponentBeta) Name() string {
 }
 
 func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponentAlpha](engine))
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponentBeta](engine))
@@ -563,7 +564,7 @@ func (C) Name() string { return "c" }
 func (D) Name() string { return "d" }
 
 func TestQueriesAndFiltersWorks(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 	assert.NilError(t, ecs.RegisterComponent[A](engine))
 	assert.NilError(t, ecs.RegisterComponent[B](engine))
 	assert.NilError(t, ecs.RegisterComponent[C](engine))
@@ -625,7 +626,7 @@ func (HealthComponent) Name() string {
 }
 
 func TestUpdateWithPointerType(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 	assert.NilError(t, ecs.RegisterComponent[HealthComponent](engine))
 	assert.NilError(t, engine.LoadGameState())
 
@@ -658,7 +659,7 @@ func (ValueComponent1) Name() string {
 }
 
 func TestCanRemoveFirstEntity(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent1](engine))
 
 	eCtx := ecs.NewEngineContext(engine)
@@ -695,7 +696,7 @@ func (OtherComponent) Name() string {
 }
 
 func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](engine))
 	assert.NilError(t, ecs.RegisterComponent[OtherComponent](engine))
 
@@ -718,7 +719,7 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 }
 
 func TestEntityCreationAndSetting(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).World.Engine()
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](engine))
 	assert.NilError(t, ecs.RegisterComponent[OtherComponent](engine))
 

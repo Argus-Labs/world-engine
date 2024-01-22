@@ -3,11 +3,13 @@ package message_test
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
 	"time"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+
 	"github.com/stretchr/testify/require"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 
@@ -50,7 +52,7 @@ func TestReadTypeNotStructs(t *testing.T) {
 }
 
 func TestCanQueueTransactions(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 
 	// Create an entity with a score component
 	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](engine))
@@ -117,7 +119,7 @@ func (CounterComponent) Name() string {
 }
 
 func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 
 	assert.NilError(t, ecs.RegisterComponent[CounterComponent](engine))
 
@@ -149,7 +151,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 }
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](engine))
 
 	modifyScoreMsg := ecs.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
@@ -217,7 +219,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 // TestAddToQueueDuringTickDoesNotTimeout verifies that we can add a transaction to the transaction
 // queue during a game tick, and the call does not block.
 func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 
 	modScore := ecs.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_Score")
 	assert.NilError(t, engine.RegisterMessages(modScore))
@@ -261,7 +263,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 // TestTransactionsAreExecutedAtNextTick verifies that while a game tick is taking place, new transactions
 // are added to some queue that is not processed until the NEXT tick.
 func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	modScoreMsg := ecs.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
 	assert.NilError(t, engine.RegisterMessages(modScoreMsg))
 	ctx := context.Background()
@@ -336,7 +338,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 // TestIdenticallyTypedTransactionCanBeDistinguished verifies that two transactions of the same type
 // can be distinguished if they were added with different MessageType[T]s.
 func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	type NewOwner struct {
 		Name string
 	}
@@ -367,13 +369,13 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 
 func TestCannotRegisterDuplicateTransaction(t *testing.T) {
 	msg := ecs.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.Check(t, nil != engine.RegisterMessages(msg, msg))
 }
 
 func TestCannotCallRegisterTransactionsMultipleTimes(t *testing.T) {
 	msg := ecs.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, engine.RegisterMessages(msg))
 	assert.Check(t, nil != engine.RegisterMessages(msg))
 }
@@ -415,7 +417,7 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	type OtherMsg struct {
 		Alpha, Beta string
 	}
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	alphaMsg := ecs.NewMessageType[SomeMsg, EmptyMsgResult]("name_match")
 	betaMsg := ecs.NewMessageType[OtherMsg, EmptyMsgResult]("name_match")
 	assert.ErrorIs(t, engine.RegisterMessages(alphaMsg, betaMsg), ecs.ErrDuplicateMessageName)
@@ -428,7 +430,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	type MoveMsgResult struct {
 		EndX, EndY int
 	}
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 
 	// Each transaction now needs an input and an output
 	moveMsg := ecs.NewMessageType[MoveMsg, MoveMsgResult]("move")
@@ -489,7 +491,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	type MsgOut struct {
 		Number int
 	}
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	numTx := ecs.NewMessageType[MsgIn, MsgOut]("number")
 	assert.NilError(t, engine.RegisterMessages(numTx))
 	wantErr := errors.New("some transaction error")
@@ -535,7 +537,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	type MsgOut struct {
 		Number int
 	}
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	numTx := ecs.NewMessageType[MsgIn, MsgOut]("number")
 	assert.NilError(t, engine.RegisterMessages(numTx))
 	systemCalls := 0

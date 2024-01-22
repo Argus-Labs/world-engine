@@ -14,7 +14,7 @@ import (
 )
 
 func TestForEachTransaction(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	type SomeMsgRequest struct {
 		GenerateError bool
 	}
