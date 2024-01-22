@@ -707,16 +707,13 @@ func (e *Engine) Shutdown() error {
 	if e.eventHub != nil {
 		e.eventHub.ShutdownEventHub()
 	}
-	log.Info().Msg("Closing storage connections.")
-	errs := errors.Join(
-		e.redisStorage.Close(),
-		e.entityStore.Close(),
-	)
-	if errs != nil {
-		log.Error().Err(errs).Msg("Failed to close storage connections.")
-		return errs
+	log.Info().Msg("Closing storage connection.")
+	err := e.redisStorage.Close()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to close storage connection.")
+		return err
 	}
-	log.Info().Msg("Successfully closed storage connections.")
+	log.Info().Msg("Successfully closed storage connection.")
 	return nil
 }
 
