@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -126,7 +127,7 @@ func validateTransaction(tx *sign.Transaction, signerAddr, namespace string, sys
 		return ErrNoPersonaTag
 	}
 	if tx.Namespace != namespace {
-		return eris.Errorf("expected %q got %q: %s", namespace, tx.Namespace, ErrWrongNamespace.Error())
+		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q: %s", namespace, tx.Namespace))
 	}
 	if systemTx && !tx.IsSystemTransaction() {
 		return eris.Wrap(ErrSystemTransactionRequired, "")
