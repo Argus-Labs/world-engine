@@ -10,6 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"sync/atomic"
 )
 
@@ -111,9 +112,10 @@ func (s *Server) setupSwagger() {
 }
 
 func (s *Server) registerHandlers() error {
-	s.registerQueryHandler(fmt.Sprintf("%s:%s", s.queryPrefix, s.queryWildCard))
-	s.registerHealthEndpoint("/health")
+	// setup dependency
+	s.app.Get("/health", handler.GetHealth(s.eng))
 
+	s.registerQueryHandler(fmt.Sprintf("%s:%s", s.queryPrefix, s.queryWildCard))
 	return errors.Join(
 		s.registerTransactionHandler(fmt.Sprintf("%s:%s", s.txPrefix, s.txWildCard)),
 		s.registerListEndpointsEndpoint("/query/http/endpoints"),
