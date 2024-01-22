@@ -127,7 +127,7 @@ func validateTransaction(tx *sign.Transaction, signerAddr, namespace string, sys
 		return ErrNoPersonaTag
 	}
 	if tx.Namespace != namespace {
-		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q: %s", namespace, tx.Namespace))
+		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q", namespace, tx.Namespace))
 	}
 	if systemTx && !tx.IsSystemTransaction() {
 		return eris.Wrap(ErrSystemTransactionRequired, "")
