@@ -398,6 +398,7 @@ func (w *World) ShutDown() error {
 	if w.server != nil {
 		w.server.Shutdown()
 	}
+	w.Engine().Shutdown()
 	close(w.endStartGame)
 	return nil
 }
