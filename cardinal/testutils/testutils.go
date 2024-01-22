@@ -44,7 +44,8 @@ func NewTestServer(
 
 	healthPath := "/health"
 	t.Cleanup(func() {
-		srvr.Shutdown()
+		err := srvr.Shutdown()
+		assert.NilError(t, err)
 	})
 
 	go func() {

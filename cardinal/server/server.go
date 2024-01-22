@@ -87,11 +87,8 @@ func (s *Server) Serve() error {
 }
 
 // Shutdown gracefully shuts down the server without interrupting any active connections.
-func (s *Server) Shutdown() {
-	err := s.app.Shutdown()
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to shutdown server")
-	}
+func (s *Server) Shutdown() error {
+	return s.app.Shutdown()
 }
 
 func (s *Server) setupSwagger() {

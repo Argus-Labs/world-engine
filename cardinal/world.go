@@ -396,7 +396,9 @@ func (w *World) ShutDown() error {
 		w.evmServer.Shutdown()
 	}
 	if w.server != nil {
-		w.server.Shutdown()
+		if err := w.server.Shutdown(); err != nil {
+			return err
+		}
 	}
 	w.Engine().Shutdown()
 	close(w.endStartGame)
