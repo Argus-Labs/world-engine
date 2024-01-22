@@ -400,9 +400,8 @@ func (w *World) ShutDown() error {
 			return err
 		}
 	}
-	w.Engine().Shutdown()
 	close(w.endStartGame)
-	return nil
+	return w.Engine().Shutdown()
 }
 
 func RegisterSystems(w *World, systems ...System) error {

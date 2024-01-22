@@ -692,11 +692,11 @@ func (e *Engine) IsGameLoopRunning() bool {
 	return e.isGameLoopRunning.Load()
 }
 
-func (e *Engine) Shutdown() {
+func (e *Engine) Shutdown() error {
 	e.shutdownMutex.Lock() // This queues up Shutdown calls so they happen one after the other.
 	defer e.shutdownMutex.Unlock()
 	if !e.IsGameLoopRunning() {
-		return
+		return nil
 	}
 	log.Info().Msg("Shutting down game loop.")
 	e.endGameLoopCh <- true
@@ -707,6 +707,17 @@ func (e *Engine) Shutdown() {
 	if e.eventHub != nil {
 		e.eventHub.ShutdownEventHub()
 	}
+	log.Info().Msg("Closing storage connections.")
+	errs := errors.Join(
+		e.redisStorage.Close(),
+		e.entityStore.Close(),
+	)
+	if errs != nil {
+		log.Error().Err(errs).Msg("Failed to close storage connections.")
+		return errs
+	}
+	log.Info().Msg("Successfully closed storage connections.")
+	return nil
 }
 
 // recoverGameState checks the status of the last game tick. If the tick was incomplete (indicating
