@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"math"
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -17,11 +18,10 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 )
 
-var _ shard.Adapter = &DummyAdapter{}
+var _ adapter.Adapter = &DummyAdapter{}
 
 type DummyAdapter struct {
 	ticks []*types.Epoch

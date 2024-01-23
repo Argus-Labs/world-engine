@@ -1,4 +1,4 @@
-package shard
+package adapter
 
 import (
 	"context"
