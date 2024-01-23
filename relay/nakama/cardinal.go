@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"pkg.world.dev/world-engine/relay/nakama/nakama_errors"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -166,9 +166,9 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uin
 		return "", eris.Wrap(err, "")
 	}
 	if resp.Status == readPersonaSignerStatusUnknown {
-		return "", eris.Wrap(nakama_errors.ErrPersonaSignerUnknown, "")
+		return "", eris.Wrap(nakamaerrors.ErrPersonaSignerUnknown, "")
 	} else if resp.Status == readPersonaSignerStatusAvailable {
-		return "", eris.Wrap(nakama_errors.ErrPersonaSignerAvailable, "")
+		return "", eris.Wrap(nakamaerrors.ErrPersonaSignerAvailable, "")
 	}
 	return resp.SignerAddress, nil
 }

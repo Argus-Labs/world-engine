@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"pkg.world.dev/world-engine/relay/nakama/nakama_errors"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"strconv"
 	"strings"
@@ -75,7 +75,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 		return utils.LogError(
 			logger,
 			eris.Errorf("unauthorized: only admin may call this RPC"),
-			nakama_errors.PermissionDenied,
+			nakamaerrors.PermissionDenied,
 		)
 	}
 
@@ -85,7 +85,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 		return utils.LogError(
 			logger,
 			eris.Wrap(err, `error unmarshalling payload: expected form {"amount": <int>}`),
-			nakama_errors.InvalidArgument)
+			nakamaerrors.InvalidArgument)
 	}
 
 	keys, err := generateBetaKeys(msg.Amount)
@@ -140,14 +140,14 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 ) {
 	userID, err := utils.GetUserID(ctx)
 	if err != nil {
-		return utils.LogErrorWithMessageAndCode(logger, err, nakama_errors.NotFound, "unable to get userID: %v", err)
+		return utils.LogErrorWithMessageAndCode(logger, err, nakamaerrors.NotFound, "unable to get userID: %v", err)
 	}
 
 	if verified, err := isUserVerified(ctx, nk, userID); err != nil {
 		return utils.LogErrorMessageFailedPrecondition(logger, err, "failed to check beta key status")
 	} else if verified {
 		msg := fmt.Sprintf("user %q already verified with a beta key", userID)
-		return utils.LogErrorWithMessageAndCode(logger, nakama_errors.ErrAlreadyVerified, nakama_errors.AlreadyExists, msg)
+		return utils.LogErrorWithMessageAndCode(logger, nakamaerrors.ErrAlreadyVerified, nakamaerrors.AlreadyExists, msg)
 	}
 
 	var ck ClaimKeyMsg
@@ -156,15 +156,15 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
-			nakama_errors.InvalidArgument,
+			nakamaerrors.InvalidArgument,
 			"unable to unmarshal payload: %v",
 			err)
 	}
 	if ck.Key == "" {
 		return utils.LogErrorWithMessageAndCode(
 			logger,
-			nakama_errors.ErrInvalidBetaKey,
-			nakama_errors.InvalidArgument,
+			nakamaerrors.ErrInvalidBetaKey,
+			nakamaerrors.InvalidArgument,
 			"no key provided in request")
 	}
 	ck.Key = strings.ToUpper(ck.Key)
@@ -173,7 +173,7 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
-			nakama_errors.InvalidArgument,
+			nakamaerrors.InvalidArgument,
 			fmt.Sprintf("unable to claim key: %v", err))
 	}
 	err = writeVerified(ctx, nk, userID)
@@ -181,14 +181,14 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
-			nakama_errors.NotFound,
+			nakamaerrors.NotFound,
 			fmt.Sprintf("server could not save user verification entry. please "+
 				"try again: %v", err))
 	}
 
 	bz, err := json.Marshal(ClaimKeyRes{Success: true})
 	if err != nil {
-		return utils.LogErrorWithMessageAndCode(logger, err, nakama_errors.NotFound, "unable to marshal response: %v", err)
+		return utils.LogErrorWithMessageAndCode(logger, err, nakamaerrors.NotFound, "unable to marshal response: %v", err)
 	}
 	return string(bz), nil
 }
@@ -248,7 +248,7 @@ func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStor
 		return nil, eris.Wrap(err, "error reading storage object for key")
 	}
 	if len(objs) == 0 {
-		return nil, eris.Wrap(nakama_errors.ErrInvalidBetaKey, "")
+		return nil, eris.Wrap(nakamaerrors.ErrInvalidBetaKey, "")
 	}
 
 	obj := objs[0]
@@ -288,7 +288,7 @@ func claimKey(ctx context.Context, nk runtime.NakamaModule, key, userID string) 
 		return err
 	}
 	if ks.Used {
-		return eris.Wrapf(nakama_errors.ErrBetaKeyAlreadyUsed, "user %q was unable to claim %q", userID, key)
+		return eris.Wrapf(nakamaerrors.ErrBetaKeyAlreadyUsed, "user %q was unable to claim %q", userID, key)
 	}
 	ks.Used = true
 	ks.UsedBy = userID

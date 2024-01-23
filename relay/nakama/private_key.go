@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"pkg.world.dev/world-engine/relay/nakama/nakama_errors"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"strconv"
 	"sync"
 
@@ -51,9 +51,9 @@ func getOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key string
 		return "", eris.Wrap(err, "")
 	}
 	if len(objs) > 1 {
-		return "", eris.Wrap(nakama_errors.ErrTooManyStorageObjectsFound, "")
+		return "", eris.Wrap(nakamaerrors.ErrTooManyStorageObjectsFound, "")
 	} else if len(objs) == 0 {
-		return "", eris.Wrap(nakama_errors.ErrNoStorageObjectFound, "")
+		return "", eris.Wrap(nakamaerrors.ErrNoStorageObjectFound, "")
 	}
 	var pkObj privateKeyStorageObj
 	if err = json.Unmarshal([]byte(objs[0].Value), &pkObj); err != nil {
@@ -109,7 +109,7 @@ func setNonce(ctx context.Context, nk runtime.NakamaModule, n uint64) error {
 func initPrivateKey(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) error {
 	privateKeyHex, err := getPrivateKeyHex(ctx, nk)
 	if err != nil {
-		if !eris.Is(eris.Cause(err), nakama_errors.ErrNoStorageObjectFound) {
+		if !eris.Is(eris.Cause(err), nakamaerrors.ErrNoStorageObjectFound) {
 			return eris.Wrap(err, "failed to get private key")
 		}
 		logger.Debug("no private key found; creating a new one")

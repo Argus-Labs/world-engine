@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"context"
@@ -23,19 +23,19 @@ import (
 //
 // The configuration file at .mockery.yaml will be used to generate the Nakama mocks.
 
-// anyContext is used to make mock expectations more readable.
+// AnyContext is used to make mock expectations more readable.
 // someMock.On("SomeFunction", anyContext...) makes it clear that the first parameter is supposed to be a context.
 // context.valueCtx is the type returned by context.Background.
-var anyContext = mock.AnythingOfType("*context.valueCtx")
+var AnyContext = mock.AnythingOfType("*context.valueCtx")
 
-// ctxWithUserID saves the given user ID to the background context in a location that Nakama expects to find user IDs.
-func ctxWithUserID(userID string) context.Context {
+// CtxWithUserID saves the given user ID to the background context in a location that Nakama expects to find user IDs.
+func CtxWithUserID(userID string) context.Context {
 	ctx := context.Background()
 	//nolint:staticcheck // this is how Nakama reads userIDs from the context.
 	return context.WithValue(ctx, runtime.RUNTIME_CTX_USER_ID, userID)
 }
 
-func mockMatchStoreWrite(collection, key, userID string) any {
+func MockMatchStoreWrite(collection, key, userID string) any {
 	return mock.MatchedBy(func(writes []*runtime.StorageWrite) bool {
 		if len(writes) != 1 {
 			return false
@@ -53,10 +53,10 @@ func mockMatchStoreWrite(collection, key, userID string) any {
 	})
 }
 
-// mockMatchStoreReads creates a mock.Matcher (suitable for use as a variadic argument into an "On" method).
+// MockMatchStoreRead creates a mock.Matcher (suitable for use as a variadic argument into an "On" method).
 // It should be used when your test is expecting a call to "StorageRead", and it verifies that the single
 // read request matches the given collection/key/userID. Use the empty string ("") to skip any of the comparisons.
-func mockMatchStoreRead(collection, key, userID string) any {
+func MockMatchStoreRead(collection, key, userID string) any {
 	return mock.MatchedBy(func(reads []*runtime.StorageRead) bool {
 		if len(reads) != 1 {
 			return false
@@ -74,8 +74,8 @@ func mockMatchStoreRead(collection, key, userID string) any {
 	})
 }
 
-// noopLogger returns a mock logger that ignores all log messages.
-func noopLogger(t *testing.T) runtime.Logger {
+// NoopLogger returns a mock logger that ignores all log messages.
+func NoopLogger(t *testing.T) runtime.Logger {
 	mockLog := mocks.NewLogger(t)
 	mockLog.On("Error", mock.Anything).Return().Maybe()
 	mockLog.On("Debug", mock.Anything).Return().Maybe()

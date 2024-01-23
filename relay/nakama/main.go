@@ -8,7 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"pkg.world.dev/world-engine/relay/nakama/nakama_errors"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"strings"
 	"sync"
@@ -193,8 +193,8 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		} else if !verified {
 			return utils.LogDebugWithMessageAndCode(
 				logger,
-				nakama_errors.ErrNotAllowlisted,
-				nakama_errors.AlreadyExists,
+				nakamaerrors.ErrNotAllowlisted,
+				nakamaerrors.AlreadyExists,
 				"unable to claim persona tag")
 		}
 
@@ -206,14 +206,14 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			return utils.LogErrorWithMessageAndCode(
 				logger,
 				eris.New("personaTag field was empty"),
-				nakama_errors.InvalidArgument,
+				nakamaerrors.InvalidArgument,
 				"personaTag field must not be empty",
 			)
 		}
 
 		tag, err := loadPersonaTagStorageObj(ctx, nk)
 		if err != nil {
-			if !errors.Is(err, nakama_errors.ErrPersonaTagStorageObjNotFound) {
+			if !errors.Is(err, nakamaerrors.ErrPersonaTagStorageObjNotFound) {
 				return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
 			}
 		} else {
@@ -222,14 +222,14 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 				return utils.LogDebugWithMessageAndCode(
 					logger,
 					eris.Errorf("persona tag %q is pending for this account", tag.PersonaTag),
-					nakama_errors.AlreadyExists,
+					nakamaerrors.AlreadyExists,
 					"persona tag %q is pending", tag.PersonaTag,
 				)
 			case personaTagStatusAccepted:
 				return utils.LogErrorWithMessageAndCode(
 					logger,
 					eris.Errorf("persona tag %q already associated with this account", tag.PersonaTag),
-					nakama_errors.AlreadyExists,
+					nakamaerrors.AlreadyExists,
 					"persona tag %q already associated with this account",
 					tag.PersonaTag)
 			case personaTagStatusRejected:
@@ -258,7 +258,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			return utils.LogErrorWithMessageAndCode(
 				logger,
 				eris.Errorf("persona tag %q is not available", ptr.PersonaTag),
-				nakama_errors.AlreadyExists,
+				nakamaerrors.AlreadyExists,
 				"persona tag %q is not available",
 				ptr.PersonaTag)
 		}
@@ -281,7 +281,7 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 ) (string, error) {
 	ptr, err := loadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
-		if eris.Is(eris.Cause(err), nakama_errors.ErrPersonaTagStorageObjNotFound) {
+		if eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaTagStorageObjNotFound) {
 			return utils.LogErrorMessageFailedPrecondition(logger, err, "no persona tag found")
 		}
 		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
@@ -433,7 +433,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 	}
 
 	if ptr.Status != personaTagStatusAccepted {
-		return nil, eris.Wrap(nakama_errors.ErrNoPersonaTagForUser, "")
+		return nil, eris.Wrap(nakamaerrors.ErrNoPersonaTagForUser, "")
 	}
 	personaTag := ptr.PersonaTag
 	pk, nonce, err := getPrivateKeyAndANonce(ctx, nk)

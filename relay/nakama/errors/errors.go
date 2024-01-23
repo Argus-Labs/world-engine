@@ -1,4 +1,4 @@
-package nakama_errors
+package errors
 
 import "errors"
 

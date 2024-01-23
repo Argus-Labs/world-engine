@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"pkg.world.dev/world-engine/relay/nakama/nakama_errors"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -58,7 +58,7 @@ func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 		return utils.LogError(
 			logger,
 			eris.Wrap(err, `error unmarshalling payload: expected form {"data": <string>}`),
-			nakama_errors.InvalidArgument)
+			nakamaerrors.InvalidArgument)
 	}
 	// do not allow empty requests
 	if msg.Data == "" {
@@ -122,7 +122,7 @@ func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 	if err != nil {
 		// we ignore the error where the tag is not found.
 		// all other errors should be returned.
-		if !eris.Is(eris.Cause(err), nakama_errors.ErrPersonaTagStorageObjNotFound) {
+		if !eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaTagStorageObjNotFound) {
 			return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "failed to get persona for save"))
 		}
 	} else {

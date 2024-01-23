@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"pkg.world.dev/world-engine/relay/nakama/nakama_errors"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/heroiclabs/nakama-common/api"
@@ -50,7 +50,7 @@ func loadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*pe
 		return nil, eris.Wrap(err, "")
 	}
 	if len(storeObjs) == 0 {
-		return nil, eris.Wrap(nakama_errors.ErrPersonaTagStorageObjNotFound, "")
+		return nil, eris.Wrap(nakamaerrors.ErrPersonaTagStorageObjNotFound, "")
 	} else if len(storeObjs) > 1 {
 		return nil, eris.Errorf("expected 1 storage object, got %d with values %v", len(storeObjs), storeObjs)
 	}
@@ -81,10 +81,10 @@ func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk ru
 
 	verified, err := p.verifyPersonaTag(ctx)
 	switch {
-	case eris.Is(eris.Cause(err), nakama_errors.ErrPersonaSignerUnknown):
+	case eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaSignerUnknown):
 		// Leave the Status as pending.
 		return p, nil
-	case eris.Is(eris.Cause(err), nakama_errors.ErrPersonaSignerAvailable):
+	case eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaSignerAvailable):
 		// Somehow Nakama thinks this persona tag belongs to this user, but Cardinal doesn't think the persona tag
 		// belongs to anyone. Just reject this on Nakama's end so the user can try a different persona tag.
 		// Incidentally, trying the same persona tag might work.

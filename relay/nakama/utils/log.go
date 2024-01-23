@@ -3,7 +3,7 @@ package utils
 import (
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/relay/nakama/nakama_errors"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 )
 
 var (
@@ -45,7 +45,7 @@ func LogErrorFailedPrecondition(
 	logger runtime.Logger,
 	err error,
 ) (string, error) {
-	return LogError(logger, err, nakama_errors.FailedPrecondition)
+	return LogError(logger, err, nakamaerrors.FailedPrecondition)
 }
 
 func LogDebug(
