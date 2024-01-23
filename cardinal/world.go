@@ -184,7 +184,7 @@ func applyProductionOptions(
 		return eris.New("must supply BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_QUERY_ADDRESS for production " +
 			"mode Cardinal worlds")
 	}
-	adapter, err := adapter.NewAdapter(adapter.AdapterConfig{
+	adapter, err := adapter.New(adapter.Config{
 		ShardSequencerAddr: cfg.BaseShardSequencerAddress,
 		EVMBaseShardAddr:   cfg.BaseShardQueryAddress,
 	})

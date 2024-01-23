@@ -41,7 +41,7 @@ type QueryAdapter interface {
 		*shardtypes.QueryTransactionsRequest) (*shardtypes.QueryTransactionsResponse, error)
 }
 
-type AdapterConfig struct {
+type Config struct {
 	// ShardSequencerAddr is the address to submit transactions to the EVM base shard's game shard sequencer server.
 	ShardSequencerAddr string
 
@@ -54,7 +54,7 @@ var (
 )
 
 type adapterImpl struct {
-	cfg            AdapterConfig
+	cfg            Config
 	ShardSequencer shard.TransactionHandlerClient
 	ShardQuerier   shardtypes.QueryClient
 
@@ -82,7 +82,7 @@ func loadClientCredentials(path string) (credentials.TransportCredentials, error
 	return credentials.NewTLS(config), nil
 }
 
-func NewAdapter(cfg AdapterConfig, opts ...Option) (Adapter, error) {
+func New(cfg Config, opts ...Option) (Adapter, error) {
 	a := &adapterImpl{cfg: cfg, creds: insecure.NewCredentials()}
 	for _, opt := range opts {
 		opt(a)
