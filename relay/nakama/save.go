@@ -127,7 +127,7 @@ func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 			return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "failed to get persona for save"))
 		}
 	} else {
-		if p.Status == persona.PersonaTagStatusAccepted {
+		if p.Status == persona.StatusAccepted {
 			personaTag = p.PersonaTag
 		}
 	}

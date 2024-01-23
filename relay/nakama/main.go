@@ -24,8 +24,6 @@ import (
 )
 
 var (
-	globalNamespace string
-
 	globalPersonaTagAssignment = sync.Map{}
 
 	globalReceiptsDispatcher *dispatcher.ReceiptsDispatcher
@@ -137,12 +135,12 @@ func initPersonaTagAssignmentMap(ctx context.Context, logger runtime.Logger, nk 
 		logger.Debug("found %d persona tag storage objects", len(objs))
 		for _, obj := range objs {
 			userID := obj.UserId
-			var ptr *persona.PersonaTagStorageObj
+			var ptr *persona.StorageObj
 			ptr, err = persona.StorageObjToPersonaTagStorageObj(obj)
 			if err != nil {
 				return err
 			}
-			if ptr.Status == persona.PersonaTagStatusAccepted || ptr.Status == persona.PersonaTagStatusPending {
+			if ptr.Status == persona.StatusAccepted || ptr.Status == persona.StatusPending {
 				logger.Debug("%s has been assigned to %s", ptr.PersonaTag, userID)
 				globalPersonaTagAssignment.Store(ptr.PersonaTag, userID)
 			}
@@ -158,7 +156,7 @@ func initPersonaTagAssignmentMap(ctx context.Context, logger runtime.Logger, nk 
 func initPersonaTagEndpoints(
 	_ runtime.Logger,
 	initializer runtime.Initializer,
-	ptv *persona.PersonaTagVerifier,
+	ptv *persona.Verifier,
 	notifier *receiptNotifier) error {
 	if err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(ptv, notifier)); err != nil {
 		return eris.Wrap(err, "")
@@ -174,7 +172,7 @@ type nakamaRPCHandler func(ctx context.Context, logger runtime.Logger, db *sql.D
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
 //
 //nolint:gocognit
-func handleClaimPersona(ptv *persona.PersonaTagVerifier, notifier *receiptNotifier) nakamaRPCHandler {
+func handleClaimPersona(ptv *persona.Verifier, notifier *receiptNotifier) nakamaRPCHandler {
 	return func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (
 		string, error) {
 		userID, err := utils.GetUserID(ctx)
@@ -193,7 +191,7 @@ func handleClaimPersona(ptv *persona.PersonaTagVerifier, notifier *receiptNotifi
 				"unable to claim persona tag")
 		}
 
-		ptr := &persona.PersonaTagStorageObj{}
+		ptr := &persona.StorageObj{}
 		if err := json.Unmarshal([]byte(payload), ptr); err != nil {
 			return utils.LogErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "unable to marshal payload")
 		}
@@ -213,21 +211,21 @@ func handleClaimPersona(ptv *persona.PersonaTagVerifier, notifier *receiptNotifi
 			}
 		} else {
 			switch tag.Status {
-			case persona.PersonaTagStatusPending:
+			case persona.StatusPending:
 				return utils.LogDebugWithMessageAndCode(
 					logger,
 					eris.Errorf("persona tag %q is pending for this account", tag.PersonaTag),
 					nakamaerrors.AlreadyExists,
 					"persona tag %q is pending", tag.PersonaTag,
 				)
-			case persona.PersonaTagStatusAccepted:
+			case persona.StatusAccepted:
 				return utils.LogErrorWithMessageAndCode(
 					logger,
 					eris.Errorf("persona tag %q already associated with this account", tag.PersonaTag),
 					nakamaerrors.AlreadyExists,
 					"persona tag %q already associated with this account",
 					tag.PersonaTag)
-			case persona.PersonaTagStatusRejected:
+			case persona.StatusRejected:
 				// if the tag was rejected, don't do anything. let the user try to claim another tag.
 			}
 		}
@@ -238,7 +236,7 @@ func handleClaimPersona(ptv *persona.PersonaTagVerifier, notifier *receiptNotifi
 		}
 		notifier.AddTxHashToPendingNotifications(txHash, userID)
 
-		ptr.Status = persona.PersonaTagStatusPending
+		ptr.Status = persona.StatusPending
 		if err = ptr.SavePersonaTagStorageObj(ctx, nk); err != nil {
 			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
 		}
@@ -246,7 +244,7 @@ func handleClaimPersona(ptv *persona.PersonaTagVerifier, notifier *receiptNotifi
 		// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
 		// user having the persona tag.
 		if ok := setPersonaTagAssignment(ptr.PersonaTag, userID); !ok {
-			ptr.Status = persona.PersonaTagStatusRejected
+			ptr.Status = persona.StatusRejected
 			if err = ptr.SavePersonaTagStorageObj(ctx, nk); err != nil {
 				return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
 			}
@@ -427,7 +425,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 		return nil, err
 	}
 
-	if ptr.Status != persona.PersonaTagStatusAccepted {
+	if ptr.Status != persona.StatusAccepted {
 		return nil, eris.Wrap(nakamaerrors.ErrNoPersonaTagForUser, "")
 	}
 	personaTag := ptr.PersonaTag
@@ -435,7 +433,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 	if err != nil {
 		return nil, err
 	}
-	sp, err := sign.NewTransaction(pk, personaTag, globalNamespace, nonce, payload)
+	sp, err := sign.NewTransaction(pk, personaTag, utils.GlobalNamespace, nonce, payload)
 	if err != nil {
 		return nil, err
 	}

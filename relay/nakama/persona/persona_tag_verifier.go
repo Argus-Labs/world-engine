@@ -9,11 +9,11 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-// PersonaTagVerifier is a helper struct that asynchronously collects both persona tag registration requests (from
+// Verifier is a helper struct that asynchronously collects both persona tag registration requests (from
 // nakama) AND persona tag transaction receipts from cardinal. When the result of both systems has been recorded,
-// this struct attempts to update the user's PersonaTagStorageObj to reflect the success/failure of the claim persona
+// this struct attempts to update the user's StorageObj to reflect the success/failure of the claim persona
 // tag request.
-type PersonaTagVerifier struct {
+type Verifier struct {
 	// txHashToPending keeps track of the state of pending claim persona tag requests. A sync.Map is not required
 	// because all map updates happen in a single goroutine. Updates are transmitted to the goroutine
 	// via the receiptCh channel and the pendingCh channel.
@@ -35,10 +35,9 @@ type txHashAndUserID struct {
 	userID string
 }
 
-//nolint:gosec // its ok
 const personaVerifierSessionName = "persona_verifier_session"
 
-func (p *PersonaTagVerifier) AddPendingPersonaTag(userID, txHash string) {
+func (p *Verifier) AddPendingPersonaTag(userID, txHash string) {
 	p.pendingCh <- txHashAndUserID{
 		userID: userID,
 		txHash: txHash,
@@ -46,9 +45,9 @@ func (p *PersonaTagVerifier) AddPendingPersonaTag(userID, txHash string) {
 }
 
 func InitPersonaTagVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *dispatcher.ReceiptsDispatcher,
-) *PersonaTagVerifier {
+) *Verifier {
 	channelLimit := 100
-	ptv := &PersonaTagVerifier{
+	ptv := &Verifier{
 		txHashToPending: map[string]pendingPersonaTagRequest{},
 		receiptCh:       make(dispatcher.ReceiptChan, channelLimit),
 		pendingCh:       make(chan txHashAndUserID),
@@ -60,12 +59,12 @@ func InitPersonaTagVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *
 	return ptv
 }
 
-func (p *PersonaTagVerifier) consume() {
-	cleanupTick := time.Tick(time.Minute)
+func (p *Verifier) consume() {
+	cleanupTick := time.NewTicker(time.Minute)
 	for {
 		var currTxHash string
 		select {
-		case now := <-cleanupTick:
+		case now := <-cleanupTick.C:
 			p.cleanupStaleEntries(now)
 		case receipt := <-p.receiptCh:
 			currTxHash = p.handleReceipt(receipt)
@@ -81,7 +80,7 @@ func (p *PersonaTagVerifier) consume() {
 	}
 }
 
-func (p *PersonaTagVerifier) cleanupStaleEntries(now time.Time) {
+func (p *Verifier) cleanupStaleEntries(now time.Time) {
 	for key, val := range p.txHashToPending {
 		if diff := now.Sub(val.lastUpdate); diff > time.Minute {
 			delete(p.txHashToPending, key)
@@ -89,7 +88,7 @@ func (p *PersonaTagVerifier) cleanupStaleEntries(now time.Time) {
 	}
 }
 
-func (p *PersonaTagVerifier) handleReceipt(receipt *dispatcher.Receipt) string {
+func (p *Verifier) handleReceipt(receipt *dispatcher.Receipt) string {
 	result, ok := receipt.Result["Success"]
 	if !ok {
 		return ""
@@ -101,15 +100,15 @@ func (p *PersonaTagVerifier) handleReceipt(receipt *dispatcher.Receipt) string {
 	pending := p.txHashToPending[receipt.TxHash]
 	pending.lastUpdate = time.Now()
 	if success {
-		pending.status = PersonaTagStatusAccepted
+		pending.status = StatusAccepted
 	} else {
-		pending.status = PersonaTagStatusRejected
+		pending.status = StatusRejected
 	}
 	p.txHashToPending[receipt.TxHash] = pending
 	return receipt.TxHash
 }
 
-func (p *PersonaTagVerifier) handlePending(tuple txHashAndUserID) string {
+func (p *Verifier) handlePending(tuple txHashAndUserID) string {
 	pending := p.txHashToPending[tuple.txHash]
 	pending.lastUpdate = time.Now()
 	pending.userID = tuple.userID
@@ -117,7 +116,7 @@ func (p *PersonaTagVerifier) handlePending(tuple txHashAndUserID) string {
 	return tuple.txHash
 }
 
-func (p *PersonaTagVerifier) attemptVerification(txHash string) error {
+func (p *Verifier) attemptVerification(txHash string) error {
 	pending, ok := p.txHashToPending[txHash]
 	if !ok || pending.userID == "" || pending.status == "" {
 		// We're missing a success/failure message from cardinal or the initial request from the
@@ -131,7 +130,7 @@ func (p *PersonaTagVerifier) attemptVerification(txHash string) error {
 	if err != nil {
 		return eris.Wrap(err, "unable to get persona tag storage obj")
 	}
-	if ptr.Status != PersonaTagStatusPending {
+	if ptr.Status != StatusPending {
 		return eris.Errorf("expected a pending persona tag status but got %q", ptr.Status)
 	}
 	ptr.Status = pending.status
