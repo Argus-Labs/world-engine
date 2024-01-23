@@ -1,7 +1,6 @@
 package server_test
 
 import (
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -10,20 +9,19 @@ import (
 	"gotest.tools/v3/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 func TestDebugEndpoint(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	tf := testutils.NewTestFixture(t, nil)
+	engine := tf.Engine
 
 	assert.NilError(t, ecs.RegisterComponent[Alpha](engine))
 	assert.NilError(t, ecs.RegisterComponent[Beta](engine))
 	assert.NilError(t, ecs.RegisterComponent[Gamma](engine))
 
-	assert.NilError(t, engine.LoadGameState())
-	ctx := context.Background()
+	tf.StartWorld()
 	worldCtx := ecs.NewEngineContext(engine)
 	_, err := ecs.CreateMany(worldCtx, 10, Alpha{})
 	assert.NilError(t, err)
@@ -39,10 +37,8 @@ func TestDebugEndpoint(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = ecs.CreateMany(worldCtx, 10, Alpha{}, Beta{}, Gamma{})
 	assert.NilError(t, err)
-	err = engine.Tick(ctx)
-	assert.NilError(t, err)
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
-	resp := txh.Get("debug/state")
+	tf.DoTick()
+	resp := tf.Get("debug/state")
 	assert.Equal(t, resp.StatusCode, 200)
 	bz, err := io.ReadAll(resp.Body)
 	assert.NilError(t, err)
@@ -53,7 +49,8 @@ func TestDebugEndpoint(t *testing.T) {
 }
 
 func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	tf := testutils.NewTestFixture(t, nil)
+	engine := tf.Engine
 
 	// midTickCh is used to ensure the /debug/state call starts and ends in the middle of a System tick.
 	midTickCh := make(chan struct{})
@@ -86,7 +83,7 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 		},
 	)
 
-	assert.NilError(t, engine.LoadGameState())
+	tf.StartWorld()
 	worldCtx := ecs.NewEngineContext(engine)
 	var err error
 	targetID, err = ecs.Create(worldCtx, Delta{})
@@ -96,13 +93,14 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	defer func() {
 		close(startNextTick)
 	}()
+
+	// This test is meant to make sure we read data in the MIDDLE of a tick, and since DoTick is a blocking call,
+	// we need to run it in a goroutine so it doesn't block the main test thread.
 	go func() {
-		// Ignore errors from these ticks. This tests is focused on making sure we're reading from the write places.
-		ctx := context.Background()
 		// Tick one: Make sure the entity is created
-		_ = engine.Tick(ctx)
+		tf.DoTick()
 		for range startNextTick {
-			_ = engine.Tick(ctx)
+			tf.DoTick()
 		}
 	}()
 
@@ -110,8 +108,6 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 	midTickCh <- struct{}{}
 	midTickCh <- struct{}{}
 
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
-	defer txh.Close()
 	testCases := []struct {
 		name            string
 		makeHTTPRequest func() *http.Response
@@ -119,13 +115,13 @@ func TestDebugAndCQLEndpointMustAccessReadOnlyData(t *testing.T) {
 		{
 			name: "use /debug/state",
 			makeHTTPRequest: func() *http.Response {
-				return txh.Get("debug/state")
+				return tf.Get("debug/state")
 			},
 		},
 		{
 			name: "use cql",
 			makeHTTPRequest: func() *http.Response {
-				return txh.Post(
+				return tf.Post(
 					"query/game/cql", map[string]string{
 						"CQL": "EXACT(delta)",
 					},

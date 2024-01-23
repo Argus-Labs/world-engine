@@ -7,10 +7,12 @@ import (
 	"pkg.world.dev/world-engine/assert"
 
 	"github.com/alicebob/miniredis/v2"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
@@ -58,7 +60,7 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	// This redisStore will be used to create multiple engines to ensure state is consistent across the engines.
 	redisStore := miniredis.RunT(t)
 
-	oneEngine := testutil.InitEngineWithRedis(t, redisStore)
+	oneEngine := testutils.NewTestFixture(t, redisStore).Engine
 	assert.NilError(t, ecs.RegisterComponent[OneAlphaNum](oneEngine))
 	assert.NilError(t, oneEngine.LoadGameState())
 
@@ -68,25 +70,25 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	assert.NilError(t, oneEngine.Tick(context.Background()))
 
 	// Too few components registered
-	twoEngine := testutil.InitEngineWithRedis(t, redisStore)
+	twoEngine := testutils.NewTestFixture(t, redisStore).Engine
 	err = twoEngine.LoadGameState()
-	assert.ErrorContains(t, err, storage.ErrComponentMismatchWithSavedState.Error())
+	assert.ErrorContains(t, err, iterators.ErrComponentMismatchWithSavedState.Error())
 
 	// It's ok to register extra components.
-	threeEngine := testutil.InitEngineWithRedis(t, redisStore)
+	threeEngine := testutils.NewTestFixture(t, redisStore).Engine
 	assert.NilError(t, ecs.RegisterComponent[ThreeAlphaNum](threeEngine))
 	assert.NilError(t, ecs.RegisterComponent[ThreeBetaNum](threeEngine))
 	assert.NilError(t, threeEngine.LoadGameState())
 
 	// Just the right number of components registered
-	fourEngine := testutil.InitEngineWithRedis(t, redisStore)
+	fourEngine := testutils.NewTestFixture(t, redisStore).Engine
 	assert.NilError(t, ecs.RegisterComponent[FoundAlphaNum](fourEngine))
 	assert.NilError(t, fourEngine.LoadGameState())
 }
 
 func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	redisStore := miniredis.RunT(t)
-	oneEngine := testutil.InitEngineWithRedis(t, redisStore)
+	oneEngine := testutils.NewTestFixture(t, redisStore).Engine
 	assert.NilError(t, ecs.RegisterComponent[NumberComponent](oneEngine))
 	assert.NilError(t, oneEngine.LoadGameState())
 
@@ -103,7 +105,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, oneEngine.Tick(context.Background()))
 
 	// Make a second instance of the engine using the same storage.
-	twoEngine := testutil.InitEngineWithRedis(t, redisStore)
+	twoEngine := testutils.NewTestFixture(t, redisStore).Engine
 	assert.NilError(t, ecs.RegisterComponent[NumberComponent](twoEngine))
 	assert.NilError(t, twoEngine.LoadGameState())
 	twoNum, err := twoEngine.GetComponentByName(NumberComponent{}.Name())
@@ -121,7 +123,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	redisStore := miniredis.RunT(t)
 
-	oneEngine := testutil.InitEngineWithRedis(t, redisStore)
+	oneEngine := testutils.NewTestFixture(t, redisStore).Engine
 	assert.NilError(t, ecs.RegisterComponent[OneAlphaNum](oneEngine))
 	assert.NilError(t, ecs.RegisterComponent[OneBetaNum](oneEngine))
 	assert.NilError(t, oneEngine.LoadGameState())
@@ -153,7 +155,7 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 	// Create a brand new engine, but use the original redis store. We should be able to load
 	// the game state from the redis store (including archetype indices).
-	twoEngine := testutil.InitEngineWithRedis(t, redisStore)
+	twoEngine := testutils.NewTestFixture(t, redisStore).Engine
 	// The ordering of registering these components is important. It must match the ordering above.
 	assert.NilError(t, ecs.RegisterComponent[TwoAlphaNum](twoEngine))
 	assert.NilError(t, ecs.RegisterComponent[TwoBetaNum](twoEngine))
@@ -177,7 +179,7 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	// it never created any entities
 	assert.NilError(t, twoEngine.Tick(context.Background()))
 
-	threeEngine := testutil.InitEngineWithRedis(t, redisStore)
+	threeEngine := testutils.NewTestFixture(t, redisStore).Engine
 	// Again, the ordering of registering these components is important. It must match the ordering above
 	assert.NilError(t, ecs.RegisterComponent[ThreeAlphaNum](threeEngine))
 	assert.NilError(t, ecs.RegisterComponent[ThreeBetaNum](threeEngine))
@@ -213,7 +215,7 @@ func (oneAlphaNumComp) Name() string {
 
 func TestCanReloadState(t *testing.T) {
 	redisStore := miniredis.RunT(t)
-	alphaEngine := testutil.InitEngineWithRedis(t, redisStore)
+	alphaEngine := testutils.NewTestFixture(t, redisStore).Engine
 	assert.NilError(t, ecs.RegisterComponent[oneAlphaNumComp](alphaEngine))
 
 	oneAlphaNum, err := alphaEngine.GetComponentByName(oneAlphaNumComp{}.Name())
@@ -241,7 +243,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, alphaEngine.Tick(context.Background()))
 
 	// Make a new engine, using the original redis DB that (hopefully) has our data
-	betaEngine := testutil.InitEngineWithRedis(t, redisStore)
+	betaEngine := testutils.NewTestFixture(t, redisStore).Engine
 	assert.NilError(t, ecs.RegisterComponent[OneBetaNum](betaEngine))
 	assert.NilError(t, betaEngine.LoadGameState())
 
@@ -270,7 +272,7 @@ func TestEngineTickAndHistoryTickMatch(t *testing.T) {
 	// Ensure that across multiple reloads, getting the transaction receipts for a tick
 	// that is still in the tx receipt history window will not return any errors.
 	for reload := 0; reload < 5; reload++ {
-		engine := testutil.InitEngineWithRedis(t, redisStore)
+		engine := testutils.NewTestFixture(t, redisStore).Engine
 		assert.NilError(t, engine.LoadGameState())
 		relevantTick := engine.CurrentTick()
 		for i := 0; i < 5; i++ {
@@ -293,7 +295,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 	// Ensure that across multiple reloads we can queue up transactions, execute those transactions
 	// in a tick, and then find those transactions in the tx receipt history.
 	for reload := 0; reload < 5; reload++ {
-		engine := testutil.InitEngineWithRedis(t, redisStore)
+		engine := testutils.NewTestFixture(t, redisStore).Engine
 		assert.NilError(t, engine.RegisterMessages(someTx))
 		engine.RegisterSystem(
 			func(eCtx ecs.EngineContext) error {
