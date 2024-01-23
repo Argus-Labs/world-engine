@@ -9,7 +9,7 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
@@ -144,8 +144,8 @@ func (r *readOnlyManager) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID
 	return ids, nil
 }
 
-func (r *readOnlyManager) SearchFrom(filter filter.ComponentFilter, start int) *storage.ArchetypeIterator {
-	itr := &storage.ArchetypeIterator{}
+func (r *readOnlyManager) SearchFrom(filter filter.ComponentFilter, start int) *iterators.ArchetypeIterator {
+	itr := &iterators.ArchetypeIterator{}
 	if err := r.refreshArchIDToCompTypes(); err != nil {
 		return itr
 	}
