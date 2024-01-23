@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -51,7 +50,7 @@ func TestPrivateKeyCanBeLoadedFromDB(t *testing.T) {
 		Return(storeReadResult, nil).
 		Once()
 
-	err = initPrivateKey(context.Background(), utils.NoopLogger(t), nk)
+	err = initPrivateKey(context.Background(), NoopLogger(t), nk)
 	assert.NilError(t, err)
 	assert.Check(t, nil != globalPrivateKey)
 	assert.Check(t, globalPrivateKey.Equal(wantPrivateKey))
@@ -78,7 +77,7 @@ func TestPrivateKeyIsGenerated(t *testing.T) {
 		Return(nil, nil).
 		Once()
 
-	err := initPrivateKey(context.Background(), utils.NoopLogger(t), nk)
+	err := initPrivateKey(context.Background(), NoopLogger(t), nk)
 	assert.NilError(t, err)
 	assert.Check(t, nil != globalPrivateKey)
 }
