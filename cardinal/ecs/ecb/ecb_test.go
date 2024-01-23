@@ -2,11 +2,13 @@ package ecb_test
 
 import (
 	"context"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
+
 	"runtime"
 	"testing"
 	"time"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -18,7 +20,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
@@ -221,7 +222,7 @@ func TestCannotGetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 	// barComp has not been assigned to this entity
 	_, err = manager.GetComponentForEntity(barComp, id)
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 }
 
 func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
@@ -230,7 +231,7 @@ func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 	// barComp has not been assigned to this entity
 	err = manager.SetComponentForEntity(barComp, id, Bar{100})
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 }
 
 func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testing.T) {
@@ -238,7 +239,7 @@ func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testi
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	err = manager.RemoveComponentFromEntity(barComp, id)
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 }
 
 func TestCanAddAComponentToAnEntity(t *testing.T) {
@@ -285,7 +286,7 @@ func TestCannotAddComponentToEntityThatAlreadyHasTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 
 	err = manager.AddComponentToEntity(fooComp, id)
-	assert.ErrorIs(t, err, storage.ErrComponentAlreadyOnEntity)
+	assert.ErrorIs(t, err, iterators.ErrComponentAlreadyOnEntity)
 }
 
 type Health struct {

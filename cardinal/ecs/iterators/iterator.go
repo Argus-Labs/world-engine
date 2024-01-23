@@ -1,4 +1,4 @@
-package storage
+package iterators
 
 import (
 	"pkg.world.dev/world-engine/cardinal/types/archetype"

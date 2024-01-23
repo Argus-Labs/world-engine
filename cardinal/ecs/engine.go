@@ -18,11 +18,11 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
@@ -253,7 +253,7 @@ func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, e
 	componentType, exists := e.nameToComponent[name]
 	if !exists {
 		return nil, eris.Wrapf(
-			storage.ErrMustRegisterComponent,
+			iterators.ErrMustRegisterComponent,
 			"component %q must be registered before being used", name)
 	}
 	return componentType, nil
