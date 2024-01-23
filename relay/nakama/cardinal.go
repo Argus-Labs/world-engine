@@ -39,7 +39,7 @@ type endpoints struct {
 
 func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err error) {
 	var resp *http.Response
-	url := utils.MakeHTTPURL(listEndpoints)
+	url := utils.MakeHTTPURL(listEndpoints, globalCardinalAddress)
 	//nolint:gosec,noctx // its ok. maybe revisit.
 	resp, err = http.Post(url, "", nil)
 	if err != nil {
@@ -89,7 +89,7 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, eris.Wrapf(err, "unable to get the private key or a nonce")
 	}
 
-	transaction, err := sign.NewSystemTransaction(key, utils.GlobalNamespace, nonce, createPersonaTx)
+	transaction, err := sign.NewSystemTransaction(key, globalNamespace, nonce, createPersonaTx)
 
 	if err != nil {
 		return "", 0, eris.Wrapf(err, "unable to create signed payload")
@@ -103,7 +103,7 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
-		utils.MakeHTTPURL(createPersonaEndpoint),
+		utils.MakeHTTPURL(createPersonaEndpoint, globalCardinalAddress),
 		bytes.NewReader(buf),
 	)
 	if err != nil {
@@ -146,7 +146,7 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uin
 	if err != nil {
 		return "", eris.Wrap(err, "")
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, utils.MakeHTTPURL(readPersonaSignerEndpoint),
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, utils.MakeHTTPURL(readPersonaSignerEndpoint, globalCardinalAddress),
 		bytes.NewReader(buf))
 	if err != nil {
 		return "", eris.Wrap(err, "")

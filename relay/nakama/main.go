@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"os"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"strings"
@@ -22,6 +23,9 @@ import (
 type receiptChan chan *Receipt
 
 const (
+	EnvCardinalAddr      = "CARDINAL_ADDR"
+	EnvCardinalNamespace = "CARDINAL_NAMESPACE"
+
 	cardinalCollection = "cardinalCollection"
 	personaTagKey      = "personaTag"
 
@@ -29,6 +33,8 @@ const (
 )
 
 var (
+	globalCardinalAddress      string
+	globalNamespace            string
 	globalPersonaTagAssignment = sync.Map{}
 
 	globalReceiptsDispatcher *receiptsDispatcher
@@ -41,13 +47,13 @@ func InitModule(
 	nk runtime.NakamaModule,
 	initializer runtime.Initializer,
 ) error {
-	utils.DebugEnabled = utils.GetDebugModeFromEnvironment()
+	utils.DebugEnabled = getDebugModeFromEnvironment()
 
-	if err := utils.InitCardinalAddress(); err != nil {
+	if err := initCardinalAddress(); err != nil {
 		return eris.Wrap(err, "failed to init cardinal address")
 	}
 
-	if err := utils.InitNamespace(); err != nil {
+	if err := initNamespace(); err != nil {
 		return eris.Wrap(err, "failed to init namespace")
 	}
 
@@ -347,7 +353,7 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 					return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make payload")
 				}
 
-				req, err := http.NewRequestWithContext(ctx, http.MethodPost, utils.MakeHTTPURL(currEndpoint), resultPayload)
+				req, err := http.NewRequestWithContext(ctx, http.MethodPost, utils.MakeHTTPURL(currEndpoint, globalCardinalAddress), resultPayload)
 				req.Header.Set("Content-Type", "application/json")
 				if err != nil {
 					return utils.LogErrorMessageFailedPrecondition(logger, err, "request setup failed for endpoint %q", currEndpoint)
@@ -438,7 +444,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 	if err != nil {
 		return nil, err
 	}
-	sp, err := sign.NewTransaction(pk, personaTag, utils.GlobalNamespace, nonce, payload)
+	sp, err := sign.NewTransaction(pk, personaTag, globalNamespace, nonce, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -447,4 +453,25 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 		return nil, eris.Wrap(err, "")
 	}
 	return bytes.NewReader(buf), nil
+}
+
+func initCardinalAddress() error {
+	globalCardinalAddress = os.Getenv(EnvCardinalAddr)
+	if globalCardinalAddress == "" {
+		return eris.Errorf("must specify a cardinal server via %s", EnvCardinalAddr)
+	}
+	return nil
+}
+
+func initNamespace() error {
+	globalNamespace = os.Getenv(EnvCardinalNamespace)
+	if globalNamespace == "" {
+		return eris.Errorf("must specify a cardinal namespace via %s", EnvCardinalNamespace)
+	}
+	return nil
+}
+
+func getDebugModeFromEnvironment() bool {
+	devModeString := os.Getenv("ENABLE_DEBUG")
+	return strings.ToLower(devModeString) == "true"
 }
