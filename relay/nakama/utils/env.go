@@ -34,12 +34,5 @@ func InitNamespace() error {
 
 func GetDebugModeFromEnvironment() bool {
 	devModeString := os.Getenv("ENABLE_DEBUG")
-	switch strings.ToLower(devModeString) {
-	case "true":
-		return true
-	case "false":
-		return false
-	default:
-		return false
-	}
+	return strings.ToLower(devModeString) == "true"
 }
