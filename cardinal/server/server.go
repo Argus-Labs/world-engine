@@ -98,6 +98,11 @@ func (s *Server) setupSwagger() error {
 	if err != nil {
 		return eris.Wrap(err, "failed to crate temp file for swagger")
 	}
+	defer func() {
+		if err := os.Remove(file.Name()); err != nil {
+			log.Error().Err(err).Msgf("failed to delete temporary swagger file %q", file.Name())
+		}
+	}()
 	_, err = file.Write(swaggerData)
 	if err != nil {
 		return eris.Wrap(err, "failed to write swagger data to file")
@@ -109,9 +114,6 @@ func (s *Server) setupSwagger() error {
 	}
 	s.app.Use(swagger.New(cfg))
 
-	if err := os.Remove(file.Name()); err != nil {
-		return eris.Wrap(err, "failed to remove swagger temp file")
-	}
 	return nil
 }
 
