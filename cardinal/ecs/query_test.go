@@ -2,12 +2,11 @@ package ecs_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/shard/evm"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-
-	"pkg.world.dev/world-engine/cardinal/evm"
 
 	"pkg.world.dev/world-engine/assert"
 
