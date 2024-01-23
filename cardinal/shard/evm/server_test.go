@@ -2,12 +2,12 @@ package evm_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/shard/evm"
 	"strings"
 	"testing"
 	"time"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/evm"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"gotest.tools/v3/assert/cmp"
