@@ -146,8 +146,12 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uin
 	if err != nil {
 		return "", eris.Wrap(err, "")
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, utils.MakeHTTPURL(readPersonaSignerEndpoint, globalCardinalAddress),
-		bytes.NewReader(buf))
+	httpReq, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		utils.MakeHTTPURL(readPersonaSignerEndpoint, globalCardinalAddress),
+		bytes.NewReader(buf),
+	)
 	if err != nil {
 		return "", eris.Wrap(err, "")
 	}

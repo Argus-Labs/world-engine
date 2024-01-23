@@ -34,7 +34,6 @@ type txHashAndUserID struct {
 	userID string
 }
 
-//nolint:gosec // its ok
 const personaVerifierSessionName = "persona_verifier_session"
 
 func (p *personaTagVerifier) addPendingPersonaTag(userID, txHash string) {

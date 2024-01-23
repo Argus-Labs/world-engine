@@ -353,7 +353,12 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 					return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make payload")
 				}
 
-				req, err := http.NewRequestWithContext(ctx, http.MethodPost, utils.MakeHTTPURL(currEndpoint, globalCardinalAddress), resultPayload)
+				req, err := http.NewRequestWithContext(
+					ctx,
+					http.MethodPost,
+					utils.MakeHTTPURL(currEndpoint, globalCardinalAddress),
+					resultPayload,
+				)
 				req.Header.Set("Content-Type", "application/json")
 				if err != nil {
 					return utils.LogErrorMessageFailedPrecondition(logger, err, "request setup failed for endpoint %q", currEndpoint)
