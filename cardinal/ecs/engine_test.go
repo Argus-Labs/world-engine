@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/ethereum/go-ethereum/common"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
-	"testing"
-	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -22,7 +24,7 @@ import (
 )
 
 func TestCanWaitForNextTick(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
 	assert.NilError(t, engine.LoadGameState())
@@ -53,7 +55,7 @@ func TestCanWaitForNextTick(t *testing.T) {
 }
 
 func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
 	assert.NilError(t, engine.LoadGameState())
@@ -96,7 +98,7 @@ func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
 }
 
 func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
 	assert.NilError(t, engine.LoadGameState())
@@ -122,7 +124,7 @@ func TestEVMTxConsume(t *testing.T) {
 	type FooOut struct {
 		Y string
 	}
-	e := testutils.NewTestWorld(t).Engine()
+	e := testutils.NewTestFixture(t, nil).Engine
 	fooTx := ecs.NewMessageType[FooIn, FooOut]("foo", ecs.WithMsgEVMSupport[FooIn, FooOut]())
 	assert.NilError(t, e.RegisterMessages(fooTx))
 	var returnVal FooOut
@@ -179,7 +181,7 @@ func TestAddSystems(t *testing.T) {
 		return nil
 	}
 
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	engine.RegisterSystems(sys, sys, sys)
 	err := engine.LoadGameState()
 	assert.NilError(t, err)
@@ -191,7 +193,7 @@ func TestAddSystems(t *testing.T) {
 }
 
 func TestSystemExecutionOrder(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	order := make([]int, 0, 3)
 	engine.RegisterSystems(
 		func(ecs.EngineContext) error {
@@ -217,12 +219,12 @@ func TestSystemExecutionOrder(t *testing.T) {
 func TestSetNamespace(t *testing.T) {
 	namespace := "test"
 	t.Setenv("CARDINAL_NAMESPACE", namespace)
-	e := testutils.NewTestWorld(t).Engine()
+	e := testutils.NewTestFixture(t, nil).Engine
 	assert.Equal(t, e.Namespace().String(), namespace)
 }
 
 func TestWithoutRegistration(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	eCtx := ecs.NewEngineContext(engine)
 	id, err := ecs.Create(eCtx, EnergyComponent{}, OwnableComponent{})
 	assert.Assert(t, err != nil)
@@ -295,18 +297,18 @@ var _ shard.Adapter = &dummyAdapter{}
 // TestAdapterCalledAfterTick tests that when messages are executed in a tick, they are forwarded to the adapter.
 func TestAdapterCalledAfterTick(t *testing.T) {
 	adapter := &dummyAdapter{}
-	world := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Engine()
+	engine := testutils.NewTestFixture(t, nil, cardinal.WithAdapter(adapter)).Engine
 
-	world.RegisterSystem(func(worldContext ecs.EngineContext) error {
+	engine.RegisterSystem(func(engineContext ecs.EngineContext) error {
 		return nil
 	})
 	fooMessage := ecs.NewMessageType[struct{}, struct{}]("foo")
-	err := world.RegisterMessages(fooMessage)
+	err := engine.RegisterMessages(fooMessage)
 	assert.NilError(t, err)
-	err = world.LoadGameState()
+	err = engine.LoadGameState()
 	assert.NilError(t, err)
 
-	fooMessage.AddToQueue(world, struct{}{}, &sign.Transaction{
+	fooMessage.AddToQueue(engine, struct{}{}, &sign.Transaction{
 		PersonaTag: "meow",
 		Namespace:  "foo",
 		Nonce:      22,
@@ -314,7 +316,7 @@ func TestAdapterCalledAfterTick(t *testing.T) {
 		Hash:       common.Hash{},
 		Body:       json.RawMessage(`{}`),
 	})
-	fooMessage.AddToQueue(world, struct{}{}, &sign.Transaction{
+	fooMessage.AddToQueue(engine, struct{}{}, &sign.Transaction{
 		PersonaTag: "meow",
 		Namespace:  "foo",
 		Nonce:      23,
@@ -322,10 +324,10 @@ func TestAdapterCalledAfterTick(t *testing.T) {
 		Hash:       common.Hash{},
 		Body:       json.RawMessage(`{}`),
 	})
-	err = world.Tick(context.Background())
+	err = engine.Tick(context.Background())
 	assert.NilError(t, err)
 
 	assert.Len(t, adapter.txs[fooMessage.ID()], 2)
-	assert.Equal(t, world.Namespace().String(), adapter.ns)
-	assert.Equal(t, world.CurrentTick()-1, adapter.epoch)
+	assert.Equal(t, engine.Namespace().String(), adapter.ns)
+	assert.Equal(t, engine.CurrentTick()-1, adapter.epoch)
 }

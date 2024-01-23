@@ -17,7 +17,7 @@ import (
 func TestQueryTypeNotStructs(t *testing.T) {
 	str := "blah"
 	err := ecs.RegisterQuery[string, string](
-		testutils.NewTestWorld(t).Engine(),
+		testutils.NewTestFixture(t, nil).Engine,
 		"foo",
 		func(eCtx ecs.EngineContext, req *string) (*string, error) {
 			return &str, nil
@@ -41,7 +41,7 @@ func TestQueryEVM(t *testing.T) {
 		Age:  22,
 	}
 
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	err := ecs.RegisterQuery[FooRequest, FooReply](
 		engine,
 		"foo",
@@ -92,14 +92,20 @@ func TestErrOnNoNameOrHandler(t *testing.T) {
 		{
 			name: "error on no name",
 			createQuery: func() error {
-				return ecs.RegisterQuery[foo, foo](testutils.NewTestWorld(t).Engine(), "", nil)
+				return ecs.RegisterQuery[foo, foo](
+					testutils.NewTestFixture(t, nil).Engine,
+					"",
+					nil)
 			},
 			shouldErr: true,
 		},
 		{
 			name: "error on no handler",
 			createQuery: func() error {
-				return ecs.RegisterQuery[foo, foo](testutils.NewTestWorld(t).Engine(), "foo", nil)
+				return ecs.RegisterQuery[foo, foo](
+					testutils.NewTestFixture(t, nil).Engine,
+					"foo",
+					nil)
 			},
 			shouldErr: true,
 		},

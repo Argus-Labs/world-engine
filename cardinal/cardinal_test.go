@@ -2,7 +2,6 @@ package cardinal_test
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -39,20 +38,12 @@ type Rawbodytx struct {
 }
 
 func TestCreatePersona(t *testing.T) {
-	var wg sync.WaitGroup
 	namespace := "custom-namespace"
 	t.Setenv("CARDINAL_NAMESPACE", namespace)
-	world, addr := testutils.NewTestWorldAndServerAddress(t)
-	wg.Add(1)
-	go func() {
-		err := world.StartGame()
-		assert.NilError(t, err)
-		wg.Done()
-	}()
-	for !world.IsGameRunning() {
-		// wait until game loop is running
-		time.Sleep(50 * time.Millisecond)
-	}
+	tf := testutils.NewTestFixture(t, nil)
+	addr := tf.BaseURL
+	tf.DoTick()
+
 	goodKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	body := Rawbodytx{
@@ -74,8 +65,6 @@ func TestCreatePersona(t *testing.T) {
 	resp, err := client.Do(req)
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
-	err = world.ShutDown()
-	assert.NilError(t, err)
 }
 
 func TestNewWorld(t *testing.T) {
@@ -98,7 +87,8 @@ func TestNewWorldWithCustomNamespace(t *testing.T) {
 func TestCanQueryInsideSystem(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
 
-	world, doTick := testutils.MakeWorldAndTicker(t, nil)
+	tf := testutils.NewTestFixture(t, nil)
+	world, doTick := tf.World, tf.DoTick
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	gotNumOfEntities := 0
@@ -119,38 +109,32 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	assert.NilError(t, err)
 	doTick()
 	assert.Equal(t, world.CurrentTick(), uint64(2))
-	err = world.ShutDown()
-	assert.Assert(t, err)
 	assert.Equal(t, gotNumOfEntities, wantNumOfEntities)
 }
 
 func TestCanGetTimestampFromWorldContext(t *testing.T) {
 	var ts uint64
-	world := testutils.NewTestWorld(t)
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
 		ts = context.Timestamp()
 		return nil
 	})
 	assert.NilError(t, err)
-	err = world.Engine().LoadGameState()
-	assert.NilError(t, err)
-	err = world.Tick(context.Background())
-	assert.NilError(t, err)
+	tf.StartWorld()
+	tf.DoTick()
 	lastTS := ts
-
 	time.Sleep(time.Second)
-	err = world.Tick(context.Background())
-	assert.NilError(t, err)
-
+	tf.DoTick()
 	assert.Check(t, ts > lastTS)
 }
 
 func TestShutdownViaSignal(t *testing.T) {
 	t.Skip("skipping this test til events and shutdown signals work again")
 	// If this test is frozen then it failed to shut down, create a failure with panic.
-	var wg sync.WaitGroup
 	testutils.SetTestTimeout(t, 10*time.Second)
-	world, addr := testutils.NewTestWorldAndServerAddress(t)
+	tf := testutils.NewTestFixture(t, nil)
+	world, addr := tf.World, tf.BaseURL
 	httpBaseURL := "http://" + addr
 	wsBaseURL := "ws://" + addr
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
@@ -162,16 +146,7 @@ func TestShutdownViaSignal(t *testing.T) {
 		}
 		return nil
 	})
-	wg.Add(1)
-	go func() {
-		err := world.StartGame()
-		assert.NilError(t, err)
-		wg.Done()
-	}()
-	for !world.IsGameRunning() {
-		// wait until game loop is running
-		time.Sleep(50 * time.Millisecond)
-	}
+	tf.StartWorld()
 	wCtx := cardinal.TestingWorldToWorldContext(world)
 	_, err := cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
 	assert.NilError(t, err)
@@ -188,6 +163,7 @@ func TestShutdownViaSignal(t *testing.T) {
 
 	conn, _, err := websocket.DefaultDialer.Dial(wsBaseURL+"/events", nil)
 	assert.NilError(t, err)
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		_, _, err := conn.ReadMessage()

@@ -37,7 +37,7 @@ type Age struct {
 func (Age) Name() string { return "age" }
 
 func TestComponentExample(t *testing.T) {
-	world, _ := testutils.MakeWorldAndTicker(t, nil)
+	world := testutils.NewTestFixture(t, nil).World
 
 	assert.NilError(t, cardinal.RegisterComponent[Height](world))
 	assert.NilError(t, cardinal.RegisterComponent[Weight](world))

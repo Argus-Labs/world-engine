@@ -2,8 +2,9 @@ package ecb_test
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -184,7 +185,7 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	ctx := context.Background()
 
-	engine := testutils.NewTestWorld(t, cardinal.WithStoreManager(manager)).Engine()
+	engine := testutils.NewTestFixture(t, nil, cardinal.WithStoreManager(manager)).Engine
 	assert.NilError(t, ecs.RegisterComponent[Health](engine))
 	assert.NilError(t, ecs.RegisterComponent[Power](engine))
 	assert.NilError(t, engine.LoadGameState())

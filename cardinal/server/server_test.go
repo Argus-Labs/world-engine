@@ -12,7 +12,6 @@ import (
 	"math/rand"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -25,9 +24,9 @@ import (
 type ServerTestSuite struct {
 	suite.Suite
 
-	world  *cardinal.World
-	engine *ecs.Engine
-	server *testutils.TestServer
+	fixture *testutils.TestFixture
+	world   *cardinal.World
+	engine  *ecs.Engine
 
 	privateKey *ecdsa.PrivateKey
 	signerAddr string
@@ -44,20 +43,20 @@ func (s *ServerTestSuite) SetupTest() {
 	s.privateKey, err = crypto.GenerateKey()
 	s.Require().NoError(err)
 	s.signerAddr = crypto.PubkeyToAddress(s.privateKey.PublicKey).Hex()
-	s.setupWorld()
 }
 
 // TearDownTest runs after each test in the suite.
 func (s *ServerTestSuite) TearDownTest() {
-	s.Require().NoError(s.server.Shutdown())
+	s.Require().NoError(s.fixture.World.ShutDown())
 }
 
 // TestCanClaimPersonaSendGameTxAndQueryGame tests that you can claim a persona, send a tx, and then query.
 func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
-	s.server = testutils.NewTestServer(s.T(), s.engine, server.WithPrettyPrint())
+	s.setupWorld()
+	s.fixture.DoTick()
 	personaTag := s.createRandomPersona()
 	s.runTx(personaTag, MoveMessage, MoveMsgInput{Direction: "up"})
-	res := s.server.Post("query/game/location", QueryLocationRequest{Persona: personaTag})
+	res := s.fixture.Post("query/game/location", QueryLocationRequest{Persona: personaTag})
 	var loc LocationComponent
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
@@ -66,8 +65,9 @@ func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 
 // TestCanListEndpoints tests the endpoints endpoint.
 func (s *ServerTestSuite) TestCanListEndpoints() {
-	s.server = testutils.NewTestServer(s.T(), s.engine, server.WithPrettyPrint())
-	res := s.server.Get("/query/http/endpoints")
+	s.setupWorld()
+	s.fixture.DoTick()
+	res := s.fixture.Get("/query/http/endpoints")
 	var result handler.EndpointsResult
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
@@ -97,7 +97,8 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 // TestCanSendTxWithoutSigVerification tests that you can submit a tx with just a persona and body when sig verification
 // is disabled.
 func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
-	s.server = testutils.NewTestServer(s.T(), s.engine, server.DisableSignatureVerification(), server.WithPrettyPrint())
+	s.setupWorld(cardinal.WithDisableSignatureVerification())
+	s.fixture.DoTick()
 	persona := s.createRandomPersona()
 	s.createPersona(persona)
 	msg := MoveMsgInput{Direction: "up"}
@@ -108,14 +109,14 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 		Body:       msgBz,
 	}
 	url := "/tx/game/" + MoveMessage.Name()
-	res := s.server.Post(url, tx)
+	res := s.fixture.Post(url, tx)
 	s.Require().Equal(res.StatusCode, fiber.StatusOK, s.readBody(res.Body))
 	err = s.engine.Tick(context.Background())
 	s.Require().NoError(err)
 	s.nonce++
 
 	// check the component was successfully updated, despite not using any signature data.
-	res = s.server.Post("query/game/location", QueryLocationRequest{Persona: persona})
+	res = s.fixture.Post("query/game/location", QueryLocationRequest{Persona: persona})
 	var loc LocationComponent
 	err = json.Unmarshal([]byte(s.readBody(res.Body)), &loc)
 	s.Require().NoError(err)
@@ -125,8 +126,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 func (s *ServerTestSuite) TestQueryCustomPathQuery() {
 	type SomeRequest struct{}
 	type SomeResponse struct{}
-	s.world = testutils.NewTestWorld(s.T())
-	s.engine = s.world.Engine()
+	s.setupWorld()
 	endpoint := "foo/bar/baz"
 	called := false
 	err := ecs.RegisterQuery[SomeRequest, SomeResponse](
@@ -139,10 +139,8 @@ func (s *ServerTestSuite) TestQueryCustomPathQuery() {
 		ecs.WithCustomQueryPath[SomeRequest, SomeResponse](endpoint),
 	)
 	s.Require().NoError(err)
-	s.Require().NoError(s.engine.LoadGameState())
-	s.server = testutils.NewTestServer(s.T(), s.engine)
-
-	res := s.server.Post(endpoint, SomeRequest{})
+	s.fixture.DoTick()
+	res := s.fixture.Post(endpoint, SomeRequest{})
 	s.Require().Equal(res.StatusCode, fiber.StatusOK)
 	s.Require().True(called)
 }
@@ -157,7 +155,7 @@ func (s *ServerTestSuite) runTx(personaTag string, msg message.Message, payload 
 	} else {
 		url = "/tx/game/" + msg.Name()
 	}
-	res := s.server.Post(url, tx)
+	res := s.fixture.Post(url, tx)
 	s.Require().Equal(res.StatusCode, fiber.StatusOK, s.readBody(res.Body))
 	err = s.engine.Tick(context.Background())
 	s.Require().NoError(err)
@@ -172,7 +170,7 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 	}
 	tx, err := sign.NewSystemTransaction(s.privateKey, s.engine.Namespace().String(), s.nonce, createPersonaTx)
 	s.Require().NoError(err)
-	res := s.server.Post(ecs.CreatePersonaMsg.Path(), tx)
+	res := s.fixture.Post(ecs.CreatePersonaMsg.Path(), tx)
 	s.Require().Equal(res.StatusCode, fiber.StatusOK, s.readBody(res.Body))
 	err = s.engine.Tick(context.Background())
 	s.Require().NoError(err)
@@ -181,8 +179,9 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 
 // setupWorld sets up a world with a simple movement system, message, and query.
 func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
-	s.world = testutils.NewTestWorld(s.T(), opts...)
-	s.engine = s.world.Engine()
+	s.fixture = testutils.NewTestFixture(s.T(), nil, opts...)
+	s.world = s.fixture.World
+	s.engine = s.fixture.Engine
 	err := ecs.RegisterComponent[LocationComponent](s.engine)
 	s.Require().NoError(err)
 	err = s.engine.RegisterMessages(MoveMessage)
@@ -231,7 +230,6 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 			return &QueryLocationResponse{*loc}, nil
 		},
 	)
-	s.Require().NoError(s.engine.LoadGameState())
 }
 
 // returns the body of an http response as string.

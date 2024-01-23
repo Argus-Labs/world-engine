@@ -1,25 +1,24 @@
 package events_test
 
-/*
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/server"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
+	"github.com/gorilla/websocket"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
-	"pkg.world.dev/world-engine/assert"
-
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
+
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 func TestEventError(t *testing.T) {
@@ -37,13 +36,17 @@ func TestEventError(t *testing.T) {
 	assert.Assert(t, len(v3) > 0)
 }
 
+func wsURL(addr, path string) string {
+	return fmt.Sprintf("ws://%s/%s", addr, path)
+}
+
 func TestEvents(t *testing.T) {
 	// broadcast 5 messages to 5 clients means 25 messages received.
 	numberToTest := 5
-	engine := testutils.NewTestWorld(t).Engine()
-	assert.NilError(t, engine.LoadGameState())
-	txh := testutils.NewTestServer(t, engine, server.DisableSignatureVerification())
-	url := txh.MakeWebSocketURL("events")
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	addr := tf.BaseURL
+	tf.StartWorld()
+	url := wsURL(addr, "events")
 	dialers := make([]*websocket.Conn, numberToTest)
 	for i := range dialers {
 		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
@@ -56,12 +59,12 @@ func TestEvents(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			txh.EventHub.EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
+			tf.EventHub.EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
 		}()
 	}
 	wg.Wait()
 	go func() {
-		txh.EventHub.FlushEvents()
+		tf.EventHub.FlushEvents()
 	}()
 	var count atomic.Int32
 	count.Store(0)
@@ -80,7 +83,6 @@ func TestEvents(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	txh.EventHub.ShutdownEventHub()
 	assert.Equal(t, count.Load(), int32(numberToTest*numberToTest))
 }
 
@@ -105,7 +107,8 @@ type SendEnergyTxResult struct{}
 
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
-	engine := testutils.NewTestWorld(t).Engine()
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	engine, addr := tf.Engine, tf.BaseURL
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
 	assert.NilError(t, engine.RegisterMessages(sendTx))
 	counter1 := atomic.Int32{}
@@ -119,25 +122,17 @@ func TestEventsThroughSystems(t *testing.T) {
 	}
 	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](engine))
 	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](engine))
-	assert.NilError(t, engine.LoadGameState())
-	txh := testutils.NewTestServer(t, engine, server.DisableSignatureVerification())
-	url := txh.MakeWebSocketURL("events")
+	tf.StartWorld()
+	url := wsURL(addr, "events")
 	dialers := make([]*websocket.Conn, numberToTest)
 	for i := range dialers {
 		dial, _, err := websocket.DefaultDialer.Dial(url, nil)
 		assert.NilError(t, err)
 		dialers[i] = dial
 	}
-	ctx := context.Background()
-	waitForTicks := sync.WaitGroup{}
-	waitForTicks.Add(1)
-	go func() {
-		defer waitForTicks.Done()
-		for i := 0; i < numberToTest; i++ {
-			err := engine.Tick(ctx)
-			assert.NilError(t, err)
-		}
-	}()
+	for i := 0; i < numberToTest; i++ {
+		tf.DoTick()
+	}
 
 	waitForDialersToRead := sync.WaitGroup{}
 	counter2 := atomic.Int32{}
@@ -157,7 +152,6 @@ func TestEventsThroughSystems(t *testing.T) {
 		}()
 	}
 	waitForDialersToRead.Wait()
-	waitForTicks.Wait()
 
 	assert.Equal(t, counter1.Load(), int32(numberToTest*numberToTest))
 	assert.Equal(t, counter2.Load(), int32(numberToTest*numberToTest))
@@ -184,7 +178,7 @@ func TestEventHubLogger(t *testing.T) {
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf ThreadSafeBuffer
 	bufLogger := zerolog.New(&buf)
-	engine := testutils.NewTestWorld(t, cardinal.WithLoggingEventHub(&bufLogger)).Engine()
+	engine := testutils.NewTestFixture(t, nil, cardinal.WithLoggingEventHub(&bufLogger)).Engine
 
 	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
@@ -211,4 +205,3 @@ func TestEventHubLogger(t *testing.T) {
 		require.JSONEq(t, testString, logEntry)
 	}
 }
-*/
