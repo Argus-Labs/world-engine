@@ -191,7 +191,11 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		if verified, err := isUserVerified(ctx, nk, userID); err != nil {
 			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to claim persona tag")
 		} else if !verified {
-			return utils.LogDebugWithMessageAndCode(logger, nakama_errors.ErrNotAllowlisted, nakama_errors.AlreadyExists, "unable to claim persona tag")
+			return utils.LogDebugWithMessageAndCode(
+				logger,
+				nakama_errors.ErrNotAllowlisted,
+				nakama_errors.AlreadyExists,
+				"unable to claim persona tag")
 		}
 
 		ptr := &personaTagStorageObj{}

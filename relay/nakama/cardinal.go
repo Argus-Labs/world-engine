@@ -25,8 +25,6 @@ var (
 
 	readPersonaSignerStatusUnknown   = "unknown"
 	readPersonaSignerStatusAvailable = "available"
-
-	globalCardinalAddress string
 )
 
 type txResponse struct {
@@ -102,7 +100,12 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, eris.Wrapf(err, "unable to marshal signed payload")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, utils.MakeHTTPURL(createPersonaEndpoint), bytes.NewReader(buf))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		utils.MakeHTTPURL(createPersonaEndpoint),
+		bytes.NewReader(buf),
+	)
 	if err != nil {
 		return "", 0, eris.Wrapf(err, "unable to make request to %q", createPersonaEndpoint)
 	}

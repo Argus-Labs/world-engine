@@ -72,7 +72,11 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 		return utils.LogErrorFailedPrecondition(logger, err)
 	}
 	if id != adminAccountID {
-		return utils.LogError(logger, eris.Errorf("unauthorized: only admin may call this RPC"), nakama_errors.PermissionDenied)
+		return utils.LogError(
+			logger,
+			eris.Errorf("unauthorized: only admin may call this RPC"),
+			nakama_errors.PermissionDenied,
+		)
 	}
 
 	var msg GenKeysMsg
@@ -149,10 +153,19 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 	var ck ClaimKeyMsg
 	err = json.Unmarshal([]byte(payload), &ck)
 	if err != nil {
-		return utils.LogErrorWithMessageAndCode(logger, err, nakama_errors.InvalidArgument, "unable to unmarshal payload: %v", err)
+		return utils.LogErrorWithMessageAndCode(
+			logger,
+			err,
+			nakama_errors.InvalidArgument,
+			"unable to unmarshal payload: %v",
+			err)
 	}
 	if ck.Key == "" {
-		return utils.LogErrorWithMessageAndCode(logger, nakama_errors.ErrInvalidBetaKey, nakama_errors.InvalidArgument, "no key provided in request")
+		return utils.LogErrorWithMessageAndCode(
+			logger,
+			nakama_errors.ErrInvalidBetaKey,
+			nakama_errors.InvalidArgument,
+			"no key provided in request")
 	}
 	ck.Key = strings.ToUpper(ck.Key)
 	err = claimKey(ctx, nk, ck.Key, userID)
