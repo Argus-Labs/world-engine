@@ -19,7 +19,7 @@ type endpoints struct {
 
 func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err error) {
 	var resp *http.Response
-	url := utils.MakeHTTPURL(constants.ListEndpoints)
+	url := utils.MakeHTTPURL(constants.ListEndpoints, constants.GlobalCardinalAddress)
 	//nolint:gosec,noctx // its ok. maybe revisit.
 	resp, err = http.Post(url, "", nil)
 	if err != nil {

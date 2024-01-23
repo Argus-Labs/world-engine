@@ -8,6 +8,7 @@ import (
 	"github.com/rotisserie/eris"
 	"io"
 	"net/http"
+	"pkg.world.dev/world-engine/relay/nakama/constants"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/pk"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
@@ -53,7 +54,7 @@ func CardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, eris.Wrapf(err, "unable to get the private key or a nonce")
 	}
 
-	transaction, err := sign.NewSystemTransaction(key, utils.GlobalNamespace, nonce, createPersonaTx)
+	transaction, err := sign.NewSystemTransaction(key, constants.GlobalNamespace, nonce, createPersonaTx)
 
 	if err != nil {
 		return "", 0, eris.Wrapf(err, "unable to create signed payload")
@@ -67,7 +68,7 @@ func CardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
-		utils.MakeHTTPURL(createPersonaEndpoint),
+		utils.MakeHTTPURL(createPersonaEndpoint, constants.GlobalCardinalAddress),
 		bytes.NewReader(buf),
 	)
 	if err != nil {
@@ -110,8 +111,12 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uin
 	if err != nil {
 		return "", eris.Wrap(err, "")
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, utils.MakeHTTPURL(readPersonaSignerEndpoint),
-		bytes.NewReader(buf))
+	httpReq, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		utils.MakeHTTPURL(readPersonaSignerEndpoint, constants.GlobalCardinalAddress),
+		bytes.NewReader(buf),
+	)
 	if err != nil {
 		return "", eris.Wrap(err, "")
 	}

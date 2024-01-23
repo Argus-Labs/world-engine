@@ -109,7 +109,7 @@ func (r *ReceiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (
 		return nil, eris.Wrap(err, "")
 	}
 	ctx := context.Background()
-	url := utils.MakeHTTPURL(constants.TransactionReceiptsEndpoint)
+	url := utils.MakeHTTPURL(constants.TransactionReceiptsEndpoint, constants.GlobalCardinalAddress)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
 		return nil, eris.Wrap(err, "")

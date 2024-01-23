@@ -26,7 +26,7 @@ type EventHub struct {
 }
 
 func createEventHub(logger runtime.Logger) (*EventHub, error) {
-	url := utils.MakeWebSocketURL(constants.EventEndpoint)
+	url := utils.MakeWebSocketURL(constants.EventEndpoint, constants.GlobalCardinalAddress)
 	webSocketConnection, _, err := websocket.DefaultDialer.Dial(url, nil) //nolint:bodyclose // no need.
 	for err != nil {
 		if errors.Is(err, &net.DNSError{}) {

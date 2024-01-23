@@ -33,10 +33,10 @@ func DoRequest(req *http.Request) (*http.Response, error) {
 	return resp, nil
 }
 
-func MakeHTTPURL(resource string) string {
-	return fmt.Sprintf("http://%s/%s", GlobalCardinalAddress, resource)
+func MakeHTTPURL(resource string, url string) string {
+	return fmt.Sprintf("http://%s/%s", url, resource)
 }
 
-func MakeWebSocketURL(resource string) string {
-	return fmt.Sprintf("ws://%s/%s", GlobalCardinalAddress, resource)
+func MakeWebSocketURL(resource string, url string) string {
+	return fmt.Sprintf("ws://%s/%s", url, resource)
 }
