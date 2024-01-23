@@ -34,7 +34,7 @@ type txHashAndUserID struct {
 	userID string
 }
 
-const personaVerifierSessionName = "persona_verifier_session"
+const personaVerifierSessionName = "persona_verifier"
 
 func (p *personaTagVerifier) addPendingPersonaTag(userID, txHash string) {
 	p.pendingCh <- txHashAndUserID{
