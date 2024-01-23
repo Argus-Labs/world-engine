@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
+	"pkg.world.dev/world-engine/cardinal/shard/evm"
 	"reflect"
 	"runtime"
 	"strings"
@@ -17,15 +19,13 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/events"
-	"pkg.world.dev/world-engine/cardinal/evm"
 	"pkg.world.dev/world-engine/cardinal/gamestage"
 	"pkg.world.dev/world-engine/cardinal/server"
-	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -101,14 +101,14 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		Password: cfg.RedisPassword,
 		DB:       0, // use default DB
 	}, cfg.CardinalNamespace)
-	storeManager, err := ecb.NewManager(redisStore.Client)
+	entityCommandBuffer, err := gamestate.NewEntityCommandBuffer(redisStore.Client)
 	if err != nil {
 		return nil, err
 	}
 
 	ecsWorld, err := ecs.NewEngine(
 		&redisStore,
-		storeManager,
+		entityCommandBuffer,
 		ecs.Namespace(cfg.CardinalNamespace),
 		ecsOptions...,
 	)
@@ -184,7 +184,7 @@ func applyProductionOptions(
 		return eris.New("must supply BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_QUERY_ADDRESS for production " +
 			"mode Cardinal worlds")
 	}
-	adapter, err := shard.NewAdapter(shard.AdapterConfig{
+	adapter, err := adapter.New(adapter.Config{
 		ShardSequencerAddr: cfg.BaseShardSequencerAddress,
 		EVMBaseShardAddr:   cfg.BaseShardQueryAddress,
 	})

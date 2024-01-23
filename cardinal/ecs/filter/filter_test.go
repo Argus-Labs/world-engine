@@ -248,7 +248,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	_, err = ecs.CreateMany(eCtx, 20, Alpha{})
 	assert.NilError(t, err)
 	id := ids[0]
-	comps, err := engine.StoreManager().GetComponentTypesForEntity(id)
+	comps, err := engine.GameStateManager().GetComponentTypesForEntity(id)
 	assert.NilError(t, err)
 
 	count := 0

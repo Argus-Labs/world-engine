@@ -1,4 +1,4 @@
-package ecb
+package gamestate
 
 import (
 	"github.com/rotisserie/eris"
