@@ -83,7 +83,7 @@ func TestComponents(t *testing.T) {
 		},
 	}
 
-	storeManager := engine.StoreManager()
+	storeManager := engine.GameStateManager()
 	for _, tt := range tests {
 		entityID, err := storeManager.CreateEntity(tt.comps...)
 		assert.NilError(t, err)

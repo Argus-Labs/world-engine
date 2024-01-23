@@ -1,4 +1,4 @@
-package ecb
+package gamestate
 
 // Most tests in this package are under ecb_test.go. This makes the tests act like external clients
 // that can import both the ecs package and the ecb package. Tests in this file verify that the
@@ -44,7 +44,7 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 	assert.NilError(t, alphaComp.SetID(77))
 	assert.NilError(t, betaComp.SetID(88))
 
-	manager, err := NewManager(client)
+	manager, err := NewEntityCommandBuffer(client)
 	assert.NilError(t, err)
 	err = manager.RegisterComponents([]component.ComponentMetadata{alphaComp, betaComp})
 	assert.NilError(t, err)

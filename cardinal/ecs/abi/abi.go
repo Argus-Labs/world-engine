@@ -34,7 +34,6 @@ func GenerateABIType(goStruct any) (*abi.Type, error) {
 	return &at, nil
 }
 
-//nolint:gocognit
 func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
 	args := make([]abi.ArgumentMarshaling, 0, rt.NumField())
 	for i := 0; i < rt.NumField(); i++ {
@@ -43,24 +42,10 @@ func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
 		fieldType := field.Type.String()
 		fieldName := field.Name
 
-		// make a closure for handling nested struct generation.
-		genStruct := func(p reflect.Type) (abi.ArgumentMarshaling, error) {
-			components, err := getArgumentsForType(p)
-			if err != nil {
-				return abi.ArgumentMarshaling{}, err
-			}
-			arg := abi.ArgumentMarshaling{
-				Name:       fieldName,
-				Type:       "tuple",
-				Components: components,
-			}
-			return arg, nil
-		}
-
 		// handle the special case for slice of struct fields.
 		if kind == reflect.Slice {
 			if field.Type.Elem().Kind() == reflect.Struct {
-				arg, err := genStruct(field.Type.Elem())
+				arg, err := goStructToEVMStruct(field.Type.Elem(), fieldName)
 				if err != nil {
 					return nil, err
 				}
@@ -72,7 +57,7 @@ func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
 
 		// handle special case for struct fields.
 		if kind == reflect.Struct {
-			arg, err := genStruct(field.Type)
+			arg, err := goStructToEVMStruct(field.Type, fieldName)
 			if err != nil {
 				return nil, err
 			}
@@ -91,6 +76,19 @@ func getArgumentsForType(rt reflect.Type) ([]abi.ArgumentMarshaling, error) {
 		})
 	}
 	return args, nil
+}
+
+func goStructToEVMStruct(p reflect.Type, fieldName string) (abi.ArgumentMarshaling, error) {
+	components, err := getArgumentsForType(p)
+	if err != nil {
+		return abi.ArgumentMarshaling{}, err
+	}
+	arg := abi.ArgumentMarshaling{
+		Name:       fieldName,
+		Type:       "tuple",
+		Components: components,
+	}
+	return arg, nil
 }
 
 func goTypeToSolidityType(t string, tag string) (string, error) {
