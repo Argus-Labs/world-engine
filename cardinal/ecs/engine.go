@@ -12,11 +12,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"google.golang.org/protobuf/proto"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
@@ -214,7 +215,7 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 	}
 	engine.registeredComponents = append(engine.registeredComponents, c)
 
-	storedSchema, err := engine.redisStorage.Schema.GetSchema(c.Name())
+	storedSchema, err := engine.redisStorage.GetSchema(c.Name())
 
 	if err != nil {
 		// It's fine if the schema doesn't currently exist in the db. Any other errors are a problem.
@@ -231,7 +232,7 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 		}
 	}
 
-	err = engine.redisStorage.Schema.SetSchema(c.Name(), c.GetSchema())
+	err = engine.redisStorage.SetSchema(c.Name(), c.GetSchema())
 	if err != nil {
 		return err
 	}
@@ -543,13 +544,7 @@ func (e *Engine) setEvmResults(txs []txpool.TxData) {
 	}
 }
 
-func (e *Engine) StartGameLoop(
-	ctx context.Context,
-	tickStart <-chan time.Time,
-	tickDone chan<- uint64,
-) {
-	e.Logger.Info().Msg("Game loop started")
-	ecslog.Engine(e.Logger, e, zerolog.InfoLevel)
+func (e *Engine) emitResourcesWarnings() {
 	// todo: add links to docs related to each warning
 	if !e.isComponentsRegistered {
 		e.Logger.Warn().Msg("No components registered.")
@@ -563,6 +558,16 @@ func (e *Engine) StartGameLoop(
 	if len(e.systems) == 0 {
 		e.Logger.Warn().Msg("No systems registered.")
 	}
+}
+
+func (e *Engine) StartGameLoop(
+	ctx context.Context,
+	tickStart <-chan time.Time,
+	tickDone chan<- uint64,
+) {
+	e.Logger.Info().Msg("Game loop started")
+	ecslog.Engine(e.Logger, e, zerolog.InfoLevel)
+	e.emitResourcesWarnings()
 
 	go func() {
 		ok := e.isGameLoopRunning.CompareAndSwap(false, true)
@@ -585,6 +590,9 @@ func (e *Engine) StartGameLoop(
 				if e.GetTxQueueAmount() > 0 {
 					// immediately tick if queue is not empty to process all txs if queue is not empty.
 					e.tickTheEngine(ctx, tickDone)
+					if tickDone != nil {
+						close(tickDone)
+					}
 				}
 				break loop
 			case ch := <-e.addChannelWaitingForNextTick:
@@ -845,7 +853,7 @@ func (e *Engine) getMessage(id message.TypeID) message.Message {
 }
 
 func (e *Engine) UseNonce(signerAddress string, nonce uint64) error {
-	return e.redisStorage.Nonce.UseNonce(signerAddress, nonce)
+	return e.redisStorage.UseNonce(signerAddress, nonce)
 }
 
 func (e *Engine) AddMessageError(id message.TxHash, err error) {
