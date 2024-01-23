@@ -140,18 +140,24 @@ func (s *Server) setupRoutes() {
 		}
 	}
 
+	// health endpoint
 	s.app.Get("/health", handler.GetHealth(s.eng))
 
+	// query endpoints
 	queryAPI := s.app.Group("/query")
 	queryAPI.Get("/http/endpoints", handler.GetEndpoints(msgSlice, querySlice, s.txPrefix, s.queryPrefix))
 	queryAPI.Post("/game/:queryType", handler.PostQuery(queries, s.eng, s.queryWildCard))
 
+	// transaction endpoints
 	txAPI := s.app.Group("/tx")
 	txAPI.Post("/game/:txType", handler.PostTransaction(messages, s.eng, s.disableSignatureVerification, s.txWildCard))
 
+	// custom query endpoints
 	for _, query := range customPathQuery {
 		s.app.Post(query.Path(), handler.PostCustomPathQuery(query, s.eng))
 	}
+
+	// custom transaction endpoints
 	for _, msg := range customPathMessages {
 		s.app.Post(msg.Path(), handler.PostCustomPathTransaction(msg, s.eng, s.disableSignatureVerification))
 	}
