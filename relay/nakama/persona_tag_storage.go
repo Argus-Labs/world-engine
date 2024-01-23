@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -33,7 +35,7 @@ const (
 // loadPersonaTagStorageObj loads the current user's persona tag storage object from Nakama's storage layer. The
 // "current user" comes from the user ID stored in the given context.
 func loadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*personaTagStorageObj, error) {
-	userID, err := getUserID(ctx)
+	userID, err := utils.GetUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +50,7 @@ func loadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*pe
 		return nil, eris.Wrap(err, "")
 	}
 	if len(storeObjs) == 0 {
-		return nil, eris.Wrap(ErrPersonaTagStorageObjNotFound, "")
+		return nil, eris.Wrap(nakamaerrors.ErrPersonaTagStorageObjNotFound, "")
 	} else if len(storeObjs) > 1 {
 		return nil, eris.Errorf("expected 1 storage object, got %d with values %v", len(storeObjs), storeObjs)
 	}
@@ -79,10 +81,10 @@ func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk ru
 
 	verified, err := p.verifyPersonaTag(ctx)
 	switch {
-	case eris.Is(eris.Cause(err), ErrPersonaSignerUnknown):
+	case eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaSignerUnknown):
 		// Leave the Status as pending.
 		return p, nil
-	case eris.Is(eris.Cause(err), ErrPersonaSignerAvailable):
+	case eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaSignerAvailable):
 		// Somehow Nakama thinks this persona tag belongs to this user, but Cardinal doesn't think the persona tag
 		// belongs to anyone. Just reject this on Nakama's end so the user can try a different persona tag.
 		// Incidentally, trying the same persona tag might work.
@@ -117,7 +119,7 @@ func (p *personaTagStorageObj) verifyPersonaTag(ctx context.Context) (verified b
 
 // savePersonaTagStorageObj saves the given personaTagStorageObj to the Nakama DB for the current user.
 func (p *personaTagStorageObj) savePersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) error {
-	userID, err := getUserID(ctx)
+	userID, err := utils.GetUserID(ctx)
 	if err != nil {
 		return eris.Wrap(err, "unable to get user ID")
 	}
