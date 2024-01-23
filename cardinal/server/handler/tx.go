@@ -24,7 +24,8 @@ type TransactionReply struct {
 	Tick   uint64
 }
 
-func PostTransaction(msgTypes map[string]message.Message, eng *ecs.Engine, disableSigVerification bool, wildcard string) func(*fiber.Ctx) error {
+func PostTransaction(msgTypes map[string]message.Message, eng *ecs.Engine, disableSigVerification bool, wildcard string,
+) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgTypeName := ctx.Params(wildcard)
 		msgType, exists := msgTypes[msgTypeName]
@@ -35,7 +36,8 @@ func PostTransaction(msgTypes map[string]message.Message, eng *ecs.Engine, disab
 	}
 }
 
-func PostCustomPathTransaction(msg message.Message, eng *ecs.Engine, disableSigVerification bool) func(*fiber.Ctx) error {
+func PostCustomPathTransaction(msg message.Message, eng *ecs.Engine, disableSigVerification bool,
+) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		return handleTx(ctx, eng, msg, disableSigVerification)
 	}

@@ -11,7 +11,8 @@ type EndpointsResult struct {
 	QueryEndpoints []string `json:"queryEndpoints"`
 }
 
-func GetEndpoints(msgs []message.Message, queries []ecs.Query, defaultPrefixTx, defaultQueryPrefix string) func(*fiber.Ctx) error {
+func GetEndpoints(msgs []message.Message, queries []ecs.Query, defaultPrefixTx, defaultQueryPrefix string,
+) func(*fiber.Ctx) error {
 	res := EndpointsResult{
 		TxEndpoints:    make([]string, 0, len(queries)),
 		QueryEndpoints: make([]string, 0, len(msgs)),

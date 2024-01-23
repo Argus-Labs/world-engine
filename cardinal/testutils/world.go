@@ -141,7 +141,12 @@ func (t *TestFixture) httpURL(path string) string {
 func (t *TestFixture) Post(path string, payload any) *http.Response {
 	bz, err := json.Marshal(payload)
 	assert.NilError(t, err)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, t.httpURL(strings.Trim(path, "/")), bytes.NewReader(bz))
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		t.httpURL(strings.Trim(path, "/")),
+		bytes.NewReader(bz),
+	)
 	assert.NilError(t, err)
 	req.Header.Add("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
