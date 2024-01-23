@@ -89,7 +89,7 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, eris.Wrapf(err, "unable to get the private key or a nonce")
 	}
 
-	transaction, err := sign.NewSystemTransaction(key, globalNamespace, nonce, createPersonaTx)
+	transaction, err := sign.NewSystemTransaction(key, utils.GlobalNamespace, nonce, createPersonaTx)
 
 	if err != nil {
 		return "", 0, eris.Wrapf(err, "unable to create signed payload")

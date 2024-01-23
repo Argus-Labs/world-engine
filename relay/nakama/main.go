@@ -29,8 +29,6 @@ const (
 )
 
 var (
-	globalNamespace string
-
 	globalPersonaTagAssignment = sync.Map{}
 
 	globalReceiptsDispatcher *receiptsDispatcher
@@ -440,7 +438,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 	if err != nil {
 		return nil, err
 	}
-	sp, err := sign.NewTransaction(pk, personaTag, globalNamespace, nonce, payload)
+	sp, err := sign.NewTransaction(pk, personaTag, utils.GlobalNamespace, nonce, payload)
 	if err != nil {
 		return nil, err
 	}
