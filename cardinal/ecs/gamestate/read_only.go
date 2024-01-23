@@ -1,4 +1,4 @@
-package ecb
+package gamestate
 
 import (
 	"context"
@@ -10,13 +10,12 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-var _ store.Reader = &readOnlyManager{}
+var _ Reader = &readOnlyManager{}
 
 var (
 	ErrNoArchIDMappingFound = errors.New("no mapping of archID to components found")
@@ -28,7 +27,7 @@ type readOnlyManager struct {
 	archIDToComps   map[archetype.ID][]component.ComponentMetadata
 }
 
-func (m *Manager) ToReadOnly() store.Reader {
+func (m *EntityCommandBuffer) ToReadOnly() Reader {
 	return &readOnlyManager{
 		client:          m.client,
 		typeToComponent: m.typeToComponent,

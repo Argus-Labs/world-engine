@@ -1,4 +1,4 @@
-package ecb
+package gamestate
 
 import (
 	"context"
@@ -13,19 +13,18 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/sign"
 )
 
 // The engine tick must be updated in the same atomic transaction as all the state changes
 // associated with that tick. This means the manager here must also implement the TickStore interface.
-var _ store.TickStorage = &Manager{}
+var _ TickStorage = &EntityCommandBuffer{}
 
 // GetTickNumbers returns the last tick that was started and the last tick that was ended. If start == end, it means
 // the last tick that was attempted completed successfully. If start != end, it means a tick was started but did not
 // complete successfully; Recover must be used to recover the pending transactions so the previously started tick can
 // be completed.
-func (m *Manager) GetTickNumbers() (start, end uint64, err error) {
+func (m *EntityCommandBuffer) GetTickNumbers() (start, end uint64, err error) {
 	ctx := context.Background()
 	start, err = m.client.Get(ctx, redisStartTickKey()).Uint64()
 	err = eris.Wrap(err, "")
@@ -46,7 +45,7 @@ func (m *Manager) GetTickNumbers() (start, end uint64, err error) {
 
 // StartNextTick saves the given transactions to the DB and sets the tick trackers to indicate we are in the middle
 // of a tick. While transactions are saved to the DB, no state changes take place at this time.
-func (m *Manager) StartNextTick(txs []message.Message, queue *txpool.TxQueue) error {
+func (m *EntityCommandBuffer) StartNextTick(txs []message.Message, queue *txpool.TxQueue) error {
 	ctx := context.Background()
 	pipe := m.client.TxPipeline()
 	if err := addPendingTransactionToPipe(ctx, pipe, txs, queue); err != nil {
@@ -63,7 +62,7 @@ func (m *Manager) StartNextTick(txs []message.Message, queue *txpool.TxQueue) er
 
 // FinalizeTick combines all pending state changes into a single multi/exec redis transactions and commits them
 // to the DB.
-func (m *Manager) FinalizeTick(ctx context.Context) error {
+func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
 	var span tracer.Span
 	span, ctx = tracer.StartSpanFromContext(ctx, "tick.span.finalize")
 	defer func() {
@@ -92,7 +91,7 @@ func (m *Manager) FinalizeTick(ctx context.Context) error {
 
 // Recover fetches the pending transactions for an incomplete tick. This should only be called if GetTickNumbers
 // indicates that the previous tick was started, but never completed.
-func (m *Manager) Recover(txs []message.Message) (*txpool.TxQueue, error) {
+func (m *EntityCommandBuffer) Recover(txs []message.Message) (*txpool.TxQueue, error) {
 	ctx := context.Background()
 	key := redisPendingTransactionKey()
 	bz, err := m.client.Get(ctx, key).Bytes()

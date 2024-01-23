@@ -3,8 +3,8 @@ package ecs
 import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
@@ -104,7 +104,7 @@ func (q *Search) MustFirst(eCtx EngineContext) entity.ID {
 	return id
 }
 
-func (q *Search) evaluateSearch(namespace Namespace, sm store.Reader) []archetype.ID {
+func (q *Search) evaluateSearch(namespace Namespace, sm gamestate.Reader) []archetype.ID {
 	if _, ok := q.archMatches[namespace]; !ok {
 		q.archMatches[namespace] = &cache{
 			archetypes: make([]archetype.ID, 0),
