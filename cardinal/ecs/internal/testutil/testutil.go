@@ -11,6 +11,8 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	storage "pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -25,6 +27,21 @@ func GetRedisStorage(t *testing.T) storage.Storage {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, Namespace)
+}
+
+// InitEngineWithRedis sets up an ecs.Engine using the given redis DB. ecs.NewECSEngineForTest is not used
+// because the test will re-use the incoming miniredis instance to initialize multiple engines.
+func InitEngineWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.Engine {
+	rs := storage.NewRedisStorage(storage.Options{
+		Addr:     s.Addr(),
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	}, Namespace)
+	sm, err := gamestate.NewEntityCommandBuffer(rs.Client)
+	assert.NilError(t, err)
+	w, err := ecs.NewEngine(&rs, sm, ecs.Namespace(Namespace))
+	assert.NilError(t, err)
+	return w
 }
 
 // DumpRedis prints the contents of each key/value in the given miniredis instance.

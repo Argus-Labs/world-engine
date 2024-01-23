@@ -1,4 +1,4 @@
-package ecb
+package gamestate
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 
 // pipeFlushToRedis return a pipeliner with all pending state changes to redis ready to be committed in an atomic
 // transaction. If an error is returned, no redis changes will have been made.
-func (m *Manager) makePipeOfRedisCommands(ctx context.Context) (redis.Pipeliner, error) {
+func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (redis.Pipeliner, error) {
 	pipe := m.client.TxPipeline()
 
 	if m.typeToComponent == nil {
@@ -47,7 +47,7 @@ func (m *Manager) makePipeOfRedisCommands(ctx context.Context) (redis.Pipeliner,
 }
 
 // addEntityIDToArchIDToPipe adds the information related to mapping an entity ID to its assigned archetype ID.
-func (m *Manager) addEntityIDToArchIDToPipe(ctx context.Context, pipe redis.Pipeliner) error {
+func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pipe redis.Pipeliner) error {
 	for id, originArchID := range m.entityIDToOriginArchID {
 		key := redisArchetypeIDForEntityID(id)
 		archID, ok := m.entityIDToArchID[id]
@@ -74,7 +74,7 @@ func (m *Manager) addEntityIDToArchIDToPipe(ctx context.Context, pipe redis.Pipe
 }
 
 // addNextEntityIDToPipe adds any changes to the next available entity ID to the given redis pipe.
-func (m *Manager) addNextEntityIDToPipe(ctx context.Context, pipe redis.Pipeliner) error {
+func (m *EntityCommandBuffer) addNextEntityIDToPipe(ctx context.Context, pipe redis.Pipeliner) error {
 	// There are no pending entity id creations, so there's nothing to commit
 	if m.pendingEntityIDs == 0 {
 		return nil
@@ -85,7 +85,7 @@ func (m *Manager) addNextEntityIDToPipe(ctx context.Context, pipe redis.Pipeline
 }
 
 // addComponentChangesToPipe adds updated component values for entities to the redis pipe.
-func (m *Manager) addComponentChangesToPipe(ctx context.Context, pipe redis.Pipeliner) error {
+func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pipe redis.Pipeliner) error {
 	for key, isMarkedForDeletion := range m.compValuesToDelete {
 		if !isMarkedForDeletion {
 			continue
@@ -112,7 +112,7 @@ func (m *Manager) addComponentChangesToPipe(ctx context.Context, pipe redis.Pipe
 }
 
 // preloadArchIDs loads the mapping of archetypes IDs to sets of IComponentTypes from storage.
-func (m *Manager) loadArchIDs() error {
+func (m *EntityCommandBuffer) loadArchIDs() error {
 	archIDToComps, ok, err := getArchIDToCompTypesFromRedis(m.client, m.typeToComponent)
 	if err != nil {
 		return err
@@ -130,7 +130,7 @@ func (m *Manager) loadArchIDs() error {
 
 // addPendingArchIDsToPipe adds any newly created archetype IDs (as well as the associated sets of components) to the
 // redis pipe.
-func (m *Manager) addPendingArchIDsToPipe(ctx context.Context, pipe redis.Pipeliner) error {
+func (m *EntityCommandBuffer) addPendingArchIDsToPipe(ctx context.Context, pipe redis.Pipeliner) error {
 	if len(m.pendingArchIDs) == 0 {
 		return nil
 	}
@@ -144,7 +144,7 @@ func (m *Manager) addPendingArchIDsToPipe(ctx context.Context, pipe redis.Pipeli
 }
 
 // addActiveEntityIDsToPipe adds information about which entities are assigned to which archetype IDs to the reids pipe.
-func (m *Manager) addActiveEntityIDsToPipe(ctx context.Context, pipe redis.Pipeliner) error {
+func (m *EntityCommandBuffer) addActiveEntityIDsToPipe(ctx context.Context, pipe redis.Pipeliner) error {
 	for archID, active := range m.activeEntities {
 		if !active.modified {
 			continue
@@ -162,7 +162,7 @@ func (m *Manager) addActiveEntityIDsToPipe(ctx context.Context, pipe redis.Pipel
 	return nil
 }
 
-func (m *Manager) encodeArchIDToCompTypes() ([]byte, error) {
+func (m *EntityCommandBuffer) encodeArchIDToCompTypes() ([]byte, error) {
 	forStorage := map[archetype.ID][]component.TypeID{}
 	for archID, comps := range m.archIDToComps {
 		typeIDs := []component.TypeID{}
