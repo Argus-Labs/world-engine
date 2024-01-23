@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"pkg.world.dev/world-engine/relay/nakama/pk"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"strconv"
 	"strings"
@@ -71,7 +72,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 	if err != nil {
 		return utils.LogErrorFailedPrecondition(logger, err)
 	}
-	if id != adminAccountID {
+	if id != pk.AdminAccountID {
 		return utils.LogError(
 			logger,
 			eris.Errorf("unauthorized: only admin may call this RPC"),
@@ -204,7 +205,7 @@ func writeVerified(ctx context.Context, nk runtime.NakamaModule, userID string) 
 		{
 			Collection:      allowedUsers,
 			Key:             userID,
-			UserID:          adminAccountID,
+			UserID:          pk.AdminAccountID,
 			Value:           string(bz),
 			Version:         "",
 			PermissionRead:  runtime.STORAGE_PERMISSION_NO_READ,
@@ -224,7 +225,7 @@ func isUserVerified(ctx context.Context, nk runtime.NakamaModule, userID string)
 		{
 			Collection: allowedUsers,
 			Key:        userID,
-			UserID:     adminAccountID,
+			UserID:     pk.AdminAccountID,
 		},
 	})
 	if err != nil {
@@ -241,7 +242,7 @@ func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStor
 		{
 			Collection: allowlistKeyCollection,
 			Key:        key,
-			UserID:     adminAccountID,
+			UserID:     pk.AdminAccountID,
 		},
 	})
 	if err != nil {
@@ -269,7 +270,7 @@ func writeKey(ctx context.Context, nk runtime.NakamaModule, ks *KeyStorage) erro
 		{
 			Collection:      allowlistKeyCollection,
 			Key:             ks.Key,
-			UserID:          adminAccountID,
+			UserID:          pk.AdminAccountID,
 			Value:           string(bz),
 			Version:         "",
 			PermissionRead:  runtime.STORAGE_PERMISSION_NO_READ,

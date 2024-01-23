@@ -1,4 +1,4 @@
-package main
+package pk
 
 // private_key.go manages the creation and loading of the Nakama private key used to sign
 // all transactions.
@@ -32,7 +32,7 @@ const (
 	privateKeyCollection = "private_key_collection"
 	privateKeyKey        = "private_key_key"
 	privateKeyNonce      = "private_key_nonce"
-	adminAccountID       = "00000000-0000-0000-0000-000000000000"
+	AdminAccountID       = "00000000-0000-0000-0000-000000000000"
 )
 
 type privateKeyStorageObj struct {
@@ -44,7 +44,7 @@ type privateKeyStorageObj struct {
 func getOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key string) (string, error) {
 	objs, err := nk.StorageRead(ctx, []*runtime.StorageRead{{
 		Collection: privateKeyCollection,
-		UserID:     adminAccountID,
+		UserID:     AdminAccountID,
 		Key:        key,
 	}})
 	if err != nil {
@@ -73,7 +73,7 @@ func setOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key, value
 	}
 	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{{
 		Collection:      privateKeyCollection,
-		UserID:          adminAccountID,
+		UserID:          AdminAccountID,
 		Key:             key,
 		Value:           string(buf),
 		Version:         "",
@@ -104,9 +104,9 @@ func setNonce(ctx context.Context, nk runtime.NakamaModule, n uint64) error {
 	return setOnePKStorageObj(ctx, nk, privateKeyNonce, fmt.Sprintf("%d", n))
 }
 
-// initPrivateKey either reads the existing private key form the nakama DB, or generates a new private key if one
+// InitPrivateKey either reads the existing private key form the nakama DB, or generates a new private key if one
 // does not exist.
-func initPrivateKey(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) error {
+func InitPrivateKey(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) error {
 	privateKeyHex, err := getPrivateKeyHex(ctx, nk)
 	if err != nil {
 		if !eris.Is(eris.Cause(err), nakamaerrors.ErrNoStorageObjectFound) {
@@ -136,7 +136,7 @@ func initPrivateKey(ctx context.Context, logger runtime.Logger, nk runtime.Nakam
 	return nil
 }
 
-func getSignerAddress() string {
+func GetSignerAddress() string {
 	return globalSignerAddress
 }
 
@@ -154,10 +154,10 @@ func incrementNonce(ctx context.Context, nk runtime.NakamaModule) (nonce uint64,
 	return nonce, nil
 }
 
-// getPrivateKeyAndANonce returns the global Nakama private key, as well as a unique nonce that can
+// GetPrivateKeyAndANonce returns the global Nakama private key, as well as a unique nonce that can
 // be used to sign a transaction. The nonce is guaranteed to be unique, and this method is safe
 // for concurrent access.
-func getPrivateKeyAndANonce(ctx context.Context, nk runtime.NakamaModule) (*ecdsa.PrivateKey, uint64, error) {
+func GetPrivateKeyAndANonce(ctx context.Context, nk runtime.NakamaModule) (*ecdsa.PrivateKey, uint64, error) {
 	nonce, err := incrementNonce(ctx, nk)
 	if err != nil {
 		return nil, 0, err

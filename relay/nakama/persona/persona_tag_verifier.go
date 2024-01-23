@@ -1,23 +1,24 @@
-package main
+package persona
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/relay/nakama/dispatcher"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 )
 
-// personaTagVerifier is a helper struct that asynchronously collects both persona tag registration requests (from
+// PersonaTagVerifier is a helper struct that asynchronously collects both persona tag registration requests (from
 // nakama) AND persona tag transaction receipts from cardinal. When the result of both systems has been recorded,
 // this struct attempts to update the user's PersonaTagStorageObj to reflect the success/failure of the claim persona
 // tag request.
-type personaTagVerifier struct {
+type PersonaTagVerifier struct {
 	// txHashToPending keeps track of the state of pending claim persona tag requests. A sync.Map is not required
 	// because all map updates happen in a single goroutine. Updates are transmitted to the goroutine
 	// via the receiptCh channel and the pendingCh channel.
 	txHashToPending map[string]pendingPersonaTagRequest
-	receiptCh       receiptChan
+	receiptCh       dispatcher.ReceiptChan
 	pendingCh       chan txHashAndUserID
 	nk              runtime.NakamaModule
 	logger          runtime.Logger
@@ -37,29 +38,29 @@ type txHashAndUserID struct {
 //nolint:gosec // its ok
 const personaVerifierSessionName = "persona_verifier_session"
 
-func (p *personaTagVerifier) addPendingPersonaTag(userID, txHash string) {
+func (p *PersonaTagVerifier) AddPendingPersonaTag(userID, txHash string) {
 	p.pendingCh <- txHashAndUserID{
 		userID: userID,
 		txHash: txHash,
 	}
 }
 
-func initPersonaTagVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *receiptsDispatcher,
-) *personaTagVerifier {
+func InitPersonaTagVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *dispatcher.ReceiptsDispatcher,
+) *PersonaTagVerifier {
 	channelLimit := 100
-	ptv := &personaTagVerifier{
+	ptv := &PersonaTagVerifier{
 		txHashToPending: map[string]pendingPersonaTagRequest{},
-		receiptCh:       make(receiptChan, channelLimit),
+		receiptCh:       make(dispatcher.ReceiptChan, channelLimit),
 		pendingCh:       make(chan txHashAndUserID),
 		nk:              nk,
 		logger:          logger,
 	}
-	rd.subscribe(personaVerifierSessionName, ptv.receiptCh)
+	rd.Subscribe(personaVerifierSessionName, ptv.receiptCh)
 	go ptv.consume()
 	return ptv
 }
 
-func (p *personaTagVerifier) consume() {
+func (p *PersonaTagVerifier) consume() {
 	cleanupTick := time.Tick(time.Minute)
 	for {
 		var currTxHash string
@@ -80,7 +81,7 @@ func (p *personaTagVerifier) consume() {
 	}
 }
 
-func (p *personaTagVerifier) cleanupStaleEntries(now time.Time) {
+func (p *PersonaTagVerifier) cleanupStaleEntries(now time.Time) {
 	for key, val := range p.txHashToPending {
 		if diff := now.Sub(val.lastUpdate); diff > time.Minute {
 			delete(p.txHashToPending, key)
@@ -88,7 +89,7 @@ func (p *personaTagVerifier) cleanupStaleEntries(now time.Time) {
 	}
 }
 
-func (p *personaTagVerifier) handleReceipt(receipt *Receipt) string {
+func (p *PersonaTagVerifier) handleReceipt(receipt *dispatcher.Receipt) string {
 	result, ok := receipt.Result["Success"]
 	if !ok {
 		return ""
@@ -100,15 +101,15 @@ func (p *personaTagVerifier) handleReceipt(receipt *Receipt) string {
 	pending := p.txHashToPending[receipt.TxHash]
 	pending.lastUpdate = time.Now()
 	if success {
-		pending.status = personaTagStatusAccepted
+		pending.status = PersonaTagStatusAccepted
 	} else {
-		pending.status = personaTagStatusRejected
+		pending.status = PersonaTagStatusRejected
 	}
 	p.txHashToPending[receipt.TxHash] = pending
 	return receipt.TxHash
 }
 
-func (p *personaTagVerifier) handlePending(tuple txHashAndUserID) string {
+func (p *PersonaTagVerifier) handlePending(tuple txHashAndUserID) string {
 	pending := p.txHashToPending[tuple.txHash]
 	pending.lastUpdate = time.Now()
 	pending.userID = tuple.userID
@@ -116,7 +117,7 @@ func (p *personaTagVerifier) handlePending(tuple txHashAndUserID) string {
 	return tuple.txHash
 }
 
-func (p *personaTagVerifier) attemptVerification(txHash string) error {
+func (p *PersonaTagVerifier) attemptVerification(txHash string) error {
 	pending, ok := p.txHashToPending[txHash]
 	if !ok || pending.userID == "" || pending.status == "" {
 		// We're missing a success/failure message from cardinal or the initial request from the
@@ -126,15 +127,15 @@ func (p *personaTagVerifier) attemptVerification(txHash string) error {
 	// We have both a user ID and a success message. Save this success/failure to nakama's storage system
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, runtime.RUNTIME_CTX_USER_ID, pending.userID) //nolint:staticcheck // its fine.
-	ptr, err := loadPersonaTagStorageObj(ctx, p.nk)
+	ptr, err := LoadPersonaTagStorageObj(ctx, p.nk)
 	if err != nil {
 		return eris.Wrap(err, "unable to get persona tag storage obj")
 	}
-	if ptr.Status != personaTagStatusPending {
+	if ptr.Status != PersonaTagStatusPending {
 		return eris.Errorf("expected a pending persona tag status but got %q", ptr.Status)
 	}
 	ptr.Status = pending.status
-	if err = ptr.savePersonaTagStorageObj(ctx, p.nk); err != nil {
+	if err = ptr.SavePersonaTagStorageObj(ctx, p.nk); err != nil {
 		return eris.Wrap(err, "unable to set persona tag storage object")
 	}
 	delete(p.txHashToPending, txHash)

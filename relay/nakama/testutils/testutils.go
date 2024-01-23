@@ -1,4 +1,4 @@
-package utils
+package testutils
 
 import (
 	"context"
@@ -81,4 +81,22 @@ func NoopLogger(t *testing.T) runtime.Logger {
 	mockLog.On("Debug", mock.Anything).Return().Maybe()
 	mockLog.On("Info", mock.Anything).Return().Maybe()
 	return mockLog
+}
+
+func MockMatchReadKey(key string) interface{} {
+	return mock.MatchedBy(func(storeRead []*runtime.StorageRead) bool {
+		if len(storeRead) != 1 {
+			return false
+		}
+		return storeRead[0].Key == key
+	})
+}
+
+func MockMatchWriteKey(key string) interface{} {
+	return mock.MatchedBy(func(storeWrite []*runtime.StorageWrite) bool {
+		if len(storeWrite) != 1 {
+			return false
+		}
+		return storeWrite[0].Key == key
+	})
 }
