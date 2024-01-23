@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"pkg.world.dev/world-engine/relay/nakama/nakama_errors"
 	"testing"
 
 	"github.com/heroiclabs/nakama-common/api"
@@ -76,7 +77,7 @@ func (a *AllowListTestSuite) TestCannotClaimASecondBetaKey() {
 		Once()
 
 	_, err := claimKeyRPC(ctx, noopLogger(t), nil, mockNK, `{"Key":"some-other-beta-key"}`)
-	assert.ErrorContains(t, err, ErrAlreadyVerified.Error())
+	assert.ErrorContains(t, err, nakama_errors.ErrAlreadyVerified.Error())
 }
 
 func (a *AllowListTestSuite) TestBadKeyRequestsAreRejected() {
@@ -91,7 +92,7 @@ func (a *AllowListTestSuite) TestBadKeyRequestsAreRejected() {
 
 	_, err := claimKeyRPC(ctx, noopLogger(t), nil, mockNK, `{"key": ""}`)
 	// Nakama returns its own custom runtime error which does NOT implement the Is method, making ErrorIs not helpful.
-	assert.ErrorContains(t, err, ErrInvalidBetaKey.Error())
+	assert.ErrorContains(t, err, nakama_errors.ErrInvalidBetaKey.Error())
 
 	badBody := `{"key": "{{{{`
 	_, err = claimKeyRPC(ctx, noopLogger(t), nil, mockNK, badBody)
@@ -294,5 +295,5 @@ func (a *AllowListTestSuite) TestClaimedBetaKeyCannotBeReclaimed() {
 
 	payload := `{"key": "xyzzy"}`
 	_, err := claimKeyRPC(ctx, noopLogger(t), nil, mockNK, payload)
-	assert.ErrorContains(t, err, ErrBetaKeyAlreadyUsed.Error())
+	assert.ErrorContains(t, err, nakama_errors.ErrBetaKeyAlreadyUsed.Error())
 }

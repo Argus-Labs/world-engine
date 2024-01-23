@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"sync"
 	"time"
 
@@ -105,13 +106,13 @@ func (r *receiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (
 		return nil, eris.Wrap(err, "")
 	}
 	ctx := context.Background()
-	url := makeHTTPURL(transactionReceiptsEndpoint)
+	url := utils.MakeHTTPURL(transactionReceiptsEndpoint)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
 		return nil, eris.Wrap(err, "")
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := doRequest(req)
+	resp, err := utils.DoRequest(req)
 	if err != nil {
 		return nil, eris.Wrapf(err, "failed to query %q", url)
 	}

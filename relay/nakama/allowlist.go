@@ -6,9 +6,10 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
+	"pkg.world.dev/world-engine/relay/nakama/nakama_errors"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"strconv"
 	"strings"
 
@@ -17,11 +18,6 @@ import (
 )
 
 var (
-	ErrNotAllowlisted     = errors.New("this user is not allowlisted")
-	ErrInvalidBetaKey     = errors.New("invalid beta key")
-	ErrBetaKeyAlreadyUsed = errors.New("beta key already used")
-	ErrAlreadyVerified    = errors.New("this user is already verified by an existing beta key")
-
 	allowlistEnabledEnvVar = "ENABLE_ALLOWLIST"
 	allowlistEnabled       = false
 	allowlistKeyCollection = "allowlist_keys_collection"
@@ -71,26 +67,26 @@ type KeyStorage struct {
 func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
 	string, error,
 ) {
-	id, err := getUserID(ctx)
+	id, err := utils.GetUserID(ctx)
 	if err != nil {
-		return logErrorFailedPrecondition(logger, err)
+		return utils.LogErrorFailedPrecondition(logger, err)
 	}
 	if id != adminAccountID {
-		return logError(logger, eris.Errorf("unauthorized: only admin may call this RPC"), PermissionDenied)
+		return utils.LogError(logger, eris.Errorf("unauthorized: only admin may call this RPC"), nakama_errors.PermissionDenied)
 	}
 
 	var msg GenKeysMsg
 	err = json.Unmarshal([]byte(payload), &msg)
 	if err != nil {
-		return logError(
+		return utils.LogError(
 			logger,
 			eris.Wrap(err, `error unmarshalling payload: expected form {"amount": <int>}`),
-			InvalidArgument)
+			nakama_errors.InvalidArgument)
 	}
 
 	keys, err := generateBetaKeys(msg.Amount)
 	if err != nil {
-		return logErrorFailedPrecondition(logger, eris.Wrap(err, "error generating beta keys"))
+		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "error generating beta keys"))
 	}
 
 	writes := make([]*runtime.StorageWrite, 0, len(keys))
@@ -102,7 +98,7 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 		}
 		bz, err := json.Marshal(obj)
 		if err != nil {
-			return logErrorMessageFailedPrecondition(logger, err, "unable to marshal generated key")
+			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to marshal generated key")
 		}
 		writes = append(writes, &runtime.StorageWrite{
 			Collection:      allowlistKeyCollection,
@@ -117,12 +113,12 @@ func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runt
 
 	_, err = nk.StorageWrite(ctx, writes)
 	if err != nil {
-		return logErrorFailedPrecondition(logger, eris.Wrap(err, "error writing keys to storage"))
+		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "error writing keys to storage"))
 	}
 
 	response, err := json.Marshal(GenKeysResponse{Keys: keys})
 	if err != nil {
-		return logErrorFailedPrecondition(logger, eris.Wrap(err, ""))
+		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, ""))
 	}
 	return string(response), nil
 }
@@ -138,48 +134,48 @@ type ClaimKeyRes struct {
 func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
 	string, error,
 ) {
-	userID, err := getUserID(ctx)
+	userID, err := utils.GetUserID(ctx)
 	if err != nil {
-		return logErrorWithMessageAndCode(logger, err, NotFound, "unable to get userID: %v", err)
+		return utils.LogErrorWithMessageAndCode(logger, err, nakama_errors.NotFound, "unable to get userID: %v", err)
 	}
 
 	if verified, err := isUserVerified(ctx, nk, userID); err != nil {
-		return logErrorMessageFailedPrecondition(logger, err, "failed to check beta key status")
+		return utils.LogErrorMessageFailedPrecondition(logger, err, "failed to check beta key status")
 	} else if verified {
 		msg := fmt.Sprintf("user %q already verified with a beta key", userID)
-		return logErrorWithMessageAndCode(logger, ErrAlreadyVerified, AlreadyExists, msg)
+		return utils.LogErrorWithMessageAndCode(logger, nakama_errors.ErrAlreadyVerified, nakama_errors.AlreadyExists, msg)
 	}
 
 	var ck ClaimKeyMsg
 	err = json.Unmarshal([]byte(payload), &ck)
 	if err != nil {
-		return logErrorWithMessageAndCode(logger, err, InvalidArgument, "unable to unmarshal payload: %v", err)
+		return utils.LogErrorWithMessageAndCode(logger, err, nakama_errors.InvalidArgument, "unable to unmarshal payload: %v", err)
 	}
 	if ck.Key == "" {
-		return logErrorWithMessageAndCode(logger, ErrInvalidBetaKey, InvalidArgument, "no key provided in request")
+		return utils.LogErrorWithMessageAndCode(logger, nakama_errors.ErrInvalidBetaKey, nakama_errors.InvalidArgument, "no key provided in request")
 	}
 	ck.Key = strings.ToUpper(ck.Key)
 	err = claimKey(ctx, nk, ck.Key, userID)
 	if err != nil {
-		return logErrorWithMessageAndCode(
+		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
-			InvalidArgument,
+			nakama_errors.InvalidArgument,
 			fmt.Sprintf("unable to claim key: %v", err))
 	}
 	err = writeVerified(ctx, nk, userID)
 	if err != nil {
-		return logErrorWithMessageAndCode(
+		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
-			NotFound,
+			nakama_errors.NotFound,
 			fmt.Sprintf("server could not save user verification entry. please "+
 				"try again: %v", err))
 	}
 
 	bz, err := json.Marshal(ClaimKeyRes{Success: true})
 	if err != nil {
-		return logErrorWithMessageAndCode(logger, err, NotFound, "unable to marshal response: %v", err)
+		return utils.LogErrorWithMessageAndCode(logger, err, nakama_errors.NotFound, "unable to marshal response: %v", err)
 	}
 	return string(bz), nil
 }
@@ -239,7 +235,7 @@ func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStor
 		return nil, eris.Wrap(err, "error reading storage object for key")
 	}
 	if len(objs) == 0 {
-		return nil, eris.Wrap(ErrInvalidBetaKey, "")
+		return nil, eris.Wrap(nakama_errors.ErrInvalidBetaKey, "")
 	}
 
 	obj := objs[0]
@@ -279,7 +275,7 @@ func claimKey(ctx context.Context, nk runtime.NakamaModule, key, userID string) 
 		return err
 	}
 	if ks.Used {
-		return eris.Wrapf(ErrBetaKeyAlreadyUsed, "user %q was unable to claim %q", userID, key)
+		return eris.Wrapf(nakama_errors.ErrBetaKeyAlreadyUsed, "user %q was unable to claim %q", userID, key)
 	}
 	ks.Used = true
 	ks.UsedBy = userID
