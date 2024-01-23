@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
@@ -379,7 +379,7 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 				// Get the valid entity for the second tick
 				id, err := worldCtx.NewSearch(cardinal.Exact(Foo{}, Bar{})).First(worldCtx)
 				assert.Check(t, err == nil)
-				assert.Check(t, id != storage.BadID)
+				assert.Check(t, id != iterators.BadID)
 
 				// Shut down redis. The testCase's failure function will now be able to fail
 				miniRedis.Close()
