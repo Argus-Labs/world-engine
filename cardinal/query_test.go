@@ -53,7 +53,7 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 		Y uint64
 	}
 	_ = cardinal.RegisterQueryWithEVMSupport[FooReq, FooReply](
-		testutils.NewTestWorld(t),
+		testutils.NewTestFixture(t, nil).World,
 		"query_health",
 		func(
 			_ cardinal.WorldContext,
@@ -63,7 +63,7 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 }
 
 func TestQueryExample(t *testing.T) {
-	world, _ := testutils.MakeWorldAndTicker(t, nil)
+	world := testutils.NewTestFixture(t, nil).World
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(
 		t,

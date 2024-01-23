@@ -33,7 +33,8 @@ func TestApis(t *testing.T) {
 }
 
 func TestTransactionExample(t *testing.T) {
-	world, doTick := testutils.MakeWorldAndTicker(t, nil)
+	tf := testutils.NewTestFixture(t, nil)
+	world, doTick := tf.World, tf.DoTick
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(t, cardinal.RegisterMessages(world, addHealthToEntity))
 	err := cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {

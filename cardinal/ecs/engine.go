@@ -544,13 +544,7 @@ func (e *Engine) setEvmResults(txs []txpool.TxData) {
 	}
 }
 
-func (e *Engine) StartGameLoop(
-	ctx context.Context,
-	tickStart <-chan time.Time,
-	tickDone chan<- uint64,
-) {
-	e.Logger.Info().Msg("Game loop started")
-	ecslog.Engine(e.Logger, e, zerolog.InfoLevel)
+func (e *Engine) emitResourcesWarnings() {
 	// todo: add links to docs related to each warning
 	if !e.isComponentsRegistered {
 		e.Logger.Warn().Msg("No components registered.")
@@ -564,6 +558,16 @@ func (e *Engine) StartGameLoop(
 	if len(e.systems) == 0 {
 		e.Logger.Warn().Msg("No systems registered.")
 	}
+}
+
+func (e *Engine) StartGameLoop(
+	ctx context.Context,
+	tickStart <-chan time.Time,
+	tickDone chan<- uint64,
+) {
+	e.Logger.Info().Msg("Game loop started")
+	ecslog.Engine(e.Logger, e, zerolog.InfoLevel)
+	e.emitResourcesWarnings()
 
 	go func() {
 		ok := e.isGameLoopRunning.CompareAndSwap(false, true)
@@ -586,6 +590,9 @@ func (e *Engine) StartGameLoop(
 				if e.GetTxQueueAmount() > 0 {
 					// immediately tick if queue is not empty to process all txs if queue is not empty.
 					e.tickTheEngine(ctx, tickDone)
+					if tickDone != nil {
+						close(tickDone)
+					}
 				}
 				break loop
 			case ch := <-e.addChannelWaitingForNextTick:

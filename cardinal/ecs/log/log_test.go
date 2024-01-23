@@ -15,6 +15,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/types/component"
@@ -63,7 +64,7 @@ func testSystemWarningTrigger(eCtx ecs.EngineContext) error {
 }
 
 func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
@@ -76,9 +77,9 @@ func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
 }
 
 func TestEngineLogger(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 
-	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
+	// Ensure logs are enabled
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 
 	// replaces internal Logger with one that logs to the buf variable above.
