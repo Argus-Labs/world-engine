@@ -27,7 +27,7 @@ type readOnlyManager struct {
 	archIDToComps   map[archetype.ID][]component.ComponentMetadata
 }
 
-func (m *EntityComponentBuffer) ToReadOnly() Reader {
+func (m *EntityCommandBuffer) ToReadOnly() Reader {
 	return &readOnlyManager{
 		client:          m.client,
 		typeToComponent: m.typeToComponent,

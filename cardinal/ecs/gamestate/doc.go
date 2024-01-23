@@ -7,9 +7,9 @@ intermediate state.
 
 There are two ways a batch of state changes can be grouped and applied/discarded.
 
-EntityComponentBuffer.AtomicFn takes in a function that returns an error. The passed in function will be executed, and
+EntityCommandBuffer.AtomicFn takes in a function that returns an error. The passed in function will be executed, and
 any state made during that function call will be stored as pending state changes. During this time, reads using the
-EntityComponentBuffer will report the pending values. Conversely, reading data directly from Redis the original value
+EntityCommandBuffer will report the pending values. Conversely, reading data directly from Redis the original value
 (before AtomicFn was called).
 
 If the passed in function returns an error, all pending state changes will be discarded.
@@ -17,14 +17,14 @@ If the passed in function returns an error, all pending state changes will be di
 If the passed in function returns no error, all pending state changes will be committed to Redis in an atomic
 transaction.
 
-Alternatively, EntityComponentBuffer can be used outside an AtomicFn context. State changes are stored as pending
+Alternatively, EntityCommandBuffer can be used outside an AtomicFn context. State changes are stored as pending
 operations. Read operations will report the pending state. Note, no changes to Redis are applied while pending
 operations are accumulated.
 
-Pending changes can be discarded with EntityComponentBuffer.DiscardPending. A subsequent read will return identical
+Pending changes can be discarded with EntityCommandBuffer.DiscardPending. A subsequent read will return identical
 data to the data stored in Redis.
 
-Pending changes can be committed to redis with EntityComponentBuffer.FinalizeTick. All pending changes will
+Pending changes can be committed to redis with EntityCommandBuffer.FinalizeTick. All pending changes will
 be packaged into a single redis [multi/exec pipeline](https://redis.io/docs/interact/transactions/) and applied
 atomically. Reads to redis during this time will never return any pending state. For example, if a series of 100
 commands increments some value from 0 to 100, and then FinalizeTick is called, reading this value from the DB will

@@ -25,17 +25,17 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-func newCmdBufferForTest(t *testing.T) *gamestate.EntityComponentBuffer {
+func newCmdBufferForTest(t *testing.T) *gamestate.EntityCommandBuffer {
 	manager, _ := newCmdBufferAndRedisClientForTest(t, nil)
 	return manager
 }
 
-// newCmdBufferAndRedisClientForTest creates a gamestate.EntityComponentBuffer using the given
+// newCmdBufferAndRedisClientForTest creates a gamestate.EntityCommandBuffer using the given
 // redis client. If the passed in redis
 // client is nil, a redis client is created.
 func newCmdBufferAndRedisClientForTest(
 	t *testing.T,
-	client *redis.Client) (*gamestate.EntityComponentBuffer, *redis.Client) {
+	client *redis.Client) (*gamestate.EntityCommandBuffer, *redis.Client) {
 	if client == nil {
 		s := miniredis.RunT(t)
 		options := redis.Options{

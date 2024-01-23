@@ -57,7 +57,7 @@ func TestComponentSetsCanBeRecovered(t *testing.T) {
 	assert.Equal(t, firstArchID, secondArchID)
 }
 
-func getArchIDForEntity(t *testing.T, m *gamestate.EntityComponentBuffer, id entity.ID) archetype.ID {
+func getArchIDForEntity(t *testing.T, m *gamestate.EntityCommandBuffer, id entity.ID) archetype.ID {
 	comps, err := m.GetComponentTypesForEntity(id)
 	assert.NilError(t, err)
 	archID, err := m.GetArchIDForComponents(comps)
@@ -168,7 +168,7 @@ func TestEntitiesCanBeFetchedAfterReload(t *testing.T) {
 
 	assert.NilError(t, manager.FinalizeTick(ctx))
 
-	// Create a new EntityComponentBuffer instances and make sure the previously created entities can be found
+	// Create a new EntityCommandBuffer instances and make sure the previously created entities can be found
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
 	ids, err = manager.GetEntitiesForArchID(archID)
 	assert.NilError(t, err)
