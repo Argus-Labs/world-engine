@@ -34,7 +34,7 @@ type TxReply struct{}
 // the world, and executed in systems.
 func TestServer_SendMessage(t *testing.T) {
 	// setup the engine
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 
 	// create the ECS transactions
 	fooTx := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])
@@ -155,17 +155,17 @@ func TestServer_Query(t *testing.T) {
 	handleFooQuery := func(eCtx cardinal.WorldContext, req *FooReq) (*FooReply, error) {
 		return &FooReply{Y: req.X}, nil
 	}
-	w := testutils.NewTestWorld(t)
-	world := w.Engine()
+	w := testutils.NewTestFixture(t, nil).World
+	engine := w.Engine()
 	err := cardinal.RegisterQueryWithEVMSupport[FooReq, FooReply](w, "foo", handleFooQuery)
 	assert.NilError(t, err)
-	err = world.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("nothing"))
+	err = engine.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("nothing"))
 	assert.NilError(t, err)
-	s, err := evm.NewServer(world)
+	s, err := evm.NewServer(engine)
 	assert.NilError(t, err)
 
 	request := FooReq{X: 3000}
-	query, err := world.GetQueryByName("foo")
+	query, err := engine.GetQueryByName("foo")
 	assert.NilError(t, err)
 	bz, err := query.EncodeAsABI(request)
 	assert.NilError(t, err)
@@ -188,7 +188,7 @@ func TestServer_Query(t *testing.T) {
 // Authorized address for the sender, an error occurs.
 func TestServer_UnauthorizedAddress(t *testing.T) {
 	// setup the world
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 
 	// create the ECS transactions
 	fooTxType := ecs.NewMessageType[FooTransaction, TxReply]("footx", ecs.WithMsgEVMSupport[FooTransaction, TxReply])

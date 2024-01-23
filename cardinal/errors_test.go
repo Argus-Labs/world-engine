@@ -129,7 +129,8 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			world, tick := testutils.MakeWorldAndTicker(t, nil)
+			tf := testutils.NewTestFixture(t, nil)
+			world, tick := tf.World, tf.DoTick
 			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 			assert.NilError(t, cardinal.RegisterComponent[Bar](world))
 			world.Init(func(worldCtx cardinal.WorldContext) error {
@@ -223,7 +224,8 @@ func TestSystemsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			world, tick := testutils.MakeWorldAndTicker(t, nil)
+			tf := testutils.NewTestFixture(t, nil)
+			world, tick := tf.World, tf.DoTick
 			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 			world.Init(func(worldCtx cardinal.WorldContext) error {
 				defer func() {
@@ -281,7 +283,8 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 				assert.Check(t, err == nil, "expected no panic but got %q", err)
 			}()
 
-			world, tick := testutils.MakeWorldAndTicker(t, nil)
+			tf := testutils.NewTestFixture(t, nil)
+			world, tick := tf.World, tf.DoTick
 			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 			world.Init(func(worldCtx cardinal.WorldContext) error {
 				// Make an entity so the test functions are operating on a valid entity.
@@ -357,7 +360,8 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			miniRedis := miniredis.RunT(t)
-			world, tick := testutils.MakeWorldAndTicker(t, miniRedis)
+			tf := testutils.NewTestFixture(t, miniRedis)
+			world, tick := tf.World, tf.DoTick
 			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 			assert.NilError(t, cardinal.RegisterComponent[Bar](world))
 			assert.NilError(t, cardinal.RegisterComponent[Qux](world))
@@ -399,7 +403,8 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 }
 func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	miniRedis := miniredis.RunT(t)
-	world, tick := testutils.MakeWorldAndTicker(t, miniRedis)
+	tf := testutils.NewTestFixture(t, miniRedis)
+	world, tick := tf.World, tf.DoTick
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	world.Init(func(worldCtx cardinal.WorldContext) error {

@@ -54,7 +54,7 @@ func TestComponentInterfaceSignature(t *testing.T) {
 }
 
 func TestComponents(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	ecs.MustRegisterComponent[ComponentDataA](engine)
 	ecs.MustRegisterComponent[ComponentDataB](engine)
 
@@ -156,7 +156,7 @@ func (notFoundComp) Name() string {
 }
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	ecs.MustRegisterComponent[foundComp](engine)
 	ecs.MustRegisterComponent[notFoundComp](engine)
 
@@ -176,7 +176,7 @@ func (ValueComponent) Name() string {
 }
 
 func TestMultipleCallsToCreateSupported(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent](engine))
 
 	eCtx := ecs.NewEngineContext(engine)

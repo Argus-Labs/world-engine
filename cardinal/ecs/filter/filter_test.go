@@ -8,6 +8,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/component"
 
 	"github.com/rs/zerolog"
+
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
@@ -25,7 +26,7 @@ func (gammaComponent) Name() string {
 }
 
 func TestGetEverythingFilter(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 
 	assert.NilError(t, ecs.RegisterComponent[Alpha](engine))
 	assert.NilError(t, ecs.RegisterComponent[Beta](engine))
@@ -56,7 +57,7 @@ func TestGetEverythingFilter(t *testing.T) {
 }
 
 func TestCanFilterByArchetype(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 
 	assert.NilError(t, ecs.RegisterComponent[Alpha](engine))
 	assert.NilError(t, ecs.RegisterComponent[Beta](engine))
@@ -102,7 +103,7 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 func TestExactVsContains(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, ecs.RegisterComponent[Alpha](engine))
 	assert.NilError(t, ecs.RegisterComponent[Beta](engine))
 
@@ -233,7 +234,7 @@ func TestExactVsContains(t *testing.T) {
 }
 
 func TestCanGetArchetypeFromEntity(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, ecs.RegisterComponent[Alpha](engine))
 	assert.NilError(t, ecs.RegisterComponent[Beta](engine))
 	assert.NilError(t, engine.LoadGameState())
@@ -286,7 +287,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 func BenchmarkEntityCreation(b *testing.B) {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	for i := 0; i < b.N; i++ {
-		engine := testutils.NewTestWorld(b).Engine()
+		engine := testutils.NewTestFixture(b, nil).Engine
 		assert.NilError(b, ecs.RegisterComponent[Alpha](engine))
 		assert.NilError(b, engine.LoadGameState())
 		eCtx := ecs.NewEngineContext(engine)
@@ -313,7 +314,7 @@ func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 
 func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StopTimer()
-	engine := testutils.NewTestWorld(b).Engine()
+	engine := testutils.NewTestFixture(b, nil).Engine
 	assert.NilError(b, ecs.RegisterComponent[Alpha](engine))
 	assert.NilError(b, ecs.RegisterComponent[Beta](engine))
 	assert.NilError(b, engine.LoadGameState())

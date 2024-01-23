@@ -9,7 +9,7 @@ import (
 )
 
 func TestCanRemoveEntity(t *testing.T) {
-	world, _ := testutils.MakeWorldAndTicker(t, nil)
+	world := testutils.NewTestFixture(t, nil).World
 
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 

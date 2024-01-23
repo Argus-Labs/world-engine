@@ -8,25 +8,26 @@ import (
 	"fmt"
 	"io"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
-
 	"testing"
 
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 )
 
 func TestTickHappyPath(t *testing.T) {
 	rs := miniredis.RunT(t)
-	oneEngine := testutil.InitEngineWithRedis(t, rs)
+	oneEngine := testutils.NewTestFixture(t, rs).Engine
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](oneEngine))
 	assert.NilError(t, oneEngine.LoadGameState())
 
@@ -36,13 +37,13 @@ func TestTickHappyPath(t *testing.T) {
 
 	assert.Equal(t, uint64(10), oneEngine.CurrentTick())
 
-	twoEngine := testutil.InitEngineWithRedis(t, rs)
+	twoEngine := testutils.NewTestFixture(t, rs).Engine
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](twoEngine))
 	assert.NilError(t, twoEngine.LoadGameState())
 	assert.Equal(t, uint64(10), twoEngine.CurrentTick())
 }
 func TestIfPanicMessageLogged(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
@@ -114,7 +115,7 @@ func (twoPowerComponent) Name() string {
 
 func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	rs := miniredis.RunT(t)
-	oneEngine := testutil.InitEngineWithRedis(t, rs)
+	oneEngine := testutils.NewTestFixture(t, rs).Engine
 	assert.NilError(t, ecs.RegisterComponent[onePowerComponent](oneEngine))
 
 	errorSystem := errors.New("3 power? That's too much, man")
@@ -147,7 +148,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	assert.ErrorIs(t, errorSystem, eris.Cause(oneEngine.Tick(context.Background())))
 
 	// Set up a new engine using the same storage layer
-	twoEngine := testutil.InitEngineWithRedis(t, rs)
+	twoEngine := testutils.NewTestFixture(t, rs).Engine
 	assert.NilError(t, ecs.RegisterComponent[onePowerComponent](twoEngine))
 	assert.NilError(t, ecs.RegisterComponent[twoPowerComponent](twoEngine))
 
@@ -194,7 +195,7 @@ func (ScalarComponentBeta) Name() string {
 }
 
 func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, ecs.RegisterComponent[ScalarComponentAlpha](engine))
 	assert.NilError(t, ecs.RegisterComponent[ScalarComponentBeta](engine))
 	assert.NilError(t, engine.LoadGameState())
@@ -251,7 +252,7 @@ func (ScalarComponentToggle) Name() string {
 func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 	rs := miniredis.RunT(t)
 	for _, firstEngineIteration := range []bool{true, false} {
-		engine := testutil.InitEngineWithRedis(t, rs)
+		engine := testutils.NewTestFixture(t, rs).Engine
 		assert.NilError(t, ecs.RegisterComponent[ScalarComponentStatic](engine))
 		assert.NilError(t, ecs.RegisterComponent[ScalarComponentToggle](engine))
 
@@ -327,7 +328,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 	rs := miniredis.RunT(t)
 	errorBadPowerChange := errors.New("bad power change message")
 	for _, isBuggyIteration := range []bool{true, false} {
-		engine := testutil.InitEngineWithRedis(t, rs)
+		engine := testutils.NewTestFixture(t, rs).Engine
 
 		assert.NilError(t, ecs.RegisterComponent[PowerComp](engine))
 

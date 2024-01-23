@@ -15,19 +15,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal"
-
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
-	"github.com/gorilla/websocket"
-	"pkg.world.dev/world-engine/assert"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/server"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -38,16 +34,18 @@ type SendEnergyTx struct {
 
 type SendEnergyTxResult struct{}
 
-func healthURL(addr string) string {
-	return fmt.Sprintf("http://%s/health", addr)
+func healthURL(baseURL string) string {
+	return httpURL(baseURL, "health")
+}
+func httpURL(baseURL, path string) string {
+	return fmt.Sprintf("http://%s/%s", baseURL, path)
 }
 
 func TestHealthEndpoint(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
-	world, addr := testutils.NewTestWorldAndServerAddress(t)
-	engine := world.Engine()
-	assert.NilError(t, engine.LoadGameState())
-	testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	addr := tf.BaseURL
+	tf.StartWorld()
 	resp, err := http.Get(healthURL(addr))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
@@ -55,20 +53,7 @@ func TestHealthEndpoint(t *testing.T) {
 	err = json.NewDecoder(resp.Body).Decode(&healthResponse)
 	assert.NilError(t, err)
 	assert.Assert(t, healthResponse.IsServerRunning)
-	assert.Assert(t, !healthResponse.IsGameLoopRunning)
-	ctx := context.Background()
-	engine.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
-	isGameLoopRunning := false
-	for !isGameLoopRunning {
-		time.Sleep(200 * time.Millisecond)
-		resp, err = http.Get(healthURL(addr))
-		assert.NilError(t, err)
-		assert.Equal(t, resp.StatusCode, 200)
-		err = json.NewDecoder(resp.Body).Decode(&healthResponse)
-		assert.NilError(t, err)
-		assert.Assert(t, healthResponse.IsServerRunning)
-		isGameLoopRunning = healthResponse.IsGameLoopRunning
-	}
+	assert.Assert(t, healthResponse.IsGameLoopRunning)
 }
 
 type Alpha struct{}
@@ -92,22 +77,14 @@ func (Delta) Name() string { return "delta" }
 func TestShutDownViaMethod(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
-	world, addr := testutils.NewTestWorldAndServerAddress(t)
-	engine := world.Engine()
-	assert.NilError(t, engine.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
-	resp, err := http.Get(healthURL(addr))
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	engine, addr := tf.Engine, tf.BaseURL
+	tf.StartWorld()
+	resp, err := http.Get(httpURL(addr, "health"))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
-	ctx := context.Background()
-	engine.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
-	for !engine.IsGameLoopRunning() {
-		// wait until game loop is running.
-		time.Sleep(1 * time.Millisecond)
-	}
-	gameObject := server.NewGameManager(engine, txh.Handler)
-	err = gameObject.Shutdown() // Should block until loop is down.
-	assert.NilError(t, err)
+
+	assert.NilError(t, tf.World.ShutDown())
 	assert.Assert(t, !engine.IsGameLoopRunning())
 	_, err = http.Get(healthURL(addr))
 	assert.Check(t, err != nil)
@@ -116,8 +93,8 @@ func TestShutDownViaMethod(t *testing.T) {
 func TestShutDownViaSignal(t *testing.T) {
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
-	world, addr := testutils.NewTestWorldAndServerAddress(t)
-	engine := world.Engine()
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	engine, addr := tf.Engine, tf.BaseURL
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, engine.RegisterMessages(sendTx))
 	engine.RegisterSystem(
@@ -125,18 +102,10 @@ func TestShutDownViaSignal(t *testing.T) {
 			return nil
 		},
 	)
-	assert.NilError(t, engine.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
+	tf.StartWorld()
 	resp, err := http.Get(healthURL(addr))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
-	ctx := context.Background()
-	engine.StartGameLoop(ctx, time.Tick(1*time.Second), nil)
-	for !engine.IsGameLoopRunning() {
-		// wait until game loop is running
-		time.Sleep(500 * time.Millisecond)
-	}
-	_ = server.NewGameManager(engine, txh.Handler)
 
 	// Send a SIGINT signal.
 	cmd := exec.Command("kill", "-INT", strconv.Itoa(os.Getpid()))
@@ -151,40 +120,19 @@ func TestShutDownViaSignal(t *testing.T) {
 	assert.Check(t, err != nil) // Server must shutdown before game loop. So if the gameloop turned off
 }
 
-func TestIfServeSetEnvVarForPort(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
-	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	assert.NilError(t, engine.RegisterMessages(alphaTx))
-	txh, err := server.NewHandler(engine, nil, server.DisableSignatureVerification())
-	assert.NilError(t, err)
-	t.Cleanup(
-		func() {
-			assert.NilError(t, txh.Close())
-		},
-	)
-	txh.Port = ""
-	t.Setenv("CARDINAL_PORT", "1337")
-	txh.Initialize()
-	assert.Equal(t, txh.Port, "1337")
-	txh.Port = ""
-	t.Setenv("CARDINAL_PORT", "133asdfsdgdfdfgdf7")
-	txh.Initialize()
-	assert.Equal(t, txh.Port, "4040")
-	t.Setenv("CARDINAL_PORT", "4555")
-	txh.Port = "bad"
-	txh.Initialize()
-	assert.Equal(t, txh.Port, "4555")
-}
-
 func TestCanListTransactionEndpoints(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	//	opts := []cardinal.WorldOption{cardinal.WithDisableSignatureVerification(), cardinal.WithCORS()}
+	opts := []cardinal.WorldOption{cardinal.WithDisableSignatureVerification()}
+	tf := testutils.NewTestFixture(t, nil, opts...)
+	engine := tf.Engine
 	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	betaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("beta")
 	gammaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("gamma")
 	assert.NilError(t, engine.RegisterMessages(alphaTx, betaTx, gammaTx))
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification(), server.WithCORS())
+	tf.StartWorld()
+
 	client := &http.Client{}
-	req, err := http.NewRequest(http.MethodPost, txh.MakeHTTPURL("query/http/endpoints"), nil)
+	req, err := http.NewRequest(http.MethodPost, httpURL(tf.BaseURL, "query/http/endpoints"), nil)
 	assert.NilError(t, err)
 	req.Header.Set("Origin", "http://www.bullshit.com") // test CORS
 	resp, err := client.Do(req)
@@ -222,7 +170,8 @@ func mustReadBody(t *testing.T, resp *http.Response) string {
 func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	endpoint := "move"
 	url := "tx/game/" + endpoint
-	engine := testutils.NewTestWorld(t).Engine()
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	engine, addr := tf.Engine, tf.BaseURL
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, engine.RegisterMessages(sendTx))
 	count := 0
@@ -238,7 +187,7 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 			return nil
 		},
 	)
-	assert.NilError(t, engine.LoadGameState())
+	tf.StartWorld()
 
 	tx := SendEnergyTx{
 		From:   "me",
@@ -257,16 +206,12 @@ func TestHandleTransactionWithNoSignatureVerification(t *testing.T) {
 	bogusSignatureBz, err := json.Marshal(payload)
 	assert.NilError(t, err)
 
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
-
-	resp, err := http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bogusSignatureBz))
+	resp, err := http.Post(httpURL(addr, url), "application/json", bytes.NewReader(bogusSignatureBz))
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %v", mustReadBody(t, resp))
 
 	assert.NilError(t, engine.Tick(context.Background()))
 	assert.Equal(t, 1, count)
-	err = txh.Close()
-	assert.NilError(t, err)
 }
 
 type garbageStructAlpha struct {
@@ -282,25 +227,25 @@ type garbageStructBeta struct {
 func (garbageStructBeta) Name() string { return "beta" }
 
 func TestHandleSwaggerServer(t *testing.T) {
-	w := testutils.NewTestWorld(t)
-	world := w.Engine()
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	world, engine, addr := tf.World, tf.Engine, tf.BaseURL
 
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
-	assert.NilError(t, world.RegisterMessages(sendTx))
-	world.RegisterSystem(
+	assert.NilError(t, engine.RegisterMessages(sendTx))
+	engine.RegisterSystem(
 		func(ecs.EngineContext) error {
 			return nil
 		},
 	)
 
-	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](world))
-	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](world))
+	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](engine))
+	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](engine))
 
 	// Queue up a CreatePersona
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
 	ecs.CreatePersonaMsg.AddToQueue(
-		world, ecs.CreatePersona{
+		engine, ecs.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: signerAddress,
 		},
@@ -309,7 +254,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 		Address: signerAddress,
 	}
 	ecs.AuthorizePersonaAddressMsg.AddToQueue(
-		world,
+		engine,
 		authorizedPersonaAddress,
 		&sign.Transaction{PersonaTag: personaTag},
 	)
@@ -333,9 +278,8 @@ func TestHandleSwaggerServer(t *testing.T) {
 	) (*FooReply, error) {
 		return &expectedReply, nil
 	}
-	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooReply](w, "foo", fooQueryHandler))
-
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooReply](world, "foo", fooQueryHandler))
+	tf.StartWorld()
 
 	// Test /query/http/endpoints
 	expectedEndpointResult := server.EndpointsResult{
@@ -347,7 +291,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 			"/query/receipt/list", "/query/game/cql",
 		},
 	}
-	resp1, err := http.Post(txh.MakeHTTPURL("query/http/endpoints"), "application/json", nil)
+	resp1, err := http.Post(httpURL(addr, "query/http/endpoints"), "application/json", nil)
 	assert.NilError(t, err)
 	defer resp1.Body.Close()
 	var endpointResult server.EndpointsResult
@@ -369,7 +313,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	assert.NilError(t, err)
 	req, err := http.NewRequest(
 		http.MethodPost,
-		txh.MakeHTTPURL("query/persona/signer"),
+		httpURL(addr, "query/persona/signer"),
 		bytes.NewBuffer(queryPersonaRequestData),
 	)
 	assert.NilError(t, err)
@@ -377,11 +321,8 @@ func TestHandleSwaggerServer(t *testing.T) {
 	req.Header.Set("Content-Length", strconv.Itoa(len(queryPersonaRequestData)))
 	req.Header.Set("Accept", "application/json")
 	client := http.Client{}
-	ctx := context.Background()
-	err = world.LoadGameState()
-	assert.NilError(t, err)
 
-	eCtx := ecs.NewEngineContext(world)
+	eCtx := ecs.NewEngineContext(engine)
 	alphaCount := 75
 	_, err = ecs.CreateMany(eCtx, alphaCount, garbageStructAlpha{})
 	assert.NilError(t, err)
@@ -389,8 +330,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	_, err = ecs.CreateMany(eCtx, bothCount, garbageStructAlpha{}, garbageStructBeta{})
 	assert.NilError(t, err)
 
-	err = world.Tick(ctx)
-	assert.NilError(t, err)
+	tf.DoTick()
 	resp2, err := client.Do(req)
 	assert.NilError(t, err)
 	defer resp2.Body.Close()
@@ -404,7 +344,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	if err != nil {
 		assert.NilError(t, err)
 	}
-	resp3, err := http.Post(txh.MakeHTTPURL("query/game/foo"), "application/json", bytes.NewBuffer(fooData))
+	resp3, err := http.Post(httpURL(addr, "query/game/foo"), "application/json", bytes.NewBuffer(fooData))
 	if err != nil {
 		assert.NilError(t, err)
 	}
@@ -433,7 +373,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	assert.NilError(t, err)
 	gotTxReply := server.TransactionReply{}
 	resp4, err := http.Post(
-		txh.MakeHTTPURL("tx/game/authorize-persona-address"), "application/json",
+		httpURL(addr, "tx/game/authorize-persona-address"), "application/json",
 		bytes.NewBuffer(signedTxJSON),
 	)
 	assert.NilError(t, err)
@@ -443,13 +383,13 @@ func TestHandleSwaggerServer(t *testing.T) {
 	assert.Check(t, gotTxReply.TxHash != "")
 
 	resp5, err := http.Post(
-		txh.MakeHTTPURL("tx/game/dsakjsdlfksdj"), "application/json",
+		httpURL(addr, "tx/game/dsakjsdlfksdj"), "application/json",
 		bytes.NewBuffer(signedTxJSON),
 	)
 	assert.NilError(t, err)
 	assert.Equal(t, resp5.StatusCode, 404)
 	resp6, err := http.Post(
-		txh.MakeHTTPURL("query/game/sdsdfsdfsdf"), "application/json",
+		httpURL(addr, "query/game/sdsdfsdfsdf"), "application/json",
 		bytes.NewBuffer(signedTxJSON),
 	)
 	assert.NilError(t, err)
@@ -472,7 +412,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 		jsonQuery := struct{ CQL string }{v.cql}
 		jsonQueryBytes, err := json.Marshal(jsonQuery)
 		assert.NilError(t, err)
-		resp7, err := http.Post(txh.MakeHTTPURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+		resp7, err := http.Post(httpURL(addr, "query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
 		assert.NilError(t, err)
 		assert.Equal(t, resp7.StatusCode, v.expectedStatus)
 		var entities []cql.QueryResponse
@@ -484,7 +424,7 @@ func TestHandleSwaggerServer(t *testing.T) {
 	jsonQuery := struct{ CQL string }{"blah"}
 	jsonQueryBytes, err := json.Marshal(jsonQuery)
 	assert.NilError(t, err)
-	resp8, err := http.Post(txh.MakeHTTPURL("query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
+	resp8, err := http.Post(httpURL(addr, "query/game/cql"), "application/json", bytes.NewBuffer(jsonQueryBytes))
 	assert.NilError(t, err)
 	assert.Equal(t, resp8.StatusCode, 422)
 }
@@ -493,7 +433,8 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 	endpoint := "move"
 	url := fmt.Sprintf("tx/game/%s", endpoint)
 	count := 0
-	engine := testutils.NewTestWorld(t).Engine()
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	engine, addr := tf.Engine, tf.BaseURL
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult](endpoint)
 	assert.NilError(t, engine.RegisterMessages(sendTx))
 	engine.RegisterSystem(
@@ -508,7 +449,7 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 			return nil
 		},
 	)
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
+	tf.StartWorld()
 	tx := SendEnergyTx{
 		From:   "me",
 		To:     "you",
@@ -527,24 +468,20 @@ func TestHandleWrappedTransactionWithNoSignatureVerification(t *testing.T) {
 
 	bz, err = json.Marshal(&signedTx)
 	assert.NilError(t, err)
-	_, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+	_, err = http.Post(httpURL(addr, url), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 
-	assert.NilError(t, engine.LoadGameState())
-	assert.NilError(t, engine.Tick(context.Background()))
+	tf.DoTick()
 	assert.Equal(t, 1, count)
-	err = txh.Close()
-	assert.NilError(t, err)
 }
 
 func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	urlSet := []string{"tx/persona/create-persona", "query/persona/signer"}
-	engine := testutils.NewTestWorld(t).Engine()
+	tf := testutils.NewTestFixture(t, nil)
+	engine, addr := tf.Engine, tf.BaseURL
 	tx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("some_tx")
 	assert.NilError(t, engine.RegisterMessages(tx))
-	assert.NilError(t, engine.LoadGameState())
-	assert.NilError(t, engine.Tick(context.Background()))
-	txh := testutils.MakeTestTransactionHandler(t, engine)
+	tf.DoTick()
 
 	personaTag := "CoolMage"
 	privateKey, err := crypto.GenerateKey()
@@ -562,7 +499,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	bz, err := systemTx.Marshal()
 	assert.NilError(t, err)
 
-	resp, err := http.Post(txh.MakeHTTPURL(urlSet[0]), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(httpURL(addr, urlSet[0]), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	body := mustReadBody(t, resp)
 	assert.Equal(t, 200, resp.StatusCode, "request failed with body: %s", body)
@@ -582,7 +519,7 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 			},
 		)
 		assert.NilError(t, err)
-		resp, err = http.Post(txh.MakeHTTPURL(urlSet[1]), "application/json", bytes.NewReader(bz))
+		resp, err = http.Post(httpURL(addr, urlSet[1]), "application/json", bytes.NewReader(bz))
 		assert.NilError(t, err)
 		assert.Equal(t, resp.StatusCode, 200)
 		var queryPersonaSignerResponse server.QueryPersonaSignerResponse
@@ -605,20 +542,16 @@ func TestCanCreateAndVerifyPersonaSigner(t *testing.T) {
 	personaSignerResp = postQueryPersonaSigner(personaTag, tick)
 	assert.Equal(t, personaSignerResp.Status, "assigned")
 	assert.Equal(t, personaSignerResp.SignerAddress, signerAddr)
-	err = txh.Close()
-	assert.NilError(t, err)
 }
 
 func TestSigVerificationChecksNamespaceAndSignature(t *testing.T) {
 	url := "tx/persona/create-persona"
-	w := testutils.NewTestWorld(t)
-	engine := w.Engine()
-	assert.NilError(t, engine.LoadGameState())
+	tf := testutils.NewTestFixture(t, nil)
+	engine, addr := tf.Engine, tf.BaseURL
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 
-	txh := testutils.MakeTestTransactionHandler(t, engine)
-	defer txh.Close()
+	tf.StartWorld()
 
 	personaTag := "some_dude"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -675,7 +608,7 @@ func TestSigVerificationChecksNamespaceAndSignature(t *testing.T) {
 		tc.modifyTx(&txCopy)
 		bz, err := txCopy.Marshal()
 		assert.NilError(t, err)
-		resp, err := http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+		resp, err := http.Post(httpURL(addr, url), "application/json", bytes.NewReader(bz))
 		assert.NilError(t, err)
 		assert.Equal(t, tc.wantStatusCode, resp.StatusCode, "test case %q: status code mismatch", tc.name)
 	}
@@ -683,12 +616,12 @@ func TestSigVerificationChecksNamespaceAndSignature(t *testing.T) {
 
 func TestSigVerificationChecksNonce(t *testing.T) {
 	url := "tx/persona/create-persona"
-	engine := testutils.NewTestWorld(t).Engine()
-	assert.NilError(t, engine.LoadGameState())
+	tf := testutils.NewTestFixture(t, nil)
+	engine, addr := tf.Engine, tf.BaseURL
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 
-	txh := testutils.MakeTestTransactionHandler(t, engine)
+	tf.StartWorld()
 
 	personaTag := "some_dude"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
@@ -705,12 +638,12 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Register a persona. This should succeed
-	resp, err := http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(httpURL(addr, url), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 
 	// Repeat the request. Since the nonce is the same, this should fail
-	resp, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(httpURL(addr, url), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 401)
 
@@ -719,7 +652,7 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(httpURL(addr, url), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 401)
 
@@ -728,21 +661,19 @@ func TestSigVerificationChecksNonce(t *testing.T) {
 	assert.NilError(t, err)
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
-	resp, err = http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(httpURL(addr, url), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
-	err = txh.Close()
-	assert.NilError(t, err)
 }
 
 func TestOutOfOrderNonceIsOK(t *testing.T) {
 	url := "tx/persona/create-persona"
-	engine := testutils.NewTestWorld(t).Engine()
-	assert.NilError(t, engine.LoadGameState())
+	tf := testutils.NewTestFixture(t, nil)
+	engine, addr := tf.Engine, tf.BaseURL
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 
-	txh := testutils.MakeTestTransactionHandler(t, engine)
+	tf.StartWorld()
 
 	nextPersonaTagNumber := 0
 
@@ -761,7 +692,7 @@ func TestOutOfOrderNonceIsOK(t *testing.T) {
 		bz, err := sigPayload.Marshal()
 		assert.NilError(t, err)
 
-		resp, err := http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+		resp, err := http.Post(httpURL(addr, url), "application/json", bytes.NewReader(bz))
 		assert.NilError(t, err)
 		if wantSuccess {
 			assert.Equal(t, resp.StatusCode, 200, "nonce %d failed with %d", nonce, resp.StatusCode)
@@ -784,8 +715,8 @@ func TestOutOfOrderNonceIsOK(t *testing.T) {
 
 // TestCanListQueries tests that we can list the available queries in the handler.
 func TestCanListQueries(t *testing.T) {
-	w := testutils.NewTestWorld(t)
-	world := w.Engine()
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	w, addr := tf.World, tf.BaseURL
 	type FooRequest struct {
 		Foo  int    `json:"foo,omitempty"`
 		Meow string `json:"bar,omitempty"`
@@ -814,11 +745,9 @@ func TestCanListQueries(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "foo", handleFooQuery))
 	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "bar", handleBarQuery))
 	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "baz", handleBazQuery))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
-
-	resp, err := http.Post(txh.MakeHTTPURL("query/http/endpoints"), "application/json", nil)
+	resp, err := http.Post(httpURL(addr, "query/http/endpoints"), "application/json", nil)
 	assert.NilError(t, err)
 	assert.Equal(t, resp.StatusCode, 200)
 	var gotEndpoints map[string][]string
@@ -858,21 +787,18 @@ func TestQueryEncodeDecode(t *testing.T) {
 	}
 
 	url := "query/game/" + "foo"
-	// set up the world, register the queries, load.
-	w := testutils.NewTestWorld(t)
-	world := w.Engine()
+	// set up the engine, register the queries, load.
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	w, addr := tf.World, tf.BaseURL
 	assert.NilError(t, cardinal.RegisterQuery[FooRequest, FooResponse](w, "foo", handleFooQuery))
-	assert.NilError(t, world.LoadGameState())
-
-	// make our test tx handler
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+	tf.StartWorld()
 
 	// now we set up a request, and marshal it to json to send to the handler
 	req := FooRequest{Foo: 12, Meow: "hello"}
 	bz, err := json.Marshal(req)
 	assert.NilError(t, err)
 
-	res, err := http.Post(txh.MakeHTTPURL(url), "application/json", bytes.NewReader(bz))
+	res, err := http.Post(httpURL(addr, url), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 
 	buf, err := io.ReadAll(res.Body)
@@ -883,37 +809,33 @@ func TestQueryEncodeDecode(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Equal(t, fooRes.Meow, req.Meow)
-	err = txh.Close()
-	assert.NilError(t, err)
 }
 
 func TestMalformedRequestToGetTransactionReceiptsProducesError(t *testing.T) {
 	url := "query/receipts/list"
-	engine := testutils.NewTestWorld(t).Engine()
-	assert.NilError(t, engine.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
-	res := txh.Post(
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+
+	tf.StartWorld()
+	res := tf.Post(
 		url, map[string]any{
 			"missing_start_tick": 0,
 		},
 	)
 	assert.Check(t, 400 <= res.StatusCode && res.StatusCode <= 499)
-	err := txh.Close()
-	assert.NilError(t, err)
 }
 
 func TestTransactionReceiptReturnCorrectTickWindows(t *testing.T) {
 	url := "query/receipts/list"
 
 	historySize := uint64(10)
-	engine := testutils.NewTestWorld(t, cardinal.WithReceiptHistorySize(int(historySize))).Engine()
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithReceiptHistorySize(int(historySize)))
+	engine := tf.Engine
 
-	assert.NilError(t, engine.LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
+	tf.StartWorld()
 
 	// getReceipts is a helper that hits the txReceiptsEndpoint endpoint.
 	getReceipts := func(start uint64) server.ListTxReceiptsReply {
-		res := txh.Post(
+		res := tf.Post(
 			url, server.ListTxReceiptsRequest{
 				StartTick: start,
 			},
@@ -936,8 +858,7 @@ func TestTransactionReceiptReturnCorrectTickWindows(t *testing.T) {
 	assert.Equal(t, uint64(0), tickCount)
 
 	// Tick once
-	ctx := context.Background()
-	assert.NilError(t, engine.Tick(ctx))
+	tf.DoTick()
 
 	// The engine ticked one time, so we should find 1 valid tick.
 	reply = getReceipts(tick)
@@ -948,7 +869,7 @@ func TestTransactionReceiptReturnCorrectTickWindows(t *testing.T) {
 	// tick a bunch so that the tick history becomes fully populated
 	jumpAhead := historySize * 2
 	for i := uint64(0); i < jumpAhead; i++ {
-		assert.NilError(t, engine.Tick(ctx))
+		tf.DoTick()
 	}
 
 	reply = getReceipts(tick)
@@ -972,8 +893,6 @@ func TestTransactionReceiptReturnCorrectTickWindows(t *testing.T) {
 	reply = getReceipts(tick)
 	tickCount = reply.EndTick - reply.StartTick - 1
 	assert.Equal(t, historySize-3, tickCount)
-	err := txh.Close()
-	assert.NilError(t, err)
 }
 func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	receiptEndpoint := "query/receipts/list"
@@ -1001,11 +920,12 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	dupeTx := ecs.NewMessageType[DupeRequest, DupeReply]("duplicate")
 	errTx := ecs.NewMessageType[ErrRequest, ErrReply]("error")
 
-	world := testutils.NewTestWorld(t).Engine()
+	tf := testutils.NewTestFixture(t, nil)
+	engine := tf.Engine
 
-	assert.NilError(t, world.RegisterMessages(incTx, dupeTx, errTx))
+	assert.NilError(t, engine.RegisterMessages(incTx, dupeTx, errTx))
 	// System to handle incrementing numbers
-	world.RegisterSystem(
+	engine.RegisterSystem(
 		func(eCtx ecs.EngineContext) error {
 			for _, tx := range incTx.In(eCtx) {
 				incTx.SetResult(
@@ -1018,7 +938,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 		},
 	)
 	// System to handle duplicating strings
-	world.RegisterSystem(
+	engine.RegisterSystem(
 		func(eCtx ecs.EngineContext) error {
 			for _, tx := range dupeTx.In(eCtx) {
 				dupeTx.SetResult(
@@ -1032,7 +952,7 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	)
 	wantError := errors.New("some error")
 	// System to handle error production
-	world.RegisterSystem(
+	engine.RegisterSystem(
 		func(eCtx ecs.EngineContext) error {
 			for _, tx := range errTx.In(eCtx) {
 				errTx.AddError(eCtx, tx.Hash, wantError)
@@ -1041,17 +961,13 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 			return nil
 		},
 	)
-	assert.NilError(t, world.LoadGameState())
-
 	// Engine setup is done. First check that there are no transactions.
-	ctx := context.Background()
-	assert.NilError(t, world.Tick(ctx))
-
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
+	tf.StartWorld()
+	tf.DoTick()
 
 	// We're going to be getting the list of receipts a lot, so make a helper to fetch the receipts
 	getReceipts := func(start uint64) server.ListTxReceiptsReply {
-		res := txh.Post(
+		res := tf.Post(
 			receiptEndpoint, server.ListTxReceiptsRequest{
 				StartTick: start,
 			},
@@ -1082,15 +998,15 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 		return sig
 	}
 
-	incID := incTx.AddToQueue(world, IncRequest{99}, nextSig())
-	dupeID := dupeTx.AddToQueue(world, DupeRequest{"foobar"}, nextSig())
-	errID := errTx.AddToQueue(world, ErrRequest{}, nextSig())
+	incID := incTx.AddToQueue(engine, IncRequest{99}, nextSig())
+	dupeID := dupeTx.AddToQueue(engine, DupeRequest{"foobar"}, nextSig())
+	errID := errTx.AddToQueue(engine, ErrRequest{}, nextSig())
 	assert.Check(t, incID != dupeID)
 	assert.Check(t, dupeID != errID)
 	assert.Check(t, errID != incID)
 
-	wantTick := world.CurrentTick()
-	assert.NilError(t, world.Tick(ctx))
+	wantTick := engine.CurrentTick()
+	tf.DoTick()
 
 	txReceipts = getReceipts(0)
 	assert.Equal(t, uint64(0), txReceipts.StartTick)
@@ -1129,9 +1045,6 @@ func TestCanGetTransactionReceiptsSwagger(t *testing.T) {
 	assert.Check(t, foundInc)
 	assert.Check(t, foundDupe)
 	assert.Check(t, foundErr)
-
-	err = txh.Close()
-	assert.NilError(t, err)
 }
 
 func TestTransactionIDIsReturned(t *testing.T) {
@@ -1140,22 +1053,19 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	urls := swaggerUrls
 	type MoveTx struct{}
 
-	w := testutils.NewTestWorld(t)
-	world := w.Engine()
+	tf := testutils.NewTestFixture(t, nil)
+	engine, addr := tf.Engine, tf.BaseURL
 
 	moveTx := ecs.NewMessageType[MoveTx, MoveTx]("move")
-	assert.NilError(t, world.RegisterMessages(moveTx))
-	assert.NilError(t, world.LoadGameState())
-	ctx := context.Background()
+	assert.NilError(t, engine.RegisterMessages(moveTx))
 	// Preemptive tick so the tick isn't the zero value
-	assert.NilError(t, world.Tick(ctx))
+	tf.DoTick()
 	privateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
-	txh := testutils.MakeTestTransactionHandler(t, world)
 
 	personaTag := "clifford_the_big_red_dog"
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	namespace := world.Namespace().String()
+	namespace := engine.Namespace().String()
 	nonce := uint64(99)
 
 	createPersonaTx := ecs.CreatePersona{
@@ -1168,7 +1078,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	bz, err := sigPayload.Marshal()
 	assert.NilError(t, err)
 
-	resp, err := http.Post(txh.MakeHTTPURL(urls[0]), "application/json", bytes.NewReader(bz))
+	resp, err := http.Post(httpURL(addr, urls[0]), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 
@@ -1178,9 +1088,9 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	// The hash field should not be empty
 	assert.Check(t, txReply.TxHash != "")
 	// The tick should equal the current tick
-	assert.Equal(t, world.CurrentTick(), txReply.Tick)
+	assert.Equal(t, engine.CurrentTick(), txReply.Tick)
 
-	assert.NilError(t, world.Tick(ctx))
+	tf.DoTick()
 
 	// Also check to make sure transaction IDs are returned for other kinds of transactions
 	nonce++
@@ -1191,7 +1101,7 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	bz, err = sigPayload.Marshal()
 	assert.NilError(t, err)
 
-	resp, err = http.Post(txh.MakeHTTPURL(urls[1]), "application/json", bytes.NewReader(bz))
+	resp, err = http.Post(httpURL(addr, urls[1]), "application/json", bytes.NewReader(bz))
 	assert.NilError(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
 	assert.NilError(t, json.NewDecoder(resp.Body).Decode(&txReply))
@@ -1199,42 +1109,16 @@ func TestTransactionIDIsReturned(t *testing.T) {
 	// The hash field should not be empty
 	assert.Check(t, txReply.TxHash != "")
 	// The tick should equal the current tick
-	assert.Equal(t, world.CurrentTick(), txReply.Tick)
-	txh.Close()
-}
-
-func TestWebSocket(t *testing.T) {
-	w := testutils.NewTestWorld(t)
-	world := w.Engine()
-	assert.NilError(t, w.Engine().LoadGameState())
-	txh := testutils.MakeTestTransactionHandler(t, world, server.DisableSignatureVerification())
-	url := txh.MakeWebSocketURL("echo")
-	dial, _, err := websocket.DefaultDialer.Dial(url, nil)
-	assert.NilError(t, err)
-	messageToSend := "test"
-	err = dial.WriteMessage(websocket.TextMessage, []byte(messageToSend))
-	assert.NilError(t, err)
-	messageType, message, err := dial.ReadMessage()
-	assert.NilError(t, err)
-	assert.Equal(t, messageType, websocket.TextMessage)
-	assert.Equal(t, string(message), messageToSend)
-	err = eris.Wrap(
-		dial.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")), "",
-	)
-	assert.NilError(t, err)
-	err = dial.Close()
-	assert.NilError(t, err)
+	assert.Equal(t, engine.CurrentTick(), txReply.Tick)
 }
 
 func TestEmptyFieldsAreOKForDisabledSignatureVerification(t *testing.T) {
-	engine := testutils.NewTestWorld(t).Engine()
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
+	engine, addr := tf.Engine, tf.BaseURL
 
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("sendTx")
 	assert.NilError(t, engine.RegisterMessages(sendTx))
-	assert.NilError(t, engine.LoadGameState())
-
-	txh := testutils.MakeTestTransactionHandler(t, engine, server.DisableSignatureVerification())
-	defer txh.Close()
+	tf.StartWorld()
 
 	tx := SendEnergyTx{
 		From:   "me",
@@ -1254,7 +1138,7 @@ func TestEmptyFieldsAreOKForDisabledSignatureVerification(t *testing.T) {
 	verifyTransaction := func(name string) {
 		bz, err = json.Marshal(payload)
 		assert.NilError(t, err)
-		resp, err := http.Post(txh.MakeHTTPURL("tx/game/sendTx"), "application/json", bytes.NewReader(bz))
+		resp, err := http.Post(httpURL(addr, "tx/game/sendTx"), "application/json", bytes.NewReader(bz))
 		assert.NilError(t, err)
 		assert.Equal(t, 200, resp.StatusCode, "in %q request failed with body: %v", name, mustReadBody(t, resp))
 	}
