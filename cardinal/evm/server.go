@@ -73,10 +73,7 @@ type msgServerImpl struct {
 func NewServer(w *ecs.Engine, opts ...Option) (Server, error) {
 	hasEVMTxsOrQueries := false
 
-	txs, err := w.ListMessages()
-	if err != nil {
-		return nil, err
-	}
+	txs := w.ListMessages()
 	it := make(txByName, len(txs))
 	for _, tx := range txs {
 		if tx.IsEVMCompatible() {
@@ -110,6 +107,7 @@ func NewServer(w *ecs.Engine, opts ...Option) (Server, error) {
 	}
 	w.Logger.Debug().Msgf("EVM listener running on port %s", s.port)
 	if s.creds == nil {
+		var err error
 		s.creds, err = tryLoadCredentials()
 		if err != nil {
 			return nil, err

@@ -370,12 +370,7 @@ func (e *Engine) ListQueries() []Query {
 	return e.registeredQueries
 }
 
-func (e *Engine) ListMessages() ([]message.Message, error) {
-	if !e.isMessagesRegistered {
-		return nil, eris.New("cannot list messages until message registration occurs")
-	}
-	return e.registeredMessages, nil
-}
+func (e *Engine) ListMessages() []message.Message { return e.registeredMessages }
 
 // NewEngine creates a new engine.
 func NewEngine(
@@ -756,6 +751,7 @@ func (e *Engine) LoadGameState() error {
 	}
 
 	if err := e.entityStore.RegisterComponents(e.registeredComponents); err != nil {
+		e.entityStore.Close()
 		return err
 	}
 

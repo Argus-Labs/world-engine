@@ -13,6 +13,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server"
+	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -67,11 +68,10 @@ func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 func (s *ServerTestSuite) TestCanListEndpoints() {
 	s.server = testutils.NewTestServer(s.T(), s.engine, server.WithPrettyPrint())
 	res := s.server.Get("/query/http/endpoints")
-	var result server.EndpointsResult
+	var result handler.EndpointsResult
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
-	msgs, err := s.engine.ListMessages()
-	s.Require().NoError(err)
+	msgs := s.engine.ListMessages()
 	queries := s.engine.ListQueries()
 
 	s.Require().Len(msgs, len(result.TxEndpoints))

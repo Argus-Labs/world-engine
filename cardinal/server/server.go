@@ -2,8 +2,6 @@ package server
 
 import (
 	_ "embed"
-	"errors"
-	"fmt"
 	"github.com/gofiber/contrib/swagger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
@@ -11,6 +9,7 @@ import (
 	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 	"sync/atomic"
 )
 
@@ -47,9 +46,9 @@ func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
 		eng:           eng,
 		app:           fiber.New(),
 		txPrefix:      "/tx/game/",
-		txWildCard:    "{txType}",
+		txWildCard:    "txType",
 		queryPrefix:   "/query/game/",
-		queryWildCard: "{queryType}",
+		queryWildCard: "queryType",
 		port:          defaultPort,
 	}
 	for _, opt := range opts {
@@ -62,8 +61,9 @@ func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
 		}
 	}
 
-	err := s.registerHandlers()
-	return s, err
+	s.setupRoutes()
+
+	return s, nil
 }
 
 // Port returns the port the server will run on.
@@ -115,13 +115,40 @@ func (s *Server) setupSwagger() error {
 	return nil
 }
 
-func (s *Server) registerHandlers() error {
-	// setup dependency
-	s.app.Get("/health", handler.GetHealth(s.eng))
+func (s *Server) setupRoutes() {
+	// split messages based on whether they supplied their own custom path.
+	msgSlice := s.eng.ListMessages()
+	messages := make(map[string]message.Message)
+	customPathMessages := make(map[string]message.Message)
+	for _, msg := range msgSlice {
+		if msg.Path() == "" {
+			messages[msg.Name()] = msg
+		} else {
+			customPathMessages[msg.Path()] = msg
+		}
+	}
 
-	s.registerQueryHandler(fmt.Sprintf("%s:%s", s.queryPrefix, s.queryWildCard))
-	return errors.Join(
-		s.registerTransactionHandler(fmt.Sprintf("%s:%s", s.txPrefix, s.txWildCard)),
-		s.registerListEndpointsEndpoint("/query/http/endpoints"),
-	)
+	// split queries based on whether they supplied their own custom path.
+	querySlice := s.eng.ListQueries()
+	queries := make(map[string]ecs.Query)
+	customPathQuery := make(map[string]ecs.Query)
+	for _, q := range querySlice {
+		if q.Path() == "" {
+			queries[q.Name()] = q
+		} else {
+			customPathQuery[q.Path()] = q
+		}
+	}
+
+	s.app.Get("/health", handler.GetHealth(s.eng))
+	s.app.Get("/query/http/endpoints", handler.GetEndpoints(msgSlice, querySlice, s.txPrefix, s.queryPrefix))
+	s.app.Post("/query/game/:queryType", handler.PostQuery(queries, s.eng, s.queryWildCard))
+	s.app.Post("/tx/game/:txType", handler.PostTransaction(messages, s.eng, s.disableSignatureVerification, s.txWildCard))
+
+	for _, query := range customPathQuery {
+		s.app.Post(query.Path(), handler.PostCustomPathQuery(query, s.eng))
+	}
+	for _, msg := range customPathMessages {
+		s.app.Post(msg.Path(), handler.PostCustomPathTransaction(msg, s.eng, s.disableSignatureVerification))
+	}
 }

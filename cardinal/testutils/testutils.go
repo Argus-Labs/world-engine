@@ -177,10 +177,7 @@ func AddTransactionToWorldByAnyTransaction(
 	worldCtx := WorldToWorldContext(world)
 	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
 
-	txs, err := ecsWorld.ListMessages()
-	if err != nil {
-		panic(err)
-	}
+	txs := ecsWorld.ListMessages()
 	txID := cardinalTx.Convert().ID()
 	found := false
 	for _, tx := range txs {
