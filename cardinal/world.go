@@ -18,8 +18,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/evm"
@@ -35,11 +35,11 @@ import (
 var (
 	ErrEntitiesCreatedBeforeStartGame = errors.New("entities should not be created before start game")
 
-	ErrEntityDoesNotExist                = storage.ErrEntityDoesNotExist
-	ErrEntityMustHaveAtLeastOneComponent = storage.ErrEntityMustHaveAtLeastOneComponent
-	ErrComponentNotOnEntity              = storage.ErrComponentNotOnEntity
-	ErrComponentAlreadyOnEntity          = storage.ErrComponentAlreadyOnEntity
-	ErrComponentNotRegistered            = storage.ErrMustRegisterComponent
+	ErrEntityDoesNotExist                = iterators.ErrEntityDoesNotExist
+	ErrEntityMustHaveAtLeastOneComponent = iterators.ErrEntityMustHaveAtLeastOneComponent
+	ErrComponentNotOnEntity              = iterators.ErrComponentNotOnEntity
+	ErrComponentAlreadyOnEntity          = iterators.ErrComponentAlreadyOnEntity
+	ErrComponentNotRegistered            = iterators.ErrMustRegisterComponent
 )
 
 type World struct {

@@ -8,7 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 )
@@ -200,7 +200,7 @@ func getArchIDToCompTypesFromRedis(
 		for _, compTypeID := range compTypeIDs {
 			currComp, found := typeToComp[compTypeID]
 			if !found {
-				return nil, false, eris.Wrap(storage.ErrComponentMismatchWithSavedState, "")
+				return nil, false, eris.Wrap(iterators.ErrComponentMismatchWithSavedState, "")
 			}
 			currComps = append(currComps, currComp)
 		}
