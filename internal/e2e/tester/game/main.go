@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 
 	"github.com/argus-labs/world-engine/example/tester/msg"
 	"github.com/argus-labs/world-engine/example/tester/query"
@@ -12,7 +13,6 @@ import (
 	"github.com/argus-labs/world-engine/example/tester/comp"
 	"github.com/argus-labs/world-engine/example/tester/sys"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 func main() {
@@ -52,17 +52,17 @@ func main() {
 	}
 }
 
-func setupAdapter() shard.Adapter {
+func setupAdapter() adapter.Adapter {
 	baseShardAddr := os.Getenv("BASE_SHARD_ADDR")
 	shardReceiverAddr := os.Getenv("SHARD_SEQUENCER_ADDR")
-	cfg := shard.AdapterConfig{
+	cfg := adapter.Config{
 		ShardSequencerAddr: shardReceiverAddr,
 		EVMBaseShardAddr:   baseShardAddr,
 	}
 
-	adapter, err := shard.NewAdapter(cfg)
+	adpter, err := adapter.New(cfg)
 	if err != nil {
 		panic(err)
 	}
-	return adapter
+	return adpter
 }
