@@ -6,11 +6,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"net/http"
-	"os"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
@@ -26,32 +25,11 @@ var (
 
 	readPersonaSignerStatusUnknown   = "unknown"
 	readPersonaSignerStatusAvailable = "available"
-
-	globalCardinalAddress string
-
-	ErrPersonaSignerAvailable = errors.New("persona signer is available")
-	ErrPersonaSignerUnknown   = errors.New("persona signer is unknown")
 )
 
 type txResponse struct {
 	TxHash string `json:"txHash"`
 	Tick   uint64 `json:"tick"`
-}
-
-func initCardinalAddress() error {
-	globalCardinalAddress = os.Getenv(EnvCardinalAddr)
-	if globalCardinalAddress == "" {
-		return eris.Errorf("must specify a cardinal server via %s", EnvCardinalAddr)
-	}
-	return nil
-}
-
-func makeHTTPURL(resource string) string {
-	return fmt.Sprintf("http://%s/%s", globalCardinalAddress, resource)
-}
-
-func makeWebSocketURL(resource string) string {
-	return fmt.Sprintf("ws://%s/%s", globalCardinalAddress, resource)
 }
 
 type endpoints struct {
@@ -61,7 +39,7 @@ type endpoints struct {
 
 func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err error) {
 	var resp *http.Response
-	url := makeHTTPURL(listEndpoints)
+	url := utils.MakeHTTPURL(listEndpoints, globalCardinalAddress)
 	//nolint:gosec,noctx // its ok. maybe revisit.
 	resp, err = http.Post(url, "", nil)
 	if err != nil {
@@ -82,32 +60,6 @@ func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err 
 	txEndpoints = ep.TxEndpoints
 	queryEndpoints = ep.QueryEndpoints
 	return txEndpoints, queryEndpoints, err
-}
-
-func doRequest(req *http.Request) (*http.Response, error) {
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, eris.Wrapf(err, "request to %q failed", req.URL)
-	} else if resp.StatusCode != http.StatusOK {
-		statusCode := resp.StatusCode
-		var buf []byte
-		buf, err = io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, eris.Wrapf(err, "failed reading body in resp, status code: %d", statusCode)
-		}
-		reqBuf, err := io.ReadAll(req.Body)
-		if err != nil {
-			return nil, eris.Wrapf(err, "failed reading body in request, status code: %d", statusCode)
-		}
-		return nil,
-			eris.Errorf(
-				"error to url: %s, with request body: %s, got response of %d: %s",
-				req.URL,
-				string(reqBuf),
-				statusCode,
-				string(buf))
-	}
-	return resp, nil
 }
 
 func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, personaTag string) (
@@ -148,12 +100,17 @@ func cardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, eris.Wrapf(err, "unable to marshal signed payload")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, makeHTTPURL(createPersonaEndpoint), bytes.NewReader(buf))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		utils.MakeHTTPURL(createPersonaEndpoint, globalCardinalAddress),
+		bytes.NewReader(buf),
+	)
 	if err != nil {
 		return "", 0, eris.Wrapf(err, "unable to make request to %q", createPersonaEndpoint)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := doRequest(req)
+	resp, err := utils.DoRequest(req)
 	if err != nil {
 		return "", 0, err
 	}
@@ -189,13 +146,17 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uin
 	if err != nil {
 		return "", eris.Wrap(err, "")
 	}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, makeHTTPURL(readPersonaSignerEndpoint),
-		bytes.NewReader(buf))
+	httpReq, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		utils.MakeHTTPURL(readPersonaSignerEndpoint, globalCardinalAddress),
+		bytes.NewReader(buf),
+	)
 	if err != nil {
 		return "", eris.Wrap(err, "")
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpResp, err := doRequest(httpReq)
+	httpResp, err := utils.DoRequest(httpReq)
 	if err != nil {
 		return "", err
 	}
@@ -209,9 +170,9 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uin
 		return "", eris.Wrap(err, "")
 	}
 	if resp.Status == readPersonaSignerStatusUnknown {
-		return "", eris.Wrap(ErrPersonaSignerUnknown, "")
+		return "", eris.Wrap(nakamaerrors.ErrPersonaSignerUnknown, "")
 	} else if resp.Status == readPersonaSignerStatusAvailable {
-		return "", eris.Wrap(ErrPersonaSignerAvailable, "")
+		return "", eris.Wrap(nakamaerrors.ErrPersonaSignerAvailable, "")
 	}
 	return resp.SignerAddress, nil
 }

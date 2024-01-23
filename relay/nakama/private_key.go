@@ -8,8 +8,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"strconv"
 	"sync"
 
@@ -19,9 +19,6 @@ import (
 )
 
 var (
-	ErrNoStorageObjectFound       = errors.New("no storage object found")
-	ErrTooManyStorageObjectsFound = errors.New("too many storage objects found")
-
 	// globalPrivateKey stores Nakama's private key, so it does not have to be periodically fetched from the StorageObject
 	// system. This pattern should have a security pass. See:
 	// https://linear.app/arguslabs/issue/NAK-5/review-the-pattern-of-storing-the-nakama-private-key-in-a-global
@@ -54,9 +51,9 @@ func getOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key string
 		return "", eris.Wrap(err, "")
 	}
 	if len(objs) > 1 {
-		return "", eris.Wrap(ErrTooManyStorageObjectsFound, "")
+		return "", eris.Wrap(nakamaerrors.ErrTooManyStorageObjectsFound, "")
 	} else if len(objs) == 0 {
-		return "", eris.Wrap(ErrNoStorageObjectFound, "")
+		return "", eris.Wrap(nakamaerrors.ErrNoStorageObjectFound, "")
 	}
 	var pkObj privateKeyStorageObj
 	if err = json.Unmarshal([]byte(objs[0].Value), &pkObj); err != nil {
@@ -112,7 +109,7 @@ func setNonce(ctx context.Context, nk runtime.NakamaModule, n uint64) error {
 func initPrivateKey(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) error {
 	privateKeyHex, err := getPrivateKeyHex(ctx, nk)
 	if err != nil {
-		if !eris.Is(eris.Cause(err), ErrNoStorageObjectFound) {
+		if !eris.Is(eris.Cause(err), nakamaerrors.ErrNoStorageObjectFound) {
 			return eris.Wrap(err, "failed to get private key")
 		}
 		logger.Debug("no private key found; creating a new one")

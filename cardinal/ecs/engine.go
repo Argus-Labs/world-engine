@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 	"reflect"
 	"runtime"
 	"sync"
@@ -26,7 +27,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/events"
-	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/component"
@@ -71,7 +71,7 @@ type Engine struct {
 
 	receiptHistory *receipt.History
 
-	chain shard.Adapter
+	chain adapter.Adapter
 	// isRecovering indicates that the engine is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering atomic.Bool
