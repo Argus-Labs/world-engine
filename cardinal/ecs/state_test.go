@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
+	"pkg.world.dev/world-engine/assert"
+
 	"github.com/alicebob/miniredis/v2"
 
-	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -71,7 +72,7 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	// Too few components registered
 	twoEngine := testutils.NewTestFixture(t, redisStore).Engine
 	err = twoEngine.LoadGameState()
-	assert.ErrorContains(t, err, storage.ErrComponentMismatchWithSavedState.Error())
+	assert.ErrorContains(t, err, iterators.ErrComponentMismatchWithSavedState.Error())
 
 	// It's ok to register extra components.
 	threeEngine := testutils.NewTestFixture(t, redisStore).Engine
@@ -95,9 +96,9 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	oneNum, err := oneEngine.GetComponentByName(NumberComponent{}.Name())
 	assert.NilError(t, err)
-	wantID, err := oneEngine.StoreManager().GetArchIDForComponents(comps(oneNum))
+	wantID, err := oneEngine.GameStateManager().GetArchIDForComponents(comps(oneNum))
 	assert.NilError(t, err)
-	wantComps := oneEngine.StoreManager().GetComponentTypesForArchID(wantID)
+	wantComps := oneEngine.GameStateManager().GetComponentTypesForArchID(wantID)
 	assert.Equal(t, 1, len(wantComps))
 	assert.Check(t, filter.MatchComponent(component.ConvertComponentMetadatasToComponents(wantComps), oneNum))
 
@@ -109,9 +110,9 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, twoEngine.LoadGameState())
 	twoNum, err := twoEngine.GetComponentByName(NumberComponent{}.Name())
 	assert.NilError(t, err)
-	gotID, err := twoEngine.StoreManager().GetArchIDForComponents(comps(twoNum))
+	gotID, err := twoEngine.GameStateManager().GetArchIDForComponents(comps(twoNum))
 	assert.NilError(t, err)
-	gotComps := twoEngine.StoreManager().GetComponentTypesForArchID(gotID)
+	gotComps := twoEngine.GameStateManager().GetComponentTypesForArchID(gotID)
 	assert.Equal(t, 1, len(gotComps))
 	assert.Check(t, filter.MatchComponent(component.ConvertComponentMetadatasToComponents(gotComps), twoNum))
 
@@ -142,11 +143,11 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	// oneAlphaNum
 	// oneBetaNum
 	// oneAlphaNum, oneBetaNum
-	oneJustAlphaArchID, err := oneEngine.StoreManager().GetArchIDForComponents(comps(oneAlphaNum))
+	oneJustAlphaArchID, err := oneEngine.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
 	assert.NilError(t, err)
-	oneJustBetaArchID, err := oneEngine.StoreManager().GetArchIDForComponents(comps(oneBetaNum))
+	oneJustBetaArchID, err := oneEngine.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
 	assert.NilError(t, err)
-	oneBothArchID, err := oneEngine.StoreManager().GetArchIDForComponents(comps(oneAlphaNum, oneBetaNum))
+	oneBothArchID, err := oneEngine.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum, oneBetaNum))
 	assert.NilError(t, err)
 	// These archetype indices should be preserved between a state save/load
 
@@ -164,13 +165,13 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 
 	// The order that we FETCH archetypes shouldn't matter, so this order is intentionally
 	// different from the setup step
-	twoBothArchID, err := oneEngine.StoreManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
+	twoBothArchID, err := oneEngine.GameStateManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, oneBothArchID, twoBothArchID)
-	twoJustAlphaArchID, err := oneEngine.StoreManager().GetArchIDForComponents(comps(oneAlphaNum))
+	twoJustAlphaArchID, err := oneEngine.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, oneJustAlphaArchID, twoJustAlphaArchID)
-	twoJustBetaArchID, err := oneEngine.StoreManager().GetArchIDForComponents(comps(oneBetaNum))
+	twoJustBetaArchID, err := oneEngine.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, oneJustBetaArchID, twoJustBetaArchID)
 
@@ -185,13 +186,13 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	assert.NilError(t, threeEngine.LoadGameState())
 
 	// And again, the loading of archetypes is intentionally different from the above two steps
-	threeJustBetaArchID, err := oneEngine.StoreManager().GetArchIDForComponents(comps(oneBetaNum))
+	threeJustBetaArchID, err := oneEngine.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, oneJustBetaArchID, threeJustBetaArchID)
-	threeBothArchID, err := oneEngine.StoreManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
+	threeBothArchID, err := oneEngine.GameStateManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, oneBothArchID, threeBothArchID)
-	threeJustAlphaArchID, err := oneEngine.StoreManager().GetArchIDForComponents(comps(oneAlphaNum))
+	threeJustAlphaArchID, err := oneEngine.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, oneJustAlphaArchID, threeJustAlphaArchID)
 }

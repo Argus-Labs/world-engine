@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 	"reflect"
 	"runtime"
 	"sync"
@@ -18,15 +19,14 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
-	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/component"
@@ -47,7 +47,7 @@ func (n Namespace) String() string {
 type Engine struct {
 	namespace              Namespace
 	redisStorage           *redis.Storage
-	entityStore            store.IManager
+	entityStore            gamestate.Manager
 	systems                []System
 	systemLoggers          []*zerolog.Logger
 	initSystem             System
@@ -71,7 +71,7 @@ type Engine struct {
 
 	receiptHistory *receipt.History
 
-	chain shard.Adapter
+	chain adapter.Adapter
 	// isRecovering indicates that the engine is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering atomic.Bool
@@ -141,11 +141,11 @@ func (e *Engine) Namespace() Namespace {
 	return e.namespace
 }
 
-func (e *Engine) StoreManager() store.IManager {
+func (e *Engine) GameStateManager() gamestate.Manager {
 	return e.entityStore
 }
 
-func (e *Engine) TickStore() store.TickStorage {
+func (e *Engine) TickStore() gamestate.TickStorage {
 	return e.entityStore
 }
 
@@ -253,7 +253,7 @@ func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, e
 	componentType, exists := e.nameToComponent[name]
 	if !exists {
 		return nil, eris.Wrapf(
-			storage.ErrMustRegisterComponent,
+			iterators.ErrMustRegisterComponent,
 			"component %q must be registered before being used", name)
 	}
 	return componentType, nil
@@ -376,7 +376,7 @@ func (e *Engine) ListMessages() []message.Message { return e.registeredMessages 
 // NewEngine creates a new engine.
 func NewEngine(
 	storage *redis.Storage,
-	entityStore store.IManager,
+	entityStore gamestate.Manager,
 	namespace Namespace,
 	opts ...Option,
 ) (*Engine, error) {
@@ -429,7 +429,7 @@ func (e *Engine) ReceiptHistorySize() uint64 {
 
 // Remove removes the given Entity from the engine.
 func (e *Engine) Remove(id entity.ID) error {
-	return e.StoreManager().RemoveEntity(id)
+	return e.GameStateManager().RemoveEntity(id)
 }
 
 // ConsumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
@@ -932,7 +932,7 @@ func (e *Engine) GetSystemNames() []string {
 
 func (e *Engine) InjectLogger(logger *zerolog.Logger) {
 	e.Logger = logger
-	e.StoreManager().InjectLogger(logger)
+	e.GameStateManager().InjectLogger(logger)
 }
 
 func (e *Engine) NewSearch(filter filter.ComponentFilter) *Search {

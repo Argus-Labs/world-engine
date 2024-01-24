@@ -1,0 +1,30 @@
+# By default, the root project directory is the location of this config file. 
+# The root directory can be changed by uncommenting the following line.
+# root_dir="/path/to/cardinal/"
+
+[cardinal]
+CARDINAL_NAMESPACE="my-world-1" # required to be set in production
+REDIS_ADDRESS=""  # required to be set in production
+REDIS_PASSWORD="" # required to be set in production
+CARDINAL_MODE="development"     # can be either "development" or "production". leaving blank will default to "development"
+BASE_SHARD_SEQUENCER_ADDRESS="" # required to be set in production
+BASE_SHARD_QUERY_ADDRESS=""     # required to be set in production
+
+
+# Uncomment this line to specify a custom redis address
+# REDIS_ADDRESS="localhost:6379"
+# Uncomment this line to specify a redis password; this must be non-empty when CARDINAL_MODE="production"
+# REDIS_PASSWORD=""
+
+[evm]
+# DA_AUTH_TOKEN is obtained from celestia client and passed in from world.toml. 
+# See https://docs.celestia.org/developers/node-tutorial#auth-token
+DA_AUTH_TOKEN=""
+DA_BASE_URL="http://celestia-devnet:26658"
+DA_NAMESPACE_ID="67480c4a88c4d12935d4"
+CHAIN_ID="world-engine"
+# KEY_MNEMONIC is a test mnemonic and should not be used in production. 
+# This mnemonic can be overwritten by setting the KEY_MNEMONIC environment variable.
+KEY_MNEMONIC="enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll"
+FAUCET_ADDR="world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5"
+BLOCK_TIME="1s"

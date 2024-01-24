@@ -69,7 +69,6 @@ func NewQueryType[Request any, Reply any](
 	if err != nil {
 		return nil, err
 	}
-
 	r := &QueryType[Request, Reply]{
 		name:    name,
 		group:   "game",
