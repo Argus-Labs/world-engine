@@ -50,7 +50,7 @@ func TestPrivateKeyCanBeLoadedFromDB(t *testing.T) {
 		Return(storeReadResult, nil).
 		Once()
 
-	err = initPrivateKey(context.Background(), noopLogger(t), nk)
+	err = initPrivateKey(context.Background(), NoopLogger(t), nk)
 	assert.NilError(t, err)
 	assert.Check(t, nil != globalPrivateKey)
 	assert.Check(t, globalPrivateKey.Equal(wantPrivateKey))
@@ -77,7 +77,7 @@ func TestPrivateKeyIsGenerated(t *testing.T) {
 		Return(nil, nil).
 		Once()
 
-	err := initPrivateKey(context.Background(), noopLogger(t), nk)
+	err := initPrivateKey(context.Background(), NoopLogger(t), nk)
 	assert.NilError(t, err)
 	assert.Check(t, nil != globalPrivateKey)
 }

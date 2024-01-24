@@ -1,4 +1,4 @@
-package ecb_test
+package gamestate_test
 
 import (
 	"context"

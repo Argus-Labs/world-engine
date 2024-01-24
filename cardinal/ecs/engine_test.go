@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 
@@ -292,7 +292,7 @@ func (d *dummyAdapter) QueryTransactions(_ context.Context, _ *types.QueryTransa
 	return &types.QueryTransactionsResponse{}, nil
 }
 
-var _ shard.Adapter = &dummyAdapter{}
+var _ adapter.Adapter = &dummyAdapter{}
 
 // TestAdapterCalledAfterTick tests that when messages are executed in a tick, they are forwarded to the adapter.
 func TestAdapterCalledAfterTick(t *testing.T) {

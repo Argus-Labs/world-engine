@@ -1,4 +1,4 @@
-package ecb
+package gamestate
 
 import (
 	"context"
@@ -9,14 +9,13 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-var _ store.Reader = &readOnlyManager{}
+var _ Reader = &readOnlyManager{}
 
 var (
 	ErrNoArchIDMappingFound = errors.New("no mapping of archID to components found")
@@ -28,7 +27,7 @@ type readOnlyManager struct {
 	archIDToComps   map[archetype.ID][]component.ComponentMetadata
 }
 
-func (m *Manager) ToReadOnly() store.Reader {
+func (m *EntityCommandBuffer) ToReadOnly() Reader {
 	return &readOnlyManager{
 		client:          m.client,
 		typeToComponent: m.typeToComponent,
@@ -144,8 +143,8 @@ func (r *readOnlyManager) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID
 	return ids, nil
 }
 
-func (r *readOnlyManager) SearchFrom(filter filter.ComponentFilter, start int) *storage.ArchetypeIterator {
-	itr := &storage.ArchetypeIterator{}
+func (r *readOnlyManager) SearchFrom(filter filter.ComponentFilter, start int) *iterators.ArchetypeIterator {
+	itr := &iterators.ArchetypeIterator{}
 	if err := r.refreshArchIDToCompTypes(); err != nil {
 		return itr
 	}

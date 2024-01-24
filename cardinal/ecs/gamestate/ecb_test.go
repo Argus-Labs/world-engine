@@ -1,12 +1,16 @@
-package ecb_test
+package gamestate_test
 
 import (
 	"context"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
+
 	"runtime"
 	"testing"
 	"time"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -17,20 +21,21 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-func newCmdBufferForTest(t *testing.T) *ecb.Manager {
+func newCmdBufferForTest(t *testing.T) *gamestate.EntityCommandBuffer {
 	manager, _ := newCmdBufferAndRedisClientForTest(t, nil)
 	return manager
 }
 
-// newCmdBufferAndRedisClientForTest creates a ecb.Manager using the given redis client. If the passed in redis
+// newCmdBufferAndRedisClientForTest creates a gamestate.EntityCommandBuffer using the given
+// redis client. If the passed in redis
 // client is nil, a redis client is created.
-func newCmdBufferAndRedisClientForTest(t *testing.T, client *redis.Client) (*ecb.Manager, *redis.Client) {
+func newCmdBufferAndRedisClientForTest(
+	t *testing.T,
+	client *redis.Client) (*gamestate.EntityCommandBuffer, *redis.Client) {
 	if client == nil {
 		s := miniredis.RunT(t)
 		options := redis.Options{
@@ -41,7 +46,7 @@ func newCmdBufferAndRedisClientForTest(t *testing.T, client *redis.Client) (*ecb
 
 		client = redis.NewClient(&options)
 	}
-	manager, err := ecb.NewManager(client)
+	manager, err := gamestate.NewEntityCommandBuffer(client)
 	assert.NilError(t, err)
 	assert.NilError(t, manager.RegisterComponents(allComponents))
 	return manager, client
@@ -221,7 +226,7 @@ func TestCannotGetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 	// barComp has not been assigned to this entity
 	_, err = manager.GetComponentForEntity(barComp, id)
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 }
 
 func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
@@ -230,7 +235,7 @@ func TestCannotSetComponentOnEntityThatIsMissingTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 	// barComp has not been assigned to this entity
 	err = manager.SetComponentForEntity(barComp, id, Bar{100})
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 }
 
 func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testing.T) {
@@ -238,7 +243,7 @@ func TestCannotRemoveAComponentFromAnEntityThatDoesNotHaveThatComponent(t *testi
 	id, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	err = manager.RemoveComponentFromEntity(barComp, id)
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 }
 
 func TestCanAddAComponentToAnEntity(t *testing.T) {
@@ -285,7 +290,7 @@ func TestCannotAddComponentToEntityThatAlreadyHasTheComponent(t *testing.T) {
 	assert.NilError(t, err)
 
 	err = manager.AddComponentToEntity(fooComp, id)
-	assert.ErrorIs(t, err, storage.ErrComponentAlreadyOnEntity)
+	assert.ErrorIs(t, err, iterators.ErrComponentAlreadyOnEntity)
 }
 
 type Health struct {
@@ -532,7 +537,7 @@ func TestCannotSaveStateBeforeRegisteringComponents(t *testing.T) {
 	ctx := context.Background()
 
 	client := redis.NewClient(&options)
-	manager, err := ecb.NewManager(client)
+	manager, err := gamestate.NewEntityCommandBuffer(client)
 	assert.NilError(t, err)
 
 	// RegisterComponents must be called before attempting to save the state

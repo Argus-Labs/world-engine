@@ -1,4 +1,4 @@
-package store
+package gamestate
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
@@ -30,7 +30,7 @@ type Reader interface {
 	GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error)
 
 	// Misc
-	SearchFrom(filter filter.ComponentFilter, start int) *storage.ArchetypeIterator
+	SearchFrom(filter filter.ComponentFilter, start int) *iterators.ArchetypeIterator
 	ArchetypeCount() int
 }
 
@@ -60,9 +60,9 @@ type TickStorage interface {
 	Recover(txs []message.Message) (*txpool.TxQueue, error)
 }
 
-// IManager represents all the methods required to track Component, Entity, and Archetype information
+// Manager represents all the methods required to track Component, Entity, and Archetype information
 // which powers the ECS storage layer.
-type IManager interface {
+type Manager interface {
 	TickStorage
 	Reader
 	Writer

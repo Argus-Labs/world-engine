@@ -1,12 +1,12 @@
-package ecb_test
+package gamestate_test
 
 import (
 	"context"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
@@ -57,7 +57,7 @@ func TestComponentSetsCanBeRecovered(t *testing.T) {
 	assert.Equal(t, firstArchID, secondArchID)
 }
 
-func getArchIDForEntity(t *testing.T, m *ecb.Manager, id entity.ID) archetype.ID {
+func getArchIDForEntity(t *testing.T, m *gamestate.EntityCommandBuffer, id entity.ID) archetype.ID {
 	comps, err := m.GetComponentTypesForEntity(id)
 	assert.NilError(t, err)
 	archID, err := m.GetArchIDForComponents(comps)
@@ -168,7 +168,7 @@ func TestEntitiesCanBeFetchedAfterReload(t *testing.T) {
 
 	assert.NilError(t, manager.FinalizeTick(ctx))
 
-	// Create a new Manager instances and make sure the previously created entities can be found
+	// Create a new EntityCommandBuffer instances and make sure the previously created entities can be found
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
 	ids, err = manager.GetEntitiesForArchID(archID)
 	assert.NilError(t, err)
@@ -254,7 +254,7 @@ func TestRemovedComponentDataCanBeRecovered(t *testing.T) {
 
 	// Make sure we can no longer get the foo component
 	_, err = manager.GetComponentForEntity(fooComp, id)
-	assert.ErrorIs(t, err, storage.ErrComponentNotOnEntity)
+	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 	// But uhoh, there was a problem. This means the removal of the Foo component
 	// will be undone, and the original value can be found
 	manager.DiscardPending()

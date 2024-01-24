@@ -1,17 +1,17 @@
 package cardinal
 
 import (
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/events"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server"
-	"pkg.world.dev/world-engine/cardinal/shard"
 )
 
 // WorldOption represents an option that can be used to augment how the cardinal.World will be run.
@@ -28,7 +28,7 @@ type Option func(*World)
 //
 // NOTE: WithAdapter is automatically injected when Cardinal is running in production mode.
 // This option should only be used for testing, or to stub in your own adapter implementation.
-func WithAdapter(adapter shard.Adapter) WorldOption {
+func WithAdapter(adapter adapter.Adapter) WorldOption {
 	return WorldOption{
 		ecsOption: ecs.WithAdapter(adapter),
 	}
@@ -71,7 +71,7 @@ func WithTickDoneChannel(ch chan<- uint64) WorldOption {
 	}
 }
 
-func WithStoreManager(s store.IManager) WorldOption {
+func WithStoreManager(s gamestate.Manager) WorldOption {
 	return WorldOption{
 		ecsOption: ecs.WithStoreManager(s),
 	}

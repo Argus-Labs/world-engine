@@ -9,6 +9,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"strings"
 	"sync"
 
@@ -16,26 +18,6 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/sign"
-)
-
-const (
-	OK = iota
-	Cancelled
-	Unknown
-	InvalidArgument
-	DeadlineExceeded
-	NotFound
-	AlreadyExists
-	PermissionDenied
-	ResourceExhausted
-	FailedPrecondition
-	Aborted
-	OutOfRange
-	Unimplemented
-	Internal
-	Unavailable
-	DataLoss
-	Unauthenticated
 )
 
 type receiptChan chan *Receipt
@@ -50,25 +32,9 @@ const (
 	transactionEndpointPrefix = "/tx"
 )
 
-func getDebugModeFromEnvironment() bool {
-	devModeString := os.Getenv("ENABLE_DEBUG")
-	switch strings.ToLower(devModeString) {
-	case "true":
-		return true
-	case "false":
-		return false
-	default:
-		return false
-	}
-}
-
 var (
-	DebugEnabled                    = false
-	ErrPersonaTagStorageObjNotFound = errors.New("persona tag storage object not found")
-	ErrNoPersonaTagForUser          = errors.New("user does not have a verified persona tag")
-
-	globalNamespace string
-
+	globalCardinalAddress      string
+	globalNamespace            string
 	globalPersonaTagAssignment = sync.Map{}
 
 	globalReceiptsDispatcher *receiptsDispatcher
@@ -81,7 +47,7 @@ func InitModule(
 	nk runtime.NakamaModule,
 	initializer runtime.Initializer,
 ) error {
-	DebugEnabled = getDebugModeFromEnvironment()
+	utils.DebugEnabled = getDebugModeFromEnvironment()
 
 	if err := initCardinalAddress(); err != nil {
 		return eris.Wrap(err, "failed to init cardinal address")
@@ -129,14 +95,6 @@ func InitModule(
 		return eris.Wrap(err, "failed to init save file query endpoint")
 	}
 
-	return nil
-}
-
-func initNamespace() error {
-	globalNamespace = os.Getenv(EnvCardinalNamespace)
-	if globalNamespace == "" {
-		return eris.Errorf("must specify a cardinal namespace via %s", EnvCardinalNamespace)
-	}
 	return nil
 }
 
@@ -217,15 +175,6 @@ func initPersonaTagEndpoints(
 	return eris.Wrap(initializer.RegisterRpc("nakama/show-persona", handleShowPersona), "")
 }
 
-// getUserID gets the Nakama UserID from the given context.
-func getUserID(ctx context.Context) (string, error) {
-	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
-	if !ok {
-		return "", eris.New("unable to get user id from context")
-	}
-	return userID, nil
-}
-
 // nakamaRPCHandler is the signature required for handlers that are passed to Nakama's RegisterRpc method.
 // This type is defined just to make the function below a little more readable.
 type nakamaRPCHandler func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule,
@@ -237,50 +186,54 @@ type nakamaRPCHandler func(ctx context.Context, logger runtime.Logger, db *sql.D
 func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) nakamaRPCHandler {
 	return func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (
 		string, error) {
-		userID, err := getUserID(ctx)
+		userID, err := utils.GetUserID(ctx)
 		if err != nil {
-			return logErrorMessageFailedPrecondition(logger, err, "unable to get userID")
+			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get userID")
 		}
 
 		// check if the user is verified. this requires them to input a valid beta key.
 		if verified, err := isUserVerified(ctx, nk, userID); err != nil {
-			return logErrorMessageFailedPrecondition(logger, err, "unable to claim persona tag")
+			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to claim persona tag")
 		} else if !verified {
-			return logDebugWithMessageAndCode(logger, ErrNotAllowlisted, AlreadyExists, "unable to claim persona tag")
+			return utils.LogDebugWithMessageAndCode(
+				logger,
+				nakamaerrors.ErrNotAllowlisted,
+				nakamaerrors.AlreadyExists,
+				"unable to claim persona tag")
 		}
 
 		ptr := &personaTagStorageObj{}
 		if err := json.Unmarshal([]byte(payload), ptr); err != nil {
-			return logErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "unable to marshal payload")
+			return utils.LogErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "unable to marshal payload")
 		}
 		if ptr.PersonaTag == "" {
-			return logErrorWithMessageAndCode(
+			return utils.LogErrorWithMessageAndCode(
 				logger,
 				eris.New("personaTag field was empty"),
-				InvalidArgument,
+				nakamaerrors.InvalidArgument,
 				"personaTag field must not be empty",
 			)
 		}
 
 		tag, err := loadPersonaTagStorageObj(ctx, nk)
 		if err != nil {
-			if !errors.Is(err, ErrPersonaTagStorageObjNotFound) {
-				return logErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
+			if !errors.Is(err, nakamaerrors.ErrPersonaTagStorageObjNotFound) {
+				return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
 			}
 		} else {
 			switch tag.Status {
 			case personaTagStatusPending:
-				return logDebugWithMessageAndCode(
+				return utils.LogDebugWithMessageAndCode(
 					logger,
 					eris.Errorf("persona tag %q is pending for this account", tag.PersonaTag),
-					AlreadyExists,
+					nakamaerrors.AlreadyExists,
 					"persona tag %q is pending", tag.PersonaTag,
 				)
 			case personaTagStatusAccepted:
-				return logErrorWithMessageAndCode(
+				return utils.LogErrorWithMessageAndCode(
 					logger,
 					eris.Errorf("persona tag %q already associated with this account", tag.PersonaTag),
-					AlreadyExists,
+					nakamaerrors.AlreadyExists,
 					"persona tag %q already associated with this account",
 					tag.PersonaTag)
 			case personaTagStatusRejected:
@@ -290,13 +243,13 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 
 		txHash, tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
 		if err != nil {
-			return logErrorMessageFailedPrecondition(logger, err, "unable to make create persona request to cardinal")
+			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make create persona request to cardinal")
 		}
 		notifier.AddTxHashToPendingNotifications(txHash, userID)
 
 		ptr.Status = personaTagStatusPending
 		if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
-			return logErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
+			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
 		}
 
 		// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
@@ -304,12 +257,12 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		if ok := setPersonaTagAssignment(ptr.PersonaTag, userID); !ok {
 			ptr.Status = personaTagStatusRejected
 			if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
-				return logErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
+				return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
 			}
-			return logErrorWithMessageAndCode(
+			return utils.LogErrorWithMessageAndCode(
 				logger,
 				eris.Errorf("persona tag %q is not available", ptr.PersonaTag),
-				AlreadyExists,
+				nakamaerrors.AlreadyExists,
 				"persona tag %q is not available",
 				ptr.PersonaTag)
 		}
@@ -317,12 +270,12 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 		ptr.Tick = tick
 		ptr.TxHash = txHash
 		if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
-			return logErrorMessageFailedPrecondition(logger, err, "unable to save persona tag storage object")
+			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to save persona tag storage object")
 		}
 		ptv.addPendingPersonaTag(userID, ptr.TxHash)
 		res, err := ptr.toJSON()
 		if err != nil {
-			return logErrorMessageFailedPrecondition(logger, err, "unable to marshal response")
+			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to marshal response")
 		}
 		return res, nil
 	}
@@ -332,18 +285,18 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 ) (string, error) {
 	ptr, err := loadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
-		if eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
-			return logErrorMessageFailedPrecondition(logger, err, "no persona tag found")
+		if eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaTagStorageObjNotFound) {
+			return utils.LogErrorMessageFailedPrecondition(logger, err, "no persona tag found")
 		}
-		return logErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
+		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
 	}
 	ptr, err = ptr.attemptToUpdatePending(ctx, nk)
 	if err != nil {
-		return logErrorMessageFailedPrecondition(logger, err, "unable to update pending state")
+		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to update pending state")
 	}
 	res, err := ptr.toJSON()
 	if err != nil {
-		return logErrorMessageFailedPrecondition(logger, err, "unable to marshal response")
+		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to marshal response")
 	}
 	return res, nil
 }
@@ -397,29 +350,34 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				var resultPayload io.Reader
 				resultPayload, err = createPayload(payload, currEndpoint, nk, ctx)
 				if err != nil {
-					return logErrorMessageFailedPrecondition(logger, err, "unable to make payload")
+					return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make payload")
 				}
 
-				req, err := http.NewRequestWithContext(ctx, http.MethodPost, makeHTTPURL(currEndpoint), resultPayload)
+				req, err := http.NewRequestWithContext(
+					ctx,
+					http.MethodPost,
+					utils.MakeHTTPURL(currEndpoint, globalCardinalAddress),
+					resultPayload,
+				)
 				req.Header.Set("Content-Type", "application/json")
 				if err != nil {
-					return logErrorMessageFailedPrecondition(logger, err, "request setup failed for endpoint %q", currEndpoint)
+					return utils.LogErrorMessageFailedPrecondition(logger, err, "request setup failed for endpoint %q", currEndpoint)
 				}
 				resp, err := http.DefaultClient.Do(req)
 				if err != nil {
-					return logErrorMessageFailedPrecondition(logger, err, "request failed for endpoint %q", currEndpoint)
+					return utils.LogErrorMessageFailedPrecondition(logger, err, "request failed for endpoint %q", currEndpoint)
 				}
 				defer resp.Body.Close()
 				if resp.StatusCode != http.StatusOK {
 					body, err := io.ReadAll(resp.Body)
 					if err != nil {
-						return logErrorMessageFailedPrecondition(
+						return utils.LogErrorMessageFailedPrecondition(
 							logger,
 							eris.Wrap(err, "failed to read response body"),
 							"bad status code: %s: %s", resp.Status, body,
 						)
 					}
-					return logErrorMessageFailedPrecondition(
+					return utils.LogErrorMessageFailedPrecondition(
 						logger,
 						eris.Errorf("bad status code %d", resp.StatusCode),
 						"bad status code: %s: %s", resp.Status, body,
@@ -427,17 +385,17 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				}
 				bz, err := io.ReadAll(resp.Body)
 				if err != nil {
-					return logErrorMessageFailedPrecondition(logger, err, "can't read body")
+					return utils.LogErrorMessageFailedPrecondition(logger, err, "can't read body")
 				}
 				if strings.HasPrefix(currEndpoint, transactionEndpointPrefix) {
 					var asTx txResponse
 
 					if err = json.Unmarshal(bz, &asTx); err != nil {
-						return logErrorMessageFailedPrecondition(logger, err, "can't decode body as tx response")
+						return utils.LogErrorMessageFailedPrecondition(logger, err, "can't decode body as tx response")
 					}
-					userID, err := getUserID(ctx)
+					userID, err := utils.GetUserID(ctx)
 					if err != nil {
-						return logErrorMessageFailedPrecondition(logger, err, "unable to get user id")
+						return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get user id")
 					}
 					notify.AddTxHashToPendingNotifications(asTx.TxHash, userID)
 				}
@@ -458,70 +416,6 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 	err = registerEndpoints(queryEndpoints, createUnsignedTransaction)
 	if err != nil {
 		return err
-	}
-	return nil
-}
-
-func logDebugWithMessageAndCode(
-	logger runtime.Logger,
-	err error,
-	code int,
-	format string,
-	v ...interface{},
-) (string, error) {
-	err = eris.Wrapf(err, format, v...)
-	return logDebug(logger, err, code)
-}
-
-func logErrorWithMessageAndCode(
-	logger runtime.Logger,
-	err error,
-	code int,
-	format string,
-	v ...interface{},
-) (string, error) {
-	err = eris.Wrapf(err, format, v...)
-	return logError(logger, err, code)
-}
-
-func logErrorMessageFailedPrecondition(
-	logger runtime.Logger,
-	err error,
-	format string,
-	v ...interface{}) (string, error) {
-	err = eris.Wrapf(err, format, v...)
-	return logErrorFailedPrecondition(logger, err)
-}
-
-func logDebug(
-	logger runtime.Logger,
-	err error,
-	code int,
-) (string, error) {
-	logger.Debug(eris.ToString(err, true))
-	return "", errToNakamaError(err, code)
-}
-
-func logError(
-	logger runtime.Logger,
-	err error,
-	code int) (string, error) {
-	logger.Error(eris.ToString(err, true))
-	return "", errToNakamaError(err, code)
-}
-
-func logErrorFailedPrecondition(
-	logger runtime.Logger,
-	err error) (string, error) {
-	return logError(logger, err, FailedPrecondition)
-}
-
-func errToNakamaError(err error, code int) error {
-	if err != nil {
-		if DebugEnabled {
-			return runtime.NewError(eris.ToString(err, true), code)
-		}
-		return runtime.NewError(err.Error(), code)
 	}
 	return nil
 }
@@ -548,7 +442,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 	}
 
 	if ptr.Status != personaTagStatusAccepted {
-		return nil, eris.Wrap(ErrNoPersonaTagForUser, "")
+		return nil, eris.Wrap(nakamaerrors.ErrNoPersonaTagForUser, "")
 	}
 	personaTag := ptr.PersonaTag
 	pk, nonce, err := getPrivateKeyAndANonce(ctx, nk)
@@ -564,4 +458,25 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 		return nil, eris.Wrap(err, "")
 	}
 	return bytes.NewReader(buf), nil
+}
+
+func initCardinalAddress() error {
+	globalCardinalAddress = os.Getenv(EnvCardinalAddr)
+	if globalCardinalAddress == "" {
+		return eris.Errorf("must specify a cardinal server via %s", EnvCardinalAddr)
+	}
+	return nil
+}
+
+func initNamespace() error {
+	globalNamespace = os.Getenv(EnvCardinalNamespace)
+	if globalNamespace == "" {
+		return eris.Errorf("must specify a cardinal namespace via %s", EnvCardinalNamespace)
+	}
+	return nil
+}
+
+func getDebugModeFromEnvironment() bool {
+	devModeString := os.Getenv("ENABLE_DEBUG")
+	return strings.ToLower(devModeString) == "true"
 }

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -21,7 +22,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 )
 
 func TestTickHappyPath(t *testing.T) {
@@ -297,7 +298,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 			}
 			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
 			_, err = ecs.GetComponent[ScalarComponentToggle](eCtx, id)
-			assert.ErrorIs(t, storage.ErrComponentNotOnEntity, eris.Cause(err))
+			assert.ErrorIs(t, iterators.ErrComponentNotOnEntity, eris.Cause(err))
 
 			// Ticking again should result in an error
 			assert.ErrorIs(t, errorToggleComponent, eris.Cause(engine.Tick(context.Background())))
