@@ -10,9 +10,12 @@ import (
 	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
-	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"sync/atomic"
+)
+
+const (
+	DefaultPort = "4040"
 )
 
 var (
@@ -38,7 +41,7 @@ func New(engine *ecs.Engine, opts ...Option) (*Server, error) {
 	s := &Server{
 		app: app,
 		config: Config{
-			port:                            utils.DefaultPort,
+			port:                            DefaultPort,
 			isSignatureVerificationDisabled: false,
 			isSwaggerDisabled:               false,
 		},

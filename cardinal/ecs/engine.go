@@ -331,7 +331,7 @@ func (e *Engine) registerInternalQueries() {
 	debugQueryType, err := NewQueryType[DebugRequest, DebugStateResponse](
 		"debug",
 		queryDebugState,
-		WithCustomQueryGroup[DebugRequest, DebugStateResponse]("debug"),
+		WithCustomQueryGroup[DebugRequest, DebugStateResponse]("state"),
 	)
 	if err != nil {
 		panic(err)
@@ -345,7 +345,7 @@ func (e *Engine) registerInternalQueries() {
 	receiptQueryType, err := NewQueryType[ListTxReceiptsRequest, ListTxReceiptsReply](
 		"receipts",
 		receiptsQuery,
-		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsReply]("receipts"),
+		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsReply]("list"),
 	)
 	if err != nil {
 		panic(err)

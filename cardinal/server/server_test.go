@@ -18,6 +18,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
+	"slices"
 	"testing"
 	"time"
 )
@@ -80,10 +81,10 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 
 	// Map iters are not guaranteed to be in the same order, so we just check that the endpoints are in the list
 	for _, msg := range msgs {
-		s.Require().NoError(contains(result.TxEndpoints, utils.GetTxURL(msg.Group(), msg.Name())))
+		s.Require().True(slices.Contains(result.TxEndpoints, utils.GetTxURL(msg.Group(), msg.Name())))
 	}
 	for _, query := range queries {
-		s.Require().NoError(contains(result.QueryEndpoints, utils.GetQueryURL(query.Group(), query.Name())))
+		s.Require().True(slices.Contains(result.QueryEndpoints, utils.GetQueryURL(query.Group(), query.Name())))
 	}
 }
 
@@ -267,13 +268,4 @@ type QueryLocationRequest struct {
 
 type QueryLocationResponse struct {
 	LocationComponent
-}
-
-func contains(list []string, str string) error {
-	for _, v := range list {
-		if v == str {
-			return nil
-		}
-	}
-	return fmt.Errorf("could not find %q in list", str)
 }
