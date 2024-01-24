@@ -1,0 +1,49 @@
+name: Starter Template Sync
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - starter-game-template/**
+
+jobs:
+  dir-changes:
+    name: Check directory/path changes
+    runs-on: ubuntu-latest
+    outputs:
+      starter-game-template: ${{ steps.changes.outputs.starter-game-template }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            starter-game-template:
+              - 'starter-game-template/**'
+  git-repo-sync:
+    name: Starter-Game-Template Repo Sync
+    needs: dir-changes
+    if: (github.ref == 'refs/heads/main' && needs.dir-changes.outputs.starter-game-template == 'true')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: starter-game-template
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Sync starter-game-template content to upstream repo
+        id: push_directory
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.STARTER_GAME_TEMPLATE_SSH_KEY }}
+        with:
+          source-directory: starter-game-template
+          target-directory: /
+          destination-github-username: 'Argus-Labs'
+          destination-repository-name: 'starter-game-template'
+          user-email: github-bot@argus.gg
+          commit-message: See ORIGIN_COMMIT from $GITHUB_REF
+          target-branch: main
