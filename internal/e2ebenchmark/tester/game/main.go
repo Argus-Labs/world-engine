@@ -12,7 +12,7 @@ import (
 
 	"github.com/argus-labs/world-engine/example/tester_benchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/shard"
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 )
 
 func sumSystems(systems ...cardinal.System) cardinal.System {
@@ -142,25 +142,25 @@ func main() {
 	}
 }
 
-func setupAdapter() shard.Adapter {
+func setupAdapter() adapter.Adapter {
 	baseShardAddr := os.Getenv("BASE_SHARD_ADDR")
 	shardReceiverAddr := os.Getenv("SHARD_SEQUENCER_ADDR")
-	cfg := shard.AdapterConfig{
+	cfg := adapter.Config{
 		ShardSequencerAddr: shardReceiverAddr,
 		EVMBaseShardAddr:   baseShardAddr,
 	}
 
-	var opts []shard.Option
+	var opts []adapter.Option
 	clientCert := os.Getenv("CLIENT_CERT_PATH")
 	if clientCert != "" {
 		log.Print("running shard client with client certification")
-		opts = append(opts, shard.WithCredentials(clientCert))
+		opts = append(opts, adapter.WithCredentials(clientCert))
 	} else {
 		log.Print("WARNING: running shard client without client certification. this will cause issues if " +
 			"the chain instance uses SSL credentials")
 	}
 
-	adapter, err := shard.NewAdapter(cfg, opts...)
+	adapter, err := adapter.New(cfg, opts...)
 	if err != nil {
 		panic(err)
 	}
