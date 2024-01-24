@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -18,86 +18,87 @@ var (
 	ErrSystemTransactionForbidden = errors.New("system transaction forbidden")
 )
 
-// TransactionReply is the type that is sent back to clients after a transaction is added to the queue.
-type TransactionReply struct {
+// PostTransactionResponse is the HTTP response for a successful transaction submission
+type PostTransactionResponse struct {
 	TxHash string
 	Tick   uint64
 }
 
-func PostTransaction(msgTypes map[string]message.Message, eng *ecs.Engine, disableSigVerification bool, wildcard string,
+func PostTransaction(
+	msgs map[string]map[string]message.Message, engine *ecs.Engine, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
-		msgTypeName := ctx.Params(wildcard)
-		msgType, exists := msgTypes[msgTypeName]
-		if !exists {
+		msgType, ok := utils.GetMesssageFromRouteParams(ctx, msgs)
+		if !ok {
 			return fiber.NewError(fiber.StatusNotFound, "message type not found")
 		}
-		return handleTx(ctx, eng, msgType, disableSigVerification)
-	}
-}
 
-func PostCustomPathTransaction(msg message.Message, eng *ecs.Engine, disableSigVerification bool,
-) func(*fiber.Ctx) error {
-	return func(ctx *fiber.Ctx) error {
-		return handleTx(ctx, eng, msg, disableSigVerification)
-	}
-}
+		// Parse the request body into a sign.Transaction struct
+		tx := new(sign.Transaction)
+		if err := ctx.BodyParser(tx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "failed to parse request body: "+err.Error())
+		}
 
-func handleTx(ctx *fiber.Ctx, eng *ecs.Engine, msgType message.Message, disableSigVerification bool) error {
-	tx, msg, err := getMessageAndTx(ctx.Body(), msgType)
-	if err != nil {
-		return fiber.NewError(fiber.StatusBadRequest, err.Error())
-	}
+		// Validate the transaction
+		if err := validateTx(tx); err != nil {
+			return fiber.NewError(fiber.StatusBadRequest, "invalid transaction payload: "+err.Error())
+		}
 
-	var signerAddress string
-	if msgType.Name() == ecs.CreatePersonaMsg.Name() {
-		// don't need to check the cast bc we already validated this above
-		createPersonaMsg, _ := msg.(ecs.CreatePersona)
-		signerAddress = createPersonaMsg.SignerAddress
-	} else {
-		signerAddress, err = eng.GetSignerForPersonaTag(tx.PersonaTag, 0)
+		// Decode the message from the transaction
+		msg, err := msgType.Decode(tx.Body)
 		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: "+err.Error())
+			return fiber.NewError(fiber.StatusBadRequest, "failed to decode message from transaction")
 		}
-	}
-	if !disableSigVerification {
-		err = validateTransaction(tx, signerAddress, eng.Namespace().String(), tx.IsSystemTransaction())
-		if err != nil {
-			return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
-		}
-		if err = eng.UseNonce(signerAddress, tx.Nonce); err != nil {
-			return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: "+err.Error())
-		}
-	}
 
-	tick, hash := eng.AddTransaction(msgType.ID(), msg, tx)
+		var signerAddress string
+		// TODO(scott): this should be refactored; I don't see why getting signer address needs to be different here,
+		//  both of them should just derive the signer address using ecrecover from signature
+		if msgType.Name() == ecs.CreatePersonaMsg.Name() {
+			// don't need to check the cast bc we already validated this above
+			createPersonaMsg, _ := msg.(ecs.CreatePersona)
+			signerAddress = createPersonaMsg.SignerAddress
+		} else {
+			signerAddress, err = engine.GetSignerForPersonaTag(tx.PersonaTag, 0)
+			if err != nil {
+				return fiber.NewError(fiber.StatusBadRequest, "could not get signer for persona: "+err.Error())
+			}
+		}
 
-	return ctx.JSON(&TransactionReply{
-		TxHash: string(hash),
-		Tick:   tick,
-	})
+		// If signature verfication is enabled, validate the transaction
+		if !disableSigVerification {
+			if err = validateSignature(tx, signerAddress, engine.Namespace().String(),
+				tx.IsSystemTransaction()); err != nil {
+				return fiber.NewError(fiber.StatusBadRequest, "failed to validate transaction: "+err.Error())
+			}
+			// TODO(scott): this should be refactored; it should be the responsibility of the engine tx processor
+			//  to mark the nonce as used once it's included in the tick, not the server.
+			if err = engine.UseNonce(signerAddress, tx.Nonce); err != nil {
+				return fiber.NewError(fiber.StatusInternalServerError, "failed to use nonce: "+err.Error())
+			}
+		}
+
+		// Add the transaction to the engine
+		// TODO(scott): this should just deal with txpool instead of having to go through engine
+		tick, hash := engine.AddTransaction(msgType.ID(), msg, tx)
+
+		return ctx.JSON(&PostTransactionResponse{
+			TxHash: string(hash),
+			Tick:   tick,
+		})
+	}
 }
 
-func getMessageAndTx(body []byte, mt message.Message) (*sign.Transaction, any, error) {
-	if len(body) == 0 {
-		return nil, nil, errors.New("request body was empty")
-	}
-	tx, err := decodeTransaction(body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decode transaction: %w", err)
-	}
-	msg, err := mt.Decode(tx.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to decode message from transaction body: %w", err)
-	}
-
-	return tx, msg, nil
-}
-
-func validateTransaction(tx *sign.Transaction, signerAddr, namespace string, systemTx bool) error {
+// validateTx validates the transaction payload
+func validateTx(tx *sign.Transaction) error {
+	// TODO(scott): we should use the validator package here
 	if tx.PersonaTag == "" {
 		return ErrNoPersonaTag
 	}
+	return nil
+}
+
+// validateSignature validates that the signature of transaction is valid
+func validateSignature(tx *sign.Transaction, signerAddr string, namespace string, systemTx bool) error {
 	if tx.Namespace != namespace {
 		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q", namespace, tx.Namespace))
 	}
@@ -108,10 +109,4 @@ func validateTransaction(tx *sign.Transaction, signerAddr, namespace string, sys
 		return eris.Wrap(ErrSystemTransactionForbidden, "")
 	}
 	return eris.Wrap(tx.Verify(signerAddr), "")
-}
-
-func decodeTransaction(bz []byte) (*sign.Transaction, error) {
-	tx := new(sign.Transaction)
-	err := json.Unmarshal(bz, tx)
-	return tx, err
 }

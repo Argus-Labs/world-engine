@@ -2,22 +2,19 @@ package ecs
 
 import (
 	"encoding/json"
-	"reflect"
-	"strings"
-
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
+	"reflect"
 )
 
 type Query interface {
 	// Name returns the name of the query.
 	Name() string
+	// Group returns the group of the query.
+	Group() string
 	// HandleQuery handles queries with concrete types, rather than encoded bytes.
 	HandleQuery(EngineContext, any) (any, error)
-	// Path returns a custom path, if any, for the query. When supplied, this query will be handled in the server
-	// from the path returned by this method. If empty, the query will be routed under a wildcard route using its name.
-	Path() string
 	// HandleQueryRaw is given a reference to the engine, json encoded bytes that represent a query request
 	// and is expected to return a json encoded response struct.
 	HandleQueryRaw(EngineContext, []byte) ([]byte, error)
@@ -35,7 +32,7 @@ type Query interface {
 
 type QueryType[Request any, Reply any] struct {
 	name       string
-	customPath string
+	group      string
 	handler    func(eCtx EngineContext, req *Request) (*Reply, error)
 	requestABI *ethereumAbi.Type
 	replyABI   *ethereumAbi.Type
@@ -49,10 +46,13 @@ func WithQueryEVMSupport[Request, Reply any]() QueryOption[Request, Reply] {
 	}
 }
 
-func WithCustomQueryPath[Request, Reply any](path string) QueryOption[Request, Reply] {
+// WithCustomQueryGroup sets a custom group for the query.
+// By default, queries are registered under the "game" group which maps it to the /query/game/:queryType route.
+// This option allows you to set a custom group, which allow you to register the query
+// under /query/<custom_group>/:queryType.
+func WithCustomQueryGroup[Request, Reply any](group string) QueryOption[Request, Reply] {
 	return func(qt *QueryType[Request, Reply]) {
-		path = "/" + strings.Trim(path, "/")
-		qt.customPath = path
+		qt.group = group
 	}
 }
 
@@ -72,6 +72,7 @@ func NewQueryType[Request any, Reply any](
 
 	r := &QueryType[Request, Reply]{
 		name:    name,
+		group:   "game",
 		handler: handler,
 	}
 	for _, opt := range opts {
@@ -101,12 +102,12 @@ func (r *QueryType[Request, Reply]) generateABIBindings() error {
 	return nil
 }
 
-func (r *QueryType[req, rep]) Path() string {
-	return r.customPath
-}
-
 func (r *QueryType[req, rep]) Name() string {
 	return r.name
+}
+
+func (r *QueryType[req, rep]) Group() string {
+	return r.group
 }
 
 func (r *QueryType[req, rep]) HandleQuery(eCtx EngineContext, a any) (any, error) {

@@ -4,17 +4,15 @@ import (
 	_ "embed"
 	"github.com/gofiber/contrib/swagger"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
+	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"sync/atomic"
-)
-
-const (
-	defaultPort = "4040"
 )
 
 var (
@@ -22,53 +20,49 @@ var (
 	swaggerData []byte
 )
 
+type Config struct {
+	port                            string
+	isSignatureVerificationDisabled bool
+	isSwaggerDisabled               bool
+}
+
 type Server struct {
-	eng *ecs.Engine
-	app *fiber.App
-
-	port string
-
-	txPrefix      string
-	queryPrefix   string
-	txWildCard    string
-	queryWildCard string
-
-	disableSignatureVerification bool
-	withCORS                     bool
-	disableSwagger               bool
-
-	running atomic.Bool
+	app       *fiber.App
+	config    Config
+	isRunning atomic.Bool
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
-func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
+func New(engine *ecs.Engine, opts ...Option) (*Server, error) {
+	app := fiber.New()
 	s := &Server{
-		eng:           eng,
-		app:           fiber.New(),
-		txPrefix:      "/tx/game/",
-		txWildCard:    "txType",
-		queryPrefix:   "/query/game/",
-		queryWildCard: "queryType",
-		port:          defaultPort,
+		app: app,
+		config: Config{
+			port:                            utils.DefaultPort,
+			isSignatureVerificationDisabled: false,
+			isSwaggerDisabled:               false,
+		},
 	}
 	for _, opt := range opts {
 		opt(s)
 	}
 
-	if !s.disableSwagger {
-		if err := s.setupSwagger(); err != nil {
+	// Enable CORS
+	app.Use(cors.New())
+	setupRoutes(app, engine, s.config)
+
+	if !s.config.isSwaggerDisabled {
+		if err := setupSwagger(app); err != nil {
 			return nil, err
 		}
 	}
 
-	s.setupRoutes()
-
 	return s, nil
 }
 
-// Port returns the port the server will run on.
+// Port returns the port the server listens to.
 func (s *Server) Port() string {
-	return s.port
+	return s.config.port
 }
 
 // Serve serves the application, blocking the calling thread.
@@ -78,13 +72,13 @@ func (s *Server) Serve() error {
 	if err != nil {
 		return eris.Wrap(err, "error getting hostname")
 	}
-	log.Info().Msgf("serving at %s:%s", hostname, s.port)
-	s.running.Store(true)
-	err = s.app.Listen(":" + s.port)
+	log.Info().Msgf("serving at %s:%s", hostname, s.config.port)
+	s.isRunning.Store(true)
+	err = s.app.Listen(":" + s.config.port)
 	if err != nil {
 		return eris.Wrap(err, "error starting Fiber app")
 	}
-	s.running.Store(false)
+	s.isRunning.Store(false)
 	return nil
 }
 
@@ -93,7 +87,7 @@ func (s *Server) Shutdown() error {
 	return s.app.Shutdown()
 }
 
-func (s *Server) setupSwagger() error {
+func setupSwagger(app *fiber.App) error {
 	file, err := os.CreateTemp("", "")
 	if err != nil {
 		return eris.Wrap(err, "failed to crate temp file for swagger")
@@ -107,60 +101,57 @@ func (s *Server) setupSwagger() error {
 	if err != nil {
 		return eris.Wrap(err, "failed to write swagger data to file")
 	}
-	// Setup swagger docs at /docs
+
+	// Register swagger docs at /docs
 	cfg := swagger.Config{
 		FilePath: file.Name(),
 		Title:    "World Engine API Docs",
 	}
-	s.app.Use(swagger.New(cfg))
+	app.Use(swagger.New(cfg))
 
 	return nil
 }
 
-func (s *Server) setupRoutes() {
-	// split messages based on whether they supplied their own custom path.
-	msgSlice := s.eng.ListMessages()
-	messages := make(map[string]message.Message)
-	customPathMessages := make(map[string]message.Message)
-	for _, msg := range msgSlice {
-		if msg.Path() == "" {
-			messages[msg.Name()] = msg
-		} else {
-			customPathMessages[msg.Path()] = msg
+func setupRoutes(app *fiber.App, engine *ecs.Engine, cfg Config) {
+	// TODO(scott): we should refactor this such that we only dependency inject these maps
+	//  instead of having to dependency inject the entire engine.
+	// /query/:group/:queryType
+	// maps group -> queryType -> query
+	queries := make(map[string]map[string]ecs.Query)
+
+	// /tx/:group/:txType
+	// maps group -> txType -> tx
+	msgs := make(map[string]map[string]message.Message)
+
+	// Create query index
+	for _, query := range engine.ListQueries() {
+		// Initialize inner map if it doesn't exist
+		if _, ok := queries[query.Group()]; !ok {
+			queries[query.Group()] = make(map[string]ecs.Query)
 		}
+		queries[query.Group()][query.Name()] = query
 	}
 
-	// split queries based on whether they supplied their own custom path.
-	querySlice := s.eng.ListQueries()
-	queries := make(map[string]ecs.Query)
-	customPathQuery := make(map[string]ecs.Query)
-	for _, q := range querySlice {
-		if q.Path() == "" {
-			queries[q.Name()] = q
-		} else {
-			customPathQuery[q.Path()] = q
+	// Create tx index
+	for _, msg := range engine.ListMessages() {
+		// Initialize inner map if it doesn't exist
+		if _, ok := msgs[msg.Group()]; !ok {
+			msgs[msg.Group()] = make(map[string]message.Message)
 		}
+		msgs[msg.Group()][msg.Name()] = msg
 	}
 
-	// health endpoint
-	s.app.Get("/health", handler.GetHealth(s.eng))
+	// Route: /...
+	app.Get("/health", handler.GetHealth(engine))
+	// TODO(scott): this should be moved outside of /query, but nakama is currrently depending on it
+	//  so we should do this on a separate PR.
+	app.Get("/query/http/endpoints", handler.GetEndpoints(msgs, queries))
 
-	// query endpoints
-	queryAPI := s.app.Group("/query")
-	queryAPI.Get("/http/endpoints", handler.GetEndpoints(msgSlice, querySlice, s.txPrefix, s.queryPrefix))
-	queryAPI.Post("/game/:queryType", handler.PostQuery(queries, s.eng, s.queryWildCard))
+	// Route: /query/...
+	query := app.Group("/query")
+	query.Post("/:group/:name", handler.PostQuery(queries, engine))
 
-	// transaction endpoints
-	txAPI := s.app.Group("/tx")
-	txAPI.Post("/game/:txType", handler.PostTransaction(messages, s.eng, s.disableSignatureVerification, s.txWildCard))
-
-	// custom query endpoints
-	for _, query := range customPathQuery {
-		s.app.Post(query.Path(), handler.PostCustomPathQuery(query, s.eng))
-	}
-
-	// custom transaction endpoints
-	for _, msg := range customPathMessages {
-		s.app.Post(msg.Path(), handler.PostCustomPathTransaction(msg, s.eng, s.disableSignatureVerification))
-	}
+	// Route: /tx/...
+	tx := app.Group("/tx")
+	tx.Post("/:group/:name", handler.PostTransaction(msgs, engine, cfg.isSignatureVerificationDisabled))
 }

@@ -76,9 +76,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	// Load config. Fallback value is used if it's not set.
 	cfg := getWorldConfig()
 
-	// Sane default options
-	serverOptions = append(serverOptions, server.WithCORS())
-
 	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
 		return nil, eris.Wrap(err, "")
 	}

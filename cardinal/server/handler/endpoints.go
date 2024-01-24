@@ -3,38 +3,38 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 )
 
-type EndpointsResult struct {
+type GetEndpointsResponse struct {
 	TxEndpoints    []string `json:"txEndpoints"`
 	QueryEndpoints []string `json:"queryEndpoints"`
 }
 
-func GetEndpoints(msgs []message.Message, queries []ecs.Query, defaultPrefixTx, defaultQueryPrefix string,
+func GetEndpoints(
+	msgs map[string]map[string]message.Message, queries map[string]map[string]ecs.Query,
 ) func(*fiber.Ctx) error {
-	res := EndpointsResult{
-		TxEndpoints:    make([]string, 0, len(queries)),
-		QueryEndpoints: make([]string, 0, len(msgs)),
-	}
-
-	for _, msg := range msgs {
-		if msg.Path() == "" {
-			res.TxEndpoints = append(res.TxEndpoints, defaultPrefixTx+msg.Name())
-		} else {
-			res.TxEndpoints = append(res.TxEndpoints, msg.Path())
+	// Build the list of /tx/... endpoints
+	txEndpoints := make([]string, 0, len(msgs))
+	for group, msgMap := range msgs {
+		for name := range msgMap {
+			txEndpoints = append(txEndpoints, utils.GetTxURL(group, name))
 		}
 	}
 
-	for _, q := range queries {
-		if q.Path() == "" {
-			res.QueryEndpoints = append(res.QueryEndpoints, defaultQueryPrefix+q.Name())
-		} else {
-			res.QueryEndpoints = append(res.QueryEndpoints, q.Path())
+	// Build the list of /query/... endpoints
+	queryEndpoints := make([]string, 0, len(queries))
+	for group, queryMap := range queries {
+		for name := range queryMap {
+			queryEndpoints = append(queryEndpoints, utils.GetQueryURL(group, name))
 		}
 	}
 
 	return func(ctx *fiber.Ctx) error {
-		return ctx.JSON(res)
+		return ctx.JSON(GetEndpointsResponse{
+			TxEndpoints:    txEndpoints,
+			QueryEndpoints: queryEndpoints,
+		})
 	}
 }

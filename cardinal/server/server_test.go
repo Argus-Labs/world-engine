@@ -13,6 +13,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
+	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -68,7 +69,7 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	s.setupWorld()
 	s.fixture.DoTick()
 	res := s.fixture.Get("/query/http/endpoints")
-	var result handler.EndpointsResult
+	var result handler.GetEndpointsResponse
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
 	msgs := s.engine.ListMessages()
@@ -77,20 +78,12 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	s.Require().Len(msgs, len(result.TxEndpoints))
 	s.Require().Len(queries, len(result.QueryEndpoints))
 
-	for i, msg := range msgs {
-		if msg.Path() == "" {
-			s.Require().Equal(result.TxEndpoints[i], "/tx/game/"+msg.Name())
-		} else {
-			s.Require().Equal(result.TxEndpoints[i], msg.Path())
-		}
+	// Map iters are not guaranteed to be in the same order, so we just check that the endpoints are in the list
+	for _, msg := range msgs {
+		s.Require().NoError(contains(result.TxEndpoints, utils.GetTxURL(msg.Group(), msg.Name())))
 	}
-
-	for i, query := range queries {
-		if query.Path() == "" {
-			s.Require().Equal(result.QueryEndpoints[i], "/query/game/"+query.Name())
-		} else {
-			s.Require().Equal(result.QueryEndpoints[i], query.Path())
-		}
+	for _, query := range queries {
+		s.Require().NoError(contains(result.QueryEndpoints, utils.GetQueryURL(query.Group(), query.Name())))
 	}
 }
 
@@ -110,7 +103,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	}
 	url := "/tx/game/" + MoveMessage.Name()
 	res := s.fixture.Post(url, tx)
-	s.Require().Equal(res.StatusCode, fiber.StatusOK, s.readBody(res.Body))
+	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
 	err = s.engine.Tick(context.Background())
 	s.Require().NoError(err)
 	s.nonce++
@@ -123,25 +116,26 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	s.Require().Equal(loc, LocationComponent{0, 1})
 }
 
-func (s *ServerTestSuite) TestQueryCustomPathQuery() {
+func (s *ServerTestSuite) TestQueryCustomGroup() {
 	type SomeRequest struct{}
 	type SomeResponse struct{}
 	s.setupWorld()
-	endpoint := "foo/bar/baz"
+	name := "foo"
+	group := "bar"
 	called := false
 	err := ecs.RegisterQuery[SomeRequest, SomeResponse](
 		s.engine,
-		"foo",
+		name,
 		func(eCtx ecs.EngineContext, req *SomeRequest) (*SomeResponse, error) {
 			called = true
 			return &SomeResponse{}, nil
 		},
-		ecs.WithCustomQueryPath[SomeRequest, SomeResponse](endpoint),
+		ecs.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
 	)
 	s.Require().NoError(err)
 	s.fixture.DoTick()
-	res := s.fixture.Post(endpoint, SomeRequest{})
-	s.Require().Equal(res.StatusCode, fiber.StatusOK)
+	res := s.fixture.Post(utils.GetQueryURL(group, name), SomeRequest{})
+	s.Require().Equal(fiber.StatusOK, res.StatusCode)
 	s.Require().True(called)
 }
 
@@ -149,14 +143,8 @@ func (s *ServerTestSuite) TestQueryCustomPathQuery() {
 func (s *ServerTestSuite) runTx(personaTag string, msg message.Message, payload any) {
 	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.engine.Namespace().String(), s.nonce, payload)
 	s.Require().NoError(err)
-	var url string
-	if msg.Path() != "" {
-		url = msg.Path()
-	} else {
-		url = "/tx/game/" + msg.Name()
-	}
-	res := s.fixture.Post(url, tx)
-	s.Require().Equal(res.StatusCode, fiber.StatusOK, s.readBody(res.Body))
+	res := s.fixture.Post(utils.GetTxURL(msg.Group(), msg.Name()), tx)
+	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
 	err = s.engine.Tick(context.Background())
 	s.Require().NoError(err)
 	s.nonce++
@@ -170,8 +158,8 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 	}
 	tx, err := sign.NewSystemTransaction(s.privateKey, s.engine.Namespace().String(), s.nonce, createPersonaTx)
 	s.Require().NoError(err)
-	res := s.fixture.Post(ecs.CreatePersonaMsg.Path(), tx)
-	s.Require().Equal(res.StatusCode, fiber.StatusOK, s.readBody(res.Body))
+	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
+	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
 	err = s.engine.Tick(context.Background())
 	s.Require().NoError(err)
 	s.nonce++
@@ -197,20 +185,21 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 				posID = id
 			}
 			var resultLocation LocationComponent
-			err = ecs.UpdateComponent[LocationComponent](context, posID, func(loc *LocationComponent) *LocationComponent {
-				switch tx.Msg.Direction {
-				case "up":
-					loc.Y++
-				case "down":
-					loc.Y--
-				case "right":
-					loc.X++
-				case "left":
-					loc.X--
-				}
-				resultLocation = *loc
-				return loc
-			})
+			err = ecs.UpdateComponent[LocationComponent](context, posID,
+				func(loc *LocationComponent) *LocationComponent {
+					switch tx.Msg.Direction {
+					case "up":
+						loc.Y++
+					case "down":
+						loc.Y--
+					case "right":
+						loc.X++
+					case "left":
+						loc.X--
+					}
+					resultLocation = *loc
+					return loc
+				})
 			s.Require().NoError(err)
 			return MoveMessageOutput{resultLocation}, nil
 		})
@@ -278,4 +267,13 @@ type QueryLocationRequest struct {
 
 type QueryLocationResponse struct {
 	LocationComponent
+}
+
+func contains(list []string, str string) error {
+	for _, v := range list {
+		if v == str {
+			return nil
+		}
+	}
+	return fmt.Errorf("could not find %q in list", str)
 }

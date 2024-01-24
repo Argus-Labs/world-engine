@@ -322,7 +322,7 @@ func (e *Engine) registerInternalQueries() {
 	signerQueryType, err := NewQueryType[QueryPersonaSignerRequest, QueryPersonaSignerResponse](
 		"signer",
 		querySigner,
-		WithCustomQueryPath[QueryPersonaSignerRequest, QueryPersonaSignerResponse]("/query/persona/signer"),
+		WithCustomQueryGroup[QueryPersonaSignerRequest, QueryPersonaSignerResponse]("persona"),
 	)
 	if err != nil {
 		panic(err)
@@ -331,7 +331,7 @@ func (e *Engine) registerInternalQueries() {
 	debugQueryType, err := NewQueryType[DebugRequest, DebugStateResponse](
 		"debug",
 		queryDebugState,
-		WithCustomQueryPath[DebugRequest, DebugStateResponse]("/debug/state"),
+		WithCustomQueryGroup[DebugRequest, DebugStateResponse]("debug"),
 	)
 	if err != nil {
 		panic(err)
@@ -345,7 +345,7 @@ func (e *Engine) registerInternalQueries() {
 	receiptQueryType, err := NewQueryType[ListTxReceiptsRequest, ListTxReceiptsReply](
 		"receipts",
 		receiptsQuery,
-		WithCustomQueryPath[ListTxReceiptsRequest, ListTxReceiptsReply]("/query/receipts/list"),
+		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsReply]("receipts"),
 	)
 	if err != nil {
 		panic(err)

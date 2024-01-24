@@ -73,7 +73,7 @@ type CreatePersonaResult struct {
 var CreatePersonaMsg = NewMessageType[CreatePersona, CreatePersonaResult](
 	"create-persona",
 	WithMsgEVMSupport[CreatePersona, CreatePersonaResult](),
-	WithCustomMessagePath[CreatePersona, CreatePersonaResult]("tx/persona/create-persona"),
+	WithCustomMessageGroup[CreatePersona, CreatePersonaResult]("persona"),
 )
 
 var regexpObj = regexp.MustCompile("^[a-zA-Z0-9_]+$")

@@ -8,10 +8,9 @@ type TypeID int
 type Message interface {
 	SetID(TypeID) error
 	Name() string
+	// Group returns the group of the message.
+	Group() string
 	ID() TypeID
-	// Path returns a custom path, if any, for the message. When supplied, this message will be handled in the server
-	// from the path returned by this method. If empty, the message will be routed under a wildcard route using its name.
-	Path() string
 	Encode(any) ([]byte, error)
 	Decode([]byte) (any, error)
 	// DecodeEVMBytes decodes ABI encoded bytes into the message's input type.
