@@ -3,7 +3,6 @@ package persona
 import (
 	"context"
 	"encoding/json"
-	"pkg.world.dev/world-engine/relay/nakama/constants"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
@@ -29,9 +28,11 @@ type StorageObj struct {
 type personaTagStatus string
 
 const (
-	StatusPending  personaTagStatus = "pending"
-	StatusAccepted personaTagStatus = "accepted"
-	StatusRejected personaTagStatus = "rejected"
+	StatusPending      personaTagStatus = "pending"
+	StatusAccepted     personaTagStatus = "accepted"
+	StatusRejected     personaTagStatus = "rejected"
+	PersonaTagKey                       = "personaTag"
+	CardinalCollection                  = "cardinalCollection"
 )
 
 // LoadPersonaTagStorageObj loads the current user's persona tag storage object from Nakama's storage layer. The
@@ -43,8 +44,8 @@ func LoadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*St
 	}
 	storeObjs, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{
-			Collection: constants.CardinalCollection,
-			Key:        constants.PersonaTagKey,
+			Collection: CardinalCollection,
+			Key:        PersonaTagKey,
 			UserID:     userID,
 		},
 	})
@@ -75,13 +76,16 @@ func StorageObjToPersonaTagStorageObj(obj *api.StorageObject) (*StorageObj, erro
 
 // AttemptToUpdatePending attempts to change the given StorageObj's Status from "pending" to either "accepted"
 // or "rejected" by using cardinal as the source of truth. If the Status is not "pending", this call is a no-op.
-func (p *StorageObj) AttemptToUpdatePending(ctx context.Context, nk runtime.NakamaModule,
+func (p *StorageObj) AttemptToUpdatePending(
+	ctx context.Context,
+	nk runtime.NakamaModule,
+	cardinalAddr string,
 ) (*StorageObj, error) {
 	if p.Status != StatusPending {
 		return p, nil
 	}
 
-	verified, err := p.verifyPersonaTag(ctx)
+	verified, err := p.verifyPersonaTag(ctx, cardinalAddr)
 	switch {
 	case eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaSignerUnknown):
 		// Leave the Status as pending.
@@ -110,8 +114,8 @@ func (p *StorageObj) AttemptToUpdatePending(ctx context.Context, nk runtime.Naka
 
 // verifyPersonaTag queries cardinal to see if the signer address for the given persona tag matches Nakama's signer
 // address.
-func (p *StorageObj) verifyPersonaTag(ctx context.Context) (verified bool, err error) {
-	gameSignerAddress, err := cardinalQueryPersonaSigner(ctx, p.PersonaTag, p.Tick)
+func (p *StorageObj) verifyPersonaTag(ctx context.Context, cardinalAddr string) (verified bool, err error) {
+	gameSignerAddress, err := cardinalQueryPersonaSigner(ctx, p.PersonaTag, p.Tick, cardinalAddr)
 	if err != nil {
 		return false, err
 	}
@@ -130,8 +134,8 @@ func (p *StorageObj) SavePersonaTagStorageObj(ctx context.Context, nk runtime.Na
 		return eris.Wrap(err, "unable to marshal persona tag storage object")
 	}
 	write := &runtime.StorageWrite{
-		Collection:      constants.CardinalCollection,
-		Key:             constants.PersonaTagKey,
+		Collection:      CardinalCollection,
+		Key:             PersonaTagKey,
 		UserID:          userID,
 		Value:           string(buf),
 		Version:         p.version,

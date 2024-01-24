@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"pkg.world.dev/world-engine/relay/nakama/constants"
 	"pkg.world.dev/world-engine/relay/nakama/dispatcher"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
@@ -24,10 +23,19 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-var (
-	globalPersonaTagAssignment = sync.Map{}
+const (
+	EnvCardinalAddr           = "CARDINAL_ADDR"
+	EnvCardinalNamespace      = "CARDINAL_NAMESPACE"
+	ListEndpoints             = "query/http/endpoints"
+	EventEndpoint             = "events"
+	TransactionEndpointPrefix = "/tx"
+)
 
-	globalReceiptsDispatcher *dispatcher.ReceiptsDispatcher
+var (
+	globalCardinalAddress      string
+	globalNamespace            string
+	globalPersonaTagAssignment = sync.Map{}
+	globalReceiptsDispatcher   *dispatcher.ReceiptsDispatcher
 )
 
 func InitModule(
@@ -59,11 +67,11 @@ func InitModule(
 		return eris.Wrap(err, "failed to init private key")
 	}
 
-	if err := initPersonaTagAssignmentMap(ctx, logger, nk); err != nil {
+	if err := initPersonaTagAssignmentMap(ctx, logger, nk, persona.CardinalCollection); err != nil {
 		return eris.Wrap(err, "failed to init persona tag assignment map")
 	}
 
-	ptv := persona.InitPersonaTagVerifier(logger, nk, globalReceiptsDispatcher)
+	ptv := persona.NewVerifier(logger, nk, globalReceiptsDispatcher)
 
 	if err := initPersonaTagEndpoints(logger, initializer, ptv, notifier); err != nil {
 		return eris.Wrap(err, "failed to init persona tag endpoints")
@@ -90,7 +98,7 @@ func InitModule(
 
 func initReceiptDispatcher(log runtime.Logger) {
 	globalReceiptsDispatcher = dispatcher.NewReceiptsDispatcher()
-	go globalReceiptsDispatcher.PollReceipts(log)
+	go globalReceiptsDispatcher.PollReceipts(log, globalCardinalAddress)
 	go globalReceiptsDispatcher.Dispatch(log)
 }
 
@@ -122,14 +130,19 @@ func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModu
 
 // initPersonaTagAssignmentMap initializes a sync.Map with all the existing mappings of PersonaTag->UserID. This
 // sync.Map ensures that multiple users will not be given the same persona tag.
-func initPersonaTagAssignmentMap(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) error {
+func initPersonaTagAssignmentMap(
+	ctx context.Context,
+	logger runtime.Logger,
+	nk runtime.NakamaModule,
+	collectionName string,
+) error {
 	logger.Debug("attempting to build personaTag->userID mapping")
 	var cursor string
 	var objs []*api.StorageObject
 	var err error
 	iterationLimit := 100
 	for {
-		objs, cursor, err = nk.StorageList(ctx, "", "", constants.CardinalCollection, iterationLimit, cursor)
+		objs, cursor, err = nk.StorageList(ctx, "", "", collectionName, iterationLimit, cursor)
 		if err != nil {
 			return eris.Wrap(err, "")
 		}
@@ -231,7 +244,7 @@ func handleClaimPersona(ptv *persona.Verifier, notifier *receiptNotifier) nakama
 			}
 		}
 
-		txHash, tick, err := persona.CardinalCreatePersona(ctx, nk, ptr.PersonaTag)
+		txHash, tick, err := persona.CardinalCreatePersona(ctx, nk, ptr.PersonaTag, globalCardinalAddress, globalNamespace)
 		if err != nil {
 			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make create persona request to cardinal")
 		}
@@ -280,7 +293,7 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 		}
 		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
 	}
-	ptr, err = ptr.AttemptToUpdatePending(ctx, nk)
+	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, globalCardinalAddress)
 	if err != nil {
 		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to update pending state")
 	}
@@ -346,7 +359,7 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				req, err := http.NewRequestWithContext(
 					ctx,
 					http.MethodPost,
-					utils.MakeHTTPURL(currEndpoint, constants.GlobalCardinalAddress),
+					utils.MakeHTTPURL(currEndpoint, globalCardinalAddress),
 					resultPayload,
 				)
 				req.Header.Set("Content-Type", "application/json")
@@ -377,7 +390,7 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				if err != nil {
 					return utils.LogErrorMessageFailedPrecondition(logger, err, "can't read body")
 				}
-				if strings.HasPrefix(currEndpoint, constants.TransactionEndpointPrefix) {
+				if strings.HasPrefix(currEndpoint, TransactionEndpointPrefix) {
 					var asTx persona.TxResponse
 
 					if err = json.Unmarshal(bz, &asTx); err != nil {
@@ -426,7 +439,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 	if err != nil {
 		return nil, err
 	}
-	ptr, err = ptr.AttemptToUpdatePending(ctx, nk)
+	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, globalCardinalAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -439,7 +452,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 	if err != nil {
 		return nil, err
 	}
-	sp, err := sign.NewTransaction(pk, personaTag, constants.GlobalNamespace, nonce, payload)
+	sp, err := sign.NewTransaction(pk, personaTag, globalNamespace, nonce, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -451,17 +464,17 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 }
 
 func initCardinalAddress() error {
-	constants.GlobalCardinalAddress = os.Getenv(constants.EnvCardinalAddr)
-	if constants.GlobalCardinalAddress == "" {
-		return eris.Errorf("must specify a cardinal server via %s", constants.EnvCardinalAddr)
+	globalCardinalAddress = os.Getenv(EnvCardinalAddr)
+	if globalCardinalAddress == "" {
+		return eris.Errorf("must specify a cardinal server via %s", EnvCardinalAddr)
 	}
 	return nil
 }
 
 func initNamespace() error {
-	constants.GlobalNamespace = os.Getenv(constants.EnvCardinalNamespace)
-	if constants.GlobalNamespace == "" {
-		return eris.Errorf("must specify a cardinal namespace via %s", constants.EnvCardinalNamespace)
+	globalNamespace = os.Getenv(EnvCardinalNamespace)
+	if globalNamespace == "" {
+		return eris.Errorf("must specify a cardinal namespace via %s", EnvCardinalNamespace)
 	}
 	return nil
 }

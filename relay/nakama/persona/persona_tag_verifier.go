@@ -44,7 +44,7 @@ func (p *Verifier) AddPendingPersonaTag(userID, txHash string) {
 	}
 }
 
-func InitPersonaTagVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *dispatcher.ReceiptsDispatcher,
+func NewVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *dispatcher.ReceiptsDispatcher,
 ) *Verifier {
 	channelLimit := 100
 	ptv := &Verifier{

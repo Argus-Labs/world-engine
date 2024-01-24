@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"pkg.world.dev/world-engine/relay/nakama/constants"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"sync"
 	"time"
@@ -14,7 +13,9 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-type ReceiptChan chan *Receipt
+const (
+	TransactionReceiptsEndpoint = "query/receipts/list"
+)
 
 type TransactionReceiptsReply struct {
 	StartTick uint64     `json:"startTick"`
@@ -66,13 +67,13 @@ func (r *ReceiptsDispatcher) Dispatch(_ runtime.Logger) {
 
 // PollReceipts calls the cardinal backend to get any new transaction receipts. It never returns, so
 // it should be called in a goroutine.
-func (r *ReceiptsDispatcher) PollReceipts(log runtime.Logger) {
+func (r *ReceiptsDispatcher) PollReceipts(log runtime.Logger, cardinalAddr string) {
 	timeBetweenBatched := time.Second
 	startTick := uint64(0)
 	var err error
 	log.Debug("fetching batch of receipts: %d", startTick)
 	for {
-		startTick, err = r.streamBatchOfReceipts(log, startTick)
+		startTick, err = r.streamBatchOfReceipts(log, startTick, cardinalAddr)
 		if err != nil {
 			log.Error("problem when fetching batch of receipts: %v", eris.ToString(eris.Wrap(err, ""), true))
 		}
@@ -80,11 +81,13 @@ func (r *ReceiptsDispatcher) PollReceipts(log runtime.Logger) {
 	}
 }
 
-func (r *ReceiptsDispatcher) streamBatchOfReceipts(_ runtime.Logger, startTick uint64) (
-	newStartTick uint64, err error,
-) {
+func (r *ReceiptsDispatcher) streamBatchOfReceipts(
+	_ runtime.Logger,
+	startTick uint64,
+	cardinalAddr string,
+) (newStartTick uint64, err error) {
 	newStartTick = startTick
-	reply, err := r.getBatchOfReceiptsFromCardinal(startTick)
+	reply, err := r.getBatchOfReceiptsFromCardinal(startTick, cardinalAddr)
 	if err != nil {
 		return newStartTick, err
 	}
@@ -99,7 +102,7 @@ type txReceiptRequest struct {
 	StartTick uint64 `json:"startTick"`
 }
 
-func (r *ReceiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (
+func (r *ReceiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64, cardinalAddr string) (
 	reply *TransactionReceiptsReply, err error) {
 	request := txReceiptRequest{
 		StartTick: startTick,
@@ -109,7 +112,7 @@ func (r *ReceiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (
 		return nil, eris.Wrap(err, "")
 	}
 	ctx := context.Background()
-	url := utils.MakeHTTPURL(constants.TransactionReceiptsEndpoint, constants.GlobalCardinalAddress)
+	url := utils.MakeHTTPURL(TransactionReceiptsEndpoint, cardinalAddr)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
 		return nil, eris.Wrap(err, "")

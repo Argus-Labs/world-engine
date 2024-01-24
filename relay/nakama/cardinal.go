@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"pkg.world.dev/world-engine/relay/nakama/constants"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/rotisserie/eris"
@@ -19,7 +18,7 @@ type endpoints struct {
 
 func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err error) {
 	var resp *http.Response
-	url := utils.MakeHTTPURL(constants.ListEndpoints, constants.GlobalCardinalAddress)
+	url := utils.MakeHTTPURL(ListEndpoints, globalCardinalAddress)
 	//nolint:gosec,noctx // its ok. maybe revisit.
 	resp, err = http.Post(url, "", nil)
 	if err != nil {

@@ -8,7 +8,6 @@ import (
 	"github.com/rotisserie/eris"
 	"io"
 	"net/http"
-	"pkg.world.dev/world-engine/relay/nakama/constants"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
@@ -27,7 +26,13 @@ type TxResponse struct {
 	Tick   uint64 `json:"tick"`
 }
 
-func CardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, personaTag string) (
+func CardinalCreatePersona(
+	ctx context.Context,
+	nk runtime.NakamaModule,
+	personaTag string,
+	cardinalAddr string,
+	cardinalNamespace string,
+) (
 	txHash string,
 	tick uint64,
 	err error,
@@ -54,7 +59,7 @@ func CardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		return "", 0, eris.Wrapf(err, "unable to get the private key or a nonce")
 	}
 
-	transaction, err := sign.NewSystemTransaction(key, constants.GlobalNamespace, nonce, createPersonaTx)
+	transaction, err := sign.NewSystemTransaction(key, cardinalNamespace, nonce, createPersonaTx)
 
 	if err != nil {
 		return "", 0, eris.Wrapf(err, "unable to create signed payload")
@@ -68,7 +73,7 @@ func CardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
-		utils.MakeHTTPURL(createPersonaEndpoint, constants.GlobalCardinalAddress),
+		utils.MakeHTTPURL(createPersonaEndpoint, cardinalAddr),
 		bytes.NewReader(buf),
 	)
 	if err != nil {
@@ -98,7 +103,12 @@ func CardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 	return createPersonaResponse.TxHash, createPersonaResponse.Tick, nil
 }
 
-func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uint64) (signerAddress string, err error) {
+func cardinalQueryPersonaSigner(
+	ctx context.Context,
+	personaTag string,
+	tick uint64,
+	cardinalAddr string,
+) (signerAddress string, err error) {
 	readPersonaRequest := struct {
 		PersonaTag string `json:"personaTag"`
 		Tick       uint64 `json:"tick"`
@@ -114,7 +124,7 @@ func cardinalQueryPersonaSigner(ctx context.Context, personaTag string, tick uin
 	httpReq, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
-		utils.MakeHTTPURL(readPersonaSignerEndpoint, constants.GlobalCardinalAddress),
+		utils.MakeHTTPURL(readPersonaSignerEndpoint, cardinalAddr),
 		bytes.NewReader(buf),
 	)
 	if err != nil {
