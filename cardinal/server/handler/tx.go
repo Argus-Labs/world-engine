@@ -23,6 +23,7 @@ type PostTransactionResponse struct {
 	Tick   uint64
 }
 
+//notlint:gocognit // its fine.
 func PostTransaction(
 	msgs map[string]map[string]message.Message, engine *ecs.Engine, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
@@ -63,7 +64,7 @@ func PostTransaction(
 			}
 		}
 
-		// If signature verfication is enabled, validate the transaction
+		// If signature verification is enabled, validate the transaction
 		if !disableSigVerification {
 			if err = validateSignature(tx, signerAddress, engine.Namespace().String(),
 				tx.IsSystemTransaction()); err != nil {
