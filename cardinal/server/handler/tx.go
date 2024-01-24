@@ -23,7 +23,7 @@ type PostTransactionResponse struct {
 	Tick   uint64
 }
 
-//notlint:gocognit // its fine.
+//nolint:gocognit
 func PostTransaction(
 	msgs map[string]map[string]message.Message, engine *ecs.Engine, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
