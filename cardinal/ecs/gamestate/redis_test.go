@@ -12,7 +12,6 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 )
 
@@ -37,9 +36,9 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 	}
 	client := redis.NewClient(&options)
 
-	alphaComp, err := storage.NewMockComponentType[Alpha](Alpha{}, Alpha{})
+	alphaComp, err := NewMockComponentType[Alpha](Alpha{}, Alpha{})
 	assert.NilError(t, err)
-	betaComp, err := storage.NewMockComponentType[Beta](Beta{}, Beta{})
+	betaComp, err := NewMockComponentType[Beta](Beta{}, Beta{})
 	assert.NilError(t, err)
 	assert.NilError(t, alphaComp.SetID(77))
 	assert.NilError(t, betaComp.SetID(88))
