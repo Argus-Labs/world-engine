@@ -4,6 +4,7 @@ go 1.21.0
 
 require (
 	github.com/ethereum/go-ethereum v1.13.4
+	github.com/rs/zerolog v1.31.0
 	pkg.world.dev/world-engine/assert v0.0.0-00010101000000-000000000000
 )
 
@@ -16,6 +17,8 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/holiman/uint256 v1.2.3 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rotisserie/eris v0.5.4 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect

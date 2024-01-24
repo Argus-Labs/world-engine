@@ -22,7 +22,7 @@ e2e-benchmark:
 		cd $(ROOT_DIR); \
 	)
 
-	@docker compose -f docker-compose.benchmark.yml up --build
+	@docker compose -f docker-compose.benchmark.yml up --build #--attach test_nakama_benchmark
 
 
 #################

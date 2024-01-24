@@ -147,7 +147,7 @@ services:
 
   test_nakama_benchmark:
     container_name: test_nakama_benchmark
-    build: ./internal/nakama_benchmark
+    build: ./internal/nakamabenchmark
     depends_on:
       nakama:
         condition: service_healthy
