@@ -48,7 +48,7 @@ func InitTreeEntities(wCtx cardinal.WorldContext) error {
 	return nil
 }
 
-func SystemA(wCtx cardinal.WorldContext) error {
+func SystemTestGetSmallComponentA(wCtx cardinal.WorldContext) error {
 	for _, id := range TenThousandEntityIds {
 		gotcomp, err := cardinal.GetComponent[comp.SingleNumber](wCtx, id)
 		if err != nil {
@@ -68,7 +68,7 @@ func SystemA(wCtx cardinal.WorldContext) error {
 	return nil
 }
 
-func SystemB(wCtx cardinal.WorldContext) error {
+func SystemTestGetSmallComponentB(wCtx cardinal.WorldContext) error {
 	var maxRand int64 = 1000 - 10
 	num, err := cryptorand.Int(cryptorand.Reader, big.NewInt(maxRand))
 	if err != nil {
@@ -96,7 +96,7 @@ func SystemB(wCtx cardinal.WorldContext) error {
 	return nil
 }
 
-func SystemC(wCtx cardinal.WorldContext) error {
+func SystemTestSearchC(wCtx cardinal.WorldContext) error {
 	err := wCtx.NewSearch(cardinal.Exact(comp.SingleNumber{})).Each(wCtx, func(id entity.ID) bool {
 		return true
 	})
@@ -106,7 +106,7 @@ func SystemC(wCtx cardinal.WorldContext) error {
 	return nil
 }
 
-func SystemD(wCtx cardinal.WorldContext) error {
+func SystemTestGetComponentWithArrayD(wCtx cardinal.WorldContext) error {
 	for _, id := range OneHundredEntityIds {
 		gotcomp, err := cardinal.GetComponent[comp.ArrayComp](wCtx, id)
 		if err != nil {
@@ -121,7 +121,7 @@ func SystemD(wCtx cardinal.WorldContext) error {
 	return nil
 }
 
-func SystemE(wCtx cardinal.WorldContext) error {
+func SystemTestGetAndSetComponentWithArrayE(wCtx cardinal.WorldContext) error {
 	var maxRand int64 = 100 - 10
 	num, err := cryptorand.Int(cryptorand.Reader, big.NewInt(maxRand))
 	if err != nil {
@@ -144,7 +144,7 @@ func SystemE(wCtx cardinal.WorldContext) error {
 	return nil
 }
 
-func SystemF(wCtx cardinal.WorldContext) error {
+func SystemTestSearchingForCompWithArrayF(wCtx cardinal.WorldContext) error {
 	err := wCtx.NewSearch(cardinal.Exact(comp.ArrayComp{})).Each(wCtx, func(id entity.ID) bool {
 		return true
 	})
@@ -154,7 +154,7 @@ func SystemF(wCtx cardinal.WorldContext) error {
 	return nil
 }
 
-func SystemG(wCtx cardinal.WorldContext) error {
+func SystemTestEntityCreationG(wCtx cardinal.WorldContext) error {
 	entityAmount := 100000
 	_, err := cardinal.CreateMany(wCtx,
 		entityAmount,
@@ -166,7 +166,7 @@ func SystemG(wCtx cardinal.WorldContext) error {
 	return nil
 }
 
-func SystemH(wCtx cardinal.WorldContext) error {
+func SystemTestGettingHighlyNestedComponentsH(wCtx cardinal.WorldContext) error {
 	for _, id := range TreeEntityIds {
 		gotcomp, err := cardinal.GetComponent[comp.Tree](wCtx, id)
 		if err != nil {

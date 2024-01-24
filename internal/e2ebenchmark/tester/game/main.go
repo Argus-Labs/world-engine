@@ -50,28 +50,28 @@ func initializeSystems(
 		initSystems = append(initSystems, sys.InitTreeEntities)
 	}
 	if a {
-		systems = append(systems, sys.SystemA)
+		systems = append(systems, sys.SystemTestGetSmallComponentA)
 	}
 	if b {
-		systems = append(systems, sys.SystemB)
+		systems = append(systems, sys.SystemTestGetSmallComponentB)
 	}
 	if c {
-		systems = append(systems, sys.SystemC)
+		systems = append(systems, sys.SystemTestSearchC)
 	}
 	if d {
-		systems = append(systems, sys.SystemD)
+		systems = append(systems, sys.SystemTestGetComponentWithArrayD)
 	}
 	if e {
-		systems = append(systems, sys.SystemE)
+		systems = append(systems, sys.SystemTestGetAndSetComponentWithArrayE)
 	}
 	if f {
-		systems = append(systems, sys.SystemF)
+		systems = append(systems, sys.SystemTestSearchingForCompWithArrayF)
 	}
 	if g {
-		systems = append(systems, sys.SystemG)
+		systems = append(systems, sys.SystemTestEntityCreationG)
 	}
 	if h {
-		systems = append(systems, sys.SystemH)
+		systems = append(systems, sys.SystemTestGettingHighlyNestedComponentsH)
 	}
 	return initSystems, systems
 }
