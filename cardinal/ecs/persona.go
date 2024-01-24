@@ -2,10 +2,11 @@ package ecs
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -314,7 +315,7 @@ func createMany(eCtx EngineContext, num int, components ...component.Component) 
 		}
 		acc = append(acc, c)
 	}
-	entityIds, err := engine.StoreManager().CreateManyEntities(num, acc...)
+	entityIds, err := engine.GameStateManager().CreateManyEntities(num, acc...)
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +325,7 @@ func createMany(eCtx EngineContext, num int, components ...component.Component) 
 			if err != nil {
 				return nil, eris.Wrap(err, "must register component before creating an entity")
 			}
-			err = engine.StoreManager().SetComponentForEntity(c, id, comp)
+			err = engine.GameStateManager().SetComponentForEntity(c, id, comp)
 			if err != nil {
 				return nil, err
 			}

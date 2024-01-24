@@ -147,7 +147,7 @@ func TestEngineLogger(t *testing.T) {
 	buf.Reset()
 
 	// test log entity
-	archetypeID, err := engine.StoreManager().GetArchIDForComponents(components)
+	archetypeID, err := engine.GameStateManager().GetArchIDForComponents(components)
 	assert.NilError(t, err)
 	log.Entity(&bufLogger, zerolog.DebugLevel, entityID, archetypeID, components)
 	jsonEntityInfoString := `

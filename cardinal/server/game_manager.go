@@ -61,7 +61,7 @@ func (g *GameManager) Shutdown() error {
 		return err
 	}
 	g.world.Shutdown()
-	err = g.world.StoreManager().Close()
+	err = g.world.GameStateManager().Close()
 	if err != nil {
 		return err
 	}

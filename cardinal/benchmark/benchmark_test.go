@@ -5,8 +5,10 @@ package benchmark_test
 import (
 	"context"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"testing"
+
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal"
@@ -15,7 +17,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
@@ -29,7 +30,7 @@ func newWorldWithRealRedis(t testing.TB) *ecs.Engine {
 	}, "real-world")
 	assert.NilError(t, rs.Client.FlushDB(context.Background()).Err())
 
-	sm, err := ecb.NewManager(rs.Client)
+	sm, err := gamestate.NewEntityCommandBuffer(rs.Client)
 	assert.NilError(t, err)
 	world, err := ecs.NewEngine(&rs, sm, cardinal.DefaultNamespace)
 
