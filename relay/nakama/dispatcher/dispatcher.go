@@ -37,14 +37,14 @@ type ReceiptsDispatcher struct {
 
 func NewReceiptsDispatcher() *ReceiptsDispatcher {
 	return &ReceiptsDispatcher{
-		ch: make(ReceiptChan),
+		ch: make(chan *Receipt),
 		m:  &sync.Map{},
 	}
 }
 
 // Subscribe allows for the sending of receipts to the given channel. Each given session can
 // only be associated with a single channel.
-func (r *ReceiptsDispatcher) Subscribe(session string, ch ReceiptChan) {
+func (r *ReceiptsDispatcher) Subscribe(session string, ch chan *Receipt) {
 	r.m.Store(session, ch)
 }
 
@@ -53,7 +53,7 @@ func (r *ReceiptsDispatcher) Subscribe(session string, ch ReceiptChan) {
 func (r *ReceiptsDispatcher) Dispatch(_ runtime.Logger) {
 	for receipt := range r.ch {
 		r.m.Range(func(key, value any) bool {
-			ch, _ := value.(ReceiptChan)
+			ch, _ := value.(chan *Receipt)
 			// avoid blocking r.ch by making a best-effort delivery here.
 			select {
 			case ch <- receipt:

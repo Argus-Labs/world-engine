@@ -13,7 +13,7 @@ import (
 	"pkg.world.dev/world-engine/relay/nakama/dispatcher"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
-	"pkg.world.dev/world-engine/relay/nakama/pk"
+	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"strings"
 	"sync"
@@ -55,7 +55,7 @@ func InitModule(
 
 	notifier := newReceiptNotifier(logger, nk)
 
-	if err := pk.InitPrivateKey(ctx, logger, nk); err != nil {
+	if err := signer.InitPrivateKey(ctx, logger, nk); err != nil {
 		return eris.Wrap(err, "failed to init private key")
 	}
 
@@ -435,7 +435,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 		return nil, eris.Wrap(nakamaerrors.ErrNoPersonaTagForUser, "")
 	}
 	personaTag := ptr.PersonaTag
-	pk, nonce, err := pk.GetPrivateKeyAndANonce(ctx, nk)
+	pk, nonce, err := signer.GetPrivateKeyAndANonce(ctx, nk)
 	if err != nil {
 		return nil, err
 	}

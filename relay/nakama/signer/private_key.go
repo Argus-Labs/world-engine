@@ -1,4 +1,4 @@
-package pk
+package signer
 
 // private_key.go manages the creation and loading of the Nakama private key used to sign
 // all transactions.

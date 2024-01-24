@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
-	"pkg.world.dev/world-engine/relay/nakama/pk"
+	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
 	"testing"
 
@@ -173,7 +173,7 @@ func (a *AllowListTestSuite) TestCanHandleBetaKeyGenerationFailures() {
 	assert.ErrorContains(t, err, "unauthorized")
 
 	// The GenKeys payload is malformed
-	ctx = testutils.CtxWithUserID(pk.AdminAccountID)
+	ctx = testutils.CtxWithUserID(signer.AdminAccountID)
 	_, err = allowListRPC(ctx, logger, nil, nil, `{"bad-payload":{{{{`)
 	assert.IsError(t, err)
 
@@ -187,7 +187,7 @@ func (a *AllowListTestSuite) TestCanHandleBetaKeyGenerationFailures() {
 
 func (a *AllowListTestSuite) TestCanAddBetaKeys() {
 	t := a.T()
-	ctx := testutils.CtxWithUserID(pk.AdminAccountID)
+	ctx := testutils.CtxWithUserID(signer.AdminAccountID)
 	numOfKeysToGenerate := 100
 	nk := mocks.NewNakamaModule(t)
 	keysInDB := map[string]bool{}
@@ -237,7 +237,7 @@ func (a *AllowListTestSuite) TestCanClaimBetaKey() {
 
 	// First call is to check if the user already has a beta key
 	mockNK.On("StorageRead",
-		testutils.AnyContext, testutils.MockMatchStoreRead(allowedUsers, userID, pk.AdminAccountID)).
+		testutils.AnyContext, testutils.MockMatchStoreRead(allowedUsers, userID, signer.AdminAccountID)).
 		// No storageObject objects signals that this user has not yet claimed a beta key
 		Return(nil, nil).
 		Once()
@@ -253,19 +253,19 @@ func (a *AllowListTestSuite) TestCanClaimBetaKey() {
 
 	// Second call is to see if the beta key is valid
 	mockNK.On("StorageRead", testutils.AnyContext,
-		testutils.MockMatchStoreRead(allowlistKeyCollection, validBetaKey, pk.AdminAccountID)).
+		testutils.MockMatchStoreRead(allowlistKeyCollection, validBetaKey, signer.AdminAccountID)).
 		Return(betaKeyReadReturnVal, nil).
 		Once()
 
 	// Third call is to update the beta key to mark it as used
 	mockNK.On("StorageWrite", testutils.AnyContext,
-		testutils.MockMatchStoreWrite(allowlistKeyCollection, validBetaKey, pk.AdminAccountID)).
+		testutils.MockMatchStoreWrite(allowlistKeyCollection, validBetaKey, signer.AdminAccountID)).
 		Return(nil, nil).
 		Once()
 
 	// Fourth call is to save the newly validated user into the DB
 	mockNK.On("StorageWrite", testutils.AnyContext,
-		testutils.MockMatchStoreWrite(allowedUsers, "", pk.AdminAccountID)).
+		testutils.MockMatchStoreWrite(allowedUsers, "", signer.AdminAccountID)).
 		Return(nil, nil).
 		Once()
 

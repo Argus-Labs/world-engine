@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"pkg.world.dev/world-engine/relay/nakama/constants"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
-	"pkg.world.dev/world-engine/relay/nakama/pk"
+	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -40,7 +40,7 @@ func CardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		}
 	}()
 
-	signerAddress := pk.GetSignerAddress()
+	signerAddress := signer.GetSignerAddress()
 	createPersonaTx := struct {
 		PersonaTag    string `json:"personaTag"`
 		SignerAddress string `json:"signerAddress"`
@@ -49,7 +49,7 @@ func CardinalCreatePersona(ctx context.Context, nk runtime.NakamaModule, persona
 		SignerAddress: signerAddress,
 	}
 
-	key, nonce, err := pk.GetPrivateKeyAndANonce(ctx, nk)
+	key, nonce, err := signer.GetPrivateKeyAndANonce(ctx, nk)
 	if err != nil {
 		return "", 0, eris.Wrapf(err, "unable to get the private key or a nonce")
 	}

@@ -18,7 +18,7 @@ type Verifier struct {
 	// because all map updates happen in a single goroutine. Updates are transmitted to the goroutine
 	// via the receiptCh channel and the pendingCh channel.
 	txHashToPending map[string]pendingPersonaTagRequest
-	receiptCh       dispatcher.ReceiptChan
+	receiptCh       chan *dispatcher.Receipt
 	pendingCh       chan txHashAndUserID
 	nk              runtime.NakamaModule
 	logger          runtime.Logger
@@ -49,7 +49,7 @@ func InitPersonaTagVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *
 	channelLimit := 100
 	ptv := &Verifier{
 		txHashToPending: map[string]pendingPersonaTagRequest{},
-		receiptCh:       make(dispatcher.ReceiptChan, channelLimit),
+		receiptCh:       make(chan *dispatcher.Receipt, channelLimit),
 		pendingCh:       make(chan txHashAndUserID),
 		nk:              nk,
 		logger:          logger,

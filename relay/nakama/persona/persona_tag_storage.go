@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"pkg.world.dev/world-engine/relay/nakama/constants"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
-	"pkg.world.dev/world-engine/relay/nakama/pk"
+	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/heroiclabs/nakama-common/api"
@@ -115,7 +115,7 @@ func (p *StorageObj) verifyPersonaTag(ctx context.Context) (verified bool, err e
 	if err != nil {
 		return false, err
 	}
-	nakamaSignerAddress := pk.GetSignerAddress()
+	nakamaSignerAddress := signer.GetSignerAddress()
 	return gameSignerAddress == nakamaSignerAddress, nil
 }
 
