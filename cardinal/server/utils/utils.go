@@ -17,7 +17,7 @@ func GetQueryFromRouteParams(ctx *fiber.Ctx, queries map[string]map[string]ecs.Q
 	return query, ok
 }
 
-func GetMesssageFromRouteParams(ctx *fiber.Ctx, msgs map[string]map[string]message.Message) (message.Message, bool) {
+func GetMessageFromRouteParams(ctx *fiber.Ctx, msgs map[string]map[string]message.Message) (message.Message, bool) {
 	msg, ok := msgs[ctx.Params("group")][ctx.Params("name")]
 	return msg, ok
 }

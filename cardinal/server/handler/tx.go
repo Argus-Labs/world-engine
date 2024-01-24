@@ -28,7 +28,7 @@ func PostTransaction(
 	msgs map[string]map[string]message.Message, engine *ecs.Engine, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
-		msgType, ok := utils.GetMesssageFromRouteParams(ctx, msgs)
+		msgType, ok := utils.GetMessageFromRouteParams(ctx, msgs)
 		if !ok {
 			return fiber.NewError(fiber.StatusNotFound, "message type not found")
 		}
