@@ -1,4 +1,4 @@
-package main
+package dispatcher
 
 import (
 	"bytes"
@@ -13,6 +13,10 @@ import (
 	"github.com/rotisserie/eris"
 )
 
+const (
+	TransactionReceiptsEndpoint = "query/receipts/list"
+)
+
 type TransactionReceiptsReply struct {
 	StartTick uint64     `json:"startTick"`
 	EndTick   uint64     `json:"endTick"`
@@ -25,32 +29,32 @@ type Receipt struct {
 	Errors []string       `json:"errors"`
 }
 
-// receiptsDispatcher continually polls Cardinal for transaction receipts and dispatches them to any subscribed
+// ReceiptsDispatcher continually polls Cardinal for transaction receipts and dispatches them to any subscribed
 // channels. The subscribed channels are stored in the sync.Map.
-type receiptsDispatcher struct {
+type ReceiptsDispatcher struct {
 	ch chan *Receipt
 	m  *sync.Map
 }
 
-func newReceiptsDispatcher() *receiptsDispatcher {
-	return &receiptsDispatcher{
-		ch: make(receiptChan),
+func NewReceiptsDispatcher() *ReceiptsDispatcher {
+	return &ReceiptsDispatcher{
+		ch: make(chan *Receipt),
 		m:  &sync.Map{},
 	}
 }
 
-// subscribe allows for the sending of receipts to the given channel. Each given session can
+// Subscribe allows for the sending of receipts to the given channel. Each given session can
 // only be associated with a single channel.
-func (r *receiptsDispatcher) subscribe(session string, ch receiptChan) {
+func (r *ReceiptsDispatcher) Subscribe(session string, ch chan *Receipt) {
 	r.m.Store(session, ch)
 }
 
-// dispatch continually drains r.ch (receipts from cardinal) and sends copies to all subscribed channels.
+// Dispatch continually drains r.ch (receipts from cardinal) and sends copies to all subscribed channels.
 // This function is meant to be called in a goroutine. Pushed receipts will not block when sending.
-func (r *receiptsDispatcher) dispatch(_ runtime.Logger) {
+func (r *ReceiptsDispatcher) Dispatch(_ runtime.Logger) {
 	for receipt := range r.ch {
 		r.m.Range(func(key, value any) bool {
-			ch, _ := value.(receiptChan)
+			ch, _ := value.(chan *Receipt)
 			// avoid blocking r.ch by making a best-effort delivery here.
 			select {
 			case ch <- receipt:
@@ -61,15 +65,15 @@ func (r *receiptsDispatcher) dispatch(_ runtime.Logger) {
 	}
 }
 
-// pollReceipts calls the cardinal backend to get any new transaction receipts. It never returns, so
+// PollReceipts calls the cardinal backend to get any new transaction receipts. It never returns, so
 // it should be called in a goroutine.
-func (r *receiptsDispatcher) pollReceipts(log runtime.Logger) {
+func (r *ReceiptsDispatcher) PollReceipts(log runtime.Logger, cardinalAddr string) {
 	timeBetweenBatched := time.Second
 	startTick := uint64(0)
 	var err error
 	log.Debug("fetching batch of receipts: %d", startTick)
 	for {
-		startTick, err = r.streamBatchOfReceipts(log, startTick)
+		startTick, err = r.streamBatchOfReceipts(log, startTick, cardinalAddr)
 		if err != nil {
 			log.Error("problem when fetching batch of receipts: %v", eris.ToString(eris.Wrap(err, ""), true))
 		}
@@ -77,11 +81,13 @@ func (r *receiptsDispatcher) pollReceipts(log runtime.Logger) {
 	}
 }
 
-func (r *receiptsDispatcher) streamBatchOfReceipts(_ runtime.Logger, startTick uint64) (
-	newStartTick uint64, err error,
-) {
+func (r *ReceiptsDispatcher) streamBatchOfReceipts(
+	_ runtime.Logger,
+	startTick uint64,
+	cardinalAddr string,
+) (newStartTick uint64, err error) {
 	newStartTick = startTick
-	reply, err := r.getBatchOfReceiptsFromCardinal(startTick)
+	reply, err := r.getBatchOfReceiptsFromCardinal(startTick, cardinalAddr)
 	if err != nil {
 		return newStartTick, err
 	}
@@ -96,7 +102,7 @@ type txReceiptRequest struct {
 	StartTick uint64 `json:"startTick"`
 }
 
-func (r *receiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (
+func (r *ReceiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64, cardinalAddr string) (
 	reply *TransactionReceiptsReply, err error) {
 	request := txReceiptRequest{
 		StartTick: startTick,
@@ -106,7 +112,7 @@ func (r *receiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64) (
 		return nil, eris.Wrap(err, "")
 	}
 	ctx := context.Background()
-	url := utils.MakeHTTPURL(transactionReceiptsEndpoint, globalCardinalAddress)
+	url := utils.MakeHTTPURL(TransactionReceiptsEndpoint, cardinalAddr)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
 		return nil, eris.Wrap(err, "")

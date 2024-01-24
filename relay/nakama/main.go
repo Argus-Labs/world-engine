@@ -9,7 +9,10 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"pkg.world.dev/world-engine/relay/nakama/dispatcher"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"pkg.world.dev/world-engine/relay/nakama/persona"
+	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"strings"
 	"sync"
@@ -20,24 +23,19 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-type receiptChan chan *Receipt
-
 const (
-	EnvCardinalAddr      = "CARDINAL_ADDR"
-	EnvCardinalNamespace = "CARDINAL_NAMESPACE"
-
-	cardinalCollection = "cardinalCollection"
-	personaTagKey      = "personaTag"
-
-	transactionEndpointPrefix = "/tx"
+	EnvCardinalAddr           = "CARDINAL_ADDR"
+	EnvCardinalNamespace      = "CARDINAL_NAMESPACE"
+	ListEndpoints             = "query/http/endpoints"
+	EventEndpoint             = "events"
+	TransactionEndpointPrefix = "/tx"
 )
 
 var (
 	globalCardinalAddress      string
 	globalNamespace            string
 	globalPersonaTagAssignment = sync.Map{}
-
-	globalReceiptsDispatcher *receiptsDispatcher
+	globalReceiptsDispatcher   *dispatcher.ReceiptsDispatcher
 )
 
 func InitModule(
@@ -65,15 +63,15 @@ func InitModule(
 
 	notifier := newReceiptNotifier(logger, nk)
 
-	if err := initPrivateKey(ctx, logger, nk); err != nil {
+	if err := signer.InitPrivateKey(ctx, logger, nk); err != nil {
 		return eris.Wrap(err, "failed to init private key")
 	}
 
-	if err := initPersonaTagAssignmentMap(ctx, logger, nk); err != nil {
+	if err := initPersonaTagAssignmentMap(ctx, logger, nk, persona.CardinalCollection); err != nil {
 		return eris.Wrap(err, "failed to init persona tag assignment map")
 	}
 
-	ptv := initPersonaTagVerifier(logger, nk, globalReceiptsDispatcher)
+	ptv := persona.NewVerifier(logger, nk, globalReceiptsDispatcher)
 
 	if err := initPersonaTagEndpoints(logger, initializer, ptv, notifier); err != nil {
 		return eris.Wrap(err, "failed to init persona tag endpoints")
@@ -99,9 +97,9 @@ func InitModule(
 }
 
 func initReceiptDispatcher(log runtime.Logger) {
-	globalReceiptsDispatcher = newReceiptsDispatcher()
-	go globalReceiptsDispatcher.pollReceipts(log)
-	go globalReceiptsDispatcher.dispatch(log)
+	globalReceiptsDispatcher = dispatcher.NewReceiptsDispatcher()
+	go globalReceiptsDispatcher.PollReceipts(log, globalCardinalAddress)
+	go globalReceiptsDispatcher.Dispatch(log)
 }
 
 func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModule) error {
@@ -132,26 +130,31 @@ func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModu
 
 // initPersonaTagAssignmentMap initializes a sync.Map with all the existing mappings of PersonaTag->UserID. This
 // sync.Map ensures that multiple users will not be given the same persona tag.
-func initPersonaTagAssignmentMap(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) error {
+func initPersonaTagAssignmentMap(
+	ctx context.Context,
+	logger runtime.Logger,
+	nk runtime.NakamaModule,
+	collectionName string,
+) error {
 	logger.Debug("attempting to build personaTag->userID mapping")
 	var cursor string
 	var objs []*api.StorageObject
 	var err error
 	iterationLimit := 100
 	for {
-		objs, cursor, err = nk.StorageList(ctx, "", "", cardinalCollection, iterationLimit, cursor)
+		objs, cursor, err = nk.StorageList(ctx, "", "", collectionName, iterationLimit, cursor)
 		if err != nil {
 			return eris.Wrap(err, "")
 		}
 		logger.Debug("found %d persona tag storage objects", len(objs))
 		for _, obj := range objs {
 			userID := obj.UserId
-			var ptr *personaTagStorageObj
-			ptr, err = storageObjToPersonaTagStorageObj(obj)
+			var ptr *persona.StorageObj
+			ptr, err = persona.StorageObjToPersonaTagStorageObj(obj)
 			if err != nil {
 				return err
 			}
-			if ptr.Status == personaTagStatusAccepted || ptr.Status == personaTagStatusPending {
+			if ptr.Status == persona.StatusAccepted || ptr.Status == persona.StatusPending {
 				logger.Debug("%s has been assigned to %s", ptr.PersonaTag, userID)
 				globalPersonaTagAssignment.Store(ptr.PersonaTag, userID)
 			}
@@ -167,7 +170,7 @@ func initPersonaTagAssignmentMap(ctx context.Context, logger runtime.Logger, nk 
 func initPersonaTagEndpoints(
 	_ runtime.Logger,
 	initializer runtime.Initializer,
-	ptv *personaTagVerifier,
+	ptv *persona.Verifier,
 	notifier *receiptNotifier) error {
 	if err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(ptv, notifier)); err != nil {
 		return eris.Wrap(err, "")
@@ -183,7 +186,7 @@ type nakamaRPCHandler func(ctx context.Context, logger runtime.Logger, db *sql.D
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
 //
 //nolint:gocognit
-func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) nakamaRPCHandler {
+func handleClaimPersona(ptv *persona.Verifier, notifier *receiptNotifier) nakamaRPCHandler {
 	return func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (
 		string, error) {
 		userID, err := utils.GetUserID(ctx)
@@ -202,7 +205,7 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 				"unable to claim persona tag")
 		}
 
-		ptr := &personaTagStorageObj{}
+		ptr := &persona.StorageObj{}
 		if err := json.Unmarshal([]byte(payload), ptr); err != nil {
 			return utils.LogErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "unable to marshal payload")
 		}
@@ -215,48 +218,48 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 			)
 		}
 
-		tag, err := loadPersonaTagStorageObj(ctx, nk)
+		tag, err := persona.LoadPersonaTagStorageObj(ctx, nk)
 		if err != nil {
 			if !errors.Is(err, nakamaerrors.ErrPersonaTagStorageObjNotFound) {
 				return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
 			}
 		} else {
 			switch tag.Status {
-			case personaTagStatusPending:
+			case persona.StatusPending:
 				return utils.LogDebugWithMessageAndCode(
 					logger,
 					eris.Errorf("persona tag %q is pending for this account", tag.PersonaTag),
 					nakamaerrors.AlreadyExists,
 					"persona tag %q is pending", tag.PersonaTag,
 				)
-			case personaTagStatusAccepted:
+			case persona.StatusAccepted:
 				return utils.LogErrorWithMessageAndCode(
 					logger,
 					eris.Errorf("persona tag %q already associated with this account", tag.PersonaTag),
 					nakamaerrors.AlreadyExists,
 					"persona tag %q already associated with this account",
 					tag.PersonaTag)
-			case personaTagStatusRejected:
+			case persona.StatusRejected:
 				// if the tag was rejected, don't do anything. let the user try to claim another tag.
 			}
 		}
 
-		txHash, tick, err := cardinalCreatePersona(ctx, nk, ptr.PersonaTag)
+		txHash, tick, err := persona.CardinalCreatePersona(ctx, nk, ptr.PersonaTag, globalCardinalAddress, globalNamespace)
 		if err != nil {
 			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make create persona request to cardinal")
 		}
 		notifier.AddTxHashToPendingNotifications(txHash, userID)
 
-		ptr.Status = personaTagStatusPending
-		if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
+		ptr.Status = persona.StatusPending
+		if err = ptr.SavePersonaTagStorageObj(ctx, nk); err != nil {
 			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
 		}
 
 		// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
 		// user having the persona tag.
 		if ok := setPersonaTagAssignment(ptr.PersonaTag, userID); !ok {
-			ptr.Status = personaTagStatusRejected
-			if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
+			ptr.Status = persona.StatusRejected
+			if err = ptr.SavePersonaTagStorageObj(ctx, nk); err != nil {
 				return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
 			}
 			return utils.LogErrorWithMessageAndCode(
@@ -269,11 +272,11 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 
 		ptr.Tick = tick
 		ptr.TxHash = txHash
-		if err = ptr.savePersonaTagStorageObj(ctx, nk); err != nil {
+		if err = ptr.SavePersonaTagStorageObj(ctx, nk); err != nil {
 			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to save persona tag storage object")
 		}
-		ptv.addPendingPersonaTag(userID, ptr.TxHash)
-		res, err := ptr.toJSON()
+		ptv.AddPendingPersonaTag(userID, ptr.TxHash)
+		res, err := ptr.ToJSON()
 		if err != nil {
 			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to marshal response")
 		}
@@ -283,18 +286,18 @@ func handleClaimPersona(ptv *personaTagVerifier, notifier *receiptNotifier) naka
 
 func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string,
 ) (string, error) {
-	ptr, err := loadPersonaTagStorageObj(ctx, nk)
+	ptr, err := persona.LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
 		if eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaTagStorageObjNotFound) {
 			return utils.LogErrorMessageFailedPrecondition(logger, err, "no persona tag found")
 		}
 		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
 	}
-	ptr, err = ptr.attemptToUpdatePending(ctx, nk)
+	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, globalCardinalAddress)
 	if err != nil {
 		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to update pending state")
 	}
-	res, err := ptr.toJSON()
+	res, err := ptr.ToJSON()
 	if err != nil {
 		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to marshal response")
 	}
@@ -387,8 +390,8 @@ func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initialize
 				if err != nil {
 					return utils.LogErrorMessageFailedPrecondition(logger, err, "can't read body")
 				}
-				if strings.HasPrefix(currEndpoint, transactionEndpointPrefix) {
-					var asTx txResponse
+				if strings.HasPrefix(currEndpoint, TransactionEndpointPrefix) {
+					var asTx persona.TxResponse
 
 					if err = json.Unmarshal(bz, &asTx); err != nil {
 						return utils.LogErrorMessageFailedPrecondition(logger, err, "can't decode body as tx response")
@@ -432,20 +435,20 @@ func setPersonaTagAssignment(personaTag, userID string) (ok bool) {
 }
 
 func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload string) (io.Reader, error) {
-	ptr, err := loadPersonaTagStorageObj(ctx, nk)
+	ptr, err := persona.LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
 		return nil, err
 	}
-	ptr, err = ptr.attemptToUpdatePending(ctx, nk)
+	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, globalCardinalAddress)
 	if err != nil {
 		return nil, err
 	}
 
-	if ptr.Status != personaTagStatusAccepted {
+	if ptr.Status != persona.StatusAccepted {
 		return nil, eris.Wrap(nakamaerrors.ErrNoPersonaTagForUser, "")
 	}
 	personaTag := ptr.PersonaTag
-	pk, nonce, err := getPrivateKeyAndANonce(ctx, nk)
+	pk, nonce, err := signer.GetPrivateKeyAndANonce(ctx, nk)
 	if err != nil {
 		return nil, err
 	}

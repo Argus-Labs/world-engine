@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/relay/nakama/dispatcher"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -39,8 +40,8 @@ type receiptNotifier struct {
 
 func newReceiptNotifier(logger runtime.Logger, nk runtime.NakamaModule) *receiptNotifier {
 	rd := globalReceiptsDispatcher
-	ch := make(chan *Receipt)
-	rd.subscribe("notifications", ch)
+	ch := make(chan *dispatcher.Receipt)
+	rd.Subscribe("notifications", ch)
 	notifier := &receiptNotifier{
 		txHashToTargetInfo: map[string]targetInfo{},
 		nk:                 nk,
@@ -66,7 +67,7 @@ func (r *receiptNotifier) AddTxHashToPendingNotifications(txHash string, userID 
 }
 
 // sendNotifications loops forever, consuming Receipts from the given channel and sending them to the relevant user.
-func (r *receiptNotifier) sendNotifications(ch chan *Receipt) {
+func (r *receiptNotifier) sendNotifications(ch chan *dispatcher.Receipt) {
 	ticker := time.Tick(r.staleDuration)
 
 	for {
@@ -87,7 +88,7 @@ func (r *receiptNotifier) sendNotifications(ch chan *Receipt) {
 }
 
 // handleReceipt identifies the relevant user for this receipt and sends them a notification.
-func (r *receiptNotifier) handleReceipt(receipt *Receipt) error {
+func (r *receiptNotifier) handleReceipt(receipt *dispatcher.Receipt) error {
 	ctx := context.Background()
 	target, ok := r.txHashToTargetInfo[receipt.TxHash]
 	if !ok {
