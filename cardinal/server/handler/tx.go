@@ -6,7 +6,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -28,7 +27,7 @@ func PostTransaction(
 	msgs map[string]map[string]message.Message, engine *ecs.Engine, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
-		msgType, ok := utils.GetMessageFromRouteParams(ctx, msgs)
+		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]
 		if !ok {
 			return fiber.NewError(fiber.StatusNotFound, "message type not found")
 		}

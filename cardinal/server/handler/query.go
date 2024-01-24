@@ -3,12 +3,11 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/server/utils"
 )
 
 func PostQuery(queries map[string]map[string]ecs.Query, engine *ecs.Engine) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
-		query, ok := utils.GetQueryFromRouteParams(ctx, queries)
+		query, ok := queries[ctx.Params("group")][ctx.Params("name")]
 		if !ok {
 			return fiber.NewError(fiber.StatusNotFound, "query type not found")
 		}
