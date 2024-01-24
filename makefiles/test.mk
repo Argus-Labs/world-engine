@@ -1,10 +1,11 @@
-DIRS = internal/nakama internal/e2e/tester/cardinal relay/nakama
+DIRS_E2E = internal/nakama internal/e2e/tester/cardinal relay/nakama
+DIRS_E2E_BENCHMARK = internal/nakama internal/e2ebenchmark/tester/cardinal relay/nakama
 ROOT_DIR := $(shell pwd)
 
 export ENABLE_ADAPTER=false
 
 e2e-nakama:
-	$(foreach dir, $(DIRS), \
+	$(foreach dir, $(DIRS_E2E), \
 		cd $(dir) && \
 		go mod tidy && \
 		go mod vendor && \
@@ -12,6 +13,17 @@ e2e-nakama:
 	)
 
 	@docker compose up --build --abort-on-container-exit --exit-code-from test_nakama --attach test_nakama
+
+e2e-benchmark:
+	$(foreach dir, $(DIRS_E2E_BENCHMARK), \
+		cd $(dir) && \
+		go mod tidy && \
+		go mod vendor && \
+		cd $(ROOT_DIR); \
+	)
+
+	@docker compose -f docker-compose.benchmark.yml up --build #--attach test_nakama_benchmark
+
 
 #################
 #   unit tests	#
