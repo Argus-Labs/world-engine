@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -118,7 +119,7 @@ func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 
 	var personaTag string
 	// get the persona storage object.
-	persona, err := loadPersonaTagStorageObj(ctx, nk)
+	p, err := persona.LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
 		// we ignore the error where the tag is not found.
 		// all other errors should be returned.
@@ -126,8 +127,8 @@ func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 			return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "failed to get persona for save"))
 		}
 	} else {
-		if persona.Status == personaTagStatusAccepted {
-			personaTag = persona.PersonaTag
+		if p.Status == persona.StatusAccepted {
+			personaTag = p.PersonaTag
 		}
 	}
 

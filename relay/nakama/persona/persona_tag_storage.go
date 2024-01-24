@@ -1,9 +1,10 @@
-package main
+package persona
 
 import (
 	"context"
 	"encoding/json"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/heroiclabs/nakama-common/api"
@@ -11,9 +12,9 @@ import (
 	"github.com/rotisserie/eris"
 )
 
-// personaTagStorageObj contains persona tag information for a specific user, and keeps track of whether the
+// StorageObj contains persona tag information for a specific user, and keeps track of whether the
 // persona tag has been successfully registered with cardinal.
-type personaTagStorageObj struct {
+type StorageObj struct {
 	PersonaTag string           `json:"personaTag"`
 	Status     personaTagStatus `json:"status"`
 	Tick       uint64           `json:"tick"`
@@ -27,22 +28,24 @@ type personaTagStorageObj struct {
 type personaTagStatus string
 
 const (
-	personaTagStatusPending  personaTagStatus = "pending"
-	personaTagStatusAccepted personaTagStatus = "accepted"
-	personaTagStatusRejected personaTagStatus = "rejected"
+	StatusPending      personaTagStatus = "pending"
+	StatusAccepted     personaTagStatus = "accepted"
+	StatusRejected     personaTagStatus = "rejected"
+	PersonaTagKey                       = "personaTag"
+	CardinalCollection                  = "cardinalCollection"
 )
 
-// loadPersonaTagStorageObj loads the current user's persona tag storage object from Nakama's storage layer. The
+// LoadPersonaTagStorageObj loads the current user's persona tag storage object from Nakama's storage layer. The
 // "current user" comes from the user ID stored in the given context.
-func loadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*personaTagStorageObj, error) {
+func LoadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*StorageObj, error) {
 	userID, err := utils.GetUserID(ctx)
 	if err != nil {
 		return nil, err
 	}
 	storeObjs, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{
-			Collection: cardinalCollection,
-			Key:        personaTagKey,
+			Collection: CardinalCollection,
+			Key:        PersonaTagKey,
 			UserID:     userID,
 		},
 	})
@@ -54,16 +57,16 @@ func loadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*pe
 	} else if len(storeObjs) > 1 {
 		return nil, eris.Errorf("expected 1 storage object, got %d with values %v", len(storeObjs), storeObjs)
 	}
-	ptr, err := storageObjToPersonaTagStorageObj(storeObjs[0])
+	ptr, err := StorageObjToPersonaTagStorageObj(storeObjs[0])
 	if err != nil {
 		return nil, err
 	}
 	return ptr, nil
 }
 
-// storageObjToPersonaTagStorageObj converts a generic Nakama StorageObject to a locally defined personaTagStorageObj.
-func storageObjToPersonaTagStorageObj(obj *api.StorageObject) (*personaTagStorageObj, error) {
-	var ptr personaTagStorageObj
+// StorageObjToPersonaTagStorageObj converts a generic Nakama StorageObject to a locally defined StorageObj.
+func StorageObjToPersonaTagStorageObj(obj *api.StorageObject) (*StorageObj, error) {
+	var ptr StorageObj
 	if err := json.Unmarshal([]byte(obj.Value), &ptr); err != nil {
 		return nil, eris.Wrap(err, "unable to unmarshal persona tag storage obj")
 	}
@@ -71,15 +74,18 @@ func storageObjToPersonaTagStorageObj(obj *api.StorageObject) (*personaTagStorag
 	return &ptr, nil
 }
 
-// attemptToUpdatePending attempts to change the given personaTagStorageObj's Status from "pending" to either "accepted"
+// AttemptToUpdatePending attempts to change the given StorageObj's Status from "pending" to either "accepted"
 // or "rejected" by using cardinal as the source of truth. If the Status is not "pending", this call is a no-op.
-func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk runtime.NakamaModule,
-) (*personaTagStorageObj, error) {
-	if p.Status != personaTagStatusPending {
+func (p *StorageObj) AttemptToUpdatePending(
+	ctx context.Context,
+	nk runtime.NakamaModule,
+	cardinalAddr string,
+) (*StorageObj, error) {
+	if p.Status != StatusPending {
 		return p, nil
 	}
 
-	verified, err := p.verifyPersonaTag(ctx)
+	verified, err := p.verifyPersonaTag(ctx, cardinalAddr)
 	switch {
 	case eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaSignerUnknown):
 		// Leave the Status as pending.
@@ -88,37 +94,37 @@ func (p *personaTagStorageObj) attemptToUpdatePending(ctx context.Context, nk ru
 		// Somehow Nakama thinks this persona tag belongs to this user, but Cardinal doesn't think the persona tag
 		// belongs to anyone. Just reject this on Nakama's end so the user can try a different persona tag.
 		// Incidentally, trying the same persona tag might work.
-		p.Status = personaTagStatusRejected
+		p.Status = StatusRejected
 	case err != nil:
 		return nil, eris.Wrap(err, "error when verifying persona tag; user may be stuck in pending")
 	default:
 		if verified {
-			p.Status = personaTagStatusAccepted
+			p.Status = StatusAccepted
 		} else {
-			p.Status = personaTagStatusRejected
+			p.Status = StatusRejected
 		}
 	}
 	// Attempt to save the updated Status to Nakama. One reason this can fail is that the underlying record was
 	// updated while this processing was going on. Whatever the reason, re-fetch this record from Nakama's storage.
-	if err = p.savePersonaTagStorageObj(ctx, nk); err != nil {
-		return loadPersonaTagStorageObj(ctx, nk)
+	if err = p.SavePersonaTagStorageObj(ctx, nk); err != nil {
+		return LoadPersonaTagStorageObj(ctx, nk)
 	}
 	return p, nil
 }
 
 // verifyPersonaTag queries cardinal to see if the signer address for the given persona tag matches Nakama's signer
 // address.
-func (p *personaTagStorageObj) verifyPersonaTag(ctx context.Context) (verified bool, err error) {
-	gameSignerAddress, err := cardinalQueryPersonaSigner(ctx, p.PersonaTag, p.Tick)
+func (p *StorageObj) verifyPersonaTag(ctx context.Context, cardinalAddr string) (verified bool, err error) {
+	gameSignerAddress, err := cardinalQueryPersonaSigner(ctx, p.PersonaTag, p.Tick, cardinalAddr)
 	if err != nil {
 		return false, err
 	}
-	nakamaSignerAddress := getSignerAddress()
+	nakamaSignerAddress := signer.GetSignerAddress()
 	return gameSignerAddress == nakamaSignerAddress, nil
 }
 
-// savePersonaTagStorageObj saves the given personaTagStorageObj to the Nakama DB for the current user.
-func (p *personaTagStorageObj) savePersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) error {
+// SavePersonaTagStorageObj saves the given StorageObj to the Nakama DB for the current user.
+func (p *StorageObj) SavePersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) error {
 	userID, err := utils.GetUserID(ctx)
 	if err != nil {
 		return eris.Wrap(err, "unable to get user ID")
@@ -128,8 +134,8 @@ func (p *personaTagStorageObj) savePersonaTagStorageObj(ctx context.Context, nk 
 		return eris.Wrap(err, "unable to marshal persona tag storage object")
 	}
 	write := &runtime.StorageWrite{
-		Collection:      cardinalCollection,
-		Key:             personaTagKey,
+		Collection:      CardinalCollection,
+		Key:             PersonaTagKey,
 		UserID:          userID,
 		Value:           string(buf),
 		Version:         p.version,
@@ -144,7 +150,7 @@ func (p *personaTagStorageObj) savePersonaTagStorageObj(ctx context.Context, nk 
 	return nil
 }
 
-func (p *personaTagStorageObj) toJSON() (string, error) {
+func (p *StorageObj) ToJSON() (string, error) {
 	buf, err := json.Marshal(p)
 	return string(buf), eris.Wrap(err, "")
 }
