@@ -2,11 +2,8 @@ package nakamabenchmark
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"io"
 	"math/rand"
-	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -16,57 +13,6 @@ import (
 )
 
 const chars = "abcdefghijklmnopqrstuvwxyz"
-
-// waitForAcceptedPersonaTag periodically queries the show-persona endpoint until a previously claimed persona tag
-// is "accepted". A response of "pending" will wait a short period of time, then repeat the request. After 1 second,
-// this helper returns an error.
-func waitForAcceptedPersonaTag(c *nakamaClient) error {
-	timeout := time.After(2 * time.Second)
-	retry := time.Tick(10 * time.Millisecond)
-	for {
-		resp, err := c.rpc("nakama/show-persona", nil)
-		if err != nil {
-			return err
-		}
-		status, err := getStatusFromResponse(resp)
-		if err != nil {
-			return fmt.Errorf("unable to get 'status' field from response: %w", err)
-		}
-		if status == "accepted" {
-			break
-		} else if status != "pending" {
-			return fmt.Errorf("bad status %q while waiting for persona tag to be accepted", status)
-		}
-
-		select {
-		case <-timeout:
-			return errors.New("timeout while waiting for persona tag to be accepted")
-		case <-retry:
-			continue
-		}
-	}
-	return nil
-}
-
-func getStatusFromResponse(resp *http.Response) (string, error) {
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("got status code %d, want 200; response body: %v", resp.StatusCode, copyBody(resp))
-	}
-	m := map[string]any{}
-	if err := json.NewDecoder(resp.Body).Decode(&m); err != nil {
-		return "", err
-	}
-	statusIface, ok := m["status"]
-	if !ok {
-		return "", fmt.Errorf("field 'status' not found in response body; got %v", m)
-	}
-	status, ok := statusIface.(string)
-	if !ok {
-		return "", fmt.Errorf("unable to cast value %v to string", statusIface)
-	}
-
-	return status, nil
-}
 
 func triple(s string) (string, string, string) {
 	return s, s, s
@@ -81,7 +27,6 @@ func randomString() string {
 	return b.String()
 }
 
-//nolint:gocognit
 func TestCQLLoad(t *testing.T) {
 	t.Logf("Starting loop for http load.")
 	// Test persona
@@ -103,7 +48,7 @@ func TestCQLLoad(t *testing.T) {
 
 	// hits the cql endpoint to simulate http load for profiling.
 	cqlQuery := "ALL()"
-	for true {
+	for {
 		resp, err = c.rpc("query/game/cql", struct {
 			CQL string `json:"CQL"`
 		}{cqlQuery})
@@ -118,7 +63,5 @@ func TestCQLLoad(t *testing.T) {
 		}
 		t.Logf("http cql query: \"%s\" called", cqlQuery)
 		time.Sleep(2 * time.Second)
-
 	}
-
 }

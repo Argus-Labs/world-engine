@@ -17,9 +17,8 @@ const (
 )
 
 type nakamaClient struct {
-	addr               string
-	authHeader         string
-	notificationCursor string
+	addr       string
+	authHeader string
 }
 
 func newClient(_ *testing.T) *nakamaClient {
@@ -49,48 +48,6 @@ type Content struct {
 type NotificationCollection struct {
 	Notifications   []NotificationItem `json:"notifications"`
 	CacheableCursor string             `json:"cacheableCursor"`
-}
-
-func (c *nakamaClient) listNotifications(k int) ([]*Content, error) {
-	path := "v2/notification"
-	options := fmt.Sprintf("limit=%d&cursor=%s", k, c.notificationCursor)
-	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", c.authHeader)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	bodyData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	data := NotificationCollection{
-		Notifications:   make([]NotificationItem, 0),
-		CacheableCursor: "",
-	}
-	err = json.Unmarshal(bodyData, &data)
-	if err != nil {
-		return nil, err
-	}
-	c.notificationCursor = data.CacheableCursor
-	acc := make([]*Content, 0)
-	for _, item := range data.Notifications {
-		content := Content{}
-		err := json.Unmarshal([]byte(item.Content), &content)
-		if err != nil {
-			return nil, err
-		}
-		if item.Subject == "event" {
-			acc = append(acc, &content)
-		}
-	}
-	return acc, nil
 }
 
 func (c *nakamaClient) registerDevice(username, deviceID string) error {
