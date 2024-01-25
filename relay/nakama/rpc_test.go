@@ -1,10 +1,11 @@
-package allowlist
+package main
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
@@ -28,13 +29,13 @@ func TestAllowList(t *testing.T) {
 }
 
 func (a *AllowListTestSuite) SetupTest() {
-	a.originalAllowListEnabled = allowlistEnabled
-	allowlistEnabled = true
-	a.T().Setenv(allowlistEnabledEnvVar, "")
+	a.originalAllowListEnabled = allowlist.Enabled
+	allowlist.Enabled = true
+	a.T().Setenv(allowlist.EnabledEnvVar, "")
 }
 
 func (a *AllowListTestSuite) TearDownTest() {
-	allowlistEnabled = a.originalAllowListEnabled
+	allowlist.Enabled = a.originalAllowListEnabled
 }
 
 func (a *AllowListTestSuite) TestUserIDRequired() {
@@ -109,14 +110,14 @@ func (a *AllowListTestSuite) TestCanDisableAllowList() {
 		"False",
 	}
 	for _, tc := range testCases {
-		t.Setenv(allowlistEnabledEnvVar, tc)
+		t.Setenv(allowlist.EnabledEnvVar, tc)
 		assert.NilError(t, InitAllowlist(nil, nil))
-		assert.Equal(t, false, allowlistEnabled)
+		assert.Equal(t, false, allowlist.Enabled)
 	}
 }
 
 func (a *AllowListTestSuite) TestRejectBadAllowListFlag() {
-	a.T().Setenv(allowlistEnabledEnvVar, "unclear-boolean-value")
+	a.T().Setenv(allowlist.EnabledEnvVar, "unclear-boolean-value")
 	assert.IsError(a.T(), InitAllowlist(nil, nil))
 }
 
@@ -127,7 +128,7 @@ func (a *AllowListTestSuite) TestCanEnableAllowList() {
 		"T",
 	}
 	for _, tc := range testCases {
-		a.T().Setenv(allowlistEnabledEnvVar, tc)
+		a.T().Setenv(allowlist.EnabledEnvVar, tc)
 		initializer := mocks.NewInitializer(a.T())
 		initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
 			Return(nil)
@@ -136,12 +137,12 @@ func (a *AllowListTestSuite) TestCanEnableAllowList() {
 			Return(nil)
 
 		assert.NilError(a.T(), InitAllowlist(nil, initializer))
-		assert.Equal(a.T(), true, allowlistEnabled)
+		assert.Equal(a.T(), true, allowlist.Enabled)
 	}
 }
 
 func (a *AllowListTestSuite) TestAllowListFailsIfRPCRegistrationFails() {
-	a.T().Setenv(allowlistEnabledEnvVar, "true")
+	a.T().Setenv(allowlist.EnabledEnvVar, "true")
 	initializer := mocks.NewInitializer(a.T())
 	initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
 		Return(errors.New("failed to register"))
@@ -237,7 +238,7 @@ func (a *AllowListTestSuite) TestCanClaimBetaKey() {
 
 	// First call is to check if the user already has a beta key
 	mockNK.On("StorageRead",
-		testutils.AnyContext, testutils.MockMatchStoreRead(allowedUsers, userID, signer.AdminAccountID)).
+		testutils.AnyContext, testutils.MockMatchStoreRead(allowlist.AllowedUsers, userID, signer.AdminAccountID)).
 		// No storageObject objects signals that this user has not yet claimed a beta key
 		Return(nil, nil).
 		Once()
@@ -253,19 +254,19 @@ func (a *AllowListTestSuite) TestCanClaimBetaKey() {
 
 	// Second call is to see if the beta key is valid
 	mockNK.On("StorageRead", testutils.AnyContext,
-		testutils.MockMatchStoreRead(allowlistKeyCollection, validBetaKey, signer.AdminAccountID)).
+		testutils.MockMatchStoreRead(allowlist.KeyCollection, validBetaKey, signer.AdminAccountID)).
 		Return(betaKeyReadReturnVal, nil).
 		Once()
 
 	// Third call is to update the beta key to mark it as used
 	mockNK.On("StorageWrite", testutils.AnyContext,
-		testutils.MockMatchStoreWrite(allowlistKeyCollection, validBetaKey, signer.AdminAccountID)).
+		testutils.MockMatchStoreWrite(allowlist.KeyCollection, validBetaKey, signer.AdminAccountID)).
 		Return(nil, nil).
 		Once()
 
 	// Fourth call is to save the newly validated user into the DB
 	mockNK.On("StorageWrite", testutils.AnyContext,
-		testutils.MockMatchStoreWrite(allowedUsers, "", signer.AdminAccountID)).
+		testutils.MockMatchStoreWrite(allowlist.AllowedUsers, "", signer.AdminAccountID)).
 		Return(nil, nil).
 		Once()
 

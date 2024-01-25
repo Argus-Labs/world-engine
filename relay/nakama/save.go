@@ -36,56 +36,6 @@ const (
 	gameSaveCollection = "game_saves"
 )
 
-func initSaveFileStorage(_ runtime.Logger, initializer runtime.Initializer) error {
-	err := initializer.RegisterRpc(
-		"nakama/save",
-		handleSaveGame,
-	)
-	if err != nil {
-		return eris.Wrap(err, "")
-	}
-	return nil
-}
-
-func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string,
-) (string, error) {
-	userID, err := utils.GetUserID(ctx)
-	if err != nil {
-		return utils.LogErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "failed to get user ID")
-	}
-
-	var msg SaveGameRequest
-	err = json.Unmarshal([]byte(payload), &msg)
-	if err != nil {
-		return utils.LogError(
-			logger,
-			eris.Wrap(err, `error unmarshalling payload: expected form {"data": <string>}`),
-			nakamaerrors.InvalidArgument)
-	}
-	// do not allow empty requests
-	if msg.Data == "" {
-		return utils.LogErrorFailedPrecondition(
-			logger,
-			eris.New("data cannot be empty"),
-		)
-	}
-
-	err = writeSave(ctx, userID, payload, nk)
-	if err != nil {
-		return utils.LogErrorFailedPrecondition(
-			logger,
-			eris.Wrap(err, "failed to write game save to storage"),
-		)
-	}
-
-	response, err := json.Marshal(SaveGameResponse{Success: true})
-	if err != nil {
-		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "failed to marshal response"))
-	}
-
-	return string(response), nil
-}
-
 func writeSave(ctx context.Context, userID string, save string, nk runtime.NakamaModule) error {
 	write := &runtime.StorageWrite{
 		Collection:      gameSaveCollection,
