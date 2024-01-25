@@ -57,9 +57,9 @@ func InitModule(
 
 	initReceiptDispatcher(logger)
 
-	if err := initEventHub(ctx, logger, nk); err != nil {
-		return eris.Wrap(err, "failed to init event hub")
-	}
+	//if err := initEventHub(ctx, logger, nk); err != nil {
+	//	return eris.Wrap(err, "failed to init event hub")
+	//}
 
 	notifier := newReceiptNotifier(logger, nk)
 

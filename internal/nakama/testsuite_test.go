@@ -105,6 +105,9 @@ func TestTransactionAndCQLAndRead(t *testing.T) {
 		ID   int              `json:"id"`
 		Data []map[string]any `json:"data"`
 	}
+	type CQLResponse struct {
+		Results []Item `json:"results"`
+	}
 	var finalResults []Item
 	currentTime := time.Now()
 	maxTime := 10 * time.Second
@@ -121,8 +124,9 @@ func TestTransactionAndCQLAndRead(t *testing.T) {
 		assert.Equal(t, 200, resp.StatusCode)
 		results, err := io.ReadAll(resp.Body)
 		assert.NilError(t, err)
-
-		err = json.Unmarshal(results, &finalResults)
+		var result CQLResponse
+		err = json.Unmarshal(results, &result)
+		finalResults = result.Results
 		assert.NilError(t, err)
 		for _, res := range finalResults {
 			foundYValue := false
