@@ -57,8 +57,8 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
 	eventHub := events.NewWebSocketEventHub()
-	//t.Cleanup(eventHub.ShutdownEventHub)
-	//
+	t.Cleanup(eventHub.ShutdownEventHub)
+
 	defaultOpts := []cardinal.WorldOption{
 		cardinal.WithCustomMockRedis(miniRedis),
 		cardinal.WithTickChannel(startTickCh),

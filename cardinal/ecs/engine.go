@@ -413,11 +413,6 @@ func NewEngine(
 	for _, opt := range opts {
 		opt(e)
 	}
-	if !e.DoesEngineHaveAnEventHub() {
-		// be careful with removing the above if it does not check it could create an
-		// extra eventHub and cover one that's potentially passed in externally from options.
-		opts = append([]Option{WithEventHub(events.NewWebSocketEventHub())}, opts...)
-	}
 	if e.receiptHistory == nil {
 		e.receiptHistory = receipt.NewHistory(e.CurrentTick(), defaultReceiptHistorySize)
 	}

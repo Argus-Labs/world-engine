@@ -117,10 +117,6 @@ func setupSwagger(app *fiber.App) error {
 	return nil
 }
 
-func (s *Server) registerEventsHandler(path string) {
-
-}
-
 func setupRoutes(app *fiber.App, engine *ecs.Engine, eventHub events.EventHub, cfg Config) {
 	// TODO(scott): we should refactor this such that we only dependency inject these maps
 	//  instead of having to dependency inject the entire engine.
@@ -168,5 +164,4 @@ func setupRoutes(app *fiber.App, engine *ecs.Engine, eventHub events.EventHub, c
 	// Route: /tx/...
 	tx := app.Group("/tx")
 	tx.Post("/:group/:name", handler.PostTransaction(msgs, engine, cfg.isSignatureVerificationDisabled))
-
 }

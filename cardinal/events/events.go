@@ -1,7 +1,6 @@
 package events
 
 import (
-	"math/rand"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -106,7 +105,6 @@ func NewWebSocketEventHub() EventHub {
 		unregister:           make(chan *websocket.Conn),
 		shutdown:             make(chan bool),
 		running:              atomic.Bool{},
-		randomInt:            rand.Int(),
 	}
 	res.running.Store(false)
 	go func() {
@@ -128,7 +126,6 @@ type webSocketEventHub struct {
 	shutdown             chan bool
 	eventQueue           []*Event
 	running              atomic.Bool
-	randomInt            int
 }
 
 func (eh *webSocketEventHub) EmitEvent(event *Event) {
@@ -272,7 +269,7 @@ func FiberWebSocketUpgrader(c *fiber.Ctx) error {
 	if websocket.IsWebSocketUpgrade(c) {
 		c.Locals("allowed", true)
 		err := eris.Wrap(c.Next(), "")
-		return err //websocket
+		return err
 	}
 	return fiber.ErrUpgradeRequired
 }
