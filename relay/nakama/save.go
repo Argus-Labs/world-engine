@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
@@ -135,7 +136,7 @@ func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 	// check if the user is allowlisted. NOTE: checkVerified will return true in two cases:
 	// case 1: if the allowlist is disabled (via ENABLE_ALLOWLIST env var).
 	// case 2: the user is actually allowlisted.
-	verified, err := isUserVerified(ctx, nk, userID)
+	verified, err := allowlist.IsUserVerified(ctx, nk, userID)
 	if err != nil {
 		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "could not read verification table"))
 	}

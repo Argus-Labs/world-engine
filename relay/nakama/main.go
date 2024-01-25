@@ -9,9 +9,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"pkg.world.dev/world-engine/relay/nakama/dispatcher"
+	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
+	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"strings"
@@ -35,7 +36,7 @@ var (
 	globalCardinalAddress      string
 	globalNamespace            string
 	globalPersonaTagAssignment = sync.Map{}
-	globalReceiptsDispatcher   *dispatcher.ReceiptsDispatcher
+	globalReceiptsDispatcher   *receipt.ReceiptsDispatcher
 )
 
 func InitModule(
@@ -61,7 +62,7 @@ func InitModule(
 	//	return eris.Wrap(err, "failed to init event hub")
 	//}
 
-	notifier := newReceiptNotifier(logger, nk)
+	notifier := receipt.NewNotifier(logger, nk, globalReceiptsDispatcher)
 
 	if err := signer.InitPrivateKey(ctx, logger, nk); err != nil {
 		return eris.Wrap(err, "failed to init private key")
@@ -81,7 +82,7 @@ func InitModule(
 		return eris.Wrap(err, "failed to init cardinal endpoints")
 	}
 
-	if err := initAllowlist(logger, initializer); err != nil {
+	if err := allowlist.InitAllowlist(logger, initializer); err != nil {
 		return eris.Wrap(err, "failed to init allowlist endpoints")
 	}
 
@@ -97,7 +98,7 @@ func InitModule(
 }
 
 func initReceiptDispatcher(log runtime.Logger) {
-	globalReceiptsDispatcher = dispatcher.NewReceiptsDispatcher()
+	globalReceiptsDispatcher = receipt.NewReceiptsDispatcher()
 	go globalReceiptsDispatcher.PollReceipts(log, globalCardinalAddress)
 	go globalReceiptsDispatcher.Dispatch(log)
 }
@@ -171,7 +172,7 @@ func initPersonaTagEndpoints(
 	_ runtime.Logger,
 	initializer runtime.Initializer,
 	ptv *persona.Verifier,
-	notifier *receiptNotifier) error {
+	notifier *receipt.Notifier) error {
 	if err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(ptv, notifier)); err != nil {
 		return eris.Wrap(err, "")
 	}
@@ -186,7 +187,7 @@ type nakamaRPCHandler func(ctx context.Context, logger runtime.Logger, db *sql.D
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
 //
 //nolint:gocognit
-func handleClaimPersona(ptv *persona.Verifier, notifier *receiptNotifier) nakamaRPCHandler {
+func handleClaimPersona(ptv *persona.Verifier, notifier *receipt.Notifier) nakamaRPCHandler {
 	return func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (
 		string, error) {
 		userID, err := utils.GetUserID(ctx)
@@ -195,7 +196,7 @@ func handleClaimPersona(ptv *persona.Verifier, notifier *receiptNotifier) nakama
 		}
 
 		// check if the user is verified. this requires them to input a valid beta key.
-		if verified, err := isUserVerified(ctx, nk, userID); err != nil {
+		if verified, err := allowlist.IsUserVerified(ctx, nk, userID); err != nil {
 			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to claim persona tag")
 		} else if !verified {
 			return utils.LogDebugWithMessageAndCode(
@@ -308,7 +309,11 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 // set up RPC wrappers around each one.
 //
 //nolint:gocognit,funlen // its fine.
-func initCardinalEndpoints(logger runtime.Logger, initializer runtime.Initializer, notify *receiptNotifier) error {
+func initCardinalEndpoints(
+	logger runtime.Logger,
+	initializer runtime.Initializer,
+	notify *receipt.Notifier,
+) error {
 	txEndpoints, queryEndpoints, err := getCardinalEndpoints()
 	if err != nil {
 		return err

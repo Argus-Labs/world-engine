@@ -2,7 +2,7 @@ package persona
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/relay/nakama/dispatcher"
+	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -18,7 +18,7 @@ type Verifier struct {
 	// because all map updates happen in a single goroutine. Updates are transmitted to the goroutine
 	// via the receiptCh channel and the pendingCh channel.
 	txHashToPending map[string]pendingPersonaTagRequest
-	receiptCh       chan *dispatcher.Receipt
+	receiptCh       chan *receipt.Receipt
 	pendingCh       chan txHashAndUserID
 	nk              runtime.NakamaModule
 	logger          runtime.Logger
@@ -44,12 +44,12 @@ func (p *Verifier) AddPendingPersonaTag(userID, txHash string) {
 	}
 }
 
-func NewVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *dispatcher.ReceiptsDispatcher,
+func NewVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *receipt.ReceiptsDispatcher,
 ) *Verifier {
 	channelLimit := 100
 	ptv := &Verifier{
 		txHashToPending: map[string]pendingPersonaTagRequest{},
-		receiptCh:       make(chan *dispatcher.Receipt, channelLimit),
+		receiptCh:       make(chan *receipt.Receipt, channelLimit),
 		pendingCh:       make(chan txHashAndUserID),
 		nk:              nk,
 		logger:          logger,
@@ -88,7 +88,7 @@ func (p *Verifier) cleanupStaleEntries(now time.Time) {
 	}
 }
 
-func (p *Verifier) handleReceipt(receipt *dispatcher.Receipt) string {
+func (p *Verifier) handleReceipt(receipt *receipt.Receipt) string {
 	result, ok := receipt.Result["Success"]
 	if !ok {
 		return ""
