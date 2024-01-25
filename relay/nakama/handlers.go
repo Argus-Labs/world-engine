@@ -5,16 +5,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	errors2 "errors"
-	"fmt"
+
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
-	"strings"
 )
 
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
@@ -34,7 +34,7 @@ func handleClaimPersona(ptv *persona.Verifier, notifier *receipt.Notifier) nakam
 		} else if !verified {
 			return utils.LogDebugWithMessageAndCode(
 				logger,
-				errors.ErrNotAllowlisted,
+				allowlist.ErrNotAllowlisted,
 				errors.AlreadyExists,
 				"unable to claim persona tag")
 		}
@@ -204,21 +204,8 @@ func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
 	string, error,
 ) {
-	userID, err := utils.GetUserID(ctx)
-	if err != nil {
-		return utils.LogErrorWithMessageAndCode(logger, err, errors.NotFound, "unable to get userID: %v", err)
-	}
-
-	if verified, err := allowlist.IsUserVerified(ctx, nk, userID); err != nil {
-		return utils.LogErrorMessageFailedPrecondition(logger, err, "failed to check beta key status")
-	} else if verified {
-		msg := fmt.Sprintf("user %q already verified with a beta key", userID)
-		return utils.LogErrorWithMessageAndCode(logger, errors.ErrAlreadyVerified, errors.AlreadyExists, msg)
-	}
-
 	var ck allowlist.ClaimKeyMsg
-	err = json.Unmarshal([]byte(payload), &ck)
-	if err != nil {
+	if err := json.Unmarshal([]byte(payload), &ck); err != nil {
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
@@ -226,37 +213,21 @@ func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 			"unable to unmarshal payload: %v",
 			err)
 	}
-	if ck.Key == "" {
-		return utils.LogErrorWithMessageAndCode(
-			logger,
-			errors.ErrInvalidBetaKey,
-			errors.InvalidArgument,
-			"no key provided in request")
-	}
-	ck.Key = strings.ToUpper(ck.Key)
-	err = allowlist.ClaimKey(ctx, nk, ck.Key, userID)
-	if err != nil {
-		return utils.LogErrorWithMessageAndCode(
-			logger,
-			err,
-			errors.InvalidArgument,
-			fmt.Sprintf("unable to claim key: %v", err))
-	}
-	err = allowlist.WriteVerified(ctx, nk, userID)
-	if err != nil {
-		return utils.LogErrorWithMessageAndCode(
-			logger,
-			err,
-			errors.NotFound,
-			fmt.Sprintf("server could not save user verification entry. please "+
-				"try again: %v", err))
-	}
 
-	bz, err := json.Marshal(allowlist.ClaimKeyRes{Success: true})
-	if err != nil {
-		return utils.LogErrorWithMessageAndCode(logger, err, errors.NotFound, "unable to marshal response: %v", err)
+	result, err := allowlist.ClaimKey(ctx, nk, ck)
+	if err == nil {
+		// Success! inform the user
+		return utils.MarshalResult(logger, result)
 	}
-	return string(bz), nil
+	switch {
+	case errors2.Is(err, allowlist.ErrAlreadyVerified):
+		return utils.LogErrorWithMessageAndCode(logger, err, errors.AlreadyExists, "user has already been verified")
+	case errors2.Is(err, allowlist.ErrInvalidBetaKey):
+		return utils.LogErrorWithMessageAndCode(logger, err, errors.InvalidArgument, "beta key is invalid")
+	case errors2.Is(err, allowlist.ErrBetaKeyAlreadyUsed):
+		return utils.LogErrorWithMessageAndCode(logger, err, errors.PermissionDenied, "beta key has already been used")
+	}
+	return utils.LogError(logger, err, errors.Internal)
 }
 
 func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string,

@@ -5,10 +5,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
-	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"strings"
+
+	"pkg.world.dev/world-engine/relay/nakama/signer"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
@@ -19,6 +21,11 @@ var (
 	Enabled       = false
 	KeyCollection = "allowlist_keys_collection"
 	AllowedUsers  = "allowed_users"
+
+	ErrNotAllowlisted     = errors.New("this user is not allowlisted")
+	ErrInvalidBetaKey     = errors.New("invalid beta key")
+	ErrBetaKeyAlreadyUsed = errors.New("beta key already used")
+	ErrAlreadyVerified    = errors.New("this user is already verified by an existing beta key")
 )
 
 type GenKeysMsg struct {
@@ -98,7 +105,7 @@ func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStor
 		return nil, eris.Wrap(err, "error reading storage object for key")
 	}
 	if len(objs) == 0 {
-		return nil, eris.Wrap(nakamaerrors.ErrInvalidBetaKey, "")
+		return nil, eris.Wrap(ErrInvalidBetaKey, "")
 	}
 
 	obj := objs[0]
@@ -132,23 +139,39 @@ func writeKey(ctx context.Context, nk runtime.NakamaModule, ks *KeyStorage) erro
 	return nil
 }
 
-func ClaimKey(ctx context.Context, nk runtime.NakamaModule, key, userID string) error {
-	ks, err := readKey(ctx, nk, key)
+func ClaimKey(ctx context.Context, nk runtime.NakamaModule, claimKeyMsg ClaimKeyMsg) (res ClaimKeyRes, err error) {
+	userID, err := utils.GetUserID(ctx)
 	if err != nil {
-		return err
+		return res, eris.Wrap(err, "failed to claim key")
+	}
+	if claimKeyMsg.Key == "" {
+		return res, ErrInvalidBetaKey
+	}
+	verified, err := IsUserVerified(ctx, nk, userID)
+	if err != nil {
+		return res, eris.Wrap(err, "failed to check if user is validated")
+	}
+	if verified {
+		return res, eris.Wrap(ErrAlreadyVerified, "")
+	}
+	claimKeyMsg.Key = strings.ToUpper(claimKeyMsg.Key)
+
+	ks, err := readKey(ctx, nk, claimKeyMsg.Key)
+	if err != nil {
+		return res, err
 	}
 	if ks.Used {
-		return eris.Wrapf(nakamaerrors.ErrBetaKeyAlreadyUsed, "user %q was unable to claim %q", userID, key)
+		return res, eris.Wrapf(ErrBetaKeyAlreadyUsed, "user %q was unable to claim %q", userID, claimKeyMsg.Key)
 	}
 	ks.Used = true
 	ks.UsedBy = userID
 
 	err = writeKey(ctx, nk, ks)
 	if err != nil {
-		return err
+		return res, err
 	}
 
-	return nil
+	return ClaimKeyRes{true}, nil
 }
 
 func generateRandomBytes(n int) ([]byte, error) {
