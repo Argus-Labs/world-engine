@@ -9,13 +9,14 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
+
 	"pkg.world.dev/world-engine/relay/nakama/dispatcher"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
-	"strings"
-	"sync"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -57,9 +58,9 @@ func InitModule(
 
 	initReceiptDispatcher(logger)
 
-	//if err := initEventHub(ctx, logger, nk); err != nil {
-	//	return eris.Wrap(err, "failed to init event hub")
-	//}
+	if err := initEventHub(ctx, logger, nk); err != nil {
+		return eris.Wrap(err, "failed to init event hub")
+	}
 
 	notifier := newReceiptNotifier(logger, nk)
 

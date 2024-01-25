@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/rotisserie/eris"
@@ -41,7 +42,6 @@ func wsURL(addr, path string) string {
 }
 
 func TestEvents(t *testing.T) {
-	t.Skip("events not yet wired into server")
 	// broadcast 5 messages to 5 clients means 25 messages received.
 	numberToTest := 5
 	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
@@ -64,6 +64,7 @@ func TestEvents(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+	time.Sleep(3 * time.Second)
 	go func() {
 		tf.EventHub.FlushEvents()
 	}()
@@ -107,7 +108,6 @@ type SendEnergyTx struct {
 type SendEnergyTxResult struct{}
 
 func TestEventsThroughSystems(t *testing.T) {
-	t.Skip("events not yet wired into server")
 	numberToTest := 5
 	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
 	engine, addr := tf.Engine, tf.BaseURL

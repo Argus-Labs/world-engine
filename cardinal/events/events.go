@@ -1,7 +1,7 @@
 package events
 
 import (
-	"net/http"
+	"math/rand"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -106,6 +106,7 @@ func NewWebSocketEventHub() EventHub {
 		unregister:           make(chan *websocket.Conn),
 		shutdown:             make(chan bool),
 		running:              atomic.Bool{},
+		randomInt:            rand.Int(),
 	}
 	res.running.Store(false)
 	go func() {
@@ -127,6 +128,7 @@ type webSocketEventHub struct {
 	shutdown             chan bool
 	eventQueue           []*Event
 	running              atomic.Bool
+	randomInt            int
 }
 
 func (eh *webSocketEventHub) EmitEvent(event *Event) {
@@ -269,35 +271,8 @@ func WebSocketEchoHandler(ws *websocket.Conn) error {
 func FiberWebSocketUpgrader(c *fiber.Ctx) error {
 	if websocket.IsWebSocketUpgrade(c) {
 		c.Locals("allowed", true)
-		return eris.Wrap(c.Next(), "") //websocket
+		err := eris.Wrap(c.Next(), "")
+		return err //websocket
 	}
 	return fiber.ErrUpgradeRequired
-}
-
-func Echo(w http.ResponseWriter, r *http.Request) {
-	c, err := upgrader.Upgrade(w, r, nil)
-	err = eris.Wrap(err, "")
-	if err != nil {
-		log.Print("upgrade:", eris.ToString(err, true))
-		err = sendError(w, err)
-		if err != nil {
-			panic(err)
-		}
-		return
-	}
-	err = WebSocketEchoHandler(c)
-	if err != nil {
-		errClose, ok :=
-			eris.Cause(err).(*websocket.CloseError) //nolint: errorlint // errorAs doesn't work. eris.Cause fixes it.
-
-		if ok && errClose.Code == websocket.CloseNormalClosure {
-			// the library creates an error here but it's actually a normal closure. It is Expected.
-			return
-		}
-		panic(eris.ToString(err, true))
-	}
-	err = eris.Wrap(c.Close(), "")
-	if err != nil {
-		panic(eris.ToString(err, true))
-	}
 }

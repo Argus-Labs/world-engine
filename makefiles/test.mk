@@ -12,7 +12,7 @@ e2e-nakama:
 		cd $(ROOT_DIR); \
 	)
 
-	@docker compose up --build #--abort-on-container-exit --exit-code-from test_nakama --attach test_nakama
+	@docker compose up --build --abort-on-container-exit --exit-code-from test_nakama --attach test_nakama
 
 e2e-benchmark:
 	$(foreach dir, $(DIRS_E2E_BENCHMARK), \

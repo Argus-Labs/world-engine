@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
@@ -409,9 +410,13 @@ func NewEngine(
 	if err != nil {
 		return nil, err
 	}
-	opts = append([]Option{WithEventHub(events.NewWebSocketEventHub())}, opts...)
 	for _, opt := range opts {
 		opt(e)
+	}
+	if !e.DoesEngineHaveAnEventHub() {
+		// be careful with removing the above if it does not check it could create an
+		// extra eventHub and cover one that's potentially passed in externally from options.
+		opts = append([]Option{WithEventHub(events.NewWebSocketEventHub())}, opts...)
 	}
 	if e.receiptHistory == nil {
 		e.receiptHistory = receipt.NewHistory(e.CurrentTick(), defaultReceiptHistorySize)
