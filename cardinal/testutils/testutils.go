@@ -6,12 +6,13 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"net/http"
-	"pkg.world.dev/world-engine/cardinal/server"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/cardinal/server"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -35,7 +36,7 @@ func NewTestServer(
 	//	"/events",
 	//	events.CreateWebSocketEventHandler(eventHub),
 	// )
-	srvr, err := server.New(world, opts...)
+	srvr, err := server.New(world, eventHub, opts...)
 	assert.NilError(t, err)
 
 	// add test websocket handler

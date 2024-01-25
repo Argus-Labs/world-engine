@@ -1,25 +1,25 @@
 package events_test
 
-/*
 import (
 	"bytes"
 	"context"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/server"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
+	"github.com/gorilla/websocket"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/testutils"
-
-	"pkg.world.dev/world-engine/assert"
-
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
+	"pkg.world.dev/world-engine/cardinal/server"
+
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
 func TestEventError(t *testing.T) {
@@ -211,4 +211,3 @@ func TestEventHubLogger(t *testing.T) {
 		require.JSONEq(t, testString, logEntry)
 	}
 }
-*/

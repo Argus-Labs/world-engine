@@ -4,14 +4,16 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"os"
+	"sync/atomic"
+
 	"github.com/gofiber/contrib/swagger"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
-	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
-	"sync/atomic"
 )
 
 const (
@@ -39,10 +41,12 @@ type Server struct {
 	disableSwagger               bool
 
 	running atomic.Bool
+
+	eventHub events.EventHub
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
-func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
+func New(eng *ecs.Engine, eventHub events.EventHub, opts ...Option) (*Server, error) {
 	s := &Server{
 		eng:           eng,
 		app:           fiber.New(),
@@ -51,6 +55,7 @@ func New(eng *ecs.Engine, opts ...Option) (*Server, error) {
 		queryPrefix:   "/query/game/",
 		queryWildCard: "{queryType}",
 		port:          defaultPort,
+		eventHub:      eventHub,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -119,6 +124,7 @@ func (s *Server) registerHandlers() error {
 	// setup dependency
 	s.app.Get("/health", handler.GetHealth(s.eng))
 
+	s.registerEventsHandler("/events")
 	s.registerQueryHandler(fmt.Sprintf("%s:%s", s.queryPrefix, s.queryWildCard))
 	return errors.Join(
 		s.registerTransactionHandler(fmt.Sprintf("%s:%s", s.txPrefix, s.txWildCard)),

@@ -328,10 +328,9 @@ func (w *World) StartGame() error {
 		}
 		return err
 	}
-	if !w.instance.DoesEngineHaveAnEventHub() {
-		w.instance.SetEventHub(events.NewWebSocketEventHub())
-	}
-	srvr, err := server.New(w.instance, w.serverOptions...)
+	eventHub := events.NewWebSocketEventHub()
+	w.instance.SetEventHub(eventHub)
+	srvr, err := server.New(w.instance, eventHub, w.serverOptions...)
 	if err != nil {
 		return err
 	}

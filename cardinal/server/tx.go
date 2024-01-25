@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"

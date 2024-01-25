@@ -1,14 +1,13 @@
 package events
 
 import (
-	"encoding/json"
-	"net/http"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/go-openapi/runtime/middleware"
-	"github.com/gorilla/websocket"
+	"github.com/gofiber/contrib/websocket"
+	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -223,60 +222,29 @@ Loop:
 	eh.running.Store(false)
 }
 
-type webSocketHandler struct {
-	internalServe func(*websocket.Conn) error
-	path          string
-	parentHandler http.Handler
-	upgrader      websocket.Upgrader
-}
-
-var upgrader = websocket.Upgrader{}
-
-func (w *webSocketHandler) ServeHTTP(responseWriter http.ResponseWriter, request *http.Request) {
-	//nolint:nestif // its ok
-	if request.URL.Path == w.path {
-		ws, err := w.upgrader.Upgrade(responseWriter, request, nil)
-		err = eris.Wrap(err, "")
-		if err != nil {
-			err = sendError(responseWriter, err)
-			if err != nil {
-				panic(err)
-			}
-		} else {
-			err = eris.Wrap(w.internalServe(ws), "")
-			if err != nil {
-				err = sendError(responseWriter, err)
-				if err != nil {
-					panic(err)
-				}
-			}
-		}
-	} else {
-		w.parentHandler.ServeHTTP(responseWriter, request)
-	}
-}
-
-func CreateNewWebSocketBuilder(path string, websocketConnectionHandler func(conn *websocket.Conn) error,
-) middleware.Builder {
-	return func(handler http.Handler) http.Handler {
-		up := websocket.Upgrader{
-			ReadBufferSize:  bufferSize,
-			WriteBufferSize: bufferSize,
-		}
-		res := webSocketHandler{
-			internalServe: websocketConnectionHandler,
-			path:          path,
-			parentHandler: handler,
-			upgrader:      up,
-		}
-		return &res
-	}
-}
-
-func CreateWebSocketEventHandler(hub EventHub) func(conn *websocket.Conn) error {
-	return func(conn *websocket.Conn) error {
+func CreateWebSocketEventHandler(hub EventHub) func(conn *websocket.Conn) {
+	return func(conn *websocket.Conn) {
 		hub.RegisterConnection(conn)
-		return nil
+		var err error
+		var mt int
+		var msg []byte
+		logger := zerolog.New(os.Stderr).With().Timestamp().Logger()
+
+		// error is swallowed here, the function signatures in fiber require this. Even the examples
+		// swallow the error.
+		for {
+			if mt, msg, err = conn.ReadMessage(); err != nil {
+				err = eris.Wrap(err, "")
+				logger.Err(err).Msg("websocket read message failed")
+				break
+			}
+
+			if err = conn.WriteMessage(mt, msg); err != nil {
+				err = eris.Wrap(err, "")
+				logger.Err(err).Msg("websocket write message failed")
+				break
+			}
+		}
 	}
 }
 
@@ -297,40 +265,10 @@ func WebSocketEchoHandler(ws *websocket.Conn) error {
 	}
 }
 
-func sendError(w http.ResponseWriter, erisError error) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusInternalServerError)
-	err := json.NewEncoder(w).Encode(eris.ToJSON(erisError, true))
-	if err != nil {
-		return eris.Wrap(err, "")
+func FiberWebSocketUpgrader(c *fiber.Ctx) error {
+	if websocket.IsWebSocketUpgrade(c) {
+		c.Locals("allowed", true)
+		return eris.Wrap(c.Next(), "") //websocket
 	}
-	return nil
-}
-
-func Echo(w http.ResponseWriter, r *http.Request) {
-	c, err := upgrader.Upgrade(w, r, nil)
-	err = eris.Wrap(err, "")
-	if err != nil {
-		log.Print("upgrade:", eris.ToString(err, true))
-		err = sendError(w, err)
-		if err != nil {
-			panic(err)
-		}
-		return
-	}
-	err = WebSocketEchoHandler(c)
-	if err != nil {
-		errClose, ok :=
-			eris.Cause(err).(*websocket.CloseError) //nolint: errorlint // errorAs doesn't work. eris.Cause fixes it.
-
-		if ok && errClose.Code == websocket.CloseNormalClosure {
-			// the library creates an error here but it's actually a normal closure. It is Expected.
-			return
-		}
-		panic(eris.ToString(err, true))
-	}
-	err = eris.Wrap(c.Close(), "")
-	if err != nil {
-		panic(eris.ToString(err, true))
-	}
+	return fiber.ErrUpgradeRequired
 }
