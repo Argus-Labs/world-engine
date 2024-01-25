@@ -8,7 +8,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/rotisserie/eris"
@@ -64,7 +63,6 @@ func TestEvents(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	time.Sleep(3 * time.Second)
 	go func() {
 		tf.EventHub.FlushEvents()
 	}()
