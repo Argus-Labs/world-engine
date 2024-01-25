@@ -43,8 +43,8 @@ func (a *AllowListTestSuite) TestUserIDRequired() {
 	// This context does not have a user ID.
 	ctx := context.Background()
 
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, nil, "")
-	// claimKeyRPC should fail because the userID cannot be found in the context
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, nil, "")
+	// handleClaimKey should fail because the userID cannot be found in the context
 	assert.IsError(t, err)
 }
 
@@ -60,7 +60,7 @@ func (a *AllowListTestSuite) TestErrorFromStorageIsReturnedToCaller() {
 		Return(nil, errors.New(errorMsg)).
 		Once()
 
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, `{"Key":"beta-key"}`)
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, `{"Key":"beta-key"}`)
 	assert.ErrorContains(t, err, errorMsg)
 }
 
@@ -79,7 +79,7 @@ func (a *AllowListTestSuite) TestCannotClaimASecondBetaKey() {
 		Return(readResponse, nil).
 		Once()
 
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, `{"Key":"some-other-beta-key"}`)
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, `{"Key":"some-other-beta-key"}`)
 	assert.ErrorContains(t, err, nakamaerrors.ErrAlreadyVerified.Error())
 }
 
@@ -93,12 +93,12 @@ func (a *AllowListTestSuite) TestBadKeyRequestsAreRejected() {
 		Return(nil, nil).
 		Twice()
 
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, `{"key": ""}`)
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, `{"key": ""}`)
 	// Nakama returns its own custom runtime error which does NOT implement the Is method, making ErrorIs not helpful.
 	assert.ErrorContains(t, err, nakamaerrors.ErrInvalidBetaKey.Error())
 
 	badBody := `{"key": "{{{{`
-	_, err = claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, badBody)
+	_, err = handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, badBody)
 	assert.IsError(t, err)
 }
 
@@ -165,24 +165,24 @@ func (a *AllowListTestSuite) TestCanHandleBetaKeyGenerationFailures() {
 	logger := testutils.NoopLogger(t)
 
 	// No user ID is defined
-	_, err := allowListRPC(ctx, logger, nil, nil, "")
+	_, err := handleGenerateKey(ctx, logger, nil, nil, "")
 	assert.IsError(t, err)
 
 	// Non admin user ID is defined
 	ctx = testutils.CtxWithUserID("some-non-admin-user-id")
-	_, err = allowListRPC(ctx, logger, nil, nil, "")
+	_, err = handleGenerateKey(ctx, logger, nil, nil, "")
 	assert.ErrorContains(t, err, "unauthorized")
 
 	// The GenKeys payload is malformed
 	ctx = testutils.CtxWithUserID(signer.AdminAccountID)
-	_, err = allowListRPC(ctx, logger, nil, nil, `{"bad-payload":{{{{`)
+	_, err = handleGenerateKey(ctx, logger, nil, nil, `{"bad-payload":{{{{`)
 	assert.IsError(t, err)
 
 	nk := mocks.NewNakamaModule(t)
 	errMsg := "storage write failure"
 	nk.On("StorageWrite", mock.Anything, mock.Anything).
 		Return(nil, errors.New(errMsg))
-	_, err = allowListRPC(ctx, logger, nil, nk, `{"amount":10}`)
+	_, err = handleGenerateKey(ctx, logger, nil, nk, `{"amount":10}`)
 	assert.ErrorContains(t, err, errMsg)
 }
 
@@ -206,7 +206,7 @@ func (a *AllowListTestSuite) TestCanAddBetaKeys() {
 	})).Return(nil, nil)
 
 	payload := fmt.Sprintf(`{"amount":%d}`, numOfKeysToGenerate)
-	resp, err := allowListRPC(ctx, testutils.NoopLogger(t), nil, nk, payload)
+	resp, err := handleGenerateKey(ctx, testutils.NoopLogger(t), nil, nk, payload)
 	assert.NilError(t, err)
 
 	// Make sure the beta keys were included in the response
@@ -272,7 +272,7 @@ func (a *AllowListTestSuite) TestCanClaimBetaKey() {
 
 	payload := fmt.Sprintf(`{"key":"%s"}`, betaKeyToUse)
 
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, payload)
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, payload)
 	assert.NilError(t, err)
 }
 
@@ -297,6 +297,6 @@ func (a *AllowListTestSuite) TestClaimedBetaKeyCannotBeReclaimed() {
 		Once()
 
 	payload := `{"key": "xyzzy"}`
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, payload)
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, payload)
 	assert.ErrorContains(t, err, nakamaerrors.ErrBetaKeyAlreadyUsed.Error())
 }

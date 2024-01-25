@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
-	"net/http"
 	"os"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
@@ -167,12 +166,10 @@ func initPersonaTagAssignmentMap(
 
 // initCardinalEndpoints queries the cardinal server to find the list of existing endpoints, and attempts to
 // set up RPC wrappers around each one.
-//
-//nolint:gocognit,funlen // its fine.
 func initCardinalEndpoints(
 	logger runtime.Logger,
 	initializer runtime.Initializer,
-	notify *receipt.Notifier,
+	notifier *receipt.Notifier,
 ) error {
 	txEndpoints, queryEndpoints, err := getCardinalEndpoints()
 	if err != nil {
@@ -204,84 +201,11 @@ func initCardinalEndpoints(
 		return formattedPayloadBuffer, nil
 	}
 
-	registerEndpoints := func(endpoints []string, createPayload func(string, string, runtime.NakamaModule,
-		context.Context) (io.Reader, error)) error {
-		for _, e := range endpoints {
-			logger.Debug("registering: %v", e)
-			currEndpoint := e
-			if currEndpoint[0] == '/' {
-				currEndpoint = currEndpoint[1:]
-			}
-			err = initializer.RegisterRpc(currEndpoint, func(ctx context.Context, logger runtime.Logger, db *sql.DB,
-				nk runtime.NakamaModule, payload string) (string, error) {
-				logger.Debug("Got request for %q", currEndpoint)
-				var resultPayload io.Reader
-				resultPayload, err = createPayload(payload, currEndpoint, nk, ctx)
-				if err != nil {
-					return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make payload")
-				}
-
-				req, err := http.NewRequestWithContext(
-					ctx,
-					http.MethodPost,
-					utils.MakeHTTPURL(currEndpoint, globalCardinalAddress),
-					resultPayload,
-				)
-				req.Header.Set("Content-Type", "application/json")
-				if err != nil {
-					return utils.LogErrorMessageFailedPrecondition(logger, err, "request setup failed for endpoint %q", currEndpoint)
-				}
-				resp, err := http.DefaultClient.Do(req)
-				if err != nil {
-					return utils.LogErrorMessageFailedPrecondition(logger, err, "request failed for endpoint %q", currEndpoint)
-				}
-				defer resp.Body.Close()
-				if resp.StatusCode != http.StatusOK {
-					body, err := io.ReadAll(resp.Body)
-					if err != nil {
-						return utils.LogErrorMessageFailedPrecondition(
-							logger,
-							eris.Wrap(err, "failed to read response body"),
-							"bad status code: %s: %s", resp.Status, body,
-						)
-					}
-					return utils.LogErrorMessageFailedPrecondition(
-						logger,
-						eris.Errorf("bad status code %d", resp.StatusCode),
-						"bad status code: %s: %s", resp.Status, body,
-					)
-				}
-				bz, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return utils.LogErrorMessageFailedPrecondition(logger, err, "can't read body")
-				}
-				if strings.HasPrefix(currEndpoint, TransactionEndpointPrefix) {
-					var asTx persona.TxResponse
-
-					if err = json.Unmarshal(bz, &asTx); err != nil {
-						return utils.LogErrorMessageFailedPrecondition(logger, err, "can't decode body as tx response")
-					}
-					userID, err := utils.GetUserID(ctx)
-					if err != nil {
-						return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get user id")
-					}
-					notify.AddTxHashToPendingNotifications(asTx.TxHash, userID)
-				}
-
-				return string(bz), nil
-			})
-			if err != nil {
-				return eris.Wrap(err, "")
-			}
-		}
-		return nil
-	}
-
-	err = registerEndpoints(txEndpoints, createTransaction)
+	err = registerEndpoints(logger, initializer, notifier, txEndpoints, createTransaction)
 	if err != nil {
 		return err
 	}
-	err = registerEndpoints(queryEndpoints, createUnsignedTransaction)
+	err = registerEndpoints(logger, initializer, notifier, queryEndpoints, createUnsignedTransaction)
 	if err != nil {
 		return err
 	}
