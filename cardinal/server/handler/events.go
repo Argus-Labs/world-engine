@@ -7,5 +7,5 @@ import (
 )
 
 func WebSocketEvents(hub events.EventHub) (func(*fiber.Ctx) error, func(*fiber.Ctx) error) {
-	return events.FiberWebSocketUpgrader, websocket.New(events.NewWebSocketEventHandler(hub))
+	return events.WebSocketUpgrader, websocket.New(events.NewWebSocketEventHandler(hub))
 }

@@ -265,7 +265,7 @@ func WebSocketEchoHandler(ws *websocket.Conn) error {
 	}
 }
 
-func FiberWebSocketUpgrader(c *fiber.Ctx) error {
+func WebSocketUpgrader(c *fiber.Ctx) error {
 	if websocket.IsWebSocketUpgrade(c) {
 		c.Locals("allowed", true)
 		err := eris.Wrap(c.Next(), "")
