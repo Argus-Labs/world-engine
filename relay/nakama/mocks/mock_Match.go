@@ -93,7 +93,7 @@ func (_c *Match_MatchInit_Call) RunAndReturn(run func(context.Context, runtime.L
 	return _c
 }
 
-// MatchJoin provides a mock function with given fields: ctx, logger, db, nk, dispatcher, tick, state, presences
+// MatchJoin provides a mock function with given fields: ctx, logger, db, nk, receipt, tick, state, presences
 func (_m *Match) MatchJoin(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) interface{} {
 	ret := _m.Called(ctx, logger, db, nk, dispatcher, tick, state, presences)
 
@@ -123,7 +123,7 @@ type Match_MatchJoin_Call struct {
 //   - logger runtime.Logger
 //   - db *sql.DB
 //   - nk runtime.NakamaModule
-//   - dispatcher runtime.MatchDispatcher
+//   - receipt runtime.MatchDispatcher
 //   - tick int64
 //   - state interface{}
 //   - presences []runtime.Presence
@@ -148,7 +148,7 @@ func (_c *Match_MatchJoin_Call) RunAndReturn(run func(context.Context, runtime.L
 	return _c
 }
 
-// MatchJoinAttempt provides a mock function with given fields: ctx, logger, db, nk, dispatcher, tick, state, presence, metadata
+// MatchJoinAttempt provides a mock function with given fields: ctx, logger, db, nk, receipt, tick, state, presence, metadata
 func (_m *Match) MatchJoinAttempt(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presence runtime.Presence, metadata map[string]string) (interface{}, bool, string) {
 	ret := _m.Called(ctx, logger, db, nk, dispatcher, tick, state, presence, metadata)
 
@@ -195,7 +195,7 @@ type Match_MatchJoinAttempt_Call struct {
 //   - logger runtime.Logger
 //   - db *sql.DB
 //   - nk runtime.NakamaModule
-//   - dispatcher runtime.MatchDispatcher
+//   - receipt runtime.MatchDispatcher
 //   - tick int64
 //   - state interface{}
 //   - presence runtime.Presence
@@ -221,7 +221,7 @@ func (_c *Match_MatchJoinAttempt_Call) RunAndReturn(run func(context.Context, ru
 	return _c
 }
 
-// MatchLeave provides a mock function with given fields: ctx, logger, db, nk, dispatcher, tick, state, presences
+// MatchLeave provides a mock function with given fields: ctx, logger, db, nk, receipt, tick, state, presences
 func (_m *Match) MatchLeave(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, presences []runtime.Presence) interface{} {
 	ret := _m.Called(ctx, logger, db, nk, dispatcher, tick, state, presences)
 
@@ -251,7 +251,7 @@ type Match_MatchLeave_Call struct {
 //   - logger runtime.Logger
 //   - db *sql.DB
 //   - nk runtime.NakamaModule
-//   - dispatcher runtime.MatchDispatcher
+//   - receipt runtime.MatchDispatcher
 //   - tick int64
 //   - state interface{}
 //   - presences []runtime.Presence
@@ -276,7 +276,7 @@ func (_c *Match_MatchLeave_Call) RunAndReturn(run func(context.Context, runtime.
 	return _c
 }
 
-// MatchLoop provides a mock function with given fields: ctx, logger, db, nk, dispatcher, tick, state, messages
+// MatchLoop provides a mock function with given fields: ctx, logger, db, nk, receipt, tick, state, messages
 func (_m *Match) MatchLoop(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, messages []runtime.MatchData) interface{} {
 	ret := _m.Called(ctx, logger, db, nk, dispatcher, tick, state, messages)
 
@@ -306,7 +306,7 @@ type Match_MatchLoop_Call struct {
 //   - logger runtime.Logger
 //   - db *sql.DB
 //   - nk runtime.NakamaModule
-//   - dispatcher runtime.MatchDispatcher
+//   - receipt runtime.MatchDispatcher
 //   - tick int64
 //   - state interface{}
 //   - messages []runtime.MatchData
@@ -331,7 +331,7 @@ func (_c *Match_MatchLoop_Call) RunAndReturn(run func(context.Context, runtime.L
 	return _c
 }
 
-// MatchSignal provides a mock function with given fields: ctx, logger, db, nk, dispatcher, tick, state, data
+// MatchSignal provides a mock function with given fields: ctx, logger, db, nk, receipt, tick, state, data
 func (_m *Match) MatchSignal(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, data string) (interface{}, string) {
 	ret := _m.Called(ctx, logger, db, nk, dispatcher, tick, state, data)
 
@@ -371,7 +371,7 @@ type Match_MatchSignal_Call struct {
 //   - logger runtime.Logger
 //   - db *sql.DB
 //   - nk runtime.NakamaModule
-//   - dispatcher runtime.MatchDispatcher
+//   - receipt runtime.MatchDispatcher
 //   - tick int64
 //   - state interface{}
 //   - data string
@@ -396,7 +396,7 @@ func (_c *Match_MatchSignal_Call) RunAndReturn(run func(context.Context, runtime
 	return _c
 }
 
-// MatchTerminate provides a mock function with given fields: ctx, logger, db, nk, dispatcher, tick, state, graceSeconds
+// MatchTerminate provides a mock function with given fields: ctx, logger, db, nk, receipt, tick, state, graceSeconds
 func (_m *Match) MatchTerminate(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, dispatcher runtime.MatchDispatcher, tick int64, state interface{}, graceSeconds int) interface{} {
 	ret := _m.Called(ctx, logger, db, nk, dispatcher, tick, state, graceSeconds)
 
@@ -426,7 +426,7 @@ type Match_MatchTerminate_Call struct {
 //   - logger runtime.Logger
 //   - db *sql.DB
 //   - nk runtime.NakamaModule
-//   - dispatcher runtime.MatchDispatcher
+//   - receipt runtime.MatchDispatcher
 //   - tick int64
 //   - state interface{}
 //   - graceSeconds int
