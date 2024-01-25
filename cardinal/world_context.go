@@ -12,13 +12,9 @@ type WorldContext interface {
 	// a given Component filter.
 	//
 	// For example:
-	// search, err := worldCtx.NewSearch(cardinal.Exact(Health{}))
-	// if err != nil {
-	// 		return err
-	// }
-	// err = search.Each(worldCtx, func(id cardinal.EntityID) bool {
+	// err := worldCtx.NewSearch(cardinal.Exact(Health{})).Each(worldCtx, func(id cardinal.EntityID) bool {
 	// 		...process each entity id...
-	// }
+	// })
 	// if err != nil {
 	// 		return err
 	// }
