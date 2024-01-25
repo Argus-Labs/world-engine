@@ -3,8 +3,8 @@ package ecs
 import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
@@ -41,7 +41,7 @@ type SearchCallBackFn func(entity.ID) bool
 func (q *Search) Each(eCtx EngineContext, callback SearchCallBackFn) error {
 	reader := eCtx.StoreReader()
 	result := q.evaluateSearch(eCtx.GetEngine().Namespace(), reader)
-	iter := storage.NewEntityIterator(0, reader, result)
+	iter := iterators.NewEntityIterator(0, reader, result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -62,7 +62,7 @@ func (q *Search) Count(eCtx EngineContext) (int, error) {
 	namespace := eCtx.GetEngine().Namespace()
 	reader := eCtx.StoreReader()
 	result := q.evaluateSearch(namespace, reader)
-	iter := storage.NewEntityIterator(0, reader, result)
+	iter := iterators.NewEntityIterator(0, reader, result)
 	ret := 0
 	for iter.HasNext() {
 		entities, err := iter.Next()
@@ -79,9 +79,9 @@ func (q *Search) First(eCtx EngineContext) (id entity.ID, err error) {
 	namespace := eCtx.GetEngine().Namespace()
 	reader := eCtx.StoreReader()
 	result := q.evaluateSearch(namespace, reader)
-	iter := storage.NewEntityIterator(0, reader, result)
+	iter := iterators.NewEntityIterator(0, reader, result)
 	if !iter.HasNext() {
-		return storage.BadID, eris.Wrap(err, "")
+		return iterators.BadID, eris.Wrap(err, "")
 	}
 	for iter.HasNext() {
 		var entities []entity.ID
@@ -93,7 +93,7 @@ func (q *Search) First(eCtx EngineContext) (id entity.ID, err error) {
 			return entities[0], nil
 		}
 	}
-	return storage.BadID, eris.Wrap(err, "")
+	return iterators.BadID, eris.Wrap(err, "")
 }
 
 func (q *Search) MustFirst(eCtx EngineContext) entity.ID {
@@ -104,7 +104,7 @@ func (q *Search) MustFirst(eCtx EngineContext) entity.ID {
 	return id
 }
 
-func (q *Search) evaluateSearch(namespace Namespace, sm store.Reader) []archetype.ID {
+func (q *Search) evaluateSearch(namespace Namespace, sm gamestate.Reader) []archetype.ID {
 	if _, ok := q.archMatches[namespace]; !ok {
 		q.archMatches[namespace] = &cache{
 			archetypes: make([]archetype.ID, 0),

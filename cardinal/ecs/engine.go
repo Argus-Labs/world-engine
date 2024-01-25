@@ -6,26 +6,27 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
+	"github.com/rotisserie/eris"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	ecslog "pkg.world.dev/world-engine/cardinal/ecs/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
-	"pkg.world.dev/world-engine/cardinal/ecs/store"
 	"pkg.world.dev/world-engine/cardinal/events"
-	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/component"
@@ -46,7 +47,7 @@ func (n Namespace) String() string {
 type Engine struct {
 	namespace              Namespace
 	redisStorage           *redis.Storage
-	entityStore            store.IManager
+	entityStore            gamestate.Manager
 	systems                []System
 	systemLoggers          []*zerolog.Logger
 	initSystem             System
@@ -70,7 +71,7 @@ type Engine struct {
 
 	receiptHistory *receipt.History
 
-	chain shard.Adapter
+	chain adapter.Adapter
 	// isRecovering indicates that the engine is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering atomic.Bool
@@ -140,11 +141,11 @@ func (e *Engine) Namespace() Namespace {
 	return e.namespace
 }
 
-func (e *Engine) StoreManager() store.IManager {
+func (e *Engine) GameStateManager() gamestate.Manager {
 	return e.entityStore
 }
 
-func (e *Engine) TickStore() store.TickStorage {
+func (e *Engine) TickStore() gamestate.TickStorage {
 	return e.entityStore
 }
 
@@ -214,7 +215,7 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 	}
 	engine.registeredComponents = append(engine.registeredComponents, c)
 
-	storedSchema, err := engine.redisStorage.Schema.GetSchema(c.Name())
+	storedSchema, err := engine.redisStorage.GetSchema(c.Name())
 
 	if err != nil {
 		// It's fine if the schema doesn't currently exist in the db. Any other errors are a problem.
@@ -231,7 +232,7 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 		}
 	}
 
-	err = engine.redisStorage.Schema.SetSchema(c.Name(), c.GetSchema())
+	err = engine.redisStorage.SetSchema(c.Name(), c.GetSchema())
 	if err != nil {
 		return err
 	}
@@ -252,7 +253,7 @@ func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, e
 	componentType, exists := e.nameToComponent[name]
 	if !exists {
 		return nil, eris.Wrapf(
-			storage.ErrMustRegisterComponent,
+			iterators.ErrMustRegisterComponent,
 			"component %q must be registered before being used", name)
 	}
 	return componentType, nil
@@ -321,7 +322,7 @@ func (e *Engine) registerInternalQueries() {
 	signerQueryType, err := NewQueryType[QueryPersonaSignerRequest, QueryPersonaSignerResponse](
 		"signer",
 		querySigner,
-		WithCustomQueryPath[QueryPersonaSignerRequest, QueryPersonaSignerResponse]("/query/persona/signer"),
+		WithCustomQueryGroup[QueryPersonaSignerRequest, QueryPersonaSignerResponse]("persona"),
 	)
 	if err != nil {
 		panic(err)
@@ -330,7 +331,7 @@ func (e *Engine) registerInternalQueries() {
 	debugQueryType, err := NewQueryType[DebugRequest, DebugStateResponse](
 		"debug",
 		queryDebugState,
-		WithCustomQueryPath[DebugRequest, DebugStateResponse]("/debug/state"),
+		WithCustomQueryGroup[DebugRequest, DebugStateResponse]("state"),
 	)
 	if err != nil {
 		panic(err)
@@ -344,7 +345,7 @@ func (e *Engine) registerInternalQueries() {
 	receiptQueryType, err := NewQueryType[ListTxReceiptsRequest, ListTxReceiptsReply](
 		"receipts",
 		receiptsQuery,
-		WithCustomQueryPath[ListTxReceiptsRequest, ListTxReceiptsReply]("/query/receipts/list"),
+		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsReply]("list"),
 	)
 	if err != nil {
 		panic(err)
@@ -370,17 +371,12 @@ func (e *Engine) ListQueries() []Query {
 	return e.registeredQueries
 }
 
-func (e *Engine) ListMessages() ([]message.Message, error) {
-	if !e.isMessagesRegistered {
-		return nil, eris.New("cannot list messages until message registration occurs")
-	}
-	return e.registeredMessages, nil
-}
+func (e *Engine) ListMessages() []message.Message { return e.registeredMessages }
 
 // NewEngine creates a new engine.
 func NewEngine(
 	storage *redis.Storage,
-	entityStore store.IManager,
+	entityStore gamestate.Manager,
 	namespace Namespace,
 	opts ...Option,
 ) (*Engine, error) {
@@ -433,7 +429,7 @@ func (e *Engine) ReceiptHistorySize() uint64 {
 
 // Remove removes the given Entity from the engine.
 func (e *Engine) Remove(id entity.ID) error {
-	return e.StoreManager().RemoveEntity(id)
+	return e.GameStateManager().RemoveEntity(id)
 }
 
 // ConsumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
@@ -585,13 +581,7 @@ func (e *Engine) setEvmResults(txs []txpool.TxData) {
 	}
 }
 
-func (e *Engine) StartGameLoop(
-	ctx context.Context,
-	tickStart <-chan time.Time,
-	tickDone chan<- uint64,
-) {
-	e.Logger.Info().Msg("Game loop started")
-	ecslog.Engine(e.Logger, e, zerolog.InfoLevel)
+func (e *Engine) emitResourcesWarnings() {
 	// todo: add links to docs related to each warning
 	if !e.isComponentsRegistered {
 		e.Logger.Warn().Msg("No components registered.")
@@ -605,6 +595,16 @@ func (e *Engine) StartGameLoop(
 	if len(e.systems) == 0 {
 		e.Logger.Warn().Msg("No systems registered.")
 	}
+}
+
+func (e *Engine) StartGameLoop(
+	ctx context.Context,
+	tickStart <-chan time.Time,
+	tickDone chan<- uint64,
+) {
+	e.Logger.Info().Msg("Game loop started")
+	ecslog.Engine(e.Logger, e, zerolog.InfoLevel)
+	e.emitResourcesWarnings()
 
 	go func() {
 		ok := e.isGameLoopRunning.CompareAndSwap(false, true)
@@ -627,6 +627,9 @@ func (e *Engine) StartGameLoop(
 				if e.GetTxQueueAmount() > 0 {
 					// immediately tick if queue is not empty to process all txs if queue is not empty.
 					e.tickTheEngine(ctx, tickDone)
+					if tickDone != nil {
+						close(tickDone)
+					}
 				}
 				break loop
 			case ch := <-e.addChannelWaitingForNextTick:
@@ -692,11 +695,11 @@ func (e *Engine) IsGameLoopRunning() bool {
 	return e.isGameLoopRunning.Load()
 }
 
-func (e *Engine) Shutdown() {
+func (e *Engine) Shutdown() error {
 	e.shutdownMutex.Lock() // This queues up Shutdown calls so they happen one after the other.
 	defer e.shutdownMutex.Unlock()
 	if !e.IsGameLoopRunning() {
-		return
+		return nil
 	}
 	log.Info().Msg("Shutting down game loop.")
 	e.endGameLoopCh <- true
@@ -707,6 +710,14 @@ func (e *Engine) Shutdown() {
 	if e.eventHub != nil {
 		e.eventHub.ShutdownEventHub()
 	}
+	log.Info().Msg("Closing storage connection.")
+	err := e.redisStorage.Close()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to close storage connection.")
+		return err
+	}
+	log.Info().Msg("Successfully closed storage connection.")
+	return nil
 }
 
 // recoverGameState checks the status of the last game tick. If the tick was incomplete (indicating
@@ -748,6 +759,7 @@ func (e *Engine) LoadGameState() error {
 	}
 
 	if err := e.entityStore.RegisterComponents(e.registeredComponents); err != nil {
+		e.entityStore.Close()
 		return err
 	}
 
@@ -887,7 +899,7 @@ func (e *Engine) getMessage(id message.TypeID) message.Message {
 }
 
 func (e *Engine) UseNonce(signerAddress string, nonce uint64) error {
-	return e.redisStorage.Nonce.UseNonce(signerAddress, nonce)
+	return e.redisStorage.UseNonce(signerAddress, nonce)
 }
 
 func (e *Engine) AddMessageError(id message.TxHash, err error) {
@@ -920,7 +932,7 @@ func (e *Engine) GetSystemNames() []string {
 
 func (e *Engine) InjectLogger(logger *zerolog.Logger) {
 	e.Logger = logger
-	e.StoreManager().InjectLogger(logger)
+	e.GameStateManager().InjectLogger(logger)
 }
 
 func (e *Engine) NewSearch(filter filter.ComponentFilter) *Search {

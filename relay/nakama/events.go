@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -24,7 +25,7 @@ type EventHub struct {
 }
 
 func createEventHub(logger runtime.Logger) (*EventHub, error) {
-	url := makeWebSocketURL(eventEndpoint)
+	url := utils.MakeWebSocketURL(EventEndpoint, globalCardinalAddress)
 	webSocketConnection, _, err := websocket.DefaultDialer.Dial(url, nil) //nolint:bodyclose // no need.
 	for err != nil {
 		if errors.Is(err, &net.DNSError{}) {

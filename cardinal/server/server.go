@@ -2,22 +2,22 @@ package server
 
 import (
 	_ "embed"
-	"errors"
-	"fmt"
 	"os"
 	"sync/atomic"
 
 	"github.com/gofiber/contrib/swagger"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 )
 
 const (
-	defaultPort = "4040"
+	DefaultPort = "4040"
 )
 
 var (
@@ -25,55 +25,49 @@ var (
 	swaggerData []byte
 )
 
+type Config struct {
+	port                            string
+	isSignatureVerificationDisabled bool
+	isSwaggerDisabled               bool
+}
+
 type Server struct {
-	eng *ecs.Engine
-	app *fiber.App
-
-	port string
-
-	txPrefix      string
-	queryPrefix   string
-	txWildCard    string
-	queryWildCard string
-
-	disableSignatureVerification bool
-	withCORS                     bool
-	disableSwagger               bool
-
-	running atomic.Bool
-
-	eventHub events.EventHub
+	app       *fiber.App
+	config    Config
+	isRunning atomic.Bool
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
-func New(eng *ecs.Engine, eventHub events.EventHub, opts ...Option) (*Server, error) {
+func New(engine *ecs.Engine, eventHub events.EventHub, opts ...Option) (*Server, error) {
+	app := fiber.New()
 	s := &Server{
-		eng:           eng,
-		app:           fiber.New(),
-		txPrefix:      "/tx/game/",
-		txWildCard:    "{txType}",
-		queryPrefix:   "/query/game/",
-		queryWildCard: "{queryType}",
-		port:          defaultPort,
-		eventHub:      eventHub,
+		app: app,
+		config: Config{
+			port:                            DefaultPort,
+			isSignatureVerificationDisabled: false,
+			isSwaggerDisabled:               false,
+		},
 	}
 	for _, opt := range opts {
 		opt(s)
 	}
 
-	if !s.disableSwagger {
-		if err := s.setupSwagger(); err != nil {
+	// Enable CORS
+	app.Use(cors.New())
+	setupRoutes(app, engine, eventHub, s.config)
+
+	if !s.config.isSwaggerDisabled {
+		if err := setupSwagger(app); err != nil {
 			return nil, err
 		}
 	}
 
-	err := s.registerHandlers()
-	return s, err
+	return s, nil
 }
 
-// Port returns the port the server will run on.
+// Port returns the port the server listens to.
 func (s *Server) Port() string {
-	return s.port
+	return s.config.port
 }
 
 // Serve serves the application, blocking the calling thread.
@@ -83,13 +77,13 @@ func (s *Server) Serve() error {
 	if err != nil {
 		return eris.Wrap(err, "error getting hostname")
 	}
-	log.Info().Msgf("serving at %s:%s", hostname, s.port)
-	s.running.Store(true)
-	err = s.app.Listen(":" + s.port)
+	log.Info().Msgf("serving at %s:%s", hostname, s.config.port)
+	s.isRunning.Store(true)
+	err = s.app.Listen(":" + s.config.port)
 	if err != nil {
 		return eris.Wrap(err, "error starting Fiber app")
 	}
-	s.running.Store(false)
+	s.isRunning.Store(false)
 	return nil
 }
 
@@ -98,36 +92,81 @@ func (s *Server) Shutdown() error {
 	return s.app.Shutdown()
 }
 
-func (s *Server) setupSwagger() error {
+func setupSwagger(app *fiber.App) error {
 	file, err := os.CreateTemp("", "")
 	if err != nil {
 		return eris.Wrap(err, "failed to crate temp file for swagger")
 	}
+	defer func() {
+		if err := os.Remove(file.Name()); err != nil {
+			log.Error().Err(err).Msgf("failed to delete temporary swagger file %q", file.Name())
+		}
+	}()
 	_, err = file.Write(swaggerData)
 	if err != nil {
 		return eris.Wrap(err, "failed to write swagger data to file")
 	}
-	// Setup swagger docs at /docs
+
+	// Register swagger docs at /docs
 	cfg := swagger.Config{
 		FilePath: file.Name(),
 		Title:    "World Engine API Docs",
 	}
-	s.app.Use(swagger.New(cfg))
+	app.Use(swagger.New(cfg))
 
-	if err := os.Remove(file.Name()); err != nil {
-		return eris.Wrap(err, "failed to remove swagger temp file")
-	}
 	return nil
 }
 
-func (s *Server) registerHandlers() error {
-	// setup dependency
-	s.app.Get("/health", handler.GetHealth(s.eng))
+func (s *Server) registerEventsHandler(path string) {
 
-	s.registerEventsHandler("/events")
-	s.registerQueryHandler(fmt.Sprintf("%s:%s", s.queryPrefix, s.queryWildCard))
-	return errors.Join(
-		s.registerTransactionHandler(fmt.Sprintf("%s:%s", s.txPrefix, s.txWildCard)),
-		s.registerListEndpointsEndpoint("/query/http/endpoints"),
-	)
+}
+
+func setupRoutes(app *fiber.App, engine *ecs.Engine, eventHub events.EventHub, cfg Config) {
+	// TODO(scott): we should refactor this such that we only dependency inject these maps
+	//  instead of having to dependency inject the entire engine.
+	// /query/:group/:queryType
+	// maps group -> queryType -> query
+	queries := make(map[string]map[string]ecs.Query)
+
+	// /tx/:group/:txType
+	// maps group -> txType -> tx
+	msgs := make(map[string]map[string]message.Message)
+
+	// Create query index
+	for _, query := range engine.ListQueries() {
+		// Initialize inner map if it doesn't exist
+		if _, ok := queries[query.Group()]; !ok {
+			queries[query.Group()] = make(map[string]ecs.Query)
+		}
+		queries[query.Group()][query.Name()] = query
+	}
+
+	// Create tx index
+	for _, msg := range engine.ListMessages() {
+		// Initialize inner map if it doesn't exist
+		if _, ok := msgs[msg.Group()]; !ok {
+			msgs[msg.Group()] = make(map[string]message.Message)
+		}
+		msgs[msg.Group()][msg.Name()] = msg
+	}
+
+	// Route: /events/
+	websocketUpgrader, websocketHandler := handler.WebSocketEvents(eventHub)
+	app.Use("/events", websocketUpgrader)
+	app.Get("/events", websocketHandler)
+
+	// Route: /...
+	app.Get("/health", handler.GetHealth(engine))
+	// TODO(scott): this should be moved outside of /query, but nakama is currrently depending on it
+	//  so we should do this on a separate PR.
+	app.Get("/query/http/endpoints", handler.GetEndpoints(msgs, queries))
+
+	// Route: /query/...
+	query := app.Group("/query")
+	query.Post("/:group/:name", handler.PostQuery(queries, engine))
+
+	// Route: /tx/...
+	tx := app.Group("/tx")
+	tx.Post("/:group/:name", handler.PostTransaction(msgs, engine, cfg.isSignatureVerificationDisabled))
+
 }

@@ -9,9 +9,10 @@ import (
 	"github.com/alicebob/miniredis/v2"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/redis/go-redis/v9"
+
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/ecb"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	storage "pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -36,7 +37,7 @@ func InitEngineWithRedis(t *testing.T, s *miniredis.Miniredis) *ecs.Engine {
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	}, Namespace)
-	sm, err := ecb.NewManager(rs.Client)
+	sm, err := gamestate.NewEntityCommandBuffer(rs.Client)
 	assert.NilError(t, err)
 	w, err := ecs.NewEngine(&rs, sm, ecs.Namespace(Namespace))
 	assert.NilError(t, err)

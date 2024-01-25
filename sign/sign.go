@@ -182,7 +182,8 @@ func NewSystemTransaction(pk *ecdsa.PrivateKey, namespace string, nonce uint64, 
 }
 
 // NewTransaction signs a given body, tag, and nonce with the given private key.
-func NewTransaction(pk *ecdsa.PrivateKey,
+func NewTransaction(
+	pk *ecdsa.PrivateKey,
 	personaTag,
 	namespace string,
 	nonce uint64,

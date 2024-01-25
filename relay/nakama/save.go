@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"pkg.world.dev/world-engine/relay/nakama/persona"
+	"pkg.world.dev/world-engine/relay/nakama/utils"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
@@ -45,22 +48,22 @@ func initSaveFileStorage(_ runtime.Logger, initializer runtime.Initializer) erro
 
 func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string,
 ) (string, error) {
-	userID, err := getUserID(ctx)
+	userID, err := utils.GetUserID(ctx)
 	if err != nil {
-		return logErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "failed to get user ID")
+		return utils.LogErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "failed to get user ID")
 	}
 
 	var msg SaveGameRequest
 	err = json.Unmarshal([]byte(payload), &msg)
 	if err != nil {
-		return logError(
+		return utils.LogError(
 			logger,
 			eris.Wrap(err, `error unmarshalling payload: expected form {"data": <string>}`),
-			InvalidArgument)
+			nakamaerrors.InvalidArgument)
 	}
 	// do not allow empty requests
 	if msg.Data == "" {
-		return logErrorFailedPrecondition(
+		return utils.LogErrorFailedPrecondition(
 			logger,
 			eris.New("data cannot be empty"),
 		)
@@ -68,7 +71,7 @@ func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 
 	err = writeSave(ctx, userID, payload, nk)
 	if err != nil {
-		return logErrorFailedPrecondition(
+		return utils.LogErrorFailedPrecondition(
 			logger,
 			eris.Wrap(err, "failed to write game save to storage"),
 		)
@@ -76,7 +79,7 @@ func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 
 	response, err := json.Marshal(SaveGameResponse{Success: true})
 	if err != nil {
-		return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to marshal response"))
+		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "failed to marshal response"))
 	}
 
 	return string(response), nil
@@ -109,23 +112,23 @@ func initSaveFileQuery(_ runtime.Logger, initializer runtime.Initializer) error 
 
 func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string,
 ) (string, error) {
-	userID, err := getUserID(ctx)
+	userID, err := utils.GetUserID(ctx)
 	if err != nil {
-		return logErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "failed to get user ID")
+		return utils.LogErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "failed to get user ID")
 	}
 
 	var personaTag string
 	// get the persona storage object.
-	persona, err := loadPersonaTagStorageObj(ctx, nk)
+	p, err := persona.LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
 		// we ignore the error where the tag is not found.
 		// all other errors should be returned.
-		if !eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
-			return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to get persona for save"))
+		if !eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaTagStorageObjNotFound) {
+			return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "failed to get persona for save"))
 		}
 	} else {
-		if persona.Status == personaTagStatusAccepted {
-			personaTag = persona.PersonaTag
+		if p.Status == persona.StatusAccepted {
+			personaTag = p.PersonaTag
 		}
 	}
 
@@ -134,7 +137,7 @@ func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 	// case 2: the user is actually allowlisted.
 	verified, err := isUserVerified(ctx, nk, userID)
 	if err != nil {
-		return logErrorFailedPrecondition(logger, eris.Wrap(err, "could not read verification table"))
+		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "could not read verification table"))
 	}
 
 	var dataStr string
@@ -142,13 +145,13 @@ func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 	if err != nil {
 		// if no save is found, we just wanna return the empty string. so catch all other errors but that one.
 		if !eris.Is(eris.Cause(err), ErrNoSaveFound) {
-			return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to read save data"))
+			return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "failed to read save data"))
 		}
 	} else {
 		var dataMsg SaveGameRequest
 		err := json.Unmarshal([]byte(data), &dataMsg)
 		if err != nil {
-			return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to unmarshall save"))
+			return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "failed to unmarshall save"))
 		}
 		dataStr = dataMsg.Data
 	}
@@ -160,7 +163,7 @@ func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 	}
 	saveBz, err := json.Marshal(saveData)
 	if err != nil {
-		return logErrorFailedPrecondition(logger, eris.Wrap(err, "failed to marshal save file"))
+		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "failed to marshal save file"))
 	}
 	return string(saveBz), nil
 }

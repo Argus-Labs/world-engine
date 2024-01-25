@@ -1,6 +1,7 @@
 package events
 
 import (
+	"net/http"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -271,4 +272,32 @@ func FiberWebSocketUpgrader(c *fiber.Ctx) error {
 		return eris.Wrap(c.Next(), "") //websocket
 	}
 	return fiber.ErrUpgradeRequired
+}
+
+func Echo(w http.ResponseWriter, r *http.Request) {
+	c, err := upgrader.Upgrade(w, r, nil)
+	err = eris.Wrap(err, "")
+	if err != nil {
+		log.Print("upgrade:", eris.ToString(err, true))
+		err = sendError(w, err)
+		if err != nil {
+			panic(err)
+		}
+		return
+	}
+	err = WebSocketEchoHandler(c)
+	if err != nil {
+		errClose, ok :=
+			eris.Cause(err).(*websocket.CloseError) //nolint: errorlint // errorAs doesn't work. eris.Cause fixes it.
+
+		if ok && errClose.Code == websocket.CloseNormalClosure {
+			// the library creates an error here but it's actually a normal closure. It is Expected.
+			return
+		}
+		panic(eris.ToString(err, true))
+	}
+	err = eris.Wrap(c.Close(), "")
+	if err != nil {
+		panic(eris.ToString(err, true))
+	}
 }

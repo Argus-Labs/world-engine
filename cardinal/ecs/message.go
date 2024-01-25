@@ -3,11 +3,9 @@ package ecs
 import (
 	"errors"
 	"fmt"
-	"reflect"
-	"strings"
-
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/types/message"
+	"reflect"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
@@ -26,7 +24,7 @@ type MessageType[In, Out any] struct {
 	id         message.TypeID
 	isIDSet    bool
 	name       string
-	customPath string
+	group      string
 	inEVMType  *ethereumAbi.Type
 	outEVMType *ethereumAbi.Type
 }
@@ -50,10 +48,13 @@ func WithMsgEVMSupport[In, Out any]() MessageOption[In, Out] {
 	}
 }
 
-func WithCustomMessagePath[In, Out any](path string) MessageOption[In, Out] {
+// WithCustomMessageGroup sets a custom group for the message.
+// By default, messages are registered under the "game" group which maps it to the /tx/game/:txType route.
+// This option allows you to set a custom group, which allow you to register the message
+// under /tx/<custom_group>/:txType.
+func WithCustomMessageGroup[In, Out any](group string) MessageOption[In, Out] {
 	return func(mt *MessageType[In, Out]) {
-		path = "/" + strings.Trim(path, "/")
-		mt.customPath = path
+		mt.group = group
 	}
 }
 
@@ -87,7 +88,8 @@ func NewMessageType[In, Out any](
 	}
 
 	msg := &MessageType[In, Out]{
-		name: name,
+		name:  name,
+		group: "game",
 	}
 	for _, opt := range opts {
 		opt(msg)
@@ -95,10 +97,12 @@ func NewMessageType[In, Out any](
 	return msg
 }
 
-func (t *MessageType[In, Out]) Path() string { return t.customPath }
-
 func (t *MessageType[In, Out]) Name() string {
 	return t.name
+}
+
+func (t *MessageType[In, Out]) Group() string {
+	return t.group
 }
 
 func (t *MessageType[In, Out]) IsEVMCompatible() bool {

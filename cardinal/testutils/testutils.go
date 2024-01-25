@@ -1,124 +1,16 @@
 package testutils
 
 import (
-	"bytes"
-	"context"
 	"crypto/ecdsa"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/server"
-
-	"github.com/alicebob/miniredis/v2"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/rotisserie/eris"
 
-	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/sign"
 )
-
-func NewTestServer(
-	t *testing.T,
-	world *ecs.Engine,
-	opts ...server.Option,
-) *TestServer {
-	eventHub := events.NewWebSocketEventHub()
-	world.SetEventHub(eventHub)
-	// eventBuilder := events.CreateNewWebSocketBuilder(
-	//	"/events",
-	//	events.CreateWebSocketEventHandler(eventHub),
-	// )
-	srvr, err := server.New(world, eventHub, opts...)
-	assert.NilError(t, err)
-
-	// add test websocket handler
-	// TODO: Uncomment and fix
-	// srvr.Mux.HandleFunc("/echo", events.Echo)
-
-	healthPath := "/health"
-	t.Cleanup(func() {
-		err := srvr.Shutdown()
-		assert.NilError(t, err)
-	})
-
-	go func() {
-		err = srvr.Serve()
-		// ErrServerClosed is returned from srvr.Serve after srvr.Close is called. This is
-		// normal.
-		if !eris.Is(eris.Cause(err), http.ErrServerClosed) {
-			assert.NilError(t, err)
-		}
-	}()
-
-	host := "localhost:" + srvr.Port()
-	healthURL := host + healthPath
-	start := time.Now()
-	for {
-		if time.Since(start) > 3*time.Second {
-			t.Fatal("timeout while waiting for healthy server")
-		}
-		//nolint:noctx,bodyclose // it's for a test.
-		resp, err := http.Get("http://" + healthURL)
-		if err == nil && resp.StatusCode == 200 {
-			// the health check endpoint was successfully queried.
-			break
-		}
-	}
-
-	return &TestServer{
-		Server:   srvr,
-		T:        t,
-		Host:     host,
-		EventHub: eventHub,
-	}
-}
-
-// TestServer is a helper struct that can start an HTTP server on a random port with the given world.
-type TestServer struct {
-	*server.Server
-	T        *testing.T
-	Host     string
-	EventHub events.EventHub
-}
-
-func (t *TestServer) MakeHTTPURL(path string) string {
-	if path[0] == '/' {
-		path = path[1:]
-	}
-	return "http://" + t.Host + "/" + path
-}
-
-func (t *TestServer) MakeWebSocketURL(path string) string {
-	return "ws://" + t.Host + "/" + path
-}
-
-func (t *TestServer) Post(path string, payload any) *http.Response {
-	bz, err := json.Marshal(payload)
-	assert.NilError(t.T, err)
-	url := t.MakeHTTPURL(path)
-	log.Info().Msgf("sending post request to %s with payload %s", url, string(bz))
-	res, err := http.Post(url, "application/json", bytes.NewReader(bz)) //nolint:gosec,noctx // its a test
-	assert.NilError(t.T, err)
-	return res
-}
-
-func (t *TestServer) Get(path string) *http.Response {
-	url := t.MakeHTTPURL(path)
-	ctx := context.Background()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	assert.NilError(t.T, err)
-	res, err := http.DefaultClient.Do(req)
-	assert.NilError(t.T, err)
-	return res
-}
 
 func SetTestTimeout(t *testing.T, timeout time.Duration) {
 	if _, ok := t.Deadline(); ok {
@@ -178,10 +70,7 @@ func AddTransactionToWorldByAnyTransaction(
 	worldCtx := WorldToWorldContext(world)
 	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
 
-	txs, err := ecsWorld.ListMessages()
-	if err != nil {
-		panic(err)
-	}
+	txs := ecsWorld.ListMessages()
 	txID := cardinalTx.Convert().ID()
 	found := false
 	for _, tx := range txs {
@@ -200,66 +89,4 @@ func AddTransactionToWorldByAnyTransaction(
 	}
 
 	_, _ = ecsWorld.AddTransaction(txID, value, tx)
-}
-
-// MakeWorldAndTicker sets up a cardinal.World as well as a function that can execute one game tick. The *cardinal.World
-// will be automatically started when doTick is called for the first time. The cardinal.World will be shut down at the
-// end of the test. If doTick takes longer than 5 seconds to run, t.Fatal will be called. If a nil miniredis is passed
-// in a miniredis will be created.
-func MakeWorldAndTicker(
-	t *testing.T,
-	miniRedis *miniredis.Miniredis,
-	opts ...cardinal.WorldOption,
-) (world *cardinal.World, doTick func()) {
-	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
-	eventHub := events.NewWebSocketEventHub()
-	opts = append(
-		opts,
-		cardinal.WithTickChannel(startTickCh),
-		cardinal.WithTickDoneChannel(doneTickCh),
-		cardinal.WithEventHub(eventHub),
-	)
-	if miniRedis == nil {
-		world = NewTestWorld(t, opts...)
-	} else {
-		world, _ = NewTestWorldWithCustomRedis(t, miniRedis, opts...)
-	}
-
-	// Shutdown any world resources. This will be called whether the world has been started or not.
-	t.Cleanup(func() {
-		if err := world.ShutDown(); err != nil {
-			t.Fatalf("unable to shut down world: %v", err)
-		}
-	})
-
-	startGameOnce := sync.Once{}
-	// Create a function that will do a single game tick, making sure to start the game world the first time it is called.
-	doTick = func() {
-		timeout := time.After(5 * time.Second) //nolint:gomnd // fine for now.
-		startGameOnce.Do(func() {
-			startupError := make(chan error)
-			go func() {
-				// StartGame is meant to block forever, so any return value will be non-nil and cause for concern.
-				// Also, calling t.Fatal from a non-main thread only reports a failure once the test on the main thread has
-				// completed. By sending this error out on a channel we can fail the test right away (assuming doTick
-				// has been called from the main thread).
-				startupError <- world.StartGame()
-			}()
-			for !world.IsGameRunning() {
-				select {
-				case err := <-startupError:
-					t.Fatalf("startup error: %v", err)
-				case <-timeout:
-					t.Fatal("timeout while waiting for game to start")
-				default:
-					time.Sleep(10 * time.Millisecond) //nolint:gomnd // its for testing its ok.
-				}
-			}
-		})
-
-		startTickCh <- time.Now()
-		<-doneTickCh
-	}
-
-	return world, doTick
 }

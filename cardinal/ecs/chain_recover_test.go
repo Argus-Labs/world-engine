@@ -3,23 +3,25 @@ package ecs_test
 import (
 	"context"
 	"encoding/json"
-	"google.golang.org/protobuf/proto"
 	"math"
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
+	"testing"
+
+	"google.golang.org/protobuf/proto"
+
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	shardv2 "pkg.world.dev/world-engine/rift/shard/v2"
-	"testing"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/shard"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 )
 
-var _ shard.Adapter = &DummyAdapter{}
+var _ adapter.Adapter = &DummyAdapter{}
 
 type DummyAdapter struct {
 	ticks []*types.Epoch
@@ -101,7 +103,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 	ticks = append(ticks, epoch1, epoch2)
 
 	adapter := newAdapter(ticks)
-	eng := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Engine()
+	eng := testutils.NewTestFixture(t, nil, cardinal.WithAdapter(adapter)).Engine
 	increaseEnergyTx := ecs.NewMessageType[IncreaseEnergy, IncreaseEnergyResult]("send_energy")
 	err = eng.RegisterMessages(increaseEnergyTx)
 	assert.NilError(t, err)
@@ -144,7 +146,7 @@ func TestWorld_RecoverFromChain(t *testing.T) {
 func TestWorld_RecoverShouldErrorIfTickExists(t *testing.T) {
 	ctx := context.Background()
 	adapter := &DummyAdapter{}
-	eng := testutils.NewTestWorld(t, cardinal.WithAdapter(adapter)).Engine()
+	eng := testutils.NewTestFixture(t, nil, cardinal.WithAdapter(adapter)).Engine
 	assert.NilError(t, eng.LoadGameState())
 	assert.NilError(t, eng.Tick(ctx))
 

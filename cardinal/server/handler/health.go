@@ -5,16 +5,16 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
-type HealthReply struct {
+type GetHealthResponse struct {
 	IsServerRunning   bool `json:"isServerRunning"`
 	IsGameLoopRunning bool `json:"isGameLoopRunning"`
 }
 
-func GetHealth(eng *ecs.Engine) func(c *fiber.Ctx) error {
-	return func(c *fiber.Ctx) error {
-		return c.JSON(HealthReply{
+func GetHealth(engine *ecs.Engine) func(c *fiber.Ctx) error {
+	return func(ctx *fiber.Ctx) error {
+		return ctx.JSON(GetHealthResponse{
 			IsServerRunning:   true,
-			IsGameLoopRunning: eng.IsGameLoopRunning(),
+			IsGameLoopRunning: engine.IsGameLoopRunning(),
 		})
 	}
 }

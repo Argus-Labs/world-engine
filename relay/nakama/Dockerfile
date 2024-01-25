@@ -7,8 +7,7 @@ WORKDIR /backend
 
 COPY go.mod .
 COPY go.sum .
-COPY *.go ./
-COPY mocks ./mocks
+COPY . .
 RUN go mod vendor
 
 RUN go build --trimpath --mod=vendor --buildmode=plugin -o ./backend.so

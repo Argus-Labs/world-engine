@@ -6,7 +6,10 @@ use (
 	evm
 	internal/e2e
 	internal/e2e/tester/game
+	internal/e2ebenchmark
+	internal/e2ebenchmark/tester/game
 	internal/nakama
+	internal/nakamabenchmark
 	relay/nakama
 	rift
 	sign

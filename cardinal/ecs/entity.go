@@ -29,7 +29,7 @@ func CreateMany(eCtx EngineContext, num int, components ...component.Component) 
 		}
 		acc = append(acc, c)
 	}
-	entityIds, err := engine.StoreManager().CreateManyEntities(num, acc...)
+	entityIds, err := engine.GameStateManager().CreateManyEntities(num, acc...)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func CreateMany(eCtx EngineContext, num int, components ...component.Component) 
 			if err != nil {
 				return nil, eris.Wrap(err, "must register component before creating an entity")
 			}
-			err = engine.StoreManager().SetComponentForEntity(c, id, comp)
+			err = engine.GameStateManager().SetComponentForEntity(c, id, comp)
 			if err != nil {
 				return nil, err
 			}
@@ -62,7 +62,7 @@ func RemoveComponentFrom[T component.Component](eCtx EngineContext, id entity.ID
 	if err != nil {
 		return eris.Wrap(err, "must register component")
 	}
-	return e.StoreManager().RemoveComponentFromEntity(c, id)
+	return e.GameStateManager().RemoveComponentFromEntity(c, id)
 }
 
 func AddComponentTo[T component.Component](eCtx EngineContext, id entity.ID) error {
@@ -76,7 +76,7 @@ func AddComponentTo[T component.Component](eCtx EngineContext, id entity.ID) err
 	if err != nil {
 		return eris.Wrap(err, "must register component")
 	}
-	return e.StoreManager().AddComponentToEntity(c, id)
+	return e.GameStateManager().AddComponentToEntity(c, id)
 }
 
 // GetComponent returns component data from the entity.

@@ -19,18 +19,15 @@ require (
 	github.com/alecthomas/participle/v2 v2.1.0
 	github.com/alicebob/miniredis/v2 v2.30.5
 	github.com/ethereum/go-ethereum v1.13.4
-	github.com/go-openapi/loads v0.21.2
-	github.com/go-openapi/runtime v0.26.0
 	github.com/goccy/go-json v0.10.2
 	github.com/gofiber/contrib/swagger v1.1.1
+	github.com/gofiber/contrib/websocket v1.3.0
 	github.com/gofiber/fiber/v2 v2.52.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/invopop/jsonschema v0.7.0
-	github.com/mitchellh/mapstructure v1.5.0
 	github.com/redis/go-redis/v9 v9.1.0
 	github.com/rotisserie/eris v0.5.4
-	github.com/rs/cors v1.10.1
 	github.com/rs/zerolog v1.31.0
 	github.com/stretchr/testify v1.8.4
 	github.com/wI2L/jsondiff v0.5.0
@@ -100,12 +97,12 @@ require (
 	github.com/go-openapi/errors v0.20.3 // indirect
 	github.com/go-openapi/jsonpointer v0.20.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
+	github.com/go-openapi/loads v0.21.2 // indirect
+	github.com/go-openapi/runtime v0.26.0 // indirect
 	github.com/go-openapi/spec v0.20.8 // indirect
 	github.com/go-openapi/strfmt v0.21.7 // indirect
 	github.com/go-openapi/swag v0.22.4 // indirect
 	github.com/go-openapi/validate v0.22.1 // indirect
-	github.com/gofiber/contrib/websocket v1.3.0 // indirect
-	github.com/gofiber/websocket/v2 v2.2.1 // indirect
 	github.com/gogo/protobuf v1.3.3 // indirect
 	github.com/golang/glog v1.1.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
@@ -132,6 +129,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
+	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a // indirect
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect

@@ -31,7 +31,8 @@ func HealthSystem(worldCtx cardinal.WorldContext) error {
 }
 
 func TestSystemExample(t *testing.T) {
-	world, doTick := testutils.MakeWorldAndTicker(t, nil)
+	tf := testutils.NewTestFixture(t, nil)
+	world, doTick := tf.World, tf.DoTick
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	err := cardinal.RegisterSystems(world, HealthSystem)
 	assert.NilError(t, err)
@@ -64,7 +65,8 @@ func TestSystemExample(t *testing.T) {
 }
 
 func TestCanRegisterMultipleSystem(t *testing.T) {
-	world, doTick := testutils.MakeWorldAndTicker(t, nil)
+	tf := testutils.NewTestFixture(t, nil)
+	world, doTick := tf.World, tf.DoTick
 	var firstSystemCalled bool
 	var secondSystemCalled bool
 
