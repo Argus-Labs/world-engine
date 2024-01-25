@@ -222,7 +222,7 @@ Loop:
 	eh.running.Store(false)
 }
 
-func CreateWebSocketEventHandler(hub EventHub) func(conn *websocket.Conn) {
+func NewWebSocketEventHandler(hub EventHub) func(conn *websocket.Conn) {
 	return func(conn *websocket.Conn) {
 		hub.RegisterConnection(conn)
 		var err error
