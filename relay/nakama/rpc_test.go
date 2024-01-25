@@ -113,10 +113,15 @@ func (a *AllowListTestSuite) TestCanDisableAllowList() {
 		t.Setenv(allowlist.EnabledEnvVar, tc)
 		assert.NilError(t, initAllowlist(nil, nil))
 		assert.Equal(t, false, allowlist.Enabled)
+		t.Setenv(allowlist.EnabledEnvVar, tc)
+		assert.NilError(t, initAllowlist(nil, nil))
+		assert.Equal(t, false, allowlist.Enabled)
 	}
 }
 
 func (a *AllowListTestSuite) TestRejectBadAllowListFlag() {
+	a.T().Setenv(allowlist.EnabledEnvVar, "unclear-boolean-value")
+	assert.IsError(a.T(), initAllowlist(nil, nil))
 	a.T().Setenv(allowlist.EnabledEnvVar, "unclear-boolean-value")
 	assert.IsError(a.T(), initAllowlist(nil, nil))
 }
@@ -136,6 +141,8 @@ func (a *AllowListTestSuite) TestCanEnableAllowList() {
 		initializer.On("RegisterRpc", "claim-key", mock.Anything).
 			Return(nil)
 
+		assert.NilError(a.T(), initAllowlist(nil, initializer))
+		assert.Equal(a.T(), true, allowlist.Enabled)
 		assert.NilError(a.T(), initAllowlist(nil, initializer))
 		assert.Equal(a.T(), true, allowlist.Enabled)
 	}
