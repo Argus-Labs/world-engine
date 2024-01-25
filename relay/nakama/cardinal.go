@@ -20,7 +20,7 @@ func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err 
 	var resp *http.Response
 	url := utils.MakeHTTPURL(ListEndpoints, globalCardinalAddress)
 	//nolint:gosec,noctx // its ok. maybe revisit.
-	resp, err = http.Post(url, "", nil)
+	resp, err = http.Get(url)
 	if err != nil {
 		return txEndpoints, queryEndpoints, err
 	}
