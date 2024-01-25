@@ -142,16 +142,16 @@ services:
       - world-engine
     restart: always
 
-#  test_nakama:
-#    container_name: test_nakama
-#    build: ./internal/nakama
-#    depends_on:
-#      nakama:
-#        condition: service_healthy
-#    environment:
-#      - NAKAMA_ADDRESS=http://nakama:7350
-#    networks:
-#      - world-engine
+  test_nakama:
+    container_name: test_nakama
+    build: ./internal/nakama
+    depends_on:
+      nakama:
+        condition: service_healthy
+    environment:
+      - NAKAMA_ADDRESS=http://nakama:7350
+    networks:
+      - world-engine
 
 volumes:
   data:
