@@ -80,7 +80,7 @@ func InitModule(
 		return eris.Wrap(err, "failed to init cardinal endpoints")
 	}
 
-	if err := InitAllowlist(logger, initializer); err != nil {
+	if err := initAllowlist(logger, initializer); err != nil {
 		return eris.Wrap(err, "failed to init allowlist endpoints")
 	}
 
@@ -164,11 +164,6 @@ func initPersonaTagAssignmentMap(
 	}
 	return nil
 }
-
-// nakamaRPCHandler is the signature required for handlers that are passed to Nakama's RegisterRpc method.
-// This type is defined just to make the function below a little more readable.
-type nakamaRPCHandler func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule,
-	payload string) (string, error)
 
 // initCardinalEndpoints queries the cardinal server to find the list of existing endpoints, and attempts to
 // set up RPC wrappers around each one.

@@ -111,14 +111,14 @@ func (a *AllowListTestSuite) TestCanDisableAllowList() {
 	}
 	for _, tc := range testCases {
 		t.Setenv(allowlist.EnabledEnvVar, tc)
-		assert.NilError(t, InitAllowlist(nil, nil))
+		assert.NilError(t, initAllowlist(nil, nil))
 		assert.Equal(t, false, allowlist.Enabled)
 	}
 }
 
 func (a *AllowListTestSuite) TestRejectBadAllowListFlag() {
 	a.T().Setenv(allowlist.EnabledEnvVar, "unclear-boolean-value")
-	assert.IsError(a.T(), InitAllowlist(nil, nil))
+	assert.IsError(a.T(), initAllowlist(nil, nil))
 }
 
 func (a *AllowListTestSuite) TestCanEnableAllowList() {
@@ -136,7 +136,7 @@ func (a *AllowListTestSuite) TestCanEnableAllowList() {
 		initializer.On("RegisterRpc", "claim-key", mock.Anything).
 			Return(nil)
 
-		assert.NilError(a.T(), InitAllowlist(nil, initializer))
+		assert.NilError(a.T(), initAllowlist(nil, initializer))
 		assert.Equal(a.T(), true, allowlist.Enabled)
 	}
 }
@@ -147,7 +147,7 @@ func (a *AllowListTestSuite) TestAllowListFailsIfRPCRegistrationFails() {
 	initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
 		Return(errors.New("failed to register"))
 
-	assert.IsError(a.T(), InitAllowlist(nil, initializer))
+	assert.IsError(a.T(), initAllowlist(nil, initializer))
 
 	initializer = mocks.NewInitializer(a.T())
 	initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
@@ -156,7 +156,7 @@ func (a *AllowListTestSuite) TestAllowListFailsIfRPCRegistrationFails() {
 	initializer.On("RegisterRpc", "claim-key", mock.Anything).
 		Return(errors.New("failed to register"))
 
-	assert.IsError(a.T(), InitAllowlist(nil, initializer))
+	assert.IsError(a.T(), initAllowlist(nil, initializer))
 }
 
 func (a *AllowListTestSuite) TestCanHandleBetaKeyGenerationFailures() {
