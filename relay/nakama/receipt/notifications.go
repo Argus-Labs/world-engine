@@ -1,8 +1,7 @@
-package main
+package receipt
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/relay/nakama/dispatcher"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -22,12 +21,12 @@ type txHashAndUser struct {
 	userID string
 }
 
-// receiptNotifier is a struct that sends out notifications to users based on transaction receipts.
-type receiptNotifier struct {
+// Notifier is a struct that sends out notifications to users based on transaction receipts.
+type Notifier struct {
 	// txHashToTargetInto maps a specific transaction hash to a user ID. A timestamp is also tracked so "stale" transaction
 	// can be cleaned up.
 	txHashToTargetInfo map[string]targetInfo
-	// newTxHash is a channel that takes in txHash/userID tuples. An item on this channel signals to the receiptNotifier
+	// newTxHash is a channel that takes in txHash/userID tuples. An item on this channel signals to the ReceiptNotifier
 	// that the given user ID must be informed about the given transaction.
 	newTxHash chan txHashAndUser
 	// staleDuration is how much time has to pass before an undelivered notification is treated as stale.
@@ -38,11 +37,10 @@ type receiptNotifier struct {
 	logger runtime.Logger
 }
 
-func newReceiptNotifier(logger runtime.Logger, nk runtime.NakamaModule) *receiptNotifier {
-	rd := globalReceiptsDispatcher
-	ch := make(chan *dispatcher.Receipt)
+func NewNotifier(logger runtime.Logger, nk runtime.NakamaModule, rd *ReceiptsDispatcher) *Notifier {
+	ch := make(chan *Receipt)
 	rd.Subscribe("notifications", ch)
-	notifier := &receiptNotifier{
+	notifier := &Notifier{
 		txHashToTargetInfo: map[string]targetInfo{},
 		nk:                 nk,
 		logger:             logger,
@@ -59,7 +57,7 @@ func newReceiptNotifier(logger runtime.Logger, nk runtime.NakamaModule) *receipt
 // becomes aware of a transaction receipt with the given tx hash, the given user will be sent a notification with any
 // results and errors.
 // This method is safe for concurrent access.
-func (r *receiptNotifier) AddTxHashToPendingNotifications(txHash string, userID string) {
+func (r *Notifier) AddTxHashToPendingNotifications(txHash string, userID string) {
 	r.newTxHash <- txHashAndUser{
 		txHash: txHash,
 		userID: userID,
@@ -67,8 +65,8 @@ func (r *receiptNotifier) AddTxHashToPendingNotifications(txHash string, userID 
 }
 
 // sendNotifications loops forever, consuming Receipts from the given channel and sending them to the relevant user.
-func (r *receiptNotifier) sendNotifications(ch chan *dispatcher.Receipt) {
-	ticker := time.Tick(r.staleDuration)
+func (r *Notifier) sendNotifications(ch chan *Receipt) {
+	ticker := time.NewTicker(r.staleDuration)
 
 	for {
 		select {
@@ -76,7 +74,7 @@ func (r *receiptNotifier) sendNotifications(ch chan *dispatcher.Receipt) {
 			if err := r.handleReceipt(receipt); err != nil {
 				r.logger.Debug("failed to send receipt %v: %v", receipt, err)
 			}
-		case <-ticker:
+		case <-ticker.C:
 			r.cleanupStaleTransactions()
 		case tx := <-r.newTxHash:
 			r.txHashToTargetInfo[tx.txHash] = targetInfo{
@@ -88,7 +86,7 @@ func (r *receiptNotifier) sendNotifications(ch chan *dispatcher.Receipt) {
 }
 
 // handleReceipt identifies the relevant user for this receipt and sends them a notification.
-func (r *receiptNotifier) handleReceipt(receipt *dispatcher.Receipt) error {
+func (r *Notifier) handleReceipt(receipt *Receipt) error {
 	ctx := context.Background()
 	target, ok := r.txHashToTargetInfo[receipt.TxHash]
 	if !ok {
@@ -109,8 +107,8 @@ func (r *receiptNotifier) handleReceipt(receipt *dispatcher.Receipt) error {
 }
 
 // cleanupStaleTransactions identifies any transactions that have been pending for too long (see
-// receiptNotifier.staleDuration) and deletes them.
-func (r *receiptNotifier) cleanupStaleTransactions() {
+// ReceiptNotifier.staleDuration) and deletes them.
+func (r *Notifier) cleanupStaleTransactions() {
 	for txHash, info := range r.txHashToTargetInfo {
 		if time.Since(info.createdAt) > r.staleDuration {
 			delete(r.txHashToTargetInfo, txHash)
