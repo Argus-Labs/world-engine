@@ -8,6 +8,8 @@ type TypeID int
 type Message interface {
 	SetID(TypeID) error
 	Name() string
+	// Group returns the group of the message.
+	Group() string
 	ID() TypeID
 	Encode(any) ([]byte, error)
 	Decode([]byte) (any, error)

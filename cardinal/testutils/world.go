@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
+
+	"github.com/alicebob/miniredis/v2"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -51,7 +53,6 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 	assert.Assert(t, cardinalPort != evmPort, "cardinal and evm port must be different")
 	t.Setenv("CARDINAL_DEPLOY_MODE", "development")
 	t.Setenv("REDIS_ADDRESS", miniRedis.Addr())
-	t.Setenv("CARDINAL_PORT", cardinalPort)
 	t.Setenv("CARDINAL_EVM_PORT", evmPort)
 
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
@@ -63,6 +64,7 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 		cardinal.WithTickChannel(startTickCh),
 		cardinal.WithTickDoneChannel(doneTickCh),
 		cardinal.WithEventHub(eventHub),
+		cardinal.WithPort(cardinalPort),
 	}
 
 	// default options go first so that any user supplied options overwrite the defaults.
@@ -140,7 +142,12 @@ func (t *TestFixture) httpURL(path string) string {
 func (t *TestFixture) Post(path string, payload any) *http.Response {
 	bz, err := json.Marshal(payload)
 	assert.NilError(t, err)
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, t.httpURL(path), bytes.NewReader(bz))
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		t.httpURL(strings.Trim(path, "/")),
+		bytes.NewReader(bz),
+	)
 	assert.NilError(t, err)
 	req.Header.Add("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
@@ -150,7 +157,7 @@ func (t *TestFixture) Post(path string, payload any) *http.Response {
 
 // Get executes a http GET request to this TestFixture's cardinal server.
 func (t *TestFixture) Get(path string) *http.Response {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, t.httpURL(path), nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, t.httpURL(strings.Trim(path, "/")), nil)
 	assert.NilError(t, err)
 	resp, err := http.DefaultClient.Do(req)
 	assert.NilError(t, err)

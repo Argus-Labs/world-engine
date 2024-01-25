@@ -48,7 +48,7 @@ func TestQueryEVM(t *testing.T) {
 		) (*FooReply, error) {
 			return &expectedReply, nil
 		},
-		ecs.WithQueryEVMSupport[FooRequest, FooReply],
+		ecs.WithQueryEVMSupport[FooRequest, FooReply](),
 	)
 
 	assert.NilError(t, err)

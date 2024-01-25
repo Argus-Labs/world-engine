@@ -7,13 +7,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
-	"pkg.world.dev/world-engine/cardinal/shard/evm"
 	"reflect"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
+	"pkg.world.dev/world-engine/cardinal/shard/evm"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -43,15 +44,13 @@ var (
 )
 
 type World struct {
-	instance           *ecs.Engine
-	server             *server.Handler
-	evmServer          evm.Server
-	gameManager        *server.GameManager
-	tickChannel        <-chan time.Time
-	tickDoneChannel    chan<- uint64
-	serverOptions      []server.Option
-	gameManagerOptions []server.GameManagerOptions
-	cleanup            func()
+	instance        *ecs.Engine
+	server          *server.Server
+	evmServer       evm.Server
+	tickChannel     <-chan time.Time
+	tickDoneChannel chan<- uint64
+	serverOptions   []server.Option
+	cleanup         func()
 
 	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc)
 	gameSequenceStage gamestage.Atomic
@@ -78,10 +77,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	// Load config. Fallback value is used if it's not set.
 	cfg := getWorldConfig()
 
-	// Sane default options
-	serverOptions = append(serverOptions, server.WithCORS())
-	var gameManagerOptions []server.GameManagerOptions // not exposed in NewEngine Yet
-
 	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
 		return nil, eris.Wrap(err, "")
 	}
@@ -94,7 +89,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
 		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
-		gameManagerOptions = append(gameManagerOptions, server.WithGameManagerPrettyPrint)
 	}
 	redisStore := redis.NewRedisStorage(redis.Options{
 		Addr:     cfg.RedisAddress,
@@ -133,11 +127,10 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	world := &World{
-		instance:           ecsWorld,
-		serverOptions:      serverOptions,
-		gameManagerOptions: gameManagerOptions,
-		endStartGame:       make(chan bool),
-		gameSequenceStage:  gamestage.NewAtomic(),
+		instance:          ecsWorld,
+		serverOptions:     serverOptions,
+		endStartGame:      make(chan bool),
+		gameSequenceStage: gamestage.NewAtomic(),
 	}
 
 	// Apply options
@@ -334,15 +327,14 @@ func (w *World) StartGame() error {
 		return err
 	}
 	if !w.instance.DoesEngineHaveAnEventHub() {
-		w.instance.SetEventHub(events.NewWebSocketEventHub())
+		eventHub := events.NewWebSocketEventHub()
+		w.instance.SetEventHub(eventHub)
 	}
-	eventHub := w.instance.GetEventHub()
-	eventBuilder := events.CreateNewWebSocketBuilder("/events", events.CreateWebSocketEventHandler(eventHub))
-	handler, err := server.NewHandler(w.instance, eventBuilder, w.serverOptions...)
+	srvr, err := server.New(w.instance, w.instance.GetEventHub(), w.serverOptions...)
 	if err != nil {
 		return err
 	}
-	w.server = handler
+	w.server = srvr
 
 	w.evmServer, err = evm.NewServer(w.instance)
 	if err != nil {
@@ -363,8 +355,6 @@ func (w *World) StartGame() error {
 		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
 	w.instance.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
-	gameManager := server.NewGameManager(w.instance, w.server, w.gameManagerOptions...)
-	w.gameManager = &gameManager
 	go func() {
 		ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageStarting, gamestage.StageRunning)
 		if !ok {
@@ -404,12 +394,13 @@ func (w *World) ShutDown() error {
 	if w.evmServer != nil {
 		w.evmServer.Shutdown()
 	}
-	close(w.endStartGame)
-	err := w.gameManager.Shutdown()
-	if err != nil {
-		return err
+	if w.server != nil {
+		if err := w.server.Shutdown(); err != nil {
+			return err
+		}
 	}
-	return nil
+	close(w.endStartGame)
+	return w.Engine().Shutdown()
 }
 
 func RegisterSystems(w *World, systems ...System) error {
@@ -473,7 +464,7 @@ func RegisterQueryWithEVMSupport[Request any, Reply any](
 		func(eCtx ecs.EngineContext, req *Request) (*Reply, error) {
 			return handler(&worldContext{engine: eCtx}, req)
 		},
-		ecs.WithQueryEVMSupport[Request, Reply],
+		ecs.WithQueryEVMSupport[Request, Reply](),
 	)
 	if err != nil {
 		return err

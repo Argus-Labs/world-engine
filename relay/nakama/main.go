@@ -9,14 +9,15 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
+
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
-	"strings"
-	"sync"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"

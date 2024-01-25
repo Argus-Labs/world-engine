@@ -1,28 +1,36 @@
 package server
 
 import (
-	"os"
-
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"os"
 )
 
-type Option func(th *Handler)
+type Option func(s *Server)
 
-func DisableSignatureVerification() Option {
-	return func(th *Handler) {
-		th.disableSigVerification = true
+// WithPort allows the server to run on a specified port.
+func WithPort(port string) Option {
+	return func(s *Server) {
+		s.config.port = port
 	}
 }
 
-func WithCORS() Option {
-	return func(th *Handler) {
-		th.withCORS = true
+// DisableSignatureVerification disables signature verification.
+func DisableSignatureVerification() Option {
+	return func(s *Server) {
+		s.config.isSignatureVerificationDisabled = true
 	}
 }
 
 func WithPrettyPrint() Option {
-	return func(_ *Handler) {
+	return func(_ *Server) {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	}
+}
+
+// DisableSwagger allows to disable the swagger setup of the server.
+func DisableSwagger() Option {
+	return func(s *Server) {
+		s.config.isSwaggerDisabled = true
 	}
 }

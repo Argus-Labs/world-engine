@@ -2,24 +2,22 @@ package ecs
 
 import (
 	"encoding/json"
-	"reflect"
-
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
+	"reflect"
 )
 
 type Query interface {
 	// Name returns the name of the query.
 	Name() string
+	// Group returns the group of the query.
+	Group() string
 	// HandleQuery handles queries with concrete types, rather than encoded bytes.
 	HandleQuery(EngineContext, any) (any, error)
 	// HandleQueryRaw is given a reference to the engine, json encoded bytes that represent a query request
 	// and is expected to return a json encoded response struct.
 	HandleQueryRaw(EngineContext, []byte) ([]byte, error)
-	// Schema returns the json schema of the query request.
-	Schema() (request, reply *jsonschema.Schema)
 	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
 	DecodeEVMRequest([]byte) (any, error)
 	// EncodeEVMReply encodes the reply as an abi encoded struct.
@@ -34,26 +32,38 @@ type Query interface {
 
 type QueryType[Request any, Reply any] struct {
 	name       string
+	group      string
 	handler    func(eCtx EngineContext, req *Request) (*Reply, error)
 	requestABI *ethereumAbi.Type
 	replyABI   *ethereumAbi.Type
 }
 
-func WithQueryEVMSupport[Request, Reply any]() func(transactionType *QueryType[Request, Reply]) {
-	return func(query *QueryType[Request, Reply]) {
-		err := query.generateABIBindings()
-		if err != nil {
+func WithQueryEVMSupport[Request, Reply any]() QueryOption[Request, Reply] {
+	return func(qt *QueryType[Request, Reply]) {
+		if err := qt.generateABIBindings(); err != nil {
 			panic(err)
 		}
 	}
 }
+
+// WithCustomQueryGroup sets a custom group for the query.
+// By default, queries are registered under the "game" group which maps it to the /query/game/:queryType route.
+// This option allows you to set a custom group, which allow you to register the query
+// under /query/<custom_group>/:queryType.
+func WithCustomQueryGroup[Request, Reply any](group string) QueryOption[Request, Reply] {
+	return func(qt *QueryType[Request, Reply]) {
+		qt.group = group
+	}
+}
+
+type QueryOption[Request, Reply any] func(qt *QueryType[Request, Reply])
 
 var _ Query = &QueryType[struct{}, struct{}]{}
 
 func NewQueryType[Request any, Reply any](
 	name string,
 	handler func(eCtx EngineContext, req *Request) (*Reply, error),
-	opts ...func() func(queryType *QueryType[Request, Reply]),
+	opts ...QueryOption[Request, Reply],
 ) (Query, error) {
 	err := validateQuery[Request, Reply](name, handler)
 	if err != nil {
@@ -61,10 +71,11 @@ func NewQueryType[Request any, Reply any](
 	}
 	r := &QueryType[Request, Reply]{
 		name:    name,
+		group:   "game",
 		handler: handler,
 	}
 	for _, opt := range opts {
-		opt()(r)
+		opt(r)
 	}
 
 	return r, nil
@@ -94,8 +105,8 @@ func (r *QueryType[req, rep]) Name() string {
 	return r.name
 }
 
-func (r *QueryType[req, rep]) Schema() (request, reply *jsonschema.Schema) {
-	return jsonschema.Reflect(new(req)), jsonschema.Reflect(new(rep))
+func (r *QueryType[req, rep]) Group() string {
+	return r.group
 }
 
 func (r *QueryType[req, rep]) HandleQuery(eCtx EngineContext, a any) (any, error) {

@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
@@ -263,7 +264,7 @@ func RegisterQuery[Request any, Reply any](
 	engine *Engine,
 	name string,
 	handler func(eCtx EngineContext, req *Request) (*Reply, error),
-	opts ...func() func(queryType *QueryType[Request, Reply]),
+	opts ...QueryOption[Request, Reply],
 ) error {
 	if engine.stateIsLoaded {
 		panic("cannot register queries after loading game state")
@@ -318,6 +319,47 @@ func (e *Engine) RegisterMessages(txs ...message.Message) error {
 	return nil
 }
 
+func (e *Engine) registerInternalQueries() {
+	signerQueryType, err := NewQueryType[QueryPersonaSignerRequest, QueryPersonaSignerResponse](
+		"signer",
+		querySigner,
+		WithCustomQueryGroup[QueryPersonaSignerRequest, QueryPersonaSignerResponse]("persona"),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	debugQueryType, err := NewQueryType[DebugRequest, DebugStateResponse](
+		"debug",
+		queryDebugState,
+		WithCustomQueryGroup[DebugRequest, DebugStateResponse]("state"),
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	cqlQueryType, err := NewQueryType[CQLQueryRequest, CQLQueryResponse]("cql", queryCQL)
+	if err != nil {
+		panic(err)
+	}
+
+	receiptQueryType, err := NewQueryType[ListTxReceiptsRequest, ListTxReceiptsReply](
+		"receipts",
+		receiptsQuery,
+		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsReply]("list"),
+	)
+	if err != nil {
+		panic(err)
+	}
+	e.registeredQueries = append(
+		e.registeredQueries,
+		signerQueryType,
+		debugQueryType,
+		cqlQueryType,
+		receiptQueryType,
+	)
+}
+
 func (e *Engine) registerInternalMessages() {
 	e.registeredMessages = append(
 		e.registeredMessages,
@@ -330,12 +372,7 @@ func (e *Engine) ListQueries() []Query {
 	return e.registeredQueries
 }
 
-func (e *Engine) ListMessages() ([]message.Message, error) {
-	if !e.isMessagesRegistered {
-		return nil, eris.New("cannot list messages until message registration occurs")
-	}
-	return e.registeredMessages, nil
-}
+func (e *Engine) ListMessages() []message.Message { return e.registeredMessages }
 
 // NewEngine creates a new engine.
 func NewEngine(
@@ -368,11 +405,11 @@ func NewEngine(
 	}
 	e.isGameLoopRunning.Store(false)
 	e.RegisterSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	e.registerInternalQueries()
 	err := RegisterComponent[SignerComponent](e)
 	if err != nil {
 		return nil, err
 	}
-	opts = append([]Option{WithEventHub(events.NewWebSocketEventHub())}, opts...)
 	for _, opt := range opts {
 		opt(e)
 	}
@@ -658,11 +695,11 @@ func (e *Engine) IsGameLoopRunning() bool {
 	return e.isGameLoopRunning.Load()
 }
 
-func (e *Engine) Shutdown() {
+func (e *Engine) Shutdown() error {
 	e.shutdownMutex.Lock() // This queues up Shutdown calls so they happen one after the other.
 	defer e.shutdownMutex.Unlock()
 	if !e.IsGameLoopRunning() {
-		return
+		return nil
 	}
 	log.Info().Msg("Shutting down game loop.")
 	e.endGameLoopCh <- true
@@ -673,6 +710,14 @@ func (e *Engine) Shutdown() {
 	if e.eventHub != nil {
 		e.eventHub.ShutdownEventHub()
 	}
+	log.Info().Msg("Closing storage connection.")
+	err := e.redisStorage.Close()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to close storage connection.")
+		return err
+	}
+	log.Info().Msg("Successfully closed storage connection.")
+	return nil
 }
 
 // recoverGameState checks the status of the last game tick. If the tick was incomplete (indicating
@@ -714,6 +759,7 @@ func (e *Engine) LoadGameState() error {
 	}
 
 	if err := e.entityStore.RegisterComponents(e.registeredComponents); err != nil {
+		e.entityStore.Close()
 		return err
 	}
 

@@ -3,10 +3,9 @@ package ecs
 import (
 	"errors"
 	"fmt"
-	"reflect"
-
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/types/message"
+	"reflect"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
@@ -25,11 +24,14 @@ type MessageType[In, Out any] struct {
 	id         message.TypeID
 	isIDSet    bool
 	name       string
+	group      string
 	inEVMType  *ethereumAbi.Type
 	outEVMType *ethereumAbi.Type
 }
 
-func WithMsgEVMSupport[In, Out any]() func(messageType *MessageType[In, Out]) {
+type MessageOption[In, Out any] func(mt *MessageType[In, Out])
+
+func WithMsgEVMSupport[In, Out any]() MessageOption[In, Out] {
 	return func(msg *MessageType[In, Out]) {
 		var in In
 		var err error
@@ -46,12 +48,22 @@ func WithMsgEVMSupport[In, Out any]() func(messageType *MessageType[In, Out]) {
 	}
 }
 
+// WithCustomMessageGroup sets a custom group for the message.
+// By default, messages are registered under the "game" group which maps it to the /tx/game/:txType route.
+// This option allows you to set a custom group, which allow you to register the message
+// under /tx/<custom_group>/:txType.
+func WithCustomMessageGroup[In, Out any](group string) MessageOption[In, Out] {
+	return func(mt *MessageType[In, Out]) {
+		mt.group = group
+	}
+}
+
 // NewMessageType creates a new message type. It accepts two generic type parameters: the first for the message input,
 // which defines the data needed to make a state transition, and the second for the message output, commonly used
 // for the results of a state transition.
 func NewMessageType[In, Out any](
 	name string,
-	opts ...func() func(*MessageType[In, Out]),
+	opts ...MessageOption[In, Out],
 ) *MessageType[In, Out] {
 	if name == "" {
 		panic("cannot create message without name")
@@ -76,16 +88,21 @@ func NewMessageType[In, Out any](
 	}
 
 	msg := &MessageType[In, Out]{
-		name: name,
+		name:  name,
+		group: "game",
 	}
 	for _, opt := range opts {
-		opt()(msg)
+		opt(msg)
 	}
 	return msg
 }
 
 func (t *MessageType[In, Out]) Name() string {
 	return t.name
+}
+
+func (t *MessageType[In, Out]) Group() string {
+	return t.group
 }
 
 func (t *MessageType[In, Out]) IsEVMCompatible() bool {

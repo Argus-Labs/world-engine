@@ -77,7 +77,7 @@ func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
 	// Shutdown the engine at some point in the near future
 	time.AfterFunc(
 		100*time.Millisecond, func() {
-			engine.Shutdown()
+			assert.NilError(t, engine.Shutdown())
 		},
 	)
 	// testTimeout will cause the test to fail if we have to wait too long for a WaitForNextTick failure
@@ -108,7 +108,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	startTickCh <- time.Now()
 	<-doneTickCh
 
-	engine.Shutdown()
+	assert.NilError(t, engine.Shutdown())
 
 	for i := 0; i < 10; i++ {
 		// After a engine is shut down, WaitForNextTick should never block and always fail
@@ -125,7 +125,7 @@ func TestEVMTxConsume(t *testing.T) {
 		Y string
 	}
 	e := testutils.NewTestFixture(t, nil).Engine
-	fooTx := ecs.NewMessageType[FooIn, FooOut]("foo", ecs.WithMsgEVMSupport[FooIn, FooOut])
+	fooTx := ecs.NewMessageType[FooIn, FooOut]("foo", ecs.WithMsgEVMSupport[FooIn, FooOut]())
 	assert.NilError(t, e.RegisterMessages(fooTx))
 	var returnVal FooOut
 	var returnErr error

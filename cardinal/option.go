@@ -1,7 +1,6 @@
 package cardinal
 
 import (
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
@@ -12,6 +11,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server"
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 )
 
 // WorldOption represents an option that can be used to augment how the cardinal.World will be run.
@@ -22,6 +22,13 @@ type WorldOption struct {
 }
 
 type Option func(*World)
+
+// WithPort sets the port that the HTTP server will run on.
+func WithPort(port string) WorldOption {
+	return WorldOption{
+		serverOption: server.WithPort(port),
+	}
+}
 
 // WithAdapter provides the world with communicate channels to the EVM base shard, enabling transaction storage and
 // transaction retrieval for state rebuilding purposes.
