@@ -106,10 +106,6 @@ const (
 	defaultReceiptHistorySize = 10
 )
 
-func (e *Engine) DoesEngineHaveAnEventHub() bool {
-	return e.eventHub != nil
-}
-
 func (e *Engine) GetEventHub() events.EventHub {
 	return e.eventHub
 }
@@ -120,10 +116,6 @@ func (e *Engine) IsEntitiesCreated() bool {
 
 func (e *Engine) SetEntitiesCreated(value bool) {
 	e.isEntitiesCreated = value
-}
-
-func (e *Engine) SetEventHub(eventHub events.EventHub) {
-	e.eventHub = eventHub
 }
 
 func (e *Engine) EmitEvent(event *events.Event) {
@@ -415,6 +407,9 @@ func NewEngine(
 	}
 	if e.receiptHistory == nil {
 		e.receiptHistory = receipt.NewHistory(e.CurrentTick(), defaultReceiptHistorySize)
+	}
+	if e.eventHub == nil {
+		e.eventHub = events.NewWebSocketEventHub()
 	}
 	return e, nil
 }
