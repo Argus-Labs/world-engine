@@ -1,4 +1,4 @@
-package main
+package allowlist
 
 import (
 	"context"
@@ -25,7 +25,7 @@ var (
 	allowedUsers           = "allowed_users"
 )
 
-func initAllowlist(_ runtime.Logger, initializer runtime.Initializer) error {
+func InitAllowlist(_ runtime.Logger, initializer runtime.Initializer) error {
 	enabledStr := os.Getenv(allowlistEnabledEnvVar)
 	if enabledStr == "" {
 		return nil
@@ -144,7 +144,7 @@ func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runti
 		return utils.LogErrorWithMessageAndCode(logger, err, nakamaerrors.NotFound, "unable to get userID: %v", err)
 	}
 
-	if verified, err := isUserVerified(ctx, nk, userID); err != nil {
+	if verified, err := IsUserVerified(ctx, nk, userID); err != nil {
 		return utils.LogErrorMessageFailedPrecondition(logger, err, "failed to check beta key status")
 	} else if verified {
 		msg := fmt.Sprintf("user %q already verified with a beta key", userID)
@@ -215,8 +215,8 @@ func writeVerified(ctx context.Context, nk runtime.NakamaModule, userID string) 
 	return err
 }
 
-// isUserVerified returns true if the user has registered a beta key and false if they have not registered a beta key.
-func isUserVerified(ctx context.Context, nk runtime.NakamaModule, userID string) (verified bool, err error) {
+// IsUserVerified returns true if the user has registered a beta key and false if they have not registered a beta key.
+func IsUserVerified(ctx context.Context, nk runtime.NakamaModule, userID string) (verified bool, err error) {
 	if !allowlistEnabled {
 		// When allowlist is disabled, treat all users as if they were on the allowlist
 		return true, nil
