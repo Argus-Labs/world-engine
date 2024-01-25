@@ -12,8 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alicebob/miniredis/v2"
 	"gotest.tools/v3/assert"
+
+	"github.com/alicebob/miniredis/v2"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"

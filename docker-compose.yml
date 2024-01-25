@@ -133,7 +133,7 @@ services:
 
   redis:
     image: redis:latest
-    command: redis-server
+    command: redis-server --save ""
     expose:
       - "6379"
     ports:

@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
@@ -409,7 +410,6 @@ func NewEngine(
 	if err != nil {
 		return nil, err
 	}
-	opts = append([]Option{WithEventHub(events.NewWebSocketEventHub())}, opts...)
 	for _, opt := range opts {
 		opt(e)
 	}

@@ -7,13 +7,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
-	"pkg.world.dev/world-engine/cardinal/shard/evm"
 	"reflect"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/shard/adapter"
+	"pkg.world.dev/world-engine/cardinal/shard/evm"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -326,9 +327,10 @@ func (w *World) StartGame() error {
 		return err
 	}
 	if !w.instance.DoesEngineHaveAnEventHub() {
-		w.instance.SetEventHub(events.NewWebSocketEventHub())
+		eventHub := events.NewWebSocketEventHub()
+		w.instance.SetEventHub(eventHub)
 	}
-	srvr, err := server.New(w.instance, w.serverOptions...)
+	srvr, err := server.New(w.instance, w.instance.GetEventHub(), w.serverOptions...)
 	if err != nil {
 		return err
 	}
