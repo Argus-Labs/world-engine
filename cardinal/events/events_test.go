@@ -2,39 +2,18 @@ package events_test
 
 import (
 	"bytes"
-	"context"
 	"fmt"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 
 	"github.com/gorilla/websocket"
-	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
-	"github.com/stretchr/testify/require"
-
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
-
-func TestEventError(t *testing.T) {
-	err := events.WebSocketEchoHandler(nil)
-	// fmt.Println(eris.ToString(err, true))
-	mappedJSON := eris.ToJSON(err, true)
-	v, ok := mappedJSON["root"]
-	assert.Assert(t, ok)
-	v1, ok := v.(map[string]interface{})
-	assert.Assert(t, ok)
-	v2, ok := v1["stack"]
-	assert.Assert(t, ok)
-	v3, ok := v2.([]string)
-	assert.Assert(t, ok)
-	assert.Assert(t, len(v3) > 0)
-}
 
 func wsURL(addr, path string) string {
 	return fmt.Sprintf("ws://%s/%s", addr, path)
@@ -172,36 +151,4 @@ func (b *ThreadSafeBuffer) String() string {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 	return b.internalBuffer.String()
-}
-
-func TestEventHubLogger(t *testing.T) {
-	// replaces internal Logger with one that logs to the buf variable above.
-	var buf ThreadSafeBuffer
-	bufLogger := zerolog.New(&buf)
-	engine := testutils.NewTestFixture(t, nil, cardinal.WithLoggingEventHub(&bufLogger)).Engine
-
-	// testutils.NewTestWorld sets the log level to error, so we need to set it to zerolog.DebugLevel to pass this test
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
-
-	numberToTest := 5
-	for i := 0; i < numberToTest; i++ {
-		engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
-			eCtx.GetEngine().EmitEvent(&events.Event{Message: "test"})
-			return nil
-		})
-	}
-	assert.NilError(t, engine.LoadGameState())
-	ctx := context.Background()
-	for i := 0; i < numberToTest; i++ {
-		err := engine.Tick(ctx)
-		assert.NilError(t, err)
-	}
-	testString := "{\"level\":\"info\",\"message\":\"EVENT: test\"}\n"
-	eventsLogs := buf.String()
-	splitLogs := strings.Split(eventsLogs, "\n")
-	splitLogs = splitLogs[:len(splitLogs)-1]
-	assert.Equal(t, 25, len(splitLogs))
-	for _, logEntry := range splitLogs {
-		require.JSONEq(t, testString, logEntry)
-	}
 }

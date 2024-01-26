@@ -31,7 +31,7 @@ type TestFixture struct {
 	Redis    *miniredis.Miniredis
 	World    *cardinal.World
 	Engine   *ecs.Engine
-	EventHub events.EventHub
+	EventHub *events.EventHub
 
 	startTickCh chan time.Time
 	doneTickCh  chan uint64
@@ -56,8 +56,8 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 	t.Setenv("CARDINAL_EVM_PORT", evmPort)
 
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
-	eventHub := events.NewWebSocketEventHub()
-	t.Cleanup(eventHub.ShutdownEventHub)
+	eventHub := events.NewEventHub()
+	t.Cleanup(eventHub.Shutdown)
 
 	defaultOpts := []cardinal.WorldOption{
 		cardinal.WithCustomMockRedis(miniRedis),
@@ -157,7 +157,8 @@ func (t *TestFixture) Post(path string, payload any) *http.Response {
 
 // Get executes a http GET request to this TestFixture's cardinal server.
 func (t *TestFixture) Get(path string) *http.Response {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, t.httpURL(strings.Trim(path, "/")), nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, t.httpURL(strings.Trim(path, "/")),
+		nil)
 	assert.NilError(t, err)
 	resp, err := http.DefaultClient.Do(req)
 	assert.NilError(t, err)

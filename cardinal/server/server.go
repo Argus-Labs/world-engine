@@ -2,6 +2,7 @@ package server
 
 import (
 	_ "embed"
+	"github.com/gofiber/contrib/websocket"
 	"os"
 	"sync/atomic"
 
@@ -12,7 +13,6 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 )
@@ -39,7 +39,7 @@ type Server struct {
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
-func New(engine *ecs.Engine, eventHub events.EventHub, opts ...Option) (*Server, error) {
+func New(engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), opts ...Option) (*Server, error) {
 	app := fiber.New()
 	s := &Server{
 		app: app,
@@ -55,7 +55,7 @@ func New(engine *ecs.Engine, eventHub events.EventHub, opts ...Option) (*Server,
 
 	// Enable CORS
 	app.Use(cors.New())
-	setupRoutes(app, engine, eventHub, s.config)
+	setupRoutes(app, engine, wsEventHandler, s.config)
 
 	if !s.config.isSwaggerDisabled {
 		if err := setupSwagger(app); err != nil {
@@ -118,7 +118,7 @@ func setupSwagger(app *fiber.App) error {
 	return nil
 }
 
-func setupRoutes(app *fiber.App, engine *ecs.Engine, eventHub events.EventHub, cfg Config) {
+func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), cfg Config) {
 	// TODO(scott): we should refactor this such that we only dependency inject these maps
 	//  instead of having to dependency inject the entire engine.
 	// /query/:group/:queryType
@@ -148,9 +148,8 @@ func setupRoutes(app *fiber.App, engine *ecs.Engine, eventHub events.EventHub, c
 	}
 
 	// Route: /events/
-	websocketUpgrader, websocketHandler := handler.WebSocketEvents(eventHub)
-	app.Use("/events", websocketUpgrader)
-	app.Get("/events", websocketHandler)
+	app.Use("/events", handler.WebSocketUpgrader)
+	app.Get("/events", handler.WebSocketEvents(wsEventHandler))
 
 	// Route: /...
 	app.Get("/health", handler.GetHealth(engine))

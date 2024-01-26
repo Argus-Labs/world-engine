@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/events"
@@ -84,15 +83,9 @@ func WithStoreManager(s gamestate.Manager) WorldOption {
 	}
 }
 
-func WithEventHub(eventHub events.EventHub) WorldOption {
+func WithEventHub(eventHub *events.EventHub) WorldOption {
 	return WorldOption{
 		ecsOption: ecs.WithEventHub(eventHub),
-	}
-}
-
-func WithLoggingEventHub(logger *zerolog.Logger) WorldOption {
-	return WorldOption{
-		ecsOption: ecs.WithLoggingEventHub(logger),
 	}
 }
 

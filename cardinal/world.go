@@ -325,7 +325,7 @@ func (w *World) StartGame() error {
 		}
 		return err
 	}
-	srvr, err := server.New(w.instance, w.instance.GetEventHub(), w.serverOptions...)
+	srvr, err := server.New(w.instance, w.instance.GetEventHub().NewWebSocketEventHandler(), w.serverOptions...)
 	if err != nil {
 		return err
 	}

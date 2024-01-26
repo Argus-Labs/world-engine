@@ -38,14 +38,8 @@ func WithStoreManager(s gamestate.Manager) Option {
 	}
 }
 
-func WithEventHub(eventHub events.EventHub) Option {
+func WithEventHub(eventHub *events.EventHub) Option {
 	return func(e *Engine) {
 		e.eventHub = eventHub
-	}
-}
-
-func WithLoggingEventHub(logger *zerolog.Logger) Option {
-	return func(e *Engine) {
-		e.eventHub = events.NewLoggingEventHub(logger)
 	}
 }
