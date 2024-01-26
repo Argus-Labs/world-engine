@@ -3,13 +3,21 @@ package server_test
 import (
 	"context"
 	"crypto/ecdsa"
+	_ "embed"
 	"encoding/json"
 	"fmt"
+	"io"
+	"math/rand"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
-	"io"
-	"math/rand"
+	"gopkg.in/yaml.v3"
+
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
@@ -18,9 +26,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
-	"slices"
-	"testing"
-	"time"
 )
 
 type ServerTestSuite struct {
@@ -85,6 +90,47 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	}
 	for _, query := range queries {
 		s.Require().True(slices.Contains(result.QueryEndpoints, utils.GetQueryURL(query.Group(), query.Name())))
+	}
+}
+
+//go:embed swagger.yml
+var swaggerData []byte
+
+// TestSwaggerEndpointsAreActuallyCreated verifies the non-variable endpoints that are declared in the swagger.yml file
+// actually have endpoints when the cardinal server starts.
+func (s *ServerTestSuite) TestSwaggerEndpointsAreActuallyCreated() {
+	s.setupWorld()
+	s.fixture.DoTick()
+
+	m := map[string]any{}
+	s.Require().NoError(yaml.Unmarshal(swaggerData, m))
+	paths, ok := m["paths"].(map[string]any)
+	s.Require().True(ok)
+
+	for path, iface := range paths {
+		info, ok := iface.(map[string]any)
+		s.Require().True(ok)
+		if strings.ContainsAny(path, "{}") {
+			// Don't bother verifying paths that contain variables.
+			continue
+		}
+		if _, ok := info["get"]; ok {
+			res := s.fixture.Get(path)
+			// This test is only checking to make sure the endpoint can be found.
+			s.NotEqualf(res.StatusCode, 404,
+				"swagger defines GET %q, but that endpoint was not found", path)
+			s.NotEqualf(res.StatusCode, 405,
+				"swagger defines GET %q, but GET is not allowed on that endpoint", path)
+		}
+		if _, ok := info["post"]; ok {
+			emptyPayload := struct{}{}
+			res := s.fixture.Post(path, emptyPayload)
+			// This test is only checking to make sure the endpoint can be found.
+			s.NotEqualf(res.StatusCode, 404,
+				"swagger defines POST %q, but that endpoint was not found", path)
+			s.NotEqualf(res.StatusCode, 405,
+				"swagger defines GET %q, but POST is not allowed on that endpoint", path)
+		}
 	}
 }
 

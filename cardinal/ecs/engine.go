@@ -20,6 +20,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -309,9 +310,9 @@ func (e *Engine) registerInternalQueries() {
 	}
 
 	debugQueryType, err := NewQueryType[DebugRequest, DebugStateResponse](
-		"debug",
+		"state",
 		queryDebugState,
-		WithCustomQueryGroup[DebugRequest, DebugStateResponse]("state"),
+		WithCustomQueryGroup[DebugRequest, DebugStateResponse]("debug"),
 	)
 	if err != nil {
 		panic(err)
@@ -323,9 +324,9 @@ func (e *Engine) registerInternalQueries() {
 	}
 
 	receiptQueryType, err := NewQueryType[ListTxReceiptsRequest, ListTxReceiptsReply](
-		"receipts",
+		"list",
 		receiptsQuery,
-		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsReply]("list"),
+		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsReply]("receipts"),
 	)
 	if err != nil {
 		panic(err)

@@ -12,8 +12,8 @@ schemes:
 swagger: "2.0"
 
 paths:
-  /debug/state:
-    get:
+  /query/debug/state:
+    post:
       summary: Get information on all entities and components in world-engine
       description: Displays the entire game state.
       produces:
@@ -162,7 +162,7 @@ paths:
         '400':
           description: Invalid query request
   /query/http/endpoints:
-    post:
+    get:
       summary: Get all http endpoints from cardinal
       description: Get all http endpoints from cardinal
       consumes:
