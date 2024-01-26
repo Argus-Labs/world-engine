@@ -8,7 +8,6 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/events"
 )
 
 type Option func(e *Engine)
@@ -35,11 +34,5 @@ func WithPrettyLog() Option {
 func WithStoreManager(s gamestate.Manager) Option {
 	return func(e *Engine) {
 		e.entityStore = s
-	}
-}
-
-func WithEventHub(eventHub *events.EventHub) Option {
-	return func(e *Engine) {
-		e.eventHub = eventHub
 	}
 }

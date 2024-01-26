@@ -38,12 +38,12 @@ func TestEvents(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tf.EventHub.EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
+			tf.World.Engine().GetEventHub().EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
 		}()
 	}
 	wg.Wait()
 	go func() {
-		tf.EventHub.FlushEvents()
+		tf.World.Engine().GetEventHub().FlushEvents()
 	}()
 	var count atomic.Int32
 	count.Store(0)
