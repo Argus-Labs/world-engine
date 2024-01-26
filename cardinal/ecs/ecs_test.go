@@ -661,6 +661,7 @@ func (ValueComponent1) Name() string {
 func TestCanRemoveFirstEntity(t *testing.T) {
 	engine := testutils.NewTestFixture(t, nil).World.Engine()
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent1](engine))
+	assert.NilError(t, engine.LoadGameState())
 
 	eCtx := ecs.NewEngineContext(engine)
 	ids, err := ecs.CreateMany(eCtx, 3, ValueComponent1{})
@@ -699,6 +700,7 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 	engine := testutils.NewTestFixture(t, nil).World.Engine()
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](engine))
 	assert.NilError(t, ecs.RegisterComponent[OtherComponent](engine))
+	assert.NilError(t, engine.LoadGameState())
 
 	eCtx := ecs.NewEngineContext(engine)
 	ids, err := ecs.CreateMany(eCtx, 3, ValueComponent2{})
@@ -724,6 +726,7 @@ func TestEntityCreationAndSetting(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[OtherComponent](engine))
 
 	eCtx := ecs.NewEngineContext(engine)
+	assert.NilError(t, engine.LoadGameState())
 	ids, err := ecs.CreateMany(eCtx, 300, ValueComponent2{999}, OtherComponent{999})
 	assert.NilError(t, err)
 	for _, id := range ids {

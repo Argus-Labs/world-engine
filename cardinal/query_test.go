@@ -63,7 +63,8 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 }
 
 func TestQueryExample(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	fixture := testutils.NewTestFixture(t, nil)
+	world := fixture.World
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(
 		t,
@@ -73,7 +74,7 @@ func TestQueryExample(t *testing.T) {
 			handleQueryHealth,
 		),
 	)
-
+	assert.NilError(t, fixture.Engine.LoadGameState())
 	worldCtx := testutils.WorldToWorldContext(world)
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
 	assert.NilError(t, err)

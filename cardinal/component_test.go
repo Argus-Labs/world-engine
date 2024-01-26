@@ -37,13 +37,15 @@ type Age struct {
 func (Age) Name() string { return "age" }
 
 func TestComponentExample(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	fixture := testutils.NewTestFixture(t, nil)
+	world := fixture.World
+	engine := fixture.Engine
 
 	assert.NilError(t, cardinal.RegisterComponent[Height](world))
 	assert.NilError(t, cardinal.RegisterComponent[Weight](world))
 	assert.NilError(t, cardinal.RegisterComponent[Age](world))
 	assert.NilError(t, cardinal.RegisterComponent[Number](world))
-
+	assert.NilError(t, engine.LoadGameState())
 	testWorldCtx := testutils.WorldToWorldContext(world)
 	assert.Equal(t, testWorldCtx.CurrentTick(), uint64(0))
 	testWorldCtx.Logger().Info().Msg("test") // Check for compile errors.

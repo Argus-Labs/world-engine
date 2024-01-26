@@ -25,10 +25,12 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 func TestSearchExample(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	fixture := testutils.NewTestFixture(t, nil)
+	world := fixture.World
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
+	assert.NilError(t, fixture.Engine.LoadGameState())
 
 	worldCtx := testutils.WorldToWorldContext(world)
 	_, err := cardinal.CreateMany(worldCtx, 10, Alpha{})

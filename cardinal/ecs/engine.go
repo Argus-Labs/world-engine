@@ -62,7 +62,6 @@ type Engine struct {
 	registeredMessages     []message.Message
 	registeredQueries      []Query
 	isComponentsRegistered bool
-	isEntitiesCreated      bool
 	isMessagesRegistered   bool
 	stateIsLoaded          bool
 
@@ -110,20 +109,8 @@ func (e *Engine) GetEventHub() events.EventHub {
 	return e.eventHub
 }
 
-func (e *Engine) IsEntitiesCreated() bool {
-	return e.isEntitiesCreated
-}
-
-func (e *Engine) SetEntitiesCreated(value bool) {
-	e.isEntitiesCreated = value
-}
-
 func (e *Engine) EmitEvent(event *events.Event) {
 	e.eventHub.EmitEvent(event)
-}
-
-func (e *Engine) FlushEvents() {
-	e.eventHub.FlushEvents()
 }
 
 func (e *Engine) IsRecovering() bool {
@@ -388,7 +375,6 @@ func NewEngine(
 		txQueue:           txpool.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
-		isEntitiesCreated: false,
 		endGameLoopCh:     make(chan bool),
 		nextComponentID:   1,
 		evmTxReceipts:     make(map[string]EVMTxReceipt),
@@ -734,9 +720,6 @@ func (e *Engine) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
 }
 
 func (e *Engine) LoadGameState() error {
-	if e.IsEntitiesCreated() {
-		return eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
-	}
 	if e.stateIsLoaded {
 		return eris.New("cannot load game state multiple times")
 	}

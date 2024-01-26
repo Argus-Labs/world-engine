@@ -109,6 +109,7 @@ func TestExactVsContains(t *testing.T) {
 
 	alphaCount := 75
 	eCtx := ecs.NewEngineContext(engine)
+	assert.NilError(t, engine.LoadGameState())
 	_, err := ecs.CreateMany(eCtx, alphaCount, Alpha{})
 	assert.NilError(t, err)
 	bothCount := 100

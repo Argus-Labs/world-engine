@@ -248,6 +248,8 @@ func TestWithoutRegistration(t *testing.T) {
 
 	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](engine))
 	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine))
+	assert.NilError(t, engine.LoadGameState())
+
 	id, err = ecs.Create(eCtx, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 	err = ecs.UpdateComponent[EnergyComponent](
