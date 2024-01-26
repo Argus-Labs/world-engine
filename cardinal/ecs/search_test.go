@@ -24,6 +24,7 @@ func (FooComponent) Name() string {
 func TestSearchEarlyTermination(t *testing.T) {
 	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, ecs.RegisterComponent[FooComponent](engine))
+	assert.NilError(t, engine.LoadGameState())
 
 	total := 10
 	count := 0

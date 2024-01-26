@@ -161,6 +161,7 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 	ecs.MustRegisterComponent[notFoundComp](engine)
 
 	wCtx := ecs.NewEngineContext(engine)
+	assert.NilError(t, engine.LoadGameState())
 	id, err := ecs.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
 	_, err = ecs.GetComponent[notFoundComp](wCtx, id)
@@ -180,6 +181,7 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	assert.NilError(t, ecs.RegisterComponent[ValueComponent](engine))
 
 	eCtx := ecs.NewEngineContext(engine)
+	assert.NilError(t, engine.LoadGameState())
 	id, err := ecs.Create(eCtx, ValueComponent{})
 	assert.NilError(t, err)
 
