@@ -24,7 +24,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
-	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/gamestage"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/statsd"
@@ -325,10 +324,6 @@ func (w *World) StartGame() error {
 			return eris.Wrap(ErrEntitiesCreatedBeforeStartGame, "")
 		}
 		return err
-	}
-	if !w.instance.DoesEngineHaveAnEventHub() {
-		eventHub := events.NewWebSocketEventHub()
-		w.instance.SetEventHub(eventHub)
 	}
 	srvr, err := server.New(w.instance, w.instance.GetEventHub(), w.serverOptions...)
 	if err != nil {
