@@ -17,6 +17,9 @@ func Create(eCtx EngineContext, components ...component.Component) (entity.ID, e
 }
 
 func CreateMany(eCtx EngineContext, num int, components ...component.Component) ([]entity.ID, error) {
+	if !eCtx.GetEngine().stateIsLoaded {
+		return nil, eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
+	}
 	if eCtx.IsReadOnly() {
 		return nil, eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}
@@ -46,7 +49,6 @@ func CreateMany(eCtx EngineContext, num int, components ...component.Component) 
 			}
 		}
 	}
-	eCtx.GetEngine().SetEntitiesCreated(true)
 	return entityIds, nil
 }
 
