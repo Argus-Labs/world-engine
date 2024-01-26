@@ -162,7 +162,7 @@ paths:
         '400':
           description: Invalid query request
   /query/http/endpoints:
-    get:
+    post:
       summary: Get all http endpoints from cardinal
       description: Get all http endpoints from cardinal
       consumes:

@@ -119,6 +119,8 @@ func (s *ServerTestSuite) TestSwaggerEndpointsAreActuallyCreated() {
 			// This test is only checking to make sure the endpoint can be found.
 			s.NotEqualf(res.StatusCode, 404,
 				"swagger defines GET %q, but that endpoint was not found", path)
+			s.NotEqualf(res.StatusCode, 405,
+				"swagger defines GET %q, but GET is not allowed on that endpoint", path)
 		}
 		if _, ok := info["post"]; ok {
 			emptyPayload := struct{}{}
@@ -126,6 +128,8 @@ func (s *ServerTestSuite) TestSwaggerEndpointsAreActuallyCreated() {
 			// This test is only checking to make sure the endpoint can be found.
 			s.NotEqualf(res.StatusCode, 404,
 				"swagger defines POST %q, but that endpoint was not found", path)
+			s.NotEqualf(res.StatusCode, 405,
+				"swagger defines GET %q, but POST is not allowed on that endpoint", path)
 		}
 	}
 }

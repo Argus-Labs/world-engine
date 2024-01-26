@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
@@ -155,7 +156,7 @@ func setupRoutes(app *fiber.App, engine *ecs.Engine, eventHub events.EventHub, c
 	app.Get("/health", handler.GetHealth(engine))
 	// TODO(scott): this should be moved outside of /query, but nakama is currrently depending on it
 	//  so we should do this on a separate PR.
-	app.Get("/query/http/endpoints", handler.GetEndpoints(msgs, queries))
+	app.Post("/query/http/endpoints", handler.GetEndpoints(msgs, queries))
 
 	// Route: /query/...
 	query := app.Group("/query")
