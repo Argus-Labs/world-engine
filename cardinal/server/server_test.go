@@ -98,15 +98,18 @@ var swaggerData []byte
 
 // TestSwaggerEndpointsAreActuallyCreated verifies the non-variable endpoints that are declared in the swagger.yml file
 // actually have endpoints when the cardinal server starts.
-func (s *ServerTestSuite) TestDeclaredSwaggerEndpointsAreActuallyCreated() {
+func (s *ServerTestSuite) TestSwaggerEndpointsAreActuallyCreated() {
 	s.setupWorld()
 	s.fixture.DoTick()
 
 	m := map[string]any{}
 	s.Require().NoError(yaml.Unmarshal(swaggerData, m))
+	paths, ok := m["paths"].(map[string]any)
+	s.Require().True(ok)
 
-	for path, iface := range m["paths"].(map[string]any) {
-		info := iface.(map[string]any)
+	for path, iface := range paths {
+		info, ok := iface.(map[string]any)
+		s.Require().True(ok)
 		if strings.ContainsAny(path, "{}") {
 			// Don't bother verifying paths that contain variables.
 			continue
