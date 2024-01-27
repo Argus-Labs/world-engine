@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -23,6 +24,30 @@ type PostTransactionResponse struct {
 	Tick   uint64
 }
 
+type Transaction = sign.Transaction
+
+// PostTransaction godoc
+//
+//	@Summary		Submit a transaction to Cardinal
+//	@Description	Submit a transaction to Cardinal
+//	@Accept			application/json
+//	@Produce		application/json
+//	@Param			txType	path		string		true	"label of the transaction that wants to be submitted"
+//	@Param			txBody	body		Transaction	true	"Transaction details"
+//	@Success		200		{object}	PostTransactionResponse
+//	@Failure		400		{string}	string	"Invalid transaction request"
+//	@Router			/tx/game/{txType} [post]
+//
+// PostTransaction with Persona godoc
+// @Summary Create a Persona transaction to Cardinal
+// @Description Create a Persona transaction to Cardinal
+// @Accept application/json
+// @Produce application/json
+// @Param txBody body Transaction true "Transaction details"
+// @Success 200 {object} PostTransactionResponse
+// @Failure 400 {string} string "Invalid transaction request"
+// @Router /tx/persona/create-persona [post]
+//
 //nolint:gocognit
 func PostTransaction(
 	msgs map[string]map[string]message.Message, engine *ecs.Engine, disableSigVerification bool,
@@ -34,7 +59,7 @@ func PostTransaction(
 		}
 
 		// Parse the request body into a sign.Transaction struct
-		tx := new(sign.Transaction)
+		tx := new(Transaction)
 		if err := ctx.BodyParser(tx); err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "failed to parse request body: "+err.Error())
 		}
@@ -89,7 +114,7 @@ func PostTransaction(
 }
 
 // validateTx validates the transaction payload
-func validateTx(tx *sign.Transaction) error {
+func validateTx(tx *Transaction) error {
 	// TODO(scott): we should use the validator package here
 	if tx.PersonaTag == "" {
 		return ErrNoPersonaTag
@@ -98,7 +123,7 @@ func validateTx(tx *sign.Transaction) error {
 }
 
 // validateSignature validates that the signature of transaction is valid
-func validateSignature(tx *sign.Transaction, signerAddr string, namespace string, systemTx bool) error {
+func validateSignature(tx *Transaction, signerAddr string, namespace string, systemTx bool) error {
 	if tx.Namespace != namespace {
 		return eris.Wrap(ErrWrongNamespace, fmt.Sprintf("expected %q got %q", namespace, tx.Namespace))
 	}

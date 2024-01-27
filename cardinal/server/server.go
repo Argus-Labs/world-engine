@@ -5,11 +5,12 @@ import (
 	"os"
 	"sync/atomic"
 
-	"github.com/gofiber/contrib/swagger"
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
+	fiberSwagger "github.com/swaggo/fiber-swagger"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
@@ -38,7 +39,7 @@ type Server struct {
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
-func New(engine *ecs.Engine, eventHub events.EventHub, opts ...Option) (*Server, error) {
+func New(engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), opts ...Option) (*Server, error) {
 	app := fiber.New()
 	s := &Server{
 		app: app,
@@ -54,10 +55,17 @@ func New(engine *ecs.Engine, eventHub events.EventHub, opts ...Option) (*Server,
 
 	// Enable CORS
 	app.Use(cors.New())
-	setupRoutes(app, engine, eventHub, s.config)
+	//	@title			Cardinal
+	//	@description	Backend server for World Engine
+	//	@version		0.0.1
+	//	@schemes		http ws
+	//	@BasePath		/
+	//	@consumes		application/json
+	//	@produces		application/json
+	setupRoutes(app, engine, wsEventHandler, s.config)
 
 	if !s.config.isSwaggerDisabled {
-		if err := setupSwagger(app); err != nil {
+		if err := setupSwaggerRoutes(app); err != nil {
 			return nil, err
 		}
 	}
@@ -92,28 +100,8 @@ func (s *Server) Shutdown() error {
 	return s.app.Shutdown()
 }
 
-func setupSwagger(app *fiber.App) error {
-	file, err := os.CreateTemp("", "")
-	if err != nil {
-		return eris.Wrap(err, "failed to crate temp file for swagger")
-	}
-	defer func() {
-		if err := os.Remove(file.Name()); err != nil {
-			log.Error().Err(err).Msgf("failed to delete temporary swagger file %q", file.Name())
-		}
-	}()
-	_, err = file.Write(swaggerData)
-	if err != nil {
-		return eris.Wrap(err, "failed to write swagger data to file")
-	}
-
-	// Register swagger docs at /docs
-	cfg := swagger.Config{
-		FilePath: file.Name(),
-		Title:    "World Engine API Docs",
-	}
-	app.Use(swagger.New(cfg))
-
+func setupSwaggerRoutes(app *fiber.App) error {
+	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 	return nil
 }
 

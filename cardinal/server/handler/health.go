@@ -10,6 +10,13 @@ type GetHealthResponse struct {
 	IsGameLoopRunning bool `json:"isGameLoopRunning"`
 }
 
+// GetHealth godoc
+//
+//	@Summary		Get information on status of world-engine
+//	@Description	Displays information on http server and world game loop
+//	@Produce		application/json
+//	@Success		200	{object}	GetHealthResponse
+//	@Router			/health [get]
 func GetHealth(engine *ecs.Engine) func(c *fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		return ctx.JSON(GetHealthResponse{
