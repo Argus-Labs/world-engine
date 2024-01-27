@@ -9,9 +9,11 @@ import (
 )
 
 func TestCanRemoveEntity(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	fixture := testutils.NewTestFixture(t, nil)
+	world := fixture.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
+	assert.NilError(t, fixture.Engine.LoadGameState())
 
 	testWorldCtx := testutils.WorldToWorldContext(world)
 	ids, err := cardinal.CreateMany(testWorldCtx, 2, Alpha{})

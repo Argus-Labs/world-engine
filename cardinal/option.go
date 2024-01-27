@@ -4,12 +4,9 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
-	"pkg.world.dev/world-engine/cardinal/events"
-
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 )
@@ -81,18 +78,6 @@ func WithTickDoneChannel(ch chan<- uint64) WorldOption {
 func WithStoreManager(s gamestate.Manager) WorldOption {
 	return WorldOption{
 		ecsOption: ecs.WithStoreManager(s),
-	}
-}
-
-func WithEventHub(eventHub events.EventHub) WorldOption {
-	return WorldOption{
-		ecsOption: ecs.WithEventHub(eventHub),
-	}
-}
-
-func WithLoggingEventHub(logger *zerolog.Logger) WorldOption {
-	return WorldOption{
-		ecsOption: ecs.WithLoggingEventHub(logger),
 	}
 }
 

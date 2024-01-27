@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
+	"github.com/rotisserie/eris"
 )
 
 // WebSocketEvents godoc

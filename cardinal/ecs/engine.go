@@ -20,6 +20,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -62,7 +63,6 @@ type Engine struct {
 	registeredMessages     []message.Message
 	registeredQueries      []Query
 	isComponentsRegistered bool
-	isEntitiesCreated      bool
 	isMessagesRegistered   bool
 	stateIsLoaded          bool
 
@@ -84,7 +84,7 @@ type Engine struct {
 
 	nextComponentID component.TypeID
 
-	eventHub events.EventHub
+	eventHub *events.EventHub
 
 	// addChannelWaitingForNextTick accepts a channel which will be closed after a tick has been completed.
 	addChannelWaitingForNextTick chan chan struct{}
@@ -106,32 +106,12 @@ const (
 	defaultReceiptHistorySize = 10
 )
 
-func (e *Engine) DoesEngineHaveAnEventHub() bool {
-	return e.eventHub != nil
-}
-
-func (e *Engine) GetEventHub() events.EventHub {
+func (e *Engine) GetEventHub() *events.EventHub {
 	return e.eventHub
-}
-
-func (e *Engine) IsEntitiesCreated() bool {
-	return e.isEntitiesCreated
-}
-
-func (e *Engine) SetEntitiesCreated(value bool) {
-	e.isEntitiesCreated = value
-}
-
-func (e *Engine) SetEventHub(eventHub events.EventHub) {
-	e.eventHub = eventHub
 }
 
 func (e *Engine) EmitEvent(event *events.Event) {
 	e.eventHub.EmitEvent(event)
-}
-
-func (e *Engine) FlushEvents() {
-	e.eventHub.FlushEvents()
 }
 
 func (e *Engine) IsRecovering() bool {
@@ -330,9 +310,9 @@ func (e *Engine) registerInternalQueries() {
 	}
 
 	debugQueryType, err := NewQueryType[DebugRequest, DebugStateResponse](
-		"debug",
+		"state",
 		queryDebugState,
-		WithCustomQueryGroup[DebugRequest, DebugStateResponse]("state"),
+		WithCustomQueryGroup[DebugRequest, DebugStateResponse]("debug"),
 	)
 	if err != nil {
 		panic(err)
@@ -344,9 +324,9 @@ func (e *Engine) registerInternalQueries() {
 	}
 
 	receiptQueryType, err := NewQueryType[ListTxReceiptsRequest, ListTxReceiptsReply](
-		"receipts",
+		"list",
 		receiptsQuery,
-		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsReply]("list"),
+		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsReply]("receipts"),
 	)
 	if err != nil {
 		panic(err)
@@ -396,7 +376,6 @@ func NewEngine(
 		txQueue:           txpool.NewTxQueue(),
 		Logger:            logger,
 		isGameLoopRunning: atomic.Bool{},
-		isEntitiesCreated: false,
 		endGameLoopCh:     make(chan bool),
 		nextComponentID:   1,
 		evmTxReceipts:     make(map[string]EVMTxReceipt),
@@ -415,6 +394,9 @@ func NewEngine(
 	}
 	if e.receiptHistory == nil {
 		e.receiptHistory = receipt.NewHistory(e.CurrentTick(), defaultReceiptHistorySize)
+	}
+	if e.eventHub == nil {
+		e.eventHub = events.NewEventHub()
 	}
 	return e, nil
 }
@@ -708,7 +690,7 @@ func (e *Engine) Shutdown() error {
 	}
 	log.Info().Msg("Successfully shut down game loop.")
 	if e.eventHub != nil {
-		e.eventHub.ShutdownEventHub()
+		e.eventHub.Shutdown()
 	}
 	log.Info().Msg("Closing storage connection.")
 	err := e.redisStorage.Close()
@@ -739,9 +721,6 @@ func (e *Engine) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
 }
 
 func (e *Engine) LoadGameState() error {
-	if e.IsEntitiesCreated() {
-		return eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
-	}
 	if e.stateIsLoaded {
 		return eris.New("cannot load game state multiple times")
 	}

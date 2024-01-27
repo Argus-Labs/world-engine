@@ -24,7 +24,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
-	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/gamestage"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/statsd"
@@ -299,7 +298,7 @@ func (w *World) handleShutdown() {
 		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
 		for sig := range signalChannel {
 			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
-				err := w.ShutDown()
+				err := w.Shutdown()
 				if err != nil {
 					log.Err(err).Msgf("There was an error during shutdown.")
 				}
@@ -326,11 +325,7 @@ func (w *World) StartGame() error {
 		}
 		return err
 	}
-	if !w.instance.DoesEngineHaveAnEventHub() {
-		eventHub := events.NewWebSocketEventHub()
-		w.instance.SetEventHub(eventHub)
-	}
-	srvr, err := server.New(w.instance, w.instance.GetEventHub(), w.serverOptions...)
+	srvr, err := server.New(w.instance, w.instance.GetEventHub().NewWebSocketEventHandler(), w.serverOptions...)
 	if err != nil {
 		return err
 	}
@@ -377,7 +372,7 @@ func (w *World) IsGameRunning() bool {
 	return w.gameSequenceStage.Load() == gamestage.StageRunning
 }
 
-func (w *World) ShutDown() error {
+func (w *World) Shutdown() error {
 	if w.cleanup != nil {
 		w.cleanup()
 	}
