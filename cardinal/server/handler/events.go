@@ -3,9 +3,18 @@ package handler
 import (
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
-	"pkg.world.dev/world-engine/cardinal/events"
+	"github.com/rotisserie/eris"
 )
 
-func WebSocketEvents(hub events.EventHub) (func(*fiber.Ctx) error, func(*fiber.Ctx) error) {
-	return events.WebSocketUpgrader, websocket.New(events.NewWebSocketEventHandler(hub))
+func WebSocketEvents(wsEventHandler func(conn *websocket.Conn)) func(c *fiber.Ctx) error {
+	return websocket.New(wsEventHandler)
+}
+func WebSocketUpgrader(c *fiber.Ctx) error {
+	// IsWebSocketUpgrade returns true if the client
+	// requested upgrade to the WebSocket protocol.
+	if websocket.IsWebSocketUpgrade(c) {
+		c.Locals("allowed", true)
+		return eris.Wrap(c.Next(), "")
+	}
+	return fiber.ErrUpgradeRequired
 }

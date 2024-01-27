@@ -84,7 +84,7 @@ type Engine struct {
 
 	nextComponentID component.TypeID
 
-	eventHub events.EventHub
+	eventHub *events.EventHub
 
 	// addChannelWaitingForNextTick accepts a channel which will be closed after a tick has been completed.
 	addChannelWaitingForNextTick chan chan struct{}
@@ -106,7 +106,7 @@ const (
 	defaultReceiptHistorySize = 10
 )
 
-func (e *Engine) GetEventHub() events.EventHub {
+func (e *Engine) GetEventHub() *events.EventHub {
 	return e.eventHub
 }
 
@@ -396,7 +396,7 @@ func NewEngine(
 		e.receiptHistory = receipt.NewHistory(e.CurrentTick(), defaultReceiptHistorySize)
 	}
 	if e.eventHub == nil {
-		e.eventHub = events.NewWebSocketEventHub()
+		e.eventHub = events.NewEventHub()
 	}
 	return e, nil
 }
@@ -690,7 +690,7 @@ func (e *Engine) Shutdown() error {
 	}
 	log.Info().Msg("Successfully shut down game loop.")
 	if e.eventHub != nil {
-		e.eventHub.ShutdownEventHub()
+		e.eventHub.Shutdown()
 	}
 	log.Info().Msg("Closing storage connection.")
 	err := e.redisStorage.Close()

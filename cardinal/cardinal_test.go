@@ -71,7 +71,7 @@ func TestNewWorld(t *testing.T) {
 	world, err := cardinal.NewMockWorld()
 	assert.NilError(t, err)
 	assert.Equal(t, string(world.Engine().Namespace()), cardinal.DefaultNamespace)
-	err = world.ShutDown()
+	err = world.Shutdown()
 	assert.NilError(t, err)
 }
 
@@ -80,7 +80,7 @@ func TestNewWorldWithCustomNamespace(t *testing.T) {
 	world, err := cardinal.NewMockWorld()
 	assert.NilError(t, err)
 	assert.Equal(t, string(world.Engine().Namespace()), "custom-namespace")
-	err = world.ShutDown()
+	err = world.Shutdown()
 	assert.NilError(t, err)
 }
 

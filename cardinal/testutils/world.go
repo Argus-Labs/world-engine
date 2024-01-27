@@ -18,7 +18,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/events"
 )
 
 // TestFixture is a helper struct that manages a cardinal.World instance. It will automatically clean up its resources
@@ -27,11 +26,10 @@ type TestFixture struct {
 	testing.TB
 
 	// Base url is something like "localhost:5050". You must attach http:// or ws:// as well as a resource path
-	BaseURL  string
-	Redis    *miniredis.Miniredis
-	World    *cardinal.World
-	Engine   *ecs.Engine
-	EventHub events.EventHub
+	BaseURL string
+	Redis   *miniredis.Miniredis
+	World   *cardinal.World
+	Engine  *ecs.Engine
 
 	startTickCh chan time.Time
 	doneTickCh  chan uint64
@@ -56,14 +54,11 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 	t.Setenv("CARDINAL_EVM_PORT", evmPort)
 
 	startTickCh, doneTickCh := make(chan time.Time), make(chan uint64)
-	eventHub := events.NewWebSocketEventHub()
-	t.Cleanup(eventHub.ShutdownEventHub)
 
 	defaultOpts := []cardinal.WorldOption{
 		cardinal.WithCustomMockRedis(miniRedis),
 		cardinal.WithTickChannel(startTickCh),
 		cardinal.WithTickDoneChannel(doneTickCh),
-		cardinal.WithEventHub(eventHub),
 		cardinal.WithPort(cardinalPort),
 	}
 
@@ -74,12 +69,11 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 	assert.NilError(t, err)
 
 	testFixture := &TestFixture{
-		TB:       t,
-		BaseURL:  "localhost:" + cardinalPort,
-		Redis:    miniRedis,
-		World:    world,
-		Engine:   world.Engine(),
-		EventHub: eventHub,
+		TB:      t,
+		BaseURL: "localhost:" + cardinalPort,
+		Redis:   miniRedis,
+		World:   world,
+		Engine:  world.Engine(),
 
 		startTickCh: startTickCh,
 		doneTickCh:  doneTickCh,
@@ -91,7 +85,7 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 				for range doneTickCh { //nolint:revive // This pattern drains the channel until closed
 				}
 			}()
-			assert.NilError(t, world.ShutDown())
+			assert.NilError(t, world.Shutdown())
 		},
 	}
 
@@ -157,7 +151,8 @@ func (t *TestFixture) Post(path string, payload any) *http.Response {
 
 // Get executes a http GET request to this TestFixture's cardinal server.
 func (t *TestFixture) Get(path string) *http.Response {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, t.httpURL(strings.Trim(path, "/")), nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, t.httpURL(strings.Trim(path, "/")),
+		nil)
 	assert.NilError(t, err)
 	resp, err := http.DefaultClient.Do(req)
 	assert.NilError(t, err)

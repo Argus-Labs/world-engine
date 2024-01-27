@@ -94,9 +94,9 @@ func TestSchemaChecking(t *testing.T) {
 	engine2 := cardinalWorld2.Engine()
 	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine2))
 	assert.Assert(t, ecs.RegisterComponent[AlteredEnergyComponent](engine2) != nil)
-	err := cardinalWorld2.ShutDown()
+	err := cardinalWorld2.Shutdown()
 	assert.NilError(t, err)
-	err = cardinalWorld.ShutDown()
+	err = cardinalWorld.Shutdown()
 	assert.NilError(t, err)
 }
 
