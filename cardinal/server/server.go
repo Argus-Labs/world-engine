@@ -2,10 +2,10 @@ package server
 
 import (
 	_ "embed"
-	"github.com/gofiber/contrib/websocket"
 	"os"
 	"sync/atomic"
 
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/rotisserie/eris"
