@@ -33,10 +33,4 @@ var (
 	// Private Key errros
 	ErrNoStorageObjectFound       = errors.New("no storage object found")
 	ErrTooManyStorageObjectsFound = errors.New("too many storage objects found")
-
-	// Allowlist errors
-	ErrNotAllowlisted     = errors.New("this user is not allowlisted")
-	ErrInvalidBetaKey     = errors.New("invalid beta key")
-	ErrBetaKeyAlreadyUsed = errors.New("beta key already used")
-	ErrAlreadyVerified    = errors.New("this user is already verified by an existing beta key")
 )

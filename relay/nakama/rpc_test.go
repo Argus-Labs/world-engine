@@ -1,11 +1,11 @@
-package allowlist
+package main
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
 	"testing"
@@ -28,13 +28,13 @@ func TestAllowList(t *testing.T) {
 }
 
 func (a *AllowListTestSuite) SetupTest() {
-	a.originalAllowListEnabled = allowlistEnabled
-	allowlistEnabled = true
-	a.T().Setenv(allowlistEnabledEnvVar, "")
+	a.originalAllowListEnabled = allowlist.Enabled
+	allowlist.Enabled = true
+	a.T().Setenv(allowlist.EnabledEnvVar, "")
 }
 
 func (a *AllowListTestSuite) TearDownTest() {
-	allowlistEnabled = a.originalAllowListEnabled
+	allowlist.Enabled = a.originalAllowListEnabled
 }
 
 func (a *AllowListTestSuite) TestUserIDRequired() {
@@ -42,8 +42,8 @@ func (a *AllowListTestSuite) TestUserIDRequired() {
 	// This context does not have a user ID.
 	ctx := context.Background()
 
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, nil, "")
-	// claimKeyRPC should fail because the userID cannot be found in the context
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, nil, "")
+	// handleClaimKey should fail because the userID cannot be found in the context
 	assert.IsError(t, err)
 }
 
@@ -59,7 +59,7 @@ func (a *AllowListTestSuite) TestErrorFromStorageIsReturnedToCaller() {
 		Return(nil, errors.New(errorMsg)).
 		Once()
 
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, `{"Key":"beta-key"}`)
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, `{"Key":"beta-key"}`)
 	assert.ErrorContains(t, err, errorMsg)
 }
 
@@ -78,8 +78,8 @@ func (a *AllowListTestSuite) TestCannotClaimASecondBetaKey() {
 		Return(readResponse, nil).
 		Once()
 
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, `{"Key":"some-other-beta-key"}`)
-	assert.ErrorContains(t, err, nakamaerrors.ErrAlreadyVerified.Error())
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, `{"Key":"some-other-beta-key"}`)
+	assert.ErrorContains(t, err, allowlist.ErrAlreadyVerified.Error())
 }
 
 func (a *AllowListTestSuite) TestBadKeyRequestsAreRejected() {
@@ -92,12 +92,12 @@ func (a *AllowListTestSuite) TestBadKeyRequestsAreRejected() {
 		Return(nil, nil).
 		Twice()
 
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, `{"key": ""}`)
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, `{"key": ""}`)
 	// Nakama returns its own custom runtime error which does NOT implement the Is method, making ErrorIs not helpful.
-	assert.ErrorContains(t, err, nakamaerrors.ErrInvalidBetaKey.Error())
+	assert.ErrorContains(t, err, allowlist.ErrInvalidBetaKey.Error())
 
 	badBody := `{"key": "{{{{`
-	_, err = claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, badBody)
+	_, err = handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, badBody)
 	assert.IsError(t, err)
 }
 
@@ -109,15 +109,20 @@ func (a *AllowListTestSuite) TestCanDisableAllowList() {
 		"False",
 	}
 	for _, tc := range testCases {
-		t.Setenv(allowlistEnabledEnvVar, tc)
-		assert.NilError(t, InitAllowlist(nil, nil))
-		assert.Equal(t, false, allowlistEnabled)
+		t.Setenv(allowlist.EnabledEnvVar, tc)
+		assert.NilError(t, initAllowlist(nil, nil))
+		assert.Equal(t, false, allowlist.Enabled)
+		t.Setenv(allowlist.EnabledEnvVar, tc)
+		assert.NilError(t, initAllowlist(nil, nil))
+		assert.Equal(t, false, allowlist.Enabled)
 	}
 }
 
 func (a *AllowListTestSuite) TestRejectBadAllowListFlag() {
-	a.T().Setenv(allowlistEnabledEnvVar, "unclear-boolean-value")
-	assert.IsError(a.T(), InitAllowlist(nil, nil))
+	a.T().Setenv(allowlist.EnabledEnvVar, "unclear-boolean-value")
+	assert.IsError(a.T(), initAllowlist(nil, nil))
+	a.T().Setenv(allowlist.EnabledEnvVar, "unclear-boolean-value")
+	assert.IsError(a.T(), initAllowlist(nil, nil))
 }
 
 func (a *AllowListTestSuite) TestCanEnableAllowList() {
@@ -127,7 +132,7 @@ func (a *AllowListTestSuite) TestCanEnableAllowList() {
 		"T",
 	}
 	for _, tc := range testCases {
-		a.T().Setenv(allowlistEnabledEnvVar, tc)
+		a.T().Setenv(allowlist.EnabledEnvVar, tc)
 		initializer := mocks.NewInitializer(a.T())
 		initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
 			Return(nil)
@@ -135,18 +140,20 @@ func (a *AllowListTestSuite) TestCanEnableAllowList() {
 		initializer.On("RegisterRpc", "claim-key", mock.Anything).
 			Return(nil)
 
-		assert.NilError(a.T(), InitAllowlist(nil, initializer))
-		assert.Equal(a.T(), true, allowlistEnabled)
+		assert.NilError(a.T(), initAllowlist(nil, initializer))
+		assert.Equal(a.T(), true, allowlist.Enabled)
+		assert.NilError(a.T(), initAllowlist(nil, initializer))
+		assert.Equal(a.T(), true, allowlist.Enabled)
 	}
 }
 
 func (a *AllowListTestSuite) TestAllowListFailsIfRPCRegistrationFails() {
-	a.T().Setenv(allowlistEnabledEnvVar, "true")
+	a.T().Setenv(allowlist.EnabledEnvVar, "true")
 	initializer := mocks.NewInitializer(a.T())
 	initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
 		Return(errors.New("failed to register"))
 
-	assert.IsError(a.T(), InitAllowlist(nil, initializer))
+	assert.IsError(a.T(), initAllowlist(nil, initializer))
 
 	initializer = mocks.NewInitializer(a.T())
 	initializer.On("RegisterRpc", "generate-beta-keys", mock.Anything).
@@ -155,7 +162,7 @@ func (a *AllowListTestSuite) TestAllowListFailsIfRPCRegistrationFails() {
 	initializer.On("RegisterRpc", "claim-key", mock.Anything).
 		Return(errors.New("failed to register"))
 
-	assert.IsError(a.T(), InitAllowlist(nil, initializer))
+	assert.IsError(a.T(), initAllowlist(nil, initializer))
 }
 
 func (a *AllowListTestSuite) TestCanHandleBetaKeyGenerationFailures() {
@@ -164,24 +171,24 @@ func (a *AllowListTestSuite) TestCanHandleBetaKeyGenerationFailures() {
 	logger := testutils.NoopLogger(t)
 
 	// No user ID is defined
-	_, err := allowListRPC(ctx, logger, nil, nil, "")
+	_, err := handleGenerateKey(ctx, logger, nil, nil, "")
 	assert.IsError(t, err)
 
 	// Non admin user ID is defined
 	ctx = testutils.CtxWithUserID("some-non-admin-user-id")
-	_, err = allowListRPC(ctx, logger, nil, nil, "")
+	_, err = handleGenerateKey(ctx, logger, nil, nil, "")
 	assert.ErrorContains(t, err, "unauthorized")
 
 	// The GenKeys payload is malformed
 	ctx = testutils.CtxWithUserID(signer.AdminAccountID)
-	_, err = allowListRPC(ctx, logger, nil, nil, `{"bad-payload":{{{{`)
+	_, err = handleGenerateKey(ctx, logger, nil, nil, `{"bad-payload":{{{{`)
 	assert.IsError(t, err)
 
 	nk := mocks.NewNakamaModule(t)
 	errMsg := "storage write failure"
 	nk.On("StorageWrite", mock.Anything, mock.Anything).
 		Return(nil, errors.New(errMsg))
-	_, err = allowListRPC(ctx, logger, nil, nk, `{"amount":10}`)
+	_, err = handleGenerateKey(ctx, logger, nil, nk, `{"amount":10}`)
 	assert.ErrorContains(t, err, errMsg)
 }
 
@@ -205,7 +212,7 @@ func (a *AllowListTestSuite) TestCanAddBetaKeys() {
 	})).Return(nil, nil)
 
 	payload := fmt.Sprintf(`{"amount":%d}`, numOfKeysToGenerate)
-	resp, err := allowListRPC(ctx, testutils.NoopLogger(t), nil, nk, payload)
+	resp, err := handleGenerateKey(ctx, testutils.NoopLogger(t), nil, nk, payload)
 	assert.NilError(t, err)
 
 	// Make sure the beta keys were included in the response
@@ -237,7 +244,7 @@ func (a *AllowListTestSuite) TestCanClaimBetaKey() {
 
 	// First call is to check if the user already has a beta key
 	mockNK.On("StorageRead",
-		testutils.AnyContext, testutils.MockMatchStoreRead(allowedUsers, userID, signer.AdminAccountID)).
+		testutils.AnyContext, testutils.MockMatchStoreRead(allowlist.AllowedUsers, userID, signer.AdminAccountID)).
 		// No storageObject objects signals that this user has not yet claimed a beta key
 		Return(nil, nil).
 		Once()
@@ -253,25 +260,25 @@ func (a *AllowListTestSuite) TestCanClaimBetaKey() {
 
 	// Second call is to see if the beta key is valid
 	mockNK.On("StorageRead", testutils.AnyContext,
-		testutils.MockMatchStoreRead(allowlistKeyCollection, validBetaKey, signer.AdminAccountID)).
+		testutils.MockMatchStoreRead(allowlist.KeyCollection, validBetaKey, signer.AdminAccountID)).
 		Return(betaKeyReadReturnVal, nil).
 		Once()
 
 	// Third call is to update the beta key to mark it as used
 	mockNK.On("StorageWrite", testutils.AnyContext,
-		testutils.MockMatchStoreWrite(allowlistKeyCollection, validBetaKey, signer.AdminAccountID)).
+		testutils.MockMatchStoreWrite(allowlist.KeyCollection, validBetaKey, signer.AdminAccountID)).
 		Return(nil, nil).
 		Once()
 
 	// Fourth call is to save the newly validated user into the DB
 	mockNK.On("StorageWrite", testutils.AnyContext,
-		testutils.MockMatchStoreWrite(allowedUsers, "", signer.AdminAccountID)).
+		testutils.MockMatchStoreWrite(allowlist.AllowedUsers, "", signer.AdminAccountID)).
 		Return(nil, nil).
 		Once()
 
 	payload := fmt.Sprintf(`{"key":"%s"}`, betaKeyToUse)
 
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, payload)
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, payload)
 	assert.NilError(t, err)
 }
 
@@ -296,6 +303,6 @@ func (a *AllowListTestSuite) TestClaimedBetaKeyCannotBeReclaimed() {
 		Once()
 
 	payload := `{"key": "xyzzy"}`
-	_, err := claimKeyRPC(ctx, testutils.NoopLogger(t), nil, mockNK, payload)
-	assert.ErrorContains(t, err, nakamaerrors.ErrBetaKeyAlreadyUsed.Error())
+	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, payload)
+	assert.ErrorContains(t, err, allowlist.ErrBetaKeyAlreadyUsed.Error())
 }

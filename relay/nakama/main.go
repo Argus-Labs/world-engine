@@ -5,19 +5,15 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"io"
-	"net/http"
 	"os"
-	"strings"
-	"sync"
-
-	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
+	"strings"
+	"sync"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -83,7 +79,7 @@ func InitModule(
 		return eris.Wrap(err, "failed to init cardinal endpoints")
 	}
 
-	if err := allowlist.InitAllowlist(logger, initializer); err != nil {
+	if err := initAllowlist(logger, initializer); err != nil {
 		return eris.Wrap(err, "failed to init allowlist endpoints")
 	}
 
@@ -168,152 +164,12 @@ func initPersonaTagAssignmentMap(
 	return nil
 }
 
-// initPersonaEndpoints sets up the nakame RPC endpoints that are used to claim a persona tag and display a persona tag.
-func initPersonaTagEndpoints(
-	_ runtime.Logger,
-	initializer runtime.Initializer,
-	ptv *persona.Verifier,
-	notifier *receipt.Notifier) error {
-	if err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(ptv, notifier)); err != nil {
-		return eris.Wrap(err, "")
-	}
-	return eris.Wrap(initializer.RegisterRpc("nakama/show-persona", handleShowPersona), "")
-}
-
-// nakamaRPCHandler is the signature required for handlers that are passed to Nakama's RegisterRpc method.
-// This type is defined just to make the function below a little more readable.
-type nakamaRPCHandler func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule,
-	payload string) (string, error)
-
-// handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
-//
-//nolint:gocognit
-func handleClaimPersona(ptv *persona.Verifier, notifier *receipt.Notifier) nakamaRPCHandler {
-	return func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (
-		string, error) {
-		userID, err := utils.GetUserID(ctx)
-		if err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get userID")
-		}
-
-		// check if the user is verified. this requires them to input a valid beta key.
-		if verified, err := allowlist.IsUserVerified(ctx, nk, userID); err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to claim persona tag")
-		} else if !verified {
-			return utils.LogDebugWithMessageAndCode(
-				logger,
-				nakamaerrors.ErrNotAllowlisted,
-				nakamaerrors.AlreadyExists,
-				"unable to claim persona tag")
-		}
-
-		ptr := &persona.StorageObj{}
-		if err := json.Unmarshal([]byte(payload), ptr); err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "unable to marshal payload")
-		}
-		if ptr.PersonaTag == "" {
-			return utils.LogErrorWithMessageAndCode(
-				logger,
-				eris.New("personaTag field was empty"),
-				nakamaerrors.InvalidArgument,
-				"personaTag field must not be empty",
-			)
-		}
-
-		tag, err := persona.LoadPersonaTagStorageObj(ctx, nk)
-		if err != nil {
-			if !errors.Is(err, nakamaerrors.ErrPersonaTagStorageObjNotFound) {
-				return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
-			}
-		} else {
-			switch tag.Status {
-			case persona.StatusPending:
-				return utils.LogDebugWithMessageAndCode(
-					logger,
-					eris.Errorf("persona tag %q is pending for this account", tag.PersonaTag),
-					nakamaerrors.AlreadyExists,
-					"persona tag %q is pending", tag.PersonaTag,
-				)
-			case persona.StatusAccepted:
-				return utils.LogErrorWithMessageAndCode(
-					logger,
-					eris.Errorf("persona tag %q already associated with this account", tag.PersonaTag),
-					nakamaerrors.AlreadyExists,
-					"persona tag %q already associated with this account",
-					tag.PersonaTag)
-			case persona.StatusRejected:
-				// if the tag was rejected, don't do anything. let the user try to claim another tag.
-			}
-		}
-
-		txHash, tick, err := persona.CardinalCreatePersona(ctx, nk, ptr.PersonaTag, globalCardinalAddress, globalNamespace)
-		if err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make create persona request to cardinal")
-		}
-		notifier.AddTxHashToPendingNotifications(txHash, userID)
-
-		ptr.Status = persona.StatusPending
-		if err = ptr.SavePersonaTagStorageObj(ctx, nk); err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
-		}
-
-		// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
-		// user having the persona tag.
-		if ok := setPersonaTagAssignment(ptr.PersonaTag, userID); !ok {
-			ptr.Status = persona.StatusRejected
-			if err = ptr.SavePersonaTagStorageObj(ctx, nk); err != nil {
-				return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
-			}
-			return utils.LogErrorWithMessageAndCode(
-				logger,
-				eris.Errorf("persona tag %q is not available", ptr.PersonaTag),
-				nakamaerrors.AlreadyExists,
-				"persona tag %q is not available",
-				ptr.PersonaTag)
-		}
-
-		ptr.Tick = tick
-		ptr.TxHash = txHash
-		if err = ptr.SavePersonaTagStorageObj(ctx, nk); err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to save persona tag storage object")
-		}
-		ptv.AddPendingPersonaTag(userID, ptr.TxHash)
-		res, err := ptr.ToJSON()
-		if err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to marshal response")
-		}
-		return res, nil
-	}
-}
-
-func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string,
-) (string, error) {
-	ptr, err := persona.LoadPersonaTagStorageObj(ctx, nk)
-	if err != nil {
-		if eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaTagStorageObjNotFound) {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "no persona tag found")
-		}
-		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
-	}
-	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, globalCardinalAddress)
-	if err != nil {
-		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to update pending state")
-	}
-	res, err := ptr.ToJSON()
-	if err != nil {
-		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to marshal response")
-	}
-	return res, nil
-}
-
 // initCardinalEndpoints queries the cardinal server to find the list of existing endpoints, and attempts to
 // set up RPC wrappers around each one.
-//
-//nolint:gocognit,funlen // its fine.
 func initCardinalEndpoints(
 	logger runtime.Logger,
 	initializer runtime.Initializer,
-	notify *receipt.Notifier,
+	notifier *receipt.Notifier,
 ) error {
 	txEndpoints, queryEndpoints, err := getCardinalEndpoints()
 	if err != nil {
@@ -345,84 +201,11 @@ func initCardinalEndpoints(
 		return formattedPayloadBuffer, nil
 	}
 
-	registerEndpoints := func(endpoints []string, createPayload func(string, string, runtime.NakamaModule,
-		context.Context) (io.Reader, error)) error {
-		for _, e := range endpoints {
-			logger.Debug("registering: %v", e)
-			currEndpoint := e
-			if currEndpoint[0] == '/' {
-				currEndpoint = currEndpoint[1:]
-			}
-			err = initializer.RegisterRpc(currEndpoint, func(ctx context.Context, logger runtime.Logger, db *sql.DB,
-				nk runtime.NakamaModule, payload string) (string, error) {
-				logger.Debug("Got request for %q", currEndpoint)
-				var resultPayload io.Reader
-				resultPayload, err = createPayload(payload, currEndpoint, nk, ctx)
-				if err != nil {
-					return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make payload")
-				}
-
-				req, err := http.NewRequestWithContext(
-					ctx,
-					http.MethodPost,
-					utils.MakeHTTPURL(currEndpoint, globalCardinalAddress),
-					resultPayload,
-				)
-				req.Header.Set("Content-Type", "application/json")
-				if err != nil {
-					return utils.LogErrorMessageFailedPrecondition(logger, err, "request setup failed for endpoint %q", currEndpoint)
-				}
-				resp, err := http.DefaultClient.Do(req)
-				if err != nil {
-					return utils.LogErrorMessageFailedPrecondition(logger, err, "request failed for endpoint %q", currEndpoint)
-				}
-				defer resp.Body.Close()
-				if resp.StatusCode != http.StatusOK {
-					body, err := io.ReadAll(resp.Body)
-					if err != nil {
-						return utils.LogErrorMessageFailedPrecondition(
-							logger,
-							eris.Wrap(err, "failed to read response body"),
-							"bad status code: %s: %s", resp.Status, body,
-						)
-					}
-					return utils.LogErrorMessageFailedPrecondition(
-						logger,
-						eris.Errorf("bad status code %d", resp.StatusCode),
-						"bad status code: %s: %s", resp.Status, body,
-					)
-				}
-				bz, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return utils.LogErrorMessageFailedPrecondition(logger, err, "can't read body")
-				}
-				if strings.HasPrefix(currEndpoint, TransactionEndpointPrefix) {
-					var asTx persona.TxResponse
-
-					if err = json.Unmarshal(bz, &asTx); err != nil {
-						return utils.LogErrorMessageFailedPrecondition(logger, err, "can't decode body as tx response")
-					}
-					userID, err := utils.GetUserID(ctx)
-					if err != nil {
-						return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get user id")
-					}
-					notify.AddTxHashToPendingNotifications(asTx.TxHash, userID)
-				}
-
-				return string(bz), nil
-			})
-			if err != nil {
-				return eris.Wrap(err, "")
-			}
-		}
-		return nil
-	}
-
-	err = registerEndpoints(txEndpoints, createTransaction)
+	err = registerEndpoints(logger, initializer, notifier, txEndpoints, createTransaction)
 	if err != nil {
 		return err
 	}
-	err = registerEndpoints(queryEndpoints, createUnsignedTransaction)
+	err = registerEndpoints(logger, initializer, notifier, queryEndpoints, createUnsignedTransaction)
 	if err != nil {
 		return err
 	}

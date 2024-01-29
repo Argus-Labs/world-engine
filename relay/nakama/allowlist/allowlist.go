@@ -3,53 +3,30 @@ package allowlist
 import (
 	"context"
 	"crypto/rand"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"os"
-	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"strings"
+
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
-	"strconv"
-	"strings"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 )
 
 var (
-	allowlistEnabledEnvVar = "ENABLE_ALLOWLIST"
-	allowlistEnabled       = false
-	allowlistKeyCollection = "allowlist_keys_collection"
-	allowedUsers           = "allowed_users"
+	EnabledEnvVar = "ENABLE_ALLOWLIST"
+	Enabled       = false
+	KeyCollection = "allowlist_keys_collection"
+	AllowedUsers  = "allowed_users"
+
+	ErrNotAllowlisted     = errors.New("this user is not allowlisted")
+	ErrInvalidBetaKey     = errors.New("invalid beta key")
+	ErrBetaKeyAlreadyUsed = errors.New("beta key already used")
+	ErrAlreadyVerified    = errors.New("this user is already verified by an existing beta key")
 )
-
-func InitAllowlist(_ runtime.Logger, initializer runtime.Initializer) error {
-	enabledStr := os.Getenv(allowlistEnabledEnvVar)
-	if enabledStr == "" {
-		return nil
-	}
-	var err error
-	allowlistEnabled, err = strconv.ParseBool(enabledStr)
-	if err != nil {
-		return eris.Wrapf(err, "the ENABLE_ALLOWLIST flag was set, however the variable %q was an invalid ", enabledStr)
-	}
-
-	if !allowlistEnabled {
-		return nil
-	}
-	err = initializer.RegisterRpc("generate-beta-keys", allowListRPC)
-	if err != nil {
-		return eris.Wrap(err, "failed to register rpc")
-	}
-
-	err = initializer.RegisterRpc("claim-key", claimKeyRPC)
-	if err != nil {
-		return eris.Wrap(err, "failed to register rpc")
-	}
-	return nil
-}
 
 type GenKeysMsg struct {
 	Amount int `json:"amount"`
@@ -65,69 +42,6 @@ type KeyStorage struct {
 	Used   bool
 }
 
-func allowListRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
-	string, error,
-) {
-	id, err := utils.GetUserID(ctx)
-	if err != nil {
-		return utils.LogErrorFailedPrecondition(logger, err)
-	}
-	if id != signer.AdminAccountID {
-		return utils.LogError(
-			logger,
-			eris.Errorf("unauthorized: only admin may call this RPC"),
-			nakamaerrors.PermissionDenied,
-		)
-	}
-
-	var msg GenKeysMsg
-	err = json.Unmarshal([]byte(payload), &msg)
-	if err != nil {
-		return utils.LogError(
-			logger,
-			eris.Wrap(err, `error unmarshalling payload: expected form {"amount": <int>}`),
-			nakamaerrors.InvalidArgument)
-	}
-
-	keys, err := generateBetaKeys(msg.Amount)
-	if err != nil {
-		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "error generating beta keys"))
-	}
-
-	writes := make([]*runtime.StorageWrite, 0, len(keys))
-	for _, key := range keys {
-		obj := KeyStorage{
-			Key:    key,
-			UsedBy: "",
-			Used:   false,
-		}
-		bz, err := json.Marshal(obj)
-		if err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to marshal generated key")
-		}
-		writes = append(writes, &runtime.StorageWrite{
-			Collection:      allowlistKeyCollection,
-			Key:             key,
-			UserID:          id,
-			Value:           string(bz),
-			Version:         "",
-			PermissionRead:  runtime.STORAGE_PERMISSION_NO_READ,
-			PermissionWrite: runtime.STORAGE_PERMISSION_NO_WRITE,
-		})
-	}
-
-	_, err = nk.StorageWrite(ctx, writes)
-	if err != nil {
-		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "error writing keys to storage"))
-	}
-
-	response, err := json.Marshal(GenKeysResponse{Keys: keys})
-	if err != nil {
-		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, ""))
-	}
-	return string(response), nil
-}
-
 type ClaimKeyMsg struct {
 	Key string `json:"key"`
 }
@@ -136,65 +50,7 @@ type ClaimKeyRes struct {
 	Success bool `json:"success"`
 }
 
-func claimKeyRPC(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
-	string, error,
-) {
-	userID, err := utils.GetUserID(ctx)
-	if err != nil {
-		return utils.LogErrorWithMessageAndCode(logger, err, nakamaerrors.NotFound, "unable to get userID: %v", err)
-	}
-
-	if verified, err := IsUserVerified(ctx, nk, userID); err != nil {
-		return utils.LogErrorMessageFailedPrecondition(logger, err, "failed to check beta key status")
-	} else if verified {
-		msg := fmt.Sprintf("user %q already verified with a beta key", userID)
-		return utils.LogErrorWithMessageAndCode(logger, nakamaerrors.ErrAlreadyVerified, nakamaerrors.AlreadyExists, msg)
-	}
-
-	var ck ClaimKeyMsg
-	err = json.Unmarshal([]byte(payload), &ck)
-	if err != nil {
-		return utils.LogErrorWithMessageAndCode(
-			logger,
-			err,
-			nakamaerrors.InvalidArgument,
-			"unable to unmarshal payload: %v",
-			err)
-	}
-	if ck.Key == "" {
-		return utils.LogErrorWithMessageAndCode(
-			logger,
-			nakamaerrors.ErrInvalidBetaKey,
-			nakamaerrors.InvalidArgument,
-			"no key provided in request")
-	}
-	ck.Key = strings.ToUpper(ck.Key)
-	err = claimKey(ctx, nk, ck.Key, userID)
-	if err != nil {
-		return utils.LogErrorWithMessageAndCode(
-			logger,
-			err,
-			nakamaerrors.InvalidArgument,
-			fmt.Sprintf("unable to claim key: %v", err))
-	}
-	err = writeVerified(ctx, nk, userID)
-	if err != nil {
-		return utils.LogErrorWithMessageAndCode(
-			logger,
-			err,
-			nakamaerrors.NotFound,
-			fmt.Sprintf("server could not save user verification entry. please "+
-				"try again: %v", err))
-	}
-
-	bz, err := json.Marshal(ClaimKeyRes{Success: true})
-	if err != nil {
-		return utils.LogErrorWithMessageAndCode(logger, err, nakamaerrors.NotFound, "unable to marshal response: %v", err)
-	}
-	return string(bz), nil
-}
-
-func writeVerified(ctx context.Context, nk runtime.NakamaModule, userID string) error {
+func WriteVerified(ctx context.Context, nk runtime.NakamaModule, userID string) error {
 	type verified struct {
 	}
 	bz, err := json.Marshal(verified{})
@@ -203,7 +59,7 @@ func writeVerified(ctx context.Context, nk runtime.NakamaModule, userID string) 
 	}
 	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{
 		{
-			Collection:      allowedUsers,
+			Collection:      AllowedUsers,
 			Key:             userID,
 			UserID:          signer.AdminAccountID,
 			Value:           string(bz),
@@ -217,13 +73,13 @@ func writeVerified(ctx context.Context, nk runtime.NakamaModule, userID string) 
 
 // IsUserVerified returns true if the user has registered a beta key and false if they have not registered a beta key.
 func IsUserVerified(ctx context.Context, nk runtime.NakamaModule, userID string) (verified bool, err error) {
-	if !allowlistEnabled {
+	if !Enabled {
 		// When allowlist is disabled, treat all users as if they were on the allowlist
 		return true, nil
 	}
 	objs, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{
-			Collection: allowedUsers,
+			Collection: AllowedUsers,
 			Key:        userID,
 			UserID:     signer.AdminAccountID,
 		},
@@ -240,7 +96,7 @@ func IsUserVerified(ctx context.Context, nk runtime.NakamaModule, userID string)
 func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStorage, error) {
 	objs, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{
-			Collection: allowlistKeyCollection,
+			Collection: KeyCollection,
 			Key:        key,
 			UserID:     signer.AdminAccountID,
 		},
@@ -249,7 +105,7 @@ func readKey(ctx context.Context, nk runtime.NakamaModule, key string) (*KeyStor
 		return nil, eris.Wrap(err, "error reading storage object for key")
 	}
 	if len(objs) == 0 {
-		return nil, eris.Wrap(nakamaerrors.ErrInvalidBetaKey, "")
+		return nil, eris.Wrap(ErrInvalidBetaKey, "")
 	}
 
 	obj := objs[0]
@@ -268,7 +124,7 @@ func writeKey(ctx context.Context, nk runtime.NakamaModule, ks *KeyStorage) erro
 	}
 	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{
 		{
-			Collection:      allowlistKeyCollection,
+			Collection:      KeyCollection,
 			Key:             ks.Key,
 			UserID:          signer.AdminAccountID,
 			Value:           string(bz),
@@ -283,23 +139,39 @@ func writeKey(ctx context.Context, nk runtime.NakamaModule, ks *KeyStorage) erro
 	return nil
 }
 
-func claimKey(ctx context.Context, nk runtime.NakamaModule, key, userID string) error {
-	ks, err := readKey(ctx, nk, key)
+func ClaimKey(ctx context.Context, nk runtime.NakamaModule, claimKeyMsg ClaimKeyMsg) (res ClaimKeyRes, err error) {
+	userID, err := utils.GetUserID(ctx)
 	if err != nil {
-		return err
+		return res, eris.Wrap(err, "failed to claim key")
+	}
+	if claimKeyMsg.Key == "" {
+		return res, ErrInvalidBetaKey
+	}
+	verified, err := IsUserVerified(ctx, nk, userID)
+	if err != nil {
+		return res, eris.Wrap(err, "failed to check if user is validated")
+	}
+	if verified {
+		return res, eris.Wrap(ErrAlreadyVerified, "")
+	}
+	claimKeyMsg.Key = strings.ToUpper(claimKeyMsg.Key)
+
+	ks, err := readKey(ctx, nk, claimKeyMsg.Key)
+	if err != nil {
+		return res, err
 	}
 	if ks.Used {
-		return eris.Wrapf(nakamaerrors.ErrBetaKeyAlreadyUsed, "user %q was unable to claim %q", userID, key)
+		return res, eris.Wrapf(ErrBetaKeyAlreadyUsed, "user %q was unable to claim %q", userID, claimKeyMsg.Key)
 	}
 	ks.Used = true
 	ks.UsedBy = userID
 
 	err = writeKey(ctx, nk, ks)
 	if err != nil {
-		return err
+		return res, err
 	}
 
-	return nil
+	return ClaimKeyRes{true}, nil
 }
 
 func generateRandomBytes(n int) ([]byte, error) {
@@ -311,7 +183,7 @@ func generateRandomBytes(n int) ([]byte, error) {
 	return bytes, nil
 }
 
-func generateBetaKeys(n int) ([]string, error) {
+func GenerateBetaKeys(n int) ([]string, error) {
 	const bzLen = 16
 	keys := make([]string, 0, n)
 	for i := 0; i < n; i++ {
