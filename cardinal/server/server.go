@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/swagger"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
+
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -19,7 +20,7 @@ const (
 	DefaultPort = "4040"
 )
 
-type Config struct {
+type config struct {
 	port                            string
 	isSignatureVerificationDisabled bool
 	isSwaggerDisabled               bool
@@ -27,7 +28,7 @@ type Config struct {
 
 type Server struct {
 	app       *fiber.App
-	config    Config
+	config    config
 	isRunning atomic.Bool
 }
 
@@ -36,7 +37,7 @@ func New(engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), opts ...
 	app := fiber.New()
 	s := &Server{
 		app: app,
-		config: Config{
+		config: config{
 			port:                            DefaultPort,
 			isSignatureVerificationDisabled: false,
 			isSwaggerDisabled:               false,
@@ -95,7 +96,7 @@ func (s *Server) Shutdown() error {
 // @BasePath		/
 // @consumes		application/json
 // @produces		application/json
-func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), cfg Config) {
+func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), cfg config) {
 	// TODO(scott): we should refactor this such that we only dependency inject these maps
 	//  instead of having to dependency inject the entire engine.
 	// /query/:group/:queryType
