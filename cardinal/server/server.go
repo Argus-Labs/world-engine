@@ -125,8 +125,6 @@ func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *w
 		msgs[msg.Group()][msg.Name()] = msg
 	}
 
-	// Route: /swagger/
-
 	// Route: /events/
 	app.Use("/events", handler.WebSocketUpgrader)
 	app.Get("/events", handler.WebSocketEvents(wsEventHandler))
