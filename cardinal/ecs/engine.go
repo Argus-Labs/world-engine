@@ -28,8 +28,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/message"
-	"pkg.world.dev/world-engine/evm/x/shard/types"
-	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -552,24 +550,6 @@ func (e *Engine) Shutdown() error {
 		e.router.Shutdown()
 	}
 	return nil
-}
-
-// recoverGameState checks the status of the last game tick. If the tick was incomplete (indicating
-// a problem when running one of the Systems), the snapshotted state is recovered and the pending
-// transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
-// transactions that need to be processed because the last tick was successful.
-func (e *Engine) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
-	start, end, err := e.TickStore().GetTickNumbers()
-	if err != nil {
-		return nil, err
-	}
-	e.tick.Store(end)
-	// We successfully completed the last tick. Everything is fine
-	if start == end {
-		//nolint:nilnil // its ok.
-		return nil, nil
-	}
-	return e.TickStore().Recover(e.msgManager.GetRegisteredMessages())
 }
 
 func (e *Engine) LoadGameState() error {
