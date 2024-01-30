@@ -14,6 +14,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/types/message"
+
+	_ "pkg.world.dev/world-engine/cardinal/server/docs"
 )
 
 const (
