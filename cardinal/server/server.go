@@ -48,13 +48,6 @@ func New(engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), opts ...
 
 	// Enable CORS
 	app.Use(cors.New())
-	//	@title			Cardinal
-	//	@description	Backend server for World Engine
-	//	@version		0.0.1
-	//	@schemes		http ws
-	//	@BasePath		/
-	//	@consumes		application/json
-	//	@produces		application/json
 	setupRoutes(app, engine, wsEventHandler, s.config)
 
 	if !s.config.isSwaggerDisabled {
@@ -95,6 +88,13 @@ func (s *Server) Shutdown() error {
 	return s.app.Shutdown()
 }
 
+// @title			Cardinal
+// @description	Backend server for World Engine
+// @version		0.0.1
+// @schemes		http ws
+// @BasePath		/
+// @consumes		application/json
+// @produces		application/json
 func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), cfg Config) {
 	// TODO(scott): we should refactor this such that we only dependency inject these maps
 	//  instead of having to dependency inject the entire engine.
