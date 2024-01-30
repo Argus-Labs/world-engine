@@ -8,13 +8,14 @@ import (
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/swagger"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
-	fiberSwagger "github.com/swaggo/fiber-swagger"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/types/message"
+	_ "pkgs.world.dev/world-engine/docs"
 )
 
 const (
@@ -102,7 +103,7 @@ func (s *Server) Shutdown() error {
 }
 
 func setupSwaggerRoutes(app *fiber.App) error {
-	app.Get("/swagger/*", fiberSwagger.WrapHandler)
+
 	return nil
 }
 
@@ -134,6 +135,9 @@ func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *w
 		}
 		msgs[msg.Group()][msg.Name()] = msg
 	}
+
+	// Route: /swagger/
+	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	// Route: /events/
 	app.Use("/events", handler.WebSocketUpgrader)

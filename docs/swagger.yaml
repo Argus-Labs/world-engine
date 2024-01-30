@@ -140,7 +140,7 @@ paths:
             $ref: '#/definitions/handler.GetHealthResponse'
       summary: Get information on status of world-engine
   /query/debug/state:
-    get:
+    post:
       description: Displays the entire game state.
       produces:
       - application/json
@@ -202,7 +202,7 @@ paths:
             $ref: '#/definitions/ecs.CQLQueryResponse'
       summary: Query the ecs with CQL (cardinal query language)
   /query/http/endpoints:
-    post:
+    get:
       consumes:
       - application/json
       description: Get all http endpoints from cardinal
@@ -286,12 +286,6 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/handler.Transaction'
-      - description: Transaction details
-        in: body
-        name: txBody
-        required: true
-        schema:
-          $ref: '#/definitions/handler.Transaction'
       produces:
       - application/json
       - application/json
@@ -314,12 +308,6 @@ paths:
         Submit a transaction to Cardinal
         Create a Persona transaction to Cardinal
       parameters:
-      - description: Transaction details
-        in: body
-        name: txBody
-        required: true
-        schema:
-          $ref: '#/definitions/handler.Transaction'
       - description: Transaction details
         in: body
         name: txBody

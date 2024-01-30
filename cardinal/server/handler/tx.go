@@ -32,21 +32,21 @@ type Transaction = sign.Transaction
 //	@Description	Submit a transaction to Cardinal
 //	@Accept			application/json
 //	@Produce		application/json
-//	@Param			txType	path		string		true	"label of the transaction that wants to be submitted"
-//	@Param			txBody	body		Transaction	true	"Transaction details"
+//	@Param			txType	path		string	true	"label of the transaction that wants to be submitted"
 //	@Success		200		{object}	PostTransactionResponse
 //	@Failure		400		{string}	string	"Invalid transaction request"
 //	@Router			/tx/game/{txType} [post]
 //
 // PostTransaction with Persona godoc
-// @Summary Create a Persona transaction to Cardinal
-// @Description Create a Persona transaction to Cardinal
-// @Accept application/json
-// @Produce application/json
-// @Param txBody body Transaction true "Transaction details"
-// @Success 200 {object} PostTransactionResponse
-// @Failure 400 {string} string "Invalid transaction request"
-// @Router /tx/persona/create-persona [post]
+//
+//	@Summary		Create a Persona transaction to Cardinal
+//	@Description	Create a Persona transaction to Cardinal
+//	@Accept			application/json
+//	@Produce		application/json
+//	@Param			txBody	body		Transaction	true	"Transaction details"
+//	@Success		200		{object}	PostTransactionResponse
+//	@Failure		400		{string}	string	"Invalid transaction request"
+//	@Router			/tx/persona/create-persona [post]
 //
 //nolint:gocognit
 func PostTransaction(

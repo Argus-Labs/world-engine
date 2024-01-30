@@ -24,7 +24,7 @@ type DebugStateResponse []*debugStateElement
 //	@Description	Displays the entire game state.
 //	@Produce		application/json
 //	@Success		200	{object}	DebugStateResponse
-//	@Router			/query/debug/state [get]
+//	@Router			/query/debug/state [post]
 func queryDebugState(ctx EngineContext, _ *DebugRequest) (*DebugStateResponse, error) {
 	result := make(DebugStateResponse, 0)
 	search := NewSearch(filter.All())

@@ -47,7 +47,7 @@
             }
         },
         "/query/debug/state": {
-            "get": {
+            "post": {
                 "description": "Displays the entire game state.",
                 "produces": [
                     "application/json"
@@ -142,7 +142,7 @@
             }
         },
         "/query/http/endpoints": {
-            "post": {
+            "get": {
                 "description": "Get all http endpoints from cardinal",
                 "consumes": [
                     "application/json"
@@ -269,15 +269,6 @@
                         "schema": {
                             "$ref": "#/definitions/handler.Transaction"
                         }
-                    },
-                    {
-                        "description": "Transaction details",
-                        "name": "txBody",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.Transaction"
-                        }
                     }
                 ],
                 "responses": {
@@ -309,15 +300,6 @@
                 ],
                 "summary": "Create a Persona transaction to Cardinal",
                 "parameters": [
-                    {
-                        "description": "Transaction details",
-                        "name": "txBody",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handler.Transaction"
-                        }
-                    },
                     {
                         "description": "Transaction details",
                         "name": "txBody",

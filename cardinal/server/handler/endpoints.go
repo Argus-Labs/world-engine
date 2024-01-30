@@ -20,7 +20,7 @@ type GetEndpointsResponse struct {
 //	@Produce		application/json
 //	@Success		200	{object}	GetEndpointsResponse	"list of query endpoints"
 //	@Failure		400	{string}	string					"Invalid query request"
-//	@Router			/query/http/endpoints [post]
+//	@Router			/query/http/endpoints [get]
 func GetEndpoints(
 	msgs map[string]map[string]message.Message, queries map[string]map[string]ecs.Query,
 ) func(*fiber.Ctx) error {

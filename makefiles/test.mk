@@ -39,3 +39,10 @@ unit-test-all:
 	$(MAKE) unit-test evm
 	$(MAKE) unit-test sign
 	$(MAKE) unit-test relay/nakama
+
+#################
+#   swagger	    #
+#################
+swagger:
+	swag init -g cardinal/server/server.go
+
