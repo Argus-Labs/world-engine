@@ -9,12 +9,12 @@ import (
 
 func RegisterComponent[T component.Component](engine *Engine) error {
 	if engine.EngineState != EngineStateInit {
-		panic("cannot register components after loading game state")
+		return eris.New("cannot register components after loading game state")
 	}
 	var t T
 	_, err := engine.GetComponentByName(t.Name())
 	if err == nil {
-		return eris.Errorf("component with name '%s' is already registered", t.Name())
+		return eris.Errorf("component %q is already registered", t.Name())
 	}
 	c, err := component.NewComponentMetadata[T]()
 	if err != nil {
@@ -24,6 +24,7 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 	if err != nil {
 		return err
 	}
+	engine.nextComponentID++
 	engine.registeredComponents = append(engine.registeredComponents, c)
 
 	storedSchema, err := engine.redisStorage.GetSchema(c.Name())
@@ -47,7 +48,6 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 	if err != nil {
 		return err
 	}
-	engine.nextComponentID++
 	engine.nameToComponent[t.Name()] = c
 	engine.isComponentsRegistered = true
 	return nil

@@ -3,7 +3,6 @@ package message_test
 import (
 	"context"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs/messages"
 	"testing"
 	"time"
 
@@ -425,10 +424,10 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	type OtherMsg struct {
 		Alpha, Beta string
 	}
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 	alphaMsg := ecs.NewMessageType[SomeMsg, EmptyMsgResult]("name_match")
 	betaMsg := ecs.NewMessageType[OtherMsg, EmptyMsgResult]("name_match")
-	assert.ErrorIs(t, engine.RegisterMessages(alphaMsg, betaMsg), msgs.ErrDuplicateMessageName)
+	assert.IsError(t, eng.RegisterMessages(alphaMsg, betaMsg))
 }
 
 func TestCanGetTransactionErrorsAndResults(t *testing.T) {

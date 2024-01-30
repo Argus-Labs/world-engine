@@ -4,12 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
 	"path/filepath"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"reflect"
 	"runtime"
+	"slices"
 	"time"
 )
 
@@ -43,18 +43,22 @@ func New() *Manager {
 // There can only be one system with a given name, which is derived from the function name.
 // If there is a duplicate system name, an error will be returned and none of the systems will be registered.
 func (m *Manager) RegisterSystems(systems ...System) error {
-	systemNames := make([]string, 0, len(systems))
-
 	// Iterate through all the systems and check if they are already registered.
-	// This is done before registering any of the systems to ensure that all systems are registered or none of them are.
+	// This is done before registering any of the systems to ensure that all are registered or none of them are.
+	systemNames := make([]string, 0, len(systems))
 	for _, system := range systems {
 		// Obtain the name of the system function using reflection.
 		systemName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
 
+		// Check for duplicate system names within the list of systems to be registered
+		if slices.Contains(systemNames, systemName) {
+			return eris.Errorf("duplicate system %q in slice", systemName)
+		}
+
 		// Checks if the system is already previously registered.
 		// This will terminate the registration of all systems if any of them are already registered.
-		if err := m.checkDuplicateSystemName(systemName); err != nil {
-			return eris.Wrap(err, "failed to register system")
+		if err := m.isNotDuplicate(systemName); err != nil {
+			return err
 		}
 
 		// If the system is not already registered, add it to the list of system names.
@@ -79,7 +83,6 @@ func (m *Manager) RegisterInitSystem(system System) {
 // RunSystems runs all the registered system in the order that they were registered.
 func (m *Manager) RunSystems(eCtx engine.Context) error {
 	allSystemStartTime := time.Now()
-
 	for _, systemName := range m.registeredSystems {
 		// Explicit memory aliasing
 		sysName := systemName
@@ -153,24 +156,10 @@ func (m *Manager) GetCurrentSystem() string {
 	return *m.currentSystem
 }
 
-func (m *Manager) LogSystemsInfo(logEvent *zerolog.Event) *zerolog.Event {
-	// Add the total number of systems to the log
-	logEvent.Int("total_systems", len(m.registeredSystems))
-
-	// Iterate through all the systems and add them to the log as an array
-	logArray := zerolog.Arr()
-	for _, systemName := range m.registeredSystems {
-		logArray.Str(systemName)
-	}
-
-	// Return the log with the array of systems
-	return logEvent.Array("systems", logArray)
-}
-
-// checkDuplicateSystemName checks if the system name already exists in the system map
-func (m *Manager) checkDuplicateSystemName(systemName string) error {
+// isNotDuplicate checks if the system name already exists in the system map
+func (m *Manager) isNotDuplicate(systemName string) error {
 	if _, ok := m.systemFn[systemName]; ok {
-		return fmt.Errorf("system with name %s already exists", systemName)
+		return fmt.Errorf("system %q is already registered", systemName)
 	}
 	return nil
 }

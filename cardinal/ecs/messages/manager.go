@@ -1,13 +1,10 @@
 package msgs
 
 import (
-	"errors"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"slices"
 )
-
-var ErrDuplicateMessageName = errors.New("message names must be unique")
 
 type Manager struct {
 	registeredMessages map[string]message.Message
@@ -21,56 +18,41 @@ func New() *Manager {
 	}
 }
 
-// RegisterMessages registers the list of message.Messages with the Manager. Returns an error if any of the
-// messages have duplicate names.
+// RegisterMessages registers multiple messages with the message manager
+// There can only be one message iwuth a given name, which is declared by the user by implementing the Name() method.
+// If there is a duplicate message name, an error will be returned and none of the messages will be registered.
 func (m *Manager) RegisterMessages(msgs ...message.Message) error {
-	// We check for duplicate message names within the slice and against the map of registered messages.
-	// This ensures that we are registering all messages in the slice, or none of them.
-	seenNames := make([]string, 0, len(msgs))
+	// Iterate through all the messages and check if they are already registered.
+	// This is done before registering any of the messages to ensure that all are registered or none of them are.
+	msgNames := make([]string, 0, len(msgs))
 	for _, msg := range msgs {
-		// Check for duplicate message names against within the slice
-		if slices.Contains(seenNames, msg.Name()) {
-			return eris.Wrapf(ErrDuplicateMessageName, "duplicate tx %q", msg.Name())
+		// Check for duplicate message names within the list of messages to be registered
+		if slices.Contains(msgNames, msg.Name()) {
+			return eris.Errorf("duplicate message %q in slice", msg.Name())
 		}
 
-		// Check for duplicate message names against the map of registere messages
-		done, err := m.isNotDuplicate(msg)
-		if done {
+		// Checks if the message is already previously registered.
+		// This will terminate the registration of all systems if any of them are already registered.
+		if err := m.isNotDuplicate(msg); err != nil {
 			return err
 		}
 
-		seenNames = append(seenNames, msg.Name())
+		// If the message is not already registered, add it to the list of message names.
+		msgNames = append(msgNames, msg.Name())
 	}
 
-	// Register all messages
+	// Iterate through all the systems and register them one by one.
 	for _, msg := range msgs {
-		err := m.registerMessage(msg)
+		// Set ID on message
+		err := msg.SetID(m.nextMessageID)
 		if err != nil {
-			return eris.Wrapf(err, "failed to register message %q", msg.Name())
+			return eris.Errorf("failed to set ID on message %q", msg.Name())
 		}
+
+		// Register message
+		m.registeredMessages[msg.Name()] = msg
+		m.nextMessageID++
 	}
-
-	return nil
-}
-
-// registerMessage registers a message.Message with the Manager. This should not be used directly.
-// Instead, use Manager.RegisterMessages.
-func (m *Manager) registerMessage(msg message.Message) error {
-	// Sanity check: Check for duplicate message names against the map of registered messages
-	_, ok := m.registeredMessages[msg.Name()]
-	if ok {
-		return eris.Wrapf(ErrDuplicateMessageName, "duplicate tx %q", msg.Name())
-	}
-
-	// Set ID on message
-	err := msg.SetID(m.nextMessageID)
-	if err != nil {
-		return err
-	}
-
-	// Register message
-	m.registeredMessages[msg.Name()] = msg
-	m.nextMessageID++
 
 	return nil
 }
@@ -100,11 +82,11 @@ func (m *Manager) GetMessage(id message.TypeID) message.Message {
 	return nil
 }
 
-// isNotDuplicate checks for duplicate message names against the map of registered messages.
-func (m *Manager) isNotDuplicate(tx message.Message) (bool, error) {
+// isNotDuplicate checks if the message name already exist in messages map.
+func (m *Manager) isNotDuplicate(tx message.Message) error {
 	_, ok := m.registeredMessages[tx.Name()]
 	if ok {
-		return true, eris.Wrapf(ErrDuplicateMessageName, "duplicate tx %q", tx.Name())
+		return eris.Errorf("message %q is already registered", tx.Name())
 	}
-	return false, nil
+	return nil
 }

@@ -5,7 +5,7 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	search2 "pkg.world.dev/world-engine/cardinal/ecs/search"
+	"pkg.world.dev/world-engine/cardinal/ecs/search"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -29,9 +29,9 @@ type DebugStateResponse []*debugStateElement
 //	@Router			/query/debug/state [post]
 func queryDebugState(ctx EngineContext, _ *DebugRequest) (*DebugStateResponse, error) {
 	result := make(DebugStateResponse, 0)
-	search := search2.NewSearch(filter.All(), ctx.Namespace(), ctx.StoreReader())
+	s := search.NewSearch(filter.All(), ctx.Namespace(), ctx.StoreReader())
 	var eachClosureErr error
-	searchEachErr := search.Each(
+	searchEachErr := s.Each(
 		func(id entity.ID) bool {
 			var components []component.ComponentMetadata
 			components, eachClosureErr = ctx.StoreReader().GetComponentTypesForEntity(id)
@@ -93,7 +93,7 @@ func queryCQL(ctx EngineContext, req *CQLQueryRequest) (*CQLQueryResponse, error
 	}
 	result := make([]cqlData, 0)
 	var eachError error
-	searchErr := search2.NewSearch(resultFilter, ctx.Namespace(), ctx.StoreReader()).Each(
+	searchErr := search.NewSearch(resultFilter, ctx.Namespace(), ctx.StoreReader()).Each(
 		func(id entity.ID) bool {
 			components, err := ctx.StoreReader().GetComponentTypesForEntity(id)
 			if err != nil {
