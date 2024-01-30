@@ -2,8 +2,8 @@ package ecs
 
 import (
 	"context"
-	"github.com/cosmos/gogoproto/proto"
 	"github.com/rotisserie/eris"
+	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
