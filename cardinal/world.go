@@ -3,6 +3,7 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"github.com/rs/zerolog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,19 +16,16 @@ import (
 	"time"
 
 	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
-	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/gamestage"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 )
 
@@ -41,8 +39,16 @@ var (
 	ErrComponentNotRegistered            = iterators.ErrMustRegisterComponent
 )
 
+type (
+	// EntityID represents a single entity in the World. An EntityID is tied to
+	// one or more components.
+	EntityID = entity.ID
+	TxHash   = message.TxHash
+	Receipt  = receipt.Receipt
+)
+
 type World struct {
-	instance        *ecs.Engine
+	engine          *ecs.Engine
 	server          *server.Server
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
@@ -53,14 +59,6 @@ type World struct {
 	gameSequenceStage gamestage.Atomic
 	endStartGame      chan bool
 }
-
-type (
-	// EntityID represents a single entity in the World. An EntityID is tied to
-	// one or more components.
-	EntityID = entity.ID
-	TxHash   = message.TxHash
-	Receipt  = receipt.Receipt
-)
 
 // NewWorld creates a new World object using Redis as the storage layer.
 func NewWorld(opts ...WorldOption) (*World, error) {
@@ -126,7 +124,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	world := &World{
-		instance:          eng,
+		engine:            eng,
 		serverOptions:     serverOptions,
 		endStartGame:      make(chan bool),
 		gameSequenceStage: gamestage.NewAtomic(),
@@ -137,26 +135,14 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		opt(world)
 	}
 
-	return world, nil
-}
-
-func setLogLevel(levelStr string) error {
-	if levelStr == "" {
-		return eris.New("log level must not be empty")
-	}
-	level, err := zerolog.ParseLevel(levelStr)
+	// Register Persona plugin
+	personaPlugin := persona.NewInternalPlugin()
+	err = personaPlugin.Register(eng)
 	if err != nil {
-		var exampleLogLevels = strings.Join([]string{
-			zerolog.DebugLevel.String(),
-			zerolog.InfoLevel.String(),
-			zerolog.WarnLevel.String(),
-			zerolog.ErrorLevel.String(),
-			zerolog.Disabled.String(),
-		}, ", ")
-		return eris.Errorf("log level %q is invalid, try one of: %v.", levelStr, exampleLogLevels)
+		return nil, err
 	}
-	zerolog.SetGlobalLevel(level)
-	return nil
+
+	return world, nil
 }
 
 // NewMockWorld creates a World object that uses miniredis as the storage layer suitable for local development.
@@ -169,115 +155,21 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 	return world, nil
 }
 
-// CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
-// entities. At least 1 component must be provided.
-func CreateMany(eCtx engine.Context, num int, components ...component.Component) ([]EntityID, error) {
-	ids, err := ecs.CreateMany(eCtx, num, components...)
-	if eCtx.IsReadOnly() || err == nil {
-		return ids, err
-	}
-	return nil, logAndPanic(eCtx, err)
+func (w *World) Engine() *ecs.Engine {
+	return w.engine
 }
 
-// Create creates a single entity in the world, and returns the id of the newly created entity.
-// At least 1 component must be provided.
-func Create(eCtx engine.Context, components ...component.Component) (EntityID, error) {
-	id, err := ecs.Create(eCtx, components...)
-	if eCtx.IsReadOnly() || err == nil {
-		return id, err
-	}
-	return 0, logAndPanic(eCtx, err)
+func (w *World) CurrentTick() uint64 {
+	return w.engine.CurrentTick()
 }
 
-// SetComponent Set sets component data to the entity.
-func SetComponent[T component.Component](eCtx engine.Context, id entity.ID, comp *T) error {
-	err := ecs.SetComponent[T](eCtx, id, comp)
-	if eCtx.IsReadOnly() || err == nil {
-		return err
-	}
-	if eris.Is(err, ErrEntityDoesNotExist) ||
-		eris.Is(err, ErrComponentNotOnEntity) {
-		return err
-	}
-	return logAndPanic(eCtx, err)
+func (w *World) Tick(ctx context.Context) error {
+	return w.engine.Tick(ctx)
 }
 
-// GetComponent Get returns component data from the entity.
-func GetComponent[T component.Component](eCtx engine.Context, id entity.ID) (*T, error) {
-	result, err := ecs.GetComponent[T](eCtx, id)
-	_ = result
-	if eCtx.IsReadOnly() || err == nil {
-		return result, err
-	}
-	if eris.Is(err, ErrEntityDoesNotExist) ||
-		eris.Is(err, ErrComponentNotOnEntity) {
-		return nil, err
-	}
-
-	return nil, logAndPanic(eCtx, err)
-}
-
-// UpdateComponent Updates a component on an entity.
-func UpdateComponent[T component.Component](eCtx engine.Context, id entity.ID, fn func(*T) *T) error {
-	err := ecs.UpdateComponent[T](eCtx, id, fn)
-	if eCtx.IsReadOnly() || err == nil {
-		return err
-	}
-	if eris.Is(err, ErrEntityDoesNotExist) ||
-		eris.Is(err, ErrComponentNotOnEntity) {
-		return err
-	}
-
-	return logAndPanic(eCtx, err)
-}
-
-// AddComponentTo Adds a component on an entity.
-func AddComponentTo[T component.Component](eCtx engine.Context, id entity.ID) error {
-	err := ecs.AddComponentTo[T](eCtx, id)
-	if eCtx.IsReadOnly() || err == nil {
-		return err
-	}
-	if eris.Is(err, ErrEntityDoesNotExist) ||
-		eris.Is(err, ErrComponentAlreadyOnEntity) {
-		return err
-	}
-
-	return logAndPanic(eCtx, err)
-}
-
-// RemoveComponentFrom Removes a component from an entity.
-func RemoveComponentFrom[T component.Component](eCtx engine.Context, id entity.ID) error {
-	err := ecs.RemoveComponentFrom[T](eCtx, id)
-	if eCtx.IsReadOnly() || err == nil {
-		return err
-	}
-	if eris.Is(err, ErrEntityDoesNotExist) ||
-		eris.Is(err, ErrComponentNotOnEntity) ||
-		eris.Is(err, ErrEntityMustHaveAtLeastOneComponent) {
-		return err
-	}
-	return logAndPanic(eCtx, err)
-}
-
-// Remove removes the given entity id from the world.
-func Remove(eCtx engine.Context, id EntityID) error {
-	return ecs.Remove(eCtx, id)
-}
-
-func (w *World) handleShutdown() {
-	signalChannel := make(chan os.Signal, 1)
-	go func() {
-		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
-		for sig := range signalChannel {
-			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
-				err := w.Shutdown()
-				if err != nil {
-					log.Err(err).Msgf("There was an error during shutdown.")
-				}
-				return
-			}
-		}
-	}()
+// Init Registers a system that only runs once on a new game before tick 0.
+func (w *World) Init(system systems.System) {
+	w.engine.AddInitSystem(system)
 }
 
 // StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
@@ -291,7 +183,7 @@ func (w *World) StartGame() error {
 		return errors.New("game has already been started")
 	}
 
-	if err := w.instance.LoadGameState(); err != nil {
+	if err := w.engine.LoadGameState(); err != nil {
 		if errors.Is(err, ecs.ErrEntitiesCreatedBeforeLoadingGameState) {
 			return eris.Wrap(ErrEntitiesCreatedBeforeStartGame, "")
 		}
@@ -311,7 +203,7 @@ func (w *World) StartGame() error {
 	if w.tickChannel == nil {
 		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
-	w.instance.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
+	w.engine.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
 	go func() {
 		ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageStarting, gamestage.StageRunning)
 		if !ok {
@@ -358,17 +250,17 @@ func (w *World) Shutdown() error {
 }
 
 func RegisterSystems(w *World, sys ...systems.System) error {
-	return w.instance.RegisterSystems(sys...)
+	return w.engine.RegisterSystems(sys...)
 }
 
 func RegisterComponent[T component.Component](world *World) error {
-	return ecs.RegisterComponent[T](world.instance)
+	return ecs.RegisterComponent[T](world.engine)
 }
 
 // RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
 // messages will automatically be created when StartGame is called. This Register method must only be called once.
 func RegisterMessages(w *World, msgs ...message.Message) error {
-	return w.instance.RegisterMessages(msgs...)
+	return w.engine.RegisterMessages(msgs...)
 }
 
 // RegisterQuery adds the given query to the game world. HTTP endpoints to use these queries
@@ -377,8 +269,9 @@ func RegisterQuery[Request any, Reply any](
 	world *World,
 	name string,
 	handler func(eCtx engine.Context, req *Request) (*Reply, error),
+	opts ...ecs.QueryOption[Request, Reply],
 ) error {
-	return ecs.RegisterQuery[Request, Reply](world.Engine(), name, handler)
+	return ecs.RegisterQuery[Request, Reply](world.Engine(), name, handler, opts...)
 }
 
 // RegisterQueryWithEVMSupport adds the given query to the game world. HTTP endpoints to use these queries
@@ -392,31 +285,73 @@ func RegisterQueryWithEVMSupport[Request any, Reply any](
 	return ecs.RegisterQuery[Request, Reply](world.Engine(), name, handler, ecs.WithQueryEVMSupport[Request, Reply]())
 }
 
-func (w *World) Engine() *ecs.Engine {
-	return w.instance
-}
-
-func (w *World) CurrentTick() uint64 {
-	return w.instance.CurrentTick()
-}
-
-func (w *World) Tick(ctx context.Context) error {
-	return w.instance.Tick(ctx)
-}
-
-// Init Registers a system that only runs once on a new game before tick 0.
-func (w *World) Init(system systems.System) {
-	w.instance.AddInitSystem(system)
-}
-
-func NewSearch(eCtx engine.Context, filter filter.ComponentFilter) *search.Search {
-	return search.NewSearch(filter, eCtx.Namespace(), eCtx.StoreReader())
-}
-
 // logAndPanic logs the given error and panics. An error is returned so the syntax:
 // return logAndPanic(eCtx, err)
 // can be used at the end of state-mutating methods. This method will never actually return.
 func logAndPanic(eCtx engine.Context, err error) error {
 	eCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
 	return err
+}
+
+func setLogLevel(levelStr string) error {
+	if levelStr == "" {
+		return eris.New("log level must not be empty")
+	}
+	level, err := zerolog.ParseLevel(levelStr)
+	if err != nil {
+		var exampleLogLevels = strings.Join([]string{
+			zerolog.DebugLevel.String(),
+			zerolog.InfoLevel.String(),
+			zerolog.WarnLevel.String(),
+			zerolog.ErrorLevel.String(),
+			zerolog.Disabled.String(),
+		}, ", ")
+		return eris.Errorf("log level %q is invalid, try one of: %v.", levelStr, exampleLogLevels)
+	}
+	zerolog.SetGlobalLevel(level)
+	return nil
+}
+
+func applyProductionOptions(
+	cfg WorldConfig,
+	ecsOptions *[]ecs.Option,
+) error {
+	log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
+	if cfg.RedisPassword == "" {
+		return eris.New("REDIS_PASSWORD is required in production")
+	}
+	if cfg.CardinalNamespace == DefaultNamespace {
+		return eris.New(
+			"CARDINAL_NAMESPACE cannot be the default value in production to avoid replay attack",
+		)
+	}
+	if cfg.BaseShardSequencerAddress == "" || cfg.BaseShardQueryAddress == "" {
+		return eris.New("must supply BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_QUERY_ADDRESS for production " +
+			"mode Cardinal worlds")
+	}
+	adpt, err := adapter.New(adapter.Config{
+		ShardSequencerAddr: cfg.BaseShardSequencerAddress,
+		EVMBaseShardAddr:   cfg.BaseShardQueryAddress,
+	})
+	if err != nil {
+		return eris.Wrapf(err, "failed to instantiate adapter")
+	}
+	*ecsOptions = append(*ecsOptions, ecs.WithAdapter(adpt))
+	return nil
+}
+
+func (w *World) handleShutdown() {
+	signalChannel := make(chan os.Signal, 1)
+	go func() {
+		signal.Notify(signalChannel, syscall.SIGINT, syscall.SIGTERM)
+		for sig := range signalChannel {
+			if sig == syscall.SIGINT || sig == syscall.SIGTERM {
+				err := w.Shutdown()
+				if err != nil {
+					log.Err(err).Msgf("There was an error during shutdown.")
+				}
+				return
+			}
+		}
+	}()
 }

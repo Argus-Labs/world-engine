@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"pkg.world.dev/world-engine/cardinal/persona/utils"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -22,7 +23,7 @@ func TestIsAlphanumericWithUnderscore(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.input, func(t *testing.T) {
-			result := isAlphanumericWithUnderscore(test.input)
+			result := utils.IsValidPersonaTag(test.input)
 			assert.Equal(t, result, test.expected)
 		})
 	}

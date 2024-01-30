@@ -136,7 +136,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/QueryPersonaSignerRequest"
+                "$ref": "#/components/schemas/query.QueryPersonaSignerRequest"
               }
             }
           },
@@ -148,7 +148,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QueryPersonaSignerResponse"
+                  "$ref": "#/components/schemas/query.QueryPersonaSignerResponse"
                 }
               }
             }
@@ -158,7 +158,7 @@
             "content": {}
           }
         },
-        "x-codegen-request-body-name": "QueryPersonaSignerRequest"
+        "x-codegen-request-body-name": "query.QueryPersonaSignerRequest"
       }
     },
     "/query/http/endpoints": {
@@ -462,7 +462,7 @@
           }
         }
       },
-      "QueryPersonaSignerRequest": {
+      "query.QueryPersonaSignerRequest": {
         "required": [
           "personaTag",
           "tick"
@@ -478,7 +478,7 @@
           }
         }
       },
-      "QueryPersonaSignerResponse": {
+      "query.QueryPersonaSignerResponse": {
         "required": [
           "signerAddress",
           "status"

@@ -3,6 +3,8 @@ package ecs_test
 import (
 	"context"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/persona/component"
+	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -24,16 +26,16 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 
 	wantTag := "CoolMage"
 	wantAddress := "123_456"
-	ecs.CreatePersonaMsg.AddToQueue(
-		engine, ecs.CreatePersona{
+	msg.CreatePersonaMsg.AddToQueue(
+		engine, msg.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: wantAddress,
 		},
 	)
 	// This CreatePersona has the same persona tag, but it shouldn't be registered because
 	// it comes second.
-	ecs.CreatePersonaMsg.AddToQueue(
-		engine, ecs.CreatePersona{
+	msg.CreatePersonaMsg.AddToQueue(
+		engine, msg.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: "some_other_address",
 		},
@@ -66,8 +68,8 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	// Queue up a CreatePersona
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
-	ecs.CreatePersonaMsg.AddToQueue(
-		engine, ecs.CreatePersona{
+	msg.CreatePersonaMsg.AddToQueue(
+		engine, msg.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: signerAddress,
 		},
@@ -93,8 +95,8 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		// Attempt to register many different signer addresses with the same persona tag.
-		ecs.CreatePersonaMsg.AddToQueue(
-			engine, ecs.CreatePersona{
+		msg.CreatePersonaMsg.AddToQueue(
+			engine, msg.CreatePersona{
 				PersonaTag:    personaTag,
 				SignerAddress: fmt.Sprintf("address_%d", i),
 			},
@@ -112,8 +114,8 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 	// Attempt to register this persona tag again in a different tick. We should still maintain the original
 	// signer address.
-	ecs.CreatePersonaMsg.AddToQueue(
-		engine, ecs.CreatePersona{
+	msg.CreatePersonaMsg.AddToQueue(
+		engine, msg.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: "some_other_address",
 		},
@@ -131,8 +133,8 @@ func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, engine.LoadGameState())
 
-	ecs.CreatePersonaMsg.AddToQueue(
-		engine, ecs.CreatePersona{
+	msg.CreatePersonaMsg.AddToQueue(
+		engine, msg.CreatePersona{
 			PersonaTag:    "INVALID PERSONA TAG WITH SPACES",
 			SignerAddress: "123_456",
 		},
@@ -151,16 +153,16 @@ func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 	engine := testutils.NewTestFixture(t, nil).Engine
 	assert.NilError(t, engine.LoadGameState())
 
-	ecs.CreatePersonaMsg.AddToQueue(
-		engine, ecs.CreatePersona{
+	msg.CreatePersonaMsg.AddToQueue(
+		engine, msg.CreatePersona{
 			PersonaTag:    "WowTag",
 			SignerAddress: "123_456",
 		},
 	)
 
 	// This one should fail because it is the same tag with different casing!
-	ecs.CreatePersonaMsg.AddToQueue(
-		engine, ecs.CreatePersona{
+	msg.CreatePersonaMsg.AddToQueue(
+		engine, msg.CreatePersona{
 			PersonaTag:    "wowtag",
 			SignerAddress: "123_456",
 		},
@@ -182,16 +184,16 @@ func TestCanAuthorizeAddress(t *testing.T) {
 
 	wantTag := "CoolMage"
 	wantSigner := "123_456"
-	ecs.CreatePersonaMsg.AddToQueue(
-		engine, ecs.CreatePersona{
+	msg.CreatePersonaMsg.AddToQueue(
+		engine, msg.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: wantSigner,
 		},
 	)
 
 	wantAddr := "0xd5e099c71b797516c10ed0f0d895f429c2781142"
-	ecs.AuthorizePersonaAddressMsg.AddToQueue(
-		engine, ecs.AuthorizePersonaAddress{
+	msg.AuthorizePersonaAddressMsg.AddToQueue(
+		engine, msg.AuthorizePersonaAddress{
 			Address: wantAddr,
 		}, &sign.Transaction{PersonaTag: wantTag},
 	)
@@ -218,16 +220,16 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 
 	personaTag := "CoolMage"
 	invalidAddr := "123-456"
-	ecs.CreatePersonaMsg.AddToQueue(
-		engine, ecs.CreatePersona{
+	msg.CreatePersonaMsg.AddToQueue(
+		engine, msg.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: invalidAddr,
 		},
 	)
 
 	wantAddr := "INVALID ADDRESS"
-	ecs.AuthorizePersonaAddressMsg.AddToQueue(
-		engine, ecs.AuthorizePersonaAddress{
+	msg.AuthorizePersonaAddressMsg.AddToQueue(
+		engine, msg.AuthorizePersonaAddress{
 			Address: wantAddr,
 		}, &sign.Transaction{PersonaTag: personaTag},
 	)
@@ -246,15 +248,15 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 	assert.Equal(t, count, 1)
 }
 
-func getSigners(t *testing.T, engine *ecs.Engine) []*ecs.SignerComponent {
+func getSigners(t *testing.T, engine *ecs.Engine) []*component.SignerComponent {
 	eCtx := ecs.NewEngineContext(engine)
-	var signers = make([]*ecs.SignerComponent, 0)
+	var signers = make([]*component.SignerComponent, 0)
 
-	q := engine.NewSearch(filter.Exact(ecs.SignerComponent{}))
+	q := engine.NewSearch(filter.Exact(component.SignerComponent{}))
 
 	err := q.Each(
 		func(id entity.ID) bool {
-			sc, err := ecs.GetComponent[ecs.SignerComponent](eCtx, id)
+			sc, err := ecs.GetComponent[component.SignerComponent](eCtx, id)
 			assert.NilError(t, err)
 			signers = append(signers, sc)
 			return true

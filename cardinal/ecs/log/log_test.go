@@ -96,8 +96,8 @@ func TestEngineLogger(t *testing.T) {
 					"total_systems":2,
 					"systems":
 						[
-							"ecs.RegisterPersonaSystem",
-							"ecs.AuthorizePersonaAddressSystem"
+							"system.RegisterPersonaSystem",
+							"system.AuthorizePersonaAddressSystem"
 						]
 				}
 `

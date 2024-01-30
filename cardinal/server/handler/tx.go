@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
+	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -78,9 +79,9 @@ func PostTransaction(
 		var signerAddress string
 		// TODO(scott): this should be refactored; I don't see why getting signer address needs to be different here,
 		//  both of them should just derive the signer address using ecrecover from signature
-		if msgType.Name() == ecs.CreatePersonaMsg.Name() {
+		if msgType.Name() == personaMsg.CreatePersonaMsg.Name() {
 			// don't need to check the cast bc we already validated this above
-			createPersonaMsg, _ := msg.(ecs.CreatePersona)
+			createPersonaMsg, _ := msg.(personaMsg.CreatePersona)
 			signerAddress = createPersonaMsg.SignerAddress
 		} else {
 			signerAddress, err = engine.GetSignerForPersonaTag(tx.PersonaTag, 0)

@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"slices"
 	"strings"
@@ -196,7 +197,7 @@ func (s *ServerTestSuite) runTx(personaTag string, msg message.Message, payload 
 
 // creates a persona with the specified tag.
 func (s *ServerTestSuite) createPersona(personaTag string) {
-	createPersonaTx := ecs.CreatePersona{
+	createPersonaTx := msg.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: s.signerAddr,
 	}

@@ -1,0 +1,99 @@
+package system
+
+import (
+	"errors"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	"pkg.world.dev/world-engine/cardinal/ecs/search"
+	"pkg.world.dev/world-engine/cardinal/persona/component"
+	"pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"strings"
+)
+
+type personaTagComponentData struct {
+	SignerAddress string
+	EntityID      entity.ID
+}
+
+// AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
+// users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
+// them to mutate their owned state from the context of the EVM.
+func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
+	personaTagToAddress, err := buildPersonaTagMapping(eCtx)
+	if err != nil {
+		return err
+	}
+
+	msg.AuthorizePersonaAddressMsg.Each(
+		eCtx,
+		func(txData ecs.TxData[msg.AuthorizePersonaAddress]) (result msg.AuthorizePersonaAddressResult, err error) {
+			txMsg, tx := txData.Msg, txData.Tx
+			result.Success = false
+
+			// Check if the Persona Tag exists
+			lowerPersona := strings.ToLower(tx.PersonaTag)
+			data, ok := personaTagToAddress[lowerPersona]
+			if !ok {
+				return result, eris.Errorf("persona %s does not exist", tx.PersonaTag)
+			}
+
+			// Check that the ETH Address is valid
+			txMsg.Address = strings.ToLower(txMsg.Address)
+			txMsg.Address = strings.ReplaceAll(txMsg.Address, " ", "")
+			valid := common.IsHexAddress(txMsg.Address)
+			if !valid {
+				return result, eris.Errorf("eth address %s is invalid", txMsg.Address)
+			}
+
+			err = ecs.UpdateComponent[component.SignerComponent](
+				eCtx, data.EntityID, func(s *component.SignerComponent) *component.SignerComponent {
+					for _, addr := range s.AuthorizedAddresses {
+						if addr == txMsg.Address {
+							return s
+						}
+					}
+					s.AuthorizedAddresses = append(s.AuthorizedAddresses, txMsg.Address)
+					return s
+				},
+			)
+			if err != nil {
+				return result, eris.Wrap(err, "unable to update signer component with address")
+			}
+			result.Success = true
+			return result, nil
+		},
+	)
+	return nil
+}
+
+func buildPersonaTagMapping(eCtx engine.Context) (map[string]personaTagComponentData, error) {
+	personaTagToAddress := map[string]personaTagComponentData{}
+	var errs []error
+	q := search.NewSearch(filter.Exact(component.SignerComponent{}), eCtx.Namespace(), eCtx.StoreReader())
+	err := q.Each(
+		func(id entity.ID) bool {
+			sc, err := ecs.GetComponent[component.SignerComponent](eCtx, id)
+			if err != nil {
+				errs = append(errs, err)
+				return true
+			}
+			lowerPersona := strings.ToLower(sc.PersonaTag)
+			personaTagToAddress[lowerPersona] = personaTagComponentData{
+				SignerAddress: sc.SignerAddress,
+				EntityID:      id,
+			}
+			return true
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(errs) != 0 {
+		return nil, errors.Join(errs...)
+	}
+	return personaTagToAddress, nil
+}
