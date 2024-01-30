@@ -11,8 +11,6 @@ replace (
 
 	github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
-
-	pkg.world.dev/world-engine/sign => ../sign
 )
 
 require (
@@ -32,16 +30,16 @@ require (
 	github.com/rotisserie/eris v0.5.4
 	github.com/rs/zerolog v1.31.0
 	github.com/stretchr/testify v1.8.4
+	github.com/swaggo/swag v1.16.2
 	github.com/wI2L/jsondiff v0.5.0
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/DataDog/dd-trace-go.v1 v1.58.1
-	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/v3 v3.5.1
 	pkg.world.dev/world-engine/assert v1.0.0-beta
 	pkg.world.dev/world-engine/evm v1.0.2-beta
 	pkg.world.dev/world-engine/rift v1.0.2-beta
-	pkg.world.dev/world-engine/sign v1.0.0-beta
+	pkg.world.dev/world-engine/sign v1.0.0-beta.0.20240127015309-7b7aa2336821
 )
 
 require (
@@ -147,7 +145,6 @@ require (
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/swaggo/files/v2 v2.0.0 // indirect
-	github.com/swaggo/swag v1.16.2 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d // indirect
 	github.com/tendermint/go-amino v0.16.0 // indirect
 	github.com/tidwall/gjson v1.17.0 // indirect
@@ -176,6 +173,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20231012201019-e917dd12ba7a // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231030173426-d783a09b4405 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	inet.af/netaddr v0.0.0-20230525184311-b8eac61e914a // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
