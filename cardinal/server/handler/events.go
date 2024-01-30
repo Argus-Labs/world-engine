@@ -6,6 +6,13 @@ import (
 	"github.com/rotisserie/eris"
 )
 
+// WebSocketEvents godoc
+//
+//	@Summary		Endpoint for events
+//	@Description	websocket connection for events.
+//	@Produce		application/json
+//	@Success		101	{string}	string	"switch protocol to ws"
+//	@Router			/events [get]
 func WebSocketEvents(wsEventHandler func(conn *websocket.Conn)) func(c *fiber.Ctx) error {
 	return websocket.New(wsEventHandler)
 }

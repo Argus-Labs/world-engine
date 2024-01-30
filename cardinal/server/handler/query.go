@@ -5,6 +5,17 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
+// PostQuery godoc
+//
+//	@Summary		Query the ecs
+//	@Description	Query the ecs
+//	@Accept			application/json
+//	@Produce		application/json
+//	@Param			queryType	path		string	true	"The query type"
+//	@Param			queryBody	body		object	true	"Query Body"
+//	@Success		200			{object}	object	"query response"
+//	@Failure		400			{string}	string	"Invalid query request"
+//	@Router			/query/game/{queryType} [post]
 func PostQuery(queries map[string]map[string]ecs.Query, engine *ecs.Engine) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		query, ok := queries[ctx.Params("group")][ctx.Params("name")]

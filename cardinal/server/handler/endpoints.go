@@ -12,6 +12,15 @@ type GetEndpointsResponse struct {
 	QueryEndpoints []string `json:"queryEndpoints"`
 }
 
+// GetEndpoints godoc
+//
+//	@Summary		Get all http endpoints from cardinal
+//	@Description	Get all http endpoints from cardinal
+//	@Accept			application/json
+//	@Produce		application/json
+//	@Success		200	{object}	GetEndpointsResponse	"list of query endpoints"
+//	@Failure		400	{string}	string					"Invalid query request"
+//	@Router			/query/http/endpoints [get]
 func GetEndpoints(
 	msgs map[string]map[string]message.Message, queries map[string]map[string]ecs.Query,
 ) func(*fiber.Ctx) error {

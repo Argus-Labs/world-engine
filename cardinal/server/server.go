@@ -1,29 +1,25 @@
 package server
 
 import (
-	_ "embed"
-	"github.com/gofiber/contrib/websocket"
 	"os"
 	"sync/atomic"
 
-	"github.com/gofiber/contrib/swagger"
+	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/swagger"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/types/message"
+
+	_ "pkg.world.dev/world-engine/cardinal/server/docs" // for swagger.
 )
 
 const (
 	DefaultPort = "4040"
-)
-
-var (
-	//go:embed swagger.yml
-	swaggerData []byte
 )
 
 type config struct {
@@ -57,12 +53,6 @@ func New(engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), opts ...
 	app.Use(cors.New())
 	setupRoutes(app, engine, wsEventHandler, s.config)
 
-	if !s.config.isSwaggerDisabled {
-		if err := setupSwagger(app); err != nil {
-			return nil, err
-		}
-	}
-
 	return s, nil
 }
 
@@ -93,31 +83,13 @@ func (s *Server) Shutdown() error {
 	return s.app.Shutdown()
 }
 
-func setupSwagger(app *fiber.App) error {
-	file, err := os.CreateTemp("", "")
-	if err != nil {
-		return eris.Wrap(err, "failed to crate temp file for swagger")
-	}
-	defer func() {
-		if err := os.Remove(file.Name()); err != nil {
-			log.Error().Err(err).Msgf("failed to delete temporary swagger file %q", file.Name())
-		}
-	}()
-	_, err = file.Write(swaggerData)
-	if err != nil {
-		return eris.Wrap(err, "failed to write swagger data to file")
-	}
-
-	// Register swagger docs at /docs
-	cfg := swagger.Config{
-		FilePath: file.Name(),
-		Title:    "World Engine API Docs",
-	}
-	app.Use(swagger.New(cfg))
-
-	return nil
-}
-
+// @title			Cardinal
+// @description	Backend server for World Engine
+// @version		0.0.1
+// @schemes		http ws
+// @BasePath		/
+// @consumes		application/json
+// @produces		application/json
 func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), cfg config) {
 	// TODO(scott): we should refactor this such that we only dependency inject these maps
 	//  instead of having to dependency inject the entire engine.
@@ -145,6 +117,11 @@ func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *w
 			msgs[msg.Group()] = make(map[string]message.Message)
 		}
 		msgs[msg.Group()][msg.Name()] = msg
+	}
+
+	// Route: /swagger/
+	if !cfg.isSwaggerDisabled {
+		app.Get("/swagger/*", swagger.HandlerDefault)
 	}
 
 	// Route: /events/
