@@ -1,7 +1,6 @@
 package server
 
 import (
-	_ "embed"
 	"os"
 	"sync/atomic"
 
@@ -11,7 +10,6 @@ import (
 	"github.com/gofiber/swagger"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
-
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -19,11 +17,6 @@ import (
 
 const (
 	DefaultPort = "4040"
-)
-
-var (
-	//go:embed swagger.yml
-	swaggerData []byte
 )
 
 type Config struct {
@@ -66,12 +59,14 @@ func New(engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), opts ...
 	setupRoutes(app, engine, wsEventHandler, s.config)
 
 	if !s.config.isSwaggerDisabled {
-		if err := setupSwaggerRoutes(app); err != nil {
-			return nil, err
-		}
+		setupSwaggerRoutes(app)
 	}
 
 	return s, nil
+}
+
+func setupSwaggerRoutes(app *fiber.App) {
+	app.Get("/swagger/*", swagger.HandlerDefault)
 }
 
 // Port returns the port the server listens to.
@@ -99,11 +94,6 @@ func (s *Server) Serve() error {
 // Shutdown gracefully shuts down the server without interrupting any active connections.
 func (s *Server) Shutdown() error {
 	return s.app.Shutdown()
-}
-
-func setupSwaggerRoutes(app *fiber.App) error {
-
-	return nil
 }
 
 func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), cfg Config) {
@@ -136,7 +126,6 @@ func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *w
 	}
 
 	// Route: /swagger/
-	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	// Route: /events/
 	app.Use("/events", handler.WebSocketUpgrader)
