@@ -1,7 +1,6 @@
 package cardinal_test
 
 import (
-	"pkg.world.dev/world-engine/cardinal/events"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -49,8 +48,8 @@ func TestComponentExample(t *testing.T) {
 	assert.NilError(t, engine.LoadGameState())
 	eCtx := testutils.WorldToEngineContext(world)
 	assert.Equal(t, eCtx.CurrentTick(), uint64(0))
-	eCtx.Logger().Info().Msg("test")               // Check for compile errors.
-	eCtx.EmitEvent(&events.Event{Message: "test"}) // test for compiler errors, a check for this lives in e2e tests.
+	eCtx.Logger().Info().Msg("test") // Check for compile errors.
+	eCtx.EmitEvent("test")           // test for compiler errors, a check for this lives in e2e tests.
 	startHeight := 72
 	startWeight := 200
 	startAge := 30

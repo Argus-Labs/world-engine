@@ -95,8 +95,8 @@ func (e *engineContext) GetTransactionReceipt(id message.TxHash) (any, []error, 
 	return e.engine.GetTransactionReceipt(id)
 }
 
-func (e *engineContext) EmitEvent(event *events.Event) {
-	e.engine.EmitEvent(event)
+func (e *engineContext) EmitEvent(event string) {
+	e.engine.EmitEvent(&events.Event{Message: event})
 }
 
 func (e *engineContext) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {

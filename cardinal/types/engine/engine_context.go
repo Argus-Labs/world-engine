@@ -4,7 +4,6 @@ import (
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/message"
@@ -21,7 +20,7 @@ type Context interface {
 	AddMessageError(id message.TxHash, err error)
 	SetMessageResult(id message.TxHash, a any)
 	GetTransactionReceipt(id message.TxHash) (any, []error, bool)
-	EmitEvent(event *events.Event)
+	EmitEvent(string)
 	GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error)
 	GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error)
 	ReceiptHistorySize() uint64
