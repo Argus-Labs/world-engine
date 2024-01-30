@@ -3,7 +3,6 @@ package server_test
 import (
 	"context"
 	"crypto/ecdsa"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -92,9 +91,6 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 		s.Require().True(slices.Contains(result.QueryEndpoints, utils.GetQueryURL(query.Group(), query.Name())))
 	}
 }
-
-//go:embed swagger.yml
-var swaggerData []byte
 
 // TestSwaggerEndpointsAreActuallyCreated verifies the non-variable endpoints that are declared in the swagger.yml file
 // actually have endpoints when the cardinal server starts.
