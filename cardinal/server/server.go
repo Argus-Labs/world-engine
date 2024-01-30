@@ -51,15 +51,7 @@ func New(engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), opts ...
 	app.Use(cors.New())
 	setupRoutes(app, engine, wsEventHandler, s.config)
 
-	if !s.config.isSwaggerDisabled {
-		setupSwaggerRoutes(app)
-	}
-
 	return s, nil
-}
-
-func setupSwaggerRoutes(app *fiber.App) {
-	app.Get("/swagger/*", swagger.HandlerDefault)
 }
 
 // Port returns the port the server listens to.
@@ -123,6 +115,11 @@ func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *w
 			msgs[msg.Group()] = make(map[string]message.Message)
 		}
 		msgs[msg.Group()][msg.Name()] = msg
+	}
+
+	// Route: /swagger/
+	if !cfg.isSwaggerDisabled {
+		app.Get("/swagger/*", swagger.HandlerDefault)
 	}
 
 	// Route: /events/
