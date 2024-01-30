@@ -183,10 +183,9 @@ func TestAddSystems(t *testing.T) {
 
 	eng := testutils.NewTestFixture(t, nil).Engine
 	err := eng.RegisterSystems(sys, sys, sys)
-	if err != nil {
-		return
-	}
 	assert.NilError(t, err)
+
+	err = eng.LoadGameState()
 	assert.NilError(t, err)
 
 	err = eng.Tick(context.Background())
