@@ -97,7 +97,7 @@ func SystemTestGetSmallComponentB(wCtx cardinal.WorldContext) error {
 }
 
 func SystemTestSearchC(wCtx cardinal.WorldContext) error {
-	err := wCtx.NewSearch(cardinal.Exact(comp.SingleNumber{})).Each(wCtx, func(id entity.ID) bool {
+	err := cardinal.NewSearch(wCtx, cardinal.Exact(comp.SingleNumber{})).Each(func(id entity.ID) bool {
 		return true
 	})
 	if err != nil {
@@ -145,7 +145,7 @@ func SystemTestGetAndSetComponentWithArrayE(wCtx cardinal.WorldContext) error {
 }
 
 func SystemTestSearchingForCompWithArrayF(wCtx cardinal.WorldContext) error {
-	err := wCtx.NewSearch(cardinal.Exact(comp.ArrayComp{})).Each(wCtx, func(id entity.ID) bool {
+	err := cardinal.NewSearch(wCtx, cardinal.Exact(comp.ArrayComp{})).Each(func(id entity.ID) bool {
 		return true
 	})
 	if err != nil {

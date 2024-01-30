@@ -45,6 +45,7 @@ type (
 	EntityID = entity.ID
 	TxHash   = message.TxHash
 	Receipt  = receipt.Receipt
+	System   = systems.System
 )
 
 type World struct {

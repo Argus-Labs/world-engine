@@ -19,9 +19,9 @@ func Create(eCtx engine.Context, components ...component.Component) (entity.ID, 
 
 func CreateMany(eCtx engine.Context, num int, components ...component.Component) ([]entity.ID, error) {
 	// TODO: move this up
-	//if !eCtx.GetEngine().stateIsLoaded {
-	//	return nil, eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
-	//}
+	// if !eCtx.GetEngine().stateIsLoaded {
+	// 		return nil, eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
+	// }
 	if eCtx.IsReadOnly() {
 		return nil, eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
 	}

@@ -16,22 +16,22 @@ const (
 	getSignerForPersonaStatusAssigned  = "assigned"
 )
 
-// QueryPersonaSignerRequest is the desired request body for the query-persona-signer endpoint.
-type QueryPersonaSignerRequest struct {
+// PersonaSignerQueryRequest is the desired request body for the query-persona-signer endpoint.
+type PersonaSignerQueryRequest struct {
 	PersonaTag string `json:"personaTag"`
 	Tick       uint64 `json:"tick"`
 }
 
-// QueryPersonaSignerResponse is used as the response body for the query-persona-signer endpoint. Status can be:
+// PersonaSignerQueryResponse is used as the response body for the query-persona-signer endpoint. Status can be:
 // "assigned": The requested persona tag has been assigned the returned SignerAddress
 // "unknown": The game tick has not advanced far enough to know what the signer address. SignerAddress will be empty.
 // "available": The game tick has advanced, and no signer address has been assigned. SignerAddress will be empty.
-type QueryPersonaSignerResponse struct {
+type PersonaSignerQueryResponse struct {
 	Status        string `json:"status"`
 	SignerAddress string `json:"signerAddress"`
 }
 
-func QueryPersonaSigner(eCtx engine.Context, req *QueryPersonaSignerRequest) (*QueryPersonaSignerResponse, error) {
+func PersonaSignerQuery(eCtx engine.Context, req *PersonaSignerQueryRequest) (*PersonaSignerQueryResponse, error) {
 	var status string
 
 	addr, err := eCtx.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
@@ -48,7 +48,7 @@ func QueryPersonaSigner(eCtx engine.Context, req *QueryPersonaSignerRequest) (*Q
 		status = getSignerForPersonaStatusAssigned
 	}
 
-	res := QueryPersonaSignerResponse{
+	res := PersonaSignerQueryResponse{
 		Status:        status,
 		SignerAddress: addr,
 	}

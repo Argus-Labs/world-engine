@@ -40,9 +40,9 @@ const (
 
 const (
 	EngineStateInit       EngineStateType = "EngineStateInit"
-	EngineStateRecovering                 = "EngineStateRecovering"
-	EngineStateReady                      = "EngineStateReady"
-	EngineStateRunning                    = "EngineStateRunning"
+	EngineStateRecovering EngineStateType = "EngineStateRecovering"
+	EngineStateReady      EngineStateType = "EngineStateReady"
+	EngineStateRunning    EngineStateType = "EngineStateRunning"
 )
 
 var (
@@ -324,8 +324,6 @@ func (e *Engine) AddEVMTransaction(
 
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
-//
-//nolint:funlen // tick has a lot going on and doesn't really have a clear path to move things out.
 func (e *Engine) Tick(ctx context.Context) error {
 	// If the engine is not ready, we don't want to tick the engine.
 	// Instead, we want to make sure we have recovered the state of the engine.

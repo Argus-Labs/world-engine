@@ -26,7 +26,7 @@ func New() *Manager {
 func (m *Manager) RegisterMessages(msgs ...message.Message) error {
 	// We check for duplicate message names within the slice and against the map of registered messages.
 	// This ensures that we are registering all messages in the slice, or none of them.
-	var seenNames []string
+	seenNames := make([]string, 0, len(msgs))
 	for _, msg := range msgs {
 		// Check for duplicate message names against within the slice
 		if slices.Contains(seenNames, msg.Name()) {
@@ -34,7 +34,7 @@ func (m *Manager) RegisterMessages(msgs ...message.Message) error {
 		}
 
 		// Check for duplicate message names against the map of registere messages
-		err, done := m.isNotDuplicate(msg)
+		done, err := m.isNotDuplicate(msg)
 		if done {
 			return err
 		}
@@ -82,7 +82,7 @@ func (m *Manager) IsMessagesRegistered() bool {
 
 // GetRegisteredMessages returns the list of all registered messages
 func (m *Manager) GetRegisteredMessages() []message.Message {
-	var msgs []message.Message
+	msgs := make([]message.Message, 0, len(m.registeredMessages))
 	for _, msg := range m.registeredMessages {
 		msgs = append(msgs, msg)
 	}
@@ -101,10 +101,10 @@ func (m *Manager) GetMessage(id message.TypeID) message.Message {
 }
 
 // isNotDuplicate checks for duplicate message names against the map of registered messages.
-func (m *Manager) isNotDuplicate(tx message.Message) (error, bool) {
+func (m *Manager) isNotDuplicate(tx message.Message) (bool, error) {
 	_, ok := m.registeredMessages[tx.Name()]
 	if ok {
-		return eris.Wrapf(ErrDuplicateMessageName, "duplicate tx %q", tx.Name()), true
+		return true, eris.Wrapf(ErrDuplicateMessageName, "duplicate tx %q", tx.Name())
 	}
-	return nil, false
+	return false, nil
 }

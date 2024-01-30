@@ -37,9 +37,9 @@ func (p *InternalPlugin) Register(engine *ecs.Engine) error {
 }
 
 func RegisterQueries(engine *ecs.Engine) error {
-	err := ecs.RegisterQuery[query.QueryPersonaSignerRequest, query.QueryPersonaSignerResponse](engine, "signer",
-		query.QueryPersonaSigner,
-		ecs.WithCustomQueryGroup[query.QueryPersonaSignerRequest, query.QueryPersonaSignerResponse]("persona"))
+	err := ecs.RegisterQuery[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse](engine, "signer",
+		query.PersonaSignerQuery,
+		ecs.WithCustomQueryGroup[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse]("persona"))
 	if err != nil {
 		return err
 	}

@@ -21,7 +21,6 @@ type cache struct {
 // So it is not recommended to create a new search every time you want
 // to filter entities with the same search.
 type Search struct {
-	//archMatches map[ecs.Namespace]*cache
 	archMatches map[string]*cache
 	filter      filter.ComponentFilter
 	namespace   string
@@ -39,11 +38,11 @@ func NewSearch(filter filter.ComponentFilter, namespace string, reader gamestate
 	}
 }
 
-type SearchCallBackFn func(entity.ID) bool
+type CallbackFn func(entity.ID) bool
 
 // Each iterates over all entities that match the search.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (s *Search) Each(callback SearchCallBackFn) error {
+func (s *Search) Each(callback CallbackFn) error {
 	result := s.evaluateSearch()
 	iter := iterators.NewEntityIterator(0, s.reader, result)
 	for iter.HasNext() {

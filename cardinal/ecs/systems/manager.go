@@ -50,7 +50,6 @@ func (m *Manager) RegisterSystems(systems ...System) error {
 	for _, system := range systems {
 		// Obtain the name of the system function using reflection.
 		systemName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
-		fmt.Println(systemName)
 
 		// Checks if the system is already previously registered.
 		// This will terminate the registration of all systems if any of them are already registered.
@@ -82,7 +81,9 @@ func (m *Manager) RunSystems(eCtx engine.Context) error {
 	allSystemStartTime := time.Now()
 
 	for _, systemName := range m.registeredSystems {
-		m.currentSystem = &systemName
+		// Explicit memory aliasing
+		sysName := systemName
+		m.currentSystem = &sysName
 
 		// Inject the system name into the logger
 		eCtx.SetLogger(eCtx.Logger().With().Str("system", systemName).Logger())
