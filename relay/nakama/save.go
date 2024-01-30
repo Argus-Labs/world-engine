@@ -6,7 +6,6 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
-	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
@@ -67,7 +66,7 @@ func readSave(ctx context.Context, nk runtime.NakamaModule) (res GetSaveReply, e
 	var personaTag string
 	p, err := persona.LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
-		if !eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaTagStorageObjNotFound) {
+		if !eris.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound) {
 			return res, err
 		}
 	} else {

@@ -1,9 +1,10 @@
 package persona
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
-	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"net/http"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 
@@ -53,7 +54,7 @@ func LoadPersonaTagStorageObj(ctx context.Context, nk runtime.NakamaModule) (*St
 		return nil, eris.Wrap(err, "")
 	}
 	if len(storeObjs) == 0 {
-		return nil, eris.Wrap(nakamaerrors.ErrPersonaTagStorageObjNotFound, "")
+		return nil, eris.Wrap(ErrPersonaTagStorageObjNotFound, "")
 	} else if len(storeObjs) > 1 {
 		return nil, eris.Errorf("expected 1 storage object, got %d with values %v", len(storeObjs), storeObjs)
 	}
@@ -87,10 +88,10 @@ func (p *StorageObj) AttemptToUpdatePending(
 
 	verified, err := p.verifyPersonaTag(ctx, cardinalAddr)
 	switch {
-	case eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaSignerUnknown):
+	case eris.Is(eris.Cause(err), ErrPersonaSignerUnknown):
 		// Leave the Status as pending.
 		return p, nil
-	case eris.Is(eris.Cause(err), nakamaerrors.ErrPersonaSignerAvailable):
+	case eris.Is(eris.Cause(err), ErrPersonaSignerAvailable):
 		// Somehow Nakama thinks this persona tag belongs to this user, but Cardinal doesn't think the persona tag
 		// belongs to anyone. Just reject this on Nakama's end so the user can try a different persona tag.
 		// Incidentally, trying the same persona tag might work.
@@ -115,7 +116,7 @@ func (p *StorageObj) AttemptToUpdatePending(
 // verifyPersonaTag queries cardinal to see if the signer address for the given persona tag matches Nakama's signer
 // address.
 func (p *StorageObj) verifyPersonaTag(ctx context.Context, cardinalAddr string) (verified bool, err error) {
-	gameSignerAddress, err := cardinalQueryPersonaSigner(ctx, p.PersonaTag, p.Tick, cardinalAddr)
+	gameSignerAddress, err := queryPersonaSigner(ctx, p.PersonaTag, p.Tick, cardinalAddr)
 	if err != nil {
 		return false, err
 	}
@@ -148,6 +149,55 @@ func (p *StorageObj) SavePersonaTagStorageObj(ctx context.Context, nk runtime.Na
 		return eris.Wrap(err, "")
 	}
 	return nil
+}
+
+func queryPersonaSigner(
+	ctx context.Context,
+	personaTag string,
+	tick uint64,
+	cardinalAddr string,
+) (signerAddress string, err error) {
+	readPersonaRequest := struct {
+		PersonaTag string `json:"personaTag"`
+		Tick       uint64 `json:"tick"`
+	}{
+		PersonaTag: personaTag,
+		Tick:       tick,
+	}
+
+	buf, err := json.Marshal(readPersonaRequest)
+	if err != nil {
+		return "", eris.Wrap(err, "")
+	}
+	httpReq, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		utils.MakeHTTPURL(readPersonaSignerEndpoint, cardinalAddr),
+		bytes.NewReader(buf),
+	)
+	if err != nil {
+		return "", eris.Wrap(err, "")
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpResp, err := utils.DoRequest(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer httpResp.Body.Close()
+
+	var resp struct {
+		Status        string `json:"status"`
+		SignerAddress string `json:"signerAddress"`
+	}
+	if err = json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
+		return "", eris.Wrap(err, "")
+	}
+	if resp.Status == readPersonaSignerStatusUnknown {
+		return "", eris.Wrap(ErrPersonaSignerUnknown, "")
+	} else if resp.Status == readPersonaSignerStatusAvailable {
+		return "", eris.Wrap(ErrPersonaSignerAvailable, "")
+	}
+	return resp.SignerAddress, nil
 }
 
 func (p *StorageObj) ToJSON() (string, error) {

@@ -21,9 +21,10 @@ import (
 func initPersonaTagEndpoints(
 	_ runtime.Logger,
 	initializer runtime.Initializer,
-	ptv *persona.Verifier,
-	notifier *receipt.Notifier) error {
-	if err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(ptv, notifier)); err != nil {
+	verifier *persona.Verifier,
+	notifier *receipt.Notifier,
+) error {
+	if err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(verifier, notifier)); err != nil {
 		return eris.Wrap(err, "")
 	}
 	return eris.Wrap(initializer.RegisterRpc("nakama/show-persona", handleShowPersona), "")

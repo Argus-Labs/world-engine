@@ -24,16 +24,7 @@ const (
 )
 
 var (
-	// Persona errors
-	ErrPersonaTagStorageObjNotFound = errors.New("persona tag storage object not found")
-	ErrNoPersonaTagForUser          = errors.New("user does not have a verified persona tag")
-	ErrPersonaSignerAvailable       = errors.New("persona signer is available")
-	ErrPersonaSignerUnknown         = errors.New("persona signer is unknown")
-
 	// Private Key errros
 	ErrNoStorageObjectFound       = errors.New("no storage object found")
 	ErrTooManyStorageObjectsFound = errors.New("too many storage objects found")
-
-	// Allowlist errors
-
 )

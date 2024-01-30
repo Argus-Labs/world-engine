@@ -15,124 +15,64 @@ import (
 )
 
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
-//
-//nolint:gocognit
-func handleClaimPersona(ptv *persona.Verifier, notifier *receipt.Notifier) nakamaRPCHandler {
-	return func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (
-		string, error) {
-		userID, err := utils.GetUserID(ctx)
-		if err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get userID")
-		}
-
-		// check if the user is verified. this requires them to input a valid beta key.
-		if verified, err := allowlist.IsUserVerified(ctx, nk, userID); err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to claim persona tag")
-		} else if !verified {
-			return utils.LogDebugWithMessageAndCode(
-				logger,
-				allowlist.ErrNotAllowlisted,
-				errors.AlreadyExists,
-				"unable to claim persona tag")
-		}
-
+func handleClaimPersona(verifier *persona.Verifier, notifier *receipt.Notifier) nakamaRPCHandler {
+	return func(
+		ctx context.Context,
+		logger runtime.Logger,
+		db *sql.DB,
+		nk runtime.NakamaModule,
+		payload string,
+	) (string, error) {
 		ptr := &persona.StorageObj{}
 		if err := json.Unmarshal([]byte(payload), ptr); err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, eris.Wrap(err, ""), "unable to marshal payload")
-		}
-		if ptr.PersonaTag == "" {
 			return utils.LogErrorWithMessageAndCode(
 				logger,
-				eris.New("personaTag field was empty"),
+				err,
 				errors.InvalidArgument,
-				"personaTag field must not be empty",
+				"unable to unmarshal payload: %v",
+				err)
+		}
+
+		result, err := persona.ClaimPersona(
+			ctx,
+			nk,
+			verifier,
+			notifier,
+			ptr,
+			globalCardinalAddress,
+			globalNamespace,
+			&globalPersonaTagAssignment,
+		)
+		if err == nil {
+			return utils.MarshalResult(logger, result)
+		}
+
+		switch {
+		case errors2.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound):
+			return utils.LogErrorWithMessageAndCode(logger, err, errors.NotFound, "persona tag storage object not found")
+		case errors2.Is(err, persona.ErrPersonaTagEmpty):
+			return utils.LogErrorWithMessageAndCode(
+				logger,
+				err,
+				errors.InvalidArgument,
+				"claim persona tag request must have personaTag field",
 			)
 		}
-
-		tag, err := persona.LoadPersonaTagStorageObj(ctx, nk)
-		if err != nil {
-			if !errors2.Is(err, errors.ErrPersonaTagStorageObjNotFound) {
-				return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
-			}
-		} else {
-			switch tag.Status {
-			case persona.StatusPending:
-				return utils.LogDebugWithMessageAndCode(
-					logger,
-					eris.Errorf("persona tag %q is pending for this account", tag.PersonaTag),
-					errors.AlreadyExists,
-					"persona tag %q is pending", tag.PersonaTag,
-				)
-			case persona.StatusAccepted:
-				return utils.LogErrorWithMessageAndCode(
-					logger,
-					eris.Errorf("persona tag %q already associated with this account", tag.PersonaTag),
-					errors.AlreadyExists,
-					"persona tag %q already associated with this account",
-					tag.PersonaTag)
-			case persona.StatusRejected:
-				// if the tag was rejected, don't do anything. let the user try to claim another tag.
-			}
-		}
-
-		txHash, tick, err := persona.CardinalCreatePersona(ctx, nk, ptr.PersonaTag, globalCardinalAddress, globalNamespace)
-		if err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make create persona request to cardinal")
-		}
-		notifier.AddTxHashToPendingNotifications(txHash, userID)
-
-		ptr.Status = persona.StatusPending
-		if err = ptr.SavePersonaTagStorageObj(ctx, nk); err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
-		}
-
-		// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
-		// user having the persona tag.
-		if ok := setPersonaTagAssignment(ptr.PersonaTag, userID); !ok {
-			ptr.Status = persona.StatusRejected
-			if err = ptr.SavePersonaTagStorageObj(ctx, nk); err != nil {
-				return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to set persona tag storage object")
-			}
-			return utils.LogErrorWithMessageAndCode(
-				logger,
-				eris.Errorf("persona tag %q is not available", ptr.PersonaTag),
-				errors.AlreadyExists,
-				"persona tag %q is not available",
-				ptr.PersonaTag)
-		}
-
-		ptr.Tick = tick
-		ptr.TxHash = txHash
-		if err = ptr.SavePersonaTagStorageObj(ctx, nk); err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to save persona tag storage object")
-		}
-		ptv.AddPendingPersonaTag(userID, ptr.TxHash)
-		res, err := ptr.ToJSON()
-		if err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to marshal response")
-		}
-		return res, nil
+		return utils.LogError(logger, err, errors.Internal)
 	}
 }
 
 func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string,
 ) (string, error) {
-	ptr, err := persona.LoadPersonaTagStorageObj(ctx, nk)
-	if err != nil {
-		if eris.Is(eris.Cause(err), errors.ErrPersonaTagStorageObjNotFound) {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "no persona tag found")
-		}
-		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get persona tag storage object")
+	result, err := persona.ShowPersona(ctx, nk, globalCardinalAddress)
+	if err == nil {
+		return utils.MarshalResult(logger, result)
 	}
-	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, globalCardinalAddress)
-	if err != nil {
-		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to update pending state")
+
+	if eris.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound) {
+		return utils.LogErrorWithMessageAndCode(logger, err, errors.NotFound, "persona tag not found")
 	}
-	res, err := ptr.ToJSON()
-	if err != nil {
-		return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to marshal response")
-	}
-	return res, nil
+	return utils.LogError(logger, err, errors.Internal)
 }
 
 func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
@@ -157,7 +97,12 @@ func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 	case errors2.Is(err, allowlist.ErrReadingAmountOfKeys):
 		return utils.LogErrorWithMessageAndCode(logger, err, errors.InvalidArgument, "key amount incorrectly formatted")
 	case errors2.Is(err, allowlist.ErrPermissionDenied):
-		return utils.LogErrorWithMessageAndCode(logger, err, errors.PermissionDenied, "non-admin user tried to call generate-beta-keys")
+		return utils.LogErrorWithMessageAndCode(
+			logger,
+			err,
+			errors.PermissionDenied,
+			"non-admin user tried to call generate-beta-keys",
+		)
 	}
 	return utils.LogError(logger, err, errors.Internal)
 }
@@ -211,9 +156,13 @@ func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 	return utils.LogError(logger, err, errors.Internal)
 }
 
-func handleGetSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string,
+func handleGetSaveGame(
+	ctx context.Context,
+	logger runtime.Logger,
+	_ *sql.DB,
+	nk runtime.NakamaModule,
+	_ string,
 ) (string, error) {
-
 	result, err := readSave(ctx, nk)
 	if err == nil {
 		return utils.MarshalResult(logger, result)

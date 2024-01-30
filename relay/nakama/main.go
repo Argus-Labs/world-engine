@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 
-	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
@@ -70,9 +69,9 @@ func InitModule(
 		return eris.Wrap(err, "failed to init persona tag assignment map")
 	}
 
-	ptv := persona.NewVerifier(logger, nk, globalReceiptsDispatcher)
+	verifier := persona.NewVerifier(logger, nk, globalReceiptsDispatcher)
 
-	if err := initPersonaTagEndpoints(logger, initializer, ptv, notifier); err != nil {
+	if err := initPersonaTagEndpoints(logger, initializer, verifier, notifier); err != nil {
 		return eris.Wrap(err, "failed to init persona tag endpoints")
 	}
 
@@ -213,17 +212,6 @@ func initCardinalEndpoints(
 	return nil
 }
 
-// setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns
-// true if the attempt was successful or false if it failed. This method is safe for concurrent access.
-func setPersonaTagAssignment(personaTag, userID string) (ok bool) {
-	val, loaded := globalPersonaTagAssignment.LoadOrStore(personaTag, userID)
-	if !loaded {
-		return true
-	}
-	gotUserID, _ := val.(string)
-	return gotUserID == userID
-}
-
 func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload string) (io.Reader, error) {
 	ptr, err := persona.LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
@@ -235,7 +223,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 	}
 
 	if ptr.Status != persona.StatusAccepted {
-		return nil, eris.Wrap(nakamaerrors.ErrNoPersonaTagForUser, "")
+		return nil, eris.Wrap(persona.ErrNoPersonaTagForUser, "")
 	}
 	personaTag := ptr.PersonaTag
 	pk, nonce, err := signer.GetPrivateKeyAndANonce(ctx, nk)
