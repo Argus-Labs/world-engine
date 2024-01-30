@@ -176,13 +176,21 @@ func TestEVMTxConsume(t *testing.T) {
 
 func TestAddSystems(t *testing.T) {
 	count := 0
-	sys := func(engine.Context) error {
+	sys1 := func(engine.Context) error {
+		count++
+		return nil
+	}
+	sys2 := func(engine.Context) error {
+		count++
+		return nil
+	}
+	sys3 := func(engine.Context) error {
 		count++
 		return nil
 	}
 
 	eng := testutils.NewTestFixture(t, nil).Engine
-	err := eng.RegisterSystems(sys, sys, sys)
+	err := eng.RegisterSystems(sys1, sys2, sys3)
 	assert.NilError(t, err)
 
 	err = eng.LoadGameState()
