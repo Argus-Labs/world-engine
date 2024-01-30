@@ -3,7 +3,6 @@ go 1.21.2
 use (
 	assert
 	cardinal
-	docs
 	evm
 	internal/e2e
 	internal/e2e/tester/game

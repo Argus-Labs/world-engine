@@ -15,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
-	"pkgs.world.dev/world-engine/docs"
+	"github.com/swaggo/swag"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -97,9 +97,8 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 func (s *ServerTestSuite) TestSwaggerEndpointsAreActuallyCreated() {
 	s.setupWorld()
 	s.fixture.DoTick()
-
 	m := map[string]any{}
-	s.Require().NoError(json.Unmarshal([]byte(docs.SwaggerInfo.ReadDoc()), &m))
+	s.Require().NoError(json.Unmarshal([]byte(swag.GetSwagger("swagger").ReadDoc()), &m))
 	paths, ok := m["paths"].(map[string]any)
 	s.Require().True(ok)
 

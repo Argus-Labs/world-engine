@@ -44,5 +44,5 @@ unit-test-all:
 #   swagger	    #
 #################
 swagger:
-	swag init -g cardinal/server/server.go
+	swag init -g cardinal/server/server.go -o cardinal/server/
 
