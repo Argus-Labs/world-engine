@@ -39,15 +39,6 @@ var (
 	ErrComponentNotRegistered            = iterators.ErrMustRegisterComponent
 )
 
-type (
-	// EntityID represents a single entity in the World. An EntityID is tied to
-	// one or more components.
-	EntityID = entity.ID
-	TxHash   = message.TxHash
-	Receipt  = receipt.Receipt
-	System   = systems.System
-)
-
 type World struct {
 	engine          *ecs.Engine
 	server          *server.Server
