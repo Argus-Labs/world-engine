@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Sync starter-game-template content to upstream repo
         id: push_directory
-        uses: cpina/github-action-push-to-another-repository@main
+        uses: cpina/github-action-push-to-another-repository@v1.7.2
         env:
           SSH_DEPLOY_KEY: ${{ secrets.STARTER_GAME_TEMPLATE_SSH_KEY }}
         with:

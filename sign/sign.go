@@ -37,8 +37,8 @@ type Transaction struct {
 	Namespace  string          `json:"namespace"`
 	Nonce      uint64          `json:"nonce"`
 	Signature  string          `json:"signature"` // hex encoded string
-	Hash       common.Hash     `json:"hash,omitempty"`
-	Body       json.RawMessage `json:"body"` // json string
+	Hash       common.Hash     `json:"hash,omitempty" swaggertype:"string"`
+	Body       json.RawMessage `json:"body" swaggertype:"object"` // json string
 }
 
 func UnmarshalTransaction(bz []byte) (*Transaction, error) {

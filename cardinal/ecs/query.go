@@ -2,10 +2,11 @@ package ecs
 
 import (
 	"encoding/json"
+	"reflect"
+
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
-	"reflect"
 )
 
 type Query interface {

@@ -3,7 +3,6 @@ package server_test
 import (
 	"context"
 	"crypto/ecdsa"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,7 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/suite"
-	"gopkg.in/yaml.v3"
+	"github.com/swaggo/swag"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -93,17 +92,13 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	}
 }
 
-//go:embed swagger.yml
-var swaggerData []byte
-
 // TestSwaggerEndpointsAreActuallyCreated verifies the non-variable endpoints that are declared in the swagger.yml file
 // actually have endpoints when the cardinal server starts.
 func (s *ServerTestSuite) TestSwaggerEndpointsAreActuallyCreated() {
 	s.setupWorld()
 	s.fixture.DoTick()
-
 	m := map[string]any{}
-	s.Require().NoError(yaml.Unmarshal(swaggerData, m))
+	s.Require().NoError(json.Unmarshal([]byte(swag.GetSwagger("swagger").ReadDoc()), &m))
 	paths, ok := m["paths"].(map[string]any)
 	s.Require().True(ok)
 
