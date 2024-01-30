@@ -3,6 +3,7 @@ package events_test
 import (
 	"bytes"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -87,20 +88,40 @@ type SendEnergyTxResult struct{}
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
 	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
-	engine, addr := tf.Engine, tf.BaseURL
+	eng, addr := tf.Engine, tf.BaseURL
 	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
-	assert.NilError(t, engine.RegisterMessages(sendTx))
+	assert.NilError(t, eng.RegisterMessages(sendTx))
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
-	for i := 0; i < numberToTest; i++ {
-		engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
-			eCtx.GetEngine().EmitEvent(&events.Event{Message: "test"})
-			counter1.Add(1)
-			return nil
-		})
+	sys1 := func(eCtx engine.Context) error {
+		eCtx.EmitEvent(&events.Event{Message: "test"})
+		counter1.Add(1)
+		return nil
 	}
-	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](engine))
-	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](engine))
+	sys2 := func(eCtx engine.Context) error {
+		eCtx.EmitEvent(&events.Event{Message: "test"})
+		counter1.Add(1)
+		return nil
+	}
+	sys3 := func(eCtx engine.Context) error {
+		eCtx.EmitEvent(&events.Event{Message: "test"})
+		counter1.Add(1)
+		return nil
+	}
+	sys4 := func(eCtx engine.Context) error {
+		eCtx.EmitEvent(&events.Event{Message: "test"})
+		counter1.Add(1)
+		return nil
+	}
+	sys5 := func(eCtx engine.Context) error {
+		eCtx.EmitEvent(&events.Event{Message: "test"})
+		counter1.Add(1)
+		return nil
+	}
+	err := eng.RegisterSystems(sys1, sys2, sys3, sys4, sys5)
+	assert.NilError(t, err)
+	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](eng))
+	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](eng))
 	tf.StartWorld()
 	url := wsURL(addr, "events")
 	dialers := make([]*websocket.Conn, numberToTest)

@@ -2,6 +2,7 @@ package cardinal_test
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -17,10 +18,10 @@ type Health struct {
 
 func (Health) Name() string { return "health" }
 
-func HealthSystem(worldCtx cardinal.WorldContext) error {
+func HealthSystem(eCtx engine.Context) error {
 	var errs []error
-	errs = append(errs, worldCtx.NewSearch(cardinal.Exact(Health{})).Each(worldCtx, func(id cardinal.EntityID) bool {
-		errs = append(errs, cardinal.UpdateComponent[Health](worldCtx, id, func(h *Health) *Health {
+	errs = append(errs, cardinal.NewSearch(eCtx, cardinal.Exact(Health{})).Each(func(id cardinal.EntityID) bool {
+		errs = append(errs, cardinal.UpdateComponent[Health](eCtx, id, func(h *Health) *Health {
 			h.Value++
 			return h
 		}))
@@ -37,7 +38,7 @@ func TestSystemExample(t *testing.T) {
 	err := cardinal.RegisterSystems(world, HealthSystem)
 	assert.NilError(t, err)
 
-	worldCtx := testutils.WorldToWorldContext(world)
+	worldCtx := testutils.WorldToEngineContext(world)
 	doTick()
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
 	assert.NilError(t, err)
@@ -70,13 +71,16 @@ func TestCanRegisterMultipleSystem(t *testing.T) {
 	var firstSystemCalled bool
 	var secondSystemCalled bool
 
-	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+	firstSystem := func(context engine.Context) error {
 		firstSystemCalled = true
 		return nil
-	}, func(context cardinal.WorldContext) error {
+	}
+	secondSystem := func(context engine.Context) error {
 		secondSystemCalled = true
 		return nil
-	})
+	}
+
+	err := cardinal.RegisterSystems(world, firstSystem, secondSystem)
 	assert.NilError(t, err)
 
 	doTick()

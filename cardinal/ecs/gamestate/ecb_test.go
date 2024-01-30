@@ -35,7 +35,8 @@ func newCmdBufferForTest(t *testing.T) *gamestate.EntityCommandBuffer {
 // client is nil, a redis client is created.
 func newCmdBufferAndRedisClientForTest(
 	t *testing.T,
-	client *redis.Client) (*gamestate.EntityCommandBuffer, *redis.Client) {
+	client *redis.Client,
+) (*gamestate.EntityCommandBuffer, *redis.Client) {
 	if client == nil {
 		s := miniredis.RunT(t)
 		options := redis.Options{
@@ -355,7 +356,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 		found := map[entity.ID]bool{}
 		q := engine.NewSearch(tc.filter)
 		err = q.Each(
-			eCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				found[id] = true
 				return true
 			},

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strconv"
 	"sync"
 	"testing"
@@ -92,8 +93,8 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	gotNumOfEntities := 0
-	err := cardinal.RegisterSystems(world, func(worldCtx cardinal.WorldContext) error {
-		err := worldCtx.NewSearch(cardinal.Exact(Foo{})).Each(worldCtx, func(cardinal.EntityID) bool {
+	err := cardinal.RegisterSystems(world, func(eCtx engine.Context) error {
+		err := cardinal.NewSearch(eCtx, cardinal.Exact(Foo{})).Each(func(cardinal.EntityID) bool {
 			gotNumOfEntities++
 			return true
 		})
@@ -116,7 +117,7 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 	var ts uint64
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	err := cardinal.RegisterSystems(world, func(context cardinal.WorldContext) error {
+	err := cardinal.RegisterSystems(world, func(context engine.Context) error {
 		ts = context.Timestamp()
 		return nil
 	})
@@ -139,8 +140,8 @@ func TestShutdownViaSignal(t *testing.T) {
 	wsBaseURL := "ws://" + addr
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	wantNumOfEntities := 10
-	world.Init(func(worldCtx cardinal.WorldContext) error {
-		_, err := cardinal.CreateMany(worldCtx, wantNumOfEntities/2, Foo{})
+	world.Init(func(eCtx engine.Context) error {
+		_, err := cardinal.CreateMany(eCtx, wantNumOfEntities/2, Foo{})
 		if err != nil {
 			return err
 		}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"reflect"
 
@@ -150,19 +151,18 @@ type TxData[In any] struct {
 	Tx   *sign.Transaction
 }
 
-func (t *MessageType[In, Out]) AddError(eCtx EngineContext, hash message.TxHash, err error) {
-	eCtx.GetEngine().AddMessageError(hash, err)
+func (t *MessageType[In, Out]) AddError(eCtx engine.Context, hash message.TxHash, err error) {
+	eCtx.AddMessageError(hash, err)
 }
 
-func (t *MessageType[In, Out]) SetResult(eCtx EngineContext, hash message.TxHash, result Out) {
-	eCtx.GetEngine().SetMessageResult(hash, result)
+func (t *MessageType[In, Out]) SetResult(eCtx engine.Context, hash message.TxHash, result Out) {
+	eCtx.SetMessageResult(hash, result)
 }
 
-func (t *MessageType[In, Out]) GetReceipt(eCtx EngineContext, hash message.TxHash) (
+func (t *MessageType[In, Out]) GetReceipt(eCtx engine.Context, hash message.TxHash) (
 	v Out, errs []error, ok bool,
 ) {
-	engine := eCtx.GetEngine()
-	iface, errs, ok := engine.GetTransactionReceipt(hash)
+	iface, errs, ok := eCtx.GetTransactionReceipt(hash)
 	if !ok {
 		return v, nil, false
 	}
@@ -177,7 +177,7 @@ func (t *MessageType[In, Out]) GetReceipt(eCtx EngineContext, hash message.TxHas
 	return value, errs, true
 }
 
-func (t *MessageType[In, Out]) Each(eCtx EngineContext, fn func(TxData[In]) (Out, error)) {
+func (t *MessageType[In, Out]) Each(eCtx engine.Context, fn func(TxData[In]) (Out, error)) {
 	for _, txData := range t.In(eCtx) {
 		if result, err := fn(txData); err != nil {
 			err = eris.Wrap(err, "")
@@ -195,7 +195,7 @@ func (t *MessageType[In, Out]) Each(eCtx EngineContext, fn func(TxData[In]) (Out
 }
 
 // In extracts all the TxData in the tx queue that match this MessageType's ID.
-func (t *MessageType[In, Out]) In(eCtx EngineContext) []TxData[In] {
+func (t *MessageType[In, Out]) In(eCtx engine.Context) []TxData[In] {
 	tq := eCtx.GetTxQueue()
 	var txs []TxData[In]
 	for _, txData := range tq.ForID(t.ID()) {

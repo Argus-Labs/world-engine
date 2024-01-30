@@ -5,7 +5,9 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
+	search2 "pkg.world.dev/world-engine/cardinal/ecs/search"
 	"pkg.world.dev/world-engine/cardinal/types/component"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
@@ -27,10 +29,10 @@ type DebugStateResponse []*debugStateElement
 //	@Router			/query/debug/state [post]
 func queryDebugState(ctx EngineContext, _ *DebugRequest) (*DebugStateResponse, error) {
 	result := make(DebugStateResponse, 0)
-	search := NewSearch(filter.All())
+	search := search2.NewSearch(filter.All(), ctx.Namespace(), ctx.StoreReader())
 	var eachClosureErr error
 	searchEachErr := search.Each(
-		ctx, func(id entity.ID) bool {
+		func(id entity.ID) bool {
 			var components []component.ComponentMetadata
 			components, eachClosureErr = ctx.StoreReader().GetComponentTypesForEntity(id)
 			if eachClosureErr != nil {
@@ -85,14 +87,14 @@ type CQLQueryResponse struct {
 // @Router			/query/game/cql [post]
 func queryCQL(ctx EngineContext, req *CQLQueryRequest) (*CQLQueryResponse, error) {
 	cqlString := req.CQL
-	resultFilter, err := cql.Parse(cqlString, ctx.GetEngine().GetComponentByName)
+	resultFilter, err := cql.Parse(cqlString, ctx.GetComponentByName)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]cqlData, 0)
 	var eachError error
-	searchErr := NewSearch(resultFilter).Each(
-		ctx, func(id entity.ID) bool {
+	searchErr := search2.NewSearch(resultFilter, ctx.Namespace(), ctx.StoreReader()).Each(
+		func(id entity.ID) bool {
 			components, err := ctx.StoreReader().GetComponentTypesForEntity(id)
 			if err != nil {
 				eachError = err
@@ -160,7 +162,7 @@ func receiptsQuery(ctx EngineContext, req *ListTxReceiptsRequest) (*ListTxReceip
 	eng := ctx.GetEngine()
 	reply := ListTxReceiptsReply{}
 	reply.EndTick = ctx.CurrentTick()
-	size := eng.ReceiptHistorySize()
+	size := ctx.ReceiptHistorySize()
 	if size > reply.EndTick {
 		reply.StartTick = 0
 	} else {
@@ -176,7 +178,7 @@ func receiptsQuery(ctx EngineContext, req *ListTxReceiptsRequest) (*ListTxReceip
 	}
 
 	for t := reply.StartTick; t < reply.EndTick; t++ {
-		currReceipts, err := eng.GetTransactionReceiptsForTick(t)
+		currReceipts, err := ctx.GetTransactionReceiptsForTick(t)
 		if err != nil || len(currReceipts) == 0 {
 			continue
 		}

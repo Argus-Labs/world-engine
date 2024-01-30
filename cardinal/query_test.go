@@ -2,6 +2,7 @@ package cardinal_test
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -20,14 +21,14 @@ type QueryHealthResponse struct {
 }
 
 func handleQueryHealth(
-	worldCtx cardinal.WorldContext,
+	eCtx engine.Context,
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
 	resp := &QueryHealthResponse{}
-	err := worldCtx.NewSearch(cardinal.Exact(Health{})).Each(worldCtx, func(id cardinal.EntityID) bool {
+	err := cardinal.NewSearch(eCtx, cardinal.Exact(Health{})).Each(func(id cardinal.EntityID) bool {
 		var err error
 		var health *Health
-		health, err = cardinal.GetComponent[Health](worldCtx, id)
+		health, err = cardinal.GetComponent[Health](eCtx, id)
 		if err != nil {
 			return true
 		}
@@ -56,8 +57,9 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 		testutils.NewTestFixture(t, nil).World,
 		"query_health",
 		func(
-			_ cardinal.WorldContext,
-			_ *FooReq) (*FooReply, error) {
+			_ engine.Context,
+			_ *FooReq,
+		) (*FooReply, error) {
 			return &FooReply{}, errors.New("this function should never get called")
 		})
 }
@@ -75,7 +77,7 @@ func TestQueryExample(t *testing.T) {
 		),
 	)
 	assert.NilError(t, fixture.Engine.LoadGameState())
-	worldCtx := testutils.WorldToWorldContext(world)
+	worldCtx := testutils.WorldToEngineContext(world)
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
 	assert.NilError(t, err)
 	// Give each new entity health based on the ever-increasing index
@@ -90,17 +92,17 @@ func TestQueryExample(t *testing.T) {
 	q, err := world.Engine().GetQueryByName("query_health")
 	assert.NilError(t, err)
 
-	resp, err := q.HandleQuery(worldCtx.Engine(), QueryHealthRequest{1_000_000})
+	resp, err := q.HandleQuery(worldCtx, QueryHealthRequest{1_000_000})
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(resp.(*QueryHealthResponse).IDs))
 
 	// All entities should have health over -100
-	resp, err = q.HandleQuery(worldCtx.Engine(), QueryHealthRequest{-100})
+	resp, err = q.HandleQuery(worldCtx, QueryHealthRequest{-100})
 	assert.NilError(t, err)
 	assert.Equal(t, 100, len(resp.(*QueryHealthResponse).IDs))
 
 	// Exactly 10 entities should have health at or above 90
-	resp, err = q.HandleQuery(worldCtx.Engine(), QueryHealthRequest{90})
+	resp, err = q.HandleQuery(worldCtx, QueryHealthRequest{90})
 	assert.NilError(t, err)
 	assert.Equal(t, 10, len(resp.(*QueryHealthResponse).IDs))
 }

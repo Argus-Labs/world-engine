@@ -35,7 +35,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	q := engine.NewSearch(filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				count++
 				return count != stop
 			},
@@ -47,7 +47,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	q = engine.NewSearch(filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				count++
 				return true
 			},

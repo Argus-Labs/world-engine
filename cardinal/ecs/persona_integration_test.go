@@ -253,7 +253,7 @@ func getSigners(t *testing.T, engine *ecs.Engine) []*ecs.SignerComponent {
 	q := engine.NewSearch(filter.Exact(ecs.SignerComponent{}))
 
 	err := q.Each(
-		eCtx, func(id entity.ID) bool {
+		func(id entity.ID) bool {
 			sc, err := ecs.GetComponent[ecs.SignerComponent](eCtx, id)
 			assert.NilError(t, err)
 			signers = append(signers, sc)

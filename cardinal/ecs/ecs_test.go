@@ -3,6 +3,8 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/search"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
@@ -44,11 +46,11 @@ func (OwnableComponent) Name() string {
 	return "OwnableComponent"
 }
 
-func UpdateEnergySystem(eCtx ecs.EngineContext) error {
+func UpdateEnergySystem(eCtx engine.Context) error {
 	var errs []error
-	q := eCtx.NewSearch(filter.Contains(EnergyComponent{}))
+	q := search.NewSearch(filter.Contains(EnergyComponent{}), eCtx.Namespace(), eCtx.StoreReader())
 	err := q.Each(
-		eCtx, func(ent entity.ID) bool {
+		func(ent entity.ID) bool {
 			energyPlanet, err := ecs.GetComponent[EnergyComponent](eCtx, ent)
 			if err != nil {
 				errs = append(errs, err)
@@ -101,26 +103,27 @@ func TestSchemaChecking(t *testing.T) {
 }
 
 func TestECS(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](engine))
-	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine))
+	eng := testutils.NewTestFixture(t, nil).Engine
+	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](eng))
+	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](eng))
 
 	// create a bunch of planets!
 	numPlanets := 5
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := ecs.NewEngineContext(eng)
 
-	engine.RegisterSystem(UpdateEnergySystem)
-	assert.NilError(t, engine.LoadGameState())
+	err := eng.RegisterSystems(UpdateEnergySystem)
+	assert.NilError(t, err)
+	assert.NilError(t, eng.LoadGameState())
 	numEnergyOnly := 10
-	_, err := ecs.CreateMany(eCtx, numEnergyOnly, EnergyComponent{})
+	_, err = ecs.CreateMany(eCtx, numEnergyOnly, EnergyComponent{})
 	assert.NilError(t, err)
 	_, err = ecs.CreateMany(eCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, engine.Tick(context.Background()))
-	query := engine.NewSearch(filter.Contains(EnergyComponent{}))
+	assert.NilError(t, eng.Tick(context.Background()))
+	query := eng.NewSearch(filter.Contains(EnergyComponent{}))
 	err = query.Each(
-		eCtx, func(id entity.ID) bool {
+		func(id entity.ID) bool {
 			energyPlanet, err := ecs.GetComponent[EnergyComponent](eCtx, id)
 			assert.NilError(t, err)
 			assert.Equal(t, int64(10), energyPlanet.Amt)
@@ -129,11 +132,11 @@ func TestECS(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	q := engine.NewSearch(filter.Or(filter.Contains(EnergyComponent{}), filter.Contains(OwnableComponent{})))
-	amt, err := q.Count(eCtx)
+	q := eng.NewSearch(filter.Or(filter.Contains(EnergyComponent{}), filter.Contains(OwnableComponent{})))
+	amt, err := q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
-	comp, err := engine.GetComponentByName("EnergyComponent")
+	comp, err := eng.GetComponentByName("EnergyComponent")
 	assert.NilError(t, err)
 	assert.Equal(t, comp.Name(), Energy.Name())
 }
@@ -170,7 +173,7 @@ func TestVelocitySimulation(t *testing.T) {
 
 	velocityQuery := engine.NewSearch(filter.Contains(&Vel{}))
 	err = velocityQuery.Each(
-		eCtx, func(id entity.ID) bool {
+		func(id entity.ID) bool {
 			vel, err := ecs.GetComponent[Vel](eCtx, id)
 			assert.NilError(t, err)
 			pos, err := ecs.GetComponent[Pos](eCtx, id)
@@ -229,21 +232,21 @@ func (Tuple) Name() string {
 }
 
 func TestCanRemoveEntity(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
+	eng := testutils.NewTestFixture(t, nil).World.Engine()
 
-	assert.NilError(t, ecs.RegisterComponent[Tuple](engine))
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, ecs.RegisterComponent[Tuple](eng))
+	assert.NilError(t, eng.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := ecs.NewEngineContext(eng)
 	entities, err := ecs.CreateMany(eCtx, 2, Tuple{})
 	assert.NilError(t, err)
 
 	// Make sure we find exactly 2 entries
 	count := 0
-	q := engine.NewSearch(filter.Contains(Tuple{}))
+	q := eng.NewSearch(filter.Contains(Tuple{}))
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				_, err = ecs.GetComponent[Tuple](eCtx, id)
 				assert.NilError(t, err)
 				count++
@@ -253,14 +256,14 @@ func TestCanRemoveEntity(t *testing.T) {
 	)
 
 	assert.Equal(t, count, 2)
-	err = engine.Remove(entities[0])
+	err = ecs.Remove(eCtx, entities[0])
 	assert.NilError(t, err)
 
 	// Now we should only find 1 entity
 	count = 0
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				_, err = ecs.GetComponent[Tuple](eCtx, id)
 				assert.NilError(t, err)
 				count++
@@ -271,16 +274,16 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 1)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = engine.GameStateManager().GetComponentTypesForEntity(entities[0])
+	_, err = eng.GameStateManager().GetComponentTypesForEntity(entities[0])
 	assert.Check(t, err != nil)
 
 	// Remove the other entity
-	err = engine.Remove(entities[1])
+	err = ecs.Remove(eCtx, entities[1])
 	assert.NilError(t, err)
 	count = 0
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				_, err = ecs.GetComponent[Tuple](eCtx, id)
 				assert.NilError(t, err)
 				count++
@@ -291,7 +294,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 0)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = engine.GameStateManager().GetComponentTypesForEntity(entities[0])
+	_, err = eng.GameStateManager().GetComponentTypesForEntity(entities[0])
 	assert.Check(t, err != nil)
 }
 
@@ -319,7 +322,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	q := engine.NewSearch(filter.Contains(CountComponent{}))
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				assert.NilError(t, ecs.SetComponent[CountComponent](eCtx, id, &CountComponent{int(id)}))
 				return true
 			},
@@ -330,9 +333,9 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	itr := 0
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				if itr%2 == 0 {
-					assert.NilError(t, engine.Remove(id))
+					assert.NilError(t, ecs.Remove(eCtx, id))
 				}
 				itr++
 				return true
@@ -345,7 +348,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	seen := map[int]int{}
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				c, err := ecs.GetComponent[CountComponent](eCtx, id)
 				assert.NilError(t, err)
 				seen[c.Val]++
@@ -487,32 +490,32 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	}
 	// 3 entities have alpha
 	alphaQuery := engine.NewSearch(filter.Contains(Alpha{}))
-	err = alphaQuery.Each(eCtx, countAgain())
+	err = alphaQuery.Each(countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 3, count)
 
 	// 0 entities have gamma
 	gammaQuery := engine.NewSearch(filter.Contains(Gamma{}))
-	err = gammaQuery.Each(eCtx, countAgain())
+	err = gammaQuery.Each(countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 0, count)
 
 	assert.NilError(t, ecs.RemoveComponentFrom[Alpha](eCtx, entIDs[0]))
 
 	// alpha has been removed from entity[0], so only 2 entities should now have alpha
-	err = alphaQuery.Each(eCtx, countAgain())
+	err = alphaQuery.Each(countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 2, count)
 
 	// Add gamma to an entity. Now 1 entity should have gamma.
 	assert.NilError(t, ecs.AddComponentTo[Gamma](eCtx, entIDs[1]))
-	err = gammaQuery.Each(eCtx, countAgain())
+	err = gammaQuery.Each(countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 1, count)
 
 	// Make sure the one ent that has gamma is entIDs[1]
 	err = gammaQuery.Each(
-		eCtx, func(id entity.ID) bool {
+		func(id entity.ID) bool {
 			assert.Equal(t, id, entIDs[1])
 			return true
 		},
@@ -585,14 +588,14 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 	q := engine.NewSearch(abFilter)
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				assert.Equal(t, id, ab)
 				return true
 			},
 		),
 	)
 	q = engine.NewSearch(abFilter)
-	num, err := q.Count(eCtx)
+	num, err := q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
@@ -600,19 +603,19 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 	q = engine.NewSearch(cdFilter)
 	assert.NilError(
 		t, q.Each(
-			eCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				assert.Equal(t, id, cd)
 				return true
 			},
 		),
 	)
 	q = engine.NewSearch(abFilter)
-	num, err = q.Count(eCtx)
+	num, err = q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
 	q = engine.NewSearch(filter.Or(filter.Contains(A{}), filter.Contains(D{})))
-	allCount, err := q.Count(eCtx)
+	allCount, err := q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, allCount, 3)
 }
@@ -659,18 +662,18 @@ func (ValueComponent1) Name() string {
 }
 
 func TestCanRemoveFirstEntity(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
-	assert.NilError(t, ecs.RegisterComponent[ValueComponent1](engine))
-	assert.NilError(t, engine.LoadGameState())
+	eng := testutils.NewTestFixture(t, nil).World.Engine()
+	assert.NilError(t, ecs.RegisterComponent[ValueComponent1](eng))
+	assert.NilError(t, eng.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := ecs.NewEngineContext(eng)
 	ids, err := ecs.CreateMany(eCtx, 3, ValueComponent1{})
 	assert.NilError(t, err)
 	assert.NilError(t, ecs.SetComponent[ValueComponent1](eCtx, ids[0], &ValueComponent1{99}))
 	assert.NilError(t, ecs.SetComponent[ValueComponent1](eCtx, ids[1], &ValueComponent1{100}))
 	assert.NilError(t, ecs.SetComponent[ValueComponent1](eCtx, ids[2], &ValueComponent1{101}))
 
-	assert.NilError(t, engine.Remove(ids[0]))
+	assert.NilError(t, ecs.Remove(eCtx, ids[0]))
 
 	val, err := ecs.GetComponent[ValueComponent1](eCtx, ids[1])
 	assert.NilError(t, err)

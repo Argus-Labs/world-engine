@@ -7,6 +7,8 @@ import (
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"reflect"
 )
 
 type Query interface {
@@ -15,10 +17,10 @@ type Query interface {
 	// Group returns the group of the query.
 	Group() string
 	// HandleQuery handles queries with concrete types, rather than encoded bytes.
-	HandleQuery(EngineContext, any) (any, error)
+	HandleQuery(engine.Context, any) (any, error)
 	// HandleQueryRaw is given a reference to the engine, json encoded bytes that represent a query request
 	// and is expected to return a json encoded response struct.
-	HandleQueryRaw(EngineContext, []byte) ([]byte, error)
+	HandleQueryRaw(engine.Context, []byte) ([]byte, error)
 	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
 	DecodeEVMRequest([]byte) (any, error)
 	// EncodeEVMReply encodes the reply as an abi encoded struct.
@@ -34,7 +36,7 @@ type Query interface {
 type QueryType[Request any, Reply any] struct {
 	name       string
 	group      string
-	handler    func(eCtx EngineContext, req *Request) (*Reply, error)
+	handler    func(eCtx engine.Context, req *Request) (*Reply, error)
 	requestABI *ethereumAbi.Type
 	replyABI   *ethereumAbi.Type
 }
@@ -63,7 +65,7 @@ var _ Query = &QueryType[struct{}, struct{}]{}
 
 func NewQueryType[Request any, Reply any](
 	name string,
-	handler func(eCtx EngineContext, req *Request) (*Reply, error),
+	handler func(eCtx engine.Context, req *Request) (*Reply, error),
 	opts ...QueryOption[Request, Reply],
 ) (Query, error) {
 	err := validateQuery[Request, Reply](name, handler)
@@ -110,7 +112,7 @@ func (r *QueryType[req, rep]) Group() string {
 	return r.group
 }
 
-func (r *QueryType[req, rep]) HandleQuery(eCtx EngineContext, a any) (any, error) {
+func (r *QueryType[req, rep]) HandleQuery(eCtx engine.Context, a any) (any, error) {
 	request, ok := a.(req)
 	if !ok {
 		return nil, eris.Errorf("cannot cast %T to this query request type %T", a, new(req))
@@ -119,7 +121,7 @@ func (r *QueryType[req, rep]) HandleQuery(eCtx EngineContext, a any) (any, error
 	return reply, err
 }
 
-func (r *QueryType[req, rep]) HandleQueryRaw(eCtx EngineContext, bz []byte) ([]byte, error) {
+func (r *QueryType[req, rep]) HandleQueryRaw(eCtx engine.Context, bz []byte) ([]byte, error) {
 	request := new(req)
 	err := json.Unmarshal(bz, request)
 	if err != nil {
@@ -212,7 +214,7 @@ func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 
 func validateQuery[Request any, Reply any](
 	name string,
-	handler func(eCtx EngineContext, req *Request) (*Reply, error),
+	handler func(eCtx engine.Context, req *Request) (*Reply, error),
 ) error {
 	if name == "" {
 		return eris.New("cannot create query without name")

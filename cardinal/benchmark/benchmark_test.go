@@ -5,6 +5,8 @@ package benchmark_test
 import (
 	"context"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/ecs/search"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -53,11 +55,11 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.E
 	world := newWorldWithRealRedis(t)
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	if enableHealthSystem {
-		world.RegisterSystem(
-			func(eCtx ecs.EngineContext) error {
-				q := world.NewSearch(filter.Contains(Health{}))
+		err := world.RegisterSystems(
+			func(eCtx engine.Context) error {
+				q := search.NewSearch(filter.Contains(Health{}), eCtx.Namespace(), eCtx.StoreReader())
 				err := q.Each(
-					eCtx, func(id entity.ID) bool {
+					func(id entity.ID) bool {
 						health, err := ecs.GetComponent[Health](eCtx, id)
 						assert.NilError(t, err)
 						health.Value++
@@ -69,6 +71,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.E
 				return nil
 			},
 		)
+		assert.NilError(t, err)
 	}
 
 	assert.NilError(t, ecs.RegisterComponent[Health](world))

@@ -3,6 +3,8 @@ package testutils
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 	"testing"
 	"time"
 
@@ -31,7 +33,7 @@ func SetTestTimeout(t *testing.T, timeout time.Duration) {
 	}()
 }
 
-func WorldToWorldContext(world *cardinal.World) cardinal.WorldContext {
+func WorldToEngineContext(world *cardinal.World) engine.Context {
 	return cardinal.TestingWorldToWorldContext(world)
 }
 
@@ -64,14 +66,14 @@ func UniqueSignature() *sign.Transaction {
 
 func AddTransactionToWorldByAnyTransaction(
 	world *cardinal.World,
-	cardinalTx cardinal.AnyMessage,
+	cardinalTx message.Message,
 	value any,
-	tx *sign.Transaction) {
-	worldCtx := WorldToWorldContext(world)
-	ecsWorld := cardinal.TestingWorldContextToECSWorld(worldCtx)
+	tx *sign.Transaction,
+) {
+	worldCtx := WorldToEngineContext(world)
 
-	txs := ecsWorld.ListMessages()
-	txID := cardinalTx.Convert().ID()
+	txs := worldCtx.ListMessages()
+	txID := cardinalTx.ID()
 	found := false
 	for _, tx := range txs {
 		if tx.ID() == txID {
@@ -83,10 +85,10 @@ func AddTransactionToWorldByAnyTransaction(
 		panic(
 			fmt.Sprintf(
 				"cannot find transaction %q in registered transactions. Did you register it?",
-				cardinalTx.Convert().Name(),
+				cardinalTx.Name(),
 			),
 		)
 	}
 
-	_, _ = ecsWorld.AddTransaction(txID, value, tx)
+	_, _ = worldCtx.AddTransaction(txID, value, tx)
 }

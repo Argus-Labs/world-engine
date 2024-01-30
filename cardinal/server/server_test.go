@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"slices"
 	"strings"
 	"testing"
@@ -168,7 +170,7 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	err := ecs.RegisterQuery[SomeRequest, SomeResponse](
 		s.engine,
 		name,
-		func(eCtx ecs.EngineContext, req *SomeRequest) (*SomeResponse, error) {
+		func(eCtx engine.Context, req *SomeRequest) (*SomeResponse, error) {
 			called = true
 			return &SomeResponse{}, nil
 		},
@@ -217,7 +219,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	err = s.engine.RegisterMessages(MoveMessage)
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]entity.ID)
-	s.engine.RegisterSystem(func(context ecs.EngineContext) error {
+	err = s.engine.RegisterSystems(func(context engine.Context) error {
 		MoveMessage.Each(context, func(tx ecs.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
 			posID, exists := personaToPosition[tx.Tx.PersonaTag]
 			if !exists {
@@ -247,15 +249,16 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 		})
 		return nil
 	})
+	assert.NilError(s.T(), err)
 	err = cardinal.RegisterQuery[QueryLocationRequest, QueryLocationResponse](
 		s.world,
 		"location",
-		func(wCtx cardinal.WorldContext, req *QueryLocationRequest) (*QueryLocationResponse, error) {
+		func(eCtx engine.Context, req *QueryLocationRequest) (*QueryLocationResponse, error) {
 			locID, exists := personaToPosition[req.Persona]
 			if !exists {
 				return nil, fmt.Errorf("location for %q does not exists", req.Persona)
 			}
-			loc, err := cardinal.GetComponent[LocationComponent](wCtx, locID)
+			loc, err := cardinal.GetComponent[LocationComponent](eCtx, locID)
 			s.Require().NoError(err)
 
 			return &QueryLocationResponse{*loc}, nil

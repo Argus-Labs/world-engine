@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -14,7 +15,7 @@ import (
 )
 
 func TestForEachTransaction(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 	type SomeMsgRequest struct {
 		GenerateError bool
 	}
@@ -23,9 +24,9 @@ func TestForEachTransaction(t *testing.T) {
 	}
 
 	someMsg := ecs.NewMessageType[SomeMsgRequest, SomeMsgResponse]("some_msg")
-	assert.NilError(t, engine.RegisterMessages(someMsg))
+	assert.NilError(t, eng.RegisterMessages(someMsg))
 
-	engine.RegisterSystem(func(eCtx ecs.EngineContext) error {
+	err := eng.RegisterSystems(func(eCtx engine.Context) error {
 		someMsg.Each(eCtx, func(t ecs.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
 			if t.Msg.GenerateError {
 				return result, errors.New("some error")
@@ -36,21 +37,22 @@ func TestForEachTransaction(t *testing.T) {
 		})
 		return nil
 	})
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, err)
+	assert.NilError(t, eng.LoadGameState())
 
 	// Add 10 transactions to the tx queue and keep track of the hashes that we just created
 	knownTxHashes := map[message.TxHash]SomeMsgRequest{}
 	for i := 0; i < 10; i++ {
 		req := SomeMsgRequest{GenerateError: i%2 == 0}
-		txHash := someMsg.AddToQueue(engine, req, testutil.UniqueSignature(t))
+		txHash := someMsg.AddToQueue(eng, req, testutil.UniqueSignature(t))
 		knownTxHashes[txHash] = req
 	}
 
 	// Perform a engine tick
-	assert.NilError(t, engine.Tick(context.Background()))
+	assert.NilError(t, eng.Tick(context.Background()))
 
 	// Verify the receipts for the previous tick are what we expect
-	receipts, err := engine.GetTransactionReceiptsForTick(engine.CurrentTick() - 1)
+	receipts, err := eng.GetTransactionReceiptsForTick(eng.CurrentTick() - 1)
 	assert.NilError(t, err)
 	assert.Equal(t, len(knownTxHashes), len(receipts))
 	for _, receipt := range receipts {

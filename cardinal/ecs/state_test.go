@@ -2,6 +2,7 @@ package ecs_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -220,12 +221,12 @@ func TestCanReloadState(t *testing.T) {
 
 	oneAlphaNum, err := alphaEngine.GetComponentByName(oneAlphaNumComp{}.Name())
 	assert.NilError(t, err)
-	alphaEngine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
-			q := eCtx.NewSearch(filter.Contains(oneAlphaNum))
+	err = alphaEngine.RegisterSystems(
+		func(eCtx engine.Context) error {
+			q := alphaEngine.NewSearch(filter.Contains(oneAlphaNum))
 			assert.NilError(
 				t, q.Each(
-					eCtx, func(id entity.ID) bool {
+					func(id entity.ID) bool {
 						err = ecs.SetComponent[oneAlphaNumComp](eCtx, id, &oneAlphaNumComp{int(id)})
 						assert.Check(t, err == nil)
 						return true
@@ -235,6 +236,7 @@ func TestCanReloadState(t *testing.T) {
 			return nil
 		},
 	)
+	assert.NilError(t, err)
 	assert.NilError(t, alphaEngine.LoadGameState())
 	_, err = ecs.CreateMany(ecs.NewEngineContext(alphaEngine), 10, oneAlphaNumComp{})
 	assert.NilError(t, err)
@@ -252,7 +254,7 @@ func TestCanReloadState(t *testing.T) {
 	betaEngineCtx := ecs.NewEngineContext(betaEngine)
 	assert.NilError(
 		t, q.Each(
-			betaEngineCtx, func(id entity.ID) bool {
+			func(id entity.ID) bool {
 				count++
 				num, err := ecs.GetComponent[OneBetaNum](betaEngineCtx, id)
 				assert.NilError(t, err)
@@ -295,28 +297,29 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 	// Ensure that across multiple reloads we can queue up transactions, execute those transactions
 	// in a tick, and then find those transactions in the tx receipt history.
 	for reload := 0; reload < 5; reload++ {
-		engine := testutils.NewTestFixture(t, redisStore).Engine
-		assert.NilError(t, engine.RegisterMessages(someTx))
-		engine.RegisterSystem(
-			func(eCtx ecs.EngineContext) error {
+		eng := testutils.NewTestFixture(t, redisStore).Engine
+		assert.NilError(t, eng.RegisterMessages(someTx))
+		err := eng.RegisterSystems(
+			func(eCtx engine.Context) error {
 				for _, tx := range someTx.In(eCtx) {
 					someTx.SetResult(eCtx, tx.Hash, Result{})
 				}
 				return nil
 			},
 		)
-		assert.NilError(t, engine.LoadGameState())
+		assert.NilError(t, err)
+		assert.NilError(t, eng.LoadGameState())
 
-		relevantTick := engine.CurrentTick()
+		relevantTick := eng.CurrentTick()
 		for i := 0; i < 3; i++ {
-			_ = someTx.AddToQueue(engine, Msg{}, testutil.UniqueSignature(t))
+			_ = someTx.AddToQueue(eng, Msg{}, testutil.UniqueSignature(t))
 		}
 
 		for i := 0; i < 5; i++ {
-			assert.NilError(t, engine.Tick(ctx))
+			assert.NilError(t, eng.Tick(ctx))
 		}
 
-		receipts, err := engine.GetTransactionReceiptsForTick(relevantTick)
+		receipts, err := eng.GetTransactionReceiptsForTick(relevantTick)
 		assert.NilError(t, err)
 		assert.Equal(t, 3, len(receipts))
 	}

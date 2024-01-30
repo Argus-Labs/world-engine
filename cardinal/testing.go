@@ -1,16 +1,14 @@
 package cardinal
 
-import "pkg.world.dev/world-engine/cardinal/ecs"
+import (
+	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+)
 
 // This file contains helper methods that should only be used in the context of running tests.
 
-func TestingWorldToWorldContext(world *World) WorldContext {
-	ecsWorldCtx := ecs.NewEngineContext(world.instance)
-	return &worldContext{engine: ecsWorldCtx}
-}
-
-func TestingWorldContextToECSWorld(worldCtx WorldContext) *ecs.Engine {
-	return worldCtx.Engine().GetEngine()
+func TestingWorldToWorldContext(world *World) engine.Context {
+	return ecs.NewEngineContext(world.instance)
 }
 
 func (w *World) TestingGetTransactionReceiptsForTick(tick uint64) ([]Receipt, error) {

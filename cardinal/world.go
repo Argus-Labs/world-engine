@@ -26,6 +26,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/types/component"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 )
@@ -59,11 +60,6 @@ type (
 	EntityID = entity.ID
 	TxHash   = message.TxHash
 	Receipt  = receipt.Receipt
-
-	// System is a function that process the transaction in the given transaction queue.
-	// Systems are automatically called during a world tick, and they must be registered
-	// with a world using RegisterSystems.
-	System func(WorldContext) error
 )
 
 // NewWorld creates a new World object using Redis as the storage layer.
@@ -175,42 +171,42 @@ func NewMockWorld(opts ...WorldOption) (*World, error) {
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func CreateMany(wCtx WorldContext, num int, components ...component.Component) ([]EntityID, error) {
-	ids, err := ecs.CreateMany(wCtx.Engine(), num, components...)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+func CreateMany(eCtx engine.Context, num int, components ...component.Component) ([]EntityID, error) {
+	ids, err := ecs.CreateMany(eCtx, num, components...)
+	if eCtx.IsReadOnly() || err == nil {
 		return ids, err
 	}
-	return nil, logAndPanic(wCtx, err)
+	return nil, logAndPanic(eCtx, err)
 }
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func Create(wCtx WorldContext, components ...component.Component) (EntityID, error) {
-	id, err := ecs.Create(wCtx.Engine(), components...)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+func Create(eCtx engine.Context, components ...component.Component) (EntityID, error) {
+	id, err := ecs.Create(eCtx, components...)
+	if eCtx.IsReadOnly() || err == nil {
 		return id, err
 	}
-	return 0, logAndPanic(wCtx, err)
+	return 0, logAndPanic(eCtx, err)
 }
 
 // SetComponent Set sets component data to the entity.
-func SetComponent[T component.Component](wCtx WorldContext, id entity.ID, comp *T) error {
-	err := ecs.SetComponent[T](wCtx.Engine(), id, comp)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+func SetComponent[T component.Component](eCtx engine.Context, id entity.ID, comp *T) error {
+	err := ecs.SetComponent[T](eCtx, id, comp)
+	if eCtx.IsReadOnly() || err == nil {
 		return err
 	}
 	if eris.Is(err, ErrEntityDoesNotExist) ||
 		eris.Is(err, ErrComponentNotOnEntity) {
 		return err
 	}
-	return logAndPanic(wCtx, err)
+	return logAndPanic(eCtx, err)
 }
 
 // GetComponent Get returns component data from the entity.
-func GetComponent[T component.Component](wCtx WorldContext, id entity.ID) (*T, error) {
-	result, err := ecs.GetComponent[T](wCtx.Engine(), id)
+func GetComponent[T component.Component](eCtx engine.Context, id entity.ID) (*T, error) {
+	result, err := ecs.GetComponent[T](eCtx, id)
 	_ = result
-	if wCtx.Engine().IsReadOnly() || err == nil {
+	if eCtx.IsReadOnly() || err == nil {
 		return result, err
 	}
 	if eris.Is(err, ErrEntityDoesNotExist) ||
@@ -218,13 +214,13 @@ func GetComponent[T component.Component](wCtx WorldContext, id entity.ID) (*T, e
 		return nil, err
 	}
 
-	return nil, logAndPanic(wCtx, err)
+	return nil, logAndPanic(eCtx, err)
 }
 
 // UpdateComponent Updates a component on an entity.
-func UpdateComponent[T component.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
-	err := ecs.UpdateComponent[T](wCtx.Engine(), id, fn)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+func UpdateComponent[T component.Component](eCtx engine.Context, id entity.ID, fn func(*T) *T) error {
+	err := ecs.UpdateComponent[T](eCtx, id, fn)
+	if eCtx.IsReadOnly() || err == nil {
 		return err
 	}
 	if eris.Is(err, ErrEntityDoesNotExist) ||
@@ -232,13 +228,13 @@ func UpdateComponent[T component.Component](wCtx WorldContext, id entity.ID, fn 
 		return err
 	}
 
-	return logAndPanic(wCtx, err)
+	return logAndPanic(eCtx, err)
 }
 
 // AddComponentTo Adds a component on an entity.
-func AddComponentTo[T component.Component](wCtx WorldContext, id entity.ID) error {
-	err := ecs.AddComponentTo[T](wCtx.Engine(), id)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+func AddComponentTo[T component.Component](eCtx engine.Context, id entity.ID) error {
+	err := ecs.AddComponentTo[T](eCtx, id)
+	if eCtx.IsReadOnly() || err == nil {
 		return err
 	}
 	if eris.Is(err, ErrEntityDoesNotExist) ||
@@ -246,13 +242,13 @@ func AddComponentTo[T component.Component](wCtx WorldContext, id entity.ID) erro
 		return err
 	}
 
-	return logAndPanic(wCtx, err)
+	return logAndPanic(eCtx, err)
 }
 
 // RemoveComponentFrom Removes a component from an entity.
-func RemoveComponentFrom[T component.Component](wCtx WorldContext, id entity.ID) error {
-	err := ecs.RemoveComponentFrom[T](wCtx.Engine(), id)
-	if wCtx.Engine().IsReadOnly() || err == nil {
+func RemoveComponentFrom[T component.Component](eCtx engine.Context, id entity.ID) error {
+	err := ecs.RemoveComponentFrom[T](eCtx, id)
+	if eCtx.IsReadOnly() || err == nil {
 		return err
 	}
 	if eris.Is(err, ErrEntityDoesNotExist) ||
@@ -260,12 +256,12 @@ func RemoveComponentFrom[T component.Component](wCtx WorldContext, id entity.ID)
 		eris.Is(err, ErrEntityMustHaveAtLeastOneComponent) {
 		return err
 	}
-	return logAndPanic(wCtx, err)
+	return logAndPanic(eCtx, err)
 }
 
 // Remove removes the given entity id from the world.
-func Remove(wCtx WorldContext, id EntityID) error {
-	return wCtx.Engine().GetEngine().Remove(id)
+func Remove(eCtx engine.Context, id EntityID) error {
+	return ecs.Remove(eCtx, id)
 }
 
 func (w *World) handleShutdown() {
@@ -361,21 +357,8 @@ func (w *World) Shutdown() error {
 	return w.Engine().Shutdown()
 }
 
-func RegisterSystems(w *World, systems ...System) error {
-	for _, system := range systems {
-		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
-		sys := system
-		w.instance.RegisterSystemWithName(
-			func(eCtx ecs.EngineContext) error {
-				return sys(
-					&worldContext{
-						engine: eCtx,
-					},
-				)
-			}, functionName,
-		)
-	}
-	return nil
+func RegisterSystems(w *World, sys ...systems.System) error {
+	return w.instance.RegisterSystems(sys...)
 }
 
 func RegisterComponent[T component.Component](world *World) error {
@@ -384,8 +367,8 @@ func RegisterComponent[T component.Component](world *World) error {
 
 // RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
 // messages will automatically be created when StartGame is called. This Register method must only be called once.
-func RegisterMessages(w *World, msgs ...AnyMessage) error {
-	return w.instance.RegisterMessages(toMessageType(msgs)...)
+func RegisterMessages(w *World, msgs ...message.Message) error {
+	return w.instance.RegisterMessages(msgs...)
 }
 
 // RegisterQuery adds the given query to the game world. HTTP endpoints to use these queries
@@ -393,19 +376,9 @@ func RegisterMessages(w *World, msgs ...AnyMessage) error {
 func RegisterQuery[Request any, Reply any](
 	world *World,
 	name string,
-	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+	handler func(eCtx engine.Context, req *Request) (*Reply, error),
 ) error {
-	err := ecs.RegisterQuery[Request, Reply](
-		world.instance,
-		name,
-		func(wCtx ecs.EngineContext, req *Request) (*Reply, error) {
-			return handler(&worldContext{engine: wCtx}, req)
-		},
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return ecs.RegisterQuery[Request, Reply](world.Engine(), name, handler)
 }
 
 // RegisterQueryWithEVMSupport adds the given query to the game world. HTTP endpoints to use these queries
@@ -414,20 +387,9 @@ func RegisterQuery[Request any, Reply any](
 func RegisterQueryWithEVMSupport[Request any, Reply any](
 	world *World,
 	name string,
-	handler func(wCtx WorldContext, req *Request) (*Reply, error),
+	handler func(eCtx engine.Context, req *Request) (*Reply, error),
 ) error {
-	err := ecs.RegisterQuery[Request, Reply](
-		world.instance,
-		name,
-		func(eCtx ecs.EngineContext, req *Request) (*Reply, error) {
-			return handler(&worldContext{engine: eCtx}, req)
-		},
-		ecs.WithQueryEVMSupport[Request, Reply](),
-	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return ecs.RegisterQuery[Request, Reply](world.Engine(), name, handler, ecs.WithQueryEVMSupport[Request, Reply]())
 }
 
 func (w *World) Engine() *ecs.Engine {
@@ -443,18 +405,18 @@ func (w *World) Tick(ctx context.Context) error {
 }
 
 // Init Registers a system that only runs once on a new game before tick 0.
-func (w *World) Init(system System) {
-	w.instance.AddInitSystem(
-		func(eCtx ecs.EngineContext) error {
-			return system(&worldContext{engine: eCtx})
-		},
-	)
+func (w *World) Init(system systems.System) {
+	w.instance.AddInitSystem(system)
+}
+
+func NewSearch(eCtx engine.Context, filter filter.ComponentFilter) *search.Search {
+	return search.NewSearch(filter, eCtx.Namespace(), eCtx.StoreReader())
 }
 
 // logAndPanic logs the given error and panics. An error is returned so the syntax:
-// return logAndPanic(wCtx, err)
+// return logAndPanic(eCtx, err)
 // can be used at the end of state-mutating methods. This method will never actually return.
-func logAndPanic(wCtx WorldContext, err error) error {
-	wCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
+func logAndPanic(eCtx engine.Context, err error) error {
+	eCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
 	return err
 }

@@ -128,8 +128,8 @@ func TestEVMTxConsume(t *testing.T) {
 	assert.NilError(t, e.RegisterMessages(fooTx))
 	var returnVal FooOut
 	var returnErr error
-	e.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+	err := e.RegisterSystems(
+		func(eCtx engine.Context) error {
 			fooTx.Each(
 				eCtx, func(t ecs.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
@@ -138,6 +138,7 @@ func TestEVMTxConsume(t *testing.T) {
 			return nil
 		},
 	)
+	assert.NilError(t, err)
 	assert.NilError(t, e.LoadGameState())
 
 	// add tx to queue
@@ -175,7 +176,7 @@ func TestEVMTxConsume(t *testing.T) {
 
 func TestAddSystems(t *testing.T) {
 	count := 0
-	sys := func(ecs.EngineContext) error {
+	sys := func(engine.Context) error {
 		count++
 		return nil
 	}
@@ -192,23 +193,24 @@ func TestAddSystems(t *testing.T) {
 }
 
 func TestSystemExecutionOrder(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 	order := make([]int, 0, 3)
-	engine.RegisterSystems(
-		func(ecs.EngineContext) error {
+	err := eng.RegisterSystems(
+		func(engine.Context) error {
 			order = append(order, 1)
 			return nil
-		}, func(ecs.EngineContext) error {
+		}, func(engine.Context) error {
 			order = append(order, 2)
 			return nil
-		}, func(ecs.EngineContext) error {
+		}, func(engine.Context) error {
 			order = append(order, 3)
 			return nil
 		},
 	)
-	err := engine.LoadGameState()
 	assert.NilError(t, err)
-	assert.NilError(t, engine.Tick(context.Background()))
+	err = eng.LoadGameState()
+	assert.NilError(t, err)
+	assert.NilError(t, eng.Tick(context.Background()))
 	expectedOrder := []int{1, 2, 3}
 	for i, elem := range order {
 		assert.Equal(t, elem, expectedOrder[i])
@@ -331,6 +333,9 @@ func TestRecoverFromChain(t *testing.T) {
 		})
 		return nil
 	})
+	fooMessage := ecs.NewMessageType[struct{}, struct{}]("foo")
+	err := engine.RegisterMessages(fooMessage)
+	assert.NilError(t, err)
 	err = engine.LoadGameState()
 	assert.NilError(t, err)
 

@@ -32,7 +32,7 @@ func TestSearchExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
 	assert.NilError(t, fixture.Engine.LoadGameState())
 
-	worldCtx := testutils.WorldToWorldContext(world)
+	worldCtx := testutils.WorldToEngineContext(world)
 	_, err := cardinal.CreateMany(worldCtx, 10, Alpha{})
 	assert.NilError(t, err)
 	_, err = cardinal.CreateMany(worldCtx, 10, Beta{})
@@ -91,7 +91,7 @@ func TestSearchExample(t *testing.T) {
 	for _, tc := range testCases {
 		msg := "problem with " + tc.name
 		var count int
-		count, err = worldCtx.NewSearch(tc.filter).Count(worldCtx)
+		count, err = cardinal.NewSearch(worldCtx, tc.filter).Count()
 		assert.NilError(t, err, msg)
 		assert.Equal(t, tc.want, count, msg)
 	}

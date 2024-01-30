@@ -2,27 +2,18 @@ package ecs
 
 import (
 	"errors"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-
 	"github.com/rs/zerolog"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
+	"pkg.world.dev/world-engine/cardinal/ecs/search"
+	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/types/component"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/sign"
 )
-
-type EngineContext interface {
-	Timestamp() uint64
-	CurrentTick() uint64
-	Logger() *zerolog.Logger
-	NewSearch(filter filter.ComponentFilter) *Search
-
-	// For internal use.
-	GetEngine() *Engine
-	StoreReader() gamestate.Reader
-	StoreManager() gamestate.Manager
-	GetTxQueue() *txpool.TxQueue
-	IsReadOnly() bool
-}
 
 var (
 	ErrCannotModifyStateWithReadOnlyContext = errors.New("cannot modify state with read only context")
@@ -35,7 +26,7 @@ type engineContext struct {
 	readOnly bool
 }
 
-func NewEngineContextForTick(engine *Engine, queue *txpool.TxQueue, logger *zerolog.Logger) EngineContext {
+func NewEngineContextForTick(engine *Engine, queue *txpool.TxQueue, logger *zerolog.Logger) engine.Context {
 	if logger == nil {
 		logger = engine.Logger
 	}
@@ -47,7 +38,7 @@ func NewEngineContextForTick(engine *Engine, queue *txpool.TxQueue, logger *zero
 	}
 }
 
-func NewEngineContext(engine *Engine) EngineContext {
+func NewEngineContext(engine *Engine) engine.Context {
 	return &engineContext{
 		engine:   engine,
 		logger:   engine.Logger,
@@ -55,7 +46,7 @@ func NewEngineContext(engine *Engine) EngineContext {
 	}
 }
 
-func NewReadOnlyEngineContext(engine *Engine) EngineContext {
+func NewReadOnlyEngineContext(engine *Engine) engine.Context {
 	return &engineContext{
 		engine:   engine,
 		txQueue:  nil,
@@ -63,6 +54,9 @@ func NewReadOnlyEngineContext(engine *Engine) EngineContext {
 		readOnly: true,
 	}
 }
+
+// interface guard
+var _ engine.Context = (*engineContext)(nil)
 
 // Timestamp returns the UNIX timestamp of the tick.
 func (e *engineContext) Timestamp() uint64 {
@@ -77,8 +71,56 @@ func (e *engineContext) Logger() *zerolog.Logger {
 	return e.logger
 }
 
-func (e *engineContext) GetEngine() *Engine {
-	return e.engine
+func (e *engineContext) SetLogger(logger zerolog.Logger) {
+	e.logger = &logger
+}
+
+func (e *engineContext) NewSearch(filter filter.ComponentFilter) *search.Search {
+	return e.engine.NewSearch(filter)
+}
+
+func (e *engineContext) GetComponentByName(name string) (component.ComponentMetadata, error) {
+	return e.engine.GetComponentByName(name)
+}
+
+func (e *engineContext) AddMessageError(id message.TxHash, err error) {
+	e.engine.AddMessageError(id, err)
+}
+
+func (e *engineContext) SetMessageResult(id message.TxHash, a any) {
+	e.engine.SetMessageResult(id, a)
+}
+
+func (e *engineContext) GetTransactionReceipt(id message.TxHash) (any, []error, bool) {
+	return e.engine.GetTransactionReceipt(id)
+}
+
+func (e *engineContext) EmitEvent(event *events.Event) {
+	e.engine.EmitEvent(event)
+}
+
+func (e *engineContext) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
+	return e.engine.GetSignerForPersonaTag(personaTag, tick)
+}
+
+func (e *engineContext) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
+	return e.engine.GetTransactionReceiptsForTick(tick)
+}
+
+func (e *engineContext) ReceiptHistorySize() uint64 {
+	return e.engine.ReceiptHistorySize()
+}
+
+func (e *engineContext) Namespace() string {
+	return string(e.engine.Namespace())
+}
+
+func (e *engineContext) ListMessages() []message.Message {
+	return e.engine.ListMessages()
+}
+
+func (e *engineContext) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) (uint64, message.TxHash) {
+	return e.engine.AddTransaction(id, v, sig)
 }
 
 func (e *engineContext) GetTxQueue() *txpool.TxQueue {
@@ -99,8 +141,4 @@ func (e *engineContext) StoreReader() gamestate.Reader {
 		return sm.ToReadOnly()
 	}
 	return sm
-}
-
-func (e *engineContext) NewSearch(filter filter.ComponentFilter) *Search {
-	return e.engine.NewSearch(filter)
 }

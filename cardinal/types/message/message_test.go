@@ -3,18 +3,19 @@ package message_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/ecs/messages"
 	"testing"
 	"time"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-
 	"github.com/stretchr/testify/require"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -52,18 +53,18 @@ func TestReadTypeNotStructs(t *testing.T) {
 }
 
 func TestCanQueueTransactions(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 
 	// Create an entity with a score component
-	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](engine))
+	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](eng))
 	modifyScoreMsg := ecs.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
-	assert.NilError(t, engine.RegisterMessages(modifyScoreMsg))
+	assert.NilError(t, eng.RegisterMessages(modifyScoreMsg))
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := ecs.NewEngineContext(eng)
 
 	// Set up a system that allows for the modification of a player's score
-	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+	err := eng.RegisterSystems(
+		func(eCtx engine.Context) error {
 			modifyScore := modifyScoreMsg.In(eCtx)
 			for _, txData := range modifyScore {
 				ms := txData.Msg
@@ -80,11 +81,12 @@ func TestCanQueueTransactions(t *testing.T) {
 			return nil
 		},
 	)
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, err)
+	assert.NilError(t, eng.LoadGameState())
 	id, err := ecs.Create(eCtx, ScoreComponent{})
 	assert.NilError(t, err)
 
-	modifyScoreMsg.AddToQueue(engine, &ModifyScoreMsg{id, 100})
+	modifyScoreMsg.AddToQueue(eng, &ModifyScoreMsg{id, 100})
 
 	assert.NilError(t, ecs.SetComponent[ScoreComponent](eCtx, id, &ScoreComponent{}))
 
@@ -94,7 +96,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.Equal(t, 0, s.Score)
 
 	// Process a game tick
-	assert.NilError(t, engine.Tick(context.Background()))
+	assert.NilError(t, eng.Tick(context.Background()))
 
 	// Verify the score was updated
 	s, err = ecs.GetComponent[ScoreComponent](eCtx, id)
@@ -102,7 +104,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.Equal(t, 100, s.Score)
 
 	// Tick again, but no new modifyScoreMsg was added to the queue
-	assert.NilError(t, engine.Tick(context.Background()))
+	assert.NilError(t, eng.Tick(context.Background()))
 
 	// Verify the score hasn't changed
 	s, err = ecs.GetComponent[ScoreComponent](eCtx, id)
@@ -119,16 +121,16 @@ func (CounterComponent) Name() string {
 }
 
 func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 
-	assert.NilError(t, ecs.RegisterComponent[CounterComponent](engine))
+	assert.NilError(t, ecs.RegisterComponent[CounterComponent](eng))
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := ecs.NewEngineContext(eng)
 
-	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
-			search := eCtx.NewSearch(filter.Exact(CounterComponent{}))
-			id := search.MustFirst(eCtx)
+	err := eng.RegisterSystems(
+		func(eCtx engine.Context) error {
+			search := eng.NewSearch(filter.Exact(CounterComponent{}))
+			id := search.MustFirst()
 			return ecs.UpdateComponent[CounterComponent](
 				eCtx, id, func(c *CounterComponent) *CounterComponent {
 					c.Count++
@@ -137,12 +139,13 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 			)
 		},
 	)
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, err)
+	assert.NilError(t, eng.LoadGameState())
 	id, err := ecs.Create(eCtx, CounterComponent{})
 	assert.NilError(t, err)
 
 	for i := 0; i < 10; i++ {
-		assert.NilError(t, engine.Tick(context.Background()))
+		assert.NilError(t, eng.Tick(context.Background()))
 	}
 
 	c, err := ecs.GetComponent[CounterComponent](eCtx, id)
@@ -151,14 +154,14 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 }
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
-	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](engine))
+	eng := testutils.NewTestFixture(t, nil).Engine
+	assert.NilError(t, ecs.RegisterComponent[ScoreComponent](eng))
 
 	modifyScoreMsg := ecs.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
-	assert.NilError(t, engine.RegisterMessages(modifyScoreMsg))
+	assert.NilError(t, eng.RegisterMessages(modifyScoreMsg))
 
-	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+	err := eng.RegisterSystems(
+		func(eCtx engine.Context) error {
 			modifyScores := modifyScoreMsg.In(eCtx)
 			for _, msData := range modifyScores {
 				ms := msData.Msg
@@ -173,32 +176,33 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 			return nil
 		},
 	)
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, err)
+	assert.NilError(t, eng.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := ecs.NewEngineContext(eng)
 	ids, err := ecs.CreateMany(eCtx, 100, ScoreComponent{})
 	assert.NilError(t, err)
 	// Entities at index 5, 10 and 50 will be updated with some values
 	modifyScoreMsg.AddToQueue(
-		engine, &ModifyScoreMsg{
+		eng, &ModifyScoreMsg{
 			PlayerID: ids[5],
 			Amount:   105,
 		},
 	)
 	modifyScoreMsg.AddToQueue(
-		engine, &ModifyScoreMsg{
+		eng, &ModifyScoreMsg{
 			PlayerID: ids[10],
 			Amount:   110,
 		},
 	)
 	modifyScoreMsg.AddToQueue(
-		engine, &ModifyScoreMsg{
+		eng, &ModifyScoreMsg{
 			PlayerID: ids[50],
 			Amount:   150,
 		},
 	)
 
-	assert.NilError(t, engine.Tick(context.Background()))
+	assert.NilError(t, eng.Tick(context.Background()))
 
 	for i, id := range ids {
 		wantScore := 0
@@ -219,27 +223,28 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 // TestAddToQueueDuringTickDoesNotTimeout verifies that we can add a transaction to the transaction
 // queue during a game tick, and the call does not block.
 func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 
 	modScore := ecs.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_Score")
-	assert.NilError(t, engine.RegisterMessages(modScore))
+	assert.NilError(t, eng.RegisterMessages(modScore))
 
 	inSystemCh := make(chan struct{})
 	// This system will block forever. This will give us a never-ending game tick that we can use
 	// to verify that the addition of more transactions doesn't block.
-	engine.RegisterSystem(
-		func(ecs.EngineContext) error {
+	err := eng.RegisterSystems(
+		func(engine.Context) error {
 			<-inSystemCh
 			select {}
 		},
 	)
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, err)
+	assert.NilError(t, eng.LoadGameState())
 
-	modScore.AddToQueue(engine, &ModifyScoreMsg{})
+	modScore.AddToQueue(eng, &ModifyScoreMsg{})
 
 	// Start a tick in the background.
 	go func() {
-		assert.Check(t, nil == engine.Tick(context.Background()))
+		assert.Check(t, nil == eng.Tick(context.Background()))
 	}()
 	// Make sure we're actually in the System. It will now block forever.
 	inSystemCh <- struct{}{}
@@ -248,7 +253,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	timeout := time.After(500 * time.Millisecond)
 	doneWithAddToQueue := make(chan struct{})
 	go func() {
-		modScore.AddToQueue(engine, &ModifyScoreMsg{})
+		modScore.AddToQueue(eng, &ModifyScoreMsg{})
 		doneWithAddToQueue <- struct{}{}
 	}()
 
@@ -263,13 +268,13 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 // TestTransactionsAreExecutedAtNextTick verifies that while a game tick is taking place, new transactions
 // are added to some queue that is not processed until the NEXT tick.
 func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 	modScoreMsg := ecs.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
-	assert.NilError(t, engine.RegisterMessages(modScoreMsg))
+	assert.NilError(t, eng.RegisterMessages(modScoreMsg))
 	ctx := context.Background()
 	tickStart := make(chan time.Time)
 	tickDone := make(chan uint64)
-	engine.StartGameLoop(ctx, tickStart, tickDone)
+	eng.StartGameLoop(ctx, tickStart, tickDone)
 
 	modScoreCountCh := make(chan int)
 
@@ -277,24 +282,26 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	// transaction queue. These counts should be the same for each tick. modScoreCountCh is an unbuffered channel
 	// so these systems will block while writing to modScoreCountCh. This allows the test to ensure that we can run
 	// commands mid-tick.
-	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+	err := eng.RegisterSystems(
+		func(eCtx engine.Context) error {
 			modScores := modScoreMsg.In(eCtx)
 			modScoreCountCh <- len(modScores)
 			return nil
 		},
 	)
+	assert.NilError(t, err)
 
-	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+	err = eng.RegisterSystems(
+		func(eCtx engine.Context) error {
 			modScores := modScoreMsg.In(eCtx)
 			modScoreCountCh <- len(modScores)
 			return nil
 		},
 	)
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, err)
+	assert.NilError(t, eng.LoadGameState())
 
-	modScoreMsg.AddToQueue(engine, &ModifyScoreMsg{})
+	modScoreMsg.AddToQueue(eng, &ModifyScoreMsg{})
 
 	// Start the game tick. The tick will block while waiting to write to modScoreCountCh
 	tickStart <- time.Now()
@@ -304,8 +311,8 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	assert.Equal(t, 1, count)
 
 	// Add two transactions mid-tick.
-	modScoreMsg.AddToQueue(engine, &ModifyScoreMsg{})
-	modScoreMsg.AddToQueue(engine, &ModifyScoreMsg{})
+	modScoreMsg.AddToQueue(eng, &ModifyScoreMsg{})
+	modScoreMsg.AddToQueue(eng, &ModifyScoreMsg{})
 
 	// The tick is still not over, so we should still only see 1 modify score transaction
 	count = <-modScoreCountCh
@@ -338,20 +345,20 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 // TestIdenticallyTypedTransactionCanBeDistinguished verifies that two transactions of the same type
 // can be distinguished if they were added with different MessageType[T]s.
 func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 	type NewOwner struct {
 		Name string
 	}
 
 	alpha := ecs.NewMessageType[NewOwner, EmptyMsgResult]("alpha_msg")
 	beta := ecs.NewMessageType[NewOwner, EmptyMsgResult]("beta_msg")
-	assert.NilError(t, engine.RegisterMessages(alpha, beta))
+	assert.NilError(t, eng.RegisterMessages(alpha, beta))
 
-	alpha.AddToQueue(engine, NewOwner{"alpha"})
-	beta.AddToQueue(engine, NewOwner{"beta"})
+	alpha.AddToQueue(eng, NewOwner{"alpha"})
+	beta.AddToQueue(eng, NewOwner{"beta"})
 
-	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+	err := eng.RegisterSystems(
+		func(eCtx engine.Context) error {
 			newNames := alpha.In(eCtx)
 			assert.Check(t, len(newNames) == 1, "expected 1 transaction, not %d", len(newNames))
 			assert.Check(t, newNames[0].Msg.Name == "alpha")
@@ -362,9 +369,10 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 			return nil
 		},
 	)
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, err)
+	assert.NilError(t, eng.LoadGameState())
 
-	assert.NilError(t, engine.Tick(context.Background()))
+	assert.NilError(t, eng.Tick(context.Background()))
 }
 
 func TestCannotRegisterDuplicateTransaction(t *testing.T) {
@@ -420,7 +428,7 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	engine := testutils.NewTestFixture(t, nil).Engine
 	alphaMsg := ecs.NewMessageType[SomeMsg, EmptyMsgResult]("name_match")
 	betaMsg := ecs.NewMessageType[OtherMsg, EmptyMsgResult]("name_match")
-	assert.ErrorIs(t, engine.RegisterMessages(alphaMsg, betaMsg), ecs.ErrDuplicateMessageName)
+	assert.ErrorIs(t, engine.RegisterMessages(alphaMsg, betaMsg), msgs.ErrDuplicateMessageName)
 }
 
 func TestCanGetTransactionErrorsAndResults(t *testing.T) {
@@ -430,18 +438,18 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	type MoveMsgResult struct {
 		EndX, EndY int
 	}
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 
 	// Each transaction now needs an input and an output
 	moveMsg := ecs.NewMessageType[MoveMsg, MoveMsgResult]("move")
-	assert.NilError(t, engine.RegisterMessages(moveMsg))
+	assert.NilError(t, eng.RegisterMessages(moveMsg))
 
 	wantFirstError := errors.New("this is a transaction error")
 	wantSecondError := errors.New("another transaction error")
 	wantDeltaX, wantDeltaY := 99, 100
 
-	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+	err := eng.RegisterSystems(
+		func(eCtx engine.Context) error {
 			// This new In function returns a triplet of information:
 			// 1) The transaction input
 			// 2) An ID that uniquely identifies this specific transaction
@@ -465,14 +473,15 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 			return nil
 		},
 	)
-	assert.NilError(t, engine.LoadGameState())
-	_ = moveMsg.AddToQueue(engine, MoveMsg{99, 100})
+	assert.NilError(t, err)
+	assert.NilError(t, eng.LoadGameState())
+	_ = moveMsg.AddToQueue(eng, MoveMsg{99, 100})
 
 	// Tick the game so the transaction is processed
-	assert.NilError(t, engine.Tick(context.Background()))
+	assert.NilError(t, eng.Tick(context.Background()))
 
-	tick := engine.CurrentTick() - 1
-	receipts, err := engine.GetTransactionReceiptsForTick(tick)
+	tick := eng.CurrentTick() - 1
+	receipts, err := eng.GetTransactionReceiptsForTick(tick)
 	assert.NilError(t, err)
 	assert.Equal(t, 1, len(receipts))
 	r := receipts[0]
@@ -491,13 +500,13 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	type MsgOut struct {
 		Number int
 	}
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 	numTx := ecs.NewMessageType[MsgIn, MsgOut]("number")
-	assert.NilError(t, engine.RegisterMessages(numTx))
+	assert.NilError(t, eng.RegisterMessages(numTx))
 	wantErr := errors.New("some transaction error")
 	systemCalls := 0
-	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+	err := eng.RegisterSystems(
+		func(eCtx engine.Context) error {
 			systemCalls++
 			txs := numTx.In(eCtx)
 			assert.Equal(t, 1, len(txs))
@@ -508,9 +517,10 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 			return nil
 		},
 	)
+	assert.NilError(t, err)
 
-	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+	err = eng.RegisterSystems(
+		func(eCtx engine.Context) error {
 			systemCalls++
 			txs := numTx.In(eCtx)
 			assert.Equal(t, 1, len(txs))
@@ -522,11 +532,12 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 			return nil
 		},
 	)
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, err)
+	assert.NilError(t, eng.LoadGameState())
 
-	_ = numTx.AddToQueue(engine, MsgIn{100})
+	_ = numTx.AddToQueue(eng, MsgIn{100})
 
-	assert.NilError(t, engine.Tick(context.Background()))
+	assert.NilError(t, eng.Tick(context.Background()))
 	assert.Equal(t, 2, systemCalls)
 }
 
@@ -537,15 +548,15 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	type MsgOut struct {
 		Number int
 	}
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 	numTx := ecs.NewMessageType[MsgIn, MsgOut]("number")
-	assert.NilError(t, engine.RegisterMessages(numTx))
+	assert.NilError(t, eng.RegisterMessages(numTx))
 	systemCalls := 0
 
 	firstResult := MsgOut{1234}
 	secondResult := MsgOut{5678}
-	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+	err := eng.RegisterSystems(
+		func(eCtx engine.Context) error {
 			systemCalls++
 			txs := numTx.In(eCtx)
 			assert.Equal(t, 1, len(txs))
@@ -556,9 +567,10 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 			return nil
 		},
 	)
+	assert.NilError(t, err)
 
-	engine.RegisterSystem(
-		func(eCtx ecs.EngineContext) error {
+	err = eng.RegisterSystems(
+		func(eCtx engine.Context) error {
 			systemCalls++
 			txs := numTx.In(eCtx)
 			assert.Equal(t, 1, len(txs))
@@ -571,14 +583,15 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 			return nil
 		},
 	)
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, err)
+	assert.NilError(t, eng.LoadGameState())
 
-	_ = numTx.AddToQueue(engine, MsgIn{100})
+	_ = numTx.AddToQueue(eng, MsgIn{100})
 
-	assert.NilError(t, engine.Tick(context.Background()))
+	assert.NilError(t, eng.Tick(context.Background()))
 
-	prevTick := engine.CurrentTick() - 1
-	receipts, err := engine.GetTransactionReceiptsForTick(prevTick)
+	prevTick := eng.CurrentTick() - 1
+	receipts, err := eng.GetTransactionReceiptsForTick(prevTick)
 	assert.NilError(t, err)
 	assert.Equal(t, 1, len(receipts))
 	r := receipts[0]

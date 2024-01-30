@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/router"
-	"reflect"
-	"runtime"
+	"pkg.world.dev/world-engine/cardinal/ecs/messages"
+	"pkg.world.dev/world-engine/cardinal/ecs/search"
+	"pkg.world.dev/world-engine/cardinal/ecs/systems"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -31,11 +31,19 @@ import (
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 	"pkg.world.dev/world-engine/sign"
+)
+
+type EngineStateType string
+
+const (
+	EngineStateInit       EngineStateType = "EngineStateInit"
+	EngineStateRecovering                 = "EngineStateRecovering"
+	EngineStateReady                      = "EngineStateReady"
+	EngineStateRunning                    = "EngineStateRunning"
 )
 
 // Namespace is a unique identifier for a engine.
@@ -48,24 +56,20 @@ func (n Namespace) String() string {
 var _ router.Provider = &Engine{}
 
 type Engine struct {
+	EngineState            EngineStateType
 	namespace              Namespace
 	redisStorage           *redis.Storage
 	entityStore            gamestate.Manager
-	systems                []System
-	systemLoggers          []*zerolog.Logger
-	initSystem             System
-	initSystemLogger       *zerolog.Logger
-	systemNames            []string
 	tick                   *atomic.Uint64
 	timestamp              *atomic.Uint64
 	nameToComponent        map[string]component.ComponentMetadata
 	nameToQuery            map[string]Query
 	registeredComponents   []component.ComponentMetadata
-	registeredMessages     []message.Message
 	registeredQueries      []Query
 	isComponentsRegistered bool
-	isMessagesRegistered   bool
-	stateIsLoaded          bool
+
+	msgManager    *msgs.Manager
+	systemManager *systems.Manager
 
 	evmTxReceipts map[string]EVMTxReceipt
 
@@ -167,12 +171,8 @@ func (e *Engine) GetPersonaForEVMAddress(addr string) (string, error) {
 
 var (
 	ErrEntitiesCreatedBeforeLoadingGameState = errors.New("cannot create entities before loading game state")
-	ErrMessageRegistrationMustHappenOnce     = errors.New(
-		"message registration must happen exactly 1 time",
-	)
-	ErrStoreStateInvalid    = errors.New("saved engine state is not valid")
-	ErrDuplicateMessageName = errors.New("message names must be unique")
-	ErrDuplicateQueryName   = errors.New("query names must be unique")
+	ErrStoreStateInvalid                     = errors.New("saved engine state is not valid")
+	ErrDuplicateQueryName                    = errors.New("query names must be unique")
 )
 
 const (
@@ -207,51 +207,8 @@ func (e *Engine) GetTxQueueAmount() int {
 	return e.txQueue.GetAmountOfTxs()
 }
 
-func (e *Engine) RegisterSystem(s System) {
-	e.RegisterSystemWithName(s, "")
-}
-
-func (e *Engine) RegisterSystems(systems ...System) {
-	for _, system := range systems {
-		e.RegisterSystemWithName(system, "")
-	}
-}
-
-func (e *Engine) RegisterSystemWithName(system System, functionName string) {
-	if e.stateIsLoaded {
-		panic("cannot register systems after loading game state")
-	}
-	if functionName == "" {
-		functionName = filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
-	}
-	sysLogger := ecslog.CreateSystemLogger(e.Logger, functionName)
-	e.systemLoggers = append(e.systemLoggers, sysLogger)
-	e.systemNames = append(e.systemNames, functionName)
-	// appends registeredSystem into the member system list in engine.
-	e.systems = append(e.systems, system)
-	e.checkDuplicateSystemName()
-}
-
-func (e *Engine) checkDuplicateSystemName() {
-	mappedNames := make(map[string]int, len(e.systemNames))
-	for _, sysName := range e.systemNames {
-		if sysName != "" {
-			mappedNames[sysName]++
-			if mappedNames[sysName] > 1 {
-				e.Logger.Warn().Msgf("duplicate system registered: %s", sysName)
-			}
-		}
-	}
-}
-
-func (e *Engine) AddInitSystem(system System) {
-	logger := ecslog.CreateSystemLogger(e.Logger, "InitSystem")
-	e.initSystemLogger = logger
-	e.initSystem = system
-}
-
 func RegisterComponent[T component.Component](engine *Engine) error {
-	if engine.stateIsLoaded {
+	if engine.EngineState != EngineStateInit {
 		panic("cannot register components after loading game state")
 	}
 	var t T
@@ -316,10 +273,10 @@ func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, e
 func RegisterQuery[Request any, Reply any](
 	engine *Engine,
 	name string,
-	handler func(eCtx EngineContext, req *Request) (*Reply, error),
+	handler func(eCtx engine.Context, req *Request) (*Reply, error),
 	opts ...QueryOption[Request, Reply],
 ) error {
-	if engine.stateIsLoaded {
+	if engine.EngineState != EngineStateInit {
 		panic("cannot register queries after loading game state")
 	}
 
@@ -343,33 +300,6 @@ func (e *Engine) GetQueryByName(name string) (Query, error) {
 		return q, nil
 	}
 	return nil, eris.Errorf("query with name %s not found", name)
-}
-
-func (e *Engine) RegisterMessages(txs ...message.Message) error {
-	if e.stateIsLoaded {
-		panic("cannot register messages after loading game state")
-	}
-	if e.isMessagesRegistered {
-		return eris.Wrap(ErrMessageRegistrationMustHappenOnce, "")
-	}
-	e.isMessagesRegistered = true
-	e.registerInternalMessages()
-	e.registeredMessages = append(e.registeredMessages, txs...)
-
-	seenTxNames := map[string]bool{}
-	for i, t := range e.registeredMessages {
-		name := t.Name()
-		if seenTxNames[name] {
-			return eris.Wrapf(ErrDuplicateMessageName, "duplicate tx %q", name)
-		}
-		seenTxNames[name] = true
-
-		id := message.TypeID(i + 1)
-		if err := t.SetID(id); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (e *Engine) registerInternalQueries() {
@@ -413,19 +343,11 @@ func (e *Engine) registerInternalQueries() {
 	)
 }
 
-func (e *Engine) registerInternalMessages() {
-	e.registeredMessages = append(
-		e.registeredMessages,
-		CreatePersonaMsg,
-		AuthorizePersonaAddressMsg,
-	)
-}
-
 func (e *Engine) ListQueries() []Query {
 	return e.registeredQueries
 }
 
-func (e *Engine) ListMessages() []message.Message { return e.registeredMessages }
+func (e *Engine) ListMessages() []message.Message { return e.msgManager.GetRegisteredMessages() }
 
 // NewEngine creates a new engine.
 func NewEngine(
@@ -442,8 +364,6 @@ func NewEngine(
 		namespace:         namespace,
 		tick:              &atomic.Uint64{},
 		timestamp:         new(atomic.Uint64),
-		systems:           make([]System, 0),
-		initSystem:        func(_ EngineContext) error { return nil },
 		nameToComponent:   make(map[string]component.ComponentMetadata),
 		nameToQuery:       make(map[string]Query),
 		txQueue:           txpool.NewTxQueue(),
@@ -453,12 +373,23 @@ func NewEngine(
 		nextComponentID:   1,
 		evmTxReceipts:     make(map[string]EVMTxReceipt),
 
+		msgManager:    msgs.New(),
+		systemManager: systems.New(),
+		EngineState:   EngineStateInit,
+
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 	e.isGameLoopRunning.Store(false)
-	e.RegisterSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+	err := e.registerInternalSystems()
+	if err != nil {
+		return nil, err
+	}
 	e.registerInternalQueries()
-	err := RegisterComponent[SignerComponent](e)
+	err = e.registerInternalMessages()
+	if err != nil {
+		return nil, err
+	}
+	err = RegisterComponent[SignerComponent](e)
 	if err != nil {
 		return nil, err
 	}
@@ -491,12 +422,7 @@ func (e *Engine) ReceiptHistorySize() uint64 {
 	return e.receiptHistory.Size()
 }
 
-// Remove removes the given Entity from the engine.
-func (e *Engine) Remove(id entity.ID) error {
-	return e.GameStateManager().RemoveEntity(id)
-}
-
-// consumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
+// ConsumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
 // It will fetch the receipt from the map, and then delete ('consume') it from the map.
 func (e *Engine) consumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
 	r, ok := e.evmTxReceipts[evmTxHash]
@@ -530,60 +456,64 @@ func (e *Engine) AddEVMTransaction(
 	return tick, txHash
 }
 
-const (
-	unnamedSystem = "unnamed_system"
-)
-
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 //
 //nolint:funlen // tick has a lot going on and doesn't really have a clear path to move things out.
 func (e *Engine) Tick(ctx context.Context) error {
-	nameOfCurrentRunningSystem := unnamedSystem
+	// If the engine is not ready, we don't want to tick the engine.
+	// Instead, we want to make sure we have recovered the state of the engine.
+	if e.EngineState != EngineStateReady && e.EngineState != EngineStateRunning {
+		return eris.New("must load state before first tick")
+	}
+	e.EngineState = EngineStateRunning
+
+	// This defer is here to catch any panics that occur during the tick. It will log the current tick and the
+	// current system that is running.
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
 			e.Logger.Error().
-				Msgf("Tick: %d, Current running system: %s", e.CurrentTick(), nameOfCurrentRunningSystem)
+				Msgf("Tick: %d, Current running system: %s", e.CurrentTick(), e.systemManager.GetCurrentSystem())
 			panic(panicValue)
 		}
 	}()
+
 	var span tracer.Span
 	span, ctx = tracer.StartSpanFromContext(ctx, "cardinal.span.tick")
 	defer func() {
 		span.Finish()
 	}()
-	startTime := time.Now()
+
 	e.Logger.Info().Int("tick", int(e.CurrentTick())).Msg("Tick started")
-	if !e.stateIsLoaded {
-		return eris.New("must load state before first tick")
-	}
+
+	// Copy the transactions from the queue so that we can safely modify the queue while the tick is running.
 	txQueue := e.txQueue.CopyTransactions()
 
-	if err := e.TickStore().StartNextTick(e.registeredMessages, txQueue); err != nil {
+	if err := e.TickStore().StartNextTick(e.msgManager.GetRegisteredMessages(), txQueue); err != nil {
 		return err
 	}
 
-	if e.CurrentTick() == 0 {
-		eCtx := NewEngineContextForTick(e, txQueue, e.initSystemLogger)
-		err := e.initSystem(eCtx)
-		if err != nil {
-			return err
-		}
-	}
+	// Set the timestamp for this tick
+	startTime := time.Now()
 	e.timestamp.Store(uint64(startTime.Unix()))
-	allSystemStartTime := time.Now()
-	for i, sys := range e.systems {
-		nameOfCurrentRunningSystem = e.systemNames[i]
-		eCtx := NewEngineContextForTick(e, txQueue, e.systemLoggers[i])
-		systemStartTime := time.Now()
-		err := eris.Wrapf(sys(eCtx), "system %s generated an error", nameOfCurrentRunningSystem)
-		statsd.EmitTickStat(systemStartTime, nameOfCurrentRunningSystem)
-		nameOfCurrentRunningSystem = unnamedSystem
+
+	// Create the engine context to inject into systems
+	eCtx := NewEngineContextForTick(e, txQueue, e.Logger)
+
+	// Run the init system on the first tick
+	if e.CurrentTick() == 0 {
+		err := e.systemManager.RunInitSystem(eCtx)
 		if err != nil {
 			return err
 		}
 	}
-	statsd.EmitTickStat(allSystemStartTime, "all_systems")
+
+	// Run all the systems
+	err := e.systemManager.RunSystems(eCtx)
+	if err != nil {
+		return err
+	}
+
 	if e.eventHub != nil {
 		// engine can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
 		flushEventStart := time.Now()
@@ -630,7 +560,7 @@ func (e *Engine) setEvmResults(txs []txpool.TxData) {
 			continue
 		}
 		evmRec := EVMTxReceipt{EVMTxHash: tx.EVMSourceTxHash}
-		msg := e.getMessage(tx.MsgID)
+		msg := e.msgManager.GetMessage(tx.MsgID)
 		if rec.Result != nil {
 			abiBz, err := msg.ABIEncode(rec.Result)
 			if err != nil {
@@ -650,13 +580,13 @@ func (e *Engine) emitResourcesWarnings() {
 	if !e.isComponentsRegistered {
 		e.Logger.Warn().Msg("No components registered.")
 	}
-	if !e.isMessagesRegistered {
+	if !e.msgManager.IsMessagesRegistered() {
 		e.Logger.Warn().Msg("No messages registered.")
 	}
 	if len(e.registeredQueries) == 0 {
 		e.Logger.Warn().Msg("No queries registered.")
 	}
-	if len(e.systems) == 0 {
+	if !e.systemManager.IsSystemsRegistered() {
 		e.Logger.Warn().Msg("No systems registered.")
 	}
 }
@@ -802,15 +732,15 @@ func (e *Engine) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
 		//nolint:nilnil // its ok.
 		return nil, nil
 	}
-	return e.TickStore().Recover(e.registeredMessages)
+	return e.TickStore().Recover(e.msgManager.GetRegisteredMessages())
 }
 
 func (e *Engine) LoadGameState() error {
-	if e.stateIsLoaded {
+	if e.EngineState != EngineStateInit {
 		return eris.New("cannot load game state multiple times")
 	}
-	if !e.isMessagesRegistered {
-		if err := e.RegisterMessages(); err != nil {
+	if !e.msgManager.IsMessagesRegistered() {
+		if err := e.registerInternalMessages(); err != nil {
 			return err
 		}
 	}
@@ -822,17 +752,22 @@ func (e *Engine) LoadGameState() error {
 		}
 	}
 
+	// TODO(scott): footgun. so confusing.
 	if err := e.entityStore.RegisterComponents(e.registeredComponents); err != nil {
 		e.entityStore.Close()
 		return err
 	}
 
-	e.stateIsLoaded = true
 	recoveredTxs, err := e.recoverGameState()
 	if err != nil {
 		return err
 	}
 
+	// Engine is now ready to run
+	e.EngineState = EngineStateReady
+
+	// Recover the last tick, not to be confused with RecoverFromChain
+	// It's ambigious, but screw it for now.
 	if recoveredTxs != nil {
 		e.txQueue = recoveredTxs
 		if err = e.Tick(context.Background()); err != nil {
@@ -904,7 +839,7 @@ func (e *Engine) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				msg := e.getMessage(message.TypeID(tx.TxId))
+				msg := e.msgManager.GetMessage(message.TypeID(tx.TxId))
 				if msg == nil {
 					return eris.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
 				}
@@ -951,17 +886,6 @@ func (e *Engine) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
 	return payload, eris.Wrap(err, "")
 }
 
-// getMessage iterates over the all registered messages and returns the message.Message associated with the
-// message.TypeID.
-func (e *Engine) getMessage(id message.TypeID) message.Message {
-	for _, msg := range e.registeredMessages {
-		if id == msg.ID() {
-			return msg
-		}
-	}
-	return nil
-}
-
 func (e *Engine) UseNonce(signerAddress string, nonce uint64) error {
 	return e.redisStorage.UseNonce(signerAddress, nonce)
 }
@@ -990,15 +914,45 @@ func (e *Engine) GetComponents() []component.ComponentMetadata {
 	return e.registeredComponents
 }
 
-func (e *Engine) GetSystemNames() []string {
-	return e.systemNames
-}
-
 func (e *Engine) InjectLogger(logger *zerolog.Logger) {
 	e.Logger = logger
 	e.GameStateManager().InjectLogger(logger)
 }
 
-func (e *Engine) NewSearch(filter filter.ComponentFilter) *Search {
-	return NewSearch(filter)
+func (e *Engine) NewSearch(filter filter.ComponentFilter) *search.Search {
+	// TODO(scott): .toReadOnly() seems to break the search. investigate.
+	return search.NewSearch(filter, string(e.namespace), e.GameStateManager())
+}
+
+// ----- Register Stuff -----
+
+// Messages
+
+func (e *Engine) RegisterMessages(txs ...message.Message) error {
+	if e.EngineState != EngineStateInit {
+		return eris.Errorf("engine state is %s, expected %s to register messages", e.EngineState, EngineStateInit)
+	}
+	return e.msgManager.RegisterMessages(txs...)
+}
+
+func (e *Engine) registerInternalMessages() error {
+	return e.msgManager.RegisterMessages(CreatePersonaMsg, AuthorizePersonaAddressMsg)
+}
+
+// Systems
+
+func (e *Engine) RegisterSystems(systems ...systems.System) error {
+	return e.systemManager.RegisterSystems(systems...)
+}
+
+func (e *Engine) registerInternalSystems() error {
+	return e.systemManager.RegisterSystems(RegisterPersonaSystem, AuthorizePersonaAddressSystem)
+}
+
+func (e *Engine) GetSystemNames() []string {
+	return e.systemManager.GetSystemNames()
+}
+
+func (e *Engine) AddInitSystem(system systems.System) {
+	e.systemManager.RegisterInitSystem(system)
 }

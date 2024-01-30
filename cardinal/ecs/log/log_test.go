@@ -3,6 +3,8 @@ package log_test
 import (
 	"bytes"
 	"context"
+	"pkg.world.dev/world-engine/cardinal/ecs/search"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strings"
 	"testing"
 	"time"
@@ -37,11 +39,11 @@ func (EnergyComp) Name() string {
 	return "EnergyComp"
 }
 
-func testSystem(eCtx ecs.EngineContext) error {
+func testSystem(eCtx engine.Context) error {
 	eCtx.Logger().Log().Msg("test")
-	q := eCtx.NewSearch(filter.Contains(EnergyComp{}))
+	q := search.NewSearch(filter.Contains(EnergyComp{}), eCtx.Namespace(), eCtx.StoreReader())
 	err := q.Each(
-		eCtx, func(entityId entity.ID) bool {
+		func(entityId entity.ID) bool {
 			energyPlanet, err := ecs.GetComponent[EnergyComp](eCtx, entityId)
 			if err != nil {
 				return false
@@ -58,26 +60,13 @@ func testSystem(eCtx ecs.EngineContext) error {
 	return nil
 }
 
-func testSystemWarningTrigger(eCtx ecs.EngineContext) error {
+func testSystemWarningTrigger(eCtx engine.Context) error {
 	time.Sleep(time.Millisecond * 400)
 	return testSystem(eCtx)
 }
 
-func TestWarningLogIfDuplicateSystemRegistered(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	// replaces internal Logger with one that logs to the buf variable above.
-	var buf bytes.Buffer
-	bufLogger := zerolog.New(&buf)
-	engine.InjectLogger(&bufLogger)
-	sysName := "foo"
-	engine.RegisterSystemWithName(testSystem, sysName)
-	engine.RegisterSystemWithName(testSystem, sysName)
-	assert.Check(t, strings.Contains(buf.String(), "duplicate system registered: "+sysName))
-}
-
 func TestEngineLogger(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 
 	// Ensure logs are enabled
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
@@ -85,11 +74,11 @@ func TestEngineLogger(t *testing.T) {
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
-	engine.InjectLogger(&bufLogger)
+	eng.InjectLogger(&bufLogger)
 	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	assert.NilError(t, engine.RegisterMessages(alphaTx))
-	assert.NilError(t, ecs.RegisterComponent[EnergyComp](engine))
-	log.Engine(&bufLogger, engine, zerolog.InfoLevel)
+	assert.NilError(t, eng.RegisterMessages(alphaTx))
+	assert.NilError(t, ecs.RegisterComponent[EnergyComp](eng))
+	log.Engine(&bufLogger, eng, zerolog.InfoLevel)
 	jsonEngineInfoString := `{
 					"level":"info",
 					"total_components":2,
@@ -114,12 +103,13 @@ func TestEngineLogger(t *testing.T) {
 `
 	require.JSONEq(t, jsonEngineInfoString, buf.String())
 	buf.Reset()
-	energy, err := engine.GetComponentByName(EnergyComp{}.Name())
+	energy, err := eng.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
 	components := []component.ComponentMetadata{energy}
-	eCtx := ecs.NewEngineContext(engine)
-	engine.RegisterSystem(testSystemWarningTrigger)
-	err = engine.LoadGameState()
+	eCtx := ecs.NewEngineContext(eng)
+	err = eng.RegisterSystems(testSystemWarningTrigger)
+	assert.NilError(t, err)
+	err = eng.LoadGameState()
 	assert.NilError(t, err)
 	entityID, err := ecs.Create(eCtx, EnergyComp{})
 	assert.NilError(t, err)
@@ -147,7 +137,7 @@ func TestEngineLogger(t *testing.T) {
 	buf.Reset()
 
 	// test log entity
-	archetypeID, err := engine.GameStateManager().GetArchIDForComponents(components)
+	archetypeID, err := eng.GameStateManager().GetArchIDForComponents(components)
 	assert.NilError(t, err)
 	log.Entity(&bufLogger, zerolog.DebugLevel, entityID, archetypeID, components)
 	jsonEntityInfoString := `
@@ -168,7 +158,7 @@ func TestEngineLogger(t *testing.T) {
 	ctx := context.Background()
 
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
-	err = engine.Tick(ctx)
+	err = eng.Tick(ctx)
 	assert.NilError(t, err)
 	logStrings = strings.Split(buf.String(), "\n")[:4]
 	// test tick start

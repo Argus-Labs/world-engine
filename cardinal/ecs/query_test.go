@@ -1,6 +1,9 @@
 package ecs_test
 
 import (
+	"context"
+	"pkg.world.dev/world-engine/cardinal/shard/evm"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
@@ -14,7 +17,7 @@ func TestQueryTypeNotStructs(t *testing.T) {
 	err := ecs.RegisterQuery[string, string](
 		testutils.NewTestFixture(t, nil).Engine,
 		"foo",
-		func(eCtx ecs.EngineContext, req *string) (*string, error) {
+		func(eCtx engine.Context, req *string) (*string, error) {
 			return &str, nil
 		},
 	)
@@ -35,11 +38,12 @@ func TestQueryEVM(t *testing.T) {
 		Age:  22,
 	}
 
-	engine := testutils.NewTestFixture(t, nil).Engine
+	eng := testutils.NewTestFixture(t, nil).Engine
 	err := ecs.RegisterQuery[FooRequest, FooReply](
-		engine,
+		eng,
 		"foo",
-		func(eCtx ecs.EngineContext, req *FooRequest,
+		func(
+			eCtx engine.Context, req *FooRequest,
 		) (*FooReply, error) {
 			return &expectedReply, nil
 		},
@@ -47,11 +51,11 @@ func TestQueryEVM(t *testing.T) {
 	)
 
 	assert.NilError(t, err)
-	err = engine.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("blah"))
+	err = eng.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)
 
 	// create the abi encoded bytes that the EVM would send.
-	fooQuery, err := engine.GetQueryByName("foo")
+	fooQuery, err := eng.GetQueryByName("foo")
 	assert.NilError(t, err)
 	bz, err := fooQuery.EncodeAsABI(FooRequest{ID: "foo"})
 	assert.NilError(t, err)

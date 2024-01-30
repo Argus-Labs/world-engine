@@ -15,7 +15,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, fixture.Engine.LoadGameState())
 
-	testWorldCtx := testutils.WorldToWorldContext(world)
+	testWorldCtx := testutils.WorldToEngineContext(world)
 	ids, err := cardinal.CreateMany(testWorldCtx, 2, Alpha{})
 	assert.NilError(t, err)
 
@@ -25,7 +25,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.NilError(t, cardinal.Remove(testWorldCtx, removeID))
 
 	count := 0
-	assert.NilError(t, testWorldCtx.NewSearch(cardinal.Exact(Alpha{})).Each(testWorldCtx, func(id cardinal.EntityID) bool {
+	assert.NilError(t, cardinal.NewSearch(testWorldCtx, cardinal.Exact(Alpha{})).Each(func(id cardinal.EntityID) bool {
 		assert.Equal(t, id, keepID)
 		count++
 		return true
