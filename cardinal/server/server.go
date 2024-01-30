@@ -15,7 +15,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 
-	_ "pkg.world.dev/world-engine/cardinal/server/docs"
+	_ "pkg.world.dev/world-engine/cardinal/server/docs" // for swagger.
 )
 
 const (
