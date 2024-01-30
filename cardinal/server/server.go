@@ -48,7 +48,6 @@ func New(engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), opts ...
 
 	// Enable CORS
 	app.Use(cors.New())
-	setupRoutes(app, engine, wsEventHandler, s.config)
 	//	@title			Cardinal
 	//	@description	Backend server for World Engine
 	//	@version		0.0.1
