@@ -35,3 +35,4 @@ Install our Github App to autopropagate changes from youre repo to your deployme
 
 - For developers modifying world-engine: world-engine is compatible with swag. Run `make swagger` to regenerate `swagger.json`, `swagger.yaml`, `swagger.yml` and `docs.go` in the docs folder. 
 - The route http://<host>/swagger will give you api docs for world-engine. 
+
