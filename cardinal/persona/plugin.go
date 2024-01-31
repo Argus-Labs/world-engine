@@ -8,7 +8,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona/system"
 )
 
-type InternalPlugin struct{}
+type InternalPlugin struct {
+}
 
 var _ ecs.InternalPlugin = (*InternalPlugin)(nil)
 
@@ -17,26 +18,26 @@ func NewInternalPlugin() *InternalPlugin {
 }
 
 func (p *InternalPlugin) Register(engine *ecs.Engine) error {
-	err := RegisterQueries(engine)
+	err := p.RegisterQueries(engine)
 	if err != nil {
 		return err
 	}
-	err = RegisterSystems(engine)
+	err = p.RegisterSystems(engine)
 	if err != nil {
 		return err
 	}
-	err = RegisterComponents(engine)
+	err = p.RegisterComponents(engine)
 	if err != nil {
 		return err
 	}
-	err = RegisterMessages(engine)
+	err = p.RegisterMessages(engine)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func RegisterQueries(engine *ecs.Engine) error {
+func (p *InternalPlugin) RegisterQueries(engine *ecs.Engine) error {
 	err := ecs.RegisterQuery[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse](engine, "signer",
 		query.PersonaSignerQuery,
 		ecs.WithCustomQueryGroup[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse]("persona"))
@@ -46,7 +47,7 @@ func RegisterQueries(engine *ecs.Engine) error {
 	return nil
 }
 
-func RegisterSystems(engine *ecs.Engine) error {
+func (p *InternalPlugin) RegisterSystems(engine *ecs.Engine) error {
 	err := engine.RegisterSystems(system.RegisterPersonaSystem, system.AuthorizePersonaAddressSystem)
 	if err != nil {
 		return err
@@ -54,7 +55,7 @@ func RegisterSystems(engine *ecs.Engine) error {
 	return nil
 }
 
-func RegisterComponents(engine *ecs.Engine) error {
+func (p *InternalPlugin) RegisterComponents(engine *ecs.Engine) error {
 	err := ecs.RegisterComponent[component.SignerComponent](engine)
 	if err != nil {
 		return err
@@ -62,7 +63,7 @@ func RegisterComponents(engine *ecs.Engine) error {
 	return nil
 }
 
-func RegisterMessages(engine *ecs.Engine) error {
+func (p *InternalPlugin) RegisterMessages(engine *ecs.Engine) error {
 	err := engine.RegisterMessages(msg.CreatePersonaMsg, msg.AuthorizePersonaAddressMsg)
 	if err != nil {
 		return err

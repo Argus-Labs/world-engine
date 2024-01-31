@@ -6,7 +6,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/persona/utils"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strings"
 )
@@ -15,7 +14,7 @@ import (
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
 func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
-	personaTagToAddress, err := utils.BuildPersonaTagMapping(eCtx)
+	personaTagToAddress, err := buildPersonaIndex(eCtx)
 	if err != nil {
 		return err
 	}
