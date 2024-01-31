@@ -89,7 +89,7 @@ func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
 	return nil
 }
 
-func (c *NakamaClient) Rpc(path string, body any) (*http.Response, error) {
+func (c *NakamaClient) RPC(path string, body any) (*http.Response, error) {
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
