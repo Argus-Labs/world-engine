@@ -3,5 +3,4 @@ FROM golang:1.21
 WORKDIR /app
 
 COPY . .
-
-ENTRYPOINT ["go", "test", "-v", "--tags", "integration"]
+ENTRYPOINT ["go", "test", "-v", "--tags", "integration", "./e2eclient"]

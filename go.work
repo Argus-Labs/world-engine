@@ -6,8 +6,7 @@ use (
 	evm
 	e2e
 	e2e/tester
-	e2e/nakamaclients/e2eclient
-	e2e/nakamaclients/benchmarkclient
+	e2e/nakamaclients
 	relay/nakama
 	rift
 	sign

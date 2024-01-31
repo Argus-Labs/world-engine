@@ -4,7 +4,7 @@ go 1.21.0
 
 require (
 	github.com/ethereum/go-ethereum v1.13.4
-	pkg.world.dev/world-engine/assert v0.0.0-00010101000000-000000000000
+	pkg.world.dev/world-engine/assert v0.0.0
 )
 
 replace pkg.world.dev/world-engine/assert => ../../assert

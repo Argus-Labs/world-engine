@@ -147,7 +147,9 @@ services:
 
   test_nakama_benchmark:
     container_name: test_nakama_benchmark
-    build: ./e2e/nakamaclients/benchmarkclient
+    build:
+      context: ./e2e/nakamaclients/
+      dockerfile: benchmarkclient/Dockerfile
     depends_on:
       nakama:
         condition: service_healthy

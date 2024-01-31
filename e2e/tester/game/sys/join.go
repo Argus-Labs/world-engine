@@ -12,7 +12,6 @@ import (
 var PlayerEntityID = make(map[string]entity.ID)
 
 func Join(ctx cardinal.WorldContext) error {
-
 	logger := ctx.Logger()
 	msg.JoinMsg.Each(
 		ctx, func(jtx cardinal.TxData[msg.JoinInput]) (msg.JoinOutput, error) {

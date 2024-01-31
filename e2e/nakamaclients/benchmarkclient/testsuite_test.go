@@ -59,7 +59,7 @@ func TestCQLLoad(t *testing.T) {
 
 		err = json.Unmarshal(results, &finalResults)
 		if err != nil {
-			t.Logf("There was an error: %s", err.Error())
+			t.Logf("There was an error: %s", err.Error()) // ok it's just benchmarking.
 		}
 		t.Logf("http cql query: \"%s\" called", cqlQuery)
 		time.Sleep(2 * time.Second)
