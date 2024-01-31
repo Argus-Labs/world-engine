@@ -13,7 +13,7 @@ permissions:
 jobs:
   go-lint:
     name: Go
-    runs-on: ubuntu-latest
+    runs-on: macos-14
     env:
       GO_VERSION: 1.21.0
     steps:

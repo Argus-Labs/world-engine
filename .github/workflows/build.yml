@@ -2,15 +2,16 @@ name: Build
 
 on:
   pull_request:
-    paths:
-      - evm/**
+    # comment to test new runner
+    # paths:
+    #   - evm/**
   push:
     branches:
       - main
 jobs:
   evm:
     name: Build EVM
-    runs-on: ubuntu-latest
+    runs-on: macos-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
