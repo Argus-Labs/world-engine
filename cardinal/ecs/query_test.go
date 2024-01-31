@@ -75,12 +75,12 @@ func TestErrOnNoNameOrHandler(t *testing.T) {
 	type foo struct{}
 	testCases := []struct {
 		name        string
-		createQuery func() error
+		CreateQuery func() error
 		shouldErr   bool
 	}{
 		{
 			name: "error on no name",
-			createQuery: func() error {
+			CreateQuery: func() error {
 				return cardinal.RegisterQuery[foo, foo](
 					testutils.NewTestFixture(t, nil).World,
 					"",
@@ -90,7 +90,7 @@ func TestErrOnNoNameOrHandler(t *testing.T) {
 		},
 		{
 			name: "error on no handler",
-			createQuery: func() error {
+			CreateQuery: func() error {
 				return cardinal.RegisterQuery[foo, foo](
 					testutils.NewTestFixture(t, nil).World,
 					"foo",
@@ -103,10 +103,10 @@ func TestErrOnNoNameOrHandler(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.shouldErr {
-				err := tc.createQuery()
+				err := tc.CreateQuery()
 				assert.Assert(t, err != nil)
 			} else {
-				assert.NilError(t, tc.createQuery())
+				assert.NilError(t, tc.CreateQuery())
 			}
 		})
 	}

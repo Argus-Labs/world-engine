@@ -3,7 +3,7 @@ package cardinal
 import (
 	"errors"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
+	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"

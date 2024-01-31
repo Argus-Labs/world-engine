@@ -2,10 +2,10 @@ package cardinal
 
 import (
 	"encoding/json"
+	"pkg.world.dev/world-engine/cardinal/cql"
+	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/search"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/cql"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/search"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"

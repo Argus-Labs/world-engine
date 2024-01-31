@@ -2,12 +2,12 @@ package component
 
 import (
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/codec"
 	"reflect"
 
 	"github.com/invopop/jsonschema"
 	"github.com/rotisserie/eris"
 	"github.com/wI2L/jsondiff"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 )
 
 type TypeID int

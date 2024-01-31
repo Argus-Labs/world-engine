@@ -11,7 +11,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -53,7 +52,7 @@ func TestReadTypeNotStructs(t *testing.T) {
 func TestCanQueueTransactions(t *testing.T) {
 	world := testutils.NewTestFixture(t, nil).World
 
-	// Create an entity with a score component
+	// cardinal.Create an entity with a score component
 	assert.NilError(t, cardinal.RegisterComponent[ScoreComponent](world))
 	modifyScoreMsg := cardinal.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
 	assert.NilError(t, cardinal.RegisterMessages(world, modifyScoreMsg))
@@ -66,7 +65,7 @@ func TestCanQueueTransactions(t *testing.T) {
 			modifyScore := modifyScoreMsg.In(eCtx)
 			for _, txData := range modifyScore {
 				ms := txData.Msg
-				err := ecs.UpdateComponent[ScoreComponent](
+				err := cardinal.UpdateComponent[ScoreComponent](
 					eCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 						s.Score += ms.Amount
 						return s
@@ -81,15 +80,15 @@ func TestCanQueueTransactions(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	assert.NilError(t, world.LoadGameState())
-	id, err := ecs.Create(eCtx, ScoreComponent{})
+	id, err := cardinal.Create(eCtx, ScoreComponent{})
 	assert.NilError(t, err)
 
 	modifyScoreMsg.AddToQueue(world, &ModifyScoreMsg{id, 100})
 
-	assert.NilError(t, ecs.SetComponent[ScoreComponent](eCtx, id, &ScoreComponent{}))
+	assert.NilError(t, cardinal.SetComponent[ScoreComponent](eCtx, id, &ScoreComponent{}))
 
 	// Verify the score is 0
-	s, err := ecs.GetComponent[ScoreComponent](eCtx, id)
+	s, err := cardinal.GetComponent[ScoreComponent](eCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 0, s.Score)
 
@@ -97,7 +96,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	// Verify the score was updated
-	s, err = ecs.GetComponent[ScoreComponent](eCtx, id)
+	s, err = cardinal.GetComponent[ScoreComponent](eCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, s.Score)
 
@@ -105,7 +104,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 
 	// Verify the score hasn't changed
-	s, err = ecs.GetComponent[ScoreComponent](eCtx, id)
+	s, err = cardinal.GetComponent[ScoreComponent](eCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 100, s.Score)
 }
@@ -130,7 +129,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 		func(wCtx engine.Context) error {
 			search := cardinal.NewSearch(wCtx, cardinal.Exact(CounterComponent{}))
 			id := search.MustFirst()
-			return ecs.UpdateComponent[CounterComponent](
+			return cardinal.UpdateComponent[CounterComponent](
 				wCtx, id, func(c *CounterComponent) *CounterComponent {
 					c.Count++
 					return c
@@ -140,14 +139,14 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	assert.NilError(t, world.LoadGameState())
-	id, err := ecs.Create(eCtx, CounterComponent{})
+	id, err := cardinal.Create(eCtx, CounterComponent{})
 	assert.NilError(t, err)
 
 	for i := 0; i < 10; i++ {
 		assert.NilError(t, world.Tick(context.Background()))
 	}
 
-	c, err := ecs.GetComponent[CounterComponent](eCtx, id)
+	c, err := cardinal.GetComponent[CounterComponent](eCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 10, c.Count)
 }
@@ -165,7 +164,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 			modifyScores := modifyScoreMsg.In(eCtx)
 			for _, msData := range modifyScores {
 				ms := msData.Msg
-				err := ecs.UpdateComponent[ScoreComponent](
+				err := cardinal.UpdateComponent[ScoreComponent](
 					eCtx, ms.PlayerID, func(s *ScoreComponent) *ScoreComponent {
 						s.Score += ms.Amount
 						return s
@@ -180,7 +179,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	eCtx := cardinal.NewWorldContext(world)
-	ids, err := ecs.CreateMany(eCtx, 100, ScoreComponent{})
+	ids, err := cardinal.CreateMany(eCtx, 100, ScoreComponent{})
 	assert.NilError(t, err)
 	// Entities at index 5, 10 and 50 will be updated with some values
 	modifyScoreMsg.AddToQueue(
@@ -214,7 +213,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		case 50:
 			wantScore = 150
 		}
-		s, err := ecs.GetComponent[ScoreComponent](eCtx, id)
+		s, err := cardinal.GetComponent[ScoreComponent](eCtx, id)
 		assert.NilError(t, err)
 		assert.Equal(t, wantScore, s.Score)
 	}
@@ -279,7 +278,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 
 	modScoreCountCh := make(chan int)
 
-	// Create two system that report how many instances of the ModifyScoreMsg exist in the
+	// cardinal.Create two system that report how many instances of the ModifyScoreMsg exist in the
 	// transaction queue. These counts should be the same for each tick. modScoreCountCh is an unbuffered channel
 	// so these systems will block while writing to modScoreCountCh. This allows the test to ensure that we can run
 	// commands mid-tick.

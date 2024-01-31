@@ -5,21 +5,18 @@ package benchmark_test
 import (
 	"context"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs/search"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-// newWorldWithRealRedis returns an *ecs.Engine that is connected to a redis DB hosted at localhost:6379. The target
-// database is CLEARED OF ALL DATA so that the *ecs.Engine object can start from a clean slate.
+// newWorldWithRealRedis returns an *cardinal.Engine that is connected to a redis DB hosted at localhost:6379. The target
+// database is CLEARED OF ALL DATA so that the *cardinal.Engine object can start from a clean slate.
 func newWorldWithRealRedis(t testing.TB) *cardinal.World {
 	world, err := cardinal.NewWorld()
 	assert.NilError(t, err)
@@ -34,7 +31,7 @@ func (Health) Name() string {
 	return "health"
 }
 
-// setupWorld creates a new *ecs.Engine and initializes the world to have numOfEntities already created. If
+// setupWorld cardinal.Creates a new *cardinal.Engine and initializes the world to have numOfEntities already cardinal.Created. If
 // enableHealthSystem is set, a System will be added to the world that increments every entity's "health" by 1 every
 // tick.
 func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *cardinal.World {
@@ -44,13 +41,13 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *cardi
 		err := cardinal.RegisterSystems(
 			world,
 			func(eCtx engine.Context) error {
-				q := search.NewSearch(filter.Contains(Health{}), eCtx.Namespace(), eCtx.StoreReader())
+				q := cardinal.NewSearch(eCtx, filter.Contains(Health{}))
 				err := q.Each(
 					func(id entity.ID) bool {
-						health, err := ecs.GetComponent[Health](eCtx, id)
+						health, err := cardinal.GetComponent[Health](eCtx, id)
 						assert.NilError(t, err)
 						health.Value++
-						assert.NilError(t, ecs.SetComponent[Health](eCtx, id, health))
+						assert.NilError(t, cardinal.SetComponent[Health](eCtx, id, health))
 						return true
 					},
 				)
@@ -63,9 +60,9 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *cardi
 
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(t, world.LoadGameState())
-	_, err := ecs.CreateMany(cardinal.NewWorldContext(world), numOfEntities, Health{})
+	_, err := cardinal.CreateMany(cardinal.NewWorldContext(world), numOfEntities, Health{})
 	assert.NilError(t, err)
-	// Perform a game tick to ensure the newly created entities have been committed to the DB
+	// Perform a game tick to ensure the newly cardinal.Created entities have been committed to the DB
 	ctx := context.Background()
 	assert.NilError(t, world.Tick(ctx))
 	return world

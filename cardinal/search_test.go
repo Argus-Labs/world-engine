@@ -1,9 +1,8 @@
 package cardinal_test
 
 import (
+	filter2 "pkg.world.dev/world-engine/cardinal/filter"
 	"testing"
-
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -11,18 +10,6 @@ import (
 
 	"pkg.world.dev/world-engine/cardinal"
 )
-
-type Alpha struct{}
-
-func (Alpha) Name() string { return "alpha" }
-
-type Beta struct{}
-
-func (Beta) Name() string { return "beta" }
-
-type Gamma struct{}
-
-func (Gamma) Name() string { return "gamma" }
 
 func TestSearchExample(t *testing.T) {
 	fixture := testutils.NewTestFixture(t, nil)
@@ -50,41 +37,41 @@ func TestSearchExample(t *testing.T) {
 
 	testCases := []struct {
 		name   string
-		filter filter.ComponentFilter
+		filter filter2.ComponentFilter
 		want   int
 	}{
 		{
 			"exactly alpha",
-			filter.Exact(Alpha{}),
+			filter2.Exact(Alpha{}),
 			10,
 		},
 		{
 			"contains alpha",
-			filter.Contains(Alpha{}),
+			filter2.Contains(Alpha{}),
 			40,
 		},
 		{
 			"beta or gamma",
-			filter.Or(
-				filter.Exact(Beta{}),
-				filter.Exact(Gamma{}),
+			filter2.Or(
+				filter2.Exact(Beta{}),
+				filter2.Exact(Gamma{}),
 			),
 			20,
 		},
 		{
 			"not alpha",
-			filter.Not(filter.Exact(Alpha{})),
+			filter2.Not(filter2.Exact(Alpha{})),
 			60,
 		},
 		{
 			"alpha and beta",
-			filter.And(filter.Contains(Alpha{}),
-				filter.Contains(Beta{}),
+			filter2.And(filter2.Contains(Alpha{}),
+				filter2.Contains(Beta{}),
 			), 20,
 		},
 		{
 			"all",
-			filter.All(),
+			filter2.All(),
 			70,
 		},
 	}

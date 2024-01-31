@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/abi"
+	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"reflect"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
-	"pkg.world.dev/world-engine/cardinal/ecs/abi"
-	"pkg.world.dev/world-engine/cardinal/ecs/codec"
 	"pkg.world.dev/world-engine/sign"
 )
 

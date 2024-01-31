@@ -3,12 +3,12 @@ package cardinal
 import (
 	"github.com/rs/zerolog"
 	"os"
-	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
+	"pkg.world.dev/world-engine/cardinal/receipt"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
+	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 

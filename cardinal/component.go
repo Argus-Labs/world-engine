@@ -2,8 +2,8 @@ package cardinal
 
 import (
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 )
 

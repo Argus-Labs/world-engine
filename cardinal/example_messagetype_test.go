@@ -4,9 +4,8 @@ package cardinal_test
 import (
 	"errors"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type MovePlayerMsg struct {

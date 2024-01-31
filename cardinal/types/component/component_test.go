@@ -2,17 +2,16 @@ package component_test
 
 import (
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/iterators"
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/types/archetype"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 )
@@ -163,9 +162,9 @@ func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
 
 	wCtx := cardinal.NewWorldContext(world)
 	assert.NilError(t, world.LoadGameState())
-	id, err := ecs.Create(wCtx, foundComp{})
+	id, err := cardinal.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
-	_, err = ecs.GetComponent[notFoundComp](wCtx, id)
+	_, err = cardinal.GetComponent[notFoundComp](wCtx, id)
 	assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 }
 
@@ -183,19 +182,19 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 
 	eCtx := cardinal.NewWorldContext(world)
 	assert.NilError(t, world.LoadGameState())
-	id, err := ecs.Create(eCtx, ValueComponent{})
+	id, err := cardinal.Create(eCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, ecs.SetComponent[ValueComponent](eCtx, id, &ValueComponent{99}))
+	assert.NilError(t, cardinal.SetComponent[ValueComponent](eCtx, id, &ValueComponent{99}))
 
-	val, err := ecs.GetComponent[ValueComponent](eCtx, id)
+	val, err := cardinal.GetComponent[ValueComponent](eCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
-	_, err = ecs.Create(eCtx, ValueComponent{})
+	_, err = cardinal.Create(eCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	val, err = ecs.GetComponent[ValueComponent](eCtx, id)
+	val, err = cardinal.GetComponent[ValueComponent](eCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 }

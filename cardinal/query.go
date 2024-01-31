@@ -2,11 +2,11 @@ package cardinal
 
 import (
 	"encoding/json"
+	"pkg.world.dev/world-engine/cardinal/abi"
 	"reflect"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs/abi"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 

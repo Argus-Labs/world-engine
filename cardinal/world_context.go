@@ -3,9 +3,9 @@ package cardinal
 import (
 	"errors"
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
-	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"pkg.world.dev/world-engine/cardinal/events"
+	"pkg.world.dev/world-engine/cardinal/gamestate"
+	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/engine"

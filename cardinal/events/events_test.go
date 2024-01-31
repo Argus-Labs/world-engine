@@ -3,6 +3,7 @@ package events_test
 import (
 	"bytes"
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"sync"
 	"sync/atomic"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )

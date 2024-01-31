@@ -60,7 +60,7 @@ func TestCreatePersona(t *testing.T) {
 	assert.NilError(t, err)
 	client := &http.Client{}
 	req, err := http.NewRequest(
-		http.MethodPost, "http://"+addr+"/tx/persona/create-persona", bytes.NewBuffer(bodyBytes))
+		http.MethodPost, "http://"+addr+"/tx/persona/cardinal.Create-persona", bytes.NewBuffer(bodyBytes))
 	assert.NilError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
@@ -132,7 +132,7 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 
 func TestShutdownViaSignal(t *testing.T) {
 	t.Skip("skipping this test til events and shutdown signals work again")
-	// If this test is frozen then it failed to shut down, create a failure with panic.
+	// If this test is frozen then it failed to shut down, cardinal.Create a failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
 	tf := testutils.NewTestFixture(t, nil)
 	world, addr := tf.World, tf.BaseURL
