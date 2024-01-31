@@ -3,9 +3,8 @@ package sys
 import (
 	"fmt"
 
-	"github.com/argus-labs/world-engine/example/tester/msg"
-
-	"github.com/argus-labs/world-engine/example/tester/comp"
+	"github.com/argus-labs/world-engine/example/tester/game/comp"
+	"github.com/argus-labs/world-engine/example/tester/game/msg"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
@@ -13,6 +12,7 @@ import (
 var PlayerEntityID = make(map[string]entity.ID)
 
 func Join(ctx cardinal.WorldContext) error {
+
 	logger := ctx.Logger()
 	msg.JoinMsg.Each(
 		ctx, func(jtx cardinal.TxData[msg.JoinInput]) (msg.JoinOutput, error) {

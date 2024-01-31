@@ -5,7 +5,8 @@ ARG CMD_ARG
 WORKDIR /usr/src/app
 
 COPY ./ ./
-RUN (cd internal/e2ebenchmark/tester/game && go build -v -o /usr/local/bin/app)
+RUN (cd /e2e/tester && go mod vendor)
+RUN (cd /e2e/tester/game/benchmark && go build -v -o /usr/local/bin/app)
 
 EXPOSE 4040 9020
 

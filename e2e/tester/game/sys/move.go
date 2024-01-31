@@ -3,8 +3,8 @@ package sys
 import (
 	"fmt"
 
-	"github.com/argus-labs/world-engine/example/tester/comp"
-	"github.com/argus-labs/world-engine/example/tester/msg"
+	"github.com/argus-labs/world-engine/example/tester/game/comp"
+	"github.com/argus-labs/world-engine/example/tester/game/msg"
 	"pkg.world.dev/world-engine/cardinal"
 )
 

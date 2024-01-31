@@ -1,5 +1,5 @@
-DIRS_E2E = internal/nakama internal/e2e/tester/game relay/nakama
-DIRS_E2E_BENCHMARK = internal/nakama internal/e2ebenchmark/tester/cardinal relay/nakama
+DIRS_E2E = internal/nakama e2e/tester/game relay/nakama
+DIRS_E2E_BENCHMARK = internal/nakama e2e/tester/gamebenchmark relay/nakama
 ROOT_DIR := $(shell pwd)
 
 export ENABLE_ADAPTER=false

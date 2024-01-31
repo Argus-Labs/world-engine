@@ -117,7 +117,7 @@ services:
       - TRACE_ADDRESS=${TRACE_ADDRESS}
     build:
       context: ./
-      dockerfile: internal/e2e/tester/game/Dockerfile
+      dockerfile: e2e/tester/game/Dockerfile
     restart: unless-stopped
     expose:
       - "3333"

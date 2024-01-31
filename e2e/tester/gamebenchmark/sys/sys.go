@@ -4,7 +4,7 @@ import (
 	cryptorand "crypto/rand"
 	"math/big"
 
-	"github.com/argus-labs/world-engine/example/tester_benchmark/comp"
+	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )

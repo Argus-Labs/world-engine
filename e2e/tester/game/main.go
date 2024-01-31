@@ -4,15 +4,15 @@ import (
 	"errors"
 	"log"
 	"os"
+
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 
-	"github.com/argus-labs/world-engine/example/tester/msg"
-	"github.com/argus-labs/world-engine/example/tester/query"
+	"github.com/argus-labs/world-engine/example/tester/game/comp"
+	"github.com/argus-labs/world-engine/example/tester/game/msg"
+	"github.com/argus-labs/world-engine/example/tester/game/query"
+	"github.com/argus-labs/world-engine/example/tester/game/sys"
 	"github.com/rotisserie/eris"
-
-	"github.com/argus-labs/world-engine/example/tester/comp"
-	"github.com/argus-labs/world-engine/example/tester/sys"
-	"pkg.world.dev/world-engine/cardinal"
 )
 
 func main() {

@@ -7,11 +7,11 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/argus-labs/world-engine/example/tester_benchmark/sys"
+	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/sys"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 
-	"github.com/argus-labs/world-engine/example/tester_benchmark/comp"
+	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
 )
 

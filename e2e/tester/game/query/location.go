@@ -3,8 +3,8 @@ package query
 import (
 	"fmt"
 
-	"github.com/argus-labs/world-engine/example/tester/comp"
-	"github.com/argus-labs/world-engine/example/tester/sys"
+	"github.com/argus-labs/world-engine/example/tester/game/comp"
+	"github.com/argus-labs/world-engine/example/tester/game/sys"
 	"pkg.world.dev/world-engine/cardinal"
 )
 

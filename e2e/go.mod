@@ -12,7 +12,7 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
-replace pkg.world.dev/world-engine/evm => ../../evm
+replace pkg.world.dev/world-engine/evm => ../evm
 
 require (
 	github.com/cosmos/cosmos-sdk v0.51.0
