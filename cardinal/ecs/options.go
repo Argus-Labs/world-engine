@@ -2,7 +2,7 @@ package ecs
 
 import (
 	"os"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
+	"pkg.world.dev/world-engine/cardinal/router/adapter"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"

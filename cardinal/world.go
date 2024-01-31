@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
-	"pkg.world.dev/world-engine/cardinal/shard/evm"
+	"pkg.world.dev/world-engine/cardinal/router/adapter"
+	"pkg.world.dev/world-engine/cardinal/router/evm"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"

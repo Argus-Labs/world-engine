@@ -12,7 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
+	"pkg.world.dev/world-engine/cardinal/router/adapter"
 
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"

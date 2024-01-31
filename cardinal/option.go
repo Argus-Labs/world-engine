@@ -7,8 +7,8 @@ import (
 	"github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
+	"pkg.world.dev/world-engine/cardinal/router/adapter"
 	"pkg.world.dev/world-engine/cardinal/server"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 )
 
 // WorldOption represents an option that can be used to augment how the cardinal.World will be run.
