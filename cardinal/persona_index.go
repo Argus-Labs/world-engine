@@ -1,8 +1,7 @@
-package system
+package cardinal
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/search"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
@@ -24,7 +23,7 @@ func buildPersonaIndex(eCtx engine.Context) (personaIndex, error) {
 	s := search.NewSearch(filter.Exact(component.SignerComponent{}), eCtx.Namespace(), eCtx.StoreReader())
 	err := s.Each(
 		func(id entity.ID) bool {
-			sc, err := ecs.GetComponent[component.SignerComponent](eCtx, id)
+			sc, err := GetComponent[component.SignerComponent](eCtx, id)
 			if err != nil {
 				errs = append(errs, err)
 				return true

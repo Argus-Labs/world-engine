@@ -4,7 +4,6 @@ package cardinal_test
 import (
 	"errors"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 
 	"pkg.world.dev/world-engine/cardinal"
@@ -34,7 +33,7 @@ func ExampleMessageType() {
 	}
 
 	err = cardinal.RegisterSystems(world, func(eCtx engine.Context) error {
-		MoveMsg.Each(eCtx, func(txData ecs.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
+		MoveMsg.Each(eCtx, func(txData cardinal.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
 			// handle the transaction
 			// ...
 

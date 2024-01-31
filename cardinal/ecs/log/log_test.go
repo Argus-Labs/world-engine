@@ -3,6 +3,8 @@ package log_test
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs/search"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strings"
@@ -66,7 +68,7 @@ func testSystemWarningTrigger(eCtx engine.Context) error {
 }
 
 func TestEngineLogger(t *testing.T) {
-	eng := testutils.NewTestFixture(t, nil).Engine
+	world := testutils.NewTestFixture(t, nil).World
 
 	// Ensure logs are enabled
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
@@ -74,11 +76,11 @@ func TestEngineLogger(t *testing.T) {
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
-	eng.InjectLogger(&bufLogger)
-	alphaTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
-	assert.NilError(t, eng.RegisterMessages(alphaTx))
-	assert.NilError(t, ecs.RegisterComponent[EnergyComp](eng))
-	log.Engine(&bufLogger, eng, zerolog.InfoLevel)
+	world.InjectLogger(&bufLogger)
+	alphaTx := cardinal.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	assert.NilError(t, cardinal.RegisterMessages(world, alphaTx))
+	assert.NilError(t, cardinal.RegisterComponent[EnergyComp](world))
+	log.World(&bufLogger, world, zerolog.InfoLevel)
 	jsonEngineInfoString := `{
 					"level":"info",
 					"total_components":2,
@@ -96,20 +98,20 @@ func TestEngineLogger(t *testing.T) {
 					"total_systems":2,
 					"systems":
 						[
-							"system.RegisterPersonaSystem",
-							"system.AuthorizePersonaAddressSystem"
+							"cardinal.RegisterPersonaSystem",
+							"cardinal.AuthorizePersonaAddressSystem"
 						]
 				}
 `
 	require.JSONEq(t, jsonEngineInfoString, buf.String())
 	buf.Reset()
-	energy, err := eng.GetComponentByName(EnergyComp{}.Name())
+	energy, err := world.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
 	components := []component.ComponentMetadata{energy}
-	eCtx := ecs.NewEngineContext(eng)
-	err = eng.RegisterSystems(testSystemWarningTrigger)
+	eCtx := cardinal.NewWorldContext(world)
+	err = cardinal.RegisterSystems(world, testSystemWarningTrigger)
 	assert.NilError(t, err)
-	err = eng.LoadGameState()
+	err = world.LoadGameState()
 	assert.NilError(t, err)
 	entityID, err := ecs.Create(eCtx, EnergyComp{})
 	assert.NilError(t, err)
@@ -137,7 +139,7 @@ func TestEngineLogger(t *testing.T) {
 	buf.Reset()
 
 	// test log entity
-	archetypeID, err := eng.GameStateManager().GetArchIDForComponents(components)
+	archetypeID, err := world.GameStateManager().GetArchIDForComponents(components)
 	assert.NilError(t, err)
 	log.Entity(&bufLogger, zerolog.DebugLevel, entityID, archetypeID, components)
 	jsonEntityInfoString := `
@@ -158,9 +160,10 @@ func TestEngineLogger(t *testing.T) {
 	ctx := context.Background()
 
 	// testing output of logging a tick. Should log the system log and tick start and end strings.
-	err = eng.Tick(ctx)
+	err = world.Tick(ctx)
 	assert.NilError(t, err)
-	logStrings = strings.Split(buf.String(), "\n")[:4]
+	logStrings = strings.Split(buf.String(), "\n")[:3]
+	fmt.Println(logStrings)
 	// test tick start
 	require.JSONEq(
 		t, `

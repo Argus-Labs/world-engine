@@ -1,4 +1,4 @@
-package ecs
+package cardinal
 
 // Namespace is a unique identifier for a engine.
 type Namespace string

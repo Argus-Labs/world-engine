@@ -17,7 +17,6 @@ import (
 	"github.com/alicebob/miniredis/v2"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
 // TestFixture is a helper struct that manages a cardinal.World instance. It will automatically clean up its resources
@@ -29,7 +28,6 @@ type TestFixture struct {
 	BaseURL string
 	Redis   *miniredis.Miniredis
 	World   *cardinal.World
-	Engine  *ecs.Engine
 
 	startTickCh chan time.Time
 	doneTickCh  chan uint64
@@ -73,7 +71,6 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 		BaseURL: "localhost:" + cardinalPort,
 		Redis:   miniRedis,
 		World:   world,
-		Engine:  world.Engine(),
 
 		startTickCh: startTickCh,
 		doneTickCh:  doneTickCh,

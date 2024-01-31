@@ -1,9 +1,8 @@
-package system
+package cardinal
 
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -19,9 +18,11 @@ func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
 		return err
 	}
 
-	msg.AuthorizePersonaAddressMsg.Each(
+	AuthorizePersonaAddressMsg.Each(
 		eCtx,
-		func(txData ecs.TxData[msg.AuthorizePersonaAddress]) (result msg.AuthorizePersonaAddressResult, err error) {
+		func(txData TxData[msg.AuthorizePersonaAddress]) (
+			result msg.AuthorizePersonaAddressResult, err error,
+		) {
 			txMsg, tx := txData.Msg, txData.Tx
 			result.Success = false
 
@@ -40,7 +41,7 @@ func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
 				return result, eris.Errorf("eth address %s is invalid", txMsg.Address)
 			}
 
-			err = ecs.UpdateComponent[component.SignerComponent](
+			err = UpdateComponent[component.SignerComponent](
 				eCtx, data.EntityID, func(s *component.SignerComponent) *component.SignerComponent {
 					for _, addr := range s.AuthorizedAddresses {
 						if addr == txMsg.Address {

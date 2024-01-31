@@ -1,6 +1,7 @@
 package component_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
@@ -54,13 +55,13 @@ func TestComponentInterfaceSignature(t *testing.T) {
 }
 
 func TestComponents(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
-	ecs.MustRegisterComponent[ComponentDataA](engine)
-	ecs.MustRegisterComponent[ComponentDataB](engine)
+	world := testutils.NewTestFixture(t, nil).World
+	cardinal.MustRegisterComponent[ComponentDataA](world)
+	cardinal.MustRegisterComponent[ComponentDataB](world)
 
-	ca, err := engine.GetComponentByName("a")
+	ca, err := world.GetComponentByName("a")
 	assert.NilError(t, err)
-	cb, err := engine.GetComponentByName("b")
+	cb, err := world.GetComponentByName("b")
 	assert.NilError(t, err)
 
 	tests := []*struct {
@@ -83,7 +84,7 @@ func TestComponents(t *testing.T) {
 		},
 	}
 
-	storeManager := engine.GameStateManager()
+	storeManager := world.GameStateManager()
 	for _, tt := range tests {
 		entityID, err := storeManager.CreateEntity(tt.comps...)
 		assert.NilError(t, err)
@@ -156,12 +157,12 @@ func (notFoundComp) Name() string {
 }
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
-	ecs.MustRegisterComponent[foundComp](engine)
-	ecs.MustRegisterComponent[notFoundComp](engine)
+	world := testutils.NewTestFixture(t, nil).World
+	cardinal.MustRegisterComponent[foundComp](world)
+	cardinal.MustRegisterComponent[notFoundComp](world)
 
-	wCtx := ecs.NewEngineContext(engine)
-	assert.NilError(t, engine.LoadGameState())
+	wCtx := cardinal.NewWorldContext(world)
+	assert.NilError(t, world.LoadGameState())
 	id, err := ecs.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
 	_, err = ecs.GetComponent[notFoundComp](wCtx, id)
@@ -177,11 +178,11 @@ func (ValueComponent) Name() string {
 }
 
 func TestMultipleCallsToCreateSupported(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
-	assert.NilError(t, ecs.RegisterComponent[ValueComponent](engine))
+	world := testutils.NewTestFixture(t, nil).World
+	assert.NilError(t, cardinal.RegisterComponent[ValueComponent](world))
 
-	eCtx := ecs.NewEngineContext(engine)
-	assert.NilError(t, engine.LoadGameState())
+	eCtx := cardinal.NewWorldContext(world)
+	assert.NilError(t, world.LoadGameState())
 	id, err := ecs.Create(eCtx, ValueComponent{})
 	assert.NilError(t, err)
 

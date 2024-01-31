@@ -9,14 +9,10 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
-
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
-
 	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -24,18 +20,8 @@ import (
 
 // newWorldWithRealRedis returns an *ecs.Engine that is connected to a redis DB hosted at localhost:6379. The target
 // database is CLEARED OF ALL DATA so that the *ecs.Engine object can start from a clean slate.
-func newWorldWithRealRedis(t testing.TB) *ecs.Engine {
-	rs := redis.NewRedisStorage(redis.Options{
-		Addr:     "127.0.0.1:6379",
-		Password: "",
-		DB:       0,
-	}, "real-world")
-	assert.NilError(t, rs.Client.FlushDB(context.Background()).Err())
-
-	sm, err := gamestate.NewEntityCommandBuffer(rs.Client)
-	assert.NilError(t, err)
-	world, err := ecs.NewEngine(&rs, sm, cardinal.DefaultNamespace)
-
+func newWorldWithRealRedis(t testing.TB) *cardinal.World {
+	world, err := cardinal.NewWorld()
 	assert.NilError(t, err)
 	return world
 }
@@ -51,11 +37,12 @@ func (Health) Name() string {
 // setupWorld creates a new *ecs.Engine and initializes the world to have numOfEntities already created. If
 // enableHealthSystem is set, a System will be added to the world that increments every entity's "health" by 1 every
 // tick.
-func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.Engine {
+func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *cardinal.World {
 	world := newWorldWithRealRedis(t)
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	if enableHealthSystem {
-		err := world.RegisterSystems(
+		err := cardinal.RegisterSystems(
+			world,
 			func(eCtx engine.Context) error {
 				q := search.NewSearch(filter.Contains(Health{}), eCtx.Namespace(), eCtx.StoreReader())
 				err := q.Each(
@@ -74,9 +61,9 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *ecs.E
 		assert.NilError(t, err)
 	}
 
-	assert.NilError(t, ecs.RegisterComponent[Health](world))
+	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(t, world.LoadGameState())
-	_, err := ecs.CreateMany(ecs.NewEngineContext(world), numOfEntities, Health{})
+	_, err := ecs.CreateMany(cardinal.NewWorldContext(world), numOfEntities, Health{})
 	assert.NilError(t, err)
 	// Perform a game tick to ensure the newly created entities have been committed to the DB
 	ctx := context.Background()

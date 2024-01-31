@@ -313,12 +313,12 @@ func (Power) Name() string {
 func TestStorageCanBeUsedInQueries(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 
-	engine := testutils.NewTestFixture(t, nil, cardinal.WithStoreManager(manager)).Engine
-	assert.NilError(t, ecs.RegisterComponent[Health](engine))
-	assert.NilError(t, ecs.RegisterComponent[Power](engine))
-	assert.NilError(t, engine.LoadGameState())
+	world := testutils.NewTestFixture(t, nil, cardinal.WithStoreManager(manager)).World
+	assert.NilError(t, cardinal.RegisterComponent[Health](world))
+	assert.NilError(t, cardinal.RegisterComponent[Power](world))
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	justHealthIDs, err := ecs.CreateMany(eCtx, 8, Health{})
 	assert.NilError(t, err)
 	justPowerIDs, err := ecs.CreateMany(eCtx, 9, Power{})
@@ -354,7 +354,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 
 	for _, tc := range testCases {
 		found := map[entity.ID]bool{}
-		q := engine.NewSearch(tc.filter)
+		q := cardinal.NewSearch(eCtx, tc.filter)
 		err = q.Each(
 			func(id entity.ID) bool {
 				found[id] = true

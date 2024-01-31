@@ -6,6 +6,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
-func NewSearch(eCtx engine.Context, filter filter.ComponentFilter) *search.Search {
-	return search.NewSearch(filter, eCtx.Namespace(), eCtx.StoreReader())
+func NewSearch(wCtx engine.Context, filter filter.ComponentFilter) *search.Search {
+	return search.NewSearch(filter, wCtx.Namespace(), wCtx.StoreReader())
 }

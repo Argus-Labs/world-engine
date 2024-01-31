@@ -1,4 +1,4 @@
-package ecs
+package cardinal
 
 import (
 	"encoding/json"
@@ -135,13 +135,13 @@ type ListTxReceiptsRequest struct {
 // Meaning StartTick is included and EndTick is not. To iterate over all ticks in the future, use the returned
 // EndTick as the StartTick in the next request. If StartTick == EndTick, the receipts list will be empty.
 type ListTxReceiptsReply struct {
-	StartTick uint64    `json:"startTick"`
-	EndTick   uint64    `json:"endTick"`
-	Receipts  []Receipt `json:"receipts"`
+	StartTick uint64         `json:"startTick"`
+	EndTick   uint64         `json:"endTick"`
+	Receipts  []ReceiptEntry `json:"receipts"`
 }
 
-// Receipt represents a single transaction receipt. It contains an ID, a result, and a list of errors.
-type Receipt struct {
+// ReceiptEntry represents a single transaction receipt. It contains an ID, a result, and a list of errors.
+type ReceiptEntry struct {
 	TxHash string  `json:"txHash"`
 	Tick   uint64  `json:"tick"`
 	Result any     `json:"result"`
@@ -182,7 +182,7 @@ func receiptsQuery(ctx engine.Context, req *ListTxReceiptsRequest) (*ListTxRecei
 			continue
 		}
 		for _, r := range currReceipts {
-			reply.Receipts = append(reply.Receipts, Receipt{
+			reply.Receipts = append(reply.Receipts, ReceiptEntry{
 				TxHash: string(r.TxHash),
 				Tick:   t,
 				Result: r.Result,

@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"pkg.world.dev/world-engine/cardinal"
 	"strconv"
 
 	"github.com/rotisserie/eris"
@@ -23,7 +24,7 @@ func CreateMany(eCtx engine.Context, num int, components ...component.Component)
 	// 		return nil, eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
 	// }
 	if eCtx.IsReadOnly() {
-		return nil, eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
+		return nil, eris.Wrap(cardinal.ErrCannotModifyStateWithReadOnlyContext, "")
 	}
 	acc := make([]component.ComponentMetadata, 0, len(components))
 	for _, comp := range components {
@@ -61,7 +62,7 @@ func Remove(eCtx engine.Context, id entity.ID) error {
 // RemoveComponentFrom removes a component from an entity.
 func RemoveComponentFrom[T component.Component](eCtx engine.Context, id entity.ID) error {
 	if eCtx.IsReadOnly() {
-		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
+		return eris.Wrap(cardinal.ErrCannotModifyStateWithReadOnlyContext, "")
 	}
 	var t T
 	name := t.Name()
@@ -74,7 +75,7 @@ func RemoveComponentFrom[T component.Component](eCtx engine.Context, id entity.I
 
 func AddComponentTo[T component.Component](eCtx engine.Context, id entity.ID) error {
 	if eCtx.IsReadOnly() {
-		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
+		return eris.Wrap(cardinal.ErrCannotModifyStateWithReadOnlyContext, "")
 	}
 	var t T
 	name := t.Name()
@@ -113,7 +114,7 @@ func GetComponent[T component.Component](eCtx engine.Context, id entity.ID) (com
 // SetComponent sets component data to the entity.
 func SetComponent[T component.Component](eCtx engine.Context, id entity.ID, component *T) error {
 	if eCtx.IsReadOnly() {
-		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
+		return eris.Wrap(cardinal.ErrCannotModifyStateWithReadOnlyContext, "")
 	}
 	var t T
 	name := t.Name()
@@ -135,7 +136,7 @@ func SetComponent[T component.Component](eCtx engine.Context, id entity.ID, comp
 
 func UpdateComponent[T component.Component](eCtx engine.Context, id entity.ID, fn func(*T) *T) error {
 	if eCtx.IsReadOnly() {
-		return eris.Wrap(ErrCannotModifyStateWithReadOnlyContext, "")
+		return eris.Wrap(cardinal.ErrCannotModifyStateWithReadOnlyContext, "")
 	}
 	val, err := GetComponent[T](eCtx, id)
 	if err != nil {

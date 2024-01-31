@@ -81,8 +81,8 @@ func Entity(
 	loadEntityIntoEvent(zeroLoggerEvent, entityID, archID, components).Send()
 }
 
-// Engine Logs everything about the engine (components and Systems).
-func Engine(logger *zerolog.Logger, target Loggable, level zerolog.Level) {
+// World Logs everything about the world (components and Systems).
+func World(logger *zerolog.Logger, target Loggable, level zerolog.Level) {
 	zeroLoggerEvent := logger.WithLevel(level)
 	zeroLoggerEvent = loadComponentsToEvent(zeroLoggerEvent, target)
 	zeroLoggerEvent = loadSystemIntoEvent(zeroLoggerEvent, target)

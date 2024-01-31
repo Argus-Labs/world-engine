@@ -1,4 +1,4 @@
-package ecs
+package cardinal
 
 import (
 	"context"
@@ -15,18 +15,18 @@ import (
 // a problem when running one of the Systems), the snapshotted state is recovered and the pending
 // transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
 // transactions that need to be processed because the last tick was successful.
-func (e *Engine) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
-	start, end, err := e.TickStore().GetTickNumbers()
+func (w *World) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
+	start, end, err := w.entityStore.GetTickNumbers()
 	if err != nil {
 		return nil, err
 	}
-	e.tick.Store(end)
+	w.tick.Store(end)
 	// We successfully completed the last tick. Everything is fine
 	if start == end {
 		//nolint:nilnil // its ok.
 		return nil, nil
 	}
-	return e.TickStore().Recover(e.msgManager.GetRegisteredMessages())
+	return w.entityStore.Recover(w.msgManager.GetRegisteredMessages())
 }
 
 // RecoverFromChain will attempt to recover the state of the engine based on historical transaction data.
@@ -34,28 +34,28 @@ func (e *Engine) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
 // namespace. The function will continuously ask the EVM base shard for batches, and run ticks for each batch returned.
 //
 //nolint:gocognit
-func (e *Engine) RecoverFromChain(ctx context.Context) error {
-	if e.chain == nil {
+func (w *World) RecoverFromChain(ctx context.Context) error {
+	if w.chain == nil {
 		return eris.Errorf(
 			"chain adapter was nil. " +
 				"be sure to use the `WithAdapter` option when creating the world",
 		)
 	}
-	if e.CurrentTick() > 0 {
+	if w.CurrentTick() > 0 {
 		return eris.Errorf(
 			"world recovery should not occur in a world with existing state. please verify all " +
 				"state has been cleared before running recovery",
 		)
 	}
 
-	e.isRecovering.Store(true)
+	w.isRecovering.Store(true)
 	defer func() {
-		e.isRecovering.Store(false)
+		w.isRecovering.Store(false)
 	}()
-	namespace := e.Namespace().String()
+	namespace := w.namespace.String()
 	var nextKey []byte
 	for {
-		res, err := e.chain.QueryTransactions(
+		res, err := w.chain.QueryTransactions(
 			ctx, &types.QueryTransactionsRequest{
 				Namespace: namespace,
 				Page: &types.PageRequest{
@@ -69,27 +69,27 @@ func (e *Engine) RecoverFromChain(ctx context.Context) error {
 		for _, tickedTxs := range res.Epochs {
 			target := tickedTxs.Epoch
 			// tick up to target
-			if target < e.CurrentTick() {
+			if target < w.CurrentTick() {
 				return eris.Errorf(
 					"got tx for tick %d, but world is at tick %d",
 					target,
-					e.CurrentTick(),
+					w.CurrentTick(),
 				)
 			}
-			for current := e.CurrentTick(); current != target; {
-				if err = e.Tick(ctx); err != nil {
+			for current := w.CurrentTick(); current != target; {
+				if err = w.Tick(ctx); err != nil {
 					return err
 				}
-				current = e.CurrentTick()
+				current = w.CurrentTick()
 			}
 			// we've now reached target. we need to inject the transactions and tick.
 			transactions := tickedTxs.Txs
 			for _, tx := range transactions {
-				sp, err := e.decodeTransaction(tx.GameShardTransaction)
+				sp, err := w.decodeTransaction(tx.GameShardTransaction)
 				if err != nil {
 					return err
 				}
-				msg := e.msgManager.GetMessage(message.TypeID(tx.TxId))
+				msg := w.msgManager.GetMessage(message.TypeID(tx.TxId))
 				if msg == nil {
 					return eris.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
 				}
@@ -97,10 +97,10 @@ func (e *Engine) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				e.AddTransaction(message.TypeID(tx.TxId), v, e.protoTransactionToGo(sp))
+				w.AddTransaction(message.TypeID(tx.TxId), v, w.protoTransactionToGo(sp))
 			}
 			// run the tick for this batch
-			if err = e.Tick(ctx); err != nil {
+			if err = w.Tick(ctx); err != nil {
 				return err
 			}
 		}
@@ -120,7 +120,7 @@ func (e *Engine) RecoverFromChain(ctx context.Context) error {
 	return nil
 }
 
-func (e *Engine) protoTransactionToGo(sp *shardv1.Transaction) *sign.Transaction {
+func (w *World) protoTransactionToGo(sp *shardv1.Transaction) *sign.Transaction {
 	return &sign.Transaction{
 		PersonaTag: sp.PersonaTag,
 		Namespace:  sp.Namespace,
@@ -130,7 +130,7 @@ func (e *Engine) protoTransactionToGo(sp *shardv1.Transaction) *sign.Transaction
 	}
 }
 
-func (e *Engine) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
+func (w *World) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
 	payload := new(shardv1.Transaction)
 	err := proto.Unmarshal(bz, payload)
 	return payload, eris.Wrap(err, "")

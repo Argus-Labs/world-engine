@@ -3,7 +3,7 @@ package cardinal
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/ecs/systems"
+	"pkg.world.dev/world-engine/cardinal/systems"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"

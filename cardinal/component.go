@@ -1,4 +1,4 @@
-package ecs
+package cardinal
 
 import (
 	"github.com/rotisserie/eris"
@@ -7,12 +7,12 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/component"
 )
 
-func RegisterComponent[T component.Component](engine *Engine) error {
-	if engine.EngineState != EngineStateInit {
+func RegisterComponent[T component.Component](w *World) error {
+	if w.WorldState != WorldStateInit {
 		return eris.New("cannot register components after loading game state")
 	}
 	var t T
-	_, err := engine.GetComponentByName(t.Name())
+	_, err := w.GetComponentByName(t.Name())
 	if err == nil {
 		return eris.Errorf("component %q is already registered", t.Name())
 	}
@@ -20,14 +20,14 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 	if err != nil {
 		return err
 	}
-	err = c.SetID(engine.nextComponentID)
+	err = c.SetID(w.nextComponentID)
 	if err != nil {
 		return err
 	}
-	engine.nextComponentID++
-	engine.registeredComponents = append(engine.registeredComponents, c)
+	w.nextComponentID++
+	w.registeredComponents = append(w.registeredComponents, c)
 
-	storedSchema, err := engine.redisStorage.GetSchema(c.Name())
+	storedSchema, err := w.redisStorage.GetSchema(c.Name())
 
 	if err != nil {
 		// It's fine if the schema doesn't currently exist in the db. Any other errors are a problem.
@@ -44,28 +44,28 @@ func RegisterComponent[T component.Component](engine *Engine) error {
 		}
 	}
 
-	err = engine.redisStorage.SetSchema(c.Name(), c.GetSchema())
+	err = w.redisStorage.SetSchema(c.Name(), c.GetSchema())
 	if err != nil {
 		return err
 	}
-	engine.nameToComponent[t.Name()] = c
-	engine.isComponentsRegistered = true
+	w.nameToComponent[t.Name()] = c
+	w.isComponentsRegistered = true
 	return nil
 }
 
-func MustRegisterComponent[T component.Component](engine *Engine) {
-	err := RegisterComponent[T](engine)
+func MustRegisterComponent[T component.Component](w *World) {
+	err := RegisterComponent[T](w)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (e *Engine) GetComponents() []component.ComponentMetadata {
-	return e.registeredComponents
+func (w *World) GetComponents() []component.ComponentMetadata {
+	return w.registeredComponents
 }
 
-func (e *Engine) GetComponentByName(name string) (component.ComponentMetadata, error) {
-	componentType, exists := e.nameToComponent[name]
+func (w *World) GetComponentByName(name string) (component.ComponentMetadata, error) {
+	componentType, exists := w.nameToComponent[name]
 	if !exists {
 		return nil, eris.Wrapf(
 			iterators.ErrMustRegisterComponent,

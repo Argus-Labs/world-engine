@@ -1,18 +1,20 @@
 package cardinal
 
 import (
+	"github.com/rs/zerolog"
+	"os"
+	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/server"
 )
 
 // WorldOption represents an option that can be used to augment how the cardinal.World will be run.
 type WorldOption struct {
-	ecsOption      ecs.Option
+	ecsOption      Option
 	serverOption   server.Option
 	cardinalOption Option
 }
@@ -30,7 +32,9 @@ func WithPort(port string) WorldOption {
 // is 10. A smaller number uses less memory, but limits the amount of historical receipts available.
 func WithReceiptHistorySize(size int) WorldOption {
 	return WorldOption{
-		ecsOption: ecs.WithReceiptHistorySize(size),
+		cardinalOption: func(world *World) {
+			world.receiptHistory = receipt.NewHistory(world.CurrentTick(), size)
+		},
 	}
 }
 
@@ -65,7 +69,9 @@ func WithTickDoneChannel(ch chan<- uint64) WorldOption {
 
 func WithStoreManager(s gamestate.Manager) WorldOption {
 	return WorldOption{
-		ecsOption: ecs.WithStoreManager(s),
+		cardinalOption: func(world *World) {
+			world.entityStore = s
+		},
 	}
 }
 
@@ -91,6 +97,15 @@ func WithCustomMockRedis(miniRedis *miniredis.Miniredis) WorldOption {
 				miniRedis.Close()
 				log.Logger.Debug().Msg("miniredis shutdown successful")
 			}
+		},
+	}
+}
+
+func WithPrettyLog() WorldOption {
+	return WorldOption{
+		cardinalOption: func(world *World) {
+			prettyLogger := log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+			world.Logger = &prettyLogger
 		},
 	}
 }

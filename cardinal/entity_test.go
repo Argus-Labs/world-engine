@@ -13,7 +13,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	world := fixture.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
-	assert.NilError(t, fixture.Engine.LoadGameState())
+	assert.NilError(t, world.LoadGameState())
 
 	testWorldCtx := testutils.WorldToEngineContext(world)
 	ids, err := cardinal.CreateMany(testWorldCtx, 2, Alpha{})

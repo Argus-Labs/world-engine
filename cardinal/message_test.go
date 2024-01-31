@@ -2,7 +2,6 @@ package cardinal_test
 
 import (
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
@@ -39,7 +38,7 @@ func TestTransactionExample(t *testing.T) {
 		}
 		// test same as above but with forEach
 		addHealthToEntity.Each(eCtx,
-			func(tx ecs.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
+			func(tx cardinal.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
 				targetID := tx.Msg.TargetID
 				err := cardinal.UpdateComponent[Health](eCtx, targetID, func(h *Health) *Health {
 					h.Value = tx.Msg.Amount

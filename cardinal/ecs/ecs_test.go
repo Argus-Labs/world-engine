@@ -3,6 +3,7 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/ecs/search"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
@@ -86,16 +87,16 @@ func TestSchemaChecking(t *testing.T) {
 	s := miniredis.RunT(t)
 
 	cardinalWorld := testutils.NewTestFixture(t, s).World
-	engine := cardinalWorld.Engine()
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](engine))
-	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine))
+	world := cardinalWorld
+	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world))
+	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world))
 
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, world.LoadGameState())
 
 	cardinalWorld2 := testutils.NewTestFixture(t, s).World
-	engine2 := cardinalWorld2.Engine()
-	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine2))
-	assert.Assert(t, ecs.RegisterComponent[AlteredEnergyComponent](engine2) != nil)
+	world2 := cardinalWorld2
+	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world2))
+	assert.Assert(t, cardinal.RegisterComponent[AlteredEnergyComponent](world2) != nil)
 	err := cardinalWorld2.Shutdown()
 	assert.NilError(t, err)
 	err = cardinalWorld.Shutdown()
@@ -103,25 +104,25 @@ func TestSchemaChecking(t *testing.T) {
 }
 
 func TestECS(t *testing.T) {
-	eng := testutils.NewTestFixture(t, nil).Engine
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](eng))
-	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](eng))
+	world := testutils.NewTestFixture(t, nil).World
+	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world))
+	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world))
 
 	// create a bunch of planets!
 	numPlanets := 5
-	eCtx := ecs.NewEngineContext(eng)
+	eCtx := cardinal.NewWorldContext(world)
 
-	err := eng.RegisterSystems(UpdateEnergySystem)
+	err := cardinal.RegisterSystems(world, UpdateEnergySystem)
 	assert.NilError(t, err)
-	assert.NilError(t, eng.LoadGameState())
+	assert.NilError(t, world.LoadGameState())
 	numEnergyOnly := 10
 	_, err = ecs.CreateMany(eCtx, numEnergyOnly, EnergyComponent{})
 	assert.NilError(t, err)
 	_, err = ecs.CreateMany(eCtx, numPlanets, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, eng.Tick(context.Background()))
-	query := eng.NewSearch(filter.Contains(EnergyComponent{}))
+	assert.NilError(t, world.Tick(context.Background()))
+	query := cardinal.NewSearch(eCtx, filter.Contains(EnergyComponent{}))
 	err = query.Each(
 		func(id entity.ID) bool {
 			energyPlanet, err := ecs.GetComponent[EnergyComponent](eCtx, id)
@@ -132,11 +133,11 @@ func TestECS(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	q := eng.NewSearch(filter.Or(filter.Contains(EnergyComponent{}), filter.Contains(OwnableComponent{})))
+	q := cardinal.NewSearch(eCtx, filter.Or(filter.Contains(EnergyComponent{}), filter.Contains(OwnableComponent{})))
 	amt, err := q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, numPlanets+numEnergyOnly, amt)
-	comp, err := eng.GetComponentByName("EnergyComponent")
+	comp, err := world.GetComponentByName("EnergyComponent")
 	assert.NilError(t, err)
 	assert.Equal(t, comp.Name(), Energy.Name())
 }
@@ -157,21 +158,21 @@ func (Vel) Name() string {
 }
 
 func TestVelocitySimulation(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	world := testutils.NewTestFixture(t, nil).World
 
 	// These components are a mix of concrete types and pointer types to make sure they both work
-	assert.NilError(t, ecs.RegisterComponent[Pos](engine))
-	assert.NilError(t, ecs.RegisterComponent[Vel](engine))
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, cardinal.RegisterComponent[Pos](world))
+	assert.NilError(t, cardinal.RegisterComponent[Vel](world))
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	shipID, err := ecs.Create(eCtx, Pos{}, Vel{})
 	assert.NilError(t, err)
 	assert.NilError(t, ecs.SetComponent[Pos](eCtx, shipID, &Pos{1, 2}))
 	assert.NilError(t, ecs.SetComponent[Vel](eCtx, shipID, &Vel{3, 4}))
 	wantPos := Pos{4, 6}
 
-	velocityQuery := engine.NewSearch(filter.Contains(&Vel{}))
+	velocityQuery := cardinal.NewSearch(eCtx, filter.Contains(&Vel{}))
 	err = velocityQuery.Each(
 		func(id entity.ID) bool {
 			vel, err := ecs.GetComponent[Vel](eCtx, id)
@@ -200,14 +201,14 @@ func (Owner) Name() string {
 }
 
 func TestCanSetDefaultValue(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
+	world := testutils.NewTestFixture(t, nil).World
 
 	wantOwner := Owner{"Jeff"}
 
-	assert.NilError(t, ecs.RegisterComponent[Owner](engine))
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, cardinal.RegisterComponent[Owner](world))
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	alphaEntity, err := ecs.Create(eCtx, wantOwner)
 	assert.NilError(t, err)
 
@@ -232,18 +233,18 @@ func (Tuple) Name() string {
 }
 
 func TestCanRemoveEntity(t *testing.T) {
-	eng := testutils.NewTestFixture(t, nil).World.Engine()
+	world := testutils.NewTestFixture(t, nil).World
 
-	assert.NilError(t, ecs.RegisterComponent[Tuple](eng))
-	assert.NilError(t, eng.LoadGameState())
+	assert.NilError(t, cardinal.RegisterComponent[Tuple](world))
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(eng)
+	eCtx := cardinal.NewWorldContext(world)
 	entities, err := ecs.CreateMany(eCtx, 2, Tuple{})
 	assert.NilError(t, err)
 
 	// Make sure we find exactly 2 entries
 	count := 0
-	q := eng.NewSearch(filter.Contains(Tuple{}))
+	q := cardinal.NewSearch(eCtx, cardinal.Contains(Tuple{}))
 	assert.NilError(
 		t, q.Each(
 			func(id entity.ID) bool {
@@ -274,7 +275,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 1)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = eng.GameStateManager().GetComponentTypesForEntity(entities[0])
+	_, err = world.GameStateManager().GetComponentTypesForEntity(entities[0])
 	assert.Check(t, err != nil)
 
 	// Remove the other entity
@@ -294,7 +295,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	assert.Equal(t, count, 0)
 
 	// This entity was Removed, so we shouldn't be able to find it
-	_, err = eng.GameStateManager().GetComponentTypesForEntity(entities[0])
+	_, err = world.GameStateManager().GetComponentTypesForEntity(entities[0])
 	assert.Check(t, err != nil)
 }
 
@@ -307,19 +308,19 @@ func (CountComponent) Name() string {
 }
 
 func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
+	world := testutils.NewTestFixture(t, nil).World
 
-	assert.NilError(t, ecs.RegisterComponent[CountComponent](engine))
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, cardinal.RegisterComponent[CountComponent](world))
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	_, err := ecs.CreateMany(eCtx, 10, CountComponent{})
 	assert.NilError(t, err)
 
 	// Pre-populate all the entities with their own IDs. This will help
 	// us keep track of which component belongs to which entity in the case
 	// of a problem
-	q := engine.NewSearch(filter.Contains(CountComponent{}))
+	q := cardinal.NewSearch(eCtx, filter.Contains(CountComponent{}))
 	assert.NilError(
 		t, q.Each(
 			func(id entity.ID) bool {
@@ -365,11 +366,11 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 }
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](engine))
-	assert.NilError(t, engine.LoadGameState())
+	world := testutils.NewTestFixture(t, nil).World
+	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world))
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	ent, err := ecs.Create(eCtx, EnergyComponent{})
 	assert.NilError(t, err)
 	assert.ErrorIs(t, ecs.AddComponentTo[EnergyComponent](eCtx, ent), iterators.ErrComponentAlreadyOnEntity)
@@ -394,11 +395,11 @@ func (WeaponEnergy) Name() string {
 }
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
-	assert.NilError(t, ecs.RegisterComponent[ReactorEnergy](engine))
-	assert.NilError(t, ecs.RegisterComponent[WeaponEnergy](engine))
-	assert.NilError(t, engine.LoadGameState())
-	eCtx := ecs.NewEngineContext(engine)
+	world := testutils.NewTestFixture(t, nil).World
+	assert.NilError(t, cardinal.RegisterComponent[ReactorEnergy](world))
+	assert.NilError(t, cardinal.RegisterComponent[WeaponEnergy](world))
+	assert.NilError(t, world.LoadGameState())
+	eCtx := cardinal.NewWorldContext(world)
 	ent, err := ecs.Create(eCtx, ReactorEnergy{})
 	assert.NilError(t, err)
 
@@ -417,21 +418,21 @@ func (Bar) Name() string {
 }
 
 func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
+	world := testutils.NewTestFixture(t, nil).World
 
-	assert.NilError(t, ecs.RegisterComponent[Foo](engine))
-	assert.NilError(t, ecs.RegisterComponent[Bar](engine))
+	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
+	assert.NilError(t, cardinal.RegisterComponent[Bar](world))
 
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, world.LoadGameState())
 
 	getArchIDForEntityID := func(id entity.ID) archetype.ID {
-		components, err := engine.GameStateManager().GetComponentTypesForEntity(id)
+		components, err := world.GameStateManager().GetComponentTypesForEntity(id)
 		assert.NilError(t, err)
-		archID, err := engine.GameStateManager().GetArchIDForComponents(components)
+		archID, err := world.GameStateManager().GetArchIDForComponents(components)
 		assert.NilError(t, err)
 		return archID
 	}
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	entity, err := ecs.Create(eCtx, Foo{}, Bar{})
 	assert.NilError(t, err)
 
@@ -467,14 +468,14 @@ func (Gamma) Name() string {
 }
 
 func TestEntriesCanChangeTheirArchetype(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
-	assert.NilError(t, ecs.RegisterComponent[Alpha](engine))
-	assert.NilError(t, ecs.RegisterComponent[Beta](engine))
-	assert.NilError(t, ecs.RegisterComponent[Gamma](engine))
+	world := testutils.NewTestFixture(t, nil).World
+	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
+	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
+	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
 
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	entIDs, err := ecs.CreateMany(eCtx, 3, Alpha{}, Beta{})
 	assert.NilError(t, err)
 
@@ -489,13 +490,13 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 		}
 	}
 	// 3 entities have alpha
-	alphaQuery := engine.NewSearch(filter.Contains(Alpha{}))
+	alphaQuery := cardinal.NewSearch(eCtx, filter.Contains(Alpha{}))
 	err = alphaQuery.Each(countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 3, count)
 
 	// 0 entities have gamma
-	gammaQuery := engine.NewSearch(filter.Contains(Gamma{}))
+	gammaQuery := cardinal.NewSearch(eCtx, filter.Contains(Gamma{}))
 	err = gammaQuery.Each(countAgain())
 	assert.NilError(t, err)
 	assert.Equal(t, 0, count)
@@ -542,13 +543,13 @@ func (e EnergyComponentBeta) Name() string {
 }
 
 func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
+	world := testutils.NewTestFixture(t, nil).World
 
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponentAlpha](engine))
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponentBeta](engine))
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, cardinal.RegisterComponent[EnergyComponentAlpha](world))
+	assert.NilError(t, cardinal.RegisterComponent[EnergyComponentBeta](world))
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	id, err := ecs.Create(eCtx, EnergyComponentAlpha{})
 	assert.NilError(t, err)
 
@@ -567,15 +568,15 @@ func (C) Name() string { return "c" }
 func (D) Name() string { return "d" }
 
 func TestQueriesAndFiltersWorks(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
-	assert.NilError(t, ecs.RegisterComponent[A](engine))
-	assert.NilError(t, ecs.RegisterComponent[B](engine))
-	assert.NilError(t, ecs.RegisterComponent[C](engine))
-	assert.NilError(t, ecs.RegisterComponent[D](engine))
+	world := testutils.NewTestFixture(t, nil).World
+	assert.NilError(t, cardinal.RegisterComponent[A](world))
+	assert.NilError(t, cardinal.RegisterComponent[B](world))
+	assert.NilError(t, cardinal.RegisterComponent[C](world))
+	assert.NilError(t, cardinal.RegisterComponent[D](world))
 
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	ab, err := ecs.Create(eCtx, A{}, B{})
 	assert.NilError(t, err)
 	cd, err := ecs.Create(eCtx, C{}, D{})
@@ -585,7 +586,7 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 
 	// Only one entity has the components a and b
 	abFilter := filter.Contains(A{}, B{})
-	q := engine.NewSearch(abFilter)
+	q := cardinal.NewSearch(eCtx, abFilter)
 	assert.NilError(
 		t, q.Each(
 			func(id entity.ID) bool {
@@ -594,13 +595,13 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 			},
 		),
 	)
-	q = engine.NewSearch(abFilter)
+	q = cardinal.NewSearch(eCtx, abFilter)
 	num, err := q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
 	cdFilter := filter.Contains(C{}, D{})
-	q = engine.NewSearch(cdFilter)
+	q = cardinal.NewSearch(eCtx, cdFilter)
 	assert.NilError(
 		t, q.Each(
 			func(id entity.ID) bool {
@@ -609,12 +610,12 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 			},
 		),
 	)
-	q = engine.NewSearch(abFilter)
+	q = cardinal.NewSearch(eCtx, abFilter)
 	num, err = q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, num, 1)
 
-	q = engine.NewSearch(filter.Or(filter.Contains(A{}), filter.Contains(D{})))
+	q = cardinal.NewSearch(eCtx, filter.Or(filter.Contains(A{}), filter.Contains(D{})))
 	allCount, err := q.Count()
 	assert.NilError(t, err)
 	assert.Equal(t, allCount, 3)
@@ -629,11 +630,11 @@ func (HealthComponent) Name() string {
 }
 
 func TestUpdateWithPointerType(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
-	assert.NilError(t, ecs.RegisterComponent[HealthComponent](engine))
-	assert.NilError(t, engine.LoadGameState())
+	world := testutils.NewTestFixture(t, nil).World
+	assert.NilError(t, cardinal.RegisterComponent[HealthComponent](world))
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	id, err := ecs.Create(eCtx, HealthComponent{})
 	assert.NilError(t, err)
 
@@ -662,11 +663,11 @@ func (ValueComponent1) Name() string {
 }
 
 func TestCanRemoveFirstEntity(t *testing.T) {
-	eng := testutils.NewTestFixture(t, nil).World.Engine()
-	assert.NilError(t, ecs.RegisterComponent[ValueComponent1](eng))
-	assert.NilError(t, eng.LoadGameState())
+	world := testutils.NewTestFixture(t, nil).World
+	assert.NilError(t, cardinal.RegisterComponent[ValueComponent1](world))
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(eng)
+	eCtx := cardinal.NewWorldContext(world)
 	ids, err := ecs.CreateMany(eCtx, 3, ValueComponent1{})
 	assert.NilError(t, err)
 	assert.NilError(t, ecs.SetComponent[ValueComponent1](eCtx, ids[0], &ValueComponent1{99}))
@@ -700,12 +701,12 @@ func (OtherComponent) Name() string {
 }
 
 func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
-	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](engine))
-	assert.NilError(t, ecs.RegisterComponent[OtherComponent](engine))
-	assert.NilError(t, engine.LoadGameState())
+	world := testutils.NewTestFixture(t, nil).World
+	assert.NilError(t, cardinal.RegisterComponent[ValueComponent2](world))
+	assert.NilError(t, cardinal.RegisterComponent[OtherComponent](world))
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	ids, err := ecs.CreateMany(eCtx, 3, ValueComponent2{})
 	assert.NilError(t, err)
 	assert.NilError(t, ecs.SetComponent[ValueComponent2](eCtx, ids[0], &ValueComponent2{99}))
@@ -724,12 +725,12 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 }
 
 func TestEntityCreationAndSetting(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).World.Engine()
-	assert.NilError(t, ecs.RegisterComponent[ValueComponent2](engine))
-	assert.NilError(t, ecs.RegisterComponent[OtherComponent](engine))
+	world := testutils.NewTestFixture(t, nil).World
+	assert.NilError(t, cardinal.RegisterComponent[ValueComponent2](world))
+	assert.NilError(t, cardinal.RegisterComponent[OtherComponent](world))
 
-	eCtx := ecs.NewEngineContext(engine)
-	assert.NilError(t, engine.LoadGameState())
+	eCtx := cardinal.NewWorldContext(world)
+	assert.NilError(t, world.LoadGameState())
 	ids, err := ecs.CreateMany(eCtx, 300, ValueComponent2{999}, OtherComponent{999})
 	assert.NilError(t, err)
 	for _, id := range ids {

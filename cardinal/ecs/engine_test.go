@@ -23,11 +23,11 @@ import (
 )
 
 func TestCanWaitForNextTick(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	world := testutils.NewTestFixture(t, nil).World
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
-	assert.NilError(t, engine.LoadGameState())
-	engine.StartGameLoop(context.Background(), startTickCh, doneTickCh)
+	assert.NilError(t, world.LoadGameState())
+	world.StartGameLoop(context.Background(), startTickCh, doneTickCh)
 
 	// Make sure the game can tick
 	startTickCh <- time.Now()
@@ -36,7 +36,7 @@ func TestCanWaitForNextTick(t *testing.T) {
 	waitForNextTickDone := make(chan struct{})
 	go func() {
 		for i := 0; i < 10; i++ {
-			success := engine.WaitForNextTick()
+			success := world.WaitForNextTick()
 			assert.Check(t, success)
 		}
 		close(waitForNextTickDone)
@@ -54,11 +54,11 @@ func TestCanWaitForNextTick(t *testing.T) {
 }
 
 func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	world := testutils.NewTestFixture(t, nil).World
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
-	assert.NilError(t, engine.LoadGameState())
-	engine.StartGameLoop(context.Background(), startTickCh, doneTickCh)
+	assert.NilError(t, world.LoadGameState())
+	world.StartGameLoop(context.Background(), startTickCh, doneTickCh)
 
 	// Make sure the game can tick
 	startTickCh <- time.Now()
@@ -68,7 +68,7 @@ func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
 	go func() {
 		// continually spin here waiting for next tick. One of these must fail before
 		// the test times out for this test to pass
-		for engine.WaitForNextTick() {
+		for world.WaitForNextTick() {
 		}
 		close(waitForNextTickDone)
 	}()
@@ -76,7 +76,7 @@ func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
 	// Shutdown the engine at some point in the near future
 	time.AfterFunc(
 		100*time.Millisecond, func() {
-			assert.NilError(t, engine.Shutdown())
+			assert.NilError(t, world.Shutdown())
 		},
 	)
 	// testTimeout will cause the test to fail if we have to wait too long for a WaitForNextTick failure
@@ -97,21 +97,21 @@ func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
 }
 
 func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
+	world := testutils.NewTestFixture(t, nil).World
 	startTickCh := make(chan time.Time)
 	doneTickCh := make(chan uint64)
-	assert.NilError(t, engine.LoadGameState())
-	engine.StartGameLoop(context.Background(), startTickCh, doneTickCh)
+	assert.NilError(t, world.LoadGameState())
+	world.StartGameLoop(context.Background(), startTickCh, doneTickCh)
 
 	// Make sure the game can tick
 	startTickCh <- time.Now()
 	<-doneTickCh
 
-	assert.NilError(t, engine.Shutdown())
+	assert.NilError(t, world.Shutdown())
 
 	for i := 0; i < 10; i++ {
 		// After a engine is shut down, WaitForNextTick should never block and always fail
-		assert.Check(t, !engine.WaitForNextTick())
+		assert.Check(t, !world.WaitForNextTick())
 	}
 }
 
@@ -123,15 +123,16 @@ func TestEVMTxConsume(t *testing.T) {
 	type FooOut struct {
 		Y string
 	}
-	e := testutils.NewTestFixture(t, nil).Engine
-	fooTx := ecs.NewMessageType[FooIn, FooOut]("foo", ecs.WithMsgEVMSupport[FooIn, FooOut]())
-	assert.NilError(t, e.RegisterMessages(fooTx))
+	world := testutils.NewTestFixture(t, nil).World
+	fooTx := cardinal.NewMessageType[FooIn, FooOut]("foo", cardinal.WithMsgEVMSupport[FooIn, FooOut]())
+	assert.NilError(t, cardinal.RegisterMessages(world, fooTx))
 	var returnVal FooOut
 	var returnErr error
-	err := e.RegisterSystems(
+	err := cardinal.RegisterSystems(
+		world,
 		func(eCtx engine.Context) error {
 			fooTx.Each(
-				eCtx, func(t ecs.TxData[FooIn]) (FooOut, error) {
+				eCtx, func(t cardinal.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
 			)
@@ -139,38 +140,38 @@ func TestEVMTxConsume(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, e.LoadGameState())
+	assert.NilError(t, world.LoadGameState())
 
 	// add tx to queue
 	evmTxHash := "0xFooBar"
-	e.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
+	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 
 	// let's check against a system that returns a result and no error
 	returnVal = FooOut{Y: "hi"}
 	returnErr = nil
-	assert.NilError(t, e.Tick(ctx))
-	evmTxReceipt, ok := e.GetEVMMsgResult(evmTxHash)
+	assert.NilError(t, world.Tick(ctx))
+	evmTxReceipt, ok := world.ConsumeEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, true)
 	assert.Check(t, len(evmTxReceipt.ABIResult) > 0)
 	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
 	assert.Equal(t, len(evmTxReceipt.Errs), 0)
 	// shouldn't be able to consume it again.
-	_, ok = e.GetEVMMsgResult(evmTxHash)
+	_, ok = world.ConsumeEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, false)
 
 	// lets check against a system that returns an error
 	returnVal = FooOut{}
 	returnErr = errors.New("omg error")
-	e.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
-	assert.NilError(t, e.Tick(ctx))
-	evmTxReceipt, ok = e.GetEVMMsgResult(evmTxHash)
+	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
+	assert.NilError(t, world.Tick(ctx))
+	evmTxReceipt, ok = world.ConsumeEVMMsgResult(evmTxHash)
 
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(evmTxReceipt.ABIResult), 0)
 	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
 	assert.Equal(t, len(evmTxReceipt.Errs), 1)
 	// shouldn't be able to consume it again.
-	_, ok = e.GetEVMMsgResult(evmTxHash)
+	_, ok = world.ConsumeEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, false)
 }
 
@@ -189,23 +190,24 @@ func TestAddSystems(t *testing.T) {
 		return nil
 	}
 
-	eng := testutils.NewTestFixture(t, nil).Engine
-	err := eng.RegisterSystems(sys1, sys2, sys3)
+	world := testutils.NewTestFixture(t, nil).World
+	err := cardinal.RegisterSystems(world, sys1, sys2, sys3)
 	assert.NilError(t, err)
 
-	err = eng.LoadGameState()
+	err = world.LoadGameState()
 	assert.NilError(t, err)
 
-	err = eng.Tick(context.Background())
+	err = world.Tick(context.Background())
 	assert.NilError(t, err)
 
 	assert.Equal(t, count, 3)
 }
 
 func TestSystemExecutionOrder(t *testing.T) {
-	eng := testutils.NewTestFixture(t, nil).Engine
+	world := testutils.NewTestFixture(t, nil).World
 	order := make([]int, 0, 3)
-	err := eng.RegisterSystems(
+	err := cardinal.RegisterSystems(
+		world,
 		func(engine.Context) error {
 			order = append(order, 1)
 			return nil
@@ -218,9 +220,9 @@ func TestSystemExecutionOrder(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	err = eng.LoadGameState()
+	err = world.LoadGameState()
 	assert.NilError(t, err)
-	assert.NilError(t, eng.Tick(context.Background()))
+	assert.NilError(t, world.Tick(context.Background()))
 	expectedOrder := []int{1, 2, 3}
 	for i, elem := range order {
 		assert.Equal(t, elem, expectedOrder[i])
@@ -230,13 +232,13 @@ func TestSystemExecutionOrder(t *testing.T) {
 func TestSetNamespace(t *testing.T) {
 	namespace := "test"
 	t.Setenv("CARDINAL_NAMESPACE", namespace)
-	e := testutils.NewTestFixture(t, nil).Engine
-	assert.Equal(t, e.Namespace().String(), namespace)
+	world := testutils.NewTestFixture(t, nil).World
+	assert.Equal(t, world.Namespace().String(), namespace)
 }
 
 func TestWithoutRegistration(t *testing.T) {
-	engine := testutils.NewTestFixture(t, nil).Engine
-	eCtx := ecs.NewEngineContext(engine)
+	world := testutils.NewTestFixture(t, nil).World
+	eCtx := cardinal.NewWorldContext(world)
 	id, err := ecs.Create(eCtx, EnergyComponent{}, OwnableComponent{})
 	assert.Assert(t, err != nil)
 
@@ -257,9 +259,9 @@ func TestWithoutRegistration(t *testing.T) {
 
 	assert.Assert(t, err != nil)
 
-	assert.NilError(t, ecs.RegisterComponent[EnergyComponent](engine))
-	assert.NilError(t, ecs.RegisterComponent[OwnableComponent](engine))
-	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world))
+	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world))
+	assert.NilError(t, world.LoadGameState())
 
 	id, err = ecs.Create(eCtx, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
@@ -346,7 +348,7 @@ func TestRecoverFromChain(t *testing.T) {
 	fooMessage := ecs.NewMessageType[struct{}, struct{}]("foo")
 	err := engine.RegisterMessages(fooMessage)
 	assert.NilError(t, err)
-	err = engine.LoadGameState()
+	err = eng.LoadGameState()
 	assert.NilError(t, err)
 
 	req := &types.QueryTransactionsRequest{

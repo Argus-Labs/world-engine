@@ -12,7 +12,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
 
@@ -305,10 +304,10 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			// Do an initial tick so that the single entity can be created.
 			tick()
 
-			query, err := world.Engine().GetQueryByName(queryName)
+			query, err := world.GetQueryByName(queryName)
 			assert.Check(t, err == nil)
 
-			readOnlyEngineCtx := ecs.NewReadOnlyEngineContext(world.Engine())
+			readOnlyEngineCtx := cardinal.NewReadOnlyWorldContext(world)
 			_, err = query.HandleQuery(readOnlyEngineCtx, QueryRequest{})
 			// Each test case is meant to generate a "ErrComponentNotRegistered" error
 			assert.Check(t, errors.Is(err, cardinal.ErrComponentNotRegistered),
@@ -429,13 +428,13 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	// Tick so the entity can be created
 	tick()
 
-	query, err := world.Engine().GetQueryByName(queryName)
+	query, err := world.GetQueryByName(queryName)
 	assert.NilError(t, err)
 
 	// Uhoh, redis is now broken.
 	miniRedis.Close()
 
-	readOnlyEngineCtx := ecs.NewReadOnlyEngineContext(world.Engine())
+	readOnlyEngineCtx := cardinal.NewReadOnlyWorldContext(world)
 	// This will fail with a redis connection error, and since we're in a Query, we should NOT panic
 	defer func() {
 		assert.Check(t, recover() == nil, "expected no panic in a query")

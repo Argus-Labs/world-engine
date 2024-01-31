@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 )
 
@@ -31,7 +30,7 @@ func TestSetAndGetSchema(t *testing.T) {
 	assert.NilError(t, err)
 	schema, err := component.SerializeComponentSchema(testComponent)
 	assert.NilError(t, err)
-	rs := testutil.GetRedisStorage(t)
+	rs := GetRedisStorage(t)
 	err = rs.SetSchema(testComponent1.Name(), schema1)
 	assert.NilError(t, err)
 	err = rs.SetSchema(testComponent.Name(), schema)

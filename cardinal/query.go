@@ -1,4 +1,4 @@
-package ecs
+package cardinal
 
 import (
 	"encoding/json"
@@ -10,26 +10,29 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
-type Query interface {
-	// Name returns the name of the query.
-	Name() string
-	// Group returns the group of the query.
-	Group() string
-	// HandleQuery handles queries with concrete types, rather than encoded bytes.
-	HandleQuery(engine.Context, any) (any, error)
-	// HandleQueryRaw is given a reference to the engine, json encoded bytes that represent a query request
-	// and is expected to return a json encoded response struct.
-	HandleQueryRaw(engine.Context, []byte) ([]byte, error)
-	// DecodeEVMRequest decodes bytes originating from the evm into the request type, which will be ABI encoded.
-	DecodeEVMRequest([]byte) (any, error)
-	// EncodeEVMReply encodes the reply as an abi encoded struct.
-	EncodeEVMReply(any) ([]byte, error)
-	// DecodeEVMReply decodes EVM reply bytes, into the concrete go reply type.
-	DecodeEVMReply([]byte) (any, error)
-	// EncodeAsABI encodes a go struct in abi format. This is mostly used for testing.
-	EncodeAsABI(any) ([]byte, error)
-	// IsEVMCompatible reports if the query is able to be sent from the EVM.
-	IsEVMCompatible() bool
+func RegisterQuery[Request any, Reply any](
+	world *World,
+	name string,
+	handler func(eCtx engine.Context, req *Request) (*Reply, error),
+	opts ...QueryOption[Request, Reply],
+) error {
+	if world.WorldState != WorldStateInit {
+		panic("cannot register queries after loading game state")
+	}
+
+	if _, ok := world.nameToQuery[name]; ok {
+		return eris.Errorf("query with name %s is already registered", name)
+	}
+
+	q, err := NewQueryType[Request, Reply](name, handler, opts...)
+	if err != nil {
+		return err
+	}
+
+	world.registeredQueries = append(world.registeredQueries, q)
+	world.nameToQuery[q.Name()] = q
+
+	return nil
 }
 
 type QueryType[Request any, Reply any] struct {
@@ -60,13 +63,13 @@ func WithCustomQueryGroup[Request, Reply any](group string) QueryOption[Request,
 
 type QueryOption[Request, Reply any] func(qt *QueryType[Request, Reply])
 
-var _ Query = &QueryType[struct{}, struct{}]{}
+var _ engine.Query = &QueryType[struct{}, struct{}]{}
 
 func NewQueryType[Request any, Reply any](
 	name string,
 	handler func(eCtx engine.Context, req *Request) (*Reply, error),
 	opts ...QueryOption[Request, Reply],
-) (Query, error) {
+) (engine.Query, error) {
 	err := validateQuery[Request, Reply](name, handler)
 	if err != nil {
 		return nil, err

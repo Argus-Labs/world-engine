@@ -1,4 +1,4 @@
-package ecs
+package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
@@ -12,49 +12,49 @@ type EVMTxReceipt struct {
 	EVMTxHash string
 }
 
-func (e *Engine) AddMessageError(id message.TxHash, err error) {
-	e.receiptHistory.AddError(id, err)
+func (w *World) AddMessageError(id message.TxHash, err error) {
+	w.receiptHistory.AddError(id, err)
 }
 
-func (e *Engine) SetMessageResult(id message.TxHash, a any) {
-	e.receiptHistory.SetResult(id, a)
+func (w *World) SetMessageResult(id message.TxHash, a any) {
+	w.receiptHistory.SetResult(id, a)
 }
 
-func (e *Engine) GetTransactionReceipt(id message.TxHash) (any, []error, bool) {
-	rec, ok := e.receiptHistory.GetReceipt(id)
+func (w *World) GetTransactionReceipt(id message.TxHash) (any, []error, bool) {
+	rec, ok := w.receiptHistory.GetReceipt(id)
 	if !ok {
 		return nil, nil, false
 	}
 	return rec.Result, rec.Errs, true
 }
 
-func (e *Engine) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
-	return e.receiptHistory.GetReceiptsForTick(tick)
+func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
+	return w.receiptHistory.GetReceiptsForTick(tick)
 }
 
 // ConsumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
 // It will fetch the receipt from the map, and then delete ('consume') it from the map.
-func (e *Engine) ConsumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
-	r, ok := e.evmTxReceipts[evmTxHash]
-	delete(e.evmTxReceipts, evmTxHash)
+func (w *World) ConsumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
+	r, ok := w.evmTxReceipts[evmTxHash]
+	delete(w.evmTxReceipts, evmTxHash)
 	return r, ok
 }
 
-func (e *Engine) ReceiptHistorySize() uint64 {
-	return e.receiptHistory.Size()
+func (w *World) ReceiptHistorySize() uint64 {
+	return w.receiptHistory.Size()
 }
 
-func (e *Engine) setEvmResults(txs []txpool.TxData) {
+func (w *World) setEvmResults(txs []txpool.TxData) {
 	// iterate over all EVM originated transactions
 	for _, tx := range txs {
 		// see if tx has a receipt. sometimes it won't because:
 		// The system isn't using TxIterators && never explicitly called SetResult.
-		rec, ok := e.receiptHistory.GetReceipt(tx.TxHash)
+		rec, ok := w.receiptHistory.GetReceipt(tx.TxHash)
 		if !ok {
 			continue
 		}
 		evmRec := EVMTxReceipt{EVMTxHash: tx.EVMSourceTxHash}
-		msg := e.msgManager.GetMessage(tx.MsgID)
+		msg := w.msgManager.GetMessage(tx.MsgID)
 		if rec.Result != nil {
 			abiBz, err := msg.ABIEncode(rec.Result)
 			if err != nil {
@@ -65,6 +65,6 @@ func (e *Engine) setEvmResults(txs []txpool.TxData) {
 		if len(rec.Errs) > 0 {
 			evmRec.Errs = rec.Errs
 		}
-		e.evmTxReceipts[evmRec.EVMTxHash] = evmRec
+		w.evmTxReceipts[evmRec.EVMTxHash] = evmRec
 	}
 }

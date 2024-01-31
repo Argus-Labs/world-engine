@@ -2,14 +2,14 @@ package gamestate_test
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/testutils"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/internal/testutil"
 )
 
 func TestCanSaveAndRecoverTransactions(t *testing.T) {
@@ -20,15 +20,15 @@ func TestCanSaveAndRecoverTransactions(t *testing.T) {
 		Value int
 	}
 
-	msgAlpha := ecs.NewMessageType[MsgIn, MsgOut]("alpha")
-	msgBeta := ecs.NewMessageType[MsgIn, MsgOut]("beta")
+	msgAlpha := cardinal.NewMessageType[MsgIn, MsgOut]("alpha")
+	msgBeta := cardinal.NewMessageType[MsgIn, MsgOut]("beta")
 	assert.NilError(t, msgAlpha.SetID(16))
 	assert.NilError(t, msgBeta.SetID(32))
 	msgs := []message.Message{msgAlpha, msgBeta}
 
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
 	originalQueue := txpool.NewTxQueue()
-	sig := testutil.UniqueSignature(t)
+	sig := testutils.UniqueSignature()
 	_ = originalQueue.AddTransaction(msgAlpha.ID(), MsgIn{100}, sig)
 
 	assert.NilError(t, manager.StartNextTick(msgs, originalQueue))

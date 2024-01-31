@@ -35,7 +35,6 @@ type ServerTestSuite struct {
 
 	fixture *testutils.TestFixture
 	world   *cardinal.World
-	engine  *ecs.Engine
 
 	privateKey *ecdsa.PrivateKey
 	signerAddr string
@@ -80,8 +79,8 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	var result handler.GetEndpointsResponse
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
-	msgs := s.engine.ListMessages()
-	queries := s.engine.ListQueries()
+	msgs := s.world.ListMessages()
+	queries := s.world.ListQueries()
 
 	s.Require().Len(msgs, len(result.TxEndpoints))
 	s.Require().Len(queries, len(result.QueryEndpoints))
@@ -149,7 +148,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	url := "/tx/game/" + MoveMessage.Name()
 	res := s.fixture.Post(url, tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.engine.Tick(context.Background())
+	err = s.world.Tick(context.Background())
 	s.Require().NoError(err)
 	s.nonce++
 
@@ -168,14 +167,14 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	name := "foo"
 	group := "bar"
 	called := false
-	err := ecs.RegisterQuery[SomeRequest, SomeResponse](
-		s.engine,
+	err := cardinal.RegisterQuery[SomeRequest, SomeResponse](
+		s.world,
 		name,
 		func(eCtx engine.Context, req *SomeRequest) (*SomeResponse, error) {
 			called = true
 			return &SomeResponse{}, nil
 		},
-		ecs.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
+		cardinal.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
 	)
 	s.Require().NoError(err)
 	s.fixture.DoTick()
@@ -186,11 +185,11 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 
 // creates a transaction with the given message, and runs it in a tick.
 func (s *ServerTestSuite) runTx(personaTag string, msg message.Message, payload any) {
-	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.engine.Namespace().String(), s.nonce, payload)
+	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace().String(), s.nonce, payload)
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL(msg.Group(), msg.Name()), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.engine.Tick(context.Background())
+	err = s.world.Tick(context.Background())
 	s.Require().NoError(err)
 	s.nonce++
 }
@@ -201,11 +200,11 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 		PersonaTag:    personaTag,
 		SignerAddress: s.signerAddr,
 	}
-	tx, err := sign.NewSystemTransaction(s.privateKey, s.engine.Namespace().String(), s.nonce, createPersonaTx)
+	tx, err := sign.NewSystemTransaction(s.privateKey, s.world.Namespace().String(), s.nonce, createPersonaTx)
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.engine.Tick(context.Background())
+	err = s.world.Tick(context.Background())
 	s.Require().NoError(err)
 	s.nonce++
 }
@@ -214,14 +213,13 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.fixture = testutils.NewTestFixture(s.T(), nil, opts...)
 	s.world = s.fixture.World
-	s.engine = s.fixture.Engine
-	err := ecs.RegisterComponent[LocationComponent](s.engine)
+	err := cardinal.RegisterComponent[LocationComponent](s.world)
 	s.Require().NoError(err)
-	err = s.engine.RegisterMessages(MoveMessage)
+	err = cardinal.RegisterMessages(s.world, MoveMessage)
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]entity.ID)
-	err = s.engine.RegisterSystems(func(context engine.Context) error {
-		MoveMessage.Each(context, func(tx ecs.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
+	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {
+		MoveMessage.Each(context, func(tx cardinal.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
 			posID, exists := personaToPosition[tx.Tx.PersonaTag]
 			if !exists {
 				id, err := ecs.Create(context, LocationComponent{})
@@ -305,7 +303,7 @@ type MoveMessageOutput struct {
 	Location LocationComponent
 }
 
-var MoveMessage = ecs.NewMessageType[MoveMsgInput, MoveMessageOutput]("move")
+var MoveMessage = cardinal.NewMessageType[MoveMsgInput, MoveMessageOutput]("move")
 
 type QueryLocationRequest struct {
 	Persona string

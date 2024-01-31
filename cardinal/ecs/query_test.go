@@ -1,12 +1,10 @@
 package ecs_test
 
 import (
-	"context"
-	"pkg.world.dev/world-engine/cardinal/shard/evm"
+	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
@@ -14,8 +12,8 @@ import (
 
 func TestQueryTypeNotStructs(t *testing.T) {
 	str := "blah"
-	err := ecs.RegisterQuery[string, string](
-		testutils.NewTestFixture(t, nil).Engine,
+	err := cardinal.RegisterQuery[string, string](
+		testutils.NewTestFixture(t, nil).World,
 		"foo",
 		func(eCtx engine.Context, req *string) (*string, error) {
 			return &str, nil
@@ -83,8 +81,8 @@ func TestErrOnNoNameOrHandler(t *testing.T) {
 		{
 			name: "error on no name",
 			createQuery: func() error {
-				return ecs.RegisterQuery[foo, foo](
-					testutils.NewTestFixture(t, nil).Engine,
+				return cardinal.RegisterQuery[foo, foo](
+					testutils.NewTestFixture(t, nil).World,
 					"",
 					nil)
 			},
@@ -93,8 +91,8 @@ func TestErrOnNoNameOrHandler(t *testing.T) {
 		{
 			name: "error on no handler",
 			createQuery: func() error {
-				return ecs.RegisterQuery[foo, foo](
-					testutils.NewTestFixture(t, nil).Engine,
+				return cardinal.RegisterQuery[foo, foo](
+					testutils.NewTestFixture(t, nil).World,
 					"foo",
 					nil)
 			},

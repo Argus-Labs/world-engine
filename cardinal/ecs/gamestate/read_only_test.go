@@ -185,12 +185,12 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	ctx := context.Background()
 
-	engine := testutils.NewTestFixture(t, nil, cardinal.WithStoreManager(manager)).Engine
-	assert.NilError(t, ecs.RegisterComponent[Health](engine))
-	assert.NilError(t, ecs.RegisterComponent[Power](engine))
-	assert.NilError(t, engine.LoadGameState())
+	world := testutils.NewTestFixture(t, nil, cardinal.WithStoreManager(manager)).World
+	assert.NilError(t, cardinal.RegisterComponent[Health](world))
+	assert.NilError(t, cardinal.RegisterComponent[Power](world))
+	assert.NilError(t, world.LoadGameState())
 
-	eCtx := ecs.NewEngineContext(engine)
+	eCtx := cardinal.NewWorldContext(world)
 	_, err := ecs.CreateMany(eCtx, 8, Health{})
 	assert.NilError(t, err)
 	_, err = ecs.CreateMany(eCtx, 9, Power{})

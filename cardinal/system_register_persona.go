@@ -1,8 +1,7 @@
-package system
+package cardinal
 
 import (
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/persona/utils"
@@ -18,9 +17,9 @@ func RegisterPersonaSystem(eCtx engine.Context) error {
 		return err
 	}
 
-	msg.CreatePersonaMsg.Each(
+	CreatePersonaMsg.Each(
 		eCtx,
-		func(txData ecs.TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
+		func(txData TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
 			txMsg := txData.Msg
 			result.Success = false
 
@@ -37,11 +36,11 @@ func RegisterPersonaSystem(eCtx engine.Context) error {
 				err = eris.Errorf("persona tag %s has already been registered", txMsg.PersonaTag)
 				return result, err
 			}
-			id, err := ecs.Create(eCtx, component.SignerComponent{})
+			id, err := Create(eCtx, component.SignerComponent{})
 			if err != nil {
 				return result, eris.Wrap(err, "")
 			}
-			if err = ecs.SetComponent[component.SignerComponent](
+			if err = SetComponent[component.SignerComponent](
 				eCtx, id, &component.SignerComponent{
 					PersonaTag:    txMsg.PersonaTag,
 					SignerAddress: txMsg.SignerAddress,

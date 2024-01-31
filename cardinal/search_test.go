@@ -30,7 +30,7 @@ func TestSearchExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
-	assert.NilError(t, fixture.Engine.LoadGameState())
+	assert.NilError(t, world.LoadGameState())
 
 	worldCtx := testutils.WorldToEngineContext(world)
 	_, err := cardinal.CreateMany(worldCtx, 10, Alpha{})

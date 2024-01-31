@@ -53,7 +53,7 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 	type FooReply struct {
 		Y uint64
 	}
-	_ = cardinal.RegisterQueryWithEVMSupport[FooReq, FooReply](
+	_ = cardinal.RegisterQuery[FooReq, FooReply](
 		testutils.NewTestFixture(t, nil).World,
 		"query_health",
 		func(
@@ -61,7 +61,9 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 			_ *FooReq,
 		) (*FooReply, error) {
 			return &FooReply{}, errors.New("this function should never get called")
-		})
+		},
+		cardinal.WithQueryEVMSupport[FooReq, FooReply](),
+	)
 }
 
 func TestQueryExample(t *testing.T) {
@@ -76,7 +78,7 @@ func TestQueryExample(t *testing.T) {
 			handleQueryHealth,
 		),
 	)
-	assert.NilError(t, fixture.Engine.LoadGameState())
+	assert.NilError(t, world.LoadGameState())
 	worldCtx := testutils.WorldToEngineContext(world)
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
 	assert.NilError(t, err)
@@ -89,7 +91,7 @@ func TestQueryExample(t *testing.T) {
 	}
 
 	// No entities should have health over a million.
-	q, err := world.Engine().GetQueryByName("query_health")
+	q, err := world.GetQueryByName("query_health")
 	assert.NilError(t, err)
 
 	resp, err := q.HandleQuery(worldCtx, QueryHealthRequest{1_000_000})

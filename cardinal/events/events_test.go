@@ -11,7 +11,6 @@ import (
 	"github.com/gorilla/websocket"
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 )
@@ -39,12 +38,12 @@ func TestEvents(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tf.World.Engine().GetEventHub().EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
+			tf.World.GetEventHub().EmitEvent(&events.Event{Message: fmt.Sprintf("test%d", i)})
 		}()
 	}
 	wg.Wait()
 	go func() {
-		tf.World.Engine().GetEventHub().FlushEvents()
+		tf.World.GetEventHub().FlushEvents()
 	}()
 	var count atomic.Int32
 	count.Store(0)
@@ -88,9 +87,9 @@ type SendEnergyTxResult struct{}
 func TestEventsThroughSystems(t *testing.T) {
 	numberToTest := 5
 	tf := testutils.NewTestFixture(t, nil, cardinal.WithDisableSignatureVerification())
-	eng, addr := tf.Engine, tf.BaseURL
-	sendTx := ecs.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
-	assert.NilError(t, eng.RegisterMessages(sendTx))
+	world, addr := tf.World, tf.BaseURL
+	sendTx := cardinal.NewMessageType[SendEnergyTx, SendEnergyTxResult]("send-energy")
+	assert.NilError(t, cardinal.RegisterMessages(world, sendTx))
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
 	sys1 := func(eCtx engine.Context) error {
@@ -118,10 +117,10 @@ func TestEventsThroughSystems(t *testing.T) {
 		counter1.Add(1)
 		return nil
 	}
-	err := eng.RegisterSystems(sys1, sys2, sys3, sys4, sys5)
+	err := cardinal.RegisterSystems(world, sys1, sys2, sys3, sys4, sys5)
 	assert.NilError(t, err)
-	assert.NilError(t, ecs.RegisterComponent[garbageStructAlpha](eng))
-	assert.NilError(t, ecs.RegisterComponent[garbageStructBeta](eng))
+	assert.NilError(t, cardinal.RegisterComponent[garbageStructAlpha](world))
+	assert.NilError(t, cardinal.RegisterComponent[garbageStructBeta](world))
 	tf.StartWorld()
 	url := wsURL(addr, "events")
 	dialers := make([]*websocket.Conn, numberToTest)
