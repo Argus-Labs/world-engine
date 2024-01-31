@@ -1,4 +1,4 @@
-package e2eutils
+package e2eclient
 
 import (
 	"bytes"
@@ -16,17 +16,18 @@ const (
 	envNakamaAddress = "NAKAMA_ADDRESS"
 )
 
-type NakamaClient struct {
-	addr       string
-	authHeader string
+type nakamaClient struct {
+	addr               string
+	authHeader         string
+	notificationCursor string
 }
 
-func NewNakamaClient(_ *testing.T) *NakamaClient {
+func newClient(_ *testing.T) *nakamaClient {
 	host := os.Getenv(envNakamaAddress)
 	if host == "" {
 		host = "http://127.0.0.1:7350"
 	}
-	h := &NakamaClient{
+	h := &nakamaClient{
 		addr: host,
 	}
 	return h
@@ -50,7 +51,49 @@ type NotificationCollection struct {
 	CacheableCursor string             `json:"cacheableCursor"`
 }
 
-func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
+func (c *nakamaClient) listNotifications(k int) ([]*Content, error) {
+	path := "v2/notification"
+	options := fmt.Sprintf("limit=%d&cursor=%s", k, c.notificationCursor)
+	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", c.authHeader)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	bodyData, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	data := NotificationCollection{
+		Notifications:   make([]NotificationItem, 0),
+		CacheableCursor: "",
+	}
+	err = json.Unmarshal(bodyData, &data)
+	if err != nil {
+		return nil, err
+	}
+	c.notificationCursor = data.CacheableCursor
+	acc := make([]*Content, 0)
+	for _, item := range data.Notifications {
+		content := Content{}
+		err := json.Unmarshal([]byte(item.Content), &content)
+		if err != nil {
+			return nil, err
+		}
+		if item.Subject == "event" {
+			acc = append(acc, &content)
+		}
+	}
+	return acc, nil
+}
+
+func (c *nakamaClient) registerDevice(username, deviceID string) error {
 	path := "v2/account/authenticate/device"
 	options := fmt.Sprintf("create=true&username=%s", username)
 	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
@@ -89,7 +132,7 @@ func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
 	return nil
 }
 
-func (c *NakamaClient) RPC(path string, body any) (*http.Response, error) {
+func (c *nakamaClient) rpc(path string, body any) (*http.Response, error) {
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
@@ -108,7 +151,7 @@ func (c *NakamaClient) RPC(path string, body any) (*http.Response, error) {
 	return resp, nil
 }
 
-func CopyBody(r *http.Response) string {
+func copyBody(r *http.Response) string {
 	buf, err := io.ReadAll(r.Body)
 	msg := fmt.Sprintf("response body is:\n%v\nReadAll error is:%v", string(buf), err)
 	r.Body = io.NopCloser(bytes.NewReader(buf))

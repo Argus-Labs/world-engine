@@ -1,4 +1,4 @@
-package nakama
+package e2eclient
 
 import (
 	"encoding/json"

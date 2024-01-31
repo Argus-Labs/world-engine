@@ -6,9 +6,8 @@ use (
 	evm
 	e2e
 	e2e/tester
-	internal/e2eutils
-	internal/nakama
-	internal/nakamabenchmark
+	e2e/nakamaclients/e2eclient
+	e2e/nakamaclients/benchmarkclient
 	relay/nakama
 	rift
 	sign

@@ -1,4 +1,4 @@
-package nakamabenchmark
+package benchmarkclient
 
 import (
 	"bytes"
