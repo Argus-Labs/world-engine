@@ -1,4 +1,4 @@
-package e2ebenchmark
+package e2eutils
 
 import (
 	"bytes"
@@ -8,29 +8,49 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"testing"
+	"time"
 )
 
 const (
 	envNakamaAddress = "NAKAMA_ADDRESS"
 )
 
-type nakamaClient struct {
+type NakamaClient struct {
 	addr       string
 	authHeader string
 }
 
-func newClient() *nakamaClient {
+func NewNakamaClient(_ *testing.T) *NakamaClient {
 	host := os.Getenv(envNakamaAddress)
 	if host == "" {
 		host = "http://127.0.0.1:7350"
 	}
-	h := &nakamaClient{
+	h := &NakamaClient{
 		addr: host,
 	}
 	return h
 }
 
-func (c *nakamaClient) registerDevice(username, deviceID string) error {
+type NotificationItem struct {
+	ID         string    `json:"id"`
+	Subject    string    `json:"subject"`
+	Content    string    `json:"content"`
+	Code       int       `json:"code"`
+	CreateTime time.Time `json:"createTime"`
+	Persistent bool      `json:"persistent"`
+}
+
+type Content struct {
+	Message string `json:"message"`
+}
+
+type NotificationCollection struct {
+	Notifications   []NotificationItem `json:"notifications"`
+	CacheableCursor string             `json:"cacheableCursor"`
+}
+
+func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
 	path := "v2/account/authenticate/device"
 	options := fmt.Sprintf("create=true&username=%s", username)
 	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
@@ -52,23 +72,24 @@ func (c *nakamaClient) registerDevice(username, deviceID string) error {
 	req.SetBasicAuth("defaultkey", "")
 
 	resp, err := http.DefaultClient.Do(req)
+	//	resp, err := http.Post(url, "application/json", reader)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		buf, err = io.ReadAll(resp.Body)
+		buf, err := io.ReadAll(resp.Body)
 		return fmt.Errorf("request failed with status code %d. body is:\n%v\nerror:%w", resp.StatusCode, string(buf), err)
 	}
 
-	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return fmt.Errorf("failed to decode body: %w", err)
 	}
 	c.authHeader = fmt.Sprintf("Bearer %s", body["token"].(string))
 	return nil
 }
 
-func (c *nakamaClient) rpc(path string, body any) (*http.Response, error) {
+func (c *NakamaClient) Rpc(path string, body any) (*http.Response, error) {
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
@@ -85,4 +106,11 @@ func (c *nakamaClient) rpc(path string, body any) (*http.Response, error) {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	return resp, nil
+}
+
+func CopyBody(r *http.Response) string {
+	buf, err := io.ReadAll(r.Body)
+	msg := fmt.Sprintf("response body is:\n%v\nReadAll error is:%v", string(buf), err)
+	r.Body = io.NopCloser(bytes.NewReader(buf))
+	return msg
 }
