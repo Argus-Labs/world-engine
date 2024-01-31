@@ -31,9 +31,12 @@ type Provider interface {
 	ConsumeEVMMsgResult(evmTxHash string) (ecs.EVMTxReceipt, bool)
 }
 
-var _ routerv1.MsgServer = &Router{}
+type Router interface {
+}
 
-type Router struct {
+var _ routerv1.MsgServer = &routerImpl{}
+
+type routerImpl struct {
 	routerv1.MsgServer
 
 	provider       Provider
@@ -43,8 +46,8 @@ type Router struct {
 	port string
 }
 
-func New(sequencerAddr, baseShardQueryAddr string, opts ...Option) (*Router, error) {
-	rtr := &Router{port: defaultPort}
+func New(sequencerAddr, baseShardQueryAddr string, opts ...Option) (Router, error) {
+	rtr := &routerImpl{port: defaultPort}
 	for _, opt := range opts {
 		opt(rtr)
 	}
@@ -74,7 +77,22 @@ const (
 	CodeInvalidFormat
 )
 
-func (r *Router) SendMessage(_ context.Context, req *routerv1.SendMessageRequest) (*routerv1.SendMessageResponse, error) {
+type TransactionIterator struct {
+	client    shardtypes.QueryClient
+	namespace string
+}
+
+func Next()
+
+func (r *routerImpl) IterateTransactions(ctx context.Context, namespace string) *TransactionIterator {
+	return &TransactionIterator{
+		client:    r.ShardQuerier,
+		namespace: namespace,
+	}
+}
+
+// SendMessage is the server impl that receives SendMessage requests from the base shard client.
+func (r *routerImpl) SendMessage(_ context.Context, req *routerv1.SendMessageRequest) (*routerv1.SendMessageResponse, error) {
 	// first we check if we can extract the transaction associated with the id
 	msgType, exists := r.provider.GetMessageByName(req.MessageId)
 	if !exists || !msgType.IsEVMCompatible() {
@@ -149,7 +167,8 @@ func (r *Router) SendMessage(_ context.Context, req *routerv1.SendMessageRequest
 	}, nil
 }
 
-func (r *Router) QueryShard(_ context.Context, req *routerv1.QueryShardRequest) (
+// QueryShard is the server impl that answers query requests from the base shard client.
+func (r *routerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardRequest) (
 	*routerv1.QueryShardResponse, error,
 ) {
 	zerolog.Logger.Debug().Msgf("get request for %q", req.Resource)
@@ -176,7 +195,11 @@ func (r *Router) QueryShard(_ context.Context, req *routerv1.QueryShardRequest) 
 	zerolog.Logger.Debug().Msgf("sending back reply: %v", reply)
 	return &routerv1.QueryShardResponse{Response: bz}, nil
 }
-func (r *Router) QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
+
+// TODO(Tyler): expose a wrapper for QueryTransactions so callers don't have to import shardtypes.
+// consider an iterator pattern.
+
+func (r *routerImpl) QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
 	*shardtypes.QueryTransactionsResponse,
 	error,
 ) {
@@ -184,7 +207,7 @@ func (r *Router) QueryTransactions(ctx context.Context, req *shardtypes.QueryTra
 	return res, eris.Wrap(err, "")
 }
 
-func (r *Router) Submit(
+func (r *routerImpl) Submit(
 	ctx context.Context,
 	processedTxs txpool.TxMap,
 	namespace string,
