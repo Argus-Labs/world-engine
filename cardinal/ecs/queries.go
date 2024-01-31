@@ -27,7 +27,7 @@ type DebugStateResponse []*debugStateElement
 //	@Produce		application/json
 //	@Success		200	{object}	DebugStateResponse
 //	@Router			/query/debug/state [post]
-func queryDebugState(ctx EngineContext, _ *DebugRequest) (*DebugStateResponse, error) {
+func queryDebugState(ctx engine.Context, _ *DebugRequest) (*DebugStateResponse, error) {
 	result := make(DebugStateResponse, 0)
 	s := search.NewSearch(filter.All(), ctx.Namespace(), ctx.StoreReader())
 	var eachClosureErr error
@@ -85,7 +85,7 @@ type CQLQueryResponse struct {
 // @Param			cql	body		CQLQueryRequest	true	"cql (cardinal query language)"
 // @Success		200	{object}	CQLQueryResponse
 // @Router			/query/game/cql [post]
-func queryCQL(ctx EngineContext, req *CQLQueryRequest) (*CQLQueryResponse, error) {
+func queryCQL(ctx engine.Context, req *CQLQueryRequest) (*CQLQueryResponse, error) {
 	cqlString := req.CQL
 	resultFilter, err := cql.Parse(cqlString, ctx.GetComponentByName)
 	if err != nil {
@@ -158,8 +158,7 @@ type Receipt struct {
 //	@Success		200						{object}	ListTxReceiptsReply
 //	@Failure		400						{string}	string	"Invalid transaction request"
 //	@Router			/query/receipts/list [post]
-func receiptsQuery(ctx EngineContext, req *ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
-	eng := ctx.GetEngine()
+func receiptsQuery(ctx engine.Context, req *ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
 	reply := ListTxReceiptsReply{}
 	reply.EndTick = ctx.CurrentTick()
 	size := ctx.ReceiptHistorySize()

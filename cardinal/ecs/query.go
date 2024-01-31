@@ -8,7 +8,6 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/abi"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"reflect"
 )
 
 type Query interface {
