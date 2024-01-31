@@ -13,7 +13,7 @@ import (
 // RegisterPersonaSystem is an ecs.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
 func RegisterPersonaSystem(eCtx engine.Context) error {
-	personaTagToAddress, err := buildPersonaTagMapping(eCtx)
+	personaTagToAddress, err := utils.BuildPersonaTagMapping(eCtx)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func RegisterPersonaSystem(eCtx engine.Context) error {
 			); err != nil {
 				return result, eris.Wrap(err, "")
 			}
-			personaTagToAddress[lowerPersona] = personaTagComponentData{
+			personaTagToAddress[lowerPersona] = utils.PersonaTagComponentData{
 				SignerAddress: txMsg.SignerAddress,
 				EntityID:      id,
 			}

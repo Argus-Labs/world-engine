@@ -1,29 +1,21 @@
 package system
 
 import (
-	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/filter"
-	"pkg.world.dev/world-engine/cardinal/ecs/search"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/persona/utils"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"strings"
 )
-
-type personaTagComponentData struct {
-	SignerAddress string
-	EntityID      entity.ID
-}
 
 // AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
 func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
-	personaTagToAddress, err := buildPersonaTagMapping(eCtx)
+	personaTagToAddress, err := utils.BuildPersonaTagMapping(eCtx)
 	if err != nil {
 		return err
 	}
@@ -68,32 +60,4 @@ func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
 		},
 	)
 	return nil
-}
-
-func buildPersonaTagMapping(eCtx engine.Context) (map[string]personaTagComponentData, error) {
-	personaTagToAddress := map[string]personaTagComponentData{}
-	var errs []error
-	q := search.NewSearch(filter.Exact(component.SignerComponent{}), eCtx.Namespace(), eCtx.StoreReader())
-	err := q.Each(
-		func(id entity.ID) bool {
-			sc, err := ecs.GetComponent[component.SignerComponent](eCtx, id)
-			if err != nil {
-				errs = append(errs, err)
-				return true
-			}
-			lowerPersona := strings.ToLower(sc.PersonaTag)
-			personaTagToAddress[lowerPersona] = personaTagComponentData{
-				SignerAddress: sc.SignerAddress,
-				EntityID:      id,
-			}
-			return true
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	if len(errs) != 0 {
-		return nil, errors.Join(errs...)
-	}
-	return personaTagToAddress, nil
 }
