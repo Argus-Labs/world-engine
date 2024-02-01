@@ -1,13 +1,16 @@
 package cardinal
 
 import (
+	"errors"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/persona/query"
 	"pkg.world.dev/world-engine/cardinal/persona/utils"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"strings"
 )
 
@@ -74,6 +77,10 @@ func (p *personaPlugin) RegisterMessages(world *World) error {
 	return nil
 }
 
+// -----------------------------------------------------------------------------
+// Persona Messages
+// -----------------------------------------------------------------------------
+
 var AuthorizePersonaAddressMsg = NewMessageType[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
 	"authorize-persona-address",
 )
@@ -138,6 +145,10 @@ func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
 	return nil
 }
 
+// -----------------------------------------------------------------------------
+// Persona System
+// -----------------------------------------------------------------------------
+
 // RegisterPersonaSystem is an cardinal.System that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
 func RegisterPersonaSystem(eCtx engine.Context) error {
@@ -187,4 +198,43 @@ func RegisterPersonaSystem(eCtx engine.Context) error {
 	)
 
 	return nil
+}
+
+// -----------------------------------------------------------------------------
+// Persona Index
+// -----------------------------------------------------------------------------
+
+type personaIndex = map[string]personaIndexEntry
+
+type personaIndexEntry struct {
+	SignerAddress string
+	EntityID      entity.ID
+}
+
+func buildPersonaIndex(eCtx engine.Context) (personaIndex, error) {
+	personaTagToAddress := map[string]personaIndexEntry{}
+	var errs []error
+	s := NewSearch(eCtx, filter.Exact(component.SignerComponent{}))
+	err := s.Each(
+		func(id entity.ID) bool {
+			sc, err := GetComponent[component.SignerComponent](eCtx, id)
+			if err != nil {
+				errs = append(errs, err)
+				return true
+			}
+			lowerPersona := strings.ToLower(sc.PersonaTag)
+			personaTagToAddress[lowerPersona] = personaIndexEntry{
+				SignerAddress: sc.SignerAddress,
+				EntityID:      id,
+			}
+			return true
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(errs) != 0 {
+		return nil, errors.Join(errs...)
+	}
+	return personaTagToAddress, nil
 }
