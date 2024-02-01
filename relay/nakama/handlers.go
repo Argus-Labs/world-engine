@@ -9,12 +9,10 @@ import (
 	"github.com/rotisserie/eris"
 	"google.golang.org/grpc/codes"
 	"io"
-	"net/http"
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
-	"strings"
 )
 
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
@@ -178,7 +176,6 @@ func handleGetSaveGame(
 	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
-//nolint:gocognit
 func handleCardinalRequest(
 	currEndpoint string,
 	createPayload func(string, string, runtime.NakamaModule, context.Context) (io.Reader, error),
@@ -198,54 +195,12 @@ func handleCardinalRequest(
 			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make payload")
 		}
 
-		req, err := http.NewRequestWithContext(
-			ctx,
-			http.MethodPost,
-			utils.MakeHTTPURL(currEndpoint, globalCardinalAddress),
-			resultPayload,
-		)
-		req.Header.Set("Content-Type", "application/json")
+		result, err := makeRequestAndReadResp(ctx, notifier, currEndpoint, resultPayload)
 		if err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "request setup failed for endpoint %q", currEndpoint)
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "request failed for endpoint %q", currEndpoint)
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				return utils.LogErrorMessageFailedPrecondition(
-					logger,
-					eris.Wrap(err, "failed to read response body"),
-					"bad status code: %s: %s", resp.Status, body,
-				)
-			}
-			return utils.LogErrorMessageFailedPrecondition(
-				logger,
-				eris.Errorf("bad status code %d", resp.StatusCode),
-				"bad status code: %s: %s", resp.Status, body,
-			)
-		}
-		bz, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "can't read body")
-		}
-		if strings.HasPrefix(currEndpoint, TransactionEndpointPrefix) {
-			var asTx persona.TxResponse
-
-			if err = json.Unmarshal(bz, &asTx); err != nil {
-				return utils.LogErrorMessageFailedPrecondition(logger, err, "can't decode body as tx response")
-			}
-			userID, err := utils.GetUserID(ctx)
-			if err != nil {
-				return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to get user id")
-			}
-			notifier.AddTxHashToPendingNotifications(asTx.TxHash, userID)
+			return utils.LogErrorFailedPrecondition(logger, err)
 		}
 
-		return string(bz), nil
+		return result, nil
 	}
 }
 
