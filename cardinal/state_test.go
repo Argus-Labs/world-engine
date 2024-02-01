@@ -17,7 +17,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-// comps reduces the typing needed to cardinal.Create a slice of IComponentTypes
+// comps reduces the typing needed to create a slice of IComponentTypes
 // []component.ComponentMetadata{a, b, c} becomes:
 // comps(a, b, c).
 func comps(cs ...component.ComponentMetadata) []component.ComponentMetadata {

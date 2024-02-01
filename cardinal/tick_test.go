@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/rs/zerolog"
 	"io"
 	"pkg.world.dev/world-engine/cardinal"
 	filter2 "pkg.world.dev/world-engine/cardinal/filter"
@@ -21,7 +22,6 @@ import (
 	"pkg.world.dev/world-engine/assert"
 
 	"github.com/alicebob/miniredis/v2"
-	"github.com/rs/zerolog"
 )
 
 func TestTickHappyPath(t *testing.T) {
@@ -69,12 +69,12 @@ func TestIfPanicMessageLogged(t *testing.T) {
 			assert.NilError(t, err)
 			msg, ok := values["message"]
 			assert.Assert(t, ok)
-			assert.Equal(t, msg, "Tick: 0, Current running system: ecs_test.TestIfPanicMessageLogged.func1")
+			assert.Equal(t, msg, "Tick: 0, Current running system: cardinal_test.TestIfPanicMessageLogged.func1")
 			panicString, ok := panicValue.(string)
 			assert.Assert(t, ok)
 			assert.Equal(t, panicString, errorTxt)
 		} else {
-			assert.Assert(t, false) // This test should cardinal.Create a panic.
+			assert.Assert(t, false) // This test should create a panic.
 		}
 	}()
 

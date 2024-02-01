@@ -93,7 +93,7 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	}
 }
 
-// TestSwaggerEndpointsAreActuallycardinal.Created verifies the non-variable endpoints that are declared in the swagger.yml file
+// TestSwaggerEndpointsAreActuallyCreated verifies the non-variable endpoints that are declared in the swagger.yml file
 // actually have endpoints when the cardinal server starts.
 func (s *ServerTestSuite) TestSwaggerEndpointsAreActuallyCreated() {
 	s.setupWorld()
@@ -201,7 +201,7 @@ func (s *ServerTestSuite) CreatePersona(personaTag string) {
 	}
 	tx, err := sign.NewSystemTransaction(s.privateKey, s.world.Namespace().String(), s.nonce, CreatePersonaTx)
 	s.Require().NoError(err)
-	res := s.fixture.Post(utils.GetTxURL("persona", "cardinal.Create-persona"), tx)
+	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
 	err = s.world.Tick(context.Background())
 	s.Require().NoError(err)

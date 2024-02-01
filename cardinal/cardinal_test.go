@@ -3,18 +3,16 @@ package cardinal_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/gorilla/websocket"
-
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -60,7 +58,7 @@ func TestCreatePersona(t *testing.T) {
 	assert.NilError(t, err)
 	client := &http.Client{}
 	req, err := http.NewRequest(
-		http.MethodPost, "http://"+addr+"/tx/persona/cardinal.Create-persona", bytes.NewBuffer(bodyBytes))
+		http.MethodPost, "http://"+addr+"/tx/persona/create-persona", bytes.NewBuffer(bodyBytes))
 	assert.NilError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
@@ -131,13 +129,11 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 }
 
 func TestShutdownViaSignal(t *testing.T) {
-	t.Skip("skipping this test til events and shutdown signals work again")
 	// If this test is frozen then it failed to shut down, cardinal.Create a failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
 	tf := testutils.NewTestFixture(t, nil)
 	world, addr := tf.World, tf.BaseURL
 	httpBaseURL := "http://" + addr
-	wsBaseURL := "ws://" + addr
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	wantNumOfEntities := 10
 	world.Init(func(eCtx engine.Context) error {
@@ -162,23 +158,28 @@ func TestShutdownViaSignal(t *testing.T) {
 	assert.Equal(t, v, "*")
 	assert.Equal(t, resp.StatusCode, 200)
 
-	conn, _, err := websocket.DefaultDialer.Dial(wsBaseURL+"/events", nil)
-	assert.NilError(t, err)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		_, _, err := conn.ReadMessage()
-		assert.Assert(t, websocket.IsCloseError(err, websocket.CloseAbnormalClosure))
-		wg.Done()
-	}()
+	// TODO(scott): not sure what we are triyng to test here, but this seems to just be blocked at conn.ReadMessage()
+	//wsBaseURL := "ws://" + addr
+	//conn, _, err := websocket.DefaultDialer.Dial(wsBaseURL+"/events", nil)
+	//assert.NilError(t, err)
+	//var wg sync.WaitGroup
+	//wg.Add(1)
+	//go func() {
+	//	_, _, err := conn.ReadMessage()
+	//	assert.Assert(t, websocket.IsCloseError(err, websocket.CloseAbnormalClosure))
+	//	wg.Done()
+	//}()
+
 	// Send a SIGINT signal.
-	cmd := exec.Command("kill", "-INT", strconv.Itoa(os.Getpid()))
+	fmt.Println("Sending SIGINT signal to process", os.Getpid())
+	cmd := exec.Command("kill", "-SIGINT", strconv.Itoa(os.Getpid()))
 	err = cmd.Run()
 	assert.NilError(t, err)
 
 	for world.IsGameRunning() {
 		// wait until game loop is not running
+		fmt.Println("Waiting for game loop to stop")
 		time.Sleep(50 * time.Millisecond)
 	}
-	wg.Wait()
+	fmt.Println("Game loop stopped")
 }

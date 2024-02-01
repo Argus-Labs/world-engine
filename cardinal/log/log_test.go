@@ -119,7 +119,7 @@ func TestEngineLogger(t *testing.T) {
 			{
 				"level":"debug",
 				"archetype_id":0,
-				"message":"cardinal.Created"
+				"message":"created"
 			}`, logStrings[0],
 	)
 	require.JSONEq(
@@ -153,7 +153,7 @@ func TestEngineLogger(t *testing.T) {
 		}`
 	require.JSONEq(t, buf.String(), jsonEntityInfoString)
 
-	// cardinal.Create a system for logging.
+	// Create a system for logging.
 	buf.Reset()
 	ctx := context.Background()
 

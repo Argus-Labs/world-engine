@@ -15,7 +15,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-// newWorldWithRealRedis returns an *cardinal.Engine that is connected to a redis DB hosted at localhost:6379. The target
+// newWorldWithRealRedis returns a *cardinal.World that is connected to a redis DB hosted at localhost:6379. The target
 // database is CLEARED OF ALL DATA so that the *cardinal.Engine object can start from a clean slate.
 func newWorldWithRealRedis(t testing.TB) *cardinal.World {
 	world, err := cardinal.NewWorld()
@@ -31,7 +31,7 @@ func (Health) Name() string {
 	return "health"
 }
 
-// setupWorld cardinal.Creates a new *cardinal.Engine and initializes the world to have numOfEntities already cardinal.Created. If
+// setupWorld Creates a new *cardinal.World and initializes the world to have numOfEntities already cardinal.Created. If
 // enableHealthSystem is set, a System will be added to the world that increments every entity's "health" by 1 every
 // tick.
 func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *cardinal.World {

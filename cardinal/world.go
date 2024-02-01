@@ -53,7 +53,7 @@ type World struct {
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
 	cleanup         func()
-	logger          *zerolog.Logger
+	Logger          *zerolog.Logger
 
 	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc)
 	gameSequenceStage gamestage.Atomic
@@ -86,8 +86,6 @@ type World struct {
 	// isRecovering indicates that the engine is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering atomic.Bool
-
-	Logger *zerolog.Logger
 
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
@@ -174,7 +172,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		nameToComponent:   make(map[string]component.ComponentMetadata),
 		nameToQuery:       make(map[string]engine.Query),
 		txQueue:           txpool.NewTxQueue(),
-		logger:            &log.Logger,
+		Logger:            &log.Logger,
 		isGameLoopRunning: atomic.Bool{},
 		endGameLoopCh:     make(chan bool),
 		nextComponentID:   1,
@@ -236,8 +234,9 @@ func (w *World) Tick(ctx context.Context) error {
 	// current system that is running.
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
-			w.logger.Error().
-				Msgf("Tick: %d, Current running system: %s", w.CurrentTick(), w.systemManager.GetCurrentSystem())
+			fmt.Println("Panic caught in tick")
+			w.Logger.Error().Msgf("Tick: %d, Current running system: %s", w.CurrentTick(),
+				w.systemManager.GetCurrentSystem())
 			panic(panicValue)
 		}
 	}()
@@ -248,7 +247,7 @@ func (w *World) Tick(ctx context.Context) error {
 		span.Finish()
 	}()
 
-	w.logger.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
+	w.Logger.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
 
 	// Copy the transactions from the queue so that we can safely modify the queue while the tick is running.
 	txQueue := w.txQueue.CopyTransactions()
@@ -361,8 +360,8 @@ func (w *World) StartGame() error {
 }
 
 func (w *World) StartGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
-	w.logger.Info().Msg("Game loop started")
-	ecslog.World(w.logger, w, zerolog.InfoLevel)
+	w.Logger.Info().Msg("Game loop started")
+	ecslog.World(w.Logger, w, zerolog.InfoLevel)
 	w.emitResourcesWarnings()
 
 	go func() {
@@ -409,7 +408,7 @@ func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
 		if err != nil {
 			panic(err)
 		}
-		w.logger.Panic().Err(err).Str("tickError", "Error running Tick in Game Loop.").RawJSON("error", bytes)
+		w.Logger.Panic().Err(err).Str("tickError", "Error running Tick in Game Loop.").RawJSON("error", bytes)
 	}
 	if tickDone != nil {
 		tickDone <- currTick
@@ -419,16 +418,16 @@ func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
 func (w *World) emitResourcesWarnings() {
 	// todo: add links to docs related to each warning
 	if !w.isComponentsRegistered {
-		w.logger.Warn().Msg("No components registered.")
+		w.Logger.Warn().Msg("No components registered.")
 	}
 	if !w.msgManager.IsMessagesRegistered() {
-		w.logger.Warn().Msg("No messages registered.")
+		w.Logger.Warn().Msg("No messages registered.")
 	}
 	if len(w.registeredQueries) == 0 {
-		w.logger.Warn().Msg("No queries registered.")
+		w.Logger.Warn().Msg("No queries registered.")
 	}
 	if !w.systemManager.IsSystemsRegistered() {
-		w.logger.Warn().Msg("No systems registered.")
+		w.Logger.Warn().Msg("No systems registered.")
 	}
 }
 
@@ -467,6 +466,10 @@ func (w *World) ListMessages() []message.Message { return w.msgManager.GetRegist
 // return logAndPanic(eCtx, err)
 // can be used at the end of state-mutating methods. This method will never actually return.
 func logAndPanic(eCtx engine.Context, err error) error {
+	// If the context is read-only, we don't want to panic. We just want to log the error and return it.
+	if eCtx.IsReadOnly() {
+		return err
+	}
 	eCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
 	return err
 }
