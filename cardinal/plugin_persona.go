@@ -1,9 +1,14 @@
 package cardinal
 
 import (
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/persona/query"
+	"pkg.world.dev/world-engine/cardinal/persona/utils"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"strings"
 )
 
 type personaPlugin struct {
@@ -79,3 +84,107 @@ var CreatePersonaMsg = NewMessageType[msg.CreatePersona, msg.CreatePersonaResult
 	WithCustomMessageGroup[msg.CreatePersona, msg.CreatePersonaResult]("persona"),
 	WithMsgEVMSupport[msg.CreatePersona, msg.CreatePersonaResult](),
 )
+
+// AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
+// users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
+// them to mutate their owned state from the context of the EVM.
+func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
+	personaTagToAddress, err := buildPersonaIndex(eCtx)
+	if err != nil {
+		return err
+	}
+
+	AuthorizePersonaAddressMsg.Each(
+		eCtx,
+		func(txData TxData[msg.AuthorizePersonaAddress]) (
+			result msg.AuthorizePersonaAddressResult, err error,
+		) {
+			txMsg, tx := txData.Msg, txData.Tx
+			result.Success = false
+
+			// Check if the Persona Tag exists
+			lowerPersona := strings.ToLower(tx.PersonaTag)
+			data, ok := personaTagToAddress[lowerPersona]
+			if !ok {
+				return result, eris.Errorf("persona %s does not exist", tx.PersonaTag)
+			}
+
+			// Check that the ETH Address is valid
+			txMsg.Address = strings.ToLower(txMsg.Address)
+			txMsg.Address = strings.ReplaceAll(txMsg.Address, " ", "")
+			valid := common.IsHexAddress(txMsg.Address)
+			if !valid {
+				return result, eris.Errorf("eth address %s is invalid", txMsg.Address)
+			}
+
+			err = UpdateComponent[component.SignerComponent](
+				eCtx, data.EntityID, func(s *component.SignerComponent) *component.SignerComponent {
+					for _, addr := range s.AuthorizedAddresses {
+						if addr == txMsg.Address {
+							return s
+						}
+					}
+					s.AuthorizedAddresses = append(s.AuthorizedAddresses, txMsg.Address)
+					return s
+				},
+			)
+			if err != nil {
+				return result, eris.Wrap(err, "unable to update signer component with address")
+			}
+			result.Success = true
+			return result, nil
+		},
+	)
+	return nil
+}
+
+// RegisterPersonaSystem is an cardinal.System that will associate persona tags with signature addresses. Each persona tag
+// may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
+func RegisterPersonaSystem(eCtx engine.Context) error {
+	personaTagToAddress, err := buildPersonaIndex(eCtx)
+	if err != nil {
+		return err
+	}
+
+	CreatePersonaMsg.Each(
+		eCtx,
+		func(txData TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
+			txMsg := txData.Msg
+			result.Success = false
+
+			if !utils.IsValidPersonaTag(txMsg.PersonaTag) {
+				err = eris.Errorf("persona tag %s is not valid: must only contain alphanumerics and underscores",
+					txMsg.PersonaTag)
+				return result, err
+			}
+
+			// Temporarily convert tag to lowercase to check against mapping of lowercase tags
+			lowerPersona := strings.ToLower(txMsg.PersonaTag)
+			if _, ok := personaTagToAddress[lowerPersona]; ok {
+				// This PersonaTag has already been registered. Don't do anything
+				err = eris.Errorf("persona tag %s has already been registered", txMsg.PersonaTag)
+				return result, err
+			}
+			id, err := Create(eCtx, component.SignerComponent{})
+			if err != nil {
+				return result, eris.Wrap(err, "")
+			}
+			if err = SetComponent[component.SignerComponent](
+				eCtx, id, &component.SignerComponent{
+					PersonaTag:    txMsg.PersonaTag,
+					SignerAddress: txMsg.SignerAddress,
+				},
+			); err != nil {
+				return result, eris.Wrap(err, "")
+			}
+			personaTagToAddress[lowerPersona] = personaIndexEntry{
+				SignerAddress: txMsg.SignerAddress,
+				EntityID:      id,
+			}
+			result.Success = true
+			return result, nil
+		},
+	)
+
+	return nil
+}
