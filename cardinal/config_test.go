@@ -58,8 +58,14 @@ func TestValidateConfig(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "prod with all required values",
-			cfg:     WorldConfig{CardinalMode: RunModeProd, RedisPassword: "foo", CardinalNamespace: "foo", BaseShardQueryAddress: "bar", BaseShardSequencerAddress: "baz"},
+			name: "prod with all required values",
+			cfg: WorldConfig{
+				CardinalMode:              RunModeProd,
+				RedisPassword:             "foo",
+				CardinalNamespace:         "foo",
+				BaseShardQueryAddress:     "bar",
+				BaseShardSequencerAddress: "baz",
+			},
 			wantErr: false,
 		},
 	}
@@ -74,5 +80,4 @@ func TestValidateConfig(t *testing.T) {
 			}
 		})
 	}
-
 }
