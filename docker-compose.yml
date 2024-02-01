@@ -18,7 +18,7 @@ services:
       - "26257:26257"
       - "8080:8080"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health?ready=1"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health?ready=1" ]
       interval: 3s
       timeout: 3s
       retries: 5
@@ -51,7 +51,7 @@ services:
       - "7350"
       - "7351"
     healthcheck:
-      test: ["CMD", "/nakama/nakama", "healthcheck"]
+      test: [ "CMD", "/nakama/nakama", "healthcheck" ]
       interval: 20s
       timeout: 10s
       retries: 5
@@ -117,7 +117,7 @@ services:
       - TRACE_ADDRESS=${TRACE_ADDRESS}
     build:
       context: ./
-      dockerfile: internal/e2e/tester/game/Dockerfile
+      dockerfile: e2e/testgames/game/Dockerfile
     restart: unless-stopped
     expose:
       - "3333"
@@ -144,7 +144,9 @@ services:
 
   test_nakama:
     container_name: test_nakama
-    build: ./internal/nakama
+    build:
+      context: ./e2e/testclients/
+      dockerfile: e2etestclient/Dockerfile
     depends_on:
       nakama:
         condition: service_healthy
