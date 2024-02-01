@@ -5,16 +5,17 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/heroiclabs/nakama-common/runtime"
-	"github.com/rotisserie/eris"
 	"io"
 	"net/http"
+	"sync"
+
+	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
-	"pkg.world.dev/world-engine/sign"
-	"sync"
 )
 
 var (
@@ -41,6 +42,7 @@ func ClaimPersona(
 	verifier *Verifier,
 	notifier *receipt.Notifier,
 	personaStorageObj *StorageObj,
+	txSigner signer.Signer,
 	globalCardinalAddress string,
 	globalNamespace string,
 	globalPersonaTagAssignment *sync.Map,
@@ -81,7 +83,8 @@ func ClaimPersona(
 		}
 	}
 
-	txHash, tick, err := createPersona(ctx, nk, personaStorageObj.PersonaTag, globalCardinalAddress, globalNamespace)
+	personaTag := personaStorageObj.PersonaTag
+	txHash, tick, err := createPersona(ctx, txSigner, personaTag, globalCardinalAddress, globalNamespace)
 	if err != nil {
 		return res, eris.Wrap(err, "unable to make create persona request to cardinal")
 	}
@@ -113,7 +116,7 @@ func ClaimPersona(
 
 func createPersona(
 	ctx context.Context,
-	nk runtime.NakamaModule,
+	txSigner signer.Signer,
 	personaTag string,
 	cardinalAddr string,
 	cardinalNamespace string,
@@ -130,7 +133,7 @@ func createPersona(
 		}
 	}()
 
-	signerAddress := signer.GetSignerAddress()
+	signerAddress := txSigner.SignerAddress()
 	createPersonaTx := struct {
 		PersonaTag    string `json:"personaTag"`
 		SignerAddress string `json:"signerAddress"`
@@ -139,13 +142,7 @@ func createPersona(
 		SignerAddress: signerAddress,
 	}
 
-	key, nonce, err := signer.GetPrivateKeyAndANonce(ctx, nk)
-	if err != nil {
-		return "", 0, eris.Wrapf(err, "unable to get the private key or a nonce")
-	}
-
-	transaction, err := sign.NewSystemTransaction(key, cardinalNamespace, nonce, createPersonaTx)
-
+	transaction, err := txSigner.SignSystemTx(ctx, cardinalNamespace, createPersonaTx)
 	if err != nil {
 		return "", 0, eris.Wrapf(err, "unable to create signed payload")
 	}
@@ -191,13 +188,14 @@ func createPersona(
 func ShowPersona(
 	ctx context.Context,
 	nk runtime.NakamaModule,
+	txSigner signer.Signer,
 	globalCardinalAddress string,
 ) (res *StorageObj, err error) {
 	personaStorageObj, err := LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
 		return res, eris.Wrap(err, "unable to get persona tag storage object")
 	}
-	personaStorageObj, err = personaStorageObj.AttemptToUpdatePending(ctx, nk, globalCardinalAddress)
+	personaStorageObj, err = personaStorageObj.AttemptToUpdatePending(ctx, nk, txSigner, globalCardinalAddress)
 	if err != nil {
 		return res, eris.Wrap(err, "unable to update pending state")
 	}
