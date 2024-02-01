@@ -28,14 +28,14 @@ type QueryHealthResponse struct {
 }
 
 func handleQueryHealth(
-	eCtx engine.Context,
+	wCtx engine.Context,
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
 	resp := &QueryHealthResponse{}
-	err := cardinal.NewSearch(eCtx, filter.Exact(Health{})).Each(func(id types.EntityID) bool {
+	err := cardinal.NewSearch(wCtx, filter.Exact(Health{})).Each(func(id types.EntityID) bool {
 		var err error
 		var health *Health
-		health, err = cardinal.GetComponent[Health](eCtx, id)
+		health, err = cardinal.GetComponent[Health](wCtx, id)
 		if err != nil {
 			return true
 		}
@@ -121,7 +121,7 @@ func TestQueryTypeNotStructs(t *testing.T) {
 	err := cardinal.RegisterQuery[string, string](
 		testutils.NewTestFixture(t, nil).World,
 		"foo",
-		func(eCtx engine.Context, req *string) (*string, error) {
+		func(wCtx engine.Context, req *string) (*string, error) {
 			return &str, nil
 		},
 	)
@@ -149,7 +149,7 @@ func TestQueryEVM(t *testing.T) {
 	//	world,
 	//	"foo",
 	//	func(
-	//		eCtx engine.Context, req *FooRequest,
+	//		wCtx engine.Context, req *FooRequest,
 	//	) (*FooReply, error) {
 	//		return &expectedReply, nil
 	//	},

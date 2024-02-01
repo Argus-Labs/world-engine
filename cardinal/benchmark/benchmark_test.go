@@ -40,14 +40,14 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *cardi
 	if enableHealthSystem {
 		err := cardinal.RegisterSystems(
 			world,
-			func(eCtx engine.Context) error {
-				q := cardinal.NewSearch(eCtx, filter.Contains(Health{}))
+			func(wCtx engine.Context) error {
+				q := cardinal.NewSearch(wCtx, filter.Contains(Health{}))
 				err := q.Each(
 					func(id types.EntityID) bool {
-						health, err := cardinal.GetComponent[Health](eCtx, id)
+						health, err := cardinal.GetComponent[Health](wCtx, id)
 						assert.NilError(t, err)
 						health.Value++
-						assert.NilError(t, cardinal.SetComponent[Health](eCtx, id, health))
+						assert.NilError(t, cardinal.SetComponent[Health](wCtx, id, health))
 						return true
 					},
 				)

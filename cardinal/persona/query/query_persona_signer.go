@@ -31,10 +31,10 @@ type PersonaSignerQueryResponse struct {
 	SignerAddress string `json:"signerAddress"`
 }
 
-func PersonaSignerQuery(eCtx engine.Context, req *PersonaSignerQueryRequest) (*PersonaSignerQueryResponse, error) {
+func PersonaSignerQuery(wCtx engine.Context, req *PersonaSignerQueryRequest) (*PersonaSignerQueryResponse, error) {
 	var status string
 
-	addr, err := eCtx.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
+	addr, err := wCtx.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
 	if err != nil {
 		//nolint:gocritic // cant switch case this.
 		if errors.Is(err, ErrPersonaTagHasNoSigner) {

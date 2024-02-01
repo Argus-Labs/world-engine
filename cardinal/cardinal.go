@@ -97,7 +97,7 @@ func RegisterMessages(w *World, msgs ...types.Message) error {
 func RegisterQuery[Request any, Reply any](
 	world *World,
 	name string,
-	handler func(eCtx engine.Context, req *Request) (*Reply, error),
+	handler func(wCtx engine.Context, req *Request) (*Reply, error),
 	opts ...QueryOption[Request, Reply],
 ) error {
 	if world.WorldState != WorldStateInit {
@@ -121,15 +121,15 @@ func RegisterQuery[Request any, Reply any](
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func Create(eCtx engine.Context, components ...types.Component) (types.EntityID, error) {
+func Create(wCtx engine.Context, components ...types.Component) (types.EntityID, error) {
 	// Error if the context is read only
-	if eCtx.IsReadOnly() {
+	if wCtx.IsReadOnly() {
 		return 0, ErrEntityMutationOnReadOnly
 	}
 
-	id, err := CreateMany(eCtx, 1, components...)
+	id, err := CreateMany(wCtx, 1, components...)
 	if err != nil {
-		return 0, logAndPanic(eCtx, err)
+		return 0, logAndPanic(wCtx, err)
 	}
 
 	return id[0], nil
@@ -137,45 +137,45 @@ func Create(eCtx engine.Context, components ...types.Component) (types.EntityID,
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func CreateMany(eCtx engine.Context, num int, components ...types.Component) ([]types.EntityID, error) {
+func CreateMany(wCtx engine.Context, num int, components ...types.Component) ([]types.EntityID, error) {
 	// TODO: uncomment this. use engine state instead.
-	// if !eCtx.GetEngine().stateIsLoaded {
+	// if !wCtx.GetEngine().stateIsLoaded {
 	// 		return nil, eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
 	// }
 
 	// Error if the context is read only
-	if eCtx.IsReadOnly() {
+	if wCtx.IsReadOnly() {
 		return nil, ErrEntityMutationOnReadOnly
 	}
 
 	// Get all component metadata for the given components
 	acc := make([]types.ComponentMetadata, 0, len(components))
 	for _, comp := range components {
-		c, err := eCtx.GetComponentByName(comp.Name())
+		c, err := wCtx.GetComponentByName(comp.Name())
 		if err != nil {
-			return nil, logAndPanic(eCtx, ErrComponentNotRegistered)
+			return nil, logAndPanic(wCtx, ErrComponentNotRegistered)
 		}
 		acc = append(acc, c)
 	}
 
 	// Create the entities
-	entityIds, err := eCtx.StoreManager().CreateManyEntities(num, acc...)
+	entityIds, err := wCtx.StoreManager().CreateManyEntities(num, acc...)
 	if err != nil {
-		return nil, logAndPanic(eCtx, err)
+		return nil, logAndPanic(wCtx, err)
 	}
 
 	// Set the components for the entities
 	for _, id := range entityIds {
 		for _, comp := range components {
 			var c types.ComponentMetadata
-			c, err = eCtx.GetComponentByName(comp.Name())
+			c, err = wCtx.GetComponentByName(comp.Name())
 			if err != nil {
-				return nil, logAndPanic(eCtx, ErrComponentNotRegistered)
+				return nil, logAndPanic(wCtx, ErrComponentNotRegistered)
 			}
 
-			err = eCtx.StoreManager().SetComponentForEntity(c, id, comp)
+			err = wCtx.StoreManager().SetComponentForEntity(c, id, comp)
 			if err != nil {
-				return nil, logAndPanic(eCtx, err)
+				return nil, logAndPanic(wCtx, err)
 			}
 		}
 	}
@@ -184,30 +184,30 @@ func CreateMany(eCtx engine.Context, num int, components ...types.Component) ([]
 }
 
 // SetComponent sets component data to the entity.
-func SetComponent[T types.Component](eCtx engine.Context, id types.EntityID, component *T) error {
+func SetComponent[T types.Component](wCtx engine.Context, id types.EntityID, component *T) error {
 	// Error if the context is read only
-	if eCtx.IsReadOnly() {
+	if wCtx.IsReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
 	// Get the component metadata
 	var t T
-	c, err := eCtx.GetComponentByName(t.Name())
+	c, err := wCtx.GetComponentByName(t.Name())
 	if err != nil {
-		return logAndPanic(eCtx, err)
+		return logAndPanic(wCtx, err)
 	}
 
 	// Set the component
-	err = eCtx.StoreManager().SetComponentForEntity(c, id, component)
+	err = wCtx.StoreManager().SetComponentForEntity(c, id, component)
 	if err != nil {
 		if eris.Is(err, ErrEntityDoesNotExist) || eris.Is(err, ErrComponentNotOnEntity) {
 			return err
 		}
-		return logAndPanic(eCtx, err)
+		return logAndPanic(wCtx, err)
 	}
 
 	// Log
-	eCtx.Logger().Debug().
+	wCtx.Logger().Debug().
 		Str("entity_id", strconv.FormatUint(uint64(id), 10)).
 		Str("component_name", c.Name()).
 		Int("component_id", int(c.ID())).
@@ -217,25 +217,25 @@ func SetComponent[T types.Component](eCtx engine.Context, id types.EntityID, com
 }
 
 // GetComponent returns component data from the entity.
-func GetComponent[T types.Component](eCtx engine.Context, id types.EntityID) (comp *T, err error) {
+func GetComponent[T types.Component](wCtx engine.Context, id types.EntityID) (comp *T, err error) {
 	// Get the component metadata
 	var t T
-	c, err := eCtx.GetComponentByName(t.Name())
+	c, err := wCtx.GetComponentByName(t.Name())
 	if err != nil {
-		return nil, logAndPanic(eCtx, err)
+		return nil, logAndPanic(wCtx, err)
 	}
 
 	// Get current component value
-	compValue, err := eCtx.StoreReader().GetComponentForEntity(c, id)
+	compValue, err := wCtx.StoreReader().GetComponentForEntity(c, id)
 	if err != nil {
-		if eCtx.IsReadOnly() {
+		if wCtx.IsReadOnly() {
 			return nil, err
 		}
 		if eris.Is(err, ErrEntityDoesNotExist) || eris.Is(err, ErrComponentNotOnEntity) || eris.Is(err,
 			ErrComponentNotRegistered) {
 			return nil, err
 		}
-		return nil, logAndPanic(eCtx, err)
+		return nil, logAndPanic(wCtx, err)
 	}
 
 	// Type assert the component value to the component type
@@ -243,7 +243,7 @@ func GetComponent[T types.Component](eCtx engine.Context, id types.EntityID) (co
 	if !ok {
 		comp, ok = compValue.(*T)
 		if !ok {
-			return nil, logAndPanic(eCtx, eris.Errorf("type assertion for component failed: %v to %v", compValue, c))
+			return nil, logAndPanic(wCtx, eris.Errorf("type assertion for component failed: %v to %v", compValue, c))
 		}
 	} else {
 		comp = &t
@@ -252,14 +252,14 @@ func GetComponent[T types.Component](eCtx engine.Context, id types.EntityID) (co
 	return comp, nil
 }
 
-func UpdateComponent[T types.Component](eCtx engine.Context, id types.EntityID, fn func(*T) *T) error {
+func UpdateComponent[T types.Component](wCtx engine.Context, id types.EntityID, fn func(*T) *T) error {
 	// Error if the context is read only
-	if eCtx.IsReadOnly() {
+	if wCtx.IsReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
 	// Get current component value
-	val, err := GetComponent[T](eCtx, id)
+	val, err := GetComponent[T](wCtx, id)
 	if err != nil {
 		return err // We don't need to panic here because GetComponent will handle the panic if needed for us.
 	}
@@ -268,7 +268,7 @@ func UpdateComponent[T types.Component](eCtx engine.Context, id types.EntityID, 
 	updatedVal := fn(val)
 
 	// Set the new component value
-	err = SetComponent[T](eCtx, id, updatedVal)
+	err = SetComponent[T](wCtx, id, updatedVal)
 	if err != nil {
 		return err // We don't need to panic here because SetComponent will handle the panic if needed for us.
 	}
@@ -276,71 +276,71 @@ func UpdateComponent[T types.Component](eCtx engine.Context, id types.EntityID, 
 	return nil
 }
 
-func AddComponentTo[T types.Component](eCtx engine.Context, id types.EntityID) error {
-	if eCtx.IsReadOnly() {
+func AddComponentTo[T types.Component](wCtx engine.Context, id types.EntityID) error {
+	if wCtx.IsReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
 	// Get the component metadata
 	var t T
-	c, err := eCtx.GetComponentByName(t.Name())
+	c, err := wCtx.GetComponentByName(t.Name())
 	if err != nil {
-		return logAndPanic(eCtx, err)
+		return logAndPanic(wCtx, err)
 	}
 
 	// Add the component to entity
-	err = eCtx.StoreManager().AddComponentToEntity(c, id)
+	err = wCtx.StoreManager().AddComponentToEntity(c, id)
 	if err != nil {
 		if eris.Is(err, ErrEntityDoesNotExist) || eris.Is(err, ErrComponentAlreadyOnEntity) {
 			return err
 		}
-		return logAndPanic(eCtx, err)
+		return logAndPanic(wCtx, err)
 	}
 
 	return nil
 }
 
 // RemoveComponentFrom removes a component from an entity.
-func RemoveComponentFrom[T types.Component](eCtx engine.Context, id types.EntityID) error {
+func RemoveComponentFrom[T types.Component](wCtx engine.Context, id types.EntityID) error {
 	// Error if the context is read only
-	if eCtx.IsReadOnly() {
+	if wCtx.IsReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
 	// Get the component metadata
 	var t T
-	c, err := eCtx.GetComponentByName(t.Name())
+	c, err := wCtx.GetComponentByName(t.Name())
 	if err != nil {
-		return logAndPanic(eCtx, err)
+		return logAndPanic(wCtx, err)
 	}
 
 	// Remove the component from entity
-	err = eCtx.StoreManager().RemoveComponentFromEntity(c, id)
+	err = wCtx.StoreManager().RemoveComponentFromEntity(c, id)
 	if err != nil {
 		if eris.Is(err, ErrEntityDoesNotExist) ||
 			eris.Is(err, ErrComponentNotOnEntity) ||
 			eris.Is(err, ErrEntityMustHaveAtLeastOneComponent) {
 			return err
 		}
-		return logAndPanic(eCtx, err)
+		return logAndPanic(wCtx, err)
 	}
 
 	return nil
 }
 
 // Remove removes the given Entity from the engine.
-func Remove(eCtx engine.Context, id types.EntityID) error {
+func Remove(wCtx engine.Context, id types.EntityID) error {
 	// Error if the context is read only
-	if eCtx.IsReadOnly() {
+	if wCtx.IsReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
 
-	err := eCtx.StoreManager().RemoveEntity(id)
+	err := wCtx.StoreManager().RemoveEntity(id)
 	if err != nil {
 		if eris.Is(err, ErrEntityDoesNotExist) {
 			return err
 		}
-		return logAndPanic(eCtx, err)
+		return logAndPanic(wCtx, err)
 	}
 
 	return nil

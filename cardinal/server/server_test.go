@@ -169,7 +169,7 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	err := cardinal.RegisterQuery[SomeRequest, SomeResponse](
 		s.world,
 		name,
-		func(eCtx engine.Context, req *SomeRequest) (*SomeResponse, error) {
+		func(wCtx engine.Context, req *SomeRequest) (*SomeResponse, error) {
 			called = true
 			return &SomeResponse{}, nil
 		},
@@ -251,12 +251,12 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	err = cardinal.RegisterQuery[QueryLocationRequest, QueryLocationResponse](
 		s.world,
 		"location",
-		func(eCtx engine.Context, req *QueryLocationRequest) (*QueryLocationResponse, error) {
+		func(wCtx engine.Context, req *QueryLocationRequest) (*QueryLocationResponse, error) {
 			locID, exists := personaToPosition[req.Persona]
 			if !exists {
 				return nil, fmt.Errorf("location for %q does not exists", req.Persona)
 			}
-			loc, err := cardinal.GetComponent[LocationComponent](eCtx, locID)
+			loc, err := cardinal.GetComponent[LocationComponent](wCtx, locID)
 			s.Require().NoError(err)
 
 			return &QueryLocationResponse{*loc}, nil

@@ -128,12 +128,12 @@ func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[OneBetaNum](oneWorld))
 	assert.NilError(t, oneWorld.LoadGameState())
 
-	oneEngineCtx := cardinal.NewWorldContext(oneWorld)
-	_, err := cardinal.Create(oneEngineCtx, OneAlphaNum{})
+	oneWorldCtx := cardinal.NewWorldContext(oneWorld)
+	_, err := cardinal.Create(oneWorldCtx, OneAlphaNum{})
 	assert.NilError(t, err)
-	_, err = cardinal.Create(oneEngineCtx, OneBetaNum{})
+	_, err = cardinal.Create(oneWorldCtx, OneBetaNum{})
 	assert.NilError(t, err)
-	_, err = cardinal.Create(oneEngineCtx, OneAlphaNum{}, OneBetaNum{})
+	_, err = cardinal.Create(oneWorldCtx, OneAlphaNum{}, OneBetaNum{})
 	assert.NilError(t, err)
 	oneAlphaNum, err := oneWorld.GetComponentByName(OneAlphaNum{}.Name())
 	assert.NilError(t, err)
@@ -222,12 +222,12 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, err)
 	err = cardinal.RegisterSystems(
 		alphaWorld,
-		func(eCtx engine.Context) error {
-			q := cardinal.NewSearch(eCtx, filter.Contains(oneAlphaNum))
+		func(wCtx engine.Context) error {
+			q := cardinal.NewSearch(wCtx, filter.Contains(oneAlphaNum))
 			assert.NilError(
 				t, q.Each(
 					func(id types.EntityID) bool {
-						err = cardinal.SetComponent[oneAlphaNumComp](eCtx, id, &oneAlphaNumComp{int(id)})
+						err = cardinal.SetComponent[oneAlphaNumComp](wCtx, id, &oneAlphaNumComp{int(id)})
 						assert.Check(t, err == nil)
 						return true
 					},
@@ -251,12 +251,12 @@ func TestCanReloadState(t *testing.T) {
 
 	count := 0
 	q := cardinal.NewSearch(cardinal.NewWorldContext(betaWorld), filter.Contains(OneBetaNum{}))
-	betaEngineCtx := cardinal.NewWorldContext(betaWorld)
+	betaWorldCtx := cardinal.NewWorldContext(betaWorld)
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {
 				count++
-				num, err := cardinal.GetComponent[OneBetaNum](betaEngineCtx, id)
+				num, err := cardinal.GetComponent[OneBetaNum](betaWorldCtx, id)
 				assert.NilError(t, err)
 				assert.Equal(t, int(id), num.Num)
 				return true
@@ -302,9 +302,9 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 		assert.NilError(t, cardinal.RegisterMessages(world, someTx))
 		err := cardinal.RegisterSystems(
 			world,
-			func(eCtx engine.Context) error {
-				for _, tx := range someTx.In(eCtx) {
-					someTx.SetResult(eCtx, tx.Hash, Result{})
+			func(wCtx engine.Context) error {
+				for _, tx := range someTx.In(wCtx) {
+					someTx.SetResult(wCtx, tx.Hash, Result{})
 				}
 				return nil
 			},
@@ -343,10 +343,10 @@ func TestSearchEarlyTermination(t *testing.T) {
 	total := 10
 	count := 0
 	stop := 5
-	eCtx := cardinal.NewWorldContext(world)
-	_, err := cardinal.CreateMany(eCtx, total, FooComponent{})
+	wCtx := cardinal.NewWorldContext(world)
+	_, err := cardinal.CreateMany(wCtx, total, FooComponent{})
 	assert.NilError(t, err)
-	q := cardinal.NewSearch(eCtx, filter.Exact(FooComponent{}))
+	q := cardinal.NewSearch(wCtx, filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {
@@ -358,7 +358,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	assert.Equal(t, count, stop)
 
 	count = 0
-	q = cardinal.NewSearch(eCtx, filter.Exact(FooComponent{}))
+	q = cardinal.NewSearch(wCtx, filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {

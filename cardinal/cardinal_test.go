@@ -92,8 +92,8 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	gotNumOfEntities := 0
-	err := cardinal.RegisterSystems(world, func(eCtx engine.Context) error {
-		err := cardinal.NewSearch(eCtx, filter.Exact(Foo{})).Each(func(id types.EntityID) bool {
+	err := cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
+		err := cardinal.NewSearch(wCtx, filter.Exact(Foo{})).Each(func(id types.EntityID) bool {
 			gotNumOfEntities++
 			return true
 		})
@@ -137,8 +137,8 @@ func TestShutdownViaSignal(t *testing.T) {
 	httpBaseURL := "http://" + addr
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	wantNumOfEntities := 10
-	err := cardinal.RegisterInitSystems(world, func(eCtx engine.Context) error {
-		_, err := cardinal.CreateMany(eCtx, wantNumOfEntities/2, Foo{})
+	err := cardinal.RegisterInitSystems(world, func(wCtx engine.Context) error {
+		_, err := cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
 		if err != nil {
 			return err
 		}

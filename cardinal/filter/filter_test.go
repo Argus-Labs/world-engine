@@ -32,17 +32,17 @@ func TestGetEverythingFilter(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	subsetCount := 50
-	eCtx := cardinal.NewWorldContext(world)
-	_, err := cardinal.CreateMany(eCtx, subsetCount, Alpha{}, Beta{})
+	wCtx := cardinal.NewWorldContext(world)
+	_, err := cardinal.CreateMany(wCtx, subsetCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some entities that have all 3 component.
-	_, err = cardinal.CreateMany(eCtx, 20, Alpha{}, Beta{}, Gamma{})
+	_, err = cardinal.CreateMany(wCtx, 20, Alpha{}, Beta{}, Gamma{})
 	assert.NilError(t, err)
 
 	count := 0
 	// Loop over every entity. There should
 	// only be 50 + 20 entities.
-	q := cardinal.NewSearch(eCtx, filter2.All())
+	q := cardinal.NewSearch(wCtx, filter2.All())
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -63,22 +63,22 @@ func TestCanFilterByArchetype(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	subsetCount := 50
-	eCtx := cardinal.NewWorldContext(world)
-	_, err := cardinal.CreateMany(eCtx, subsetCount, Alpha{}, Beta{})
+	wCtx := cardinal.NewWorldContext(world)
+	_, err := cardinal.CreateMany(wCtx, subsetCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some entities that have all 3 component.
-	_, err = cardinal.CreateMany(eCtx, 20, Alpha{}, Beta{}, Gamma{})
+	_, err = cardinal.CreateMany(wCtx, 20, Alpha{}, Beta{}, Gamma{})
 	assert.NilError(t, err)
 
 	count := 0
 	// Loop over every entity that has exactly the alpha and beta components. There should
 	// only be subsetCount entities.
-	q := cardinal.NewSearch(eCtx, filter2.Exact(Alpha{}, Beta{}))
+	q := cardinal.NewSearch(wCtx, filter2.Exact(Alpha{}, Beta{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
 			// Make sure the gamma component is not on this entity
-			_, err = cardinal.GetComponent[gammaComponent](eCtx, id)
+			_, err = cardinal.GetComponent[gammaComponent](wCtx, id)
 			assert.ErrorIs(t, err, iterators.ErrComponentNotOnEntity)
 			return true
 		},
@@ -105,16 +105,16 @@ func TestExactVsContains(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 
 	alphaCount := 75
-	eCtx := cardinal.NewWorldContext(world)
+	wCtx := cardinal.NewWorldContext(world)
 	assert.NilError(t, world.LoadGameState())
-	_, err := cardinal.CreateMany(eCtx, alphaCount, Alpha{})
+	_, err := cardinal.CreateMany(wCtx, alphaCount, Alpha{})
 	assert.NilError(t, err)
 	bothCount := 100
-	_, err = cardinal.CreateMany(eCtx, bothCount, Alpha{}, Beta{})
+	_, err = cardinal.CreateMany(wCtx, bothCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	count := 0
 	// Contains(alpha) should return all entities
-	q := cardinal.NewSearch(eCtx, filter2.Contains(Alpha{}))
+	q := cardinal.NewSearch(wCtx, filter2.Contains(Alpha{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -135,7 +135,7 @@ func TestExactVsContains(t *testing.T) {
 
 	sameQuery, err := cql.Parse("CONTAINS(alpha)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(eCtx, sameQuery).Each(
+	err = cardinal.NewSearch(wCtx, sameQuery).Each(
 		func(id types.EntityID) bool {
 			count2++
 			return true
@@ -146,7 +146,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Contains(beta) should only return the entities that have both components
-	q = cardinal.NewSearch(eCtx, filter2.Contains(Beta{}))
+	q = cardinal.NewSearch(wCtx, filter2.Contains(Beta{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -159,7 +159,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("CONTAINS(beta)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(eCtx, sameQuery).Each(
+	err = cardinal.NewSearch(wCtx, sameQuery).Each(
 		func(id types.EntityID) bool {
 			count2++
 			return true
@@ -169,7 +169,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Exact(alpha) should not return the entities that have both alpha and beta
-	q = cardinal.NewSearch(eCtx, filter2.Exact(Alpha{}))
+	q = cardinal.NewSearch(wCtx, filter2.Exact(Alpha{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -182,7 +182,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(alpha)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(eCtx, sameQuery).Each(
+	err = cardinal.NewSearch(wCtx, sameQuery).Each(
 		func(id types.EntityID) bool {
 			count2++
 			return true
@@ -193,7 +193,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Exact(alpha, beta) should not return the entities that only have alpha
-	q = cardinal.NewSearch(eCtx, filter2.Exact(Alpha{}, Beta{}))
+	q = cardinal.NewSearch(wCtx, filter2.Exact(Alpha{}, Beta{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -206,7 +206,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(alpha, beta)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(eCtx, sameQuery).Each(
+	err = cardinal.NewSearch(wCtx, sameQuery).Each(
 		func(id types.EntityID) bool {
 			count2++
 			return true
@@ -217,7 +217,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Make sure the order of alpha/beta doesn't matter
-	q = cardinal.NewSearch(eCtx, filter2.Exact(Beta{}, Alpha{}))
+	q = cardinal.NewSearch(wCtx, filter2.Exact(Beta{}, Alpha{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -230,7 +230,7 @@ func TestExactVsContains(t *testing.T) {
 	count2 = 0
 	sameQuery, err = cql.Parse("EXACT(beta, alpha)", getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(eCtx, sameQuery).Each(
+	err = cardinal.NewSearch(wCtx, sameQuery).Each(
 		func(id types.EntityID) bool {
 			count2++
 			return true
@@ -247,19 +247,19 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	wantCount := 50
-	eCtx := cardinal.NewWorldContext(world)
-	ids, err := cardinal.CreateMany(eCtx, wantCount, Alpha{}, Beta{})
+	wCtx := cardinal.NewWorldContext(world)
+	ids, err := cardinal.CreateMany(wCtx, wantCount, Alpha{}, Beta{})
 	assert.NilError(t, err)
 	// Make some extra entities that will be ignored. Our query later
 	// should NOT contain these entities
-	_, err = cardinal.CreateMany(eCtx, 20, Alpha{})
+	_, err = cardinal.CreateMany(wCtx, 20, Alpha{})
 	assert.NilError(t, err)
 	id := ids[0]
 	comps, err := world.GameStateManager().GetComponentTypesForEntity(id)
 	assert.NilError(t, err)
 
 	count := 0
-	err = cardinal.NewSearch(eCtx,
+	err = cardinal.NewSearch(wCtx,
 		filter2.Exact(types.ConvertComponentMetadatasToComponents(comps)...)).Each(
 		func(id types.EntityID) bool {
 			count++
@@ -290,7 +290,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 
 	sameQuery, err := cql.Parse(queryString, getComponentByName)
 	assert.NilError(t, err)
-	err = cardinal.NewSearch(eCtx, sameQuery).Each(
+	err = cardinal.NewSearch(wCtx, sameQuery).Each(
 		func(id types.EntityID) bool {
 			count2++
 			return true
@@ -306,8 +306,8 @@ func BenchmarkEntityCreation(b *testing.B) {
 		world := testutils.NewTestFixture(b, nil).World
 		assert.NilError(b, cardinal.RegisterComponent[Alpha](world))
 		assert.NilError(b, world.LoadGameState())
-		eCtx := cardinal.NewWorldContext(world)
-		_, err := cardinal.CreateMany(eCtx, 100000, Alpha{})
+		wCtx := cardinal.NewWorldContext(world)
+		_, err := cardinal.CreateMany(wCtx, 100000, Alpha{})
 		assert.NilError(b, err)
 	}
 }
@@ -334,15 +334,15 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	assert.NilError(b, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(b, cardinal.RegisterComponent[Beta](world))
 	assert.NilError(b, world.LoadGameState())
-	eCtx := cardinal.NewWorldContext(world)
-	_, err := cardinal.CreateMany(eCtx, relevantCount, Alpha{}, Beta{})
+	wCtx := cardinal.NewWorldContext(world)
+	_, err := cardinal.CreateMany(wCtx, relevantCount, Alpha{}, Beta{})
 	assert.NilError(b, err)
-	_, err = cardinal.CreateMany(eCtx, ignoreCount, Alpha{})
+	_, err = cardinal.CreateMany(wCtx, ignoreCount, Alpha{})
 	assert.NilError(b, err)
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		count := 0
-		q := cardinal.NewSearch(eCtx, filter2.Exact(Alpha{}, Beta{}))
+		q := cardinal.NewSearch(wCtx, filter2.Exact(Alpha{}, Beta{}))
 		err = q.Each(
 			func(id types.EntityID) bool {
 				count++

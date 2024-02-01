@@ -254,14 +254,14 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 }
 
 func getSigners(t *testing.T, world *cardinal.World) []*component.SignerComponent {
-	eCtx := cardinal.NewWorldContext(world)
+	wCtx := cardinal.NewWorldContext(world)
 	var signers = make([]*component.SignerComponent, 0)
 
-	q := cardinal.NewSearch(eCtx, filter.Exact(component.SignerComponent{}))
+	q := cardinal.NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
 
 	err := q.Each(
 		func(id types.EntityID) bool {
-			sc, err := cardinal.GetComponent[component.SignerComponent](eCtx, id)
+			sc, err := cardinal.GetComponent[component.SignerComponent](wCtx, id)
 			assert.NilError(t, err)
 			signers = append(signers, sc)
 			return true

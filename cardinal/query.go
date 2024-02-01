@@ -14,7 +14,7 @@ import (
 type QueryType[Request any, Reply any] struct {
 	name       string
 	group      string
-	handler    func(eCtx engine.Context, req *Request) (*Reply, error)
+	handler    func(wCtx engine.Context, req *Request) (*Reply, error)
 	requestABI *ethereumAbi.Type
 	replyABI   *ethereumAbi.Type
 }
@@ -43,7 +43,7 @@ var _ engine.Query = &QueryType[struct{}, struct{}]{}
 
 func NewQueryType[Request any, Reply any](
 	name string,
-	handler func(eCtx engine.Context, req *Request) (*Reply, error),
+	handler func(wCtx engine.Context, req *Request) (*Reply, error),
 	opts ...QueryOption[Request, Reply],
 ) (engine.Query, error) {
 	err := validateQuery[Request, Reply](name, handler)
@@ -90,22 +90,22 @@ func (r *QueryType[req, rep]) Group() string {
 	return r.group
 }
 
-func (r *QueryType[req, rep]) HandleQuery(eCtx engine.Context, a any) (any, error) {
+func (r *QueryType[req, rep]) HandleQuery(wCtx engine.Context, a any) (any, error) {
 	request, ok := a.(req)
 	if !ok {
 		return nil, eris.Errorf("cannot cast %T to this query request type %T", a, new(req))
 	}
-	reply, err := r.handler(eCtx, &request)
+	reply, err := r.handler(wCtx, &request)
 	return reply, err
 }
 
-func (r *QueryType[req, rep]) HandleQueryRaw(eCtx engine.Context, bz []byte) ([]byte, error) {
+func (r *QueryType[req, rep]) HandleQueryRaw(wCtx engine.Context, bz []byte) ([]byte, error) {
 	request := new(req)
 	err := json.Unmarshal(bz, request)
 	if err != nil {
 		return nil, eris.Wrapf(err, "unable to unmarshal query request into type %T", *request)
 	}
-	res, err := r.handler(eCtx, request)
+	res, err := r.handler(wCtx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +192,7 @@ func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 
 func validateQuery[Request any, Reply any](
 	name string,
-	handler func(eCtx engine.Context, req *Request) (*Reply, error),
+	handler func(wCtx engine.Context, req *Request) (*Reply, error),
 ) error {
 	if name == "" {
 		return eris.New("cannot create query without name")

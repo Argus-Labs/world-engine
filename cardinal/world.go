@@ -56,7 +56,7 @@ type World struct {
 	cleanup         func()
 	Logger          *zerolog.Logger
 
-	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc)
+	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc.)
 	gameSequenceStage gamestage.Atomic
 	endStartGame      chan bool
 
@@ -253,11 +253,11 @@ func (w *World) Tick(ctx context.Context) error {
 	w.timestamp.Store(uint64(startTime.Unix()))
 
 	// Create the engine context to inject into systems
-	eCtx := NewWorldContextForTick(w, txQueue, w.Logger)
+	wCtx := NewWorldContext(w)
 
 	// Run all registered systems.
 	// This will run the registsred init systems if the current tick is 0
-	if err := w.systemManager.RunSystems(eCtx); err != nil {
+	if err := w.systemManager.RunSystems(wCtx); err != nil {
 		return err
 	}
 
@@ -470,14 +470,14 @@ func (w *World) ListQueries() []engine.Query   { return w.registeredQueries }
 func (w *World) ListMessages() []types.Message { return w.msgManager.GetRegisteredMessages() }
 
 // logAndPanic logs the given error and panics. An error is returned so the syntax:
-// return logAndPanic(eCtx, err)
+// return logAndPanic(wCtx, err)
 // can be used at the end of state-mutating methods. This method will never actually return.
-func logAndPanic(eCtx engine.Context, err error) error {
+func logAndPanic(wCtx engine.Context, err error) error {
 	// If the context is read-only, we don't want to panic. We just want to log the error and return it.
-	if eCtx.IsReadOnly() {
+	if wCtx.IsReadOnly() {
 		return err
 	}
-	eCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
+	wCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
 	return err
 }
 

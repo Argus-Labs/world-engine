@@ -109,18 +109,18 @@ type TxData[In any] struct {
 	Tx   *sign.Transaction
 }
 
-func (t *MessageType[In, Out]) AddError(eCtx engine.Context, hash types.TxHash, err error) {
-	eCtx.AddMessageError(hash, err)
+func (t *MessageType[In, Out]) AddError(wCtx engine.Context, hash types.TxHash, err error) {
+	wCtx.AddMessageError(hash, err)
 }
 
-func (t *MessageType[In, Out]) SetResult(eCtx engine.Context, hash types.TxHash, result Out) {
-	eCtx.SetMessageResult(hash, result)
+func (t *MessageType[In, Out]) SetResult(wCtx engine.Context, hash types.TxHash, result Out) {
+	wCtx.SetMessageResult(hash, result)
 }
 
-func (t *MessageType[In, Out]) GetReceipt(eCtx engine.Context, hash types.TxHash) (
+func (t *MessageType[In, Out]) GetReceipt(wCtx engine.Context, hash types.TxHash) (
 	v Out, errs []error, ok bool,
 ) {
-	iface, errs, ok := eCtx.GetTransactionReceipt(hash)
+	iface, errs, ok := wCtx.GetTransactionReceipt(hash)
 	if !ok {
 		return v, nil, false
 	}
@@ -135,26 +135,26 @@ func (t *MessageType[In, Out]) GetReceipt(eCtx engine.Context, hash types.TxHash
 	return value, errs, true
 }
 
-func (t *MessageType[In, Out]) Each(eCtx engine.Context, fn func(TxData[In]) (Out, error)) {
-	for _, txData := range t.In(eCtx) {
+func (t *MessageType[In, Out]) Each(wCtx engine.Context, fn func(TxData[In]) (Out, error)) {
+	for _, txData := range t.In(wCtx) {
 		if result, err := fn(txData); err != nil {
 			err = eris.Wrap(err, "")
-			eCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v and stack trace:\n %s",
+			wCtx.Logger().Err(err).Msgf("tx %s from %s encountered an error with message=%+v and stack trace:\n %s",
 				txData.Hash,
 				txData.Tx.PersonaTag,
 				txData.Msg,
 				eris.ToString(err, true),
 			)
-			t.AddError(eCtx, txData.Hash, err)
+			t.AddError(wCtx, txData.Hash, err)
 		} else {
-			t.SetResult(eCtx, txData.Hash, result)
+			t.SetResult(wCtx, txData.Hash, result)
 		}
 	}
 }
 
 // In extracts all the TxData in the tx queue that match this MessageType's ID.
-func (t *MessageType[In, Out]) In(eCtx engine.Context) []TxData[In] {
-	tq := eCtx.GetTxQueue()
+func (t *MessageType[In, Out]) In(wCtx engine.Context) []TxData[In] {
+	tq := wCtx.GetTxQueue()
 	var txs []TxData[In]
 	for _, txData := range tq.ForID(t.ID()) {
 		if val, ok := txData.Msg.(In); ok {

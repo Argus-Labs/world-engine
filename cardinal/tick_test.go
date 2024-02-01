@@ -124,10 +124,10 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	// In this test, our "buggy" system fails once Power reaches 3
 	err := cardinal.RegisterSystems(
 		oneWorld,
-		func(eCtx engine.Context) error {
-			search := cardinal.NewSearch(eCtx, filter2.Exact(onePowerComponent{}))
+		func(wCtx engine.Context) error {
+			search := cardinal.NewSearch(wCtx, filter2.Exact(onePowerComponent{}))
 			id := search.MustFirst()
-			p, err := cardinal.GetComponent[onePowerComponent](eCtx, id)
+			p, err := cardinal.GetComponent[onePowerComponent](wCtx, id)
 			if err != nil {
 				return err
 			}
@@ -135,7 +135,7 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 			if p.Power >= 3 {
 				return errorSystem
 			}
-			return cardinal.SetComponent[onePowerComponent](eCtx, id, p)
+			return cardinal.SetComponent[onePowerComponent](wCtx, id, p)
 		},
 	)
 	assert.NilError(t, err)
@@ -158,27 +158,27 @@ func TestCanIdentifyAndFixSystemError(t *testing.T) {
 	// this is our fixed system that can handle Power levels of 3 and higher
 	err = cardinal.RegisterSystems(
 		twoWorld,
-		func(eCtx engine.Context) error {
-			p, err := cardinal.GetComponent[onePowerComponent](eCtx, id)
+		func(wCtx engine.Context) error {
+			p, err := cardinal.GetComponent[onePowerComponent](wCtx, id)
 			if err != nil {
 				return err
 			}
 			p.Power++
-			return cardinal.SetComponent[onePowerComponent](eCtx, id, p)
+			return cardinal.SetComponent[onePowerComponent](wCtx, id, p)
 		},
 	)
 	assert.NilError(t, err)
 
 	// Loading a game state with the fixed system should automatically finish the previous tick.
 	assert.NilError(t, twoWorld.LoadGameState())
-	twoEngineCtx := cardinal.NewWorldContext(twoWorld)
-	p, err := cardinal.GetComponent[onePowerComponent](twoEngineCtx, id)
+	twoWorldCtx := cardinal.NewWorldContext(twoWorld)
+	p, err := cardinal.GetComponent[onePowerComponent](twoWorldCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 3, p.Power)
 
 	// Just for fun, tick one last time to make sure power is still being incremented.
 	assert.NilError(t, twoWorld.Tick(context.Background()))
-	p1, err := cardinal.GetComponent[onePowerComponent](twoEngineCtx, id)
+	p1, err := cardinal.GetComponent[onePowerComponent](twoWorldCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 4, p1.Power)
 }
@@ -205,23 +205,23 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[ScalarComponentBeta](world))
 	assert.NilError(t, world.LoadGameState())
 
-	eCtx := cardinal.NewWorldContext(world)
-	wantID, err := cardinal.Create(eCtx, ScalarComponentAlpha{})
+	wCtx := cardinal.NewWorldContext(world)
+	wantID, err := cardinal.Create(wCtx, ScalarComponentAlpha{})
 	assert.NilError(t, err)
 
 	wantScalar := ScalarComponentAlpha{99}
 
-	assert.NilError(t, cardinal.SetComponent[ScalarComponentAlpha](eCtx, wantID, &wantScalar))
+	assert.NilError(t, cardinal.SetComponent[ScalarComponentAlpha](wCtx, wantID, &wantScalar))
 
 	verifyCanFindEntity := func() {
 		// Make sure we can find the entity
-		q := cardinal.NewSearch(eCtx, filter2.Contains(ScalarComponentAlpha{}))
+		q := cardinal.NewSearch(wCtx, filter2.Contains(ScalarComponentAlpha{}))
 		gotID, err := q.First()
 		assert.NilError(t, err)
 		assert.Equal(t, wantID, gotID)
 
 		// Make sure the associated component is correct
-		gotScalar, err := cardinal.GetComponent[ScalarComponentAlpha](eCtx, wantID)
+		gotScalar, err := cardinal.GetComponent[ScalarComponentAlpha](wCtx, wantID)
 		assert.NilError(t, err)
 		assert.Equal(t, wantScalar, *gotScalar)
 	}
@@ -230,11 +230,11 @@ func TestCanModifyArchetypeAndGetEntity(t *testing.T) {
 	verifyCanFindEntity()
 
 	// Add on the beta component
-	assert.NilError(t, cardinal.AddComponentTo[Beta](eCtx, wantID))
+	assert.NilError(t, cardinal.AddComponentTo[Beta](wCtx, wantID))
 	verifyCanFindEntity()
 
 	// Remove the beta component
-	assert.NilError(t, cardinal.RemoveComponentFrom[Beta](eCtx, wantID))
+	assert.NilError(t, cardinal.RemoveComponentFrom[Beta](wCtx, wantID))
 	verifyCanFindEntity()
 }
 
@@ -261,25 +261,25 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		assert.NilError(t, cardinal.RegisterComponent[ScalarComponentStatic](world))
 		assert.NilError(t, cardinal.RegisterComponent[ScalarComponentToggle](world))
 
-		eCtx := cardinal.NewWorldContext(world)
+		wCtx := cardinal.NewWorldContext(world)
 
 		errorToggleComponent := errors.New("problem with toggle component")
 		err := cardinal.RegisterSystems(
 			world,
-			func(eCtx engine.Context) error {
+			func(wCtx engine.Context) error {
 				// Get the one and only entity ID
-				q := cardinal.NewSearch(eCtx, filter2.Contains(ScalarComponentStatic{}))
+				q := cardinal.NewSearch(wCtx, filter2.Contains(ScalarComponentStatic{}))
 				id, err := q.First()
 				assert.NilError(t, err)
 
-				s, err := cardinal.GetComponent[ScalarComponentStatic](eCtx, id)
+				s, err := cardinal.GetComponent[ScalarComponentStatic](wCtx, id)
 				assert.NilError(t, err)
 				s.Val++
-				assert.NilError(t, cardinal.SetComponent[ScalarComponentStatic](eCtx, id, s))
+				assert.NilError(t, cardinal.SetComponent[ScalarComponentStatic](wCtx, id, s))
 				if s.Val%2 == 1 {
-					assert.NilError(t, cardinal.AddComponentTo[ScalarComponentToggle](eCtx, id))
+					assert.NilError(t, cardinal.AddComponentTo[ScalarComponentToggle](wCtx, id))
 				} else {
-					assert.NilError(t, cardinal.RemoveComponentFrom[ScalarComponentToggle](eCtx, id))
+					assert.NilError(t, cardinal.RemoveComponentFrom[ScalarComponentToggle](wCtx, id))
 				}
 
 				if firstEngineIteration && s.Val == 5 {
@@ -292,10 +292,10 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		assert.NilError(t, err)
 		assert.NilError(t, world.LoadGameState())
 		if firstEngineIteration {
-			_, err := cardinal.Create(eCtx, ScalarComponentStatic{})
+			_, err := cardinal.Create(wCtx, ScalarComponentStatic{})
 			assert.NilError(t, err)
 		}
-		q := cardinal.NewSearch(eCtx, filter2.Contains(ScalarComponentStatic{}))
+		q := cardinal.NewSearch(wCtx, filter2.Contains(ScalarComponentStatic{}))
 		id, err := q.First()
 		assert.NilError(t, err)
 
@@ -304,7 +304,7 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 				assert.NilError(t, world.Tick(context.Background()))
 			}
 			// After 4 ticks, static.Val should be 4 and toggle should have just been removed from the entity.
-			_, err = cardinal.GetComponent[ScalarComponentToggle](eCtx, id)
+			_, err = cardinal.GetComponent[ScalarComponentToggle](wCtx, id)
 			assert.ErrorIs(t, iterators.ErrComponentNotOnEntity, eris.Cause(err))
 
 			// Ticking again should result in an error
@@ -312,10 +312,10 @@ func TestCanRecoverStateAfterFailedArchetypeChange(t *testing.T) {
 		} else {
 			// At this second iteration, the errorToggleComponent bug has been fixed. static.Val should be 5
 			// and toggle should have just been added to the entity.
-			_, err = cardinal.GetComponent[ScalarComponentToggle](eCtx, id)
+			_, err = cardinal.GetComponent[ScalarComponentToggle](wCtx, id)
 			assert.NilError(t, err)
 
-			s, err := cardinal.GetComponent[ScalarComponentStatic](eCtx, id)
+			s, err := cardinal.GetComponent[ScalarComponentStatic](wCtx, id)
 
 			assert.NilError(t, err)
 			assert.Equal(t, 5, s.Val)
@@ -345,16 +345,16 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		err := cardinal.RegisterSystems(
 			world,
-			func(eCtx engine.Context) error {
-				q := cardinal.NewSearch(eCtx, filter2.Contains(PowerComp{}))
+			func(wCtx engine.Context) error {
+				q := cardinal.NewSearch(wCtx, filter2.Contains(PowerComp{}))
 				id := q.MustFirst()
-				entityPower, err := cardinal.GetComponent[PowerComp](eCtx, id)
+				entityPower, err := cardinal.GetComponent[PowerComp](wCtx, id)
 				assert.NilError(t, err)
 
-				changes := powerTx.In(eCtx)
+				changes := powerTx.In(wCtx)
 				assert.Equal(t, 1, len(changes))
 				entityPower.Val += changes[0].Msg.Val
-				assert.NilError(t, cardinal.SetComponent[PowerComp](eCtx, id, entityPower))
+				assert.NilError(t, cardinal.SetComponent[PowerComp](wCtx, id, entityPower))
 
 				if isBuggyIteration && changes[0].Msg.Val == 666 {
 					return errorBadPowerChange
@@ -365,19 +365,19 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 		assert.NilError(t, err)
 		assert.NilError(t, world.LoadGameState())
 
-		eCtx := cardinal.NewWorldContext(world)
+		wCtx := cardinal.NewWorldContext(world)
 		// Only cardinal.Create the entity for the first iteration
 		if isBuggyIteration {
-			_, err := cardinal.Create(eCtx, PowerComp{})
+			_, err := cardinal.Create(wCtx, PowerComp{})
 			assert.NilError(t, err)
 		}
 
 		// fetchPower is a small helper to get the power of the only entity in the engine
 		fetchPower := func() float64 {
-			q := cardinal.NewSearch(eCtx, filter2.Contains(PowerComp{}))
+			q := cardinal.NewSearch(wCtx, filter2.Contains(PowerComp{}))
 			id, err := q.First()
 			assert.NilError(t, err)
-			power, err := cardinal.GetComponent[PowerComp](eCtx, id)
+			power, err := cardinal.GetComponent[PowerComp](wCtx, id)
 			assert.NilError(t, err)
 			return power.Val
 		}

@@ -19,10 +19,10 @@ type Health struct {
 
 func (Health) Name() string { return "health" }
 
-func HealthSystem(eCtx engine.Context) error {
+func HealthSystem(wCtx engine.Context) error {
 	var errs []error
-	errs = append(errs, cardinal.NewSearch(eCtx, filter.Exact(Health{})).Each(func(id types.EntityID) bool {
-		errs = append(errs, cardinal.UpdateComponent[Health](eCtx, id, func(h *Health) *Health {
+	errs = append(errs, cardinal.NewSearch(wCtx, filter.Exact(Health{})).Each(func(id types.EntityID) bool {
+		errs = append(errs, cardinal.UpdateComponent[Health](wCtx, id, func(h *Health) *Health {
 			h.Value++
 			return h
 		}))

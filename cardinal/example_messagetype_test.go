@@ -32,8 +32,8 @@ func ExampleMessageType() {
 		panic(err)
 	}
 
-	err = cardinal.RegisterSystems(world, func(eCtx engine.Context) error {
-		MoveMsg.Each(eCtx, func(txData message.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
+	err = cardinal.RegisterSystems(world, func(wCtx engine.Context) error {
+		MoveMsg.Each(wCtx, func(txData message.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
 			// handle the transaction
 			// ...
 

@@ -18,21 +18,10 @@ type worldContext struct {
 	readOnly bool
 }
 
-func NewWorldContextForTick(world *World, queue *txpool.TxQueue, logger *zerolog.Logger) engine.Context {
-	if logger == nil {
-		logger = world.Logger
-	}
-	return &worldContext{
-		world:    world,
-		txQueue:  queue,
-		logger:   logger,
-		readOnly: false,
-	}
-}
-
 func NewWorldContext(world *World) engine.Context {
 	return &worldContext{
 		world:    world,
+		txQueue:  world.txQueue,
 		logger:   world.Logger,
 		readOnly: false,
 	}

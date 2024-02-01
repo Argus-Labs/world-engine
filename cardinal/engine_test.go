@@ -126,9 +126,9 @@ func TestEVMTxConsume(t *testing.T) {
 	var returnErr error
 	err := cardinal.RegisterSystems(
 		world,
-		func(eCtx types2.Context) error {
+		func(wCtx types2.Context) error {
 			fooTx.Each(
-				eCtx, func(t message.TxData[FooIn]) (FooOut, error) {
+				wCtx, func(t message.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
 			)
@@ -234,12 +234,12 @@ func TestSetNamespace(t *testing.T) {
 
 func TestWithoutRegistration(t *testing.T) {
 	world := testutils.NewTestFixture(t, nil).World
-	eCtx := cardinal.NewWorldContext(world)
+	wCtx := cardinal.NewWorldContext(world)
 
-	assert.Panics(t, func() { _, _ = cardinal.Create(eCtx, EnergyComponent{}, OwnableComponent{}) })
+	assert.Panics(t, func() { _, _ = cardinal.Create(wCtx, EnergyComponent{}, OwnableComponent{}) })
 	assert.Panics(t, func() {
 		_ = cardinal.UpdateComponent[EnergyComponent](
-			eCtx, 0, func(component *EnergyComponent) *EnergyComponent {
+			wCtx, 0, func(component *EnergyComponent) *EnergyComponent {
 				component.Amt += 50
 				return component
 			},
@@ -247,7 +247,7 @@ func TestWithoutRegistration(t *testing.T) {
 	})
 	assert.Panics(t, func() {
 		_ = cardinal.SetComponent[EnergyComponent](
-			eCtx, 0, &EnergyComponent{
+			wCtx, 0, &EnergyComponent{
 				Amt: 0,
 				Cap: 0,
 			},
@@ -258,17 +258,17 @@ func TestWithoutRegistration(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world))
 	assert.NilError(t, world.LoadGameState())
 
-	id, err := cardinal.Create(eCtx, EnergyComponent{}, OwnableComponent{})
+	id, err := cardinal.Create(wCtx, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
 	err = cardinal.UpdateComponent[EnergyComponent](
-		eCtx, id, func(component *EnergyComponent) *EnergyComponent {
+		wCtx, id, func(component *EnergyComponent) *EnergyComponent {
 			component.Amt += 50
 			return component
 		},
 	)
 	assert.NilError(t, err)
 	err = cardinal.SetComponent[EnergyComponent](
-		eCtx, id, &EnergyComponent{
+		wCtx, id, &EnergyComponent{
 			Amt: 0,
 			Cap: 0,
 		},

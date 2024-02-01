@@ -93,28 +93,28 @@ func TestEventsThroughSystems(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterMessages(world, sendTx))
 	counter1 := atomic.Int32{}
 	counter1.Store(0)
-	sys1 := func(eCtx engine.Context) error {
-		eCtx.EmitEvent("test")
+	sys1 := func(wCtx engine.Context) error {
+		wCtx.EmitEvent("test")
 		counter1.Add(1)
 		return nil
 	}
-	sys2 := func(eCtx engine.Context) error {
-		eCtx.EmitEvent("test")
+	sys2 := func(wCtx engine.Context) error {
+		wCtx.EmitEvent("test")
 		counter1.Add(1)
 		return nil
 	}
-	sys3 := func(eCtx engine.Context) error {
-		eCtx.EmitEvent("test")
+	sys3 := func(wCtx engine.Context) error {
+		wCtx.EmitEvent("test")
 		counter1.Add(1)
 		return nil
 	}
-	sys4 := func(eCtx engine.Context) error {
-		eCtx.EmitEvent("test")
+	sys4 := func(wCtx engine.Context) error {
+		wCtx.EmitEvent("test")
 		counter1.Add(1)
 		return nil
 	}
-	sys5 := func(eCtx engine.Context) error {
-		eCtx.EmitEvent("test")
+	sys5 := func(wCtx engine.Context) error {
+		wCtx.EmitEvent("test")
 		counter1.Add(1)
 		return nil
 	}

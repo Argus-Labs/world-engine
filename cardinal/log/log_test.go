@@ -36,17 +36,17 @@ func (EnergyComp) Name() string {
 	return "EnergyComp"
 }
 
-func testSystem(eCtx engine.Context) error {
-	eCtx.Logger().Log().Msg("test")
-	q := cardinal.NewSearch(eCtx, filter.Contains(EnergyComp{}))
+func testSystem(wCtx engine.Context) error {
+	wCtx.Logger().Log().Msg("test")
+	q := cardinal.NewSearch(wCtx, filter.Contains(EnergyComp{}))
 	err := q.Each(
 		func(entityId types.EntityID) bool {
-			energyPlanet, err := cardinal.GetComponent[EnergyComp](eCtx, entityId)
+			energyPlanet, err := cardinal.GetComponent[EnergyComp](wCtx, entityId)
 			if err != nil {
 				return false
 			}
 			energyPlanet.value += 10
-			err = cardinal.SetComponent[EnergyComp](eCtx, entityId, energyPlanet)
+			err = cardinal.SetComponent[EnergyComp](wCtx, entityId, energyPlanet)
 			return err == nil
 		},
 	)
@@ -57,9 +57,9 @@ func testSystem(eCtx engine.Context) error {
 	return nil
 }
 
-func testSystemWarningTrigger(eCtx engine.Context) error {
+func testSystemWarningTrigger(wCtx engine.Context) error {
 	time.Sleep(time.Millisecond * 400)
-	return testSystem(eCtx)
+	return testSystem(wCtx)
 }
 
 func TestEngineLogger(t *testing.T) {
@@ -103,12 +103,12 @@ func TestEngineLogger(t *testing.T) {
 	energy, err := world.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
 	components := []types.ComponentMetadata{energy}
-	eCtx := cardinal.NewWorldContext(world)
+	wCtx := cardinal.NewWorldContext(world)
 	err = cardinal.RegisterSystems(world, testSystemWarningTrigger)
 	assert.NilError(t, err)
 	err = world.LoadGameState()
 	assert.NilError(t, err)
-	entityID, err := cardinal.Create(eCtx, EnergyComp{})
+	entityID, err := cardinal.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)
 	logStrings := strings.Split(buf.String(), "\n")[:3]
 	require.JSONEq(
@@ -182,7 +182,7 @@ func TestEngineLogger(t *testing.T) {
 
 	// testing log output for the creation of two entities.
 	buf.Reset()
-	_, err = cardinal.CreateMany(eCtx, 2, EnergyComp{})
+	_, err = cardinal.CreateMany(wCtx, 2, EnergyComp{})
 	assert.NilError(t, err)
 	entityCreationStrings := strings.Split(buf.String(), "\n")[:2]
 	require.JSONEq(

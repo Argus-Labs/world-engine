@@ -86,9 +86,9 @@ func (m *Manager) registerSystems(registeredSystems *[]string, systems ...System
 }
 
 // RunSystems runs all the registered system in the order that they were registered.
-func (m *Manager) RunSystems(eCtx engine.Context) error {
+func (m *Manager) RunSystems(wCtx engine.Context) error {
 	var systemsToRun []string
-	if eCtx.CurrentTick() == 0 {
+	if wCtx.CurrentTick() == 0 {
 		//nolint:gocritic,appendAssign // We need to use the append function to concat
 		systemsToRun = append(m.registeredInitSystems, m.registeredSystems...)
 	} else {
@@ -102,11 +102,11 @@ func (m *Manager) RunSystems(eCtx engine.Context) error {
 		m.currentSystem = &sysName
 
 		// Inject the system name into the logger
-		eCtx.SetLogger(eCtx.Logger().With().Str("system", systemName).Logger())
+		wCtx.SetLogger(wCtx.Logger().With().Str("system", systemName).Logger())
 
 		// Executes the system function that the user registered
 		systemStartTime := time.Now()
-		err := m.systemFn[systemName](eCtx)
+		err := m.systemFn[systemName](wCtx)
 		if err != nil {
 			m.currentSystem = nil
 			return eris.Wrapf(err, "system %s generated an error", systemName)

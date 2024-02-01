@@ -48,68 +48,68 @@ func TestComponentExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Age](world))
 	assert.NilError(t, cardinal.RegisterComponent[Number](world))
 	assert.NilError(t, world.LoadGameState())
-	eCtx := cardinal.NewWorldContext(world)
-	assert.Equal(t, eCtx.CurrentTick(), uint64(0))
-	eCtx.Logger().Info().Msg("test") // Check for compile errors.
-	eCtx.EmitEvent("test")           // test for compiler errors, a check for this lives in e2e tests.
+	wCtx := cardinal.NewWorldContext(world)
+	assert.Equal(t, wCtx.CurrentTick(), uint64(0))
+	wCtx.Logger().Info().Msg("test") // Check for compile errors.
+	wCtx.EmitEvent("test")           // test for compiler errors, a check for this lives in e2e tests.
 	startHeight := 72
 	startWeight := 200
 	startAge := 30
-	numberID, err := cardinal.Create(eCtx, &Number{})
+	numberID, err := cardinal.Create(wCtx, &Number{})
 	assert.NilError(t, err)
-	err = cardinal.SetComponent[Number](eCtx, numberID, &Number{num: 42})
+	err = cardinal.SetComponent[Number](wCtx, numberID, &Number{num: 42})
 	assert.NilError(t, err)
-	newNum, err := cardinal.GetComponent[Number](eCtx, numberID)
+	newNum, err := cardinal.GetComponent[Number](wCtx, numberID)
 	assert.NilError(t, err)
 	assert.Equal(t, newNum.num, 42)
-	err = cardinal.Remove(eCtx, numberID)
+	err = cardinal.Remove(wCtx, numberID)
 	assert.NilError(t, err)
-	shouldBeNil, err := cardinal.GetComponent[Number](eCtx, numberID)
+	shouldBeNil, err := cardinal.GetComponent[Number](wCtx, numberID)
 	assert.Assert(t, err != nil)
 	assert.Assert(t, shouldBeNil == nil)
 
-	peopleIDs, err := cardinal.CreateMany(eCtx, 10, Height{startHeight}, Weight{startWeight}, Age{startAge})
+	peopleIDs, err := cardinal.CreateMany(wCtx, 10, Height{startHeight}, Weight{startWeight}, Age{startAge})
 	assert.NilError(t, err)
 
 	targetID := peopleIDs[4]
-	height, err := cardinal.GetComponent[Height](eCtx, targetID)
+	height, err := cardinal.GetComponent[Height](wCtx, targetID)
 	assert.NilError(t, err)
 	assert.Equal(t, startHeight, height.Inches)
 
-	assert.NilError(t, cardinal.RemoveComponentFrom[Age](eCtx, targetID))
+	assert.NilError(t, cardinal.RemoveComponentFrom[Age](wCtx, targetID))
 
 	// Age was removed form exactly 1 entity.
-	count, err := cardinal.NewSearch(eCtx, filter.Exact(Height{}, Weight{})).Count()
+	count, err := cardinal.NewSearch(wCtx, filter.Exact(Height{}, Weight{})).Count()
 	assert.NilError(t, err)
 	assert.Equal(t, 1, count)
 
 	// The rest of the entities still have the Age field.
-	count, err = cardinal.NewSearch(eCtx, filter.Contains(Age{})).Count()
+	count, err = cardinal.NewSearch(wCtx, filter.Contains(Age{})).Count()
 	assert.NilError(t, err)
 	assert.Equal(t, len(peopleIDs)-1, count)
-	first, err := cardinal.NewSearch(eCtx, filter.Contains(Age{})).First()
+	first, err := cardinal.NewSearch(wCtx, filter.Contains(Age{})).First()
 	assert.NilError(t, err)
 	assert.Equal(t, first, types.EntityID(1))
 
 	// Age does not exist on the target EntityID, so this should result in an error
-	err = cardinal.UpdateComponent[Age](eCtx, targetID, func(a *Age) *Age {
+	err = cardinal.UpdateComponent[Age](wCtx, targetID, func(a *Age) *Age {
 		return a
 	})
 	assert.Check(t, err != nil)
 
 	heavyWeight := 999
-	err = cardinal.UpdateComponent[Weight](eCtx, targetID, func(w *Weight) *Weight {
+	err = cardinal.UpdateComponent[Weight](wCtx, targetID, func(w *Weight) *Weight {
 		w.Pounds = heavyWeight
 		return w
 	})
 	assert.NilError(t, err)
 
 	// Adding the Age component to the targetID should not change the weight component
-	assert.NilError(t, cardinal.AddComponentTo[Age](eCtx, targetID))
+	assert.NilError(t, cardinal.AddComponentTo[Age](wCtx, targetID))
 
 	for _, id := range peopleIDs {
 		var weight *Weight
-		weight, err = cardinal.GetComponent[Weight](eCtx, id)
+		weight, err = cardinal.GetComponent[Weight](wCtx, id)
 		assert.NilError(t, err)
 		if id == targetID {
 			assert.Equal(t, heavyWeight, weight.Pounds)
@@ -283,21 +283,21 @@ func TestMultipleCallsToCreateSupported(t *testing.T) {
 	world := testutils.NewTestFixture(t, nil).World
 	assert.NilError(t, cardinal.RegisterComponent[ValueComponent](world))
 
-	eCtx := cardinal.NewWorldContext(world)
+	wCtx := cardinal.NewWorldContext(world)
 	assert.NilError(t, world.LoadGameState())
-	id, err := cardinal.Create(eCtx, ValueComponent{})
+	id, err := cardinal.Create(wCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	assert.NilError(t, cardinal.SetComponent[ValueComponent](eCtx, id, &ValueComponent{99}))
+	assert.NilError(t, cardinal.SetComponent[ValueComponent](wCtx, id, &ValueComponent{99}))
 
-	val, err := cardinal.GetComponent[ValueComponent](eCtx, id)
+	val, err := cardinal.GetComponent[ValueComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 
-	_, err = cardinal.Create(eCtx, ValueComponent{})
+	_, err = cardinal.Create(wCtx, ValueComponent{})
 	assert.NilError(t, err)
 
-	val, err = cardinal.GetComponent[ValueComponent](eCtx, id)
+	val, err = cardinal.GetComponent[ValueComponent](wCtx, id)
 	assert.NilError(t, err)
 	assert.Equal(t, 99, val.Val)
 }

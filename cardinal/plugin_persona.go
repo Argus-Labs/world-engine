@@ -96,14 +96,14 @@ var CreatePersonaMsg = message.NewMessageType[msg.CreatePersona, msg.CreatePerso
 // AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
 // users who want to interact with the game via smart contract can link their EVM address to their persona tag, enabling
 // them to mutate their owned state from the context of the EVM.
-func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
-	personaTagToAddress, err := buildPersonaIndex(eCtx)
+func AuthorizePersonaAddressSystem(wCtx engine.Context) error {
+	personaTagToAddress, err := buildPersonaIndex(wCtx)
 	if err != nil {
 		return err
 	}
 
 	AuthorizePersonaAddressMsg.Each(
-		eCtx,
+		wCtx,
 		func(txData message.TxData[msg.AuthorizePersonaAddress]) (
 			result msg.AuthorizePersonaAddressResult, err error,
 		) {
@@ -126,7 +126,7 @@ func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
 			}
 
 			err = UpdateComponent[component.SignerComponent](
-				eCtx, data.EntityID, func(s *component.SignerComponent) *component.SignerComponent {
+				wCtx, data.EntityID, func(s *component.SignerComponent) *component.SignerComponent {
 					for _, addr := range s.AuthorizedAddresses {
 						if addr == txMsg.Address {
 							return s
@@ -152,14 +152,14 @@ func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
 
 // RegisterPersonaSystem is an system that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
-func RegisterPersonaSystem(eCtx engine.Context) error {
-	personaTagToAddress, err := buildPersonaIndex(eCtx)
+func RegisterPersonaSystem(wCtx engine.Context) error {
+	personaTagToAddress, err := buildPersonaIndex(wCtx)
 	if err != nil {
 		return err
 	}
 
 	CreatePersonaMsg.Each(
-		eCtx,
+		wCtx,
 		func(txData message.TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
 			txMsg := txData.Msg
 			result.Success = false
@@ -177,12 +177,12 @@ func RegisterPersonaSystem(eCtx engine.Context) error {
 				err = eris.Errorf("persona tag %s has already been registered", txMsg.PersonaTag)
 				return result, err
 			}
-			id, err := Create(eCtx, component.SignerComponent{})
+			id, err := Create(wCtx, component.SignerComponent{})
 			if err != nil {
 				return result, eris.Wrap(err, "")
 			}
 			if err = SetComponent[component.SignerComponent](
-				eCtx, id, &component.SignerComponent{
+				wCtx, id, &component.SignerComponent{
 					PersonaTag:    txMsg.PersonaTag,
 					SignerAddress: txMsg.SignerAddress,
 				},
@@ -212,13 +212,13 @@ type personaIndexEntry struct {
 	EntityID      types.EntityID
 }
 
-func buildPersonaIndex(eCtx engine.Context) (personaIndex, error) {
+func buildPersonaIndex(wCtx engine.Context) (personaIndex, error) {
 	personaTagToAddress := map[string]personaIndexEntry{}
 	var errs []error
-	s := NewSearch(eCtx, filter.Exact(component.SignerComponent{}))
+	s := NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
 	err := s.Each(
 		func(id types.EntityID) bool {
-			sc, err := GetComponent[component.SignerComponent](eCtx, id)
+			sc, err := GetComponent[component.SignerComponent](wCtx, id)
 			if err != nil {
 				errs = append(errs, err)
 				return true

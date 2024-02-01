@@ -188,12 +188,12 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Power](world))
 	assert.NilError(t, world.LoadGameState())
 
-	eCtx := cardinal.NewWorldContext(world)
-	_, err := cardinal.CreateMany(eCtx, 8, Health{})
+	wCtx := cardinal.NewWorldContext(world)
+	_, err := cardinal.CreateMany(wCtx, 8, Health{})
 	assert.NilError(t, err)
-	_, err = cardinal.CreateMany(eCtx, 9, Power{})
+	_, err = cardinal.CreateMany(wCtx, 9, Power{})
 	assert.NilError(t, err)
-	_, err = cardinal.CreateMany(eCtx, 10, Health{}, Power{})
+	_, err = cardinal.CreateMany(wCtx, 10, Health{}, Power{})
 	assert.NilError(t, err)
 
 	componentFilter := filter.Contains(Health{})
