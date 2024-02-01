@@ -181,8 +181,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 	world.isGameLoopRunning.Store(false)
-	// TODO(scott): move this into an internal plugin
-	world.registerInternalQueries()
+	world.registerInternalPlugin()
 
 	// Apply options
 	for _, opt := range cardinalOptions {
@@ -194,13 +193,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 	if world.eventHub == nil {
 		world.eventHub = events.NewEventHub()
-	}
-
-	// Register Persona plugin
-	personaPlugin := New()
-	err = personaPlugin.Register(world)
-	if err != nil {
-		return nil, err
 	}
 
 	return world, nil
@@ -560,35 +552,24 @@ func (w *World) handleShutdown() {
 	}()
 }
 
-func (w *World) registerInternalQueries() {
-	debugQueryType, err := NewQueryType[DebugRequest, DebugStateResponse](
-		"state",
-		queryDebugState,
-		WithCustomQueryGroup[DebugRequest, DebugStateResponse]("debug"),
-	)
-	if err != nil {
-		panic(err)
+func (w *World) RegisterPlugin(plugin Plugin) {
+	if err := plugin.Register(w); err != nil {
+		log.Fatal().Err(err).Msgf("failed to register plugin: %v", err)
 	}
+}
 
-	cqlQueryType, err := NewQueryType[CQLQueryRequest, CQLQueryResponse]("cql", queryCQL)
-	if err != nil {
-		panic(err)
-	}
+func (w *World) registerInternalPlugin() {
+	// Register Persona plugin
+	w.RegisterPlugin(newPersonaPlugin())
 
-	receiptQueryType, err := NewQueryType[ListTxReceiptsRequest, ListTxReceiptsReply](
-		"list",
-		receiptsQuery,
-		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsReply]("receipts"),
-	)
-	if err != nil {
-		panic(err)
-	}
-	w.registeredQueries = append(
-		w.registeredQueries,
-		debugQueryType,
-		cqlQueryType,
-		receiptQueryType,
-	)
+	// Register Debug plugin
+	w.RegisterPlugin(newDebugPlugin())
+
+	// Register CQL plugin
+	w.RegisterPlugin(newCQLPlugin())
+
+	// Register Receipt plugin
+	w.RegisterPlugin(newReceiptPlugin())
 }
 
 func closeAllChannels(chs []chan struct{}) {

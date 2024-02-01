@@ -6,14 +6,16 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona/query"
 )
 
-type PersonaPlugin struct {
+type personaPlugin struct {
 }
 
-func New() *PersonaPlugin {
-	return &PersonaPlugin{}
+func newPersonaPlugin() *personaPlugin {
+	return &personaPlugin{}
 }
 
-func (p *PersonaPlugin) Register(world *World) error {
+var _ Plugin = (*personaPlugin)(nil)
+
+func (p *personaPlugin) Register(world *World) error {
 	err := p.RegisterQueries(world)
 	if err != nil {
 		return err
@@ -33,7 +35,7 @@ func (p *PersonaPlugin) Register(world *World) error {
 	return nil
 }
 
-func (p *PersonaPlugin) RegisterQueries(world *World) error {
+func (p *personaPlugin) RegisterQueries(world *World) error {
 	err := RegisterQuery[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse](world, "signer",
 		query.PersonaSignerQuery,
 		WithCustomQueryGroup[query.PersonaSignerQueryRequest, query.PersonaSignerQueryResponse]("persona"))
@@ -43,7 +45,7 @@ func (p *PersonaPlugin) RegisterQueries(world *World) error {
 	return nil
 }
 
-func (p *PersonaPlugin) RegisterSystems(world *World) error {
+func (p *personaPlugin) RegisterSystems(world *World) error {
 	err := RegisterSystems(world, RegisterPersonaSystem, AuthorizePersonaAddressSystem)
 	if err != nil {
 		return err
@@ -51,7 +53,7 @@ func (p *PersonaPlugin) RegisterSystems(world *World) error {
 	return nil
 }
 
-func (p *PersonaPlugin) RegisterComponents(world *World) error {
+func (p *personaPlugin) RegisterComponents(world *World) error {
 	err := RegisterComponent[component.SignerComponent](world)
 	if err != nil {
 		return err
@@ -59,7 +61,7 @@ func (p *PersonaPlugin) RegisterComponents(world *World) error {
 	return nil
 }
 
-func (p *PersonaPlugin) RegisterMessages(world *World) error {
+func (p *personaPlugin) RegisterMessages(world *World) error {
 	err := RegisterMessages(world, CreatePersonaMsg, AuthorizePersonaAddressMsg)
 	if err != nil {
 		return err
