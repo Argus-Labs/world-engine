@@ -1,4 +1,4 @@
-package e2eclient
+package e2e_test_client
 
 import (
 	"encoding/json"

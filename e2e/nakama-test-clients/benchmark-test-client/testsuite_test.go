@@ -1,4 +1,4 @@
-package benchmarkclient
+package benchmark_test_client
 
 import (
 	"encoding/json"
