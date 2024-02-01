@@ -1,4 +1,4 @@
-package e2eclient
+package clientutils
 
 import (
 	"bytes"
@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -16,18 +18,18 @@ const (
 	envNakamaAddress = "NAKAMA_ADDRESS"
 )
 
-type nakamaClient struct {
+type NakamaClient struct {
 	addr               string
 	authHeader         string
 	notificationCursor string
 }
 
-func newClient(_ *testing.T) *nakamaClient {
+func NewNakamaClient(_ *testing.T) *NakamaClient {
 	host := os.Getenv(envNakamaAddress)
 	if host == "" {
 		host = "http://127.0.0.1:7350"
 	}
-	h := &nakamaClient{
+	h := &NakamaClient{
 		addr: host,
 	}
 	return h
@@ -51,7 +53,7 @@ type NotificationCollection struct {
 	CacheableCursor string             `json:"cacheableCursor"`
 }
 
-func (c *nakamaClient) listNotifications(k int) ([]*Content, error) {
+func (c *NakamaClient) ListNotifications(k int) ([]*Content, error) {
 	path := "v2/notification"
 	options := fmt.Sprintf("limit=%d&cursor=%s", k, c.notificationCursor)
 	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
@@ -93,7 +95,7 @@ func (c *nakamaClient) listNotifications(k int) ([]*Content, error) {
 	return acc, nil
 }
 
-func (c *nakamaClient) registerDevice(username, deviceID string) error {
+func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
 	path := "v2/account/authenticate/device"
 	options := fmt.Sprintf("create=true&username=%s", username)
 	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
@@ -132,7 +134,7 @@ func (c *nakamaClient) registerDevice(username, deviceID string) error {
 	return nil
 }
 
-func (c *nakamaClient) rpc(path string, body any) (*http.Response, error) {
+func (c *NakamaClient) RPC(path string, body any) (*http.Response, error) {
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
@@ -151,9 +153,24 @@ func (c *nakamaClient) rpc(path string, body any) (*http.Response, error) {
 	return resp, nil
 }
 
-func copyBody(r *http.Response) string {
+func CopyBody(r *http.Response) string {
 	buf, err := io.ReadAll(r.Body)
 	msg := fmt.Sprintf("response body is:\n%v\nReadAll error is:%v", string(buf), err)
 	r.Body = io.NopCloser(bytes.NewReader(buf))
 	return msg
+}
+
+const chars = "abcdefghijklmnopqrstuvwxyz"
+
+func Triple(s string) (string, string, string) {
+	return s, s, s
+}
+
+func RandomString() string {
+	b := &strings.Builder{}
+	for i := 0; i < 10; i++ {
+		n := rand.Intn(len(chars)) //nolint:gosec // it's fine just a test.
+		b.WriteString(chars[n : n+1])
+	}
+	return b.String()
 }

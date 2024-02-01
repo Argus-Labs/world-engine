@@ -1,4 +1,4 @@
-package benchmarkclient
+package chain
 
 import (
 	"bytes"
@@ -8,8 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"testing"
-	"time"
 )
 
 const (
@@ -21,7 +19,7 @@ type nakamaClient struct {
 	authHeader string
 }
 
-func newClient(_ *testing.T) *nakamaClient {
+func newClient() *nakamaClient {
 	host := os.Getenv(envNakamaAddress)
 	if host == "" {
 		host = "http://127.0.0.1:7350"
@@ -30,24 +28,6 @@ func newClient(_ *testing.T) *nakamaClient {
 		addr: host,
 	}
 	return h
-}
-
-type NotificationItem struct {
-	ID         string    `json:"id"`
-	Subject    string    `json:"subject"`
-	Content    string    `json:"content"`
-	Code       int       `json:"code"`
-	CreateTime time.Time `json:"createTime"`
-	Persistent bool      `json:"persistent"`
-}
-
-type Content struct {
-	Message string `json:"message"`
-}
-
-type NotificationCollection struct {
-	Notifications   []NotificationItem `json:"notifications"`
-	CacheableCursor string             `json:"cacheableCursor"`
 }
 
 func (c *nakamaClient) registerDevice(username, deviceID string) error {
@@ -72,17 +52,16 @@ func (c *nakamaClient) registerDevice(username, deviceID string) error {
 	req.SetBasicAuth("defaultkey", "")
 
 	resp, err := http.DefaultClient.Do(req)
-	//	resp, err := http.Post(url, "application/json", reader)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		buf, err := io.ReadAll(resp.Body)
+		buf, err = io.ReadAll(resp.Body)
 		return fmt.Errorf("request failed with status code %d. body is:\n%v\nerror:%w", resp.StatusCode, string(buf), err)
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return fmt.Errorf("failed to decode body: %w", err)
 	}
 	c.authHeader = fmt.Sprintf("Bearer %s", body["token"].(string))
@@ -106,11 +85,4 @@ func (c *nakamaClient) rpc(path string, body any) (*http.Response, error) {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	return resp, nil
-}
-
-func copyBody(r *http.Response) string {
-	buf, err := io.ReadAll(r.Body)
-	msg := fmt.Sprintf("response body is:\n%v\nReadAll error is:%v", string(buf), err)
-	r.Body = io.NopCloser(bytes.NewReader(buf))
-	return msg
 }
