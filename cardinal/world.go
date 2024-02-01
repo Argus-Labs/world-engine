@@ -75,17 +75,25 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Load config. Fallback value is used if it's not set.
 	cfg := getWorldConfig()
+	if err := cfg.Validate(); err != nil {
+		return nil, eris.Wrapf(err, "invalid configuration")
+	}
 
 	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
 		return nil, eris.Wrap(err, "")
 	}
 
+	log.Logger.Info().Msgf("Starting a new Cardinal world in %s mode", cfg.CardinalMode)
 	if cfg.CardinalMode == RunModeProd {
-		if err := applyProductionOptions(cfg, &ecsOptions); err != nil {
-			return nil, err
+		a, err := adapter.New(adapter.Config{
+			ShardSequencerAddr: cfg.BaseShardSequencerAddress,
+			EVMBaseShardAddr:   cfg.BaseShardQueryAddress,
+		})
+		if err != nil {
+			return nil, eris.Wrapf(err, "failed to instantiate adapter")
 		}
+		ecsOptions = append(ecsOptions, ecs.WithAdapter(a))
 	} else {
-		log.Logger.Info().Msg("Starting a new Cardinal world in development mode")
 		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
 	}
@@ -156,34 +164,6 @@ func setLogLevel(levelStr string) error {
 		return eris.Errorf("log level %q is invalid, try one of: %v.", levelStr, exampleLogLevels)
 	}
 	zerolog.SetGlobalLevel(level)
-	return nil
-}
-
-func applyProductionOptions(
-	cfg WorldConfig,
-	ecsOptions *[]ecs.Option,
-) error {
-	log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
-	if cfg.RedisPassword == "" {
-		return eris.New("REDIS_PASSWORD is required in production")
-	}
-	if cfg.CardinalNamespace == DefaultNamespace {
-		return eris.New(
-			"CARDINAL_NAMESPACE cannot be the default value in production to avoid replay attack",
-		)
-	}
-	if cfg.BaseShardSequencerAddress == "" || cfg.BaseShardQueryAddress == "" {
-		return eris.New("must supply BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_QUERY_ADDRESS for production " +
-			"mode Cardinal worlds")
-	}
-	adapter, err := adapter.New(adapter.Config{
-		ShardSequencerAddr: cfg.BaseShardSequencerAddress,
-		EVMBaseShardAddr:   cfg.BaseShardQueryAddress,
-	})
-	if err != nil {
-		return eris.Wrapf(err, "failed to instantiate adapter")
-	}
-	*ecsOptions = append(*ecsOptions, ecs.WithAdapter(adapter))
 	return nil
 }
 
