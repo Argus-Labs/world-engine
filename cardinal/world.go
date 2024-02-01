@@ -253,7 +253,7 @@ func (w *World) Tick(ctx context.Context) error {
 	w.timestamp.Store(uint64(startTime.Unix()))
 
 	// Create the engine context to inject into systems
-	wCtx := NewWorldContext(w)
+	wCtx := NewWorldContextForTick(w, txQueue)
 
 	// Run all registered systems.
 	// This will run the registsred init systems if the current tick is 0

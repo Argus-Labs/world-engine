@@ -18,10 +18,19 @@ type worldContext struct {
 	readOnly bool
 }
 
+func NewWorldContextForTick(world *World, txQueue *txpool.TxQueue) engine.Context {
+	return &worldContext{
+		world:    world,
+		txQueue:  txQueue,
+		logger:   world.Logger,
+		readOnly: false,
+	}
+}
+
 func NewWorldContext(world *World) engine.Context {
 	return &worldContext{
 		world:    world,
-		txQueue:  world.txQueue,
+		txQueue:  nil,
 		logger:   world.Logger,
 		readOnly: false,
 	}
@@ -61,15 +70,21 @@ func (ctx *worldContext) GetComponentByName(name string) (types.ComponentMetadat
 }
 
 func (ctx *worldContext) AddMessageError(id types.TxHash, err error) {
-	ctx.world.AddMessageError(id, err)
+	// TODO(scott): i dont trust exposing this to the users. this should be fully abstracted away.
+	ctx.world.receiptHistory.AddError(id, err)
 }
 
 func (ctx *worldContext) SetMessageResult(id types.TxHash, a any) {
-	ctx.world.SetMessageResult(id, a)
+	// TODO(scott): i dont trust exposing this to the users. this should be fully abstracted away.
+	ctx.world.receiptHistory.SetResult(id, a)
 }
 
 func (ctx *worldContext) GetTransactionReceipt(id types.TxHash) (any, []error, bool) {
-	return ctx.world.GetTransactionReceipt(id)
+	rec, ok := ctx.world.receiptHistory.GetReceipt(id)
+	if !ok {
+		return nil, nil, false
+	}
+	return rec.Result, rec.Errs, true
 }
 
 func (ctx *worldContext) EmitEvent(event string) {
@@ -85,7 +100,7 @@ func (ctx *worldContext) GetTransactionReceiptsForTick(tick uint64) ([]receipt.R
 }
 
 func (ctx *worldContext) ReceiptHistorySize() uint64 {
-	return ctx.world.ReceiptHistorySize()
+	return ctx.world.receiptHistory.Size()
 }
 
 func (ctx *worldContext) Namespace() string {
