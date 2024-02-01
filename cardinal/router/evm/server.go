@@ -1,5 +1,6 @@
 package evm
 
+/*
 import (
 	"context"
 	"crypto/tls"
@@ -257,7 +258,7 @@ func (s *msgServerImpl) SendMessage(_ context.Context, msg *routerv1.SendMessage
 	}
 
 	// check for the tx receipt.
-	receipt, ok := s.world.ConsumeEVMMsgResult(msg.EvmTxHash)
+	receipt, ok := s.world.GetEVMMsgResult(msg.EvmTxHash)
 	if !ok {
 		return &routerv1.SendMessageResponse{
 			EvmTxHash: msg.EvmTxHash,
@@ -347,3 +348,5 @@ func (s *msgServerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardRe
 	zerolog.Logger.Debug().Msgf("sending back reply: %v", reply)
 	return &routerv1.QueryShardResponse{Response: bz}, nil
 }
+
+*/

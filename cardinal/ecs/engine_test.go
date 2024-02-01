@@ -4,13 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
+	"github.com/ethereum/go-ethereum/common"
 	"testing"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
-
-	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 
@@ -149,13 +146,13 @@ func TestEVMTxConsume(t *testing.T) {
 	returnVal = FooOut{Y: "hi"}
 	returnErr = nil
 	assert.NilError(t, e.Tick(ctx))
-	evmTxReceipt, ok := e.ConsumeEVMMsgResult(evmTxHash)
+	evmTxReceipt, ok := e.GetEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, true)
 	assert.Check(t, len(evmTxReceipt.ABIResult) > 0)
 	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
 	assert.Equal(t, len(evmTxReceipt.Errs), 0)
 	// shouldn't be able to consume it again.
-	_, ok = e.ConsumeEVMMsgResult(evmTxHash)
+	_, ok = e.GetEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, false)
 
 	// lets check against a system that returns an error
@@ -163,14 +160,14 @@ func TestEVMTxConsume(t *testing.T) {
 	returnErr = errors.New("omg error")
 	e.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 	assert.NilError(t, e.Tick(ctx))
-	evmTxReceipt, ok = e.ConsumeEVMMsgResult(evmTxHash)
+	evmTxReceipt, ok = e.GetEVMMsgResult(evmTxHash)
 
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(evmTxReceipt.ABIResult), 0)
 	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
 	assert.Equal(t, len(evmTxReceipt.Errs), 1)
 	// shouldn't be able to consume it again.
-	_, ok = e.ConsumeEVMMsgResult(evmTxHash)
+	_, ok = e.GetEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, false)
 }
 
@@ -294,9 +291,7 @@ func (d *dummyAdapter) QueryTransactions(_ context.Context, _ *types.QueryTransa
 	return &types.QueryTransactionsResponse{}, nil
 }
 
-var _ adapter.Adapter = &dummyAdapter{}
-
-// TestAdapterCalledAfterTick tests that when messages are executed in a tick, they are forwarded to the adapter.
+TestAdapterCalledAfterTick tests that when messages are executed in a tick, they are forwarded to the adapter.
 func TestAdapterCalledAfterTick(t *testing.T) {
 	adapter := &dummyAdapter{}
 	engine := testutils.NewTestFixture(t, nil, cardinal.WithAdapter(adapter)).Engine

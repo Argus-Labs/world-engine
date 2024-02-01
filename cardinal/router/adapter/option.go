@@ -1,5 +1,6 @@
 package adapter
 
+/*
 import "github.com/rotisserie/eris"
 
 type Option func(adapter *adapterImpl)
@@ -16,3 +17,4 @@ func WithCredentials(credPath string) Option {
 		a.creds = creds
 	}
 }
+*/

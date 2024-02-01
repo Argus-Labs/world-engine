@@ -1,5 +1,6 @@
 package evm
 
+/*
 type Option func(*msgServerImpl)
 
 func WithCredentials(certPath, keyPath string) Option {
@@ -20,3 +21,5 @@ func WithPort(port string) Option {
 		impl.port = port
 	}
 }
+
+*/

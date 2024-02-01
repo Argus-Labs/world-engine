@@ -1,5 +1,6 @@
 package adapter
 
+/*
 import (
 	"context"
 	"github.com/ethereum/go-ethereum/common"
@@ -77,3 +78,4 @@ func TestSubmitsCorrectData(t *testing.T) {
 	assert.Equal(t, req.Transactions[3].Txs[0].PersonaTag, txp[3][0].Tx.PersonaTag)
 	assert.Equal(t, req.Transactions[3].Txs[0].Namespace, txp[3][0].Tx.Namespace)
 }
+*/

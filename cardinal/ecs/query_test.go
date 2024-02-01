@@ -1,16 +1,12 @@
 package ecs_test
 
 import (
-	"context"
-	"pkg.world.dev/world-engine/cardinal/shard/evm"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
-
-	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 )
 
 func TestQueryTypeNotStructs(t *testing.T) {
@@ -26,7 +22,6 @@ func TestQueryTypeNotStructs(t *testing.T) {
 }
 
 func TestQueryEVM(t *testing.T) {
-	// --- TEST SETUP ---
 	type FooRequest struct {
 		ID string
 	}
@@ -54,8 +49,6 @@ func TestQueryEVM(t *testing.T) {
 	assert.NilError(t, err)
 	err = engine.RegisterMessages(ecs.NewMessageType[struct{}, struct{}]("blah"))
 	assert.NilError(t, err)
-	s, err := evm.NewServer(engine)
-	assert.NilError(t, err)
 
 	// create the abi encoded bytes that the EVM would send.
 	fooQuery, err := engine.GetQueryByName("foo")
@@ -64,21 +57,15 @@ func TestQueryEVM(t *testing.T) {
 	assert.NilError(t, err)
 
 	// query the resource.
-	res, err := s.QueryShard(context.Background(), &routerv1.QueryShardRequest{
-		Resource: fooQuery.Name(),
-		Request:  bz,
-	})
+	bz, err = engine.HandleEVMQuery("foo", bz)
 	assert.NilError(t, err)
 
-	// decode the reply
-	replyAny, err := fooQuery.DecodeEVMReply(res.Response)
-	assert.NilError(t, err)
+	reply, err := fooQuery.DecodeEVMReply(bz)
 
-	// cast to reply type
-	reply, ok := replyAny.(FooReply)
-	assert.Equal(t, ok, true)
-	// should be same!
-	assert.Equal(t, reply, expectedReply)
+	gotReply, ok := reply.(FooReply)
+	assert.True(t, ok, "could not cast %T to %T", reply, FooReply{})
+
+	assert.Equal(t, gotReply, expectedReply)
 }
 
 func TestErrOnNoNameOrHandler(t *testing.T) {

@@ -1,5 +1,6 @@
 package adapter
 
+/*
 import (
 	"context"
 	"crypto/tls"
@@ -146,3 +147,4 @@ func transactionToProto(sp *sign.Transaction) *shard.Transaction {
 		Body:       sp.Body,
 	}
 }
+*/

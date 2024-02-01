@@ -93,6 +93,33 @@ type Engine struct {
 	shutdownMutex sync.Mutex
 }
 
+func (e *Engine) ConsumeEVMMsgResult(evmTxHash string) ([]byte, []error, string, bool) {
+	rcpt, exists := e.consumeEVMMsgResult(evmTxHash)
+	return rcpt.ABIResult, rcpt.Errs, rcpt.EVMTxHash, exists
+}
+
+func (e *Engine) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
+	qry, err := e.GetQueryByName(name)
+	if err != nil {
+		return nil, err
+	}
+	req, err := qry.DecodeEVMRequest(abiRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	reply, err := qry.HandleQuery(NewReadOnlyEngineContext(e), req)
+	if err != nil {
+		return nil, err
+	}
+
+	return qry.EncodeEVMReply(reply)
+}
+
+func (e *Engine) GetEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
+	return e.consumeEVMMsgResult(evmTxHash)
+}
+
 func (e *Engine) GetMessageByName(s string) (message.Message, bool) {
 	for _, msg := range e.registeredMessages {
 		if msg.Name() == s {
@@ -100,10 +127,6 @@ func (e *Engine) GetMessageByName(s string) (message.Message, bool) {
 		}
 	}
 	return nil, false
-}
-
-func (e *Engine) HandleQuery(query Query, request any) (any, error) {
-	return query.HandleQuery(NewReadOnlyEngineContext(e), request)
 }
 
 func (e *Engine) GetPersonaForEVMAddress(addr string) (string, error) {
@@ -466,9 +489,9 @@ func (e *Engine) Remove(id entity.ID) error {
 	return e.GameStateManager().RemoveEntity(id)
 }
 
-// ConsumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
+// consumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
 // It will fetch the receipt from the map, and then delete ('consume') it from the map.
-func (e *Engine) ConsumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
+func (e *Engine) consumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
 	r, ok := e.evmTxReceipts[evmTxHash]
 	delete(e.evmTxReceipts, evmTxHash)
 	return r, ok
@@ -751,6 +774,9 @@ func (e *Engine) Shutdown() error {
 		return err
 	}
 	log.Info().Msg("Successfully closed storage connection.")
+	if e.router != nil {
+		e.router.Shutdown()
+	}
 	return nil
 }
 

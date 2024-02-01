@@ -1,5 +1,6 @@
 package evm_test
 
+/*
 import (
 	"context"
 	"pkg.world.dev/world-engine/cardinal/shard/evm"
@@ -217,3 +218,6 @@ func TestServer_UnauthorizedAddress(t *testing.T) {
 	assert.Equal(t, res.Code, uint32(evm.CodeUnauthorized))
 	assert.Check(t, strings.Contains(res.Errs, "failed to authorize"))
 }
+
+
+*/

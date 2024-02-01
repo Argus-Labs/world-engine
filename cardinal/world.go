@@ -14,8 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"pkg.world.dev/world-engine/cardinal/router/evm"
-
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -45,7 +43,6 @@ var (
 type World struct {
 	instance        *ecs.Engine
 	server          *server.Server
-	evmServer       evm.Server
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
@@ -310,21 +307,6 @@ func (w *World) StartGame() error {
 	}
 	w.server = srvr
 
-	w.evmServer, err = evm.NewServer(w.instance)
-	if err != nil {
-		if !errors.Is(eris.Cause(err), evm.ErrNoEVMTypes) {
-			return err
-		}
-		w.instance.Logger.Debug().
-			Msgf("no EVM messages or queries specified. EVM server will not run: %s", eris.ToString(err, true))
-	} else {
-		w.instance.Logger.Debug().Msg("running world with EVM server")
-		err = w.evmServer.Serve()
-		if err != nil {
-			return err
-		}
-	}
-
 	if w.tickChannel == nil {
 		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
@@ -365,9 +347,6 @@ func (w *World) Shutdown() error {
 	defer func() {
 		w.gameSequenceStage.Store(gamestage.StageShutDown)
 	}()
-	if w.evmServer != nil {
-		w.evmServer.Shutdown()
-	}
 	if w.server != nil {
 		if err := w.server.Shutdown(); err != nil {
 			return err

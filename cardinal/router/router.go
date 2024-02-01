@@ -8,7 +8,7 @@ import (
 	zerolog "github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"net"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
@@ -23,12 +23,11 @@ const (
 
 type Provider interface {
 	GetMessageByName(string) (message.Message, bool)
-	GetQueryByName(string) (ecs.Query, error)
-	HandleQuery(query ecs.Query, request any) (any, error)
+	HandleEVMQuery(name string, abiRequest []byte) ([]byte, error)
 	GetPersonaForEVMAddress(string) (string, error)
 	WaitForNextTick() bool
 	AddEVMTransaction(id message.TypeID, msgValue any, tx *sign.Transaction, evmTxHash string) (tick uint64, txHash message.TxHash)
-	ConsumeEVMMsgResult(evmTxHash string) (ecs.EVMTxReceipt, bool)
+	ConsumeEVMMsgResult(evmTxHash string) ([]byte, []error, string, bool)
 }
 
 type Router interface {
@@ -44,9 +43,13 @@ type Router interface {
 		*shardtypes.QueryTransactionsResponse,
 		error,
 	)
+
+	Shutdown()
+	Run() error
 }
 
-var _ routerv1.MsgServer = &routerImpl{}
+var _ routerv1.MsgServer = (*routerImpl)(nil)
+var _ Router = (*routerImpl)(nil)
 
 type routerImpl struct {
 	routerv1.MsgServer
@@ -55,7 +58,31 @@ type routerImpl struct {
 	ShardSequencer shard.TransactionHandlerClient
 	ShardQuerier   shardtypes.QueryClient
 
-	port string
+	port     string
+	shutdown func()
+}
+
+func (r *routerImpl) Shutdown() {
+	if r.shutdown != nil {
+		r.shutdown()
+	}
+}
+
+func (r *routerImpl) Run() error {
+	server := grpc.NewServer()
+	routerv1.RegisterMsgServer(server, r)
+	listener, err := net.Listen("tcp", ":"+r.port)
+	if err != nil {
+		return eris.Wrapf(err, "error listening to port %s", r.port)
+	}
+	go func() {
+		err = eris.Wrap(server.Serve(listener), "error serving server")
+		if err != nil {
+			zerolog.Fatal().Err(err).Msg(eris.ToString(err, true))
+		}
+	}()
+	r.shutdown = server.GracefulStop
+	return nil
 }
 
 func New(sequencerAddr, baseShardQueryAddr string, opts ...Option) (Router, error) {
@@ -142,7 +169,7 @@ func (r *routerImpl) SendMessage(_ context.Context, req *routerv1.SendMessageReq
 	}
 
 	// check for the msgValue receipt.
-	receipt, exists := r.provider.ConsumeEVMMsgResult(req.EvmTxHash)
+	result, errs, evmTxHash, exists := r.provider.ConsumeEVMMsgResult(req.EvmTxHash)
 	if !exists {
 		return &routerv1.SendMessageResponse{
 			EvmTxHash: req.EvmTxHash,
@@ -153,14 +180,14 @@ func (r *routerImpl) SendMessage(_ context.Context, req *routerv1.SendMessageReq
 	// we got a receipt, so lets clean it up and return it.
 	var errStr string
 	code := CodeSuccess
-	if retErr := errors.Join(receipt.Errs...); retErr != nil {
+	if retErr := errors.Join(errs...); retErr != nil {
 		code = CodeTxFailed
 		errStr = retErr.Error()
 	}
 	return &routerv1.SendMessageResponse{
 		Errs:      errStr,
-		Result:    receipt.ABIResult,
-		EvmTxHash: receipt.EVMTxHash,
+		Result:    result,
+		EvmTxHash: evmTxHash,
 		Code:      uint32(code),
 	}, nil
 }
@@ -170,28 +197,13 @@ func (r *routerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardReque
 	*routerv1.QueryShardResponse, error,
 ) {
 	zerolog.Logger.Debug().Msgf("get request for %q", req.Resource)
-	queryType, err := r.provider.GetQueryByName(req.Resource)
-	if err != nil || !queryType.IsEVMCompatible() {
-		return nil, eris.Errorf("query %q was either not found or not EVM compatible", req.Resource)
-	}
-	ecsRequest, err := queryType.DecodeEVMRequest(req.Request)
-	if err != nil {
-		zerolog.Logger.Error().Err(err).Msg("failed to decode query request")
-		return nil, err
-	}
-	reply, err := r.provider.HandleQuery(queryType, ecsRequest)
+	reply, err := r.provider.HandleEVMQuery(req.Resource, req.Request)
 	if err != nil {
 		zerolog.Logger.Error().Err(err).Msg("failed to handle query")
 		return nil, err
 	}
-	zerolog.Logger.Debug().Msg("successfully handled query")
-	bz, err := queryType.EncodeEVMReply(reply)
-	if err != nil {
-		zerolog.Logger.Error().Err(err).Msg("failed to encode query reply for EVM")
-		return nil, err
-	}
 	zerolog.Logger.Debug().Msgf("sending back reply: %v", reply)
-	return &routerv1.QueryShardResponse{Response: bz}, nil
+	return &routerv1.QueryShardResponse{Response: reply}, nil
 }
 
 // TODO(Tyler): expose a wrapper for QueryTransactions so callers don't have to import shardtypes.
