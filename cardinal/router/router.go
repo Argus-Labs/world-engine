@@ -23,7 +23,7 @@ const (
 
 type Provider interface {
 	GetMessageByName(string) (message.Message, bool)
-	GetQueryByName(string) (ecs.Query, bool)
+	GetQueryByName(string) (ecs.Query, error)
 	HandleQuery(query ecs.Query, request any) (any, error)
 	GetPersonaForEVMAddress(string) (string, error)
 	WaitForNextTick() bool
@@ -32,6 +32,18 @@ type Provider interface {
 }
 
 type Router interface {
+	Submit(
+		ctx context.Context,
+		processedTxs txpool.TxMap,
+		namespace string,
+		epoch,
+		unixTimestamp uint64,
+	) error
+
+	QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
+		*shardtypes.QueryTransactionsResponse,
+		error,
+	)
 }
 
 var _ routerv1.MsgServer = &routerImpl{}
@@ -76,20 +88,6 @@ const (
 	CodeUnsupportedMessage
 	CodeInvalidFormat
 )
-
-type TransactionIterator struct {
-	client    shardtypes.QueryClient
-	namespace string
-}
-
-func Next()
-
-func (r *routerImpl) IterateTransactions(ctx context.Context, namespace string) *TransactionIterator {
-	return &TransactionIterator{
-		client:    r.ShardQuerier,
-		namespace: namespace,
-	}
-}
 
 // SendMessage is the server impl that receives SendMessage requests from the base shard client.
 func (r *routerImpl) SendMessage(_ context.Context, req *routerv1.SendMessageRequest) (*routerv1.SendMessageResponse, error) {
@@ -172,8 +170,8 @@ func (r *routerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardReque
 	*routerv1.QueryShardResponse, error,
 ) {
 	zerolog.Logger.Debug().Msgf("get request for %q", req.Resource)
-	queryType, ok := r.provider.GetQueryByName(req.Resource)
-	if !ok || !queryType.IsEVMCompatible() {
+	queryType, err := r.provider.GetQueryByName(req.Resource)
+	if err != nil || !queryType.IsEVMCompatible() {
 		return nil, eris.Errorf("query %q was either not found or not EVM compatible", req.Resource)
 	}
 	ecsRequest, err := queryType.DecodeEVMRequest(req.Request)
@@ -199,14 +197,6 @@ func (r *routerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardReque
 // TODO(Tyler): expose a wrapper for QueryTransactions so callers don't have to import shardtypes.
 // consider an iterator pattern.
 
-func (r *routerImpl) QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
-	*shardtypes.QueryTransactionsResponse,
-	error,
-) {
-	res, err := r.ShardQuerier.Transactions(ctx, req)
-	return res, eris.Wrap(err, "")
-}
-
 func (r *routerImpl) Submit(
 	ctx context.Context,
 	processedTxs txpool.TxMap,
@@ -230,6 +220,13 @@ func (r *routerImpl) Submit(
 	}
 	_, err := r.ShardSequencer.Submit(ctx, &req)
 	return eris.Wrap(err, "")
+}
+func (r *routerImpl) QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
+	*shardtypes.QueryTransactionsResponse,
+	error,
+) {
+	res, err := r.ShardQuerier.Transactions(ctx, req)
+	return res, eris.Wrap(err, "")
 }
 
 func transactionToProto(sp *sign.Transaction) *shard.Transaction {
