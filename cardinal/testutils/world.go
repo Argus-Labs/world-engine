@@ -120,11 +120,8 @@ func (t *TestFixture) StartWorld() {
 // DoTick executes one game tick and blocks until the tick is complete. StartWorld is automatically called if it was
 // not called before the first tick.
 func (t *TestFixture) DoTick() {
-	t.Log("000")
 	t.StartWorld()
-	t.Log("111")
 	t.StartTickCh <- time.Now()
-	t.Log("222")
 	<-t.DoneTickCh
 }
 

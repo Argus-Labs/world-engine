@@ -230,13 +230,10 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 	w.WorldState = WorldStateRunning
 
-	fmt.Println("TICK")
-
 	// This defer is here to catch any panics that occur during the tick. It will log the current tick and the
 	// current system that is running.
 	defer func() {
 		if panicValue := recover(); panicValue != nil {
-			fmt.Println("Panic caught in tick")
 			w.Logger.Error().Msgf("Tick: %d, Current running system: %s", w.CurrentTick(),
 				w.systemManager.GetCurrentSystem())
 			panic(panicValue)
@@ -257,7 +254,6 @@ func (w *World) Tick(ctx context.Context) error {
 	if err := w.entityStore.StartNextTick(w.msgManager.GetRegisteredMessages(), txQueue); err != nil {
 		return err
 	}
-	fmt.Println("TICK")
 
 	// Set the timestamp for this tick
 	startTime := time.Now()
@@ -275,22 +271,17 @@ func (w *World) Tick(ctx context.Context) error {
 	}
 
 	// Run all the systems
-	fmt.Println("a")
 	err := w.systemManager.RunSystems(eCtx)
 	if err != nil {
 		return err
 	}
-	fmt.Println("b")
 
 	if w.eventHub != nil {
 		// engine can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
-		fmt.Println("grrrr")
 		flushEventStart := time.Now()
 		w.eventHub.FlushEvents()
-		fmt.Println("awooo")
 		statsd.EmitTickStat(flushEventStart, "flush_events")
 	}
-	fmt.Println("TICK")
 
 	finalizeTickStartTime := time.Now()
 	if err := w.entityStore.FinalizeTick(ctx); err != nil {
@@ -305,7 +296,6 @@ func (w *World) Tick(ctx context.Context) error {
 			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
 		}
 	}
-	fmt.Println("TICK")
 
 	w.tick.Add(1)
 	w.receiptHistory.NextTick()
@@ -385,9 +375,7 @@ func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, t
 		for {
 			select {
 			case <-tickStart:
-				fmt.Println("bing")
 				w.tickTheEngine(ctx, tickDone)
-				fmt.Println("bong")
 				closeAllChannels(waitingChs)
 				waitingChs = waitingChs[:0]
 			case <-w.endGameLoopCh:
@@ -451,15 +439,11 @@ func (w *World) Shutdown() error {
 	if w.cleanup != nil {
 		w.cleanup()
 	}
-	fmt.Println("aaaaa")
-	fmt.Println(w.gameSequenceStage.Load())
 	//ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageRunning, gamestage.StageShuttingDown)
 	//if !ok {
-	//	fmt.Println("errr swap")
 	//	// Either the world hasn't been started, or we've already shut down.
 	//	return nil
 	//}
-	fmt.Println("bbbb")
 	// The CompareAndSwap returned true, so this call is responsible for actually
 	// shutting down the game.
 	defer func() {
@@ -476,7 +460,6 @@ func (w *World) Shutdown() error {
 	if !w.isGameLoopRunning.Load() {
 		return nil
 	}
-	fmt.Println("eeee")
 
 	log.Info().Msg("Shutting down game loop.")
 	w.endGameLoopCh <- true
@@ -714,11 +697,8 @@ func (w *World) GameStateManager() gamestate.Manager {
 func (w *World) WaitForNextTick() (success bool) {
 	startTick := w.CurrentTick()
 	ch := make(chan struct{})
-	fmt.Println("a")
 	w.addChannelWaitingForNextTick <- ch
-	fmt.Println("b")
 	<-ch
-	fmt.Println("c")
 	return w.CurrentTick() > startTick
 }
 
