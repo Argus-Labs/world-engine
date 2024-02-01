@@ -109,3 +109,115 @@ func TestQueryExample(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 10, len(resp.(*QueryHealthResponse).IDs))
 }
+
+func TestQueryTypeNotStructs(t *testing.T) {
+	str := "blah"
+	err := cardinal.RegisterQuery[string, string](
+		testutils.NewTestFixture(t, nil).World,
+		"foo",
+		func(eCtx engine.Context, req *string) (*string, error) {
+			return &str, nil
+		},
+	)
+	assert.ErrorContains(t, err, "the Request and Reply generics must be both structs")
+}
+
+func TestQueryEVM(t *testing.T) {
+	t.Skipf("skipping until evm server is fixed")
+	// --- TEST SETUP ---
+	//type FooRequest struct {
+	//	ID string
+	//}
+	//type FooReply struct {
+	//	Name string
+	//	Age  uint64
+	//}
+	//
+	//expectedReply := FooReply{
+	//	Name: "Chad",
+	//	Age:  22,
+	//}
+	//
+	//world := testutils.NewTestFixture(t, nil).World
+	//err := cardinal.RegisterQuery[FooRequest, FooReply](
+	//	world,
+	//	"foo",
+	//	func(
+	//		eCtx engine.Context, req *FooRequest,
+	//	) (*FooReply, error) {
+	//		return &expectedReply, nil
+	//	},
+	//	cardinal.WithQueryEVMSupport[FooRequest, FooReply](),
+	//)
+	//
+	//assert.NilError(t, err)
+	//err = cardinal.RegisterMessages(world, cardinal.NewMessageType[struct{}, struct{}]("blah"))
+	//assert.NilError(t, err)
+	//// TODO(scott): fix this
+	////s, err := evm.NewServer(world)
+	//assert.NilError(t, err)
+	//
+	//// cardinal.Create the abi encoded bytes that the EVM would send.
+	//fooQuery, err := world.GetQueryByName("foo")
+	//assert.NilError(t, err)
+	//bz, err := fooQuery.EncodeAsABI(FooRequest{ID: "foo"})
+	//assert.NilError(t, err)
+	//
+	//// query the resource.
+	//res, err := s.QueryShard(context.Background(), &routerv1.QueryShardRequest{
+	//	Resource: fooQuery.Name(),
+	//	Request:  bz,
+	//})
+	//assert.NilError(t, err)
+	//
+	//// decode the reply
+	//replyAny, err := fooQuery.DecodeEVMReply(res.Response)
+	//assert.NilError(t, err)
+	//
+	//// cast to reply type
+	//reply, ok := replyAny.(FooReply)
+	//assert.Equal(t, ok, true)
+	//// should be same!
+	//assert.Equal(t, reply, expectedReply)
+}
+
+func TestErrOnNoNameOrHandler(t *testing.T) {
+	type foo struct{}
+	testCases := []struct {
+		name        string
+		CreateQuery func() error
+		shouldErr   bool
+	}{
+		{
+			name: "error on no name",
+			CreateQuery: func() error {
+				return cardinal.RegisterQuery[foo, foo](
+					testutils.NewTestFixture(t, nil).World,
+					"",
+					nil)
+			},
+			shouldErr: true,
+		},
+		{
+			name: "error on no handler",
+			CreateQuery: func() error {
+				return cardinal.RegisterQuery[foo, foo](
+					testutils.NewTestFixture(t, nil).World,
+					"foo",
+					nil)
+			},
+			shouldErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.shouldErr {
+				err := tc.CreateQuery()
+				assert.Assert(t, err != nil)
+			} else {
+				assert.NilError(t, tc.CreateQuery())
+			}
+		})
+	}
+}
