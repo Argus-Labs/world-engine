@@ -3,10 +3,14 @@ package main
 // cardinal.go wraps the http requests to some cardinal endpoints.
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
+	"pkg.world.dev/world-engine/relay/nakama/persona"
+	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
+	"strings"
 
 	"github.com/rotisserie/eris"
 )
@@ -39,4 +43,51 @@ func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err 
 	txEndpoints = ep.TxEndpoints
 	queryEndpoints = ep.QueryEndpoints
 	return txEndpoints, queryEndpoints, err
+}
+
+func makeRequestAndReadResp(
+	ctx context.Context,
+	notifier *receipt.Notifier,
+	endpoint string,
+	payload io.Reader,
+) (res string, err error) {
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		utils.MakeHTTPURL(endpoint, globalCardinalAddress),
+		payload,
+	)
+	req.Header.Set("Content-Type", "application/json")
+	if err != nil {
+		return res, eris.Wrapf(err, "request setup failed for endpoint %q", endpoint)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return res, eris.Wrapf(err, "request failed for endpoint %q", endpoint)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return res, eris.Wrapf(err, "failed to read response body, bad status code: %s: %s", resp.Status, body)
+		}
+		return res, eris.Errorf("bad status code: %d: %s", resp.StatusCode, body)
+	}
+	bz, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return res, eris.Wrap(err, "can't ready body")
+	}
+	if strings.HasPrefix(endpoint, TransactionEndpointPrefix) {
+		var asTx persona.TxResponse
+
+		if err = json.Unmarshal(bz, &asTx); err != nil {
+			return res, eris.Wrap(err, "can't decode body as tx response")
+		}
+		userID, err := utils.GetUserID(ctx)
+		if err != nil {
+			return res, eris.Wrap(err, "unable to get user id")
+		}
+		notifier.AddTxHashToPendingNotifications(asTx.TxHash, userID)
+	}
+	return string(bz), nil
 }
