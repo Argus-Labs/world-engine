@@ -17,14 +17,14 @@ type Verifier struct {
 	// txHashToPending keeps track of the state of pending claim persona tag requests. A sync.Map is not required
 	// because all map updates happen in a single goroutine. Updates are transmitted to the goroutine
 	// via the receiptCh channel and the pendingCh channel.
-	txHashToPending map[string]pendingPersonaTagRequest
+	txHashToPending map[string]pendingRequest
 	receiptCh       chan *receipt.Receipt
 	pendingCh       chan txHashAndUserID
 	nk              runtime.NakamaModule
 	logger          runtime.Logger
 }
 
-type pendingPersonaTagRequest struct {
+type pendingRequest struct {
 	lastUpdate time.Time
 	userID     string
 	status     personaTagStatus
@@ -48,7 +48,7 @@ func NewVerifier(logger runtime.Logger, nk runtime.NakamaModule, rd *receipt.Rec
 ) *Verifier {
 	channelLimit := 100
 	ptv := &Verifier{
-		txHashToPending: map[string]pendingPersonaTagRequest{},
+		txHashToPending: map[string]pendingRequest{},
 		receiptCh:       make(chan *receipt.Receipt, channelLimit),
 		pendingCh:       make(chan txHashAndUserID),
 		nk:              nk,
