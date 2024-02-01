@@ -31,7 +31,7 @@ func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		buf, _ := io.ReadAll(resp.Body)
-		err = eris.Errorf("list endpoints (at %q) failed with status code %d: %v",
+		err = eris.Errorf("list endpoints (at %q) failed with status code %s: %v",
 			url, resp.Status, string(buf))
 		return txEndpoints, queryEndpoints, err
 	}
@@ -71,7 +71,7 @@ func makeRequestAndReadResp(
 		if err != nil {
 			return res, eris.Wrapf(err, "failed to read response body, bad status: %s: %s", resp.Status, body)
 		}
-		return res, eris.Errorf("bad status code: %d: %s", resp.Status, body)
+		return res, eris.Errorf("bad status code: %s: %s", resp.Status, body)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
