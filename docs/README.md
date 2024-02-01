@@ -30,3 +30,9 @@ Install our Github App to autopropagate changes from youre repo to your deployme
 
 - Mintlify dev isn't running - Run `mintlify install` it'll re-install dependencies.
 - Page loads as a 404 - Make sure you are running in a folder with `mint.json`
+
+### Swagger
+
+- For developers modifying world-engine: world-engine is compatible with swag. Run `make swagger` to regenerate `swagger.json`, `swagger.yml` and `docs.go` in the server folder. 
+- The route `http://<host>/swagger` will give you api docs for world-engine. 
+

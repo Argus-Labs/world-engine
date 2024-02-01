@@ -72,14 +72,14 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	// Load config. Fallback value is used if it's not set.
 	cfg := getWorldConfig()
+	if err := cfg.Validate(); err != nil {
+		return nil, eris.Wrapf(err, "invalid configuration")
+	}
 
 	if err := setLogLevel(cfg.CardinalLogLevel); err != nil {
 		return nil, eris.Wrap(err, "")
 	}
 
-	if err := cfg.Validate(); err != nil {
-		return nil, eris.Wrap(err, "invalid configuration")
-	}
 	log.Logger.Info().Msgf("Starting a new Cardinal world in %s mode", cfg.CardinalMode)
 	if cfg.CardinalMode == RunModeDev {
 		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())

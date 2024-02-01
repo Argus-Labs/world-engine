@@ -24,7 +24,6 @@ type WorldConfig struct {
 	TraceAddress              string  `config:"TRACE_ADDRESS"`
 }
 
-// Validate ensures that the correct values are set according to the RunMode.
 func (w WorldConfig) Validate() error {
 	if w.CardinalMode != RunModeProd {
 		return nil
@@ -33,9 +32,7 @@ func (w WorldConfig) Validate() error {
 		return eris.New("REDIS_PASSWORD is required in production")
 	}
 	if w.CardinalNamespace == DefaultNamespace {
-		return eris.New(
-			"CARDINAL_NAMESPACE cannot be the default value in production to avoid replay attack",
-		)
+		return eris.New("CARDINAL_NAMESPACE cannot be the default value in production to avoid replay attack")
 	}
 	if w.BaseShardSequencerAddress == "" || w.BaseShardQueryAddress == "" {
 		return eris.New("must supply BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_QUERY_ADDRESS for production " +

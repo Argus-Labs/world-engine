@@ -1,12 +1,12 @@
-go 1.21.0
+go 1.21.2
 
 use (
 	assert
 	cardinal
 	evm
 	internal/e2e
+	internal/e2eutils
 	internal/e2e/tester/game
-	internal/e2ebenchmark
 	internal/e2ebenchmark/tester/game
 	internal/nakama
 	internal/nakamabenchmark

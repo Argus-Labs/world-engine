@@ -36,6 +36,16 @@ type QueryPersonaSignerResponse struct {
 	SignerAddress string `json:"signerAddress"`
 }
 
+// querySigner godoc
+//
+//	@Summary		Get persona data from cardinal
+//	@Description	Get persona data from cardinal
+//	@Accept			application/json
+//	@Produce		application/json
+//	@Param			QueryPersonaSignerRequest	body		QueryPersonaSignerRequest	true	"Query Request"
+//	@Success		200							{object}	QueryPersonaSignerResponse
+//	@Failure		400							{string}	string	"Invalid query request"
+//	@Router			/query/persona/signer [post]
 func querySigner(eCtx EngineContext, req *QueryPersonaSignerRequest) (*QueryPersonaSignerResponse, error) {
 	var status string
 

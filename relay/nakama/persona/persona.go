@@ -4,14 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 	"io"
 	"net/http"
-	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
+	"pkg.world.dev/world-engine/relay/nakama/allowlist"
+	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 	"pkg.world.dev/world-engine/sign"
+	"sync"
 )
 
 var (
@@ -19,6 +22,12 @@ var (
 	readPersonaSignerEndpoint        = "query/persona/signer"
 	readPersonaSignerStatusUnknown   = "unknown"
 	readPersonaSignerStatusAvailable = "available"
+
+	ErrPersonaTagStorageObjNotFound = errors.New("persona tag storage object not found")
+	ErrNoPersonaTagForUser          = errors.New("user does not have a verified persona tag")
+	ErrPersonaSignerAvailable       = errors.New("persona signer is available")
+	ErrPersonaSignerUnknown         = errors.New("persona signer is unknown")
+	ErrPersonaTagEmpty              = errors.New("personaTag field was left empty")
 )
 
 type TxResponse struct {
@@ -26,7 +35,83 @@ type TxResponse struct {
 	Tick   uint64 `json:"tick"`
 }
 
-func CardinalCreatePersona(
+func ClaimPersona(
+	ctx context.Context,
+	nk runtime.NakamaModule,
+	verifier *Verifier,
+	notifier *receipt.Notifier,
+	personaStorageObj *StorageObj,
+	globalCardinalAddress string,
+	globalNamespace string,
+	globalPersonaTagAssignment *sync.Map,
+) (res *StorageObj, err error) {
+	userID, err := utils.GetUserID(ctx)
+	if err != nil {
+		return res, eris.Wrap(err, "failed to get userID for claim persona request")
+	}
+
+	// Check if the user is verified. This requires them to input a valid beta key.
+	if verified, err := allowlist.IsUserVerified(ctx, nk, userID); err != nil {
+		return res, eris.Wrap(err, "failed to check if user is validated")
+	} else if !verified {
+		if verified {
+			return res, eris.Wrap(allowlist.ErrNotAllowlisted, "")
+		}
+	}
+
+	if personaStorageObj.PersonaTag == "" {
+		return res, ErrPersonaTagEmpty
+	}
+
+	tag, err := LoadPersonaTagStorageObj(ctx, nk)
+	//nolint:gocritic // This if-else chain contains a switch, a nested switch would be worse.
+	//revive:disable-next-line:empty-block
+	if eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
+		// This error is fine, if a storage obj is not found it just means claiming hasn't been attempted yet
+	} else if err != nil {
+		return res, eris.Wrap(err, "unable to get persona tag storage object")
+	} else {
+		switch tag.Status {
+		case StatusPending:
+			return res, eris.Errorf("persona tag %q is pending for this account", tag.PersonaTag)
+		case StatusAccepted:
+			return res, eris.Errorf("persona tag %q already associated with this account", tag.PersonaTag)
+		case StatusRejected:
+			// if the tag was rejected, don't do anything. let the user try to claim another tag.
+		}
+	}
+
+	txHash, tick, err := createPersona(ctx, nk, personaStorageObj.PersonaTag, globalCardinalAddress, globalNamespace)
+	if err != nil {
+		return res, eris.Wrap(err, "unable to make create persona request to cardinal")
+	}
+	notifier.AddTxHashToPendingNotifications(txHash, userID)
+
+	personaStorageObj.Status = StatusPending
+	if err = personaStorageObj.SavePersonaTagStorageObj(ctx, nk); err != nil {
+		return res, eris.Wrap(err, "unable to set persona tag storage object")
+	}
+
+	// Try to actually assign this personaTag->UserID in the sync map. If this succeeds, Nakama is OK with this
+	// user having the persona tag.
+	if ok := setPersonaTagAssignment(personaStorageObj.PersonaTag, userID, globalPersonaTagAssignment); !ok {
+		personaStorageObj.Status = StatusRejected
+		if err = personaStorageObj.SavePersonaTagStorageObj(ctx, nk); err != nil {
+			return res, eris.Wrap(err, "unable to set persona tag storage object")
+		}
+		return res, eris.Errorf("persona tag %q is not available", personaStorageObj.PersonaTag)
+	}
+
+	personaStorageObj.Tick = tick
+	personaStorageObj.TxHash = txHash
+	if err = personaStorageObj.SavePersonaTagStorageObj(ctx, nk); err != nil {
+		return res, eris.Wrap(err, "unable to save persona tag storage object")
+	}
+	verifier.AddPendingPersonaTag(userID, personaStorageObj.TxHash)
+	return res, nil
+}
+
+func createPersona(
 	ctx context.Context,
 	nk runtime.NakamaModule,
 	personaTag string,
@@ -103,51 +188,29 @@ func CardinalCreatePersona(
 	return createPersonaResponse.TxHash, createPersonaResponse.Tick, nil
 }
 
-func cardinalQueryPersonaSigner(
+func ShowPersona(
 	ctx context.Context,
-	personaTag string,
-	tick uint64,
-	cardinalAddr string,
-) (signerAddress string, err error) {
-	readPersonaRequest := struct {
-		PersonaTag string `json:"personaTag"`
-		Tick       uint64 `json:"tick"`
-	}{
-		PersonaTag: personaTag,
-		Tick:       tick,
+	nk runtime.NakamaModule,
+	globalCardinalAddress string,
+) (res *StorageObj, err error) {
+	personaStorageObj, err := LoadPersonaTagStorageObj(ctx, nk)
+	if err != nil {
+		return res, eris.Wrap(err, "unable to get persona tag storage object")
 	}
+	personaStorageObj, err = personaStorageObj.AttemptToUpdatePending(ctx, nk, globalCardinalAddress)
+	if err != nil {
+		return res, eris.Wrap(err, "unable to update pending state")
+	}
+	return personaStorageObj, nil
+}
 
-	buf, err := json.Marshal(readPersonaRequest)
-	if err != nil {
-		return "", eris.Wrap(err, "")
+// setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns
+// true if the attempt was successful or false if it failed. This method is safe for concurrent access.
+func setPersonaTagAssignment(personaTag, userID string, personaTagAssignment *sync.Map) (ok bool) {
+	val, loaded := personaTagAssignment.LoadOrStore(personaTag, userID)
+	if !loaded {
+		return true
 	}
-	httpReq, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		utils.MakeHTTPURL(readPersonaSignerEndpoint, cardinalAddr),
-		bytes.NewReader(buf),
-	)
-	if err != nil {
-		return "", eris.Wrap(err, "")
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpResp, err := utils.DoRequest(httpReq)
-	if err != nil {
-		return "", err
-	}
-	defer httpResp.Body.Close()
-
-	var resp struct {
-		Status        string `json:"status"`
-		SignerAddress string `json:"signerAddress"`
-	}
-	if err = json.NewDecoder(httpResp.Body).Decode(&resp); err != nil {
-		return "", eris.Wrap(err, "")
-	}
-	if resp.Status == readPersonaSignerStatusUnknown {
-		return "", eris.Wrap(nakamaerrors.ErrPersonaSignerUnknown, "")
-	} else if resp.Status == readPersonaSignerStatusAvailable {
-		return "", eris.Wrap(nakamaerrors.ErrPersonaSignerAvailable, "")
-	}
-	return resp.SignerAddress, nil
+	gotUserID, _ := val.(string)
+	return gotUserID == userID
 }

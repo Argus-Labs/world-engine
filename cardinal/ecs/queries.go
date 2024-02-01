@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"encoding/json"
+
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 	"pkg.world.dev/world-engine/cardinal/types/component"
@@ -12,11 +13,18 @@ type DebugRequest struct{}
 
 type debugStateElement struct {
 	ID         entity.ID         `json:"id"`
-	Components []json.RawMessage `json:"components"`
+	Components []json.RawMessage `json:"components" swaggertype:"array,object"`
 }
 
 type DebugStateResponse []*debugStateElement
 
+// queryDebugState godoc
+//
+//	@Summary		Get information on all entities and components in world-engine
+//	@Description	Displays the entire game state.
+//	@Produce		application/json
+//	@Success		200	{object}	DebugStateResponse
+//	@Router			/query/debug/state [post]
 func queryDebugState(ctx EngineContext, _ *DebugRequest) (*DebugStateResponse, error) {
 	result := make(DebugStateResponse, 0)
 	search := NewSearch(filter.All())
@@ -60,13 +68,21 @@ type CQLQueryRequest struct {
 
 type cqlData struct {
 	ID   entity.ID         `json:"id"`
-	Data []json.RawMessage `json:"data"`
+	Data []json.RawMessage `json:"data" swaggertype:"object"`
 }
 
 type CQLQueryResponse struct {
 	Results []cqlData `json:"results"`
 }
 
+// queryCQL godoc
+// @Summary		Query the ecs with CQL (cardinal query language)
+// @Description	Query the ecs with CQL (cardinal query language)
+// @Accept			application/json
+// @Produce		application/json
+// @Param			cql	body		CQLQueryRequest	true	"cql (cardinal query language)"
+// @Success		200	{object}	CQLQueryResponse
+// @Router			/query/game/cql [post]
 func queryCQL(ctx EngineContext, req *CQLQueryRequest) (*CQLQueryResponse, error) {
 	cqlString := req.CQL
 	resultFilter, err := cql.Parse(cqlString, ctx.GetEngine().GetComponentByName)
@@ -130,6 +146,16 @@ type Receipt struct {
 	Errors []error `json:"errors"`
 }
 
+// receiptsQuery godoc
+//
+//	@Summary		Get transaction receipts from Cardinal
+//	@Description	Get transaction receipts from Cardinal
+//	@Accept			application/json
+//	@Produce		application/json
+//	@Param			ListTxReceiptsRequest	body		ListTxReceiptsRequest	true	"List Transaction Receipts Request"
+//	@Success		200						{object}	ListTxReceiptsReply
+//	@Failure		400						{string}	string	"Invalid transaction request"
+//	@Router			/query/receipts/list [post]
 func receiptsQuery(ctx EngineContext, req *ListTxReceiptsRequest) (*ListTxReceiptsReply, error) {
 	eng := ctx.GetEngine()
 	reply := ListTxReceiptsReply{}
