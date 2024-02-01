@@ -5,11 +5,9 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
-	"pkg.world.dev/world-engine/cardinal/types/component"
+	"pkg.world.dev/world-engine/cardinal/system"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
-	"pkg.world.dev/world-engine/cardinal/types/message"
-	"pkg.world.dev/world-engine/cardinal/types/system"
 	"strconv"
 )
 
@@ -30,7 +28,7 @@ func RegisterInitSystems(w *World, sys ...system.System) error {
 	return w.systemManager.RegisterInitSystems(sys...)
 }
 
-func RegisterComponent[T component.Component](w *World) error {
+func RegisterComponent[T types.Component](w *World) error {
 	if w.WorldState != WorldStateInit {
 		return eris.New("cannot register components after loading game state")
 	}
@@ -58,7 +56,7 @@ func RegisterComponent[T component.Component](w *World) error {
 			return err
 		}
 	} else {
-		valid, err := component.IsComponentValid(t, storedSchema)
+		valid, err := types.IsComponentValid(t, storedSchema)
 		if err != nil {
 			return err
 		}
@@ -76,7 +74,7 @@ func RegisterComponent[T component.Component](w *World) error {
 	return nil
 }
 
-func MustRegisterComponent[T component.Component](w *World) {
+func MustRegisterComponent[T types.Component](w *World) {
 	err := RegisterComponent[T](w)
 	if err != nil {
 		panic(err)
@@ -85,7 +83,7 @@ func MustRegisterComponent[T component.Component](w *World) {
 
 // RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
 // messages will automatically be created when StartGame is called. This Register method must only be called once.
-func RegisterMessages(w *World, msgs ...message.Message) error {
+func RegisterMessages(w *World, msgs ...types.Message) error {
 	if w.WorldState != WorldStateInit {
 		return eris.Errorf(
 			"engine state is %s, expected %s to register messages",
@@ -123,7 +121,7 @@ func RegisterQuery[Request any, Reply any](
 
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func Create(eCtx engine.Context, components ...component.Component) (entity.ID, error) {
+func Create(eCtx engine.Context, components ...types.Component) (types.EntityID, error) {
 	// Error if the context is read only
 	if eCtx.IsReadOnly() {
 		return 0, ErrEntityMutationOnReadOnly
@@ -139,7 +137,7 @@ func Create(eCtx engine.Context, components ...component.Component) (entity.ID, 
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func CreateMany(eCtx engine.Context, num int, components ...component.Component) ([]entity.ID, error) {
+func CreateMany(eCtx engine.Context, num int, components ...types.Component) ([]types.EntityID, error) {
 	// TODO: uncomment this. use engine state instead.
 	// if !eCtx.GetEngine().stateIsLoaded {
 	// 		return nil, eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
@@ -151,7 +149,7 @@ func CreateMany(eCtx engine.Context, num int, components ...component.Component)
 	}
 
 	// Get all component metadata for the given components
-	acc := make([]component.ComponentMetadata, 0, len(components))
+	acc := make([]types.ComponentMetadata, 0, len(components))
 	for _, comp := range components {
 		c, err := eCtx.GetComponentByName(comp.Name())
 		if err != nil {
@@ -169,7 +167,7 @@ func CreateMany(eCtx engine.Context, num int, components ...component.Component)
 	// Set the components for the entities
 	for _, id := range entityIds {
 		for _, comp := range components {
-			var c component.ComponentMetadata
+			var c types.ComponentMetadata
 			c, err = eCtx.GetComponentByName(comp.Name())
 			if err != nil {
 				return nil, logAndPanic(eCtx, ErrComponentNotRegistered)
@@ -186,7 +184,7 @@ func CreateMany(eCtx engine.Context, num int, components ...component.Component)
 }
 
 // SetComponent sets component data to the entity.
-func SetComponent[T component.Component](eCtx engine.Context, id entity.ID, component *T) error {
+func SetComponent[T types.Component](eCtx engine.Context, id types.EntityID, component *T) error {
 	// Error if the context is read only
 	if eCtx.IsReadOnly() {
 		return ErrEntityMutationOnReadOnly
@@ -219,7 +217,7 @@ func SetComponent[T component.Component](eCtx engine.Context, id entity.ID, comp
 }
 
 // GetComponent returns component data from the entity.
-func GetComponent[T component.Component](eCtx engine.Context, id entity.ID) (comp *T, err error) {
+func GetComponent[T types.Component](eCtx engine.Context, id types.EntityID) (comp *T, err error) {
 	// Get the component metadata
 	var t T
 	c, err := eCtx.GetComponentByName(t.Name())
@@ -254,7 +252,7 @@ func GetComponent[T component.Component](eCtx engine.Context, id entity.ID) (com
 	return comp, nil
 }
 
-func UpdateComponent[T component.Component](eCtx engine.Context, id entity.ID, fn func(*T) *T) error {
+func UpdateComponent[T types.Component](eCtx engine.Context, id types.EntityID, fn func(*T) *T) error {
 	// Error if the context is read only
 	if eCtx.IsReadOnly() {
 		return ErrEntityMutationOnReadOnly
@@ -278,7 +276,7 @@ func UpdateComponent[T component.Component](eCtx engine.Context, id entity.ID, f
 	return nil
 }
 
-func AddComponentTo[T component.Component](eCtx engine.Context, id entity.ID) error {
+func AddComponentTo[T types.Component](eCtx engine.Context, id types.EntityID) error {
 	if eCtx.IsReadOnly() {
 		return ErrEntityMutationOnReadOnly
 	}
@@ -303,7 +301,7 @@ func AddComponentTo[T component.Component](eCtx engine.Context, id entity.ID) er
 }
 
 // RemoveComponentFrom removes a component from an entity.
-func RemoveComponentFrom[T component.Component](eCtx engine.Context, id entity.ID) error {
+func RemoveComponentFrom[T types.Component](eCtx engine.Context, id types.EntityID) error {
 	// Error if the context is read only
 	if eCtx.IsReadOnly() {
 		return ErrEntityMutationOnReadOnly
@@ -331,7 +329,7 @@ func RemoveComponentFrom[T component.Component](eCtx engine.Context, id entity.I
 }
 
 // Remove removes the given Entity from the engine.
-func Remove(eCtx engine.Context, id entity.ID) error {
+func Remove(eCtx engine.Context, id types.EntityID) error {
 	// Error if the context is read only
 	if eCtx.IsReadOnly() {
 		return ErrEntityMutationOnReadOnly

@@ -2,43 +2,40 @@ package gamestate
 
 import (
 	"fmt"
-
-	"pkg.world.dev/world-engine/cardinal/types/archetype"
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
-// redisComponentKey is the key that maps an entity ID and a specific component ID to the value of that component.
-func redisComponentKey(typeID component.TypeID, id entity.ID) string {
-	return fmt.Sprintf("ECB:COMPONENT-VALUE:TYPE-ID-%d:ENTITY-ID-%d", typeID, id)
+// redisComponentKey is the key that maps an entity EntityID and a specific component EntityID to the value of that component.
+func redisComponentKey(typeID types.ComponentID, id types.EntityID) string {
+	return fmt.Sprintf("ECB:COMPONENT-VALUE:TYPE-EntityID-%d:ENTITY-EntityID-%d", typeID, id)
 }
 
-// redisNextEntityIDKey is the key that stores the next available entity ID that can be assigned to a newly created
+// redisNextEntityIDKey is the key that stores the next available entity EntityID that can be assigned to a newly created
 // entity.
 func redisNextEntityIDKey() string {
-	return "ECB:NEXT-ENTITY-ID"
+	return "ECB:NEXT-ENTITY-EntityID"
 }
 
-// redisArchetypeIDForEntityID is the key that maps a specific entity ID to its archetype ID.
+// redisArchetypeIDForEntityID is the key that maps a specific entity EntityID to its archetype EntityID.
 // Note, this key and redisActiveEntityIDKey represent the same information.
-// This maps entity.ID -> archetype.ID.
-func redisArchetypeIDForEntityID(id entity.ID) string {
-	return fmt.Sprintf("ECB:ARCHETYPE-ID:ENTITY-ID-%d", id)
+// This maps entity.EntityID -> archetype.ArchetypeID.
+func redisArchetypeIDForEntityID(id types.EntityID) string {
+	return fmt.Sprintf("ECB:ARCHETYPE-EntityID:ENTITY-EntityID-%d", id)
 }
 
-// redisActiveEntityIDKey is the key that maps an archetype ID to all the entities that currently belong
-// to the archetype ID.
+// redisActiveEntityIDKey is the key that maps an archetype EntityID to all the entities that currently belong
+// to the archetype EntityID.
 // Note, this key and redisArchetypeIDForEntityID represent the same information.
-// This maps archetype.ID -> []entity.ID.
-func redisActiveEntityIDKey(archID archetype.ID) string {
-	return fmt.Sprintf("ECB:ACTIVE-ENTITY-IDS:ARCHETYPE-ID-%d", archID)
+// This maps archetype.ArchetypeID -> []entity.EntityID.
+func redisActiveEntityIDKey(archID types.ArchetypeID) string {
+	return fmt.Sprintf("ECB:ACTIVE-ENTITY-IDS:ARCHETYPE-EntityID-%d", archID)
 }
 
 // redisArchIDsToCompTypesKey is the key that stores the map of archetype IDs to its relevant set of component types
-// (in the form of []component.ID). To recover the actual ComponentMetadata information, a slice of active
+// (in the form of []component.EntityID). To recover the actual ComponentMetadata information, a slice of active
 // ComponentMetadata must be used.
 func redisArchIDsToCompTypesKey() string {
-	return "ECB:ARCHETYPE-ID-TO-COMPONENT-TYPES"
+	return "ECB:ARCHETYPE-EntityID-TO-COMPONENT-TYPES"
 }
 
 func redisStartTickKey() string {

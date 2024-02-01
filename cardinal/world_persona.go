@@ -4,7 +4,7 @@ import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 var (
@@ -23,7 +23,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 	wCtx := NewReadOnlyWorldContext(w)
 	s := NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
 	err = s.Each(
-		func(id entity.ID) bool {
+		func(id types.EntityID) bool {
 			sc, err := GetComponent[component.SignerComponent](wCtx, id)
 			if err != nil {
 				errs = append(errs, err)

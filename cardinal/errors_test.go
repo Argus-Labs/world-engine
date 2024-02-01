@@ -6,8 +6,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"strings"
 	"testing"
 
@@ -326,35 +326,35 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 	testCases := []struct {
 		name string
 		// the failFn will be called at a time when the ECB is empty of cached data and redis is down.
-		failFn func(eCtx engine.Context, goodID entity.ID)
+		failFn func(eCtx engine.Context, goodID types.EntityID)
 	}{
 		{
 			name: "cardinal.AddComponentTo",
-			failFn: func(eCtx engine.Context, goodID entity.ID) {
+			failFn: func(eCtx engine.Context, goodID types.EntityID) {
 				_ = cardinal.AddComponentTo[Qux](eCtx, goodID)
 			},
 		},
 		{
 			name: "cardinal.RemoveComponentFrom",
-			failFn: func(eCtx engine.Context, goodID entity.ID) {
+			failFn: func(eCtx engine.Context, goodID types.EntityID) {
 				_ = cardinal.RemoveComponentFrom[Bar](eCtx, goodID)
 			},
 		},
 		{
 			name: "cardinal.GetComponent",
-			failFn: func(eCtx engine.Context, goodID entity.ID) {
+			failFn: func(eCtx engine.Context, goodID types.EntityID) {
 				_, _ = cardinal.GetComponent[Foo](eCtx, goodID)
 			},
 		},
 		{
 			name: "cardinal.SetComponent",
-			failFn: func(eCtx engine.Context, goodID entity.ID) {
+			failFn: func(eCtx engine.Context, goodID types.EntityID) {
 				_ = cardinal.SetComponent[Foo](eCtx, goodID, &Foo{})
 			},
 		},
 		{
 			name: "cardinal.UpdateComponent",
-			failFn: func(eCtx engine.Context, goodID entity.ID) {
+			failFn: func(eCtx engine.Context, goodID types.EntityID) {
 				_ = cardinal.UpdateComponent[Foo](eCtx, goodID, func(f *Foo) *Foo {
 					return f
 				})

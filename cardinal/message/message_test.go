@@ -1,14 +1,14 @@
-package cardinal_test
+package message_test
 
 import (
 	"context"
 	"errors"
 	"github.com/stretchr/testify/require"
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
-	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
 	"testing"
 	"time"
@@ -20,14 +20,20 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 )
 
+type Health struct {
+	Value int
+}
+
+func (Health) Name() string { return "health" }
+
 type AddHealthToEntityTx struct {
-	TargetID entity.ID
+	TargetID types.EntityID
 	Amount   int
 }
 
 type AddHealthToEntityResult struct{}
 
-var addHealthToEntity = cardinal.NewMessageType[AddHealthToEntityTx, AddHealthToEntityResult]("add_health")
+var addHealthToEntity = message.NewMessageType[AddHealthToEntityTx, AddHealthToEntityResult]("add_health")
 
 func TestTransactionExample(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
@@ -46,12 +52,13 @@ func TestTransactionExample(t *testing.T) {
 		}
 		// test same as above but with forEach
 		addHealthToEntity.Each(eCtx,
-			func(tx cardinal.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
+			func(tx message.TxData[AddHealthToEntityTx]) (AddHealthToEntityResult, error) {
 				targetID := tx.Msg.TargetID
-				err := cardinal.UpdateComponent[Health](eCtx, targetID, func(h *Health) *Health {
-					h.Value = tx.Msg.Amount
-					return h
-				})
+				err := cardinal.UpdateComponent[Health](eCtx, targetID,
+					func(h *Health) *Health {
+						h.Value = tx.Msg.Amount
+						return h
+					})
 				assert.Check(t, err == nil)
 				return AddHealthToEntityResult{}, errors.New("fake tx error")
 			})
@@ -60,7 +67,7 @@ func TestTransactionExample(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	testWorldCtx := testutils.WorldToEngineContext(world)
+	testWorldCtx := cardinal.NewWorldContext(world)
 	doTick()
 	ids, err := cardinal.CreateMany(testWorldCtx, 10, Health{})
 	assert.NilError(t, err)
@@ -96,7 +103,8 @@ func TestTransactionExample(t *testing.T) {
 }
 
 func TestForEachTransaction(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	type SomeMsgRequest struct {
 		GenerateError bool
 	}
@@ -104,11 +112,11 @@ func TestForEachTransaction(t *testing.T) {
 		Successful bool
 	}
 
-	someMsg := cardinal.NewMessageType[SomeMsgRequest, SomeMsgResponse]("some_msg")
+	someMsg := message.NewMessageType[SomeMsgRequest, SomeMsgResponse]("some_msg")
 	assert.NilError(t, cardinal.RegisterMessages(world, someMsg))
 
 	err := cardinal.RegisterSystems(world, func(eCtx engine.Context) error {
-		someMsg.Each(eCtx, func(t cardinal.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
+		someMsg.Each(eCtx, func(t message.TxData[SomeMsgRequest]) (result SomeMsgResponse, err error) {
 			if t.Msg.GenerateError {
 				return result, errors.New("some error")
 			}
@@ -122,10 +130,10 @@ func TestForEachTransaction(t *testing.T) {
 	assert.NilError(t, world.LoadGameState())
 
 	// Add 10 transactions to the tx queue and keep track of the hashes that we just cardinal.Created
-	knownTxHashes := map[message.TxHash]SomeMsgRequest{}
+	knownTxHashes := map[types.TxHash]SomeMsgRequest{}
 	for i := 0; i < 10; i++ {
 		req := SomeMsgRequest{GenerateError: i%2 == 0}
-		txHash := someMsg.AddToQueue(world, req, testutils.UniqueSignature())
+		txHash := tf.AddTransaction(someMsg.ID(), req, testutils.UniqueSignature())
 		knownTxHashes[txHash] = req
 	}
 
@@ -157,7 +165,7 @@ func (ScoreComponent) Name() string {
 }
 
 type ModifyScoreMsg struct {
-	PlayerID entity.ID
+	PlayerID types.EntityID
 	Amount   int
 }
 
@@ -175,17 +183,18 @@ func TestReadTypeNotStructs(t *testing.T) {
 			assert.Assert(t, panicValue == nil)
 		}()
 
-		cardinal.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score2")
+		message.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score2")
 	}()
-	cardinal.NewMessageType[string, string]("modify_score1")
+	message.NewMessageType[string, string]("modify_score1")
 }
 
 func TestCanQueueTransactions(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	// cardinal.Create an entity with a score component
 	assert.NilError(t, cardinal.RegisterComponent[ScoreComponent](world))
-	modifyScoreMsg := cardinal.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
+	modifyScoreMsg := message.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
 	assert.NilError(t, cardinal.RegisterMessages(world, modifyScoreMsg))
 
 	eCtx := cardinal.NewWorldContext(world)
@@ -214,7 +223,7 @@ func TestCanQueueTransactions(t *testing.T) {
 	id, err := cardinal.Create(eCtx, ScoreComponent{})
 	assert.NilError(t, err)
 
-	modifyScoreMsg.AddToQueue(world, &ModifyScoreMsg{id, 100})
+	tf.AddTransaction(modifyScoreMsg.ID(), &ModifyScoreMsg{id, 100})
 
 	assert.NilError(t, cardinal.SetComponent[ScoreComponent](eCtx, id, &ScoreComponent{}))
 
@@ -283,10 +292,11 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 }
 
 func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ScoreComponent](world))
 
-	modifyScoreMsg := cardinal.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
+	modifyScoreMsg := message.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
 	assert.NilError(t, cardinal.RegisterMessages(world, modifyScoreMsg))
 
 	err := cardinal.RegisterSystems(
@@ -313,20 +323,20 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 	ids, err := cardinal.CreateMany(eCtx, 100, ScoreComponent{})
 	assert.NilError(t, err)
 	// Entities at index 5, 10 and 50 will be updated with some values
-	modifyScoreMsg.AddToQueue(
-		world, &ModifyScoreMsg{
+	tf.AddTransaction(
+		modifyScoreMsg.ID(), &ModifyScoreMsg{
 			PlayerID: ids[5],
 			Amount:   105,
 		},
 	)
-	modifyScoreMsg.AddToQueue(
-		world, &ModifyScoreMsg{
+	tf.AddTransaction(
+		modifyScoreMsg.ID(), &ModifyScoreMsg{
 			PlayerID: ids[10],
 			Amount:   110,
 		},
 	)
-	modifyScoreMsg.AddToQueue(
-		world, &ModifyScoreMsg{
+	tf.AddTransaction(
+		modifyScoreMsg.ID(), &ModifyScoreMsg{
 			PlayerID: ids[50],
 			Amount:   150,
 		},
@@ -353,9 +363,10 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 // TestAddToQueueDuringTickDoesNotTimeout verifies that we can add a transaction to the transaction
 // queue during a game tick, and the call does not block.
 func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
-	modScore := cardinal.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_Score")
+	modScore := message.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_Score")
 	assert.NilError(t, cardinal.RegisterMessages(world, modScore))
 
 	inSystemCh := make(chan struct{})
@@ -371,7 +382,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, world.LoadGameState())
 
-	modScore.AddToQueue(world, &ModifyScoreMsg{})
+	tf.AddTransaction(modScore.ID(), &ModifyScoreMsg{})
 
 	// Start a tick in the background.
 	go func() {
@@ -384,7 +395,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 	timeout := time.After(500 * time.Millisecond)
 	doneWithAddToQueue := make(chan struct{})
 	go func() {
-		modScore.AddToQueue(world, &ModifyScoreMsg{})
+		tf.AddTransaction(modScore.ID(), &ModifyScoreMsg{})
 		doneWithAddToQueue <- struct{}{}
 	}()
 
@@ -401,7 +412,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	modScoreMsg := cardinal.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
+	modScoreMsg := message.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
 	assert.NilError(t, cardinal.RegisterMessages(world, modScoreMsg))
 	tickStart := tf.StartTickCh
 	tickDone := tf.DoneTickCh
@@ -433,7 +444,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	assert.NilError(t, err)
 	tf.StartWorld()
 
-	modScoreMsg.AddToQueue(world, &ModifyScoreMsg{})
+	tf.AddTransaction(modScoreMsg.ID(), &ModifyScoreMsg{})
 
 	// Start the game tick. The tick will block while waiting to write to modScoreCountCh
 	tickStart <- time.Now()
@@ -443,8 +454,8 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 	assert.Equal(t, 1, count)
 
 	// Add two transactions mid-tick.
-	modScoreMsg.AddToQueue(world, &ModifyScoreMsg{})
-	modScoreMsg.AddToQueue(world, &ModifyScoreMsg{})
+	tf.AddTransaction(modScoreMsg.ID(), &ModifyScoreMsg{})
+	tf.AddTransaction(modScoreMsg.ID(), &ModifyScoreMsg{})
 
 	// The tick is still not over, so we should still only see 1 modify score transaction
 	count = <-modScoreCountCh
@@ -477,17 +488,18 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 // TestIdenticallyTypedTransactionCanBeDistinguished verifies that two transactions of the same type
 // can be distinguished if they were added with different MessageType[T]s.
 func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	type NewOwner struct {
 		Name string
 	}
 
-	alpha := cardinal.NewMessageType[NewOwner, EmptyMsgResult]("alpha_msg")
-	beta := cardinal.NewMessageType[NewOwner, EmptyMsgResult]("beta_msg")
+	alpha := message.NewMessageType[NewOwner, EmptyMsgResult]("alpha_msg")
+	beta := message.NewMessageType[NewOwner, EmptyMsgResult]("beta_msg")
 	assert.NilError(t, cardinal.RegisterMessages(world, alpha, beta))
 
-	alpha.AddToQueue(world, NewOwner{"alpha"})
-	beta.AddToQueue(world, NewOwner{"beta"})
+	tf.AddTransaction(alpha.ID(), NewOwner{"alpha"})
+	tf.AddTransaction(beta.ID(), NewOwner{"beta"})
 
 	err := cardinal.RegisterSystems(
 		world,
@@ -509,13 +521,13 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 }
 
 func TestCannotRegisterDuplicateTransaction(t *testing.T) {
-	msg := cardinal.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
+	msg := message.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
 	world := testutils.NewTestFixture(t, nil).World
 	assert.Check(t, nil != cardinal.RegisterMessages(world, msg, msg))
 }
 
 func TestCannotCallRegisterTransactionsMultipleTimes(t *testing.T) {
-	msg := cardinal.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
+	msg := message.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
 	world := testutils.NewTestFixture(t, nil).World
 	assert.NilError(t, cardinal.RegisterMessages(world, msg))
 	assert.Check(t, nil != cardinal.RegisterMessages(world, msg))
@@ -530,8 +542,8 @@ func TestCanEncodeDecodeEVMTransactions(t *testing.T) {
 
 	msg := FooMsg{1, 2, "foo"}
 	// set up the Message.
-	iMsg := cardinal.NewMessageType[FooMsg, EmptyMsgResult]("FooMsg",
-		cardinal.WithMsgEVMSupport[FooMsg, EmptyMsgResult]())
+	iMsg := message.NewMessageType[FooMsg, EmptyMsgResult]("FooMsg",
+		message.WithMsgEVMSupport[FooMsg, EmptyMsgResult]())
 	bz, err := iMsg.ABIEncode(msg)
 	assert.NilError(t, err)
 
@@ -547,9 +559,9 @@ func TestCanEncodeDecodeEVMTransactions(t *testing.T) {
 
 func TestCannotDecodeEVMBeforeSetEVM(t *testing.T) {
 	type foo struct{}
-	msg := cardinal.NewMessageType[foo, EmptyMsgResult]("foo")
+	msg := message.NewMessageType[foo, EmptyMsgResult]("foo")
 	_, err := msg.DecodeEVMBytes([]byte{})
-	assert.ErrorIs(t, err, cardinal.ErrEVMTypeNotSet)
+	assert.ErrorIs(t, err, message.ErrEVMTypeNotSet)
 }
 
 func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
@@ -560,8 +572,8 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 		Alpha, Beta string
 	}
 	world := testutils.NewTestFixture(t, nil).World
-	alphaMsg := cardinal.NewMessageType[SomeMsg, EmptyMsgResult]("name_match")
-	betaMsg := cardinal.NewMessageType[OtherMsg, EmptyMsgResult]("name_match")
+	alphaMsg := message.NewMessageType[SomeMsg, EmptyMsgResult]("name_match")
+	betaMsg := message.NewMessageType[OtherMsg, EmptyMsgResult]("name_match")
 	assert.IsError(t, cardinal.RegisterMessages(world, alphaMsg, betaMsg))
 }
 
@@ -572,10 +584,11 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	type MoveMsgResult struct {
 		EndX, EndY int
 	}
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	// Each transaction now needs an input and an output
-	moveMsg := cardinal.NewMessageType[MoveMsg, MoveMsgResult]("move")
+	moveMsg := message.NewMessageType[MoveMsg, MoveMsgResult]("move")
 	assert.NilError(t, cardinal.RegisterMessages(world, moveMsg))
 
 	wantFirstError := errors.New("this is a transaction error")
@@ -587,7 +600,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 		func(eCtx engine.Context) error {
 			// This new In function returns a triplet of information:
 			// 1) The transaction input
-			// 2) An ID that uniquely identifies this specific transaction
+			// 2) An EntityID that uniquely identifies this specific transaction
 			// 3) The signature
 			// This function would replace both "In" and "TxsAndSigsIn"
 			txData := moveMsg.In(eCtx)
@@ -610,7 +623,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 	)
 	assert.NilError(t, err)
 	assert.NilError(t, world.LoadGameState())
-	_ = moveMsg.AddToQueue(world, MoveMsg{99, 100})
+	_ = tf.AddTransaction(moveMsg.ID(), MoveMsg{99, 100})
 
 	// Tick the game so the transaction is processed
 	assert.NilError(t, world.Tick(context.Background()))
@@ -635,8 +648,9 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	type MsgOut struct {
 		Number int
 	}
-	world := testutils.NewTestFixture(t, nil).World
-	numTx := cardinal.NewMessageType[MsgIn, MsgOut]("number")
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	numTx := message.NewMessageType[MsgIn, MsgOut]("number")
 	assert.NilError(t, cardinal.RegisterMessages(world, numTx))
 	wantErr := errors.New("some transaction error")
 	systemCalls := 0
@@ -672,7 +686,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, world.LoadGameState())
 
-	_ = numTx.AddToQueue(world, MsgIn{100})
+	_ = tf.AddTransaction(numTx.ID(), MsgIn{100})
 
 	assert.NilError(t, world.Tick(context.Background()))
 	assert.Equal(t, 2, systemCalls)
@@ -685,8 +699,9 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	type MsgOut struct {
 		Number int
 	}
-	world := testutils.NewTestFixture(t, nil).World
-	numTx := cardinal.NewMessageType[MsgIn, MsgOut]("number")
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	numTx := message.NewMessageType[MsgIn, MsgOut]("number")
 	assert.NilError(t, cardinal.RegisterMessages(world, numTx))
 	systemCalls := 0
 
@@ -725,7 +740,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, world.LoadGameState())
 
-	_ = numTx.AddToQueue(world, MsgIn{100})
+	_ = tf.AddTransaction(numTx.ID(), MsgIn{100})
 
 	assert.NilError(t, world.Tick(context.Background()))
 
@@ -757,7 +772,7 @@ func TestNewTransactionPanicsIfNoName(t *testing.T) {
 	type Foo struct{}
 	require.Panics(
 		t, func() {
-			cardinal.NewMessageType[Foo, Foo]("")
+			message.NewMessageType[Foo, Foo]("")
 		},
 	)
 }

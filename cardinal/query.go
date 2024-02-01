@@ -3,11 +3,12 @@ package cardinal
 import (
 	"encoding/json"
 	"pkg.world.dev/world-engine/cardinal/abi"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"reflect"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 type QueryType[Request any, Reply any] struct {
@@ -117,7 +118,7 @@ func (r *QueryType[req, rep]) HandleQueryRaw(eCtx engine.Context, bz []byte) ([]
 
 func (r *QueryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 	if r.requestABI == nil {
-		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
+		return nil, eris.Wrap(message.ErrEVMTypeNotSet, "")
 	}
 	args := ethereumAbi.Arguments{{Type: *r.requestABI}}
 	unpacked, err := args.Unpack(bz)
@@ -136,7 +137,7 @@ func (r *QueryType[req, rep]) DecodeEVMRequest(bz []byte) (any, error) {
 
 func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 	if r.replyABI == nil {
-		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
+		return nil, eris.Wrap(message.ErrEVMTypeNotSet, "")
 	}
 	args := ethereumAbi.Arguments{{Type: *r.replyABI}}
 	unpacked, err := args.Unpack(bz)
@@ -155,7 +156,7 @@ func (r *QueryType[req, rep]) DecodeEVMReply(bz []byte) (any, error) {
 
 func (r *QueryType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 	if r.replyABI == nil {
-		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
+		return nil, eris.Wrap(message.ErrEVMTypeNotSet, "")
 	}
 	args := ethereumAbi.Arguments{{Type: *r.replyABI}}
 	bz, err := args.Pack(a)
@@ -164,7 +165,7 @@ func (r *QueryType[req, rep]) EncodeEVMReply(a any) ([]byte, error) {
 
 func (r *QueryType[Request, Reply]) EncodeAsABI(input any) ([]byte, error) {
 	if r.requestABI == nil || r.replyABI == nil {
-		return nil, eris.Wrap(ErrEVMTypeNotSet, "")
+		return nil, eris.Wrap(message.ErrEVMTypeNotSet, "")
 	}
 
 	var args ethereumAbi.Arguments

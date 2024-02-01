@@ -2,18 +2,16 @@ package log
 
 import (
 	"github.com/rs/zerolog"
-	"pkg.world.dev/world-engine/cardinal/types/archetype"
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 type Loggable interface {
-	GetComponents() []component.ComponentMetadata
+	GetComponents() []types.ComponentMetadata
 	GetSystemNames() []string
 }
 
 func loadComponentIntoArrayLogger(
-	component component.ComponentMetadata,
+	component types.ComponentMetadata,
 	arrayLogger *zerolog.Array,
 ) *zerolog.Array {
 	dictLogger := zerolog.Dict()
@@ -45,8 +43,8 @@ func loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, target Loggable) *zerol
 }
 
 func loadEntityIntoEvent(
-	zeroLoggerEvent *zerolog.Event, entityID entity.ID, archID archetype.ID,
-	components []component.ComponentMetadata,
+	zeroLoggerEvent *zerolog.Event, entityID types.EntityID, archID types.ArchetypeID,
+	components []types.ComponentMetadata,
 ) *zerolog.Event {
 	arrayLogger := zerolog.Arr()
 	for _, _component := range components {
@@ -74,8 +72,8 @@ func System(logger *zerolog.Logger, target Loggable, level zerolog.Level) {
 // LogEntity logs entity info given an entityID.
 func Entity(
 	logger *zerolog.Logger,
-	level zerolog.Level, entityID entity.ID, archID archetype.ID,
-	components []component.ComponentMetadata,
+	level zerolog.Level, entityID types.EntityID, archID types.ArchetypeID,
+	components []types.ComponentMetadata,
 ) {
 	zeroLoggerEvent := logger.WithLevel(level)
 	loadEntityIntoEvent(zeroLoggerEvent, entityID, archID, components).Send()

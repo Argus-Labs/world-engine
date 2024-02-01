@@ -5,12 +5,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/persona/query"
 	"pkg.world.dev/world-engine/cardinal/persona/utils"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"strings"
 )
 
@@ -81,15 +82,15 @@ func (p *personaPlugin) RegisterMessages(world *World) error {
 // Persona Messages
 // -----------------------------------------------------------------------------
 
-var AuthorizePersonaAddressMsg = NewMessageType[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
+var AuthorizePersonaAddressMsg = message.NewMessageType[msg.AuthorizePersonaAddress, msg.AuthorizePersonaAddressResult](
 	"authorize-persona-address",
 )
 
 // CreatePersonaMsg is a message that facilitates the creation of a persona tag.
-var CreatePersonaMsg = NewMessageType[msg.CreatePersona, msg.CreatePersonaResult](
+var CreatePersonaMsg = message.NewMessageType[msg.CreatePersona, msg.CreatePersonaResult](
 	"create-persona",
-	WithCustomMessageGroup[msg.CreatePersona, msg.CreatePersonaResult]("persona"),
-	WithMsgEVMSupport[msg.CreatePersona, msg.CreatePersonaResult](),
+	message.WithCustomMessageGroup[msg.CreatePersona, msg.CreatePersonaResult]("persona"),
+	message.WithMsgEVMSupport[msg.CreatePersona, msg.CreatePersonaResult](),
 )
 
 // AuthorizePersonaAddressSystem enables users to authorize an address to a persona tag. This is mostly used so that
@@ -103,7 +104,7 @@ func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
 
 	AuthorizePersonaAddressMsg.Each(
 		eCtx,
-		func(txData TxData[msg.AuthorizePersonaAddress]) (
+		func(txData message.TxData[msg.AuthorizePersonaAddress]) (
 			result msg.AuthorizePersonaAddressResult, err error,
 		) {
 			txMsg, tx := txData.Msg, txData.Tx
@@ -159,7 +160,7 @@ func RegisterPersonaSystem(eCtx engine.Context) error {
 
 	CreatePersonaMsg.Each(
 		eCtx,
-		func(txData TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
+		func(txData message.TxData[msg.CreatePersona]) (result msg.CreatePersonaResult, err error) {
 			txMsg := txData.Msg
 			result.Success = false
 
@@ -208,7 +209,7 @@ type personaIndex = map[string]personaIndexEntry
 
 type personaIndexEntry struct {
 	SignerAddress string
-	EntityID      entity.ID
+	EntityID      types.EntityID
 }
 
 func buildPersonaIndex(eCtx engine.Context) (personaIndex, error) {
@@ -216,7 +217,7 @@ func buildPersonaIndex(eCtx engine.Context) (personaIndex, error) {
 	var errs []error
 	s := NewSearch(eCtx, filter.Exact(component.SignerComponent{}))
 	err := s.Each(
-		func(id entity.ID) bool {
+		func(id types.EntityID) bool {
 			sc, err := GetComponent[component.SignerComponent](eCtx, id)
 			if err != nil {
 				errs = append(errs, err)

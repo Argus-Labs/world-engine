@@ -3,8 +3,8 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/message"
 )
 
 type GetEndpointsResponse struct {
@@ -22,7 +22,7 @@ type GetEndpointsResponse struct {
 //	@Failure		400	{string}	string					"Invalid query request"
 //	@Router			/query/http/endpoints [get]
 func GetEndpoints(
-	msgs map[string]map[string]message.Message, queries map[string]map[string]engine.Query,
+	msgs map[string]map[string]types.Message, queries map[string]map[string]engine.Query,
 ) func(*fiber.Ctx) error {
 	// Build the list of /tx/... endpoints
 	txEndpoints := make([]string, 0, len(msgs))

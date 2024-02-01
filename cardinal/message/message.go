@@ -1,4 +1,4 @@
-package cardinal
+package message
 
 import (
 	"errors"
@@ -6,8 +6,8 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/abi"
 	"pkg.world.dev/world-engine/cardinal/codec"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/message"
 	"reflect"
 
 	ethereumAbi "github.com/ethereum/go-ethereum/accounts/abi"
@@ -18,11 +18,11 @@ var (
 	ErrEVMTypeNotSet = errors.New("EVM type is not set")
 )
 
-var _ message.Message = &MessageType[struct{}, struct{}]{}
+var _ types.Message = &MessageType[struct{}, struct{}]{}
 
 // MessageType manages a user defined state transition message struct.
 type MessageType[In, Out any] struct {
-	id         message.TypeID
+	id         types.MessageID
 	isIDSet    bool
 	name       string
 	group      string
@@ -81,31 +81,18 @@ func (t *MessageType[In, Out]) IsEVMCompatible() bool {
 	return t.inEVMType != nil && t.outEVMType != nil
 }
 
-func (t *MessageType[In, Out]) ID() message.TypeID {
+func (t *MessageType[In, Out]) ID() types.MessageID {
 	if !t.isIDSet {
 		panic(fmt.Sprintf("id on msg %q is not set", t.name))
 	}
 	return t.id
 }
 
-var emptyTx = &sign.Transaction{}
-
-// AddToQueue adds a message with the given data to the engine. The message will be executed
-// at the next game tick. An optional sign.Transaction can be associated with this message.
-func (t *MessageType[In, Out]) AddToQueue(world *World, data In, sigs ...*sign.Transaction) message.TxHash {
-	sig := emptyTx
-	if len(sigs) > 0 {
-		sig = sigs[0]
-	}
-	_, id := world.AddTransaction(t.ID(), data, sig)
-	return id
-}
-
-func (t *MessageType[In, Out]) SetID(id message.TypeID) error {
+func (t *MessageType[In, Out]) SetID(id types.MessageID) error {
 	if t.isIDSet {
 		// In games implemented with Cardinal, messages will only be initialized one time (on startup).
 		// In tests, it's often useful to use the same message in multiple engines. This check will allow for the
-		// re-initialization of messages, as long as the ID doesn't change.
+		// re-initialization of messages, as long as the EntityID doesn't change.
 		if id == t.id {
 			return nil
 		}
@@ -117,20 +104,20 @@ func (t *MessageType[In, Out]) SetID(id message.TypeID) error {
 }
 
 type TxData[In any] struct {
-	Hash message.TxHash
+	Hash types.TxHash
 	Msg  In
 	Tx   *sign.Transaction
 }
 
-func (t *MessageType[In, Out]) AddError(eCtx engine.Context, hash message.TxHash, err error) {
+func (t *MessageType[In, Out]) AddError(eCtx engine.Context, hash types.TxHash, err error) {
 	eCtx.AddMessageError(hash, err)
 }
 
-func (t *MessageType[In, Out]) SetResult(eCtx engine.Context, hash message.TxHash, result Out) {
+func (t *MessageType[In, Out]) SetResult(eCtx engine.Context, hash types.TxHash, result Out) {
 	eCtx.SetMessageResult(hash, result)
 }
 
-func (t *MessageType[In, Out]) GetReceipt(eCtx engine.Context, hash message.TxHash) (
+func (t *MessageType[In, Out]) GetReceipt(eCtx engine.Context, hash types.TxHash) (
 	v Out, errs []error, ok bool,
 ) {
 	iface, errs, ok := eCtx.GetTransactionReceipt(hash)

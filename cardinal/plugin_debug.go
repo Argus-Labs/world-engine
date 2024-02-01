@@ -3,9 +3,8 @@ package cardinal
 import (
 	"github.com/goccy/go-json"
 	"pkg.world.dev/world-engine/cardinal/filter"
-	"pkg.world.dev/world-engine/cardinal/types/component"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 type debugPlugin struct {
@@ -38,7 +37,7 @@ func (p *debugPlugin) RegisterQueries(world *World) error {
 type debugStateRequest struct{}
 
 type debugStateElement struct {
-	ID         entity.ID         `json:"id"`
+	ID         types.EntityID    `json:"id"`
 	Components []json.RawMessage `json:"components" swaggertype:"array,object"`
 }
 
@@ -56,8 +55,8 @@ func queryDebugState(ctx engine.Context, _ *debugStateRequest) (*debugStateRespo
 	s := NewSearch(ctx, filter.All())
 	var eachClosureErr error
 	searchEachErr := s.Each(
-		func(id entity.ID) bool {
-			var components []component.ComponentMetadata
+		func(id types.EntityID) bool {
+			var components []types.ComponentMetadata
 			components, eachClosureErr = ctx.StoreReader().GetComponentTypesForEntity(id)
 			if eachClosureErr != nil {
 				return false

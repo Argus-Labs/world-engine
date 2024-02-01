@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
@@ -18,7 +19,7 @@ type MovePlayerResult struct {
 	FinalY int
 }
 
-var MoveMsg = cardinal.NewMessageType[MovePlayerMsg, MovePlayerResult]("move-player")
+var MoveMsg = message.NewMessageType[MovePlayerMsg, MovePlayerResult]("move-player")
 
 func ExampleMessageType() {
 	world, err := cardinal.NewMockWorld()
@@ -32,7 +33,7 @@ func ExampleMessageType() {
 	}
 
 	err = cardinal.RegisterSystems(world, func(eCtx engine.Context) error {
-		MoveMsg.Each(eCtx, func(txData cardinal.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
+		MoveMsg.Each(eCtx, func(txData message.TxData[MovePlayerMsg]) (MovePlayerResult, error) {
 			// handle the transaction
 			// ...
 

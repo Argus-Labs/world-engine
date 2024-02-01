@@ -3,9 +3,8 @@ package cardinal
 import (
 	"github.com/goccy/go-json"
 	"pkg.world.dev/world-engine/cardinal/cql"
-	"pkg.world.dev/world-engine/cardinal/types/component"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 type cqlPlugin struct {
@@ -38,7 +37,7 @@ type cqlQueryRequest struct {
 }
 
 type cqlData struct {
-	ID   entity.ID         `json:"id"`
+	ID   types.EntityID    `json:"id"`
 	Data []json.RawMessage `json:"data" swaggertype:"object"`
 }
 
@@ -59,7 +58,7 @@ func queryCQL(ctx engine.Context, req *cqlQueryRequest) (*cqlQueryResponse, erro
 
 	// getComponentByName is a wrapper function that casts component.ComponentMetadata from ctx.GetComponentByName
 	// to component.Component
-	getComponentByName := func(name string) (component.Component, error) {
+	getComponentByName := func(name string) (types.Component, error) {
 		comp, err := ctx.GetComponentByName(name)
 		if err != nil {
 			return nil, err
@@ -74,7 +73,7 @@ func queryCQL(ctx engine.Context, req *cqlQueryRequest) (*cqlQueryResponse, erro
 	result := make([]cqlData, 0)
 	var eachError error
 	searchErr := NewSearch(ctx, resultFilter).Each(
-		func(id entity.ID) bool {
+		func(id types.EntityID) bool {
 			components, err := ctx.StoreReader().GetComponentTypesForEntity(id)
 			if err != nil {
 				eachError = err

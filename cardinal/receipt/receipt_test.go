@@ -2,20 +2,19 @@ package receipt
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/types/message"
-
 	"pkg.world.dev/world-engine/assert"
 
 	"github.com/google/uuid"
 )
 
-func txHash(t *testing.T) message.TxHash {
+func txHash(t *testing.T) types.TxHash {
 	id, err := uuid.NewUUID()
 	assert.NilError(t, err)
-	return message.TxHash(id.String())
+	return types.TxHash(id.String())
 }
 
 func TestCanSaveAndGetAnError(t *testing.T) {

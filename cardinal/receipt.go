@@ -3,7 +3,7 @@ package cardinal
 import (
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 type EVMTxReceipt struct {
@@ -12,15 +12,15 @@ type EVMTxReceipt struct {
 	EVMTxHash string
 }
 
-func (w *World) AddMessageError(id message.TxHash, err error) {
+func (w *World) AddMessageError(id types.TxHash, err error) {
 	w.receiptHistory.AddError(id, err)
 }
 
-func (w *World) SetMessageResult(id message.TxHash, a any) {
+func (w *World) SetMessageResult(id types.TxHash, a any) {
 	w.receiptHistory.SetResult(id, a)
 }
 
-func (w *World) GetTransactionReceipt(id message.TxHash) (any, []error, bool) {
+func (w *World) GetTransactionReceipt(id types.TxHash) (any, []error, bool) {
 	rec, ok := w.receiptHistory.GetReceipt(id)
 	if !ok {
 		return nil, nil, false

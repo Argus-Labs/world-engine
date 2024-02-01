@@ -3,9 +3,7 @@ package cardinal_test
 import (
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/types/archetype"
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -50,7 +48,7 @@ func TestComponentExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Age](world))
 	assert.NilError(t, cardinal.RegisterComponent[Number](world))
 	assert.NilError(t, world.LoadGameState())
-	eCtx := testutils.WorldToEngineContext(world)
+	eCtx := cardinal.NewWorldContext(world)
 	assert.Equal(t, eCtx.CurrentTick(), uint64(0))
 	eCtx.Logger().Info().Msg("test") // Check for compile errors.
 	eCtx.EmitEvent("test")           // test for compiler errors, a check for this lives in e2e tests.
@@ -91,9 +89,9 @@ func TestComponentExample(t *testing.T) {
 	assert.Equal(t, len(peopleIDs)-1, count)
 	first, err := cardinal.NewSearch(eCtx, filter.Contains(Age{})).First()
 	assert.NilError(t, err)
-	assert.Equal(t, first, entity.ID(1))
+	assert.Equal(t, first, types.EntityID(1))
 
-	// Age does not exist on the target ID, so this should result in an error
+	// Age does not exist on the target EntityID, so this should result in an error
 	err = cardinal.UpdateComponent[Age](eCtx, targetID, func(a *Age) *Age {
 		return a
 	})
@@ -137,17 +135,17 @@ type ComponentDataC struct {
 	Value int
 }
 
-func getNameOfComponent(c component.Component) string {
+func getNameOfComponent(c types.Component) string {
 	return c.Name()
 }
 
 func TestComponentSchemaValidation(t *testing.T) {
-	componentASchemaBytes, err := component.SerializeComponentSchema(ComponentDataA{Value: "test"})
+	componentASchemaBytes, err := types.SerializeComponentSchema(ComponentDataA{Value: "test"})
 	assert.NilError(t, err)
-	valid, err := component.IsComponentValid(ComponentDataA{Value: "anything"}, componentASchemaBytes)
+	valid, err := types.IsComponentValid(ComponentDataA{Value: "anything"}, componentASchemaBytes)
 	assert.NilError(t, err)
 	assert.Assert(t, valid)
-	valid, err = component.IsComponentValid(ComponentDataB{Value: "blah"}, componentASchemaBytes)
+	valid, err = types.IsComponentValid(ComponentDataB{Value: "blah"}, componentASchemaBytes)
 	assert.NilError(t, err)
 	assert.Assert(t, !valid)
 }
@@ -169,19 +167,19 @@ func TestComponents(t *testing.T) {
 	assert.NilError(t, err)
 
 	tests := []*struct {
-		comps    []component.ComponentMetadata
-		archID   archetype.ID
-		entityID entity.ID
+		comps    []types.ComponentMetadata
+		archID   types.ArchetypeID
+		entityID types.EntityID
 		Value    string
 	}{
 		{
-			[]component.ComponentMetadata{ca},
+			[]types.ComponentMetadata{ca},
 			0,
 			0,
 			"a",
 		},
 		{
-			[]component.ComponentMetadata{ca, cb},
+			[]types.ComponentMetadata{ca, cb},
 			1,
 			0,
 			"b",
@@ -200,9 +198,9 @@ func TestComponents(t *testing.T) {
 	for _, tt := range tests {
 		componentsForArchID := storeManager.GetComponentTypesForArchID(tt.archID)
 		for _, comp := range tt.comps {
-			ok := filter.MatchComponent(component.ConvertComponentMetadatasToComponents(componentsForArchID), comp)
+			ok := filter.MatchComponent(types.ConvertComponentMetadatasToComponents(componentsForArchID), comp)
 			if !ok {
-				t.Errorf("the archetype ID %d should contain the component %d", tt.archID, comp.ID())
+				t.Errorf("the archetype EntityID %d should contain the component %d", tt.archID, comp.ID())
 			}
 			iface, err := storeManager.GetComponentForEntity(comp, tt.entityID)
 			assert.NilError(t, err)
@@ -223,7 +221,7 @@ func TestComponents(t *testing.T) {
 	target := tests[0]
 
 	srcArchIdx := target.archID
-	var dstArchIdx archetype.ID = 1
+	var dstArchIdx types.ArchetypeID = 1
 
 	assert.NilError(t, storeManager.AddComponentToEntity(cb, target.entityID))
 
@@ -231,15 +229,15 @@ func TestComponents(t *testing.T) {
 	assert.NilError(t, err)
 	gotArchID, err := storeManager.GetArchIDForComponents(gotComponents)
 	assert.NilError(t, err)
-	assert.Check(t, gotArchID != srcArchIdx, "the archetype ID should be different after adding a component")
+	assert.Check(t, gotArchID != srcArchIdx, "the archetype EntityID should be different after adding a component")
 
 	gotIDs, err := storeManager.GetEntitiesForArchID(srcArchIdx)
 	assert.NilError(t, err)
-	assert.Equal(t, 0, len(gotIDs), "there should be no entities in the archetype ID %d", srcArchIdx)
+	assert.Equal(t, 0, len(gotIDs), "there should be no entities in the archetype EntityID %d", srcArchIdx)
 
 	gotIDs, err = storeManager.GetEntitiesForArchID(dstArchIdx)
 	assert.NilError(t, err)
-	assert.Equal(t, 2, len(gotIDs), "there should be 2 entities in the archetype ID %d", dstArchIdx)
+	assert.Equal(t, 2, len(gotIDs), "there should be 2 entities in the archetype EntityID %d", dstArchIdx)
 
 	iface, err := storeManager.GetComponentForEntity(ca, target.entityID)
 	assert.NilError(t, err)

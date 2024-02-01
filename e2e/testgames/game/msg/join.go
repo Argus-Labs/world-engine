@@ -1,7 +1,7 @@
 package msg
 
 import (
-	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/message"
 )
 
 type JoinInput struct {
@@ -12,5 +12,5 @@ type JoinOutput struct {
 	Success bool
 }
 
-var JoinMsg = cardinal.NewMessageType[JoinInput, JoinOutput]("join",
-	cardinal.WithMsgEVMSupport[JoinInput, JoinOutput]())
+var JoinMsg = message.NewMessageType[JoinInput, JoinOutput]("join",
+	message.WithMsgEVMSupport[JoinInput, JoinOutput]())

@@ -8,14 +8,12 @@ import (
 	filter2 "pkg.world.dev/world-engine/cardinal/filter"
 	iterators2 "pkg.world.dev/world-engine/cardinal/iterators"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
+	"pkg.world.dev/world-engine/cardinal/types"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/types/archetype"
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 var _ Manager = &EntityCommandBuffer{}
@@ -25,28 +23,28 @@ type EntityCommandBuffer struct {
 
 	compValues         map[compKey]any
 	compValuesToDelete map[compKey]bool
-	typeToComponent    map[component.TypeID]component.ComponentMetadata
+	typeToComponent    map[types.ComponentID]types.ComponentMetadata
 
-	activeEntities map[archetype.ID]activeEntities
+	activeEntities map[types.ArchetypeID]activeEntities
 
-	// Fields that track the next valid entity ID that can be assigned
+	// Fields that track the next valid entity EntityID that can be assigned
 	nextEntityIDSaved uint64
 	pendingEntityIDs  uint64
 	isEntityIDLoaded  bool
 
-	// Archetype ID management.
-	entityIDToArchID       map[entity.ID]archetype.ID
-	entityIDToOriginArchID map[entity.ID]archetype.ID
+	// Archetype EntityID management.
+	entityIDToArchID       map[types.EntityID]types.ArchetypeID
+	entityIDToOriginArchID map[types.EntityID]types.ArchetypeID
 
-	archIDToComps  map[archetype.ID][]component.ComponentMetadata
-	pendingArchIDs []archetype.ID
+	archIDToComps  map[types.ArchetypeID][]types.ComponentMetadata
+	pendingArchIDs []types.ArchetypeID
 
 	logger *zerolog.Logger
 }
 
 var (
 	ErrArchetypeNotFound    = errors.New("archetype for components not found")
-	doesNotExistArchetypeID = archetype.ID(-1)
+	doesNotExistArchetypeID = types.ArchetypeID(-1)
 )
 
 // NewEntityCommandBuffer creates a new command buffer manager that is able to queue up a series of states changes and
@@ -57,11 +55,11 @@ func NewEntityCommandBuffer(client *redis.Client) (*EntityCommandBuffer, error) 
 		compValues:         map[compKey]any{},
 		compValuesToDelete: map[compKey]bool{},
 
-		activeEntities: map[archetype.ID]activeEntities{},
-		archIDToComps:  map[archetype.ID][]component.ComponentMetadata{},
+		activeEntities: map[types.ArchetypeID]activeEntities{},
+		archIDToComps:  map[types.ArchetypeID][]types.ComponentMetadata{},
 
-		entityIDToArchID:       map[entity.ID]archetype.ID{},
-		entityIDToOriginArchID: map[entity.ID]archetype.ID{},
+		entityIDToArchID:       map[types.EntityID]types.ArchetypeID{},
+		entityIDToOriginArchID: map[types.EntityID]types.ArchetypeID{},
 
 		// This field cannot be set until RegisterComponents is called
 		typeToComponent: nil,
@@ -72,8 +70,8 @@ func NewEntityCommandBuffer(client *redis.Client) (*EntityCommandBuffer, error) 
 	return m, nil
 }
 
-func (m *EntityCommandBuffer) RegisterComponents(comps []component.ComponentMetadata) error {
-	m.typeToComponent = map[component.TypeID]component.ComponentMetadata{}
+func (m *EntityCommandBuffer) RegisterComponents(comps []types.ComponentMetadata) error {
+	m.typeToComponent = map[types.ComponentID]types.ComponentMetadata{}
 	for _, comp := range comps {
 		m.typeToComponent[comp.ID()] = comp
 	}
@@ -102,7 +100,7 @@ func (m *EntityCommandBuffer) DiscardPending() {
 }
 
 // RemoveEntity removes the given entity from the ECS data model.
-func (m *EntityCommandBuffer) RemoveEntity(idToRemove entity.ID) error {
+func (m *EntityCommandBuffer) RemoveEntity(idToRemove types.EntityID) error {
 	archID, err := m.getArchetypeForEntity(idToRemove)
 	if err != nil {
 		return err
@@ -133,7 +131,7 @@ func (m *EntityCommandBuffer) RemoveEntity(idToRemove entity.ID) error {
 }
 
 // CreateEntity creates a single entity with the given set of components.
-func (m *EntityCommandBuffer) CreateEntity(comps ...component.ComponentMetadata) (entity.ID, error) {
+func (m *EntityCommandBuffer) CreateEntity(comps ...types.ComponentMetadata) (types.EntityID, error) {
 	ids, err := m.CreateManyEntities(1, comps...)
 	if err != nil {
 		return 0, err
@@ -142,13 +140,13 @@ func (m *EntityCommandBuffer) CreateEntity(comps ...component.ComponentMetadata)
 }
 
 // CreateManyEntities creates many entities with the given set of components.
-func (m *EntityCommandBuffer) CreateManyEntities(num int, comps ...component.ComponentMetadata) ([]entity.ID, error) {
+func (m *EntityCommandBuffer) CreateManyEntities(num int, comps ...types.ComponentMetadata) ([]types.EntityID, error) {
 	archID, err := m.getOrMakeArchIDForComponents(comps)
 	if err != nil {
 		return nil, err
 	}
 
-	ids := make([]entity.ID, num)
+	ids := make([]types.EntityID, num)
 	active, err := m.getActiveEntities(archID)
 	if err != nil {
 		return nil, err
@@ -171,8 +169,8 @@ func (m *EntityCommandBuffer) CreateManyEntities(num int, comps ...component.Com
 
 // SetComponentForEntity sets the given entity's component data to the given value.
 func (m *EntityCommandBuffer) SetComponentForEntity(
-	cType component.ComponentMetadata,
-	id entity.ID, value any,
+	cType types.ComponentMetadata,
+	id types.EntityID, value any,
 ) error {
 	comps, err := m.GetComponentTypesForEntity(id)
 	if err != nil {
@@ -188,7 +186,7 @@ func (m *EntityCommandBuffer) SetComponentForEntity(
 }
 
 // GetComponentForEntity returns the saved component data for the given entity.
-func (m *EntityCommandBuffer) GetComponentForEntity(cType component.ComponentMetadata, id entity.ID) (any, error) {
+func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadata, id types.EntityID) (any, error) {
 	key := compKey{cType.ID(), id}
 	value, ok := m.compValues[key]
 	if ok {
@@ -227,7 +225,7 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType component.ComponentMet
 }
 
 // GetComponentForEntityInRawJSON returns the saved component data as JSON encoded bytes for the given entity.
-func (m *EntityCommandBuffer) GetComponentForEntityInRawJSON(cType component.ComponentMetadata, id entity.ID) (
+func (m *EntityCommandBuffer) GetComponentForEntityInRawJSON(cType types.ComponentMetadata, id types.EntityID) (
 	json.RawMessage, error,
 ) {
 	value, err := m.GetComponentForEntity(cType, id)
@@ -239,7 +237,7 @@ func (m *EntityCommandBuffer) GetComponentForEntityInRawJSON(cType component.Com
 
 // AddComponentToEntity adds the given component to the given entity. An error is returned if the entity
 // already has this component.
-func (m *EntityCommandBuffer) AddComponentToEntity(cType component.ComponentMetadata, id entity.ID) error {
+func (m *EntityCommandBuffer) AddComponentToEntity(cType types.ComponentMetadata, id types.EntityID) error {
 	fromComps, err := m.GetComponentTypesForEntity(id)
 	if err != nil {
 		return err
@@ -265,12 +263,12 @@ func (m *EntityCommandBuffer) AddComponentToEntity(cType component.ComponentMeta
 
 // RemoveComponentFromEntity removes the given component from the given entity. An error is returned if the entity
 // does not have the component.
-func (m *EntityCommandBuffer) RemoveComponentFromEntity(cType component.ComponentMetadata, id entity.ID) error {
+func (m *EntityCommandBuffer) RemoveComponentFromEntity(cType types.ComponentMetadata, id types.EntityID) error {
 	comps, err := m.GetComponentTypesForEntity(id)
 	if err != nil {
 		return err
 	}
-	newCompSet := make([]component.ComponentMetadata, 0, len(comps)-1)
+	newCompSet := make([]types.ComponentMetadata, 0, len(comps)-1)
 	found := false
 	for _, comp := range comps {
 		if comp.ID() == cType.ID() {
@@ -301,7 +299,7 @@ func (m *EntityCommandBuffer) RemoveComponentFromEntity(cType component.Componen
 
 // GetComponentTypesForEntity returns all the component types that are currently on the given entity. Only types
 // are returned. To get the actual component data, use GetComponentForEntity.
-func (m *EntityCommandBuffer) GetComponentTypesForEntity(id entity.ID) ([]component.ComponentMetadata, error) {
+func (m *EntityCommandBuffer) GetComponentTypesForEntity(id types.EntityID) ([]types.ComponentMetadata, error) {
 	archID, err := m.getArchetypeForEntity(id)
 	if err != nil {
 		return nil, err
@@ -311,13 +309,13 @@ func (m *EntityCommandBuffer) GetComponentTypesForEntity(id entity.ID) ([]compon
 }
 
 // GetComponentTypesForArchID returns the set of components that are associated with the given archetype id.
-func (m *EntityCommandBuffer) GetComponentTypesForArchID(archID archetype.ID) []component.ComponentMetadata {
+func (m *EntityCommandBuffer) GetComponentTypesForArchID(archID types.ArchetypeID) []types.ComponentMetadata {
 	return m.archIDToComps[archID]
 }
 
-// GetArchIDForComponents returns the archetype ID that has been assigned to this set of components.
-// If this set of components does not have an archetype ID assigned to it, an error is returned.
-func (m *EntityCommandBuffer) GetArchIDForComponents(components []component.ComponentMetadata) (archetype.ID, error) {
+// GetArchIDForComponents returns the archetype EntityID that has been assigned to this set of components.
+// If this set of components does not have an archetype EntityID assigned to it, an error is returned.
+func (m *EntityCommandBuffer) GetArchIDForComponents(components []types.ComponentMetadata) (types.ArchetypeID, error) {
 	if len(components) == 0 {
 		return 0, eris.New("must provide at least 1 component")
 	}
@@ -332,8 +330,8 @@ func (m *EntityCommandBuffer) GetArchIDForComponents(components []component.Comp
 	return 0, eris.Wrap(ErrArchetypeNotFound, "")
 }
 
-// GetEntitiesForArchID returns all the entities that currently belong to the given archetype ID.
-func (m *EntityCommandBuffer) GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error) {
+// GetEntitiesForArchID returns all the entities that currently belong to the given archetype EntityID.
+func (m *EntityCommandBuffer) GetEntitiesForArchID(archID types.ArchetypeID) ([]types.EntityID, error) {
 	active, err := m.getActiveEntities(archID)
 	if err != nil {
 		return nil, err
@@ -346,8 +344,8 @@ func (m *EntityCommandBuffer) GetEntitiesForArchID(archID archetype.ID) ([]entit
 func (m *EntityCommandBuffer) SearchFrom(filter filter2.ComponentFilter, start int) *iterators2.ArchetypeIterator {
 	itr := &iterators2.ArchetypeIterator{}
 	for i := start; i < len(m.archIDToComps); i++ {
-		archID := archetype.ID(i)
-		if !filter.MatchesComponents(component.ConvertComponentMetadatasToComponents(m.archIDToComps[archID])) {
+		archID := types.ArchetypeID(i)
+		if !filter.MatchesComponents(types.ConvertComponentMetadatasToComponents(m.archIDToComps[archID])) {
 			continue
 		}
 		itr.Values = append(itr.Values, archID)
@@ -376,8 +374,8 @@ func (m *EntityCommandBuffer) Close() error {
 	return err
 }
 
-// getArchetypeForEntity returns the archetype ID for the given entity ID.
-func (m *EntityCommandBuffer) getArchetypeForEntity(id entity.ID) (archetype.ID, error) {
+// getArchetypeForEntity returns the archetype EntityID for the given entity EntityID.
+func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.ArchetypeID, error) {
 	archID, ok := m.entityIDToArchID[id]
 	if ok {
 		return archID, nil
@@ -390,15 +388,15 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id entity.ID) (archetype.ID,
 		}
 		return 0, eris.Wrap(err, "")
 	}
-	archID = archetype.ID(num)
+	archID = types.ArchetypeID(num)
 	m.entityIDToArchID[id] = archID
 	return archID, nil
 }
 
-// nextEntityID returns the next available entity ID.
-func (m *EntityCommandBuffer) nextEntityID() (entity.ID, error) {
+// nextEntityID returns the next available entity EntityID.
+func (m *EntityCommandBuffer) nextEntityID() (types.EntityID, error) {
 	if !m.isEntityIDLoaded {
-		// The next valid entity ID needs to be loaded from storage.
+		// The next valid entity EntityID needs to be loaded from storage.
 		ctx := context.Background()
 		nextID, err := m.client.Get(ctx, redisNextEntityIDKey()).Uint64()
 		err = eris.Wrap(err, "")
@@ -406,7 +404,7 @@ func (m *EntityCommandBuffer) nextEntityID() (entity.ID, error) {
 			if !eris.Is(eris.Cause(err), redis.Nil) {
 				return 0, err
 			}
-			// redis.Nil means there's no value at this key. Start with an ID of 0
+			// redis.Nil means there's no value at this key. Start with an EntityID of 0
 			nextID = 0
 		}
 		m.nextEntityIDSaved = nextID
@@ -416,15 +414,15 @@ func (m *EntityCommandBuffer) nextEntityID() (entity.ID, error) {
 
 	id := m.nextEntityIDSaved + m.pendingEntityIDs
 	m.pendingEntityIDs++
-	return entity.ID(id), nil
+	return types.EntityID(id), nil
 }
 
-// getOrMakeArchIDForComponents converts the given set of components into an archetype ID.
-// If the set of components has already been assigned an archetype ID, that ID is returned.
-// If this is a new set of components, an archetype ID is generated.
+// getOrMakeArchIDForComponents converts the given set of components into an archetype EntityID.
+// If the set of components has already been assigned an archetype EntityID, that EntityID is returned.
+// If this is a new set of components, an archetype EntityID is generated.
 func (m *EntityCommandBuffer) getOrMakeArchIDForComponents(
-	comps []component.ComponentMetadata,
-) (archetype.ID, error) {
+	comps []types.ComponentMetadata,
+) (types.ArchetypeID, error) {
 	archID, err := m.GetArchIDForComponents(comps)
 	if err == nil {
 		return archID, nil
@@ -432,18 +430,18 @@ func (m *EntityCommandBuffer) getOrMakeArchIDForComponents(
 	if !eris.Is(eris.Cause(err), ErrArchetypeNotFound) {
 		return 0, err
 	}
-	// An archetype ID was not found. Create a pending arch ID
-	id := archetype.ID(len(m.archIDToComps))
+	// An archetype EntityID was not found. Create a pending arch EntityID
+	id := types.ArchetypeID(len(m.archIDToComps))
 	m.pendingArchIDs = append(m.pendingArchIDs, id)
 	m.archIDToComps[id] = comps
 	m.logger.Debug().Int("archetype_id", int(id)).Msg("created")
 	return id, nil
 }
 
-// getActiveEntities returns the entities that are currently assigned to the given archetype ID.
-func (m *EntityCommandBuffer) getActiveEntities(archID archetype.ID) (activeEntities, error) {
+// getActiveEntities returns the entities that are currently assigned to the given archetype EntityID.
+func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activeEntities, error) {
 	active, ok := m.activeEntities[archID]
-	// The active entities for this archetype ID has not yet been loaded from storage
+	// The active entities for this archetype EntityID has not yet been loaded from storage
 	if ok {
 		return m.activeEntities[archID], nil
 	}
@@ -451,13 +449,13 @@ func (m *EntityCommandBuffer) getActiveEntities(archID archetype.ID) (activeEnti
 	key := redisActiveEntityIDKey(archID)
 	bz, err := m.client.Get(ctx, key).Bytes()
 	err = eris.Wrap(err, "")
-	var ids []entity.ID
+	var ids []types.EntityID
 	if err != nil {
 		if !eris.Is(eris.Cause(err), redis.Nil) {
 			return active, err
 		}
 	} else {
-		ids, err = codec.Decode[[]entity.ID](bz)
+		ids, err = codec.Decode[[]types.EntityID](bz)
 		if err != nil {
 			return active, err
 		}
@@ -470,15 +468,15 @@ func (m *EntityCommandBuffer) getActiveEntities(archID archetype.ID) (activeEnti
 	return m.activeEntities[archID], nil
 }
 
-// setActiveEntities sets the entities that are associated with the given archetype ID and marks
+// setActiveEntities sets the entities that are associated with the given archetype EntityID and marks
 // the information as modified so it can later be pushed to the storage layer.
-func (m *EntityCommandBuffer) setActiveEntities(archID archetype.ID, active activeEntities) {
+func (m *EntityCommandBuffer) setActiveEntities(archID types.ArchetypeID, active activeEntities) {
 	active.modified = true
 	m.activeEntities[archID] = active
 }
 
-// moveEntityByArchetype moves an entity ID from one archetype to another archetype.
-func (m *EntityCommandBuffer) moveEntityByArchetype(fromArchID, toArchID archetype.ID, id entity.ID) error {
+// moveEntityByArchetype moves an entity EntityID from one archetype to another archetype.
+func (m *EntityCommandBuffer) moveEntityByArchetype(fromArchID, toArchID types.ArchetypeID, id types.EntityID) error {
 	if _, ok := m.entityIDToOriginArchID[id]; !ok {
 		m.entityIDToOriginArchID[id] = fromArchID
 	}

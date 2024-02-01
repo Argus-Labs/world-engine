@@ -3,8 +3,7 @@ package testutils
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 	"time"
 
@@ -31,10 +30,6 @@ func SetTestTimeout(t *testing.T, timeout time.Duration) {
 			panic("test timed out")
 		}
 	}()
-}
-
-func WorldToEngineContext(world *cardinal.World) engine.Context {
-	return cardinal.TestingWorldToWorldContext(world)
 }
 
 var (
@@ -66,13 +61,11 @@ func UniqueSignature() *sign.Transaction {
 
 func AddTransactionToWorldByAnyTransaction(
 	world *cardinal.World,
-	cardinalTx message.Message,
+	cardinalTx types.Message,
 	value any,
 	tx *sign.Transaction,
 ) {
-	worldCtx := WorldToEngineContext(world)
-
-	txs := worldCtx.ListMessages()
+	txs := world.ListMessages()
 	txID := cardinalTx.ID()
 	found := false
 	for _, tx := range txs {
@@ -90,5 +83,5 @@ func AddTransactionToWorldByAnyTransaction(
 		)
 	}
 
-	_, _ = worldCtx.AddTransaction(txID, value, tx)
+	_, _ = world.AddTransaction(txID, value, tx)
 }

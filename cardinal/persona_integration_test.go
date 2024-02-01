@@ -7,11 +7,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/sign"
 
 	"pkg.world.dev/world-engine/assert"
@@ -19,21 +19,22 @@ import (
 
 func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, world.LoadGameState())
 
 	wantTag := "CoolMage"
 	wantAddress := "123_456"
-	cardinal.CreatePersonaMsg.AddToQueue(
-		world, msg.CreatePersona{
+	tf.AddTransaction(
+		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: wantAddress,
 		},
 	)
 	// This cardinal.CreatePersona has the same persona tag, but it shouldn't be registered because
 	// it comes second.
-	cardinal.CreatePersonaMsg.AddToQueue(
-		world, msg.CreatePersona{
+	tf.AddTransaction(
+		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: "some_other_address",
 		},
@@ -51,7 +52,8 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 }
 
 func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, world.LoadGameState())
 	ctx := context.Background()
 
@@ -66,8 +68,8 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	// Queue up a cardinal.CreatePersona
 	personaTag := "foobar"
 	signerAddress := "xyzzy"
-	cardinal.CreatePersonaMsg.AddToQueue(
-		world, msg.CreatePersona{
+	tf.AddTransaction(
+		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: signerAddress,
 		},
@@ -86,15 +88,16 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 }
 
 func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, world.LoadGameState())
 
 	personaTag := "jeff"
 
 	for i := 0; i < 10; i++ {
 		// Attempt to register many different signer addresses with the same persona tag.
-		cardinal.CreatePersonaMsg.AddToQueue(
-			world, msg.CreatePersona{
+		tf.AddTransaction(
+			cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
 				PersonaTag:    personaTag,
 				SignerAddress: fmt.Sprintf("address_%d", i),
 			},
@@ -112,8 +115,8 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 	// Attempt to register this persona tag again in a different tick. We should still maintain the original
 	// signer address.
-	cardinal.CreatePersonaMsg.AddToQueue(
-		world, msg.CreatePersona{
+	tf.AddTransaction(
+		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: "some_other_address",
 		},
@@ -128,11 +131,12 @@ func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 
 func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, world.LoadGameState())
 
-	cardinal.CreatePersonaMsg.AddToQueue(
-		world, msg.CreatePersona{
+	tf.AddTransaction(
+		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    "INVALID PERSONA TAG WITH SPACES",
 			SignerAddress: "123_456",
 		},
@@ -148,19 +152,20 @@ func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 
 func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, world.LoadGameState())
 
-	cardinal.CreatePersonaMsg.AddToQueue(
-		world, msg.CreatePersona{
+	tf.AddTransaction(
+		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    "WowTag",
 			SignerAddress: "123_456",
 		},
 	)
 
 	// This one should fail because it is the same tag with different casing!
-	cardinal.CreatePersonaMsg.AddToQueue(
-		world, msg.CreatePersona{
+	tf.AddTransaction(
+		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    "wowtag",
 			SignerAddress: "123_456",
 		},
@@ -177,21 +182,22 @@ func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 
 func TestCanAuthorizeAddress(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, world.LoadGameState())
 
 	wantTag := "CoolMage"
 	wantSigner := "123_456"
-	cardinal.CreatePersonaMsg.AddToQueue(
-		world, msg.CreatePersona{
+	tf.AddTransaction(
+		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    wantTag,
 			SignerAddress: wantSigner,
 		},
 	)
 
 	wantAddr := "0xd5e099c71b797516c10ed0f0d895f429c2781142"
-	cardinal.AuthorizePersonaAddressMsg.AddToQueue(
-		world, msg.AuthorizePersonaAddress{
+	tf.AddTransaction(
+		cardinal.AuthorizePersonaAddressMsg.ID(), msg.AuthorizePersonaAddress{
 			Address: wantAddr,
 		}, &sign.Transaction{PersonaTag: wantTag},
 	)
@@ -213,21 +219,22 @@ func TestCanAuthorizeAddress(t *testing.T) {
 
 func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, world.LoadGameState())
 
 	personaTag := "CoolMage"
 	invalidAddr := "123-456"
-	cardinal.CreatePersonaMsg.AddToQueue(
-		world, msg.CreatePersona{
+	tf.AddTransaction(
+		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
 			PersonaTag:    personaTag,
 			SignerAddress: invalidAddr,
 		},
 	)
 
 	wantAddr := "INVALID ADDRESS"
-	cardinal.AuthorizePersonaAddressMsg.AddToQueue(
-		world, msg.AuthorizePersonaAddress{
+	tf.AddTransaction(
+		cardinal.CreatePersonaMsg.ID(), msg.AuthorizePersonaAddress{
 			Address: wantAddr,
 		}, &sign.Transaction{PersonaTag: personaTag},
 	)
@@ -253,7 +260,7 @@ func getSigners(t *testing.T, world *cardinal.World) []*component.SignerComponen
 	q := cardinal.NewSearch(eCtx, filter.Exact(component.SignerComponent{}))
 
 	err := q.Each(
-		func(id entity.ID) bool {
+		func(id types.EntityID) bool {
 			sc, err := cardinal.GetComponent[component.SignerComponent](eCtx, id)
 			assert.NilError(t, err)
 			signers = append(signers, sc)

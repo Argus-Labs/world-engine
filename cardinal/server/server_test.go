@@ -8,7 +8,9 @@ import (
 	"io"
 	"math/rand"
 	"pkg.world.dev/world-engine/assert"
+	message2 "pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"slices"
 	"strings"
@@ -24,8 +26,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
-	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -183,7 +183,7 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 }
 
 // Creates a transaction with the given message, and runs it in a tick.
-func (s *ServerTestSuite) runTx(personaTag string, msg message.Message, payload any) {
+func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload any) {
 	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace().String(), s.nonce, payload)
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL(msg.Group(), msg.Name()), tx)
@@ -216,9 +216,9 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.Require().NoError(err)
 	err = cardinal.RegisterMessages(s.world, MoveMessage)
 	s.Require().NoError(err)
-	personaToPosition := make(map[string]entity.ID)
+	personaToPosition := make(map[string]types.EntityID)
 	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {
-		MoveMessage.Each(context, func(tx cardinal.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
+		MoveMessage.Each(context, func(tx message2.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
 			posID, exists := personaToPosition[tx.Tx.PersonaTag]
 			if !exists {
 				id, err := cardinal.Create(context, LocationComponent{})
@@ -302,7 +302,7 @@ type MoveMessageOutput struct {
 	Location LocationComponent
 }
 
-var MoveMessage = cardinal.NewMessageType[MoveMsgInput, MoveMessageOutput]("move")
+var MoveMessage = message2.NewMessageType[MoveMsgInput, MoveMessageOutput]("move")
 
 type QueryLocationRequest struct {
 	Persona string

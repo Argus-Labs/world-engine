@@ -4,6 +4,7 @@ import (
 	"context"
 	filter2 "pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/types"
 
 	"runtime"
 	"testing"
@@ -18,9 +19,6 @@ import (
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
-
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 func newCmdBufferForTest(t *testing.T) *gamestate.EntityCommandBuffer {
@@ -70,7 +68,7 @@ func (Bar) Name() string {
 var (
 	fooComp, errForFooCompGlobal = cardinal.NewComponentMetadata[Foo]()
 	barComp, errForBarCompGlobal = cardinal.NewComponentMetadata[Bar]()
-	allComponents                = []component.ComponentMetadata{fooComp, barComp}
+	allComponents                = []types.ComponentMetadata{fooComp, barComp}
 )
 
 func TestGlobals(t *testing.T) {
@@ -144,10 +142,10 @@ func TestDiscardedEntityIDsWillBeAssignedAgain(t *testing.T) {
 	ids, err := manager.CreateManyEntities(10, fooComp)
 	assert.NilError(t, err)
 	assert.NilError(t, manager.FinalizeTick(ctx))
-	// This is the next ID we should expect to be assigned
+	// This is the next EntityID we should expect to be assigned
 	nextID := ids[len(ids)-1] + 1
 
-	// cardinal.Create a new entity. It should have nextID as the ID
+	// cardinal.Create a new entity. It should have nextID as the EntityID
 	gotID, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	assert.Equal(t, nextID, gotID)
@@ -156,13 +154,13 @@ func TestDiscardedEntityIDsWillBeAssignedAgain(t *testing.T) {
 	manager.DiscardPending()
 
 	// cardinal.Create an entity again. We should get nextID assigned again.
-	// cardinal.Create a new entity. It should have nextID as the ID
+	// cardinal.Create a new entity. It should have nextID as the EntityID
 	gotID, err = manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	assert.Equal(t, nextID, gotID)
 	assert.NilError(t, manager.FinalizeTick(ctx))
 
-	// Now that nextID has been assigned, creating a new entity should give us a new entity ID
+	// Now that nextID has been assigned, creating a new entity should give us a new entity EntityID
 	gotID, err = manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	assert.Equal(t, gotID, nextID+1)
@@ -182,7 +180,7 @@ func TestCanGetComponentsForEntity(t *testing.T) {
 
 func TestGettingInvalidEntityResultsInAnError(t *testing.T) {
 	manager := newCmdBufferForTest(t)
-	_, err := manager.GetComponentTypesForEntity(entity.ID(1034134))
+	_, err := manager.GetComponentTypesForEntity(types.EntityID(1034134))
 	assert.Check(t, err != nil)
 }
 
@@ -202,11 +200,11 @@ func TestComponentSetsCanBeDiscarded(t *testing.T) {
 	// Discard the above changes
 	manager.DiscardPending()
 
-	// Repeat the above operation. We should end up with the same entity ID, and it should
+	// Repeat the above operation. We should end up with the same entity EntityID, and it should
 	// end up containing a different set of components
 	gotID, err := manager.CreateEntity(fooComp, barComp)
 	assert.NilError(t, err)
-	// The assigned entity ID should be reused
+	// The assigned entity EntityID should be reused
 	assert.Equal(t, gotID, firstID)
 	comps, err = manager.GetComponentTypesForEntity(gotID)
 	assert.NilError(t, err)
@@ -215,7 +213,7 @@ func TestComponentSetsCanBeDiscarded(t *testing.T) {
 
 	gotArchID, err := manager.GetArchIDForComponents(comps)
 	assert.NilError(t, err)
-	// The archetype ID should be reused
+	// The archetype EntityID should be reused
 	assert.Equal(t, firstArchID, gotArchID)
 }
 
@@ -326,7 +324,7 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 
 	testCases := []struct {
 		filter  filter2.ComponentFilter
-		wantIDs []entity.ID
+		wantIDs []types.EntityID
 	}{
 		{
 			filter:  filter2.Contains(Health{}),
@@ -351,10 +349,10 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		found := map[entity.ID]bool{}
+		found := map[types.EntityID]bool{}
 		q := cardinal.NewSearch(eCtx, tc.filter)
 		err = q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				found[id] = true
 				return true
 			},
@@ -409,9 +407,9 @@ func TestMovedEntitiesCanBeFoundInNewArchetype(t *testing.T) {
 	_, err = manager.CreateManyEntities(startEntityCount, fooComp, barComp)
 	assert.NilError(t, err)
 
-	fooArchID, err := manager.GetArchIDForComponents([]component.ComponentMetadata{fooComp})
+	fooArchID, err := manager.GetArchIDForComponents([]types.ComponentMetadata{fooComp})
 	assert.NilError(t, err)
-	bothArchID, err := manager.GetArchIDForComponents([]component.ComponentMetadata{barComp, fooComp})
+	bothArchID, err := manager.GetArchIDForComponents([]types.ComponentMetadata{barComp, fooComp})
 	assert.NilError(t, err)
 
 	// Make sure there are the correct number of ids in each archetype to start

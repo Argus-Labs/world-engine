@@ -3,31 +3,27 @@ package gamestate
 import (
 	"context"
 	"encoding/json"
+	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-
-	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/cardinal/types/archetype"
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
-	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 type Reader interface {
 	// One Component One Entity
-	GetComponentForEntity(cType component.ComponentMetadata, id entity.ID) (any, error)
-	GetComponentForEntityInRawJSON(cType component.ComponentMetadata, id entity.ID) (json.RawMessage, error)
+	GetComponentForEntity(cType types.ComponentMetadata, id types.EntityID) (any, error)
+	GetComponentForEntityInRawJSON(cType types.ComponentMetadata, id types.EntityID) (json.RawMessage, error)
 
 	// Many Components One Entity
-	GetComponentTypesForEntity(id entity.ID) ([]component.ComponentMetadata, error)
+	GetComponentTypesForEntity(id types.EntityID) ([]types.ComponentMetadata, error)
 
 	// One Archetype Many Components
-	GetComponentTypesForArchID(archID archetype.ID) []component.ComponentMetadata
-	GetArchIDForComponents(components []component.ComponentMetadata) (archetype.ID, error)
+	GetComponentTypesForArchID(archID types.ArchetypeID) []types.ComponentMetadata
+	GetArchIDForComponents(components []types.ComponentMetadata) (types.ArchetypeID, error)
 
 	// One Archetype Many Entities
-	GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error)
+	GetEntitiesForArchID(archID types.ArchetypeID) ([]types.EntityID, error)
 
 	// Misc
 	SearchFrom(filter filter.ComponentFilter, start int) *iterators.ArchetypeIterator
@@ -36,28 +32,28 @@ type Reader interface {
 
 type Writer interface {
 	// One Entity
-	RemoveEntity(id entity.ID) error
+	RemoveEntity(id types.EntityID) error
 
 	// Many Components
-	CreateEntity(comps ...component.ComponentMetadata) (entity.ID, error)
-	CreateManyEntities(num int, comps ...component.ComponentMetadata) ([]entity.ID, error)
+	CreateEntity(comps ...types.ComponentMetadata) (types.EntityID, error)
+	CreateManyEntities(num int, comps ...types.ComponentMetadata) ([]types.EntityID, error)
 
 	// One Component One Entity
-	SetComponentForEntity(cType component.ComponentMetadata, id entity.ID, value any) error
-	AddComponentToEntity(cType component.ComponentMetadata, id entity.ID) error
-	RemoveComponentFromEntity(cType component.ComponentMetadata, id entity.ID) error
+	SetComponentForEntity(cType types.ComponentMetadata, id types.EntityID, value any) error
+	AddComponentToEntity(cType types.ComponentMetadata, id types.EntityID) error
+	RemoveComponentFromEntity(cType types.ComponentMetadata, id types.EntityID) error
 
 	// Misc
 	InjectLogger(logger *zerolog.Logger)
 	Close() error
-	RegisterComponents([]component.ComponentMetadata) error
+	RegisterComponents([]types.ComponentMetadata) error
 }
 
 type TickStorage interface {
 	GetTickNumbers() (start, end uint64, err error)
-	StartNextTick(txs []message.Message, queues *txpool.TxQueue) error
+	StartNextTick(txs []types.Message, queues *txpool.TxQueue) error
 	FinalizeTick(ctx context.Context) error
-	Recover(txs []message.Message) (*txpool.TxQueue, error)
+	Recover(txs []types.Message) (*txpool.TxQueue, error)
 }
 
 // Manager represents all the methods required to track Component, Entity, and Archetype information

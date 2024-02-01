@@ -1,23 +1,22 @@
 package iterators
 
 import (
-	"pkg.world.dev/world-engine/cardinal/types/archetype"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 type HasEntitiesForArchetype interface {
-	GetEntitiesForArchID(archID archetype.ID) ([]entity.ID, error)
+	GetEntitiesForArchID(archID types.ArchetypeID) ([]types.EntityID, error)
 }
 
 // EntityIterator is an iterator for Ent lists in archetypes.
 type EntityIterator struct {
 	current      int
 	archAccessor HasEntitiesForArchetype
-	indices      []archetype.ID
+	indices      []types.ArchetypeID
 }
 
 // NewEntityIterator returns an iterator for Entitys.
-func NewEntityIterator(current int, archAccessor HasEntitiesForArchetype, indices []archetype.ID) EntityIterator {
+func NewEntityIterator(current int, archAccessor HasEntitiesForArchetype, indices []types.ArchetypeID) EntityIterator {
 	return EntityIterator{
 		current:      current,
 		archAccessor: archAccessor,
@@ -31,7 +30,7 @@ func (it *EntityIterator) HasNext() bool {
 }
 
 // Next returns the next Ent list.
-func (it *EntityIterator) Next() ([]entity.ID, error) {
+func (it *EntityIterator) Next() ([]types.EntityID, error) {
 	archetypeID := it.indices[it.current]
 	it.current++
 	return it.archAccessor.GetEntitiesForArchID(archetypeID)

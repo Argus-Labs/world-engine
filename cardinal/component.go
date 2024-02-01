@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/codec"
-	"pkg.world.dev/world-engine/cardinal/types/component"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"reflect"
 )
 
 // NewComponentMetadata creates a new component type.
 // The function is used to create a new component of the type.
-func NewComponentMetadata[T component.Component](opts ...ComponentOption[T]) (component.ComponentMetadata, error) {
+func NewComponentMetadata[T types.Component](opts ...ComponentOption[T]) (types.ComponentMetadata, error) {
 	var t T
 	comp, err := newComponentType(t, t.Name(), nil)
 	if err != nil {
@@ -26,7 +26,7 @@ func NewComponentMetadata[T component.Component](opts ...ComponentOption[T]) (co
 // a component when getting or setting the component of an entity.
 type componentMetadata[T any] struct {
 	isIDSet    bool
-	id         component.TypeID
+	id         types.ComponentID
 	typ        reflect.Type
 	name       string
 	defaultVal interface{}
@@ -38,11 +38,11 @@ func (c *componentMetadata[T]) GetSchema() []byte {
 }
 
 // SetID set's this component's ID. It must be unique across the world object.
-func (c *componentMetadata[T]) SetID(id component.TypeID) error {
+func (c *componentMetadata[T]) SetID(id types.ComponentID) error {
 	if c.isIDSet {
 		// In games implemented with Cardinal, components will only be initialized one time (on startup).
 		// In tests, it's often useful to use the same component in multiple worlds. This check will allow for the
-		// re-initialization of components, as long as the ID doesn't change.
+		// re-initialization of components, as long as the ArchetypeID doesn't change.
 		if id == c.id {
 			return nil
 		}
@@ -64,7 +64,7 @@ func (c *componentMetadata[T]) Name() string {
 }
 
 // ID returns the component type id.
-func (c *componentMetadata[T]) ID() component.TypeID {
+func (c *componentMetadata[T]) ID() types.ComponentID {
 	return c.id
 }
 
@@ -97,8 +97,8 @@ func (c *componentMetadata[T]) validateDefaultVal() {
 
 // newComponentType creates a new component type.
 // The argument is a struct that represents a data of the component.
-func newComponentType[T component.Component](s T, name string, defaultVal interface{}) (*componentMetadata[T], error) {
-	schema, err := component.SerializeComponentSchema(s)
+func newComponentType[T types.Component](s T, name string, defaultVal interface{}) (*componentMetadata[T], error) {
+	schema, err := types.SerializeComponentSchema(s)
 	if err != nil {
 		return nil, err
 	}

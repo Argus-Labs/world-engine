@@ -1,23 +1,22 @@
 package gamestate
 
 import (
+	"pkg.world.dev/world-engine/cardinal/types"
 	"sort"
 
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
-// compKey is a tuple of a component TypeID and an entity ID. It used as a map key to keep
+// compKey is a tuple of a component ComponentID and an entity EntityID. It used as a map key to keep
 // track of component data in-memory.
 type compKey struct {
-	typeID   component.TypeID
-	entityID entity.ID
+	typeID   types.ComponentID
+	entityID types.EntityID
 }
 
 // sortComponentSet re-orders the given components so their IDs are strictly increasing. If any component is duplicated
 // an error is returned.
-func sortComponentSet(components []component.ComponentMetadata) error {
+func sortComponentSet(components []types.ComponentMetadata) error {
 	sort.Slice(
 		components, func(i, j int) bool {
 			return components[i].ID() < components[j].ID()
@@ -32,7 +31,7 @@ func sortComponentSet(components []component.ComponentMetadata) error {
 	return nil
 }
 
-func isComponentSetMatch(a, b []component.ComponentMetadata) bool {
+func isComponentSetMatch(a, b []types.ComponentMetadata) bool {
 	if len(a) != len(b) {
 		return false
 	}

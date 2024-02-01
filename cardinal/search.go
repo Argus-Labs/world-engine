@@ -5,13 +5,12 @@ import (
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	iterators2 "pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/types/archetype"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 type cache struct {
-	archetypes []archetype.ID
+	archetypes []types.ArchetypeID
 	seen       int
 }
 
@@ -39,7 +38,7 @@ func NewSearch(wCtx engine.Context, filter filter.ComponentFilter) *Search {
 	}
 }
 
-type CallbackFn func(entity.ID) bool
+type CallbackFn func(types.EntityID) bool
 
 // Each iterates over all entities that match the search.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
@@ -77,14 +76,14 @@ func (s *Search) Count() (int, error) {
 }
 
 // First returns the first entity that matches the search.
-func (s *Search) First() (id entity.ID, err error) {
+func (s *Search) First() (id types.EntityID, err error) {
 	result := s.evaluateSearch()
 	iter := iterators2.NewEntityIterator(0, s.reader, result)
 	if !iter.HasNext() {
 		return iterators2.BadID, eris.Wrap(err, "")
 	}
 	for iter.HasNext() {
-		var entities []entity.ID
+		var entities []types.EntityID
 		entities, err = iter.Next()
 		if err != nil {
 			return 0, err
@@ -96,7 +95,7 @@ func (s *Search) First() (id entity.ID, err error) {
 	return iterators2.BadID, eris.Wrap(err, "")
 }
 
-func (s *Search) MustFirst() entity.ID {
+func (s *Search) MustFirst() types.EntityID {
 	id, err := s.First()
 	if err != nil {
 		panic("no entity matches the search")
@@ -104,10 +103,10 @@ func (s *Search) MustFirst() entity.ID {
 	return id
 }
 
-func (s *Search) evaluateSearch() []archetype.ID {
+func (s *Search) evaluateSearch() []types.ArchetypeID {
 	if _, ok := s.archMatches[s.namespace]; !ok {
 		s.archMatches[s.namespace] = &cache{
-			archetypes: make([]archetype.ID, 0),
+			archetypes: make([]types.ArchetypeID, 0),
 			seen:       0,
 		}
 	}

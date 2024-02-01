@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/sign"
 	"strings"
 	"sync"
 	"testing"
@@ -154,6 +156,17 @@ func (t *TestFixture) Get(path string) *http.Response {
 	resp, err := http.DefaultClient.Do(req)
 	assert.NilError(t, err)
 	return resp
+}
+
+func (t *TestFixture) AddTransaction(
+	txID types.MessageID, tx any, sigs ...*sign.Transaction,
+) types.TxHash {
+	sig := &sign.Transaction{}
+	if len(sigs) > 0 {
+		sig = sigs[0]
+	}
+	_, id := t.World.AddTransaction(txID, tx, sig)
+	return id
 }
 
 func getOpenPort(t testing.TB) string {

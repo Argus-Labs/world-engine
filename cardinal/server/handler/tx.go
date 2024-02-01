@@ -3,12 +3,11 @@ package handler
 import (
 	"errors"
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/rotisserie/eris"
 	personaMsg "pkg.world.dev/world-engine/cardinal/persona/msg"
-	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -51,7 +50,7 @@ type Transaction = sign.Transaction
 //
 //nolint:gocognit
 func PostTransaction(
-	msgs map[string]map[string]message.Message, wCtx engine.Context, disableSigVerification bool,
+	msgs map[string]map[string]types.Message, wCtx engine.Context, disableSigVerification bool,
 ) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		msgType, ok := msgs[ctx.Params("group")][ctx.Params("name")]

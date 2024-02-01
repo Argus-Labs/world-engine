@@ -1,4 +1,4 @@
-package cardinal
+package system
 
 import (
 	"fmt"
@@ -6,14 +6,13 @@ import (
 	"path/filepath"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/system"
 	"reflect"
 	"runtime"
 	"slices"
 	"time"
 )
 
-type SystemManager struct {
+type Manager struct {
 	// registeredSystems is a list of all the registered system names in the order that they were registered.
 	// This is represented as a list as maps in Go are unordered.
 	registeredSystems []string
@@ -23,17 +22,17 @@ type SystemManager struct {
 	registeredInitSystems []string
 
 	// systemFn is a map of system names to system functions.
-	systemFn map[string]system.System
+	systemFn map[string]System
 
 	// currentSystem is the name of the system that is currently running.
 	currentSystem *string
 }
 
-// NewSystemManager creates a new system manager.
-func NewSystemManager() *SystemManager {
-	return &SystemManager{
+// NewManager creates a new system manager.
+func NewManager() *Manager {
+	return &Manager{
 		registeredSystems: make([]string, 0),
-		systemFn:          make(map[string]system.System),
+		systemFn:          make(map[string]System),
 		currentSystem:     nil,
 	}
 }
@@ -41,18 +40,18 @@ func NewSystemManager() *SystemManager {
 // RegisterSystems registers multiple systems with the system manager.
 // There can only be one system with a given name, which is derived from the function name.
 // If there is a duplicate system name, an error will be returned and none of the systems will be registered.
-func (m *SystemManager) RegisterSystems(systems ...system.System) error {
+func (m *Manager) RegisterSystems(systems ...System) error {
 	return m.registerSystems(&m.registeredSystems, systems...)
 }
 
 // RegisterInitSystems registers multiple init systems that is only executed once at tick 0 with the system manager.
 // There can only be one system with a given name, which is derived from the function name.
 // If there is a duplicate system name, an error will be returned and none of the systems will be registered.
-func (m *SystemManager) RegisterInitSystems(systems ...system.System) error {
+func (m *Manager) RegisterInitSystems(systems ...System) error {
 	return m.registerSystems(&m.registeredInitSystems, systems...)
 }
 
-func (m *SystemManager) registerSystems(registeredSystems *[]string, systems ...system.System) error {
+func (m *Manager) registerSystems(registeredSystems *[]string, systems ...System) error {
 	// Iterate through all the systems and check if they are already registered.
 	// This is done before registering any of the systems to ensure that all are registered or none of them are.
 	systemNames := make([]string, 0, len(systems))
@@ -87,7 +86,7 @@ func (m *SystemManager) registerSystems(registeredSystems *[]string, systems ...
 }
 
 // RunSystems runs all the registered system in the order that they were registered.
-func (m *SystemManager) RunSystems(eCtx engine.Context) error {
+func (m *Manager) RunSystems(eCtx engine.Context) error {
 	var systemsToRun []string
 	if eCtx.CurrentTick() == 0 {
 		//nolint:gocritic,appendAssign // We need to use the append function to concat
@@ -126,15 +125,15 @@ func (m *SystemManager) RunSystems(eCtx engine.Context) error {
 	return nil
 }
 
-func (m *SystemManager) IsSystemsRegistered() bool {
+func (m *Manager) IsSystemsRegistered() bool {
 	return len(m.registeredSystems) > 0
 }
 
-func (m *SystemManager) GetSystemNames() []string {
+func (m *Manager) GetSystemNames() []string {
 	return m.registeredSystems
 }
 
-func (m *SystemManager) GetCurrentSystem() string {
+func (m *Manager) GetCurrentSystem() string {
 	if m.currentSystem == nil {
 		return "no_system"
 	}
@@ -142,7 +141,7 @@ func (m *SystemManager) GetCurrentSystem() string {
 }
 
 // isNotDuplicate checks if the system name already exists in the system map
-func (m *SystemManager) isNotDuplicate(systemName string) error {
+func (m *Manager) isNotDuplicate(systemName string) error {
 	if _, ok := m.systemFn[systemName]; ok {
 		return fmt.Errorf("system %q is already registered", systemName)
 	}

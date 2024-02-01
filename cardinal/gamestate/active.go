@@ -2,18 +2,18 @@ package gamestate
 
 import (
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 // activeEntities represents a group of entities.
 type activeEntities struct {
-	ids      []entity.ID
+	ids      []types.EntityID
 	modified bool
 }
 
-// swapRemove removes the given entity ID from this list of active entities. This is used when moving
+// swapRemove removes the given entity EntityID from this list of active entities. This is used when moving
 // an entity from one archetype to another, and then deleting an entity altogether.
-func (a *activeEntities) swapRemove(idToRemove entity.ID) error {
+func (a *activeEntities) swapRemove(idToRemove types.EntityID) error {
 	// TODO: The finding and removing of these entity ids can be sped up. We're going with a simple implementation
 	// here to get to an MVP
 	indexOfID := -1

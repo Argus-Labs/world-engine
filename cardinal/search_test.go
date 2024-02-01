@@ -18,7 +18,7 @@ func TestSearchExample(t *testing.T) {
 	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
 	assert.NilError(t, world.LoadGameState())
 
-	worldCtx := testutils.WorldToEngineContext(world)
+	worldCtx := cardinal.NewWorldContext(world)
 	_, err := cardinal.CreateMany(worldCtx, 10, Alpha{})
 	assert.NilError(t, err)
 	_, err = cardinal.CreateMany(worldCtx, 10, Beta{})

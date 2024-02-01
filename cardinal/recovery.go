@@ -5,8 +5,8 @@ import (
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/cardinal/types/message"
-	"pkg.world.dev/world-engine/evm/x/shard/types"
+	"pkg.world.dev/world-engine/cardinal/types"
+	shardTypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -56,9 +56,9 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	var nextKey []byte
 	for {
 		res, err := w.chain.QueryTransactions(
-			ctx, &types.QueryTransactionsRequest{
+			ctx, &shardTypes.QueryTransactionsRequest{
 				Namespace: namespace,
-				Page: &types.PageRequest{
+				Page: &shardTypes.PageRequest{
 					Key: nextKey,
 				},
 			},
@@ -89,15 +89,15 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				msg := w.msgManager.GetMessage(message.TypeID(tx.TxId))
+				msg := w.msgManager.GetMessage(types.MessageID(tx.TxId))
 				if msg == nil {
-					return eris.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
+					return eris.Errorf("error recovering tx with EntityID %d: tx id not found", tx.TxId)
 				}
 				v, err := msg.Decode(sp.Body)
 				if err != nil {
 					return err
 				}
-				w.AddTransaction(message.TypeID(tx.TxId), v, w.protoTransactionToGo(sp))
+				w.AddTransaction(types.MessageID(tx.TxId), v, w.protoTransactionToGo(sp))
 			}
 			// run the tick for this batch
 			if err = w.Tick(ctx); err != nil {

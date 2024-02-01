@@ -11,8 +11,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	filter2 "pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-
 	"testing"
 
 	"github.com/rotisserie/eris"
@@ -335,11 +335,12 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 	rs := miniredis.RunT(t)
 	errorBadPowerChange := errors.New("bad power change message")
 	for _, isBuggyIteration := range []bool{true, false} {
-		world := testutils.NewTestFixture(t, rs).World
+		tf := testutils.NewTestFixture(t, rs)
+		world := tf.World
 
 		assert.NilError(t, cardinal.RegisterComponent[PowerComp](world))
 
-		powerTx := cardinal.NewMessageType[PowerComp, PowerComp]("change_power")
+		powerTx := message.NewMessageType[PowerComp, PowerComp]("change_power")
 		assert.NilError(t, cardinal.RegisterMessages(world, powerTx))
 
 		err := cardinal.RegisterSystems(
@@ -383,24 +384,24 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 		if isBuggyIteration {
 			// perform a few ticks that will not result in an error
-			powerTx.AddToQueue(world, PowerComp{1000})
+			tf.AddTransaction(powerTx.ID(), PowerComp{1000})
 			assert.NilError(t, world.Tick(context.Background()))
-			powerTx.AddToQueue(world, PowerComp{1000})
+			tf.AddTransaction(powerTx.ID(), PowerComp{1000})
 			assert.NilError(t, world.Tick(context.Background()))
-			powerTx.AddToQueue(world, PowerComp{1000})
+			tf.AddTransaction(powerTx.ID(), PowerComp{1000})
 			assert.NilError(t, world.Tick(context.Background()))
 
 			assert.Equal(t, float64(3000), fetchPower())
 
 			// In this "buggy" iteration, the above system cannot handle a power of 666.
-			powerTx.AddToQueue(world, PowerComp{666})
+			tf.AddTransaction(powerTx.ID(), PowerComp{666})
 			assert.ErrorIs(t, errorBadPowerChange, eris.Cause(world.Tick(context.Background())))
 		} else {
 			// Loading the game state above should successfully re-process that final 666 messages.
 			assert.Equal(t, float64(3666), fetchPower())
 
 			// One more tick for good measure
-			powerTx.AddToQueue(world, PowerComp{1000})
+			tf.AddTransaction(powerTx.ID(), PowerComp{1000})
 			assert.NilError(t, world.Tick(context.Background()))
 
 			assert.Equal(t, float64(4666), fetchPower())

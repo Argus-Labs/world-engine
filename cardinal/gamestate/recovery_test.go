@@ -3,12 +3,11 @@ package gamestate_test
 import (
 	"context"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
-	"pkg.world.dev/world-engine/cardinal/types/archetype"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 func TestLoadingFromRedisShouldNotRepeatEntityIDs(t *testing.T) {
@@ -57,7 +56,7 @@ func TestComponentSetsCanBeRecovered(t *testing.T) {
 	assert.Equal(t, firstArchID, secondArchID)
 }
 
-func getArchIDForEntity(t *testing.T, m *gamestate.EntityCommandBuffer, id entity.ID) archetype.ID {
+func getArchIDForEntity(t *testing.T, m *gamestate.EntityCommandBuffer, id types.EntityID) types.ArchetypeID {
 	comps, err := m.GetComponentTypesForEntity(id)
 	assert.NilError(t, err)
 	archID, err := m.GetArchIDForComponents(comps)
@@ -116,7 +115,7 @@ func TestCanGetComponentTypesAfterReload(t *testing.T) {
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
 	ctx := context.Background()
 
-	var id entity.ID
+	var id types.EntityID
 	_, err := manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 
@@ -228,7 +227,7 @@ func TestTheRemovalOfEntitiesIsRememberedAfterReload(t *testing.T) {
 	for _, id := range startingIDs {
 		_, err = manager.GetComponentForEntity(fooComp, id)
 		if id == idToRemove {
-			// Make sure the entity ID we removed cannot be found
+			// Make sure the entity EntityID we removed cannot be found
 			assert.Check(t, err != nil)
 		} else {
 			assert.NilError(t, err)
@@ -278,7 +277,7 @@ func TestArchetypeCountTracksDiscardedChanges(t *testing.T) {
 	assert.Equal(t, 2, manager.ArchetypeCount())
 	manager.DiscardPending()
 
-	// The previously cardinal.Created archetype ID was discarded, so the count should be back to 1
+	// The previously cardinal.Created archetype EntityID was discarded, so the count should be back to 1
 	_, err = manager.CreateEntity(fooComp)
 	assert.NilError(t, err)
 	assert.Equal(t, 1, manager.ArchetypeCount())

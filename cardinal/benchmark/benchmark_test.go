@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 // newWorldWithRealRedis returns a *cardinal.World that is connected to a redis DB hosted at localhost:6379. The target
@@ -43,7 +43,7 @@ func setupWorld(t testing.TB, numOfEntities int, enableHealthSystem bool) *cardi
 			func(eCtx engine.Context) error {
 				q := cardinal.NewSearch(eCtx, filter.Contains(Health{}))
 				err := q.Each(
-					func(id entity.ID) bool {
+					func(id types.EntityID) bool {
 						health, err := cardinal.GetComponent[Health](eCtx, id)
 						assert.NilError(t, err)
 						health.Value++

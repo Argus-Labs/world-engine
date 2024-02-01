@@ -6,13 +6,13 @@ package gamestate
 
 import (
 	"context"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
-	"pkg.world.dev/world-engine/cardinal/types/component"
 )
 
 type Alpha struct{ Value int }
@@ -45,7 +45,7 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 
 	manager, err := NewEntityCommandBuffer(client)
 	assert.NilError(t, err)
-	err = manager.RegisterComponents([]component.ComponentMetadata{alphaComp, betaComp})
+	err = manager.RegisterComponents([]types.ComponentMetadata{alphaComp, betaComp})
 	assert.NilError(t, err)
 
 	id, err := manager.CreateEntity(alphaComp, betaComp)

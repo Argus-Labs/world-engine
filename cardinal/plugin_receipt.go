@@ -1,6 +1,8 @@
 package cardinal
 
-import "pkg.world.dev/world-engine/cardinal/types/engine"
+import (
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+)
 
 type receiptPlugin struct {
 }

@@ -4,13 +4,12 @@ import (
 	"context"
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/types"
 
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/redis/go-redis/v9"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/types/archetype"
-	"pkg.world.dev/world-engine/cardinal/types/component"
 )
 
 // pipeFlushToRedis return a pipeliner with all pending state changes to redis ready to be committed in an atomic
@@ -19,7 +18,7 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (redi
 	pipe := m.client.TxPipeline()
 
 	if m.typeToComponent == nil {
-		// component.TypeID -> ComponentMetadata mappings are required to serialized data for the DB
+		// component.ComponentID -> ComponentMetadata mappings are required to serialized data for the DB
 		return nil, eris.New("must call RegisterComponents before flushing to DB")
 	}
 
@@ -46,7 +45,7 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (redi
 	return pipe, nil
 }
 
-// addEntityIDToArchIDToPipe adds the information related to mapping an entity ID to its assigned archetype ID.
+// addEntityIDToArchIDToPipe adds the information related to mapping an entity ArchetypeID to its assigned archetype ArchetypeID.
 func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pipe redis.Pipeliner) error {
 	for id, originArchID := range m.entityIDToOriginArchID {
 		key := redisArchetypeIDForEntityID(id)
@@ -73,7 +72,7 @@ func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pip
 	return nil
 }
 
-// addNextEntityIDToPipe adds any changes to the next available entity ID to the given redis pipe.
+// addNextEntityIDToPipe adds any changes to the next available entity ArchetypeID to the given redis pipe.
 func (m *EntityCommandBuffer) addNextEntityIDToPipe(ctx context.Context, pipe redis.Pipeliner) error {
 	// There are no pending entity id creations, so there's nothing to commit
 	if m.pendingEntityIDs == 0 {
@@ -122,7 +121,7 @@ func (m *EntityCommandBuffer) loadArchIDs() error {
 		return nil
 	}
 	if len(m.archIDToComps) > 0 {
-		return eris.New("assigned archetype ID is about to be overwritten by something from storage")
+		return eris.New("assigned archetype ArchetypeID is about to be overwritten by something from storage")
 	}
 	m.archIDToComps = archIDToComps
 	return nil
@@ -163,9 +162,9 @@ func (m *EntityCommandBuffer) addActiveEntityIDsToPipe(ctx context.Context, pipe
 }
 
 func (m *EntityCommandBuffer) encodeArchIDToCompTypes() ([]byte, error) {
-	forStorage := map[archetype.ID][]component.TypeID{}
+	forStorage := map[types.ArchetypeID][]types.ComponentID{}
 	for archID, comps := range m.archIDToComps {
-		typeIDs := []component.TypeID{}
+		typeIDs := []types.ComponentID{}
 		for _, comp := range comps {
 			typeIDs = append(typeIDs, comp.ID())
 		}
@@ -176,8 +175,8 @@ func (m *EntityCommandBuffer) encodeArchIDToCompTypes() ([]byte, error) {
 
 func getArchIDToCompTypesFromRedis(
 	client *redis.Client,
-	typeToComp map[component.TypeID]component.ComponentMetadata,
-) (m map[archetype.ID][]component.ComponentMetadata, ok bool, err error) {
+	typeToComp map[types.ComponentID]types.ComponentMetadata,
+) (m map[types.ArchetypeID][]types.ComponentMetadata, ok bool, err error) {
 	ctx := context.Background()
 	key := redisArchIDsToCompTypesKey()
 	bz, err := client.Get(ctx, key).Bytes()
@@ -188,15 +187,15 @@ func getArchIDToCompTypesFromRedis(
 		return nil, false, err
 	}
 
-	fromStorage, err := codec.Decode[map[archetype.ID][]component.TypeID](bz)
+	fromStorage, err := codec.Decode[map[types.ArchetypeID][]types.ComponentID](bz)
 	if err != nil {
 		return nil, false, err
 	}
 
-	// result is the mapping of Arch ID -> IComponent sets
-	result := map[archetype.ID][]component.ComponentMetadata{}
+	// result is the mapping of Arch ArchetypeID -> IComponent sets
+	result := map[types.ArchetypeID][]types.ComponentMetadata{}
 	for archID, compTypeIDs := range fromStorage {
-		var currComps []component.ComponentMetadata
+		var currComps []types.ComponentMetadata
 		for _, compTypeID := range compTypeIDs {
 			currComp, found := typeToComp[compTypeID]
 			if !found {

@@ -1,16 +1,11 @@
-package message
-
-type TxHash string
-
-// TypeID represents a message's ID. ID's are assigned to messages when they are registered in a World object.
-type TypeID int
+package types
 
 type Message interface {
-	SetID(TypeID) error
+	SetID(MessageID) error
 	Name() string
 	// Group returns the group of the message.
 	Group() string
-	ID() TypeID
+	ID() MessageID
 	Encode(any) ([]byte, error)
 	Decode([]byte) (any, error)
 	// DecodeEVMBytes decodes ABI encoded bytes into the message's input type.
@@ -21,3 +16,6 @@ type Message interface {
 	// IsEVMCompatible reports if this message can be sent from the EVM.
 	IsEVMCompatible() bool
 }
+
+// MessageID represents a message's EntityID. EntityID's are assigned to messages when they are registered in a World object.
+type MessageID int

@@ -26,9 +26,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/statsd"
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/message"
 )
 
 // WorldStateType is the current state of the engine.
@@ -65,8 +62,8 @@ type World struct {
 
 	// Scott's new stuff
 	WorldState    WorldStateType
-	msgManager    *MessageManager
-	systemManager *SystemManager
+	msgManager    *message.Manager
+	systemManager *system.Manager
 
 	// Imported from Engine
 	namespace              Namespace
@@ -74,9 +71,9 @@ type World struct {
 	entityStore            gamestate.Manager
 	tick                   *atomic.Uint64
 	timestamp              *atomic.Uint64
-	nameToComponent        map[string]component.ComponentMetadata
+	nameToComponent        map[string]types.ComponentMetadata
 	nameToQuery            map[string]engine.Query
-	registeredComponents   []component.ComponentMetadata
+	registeredComponents   []types.ComponentMetadata
 	registeredQueries      []engine.Query
 	isComponentsRegistered bool
 
@@ -94,7 +91,7 @@ type World struct {
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
 
-	nextComponentID component.TypeID
+	nextComponentID types.ComponentID
 
 	eventHub *events.EventHub
 
@@ -164,8 +161,8 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 		// Scott's new stuff
 		WorldState:    WorldStateInit,
-		msgManager:    NewMessageManager(),
-		systemManager: NewSystemManager(),
+		msgManager:    message.NewManager(),
+		systemManager: system.NewManager(),
 
 		// Imported from engine
 		redisStorage:      &redisStore,
@@ -173,7 +170,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		namespace:         Namespace(cfg.CardinalNamespace),
 		tick:              &atomic.Uint64{},
 		timestamp:         new(atomic.Uint64),
-		nameToComponent:   make(map[string]component.ComponentMetadata),
+		nameToComponent:   make(map[string]types.ComponentMetadata),
 		nameToQuery:       make(map[string]engine.Query),
 		txQueue:           txpool.NewTxQueue(),
 		Logger:            &log.Logger,
@@ -469,9 +466,8 @@ func (w *World) Shutdown() error {
 	return nil
 }
 
-func (w *World) ListQueries() []engine.Query { return w.registeredQueries }
-
-func (w *World) ListMessages() []message.Message { return w.msgManager.GetRegisteredMessages() }
+func (w *World) ListQueries() []engine.Query   { return w.registeredQueries }
+func (w *World) ListMessages() []types.Message { return w.msgManager.GetRegisteredMessages() }
 
 // logAndPanic logs the given error and panics. An error is returned so the syntax:
 // return logAndPanic(eCtx, err)
@@ -595,8 +591,8 @@ func (w *World) drainEndLoopChannels() {
 // AddTransaction adds a transaction to the transaction queue. This should not be used directly.
 // Instead, use a MessageType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
 // executed in.
-func (w *World) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) (
-	tick uint64, txHash message.TxHash,
+func (w *World) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (
+	tick uint64, txHash types.TxHash,
 ) {
 	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
 	// transaction is actually added to the returned tick.
@@ -606,12 +602,12 @@ func (w *World) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) 
 }
 
 func (w *World) AddEVMTransaction(
-	id message.TypeID,
+	id types.MessageID,
 	v any,
 	sig *sign.Transaction,
 	evmTxHash string,
 ) (
-	tick uint64, txHash message.TxHash,
+	tick uint64, txHash types.TxHash,
 ) {
 	tick = w.CurrentTick()
 	txHash = w.txQueue.AddEVMTransaction(id, v, sig, evmTxHash)
@@ -688,11 +684,11 @@ func (w *World) InjectLogger(logger *zerolog.Logger) {
 	w.GameStateManager().InjectLogger(logger)
 }
 
-func (w *World) GetComponents() []component.ComponentMetadata {
+func (w *World) GetComponents() []types.ComponentMetadata {
 	return w.registeredComponents
 }
 
-func (w *World) GetComponentByName(name string) (component.ComponentMetadata, error) {
+func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error) {
 	componentType, exists := w.nameToComponent[name]
 	if !exists {
 		return nil, eris.Wrapf(

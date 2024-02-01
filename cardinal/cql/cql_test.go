@@ -2,12 +2,11 @@ package cql
 
 import (
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"reflect"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
-
-	"pkg.world.dev/world-engine/cardinal/types/component"
 )
 
 type EmptyComponent struct{}
@@ -79,7 +78,7 @@ func TestParser(t *testing.T) {
 
 	emptyComponent := EmptyComponent{}
 	assert.NilError(t, err)
-	stringToComponent := func(_ string) (component.Component, error) {
+	stringToComponent := func(_ string) (types.Component, error) {
 		return emptyComponent, nil
 	}
 	filterResult, err := termToComponentFilter(term, stringToComponent)

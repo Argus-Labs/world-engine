@@ -3,13 +3,13 @@ package gamestate_test
 import (
 	"context"
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/types/component"
 )
 
 func TestReadOnly_CanGetComponent(t *testing.T) {
@@ -40,19 +40,19 @@ func TestReadOnly_CanGetComponentTypesForEntityAndArchID(t *testing.T) {
 
 	testCases := []struct {
 		name  string
-		comps []component.ComponentMetadata
+		comps []types.ComponentMetadata
 	}{
 		{
 			"just foo",
-			[]component.ComponentMetadata{fooComp},
+			[]types.ComponentMetadata{fooComp},
 		},
 		{
 			"just bar",
-			[]component.ComponentMetadata{barComp},
+			[]types.ComponentMetadata{barComp},
 		},
 		{
 			"foo and bar",
-			[]component.ComponentMetadata{fooComp, barComp},
+			[]types.ComponentMetadata{fooComp, barComp},
 		},
 	}
 
@@ -87,22 +87,22 @@ func TestReadOnly_GetEntitiesForArchID(t *testing.T) {
 	testCases := []struct {
 		name        string
 		idsToCreate int
-		comps       []component.ComponentMetadata
+		comps       []types.ComponentMetadata
 	}{
 		{
 			"only foo",
 			3,
-			[]component.ComponentMetadata{fooComp},
+			[]types.ComponentMetadata{fooComp},
 		},
 		{
 			"only bar",
 			4,
-			[]component.ComponentMetadata{barComp},
+			[]types.ComponentMetadata{barComp},
 		},
 		{
 			"foo and bar",
 			5,
-			[]component.ComponentMetadata{fooComp, barComp},
+			[]types.ComponentMetadata{fooComp, barComp},
 		},
 	}
 
@@ -128,7 +128,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	assert.NilError(t, err)
 	assert.NilError(t, manager.FinalizeTick(ctx))
 
-	fooArchID, err := manager.GetArchIDForComponents([]component.ComponentMetadata{fooComp})
+	fooArchID, err := manager.GetArchIDForComponents([]types.ComponentMetadata{fooComp})
 	assert.NilError(t, err)
 
 	roManager := manager.ToReadOnly()
@@ -146,7 +146,7 @@ func TestReadOnly_CanFindEntityIDAfterChangingArchetypes(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(gotIDs))
 
-	bothArchID, err := roManager.GetArchIDForComponents([]component.ComponentMetadata{fooComp, barComp})
+	bothArchID, err := roManager.GetArchIDForComponents([]types.ComponentMetadata{fooComp, barComp})
 	assert.NilError(t, err)
 
 	gotIDs, err = roManager.GetEntitiesForArchID(bothArchID)

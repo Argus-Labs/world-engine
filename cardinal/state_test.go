@@ -5,6 +5,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
@@ -13,14 +15,12 @@ import (
 	"github.com/alicebob/miniredis/v2"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 // comps reduces the typing needed to create a slice of IComponentTypes
 // []component.ComponentMetadata{a, b, c} becomes:
 // comps(a, b, c).
-func comps(cs ...component.ComponentMetadata) []component.ComponentMetadata {
+func comps(cs ...types.ComponentMetadata) []types.ComponentMetadata {
 	return cs
 }
 
@@ -100,7 +100,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	wantComps := oneWorld.GameStateManager().GetComponentTypesForArchID(wantID)
 	assert.Equal(t, 1, len(wantComps))
-	assert.Check(t, filter.MatchComponent(component.ConvertComponentMetadatasToComponents(wantComps), oneNum))
+	assert.Check(t, filter.MatchComponent(types.ConvertComponentMetadatasToComponents(wantComps), oneNum))
 
 	assert.NilError(t, oneWorld.Tick(context.Background()))
 
@@ -114,7 +114,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	gotComps := twoWorld.GameStateManager().GetComponentTypesForArchID(gotID)
 	assert.Equal(t, 1, len(gotComps))
-	assert.Check(t, filter.MatchComponent(component.ConvertComponentMetadatasToComponents(gotComps), twoNum))
+	assert.Check(t, filter.MatchComponent(types.ConvertComponentMetadatasToComponents(gotComps), twoNum))
 
 	// Archetype indices should be the same across save/load cycles
 	assert.Equal(t, wantID, gotID)
@@ -226,7 +226,7 @@ func TestCanReloadState(t *testing.T) {
 			q := cardinal.NewSearch(eCtx, filter.Contains(oneAlphaNum))
 			assert.NilError(
 				t, q.Each(
-					func(id entity.ID) bool {
+					func(id types.EntityID) bool {
 						err = cardinal.SetComponent[oneAlphaNumComp](eCtx, id, &oneAlphaNumComp{int(id)})
 						assert.Check(t, err == nil)
 						return true
@@ -254,7 +254,7 @@ func TestCanReloadState(t *testing.T) {
 	betaEngineCtx := cardinal.NewWorldContext(betaWorld)
 	assert.NilError(
 		t, q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				count++
 				num, err := cardinal.GetComponent[OneBetaNum](betaEngineCtx, id)
 				assert.NilError(t, err)
@@ -290,14 +290,15 @@ func TestEngineTickAndHistoryTickMatch(t *testing.T) {
 func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 	type Msg struct{}
 	type Result struct{}
-	someTx := cardinal.NewMessageType[Msg, Result]("some-msg")
+	someTx := message.NewMessageType[Msg, Result]("some-msg")
 	redisStore := miniredis.RunT(t)
 	ctx := context.Background()
 
 	// Ensure that across multiple reloads we can queue up transactions, execute those transactions
 	// in a tick, and then find those transactions in the tx receipt history.
 	for reload := 0; reload < 5; reload++ {
-		world := testutils.NewTestFixture(t, redisStore).World
+		tf := testutils.NewTestFixture(t, redisStore)
+		world := tf.World
 		assert.NilError(t, cardinal.RegisterMessages(world, someTx))
 		err := cardinal.RegisterSystems(
 			world,
@@ -313,7 +314,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 
 		relevantTick := world.CurrentTick()
 		for i := 0; i < 3; i++ {
-			_ = someTx.AddToQueue(world, Msg{}, testutils.UniqueSignature())
+			_ = tf.AddTransaction(someTx.ID(), Msg{}, testutils.UniqueSignature())
 		}
 
 		for i := 0; i < 5; i++ {
@@ -348,7 +349,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	q := cardinal.NewSearch(eCtx, filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				count++
 				return count != stop
 			},
@@ -360,7 +361,7 @@ func TestSearchEarlyTermination(t *testing.T) {
 	q = cardinal.NewSearch(eCtx, filter.Exact(FooComponent{}))
 	assert.NilError(
 		t, q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				count++
 				return true
 			},

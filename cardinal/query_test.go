@@ -4,8 +4,8 @@ import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -13,12 +13,18 @@ import (
 	"pkg.world.dev/world-engine/assert"
 )
 
+type Health struct {
+	Value int
+}
+
+func (Health) Name() string { return "health" }
+
 type QueryHealthRequest struct {
 	Min int
 }
 
 type QueryHealthResponse struct {
-	IDs []entity.ID
+	IDs []types.EntityID
 }
 
 func handleQueryHealth(
@@ -26,7 +32,7 @@ func handleQueryHealth(
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
 	resp := &QueryHealthResponse{}
-	err := cardinal.NewSearch(eCtx, filter.Exact(Health{})).Each(func(id entity.ID) bool {
+	err := cardinal.NewSearch(eCtx, filter.Exact(Health{})).Each(func(id types.EntityID) bool {
 		var err error
 		var health *Health
 		health, err = cardinal.GetComponent[Health](eCtx, id)
@@ -80,7 +86,7 @@ func TestQueryExample(t *testing.T) {
 		),
 	)
 	assert.NilError(t, world.LoadGameState())
-	worldCtx := testutils.WorldToEngineContext(world)
+	worldCtx := cardinal.NewWorldContext(world)
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
 	assert.NilError(t, err)
 	// Give each new entity health based on the ever-increasing index
@@ -126,7 +132,7 @@ func TestQueryEVM(t *testing.T) {
 	t.Skipf("skipping until evm server is fixed")
 	// --- TEST SETUP ---
 	// type FooRequest struct {
-	//	ID string
+	//	EntityID string
 	//}
 	// type FooReply struct {
 	//	Name string
@@ -160,7 +166,7 @@ func TestQueryEVM(t *testing.T) {
 	// // cardinal.Create the abi encoded bytes that the EVM would send.
 	// fooQuery, err := world.GetQueryByName("foo")
 	// assert.NilError(t, err)
-	// bz, err := fooQuery.EncodeAsABI(FooRequest{ID: "foo"})
+	// bz, err := fooQuery.EncodeAsABI(FooRequest{EntityID: "foo"})
 	// assert.NilError(t, err)
 	//
 	// // query the resource.

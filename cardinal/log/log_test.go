@@ -6,6 +6,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/log"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strings"
 	"testing"
@@ -17,9 +19,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
-
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 type SendEnergyTx struct {
@@ -41,7 +40,7 @@ func testSystem(eCtx engine.Context) error {
 	eCtx.Logger().Log().Msg("test")
 	q := cardinal.NewSearch(eCtx, filter.Contains(EnergyComp{}))
 	err := q.Each(
-		func(entityId entity.ID) bool {
+		func(entityId types.EntityID) bool {
 			energyPlanet, err := cardinal.GetComponent[EnergyComp](eCtx, entityId)
 			if err != nil {
 				return false
@@ -73,7 +72,7 @@ func TestEngineLogger(t *testing.T) {
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
 	world.InjectLogger(&bufLogger)
-	alphaTx := cardinal.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
+	alphaTx := message.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, cardinal.RegisterMessages(world, alphaTx))
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComp](world))
 	log.World(&bufLogger, world, zerolog.InfoLevel)
@@ -103,7 +102,7 @@ func TestEngineLogger(t *testing.T) {
 	buf.Reset()
 	energy, err := world.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
-	components := []component.ComponentMetadata{energy}
+	components := []types.ComponentMetadata{energy}
 	eCtx := cardinal.NewWorldContext(world)
 	err = cardinal.RegisterSystems(world, testSystemWarningTrigger)
 	assert.NilError(t, err)

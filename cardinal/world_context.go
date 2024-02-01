@@ -6,9 +6,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/cardinal/types/component"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -68,19 +67,19 @@ func (ctx *worldContext) SetLogger(logger zerolog.Logger) {
 	ctx.logger = &logger
 }
 
-func (ctx *worldContext) GetComponentByName(name string) (component.ComponentMetadata, error) {
+func (ctx *worldContext) GetComponentByName(name string) (types.ComponentMetadata, error) {
 	return ctx.world.GetComponentByName(name)
 }
 
-func (ctx *worldContext) AddMessageError(id message.TxHash, err error) {
+func (ctx *worldContext) AddMessageError(id types.TxHash, err error) {
 	ctx.world.AddMessageError(id, err)
 }
 
-func (ctx *worldContext) SetMessageResult(id message.TxHash, a any) {
+func (ctx *worldContext) SetMessageResult(id types.TxHash, a any) {
 	ctx.world.SetMessageResult(id, a)
 }
 
-func (ctx *worldContext) GetTransactionReceipt(id message.TxHash) (any, []error, bool) {
+func (ctx *worldContext) GetTransactionReceipt(id types.TxHash) (any, []error, bool) {
 	return ctx.world.GetTransactionReceipt(id)
 }
 
@@ -104,15 +103,7 @@ func (ctx *worldContext) Namespace() string {
 	return string(ctx.world.namespace)
 }
 
-func (ctx *worldContext) ListQueries() []engine.Query {
-	return ctx.world.ListQueries()
-}
-
-func (ctx *worldContext) ListMessages() []message.Message {
-	return ctx.world.ListMessages()
-}
-
-func (ctx *worldContext) AddTransaction(id message.TypeID, v any, sig *sign.Transaction) (uint64, message.TxHash) {
+func (ctx *worldContext) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash) {
 	return ctx.world.AddTransaction(id, v, sig)
 }
 

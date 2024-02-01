@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/shard/adapter"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
+	types2 "pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 	"time"
 
@@ -119,15 +120,15 @@ func TestEVMTxConsume(t *testing.T) {
 		Y string
 	}
 	world := testutils.NewTestFixture(t, nil).World
-	fooTx := cardinal.NewMessageType[FooIn, FooOut]("foo", cardinal.WithMsgEVMSupport[FooIn, FooOut]())
+	fooTx := message.NewMessageType[FooIn, FooOut]("foo", message.WithMsgEVMSupport[FooIn, FooOut]())
 	assert.NilError(t, cardinal.RegisterMessages(world, fooTx))
 	var returnVal FooOut
 	var returnErr error
 	err := cardinal.RegisterSystems(
 		world,
-		func(eCtx engine.Context) error {
+		func(eCtx types2.Context) error {
 			fooTx.Each(
-				eCtx, func(t cardinal.TxData[FooIn]) (FooOut, error) {
+				eCtx, func(t message.TxData[FooIn]) (FooOut, error) {
 					return returnVal, returnErr
 				},
 			)
@@ -172,15 +173,15 @@ func TestEVMTxConsume(t *testing.T) {
 
 func TestAddSystems(t *testing.T) {
 	count := 0
-	sys1 := func(engine.Context) error {
+	sys1 := func(types2.Context) error {
 		count++
 		return nil
 	}
-	sys2 := func(engine.Context) error {
+	sys2 := func(types2.Context) error {
 		count++
 		return nil
 	}
-	sys3 := func(engine.Context) error {
+	sys3 := func(types2.Context) error {
 		count++
 		return nil
 	}
@@ -203,13 +204,13 @@ func TestSystemExecutionOrder(t *testing.T) {
 	order := make([]int, 0, 3)
 	err := cardinal.RegisterSystems(
 		world,
-		func(engine.Context) error {
+		func(types2.Context) error {
 			order = append(order, 1)
 			return nil
-		}, func(engine.Context) error {
+		}, func(types2.Context) error {
 			order = append(order, 2)
 			return nil
-		}, func(engine.Context) error {
+		}, func(types2.Context) error {
 			order = append(order, 3)
 			return nil
 		},
@@ -303,22 +304,26 @@ func (d *dummyAdapter) QueryTransactions(_ context.Context, _ *types.QueryTransa
 
 var _ adapter.Adapter = &dummyAdapter{}
 
+type TestStruct struct {
+}
+
 // TestAdapterCalledAfterTick tests that when messages are executed in a tick, they are forwarded to the adapter.
 func TestAdapterCalledAfterTick(t *testing.T) {
 	adapter := &dummyAdapter{}
-	world := testutils.NewTestFixture(t, nil, cardinal.WithAdapter(adapter)).World
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithAdapter(adapter))
+	world := tf.World
 
-	err := cardinal.RegisterSystems(world, func(engineContext engine.Context) error {
+	err := cardinal.RegisterSystems(world, func(engineContext types2.Context) error {
 		return nil
 	})
 	assert.NilError(t, err)
-	fooMessage := cardinal.NewMessageType[struct{}, struct{}]("foo")
+	fooMessage := message.NewMessageType[struct{}, struct{}]("foo")
 	err = cardinal.RegisterMessages(world, fooMessage)
 	assert.NilError(t, err)
 	err = world.LoadGameState()
 	assert.NilError(t, err)
 
-	fooMessage.AddToQueue(world, struct{}{}, &sign.Transaction{
+	tf.AddTransaction(fooMessage.ID(), fooMessage, &sign.Transaction{
 		PersonaTag: "meow",
 		Namespace:  "foo",
 		Nonce:      22,
@@ -326,7 +331,7 @@ func TestAdapterCalledAfterTick(t *testing.T) {
 		Hash:       common.Hash{},
 		Body:       json.RawMessage(`{}`),
 	})
-	fooMessage.AddToQueue(world, struct{}{}, &sign.Transaction{
+	tf.AddTransaction(fooMessage.ID(), fooMessage, &sign.Transaction{
 		PersonaTag: "meow",
 		Namespace:  "foo",
 		Nonce:      23,

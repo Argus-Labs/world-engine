@@ -1,4 +1,4 @@
-package component
+package types
 
 import (
 	"github.com/invopop/jsonschema"
@@ -6,7 +6,7 @@ import (
 	"github.com/wI2L/jsondiff"
 )
 
-type TypeID int
+type ComponentID int
 
 // Component is the interface that the user needs to implement to create a new component type.
 type Component interface {
@@ -17,10 +17,10 @@ type Component interface {
 // ComponentMetadata wraps the user-defined Component struct and provides functionalities that is used internally
 // in the engine.
 type ComponentMetadata interface { //revive:disable-line:exported
-	// SetID sets the ID of this component. It must only be set once
-	SetID(TypeID) error
-	// ID returns the ID of the component.
-	ID() TypeID
+	// SetID sets the ArchetypeID of this component. It must only be set once
+	SetID(ComponentID) error
+	// ArchetypeID returns the ArchetypeID of the component.
+	ID() ComponentID
 	// New returns the marshaled bytes of the default value for the component struct.
 	New() ([]byte, error)
 	Encode(any) ([]byte, error)
@@ -54,4 +54,13 @@ func IsSchemaValid(jsonSchemaBytes1 []byte, jsonSchemaBytes2 []byte) (bool, erro
 		return false, eris.Wrap(err, "")
 	}
 	return patch.String() == "", nil
+}
+
+// ConvertComponentMetadatasToComponents Cast an array of ComponentMetadata into an array of Component
+func ConvertComponentMetadatasToComponents(comps []ComponentMetadata) []Component {
+	ret := make([]Component, len(comps))
+	for i, comp := range comps {
+		ret[i] = comp
+	}
+	return ret
 }

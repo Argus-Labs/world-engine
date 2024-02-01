@@ -2,12 +2,12 @@ package gamestate_test
 
 import (
 	"context"
-	"pkg.world.dev/world-engine/cardinal"
+	message2 "pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/testutils"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"pkg.world.dev/world-engine/assert"
 )
@@ -20,11 +20,11 @@ func TestCanSaveAndRecoverTransactions(t *testing.T) {
 		Value int
 	}
 
-	msgAlpha := cardinal.NewMessageType[MsgIn, MsgOut]("alpha")
-	msgBeta := cardinal.NewMessageType[MsgIn, MsgOut]("beta")
+	msgAlpha := message2.NewMessageType[MsgIn, MsgOut]("alpha")
+	msgBeta := message2.NewMessageType[MsgIn, MsgOut]("beta")
 	assert.NilError(t, msgAlpha.SetID(16))
 	assert.NilError(t, msgBeta.SetID(32))
-	msgs := []message.Message{msgAlpha, msgBeta}
+	msgs := []types.Message{msgAlpha, msgBeta}
 
 	manager, client := newCmdBufferAndRedisClientForTest(t, nil)
 	originalQueue := txpool.NewTxQueue()

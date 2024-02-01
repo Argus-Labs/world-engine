@@ -7,8 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"strconv"
 	"testing"
 	"time"
@@ -93,7 +93,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 
 	gotNumOfEntities := 0
 	err := cardinal.RegisterSystems(world, func(eCtx engine.Context) error {
-		err := cardinal.NewSearch(eCtx, filter.Exact(Foo{})).Each(func(id entity.ID) bool {
+		err := cardinal.NewSearch(eCtx, filter.Exact(Foo{})).Each(func(id types.EntityID) bool {
 			gotNumOfEntities++
 			return true
 		})
@@ -104,7 +104,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 
 	doTick()
 	wantNumOfEntities := 10
-	wCtx := cardinal.TestingWorldToWorldContext(world)
+	wCtx := cardinal.NewWorldContext(world)
 	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
 	assert.NilError(t, err)
 	doTick()
@@ -146,7 +146,7 @@ func TestShutdownViaSignal(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	tf.StartWorld()
-	wCtx := cardinal.TestingWorldToWorldContext(world)
+	wCtx := cardinal.NewWorldContext(world)
 	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
 	assert.NilError(t, err)
 	// test CORS with cardinal

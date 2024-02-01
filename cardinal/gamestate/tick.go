@@ -3,6 +3,7 @@ package gamestate
 import (
 	"context"
 	"pkg.world.dev/world-engine/cardinal/codec"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"time"
 
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
@@ -10,7 +11,6 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/statsd"
 	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	"github.com/redis/go-redis/v9"
 	"pkg.world.dev/world-engine/sign"
@@ -45,7 +45,7 @@ func (m *EntityCommandBuffer) GetTickNumbers() (start, end uint64, err error) {
 
 // StartNextTick saves the given transactions to the DB and sets the tick trackers to indicate we are in the middle
 // of a tick. While transactions are saved to the DB, no state changes take place at this time.
-func (m *EntityCommandBuffer) StartNextTick(txs []message.Message, queue *txpool.TxQueue) error {
+func (m *EntityCommandBuffer) StartNextTick(txs []types.Message, queue *txpool.TxQueue) error {
 	ctx := context.Background()
 	pipe := m.client.TxPipeline()
 	if err := addPendingTransactionToPipe(ctx, pipe, txs, queue); err != nil {
@@ -91,7 +91,7 @@ func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
 
 // Recover fetches the pending transactions for an incomplete tick. This should only be called if GetTickNumbers
 // indicates that the previous tick was started, but never completed.
-func (m *EntityCommandBuffer) Recover(txs []message.Message) (*txpool.TxQueue, error) {
+func (m *EntityCommandBuffer) Recover(txs []types.Message) (*txpool.TxQueue, error) {
 	ctx := context.Background()
 	key := redisPendingTransactionKey()
 	bz, err := m.client.Get(ctx, key).Bytes()
@@ -102,7 +102,7 @@ func (m *EntityCommandBuffer) Recover(txs []message.Message) (*txpool.TxQueue, e
 	if err != nil {
 		return nil, err
 	}
-	idToTx := map[message.TypeID]message.Message{}
+	idToTx := map[types.MessageID]types.Message{}
 	for _, tx := range txs {
 		idToTx[tx.ID()] = tx
 	}
@@ -121,14 +121,14 @@ func (m *EntityCommandBuffer) Recover(txs []message.Message) (*txpool.TxQueue, e
 }
 
 type pendingTransaction struct {
-	TypeID message.TypeID
-	TxHash message.TxHash
+	TypeID types.MessageID
+	TxHash types.TxHash
 	Data   []byte
 	Tx     *sign.Transaction
 }
 
 func addPendingTransactionToPipe(
-	ctx context.Context, pipe redis.Pipeliner, txs []message.Message,
+	ctx context.Context, pipe redis.Pipeliner, txs []types.Message,
 	queue *txpool.TxQueue,
 ) error {
 	var pending []pendingTransaction

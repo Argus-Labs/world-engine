@@ -3,24 +3,23 @@ package gamestate
 import (
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal/codec"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"reflect"
-
-	"pkg.world.dev/world-engine/cardinal/types/component"
 )
 
 var (
-	nextMockComponentTypeID component.TypeID = 1
+	nextMockComponentTypeID types.ComponentID = 1
 )
 
 type MockComponentType[T any] struct {
-	id         component.TypeID
+	id         types.ComponentID
 	typ        reflect.Type
 	defaultVal interface{}
 	schema     []byte
 }
 
-func NewMockComponentType[T component.Component](t T, defaultVal interface{}) (*MockComponentType[T], error) {
-	schema, err := component.SerializeComponentSchema(t)
+func NewMockComponentType[T types.Component](t T, defaultVal interface{}) (*MockComponentType[T], error) {
+	schema, err := types.SerializeComponentSchema(t)
 	if err != nil {
 		return nil, err
 	}
@@ -34,12 +33,12 @@ func NewMockComponentType[T component.Component](t T, defaultVal interface{}) (*
 	return m, nil
 }
 
-func (m *MockComponentType[T]) SetID(id component.TypeID) error {
+func (m *MockComponentType[T]) SetID(id types.ComponentID) error {
 	m.id = id
 	return nil
 }
 
-func (m *MockComponentType[T]) ID() component.TypeID {
+func (m *MockComponentType[T]) ID() types.ComponentID {
 	return m.id
 }
 
@@ -55,7 +54,7 @@ func (m *MockComponentType[T]) Name() string {
 	return fmt.Sprintf("%s[%s]", reflect.TypeOf(m).Name(), m.typ.Name())
 }
 
-var _ component.ComponentMetadata = &MockComponentType[int]{}
+var _ types.ComponentMetadata = &MockComponentType[int]{}
 
 func (m *MockComponentType[T]) Decode(bytes []byte) (any, error) {
 	return codec.Decode[T](bytes)

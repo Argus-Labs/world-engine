@@ -6,6 +6,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
 
@@ -13,8 +14,6 @@ import (
 
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/cardinal/types/archetype"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
 )
 
 type EnergyComponent struct {
@@ -48,7 +47,7 @@ func UpdateEnergySystem(eCtx engine.Context) error {
 	var errs []error
 	q := cardinal.NewSearch(eCtx, filter.Contains(EnergyComponent{}))
 	err := q.Each(
-		func(ent entity.ID) bool {
+		func(ent types.EntityID) bool {
 			energyPlanet, err := cardinal.GetComponent[EnergyComponent](eCtx, ent)
 			if err != nil {
 				errs = append(errs, err)
@@ -121,7 +120,7 @@ func TestECS(t *testing.T) {
 	assert.NilError(t, world.Tick(context.Background()))
 	query := cardinal.NewSearch(eCtx, filter.Contains(EnergyComponent{}))
 	err = query.Each(
-		func(id entity.ID) bool {
+		func(id types.EntityID) bool {
 			energyPlanet, err := cardinal.GetComponent[EnergyComponent](eCtx, id)
 			assert.NilError(t, err)
 			assert.Equal(t, int64(10), energyPlanet.Amt)
@@ -171,7 +170,7 @@ func TestVelocitySimulation(t *testing.T) {
 
 	velocityQuery := cardinal.NewSearch(eCtx, filter.Contains(&Vel{}))
 	err = velocityQuery.Each(
-		func(id entity.ID) bool {
+		func(id types.EntityID) bool {
 			vel, err := cardinal.GetComponent[Vel](eCtx, id)
 			assert.NilError(t, err)
 			pos, err := cardinal.GetComponent[Pos](eCtx, id)
@@ -244,7 +243,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	q := cardinal.NewSearch(eCtx, filter.Contains(Tuple{}))
 	assert.NilError(
 		t, q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				_, err = cardinal.GetComponent[Tuple](eCtx, id)
 				assert.NilError(t, err)
 				count++
@@ -261,7 +260,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	count = 0
 	assert.NilError(
 		t, q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				_, err = cardinal.GetComponent[Tuple](eCtx, id)
 				assert.NilError(t, err)
 				count++
@@ -281,7 +280,7 @@ func TestCanRemoveEntity(t *testing.T) {
 	count = 0
 	assert.NilError(
 		t, q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				_, err = cardinal.GetComponent[Tuple](eCtx, id)
 				assert.NilError(t, err)
 				count++
@@ -320,7 +319,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	q := cardinal.NewSearch(eCtx, filter.Contains(CountComponent{}))
 	assert.NilError(
 		t, q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				assert.NilError(t, cardinal.SetComponent[CountComponent](eCtx, id, &CountComponent{int(id)}))
 				return true
 			},
@@ -331,7 +330,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	itr := 0
 	assert.NilError(
 		t, q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				if itr%2 == 0 {
 					assert.NilError(t, cardinal.Remove(eCtx, id))
 				}
@@ -346,7 +345,7 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 	seen := map[int]int{}
 	assert.NilError(
 		t, q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				c, err := cardinal.GetComponent[CountComponent](eCtx, id)
 				assert.NilError(t, err)
 				seen[c.Val]++
@@ -411,7 +410,7 @@ func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
 
 	assert.NilError(t, world.LoadGameState())
 
-	getArchIDForEntityID := func(id entity.ID) archetype.ID {
+	getArchIDForEntityID := func(id types.EntityID) types.ArchetypeID {
 		components, err := world.GameStateManager().GetComponentTypesForEntity(id)
 		assert.NilError(t, err)
 		archID, err := world.GameStateManager().GetArchIDForComponents(components)
@@ -468,9 +467,9 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 	// count and countAgain are helpers that simplify the counting of how many
 	// entities have a particular component.
 	var count int
-	countAgain := func() func(ent entity.ID) bool {
+	countAgain := func() func(ent types.EntityID) bool {
 		count = 0
-		return func(ent entity.ID) bool {
+		return func(ent types.EntityID) bool {
 			count++
 			return true
 		}
@@ -502,7 +501,7 @@ func TestEntriesCanChangeTheirArchetype(t *testing.T) {
 
 	// Make sure the one ent that has gamma is entIDs[1]
 	err = gammaQuery.Each(
-		func(id entity.ID) bool {
+		func(id types.EntityID) bool {
 			assert.Equal(t, id, entIDs[1])
 			return true
 		},
@@ -575,7 +574,7 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 	q := cardinal.NewSearch(eCtx, abFilter)
 	assert.NilError(
 		t, q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				assert.Equal(t, id, ab)
 				return true
 			},
@@ -590,7 +589,7 @@ func TestQueriesAndFiltersWorks(t *testing.T) {
 	q = cardinal.NewSearch(eCtx, cdFilter)
 	assert.NilError(
 		t, q.Each(
-			func(id entity.ID) bool {
+			func(id types.EntityID) bool {
 				assert.Equal(t, id, cd)
 				return true
 			},
