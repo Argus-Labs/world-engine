@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/relay/nakama/errors"
+	"google.golang.org/grpc/codes"
 )
 
 // getUserID gets the Nakama UserID from the given context.
@@ -21,7 +21,7 @@ func GetUserID(ctx context.Context) (string, error) {
 func MarshalResult(logger runtime.Logger, result any) (string, error) {
 	bz, err := json.Marshal(result)
 	if err != nil {
-		return LogErrorWithMessageAndCode(logger, err, errors.Internal, "unable to marshal response: %v", err)
+		return LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "unable to marshal response: %v", err)
 	}
 	return string(bz), nil
 }

@@ -8,8 +8,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	nakamaerrors "pkg.world.dev/world-engine/relay/nakama/errors"
 	"strconv"
 	"sync"
 
@@ -26,6 +26,9 @@ var (
 	globalSignerAddress string
 	// nonceMutex is used to ensure that Nakama's current nonce can be read and incremented atomically.
 	nonceMutex sync.Mutex
+
+	ErrNoStorageObjectFound       = errors.New("no storage object found")
+	ErrTooManyStorageObjectsFound = errors.New("too many storage objects found")
 )
 
 const (
@@ -51,9 +54,9 @@ func getOnePKStorageObj(ctx context.Context, nk runtime.NakamaModule, key string
 		return "", eris.Wrap(err, "")
 	}
 	if len(objs) > 1 {
-		return "", eris.Wrap(nakamaerrors.ErrTooManyStorageObjectsFound, "")
+		return "", eris.Wrap(ErrTooManyStorageObjectsFound, "")
 	} else if len(objs) == 0 {
-		return "", eris.Wrap(nakamaerrors.ErrNoStorageObjectFound, "")
+		return "", eris.Wrap(ErrNoStorageObjectFound, "")
 	}
 	var pkObj privateKeyStorageObj
 	if err = json.Unmarshal([]byte(objs[0].Value), &pkObj); err != nil {
@@ -109,7 +112,7 @@ func setNonce(ctx context.Context, nk runtime.NakamaModule, n uint64) error {
 func InitPrivateKey(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) error {
 	privateKeyHex, err := getPrivateKeyHex(ctx, nk)
 	if err != nil {
-		if !eris.Is(eris.Cause(err), nakamaerrors.ErrNoStorageObjectFound) {
+		if !eris.Is(eris.Cause(err), ErrNoStorageObjectFound) {
 			return eris.Wrap(err, "failed to get private key")
 		}
 		logger.Debug("no private key found; creating a new one")

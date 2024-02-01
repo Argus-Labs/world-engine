@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	errors2 "errors"
+	"errors"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 	"io"
@@ -23,11 +23,11 @@ var (
 	readPersonaSignerStatusUnknown   = "unknown"
 	readPersonaSignerStatusAvailable = "available"
 
-	ErrPersonaTagStorageObjNotFound = errors2.New("persona tag storage object not found")
-	ErrNoPersonaTagForUser          = errors2.New("user does not have a verified persona tag")
-	ErrPersonaSignerAvailable       = errors2.New("persona signer is available")
-	ErrPersonaSignerUnknown         = errors2.New("persona signer is unknown")
-	ErrPersonaTagEmpty              = errors2.New("personaTag field was left empty")
+	ErrPersonaTagStorageObjNotFound = errors.New("persona tag storage object not found")
+	ErrNoPersonaTagForUser          = errors.New("user does not have a verified persona tag")
+	ErrPersonaSignerAvailable       = errors.New("persona signer is available")
+	ErrPersonaSignerUnknown         = errors.New("persona signer is unknown")
+	ErrPersonaTagEmpty              = errors.New("personaTag field was left empty")
 )
 
 type TxResponse struct {
@@ -195,9 +195,6 @@ func ShowPersona(
 ) (res *StorageObj, err error) {
 	personaStorageObj, err := LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
-		if eris.Is(eris.Cause(err), ErrPersonaTagStorageObjNotFound) {
-			return res, err
-		}
 		return res, eris.Wrap(err, "unable to get persona tag storage object")
 	}
 	personaStorageObj, err = personaStorageObj.AttemptToUpdatePending(ctx, nk, globalCardinalAddress)
@@ -209,8 +206,8 @@ func ShowPersona(
 
 // setPersonaTagAssignment attempts to associate a given persona tag with the given user ID, and returns
 // true if the attempt was successful or false if it failed. This method is safe for concurrent access.
-func setPersonaTagAssignment(personaTag, userID string, globalPersonaTagAssignment *sync.Map) (ok bool) {
-	val, loaded := globalPersonaTagAssignment.LoadOrStore(personaTag, userID)
+func setPersonaTagAssignment(personaTag, userID string, personaTagAssignment *sync.Map) (ok bool) {
+	val, loaded := personaTagAssignment.LoadOrStore(personaTag, userID)
 	if !loaded {
 		return true
 	}

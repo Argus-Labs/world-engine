@@ -4,13 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	errors2 "errors"
+	"errors"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
+	"google.golang.org/grpc/codes"
 	"io"
 	"net/http"
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
-	"pkg.world.dev/world-engine/relay/nakama/errors"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
@@ -31,7 +31,7 @@ func handleClaimPersona(verifier *persona.Verifier, notifier *receipt.Notifier) 
 			return utils.LogErrorWithMessageAndCode(
 				logger,
 				err,
-				errors.InvalidArgument,
+				codes.InvalidArgument,
 				"unable to unmarshal payload: %v",
 				err)
 		}
@@ -51,17 +51,17 @@ func handleClaimPersona(verifier *persona.Verifier, notifier *receipt.Notifier) 
 		}
 
 		switch {
-		case errors2.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound):
-			return utils.LogErrorWithMessageAndCode(logger, err, errors.NotFound, "persona tag storage object not found")
-		case errors2.Is(err, persona.ErrPersonaTagEmpty):
+		case errors.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound):
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag storage object not found")
+		case errors.Is(err, persona.ErrPersonaTagEmpty):
 			return utils.LogErrorWithMessageAndCode(
 				logger,
 				err,
-				errors.InvalidArgument,
+				codes.InvalidArgument,
 				"claim persona tag request must have personaTag field",
 			)
 		}
-		return utils.LogError(logger, err, errors.Internal)
+		return utils.LogError(logger, err, codes.FailedPrecondition)
 	}
 }
 
@@ -73,9 +73,9 @@ func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 	}
 
 	if eris.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound) {
-		return utils.LogErrorWithMessageAndCode(logger, err, errors.NotFound, "persona tag not found")
+		return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag not found")
 	}
-	return utils.LogError(logger, err, errors.Internal)
+	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
 func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
@@ -86,7 +86,7 @@ func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
-			errors.InvalidArgument,
+			codes.InvalidArgument,
 			"unable to unmarshal payload: %v",
 			err)
 	}
@@ -97,17 +97,17 @@ func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk
 	}
 
 	switch {
-	case errors2.Is(err, allowlist.ErrReadingAmountOfKeys):
-		return utils.LogErrorWithMessageAndCode(logger, err, errors.InvalidArgument, "key amount incorrectly formatted")
-	case errors2.Is(err, allowlist.ErrPermissionDenied):
+	case errors.Is(err, allowlist.ErrReadingAmountOfKeys):
+		return utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "key amount incorrectly formatted")
+	case errors.Is(err, allowlist.ErrPermissionDenied):
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
-			errors.PermissionDenied,
+			codes.PermissionDenied,
 			"non-admin user tried to call generate-beta-keys",
 		)
 	}
-	return utils.LogError(logger, err, errors.Internal)
+	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
 func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
@@ -118,7 +118,7 @@ func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
-			errors.InvalidArgument,
+			codes.InvalidArgument,
 			"unable to unmarshal payload: %v",
 			err)
 	}
@@ -129,14 +129,14 @@ func handleClaimKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 	}
 
 	switch {
-	case errors2.Is(err, allowlist.ErrAlreadyVerified):
-		return utils.LogErrorWithMessageAndCode(logger, err, errors.AlreadyExists, "user has already been verified")
-	case errors2.Is(err, allowlist.ErrInvalidBetaKey):
-		return utils.LogErrorWithMessageAndCode(logger, err, errors.InvalidArgument, "beta key is invalid")
-	case errors2.Is(err, allowlist.ErrBetaKeyAlreadyUsed):
-		return utils.LogErrorWithMessageAndCode(logger, err, errors.PermissionDenied, "beta key has already been used")
+	case errors.Is(err, allowlist.ErrAlreadyVerified):
+		return utils.LogErrorWithMessageAndCode(logger, err, codes.AlreadyExists, "user has already been verified")
+	case errors.Is(err, allowlist.ErrInvalidBetaKey):
+		return utils.LogErrorWithMessageAndCode(logger, err, codes.InvalidArgument, "beta key is invalid")
+	case errors.Is(err, allowlist.ErrBetaKeyAlreadyUsed):
+		return utils.LogErrorWithMessageAndCode(logger, err, codes.PermissionDenied, "beta key has already been used")
 	}
-	return utils.LogError(logger, err, errors.Internal)
+	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
 func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string,
@@ -146,7 +146,7 @@ func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 		return utils.LogErrorWithMessageAndCode(
 			logger,
 			err,
-			errors.InvalidArgument,
+			codes.InvalidArgument,
 			"unable to unmarshal payload: %v",
 			err)
 	}
@@ -156,7 +156,7 @@ func handleSaveGame(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk ru
 		return utils.MarshalResult(logger, result)
 	}
 
-	return utils.LogError(logger, err, errors.Internal)
+	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
 func handleGetSaveGame(
@@ -171,11 +171,11 @@ func handleGetSaveGame(
 		return utils.MarshalResult(logger, result)
 	}
 
-	if errors2.Is(err, ErrNoSaveFound) {
+	if errors.Is(err, ErrNoSaveFound) {
 		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "failed to read save data"))
 	}
 
-	return utils.LogError(logger, err, errors.Internal)
+	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
 //nolint:gocognit
