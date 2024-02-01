@@ -32,7 +32,7 @@ func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err 
 	if resp.StatusCode != http.StatusOK {
 		buf, _ := io.ReadAll(resp.Body)
 		err = eris.Errorf("list endpoints (at %q) failed with status code %d: %v",
-			url, resp.StatusCode, string(buf))
+			url, resp.Status, string(buf))
 		return txEndpoints, queryEndpoints, err
 	}
 	dec := json.NewDecoder(resp.Body)
@@ -57,10 +57,10 @@ func makeRequestAndReadResp(
 		utils.MakeHTTPURL(endpoint, globalCardinalAddress),
 		payload,
 	)
-	req.Header.Set("Content-Type", "application/json")
 	if err != nil {
 		return res, eris.Wrapf(err, "request setup failed for endpoint %q", endpoint)
 	}
+	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return res, eris.Wrapf(err, "request failed for endpoint %q", endpoint)
@@ -69,19 +69,19 @@ func makeRequestAndReadResp(
 	if resp.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return res, eris.Wrapf(err, "failed to read response body, bad status code: %s: %s", resp.Status, body)
+			return res, eris.Wrapf(err, "failed to read response body, bad status: %s: %s", resp.Status, body)
 		}
-		return res, eris.Errorf("bad status code: %d: %s", resp.StatusCode, body)
+		return res, eris.Errorf("bad status code: %d: %s", resp.Status, body)
 	}
-	bz, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return res, eris.Wrap(err, "can't ready body")
+		return res, eris.Wrapf(err, "failed to read response body, bad status: %s: %s", resp.Status, body)
 	}
 	if strings.HasPrefix(endpoint, TransactionEndpointPrefix) {
 		var asTx persona.TxResponse
 
-		if err = json.Unmarshal(bz, &asTx); err != nil {
-			return res, eris.Wrap(err, "can't decode body as tx response")
+		if err = json.Unmarshal(body, &asTx); err != nil {
+			return res, eris.Wrap(err, "failed to decode body")
 		}
 		userID, err := utils.GetUserID(ctx)
 		if err != nil {
@@ -89,5 +89,5 @@ func makeRequestAndReadResp(
 		}
 		notifier.AddTxHashToPendingNotifications(asTx.TxHash, userID)
 	}
-	return string(bz), nil
+	return string(body), nil
 }
