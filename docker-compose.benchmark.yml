@@ -118,7 +118,7 @@ services:
       - TRACE_ADDRESS=${TRACE_ADDRESS}
     build:
       context: ./
-      dockerfile: internal/e2ebenchmark/tester/game/Dockerfile
+      dockerfile: e2e/testgames/gamebenchmark/Dockerfile
     restart: unless-stopped
     expose:
       - "3333"
@@ -147,7 +147,9 @@ services:
 
   test_nakama_benchmark:
     container_name: test_nakama_benchmark
-    build: ./internal/nakamabenchmark
+    build:
+      context: ./e2e/testclients/
+      dockerfile: benchmarktestclient/Dockerfile
     depends_on:
       nakama:
         condition: service_healthy
