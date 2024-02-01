@@ -84,6 +84,7 @@ func (m *Manager) RegisterInitSystem(system System) {
 func (m *Manager) RunSystems(eCtx engine.Context) error {
 	allSystemStartTime := time.Now()
 	for _, systemName := range m.registeredSystems {
+		fmt.Println("systemName", systemName)
 		// Explicit memory aliasing
 		sysName := systemName
 		m.currentSystem = &sysName

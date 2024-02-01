@@ -29,8 +29,8 @@ type TestFixture struct {
 	Redis   *miniredis.Miniredis
 	World   *cardinal.World
 
-	startTickCh chan time.Time
-	doneTickCh  chan uint64
+	StartTickCh chan time.Time
+	DoneTickCh  chan uint64
 	doCleanup   func()
 	startOnce   *sync.Once
 }
@@ -72,8 +72,8 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 		Redis:   miniRedis,
 		World:   world,
 
-		startTickCh: startTickCh,
-		doneTickCh:  doneTickCh,
+		StartTickCh: startTickCh,
+		DoneTickCh:  doneTickCh,
 		startOnce:   &sync.Once{},
 		// Only register this method with t.Cleanup if the game server is actually started
 		doCleanup: func() {
@@ -120,9 +120,12 @@ func (t *TestFixture) StartWorld() {
 // DoTick executes one game tick and blocks until the tick is complete. StartWorld is automatically called if it was
 // not called before the first tick.
 func (t *TestFixture) DoTick() {
+	t.Log("000")
 	t.StartWorld()
-	t.startTickCh <- time.Now()
-	<-t.doneTickCh
+	t.Log("111")
+	t.StartTickCh <- time.Now()
+	t.Log("222")
+	<-t.DoneTickCh
 }
 
 func (t *TestFixture) httpURL(path string) string {

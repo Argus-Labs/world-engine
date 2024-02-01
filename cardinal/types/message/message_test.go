@@ -268,17 +268,16 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 // TestTransactionsAreExecutedAtNextTick verifies that while a game tick is taking place, new transactions
 // are added to some queue that is not processed until the NEXT tick.
 func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	modScoreMsg := cardinal.NewMessageType[*ModifyScoreMsg, *EmptyMsgResult]("modify_score")
 	assert.NilError(t, cardinal.RegisterMessages(world, modScoreMsg))
-	ctx := context.Background()
-	tickStart := make(chan time.Time)
-	tickDone := make(chan uint64)
-	world.StartGameLoop(ctx, tickStart, tickDone)
+	tickStart := tf.StartTickCh
+	tickDone := tf.DoneTickCh
 
 	modScoreCountCh := make(chan int)
 
-	// cardinal.Create two system that report how many instances of the ModifyScoreMsg exist in the
+	// Create two system that report how many instances of the ModifyScoreMsg exist in the
 	// transaction queue. These counts should be the same for each tick. modScoreCountCh is an unbuffered channel
 	// so these systems will block while writing to modScoreCountCh. This allows the test to ensure that we can run
 	// commands mid-tick.
@@ -301,7 +300,7 @@ func TestTransactionsAreExecutedAtNextTick(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	modScoreMsg.AddToQueue(world, &ModifyScoreMsg{})
 
