@@ -1,4 +1,4 @@
-package msgs
+package cardinal
 
 import (
 	"github.com/rotisserie/eris"
@@ -6,13 +6,13 @@ import (
 	"slices"
 )
 
-type Manager struct {
+type MessageManager struct {
 	registeredMessages map[string]message.Message
 	nextMessageID      message.TypeID
 }
 
-func New() *Manager {
-	return &Manager{
+func NewMessageManager() *MessageManager {
+	return &MessageManager{
 		registeredMessages: map[string]message.Message{},
 		nextMessageID:      1,
 	}
@@ -21,7 +21,7 @@ func New() *Manager {
 // RegisterMessages registers multiple messages with the message manager
 // There can only be one message iwuth a given name, which is declared by the user by implementing the Name() method.
 // If there is a duplicate message name, an error will be returned and none of the messages will be registered.
-func (m *Manager) RegisterMessages(msgs ...message.Message) error {
+func (m *MessageManager) RegisterMessages(msgs ...message.Message) error {
 	// Iterate through all the messages and check if they are already registered.
 	// This is done before registering any of the messages to ensure that all are registered or none of them are.
 	msgNames := make([]string, 0, len(msgs))
@@ -57,13 +57,13 @@ func (m *Manager) RegisterMessages(msgs ...message.Message) error {
 	return nil
 }
 
-// IsMessagesRegistered returns true if any messages have been registered with the Manager.
-func (m *Manager) IsMessagesRegistered() bool {
+// IsMessagesRegistered returns true if any messages have been registered with the MessageManager.
+func (m *MessageManager) IsMessagesRegistered() bool {
 	return len(m.registeredMessages) > 0
 }
 
 // GetRegisteredMessages returns the list of all registered messages
-func (m *Manager) GetRegisteredMessages() []message.Message {
+func (m *MessageManager) GetRegisteredMessages() []message.Message {
 	msgs := make([]message.Message, 0, len(m.registeredMessages))
 	for _, msg := range m.registeredMessages {
 		msgs = append(msgs, msg)
@@ -73,7 +73,7 @@ func (m *Manager) GetRegisteredMessages() []message.Message {
 
 // GetMessage iterates over the all registered messages and returns the message.Message associated with the
 // message.TypeID.
-func (m *Manager) GetMessage(id message.TypeID) message.Message {
+func (m *MessageManager) GetMessage(id message.TypeID) message.Message {
 	for _, msg := range m.registeredMessages {
 		if id == msg.ID() {
 			return msg
@@ -83,7 +83,7 @@ func (m *Manager) GetMessage(id message.TypeID) message.Message {
 }
 
 // isNotDuplicate checks if the message name already exist in messages map.
-func (m *Manager) isNotDuplicate(tx message.Message) error {
+func (m *MessageManager) isNotDuplicate(tx message.Message) error {
 	_, ok := m.registeredMessages[tx.Name()]
 	if ok {
 		return eris.Errorf("message %q is already registered", tx.Name())

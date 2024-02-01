@@ -134,7 +134,7 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 			world, tick := tf.World, tf.DoTick
 			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 			assert.NilError(t, cardinal.RegisterComponent[Bar](world))
-			world.Init(func(eCtx engine.Context) error {
+			err := cardinal.RegisterInitSystems(world, func(eCtx engine.Context) error {
 				defer func() {
 					// In Systems, Cardinal is designed to panic when a fatal error is encountered.
 					// This test is not supposed to panic, but if it does panic it happens in a non-main thread which
@@ -150,6 +150,7 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 				assert.Check(t, isWantError, "expected %v but got %v", tc.wantErr, err)
 				return nil
 			})
+			assert.NilError(t, err)
 			tick()
 		})
 	}
@@ -229,7 +230,7 @@ func TestSystemsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			tf := testutils.NewTestFixture(t, nil)
 			world, tick := tf.World, tf.DoTick
 			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
-			world.Init(func(eCtx engine.Context) error {
+			err := cardinal.RegisterInitSystems(world, func(eCtx engine.Context) error {
 				defer func() {
 					err := recover()
 					// assert.Check is required here because this is happening in a non-main thread.
@@ -247,6 +248,7 @@ func TestSystemsPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 				assert.Check(t, false, "should not reach this line")
 				return nil
 			})
+			assert.NilError(t, err)
 			tick()
 		})
 	}
@@ -288,13 +290,14 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			tf := testutils.NewTestFixture(t, nil)
 			world, tick := tf.World, tf.DoTick
 			assert.NilError(t, cardinal.RegisterComponent[Foo](world))
-			world.Init(func(eCtx engine.Context) error {
+			err := cardinal.RegisterInitSystems(world, func(eCtx engine.Context) error {
 				// Make an entity so the test functions are operating on a valid entity.
 				_, err := cardinal.Create(eCtx, Foo{})
 				assert.Check(t, err == nil)
 				return nil
 			})
-			err := cardinal.RegisterQuery[QueryRequest, QueryResponse](
+			assert.NilError(t, err)
+			err = cardinal.RegisterQuery[QueryRequest, QueryResponse](
 				world,
 				queryName,
 				func(eCtx engine.Context, req *QueryRequest) (*QueryResponse, error) {
@@ -409,11 +412,12 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 	world, tick := tf.World, tf.DoTick
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
-	world.Init(func(eCtx engine.Context) error {
+	err := cardinal.RegisterSystems(world, func(eCtx engine.Context) error {
 		_, err := cardinal.Create(eCtx, Foo{})
 		assert.Check(t, err == nil)
 		return nil
 	})
+	assert.NilError(t, err)
 
 	const queryName = "some_query"
 	assert.NilError(t, cardinal.RegisterQuery[QueryRequest, QueryResponse](

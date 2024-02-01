@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"pkg.world.dev/world-engine/cardinal/types/system"
 	"runtime/pprof"
 
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/sys"
@@ -14,7 +15,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 )
 
-func sumSystems(systems ...cardinal.System) cardinal.System {
+func sumSystems(systems ...system.System) system.System {
 	return func(wCtx cardinal.WorldContext) error {
 		for _, system := range systems {
 			err := system(wCtx)
@@ -29,8 +30,9 @@ func sumSystems(systems ...cardinal.System) cardinal.System {
 func initializeSystems(
 	testFlag map[string]*bool,
 	testKeys []string,
-	initSystems []cardinal.System,
-	systems []cardinal.System) ([]cardinal.System, []cardinal.System) {
+	initSystems []system.System,
+	systems []system.System
+) ([]system.System, []system.System) {
 	a := *testFlag[testKeys[0]]
 	b := *testFlag[testKeys[1]]
 	c := *testFlag[testKeys[2]]
@@ -103,8 +105,8 @@ func main() {
 	}
 	defer pprof.StopCPUProfile()
 
-	initsystems := []cardinal.System{}
-	systems := []cardinal.System{}
+	initsystems := []system.System{}
+	systems := []system.System{}
 
 	options := []cardinal.WorldOption{
 		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.

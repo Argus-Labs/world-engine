@@ -9,6 +9,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/cardinal/types/system"
 	"strconv"
 )
 
@@ -21,8 +22,12 @@ var (
 	ErrComponentNotRegistered            = iterators.ErrMustRegisterComponent
 )
 
-func RegisterSystems(w *World, sys ...System) error {
+func RegisterSystems(w *World, sys ...system.System) error {
 	return w.systemManager.RegisterSystems(sys...)
+}
+
+func RegisterInitSystems(w *World, sys ...system.System) error {
+	return w.systemManager.RegisterInitSystems(sys...)
 }
 
 func RegisterComponent[T component.Component](w *World) error {

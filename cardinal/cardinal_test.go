@@ -138,16 +138,17 @@ func TestShutdownViaSignal(t *testing.T) {
 	httpBaseURL := "http://" + addr
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	wantNumOfEntities := 10
-	world.Init(func(eCtx engine.Context) error {
+	err := cardinal.RegisterInitSystems(world, func(eCtx engine.Context) error {
 		_, err := cardinal.CreateMany(eCtx, wantNumOfEntities/2, Foo{})
 		if err != nil {
 			return err
 		}
 		return nil
 	})
+	assert.NilError(t, err)
 	tf.StartWorld()
 	wCtx := cardinal.TestingWorldToWorldContext(world)
-	_, err := cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
+	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities/2, Foo{})
 	assert.NilError(t, err)
 	// test CORS with cardinal
 	client := &http.Client{}

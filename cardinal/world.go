@@ -61,7 +61,7 @@ type World struct {
 
 	// Scott's new stuff
 	WorldState    WorldStateType
-	msgManager    *msgs.Manager
+	msgManager    *MessageManager
 	systemManager *SystemManager
 
 	// Imported from Engine
@@ -160,7 +160,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 		// Scott's new stuff
 		WorldState:    WorldStateInit,
-		msgManager:    msgs.New(),
+		msgManager:    NewMessageManager(),
 		systemManager: NewSystemManager(),
 
 		// Imported from engine
@@ -254,17 +254,9 @@ func (w *World) Tick(ctx context.Context) error {
 	// Create the engine context to inject into systems
 	eCtx := NewWorldContextForTick(w, txQueue, w.Logger)
 
-	// Run the init system on the first tick
-	if w.CurrentTick() == 0 {
-		err := w.systemManager.RunInitSystem(eCtx)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Run all the systems
-	err := w.systemManager.RunSystems(eCtx)
-	if err != nil {
+	// Run all registered systems.
+	// This will run the registsred init systems if the current tick is 0
+	if err := w.systemManager.RunSystems(eCtx); err != nil {
 		return err
 	}
 
@@ -704,4 +696,8 @@ func (w *World) GetComponentByName(name string) (component.ComponentMetadata, er
 			"component %q must be registered before being used", name)
 	}
 	return componentType, nil
+}
+
+func (w *World) GetSystemNames() []string {
+	return w.systemManager.GetSystemNames()
 }
