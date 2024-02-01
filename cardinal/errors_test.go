@@ -100,7 +100,7 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 			wantErr: cardinal.ErrComponentNotOnEntity,
 		},
 		{
-			name: "cardinal.UpdateComponent_BadEntity",
+			name: "UpdateComponent_BadEntity",
 			testFn: func(eCtx engine.Context) error {
 				return cardinal.UpdateComponent[Foo](eCtx, nonExistentEntityID, func(f *Foo) *Foo {
 					return f
@@ -109,7 +109,7 @@ func TestSystemsReturnNonFatalErrors(t *testing.T) {
 			wantErr: cardinal.ErrEntityDoesNotExist,
 		},
 		{
-			name: "cardinal.UpdateComponent_ComponentNotOnEntity",
+			name: "UpdateComponent_ComponentNotOnEntity",
 			testFn: func(eCtx engine.Context) error {
 				id, err := cardinal.Create(eCtx, Foo{})
 				assert.Check(t, err == nil)

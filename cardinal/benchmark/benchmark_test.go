@@ -16,7 +16,7 @@ import (
 )
 
 // newWorldWithRealRedis returns a *cardinal.World that is connected to a redis DB hosted at localhost:6379. The target
-// database is CLEARED OF ALL DATA so that the *cardinal.Engine object can start from a clean slate.
+// database is CLEARED OF ALL DATA so that the *cardinal.World object can start from a clean slate.
 func newWorldWithRealRedis(t testing.TB) *cardinal.World {
 	world, err := cardinal.NewWorld()
 	assert.NilError(t, err)

@@ -35,7 +35,7 @@ type TestFixture struct {
 	startOnce   *sync.Once
 }
 
-// NewTestFixture creates a test fixture that manges the cardinal.World, cardinal.Engine, http server, event hub,
+// NewTestFixture creates a test fixture that manges the cardinal.World, http server, event hub,
 // evm adapter, etc. Cardinal resources (such as Systems and Components) can be registered with the attached
 // cardinal.World, but you must call StartWorld or DoTick to finalize the resources. If a nil miniRedis is passed
 // in, a miniredis instance will be created for you.

@@ -131,7 +131,7 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 }
 
 func TestShutdownViaSignal(t *testing.T) {
-	// If this test is frozen then it failed to shut down, cardinal.Create a failure with panic.
+	// If this test is frozen then it failed to shut down, create a failure with panic.
 	testutils.SetTestTimeout(t, 10*time.Second)
 	tf := testutils.NewTestFixture(t, nil)
 	world, addr := tf.World, tf.BaseURL
