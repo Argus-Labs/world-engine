@@ -3,29 +3,12 @@ package cardinal
 import (
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 type EVMTxReceipt struct {
 	ABIResult []byte
 	Errs      []error
 	EVMTxHash string
-}
-
-func (w *World) AddMessageError(id types.TxHash, err error) {
-	w.receiptHistory.AddError(id, err)
-}
-
-func (w *World) SetMessageResult(id types.TxHash, a any) {
-	w.receiptHistory.SetResult(id, a)
-}
-
-func (w *World) GetTransactionReceipt(id types.TxHash) (any, []error, bool) {
-	rec, ok := w.receiptHistory.GetReceipt(id)
-	if !ok {
-		return nil, nil, false
-	}
-	return rec.Result, rec.Errs, true
 }
 
 func (w *World) GetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
@@ -38,10 +21,6 @@ func (w *World) ConsumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
 	r, ok := w.evmTxReceipts[evmTxHash]
 	delete(w.evmTxReceipts, evmTxHash)
 	return r, ok
-}
-
-func (w *World) ReceiptHistorySize() uint64 {
-	return w.receiptHistory.Size()
 }
 
 func (w *World) setEvmResults(txs []txpool.TxData) {
