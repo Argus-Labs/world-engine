@@ -10,17 +10,6 @@ var (
 	DebugEnabled bool
 )
 
-func LogDebugWithMessageAndCode(
-	logger runtime.Logger,
-	err error,
-	code codes.Code,
-	format string,
-	v ...interface{},
-) (string, error) {
-	err = eris.Wrapf(err, format, v...)
-	return LogDebug(logger, err, code)
-}
-
 func LogErrorWithMessageAndCode(
 	logger runtime.Logger,
 	err error,
@@ -30,31 +19,6 @@ func LogErrorWithMessageAndCode(
 ) (string, error) {
 	err = eris.Wrapf(err, format, v...)
 	return LogError(logger, err, code)
-}
-
-func LogErrorMessageFailedPrecondition(
-	logger runtime.Logger,
-	err error,
-	format string,
-	v ...interface{}) (string, error) {
-	err = eris.Wrapf(err, format, v...)
-	return LogErrorFailedPrecondition(logger, err)
-}
-
-func LogErrorFailedPrecondition(
-	logger runtime.Logger,
-	err error,
-) (string, error) {
-	return LogError(logger, err, codes.FailedPrecondition)
-}
-
-func LogDebug(
-	logger runtime.Logger,
-	err error,
-	code codes.Code,
-) (string, error) {
-	logger.Debug(eris.ToString(err, true))
-	return "", errToNakamaError(err, code)
 }
 
 func LogError(
