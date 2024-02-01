@@ -1,12 +1,14 @@
-package e2e
+package chain
 
 import (
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"testing"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"gotest.tools/v3/assert"
+
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
-	"testing"
 )
 
 type Chain struct {

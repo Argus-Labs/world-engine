@@ -4,9 +4,9 @@ use (
 	assert
 	cardinal
 	evm
-	e2e
 	e2e/tester
 	e2e/nakamaclients
+	e2e/chain
 	relay/nakama
 	rift
 	sign

@@ -1,11 +1,13 @@
-package e2e
+package chain
 
 import (
 	"context"
-	"gotest.tools/v3/assert"
-	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"testing"
 	"time"
+
+	"gotest.tools/v3/assert"
+
+	"pkg.world.dev/world-engine/evm/x/shard/types"
 )
 
 const (

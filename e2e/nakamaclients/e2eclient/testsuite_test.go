@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argus-labs/world-engine/nakama_test/clientutils"
 	"github.com/ethereum/go-ethereum/crypto"
 	"pkg.world.dev/world-engine/assert"
 )
@@ -24,15 +25,15 @@ func TestEvents(t *testing.T) {
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 	username, deviceID, personaTag := triple(randomString())
-	c := newClient(t)
-	assert.NilError(t, c.registerDevice(username, deviceID))
+	c := clientutils.NewNakamaClient(t)
+	assert.NilError(t, c.RegisterDevice(username, deviceID))
 
-	resp, err := c.rpc("nakama/claim-persona", map[string]any{
+	resp, err := c.RPC("nakama/claim-persona", map[string]any{
 		"personaTag":    personaTag,
 		"signerAddress": signerAddr,
 	})
 	assert.NilError(t, err, "claim-persona failed")
-	assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
+	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 
 	assert.NilError(t, waitForAcceptedPersonaTag(c))
 	type JointInput struct {
@@ -42,17 +43,17 @@ func TestEvents(t *testing.T) {
 	// create three players.
 	amountOfPlayers := 3
 	for i := 0; i < amountOfPlayers; i++ {
-		resp, err = c.rpc("tx/game/join", payload) // should emit an event.
+		resp, err = c.RPC("tx/game/join", payload) // should emit an event.
 		assert.NilError(t, err)
-		body := copyBody(resp)
+		body := clientutils.CopyBody(resp)
 		assert.Equal(t, 200, resp.StatusCode, body)
 	}
 
-	notifications, err := c.listNotifications(amountOfPlayers)
+	notifications, err := c.ListNotifications(amountOfPlayers)
 	assert.NilError(t, err)
 	for len(notifications) != amountOfPlayers { // loop until notification sent.
 		time.Sleep(1 * time.Second)
-		notifications, err = c.listNotifications(amountOfPlayers)
+		notifications, err = c.ListNotifications(amountOfPlayers)
 		assert.NilError(t, err)
 	}
 	assert.Equal(t, len(notifications), amountOfPlayers)
@@ -74,30 +75,30 @@ func TestTransactionAndCQLAndRead(t *testing.T) {
 	assert.NilError(t, err)
 	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
 	username, deviceID, personaTag := triple(randomString())
-	c := newClient(t)
-	assert.NilError(t, c.registerDevice(username, deviceID))
+	c := clientutils.NewNakamaClient(t)
+	assert.NilError(t, c.RegisterDevice(username, deviceID))
 
-	resp, err := c.rpc("nakama/claim-persona", map[string]any{
+	resp, err := c.RPC("nakama/claim-persona", map[string]any{
 		"personaTag":    personaTag,
 		"signerAddress": signerAddr,
 	})
 	assert.NilError(t, err, "claim-persona failed")
-	assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
+	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 
 	assert.NilError(t, waitForAcceptedPersonaTag(c))
 	payload := map[string]any{}
-	resp, err = c.rpc("tx/game/join", payload)
+	resp, err = c.RPC("tx/game/join", payload)
 	assert.NilError(t, err)
-	body := copyBody(resp)
+	body := clientutils.CopyBody(resp)
 	assert.Equal(t, 200, resp.StatusCode, body)
 
 	// Moving "up" will increase the Y coordinate by 1 and leave the X coordinate unchanged.
 	payload = map[string]any{
 		"Direction": "up",
 	}
-	resp, err = c.rpc("tx/game/move", payload)
+	resp, err = c.RPC("tx/game/move", payload)
 	assert.NilError(t, err)
-	body = copyBody(resp)
+	body = clientutils.CopyBody(resp)
 	assert.Equal(t, 200, resp.StatusCode, body)
 
 	type Item struct {
@@ -116,7 +117,7 @@ func TestTransactionAndCQLAndRead(t *testing.T) {
 	// the game tick has executed. We spin on this check until we find the desired results or until we time out.
 	yAndNameNotFound := true
 	for yAndNameNotFound {
-		resp, err = c.rpc("query/game/cql", struct {
+		resp, err = c.RPC("query/game/cql", struct {
 			CQL string `json:"CQL"`
 		}{"CONTAINS(player)"})
 		assert.NilError(t, err)
@@ -159,7 +160,7 @@ func TestTransactionAndCQLAndRead(t *testing.T) {
 	type LocationReply struct {
 		X, Y int
 	}
-	resp, err = c.rpc("query/game/location", LocationRequest{personaTag})
+	resp, err = c.RPC("query/game/location", LocationRequest{personaTag})
 	assert.NilError(t, err)
 	bodyBytes, err := io.ReadAll(resp.Body)
 	assert.NilError(t, err)
@@ -171,14 +172,14 @@ func TestTransactionAndCQLAndRead(t *testing.T) {
 
 func TestCanShowPersona(t *testing.T) {
 	username, deviceID, personaTag := triple(randomString())
-	c := newClient(t)
-	assert.NilError(t, c.registerDevice(username, deviceID))
+	c := clientutils.NewNakamaClient(t)
+	assert.NilError(t, c.RegisterDevice(username, deviceID))
 
-	resp, err := c.rpc("nakama/claim-persona", map[string]any{
+	resp, err := c.RPC("nakama/claim-persona", map[string]any{
 		"personaTag": personaTag,
 	})
 	assert.NilError(t, err, "claim-persona failed")
-	assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
+	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 
 	assert.NilError(t, waitForAcceptedPersonaTag(c))
 }
@@ -186,25 +187,25 @@ func TestCanShowPersona(t *testing.T) {
 func TestDifferentUsersCannotClaimSamePersonaTag(t *testing.T) {
 	userA, deviceA, ptA := triple(randomString())
 
-	aClient := newClient(t)
-	assert.NilError(t, aClient.registerDevice(userA, deviceA))
+	aClient := clientutils.NewNakamaClient(t)
+	assert.NilError(t, aClient.RegisterDevice(userA, deviceA))
 
-	resp, err := aClient.rpc("nakama/claim-persona", map[string]any{
+	resp, err := aClient.RPC("nakama/claim-persona", map[string]any{
 		"personaTag": ptA,
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
+	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 
 	userB, deviceB, _ := triple(randomString())
 	// user B will try to claim the same persona tag as user A
 	ptB := ptA
-	bClient := newClient(t)
-	assert.NilError(t, bClient.registerDevice(userB, deviceB))
-	resp, err = bClient.rpc("nakama/claim-persona", map[string]any{
+	bClient := clientutils.NewNakamaClient(t)
+	assert.NilError(t, bClient.RegisterDevice(userB, deviceB))
+	resp, err = bClient.RPC("nakama/claim-persona", map[string]any{
 		"personaTag": ptB,
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, http.StatusConflict, resp.StatusCode, copyBody(resp))
+	assert.Equal(t, http.StatusConflict, resp.StatusCode, clientutils.CopyBody(resp))
 }
 
 func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
@@ -214,13 +215,13 @@ func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
 		users[i] = randomString()
 	}
 
-	clients := []*nakamaClient{}
+	clients := []*clientutils.NakamaClient{}
 	// The claim-persona requests should all happen in quick succession, so register all devices (essentially logging in)
 	// before making any calls to claim-persona.
 	for i := range users {
 		name := users[i]
-		c := newClient(t)
-		assert.NilError(t, c.registerDevice(name, name))
+		c := clientutils.NewNakamaClient(t)
+		assert.NilError(t, c.RegisterDevice(name, name))
 		clients = append(clients, c)
 	}
 
@@ -234,7 +235,7 @@ func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
 	for _, client := range clients {
 		c := client
 		go func() {
-			resp, err := c.rpc("nakama/claim-persona", map[string]any{
+			resp, err := c.RPC("nakama/claim-persona", map[string]any{
 				"personaTag": personaTag,
 			})
 			ch <- result{resp, err}
@@ -254,26 +255,26 @@ func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
 
 func TestCannotClaimAdditionalPersonATag(t *testing.T) {
 	user, device, tag := triple(randomString())
-	c := newClient(t)
-	assert.NilError(t, c.registerDevice(user, device))
+	c := clientutils.NewNakamaClient(t)
+	assert.NilError(t, c.RegisterDevice(user, device))
 
-	resp, err := c.rpc("nakama/claim-persona", map[string]any{
+	resp, err := c.RPC("nakama/claim-persona", map[string]any{
 		"personaTag": tag,
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, 200, resp.StatusCode, copyBody(resp))
+	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 
 	// Trying to request a different persona tag right away should fail.
-	resp, err = c.rpc("nakama/claim-persona", map[string]any{
+	resp, err = c.RPC("nakama/claim-persona", map[string]any{
 		"personaTag": "some-other-persona-tag",
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, 409, resp.StatusCode, copyBody(resp))
+	assert.Equal(t, 409, resp.StatusCode, clientutils.CopyBody(resp))
 
 	assert.NilError(t, waitForAcceptedPersonaTag(c))
 	// Trying to request a different persona tag after the original has been accepted
 	// should fail
-	resp, err = c.rpc("nakama/claim-persona", map[string]any{
+	resp, err = c.RPC("nakama/claim-persona", map[string]any{
 		"personaTag": "some-other-persona-tag",
 	})
 	assert.NilError(t, err)
@@ -282,39 +283,39 @@ func TestCannotClaimAdditionalPersonATag(t *testing.T) {
 
 func TestPersonaTagFieldCannotBeEmpty(t *testing.T) {
 	user, device, _ := triple(randomString())
-	c := newClient(t)
-	assert.NilError(t, c.registerDevice(user, device))
+	c := clientutils.NewNakamaClient(t)
+	assert.NilError(t, c.RegisterDevice(user, device))
 
-	resp, err := c.rpc("nakama/claim-persona", map[string]any{
+	resp, err := c.RPC("nakama/claim-persona", map[string]any{
 		"ignore_me": "foobar",
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, 400, resp.StatusCode, copyBody(resp))
+	assert.Equal(t, 400, resp.StatusCode, clientutils.CopyBody(resp))
 }
 
 func TestPersonaTagsShouldBeCaseInsensitive(t *testing.T) {
-	clientA, clientB := newClient(t), newClient(t)
+	clientA, clientB := clientutils.NewNakamaClient(t), clientutils.NewNakamaClient(t)
 	userA, userB := randomString(), randomString()
 
-	assert.NilError(t, clientA.registerDevice(userA, userA))
-	assert.NilError(t, clientB.registerDevice(userB, userB))
+	assert.NilError(t, clientA.RegisterDevice(userA, userA))
+	assert.NilError(t, clientB.RegisterDevice(userB, userB))
 
 	lowerCase := "bbbb"
 	upperCase := "BBBB"
-	_, err := clientA.rpc("nakama/claim-persona", map[string]any{
+	_, err := clientA.RPC("nakama/claim-persona", map[string]any{
 		"personaTag": lowerCase,
 	})
 	assert.NilError(t, err)
-	_, err = clientB.rpc("nakama/claim-persona", map[string]any{
+	_, err = clientB.RPC("nakama/claim-persona", map[string]any{
 		"personaTag": upperCase,
 	})
 	assert.NilError(t, err)
 
 	assert.NilError(t, waitForAcceptedPersonaTag(clientA))
 
-	respA, err := clientA.rpc("nakama/show-persona", nil)
+	respA, err := clientA.RPC("nakama/show-persona", nil)
 	assert.NilError(t, err)
-	respB, err := clientB.rpc("nakama/show-persona", nil)
+	respB, err := clientB.RPC("nakama/show-persona", nil)
 	assert.NilError(t, err)
 
 	showA := map[string]any{}
@@ -329,11 +330,11 @@ func TestPersonaTagsShouldBeCaseInsensitive(t *testing.T) {
 // waitForAcceptedPersonaTag periodically queries the show-persona endpoint until a previously claimed persona tag
 // is "accepted". A response of "pending" will wait a short period of time, then repeat the request. After 1 second,
 // this helper returns an error.
-func waitForAcceptedPersonaTag(c *nakamaClient) error {
+func waitForAcceptedPersonaTag(c *clientutils.NakamaClient) error {
 	timeout := time.After(2 * time.Second)
 	retry := time.Tick(10 * time.Millisecond)
 	for {
-		resp, err := c.rpc("nakama/show-persona", nil)
+		resp, err := c.RPC("nakama/show-persona", nil)
 		if err != nil {
 			return err
 		}
@@ -359,7 +360,7 @@ func waitForAcceptedPersonaTag(c *nakamaClient) error {
 
 func getStatusFromResponse(resp *http.Response) (string, error) {
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("got status code %d, want 200; response body: %v", resp.StatusCode, copyBody(resp))
+		return "", fmt.Errorf("got status code %d, want 200; response body: %v", resp.StatusCode, clientutils.CopyBody(resp))
 	}
 	m := map[string]any{}
 	if err := json.NewDecoder(resp.Body).Decode(&m); err != nil {
