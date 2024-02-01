@@ -3,7 +3,6 @@ package cardinal_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -162,27 +161,24 @@ func TestShutdownViaSignal(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 200)
 
 	// TODO(scott): not sure what we are triyng to test here, but this seems to just be blocked at conn.ReadMessage()
-	//wsBaseURL := "ws://" + addr
-	//conn, _, err := websocket.DefaultDialer.Dial(wsBaseURL+"/events", nil)
-	//assert.NilError(t, err)
-	//var wg sync.WaitGroup
-	//wg.Add(1)
-	//go func() {
-	//	_, _, err := conn.ReadMessage()
-	//	assert.Assert(t, websocket.IsCloseError(err, websocket.CloseAbnormalClosure))
+	// wsBaseURL := "ws://" + addr
+	// conn, _, err := websocket.DefaultDialer.Dial(wsBaseURL+"/events", nil)
+	// assert.NilError(t, err)
+	// var wg sync.WaitGroup
+	// wg.Add(1)
+	// go func() {
+	// 	_, _, err := conn.ReadMessage()
+	// 	assert.Assert(t, websocket.IsCloseError(err, websocket.CloseAbnormalClosure))
 	//	wg.Done()
-	//}()
+	// }()
 
 	// Send a SIGINT signal.
-	fmt.Println("Sending SIGINT signal to process", os.Getpid())
 	cmd := exec.Command("kill", "-SIGINT", strconv.Itoa(os.Getpid()))
 	err = cmd.Run()
 	assert.NilError(t, err)
 
 	for world.IsGameRunning() {
 		// wait until game loop is not running
-		fmt.Println("Waiting for game loop to stop")
 		time.Sleep(50 * time.Millisecond)
 	}
-	fmt.Println("Game loop stopped")
 }

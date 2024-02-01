@@ -90,6 +90,7 @@ func (m *SystemManager) registerSystems(registeredSystems *[]string, systems ...
 func (m *SystemManager) RunSystems(eCtx engine.Context) error {
 	var systemsToRun []string
 	if eCtx.CurrentTick() == 0 {
+		//nolint:gocritic,appendAssign // We need to use the append function to concat
 		systemsToRun = append(m.registeredInitSystems, m.registeredSystems...)
 	} else {
 		systemsToRun = m.registeredSystems

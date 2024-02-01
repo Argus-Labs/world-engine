@@ -168,7 +168,7 @@ func TestEntitiesCanBeFetchedAfterReload(t *testing.T) {
 
 	assert.NilError(t, manager.FinalizeTick(ctx))
 
-	// cardinal.Create a new EntityCommandBuffer instances and make sure the previously cardinal.Created entities can be found
+	// Create a new EntityCommandBuffer instances and make sure the previously cardinal.Created entities can be found
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
 	ids, err = manager.GetEntitiesForArchID(archID)
 	assert.NilError(t, err)

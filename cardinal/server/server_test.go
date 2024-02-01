@@ -195,11 +195,11 @@ func (s *ServerTestSuite) runTx(personaTag string, msg message.Message, payload 
 
 // Creates a persona with the specified tag.
 func (s *ServerTestSuite) CreatePersona(personaTag string) {
-	CreatePersonaTx := msg.CreatePersona{
+	createPersonaTx := msg.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: s.signerAddr,
 	}
-	tx, err := sign.NewSystemTransaction(s.privateKey, s.world.Namespace().String(), s.nonce, CreatePersonaTx)
+	tx, err := sign.NewSystemTransaction(s.privateKey, s.world.Namespace().String(), s.nonce, createPersonaTx)
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))

@@ -149,7 +149,7 @@ func AuthorizePersonaAddressSystem(eCtx engine.Context) error {
 // Persona System
 // -----------------------------------------------------------------------------
 
-// RegisterPersonaSystem is an cardinal.System that will associate persona tags with signature addresses. Each persona tag
+// RegisterPersonaSystem is an system that will associate persona tags with signature addresses. Each persona tag
 // may have at most 1 signer, so additional attempts to register a signer with a persona tag will be ignored.
 func RegisterPersonaSystem(eCtx engine.Context) error {
 	personaTagToAddress, err := buildPersonaIndex(eCtx)

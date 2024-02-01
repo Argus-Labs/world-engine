@@ -3,7 +3,6 @@ package log_test
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/log"
@@ -160,7 +159,6 @@ func TestEngineLogger(t *testing.T) {
 	err = world.Tick(ctx)
 	assert.NilError(t, err)
 	logStrings = strings.Split(buf.String(), "\n")[:3]
-	fmt.Println(logStrings)
 	// test tick start
 	require.JSONEq(
 		t, `

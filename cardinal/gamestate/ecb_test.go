@@ -553,9 +553,9 @@ func TestFinalizeTickPerformanceIsConsistent(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	ctx := context.Background()
 
-	// CreateAndFinalizeEntities cardinal.Creates some entities and then calls FinalizeTick. It returns the amount of time it took
-	// to execute FinalizeTick and how many bytes of memory were allocated during the call.
-	CreateAndFinalizeEntities := func() (duration time.Duration, allocations uint64) {
+	// CreateAndFinalizeEntities cardinal.Creates some entities and then calls FinalizeTick. It returns the amount
+	// of time it took to execute FinalizeTick and how many bytes of memory were allocated during the call.
+	createAndFinalizeEntities := func() (duration time.Duration, allocations uint64) {
 		_, err := manager.CreateManyEntities(100, fooComp, barComp)
 		assert.NilError(t, err)
 
@@ -576,11 +576,11 @@ func TestFinalizeTickPerformanceIsConsistent(t *testing.T) {
 	}
 
 	// Collect a baseline for how much time FinalizeTick should take and how much memory it should allocate.
-	baselineDuration, baselineAlloc := CreateAndFinalizeEntities()
+	baselineDuration, baselineAlloc := createAndFinalizeEntities()
 
 	// Run FinalizeTick a bunch of times to exacerbate any memory leaks.
 	for i := 0; i < 100; i++ {
-		_, _ = CreateAndFinalizeEntities()
+		_, _ = createAndFinalizeEntities()
 	}
 
 	// Run FinalizeTick a final handful of times. We'll take the average of these final runs and compare them to
@@ -590,7 +590,7 @@ func TestFinalizeTickPerformanceIsConsistent(t *testing.T) {
 	var totalAlloc uint64
 	const count = 10
 	for i := 0; i < count; i++ {
-		currDuration, currAlloc := CreateAndFinalizeEntities()
+		currDuration, currAlloc := createAndFinalizeEntities()
 		totalDuration += currDuration
 		totalAlloc += currAlloc
 	}

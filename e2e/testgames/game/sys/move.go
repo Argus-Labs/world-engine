@@ -2,14 +2,14 @@ package sys
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 
 	"github.com/argus-labs/world-engine/example/tester/game/comp"
 	"github.com/argus-labs/world-engine/example/tester/game/msg"
 	"pkg.world.dev/world-engine/cardinal"
 )
 
-func Move(ctx cardinal.WorldContext) error {
+func Move(ctx engine.Context) error {
 	logger := ctx.Logger()
 	msg.MoveMsg.Each(ctx, func(mtx cardinal.TxData[msg.MoveInput]) (msg.MoveOutput, error) {
 		logger.Info().Msgf("got move transaction from: %s", mtx.Tx.PersonaTag)

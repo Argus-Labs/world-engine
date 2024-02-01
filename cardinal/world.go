@@ -35,6 +35,10 @@ import (
 type WorldStateType string
 
 const (
+	DefaultHistoricalTicksToStore = 10
+)
+
+const (
 	WorldStateInit       WorldStateType = "WorldStateInit"
 	WorldStateRecovering WorldStateType = "WordlStateRecovering"
 	WorldStateReady      WorldStateType = "WorldStateReady"
@@ -189,7 +193,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	if world.receiptHistory == nil {
-		world.receiptHistory = receipt.NewHistory(world.CurrentTick(), 10)
+		world.receiptHistory = receipt.NewHistory(world.CurrentTick(), DefaultHistoricalTicksToStore)
 	}
 	if world.eventHub == nil {
 		world.eventHub = events.NewEventHub()
@@ -423,11 +427,11 @@ func (w *World) Shutdown() error {
 	if w.cleanup != nil {
 		w.cleanup()
 	}
-	//ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageRunning, gamestage.StageShuttingDown)
-	//if !ok {
+	// ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageRunning, gamestage.StageShuttingDown)
+	// if !ok {
 	//	// Either the world hasn't been started, or we've already shut down.
 	//	return nil
-	//}
+	// }
 	// The CompareAndSwap returned true, so this call is responsible for actually
 	// shutting down the game.
 	defer func() {

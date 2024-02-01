@@ -14,7 +14,6 @@ import (
 
 // WorldOption represents an option that can be used to augment how the cardinal.World will be run.
 type WorldOption struct {
-	ecsOption      Option
 	serverOption   server.Option
 	cardinalOption Option
 }

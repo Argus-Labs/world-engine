@@ -12,4 +12,5 @@ type JoinOutput struct {
 	Success bool
 }
 
-var JoinMsg = cardinal.NewMessageTypeWithEVMSupport[JoinInput, JoinOutput]("join")
+var JoinMsg = cardinal.NewMessageType[JoinInput, JoinOutput]("join",
+	cardinal.WithMsgEVMSupport[JoinInput, JoinOutput]())

@@ -287,7 +287,6 @@ func AddComponentTo[T component.Component](eCtx engine.Context, id entity.ID) er
 	var t T
 	c, err := eCtx.GetComponentByName(t.Name())
 	if err != nil {
-
 		return logAndPanic(eCtx, err)
 	}
 

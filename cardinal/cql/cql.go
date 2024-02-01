@@ -1,4 +1,7 @@
+//nolint:govet // false positives
 package cql
+
+import "github.com/rotisserie/eris"
 
 import (
 	"encoding/json"
@@ -7,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/alecthomas/participle/v2"
-	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 )

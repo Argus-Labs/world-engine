@@ -2,6 +2,7 @@ package query
 
 import (
 	"fmt"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 
 	"github.com/argus-labs/world-engine/example/tester/game/comp"
 	"github.com/argus-labs/world-engine/example/tester/game/sys"
@@ -17,10 +18,10 @@ type LocationReply struct {
 }
 
 func RegisterLocationQuery(world *cardinal.World) error {
-	return cardinal.RegisterQueryWithEVMSupport[LocationRequest, LocationReply](
+	return cardinal.RegisterQuery[LocationRequest, LocationReply](
 		world,
 		"location",
-		func(ctx cardinal.WorldContext, req *LocationRequest) (*LocationReply, error) {
+		func(ctx engine.Context, req *LocationRequest) (*LocationReply, error) {
 			playerEntityID, ok := sys.PlayerEntityID[req.ID]
 			if !ok {
 				ctx.Logger().Info().Msg("listing existing players...")
@@ -37,5 +38,7 @@ func RegisterLocationQuery(world *cardinal.World) error {
 				X: loc.X,
 				Y: loc.Y,
 			}, nil
-		})
+		},
+		cardinal.WithQueryEVMSupport[LocationRequest, LocationReply](),
+	)
 }

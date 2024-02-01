@@ -125,21 +125,21 @@ func TestQueryTypeNotStructs(t *testing.T) {
 func TestQueryEVM(t *testing.T) {
 	t.Skipf("skipping until evm server is fixed")
 	// --- TEST SETUP ---
-	//type FooRequest struct {
+	// type FooRequest struct {
 	//	ID string
 	//}
-	//type FooReply struct {
+	// type FooReply struct {
 	//	Name string
 	//	Age  uint64
 	//}
 	//
-	//expectedReply := FooReply{
+	// expectedReply := FooReply{
 	//	Name: "Chad",
 	//	Age:  22,
 	//}
 	//
-	//world := testutils.NewTestFixture(t, nil).World
-	//err := cardinal.RegisterQuery[FooRequest, FooReply](
+	// world := testutils.NewTestFixture(t, nil).World
+	// err := cardinal.RegisterQuery[FooRequest, FooReply](
 	//	world,
 	//	"foo",
 	//	func(
@@ -150,35 +150,35 @@ func TestQueryEVM(t *testing.T) {
 	//	cardinal.WithQueryEVMSupport[FooRequest, FooReply](),
 	//)
 	//
-	//assert.NilError(t, err)
-	//err = cardinal.RegisterMessages(world, cardinal.NewMessageType[struct{}, struct{}]("blah"))
-	//assert.NilError(t, err)
-	//// TODO(scott): fix this
-	////s, err := evm.NewServer(world)
-	//assert.NilError(t, err)
+	// assert.NilError(t, err)
+	// err = cardinal.RegisterMessages(world, cardinal.NewMessageType[struct{}, struct{}]("blah"))
+	// assert.NilError(t, err)
+	// // TODO(scott): fix this
+	// //s, err := evm.NewServer(world)
+	// assert.NilError(t, err)
 	//
-	//// cardinal.Create the abi encoded bytes that the EVM would send.
-	//fooQuery, err := world.GetQueryByName("foo")
-	//assert.NilError(t, err)
-	//bz, err := fooQuery.EncodeAsABI(FooRequest{ID: "foo"})
-	//assert.NilError(t, err)
+	// // cardinal.Create the abi encoded bytes that the EVM would send.
+	// fooQuery, err := world.GetQueryByName("foo")
+	// assert.NilError(t, err)
+	// bz, err := fooQuery.EncodeAsABI(FooRequest{ID: "foo"})
+	// assert.NilError(t, err)
 	//
-	//// query the resource.
-	//res, err := s.QueryShard(context.Background(), &routerv1.QueryShardRequest{
+	// // query the resource.
+	// res, err := s.QueryShard(context.Background(), &routerv1.QueryShardRequest{
 	//	Resource: fooQuery.Name(),
 	//	Request:  bz,
-	//})
-	//assert.NilError(t, err)
+	// })
+	// assert.NilError(t, err)
 	//
-	//// decode the reply
-	//replyAny, err := fooQuery.DecodeEVMReply(res.Response)
-	//assert.NilError(t, err)
+	// // decode the reply
+	// replyAny, err := fooQuery.DecodeEVMReply(res.Response)
+	// assert.NilError(t, err)
 	//
-	//// cast to reply type
-	//reply, ok := replyAny.(FooReply)
-	//assert.Equal(t, ok, true)
-	//// should be same!
-	//assert.Equal(t, reply, expectedReply)
+	// // cast to reply type
+	// reply, ok := replyAny.(FooReply)
+	// assert.Equal(t, ok, true)
+	// // should be same!
+	// assert.Equal(t, reply, expectedReply)
 }
 
 func TestErrOnNoNameOrHandler(t *testing.T) {
