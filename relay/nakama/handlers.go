@@ -170,7 +170,7 @@ func handleGetSaveGame(
 	}
 
 	if errors.Is(err, ErrNoSaveFound) {
-		return utils.LogErrorFailedPrecondition(logger, eris.Wrap(err, "failed to read save data"))
+		return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "failed to read save data")
 	}
 
 	return utils.LogError(logger, err, codes.FailedPrecondition)
@@ -192,12 +192,12 @@ func handleCardinalRequest(
 		var resultPayload io.Reader
 		resultPayload, err := createPayload(payload, currEndpoint, nk, ctx)
 		if err != nil {
-			return utils.LogErrorMessageFailedPrecondition(logger, err, "unable to make payload")
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "unable to make payload")
 		}
 
 		result, err := makeRequestAndReadResp(ctx, notifier, currEndpoint, resultPayload)
 		if err != nil {
-			return utils.LogErrorFailedPrecondition(logger, err)
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
 		}
 
 		return result, nil
