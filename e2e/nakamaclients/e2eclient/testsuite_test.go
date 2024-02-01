@@ -205,7 +205,7 @@ func TestDifferentUsersCannotClaimSamePersonaTag(t *testing.T) {
 		"personaTag": ptB,
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, http.StatusConflict, resp.StatusCode, clientutils.CopyBody(resp))
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, clientutils.CopyBody(resp))
 }
 
 func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
@@ -250,7 +250,7 @@ func TestConcurrentlyClaimSamePersonaTag(t *testing.T) {
 	}
 	assert.Equal(t, 2, len(codeCount), "expected status codes of 200 and 409, got %v", codeCount)
 	assert.Equal(t, 1, codeCount[200], "expected exactly 1 success")
-	assert.Equal(t, userCount-1, codeCount[409], "expected exactly %d failures", userCount-1)
+	assert.Equal(t, userCount-1, codeCount[400], "expected exactly %d failures", userCount-1)
 }
 
 func TestCannotClaimAdditionalPersonATag(t *testing.T) {
@@ -269,7 +269,7 @@ func TestCannotClaimAdditionalPersonATag(t *testing.T) {
 		"personaTag": "some-other-persona-tag",
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, 409, resp.StatusCode, clientutils.CopyBody(resp))
+	assert.Equal(t, 400, resp.StatusCode, clientutils.CopyBody(resp))
 
 	assert.NilError(t, waitForAcceptedPersonaTag(c))
 	// Trying to request a different persona tag after the original has been accepted
@@ -278,7 +278,7 @@ func TestCannotClaimAdditionalPersonATag(t *testing.T) {
 		"personaTag": "some-other-persona-tag",
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, 409, resp.StatusCode)
+	assert.Equal(t, 400, resp.StatusCode)
 }
 
 func TestPersonaTagFieldCannotBeEmpty(t *testing.T) {
@@ -300,8 +300,8 @@ func TestPersonaTagsShouldBeCaseInsensitive(t *testing.T) {
 	assert.NilError(t, clientA.RegisterDevice(userA, userA))
 	assert.NilError(t, clientB.RegisterDevice(userB, userB))
 
-	lowerCase := "bbbb"
-	upperCase := "BBBB"
+	lowerCase := randomString()
+	upperCase := strings.ToUpper(lowerCase)
 	_, err := clientA.RPC("nakama/claim-persona", map[string]any{
 		"personaTag": lowerCase,
 	})

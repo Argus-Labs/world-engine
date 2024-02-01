@@ -2,6 +2,8 @@ module github.com/argus-labs/world-engine/example/tester
 
 go 1.21.2
 
+toolchain go1.21.5
+
 // external, necessary replacements
 replace (
 	github.com/cockroachdb/pebble => github.com/cockroachdb/pebble v0.0.0-20230928194634-aa077af62593
