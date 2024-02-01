@@ -10,31 +10,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
-func RegisterQuery[Request any, Reply any](
-	world *World,
-	name string,
-	handler func(eCtx engine.Context, req *Request) (*Reply, error),
-	opts ...QueryOption[Request, Reply],
-) error {
-	if world.WorldState != WorldStateInit {
-		panic("cannot register queries after loading game state")
-	}
-
-	if _, ok := world.nameToQuery[name]; ok {
-		return eris.Errorf("query with name %s is already registered", name)
-	}
-
-	q, err := NewQueryType[Request, Reply](name, handler, opts...)
-	if err != nil {
-		return err
-	}
-
-	world.registeredQueries = append(world.registeredQueries, q)
-	world.nameToQuery[q.Name()] = q
-
-	return nil
-}
-
 type QueryType[Request any, Reply any] struct {
 	name       string
 	group      string

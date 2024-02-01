@@ -1,7 +1,7 @@
 package cql
 
 import (
-	filter2 "pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"reflect"
 	"testing"
 
@@ -77,21 +77,21 @@ func TestParser(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, *term, testTerm)
 
-	emptyComponent, err := component.NewComponentMetadata[EmptyComponent]()
+	emptyComponent := EmptyComponent{}
 	assert.NilError(t, err)
-	stringToComponent := func(_ string) (component.ComponentMetadata, error) {
+	stringToComponent := func(_ string) (component.Component, error) {
 		return emptyComponent, nil
 	}
 	filterResult, err := termToComponentFilter(term, stringToComponent)
 	assert.NilError(t, err)
-	testResult := filter2.Or(
-		filter2.Not(
-			filter2.And(
-				filter2.Exact(emptyComponent, emptyComponent),
-				filter2.Exact(emptyComponent),
+	testResult := filter.Or(
+		filter.Not(
+			filter.And(
+				filter.Exact(emptyComponent, emptyComponent),
+				filter.Exact(emptyComponent),
 			),
 		),
-		filter2.Contains(emptyComponent),
+		filter.Contains(emptyComponent),
 	)
 	// have to do the below because of unexported fields in ComponentFilter datastructures.
 	assert.Assert(t, reflect.DeepEqual(filterResult, testResult))
@@ -101,15 +101,15 @@ func TestParser(t *testing.T) {
 	result, err := termToComponentFilter(term, stringToComponent)
 	assert.NilError(t, err)
 	testResult2 :=
-		filter2.Or(
-			filter2.And(
-				filter2.And(
-					filter2.Contains(emptyComponent),
-					filter2.Contains(emptyComponent, emptyComponent),
+		filter.Or(
+			filter.And(
+				filter.And(
+					filter.Contains(emptyComponent),
+					filter.Contains(emptyComponent, emptyComponent),
 				),
-				filter2.Contains(emptyComponent, emptyComponent, emptyComponent),
+				filter.Contains(emptyComponent, emptyComponent, emptyComponent),
 			),
-			filter2.Exact(emptyComponent),
+			filter.Exact(emptyComponent),
 		)
 	assert.Assert(t, reflect.DeepEqual(testResult2, result))
 
@@ -118,6 +118,6 @@ func TestParser(t *testing.T) {
 	assert.NilError(t, err)
 	result, err = termToComponentFilter(term, stringToComponent)
 	assert.NilError(t, err)
-	testResult2 = filter2.All()
+	testResult2 = filter.All()
 	assert.Assert(t, reflect.DeepEqual(result, testResult2))
 }

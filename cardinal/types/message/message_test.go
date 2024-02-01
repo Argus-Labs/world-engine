@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"testing"
 	"time"
 
@@ -127,7 +128,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 	err := cardinal.RegisterSystems(
 		world,
 		func(wCtx engine.Context) error {
-			search := cardinal.NewSearch(wCtx, cardinal.Exact(CounterComponent{}))
+			search := cardinal.NewSearch(wCtx, filter.Exact(CounterComponent{}))
 			id := search.MustFirst()
 			return cardinal.UpdateComponent[CounterComponent](
 				wCtx, id, func(c *CounterComponent) *CounterComponent {

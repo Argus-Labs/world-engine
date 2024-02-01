@@ -4,8 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"strings"
 	"testing"
 
@@ -265,7 +267,7 @@ func TestQueriesDoNotPanicOnComponentHasNotBeenRegistered(t *testing.T) {
 			testFn: func(eCtx engine.Context) error {
 				// Get a valid entity to ensure the error we find is related to the component and NOT
 				// due to an invalid entity.
-				id, err := cardinal.NewSearch(eCtx, cardinal.Exact(Foo{})).First()
+				id, err := cardinal.NewSearch(eCtx, filter.Exact(Foo{})).First()
 				assert.Check(t, err == nil)
 				_, err = cardinal.GetComponent[UnregisteredComp](eCtx, id)
 				return err
@@ -321,35 +323,35 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 	testCases := []struct {
 		name string
 		// the failFn will be called at a time when the ECB is empty of cached data and redis is down.
-		failFn func(eCtx engine.Context, goodID cardinal.EntityID)
+		failFn func(eCtx engine.Context, goodID entity.ID)
 	}{
 		{
 			name: "cardinal.AddComponentTo",
-			failFn: func(eCtx engine.Context, goodID cardinal.EntityID) {
+			failFn: func(eCtx engine.Context, goodID entity.ID) {
 				_ = cardinal.AddComponentTo[Qux](eCtx, goodID)
 			},
 		},
 		{
 			name: "cardinal.RemoveComponentFrom",
-			failFn: func(eCtx engine.Context, goodID cardinal.EntityID) {
+			failFn: func(eCtx engine.Context, goodID entity.ID) {
 				_ = cardinal.RemoveComponentFrom[Bar](eCtx, goodID)
 			},
 		},
 		{
 			name: "cardinal.GetComponent",
-			failFn: func(eCtx engine.Context, goodID cardinal.EntityID) {
+			failFn: func(eCtx engine.Context, goodID entity.ID) {
 				_, _ = cardinal.GetComponent[Foo](eCtx, goodID)
 			},
 		},
 		{
 			name: "cardinal.SetComponent",
-			failFn: func(eCtx engine.Context, goodID cardinal.EntityID) {
+			failFn: func(eCtx engine.Context, goodID entity.ID) {
 				_ = cardinal.SetComponent[Foo](eCtx, goodID, &Foo{})
 			},
 		},
 		{
 			name: "cardinal.UpdateComponent",
-			failFn: func(eCtx engine.Context, goodID cardinal.EntityID) {
+			failFn: func(eCtx engine.Context, goodID entity.ID) {
 				_ = cardinal.UpdateComponent[Foo](eCtx, goodID, func(f *Foo) *Foo {
 					return f
 				})
@@ -377,7 +379,7 @@ func TestSystemsPanicOnRedisError(t *testing.T) {
 					return nil
 				}
 				// Get the valid entity for the second tick
-				id, err := cardinal.NewSearch(eCtx, cardinal.Exact(Foo{}, Bar{})).First()
+				id, err := cardinal.NewSearch(eCtx, filter.Exact(Foo{}, Bar{})).First()
 				assert.Check(t, err == nil)
 				assert.Check(t, id != iterators.BadID)
 
@@ -418,7 +420,7 @@ func TestGetComponentInQueryDoesNotPanicOnRedisError(t *testing.T) {
 		world,
 		queryName,
 		func(eCtx engine.Context, req *QueryRequest) (*QueryResponse, error) {
-			id, err := cardinal.NewSearch(eCtx, cardinal.Exact(Foo{})).First()
+			id, err := cardinal.NewSearch(eCtx, filter.Exact(Foo{})).First()
 			assert.Check(t, err == nil)
 			_, err = cardinal.GetComponent[Foo](eCtx, id)
 			return nil, err

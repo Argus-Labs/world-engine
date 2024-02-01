@@ -4,9 +4,11 @@ import (
 	"errors"
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/storage/redis"
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 	"strconv"
 )
 
@@ -19,9 +21,104 @@ var (
 	ErrComponentNotRegistered            = iterators.ErrMustRegisterComponent
 )
 
+func RegisterSystems(w *World, sys ...System) error {
+	return w.systemManager.RegisterSystems(sys...)
+}
+
+func RegisterComponent[T component.Component](w *World) error {
+	if w.WorldState != WorldStateInit {
+		return eris.New("cannot register components after loading game state")
+	}
+	var t T
+	_, err := w.GetComponentByName(t.Name())
+	if err == nil {
+		return eris.Errorf("component %q is already registered", t.Name())
+	}
+	c, err := NewComponentMetadata[T]()
+	if err != nil {
+		return err
+	}
+	err = c.SetID(w.nextComponentID)
+	if err != nil {
+		return err
+	}
+	w.nextComponentID++
+	w.registeredComponents = append(w.registeredComponents, c)
+
+	storedSchema, err := w.redisStorage.GetSchema(c.Name())
+
+	if err != nil {
+		// It's fine if the schema doesn't currently exist in the db. Any other errors are a problem.
+		if !eris.Is(err, redis.ErrNoSchemaFound) {
+			return err
+		}
+	} else {
+		valid, err := component.IsComponentValid(t, storedSchema)
+		if err != nil {
+			return err
+		}
+		if !valid {
+			return eris.Errorf("Component: %s does not match the type stored in the db", c.Name())
+		}
+	}
+
+	err = w.redisStorage.SetSchema(c.Name(), c.GetSchema())
+	if err != nil {
+		return err
+	}
+	w.nameToComponent[t.Name()] = c
+	w.isComponentsRegistered = true
+	return nil
+}
+
+func MustRegisterComponent[T component.Component](w *World) {
+	err := RegisterComponent[T](w)
+	if err != nil {
+		panic(err)
+	}
+}
+
+// RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
+// messages will automatically be created when StartGame is called. This Register method must only be called once.
+func RegisterMessages(w *World, msgs ...message.Message) error {
+	if w.WorldState != WorldStateInit {
+		return eris.Errorf(
+			"engine state is %s, expected %s to register messages",
+			w.WorldState,
+			WorldStateInit,
+		)
+	}
+	return w.msgManager.RegisterMessages(msgs...)
+}
+
+func RegisterQuery[Request any, Reply any](
+	world *World,
+	name string,
+	handler func(eCtx engine.Context, req *Request) (*Reply, error),
+	opts ...QueryOption[Request, Reply],
+) error {
+	if world.WorldState != WorldStateInit {
+		panic("cannot register queries after loading game state")
+	}
+
+	if _, ok := world.nameToQuery[name]; ok {
+		return eris.Errorf("query with name %s is already registered", name)
+	}
+
+	q, err := NewQueryType[Request, Reply](name, handler, opts...)
+	if err != nil {
+		return err
+	}
+
+	world.registeredQueries = append(world.registeredQueries, q)
+	world.nameToQuery[q.Name()] = q
+
+	return nil
+}
+
 // Create creates a single entity in the world, and returns the id of the newly created entity.
 // At least 1 component must be provided.
-func Create(eCtx engine.Context, components ...component.Component) (EntityID, error) {
+func Create(eCtx engine.Context, components ...component.Component) (entity.ID, error) {
 	// Error if the context is read only
 	if eCtx.IsReadOnly() {
 		return 0, ErrEntityMutationOnReadOnly
@@ -37,7 +134,7 @@ func Create(eCtx engine.Context, components ...component.Component) (EntityID, e
 
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
-func CreateMany(eCtx engine.Context, num int, components ...component.Component) ([]EntityID, error) {
+func CreateMany(eCtx engine.Context, num int, components ...component.Component) ([]entity.ID, error) {
 	// TODO: uncomment this. use engine state instead.
 	// if !eCtx.GetEngine().stateIsLoaded {
 	// 		return nil, eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")

@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"pkg.world.dev/world-engine/cardinal/cql"
 	"pkg.world.dev/world-engine/cardinal/filter"
-	"pkg.world.dev/world-engine/cardinal/search"
-
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
@@ -29,7 +27,7 @@ type DebugStateResponse []*debugStateElement
 //	@Router			/query/debug/state [post]
 func queryDebugState(ctx engine.Context, _ *DebugRequest) (*DebugStateResponse, error) {
 	result := make(DebugStateResponse, 0)
-	s := search.NewSearch(filter.All(), ctx.Namespace(), ctx.StoreReader())
+	s := NewSearch(ctx, filter.All())
 	var eachClosureErr error
 	searchEachErr := s.Each(
 		func(id entity.ID) bool {
@@ -87,13 +85,24 @@ type CQLQueryResponse struct {
 // @Router			/query/game/cql [post]
 func queryCQL(ctx engine.Context, req *CQLQueryRequest) (*CQLQueryResponse, error) {
 	cqlString := req.CQL
-	resultFilter, err := cql.Parse(cqlString, ctx.GetComponentByName)
+
+	// getComponentByName is a wrapper function that casts component.ComponentMetadata from ctx.GetComponentByName
+	// to component.Component
+	getComponentByName := func(name string) (component.Component, error) {
+		comp, err := ctx.GetComponentByName(name)
+		if err != nil {
+			return nil, err
+		}
+		return comp, nil
+	}
+
+	resultFilter, err := cql.Parse(cqlString, getComponentByName)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]cqlData, 0)
 	var eachError error
-	searchErr := search.NewSearch(resultFilter, ctx.Namespace(), ctx.StoreReader()).Each(
+	searchErr := NewSearch(ctx, resultFilter).Each(
 		func(id entity.ID) bool {
 			components, err := ctx.StoreReader().GetComponentTypesForEntity(id)
 			if err != nil {

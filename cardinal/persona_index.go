@@ -4,7 +4,6 @@ import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"strings"
@@ -20,7 +19,7 @@ type personaIndexEntry struct {
 func buildPersonaIndex(eCtx engine.Context) (personaIndex, error) {
 	personaTagToAddress := map[string]personaIndexEntry{}
 	var errs []error
-	s := search.NewSearch(filter.Exact(component.SignerComponent{}), eCtx.Namespace(), eCtx.StoreReader())
+	s := NewSearch(eCtx, filter.Exact(component.SignerComponent{}))
 	err := s.Each(
 		func(id entity.ID) bool {
 			sc, err := GetComponent[component.SignerComponent](eCtx, id)

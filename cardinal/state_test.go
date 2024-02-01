@@ -3,7 +3,7 @@ package cardinal_test
 import (
 	"context"
 	"pkg.world.dev/world-engine/cardinal"
-	filter2 "pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
@@ -100,7 +100,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	wantComps := oneWorld.GameStateManager().GetComponentTypesForArchID(wantID)
 	assert.Equal(t, 1, len(wantComps))
-	assert.Check(t, filter2.MatchComponent(component.ConvertComponentMetadatasToComponents(wantComps), oneNum))
+	assert.Check(t, filter.MatchComponent(component.ConvertComponentMetadatasToComponents(wantComps), oneNum))
 
 	assert.NilError(t, oneWorld.Tick(context.Background()))
 
@@ -114,7 +114,7 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	assert.NilError(t, err)
 	gotComps := twoWorld.GameStateManager().GetComponentTypesForArchID(gotID)
 	assert.Equal(t, 1, len(gotComps))
-	assert.Check(t, filter2.MatchComponent(component.ConvertComponentMetadatasToComponents(gotComps), twoNum))
+	assert.Check(t, filter.MatchComponent(component.ConvertComponentMetadatasToComponents(gotComps), twoNum))
 
 	// Archetype indices should be the same across save/load cycles
 	assert.Equal(t, wantID, gotID)
@@ -223,7 +223,7 @@ func TestCanReloadState(t *testing.T) {
 	err = cardinal.RegisterSystems(
 		alphaWorld,
 		func(eCtx engine.Context) error {
-			q := cardinal.NewSearch(eCtx, cardinal.Contains(oneAlphaNum))
+			q := cardinal.NewSearch(eCtx, filter.Contains(oneAlphaNum))
 			assert.NilError(
 				t, q.Each(
 					func(id entity.ID) bool {
@@ -250,7 +250,7 @@ func TestCanReloadState(t *testing.T) {
 	assert.NilError(t, betaWorld.LoadGameState())
 
 	count := 0
-	q := cardinal.NewSearch(cardinal.NewWorldContext(betaWorld), filter2.Contains(OneBetaNum{}))
+	q := cardinal.NewSearch(cardinal.NewWorldContext(betaWorld), filter.Contains(OneBetaNum{}))
 	betaEngineCtx := cardinal.NewWorldContext(betaWorld)
 	assert.NilError(
 		t, q.Each(

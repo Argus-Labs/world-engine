@@ -20,19 +20,6 @@ var (
 
 var _ message.Message = &MessageType[struct{}, struct{}]{}
 
-// RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
-// messages will automatically be created when StartGame is called. This Register method must only be called once.
-func RegisterMessages(w *World, msgs ...message.Message) error {
-	if w.WorldState != WorldStateInit {
-		return eris.Errorf(
-			"engine state is %s, expected %s to register messages",
-			w.WorldState,
-			WorldStateInit,
-		)
-	}
-	return w.msgManager.RegisterMessages(msgs...)
-}
-
 // MessageType manages a user defined state transition message struct.
 type MessageType[In, Out any] struct {
 	id         message.TypeID

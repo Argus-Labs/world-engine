@@ -1,6 +1,8 @@
 package cardinal_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -76,17 +78,17 @@ func TestComponentExample(t *testing.T) {
 	assert.NilError(t, cardinal.RemoveComponentFrom[Age](eCtx, targetID))
 
 	// Age was removed form exactly 1 entity.
-	count, err := cardinal.NewSearch(eCtx, cardinal.Exact(Height{}, Weight{})).Count()
+	count, err := cardinal.NewSearch(eCtx, filter.Exact(Height{}, Weight{})).Count()
 	assert.NilError(t, err)
 	assert.Equal(t, 1, count)
 
 	// The rest of the entities still have the Age field.
-	count, err = cardinal.NewSearch(eCtx, cardinal.Contains(Age{})).Count()
+	count, err = cardinal.NewSearch(eCtx, filter.Contains(Age{})).Count()
 	assert.NilError(t, err)
 	assert.Equal(t, len(peopleIDs)-1, count)
-	first, err := cardinal.NewSearch(eCtx, cardinal.Contains(Age{})).First()
+	first, err := cardinal.NewSearch(eCtx, filter.Contains(Age{})).First()
 	assert.NilError(t, err)
-	assert.Equal(t, first, cardinal.EntityID(1))
+	assert.Equal(t, first, entity.ID(1))
 
 	// Age does not exist on the target ID, so this should result in an error
 	err = cardinal.UpdateComponent[Age](eCtx, targetID, func(a *Age) *Age {

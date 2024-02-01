@@ -3,7 +3,9 @@ package cardinal_test
 import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -19,7 +21,7 @@ func (Health) Name() string { return "health" }
 
 func HealthSystem(eCtx engine.Context) error {
 	var errs []error
-	errs = append(errs, cardinal.NewSearch(eCtx, cardinal.Exact(Health{})).Each(func(id cardinal.EntityID) bool {
+	errs = append(errs, cardinal.NewSearch(eCtx, filter.Exact(Health{})).Each(func(id entity.ID) bool {
 		errs = append(errs, cardinal.UpdateComponent[Health](eCtx, id, func(h *Health) *Health {
 			h.Value++
 			return h

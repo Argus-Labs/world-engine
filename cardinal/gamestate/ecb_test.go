@@ -68,8 +68,8 @@ func (Bar) Name() string {
 }
 
 var (
-	fooComp, errForFooCompGlobal = component.NewComponentMetadata[Foo]()
-	barComp, errForBarCompGlobal = component.NewComponentMetadata[Bar]()
+	fooComp, errForFooCompGlobal = cardinal.NewComponentMetadata[Foo]()
+	barComp, errForBarCompGlobal = cardinal.NewComponentMetadata[Bar]()
 	allComponents                = []component.ComponentMetadata{fooComp, barComp}
 )
 

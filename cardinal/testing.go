@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
@@ -11,7 +12,7 @@ func TestingWorldToWorldContext(world *World) engine.Context {
 	return NewWorldContext(world)
 }
 
-func (w *World) TestingGetTransactionReceiptsForTick(tick uint64) ([]Receipt, error) {
+func (w *World) TestingGetTransactionReceiptsForTick(tick uint64) ([]receipt.Receipt, error) {
 	return w.GetTransactionReceiptsForTick(tick)
 }
 

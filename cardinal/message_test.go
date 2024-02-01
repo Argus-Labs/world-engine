@@ -3,6 +3,7 @@ package cardinal_test
 import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -13,7 +14,7 @@ import (
 )
 
 type AddHealthToEntityTx struct {
-	TargetID cardinal.EntityID
+	TargetID entity.ID
 	Amount   int
 }
 

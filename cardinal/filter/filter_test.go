@@ -127,7 +127,16 @@ func TestExactVsContains(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, count, alphaCount+bothCount)
 	count2 := 0
-	sameQuery, err := cql.Parse("CONTAINS(alpha)", world.GetComponentByName)
+
+	getComponentByName := func(name string) (component.Component, error) {
+		comp, err := world.GetComponentByName(name)
+		if err != nil {
+			return nil, err
+		}
+		return comp, nil
+	}
+
+	sameQuery, err := cql.Parse("CONTAINS(alpha)", getComponentByName)
 	assert.NilError(t, err)
 	err = cardinal.NewSearch(eCtx, sameQuery).Each(
 		func(id entity.ID) bool {
@@ -151,7 +160,7 @@ func TestExactVsContains(t *testing.T) {
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
-	sameQuery, err = cql.Parse("CONTAINS(beta)", world.GetComponentByName)
+	sameQuery, err = cql.Parse("CONTAINS(beta)", getComponentByName)
 	assert.NilError(t, err)
 	err = cardinal.NewSearch(eCtx, sameQuery).Each(
 		func(id entity.ID) bool {
@@ -174,7 +183,7 @@ func TestExactVsContains(t *testing.T) {
 	assert.Equal(t, count, alphaCount)
 
 	count2 = 0
-	sameQuery, err = cql.Parse("EXACT(alpha)", world.GetComponentByName)
+	sameQuery, err = cql.Parse("EXACT(alpha)", getComponentByName)
 	assert.NilError(t, err)
 	err = cardinal.NewSearch(eCtx, sameQuery).Each(
 		func(id entity.ID) bool {
@@ -198,7 +207,7 @@ func TestExactVsContains(t *testing.T) {
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
-	sameQuery, err = cql.Parse("EXACT(alpha, beta)", world.GetComponentByName)
+	sameQuery, err = cql.Parse("EXACT(alpha, beta)", getComponentByName)
 	assert.NilError(t, err)
 	err = cardinal.NewSearch(eCtx, sameQuery).Each(
 		func(id entity.ID) bool {
@@ -222,7 +231,7 @@ func TestExactVsContains(t *testing.T) {
 	assert.Equal(t, count, bothCount)
 
 	count2 = 0
-	sameQuery, err = cql.Parse("EXACT(beta, alpha)", world.GetComponentByName)
+	sameQuery, err = cql.Parse("EXACT(beta, alpha)", getComponentByName)
 	assert.NilError(t, err)
 	err = cardinal.NewSearch(eCtx, sameQuery).Each(
 		func(id entity.ID) bool {
@@ -274,7 +283,15 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 	}
 	queryString += ")"
 
-	sameQuery, err := cql.Parse(queryString, world.GetComponentByName)
+	getComponentByName := func(name string) (component.Component, error) {
+		comp, err := world.GetComponentByName(name)
+		if err != nil {
+			return nil, err
+		}
+		return comp, nil
+	}
+
+	sameQuery, err := cql.Parse(queryString, getComponentByName)
 	assert.NilError(t, err)
 	err = cardinal.NewSearch(eCtx, sameQuery).Each(
 		func(id entity.ID) bool {

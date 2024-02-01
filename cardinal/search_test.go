@@ -1,14 +1,13 @@
 package cardinal_test
 
 import (
+	"pkg.world.dev/world-engine/cardinal"
 	filter2 "pkg.world.dev/world-engine/cardinal/filter"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
 	"pkg.world.dev/world-engine/assert"
-
-	"pkg.world.dev/world-engine/cardinal"
 )
 
 func TestSearchExample(t *testing.T) {

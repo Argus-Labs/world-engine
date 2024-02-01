@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"strconv"
 	"testing"
 	"time"
@@ -92,7 +94,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 
 	gotNumOfEntities := 0
 	err := cardinal.RegisterSystems(world, func(eCtx engine.Context) error {
-		err := cardinal.NewSearch(eCtx, cardinal.Exact(Foo{})).Each(func(cardinal.EntityID) bool {
+		err := cardinal.NewSearch(eCtx, filter.Exact(Foo{})).Each(func(id entity.ID) bool {
 			gotNumOfEntities++
 			return true
 		})

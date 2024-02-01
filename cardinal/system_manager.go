@@ -1,4 +1,4 @@
-package systems
+package cardinal
 
 import (
 	"errors"
@@ -15,7 +15,17 @@ import (
 
 type System func(ctx engine.Context) error
 
-type Manager struct {
+// Init Registers a system that only runs once on a new game before tick 0.
+// TODO(scott): this should probably just be RegisterInitSystems and it should be a function instead of method
+func (w *World) Init(system System) {
+	w.systemManager.RegisterInitSystem(system)
+}
+
+func (w *World) GetSystemNames() []string {
+	return w.systemManager.GetSystemNames()
+}
+
+type SystemManager struct {
 	// registeredSystems is a list of all the registered system names in the order that they were registered.
 	// This is represented as a list as maps in Go are unordered.
 	registeredSystems []string
@@ -30,9 +40,9 @@ type Manager struct {
 	isInitSystemRan bool
 }
 
-// New creates a new system manager.
-func New() *Manager {
-	return &Manager{
+// NewSystemManager creates a new system manager.
+func NewSystemManager() *SystemManager {
+	return &SystemManager{
 		registeredSystems: make([]string, 0),
 		systemFn:          make(map[string]System),
 		currentSystem:     nil,
@@ -42,7 +52,7 @@ func New() *Manager {
 // RegisterSystems registers multiple systems with the system manager.
 // There can only be one system with a given name, which is derived from the function name.
 // If there is a duplicate system name, an error will be returned and none of the systems will be registered.
-func (m *Manager) RegisterSystems(systems ...System) error {
+func (m *SystemManager) RegisterSystems(systems ...System) error {
 	// Iterate through all the systems and check if they are already registered.
 	// This is done before registering any of the systems to ensure that all are registered or none of them are.
 	systemNames := make([]string, 0, len(systems))
@@ -76,12 +86,12 @@ func (m *Manager) RegisterSystems(systems ...System) error {
 
 // RegisterInitSystem registers an init system with the system manager.
 // The init system can only be run once.
-func (m *Manager) RegisterInitSystem(system System) {
+func (m *SystemManager) RegisterInitSystem(system System) {
 	m.initSystem = system
 }
 
 // RunSystems runs all the registered system in the order that they were registered.
-func (m *Manager) RunSystems(eCtx engine.Context) error {
+func (m *SystemManager) RunSystems(eCtx engine.Context) error {
 	allSystemStartTime := time.Now()
 	for _, systemName := range m.registeredSystems {
 		// Explicit memory aliasing
@@ -114,7 +124,7 @@ func (m *Manager) RunSystems(eCtx engine.Context) error {
 
 // RunInitSystem runs the init system.
 // The init system can only be run once.
-func (m *Manager) RunInitSystem(eCtx engine.Context) error {
+func (m *SystemManager) RunInitSystem(eCtx engine.Context) error {
 	systemName := "InitSystem"
 	m.currentSystem = &systemName
 
@@ -141,15 +151,15 @@ func (m *Manager) RunInitSystem(eCtx engine.Context) error {
 	return nil
 }
 
-func (m *Manager) IsSystemsRegistered() bool {
+func (m *SystemManager) IsSystemsRegistered() bool {
 	return len(m.registeredSystems) > 0
 }
 
-func (m *Manager) GetSystemNames() []string {
+func (m *SystemManager) GetSystemNames() []string {
 	return m.registeredSystems
 }
 
-func (m *Manager) GetCurrentSystem() string {
+func (m *SystemManager) GetCurrentSystem() string {
 	if m.currentSystem == nil {
 		return "no_system"
 	}
@@ -157,7 +167,7 @@ func (m *Manager) GetCurrentSystem() string {
 }
 
 // isNotDuplicate checks if the system name already exists in the system map
-func (m *Manager) isNotDuplicate(systemName string) error {
+func (m *SystemManager) isNotDuplicate(systemName string) error {
 	if _, ok := m.systemFn[systemName]; ok {
 		return fmt.Errorf("system %q is already registered", systemName)
 	}

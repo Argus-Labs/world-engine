@@ -7,7 +7,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/log"
-	"pkg.world.dev/world-engine/cardinal/search"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strings"
 	"testing"
@@ -41,7 +40,7 @@ func (EnergyComp) Name() string {
 
 func testSystem(eCtx engine.Context) error {
 	eCtx.Logger().Log().Msg("test")
-	q := search.NewSearch(filter.Contains(EnergyComp{}), eCtx.Namespace(), eCtx.StoreReader())
+	q := cardinal.NewSearch(eCtx, filter.Contains(EnergyComp{}))
 	err := q.Each(
 		func(entityId entity.ID) bool {
 			energyPlanet, err := cardinal.GetComponent[EnergyComp](eCtx, entityId)

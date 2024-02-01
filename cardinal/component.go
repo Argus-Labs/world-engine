@@ -1,75 +1,127 @@
 package cardinal
 
 import (
+	"fmt"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types/component"
+	"reflect"
 )
 
-func RegisterComponent[T component.Component](w *World) error {
-	if w.WorldState != WorldStateInit {
-		return eris.New("cannot register components after loading game state")
-	}
+// NewComponentMetadata creates a new component type.
+// The function is used to create a new component of the type.
+func NewComponentMetadata[T component.Component](opts ...ComponentOption[T]) (component.ComponentMetadata, error) {
 	var t T
-	_, err := w.GetComponentByName(t.Name())
-	if err == nil {
-		return eris.Errorf("component %q is already registered", t.Name())
-	}
-	c, err := component.NewComponentMetadata[T]()
+	comp, err := newComponentType(t, t.Name(), nil)
 	if err != nil {
-		return err
+		return comp, err
 	}
-	err = c.SetID(w.nextComponentID)
-	if err != nil {
-		return err
+	for _, opt := range opts {
+		opt(comp)
 	}
-	w.nextComponentID++
-	w.registeredComponents = append(w.registeredComponents, c)
+	return comp, nil
+}
 
-	storedSchema, err := w.redisStorage.GetSchema(c.Name())
+// componentMetadata represents a type of component. It is used to identify
+// a component when getting or setting the component of an entity.
+type componentMetadata[T any] struct {
+	isIDSet    bool
+	id         component.TypeID
+	typ        reflect.Type
+	name       string
+	defaultVal interface{}
+	schema     []byte
+}
 
-	if err != nil {
-		// It's fine if the schema doesn't currently exist in the db. Any other errors are a problem.
-		if !eris.Is(err, redis.ErrNoSchemaFound) {
-			return err
-		}
-	} else {
-		valid, err := component.IsComponentValid(t, storedSchema)
-		if err != nil {
-			return err
-		}
-		if !valid {
-			return eris.Errorf("Component: %s does not match the type stored in the db", c.Name())
-		}
-	}
+func (c *componentMetadata[T]) GetSchema() []byte {
+	return c.schema
+}
 
-	err = w.redisStorage.SetSchema(c.Name(), c.GetSchema())
-	if err != nil {
-		return err
+// SetID set's this component's ID. It must be unique across the world object.
+func (c *componentMetadata[T]) SetID(id component.TypeID) error {
+	if c.isIDSet {
+		// In games implemented with Cardinal, components will only be initialized one time (on startup).
+		// In tests, it's often useful to use the same component in multiple worlds. This check will allow for the
+		// re-initialization of components, as long as the ID doesn't change.
+		if id == c.id {
+			return nil
+		}
+		return eris.Errorf("id for component %v is already set to %v, cannot change to %v", c, c.id, id)
 	}
-	w.nameToComponent[t.Name()] = c
-	w.isComponentsRegistered = true
+	c.id = id
+	c.isIDSet = true
 	return nil
 }
 
-func MustRegisterComponent[T component.Component](w *World) {
-	err := RegisterComponent[T](w)
-	if err != nil {
-		panic(err)
+// String returns the component type name.
+func (c *componentMetadata[T]) String() string {
+	return c.name
+}
+
+// Name returns the component type name.
+func (c *componentMetadata[T]) Name() string {
+	return c.name
+}
+
+// ID returns the component type id.
+func (c *componentMetadata[T]) ID() component.TypeID {
+	return c.id
+}
+
+func (c *componentMetadata[T]) New() ([]byte, error) {
+	var comp T
+	var ok bool
+	if c.defaultVal != nil {
+		comp, ok = c.defaultVal.(T)
+		if !ok {
+			return nil, eris.Errorf("could not convert %T to %T", c.defaultVal, new(T))
+		}
+	}
+	return codec.Encode(comp)
+}
+
+func (c *componentMetadata[T]) Encode(v any) ([]byte, error) {
+	return codec.Encode(v)
+}
+
+func (c *componentMetadata[T]) Decode(bz []byte) (any, error) {
+	return codec.Decode[T](bz)
+}
+
+func (c *componentMetadata[T]) validateDefaultVal() {
+	if !reflect.TypeOf(c.defaultVal).AssignableTo(c.typ) {
+		errString := fmt.Sprintf("default value is not assignable to component type: %s", c.name)
+		panic(errString)
 	}
 }
 
-func (w *World) GetComponents() []component.ComponentMetadata {
-	return w.registeredComponents
-}
-
-func (w *World) GetComponentByName(name string) (component.ComponentMetadata, error) {
-	componentType, exists := w.nameToComponent[name]
-	if !exists {
-		return nil, eris.Wrapf(
-			iterators.ErrMustRegisterComponent,
-			"component %q must be registered before being used", name)
+// newComponentType creates a new component type.
+// The argument is a struct that represents a data of the component.
+func newComponentType[T component.Component](s T, name string, defaultVal interface{}) (*componentMetadata[T], error) {
+	schema, err := component.SerializeComponentSchema(s)
+	if err != nil {
+		return nil, err
+	}
+	componentType := &componentMetadata[T]{
+		typ:        reflect.TypeOf(s),
+		name:       name,
+		defaultVal: defaultVal,
+		schema:     schema,
+	}
+	if defaultVal != nil {
+		componentType.validateDefaultVal()
 	}
 	return componentType, nil
+}
+
+// ComponentOption is a type that can be passed to NewComponentMetadata to augment the creation
+// of the component type.
+type ComponentOption[T any] func(c *componentMetadata[T]) //revive:disable-line:exported
+
+// WithDefault updated the created componentMetadata with a default value.
+func WithDefault[T any](defaultVal T) ComponentOption[T] {
+	return func(c *componentMetadata[T]) {
+		c.defaultVal = defaultVal
+		c.validateDefaultVal()
+	}
 }

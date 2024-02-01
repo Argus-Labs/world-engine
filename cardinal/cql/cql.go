@@ -3,7 +3,7 @@ package cql
 import (
 	"encoding/json"
 	"fmt"
-	filter2 "pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"strings"
 
 	"github.com/alecthomas/participle/v2"
@@ -158,15 +158,15 @@ var internalCQLParser = participle.MustBuild[cqlTerm]()
 // TODO: Msg is sum type is represented as a product type. There is a case where multiple properties are filled out.
 // Only one property may not be nil, The parser should prevent this from happening but for safety this should eventually
 // be checked.
-func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (component.ComponentMetadata, error)) (
-	filter2.ComponentFilter, error,
+func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (component.Component, error)) (
+	filter.ComponentFilter, error,
 ) {
 	if value.Not != nil { //nolint:gocritic,nestif // its fine.
 		resultFilter, err := valueToComponentFilter(value.Not.SubExpression, stringToComponent)
 		if err != nil {
 			return nil, err
 		}
-		return filter2.Not(resultFilter), nil
+		return filter.Not(resultFilter), nil
 	} else if value.Exact != nil {
 		if len(value.Exact.Components) == 0 {
 			return nil, eris.New("EXACT cannot have zero parameters")
@@ -179,9 +179,9 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (com
 			}
 			components = append(components, comp)
 		}
-		return filter2.Exact(components...), nil
+		return filter.Exact(components...), nil
 	} else if value.All != nil {
-		return filter2.All(), nil
+		return filter.All(), nil
 	} else if value.Contains != nil {
 		if len(value.Contains.Components) == 0 {
 			return nil, eris.New("CONTAINS cannot have zero parameters")
@@ -194,7 +194,7 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (com
 			}
 			components = append(components, comp)
 		}
-		return filter2.Contains(components...), nil
+		return filter.Contains(components...), nil
 	} else if value.Subexpression != nil {
 		return termToComponentFilter(value.Subexpression, stringToComponent)
 	} else {
@@ -202,16 +202,16 @@ func valueToComponentFilter(value *cqlValue, stringToComponent func(string) (com
 	}
 }
 
-func factorToComponentFilter(factor *cqlFactor, stringToComponent func(string) (component.ComponentMetadata, error)) (
-	filter2.ComponentFilter, error,
+func factorToComponentFilter(factor *cqlFactor, stringToComponent func(string) (component.Component, error)) (
+	filter.ComponentFilter, error,
 ) {
 	return valueToComponentFilter(factor.Base, stringToComponent)
 }
 
 func opFactorToComponentFilter(
 	opFactor *cqlOpFactor,
-	stringToComponent func(string) (component.ComponentMetadata, error),
-) (*cqlOperator, filter2.ComponentFilter, error) {
+	stringToComponent func(string) (component.Component, error),
+) (*cqlOperator, filter.ComponentFilter, error) {
 	resultFilter, err := factorToComponentFilter(opFactor.Factor, stringToComponent)
 	if err != nil {
 		return nil, nil, err
@@ -220,8 +220,8 @@ func opFactorToComponentFilter(
 }
 
 func termToComponentFilter(
-	term *cqlTerm, stringToComponent func(string) (component.ComponentMetadata, error),
-) (filter2.ComponentFilter, error) {
+	term *cqlTerm, stringToComponent func(string) (component.Component, error),
+) (filter.ComponentFilter, error) {
 	if term.Left == nil {
 		return nil, eris.New("not enough values in expression")
 	}
@@ -236,9 +236,9 @@ func termToComponentFilter(
 		}
 		switch *operator {
 		case opAnd:
-			acc = filter2.And(acc, resultFilter)
+			acc = filter.And(acc, resultFilter)
 		case opOr:
-			acc = filter2.Or(acc, resultFilter)
+			acc = filter.Or(acc, resultFilter)
 		default:
 			return nil, eris.New("invalid operator")
 		}
@@ -247,8 +247,8 @@ func termToComponentFilter(
 }
 
 func Parse(
-	cqlText string, stringToComponent func(string) (component.ComponentMetadata, error),
-) (filter2.ComponentFilter, error) {
+	cqlText string, stringToComponent func(string) (component.Component, error),
+) (filter.ComponentFilter, error) {
 	term, err := internalCQLParser.ParseString("", cqlText)
 	if err != nil {
 		return nil, eris.Wrap(err, "")

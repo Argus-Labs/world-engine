@@ -62,7 +62,7 @@ type World struct {
 	// Scott's new stuff
 	WorldState    WorldStateType
 	msgManager    *msgs.Manager
-	systemManager *systems.Manager
+	systemManager *SystemManager
 
 	// Imported from Engine
 	namespace              Namespace
@@ -161,7 +161,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		// Scott's new stuff
 		WorldState:    WorldStateInit,
 		msgManager:    msgs.New(),
-		systemManager: systems.New(),
+		systemManager: NewSystemManager(),
 
 		// Imported from engine
 		redisStorage:      &redisStore,
@@ -709,4 +709,18 @@ func (w *World) GetEventHub() *events.EventHub {
 func (w *World) InjectLogger(logger *zerolog.Logger) {
 	w.Logger = logger
 	w.GameStateManager().InjectLogger(logger)
+}
+
+func (w *World) GetComponents() []component.ComponentMetadata {
+	return w.registeredComponents
+}
+
+func (w *World) GetComponentByName(name string) (component.ComponentMetadata, error) {
+	componentType, exists := w.nameToComponent[name]
+	if !exists {
+		return nil, eris.Wrapf(
+			iterators.ErrMustRegisterComponent,
+			"component %q must be registered before being used", name)
+	}
+	return componentType, nil
 }

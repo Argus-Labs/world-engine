@@ -3,7 +3,9 @@ package cardinal_test
 import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -16,7 +18,7 @@ type QueryHealthRequest struct {
 }
 
 type QueryHealthResponse struct {
-	IDs []cardinal.EntityID
+	IDs []entity.ID
 }
 
 func handleQueryHealth(
@@ -24,7 +26,7 @@ func handleQueryHealth(
 	request *QueryHealthRequest,
 ) (*QueryHealthResponse, error) {
 	resp := &QueryHealthResponse{}
-	err := cardinal.NewSearch(eCtx, cardinal.Exact(Health{})).Each(func(id cardinal.EntityID) bool {
+	err := cardinal.NewSearch(eCtx, filter.Exact(Health{})).Each(func(id entity.ID) bool {
 		var err error
 		var health *Health
 		health, err = cardinal.GetComponent[Health](eCtx, id)

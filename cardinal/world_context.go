@@ -1,7 +1,6 @@
 package cardinal
 
 import (
-	"errors"
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/events"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
@@ -11,10 +10,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
-)
-
-var (
-	ErrCannotModifyStateWithReadOnlyContext = errors.New("cannot modify state with read only context")
 )
 
 type worldContext struct {
