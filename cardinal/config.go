@@ -2,6 +2,7 @@ package cardinal
 
 import (
 	"github.com/JeremyLoy/config"
+	"github.com/rotisserie/eris"
 )
 
 type RunMode string
@@ -21,6 +22,23 @@ type WorldConfig struct {
 	CardinalLogLevel          string  `config:"CARDINAL_LOG_LEVEL"`
 	StatsdAddress             string  `config:"STATSD_ADDRESS"`
 	TraceAddress              string  `config:"TRACE_ADDRESS"`
+}
+
+func (w WorldConfig) Validate() error {
+	if w.CardinalMode != RunModeProd {
+		return nil
+	}
+	if w.RedisPassword == "" {
+		return eris.New("REDIS_PASSWORD is required in production")
+	}
+	if w.CardinalNamespace == DefaultNamespace {
+		return eris.New("CARDINAL_NAMESPACE cannot be the default value in production to avoid replay attack")
+	}
+	if w.BaseShardSequencerAddress == "" || w.BaseShardQueryAddress == "" {
+		return eris.New("must supply BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_QUERY_ADDRESS for production " +
+			"mode Cardinal worlds")
+	}
+	return nil
 }
 
 // Default configuration values.
