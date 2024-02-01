@@ -5,7 +5,7 @@ use (
 	cardinal
 	evm
 	e2e/testgames
-	e2e/nakama-test-clients
+	e2e/testclients
 	e2e/chain
 	relay/nakama
 	rift
