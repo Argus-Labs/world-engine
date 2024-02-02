@@ -48,9 +48,9 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		)
 	}
 
-	w.isRecovering.Store(true)
+	w.WorldState = WorldStateRecovering
 	defer func() {
-		w.isRecovering.Store(false)
+		w.WorldState = WorldStateReady
 	}()
 	namespace := w.namespace.String()
 	var nextKey []byte

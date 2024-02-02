@@ -23,13 +23,14 @@ func (gammaComponent) Name() string {
 }
 
 func TestGetEverythingFilter(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
 
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	subsetCount := 50
 	wCtx := cardinal.NewWorldContext(world)
@@ -54,13 +55,14 @@ func TestGetEverythingFilter(t *testing.T) {
 }
 
 func TestCanFilterByArchetype(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
 
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	subsetCount := 50
 	wCtx := cardinal.NewWorldContext(world)
@@ -100,13 +102,14 @@ type Gamma struct{}
 func (Gamma) Name() string { return "gamma" }
 
 func TestExactVsContains(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 
 	alphaCount := 75
 	wCtx := cardinal.NewWorldContext(world)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 	_, err := cardinal.CreateMany(wCtx, alphaCount, Alpha{})
 	assert.NilError(t, err)
 	bothCount := 100
@@ -241,10 +244,11 @@ func TestExactVsContains(t *testing.T) {
 }
 
 func TestCanGetArchetypeFromEntity(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wantCount := 50
 	wCtx := cardinal.NewWorldContext(world)
@@ -303,9 +307,10 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 func BenchmarkEntityCreation(b *testing.B) {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 	for i := 0; i < b.N; i++ {
-		world := testutils.NewTestFixture(b, nil).World
+		tf := testutils.NewTestFixture(b, nil)
+		world := tf.World
 		assert.NilError(b, cardinal.RegisterComponent[Alpha](world))
-		assert.NilError(b, world.LoadGameState())
+		tf.StartWorld()
 		wCtx := cardinal.NewWorldContext(world)
 		_, err := cardinal.CreateMany(wCtx, 100000, Alpha{})
 		assert.NilError(b, err)
@@ -330,10 +335,11 @@ func BenchmarkFilterByArchetypeIsNotImpactedByTotalEntityCount(b *testing.B) {
 
 func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StopTimer()
-	world := testutils.NewTestFixture(b, nil).World
+	tf := testutils.NewTestFixture(b, nil)
+	world := tf.World
 	assert.NilError(b, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(b, cardinal.RegisterComponent[Beta](world))
-	assert.NilError(b, world.LoadGameState())
+	tf.StartWorld()
 	wCtx := cardinal.NewWorldContext(world)
 	_, err := cardinal.CreateMany(wCtx, relevantCount, Alpha{}, Beta{})
 	assert.NilError(b, err)

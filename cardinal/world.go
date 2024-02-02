@@ -216,22 +216,21 @@ func (w *World) CurrentTick() uint64 {
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick(ctx context.Context) error {
-	// If the engine is not ready, we don't want to tick the engine.
-	// Instead, we want to make sure we have recovered the state of the engine.
-	if w.WorldState != WorldStateReady && w.WorldState != WorldStateRunning {
-		return eris.New("must load state before first tick")
+	// Check the current world state and handle accordingly
+	if w.WorldState == WorldStateRunning || w.WorldState == WorldStateRecovering {
+		// If the world is already running or recovering, continue as usual
+	} else if w.WorldState == WorldStateReady {
+		// If the world have loaded game state, we can set the it WorldStateRunning
+		w.WorldState = WorldStateRunning
+	} else if w.WorldState == WorldStateInit {
+		// If the engine is not ready, we don't want to tick the engine.
+		// Instead, make we have recovered the state of the world first
+		return eris.New("invalid world state to tick")
 	}
-	w.WorldState = WorldStateRunning
 
 	// This defer is here to catch any panics that occur during the tick. It will log the current tick and the
 	// current system that is running.
-	defer func() {
-		if panicValue := recover(); panicValue != nil {
-			w.Logger.Error().Msgf("Tick: %d, Current running system: %s", w.CurrentTick(),
-				w.systemManager.GetCurrentSystem())
-			panic(panicValue)
-		}
-	}()
+	defer w.handleTickPanic()
 
 	var span tracer.Span
 	span, ctx = tracer.StartSpanFromContext(ctx, "cardinal.span.tick")
@@ -255,7 +254,7 @@ func (w *World) Tick(ctx context.Context) error {
 	// Create the engine context to inject into systems
 	wCtx := NewWorldContextForTick(w, txQueue)
 
-	// Run all registered systems.
+	// Run all registered systems.\
 	// This will run the registsred init systems if the current tick is 0
 	if err := w.systemManager.RunSystems(wCtx); err != nil {
 		return err
@@ -275,7 +274,7 @@ func (w *World) Tick(ctx context.Context) error {
 	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
 	w.setEvmResults(txQueue.GetEVMTxs())
-	if txQueue.GetAmountOfTxs() != 0 && w.chain != nil && !w.isRecovering.Load() {
+	if txQueue.GetAmountOfTxs() != 0 && w.chain != nil && w.WorldState != WorldStateRecovering {
 		err := w.chain.Submit(ctx, txQueue.Transactions(), w.namespace.String(), w.tick.Load(), w.timestamp.Load())
 		if err != nil {
 			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
@@ -303,7 +302,7 @@ func (w *World) StartGame() error {
 		return errors.New("game has already been started")
 	}
 
-	if err := w.LoadGameState(); err != nil {
+	if err := w.loadGameState(); err != nil {
 		if errors.Is(err, ErrEntitiesCreatedBeforeLoadGameState) {
 			return eris.Wrap(ErrEntitiesCreatedBeforeStartGame, "")
 		}
@@ -544,6 +543,17 @@ func (w *World) handleShutdown() {
 	}()
 }
 
+func (w *World) handleTickPanic() {
+	if r := recover(); r != nil {
+		w.Logger.Error().Msgf(
+			"Tick: %d, Current running system: %s",
+			w.CurrentTick(),
+			w.systemManager.GetCurrentSystem(),
+		)
+		panic(r)
+	}
+}
+
 func (w *World) RegisterPlugin(plugin Plugin) {
 	if err := plugin.Register(w); err != nil {
 		log.Fatal().Err(err).Msgf("failed to register plugin: %v", err)
@@ -618,14 +628,17 @@ func (w *World) UseNonce(signerAddress string, nonce uint64) error {
 	return w.redisStorage.UseNonce(signerAddress, nonce)
 }
 
-func (w *World) LoadGameState() error {
+func (w *World) loadGameState() error {
 	if w.WorldState != WorldStateInit {
 		return eris.New("cannot load game state multiple times")
 	}
 
 	// TODO(scott): footgun. so confusing.
 	if err := w.entityStore.RegisterComponents(w.registeredComponents); err != nil {
-		w.entityStore.Close()
+		closeErr := w.entityStore.Close()
+		if closeErr != nil {
+			return eris.Wrap(err, closeErr.Error())
+		}
 		return err
 	}
 

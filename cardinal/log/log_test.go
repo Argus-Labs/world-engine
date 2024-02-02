@@ -62,8 +62,9 @@ func testSystemWarningTrigger(wCtx engine.Context) error {
 	return testSystem(wCtx)
 }
 
-func TestEngineLogger(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+func TestWorldLogger(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	// Ensure logs are enabled
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
@@ -71,7 +72,7 @@ func TestEngineLogger(t *testing.T) {
 	// replaces internal Logger with one that logs to the buf variable above.
 	var buf bytes.Buffer
 	bufLogger := zerolog.New(&buf)
-	world.InjectLogger(&bufLogger)
+
 	alphaTx := message.NewMessageType[SendEnergyTx, SendEnergyTxResult]("alpha")
 	assert.NilError(t, cardinal.RegisterMessages(world, alphaTx))
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComp](world))
@@ -100,17 +101,22 @@ func TestEngineLogger(t *testing.T) {
 `
 	require.JSONEq(t, jsonEngineInfoString, buf.String())
 	buf.Reset()
+
+	world.InjectLogger(&bufLogger)
 	energy, err := world.GetComponentByName(EnergyComp{}.Name())
 	assert.NilError(t, err)
 	components := []types.ComponentMetadata{energy}
 	wCtx := cardinal.NewWorldContext(world)
 	err = cardinal.RegisterSystems(world, testSystemWarningTrigger)
 	assert.NilError(t, err)
-	err = world.LoadGameState()
+
+	tf.StartWorld()
+
 	assert.NilError(t, err)
 	entityID, err := cardinal.Create(wCtx, EnergyComp{})
 	assert.NilError(t, err)
-	logStrings := strings.Split(buf.String(), "\n")[:3]
+	t.Log(buf.String())
+	logStrings := strings.Split(buf.String(), "\n")[2:]
 	require.JSONEq(
 		t, `
 			{

@@ -11,12 +11,12 @@ import (
 )
 
 func TestSearchExample(t *testing.T) {
-	fixture := testutils.NewTestFixture(t, nil)
-	world := fixture.World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	worldCtx := cardinal.NewWorldContext(world)
 	_, err := cardinal.CreateMany(worldCtx, 10, Alpha{})

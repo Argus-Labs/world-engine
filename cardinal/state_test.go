@@ -2,6 +2,7 @@ package cardinal_test
 
 import (
 	"context"
+	"fmt"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
@@ -60,59 +61,64 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	// This redisStore will be used to cardinal.Create multiple engines to ensure state is consistent across the engines.
 	redisStore := miniredis.RunT(t)
 
-	oneWorld := testutils.NewTestFixture(t, redisStore).World
-	assert.NilError(t, cardinal.RegisterComponent[OneAlphaNum](oneWorld))
-	assert.NilError(t, oneWorld.LoadGameState())
+	tf1 := testutils.NewTestFixture(t, redisStore)
+	world1 := tf1.World
+	assert.NilError(t, cardinal.RegisterComponent[OneAlphaNum](world1))
+	tf1.StartWorld()
 
-	_, err := cardinal.Create(cardinal.NewWorldContext(oneWorld), OneAlphaNum{})
+	_, err := cardinal.Create(cardinal.NewWorldContext(world1), OneAlphaNum{})
 	assert.NilError(t, err)
-
-	assert.NilError(t, oneWorld.Tick(context.Background()))
+	tf1.DoTick()
 
 	// Too few components registered
-	twoWorld := testutils.NewTestFixture(t, redisStore).World
-	err = twoWorld.LoadGameState()
+	tf2 := testutils.NewTestFixture(t, redisStore)
+	err = tf2.World.StartGame() // We start this manually instead of tf2.StartWorld() because StartWorld panics on err
+	fmt.Println("fuck around")
 	assert.ErrorContains(t, err, iterators.ErrComponentMismatchWithSavedState.Error())
 
 	// It's ok to register extra components.
-	threeWorld := testutils.NewTestFixture(t, redisStore).World
-	assert.NilError(t, cardinal.RegisterComponent[ThreeAlphaNum](threeWorld))
-	assert.NilError(t, cardinal.RegisterComponent[ThreeBetaNum](threeWorld))
-	assert.NilError(t, threeWorld.LoadGameState())
+	tf3 := testutils.NewTestFixture(t, redisStore)
+	world3 := tf3.World
+	assert.NilError(t, cardinal.RegisterComponent[ThreeAlphaNum](world3))
+	assert.NilError(t, cardinal.RegisterComponent[ThreeBetaNum](world3))
+	tf3.StartWorld()
 
 	// Just the right number of components registered
-	fourWorld := testutils.NewTestFixture(t, redisStore).World
-	assert.NilError(t, cardinal.RegisterComponent[FoundAlphaNum](fourWorld))
-	assert.NilError(t, fourWorld.LoadGameState())
+	tf4 := testutils.NewTestFixture(t, redisStore)
+	world4 := tf4.World
+	assert.NilError(t, cardinal.RegisterComponent[FoundAlphaNum](world4))
+	tf4.StartWorld()
 }
 
 func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 	redisStore := miniredis.RunT(t)
-	oneWorld := testutils.NewTestFixture(t, redisStore).World
-	assert.NilError(t, cardinal.RegisterComponent[NumberComponent](oneWorld))
-	assert.NilError(t, oneWorld.LoadGameState())
+	tf1 := testutils.NewTestFixture(t, redisStore)
+	world1 := tf1.World
+	assert.NilError(t, cardinal.RegisterComponent[NumberComponent](world1))
+	tf1.StartWorld()
 
-	_, err := cardinal.Create(cardinal.NewWorldContext(oneWorld), NumberComponent{})
+	_, err := cardinal.Create(cardinal.NewWorldContext(world1), NumberComponent{})
 	assert.NilError(t, err)
-	oneNum, err := oneWorld.GetComponentByName(NumberComponent{}.Name())
+	oneNum, err := world1.GetComponentByName(NumberComponent{}.Name())
 	assert.NilError(t, err)
-	wantID, err := oneWorld.GameStateManager().GetArchIDForComponents(comps(oneNum))
+	wantID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneNum))
 	assert.NilError(t, err)
-	wantComps := oneWorld.GameStateManager().GetComponentTypesForArchID(wantID)
+	wantComps := world1.GameStateManager().GetComponentTypesForArchID(wantID)
 	assert.Equal(t, 1, len(wantComps))
 	assert.Check(t, filter.MatchComponent(types.ConvertComponentMetadatasToComponents(wantComps), oneNum))
 
-	assert.NilError(t, oneWorld.Tick(context.Background()))
+	assert.NilError(t, world1.Tick(context.Background()))
 
 	// Make a second instance of the engine using the same storage.
-	twoWorld := testutils.NewTestFixture(t, redisStore).World
-	assert.NilError(t, cardinal.RegisterComponent[NumberComponent](twoWorld))
-	assert.NilError(t, twoWorld.LoadGameState())
-	twoNum, err := twoWorld.GetComponentByName(NumberComponent{}.Name())
+	tf2 := testutils.NewTestFixture(t, redisStore)
+	world2 := tf2.World
+	assert.NilError(t, cardinal.RegisterComponent[NumberComponent](world2))
+	tf2.StartWorld()
+	twoNum, err := world2.GetComponentByName(NumberComponent{}.Name())
 	assert.NilError(t, err)
-	gotID, err := twoWorld.GameStateManager().GetArchIDForComponents(comps(twoNum))
+	gotID, err := world2.GameStateManager().GetArchIDForComponents(comps(twoNum))
 	assert.NilError(t, err)
-	gotComps := twoWorld.GameStateManager().GetComponentTypesForArchID(gotID)
+	gotComps := world2.GameStateManager().GetComponentTypesForArchID(gotID)
 	assert.Equal(t, 1, len(gotComps))
 	assert.Check(t, filter.MatchComponent(types.ConvertComponentMetadatasToComponents(gotComps), twoNum))
 
@@ -123,78 +129,81 @@ func TestArchetypeIDIsConsistentAfterSaveAndLoad(t *testing.T) {
 func TestCanRecoverArchetypeInformationAfterLoad(t *testing.T) {
 	redisStore := miniredis.RunT(t)
 
-	oneWorld := testutils.NewTestFixture(t, redisStore).World
-	assert.NilError(t, cardinal.RegisterComponent[OneAlphaNum](oneWorld))
-	assert.NilError(t, cardinal.RegisterComponent[OneBetaNum](oneWorld))
-	assert.NilError(t, oneWorld.LoadGameState())
+	tf1 := testutils.NewTestFixture(t, redisStore)
+	world1 := tf1.World
+	assert.NilError(t, cardinal.RegisterComponent[OneAlphaNum](world1))
+	assert.NilError(t, cardinal.RegisterComponent[OneBetaNum](world1))
+	tf1.StartWorld()
 
-	oneWorldCtx := cardinal.NewWorldContext(oneWorld)
-	_, err := cardinal.Create(oneWorldCtx, OneAlphaNum{})
+	world1Ctx := cardinal.NewWorldContext(world1)
+	_, err := cardinal.Create(world1Ctx, OneAlphaNum{})
 	assert.NilError(t, err)
-	_, err = cardinal.Create(oneWorldCtx, OneBetaNum{})
+	_, err = cardinal.Create(world1Ctx, OneBetaNum{})
 	assert.NilError(t, err)
-	_, err = cardinal.Create(oneWorldCtx, OneAlphaNum{}, OneBetaNum{})
+	_, err = cardinal.Create(world1Ctx, OneAlphaNum{}, OneBetaNum{})
 	assert.NilError(t, err)
-	oneAlphaNum, err := oneWorld.GetComponentByName(OneAlphaNum{}.Name())
+	oneAlphaNum, err := world1.GetComponentByName(OneAlphaNum{}.Name())
 	assert.NilError(t, err)
-	oneBetaNum, err := oneWorld.GetComponentByName(OneBetaNum{}.Name())
+	oneBetaNum, err := world1.GetComponentByName(OneBetaNum{}.Name())
 	assert.NilError(t, err)
 	// At this point 3 archetypes exist:
-	// oneAlphaNum
-	// oneBetaNum
-	// oneAlphaNum, oneBetaNum
-	oneJustAlphaArchID, err := oneWorld.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
+	// world1AlphaNum
+	// world1BetaNum
+	// world1AlphaNum, oneBetaNum
+	world1JustAlphaArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
 	assert.NilError(t, err)
-	oneJustBetaArchID, err := oneWorld.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
+	oneJustBetaArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
 	assert.NilError(t, err)
-	oneBothArchID, err := oneWorld.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum, oneBetaNum))
+	oneBothArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum, oneBetaNum))
 	assert.NilError(t, err)
 	// These archetype indices should be preserved between a state save/load
 
-	assert.NilError(t, oneWorld.Tick(context.Background()))
+	assert.NilError(t, world1.Tick(context.Background()))
 
-	// cardinal.Create a brand new engine, but use the original redis store. We should be able to load
+	// Create a brand new engine, but use the original redis store. We should be able to load
 	// the game state from the redis store (including archetype indices).
-	twoWorld := testutils.NewTestFixture(t, redisStore).World
+	tf2 := testutils.NewTestFixture(t, redisStore)
+	world2 := tf2.World
 	// The ordering of registering these components is important. It must match the ordering above.
-	assert.NilError(t, cardinal.RegisterComponent[TwoAlphaNum](twoWorld))
-	assert.NilError(t, cardinal.RegisterComponent[TwoBetaNum](twoWorld))
-	assert.NilError(t, twoWorld.LoadGameState())
+	assert.NilError(t, cardinal.RegisterComponent[TwoAlphaNum](world2))
+	assert.NilError(t, cardinal.RegisterComponent[TwoBetaNum](world2))
+	tf2.StartWorld()
 
-	// Don't cardinal.Create any entities like above; they should already exist
+	// Don't create any entities like above; they should already exist
 
 	// The order that we FETCH archetypes shouldn't matter, so this order is intentionally
 	// different from the setup step
-	twoBothArchID, err := oneWorld.GameStateManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
+	world2BothArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
 	assert.NilError(t, err)
-	assert.Equal(t, oneBothArchID, twoBothArchID)
-	twoJustAlphaArchID, err := oneWorld.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
+	assert.Equal(t, oneBothArchID, world2BothArchID)
+	twoJustAlphaArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
 	assert.NilError(t, err)
-	assert.Equal(t, oneJustAlphaArchID, twoJustAlphaArchID)
-	twoJustBetaArchID, err := oneWorld.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
+	assert.Equal(t, world1JustAlphaArchID, twoJustAlphaArchID)
+	twoJustBetaArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
 	assert.NilError(t, err)
 	assert.Equal(t, oneJustBetaArchID, twoJustBetaArchID)
 
 	// Save and load again to make sure the "two" engine correctly saves its state even though
 	// it never cardinal.Created any entities
-	assert.NilError(t, twoWorld.Tick(context.Background()))
+	assert.NilError(t, world2.Tick(context.Background()))
 
-	threeWorld := testutils.NewTestFixture(t, redisStore).World
+	tf3 := testutils.NewTestFixture(t, redisStore)
+	world3 := tf3.World
 	// Again, the ordering of registering these components is important. It must match the ordering above
-	assert.NilError(t, cardinal.RegisterComponent[ThreeAlphaNum](threeWorld))
-	assert.NilError(t, cardinal.RegisterComponent[ThreeBetaNum](threeWorld))
-	assert.NilError(t, threeWorld.LoadGameState())
+	assert.NilError(t, cardinal.RegisterComponent[ThreeAlphaNum](world3))
+	assert.NilError(t, cardinal.RegisterComponent[ThreeBetaNum](world3))
+	tf3.StartWorld()
 
 	// And again, the loading of archetypes is intentionally different from the above two steps
-	threeJustBetaArchID, err := oneWorld.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
+	world3JustBetaArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneBetaNum))
 	assert.NilError(t, err)
-	assert.Equal(t, oneJustBetaArchID, threeJustBetaArchID)
-	threeBothArchID, err := oneWorld.GameStateManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
+	assert.Equal(t, oneJustBetaArchID, world3JustBetaArchID)
+	world3BothArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneBetaNum, oneAlphaNum))
 	assert.NilError(t, err)
-	assert.Equal(t, oneBothArchID, threeBothArchID)
-	threeJustAlphaArchID, err := oneWorld.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
+	assert.Equal(t, oneBothArchID, world3BothArchID)
+	world3JustAlphaArchID, err := world1.GameStateManager().GetArchIDForComponents(comps(oneAlphaNum))
 	assert.NilError(t, err)
-	assert.Equal(t, oneJustAlphaArchID, threeJustAlphaArchID)
+	assert.Equal(t, world1JustAlphaArchID, world3JustAlphaArchID)
 }
 
 type OneBetaNum struct {
@@ -215,15 +224,16 @@ func (oneAlphaNumComp) Name() string {
 
 func TestCanReloadState(t *testing.T) {
 	redisStore := miniredis.RunT(t)
-	alphaWorld := testutils.NewTestFixture(t, redisStore).World
-	assert.NilError(t, cardinal.RegisterComponent[oneAlphaNumComp](alphaWorld))
+	tf1 := testutils.NewTestFixture(t, redisStore)
+	world1 := tf1.World
+	assert.NilError(t, cardinal.RegisterComponent[oneAlphaNumComp](world1))
 
-	oneAlphaNum, err := alphaWorld.GetComponentByName(oneAlphaNumComp{}.Name())
+	world1AlphaNum, err := world1.GetComponentByName(oneAlphaNumComp{}.Name())
 	assert.NilError(t, err)
 	err = cardinal.RegisterSystems(
-		alphaWorld,
+		world1,
 		func(wCtx engine.Context) error {
-			q := cardinal.NewSearch(wCtx, filter.Contains(oneAlphaNum))
+			q := cardinal.NewSearch(wCtx, filter.Contains(world1AlphaNum))
 			assert.NilError(
 				t, q.Each(
 					func(id types.EntityID) bool {
@@ -237,21 +247,22 @@ func TestCanReloadState(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, alphaWorld.LoadGameState())
-	_, err = cardinal.CreateMany(cardinal.NewWorldContext(alphaWorld), 10, oneAlphaNumComp{})
+	tf1.StartWorld()
+	_, err = cardinal.CreateMany(cardinal.NewWorldContext(world1), 10, oneAlphaNumComp{})
 	assert.NilError(t, err)
 
 	// Start a tick with executes the above system which initializes the number components.
-	assert.NilError(t, alphaWorld.Tick(context.Background()))
+	assert.NilError(t, world1.Tick(context.Background()))
 
 	// Make a new engine, using the original redis DB that (hopefully) has our data
-	betaWorld := testutils.NewTestFixture(t, redisStore).World
-	assert.NilError(t, cardinal.RegisterComponent[OneBetaNum](betaWorld))
-	assert.NilError(t, betaWorld.LoadGameState())
+	tf2 := testutils.NewTestFixture(t, redisStore)
+	world2 := tf2.World
+	assert.NilError(t, cardinal.RegisterComponent[OneBetaNum](world2))
+	tf2.StartWorld()
 
 	count := 0
-	q := cardinal.NewSearch(cardinal.NewWorldContext(betaWorld), filter.Contains(OneBetaNum{}))
-	betaWorldCtx := cardinal.NewWorldContext(betaWorld)
+	q := cardinal.NewSearch(cardinal.NewWorldContext(world2), filter.Contains(OneBetaNum{}))
+	betaWorldCtx := cardinal.NewWorldContext(world2)
 	assert.NilError(
 		t, q.Each(
 			func(id types.EntityID) bool {
@@ -274,8 +285,9 @@ func TestEngineTickAndHistoryTickMatch(t *testing.T) {
 	// Ensure that across multiple reloads, getting the transaction receipts for a tick
 	// that is still in the tx receipt history window will not return any errors.
 	for reload := 0; reload < 5; reload++ {
-		world := testutils.NewTestFixture(t, redisStore).World
-		assert.NilError(t, world.LoadGameState())
+		tf := testutils.NewTestFixture(t, redisStore)
+		world := tf.World
+		tf.StartWorld()
 		relevantTick := world.CurrentTick()
 		for i := 0; i < 5; i++ {
 			assert.NilError(t, world.Tick(ctx))
@@ -310,7 +322,7 @@ func TestCanFindTransactionsAfterReloadingEngine(t *testing.T) {
 			},
 		)
 		assert.NilError(t, err)
-		assert.NilError(t, world.LoadGameState())
+		tf.StartWorld()
 
 		relevantTick := world.CurrentTick()
 		for i := 0; i < 3; i++ {
@@ -336,9 +348,10 @@ func (FooComponent) Name() string {
 }
 
 func TestSearchEarlyTermination(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[FooComponent](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	total := 10
 	count := 0

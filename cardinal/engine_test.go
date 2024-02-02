@@ -119,7 +119,8 @@ func TestEVMTxConsume(t *testing.T) {
 	type FooOut struct {
 		Y string
 	}
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	fooTx := message.NewMessageType[FooIn, FooOut]("foo", message.WithMsgEVMSupport[FooIn, FooOut]())
 	assert.NilError(t, cardinal.RegisterMessages(world, fooTx))
 	var returnVal FooOut
@@ -136,7 +137,7 @@ func TestEVMTxConsume(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	// add tx to queue
 	evmTxHash := "0xFooBar"
@@ -186,11 +187,12 @@ func TestAddSystems(t *testing.T) {
 		return nil
 	}
 
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	err := cardinal.RegisterSystems(world, sys1, sys2, sys3)
 	assert.NilError(t, err)
 
-	err = world.LoadGameState()
+	tf.StartWorld()
 	assert.NilError(t, err)
 
 	err = world.Tick(context.Background())
@@ -200,7 +202,8 @@ func TestAddSystems(t *testing.T) {
 }
 
 func TestSystemExecutionOrder(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	order := make([]int, 0, 3)
 	err := cardinal.RegisterSystems(
 		world,
@@ -216,7 +219,7 @@ func TestSystemExecutionOrder(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	err = world.LoadGameState()
+	tf.StartWorld()
 	assert.NilError(t, err)
 	assert.NilError(t, world.Tick(context.Background()))
 	expectedOrder := []int{1, 2, 3}
@@ -228,12 +231,14 @@ func TestSystemExecutionOrder(t *testing.T) {
 func TestSetNamespace(t *testing.T) {
 	namespace := "test"
 	t.Setenv("CARDINAL_NAMESPACE", namespace)
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.Equal(t, world.Namespace().String(), namespace)
 }
 
 func TestWithoutRegistration(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	wCtx := cardinal.NewWorldContext(world)
 
 	assert.Panics(t, func() { _, _ = cardinal.Create(wCtx, EnergyComponent{}, OwnableComponent{}) })
@@ -256,7 +261,7 @@ func TestWithoutRegistration(t *testing.T) {
 
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world))
 	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	id, err := cardinal.Create(wCtx, EnergyComponent{}, OwnableComponent{})
 	assert.NilError(t, err)
@@ -320,7 +325,7 @@ func TestAdapterCalledAfterTick(t *testing.T) {
 	fooMessage := message.NewMessageType[struct{}, struct{}]("foo")
 	err = cardinal.RegisterMessages(world, fooMessage)
 	assert.NilError(t, err)
-	err = world.LoadGameState()
+	tf.StartWorld()
 	assert.NilError(t, err)
 
 	tf.AddTransaction(fooMessage.ID(), fooMessage, &sign.Transaction{

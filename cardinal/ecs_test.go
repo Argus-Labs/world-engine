@@ -82,25 +82,21 @@ func TestGlobals(t *testing.T) {
 func TestSchemaChecking(t *testing.T) {
 	s := miniredis.RunT(t)
 
-	cardinalWorld := testutils.NewTestFixture(t, s).World
-	world := cardinalWorld
-	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world))
-	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world))
+	tf1 := testutils.NewTestFixture(t, s)
+	world1 := tf1.World
+	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world1))
+	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world1))
+	tf1.StartWorld()
 
-	assert.NilError(t, world.LoadGameState())
-
-	cardinalWorld2 := testutils.NewTestFixture(t, s).World
-	world2 := cardinalWorld2
+	tf2 := testutils.NewTestFixture(t, s)
+	world2 := tf2.World
 	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world2))
 	assert.Assert(t, cardinal.RegisterComponent[AlteredEnergyComponent](world2) != nil)
-	err := cardinalWorld2.Shutdown()
-	assert.NilError(t, err)
-	err = cardinalWorld.Shutdown()
-	assert.NilError(t, err)
 }
 
 func TestECS(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world))
 	assert.NilError(t, cardinal.RegisterComponent[OwnableComponent](world))
 
@@ -110,7 +106,9 @@ func TestECS(t *testing.T) {
 
 	err := cardinal.RegisterSystems(world, UpdateEnergySystem)
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+
+	tf.StartWorld()
+
 	numEnergyOnly := 10
 	_, err = cardinal.CreateMany(wCtx, numEnergyOnly, EnergyComponent{})
 	assert.NilError(t, err)
@@ -154,12 +152,14 @@ func (Vel) Name() string {
 }
 
 func TestVelocitySimulation(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	// These components are a mix of concrete types and pointer types to make sure they both work
 	assert.NilError(t, cardinal.RegisterComponent[Pos](world))
 	assert.NilError(t, cardinal.RegisterComponent[Vel](world))
-	assert.NilError(t, world.LoadGameState())
+
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	shipID, err := cardinal.Create(wCtx, Pos{}, Vel{})
@@ -197,12 +197,14 @@ func (Owner) Name() string {
 }
 
 func TestCanSetDefaultValue(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	wantOwner := Owner{"Jeff"}
 
 	assert.NilError(t, cardinal.RegisterComponent[Owner](world))
-	assert.NilError(t, world.LoadGameState())
+
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	alphaEntity, err := cardinal.Create(wCtx, wantOwner)
@@ -229,10 +231,12 @@ func (Tuple) Name() string {
 }
 
 func TestCanRemoveEntity(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Tuple](world))
-	assert.NilError(t, world.LoadGameState())
+
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	entities, err := cardinal.CreateMany(wCtx, 2, Tuple{})
@@ -304,10 +308,11 @@ func (CountComponent) Name() string {
 }
 
 func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[CountComponent](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	_, err := cardinal.CreateMany(wCtx, 10, CountComponent{})
@@ -362,9 +367,10 @@ func TestCanRemoveEntriesDuringCallToEach(t *testing.T) {
 }
 
 func TestAddingAComponentThatAlreadyExistsIsError(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponent](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	ent, err := cardinal.Create(wCtx, EnergyComponent{})
@@ -391,10 +397,11 @@ func (WeaponEnergy) Name() string {
 }
 
 func TestRemovingAMissingComponentIsError(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ReactorEnergy](world))
 	assert.NilError(t, cardinal.RegisterComponent[WeaponEnergy](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 	wCtx := cardinal.NewWorldContext(world)
 	ent, err := cardinal.Create(wCtx, ReactorEnergy{})
 	assert.NilError(t, err)
@@ -403,12 +410,13 @@ func TestRemovingAMissingComponentIsError(t *testing.T) {
 }
 
 func TestVerifyAutomaticCreationOfArchetypesWorks(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 	assert.NilError(t, cardinal.RegisterComponent[Bar](world))
 
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	getArchIDForEntityID := func(id types.EntityID) types.ArchetypeID {
 		components, err := world.GameStateManager().GetComponentTypesForEntity(id)
@@ -453,12 +461,13 @@ func (Gamma) Name() string {
 }
 
 func TestEntriesCanChangeTheirArchetype(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Alpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[Beta](world))
 	assert.NilError(t, cardinal.RegisterComponent[Gamma](world))
 
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	entIDs, err := cardinal.CreateMany(wCtx, 3, Alpha{}, Beta{})
@@ -528,11 +537,12 @@ func (e EnergyComponentBeta) Name() string {
 }
 
 func TestCannotSetComponentThatDoesNotBelongToEntity(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponentAlpha](world))
 	assert.NilError(t, cardinal.RegisterComponent[EnergyComponentBeta](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	id, err := cardinal.Create(wCtx, EnergyComponentAlpha{})
@@ -553,13 +563,14 @@ func (C) Name() string { return "c" }
 func (D) Name() string { return "d" }
 
 func TestQueriesAndFiltersWorks(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[A](world))
 	assert.NilError(t, cardinal.RegisterComponent[B](world))
 	assert.NilError(t, cardinal.RegisterComponent[C](world))
 	assert.NilError(t, cardinal.RegisterComponent[D](world))
 
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	ab, err := cardinal.Create(wCtx, A{}, B{})
@@ -615,9 +626,10 @@ func (HealthComponent) Name() string {
 }
 
 func TestUpdateWithPointerType(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[HealthComponent](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	id, err := cardinal.Create(wCtx, HealthComponent{})
@@ -648,9 +660,10 @@ func (ValueComponent1) Name() string {
 }
 
 func TestCanRemoveFirstEntity(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ValueComponent1](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	ids, err := cardinal.CreateMany(wCtx, 3, ValueComponent1{})
@@ -686,10 +699,11 @@ func (OtherComponent) Name() string {
 }
 
 func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ValueComponent2](world))
 	assert.NilError(t, cardinal.RegisterComponent[OtherComponent](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	ids, err := cardinal.CreateMany(wCtx, 3, ValueComponent2{})
@@ -710,12 +724,13 @@ func TestCanChangeArchetypeOfFirstEntity(t *testing.T) {
 }
 
 func TestEntityCreationAndSetting(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ValueComponent2](world))
 	assert.NilError(t, cardinal.RegisterComponent[OtherComponent](world))
 
 	wCtx := cardinal.NewWorldContext(world)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 	ids, err := cardinal.CreateMany(wCtx, 300, ValueComponent2{999}, OtherComponent{999})
 	assert.NilError(t, err)
 	for _, id := range ids {

@@ -21,7 +21,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wantTag := "CoolMage"
 	wantAddress := "123_456"
@@ -54,7 +54,7 @@ func TestCreatePersonaTransactionAutomaticallyCreated(t *testing.T) {
 func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 	ctx := context.Background()
 
 	// Tick the game forward a bit to simulate a game that has been running for a bit of time.
@@ -90,7 +90,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 func TestDuplicatePersonaTagsInTickAreOnlyRegisteredOnce(t *testing.T) {
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	personaTag := "jeff"
 
@@ -133,7 +133,7 @@ func TestCreatePersonaFailsIfTagIsInvalid(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	tf.AddTransaction(
 		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
@@ -154,7 +154,7 @@ func TestSamePersonaWithDifferentCaseCannotBeClaimed(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	tf.AddTransaction(
 		cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
@@ -184,7 +184,7 @@ func TestCanAuthorizeAddress(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wantTag := "CoolMage"
 	wantSigner := "123_456"
@@ -221,7 +221,7 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 	// Verify that the cardinal.CreatePersona is automatically cardinal.Created and registered with a engine.
 	tf := testutils.NewTestFixture(t, nil)
 	world := tf.World
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	personaTag := "CoolMage"
 	invalidAddr := "123-456"

@@ -127,7 +127,7 @@ func TestForEachTransaction(t *testing.T) {
 		return nil
 	})
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	// Add 10 transactions to the tx queue and keep track of the hashes that we just cardinal.Created
 	knownTxHashes := map[types.TxHash]SomeMsgRequest{}
@@ -219,7 +219,7 @@ func TestCanQueueTransactions(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 	id, err := cardinal.Create(wCtx, ScoreComponent{})
 	assert.NilError(t, err)
 
@@ -258,7 +258,8 @@ func (CounterComponent) Name() string {
 }
 
 func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[CounterComponent](world))
 
@@ -278,7 +279,7 @@ func TestSystemsAreExecutedDuringGameTick(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 	id, err := cardinal.Create(wCtx, CounterComponent{})
 	assert.NilError(t, err)
 
@@ -317,7 +318,7 @@ func TestTransactionAreAppliedToSomeEntities(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	ids, err := cardinal.CreateMany(wCtx, 100, ScoreComponent{})
@@ -380,7 +381,7 @@ func TestAddToQueueDuringTickDoesNotTimeout(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	tf.AddTransaction(modScore.ID(), &ModifyScoreMsg{})
 
@@ -515,20 +516,22 @@ func TestIdenticallyTypedTransactionCanBeDistinguished(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	assert.NilError(t, world.Tick(context.Background()))
 }
 
 func TestCannotRegisterDuplicateTransaction(t *testing.T) {
 	msg := message.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.Check(t, nil != cardinal.RegisterMessages(world, msg, msg))
 }
 
 func TestCannotCallRegisterTransactionsMultipleTimes(t *testing.T) {
 	msg := message.NewMessageType[ModifyScoreMsg, EmptyMsgResult]("modify_score")
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterMessages(world, msg))
 	assert.Check(t, nil != cardinal.RegisterMessages(world, msg))
 }
@@ -571,7 +574,8 @@ func TestCannotHaveDuplicateTransactionNames(t *testing.T) {
 	type OtherMsg struct {
 		Alpha, Beta string
 	}
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	alphaMsg := message.NewMessageType[SomeMsg, EmptyMsgResult]("name_match")
 	betaMsg := message.NewMessageType[OtherMsg, EmptyMsgResult]("name_match")
 	assert.IsError(t, cardinal.RegisterMessages(world, alphaMsg, betaMsg))
@@ -622,7 +626,7 @@ func TestCanGetTransactionErrorsAndResults(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 	_ = tf.AddTransaction(moveMsg.ID(), MoveMsg{99, 100})
 
 	// Tick the game so the transaction is processed
@@ -684,7 +688,7 @@ func TestSystemCanFindErrorsFromEarlierSystem(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	_ = tf.AddTransaction(numTx.ID(), MsgIn{100})
 
@@ -738,7 +742,7 @@ func TestSystemCanClobberTransactionResult(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	_ = tf.AddTransaction(numTx.ID(), MsgIn{100})
 

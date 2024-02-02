@@ -74,8 +74,8 @@ func TestNewQueryTypeWithEVMSupport(t *testing.T) {
 }
 
 func TestQueryExample(t *testing.T) {
-	fixture := testutils.NewTestFixture(t, nil)
-	world := fixture.World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(
 		t,
@@ -85,7 +85,7 @@ func TestQueryExample(t *testing.T) {
 			handleQueryHealth,
 		),
 	)
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 	worldCtx := cardinal.NewWorldContext(world)
 	ids, err := cardinal.CreateMany(worldCtx, 100, Health{})
 	assert.NilError(t, err)
@@ -144,7 +144,8 @@ func TestQueryEVM(t *testing.T) {
 	//	Age:  22,
 	//}
 	//
-	// world := testutils.NewTestFixture(t, nil).World
+	// tf := testutils.NewTestFixture(t, nil)
+	// world := tf.World
 	// err := cardinal.RegisterQuery[FooRequest, FooReply](
 	//	world,
 	//	"foo",

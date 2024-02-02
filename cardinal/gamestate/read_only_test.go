@@ -183,10 +183,11 @@ func TestReadOnly_SearchFrom(t *testing.T) {
 	manager := newCmdBufferForTest(t)
 	ctx := context.Background()
 
-	world := testutils.NewTestFixture(t, nil, cardinal.WithStoreManager(manager)).World
+	tf := testutils.NewTestFixture(t, nil, cardinal.WithStoreManager(manager))
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Health](world))
 	assert.NilError(t, cardinal.RegisterComponent[Power](world))
-	assert.NilError(t, world.LoadGameState())
+	tf.StartWorld()
 
 	wCtx := cardinal.NewWorldContext(world)
 	_, err := cardinal.CreateMany(wCtx, 8, Health{})

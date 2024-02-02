@@ -40,14 +40,16 @@ type Age struct {
 func (Age) Name() string { return "age" }
 
 func TestComponentExample(t *testing.T) {
-	fixture := testutils.NewTestFixture(t, nil)
-	world := fixture.World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 
 	assert.NilError(t, cardinal.RegisterComponent[Height](world))
 	assert.NilError(t, cardinal.RegisterComponent[Weight](world))
 	assert.NilError(t, cardinal.RegisterComponent[Age](world))
 	assert.NilError(t, cardinal.RegisterComponent[Number](world))
-	assert.NilError(t, world.LoadGameState())
+
+	tf.StartWorld()
+
 	wCtx := cardinal.NewWorldContext(world)
 	assert.Equal(t, wCtx.CurrentTick(), uint64(0))
 	wCtx.Logger().Info().Msg("test") // Check for compile errors.
@@ -157,7 +159,8 @@ func TestComponentInterfaceSignature(t *testing.T) {
 }
 
 func TestComponents(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	cardinal.MustRegisterComponent[ComponentDataA](world)
 	cardinal.MustRegisterComponent[ComponentDataB](world)
 
@@ -259,12 +262,15 @@ func (notFoundComp) Name() string {
 }
 
 func TestErrorWhenAccessingComponentNotOnEntity(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	cardinal.MustRegisterComponent[foundComp](world)
 	cardinal.MustRegisterComponent[notFoundComp](world)
 
 	wCtx := cardinal.NewWorldContext(world)
-	assert.NilError(t, world.LoadGameState())
+
+	tf.StartWorld()
+
 	id, err := cardinal.Create(wCtx, foundComp{})
 	assert.NilError(t, err)
 	_, err = cardinal.GetComponent[notFoundComp](wCtx, id)
@@ -280,11 +286,14 @@ func (ValueComponent) Name() string {
 }
 
 func TestMultipleCallsToCreateSupported(t *testing.T) {
-	world := testutils.NewTestFixture(t, nil).World
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[ValueComponent](world))
 
 	wCtx := cardinal.NewWorldContext(world)
-	assert.NilError(t, world.LoadGameState())
+
+	tf.StartWorld()
+
 	id, err := cardinal.Create(wCtx, ValueComponent{})
 	assert.NilError(t, err)
 
