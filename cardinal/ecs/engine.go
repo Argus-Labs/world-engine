@@ -476,6 +476,13 @@ func NewEngine(
 
 func (e *Engine) SetRouter(r router.Router) { e.router = r }
 
+func (e *Engine) RunRouter() error {
+	if e.router == nil {
+		return nil
+	}
+	return e.router.Run()
+}
+
 func (e *Engine) CurrentTick() uint64 {
 	return e.tick.Load()
 }

@@ -106,7 +106,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	if cfg.CardinalMode == RunModeProd {
-		rtr, err := router.New(cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress)
+		rtr, err := router.New(cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress, eng)
 		if err != nil {
 			return nil, err
 		}
@@ -301,11 +301,12 @@ func (w *World) StartGame() error {
 		}
 		return err
 	}
-	srvr, err := server.New(w.instance, w.instance.GetEventHub().NewWebSocketEventHandler(), w.serverOptions...)
+
+	var err error
+	w.server, err = server.New(w.instance, w.instance.GetEventHub().NewWebSocketEventHandler(), w.serverOptions...)
 	if err != nil {
 		return err
 	}
-	w.server = srvr
 
 	if w.tickChannel == nil {
 		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.

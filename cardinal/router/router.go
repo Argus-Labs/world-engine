@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"net"
 	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/cardinal/types/message"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
@@ -20,15 +19,6 @@ import (
 const (
 	defaultPort = "9020"
 )
-
-type Provider interface {
-	GetMessageByName(string) (message.Message, bool)
-	HandleEVMQuery(name string, abiRequest []byte) ([]byte, error)
-	GetPersonaForEVMAddress(string) (string, error)
-	WaitForNextTick() bool
-	AddEVMTransaction(id message.TypeID, msgValue any, tx *sign.Transaction, evmTxHash string) (tick uint64, txHash message.TxHash)
-	ConsumeEVMMsgResult(evmTxHash string) ([]byte, []error, string, bool)
-}
 
 type Router interface {
 	Submit(
@@ -85,8 +75,8 @@ func (r *routerImpl) Run() error {
 	return nil
 }
 
-func New(sequencerAddr, baseShardQueryAddr string, opts ...Option) (Router, error) {
-	rtr := &routerImpl{port: defaultPort}
+func New(sequencerAddr, baseShardQueryAddr string, provider Provider, opts ...Option) (Router, error) {
+	rtr := &routerImpl{port: defaultPort, provider: provider}
 	for _, opt := range opts {
 		opt(rtr)
 	}
@@ -107,7 +97,7 @@ func New(sequencerAddr, baseShardQueryAddr string, opts ...Option) (Router, erro
 }
 
 const (
-	CodeSuccess = iota
+	CodeSuccess = uint32(iota)
 	CodeTxFailed
 	CodeNoResult
 	CodeServerUnresponsive
@@ -205,9 +195,6 @@ func (r *routerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardReque
 	zerolog.Logger.Debug().Msgf("sending back reply: %v", reply)
 	return &routerv1.QueryShardResponse{Response: reply}, nil
 }
-
-// TODO(Tyler): expose a wrapper for QueryTransactions so callers don't have to import shardtypes.
-// consider an iterator pattern.
 
 func (r *routerImpl) Submit(
 	ctx context.Context,

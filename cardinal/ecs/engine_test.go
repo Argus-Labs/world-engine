@@ -2,14 +2,9 @@ package ecs_test
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"github.com/ethereum/go-ethereum/common"
 	"testing"
 	"time"
-
-	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/evm/x/shard/types"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -263,68 +258,4 @@ func TestWithoutRegistration(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
-}
-
-type dummyAdapter struct {
-	txs           txpool.TxMap
-	ns            string
-	epoch         uint64
-	unixTimestamp uint64
-}
-
-func (d *dummyAdapter) Submit(
-	_ context.Context,
-	txs txpool.TxMap,
-	namespace string,
-	epoch, unixTimestamp uint64,
-) error {
-	d.txs = txs
-	d.ns = namespace
-	d.epoch = epoch
-	d.unixTimestamp = unixTimestamp
-	return nil
-}
-
-func (d *dummyAdapter) QueryTransactions(_ context.Context, _ *types.QueryTransactionsRequest) (
-	*types.QueryTransactionsResponse, error,
-) {
-	return &types.QueryTransactionsResponse{}, nil
-}
-
-TestAdapterCalledAfterTick tests that when messages are executed in a tick, they are forwarded to the adapter.
-func TestAdapterCalledAfterTick(t *testing.T) {
-	adapter := &dummyAdapter{}
-	engine := testutils.NewTestFixture(t, nil, cardinal.WithAdapter(adapter)).Engine
-
-	engine.RegisterSystem(func(engineContext ecs.EngineContext) error {
-		return nil
-	})
-	fooMessage := ecs.NewMessageType[struct{}, struct{}]("foo")
-	err := engine.RegisterMessages(fooMessage)
-	assert.NilError(t, err)
-	err = engine.LoadGameState()
-	assert.NilError(t, err)
-
-	fooMessage.AddToQueue(engine, struct{}{}, &sign.Transaction{
-		PersonaTag: "meow",
-		Namespace:  "foo",
-		Nonce:      22,
-		Signature:  "meow",
-		Hash:       common.Hash{},
-		Body:       json.RawMessage(`{}`),
-	})
-	fooMessage.AddToQueue(engine, struct{}{}, &sign.Transaction{
-		PersonaTag: "meow",
-		Namespace:  "foo",
-		Nonce:      23,
-		Signature:  "meow",
-		Hash:       common.Hash{},
-		Body:       json.RawMessage(`{}`),
-	})
-	err = engine.Tick(context.Background())
-	assert.NilError(t, err)
-
-	assert.Len(t, adapter.txs[fooMessage.ID()], 2)
-	assert.Equal(t, engine.Namespace().String(), adapter.ns)
-	assert.Equal(t, engine.CurrentTick()-1, adapter.epoch)
 }
