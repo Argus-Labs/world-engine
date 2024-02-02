@@ -3,6 +3,9 @@ package ecs_test
 import (
 	"context"
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/router"
+	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/evm/x/shard/types"
 	"testing"
 	"time"
 
@@ -258,4 +261,58 @@ func TestWithoutRegistration(t *testing.T) {
 		},
 	)
 	assert.NilError(t, err)
+}
+
+type mockRouter struct {
+	processedTxs txpool.TxMap
+	namespace    string
+	epoch        uint64
+}
+
+func (m *mockRouter) Submit(ctx context.Context, processedTxs txpool.TxMap, namespace string, epoch, unixTimestamp uint64) error {
+	m.processedTxs = processedTxs
+	m.namespace = namespace
+	m.epoch = epoch
+	return nil
+}
+
+func (m *mockRouter) QueryTransactions(ctx context.Context, req *types.QueryTransactionsRequest) (*types.QueryTransactionsResponse, error) {
+	panic("intentionally unimplemented")
+}
+
+func (m *mockRouter) Shutdown() {
+	panic("intentionally unimplemented")
+}
+
+func (m *mockRouter) Run() error {
+	panic("intentionally unimplemented")
+}
+
+var _ router.Router = (*mockRouter)(nil)
+
+func TestTransactionsSentToRouterAfterTick(t *testing.T) {
+	rtr := &mockRouter{}
+	engine := testutils.NewTestFixture(t, nil).Engine
+	engine.SetRouter(rtr)
+	type fooMsg struct {
+		Bar string
+	}
+
+	type fooMsgRes struct{}
+	fooMessage := ecs.NewMessageType[fooMsg, fooMsgRes]("foo", ecs.WithMsgEVMSupport[fooMsg, fooMsgRes]())
+	err := engine.RegisterMessages(fooMessage)
+	assert.NilError(t, err)
+
+	err = engine.LoadGameState()
+	assert.NilError(t, err)
+
+	evmTxHash := "0x12345"
+	engine.AddEVMTransaction(fooMessage.ID(), fooMsg{Bar: "hello"}, &sign.Transaction{PersonaTag: "ty"}, evmTxHash)
+
+	err = engine.Tick(context.Background())
+	assert.NilError(t, err)
+
+	assert.Equal(t, rtr.namespace, engine.Namespace().String())
+	assert.Equal(t, rtr.processedTxs[fooMessage.ID()][0].EVMSourceTxHash, evmTxHash)
+	assert.Equal(t, rtr.epoch, engine.CurrentTick()-1)
 }
