@@ -75,11 +75,8 @@ func (r *routerImpl) Run() error {
 	return nil
 }
 
-func New(sequencerAddr, baseShardQueryAddr string, provider Provider, opts ...Option) (Router, error) {
+func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
 	rtr := &routerImpl{port: defaultPort, provider: provider}
-	for _, opt := range opts {
-		opt(rtr)
-	}
 
 	conn, err := grpc.Dial(sequencerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
