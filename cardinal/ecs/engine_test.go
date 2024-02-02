@@ -2,10 +2,14 @@ package ecs_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/golang/mock/gomock"
+	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/evm/x/shard/types"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
 	"testing"
 	"time"
 
@@ -304,4 +308,88 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 		Times(1)
 	err = engine.Tick(context.Background())
 	assert.NilError(t, err)
+}
+
+func TestRecoverFromChain(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	rtr := mocks.NewMockRouter(ctrl)
+	engine := testutils.NewTestFixture(t, nil).Engine
+	engine.SetRouter(rtr)
+
+	type fooMsg struct{ i int }
+	type fooMsgRes struct{}
+	fooMsgName := "foo"
+	fooMessage := ecs.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
+	err := engine.RegisterMessages(fooMessage)
+	assert.NilError(t, err)
+
+	fooMessages := 0
+	engine.RegisterSystem(func(engineContext ecs.EngineContext) error {
+		fooMessage.Each(engineContext, func(t ecs.TxData[fooMsg]) (fooMsgRes, error) {
+			fooMessages++
+			return fooMsgRes{}, nil
+		})
+		return nil
+	})
+	err = engine.LoadGameState()
+	assert.NilError(t, err)
+
+	req := &types.QueryTransactionsRequest{
+		Namespace: engine.Namespace().String(),
+		Page:      new(types.PageRequest),
+	}
+	msgBody, err := json.Marshal(fooMsg{i: 420})
+	assert.NilError(t, err)
+	tx := &shard.Transaction{
+		PersonaTag: "tyler",
+		Namespace:  engine.Namespace().String(),
+		Nonce:      0,
+		Signature:  "sigNature",
+		Body:       msgBody,
+	}
+	bz, err := proto.Marshal(tx)
+	assert.NilError(t, err)
+	pageResponse := &types.PageResponse{Key: []byte("whatever")}
+	res := &types.QueryTransactionsResponse{
+		Epochs: []*types.Epoch{
+			{
+				Epoch:         0,
+				UnixTimestamp: 10,
+				Txs: []*types.Transaction{
+					{
+						TxId:                 uint64(fooMessage.ID()),
+						GameShardTransaction: bz,
+					},
+				},
+			},
+		},
+		Page: pageResponse,
+	}
+	res2 := &types.QueryTransactionsResponse{
+		Epochs: []*types.Epoch{
+			{
+				Epoch:         1,
+				UnixTimestamp: 11,
+				Txs: []*types.Transaction{
+					{
+						TxId:                 uint64(fooMessage.ID()),
+						GameShardTransaction: bz,
+					},
+				},
+			},
+		},
+		Page: nil,
+	}
+	req2 := &types.QueryTransactionsRequest{
+		Namespace: engine.Namespace().String(),
+		Page:      &types.PageRequest{Key: pageResponse.Key},
+	}
+	rtr.EXPECT().QueryTransactions(gomock.Any(), req).Return(res, nil).Times(1)
+	rtr.EXPECT().QueryTransactions(gomock.Any(), req2).Return(res2, nil).Times(1)
+
+	err = engine.RecoverFromChain(context.Background())
+	assert.NilError(t, err)
+
+	assert.Equal(t, fooMessages, 2)
+	assert.Equal(t, engine.CurrentTick(), uint64(2))
 }
