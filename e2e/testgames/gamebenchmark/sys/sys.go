@@ -3,6 +3,9 @@ package sys
 import (
 	cryptorand "crypto/rand"
 	"math/big"
+	"os"
+
+	"runtime/pprof"
 
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
@@ -166,7 +169,22 @@ func SystemTestEntityCreationG(wCtx cardinal.WorldContext) error {
 	return nil
 }
 
-func SystemTestGettingHighlyNestedComponentsH(wCtx cardinal.WorldContext) error {
+func ProfilerTerminatorDecoratorForSystem(system cardinal.System, tickToStopProfiling uint) cardinal.System {
+	tickCounter := tickToStopProfiling
+	return func(wCtx cardinal.WorldContext) error {
+		result := system(wCtx)
+		if tickCounter == 0 {
+			pprof.StopCPUProfile()
+			os.Exit(0) // Just die, all we need is the profile.
+		} else {
+			tickCounter--
+		}
+
+		return result
+	}
+}
+
+func SystemBenchmarkTest(wCtx cardinal.WorldContext) error {
 	for _, id := range TreeEntityIds {
 		gotcomp, err := cardinal.GetComponent[comp.Tree](wCtx, id)
 		if err != nil {
