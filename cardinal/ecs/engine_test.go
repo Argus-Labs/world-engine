@@ -316,7 +316,7 @@ func TestRecoverFromChain(t *testing.T) {
 	engine := testutils.NewTestFixture(t, nil).Engine
 	engine.SetRouter(rtr)
 
-	type fooMsg struct{ i int }
+	type fooMsg struct{ I int }
 	type fooMsgRes struct{}
 	fooMsgName := "foo"
 	fooMessage := ecs.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
@@ -338,7 +338,7 @@ func TestRecoverFromChain(t *testing.T) {
 		Namespace: engine.Namespace().String(),
 		Page:      new(types.PageRequest),
 	}
-	msgBody, err := json.Marshal(fooMsg{i: 420})
+	msgBody, err := json.Marshal(fooMsg{I: 420})
 	assert.NilError(t, err)
 	tx := &shard.Transaction{
 		PersonaTag: "tyler",
