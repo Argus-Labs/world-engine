@@ -61,6 +61,7 @@ func TestQueryEVM(t *testing.T) {
 	assert.NilError(t, err)
 
 	reply, err := fooQuery.DecodeEVMReply(bz)
+	assert.NilError(t, err)
 
 	gotReply, ok := reply.(FooReply)
 	assert.True(t, ok, "could not cast %T to %T", reply, FooReply{})

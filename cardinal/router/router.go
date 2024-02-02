@@ -107,7 +107,8 @@ const (
 )
 
 // SendMessage is the server impl that receives SendMessage requests from the base shard client.
-func (r *routerImpl) SendMessage(_ context.Context, req *routerv1.SendMessageRequest) (*routerv1.SendMessageResponse, error) {
+func (r *routerImpl) SendMessage(_ context.Context, req *routerv1.SendMessageRequest,
+) (*routerv1.SendMessageResponse, error) {
 	// first we check if we can extract the transaction associated with the id
 	msgType, exists := r.provider.GetMessageByName(req.MessageId)
 	if !exists || !msgType.IsEVMCompatible() {
@@ -178,7 +179,7 @@ func (r *routerImpl) SendMessage(_ context.Context, req *routerv1.SendMessageReq
 		Errs:      errStr,
 		Result:    result,
 		EvmTxHash: evmTxHash,
-		Code:      uint32(code),
+		Code:      code,
 	}, nil
 }
 

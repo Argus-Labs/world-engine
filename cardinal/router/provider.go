@@ -11,6 +11,8 @@ type Provider interface {
 	HandleEVMQuery(name string, abiRequest []byte) ([]byte, error)
 	GetPersonaForEVMAddress(string) (string, error)
 	WaitForNextTick() bool
-	AddEVMTransaction(id message.TypeID, msgValue any, tx *sign.Transaction, evmTxHash string) (tick uint64, txHash message.TxHash)
+	AddEVMTransaction(id message.TypeID, msgValue any, tx *sign.Transaction, evmTxHash string) (
+		tick uint64, txHash message.TxHash,
+	)
 	ConsumeEVMMsgResult(evmTxHash string) ([]byte, []error, string, bool)
 }

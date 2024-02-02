@@ -14,59 +14,57 @@ import (
 	"testing"
 )
 
-var _ message.Message = &FooBar{}
+var _ message.Message = &mockMsg{}
 
-type FooBar struct {
+type mockMsg struct {
 	evmCompat      bool
 	name           string
-	group          string
 	id             message.TypeID
 	msgValue       any
 	decodeEVMBytes func() ([]byte, error)
 }
 
-func (f *FooBar) SetID(id message.TypeID) error {
+func (f *mockMsg) SetID(id message.TypeID) error {
 	f.id = id
 	return nil
 }
 
-func (f *FooBar) Name() string {
+func (f *mockMsg) Name() string {
 	return f.name
 }
 
-func (f *FooBar) Group() string {
+func (f *mockMsg) Group() string {
 	return ""
 }
 
-func (f *FooBar) ID() message.TypeID {
+func (f *mockMsg) ID() message.TypeID {
 	return f.id
 }
 
-func (f *FooBar) Encode(a any) ([]byte, error) {
+func (f *mockMsg) Encode(a any) ([]byte, error) {
 	return json.Marshal(a)
 }
 
-func (f *FooBar) Decode(bytes []byte) (any, error) {
+func (f *mockMsg) Decode(bytes []byte) (any, error) {
 	err := json.Unmarshal(bytes, f.msgValue)
 	return f.msgValue, err
 }
 
-func (f *FooBar) DecodeEVMBytes(bytes []byte) (any, error) {
+func (f *mockMsg) DecodeEVMBytes(_ []byte) (any, error) {
 	return f.decodeEVMBytes()
 }
 
-func (f *FooBar) ABIEncode(a any) ([]byte, error) {
-	//TODO implement me
-	panic("implement me")
+func (f *mockMsg) ABIEncode(_ any) ([]byte, error) {
+	return nil, nil
 }
 
-func (f *FooBar) IsEVMCompatible() bool {
+func (f *mockMsg) IsEVMCompatible() bool {
 	return f.evmCompat
 }
 
 func TestRouter_SendMessage_NonCompatibleEVMMessage(t *testing.T) {
 	router, provider := getTestRouterAndProvider(t)
-	msg := &FooBar{evmCompat: false}
+	msg := &mockMsg{evmCompat: false}
 	name := "foobar"
 	provider.EXPECT().GetMessageByName(name).Return(msg, true).Times(1)
 
@@ -77,7 +75,7 @@ func TestRouter_SendMessage_NonCompatibleEVMMessage(t *testing.T) {
 
 func TestRouter_SendMessage_FailedDecode(t *testing.T) {
 	router, provider := getTestRouterAndProvider(t)
-	msg := &FooBar{evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
+	msg := &mockMsg{evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
 		return nil, fmt.Errorf("some error")
 	}}
 	name := "foo"
@@ -91,7 +89,7 @@ func TestRouter_SendMessage_FailedDecode(t *testing.T) {
 
 func TestRouter_SendMessage_PersonaNotFound(t *testing.T) {
 	router, provider := getTestRouterAndProvider(t)
-	msg := &FooBar{evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
+	msg := &mockMsg{evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
 		return []byte("hello"), nil
 	}}
 	name := "foo"
@@ -108,7 +106,7 @@ func TestRouter_SendMessage_PersonaNotFound(t *testing.T) {
 func TestRouter_SendMessage_ResultDoesNotExist(t *testing.T) {
 	router, provider := getTestRouterAndProvider(t)
 	msgValue := []byte("hello")
-	msg := &FooBar{id: 5, evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
+	msg := &mockMsg{id: 5, evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
 		return msgValue, nil
 	}}
 	msgName := "foo"
@@ -136,7 +134,7 @@ func TestRouter_SendMessage_ResultDoesNotExist(t *testing.T) {
 func TestRouter_SendMessage_TxSuccess(t *testing.T) {
 	router, provider := getTestRouterAndProvider(t)
 	msgValue := []byte("hello")
-	msg := &FooBar{id: 5, evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
+	msg := &mockMsg{id: 5, evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
 		return msgValue, nil
 	}}
 	msgName := "foo"
@@ -164,7 +162,7 @@ func TestRouter_SendMessage_TxSuccess(t *testing.T) {
 func TestRouter_SendMessage_TxFailed(t *testing.T) {
 	router, provider := getTestRouterAndProvider(t)
 	msgValue := []byte("hello")
-	msg := &FooBar{id: 5, evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
+	msg := &mockMsg{id: 5, evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
 		return msgValue, nil
 	}}
 	msgName := "foo"
