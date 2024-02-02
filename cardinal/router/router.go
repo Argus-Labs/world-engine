@@ -20,6 +20,7 @@ const (
 	defaultPort = "9020"
 )
 
+//go:generate mockgen -source=router.go -package mocks -destination=mocks/router.go
 type Router interface {
 	Submit(
 		ctx context.Context,
