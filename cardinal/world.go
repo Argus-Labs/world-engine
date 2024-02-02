@@ -308,6 +308,10 @@ func (w *World) StartGame() error {
 		return err
 	}
 
+	if err := w.instance.RunRouter(); err != nil {
+		return eris.Wrap(err, "failed to start router service")
+	}
+
 	if w.tickChannel == nil {
 		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
 	}
