@@ -14,6 +14,8 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 )
 
+const TicksUntilTermination = 180
+
 func sumSystems(systems ...cardinal.System) cardinal.System {
 	return func(wCtx cardinal.WorldContext) error {
 		for _, system := range systems {
@@ -29,11 +31,10 @@ func sumSystems(systems ...cardinal.System) cardinal.System {
 func initializeSystems(
 	initSystems []cardinal.System,
 	systems []cardinal.System) ([]cardinal.System, []cardinal.System) {
-
 	initSystems = append(initSystems, sys.InitOneHundredEntities)
 	initSystems = append(initSystems, sys.InitTreeEntities)
 	decoratedSystemH := sys.ProfilerTerminatorDecoratorForSystem(
-		sys.SystemBenchmarkTest, 180)
+		sys.SystemBenchmarkTest, TicksUntilTermination)
 	systems = append(systems, decoratedSystemH)
 	return initSystems, systems
 }

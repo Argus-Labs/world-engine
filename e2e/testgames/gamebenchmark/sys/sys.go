@@ -176,9 +176,8 @@ func ProfilerTerminatorDecoratorForSystem(system cardinal.System, tickToStopProf
 		if tickCounter == 0 {
 			pprof.StopCPUProfile()
 			os.Exit(0) // Just die, all we need is the profile.
-		} else {
-			tickCounter--
 		}
+		tickCounter--
 
 		return result
 	}
