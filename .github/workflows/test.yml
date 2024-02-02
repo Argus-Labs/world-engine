@@ -26,7 +26,7 @@ jobs:
       - name: Cache Docker images
         uses: ScribeMD/docker-cache@0.3.7
         with:
-          key: docker-${{ runner.os }}-${{ hashFiles('internal/e2e/tester/cardinal/Dockerfile') }}
+          key: docker-${{ runner.os }}-${{ hashFiles('e2e/testgames/game/Dockerfile') }}
       - name: E2E Test Nakama
         run: make e2e-nakama
       - name: E2E docker compose logs last status
