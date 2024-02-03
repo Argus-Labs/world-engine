@@ -51,20 +51,6 @@ func (mr *MockRouterMockRecorder) QueryTransactions(ctx, req interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryTransactions", reflect.TypeOf((*MockRouter)(nil).QueryTransactions), ctx, req)
 }
 
-// Run mocks base method.
-func (m *MockRouter) Run() error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Run")
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Run indicates an expected call of Run.
-func (mr *MockRouterMockRecorder) Run() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Run", reflect.TypeOf((*MockRouter)(nil).Run))
-}
-
 // Shutdown mocks base method.
 func (m *MockRouter) Shutdown() {
 	m.ctrl.T.Helper()
@@ -77,16 +63,30 @@ func (mr *MockRouterMockRecorder) Shutdown() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Shutdown", reflect.TypeOf((*MockRouter)(nil).Shutdown))
 }
 
-// Submit mocks base method.
-func (m *MockRouter) Submit(ctx context.Context, processedTxs txpool.TxMap, namespace string, epoch, unixTimestamp uint64) error {
+// Start mocks base method.
+func (m *MockRouter) Start() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Submit", ctx, processedTxs, namespace, epoch, unixTimestamp)
+	ret := m.ctrl.Call(m, "Start")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// Submit indicates an expected call of Submit.
-func (mr *MockRouterMockRecorder) Submit(ctx, processedTxs, namespace, epoch, unixTimestamp interface{}) *gomock.Call {
+// Start indicates an expected call of Start.
+func (mr *MockRouterMockRecorder) Start() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Submit", reflect.TypeOf((*MockRouter)(nil).Submit), ctx, processedTxs, namespace, epoch, unixTimestamp)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Start", reflect.TypeOf((*MockRouter)(nil).Start))
+}
+
+// SubmitTxBlob mocks base method.
+func (m *MockRouter) SubmitTxBlob(ctx context.Context, processedTxs txpool.TxMap, namespace string, epoch, unixTimestamp uint64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SubmitTxBlob", ctx, processedTxs, namespace, epoch, unixTimestamp)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SubmitTxBlob indicates an expected call of SubmitTxBlob.
+func (mr *MockRouterMockRecorder) SubmitTxBlob(ctx, processedTxs, namespace, epoch, unixTimestamp interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SubmitTxBlob", reflect.TypeOf((*MockRouter)(nil).SubmitTxBlob), ctx, processedTxs, namespace, epoch, unixTimestamp)
 }

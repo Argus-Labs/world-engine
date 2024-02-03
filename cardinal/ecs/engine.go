@@ -480,7 +480,7 @@ func (e *Engine) RunRouter() error {
 	if e.router == nil {
 		return nil
 	}
-	return e.router.Run()
+	return e.router.Start()
 }
 
 func (e *Engine) CurrentTick() uint64 {

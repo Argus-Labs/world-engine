@@ -43,14 +43,14 @@ type Router interface {
 
 	// Shutdown gracefully stops the EVM gRPC handler.
 	Shutdown()
-	// Run serves the EVM gRPC server.
-	Run() error
+	// Start serves the EVM gRPC server.
+	Start() error
 }
 
-var _ routerv1.MsgServer = (*routerImpl)(nil)
-var _ Router = (*routerImpl)(nil)
+var _ routerv1.MsgServer = (*router)(nil)
+var _ Router = (*router)(nil)
 
-type routerImpl struct {
+type router struct {
 	routerv1.MsgServer
 
 	provider       Provider
@@ -61,13 +61,13 @@ type routerImpl struct {
 	shutdown func()
 }
 
-func (r *routerImpl) Shutdown() {
+func (r *router) Shutdown() {
 	if r.shutdown != nil {
 		r.shutdown()
 	}
 }
 
-func (r *routerImpl) Run() error {
+func (r *router) Start() error {
 	server := grpc.NewServer()
 	routerv1.RegisterMsgServer(server, r)
 	listener, err := net.Listen("tcp", ":"+r.port)
@@ -85,7 +85,7 @@ func (r *routerImpl) Run() error {
 }
 
 func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
-	rtr := &routerImpl{port: defaultPort, provider: provider}
+	rtr := &router{port: defaultPort, provider: provider}
 
 	conn, err := grpc.Dial(sequencerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -102,7 +102,7 @@ func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, e
 	return rtr, nil
 }
 
-func (r *routerImpl) SubmitTxBlob(
+func (r *router) SubmitTxBlob(
 	ctx context.Context,
 	processedTxs txpool.TxMap,
 	namespace string,
@@ -126,7 +126,7 @@ func (r *routerImpl) SubmitTxBlob(
 	_, err := r.ShardSequencer.Submit(ctx, &req)
 	return eris.Wrap(err, "")
 }
-func (r *routerImpl) QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
+func (r *router) QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
 	*shardtypes.QueryTransactionsResponse,
 	error,
 ) {

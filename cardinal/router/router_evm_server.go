@@ -20,7 +20,7 @@ const (
 )
 
 // SendMessage is the server impl that receives SendMessage requests from the base shard client.
-func (r *routerImpl) SendMessage(_ context.Context, req *routerv1.SendMessageRequest,
+func (r *router) SendMessage(_ context.Context, req *routerv1.SendMessageRequest,
 ) (*routerv1.SendMessageResponse, error) {
 	// first we check if we can extract the transaction associated with the id
 	msgType, exists := r.provider.GetMessageByName(req.MessageId)
@@ -97,7 +97,7 @@ func (r *routerImpl) SendMessage(_ context.Context, req *routerv1.SendMessageReq
 }
 
 // QueryShard is the server impl that answers query requests from the base shard client.
-func (r *routerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardRequest) (
+func (r *router) QueryShard(_ context.Context, req *routerv1.QueryShardRequest) (
 	*routerv1.QueryShardResponse, error,
 ) {
 	zerolog.Logger.Debug().Msgf("get request for %q", req.Resource)

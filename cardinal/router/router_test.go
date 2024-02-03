@@ -190,9 +190,9 @@ func TestRouter_SendMessage_TxFailed(t *testing.T) {
 	assert.Equal(t, res.Code, CodeTxFailed)
 }
 
-func getTestRouterAndProvider(t *testing.T) (*routerImpl, *mocks.MockProvider) {
+func getTestRouterAndProvider(t *testing.T) (*router, *mocks.MockProvider) {
 	ctrl := gomock.NewController(t)
 	provider := mocks.NewMockProvider(ctrl)
 
-	return &routerImpl{provider: provider}, provider
+	return &router{provider: provider}, provider
 }
