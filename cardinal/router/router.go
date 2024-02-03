@@ -53,12 +53,13 @@ var _ Router = (*router)(nil)
 type router struct {
 	routerv1.MsgServer
 
+	server *grpc.Server
+
 	provider       Provider
 	ShardSequencer shard.TransactionHandlerClient
 	ShardQuerier   shardtypes.QueryClient
 
-	port     string
-	shutdown func()
+	port string
 }
 
 func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
@@ -76,6 +77,9 @@ func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, e
 		return nil, eris.Wrapf(err, "error dialing evm base shard address at %q", baseShardQueryAddr)
 	}
 	rtr.ShardQuerier = shardtypes.NewQueryClient(conn2)
+
+	rtr.server = grpc.NewServer()
+	routerv1.RegisterMsgServer(rtr.server, rtr)
 	return rtr, nil
 }
 
@@ -113,25 +117,22 @@ func (r *router) QueryTransactions(ctx context.Context, req *shardtypes.QueryTra
 }
 
 func (r *router) Shutdown() {
-	if r.shutdown != nil {
-		r.shutdown()
+	if r.server != nil {
+		r.server.GracefulStop()
 	}
 }
 
 func (r *router) Start() error {
-	server := grpc.NewServer()
-	routerv1.RegisterMsgServer(server, r)
 	listener, err := net.Listen("tcp", ":"+r.port)
 	if err != nil {
 		return eris.Wrapf(err, "error listening to port %s", r.port)
 	}
 	go func() {
-		err = eris.Wrap(server.Serve(listener), "error serving server")
+		err = eris.Wrap(r.server.Serve(listener), "error serving server")
 		if err != nil {
 			zerolog.Fatal().Err(err).Msg(eris.ToString(err, true))
 		}
 	}()
-	r.shutdown = server.GracefulStop
 	return nil
 }
 
