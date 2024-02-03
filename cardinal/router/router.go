@@ -42,7 +42,7 @@ type Router interface {
 
 	// Shutdown gracefully stops the EVM gRPC handler.
 	Shutdown()
-	// Start serves the EVM gRPC grpcServer.
+	// Start serves the EVM gRPC server.
 	Start() error
 }
 
@@ -133,7 +133,7 @@ func (r *router) Start() error {
 		return eris.Wrapf(err, "error listening to port %s", r.port)
 	}
 	go func() {
-		err = eris.Wrap(r.server.grpcServer.Serve(listener), "error serving grpcServer")
+		err = eris.Wrap(r.server.grpcServer.Serve(listener), "error serving gRPC server")
 		if err != nil {
 			zerolog.Fatal().Err(err).Msg(eris.ToString(err, true))
 		}
