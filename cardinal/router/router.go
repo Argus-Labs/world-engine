@@ -46,12 +46,9 @@ type Router interface {
 	Start() error
 }
 
-var _ routerv1.MsgServer = (*router)(nil)
 var _ Router = (*router)(nil)
 
 type router struct {
-	routerv1.MsgServer
-
 	provider       Provider
 	ShardSequencer shard.TransactionHandlerClient
 	ShardQuerier   shardtypes.QueryClient
@@ -77,7 +74,7 @@ func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, e
 	rtr.ShardQuerier = shardtypes.NewQueryClient(conn2)
 
 	rtr.server = newEvmServer(provider)
-	routerv1.RegisterMsgServer(rtr.server.grpcServer, rtr)
+	routerv1.RegisterMsgServer(rtr.server.grpcServer, rtr.server)
 	return rtr, nil
 }
 

@@ -63,18 +63,18 @@ func (f *mockMsg) IsEVMCompatible() bool {
 }
 
 func TestRouter_SendMessage_NonCompatibleEVMMessage(t *testing.T) {
-	router, provider := getTestRouterAndProvider(t)
+	rtr, provider := getTestRouterAndProvider(t)
 	msg := &mockMsg{evmCompat: false}
 	name := "foobar"
 	provider.EXPECT().GetMessageByName(name).Return(msg, true).Times(1)
 
-	res, err := router.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name})
+	res, err := rtr.server.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name})
 	assert.NilError(t, err)
 	assert.Equal(t, res.Code, CodeUnsupportedMessage)
 }
 
 func TestRouter_SendMessage_FailedDecode(t *testing.T) {
-	router, provider := getTestRouterAndProvider(t)
+	rtr, provider := getTestRouterAndProvider(t)
 	msg := &mockMsg{evmCompat: true, decodeEVMBytes: func() ([]byte, error) {
 		return nil, fmt.Errorf("some error")
 	}}
@@ -82,7 +82,7 @@ func TestRouter_SendMessage_FailedDecode(t *testing.T) {
 
 	provider.EXPECT().GetMessageByName(name).Return(msg, true).Times(1)
 
-	res, err := router.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name})
+	res, err := rtr.server.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name})
 	assert.NilError(t, err)
 	assert.Equal(t, res.Code, CodeInvalidFormat)
 }
@@ -98,7 +98,7 @@ func TestRouter_SendMessage_PersonaNotFound(t *testing.T) {
 	provider.EXPECT().GetMessageByName(name).Return(msg, true).Times(1)
 	provider.EXPECT().GetPersonaForEVMAddress(sender).Return("", fmt.Errorf("not found")).Times(1)
 
-	res, err := router.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name, Sender: sender})
+	res, err := router.server.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name, Sender: sender})
 	assert.NilError(t, err)
 	assert.Equal(t, res.Code, CodeUnauthorized)
 }
@@ -126,7 +126,7 @@ func TestRouter_SendMessage_ResultDoesNotExist(t *testing.T) {
 	provider.EXPECT().WaitForNextTick().Return(true).Times(1)
 	provider.EXPECT().ConsumeEVMMsgResult(evmTxHash).Return(nil, nil, "", false).Times(1)
 
-	res, err := router.SendMessage(context.Background(), req)
+	res, err := router.server.SendMessage(context.Background(), req)
 	assert.NilError(t, err)
 	assert.Equal(t, res.Code, CodeNoResult)
 }
@@ -154,7 +154,7 @@ func TestRouter_SendMessage_TxSuccess(t *testing.T) {
 	provider.EXPECT().WaitForNextTick().Return(true).Times(1)
 	provider.EXPECT().ConsumeEVMMsgResult(evmTxHash).Return([]byte("response"), nil, evmTxHash, true).Times(1)
 
-	res, err := router.SendMessage(context.Background(), req)
+	res, err := router.server.SendMessage(context.Background(), req)
 	assert.NilError(t, err)
 	assert.Equal(t, res.Code, CodeSuccess)
 }
@@ -185,7 +185,7 @@ func TestRouter_SendMessage_TxFailed(t *testing.T) {
 		Return([]byte("response"), []error{errors.New("oh no"), errors.New("oh no1")}, evmTxHash, true).
 		Times(1)
 
-	res, err := router.SendMessage(context.Background(), req)
+	res, err := router.server.SendMessage(context.Background(), req)
 	assert.NilError(t, err)
 	assert.Equal(t, res.Code, CodeTxFailed)
 }
@@ -194,5 +194,5 @@ func getTestRouterAndProvider(t *testing.T) (*router, *mocks.MockProvider) {
 	ctrl := gomock.NewController(t)
 	provider := mocks.NewMockProvider(ctrl)
 
-	return &router{provider: provider}, provider
+	return &router{provider: provider, server: newEvmServer(provider)}, provider
 }

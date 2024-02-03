@@ -20,7 +20,11 @@ const (
 	CodeInvalidFormat
 )
 
+var _ routerv1.MsgServer = (*evmServer)(nil)
+
 type evmServer struct {
+	routerv1.MsgServer
+
 	provider   Provider
 	grpcServer *grpc.Server
 }
