@@ -599,7 +599,7 @@ func (e *Engine) Tick(ctx context.Context) error {
 
 	e.setEvmResults(txQueue.GetEVMTxs())
 	if txQueue.GetAmountOfTxs() != 0 && e.router != nil && !e.isRecovering.Load() {
-		err := e.router.Submit(ctx, txQueue.Transactions(), e.namespace.String(), e.tick.Load(), e.timestamp.Load())
+		err := e.router.SubmitTxBlob(ctx, txQueue.Transactions(), e.namespace.String(), e.tick.Load(), e.timestamp.Load())
 		if err != nil {
 			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
 		}

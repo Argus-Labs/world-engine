@@ -28,8 +28,8 @@ const (
 //   - Sending transactions to the base shard's game sequencer.
 //   - Querying transactions from the base shard to rebuild game state.
 type Router interface {
-	// Submit submits transactions processed in a tick to the base shard.
-	Submit(
+	// SubmitTxBlob submits transactions processed in a tick to the base shard.
+	SubmitTxBlob(
 		ctx context.Context,
 		processedTxs txpool.TxMap,
 		namespace string,
@@ -205,7 +205,7 @@ func (r *routerImpl) QueryShard(_ context.Context, req *routerv1.QueryShardReque
 	return &routerv1.QueryShardResponse{Response: reply}, nil
 }
 
-func (r *routerImpl) Submit(
+func (r *routerImpl) SubmitTxBlob(
 	ctx context.Context,
 	processedTxs txpool.TxMap,
 	namespace string,
