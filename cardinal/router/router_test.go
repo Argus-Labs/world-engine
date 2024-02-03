@@ -98,7 +98,10 @@ func TestRouter_SendMessage_PersonaNotFound(t *testing.T) {
 	provider.EXPECT().GetMessageByName(name).Return(msg, true).Times(1)
 	provider.EXPECT().GetPersonaForEVMAddress(sender).Return("", fmt.Errorf("not found")).Times(1)
 
-	res, err := router.server.SendMessage(context.Background(), &routerv1.SendMessageRequest{MessageId: name, Sender: sender})
+	res, err := router.server.SendMessage(
+		context.Background(),
+		&routerv1.SendMessageRequest{MessageId: name, Sender: sender},
+	)
 	assert.NilError(t, err)
 	assert.Equal(t, res.Code, CodeUnauthorized)
 }
