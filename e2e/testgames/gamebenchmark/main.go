@@ -57,7 +57,6 @@ func main() {
 	if err := pprof.StartCPUProfile(profileFile); err != nil {
 		panic("could not start CPU profile: " + err.Error())
 	}
-	//defer pprof.StopCPUProfile()
 	defer func() {
 		pprof.StopCPUProfile()
 		cmd := exec.Command("go", "tool", "pprof", "-raw", fullFilename)
@@ -68,7 +67,7 @@ func main() {
 			return
 		}
 		zerolog.Info().Msgf("writing raw to file: %s", fullOutputFilename)
-		err = os.WriteFile(fullOutputFilename, out, 0644)
+		err = os.WriteFile(fullOutputFilename, out, 0600)
 		if err != nil {
 			zerolog.Err(eris.Wrap(err, "")).Msgf("failed to write to output file: %s", fullOutputFilename)
 			return
