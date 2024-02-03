@@ -42,7 +42,7 @@ type Router interface {
 
 	// Shutdown gracefully stops the EVM gRPC handler.
 	Shutdown()
-	// Start serves the EVM gRPC server.
+	// Start serves the EVM gRPC grpcServer.
 	Start() error
 }
 
@@ -52,13 +52,12 @@ var _ Router = (*router)(nil)
 type router struct {
 	routerv1.MsgServer
 
-	server *grpc.Server
-
 	provider       Provider
 	ShardSequencer shard.TransactionHandlerClient
 	ShardQuerier   shardtypes.QueryClient
 
-	port string
+	server *evmServer
+	port   string
 }
 
 func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
@@ -77,8 +76,8 @@ func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, e
 	}
 	rtr.ShardQuerier = shardtypes.NewQueryClient(conn2)
 
-	rtr.server = grpc.NewServer()
-	routerv1.RegisterMsgServer(rtr.server, rtr)
+	rtr.server = newEvmServer(provider)
+	routerv1.RegisterMsgServer(rtr.server.grpcServer, rtr)
 	return rtr, nil
 }
 
@@ -124,7 +123,7 @@ func (r *router) QueryTransactions(ctx context.Context, req *shardtypes.QueryTra
 
 func (r *router) Shutdown() {
 	if r.server != nil {
-		r.server.GracefulStop()
+		r.server.grpcServer.GracefulStop()
 	}
 }
 
@@ -134,7 +133,7 @@ func (r *router) Start() error {
 		return eris.Wrapf(err, "error listening to port %s", r.port)
 	}
 	go func() {
-		err = eris.Wrap(r.server.Serve(listener), "error serving server")
+		err = eris.Wrap(r.server.grpcServer.Serve(listener), "error serving grpcServer")
 		if err != nil {
 			zerolog.Fatal().Err(err).Msg(eris.ToString(err, true))
 		}

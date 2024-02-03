@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	zerolog "github.com/rs/zerolog/log"
+	"google.golang.org/grpc"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -19,11 +20,23 @@ const (
 	CodeInvalidFormat
 )
 
-// SendMessage is the server impl that receives SendMessage requests from the base shard client.
-func (r *router) SendMessage(_ context.Context, req *routerv1.SendMessageRequest,
+type evmServer struct {
+	provider   Provider
+	grpcServer *grpc.Server
+}
+
+func newEvmServer(p Provider) *evmServer {
+	return &evmServer{
+		provider:   p,
+		grpcServer: grpc.NewServer(),
+	}
+}
+
+// SendMessage is the grpcServer impl that receives SendMessage requests from the base shard client.
+func (e *evmServer) SendMessage(_ context.Context, req *routerv1.SendMessageRequest,
 ) (*routerv1.SendMessageResponse, error) {
 	// first we check if we can extract the transaction associated with the id
-	msgType, exists := r.provider.GetMessageByName(req.MessageId)
+	msgType, exists := e.provider.GetMessageByName(req.MessageId)
 	if !exists || !msgType.IsEVMCompatible() {
 		return &routerv1.SendMessageResponse{
 			Errs: fmt.Errorf(
@@ -48,7 +61,7 @@ func (r *router) SendMessage(_ context.Context, req *routerv1.SendMessageRequest
 	}
 
 	// check if the sender has a linked persona address. if not don't process the transaction.
-	personaTag, err := r.provider.GetPersonaForEVMAddress(req.Sender)
+	personaTag, err := e.provider.GetPersonaForEVMAddress(req.Sender)
 	if err != nil {
 		return &routerv1.SendMessageResponse{
 			Errs: fmt.Errorf("unable to find persona tag associated with the EVM address %q: %w", req.Sender, err).
@@ -59,12 +72,12 @@ func (r *router) SendMessage(_ context.Context, req *routerv1.SendMessageRequest
 	}
 
 	// since we are injecting the msgValue directly, all we need is the persona tag in the signed payload.
-	// the sig checking happens in the server's Handler, not in ecs.Engine.
+	// the sig checking happens in the grpcServer's Handler, not in ecs.Engine.
 	sig := &sign.Transaction{PersonaTag: personaTag}
-	r.provider.AddEVMTransaction(msgType.ID(), msgValue, sig, req.EvmTxHash)
+	e.provider.AddEVMTransaction(msgType.ID(), msgValue, sig, req.EvmTxHash)
 
 	// wait for the next tick so the msgValue gets processed
-	success := r.provider.WaitForNextTick()
+	success := e.provider.WaitForNextTick()
 	if !success {
 		return &routerv1.SendMessageResponse{
 			EvmTxHash: req.EvmTxHash,
@@ -73,7 +86,7 @@ func (r *router) SendMessage(_ context.Context, req *routerv1.SendMessageRequest
 	}
 
 	// check for the msgValue receipt.
-	result, errs, evmTxHash, exists := r.provider.ConsumeEVMMsgResult(req.EvmTxHash)
+	result, errs, evmTxHash, exists := e.provider.ConsumeEVMMsgResult(req.EvmTxHash)
 	if !exists {
 		return &routerv1.SendMessageResponse{
 			EvmTxHash: req.EvmTxHash,
@@ -96,12 +109,12 @@ func (r *router) SendMessage(_ context.Context, req *routerv1.SendMessageRequest
 	}, nil
 }
 
-// QueryShard is the server impl that answers query requests from the base shard client.
-func (r *router) QueryShard(_ context.Context, req *routerv1.QueryShardRequest) (
+// QueryShard is the grpcServer impl that answers query requests from the base shard client.
+func (e *evmServer) QueryShard(_ context.Context, req *routerv1.QueryShardRequest) (
 	*routerv1.QueryShardResponse, error,
 ) {
 	zerolog.Logger.Debug().Msgf("get request for %q", req.Resource)
-	reply, err := r.provider.HandleEVMQuery(req.Resource, req.Request)
+	reply, err := e.provider.HandleEVMQuery(req.Resource, req.Request)
 	if err != nil {
 		zerolog.Logger.Error().Err(err).Msg("failed to handle query")
 		return nil, err
