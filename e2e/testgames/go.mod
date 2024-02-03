@@ -17,6 +17,7 @@ replace (
 
 require (
 	github.com/rotisserie/eris v0.5.4
+	github.com/rs/zerolog v1.31.0
 	pkg.world.dev/world-engine/cardinal v1.0.6-beta.0.20240104191834-89728d063830
 )
 
@@ -127,7 +128,6 @@ require (
 	github.com/redis/go-redis/v9 v9.1.0 // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect
-	github.com/rs/zerolog v1.31.0 // indirect
 	github.com/sasha-s/go-deadlock v0.3.1 // indirect
 	github.com/savsgio/gotils v0.0.0-20230208104028-c358bd845dee // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.7.0 // indirect

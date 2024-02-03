@@ -1,0 +1,82 @@
+PeriodType: cpu nanoseconds
+Period: 10000000
+Time: 2024-02-03 01:51:24.375006877 +0000 UTC
+Duration: 1.22
+Samples:
+samples/count cpu/nanoseconds
+          1   10000000: 1 2 3 4 5 6 7 8 
+          1   10000000: 9 10 11 12 13 14 
+          1   10000000: 15 16 17 18 19 20 21 22 23 13 14 
+          1   10000000: 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 
+          1   10000000: 15 16 17 18 19 20 21 43 44 45 
+          1   10000000: 46 47 48 49 50 51 52 53 54 
+Locations
+     1: 0x45ae8c M=1 runtime.funcMaxSPDelta /usr/local/go/src/runtime/symtab.go:1005 s=1003
+     2: 0x456523 M=1 runtime.newstack /usr/local/go/src/runtime/stack.go:1085 s=966
+     3: 0x5bc7cb M=1 net.initConfVal /usr/local/go/src/net/conf.go:87 s=87
+     4: 0x48ca0f M=1 sync.(*Once).doSlow /usr/local/go/src/sync/once.go:74 s=69
+     5: 0x5d923f M=1 sync.(*Once).Do /usr/local/go/src/sync/once.go:65 s=48
+             net.systemConf /usr/local/go/src/net/conf.go:81 s=80
+             net.(*Resolver).lookupIP /usr/local/go/src/net/lookup_unix.go:68 s=64
+     6: 0x5cbe93 M=1 net.glob..func1 /usr/local/go/src/net/hook.go:23 s=17
+     7: 0x5d65b7 M=1 net.(*Resolver).lookupIPAddr.func1 /usr/local/go/src/net/lookup.go:324 s=323
+     8: 0x5b8903 M=1 internal/singleflight.(*Group).doCall /usr/local/go/src/internal/singleflight/singleflight.go:93 s=92
+     9: 0x5aefd0 M=1 vendor/golang.org/x/net/dns/dnsmessage.(*header).pack /usr/local/go/src/vendor/golang.org/x/net/dns/dnsmessage/message.go:429 s=429
+    10: 0x5b1fdf M=1 vendor/golang.org/x/net/dns/dnsmessage.(*Builder).Finish /usr/local/go/src/vendor/golang.org/x/net/dns/dnsmessage/message.go:1626 s=1620
+    11: 0x5c2b0f M=1 net.newRequest /usr/local/go/src/net/dnsclient_unix.go:77 s=55
+    12: 0x5c3927 M=1 net.(*Resolver).exchange /usr/local/go/src/net/dnsclient_unix.go:163 s=161
+    13: 0x5c4a0f M=1 net.(*Resolver).tryOneName /usr/local/go/src/net/dnsclient_unix.go:277 s=258
+    14: 0x5c7827 M=1 net.(*Resolver).goLookupIPCNAMEOrder.func3.1 /usr/local/go/src/net/dnsclient_unix.go:653 s=652
+    15: 0x406880 M=1 runtime/internal/syscall.Syscall6 /usr/local/go/src/runtime/internal/syscall/asm_linux_arm64.s:17 s=8
+    16: 0x40683b M=1 syscall.RawSyscall6 /usr/local/go/src/runtime/internal/syscall/syscall_linux.go:38 s=37
+    17: 0x4c1daf M=1 syscall.Syscall /usr/local/go/src/syscall/syscall_linux.go:82 s=68
+    18: 0x4bfbef M=1 syscall.write /usr/local/go/src/syscall/zsyscall_linux_arm64.go:949 s=942
+    19: 0x4e147f M=1 syscall.Write /usr/local/go/src/syscall/syscall_unix.go:209 s=199
+             internal/poll.ignoringEINTRIO /usr/local/go/src/internal/poll/fd_unix.go:736 s=734
+             internal/poll.(*FD).Write /usr/local/go/src/internal/poll/fd_unix.go:380 s=366
+    20: 0x5c9b97 M=1 net.(*netFD).Write /usr/local/go/src/net/fd_posix.go:96 s=95
+    21: 0x5d9ee3 M=1 net.(*conn).Write /usr/local/go/src/net/net.go:191 s=187
+    22: 0x5c2ef3 M=1 net.dnsPacketRoundTrip /usr/local/go/src/net/dnsclient_unix.go:102 s=101
+    23: 0x5c3c13 M=1 net.(*Resolver).exchange /usr/local/go/src/net/dnsclient_unix.go:187 s=161
+    24: 0x42da60 M=1 runtime.(*mspan).init /usr/local/go/src/runtime/mheap.go:1679 s=1677
+    25: 0x42cfaf M=1 runtime.(*mheap).initSpan /usr/local/go/src/runtime/mheap.go:1384 s=1381
+    26: 0x42ccf7 M=1 runtime.(*mheap).allocSpan /usr/local/go/src/runtime/mheap.go:1344 s=1175
+    27: 0x42c55b M=1 runtime.(*mheap).alloc.func1 /usr/local/go/src/runtime/mheap.go:968 s=962
+    28: 0x46e4fb M=1 runtime.systemstack /usr/local/go/src/runtime/asm_arm64.s:243 s=206
+    29: 0x42c4b3 M=1 runtime.(*mheap).alloc /usr/local/go/src/runtime/mheap.go:962 s=957
+    30: 0x419f3b M=1 runtime.(*mcentral).grow /usr/local/go/src/runtime/mcentral.go:246 s=242
+    31: 0x419d97 M=1 runtime.(*mcentral).cacheSpan /usr/local/go/src/runtime/mcentral.go:166 s=81
+    32: 0x41941b M=1 runtime.(*mcache).refill /usr/local/go/src/runtime/mcache.go:182 s=147
+    33: 0x410163 M=1 runtime.(*mcache).nextFree /usr/local/go/src/runtime/malloc.go:929 s=919
+    34: 0x4106e3 M=1 runtime.mallocgc /usr/local/go/src/runtime/malloc.go:1116 s=952
+    35: 0x4542ff M=1 runtime.makeslice /usr/local/go/src/runtime/slice.go:103 s=88
+    36: 0xf9b9e3 M=1 github.com/DataDog/datadog-go/v5/statsd.newStatsdBuffer /go/pkg/mod/github.com/!data!dog/datadog-go/v5@v5.4.0/statsd/buffer.go:36 s=34
+             github.com/DataDog/datadog-go/v5/statsd.(*bufferPool).addNewBuffer /go/pkg/mod/github.com/!data!dog/datadog-go/v5@v5.4.0/statsd/buffer_pool.go:22 s=21
+             github.com/DataDog/datadog-go/v5/statsd.newBufferPool /go/pkg/mod/github.com/!data!dog/datadog-go/v5@v5.4.0/statsd/buffer_pool.go:16 s=9
+             github.com/DataDog/datadog-go/v5/statsd.newWithWriter /go/pkg/mod/github.com/!data!dog/datadog-go/v5@v5.4.0/statsd/statsd.go:493 s=445
+    37: 0xf9b3c7 M=1 github.com/DataDog/datadog-go/v5/statsd.New /go/pkg/mod/github.com/!data!dog/datadog-go/v5@v5.4.0/statsd/statsd.go:406 s=395
+    38: 0x110b443 M=1 pkg.world.dev/world-engine/cardinal/statsd.initStatsd /usr/src/app/cardinal/statsd/statsd.go:55 s=46
+    39: 0x110b267 M=1 pkg.world.dev/world-engine/cardinal/statsd.Init /usr/src/app/cardinal/statsd/statsd.go:36 s=31
+    40: 0x131e497 M=1 pkg.world.dev/world-engine/cardinal.NewWorld /usr/src/app/cardinal/world.go:129 s=73
+    41: 0x132112f M=1 main.main /usr/src/app/e2e/testgames/gamebenchmark/main.go:90 s=44
+    42: 0x43dbdb M=1 runtime.main /usr/local/go/src/runtime/proc.go:267 s=144
+    43: 0xfa11cb M=1 github.com/DataDog/datadog-go/v5/statsd.(*udpWriter).Write /go/pkg/mod/github.com/!data!dog/datadog-go/v5@v5.4.0/statsd/udp.go:29 s=28
+    44: 0xf9a6c3 M=1 github.com/DataDog/datadog-go/v5/statsd.(*sender).write /go/pkg/mod/github.com/!data!dog/datadog-go/v5@v5.4.0/statsd/sender.go:79 s=78
+    45: 0xf9a8f3 M=1 github.com/DataDog/datadog-go/v5/statsd.(*sender).sendLoop /go/pkg/mod/github.com/!data!dog/datadog-go/v5@v5.4.0/statsd/sender.go:108 s=103
+    46: 0x11e0698 M=1 github.com/rivo/uniseg.propertySearch[go.shape.[3]int] /go/pkg/mod/github.com/rivo/uniseg@v0.4.4/properties.go:143 s=137
+             github.com/rivo/uniseg.property /go/pkg/mod/github.com/rivo/uniseg@v0.4.4/properties.go:160 s=159
+             github.com/rivo/uniseg.runeWidth /go/pkg/mod/github.com/rivo/uniseg@v0.4.4/width.go:36 s=16
+    47: 0x11e01e7 M=1 github.com/rivo/uniseg.StepString /go/pkg/mod/github.com/rivo/uniseg@v0.4.4/step.go:203 s=173
+    48: 0x11debef M=1 github.com/rivo/uniseg.(*Graphemes).Next /go/pkg/mod/github.com/rivo/uniseg@v0.4.4/grapheme.go:60 s=52
+    49: 0x11e1d63 M=1 github.com/mattn/go-runewidth.(*Condition).StringWidth /go/pkg/mod/github.com/mattn/go-runewidth@v0.0.15/runewidth.go:179 s=177
+    50: 0x11fa6ff M=1 github.com/mattn/go-runewidth.StringWidth /go/pkg/mod/github.com/mattn/go-runewidth@v0.0.15/runewidth.go:323 s=322
+             github.com/gofiber/fiber/v2.(*App).startupMessage.func3 /go/pkg/mod/github.com/gofiber/fiber/v2@v2.52.0/listen.go:295 s=293
+    51: 0x11f9743 M=1 github.com/gofiber/fiber/v2.(*App).startupMessage /go/pkg/mod/github.com/gofiber/fiber/v2@v2.52.0/listen.go:344 s=258
+    52: 0x11f8783 M=1 github.com/gofiber/fiber/v2.(*App).Listen /go/pkg/mod/github.com/gofiber/fiber/v2@v2.52.0/listen.go:84 s=64
+    53: 0x1318c1b M=1 pkg.world.dev/world-engine/cardinal/server.(*Server).Serve /usr/src/app/cardinal/server/server.go:73 s=66
+    54: 0x131f06f M=1 pkg.world.dev/world-engine/cardinal.(*World).StartGame.func1 /usr/src/app/cardinal/world.go:338 s=333
+Mappings
+1: 0x400000/0x2c8d000/0x0 /usr/local/bin/app ff9b935c0d16fc0acef0df319033542e0b3878b3 [FN]
+2: 0xffff8ec10000/0xffff8ed97000/0x0 /usr/lib/aarch64-linux-gnu/libc.so.6 09928b270aa19314161b21f565d1a9732c2c5332 
+3: 0xffff8edc8000/0xffff8edee000/0x0 /usr/lib/aarch64-linux-gnu/ld-linux-aarch64.so.1 d01a821bb4484710749a141fdfd9ddbf4227be4e 
+4: 0xffff8ee05000/0xffff8ee06000/0x0 [vdso]  

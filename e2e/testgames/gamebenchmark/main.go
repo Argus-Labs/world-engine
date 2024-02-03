@@ -4,17 +4,19 @@ import (
 	"errors"
 	"log"
 	"os"
+	"os/exec"
 	"runtime/pprof"
 
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/sys"
 	"github.com/rotisserie/eris"
+	zerolog "github.com/rs/zerolog/log"
 	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
 )
 
-const TicksUntilTermination = 180
+const TicksUntilTermination = 100
 
 func sumSystems(systems ...cardinal.System) cardinal.System {
 	return func(wCtx cardinal.WorldContext) error {
@@ -42,7 +44,10 @@ func initializeSystems(
 func main() {
 	// This code is a bit redundant will change.
 	filename := "cpu.prof"
-	fullFilename := "/profiles/" + filename
+	folder := "/profiles"
+	outputFilename := "cpu.prof.raw.txt"
+	fullFilename := folder + "/" + filename
+	fullOutputFilename := folder + "/" + outputFilename
 	profileFile, err := os.Create(fullFilename)
 	if err != nil {
 		log.Fatal(err)
@@ -52,8 +57,23 @@ func main() {
 	if err := pprof.StartCPUProfile(profileFile); err != nil {
 		panic("could not start CPU profile: " + err.Error())
 	}
-	defer pprof.StopCPUProfile()
-	pprof.StopCPUProfile()
+	//defer pprof.StopCPUProfile()
+	defer func() {
+		pprof.StopCPUProfile()
+		cmd := exec.Command("go", "tool", "pprof", "-raw", fullFilename)
+		zerolog.Info().Msgf("converting profile to raw: %s", fullFilename)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			zerolog.Err(eris.Wrap(err, "")).Msgf("failed to convert profile to raw: %s", fullFilename)
+			return
+		}
+		zerolog.Info().Msgf("writing raw to file: %s", fullOutputFilename)
+		err = os.WriteFile(fullOutputFilename, out, 0644)
+		if err != nil {
+			zerolog.Err(eris.Wrap(err, "")).Msgf("failed to write to output file: %s", fullOutputFilename)
+			return
+		}
+	}()
 
 	initsystems := []cardinal.System{}
 	systems := []cardinal.System{}

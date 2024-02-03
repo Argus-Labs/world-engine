@@ -2,6 +2,9 @@ FROM golang:1.21
 
 ARG CMD_ARG
 
+# Install Perl
+RUN apt-get update && apt-get install -y perl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /usr/src/app
 
 COPY ./ ./
