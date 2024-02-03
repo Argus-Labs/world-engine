@@ -291,7 +291,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 
 	rtr.
 		EXPECT().
-		Submit(
+		SubmitTxBlob(
 			gomock.Any(),
 			txpool.TxMap{fooMessage.ID(): {{
 				MsgID:           fooMessage.ID(),
