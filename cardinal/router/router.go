@@ -61,6 +61,24 @@ type router struct {
 	shutdown func()
 }
 
+func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
+	rtr := &router{port: defaultPort, provider: provider}
+
+	conn, err := grpc.Dial(sequencerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", sequencerAddr)
+	}
+	rtr.ShardSequencer = shard.NewTransactionHandlerClient(conn)
+
+	// we don't need secure comms for this connection, cause we're just querying cosmos public RPC endpoints.
+	conn2, err := grpc.Dial(baseShardQueryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, eris.Wrapf(err, "error dialing evm base shard address at %q", baseShardQueryAddr)
+	}
+	rtr.ShardQuerier = shardtypes.NewQueryClient(conn2)
+	return rtr, nil
+}
+
 func (r *router) Shutdown() {
 	if r.shutdown != nil {
 		r.shutdown()
@@ -82,24 +100,6 @@ func (r *router) Start() error {
 	}()
 	r.shutdown = server.GracefulStop
 	return nil
-}
-
-func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
-	rtr := &router{port: defaultPort, provider: provider}
-
-	conn, err := grpc.Dial(sequencerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, eris.Wrapf(err, "error dialing shard seqeuncer address at %q", sequencerAddr)
-	}
-	rtr.ShardSequencer = shard.NewTransactionHandlerClient(conn)
-
-	// we don't need secure comms for this connection, cause we're just querying cosmos public RPC endpoints.
-	conn2, err := grpc.Dial(baseShardQueryAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, eris.Wrapf(err, "error dialing evm base shard address at %q", baseShardQueryAddr)
-	}
-	rtr.ShardQuerier = shardtypes.NewQueryClient(conn2)
-	return rtr, nil
 }
 
 func (r *router) SubmitTxBlob(
