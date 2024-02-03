@@ -79,29 +79,6 @@ func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, e
 	return rtr, nil
 }
 
-func (r *router) Shutdown() {
-	if r.shutdown != nil {
-		r.shutdown()
-	}
-}
-
-func (r *router) Start() error {
-	server := grpc.NewServer()
-	routerv1.RegisterMsgServer(server, r)
-	listener, err := net.Listen("tcp", ":"+r.port)
-	if err != nil {
-		return eris.Wrapf(err, "error listening to port %s", r.port)
-	}
-	go func() {
-		err = eris.Wrap(server.Serve(listener), "error serving server")
-		if err != nil {
-			zerolog.Fatal().Err(err).Msg(eris.ToString(err, true))
-		}
-	}()
-	r.shutdown = server.GracefulStop
-	return nil
-}
-
 func (r *router) SubmitTxBlob(
 	ctx context.Context,
 	processedTxs txpool.TxMap,
@@ -126,12 +103,36 @@ func (r *router) SubmitTxBlob(
 	_, err := r.ShardSequencer.Submit(ctx, &req)
 	return eris.Wrap(err, "")
 }
+
 func (r *router) QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
 	*shardtypes.QueryTransactionsResponse,
 	error,
 ) {
 	res, err := r.ShardQuerier.Transactions(ctx, req)
 	return res, eris.Wrap(err, "")
+}
+
+func (r *router) Shutdown() {
+	if r.shutdown != nil {
+		r.shutdown()
+	}
+}
+
+func (r *router) Start() error {
+	server := grpc.NewServer()
+	routerv1.RegisterMsgServer(server, r)
+	listener, err := net.Listen("tcp", ":"+r.port)
+	if err != nil {
+		return eris.Wrapf(err, "error listening to port %s", r.port)
+	}
+	go func() {
+		err = eris.Wrap(server.Serve(listener), "error serving server")
+		if err != nil {
+			zerolog.Fatal().Err(err).Msg(eris.ToString(err, true))
+		}
+	}()
+	r.shutdown = server.GracefulStop
+	return nil
 }
 
 func transactionToProto(sp *sign.Transaction) *shard.Transaction {
