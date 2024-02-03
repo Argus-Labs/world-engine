@@ -21,7 +21,14 @@ const (
 )
 
 //go:generate mockgen -source=router.go -package mocks -destination=mocks/router.go
+
+// Router provides functionality for Cardinal to interact with the EVM Base Shard.
+// This involves a few responsibilities:
+//   - Receiving API requests from EVM smart contracts on the base shard.
+//   - Sending transactions to the base shard's game sequencer.
+//   - Querying transactions from the base shard to rebuild game state.
 type Router interface {
+	// Submit submits transactions processed in a tick to the base shard.
 	Submit(
 		ctx context.Context,
 		processedTxs txpool.TxMap,
@@ -30,12 +37,15 @@ type Router interface {
 		unixTimestamp uint64,
 	) error
 
+	// QueryTransactions queries transactions from the base shard.
 	QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
 		*shardtypes.QueryTransactionsResponse,
 		error,
 	)
 
+	// Shutdown gracefully stops the EVM gRPC handler.
 	Shutdown()
+	// Run serves the EVM gRPC server.
 	Run() error
 }
 
