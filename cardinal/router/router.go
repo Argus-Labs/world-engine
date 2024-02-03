@@ -11,7 +11,6 @@ import (
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
-	"pkg.world.dev/world-engine/sign"
 )
 
 const (
@@ -94,7 +93,14 @@ func (r *router) SubmitTxBlob(
 	for msgID, txs := range processedTxs {
 		protoTxs := make([]*shard.Transaction, 0, len(txs))
 		for _, txData := range txs {
-			protoTxs = append(protoTxs, transactionToProto(txData.Tx))
+			tx := txData.Tx
+			protoTxs = append(protoTxs, &shard.Transaction{
+				PersonaTag: tx.PersonaTag,
+				Namespace:  tx.Namespace,
+				Nonce:      tx.Nonce,
+				Signature:  tx.Signature,
+				Body:       tx.Body,
+			})
 		}
 		messageIDtoTxs[uint64(msgID)] = &shard.Transactions{Txs: protoTxs}
 	}
@@ -134,14 +140,4 @@ func (r *router) Start() error {
 		}
 	}()
 	return nil
-}
-
-func transactionToProto(sp *sign.Transaction) *shard.Transaction {
-	return &shard.Transaction{
-		PersonaTag: sp.PersonaTag,
-		Namespace:  sp.Namespace,
-		Nonce:      sp.Nonce,
-		Signature:  sp.Signature,
-		Body:       sp.Body,
-	}
 }
