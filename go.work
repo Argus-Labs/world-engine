@@ -10,4 +10,5 @@ use (
 	relay/nakama
 	rift
 	sign
+	starter-game-template/cardinal
 )

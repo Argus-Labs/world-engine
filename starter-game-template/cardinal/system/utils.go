@@ -8,14 +8,11 @@ import (
 
 // queryTargetPlayer queries for the target player's entity ID and health component.
 func queryTargetPlayer(world cardinal.WorldContext, targetNickname string) (cardinal.EntityID, *comp.Health, error) {
-	search, err := world.NewSearch(cardinal.Exact(comp.Player{}, comp.Health{}))
-	if err != nil {
-		return 0, nil, err
-	}
+	search := world.NewSearch(cardinal.Exact(comp.Player{}, comp.Health{}))
 
 	var playerID cardinal.EntityID
 	var playerHealth *comp.Health
-	err = search.Each(world, func(id cardinal.EntityID) bool {
+	err := search.Each(world, func(id cardinal.EntityID) bool {
 		player, err := cardinal.GetComponent[comp.Player](world, id)
 		if err != nil {
 			return false
