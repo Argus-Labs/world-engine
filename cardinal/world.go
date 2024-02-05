@@ -7,14 +7,12 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/router"
 	"reflect"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
-
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
-	"pkg.world.dev/world-engine/cardinal/shard/evm"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -45,7 +43,6 @@ var (
 type World struct {
 	instance        *ecs.Engine
 	server          *server.Server
-	evmServer       evm.Server
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
@@ -84,16 +81,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	log.Logger.Info().Msgf("Starting a new Cardinal world in %s mode", cfg.CardinalMode)
-	if cfg.CardinalMode == RunModeProd {
-		a, err := adapter.New(adapter.Config{
-			ShardSequencerAddr: cfg.BaseShardSequencerAddress,
-			EVMBaseShardAddr:   cfg.BaseShardQueryAddress,
-		})
-		if err != nil {
-			return nil, eris.Wrapf(err, "failed to instantiate adapter")
-		}
-		ecsOptions = append(ecsOptions, ecs.WithAdapter(a))
-	} else {
+	if cfg.CardinalMode == RunModeDev {
 		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
 	}
@@ -107,7 +95,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		return nil, err
 	}
 
-	ecsWorld, err := ecs.NewEngine(
+	eng, err := ecs.NewEngine(
 		&redisStore,
 		entityCommandBuffer,
 		ecs.Namespace(cfg.CardinalNamespace),
@@ -115,6 +103,14 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if cfg.CardinalMode == RunModeProd {
+		rtr, err := router.New(cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress, eng)
+		if err != nil {
+			return nil, err
+		}
+		eng.SetRouter(rtr)
 	}
 
 	var metricTags []string
@@ -134,7 +130,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	world := &World{
-		instance:          ecsWorld,
+		instance:          eng,
 		serverOptions:     serverOptions,
 		endStartGame:      make(chan bool),
 		gameSequenceStage: gamestage.NewAtomic(),
@@ -305,25 +301,15 @@ func (w *World) StartGame() error {
 		}
 		return err
 	}
-	srvr, err := server.New(w.instance, w.instance.GetEventHub().NewWebSocketEventHandler(), w.serverOptions...)
+
+	var err error
+	w.server, err = server.New(w.instance, w.instance.GetEventHub().NewWebSocketEventHandler(), w.serverOptions...)
 	if err != nil {
 		return err
 	}
-	w.server = srvr
 
-	w.evmServer, err = evm.NewServer(w.instance)
-	if err != nil {
-		if !errors.Is(eris.Cause(err), evm.ErrNoEVMTypes) {
-			return err
-		}
-		w.instance.Logger.Debug().
-			Msgf("no EVM messages or queries specified. EVM server will not run: %s", eris.ToString(err, true))
-	} else {
-		w.instance.Logger.Debug().Msg("running world with EVM server")
-		err = w.evmServer.Serve()
-		if err != nil {
-			return err
-		}
+	if err := w.instance.RunRouter(); err != nil {
+		return eris.Wrap(err, "failed to start router service")
 	}
 
 	if w.tickChannel == nil {
@@ -366,9 +352,6 @@ func (w *World) Shutdown() error {
 	defer func() {
 		w.gameSequenceStage.Store(gamestage.StageShutDown)
 	}()
-	if w.evmServer != nil {
-		w.evmServer.Shutdown()
-	}
 	if w.server != nil {
 		if err := w.server.Shutdown(); err != nil {
 			return err

@@ -1,22 +1,14 @@
 package ecs
 
 import (
-	"os"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
-
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"os"
 	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
 )
 
 type Option func(e *Engine)
-
-func WithAdapter(adapter adapter.Adapter) Option {
-	return func(e *Engine) {
-		e.chain = adapter
-	}
-}
 
 func WithReceiptHistorySize(size int) Option {
 	return func(e *Engine) {

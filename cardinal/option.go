@@ -8,7 +8,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
 	"pkg.world.dev/world-engine/cardinal/server"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 )
 
 // WorldOption represents an option that can be used to augment how the cardinal.World will be run.
@@ -24,17 +23,6 @@ type Option func(*World)
 func WithPort(port string) WorldOption {
 	return WorldOption{
 		serverOption: server.WithPort(port),
-	}
-}
-
-// WithAdapter provides the world with communicate channels to the EVM base shard, enabling transaction storage and
-// transaction retrieval for state rebuilding purposes.
-//
-// NOTE: WithAdapter is automatically injected when Cardinal is running in production mode.
-// This option should only be used for testing, or to stub in your own adapter implementation.
-func WithAdapter(adapter adapter.Adapter) WorldOption {
-	return WorldOption{
-		ecsOption: ecs.WithAdapter(adapter),
 	}
 }
 
