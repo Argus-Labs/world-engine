@@ -42,7 +42,7 @@ func (a *AllowListTestSuite) TestUserIDRequired() {
 	// This context does not have a user ID.
 	ctx := context.Background()
 
-	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, nil, "")
+	_, err := handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, nil, "")
 	// handleClaimKey should fail because the userID cannot be found in the context
 	assert.IsError(t, err)
 }
@@ -59,7 +59,7 @@ func (a *AllowListTestSuite) TestErrorFromStorageIsReturnedToCaller() {
 		Return(nil, errors.New(errorMsg)).
 		Once()
 
-	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, `{"Key":"beta-key"}`)
+	_, err := handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, `{"Key":"beta-key"}`)
 	assert.ErrorContains(t, err, errorMsg)
 }
 
@@ -78,7 +78,7 @@ func (a *AllowListTestSuite) TestCannotClaimASecondBetaKey() {
 		Return(readResponse, nil).
 		Once()
 
-	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, `{"Key":"some-other-beta-key"}`)
+	_, err := handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, `{"Key":"some-other-beta-key"}`)
 	assert.ErrorContains(t, err, allowlist.ErrAlreadyVerified.Error())
 }
 
@@ -92,12 +92,12 @@ func (a *AllowListTestSuite) TestBadKeyRequestsAreRejected() {
 		Return(nil, nil).
 		Once()
 
-	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, `{"key": ""}`)
+	_, err := handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, `{"key": ""}`)
 	// Nakama returns its own custom runtime error which does NOT implement the Is method, making ErrorIs not helpful.
 	assert.ErrorContains(t, err, allowlist.ErrInvalidBetaKey.Error())
 
 	badBody := `{"key": "{{{{`
-	_, err = handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, badBody)
+	_, err = handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, badBody)
 	assert.IsError(t, err)
 }
 
@@ -161,7 +161,7 @@ func (a *AllowListTestSuite) TestAllowListFailsIfRPCRegistrationFails() {
 func (a *AllowListTestSuite) TestCanHandleBetaKeyGenerationFailures() {
 	t := a.T()
 	ctx := context.Background()
-	logger := testutils.NoopLogger(t)
+	logger := testutils.MockNoopLogger(t)
 
 	// No user ID is defined
 	_, err := handleGenerateKey(ctx, logger, nil, nil, `{"amount":10}`)
@@ -205,7 +205,7 @@ func (a *AllowListTestSuite) TestCanAddBetaKeys() {
 	})).Return(nil, nil)
 
 	payload := fmt.Sprintf(`{"amount":%d}`, numOfKeysToGenerate)
-	resp, err := handleGenerateKey(ctx, testutils.NoopLogger(t), nil, nk, payload)
+	resp, err := handleGenerateKey(ctx, testutils.MockNoopLogger(t), nil, nk, payload)
 	assert.NilError(t, err)
 
 	// Make sure the beta keys were included in the response
@@ -271,7 +271,7 @@ func (a *AllowListTestSuite) TestCanClaimBetaKeyWow() {
 
 	payload := fmt.Sprintf(`{"key":"%s"}`, betaKeyToUse)
 
-	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, payload)
+	_, err := handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, payload)
 	assert.NilError(t, err)
 }
 
@@ -296,6 +296,6 @@ func (a *AllowListTestSuite) TestClaimedBetaKeyCannotBeReclaimed() {
 		Once()
 
 	payload := `{"key": "xyzzy"}`
-	_, err := handleClaimKey(ctx, testutils.NoopLogger(t), nil, mockNK, payload)
+	_, err := handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, payload)
 	assert.ErrorContains(t, err, allowlist.ErrBetaKeyAlreadyUsed.Error())
 }
