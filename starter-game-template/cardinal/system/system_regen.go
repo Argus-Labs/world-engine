@@ -8,9 +8,12 @@ import (
 // RegenSystem replenishes the player's HP at every tick.
 // This provides an example of a system that doesn't rely on a transaction to update a component.
 func RegenSystem(world cardinal.WorldContext) error {
-	search := world.NewSearch(cardinal.Exact(comp.Player{}, comp.Health{}))
+	search, err := world.NewSearch(cardinal.Exact(comp.Player{}, comp.Health{}))
+	if err != nil {
+		return err
+	}
 
-	err := search.Each(world, func(id cardinal.EntityID) bool {
+	err = search.Each(world, func(id cardinal.EntityID) bool {
 		health, err := cardinal.GetComponent[comp.Health](world, id)
 		if err != nil {
 			return true
