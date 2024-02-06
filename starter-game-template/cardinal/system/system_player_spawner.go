@@ -12,9 +12,10 @@ import (
 // This provides an example of a system that creates a new entity.
 func PlayerSpawnerSystem(world cardinal.WorldContext) error {
 	msg.CreatePlayer.Each(world, func(create cardinal.TxData[msg.CreatePlayerMsg]) (msg.CreatePlayerResult, error) {
+		maxHp := 100
 		id, err := cardinal.Create(world,
 			comp.Player{Nickname: create.Msg().Nickname},
-			comp.Health{HP: 100},
+			comp.Health{HP: maxHp},
 		)
 		if err != nil {
 			return msg.CreatePlayerResult{}, fmt.Errorf("error creating player: %w", err)
