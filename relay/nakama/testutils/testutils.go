@@ -2,7 +2,11 @@ package testutils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"sync"
 	"testing"
 
@@ -134,3 +138,19 @@ func (l *NoOpLogger) Fields() map[string]interface{}                   { return 
 
 // Ensure that NoOpLogger implements runtime.Logger (this will produce a compile-time error if it doesn't)
 var _ runtime.Logger = (*NoOpLogger)(nil)
+
+// Setup mock server in a more streamlined manner, directly using the URL provided by httptest.
+func SetupMockServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := receipt.TransactionReceiptsReply{
+			StartTick: 0,
+			EndTick:   1,
+			Receipts:  []*receipt.Receipt{{TxHash: "hash1", Result: map[string]any{"status": "success"}, Errors: []string{}}},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(response)
+		if err != nil {
+			return
+		}
+	}))
+}

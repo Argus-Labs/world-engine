@@ -15,7 +15,7 @@ func TestEndToEndNotifications(t *testing.T) {
 	nk := mocks.NewNakamaModule(t)
 	logger := &testutils.NoOpLogger{}
 
-	mockServer := setupMockServer()
+	mockServer := testutils.SetupMockServer()
 	defer mockServer.Close()
 
 	rd := NewReceiptsDispatcher()
