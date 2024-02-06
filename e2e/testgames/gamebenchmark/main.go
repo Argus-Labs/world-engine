@@ -5,7 +5,7 @@ import (
 	"flag"
 	"log"
 	"os"
-	"pkg.world.dev/world-engine/cardinal/types/system"
+	"pkg.world.dev/world-engine/cardinal/system"
 	"runtime/pprof"
 
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/sys"
@@ -15,23 +15,11 @@ import (
 	"pkg.world.dev/world-engine/cardinal"
 )
 
-func sumSystems(systems ...system.System) system.System {
-	return func(wCtx cardinal.WorldContext) error {
-		for _, system := range systems {
-			err := system(wCtx)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-}
-
 func initializeSystems(
 	testFlag map[string]*bool,
 	testKeys []string,
 	initSystems []system.System,
-	systems []system.System
+	systems []system.System,
 ) ([]system.System, []system.System) {
 	a := *testFlag[testKeys[0]]
 	b := *testFlag[testKeys[1]]
@@ -131,7 +119,10 @@ func main() {
 	if err != nil {
 		panic(eris.ToString(err, true))
 	}
-	world.Init(sumSystems(initsystems...))
+	err = cardinal.RegisterInitSystems(world, initsystems...)
+	if err != nil {
+		panic(eris.ToString(err, true))
+	}
 	err = world.StartGame()
 	if err != nil {
 		panic(eris.ToString(err, true))
