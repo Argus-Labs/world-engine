@@ -10,10 +10,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/events"
+	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/iterators"
+	ecslog "pkg.world.dev/world-engine/cardinal/log"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/persona/component"
+	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router"
-	"reflect"
-	"runtime"
+	"pkg.world.dev/world-engine/cardinal/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/system"
+	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/sign"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -48,7 +58,6 @@ var (
 )
 
 type World struct {
-	engine          *ecs.Engine
 	server          *server.Server
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
@@ -83,7 +92,7 @@ type World struct {
 
 	receiptHistory *receipt.History
 
-	chain adapter.Adapter
+	router router.Router
 	// isRecovering indicates that the engine is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering atomic.Bool
@@ -101,6 +110,8 @@ type World struct {
 	shutdownMutex sync.Mutex
 }
 
+var _ router.Provider = &World{}
+
 // NewWorld creates a new World object using Redis as the storage layer.
 func NewWorld(opts ...WorldOption) (*World, error) {
 	serverOptions, cardinalOptions := separateOptions(opts)
@@ -117,7 +128,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	log.Logger.Info().Msgf("Starting a new Cardinal world in %s mode", cfg.CardinalMode)
 	if cfg.CardinalMode == RunModeDev {
-		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
 	}
 	redisStore := redis.NewRedisStorage(redis.Options{
@@ -128,30 +138,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	entityCommandBuffer, err := gamestate.NewEntityCommandBuffer(redisStore.Client)
 	if err != nil {
 		return nil, err
-	}
-
-	if cfg.CardinalMode == RunModeProd {
-		rtr, err := router.New(cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress, eng)
-		if err != nil {
-			return nil, err
-		}
-		eng.SetRouter(rtr)
-	}
-
-	var metricTags []string
-	if cfg.CardinalMode != "" {
-		metricTags = append(metricTags, string("cardinal_mode:"+cfg.CardinalMode))
-	}
-	if cfg.CardinalNamespace != "" {
-		metricTags = append(metricTags, "cardinal_namespace:"+cfg.CardinalNamespace)
-	}
-
-	if cfg.StatsdAddress != "" || cfg.TraceAddress != "" {
-		if err = statsd.Init(cfg.StatsdAddress, cfg.TraceAddress, metricTags); err != nil {
-			return nil, eris.Wrap(err, "unable to init statsd")
-		}
-	} else {
-		log.Logger.Warn().Msg("statsd is disabled")
 	}
 
 	world := &World{
@@ -181,6 +167,30 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
+
+	if cfg.CardinalMode == RunModeProd {
+		world.router, err = router.New(cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress, world)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var metricTags []string
+	if cfg.CardinalMode != "" {
+		metricTags = append(metricTags, string("cardinal_mode:"+cfg.CardinalMode))
+	}
+	if cfg.CardinalNamespace != "" {
+		metricTags = append(metricTags, "cardinal_namespace:"+cfg.CardinalNamespace)
+	}
+
+	if cfg.StatsdAddress != "" || cfg.TraceAddress != "" {
+		if err = statsd.Init(cfg.StatsdAddress, cfg.TraceAddress, metricTags); err != nil {
+			return nil, eris.Wrap(err, "unable to init statsd")
+		}
+	} else {
+		log.Logger.Warn().Msg("statsd is disabled")
+	}
+
 	world.isGameLoopRunning.Store(false)
 	world.registerInternalPlugin()
 
@@ -274,8 +284,9 @@ func (w *World) Tick(ctx context.Context) error {
 	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
 	w.setEvmResults(txQueue.GetEVMTxs())
-	if txQueue.GetAmountOfTxs() != 0 && w.chain != nil && w.WorldState != WorldStateRecovering {
-		err := w.chain.Submit(ctx, txQueue.Transactions(), w.namespace.String(), w.tick.Load(), w.timestamp.Load())
+	if txQueue.GetAmountOfTxs() != 0 && w.router != nil && w.WorldState != WorldStateRecovering {
+		err := w.router.SubmitTxBlob(ctx, txQueue.Transactions(), w.namespace.String(), w.tick.Load(),
+			w.timestamp.Load())
 		if err != nil {
 			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
 		}
@@ -310,12 +321,14 @@ func (w *World) StartGame() error {
 	}
 
 	var err error
-	w.server, err = server.New(w.instance, w.instance.GetEventHub().NewWebSocketEventHandler(), w.serverOptions...)
+	w.server, err = server.New(NewReadOnlyWorldContext(w), w.ListMessages(), w.ListQueries(),
+		w.eventHub.NewWebSocketEventHandler(),
+		w.serverOptions...)
 	if err != nil {
 		return err
 	}
 
-	if err := w.instance.RunRouter(); err != nil {
+	if err := w.RunRouter(); err != nil {
 		return eris.Wrap(err, "failed to start router service")
 	}
 
@@ -499,34 +512,6 @@ func setLogLevel(levelStr string) error {
 	return nil
 }
 
-func applyProductionOptions(
-	cfg WorldConfig,
-	cardinalOptions *[]Option,
-) error {
-	log.Logger.Info().Msg("Starting a new Cardinal world in production mode")
-	if cfg.RedisPassword == "" {
-		return eris.New("REDIS_PASSWORD is required in production")
-	}
-	if cfg.CardinalNamespace == DefaultNamespace {
-		return eris.New(
-			"CARDINAL_NAMESPACE cannot be the default value in production to avoid replay attack",
-		)
-	}
-	if cfg.BaseShardSequencerAddress == "" || cfg.BaseShardQueryAddress == "" {
-		return eris.New("must supply BASE_SHARD_SEQUENCER_ADDRESS and BASE_SHARD_QUERY_ADDRESS for production " +
-			"mode Cardinal worlds")
-	}
-	adpt, err := adapter.New(adapter.Config{
-		ShardSequencerAddr: cfg.BaseShardSequencerAddress,
-		EVMBaseShardAddr:   cfg.BaseShardQueryAddress,
-	})
-	if err != nil {
-		return eris.Wrapf(err, "failed to instantiate adapter")
-	}
-	*cardinalOptions = append(*cardinalOptions, WithAdapter(adpt).cardinalOption)
-	return nil
-}
-
 func (w *World) handleShutdown() {
 	signalChannel := make(chan os.Signal, 1)
 	go func() {
@@ -674,6 +659,15 @@ func (w *World) GetQueryByName(name string) (engine.Query, error) {
 	return nil, eris.Errorf("query with name %s not found", name)
 }
 
+func (w *World) GetMessageByName(name string) (types.Message, bool) {
+	for _, msg := range w.msgManager.GetRegisteredMessages() {
+		if msg.Name() == name {
+			return msg, true
+		}
+	}
+	return nil, false
+}
+
 func (w *World) GameStateManager() gamestate.Manager {
 	return w.entityStore
 }
@@ -713,4 +707,69 @@ func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error)
 
 func (w *World) GetSystemNames() []string {
 	return w.systemManager.GetSystemNames()
+}
+
+func (w *World) RunRouter() error {
+	if w.router == nil {
+		return nil
+	}
+	return w.router.Start()
+}
+
+func (w *World) SetRouter(rtr router.Router) {
+	w.router = rtr
+}
+
+func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
+	qry, err := w.GetQueryByName(name)
+	if err != nil {
+		return nil, err
+	}
+	req, err := qry.DecodeEVMRequest(abiRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	reply, err := qry.HandleQuery(NewReadOnlyWorldContext(w), req)
+	if err != nil {
+		return nil, err
+	}
+
+	return qry.EncodeEVMReply(reply)
+}
+
+func (w *World) GetPersonaForEVMAddress(addr string) (string, error) {
+	var sc *component.SignerComponent
+	wCtx := NewReadOnlyWorldContext(w)
+	q := NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
+	var getComponentErr error
+	searchIterationErr := eris.Wrap(
+		q.Each(
+			func(id types.EntityID) bool {
+				var signerComp *component.SignerComponent
+				signerComp, getComponentErr = GetComponent[component.SignerComponent](wCtx, id)
+				getComponentErr = eris.Wrap(getComponentErr, "")
+				if getComponentErr != nil {
+					return false
+				}
+				for _, authAddr := range signerComp.AuthorizedAddresses {
+					if authAddr == addr {
+						sc = signerComp
+						return false
+					}
+				}
+				return true
+			},
+		), "",
+	)
+	if getComponentErr != nil {
+		return "", getComponentErr
+	}
+	if searchIterationErr != nil {
+		return "", searchIterationErr
+	}
+	if sc == nil {
+		return "", eris.Errorf("address %s does not have a linked persona tag", addr)
+	}
+	return sc.PersonaTag, nil
 }

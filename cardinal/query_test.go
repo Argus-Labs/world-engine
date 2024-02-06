@@ -4,6 +4,7 @@ import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"testing"
@@ -129,63 +130,52 @@ func TestQueryTypeNotStructs(t *testing.T) {
 }
 
 func TestQueryEVM(t *testing.T) {
-	t.Skipf("skipping until evm server is fixed")
-	// --- TEST SETUP ---
-	// type FooRequest struct {
-	//	EntityID string
-	//}
-	// type FooReply struct {
-	//	Name string
-	//	Age  uint64
-	//}
-	//
-	// expectedReply := FooReply{
-	//	Name: "Chad",
-	//	Age:  22,
-	//}
-	//
-	// tf := testutils.NewTestFixture(t, nil)
-	// world := tf.World
-	// err := cardinal.RegisterQuery[FooRequest, FooReply](
-	//	world,
-	//	"foo",
-	//	func(
-	//		wCtx engine.Context, req *FooRequest,
-	//	) (*FooReply, error) {
-	//		return &expectedReply, nil
-	//	},
-	//	cardinal.WithQueryEVMSupport[FooRequest, FooReply](),
-	//)
-	//
-	// assert.NilError(t, err)
-	// err = cardinal.RegisterMessages(world, cardinal.NewMessageType[struct{}, struct{}]("blah"))
-	// assert.NilError(t, err)
-	// // TODO(scott): fix this
-	// //s, err := evm.NewServer(world)
-	// assert.NilError(t, err)
-	//
-	// // cardinal.Create the abi encoded bytes that the EVM would send.
-	// fooQuery, err := world.GetQueryByName("foo")
-	// assert.NilError(t, err)
-	// bz, err := fooQuery.EncodeAsABI(FooRequest{EntityID: "foo"})
-	// assert.NilError(t, err)
-	//
-	// // query the resource.
-	// res, err := s.QueryShard(context.Background(), &routerv1.QueryShardRequest{
-	//	Resource: fooQuery.Name(),
-	//	Request:  bz,
-	// })
-	// assert.NilError(t, err)
-	//
-	// // decode the reply
-	// replyAny, err := fooQuery.DecodeEVMReply(res.Response)
-	// assert.NilError(t, err)
-	//
-	// // cast to reply type
-	// reply, ok := replyAny.(FooReply)
-	// assert.Equal(t, ok, true)
-	// // should be same!
-	// assert.Equal(t, reply, expectedReply)
+	type FooRequest struct {
+		ID string
+	}
+	type FooReply struct {
+		Name string
+		Age  uint64
+	}
+
+	expectedReply := FooReply{
+		Name: "Chad",
+		Age:  22,
+	}
+
+	world := testutils.NewTestFixture(t, nil).World
+	err := cardinal.RegisterQuery[FooRequest, FooReply](
+		world,
+		"foo",
+		func(
+			eCtx engine.Context, req *FooRequest,
+		) (*FooReply, error) {
+			return &expectedReply, nil
+		},
+		cardinal.WithQueryEVMSupport[FooRequest, FooReply](),
+	)
+
+	assert.NilError(t, err)
+	err = cardinal.RegisterMessages(world, message.NewMessageType[struct{}, struct{}]("blah"))
+	assert.NilError(t, err)
+
+	// create the abi encoded bytes that the EVM would send.
+	fooQuery, err := world.GetQueryByName("foo")
+	assert.NilError(t, err)
+	bz, err := fooQuery.EncodeAsABI(FooRequest{ID: "foo"})
+	assert.NilError(t, err)
+
+	// query the resource.
+	bz, err = world.HandleEVMQuery("foo", bz)
+	assert.NilError(t, err)
+
+	reply, err := fooQuery.DecodeEVMReply(bz)
+	assert.NilError(t, err)
+
+	gotReply, ok := reply.(FooReply)
+	assert.True(t, ok, "could not cast %T to %T", reply, FooReply{})
+
+	assert.Equal(t, gotReply, expectedReply)
 }
 
 func TestErrOnNoNameOrHandler(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	message "pkg.world.dev/world-engine/cardinal/types/message"
+	types "pkg.world.dev/world-engine/cardinal/types"
 	sign "pkg.world.dev/world-engine/sign"
 )
 
@@ -36,11 +36,11 @@ func (m *MockProvider) EXPECT() *MockProviderMockRecorder {
 }
 
 // AddEVMTransaction mocks base method.
-func (m *MockProvider) AddEVMTransaction(id message.TypeID, msgValue any, tx *sign.Transaction, evmTxHash string) (uint64, message.TxHash) {
+func (m *MockProvider) AddEVMTransaction(id types.MessageID, msgValue any, tx *sign.Transaction, evmTxHash string) (uint64, types.TxHash) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddEVMTransaction", id, msgValue, tx, evmTxHash)
 	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(message.TxHash)
+	ret1, _ := ret[1].(types.TxHash)
 	return ret0, ret1
 }
 
@@ -68,10 +68,10 @@ func (mr *MockProviderMockRecorder) ConsumeEVMMsgResult(evmTxHash interface{}) *
 }
 
 // GetMessageByName mocks base method.
-func (m *MockProvider) GetMessageByName(arg0 string) (message.Message, bool) {
+func (m *MockProvider) GetMessageByName(arg0 string) (types.Message, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetMessageByName", arg0)
-	ret0, _ := ret[0].(message.Message)
+	ret0, _ := ret[0].(types.Message)
 	ret1, _ := ret[1].(bool)
 	return ret0, ret1
 }

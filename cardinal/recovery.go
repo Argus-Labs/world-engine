@@ -35,7 +35,7 @@ func (w *World) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
 //
 //nolint:gocognit
 func (w *World) RecoverFromChain(ctx context.Context) error {
-	if w.chain == nil {
+	if w.router == nil {
 		return eris.Errorf(
 			"chain adapter was nil. " +
 				"be sure to use the `WithAdapter` option when creating the world",
@@ -55,7 +55,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 	namespace := w.namespace.String()
 	var nextKey []byte
 	for {
-		res, err := w.chain.QueryTransactions(
+		res, err := w.router.QueryTransactions(
 			ctx, &shardTypes.QueryTransactionsRequest{
 				Namespace: namespace,
 				Page: &shardTypes.PageRequest{
