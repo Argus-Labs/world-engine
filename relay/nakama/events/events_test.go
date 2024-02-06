@@ -1,4 +1,4 @@
-package main
+package events
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -39,7 +39,8 @@ func TestEventHubIntegration(t *testing.T) {
 	defer mockServer.Close()
 
 	logger := &testutils.NoOpLogger{}
-	eventHub, err := createEventHub(logger, strings.TrimPrefix(mockServer.URL, "http://"))
+	eventsEndpoint := "events"
+	eventHub, err := CreateEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
 	if err != nil {
 		t.Fatalf("Failed to create event hub: %v", err)
 	}
@@ -58,7 +59,7 @@ func TestEventHubIntegration(t *testing.T) {
 	// Wait to receive an event
 	select {
 	case event := <-eventChan:
-		assert.True(t, strings.Contains(event.message, "test event"))
+		assert.True(t, strings.Contains(event.Message, "test event"))
 	case <-time.After(5 * time.Second): // Adjust timeout as necessary
 		t.Fatal("Did not receive event in time")
 	}

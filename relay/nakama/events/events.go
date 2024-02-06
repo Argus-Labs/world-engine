@@ -1,4 +1,4 @@
-package main
+package events
 
 import (
 	"errors"
@@ -15,7 +15,7 @@ import (
 )
 
 type Event struct {
-	message string
+	Message string
 }
 
 type EventHub struct {
@@ -24,8 +24,8 @@ type EventHub struct {
 	didShutdown     atomic.Bool
 }
 
-func createEventHub(logger runtime.Logger, cardinalAddress string) (*EventHub, error) {
-	url := utils.MakeWebSocketURL(EventEndpoint, cardinalAddress)
+func CreateEventHub(logger runtime.Logger, eventsEndpoint string, cardinalAddress string) (*EventHub, error) {
+	url := utils.MakeWebSocketURL(eventsEndpoint, cardinalAddress)
 	webSocketConnection, _, err := websocket.DefaultDialer.Dial(url, nil) //nolint:bodyclose // no need.
 	for err != nil {
 		if errors.Is(err, &net.DNSError{}) {
@@ -93,7 +93,7 @@ func (eh *EventHub) Dispatch(log runtime.Logger) error {
 				eh.Shutdown()
 				return false
 			}
-			channel <- &Event{message: string(message)}
+			channel <- &Event{Message: string(message)}
 			return true
 		})
 		if err != nil {
