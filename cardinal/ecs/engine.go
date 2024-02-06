@@ -33,7 +33,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"
-	"pkg.world.dev/world-engine/evm/x/shard/types"
 	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 	"pkg.world.dev/world-engine/sign"
 )
@@ -123,6 +122,15 @@ func (e *Engine) GetEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
 func (e *Engine) GetMessageByName(s string) (message.Message, bool) {
 	for _, msg := range e.registeredMessages {
 		if msg.Name() == s {
+			return msg, true
+		}
+	}
+	return nil, false
+}
+
+func (e *Engine) GetMessageByID(id message.TypeID) (message.Message, bool) {
+	for _, msg := range e.registeredMessages {
+		if msg.ID() == id {
 			return msg, true
 		}
 	}
@@ -599,7 +607,7 @@ func (e *Engine) Tick(ctx context.Context) error {
 
 	e.setEvmResults(txQueue.GetEVMTxs())
 	if txQueue.GetAmountOfTxs() != 0 && e.router != nil && !e.isRecovering.Load() {
-		err := e.router.SubmitTxBlob(ctx, txQueue.Transactions(), e.namespace.String(), e.tick.Load(), e.timestamp.Load())
+		err := e.router.SubmitTxBlob(ctx, txQueue.Transactions(), e.tick.Load(), e.timestamp.Load())
 		if err != nil {
 			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
 		}
@@ -847,90 +855,38 @@ func (e *Engine) LoadGameState() error {
 // RecoverFromChain will attempt to recover the state of the engine based on historical transaction data.
 // The function puts the engine in a recovery state, and then queries all transaction batches under the engine's
 // namespace. The function will continuously ask the EVM base shard for batches, and run ticks for each batch returned.
-//
-//nolint:gocognit
 func (e *Engine) RecoverFromChain(ctx context.Context) error {
 	if e.router == nil {
-		return eris.Errorf(
-			"chain adapter was nil. " +
-				"be sure to use the `WithAdapter` option when creating the world",
-		)
+		return eris.Errorf("cannot recover state without router")
 	}
 	if e.CurrentTick() > 0 {
-		return eris.Errorf(
-			"world recovery should not occur in a world with existing state. please verify all " +
-				"state has been cleared before running recovery",
-		)
+		return eris.Errorf("cannot recover world with existing state")
 	}
 
 	e.isRecovering.Store(true)
 	defer func() {
 		e.isRecovering.Store(false)
 	}()
-	namespace := e.Namespace().String()
-	var nextKey []byte
-	for {
-		res, err := e.router.QueryTransactions(
-			ctx, &types.QueryTransactionsRequest{
-				Namespace: namespace,
-				Page: &types.PageRequest{
-					Key: nextKey,
-				},
-			},
-		)
-		if err != nil {
-			return err
-		}
-		for _, tickedTxs := range res.Epochs {
-			target := tickedTxs.Epoch
-			// tick up to target
-			if target < e.CurrentTick() {
-				return eris.Errorf(
-					"got tx for tick %d, but world is at tick %d",
-					target,
-					e.CurrentTick(),
-				)
-			}
-			for current := e.CurrentTick(); current != target; {
-				if err = e.Tick(ctx); err != nil {
-					return err
-				}
-				current = e.CurrentTick()
-			}
-			// we've now reached target. we need to inject the transactions and tick.
-			transactions := tickedTxs.Txs
-			for _, tx := range transactions {
-				sp, err := e.decodeTransaction(tx.GameShardTransaction)
-				if err != nil {
-					return err
-				}
-				msg := e.getMessage(message.TypeID(tx.TxId))
-				if msg == nil {
-					return eris.Errorf("error recovering tx with ID %d: tx id not found", tx.TxId)
-				}
-				v, err := msg.Decode(sp.Body)
-				if err != nil {
-					return err
-				}
-				e.AddTransaction(message.TypeID(tx.TxId), v, e.protoTransactionToGo(sp))
-			}
-			// run the tick for this batch
-			if err = e.Tick(ctx); err != nil {
-				return err
-			}
-		}
 
-		// if a page response was in the reply, that means there is more data to read.
-		if res.Page != nil {
-			// case where the next key is empty or nil, we don't want to continue the queries.
-			if res.Page.Key == nil || len(res.Page.Key) == 0 {
-				break
-			}
-			nextKey = res.Page.Key
-		} else {
-			// if the entire page reply is nil, then we are definitely done.
-			break
+	err := router.NewIterator(e.router).Each(func(batches []*router.TxBatch, tick, timestamp uint64) error {
+		if tick < e.CurrentTick() {
+			return eris.Errorf("got tick for %d but Cardinal was at %d", tick, e.CurrentTick())
 		}
+		for e.CurrentTick() != tick {
+			if err := e.Tick(ctx); err != nil {
+				return eris.Wrap(err, "failed to tick engine")
+			}
+		}
+		for _, batch := range batches {
+			e.AddTransaction(batch.MsgID, batch.MsgValue, batch.Tx)
+		}
+		if err := e.Tick(ctx); err != nil {
+			return eris.Wrap(err, "failed to tick engine")
+		}
+		return nil
+	})
+	if err != nil {
+		return eris.Wrap(err, "encountered error while iterating transactions")
 	}
 	return nil
 }

@@ -29,7 +29,6 @@ type Router interface {
 	SubmitTxBlob(
 		ctx context.Context,
 		processedTxs txpool.TxMap,
-		namespace string,
 		epoch,
 		unixTimestamp uint64,
 	) error
@@ -52,13 +51,13 @@ type router struct {
 	provider       Provider
 	ShardSequencer shard.TransactionHandlerClient
 	ShardQuerier   shardtypes.QueryClient
-
-	server *evmServer
-	port   string
+	namespace      string
+	server         *evmServer
+	port           string
 }
 
-func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
-	rtr := &router{port: defaultPort, provider: provider}
+func New(namespace, sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
+	rtr := &router{namespace: namespace, port: defaultPort, provider: provider}
 
 	conn, err := grpc.Dial(sequencerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -81,7 +80,6 @@ func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, e
 func (r *router) SubmitTxBlob(
 	ctx context.Context,
 	processedTxs txpool.TxMap,
-	namespace string,
 	epoch,
 	unixTimestamp uint64,
 ) error {
@@ -103,7 +101,7 @@ func (r *router) SubmitTxBlob(
 	req := shard.SubmitTransactionsRequest{
 		Epoch:         epoch,
 		UnixTimestamp: unixTimestamp,
-		Namespace:     namespace,
+		Namespace:     r.namespace,
 		Transactions:  messageIDtoTxs,
 	}
 	_, err := r.ShardSequencer.Submit(ctx, &req)

@@ -300,7 +300,6 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 				Tx:              tx,
 				EVMSourceTxHash: evmTxHash,
 			}}},
-			engine.Namespace().String(),
 			engine.CurrentTick(),
 			gomock.Any(),
 		).
