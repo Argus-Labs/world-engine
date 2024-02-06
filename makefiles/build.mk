@@ -31,3 +31,17 @@ rollup-install:
 
 rollup-proto-gen:
 	cd evm && $(MAKE) proto-gen
+
+# Find all directories containing go.mod files
+GO_MOD_DIRS := $(shell find . -name "go.mod" -exec dirname {} \;)
+
+
+# Runs go generate ./... in all go.mod directories.
+generate:
+	@echo "Running go generate..."
+	@for dir in $(GO_MOD_DIRS); do \
+		(cd $$dir && go generate ./...); \
+	done
+	@echo "Go generate completed successfully."
+
+.PHONY: generate
