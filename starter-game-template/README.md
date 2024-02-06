@@ -8,7 +8,7 @@ To begin your development journey with World Engine, you install
 [World CLI](https://github.com/Argus-Labs/world-cli) a tool for creating, managing, and deploying World 
 Engine projects. 
 
-Install the latest world-cli release by running
+Install the latest world-cli release by running:
 
 ```bash
 curl https://install.world.dev/cli! | bash
@@ -26,7 +26,7 @@ To use this template to start your own project, navigate to the directory where 
 and run:
 
 ```bash
-world cardinal create
+world create
 ```
 You will be prompted for a game name. A copy of the starter-game-template will be created in the current directory.
 
@@ -45,13 +45,13 @@ world cardinal dev
 To run the World Engine stack end-to-end (i.e. in production and game engine integration), run:
 
 ```bash
-world cardinal stop
+world cardinal start
 ```
 
 This command will use the `world.toml` config specified in your root project directory to run both World Engine's 
 Cardinal game shard and Nakama relayer (for game engine integration).
 
-Make sure to set `CARDINAL_MODE="production` in world.toml to run the stack in production mode and obtain the best 
+Make sure to set `CARDINAL_MODE="production"` in world.toml to run the stack in production mode and obtain the best 
 performance.
 
 
