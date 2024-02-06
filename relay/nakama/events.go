@@ -24,8 +24,8 @@ type EventHub struct {
 	didShutdown     atomic.Bool
 }
 
-func createEventHub(logger runtime.Logger) (*EventHub, error) {
-	url := utils.MakeWebSocketURL(EventEndpoint, globalCardinalAddress)
+func createEventHub(logger runtime.Logger, cardinalAddress string) (*EventHub, error) {
+	url := utils.MakeWebSocketURL(EventEndpoint, cardinalAddress)
 	webSocketConnection, _, err := websocket.DefaultDialer.Dial(url, nil) //nolint:bodyclose // no need.
 	for err != nil {
 		if errors.Is(err, &net.DNSError{}) {
@@ -71,7 +71,7 @@ func (eh *EventHub) Shutdown() {
 	eh.didShutdown.Store(true)
 }
 
-// dispatch continually drains eh.inputConnection (events from cardinal) and sends copies to all subscribed channels.
+// Dispatch continually drains eh.inputConnection (events from cardinal) and sends copies to all subscribed channels.
 // This function is meant to be called in a goroutine.
 func (eh *EventHub) Dispatch(log runtime.Logger) error {
 	var err error

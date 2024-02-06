@@ -55,7 +55,7 @@ func InitModule(
 
 	initReceiptDispatcher(logger)
 
-	if err := initEventHub(ctx, logger, nk); err != nil {
+	if err := initEventHub(ctx, logger, nk, globalCardinalAddress); err != nil {
 		return eris.Wrap(err, "failed to init event hub")
 	}
 
@@ -100,8 +100,13 @@ func initReceiptDispatcher(log runtime.Logger) {
 	go globalReceiptsDispatcher.Dispatch(log)
 }
 
-func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModule) error {
-	eventHub, err := createEventHub(log)
+func initEventHub(
+	ctx context.Context,
+	log runtime.Logger,
+	nk runtime.NakamaModule,
+	cardinalAddress string,
+) error {
+	eventHub, err := createEventHub(log, cardinalAddress)
 	if err != nil {
 		return err
 	}
