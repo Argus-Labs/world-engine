@@ -12,10 +12,26 @@ import (
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
 )
 
+// Setup mock server in a more streamlined manner, directly using the URL provided by httptest.
+func setupMockServer() *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		response := TransactionReceiptsReply{
+			StartTick: 0,
+			EndTick:   1,
+			Receipts:  []*Receipt{{TxHash: "hash1", Result: map[string]any{"status": "success"}, Errors: []string{}}},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(response)
+		if err != nil {
+			return
+		}
+	}))
+}
+
 // Test that the Dispatcher can poll receipts from the Server and pass them to subscribed channels.
 func TestPollingFetchesAndDispatchesReceipts(t *testing.T) {
 	dispatcher := NewReceiptsDispatcher()
-	mockServer := testutils.SetupMockServer()
+	mockServer := setupMockServer()
 	defer mockServer.Close()
 
 	testChannel := make(chan *Receipt, 10)
