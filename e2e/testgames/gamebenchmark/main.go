@@ -1,4 +1,4 @@
-package main
+package main //nolint: cyclop // for tests.
 
 import (
 	"errors"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/sys"
 	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
@@ -110,12 +109,7 @@ func main() {
 	options := []cardinal.WorldOption{
 		cardinal.WithReceiptHistorySize(10), //nolint:gomnd // fine for testing.
 	}
-	// if os.Getenv("ENABLE_ADAPTER") == "false" {
-	if true { // uncomment above to enable adapter from env.
-		log.Println("Skipping adapter")
-	} else {
-		options = append(options, cardinal.WithAdapter(setupAdapter()))
-	}
+
 	world, err := cardinal.NewWorld(options...)
 	if err != nil {
 		panic(eris.ToString(err, true))
@@ -140,19 +134,4 @@ func main() {
 	if err != nil {
 		panic(eris.ToString(err, true))
 	}
-}
-
-func setupAdapter() adapter.Adapter {
-	baseShardAddr := os.Getenv("BASE_SHARD_ADDR")
-	shardReceiverAddr := os.Getenv("SHARD_SEQUENCER_ADDR")
-	cfg := adapter.Config{
-		ShardSequencerAddr: shardReceiverAddr,
-		EVMBaseShardAddr:   baseShardAddr,
-	}
-
-	adpter, err := adapter.New(cfg)
-	if err != nil {
-		panic(err)
-	}
-	return adpter
 }

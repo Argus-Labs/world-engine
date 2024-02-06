@@ -4,15 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
-	"testing"
-	"time"
-
-	"github.com/ethereum/go-ethereum/common"
-
-	"pkg.world.dev/world-engine/cardinal"
+	"github.com/golang/mock/gomock"
+	"google.golang.org/protobuf/proto"
+	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
+	shard "pkg.world.dev/world-engine/rift/shard/v2"
+	"testing"
+	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -149,13 +148,13 @@ func TestEVMTxConsume(t *testing.T) {
 	returnVal = FooOut{Y: "hi"}
 	returnErr = nil
 	assert.NilError(t, e.Tick(ctx))
-	evmTxReceipt, ok := e.ConsumeEVMMsgResult(evmTxHash)
+	evmTxReceipt, ok := e.GetEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, true)
 	assert.Check(t, len(evmTxReceipt.ABIResult) > 0)
 	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
 	assert.Equal(t, len(evmTxReceipt.Errs), 0)
 	// shouldn't be able to consume it again.
-	_, ok = e.ConsumeEVMMsgResult(evmTxHash)
+	_, ok = e.GetEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, false)
 
 	// lets check against a system that returns an error
@@ -163,14 +162,14 @@ func TestEVMTxConsume(t *testing.T) {
 	returnErr = errors.New("omg error")
 	e.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
 	assert.NilError(t, e.Tick(ctx))
-	evmTxReceipt, ok = e.ConsumeEVMMsgResult(evmTxHash)
+	evmTxReceipt, ok = e.GetEVMMsgResult(evmTxHash)
 
 	assert.Equal(t, ok, true)
 	assert.Equal(t, len(evmTxReceipt.ABIResult), 0)
 	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
 	assert.Equal(t, len(evmTxReceipt.Errs), 1)
 	// shouldn't be able to consume it again.
-	_, ok = e.ConsumeEVMMsgResult(evmTxHash)
+	_, ok = e.GetEVMMsgResult(evmTxHash)
 	assert.Equal(t, ok, false)
 }
 
@@ -268,68 +267,129 @@ func TestWithoutRegistration(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-type dummyAdapter struct {
-	txs           txpool.TxMap
-	ns            string
-	epoch         uint64
-	unixTimestamp uint64
-}
+func TestTransactionsSentToRouterAfterTick(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	rtr := mocks.NewMockRouter(ctrl)
+	engine := testutils.NewTestFixture(t, nil).Engine
+	engine.SetRouter(rtr)
+	type fooMsg struct {
+		Bar string
+	}
 
-func (d *dummyAdapter) Submit(
-	_ context.Context,
-	txs txpool.TxMap,
-	namespace string,
-	epoch, unixTimestamp uint64,
-) error {
-	d.txs = txs
-	d.ns = namespace
-	d.epoch = epoch
-	d.unixTimestamp = unixTimestamp
-	return nil
-}
-
-func (d *dummyAdapter) QueryTransactions(_ context.Context, _ *types.QueryTransactionsRequest) (
-	*types.QueryTransactionsResponse, error,
-) {
-	return &types.QueryTransactionsResponse{}, nil
-}
-
-var _ adapter.Adapter = &dummyAdapter{}
-
-// TestAdapterCalledAfterTick tests that when messages are executed in a tick, they are forwarded to the adapter.
-func TestAdapterCalledAfterTick(t *testing.T) {
-	adapter := &dummyAdapter{}
-	engine := testutils.NewTestFixture(t, nil, cardinal.WithAdapter(adapter)).Engine
-
-	engine.RegisterSystem(func(engineContext ecs.EngineContext) error {
-		return nil
-	})
-	fooMessage := ecs.NewMessageType[struct{}, struct{}]("foo")
+	type fooMsgRes struct{}
+	fooMessage := ecs.NewMessageType[fooMsg, fooMsgRes]("foo", ecs.WithMsgEVMSupport[fooMsg, fooMsgRes]())
 	err := engine.RegisterMessages(fooMessage)
 	assert.NilError(t, err)
+
 	err = engine.LoadGameState()
 	assert.NilError(t, err)
 
-	fooMessage.AddToQueue(engine, struct{}{}, &sign.Transaction{
-		PersonaTag: "meow",
-		Namespace:  "foo",
-		Nonce:      22,
-		Signature:  "meow",
-		Hash:       common.Hash{},
-		Body:       json.RawMessage(`{}`),
-	})
-	fooMessage.AddToQueue(engine, struct{}{}, &sign.Transaction{
-		PersonaTag: "meow",
-		Namespace:  "foo",
-		Nonce:      23,
-		Signature:  "meow",
-		Hash:       common.Hash{},
-		Body:       json.RawMessage(`{}`),
-	})
+	evmTxHash := "0x12345"
+	msg := fooMsg{Bar: "hello"}
+	tx := &sign.Transaction{PersonaTag: "ty"}
+	_, txHash := engine.AddEVMTransaction(fooMessage.ID(), msg, tx, evmTxHash)
+
+	rtr.
+		EXPECT().
+		SubmitTxBlob(
+			gomock.Any(),
+			txpool.TxMap{fooMessage.ID(): {{
+				MsgID:           fooMessage.ID(),
+				Msg:             msg,
+				TxHash:          txHash,
+				Tx:              tx,
+				EVMSourceTxHash: evmTxHash,
+			}}},
+			engine.Namespace().String(),
+			engine.CurrentTick(),
+			gomock.Any(),
+		).
+		Return(nil).
+		Times(1)
 	err = engine.Tick(context.Background())
 	assert.NilError(t, err)
+}
 
-	assert.Len(t, adapter.txs[fooMessage.ID()], 2)
-	assert.Equal(t, engine.Namespace().String(), adapter.ns)
-	assert.Equal(t, engine.CurrentTick()-1, adapter.epoch)
+func TestRecoverFromChain(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	rtr := mocks.NewMockRouter(ctrl)
+	engine := testutils.NewTestFixture(t, nil).Engine
+	engine.SetRouter(rtr)
+
+	type fooMsg struct{ I int }
+	type fooMsgRes struct{}
+	fooMsgName := "foo"
+	fooMessage := ecs.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
+	err := engine.RegisterMessages(fooMessage)
+	assert.NilError(t, err)
+
+	fooMessages := 0
+	engine.RegisterSystem(func(engineContext ecs.EngineContext) error {
+		fooMessage.Each(engineContext, func(t ecs.TxData[fooMsg]) (fooMsgRes, error) {
+			fooMessages++
+			return fooMsgRes{}, nil
+		})
+		return nil
+	})
+	err = engine.LoadGameState()
+	assert.NilError(t, err)
+
+	req := &types.QueryTransactionsRequest{
+		Namespace: engine.Namespace().String(),
+		Page:      new(types.PageRequest),
+	}
+	msgBody, err := json.Marshal(fooMsg{I: 420})
+	assert.NilError(t, err)
+	tx := &shard.Transaction{
+		PersonaTag: "tyler",
+		Namespace:  engine.Namespace().String(),
+		Nonce:      0,
+		Signature:  "sigNature",
+		Body:       msgBody,
+	}
+	bz, err := proto.Marshal(tx)
+	assert.NilError(t, err)
+	pageResponse := &types.PageResponse{Key: []byte("whatever")}
+	res := &types.QueryTransactionsResponse{
+		Epochs: []*types.Epoch{
+			{
+				Epoch:         0,
+				UnixTimestamp: 10,
+				Txs: []*types.Transaction{
+					{
+						TxId:                 uint64(fooMessage.ID()),
+						GameShardTransaction: bz,
+					},
+				},
+			},
+		},
+		Page: pageResponse,
+	}
+	res2 := &types.QueryTransactionsResponse{
+		Epochs: []*types.Epoch{
+			{
+				Epoch:         1,
+				UnixTimestamp: 11,
+				Txs: []*types.Transaction{
+					{
+						TxId:                 uint64(fooMessage.ID()),
+						GameShardTransaction: bz,
+					},
+				},
+			},
+		},
+		Page: nil,
+	}
+	req2 := &types.QueryTransactionsRequest{
+		Namespace: engine.Namespace().String(),
+		Page:      &types.PageRequest{Key: pageResponse.Key},
+	}
+	rtr.EXPECT().QueryTransactions(gomock.Any(), req).Return(res, nil).Times(1)
+	rtr.EXPECT().QueryTransactions(gomock.Any(), req2).Return(res2, nil).Times(1)
+
+	err = engine.RecoverFromChain(context.Background())
+	assert.NilError(t, err)
+
+	assert.Equal(t, fooMessages, 2)
+	assert.Equal(t, engine.CurrentTick(), uint64(2))
 }

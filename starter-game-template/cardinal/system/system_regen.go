@@ -18,7 +18,7 @@ func RegenSystem(world cardinal.WorldContext) error {
 		if err != nil {
 			return true
 		}
-		health.HP += 1
+		health.HP++
 		if err := cardinal.SetComponent[comp.Health](world, id, health); err != nil {
 			return true
 		}
