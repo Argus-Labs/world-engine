@@ -11,7 +11,7 @@ import (
 )
 
 // Test that the Notifications system works as expected with the Dispatcher and a Mock Server
-func TestEndToEndNotifications(t *testing.T) {
+func TestNotifierIntegrationWithDispatcher(t *testing.T) {
 	nk := mocks.NewNakamaModule(t)
 	logger := &testutils.NoOpLogger{}
 
