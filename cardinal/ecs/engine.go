@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"pkg.world.dev/world-engine/cardinal/router"
+	"pkg.world.dev/world-engine/cardinal/router/it"
 	"reflect"
 	"runtime"
 	"sync"
@@ -868,7 +869,7 @@ func (e *Engine) RecoverFromChain(ctx context.Context) error {
 		e.isRecovering.Store(false)
 	}()
 
-	err := router.NewIterator(e.router).Each(func(batches []*router.TxBatch, tick, timestamp uint64) error {
+	err := e.router.TransactionIterator().Each(func(batches []*it.TxBatch, tick, timestamp uint64) error {
 		if tick < e.CurrentTick() {
 			return eris.Errorf("got tick for %d but Cardinal was at %d", tick, e.CurrentTick())
 		}

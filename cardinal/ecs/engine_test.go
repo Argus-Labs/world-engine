@@ -386,6 +386,8 @@ func TestRecoverFromChain(t *testing.T) {
 	rtr.EXPECT().QueryTransactions(gomock.Any(), req).Return(res, nil).Times(1)
 	rtr.EXPECT().QueryTransactions(gomock.Any(), req2).Return(res2, nil).Times(1)
 
+	// TODO: implement a mock iterator yadda yadda yadda
+	rtr.EXPECT().TransactionIterator().Return()
 	err = engine.RecoverFromChain(context.Background())
 	assert.NilError(t, err)
 

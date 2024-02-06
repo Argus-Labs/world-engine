@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"net"
+	"pkg.world.dev/world-engine/cardinal/router/it"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
@@ -33,6 +34,8 @@ type Router interface {
 		unixTimestamp uint64,
 	) error
 
+	TransactionIterator() *it.TxIterator
+
 	// QueryTransactions queries transactions from the base shard.
 	QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
 		*shardtypes.QueryTransactionsResponse,
@@ -54,6 +57,10 @@ type router struct {
 	namespace      string
 	server         *evmServer
 	port           string
+}
+
+func (r *router) TransactionIterator() *it.TxIterator {
+	return it.NewIterator(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
 }
 
 func New(namespace, sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
