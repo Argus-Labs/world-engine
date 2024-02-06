@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"net"
-	"pkg.world.dev/world-engine/cardinal/router/it"
+	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
@@ -34,13 +34,7 @@ type Router interface {
 		unixTimestamp uint64,
 	) error
 
-	TransactionIterator() *it.TxIterator
-
-	// QueryTransactions queries transactions from the base shard.
-	QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
-		*shardtypes.QueryTransactionsResponse,
-		error,
-	)
+	TransactionIterator() iterator.Iterator
 
 	// Shutdown gracefully stops the EVM gRPC handler.
 	Shutdown()
@@ -59,8 +53,8 @@ type router struct {
 	port           string
 }
 
-func (r *router) TransactionIterator() *it.TxIterator {
-	return it.NewIterator(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
+func (r *router) TransactionIterator() iterator.Iterator {
+	return iterator.NewIterator(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
 }
 
 func New(namespace, sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
@@ -113,14 +107,6 @@ func (r *router) SubmitTxBlob(
 	}
 	_, err := r.ShardSequencer.Submit(ctx, &req)
 	return eris.Wrap(err, "")
-}
-
-func (r *router) QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
-	*shardtypes.QueryTransactionsResponse,
-	error,
-) {
-	res, err := r.ShardQuerier.Transactions(ctx, req)
-	return res, eris.Wrap(err, "")
 }
 
 func (r *router) Shutdown() {

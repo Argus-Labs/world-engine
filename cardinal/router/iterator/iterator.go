@@ -1,4 +1,4 @@
-package it
+package iterator
 
 import (
 	"context"
@@ -11,7 +11,11 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-type TxIterator struct {
+type Iterator interface {
+	Each(fn func(batch []*TxBatch, tick, timestamp uint64) error) error
+}
+
+type iterator struct {
 	getMsgById func(message.TypeID) (message.Message, bool)
 	namespace  string
 	querier    shardtypes.QueryClient
@@ -23,15 +27,15 @@ type TxBatch struct {
 	MsgValue any
 }
 
-func NewIterator(getMessageById func(id message.TypeID) (message.Message, bool), namespace string, querier shardtypes.QueryClient) *TxIterator {
-	return &TxIterator{
+func NewIterator(getMessageById func(id message.TypeID) (message.Message, bool), namespace string, querier shardtypes.QueryClient) Iterator {
+	return &iterator{
 		getMsgById: getMessageById,
 		namespace:  namespace,
 		querier:    querier,
 	}
 }
 
-func (t *TxIterator) Each(fn func(batch []*TxBatch, tick, timestamp uint64) error) error {
+func (t *iterator) Each(fn func(batch []*TxBatch, tick, timestamp uint64) error) error {
 	var nextKey []byte
 OuterLoop:
 	for {

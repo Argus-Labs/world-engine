@@ -9,9 +9,8 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	it "pkg.world.dev/world-engine/cardinal/router/it"
+	iterator "pkg.world.dev/world-engine/cardinal/router/iterator"
 	txpool "pkg.world.dev/world-engine/cardinal/txpool"
-	types "pkg.world.dev/world-engine/evm/x/shard/types"
 )
 
 // MockRouter is a mock of Router interface.
@@ -35,21 +34,6 @@ func NewMockRouter(ctrl *gomock.Controller) *MockRouter {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRouter) EXPECT() *MockRouterMockRecorder {
 	return m.recorder
-}
-
-// QueryTransactions mocks base method.
-func (m *MockRouter) QueryTransactions(ctx context.Context, req *types.QueryTransactionsRequest) (*types.QueryTransactionsResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "QueryTransactions", ctx, req)
-	ret0, _ := ret[0].(*types.QueryTransactionsResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// QueryTransactions indicates an expected call of QueryTransactions.
-func (mr *MockRouterMockRecorder) QueryTransactions(ctx, req interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "QueryTransactions", reflect.TypeOf((*MockRouter)(nil).QueryTransactions), ctx, req)
 }
 
 // Shutdown mocks base method.
@@ -93,10 +77,10 @@ func (mr *MockRouterMockRecorder) SubmitTxBlob(ctx, processedTxs, epoch, unixTim
 }
 
 // TransactionIterator mocks base method.
-func (m *MockRouter) TransactionIterator() *it.TxIterator {
+func (m *MockRouter) TransactionIterator() iterator.Iterator {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionIterator")
-	ret0, _ := ret[0].(*it.TxIterator)
+	ret0, _ := ret[0].(iterator.Iterator)
 	return ret0
 }
 
