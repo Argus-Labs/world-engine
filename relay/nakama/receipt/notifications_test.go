@@ -5,9 +5,41 @@ import (
 	"github.com/stretchr/testify/mock"
 	"pkg.world.dev/world-engine/relay/nakama/mocks"
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
+	"strings"
 	"testing"
 	"time"
 )
+
+// Test that the Notifications system works as expected with the Dispatcher and a Mock Server
+func TestEndToEndNotifications(t *testing.T) {
+	nk := mocks.NewNakamaModule(t)
+	logger := &testutils.NoOpLogger{}
+
+	mockServer := setupMockServer()
+	defer mockServer.Close()
+
+	rd := NewReceiptsDispatcher()
+	notifier := NewNotifier(logger, nk, rd)
+
+	txHash := "hash1"
+	userID := "user456"
+	notifier.AddTxHashToPendingNotifications(txHash, userID)
+	expectedData := map[string]any{
+		"txHash": txHash,
+		"result": map[string]any{"status": "success"},
+		"errors": []string{},
+	}
+	nk.On("NotificationSend",
+		mock.Anything, userID, mock.Anything, expectedData, mock.Anything, mock.Anything, mock.Anything,
+	).Return(nil).Once()
+
+	go rd.Dispatch(logger)
+	go rd.PollReceipts(logger, strings.TrimPrefix(mockServer.URL, "http://"))
+
+	time.Sleep(time.Second)
+
+	nk.AssertExpectations(t)
+}
 
 func TestAddTxHashToPendingNotifications(t *testing.T) {
 	logger := &testutils.NoOpLogger{}
@@ -15,7 +47,7 @@ func TestAddTxHashToPendingNotifications(t *testing.T) {
 	rd := NewReceiptsDispatcher()
 	notifier := NewNotifier(logger, nk, rd)
 
-	txHash := "tx123"
+	txHash := "hash1"
 	userID := "user456"
 
 	notifier.AddTxHashToPendingNotifications(txHash, userID)
@@ -31,7 +63,7 @@ func TestHandleReceipt(t *testing.T) {
 	rd := NewReceiptsDispatcher()
 	notifier := NewNotifier(logger, nk, rd)
 
-	txHash := "tx123"
+	txHash := "hash1"
 	userID := "user456"
 
 	// Assert that "NotificationSend" is called with the given params
@@ -54,6 +86,8 @@ func TestHandleReceipt(t *testing.T) {
 
 	_, exists := notifier.txHashToTargetInfo[txHash]
 	assert.False(t, exists, "TxHash should be removed from map after processing")
+
+	nk.AssertExpectations(t)
 }
 
 func TestCleanupStaleTransactions(t *testing.T) {
@@ -62,8 +96,8 @@ func TestCleanupStaleTransactions(t *testing.T) {
 	rd := NewReceiptsDispatcher()
 	notifier := NewNotifier(logger, nk, rd)
 
-	staleTxHash := "staleTx123"
-	recentTxHash := "recentTx123"
+	staleTxHash := "staleHash1"
+	recentTxHash := "recentHash1"
 	userID := "user456"
 
 	// Add a stale transaction
