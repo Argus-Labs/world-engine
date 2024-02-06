@@ -6,13 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/router"
 	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"pkg.world.dev/world-engine/cardinal/shard/adapter"
 
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
@@ -46,6 +45,8 @@ func (n Namespace) String() string {
 	return string(n)
 }
 
+var _ router.Provider = &Engine{}
+
 type Engine struct {
 	namespace              Namespace
 	redisStorage           *redis.Storage
@@ -72,7 +73,7 @@ type Engine struct {
 
 	receiptHistory *receipt.History
 
-	chain adapter.Adapter
+	router router.Router
 	// isRecovering indicates that the engine is recovering from the DA layer.
 	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
 	isRecovering atomic.Bool
@@ -90,6 +91,78 @@ type Engine struct {
 	addChannelWaitingForNextTick chan chan struct{}
 
 	shutdownMutex sync.Mutex
+}
+
+func (e *Engine) ConsumeEVMMsgResult(evmTxHash string) ([]byte, []error, string, bool) {
+	rcpt, exists := e.consumeEVMMsgResult(evmTxHash)
+	return rcpt.ABIResult, rcpt.Errs, rcpt.EVMTxHash, exists
+}
+
+func (e *Engine) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
+	qry, err := e.GetQueryByName(name)
+	if err != nil {
+		return nil, err
+	}
+	req, err := qry.DecodeEVMRequest(abiRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	reply, err := qry.HandleQuery(NewReadOnlyEngineContext(e), req)
+	if err != nil {
+		return nil, err
+	}
+
+	return qry.EncodeEVMReply(reply)
+}
+
+func (e *Engine) GetEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
+	return e.consumeEVMMsgResult(evmTxHash)
+}
+
+func (e *Engine) GetMessageByName(s string) (message.Message, bool) {
+	for _, msg := range e.registeredMessages {
+		if msg.Name() == s {
+			return msg, true
+		}
+	}
+	return nil, false
+}
+
+func (e *Engine) GetPersonaForEVMAddress(addr string) (string, error) {
+	var sc *SignerComponent
+	eCtx := NewReadOnlyEngineContext(e)
+	q := eCtx.NewSearch(filter.Exact(SignerComponent{}))
+	var getComponentErr error
+	searchIterationErr := eris.Wrap(
+		q.Each(
+			eCtx, func(id entity.ID) bool {
+				var signerComp *SignerComponent
+				signerComp, getComponentErr = GetComponent[SignerComponent](eCtx, id)
+				getComponentErr = eris.Wrap(getComponentErr, "")
+				if getComponentErr != nil {
+					return false
+				}
+				for _, authAddr := range signerComp.AuthorizedAddresses {
+					if authAddr == addr {
+						sc = signerComp
+						return false
+					}
+				}
+				return true
+			},
+		), "",
+	)
+	if getComponentErr != nil {
+		return "", getComponentErr
+	}
+	if searchIterationErr != nil {
+		return "", searchIterationErr
+	}
+	if sc == nil {
+		return "", eris.Errorf("address %s does not have a linked persona tag", addr)
+	}
+	return sc.PersonaTag, nil
 }
 
 var (
@@ -401,6 +474,15 @@ func NewEngine(
 	return e, nil
 }
 
+func (e *Engine) SetRouter(r router.Router) { e.router = r }
+
+func (e *Engine) RunRouter() error {
+	if e.router == nil {
+		return nil
+	}
+	return e.router.Start()
+}
+
 func (e *Engine) CurrentTick() uint64 {
 	return e.tick.Load()
 }
@@ -414,9 +496,9 @@ func (e *Engine) Remove(id entity.ID) error {
 	return e.GameStateManager().RemoveEntity(id)
 }
 
-// ConsumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
+// consumeEVMMsgResult consumes a tx result from an EVM originated Cardinal message.
 // It will fetch the receipt from the map, and then delete ('consume') it from the map.
-func (e *Engine) ConsumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
+func (e *Engine) consumeEVMMsgResult(evmTxHash string) (EVMTxReceipt, bool) {
 	r, ok := e.evmTxReceipts[evmTxHash]
 	delete(e.evmTxReceipts, evmTxHash)
 	return r, ok
@@ -516,8 +598,8 @@ func (e *Engine) Tick(ctx context.Context) error {
 	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
 	e.setEvmResults(txQueue.GetEVMTxs())
-	if txQueue.GetAmountOfTxs() != 0 && e.chain != nil && !e.isRecovering.Load() {
-		err := e.chain.Submit(ctx, txQueue.Transactions(), e.namespace.String(), e.tick.Load(), e.timestamp.Load())
+	if txQueue.GetAmountOfTxs() != 0 && e.router != nil && !e.isRecovering.Load() {
+		err := e.router.SubmitTxBlob(ctx, txQueue.Transactions(), e.namespace.String(), e.tick.Load(), e.timestamp.Load())
 		if err != nil {
 			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
 		}
@@ -699,6 +781,9 @@ func (e *Engine) Shutdown() error {
 		return err
 	}
 	log.Info().Msg("Successfully closed storage connection.")
+	if e.router != nil {
+		e.router.Shutdown()
+	}
 	return nil
 }
 
@@ -765,7 +850,7 @@ func (e *Engine) LoadGameState() error {
 //
 //nolint:gocognit
 func (e *Engine) RecoverFromChain(ctx context.Context) error {
-	if e.chain == nil {
+	if e.router == nil {
 		return eris.Errorf(
 			"chain adapter was nil. " +
 				"be sure to use the `WithAdapter` option when creating the world",
@@ -785,7 +870,7 @@ func (e *Engine) RecoverFromChain(ctx context.Context) error {
 	namespace := e.Namespace().String()
 	var nextKey []byte
 	for {
-		res, err := e.chain.QueryTransactions(
+		res, err := e.router.QueryTransactions(
 			ctx, &types.QueryTransactionsRequest{
 				Namespace: namespace,
 				Page: &types.PageRequest{

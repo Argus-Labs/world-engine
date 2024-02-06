@@ -88,14 +88,10 @@ func (k *kmsSigner) SignTx(ctx context.Context, personaTag string, namespace str
 		return nil, eris.Wrap(err, "failed to sign tx via KMS")
 	}
 
-	if !result.VerifiedDigestCrc32C {
+	if !result.VerifiedDigestCrc32C ||
+		result.Name != req.Name ||
+		int64(crc32c(result.Signature)) != result.SignatureCrc32C.Value {
 		return nil, fmt.Errorf("AsymmetricSign: request corrupted in-transit")
-	}
-	if result.Name != req.Name {
-		return nil, fmt.Errorf("AsymmetricSign: request corrupted in-transit")
-	}
-	if int64(crc32c(result.Signature)) != result.SignatureCrc32C.Value {
-		return nil, fmt.Errorf("AsymmetricSign: response corrupted in-transit")
 	}
 
 	//	unsignedTx.Signature = string(result.Signature)
@@ -180,7 +176,7 @@ func convertPemToSignerAddress(pemStr string) (string, error) {
 	// 		return "", eris.Wrap(err, "public key is not elliptic curve")
 	//	}
 	//
-	// But the above code does not seem to support BLA FINISH THIS COMMENT
+	// But the x509 package does not seem to support the 1.2.840.10045.2.1 OID standard for elliptic curves.
 
 	var pubKeyInfo publicKeyInfo
 	rest, err := asn1.Unmarshal(block.Bytes, &pubKeyInfo)
