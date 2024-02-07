@@ -3,6 +3,7 @@ package query
 import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"strings"
 )
 
 var (
@@ -37,7 +38,7 @@ func PersonaSignerQuery(wCtx engine.Context, req *PersonaSignerQueryRequest) (*P
 	addr, err := wCtx.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
 	if err != nil {
 		//nolint:gocritic // cant switch case this.
-		if errors.Is(err, ErrPersonaTagHasNoSigner) {
+		if strings.Contains(err.Error(), ErrPersonaTagHasNoSigner.Error()) {
 			status = getSignerForPersonaStatusAvailable
 		} else if errors.Is(err, ErrCreatePersonaTxsNotProcessed) {
 			status = getSignerForPersonaStatusUnknown

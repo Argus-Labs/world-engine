@@ -63,7 +63,7 @@ func TestEvents(t *testing.T) {
 	}
 	for i := 1; i < amountOfPlayers+1; i++ {
 		message, ok := results[strconv.Itoa(i)]
-		assert.Equal(t, ok, true)
+		assert.Equal(t, ok, true, "expected result at index %d", i)
 		assert.Equal(t, message, fmt.Sprintf("%d player created", i))
 	}
 }
@@ -339,13 +339,12 @@ func waitForAcceptedPersonaTag(c *clientutils.NakamaClient) error {
 			return err
 		}
 		status, err := getStatusFromResponse(resp)
-		if err != nil {
-			return fmt.Errorf("unable to get 'status' field from response: %w", err)
-		}
-		if status == "accepted" {
-			break
-		} else if status != "pending" {
-			return fmt.Errorf("bad status %q while waiting for persona tag to be accepted", status)
+		if err == nil {
+			if status == "accepted" {
+				break
+			} else if status != "pending" {
+				return fmt.Errorf("bad status %q while waiting for persona tag to be accepted", status)
+			}
 		}
 
 		select {
