@@ -4,14 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/golang/mock/gomock"
+	"testing"
+	"time"
+
 	"google.golang.org/protobuf/proto"
+
+	"github.com/golang/mock/gomock"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/evm/x/shard/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
-	"testing"
-	"time"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
 
@@ -53,6 +55,30 @@ func TestCanWaitForNextTick(t *testing.T) {
 	}
 }
 
+func TestShutdownCallFromWithinSystem(t *testing.T) {
+	engine := testutils.NewTestFixture(t, nil).Engine
+	startTickCh := make(chan time.Time)
+	engine.RegisterSystems(func(eCtx ecs.EngineContext) error {
+		eCtx.GetEngine().Shutdown()
+		return nil
+	})
+	assert.NilError(t, engine.LoadGameState())
+	engine.StartGameLoop(context.Background(), startTickCh, nil)
+	// Make sure the game can tick
+	startTickCh <- time.Now()
+	counter := 0
+	for engine.IsGameLoopRunning() {
+		if counter > 25 {
+			break
+		} else {
+			counter++
+		}
+		time.Sleep(1 * time.Second)
+	}
+	assert.True(t, counter < 25)
+
+}
+
 func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
 	engine := testutils.NewTestFixture(t, nil).Engine
 	startTickCh := make(chan time.Time)
@@ -76,7 +102,7 @@ func TestWaitForNextTickReturnsFalseWhenEngineIsShutDown(t *testing.T) {
 	// Shutdown the engine at some point in the near future
 	time.AfterFunc(
 		100*time.Millisecond, func() {
-			assert.NilError(t, engine.Shutdown())
+			engine.Shutdown()
 		},
 	)
 	// testTimeout will cause the test to fail if we have to wait too long for a WaitForNextTick failure
@@ -107,7 +133,7 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	startTickCh <- time.Now()
 	<-doneTickCh
 
-	assert.NilError(t, engine.Shutdown())
+	engine.Shutdown()
 
 	for i := 0; i < 10; i++ {
 		// After a engine is shut down, WaitForNextTick should never block and always fail

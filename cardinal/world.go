@@ -7,12 +7,13 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/router"
 	"reflect"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/router"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog"
@@ -358,7 +359,17 @@ func (w *World) Shutdown() error {
 		}
 	}
 	close(w.endStartGame)
-	return w.Engine().Shutdown()
+	w.Engine().Shutdown()
+	counter := 0
+	for w.Engine().IsGameLoopRunning() {
+		if counter > 25 {
+			return eris.New("Engine failed to shutdown.")
+		} else {
+			counter++
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return nil
 }
 
 func RegisterSystems(w *World, systems ...System) error {

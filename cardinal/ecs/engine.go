@@ -6,12 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"pkg.world.dev/world-engine/cardinal/router"
 	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"pkg.world.dev/world-engine/cardinal/router"
 
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
@@ -759,7 +760,16 @@ func (e *Engine) IsGameLoopRunning() bool {
 	return e.isGameLoopRunning.Load()
 }
 
-func (e *Engine) Shutdown() error {
+func (e *Engine) Shutdown() {
+	go func() {
+		err := e.shutdownEngine()
+		if err != nil {
+			e.Logger.Fatal().Err(err).Msg("Failed to shutdown")
+		}
+	}()
+}
+
+func (e *Engine) shutdownEngine() error {
 	e.shutdownMutex.Lock() // This queues up Shutdown calls so they happen one after the other.
 	defer e.shutdownMutex.Unlock()
 	if !e.IsGameLoopRunning() {
