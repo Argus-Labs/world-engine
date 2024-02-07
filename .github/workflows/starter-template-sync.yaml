@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - starter-game-template/**
+  pull_request:
+    paths:
+      - starter-game-template/**
 
 jobs:
   dir-changes:
@@ -22,9 +25,29 @@ jobs:
           filters: |
             starter-game-template:
               - 'starter-game-template/**'
+  lint-cardinal:
+    name: Lint Cardinal
+    needs: dir-changes
+    if: (needs.dir-changes.outputs.starter-game-template == 'true')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: starter-game-template/cardinal
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Docker Build
+        uses: docker/setup-buildx-action@v3
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.54.2
+          args: --timeout=10m --concurrency 8 -v
+      - name: Build Cardinal Docker Image
+        run: docker build .
   git-repo-sync:
     name: Starter-Game-Template Repo Sync
-    needs: dir-changes
+    needs: lint-cardinal
     if: (github.ref == 'refs/heads/main' && needs.dir-changes.outputs.starter-game-template == 'true')
     runs-on: ubuntu-latest
     defaults:
