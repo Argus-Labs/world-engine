@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 
@@ -80,13 +81,14 @@ func StorageObjToPersonaTagStorageObj(obj *api.StorageObject) (*StorageObj, erro
 func (p *StorageObj) AttemptToUpdatePending(
 	ctx context.Context,
 	nk runtime.NakamaModule,
+	txSigner signer.Signer,
 	cardinalAddr string,
 ) (*StorageObj, error) {
 	if p.Status != StatusPending {
 		return p, nil
 	}
 
-	verified, err := p.verifyPersonaTag(ctx, cardinalAddr)
+	verified, err := p.verifyPersonaTag(ctx, txSigner, cardinalAddr)
 	switch {
 	case eris.Is(eris.Cause(err), ErrPersonaSignerUnknown):
 		// Leave the Status as pending.
@@ -115,13 +117,15 @@ func (p *StorageObj) AttemptToUpdatePending(
 
 // verifyPersonaTag queries cardinal to see if the signer address for the given persona tag matches Nakama's signer
 // address.
-func (p *StorageObj) verifyPersonaTag(ctx context.Context, cardinalAddr string) (verified bool, err error) {
+func (p *StorageObj) verifyPersonaTag(ctx context.Context, txSigner signer.Signer, cardinalAddr string) (
+	verified bool, err error,
+) {
 	gameSignerAddress, err := queryPersonaSigner(ctx, p.PersonaTag, p.Tick, cardinalAddr)
 	if err != nil {
 		return false, err
 	}
-	nakamaSignerAddress := signer.GetSignerAddress()
-	return gameSignerAddress == nakamaSignerAddress, nil
+	signerAddress := txSigner.SignerAddress()
+	return gameSignerAddress == signerAddress, nil
 }
 
 // SavePersonaTagStorageObj saves the given StorageObj to the Nakama DB for the current user.

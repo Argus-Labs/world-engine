@@ -5,18 +5,23 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io"
+
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
 	"google.golang.org/grpc/codes"
-	"io"
+
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
+	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
 )
 
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
-func handleClaimPersona(verifier *persona.Verifier, notifier *receipt.Notifier) nakamaRPCHandler {
+func handleClaimPersona(verifier *persona.Verifier,
+	notifier *receipt.Notifier,
+	txSigner signer.Signer) nakamaRPCHandler {
 	return func(
 		ctx context.Context,
 		logger runtime.Logger,
@@ -40,6 +45,7 @@ func handleClaimPersona(verifier *persona.Verifier, notifier *receipt.Notifier) 
 			verifier,
 			notifier,
 			ptr,
+			txSigner,
 			globalCardinalAddress,
 			globalNamespace,
 			&globalPersonaTagAssignment,
@@ -63,17 +69,23 @@ func handleClaimPersona(verifier *persona.Verifier, notifier *receipt.Notifier) 
 	}
 }
 
-func handleShowPersona(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, _ string,
-) (string, error) {
-	result, err := persona.ShowPersona(ctx, nk, globalCardinalAddress)
-	if err == nil {
-		return utils.MarshalResult(logger, result)
-	}
+func handleShowPersona(txSigner signer.Signer) nakamaRPCHandler {
+	return func(ctx context.Context,
+		logger runtime.Logger,
+		_ *sql.DB,
+		nk runtime.NakamaModule,
+		_ string,
+	) (string, error) {
+		result, err := persona.ShowPersona(ctx, nk, txSigner, globalCardinalAddress)
+		if err == nil {
+			return utils.MarshalResult(logger, result)
+		}
 
-	if eris.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound) {
-		return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag not found")
+		if eris.Is(eris.Cause(err), persona.ErrPersonaTagStorageObjNotFound) {
+			return utils.LogErrorWithMessageAndCode(logger, err, codes.NotFound, "persona tag not found")
+		}
+		return utils.LogError(logger, err, codes.FailedPrecondition)
 	}
-	return utils.LogError(logger, err, codes.FailedPrecondition)
 }
 
 func handleGenerateKey(ctx context.Context, logger runtime.Logger, _ *sql.DB, nk runtime.NakamaModule, payload string) (
