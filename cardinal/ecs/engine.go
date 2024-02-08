@@ -14,7 +14,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"google.golang.org/protobuf/proto"
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
 	"github.com/rotisserie/eris"
@@ -34,7 +33,6 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types/component"
 	"pkg.world.dev/world-engine/cardinal/types/entity"
 	"pkg.world.dev/world-engine/cardinal/types/message"
-	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -890,22 +888,6 @@ func (e *Engine) RecoverFromChain(ctx context.Context) error {
 		return eris.Wrap(err, "encountered error while iterating transactions")
 	}
 	return nil
-}
-
-func (e *Engine) protoTransactionToGo(sp *shardv1.Transaction) *sign.Transaction {
-	return &sign.Transaction{
-		PersonaTag: sp.PersonaTag,
-		Namespace:  sp.Namespace,
-		Nonce:      sp.Nonce,
-		Signature:  sp.Signature,
-		Body:       sp.Body,
-	}
-}
-
-func (e *Engine) decodeTransaction(bz []byte) (*shardv1.Transaction, error) {
-	payload := new(shardv1.Transaction)
-	err := proto.Unmarshal(bz, payload)
-	return payload, eris.Wrap(err, "")
 }
 
 // getMessage iterates over the all registered messages and returns the message.Message associated with the

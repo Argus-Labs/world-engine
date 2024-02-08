@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"github.com/golang/mock/gomock"
+	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/router/mocks"
 	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/types/message"
 	"testing"
 	"time"
 
@@ -305,90 +307,142 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+type mockIterator struct {
+	batches []mockBatches
+}
+
+type mockBatches struct {
+	batch     []*iterator.TxBatch
+	tick      uint64
+	timestamp uint64
+}
+
+func (m *mockIterator) Each(fn func(batches []*iterator.TxBatch, tick, timestamp uint64) error) error {
+	for _, b := range m.batches {
+		if err := fn(b.batch, b.tick, b.timestamp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func TestRecoverFromChain(t *testing.T) {
-	/*
-		ctrl := gomock.NewController(t)
-		rtr := mocks.NewMockRouter(ctrl)
-		engine := testutils.NewTestFixture(t, nil).Engine
-		engine.SetRouter(rtr)
+	ctrl := gomock.NewController(t)
+	rtr := mocks.NewMockRouter(ctrl)
+	engine := testutils.NewTestFixture(t, nil).Engine
+	engine.SetRouter(rtr)
 
-		type fooMsg struct{ I int }
-		type fooMsgRes struct{}
-		fooMsgName := "foo"
-		fooMessage := ecs.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
-		err := engine.RegisterMessages(fooMessage)
-		assert.NilError(t, err)
+	type fooMsg struct{ I int }
+	type fooMsgRes struct{}
+	fooMsgName := "foo"
+	fooMessage := ecs.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
+	err := engine.RegisterMessages(fooMessage)
+	assert.NilError(t, err)
 
-		fooMessages := 0
-		engine.RegisterSystem(func(engineContext ecs.EngineContext) error {
-			fooMessage.Each(engineContext, func(t ecs.TxData[fooMsg]) (fooMsgRes, error) {
-				fooMessages++
-				return fooMsgRes{}, nil
-			})
-			return nil
+	fooMessages := 0
+	engine.RegisterSystem(func(engineContext ecs.EngineContext) error {
+		fooMessage.Each(engineContext, func(t ecs.TxData[fooMsg]) (fooMsgRes, error) {
+			fooMessages++
+			return fooMsgRes{}, nil
 		})
-		err = engine.LoadGameState()
-		assert.NilError(t, err)
+		return nil
+	})
+	err = engine.LoadGameState()
+	assert.NilError(t, err)
 
-		req := &types.QueryTransactionsRequest{
-			Namespace: engine.Namespace().String(),
-			Page:      new(types.PageRequest),
-		}
-		msgBody, err := json.Marshal(fooMsg{I: 420})
-		assert.NilError(t, err)
-		tx := &shard.Transaction{
-			PersonaTag: "tyler",
-			Namespace:  engine.Namespace().String(),
-			Nonce:      0,
-			Signature:  "sigNature",
-			Body:       msgBody,
-		}
-		bz, err := proto.Marshal(tx)
-		assert.NilError(t, err)
-		pageResponse := &types.PageResponse{Key: []byte("whatever")}
-		res := &types.QueryTransactionsResponse{
-			Epochs: []*types.Epoch{
+	it := mockIterator{batches: []mockBatches{
+		{
+			batch: []*iterator.TxBatch{
 				{
-					Epoch:         0,
-					UnixTimestamp: 10,
-					Txs: []*types.Transaction{
-						{
-							TxId:                 uint64(fooMessage.ID()),
-							GameShardTransaction: bz,
-						},
-					},
+					Tx:       &sign.Transaction{PersonaTag: "ty"},
+					MsgID:    fooMessage.ID(),
+					MsgValue: fooMsg{I: 40},
+				},
+				{
+					Tx:       &sign.Transaction{PersonaTag: "ty"},
+					MsgID:    fooMessage.ID(),
+					MsgValue: fooMsg{I: 2240},
 				},
 			},
-			Page: pageResponse,
-		}
-		res2 := &types.QueryTransactionsResponse{
-			Epochs: []*types.Epoch{
+			tick:      3,
+			timestamp: 420,
+		},
+		{
+			batch: []*iterator.TxBatch{
 				{
-					Epoch:         1,
-					UnixTimestamp: 11,
-					Txs: []*types.Transaction{
-						{
-							TxId:                 uint64(fooMessage.ID()),
-							GameShardTransaction: bz,
-						},
-					},
+					Tx:       &sign.Transaction{PersonaTag: "ty"},
+					MsgID:    fooMessage.ID(),
+					MsgValue: fooMsg{I: 420},
+				},
+				{
+					Tx:       &sign.Transaction{PersonaTag: "ty"},
+					MsgID:    fooMessage.ID(),
+					MsgValue: fooMsg{I: 33},
 				},
 			},
-			Page: nil,
-		}
-		req2 := &types.QueryTransactionsRequest{
-			Namespace: engine.Namespace().String(),
-			Page:      &types.PageRequest{Key: pageResponse.Key},
-		}
-		rtr.EXPECT().QueryTransactions(gomock.Any(), req).Return(res, nil).Times(1)
-		rtr.EXPECT().QueryTransactions(gomock.Any(), req2).Return(res2, nil).Times(1)
+			tick:      10,
+			timestamp: 490,
+		},
+	}}
+	rtr.EXPECT().TransactionIterator().Return(&it).Times(1)
+	err = engine.RecoverFromChain(context.Background())
+	assert.Equal(t, fooMessages, 4)
+	assert.Equal(t, engine.CurrentTick(), uint64(11))
+}
 
-		// TODO: implement a mock iterator yadda yadda yadda
-		rtr.EXPECT().TransactionIterator().Return()
-		err = engine.RecoverFromChain(context.Background())
-		assert.NilError(t, err)
+func TestCantRecoverWithoutRouter(t *testing.T) {
+	engine := testutils.NewTestFixture(t, nil).Engine
+	err := engine.RecoverFromChain(context.Background())
+	assert.ErrorContains(t, err, "cannot recover state without router")
+}
 
-		assert.Equal(t, fooMessages, 2)
-		assert.Equal(t, engine.CurrentTick(), uint64(2))
-	*/
+func TestCantRecoverWhenTickIsGreaterThanZero(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	rtr := mocks.NewMockRouter(ctrl)
+	engine := testutils.NewTestFixture(t, nil).Engine
+	engine.SetRouter(rtr)
+	err := engine.LoadGameState()
+	assert.NilError(t, err)
+	err = engine.Tick(context.Background())
+	assert.NilError(t, err)
+
+	err = engine.RecoverFromChain(context.Background())
+	assert.ErrorContains(t, err, "cannot recover world with existing state")
+}
+
+func TestRecoveredOutOfOrderTick(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	rtr := mocks.NewMockRouter(ctrl)
+	engine := testutils.NewTestFixture(t, nil).Engine
+	engine.SetRouter(rtr)
+	err := engine.LoadGameState()
+	assert.NilError(t, err)
+
+	it := mockIterator{batches: []mockBatches{
+		{
+			batch: []*iterator.TxBatch{
+				{
+					Tx:       &sign.Transaction{PersonaTag: "ty"},
+					MsgID:    message.TypeID(30),
+					MsgValue: "hi",
+				},
+			},
+			tick:      3,
+			timestamp: 420,
+		},
+		{
+			batch: []*iterator.TxBatch{
+				{
+					Tx:       &sign.Transaction{PersonaTag: "ty"},
+					MsgID:    message.TypeID(30),
+					MsgValue: "hi",
+				},
+			},
+			tick:      2,
+			timestamp: 420,
+		},
+	}}
+	rtr.EXPECT().TransactionIterator().Return(&it).Times(1)
+	err = engine.RecoverFromChain(context.Background())
+	assert.ErrorContains(t, err, "got tick for 2 but Cardinal was at 4")
 }
