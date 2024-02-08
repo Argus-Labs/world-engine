@@ -3,7 +3,6 @@ package ecs
 import (
 	"errors"
 
-	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
 
 	"github.com/rs/zerolog"
@@ -16,7 +15,6 @@ type EngineContext interface {
 	CurrentTick() uint64
 	Logger() *zerolog.Logger
 	NewSearch(filter filter.ComponentFilter) *Search
-	//Shutdown()
 
 	// For internal use.
 	GetEngine() *Engine
@@ -105,14 +103,4 @@ func (e *engineContext) StoreReader() gamestate.Reader {
 
 func (e *engineContext) NewSearch(filter filter.ComponentFilter) *Search {
 	return e.engine.NewSearch(filter)
-}
-
-func (e *engineContext) Shutdown() {
-	go func() {
-		err := e.engine.Shutdown()
-		if err != nil {
-			err = eris.Wrap(err, "shutdown error")
-			e.Logger().Fatal().Err(err)
-		}
-	}()
 }
