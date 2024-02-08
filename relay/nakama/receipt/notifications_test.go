@@ -14,10 +14,7 @@ import (
 func TestNotifierIntegrationWithDispatcher(t *testing.T) {
 	nk := mocks.NewNakamaModule(t)
 	logger := &testutils.FakeLogger{}
-
-	mockServer := setupMockServer()
-	defer mockServer.Close()
-
+	mockServer := setupMockServer(t)
 	rd := NewReceiptsDispatcher()
 	notifier := NewNotifier(logger, nk, rd)
 

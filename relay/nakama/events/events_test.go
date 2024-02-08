@@ -15,28 +15,39 @@ import (
 
 var upgrader = websocket.Upgrader{} // use default options
 
-func setupMockWebSocketServer() *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func setupMockWebSocketServer(t *testing.T, ch chan string) *httptest.Server {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Print("upgrade:", err)
 			return
 		}
 		defer c.Close()
+
 		for {
-			time.Sleep(time.Second) // Simulate some delay in sending messages, heh heh entropy go brrrrr
-			err := c.WriteMessage(websocket.TextMessage, []byte(`{"message":"test event"}`))
+			msg, ok := <-ch // Wait for a message from the channel
+			if !ok {        // If the channel is closed, break the loop
+				break
+			}
+			err := c.WriteMessage(websocket.TextMessage, []byte(msg))
 			if err != nil {
 				log.Println("write:", err)
 				break
 			}
 		}
 	}))
+
+	t.Cleanup(server.Close)
+	return server
 }
 
 func TestEventHubIntegration(t *testing.T) {
-	mockServer := setupMockWebSocketServer()
-	defer mockServer.Close()
+	ch := make(chan string)
+	mockServer := setupMockWebSocketServer(t, ch)
+	t.Cleanup(func() {
+		mockServer.Close()
+		close(ch)
+	})
 
 	logger := &testutils.FakeLogger{}
 	eventsEndpoint := "events"
@@ -56,15 +67,19 @@ func TestEventHubIntegration(t *testing.T) {
 		}
 	}()
 
+	// Simulate a WebSocket message by sending a message into the channel
+	go func() {
+		ch <- `{"message":"test event"}`
+	}()
+
 	// Wait to receive an event
 	select {
 	case event := <-eventChan:
 		assert.True(t, strings.Contains(event.Message, "test event"))
-	case <-time.After(5 * time.Second): // Adjust timeout as necessary
+	case <-time.After(5 * time.Second):
 		t.Fatal("Did not receive event in time")
 	}
 
-	// Test unsubscribing
 	eventHub.Unsubscribe(session)
 
 	// Ensure channel is closed

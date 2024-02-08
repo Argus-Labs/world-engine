@@ -13,8 +13,8 @@ import (
 )
 
 // Setup mock server in a more streamlined manner, directly using the URL provided by httptest.
-func setupMockServer() *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func setupMockServer(t *testing.T) *httptest.Server {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		response := TransactionReceiptsReply{
 			StartTick: 0,
 			EndTick:   1,
@@ -26,13 +26,15 @@ func setupMockServer() *httptest.Server {
 			return
 		}
 	}))
+
+	t.Cleanup(server.Close)
+	return server
 }
 
 // Test that the Dispatcher can poll receipts from the Server and pass them to subscribed channels.
 func TestPollingFetchesAndDispatchesReceipts(t *testing.T) {
 	dispatcher := NewReceiptsDispatcher()
-	mockServer := setupMockServer()
-	defer mockServer.Close()
+	mockServer := setupMockServer(t)
 
 	testChannel := make(chan *Receipt, 10)
 	dispatcher.Subscribe("testSessionPolling", testChannel)
