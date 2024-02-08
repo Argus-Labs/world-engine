@@ -32,8 +32,8 @@ const (
 	StatusPending      personaTagStatus = "pending"
 	StatusAccepted     personaTagStatus = "accepted"
 	StatusRejected     personaTagStatus = "rejected"
-	PersonaTagKey                       = "personaTag"
-	CardinalCollection                  = "cardinalCollection"
+	PersonaTagKey                       = "persona_tag"
+	CardinalCollection                  = "cardinal_collection"
 )
 
 // LoadPersonaTagStorageObj loads the current user's persona tag storage object from Nakama's storage layer. The
