@@ -21,7 +21,8 @@ import (
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
 func handleClaimPersona(verifier *persona.Verifier,
 	notifier *receipt.Notifier,
-	txSigner signer.Signer) nakamaRPCHandler {
+	txSigner signer.Signer,
+	cardinalAddress string) nakamaRPCHandler {
 	return func(
 		ctx context.Context,
 		logger runtime.Logger,
@@ -46,7 +47,7 @@ func handleClaimPersona(verifier *persona.Verifier,
 			notifier,
 			ptr,
 			txSigner,
-			globalCardinalAddress,
+			cardinalAddress,
 			globalNamespace,
 			&globalPersonaTagAssignment,
 		)
@@ -69,14 +70,14 @@ func handleClaimPersona(verifier *persona.Verifier,
 	}
 }
 
-func handleShowPersona(txSigner signer.Signer) nakamaRPCHandler {
+func handleShowPersona(txSigner signer.Signer, cardinalAddress string) nakamaRPCHandler {
 	return func(ctx context.Context,
 		logger runtime.Logger,
 		_ *sql.DB,
 		nk runtime.NakamaModule,
 		_ string,
 	) (string, error) {
-		result, err := persona.ShowPersona(ctx, nk, txSigner, globalCardinalAddress)
+		result, err := persona.ShowPersona(ctx, nk, txSigner, cardinalAddress)
 		if err == nil {
 			return utils.MarshalResult(logger, result)
 		}
@@ -192,6 +193,7 @@ func handleCardinalRequest(
 	currEndpoint string,
 	createPayload func(string, string, runtime.NakamaModule, context.Context) (io.Reader, error),
 	notifier *receipt.Notifier,
+	cardinalAddress string,
 ) nakamaRPCHandler {
 	return func(
 		ctx context.Context,
@@ -207,7 +209,7 @@ func handleCardinalRequest(
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "unable to make payload")
 		}
 
-		result, err := makeRequestAndReadResp(ctx, notifier, currEndpoint, resultPayload)
+		result, err := makeRequestAndReadResp(ctx, notifier, currEndpoint, resultPayload, cardinalAddress)
 		if err != nil {
 			return utils.LogErrorWithMessageAndCode(logger, err, codes.FailedPrecondition, "")
 		}

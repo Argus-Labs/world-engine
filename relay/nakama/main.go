@@ -34,7 +34,6 @@ const (
 )
 
 var (
-	globalCardinalAddress      string
 	globalNamespace            string
 	globalPersonaTagAssignment = sync.Map{}
 	globalReceiptsDispatcher   *receipt.ReceiptsDispatcher
@@ -49,7 +48,8 @@ func InitModule(
 ) error {
 	utils.DebugEnabled = getDebugModeFromEnvironment()
 
-	if err := initCardinalAddress(); err != nil {
+	cardinalAddress, err := initCardinalAddress()
+	if err != nil {
 		return eris.Wrap(err, "failed to init cardinal address")
 	}
 
@@ -57,9 +57,9 @@ func InitModule(
 		return eris.Wrap(err, "failed to init namespace")
 	}
 
-	initReceiptDispatcher(logger)
+	initReceiptDispatcher(logger, cardinalAddress)
 
-	if err := initEventHub(ctx, logger, nk, EventEndpoint, globalCardinalAddress); err != nil {
+	if err := initEventHub(ctx, logger, nk, EventEndpoint, cardinalAddress); err != nil {
 		return eris.Wrap(err, "failed to init event hub")
 	}
 
@@ -80,7 +80,7 @@ func InitModule(
 		return eris.Wrap(err, "failed to init persona tag endpoints")
 	}
 
-	if err := initCardinalEndpoints(logger, initializer, notifier, txSigner); err != nil {
+	if err := initCardinalEndpoints(logger, initializer, notifier, txSigner, cardinalAddress); err != nil {
 		return eris.Wrap(err, "failed to init cardinal endpoints")
 	}
 
@@ -99,9 +99,9 @@ func InitModule(
 	return nil
 }
 
-func initReceiptDispatcher(log runtime.Logger) {
+func initReceiptDispatcher(log runtime.Logger, cardinalAddress string) {
 	globalReceiptsDispatcher = receipt.NewReceiptsDispatcher()
-	go globalReceiptsDispatcher.PollReceipts(log, globalCardinalAddress)
+	go globalReceiptsDispatcher.PollReceipts(log, cardinalAddress)
 	go globalReceiptsDispatcher.Dispatch(log)
 }
 
@@ -206,8 +206,9 @@ func initCardinalEndpoints(
 	initializer runtime.Initializer,
 	notifier *receipt.Notifier,
 	txSigner signer.Signer,
+	cardinalAddress string,
 ) error {
-	txEndpoints, queryEndpoints, err := getCardinalEndpoints()
+	txEndpoints, queryEndpoints, err := getCardinalEndpoints(cardinalAddress)
 	if err != nil {
 		return err
 	}
@@ -216,7 +217,7 @@ func initCardinalEndpoints(
 	) (io.Reader, error) {
 		logger.Debug("The %s endpoint requires a signed payload", endpoint)
 		var transaction io.Reader
-		transaction, err = makeTransaction(ctx, nk, txSigner, payload)
+		transaction, err = makeTransaction(ctx, nk, txSigner, payload, cardinalAddress)
 		if err != nil {
 			return nil, err
 		}
@@ -237,11 +238,11 @@ func initCardinalEndpoints(
 		return formattedPayloadBuffer, nil
 	}
 
-	err = registerEndpoints(logger, initializer, notifier, txEndpoints, createTransaction)
+	err = registerEndpoints(logger, initializer, notifier, txEndpoints, createTransaction, cardinalAddress)
 	if err != nil {
 		return err
 	}
-	err = registerEndpoints(logger, initializer, notifier, queryEndpoints, createUnsignedTransaction)
+	err = registerEndpoints(logger, initializer, notifier, queryEndpoints, createUnsignedTransaction, cardinalAddress)
 	if err != nil {
 		return err
 	}
@@ -251,12 +252,14 @@ func initCardinalEndpoints(
 func makeTransaction(ctx context.Context,
 	nk runtime.NakamaModule,
 	txSigner signer.Signer,
-	payload string) (io.Reader, error) {
+	payload string,
+	cardinalAddress string,
+) (io.Reader, error) {
 	ptr, err := persona.LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
 		return nil, err
 	}
-	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, txSigner, globalCardinalAddress)
+	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, txSigner, cardinalAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -276,12 +279,12 @@ func makeTransaction(ctx context.Context,
 	return bytes.NewReader(buf), nil
 }
 
-func initCardinalAddress() error {
-	globalCardinalAddress = os.Getenv(EnvCardinalAddr)
+func initCardinalAddress() (string, error) {
+	globalCardinalAddress := os.Getenv(EnvCardinalAddr)
 	if globalCardinalAddress == "" {
-		return eris.Errorf("must specify a cardinal server via %s", EnvCardinalAddr)
+		return "", eris.Errorf("must specify a cardinal server via %s", EnvCardinalAddr)
 	}
-	return nil
+	return globalCardinalAddress, nil
 }
 
 func initNamespace() error {

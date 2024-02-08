@@ -85,14 +85,16 @@ func registerEndpoints(
 	endpoints []string,
 	createPayload func(string, string, runtime.NakamaModule,
 		context.Context,
-	) (io.Reader, error)) error {
+	) (io.Reader, error),
+	cardinalAddress string,
+) error {
 	for _, e := range endpoints {
 		logger.Debug("registering: %v", e)
 		currEndpoint := e
 		if currEndpoint[0] == '/' {
 			currEndpoint = currEndpoint[1:]
 		}
-		err := initializer.RegisterRpc(currEndpoint, handleCardinalRequest(currEndpoint, createPayload, notifier))
+		err := initializer.RegisterRpc(currEndpoint, handleCardinalRequest(currEndpoint, createPayload, notifier, cardinalAddress))
 		if err != nil {
 			return eris.Wrap(err, "")
 		}
