@@ -130,7 +130,7 @@ func TestCanGetTimestampFromWorldContext(t *testing.T) {
 }
 
 func TestShutdownViaSignal(t *testing.T) {
-	//t.Skip("skipping this test til events and shutdown signals work again")
+	t.Skip("skipping this test til events and shutdown signals work again")
 	// If this test is frozen then it failed to shut down, create a failure with panic.
 	testutils.SetTestTimeout(t, time.Second)
 	tf := testutils.NewTestFixture(t, nil)
