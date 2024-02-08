@@ -37,7 +37,7 @@ func TestPollingFetchesAndDispatchesReceipts(t *testing.T) {
 	testChannel := make(chan *Receipt, 10)
 	dispatcher.Subscribe("testSessionPolling", testChannel)
 
-	noOpLogger := &testutils.NoOpLogger{}
+	noOpLogger := &testutils.FakeLogger{}
 	go dispatcher.Dispatch(noOpLogger)
 	go dispatcher.PollReceipts(noOpLogger, strings.TrimPrefix(mockServer.URL, "http://"))
 
@@ -63,7 +63,7 @@ func TestPollingHandlesErrorsGracefully(t *testing.T) {
 	}))
 	defer errorMockServer.Close()
 
-	noOpLogger := &testutils.NoOpLogger{}
+	noOpLogger := &testutils.FakeLogger{}
 	go dispatcher.PollReceipts(noOpLogger, strings.TrimPrefix(errorMockServer.URL, "http://"))
 
 	time.Sleep(2 * time.Second) // Wait for logging
@@ -79,7 +79,7 @@ func TestNonBlockingDispatch(t *testing.T) {
 	fullChannel := make(chan *Receipt)
 	dispatcher.Subscribe("testSessionFull", fullChannel)
 
-	noOpLogger := &testutils.NoOpLogger{}
+	noOpLogger := &testutils.FakeLogger{}
 	go dispatcher.Dispatch(noOpLogger)
 
 	done := make(chan bool, 1)

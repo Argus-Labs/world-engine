@@ -103,34 +103,31 @@ func MockMatchWriteKey(key string) interface{} {
 	})
 }
 
-type NoOpLogger struct {
-	mu     sync.Mutex // Ensure that the logger is goroutine-safe
-	Errors []string   // Store error messages
+type FakeLogger struct {
+	runtime.Logger
+	mu     sync.Mutex
+	Errors []string
 }
 
-func (l *NoOpLogger) Debug(string, ...interface{}) {}
-func (l *NoOpLogger) Info(string, ...interface{})  {}
-func (l *NoOpLogger) Warn(string, ...interface{})  {}
+func (l *FakeLogger) Debug(string, ...interface{}) {}
+func (l *FakeLogger) Info(string, ...interface{})  {}
+func (l *FakeLogger) Warn(string, ...interface{})  {}
 
 // Capture error messages
 //
 //nolint:goprintffuncname // [not important]
-func (l *NoOpLogger) Error(format string, args ...interface{}) {
+func (l *FakeLogger) Error(format string, args ...interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.Errors = append(l.Errors, fmt.Sprintf(format, args...))
 }
 
 // GetErrors A method to retrieve captured errors for assertions
-func (l *NoOpLogger) GetErrors() []string {
+func (l *FakeLogger) GetErrors() []string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.Errors
 }
 
-func (l *NoOpLogger) WithField(string, interface{}) runtime.Logger     { return nil }
-func (l *NoOpLogger) WithFields(map[string]interface{}) runtime.Logger { return nil }
-func (l *NoOpLogger) Fields() map[string]interface{}                   { return make(map[string]interface{}) }
-
-// Ensure that NoOpLogger implements runtime.Logger (this will produce a compile-time error if it doesn't)
-var _ runtime.Logger = (*NoOpLogger)(nil)
+// Ensure that FakeLogger implements runtime.Logger (this will produce a compile-time error if it doesn't)
+var _ runtime.Logger = (*FakeLogger)(nil)

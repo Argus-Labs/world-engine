@@ -38,7 +38,7 @@ func TestEventHubIntegration(t *testing.T) {
 	mockServer := setupMockWebSocketServer()
 	defer mockServer.Close()
 
-	logger := &testutils.NoOpLogger{}
+	logger := &testutils.FakeLogger{}
 	eventsEndpoint := "events"
 	eventHub, err := CreateEventHub(logger, eventsEndpoint, strings.TrimPrefix(mockServer.URL, "http://"))
 	if err != nil {

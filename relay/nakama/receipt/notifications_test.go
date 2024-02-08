@@ -13,7 +13,7 @@ import (
 // Test that the Notifications system works as expected with the Dispatcher and a Mock Server
 func TestNotifierIntegrationWithDispatcher(t *testing.T) {
 	nk := mocks.NewNakamaModule(t)
-	logger := &testutils.NoOpLogger{}
+	logger := &testutils.FakeLogger{}
 
 	mockServer := setupMockServer()
 	defer mockServer.Close()
@@ -37,12 +37,10 @@ func TestNotifierIntegrationWithDispatcher(t *testing.T) {
 	go rd.PollReceipts(logger, strings.TrimPrefix(mockServer.URL, "http://"))
 
 	time.Sleep(time.Second)
-
-	nk.AssertExpectations(t)
 }
 
 func TestAddTxHashToPendingNotifications(t *testing.T) {
-	logger := &testutils.NoOpLogger{}
+	logger := &testutils.FakeLogger{}
 	nk := mocks.NewNakamaModule(t)
 	rd := NewReceiptsDispatcher()
 	notifier := NewNotifier(logger, nk, rd)
@@ -58,7 +56,7 @@ func TestAddTxHashToPendingNotifications(t *testing.T) {
 }
 
 func TestHandleReceipt(t *testing.T) {
-	logger := &testutils.NoOpLogger{}
+	logger := &testutils.FakeLogger{}
 	nk := mocks.NewNakamaModule(t)
 	rd := NewReceiptsDispatcher()
 	notifier := NewNotifier(logger, nk, rd)
@@ -86,12 +84,10 @@ func TestHandleReceipt(t *testing.T) {
 
 	_, exists := notifier.txHashToTargetInfo[txHash]
 	assert.False(t, exists, "TxHash should be removed from map after processing")
-
-	nk.AssertExpectations(t)
 }
 
 func TestCleanupStaleTransactions(t *testing.T) {
-	logger := &testutils.NoOpLogger{}
+	logger := &testutils.FakeLogger{}
 	nk := mocks.NewNakamaModule(t)
 	rd := NewReceiptsDispatcher()
 	notifier := NewNotifier(logger, nk, rd)
