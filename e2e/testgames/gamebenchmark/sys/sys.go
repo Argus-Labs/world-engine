@@ -45,8 +45,6 @@ func InitTreeEntities(wCtx cardinal.WorldContext) error {
 	return nil
 }
 
-var shutdownCountdown = 200
-
 func SystemBenchmark(wCtx cardinal.WorldContext) error {
 	for _, id := range TreeEntityIds {
 		gotcomp, err := cardinal.GetComponent[comp.Tree](wCtx, id)
@@ -58,11 +56,6 @@ func SystemBenchmark(wCtx cardinal.WorldContext) error {
 		if err != nil {
 			return err
 		}
-	}
-	if shutdownCountdown <= 0 {
-		wCtx.Engine().GetEngine().Shutdown()
-	} else {
-		shutdownCountdown--
 	}
 	return nil
 }
