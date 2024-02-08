@@ -1,4 +1,4 @@
-package main //nolint: cyclop // for tests.
+package main
 
 import (
 	"errors"
@@ -73,7 +73,7 @@ func main() {
 
 	// TODO: Unused decorator somehow this breaks profiling (it ends up with missing pieces of the stack).
 	// TODO: Figure out how to get this to work.
-	//timedShutdownDecorator := func(system cardinal.System, tickAmount int) cardinal.System {
+	// timedShutdownDecorator := func(system cardinal.System, tickAmount int) cardinal.System {
 	//	counter := 0
 	//	return func(context cardinal.WorldContext) error {
 	//		context.Engine().GetEngine().Logger.Info().Msg("system")
@@ -93,9 +93,9 @@ func main() {
 
 	initsystems, systems = initializeSystems(initsystems, systems)
 
-	//for i, system := range systems {
+	// for i, system := range systems {
 	//	systems[i] = timedShutdownDecorator(system, 100)
-	//}
+	// }
 
 	err = cardinal.RegisterSystems(world, systems...)
 	if err != nil {
