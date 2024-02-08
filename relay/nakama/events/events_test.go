@@ -23,13 +23,8 @@ func setupMockWebSocketServer(t *testing.T, ch chan string) *httptest.Server {
 			return
 		}
 		defer c.Close()
-
-		for {
-			msg, ok := <-ch // Wait for a message from the channel
-			if !ok {        // If the channel is closed, break the loop
-				break
-			}
-			err := c.WriteMessage(websocket.TextMessage, []byte(msg))
+		for msg := range ch {
+			err = c.WriteMessage(websocket.TextMessage, []byte(msg))
 			if err != nil {
 				log.Println("write:", err)
 				break
