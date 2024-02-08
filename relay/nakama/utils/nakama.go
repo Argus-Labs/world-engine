@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 )
 
-// getUserID gets the Nakama UserID from the given context.
+// GetUserID gets the Nakama UserID from the given context.
 func GetUserID(ctx context.Context) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
