@@ -4,21 +4,23 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"pkg.world.dev/world-engine/relay/nakama/testutils"
 	"testing"
+
+	"pkg.world.dev/world-engine/relay/nakama/testutils"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/stretchr/testify/mock"
 	"pkg.world.dev/world-engine/assert"
+
 	"pkg.world.dev/world-engine/relay/nakama/mocks"
 )
 
 func TestPrivateKeyCanBeLoadedFromDB(t *testing.T) {
-	assert.Check(t, nil == globalPrivateKey, "unable to test private key generation; a key has already been generated")
-	t.Cleanup(func() {
-		globalPrivateKey = nil
-	})
+	ctx := context.Background()
+	logger := testutils.MockNoopLogger(t)
+	nk := mocks.NewNakamaModule(t)
+	nonceManager := NewNakamaNonceManager(nk)
 	wantPrivateKey, err := crypto.GenerateKey()
 	assert.NilError(t, err)
 	storageObj := fmt.Sprintf(`{"Value":"%s"}`, hex.EncodeToString(crypto.FromECDSA(wantPrivateKey)))
@@ -27,23 +29,22 @@ func TestPrivateKeyCanBeLoadedFromDB(t *testing.T) {
 			Value: storageObj,
 		},
 	}
-	nk := mocks.NewNakamaModule(t)
 	nk.On("StorageRead", mock.Anything, testutils.MockMatchReadKey(privateKeyKey)).
 		Return(storeReadResult, nil).
 		Once()
 
-	err = InitPrivateKey(context.Background(), testutils.MockNoopLogger(t), nk)
+	txSigner, err := NewNakamaSigner(ctx, logger, nk, nonceManager)
 	assert.NilError(t, err)
-	assert.Check(t, nil != globalPrivateKey)
-	assert.Check(t, globalPrivateKey.Equal(wantPrivateKey))
+	gotPrivateKey := txSigner.(*nakamaSigner).privateKey
+	assert.Check(t, nil != gotPrivateKey)
+	assert.Check(t, gotPrivateKey.Equal(wantPrivateKey))
 }
 
 func TestPrivateKeyIsGenerated(t *testing.T) {
-	assert.Check(t, nil == globalPrivateKey, "unable to test private key generation; a key has already been generated")
-	t.Cleanup(func() {
-		globalPrivateKey = nil
-	})
+	ctx := context.Background()
+	logger := testutils.MockNoopLogger(t)
 	nk := mocks.NewNakamaModule(t)
+	nonceManager := NewNakamaNonceManager(nk)
 	// The DB is checked for an existing private key.
 	nk.On("StorageRead", mock.Anything, testutils.MockMatchReadKey(privateKeyKey)).
 		Return(nil, nil).
@@ -59,7 +60,28 @@ func TestPrivateKeyIsGenerated(t *testing.T) {
 		Return(nil, nil).
 		Once()
 
-	err := InitPrivateKey(context.Background(), testutils.MockNoopLogger(t), nk)
+	txSigner, err := NewNakamaSigner(ctx, logger, nk, nonceManager)
 	assert.NilError(t, err)
-	assert.Check(t, nil != globalPrivateKey)
+	gotPrivateKey := txSigner.(*nakamaSigner).privateKey
+	assert.Check(t, nil != gotPrivateKey)
+
+	nonceReadResult := []*api.StorageObject{
+		{
+			Value: `{"Value":"99"}`,
+		},
+	}
+
+	// To sign a transaction, a nonce will be loaded and incremented
+	nk.On("StorageRead", mock.Anything, testutils.MockMatchReadKey(privateKeyNonce)).
+		Return(nonceReadResult, nil).
+		Once()
+
+	nk.On("StorageWrite", mock.Anything, testutils.MockMatchWriteKey(privateKeyNonce)).
+		Return(nil, nil).
+		Once()
+
+	payload := map[string]any{"foo": "bar", "baz": "quz"}
+	tx, err := txSigner.SignTx(ctx, "foobar", "baz", payload)
+	assert.NilError(t, err)
+	assert.Equal(t, tx.Nonce, uint64(99))
 }

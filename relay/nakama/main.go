@@ -11,20 +11,23 @@ import (
 	"strings"
 	"sync"
 
+	kms "cloud.google.com/go/kms/apiv1"
+	"github.com/heroiclabs/nakama-common/api"
+	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
+	"google.golang.org/api/option"
+
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
-
-	"github.com/heroiclabs/nakama-common/api"
-	"github.com/heroiclabs/nakama-common/runtime"
-	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/sign"
 )
 
 const (
 	EnvCardinalAddr           = "CARDINAL_ADDR"
 	EnvCardinalNamespace      = "CARDINAL_NAMESPACE"
+	EnvKMSCredentialsFile     = "GCP_KMS_CREDENTIALS_FILE" // #nosec G101
+	EnvKMSKeyName             = "GCP_KMS_KEY_NAME"
 	ListEndpoints             = "query/http/endpoints"
 	EventEndpoint             = "events"
 	TransactionEndpointPrefix = "/tx"
@@ -62,8 +65,9 @@ func InitModule(
 
 	notifier := receipt.NewNotifier(logger, nk, globalReceiptsDispatcher)
 
-	if err := signer.InitPrivateKey(ctx, logger, nk); err != nil {
-		return eris.Wrap(err, "failed to init private key")
+	txSigner, err := selectSigner(ctx, logger, nk)
+	if err != nil {
+		return eris.Wrap(err, "failed to create a crypto signer")
 	}
 
 	if err := initPersonaTagAssignmentMap(ctx, logger, nk, persona.CardinalCollection); err != nil {
@@ -72,11 +76,11 @@ func InitModule(
 
 	verifier := persona.NewVerifier(logger, nk, globalReceiptsDispatcher)
 
-	if err := initPersonaTagEndpoints(logger, initializer, verifier, notifier); err != nil {
+	if err := initPersonaTagEndpoints(logger, initializer, verifier, notifier, txSigner); err != nil {
 		return eris.Wrap(err, "failed to init persona tag endpoints")
 	}
 
-	if err := initCardinalEndpoints(logger, initializer, notifier); err != nil {
+	if err := initCardinalEndpoints(logger, initializer, notifier, txSigner); err != nil {
 		return eris.Wrap(err, "failed to init cardinal endpoints")
 	}
 
@@ -99,6 +103,30 @@ func initReceiptDispatcher(log runtime.Logger) {
 	globalReceiptsDispatcher = receipt.NewReceiptsDispatcher()
 	go globalReceiptsDispatcher.PollReceipts(log, globalCardinalAddress)
 	go globalReceiptsDispatcher.Dispatch(log)
+}
+
+func selectSigner(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) (signer.Signer, error) {
+	nonceManager := signer.NewNakamaNonceManager(nk)
+
+	kmsCredsFile := os.Getenv(EnvKMSCredentialsFile)
+	kmsKeyName := os.Getenv(EnvKMSKeyName)
+	if kmsCredsFile == "" && kmsKeyName == "" {
+		// Neither the KMS creds file nor the key name is set. Assume the user wants to store the private key on
+		// Nakama's DB.
+		return signer.NewNakamaSigner(ctx, logger, nk, nonceManager)
+	}
+	// At least one of the creds file or the key name is set. Assume the user wants to use KSM for signing transactions.
+	if kmsCredsFile == "" || kmsKeyName == "" {
+		// If either the credentials file or the key name is unset, KMS signing won't work, so return an error.
+		return nil, eris.Errorf(
+			"Both %q and %q must be set to use GCP KMS signing", EnvKMSCredentialsFile, EnvKMSKeyName)
+	}
+
+	client, err := kms.NewKeyManagementClient(ctx, option.WithCredentialsFile(kmsCredsFile))
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to make KMS client")
+	}
+	return signer.NewKMSSigner(ctx, nonceManager, client, kmsKeyName)
 }
 
 func initEventHub(
@@ -177,6 +205,7 @@ func initCardinalEndpoints(
 	logger runtime.Logger,
 	initializer runtime.Initializer,
 	notifier *receipt.Notifier,
+	txSigner signer.Signer,
 ) error {
 	txEndpoints, queryEndpoints, err := getCardinalEndpoints()
 	if err != nil {
@@ -187,7 +216,7 @@ func initCardinalEndpoints(
 	) (io.Reader, error) {
 		logger.Debug("The %s endpoint requires a signed payload", endpoint)
 		var transaction io.Reader
-		transaction, err = makeTransaction(ctx, nk, payload)
+		transaction, err = makeTransaction(ctx, nk, txSigner, payload)
 		if err != nil {
 			return nil, err
 		}
@@ -219,12 +248,15 @@ func initCardinalEndpoints(
 	return nil
 }
 
-func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload string) (io.Reader, error) {
+func makeTransaction(ctx context.Context,
+	nk runtime.NakamaModule,
+	txSigner signer.Signer,
+	payload string) (io.Reader, error) {
 	ptr, err := persona.LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
 		return nil, err
 	}
-	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, globalCardinalAddress)
+	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, txSigner, globalCardinalAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -233,11 +265,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 		return nil, eris.Wrap(persona.ErrNoPersonaTagForUser, "")
 	}
 	personaTag := ptr.PersonaTag
-	pk, nonce, err := signer.GetPrivateKeyAndANonce(ctx, nk)
-	if err != nil {
-		return nil, err
-	}
-	sp, err := sign.NewTransaction(pk, personaTag, globalNamespace, nonce, payload)
+	sp, err := txSigner.SignTx(ctx, personaTag, globalNamespace, payload)
 	if err != nil {
 		return nil, err
 	}
