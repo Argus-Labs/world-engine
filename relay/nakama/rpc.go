@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
-	"github.com/heroiclabs/nakama-common/runtime"
-	"github.com/rotisserie/eris"
 	"io"
 	"os"
+	"strconv"
+
+	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
-	"strconv"
+	"pkg.world.dev/world-engine/relay/nakama/signer"
 )
 
 // initPersonaEndpoints sets up the nakame RPC endpoints that are used to claim a persona tag and display a persona tag.
@@ -18,11 +21,13 @@ func initPersonaTagEndpoints(
 	initializer runtime.Initializer,
 	verifier *persona.Verifier,
 	notifier *receipt.Notifier,
+	txSigner signer.Signer,
 ) error {
-	if err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(verifier, notifier)); err != nil {
+	err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(verifier, notifier, txSigner))
+	if err != nil {
 		return eris.Wrap(err, "")
 	}
-	return eris.Wrap(initializer.RegisterRpc("nakama/show-persona", handleShowPersona), "")
+	return eris.Wrap(initializer.RegisterRpc("nakama/show-persona", handleShowPersona(txSigner)), "")
 }
 
 func initAllowlist(_ runtime.Logger, initializer runtime.Initializer) error {
