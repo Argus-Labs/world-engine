@@ -5,22 +5,27 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"testing"
+
+	"github.com/heroiclabs/nakama-common/runtime"
+
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/testutils"
-	"testing"
 
-	"github.com/heroiclabs/nakama-common/api"
-	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"pkg.world.dev/world-engine/assert"
+
 	"pkg.world.dev/world-engine/relay/nakama/mocks"
 )
 
 type AllowListTestSuite struct {
 	suite.Suite
 	originalAllowListEnabled bool
+	fakeNK                   runtime.NakamaModule
+	logger                   runtime.Logger
+	validBetaKeys            []string
 }
 
 func TestAllowList(t *testing.T) {
@@ -31,6 +36,16 @@ func (a *AllowListTestSuite) SetupTest() {
 	a.originalAllowListEnabled = allowlist.Enabled
 	allowlist.Enabled = true
 	a.T().Setenv(allowlist.EnabledEnvVar, "")
+	a.fakeNK = testutils.NewFakeNakamaModule()
+	a.logger = testutils.MockNoopLogger(a.T())
+
+	// Create a valid beta key using the allowlist package directly. Below, there is a more comprehensive
+	// test to make sure the rpc handler to generate beta keys is working as intended. This is a courtesy for tests
+	// that want a valid beta key but aren't testing the beta key creation logic.
+	ctx := testutils.CtxWithUserID(signer.AdminAccountID)
+	resp, err := allowlist.GenerateBetaKeys(ctx, a.fakeNK, allowlist.GenKeysMsg{Amount: 10})
+	assert.NilError(a.T(), err)
+	a.validBetaKeys = resp.Keys
 }
 
 func (a *AllowListTestSuite) TearDownTest() {
@@ -53,51 +68,54 @@ func (a *AllowListTestSuite) TestErrorFromStorageIsReturnedToCaller() {
 	ctx := testutils.CtxWithUserID(userID)
 	errorMsg := "read failure"
 
-	mockNK := mocks.NewNakamaModule(t)
-	// Make sure the code asks specifically for the uerID key
-	mockNK.On("StorageRead", mock.Anything, testutils.MockMatchReadKey(userID)).
-		Return(nil, errors.New(errorMsg)).
-		Once()
+	fakeNK := testutils.NewFakeNakamaModule().WithError(errors.New(errorMsg))
 
-	_, err := handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, `{"Key":"beta-key"}`)
+	_, err := handleClaimKey(ctx, a.logger, nil, fakeNK, `{"Key":"beta-key"}`)
 	assert.ErrorContains(t, err, errorMsg)
 }
 
 func (a *AllowListTestSuite) TestCannotClaimASecondBetaKey() {
 	t := a.T()
-	ctx := testutils.CtxWithUserID("foo")
 
-	// This storage object doesn't contain any data. The mere presence of the storage object means the beta key
-	// has been verified
-	readResponse := []*api.StorageObject{{
-		Value: "{}",
-	}}
+	// This initial beta key claim should succeed
+	userCtx := testutils.CtxWithUserID("foo")
+	payload := fmt.Sprintf(`{"Key":"%s"}`, a.validBetaKeys[0])
+	_, err := handleClaimKey(userCtx, a.logger, nil, a.fakeNK, payload)
+	assert.NilError(t, err)
 
-	mockNK := mocks.NewNakamaModule(t)
-	mockNK.On("StorageRead", mock.Anything, mock.Anything).
-		Return(readResponse, nil).
-		Once()
+	// But trying to claim the same beta key again should fail.
+	_, err = handleClaimKey(userCtx, a.logger, nil, a.fakeNK, payload)
+	assert.ErrorContains(t, err, allowlist.ErrAlreadyVerified.Error())
 
-	_, err := handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, `{"Key":"some-other-beta-key"}`)
+	// Trying to claim some other valid beta key should also fail
+	payload = fmt.Sprintf(`{"Key":"%s"}`, a.validBetaKeys[1])
+	_, err = handleClaimKey(userCtx, a.logger, nil, a.fakeNK, payload)
 	assert.ErrorContains(t, err, allowlist.ErrAlreadyVerified.Error())
 }
 
 func (a *AllowListTestSuite) TestBadKeyRequestsAreRejected() {
 	t := a.T()
 	ctx := testutils.CtxWithUserID("foo")
-	mockNK := mocks.NewNakamaModule(t)
-	// This storage read is checking for a valid beta key. In this test the user hasn't yet been verified, so
-	// no results will be returned.
-	mockNK.On("StorageRead", mock.Anything, mock.Anything).
-		Return(nil, nil).
-		Once()
 
-	_, err := handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, `{"key": ""}`)
+	badBody := `{"key": ""}`
+	_, err := handleClaimKey(ctx, a.logger, nil, a.fakeNK, badBody)
 	// Nakama returns its own custom runtime error which does NOT implement the Is method, making ErrorIs not helpful.
 	assert.ErrorContains(t, err, allowlist.ErrInvalidBetaKey.Error())
 
-	badBody := `{"key": "{{{{`
-	_, err = handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, badBody)
+	badBody = `{"key": "{{{{`
+	_, err = handleClaimKey(ctx, a.logger, nil, a.fakeNK, badBody)
+	assert.IsError(t, err)
+
+	validBetaKey := a.validBetaKeys[0]
+	// Change the first letter of the beta key
+	badBetaKey := "X" + validBetaKey[1:]
+	if badBetaKey == validBetaKey {
+		// Whoops. I guess the first character was already an X
+		badBetaKey = "Y" + validBetaKey[1:]
+	}
+
+	badBody = fmt.Sprintf(`{"key": %q}`, badBetaKey)
+	_, err = handleClaimKey(ctx, a.logger, nil, a.fakeNK, badBody)
 	assert.IsError(t, err)
 }
 
@@ -161,141 +179,85 @@ func (a *AllowListTestSuite) TestAllowListFailsIfRPCRegistrationFails() {
 func (a *AllowListTestSuite) TestCanHandleBetaKeyGenerationFailures() {
 	t := a.T()
 	ctx := context.Background()
-	logger := testutils.MockNoopLogger(t)
 
 	// No user ID is defined
-	_, err := handleGenerateKey(ctx, logger, nil, nil, `{"amount":10}`)
+	_, err := handleGenerateKey(ctx, a.logger, nil, nil, `{"amount":10}`)
 	assert.IsError(t, err)
 
 	// Non admin user ID is defined
 	ctx = testutils.CtxWithUserID("some-non-admin-user-id")
-	_, err = handleGenerateKey(ctx, logger, nil, nil, `{"amount":10}`)
+	_, err = handleGenerateKey(ctx, a.logger, nil, nil, `{"amount":10}`)
 	assert.ErrorContains(t, err, "unauthorized")
 
 	// The GenKeys payload is malformed
 	ctx = testutils.CtxWithUserID(signer.AdminAccountID)
-	_, err = handleGenerateKey(ctx, logger, nil, nil, `{"bad-payload":{{{{`)
+	_, err = handleGenerateKey(ctx, a.logger, nil, nil, `{"bad-payload":{{{{`)
 	assert.IsError(t, err)
 
-	nk := mocks.NewNakamaModule(t)
 	errMsg := "storage write failure"
-	nk.On("StorageWrite", mock.Anything, mock.Anything).
-		Return(nil, errors.New(errMsg))
-	_, err = handleGenerateKey(ctx, logger, nil, nk, `{"amount":10}`)
+	nk := testutils.NewFakeNakamaModule().WithError(errors.New(errMsg))
+	_, err = handleGenerateKey(ctx, a.logger, nil, nk, `{"amount":10}`)
 	assert.ErrorContains(t, err, errMsg)
 }
 
-func (a *AllowListTestSuite) TestCanAddBetaKeys() {
-	t := a.T()
-	ctx := testutils.CtxWithUserID(signer.AdminAccountID)
-	numOfKeysToGenerate := 100
-	nk := mocks.NewNakamaModule(t)
-	keysInDB := map[string]bool{}
-	nk.On("StorageWrite", mock.Anything, mock.MatchedBy(func(writes []*runtime.StorageWrite) bool {
-		// Make sure all keys are unique
-		seenKeys := map[string]bool{}
-		for _, write := range writes {
-			assert.Equal(t, false, seenKeys[write.Key])
-			seenKeys[write.Key] = true
-			keysInDB[write.Key] = true
-		}
-		assert.Equal(t, len(writes), numOfKeysToGenerate)
-		assert.Equal(t, len(seenKeys), numOfKeysToGenerate)
-		return true
-	})).Return(nil, nil)
-
-	payload := fmt.Sprintf(`{"amount":%d}`, numOfKeysToGenerate)
-	resp, err := handleGenerateKey(ctx, testutils.MockNoopLogger(t), nil, nk, payload)
-	assert.NilError(t, err)
-
-	// Make sure the beta keys were included in the response
+func parseGenerateKeysResponse(t *testing.T, resp string) []string {
 	result := map[string]any{}
 
 	assert.NilError(t, json.Unmarshal([]byte(resp), &result))
 	keysAsIface, ok := result["keys"]
 	assert.Check(t, ok)
-	keys, ok := keysAsIface.([]any)
+	keysSlice, ok := keysAsIface.([]any)
 	assert.Check(t, ok)
+
+	keys := make([]string, 0, len(keysSlice))
+	for _, key := range keysSlice {
+		keys = append(keys, key.(string))
+	}
+	return keys
+}
+
+func (a *AllowListTestSuite) TestCanAddAndClaimBetaKeys() {
+	t := a.T()
+	ctx := testutils.CtxWithUserID(signer.AdminAccountID)
+	numOfKeysToGenerate := 100
+
+	payload := fmt.Sprintf(`{"amount":%d}`, numOfKeysToGenerate)
+	resp, err := handleGenerateKey(ctx, a.logger, nil, a.fakeNK, payload)
+	assert.NilError(t, err)
+
+	// Make sure the beta keys were included in the response
+	keys := parseGenerateKeysResponse(t, resp)
 	assert.Equal(t, len(keys), numOfKeysToGenerate)
 	// Make sure the keys in the response are unique
 	seenKeys := map[string]bool{}
 	for _, key := range keys {
-		assert.Equal(t, false, seenKeys[key.(string)])
-		seenKeys[key.(string)] = true
+		assert.Equal(t, false, seenKeys[key])
+		seenKeys[key] = true
 	}
+	// Make sure there are the correct number of keys
 	assert.Equal(t, numOfKeysToGenerate, len(seenKeys))
-	// Make sure the returned keys and keys in DB are the same
-	assert.DeepEqual(t, seenKeys, keysInDB)
-}
 
-func (a *AllowListTestSuite) TestCanClaimBetaKeyWow() {
-	t := a.T()
+	// Make sure all the generated keys can be claimed
+	for _, key := range keys {
+		userID := fmt.Sprintf("user-that-wants-%s", key)
+		userCtx := testutils.CtxWithUserID(userID)
+		payload = fmt.Sprintf(`{"key":%q}`, key)
+		resp, err = handleClaimKey(userCtx, a.logger, nil, a.fakeNK, payload)
+		assert.NilError(t, err)
 
-	userID := "foobar"
-	ctx := testutils.CtxWithUserID(userID)
-	mockNK := mocks.NewNakamaModule(t)
-
-	// First call is to check if the user already has a beta key
-	mockNK.On("StorageRead",
-		testutils.AnyContext, testutils.MockMatchStoreRead(allowlist.AllowedUsers, userID, signer.AdminAccountID)).
-		// No storageObject objects signals that this user has not yet claimed a beta key
-		Return(nil, nil).
-		Once()
-
-	betaKeyToUse := "abcd-efgh"
-	// Make sure the beta keys are converted to upper case.
-	validBetaKey := "ABCD-EFGH"
-
-	// This single storage object indicates that the beta key was found (and is valid)
-	betaKeyReadReturnVal := []*api.StorageObject{{
-		Value: fmt.Sprintf(`{"Key":"%s","UsedBy":"","Used":false}`, validBetaKey),
-	}}
-
-	// Second call is to see if the beta key is valid
-	mockNK.On("StorageRead", testutils.AnyContext,
-		testutils.MockMatchStoreRead(allowlist.KeyCollection, validBetaKey, signer.AdminAccountID)).
-		Return(betaKeyReadReturnVal, nil).
-		Once()
-
-	// Third call is to update the beta key to mark it as used
-	mockNK.On("StorageWrite", testutils.AnyContext,
-		testutils.MockMatchStoreWrite(allowlist.KeyCollection, validBetaKey, signer.AdminAccountID)).
-		Return(nil, nil).
-		Once()
-
-	// Fourth call is to save the newly validated user into the DB
-	mockNK.On("StorageWrite", testutils.AnyContext,
-		testutils.MockMatchStoreWrite(allowlist.AllowedUsers, "", signer.AdminAccountID)).
-		Return(nil, nil).
-		Once()
-
-	payload := fmt.Sprintf(`{"key":"%s"}`, betaKeyToUse)
-
-	_, err := handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, payload)
-	assert.NilError(t, err)
+		assert.Equal(t, resp, `{"success":true}`)
+	}
 }
 
 func (a *AllowListTestSuite) TestClaimedBetaKeyCannotBeReclaimed() {
 	t := a.T()
-	userID := "foobar"
-	ctx := testutils.CtxWithUserID(userID)
-	mockNK := mocks.NewNakamaModule(t)
-	mockNK.On("StorageRead", testutils.AnyContext, mock.Anything).
-		// No storageObject objects signals that this user has not yet claimed a beta key
-		Return(nil, nil).
-		Once()
 
-	// This single storage object indicates that the beta key was found (and is valid)
-	betaKeyReadReturnVal := []*api.StorageObject{{
-		// This beta key is used by someone else
-		Value: `{"Key":"xyzzy","UsedBy":"someone-else","Used":true}`,
-	}}
+	payload := fmt.Sprintf(`{"key": %q}`, a.validBetaKeys[0])
+	firstUserCtx := testutils.CtxWithUserID("first")
+	_, err := handleClaimKey(firstUserCtx, a.logger, nil, a.fakeNK, payload)
+	assert.NilError(t, err)
 
-	mockNK.On("StorageRead", testutils.AnyContext, mock.Anything).
-		Return(betaKeyReadReturnVal, nil).
-		Once()
-
-	payload := `{"key": "xyzzy"}`
-	_, err := handleClaimKey(ctx, testutils.MockNoopLogger(t), nil, mockNK, payload)
+	secondUserCtx := testutils.CtxWithUserID("second")
+	_, err = handleClaimKey(secondUserCtx, a.logger, nil, a.fakeNK, payload)
 	assert.ErrorContains(t, err, allowlist.ErrBetaKeyAlreadyUsed.Error())
 }
