@@ -2,6 +2,7 @@ package iterator
 
 import (
 	"context"
+	"encoding/binary"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
@@ -11,8 +12,13 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
+// Iterator provides functionality to iterate over transactions stored onchain.
 type Iterator interface {
-	Each(fn func(batch []*TxBatch, tick, timestamp uint64) error) error
+	// Each calls `fn` for each tick of transactions it queries. An optional "ranges" may be given which will control
+	// the start and end ticks queried. If neither are supplied, each will call `fn` from tick 0 to the last tick stored
+	// onchain. If only a single number is supplied, `Each` assumes this to be the tick from which to start the queries.
+	// If both are supplied, `Each` will call `fn` for ticks ranges[0] and ranges[1] (inclusive).
+	Each(fn func(batch []*TxBatch, tick, timestamp uint64) error, ranges ...uint64) error
 }
 
 type iterator struct {
@@ -27,7 +33,7 @@ type TxBatch struct {
 	MsgValue any
 }
 
-func NewIterator(getMessageById func(id message.TypeID) (message.Message, bool), namespace string, querier shardtypes.QueryClient) Iterator {
+func New(getMessageById func(id message.TypeID) (message.Message, bool), namespace string, querier shardtypes.QueryClient) Iterator {
 	return &iterator{
 		getMsgById: getMessageById,
 		namespace:  namespace,
@@ -35,8 +41,17 @@ func NewIterator(getMessageById func(id message.TypeID) (message.Message, bool),
 	}
 }
 
-func (t *iterator) Each(fn func(batch []*TxBatch, tick, timestamp uint64) error) error {
+func (t *iterator) Each(fn func(batch []*TxBatch, tick, timestamp uint64) error, ranges ...uint64) error {
 	var nextKey []byte
+	stopTick := uint64(0)
+	if len(ranges) > 0 {
+		if ranges[0] > uint64(0) {
+			nextKey = makePageKey(ranges[0])
+		}
+		if len(ranges) > 1 {
+			stopTick = ranges[1]
+		}
+	}
 OuterLoop:
 	for {
 		res, err := t.querier.Transactions(context.Background(), &shardtypes.QueryTransactionsRequest{
@@ -50,6 +65,9 @@ OuterLoop:
 			return eris.Wrap(err, "failed to query transactions from base shard")
 		}
 		for _, epoch := range res.Epochs {
+			if stopTick != 0 && epoch.Epoch > stopTick {
+				return nil
+			}
 			tickNumber := epoch.Epoch
 			timestamp := epoch.UnixTimestamp
 			batches := make([]*TxBatch, 0, len(epoch.Txs))
@@ -97,4 +115,10 @@ func protoTxToSignTx(t *shard.Transaction) *sign.Transaction {
 	// HashHex will populate the hash.
 	tx.HashHex()
 	return tx
+}
+
+func makePageKey(tick uint64) []byte {
+	buf := make([]byte, 8)
+	binary.BigEndian.PutUint64(buf, tick)
+	return buf
 }

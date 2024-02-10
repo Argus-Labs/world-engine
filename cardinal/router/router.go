@@ -54,7 +54,7 @@ type router struct {
 }
 
 func (r *router) TransactionIterator() iterator.Iterator {
-	return iterator.NewIterator(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
+	return iterator.New(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
 }
 
 func New(namespace, sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
