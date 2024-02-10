@@ -317,7 +317,7 @@ type mockBatches struct {
 	timestamp uint64
 }
 
-func (m *mockIterator) Each(fn func(batches []*iterator.TxBatch, tick, timestamp uint64) error) error {
+func (m *mockIterator) Each(fn func(batches []*iterator.TxBatch, tick, timestamp uint64) error, _ ...uint64) error {
 	for _, b := range m.batches {
 		if err := fn(b.batch, b.tick, b.timestamp); err != nil {
 			return err
