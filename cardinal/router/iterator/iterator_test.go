@@ -214,7 +214,6 @@ func TestStartGreaterThanStopRange(t *testing.T) {
 	it := iterator.New(nil, "", nil)
 	err := it.Each(nil, 154, 0)
 	assert.ErrorContains(t, err, "first number in range must be less than the second (start,stop)")
-
 }
 
 func parsePageKey(key []byte) uint64 {
