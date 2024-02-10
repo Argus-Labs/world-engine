@@ -637,7 +637,7 @@ func (e *Engine) setEvmResults(txs []txpool.TxData) {
 			continue
 		}
 		evmRec := EVMTxReceipt{EVMTxHash: tx.EVMSourceTxHash}
-		msg := e.getMessage(tx.MsgID)
+		msg, _ := e.GetMessageByID(tx.MsgID) // ignore the bool cause at this point we know the msg exists.
 		if rec.Result != nil {
 			abiBz, err := msg.ABIEncode(rec.Result)
 			if err != nil {
@@ -886,17 +886,6 @@ func (e *Engine) RecoverFromChain(ctx context.Context) error {
 	})
 	if err != nil {
 		return eris.Wrap(err, "encountered error while iterating transactions")
-	}
-	return nil
-}
-
-// getMessage iterates over the all registered messages and returns the message.Message associated with the
-// message.TypeID.
-func (e *Engine) getMessage(id message.TypeID) message.Message {
-	for _, msg := range e.registeredMessages {
-		if id == msg.ID() {
-			return msg
-		}
 	}
 	return nil
 }
