@@ -99,7 +99,6 @@ func (r *Notifier) handleReceipt(receipt *Receipt) error {
 		"result": receipt.Result,
 		"errors": receipt.Errors,
 	}
-
 	if err := r.nk.NotificationSend(ctx, target.userID, "subject", data, 1, "", false); err != nil {
 		return eris.Wrapf(err, "unable to send tx hash %q to user %q", receipt.TxHash, target.userID)
 	}

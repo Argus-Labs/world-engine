@@ -18,7 +18,7 @@ import (
 
 func TestPrivateKeyCanBeLoadedFromDB(t *testing.T) {
 	ctx := context.Background()
-	logger := testutils.NoopLogger(t)
+	logger := testutils.MockNoopLogger(t)
 	nk := mocks.NewNakamaModule(t)
 	nonceManager := NewNakamaNonceManager(nk)
 	wantPrivateKey, err := crypto.GenerateKey()
@@ -42,7 +42,7 @@ func TestPrivateKeyCanBeLoadedFromDB(t *testing.T) {
 
 func TestPrivateKeyIsGenerated(t *testing.T) {
 	ctx := context.Background()
-	logger := testutils.NoopLogger(t)
+	logger := testutils.MockNoopLogger(t)
 	nk := mocks.NewNakamaModule(t)
 	nonceManager := NewNakamaNonceManager(nk)
 	// The DB is checked for an existing private key.

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"pkg.world.dev/world-engine/relay/nakama/events"
 	"strings"
 	"sync"
 
@@ -58,7 +59,7 @@ func InitModule(
 
 	initReceiptDispatcher(logger)
 
-	if err := initEventHub(ctx, logger, nk); err != nil {
+	if err := initEventHub(ctx, logger, nk, EventEndpoint, globalCardinalAddress); err != nil {
 		return eris.Wrap(err, "failed to init event hub")
 	}
 
@@ -128,8 +129,14 @@ func selectSigner(ctx context.Context, logger runtime.Logger, nk runtime.NakamaM
 	return signer.NewKMSSigner(ctx, nonceManager, client, kmsKeyName)
 }
 
-func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModule) error {
-	eventHub, err := createEventHub(log)
+func initEventHub(
+	ctx context.Context,
+	log runtime.Logger,
+	nk runtime.NakamaModule,
+	eventsEndpoint string,
+	cardinalAddress string,
+) error {
+	eventHub, err := events.CreateEventHub(log, eventsEndpoint, cardinalAddress)
 	if err != nil {
 		return err
 	}
@@ -144,7 +151,7 @@ func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModu
 	go func() {
 		channel := eventHub.Subscribe("main")
 		for event := range channel {
-			err := eris.Wrap(nk.NotificationSendAll(ctx, "event", map[string]interface{}{"message": event.message}, 1, true), "")
+			err := eris.Wrap(nk.NotificationSendAll(ctx, "event", map[string]interface{}{"message": event.Message}, 1, true), "")
 			if err != nil {
 				log.Error("error sending notifications: %s", eris.ToString(err, true))
 			}

@@ -2,6 +2,8 @@ package testutils
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -74,8 +76,8 @@ func MockMatchStoreRead(collection, key, userID string) any {
 	})
 }
 
-// NoopLogger returns a mock logger that ignores all log messages.
-func NoopLogger(t *testing.T) runtime.Logger {
+// MockNoopLogger returns a mock logger that ignores all log messages.
+func MockNoopLogger(t *testing.T) runtime.Logger {
 	mockLog := mocks.NewLogger(t)
 	mockLog.On("Error", mock.Anything).Return().Maybe()
 	mockLog.On("Debug", mock.Anything).Return().Maybe()
@@ -100,3 +102,32 @@ func MockMatchWriteKey(key string) interface{} {
 		return storeWrite[0].Key == key
 	})
 }
+
+type FakeLogger struct {
+	runtime.Logger
+	mu     sync.Mutex
+	Errors []string
+}
+
+func (l *FakeLogger) Debug(string, ...interface{}) {}
+func (l *FakeLogger) Info(string, ...interface{})  {}
+func (l *FakeLogger) Warn(string, ...interface{})  {}
+
+// Capture error messages
+//
+//nolint:goprintffuncname // [not important]
+func (l *FakeLogger) Error(format string, args ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.Errors = append(l.Errors, fmt.Sprintf(format, args...))
+}
+
+// GetErrors A method to retrieve captured errors for assertions
+func (l *FakeLogger) GetErrors() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.Errors
+}
+
+// Ensure that FakeLogger implements runtime.Logger (this will produce a compile-time error if it doesn't)
+var _ runtime.Logger = (*FakeLogger)(nil)
