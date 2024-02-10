@@ -24,8 +24,13 @@ type mockQuerier struct {
 	request *shardtypes.QueryTransactionsRequest
 }
 
-// this mock will return its error, if set, otherwise, it will return whatever is in ret[i], where i represents the amount of times this was called.
-func (m *mockQuerier) Transactions(_ context.Context, req *shardtypes.QueryTransactionsRequest, _ ...grpc.CallOption) (*shardtypes.QueryTransactionsResponse, error) {
+// this mock will return its error, if set, otherwise, it will return whatever is in ret[i], where i represents the
+// amount of times this was called.
+func (m *mockQuerier) Transactions(
+	_ context.Context,
+	req *shardtypes.QueryTransactionsRequest,
+	_ ...grpc.CallOption,
+) (*shardtypes.QueryTransactionsResponse, error) {
 	m.request = req
 	if m.retErr != nil {
 		return nil, m.retErr

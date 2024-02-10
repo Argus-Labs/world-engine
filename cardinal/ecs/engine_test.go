@@ -386,6 +386,7 @@ func TestRecoverFromChain(t *testing.T) {
 	}}
 	rtr.EXPECT().TransactionIterator().Return(&it).Times(1)
 	err = engine.RecoverFromChain(context.Background())
+	assert.NilError(t, err)
 	assert.Equal(t, fooMessages, 4)
 	assert.Equal(t, engine.CurrentTick(), uint64(11))
 }

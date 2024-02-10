@@ -22,7 +22,7 @@ type Iterator interface {
 }
 
 type iterator struct {
-	getMsgById func(message.TypeID) (message.Message, bool)
+	getMsgByID func(message.TypeID) (message.Message, bool)
 	namespace  string
 	querier    shardtypes.QueryClient
 }
@@ -33,15 +33,25 @@ type TxBatch struct {
 	MsgValue any
 }
 
-func New(getMessageById func(id message.TypeID) (message.Message, bool), namespace string, querier shardtypes.QueryClient) Iterator {
+func New(
+	getMessageByID func(id message.TypeID) (message.Message, bool),
+	namespace string,
+	querier shardtypes.QueryClient,
+) Iterator {
 	return &iterator{
-		getMsgById: getMessageById,
+		getMsgByID: getMessageByID,
 		namespace:  namespace,
 		querier:    querier,
 	}
 }
 
-func (t *iterator) Each(fn func(batch []*TxBatch, tick, timestamp uint64) error, ranges ...uint64) error {
+// Each iterates over txs
+//
+//nolint:gocognit // maybe revisit.. idk.
+func (t *iterator) Each(
+	fn func(batch []*TxBatch, tick, timestamp uint64) error,
+	ranges ...uint64,
+) error {
 	var nextKey []byte
 	stopTick := uint64(0)
 	if len(ranges) > 0 {
@@ -72,7 +82,7 @@ OuterLoop:
 			timestamp := epoch.UnixTimestamp
 			batches := make([]*TxBatch, 0, len(epoch.Txs))
 			for _, tx := range epoch.Txs {
-				msgType, exists := t.getMsgById(message.TypeID(tx.TxId))
+				msgType, exists := t.getMsgByID(message.TypeID(tx.TxId))
 				if !exists {
 					return eris.Errorf("queried message with ID %d, but it does not exist in Cardinal", tx.TxId)
 				}
@@ -118,7 +128,7 @@ func protoTxToSignTx(t *shard.Transaction) *sign.Transaction {
 }
 
 func makePageKey(tick uint64) []byte {
-	buf := make([]byte, 8)
+	buf := make([]byte, 8) //nolint: gomnd // its fine.
 	binary.BigEndian.PutUint64(buf, tick)
 	return buf
 }
