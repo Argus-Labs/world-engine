@@ -3,6 +3,7 @@ package iterator
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
@@ -60,6 +61,9 @@ func (t *iterator) Each(
 		}
 		if len(ranges) > 1 {
 			stopTick = ranges[1]
+			if ranges[0] > ranges[1] {
+				return fmt.Errorf("first number in range must be less than the second (start,stop)")
+			}
 		}
 	}
 OuterLoop:
