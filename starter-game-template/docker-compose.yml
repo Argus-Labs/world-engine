@@ -87,6 +87,7 @@ services:
       - CARDINAL_ADDR=${CARDINAL_ADDR:-cardinal:3333}
       - CARDINAL_NAMESPACE=${CARDINAL_NAMESPACE}
       - DB_PASSWORD=${DB_PASSWORD:-very_unsafe_password_replace_me}
+      - ENABLE_ALLOWLIST=${ENABLE_ALLOWLIST:-false}
     entrypoint:
       - "/bin/sh"
       - "-ecx"
