@@ -3,13 +3,9 @@ package cardinal
 import (
 	"errors"
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/types"
-)
-
-var (
-	ErrPersonaTagHasNoSigner        = errors.New("persona tag does not have a signer")
-	ErrCreatePersonaTxsNotProcessed = errors.New("create persona txs have not been processed for the given tick")
 )
 
 // GetSignerForPersonaTag returns the signer address that has been registered for the given persona tag after the
@@ -17,7 +13,7 @@ var (
 // returned. If the given personaTag has no signer address, ErrPersonaTagHasNoSigner is returned.
 func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr string, err error) {
 	if tick >= w.CurrentTick() {
-		return "", ErrCreatePersonaTxsNotProcessed
+		return "", persona.ErrCreatePersonaTxsNotProcessed
 	}
 	var errs []error
 	wCtx := NewReadOnlyWorldContext(w)
@@ -37,7 +33,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 	)
 	errs = append(errs, err)
 	if addr == "" {
-		return "", ErrPersonaTagHasNoSigner
+		return "", persona.ErrPersonaTagHasNoSigner
 	}
 	return addr, errors.Join(errs...)
 }

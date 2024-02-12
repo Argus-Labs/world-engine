@@ -2,13 +2,8 @@ package query
 
 import (
 	"errors"
+	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"strings"
-)
-
-var (
-	ErrPersonaTagHasNoSigner        = errors.New("persona tag does not have a signer")
-	ErrCreatePersonaTxsNotProcessed = errors.New("create persona txs have not been processed for the given tick")
 )
 
 const (
@@ -38,9 +33,9 @@ func PersonaSignerQuery(wCtx engine.Context, req *PersonaSignerQueryRequest) (*P
 	addr, err := wCtx.GetSignerForPersonaTag(req.PersonaTag, req.Tick)
 	if err != nil {
 		//nolint:gocritic // cant switch case this.
-		if strings.Contains(err.Error(), ErrPersonaTagHasNoSigner.Error()) {
+		if errors.Is(err, persona.ErrPersonaTagHasNoSigner) {
 			status = getSignerForPersonaStatusAvailable
-		} else if errors.Is(err, ErrCreatePersonaTxsNotProcessed) {
+		} else if errors.Is(err, persona.ErrCreatePersonaTxsNotProcessed) {
 			status = getSignerForPersonaStatusUnknown
 		} else {
 			return nil, err

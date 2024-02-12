@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"pkg.world.dev/world-engine/cardinal/codec"
-	filter2 "pkg.world.dev/world-engine/cardinal/filter"
-	iterators2 "pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/iterators"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/types"
 
@@ -176,8 +176,8 @@ func (m *EntityCommandBuffer) SetComponentForEntity(
 	if err != nil {
 		return err
 	}
-	if !filter2.MatchComponentMetadata(comps, cType) {
-		return eris.Wrap(iterators2.ErrComponentNotOnEntity, "")
+	if !filter.MatchComponentMetadata(comps, cType) {
+		return eris.Wrap(iterators.ErrComponentNotOnEntity, "")
 	}
 
 	key := compKey{cType.ID(), id}
@@ -197,8 +197,8 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 	if err != nil {
 		return nil, err
 	}
-	if !filter2.MatchComponentMetadata(comps, cType) {
-		return nil, eris.Wrap(iterators2.ErrComponentNotOnEntity, "")
+	if !filter.MatchComponentMetadata(comps, cType) {
+		return nil, eris.Wrap(iterators.ErrComponentNotOnEntity, "")
 	}
 
 	// Fetch the value from redis
@@ -242,8 +242,8 @@ func (m *EntityCommandBuffer) AddComponentToEntity(cType types.ComponentMetadata
 	if err != nil {
 		return err
 	}
-	if filter2.MatchComponentMetadata(fromComps, cType) {
-		return eris.Wrap(iterators2.ErrComponentAlreadyOnEntity, "")
+	if filter.MatchComponentMetadata(fromComps, cType) {
+		return eris.Wrap(iterators.ErrComponentAlreadyOnEntity, "")
 	}
 	toComps := append(fromComps, cType) //nolint:gocritic // easier this way.
 	if err = sortComponentSet(toComps); err != nil {
@@ -278,10 +278,10 @@ func (m *EntityCommandBuffer) RemoveComponentFromEntity(cType types.ComponentMet
 		newCompSet = append(newCompSet, comp)
 	}
 	if !found {
-		return eris.Wrap(iterators2.ErrComponentNotOnEntity, "")
+		return eris.Wrap(iterators.ErrComponentNotOnEntity, "")
 	}
 	if len(newCompSet) == 0 {
-		return eris.Wrap(iterators2.ErrEntityMustHaveAtLeastOneComponent, "")
+		return eris.Wrap(iterators.ErrEntityMustHaveAtLeastOneComponent, "")
 	}
 	key := compKey{cType.ID(), id}
 	delete(m.compValues, key)
@@ -341,8 +341,8 @@ func (m *EntityCommandBuffer) GetEntitiesForArchID(archID types.ArchetypeID) ([]
 
 // SearchFrom returns an ArchetypeIterator based on a component filter. The iterator will iterate over all archetypes
 // that match the given filter.
-func (m *EntityCommandBuffer) SearchFrom(filter filter2.ComponentFilter, start int) *iterators2.ArchetypeIterator {
-	itr := &iterators2.ArchetypeIterator{}
+func (m *EntityCommandBuffer) SearchFrom(filter filter.ComponentFilter, start int) *iterators.ArchetypeIterator {
+	itr := &iterators.ArchetypeIterator{}
 	for i := start; i < len(m.archIDToComps); i++ {
 		archID := types.ArchetypeID(i)
 		if !filter.MatchesComponents(types.ConvertComponentMetadatasToComponents(m.archIDToComps[archID])) {
@@ -384,7 +384,7 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 	num, err := m.client.Get(context.Background(), key).Int()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return 0, eris.Wrap(redis.Nil, iterators2.ErrEntityDoesNotExist.Error())
+			return 0, eris.Wrap(redis.Nil, iterators.ErrEntityDoesNotExist.Error())
 		}
 		return 0, eris.Wrap(err, "")
 	}

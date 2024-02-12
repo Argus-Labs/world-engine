@@ -2,7 +2,6 @@ package cardinal_test
 
 import (
 	"context"
-	"fmt"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
@@ -73,7 +72,6 @@ func TestErrorWhenSavedArchetypesDoNotMatchComponentTypes(t *testing.T) {
 	// Too few components registered
 	tf2 := testutils.NewTestFixture(t, redisStore)
 	err = tf2.World.StartGame() // We start this manually instead of tf2.StartWorld() because StartWorld panics on err
-	fmt.Println("fuck around")
 	assert.ErrorContains(t, err, iterators.ErrComponentMismatchWithSavedState.Error())
 
 	// It's ok to register extra components.

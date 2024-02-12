@@ -33,7 +33,7 @@ func (m *Manager) RegisterMessages(msgs ...types.Message) error {
 
 		// Checks if the message is already previously registered.
 		// This will terminate the registration of all systems if any of them are already registered.
-		if err := m.isNotDuplicate(msg); err != nil {
+		if err := m.isMessageNameUnique(msg); err != nil {
 			return err
 		}
 
@@ -82,8 +82,8 @@ func (m *Manager) GetMessage(id types.MessageID) types.Message {
 	return nil
 }
 
-// isNotDuplicate checks if the message name already exist in messages map.
-func (m *Manager) isNotDuplicate(tx types.Message) error {
+// isMessageNameUnique checks if the message name already exist in messages map.
+func (m *Manager) isMessageNameUnique(tx types.Message) error {
 	_, ok := m.registeredMessages[tx.Name()]
 	if ok {
 		return eris.Errorf("message %q is already registered", tx.Name())

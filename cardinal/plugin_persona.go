@@ -6,10 +6,10 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/persona/query"
-	"pkg.world.dev/world-engine/cardinal/persona/utils"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strings"
@@ -164,7 +164,7 @@ func RegisterPersonaSystem(wCtx engine.Context) error {
 			txMsg := txData.Msg
 			result.Success = false
 
-			if !utils.IsValidPersonaTag(txMsg.PersonaTag) {
+			if !persona.IsValidPersonaTag(txMsg.PersonaTag) {
 				err = eris.Errorf("persona tag %s is not valid: must only contain alphanumerics and underscores",
 					txMsg.PersonaTag)
 				return result, err

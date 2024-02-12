@@ -66,7 +66,7 @@ func (m *Manager) registerSystems(systems ...System) error {
 
 		// Checks if the system is already previously registered.
 		// This will terminate the registration of all systems if any of them are already registered.
-		if err := m.isNotDuplicate(systemName); err != nil {
+		if err := m.isSystemNameUnique(systemName); err != nil {
 			return err
 		}
 
@@ -140,8 +140,8 @@ func (m *Manager) GetCurrentSystem() string {
 	return *m.currentSystem
 }
 
-// isNotDuplicate checks if the system name already exists in the system map
-func (m *Manager) isNotDuplicate(systemName string) error {
+// isSystemNameUnique checks if the system name already exists in the system map
+func (m *Manager) isSystemNameUnique(systemName string) error {
 	if _, ok := m.systemFn[systemName]; ok {
 		return fmt.Errorf("system %q is already registered", systemName)
 	}

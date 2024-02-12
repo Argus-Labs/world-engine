@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -63,7 +64,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	}
 
 	_, err := world.GetSignerForPersonaTag("missing_persona", 1)
-	assert.ErrorIs(t, err, cardinal.ErrPersonaTagHasNoSigner)
+	assert.ErrorIs(t, err, persona.ErrPersonaTagHasNoSigner)
 
 	// Queue up a cardinal.CreatePersona
 	personaTag := "foobar"
@@ -78,7 +79,7 @@ func TestGetSignerForPersonaTagReturnsErrorWhenNotRegistered(t *testing.T) {
 	// originally got the cardinal.CreatePersona.
 	tick := world.CurrentTick()
 	_, err = world.GetSignerForPersonaTag(personaTag, tick)
-	assert.ErrorIs(t, err, cardinal.ErrCreatePersonaTxsNotProcessed)
+	assert.ErrorIs(t, err, persona.ErrCreatePersonaTxsNotProcessed)
 
 	assert.NilError(t, world.Tick(ctx))
 	// The cardinal.CreatePersona has now been processed
