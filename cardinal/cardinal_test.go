@@ -88,7 +88,7 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	testutils.SetTestTimeout(t, 10*time.Second)
 
 	tf := testutils.NewTestFixture(t, nil)
-	world, doTick := tf.World, tf.DoTick
+	world := tf.World
 	assert.NilError(t, cardinal.RegisterComponent[Foo](world))
 
 	gotNumOfEntities := 0
@@ -102,12 +102,12 @@ func TestCanQueryInsideSystem(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	doTick()
+	tf.DoTick()
 	wantNumOfEntities := 10
 	wCtx := cardinal.NewWorldContext(world)
 	_, err = cardinal.CreateMany(wCtx, wantNumOfEntities, Foo{})
 	assert.NilError(t, err)
-	doTick()
+	tf.DoTick()
 	assert.Equal(t, world.CurrentTick(), uint64(2))
 	assert.Equal(t, gotNumOfEntities, wantNumOfEntities)
 }

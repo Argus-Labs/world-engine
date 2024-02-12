@@ -136,5 +136,5 @@ func (ctx *worldContext) UseNonce(signerAddress string, nonce uint64) error {
 }
 
 func (ctx *worldContext) IsWorldReady() bool {
-	return ctx.world.WorldState != WorldStateInit
+	return ctx.world.WorldState == WorldStateReady || ctx.world.WorldState == WorldStateRunning
 }
