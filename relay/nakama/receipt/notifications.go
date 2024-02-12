@@ -37,7 +37,7 @@ type Notifier struct {
 	logger runtime.Logger
 }
 
-func NewNotifier(logger runtime.Logger, nk runtime.NakamaModule, rd *ReceiptsDispatcher) *Notifier {
+func NewNotifier(logger runtime.Logger, nk runtime.NakamaModule, rd *Dispatcher) *Notifier {
 	ch := make(chan *Receipt)
 	rd.Subscribe("notifications", ch)
 	notifier := &Notifier{
@@ -99,7 +99,6 @@ func (r *Notifier) handleReceipt(receipt *Receipt) error {
 		"result": receipt.Result,
 		"errors": receipt.Errors,
 	}
-
 	if err := r.nk.NotificationSend(ctx, target.userID, "subject", data, 1, "", false); err != nil {
 		return eris.Wrapf(err, "unable to send tx hash %q to user %q", receipt.TxHash, target.userID)
 	}

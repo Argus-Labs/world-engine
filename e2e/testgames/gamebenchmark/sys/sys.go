@@ -1,12 +1,6 @@
 package sys
 
 import (
-	cryptorand "crypto/rand"
-	"math/big"
-	"pkg.world.dev/world-engine/cardinal/filter"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
 )
@@ -50,125 +44,7 @@ func InitTreeEntities(wCtx engine.Context) error {
 	return nil
 }
 
-func SystemTestGetSmallComponentA(wCtx engine.Context) error {
-	for _, id := range TenThousandEntityIds {
-		gotcomp, err := cardinal.GetComponent[comp.SingleNumber](wCtx, id)
-		if err != nil {
-			return err
-		}
-		var maxRand int64 = 100
-		num, err := cryptorand.Int(cryptorand.Reader, big.NewInt(maxRand))
-		if err != nil {
-			return err
-		}
-		gotcomp.Number = int(num.Int64())
-		err = cardinal.SetComponent(wCtx, id, gotcomp)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func SystemTestGetSmallComponentB(wCtx engine.Context) error {
-	var maxRand int64 = 1000 - 10
-	num, err := cryptorand.Int(cryptorand.Reader, big.NewInt(maxRand))
-	if err != nil {
-		return err
-	}
-	startIndex := int(num.Int64())
-	for _, id := range TenThousandEntityIds[startIndex : startIndex+10] {
-		for i := 0; i < 1000; i++ {
-			gotcomp, err := cardinal.GetComponent[comp.SingleNumber](wCtx, id)
-			if err != nil {
-				return err
-			}
-			var maxRand int64 = 100
-			num, err := cryptorand.Int(cryptorand.Reader, big.NewInt(maxRand))
-			if err != nil {
-				return err
-			}
-			gotcomp.Number = int(num.Int64())
-			err = cardinal.SetComponent(wCtx, id, gotcomp)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func SystemTestSearchC(wCtx engine.Context) error {
-	err := cardinal.NewSearch(wCtx, filter.Exact(comp.SingleNumber{})).Each(func(id types.EntityID) bool {
-		return true
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func SystemTestGetComponentWithArrayD(wCtx engine.Context) error {
-	for _, id := range OneHundredEntityIds {
-		gotcomp, err := cardinal.GetComponent[comp.ArrayComp](wCtx, id)
-		if err != nil {
-			return err
-		}
-		gotcomp.Numbers = [10000]int{1, 1, 1, 1, 1, 1}
-		err = cardinal.SetComponent(wCtx, id, gotcomp)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func SystemTestGetAndSetComponentWithArrayE(wCtx engine.Context) error {
-	var maxRand int64 = 100 - 10
-	num, err := cryptorand.Int(cryptorand.Reader, big.NewInt(maxRand))
-	if err != nil {
-		return err
-	}
-	startIndex := int(num.Int64())
-	for _, id := range OneHundredEntityIds[startIndex : startIndex+10] {
-		for i := 0; i < 1000; i++ {
-			gotcomp, err := cardinal.GetComponent[comp.ArrayComp](wCtx, id)
-			if err != nil {
-				return err
-			}
-			gotcomp.Numbers = [10000]int{startIndex, startIndex, startIndex, startIndex, startIndex}
-			err = cardinal.SetComponent(wCtx, id, gotcomp)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
-func SystemTestSearchingForCompWithArrayF(wCtx engine.Context) error {
-	err := cardinal.NewSearch(wCtx, filter.Exact(comp.ArrayComp{})).Each(func(id types.EntityID) bool {
-		return true
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func SystemTestEntityCreationG(wCtx engine.Context) error {
-	entityAmount := 100000
-	_, err := cardinal.CreateMany(wCtx,
-		entityAmount,
-		comp.SingleNumber{Number: 1},
-		comp.ArrayComp{Numbers: [10000]int{1, 1, 1, 1, 1, 1}})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func SystemTestGettingHighlyNestedComponentsH(wCtx engine.Context) error {
+func SystemBenchmark(wCtx cardinal.WorldContext) error {
 	for _, id := range TreeEntityIds {
 		gotcomp, err := cardinal.GetComponent[comp.Tree](wCtx, id)
 		if err != nil {

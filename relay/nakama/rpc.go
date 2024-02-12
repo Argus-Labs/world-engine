@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
-	"github.com/heroiclabs/nakama-common/runtime"
-	"github.com/rotisserie/eris"
 	"io"
 	"os"
+	"strconv"
+	"sync"
+
+	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
+
 	"pkg.world.dev/world-engine/relay/nakama/allowlist"
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
-	"strconv"
+	"pkg.world.dev/world-engine/relay/nakama/signer"
 )
 
 // initPersonaEndpoints sets up the nakame RPC endpoints that are used to claim a persona tag and display a persona tag.
@@ -18,11 +22,26 @@ func initPersonaTagEndpoints(
 	initializer runtime.Initializer,
 	verifier *persona.Verifier,
 	notifier *receipt.Notifier,
+	txSigner signer.Signer,
+	cardinalAddress string,
+	globalNamespace string,
+	globalPersonaAssignment *sync.Map,
 ) error {
-	if err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(verifier, notifier)); err != nil {
+	err := initializer.RegisterRpc(
+		"nakama/claim-persona",
+		handleClaimPersona(
+			verifier,
+			notifier,
+			txSigner,
+			cardinalAddress,
+			globalNamespace,
+			globalPersonaAssignment,
+		),
+	)
+	if err != nil {
 		return eris.Wrap(err, "")
 	}
-	return eris.Wrap(initializer.RegisterRpc("nakama/show-persona", handleShowPersona), "")
+	return eris.Wrap(initializer.RegisterRpc("nakama/show-persona", handleShowPersona(txSigner, cardinalAddress)), "")
 }
 
 func initAllowlist(_ runtime.Logger, initializer runtime.Initializer) error {
@@ -80,14 +99,24 @@ func registerEndpoints(
 	endpoints []string,
 	createPayload func(string, string, runtime.NakamaModule,
 		context.Context,
-	) (io.Reader, error)) error {
+	) (io.Reader, error),
+	cardinalAddress string,
+) error {
 	for _, e := range endpoints {
 		logger.Debug("registering: %v", e)
 		currEndpoint := e
 		if currEndpoint[0] == '/' {
 			currEndpoint = currEndpoint[1:]
 		}
-		err := initializer.RegisterRpc(currEndpoint, handleCardinalRequest(currEndpoint, createPayload, notifier))
+		err := initializer.RegisterRpc(
+			currEndpoint,
+			handleCardinalRequest(
+				currEndpoint,
+				createPayload,
+				notifier,
+				cardinalAddress,
+			),
+		)
 		if err != nil {
 			return eris.Wrap(err, "")
 		}

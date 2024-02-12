@@ -7,33 +7,30 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"pkg.world.dev/world-engine/relay/nakama/events"
 	"strings"
 	"sync"
+
+	kms "cloud.google.com/go/kms/apiv1"
+	"github.com/heroiclabs/nakama-common/api"
+	"github.com/heroiclabs/nakama-common/runtime"
+	"github.com/rotisserie/eris"
+	"google.golang.org/api/option"
 
 	"pkg.world.dev/world-engine/relay/nakama/persona"
 	"pkg.world.dev/world-engine/relay/nakama/receipt"
 	"pkg.world.dev/world-engine/relay/nakama/signer"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
-
-	"github.com/heroiclabs/nakama-common/api"
-	"github.com/heroiclabs/nakama-common/runtime"
-	"github.com/rotisserie/eris"
-	"pkg.world.dev/world-engine/sign"
 )
 
 const (
 	EnvCardinalAddr           = "CARDINAL_ADDR"
 	EnvCardinalNamespace      = "CARDINAL_NAMESPACE"
+	EnvKMSCredentialsFile     = "GCP_KMS_CREDENTIALS_FILE" // #nosec G101
+	EnvKMSKeyName             = "GCP_KMS_KEY_NAME"
 	ListEndpoints             = "query/http/endpoints"
 	EventEndpoint             = "events"
 	TransactionEndpointPrefix = "/tx"
-)
-
-var (
-	globalCardinalAddress      string
-	globalNamespace            string
-	globalPersonaTagAssignment = sync.Map{}
-	globalReceiptsDispatcher   *receipt.ReceiptsDispatcher
 )
 
 func InitModule(
@@ -45,37 +42,63 @@ func InitModule(
 ) error {
 	utils.DebugEnabled = getDebugModeFromEnvironment()
 
-	if err := initCardinalAddress(); err != nil {
+	cardinalAddress, err := initCardinalAddress()
+	if err != nil {
 		return eris.Wrap(err, "failed to init cardinal address")
 	}
 
-	if err := initNamespace(); err != nil {
-		return eris.Wrap(err, "failed to init namespace")
+	globalNamespace, err := initNamespace()
+	if err != nil {
+		return eris.Wrap(err, "failed to init globalNamespace")
 	}
 
-	initReceiptDispatcher(logger)
+	globalReceiptsDispatcher := initReceiptDispatcher(logger, cardinalAddress)
 
-	if err := initEventHub(ctx, logger, nk); err != nil {
+	if err := initEventHub(ctx, logger, nk, EventEndpoint, cardinalAddress); err != nil {
 		return eris.Wrap(err, "failed to init event hub")
 	}
 
 	notifier := receipt.NewNotifier(logger, nk, globalReceiptsDispatcher)
 
-	if err := signer.InitPrivateKey(ctx, logger, nk); err != nil {
-		return eris.Wrap(err, "failed to init private key")
+	txSigner, err := selectSigner(ctx, logger, nk)
+	if err != nil {
+		return eris.Wrap(err, "failed to create a crypto signer")
 	}
 
-	if err := initPersonaTagAssignmentMap(ctx, logger, nk, persona.CardinalCollection); err != nil {
+	globalPersonaAssignment := &sync.Map{}
+	if err := initPersonaTagAssignmentMap(
+		ctx,
+		logger,
+		nk,
+		persona.CardinalCollection,
+		globalPersonaAssignment,
+	); err != nil {
 		return eris.Wrap(err, "failed to init persona tag assignment map")
 	}
 
 	verifier := persona.NewVerifier(logger, nk, globalReceiptsDispatcher)
 
-	if err := initPersonaTagEndpoints(logger, initializer, verifier, notifier); err != nil {
+	if err := initPersonaTagEndpoints(
+		logger,
+		initializer,
+		verifier,
+		notifier,
+		txSigner,
+		cardinalAddress,
+		globalNamespace,
+		globalPersonaAssignment,
+	); err != nil {
 		return eris.Wrap(err, "failed to init persona tag endpoints")
 	}
 
-	if err := initCardinalEndpoints(logger, initializer, notifier); err != nil {
+	if err := initCardinalEndpoints(
+		logger,
+		initializer,
+		notifier,
+		txSigner,
+		cardinalAddress,
+		globalNamespace,
+	); err != nil {
 		return eris.Wrap(err, "failed to init cardinal endpoints")
 	}
 
@@ -94,14 +117,45 @@ func InitModule(
 	return nil
 }
 
-func initReceiptDispatcher(log runtime.Logger) {
-	globalReceiptsDispatcher = receipt.NewReceiptsDispatcher()
-	go globalReceiptsDispatcher.PollReceipts(log, globalCardinalAddress)
+func initReceiptDispatcher(log runtime.Logger, cardinalAddress string) *receipt.Dispatcher {
+	globalReceiptsDispatcher := receipt.NewDispatcher()
+	go globalReceiptsDispatcher.PollReceipts(log, cardinalAddress)
 	go globalReceiptsDispatcher.Dispatch(log)
+	return globalReceiptsDispatcher
 }
 
-func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModule) error {
-	eventHub, err := createEventHub(log)
+func selectSigner(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) (signer.Signer, error) {
+	nonceManager := signer.NewNakamaNonceManager(nk)
+
+	kmsCredsFile := os.Getenv(EnvKMSCredentialsFile)
+	kmsKeyName := os.Getenv(EnvKMSKeyName)
+	if kmsCredsFile == "" && kmsKeyName == "" {
+		// Neither the KMS creds file nor the key name is set. Assume the user wants to store the private key on
+		// Nakama's DB.
+		return signer.NewNakamaSigner(ctx, logger, nk, nonceManager)
+	}
+	// At least one of the creds file or the key name is set. Assume the user wants to use KSM for signing transactions.
+	if kmsCredsFile == "" || kmsKeyName == "" {
+		// If either the credentials file or the key name is unset, KMS signing won't work, so return an error.
+		return nil, eris.Errorf(
+			"Both %q and %q must be set to use GCP KMS signing", EnvKMSCredentialsFile, EnvKMSKeyName)
+	}
+
+	client, err := kms.NewKeyManagementClient(ctx, option.WithCredentialsFile(kmsCredsFile))
+	if err != nil {
+		return nil, eris.Wrap(err, "failed to make KMS client")
+	}
+	return signer.NewKMSSigner(ctx, nonceManager, client, kmsKeyName)
+}
+
+func initEventHub(
+	ctx context.Context,
+	log runtime.Logger,
+	nk runtime.NakamaModule,
+	eventsEndpoint string,
+	cardinalAddress string,
+) error {
+	eventHub, err := events.CreateEventHub(log, eventsEndpoint, cardinalAddress)
 	if err != nil {
 		return err
 	}
@@ -116,7 +170,7 @@ func initEventHub(ctx context.Context, log runtime.Logger, nk runtime.NakamaModu
 	go func() {
 		channel := eventHub.Subscribe("main")
 		for event := range channel {
-			err := eris.Wrap(nk.NotificationSendAll(ctx, "event", map[string]interface{}{"message": event.message}, 1, true), "")
+			err := eris.Wrap(nk.NotificationSendAll(ctx, "event", map[string]interface{}{"message": event.Message}, 1, true), "")
 			if err != nil {
 				log.Error("error sending notifications: %s", eris.ToString(err, true))
 			}
@@ -133,6 +187,7 @@ func initPersonaTagAssignmentMap(
 	logger runtime.Logger,
 	nk runtime.NakamaModule,
 	collectionName string,
+	globalPersonaAssignment *sync.Map,
 ) error {
 	logger.Debug("attempting to build personaTag->userID mapping")
 	var cursor string
@@ -154,7 +209,7 @@ func initPersonaTagAssignmentMap(
 			}
 			if ptr.Status == persona.StatusAccepted || ptr.Status == persona.StatusPending {
 				logger.Debug("%s has been assigned to %s", ptr.PersonaTag, userID)
-				globalPersonaTagAssignment.Store(ptr.PersonaTag, userID)
+				globalPersonaAssignment.Store(ptr.PersonaTag, userID)
 			}
 		}
 		if cursor == "" {
@@ -170,8 +225,11 @@ func initCardinalEndpoints(
 	logger runtime.Logger,
 	initializer runtime.Initializer,
 	notifier *receipt.Notifier,
+	txSigner signer.Signer,
+	cardinalAddress string,
+	globalNamespace string,
 ) error {
-	txEndpoints, queryEndpoints, err := getCardinalEndpoints()
+	txEndpoints, queryEndpoints, err := getCardinalEndpoints(cardinalAddress)
 	if err != nil {
 		return err
 	}
@@ -180,7 +238,7 @@ func initCardinalEndpoints(
 	) (io.Reader, error) {
 		logger.Debug("The %s endpoint requires a signed payload", endpoint)
 		var transaction io.Reader
-		transaction, err = makeTransaction(ctx, nk, payload)
+		transaction, err = makeTransaction(ctx, nk, txSigner, payload, cardinalAddress, globalNamespace)
 		if err != nil {
 			return nil, err
 		}
@@ -201,23 +259,29 @@ func initCardinalEndpoints(
 		return formattedPayloadBuffer, nil
 	}
 
-	err = registerEndpoints(logger, initializer, notifier, txEndpoints, createTransaction)
+	err = registerEndpoints(logger, initializer, notifier, txEndpoints, createTransaction, cardinalAddress)
 	if err != nil {
 		return err
 	}
-	err = registerEndpoints(logger, initializer, notifier, queryEndpoints, createUnsignedTransaction)
+	err = registerEndpoints(logger, initializer, notifier, queryEndpoints, createUnsignedTransaction, cardinalAddress)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload string) (io.Reader, error) {
+func makeTransaction(ctx context.Context,
+	nk runtime.NakamaModule,
+	txSigner signer.Signer,
+	payload string,
+	cardinalAddress string,
+	globalNamespace string,
+) (io.Reader, error) {
 	ptr, err := persona.LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
 		return nil, err
 	}
-	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, globalCardinalAddress)
+	ptr, err = ptr.AttemptToUpdatePending(ctx, nk, txSigner, cardinalAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -226,11 +290,7 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 		return nil, eris.Wrap(persona.ErrNoPersonaTagForUser, "")
 	}
 	personaTag := ptr.PersonaTag
-	pk, nonce, err := signer.GetPrivateKeyAndANonce(ctx, nk)
-	if err != nil {
-		return nil, err
-	}
-	sp, err := sign.NewTransaction(pk, personaTag, globalNamespace, nonce, payload)
+	sp, err := txSigner.SignTx(ctx, personaTag, globalNamespace, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -241,20 +301,20 @@ func makeTransaction(ctx context.Context, nk runtime.NakamaModule, payload strin
 	return bytes.NewReader(buf), nil
 }
 
-func initCardinalAddress() error {
-	globalCardinalAddress = os.Getenv(EnvCardinalAddr)
+func initCardinalAddress() (string, error) {
+	globalCardinalAddress := os.Getenv(EnvCardinalAddr)
 	if globalCardinalAddress == "" {
-		return eris.Errorf("must specify a cardinal server via %s", EnvCardinalAddr)
+		return "", eris.Errorf("must specify a cardinal server via %s", EnvCardinalAddr)
 	}
-	return nil
+	return globalCardinalAddress, nil
 }
 
-func initNamespace() error {
-	globalNamespace = os.Getenv(EnvCardinalNamespace)
+func initNamespace() (string, error) {
+	globalNamespace := os.Getenv(EnvCardinalNamespace)
 	if globalNamespace == "" {
-		return eris.Errorf("must specify a cardinal namespace via %s", EnvCardinalNamespace)
+		return "", eris.Errorf("must specify a cardinal namespace via %s", EnvCardinalNamespace)
 	}
-	return nil
+	return globalNamespace, nil
 }
 
 func getDebugModeFromEnvironment() bool {
