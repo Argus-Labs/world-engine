@@ -41,17 +41,17 @@ func NewManager() *Manager {
 // There can only be one system with a given name, which is derived from the function name.
 // If there is a duplicate system name, an error will be returned and none of the systems will be registered.
 func (m *Manager) RegisterSystems(systems ...System) error {
-	return m.registerSystems(&m.registeredSystems, systems...)
+	return m.registerSystems(systems...)
 }
 
 // RegisterInitSystems registers multiple init systems that is only executed once at tick 0 with the system manager.
 // There can only be one system with a given name, which is derived from the function name.
 // If there is a duplicate system name, an error will be returned and none of the systems will be registered.
 func (m *Manager) RegisterInitSystems(systems ...System) error {
-	return m.registerSystems(&m.registeredInitSystems, systems...)
+	return m.registerSystems(systems...)
 }
 
-func (m *Manager) registerSystems(registeredSystems *[]string, systems ...System) error {
+func (m *Manager) registerSystems(systems ...System) error {
 	// Iterate through all the systems and check if they are already registered.
 	// This is done before registering any of the systems to ensure that all are registered or none of them are.
 	systemNames := make([]string, 0, len(systems))
@@ -78,7 +78,7 @@ func (m *Manager) registerSystems(registeredSystems *[]string, systems ...System
 	for i, systemName := range systemNames {
 		// The append() function creates a new slice copy, so we can't just pass registeredSystems normally.
 		// Therefore, we need to pass a pointer to the slice so the changes are stored in the original slice.
-		*registeredSystems = append(*registeredSystems, systemName)
+		m.registeredSystems = append(m.registeredSystems, systemName)
 		m.systemFn[systemName] = systems[i]
 	}
 
