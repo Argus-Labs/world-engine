@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"sync"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
@@ -19,10 +20,14 @@ import (
 )
 
 // handleClaimPersona handles a request to Nakama to associate the current user with the persona tag in the payload.
-func handleClaimPersona(verifier *persona.Verifier,
+func handleClaimPersona(
+	verifier *persona.Verifier,
 	notifier *receipt.Notifier,
 	txSigner signer.Signer,
-	cardinalAddress string) nakamaRPCHandler {
+	cardinalAddress string,
+	globalNamespace string,
+	globalPersonaAssignment sync.Map,
+) nakamaRPCHandler {
 	return func(
 		ctx context.Context,
 		logger runtime.Logger,
@@ -49,7 +54,7 @@ func handleClaimPersona(verifier *persona.Verifier,
 			txSigner,
 			cardinalAddress,
 			globalNamespace,
-			&globalPersonaTagAssignment,
+			&globalPersonaAssignment,
 		)
 		if err == nil {
 			return utils.MarshalResult(logger, result)

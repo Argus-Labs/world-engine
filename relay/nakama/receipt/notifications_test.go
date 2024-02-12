@@ -15,7 +15,7 @@ func TestNotifierIntegrationWithDispatcher(t *testing.T) {
 	nk := mocks.NewNakamaModule(t)
 	logger := &testutils.FakeLogger{}
 	mockServer := setupMockServer(t)
-	rd := NewReceiptsDispatcher()
+	rd := NewDispatcher()
 	notifier := NewNotifier(logger, nk, rd)
 
 	txHash := "hash1"
@@ -39,7 +39,7 @@ func TestNotifierIntegrationWithDispatcher(t *testing.T) {
 func TestAddTxHashToPendingNotifications(t *testing.T) {
 	logger := &testutils.FakeLogger{}
 	nk := mocks.NewNakamaModule(t)
-	rd := NewReceiptsDispatcher()
+	rd := NewDispatcher()
 	notifier := NewNotifier(logger, nk, rd)
 
 	txHash := "hash1"
@@ -55,7 +55,7 @@ func TestAddTxHashToPendingNotifications(t *testing.T) {
 func TestHandleReceipt(t *testing.T) {
 	logger := &testutils.FakeLogger{}
 	nk := mocks.NewNakamaModule(t)
-	rd := NewReceiptsDispatcher()
+	rd := NewDispatcher()
 	notifier := NewNotifier(logger, nk, rd)
 
 	txHash := "hash1"
@@ -86,7 +86,7 @@ func TestHandleReceipt(t *testing.T) {
 func TestCleanupStaleTransactions(t *testing.T) {
 	logger := &testutils.FakeLogger{}
 	nk := mocks.NewNakamaModule(t)
-	rd := NewReceiptsDispatcher()
+	rd := NewDispatcher()
 	notifier := NewNotifier(logger, nk, rd)
 
 	staleTxHash := "staleHash1"

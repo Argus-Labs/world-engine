@@ -33,7 +33,7 @@ func setupMockServer(t *testing.T) *httptest.Server {
 
 // Test that the Dispatcher can poll receipts from the Server and pass them to subscribed channels.
 func TestPollingFetchesAndDispatchesReceipts(t *testing.T) {
-	dispatcher := NewReceiptsDispatcher()
+	dispatcher := NewDispatcher()
 	mockServer := setupMockServer(t)
 
 	testChannel := make(chan *Receipt, 10)
@@ -54,7 +54,7 @@ func TestPollingFetchesAndDispatchesReceipts(t *testing.T) {
 
 // Test error handling in the polling process.
 func TestPollingHandlesErrorsGracefully(t *testing.T) {
-	dispatcher := NewReceiptsDispatcher()
+	dispatcher := NewDispatcher()
 
 	errorMockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -77,7 +77,7 @@ func TestPollingHandlesErrorsGracefully(t *testing.T) {
 
 // Test the non-blocking behavior of the Dispatch method.
 func TestNonBlockingDispatch(t *testing.T) {
-	dispatcher := NewReceiptsDispatcher()
+	dispatcher := NewDispatcher()
 	fullChannel := make(chan *Receipt)
 	dispatcher.Subscribe("testSessionFull", fullChannel)
 

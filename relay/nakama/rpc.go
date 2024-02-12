@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"sync"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/rotisserie/eris"
@@ -22,12 +23,25 @@ func initPersonaTagEndpoints(
 	verifier *persona.Verifier,
 	notifier *receipt.Notifier,
 	txSigner signer.Signer,
+	cardinalAddress string,
+	globalNamespace string,
+	globalPersonaAssignment sync.Map,
 ) error {
-	err := initializer.RegisterRpc("nakama/claim-persona", handleClaimPersona(verifier, notifier, txSigner))
+	err := initializer.RegisterRpc(
+		"nakama/claim-persona",
+		handleClaimPersona(
+			verifier,
+			notifier,
+			txSigner,
+			cardinalAddress,
+			globalNamespace,
+			globalPersonaAssignment,
+		),
+	)
 	if err != nil {
 		return eris.Wrap(err, "")
 	}
-	return eris.Wrap(initializer.RegisterRpc("nakama/show-persona", handleShowPersona(txSigner)), "")
+	return eris.Wrap(initializer.RegisterRpc("nakama/show-persona", handleShowPersona(txSigner, cardinalAddress)), "")
 }
 
 func initAllowlist(_ runtime.Logger, initializer runtime.Initializer) error {
@@ -94,7 +108,15 @@ func registerEndpoints(
 		if currEndpoint[0] == '/' {
 			currEndpoint = currEndpoint[1:]
 		}
-		err := initializer.RegisterRpc(currEndpoint, handleCardinalRequest(currEndpoint, createPayload, notifier, cardinalAddress))
+		err := initializer.RegisterRpc(
+			currEndpoint,
+			handleCardinalRequest(
+				currEndpoint,
+				createPayload,
+				notifier,
+				cardinalAddress,
+			),
+		)
 		if err != nil {
 			return eris.Wrap(err, "")
 		}

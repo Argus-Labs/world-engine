@@ -33,12 +33,6 @@ const (
 	TransactionEndpointPrefix = "/tx"
 )
 
-var (
-	globalNamespace            string
-	globalPersonaTagAssignment = sync.Map{}
-	globalReceiptsDispatcher   *receipt.ReceiptsDispatcher
-)
-
 func InitModule(
 	ctx context.Context,
 	logger runtime.Logger,
@@ -53,11 +47,12 @@ func InitModule(
 		return eris.Wrap(err, "failed to init cardinal address")
 	}
 
-	if err := initNamespace(); err != nil {
-		return eris.Wrap(err, "failed to init namespace")
+	globalNamespace, err := initNamespace()
+	if err != nil {
+		return eris.Wrap(err, "failed to init globalNamespace")
 	}
 
-	initReceiptDispatcher(logger, cardinalAddress)
+	globalReceiptsDispatcher := initReceiptDispatcher(logger, cardinalAddress)
 
 	if err := initEventHub(ctx, logger, nk, EventEndpoint, cardinalAddress); err != nil {
 		return eris.Wrap(err, "failed to init event hub")
@@ -70,17 +65,40 @@ func InitModule(
 		return eris.Wrap(err, "failed to create a crypto signer")
 	}
 
-	if err := initPersonaTagAssignmentMap(ctx, logger, nk, persona.CardinalCollection); err != nil {
+	globalPersonaAssignment := sync.Map{}
+	if err := initPersonaTagAssignmentMap(
+		ctx,
+		logger,
+		nk,
+		persona.CardinalCollection,
+		globalPersonaAssignment,
+	); err != nil {
 		return eris.Wrap(err, "failed to init persona tag assignment map")
 	}
 
 	verifier := persona.NewVerifier(logger, nk, globalReceiptsDispatcher)
 
-	if err := initPersonaTagEndpoints(logger, initializer, verifier, notifier, txSigner); err != nil {
+	if err := initPersonaTagEndpoints(
+		logger,
+		initializer,
+		verifier,
+		notifier,
+		txSigner,
+		cardinalAddress,
+		globalNamespace,
+		globalPersonaAssignment,
+	); err != nil {
 		return eris.Wrap(err, "failed to init persona tag endpoints")
 	}
 
-	if err := initCardinalEndpoints(logger, initializer, notifier, txSigner, cardinalAddress); err != nil {
+	if err := initCardinalEndpoints(
+		logger,
+		initializer,
+		notifier,
+		txSigner,
+		cardinalAddress,
+		globalNamespace,
+	); err != nil {
 		return eris.Wrap(err, "failed to init cardinal endpoints")
 	}
 
@@ -99,10 +117,11 @@ func InitModule(
 	return nil
 }
 
-func initReceiptDispatcher(log runtime.Logger, cardinalAddress string) {
-	globalReceiptsDispatcher = receipt.NewReceiptsDispatcher()
+func initReceiptDispatcher(log runtime.Logger, cardinalAddress string) *receipt.Dispatcher {
+	globalReceiptsDispatcher := receipt.NewDispatcher()
 	go globalReceiptsDispatcher.PollReceipts(log, cardinalAddress)
 	go globalReceiptsDispatcher.Dispatch(log)
+	return globalReceiptsDispatcher
 }
 
 func selectSigner(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule) (signer.Signer, error) {
@@ -168,6 +187,7 @@ func initPersonaTagAssignmentMap(
 	logger runtime.Logger,
 	nk runtime.NakamaModule,
 	collectionName string,
+	globalPersonaAssignment sync.Map,
 ) error {
 	logger.Debug("attempting to build personaTag->userID mapping")
 	var cursor string
@@ -189,7 +209,7 @@ func initPersonaTagAssignmentMap(
 			}
 			if ptr.Status == persona.StatusAccepted || ptr.Status == persona.StatusPending {
 				logger.Debug("%s has been assigned to %s", ptr.PersonaTag, userID)
-				globalPersonaTagAssignment.Store(ptr.PersonaTag, userID)
+				globalPersonaAssignment.Store(ptr.PersonaTag, userID)
 			}
 		}
 		if cursor == "" {
@@ -207,6 +227,7 @@ func initCardinalEndpoints(
 	notifier *receipt.Notifier,
 	txSigner signer.Signer,
 	cardinalAddress string,
+	globalNamespace string,
 ) error {
 	txEndpoints, queryEndpoints, err := getCardinalEndpoints(cardinalAddress)
 	if err != nil {
@@ -217,7 +238,7 @@ func initCardinalEndpoints(
 	) (io.Reader, error) {
 		logger.Debug("The %s endpoint requires a signed payload", endpoint)
 		var transaction io.Reader
-		transaction, err = makeTransaction(ctx, nk, txSigner, payload, cardinalAddress)
+		transaction, err = makeTransaction(ctx, nk, txSigner, payload, cardinalAddress, globalNamespace)
 		if err != nil {
 			return nil, err
 		}
@@ -254,6 +275,7 @@ func makeTransaction(ctx context.Context,
 	txSigner signer.Signer,
 	payload string,
 	cardinalAddress string,
+	globalNamespace string,
 ) (io.Reader, error) {
 	ptr, err := persona.LoadPersonaTagStorageObj(ctx, nk)
 	if err != nil {
@@ -287,12 +309,12 @@ func initCardinalAddress() (string, error) {
 	return globalCardinalAddress, nil
 }
 
-func initNamespace() error {
-	globalNamespace = os.Getenv(EnvCardinalNamespace)
+func initNamespace() (string, error) {
+	globalNamespace := os.Getenv(EnvCardinalNamespace)
 	if globalNamespace == "" {
-		return eris.Errorf("must specify a cardinal namespace via %s", EnvCardinalNamespace)
+		return "", eris.Errorf("must specify a cardinal namespace via %s", EnvCardinalNamespace)
 	}
-	return nil
+	return globalNamespace, nil
 }
 
 func getDebugModeFromEnvironment() bool {
