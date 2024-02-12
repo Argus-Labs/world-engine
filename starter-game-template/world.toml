@@ -28,3 +28,6 @@ CHAIN_ID="world-engine"
 KEY_MNEMONIC="enact adjust liberty squirrel bulk ticket invest tissue antique window thank slam unknown fury script among bread social switch glide wool clog flag enroll"
 FAUCET_ADDR="world142fg37yzx04cslgeflezzh83wa4xlmjpms0sg5"
 BLOCK_TIME="1s"
+
+[nakama]
+ENABLE_ALLOWLIST="false" # enable nakama's beta key feature. you can generate and claim beta keys by setting this to true
