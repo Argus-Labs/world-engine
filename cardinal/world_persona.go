@@ -28,7 +28,7 @@ func (w *World) GetSignerForPersonaTag(personaTag string, tick uint64) (addr str
 			if err != nil {
 				errs = append(errs, err)
 			}
-			if sc.PersonaTag == personaTag {
+			if sc != nil && sc.PersonaTag == personaTag {
 				addr = sc.SignerAddress
 				return false
 			}
