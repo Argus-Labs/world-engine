@@ -26,6 +26,7 @@ type Context interface {
 	Namespace() string
 	AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (uint64, types.TxHash)
 	UseNonce(signerAddress string, nonce uint64) error
+	IsWorldReady() bool
 
 	// For internal use.
 	StoreReader() gamestate.Reader

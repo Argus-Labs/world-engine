@@ -138,10 +138,9 @@ func Create(wCtx engine.Context, components ...types.Component) (types.EntityID,
 // CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
 // entities. At least 1 component must be provided.
 func CreateMany(wCtx engine.Context, num int, components ...types.Component) ([]types.EntityID, error) {
-	// TODO: uncomment this. use engine state instead.
-	// if !wCtx.GetEngine().stateIsLoaded {
-	// 		return nil, eris.Wrap(ErrEntitiesCreatedBeforeLoadingGameState, "")
-	// }
+	if wCtx.IsWorldReady() {
+		return nil, eris.Wrap(ErrEntitiesCreatedBeforeStartGame, "")
+	}
 
 	// Error if the context is read only
 	if wCtx.IsReadOnly() {

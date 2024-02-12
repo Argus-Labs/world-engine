@@ -134,3 +134,7 @@ func (ctx *worldContext) StoreReader() gamestate.Reader {
 func (ctx *worldContext) UseNonce(signerAddress string, nonce uint64) error {
 	return ctx.world.UseNonce(signerAddress, nonce)
 }
+
+func (ctx *worldContext) IsWorldReady() bool {
+	return ctx.world.WorldState != WorldStateInit
+}
