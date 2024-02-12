@@ -3,13 +3,14 @@ package sys
 import (
 	"github.com/argus-labs/world-engine/example/tester/gamebenchmark/comp"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 var TenThousandEntityIds = []types.EntityID{}
 var OneHundredEntityIds = []types.EntityID{}
 var TreeEntityIds = []types.EntityID{}
 
-func InitTenThousandEntities(wCtx engine.Context) error {
+func InitTenThousandEntities(wCtx cardinal.WorldContext) error {
 	var err error
 	entityAmount := 10000
 	TenThousandEntityIds, err = cardinal.CreateMany(wCtx, entityAmount, &comp.SingleNumber{Number: 1})
@@ -19,7 +20,7 @@ func InitTenThousandEntities(wCtx engine.Context) error {
 	return nil
 }
 
-func InitOneHundredEntities(wCtx engine.Context) error {
+func InitOneHundredEntities(wCtx cardinal.WorldContext) error {
 	var err error
 	entityAmount := 100
 	OneHundredEntityIds, err = cardinal.CreateMany(wCtx, entityAmount, &comp.ArrayComp{Numbers: [10000]int{}})
@@ -29,7 +30,7 @@ func InitOneHundredEntities(wCtx engine.Context) error {
 	return nil
 }
 
-func InitTreeEntities(wCtx engine.Context) error {
+func InitTreeEntities(wCtx cardinal.WorldContext) error {
 	var err error
 	var entityAmount = 100
 	var treeDepth = 10

@@ -2,18 +2,16 @@ package sys
 
 import (
 	"fmt"
-	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-
 	"github.com/argus-labs/world-engine/example/tester/game/comp"
 	"github.com/argus-labs/world-engine/example/tester/game/msg"
 	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/types"
 )
 
 var PlayerEntityID = make(map[string]types.EntityID)
 
-func Join(ctx engine.Context) error {
+func Join(ctx cardinal.WorldContext) error {
 	logger := ctx.Logger()
 	msg.JoinMsg.Each(
 		ctx, func(jtx message.TxData[msg.JoinInput]) (msg.JoinOutput, error) {
