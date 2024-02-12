@@ -69,12 +69,10 @@ type World struct {
 	gameSequenceStage gamestage.Atomic
 	endStartGame      chan bool
 
-	// Scott's new stuff
 	WorldState    WorldStateType
 	msgManager    *message.Manager
 	systemManager *system.Manager
 
-	// Imported from Engine
 	namespace              Namespace
 	redisStorage           *redis.Storage
 	entityStore            gamestate.Manager
