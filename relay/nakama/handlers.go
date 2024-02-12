@@ -26,7 +26,7 @@ func handleClaimPersona(
 	txSigner signer.Signer,
 	cardinalAddress string,
 	globalNamespace string,
-	globalPersonaAssignment sync.Map,
+	globalPersonaAssignment *sync.Map,
 ) nakamaRPCHandler {
 	return func(
 		ctx context.Context,
@@ -54,7 +54,7 @@ func handleClaimPersona(
 			txSigner,
 			cardinalAddress,
 			globalNamespace,
-			&globalPersonaAssignment,
+			globalPersonaAssignment,
 		)
 		if err == nil {
 			return utils.MarshalResult(logger, result)

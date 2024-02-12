@@ -25,7 +25,7 @@ func initPersonaTagEndpoints(
 	txSigner signer.Signer,
 	cardinalAddress string,
 	globalNamespace string,
-	globalPersonaAssignment sync.Map,
+	globalPersonaAssignment *sync.Map,
 ) error {
 	err := initializer.RegisterRpc(
 		"nakama/claim-persona",

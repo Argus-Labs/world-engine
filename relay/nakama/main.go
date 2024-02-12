@@ -65,7 +65,7 @@ func InitModule(
 		return eris.Wrap(err, "failed to create a crypto signer")
 	}
 
-	globalPersonaAssignment := sync.Map{}
+	globalPersonaAssignment := &sync.Map{}
 	if err := initPersonaTagAssignmentMap(
 		ctx,
 		logger,
@@ -187,7 +187,7 @@ func initPersonaTagAssignmentMap(
 	logger runtime.Logger,
 	nk runtime.NakamaModule,
 	collectionName string,
-	globalPersonaAssignment sync.Map,
+	globalPersonaAssignment *sync.Map,
 ) error {
 	logger.Debug("attempting to build personaTag->userID mapping")
 	var cursor string
