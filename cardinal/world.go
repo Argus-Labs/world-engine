@@ -93,9 +93,6 @@ type World struct {
 	receiptHistory *receipt.History
 
 	router router.Router
-	// isRecovering indicates that the engine is recovering from the DA layer.
-	// this is used to prevent ticks from submitting duplicate transactions the DA layer.
-	isRecovering atomic.Bool
 
 	endGameLoopCh     chan bool
 	isGameLoopRunning atomic.Bool
@@ -227,15 +224,17 @@ func (w *World) CurrentTick() uint64 {
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick(ctx context.Context) error {
 	// Check the current world state and handle accordingly
-	if w.WorldState == WorldStateRunning || w.WorldState == WorldStateRecovering {
-		// If the world is already running or recovering, continue as usual
-	} else if w.WorldState == WorldStateReady {
+	switch w.WorldState {
+	case WorldStateInit:
+		// If the engine is not ready, we don't want to tick the engine.
+		// Instead, make we have recovered the state of the world firstreturn eris.New("invalid world state to tick")
+	case WorldStateReady:
 		// If the world have loaded game state, we can set the it WorldStateRunning
 		w.WorldState = WorldStateRunning
-	} else if w.WorldState == WorldStateInit {
-		// If the engine is not ready, we don't want to tick the engine.
-		// Instead, make we have recovered the state of the world first
-		return eris.New("invalid world state to tick")
+	case WorldStateRecovering:
+		// If the world is recovering, proceed
+	case WorldStateRunning:
+		// If the world is already running, proceed
 	}
 
 	// This defer is here to catch any panics that occur during the tick. It will log the current tick and the

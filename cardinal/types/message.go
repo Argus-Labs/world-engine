@@ -17,5 +17,6 @@ type Message interface {
 	IsEVMCompatible() bool
 }
 
-// MessageID represents a message's EntityID. EntityID's are assigned to messages when they are registered in a World object.
+// MessageID represents a message's id.
+// They are assigned to messages when they are registered in a World object.
 type MessageID int

@@ -33,8 +33,8 @@ func (m *EntityCommandBuffer) ToReadOnly() Reader {
 }
 
 // refreshArchIDToCompTypes loads the map of archetype IDs to []ComponentMetadata from redis. This mapping is write
-// only, i.e. if an archetype EntityID is in this map, it will ALWAYS refer to the same set of components. It's ok to save
-// this to memory instead of reading from redit each time. If an archetype EntityID is not found in this map.
+// only, i.e. if an archetype arch id is in this map, it will ALWAYS refer to the same set of components.
+// It's ok to save this to memory instead of reading from redit each time.
 func (r *readOnlyManager) refreshArchIDToCompTypes() error {
 	archIDToComps, ok, err := getArchIDToCompTypesFromRedis(r.client, r.typeToComponent)
 	if err != nil {

@@ -45,7 +45,7 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (redi
 	return pipe, nil
 }
 
-// addEntityIDToArchIDToPipe adds the information related to mapping an entity ArchetypeID to its assigned archetype ArchetypeID.
+// addEntityIDToArchIDToPipe adds the information related to mapping an EntityID to its assigned archetype ArchetypeID.
 func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pipe redis.Pipeliner) error {
 	for id, originArchID := range m.entityIDToOriginArchID {
 		key := redisArchetypeIDForEntityID(id)

@@ -21,7 +21,7 @@ var (
 var _ types.Message = &MessageType[struct{}, struct{}]{}
 
 // MessageType manages a user defined state transition message struct.
-type MessageType[In, Out any] struct {
+type MessageType[In, Out any] struct { //nolint:revive // this is fine for now.
 	id         types.MessageID
 	isIDSet    bool
 	name       string
@@ -223,7 +223,7 @@ func (t *MessageType[In, Out]) DecodeEVMBytes(bz []byte) (any, error) {
 
 // -------------------------- Options --------------------------
 
-type MessageOption[In, Out any] func(mt *MessageType[In, Out])
+type MessageOption[In, Out any] func(mt *MessageType[In, Out]) //nolint:revive // this is fine for now
 
 func WithMsgEVMSupport[In, Out any]() MessageOption[In, Out] {
 	return func(msg *MessageType[In, Out]) {
