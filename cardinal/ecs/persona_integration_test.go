@@ -246,6 +246,36 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 	assert.Equal(t, count, 1)
 }
 
+func TestQuerySigner(t *testing.T) {
+	engine := testutils.NewTestFixture(t, nil).Engine
+	assert.NilError(t, engine.LoadGameState())
+
+	personaTag := "CoolMage"
+	signerAddr := "123_456"
+	ecs.CreatePersonaMsg.AddToQueue(
+		engine,
+		ecs.CreatePersona{
+			PersonaTag:    personaTag,
+			SignerAddress: signerAddr,
+		},
+	)
+	assert.NilError(t, engine.Tick(context.Background()))
+
+	query, err := engine.GetQueryByName("signer")
+	assert.NilError(t, err)
+
+	res, err := query.HandleQuery(ecs.NewReadOnlyEngineContext(engine), &ecs.QueryPersonaSignerRequest{
+		PersonaTag: personaTag,
+		Tick:       engine.CurrentTick() - 1,
+	})
+	assert.NilError(t, err)
+
+	response, ok := res.(*ecs.QueryPersonaSignerResponse)
+	assert.True(t, ok)
+	assert.Equal(t, response.SignerAddress, signerAddr)
+
+}
+
 func getSigners(t *testing.T, engine *ecs.Engine) []*ecs.SignerComponent {
 	eCtx := ecs.NewEngineContext(engine)
 	var signers = make([]*ecs.SignerComponent, 0)

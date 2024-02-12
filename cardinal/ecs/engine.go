@@ -332,10 +332,16 @@ func RegisterQuery[Request any, Reply any](
 		return err
 	}
 
-	engine.registeredQueries = append(engine.registeredQueries, q)
-	engine.nameToQuery[q.Name()] = q
+	engine.registerQueries(q)
 
 	return nil
+}
+
+func (e *Engine) registerQueries(queries ...Query) {
+	for _, qt := range queries {
+		e.registeredQueries = append(e.registeredQueries, qt)
+		e.nameToQuery[qt.Name()] = qt
+	}
 }
 
 func (e *Engine) GetQueryByName(name string) (Query, error) {
@@ -404,13 +410,8 @@ func (e *Engine) registerInternalQueries() {
 	if err != nil {
 		panic(err)
 	}
-	e.registeredQueries = append(
-		e.registeredQueries,
-		signerQueryType,
-		debugQueryType,
-		cqlQueryType,
-		receiptQueryType,
-	)
+
+	e.registerQueries(signerQueryType, debugQueryType, cqlQueryType, receiptQueryType)
 }
 
 func (e *Engine) registerInternalMessages() {
