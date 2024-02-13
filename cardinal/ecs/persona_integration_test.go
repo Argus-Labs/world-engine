@@ -286,7 +286,8 @@ func TestQuerySignerAvailable(t *testing.T) {
 		PersonaTag: "some-random-nonexistent-persona-tag",
 	})
 	assert.NilError(t, err)
-	response := res.(*ecs.QueryPersonaSignerResponse)
+	response, ok := res.(*ecs.QueryPersonaSignerResponse)
+	assert.True(t, ok)
 
 	assert.Equal(t, response.Status, ecs.PersonaStatusAvailable)
 }
@@ -304,7 +305,8 @@ func TestQuerySignerUnknown(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	response := res.(*ecs.QueryPersonaSignerResponse)
+	response, ok := res.(*ecs.QueryPersonaSignerResponse)
+	assert.True(t, ok)
 	assert.Equal(t, response.Status, ecs.PersonaStatusUnknown)
 }
 

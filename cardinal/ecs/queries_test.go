@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"pkg.world.dev/world-engine/assert"
 	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -111,15 +110,17 @@ func TestCQLQuery(t *testing.T) {
 	assert.NilError(t, err)
 
 	res, err := query.HandleQuery(ecs.NewReadOnlyEngineContext(eng), ecs.CQLQueryRequest{CQL: "CONTAINS(bar)"})
-	result := res.(*ecs.CQLQueryResponse)
+	assert.NilError(t, err)
+	result, ok := res.(*ecs.CQLQueryResponse)
+	assert.True(t, ok)
 
 	assert.Len(t, result.Results, 2)
 
 	for i, r := range result.Results {
 		gotBarAny, err := barComponent.Decode(r.Data[0])
 		assert.NilError(t, err)
-		gotBar := gotBarAny.(barComp)
-
+		gotBar, ok := gotBarAny.(barComp)
+		assert.True(t, ok)
 		assert.Equal(t, gotBar, bars[i])
 	}
 }
@@ -172,7 +173,8 @@ func TestReceiptsQuery(t *testing.T) {
 
 	res, err := qry.HandleQuery(ecs.NewReadOnlyEngineContext(eng), &ecs.ListTxReceiptsRequest{})
 	assert.NilError(t, err)
-	reply := res.(*ecs.ListTxReceiptsReply)
+	reply, ok := res.(*ecs.ListTxReceiptsReply)
+	assert.True(t, ok)
 
 	assert.Equal(t, reply.StartTick, uint64(0))
 	assert.Equal(t, reply.EndTick, eng.CurrentTick())
@@ -184,7 +186,7 @@ func TestReceiptsQuery(t *testing.T) {
 		Result: fooOut{Y: 4},
 		Errors: nil,
 	}
-	expectedJson1, err := json.Marshal(expectedReceipt1)
+	expectedJSON1, err := json.Marshal(expectedReceipt1)
 	assert.NilError(t, err)
 	expectedReceipt2 := ecs.Receipt{
 		TxHash: string(txHash2),
@@ -192,7 +194,7 @@ func TestReceiptsQuery(t *testing.T) {
 		Result: nil,
 		Errors: []error{errors.New("omg")},
 	}
-	expectedJson2, err := json.Marshal(expectedReceipt2)
+	expectedJSON2, err := json.Marshal(expectedReceipt2)
 	assert.NilError(t, err)
 
 	// comparing via json since internally, eris is involved, and makes it a bit harder to compare.
@@ -201,10 +203,6 @@ func TestReceiptsQuery(t *testing.T) {
 	json2, err := json.Marshal(reply.Receipts[1])
 	assert.NilError(t, err)
 
-	for _, r := range reply.Receipts {
-		fmt.Printf("%+v\n", r)
-	}
-
-	assert.Equal(t, string(expectedJson1), string(json1))
-	assert.Equal(t, string(expectedJson2), string(json2))
+	assert.Equal(t, string(expectedJSON1), string(json1))
+	assert.Equal(t, string(expectedJSON2), string(json2))
 }
