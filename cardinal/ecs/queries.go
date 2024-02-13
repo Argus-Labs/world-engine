@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"encoding/json"
+	"github.com/rotisserie/eris"
 
 	"pkg.world.dev/world-engine/cardinal/ecs/cql"
 	"pkg.world.dev/world-engine/cardinal/ecs/filter"
@@ -87,7 +88,7 @@ func queryCQL(ctx EngineContext, req *CQLQueryRequest) (*CQLQueryResponse, error
 	cqlString := req.CQL
 	resultFilter, err := cql.Parse(cqlString, ctx.GetEngine().GetComponentByName)
 	if err != nil {
-		return nil, err
+		return nil, eris.Wrap(err, "failed to parse CQL string")
 	}
 	result := make([]cqlData, 0)
 	var eachError error

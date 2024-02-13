@@ -322,26 +322,22 @@ func RegisterQuery[Request any, Reply any](
 	if engine.stateIsLoaded {
 		panic("cannot register queries after loading game state")
 	}
-
-	if _, ok := engine.nameToQuery[name]; ok {
-		return eris.Errorf("query with name %s is already registered", name)
-	}
-
 	q, err := NewQueryType[Request, Reply](name, handler, opts...)
 	if err != nil {
 		return err
 	}
-
-	engine.registerQueries(q)
-
-	return nil
+	return engine.registerQueries(q)
 }
 
-func (e *Engine) registerQueries(queries ...Query) {
+func (e *Engine) registerQueries(queries ...Query) error {
 	for _, qt := range queries {
+		if _, ok := e.nameToQuery[qt.Name()]; ok {
+			return eris.Errorf("query with name %q is already registered", qt.Name())
+		}
 		e.registeredQueries = append(e.registeredQueries, qt)
 		e.nameToQuery[qt.Name()] = qt
 	}
+	return nil
 }
 
 func (e *Engine) GetQueryByName(name string) (Query, error) {
@@ -411,7 +407,9 @@ func (e *Engine) registerInternalQueries() {
 		panic(err)
 	}
 
-	e.registerQueries(signerQueryType, debugQueryType, cqlQueryType, receiptQueryType)
+	if err := e.registerQueries(signerQueryType, debugQueryType, cqlQueryType, receiptQueryType); err != nil {
+		panic(err)
+	}
 }
 
 func (e *Engine) registerInternalMessages() {

@@ -266,14 +266,46 @@ func TestQuerySigner(t *testing.T) {
 
 	res, err := query.HandleQuery(ecs.NewReadOnlyEngineContext(engine), &ecs.QueryPersonaSignerRequest{
 		PersonaTag: personaTag,
-		Tick:       engine.CurrentTick() - 1,
 	})
 	assert.NilError(t, err)
 
 	response, ok := res.(*ecs.QueryPersonaSignerResponse)
 	assert.True(t, ok)
 	assert.Equal(t, response.SignerAddress, signerAddr)
+	assert.Equal(t, response.Status, ecs.PersonaStatusAssigned)
+}
 
+func TestQuerySignerAvailable(t *testing.T) {
+	engine := testutils.NewTestFixture(t, nil).Engine
+	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, engine.Tick(context.Background()))
+
+	query, err := engine.GetQueryByName("signer")
+	assert.NilError(t, err)
+	res, err := query.HandleQuery(ecs.NewReadOnlyEngineContext(engine), &ecs.QueryPersonaSignerRequest{
+		PersonaTag: "some-random-nonexistent-persona-tag",
+	})
+	assert.NilError(t, err)
+	response := res.(*ecs.QueryPersonaSignerResponse)
+
+	assert.Equal(t, response.Status, ecs.PersonaStatusAvailable)
+}
+
+func TestQuerySignerUnknown(t *testing.T) {
+	engine := testutils.NewTestFixture(t, nil).Engine
+	assert.NilError(t, engine.LoadGameState())
+	assert.NilError(t, engine.Tick(context.Background()))
+
+	query, err := engine.GetQueryByName("signer")
+	assert.NilError(t, err)
+	res, err := query.HandleQuery(ecs.NewReadOnlyEngineContext(engine), &ecs.QueryPersonaSignerRequest{
+		PersonaTag: "doesnt_matter",
+		Tick:       engine.CurrentTick(),
+	})
+	assert.NilError(t, err)
+
+	response := res.(*ecs.QueryPersonaSignerResponse)
+	assert.Equal(t, response.Status, ecs.PersonaStatusUnknown)
 }
 
 func getSigners(t *testing.T, engine *ecs.Engine) []*ecs.SignerComponent {

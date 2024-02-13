@@ -16,9 +16,9 @@ import (
 )
 
 const (
-	getSignerForPersonaStatusUnknown   = "unknown"
-	getSignerForPersonaStatusAvailable = "available"
-	getSignerForPersonaStatusAssigned  = "assigned"
+	PersonaStatusUnknown   = "unknown"
+	PersonaStatusAvailable = "available"
+	PersonaStatusAssigned  = "assigned"
 )
 
 // QueryPersonaSignerRequest is the desired request body for the query-persona-signer endpoint.
@@ -53,14 +53,14 @@ func querySigner(eCtx EngineContext, req *QueryPersonaSignerRequest) (*QueryPers
 	if err != nil {
 		//nolint:gocritic // cant switch case this.
 		if errors.Is(err, ErrPersonaTagHasNoSigner) {
-			status = getSignerForPersonaStatusAvailable
+			status = PersonaStatusAvailable
 		} else if errors.Is(err, ErrCreatePersonaTxsNotProcessed) {
-			status = getSignerForPersonaStatusUnknown
+			status = PersonaStatusUnknown
 		} else {
 			return nil, err
 		}
 	} else {
-		status = getSignerForPersonaStatusAssigned
+		status = PersonaStatusAssigned
 	}
 
 	res := QueryPersonaSignerResponse{
