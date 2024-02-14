@@ -3,6 +3,7 @@ package cardinal_test
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/fasthttp/websocket"
 	"net/http"
 	"os"
 	"os/exec"
@@ -10,6 +11,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -160,17 +162,16 @@ func TestShutdownViaSignal(t *testing.T) {
 	assert.Equal(t, v, "*")
 	assert.Equal(t, resp.StatusCode, 200)
 
-	// TODO(scott): not sure what we are triyng to test here, but this seems to just be blocked at conn.ReadMessage()
-	// wsBaseURL := "ws://" + addr
-	// conn, _, err := websocket.DefaultDialer.Dial(wsBaseURL+"/events", nil)
-	// assert.NilError(t, err)
-	// var wg sync.WaitGroup
-	// wg.Add(1)
-	// go func() {
-	// 	_, _, err := conn.ReadMessage()
-	// 	assert.Assert(t, websocket.IsCloseError(err, websocket.CloseAbnormalClosure))
-	//	wg.Done()
-	// }()
+	wsBaseURL := "ws://" + addr
+	conn, _, err := websocket.DefaultDialer.Dial(wsBaseURL+"/events", nil)
+	assert.NilError(t, err)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		_, _, err := conn.ReadMessage()
+		assert.Assert(t, websocket.IsCloseError(err, websocket.CloseAbnormalClosure))
+		wg.Done()
+	}()
 
 	// Send a SIGINT signal.
 	cmd := exec.Command("kill", "-SIGINT", strconv.Itoa(os.Getpid()))

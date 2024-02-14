@@ -105,7 +105,7 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 				if err != nil {
 					return err
 				}
-				msg := w.msgManager.GetMessage(types.MessageID(tx.TxId))
+				msg := w.msgManager.GetMessageByID(types.MessageID(tx.TxId))
 				if msg == nil {
 					return eris.Errorf("error recovering tx with EntityID %d: tx id not found", tx.TxId)
 				}

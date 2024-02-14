@@ -45,10 +45,10 @@ func IsComponentValid(component Component, jsonSchemaBytes []byte) (bool, error)
 	if err != nil {
 		return false, eris.Wrap(err, "")
 	}
-	return IsSchemaValid(componentSchemaBytes, jsonSchemaBytes)
+	return isSchemaValid(componentSchemaBytes, jsonSchemaBytes)
 }
 
-func IsSchemaValid(jsonSchemaBytes1 []byte, jsonSchemaBytes2 []byte) (bool, error) {
+func isSchemaValid(jsonSchemaBytes1 []byte, jsonSchemaBytes2 []byte) (bool, error) {
 	patch, err := jsondiff.CompareJSON(jsonSchemaBytes1, jsonSchemaBytes2)
 	if err != nil {
 		return false, eris.Wrap(err, "")

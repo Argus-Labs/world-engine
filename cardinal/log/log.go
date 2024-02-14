@@ -7,7 +7,7 @@ import (
 
 type Loggable interface {
 	GetComponents() []types.ComponentMetadata
-	GetSystemNames() []string
+	GetRegisteredSystemNames() []string
 }
 
 func loadComponentIntoArrayLogger(
@@ -34,9 +34,9 @@ func loadSystemIntoArrayLogger(name string, arrayLogger *zerolog.Array) *zerolog
 }
 
 func loadSystemIntoEvent(zeroLoggerEvent *zerolog.Event, target Loggable) *zerolog.Event {
-	zeroLoggerEvent.Int("total_systems", len(target.GetSystemNames()))
+	zeroLoggerEvent.Int("total_systems", len(target.GetRegisteredSystemNames()))
 	arrayLogger := zerolog.Arr()
-	for _, name := range target.GetSystemNames() {
+	for _, name := range target.GetRegisteredSystemNames() {
 		arrayLogger = loadSystemIntoArrayLogger(name, arrayLogger)
 	}
 	return zeroLoggerEvent.Array("systems", arrayLogger)

@@ -42,7 +42,7 @@ func (c *componentMetadata[T]) SetID(id types.ComponentID) error {
 	if c.isIDSet {
 		// In games implemented with Cardinal, components will only be initialized one time (on startup).
 		// In tests, it's often useful to use the same component in multiple worlds. This check will allow for the
-		// re-initialization of components, as long as the ArchetypeID doesn't change.
+		// re-initialization of components, as long as the ID doesn't change.
 		if id == c.id {
 			return nil
 		}

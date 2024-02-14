@@ -19,7 +19,7 @@ func NewManager() *Manager {
 }
 
 // RegisterMessages registers multiple messages with the message manager
-// There can only be one message iwuth a given name, which is declared by the user by implementing the Name() method.
+// There can only be one message with a given name, which is declared by the user by implementing the Name() method.
 // If there is a duplicate message name, an error will be returned and none of the messages will be registered.
 func (m *Manager) RegisterMessages(msgs ...types.Message) error {
 	// Iterate through all the messages and check if they are already registered.
@@ -32,7 +32,7 @@ func (m *Manager) RegisterMessages(msgs ...types.Message) error {
 		}
 
 		// Checks if the message is already previously registered.
-		// This will terminate the registration of all systems if any of them are already registered.
+		// This will terminate the registration of all messages if any of them are already registered.
 		if err := m.isMessageNameUnique(msg); err != nil {
 			return err
 		}
@@ -41,7 +41,7 @@ func (m *Manager) RegisterMessages(msgs ...types.Message) error {
 		msgNames = append(msgNames, msg.Name())
 	}
 
-	// Iterate through all the systems and register them one by one.
+	// Iterate through all the messages and register them one by one.
 	for _, msg := range msgs {
 		// Set EntityID on message
 		err := msg.SetID(m.nextMessageID)
@@ -57,11 +57,6 @@ func (m *Manager) RegisterMessages(msgs ...types.Message) error {
 	return nil
 }
 
-// IsMessagesRegistered returns true if any messages have been registered with the MessageManager.
-func (m *Manager) IsMessagesRegistered() bool {
-	return len(m.registeredMessages) > 0
-}
-
 // GetRegisteredMessages returns the list of all registered messages
 func (m *Manager) GetRegisteredMessages() []types.Message {
 	msgs := make([]types.Message, 0, len(m.registeredMessages))
@@ -71,15 +66,21 @@ func (m *Manager) GetRegisteredMessages() []types.Message {
 	return msgs
 }
 
-// GetMessage iterates over the all registered messages and returns the types.Message associated with the
+// GetMessageByID iterates over the all registered messages and returns the types.Message associated with the
 // MessageID.
-func (m *Manager) GetMessage(id types.MessageID) types.Message {
+func (m *Manager) GetMessageByID(id types.MessageID) types.Message {
 	for _, msg := range m.registeredMessages {
 		if id == msg.ID() {
 			return msg
 		}
 	}
 	return nil
+}
+
+// GetMessageByName returns the message with the given name, if it exists.
+func (m *Manager) GetMessageByName(name string) (types.Message, bool) {
+	msg, ok := m.registeredMessages[name]
+	return msg, ok
 }
 
 // isMessageNameUnique checks if the message name already exist in messages map.

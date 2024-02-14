@@ -40,7 +40,7 @@ func (w *World) setEvmResults(txs []txpool.TxData) {
 			continue
 		}
 		evmRec := EVMTxReceipt{EVMTxHash: tx.EVMSourceTxHash}
-		msg := w.msgManager.GetMessage(tx.MsgID)
+		msg := w.msgManager.GetMessageByID(tx.MsgID)
 		if rec.Result != nil {
 			abiBz, err := msg.ABIEncode(rec.Result)
 			if err != nil {

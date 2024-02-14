@@ -136,7 +136,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	s.setupWorld(cardinal.WithDisableSignatureVerification())
 	s.fixture.DoTick()
 	persona := s.CreateRandomPersona()
-	s.CreatePersona(persona)
+	s.createPersona(persona)
 	msg := MoveMsgInput{Direction: "up"}
 	msgBz, err := json.Marshal(msg)
 	s.Require().NoError(err)
@@ -194,7 +194,7 @@ func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload an
 }
 
 // Creates a persona with the specified tag.
-func (s *ServerTestSuite) CreatePersona(personaTag string) {
+func (s *ServerTestSuite) createPersona(personaTag string) {
 	createPersonaTx := msg.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: s.signerAddr,
@@ -271,7 +271,7 @@ func (s *ServerTestSuite) readBody(body io.ReadCloser) string {
 	return string(buf)
 }
 
-// cardinal.CreateRandomPersona cardinal.Creates a random persona and returns it as a string
+// CreateRandomPersona Creates a random persona and returns it as a string
 func (s *ServerTestSuite) CreateRandomPersona() string {
 	letterRunes := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -282,7 +282,7 @@ func (s *ServerTestSuite) CreateRandomPersona() string {
 		result[i] = byte(letterRunes[r.Intn(len(letterRunes))])
 	}
 	persona := string(result)
-	s.CreatePersona(persona)
+	s.createPersona(persona)
 	return persona
 }
 

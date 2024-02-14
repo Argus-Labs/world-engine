@@ -11,11 +11,9 @@ import (
 	"os"
 	"os/signal"
 	"pkg.world.dev/world-engine/cardinal/events"
-	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	ecslog "pkg.world.dev/world-engine/cardinal/log"
 	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router"
 	"pkg.world.dev/world-engine/cardinal/storage/redis"
@@ -243,7 +241,7 @@ func (w *World) Tick(ctx context.Context) error {
 	wCtx := NewWorldContextForTick(w, txQueue)
 
 	// Run all registered systems.
-	// This will run the registsred init systems if the current tick is 0
+	// This will run the registered init systems if the current tick is 0
 	if err := w.systemManager.RunSystems(wCtx); err != nil {
 		return err
 	}
@@ -421,17 +419,16 @@ func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
 }
 
 func (w *World) emitResourcesWarnings() {
-	// todo: add links to docs related to each warning
 	if !w.isComponentsRegistered {
 		w.Logger.Warn().Msg("No components registered.")
 	}
-	if !w.msgManager.IsMessagesRegistered() {
+	if len(w.msgManager.GetRegisteredMessages()) == 0 {
 		w.Logger.Warn().Msg("No messages registered.")
 	}
 	if len(w.registeredQueries) == 0 {
 		w.Logger.Warn().Msg("No queries registered.")
 	}
-	if !w.systemManager.IsSystemsRegistered() {
+	if len(w.systemManager.GetRegisteredSystemNames()) == 0 {
 		w.Logger.Warn().Msg("No systems registered.")
 	}
 }
@@ -444,11 +441,8 @@ func (w *World) Shutdown() error {
 	if w.cleanup != nil {
 		w.cleanup()
 	}
-	ok := w.worldStage.CompareAndSwap(worldstage.Running, worldstage.ShuttingDown)
-	// Either the world hasn't been started, or we've already shut down.
-	if !ok {
-		return nil
-	}
+	w.worldStage.Store(worldstage.ShuttingDown)
+
 	// The CompareAndSwap returned true, so this call is responsible for actually
 	// shutting down the game.
 	defer func() {
@@ -472,9 +466,6 @@ func (w *World) Shutdown() error {
 		time.Sleep(100 * time.Millisecond) //nolint:gomnd // its ok.
 	}
 	log.Info().Msg("Successfully shut down game loop.")
-	if w.eventHub != nil {
-		w.eventHub.Shutdown()
-	}
 	log.Info().Msg("Closing storage connection.")
 	err := w.redisStorage.Close()
 	if err != nil {
@@ -621,12 +612,7 @@ func (w *World) GetQueryByName(name string) (engine.Query, error) {
 }
 
 func (w *World) GetMessageByName(name string) (types.Message, bool) {
-	for _, msg := range w.msgManager.GetRegisteredMessages() {
-		if msg.Name() == name {
-			return msg, true
-		}
-	}
-	return nil, false
+	return w.msgManager.GetMessageByName(name)
 }
 
 func (w *World) GameStateManager() gamestate.Manager {
@@ -666,8 +652,8 @@ func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error)
 	return componentType, nil
 }
 
-func (w *World) GetSystemNames() []string {
-	return w.systemManager.GetSystemNames()
+func (w *World) GetRegisteredSystemNames() []string {
+	return w.systemManager.GetRegisteredSystemNames()
 }
 
 func (w *World) SetRouter(rtr router.Router) {
@@ -690,40 +676,4 @@ func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
 	}
 
 	return qry.EncodeEVMReply(reply)
-}
-
-func (w *World) GetPersonaForEVMAddress(addr string) (string, error) {
-	var sc *component.SignerComponent
-	wCtx := NewReadOnlyWorldContext(w)
-	q := NewSearch(wCtx, filter.Exact(component.SignerComponent{}))
-	var getComponentErr error
-	searchIterationErr := eris.Wrap(
-		q.Each(
-			func(id types.EntityID) bool {
-				var signerComp *component.SignerComponent
-				signerComp, getComponentErr = GetComponent[component.SignerComponent](wCtx, id)
-				getComponentErr = eris.Wrap(getComponentErr, "")
-				if getComponentErr != nil {
-					return false
-				}
-				for _, authAddr := range signerComp.AuthorizedAddresses {
-					if authAddr == addr {
-						sc = signerComp
-						return false
-					}
-				}
-				return true
-			},
-		), "",
-	)
-	if getComponentErr != nil {
-		return "", getComponentErr
-	}
-	if searchIterationErr != nil {
-		return "", searchIterationErr
-	}
-	if sc == nil {
-		return "", eris.Errorf("address %s does not have a linked persona tag", addr)
-	}
-	return sc.PersonaTag, nil
 }
