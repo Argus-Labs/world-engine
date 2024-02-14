@@ -2,7 +2,7 @@ package gamestate_test
 
 import (
 	"context"
-	filter2 "pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
 
@@ -325,27 +325,27 @@ func TestStorageCanBeUsedInQueries(t *testing.T) {
 	assert.NilError(t, err)
 
 	testCases := []struct {
-		filter  filter2.ComponentFilter
+		filter  filter.ComponentFilter
 		wantIDs []types.EntityID
 	}{
 		{
-			filter:  filter2.Contains(Health{}),
+			filter:  filter.Contains(Health{}),
 			wantIDs: append(justHealthIDs, healthAndPowerIDs...),
 		},
 		{
-			filter:  filter2.Contains(Power{}),
+			filter:  filter.Contains(Power{}),
 			wantIDs: append(justPowerIDs, healthAndPowerIDs...),
 		},
 		{
-			filter:  filter2.Exact(Health{}, Power{}),
+			filter:  filter.Exact(Health{}, Power{}),
 			wantIDs: healthAndPowerIDs,
 		},
 		{
-			filter:  filter2.Exact(Health{}),
+			filter:  filter.Exact(Health{}),
 			wantIDs: justHealthIDs,
 		},
 		{
-			filter:  filter2.Exact(Power{}),
+			filter:  filter.Exact(Power{}),
 			wantIDs: justPowerIDs,
 		},
 	}

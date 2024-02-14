@@ -8,7 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"pkg.world.dev/world-engine/assert"
-	message2 "pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -218,7 +218,7 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.Require().NoError(err)
 	personaToPosition := make(map[string]types.EntityID)
 	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {
-		MoveMessage.Each(context, func(tx message2.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
+		MoveMessage.Each(context, func(tx message.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
 			posID, exists := personaToPosition[tx.Tx.PersonaTag]
 			if !exists {
 				id, err := cardinal.Create(context, LocationComponent{})
@@ -302,7 +302,7 @@ type MoveMessageOutput struct {
 	Location LocationComponent
 }
 
-var MoveMessage = message2.NewMessageType[MoveMsgInput, MoveMessageOutput]("move")
+var MoveMessage = message.NewMessageType[MoveMsgInput, MoveMessageOutput]("move")
 
 type QueryLocationRequest struct {
 	Persona string

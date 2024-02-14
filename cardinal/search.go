@@ -4,7 +4,7 @@ import (
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
-	iterators2 "pkg.world.dev/world-engine/cardinal/iterators"
+	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
@@ -25,6 +25,7 @@ type Search struct {
 	filter      filter.ComponentFilter
 	namespace   string
 	reader      gamestate.Reader
+	wCtx        engine.Context
 }
 
 // NewSearch creates a new search.
@@ -35,6 +36,7 @@ func NewSearch(wCtx engine.Context, filter filter.ComponentFilter) *Search {
 		filter:      filter,
 		namespace:   wCtx.Namespace(),
 		reader:      wCtx.StoreReader(),
+		wCtx:        wCtx,
 	}
 }
 
@@ -42,9 +44,11 @@ type CallbackFn func(types.EntityID) bool
 
 // Each iterates over all entities that match the search.
 // If you would like to stop the iteration, return false to the callback. To continue iterating, return true.
-func (s *Search) Each(callback CallbackFn) error {
+func (s *Search) Each(callback CallbackFn) (err error) {
+	defer func() { defer panicOnFatalError(s.wCtx, err) }()
+
 	result := s.evaluateSearch()
-	iter := iterators2.NewEntityIterator(0, s.reader, result)
+	iter := iterators.NewEntityIterator(0, s.reader, result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -61,10 +65,11 @@ func (s *Search) Each(callback CallbackFn) error {
 }
 
 // Count returns the number of entities that match the search.
-func (s *Search) Count() (int, error) {
+func (s *Search) Count() (ret int, err error) {
+	defer func() { defer panicOnFatalError(s.wCtx, err) }()
+
 	result := s.evaluateSearch()
-	iter := iterators2.NewEntityIterator(0, s.reader, result)
-	ret := 0
+	iter := iterators.NewEntityIterator(0, s.reader, result)
 	for iter.HasNext() {
 		entities, err := iter.Next()
 		if err != nil {
@@ -77,10 +82,12 @@ func (s *Search) Count() (int, error) {
 
 // First returns the first entity that matches the search.
 func (s *Search) First() (id types.EntityID, err error) {
+	defer func() { defer panicOnFatalError(s.wCtx, err) }()
+	
 	result := s.evaluateSearch()
-	iter := iterators2.NewEntityIterator(0, s.reader, result)
+	iter := iterators.NewEntityIterator(0, s.reader, result)
 	if !iter.HasNext() {
-		return iterators2.BadID, eris.Wrap(err, "")
+		return iterators.BadID, eris.Wrap(err, "")
 	}
 	for iter.HasNext() {
 		var entities []types.EntityID
@@ -92,7 +99,7 @@ func (s *Search) First() (id types.EntityID, err error) {
 			return entities[0], nil
 		}
 	}
-	return iterators2.BadID, eris.Wrap(err, "")
+	return iterators.BadID, eris.Wrap(err, "")
 }
 
 func (s *Search) MustFirst() types.EntityID {

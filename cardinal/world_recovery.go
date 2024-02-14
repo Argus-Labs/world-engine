@@ -4,29 +4,45 @@ import (
 	"context"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
-	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/worldstage"
 	shardTypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	shardv1 "pkg.world.dev/world-engine/rift/shard/v1"
 	"pkg.world.dev/world-engine/sign"
 )
 
-// recoverGameState checks the status of the last game tick. If the tick was incomplete (indicating
-// a problem when running one of the Systems), the snapshotted state is recovered and the pending
-// transactions for the incomplete tick are returned. A nil recoveredTxs indicates there are no pending
-// transactions that need to be processed because the last tick was successful.
-func (w *World) recoverGameState() (recoveredTxs *txpool.TxQueue, err error) {
+// recoverAndExecutePendingTxs checks whether the last tick is successfully completed. If not, it will recover the pending
+// transactions.
+func (w *World) recoverAndExecutePendingTxs() error {
 	start, end, err := w.entityStore.GetTickNumbers()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	w.tick.Store(end)
 	// We successfully completed the last tick. Everything is fine
 	if start == end {
-		//nolint:nilnil // its ok.
-		return nil, nil
+		return nil
 	}
-	return w.entityStore.Recover(w.msgManager.GetRegisteredMessages())
+
+	recoveredTxs, err := w.entityStore.Recover(w.msgManager.GetRegisteredMessages())
+	if err != nil {
+		return err
+	}
+
+	// If there is recoevered transactions, we need to reprocess them
+	if recoveredTxs != nil {
+		w.txQueue = recoveredTxs
+		// TODO(scott): this is hacky, but i dont want to fix this now because it's PR scope creep.
+		//  but we ideally don't want to treat this as a special tick and should just let it execute normally
+		//  from the game loop.
+		w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Running)
+		if err = w.Tick(context.Background()); err != nil {
+			return err
+		}
+		w.worldStage.CompareAndSwap(worldstage.Running, worldstage.Starting)
+	}
+
+	return nil
 }
 
 // RecoverFromChain will attempt to recover the state of the engine based on historical transaction data.
@@ -48,9 +64,9 @@ func (w *World) RecoverFromChain(ctx context.Context) error {
 		)
 	}
 
-	w.WorldState = WorldStateRecovering
+	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Recovering)
 	defer func() {
-		w.WorldState = WorldStateReady
+		w.worldStage.CompareAndSwap(worldstage.Recovering, worldstage.Ready)
 	}()
 	namespace := w.namespace.String()
 	var nextKey []byte

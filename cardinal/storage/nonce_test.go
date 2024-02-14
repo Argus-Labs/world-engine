@@ -3,7 +3,7 @@ package storage_test
 import (
 	"fmt"
 	"github.com/alicebob/miniredis/v2"
-	redis2 "pkg.world.dev/world-engine/cardinal/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/storage/redis"
 	"testing"
 
 	"pkg.world.dev/world-engine/assert"
@@ -11,9 +11,9 @@ import (
 
 const Namespace string = "world"
 
-func GetRedisStorage(t *testing.T) redis2.Storage {
+func GetRedisStorage(t *testing.T) redis.Storage {
 	s := miniredis.RunT(t)
-	return redis2.NewRedisStorage(redis2.Options{
+	return redis.NewRedisStorage(redis.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB
@@ -37,6 +37,6 @@ func TestCanStoreManyNonces(t *testing.T) {
 	for i := uint64(10); i < 100; i++ {
 		addr := fmt.Sprintf("%d", i)
 		err := rs.UseNonce(addr, i)
-		assert.ErrorIs(t, redis2.ErrNonceHasAlreadyBeenUsed, err)
+		assert.ErrorIs(t, redis.ErrNonceHasAlreadyBeenUsed, err)
 	}
 }

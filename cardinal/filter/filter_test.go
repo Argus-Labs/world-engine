@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"pkg.world.dev/world-engine/cardinal"
 	"pkg.world.dev/world-engine/cardinal/cql"
-	filter2 "pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
@@ -43,7 +43,7 @@ func TestGetEverythingFilter(t *testing.T) {
 	count := 0
 	// Loop over every entity. There should
 	// only be 50 + 20 entities.
-	q := cardinal.NewSearch(wCtx, filter2.All())
+	q := cardinal.NewSearch(wCtx, filter.All())
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -75,7 +75,7 @@ func TestCanFilterByArchetype(t *testing.T) {
 	count := 0
 	// Loop over every entity that has exactly the alpha and beta components. There should
 	// only be subsetCount entities.
-	q := cardinal.NewSearch(wCtx, filter2.Exact(Alpha{}, Beta{}))
+	q := cardinal.NewSearch(wCtx, filter.Exact(Alpha{}, Beta{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -117,7 +117,7 @@ func TestExactVsContains(t *testing.T) {
 	assert.NilError(t, err)
 	count := 0
 	// Contains(alpha) should return all entities
-	q := cardinal.NewSearch(wCtx, filter2.Contains(Alpha{}))
+	q := cardinal.NewSearch(wCtx, filter.Contains(Alpha{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -149,7 +149,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Contains(beta) should only return the entities that have both components
-	q = cardinal.NewSearch(wCtx, filter2.Contains(Beta{}))
+	q = cardinal.NewSearch(wCtx, filter.Contains(Beta{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -172,7 +172,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Exact(alpha) should not return the entities that have both alpha and beta
-	q = cardinal.NewSearch(wCtx, filter2.Exact(Alpha{}))
+	q = cardinal.NewSearch(wCtx, filter.Exact(Alpha{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -196,7 +196,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Exact(alpha, beta) should not return the entities that only have alpha
-	q = cardinal.NewSearch(wCtx, filter2.Exact(Alpha{}, Beta{}))
+	q = cardinal.NewSearch(wCtx, filter.Exact(Alpha{}, Beta{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -220,7 +220,7 @@ func TestExactVsContains(t *testing.T) {
 
 	count = 0
 	// Make sure the order of alpha/beta doesn't matter
-	q = cardinal.NewSearch(wCtx, filter2.Exact(Beta{}, Alpha{}))
+	q = cardinal.NewSearch(wCtx, filter.Exact(Beta{}, Alpha{}))
 	err = q.Each(
 		func(id types.EntityID) bool {
 			count++
@@ -264,7 +264,7 @@ func TestCanGetArchetypeFromEntity(t *testing.T) {
 
 	count := 0
 	err = cardinal.NewSearch(wCtx,
-		filter2.Exact(types.ConvertComponentMetadatasToComponents(comps)...)).Each(
+		filter.Exact(types.ConvertComponentMetadatasToComponents(comps)...)).Each(
 		func(id types.EntityID) bool {
 			count++
 			return true
@@ -348,7 +348,7 @@ func helperArchetypeFilter(b *testing.B, relevantCount, ignoreCount int) {
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		count := 0
-		q := cardinal.NewSearch(wCtx, filter2.Exact(Alpha{}, Beta{}))
+		q := cardinal.NewSearch(wCtx, filter.Exact(Alpha{}, Beta{}))
 		err = q.Each(
 			func(id types.EntityID) bool {
 				count++

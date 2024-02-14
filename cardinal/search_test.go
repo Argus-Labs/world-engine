@@ -2,7 +2,7 @@ package cardinal_test
 
 import (
 	"pkg.world.dev/world-engine/cardinal"
-	filter2 "pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"testing"
 
 	"pkg.world.dev/world-engine/cardinal/testutils"
@@ -36,41 +36,41 @@ func TestSearchExample(t *testing.T) {
 
 	testCases := []struct {
 		name   string
-		filter filter2.ComponentFilter
+		filter filter.ComponentFilter
 		want   int
 	}{
 		{
 			"exactly alpha",
-			filter2.Exact(Alpha{}),
+			filter.Exact(Alpha{}),
 			10,
 		},
 		{
 			"contains alpha",
-			filter2.Contains(Alpha{}),
+			filter.Contains(Alpha{}),
 			40,
 		},
 		{
 			"beta or gamma",
-			filter2.Or(
-				filter2.Exact(Beta{}),
-				filter2.Exact(Gamma{}),
+			filter.Or(
+				filter.Exact(Beta{}),
+				filter.Exact(Gamma{}),
 			),
 			20,
 		},
 		{
 			"not alpha",
-			filter2.Not(filter2.Exact(Alpha{})),
+			filter.Not(filter.Exact(Alpha{})),
 			60,
 		},
 		{
 			"alpha and beta",
-			filter2.And(filter2.Contains(Alpha{}),
-				filter2.Contains(Beta{}),
+			filter.And(filter.Contains(Alpha{}),
+				filter.Contains(Beta{}),
 			), 20,
 		},
 		{
 			"all",
-			filter2.All(),
+			filter.All(),
 			70,
 		},
 	}

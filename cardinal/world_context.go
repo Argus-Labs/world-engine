@@ -8,6 +8,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/cardinal/worldstage"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -136,5 +137,5 @@ func (ctx *worldContext) UseNonce(signerAddress string, nonce uint64) error {
 }
 
 func (ctx *worldContext) IsWorldReady() bool {
-	return ctx.world.WorldState == WorldStateReady || ctx.world.WorldState == WorldStateRunning
+	return ctx.world.worldStage.Current() == worldstage.Ready || ctx.world.worldStage.Current() == worldstage.Running
 }

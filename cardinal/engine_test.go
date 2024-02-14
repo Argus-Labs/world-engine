@@ -154,6 +154,67 @@ func TestCannotWaitForNextTickAfterEngineIsShutDown(t *testing.T) {
 	assert.Equal(t, ok, false)
 }
 
+func TestEVMTxConsume(t *testing.T) {
+	ctx := context.Background()
+	type FooIn struct {
+		X uint32
+	}
+	type FooOut struct {
+		Y string
+	}
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	fooTx := message.NewMessageType[FooIn, FooOut]("foo", message.WithMsgEVMSupport[FooIn, FooOut]())
+	assert.NilError(t, cardinal.RegisterMessages(world, fooTx))
+	var returnVal FooOut
+	var returnErr error
+	err := cardinal.RegisterSystems(world,
+		func(eCtx cardinal.WorldContext) error {
+			fooTx.Each(
+				eCtx, func(t message.TxData[FooIn]) (FooOut, error) {
+					return returnVal, returnErr
+				},
+			)
+			return nil
+		},
+	)
+	assert.NilError(t, err)
+
+	tf.StartWorld()
+
+	// add tx to queue
+	evmTxHash := "0xFooBar"
+	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
+
+	// let's check against a system that returns a result and no error
+	returnVal = FooOut{Y: "hi"}
+	returnErr = nil
+	assert.NilError(t, world.Tick(ctx))
+	evmTxReceipt, ok := world.GetEVMMsgReceipt(evmTxHash)
+	assert.Equal(t, ok, true)
+	assert.Check(t, len(evmTxReceipt.ABIResult) > 0)
+	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
+	assert.Equal(t, len(evmTxReceipt.Errs), 0)
+	// shouldn't be able to consume it again.
+	_, ok = world.GetEVMMsgReceipt(evmTxHash)
+	assert.Equal(t, ok, false)
+
+	// lets check against a system that returns an error
+	returnVal = FooOut{}
+	returnErr = errors.New("omg error")
+	world.AddEVMTransaction(fooTx.ID(), FooIn{X: 32}, &sign.Transaction{PersonaTag: "foo"}, evmTxHash)
+	assert.NilError(t, world.Tick(ctx))
+	evmTxReceipt, ok = world.GetEVMMsgReceipt(evmTxHash)
+
+	assert.Equal(t, ok, true)
+	assert.Equal(t, len(evmTxReceipt.ABIResult), 0)
+	assert.Equal(t, evmTxReceipt.EVMTxHash, evmTxHash)
+	assert.Equal(t, len(evmTxReceipt.Errs), 1)
+	// shouldn't be able to consume it again.
+	_, ok = world.GetEVMMsgReceipt(evmTxHash)
+	assert.Equal(t, ok, false)
+}
+
 func TestAddSystems(t *testing.T) {
 	count := 0
 	sys1 := func(engine.Context) error {
@@ -309,3 +370,94 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 	err = world.Tick(context.Background())
 	assert.NilError(t, err)
 }
+
+// TODO(scott): I commented out this test becase the RecoverFromChain user story doesn't make sense right now.
+// RecoverFromChain needs to automatically executed on `StartGame` if:
+// 1) router is set
+// 2) the current tick (after recovering from redis/memstore) is less than the current tick in the chain
+
+//func TestRecoverFromChain(t *testing.T) {
+//	ctrl := gomock.NewController(t)
+//	rtr := mocks.NewMockRouter(ctrl)
+//	tf := testutils.NewTestFixture(t, nil)
+//	world := tf.World
+//	world.SetRouter(rtr)
+//
+//	type fooMsg struct{ I int }
+//	type fooMsgRes struct{}
+//	fooMsgName := "foo"
+//	fooMessage := message.NewMessageType[fooMsg, fooMsgRes](fooMsgName)
+//	err := cardinal.RegisterMessages(world, fooMessage)
+//	assert.NilError(t, err)
+//
+//	fooMessages := 0
+//	err = cardinal.RegisterSystems(world, func(engineContext cardinal.WorldContext) error {
+//		fooMessage.Each(engineContext, func(t message.TxData[fooMsg]) (fooMsgRes, error) {
+//			fooMessages++
+//			return fooMsgRes{}, nil
+//		})
+//		return nil
+//	})
+//	assert.NilError(t, err)
+//
+//	tf.StartWorld()
+//
+//	req := &types.QueryTransactionsRequest{
+//		Namespace: world.Namespace().String(),
+//		Page:      new(types.PageRequest),
+//	}
+//	msgBody, err := json.Marshal(fooMsg{I: 420})
+//	assert.NilError(t, err)
+//	tx := &shard.Transaction{
+//		PersonaTag: "tyler",
+//		Namespace:  world.Namespace().String(),
+//		Nonce:      0,
+//		Signature:  "sigNature",
+//		Body:       msgBody,
+//	}
+//	bz, err := proto.Marshal(tx)
+//	assert.NilError(t, err)
+//	pageResponse := &types.PageResponse{Key: []byte("whatever")}
+//	res := &types.QueryTransactionsResponse{
+//		Epochs: []*types.Epoch{
+//			{
+//				Epoch:         0,
+//				UnixTimestamp: 10,
+//				Txs: []*types.Transaction{
+//					{
+//						TxId:                 uint64(fooMessage.ID()),
+//						GameShardTransaction: bz,
+//					},
+//				},
+//			},
+//		},
+//		Page: pageResponse,
+//	}
+//	res2 := &types.QueryTransactionsResponse{
+//		Epochs: []*types.Epoch{
+//			{
+//				Epoch:         1,
+//				UnixTimestamp: 11,
+//				Txs: []*types.Transaction{
+//					{
+//						TxId:                 uint64(fooMessage.ID()),
+//						GameShardTransaction: bz,
+//					},
+//				},
+//			},
+//		},
+//		Page: nil,
+//	}
+//	req2 := &types.QueryTransactionsRequest{
+//		Namespace: world.Namespace().String(),
+//		Page:      &types.PageRequest{Key: pageResponse.Key},
+//	}
+//	rtr.EXPECT().QueryTransactions(gomock.Any(), req).Return(res, nil).Times(1)
+//	rtr.EXPECT().QueryTransactions(gomock.Any(), req2).Return(res2, nil).Times(1)
+//
+//	err = world.RecoverFromChain(context.Background())
+//	assert.NilError(t, err)
+//
+//	assert.Equal(t, fooMessages, 2)
+//	assert.Equal(t, world.CurrentTick(), uint64(2))
+//}

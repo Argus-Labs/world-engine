@@ -1,4 +1,4 @@
-package gamestage
+package worldstage
 
 import (
 	"testing"
@@ -7,32 +7,32 @@ import (
 )
 
 func TestCanOperateOnZeroValue(t *testing.T) {
-	atomicGameStage := NewAtomic()
-	gotStage := atomicGameStage.Load()
-	assert.Equal(t, StagePreStart, gotStage)
+	atomicGameStage := NewManager()
+	gotStage := atomicGameStage.Current()
+	assert.Equal(t, Init, gotStage)
 
-	gotStage = atomicGameStage.Swap(StageShutDown)
-	assert.Equal(t, StagePreStart, gotStage)
+	gotStage = atomicGameStage.Swap(ShutDown)
+	assert.Equal(t, Init, gotStage)
 }
 
 func TestCanCompareAndSwapOnZeroValue(t *testing.T) {
-	atomicGameStage := NewAtomic()
-	ok := atomicGameStage.CompareAndSwap(StageShutDown, StageShutDown)
+	atomicGameStage := NewManager()
+	ok := atomicGameStage.CompareAndSwap(ShutDown, ShutDown)
 	assert.Check(t, !ok, "zero value should be StagePreStart")
 
-	ok = atomicGameStage.CompareAndSwap(StagePreStart, StageShutDown)
+	ok = atomicGameStage.CompareAndSwap(Init, ShutDown)
 	assert.Check(t, ok, "compare and swap should succeed with correct old value")
 
-	assert.Equal(t, StageShutDown, atomicGameStage.Load())
+	assert.Equal(t, Stage(ShutDown), atomicGameStage.Current())
 }
 
 func TestOnlyOneCompareAndSwapSuccess(t *testing.T) {
 	successCh := make(chan bool)
-	atomicGameStage := NewAtomic()
+	atomicGameStage := NewManager()
 
 	for i := 0; i < 10; i++ {
 		go func() {
-			ok := atomicGameStage.CompareAndSwap(StagePreStart, StageShutDown)
+			ok := atomicGameStage.CompareAndSwap(Init, ShutDown)
 			successCh <- ok
 		}()
 	}

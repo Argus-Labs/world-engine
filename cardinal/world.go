@@ -32,10 +32,10 @@ import (
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/gamestage"
 	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/statsd"
+	"pkg.world.dev/world-engine/cardinal/worldstage"
 )
 
 // WorldStateType is the current state of the engine.
@@ -43,18 +43,6 @@ type WorldStateType string
 
 const (
 	DefaultHistoricalTicksToStore = 10
-)
-
-const (
-	WorldStateInit       WorldStateType = "WorldStateInit"
-	WorldStateRecovering WorldStateType = "WordlStateRecovering"
-	WorldStateReady      WorldStateType = "WorldStateReady"
-	WorldStateRunning    WorldStateType = "WorldStateRunning"
-)
-
-var (
-	ErrEntitiesCreatedBeforeStartGame     = errors.New("entities should not be created before start game")
-	ErrEntitiesCreatedBeforeLoadGameState = errors.New("entities should not be created before loading game state")
 )
 
 type World struct {
@@ -65,11 +53,9 @@ type World struct {
 	cleanup         func()
 	Logger          *zerolog.Logger
 
-	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc.)
-	gameSequenceStage gamestage.Atomic
-	endStartGame      chan bool
+	endStartGame chan bool
 
-	WorldState    WorldStateType
+	worldStage    *worldstage.Manager
 	msgManager    *message.Manager
 	systemManager *system.Manager
 
@@ -136,12 +122,10 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	world := &World{
-		serverOptions:     serverOptions,
-		endStartGame:      make(chan bool),
-		gameSequenceStage: gamestage.NewAtomic(),
+		serverOptions: serverOptions,
+		endStartGame:  make(chan bool),
 
-		// Scott's new stuff
-		WorldState:    WorldStateInit,
+		worldStage:    worldstage.NewManager(),
 		msgManager:    message.NewManager(),
 		systemManager: system.NewManager(),
 
@@ -201,6 +185,11 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		world.eventHub = events.NewEventHub()
 	}
 
+	// Make game loop tick every second if not set
+	if world.tickChannel == nil {
+		world.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
+	}
+
 	return world, nil
 }
 
@@ -221,18 +210,10 @@ func (w *World) CurrentTick() uint64 {
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick(ctx context.Context) error {
-	// Check the current world state and handle accordingly
-	switch w.WorldState {
-	case WorldStateInit:
-		// If the engine is not ready, we don't want to tick the engine.
-		// Instead, make we have recovered the state of the world firstreturn eris.New("invalid world state to tick")
-	case WorldStateReady:
-		// If the world have loaded game state, we can set the it WorldStateRunning
-		w.WorldState = WorldStateRunning
-	case WorldStateRecovering:
-		// If the world is recovering, proceed
-	case WorldStateRunning:
-		// If the world is already running, proceed
+	// The world can only start ticking if it's in the running or recovering stage.
+	if w.worldStage.Current() == worldstage.Running || w.worldStage.Current() == worldstage.Recovering {
+	} else {
+		return eris.Errorf("invalid world state to tick: %s", w.worldStage.Current())
 	}
 
 	// This defer is here to catch any panics that occur during the tick. It will log the current tick and the
@@ -254,14 +235,14 @@ func (w *World) Tick(ctx context.Context) error {
 		return err
 	}
 
-	// Set the timestamp for this tick
+	// Store the timestamp for this tick
 	startTime := time.Now()
 	w.timestamp.Store(uint64(startTime.Unix()))
 
 	// Create the engine context to inject into systems
 	wCtx := NewWorldContextForTick(w, txQueue)
 
-	// Run all registered systems.\
+	// Run all registered systems.
 	// This will run the registsred init systems if the current tick is 0
 	if err := w.systemManager.RunSystems(wCtx); err != nil {
 		return err
@@ -281,7 +262,13 @@ func (w *World) Tick(ctx context.Context) error {
 	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
 
 	w.setEvmResults(txQueue.GetEVMTxs())
-	if txQueue.GetAmountOfTxs() != 0 && w.router != nil && w.WorldState != WorldStateRecovering {
+
+	// Handle tx data blob submission
+	// Only submit transactions when the following criteria is satisfied:
+	// 1. There are transactions in the queue
+	// 2. The shard router is set
+	// 3. The world is not in the recovering stage (we don't want to resubmit past transactions)
+	if txQueue.GetAmountOfTxs() != 0 && w.router != nil && w.worldStage.Current() != worldstage.Recovering {
 		err := w.router.SubmitTxBlob(ctx, txQueue.Transactions(), w.namespace.String(), w.tick.Load(),
 			w.timestamp.Load())
 		if err != nil {
@@ -289,8 +276,10 @@ func (w *World) Tick(ctx context.Context) error {
 		}
 	}
 
+	// Increment the tick
 	w.tick.Add(1)
-	w.receiptHistory.NextTick()
+	w.receiptHistory.NextTick() // todo(scott): use channels
+
 	statsd.EmitTickStat(startTime, "full_tick")
 	if err := statsd.Client().Count("num_of_txs", int64(txQueue.GetAmountOfTxs()), nil, 1); err != nil {
 		w.Logger.Warn().Msgf("failed to emit count stat:%v", err)
@@ -305,19 +294,43 @@ func (w *World) Tick(ctx context.Context) error {
 // may not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
 // the game in the background.
 func (w *World) StartGame() error {
-	ok := w.gameSequenceStage.CompareAndSwap(gamestage.StagePreStart, gamestage.StageStarting)
+	// Game stage: Init -> Starting
+	ok := w.worldStage.CompareAndSwap(worldstage.Init, worldstage.Starting)
 	if !ok {
 		return errors.New("game has already been started")
 	}
 
-	if err := w.loadGameState(); err != nil {
-		if errors.Is(err, ErrEntitiesCreatedBeforeLoadGameState) {
-			return eris.Wrap(ErrEntitiesCreatedBeforeStartGame, "")
+	if err := w.entityStore.RegisterComponents(w.registeredComponents); err != nil {
+		closeErr := w.entityStore.Close()
+		if closeErr != nil {
+			return eris.Wrap(err, closeErr.Error())
 		}
 		return err
 	}
 
-	var err error
+	// Start router if it is set
+	if w.router != nil {
+		if err := w.router.Start(); err != nil {
+			return eris.Wrap(err, "failed to start router service")
+		}
+	}
+
+	// TODO(scott): hypothethically, this would be where we are calling RecoverFromChain()
+
+	// Recover pending transactions from redis
+	err := w.recoverAndExecutePendingTxs()
+	if err != nil {
+		return err
+	}
+
+	// TODO(scott): i find this manual tracking and incrementing of the tick very footgunny. Why can't we just
+	//  use a reliable source of truth for the tick? It's not clear to me why we need to manually increment the
+	//  receiptHistory tick separately.
+	w.receiptHistory.SetTick(w.CurrentTick())
+
+	// Create server
+	// We can't do this is in NewWorld() because the server needs to know the registered messages
+	// and register queries first. We can probably refactor this though.
 	w.server, err = server.New(NewReadOnlyWorldContext(w), w.ListMessages(), w.ListQueries(),
 		w.eventHub.NewWebSocketEventHandler(),
 		w.serverOptions...)
@@ -325,32 +338,30 @@ func (w *World) StartGame() error {
 		return err
 	}
 
-	if err := w.RunRouter(); err != nil {
-		return eris.Wrap(err, "failed to start router service")
-	}
+	// Game stage: Starting -> Running
+	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Running)
 
-	if w.tickChannel == nil {
-		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
-	}
-
+	// Start the game loop
 	w.startGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
 
-	go func() {
-		ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageStarting, gamestage.StageRunning)
-		if !ok {
-			log.Fatal().Msg("game was started prematurely")
-		}
-		if err := w.server.Serve(); errors.Is(err, http.ErrServerClosed) {
-			log.Info().Err(err).Msgf("the server has been closed: %s", eris.ToString(err, true))
-		} else if err != nil {
-			log.Fatal().Err(err).Msgf("the server has failed: %s", eris.ToString(err, true))
-		}
-	}()
+	// Start the server
+	w.startServer()
 
 	// handle shutdown via a signal
 	w.handleShutdown()
 	<-w.endStartGame
 	return err
+}
+
+func (w *World) startServer() {
+	go func() {
+		if err := w.server.Serve(); errors.Is(err, http.ErrServerClosed) {
+			log.Info().Err(err).Msgf("the server has been closed: %s", eris.ToString(err, true))
+		} else if err != nil {
+			log.Fatal().Err(err).Msgf("the server has failed: %s", eris.ToString(err, true))
+		}
+
+	}()
 }
 
 func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
@@ -426,22 +437,22 @@ func (w *World) emitResourcesWarnings() {
 }
 
 func (w *World) IsGameRunning() bool {
-	return w.gameSequenceStage.Load() == gamestage.StageRunning
+	return w.worldStage.Current() == worldstage.Running
 }
 
 func (w *World) Shutdown() error {
 	if w.cleanup != nil {
 		w.cleanup()
 	}
-	// ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageRunning, gamestage.StageShuttingDown)
-	// if !ok {
-	//	// Either the world hasn't been started, or we've already shut down.
-	//	return nil
-	// }
+	ok := w.worldStage.CompareAndSwap(worldstage.Running, worldstage.ShuttingDown)
+	// Either the world hasn't been started, or we've already shut down.
+	if !ok {
+		return nil
+	}
 	// The CompareAndSwap returned true, so this call is responsible for actually
 	// shutting down the game.
 	defer func() {
-		w.gameSequenceStage.Store(gamestage.StageShutDown)
+		w.worldStage.Store(worldstage.ShutDown)
 	}()
 	if w.server != nil {
 		if err := w.server.Shutdown(); err != nil {
@@ -477,18 +488,6 @@ func (w *World) Shutdown() error {
 
 func (w *World) ListQueries() []engine.Query   { return w.registeredQueries }
 func (w *World) ListMessages() []types.Message { return w.msgManager.GetRegisteredMessages() }
-
-// logAndPanic logs the given error and panics. An error is returned so the syntax:
-// return logAndPanic(wCtx, err)
-// can be used at the end of state-mutating methods. This method will never actually return.
-func logAndPanic(wCtx engine.Context, err error) error {
-	// If the context is read-only, we don't want to panic. We just want to log the error and return it.
-	if wCtx.IsReadOnly() {
-		return err
-	}
-	wCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
-	return err
-}
 
 func setLogLevel(levelStr string) error {
 	if levelStr == "" {
@@ -610,41 +609,6 @@ func (w *World) UseNonce(signerAddress string, nonce uint64) error {
 	return w.redisStorage.UseNonce(signerAddress, nonce)
 }
 
-func (w *World) loadGameState() error {
-	if w.WorldState != WorldStateInit {
-		return eris.New("cannot load game state multiple times")
-	}
-
-	// TODO(scott): footgun. so confusing.
-	if err := w.entityStore.RegisterComponents(w.registeredComponents); err != nil {
-		closeErr := w.entityStore.Close()
-		if closeErr != nil {
-			return eris.Wrap(err, closeErr.Error())
-		}
-		return err
-	}
-
-	recoveredTxs, err := w.recoverGameState()
-	if err != nil {
-		return err
-	}
-
-	// Engine is now ready to run
-	w.WorldState = WorldStateReady
-
-	// Recover the last tick, not to be confused with RecoverFromChain
-	// It's ambigious, but screw it for now.
-	if recoveredTxs != nil {
-		w.txQueue = recoveredTxs
-		if err = w.Tick(context.Background()); err != nil {
-			return err
-		}
-	}
-	w.receiptHistory.SetTick(w.CurrentTick())
-
-	return nil
-}
-
 func (w *World) Namespace() Namespace {
 	return w.namespace
 }
@@ -704,13 +668,6 @@ func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error)
 
 func (w *World) GetSystemNames() []string {
 	return w.systemManager.GetSystemNames()
-}
-
-func (w *World) RunRouter() error {
-	if w.router == nil {
-		return nil
-	}
-	return w.router.Start()
 }
 
 func (w *World) SetRouter(rtr router.Router) {

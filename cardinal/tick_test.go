@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog"
 	"io"
 	"pkg.world.dev/world-engine/cardinal"
-	filter "pkg.world.dev/world-engine/cardinal/filter"
+	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
@@ -411,7 +411,7 @@ func TestCanRecoverTransactionsFromFailedSystemRun(t *testing.T) {
 
 			// One more tick for good measure
 			tf.AddTransaction(powerTx.ID(), PowerComp{1000})
-			assert.NilError(t, world.Tick(context.Background()))
+			tf.DoTick()
 
 			assert.Equal(t, float64(4666), fetchPower())
 		}
