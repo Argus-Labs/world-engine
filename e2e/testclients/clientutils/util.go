@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -44,8 +45,14 @@ type NotificationItem struct {
 	Persistent bool      `json:"persistent"`
 }
 
-type Content struct {
+type Event struct {
 	Message string `json:"message"`
+}
+
+type Receipt struct {
+	TxHash string         `json:"txHash"`
+	Result map[string]any `json:"result"`
+	Errors []string       `json:"errors"`
 }
 
 type NotificationCollection struct {
@@ -53,24 +60,24 @@ type NotificationCollection struct {
 	CacheableCursor string             `json:"cacheableCursor"`
 }
 
-func (c *NakamaClient) ListNotifications(k int) ([]*Content, error) {
+func (c *NakamaClient) ListNotifications(k int) ([]*Receipt, []*Event, error) {
 	path := "v2/notification"
 	options := fmt.Sprintf("limit=%d&cursor=%s", k, c.notificationCursor)
 	url := fmt.Sprintf("%s/%s?%s", c.addr, path, options)
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	req.Header.Set("Authorization", c.authHeader)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer resp.Body.Close()
 
 	bodyData, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	data := NotificationCollection{
 		Notifications:   make([]NotificationItem, 0),
@@ -78,21 +85,32 @@ func (c *NakamaClient) ListNotifications(k int) ([]*Content, error) {
 	}
 	err = json.Unmarshal(bodyData, &data)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	c.notificationCursor = data.CacheableCursor
-	acc := make([]*Content, 0)
+	receipts := make([]*Receipt, 0)
+	events := make([]*Event, 0)
+	fmt.Println("notif number: " + strconv.Itoa(len(data.Notifications)))
 	for _, item := range data.Notifications {
-		content := Content{}
-		err := json.Unmarshal([]byte(item.Content), &content)
-		if err != nil {
-			return nil, err
+		if item.Subject == "receipt" {
+			receipt := Receipt{}
+			err := json.Unmarshal([]byte(item.Content), &receipt)
+			if err != nil {
+				return nil, nil, err
+			}
+			receipts = append(receipts, &receipt)
+			fmt.Println("FOUND RECEIPT: " + receipt.TxHash)
 		}
 		if item.Subject == "event" {
-			acc = append(acc, &content)
+			event := Event{}
+			err := json.Unmarshal([]byte(item.Content), &event)
+			if err != nil {
+				return nil, nil, err
+			}
+			events = append(events, &event)
 		}
 	}
-	return acc, nil
+	return receipts, events, nil
 }
 
 func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
@@ -111,7 +129,7 @@ func (c *NakamaClient) RegisterDevice(username, deviceID string) error {
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Event-Type", "application/json")
 	// defaultkey is the default server key. See https://heroiclabs.com/docs/nakama/concepts/authentication/ for more
 	// details.
 	req.SetBasicAuth("defaultkey", "")
@@ -144,7 +162,7 @@ func (c *NakamaClient) RPC(path string, body any) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Event-Type", "application/json")
 	req.Header.Set("Authorization", c.authHeader)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

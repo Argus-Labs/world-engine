@@ -189,6 +189,9 @@ func (t *MessageType[In, Out]) Each(eCtx EngineContext, fn func(TxData[In]) (Out
 			)
 			t.AddError(eCtx, txData.Hash, err)
 		} else {
+			fmt.Println("messageType.SetResult()")
+			fmt.Println(txData.Hash)
+			fmt.Println(result)
 			t.SetResult(eCtx, txData.Hash, result)
 		}
 	}

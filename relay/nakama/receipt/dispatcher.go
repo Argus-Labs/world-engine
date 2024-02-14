@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"pkg.world.dev/world-engine/relay/nakama/utils"
+	"strconv"
 	"sync"
 	"time"
 
@@ -59,6 +61,7 @@ func (r *Dispatcher) Dispatch(_ runtime.Logger) {
 			select {
 			case ch <- receipt:
 			default:
+				fmt.Println("WOW, RECEIPT WAS NOT ABLE TO BE SENT!")
 			}
 			return true
 		})
@@ -91,8 +94,10 @@ func (r *Dispatcher) streamBatchOfReceipts(
 	if err != nil {
 		return newStartTick, err
 	}
-
+	fmt.Println("dispatcher got " + strconv.Itoa(len(reply.Receipts)) + "receipts from cardinal")
 	for _, rec := range reply.Receipts {
+		fmt.Println("receipt below:")
+		fmt.Println(rec)
 		r.ch <- rec
 	}
 	return reply.EndTick, nil

@@ -2,6 +2,7 @@ package receipt
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -71,12 +72,15 @@ func (r *Notifier) sendNotifications(ch chan *Receipt) {
 	for {
 		select {
 		case receipt := <-ch:
+			fmt.Println("got receipt from cardinal with txHash: " + receipt.TxHash)
 			if err := r.handleReceipt(receipt); err != nil {
 				r.logger.Debug("failed to send receipt %v: %v", receipt, err)
 			}
 		case <-ticker.C:
 			r.cleanupStaleTransactions()
 		case tx := <-r.newTxHash:
+			fmt.Println("adding new hash to notifier mapping")
+			fmt.Println("hash: " + tx.txHash)
 			r.txHashToTargetInfo[tx.txHash] = targetInfo{
 				createdAt: time.Now(),
 				userID:    tx.userID,
@@ -88,6 +92,7 @@ func (r *Notifier) sendNotifications(ch chan *Receipt) {
 // handleReceipt identifies the relevant user for this receipt and sends them a notification.
 func (r *Notifier) handleReceipt(receipt *Receipt) error {
 	ctx := context.Background()
+	fmt.Println("attempting to deliver receipt with txHash: " + receipt.TxHash)
 	target, ok := r.txHashToTargetInfo[receipt.TxHash]
 	if !ok {
 		return eris.Errorf("unable to find user for tx hash %q", receipt.TxHash)
@@ -99,15 +104,18 @@ func (r *Notifier) handleReceipt(receipt *Receipt) error {
 		"result": receipt.Result,
 		"errors": receipt.Errors,
 	}
-	if err := r.nk.NotificationSend(ctx, target.userID, "subject", data, 1, "", false); err != nil {
+	if err := r.nk.NotificationSend(ctx, target.userID, "receipt", data, 1, "", true); err != nil {
 		return eris.Wrapf(err, "unable to send tx hash %q to user %q", receipt.TxHash, target.userID)
 	}
+	fmt.Println("SENT DATA")
+	fmt.Println(data)
 	return nil
 }
 
 // cleanupStaleTransactions identifies any transactions that have been pending for too long (see
 // ReceiptNotifier.staleDuration) and deletes them.
 func (r *Notifier) cleanupStaleTransactions() {
+	fmt.Println("GOT DELETED!")
 	for txHash, info := range r.txHashToTargetInfo {
 		if time.Since(info.createdAt) > r.staleDuration {
 			delete(r.txHashToTargetInfo, txHash)

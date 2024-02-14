@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"sync"
@@ -88,6 +89,9 @@ func ClaimPersona(
 	if err != nil {
 		return res, eris.Wrap(err, "unable to make create persona request to cardinal")
 	}
+	fmt.Println("adding persona tx hash to pending notifs")
+	fmt.Println(txHash)
+	fmt.Println(userID)
 	notifier.AddTxHashToPendingNotifications(txHash, userID)
 
 	personaStorageObj.Status = StatusPending
