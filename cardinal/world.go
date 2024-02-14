@@ -205,6 +205,12 @@ func (w *World) CurrentTick() uint64 {
 	return w.tick.Load()
 }
 
+// TODO(scott): we should make Tick() private and only allow controlling tick externally using the tick channel.
+//  This is a footgun because you want to make sure world is started using StartWorld() instead of calling Tick()
+//  directly. This is unfortunately used a lot in tests.
+//  One thing we need to do is to make the tickDone channel return the tick number AND error if any so it can be used
+//  to check if there are errors when trying to tick.
+
 // Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick(ctx context.Context) error {
