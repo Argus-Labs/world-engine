@@ -856,10 +856,10 @@ func (e *Engine) LoadGameState() error {
 // namespace. The function will continuously ask the EVM base shard for batches, and run ticks for each batch returned.
 func (e *Engine) RecoverFromChain(ctx context.Context) error {
 	if e.router == nil {
-		return eris.Errorf("cannot recover state without router")
+		return eris.New("cannot recover state without router")
 	}
 	if e.CurrentTick() > 0 {
-		return eris.Errorf("cannot recover world with existing state")
+		return eris.New("cannot recover world with existing state")
 	}
 
 	e.isRecovering.Store(true)
