@@ -215,7 +215,7 @@ func (w *World) CurrentTick() uint64 {
 // each System in turn with the snapshot of transactions.
 func (w *World) Tick(ctx context.Context) error {
 	// The world can only start ticking if it's in the running or recovering stage.
-	if w.worldStage.Current() != worldstage.Running || w.worldStage.Current() != worldstage.Recovering {
+	if w.worldStage.Current() != worldstage.Running && w.worldStage.Current() != worldstage.Recovering {
 		return eris.Errorf("invalid world state to tick: %s", w.worldStage.Current())
 	}
 
