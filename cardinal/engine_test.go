@@ -376,7 +376,7 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 // 1) router is set
 // 2) the current tick (after recovering from redis/memstore) is less than the current tick in the chain
 
-//func TestRecoverFromChain(t *testing.T) {
+// func TestRecoverFromChain(t *testing.T) {
 //	ctrl := gomock.NewController(t)
 //	rtr := mocks.NewMockRouter(ctrl)
 //	tf := testutils.NewTestFixture(t, nil)
@@ -460,4 +460,4 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 //
 //	assert.Equal(t, fooMessages, 2)
 //	assert.Equal(t, world.CurrentTick(), uint64(2))
-//}
+// }

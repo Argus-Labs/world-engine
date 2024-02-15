@@ -11,8 +11,8 @@ import (
 	"pkg.world.dev/world-engine/sign"
 )
 
-// recoverAndExecutePendingTxs checks whether the last tick is successfully completed. If not, it will recover the pending
-// transactions.
+// recoverAndExecutePendingTxs checks whether the last tick is successfully completed. If not, it will recover
+// the pending transactions.
 func (w *World) recoverAndExecutePendingTxs() error {
 	start, end, err := w.entityStore.GetTickNumbers()
 	if err != nil {

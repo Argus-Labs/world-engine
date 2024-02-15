@@ -23,7 +23,7 @@ func TestCanCompareAndSwapOnZeroValue(t *testing.T) {
 	ok = atomicGameStage.CompareAndSwap(Init, ShutDown)
 	assert.Check(t, ok, "compare and swap should succeed with correct old value")
 
-	assert.Equal(t, Stage(ShutDown), atomicGameStage.Current())
+	assert.Equal(t, ShutDown, atomicGameStage.Current())
 }
 
 func TestOnlyOneCompareAndSwapSuccess(t *testing.T) {
