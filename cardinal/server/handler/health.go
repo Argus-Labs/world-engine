@@ -20,7 +20,7 @@ func GetHealth() func(c *fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		return ctx.JSON(GetHealthResponse{
 			IsServerRunning: true,
-			// TODO(scott): dep inject this value
+			// TODO(scott): reconsider whether we need this. Intuitively server running implies game loop running.
 			IsGameLoopRunning: true,
 		})
 	}

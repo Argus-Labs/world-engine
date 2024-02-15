@@ -76,8 +76,6 @@ func PostTransaction(
 		}
 
 		var signerAddress string
-		// TODO(scott): this should be refactored; I don't see why getting signer address needs to be different here,
-		//  both of them should just derive the signer address using ecrecover from signature
 		// TODO(scott): don't hardcode this
 		if msgType.Name() == "create-persona" {
 			// don't need to check the cast bc we already validated this above
