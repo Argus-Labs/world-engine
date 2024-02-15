@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/fasthttp/websocket"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -182,4 +183,26 @@ func TestShutdownViaSignal(t *testing.T) {
 		// wait until game loop is not running
 		time.Sleep(50 * time.Millisecond)
 	}
+}
+
+func TestWithPrettyLog_LogIsNotJSONFormatted(t *testing.T) {
+	world := testutils.NewTestFixture(t, nil, cardinal.WithPrettyLog()).World
+	assert.NotNil(t, world.Logger)
+
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	world.Logger.Info().Msg("test")
+	err := w.Close()
+	assert.NilError(t, err)
+
+	output, err := io.ReadAll(r)
+	assert.NilError(t, err)
+	assert.Assert(t, !isValidJSON(output))
+}
+
+// isValidJSON tests if a string is valid JSON.
+func isValidJSON(bz []byte) bool {
+	var js map[string]interface{}
+	return json.Unmarshal(bz, &js) == nil
 }
