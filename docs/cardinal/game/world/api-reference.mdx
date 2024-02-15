@@ -102,7 +102,7 @@ func WithTickChannel(ch <-chan time.Time) WorldOption
 
 ```go
 // option to make ticks happen every 500 milliseconds.
-opt := WithLoopInterval(time.Tick(500*time.Millisecond))
+opt := WithTickChannel(time.Tick(500*time.Millisecond))
 ```
 
 ## RegisterSystems
