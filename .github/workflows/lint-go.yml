@@ -42,4 +42,5 @@ jobs:
           version: v1.54.2
           args: --timeout=10m --concurrency 8 -v ${{ steps.go-dir.outputs.path }}
           ## skip cache, use Namespace volume cache
-          skip-cache: true
+          skip-pkg-cache: false
+          # skip-build-cache: false
