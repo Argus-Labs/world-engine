@@ -20,7 +20,7 @@ import (
 var _ Manager = &EntityCommandBuffer{}
 
 type EntityCommandBuffer struct {
-	storage Storage
+	storage PrimitiveStorage
 
 	compValues         map[compKey]any
 	compValuesToDelete map[compKey]bool
@@ -50,7 +50,7 @@ var (
 
 // NewEntityCommandBuffer creates a new command buffer manager that is able to queue up a series of states changes and
 // atomically commit them to the underlying redis storage layer.
-func NewEntityCommandBuffer(storage Storage) (*EntityCommandBuffer, error) {
+func NewEntityCommandBuffer(storage PrimitiveStorage) (*EntityCommandBuffer, error) {
 	m := &EntityCommandBuffer{
 		storage:            storage,
 		compValues:         map[compKey]any{},

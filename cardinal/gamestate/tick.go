@@ -132,7 +132,7 @@ type pendingTransaction struct {
 }
 
 func addPendingTransactionToPipe(
-	ctx context.Context, pipe Storage, txs []types.Message,
+	ctx context.Context, pipe PrimitiveStorage, txs []types.Message,
 	queue *txpool.TxQueue,
 ) error {
 	var pending []pendingTransaction

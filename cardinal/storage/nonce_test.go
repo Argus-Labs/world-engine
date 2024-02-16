@@ -1,20 +1,20 @@
-package metastorage_test
+package storage_test
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/alicebob/miniredis/v2"
-	"pkg.world.dev/world-engine/cardinal/metastorage/redis"
+	"pkg.world.dev/world-engine/cardinal/storage/redis"
 
 	"pkg.world.dev/world-engine/assert"
 )
 
 const Namespace string = "world"
 
-func GetRedisStorage(t *testing.T) redis.MetaStorage {
+func GetRedisStorage(t *testing.T) redis.Storage {
 	s := miniredis.RunT(t)
-	return redis.NewRedisMetaStorage(redis.Options{
+	return redis.NewRedisStorage(redis.Options{
 		Addr:     s.Addr(),
 		Password: "", // no password set
 		DB:       0,  // use default DB

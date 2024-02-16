@@ -117,7 +117,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		DB:       0, // use default DB
 	}, cfg.CardinalNamespace)
 
-	redisStore := gamestate.NewRedisStorage(redisMetaStore.Client)
+	redisStore := gamestate.NewRedisPrimitiveStorage(redisMetaStore.Client)
 
 	entityCommandBuffer, err := gamestate.NewEntityCommandBuffer(&redisStore)
 	if err != nil {

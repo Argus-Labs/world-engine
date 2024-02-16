@@ -20,7 +20,7 @@ var (
 )
 
 type readOnlyManager struct {
-	storage         Storage
+	storage         PrimitiveStorage
 	typeToComponent map[types.ComponentID]types.ComponentMetadata
 	archIDToComps   map[types.ArchetypeID][]types.ComponentMetadata
 }
