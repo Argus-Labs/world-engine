@@ -8,6 +8,7 @@ import (
 	"pkg.world.dev/world-engine/cardinal/persona"
 	"pkg.world.dev/world-engine/cardinal/persona/component"
 	"pkg.world.dev/world-engine/cardinal/persona/msg"
+	personaQuery "pkg.world.dev/world-engine/cardinal/persona/query"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"testing"
 
@@ -274,6 +275,66 @@ func TestAuthorizeAddressFailsOnInvalidAddress(t *testing.T) {
 	// verify that the query was even ran. if for some reason there were no SignerComponents in the state,
 	// this test would still pass (false positive).
 	assert.Equal(t, count, 1)
+}
+
+func TestQuerySigner(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	personaTag := "CoolMage"
+	signerAddr := "123_456"
+	world.AddTransaction(cardinal.CreatePersonaMsg.ID(), msg.CreatePersona{
+		PersonaTag:    personaTag,
+		SignerAddress: signerAddr,
+	}, &sign.Transaction{})
+	tf.DoTick()
+
+	query, err := world.GetQueryByName("signer")
+	assert.NilError(t, err)
+
+	res, err := query.HandleQuery(cardinal.NewReadOnlyWorldContext(world), &personaQuery.PersonaSignerQueryRequest{
+		PersonaTag: personaTag,
+	})
+	assert.NilError(t, err)
+
+	response, ok := res.(*personaQuery.PersonaSignerQueryResponse)
+	assert.True(t, ok)
+	assert.Equal(t, response.SignerAddress, signerAddr)
+	assert.Equal(t, response.Status, personaQuery.PersonaStatusAssigned)
+}
+
+func TestQuerySignerAvailable(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	world := tf.World
+	tf.DoTick()
+
+	query, err := world.GetQueryByName("signer")
+	assert.NilError(t, err)
+	res, err := query.HandleQuery(cardinal.NewReadOnlyWorldContext(world), &personaQuery.PersonaSignerQueryRequest{
+		PersonaTag: "some-random-nonexistent-persona-tag",
+	})
+	assert.NilError(t, err)
+	response, ok := res.(*personaQuery.PersonaSignerQueryResponse)
+	assert.True(t, ok)
+
+	assert.Equal(t, response.Status, personaQuery.PersonaStatusAvailable)
+}
+
+func TestQuerySignerUnknown(t *testing.T) {
+	tf := testutils.NewTestFixture(t, nil)
+	engine := tf.World
+	tf.DoTick()
+
+	query, err := engine.GetQueryByName("signer")
+	assert.NilError(t, err)
+	res, err := query.HandleQuery(cardinal.NewReadOnlyWorldContext(engine), &personaQuery.PersonaSignerQueryRequest{
+		PersonaTag: "doesnt_matter",
+		Tick:       engine.CurrentTick(),
+	})
+	assert.NilError(t, err)
+
+	response, ok := res.(*personaQuery.PersonaSignerQueryResponse)
+	assert.True(t, ok)
+	assert.Equal(t, response.Status, personaQuery.PersonaStatusUnknown)
 }
 
 func getSigners(t *testing.T, world *cardinal.World) []*component.SignerComponent {

@@ -7,9 +7,9 @@ import (
 )
 
 const (
-	getSignerForPersonaStatusUnknown   = "unknown"
-	getSignerForPersonaStatusAvailable = "available"
-	getSignerForPersonaStatusAssigned  = "assigned"
+	PersonaStatusUnknown   = "unknown"
+	PersonaStatusAvailable = "available"
+	PersonaStatusAssigned  = "assigned"
 )
 
 // PersonaSignerQueryRequest is the desired request body for the query-persona-signer endpoint.
@@ -34,14 +34,14 @@ func PersonaSignerQuery(wCtx engine.Context, req *PersonaSignerQueryRequest) (*P
 	if err != nil {
 		//nolint:gocritic // cant switch case this.
 		if errors.Is(err, persona.ErrPersonaTagHasNoSigner) {
-			status = getSignerForPersonaStatusAvailable
+			status = PersonaStatusAvailable
 		} else if errors.Is(err, persona.ErrCreatePersonaTxsNotProcessed) {
-			status = getSignerForPersonaStatusUnknown
+			status = PersonaStatusUnknown
 		} else {
 			return nil, err
 		}
 	} else {
-		status = getSignerForPersonaStatusAssigned
+		status = PersonaStatusAssigned
 	}
 
 	res := PersonaSignerQueryResponse{

@@ -22,31 +22,31 @@ func (p *receiptPlugin) Register(world *World) error {
 }
 
 func (p *receiptPlugin) RegisterQueries(world *World) error {
-	err := RegisterQuery[listTxReceiptsRequest, listTxReceiptsResponse](world, "list",
+	err := RegisterQuery[ListTxReceiptsRequest, ListTxReceiptsResponse](world, "list",
 		queryReceipts,
-		WithCustomQueryGroup[listTxReceiptsRequest, listTxReceiptsResponse]("receipts"))
+		WithCustomQueryGroup[ListTxReceiptsRequest, ListTxReceiptsResponse]("receipts"))
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-type listTxReceiptsRequest struct {
+type ListTxReceiptsRequest struct {
 	StartTick uint64 `json:"startTick" mapstructure:"startTick"`
 }
 
-// listTxReceiptsResponse returns the transaction receipts for the given range of ticks. The interval is closed on
+// ListTxReceiptsResponse returns the transaction receipts for the given range of ticks. The interval is closed on
 // StartTick and open on EndTick: i.e. [StartTick, EndTick)
 // Meaning StartTick is included and EndTick is not. To iterate over all ticks in the future, use the returned
 // EndTick as the StartTick in the next request. If StartTick == EndTick, the receipts list will be empty.
-type listTxReceiptsResponse struct {
+type ListTxReceiptsResponse struct {
 	StartTick uint64         `json:"startTick"`
 	EndTick   uint64         `json:"endTick"`
-	Receipts  []receiptEntry `json:"receipts"`
+	Receipts  []ReceiptEntry `json:"receipts"`
 }
 
-// receiptEntry represents a single transaction receipt. It contains an ID, a result, and a list of errors.
-type receiptEntry struct {
+// ReceiptEntry represents a single transaction receipt. It contains an ID, a result, and a list of errors.
+type ReceiptEntry struct {
 	TxHash string  `json:"txHash"`
 	Tick   uint64  `json:"tick"`
 	Result any     `json:"result"`
@@ -59,12 +59,12 @@ type receiptEntry struct {
 //	@Description	Get transaction receipts from Cardinal
 //	@Accept			application/json
 //	@Produce		application/json
-//	@Param			listTxReceiptsRequest	body		listTxReceiptsRequest	true	"List Transaction Receipts Request"
-//	@Success		200						{object}	listTxReceiptsResponse
+//	@Param			ListTxReceiptsRequest	body		ListTxReceiptsRequest	true	"List Transaction Receipts Request"
+//	@Success		200						{object}	ListTxReceiptsResponse
 //	@Failure		400						{string}	string	"Invalid transaction request"
 //	@Router			/query/receipts/list [post]
-func queryReceipts(ctx engine.Context, req *listTxReceiptsRequest) (*listTxReceiptsResponse, error) {
-	reply := listTxReceiptsResponse{}
+func queryReceipts(ctx engine.Context, req *ListTxReceiptsRequest) (*ListTxReceiptsResponse, error) {
+	reply := ListTxReceiptsResponse{}
 	reply.EndTick = ctx.CurrentTick()
 	size := ctx.ReceiptHistorySize()
 	if size > reply.EndTick {
@@ -87,7 +87,7 @@ func queryReceipts(ctx engine.Context, req *listTxReceiptsRequest) (*listTxRecei
 			continue
 		}
 		for _, r := range currReceipts {
-			reply.Receipts = append(reply.Receipts, receiptEntry{
+			reply.Receipts = append(reply.Receipts, ReceiptEntry{
 				TxHash: string(r.TxHash),
 				Tick:   t,
 				Result: r.Result,
