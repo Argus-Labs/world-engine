@@ -60,7 +60,7 @@ func (r *readOnlyManager) GetComponentForEntityInRawJSON(
 	cType types.ComponentMetadata, id types.EntityID,
 ) (json.RawMessage, error) {
 	ctx := context.Background()
-	key := redisComponentKey(cType.ID(), id)
+	key := storageComponentKey(cType.ID(), id)
 	res, err := r.storage.GetBytes(ctx, key)
 	return res, eris.Wrap(err, "")
 }
@@ -82,7 +82,7 @@ func (r *readOnlyManager) getComponentsForArchID(archID types.ArchetypeID) ([]ty
 func (r *readOnlyManager) GetComponentTypesForEntity(id types.EntityID) ([]types.ComponentMetadata, error) {
 	ctx := context.Background()
 
-	archIDKey := redisArchetypeIDForEntityID(id)
+	archIDKey := storageArchetypeIDForEntityID(id)
 	num, err := r.storage.GetInt(ctx, archIDKey)
 	if err != nil {
 		return nil, eris.Wrap(err, "")
@@ -128,7 +128,7 @@ func (r *readOnlyManager) GetArchIDForComponents(
 
 func (r *readOnlyManager) GetEntitiesForArchID(archID types.ArchetypeID) ([]types.EntityID, error) {
 	ctx := context.Background()
-	key := redisActiveEntityIDKey(archID)
+	key := storageActiveEntityIDKey(archID)
 	bz, err := r.storage.GetBytes(ctx, key)
 	if err != nil {
 		// No entities were found for this archetype EntityID

@@ -203,7 +203,7 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 	}
 
 	// Fetch the value from redis
-	redisKey := redisComponentKey(cType.ID(), id)
+	redisKey := storageComponentKey(cType.ID(), id)
 	ctx := context.Background()
 
 	bz, err := m.storage.GetBytes(ctx, redisKey)
@@ -382,7 +382,7 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 	if ok {
 		return archID, nil
 	}
-	key := redisArchetypeIDForEntityID(id)
+	key := storageArchetypeIDForEntityID(id)
 	num, err := m.storage.GetInt(context.Background(), key)
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
@@ -400,7 +400,7 @@ func (m *EntityCommandBuffer) nextEntityID() (types.EntityID, error) {
 	if !m.isEntityIDLoaded {
 		// The next valid entity EntityID needs to be loaded from storage.
 		ctx := context.Background()
-		nextID, err := m.storage.GetUInt64(ctx, redisNextEntityIDKey())
+		nextID, err := m.storage.GetUInt64(ctx, storageNextEntityIDKey())
 		err = eris.Wrap(err, "")
 		if err != nil {
 			if !eris.Is(eris.Cause(err), redis.Nil) {
@@ -448,7 +448,7 @@ func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activ
 		return m.activeEntities[archID], nil
 	}
 	ctx := context.Background()
-	key := redisActiveEntityIDKey(archID)
+	key := storageActiveEntityIDKey(archID)
 	bz, err := m.storage.GetBytes(ctx, key)
 	err = eris.Wrap(err, "")
 	var ids []types.EntityID

@@ -160,7 +160,7 @@ func (m *EntityCommandBuffer) makePipeOfRedisCommands(ctx context.Context) (Stor
 // addEntityIDToArchIDToPipe adds the information related to mapping an EntityID to its assigned archetype ArchetypeID.
 func (m *EntityCommandBuffer) addEntityIDToArchIDToPipe(ctx context.Context, pipe Storage) error {
 	for id, originArchID := range m.entityIDToOriginArchID {
-		key := redisArchetypeIDForEntityID(id)
+		key := storageArchetypeIDForEntityID(id)
 		archID, ok := m.entityIDToArchID[id]
 		if !ok {
 			// this entity has been removed
@@ -190,7 +190,7 @@ func (m *EntityCommandBuffer) addNextEntityIDToPipe(ctx context.Context, pipe St
 	if m.pendingEntityIDs == 0 {
 		return nil
 	}
-	key := redisNextEntityIDKey()
+	key := storageNextEntityIDKey()
 	nextID := m.nextEntityIDSaved + m.pendingEntityIDs
 	return eris.Wrap(pipe.Set(ctx, key, nextID), "")
 }
@@ -201,7 +201,7 @@ func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pip
 		if !isMarkedForDeletion {
 			continue
 		}
-		redisKey := redisComponentKey(key.typeID, key.entityID)
+		redisKey := storageComponentKey(key.typeID, key.entityID)
 		if err := pipe.Delete(ctx, redisKey); err != nil {
 			return eris.Wrap(err, "")
 		}
@@ -214,7 +214,7 @@ func (m *EntityCommandBuffer) addComponentChangesToPipe(ctx context.Context, pip
 			return err
 		}
 
-		redisKey := redisComponentKey(key.typeID, key.entityID)
+		redisKey := storageComponentKey(key.typeID, key.entityID)
 		if err = pipe.Set(ctx, redisKey, bz); err != nil {
 			return eris.Wrap(err, "")
 		}
@@ -251,7 +251,7 @@ func (m *EntityCommandBuffer) addPendingArchIDsToPipe(ctx context.Context, pipe 
 		return err
 	}
 
-	return eris.Wrap(pipe.Set(ctx, redisArchIDsToCompTypesKey(), bz), "")
+	return eris.Wrap(pipe.Set(ctx, storageArchIDsToCompTypesKey(), bz), "")
 }
 
 // addActiveEntityIDsToPipe adds information about which entities are assigned to which archetype IDs to the reids pipe.
@@ -264,7 +264,7 @@ func (m *EntityCommandBuffer) addActiveEntityIDsToPipe(ctx context.Context, pipe
 		if err != nil {
 			return err
 		}
-		key := redisActiveEntityIDKey(archID)
+		key := storageActiveEntityIDKey(archID)
 		err = pipe.Set(ctx, key, bz)
 		if err != nil {
 			return eris.Wrap(err, "")
@@ -290,7 +290,7 @@ func getArchIDToCompTypesFromRedis(
 	typeToComp map[types.ComponentID]types.ComponentMetadata,
 ) (m map[types.ArchetypeID][]types.ComponentMetadata, ok bool, err error) {
 	ctx := context.Background()
-	key := redisArchIDsToCompTypesKey()
+	key := storageArchIDsToCompTypesKey()
 	bz, err := storage.GetBytes(ctx, key)
 	err = eris.Wrap(err, "")
 	if eris.Is(eris.Cause(err), redis.Nil) {

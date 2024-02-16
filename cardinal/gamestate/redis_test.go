@@ -56,7 +56,7 @@ func TestComponentValuesAreDeletedFromRedis(t *testing.T) {
 	assert.NilError(t, manager.SetComponentForEntity(alphaComp, id, startValue))
 	assert.NilError(t, manager.FinalizeTick(ctx))
 
-	key := redisComponentKey(alphaComp.ID(), id)
+	key := storageComponentKey(alphaComp.ID(), id)
 	// Make sure the value actually made it to the redis DB.
 	bz, err := client.Get(ctx, key).Bytes()
 	assert.NilError(t, err)
