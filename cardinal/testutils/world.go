@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/sign"
 	"strings"
 	"sync"
 	"testing"
@@ -17,7 +19,6 @@ import (
 	"github.com/alicebob/miniredis/v2"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
 // TestFixture is a helper struct that manages a cardinal.World instance. It will automatically clean up its resources
@@ -29,15 +30,14 @@ type TestFixture struct {
 	BaseURL string
 	Redis   *miniredis.Miniredis
 	World   *cardinal.World
-	Engine  *ecs.Engine
 
-	startTickCh chan time.Time
-	doneTickCh  chan uint64
+	StartTickCh chan time.Time
+	DoneTickCh  chan uint64
 	doCleanup   func()
 	startOnce   *sync.Once
 }
 
-// NewTestFixture creates a test fixture that manges the cardinal.World, ecs.Engine, http server, event hub,
+// NewTestFixture creates a test fixture that manges the cardinal.World, http server, event hub,
 // evm adapter, etc. Cardinal resources (such as Systems and Components) can be registered with the attached
 // cardinal.World, but you must call StartWorld or DoTick to finalize the resources. If a nil miniRedis is passed
 // in, a miniredis instance will be created for you.
@@ -73,10 +73,9 @@ func NewTestFixture(t testing.TB, miniRedis *miniredis.Miniredis, opts ...cardin
 		BaseURL: "localhost:" + cardinalPort,
 		Redis:   miniRedis,
 		World:   world,
-		Engine:  world.Engine(),
 
-		startTickCh: startTickCh,
-		doneTickCh:  doneTickCh,
+		StartTickCh: startTickCh,
+		DoneTickCh:  doneTickCh,
 		startOnce:   &sync.Once{},
 		// Only register this method with t.Cleanup if the game server is actually started
 		doCleanup: func() {
@@ -124,8 +123,8 @@ func (t *TestFixture) StartWorld() {
 // not called before the first tick.
 func (t *TestFixture) DoTick() {
 	t.StartWorld()
-	t.startTickCh <- time.Now()
-	<-t.doneTickCh
+	t.StartTickCh <- time.Now()
+	<-t.DoneTickCh
 }
 
 func (t *TestFixture) httpURL(path string) string {
@@ -157,6 +156,17 @@ func (t *TestFixture) Get(path string) *http.Response {
 	resp, err := http.DefaultClient.Do(req)
 	assert.NilError(t, err)
 	return resp
+}
+
+func (t *TestFixture) AddTransaction(
+	txID types.MessageID, tx any, sigs ...*sign.Transaction,
+) types.TxHash {
+	sig := &sign.Transaction{}
+	if len(sigs) > 0 {
+		sig = sigs[0]
+	}
+	_, id := t.World.AddTransaction(txID, tx, sig)
+	return id
 }
 
 func getOpenPort(t testing.TB) string {

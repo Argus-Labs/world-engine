@@ -3,72 +3,97 @@ package cardinal
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/goccy/go-json"
+	"github.com/rs/zerolog"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
+	"pkg.world.dev/world-engine/cardinal/events"
+	"pkg.world.dev/world-engine/cardinal/iterators"
+	ecslog "pkg.world.dev/world-engine/cardinal/log"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/receipt"
 	"pkg.world.dev/world-engine/cardinal/router"
-	"reflect"
-	"runtime"
+	"pkg.world.dev/world-engine/cardinal/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/system"
+	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/sign"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/rotisserie/eris"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"pkg.world.dev/world-engine/cardinal/ecs"
-	"pkg.world.dev/world-engine/cardinal/ecs/gamestate"
-	"pkg.world.dev/world-engine/cardinal/ecs/iterators"
-	"pkg.world.dev/world-engine/cardinal/ecs/receipt"
-	"pkg.world.dev/world-engine/cardinal/ecs/storage/redis"
-	"pkg.world.dev/world-engine/cardinal/gamestage"
+	"pkg.world.dev/world-engine/cardinal/gamestate"
 	"pkg.world.dev/world-engine/cardinal/server"
 	"pkg.world.dev/world-engine/cardinal/statsd"
-	"pkg.world.dev/world-engine/cardinal/types/component"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
-	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/cardinal/worldstage"
 )
 
-var (
-	ErrEntitiesCreatedBeforeStartGame = errors.New("entities should not be created before start game")
+// WorldStateType is the current state of the engine.
+type WorldStateType string
 
-	ErrEntityDoesNotExist                = iterators.ErrEntityDoesNotExist
-	ErrEntityMustHaveAtLeastOneComponent = iterators.ErrEntityMustHaveAtLeastOneComponent
-	ErrComponentNotOnEntity              = iterators.ErrComponentNotOnEntity
-	ErrComponentAlreadyOnEntity          = iterators.ErrComponentAlreadyOnEntity
-	ErrComponentNotRegistered            = iterators.ErrMustRegisterComponent
+const (
+	DefaultHistoricalTicksToStore = 10
 )
 
 type World struct {
-	instance        *ecs.Engine
 	server          *server.Server
 	tickChannel     <-chan time.Time
 	tickDoneChannel chan<- uint64
 	serverOptions   []server.Option
 	cleanup         func()
+	Logger          *zerolog.Logger
 
-	// gameSequenceStage describes what stage the game is in (e.g. starting, running, shut down, etc)
-	gameSequenceStage gamestage.Atomic
-	endStartGame      chan bool
+	endStartGame chan bool
+
+	worldStage    *worldstage.Manager
+	msgManager    *message.Manager
+	systemManager *system.Manager
+
+	namespace              Namespace
+	redisStorage           *redis.Storage
+	entityStore            gamestate.Manager
+	tick                   *atomic.Uint64
+	timestamp              *atomic.Uint64
+	nameToComponent        map[string]types.ComponentMetadata
+	nameToQuery            map[string]engine.Query
+	registeredComponents   []types.ComponentMetadata
+	registeredQueries      []engine.Query
+	isComponentsRegistered bool
+
+	evmTxReceipts map[string]EVMTxReceipt
+
+	txQueue *txpool.TxQueue
+
+	receiptHistory *receipt.History
+
+	router router.Router
+
+	endGameLoopCh     chan bool
+	isGameLoopRunning atomic.Bool
+
+	nextComponentID types.ComponentID
+
+	eventHub *events.EventHub
+
+	// addChannelWaitingForNextTick accepts a channel which will be closed after a tick has been completed.
+	addChannelWaitingForNextTick chan chan struct{}
+
+	shutdownMutex sync.Mutex
 }
 
-type (
-	// EntityID represents a single entity in the World. An EntityID is tied to
-	// one or more components.
-	EntityID = entity.ID
-	TxHash   = message.TxHash
-	Receipt  = receipt.Receipt
-
-	// System is a function that process the transaction in the given transaction queue.
-	// Systems are automatically called during a world tick, and they must be registered
-	// with a world using RegisterSystems.
-	System func(WorldContext) error
-)
+var _ router.Provider = &World{}
 
 // NewWorld creates a new World object using Redis as the storage layer.
 func NewWorld(opts ...WorldOption) (*World, error) {
-	ecsOptions, serverOptions, cardinalOptions := separateOptions(opts)
+	serverOptions, cardinalOptions := separateOptions(opts)
 
 	// Load config. Fallback value is used if it's not set.
 	cfg := getWorldConfig()
@@ -82,7 +107,6 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 
 	log.Logger.Info().Msgf("Starting a new Cardinal world in %s mode", cfg.CardinalMode)
 	if cfg.CardinalMode == RunModeDev {
-		ecsOptions = append(ecsOptions, ecs.WithPrettyLog())
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
 	}
 	redisStore := redis.NewRedisStorage(redis.Options{
@@ -95,22 +119,37 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		return nil, err
 	}
 
-	eng, err := ecs.NewEngine(
-		&redisStore,
-		entityCommandBuffer,
-		ecs.Namespace(cfg.CardinalNamespace),
-		ecsOptions...,
-	)
-	if err != nil {
-		return nil, err
+	world := &World{
+		serverOptions: serverOptions,
+		endStartGame:  make(chan bool),
+
+		worldStage:    worldstage.NewManager(),
+		msgManager:    message.NewManager(),
+		systemManager: system.NewManager(),
+
+		// Imported from engine
+		redisStorage:      &redisStore,
+		entityStore:       entityCommandBuffer,
+		namespace:         Namespace(cfg.CardinalNamespace),
+		tick:              &atomic.Uint64{},
+		timestamp:         new(atomic.Uint64),
+		nameToComponent:   make(map[string]types.ComponentMetadata),
+		nameToQuery:       make(map[string]engine.Query),
+		txQueue:           txpool.NewTxQueue(),
+		Logger:            &log.Logger,
+		isGameLoopRunning: atomic.Bool{},
+		endGameLoopCh:     make(chan bool),
+		nextComponentID:   1,
+		evmTxReceipts:     make(map[string]EVMTxReceipt),
+
+		addChannelWaitingForNextTick: make(chan chan struct{}),
 	}
 
 	if cfg.CardinalMode == RunModeProd {
-		rtr, err := router.New(cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress, eng)
+		world.router, err = router.New(cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress, world)
 		if err != nil {
 			return nil, err
 		}
-		eng.SetRouter(rtr)
 	}
 
 	var metricTags []string
@@ -129,20 +168,321 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		log.Logger.Warn().Msg("statsd is disabled")
 	}
 
-	world := &World{
-		instance:          eng,
-		serverOptions:     serverOptions,
-		endStartGame:      make(chan bool),
-		gameSequenceStage: gamestage.NewAtomic(),
-	}
+	world.isGameLoopRunning.Store(false)
+	world.registerInternalPlugin()
 
 	// Apply options
 	for _, opt := range cardinalOptions {
 		opt(world)
 	}
 
+	if world.receiptHistory == nil {
+		world.receiptHistory = receipt.NewHistory(world.CurrentTick(), DefaultHistoricalTicksToStore)
+	}
+	if world.eventHub == nil {
+		world.eventHub = events.NewEventHub()
+	}
+
+	// Make game loop tick every second if not set
+	if world.tickChannel == nil {
+		world.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
+	}
+
 	return world, nil
 }
+
+// NewMockWorld creates a World object that uses miniredis as the storage layer suitable for local development.
+// If you are creating a World for unit tests, use NewTestWorld.
+func NewMockWorld(opts ...WorldOption) (*World, error) {
+	world, err := NewWorld(append(opts, withMockRedis())...)
+	if err != nil {
+		return world, err
+	}
+	return world, nil
+}
+
+func (w *World) CurrentTick() uint64 {
+	return w.tick.Load()
+}
+
+// TODO(scott): we should make Tick() private and only allow controlling tick externally using the tick channel.
+//  This is a footgun because you want to make sure world is started using StartWorld() instead of calling Tick()
+//  directly. This is unfortunately used a lot in tests.
+//  One thing we need to do is to make the tickDone channel return the tick number AND error if any so it can be used
+//  to check if there are errors when trying to tick.
+
+// Tick performs one game tick. This consists of taking a snapshot of all pending transactions, then calling
+// each System in turn with the snapshot of transactions.
+func (w *World) Tick(ctx context.Context) error {
+	// The world can only start ticking if it's in the running or recovering stage.
+	if w.worldStage.Current() != worldstage.Running && w.worldStage.Current() != worldstage.Recovering {
+		return eris.Errorf("invalid world state to tick: %s", w.worldStage.Current())
+	}
+
+	// This defer is here to catch any panics that occur during the tick. It will log the current tick and the
+	// current system that is running.
+	defer w.handleTickPanic()
+
+	var span tracer.Span
+	span, ctx = tracer.StartSpanFromContext(ctx, "cardinal.span.tick")
+	defer func() {
+		span.Finish()
+	}()
+
+	w.Logger.Info().Int("tick", int(w.CurrentTick())).Msg("Tick started")
+
+	// Copy the transactions from the queue so that we can safely modify the queue while the tick is running.
+	txQueue := w.txQueue.CopyTransactions()
+
+	if err := w.entityStore.StartNextTick(w.msgManager.GetRegisteredMessages(), txQueue); err != nil {
+		return err
+	}
+
+	// Store the timestamp for this tick
+	startTime := time.Now()
+	w.timestamp.Store(uint64(startTime.Unix()))
+
+	// Create the engine context to inject into systems
+	wCtx := NewWorldContextForTick(w, txQueue)
+
+	// Run all registered systems.
+	// This will run the registered init systems if the current tick is 0
+	if err := w.systemManager.RunSystems(wCtx); err != nil {
+		return err
+	}
+
+	if w.eventHub != nil {
+		// engine can be optionally loaded with or without an eventHub. If there is one, on every tick it must flush events.
+		flushEventStart := time.Now()
+		w.eventHub.FlushEvents()
+		statsd.EmitTickStat(flushEventStart, "flush_events")
+	}
+
+	finalizeTickStartTime := time.Now()
+	if err := w.entityStore.FinalizeTick(ctx); err != nil {
+		return err
+	}
+	statsd.EmitTickStat(finalizeTickStartTime, "finalize")
+
+	w.setEvmResults(txQueue.GetEVMTxs())
+
+	// Handle tx data blob submission
+	// Only submit transactions when the following criteria is satisfied:
+	// 1. There are transactions in the queue
+	// 2. The shard router is set
+	// 3. The world is not in the recovering stage (we don't want to resubmit past transactions)
+	if txQueue.GetAmountOfTxs() != 0 && w.router != nil && w.worldStage.Current() != worldstage.Recovering {
+		err := w.router.SubmitTxBlob(ctx, txQueue.Transactions(), w.namespace.String(), w.tick.Load(),
+			w.timestamp.Load())
+		if err != nil {
+			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
+		}
+	}
+
+	// Increment the tick
+	w.tick.Add(1)
+	w.receiptHistory.NextTick() // todo(scott): use channels
+
+	statsd.EmitTickStat(startTime, "full_tick")
+	if err := statsd.Client().Count("num_of_txs", int64(txQueue.GetAmountOfTxs()), nil, 1); err != nil {
+		w.Logger.Warn().Msgf("failed to emit count stat:%v", err)
+	}
+
+	return nil
+}
+
+// StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
+// attempted. In addition, an HTTP server (listening on the given port) is created so that game messages can be sent
+// to this world. After StartGame is called, RegisterComponent, RegisterMessages, RegisterQueries, and RegisterSystems
+// may not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
+// the game in the background.
+func (w *World) StartGame() error {
+	// Game stage: Init -> Starting
+	ok := w.worldStage.CompareAndSwap(worldstage.Init, worldstage.Starting)
+	if !ok {
+		return errors.New("game has already been started")
+	}
+
+	if err := w.entityStore.RegisterComponents(w.registeredComponents); err != nil {
+		closeErr := w.entityStore.Close()
+		if closeErr != nil {
+			return eris.Wrap(err, closeErr.Error())
+		}
+		return err
+	}
+
+	// Start router if it is set
+	if w.router != nil {
+		if err := w.router.Start(); err != nil {
+			return eris.Wrap(err, "failed to start router service")
+		}
+	}
+
+	// TODO(scott): hypothethically, this would be where we are calling RecoverFromChain()
+
+	// Recover pending transactions from redis
+	err := w.recoverAndExecutePendingTxs()
+	if err != nil {
+		return err
+	}
+
+	// TODO(scott): i find this manual tracking and incrementing of the tick very footgunny. Why can't we just
+	//  use a reliable source of truth for the tick? It's not clear to me why we need to manually increment the
+	//  receiptHistory tick separately.
+	w.receiptHistory.SetTick(w.CurrentTick())
+
+	// Create server
+	// We can't do this is in NewWorld() because the server needs to know the registered messages
+	// and register queries first. We can probably refactor this though.
+	w.server, err = server.New(NewReadOnlyWorldContext(w), w.ListMessages(), w.ListQueries(),
+		w.eventHub.NewWebSocketEventHandler(),
+		w.serverOptions...)
+	if err != nil {
+		return err
+	}
+
+	// Game stage: Starting -> Running
+	w.worldStage.CompareAndSwap(worldstage.Starting, worldstage.Running)
+
+	// Start the game loop
+	w.startGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
+
+	// Start the server
+	w.startServer()
+
+	// handle shutdown via a signal
+	w.handleShutdown()
+	<-w.endStartGame
+	return err
+}
+
+func (w *World) startServer() {
+	go func() {
+		if err := w.server.Serve(); errors.Is(err, http.ErrServerClosed) {
+			log.Info().Err(err).Msgf("the server has been closed: %s", eris.ToString(err, true))
+		} else if err != nil {
+			log.Fatal().Err(err).Msgf("the server has failed: %s", eris.ToString(err, true))
+		}
+	}()
+}
+
+func (w *World) startGameLoop(ctx context.Context, tickStart <-chan time.Time, tickDone chan<- uint64) {
+	w.Logger.Info().Msg("Game loop started")
+	ecslog.World(w.Logger, w, zerolog.InfoLevel)
+	w.emitResourcesWarnings()
+
+	go func() {
+		ok := w.isGameLoopRunning.CompareAndSwap(false, true)
+		if !ok {
+			// The game has already started
+			return
+		}
+		var waitingChs []chan struct{}
+	loop:
+		for {
+			select {
+			case <-tickStart:
+				w.tickTheEngine(ctx, tickDone)
+				closeAllChannels(waitingChs)
+				waitingChs = waitingChs[:0]
+			case <-w.endGameLoopCh:
+				w.drainChannelsWaitingForNextTick()
+				w.drainEndLoopChannels()
+				closeAllChannels(waitingChs)
+				if w.txQueue.GetAmountOfTxs() > 0 {
+					// immediately tick if queue is not empty to process all txs if queue is not empty.
+					w.tickTheEngine(ctx, tickDone)
+					if tickDone != nil {
+						close(tickDone)
+					}
+				}
+				break loop
+			case ch := <-w.addChannelWaitingForNextTick:
+				waitingChs = append(waitingChs, ch)
+			}
+		}
+		w.isGameLoopRunning.Store(false)
+	}()
+}
+
+func (w *World) tickTheEngine(ctx context.Context, tickDone chan<- uint64) {
+	currTick := w.CurrentTick()
+	// this is the final point where errors bubble up and hit a panic. There are other places where this occurs
+	// but this is the highest terminal point.
+	// the panic may point you to here, (or the tick function) but the real stack trace is in the error message.
+	if err := w.Tick(ctx); err != nil {
+		bytes, err := json.Marshal(eris.ToJSON(err, true))
+		if err != nil {
+			panic(err)
+		}
+		w.Logger.Panic().Err(err).Str("tickError", "Error running Tick in Game Loop.").RawJSON("error", bytes)
+	}
+	if tickDone != nil {
+		tickDone <- currTick
+	}
+}
+
+func (w *World) emitResourcesWarnings() {
+	if !w.isComponentsRegistered {
+		w.Logger.Warn().Msg("No components registered.")
+	}
+	if len(w.msgManager.GetRegisteredMessages()) == 0 {
+		w.Logger.Warn().Msg("No messages registered.")
+	}
+	if len(w.registeredQueries) == 0 {
+		w.Logger.Warn().Msg("No queries registered.")
+	}
+	if len(w.systemManager.GetRegisteredSystemNames()) == 0 {
+		w.Logger.Warn().Msg("No systems registered.")
+	}
+}
+
+func (w *World) IsGameRunning() bool {
+	return w.worldStage.Current() == worldstage.Running
+}
+
+func (w *World) Shutdown() error {
+	if w.cleanup != nil {
+		w.cleanup()
+	}
+	w.worldStage.Store(worldstage.ShuttingDown)
+
+	// The CompareAndSwap returned true, so this call is responsible for actually
+	// shutting down the game.
+	defer func() {
+		w.worldStage.Store(worldstage.ShutDown)
+	}()
+	if w.server != nil {
+		if err := w.server.Shutdown(); err != nil {
+			return err
+		}
+	}
+
+	w.shutdownMutex.Lock() // This queues up Shutdown calls so they happen one after the other.
+	defer w.shutdownMutex.Unlock()
+	if !w.isGameLoopRunning.Load() {
+		return nil
+	}
+
+	log.Info().Msg("Shutting down game loop.")
+	w.endGameLoopCh <- true
+	for w.isGameLoopRunning.Load() { // Block until loop stops.
+		time.Sleep(100 * time.Millisecond) //nolint:gomnd // its ok.
+	}
+	log.Info().Msg("Successfully shut down game loop.")
+	log.Info().Msg("Closing storage connection.")
+	err := w.redisStorage.Close()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to close storage connection.")
+		return err
+	}
+	log.Info().Msg("Successfully closed storage connection.")
+
+	return nil
+}
+
+func (w *World) ListQueries() []engine.Query   { return w.registeredQueries }
+func (w *World) ListMessages() []types.Message { return w.msgManager.GetRegisteredMessages() }
 
 func setLogLevel(levelStr string) error {
 	if levelStr == "" {
@@ -163,111 +503,6 @@ func setLogLevel(levelStr string) error {
 	return nil
 }
 
-// NewMockWorld creates a World object that uses miniredis as the storage layer suitable for local development.
-// If you are creating a World for unit tests, use NewTestWorld.
-func NewMockWorld(opts ...WorldOption) (*World, error) {
-	world, err := NewWorld(append(opts, withMockRedis())...)
-	if err != nil {
-		return world, err
-	}
-	return world, nil
-}
-
-// CreateMany creates multiple entities in the world, and returns the slice of ids for the newly created
-// entities. At least 1 component must be provided.
-func CreateMany(wCtx WorldContext, num int, components ...component.Component) ([]EntityID, error) {
-	ids, err := ecs.CreateMany(wCtx.Engine(), num, components...)
-	if wCtx.Engine().IsReadOnly() || err == nil {
-		return ids, err
-	}
-	return nil, logAndPanic(wCtx, err)
-}
-
-// Create creates a single entity in the world, and returns the id of the newly created entity.
-// At least 1 component must be provided.
-func Create(wCtx WorldContext, components ...component.Component) (EntityID, error) {
-	id, err := ecs.Create(wCtx.Engine(), components...)
-	if wCtx.Engine().IsReadOnly() || err == nil {
-		return id, err
-	}
-	return 0, logAndPanic(wCtx, err)
-}
-
-// SetComponent Set sets component data to the entity.
-func SetComponent[T component.Component](wCtx WorldContext, id entity.ID, comp *T) error {
-	err := ecs.SetComponent[T](wCtx.Engine(), id, comp)
-	if wCtx.Engine().IsReadOnly() || err == nil {
-		return err
-	}
-	if eris.Is(err, ErrEntityDoesNotExist) ||
-		eris.Is(err, ErrComponentNotOnEntity) {
-		return err
-	}
-	return logAndPanic(wCtx, err)
-}
-
-// GetComponent Get returns component data from the entity.
-func GetComponent[T component.Component](wCtx WorldContext, id entity.ID) (*T, error) {
-	result, err := ecs.GetComponent[T](wCtx.Engine(), id)
-	_ = result
-	if wCtx.Engine().IsReadOnly() || err == nil {
-		return result, err
-	}
-	if eris.Is(err, ErrEntityDoesNotExist) ||
-		eris.Is(err, ErrComponentNotOnEntity) {
-		return nil, err
-	}
-
-	return nil, logAndPanic(wCtx, err)
-}
-
-// UpdateComponent Updates a component on an entity.
-func UpdateComponent[T component.Component](wCtx WorldContext, id entity.ID, fn func(*T) *T) error {
-	err := ecs.UpdateComponent[T](wCtx.Engine(), id, fn)
-	if wCtx.Engine().IsReadOnly() || err == nil {
-		return err
-	}
-	if eris.Is(err, ErrEntityDoesNotExist) ||
-		eris.Is(err, ErrComponentNotOnEntity) {
-		return err
-	}
-
-	return logAndPanic(wCtx, err)
-}
-
-// AddComponentTo Adds a component on an entity.
-func AddComponentTo[T component.Component](wCtx WorldContext, id entity.ID) error {
-	err := ecs.AddComponentTo[T](wCtx.Engine(), id)
-	if wCtx.Engine().IsReadOnly() || err == nil {
-		return err
-	}
-	if eris.Is(err, ErrEntityDoesNotExist) ||
-		eris.Is(err, ErrComponentAlreadyOnEntity) {
-		return err
-	}
-
-	return logAndPanic(wCtx, err)
-}
-
-// RemoveComponentFrom Removes a component from an entity.
-func RemoveComponentFrom[T component.Component](wCtx WorldContext, id entity.ID) error {
-	err := ecs.RemoveComponentFrom[T](wCtx.Engine(), id)
-	if wCtx.Engine().IsReadOnly() || err == nil {
-		return err
-	}
-	if eris.Is(err, ErrEntityDoesNotExist) ||
-		eris.Is(err, ErrComponentNotOnEntity) ||
-		eris.Is(err, ErrEntityMustHaveAtLeastOneComponent) {
-		return err
-	}
-	return logAndPanic(wCtx, err)
-}
-
-// Remove removes the given entity id from the world.
-func Remove(wCtx WorldContext, id EntityID) error {
-	return wCtx.Engine().GetEngine().Remove(id)
-}
-
 func (w *World) handleShutdown() {
 	signalChannel := make(chan os.Signal, 1)
 	go func() {
@@ -284,177 +519,165 @@ func (w *World) handleShutdown() {
 	}()
 }
 
-// StartGame starts running the world game loop. Each time a message arrives on the tickChannel, a world tick is
-// attempted. In addition, an HTTP server (listening on the given port) is created so that game messages can be sent
-// to this world. After StartGame is called, RegisterComponent, RegisterMessages, RegisterQueries, and RegisterSystems
-// may not be called. If StartGame doesn't encounter any errors, it will block forever, running the server and ticking
-// the game in the background.
-func (w *World) StartGame() error {
-	ok := w.gameSequenceStage.CompareAndSwap(gamestage.StagePreStart, gamestage.StageStarting)
-	if !ok {
-		return errors.New("game has already been started")
-	}
-
-	if err := w.instance.LoadGameState(); err != nil {
-		if errors.Is(err, ecs.ErrEntitiesCreatedBeforeLoadingGameState) {
-			return eris.Wrap(ErrEntitiesCreatedBeforeStartGame, "")
-		}
-		return err
-	}
-
-	var err error
-	w.server, err = server.New(w.instance, w.instance.GetEventHub().NewWebSocketEventHandler(), w.serverOptions...)
-	if err != nil {
-		return err
-	}
-
-	if err := w.instance.RunRouter(); err != nil {
-		return eris.Wrap(err, "failed to start router service")
-	}
-
-	if w.tickChannel == nil {
-		w.tickChannel = time.Tick(time.Second) //nolint:staticcheck // its ok.
-	}
-	w.instance.StartGameLoop(context.Background(), w.tickChannel, w.tickDoneChannel)
-	go func() {
-		ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageStarting, gamestage.StageRunning)
-		if !ok {
-			log.Fatal().Msg("game was started prematurely")
-		}
-		if err := w.server.Serve(); errors.Is(err, http.ErrServerClosed) {
-			log.Info().Err(err).Msgf("the server has been closed: %s", eris.ToString(err, true))
-		} else if err != nil {
-			log.Fatal().Err(err).Msgf("the server has failed: %s", eris.ToString(err, true))
-		}
-	}()
-
-	// handle shutdown via a signal
-	w.handleShutdown()
-	<-w.endStartGame
-	return err
-}
-
-func (w *World) IsGameRunning() bool {
-	return w.gameSequenceStage.Load() == gamestage.StageRunning
-}
-
-func (w *World) Shutdown() error {
-	if w.cleanup != nil {
-		w.cleanup()
-	}
-	ok := w.gameSequenceStage.CompareAndSwap(gamestage.StageRunning, gamestage.StageShuttingDown)
-	if !ok {
-		// Either the world hasn't been started, or we've already shut down.
-		return nil
-	}
-	// The CompareAndSwap returned true, so this call is responsible for actually
-	// shutting down the game.
-	defer func() {
-		w.gameSequenceStage.Store(gamestage.StageShutDown)
-	}()
-	if w.server != nil {
-		if err := w.server.Shutdown(); err != nil {
-			return err
-		}
-	}
-	close(w.endStartGame)
-	return w.Engine().Shutdown()
-}
-
-func RegisterSystems(w *World, systems ...System) error {
-	for _, system := range systems {
-		functionName := filepath.Base(runtime.FuncForPC(reflect.ValueOf(system).Pointer()).Name())
-		sys := system
-		w.instance.RegisterSystemWithName(
-			func(eCtx ecs.EngineContext) error {
-				return sys(
-					&worldContext{
-						engine: eCtx,
-					},
-				)
-			}, functionName,
+func (w *World) handleTickPanic() {
+	if r := recover(); r != nil {
+		w.Logger.Error().Msgf(
+			"Tick: %d, Current running system: %s",
+			w.CurrentTick(),
+			w.systemManager.GetCurrentSystem(),
 		)
+		panic(r)
 	}
-	return nil
 }
 
-func RegisterComponent[T component.Component](world *World) error {
-	return ecs.RegisterComponent[T](world.instance)
+func (w *World) RegisterPlugin(plugin Plugin) {
+	if err := plugin.Register(w); err != nil {
+		log.Fatal().Err(err).Msgf("failed to register plugin: %v", err)
+	}
 }
 
-// RegisterMessages adds the given messages to the game world. HTTP endpoints to queue up/execute these
-// messages will automatically be created when StartGame is called. This Register method must only be called once.
-func RegisterMessages(w *World, msgs ...AnyMessage) error {
-	return w.instance.RegisterMessages(toMessageType(msgs)...)
+func (w *World) registerInternalPlugin() {
+	// Register Persona plugin
+	w.RegisterPlugin(newPersonaPlugin())
+
+	// Register Debug plugin
+	w.RegisterPlugin(newDebugPlugin())
+
+	// Register CQL plugin
+	w.RegisterPlugin(newCQLPlugin())
+
+	// Register Receipt plugin
+	w.RegisterPlugin(newReceiptPlugin())
 }
 
-// RegisterQuery adds the given query to the game world. HTTP endpoints to use these queries
-// will automatically be created when StartGame is called. This function does not add EVM support to the query.
-func RegisterQuery[Request any, Reply any](
-	world *World,
-	name string,
-	handler func(wCtx WorldContext, req *Request) (*Reply, error),
-) error {
-	err := ecs.RegisterQuery[Request, Reply](
-		world.instance,
-		name,
-		func(wCtx ecs.EngineContext, req *Request) (*Reply, error) {
-			return handler(&worldContext{engine: wCtx}, req)
-		},
-	)
+func closeAllChannels(chs []chan struct{}) {
+	for _, ch := range chs {
+		close(ch)
+	}
+}
+
+// drainChannelsWaitingForNextTick continually closes any channels that are added to the
+// addChannelWaitingForNextTick channel. This is used when the engine is shut down; it ensures
+// any calls to WaitForNextTick that happen after a shutdown will not block.
+func (w *World) drainChannelsWaitingForNextTick() {
+	go func() {
+		for ch := range w.addChannelWaitingForNextTick {
+			close(ch)
+		}
+	}()
+}
+
+func (w *World) drainEndLoopChannels() {
+	go func() {
+		for range w.endGameLoopCh { //nolint:revive // This pattern drains the channel until closed
+		}
+	}()
+}
+
+// AddTransaction adds a transaction to the transaction queue. This should not be used directly.
+// Instead, use a MessageType.AddToQueue to ensure type consistency. Returns the tick this transaction will be
+// executed in.
+func (w *World) AddTransaction(id types.MessageID, v any, sig *sign.Transaction) (
+	tick uint64, txHash types.TxHash,
+) {
+	// TODO: There's no locking between getting the tick and adding the transaction, so there's no guarantee that this
+	// transaction is actually added to the returned tick.
+	tick = w.CurrentTick()
+	txHash = w.txQueue.AddTransaction(id, v, sig)
+	return tick, txHash
+}
+
+func (w *World) AddEVMTransaction(
+	id types.MessageID,
+	v any,
+	sig *sign.Transaction,
+	evmTxHash string,
+) (
+	tick uint64, txHash types.TxHash,
+) {
+	tick = w.CurrentTick()
+	txHash = w.txQueue.AddEVMTransaction(id, v, sig, evmTxHash)
+	return tick, txHash
+}
+
+func (w *World) UseNonce(signerAddress string, nonce uint64) error {
+	return w.redisStorage.UseNonce(signerAddress, nonce)
+}
+
+func (w *World) Namespace() Namespace {
+	return w.namespace
+}
+
+func (w *World) GetQueryByName(name string) (engine.Query, error) {
+	if q, ok := w.nameToQuery[name]; ok {
+		return q, nil
+	}
+	return nil, eris.Errorf("query with name %s not found", name)
+}
+
+func (w *World) GetMessageByName(name string) (types.Message, bool) {
+	return w.msgManager.GetMessageByName(name)
+}
+
+func (w *World) GameStateManager() gamestate.Manager {
+	return w.entityStore
+}
+
+// WaitForNextTick blocks until at least one game tick has completed. It returns true if it successfully waited for a
+// tick. False may be returned if the engine was shut down while waiting for the next tick to complete.
+func (w *World) WaitForNextTick() (success bool) {
+	startTick := w.CurrentTick()
+	ch := make(chan struct{})
+	w.addChannelWaitingForNextTick <- ch
+	<-ch
+	return w.CurrentTick() > startTick
+}
+
+func (w *World) GetEventHub() *events.EventHub {
+	return w.eventHub
+}
+
+func (w *World) InjectLogger(logger *zerolog.Logger) {
+	w.Logger = logger
+	w.GameStateManager().InjectLogger(logger)
+}
+
+func (w *World) GetComponents() []types.ComponentMetadata {
+	return w.registeredComponents
+}
+
+func (w *World) GetComponentByName(name string) (types.ComponentMetadata, error) {
+	componentType, exists := w.nameToComponent[name]
+	if !exists {
+		return nil, eris.Wrapf(
+			iterators.ErrMustRegisterComponent,
+			"component %q must be registered before being used", name)
+	}
+	return componentType, nil
+}
+
+func (w *World) GetRegisteredSystemNames() []string {
+	return w.systemManager.GetRegisteredSystemNames()
+}
+
+func (w *World) SetRouter(rtr router.Router) {
+	w.router = rtr
+}
+
+func (w *World) HandleEVMQuery(name string, abiRequest []byte) ([]byte, error) {
+	qry, err := w.GetQueryByName(name)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
-}
-
-// RegisterQueryWithEVMSupport adds the given query to the game world. HTTP endpoints to use these queries
-// will automatically be created when StartGame is called. This Register method must only be called once.
-// This function also adds EVM support to the query.
-func RegisterQueryWithEVMSupport[Request any, Reply any](
-	world *World,
-	name string,
-	handler func(wCtx WorldContext, req *Request) (*Reply, error),
-) error {
-	err := ecs.RegisterQuery[Request, Reply](
-		world.instance,
-		name,
-		func(eCtx ecs.EngineContext, req *Request) (*Reply, error) {
-			return handler(&worldContext{engine: eCtx}, req)
-		},
-		ecs.WithQueryEVMSupport[Request, Reply](),
-	)
+	req, err := qry.DecodeEVMRequest(abiRequest)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
-}
 
-func (w *World) Engine() *ecs.Engine {
-	return w.instance
-}
+	reply, err := qry.HandleQuery(NewReadOnlyWorldContext(w), req)
+	if err != nil {
+		return nil, err
+	}
 
-func (w *World) CurrentTick() uint64 {
-	return w.instance.CurrentTick()
-}
-
-func (w *World) Tick(ctx context.Context) error {
-	return w.instance.Tick(ctx)
-}
-
-// Init Registers a system that only runs once on a new game before tick 0.
-func (w *World) Init(system System) {
-	w.instance.AddInitSystem(
-		func(eCtx ecs.EngineContext) error {
-			return system(&worldContext{engine: eCtx})
-		},
-	)
-}
-
-// logAndPanic logs the given error and panics. An error is returned so the syntax:
-// return logAndPanic(wCtx, err)
-// can be used at the end of state-mutating methods. This method will never actually return.
-func logAndPanic(wCtx WorldContext, err error) error {
-	wCtx.Logger().Panic().Err(err).Msgf("fatal error: %v", eris.ToString(err, true))
-	return err
+	return qry.EncodeEVMReply(reply)
 }

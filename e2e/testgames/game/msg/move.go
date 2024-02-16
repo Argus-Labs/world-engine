@@ -1,7 +1,7 @@
 package msg
 
 import (
-	"pkg.world.dev/world-engine/cardinal"
+	"pkg.world.dev/world-engine/cardinal/message"
 )
 
 type MoveInput struct {
@@ -12,4 +12,5 @@ type MoveOutput struct {
 	X, Y int64
 }
 
-var MoveMsg = cardinal.NewMessageTypeWithEVMSupport[MoveInput, MoveOutput]("move")
+var MoveMsg = message.NewMessageType[MoveInput, MoveOutput]("move",
+	message.WithMsgEVMSupport[MoveInput, MoveOutput]())

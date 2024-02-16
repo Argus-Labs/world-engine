@@ -7,6 +7,11 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"pkg.world.dev/world-engine/assert"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/persona/msg"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"slices"
 	"strings"
 	"testing"
@@ -18,12 +23,9 @@ import (
 	"github.com/swaggo/swag"
 
 	"pkg.world.dev/world-engine/cardinal"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
 	"pkg.world.dev/world-engine/cardinal/server/utils"
 	"pkg.world.dev/world-engine/cardinal/testutils"
-	"pkg.world.dev/world-engine/cardinal/types/entity"
-	"pkg.world.dev/world-engine/cardinal/types/message"
 	"pkg.world.dev/world-engine/sign"
 )
 
@@ -32,7 +34,6 @@ type ServerTestSuite struct {
 
 	fixture *testutils.TestFixture
 	world   *cardinal.World
-	engine  *ecs.Engine
 
 	privateKey *ecdsa.PrivateKey
 	signerAddr string
@@ -60,7 +61,7 @@ func (s *ServerTestSuite) TearDownTest() {
 func (s *ServerTestSuite) TestCanClaimPersonaSendGameTxAndQueryGame() {
 	s.setupWorld()
 	s.fixture.DoTick()
-	personaTag := s.createRandomPersona()
+	personaTag := s.CreateRandomPersona()
 	s.runTx(personaTag, MoveMessage, MoveMsgInput{Direction: "up"})
 	res := s.fixture.Post("query/game/location", QueryLocationRequest{Persona: personaTag})
 	var loc LocationComponent
@@ -77,8 +78,8 @@ func (s *ServerTestSuite) TestCanListEndpoints() {
 	var result handler.GetEndpointsResponse
 	err := json.Unmarshal([]byte(s.readBody(res.Body)), &result)
 	s.Require().NoError(err)
-	msgs := s.engine.ListMessages()
-	queries := s.engine.ListQueries()
+	msgs := s.world.ListMessages()
+	queries := s.world.ListQueries()
 
 	s.Require().Len(msgs, len(result.TxEndpoints))
 	s.Require().Len(queries, len(result.QueryEndpoints))
@@ -134,7 +135,7 @@ func (s *ServerTestSuite) TestSwaggerEndpointsAreActuallyCreated() {
 func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	s.setupWorld(cardinal.WithDisableSignatureVerification())
 	s.fixture.DoTick()
-	persona := s.createRandomPersona()
+	persona := s.CreateRandomPersona()
 	s.createPersona(persona)
 	msg := MoveMsgInput{Direction: "up"}
 	msgBz, err := json.Marshal(msg)
@@ -146,7 +147,7 @@ func (s *ServerTestSuite) TestCanSendTxWithoutSigVerification() {
 	url := "/tx/game/" + MoveMessage.Name()
 	res := s.fixture.Post(url, tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.engine.Tick(context.Background())
+	err = s.world.Tick(context.Background())
 	s.Require().NoError(err)
 	s.nonce++
 
@@ -165,14 +166,14 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	name := "foo"
 	group := "bar"
 	called := false
-	err := ecs.RegisterQuery[SomeRequest, SomeResponse](
-		s.engine,
+	err := cardinal.RegisterQuery[SomeRequest, SomeResponse](
+		s.world,
 		name,
-		func(eCtx ecs.EngineContext, req *SomeRequest) (*SomeResponse, error) {
+		func(wCtx engine.Context, req *SomeRequest) (*SomeResponse, error) {
 			called = true
 			return &SomeResponse{}, nil
 		},
-		ecs.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
+		cardinal.WithCustomQueryGroup[SomeRequest, SomeResponse](group),
 	)
 	s.Require().NoError(err)
 	s.fixture.DoTick()
@@ -181,28 +182,28 @@ func (s *ServerTestSuite) TestQueryCustomGroup() {
 	s.Require().True(called)
 }
 
-// creates a transaction with the given message, and runs it in a tick.
-func (s *ServerTestSuite) runTx(personaTag string, msg message.Message, payload any) {
-	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.engine.Namespace().String(), s.nonce, payload)
+// Creates a transaction with the given message, and runs it in a tick.
+func (s *ServerTestSuite) runTx(personaTag string, msg types.Message, payload any) {
+	tx, err := sign.NewTransaction(s.privateKey, personaTag, s.world.Namespace().String(), s.nonce, payload)
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL(msg.Group(), msg.Name()), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.engine.Tick(context.Background())
+	err = s.world.Tick(context.Background())
 	s.Require().NoError(err)
 	s.nonce++
 }
 
-// creates a persona with the specified tag.
+// Creates a persona with the specified tag.
 func (s *ServerTestSuite) createPersona(personaTag string) {
-	createPersonaTx := ecs.CreatePersona{
+	createPersonaTx := msg.CreatePersona{
 		PersonaTag:    personaTag,
 		SignerAddress: s.signerAddr,
 	}
-	tx, err := sign.NewSystemTransaction(s.privateKey, s.engine.Namespace().String(), s.nonce, createPersonaTx)
+	tx, err := sign.NewSystemTransaction(s.privateKey, s.world.Namespace().String(), s.nonce, createPersonaTx)
 	s.Require().NoError(err)
 	res := s.fixture.Post(utils.GetTxURL("persona", "create-persona"), tx)
 	s.Require().Equal(fiber.StatusOK, res.StatusCode, s.readBody(res.Body))
-	err = s.engine.Tick(context.Background())
+	err = s.world.Tick(context.Background())
 	s.Require().NoError(err)
 	s.nonce++
 }
@@ -211,23 +212,22 @@ func (s *ServerTestSuite) createPersona(personaTag string) {
 func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 	s.fixture = testutils.NewTestFixture(s.T(), nil, opts...)
 	s.world = s.fixture.World
-	s.engine = s.fixture.Engine
-	err := ecs.RegisterComponent[LocationComponent](s.engine)
+	err := cardinal.RegisterComponent[LocationComponent](s.world)
 	s.Require().NoError(err)
-	err = s.engine.RegisterMessages(MoveMessage)
+	err = cardinal.RegisterMessages(s.world, MoveMessage)
 	s.Require().NoError(err)
-	personaToPosition := make(map[string]entity.ID)
-	s.engine.RegisterSystem(func(context ecs.EngineContext) error {
-		MoveMessage.Each(context, func(tx ecs.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
+	personaToPosition := make(map[string]types.EntityID)
+	err = cardinal.RegisterSystems(s.world, func(context engine.Context) error {
+		MoveMessage.Each(context, func(tx message.TxData[MoveMsgInput]) (MoveMessageOutput, error) {
 			posID, exists := personaToPosition[tx.Tx.PersonaTag]
 			if !exists {
-				id, err := ecs.Create(context, LocationComponent{})
+				id, err := cardinal.Create(context, LocationComponent{})
 				s.Require().NoError(err)
 				personaToPosition[tx.Tx.PersonaTag] = id
 				posID = id
 			}
 			var resultLocation LocationComponent
-			err = ecs.UpdateComponent[LocationComponent](context, posID,
+			err = cardinal.UpdateComponent[LocationComponent](context, posID,
 				func(loc *LocationComponent) *LocationComponent {
 					switch tx.Msg.Direction {
 					case "up":
@@ -247,10 +247,11 @@ func (s *ServerTestSuite) setupWorld(opts ...cardinal.WorldOption) {
 		})
 		return nil
 	})
+	assert.NilError(s.T(), err)
 	err = cardinal.RegisterQuery[QueryLocationRequest, QueryLocationResponse](
 		s.world,
 		"location",
-		func(wCtx cardinal.WorldContext, req *QueryLocationRequest) (*QueryLocationResponse, error) {
+		func(wCtx engine.Context, req *QueryLocationRequest) (*QueryLocationResponse, error) {
 			locID, exists := personaToPosition[req.Persona]
 			if !exists {
 				return nil, fmt.Errorf("location for %q does not exists", req.Persona)
@@ -270,8 +271,8 @@ func (s *ServerTestSuite) readBody(body io.ReadCloser) string {
 	return string(buf)
 }
 
-// createRandomPersona creates a random persona and returns it as a string
-func (s *ServerTestSuite) createRandomPersona() string {
+// CreateRandomPersona Creates a random persona and returns it as a string
+func (s *ServerTestSuite) CreateRandomPersona() string {
 	letterRunes := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -301,7 +302,7 @@ type MoveMessageOutput struct {
 	Location LocationComponent
 }
 
-var MoveMessage = ecs.NewMessageType[MoveMsgInput, MoveMessageOutput]("move")
+var MoveMessage = message.NewMessageType[MoveMsgInput, MoveMessageOutput]("move")
 
 type QueryLocationRequest struct {
 	Persona string
