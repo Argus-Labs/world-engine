@@ -23,8 +23,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          ## fix warn redundant cached package from golangci/golangci-lint-action
-          cache: false
+          cache-dependency-path: "**/*.sum"
       - name: Find go path
         id: go-dir
         run: echo "path=$(go list -f '{{.Dir}}/...' -m | xargs)" >> $GITHUB_OUTPUT
@@ -34,3 +33,6 @@ jobs:
         with:
           version: v1.54.2
           args: --timeout=10m --concurrency 8 -v ${{ steps.go-dir.outputs.path }}
+          ## fix warn redundant cached package from actions/setup-go
+          skip-pkg-cache: true
+          skip-build-cache: true
