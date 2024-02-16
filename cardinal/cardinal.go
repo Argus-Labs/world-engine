@@ -2,14 +2,15 @@ package cardinal
 
 import (
 	"errors"
+	"strconv"
+
 	"github.com/rotisserie/eris"
 	"pkg.world.dev/world-engine/cardinal/iterators"
-	"pkg.world.dev/world-engine/cardinal/storage/redis"
+	"pkg.world.dev/world-engine/cardinal/metastorage/redis"
 	"pkg.world.dev/world-engine/cardinal/system"
 	"pkg.world.dev/world-engine/cardinal/types"
 	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"pkg.world.dev/world-engine/cardinal/worldstage"
-	"strconv"
 )
 
 var (

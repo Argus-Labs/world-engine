@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type Storage struct {
+type MetaStorage struct {
 	Namespace string
 	Client    *redis.Client
 	Log       zerolog.Logger
@@ -18,9 +18,9 @@ type Storage struct {
 
 type Options = redis.Options
 
-func NewRedisStorage(options Options, namespace string) Storage {
+func NewRedisMetaStorage(options Options, namespace string) MetaStorage {
 	client := redis.NewClient(&options)
-	return Storage{
+	return MetaStorage{
 		Namespace:     namespace,
 		Client:        client,
 		Log:           zerolog.New(os.Stdout),
@@ -29,7 +29,7 @@ func NewRedisStorage(options Options, namespace string) Storage {
 	}
 }
 
-func (r *Storage) Close() error {
+func (r *MetaStorage) Close() error {
 	err := r.Client.Close()
 	if err != nil {
 		return eris.Wrap(err, "")

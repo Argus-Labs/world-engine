@@ -2,9 +2,10 @@ package gamestate
 
 import (
 	"context"
+	"time"
+
 	"pkg.world.dev/world-engine/cardinal/codec"
 	"pkg.world.dev/world-engine/cardinal/types"
-	"time"
 
 	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 
@@ -26,14 +27,14 @@ var _ TickStorage = &EntityCommandBuffer{}
 // be completed.
 func (m *EntityCommandBuffer) GetTickNumbers() (start, end uint64, err error) {
 	ctx := context.Background()
-	start, err = m.client.Get(ctx, redisStartTickKey()).Uint64()
+	start, err = m.storage.GetUInt64(ctx, redisStartTickKey())
 	err = eris.Wrap(err, "")
 	if eris.Is(eris.Cause(err), redis.Nil) {
 		start = 0
 	} else if err != nil {
 		return 0, 0, err
 	}
-	end, err = m.client.Get(ctx, redisEndTickKey()).Uint64()
+	end, err = m.storage.GetUInt64(ctx, redisEndTickKey())
 	err = eris.Wrap(err, "")
 	if eris.Is(eris.Cause(err), redis.Nil) {
 		end = 0
@@ -47,16 +48,19 @@ func (m *EntityCommandBuffer) GetTickNumbers() (start, end uint64, err error) {
 // of a tick. While transactions are saved to the DB, no state changes take place at this time.
 func (m *EntityCommandBuffer) StartNextTick(txs []types.Message, queue *txpool.TxQueue) error {
 	ctx := context.Background()
-	pipe := m.client.TxPipeline()
+	pipe, err := m.storage.StartTransaction(ctx)
+	if err != nil {
+		return err
+	}
 	if err := addPendingTransactionToPipe(ctx, pipe, txs, queue); err != nil {
 		return err
 	}
 
-	if err := pipe.Incr(ctx, redisStartTickKey()).Err(); err != nil {
+	if err := pipe.Incr(ctx, redisStartTickKey()); err != nil {
 		return eris.Wrap(err, "")
 	}
 
-	_, err := pipe.Exec(ctx)
+	_, err = pipe.EndTransaction(ctx)
 	return eris.Wrap(err, "")
 }
 
@@ -73,12 +77,12 @@ func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if err = pipe.Incr(ctx, redisEndTickKey()).Err(); err != nil {
+	if err = pipe.Incr(ctx, redisEndTickKey()); err != nil {
 		return eris.Wrap(err, "")
 	}
 	statsd.EmitTickStat(makePipeStartTime, "pipe_make")
 	flushStartTime := time.Now()
-	_, err = pipe.Exec(ctx)
+	_, err = pipe.EndTransaction(ctx)
 	statsd.EmitTickStat(flushStartTime, "pipe_exec")
 	if err != nil {
 		return eris.Wrap(err, "")
@@ -94,7 +98,7 @@ func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
 func (m *EntityCommandBuffer) Recover(txs []types.Message) (*txpool.TxQueue, error) {
 	ctx := context.Background()
 	key := redisPendingTransactionKey()
-	bz, err := m.client.Get(ctx, key).Bytes()
+	bz, err := m.storage.GetBytes(ctx, key)
 	if err != nil {
 		return nil, eris.Wrap(err, "")
 	}
@@ -128,7 +132,7 @@ type pendingTransaction struct {
 }
 
 func addPendingTransactionToPipe(
-	ctx context.Context, pipe redis.Pipeliner, txs []types.Message,
+	ctx context.Context, pipe Storage, txs []types.Message,
 	queue *txpool.TxQueue,
 ) error {
 	var pending []pendingTransaction
@@ -153,5 +157,5 @@ func addPendingTransactionToPipe(
 		return err
 	}
 	key := redisPendingTransactionKey()
-	return eris.Wrap(pipe.Set(ctx, key, buf, 0).Err(), "")
+	return eris.Wrap(pipe.Set(ctx, key, buf), "")
 }

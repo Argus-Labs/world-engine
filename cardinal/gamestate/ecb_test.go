@@ -2,6 +2,7 @@ package gamestate_test
 
 import (
 	"context"
+
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
 	"pkg.world.dev/world-engine/cardinal/types"
@@ -27,8 +28,8 @@ func newCmdBufferForTest(t *testing.T) *gamestate.EntityCommandBuffer {
 }
 
 // newCmdBufferAndRedisClientForTest cardinal.Creates a gamestate.EntityCommandBuffer using the given
-// redis client. If the passed in redis
-// client is nil, a redis client is cardinal.Created.
+// redis storage. If the passed in redis
+// storage is nil, a redis storage is cardinal.Created.
 func newCmdBufferAndRedisClientForTest(
 	t *testing.T,
 	client *redis.Client,
@@ -43,7 +44,8 @@ func newCmdBufferAndRedisClientForTest(
 
 		client = redis.NewClient(&options)
 	}
-	manager, err := gamestate.NewEntityCommandBuffer(client)
+	storage := gamestate.NewRedisStorage(client)
+	manager, err := gamestate.NewEntityCommandBuffer(&storage)
 	assert.NilError(t, err)
 	assert.NilError(t, manager.RegisterComponents(allComponents))
 	return manager, client
@@ -536,7 +538,8 @@ func TestCannotSaveStateBeforeRegisteringComponents(t *testing.T) {
 	ctx := context.Background()
 
 	client := redis.NewClient(&options)
-	manager, err := gamestate.NewEntityCommandBuffer(client)
+	storage := gamestate.NewRedisStorage(client)
+	manager, err := gamestate.NewEntityCommandBuffer(&storage)
 	assert.NilError(t, err)
 
 	// RegisterComponents must be called before attempting to save the state

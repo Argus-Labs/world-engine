@@ -4,29 +4,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/goccy/go-json"
-	"github.com/rs/zerolog"
-	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"net/http"
 	"os"
 	"os/signal"
-	"pkg.world.dev/world-engine/cardinal/events"
-	"pkg.world.dev/world-engine/cardinal/iterators"
-	ecslog "pkg.world.dev/world-engine/cardinal/log"
-	"pkg.world.dev/world-engine/cardinal/message"
-	"pkg.world.dev/world-engine/cardinal/receipt"
-	"pkg.world.dev/world-engine/cardinal/router"
-	"pkg.world.dev/world-engine/cardinal/storage/redis"
-	"pkg.world.dev/world-engine/cardinal/system"
-	"pkg.world.dev/world-engine/cardinal/txpool"
-	"pkg.world.dev/world-engine/cardinal/types"
-	"pkg.world.dev/world-engine/cardinal/types/engine"
-	"pkg.world.dev/world-engine/sign"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
+
+	"github.com/goccy/go-json"
+	"github.com/rs/zerolog"
+	"pkg.world.dev/world-engine/cardinal/events"
+	"pkg.world.dev/world-engine/cardinal/iterators"
+	ecslog "pkg.world.dev/world-engine/cardinal/log"
+	"pkg.world.dev/world-engine/cardinal/message"
+	"pkg.world.dev/world-engine/cardinal/metastorage/redis"
+	"pkg.world.dev/world-engine/cardinal/receipt"
+	"pkg.world.dev/world-engine/cardinal/router"
+	"pkg.world.dev/world-engine/cardinal/system"
+	"pkg.world.dev/world-engine/cardinal/txpool"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
+	"pkg.world.dev/world-engine/sign"
 
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
@@ -58,7 +60,7 @@ type World struct {
 	systemManager *system.Manager
 
 	namespace              Namespace
-	redisStorage           *redis.Storage
+	redisStorage           *redis.MetaStorage
 	entityStore            gamestate.Manager
 	tick                   *atomic.Uint64
 	timestamp              *atomic.Uint64
@@ -109,12 +111,15 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	if cfg.CardinalMode == RunModeDev {
 		serverOptions = append(serverOptions, server.WithPrettyPrint())
 	}
-	redisStore := redis.NewRedisStorage(redis.Options{
+	redisMetaStore := redis.NewRedisMetaStorage(redis.Options{
 		Addr:     cfg.RedisAddress,
 		Password: cfg.RedisPassword,
 		DB:       0, // use default DB
 	}, cfg.CardinalNamespace)
-	entityCommandBuffer, err := gamestate.NewEntityCommandBuffer(redisStore.Client)
+
+	redisStore := gamestate.NewRedisStorage(redisMetaStore.Client)
+
+	entityCommandBuffer, err := gamestate.NewEntityCommandBuffer(&redisStore)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +133,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 		systemManager: system.NewManager(),
 
 		// Imported from engine
-		redisStorage:      &redisStore,
+		redisStorage:      &redisMetaStore,
 		entityStore:       entityCommandBuffer,
 		namespace:         Namespace(cfg.CardinalNamespace),
 		tick:              &atomic.Uint64{},

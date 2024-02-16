@@ -1,4 +1,4 @@
-package storage
+package metastorage
 
 type NonceStorage interface {
 	UseNonce(signerAddress string, nonce uint64) error
