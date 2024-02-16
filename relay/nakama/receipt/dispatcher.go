@@ -34,33 +34,34 @@ type Receipt struct {
 // Dispatcher continually polls Cardinal for transaction receipts and dispatches them to any subscribed
 // channels. The subscribed channels are stored in the sync.Map.
 type Dispatcher struct {
-	ch chan *Receipt
+	ch chan []*Receipt
 	m  *sync.Map
 }
 
 func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
-		ch: make(chan *Receipt),
+		ch: make(chan []*Receipt),
 		m:  &sync.Map{},
 	}
 }
 
 // Subscribe allows for the sending of receipts to the given channel. Each given session can
 // only be associated with a single channel.
-func (r *Dispatcher) Subscribe(session string, ch chan *Receipt) {
+func (r *Dispatcher) Subscribe(session string, ch chan []*Receipt) {
 	r.m.Store(session, ch)
 }
 
 // Dispatch continually drains r.ch (receipts from cardinal) and sends copies to all subscribed channels.
 // This function is meant to be called in a goroutine. Pushed receipts will not block when sending.
-func (r *Dispatcher) Dispatch(_ runtime.Logger) {
-	for receipt := range r.ch {
+func (r *Dispatcher) Dispatch(logger runtime.Logger) {
+	for receipts := range r.ch {
 		r.m.Range(func(key, value any) bool {
-			ch, _ := value.(chan *Receipt)
+			ch, _ := value.(chan []*Receipt)
 			// avoid blocking r.ch by making a best-effort delivery here.
 			select {
-			case ch <- receipt:
+			case ch <- receipts:
 			default:
+				logger.Info("session %s dropped a batch of %d receipts", key, len(receipts))
 				fmt.Println("WOW, RECEIPT WAS NOT ABLE TO BE SENT!")
 			}
 			return true
@@ -94,12 +95,8 @@ func (r *Dispatcher) streamBatchOfReceipts(
 	if err != nil {
 		return newStartTick, err
 	}
-	fmt.Println("dispatcher got " + strconv.Itoa(len(reply.Receipts)) + "receipts from cardinal")
-	for _, rec := range reply.Receipts {
-		fmt.Println("receipt below:")
-		fmt.Println(rec)
-		r.ch <- rec
-	}
+	fmt.Println("dispatcher got " + strconv.Itoa(len(reply.Receipts)) + " receipts from cardinal")
+	r.ch <- reply.Receipts
 	return reply.EndTick, nil
 }
 
