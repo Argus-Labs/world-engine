@@ -20,7 +20,7 @@ import (
 var _ Manager = &EntityCommandBuffer{}
 
 type EntityCommandBuffer struct {
-	storage Storage
+	dbStorage Storage[string]
 
 	compValues         map[compKey]any
 	compValuesToDelete map[compKey]bool
@@ -49,10 +49,10 @@ var (
 )
 
 // NewEntityCommandBuffer creates a new command buffer manager that is able to queue up a series of states changes and
-// atomically commit them to the underlying redis storage layer.
-func NewEntityCommandBuffer(storage Storage) (*EntityCommandBuffer, error) {
+// atomically commit them to the underlying redis dbStorage layer.
+func NewEntityCommandBuffer(storage Storage[string]) (*EntityCommandBuffer, error) {
 	m := &EntityCommandBuffer{
-		storage:            storage,
+		dbStorage:          storage,
 		compValues:         map[compKey]any{},
 		compValuesToDelete: map[compKey]bool{},
 
@@ -206,7 +206,7 @@ func (m *EntityCommandBuffer) GetComponentForEntity(cType types.ComponentMetadat
 	redisKey := storageComponentKey(cType.ID(), id)
 	ctx := context.Background()
 
-	bz, err := m.storage.GetBytes(ctx, redisKey)
+	bz, err := m.dbStorage.GetBytes(ctx, redisKey)
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {
 			return nil, err
@@ -367,7 +367,7 @@ func (m *EntityCommandBuffer) InjectLogger(logger *zerolog.Logger) {
 // Close closes the manager.
 func (m *EntityCommandBuffer) Close() error {
 	ctx := context.Background()
-	err := eris.Wrap(m.storage.Close(ctx), "")
+	err := eris.Wrap(m.dbStorage.Close(ctx), "")
 	if eris.Is(eris.Cause(err), redis.ErrClosed) {
 		// if redis is already closed that means another shutdown pathway got to it first.
 		// There are multiple modules that will try to shutdown redis, if it is already shutdown it is not an error.
@@ -383,7 +383,7 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 		return archID, nil
 	}
 	key := storageArchetypeIDForEntityID(id)
-	num, err := m.storage.GetInt(context.Background(), key)
+	num, err := m.dbStorage.GetInt(context.Background(), key)
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return 0, eris.Wrap(redis.Nil, iterators.ErrEntityDoesNotExist.Error())
@@ -398,9 +398,9 @@ func (m *EntityCommandBuffer) getArchetypeForEntity(id types.EntityID) (types.Ar
 // nextEntityID returns the next available entity EntityID.
 func (m *EntityCommandBuffer) nextEntityID() (types.EntityID, error) {
 	if !m.isEntityIDLoaded {
-		// The next valid entity EntityID needs to be loaded from storage.
+		// The next valid entity EntityID needs to be loaded from dbStorage.
 		ctx := context.Background()
-		nextID, err := m.storage.GetUInt64(ctx, storageNextEntityIDKey())
+		nextID, err := m.dbStorage.GetUInt64(ctx, storageNextEntityIDKey())
 		err = eris.Wrap(err, "")
 		if err != nil {
 			if !eris.Is(eris.Cause(err), redis.Nil) {
@@ -443,13 +443,13 @@ func (m *EntityCommandBuffer) getOrMakeArchIDForComponents(
 // getActiveEntities returns the entities that are currently assigned to the given archetype EntityID.
 func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activeEntities, error) {
 	active, ok := m.activeEntities[archID]
-	// The active entities for this archetype EntityID has not yet been loaded from storage
+	// The active entities for this archetype EntityID has not yet been loaded from dbStorage
 	if ok {
 		return m.activeEntities[archID], nil
 	}
 	ctx := context.Background()
 	key := storageActiveEntityIDKey(archID)
-	bz, err := m.storage.GetBytes(ctx, key)
+	bz, err := m.dbStorage.GetBytes(ctx, key)
 	err = eris.Wrap(err, "")
 	var ids []types.EntityID
 	if err != nil {
@@ -471,7 +471,7 @@ func (m *EntityCommandBuffer) getActiveEntities(archID types.ArchetypeID) (activ
 }
 
 // setActiveEntities sets the entities that are associated with the given archetype EntityID and marks
-// the information as modified so it can later be pushed to the storage layer.
+// the information as modified so it can later be pushed to the dbStorage layer.
 func (m *EntityCommandBuffer) setActiveEntities(archID types.ArchetypeID, active activeEntities) {
 	active.modified = true
 	m.activeEntities[archID] = active

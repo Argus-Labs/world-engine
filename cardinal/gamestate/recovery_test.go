@@ -21,7 +21,7 @@ func TestLoadingFromRedisShouldNotRepeatEntityIDs(t *testing.T) {
 
 	nextID := ids[len(ids)-1] + 1
 
-	// Make a new manager using the same redis storage. Newly assigned ids should start off where
+	// Make a new manager using the same redis dbStorage. Newly assigned ids should start off where
 	// the previous manager left off
 	manager, _ = newCmdBufferAndRedisClientForTest(t, client)
 	gotID, err := manager.CreateEntity(fooComp)

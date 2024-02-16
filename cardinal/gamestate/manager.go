@@ -3,6 +3,7 @@ package gamestate
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/rs/zerolog"
 	"pkg.world.dev/world-engine/cardinal/filter"
 	"pkg.world.dev/world-engine/cardinal/iterators"
@@ -57,7 +58,7 @@ type TickStorage interface {
 }
 
 // Manager represents all the methods required to track Component, Entity, and Archetype information
-// which powers the ECS storage layer.
+// which powers the ECS dbStorage layer.
 type Manager interface {
 	TickStorage
 	Reader

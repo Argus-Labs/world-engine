@@ -28,8 +28,8 @@ func newCmdBufferForTest(t *testing.T) *gamestate.EntityCommandBuffer {
 }
 
 // newCmdBufferAndRedisClientForTest cardinal.Creates a gamestate.EntityCommandBuffer using the given
-// redis storage. If the passed in redis
-// storage is nil, a redis storage is cardinal.Created.
+// redis dbStorage. If the passed in redis
+// dbStorage is nil, a redis dbStorage is cardinal.Created.
 func newCmdBufferAndRedisClientForTest(
 	t *testing.T,
 	client *redis.Client,

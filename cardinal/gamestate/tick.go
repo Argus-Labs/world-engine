@@ -27,14 +27,14 @@ var _ TickStorage = &EntityCommandBuffer{}
 // be completed.
 func (m *EntityCommandBuffer) GetTickNumbers() (start, end uint64, err error) {
 	ctx := context.Background()
-	start, err = m.storage.GetUInt64(ctx, storageStartTickKey())
+	start, err = m.dbStorage.GetUInt64(ctx, storageStartTickKey())
 	err = eris.Wrap(err, "")
 	if eris.Is(eris.Cause(err), redis.Nil) {
 		start = 0
 	} else if err != nil {
 		return 0, 0, err
 	}
-	end, err = m.storage.GetUInt64(ctx, storageEndTickKey())
+	end, err = m.dbStorage.GetUInt64(ctx, storageEndTickKey())
 	err = eris.Wrap(err, "")
 	if eris.Is(eris.Cause(err), redis.Nil) {
 		end = 0
@@ -48,7 +48,7 @@ func (m *EntityCommandBuffer) GetTickNumbers() (start, end uint64, err error) {
 // of a tick. While transactions are saved to the DB, no state changes take place at this time.
 func (m *EntityCommandBuffer) StartNextTick(txs []types.Message, queue *txpool.TxQueue) error {
 	ctx := context.Background()
-	pipe, err := m.storage.StartTransaction(ctx)
+	pipe, err := m.dbStorage.StartTransaction(ctx)
 	if err != nil {
 		return err
 	}
@@ -98,7 +98,7 @@ func (m *EntityCommandBuffer) FinalizeTick(ctx context.Context) error {
 func (m *EntityCommandBuffer) Recover(txs []types.Message) (*txpool.TxQueue, error) {
 	ctx := context.Background()
 	key := storagePendingTransactionKey()
-	bz, err := m.storage.GetBytes(ctx, key)
+	bz, err := m.dbStorage.GetBytes(ctx, key)
 	if err != nil {
 		return nil, eris.Wrap(err, "")
 	}
@@ -132,7 +132,7 @@ type pendingTransaction struct {
 }
 
 func addPendingTransactionToPipe(
-	ctx context.Context, pipe Storage, txs []types.Message,
+	ctx context.Context, pipe Storage[string], txs []types.Message,
 	queue *txpool.TxQueue,
 ) error {
 	var pending []pendingTransaction

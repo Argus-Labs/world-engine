@@ -1,5 +1,5 @@
 /*
-Package ecb allows for buffering of state changes to the ECS storage layer, and either committing those changes
+Package ecb allows for buffering of state changes to the ECS dbStorage layer, and either committing those changes
 in an atomic Redis transaction, or discarding the changes. In either case, the underlying Redis DB is never in an
 intermediate state.
 
@@ -65,7 +65,7 @@ value:  JSON serialized bytes that can be deserialized to a list of transactions
 processed in the last started tick. This data is only relevant when the START-TICK number does not match the END-TICK
 number.
 
-# In-memory storage model
+# In-memory dbStorage model
 
 The in-memory data model roughly matches the model that is stored in redis, but there are some differences:
 
