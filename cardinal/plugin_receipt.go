@@ -64,7 +64,22 @@ type ReceiptEntry struct {
 //	@Failure		400						{string}	string	"Invalid transaction request"
 //	@Router			/query/receipts/list [post]
 func queryReceipts(ctx engine.Context, req *ListTxReceiptsRequest) (*ListTxReceiptsResponse, error) {
-	reply := normalizeStartAndEnd(req.StartTick, ctx.CurrentTick(), ctx.ReceiptHistorySize())
+	reply := ListTxReceiptsResponse{}
+	reply.EndTick = ctx.CurrentTick()
+	size := ctx.ReceiptHistorySize()
+	if size > reply.EndTick {
+		reply.StartTick = 0
+	} else {
+		reply.StartTick = reply.EndTick - size
+	}
+	// StartTick and EndTick are now at the largest possible range of ticks.
+	// Check to see if we should narrow down the range at all.
+	if req.StartTick > reply.EndTick {
+		// User is asking for ticks in the future.
+		reply.StartTick = reply.EndTick
+	} else if req.StartTick > reply.StartTick {
+		reply.StartTick = req.StartTick
+	}
 
 	for t := reply.StartTick; t < reply.EndTick; t++ {
 		currReceipts, err := ctx.GetTransactionReceiptsForTick(t)
@@ -81,23 +96,4 @@ func queryReceipts(ctx engine.Context, req *ListTxReceiptsRequest) (*ListTxRecei
 		}
 	}
 	return &reply, nil
-}
-
-func normalizeStartAndEnd(requestedStartTick, currentTick, size uint64) ListTxReceiptsResponse {
-	reply := ListTxReceiptsResponse{}
-	if size > currentTick {
-		reply.StartTick = 0
-	} else {
-		reply.StartTick = currentTick - size
-	}
-
-	// StartTick and EndTick are now at the largest possible range of ticks.
-	// Check to see if we should narrow down the range at all.
-	if requestedStartTick > reply.EndTick {
-		// User is asking for ticks in the future.
-		reply.StartTick = reply.EndTick
-	} else if requestedStartTick > reply.StartTick {
-		reply.StartTick = requestedStartTick
-	}
-	return reply
 }
