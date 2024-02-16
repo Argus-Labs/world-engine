@@ -1,4 +1,4 @@
-name: Lint Go
+name: Lint
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ permissions:
 jobs:
   go-lint:
     name: Go
-    runs-on: namespace-profile-linux-8vcpu-16gb-cached
+    runs-on: namespace-profile-default-cached
     env:
       GO_VERSION: 1.21.0
     steps:
@@ -24,6 +24,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           ## skip cache, use Namespace volume cache
+          cache: false
       - name: Setup Namespace cache
         uses: namespacelabs/nscloud-cache-action@v1
         with:
@@ -32,7 +33,6 @@ jobs:
             /home/runner/go/pkg
             /home/runner/.cache/go-build
             /home/runner/.cache/golangci-lint
-          cache: false
       - name: Find go path
         id: go-dir
         run: echo "path=$(go list -f '{{.Dir}}/...' -m | xargs)" >> $GITHUB_OUTPUT
