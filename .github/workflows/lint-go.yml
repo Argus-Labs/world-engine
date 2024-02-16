@@ -25,6 +25,7 @@ jobs:
           path: |
             /home/runner/go/pkg/mod
             /home/runner/.cache/go-build
+            /home/runner/.cache/golangci-lint
       - name: Setup Golang
         uses: actions/setup-go@v5
         with:
