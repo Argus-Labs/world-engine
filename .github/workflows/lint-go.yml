@@ -19,6 +19,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Setup Golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          ## skip cache, use Namespace volume cache
       - name: Setup Namespace cache
         uses: namespacelabs/nscloud-cache-action@v1
         with:
@@ -27,11 +32,6 @@ jobs:
             /home/runner/go/pkg
             /home/runner/.cache/go-build
             /home/runner/.cache/golangci-lint
-      - name: Setup Golang
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          ## skip cache, use Namespace volume cache
           cache: false
       - name: Find go path
         id: go-dir
