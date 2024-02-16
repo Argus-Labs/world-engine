@@ -10,7 +10,7 @@ on:
 jobs:
   evm:
     name: Build EVM
-    runs-on: namespace-profile-default
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
