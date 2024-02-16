@@ -20,9 +20,9 @@ type endpoints struct {
 	QueryEndpoints []string `json:"queryEndpoints"`
 }
 
-func getCardinalEndpoints() (txEndpoints []string, queryEndpoints []string, err error) {
+func getCardinalEndpoints(cardinalAddress string) (txEndpoints []string, queryEndpoints []string, err error) {
 	var resp *http.Response
-	url := utils.MakeHTTPURL(ListEndpoints, globalCardinalAddress)
+	url := utils.MakeHTTPURL(ListEndpoints, cardinalAddress)
 	//nolint:gosec,noctx // its ok. maybe revisit.
 	resp, err = http.Get(url)
 	if err != nil {
@@ -50,11 +50,12 @@ func makeRequestAndReadResp(
 	notifier *receipt.Notifier,
 	endpoint string,
 	payload io.Reader,
+	cardinalAddress string,
 ) (res string, err error) {
 	req, err := http.NewRequestWithContext(
 		ctx,
 		http.MethodPost,
-		utils.MakeHTTPURL(endpoint, globalCardinalAddress),
+		utils.MakeHTTPURL(endpoint, cardinalAddress),
 		payload,
 	)
 	if err != nil {

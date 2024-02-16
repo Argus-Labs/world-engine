@@ -37,7 +37,7 @@ type Notifier struct {
 	logger runtime.Logger
 }
 
-func NewNotifier(logger runtime.Logger, nk runtime.NakamaModule, rd *ReceiptsDispatcher) *Notifier {
+func NewNotifier(logger runtime.Logger, nk runtime.NakamaModule, rd *Dispatcher) *Notifier {
 	ch := make(chan *Receipt)
 	rd.Subscribe("notifications", ch)
 	notifier := &Notifier{

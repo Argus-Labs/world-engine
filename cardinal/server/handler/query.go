@@ -2,7 +2,7 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 )
 
 // PostQuery godoc
@@ -16,7 +16,7 @@ import (
 //	@Success		200			{object}	object	"query response"
 //	@Failure		400			{string}	string	"Invalid query request"
 //	@Router			/query/game/{queryType} [post]
-func PostQuery(queries map[string]map[string]ecs.Query, engine *ecs.Engine) func(*fiber.Ctx) error {
+func PostQuery(queries map[string]map[string]engine.Query, wCtx engine.Context) func(*fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		query, ok := queries[ctx.Params("group")][ctx.Params("name")]
 		if !ok {
@@ -24,7 +24,7 @@ func PostQuery(queries map[string]map[string]ecs.Query, engine *ecs.Engine) func
 		}
 
 		ctx.Set("Content-Type", "application/json")
-		resBz, err := query.HandleQueryRaw(ecs.NewReadOnlyEngineContext(engine), ctx.Body())
+		resBz, err := query.HandleQueryRaw(wCtx, ctx.Body())
 		if err != nil {
 			return fiber.NewError(fiber.StatusBadRequest, "encountered an error in query: "+err.Error())
 		}

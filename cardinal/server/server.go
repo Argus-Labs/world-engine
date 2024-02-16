@@ -2,6 +2,8 @@ package server
 
 import (
 	"os"
+	"pkg.world.dev/world-engine/cardinal/types"
+	"pkg.world.dev/world-engine/cardinal/types/engine"
 	"sync/atomic"
 
 	"github.com/gofiber/contrib/websocket"
@@ -11,9 +13,7 @@ import (
 	"github.com/rotisserie/eris"
 	"github.com/rs/zerolog/log"
 
-	"pkg.world.dev/world-engine/cardinal/ecs"
 	"pkg.world.dev/world-engine/cardinal/server/handler"
-	"pkg.world.dev/world-engine/cardinal/types/message"
 
 	_ "pkg.world.dev/world-engine/cardinal/server/docs" // for swagger.
 )
@@ -35,7 +35,10 @@ type Server struct {
 }
 
 // New returns an HTTP server with handlers for all QueryTypes and MessageTypes.
-func New(engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), opts ...Option) (*Server, error) {
+func New(
+	wCtx engine.Context, messages []types.Message, queries []engine.Query, wsEventHandler func(conn *websocket.Conn),
+	opts ...Option,
+) (*Server, error) {
 	app := fiber.New()
 	s := &Server{
 		app: app,
@@ -51,7 +54,7 @@ func New(engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), opts ...
 
 	// Enable CORS
 	app.Use(cors.New())
-	setupRoutes(app, engine, wsEventHandler, s.config)
+	setupRoutes(app, wCtx, messages, queries, wsEventHandler, s.config)
 
 	return s, nil
 }
@@ -90,33 +93,37 @@ func (s *Server) Shutdown() error {
 // @BasePath		/
 // @consumes		application/json
 // @produces		application/json
-func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *websocket.Conn), cfg config) {
+func setupRoutes(
+	app *fiber.App, wCtx engine.Context, messages []types.Message, queries []engine.Query,
+	wsEventHandler func(conn *websocket.Conn),
+	cfg config,
+) {
 	// TODO(scott): we should refactor this such that we only dependency inject these maps
 	//  instead of having to dependency inject the entire engine.
 	// /query/:group/:queryType
 	// maps group -> queryType -> query
-	queries := make(map[string]map[string]ecs.Query)
+	queryIndex := make(map[string]map[string]engine.Query)
 
 	// /tx/:group/:txType
 	// maps group -> txType -> tx
-	msgs := make(map[string]map[string]message.Message)
+	msgIndex := make(map[string]map[string]types.Message)
 
 	// Create query index
-	for _, query := range engine.ListQueries() {
+	for _, query := range queries {
 		// Initialize inner map if it doesn't exist
-		if _, ok := queries[query.Group()]; !ok {
-			queries[query.Group()] = make(map[string]ecs.Query)
+		if _, ok := queryIndex[query.Group()]; !ok {
+			queryIndex[query.Group()] = make(map[string]engine.Query)
 		}
-		queries[query.Group()][query.Name()] = query
+		queryIndex[query.Group()][query.Name()] = query
 	}
 
 	// Create tx index
-	for _, msg := range engine.ListMessages() {
+	for _, msg := range messages {
 		// Initialize inner map if it doesn't exist
-		if _, ok := msgs[msg.Group()]; !ok {
-			msgs[msg.Group()] = make(map[string]message.Message)
+		if _, ok := msgIndex[msg.Group()]; !ok {
+			msgIndex[msg.Group()] = make(map[string]types.Message)
 		}
-		msgs[msg.Group()][msg.Name()] = msg
+		msgIndex[msg.Group()][msg.Name()] = msg
 	}
 
 	// Route: /swagger/
@@ -129,16 +136,16 @@ func setupRoutes(app *fiber.App, engine *ecs.Engine, wsEventHandler func(conn *w
 	app.Get("/events", handler.WebSocketEvents(wsEventHandler))
 
 	// Route: /...
-	app.Get("/health", handler.GetHealth(engine))
+	app.Get("/health", handler.GetHealth())
 	// TODO(scott): this should be moved outside of /query, but nakama is currrently depending on it
 	//  so we should do this on a separate PR.
-	app.Get("/query/http/endpoints", handler.GetEndpoints(msgs, queries))
+	app.Get("/query/http/endpoints", handler.GetEndpoints(msgIndex, queryIndex))
 
 	// Route: /query/...
 	query := app.Group("/query")
-	query.Post("/:group/:name", handler.PostQuery(queries, engine))
+	query.Post("/:group/:name", handler.PostQuery(queryIndex, wCtx))
 
 	// Route: /tx/...
 	tx := app.Group("/tx")
-	tx.Post("/:group/:name", handler.PostTransaction(msgs, engine, cfg.isSignatureVerificationDisabled))
+	tx.Post("/:group/:name", handler.PostTransaction(msgIndex, wCtx, cfg.isSignatureVerificationDisabled))
 }

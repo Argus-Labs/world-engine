@@ -6,8 +6,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"github.com/stretchr/testify/mock"
+
 	"pkg.world.dev/world-engine/relay/nakama/mocks"
 )
 
@@ -131,3 +133,68 @@ func (l *FakeLogger) GetErrors() []string {
 
 // Ensure that FakeLogger implements runtime.Logger (this will produce a compile-time error if it doesn't)
 var _ runtime.Logger = (*FakeLogger)(nil)
+
+// FakeNakamaModule is a fake implementation of runtime.NakamaModule that ONLY implements the StorageRead and
+// StorageWrite methods. Under the hood, a map is used to map collectin/key/userID tuples onto the stored values.
+// Calling other methods on the NakamaModule interface will panic. In addition, searching for values (e.g. specifying
+// a collection, but no user ID) will not return the correct results.
+type FakeNakamaModule struct {
+	runtime.NakamaModule
+	store        map[keyTuple]string
+	errsToReturn []error
+}
+
+type keyTuple struct {
+	collection string
+	key        string
+	userID     string
+}
+
+func NewFakeNakamaModule() *FakeNakamaModule {
+	return &FakeNakamaModule{
+		store: map[keyTuple]string{},
+	}
+}
+
+// WithError modifies the FakeNakamaModule to return the given error the next time StorageRead or StorageWrite is
+// called.
+func (f *FakeNakamaModule) WithError(err error) *FakeNakamaModule {
+	f.errsToReturn = append(f.errsToReturn, err)
+	return f
+}
+
+func (f *FakeNakamaModule) StorageRead(_ context.Context, reads []*runtime.StorageRead) ([]*api.StorageObject, error) {
+	if len(f.errsToReturn) > 0 {
+		var err error
+		err, f.errsToReturn = f.errsToReturn[0], f.errsToReturn[1:]
+		return nil, err
+	}
+	var results []*api.StorageObject
+	for _, read := range reads {
+		key := keyTuple{read.Collection, read.Key, read.UserID}
+		value, ok := f.store[key]
+		if ok {
+			results = append(results, &api.StorageObject{
+				Collection: read.Collection,
+				Key:        read.Key,
+				UserId:     read.UserID,
+				Value:      value,
+			})
+		}
+	}
+	return results, nil
+}
+
+func (f *FakeNakamaModule) StorageWrite(_ context.Context, writes []*runtime.StorageWrite) (
+	[]*api.StorageObjectAck, error) {
+	if len(f.errsToReturn) > 0 {
+		var err error
+		err, f.errsToReturn = f.errsToReturn[0], f.errsToReturn[1:]
+		return nil, err
+	}
+	for _, write := range writes {
+		key := keyTuple{write.Collection, write.Key, write.UserID}
+		f.store[key] = write.Value
+	}
+	return nil, nil
+}

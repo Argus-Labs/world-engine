@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rotisserie/eris"
 	"google.golang.org/protobuf/proto"
-	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/cardinal/types"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 	"pkg.world.dev/world-engine/sign"
@@ -23,19 +23,19 @@ type Iterator interface {
 }
 
 type iterator struct {
-	getMsgByID func(message.TypeID) (message.Message, bool)
+	getMsgByID func(id types.MessageID) (types.Message, bool)
 	namespace  string
 	querier    shardtypes.QueryClient
 }
 
 type TxBatch struct {
 	Tx       *sign.Transaction
-	MsgID    message.TypeID
+	MsgID    types.MessageID
 	MsgValue any
 }
 
 func New(
-	getMessageByID func(id message.TypeID) (message.Message, bool),
+	getMessageByID func(id types.MessageID) (types.Message, bool),
 	namespace string,
 	querier shardtypes.QueryClient,
 ) Iterator {
@@ -86,7 +86,7 @@ OuterLoop:
 			timestamp := epoch.UnixTimestamp
 			batches := make([]*TxBatch, 0, len(epoch.Txs))
 			for _, tx := range epoch.Txs {
-				msgType, exists := t.getMsgByID(message.TypeID(tx.TxId))
+				msgType, exists := t.getMsgByID(types.MessageID(tx.TxId))
 				if !exists {
 					return eris.Errorf("queried message with ID %d, but it does not exist in Cardinal", tx.TxId)
 				}

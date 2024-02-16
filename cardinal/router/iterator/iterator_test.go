@@ -7,9 +7,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 	"pkg.world.dev/world-engine/assert"
-	"pkg.world.dev/world-engine/cardinal/ecs"
+	"pkg.world.dev/world-engine/cardinal/message"
 	"pkg.world.dev/world-engine/cardinal/router/iterator"
-	"pkg.world.dev/world-engine/cardinal/types/message"
+	"pkg.world.dev/world-engine/cardinal/types"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	shard "pkg.world.dev/world-engine/rift/shard/v2"
 	"testing"
@@ -58,7 +58,7 @@ func TestIteratorReturnsErrorWhenQueryNotFound(t *testing.T) {
 			},
 		},
 	}
-	it := iterator.New(func(id message.TypeID) (message.Message, bool) {
+	it := iterator.New(func(id types.MessageID) (types.Message, bool) {
 		return nil, false
 	}, "", querier)
 	err := it.Each(nil)
@@ -75,7 +75,7 @@ func TestIteratorReturnsErrorIfQueryFails(t *testing.T) {
 type fooIn struct{ X int }
 type fooOut struct{}
 
-var fooMsg = ecs.NewMessageType[fooIn, fooOut]("foo")
+var fooMsg = message.NewMessageType[fooIn, fooOut]("foo")
 
 func TestIteratorHappyPath(t *testing.T) {
 	err := fooMsg.SetID(10)
@@ -113,7 +113,7 @@ func TestIteratorHappyPath(t *testing.T) {
 		},
 	}
 	it := iterator.New(
-		func(id message.TypeID) (message.Message, bool) {
+		func(id types.MessageID) (types.Message, bool) {
 			if id == fooMsg.ID() {
 				return fooMsg, true
 			}
@@ -192,7 +192,7 @@ func TestIteratorStopRange(t *testing.T) {
 		},
 	}
 	it := iterator.New(
-		func(id message.TypeID) (message.Message, bool) {
+		func(id types.MessageID) (types.Message, bool) {
 			if id == fooMsg.ID() {
 				return fooMsg, true
 			}

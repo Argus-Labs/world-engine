@@ -29,15 +29,15 @@ type Receipt struct {
 	Errors []string       `json:"errors"`
 }
 
-// ReceiptsDispatcher continually polls Cardinal for transaction receipts and dispatches them to any subscribed
+// Dispatcher continually polls Cardinal for transaction receipts and dispatches them to any subscribed
 // channels. The subscribed channels are stored in the sync.Map.
-type ReceiptsDispatcher struct {
+type Dispatcher struct {
 	ch chan *Receipt
 	m  *sync.Map
 }
 
-func NewReceiptsDispatcher() *ReceiptsDispatcher {
-	return &ReceiptsDispatcher{
+func NewDispatcher() *Dispatcher {
+	return &Dispatcher{
 		ch: make(chan *Receipt),
 		m:  &sync.Map{},
 	}
@@ -45,13 +45,13 @@ func NewReceiptsDispatcher() *ReceiptsDispatcher {
 
 // Subscribe allows for the sending of receipts to the given channel. Each given session can
 // only be associated with a single channel.
-func (r *ReceiptsDispatcher) Subscribe(session string, ch chan *Receipt) {
+func (r *Dispatcher) Subscribe(session string, ch chan *Receipt) {
 	r.m.Store(session, ch)
 }
 
 // Dispatch continually drains r.ch (receipts from cardinal) and sends copies to all subscribed channels.
 // This function is meant to be called in a goroutine. Pushed receipts will not block when sending.
-func (r *ReceiptsDispatcher) Dispatch(_ runtime.Logger) {
+func (r *Dispatcher) Dispatch(_ runtime.Logger) {
 	for receipt := range r.ch {
 		r.m.Range(func(key, value any) bool {
 			ch, _ := value.(chan *Receipt)
@@ -67,7 +67,7 @@ func (r *ReceiptsDispatcher) Dispatch(_ runtime.Logger) {
 
 // PollReceipts calls the cardinal backend to get any new transaction receipts. It never returns, so
 // it should be called in a goroutine.
-func (r *ReceiptsDispatcher) PollReceipts(log runtime.Logger, cardinalAddr string) {
+func (r *Dispatcher) PollReceipts(log runtime.Logger, cardinalAddr string) {
 	timeBetweenBatched := time.Second
 	startTick := uint64(0)
 	var err error
@@ -81,7 +81,7 @@ func (r *ReceiptsDispatcher) PollReceipts(log runtime.Logger, cardinalAddr strin
 	}
 }
 
-func (r *ReceiptsDispatcher) streamBatchOfReceipts(
+func (r *Dispatcher) streamBatchOfReceipts(
 	_ runtime.Logger,
 	startTick uint64,
 	cardinalAddr string,
@@ -102,7 +102,7 @@ type txReceiptRequest struct {
 	StartTick uint64 `json:"startTick"`
 }
 
-func (r *ReceiptsDispatcher) getBatchOfReceiptsFromCardinal(startTick uint64, cardinalAddr string) (
+func (r *Dispatcher) getBatchOfReceiptsFromCardinal(startTick uint64, cardinalAddr string) (
 	reply *TransactionReceiptsReply, err error) {
 	request := txReceiptRequest{
 		StartTick: startTick,
