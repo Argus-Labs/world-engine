@@ -1,66 +1,66 @@
 basePath: /
 definitions:
-  ecs.CQLQueryRequest:
+  cardinal.CQLQueryRequest:
     properties:
       cql:
         type: string
     type: object
-  ecs.CQLQueryResponse:
+  cardinal.CQLQueryResponse:
     properties:
       results:
         items:
-          $ref: '#/definitions/ecs.cqlData'
+          $ref: '#/definitions/cardinal.cqlData'
         type: array
     type: object
-  ecs.ListTxReceiptsReply:
+  cardinal.ListTxReceiptsReply:
     properties:
       endTick:
         type: integer
       receipts:
         items:
-          $ref: '#/definitions/ecs.Receipt'
+          $ref: '#/definitions/cardinal.Receipt'
         type: array
       startTick:
         type: integer
     type: object
-  ecs.ListTxReceiptsRequest:
+  cardinal.ListTxReceiptsRequest:
     properties:
       startTick:
         type: integer
     type: object
-  ecs.QueryPersonaSignerRequest:
+  cardinal.QueryPersonaSignerRequest:
     properties:
       personaTag:
         type: string
       tick:
         type: integer
     type: object
-  ecs.QueryPersonaSignerResponse:
+  cardinal.QueryPersonaSignerResponse:
     properties:
       signerAddress:
         type: string
       status:
         type: string
     type: object
-  ecs.Receipt:
+  cardinal.Receipt:
     properties:
       errors:
-        items: {}
+        items: { }
         type: array
-      result: {}
+      result: { }
       tick:
         type: integer
       txHash:
         type: string
     type: object
-  ecs.cqlData:
+  cardinal.cqlData:
     properties:
       data:
         type: object
       id:
         type: integer
     type: object
-  ecs.debugStateElement:
+  cardinal.debugStateElement:
     properties:
       components:
         items:
@@ -112,7 +112,7 @@ definitions:
         type: string
     type: object
 info:
-  contact: {}
+  contact: { }
   description: Backend server for World Engine
   title: Cardinal
   version: 0.0.1
@@ -121,7 +121,7 @@ paths:
     get:
       description: websocket connection for events.
       produces:
-      - application/json
+        - application/json
       responses:
         "101":
           description: switch protocol to ws
@@ -132,7 +132,7 @@ paths:
     get:
       description: Displays information on http server and world game loop
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -143,34 +143,34 @@ paths:
     post:
       description: Displays the entire game state.
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
             items:
-              $ref: '#/definitions/ecs.debugStateElement'
+              $ref: '#/definitions/cardinal.debugStateElement'
             type: array
       summary: Get information on all entities and components in world-engine
   /query/game/{queryType}:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Query the ecs
       parameters:
-      - description: The query type
-        in: path
-        name: queryType
-        required: true
-        type: string
-      - description: Query Body
-        in: body
-        name: queryBody
-        required: true
-        schema:
-          type: object
+        - description: The query type
+          in: path
+          name: queryType
+          required: true
+          type: string
+        - description: Query Body
+          in: body
+          name: queryBody
+          required: true
+          schema:
+            type: object
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: query response
@@ -184,30 +184,30 @@ paths:
   /query/game/cql:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Query the ecs with CQL (cardinal query language)
       parameters:
-      - description: cql (cardinal query language)
-        in: body
-        name: cql
-        required: true
-        schema:
-          $ref: '#/definitions/ecs.CQLQueryRequest'
+        - description: cql (cardinal query language)
+          in: body
+          name: cql
+          required: true
+          schema:
+            $ref: '#/definitions/cardinal.CQLQueryRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/ecs.CQLQueryResponse'
+            $ref: '#/definitions/cardinal.CQLQueryResponse'
       summary: Query the ecs with CQL (cardinal query language)
   /query/http/endpoints:
     get:
       consumes:
-      - application/json
+        - application/json
       description: Get all http endpoints from cardinal
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: list of query endpoints
@@ -221,22 +221,22 @@ paths:
   /query/persona/signer:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Get persona data from cardinal
       parameters:
-      - description: Query Request
-        in: body
-        name: QueryPersonaSignerRequest
-        required: true
-        schema:
-          $ref: '#/definitions/ecs.QueryPersonaSignerRequest'
+        - description: Query Request
+          in: body
+          name: QueryPersonaSignerRequest
+          required: true
+          schema:
+            $ref: '#/definitions/cardinal.QueryPersonaSignerRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/ecs.QueryPersonaSignerResponse'
+            $ref: '#/definitions/cardinal.QueryPersonaSignerResponse'
         "400":
           description: Invalid query request
           schema:
@@ -245,22 +245,22 @@ paths:
   /query/receipts/list:
     post:
       consumes:
-      - application/json
+        - application/json
       description: Get transaction receipts from Cardinal
       parameters:
-      - description: List Transaction Receipts Request
-        in: body
-        name: ListTxReceiptsRequest
-        required: true
-        schema:
-          $ref: '#/definitions/ecs.ListTxReceiptsRequest'
+        - description: List Transaction Receipts Request
+          in: body
+          name: ListTxReceiptsRequest
+          required: true
+          schema:
+            $ref: '#/definitions/cardinal.ListTxReceiptsRequest'
       produces:
-      - application/json
+        - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/ecs.ListTxReceiptsReply'
+            $ref: '#/definitions/cardinal.ListTxReceiptsReply'
         "400":
           description: Invalid transaction request
           schema:
@@ -269,26 +269,26 @@ paths:
   /tx/game/{txType}:
     post:
       consumes:
-      - application/json
-      - application/json
+        - application/json
+        - application/json
       description: |-
         Submit a transaction to Cardinal
         Create a Persona transaction to Cardinal
       parameters:
-      - description: label of the transaction that wants to be submitted
-        in: path
-        name: txType
-        required: true
-        type: string
-      - description: Transaction details
-        in: body
-        name: txBody
-        required: true
-        schema:
-          $ref: '#/definitions/handler.Transaction'
+        - description: label of the transaction that wants to be submitted
+          in: path
+          name: txType
+          required: true
+          type: string
+        - description: Transaction details
+          in: body
+          name: txBody
+          required: true
+          schema:
+            $ref: '#/definitions/handler.Transaction'
       produces:
-      - application/json
-      - application/json
+        - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -302,21 +302,21 @@ paths:
   /tx/persona/create-persona:
     post:
       consumes:
-      - application/json
-      - application/json
+        - application/json
+        - application/json
       description: |-
         Submit a transaction to Cardinal
         Create a Persona transaction to Cardinal
       parameters:
-      - description: Transaction details
-        in: body
-        name: txBody
-        required: true
-        schema:
-          $ref: '#/definitions/handler.Transaction'
+        - description: Transaction details
+          in: body
+          name: txBody
+          required: true
+          schema:
+            $ref: '#/definitions/handler.Transaction'
       produces:
-      - application/json
-      - application/json
+        - application/json
+        - application/json
       responses:
         "200":
           description: OK
@@ -328,6 +328,6 @@ paths:
             type: string
       summary: Create a Persona transaction to Cardinal
 schemes:
-- http
-- ws
+  - http
+  - ws
 swagger: "2.0"

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"pkg.world.dev/world-engine/cardinal/ecs"
 )
 
 type GetHealthResponse struct {
@@ -17,11 +16,12 @@ type GetHealthResponse struct {
 //	@Produce		application/json
 //	@Success		200	{object}	GetHealthResponse
 //	@Router			/health [get]
-func GetHealth(engine *ecs.Engine) func(c *fiber.Ctx) error {
+func GetHealth() func(c *fiber.Ctx) error {
 	return func(ctx *fiber.Ctx) error {
 		return ctx.JSON(GetHealthResponse{
-			IsServerRunning:   true,
-			IsGameLoopRunning: engine.IsGameLoopRunning(),
+			IsServerRunning: true,
+			// TODO(scott): reconsider whether we need this. Intuitively server running implies game loop running.
+			IsGameLoopRunning: true,
 		})
 	}
 }

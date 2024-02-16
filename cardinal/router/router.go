@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"net"
+	"pkg.world.dev/world-engine/cardinal/router/iterator"
 	"pkg.world.dev/world-engine/cardinal/txpool"
 	shardtypes "pkg.world.dev/world-engine/evm/x/shard/types"
 	routerv1 "pkg.world.dev/world-engine/rift/router/v1"
@@ -29,16 +30,11 @@ type Router interface {
 	SubmitTxBlob(
 		ctx context.Context,
 		processedTxs txpool.TxMap,
-		namespace string,
 		epoch,
 		unixTimestamp uint64,
 	) error
 
-	// QueryTransactions queries transactions from the base shard.
-	QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
-		*shardtypes.QueryTransactionsResponse,
-		error,
-	)
+	TransactionIterator() iterator.Iterator
 
 	// Shutdown gracefully stops the EVM gRPC handler.
 	Shutdown()
@@ -52,13 +48,17 @@ type router struct {
 	provider       Provider
 	ShardSequencer shard.TransactionHandlerClient
 	ShardQuerier   shardtypes.QueryClient
-
-	server *evmServer
-	port   string
+	namespace      string
+	server         *evmServer
+	port           string
 }
 
-func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
-	rtr := &router{port: defaultPort, provider: provider}
+func (r *router) TransactionIterator() iterator.Iterator {
+	return iterator.New(r.provider.GetMessageByID, r.namespace, r.ShardQuerier)
+}
+
+func New(namespace, sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, error) {
+	rtr := &router{namespace: namespace, port: defaultPort, provider: provider}
 
 	conn, err := grpc.Dial(sequencerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -81,7 +81,6 @@ func New(sequencerAddr, baseShardQueryAddr string, provider Provider) (Router, e
 func (r *router) SubmitTxBlob(
 	ctx context.Context,
 	processedTxs txpool.TxMap,
-	namespace string,
 	epoch,
 	unixTimestamp uint64,
 ) error {
@@ -103,19 +102,11 @@ func (r *router) SubmitTxBlob(
 	req := shard.SubmitTransactionsRequest{
 		Epoch:         epoch,
 		UnixTimestamp: unixTimestamp,
-		Namespace:     namespace,
+		Namespace:     r.namespace,
 		Transactions:  messageIDtoTxs,
 	}
 	_, err := r.ShardSequencer.Submit(ctx, &req)
 	return eris.Wrap(err, "")
-}
-
-func (r *router) QueryTransactions(ctx context.Context, req *shardtypes.QueryTransactionsRequest) (
-	*shardtypes.QueryTransactionsResponse,
-	error,
-) {
-	res, err := r.ShardQuerier.Transactions(ctx, req)
-	return res, eris.Wrap(err, "")
 }
 
 func (r *router) Shutdown() {
