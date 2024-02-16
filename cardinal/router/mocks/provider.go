@@ -67,6 +67,21 @@ func (mr *MockProviderMockRecorder) ConsumeEVMMsgResult(evmTxHash interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsumeEVMMsgResult", reflect.TypeOf((*MockProvider)(nil).ConsumeEVMMsgResult), evmTxHash)
 }
 
+// GetMessageByID mocks base method.
+func (m *MockProvider) GetMessageByID(id types.MessageID) (types.Message, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetMessageByID", id)
+	ret0, _ := ret[0].(types.Message)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// GetMessageByID indicates an expected call of GetMessageByID.
+func (mr *MockProviderMockRecorder) GetMessageByID(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessageByID", reflect.TypeOf((*MockProvider)(nil).GetMessageByID), id)
+}
+
 // GetMessageByName mocks base method.
 func (m *MockProvider) GetMessageByName(arg0 string) (types.Message, bool) {
 	m.ctrl.T.Helper()

@@ -146,7 +146,7 @@ func NewWorld(opts ...WorldOption) (*World, error) {
 	}
 
 	if cfg.CardinalMode == RunModeProd {
-		world.router, err = router.New(cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress, world)
+		world.router, err = router.New(cfg.CardinalNamespace, cfg.BaseShardSequencerAddress, cfg.BaseShardQueryAddress, world)
 		if err != nil {
 			return nil, err
 		}
@@ -272,8 +272,7 @@ func (w *World) Tick(ctx context.Context) error {
 	// 2. The shard router is set
 	// 3. The world is not in the recovering stage (we don't want to resubmit past transactions)
 	if txQueue.GetAmountOfTxs() != 0 && w.router != nil && w.worldStage.Current() != worldstage.Recovering {
-		err := w.router.SubmitTxBlob(ctx, txQueue.Transactions(), w.namespace.String(), w.tick.Load(),
-			w.timestamp.Load())
+		err := w.router.SubmitTxBlob(ctx, txQueue.Transactions(), w.tick.Load(), w.timestamp.Load())
 		if err != nil {
 			return fmt.Errorf("failed to submit transactions to base shard: %w", err)
 		}
@@ -617,6 +616,11 @@ func (w *World) GetQueryByName(name string) (engine.Query, error) {
 
 func (w *World) GetMessageByName(name string) (types.Message, bool) {
 	return w.msgManager.GetMessageByName(name)
+}
+
+func (w *World) GetMessageByID(id types.MessageID) (types.Message, bool) {
+	msg := w.msgManager.GetMessageByID(id)
+	return msg, msg != nil
 }
 
 func (w *World) GameStateManager() gamestate.Manager {

@@ -11,6 +11,7 @@ import (
 // The ecs.Engine is expected to implement these methods.
 type Provider interface {
 	GetMessageByName(string) (types.Message, bool)
+	GetMessageByID(id types.MessageID) (types.Message, bool)
 	HandleEVMQuery(name string, abiRequest []byte) ([]byte, error)
 	GetPersonaForEVMAddress(string) (string, error)
 	WaitForNextTick() bool

@@ -359,7 +359,6 @@ func TestTransactionsSentToRouterAfterTick(t *testing.T) {
 					},
 				},
 			},
-			world.Namespace().String(),
 			world.CurrentTick(),
 			gomock.Any(),
 		).
