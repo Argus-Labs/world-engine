@@ -23,7 +23,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION }}
-          ## fix warn redundant cached package from actions/setup-go
+          ## fix warn redundant cached package from golangci/golangci-lint-action
           cache: false
       - name: Find go path
         id: go-dir
