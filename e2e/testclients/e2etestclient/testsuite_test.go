@@ -36,9 +36,9 @@ func TestEvents(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
 
 	assert.NilError(t, waitForAcceptedPersonaTag(c))
-	type JointInput struct {
+	type JoinInput struct {
 	}
-	payload := JointInput{}
+	payload := JoinInput{}
 
 	// create three players.
 	amountOfPlayers := 3
@@ -65,6 +65,83 @@ func TestEvents(t *testing.T) {
 		message, ok := results[strconv.Itoa(i)]
 		assert.Equal(t, ok, true)
 		assert.Equal(t, message, fmt.Sprintf("%d player created", i))
+	}
+}
+
+func TestReceipts(t *testing.T) {
+	// Note: If this test is failing it could be because redis is not refreshed
+	// This test assumes that your redis is brand new and empty.
+
+	// 1: Create new Nakama Client and Register with Nakama Server
+	privateKey, err := crypto.GenerateKey()
+	assert.NilError(t, err)
+	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
+	username, deviceID, personaTag := triple(randomString())
+	c := clientutils.NewNakamaClient(t)
+	assert.NilError(t, c.RegisterDevice(username, deviceID))
+	fmt.Println("username : " + username)
+	fmt.Println("deviceId: " + deviceID)
+
+	// 2: Make RPC call to claim a persona tag
+	resp, err := c.RPC("nakama/claim-persona", map[string]any{
+		"personaTag":    personaTag,
+		"signerAddress": signerAddr,
+	})
+	assert.NilError(t, err, "claim-persona failed")
+	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
+
+	// 3: Wait a bit to make sure the persona tag is accepted
+	assert.NilError(t, waitForAcceptedPersonaTag(c))
+	type JoinInput struct {
+	}
+	payload := JoinInput{}
+
+	// 4: Add 3 players to the game via the tx/game/join endpoint
+	amountOfPlayers := 3
+	for i := 0; i < amountOfPlayers; i++ {
+		resp, err = c.RPC("tx/game/join", payload) // should emit an event.
+		assert.NilError(t, err)
+		body := clientutils.CopyBody(resp)
+		assert.Equal(t, 200, resp.StatusCode, body)
+	}
+
+	// Try to get the Cardinal Receipts for the three tx/game/join calls
+	receipts, _, err := c.ListNotifications(20)
+	assert.NilError(t, err)
+	timeout := time.After(3 * time.Second)
+	retry := time.Tick(1 * time.Second)
+	for {
+		fmt.Println("receipts len: " + strconv.Itoa(len(receipts)))
+		receipts, _, err = c.ListNotifications(20)
+		if len(receipts) == 4 {
+			break
+		}
+		select {
+		case <-timeout:
+			t.Error("Failed to receive the four expected receipts.")
+		case <-retry:
+			continue
+		}
+	}
+
+	// 5a: Assert that number of receipts received is expected
+	assert.Equal(t, len(receipts), amountOfPlayers+1)
+	for i, receipt := range receipts {
+		if i == 0 {
+			print("WOW")
+			// 5b: Assert that the persona creation receipt was successful
+			assert.Equal(t, receipt.Result["success"], true)
+			continue
+		}
+		fmt.Println(receipt.Result)
+
+		// 5c: Assert that tx/game/join receipts returned successful
+		assert.Equal(t, len(receipt.Errors), 0)
+		value, ok := receipt.Result["Success"]
+		assert.True(t, ok)
+		success, ok := value.(bool)
+		assert.True(t, ok)
+		assert.Equal(t, success, true)
 	}
 }
 
@@ -325,53 +402,6 @@ func TestPersonaTagsShouldBeCaseInsensitive(t *testing.T) {
 
 	assert.Equal(t, showA["status"], "accepted")
 	assert.Equal(t, showB["status"], "rejected")
-}
-
-func TestNotifications(t *testing.T) {
-	// Note if this test is failing it could be because redis is not refreshed
-	// This test assumes that your redis is brand new and empty.
-	// Test persona
-	privateKey, err := crypto.GenerateKey()
-	assert.NilError(t, err)
-	signerAddr := crypto.PubkeyToAddress(privateKey.PublicKey).Hex()
-	username, deviceID, personaTag := triple(randomString())
-	c := clientutils.NewNakamaClient(t)
-	assert.NilError(t, c.RegisterDevice(username, deviceID))
-	fmt.Println("username : " + username)
-	fmt.Println("deviceId: " + deviceID)
-
-	resp, err := c.RPC("nakama/claim-persona", map[string]any{
-		"personaTag":    personaTag,
-		"signerAddress": signerAddr,
-	})
-	assert.NilError(t, err, "claim-persona failed")
-	assert.Equal(t, 200, resp.StatusCode, clientutils.CopyBody(resp))
-
-	assert.NilError(t, waitForAcceptedPersonaTag(c))
-	type JointInput struct {
-	}
-	payload := JointInput{}
-
-	// create three players.
-	amountOfPlayers := 3
-	for i := 0; i < amountOfPlayers; i++ {
-		resp, err = c.RPC("tx/game/join", payload) // should emit an event.
-		assert.NilError(t, err)
-		body := clientutils.CopyBody(resp)
-		assert.Equal(t, 200, resp.StatusCode, body)
-	}
-	receipts, _, err := c.ListNotifications(20)
-	assert.NilError(t, err)
-
-	for {
-		fmt.Println("receipts len: " + strconv.Itoa(len(receipts)))
-		time.Sleep(1 * time.Second)
-		receipts, _, err = c.ListNotifications(20)
-		for _, val := range receipts {
-			fmt.Println(val.TxHash)
-		}
-		assert.NilError(t, err)
-	}
 }
 
 // waitForAcceptedPersonaTag periodically queries the show-persona endpoint until a previously claimed persona tag

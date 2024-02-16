@@ -4,7 +4,6 @@ package receipt
 
 import (
 	"errors"
-	"fmt"
 	"sync/atomic"
 
 	"github.com/rotisserie/eris"
@@ -78,9 +77,6 @@ func (h *History) AddError(hash message.TxHash, err error) {
 // SetResult sets the given transaction hash to the given result. Calling this multiple times will replace any previous
 // results.
 func (h *History) SetResult(hash message.TxHash, result any) {
-	fmt.Println("history.SetResult()")
-	fmt.Println(hash)
-	fmt.Println(result)
 	tick := int(h.currTick.Load() % h.ticksToStore)
 	rec := h.history[tick][hash]
 	rec.TxHash = hash
